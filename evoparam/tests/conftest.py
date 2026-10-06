@@ -36,6 +36,12 @@ def check_dir():
     os.mkdir(TEST_REPORTS_PATH)
     os.mkdir(TEST_PLOTS_PATH)
 
+    # Save reference files that several test modules load, so that each test file can run on its own
+    get_tfm().save('test_evoparam_all', TEST_DATA_PATH,
+                   save_results=True, save_settings=True, save_data=True)
+    get_tfg().save('test_evoparamgroup_all', TEST_DATA_PATH,
+                   save_results=True, save_settings=True, save_data=True)
+
 @pytest.fixture(scope='session')
 def tfm():
     yield get_tfm()

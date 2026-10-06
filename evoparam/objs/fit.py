@@ -1521,6 +1521,5 @@ class evoparam():
                 params = np.ndarray.flatten(gaussian_params[:3])
             else:
                 params = np.ndarray.flatten(gaussian_params[:, :3])
-        print(f"Regenerating model with params: {params}")
-                                        
+
         self._peak_fit = sim_erp(self.time,  params, peak_mode=self.peak_mode)

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evoparam"
+dynamic = ["version"]
+description = "Parameterizing evoked neural responses, from raw recordings to peak parameters"
+readme = "README.rst"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.10"
+authors = [{ name = "Yann V. Bellec" }]
+keywords = ["neuroscience", "evoked responses", "ERP", "CCEP", "SPES", "iEEG",
+            "electrophysiology", "stimulation artifact", "parameterization"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = ["numpy", "scipy>=1.8"]
+
+[project.optional-dependencies]
+plot = ["matplotlib"]
+data = ["pandas"]
+sim = ["neurodsp>=2.0"]
+progress = ["tqdm"]
+tests = ["pytest", "pytest-cov"]
+all = ["matplotlib", "pandas", "neurodsp>=2.0", "tqdm", "pytest", "pytest-cov"]
+
+[project.urls]
+Source = "https://github.com/yannbellec/evoparam"
+"Bug Reports" = "https://github.com/yannbellec/evoparam/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "evoparam.version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["evoparam*"]
+
+[tool.pytest.ini_options]
+testpaths = ["evoparam"]

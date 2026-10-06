@@ -27,4 +27,4 @@ Modifications
   motivations, documentation site, spectral example data, FOOOF wording
   in docstrings, upstream download address, upstream metadata and contacts)
   removed or rewritten for evoked-response parameterization.
-- Later changes are recorded in the git history of this repository.
+- Later changes are recorded in CHANGELOG.md and in the git history of this repository.

@@ -4,6 +4,8 @@ from itertools import repeat
 
 import numpy as np
 
+from evoparam.clean.interpolate import interpolate_artifact
+
 ###################################################################################################
 ###################################################################################################
 
@@ -60,8 +62,8 @@ def interpolate_signal(time, signals, interp_range, buffer=3):
     ----------
     time : 1d array
         time values for the ERP signal.
-    signals : 1d array
-        Amplitude values for the ERP signal.
+    signals : 1d or 2d array
+        Amplitude values for the ERP signal(s), with time as the last axis.
     interp_range : list of float or list of list of float
         time range to interpolate, as [lowest_time, highest_time].
         If a list of lists, applies each as it's own interpolation range.
@@ -73,8 +75,8 @@ def interpolate_signal(time, signals, interp_range, buffer=3):
     -------
     time : 1d array
         time values for the ERP signal.
-    signals : 1d array
-        Amplitude values, with interpolation, for the ERP signal.
+    signals : 1d or 2d array
+        Amplitude values, with interpolation, for the ERP signal(s).
 
     Notes
     -----
@@ -84,8 +86,8 @@ def interpolate_signal(time, signals, interp_range, buffer=3):
     <= interp_range_high. It does not round to below or above interp_range_low
     and interp_range_high, respectively.
 
-    To be more robust to noise, this approach takes a number of samples on either
-    side of the interpolation range (the number of which is controlled by `buffer`)
+    To be more robust to noise, this approach takes a number of samples just outside
+    either side of the interpolation range (the number of which is controlled by `buffer`)
     and averages these points to linearly interpolate between them.
     Setting `buffer=1` is equivalent to a linear interpolation between
     the points adjacent to the interpolation range.
@@ -94,9 +96,9 @@ def interpolate_signal(time, signals, interp_range, buffer=3):
     --------
     Using a simulated signal, interpolate across a short window (for example, a stimulation artifact):
 
-    >>> from evoparam.sim import simulate_erp
-    >>> time, signal = simulate_erp([-0.1, 0.5], [0.03, -1, 0.01])
-    >>> time, signal = interpolate_signal(time, signal, [-0.01, 0.01])
+    >>> from evoparam.sim import simulate_erps
+    >>> time, signals = simulate_erps(2, [-0.1, 0.5], [0.03, -1, 0.01])
+    >>> time, signals = interpolate_signal(time, signals, [-0.01, 0.01])
     """
 
     # If given a list of interpolation zones, recurse to apply each one
@@ -108,27 +110,8 @@ def interpolate_signal(time, signals, interp_range, buffer=3):
     # Assuming list of two floats, interpolate a single time range
     else:
 
-        # Take a copy of the array, to not change original array
-        signals = np.copy(signals)
-
-        # Get the set of time values that need to be interpolated
-        interp_mask = np.logical_and(time >= interp_range[0], time <= interp_range[1])
-        interp_time = time[interp_mask]
-
-        # Get the indices of the interpolation range
-        ii1, ii2 = np.flatnonzero(interp_mask)[[0, -1]]
-
-        # Extract the requested range of data to use around interpolated range
-        xs1 = (time[ii1-buffer:ii1])
-        xs2 = (time[ii2:ii2+buffer])
-        ys1 = (signals[ii1-buffer:ii1])
-        ys2 = (signals[ii2:ii2+buffer])
-
-        # Linearly interpolate, in log-log space, between averages of the extracted points
-        vals = np.interp((interp_time),
-                         [np.median(xs1), np.median(xs2)],
-                         [np.median(ys1), np.median(ys2)])
-        signals[interp_mask] = vals
+        # Shared implementation with the clean module: works on 1d or nd arrays (time last)
+        signals = interpolate_artifact(time, signals, interp_range, buffer)
 
     return time, signals
 

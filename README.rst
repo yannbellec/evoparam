@@ -5,10 +5,46 @@ evoparam
 evoparam is a tool to parameterize neural evoked responses: it describes each
 response (ERP, CCEP, ...) as a small set of peaks with a latency, an amplitude and a width.
 
-Status: early development (working name). Origin of the code and licence: see ``NOTICE`` and ``LICENSE``.
+Status: early development (version 0.1, working name). Origin of the code and licence:
+see ``NOTICE`` and ``LICENSE``.
 
-Quickstart
-----------
+What it does
+------------
+
+evoparam covers the whole path from a raw recording to response parameters:
+
+* ``evoparam.io``: read BIDS events and BrainVision recordings (local files, or only the
+  needed seconds of a remote file), and cut epochs around stimulations.
+* ``evoparam.detect``: find stimulation onsets from the signal itself, when the events file
+  is missing or wrong, and score detections against reference onsets.
+* ``evoparam.clean``: remove the stimulation artifact (interpolation, for now).
+* ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
+
+Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact
+removal methods) have their place in this structure, but are not available yet.
+
+Installation
+------------
+
+.. code-block:: bash
+
+    git clone https://github.com/yannbellec/evoparam
+    cd evoparam
+    pip install -e ".[all]"
+    pytest
+
+Full example on public data
+---------------------------
+
+``examples/ccep_pipeline.py`` runs the four steps on one patient of the open CCEP dataset
+OpenNeuro ds004080 (it reads about 55 MB of a 2 GB recording):
+
+.. code-block:: bash
+
+    python examples/ccep_pipeline.py
+
+Quickstart: fitting the model directly
+--------------------------------------
 
 **Fitting a Single Evoked Response**
 
@@ -38,7 +74,7 @@ The settings for the algorithm are:
 
 * ``peak_width_limits`` sets the possible lower- and upper-bounds for the fitted peak widths.
 * ``max_n_peaks`` sets the maximum number of peaks to fit.
-* ``min_peak_height`` sets an absolute limit on the minimum height (above aperiodic) for any extracted peak.
+* ``min_peak_height`` sets an absolute limit on the minimum height for any extracted peak.
 * ``peak_threshold`` sets a relative threshold above which a peak height must cross to be included in the model.
 
 These settings can be defined when initializing the model, for example:
