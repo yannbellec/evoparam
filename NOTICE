@@ -1,0 +1,8 @@
+evoparam (nom provisoire)
+
+Ce logiciel est dérivé de ERPparam (https://github.com/voytekresearch/ERPparam),
+commit 98e52e3bf538031987ce2986bd93141efc475002, Copyright les auteurs de ERPparam / FOOOF
+(Voytek lab, UC San Diego), distribué sous licence Apache 2.0.
+
+Modifications depuis la version d'origine : renommage du paquet ERPparam -> evoparam
+(octobre 2026), puis développements décrits dans l'historique git de ce dépôt.
