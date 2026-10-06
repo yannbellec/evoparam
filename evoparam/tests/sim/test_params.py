@@ -60,7 +60,7 @@ def test_stepper_errors():
 
 def test_param_iter():
 
-    # Test oscillations
+    # Test single peak
     step = Stepper(8, 12, .1)
     osc = [step, .5, .5]
     iter_1 = param_iter(osc)
@@ -68,7 +68,7 @@ def test_param_iter():
     for ind, val in enumerate(iter_1):
         assert val == [8 + (.1*ind), .5, .5]
 
-    # Test aperiodic
+    # Test two-parameter definition
     step = Stepper(.25, 3, .25)
     ap_params = [0, step]
     iter_1 = param_iter(ap_params)
@@ -76,7 +76,7 @@ def test_param_iter():
     for ind, val in enumerate(iter_1):
         assert val == [0, .25 + (.25*ind)]
 
-    # Test n oscillations
+    # Test multiple peaks
     step = Stepper(8, 12, .1)
     oscs = [step, .5, .5, 10, .25, 1]
     iter_1 = param_iter(oscs)

@@ -63,7 +63,7 @@ def plot_fm(fm, plot_peaks=None, add_legend=True, ax=None, data_kwargs=None,
         model_kwargs = check_plot_kwargs(model_kwargs, model_defaults)
         plot_signals(fm.time, fm._peak_fit, ax=ax, **model_kwargs)
 
-        # Plot the periodic components of the model fit
+        # Plot the peak components of the model fit
         if plot_peaks:
             _add_peaks(fm, 'dot', ax, peak_kwargs)
 
@@ -126,7 +126,7 @@ def _add_peaks_shade(fm, ax, **plot_kwargs):
         Keyword arguments to pass into the ``fill_between``.
     """
 
-    defaults = {'color' : PLT_COLORS['periodic'], 'alpha' : 0.25}
+    defaults = {'color' : PLT_COLORS['peak'], 'alpha' : 0.25}
     plot_kwargs = check_plot_kwargs(plot_kwargs, defaults)
 
     for peak in fm.gaussian_params_:
@@ -137,7 +137,7 @@ def _add_peaks_shade(fm, ax, **plot_kwargs):
 
 
 def _add_peaks_dot(fm,  ax, **plot_kwargs):
-    """Add a short line, from aperiodic to peak, with a dot at the top.
+    """Add a short line, from the baseline to the peak, with a dot at the top.
 
     Parameters
     ----------
@@ -149,7 +149,7 @@ def _add_peaks_dot(fm,  ax, **plot_kwargs):
         Keyword arguments to pass into the plot call.
     """
 
-    defaults = {'color' : PLT_COLORS['periodic'], 'alpha' : 0.6, 'lw' : 2.5, 'ms' : 6}
+    defaults = {'color' : PLT_COLORS['peak'], 'alpha' : 0.6, 'lw' : 2.5, 'ms' : 6}
     plot_kwargs = check_plot_kwargs(plot_kwargs, defaults)
 
     for peak in fm.shape_params_:
@@ -157,7 +157,7 @@ def _add_peaks_dot(fm,  ax, **plot_kwargs):
         ap_point = np.interp(peak[7], fm.time, fm.signal)
         freq_point = peak[7]
 
-        # Add the line from the aperiodic fit up the tip of the peak
+        # Add the line from the baseline up to the tip of the peak
         ax.plot([freq_point, freq_point], [ap_point, ap_point + peak[1]], **plot_kwargs)
 
         # Add an extra dot at the tip of the peak
@@ -177,12 +177,12 @@ def _add_peaks_outline(fm, ax, **plot_kwargs):
         Keyword arguments to pass into the plot call.
     """
 
-    defaults = {'color' : PLT_COLORS['periodic'], 'alpha' : 0.7, 'lw' : 1.5}
+    defaults = {'color' : PLT_COLORS['peak'], 'alpha' : 0.7, 'lw' : 1.5}
     plot_kwargs = check_plot_kwargs(plot_kwargs, defaults)
 
     for peak in fm.gaussian_params_:
 
-        # Define the frequency range around each peak to plot - peak bandwidth +/- 3
+        # Define the time range around each peak to plot - peak bandwidth +/- 3
         peak_range = [peak[0] - peak[2]*3, peak[0] + peak[2]*3]
 
         # Generate a peak reconstruction for each peak, and trim to desired range
@@ -206,7 +206,7 @@ def _add_peaks_line(fm, ax, **plot_kwargs):
         Keyword arguments to pass into the plot call.
     """
 
-    defaults = {'color' : PLT_COLORS['periodic'], 'alpha' : 0.7, 'lw' : 1.4, 'ms' : 10}
+    defaults = {'color' : PLT_COLORS['peak'], 'alpha' : 0.7, 'lw' : 1.4, 'ms' : 10}
     plot_kwargs = check_plot_kwargs(plot_kwargs, defaults)
 
     ylims = ax.get_ylim()
@@ -236,12 +236,12 @@ def _add_peaks_width(fm, ax, **plot_kwargs):
     the peak, though what is literally plotted is the full-width half-max.
     """
 
-    defaults = {'color' : PLT_COLORS['periodic'], 'alpha' : 0.6, 'lw' : 2.5, 'ms' : 6}
+    defaults = {'color' : PLT_COLORS['peak'], 'alpha' : 0.6, 'lw' : 2.5, 'ms' : 6}
     plot_kwargs = check_plot_kwargs(plot_kwargs, defaults)
 
     for peak in fm.gaussian_params_:
 
-        peak_top = fm.power_spectrum[nearest_ind(fm.time, peak[0])]
+        peak_top = fm.signal[nearest_ind(fm.time, peak[0])]
         bw_time = [peak[0] - 0.5 * compute_fwhm(peak[2]),
                     peak[0] + 0.5 * compute_fwhm(peak[2])]
 

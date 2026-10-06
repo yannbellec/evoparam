@@ -1,4 +1,4 @@
-"""Plots for periodic fits and parameters."""
+"""Plots for peak fits and parameters."""
 
 from itertools import cycle
 
@@ -20,7 +20,7 @@ plt = safe_import('.pyplot', 'matplotlib')
 @style_plot
 @check_dependency(plt, 'matplotlib')
 def plot_peak_params(peaks, time_range=None, colors=None, labels=None, ax=None, **plot_kwargs):
-    """Plot peak parameters as dots representing center time, power and bandwidth.
+    """Plot peak parameters as dots representing center time, amplitude and width.
 
     Parameters
     ----------

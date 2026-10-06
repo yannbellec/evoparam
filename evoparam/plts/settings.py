@@ -12,7 +12,7 @@ PLT_FIGSIZES = {'signal' : (10, 8),
 
 # Define defaults for colors for plots, based on what is plotted
 PLT_COLORS = {'data' : 'black',
-              'periodic' : 'green',
+              'peak' : 'green',
               'model' : 'red'}
 
 # Levels for scaling alpha with the number of points in scatter plots

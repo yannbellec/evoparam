@@ -7,7 +7,6 @@ from evoparam.core.errors import NoModelError
 from evoparam.core.funcs import get_pe_func
 from evoparam.core.modutils import safe_import, check_dependency
 
-#from evoparam.sim.gen import gen_aperiodic
 from evoparam.analysis.peaks import get_window_peak_arr
 from evoparam.utils.params import compute_fwhm
 
@@ -79,12 +78,12 @@ def plot_annotated_peak_search(fm, join_ax=False):
             else:
                 gauss = peak_func(fm.time, *gaussian_params[ind, :])
             plot_signals(fm.time, gauss, ax=ax, label='Gaussian Fit',
-                         color=PLT_COLORS['periodic'], linestyle=':', linewidth=3.0)
+                         color=PLT_COLORS['peak'], linestyle=':', linewidth=3.0)
             
             # Annotate the peak with the largest amplitude
             extremum = np.argmax(np.abs(gauss))
             ax.plot(fm.time[extremum], flatspec[extremum], '.', label='Extremum', 
-                    color=PLT_COLORS['periodic'], alpha=0.75, markersize=30)
+                    color=PLT_COLORS['peak'], alpha=0.75, markersize=30)
 
             flatspec = flatspec - gauss
 
@@ -101,7 +100,7 @@ def plot_annotated_model(fm, annotate_peaks=True, ax=None):
     fm : evoparam
         evoparam object, with model fit, data and settings available.
     annotate_peaks : boolean, optional, default: True
-        Whether to annotate the periodic components of the model fit.
+        Whether to annotate the peak components of the model fit.
     ax : matplotlib.Axes, optional
         Figure axes upon which to plot.
 
@@ -126,11 +125,10 @@ def plot_annotated_model(fm, annotate_peaks=True, ax=None):
     fm.plot(ax) 
     #         plot_peaks='dot-shade-width', ax=ax,
     #         data_kwargs={'lw' : lw1, 'alpha' : 0.6},
-    #         aperiodic_kwargs={'lw' : lw1, 'zorder' : 10},
     #         model_kwargs={'lw' : lw1, 'alpha' : 0.5},
-    #         peak_kwargs={'dot' : {'color' : PLT_COLORS['periodic'], 'ms' : ms1, 'lw' : lw2},
-    #                      'shade' : {'color' : PLT_COLORS['periodic']},
-    #                      'width' : {'color' : PLT_COLORS['periodic'], 'alpha' : 0.75, 'lw' : lw2}}
+    #         peak_kwargs={'dot' : {'color' : PLT_COLORS['peak'], 'ms' : ms1, 'lw' : lw2},
+    #                      'shade' : {'color' : PLT_COLORS['peak']},
+    #                      'width' : {'color' : PLT_COLORS['peak'], 'alpha' : 0.75, 'lw' : lw2}}
 
     # Get time for plotting, and convert to log if needed
     time = fm.time 
@@ -162,16 +160,16 @@ def plot_annotated_model(fm, annotate_peaks=True, ax=None):
                     xytext=(peak_ctr, peak_top+np.abs(0.6*peak_hgt)),
                     verticalalignment='center',
                     horizontalalignment='center',
-                    arrowprops=dict(facecolor=PLT_COLORS['periodic'], shrink=shrink),
-                    color=PLT_COLORS['periodic'], fontsize=fontsize)
+                    arrowprops=dict(facecolor=PLT_COLORS['peak'], shrink=shrink),
+                    color=PLT_COLORS['peak'], fontsize=fontsize)
 
         # Annotate Peak PW
         ax.annotate('Height',
                     xy=(peak_ctr, peak_top),
                     xytext=(peak_ctr+x_buff1, peak_top),
                     verticalalignment='center',
-                    arrowprops=dict(facecolor=PLT_COLORS['periodic'], shrink=shrink),
-                    color=PLT_COLORS['periodic'], fontsize=fontsize)
+                    arrowprops=dict(facecolor=PLT_COLORS['peak'], shrink=shrink),
+                    color=PLT_COLORS['peak'], fontsize=fontsize)
 
         # Annotate Peak BW
         bw_buff = (peak_ctr - bw_time[0])/2
@@ -180,8 +178,8 @@ def plot_annotated_model(fm, annotate_peaks=True, ax=None):
                     xytext=(peak_ctr-bw_buff, peak_top-(1.5*peak_hgt)),
                     verticalalignment='center',
                     horizontalalignment='right',
-                    arrowprops=dict(facecolor=PLT_COLORS['periodic'], shrink=shrink),
-                    color=PLT_COLORS['periodic'], fontsize=fontsize, zorder=20)
+                    arrowprops=dict(facecolor=PLT_COLORS['peak'], shrink=shrink),
+                    color=PLT_COLORS['peak'], fontsize=fontsize, zorder=20)
 
     
     # Apply style to plot & tune grid styling
@@ -190,7 +188,7 @@ def plot_annotated_model(fm, annotate_peaks=True, ax=None):
 
     # Add labels to plot in the legend
     da_patch = mpatches.Patch(color=PLT_COLORS['data'], label='Original Data')
-    pe_patch = mpatches.Patch(color=PLT_COLORS['periodic'], label='Peak Parameters')
+    pe_patch = mpatches.Patch(color=PLT_COLORS['peak'], label='Peak Parameters')
     mo_patch = mpatches.Patch(color=PLT_COLORS['model'], label='Full Model')
 
     handles = [da_patch, 

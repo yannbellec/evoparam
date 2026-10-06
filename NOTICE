@@ -1,8 +1,30 @@
-evoparam (nom provisoire)
+evoparam (working name)
+Copyright 2026 the evoparam authors
 
-Ce logiciel est dérivé de ERPparam (https://github.com/voytekresearch/ERPparam),
-commit 98e52e3bf538031987ce2986bd93141efc475002, Copyright les auteurs de ERPparam / FOOOF
-(Voytek lab, UC San Diego), distribué sous licence Apache 2.0.
+This file is the single place in this repository that records where the code
+came from. It is kept as required by the Apache License 2.0 (section 4.d).
 
-Modifications depuis la version d'origine : renommage du paquet ERPparam -> evoparam
-(octobre 2026), puis développements décrits dans l'historique git de ce dépôt.
+Origin
+------
+Parts of this software are derived from ERPparam
+  https://github.com/voytekresearch/ERPparam
+  commit 98e52e3bf538031987ce2986bd93141efc475002 (October 2025)
+  Copyright 2017 Voytek Lab (UC San Diego), the ERPparam authors
+  Licensed under the Apache License, Version 2.0
+
+ERPparam is itself derived from FOOOF / specparam
+  https://github.com/fooof-tools/fooof
+  Copyright 2017 Voytek Lab (UC San Diego), the FOOOF authors
+  Licensed under the Apache License, Version 2.0
+  Reference: Donoghue T, Haller M, Peterson EJ, et al. Parameterizing neural
+  power spectra into periodic and aperiodic components. Nature Neuroscience
+  23, 1655-1665 (2020). doi:10.1038/s41593-020-00744-x
+
+Modifications
+-------------
+- October 2026: package renamed from ERPparam to evoparam; all code and
+  material specific to power-spectrum fitting (tutorials, examples,
+  motivations, documentation site, spectral example data, FOOOF wording
+  in docstrings, upstream download address, upstream metadata and contacts)
+  removed or rewritten for evoked-response parameterization.
+- Later changes are recorded in the git history of this repository.

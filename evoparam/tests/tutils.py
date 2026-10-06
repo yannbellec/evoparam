@@ -17,7 +17,7 @@ plt = safe_import('.pyplot', 'matplotlib')
 ###################################################################################################
 
 def get_tfm():
-    """Get a evoparam object, with a fit power spectrum, for testing."""
+    """Get a evoparam object, with a fit evoked response, for testing."""
 
     fs = 1000
     xs, ys = simulate_erp(*default_params(), fs=fs)
@@ -29,7 +29,7 @@ def get_tfm():
 
 
 def get_tfg():
-    """Get a evoparamGroup object, with some fit power spectra, for testing."""
+    """Get a evoparamGroup object, with some fit evoked responses, for testing."""
 
     n_signals = 3
     xs, ys = simulate_erps(n_signals, *default_group_params())
@@ -75,7 +75,7 @@ def default_params():
 
 
 def default_group_params():
-    """Create default parameters for generating a test group of power spectra."""
+    """Create default parameters for generating a test group of evoked responses."""
 
     time_range = [-0.5, 2]
     erp_latency = [0.1, 0.2]

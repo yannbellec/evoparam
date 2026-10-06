@@ -1,4 +1,4 @@
-"""Classes & functions for managing parameters for simulating power spectra."""
+"""Classes & functions for managing parameters for simulating evoked responses."""
 
 import numpy as np
 
@@ -61,9 +61,9 @@ class Stepper():
 
     Examples
     --------
-    Define a stepper object for center frequency values for an alpha peak:
+    Define a stepper object for center time values of a peak, from 10 to 50 ms:
 
-    >>> alpha_cf_steps = Stepper(8, 12.5, 0.5)
+    >>> ct_steps = Stepper(0.010, 0.050, 0.005)
     """
 
     def __init__(self, start, stop, step):
@@ -136,13 +136,9 @@ def param_iter(params):
 
     Examples
     --------
-    Iterate across exponent values from 1 to 2, in steps of 0.1:
+    Iterate over center time values from 10 to 50 ms, in increments of 5 ms:
 
-    >>> aps = param_iter([Stepper(1, 2, 0.1), 1])
-
-    Iterate over center frequency values from 8 to 12 in increments of 0.25:
-
-    >>> peaks = param_iter([Stepper(8, 12, .25), 0.5, 1])
+    >>> peaks = param_iter([Stepper(0.010, 0.050, 0.005), 0.5, 0.01])
     """
 
     # If input is a list of lists, check each element, and flatten if needed
@@ -189,13 +185,10 @@ def param_sampler(params, probs=None):
 
     Examples
     --------
-    Sample from aperiodic definitions with high and low exponents, with 50% probability of each:
+    Sample from peak definitions of an N1 alone, or an N1 & N2, with 75% chance of sampling just N1:
 
-    >>> aps = param_sampler([[1, 1], [2, 1]], probs=[0.5, 0.5])
-
-    Sample from peak definitions of alpha or alpha & beta, with 75% change of sampling just alpha:
-
-    >>> peaks = param_sampler([[10, 1, 1], [[10, 1, 1], [20, 0.5, 1]]], probs=[0.75, 0.25])
+    >>> peaks = param_sampler([[0.03, -1, 0.01], [[0.03, -1, 0.01], [0.2, -0.5, 0.05]]],
+    ...                       probs=[0.75, 0.25])
     """
 
     # If input is a list of lists, check each element, and flatten if needed
@@ -241,13 +234,9 @@ def param_jitter(params, jitters):
 
     Examples
     --------
-    Jitter aperiodic definitions, for offset and exponent, each with the same amount of jitter:
+    Jitter center time of peak definitions, by different amounts for N1 & N2:
 
-    >>> aps = param_jitter([1, 1], [0.1, 0.1])
-
-    Jitter center frequency of peak definitions, by different amounts for alpha & beta:
-
-    >>> peaks = param_jitter([[10, 1, 1], [20, 1, 1]], [[0.1, 0, 0], [0.5, 0, 0]])
+    >>> peaks = param_jitter([[0.03, -1, 0.01], [0.2, -0.5, 0.05]], [[0.002, 0, 0], [0.01, 0, 0]])
     """
 
     # Check if inputs are list of lists, and flatten if so

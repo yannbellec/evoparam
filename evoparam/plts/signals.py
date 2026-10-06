@@ -34,9 +34,9 @@ def plot_signals(time, signals, colors=None, labels=None, ax=None, **plot_kwargs
     signals : 1d or 2d array or list of 1d array
         ERP signal values, to be plotted on the y-axis.
     colors : list of str, optional, default: None
-        Line colors of the spectra.
+        Line colors of the signals.
     labels : list of str, optional, default: None
-        Legend labels for the spectra.
+        Legend labels for the signals.
     ax : matplotlib.Axes, optional
         Figure axes upon which to plot.
     **plot_kwargs

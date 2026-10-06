@@ -25,7 +25,7 @@ class evoparamSettings(namedtuple('evoparamSettings', ['peak_width_limits',
     Parameters
     ----------
     peak_width_limits : tuple of (float, float)
-        Limits on possible peak width, in Hz, as (lower_bound, upper_bound).
+        Limits on possible peak width, in seconds, as (lower_bound, upper_bound).
     max_n_peaks : int
         Maximum number of peaks to fit.
     min_peak_height : float
@@ -50,7 +50,7 @@ class evoparamSettings(namedtuple('evoparamSettings', ['peak_width_limits',
 
 
 class evoparamMetaData(namedtuple('evoparamMetaData', ['time_range', 'fs', 'baseline', 'time_res'])):
-    """Metadata information about a power spectrum.
+    """Metadata information about an evoked response.
 
     Parameters
     ----------
@@ -72,7 +72,7 @@ class evoparamResults(namedtuple('evoparamResults', ['gaussian_params',
                                                      'r_squared', 
                                                      'error',
                                                      'adj_r_squared'])):
-    """Model results from parameterizing a power spectrum.
+    """Model results from parameterizing an evoked response.
 
     Parameters
     ----------
@@ -107,7 +107,7 @@ class SimParams(namedtuple('SimParams', ['peak_params', 'nlv'])):
     peak_params : list or list of lists
         Parameters that define the peaks component.
     nlv : float
-        Noise level added to simulated spectrum.
+        Noise level added to simulated signal.
 
     Notes
     -----

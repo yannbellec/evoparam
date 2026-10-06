@@ -37,8 +37,8 @@ def trim_signal(time, signal, t_range):
     Using a simulated signal, extract a time range:
 
     >>> from evoparam.sim import simulate_erps
-    >>> time, signals = simulate_erps([1, 50], [1, 1], [10, 0.5, 1.0])
-    >>> time, signals = trim_spectrum(time, signals, [3, 30])
+    >>> time, signals = simulate_erps(2, [-0.1, 0.5], [0.03, -1, 0.01])
+    >>> time, signals = trim_signal(time, signals, [0, 0.3])
     """
 
     # Create mask to index only requested times
@@ -92,11 +92,11 @@ def interpolate_signal(time, signals, interp_range, buffer=3):
 
     Examples
     --------
-    Using a simulated spectrum, interpolate away a line noise peak:
+    Using a simulated signal, interpolate across a short window (for example, a stimulation artifact):
 
-    >>> from evoparam.sim import simulate_erps
-    >>> time, signals = simulate_erps([1, 50], [1, 1], [10, 0.5, 1.0])
-    >>> time, signals = interpolate_spectrum(time, signals, [3, 30])
+    >>> from evoparam.sim import simulate_erp
+    >>> time, signal = simulate_erp([-0.1, 0.5], [0.03, -1, 0.01])
+    >>> time, signal = interpolate_signal(time, signal, [-0.01, 0.01])
     """
 
     # If given a list of interpolation zones, recurse to apply each one
@@ -134,7 +134,7 @@ def interpolate_signal(time, signals, interp_range, buffer=3):
 
 
 def subsample_signal(signals, selection, return_inds=False):
-    """Subsample a group of power signals.
+    """Subsample a group of signals.
 
     Parameters
     ----------
@@ -149,7 +149,7 @@ def subsample_signal(signals, selection, return_inds=False):
     Returns
     -------
     subsample : 2d array
-        A subsampled selection of power signals.
+        A subsampled selection of signals.
     inds : list of int
         A list of which indices where subsampled.
         Only returned if `return_inds` is True.
@@ -158,15 +158,15 @@ def subsample_signal(signals, selection, return_inds=False):
     --------
     Using a group of simulated signals, subsample a specific number:
 
-    >>> from evoparam.sim import gen_group_signal
-    >>> time, signals = gen_group_signal(10, [1, 50], [1, 1], [10, 0.5, 1.0])
-    >>> subsample = subsample_signals(signals, 5)
+    >>> from evoparam.sim import simulate_erps
+    >>> time, signals = simulate_erps(10, [-0.1, 0.5], [0.03, -1, 0.01])
+    >>> subsample = subsample_signal(signals, 5)
 
     Using a group of simulated signals, subsample a proportion:
 
-    >>> from evoparam.sim import gen_group_signal
-    >>> time, signals = gen_group_signal(10, [1, 50], [1, 1], [10, 0.5, 1.0])
-    >>> subsample = subsample_signals(signals, 0.25)
+    >>> from evoparam.sim import simulate_erps
+    >>> time, signals = simulate_erps(10, [-0.1, 0.5], [0.03, -1, 0.01])
+    >>> subsample = subsample_signal(signals, 0.25)
     """
 
     n_signals = signals.shape[0]

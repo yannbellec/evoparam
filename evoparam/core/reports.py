@@ -23,12 +23,12 @@ SAVE_FORMAT = 'pdf'
 
 @check_dependency(plt, 'matplotlib')
 def save_report_fm(fm, file_name, file_path=None, add_settings=True, **plot_kwargs):
-    """Generate and save out a PDF report for a power spectrum model fit.
+    """Generate and save out a PDF report for an evoked response model fit.
 
     Parameters
     ----------
     fm : evoparam
-        Object with results from fitting a power spectrum.
+        Object with results from fitting an evoked response.
     file_name : str
         Name to give the saved out file.
     file_path : str, optional
@@ -73,12 +73,12 @@ def save_report_fm(fm, file_name, file_path=None, add_settings=True, **plot_kwar
 
 @check_dependency(plt, 'matplotlib')
 def save_report_fg(fg, file_name, file_path=None, add_settings=True):
-    """Generate and save out a PDF report for a group of power spectrum models.
+    """Generate and save out a PDF report for a group of evoked response models.
 
     Parameters
     ----------
     fg : evoparamGroup
-        Object with results from fitting a group of power spectra.
+        Object with results from fitting a group of evoked responses.
     file_name : str
         Name to give the saved out file.
     file_path : str, optional
@@ -104,7 +104,7 @@ def save_report_fg(fg, file_name, file_path=None, add_settings=True):
 
     # Second - data plots
 
-    # Aperiodic parameters plot
+    # Fit quality plot
     ax1 = plt.subplot(grid[1, 0])
     plot_fg_pks(fg, ax1,)
 
@@ -112,7 +112,7 @@ def save_report_fg(fg, file_name, file_path=None, add_settings=True):
     ax2 = plt.subplot(grid[1, 1])
     plot_fg_gf(fg, ax2)
 
-    # Peak center frequencies plot
+    # Peak center times plot
     ax3 = plt.subplot(grid[2, :])
     plot_fg_peak_cens(fg, ax3)
 

@@ -1,4 +1,4 @@
-"""evoparamGroup object and associated code for using the evoparam model on 2D groups of power spectra.
+"""evoparamGroup object and associated code for using the evoparam model on 2D groups of evoked responses.
 
 Notes
 -----
@@ -36,7 +36,7 @@ class evoparamGroup(evoparam):
     peak_width_limits : tuple of (float, float), optional, default: (0.5, 12.0)
         Limits on possible peak width, as (lower_bound, upper_bound).
     max_n_peaks : int, optional, default: inf
-        Maximum number of gaussians to be fit in a single spectrum.
+        Maximum number of gaussians to be fit in a single signal.
     min_peak_height : float, optional, default: 0
         Absolute threshold for detecting peaks, in units of the input data.
     peak_threshold : float, optional, default: 2.0
@@ -49,12 +49,11 @@ class evoparamGroup(evoparam):
     Attributes
     ----------
     times : 1d array
-        Frequency values for the power spectra.
+        Time values for the signals.
     signals : 2d array
-        Power values for the group of power spectra, as [n_signals, n_times].
-        Power values are stored internally in log10 scale.
+        Signal values for the group of evoked responses, as [n_signals, n_times].
     time_range : list of [float, float]
-        Frequency range of the power spectra, as [lowest_freq, highest_freq].
+        Time range of the signals, as [earliest_time, latest_time].
     uncropped_time : 1d array
         The uncropped version of the time vector, before trimming based on
         the time_range attribute.
@@ -62,7 +61,7 @@ class evoparamGroup(evoparam):
         The uncropped version of the signal, before trimming based on
         the time_range attribute.
     group_results : list of evoparamResults
-        Results of evoparam model fit for each power spectrum.
+        Results of evoparam model fit for each signal.
     has_data : bool
         Whether data is loaded to the object.
     has_model : bool
@@ -76,12 +75,8 @@ class evoparamGroup(evoparam):
 
     Notes
     -----
-    - Input power spectra must be provided in linear scale.
-      Internally they are stored in log10 scale, as this is what the model operates upon.
-    - Input power spectra should be smooth, as overly noisy power spectra may lead to bad fits.
-      For example, raw FFT inputs are not appropriate. Where possible and appropriate, use
-      longer time segments for power spectrum calculation to get smoother power spectra,
-      as this will give better model fits.
+    - Input signals should be reasonably smooth (for example, averaged across trials),
+      as overly noisy signals may lead to bad fits.
     - The gaussian params are those that define the gaussian of the fit, where as the peak
       params are a modified version, in which the MN of the peak is the mean of the gaussian,
       the HT of the peak is the height of the gaussian,
@@ -218,7 +213,7 @@ class evoparamGroup(evoparam):
         Parameters
         ----------
         times : 1d array
-            Time values for the power spectra, in linear space.
+            Time values for the signals.
         signals : 2d array, shape=[n_signals, n_times]
             Matrix of voltage values
         time_range : list of [float, float], optional
@@ -242,14 +237,14 @@ class evoparamGroup(evoparam):
 
 
     def report(self, time=None, signals=None, time_range=None, baseline=None, n_jobs=1, progress=None):
-        """Fit a group of power spectra and display a report, with a plot and printed results.
+        """Fit a group of evoked responses and display a report, with a plot and printed results.
 
         Parameters
         ----------
         times : 1d array, optional
-            Frequency values for the signals, in linear space.
+            Time values for the signals.
         signals : 2d array, shape: [n_signals, n_times], optional
-            Matrix of power spectrum values, in linear space.
+            Matrix of signal values, as [n_signals, n_times].
         time_range : list of [float, float], optional
             Desired time range to run evoparam on. If not provided, fits the entire given range.
         n_jobs : int, optional, default: 1
@@ -270,14 +265,14 @@ class evoparamGroup(evoparam):
 
 
     def fit(self,  time=None, signals=None, time_range=None, baseline=None, n_jobs=1, progress=None):
-        """Fit a group of power spectra.
+        """Fit a group of evoked responses.
 
         Parameters
         ----------
         times : 1d array, optional
-            Frequency values for the signals, in linear space.
+            Time values for the signals.
         signals : 2d array, shape: [n_signals, n_times], optional
-            Matrix of power spectrum values, in linear space.
+            Matrix of signal values, as [n_signals, n_times].
         time_range : list of [float, float], optional
             Desired time range to run evoparam on. If not provided, fits the entire given range.
         n_jobs : int, optional, default: 1
@@ -291,7 +286,7 @@ class evoparamGroup(evoparam):
         Data is optional, if data has already been added to the object.
         """
 
-        # If times & power spectra provided together, add data to object
+        # If times & signals provided together, add data to object
         if signals is not None:
             self._add_data(time, signals, time_range, baseline)
 
@@ -324,7 +319,7 @@ class evoparamGroup(evoparam):
                                                               self.uncropped_signals),
                                                     progress, len(self.signals)))
 
-        # Clear the individual power spectrum and fit results of the current fit``
+        # Clear the individual signal and fit results of the current fit
         self._reset_data_results(clear_signal=True, clear_results=True)
 
 
@@ -349,7 +344,7 @@ class evoparamGroup(evoparam):
 
 
     def get_results(self):
-        """Return the results run across a group of power spectra."""
+        """Return the results run across a group of evoked responses."""
 
         return self.group_results
 
@@ -446,12 +441,12 @@ class evoparamGroup(evoparam):
                 Object to extract peak data from.
             time_range : tuple of (float, float)
                 Time range of interest.
-                Defined as: (lower_frequency_bound, upper_frequency_bound).
+                Defined as: (lower_time_bound, upper_time_bound).
             threshold : float, optional
                 A minimum threshold value to apply. 
                 If the peak doesn't meet the threshold, it is recorded as an array of NaNs
             thresh_param : {'amplitude', 'width', 'HT', 'SD', or any other valid shape or gaussian parameter label}
-                Which parameter to threshold on. 'amplitude' is power and 'width' is bandwidth.
+                Which parameter to threshold on. 'amplitude' is peak height and 'width' is peak width.
             attribute : {'shape_params', 'gaussian_params'}
                 Which attribute of peak data to extract data from.
             extract_param : False or {'MN', 'HT', 'SD','SK', 'latency', 'amplitude', 'width', 'skew', 
@@ -525,7 +520,7 @@ class evoparamGroup(evoparam):
             if ind == 0:
                 self._check_loaded_settings(data)
 
-            # If power spectra data is part of loaded data, collect to add to object
+            # If signal data is part of loaded data, collect to add to object
             if 'signal' in data.keys():
                 signals.append(data['signal'])
 
@@ -538,7 +533,7 @@ class evoparamGroup(evoparam):
         if self.fs:
             self._regenerate_time_vector()
 
-        # Add power spectra data, if they were loaded
+        # Add signal data, if they were loaded
         if signals:
             self.signals = np.array(signals)
 
@@ -566,15 +561,14 @@ class evoparamGroup(evoparam):
         fm = evoparam(**self.get_settings(return_dict=True), verbose=self.verbose)
         fm.set_check_data_mode(self._check_data)
 
-        # Add data for specified single power spectrum, if available
-        #   The power spectrum is inverted back to linear, as it is re-logged when added to evoparam
+        # Add data for specified single signal, if available
         if self.has_data:
             fm.add_data(self.uncropped_time, self.uncropped_signals[ind], self.time_range, self.baseline)
-        # If no power spectrum data available, copy over data information & regenerate times
+        # If no signal data available, copy over data information & regenerate times
         else:
             fm.add_meta_data(self.get_meta_data())
 
-        # Add results for specified power spectrum, regenerating full fit if requested
+        # Add results for specified signal, regenerating full fit if requested
         fm.add_results(self.group_results[ind])
         if (regenerate and ((fm.gaussian_params_.size) > 0)):
             fm._regenerate_model()
@@ -714,8 +708,8 @@ class evoparamGroup(evoparam):
     def _check_width_limits(self):
         """Check and warn about bandwidth limits / time resolution interaction."""
 
-        # Only check & warn on first power spectrum
-        #   This is to avoid spamming standard output for every spectrum in the group
+        # Only check & warn on first signal
+        #   This is to avoid spamming standard output for every signal in the group
         if self.signals[0, 0] == self.signal[0]:
             super()._check_width_limits()
 

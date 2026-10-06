@@ -1,4 +1,4 @@
-"""evoparam - Fitting Oscillations & One-Over F"""
+"""evoparam - Parameterizing evoked neural responses"""
 
 from .version import __version__
 

@@ -1,4 +1,4 @@
-"""Functions and utilities for downloading example data for fooof."""
+"""Functions and utilities for downloading example data for evoparam."""
 
 import os
 from urllib.request import urlretrieve
@@ -8,7 +8,9 @@ import numpy as np
 ###################################################################################################
 ###################################################################################################
 
-DATA_URL = 'https://raw.githubusercontent.com/voytekresearch/ERPparam/main/data/'
+# Address of the evoparam example data. It stays empty until the project hosts its own data.
+#   Until then, pass an explicit `url` to the functions below.
+DATA_URL = None
 
 def check_data_folder(folder):
     """Check if a data folder exists, and create if not.
@@ -32,16 +34,20 @@ def check_data_file(filename, folder, url=DATA_URL):
         Name of the data file to check and download if missing.
     folder : str
         Name of the folder to save the datafile to.
+    url : str, optional
+        The URL to download the data file from.
     """
 
     filepath = os.path.join(folder, filename)
 
     if not os.path.isfile(filepath):
+        if url is None:
+            raise ValueError('No data address available: pass a `url` to download from.')
         urlretrieve(url + filename, filename=filepath)
 
 
 def fetch_evoparam_data(filename, folder='data', url=DATA_URL):
-    """Download a data file for FOOOF.
+    """Download a data file for evoparam.
 
     Parameters
     ----------
@@ -63,7 +69,7 @@ def fetch_evoparam_data(filename, folder='data', url=DATA_URL):
 
 
 def load_evoparam_data(filename, folder='data', url=DATA_URL):
-    """Download, if not already available, and load an example data file for fooof.
+    """Download, if not already available, and load an example data file for evoparam.
 
     Parameters
     ----------

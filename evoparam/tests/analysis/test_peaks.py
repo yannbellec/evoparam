@@ -1,4 +1,4 @@
-"""Test functions for evoparam.analysis.periodic."""
+"""Test functions for evoparam.analysis.peaks."""
 
 import numpy as np
 

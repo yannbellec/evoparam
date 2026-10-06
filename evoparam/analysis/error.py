@@ -17,7 +17,7 @@ def compute_pointwise_error_fm(fm, plot_errors=True, return_errors=False, **plt_
     fm : evoparam
         Object containing the data and model.
     plot_errors : bool, optional, default: True
-        Whether to plot the errors across frequencies.
+        Whether to plot the errors across time points.
     return_errors : bool, optional, default: False
         Whether to return the calculated errors.
     **plt_kwargs
@@ -59,7 +59,7 @@ def compute_pointwise_error_fg(fg, plot_errors=True, return_errors=False, **plt_
     fg : evoparamGroup
         Object containing the data and models.
     plot_errors : bool, optional, default: True
-        Whether to plot the errors across frequencies.
+        Whether to plot the errors across time points.
     return_errors : bool, optional, default: False
         Whether to return the calculated errors.
     **plt_kwargs

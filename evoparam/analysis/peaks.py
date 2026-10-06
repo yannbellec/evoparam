@@ -1,4 +1,4 @@
-"""Functions to analyze and investigate evoparam results - periodic components."""
+"""Functions to analyze and investigate evoparam results - peak components."""
 
 import numpy as np
 
@@ -55,7 +55,7 @@ def get_window_peak_ep(fm, time_range, select_highest=True, threshold=None,
         A minimum threshold value to apply.
     thresh_param : {'amplitude', 'width', or any other valid shape or gaussian
                     parameter label}
-        Which parameter to threshold on. 'amplitude' is power and 'width' is 
+        Which parameter to threshold on. 'amplitude' is peak height and 'width' is 
         bandwidth.
     attribute : {'shape_params', 'gaussian_params'}
         Which attribute of peak data to extract data from.
@@ -124,7 +124,7 @@ def get_window_peak_ep(fm, time_range, select_highest=True, threshold=None,
                                                thresh_param)
 
             # If results > 1 and select_highest, then we return the highest peak
-            #    Call a sub-function to select highest power peak in window
+            #    Call a sub-function to select highest amplitude peak in window
             if (len(window_peaks) > 1) and select_highest:
                 window_peaks = get_highest_peak(window_peaks)
 
@@ -157,13 +157,13 @@ def get_window_peak_eg(fg, time_range, select_highest=True, threshold=None,
         Object to extract peak data from.
     time_range : tuple of (float, float)
         Time range of interest.
-        Defined as: (lower_frequency_bound, upper_frequency_bound).
+        Defined as: (lower_time_bound, upper_time_bound).
     threshold : float, optional
         A minimum threshold value to apply. 
         If the peak doesn't meet the threshold, it is recorded as an array of NaNs
     thresh_param : {'amplitude', 'width', 'HT', 'SD', or any other valid shape 
                     or gaussian parameter label}
-        Which parameter to threshold on. 'amplitude' is power and 'width' is bandwidth.
+        Which parameter to threshold on. 'amplitude' is peak height and 'width' is peak width.
     attribute : {'shape_params', 'gaussian_params'}
         Which attribute of peak data to extract data from.
     extract_param : False or {'MN', 'HT', 'SD','SK', 'latency','amplitude', 
@@ -258,7 +258,7 @@ def get_window_peak_arr(peak_params, time_range, select_highest=True,
             window_peaks = threshold_peaks(window_peaks, threshold, inds, thresh_param)
 
         # If results > 1 and select_highest, then we return the highest peak
-        #    Call a sub-function to select highest power peak in window
+        #    Call a sub-function to select highest amplitude peak in window
         if window_peaks.shape[0] > 1 and select_highest:
             window_peaks = get_highest_peak(window_peaks)
 
@@ -292,7 +292,7 @@ def get_window_peak_group_arr(fg_results, time_range, threshold=None,
     attribute : {'shape_params', 'gaussian_params'}
         Which attribute of peak data to extract data from.
     thresh_param : {'amplitude', 'width', any other valid shape or gaussian parameter label}
-        Which parameter to threshold on. 'amplitude' is power and 'width' is bandwidth.
+        Which parameter to threshold on. 'amplitude' is peak height and 'width' is peak width.
     rmv_nans : bool, default : False
         Whether or not to remove rows where there were no peaks detected at all, 
         or peaks didn't fit the search criteria
@@ -337,7 +337,7 @@ def get_window_peak_group_arr(fg_results, time_range, threshold=None,
 
 
 def get_highest_peak(peak_params):
-    """Extract the highest power peak.
+    """Extract the highest amplitude peak.
 
     Parameters
     ----------
@@ -351,8 +351,8 @@ def get_highest_peak(peak_params):
 
     Notes
     -----
-    This function returns the singular highest power peak from the input set, 
-    and as such is defined to work on periodic parameters from a single model fit.
+    This function returns the singular highest amplitude peak from the input set, 
+    and as such is defined to work on peak parameters from a single model fit.
     """
     high_ind = np.argmax(np.abs(peak_params[:, 1]))
 
@@ -371,7 +371,7 @@ def threshold_peaks(peak_params, threshold, inds, param='amplitude'):
     inds : dict
         Dictionary of attributes : indices for gaussian or shape parameters
     param : {'amplitude', 'width', 'HT', or 'SD'}
-        Which parameter to threshold on. 'HT' is power and 'SD' is bandwidth.
+        Which parameter to threshold on. 'HT' is peak height and 'SD' is peak width.
 
     Returns
     -------
@@ -380,7 +380,7 @@ def threshold_peaks(peak_params, threshold, inds, param='amplitude'):
 
     Notes
     -----
-    This function can be applied to periodic parameters from an individual model,
+    This function can be applied to peak parameters from an individual model,
     or a set or parameters from a group.
     """
     # Apply a mask for the requested threshold

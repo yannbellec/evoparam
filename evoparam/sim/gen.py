@@ -12,7 +12,7 @@ from evoparam.sim.params import collect_sim_params
 ###################################################################################################
 
 def gen_time_vector(time_range, fs):
-    """Generate a frequency vector.
+    """Generate a time vector.
 
     Parameters
     ----------

@@ -121,7 +121,7 @@ def test_fg_fail():
     Also checks that model failures don't cause errors.
     """
 
-    # Create some noisy spectra that will be hard to fit    
+    # Create some noisy signals that will be hard to fit    
     time_range, erp_params, _ = default_group_params()
     nlv = 0.3
 
@@ -278,10 +278,8 @@ def test_fg_load():
     tfg.load(file_name_res, TEST_DATA_PATH)
     assert len(tfg.group_results) > 0
     # Test that settings and data are None
-    #   Except for aperiodic mode, which can be inferred from the data
     for setting in OBJ_DESC['settings']:
-        if setting != 'aperiodic_mode':
-            assert getattr(tfg, setting) is None
+        assert getattr(tfg, setting) is None
     assert tfg.signals is None
 
     # Test loading just settings

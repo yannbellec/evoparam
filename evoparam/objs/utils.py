@@ -156,8 +156,8 @@ def combine_evoparams(evoparams):
     # Initialize evoparamGroup object, with settings derived from input objects
     fg = evoparamGroup(*evoparams[0].get_settings(), verbose=evoparams[0].verbose)
 
-    # Use a temporary store to collect spectra, as we'll only add it if it is consistently present
-    #   We check how many frequencies by accessing meta data, in case of no frequency vector
+    # Use a temporary store to collect signals, as we'll only add it if it is consistently present
+    #   We check how many time points by accessing meta data, in case of no time vector
     meta_data = evoparams[0].get_meta_data()
     n_freqs = len(gen_time_vector(meta_data.time_range, meta_data.fs))
     temp_signals = np.empty([0, n_freqs])
@@ -191,7 +191,7 @@ def combine_evoparams(evoparams):
 
 
 def fit_evoparam_3d(fg, time, signals, time_range=None, n_jobs=1):
-    """Fit evoparam models across a 3d array of power spectra.
+    """Fit evoparam models across a 3d array of evoked responses.
 
     Parameters
     ----------
@@ -224,9 +224,9 @@ def fit_evoparam_3d(fg, time, signals, time_range=None, n_jobs=1):
 
     # Reshape 3d data to 2d and fit, in order to fit with a single group model object
     shape = np.shape(signals)
-    powers_2d = np.reshape(signals, (shape[0] * shape[1], shape[2]))
+    signals_2d = np.reshape(signals, (shape[0] * shape[1], shape[2]))
 
-    fg.fit(time, powers_2d, time_range, n_jobs=n_jobs)
+    fg.fit(time, signals_2d, time_range, n_jobs=n_jobs)
 
     # Reorganize 2d results into a list of model group objects, to reflect original shape
     fgs = [fg.get_group(range(dim_a * shape[1], (dim_a + 1) * shape[1])) \

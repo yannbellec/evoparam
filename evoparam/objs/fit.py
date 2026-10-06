@@ -70,17 +70,17 @@ from evoparam.analysis.peaks import get_window_peak_arr, get_window_peak_ep
 ###################################################################################################
 
 class evoparam():
-    """Model an event-related potential (ERP) as a combination of periodic components (Gaussian peaks).
+    """Model an event-related potential (ERP) as a combination of peak components (Gaussian peaks).
 
     Parameters
     ----------
     peak_width_limits : tuple of (float, float), optional, default: (0.5, 12.0)
-        Limits on possible peak width, in Hz, as (lower_bound, upper_bound).
+        Limits on possible peak width, in seconds, as (lower_bound, upper_bound).
     max_n_peaks : int, optional, default: inf
         Maximum number of peaks to fit.
     min_peak_height : float, optional, default: 0
         Absolute threshold for detecting peaks.
-        This threshold is defined in absolute units of the signal (log power).
+        This threshold is defined in absolute units of the signal.
     peak_threshold : float, optional, default: 2.0
         Relative threshold for detecting peaks.
         This threshold is defined in relative units of the signal (standard deviation).
@@ -185,9 +185,9 @@ class evoparam():
         # Set default debug mode - controls if an error is raised if model fitting is unsuccessful
         self._debug = False
         # Set default data checking modes - controls which checks get run on input data
-        #   check_times: check the frequency values, and raises an error for uneven spacing
+        #   check_times: check the time values, and raises an error for uneven spacing
         self._check_times = True
-        #   check_data: checks the power values and raises an error for any NaN / Inf values
+        #   check_data: checks the signal values and raises an error for any NaN / Inf values
         self._check_data = True
 
         # Set internal settings, based on inputs, and initialize data & results attributes
@@ -406,7 +406,7 @@ class evoparam():
 
 
     def fit(self, time=None, signal=None, time_range=None, baseline=None):
-        """Fit the signal as a combination of periodic components (Gaussian peaks).
+        """Fit the signal as a combination of peak components (Gaussian peaks).
 
         Parameters
         ----------
@@ -438,7 +438,7 @@ class evoparam():
             self.add_data(time, signal, time_range, baseline)
 
         # If signal provided alone, add to object
-        #   Note: be careful passing in power_spectrum data like this:
+        #   Note: be careful passing in signal data like this:
         elif isinstance(signal, np.ndarray):
             self.signal = signal
 
@@ -613,7 +613,7 @@ class evoparam():
         # Extract the request data field from object
         out = getattr(self, name + '_')
 
-        # Periodic values can be empty arrays and if so, replace with NaN array
+        # Peak values can be empty arrays and if so, replace with NaN array
         if isinstance(out, np.ndarray) and out.size == 0:
             out = np.array([np.nan, np.nan, np.nan])
 
@@ -717,16 +717,6 @@ class evoparam():
         return params
 
 
-    # @copy_doc_func_to_method(plot_fm)
-    # def plot(self, plot_peaks=None, plot_aperiodic=True, plt_log=False,
-    #          add_legend=True, save_fig=False, file_name=None, file_path=None,
-    #          ax=None, data_kwargs=None, model_kwargs=None,
-    #          aperiodic_kwargs=None, peak_kwargs=None, **plot_kwargs):
-
-    #     plot_fm(self, plot_peaks=plot_peaks, plot_aperiodic=plot_aperiodic, plt_log=plt_log,
-    #             add_legend=add_legend, save_fig=save_fig, file_name=file_name,
-    #             file_path=file_path, ax=ax, data_kwargs=data_kwargs, model_kwargs=model_kwargs,
-    #             aperiodic_kwargs=aperiodic_kwargs, peak_kwargs=peak_kwargs, **plot_kwargs)
     @copy_doc_func_to_method(plot_evoparam)
     def plot(self, ax=None, y_label=None):
 
@@ -923,7 +913,7 @@ class evoparam():
                 break
 
             # Data-driven first guess at standard deviation
-            #   Find half height index on each side of the center frequency
+            #   Find half height index on each side of the center time
             half_height = np.abs(0.5 * max_height)
             le_ind = next((val for val in range(max_ind - 1, 0, -1)
                            if iter_signal[val] <= half_height), None)
@@ -938,7 +928,7 @@ class evoparam():
                 short_side = min([abs(ind - max_ind) \
                     for ind in [le_ind, ri_ind] if ind is not None])
 
-                # Use the shortest side to estimate full-width, half max (converted to Hz)
+                # Use the shortest side to estimate full-width, half max (converted to seconds)
                 #   and use this to estimate that guess for gaussian standard deviation
                 fwhm = short_side * 2 * (1/self.fs)
                 guess_std = compute_gauss_std(fwhm)
@@ -1409,7 +1399,7 @@ class evoparam():
             raise InconsistentDataError("The input times and ERP signal "
                                         "are not a consistent size.")
         
-        # Check if power values are complex
+        # Check if signal values are complex
         if np.iscomplexobj(signal):
             raise DataError("Input ERPs are complex values. "
                             "Model fitting does not currently support complex inputs.")

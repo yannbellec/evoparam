@@ -66,10 +66,10 @@ def test_subsample_signal(tfg):
     # Test returning indices
     out, inds = subsample_signal(signals, n_select, return_inds=True)
     assert len(set(inds)) == n_select
-    for ind, spectrum in zip(inds, out):
-        assert np.array_equal(spectrum, signals[ind, :])
+    for ind, sig in zip(inds, out):
+        assert np.array_equal(sig, signals[ind, :])
 
     out, inds = subsample_signal(signals, prop_select, return_inds=True)
     assert len(set(inds)) == int(prop_select * n_sim)
-    for ind, spectrum in zip(inds, out):
-        assert np.array_equal(spectrum, signals[ind, :])
+    for ind, sig in zip(inds, out):
+        assert np.array_equal(sig, signals[ind, :])

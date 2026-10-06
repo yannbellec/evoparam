@@ -1,4 +1,4 @@
-"""A data object for managing band definitions."""
+"""A data object for managing named time windows (bands)."""
 
 from collections import OrderedDict
 
@@ -6,18 +6,18 @@ from collections import OrderedDict
 ###################################################################################################
 
 class Bands():
-    """Frequency band definitions.
+    """Named time window definitions.
 
     Attributes
     ----------
     bands : dict
-        Band definitions. Each entry should be {'label' : (f_low, f_high)}.
+        Band definitions. Each entry should be {'label' : (t_low, t_high)}.
 
     Examples
     --------
-    Define a bands object storing canonical frequency bands:
+    Define a bands object storing classic evoked-response windows (in seconds):
 
-    >>> bands = Bands({'theta' : [4, 8], 'alpha' : [8, 12], 'beta' : [15, 30]})
+    >>> bands = Bands({'N1' : [0.010, 0.050], 'N2' : [0.050, 0.500]})
     """
 
     def __init__(self, input_bands={}):
@@ -26,7 +26,7 @@ class Bands():
         Parameters
         ----------
         input_bands : dict, optional
-            A dictionary of oscillation bands.
+            A dictionary of time windows.
         """
 
         self.bands = OrderedDict()
@@ -51,7 +51,7 @@ class Bands():
     def __repr__(self):
         """Define the string representation as a printout of the band information."""
 
-        return '\n'.join(['{:8} :  {:2} - {:2}  Hz'.format(key, *val) \
+        return '\n'.join(['{:8} :  {:2} - {:2}  s'.format(key, *val) \
             for key, val in self.bands.items()])
 
     def __len__(self):
@@ -74,7 +74,7 @@ class Bands():
 
     @property
     def definitions(self):
-        """Frequency definitions for all the bands defined in the object."""
+        """Time window definitions for all the bands defined in the object."""
 
         return list(self.bands.values())
 
@@ -87,14 +87,14 @@ class Bands():
 
 
     def add_band(self, label, band_definition):
-        """Add a new oscillation band definition.
+        """Add a new time window definition.
 
         Parameters
         ----------
         label : str
             Band label to add.
         band_definition : tuple of (float, float)
-            The lower and upper frequency limit of the band, in Hz.
+            The lower and upper time limit of the window, in seconds.
         """
 
         self._check_band(label, band_definition)
@@ -102,7 +102,7 @@ class Bands():
 
 
     def remove_band(self, label):
-        """Remove a previously defined oscillation band.
+        """Remove a previously defined time window.
 
         Parameters
         ----------
@@ -122,7 +122,7 @@ class Bands():
         label : str
             The name of the new band.
         band_definition : tuple of (float, float)
-            The lower and upper frequency limit of the band, in Hz.
+            The lower and upper time limit of the window, in seconds.
 
         Raises
         ------

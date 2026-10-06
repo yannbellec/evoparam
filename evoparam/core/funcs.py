@@ -103,31 +103,31 @@ def gaussian_function(xs, *params):
     return ys
 
 
-def get_pe_func(periodic_mode):
-    """Select and return specified function for periodic component.
+def get_pe_func(peak_mode):
+    """Select and return specified function for the peak component.
 
     Parameters
     ----------
-    periodic_mode : {'gaussian'}
-        Which periodic fitting function to return.
+    peak_mode : {'gaussian', 'skewed_gaussian'}
+        Which peak fitting function to return.
 
     Returns
     -------
     pe_func : function
-        Function for the periodic component.
+        Function for the peak component.
 
     Raises
     ------
     ValueError
-        If the specified periodic mode label is not understood.
+        If the specified peak mode label is not understood.
 
     """
 
-    if periodic_mode == 'gaussian':
+    if peak_mode == 'gaussian':
         pe_func = gaussian_function
-    elif periodic_mode == 'skewed_gaussian':
+    elif peak_mode == 'skewed_gaussian':
         pe_func = skewed_gaussian_function
     else:
-        raise ValueError("Requested periodic mode not understood.")
+        raise ValueError("Requested peak mode not understood.")
 
     return pe_func

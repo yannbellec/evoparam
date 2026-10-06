@@ -177,10 +177,8 @@ def test_evoparam_load():
     for result in OBJ_DESC['results']:
         assert not np.all(np.isnan(getattr(tfm, result)))
     # Test that settings and data are None
-    #   Except for aperiodic mode, which can be inferred from the data
     for setting in OBJ_DESC['settings']:
-        if setting != 'aperiodic_mode':
-            assert getattr(tfm, setting) is None
+        assert getattr(tfm, setting) is None
     assert getattr(tfm, 'signal') is None
 
     # Test loading just settings
@@ -422,9 +420,9 @@ def test_evoparam_check_data():
 
     # Add data, with check data turned off
     #   In check data mode, adding data with NaN should run
-    freqs = gen_time_vector([3, 50], 0.5)
-    powers = np.ones_like(freqs) * np.nan
-    tfm.add_data(freqs, powers)
+    time = gen_time_vector([3, 50], 0.5)
+    signal = np.ones_like(time) * np.nan
+    tfm.add_data(time, signal)
     assert tfm.has_data
 
     # Model fitting should execute, but return a null model fit, given the NaNs, without failing

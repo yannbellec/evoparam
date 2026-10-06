@@ -3,7 +3,7 @@
 import numpy as np
 
 from evoparam.core.errors import NoModelError
-from evoparam.version import __version__ as ERPPARAM_VERSION
+from evoparam.version import __version__ as EVOPARAM_VERSION
 
 ###################################################################################################
 ###################################################################################################
@@ -70,7 +70,7 @@ def gen_version_str(concise=False):
         '',
 
         # Version information
-        '{}'.format(ERPPARAM_VERSION),
+        '{}'.format(EVOPARAM_VERSION),
 
         # Footer
         '',
@@ -103,9 +103,9 @@ def gen_settings_str(evoparam_obj, description=False, concise=False):
 
     # Parameter descriptions to print out, if requested
     desc = {
-        'peak_width_limits' : 'Limits for minimum and maximum peak widths, in Hz.',
+        'peak_width_limits' : 'Limits for minimum and maximum peak widths, in seconds.',
         'max_n_peaks'       : 'Maximum number of peaks that can be extracted.',
-        'min_peak_height'   : 'Minimum absolute height of a peak, above the aperiodic component.',
+        'min_peak_height'   : 'Minimum absolute height of a peak.',
         'peak_threshold'    : 'Relative threshold for minimum height required for detecting peaks.',
         }
 
@@ -167,7 +167,7 @@ def gen_model_exists_str(evoparam_obj, concise=False):
         'evoparam Model already exists',
         '',
 
-        # Frequency range information information
+        # Time range information
         'The model was fit from {:6.3f} to {:6.3f}, using a baseline period of {:6.2f} to {:6.2f}. \
         \nTime and signal inputs given here will be ignored. Re-fit the model or reset the data if neccessary.'.format(time_range[0], time_range[1], baseline_[0], baseline_[1]),
 
@@ -206,7 +206,7 @@ def gen_time_range_str(evoparam_obj, concise=False):
         'evoparam - FIT RANGE',
         '',
 
-        # Frequency range information information
+        # Time range information
         'The model was fit from {} to {}.'.format(*time_range),
 
         # Footer
@@ -289,7 +289,7 @@ def gen_methods_text_str(evoparam_obj=None):
         time_range = ('XX', 'XX')
         time_baseline = ('XX','XX')
 
-    methods_str = template.format(ERPPARAM_VERSION,
+    methods_str = template.format(EVOPARAM_VERSION,
                                   evoparam_obj.peak_width_limits if evoparam_obj else 'XX',
                                   evoparam_obj.max_n_peaks if evoparam_obj else 'XX',
                                   evoparam_obj.min_peak_height if evoparam_obj else 'XX',
@@ -386,7 +386,7 @@ def gen_results_fg_str(fg, concise=False):
     symmetry = fg.get_params('shape_params', 'symmetry')[:,0]
     sharpness = fg.get_params('shape_params', 'sharpness')[:,0]
 
-    # Check if there are any power spectra that failed to fit
+    # Check if there are any signals that failed to fit
     n_failed = fg.n_null_#sum(np.isnan(bws))
 
     str_lst = [
@@ -402,16 +402,12 @@ def gen_results_fg_str(fg, concise=False):
         *[el for el in ['{} Events failed to fit'.format(n_failed)] if n_failed],
         '',
 
-        # Frequency range and resolution
+        # Time range and resolution
         'The model was run on the time range {} \u2013 {} s'.format( np.round(fg.time_range[0], decimals=3), np.round(fg.time_range[1], decimals=3)),
         'The baseline variance was calculated on {} \u2013 {} s'.format( np.round(fg.baseline[0], decimals=3), np.round(fg.baseline[1], decimals=3)),
         'Time resolution is {0} s'.format('%.2E' % fg.time_res),
         '',
 
-        # Aperiodic parameters - knee fit status, and quick exponent description
-        # 'Power spectra were fit {} a knee.'.format(\
-        #     'with' if fg.aperiodic_mode == 'knee' else 'without'),
-        # '',
         'Peak Fit Values:',
         'Amplitudes - Min: {:6.2f}, Max: {:6.2f}, Mean: {:5.2f}'
         .format(np.nanmin(pws), np.nanmax(pws), np.nanmean(pws)),
@@ -486,7 +482,7 @@ def gen_issue_str(concise=False):
         '',
 
         # Contact
-        'Contact address: voytekresearch@gmail.com',
+        'Contact: open an issue at https://github.com/yannbellec/evoparam/issues',
         '',
 
         # Footer

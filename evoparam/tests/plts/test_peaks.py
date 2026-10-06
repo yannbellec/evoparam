@@ -1,11 +1,11 @@
-"""Tests for evoparam.plts.periodic."""
+"""Tests for evoparam.plts.peaks."""
 
 import numpy as np
 
 from evoparam.tests.tutils import plot_test
 from evoparam.tests.settings import TEST_PLOTS_PATH
 
-from evoparam.plts.periodic import *
+from evoparam.plts.peaks import *
 
 ###################################################################################################
 ###################################################################################################

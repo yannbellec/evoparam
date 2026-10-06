@@ -15,17 +15,17 @@ from evoparam.plts.signals import *
 @plot_test
 def test_plot_signals(tfm, tfg, skip_if_no_mpl):
 
-    # Test with 1d inputs - 1d freq array and list of 1d signal
+    # Test with 1d inputs - 1d time array and list of 1d signal
     plot_signals(tfm.time, tfm.signal,
                  save_fig=True, file_path=TEST_PLOTS_PATH, 
                  file_name='test_plot_signals_1d.png')
 
-    # Test with 1d inputs - 1d freq array and list of 1d signal
+    # Test with 1d inputs - 1d time array and list of 1d signal
     plot_signals(tfg.time, [tfg.signals[0, :], tfg.signals[1, :]],
                  save_fig=True, file_path=TEST_PLOTS_PATH, 
                  file_name='test_plot_signals_list_1d.png')
 
-    # Test with multiple freq inputs - list of 1d freq array and list of 1d signal
+    # Test with multiple time inputs - list of 1d time array and list of 1d signal
     plot_signals([tfg.time, tfg.time], [tfg.signals[0, :], tfg.signals[1, :]],
                  save_fig=True, file_path=TEST_PLOTS_PATH,
                  file_name='test_plot_signals_lists_1d.png')

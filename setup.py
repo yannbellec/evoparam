@@ -1,4 +1,4 @@
-"""FOOOF setup script."""
+"""evoparam setup script."""
 
 import os
 from setuptools import setup, find_packages
@@ -18,19 +18,16 @@ with open("requirements.txt") as requirements_file:
 setup(
     name = 'evoparam',
     version = __version__,
-    description = 'fitting oscillations & one-over f',
+    description = 'Parameterizing evoked neural responses',
     long_description = long_description,
     long_description_content_type = 'text/x-rst',
-    python_requires = '>=3.6',
-    author = 'The Voytek Lab',
-    author_email = 'voyteklab@gmail.com',
-    maintainer = 'Thomas Donoghue',
-    maintainer_email = 'tdonoghue.research@gmail.com',
-    url = 'https://github.com/voytekresearch/evoparam',
+    python_requires = '>=3.10',
+    author = 'The evoparam authors',
+    url = 'https://github.com/yannbellec/evoparam',
     packages = find_packages(),
     license = 'Apache License, 2.0',
     classifiers = [
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering',
         'License :: OSI Approved :: Apache Software License',
@@ -39,21 +36,18 @@ setup(
         'Operating System :: POSIX',
         'Operating System :: Unix',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
     ],
     platforms = 'any',
     project_urls = {
-        'Documentation' : 'https://fooof-tools.github.io/fooof/',
-        'Bug Reports' : 'https://github.com/fooof-tools/fooof/issues',
-        'Source' : 'https://github.com/fooof-tools/fooof'
+        'Bug Reports' : 'https://github.com/yannbellec/evoparam/issues',
+        'Source' : 'https://github.com/yannbellec/evoparam'
     },
-    download_url = 'https://github.com/fooof-tools/fooof/releases',
-    keywords = ['neuroscience', 'neural oscillations', 'power spectra', '1/f', 'electrophysiology'],
+    keywords = ['neuroscience', 'evoked responses', 'ERP', 'CCEP', 'SPES', 'iEEG',
+                'electrophysiology', 'parameterization'],
     install_requires = install_requires,
     tests_require = ['pytest'],
     extras_require = {

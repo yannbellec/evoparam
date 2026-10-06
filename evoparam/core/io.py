@@ -93,7 +93,7 @@ def save_fm(fm, file_name, file_path=None, append=False,
     obj_dict = dict_array_to_lst(fm.__dict__)
 
     # Set and select which variables to keep. Use a set to drop any potential overlap
-    #   Note that results also saves frequency information to be able to recreate freq vector
+    #   Note that results also saves time information to be able to recreate the time vector
     keep = set((OBJ_DESC['results'] + OBJ_DESC['meta_data'] if save_results else []) + \
                (OBJ_DESC['settings'] if save_settings else []) + \
                (OBJ_DESC['data'] if save_data else []))
@@ -139,7 +139,7 @@ def save_fg(fg, file_name, file_path=None, append=False,
     save_settings : bool, optional
         Whether to save out evoparam settings.
     save_data : bool, optional
-        Whether to save out power spectra data.
+        Whether to save out signal data.
 
     Raises
     ------
@@ -240,7 +240,7 @@ def _save_fg(fg, f_obj, save_results, save_settings, save_data):
     save_settings : bool
         Whether to save out evoparam settings.
     save_data : bool
-        Whether to save out power spectra data.
+        Whether to save out signal data.
     """
 
     # Since there is a single set of object settings, save them out once, at the top

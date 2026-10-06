@@ -2,7 +2,10 @@
 evoparam
 =========================================
 
-evoparam is tool to parameterize neural evoked responses.
+evoparam is a tool to parameterize neural evoked responses: it describes each
+response (ERP, CCEP, ...) as a small set of peaks with a latency, an amplitude and a width.
+
+Status: early development (working name). Origin of the code and licence: see ``NOTICE`` and ``LICENSE``.
 
 Quickstart
 ----------
@@ -28,10 +31,6 @@ the ERP, evoparam can be used as follows:
 
 evoparam.report() fits the model, plots the original (or rectified) ERP with the associated evoparam model fit,
 and prints out the parameters of the model fit.
-
-Example output for the report of a evoparam fit on an individual ERP:
-
-.. image:: doc/img/evoparam_report.png
 
 **Defining the model Settings**
 
@@ -69,7 +68,3 @@ We can fit the group of ERPs by doing:
 
     # Save out evoparamGroup results for further analysis later
     params.save(file_name='group_results', save_results=True)
-
-Example output from using evoparamGroup across a group of ERPs:
-
-.. image:: doc/img/evoparamGroup_report.png

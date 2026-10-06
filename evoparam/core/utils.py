@@ -187,7 +187,7 @@ def check_iter(obj, length):
             #   as a list of list that will iterate through each element
             # If it is not, then it's turned into a repeat generator
             # Note: checks that it's a list to not have an implicit error
-            #   when it's a list of numbers, that happens to be same length as n_spectra
+            #   when it's a list of numbers, that happens to be same length as n_signals
             elif not (isinstance(obj[0], list) and len(obj) == length):
                 obj = repeat(obj)
 
