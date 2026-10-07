@@ -1,6 +1,13 @@
 """Cut a continuous recording into epochs around events."""
 
+import time as _time
+
 import numpy as np
+
+from evoparam.data import Provenance, TrialSet
+from evoparam.errors import DataError, EventError
+
+__all__ = ["epoch", "epoch_data"]
 
 ###################################################################################################
 ###################################################################################################
@@ -44,3 +51,158 @@ def epoch_data(data, sfreq, onsets, tmin, tmax, t0=0.):
         epochs = np.moveaxis(epochs, 0, 1)
 
     return times, epochs, kept
+
+
+def epoch_windows(onsets, sfreq, tmin, tmax, n_samples, t0=0.):
+    """Sample windows of the epochs ``[tmin, tmax)`` around onsets.
+
+    The onset sample is the sample nearest each onset; the window holds the samples
+    from ``round(tmin * sfreq)`` (included) to ``round(tmax * sfreq)`` (excluded)
+    relative to it, so every epoch has the same length and ``times`` holds 0.
+
+    Returns
+    -------
+    times : 1d array
+        Seconds relative to the onset.
+    starts : 1d array of int
+        First sample of each window, for every onset.
+    kept : 1d array of bool
+        Which windows lie inside the recording of ``n_samples`` samples.
+    """
+
+    if not tmax > tmin:
+        raise DataError('epoch: tmax ({}) must be greater than tmin ({}).'.format(tmax, tmin))
+    first, stop = int(np.round(tmin * sfreq)), int(np.round(tmax * sfreq))
+    if stop - first < 2:
+        raise DataError('epoch: the window ({}, {}) holds fewer than 2 samples.'.format(tmin, tmax))
+    onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
+    if onsets.ndim != 1 or not np.all(np.isfinite(onsets)):
+        raise EventError('epoch: onsets must be a 1d array of finite times (s).')
+    centers = np.round((onsets - t0) * sfreq).astype(np.int64)
+    starts = centers + first
+    kept = (starts >= 0) & (centers + stop <= n_samples)
+    return np.arange(first, stop) / sfreq, starts, kept
+
+
+def overlap_flags(onsets, length):
+    """True for each event closer than ``length`` seconds to the previous event in time."""
+
+    onsets = np.asarray(onsets, dtype=float)
+    order = np.argsort(onsets, kind='stable')
+    flags = np.zeros(onsets.size, dtype=bool)
+    if onsets.size > 1:
+        flags[order[1:]] = np.diff(onsets[order]) < length
+    return flags
+
+
+def _as_table(table, n_rows, name):
+    """DataFrame (RangeIndex) from a DataFrame or a dict of columns."""
+
+    import pandas as pd
+    if isinstance(table, dict):
+        table = pd.DataFrame(table)
+    if not (type(table).__name__ == 'DataFrame'):
+        raise DataError('{}: expected a pandas DataFrame or a dict of columns.'.format(name))
+    if len(table) != n_rows:
+        raise DataError('{}: expected {} rows, got {}.'.format(name, n_rows, len(table)))
+    return table.reset_index(drop=True)
+
+
+def _pandas():
+    try:
+        import pandas
+    except ImportError:
+        return None
+    return pandas
+
+
+def epoch(data, sfreq, onsets, tmin, tmax, *, t0=0.0, ch_names=None, units='uV', metadata=None,
+          ch_info=None):
+    """Cut a continuous recording into a TrialSet of epochs around events.
+
+    Parameters
+    ----------
+    data : 2d array
+        Continuous data, as [n_channels, n_times] (a 1d array is one channel).
+    sfreq : float
+        Sampling frequency, in Hz.
+    onsets : 1d array
+        Event onsets, in seconds, on the same clock as ``t0``.
+    tmin, tmax : float
+        Epoch window relative to each onset, in seconds; ``tmin`` included,
+        ``tmax`` excluded.
+    t0 : float
+        Time of the first sample of ``data``, in seconds.
+    ch_names : list of str, optional
+        Channel names; default ``CH001``, ``CH002``, ...
+    units : str
+        Amplitude unit of ``data``.
+    metadata : pandas.DataFrame or dict, optional
+        One row per onset (before dropping); the rows of the dropped onsets are
+        dropped too.
+    ch_info : pandas.DataFrame or dict, optional
+        One row per channel.
+
+    Returns
+    -------
+    trials : TrialSet
+        One trial per kept onset. ``event_times`` holds the kept onsets. The last
+        provenance step records ``kept`` (one bool per onset: False when the window
+        exceeds the recording) and ``overlaps_previous``. With pandas installed,
+        ``metadata`` holds a ``trial`` column (index of the onset) when none is given,
+        and a bool column ``overlaps_previous``, True when the epoch starts less than
+        ``tmax - tmin`` after the previous event (such trials are kept).
+
+    Raises
+    ------
+    DataError
+        Inconsistent shapes or window.
+    EventError
+        No epoch fits inside the recording.
+    """
+
+    start = _time.perf_counter()
+    data = np.asarray(data, dtype=np.float64)
+    if data.ndim == 1:
+        data = data[np.newaxis]
+    if data.ndim != 2:
+        raise DataError('epoch: data must be 2d (n_channels, n_times), got shape {}.'.format(
+            data.shape))
+    onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
+    times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, data.shape[1], t0=t0)
+    if not kept.any():
+        raise EventError('epoch: no epoch of ({}, {}) s fits inside the recording.'.format(
+            tmin, tmax))
+
+    index = starts[kept][:, None] + np.arange(times.size)[None, :]
+    trials = np.moveaxis(data[:, index], 0, 1)
+    overlaps = overlap_flags(onsets[kept], tmax - tmin)
+
+    ch_names = _default_names(data.shape[0]) if ch_names is None else list(ch_names)
+    pd = _pandas()
+    table = None
+    if metadata is not None:
+        table = _as_table(metadata, onsets.size, 'metadata').iloc[np.flatnonzero(kept)]
+        table = table.reset_index(drop=True)
+    elif pd is not None:
+        table = pd.DataFrame({'trial' : np.flatnonzero(kept).astype(np.int64)})
+    if table is not None:
+        table['overlaps_previous'] = overlaps
+    if ch_info is not None:
+        ch_info = _as_table(ch_info, len(ch_names), 'ch_info')
+
+    settings = {'sfreq' : float(sfreq), 'tmin' : float(tmin), 'tmax' : float(tmax),
+                't0' : float(t0), 'n_onsets' : int(onsets.size), 'units' : units}
+    provenance = Provenance(source={'path' : None, 'format' : 'array',
+                                    'reader' : 'evoparam.io.epoch'})
+    provenance = provenance.with_step('evoparam.io.epoch', settings,
+                                      duration_s=_time.perf_counter() - start,
+                                      kept=kept.tolist(), overlaps_previous=overlaps.tolist())
+    return TrialSet(data=trials, times=times, sfreq=sfreq, ch_names=ch_names, units=units,
+                    metadata=table, ch_info=ch_info, event_times=onsets[kept],
+                    provenance=provenance)
+
+
+def _default_names(n_channels):
+    width = max(3, len(str(n_channels)))
+    return ['CH{:0{}d}'.format(ind + 1, width) for ind in range(n_channels)]

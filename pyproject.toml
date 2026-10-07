@@ -29,6 +29,8 @@ dependencies = ["numpy", "scipy>=1.8"]
 [project.optional-dependencies]
 plot = ["matplotlib"]
 data = ["pandas"]
+mne = ["mne>=1.6"]
+edf = ["edfio>=0.4"]
 sim = ["neurodsp>=2.0"]
 progress = ["tqdm"]
 tests = ["pytest", "pytest-cov"]
@@ -44,5 +46,11 @@ version = { attr = "evoparam.version.__version__" }
 [tool.setuptools.packages.find]
 include = ["evoparam*"]
 
+[tool.setuptools.package-data]
+"evoparam.io" = ["registry.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["evoparam"]
+markers = [
+    "network: reads public data over the internet; skipped unless EVOPARAM_NETWORK_TESTS=1",
+]

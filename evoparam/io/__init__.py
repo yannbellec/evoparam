@@ -1,6 +1,20 @@
-"""Input / output: read recordings and stimulation events, and cut epochs around events."""
+"""Input / output: build TrialSets from arrays, files and BIDS datasets, locally or remotely.
 
-from .brainvision import read_brainvision_header, read_brainvision_segment
-from .bids import read_bids_events, select_stimulation_events
-from .epochs import epoch_data
-from .fetch import fetch_openneuro_file, openneuro_url
+- Arrays and files: :func:`from_array`, :func:`read` (dispatch), :func:`epoch`,
+  :func:`read_brainvision`, :func:`read_mne` (extra ``mne``), :func:`read_edf`
+  (extra ``edf``).
+- BIDS: :func:`read_bids` (local, or remote by HTTP byte ranges), with the stimulation
+  events harmonised into the standard metadata columns (:func:`harmonize_stim_events`,
+  :func:`validate_stimulation_events`).
+- Remote files: :class:`RemoteFile`, :func:`openneuro_url`, :func:`fetch_openneuro_file`.
+- Dataset registry: :func:`list_datasets`, :func:`dataset_info`.
+"""
+
+from .brainvision import read_brainvision, read_brainvision_header, read_brainvision_segment
+from .bids import read_bids, read_bids_events, select_stimulation_events
+from ._harmonize import (harmonize_stim_events, HarmonizationReport, validate_stimulation_events,
+                         ValidationReport)
+from .epochs import epoch, epoch_data
+from .fetch import OPENNEURO_URL, RemoteFile, fetch_openneuro_file, openneuro_url
+from .readers import from_array, read, read_edf, read_events_edf, read_mne
+from .registry import dataset_info, list_datasets

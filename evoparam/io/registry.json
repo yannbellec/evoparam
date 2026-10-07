@@ -1,0 +1,446 @@
+{
+ "schema": "evoparam-registry/1",
+ "version": "2026.10.07",
+ "description": "Public datasets of evoked responses. Every value is taken from the literature review of the specification (docs/spec/LITERATURE.md, datasets axis, and docs/spec/GAPS.md); null means the value is not stated there.",
+ "fields": {
+  "sfreq": "sampling frequency in Hz stated for the dataset (runs may differ)",
+  "size_gb": "size of the whole dataset in GB",
+  "events_status": "present | absent | unknown: stimulation or stimulus events in the files",
+  "loader": "evoparam function that reads the dataset, or null",
+  "references": "citation keys of docs/spec/LITERATURE.md",
+  "files": "path inside the dataset -> SHA-256, checked by fetch_openneuro_file"
+ },
+ "datasets": [
+  {
+   "id": "ds004080",
+   "aliases": [],
+   "title": "CCEP ECoG dataset across age 4-51",
+   "repository": "openneuro",
+   "url": "https://openneuro.org/datasets/ds004080",
+   "doi": "10.18112/openneuro.ds004080.v1.2.4",
+   "version": "1.2.4",
+   "publications": [
+    "10.1038/s41593-023-01272-0"
+   ],
+   "modality": "spes",
+   "recording": "ecog",
+   "species": "human",
+   "sfreq": 2048.0,
+   "n_subjects": 74,
+   "size_gb": 269.0,
+   "license": "CC0",
+   "events_status": "present",
+   "format": "bids",
+   "loader": "evoparam.io.read_bids",
+   "quirks": [
+    "74 patients aged 4-51",
+    "NEMAR mirror on004080 (DOI 10.82901/nemar.on004080) with chunked (Zarr) copies",
+    "catalogued in EEG-DaSh"
+   ],
+   "references": [
+    "LIT-datasets-1",
+    "LIT-datasets-2",
+    "LIT-datasets-3",
+    "LIT-datasets-4"
+   ],
+   "files": {}
+  },
+  {
+   "id": "ds003708",
+   "aliases": [],
+   "title": "Basis profile curve identification to understand electrical stimulation effects in human brain networks",
+   "repository": "openneuro",
+   "url": "https://openneuro.org/datasets/ds003708",
+   "doi": "10.18112/openneuro.ds003708.v1.0.4",
+   "version": "1.0.4",
+   "publications": [
+    "10.1101/2021.01.24.428020"
+   ],
+   "modality": "spes",
+   "recording": "ieeg",
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": "CC0",
+   "events_status": "present",
+   "format": "bids",
+   "loader": "evoparam.io.read_bids",
+   "quirks": [
+    "Mayo Clinic protocol shared with ds003708, ds004457, ds004696 and ds004977: single pulses at about 0.2 Hz, 200 µs, 6 mA"
+   ],
+   "references": [
+    "LIT-datasets-5",
+    "LIT-datasets-6"
+   ],
+   "files": {}
+  },
+  {
+   "id": "ds004457",
+   "aliases": [],
+   "title": "Electrical stimulation of temporal and limbic circuitry produces distinct responses in human ventral temporal cortex",
+   "repository": "openneuro",
+   "url": "https://openneuro.org/datasets/ds004457",
+   "doi": "10.18112/openneuro.ds004457.v1.0.1",
+   "version": "1.0.1",
+   "publications": [
+    "10.1101/2022.07.06.498994"
+   ],
+   "modality": "spes",
+   "recording": "ieeg",
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": "CC0",
+   "events_status": "present",
+   "format": "bids",
+   "loader": "evoparam.io.read_bids",
+   "quirks": [
+    "Mayo Clinic protocol shared with ds003708, ds004457, ds004696 and ds004977: single pulses at about 0.2 Hz, 200 µs, 6 mA"
+   ],
+   "references": [
+    "LIT-datasets-7",
+    "LIT-datasets-8"
+   ],
+   "files": {}
+  },
+  {
+   "id": "ds004696",
+   "aliases": [],
+   "title": "HAPwave_bids",
+   "repository": "openneuro",
+   "url": "https://openneuro.org/datasets/ds004696",
+   "doi": "10.18112/openneuro.ds004696.v1.0.1",
+   "version": "1.0.1",
+   "publications": [
+    "10.1523/JNEUROSCI.2201-22.2023"
+   ],
+   "modality": "spes",
+   "recording": "ieeg",
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": "CC0",
+   "events_status": "present",
+   "format": "bids",
+   "loader": "evoparam.io.read_bids",
+   "quirks": [
+    "Mayo Clinic protocol shared with ds003708, ds004457, ds004696 and ds004977: single pulses at about 0.2 Hz, 200 µs, 6 mA"
+   ],
+   "references": [
+    "LIT-datasets-9",
+    "LIT-datasets-10"
+   ],
+   "files": {}
+  },
+  {
+   "id": "ds004977",
+   "aliases": [],
+   "title": "CARLA: Adjusted common average referencing for cortico-cortical evoked potential data",
+   "repository": "openneuro",
+   "url": "https://openneuro.org/datasets/ds004977",
+   "doi": "10.18112/openneuro.ds004977.v1.2.0",
+   "version": "1.2.0",
+   "publications": [
+    "10.1016/j.jneumeth.2024.110153"
+   ],
+   "modality": "spes",
+   "recording": "ieeg",
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": "CC0",
+   "events_status": "present",
+   "format": "bids",
+   "loader": "evoparam.io.read_bids",
+   "quirks": [
+    "Mayo Clinic protocol shared with ds003708, ds004457, ds004696 and ds004977: single pulses at about 0.2 Hz, 200 µs, 6 mA",
+    "code: https://github.com/hharveygit/CARLA_JNM"
+   ],
+   "references": [
+    "LIT-datasets-11",
+    "LIT-datasets-12"
+   ],
+   "files": {}
+  },
+  {
+   "id": "ds006254",
+   "aliases": [],
+   "title": "IEEG CCEP Recording",
+   "repository": "openneuro",
+   "url": "https://openneuro.org/datasets/ds006254",
+   "doi": "10.18112/openneuro.ds006254.v1.0.0",
+   "version": "1.0.0",
+   "publications": [],
+   "modality": "spes",
+   "recording": "seeg",
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": 31,
+   "size_gb": null,
+   "license": "CC0",
+   "events_status": "unknown",
+   "format": "bids",
+   "loader": "evoparam.io.read_bids",
+   "quirks": [
+    "thin dataset-level metadata (README not found when catalogued)",
+    "events file status unconfirmed"
+   ],
+   "references": [
+    "LIT-datasets-13"
+   ],
+   "files": {}
+  },
+  {
+   "id": "ds002094",
+   "aliases": [],
+   "title": "Single-pulse open-loop TMS-EEG dataset",
+   "repository": "openneuro",
+   "url": "https://openneuro.org/datasets/ds002094",
+   "doi": null,
+   "version": "1.0.0",
+   "publications": [],
+   "modality": "tep",
+   "recording": "eeg",
+   "species": null,
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": null,
+   "events_status": "unknown",
+   "format": "bids",
+   "loader": "evoparam.io.read_bids",
+   "quirks": [
+    "minimal metadata",
+    "NEMAR mirror on002094 (DOI 10.82901/nemar.on002094)"
+   ],
+   "references": [
+    "LIT-datasets-17"
+   ],
+   "files": {}
+  },
+  {
+   "id": "ds005691",
+   "aliases": [],
+   "title": "SpinalExpect_Invasive",
+   "repository": "openneuro",
+   "url": "https://openneuro.org/datasets/ds005691",
+   "doi": "10.18112/openneuro.ds005691.v1.0.0",
+   "version": "1.0.0",
+   "publications": [],
+   "modality": null,
+   "recording": null,
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": null,
+   "events_status": "unknown",
+   "format": "bids",
+   "loader": "evoparam.io.read_bids",
+   "quirks": [
+    "invasive spinal recordings"
+   ],
+   "references": [
+    "LIT-datasets-16"
+   ],
+   "files": {}
+  },
+  {
+   "id": "ds006519",
+   "aliases": [],
+   "title": "Dataset of intracranial EEG during cortical stimulations evoking negative motor responses",
+   "repository": "openneuro",
+   "url": "https://openneuro.org/datasets/ds006519",
+   "doi": "10.18112/openneuro.ds006519.v1.0.0",
+   "version": "1.0.0",
+   "publications": [],
+   "modality": null,
+   "recording": "ieeg",
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": "CC0",
+   "events_status": "unknown",
+   "format": "bids",
+   "loader": "evoparam.io.read_bids",
+   "quirks": [],
+   "references": [
+    "LIT-datasets-15"
+   ],
+   "files": {}
+  },
+  {
+   "id": "erp-core",
+   "aliases": [
+    "erpcore"
+   ],
+   "title": "ERP CORE",
+   "repository": "osf",
+   "url": "https://osf.io/thsqg/",
+   "doi": "10.18115/D5JW4R",
+   "version": null,
+   "publications": [
+    "10.1016/j.neuroimage.2020.117465"
+   ],
+   "modality": "erp",
+   "recording": "eeg",
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": 40,
+   "size_gb": null,
+   "license": null,
+   "events_status": "unknown",
+   "format": null,
+   "loader": null,
+   "quirks": [
+    "seven components in six paradigms, with published pipelines and scores",
+    "a Python fetcher exists (hu-neuro-pipeline, pipeline.datasets.get_erpcore)"
+   ],
+   "references": [
+    "LIT-datasets-29",
+    "LIT-datasets-30",
+    "LIT-datasets-31",
+    "LIT-datasets-71"
+   ],
+   "files": {}
+  },
+  {
+   "id": "localize-mi",
+   "aliases": [
+    "localizemi"
+   ],
+   "title": "Localize-MI: simultaneous human intracerebral stimulation and HD-EEG",
+   "repository": "gin",
+   "url": "https://gin.g-node.org/ezemikulan/Localize-MI",
+   "doi": "10.12751/g-node.1cc1ae",
+   "version": null,
+   "publications": [
+    "10.1038/s41597-020-0467-x"
+   ],
+   "modality": null,
+   "recording": "eeg",
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": null,
+   "events_status": "unknown",
+   "format": null,
+   "loader": null,
+   "quirks": [
+    "also on EBRAINS (DOI 10.25493/NXN2-05W) and IEEE DataPort (DOI 10.21227/7may-9q56)",
+    "ground truth for source localization"
+   ],
+   "references": [
+    "LIT-datasets-24",
+    "LIT-datasets-25",
+    "LIT-datasets-26"
+   ],
+   "files": {}
+  },
+  {
+   "id": "bigp3bci",
+   "aliases": [],
+   "title": "bigP3BCI",
+   "repository": null,
+   "url": null,
+   "doi": null,
+   "version": null,
+   "publications": [],
+   "modality": "erp",
+   "recording": null,
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": 304,
+   "size_gb": null,
+   "license": null,
+   "events_status": "unknown",
+   "format": null,
+   "loader": null,
+   "quirks": [
+    "brain-computer interface data with single-trial ERPs (GAPS.md, GAP-33)"
+   ],
+   "references": [
+    "LIT-domains-71"
+   ],
+   "files": {}
+  },
+  {
+   "id": "allen-visual-coding-neuropixels",
+   "aliases": [
+    "allen-neuropixels"
+   ],
+   "title": "Allen Visual Coding - Neuropixels",
+   "repository": "dandi",
+   "url": "https://allensdk.readthedocs.io/en/latest/visual_coding_neuropixels.html",
+   "doi": null,
+   "version": null,
+   "publications": [
+    "10.1038/s41586-020-03171-x"
+   ],
+   "modality": "lfp_ep",
+   "recording": "lfp",
+   "species": "mouse",
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": null,
+   "events_status": "unknown",
+   "format": "nwb",
+   "loader": null,
+   "quirks": [
+    "the only large, fully open, NWB-formatted source of sensory-evoked LFP",
+    "distributed through DANDI",
+    "no loader in this version (NWB reader planned for build step S17)"
+   ],
+   "references": [
+    "LIT-datasets-50",
+    "LIT-datasets-51",
+    "LIT-datasets-52",
+    "LIT-datasets-53"
+   ],
+   "files": {}
+  },
+  {
+   "id": "f-tract",
+   "aliases": [
+    "ftract"
+   ],
+   "title": "F-TRACT atlas",
+   "repository": "zenodo",
+   "url": "https://zenodo.org/record/7015414",
+   "doi": null,
+   "version": "2112",
+   "publications": [
+    "10.1093/brain/awab362",
+    "10.1016/j.neuroimage.2018.07.039",
+    "10.1016/j.neuroimage.2013.05.075"
+   ],
+   "modality": "spes",
+   "recording": null,
+   "species": "human",
+   "sfreq": null,
+   "n_subjects": null,
+   "size_gb": null,
+   "license": null,
+   "events_status": "unknown",
+   "format": null,
+   "loader": null,
+   "quirks": [
+    "holds features rather than waveforms (derivatives only)"
+   ],
+   "references": [
+    "LIT-datasets-20",
+    "LIT-datasets-21",
+    "LIT-datasets-22",
+    "LIT-datasets-23"
+   ],
+   "files": {}
+  }
+ ]
+}
