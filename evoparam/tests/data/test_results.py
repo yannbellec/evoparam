@@ -1,5 +1,7 @@
 """Tests for the result dataclasses (spec §4.3.4)."""
 
+import copy
+
 import numpy as np
 import pytest
 
@@ -57,9 +59,11 @@ def test_group_get():
 
 
 def test_equality_is_nan_aware():
-    first, second = make_response_fit(), make_response_fit()
-    # The two objects may be created in different milliseconds.
-    second.provenance.created = first.provenance.created
+    first = make_response_fit()
+    # A deep copy, not a second factory call: nested objects carry their own creation
+    # time, which can differ by a millisecond between two calls.
+    second = copy.deepcopy(first)
+    assert second is not first and second.existence is not first.existence
     assert first == second
     other = make_response_fit()
     other.components[0].latency += 1e-6
