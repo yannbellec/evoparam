@@ -35,7 +35,7 @@
    "quirks": [
     "74 patients aged 4-51",
     "NEMAR mirror on004080 (DOI 10.82901/nemar.on004080) with chunked (Zarr) copies",
-    "catalogued in EEG-DaSh"
+    "catalogued in EEG-DaSh", "sampling rate differs between runs: run-021448 of sub-ccepAgeUMCU01 is recorded at 512 Hz (read on 2026-10-07)"
    ],
    "references": [
     "LIT-datasets-1",
