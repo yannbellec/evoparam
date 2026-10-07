@@ -57,7 +57,10 @@ def test_group_get():
 
 
 def test_equality_is_nan_aware():
-    assert make_response_fit() == make_response_fit()
+    first, second = make_response_fit(), make_response_fit()
+    # The two objects may be created in different milliseconds.
+    second.provenance.created = first.provenance.created
+    assert first == second
     other = make_response_fit()
     other.components[0].latency += 1e-6
     assert other != make_response_fit()
