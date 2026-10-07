@@ -1,15 +1,10 @@
 # Specification
 
-This folder will hold the full specification of evoparam: scope, modules, data formats,
-public interface, validation datasets and release plan.
+| file | content |
+|---|---|
+| `SPEC.md` | the complete specification (English): vision, scope, 227 requirements, architecture, 13 module specifications, presets, validation, benchmark, engineering, ecosystem, publication, build order, valorisation, traceability, risks, open questions |
+| `RESUME-FR.md` | summary in French |
+| `LITERATURE.md` | literature review, 14 axes, numbered reference lists cited in `SPEC.md` as `[LIT-<axis>-<n>]` |
+| `GAPS.md` | gap analysis: 58 gaps, who covers them today, what evoparam does, evidence, impact |
 
-The current skeleton (version 0.1) fixes only the four-block layout
-(`io`, `detect`, `clean`, `param`) and one working path through it.
-
-Inherited modules to review during the specification:
-
-- `objs` (`evoparam`, `evoparamGroup`): class names and settings.
-- `bands`: named time windows; may become part of the results interface.
-- `sim`: simulation of evoked responses; depends on neurodsp for noise.
-- `plts`, `core/reports`: plots and PDF reports.
-- `core/io`, `utils/io`: saving and loading model results.
+The inherited modules listed in the previous version of this file are evaluated one by one in `SPEC.md` §4.5.
