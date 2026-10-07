@@ -49,3 +49,4 @@ doc/auto_examples/*
 doc/auto_tutorials/*
 doc/auto_motivations/*
 doc/generated/*
+pytest-report.xml
