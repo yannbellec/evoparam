@@ -1,6 +1,14 @@
-"""Custom error definitions for evoparam."""
+"""Custom error definitions for evoparam (inherited fitting engine).
 
-class evoparamError(Exception):
+These classes derive from :class:`evoparam.errors.EvoparamError` so that one
+``except EvoparamError`` catches both. They are removed with the inherited
+engine at build step S7.
+"""
+
+from evoparam.errors import EvoparamError
+
+
+class evoparamError(EvoparamError):
     """Base class for errors in the evoparam module."""
 
 class FitError(evoparamError):
