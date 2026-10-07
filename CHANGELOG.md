@@ -2,6 +2,52 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S4: stimulation events from the raw signal
+
+- New module `evoparam.events` (spec §5.2), replacing the skeleton's `evoparam.detect`
+  (removed; `detect_stim_onsets` becomes `detect_pulses(..., method="threshold", refine=False)`).
+- `detect_pulses` returns the event table of spec §4.3.4 (`onset_sample`, `onset_time`,
+  `peak_abs`, `channel_argmax`, `saturated`, `n_saturated_channels`, `stim_site_guess`,
+  `site_confidence`, `train_id`, `index_in_train`, `detector`, `threshold`), then `z_peak`,
+  `rho`, `template_class`, `interval_flag` and, with channel names, `stim_site_pulse`.
+  Steps: robust score (median over at most 16 evenly spaced channels of the absolute
+  sample-to-sample change, robust z); one candidate per artifact (crossings closer than
+  20 ms, or half of `min_interval`, are merged); onset at the first sample within 2 ms
+  before the peak that reaches 25 % of it; strength gate (`min_relative`, 0.25 of the 90th
+  percentile of the candidates' peaks); grey-zone candidates (0.4 to 1 times the gate)
+  kept when their artifact repeats (`rho >= rho_min` with another candidate, ±0.5 ms
+  tolerance); recovery of weaker pulses that match a confirmed template; refractory period
+  in which the strongest pulse wins. `expected_rate` sets `min_interval` and the
+  `interval_flag` column. `detect_events` accepts an array, a one-trial `TrialSet` or an
+  MNE `Raw`; it is also `evoparam.detect_events`.
+- `detect_saturation`: rail runs (2 samples with an estimated rail, 1 with a known rail) and
+  stuck codes (`min_run` equal samples at least half-way to the rail), per channel and per
+  pulse, plus `recovery` (5 ms); returns the mask and a table. An estimated rail must lie
+  8 robust SD from the channel's median, so clean or quantised channels are never flagged.
+- `identify_stim_site` (spec method: largest artifact, polarity and electrode checks,
+  confidence `(a1 - a3) / a1`), with markers, triggers and auxiliary channels excluded by
+  name or by channel type; `vote_sites` makes consecutive pulses agree on their site.
+- `group_trains` (a new train at a site change, or at a gap longer than `max_gap`; the
+  default gap is 3 times the expected or the median interval), `trains`,
+  `events_to_metadata`, `match_onsets` (now with recall and precision) and
+  `estimate_delay` (trigger-to-artifact delay of a system).
+- Validation on OpenNeuro ds004080, 25 runs of 21 patients, 40 s each (200 pulses, 512 and
+  2048 Hz): recall 0.995, precision 0.990 (REQ-040). The trigger in `events.tsv` precedes the
+  first artifact sample by a constant 0.97 ms; after removing it (estimated on half of the
+  runs) the median onset error is within one sample on the other runs. Stimulated site:
+  agreement 0.66-0.68 with `events.tsv` (REQ-042 asks 0.95: **not met**, test marked xfail),
+  but the confidence is calibrated (accuracy 1.00 on the 56 % of pulses with confidence
+  >= 0.5). Cause: the amplifier holds the stimulating contacts flat or at a step, and the
+  artifact reaches every contact at a similar size through the common reference.
+- Mayo events (ds003708, ds004457, 6 runs): `group_trains` gives one train per block of one
+  site, 10 pulses per train (median), about 0.2 Hz (REQ-044). The Mayo recordings (MEF3)
+  cannot be read yet, so REQ-042 is not checked on them.
+- Speed and memory (REQ-045): 10 minutes of 100 channels at 2048 Hz in 0.56 s (0.61 s with
+  the site guess) on one core of the Mac Studio, 0.15 times the data size in extra memory
+  (`benchmarks/bench_events.py`; opt-in test with `EVOPARAM_PERF_TESTS=1`).
+- Not yet done: fractional-sample onsets for high-frequency trains need
+  `artifact.estimate_period` (build step S5).
+
 ### Build step S3: component shapes and backgrounds
 
 - `evoparam.shapes`: the eight component shapes of spec §5.5.1 (`gaussian`,

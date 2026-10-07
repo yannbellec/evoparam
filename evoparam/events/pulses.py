@@ -1,0 +1,578 @@
+"""Find stimulation pulses in the raw signal: robust threshold, then template confirmation."""
+
+import time as _time
+
+import numpy as np
+
+from evoparam.errors import DataError, EventError, SettingsError
+from evoparam.utils._optional import require
+
+from ._score import (SCORE_CHANNELS, as_continuous, crossings, difference_score, far_from,
+                     pick_index, robust_z, score_index, shifted_snippets, snippet_lengths)
+from .saturation import detect_saturation
+from .site import identify_stim_site, vote_sites
+from .trains import group_trains
+
+__all__ = ["detect_pulses", "match_onsets", "estimate_delay", "detect_events", "EVENT_COLUMNS"]
+
+METHODS = ("threshold", "template", "threshold+template")
+
+# Fixed columns of the event table (spec §4.3.4), in order.
+EVENT_COLUMNS = ("onset_sample", "onset_time", "peak_abs", "channel_argmax", "saturated",
+                 "n_saturated_channels", "stim_site_guess", "site_confidence", "train_id",
+                 "index_in_train", "detector", "threshold")
+
+# Crossings closer than this belong to the same artifact (s).
+MERGE_WINDOW = 0.020
+
+# Window after a crossing in which the artifact peak is searched (s).
+PEAK_WINDOW = 0.003
+
+# Window before the peak in which the onset is searched (s), and the fraction of the
+# peak score that marks the onset: low enough for the first sample of the artifact,
+# high enough to skip the small switching transient some stimulators emit 1-2 ms
+# earlier. 0.25 gave the most stable trigger-to-onset delay across the 25 ds004080 runs
+# of the validation (0.1 and 0.5 were tried).
+ONSET_WINDOW = 0.002
+ONSET_FRACTION = 0.25
+
+# A recovered pulse must still reach this fraction of the strength gate: below it, on
+# low-resolution recordings, background fluctuations correlate with short templates.
+RECOVERY_FRACTION = 0.1
+
+# Lower edge of the grey zone, as a fraction of the strength gate.
+GREY_FRACTION = 0.4
+
+def _group_crossings(cross, score, sfreq, merge_s=MERGE_WINDOW):
+    """One candidate per artifact: the crossing group's largest peak.
+
+    Crossings closer than ``merge_s`` seconds form a group. Returns (peak_index, peak_score,
+    first_crossing) arrays, one entry per group.
+    """
+
+    if len(cross) == 0:
+        return np.array([], dtype=int), np.array([]), np.array([], dtype=int)
+    merge = max(1, int(round(merge_s * sfreq)))
+    width = max(1, int(round(PEAK_WINDOW * sfreq)))
+    starts = np.r_[True, np.diff(cross) >= merge]
+    group = np.cumsum(starts) - 1
+    peaks, values, firsts = [], [], []
+    for g in range(group[-1] + 1):
+        members = cross[group == g]
+        lo, hi = members[0], min(len(score), members[-1] + width + 1)
+        ind = lo + int(np.argmax(score[lo:hi]))
+        peaks.append(ind)
+        values.append(score[ind])
+        firsts.append(members[0])
+    return np.array(peaks, dtype=int), np.array(values), np.array(firsts, dtype=int)
+
+
+def _onsets_from_peaks(peaks, firsts, score, sfreq):
+    """First sample of each artifact.
+
+    The onset is the earliest score value that reaches ONSET_FRACTION of the peak,
+    searched from ONSET_WINDOW before the peak (or from the group's first crossing, if
+    earlier, so that the rising edge of a long artifact is never missed). Score index i
+    is the change from sample i to i + 1, so the artifact starts at sample i + 1.
+    """
+
+    back = max(1, int(round(ONSET_WINDOW * sfreq)))
+    onsets = np.empty(len(peaks), dtype=int)
+    for row, (peak, first) in enumerate(zip(peaks, firsts)):
+        lo = max(0, min(peak - back, first - 1))
+        above = np.flatnonzero(score[lo:peak + 1] >= ONSET_FRACTION * score[peak])
+        onsets[row] = lo + above[0] + 1
+    return onsets
+
+
+def _suppress(positions, strength, min_samples):
+    """Keep a position unless a stronger one lies within ``min_samples`` (two passes, so a
+    position suppressed only by a suppressed neighbour comes back)."""
+
+    order = np.argsort(positions, kind="stable")
+    pos, val = positions[order], strength[order]
+    lo = np.searchsorted(pos, pos - min_samples + 1)
+    hi = np.searchsorted(pos, pos + min_samples)
+    keep = np.ones(len(pos), dtype=bool)
+    for _ in range(2):
+        new = np.zeros(len(pos), dtype=bool)
+        for ind in range(len(pos)):
+            rivals = np.flatnonzero(keep[lo[ind]:hi[ind]]) + lo[ind]
+            rivals = rivals[rivals != ind]
+            new[ind] = len(rivals) == 0 or val[ind] >= val[rivals].max()
+        if np.array_equal(new, keep):
+            break
+        keep = new
+    out = np.zeros(len(positions), dtype=bool)
+    out[order[keep]] = True
+    return out
+
+
+def _cluster(stacks, rho_min, n_members):
+    """Leader clustering of unit-norm snippets, tolerant to small onset shifts.
+
+    ``stacks`` holds, for each candidate, its snippet at several shifts (middle row: no
+    shift). A candidate joins the cluster whose template it matches best, over the
+    shifts, when the correlation reaches ``rho_min``; otherwise it starts a new cluster
+    with its unshifted snippet. A template is the normalised mean of the best-aligned
+    snippets of the first ``n_members`` members of its cluster.
+
+    Returns (labels, templates, best_rho).
+    """
+
+    middle = stacks.shape[1] // 2
+    labels = np.full(len(stacks), -1)
+    best = np.zeros(len(stacks))
+    sums, counts, templates = [], [], []
+    for row, stack in enumerate(stacks):
+        if not np.any(stack[middle]):
+            continue
+        if templates:
+            rho = stack @ np.array(templates).T            # shifts x clusters
+            shift, k = np.unravel_index(int(np.argmax(rho)), rho.shape)
+            if rho[shift, k] >= rho_min:
+                labels[row], best[row] = k, rho[shift, k]
+                if counts[k] < n_members:
+                    sums[k] = sums[k] + stack[shift]
+                    counts[k] += 1
+                    templates[k] = sums[k] / np.linalg.norm(sums[k])
+                continue
+        labels[row], best[row] = len(templates), 1.0
+        sums.append(stack[middle].copy())
+        counts.append(1)
+        templates.append(stack[middle].copy())
+    return labels, np.array(templates), best
+
+
+def _match(stacks, templates):
+    """Best correlation over shifts and templates: (rho, template index) per candidate."""
+
+    if len(stacks) == 0 or len(templates) == 0:
+        return np.zeros(len(stacks)), np.zeros(len(stacks), dtype=int)
+    rho = np.einsum("nsf,kf->nsk", stacks, templates).max(axis=1)
+    return rho.max(axis=1), rho.argmax(axis=1)
+
+
+def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0,
+                  min_interval=None, expected_rate=None, t0=0.0, picks=None, template=None,
+                  rho_min=0.8, n_template=5, min_relative=0.25, recovery_sd=None, refine=True,
+                  ch_names=None, ch_info=None, saturation=True, vote=True,
+                  score_channels=SCORE_CHANNELS, return_scores=False,
+                  verbose=None):
+    """Find stimulation pulses from the artifact they leave in the signal.
+
+    1. **Score.** ``d[n] = median_c |x_c[n + 1] - x_c[n]|`` over the picked channels
+       (at most ``score_channels`` of them, evenly spaced), turned into a robust z-score
+       (median and scaled MAD). The median over channels ignores transients that touch
+       only a few channels.
+    2. **Candidates.** Crossings of ``threshold_sd`` closer than 20 ms (or half of
+       ``min_interval``, if shorter) are one artifact;
+       its peak is the largest score within 3 ms of the crossings, and its onset is the
+       first sample, within 2 ms before the peak, whose score reaches 25 % of the peak
+       (``refine``). Without ``refine`` the onset is the first sample after the crossing.
+    3. **Strength gate and repetition** (``"threshold+template"``). Each candidate's
+       snippet (first difference of every picked channel, -1 ms to +3 ms, unit norm) is
+       clustered by normalised cross-correlation ``rho`` (tolerance +/-0.5 ms on the
+       onset; a cluster template is the mean of its first ``n_template`` members). A
+       candidate whose peak reaches ``min_relative`` times the 90th percentile of the
+       candidates' peaks is a pulse: stimulation artifacts reach hundreds to thousands
+       of robust SD, movement transients and electrode pops rarely more than a few tens.
+       A candidate between 0.4 and 1 times that gate is a pulse only if it repeats (its
+       cluster has another member, ``rho >= rho_min``): a protocol delivers many pulses
+       with the same artifact, a transient is unique. Weaker candidates are rejected
+       (step 4 may recover them). Alternating polarities and several stimulation sites
+       form several clusters. A user ``template`` also confirms the candidates it
+       matches.
+    4. **Recovery.** Crossings of the lower level ``recovery_sd`` that match a template
+       with ``rho >= rho_min``, and reach a tenth of the strength gate, are added
+       (``detector = "template"``): weaker pulses, for example at a lower current.
+    5. **Refractory period.** Within ``min_interval`` the strongest pulse is kept, so a
+       small switching click shortly before each pulse never replaces the pulse.
+
+    Parameters
+    ----------
+    data : 1d or 2d array
+        Continuous data, as [n_times] or [n_channels, n_times].
+    sfreq : float
+        Sampling frequency, in Hz.
+    method : {"threshold+template", "threshold", "template"}
+        ``"threshold"``: steps 1, 2 and 5 only (every crossing is a pulse). ``"template"``:
+        only candidates that match a template (the user ``template``, or the clusters of
+        the candidates that pass the strength gate).
+    threshold_sd : float, default: 20
+        Detection threshold, in robust standard deviations of the score.
+    min_interval : float, optional
+        Shortest time between two pulses, in seconds. Default: ``0.5 / expected_rate``
+        when the rate is given, else 0.5 s.
+    expected_rate : float, optional
+        Pulse rate inside a train, in Hz. Sets ``min_interval``, the train gap, and the
+        ``interval_flag`` column (intervals shorter than ``0.5 / rate`` or longer than
+        ``2 / rate``).
+    t0 : float, default: 0
+        Time of the first sample, in seconds.
+    picks : array-like, optional
+        Channels used for the score and the snippets (indices, names or boolean mask).
+    template : 1d array, optional
+        A known artifact snippet, in the layout of the snippets (picked channels x
+        samples, flattened); its correlation is computed on unit-norm versions.
+    rho_min : float, default: 0.8
+        Smallest normalised cross-correlation for a template match.
+    n_template : int, default: 5
+        Members averaged into a cluster template.
+    min_relative : float, default: 0.25
+        Strength gate, as a fraction of the 90th percentile of the candidates' peaks.
+        The gate is relative: in a recording without any pulse, the strongest
+        transients pass it, so check the ``rho`` and ``z_peak`` columns.
+    recovery_sd : float, optional
+        Lower level for the recovery pass. Default: ``threshold_sd / 4``.
+    refine : bool, default: True
+        Place the onset at the first artifact sample (step 2). If False, the onset is the
+        first sample after the first threshold crossing (the skeleton's rule).
+    ch_names : list of str, optional
+        Channel names: needed for ``channel_argmax`` names and for the stimulation-site
+        guess (:func:`identify_stim_site`); without them both use channel indices and the
+        site is not guessed.
+    ch_info : pandas.DataFrame, optional
+        Channel table passed to :func:`identify_stim_site`.
+    score_channels : int or None, default: 16
+        Largest number of channels in the score's median (None: all picked channels).
+        Snippets, saturation and the site guess always use every picked channel.
+    vote : bool, default: True
+        Replace each pulse's site guess by the vote of its block of consecutive pulses
+        (:func:`vote_sites`); the per-pulse guess is kept in ``stim_site_pulse``.
+    saturation : bool, default: True
+        Fill ``saturated`` and ``n_saturated_channels`` with :func:`detect_saturation`.
+    return_scores : bool, default: False
+        Also return the z-score and the per-event correlation.
+    verbose : bool, optional
+        Unused; kept for a uniform signature (the logger ``evoparam`` reports progress).
+
+    Returns
+    -------
+    events : pandas.DataFrame
+        The event table: the fixed columns ``EVENT_COLUMNS`` (spec §4.3.4), then
+        ``z_peak``, ``rho``, ``template_class`` and ``interval_flag``.
+    z, rho : 1d arrays
+        Only with ``return_scores``: the robust z-score of every sample step, and the
+        correlation of every event with its template.
+
+    Raises
+    ------
+    EventError
+        No pulse found; the message gives the largest z-score and a threshold that would
+        detect it.
+    SettingsError
+        Unknown method or invalid setting.
+    """
+
+    pd = require("pandas", extra="data", caller="evoparam.events.detect_pulses")
+    if method not in METHODS:
+        raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
+    if not threshold_sd > 0:
+        raise SettingsError("threshold_sd must be positive.")
+    if not 0 <= min_relative < 1:
+        raise SettingsError("min_relative must be in [0, 1).")
+    if not 0 < rho_min <= 1:
+        raise SettingsError("rho_min must be in (0, 1].")
+    if expected_rate is not None and not expected_rate > 0:
+        raise SettingsError("expected_rate must be positive.")
+    data = as_continuous(data)
+    if not sfreq > 0:
+        raise DataError("sfreq must be positive.")
+    n_channels, n_times = data.shape
+    names = list(ch_names) if ch_names is not None else [str(ind) for ind in range(n_channels)]
+    if len(names) != n_channels:
+        raise DataError("ch_names must have one name per channel.")
+    index = pick_index(n_channels, picks, names)
+    if min_interval is None:
+        min_interval = 0.5 / expected_rate if expected_rate else 0.5
+    if recovery_sd is None:
+        recovery_sd = threshold_sd / 4
+    min_samples = max(1, int(round(min_interval * sfreq)))
+    # Crossings of one artifact are merged, but never across two pulses of a fast train
+    merge_s = min(MERGE_WINDOW, min_interval / 2)
+
+    score = difference_score(data, score_index(index, score_channels))
+    z = robust_z(score)
+
+    # Candidates at the detection threshold
+    peaks, strength, firsts = _group_crossings(crossings(z, threshold_sd), z, sfreq, merge_s)
+    onsets = _onsets_from_peaks(peaks, firsts, score, sfreq) if refine else firsts + 1
+
+    n_pre, n_post, max_shift = snippet_lengths(sfreq)
+    detector = np.array(["threshold"] * len(onsets), dtype=object)
+    rho = np.ones(len(onsets))
+    labels = np.full(len(onsets), -1)
+
+    user = None
+    if template is not None:
+        user = np.asarray(template, dtype=float).ravel()
+        if user.size != len(index) * (n_pre + n_post):
+            raise SettingsError(f"template must have {len(index) * (n_pre + n_post)} values "
+                                f"({len(index)} channels x {n_pre + n_post} samples).")
+        user = user / np.linalg.norm(user)
+
+    if method != "threshold" and len(onsets):
+        # Strength gate. Strong candidates (>= min_relative of the reference) are pulses;
+        # candidates in the grey zone (>= GREY_FRACTION of the gate) are pulses when they
+        # repeat, that is when another candidate carries the same artifact.
+        reference = np.percentile(strength, 90)
+        relative = strength / reference
+        strong = relative >= min_relative
+        eligible = relative >= GREY_FRACTION * min_relative
+        stacks = shifted_snippets(data, index, onsets, n_pre, n_post, max_shift)
+        labels = np.full(len(onsets), -1)
+        rho = np.zeros(len(onsets))
+        labels[eligible], clusters, rho[eligible] = _cluster(stacks[eligible], rho_min,
+                                                             int(n_template))
+        sizes = np.bincount(labels[eligible], minlength=len(clusters))
+        repeated = eligible & (sizes[np.maximum(labels, 0)] >= 2)
+        confirmed = strong | repeated
+        templates = clusters.reshape(len(clusters), -1)
+        if user is not None:
+            user_rho, _ = _match(stacks, user[np.newaxis])
+            hit = user_rho >= rho_min
+            labels[hit & ~confirmed] = len(templates)
+            confirmed |= hit
+            rho = np.where(hit, np.maximum(rho, user_rho), rho)
+            templates = np.vstack([templates, user])
+        # Only the templates of confirmed pulses are used for recovery
+        good = np.unique(labels[confirmed & (labels >= 0)])
+        relabel = np.full(len(templates), -1)
+        relabel[good] = np.arange(len(good))
+        labels = np.where(labels >= 0, relabel[np.maximum(labels, 0)], -1)
+        templates = templates[good]
+        if method == "template":
+            confirmed[:] = False
+        peaks, strength, onsets = peaks[confirmed], strength[confirmed], onsets[confirmed]
+        detector, rho, labels = detector[confirmed], rho[confirmed], labels[confirmed]
+
+        # Recovery: weaker artifacts that match a template of the confirmed pulses
+        if len(templates):
+            low_peaks, low_strength, low_firsts = _group_crossings(crossings(z, recovery_sd),
+                                                                   z, sfreq, merge_s)
+            low_onsets = (_onsets_from_peaks(low_peaks, low_firsts, score, sfreq) if refine
+                          else low_firsts + 1)
+            new = far_from(low_onsets, np.sort(onsets), min_samples)
+            low_peaks, low_strength, low_onsets = low_peaks[new], low_strength[new], low_onsets[new]
+            low_rho, low_label = _match(
+                shifted_snippets(data, index, low_onsets, n_pre, n_post, max_shift), templates)
+            match = (low_rho >= rho_min) & (low_strength >= RECOVERY_FRACTION * min_relative
+                                             * reference)
+            peaks = np.r_[peaks, low_peaks[match]]
+            strength = np.r_[strength, low_strength[match]]
+            onsets = np.r_[onsets, low_onsets[match]]
+            detector = np.r_[detector, ["template"] * int(match.sum())]
+            rho = np.r_[rho, low_rho[match]]
+            labels = np.r_[labels, low_label[match]]
+
+    # Refractory period: the strongest pulse wins
+    keep = _suppress(onsets, strength, min_samples)
+    order = np.argsort(onsets[keep], kind="stable")
+    onsets = onsets[keep][order]
+    strength, detector = strength[keep][order], detector[keep][order]
+    rho, labels = rho[keep][order], labels[keep][order]
+
+    if len(onsets) == 0:
+        top = float(np.max(z)) if len(z) else 0.0
+        raise EventError(f"No stimulation pulse found: the largest score is {top:.1f} robust SD "
+                         f"(threshold {threshold_sd}); try threshold_sd={max(top / 2, 1):.1f}, "
+                         "or check that the picked channels record the stimulation.")
+
+    # Artifact size and the channel that carries it
+    width = max(1, int(round(PEAK_WINDOW * sfreq)))
+    peak_abs = np.zeros(len(onsets))
+    argmax = []
+    for row, onset in enumerate(onsets):
+        lo, hi = max(0, onset - 1), min(n_times, onset + width + 1)
+        dev = np.abs(data[index, lo:hi] - data[index, lo:lo + 1])
+        per_channel = np.nanmax(dev, axis=1)
+        best = int(np.argmax(per_channel))
+        peak_abs[row] = per_channel[best]
+        argmax.append(names[index[best]])
+
+    # Template classes renumbered from 0 in order of first appearance (-1: no template)
+    classes = np.full(len(labels), -1)
+    seen = {}
+    for row, label in enumerate(labels):
+        if label >= 0:
+            classes[row] = seen.setdefault(int(label), len(seen))
+
+    events = pd.DataFrame({
+        "onset_sample": onsets.astype("int64"),
+        "onset_time": t0 + onsets / sfreq,
+        "peak_abs": peak_abs,
+        "channel_argmax": argmax,
+        "saturated": np.zeros(len(onsets), dtype=bool),
+        "n_saturated_channels": np.zeros(len(onsets), dtype="int64"),
+        "stim_site_guess": [""] * len(onsets),
+        "site_confidence": np.zeros(len(onsets)),
+        "train_id": np.zeros(len(onsets), dtype="int64"),
+        "index_in_train": np.zeros(len(onsets), dtype="int64"),
+        "detector": detector.astype(str),
+        "threshold": np.full(len(onsets), float(threshold_sd)),
+        "z_peak": strength,
+        "rho": rho,
+        "template_class": classes.astype("int64"),
+    })
+
+    if saturation:
+        _, sat = detect_saturation(data, sfreq, events=events, ch_names=names, picks=index,
+                                   t0=t0)
+        if len(sat):
+            counts = sat.groupby("event_index")["channel"].nunique()
+            events.loc[counts.index, "n_saturated_channels"] = counts.to_numpy(dtype="int64")
+            events["saturated"] = events["n_saturated_channels"] > 0
+
+    if ch_names is not None:
+        located = identify_stim_site(data, sfreq, events, ch_names=names, ch_info=ch_info,
+                                     t0=t0, picks=index)
+        events["stim_site_guess"] = located["stim_site_guess"]
+        events["site_confidence"] = located["site_confidence"]
+        if vote and len(events) > 1:
+            voted = vote_sites(events)
+            events["stim_site_guess"] = voted["stim_site_guess"]
+            events["site_confidence"] = voted["site_confidence"]
+            events["stim_site_pulse"] = voted["stim_site_pulse"]
+
+    events = group_trains(events, expected_rate=expected_rate)
+
+    flags = [""] * len(events)
+    if expected_rate:
+        intervals = np.diff(events["onset_time"].to_numpy())
+        for row, interval in enumerate(intervals, start=1):
+            if interval < 0.5 / expected_rate:
+                flags[row] = "short"
+            elif interval > 2.0 / expected_rate:
+                flags[row] = "long"
+    events["interval_flag"] = flags
+
+    columns = list(EVENT_COLUMNS) + ["z_peak", "rho", "template_class", "interval_flag"]
+    if "stim_site_pulse" in events.columns:
+        columns.append("stim_site_pulse")
+    events = events[columns]
+    if return_scores:
+        return events, z, events["rho"].to_numpy()
+    return events
+
+
+def match_onsets(detected, reference, tolerance=0.01):
+    """Compare detected onsets to reference onsets.
+
+    Each reference onset is matched to the nearest unused detection within
+    ``tolerance``, in time order.
+
+    Parameters
+    ----------
+    detected, reference : 1d array
+        Onsets, in seconds.
+    tolerance : float, default: 0.01
+        Largest time difference, in seconds, for a detection to count as a match.
+
+    Returns
+    -------
+    results : dict
+        ``hits`` (reference onsets found), ``misses``, ``false_alarms``, ``errors``
+        (1d array, detected minus reference time for each hit, s), ``recall`` and
+        ``precision``.
+    """
+
+    detected, reference = np.sort(np.asarray(detected, float)), np.sort(np.asarray(reference, float))
+    used, errors = np.zeros(len(detected), dtype=bool), []
+    for ref in reference:
+        if len(detected) == 0:
+            break
+        diffs = np.abs(detected - ref)
+        diffs[used] = np.inf
+        ind = int(np.argmin(diffs))
+        if diffs[ind] <= tolerance:
+            used[ind] = True
+            errors.append(detected[ind] - ref)
+    hits = len(errors)
+    return {"hits": hits, "misses": len(reference) - hits, "false_alarms": int(np.sum(~used)),
+            "errors": np.array(errors),
+            "recall": hits / len(reference) if len(reference) else np.nan,
+            "precision": hits / len(detected) if len(detected) else np.nan}
+
+
+def estimate_delay(detected, reference, tolerance=0.01):
+    """Constant delay between the artifact onsets and the event times of a system.
+
+    The event time written by a stimulator or an acquisition system (the trigger) and
+    the first sample of the artifact in the recorded signal differ by a delay that is
+    constant for one system: trigger latency, and the group delay of the amplifier's
+    anti-aliasing filter. On OpenNeuro ds004080 it is about 1 ms (2 samples at 2048 Hz,
+    1 sample at 512 Hz). Estimate it on recordings where both exist, then subtract it
+    from detections made where the events file is missing.
+
+    Parameters
+    ----------
+    detected, reference : 1d array or list of 1d arrays
+        Onsets, in seconds; lists give several recordings, matched separately.
+    tolerance : float, default: 0.01
+        Matching tolerance, in seconds (see :func:`match_onsets`).
+
+    Returns
+    -------
+    delay : float
+        Median of detected minus reference time over all matched pairs, in seconds
+        (NaN when nothing matches).
+    spread : float
+        Median absolute deviation of the errors around the delay, in seconds.
+    """
+
+    if len(detected) and np.ndim(detected[0]) == 0:
+        detected, reference = [detected], [reference]
+    errors = np.concatenate([match_onsets(det, ref, tolerance)["errors"]
+                             for det, ref in zip(detected, reference)] or [np.array([])])
+    if len(errors) == 0:
+        return np.nan, np.nan
+    delay = float(np.median(errors))
+    return delay, float(np.median(np.abs(errors - delay)))
+
+
+def detect_events(source, *, sfreq=None, ch_names=None, t0=None, **kwargs):
+    """Detect stimulation pulses in a continuous recording of any supported type.
+
+    Parameters
+    ----------
+    source : ndarray, TrialSet or mne.io.Raw
+        - ``ndarray`` [n_channels, n_times]: ``sfreq`` is required;
+        - ``TrialSet`` holding one continuous trial (as returned by
+          :func:`evoparam.io.read` without ``onsets``): its ``times`` give ``t0``;
+        - MNE ``Raw``: data, sampling rate and channel names are taken from it, and
+          times are seconds from the start of the data.
+    sfreq : float, optional
+        Sampling frequency (arrays only).
+    ch_names : list of str, optional
+        Channel names (arrays only; enables the site guess).
+    t0 : float, optional
+        Time of the first sample; overrides the value taken from ``source``.
+    **kwargs
+        Passed to :func:`detect_pulses`.
+
+    Returns
+    -------
+    events : pandas.DataFrame
+        The event table of :func:`detect_pulses`.
+    """
+
+    start = _time.perf_counter()
+    from evoparam.data import TrialSet
+
+    if isinstance(source, TrialSet):
+        if source.n_trials != 1:
+            raise DataError("detect_events needs continuous data: a TrialSet with one trial.")
+        data, rate = source.data[0], source.sfreq
+        names = list(source.ch_names) if ch_names is None else ch_names
+        first = float(source.times[0])
+        kwargs.setdefault("ch_info", source.ch_info)
+    elif (type(source).__module__ or "").split(".")[0] == "mne":
+        data, rate, names, first = source.get_data(), source.info["sfreq"], source.ch_names, 0.0
+    else:
+        if sfreq is None:
+            raise DataError("detect_events: sfreq is required for an array.")
+        data, rate, names, first = source, sfreq, ch_names, 0.0
+    events = detect_pulses(data, rate, ch_names=names, t0=first if t0 is None else t0, **kwargs)
+    events.attrs["duration_s"] = _time.perf_counter() - start
+    return events

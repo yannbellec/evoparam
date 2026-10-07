@@ -43,7 +43,7 @@ RULES = {
 FORBIDDEN_BETWEEN = {"reports", "plots", "cli", "stream", "benchmark"}
 
 # Inherited modules, rewritten or removed by the build steps of spec §12.
-LEGACY = {"analysis", "bands", "clean", "core", "detect", "objs", "param", "plts", "_legacy"}
+LEGACY = {"analysis", "bands", "clean", "core", "objs", "param", "plts", "_legacy"}
 
 # (source file relative to the package, imported module) -> build step that removes the edge.
 TRANSITIONAL = {

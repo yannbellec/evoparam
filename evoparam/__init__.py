@@ -10,4 +10,5 @@ from .bands import Bands
 from .objs import evoparam, evoparamGroup
 from .objs.utils import fit_evoparam_3d
 
-from . import io, detect, clean, param
+from . import io, events, clean, param
+from .events import detect_events

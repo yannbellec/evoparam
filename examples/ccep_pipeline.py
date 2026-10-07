@@ -7,7 +7,7 @@ whole recording:
 
 1. io     : read the stimulation events, then stream 50 seconds of one ECoG run
             (OpenNeuro ds004080, Utrecht CCEP dataset, patient sub-ccepAgeUMCU01).
-2. detect : find the stimulation onsets from the signal alone, and compare them
+2. events : find the stimulation onsets from the signal alone, and compare them
             to the onsets written in the events file.
 3. clean  : remove the stimulation artifact by interpolation.
 4. param  : fit the peak model on the average response of each channel, and print
@@ -20,7 +20,7 @@ import numpy as np
 
 from evoparam.io import (openneuro_url, read_bids_events, select_stimulation_events,
                          read_brainvision_segment, epoch_data)
-from evoparam.detect import detect_stim_onsets, match_onsets
+from evoparam.events import detect_pulses, match_onsets
 from evoparam.clean import interpolate_artifact
 from evoparam.param import fit_epochs
 
@@ -54,10 +54,10 @@ picks = [ind for ind, name in enumerate(ch_names)
 data, ch_names = data[picks], [ch_names[ind] for ind in picks]
 
 ###################################################################################################
-# 2. detect: onsets from the signal alone
+# 2. events: onsets from the signal alone
 
-detected = detect_stim_onsets(data, sfreq, t0=t0)
-check = match_onsets(detected, onsets, tolerance=0.01)
+detected = detect_pulses(data, sfreq, t0=t0, ch_names=ch_names)
+check = match_onsets(detected["onset_time"], onsets, tolerance=0.01)
 print('Detection: {} / {} pulses found, {} false alarms, mean error {:.1f} ms'.format(
     check['hits'], len(onsets), check['false_alarms'],
     1000 * np.mean(check['errors']) if check['hits'] else np.nan))

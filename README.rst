@@ -15,8 +15,10 @@ evoparam covers the whole path from a raw recording to response parameters:
 
 * ``evoparam.io``: read BIDS events and BrainVision recordings (local files, or only the
   needed seconds of a remote file), and cut epochs around stimulations.
-* ``evoparam.detect``: find stimulation onsets from the signal itself, when the events file
-  is missing or wrong, and score detections against reference onsets.
+* ``evoparam.events``: find stimulation pulses from the signal itself, when the events file
+  is missing or wrong (robust threshold, strength gate and template matching), flag
+  amplifier saturation, guess the stimulated contact pair, group pulses into trains, and
+  score detections against reference onsets.
 * ``evoparam.clean``: remove the stimulation artifact (interpolation, for now).
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
