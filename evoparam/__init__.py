@@ -4,6 +4,7 @@ from .version import __version__
 
 from . import errors
 from .data import TrialSet, Evoked, Provenance, load_object
+from . import shapes
 
 from .bands import Bands
 from .objs import evoparam, evoparamGroup
