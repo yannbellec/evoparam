@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import json
+import platform
 import pathlib
 
 import numpy as np
@@ -101,8 +102,8 @@ def test_truth_compares_equal_to_its_copy():
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
 def test_reference_fingerprints(name):
     """Values committed from a reference run (seed 2024): the same on every platform of the
-    CI within 1e-9 relative (REQ-295); byte-identical when numpy and scipy are the versions
-    that produced them."""
+    CI within 1e-9 relative (REQ-295); byte-identical on the platform and with the numpy and
+    scipy versions that produced them (other platforms differ in the last bits: SIMD, libm)."""
 
     reference = json.loads(REFERENCE.read_text(encoding="utf-8"))
     expected = reference["generators"][name]
@@ -118,7 +119,9 @@ def test_reference_fingerprints(name):
                                expected["latencies"], rtol=1e-9, atol=1e-12)
     made_with = reference["made_with"]
     import scipy
-    if (np.__version__, scipy.__version__) == (made_with["numpy"], made_with["scipy"]):
+    here = (np.__version__, scipy.__version__, platform.machine(), platform.system())
+    if here == (made_with["numpy"], made_with["scipy"], made_with["machine"],
+                made_with["system"]):
         assert hashlib.sha256(ts.data.tobytes()).hexdigest() == expected["sha256"]
 
 

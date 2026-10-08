@@ -1,6 +1,6 @@
 {
  "note": "Fingerprints of evoparam.sim generators with seed 2024 (SMALL settings of evoparam/tests/sim/_helpers.py); compared with rtol 1e-9 (spec REQ-250, REQ-295).",
- "made_with": {"numpy": "2.5.3", "scipy": "1.18.1", "python": "3.13.16", "machine": "x86_64"},
+ "made_with": {"numpy": "2.5.3", "scipy": "1.18.1", "python": "3.13.16", "machine": "x86_64", "system": "Linux"},
  "generators": {
   "erp": {
    "shape": [12, 3, 500],
