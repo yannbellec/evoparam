@@ -317,6 +317,140 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S16: reports, plots and the command line
+
+- New module `evoparam.plots` (extra `plot`): `plot_fit` (data, model, components,
+  background, residual drawn below the data, masked samples shaded, latency intervals as
+  bands), `plot_group` (`grid`, `shaft`, `brain` with channel coordinates), `plot_trials`
+  (trials sorted by latency and the latency histogram), `plot_existence` (statistic per
+  channel and the response windows), `plot_tf` (total, footprint and residual maps with
+  zones outlined and significant pixels contoured), `plot_shapes`, `plot_artifact`,
+  `plot_compare`, `plot_hierarchical` (probability of a response and variance components).
+  Every function returns the Figure, accepts `ax=`/`axes=`, never calls `show()`, uses the
+  Okabe-Ito palette, and runs headless on every result type (REQ-344 met). The averages
+  drawn by `plot_artifact` come from `TrialSet.average`, and the colour scales use the
+  largest absolute value (no percentile computed in the plots). Deviation:
+  `plot_existence` shows the statistic per channel; the statistic over time with its null
+  band is not stored in `ResponseTest`.
+- Methods text (`evoparam.reports.methods_text`, and `.methods_text()` of every result):
+  - Built by `evoparam/data/_methods.py`, so that `ResponseFit.methods_text()` and
+    `GroupFit.methods_text()` answer from the result alone (REQ-338: `provenance` and
+    `settings` only; a saved result gives the same paragraph). It opens with the package
+    version and the preset (name, version, validation note). It then gives one frozen
+    template per recorded step: artifact (with the joint recovery tail, the template
+    grouping "(those present)", the quality score), reference (it says when the adjusted
+    common average fell back to the plain one), baseline, rejection, resampling,
+    averaging, fit, existence test, trial fits, realignment, hierarchical model, variance
+    components, time-frequency, shared shapes. Reading, simulation, selection and
+    migration steps are not described.
+  - It ends with the settings changed from the preset, the seed sentence (or the
+    statement that no seed was set) with a pointer to `evoparam.reproduce`, the package
+    citation and the citations of the methods used (Benjamini-Hochberg, rule sources). No
+    path, date or duration enters the text. `reports.methods_text` also takes a
+    `PipelineResult` or a list of results, and `cite=False` leaves the citations out.
+  - The fit sentence says that the criterion is computed on residuals whitened by an
+    autoregressive model of the baseline noise (since step S7). The preset fit records
+    the names of the settings that differ from the preset (`settings["_overrides"]`).
+  - `evoparam.existence.fit(existence=True)` records the test as a provenance step of the
+    group and of every fit (new public `existence.attach_test`), and logs the paragraph
+    at INFO (spec §5.13; `evoparam fit --verbose info` prints it).
+  - REQ-340 met: `reports.run_pipeline(trials, preset)` runs the preset chain
+    (`PipelineResult`), and `REFERENCE_PIPELINES` names the three reference pipelines
+    (ERP CORE P3, ds004080 CCEP, simulated TEP), each with a simulated stand-in input.
+    Their paragraphs are frozen in `evoparam/tests/reports/methods/*.txt`, with the
+    package version written `{version}`; `tools/freeze_methods_text.py` regenerates them
+    after a deliberate change of a template or preset (a preset change changes the frozen
+    text). The text depends on the settings only. The network test runs the ds004080
+    pipeline on the real recording (sub-ccepAgeUMCU01 run-021448, site PT01-PT02, 120
+    channels) and gets the frozen words. The ERP CORE files are not on OpenNeuro and need
+    MNE, so that pipeline is checked on its stand-in only.
+  - The existence-test window of the pipeline starts after the samples masked in every
+    trial: the tep preset's interpolation (artifact window to 12 ms plus its buffer)
+    reaches into the fit window that starts at 12 ms, and the test refuses fully masked
+    samples.
+- `to_json(result)` / `from_json(...)`: the `.evoparam` container as one strict JSON
+  document (structure, arrays with their dtype and shape, tables as CSV with their sidecar,
+  provenance, settings). `validate_json` checks it against the shipped JSON Schema
+  `evoparam/reports/schema/evoparam-result-1.json` (extra `validate`, jsonschema).
+  REQ-341 met: the JSON validates and `from_json` reproduces `to_dataframe()` exactly.
+- `qc(result, trials=, artifact=, trial_fits=)`: fits by status, warnings by type,
+  ill-conditioned fits, masked fraction, artifact quality (from the new
+  `ArtifactResult.quality_summary()`: median and 5th percentile), untrusted trials.
+- `html(result, path)`: one self-contained file (figures as inline PNG, no network
+  access), with summary table, quality, warnings, methods text and provenance; REQ-343 met
+  (100 channels: well under 20 MB). Also `markdown(result)` and `pdf(result, path)` (text
+  page, one page per condition, per-channel figures).
+- `citation(bibtex=False)` reads `CITATION.cff`. The package holds a byte-identical copy,
+  `evoparam/CITATION.cff`, rather than a symbolic link, which becomes a one-line text file
+  on checkouts without link support; a test keeps the two identical (REQ-346 met).
+- `reproduce(path, data=None, rtol=1e-9, atol=0, check_environment=True)` (also
+  `evoparam.reproduce`):
+  - It reloads a saved result (checksums verified, else reported) and replays the
+    recorded steps from the recorded source: simulation, `read_bids`, `io.read`,
+    container methods, artifact removal, reference, baseline, the group fit with the
+    settings of `settings.json`, and the existence test. Every array, table and field of
+    the new result is compared with the saved one.
+  - The report gives the per-step status, the differing fields with their relative
+    difference, the settings that differ between `settings.json` and the record, and the
+    environment differences (with a warning).
+  - It raises `EvoparamVersionError` when the recorded preset version no longer exists.
+  - REQ-333 met: identical with `rtol=1e-9` on the simulated chain; a setting changed in
+    `settings.json` is named on the fit step; `evoparam reproduce --json` returns the same
+    report.
+  - `reports.migrate(path)` rewrites a container under the current schema (written next
+    to the old one, then swapped in).
+- REQ-334 tested: `tests/data/test_schema_version.py` keeps frozen containers of schema
+  major 1 (`tests/data/containers/`) that must load and equal their objects. It also
+  checks a migration from an older major (recorded as `evoparam.data.migrate`) and that a
+  newer major raises.
+- `evoparam.io.write_bids_derivatives(results, bids_root, subject=..., ...)`: the
+  derivative tree of spec §10.2. It writes `*_desc-evoparam_responses.tsv`,
+  `_existence.tsv` and `_trials.tsv`, whose JSON sidecars give every column a description
+  and a unit (`n/a` for labels and ratios), with the settings, preset and provenance. It
+  also writes one `_artifact.json` per run (with every step when the preset chains
+  several), `dataset_description.json` (`GeneratedBy` with the code URL and the
+  provenance, REQ-336), `descriptions.tsv`, `README`, and a `.bidsignore` that declares
+  the evoparam tables and saved containers, which have no BIDS suffix yet.
+  - REQ-342 met: the derivatives and the simulated raw dataset pass the BIDS validator
+    (`@bids/validator` 3.0.2) with no error. The test runs when `EVOPARAM_BIDS_VALIDATOR`
+    names the validator command or `bids-validator` is on the PATH.
+  - `evoparam.io.write_brainvision` writes BrainVision files.
+- `evoparam.sim.bids.write_bids`: a simulated TrialSet as a BIDS dataset (trials end to end
+  in one BrainVision recording, events, channels, sidecars with `iEEGReference`,
+  electrodes and coordinate system for iEEG, participants, README) with the truth in
+  `derivatives/truth`.
+- The command line `evoparam` (also `python -m evoparam`; `argparse` only):
+  - `fit`: the preset pipeline of `reports.run_pipeline`, the derivatives and the saved
+    result.
+  - `test`, `clean`, `report` (html/pdf/md/json), `simulate`.
+  - `detect-events`: a BIDS events file, with `onset` and `duration` first.
+  - `reproduce`, `migrate` (in place, or a copy with `--out`), `info`,
+    `presets list|show`, `cite`, and `--version` with the research-use statement.
+  - `benchmark` and `validate-bids` answer that they come with steps S19 and S17
+    (REQ-314; exit code 1).
+  - Common options: `--json` (one JSON summary on stdout), `--verbose`, `--n-jobs`,
+    `--random-state` (default 0), `--config`. Exit codes 0, 1, 2, 3, 4, 5, 6, 130 as in
+    §10.5.
+  - REQ-345 met: every command runs through `subprocess` on a simulated BIDS dataset, and
+    its files equal those of the Python API with the same seed. TSV files are compared
+    byte for byte; JSON files are compared after removing the creation time and step
+    durations. REQ-323 met: the exit codes are triggered and the `--json` summary
+    parses. A corrupt `manifest.json` now raises `DataError`.
+- Dependency table (§4.2, updated): the top layers are ordered
+  `plots < reports < cli, benchmark`, without cycles. The spec had forbidden imports
+  between them except `benchmark -> reports`, which would forbid figures in the HTML
+  report and the `report` command. The import-graph test lists these edges.
+  REQ-349 met: `tests/reports/test_layering.py` fails if `reports`, `plots` or `cli`
+  import SciPy, call NumPy's statistical, linear-algebra, transform or fitting routines,
+  or import a private module of an analysis package.
+- `pyproject.toml`: console script `evoparam`. Extras: `validate` (jsonschema,
+  bidsschematools, nwbinspector, as in §9.2), `cli`, `plot` (matplotlib >= 3.7), and
+  jsonschema added to `all`. Package data: the JSON Schema, the citation copy, the frozen
+  texts and containers.
+- Not done: the stream module (`StreamFitter`, REQ-347, REQ-348: step S18), `write_nwb`
+  and its provenance (REQ-336 for NWB, an expected failure until step S17),
+  `validate-bids` (REQ-314, step S17), the benchmark (step S19).
+
 ### Build step S15, part 2: validation layer 2 and the state of layer 3
 
 - `validation/layer2.py` (spec §7.2): the layer-2 runner. Each cell simulates trials with the

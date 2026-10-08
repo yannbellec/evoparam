@@ -1,0 +1,644 @@
+{
+ "__type__": "GroupFit",
+ "fields": {
+  "fits": [
+   {
+    "__type__": "ResponseFit",
+    "fields": {
+     "components": [
+      {
+       "__type__": "Component",
+       "fields": {
+        "shape": "gaussian",
+        "params": {
+         "__array__": "fits.0.components.0.params"
+        },
+        "param_names": {
+         "__tuple__": [
+          "latency",
+          "amplitude",
+          "width"
+         ]
+        },
+        "latency": 0.025,
+        "amplitude": -40.0,
+        "polarity": -1,
+        "fwhm": 0.0094,
+        "onset": 0.0165,
+        "offset": 0.0335,
+        "area": -0.4,
+        "rise_time": 0.0085,
+        "decay_time": 0.0085,
+        "symmetry": 0.0,
+        "sharpness": 1.7,
+        "label": "N1",
+        "se": {
+         "__dict__": {
+          "latency": 0.0004
+         }
+        },
+        "ci": {
+         "__dict__": {
+          "latency": {
+           "__tuple__": [
+            0.0242,
+            0.0258
+           ]
+          }
+         }
+        },
+        "posterior": null
+       }
+      },
+      {
+       "__type__": "Component",
+       "fields": {
+        "shape": "gaussian",
+        "params": {
+         "__array__": "fits.0.components.1.params"
+        },
+        "param_names": {
+         "__tuple__": [
+          "latency",
+          "amplitude",
+          "width"
+         ]
+        },
+        "latency": 0.18,
+        "amplitude": -40.0,
+        "polarity": -1,
+        "fwhm": 0.0094,
+        "onset": 0.0165,
+        "offset": 0.0335,
+        "area": -0.4,
+        "rise_time": 0.0085,
+        "decay_time": 0.0085,
+        "symmetry": 0.0,
+        "sharpness": 1.7,
+        "label": "N2",
+        "se": {
+         "__dict__": {
+          "latency": 0.0004
+         }
+        },
+        "ci": {
+         "__dict__": {
+          "latency": {
+           "__tuple__": [
+            0.0242,
+            0.0258
+           ]
+          }
+         }
+        },
+        "posterior": null
+       }
+      }
+     ],
+     "background": {
+      "__dict__": {
+       "mode": "exponential",
+       "params": {
+        "__array__": "fits.0.background.params"
+       },
+       "param_names": {
+        "__tuple__": [
+         "amplitude",
+         "tau"
+        ]
+       }
+      }
+     },
+     "gof": {
+      "__type__": "GoodnessOfFit",
+      "fields": {
+       "r2": 0.91,
+       "adj_r2": 0.9,
+       "rmse": 4.8,
+       "mae": 3.9,
+       "nrmse": 0.06,
+       "aic": 812.0,
+       "aicc": 812.3,
+       "bic": 830.1,
+       "n_params": 4,
+       "n_samples": 300,
+       "n_eff": 120.5,
+       "residual_lag1_autocorr": 0.41,
+       "baseline_sd": 5.1
+      }
+     },
+     "status": "ok",
+     "message": "",
+     "window": {
+      "__tuple__": [
+       0.009,
+       0.3
+      ]
+     },
+     "baseline": {
+      "__tuple__": [
+       -0.1,
+       -0.002
+      ]
+     },
+     "settings": {
+      "__dict__": {
+       "min_fwhm": 0.003,
+       "shapes": [
+        "gaussian"
+       ],
+       "max_iter": null,
+       "threshold": {
+        "__float__": "nan"
+       }
+      }
+     },
+     "classical": {
+      "__dict__": {
+       "peak_latency": 0.025,
+       "mean_amplitude": {
+        "__float__": "nan"
+       }
+      }
+     },
+     "model": {
+      "__array__": "fits.0.model"
+     },
+     "residual": {
+      "__array__": "fits.0.residual"
+     },
+     "existence": {
+      "__type__": "ResponseTest",
+      "fields": {
+       "method": "baseline_permutation",
+       "statistic": {
+        "__array__": "fits.0.existence.statistic"
+       },
+       "p_value": {
+        "__array__": "fits.0.existence.p_value"
+       },
+       "p_value_raw": {
+        "__array__": "fits.0.existence.p_value_raw"
+       },
+       "significant": {
+        "__array__": "fits.0.existence.significant"
+       },
+       "duration": {
+        "__array__": "fits.0.existence.duration"
+       },
+       "onset": {
+        "__array__": "fits.0.existence.onset"
+       },
+       "offset": {
+        "__array__": "fits.0.existence.offset"
+       },
+       "snr_db": {
+        "__array__": "fits.0.existence.snr_db"
+       },
+       "rule": null,
+       "alpha": 0.05,
+       "correction": "fdr_bh",
+       "n_permutations": 1000,
+       "window": {
+        "__tuple__": [
+         0.009,
+         0.5
+        ]
+       },
+       "settings": {
+        "__dict__": {
+         "tail": "both"
+        }
+       },
+       "provenance": {
+        "__type__": "Provenance",
+        "fields": {
+         "package_version": "0.1.0.dev0",
+         "created": "2026-01-01T00:00:00+00:00",
+         "source": {
+          "__dict__": {
+           "path": "synthetic",
+           "format": "array"
+          }
+         },
+         "steps": [],
+         "environment": {
+          "__dict__": {}
+         },
+         "random_state": 0,
+         "data_hash": null
+        }
+       }
+      }
+     },
+     "warnings": [
+      "edge"
+     ],
+     "provenance": {
+      "__type__": "Provenance",
+      "fields": {
+       "package_version": "0.1.0.dev0",
+       "created": "2026-01-01T00:00:00+00:00",
+       "source": {
+        "__dict__": {
+         "path": "synthetic",
+         "format": "array"
+        }
+       },
+       "steps": [],
+       "environment": {
+        "__dict__": {}
+       },
+       "random_state": 0,
+       "data_hash": null
+      }
+     },
+     "diagnostics": {
+      "__dict__": {}
+     }
+    }
+   },
+   {
+    "__type__": "ResponseFit",
+    "fields": {
+     "components": [],
+     "background": {
+      "__dict__": {
+       "mode": "exponential",
+       "params": {
+        "__array__": "fits.1.background.params"
+       },
+       "param_names": {
+        "__tuple__": [
+         "amplitude",
+         "tau"
+        ]
+       }
+      }
+     },
+     "gof": null,
+     "status": "no_response",
+     "message": "no significant response",
+     "window": {
+      "__tuple__": [
+       0.009,
+       0.3
+      ]
+     },
+     "baseline": {
+      "__tuple__": [
+       -0.1,
+       -0.002
+      ]
+     },
+     "settings": {
+      "__dict__": {
+       "min_fwhm": 0.003,
+       "shapes": [
+        "gaussian"
+       ],
+       "max_iter": null,
+       "threshold": {
+        "__float__": "nan"
+       }
+      }
+     },
+     "classical": {
+      "__dict__": {
+       "peak_latency": 0.025,
+       "mean_amplitude": {
+        "__float__": "nan"
+       }
+      }
+     },
+     "model": {
+      "__array__": "fits.1.model"
+     },
+     "residual": {
+      "__array__": "fits.1.residual"
+     },
+     "existence": null,
+     "warnings": [],
+     "provenance": {
+      "__type__": "Provenance",
+      "fields": {
+       "package_version": "0.1.0.dev0",
+       "created": "2026-01-01T00:00:00+00:00",
+       "source": {
+        "__dict__": {
+         "path": "synthetic",
+         "format": "array"
+        }
+       },
+       "steps": [],
+       "environment": {
+        "__dict__": {}
+       },
+       "random_state": 0,
+       "data_hash": null
+      }
+     },
+     "diagnostics": {
+      "__dict__": {}
+     }
+    }
+   },
+   {
+    "__type__": "ResponseFit",
+    "fields": {
+     "components": [
+      {
+       "__type__": "Component",
+       "fields": {
+        "shape": "gaussian",
+        "params": {
+         "__array__": "fits.2.components.0.params"
+        },
+        "param_names": {
+         "__tuple__": [
+          "latency",
+          "amplitude",
+          "width"
+         ]
+        },
+        "latency": 0.025,
+        "amplitude": -40.0,
+        "polarity": -1,
+        "fwhm": 0.0094,
+        "onset": 0.0165,
+        "offset": 0.0335,
+        "area": -0.4,
+        "rise_time": 0.0085,
+        "decay_time": 0.0085,
+        "symmetry": 0.0,
+        "sharpness": 1.7,
+        "label": "N1",
+        "se": {
+         "__dict__": {
+          "latency": 0.0004
+         }
+        },
+        "ci": {
+         "__dict__": {
+          "latency": {
+           "__tuple__": [
+            0.0242,
+            0.0258
+           ]
+          }
+         }
+        },
+        "posterior": null
+       }
+      },
+      {
+       "__type__": "Component",
+       "fields": {
+        "shape": "gaussian",
+        "params": {
+         "__array__": "fits.2.components.1.params"
+        },
+        "param_names": {
+         "__tuple__": [
+          "latency",
+          "amplitude",
+          "width"
+         ]
+        },
+        "latency": 0.18,
+        "amplitude": -40.0,
+        "polarity": -1,
+        "fwhm": 0.0094,
+        "onset": 0.0165,
+        "offset": 0.0335,
+        "area": -0.4,
+        "rise_time": 0.0085,
+        "decay_time": 0.0085,
+        "symmetry": 0.0,
+        "sharpness": 1.7,
+        "label": "N2",
+        "se": {
+         "__dict__": {
+          "latency": 0.0004
+         }
+        },
+        "ci": {
+         "__dict__": {
+          "latency": {
+           "__tuple__": [
+            0.0242,
+            0.0258
+           ]
+          }
+         }
+        },
+        "posterior": null
+       }
+      }
+     ],
+     "background": {
+      "__dict__": {
+       "mode": "exponential",
+       "params": {
+        "__array__": "fits.2.background.params"
+       },
+       "param_names": {
+        "__tuple__": [
+         "amplitude",
+         "tau"
+        ]
+       }
+      }
+     },
+     "gof": {
+      "__type__": "GoodnessOfFit",
+      "fields": {
+       "r2": 0.91,
+       "adj_r2": 0.9,
+       "rmse": 4.8,
+       "mae": 3.9,
+       "nrmse": 0.06,
+       "aic": 812.0,
+       "aicc": 812.3,
+       "bic": 830.1,
+       "n_params": 4,
+       "n_samples": 300,
+       "n_eff": 120.5,
+       "residual_lag1_autocorr": 0.41,
+       "baseline_sd": 5.1
+      }
+     },
+     "status": "ok",
+     "message": "",
+     "window": {
+      "__tuple__": [
+       0.009,
+       0.3
+      ]
+     },
+     "baseline": {
+      "__tuple__": [
+       -0.1,
+       -0.002
+      ]
+     },
+     "settings": {
+      "__dict__": {
+       "min_fwhm": 0.003,
+       "shapes": [
+        "gaussian"
+       ],
+       "max_iter": null,
+       "threshold": {
+        "__float__": "nan"
+       }
+      }
+     },
+     "classical": {
+      "__dict__": {
+       "peak_latency": 0.025,
+       "mean_amplitude": {
+        "__float__": "nan"
+       }
+      }
+     },
+     "model": {
+      "__array__": "fits.2.model"
+     },
+     "residual": {
+      "__array__": "fits.2.residual"
+     },
+     "existence": {
+      "__type__": "ResponseTest",
+      "fields": {
+       "method": "baseline_permutation",
+       "statistic": {
+        "__array__": "fits.2.existence.statistic"
+       },
+       "p_value": {
+        "__array__": "fits.2.existence.p_value"
+       },
+       "p_value_raw": {
+        "__array__": "fits.2.existence.p_value_raw"
+       },
+       "significant": {
+        "__array__": "fits.2.existence.significant"
+       },
+       "duration": {
+        "__array__": "fits.2.existence.duration"
+       },
+       "onset": {
+        "__array__": "fits.2.existence.onset"
+       },
+       "offset": {
+        "__array__": "fits.2.existence.offset"
+       },
+       "snr_db": {
+        "__array__": "fits.2.existence.snr_db"
+       },
+       "rule": null,
+       "alpha": 0.05,
+       "correction": "fdr_bh",
+       "n_permutations": 1000,
+       "window": {
+        "__tuple__": [
+         0.009,
+         0.5
+        ]
+       },
+       "settings": {
+        "__dict__": {
+         "tail": "both"
+        }
+       },
+       "provenance": {
+        "__type__": "Provenance",
+        "fields": {
+         "package_version": "0.1.0.dev0",
+         "created": "2026-01-01T00:00:00+00:00",
+         "source": {
+          "__dict__": {
+           "path": "synthetic",
+           "format": "array"
+          }
+         },
+         "steps": [],
+         "environment": {
+          "__dict__": {}
+         },
+         "random_state": 0,
+         "data_hash": null
+        }
+       }
+      }
+     },
+     "warnings": [
+      "edge"
+     ],
+     "provenance": {
+      "__type__": "Provenance",
+      "fields": {
+       "package_version": "0.1.0.dev0",
+       "created": "2026-01-01T00:00:00+00:00",
+       "source": {
+        "__dict__": {
+         "path": "synthetic",
+         "format": "array"
+        }
+       },
+       "steps": [],
+       "environment": {
+        "__dict__": {}
+       },
+       "random_state": 0,
+       "data_hash": null
+      }
+     },
+     "diagnostics": {
+      "__dict__": {}
+     }
+    }
+   }
+  ],
+  "ch_names": [
+   "CH00",
+   "CH01",
+   "CH02"
+  ],
+  "conditions": [
+   "3mA"
+  ],
+  "index": {
+   "__table__": "index"
+  },
+  "settings": {
+   "__dict__": {
+    "preset": {
+     "__dict__": {
+      "name": "ccep",
+      "version": "1"
+     }
+    }
+   }
+  },
+  "provenance": {
+   "__type__": "Provenance",
+   "fields": {
+    "package_version": "0.1.0.dev0",
+    "created": "2026-01-01T00:00:00+00:00",
+    "source": {
+     "__dict__": {
+      "path": "synthetic",
+      "format": "array"
+     }
+    },
+    "steps": [],
+    "environment": {
+     "__dict__": {}
+    },
+    "random_state": 0,
+    "data_hash": null
+   }
+  }
+ }
+}

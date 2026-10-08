@@ -2,6 +2,7 @@
 
 import dataclasses
 import itertools
+import logging
 import time as _time
 import warnings
 
@@ -18,7 +19,7 @@ from .projection import projection_test
 from .rules import apply_rule, load_rules, resolve_rule
 
 __all__ = ["test_response", "response_duration", "compare_detectors", "list_rules",
-           "train_discordance", "methods_text", "detectors", "fit", "METHODS",
+           "train_discordance", "methods_text", "detectors", "fit", "attach_test", "METHODS",
            "HUMAN_KAPPA"]
 
 METHODS = ("baseline_permutation", "projection", "model_comparison", "threshold")
@@ -372,6 +373,7 @@ def fit(data, preset=None, *, existence=False, existence_kwargs=None, **kwargs):
 
     group = fit_models(data, preset, **kwargs)
     if not existence:
+        _log_methods(group, kwargs.get("verbose"))
         return group
     if not isinstance(data, TrialSet):
         raise SettingsError("existence=True needs a TrialSet (the trials).")
@@ -381,7 +383,18 @@ def fit(data, preset=None, *, existence=False, existence_kwargs=None, **kwargs):
                        (-0.5, -0.05), by=(), random_state=kwargs.get("random_state"))
     test_kwargs.update(existence_kwargs or {})
     test = test_response(data, **test_kwargs)
+    group = attach_test(group, test)
+    _log_methods(group, kwargs.get("verbose"))
+    return group
+
+
+def attach_test(group, test):
+    """The GroupFit with the existence test of each channel attached to its fit
+    (``ResponseFit.existence``) and the test recorded as a provenance step of the group and
+    of every fit."""
+
     channels = test.settings["channels"]
+    step = {k: v for k, v in test.settings.items() if k not in _PER_CHANNEL_SETTINGS}
     fits = []
     for fit_, ch in zip(group.fits, group.index["channel"]):
         i = channels.index(ch)
@@ -390,5 +403,30 @@ def fit(data, preset=None, *, existence=False, existence_kwargs=None, **kwargs):
             p_value_raw=test.p_value_raw[i:i + 1], significant=test.significant[i:i + 1],
             duration=test.duration[i:i + 1], onset=test.onset[i:i + 1],
             offset=test.offset[i:i + 1], snr_db=test.snr_db[i:i + 1])
-        fits.append(dataclasses.replace(fit_, existence=one))
-    return dataclasses.replace(group, fits=fits)
+        fits.append(dataclasses.replace(
+            fit_, existence=one,
+            provenance=fit_.provenance.with_step("evoparam.existence.test_response", step)))
+    return dataclasses.replace(
+        group, fits=fits,
+        provenance=group.provenance.with_step("evoparam.existence.test_response", step))
+
+
+# Settings of a test that hold one value per channel; the provenance step of the test
+# attached to a fit keeps the settings that apply to every channel.
+_PER_CHANNEL_SETTINGS = ("channels", "duration_ci", "groups", "critical")
+
+
+def _log_methods(group, verbose):
+    """Log the methods paragraph at INFO (spec §5.13: printed when verbose is INFO)."""
+
+    logger = logging.getLogger("evoparam")
+    explicit = verbose in (True, "info", "INFO", logging.INFO)
+    if not explicit and (verbose is not None or not logger.isEnabledFor(logging.INFO)):
+        return
+    previous = logger.level
+    if explicit and not logger.isEnabledFor(logging.INFO):
+        logger.setLevel(logging.INFO)
+    try:
+        logger.info("Methods: %s", group.methods_text())
+    finally:
+        logger.setLevel(previous)

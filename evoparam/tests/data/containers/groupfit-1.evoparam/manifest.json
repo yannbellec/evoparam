@@ -1,0 +1,15 @@
+{
+ "schema": "evoparam-result/1.0",
+ "object": "GroupFit",
+ "package_version": "0.1.0.dev0",
+ "created": "2026-10-08T15:21:39.921+00:00",
+ "table_format": "csv",
+ "files": {
+  "structure.json": "6b60eb538855817c022f784ad870cb607aefc68f15578779de10dcb72dbdd712",
+  "data.npz": "4560a745dc6c9dd861531554d1a7aace367a579b9f9111a120f01cbd22a7f921",
+  "tables/index.csv": "2eeae5dc74b35d1ffb7fc7574b5ed74a76b9dee0ef657f378b46b8dbf8d68958",
+  "tables/index.json": "61bc4a5a3aefea4f23a165c11488ddea368daab9b1ac0d09687fe7441c1e8e71",
+  "provenance.json": "f7ed438b90c20e6b7d5dfe5379a52a6d259b8c0dbfe6a437a409c9c4a90e9206",
+  "settings.json": "90bea78b9cf0d0a9e719df41a844e4c834454bf2698b248c19b7cf7ff1dcd1ac"
+ }
+}

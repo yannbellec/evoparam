@@ -64,6 +64,13 @@ class _ResultMixin(DeepEqualMixin):
 
         return cls(**dct)
 
+    def methods_text(self):
+        """Methods paragraph built from ``provenance`` and ``settings`` only (REQ-338);
+        see :func:`evoparam.reports.methods_text`."""
+
+        from evoparam.data._methods import methods_text
+        return methods_text(self)
+
     def save(self, path, overwrite=False):
         """Save to a ``.evoparam`` container (directory, or zip when ``path`` ends in .zip)."""
 
@@ -438,6 +445,16 @@ class ArtifactResult(_ResultMixin):
         self.template = _as_float_array(self.template)
         self.basis = _as_float_array(self.basis)
         self.quality = np.asarray(self.quality, dtype=np.float64)
+
+    def quality_summary(self):
+        """Summary of the per-trial quality scores: ``{"n_trials", "median", "p05"}``
+        (median and 5th percentile of the finite scores; None when there is none)."""
+
+        quality = np.ravel(self.quality)
+        finite = quality[np.isfinite(quality)]
+        return {"n_trials": int(quality.size),
+                "median": float(np.median(finite)) if finite.size else None,
+                "p05": float(np.percentile(finite, 5)) if finite.size else None}
 
 
 @dataclass(eq=False)
