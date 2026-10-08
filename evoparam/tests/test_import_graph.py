@@ -19,7 +19,9 @@ PACKAGE = pathlib.Path(evoparam.__file__).parent
 # Leaf modules that every module may import.
 LEAVES = {"errors", "version"}
 # Pure-data modules that every module may import (spec §4.2: "presets ... everything").
-PURE_DATA = {"presets"}
+# _plugins (the entry-point loader of §10.8, standard library and errors only) is imported
+# by the registries of shapes, presets and readers.
+PURE_DATA = {"presets", "_plugins"}
 
 # Spec §4.2: module -> modules it may import (besides LEAVES).
 ANY = "*"
@@ -44,6 +46,7 @@ RULES = {
     # (spec REQ-256); io imports nothing below data and utils.
     "sim": {"data", "shapes", "artifact", "utils", "io"},
     "presets": set(),
+    "_plugins": set(),
     "utils": {"data"},
     "reports": {ANY}, "plots": {ANY}, "cli": {ANY}, "stream": {ANY}, "benchmark": {ANY},
 }

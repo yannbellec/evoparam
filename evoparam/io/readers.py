@@ -12,12 +12,85 @@ from dataclasses import replace
 
 import numpy as np
 
+import evoparam._plugins as _plugins
 from evoparam.data import Evoked, Provenance, TrialSet, load_object
-from evoparam.errors import DataError, ReaderError
+from evoparam.errors import DataError, ReaderError, SettingsError
 from evoparam.io._fetch import is_url, sha256_file
 from evoparam.utils._optional import require
 
-__all__ = ["from_array", "read", "read_mne", "read_edf", "read_events_edf"]
+__all__ = ["from_array", "read", "read_mne", "read_edf", "read_events_edf", "READERS"]
+
+# formats of read(format=...) and their extensions; a plugin reader may use neither
+BUILTIN_FORMATS = ("array", "mne", "brainvision", "mef", "edf", "bids", "evoparam", "nwb",
+                   "neo")
+BUILTIN_EXTENSIONS = (".vhdr", ".edf", ".bdf", ".nwb", ".mefd", ".evoparam", ".zip")
+
+
+def _plugin_reader(name, obj, origin):
+    """Check a reader of the entry-point group ``evoparam.readers`` (spec §10.8):
+    ``callable(path, **kw) -> TrialSet`` with ``extensions = (".ext", ...)``."""
+
+    import inspect
+
+    if not callable(obj):
+        raise SettingsError(f"plugin reader {name!r} of {origin} is not callable.")
+    extensions = getattr(obj, "extensions", None)
+    if isinstance(extensions, str) or not isinstance(extensions, (tuple, list)) or not \
+            extensions or not all(isinstance(e, str) and e.startswith(".") for e in extensions):
+        raise SettingsError(f"plugin reader {name!r} of {origin} must declare extensions = "
+                            f"('.ext', ...).")
+    taken = sorted({e.lower() for e in extensions} & set(BUILTIN_EXTENSIONS))
+    if taken:
+        raise SettingsError(f"plugin reader {name!r} of {origin} claims the built-in "
+                            f"extension(s) {taken}.")
+    try:
+        params = list(inspect.signature(obj).parameters.values())
+    except (TypeError, ValueError):
+        params = None
+    if params is not None and not (params and params[0].kind in (
+            params[0].POSITIONAL_ONLY, params[0].POSITIONAL_OR_KEYWORD, params[0].VAR_POSITIONAL)):
+        raise SettingsError(f"plugin reader {name!r} of {origin} must take the path as its "
+                            f"first positional argument.")
+    return obj
+
+
+# plugin readers by name, loaded on the first call of read (no built-in entries: the
+# built-in formats are dispatched by read itself)
+READERS = _plugins.LazyRegistry("evoparam.readers", {}, _plugin_reader,
+                                builtin=BUILTIN_FORMATS)
+
+
+def _plugin_for(path, format):
+    """(name, reader) of the plugin reader for ``format`` or the extension of ``path``;
+    None when no plugin claims it. Two plugins claiming one extension raise SettingsError."""
+
+    if format is not None:
+        return (format, READERS[format]) if format in READERS else None
+    lower = path.lower().rstrip("/")
+    claims = [(name, reader) for name, reader in READERS.items()
+              if any(lower.endswith(e.lower()) for e in reader.extensions)]
+    if len(claims) > 1:
+        origins = READERS.plugins()
+        raise SettingsError("plugin readers " + " and ".join(
+            f"{name!r} ({origins[name]})" for name, _ in claims) + f" both claim {path!r}.")
+    if claims:
+        name = claims[0][0]
+        return name, READERS[name]          # marks the plugin as used
+    return None
+
+
+def _read_plugin(name, reader, path, kwargs):
+    out = reader(path, **kwargs)
+    if not isinstance(out, TrialSet):
+        raise ReaderError(f"plugin reader {name!r} returned a {type(out).__name__}, not a "
+                          f"TrialSet.")
+    origin = READERS.plugins()[name]
+    source = dict(out.provenance.source)
+    source.setdefault("format", name)
+    source["plugin"] = {name: origin}
+    provenance = Provenance(source=source, steps=list(out.provenance.steps)).with_step(
+        "evoparam.io.read", {"format": name, "plugin": origin})
+    return replace(out, provenance=provenance)
 
 # MNE channel types measured in volts, and their type in the channel table (Table 4.2).
 _MNE_VOLTS = {"eeg": "eeg", "ecog": "ecog", "seeg": "seeg", "dbs": "dbs", "emg": "emg",
@@ -203,16 +276,18 @@ def read(source, *, format=None, **kwargs):
       seconds from the start of the recording. Samples without data (gaps of a MEF
       recording) are NaN and marked in ``masks``;
     - a BIDS dataset folder: :func:`read_bids` (``subject`` required);
-    - a ``.evoparam`` container (folder or zip): the saved TrialSet.
-
-    NWB files and Neo objects are not supported by this version.
+    - a ``.evoparam`` container (folder or zip): the saved TrialSet;
+    - ``.nwb``: :func:`read_nwb` (extra ``nwb``); a Neo ``Block`` or a file with
+      ``format="neo"``: :func:`read_neo` (extra ``neo``);
+    - a file whose extension a plugin reader declares (entry-point group
+      ``evoparam.readers``, spec §10.8), or ``format=<plugin name>``.
 
     Parameters
     ----------
     source : ndarray, object, str or path-like
     format : str, optional
-        Force the format: "array", "mne", "brainvision", "mef", "edf", "bids" or
-        "evoparam".
+        Force the format: "array", "mne", "brainvision", "mef", "edf", "bids",
+        "evoparam", "nwb", "neo" or the name of a plugin reader.
     **kwargs
         Passed to the reader.
 
@@ -235,11 +310,19 @@ def read(source, *, format=None, **kwargs):
     module = type(source).__module__ or ""
     if format == "mne" or module.split(".")[0] == "mne":
         return read_mne(source, **kwargs)
-    if module.split(".")[0] == "neo":
-        raise ReaderError("Neo objects are not supported by this version of evoparam.")
+    if format == "neo" or module.split(".")[0] == "neo":
+        from evoparam.io.neo import read_neo
+        return read_neo(source, **kwargs)
     if not isinstance(source, (str, os.PathLike)):
         raise ReaderError(f"Cannot read an object of type {type(source).__name__}.")
     path = os.fspath(source)
+    if format is None or format not in BUILTIN_FORMATS:
+        plugin = _plugin_for(path, format)
+        if plugin is not None:
+            return _read_plugin(*plugin, path, kwargs)
+        if format is not None:
+            raise ReaderError(f"Unknown format {format!r}; built-in: {BUILTIN_FORMATS}, "
+                              f"plugins: {sorted(READERS)}.")
     fmt = format or _guess_format(path)
     if fmt in ("brainvision", "edf", "mef"):
         return _read_continuous(path, fmt, **kwargs)
@@ -254,7 +337,8 @@ def read(source, *, format=None, **kwargs):
             raise ReaderError(f"{path} holds a {type(obj).__name__}, not a TrialSet.")
         return obj
     if fmt == "nwb":
-        raise ReaderError("NWB files are not supported by this version of evoparam.")
+        from evoparam.io.nwb import read_nwb
+        return read_nwb(path, **kwargs)
     raise ReaderError(f"Unknown format {fmt!r}.")
 
 

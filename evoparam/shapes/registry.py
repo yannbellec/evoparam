@@ -1,7 +1,8 @@
 """Registries of shapes and backgrounds, and the checks run on user shapes (spec §5.5.1).
 
 ``SHAPES`` and ``BACKGROUNDS`` map a name to a class (or, for a user shape
-registered as an instance, to that instance). :func:`register_shape` adds a
+registered as an instance, to that instance); they add the shapes and backgrounds of the
+entry-point group ``evoparam.shapes`` on first access (plugins, spec §10.8). :func:`register_shape` adds a
 user shape after checking the protocol, the unit amplitude and the Jacobian
 numerically; a failed check raises :class:`SettingsError` naming the check.
 """
@@ -10,8 +11,9 @@ import dataclasses
 
 import numpy as np
 
+import evoparam._plugins as _plugins
 from evoparam.errors import SettingsError
-from evoparam.shapes._base import FEATURE_OVERSAMPLING
+from evoparam.shapes._base import FEATURE_OVERSAMPLING, Background, ComponentShape
 from evoparam.shapes.backgrounds import (ArtifactBasisBackground, ConstantBackground,
                                          DoubleExponentialBackground, ExponentialBackground,
                                          LinearBackground, NoBackground, PSplineBackground)
@@ -21,13 +23,53 @@ from evoparam.shapes.components import (Biexponential, DampedOscillation, ExGaus
 __all__ = ["SHAPES", "BACKGROUNDS", "BUILTIN_SHAPES", "register_shape", "unregister_shape",
            "check_shape", "get_shape", "get_background", "CHECK_TIMES"]
 
-SHAPES = {cls.name: cls for cls in (Gaussian, SkewedGaussian, ExGaussian, Gamma, Biexponential,
-                                    DampedOscillation, Gabor, Template)}
-BUILTIN_SHAPES = frozenset(SHAPES)
+def _plugin_shape(name, obj, origin):
+    """Check a shape of the entry-point group ``evoparam.shapes`` (spec §10.8)."""
 
-BACKGROUNDS = {cls.name: cls for cls in (NoBackground, ConstantBackground, LinearBackground,
-                                         ExponentialBackground, DoubleExponentialBackground,
-                                         PSplineBackground, ArtifactBasisBackground)}
+    if getattr(obj, "kind", None) == "background":
+        return _plugins.SKIP
+    instance = obj
+    if isinstance(obj, type):
+        try:
+            instance = obj()
+        except Exception as err:
+            raise SettingsError(f"plugin shape {name!r} of {origin}: the class must build "
+                                f"without arguments ({err!r}).") from err
+    if not isinstance(instance, ComponentShape):
+        raise SettingsError(f"plugin shape {name!r} of {origin} does not satisfy "
+                            f"ComponentShape.")
+    if instance.name != name:
+        raise SettingsError(f"plugin shape {name!r} of {origin}: its name attribute is "
+                            f"{instance.name!r}; the entry-point name must be the same.")
+    try:
+        check_shape(instance)
+    except SettingsError as err:
+        raise SettingsError(f"plugin shape {name!r} of {origin}: {err}") from err
+    return obj
+
+
+def _plugin_background(name, obj, origin):
+    if getattr(obj, "kind", None) != "background":
+        return _plugins.SKIP
+    instance = obj() if isinstance(obj, type) else obj
+    if not isinstance(instance, Background) or instance.name != name:
+        raise SettingsError(f"plugin background {name!r} of {origin} does not satisfy "
+                            f"Background (or its name attribute differs).")
+    return obj
+
+
+SHAPES = _plugins.LazyRegistry(
+    "evoparam.shapes", {cls.name: cls for cls in (Gaussian, SkewedGaussian, ExGaussian, Gamma,
+                                                  Biexponential, DampedOscillation, Gabor,
+                                                  Template)}, _plugin_shape)
+BUILTIN_SHAPES = SHAPES.builtin
+
+BACKGROUNDS = _plugins.LazyRegistry(
+    "evoparam.shapes", {cls.name: cls for cls in (NoBackground, ConstantBackground,
+                                                  LinearBackground, ExponentialBackground,
+                                                  DoubleExponentialBackground,
+                                                  PSplineBackground, ArtifactBasisBackground)},
+    _plugin_background)
 
 # Reference axis of the registration checks: 300 ms at 1 kHz.
 CHECK_TIMES = np.arange(-0.05, 0.25, 1e-3)

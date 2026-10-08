@@ -1,0 +1,21 @@
+# A minimal evoparam plugin: one shape, one preset, one reader (spec §10.8, REQ-328).
+# Install it with `pip install -e .`; tests/test_plugins.py exposes it without pip.
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evoparam-dummy"
+version = "0.1.0"
+description = "Example plugin of evoparam: a Lorentzian shape, a preset and a reader."
+requires-python = ">=3.10"
+dependencies = ["evoparam", "numpy"]
+
+[project.entry-points."evoparam.shapes"]
+lorentzian = "evoparam_dummy:Lorentzian"
+
+[project.entry-points."evoparam.presets"]
+dummy_lorentz = "evoparam_dummy:DUMMY_LORENTZ"
+
+[project.entry-points."evoparam.readers"]
+dummy = "evoparam_dummy:read_dummy"

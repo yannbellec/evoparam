@@ -265,9 +265,19 @@ def cmd_info(args, outcome):
             extras[name] = metadata.version(name)
         except metadata.PackageNotFoundError:
             extras[name] = None
+    from evoparam.io.readers import READERS
+    from evoparam.shapes import BACKGROUNDS, SHAPES
+
+    plugins = [{"group": group, "name": name, "distribution": origin}
+               for group, registry in (("evoparam.shapes", SHAPES),
+                                       ("evoparam.shapes", BACKGROUNDS),
+                                       ("evoparam.presets", presets.PRESETS),
+                                       ("evoparam.readers", READERS))
+               for name, origin in sorted(registry.plugins().items())]
     outcome.extra = {"evoparam": __version__, "python": sys.version.split()[0],
                      "numpy": metadata.version("numpy"), "scipy": metadata.version("scipy"),
-                     "optional": extras, "presets": sorted(presets.PRESETS), "plugins": []}
+                     "optional": extras, "presets": sorted(presets.PRESETS),
+                     "plugins": plugins}
     if not args.json:
         for key, value in outcome.extra.items():
             print(f"{key}: {value}")
