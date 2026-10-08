@@ -1,0 +1,69 @@
+{
+  "name": "rodent_ep",
+  "polarity": "both",
+  "existence_method": "baseline_permutation",
+  "existence_alpha": 0.05,
+  "selection": "bic",
+  "delta": 10.0,
+  "uncertainty": "jacobian",
+  "version": "1.0",
+  "modality": "LFP/ECoG",
+  "species": [
+    "mouse",
+    "rat"
+  ],
+  "epoch": [
+    -0.1,
+    0.5
+  ],
+  "baseline": [
+    -0.1,
+    -0.005
+  ],
+  "artifact_window": [
+    -0.001,
+    0.002
+  ],
+  "artifact_method": "template",
+  "reference": "as_recorded",
+  "fit_window": [
+    0.005,
+    0.3
+  ],
+  "shapes": [
+    "gamma",
+    "skewed_gaussian"
+  ],
+  "background": "exponential",
+  "max_components": 5,
+  "min_fwhm": 0.003,
+  "max_fwhm": 0.15,
+  "component_labels": {
+    "P1/N1": [
+      0.005,
+      0.06
+    ],
+    "late": [
+      0.06,
+      0.3
+    ]
+  },
+  "label_polarity": {
+    "P1/N1": 0,
+    "late": 0
+  },
+  "trial_fit": true,
+  "trial_mode": "shift_scale",
+  "citation": [
+    "LIT-datasets-50",
+    "LIT-variability-45",
+    "LIT-variability-50"
+  ],
+  "notes": {
+    "artifact_window": "stimulus-dependent; (-0.001, 0.002) for electrical stimulation",
+    "trial_covariates": "metadata['state'] is a default covariate"
+  },
+  "validation": "pending: Allen Visual Coding Neuropixels LFP (REQ-278)",
+  "choices": {},
+  "fit_extras": {}
+}

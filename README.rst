@@ -61,6 +61,9 @@ evoparam covers the whole path from a raw recording to response parameters:
   contacts), per (site, channel) parameter maps with coordinates, the (site x channel)
   connectivity export, and a volume-conduction screen (polarity reversal, distance decay,
   reference sensitivity).
+* ``evoparam.presets``: eleven presets (ERP, CCEP on ECoG and sEEG, SEP, TEP, ERNA, spinal
+  and cochlear ECAP, rodent and primate LFP, P300 BCI) as readable JSON files with their
+  sources; ``presets.derive`` makes a variant that records its parent (``docs/presets.md``).
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact

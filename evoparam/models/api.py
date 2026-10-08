@@ -579,6 +579,10 @@ def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None
                             "runs the existence test after the fit.")
     if not average:
         raise SettingsError("average=False: fit trials one by one with trials=True (S10).")
+    if "fit_window" in overrides:
+        # the name of the preset field (spec §6.3) and of FitSettings, for ``window``
+        given = overrides.pop("fit_window")
+        window = given if window is None else window
     model = ResponseModel(preset, fit_window=window, baseline=baseline, n_jobs=n_jobs,
                           random_state=random_state, **overrides)
     if isinstance(data, np.ndarray):
@@ -634,7 +638,7 @@ def methods_text(fit):
     crit = "BIC" if settings.get("selection") == "bic" else settings.get("selection", "").upper()
     return (
         f"Evoked responses were parameterized with evoparam {settings.get('package_version')}"
-        + (f" (preset '{preset}')" if preset else "")
+        + (f" ({settings.get('preset_note') or f'preset {preset!r}'})" if preset else "")
         + f". In the window {window[0] * 1000:g} to {window[1] * 1000:g} ms, each waveform was "
         f"modelled as a {settings.get('background')} background plus up to "
         f"{settings.get('max_components')} components ({shapes}; widths "

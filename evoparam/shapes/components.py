@@ -121,6 +121,23 @@ class _OscillationShape(_WidthShape):
             raise SettingsError(f"{self.name}: freq_min ({self.freq_min}) must be smaller "
                                 f"than freq_max ({self.freq_max}).")
 
+    def _freq_guess(self, times, waveform, low, high):
+        """Frequency of the largest periodogram peak of the waveform within [low, high]
+        (zero-padded, Hann-tapered); the middle of the range when there is none."""
+
+        times, waveform = np.asarray(times, float), np.asarray(waveform, float)
+        if len(times) < 4 or not np.all(np.isfinite(waveform)):
+            return 0.5 * (low + high)
+        dt = float(np.median(np.diff(times)))
+        x = (waveform - waveform.mean()) * np.hanning(len(waveform))
+        n_fft = max(4096, 8 * len(x))
+        power = np.abs(np.fft.rfft(x, n_fft)) ** 2
+        freqs = np.fft.rfftfreq(n_fft, dt)
+        inside = (freqs >= low) & (freqs <= high)
+        if not inside.any() or not np.any(power[inside] > 0):
+            return 0.5 * (low + high)
+        return float(freqs[inside][np.argmax(power[inside])])
+
     def _freqs(self, length, sfreq):
         low = 2.0 / length if self.freq_min is None else float(self.freq_min)
         high = sfreq / 4.0 if self.freq_max is None else float(self.freq_max)
@@ -622,9 +639,13 @@ class DampedOscillation(_OscillationShape):
                             [end, length, f_high, np.pi])
 
     def initial_guess(self, times, waveform, peak_index):
+        # Frequency from the periodogram of the window (a fixed mid-range start left the
+        # fit in a wrong local minimum at a few samples per cycle); onset a quarter period
+        # before the candidate peak, phase -pi/2 so that the first extremum is at the peak.
         peak, sigma = self._center_width(times, waveform, peak_index)
         lower, upper = self.default_bounds(times)
-        return clip_to_bounds([peak, 2.0 * sigma, 0.5 * (lower[2] + upper[2]), 0.0],
+        freq = self._freq_guess(times, waveform, lower[2], upper[2])
+        return clip_to_bounds([peak - 0.25 / freq, 2.0 * sigma, freq, -0.5 * np.pi],
                               (lower, upper))
 
 
@@ -723,7 +744,8 @@ class Gabor(_OscillationShape):
     def initial_guess(self, times, waveform, peak_index):
         peak, sigma = self._center_width(times, waveform, peak_index)
         lower, upper = self.default_bounds(times)
-        return clip_to_bounds([peak, sigma, 0.5 * (lower[2] + upper[2]), 0.0], (lower, upper))
+        freq = self._freq_guess(times, waveform, lower[2], upper[2])
+        return clip_to_bounds([peak, sigma, freq, 0.0], (lower, upper))
 
 
 ###################################################################################################

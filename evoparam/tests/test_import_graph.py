@@ -18,6 +18,8 @@ PACKAGE = pathlib.Path(evoparam.__file__).parent
 
 # Leaf modules that every module may import.
 LEAVES = {"errors", "version"}
+# Pure-data modules that every module may import (spec §4.2: "presets ... everything").
+PURE_DATA = {"presets"}
 
 # Spec §4.2: module -> modules it may import (besides LEAVES).
 ANY = "*"
@@ -117,7 +119,7 @@ def test_edges_follow_spec_table():
             continue
         assert source in RULES, f"module '{source}' is not in the dependency table of §4.2"
         for dest in dests:
-            if dest in LEAVES or _transitional(rel_path, source, dest):
+            if dest in LEAVES or dest in PURE_DATA or _transitional(rel_path, source, dest):
                 continue
             allowed = RULES[source]
             if ANY in allowed:

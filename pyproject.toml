@@ -51,6 +51,7 @@ include = ["evoparam*"]
 "evoparam.io" = ["registry.json"]
 "evoparam.existence" = ["rules.json"]
 "evoparam.tf" = ["zones.json"]
+"evoparam.presets" = ["*.json"]
 "evoparam.tests.sim" = ["reference_sim.json"]
 
 [tool.pytest.ini_options]

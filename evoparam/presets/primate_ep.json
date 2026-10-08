@@ -1,0 +1,66 @@
+{
+  "name": "primate_ep",
+  "polarity": "both",
+  "existence_method": "baseline_permutation",
+  "existence_alpha": 0.05,
+  "selection": "bic",
+  "delta": 10.0,
+  "uncertainty": "jacobian",
+  "version": "1.0",
+  "modality": "LFP/ECoG",
+  "species": [
+    "macaque"
+  ],
+  "epoch": [
+    -0.1,
+    0.5
+  ],
+  "baseline": [
+    -0.1,
+    -0.005
+  ],
+  "artifact_window": [
+    -0.001,
+    0.002
+  ],
+  "artifact_method": "template",
+  "reference": "as_recorded",
+  "fit_window": [
+    0.005,
+    0.3
+  ],
+  "shapes": [
+    "gamma",
+    "skewed_gaussian"
+  ],
+  "background": "exponential",
+  "max_components": 5,
+  "min_fwhm": 0.003,
+  "max_fwhm": 0.15,
+  "component_labels": {
+    "P1/N1": [
+      0.005,
+      0.06
+    ],
+    "late": [
+      0.06,
+      0.3
+    ]
+  },
+  "label_polarity": {
+    "P1/N1": 0,
+    "late": 0
+  },
+  "trial_fit": true,
+  "trial_mode": "shift_scale",
+  "citation": [
+    "LIT-datasets-54",
+    "LIT-datasets-55"
+  ],
+  "notes": {
+    "artifact_window": "as rodent_ep"
+  },
+  "validation": "pending",
+  "choices": {},
+  "fit_extras": {}
+}

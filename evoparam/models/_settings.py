@@ -2,6 +2,7 @@
 
 from dataclasses import asdict, dataclass, field, replace
 
+import evoparam.presets as _presets
 from evoparam.errors import SettingsError
 
 __all__ = ["FitSettings", "FIT_PRESETS", "resolve_settings"]
@@ -45,9 +46,12 @@ class FitSettings:
     amplitude_prior: float | None = 3.0
     edge_extension: float = 0.05
     background_tau_max: float | None = None
+    freq_min: float | None = None
+    freq_max: float | None = None
     noise_model: str = "ar"
     n_folds: int = 5
     preset: str | None = None
+    preset_note: str | None = None
     random_state: object = None
 
     def validate(self):
@@ -90,62 +94,8 @@ class FitSettings:
         return asdict(self)
 
 
-# Fit fields of the presets of spec §6.1 (the full presets, with artifact, reference and
-# trial settings, are the subject of build step S15).
-FIT_PRESETS = {
-    "erp": dict(fit_window=(0.05, 0.7), baseline=(-0.2, 0.0),
-                shapes=("gaussian", "skewed_gaussian"), background="constant",
-                max_components=6, min_fwhm=0.010, max_fwhm=0.35,
-                windows={"P1": (0.08, 0.13, 1), "N1": (0.13, 0.20, -1), "N170": (0.13, 0.20, -1),
-                         "P2": (0.15, 0.27, 1), "P3": (0.25, 0.60, 1),
-                         "N400": (0.30, 0.50, -1)}),
-    "ccep": dict(fit_window=(0.009, 0.5), baseline=(-0.5, -0.02),
-                 background_tau_max=0.05,
-                 shapes=("skewed_gaussian", "gaussian"), background="exponential",
-                 max_components=6, min_fwhm=0.003, max_fwhm=0.25,
-                 windows={"N1": (0.009, 0.050, -1), "N2": (0.050, 0.300, -1)}),
-    "ccep_seeg": dict(fit_window=(0.009, 0.5), baseline=(-0.5, -0.02),
-                 background_tau_max=0.05,
-                      shapes=("skewed_gaussian", "gaussian"), background="exponential",
-                      max_components=6, min_fwhm=0.003, max_fwhm=0.25,
-                      windows={"N1": (0.009, 0.050, -1), "N2": (0.050, 0.300, -1)}),
-    "sep": dict(fit_window=(0.010, 0.060), baseline=(-0.05, -0.005),
-                shapes=("gaussian", "skewed_gaussian"), background="linear",
-                max_components=5, min_fwhm=0.002, max_fwhm=0.025,
-                windows={"N20": (0.017, 0.024, -1), "P25": (0.022, 0.030, 1),
-                         "N33": (0.028, 0.040, -1)}),
-    "tep": dict(fit_window=(0.012, 0.3), baseline=(-0.8, -0.1),
-                shapes=("gaussian", "skewed_gaussian", "gabor"),
-                background="double_exponential", max_components=8, min_fwhm=0.005,
-                max_fwhm=0.15,
-                windows={"N15": (0.010, 0.020, -1), "P30": (0.022, 0.038, 1),
-                         "N45": (0.038, 0.055, -1), "P60": (0.050, 0.075, 1),
-                         "N100": (0.080, 0.140, -1), "P180": (0.150, 0.250, 1)}),
-    "erna": dict(fit_window=(0.0015, 0.0077), baseline=None,
-                 shapes=("damped_oscillation",), background="exponential",
-                 max_components=2, min_fwhm=0.0005, max_fwhm=0.003,
-                 windows={"ERNA": (0.0015, 0.0077, 0)}),
-    "ecap": dict(fit_window=(0.0003, 0.003), baseline=(-0.0005, -0.00005),
-                 shapes=("biexponential", "gaussian"), background="exponential",
-                 max_components=3, min_fwhm=0.0001, max_fwhm=0.0015,
-                 windows={"N1": (0.0003, 0.0012, -1), "P2": (0.0008, 0.0025, 1)}),
-    "ecap_ci": dict(fit_window=(0.0001, 0.0015), baseline=None,
-                    shapes=("biexponential", "gaussian"), background="linear",
-                    max_components=2, min_fwhm=0.00005, max_fwhm=0.0007,
-                    windows={"N1": (0.0001, 0.0005, -1), "P2": (0.0004, 0.0010, 1)}),
-    "rodent_ep": dict(fit_window=(0.005, 0.3), baseline=(-0.1, -0.005),
-                      shapes=("gamma", "skewed_gaussian"), background="exponential",
-                      max_components=5, min_fwhm=0.003, max_fwhm=0.15,
-                      windows={"early": (0.005, 0.060, 0), "late": (0.060, 0.300, 0)}),
-    "primate_ep": dict(fit_window=(0.005, 0.3), baseline=(-0.1, -0.005),
-                       shapes=("gamma", "skewed_gaussian"), background="exponential",
-                       max_components=5, min_fwhm=0.003, max_fwhm=0.15,
-                       windows={"early": (0.005, 0.060, 0), "late": (0.060, 0.300, 0)}),
-    "p300_bci": dict(fit_window=(0.2, 0.7), baseline=(-0.2, 0.0),
-                     shapes=("gaussian", "skewed_gaussian"), background="constant",
-                     max_components=4, min_fwhm=0.020, max_fwhm=0.30,
-                     windows={"P3": (0.25, 0.60, 1)}),
-}
+# Fit fields of the presets of spec §6.1, read from evoparam.presets (one source of truth).
+FIT_PRESETS = {name: _presets.fit_fields(name) for name in _presets.PRESETS}
 
 
 def resolve_settings(preset=None, **overrides):
@@ -163,11 +113,12 @@ def resolve_settings(preset=None, **overrides):
     if preset is not None:
         if isinstance(preset, dict):
             values.update(preset)
-        elif preset in FIT_PRESETS:
-            values.update(FIT_PRESETS[preset])
-            values["preset"] = preset
+        elif isinstance(preset, _presets.Preset) or preset in _presets.PRESETS:
+            values.update(_presets.fit_fields(preset))
+            values["preset"] = _presets.get(preset).name
+            values["preset_note"] = _presets.methods_note(preset)
         else:
-            raise SettingsError(f"Unknown preset {preset!r}; known: {sorted(FIT_PRESETS)}.")
+            raise SettingsError(f"Unknown preset {preset!r}; known: {sorted(_presets.PRESETS)}.")
     values.update({key: value for key, value in overrides.items() if value is not None})
     return replace(base, **values).validate()
 

@@ -1,0 +1,63 @@
+{
+  "name": "ecap_ci",
+  "polarity": "both",
+  "existence_method": "baseline_permutation",
+  "existence_alpha": 0.05,
+  "selection": "bic",
+  "delta": 10.0,
+  "uncertainty": "jacobian",
+  "version": "1.0",
+  "modality": "cochlear implant",
+  "species": [
+    "human"
+  ],
+  "epoch": [
+    -0.0002,
+    0.002
+  ],
+  "baseline": null,
+  "artifact_window": [
+    -5e-05,
+    0.0001
+  ],
+  "artifact_method": "paradigm:forward_masking",
+  "reference": "as_recorded",
+  "fit_window": [
+    0.0001,
+    0.0015
+  ],
+  "shapes": [
+    "biexponential",
+    "gaussian"
+  ],
+  "background": "linear",
+  "max_components": 2,
+  "min_fwhm": 5e-05,
+  "max_fwhm": 0.0007,
+  "component_labels": {
+    "N1": [
+      0.0001,
+      0.0005
+    ],
+    "P2": [
+      0.0004,
+      0.001
+    ]
+  },
+  "label_polarity": {
+    "N1": -1,
+    "P2": 1
+  },
+  "trial_fit": false,
+  "trial_mode": null,
+  "citation": [
+    "LIT-domains-61",
+    "LIT-domains-62"
+  ],
+  "notes": {
+    "baseline": "none (paradigm subtraction)"
+  },
+  "validation": "simulation_only",
+  "choices": {},
+  "fit_extras": {}
+}

@@ -317,6 +317,63 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S15, part 1: presets
+
+- New module `evoparam.presets` (spec §6): the eleven presets of §6.1 as JSON files
+  (`evoparam/presets/*.json`, read with the standard library into the frozen `Preset`
+  dataclass), `get`, `list`, `derive` (new frozen preset, the parent and the overrides
+  recorded, the parent never changed), `register`, `to_json`/`from_json`, `to_yaml`/
+  `from_yaml` (PyYAML), `fit_fields`, `methods_note`. Each preset has its citation keys,
+  its version, its validation status and, per field, the reason of every value that is a
+  choice of the specification. The module imports nothing from the package; every module may
+  import it (import-graph test updated).
+- One source of truth: `evoparam.models.FIT_PRESETS` is now built from the preset files, and
+  `fit(..., preset=<name or Preset>)` reads them. `fit(..., fit_window=...)` is accepted as an
+  override (the preset field name). The methods text names the preset, its version, its
+  parent and overrides, and its validation status ("validated on simulations only" for
+  `ecap`, `ecap_ci` and `erna`, REQ-279).
+- Labels follow the table: `ccep` and `ccep_seeg` gain `delayed` (100 ms to 1 s, either
+  sign); `sep` gains the tibial-nerve P37 and N45; the early window of `rodent_ep` and
+  `primate_ep` is named `P1/N1` (was `early`).
+- Deviation from the table: the `sep` background is `constant`, not `linear`. With a free
+  linear drift, the N20 of simulated median-nerve SEPs (SNR 5, white noise) was described as a
+  falling drift between two positive components and found within 0.5 ms in 9 of 20 runs; with
+  a constant background in 20 of 20. A prior on the slope (drift of at most 3 baseline SD over
+  the window) did not help (10 of 20) and was not kept. The reason is in the preset's notes.
+- Engine changes for oscillating shapes: `FitSettings.freq_min`/`freq_max` reach the
+  `damped_oscillation` and `gabor` shapes (the `erna` preset sets 200 to 450 Hz, spec §6.2);
+  their initial frequency is the largest periodogram peak of the window within the range
+  (it was the middle of the range, which left the fit in a wrong local minimum: no ERNA found
+  in 7 of 10 simulated bursts at 4 096 Hz), and the damped oscillation starts a quarter period
+  before the candidate peak with phase -pi/2.
+- Results (`tests/presets/`):
+  - REQ-270 met: a test parses the table of `docs/spec/SPEC.md` §6.1 and compares every
+    field of every preset (the `sep` background deviation is listed and must be explained in
+    the preset's notes).
+  - REQ-271 met: every citation key resolves in `docs/spec/LITERATURE.md`; every choice has
+    its reason.
+  - REQ-272 met: `fit(..., preset="ccep", fit_window=...)` and `fit(..., preset=derive(...))`
+    give identical components; `derive` leaves the parent unchanged.
+  - REQ-276 met: `erna` on `simulate_erna` (channel at SNR 3; per-pulse epochs of the last
+    five pulses of 20 bursts, whose amplitude is at least 95 % of its final value): frequency
+    within 5 Hz and first-peak latency within 0.1 ms in 19 of 20 runs. With the simulator's
+    default ERNA onset of 1 ms the first peak (about 1.6 ms) falls on the start of the fit
+    window (1.5 ms) and the next peak was reported in 5 of 10 runs; the test uses a 2 ms onset
+    (first peak at 2.3 to 3.2 ms).
+  - REQ-277 met with white noise: N20 within 0.5 ms in 20 of 20 runs at SNR 5. With AR(1)
+    noise at the same SNR, 16 of 20 (rho 0.5) and 8 of 20 (rho 0.8): the latency SD is about
+    0.3 ms at rho 0.5 (documented limit, tested).
+  - REQ-279 met; REQ-280 met: `docs/presets.md` is written by `tools/gen_presets_doc.py`, and
+    a test fails when the committed page differs.
+  - REQ-371 met: `tools/ds004080_subjects.py` applies the rule of §7.3 to OpenNeuro's
+    listing and writes `validation/ds004080_subjects.txt` (dataset 1.2.4, SHA-256 of
+    participants.tsv): sub-ccepAgeUMCU01 to sub-ccepAgeUMCU05 (sub-01 qualifies by the rule
+    itself, with run-061233 at 2 048 Hz). The rule is tested offline on a fake listing.
+- Not done in this part: REQ-273 (the N1 criteria, being worked on separately), REQ-274
+  (ERP CORE: not redistributable, needs a local copy), REQ-275 (ds002094), REQ-278
+  (Neuropixels LFP), the layer-2 grid (REQ-370) and the layer-3 comparisons REQ-372 to
+  REQ-374.
+
 ### Build step S11: hierarchical model (trial -> channel -> subject)
 
 - New module `evoparam.hierarchical` (spec §5.8): `fit_hierarchical`, `posterior_summary`,

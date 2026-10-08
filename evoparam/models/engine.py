@@ -377,7 +377,10 @@ class _State:
 def _shape(name, settings):
     fields = {f.name for f in dataclasses.fields(type(get_shape(name)))}
     kwargs = {k: v for k, v in (("min_fwhm", settings.min_fwhm),
-                                ("max_fwhm", settings.max_fwhm)) if k in fields}
+                                ("max_fwhm", settings.max_fwhm),
+                                ("freq_min", settings.freq_min),
+                                ("freq_max", settings.freq_max))
+              if k in fields and v is not None}
     return get_shape(name, **kwargs)
 
 

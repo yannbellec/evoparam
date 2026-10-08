@@ -1,0 +1,77 @@
+{
+  "name": "ccep",
+  "polarity": "both",
+  "existence_method": "baseline_permutation",
+  "existence_alpha": 0.05,
+  "selection": "bic",
+  "delta": 10.0,
+  "uncertainty": "jacobian",
+  "version": "1.0",
+  "modality": "ECoG (SPES)",
+  "species": [
+    "human"
+  ],
+  "epoch": [
+    -1.0,
+    2.0
+  ],
+  "baseline": [
+    -0.5,
+    -0.02
+  ],
+  "artifact_window": [
+    -0.002,
+    0.008
+  ],
+  "artifact_method": "template+tail:joint",
+  "reference": "car_adaptive",
+  "fit_window": [
+    0.009,
+    0.5
+  ],
+  "shapes": [
+    "skewed_gaussian",
+    "gaussian"
+  ],
+  "background": "exponential",
+  "max_components": 6,
+  "min_fwhm": 0.003,
+  "max_fwhm": 0.25,
+  "component_labels": {
+    "N1": [
+      0.009,
+      0.05
+    ],
+    "N2": [
+      0.05,
+      0.3
+    ],
+    "delayed": [
+      0.1,
+      1.0
+    ]
+  },
+  "label_polarity": {
+    "N1": -1,
+    "N2": -1,
+    "delayed": 0
+  },
+  "trial_fit": true,
+  "trial_mode": "shift_scale",
+  "citation": [
+    "LIT-ccep-7",
+    "LIT-ccep-8",
+    "LIT-ccep-1",
+    "LIT-ccep-3",
+    "LIT-ccep-5",
+    "LIT-ccep-18"
+  ],
+  "choices": {
+    "artifact_window": "ends 1 ms before the earliest fit sample, so the template never overlaps the response window (REQ-061)"
+  },
+  "fit_extras": {
+    "background_tau_max": 0.05
+  },
+  "validation": "ds004080 (REQ-113, REQ-114, REQ-135)",
+  "notes": {}
+}

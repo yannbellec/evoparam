@@ -1,0 +1,83 @@
+{
+  "name": "erp",
+  "polarity": "both",
+  "existence_method": "baseline_permutation",
+  "existence_alpha": 0.05,
+  "selection": "bic",
+  "delta": 10.0,
+  "uncertainty": "jacobian",
+  "version": "1.0",
+  "modality": "scalp EEG/MEG",
+  "species": [
+    "human"
+  ],
+  "epoch": [
+    -0.2,
+    0.8
+  ],
+  "baseline": [
+    -0.2,
+    0.0
+  ],
+  "artifact_window": null,
+  "artifact_method": null,
+  "reference": "as_recorded",
+  "fit_window": [
+    0.05,
+    0.7
+  ],
+  "shapes": [
+    "gaussian",
+    "skewed_gaussian"
+  ],
+  "background": "constant",
+  "max_components": 6,
+  "min_fwhm": 0.01,
+  "max_fwhm": 0.35,
+  "component_labels": {
+    "P1": [
+      0.08,
+      0.13
+    ],
+    "N1": [
+      0.13,
+      0.2
+    ],
+    "N170": [
+      0.13,
+      0.2
+    ],
+    "P2": [
+      0.15,
+      0.27
+    ],
+    "P3": [
+      0.25,
+      0.6
+    ],
+    "N400": [
+      0.3,
+      0.5
+    ]
+  },
+  "label_polarity": {
+    "P1": 1,
+    "N1": -1,
+    "N170": -1,
+    "P2": 1,
+    "P3": 1,
+    "N400": -1
+  },
+  "trial_fit": false,
+  "trial_mode": null,
+  "citation": [
+    "LIT-erpmeas-39",
+    "LIT-erpmeas-1"
+  ],
+  "choices": {
+    "min_fwhm": "one quarter of the narrowest component, to keep the search permissive"
+  },
+  "validation": "pending: ERP CORE (REQ-274)",
+  "notes": {},
+  "fit_extras": {}
+}
