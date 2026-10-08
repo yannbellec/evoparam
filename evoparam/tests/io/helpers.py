@@ -1,4 +1,5 @@
-"""Writers of small BrainVision files and BIDS datasets, and a local HTTP server (io tests)."""
+"""Writers of small BrainVision files, MEF 3.0 sessions and BIDS datasets, and a local HTTP
+server (io tests)."""
 
 import contextlib
 import http.server
@@ -6,6 +7,8 @@ import json
 import os
 import re
 import threading
+from urllib.parse import parse_qs, unquote, urlsplit
+from xml.sax.saxutils import escape
 
 import numpy as np
 
@@ -134,6 +137,272 @@ def make_bids(root):
 
 
 ###################################################################################################
+## MEF 3.0 writer (synthetic sessions for the MEF reader tests)
+##
+## Written from the MEF 3.0 specification and the reference C library (meflib), independently
+## of evoparam.io.mef: byte-by-byte CRC, the range encoder of RED_encode_exec, and the file
+## layouts (universal header, .tmet, .tidx, .tdat).
+
+MEF_NAN = -(1 << 31)
+MEF_NEG_INF = -(1 << 31) + 1
+MEF_POS_INF = (1 << 31) - 1
+_MEF_UNITS = {'microvolts' : 1.0, 'uV' : 1.0, 'millivolts' : 1e3, 'mV' : 1e3, 'volts' : 1e6}
+
+
+def _mef_crc_table():
+    table = []
+    for byte in range(256):
+        crc = byte
+        for _ in range(8):
+            crc = (crc >> 1) ^ 0xEB31D82E if crc & 1 else crc >> 1
+        table.append(crc)
+    return table
+
+
+_MEF_CRC_TABLE = _mef_crc_table()
+
+
+def mef_crc(data):
+    """CRC of meflib (Koopman polynomial, start 0xFFFFFFFF), byte by byte."""
+
+    crc = 0xFFFFFFFF
+    for byte in bytes(data):
+        crc = (crc >> 8) ^ _MEF_CRC_TABLE[(crc ^ byte) & 0xFF]
+    return crc
+
+
+def mef_round(values):
+    """meflib RED_round: half away from zero, clipped to the infinity codes."""
+
+    values = np.asarray(values, dtype=float)
+    out = np.where(values >= 0, values + 0.5, values - 0.5)
+    return np.trunc(np.clip(out, MEF_NEG_INF, MEF_POS_INF)).astype(np.int64)
+
+
+def red_encode(samples, start_time, *, discontinuity=False, scale_factor=1.0, detrend=False,
+               encrypted=False):
+    """One RED block (bytes, 8-byte aligned) of integer samples, as meflib's RED_encode_exec."""
+
+    import struct
+
+    x = np.asarray(samples, dtype=np.int64)
+    n = x.size
+    slope = intercept = 0.0
+    if detrend:
+        c = np.arange(1, n + 1, dtype=float)
+        sx, sxx = n * (n + 1) / 2.0, n * (n + 1) * (2 * n + 1) / 6.0
+        sy, sxy = float(np.sum(x)), float(np.sum(x * c))
+        mx, my = sx / n, sy / n
+        slope = float(np.float32(((sx * my) - sxy) / ((sx * mx) - sxx)))
+        intercept = float(np.float32(my - slope * mx))
+        x = mef_round(x - slope * c - intercept)
+    if scale_factor > 1.0:
+        x = mef_round(x / scale_factor)
+
+    # Differences: the first sample as 4 bytes, then a byte per difference, or the
+    # keysample flag -128 and 4 bytes when the difference exceeds +-127
+    diffs = bytearray(struct.pack('<i', int(x[0])))
+    for prev, cur in zip(x[:-1].tolist(), x[1:].tolist()):
+        step = cur - prev
+        if -127 <= step <= 127:
+            diffs.append(step & 0xFF)
+        else:
+            diffs.append(0x80)
+            diffs += struct.pack('<i', int(cur))
+
+    # Statistics, scaled to fit in one byte
+    counts = np.bincount(np.frombuffer(bytes(diffs), dtype=np.uint8), minlength=256)
+    if counts.max() > 255:
+        scale = 254.999999999 / counts.max()
+        stats = [int(np.ceil(count * scale)) if count else 0 for count in counts.tolist()]
+    else:
+        stats = counts.tolist()
+    cum = [0]
+    for count in stats:
+        cum.append(cum[-1] + count)
+    total = cum[256]
+
+    # Range encoder (meflib constants)
+    top, bottom, carry, mask = 0x80000000, 0x800000, 0x7F800000, 0xFFFFFFFF
+    low, rng, out_byte, underflow, out = 0, top, 0, 0, []
+
+    def normalise(low, rng, out_byte, underflow):
+        while rng <= bottom:
+            if low < carry:
+                out.append(out_byte)
+                out.extend([0xFF] * underflow)
+                underflow = 0
+                out_byte = (low >> 23) & 0xFF
+            elif low & top:
+                out.append((out_byte + 1) & 0xFF)
+                out.extend([0] * underflow)
+                underflow = 0
+                out_byte = (low >> 23) & 0xFF
+            else:
+                underflow += 1
+            rng = (rng << 8) & mask
+            low = (low << 8) & 0x7FFFFFFF
+        return low, rng, out_byte, underflow
+
+    for symbol in diffs:
+        low, rng, out_byte, underflow = normalise(low, rng, out_byte, underflow)
+        per = rng // total
+        below = per * cum[symbol]
+        low = (low + below) & mask
+        rng = per * stats[symbol] if symbol < 255 else rng - below
+    low, rng, out_byte, underflow = normalise(low, rng, out_byte, underflow)
+    last = (low >> 23) + 1
+    if last > 0xFF:
+        out.append((out_byte + 1) & 0xFF)
+        out.extend([0] * underflow)
+    else:
+        out.append(out_byte)
+        out.extend([0xFF] * underflow)
+    out += [last & 0xFF, 0]
+    compressed = bytes(out[1:])                           # the first output byte is junk
+
+    flags = (1 if discontinuity else 0) | (2 if encrypted else 0)
+    size = 304 + len(compressed)
+    size += (8 - size % 8) % 8
+    head = struct.pack('<IB3x8xfffIIIq', 0, flags, slope, intercept, float(scale_factor),
+                       len(diffs) + 1, n, size, int(start_time)) + bytes(stats)
+    block = bytearray(head + compressed + b'~' * (size - 304 - len(compressed)))
+    block[0:4] = struct.pack('<I', mef_crc(block[4:]))
+    return bytes(block)
+
+
+def _universal_header(kind, body, *, start, end, n_entries, max_entry, segment, channel,
+                      session):
+    import struct
+
+    head = bytearray(1024)
+    head[8:13] = kind.encode('ascii') + b'\0'
+    head[13], head[14], head[15] = 3, 0, 1
+    struct.pack_into('<qqqqi', head, 16, start, end, n_entries, max_entry, segment)
+    for offset, text in ((52, channel), (308, session)):
+        raw = text.encode('utf-8')[:255]
+        head[offset:offset + len(raw)] = raw
+    head[836:852] = os.urandom(16)                                       # file UUID
+    struct.pack_into('<I', head, 4, mef_crc(body))
+    struct.pack_into('<I', head, 0, mef_crc(head[4:]))
+    return bytes(head) + bytes(body)
+
+
+def write_mef(folder, session, data, sfreq, ch_names, *, factor=0.1, units='microvolts',
+              block_samples=500, start_time=1_600_000_000_000_000, segment_starts=(),
+              gaps=None, flag_gaps=True, scale_factor=1.0, detrend=False, encrypt=None):
+    """Write a MEF 3.0 session ``<folder>/<session>.mefd``; return its path.
+
+    Parameters
+    ----------
+    data : 2d array
+        Values in µV, [n_channels, n_times]; NaN and +-inf are stored as the RED codes.
+    factor, units : float, str
+        Units conversion factor and description written in the metadata: the stored
+        integer is ``round(value in units / factor)``.
+    block_samples : int
+        Samples per block (blocks also end at segment starts and gaps).
+    segment_starts : sequence of int
+        Samples where a new segment starts.
+    gaps : dict, optional
+        ``{sample: seconds}``: a recording gap of that length before the sample (the
+        block that starts there is flagged as a discontinuity when ``flag_gaps``).
+    scale_factor, detrend
+        Lossy RED options of meflib, applied to every block.
+    encrypt : {"metadata", "data"}, optional
+        Mark the metadata section 2, or the blocks, as encrypted (level 1).
+    """
+
+    import struct
+
+    data = np.atleast_2d(np.asarray(data, dtype=float))
+    n_channels, n_times = data.shape
+    gaps = dict(gaps or {})
+    bounds = sorted({0, n_times} | set(segment_starts) | set(gaps)
+                    | set(range(0, n_times, block_samples)))
+    seg_bounds = sorted({0, n_times} | set(segment_starts))
+    offsets_us = np.cumsum([gaps.get(s, 0.0) for s in range(n_times)]) * 1e6
+    times = start_time + np.round(np.arange(n_times) * 1e6 / sfreq + offsets_us).astype(np.int64)
+    root = os.path.join(str(folder), session + '.mefd')
+    for ch, name in enumerate(ch_names):
+        stored = data[ch] / _MEF_UNITS.get(units, 1.0) / factor
+        values = np.where(np.isfinite(stored), mef_round(np.nan_to_num(stored)), 0)
+        values = np.where(np.isnan(data[ch]), MEF_NAN, values)
+        values = np.where(np.isposinf(data[ch]), MEF_POS_INF, values)
+        values = np.where(np.isneginf(data[ch]), MEF_NEG_INF, values)
+        for seg, (seg_first, seg_stop) in enumerate(zip(seg_bounds[:-1], seg_bounds[1:])):
+            folder_seg = os.path.join(root, name + '.timd', '{}-{:06d}.segd'.format(name, seg))
+            os.makedirs(folder_seg, exist_ok=True)
+            stem = os.path.join(folder_seg, '{}-{:06d}'.format(name, seg))
+            starts = [b for b in bounds if seg_first <= b < seg_stop]
+            tdat, index = bytearray(), bytearray()
+            for first, stop in zip(starts, starts[1:] + [seg_stop]):
+                block = red_encode(values[first:stop], times[first],
+                                   discontinuity=first == 0 or (flag_gaps and first in gaps),
+                                   scale_factor=scale_factor, detrend=detrend,
+                                   encrypted=encrypt == 'data')
+                part = values[first:stop]
+                index += struct.pack('<qqqIIii4xB3x8x', 1024 + len(tdat), times[first],
+                                     first - seg_first, stop - first, len(block),
+                                     int(part.max()), int(part.min()), block[4])
+                tdat += block
+            end = int(times[seg_stop - 1] + 1e6 / sfreq)
+            common = dict(start=int(times[seg_first]), end=end, segment=seg, channel=name,
+                          session=session)
+            n_blocks = len(starts)
+            with open(stem + '.tdat', 'wb') as file:
+                file.write(_universal_header('tdat', tdat, n_entries=n_blocks,
+                                             max_entry=block_samples, **common))
+            with open(stem + '.tidx', 'wb') as file:
+                file.write(_universal_header('tidx', index, n_entries=n_blocks, max_entry=56,
+                                             **common))
+            meta = bytearray(16384 - 1024)
+            meta[0] = 1 if encrypt == 'metadata' else 0                 # section 2 encryption
+            meta[1] = 0                                                  # section 3 encryption
+            body = 8720 - 1024
+            struct.pack_into('<dddddd', meta, body, sfreq, 0.0, -1.0, -1.0, 60.0, factor)
+            meta[8768 - 1024:8768 - 1024 + len(units)] = units.encode('utf-8')
+            struct.pack_into('<qqq', meta, 8912 - 1024, seg_first, seg_stop - seg_first, n_blocks)
+            with open(stem + '.tmet', 'wb') as file:
+                file.write(_universal_header('tmet', meta, n_entries=1, max_entry=16384,
+                                             **common))
+    return root
+
+
+def corrupt_byte(path, offset):
+    """Flip the bits of one byte of a file."""
+
+    with open(path, 'r+b') as file:
+        file.seek(offset)
+        value = file.read(1)[0]
+        file.seek(offset)
+        file.write(bytes([value ^ 0xFF]))
+
+
+def make_mef_bids(root):
+    """The mini BIDS dataset of :func:`make_bids`, with MEF 3.0 recordings instead of
+    BrainVision (same signal, events and sidecars)."""
+
+    root = make_bids(root)
+    n_samples = int(DURATION * SFREQ)
+    for vhdr in sorted(glob_files(root, '.vhdr')):
+        folder, name = os.path.split(vhdr)
+        stem = name[:-len('.vhdr')]
+        write_mef(folder, stem, signal(len(CH_NAMES), n_samples), SFREQ, CH_NAMES, factor=0.5,
+                  block_samples=1000)
+        for ext in ('.vhdr', '.eeg'):
+            os.remove(os.path.join(folder, stem + ext))
+    return root
+
+
+def glob_files(root, suffix):
+    out = []
+    for folder, _, names in os.walk(str(root)):
+        out += [os.path.join(folder, name) for name in names if name.endswith(suffix)]
+    return out
+
+
+###################################################################################################
 ## Local HTTP server
 
 class _Stats:
@@ -151,7 +420,7 @@ def _handler(directory, stats, honour_range):
             pass
 
         def _path(self):
-            rel = self.path.split('?')[0].lstrip('/')
+            rel = unquote(self.path.split('?')[0].lstrip('/'))
             return os.path.join(directory, *rel.split('/'))
 
         def _fail(self):
@@ -175,8 +444,36 @@ def _handler(directory, stats, honour_range):
             self.send_header('Content-Length', str(os.path.getsize(path)))
             self.end_headers()
 
+        def _listing(self):
+            """S3 ListObjectsV2 answer for ``?list-type=2&prefix=...`` (one page)."""
+
+            query = parse_qs(urlsplit(self.path).query)
+            prefix = query.get('prefix', [''])[0]
+            keys = []
+            for folder, _, names in os.walk(directory):
+                for name in names:
+                    rel = os.path.relpath(os.path.join(folder, name), directory)
+                    rel = rel.replace(os.sep, '/')
+                    if rel.startswith(prefix):
+                        keys.append((rel, os.path.getsize(os.path.join(folder, name))))
+            items = ''.join('<Contents><Key>{}</Key><Size>{}</Size></Contents>'.format(
+                escape(key), size) for key, size in sorted(keys))
+            body = ('<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns='
+                    '"http://s3.amazonaws.com/doc/2006-03-01/"><Prefix>{}</Prefix><KeyCount>{}'
+                    '</KeyCount><IsTruncated>false</IsTruncated>{}</ListBucketResult>').format(
+                        escape(prefix), len(keys), items).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            stats.bytes_sent += len(body)
+            stats.requests.append(('GET', self.path, None, 200))
+
         def do_GET(self):
             if self._fail():
+                return
+            if 'list-type=2' in self.path.partition('?')[2]:
+                self._listing()
                 return
             path = self._path()
             byte_range = self.headers.get('Range')

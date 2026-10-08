@@ -1,7 +1,7 @@
 """Build a TrialSet from arrays, files and objects of other packages.
 
 :func:`from_array` and :func:`read` need numpy only (pandas when tables are
-given). :func:`read_mne` needs the extra ``mne`` and :func:`read_edf` the extra
+given); so do the BrainVision and MEF 3.0 readers. :func:`read_mne` needs the extra ``mne`` and :func:`read_edf` the extra
 ``edf``; without them they raise an ImportError that names the extra.
 """
 
@@ -121,6 +121,8 @@ def _guess_format(path):
         return "edf"
     if lower.endswith(".nwb"):
         return "nwb"
+    if lower.endswith(".mefd"):
+        return "mef"
     if lower.endswith((".evoparam", ".evoparam.zip")):
         return "evoparam"
     if not is_url(path) and os.path.isdir(path):
@@ -140,7 +142,7 @@ def _read_continuous(path, fmt, *, onsets=None, epoch=(-0.5, 1.0), tmin=None, tm
     """A recording file: epochs around ``onsets``, or the recording as one trial."""
 
     from evoparam.io.brainvision import _read_with_source
-    from evoparam.io.epochs import epoch as cut
+    from evoparam.io.epochs import epoch as cut, epoch_windows
 
     start = _time.perf_counter()
     if onsets is not None:
@@ -150,26 +152,40 @@ def _read_continuous(path, fmt, *, onsets=None, epoch=(-0.5, 1.0), tmin=None, tm
         tmax = float(onsets.max()) + epoch[1] + 1.0
     if fmt == "brainvision":
         data, sfreq, names, t0, source = _read_with_source(path, tmin, tmax, picks, remote)
+    elif fmt == "mef":
+        from evoparam.io.mef import _read_with_source as _read_mef
+        data, sfreq, names, t0, source = _read_mef(path, tmin, tmax, picks, remote)
     else:
         data, sfreq, names, t0 = read_edf(path, tmin=tmin, tmax=tmax, picks=picks)
         source = {"path": path, "format": "edf", "sha256": sha256_file(path)}
     source["reader"] = "evoparam.io.read"
+    # Samples without data (gaps of a MEF recording) are NaN and masked
+    gaps = np.isnan(data) if fmt == "mef" else np.zeros(data.shape, dtype=bool)
     if onsets is not None:
-        trials = cut(data, sfreq, onsets, epoch[0], epoch[1], t0=t0, ch_names=names,
-                     metadata=metadata, ch_info=ch_info)
+        trials = cut(np.where(gaps, 0.0, data) if gaps.any() else data, sfreq, onsets, epoch[0],
+                     epoch[1], t0=t0, ch_names=names, metadata=metadata, ch_info=ch_info)
         step = trials.provenance.steps[-1]
         provenance = Provenance(source=source).with_step(
             "evoparam.io.read", {"format": fmt, "epoch": list(epoch), "picks": picks},
             duration_s=_time.perf_counter() - start, kept=step["kept"],
             overlaps_previous=step["overlaps_previous"])
-        return replace(trials, provenance=provenance, species=species, modality=modality)
+        changes = {}
+        if gaps.any():
+            times, starts, kept = epoch_windows(onsets, sfreq, epoch[0], epoch[1],
+                                                data.shape[1], t0=t0)
+            index = starts[kept][:, None] + np.arange(times.size)[None, :]
+            masks = np.moveaxis(gaps[:, index], 0, 1)
+            changes = {"data": np.where(masks, np.nan, trials.data), "masks": masks}
+        return replace(trials, provenance=provenance, species=species, modality=modality,
+                       **changes)
     provenance = Provenance(source=source).with_step(
         "evoparam.io.read", {"format": fmt, "tmin": tmin, "tmax": tmax, "picks": picks},
         duration_s=_time.perf_counter() - start)
     return TrialSet(data=data[np.newaxis], times=t0 + np.arange(data.shape[1]) / sfreq,
                     sfreq=sfreq, ch_names=names, units="uV", metadata=_table(metadata, "metadata"),
-                    ch_info=_table(ch_info, "ch_info"), species=species, modality=modality,
-                    provenance=provenance)
+                    ch_info=_table(ch_info, "ch_info"),
+                    masks=gaps[np.newaxis] if gaps.any() else None, species=species,
+                    modality=modality, provenance=provenance)
 
 
 def read(source, *, format=None, **kwargs):
@@ -180,10 +196,12 @@ def read(source, *, format=None, **kwargs):
     - ``numpy.ndarray``: :func:`from_array` (``sfreq`` required);
     - MNE ``Epochs`` / ``Evoked``: :func:`read_mne` (extra ``mne``);
     - ``TrialSet`` (returned unchanged) or ``Evoked`` (one trial);
-    - ``.vhdr`` (local or http(s)) and ``.edf`` / ``.bdf`` (extra ``edf``): with
-      ``onsets`` (s) and ``epoch=(tmin, tmax)``, epochs around the onsets (see
-      :func:`epoch`); otherwise the recording, or ``tmin`` … ``tmax`` of it, as one
-      trial whose ``times`` are seconds from the start of the recording;
+    - ``.vhdr`` (local or http(s)), ``.mefd`` (MEF 3.0 session folder, local or http(s);
+      see :func:`read_mef`) and ``.edf`` / ``.bdf`` (extra ``edf``): with ``onsets`` (s)
+      and ``epoch=(tmin, tmax)``, epochs around the onsets (see :func:`epoch`); otherwise
+      the recording, or ``tmin`` … ``tmax`` of it, as one trial whose ``times`` are
+      seconds from the start of the recording. Samples without data (gaps of a MEF
+      recording) are NaN and marked in ``masks``;
     - a BIDS dataset folder: :func:`read_bids` (``subject`` required);
     - a ``.evoparam`` container (folder or zip): the saved TrialSet.
 
@@ -193,7 +211,8 @@ def read(source, *, format=None, **kwargs):
     ----------
     source : ndarray, object, str or path-like
     format : str, optional
-        Force the format: "array", "mne", "brainvision", "edf", "bids" or "evoparam".
+        Force the format: "array", "mne", "brainvision", "mef", "edf", "bids" or
+        "evoparam".
     **kwargs
         Passed to the reader.
 
@@ -222,7 +241,7 @@ def read(source, *, format=None, **kwargs):
         raise ReaderError(f"Cannot read an object of type {type(source).__name__}.")
     path = os.fspath(source)
     fmt = format or _guess_format(path)
-    if fmt in ("brainvision", "edf"):
+    if fmt in ("brainvision", "edf", "mef"):
         return _read_continuous(path, fmt, **kwargs)
     if fmt == "bids":
         from evoparam.io.bids import read_bids

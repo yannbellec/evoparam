@@ -1,8 +1,9 @@
 """Read BIDS datasets: stimulation events (events.tsv) and epochs around them.
 
 :func:`read_bids` reads one run (or every run that matches) of a BIDS dataset,
-locally or remotely by HTTP byte ranges (OpenNeuro by default), harmonises the
-stimulation events into the standard metadata columns and returns a TrialSet.
+locally or remotely by HTTP byte ranges (OpenNeuro by default), from BrainVision or
+MEF 3.0 recordings (and, locally, EDF), harmonises the stimulation events into the
+standard metadata columns and returns a TrialSet.
 """
 
 import contextlib
@@ -207,7 +208,11 @@ def _find_runs(tree, wanted, datatype):
         if not wanted.get('task'):
             raise ReaderError('Remote reads need task= (and run= when the dataset has runs): '
                               'a remote folder cannot be listed.')
-        return [(folder, dict(wanted), '{}_{}.vhdr'.format(_stem(wanted), datatype))]
+        # BrainVision, else a MEF 3.0 session (the Mayo Clinic datasets)
+        name = '{}_{}.vhdr'.format(_stem(wanted), datatype)
+        if tree.read(folder + name, optional=True) is None:
+            name = '{}_{}.mefd'.format(_stem(wanted), datatype)
+        return [(folder, dict(wanted), name)]
 
     pattern = os.path.join(tree.root, 'sub-' + wanted['sub'],
                            'ses-' + wanted['ses'] if wanted.get('ses') else '', datatype,
@@ -219,7 +224,7 @@ def _find_runs(tree, wanted, datatype):
     runs = []
     for path in sorted(set(candidates)):
         name = os.path.basename(path)
-        if not name.endswith(('.vhdr', '.edf')):
+        if not name.endswith(('.vhdr', '.edf', '.mefd')):
             continue
         entities = dict(_ENTITY.findall(name))
         if any(wanted.get(key) and entities.get(key) != wanted[key] for key in _ORDER):
@@ -229,7 +234,7 @@ def _find_runs(tree, wanted, datatype):
     if not runs:
         raise ReaderError('No {} recording matches {} under {}.'.format(
             datatype, {k : v for k, v in wanted.items() if v}, tree.root))
-    # One data file per run: prefer BrainVision when several formats exist.
+    # One data file per run: prefer BrainVision when several formats exist (then EDF, MEF).
     by_stem = {}
     for rel, entities, name in runs:
         key = (rel, _stem(entities))
@@ -260,11 +265,12 @@ def _events_sidecar(tree, folder, entities, datatype):
     return sidecar, recording
 
 
-def _channel_table(tree, folder, entities, names):
+def _channel_table(tree, folder, entities, names, content=None):
     """Channel table (Table 4.2) from channels.tsv and electrodes.tsv, or None."""
 
     pd = require('pandas', extra='data', caller='evoparam.io.read_bids')
-    content = tree.read(folder + _stem(entities) + '_channels.tsv', optional=True)
+    if content is None:
+        content = tree.read(folder + _stem(entities) + '_channels.tsv', optional=True)
     if content is None:
         return None
     table = _read_table(content)
@@ -473,6 +479,9 @@ def _read_run(tree, folder, entities, data_name, datatype, epoch, events, select
     if data_name.endswith('.edf'):
         return _read_edf_run(tree, folder, entities, data_name, harmonized, onsets, report,
                              epoch, picks, events_source, pd)
+    if data_name.endswith('.mefd'):
+        return _read_mef_run(tree, folder, entities, data_name, datatype, harmonized, onsets,
+                             report, epoch, picks, events_source, recording, pd)
 
     # Recording
     header = read_brainvision_header(tree.location(folder + data_name), log=tree.log)
@@ -501,6 +510,17 @@ def _read_run(tree, folder, entities, data_name, datatype, epoch, events, select
         else:
             source = {'sha256' : sha256_file(header['data_file'])}
 
+    source.update({'path' : header['data_file'], 'format' : 'brainvision',
+                   'events' : events_source})
+    return _run_result(data, times, sfreq, names, ch_index, ch_info, harmonized, onsets, kept,
+                       entities, epoch, report, recording, source, datatype, pd)
+
+
+def _run_result(data, times, sfreq, names, ch_index, ch_info, harmonized, onsets, kept, entities,
+                epoch, report, recording, source, datatype, pd, masks=None):
+    """The part of one run: metadata of the kept events, channel table, provenance."""
+
+    tmin, tmax = epoch
     kept_events = harmonized[kept]
     overlaps = overlap_flags(onsets[kept], tmax - tmin)
     metadata = _metadata(kept_events, entities, overlaps, pd)
@@ -510,20 +530,57 @@ def _read_run(tree, folder, entities, data_name, datatype, epoch, events, select
         contacts = {part for site in metadata['stim_site'] for part in str(site).split('-')}
         ch_info['stim_contact'] = [name in contacts for name in ch_names]
 
-    source.update({'path' : header['data_file'], 'format' : 'brainvision',
-                   'events' : events_source})
     info = {'kept' : kept.tolist(), 'harmonization' : report.to_dict(),
             'ElectricalStimulation' : recording.get('ElectricalStimulation')}
     return dict(data=data, times=times, sfreq=sfreq, ch_names=ch_names, metadata=metadata,
                 ch_info=ch_info, event_times=onsets[kept], source=source, info=info,
+                masks=masks,
                 stimulation=bool(datatype == 'ieeg' and (metadata['stim_site'] != 'n/a').any()))
+
+
+def _read_mef_run(tree, folder, entities, data_name, datatype, harmonized, onsets, report, epoch,
+                  picks, events_source, recording, pd):
+    """Epochs of a MEF 3.0 session: the channels come from channels.tsv (or the session),
+    then the metadata of the picked channels and the blocks under the epochs are read."""
+
+    from evoparam.io import mef
+
+    stem = _stem(entities)
+    tmin, tmax = epoch
+    location = tree.location(folder + data_name)
+    content = tree.read(folder + stem + '_channels.tsv', optional=True)
+    listed = mef._names_from_tsv(content) if content is not None else None
+    names = mef._channel_names(location, remote=tree.remote, hint=listed, log=tree.log)
+    ch_info = _channel_table(tree, folder, entities, names, content=content)
+    ch_index = _pick_channels(names, picks, ch_info)
+    header = mef.read_mef_header(location, channels=[names[ind] for ind in ch_index],
+                                 remote=tree.remote, log=tree.log)
+    if header['sfreq'] is None:
+        raise DataError('{}: the picked channels have different sampling frequencies; pick '
+                        'channels of one frequency.'.format(location))
+    columns = list(range(len(ch_index)))
+    mef._warn_units(header, columns)
+    sfreq = header['sfreq']
+    times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, header['n_samples'])
+    if not kept.any():
+        raise EventError('No epoch of ({}, {}) s around the selected events of {} fits '
+                         'inside the recording.'.format(tmin, tmax, stem))
+    data, record = mef._read_grid(header, columns, starts[kept], times.size, log=tree.log)
+    nan = np.isnan(data)
+    source = {'path' : header['path'], 'format' : 'mef', 'sha256' : record['sha256'],
+              'blocks_read' : record['blocks_read'], 'events' : events_source}
+    if tree.remote:
+        source['data_bytes_read'] = record['data_bytes_read']
+    return _run_result(data, times, sfreq, names, ch_index, ch_info, harmonized, onsets, kept,
+                       entities, epoch, report, recording, source, datatype, pd,
+                       masks=nan if nan.any() else None)
 
 
 def _read_edf_run(tree, folder, entities, data_name, harmonized, onsets, report, epoch, picks,
                   events_source, pd):
     from evoparam.io.readers import read_edf
     if tree.remote:
-        raise ReaderError('Remote reads support BrainVision files only.')
+        raise ReaderError('Remote reads support BrainVision and MEF 3.0 files only.')
     path = tree.location(folder + data_name)
     data, sfreq, names, t0 = read_edf(path, picks=picks)
     tmin, tmax = epoch
@@ -560,6 +617,12 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
               remote=False, cache_dir=None, verbose=None):
     """Read epochs around the events of a BIDS dataset, locally or remotely.
 
+    Recordings in BrainVision (``.vhdr``), MEF 3.0 (``.mefd`` session folders: the Mayo
+    Clinic datasets ds003708, ds004457, ds004696 and ds004977) and, locally, EDF are read.
+    For MEF, the channels and their order come from ``channels.tsv``; only the metadata
+    of the picked channels and the blocks under the epochs are read (see
+    :func:`~evoparam.io.read_mef`); samples without data are NaN and marked in ``masks``.
+
     Parameters
     ----------
     root : str or path-like
@@ -592,7 +655,8 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
         False: ``root`` is a local folder. True or ``"openneuro"``: files are read from
         ``https://s3.amazonaws.com/openneuro.org/<root>/`` by HTTP byte ranges, so only
         the epochs are transferred. An http(s) address: base address under which
-        ``root`` lives.
+        ``root`` lives. Remotely, a run is read from ``*_<datatype>.vhdr`` when it
+        exists, else from the ``*_<datatype>.mefd`` session.
     cache_dir : str, optional
         Where a remote data file is saved when the server ignores byte ranges.
     verbose : bool, str or None
@@ -645,6 +709,7 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
     if len(parts) == 1:
         entities, part = parts[0]
         data, metadata, event_times = part['data'], part['metadata'], part['event_times']
+        masks = part.get('masks')
         source = dict(part['source'])
     else:
         entities, part = parts[0]
@@ -656,6 +721,10 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
                 raise DataError('Runs have different channels; read them separately or give '
                                 'picks.')
         data = np.concatenate([p['data'] for _, p in parts])
+        masks = None
+        if any(p.get('masks') is not None for _, p in parts):
+            masks = np.concatenate([np.zeros(p['data'].shape, dtype=bool)
+                                    if p.get('masks') is None else p['masks'] for _, p in parts])
         metadata = pd.concat([p['metadata'] for _, p in parts], ignore_index=True)
         metadata.attrs['units'] = dict(part['metadata'].attrs.get('units', {}))
         event_times = np.concatenate([p['event_times'] for _, p in parts])
@@ -681,6 +750,6 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
         runs=[p['info'] for _, p in parts])
     return TrialSet(data=data, times=part['times'], sfreq=part['sfreq'],
                     ch_names=part['ch_names'], units='uV', metadata=metadata,
-                    ch_info=part['ch_info'], event_times=event_times,
+                    ch_info=part['ch_info'], masks=masks, event_times=event_times,
                     modality='spes' if any(p['stimulation'] for _, p in parts) else None,
                     provenance=provenance)

@@ -1,8 +1,8 @@
 """Input / output: build TrialSets from arrays, files and BIDS datasets, locally or remotely.
 
 - Arrays and files: :func:`from_array`, :func:`read` (dispatch), :func:`epoch`,
-  :func:`read_brainvision`, :func:`read_mne` (extra ``mne``), :func:`read_edf`
-  (extra ``edf``).
+  :func:`read_brainvision`, :func:`read_mef` (MEF 3.0, local or remote),
+  :func:`read_mne` (extra ``mne``), :func:`read_edf` (extra ``edf``).
 - BIDS: :func:`read_bids` (local, or remote by HTTP byte ranges), with the stimulation
   events harmonised into the standard metadata columns (:func:`harmonize_stim_events`,
   :func:`validate_stimulation_events`).
@@ -15,6 +15,7 @@ from .bids import read_bids, read_bids_events, select_stimulation_events
 from ._harmonize import (harmonize_stim_events, HarmonizationReport, validate_stimulation_events,
                          ValidationReport)
 from .epochs import epoch, epoch_data
+from .mef import read_mef, read_mef_header
 from .fetch import OPENNEURO_URL, RemoteFile, fetch_openneuro_file, openneuro_url
 from .readers import from_array, read, read_edf, read_events_edf, read_mne
 from .registry import dataset_info, list_datasets

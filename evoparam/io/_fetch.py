@@ -347,7 +347,9 @@ class RemoteFile:
                     raise ReaderError(f"Unexpected HTTP {response.status} for {self.url}.")
                 self._check_content_range(response.headers.get("Content-Range"), start)
                 body = response.read()
-            expected = stop - start if self._size is not None else None
+            # The size may have been learnt from this reply: a range that ends past the
+            # end of the file is answered up to the end
+            expected = min(stop, self._size) - start if self._size is not None else None
             if expected is not None and len(body) != expected:
                 raise http.client.IncompleteRead(body, expected - len(body))
             return body

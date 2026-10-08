@@ -2,6 +2,90 @@
 
 ## Unreleased
 
+### MEF 3.0 reader (the Mayo Clinic datasets)
+
+- New module `evoparam.io.mef`: `read_mef(path, tmin=, tmax=, picks=, remote=, check_crc=)`
+  and `read_mef_header`, in numpy and the standard library only, written from the public
+  MEF 3.0 specification and the reference C library (meflib). It reads session folders
+  (`.mefd`), their channels (`.timd`) and segments (`.segd`): universal headers, metadata
+  (`.tmet`: sampling frequency, units conversion factor and units, start time), block
+  indexes (`.tidx`) and data (`.tdat`), with range-encoded differences (RED) decoded for
+  all the blocks at once (one symbol per numpy step; about 120 ns per symbol). Header,
+  metadata, index and block CRCs are checked (`check_crc=False` skips them). Lossy blocks
+  (scale factor, detrending) are restored as meflib does; `RED_NAN` gives NaN, the two
+  infinity codes give -inf and +inf. Values are converted to µV from the conversion factor
+  and the units of each channel (a channel whose unit is not a voltage is left unconverted,
+  with a warning).
+- Only the blocks under the requested window are read, located with `.tidx`. Remotely
+  (an http(s) address, OpenNeuro by default) only the metadata and index files of the
+  channels read and the bytes of those blocks are downloaded, by HTTP byte ranges, 16
+  requests at a time. The channel list comes from the S3 listing of OpenNeuro, or from the
+  BIDS `channels.tsv` beside the session (segments are then probed until one is missing).
+- Time axis: sample 0 is the earliest block of the channels read. Within a run of blocks,
+  samples follow the sample numbers of `.tidx`: the block time stamps of the Mayo
+  recordings jitter and drift by up to 42 samples, while the `events.tsv` onsets are sample
+  numbers divided by the sampling frequency. A new run starts at a block flagged as a
+  discontinuity, or whose start time jumps forward by more than 1 s without the flag; the
+  gap is NaN. Blocks whose index extrema are equal (the censored zeros of ds004977) are
+  filled without decoding.
+- Not supported: encrypted data or metadata (section 2, or encrypted blocks) raise
+  `ReaderError` asking to decrypt the session with the MEF library first; an encrypted
+  section 3 (subject identity and recording time offset only) is recorded in the header and
+  otherwise ignored. Records (`.rdat`, annotations), video channels and big-endian files are
+  not read.
+- `read` dispatches `.mefd` (local or http(s)): the recording or a window of it, or epochs
+  around `onsets`, with the NaN gaps marked in `masks`. `read_bids` reads MEF runs locally
+  and remotely (a remote run is read from `.vhdr` when it exists, else from `.mefd`): only
+  the metadata of the picked channels and the blocks under the epochs are read, and the
+  gaps are masked. `provenance.source` records `format: "mef"`, the units and conversion
+  factors, the start time, the number of blocks read, the bytes read and the sha256 of the
+  metadata files and of the data bytes read (the same for a local and a remote read; not
+  the digest of the whole files, as for BrainVision).
+- Fix in `evoparam.io._fetch.RemoteFile`: a first range request that ends past the end of
+  the file (size not known yet) was taken as an incomplete reply and retried until it
+  failed.
+- Real data (OpenNeuro, by byte ranges): ds003708 header of 89 channels in 8.6 s (21.5 MB,
+  most of it the block indexes of the whole run, which are read in full), then 20 s of the
+  89 channels in 11.8 s (25 MB in all, 3.7 MB of blocks); ds004977 header of 273 channels
+  in 7.7 s (13 MB) and 2 s of the 273 channels in 16.8 s (24 MB, 10.5 MB of blocks: these
+  recordings are stored almost uncompressed, 19 KB per channel and second). Every block CRC
+  of the ds004977 channel checked in full matches, and the decoded extrema equal the index
+  extrema. ds004977 stores nV with a conversion factor of 0.001 to µV; its runs are zeros
+  outside the 54 s of one stimulation site.
+- Mayo events (`tests/events/test_mayo_events.py`, 15 runs: ds003708, ds004457 sub-1 to
+  sub-5, ds004696 sub-02, 03, 06, 07, 08 (sub-01, 04 and 05 repeat ds004457), ds004977 one
+  run per subject; 20 s from the first pulse of three sites per run at 2048 Hz, one at
+  4800 Hz; 172 pulses). `detect_pulses` with its defaults finds all 152 pulses of the
+  2048 Hz runs, median onset error 1 sample (the `events.tsv` onsets are 0.49 ms later),
+  but 29 false alarms (precision 0.84: transients of 0.1 to 3 mV against pulses of 35 to 45 mV in
+  ds004457 sub-2 and ds004696 sub-07; REQ-040 is specified on ds004080 only). On ds004977
+  it finds no pulse in 2 of the 4 runs (largest score 14.9 and 10.9 robust SD, threshold
+  20; recall 0.50): the artifact is large only on a few contacts. With the sEEG channels
+  and `threshold_sd=7`, all 20 are found, 2.1 ms after the `events.tsv` onsets.
+- REQ-042 on the Mayo sets: **not met** (tests marked xfail). Agreement of
+  `stim_site_guess` with `events.tsv` on 0.67 of the 162 detected pulses (0.72 on the
+  2048 Hz runs, 0.63 per pulse before the vote; 0.77 with the `channels.tsv` table as
+  `ch_info`). Confidence: accuracy 0.92 on the 22 % of pulses with `site_confidence >= 0.5`
+  (0.95 on 25 % with `ch_info`). On ds004977 the agreement is 0: the stimulated contacts
+  are nearly flat in the published files (SD 4 to 42 µV against about 460 µV for the other
+  contacts), and the guess is the pair around them (RO2-RO5 for RO3-RO4, LA1-LA4 for
+  LA2-LA3). ds003708 alone: 1.00 after the vote.
+- REQ-081, ds004977 part: **met** (`tests/prep/test_reference_ds004977.py`). The 12 pulses
+  of the uncensored site of one run per subject (sub-1 run-01, sub-2 run-12, sub-3 run-03,
+  sub-4 run-02), sEEG channels, read with `read_bids(..., remote=True)`. Cross-channel R²
+  (mean squared correlation of the trial average of a channel with those of the others,
+  10 to 300 ms, bad channels and stimulated contacts left out): median 0.26 with `car`,
+  0.18 with `car_adaptive` over 710 channels (one-sided Wilcoxon p = 1e-27); in each run
+  p < 2e-5 (n* = 120, 168, 144 and 48 channels).
+- Not done: REQ-372 (Jaccard index against the responsive channels of the published
+  analysis) and the documentation gallery examples on the Mayo sets, now unblocked.
+- Tests: a MEF 3.0 writer with RED compression in the test helpers (port of the meflib
+  encoder: segments, gaps with and without the discontinuity flag, lossy blocks, NaN and
+  infinity codes, encryption flags), 19 tests of round trips, windows, picks, segments,
+  gaps, CRC errors, encryption, remote reads through the test HTTP server (with an
+  emulated S3 listing) and `read_bids` (MEF equal to BrainVision, locally and remotely);
+  network tests on ds003708 and ds004977 (`tests/io/test_mef_openneuro.py`).
+
 ### Stimulated site from held and leading contacts (REQ-042 met on ds004080)
 
 - Diagnosis on ds004080 (25 runs, 199 pulses), where the step S4 rule agreed with
