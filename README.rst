@@ -38,6 +38,12 @@ evoparam covers the whole path from a raw recording to response parameters:
   scaled channel model, warm-started), latency jitter against the jitter that noise alone
   gives, realigned averages, and covariates (position in the train, dose-response,
   pre-stimulus phase and power).
+* ``evoparam.stats``: the numbers a paper reports. Bootstrap intervals over trials
+  (percentile and BCa), jackknife latencies over participants with the retrieved
+  individual scores, permutation contrasts between conditions at the right unit (trial,
+  channel or subject), split-half reliability and dependability with the trials needed,
+  REML variance components, and tidy exports with model formulas for statsmodels, lme4 and
+  brms.
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact

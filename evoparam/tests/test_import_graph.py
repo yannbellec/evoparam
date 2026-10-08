@@ -34,7 +34,10 @@ RULES = {
     "hierarchical": {"data", "models", "trials", "stats", "utils"},
     "spatial": {"data", "models", "utils"},
     "tf": {"data", "models", "utils"},
-    "stats": {"data", "models", "utils"},
+    # stats -> existence: trials_needed resamples the existence test (spec §5.11, method 5)
+    # and compare_conditions uses its corrections ("as in §5.6"); existence imports nothing
+    # from stats, so no cycle arises.
+    "stats": {"data", "models", "existence", "utils"},
     # sim -> io: the licence of a real-noise dataset is read from the dataset registry
     # (spec REQ-256); io imports nothing below data and utils.
     "sim": {"data", "shapes", "artifact", "utils", "io"},
@@ -208,3 +211,18 @@ def test_sim_does_not_reach_the_fitter():
     assert not reached, "evoparam.sim reaches a fitter:\n" + "\n".join(map(chain, reached))
     modules = {path.relative_to(PACKAGE).parts[0] for path in seen}
     assert "sim" in modules and "shapes" in modules and "data" in modules
+
+
+def test_stats_is_below_hierarchical():
+    """Spec §4.2: hierarchical imports stats (variance components), never the reverse, and
+    stats does not reach the trial-level module."""
+
+    edges = _edges()
+    stats_dests = set().union(*[dests for (source, _), dests in edges.items()
+                                if source == "stats"])
+    assert "stats" in {source for source, _ in edges}
+    assert not stats_dests & {"hierarchical", "trials", "spatial", "tf", "sim"}, stats_dests
+    for (source, _), dests in edges.items():
+        if "stats" in dests:
+            assert source in ("hierarchical", "reports", "plots", "cli", "stream", "benchmark"), \
+                source

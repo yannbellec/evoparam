@@ -2,6 +2,92 @@
 
 ## Unreleased
 
+### Build step S14: statistics, intervals, comparisons, reliability and export to mixed models
+
+- New module `evoparam.stats` (spec §5.11): `bootstrap` and `bootstrap_interval`
+  (percentile and BCa, stratified by `by`), `jackknife_latency`, `jackknife_t`,
+  `jackknife_f`, `compare_conditions` and `hedges_g`, `reliability`, `spearman_brown`,
+  `dependability`, `trials_needed`, `variance_components` and `reml` (nested random
+  intercepts by REML, with known sampling variances), `to_long`, `column_dictionary`,
+  `mixed_formula`, `fit_mixed` and `group_summary`, and a vectorised `score_waveforms`
+  (the classical scores of `classical_measures`, equal to them, on many waveforms at once).
+  DataFrame outputs carry `attrs["provenance"]`, `attrs["units"]` and `attrs["settings"]`.
+- Variance components for the hierarchical step (spec §5.8, empirical Bayes):
+  `reml(y, groups, se=, X=, residual=)` returns the variance of each level, the residual
+  (beyond the known sampling variances), the fixed effects and their covariance, the BLUPs
+  with the standard errors of their prediction errors (including the uncertainty of the
+  fixed effects), the shrunken unit estimates (`unit_mean`: mean design row times the fixed
+  effects plus the effects on the unit's path, e.g. a channel inside its subject) with their
+  standard errors, the shrinkage factors and the number of observations per unit. Each
+  top-level block is inverted with the Woodbury identity; one level without sampling
+  variances has a closed-form profile. Checked against dense computations and the inverse
+  of Henderson's mixed-model equations to 1e-8. `variance_components` is the same fit on a
+  DataFrame (`VarianceResult` with `table`, `fixed`, `random_effects` per level: `estimate`,
+  `se`, `shrunken`, `shrunken_se`, `shrinkage`, `n_obs`).
+- Choices and changes to the specification:
+  - bootstrap intervals use the small-sample expansion of Hesterberg (2015) by default
+    (`expand=True`: the normal quantile is replaced by `sqrt(n / (n - 1)) t_{n-1}`, with
+    `n` the number of trials less the number of strata plus one): with 30 trials the
+    textbook intervals cover 0.935 (normal) and 0.925 (log-normal, CV 0.5), below the 0.93
+    of REQ-230; `expand=False` gives the textbook intervals;
+  - `bootstrap` also takes a score name (`"mean_amplitude"`, `"peak_latency"`, ...) with
+    `window` and the score options; resamples of a score are then computed for all
+    resamples at once by matrix products. The BCa acceleration comes from the
+    leave-one-trial-out jackknife;
+  - `compare_conditions` also takes `by` (contrasts per channel, component, ...),
+    `conditions` (the two levels to compare), `ci_level` and `n_boot` (percentile interval
+    of the difference). Exchangeability is enforced for every level: the levels above the
+    unit (trial < channel < subject) may not vary within a contrast, so trials of several
+    subjects, or `paired=False` with units present in both conditions, raise
+    `SettingsError`. Paired contrasts flip signs of the paired t (exactly enumerated when
+    `2^n` is at most the number of permutations); unpaired contrasts permute labels of a
+    Welch t;
+  - `reliability` also takes `window` and `picks`; a callable scorer takes
+    `(times, waveforms[n, n_times])` and returns one value per waveform. Dependability uses
+    the REML variance components of trials within units, the D-study gives the trials
+    needed for `target_phi`, and the standardised measurement error is the root mean square
+    of the per-unit SMEs (bootstrap SME for non-linear scores);
+  - `trials_needed`: the existence probability uses subsamples without replacement of the
+    first `n` trials (it is not extrapolated beyond `N`, with a warning); the score SD
+    uses bootstrap resamples of size `n`, extrapolated beyond `N` by `c / sqrt(n)` with `c`
+    the mean of `sd(m) sqrt(m)` over `m >= N / 2`, times `sqrt(N / (N - 1))`;
+  - `to_long` also accepts `ResponseFit`, `TrialFitSet` and plain DataFrames, with
+    `metadata=` and `units=`; the JSON sidecar (`attrs["sidecar"]`, `column_dictionary`)
+    follows the BIDS style (`Description`, `Units`, `Levels`). `mixed_formula` takes `se`
+    (the `brms` measurement-error term `se(se, sigma = TRUE)`) and quotes names that are not identifiers (backticks in
+    R, `Q("...")` for patsy). `fit_mixed` takes `nested` and `re_formula`;
+  - `group_summary` also takes `ch_info` (regions), `n_boot`, `ci_level` and
+    `random_state`;
+  - the import graph allows `stats -> existence` (`trials_needed` runs the existence
+    test); `stats` stays below `hierarchical`;
+  - new extra `stats` (`statsmodels>=0.14`, `formulaic>=1.0`).
+- Acceptance criteria met: REQ-230 (10 000 simulated channels of 30 trials: BCa 0.948 and
+  percentile 0.949 on normal statistics, 0.940 and 0.938 on log-normal ones), REQ-231 for
+  the Smulders et al. (2010) worked example (retrieved values and corrected F of 9.2, 9.8,
+  4.9 reproduced) and for noise-free retrieval (centroid latency to 1e-9; the 50 %
+  fractional area latency is not linear across participants and is retrieved within
+  2.7 ms), REQ-232 (type-I error 0.052 trials, 0.049 channels, 0.043 and 0.049 subjects,
+  paired and unpaired, 4 000 null simulations each; refusal of trials across subjects),
+  REQ-233 against an independent implementation of the published formulas on simulated
+  balanced and unbalanced data (within 0.001), REQ-234 for amplitude scores (median ratio
+  of predicted to true SD at 80 trials 1.06 for the mean amplitude, 0.95 for the peak
+  amplitude), REQ-235, REQ-236 for `lme4` and `brms`, REQ-237.
+- Not met or not checked here:
+  - REQ-231, Kiesel et al. (2008) example: the paper could not be read in the build
+    environment, so its printed values are not frozen (xfail);
+  - REQ-234 for latency scores (xfail): from 20 trials the `1/sqrt(n)` law underestimates
+    the SD at 80 trials (median ratio 0.77 for the fractional area latency, 0.70 for the
+    peak latency at a per-trial SNR of 1), because the latency of a noisy average improves
+    faster than `1/sqrt(n)`;
+  - REQ-233 on ERP CORE: the N170 test (`tests/stats/test_stats_erpcore.py`) reads a local
+    copy given by `EVOPARAM_ERPCORE_N170` with `EVOPARAM_NETWORK_TESTS=1` and needs `mne`;
+    ERP CORE has no licence record in the registry, so nothing is downloaded or
+    redistributed. It was not run here (no copy, no `mne`);
+  - REQ-236, `statsmodels` part: written, skipped when `statsmodels` is not installed (it
+    was not installed in the build environment).
+- Tests: `tests/stats/` (bootstrap, jackknife, compare, reliability, variance, export, ERP
+  CORE).
+
 ### MEF 3.0 reader (the Mayo Clinic datasets)
 
 - New module `evoparam.io.mef`: `read_mef(path, tmin=, tmax=, picks=, remote=, check_crc=)`
