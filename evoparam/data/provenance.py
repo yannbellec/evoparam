@@ -101,7 +101,11 @@ def _environment():
 def capture_environment():
     """Return the software environment as a JSON-serialisable dictionary."""
 
-    return copy.deepcopy(_environment())
+    import evoparam._plugins as _plugins
+
+    env = copy.deepcopy(_environment())
+    env["plugins"] = {key.split(":", 1)[1]: origin for key, origin in _plugins.used().items()}
+    return env
 
 
 def compute_data_hash(data, times, ch_names):

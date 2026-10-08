@@ -3,7 +3,9 @@
 Presets are data: one JSON file per preset in this folder, read with the standard library
 into the frozen :class:`Preset` dataclass. Each value is justified by the literature keys of
 ``citation`` or marked as a choice of the specification (``choices``: field -> reason).
-This module imports nothing from the package (spec §4.2), so every module may use it.
+This module imports nothing from the package but the leaves ``errors`` and ``_plugins``
+(spec §4.2), so every module may use it. ``PRESETS`` adds the presets of the entry-point
+group ``evoparam.presets`` on first access (plugins, spec §10.8).
 
 >>> from evoparam import presets
 >>> presets.get("ccep").fit_window
@@ -18,6 +20,7 @@ import dataclasses
 import json
 from importlib import resources
 
+import evoparam._plugins as _plugins
 from evoparam.errors import SettingsError
 
 __all__ = ["Preset", "get", "list", "derive", "register", "to_json", "from_json", "to_yaml",
@@ -243,4 +246,16 @@ def methods_note(preset):
     return text
 
 
-PRESETS = _load_builtin()
+def _plugin_preset(name, obj, origin):
+    """Check a preset of the entry-point group ``evoparam.presets`` (spec §10.8)."""
+
+    if not isinstance(obj, Preset):
+        raise SettingsError(f"plugin preset {name!r} of {origin} is a {type(obj).__name__}, "
+                            f"not a Preset.")
+    if obj.name != name:
+        raise SettingsError(f"plugin preset {name!r} of {origin}: its name is {obj.name!r}; "
+                            f"the entry-point name must be the same.")
+    return obj
+
+
+PRESETS = _plugins.LazyRegistry("evoparam.presets", _load_builtin(), _plugin_preset)
