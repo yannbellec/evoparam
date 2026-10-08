@@ -23,6 +23,9 @@ evoparam covers the whole path from a raw recording to response parameters:
   tail, period-based reconstruction for high-frequency trains, low-rank regression,
   subspace projection, local polynomial, matching pursuit, paradigm-based cancellation,
   learned basis), mark the replaced samples and score each trial.
+* ``evoparam.prep``: baseline correction (with a check against the previous pulse's
+  delayed responses), re-referencing (bipolar, common average, adjusted common average,
+  Laplacian), montage-sensitivity report, trial rejection, resampling, averaging, filters.
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact

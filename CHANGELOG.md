@@ -2,6 +2,48 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S6: light preparation
+
+- New module `evoparam.prep` (spec §5.4):
+  - `baseline_correct` (mean, median or linear trend; masked samples left out, error under
+    50 % valid samples). With `event_times`, a warning when the baseline starts less than
+    `delayed_margin` (1 s) after the previous pulse, with the shortest interval and a valid
+    alternative: a shorter baseline when one exists, else `baseline_source="first_pulse"`
+    (every pulse uses the baseline of the first pulse of its train).
+  - `rereference`: `monopolar`, `bipolar` (consecutive contacts per electrode, gaps
+    reported, names and order of `mne.set_bipolar_reference`), `car` (stimulating, bad,
+    excluded and masked channels left out, per trial and sample), `car_adaptive` (adjusted
+    common average by least anticorrelation, re-implemented from Huang et al. 2024; falls
+    back to `car` under 8 channels), `laplacian` (neighbours within a radius). The reference
+    is written to `ch_info["reference"]`; `car_adaptive` records `n_star`, `zeta`, the
+    channels used and the bootstrap interval. `car_adaptive_select` is public.
+  - `reference_sensitivity`: detections and latencies under several montages, Cohen's kappa
+    and latency differences per pair (a bipolar `A1-A2` is compared with contact `A1`). Its
+    default detector, `threshold_detector` (minimum below -3.4 baseline SD, SD floored at
+    50 uV, the ER-detect default), is interim until the existence test of build step S8.
+  - `reject_trials`: robust z-scores of peak-to-peak and RMS in the response and baseline
+    windows, flat channels, masked fraction, quality; flagged trial-channels are masked, a
+    trial flagged on half of its channels (or for quality) gets `rejected` and
+    `reject_reason`; at most 30 % of the trials per channel, with a warning above. Rows are
+    never deleted.
+  - `resample` (polyphase, `event_times` exact, masks to the nearest sample, t = 0 kept on
+    the grid), `average` (mean, 20 % trimmed, median, quality-weighted), `highpass`,
+    `lowpass`, `notch` (zero-phase; warning on masked data).
+- Adjusted common average, choice of n*: the global maximum of zeta, unless an earlier local
+  maximum is followed by a significant fall (bootstrap over trials, to the next low point).
+  Taking the first significant local maximum anywhere, as first written, chose a later peak
+  after several responsive channels in 4 of 5 simulations at 50 % responsive channels.
+- `contact_group` moved to `evoparam.utils._names` (shared by `events` and `prep`).
+- Acceptance criteria: REQ-080 (1 Hz design warns and proposes a valid alternative, none at
+  0.2 Hz); REQ-081 simulation part (50 channels, 12 trials: median false negatives 0 and
+  false positives at most 1.5 from 0 to 90 % responsive channels, 10 simulations per level);
+  REQ-082 (bipolar equal to MNE); REQ-083 (30 corrupted trials of 200 all flagged, no clean
+  trial rejected); REQ-084 on ds004080 sub-01 (three schemes in 0.9 s; kappa 0.64 to 0.71
+  between montages, latency differences up to 57 ms on the same channel); REQ-085 (latency
+  within half a sample at 500, 512 and 2048 Hz, `event_times` unchanged).
+- Not done: the ds004977 part of REQ-081 (MEF3 recordings cannot be read yet); a channel
+  whose every trial is rejected cannot occur with the 30 % cap, so no automatic `bad` flag.
+
 ### Build step S9: simulators with a known truth, noise models and scorers
 
 - New module `evoparam.sim` (spec §5.12), rewritten; it replaces the skeleton's `sim/*`.

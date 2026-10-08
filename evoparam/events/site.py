@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 
 from evoparam.errors import DataError
+from evoparam.utils._names import contact_group
 from evoparam.utils._optional import require
 
 from ._score import MAD_TO_SD, as_continuous, pick_index
@@ -25,16 +26,6 @@ NEURAL_TYPES = {"ecog", "seeg", "dbs", "eeg", "lfp", "ieeg", "meg"}
 # physiological and auxiliary channels.
 NON_NEURAL = re.compile(r"^(mkr|trig|sti|status|event|marker|dc\d|ecg|ekg|emg|eog|resp|"
                         r"spo2|pulse|photic|aux|misc|ref$|gnd)", re.IGNORECASE)
-
-
-def contact_group(name):
-    """Electrode group guessed from a contact name: the name without its trailing number.
-
-    For example ``"PT01"`` -> ``"PT"``, ``"LA'12"`` -> ``"LA'"``, ``"Grid_3"`` -> ``"Grid"``.
-    """
-
-    match = re.match(r"^(.*?)[\s_\-]*\d+$", str(name).strip())
-    return match.group(1) if match and match.group(1) else str(name)
 
 
 def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.001, t0=0.0,
