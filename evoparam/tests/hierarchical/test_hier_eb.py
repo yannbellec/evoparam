@@ -1,0 +1,199 @@
+"""Empirical-Bayes hierarchical engine on simulations (REQ-170 to REQ-172, REQ-175 to
+REQ-177)."""
+
+import importlib
+import os
+import sys
+import time
+
+import numpy as np
+import pytest
+
+from evoparam.errors import SettingsError
+from evoparam.hierarchical import fit_hierarchical, posterior_summary
+from evoparam.tests.hierarchical.helpers import (auc, merged, reliability_slope,
+                                                 simulate_group)
+
+SLOW = os.environ.get("EVOPARAM_SLOW_TESTS") == "1"
+
+
+def _fit(sets, **kwargs):
+    return fit_hierarchical(sets, components=["N1"], n_jobs=-1, **kwargs)
+
+
+@pytest.fixture(scope="module")
+def reference():
+    """20 subjects x 50 channels x 20 trials, 30 % responding (spec REQ-170)."""
+
+    sets, truth = simulate_group(n_subjects=20, n_channels=50, n_trials=20, p_respond=0.3,
+                                 snr=0.7, seed=0)
+    start = time.perf_counter()
+    fit = _fit(sets)
+    return fit, truth, time.perf_counter() - start
+
+
+def test_req170_p_response_discriminates_and_is_calibrated(reference):
+
+    fit, truth, _ = reference
+    m = merged(fit, truth)
+    assert len(m) == 1000
+    assert auc(m["p_response"], m["respond"]) >= 0.95
+    assert 0.8 <= reliability_slope(m["p_response"], m["respond"]) <= 1.2
+
+
+def test_level_tables_and_summary(reference):
+
+    fit, truth, _ = reference
+    assert set(fit.level_tables) == {"trial", "channel", "subject", "group"}
+    channel = posterior_summary(fit, "channel")
+    for column in ("latency", "latency_se", "latency_shrinkage", "amplitude", "p_response",
+                   "flag", "n_trusted"):
+        assert column in channel.columns
+    subject = posterior_summary(fit, "subject")
+    assert len(subject) == 20 and subject["latency"].notna().all()
+    assert set(fit.variance_components["level"]) >= {"subject", "channel", "trial"}
+    assert fit.engine == "eb"
+    with pytest.raises(SettingsError):
+        posterior_summary(fit, "nope")
+
+
+def _rmse_pair(seed, snr):
+    sets, truth = simulate_group(n_subjects=4, n_channels=20, n_trials=20, p_respond=0.6,
+                                 snr=snr, seed=seed)
+    m = merged(_fit(sets), truth)
+    d = m[m["has_component"] & m["respond"] & m["latency"].notna()]
+    raw = np.sqrt(np.mean((d["latency_fit"] - d["latency_true"]) ** 2))
+    eb = np.sqrt(np.mean((d["latency"] - d["latency_true"]) ** 2))
+    return raw, eb
+
+
+def test_req171_shrunken_latencies_beat_the_channel_fits():
+
+    runs = 20 if SLOW else 6
+    better = [eb < raw for raw, eb in (_rmse_pair(100 + s, 1.5) for s in range(runs))]
+    assert np.mean(better) >= 0.9
+
+
+def _variance_case(seed):
+    sets, truth = simulate_group(n_subjects=6, n_channels=30, n_trials=20, p_respond=0.5,
+                                 snr=3.0, seed=seed, jitter=0.003)
+    fit = _fit(sets)
+    vc = fit.variance_components
+    sd_amp = vc[(vc["parameter"] == "amplitude") & (vc["level"] == "channel")]["sd"].iloc[0]
+    sd_jit = vc[(vc["parameter"] == "latency") & (vc["level"] == "trial")]["sd"].iloc[0]
+    resp = truth[truth["respond"]]
+    true_amp = np.sqrt(np.mean((resp["amplitude"] - resp.groupby("subject")["amplitude"]
+                                .transform("mean")) ** 2) * len(resp) / (len(resp) - 6))
+    return sd_amp / true_amp, sd_jit / 0.003
+
+
+def test_req172_variance_components_by_eb():
+
+    runs = 20 if SLOW else 5
+    ratios = np.array([_variance_case(200 + s) for s in range(runs)])
+    within = np.all(np.abs(ratios - 1) <= 0.2, axis=1)
+    assert within.mean() >= 0.9
+
+
+def _age_case(seed):
+    sets, truth = simulate_group(n_subjects=20, n_channels=10, n_trials=20, p_respond=0.6,
+                                 snr=2.0, seed=seed, age_slope=0.0002)
+    fit = _fit(sets, formula="latency ~ age")
+    row = fit.effects[fit.effects["term"] == "age"].iloc[0]
+    return row["ci_low"] <= 0.0002 <= row["ci_high"], row
+
+
+def test_req175_formula_effect_is_covered():
+
+    runs = 20 if SLOW else 5
+    covered = [_age_case(300 + s)[0] for s in range(runs)]
+    assert np.mean(covered) >= 0.9 if SLOW else np.mean(covered) >= 0.8
+
+
+def test_formula_errors():
+
+    sets, _ = simulate_group(n_subjects=2, n_channels=4, n_trials=6, seed=1)
+    with pytest.raises(SettingsError, match="'handedness'"):
+        fit_hierarchical(sets, formula="latency ~ handedness")
+    with pytest.raises(SettingsError, match="parameter"):
+        fit_hierarchical(sets, formula="power ~ age")
+
+
+def test_req176_eb_time_per_subject(reference):
+
+    fit, _, duration = reference
+    per_subject = duration / 20
+    assert per_subject <= 10
+    # the model itself (given the channel and trial fits) takes a small part of it
+    assert fit.diagnostics["timing_s"]["model"] / 20 <= 0.5
+
+
+def test_req177_no_new_dependency_for_eb(monkeypatch):
+
+    for name in ("numpyro", "pymc", "jax"):
+        monkeypatch.setitem(sys.modules, name, None)
+    module = importlib.reload(importlib.import_module("evoparam.hierarchical.bayes"))
+    with pytest.raises(ImportError, match="numpyro"):
+        module.require_engine("numpyro")
+    with pytest.raises(ImportError, match="pymc"):
+        module.require_engine("pymc")
+    importlib.reload(importlib.import_module("evoparam.hierarchical"))
+
+
+def test_one_subject_drops_the_subject_level():
+
+    sets, truth = simulate_group(n_subjects=1, n_channels=20, n_trials=15, p_respond=0.6,
+                                 snr=2.0, seed=4)
+    fit = fit_hierarchical(sets[0], components=["N1"])
+    assert any("subject level is dropped" in n for n in fit.diagnostics["notes"])
+    assert fit.level_tables["channel"]["latency"].notna().sum() >= 5
+    assert "subject" not in set(fit.variance_components["level"])
+
+
+def test_channel_with_few_trusted_trials_is_prior_dominated():
+
+    sets, truth = simulate_group(n_subjects=3, n_channels=10, n_trials=20, p_respond=1.0,
+                                 snr=3.0, seed=5)
+    # two trials only on one channel: drop the others by NaN masking
+    import dataclasses
+
+    ts = sets[0]
+    data = ts.data.copy()
+    masks = np.zeros(data.shape, bool)
+    masks[2:, 0] = True
+    data[2:, 0] = np.nan
+    sets[0] = dataclasses.replace(ts, data=data, masks=masks)
+    fit = _fit(sets)
+    row = fit.level_tables["channel"].set_index("channel").loc[ts.ch_names[0]]
+    if row["has_component"]:
+        assert row["flag"] == "prior_dominated"
+        assert row["latency_shrinkage"] == 0.0
+
+
+def test_single_trialset_with_subject_column():
+
+    import pandas as pd
+
+    from evoparam.data import TrialSet
+
+    sets, _ = simulate_group(n_subjects=2, n_channels=6, n_trials=10, p_respond=1.0, snr=3.0,
+                             seed=6)
+    joined = TrialSet(data=np.concatenate([s.data for s in sets]), times=sets[0].times,
+                      sfreq=sets[0].sfreq, ch_names=[f"c{i}" for i in range(6)],
+                      metadata=pd.concat([s.metadata for s in sets], ignore_index=True),
+                      modality="spes")
+    fit = fit_hierarchical(joined, components=["N1"])
+    assert fit.settings["subjects"] == ["sub00", "sub01"]
+
+
+def test_round_trip(tmp_path):
+
+    from evoparam.data.serialize import load_object, save_object
+
+    sets, _ = simulate_group(n_subjects=3, n_channels=6, n_trials=8, p_respond=1.0, snr=3.0,
+                             seed=1)
+    fit = fit_hierarchical(sets, components=["N1"], formula="latency ~ age")
+    back = load_object(save_object(fit, tmp_path / "h.evoparam"))
+    assert back.engine == "eb"
+    assert back.level_tables["channel"].shape == fit.level_tables["channel"].shape
+    np.testing.assert_allclose(back.effects["estimate"], fit.effects["estimate"])

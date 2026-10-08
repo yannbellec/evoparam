@@ -317,6 +317,80 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S11: hierarchical model (trial -> channel -> subject)
+
+- New module `evoparam.hierarchical` (spec §5.8): `fit_hierarchical`, `posterior_summary`,
+  `compare_hierarchical`; imported by `import evoparam`. New extra `bayes` (numpyro, jax,
+  PyMC, ArviZ); the default engine needs numpy and scipy only, and asking for a Bayesian
+  engine without them raises an `ImportError` naming the extra (REQ-177).
+- Inputs: one TrialSet per subject, or one TrialSet with a `subject` metadata column (one
+  subject: the subject level is dropped, with a note). For each subject: the channel fits
+  (§5.5, or `group_fits=`), then, per component, the trial fits (§5.7, shift and scale) with
+  shifts up to 0.75 FWHM: with the default quarter FWHM of §5.7, trials of a 4 ms jitter
+  reach the bound, are not trusted, and the jitter SD came out at half its value (2.2 ms
+  for 4 ms); at 0.75 FWHM it is within 8 % at per-trial SNR 2 and 4. `n_jobs` runs the
+  subjects in parallel processes (`-1`: one per core; scripts need the usual
+  `if __name__ == "__main__":` guard of process pools on macOS and Windows).
+- Empirical-Bayes engine (`engine="eb"`, default):
+  - Existence: for every channel, the per-trial amplitude of the subject's template of the
+    component (median shape of the subject's channels that carry it, or of all subjects
+    when fewer than 3), least squares with an offset within +/- 1.5 FWHM; its channel mean
+    and standard error follow a two-component mixture (no response: N(0, se²); response:
+    N(m_s, tau² + se²)) fitted by EM with a per-subject mixing proportion and the subject
+    means tied by a normal prior. `P(response)` is the posterior responsibility. The fitted
+    amplitude is not used: a fit is only reported where a component was found, so it has
+    no null distribution.
+  - Shrinkage: REML on the nested model subject > channel with known standard errors
+    (`evoparam.stats.variance.reml`, step S14). Channel statistics: the amplitude is the
+    mean of the trusted trial amplitudes (latency jitter flattens the average: the channel
+    SD of the amplitude came out 11 % low from the fits of the average); the latency is the
+    fit's, with the standard error of the trusted trial latencies (the Wald errors of the
+    fitted latency had z-scores of SD 1.2 to 1.5 on simulations, with some ten times too
+    large, which shrank good channels away: EB beat the fits in 17 of 20 datasets with
+    them, 19 of 20 without). Channels with fewer than 3 trusted trials get the subject value
+    and the flag `prior_dominated`; a subject without usable channels gets the group value.
+  - Jitter: REML on the trusted trial latencies with the latency noise of each channel
+    (§5.7 null) as known error; the ex-Gaussian tau from the third moment.
+  - Covariates: `formula="latency ~ age + state"` (subject-level metadata columns,
+    constant within a subject; numeric or treatment-coded), in the REML design.
+- Bayesian engines (`engine="numpyro"` or `"pymc"`): the same model in both, NUTS (4 chains,
+  1 000 warm-up, 1 000 draws, target_accept 0.9), initialised at the EB variances.
+  Deviation from §5.8 step 1: the likelihood is written on the statistics of the EB engine
+  (channel estimates and their errors, trial latencies with their noise and an
+  ex-Gaussian jitter, the existence mixture), not on every sample of every trial. Subject
+  level non-centred, channel level centred (non-centred channels gave r_hat 1.02 with
+  PyMC). Diagnostics: r_hat, ESS, divergences (warning above 1 %), posterior-predictive
+  p-value of the spread of the channel latencies; `compare_hierarchical` gives PSIS-LOO
+  on the channel latencies (ArviZ). `to_arviz()` is not implemented (the draws are not
+  kept, only their summaries and the pointwise log-likelihood).
+- Results (`tests/hierarchical/`; the reference runs of the Bayesian engines and the
+  20-dataset versions of REQ-171, 172 and 175 run with `EVOPARAM_SLOW_TESTS=1`):
+  - REQ-170 met: 20 subjects x 50 channels x 20 trials, 30 % responding, per-trial SNR 0.7:
+    AUC 0.951 (at the limit), reliability-diagram slope 1.00.
+  - REQ-171 met: per-trial SNR 1.5, channel latency RMSE of EB below that of the channel
+    fits in 19 of 20 datasets.
+  - REQ-172 met: EB between-channel amplitude SD and jitter SD within 20 % in 20 of 20
+    datasets (ratios 0.85 to 0.97 and 0.92 to 1.00 on 12 printed ones; the amplitude SD is
+    about 8 % low); NUTS intervals cover the channel latency SD and the jitter SD in at
+    least 90 % of 10 datasets.
+  - REQ-173 met on the reference dataset (10 subjects x 20 channels x 10 trials): numpyro
+    r_hat 1.005, ESS 1 161, no divergence; PyMC r_hat 1.008, ESS 746, no divergence.
+  - REQ-174 met: every posterior mean of the two engines within one posterior SD.
+  - REQ-175 met: latency ~ age (0.2 ms/year), 20 subjects: the true slope is in the 95 %
+    interval in at least 18 of 20 datasets.
+  - REQ-176: EB 1.5 s per subject with `n_jobs=-1` on 10 cores (20 subjects x 50 channels
+    in 30 s, of which 0.03 s per subject for the model itself); with `n_jobs=1` about 11 s
+    per subject (9.4 s of channel fits of §5.5): **not met on one core**. NUTS: 48 s
+    (numpyro) and 63 s (PyMC) per subject for 100 channels x 10 trials x 2 components
+    (target 5 min).
+  - REQ-177 met.
+  - REQ-178 met in sign on ds004080 (20 subjects, one run and one site each, 7 or 8
+    trials): N1 latency ~ age, -0.086 ms/year (95 % interval -0.29 to +0.12): shorter
+    latencies with age, as the dataset's authors report; the interval includes zero.
+- Not done: tutorials 40 to 42; covariates on the amplitude in the Bayesian engines (EB
+  handles any of the three parameters); the spike-and-slab is on the template amplitude,
+  separate from the fitted channel amplitude (spec: one amplitude).
+
 ### Build step S13: time-frequency parameterisation
 
 - New module `evoparam.tf` (spec §5.10): `tf_fit`, `tf_zones`, `tf_compare`,
