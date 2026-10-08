@@ -18,7 +18,8 @@ import numpy as np
 from evoparam.errors import DataError, ReaderError
 from evoparam.io._fetch import RemoteFile, fetch_bytes, is_url, sha256_file
 
-__all__ = ["read_brainvision", "read_brainvision_header", "read_brainvision_segment"]
+__all__ = ["read_brainvision", "read_brainvision_header", "read_brainvision_segment",
+           "write_brainvision"]
 
 ###################################################################################################
 ###################################################################################################
@@ -392,3 +393,56 @@ def read_brainvision_segment(vhdr, tmin, tmax, picks=None):
     data, sfreq, ch_names, first, _ = _segment(vhdr, header, first, stop, picks, None)
 
     return data, sfreq, ch_names, first / sfreq
+
+
+def write_brainvision(vhdr, data, sfreq, ch_names, *, markers=None, resolution=0.1,
+                      fmt="IEEE_FLOAT_32"):
+    """Write a BrainVision recording (``.vhdr``, ``.vmrk``, ``.eeg``; multiplexed).
+
+    Parameters
+    ----------
+    vhdr : str
+        Path of the header to write; the data and marker files take the same stem.
+    data : ndarray, shape (n_channels, n_times)
+        Samples in µV.
+    sfreq : float
+    ch_names : list of str
+    markers : list of (sample, description), optional
+        Stimulus markers (sample index from 0) written to the ``.vmrk`` file.
+    resolution : float
+        µV per stored unit (``IEEE_FLOAT_32`` keeps the values; ``INT_16`` rounds).
+    fmt : {"IEEE_FLOAT_32", "INT_16"}
+
+    Returns
+    -------
+    str
+        The ``.vhdr`` path.
+    """
+
+    vhdr = str(vhdr)
+    folder, name = os.path.split(vhdr)
+    stem = name[:-5] if name.endswith(".vhdr") else name
+    data = np.asarray(data, dtype=float)
+    lines = ["Brain Vision Data Exchange Header File Version 1.0",
+             "; written by evoparam", "", "[Common Infos]", "Codepage=UTF-8",
+             f"DataFile={stem}.eeg", f"MarkerFile={stem}.vmrk", "DataFormat=BINARY",
+             "DataOrientation=MULTIPLEXED", f"NumberOfChannels={len(ch_names)}",
+             f"SamplingInterval={1e6 / float(sfreq)!r}", "", "[Binary Infos]",
+             f"BinaryFormat={fmt}", "", "[Channel Infos]"]
+    lines += [f"Ch{i + 1}={ch.replace(',', chr(92) + '1')},,{resolution!r},µV"
+              for i, ch in enumerate(ch_names)]
+    with open(os.path.join(folder, stem + ".vhdr"), "w", encoding="utf-8") as fobj:
+        fobj.write("\n".join(lines) + "\n")
+    marks = ["Brain Vision Data Exchange Marker File, Version 1.0", "", "[Common Infos]",
+             "Codepage=UTF-8", f"DataFile={stem}.eeg", "", "[Marker Infos]",
+             "Mk1=New Segment,,1,1,0"]
+    for k, (sample, description) in enumerate(markers or [], start=2):
+        marks.append(f"Mk{k}=Stimulus,{description},{int(sample) + 1},1,0")
+    with open(os.path.join(folder, stem + ".vmrk"), "w", encoding="utf-8") as fobj:
+        fobj.write("\n".join(marks) + "\n")
+    stored = data / resolution
+    dtype = {"IEEE_FLOAT_32": "<f4", "INT_16": "<i2"}[fmt]
+    if dtype != "<f4":
+        stored = np.round(stored)
+    stored.T.astype(dtype).tofile(os.path.join(folder, stem + ".eeg"))
+    return os.path.join(folder, stem + ".vhdr")

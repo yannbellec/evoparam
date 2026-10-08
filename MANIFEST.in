@@ -4,4 +4,6 @@ include evoparam/io/registry.json
 include evoparam/existence/rules.json
 include evoparam/tf/zones.json
 include evoparam/presets/*.json
+include evoparam/reports/schema/*.json
+include CITATION.cff
 include evoparam/tests/sim/reference_sim.json

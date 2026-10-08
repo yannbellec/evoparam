@@ -64,6 +64,13 @@ evoparam covers the whole path from a raw recording to response parameters:
 * ``evoparam.presets``: eleven presets (ERP, CCEP on ECoG and sEEG, SEP, TEP, ERNA, spinal
   and cochlear ECAP, rodent and primate LFP, P300 BCI) as readable JSON files with their
   sources; ``presets.derive`` makes a variant that records its parent (``docs/presets.md``).
+* ``evoparam.reports`` and ``evoparam.plots``: methods paragraph from the provenance,
+  JSON export with its schema, quality summary, self-contained HTML, PDF and Markdown
+  reports, figures of every result, ``evoparam.reproduce``, and BIDS derivatives
+  (``evoparam.io.write_bids_derivatives``).
+* The command line: ``evoparam fit <bids_root> --sub 01 --preset ccep --out derivatives/``,
+  ``evoparam report``, ``evoparam simulate``, ``evoparam presets list``, ``evoparam cite``,
+  ``evoparam reproduce`` (``evoparam --help`` lists them all).
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact

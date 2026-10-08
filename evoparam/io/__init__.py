@@ -10,7 +10,8 @@
 - Dataset registry: :func:`list_datasets`, :func:`dataset_info`.
 """
 
-from .brainvision import read_brainvision, read_brainvision_header, read_brainvision_segment
+from .brainvision import (read_brainvision, read_brainvision_header, read_brainvision_segment,
+                          write_brainvision)
 from .bids import read_bids, read_bids_events, select_stimulation_events
 from ._harmonize import (harmonize_stim_events, HarmonizationReport, validate_stimulation_events,
                          ValidationReport)
@@ -19,3 +20,4 @@ from .mef import read_mef, read_mef_header
 from .fetch import OPENNEURO_URL, RemoteFile, fetch_openneuro_file, openneuro_url
 from .readers import from_array, read, read_edf, read_events_edf, read_mne
 from .registry import dataset_info, list_datasets
+from .derivatives import write_bids_derivatives

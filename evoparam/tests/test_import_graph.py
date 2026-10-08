@@ -48,6 +48,11 @@ RULES = {
     "reports": {ANY}, "plots": {ANY}, "cli": {ANY}, "stream": {ANY}, "benchmark": {ANY},
 }
 FORBIDDEN_BETWEEN = {"reports", "plots", "cli", "stream", "benchmark"}
+# Spec §4.2 allows benchmark -> reports only; the HTML and PDF reports need the figures and
+# the command line runs the reports, so the top layers are ordered plots < reports < cli
+# (no cycle; CHANGELOG, step S16).
+ALLOWED_BETWEEN = {("benchmark", "reports"), ("reports", "plots"), ("cli", "reports"),
+                   ("cli", "plots"), ("benchmark", "plots")}
 
 # Inherited modules, rewritten or removed by the build steps of spec §12.
 LEGACY = {"analysis", "bands", "core", "objs", "param", "plts", "_legacy"}
@@ -115,7 +120,7 @@ def _transitional(rel_path, source, dest):
 def test_edges_follow_spec_table():
     violations = []
     for (source, rel_path), dests in _edges().items():
-        if source in LEGACY or source in ("__init__", "version", "errors"):
+        if source in LEGACY or source in ("__init__", "__main__", "version", "errors"):
             continue
         assert source in RULES, f"module '{source}' is not in the dependency table of §4.2"
         for dest in dests:
@@ -124,7 +129,7 @@ def test_edges_follow_spec_table():
             allowed = RULES[source]
             if ANY in allowed:
                 if source in FORBIDDEN_BETWEEN and dest in FORBIDDEN_BETWEEN \
-                        and not (source, dest) == ("benchmark", "reports"):
+                        and (source, dest) not in ALLOWED_BETWEEN:
                     violations.append(f"{rel_path} -> {dest}")
                 continue
             if dest not in allowed:

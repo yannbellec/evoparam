@@ -317,6 +317,78 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S16: reports, plots and the command line
+
+- New module `evoparam.plots` (extra `plot`): `plot_fit` (data, model, components,
+  background, residual drawn below the data, masked samples shaded, latency intervals as
+  bands), `plot_group` (`grid`, `shaft`, `brain` with channel coordinates), `plot_trials`
+  (trials sorted by latency and the latency histogram), `plot_existence` (statistic per
+  channel and the response windows), `plot_tf` (total, footprint and residual maps with
+  zones outlined and significant pixels contoured), `plot_shapes`, `plot_artifact`,
+  `plot_compare`. Every function returns the Figure, accepts `ax=`/`axes=`, never calls
+  `show()`, uses the Okabe-Ito palette, and runs headless (REQ-344 met). Deviation:
+  `plot_existence` shows the statistic per channel; the statistic over time with its null
+  band is not stored in `ResponseTest`.
+- New module `evoparam.reports`:
+  - `methods_text(result)`: one sentence per recorded processing step (read, artifact,
+    reference, baseline, average, events), the paragraph of the final step (fit, existence
+    test, time-frequency), the seed and the citation, from provenance only, with frozen
+    templates (REQ-338). REQ-340 partly met: deterministic and identical after saving; the
+    frozen texts of the three reference pipelines (ERP CORE, ds004080, TEP) are not stored
+    yet. The fit paragraph now says that the criterion is computed on residuals whitened by
+    an autoregressive noise model (since step S7), not with an effective sample size, and
+    uses "an" before a vowel.
+  - `to_json(result)` / `from_json(...)`: the `.evoparam` container as one strict JSON
+    document (structure, arrays with their dtype and shape, tables as CSV with their
+    sidecar, provenance, settings); `validate_json` against the shipped JSON Schema
+    `evoparam/reports/schema/evoparam-result-1.json` (new extra `validate`, jsonschema).
+    REQ-341 met: the JSON validates and `from_json` reproduces `to_dataframe()` exactly.
+  - `qc(result, trials=, artifact=, trial_fits=)`: fits by status, warnings by type,
+    ill-conditioned fits, masked fraction, artifact quality, untrusted trials.
+  - `html(result, path)`: one self-contained file (figures as inline PNG, no network
+    access), with summary table, quality, warnings, methods text and provenance;
+    REQ-343 met (100 channels: well under 20 MB). `markdown(result)`, `pdf(result, path)`
+    (text page, one page per condition, per-channel figures).
+  - `citation(bibtex=False)` reads `CITATION.cff` (packaged through a link to the file at
+    the repository root; REQ-346 met).
+  - `reproduce(path, data=None, rtol=1e-9)` (also `evoparam.reproduce`): reloads a saved
+    result, re-runs its recorded steps (read_bids, artifact removal, reference, baseline,
+    fit) from the recorded source with the recorded settings, and compares every table
+    value; refuses a result whose preset version changed (REQ-333 met on the simulated
+    fixture: identical, maximum relative difference 0; a changed setting is reported).
+- `evoparam.io.write_bids_derivatives(results, bids_root, subject=..., ...)`: the
+  derivative tree of spec §10.2 (`*_desc-evoparam_responses.tsv`, `_existence.tsv`,
+  `_trials.tsv` with their JSON sidecars of descriptions, units, settings, preset and
+  provenance; `_artifact.json` with the replaced samples as intervals;
+  `dataset_description.json`, `descriptions.tsv`, `README`). The BIDS-validator check,
+  the reader `read_bids_derivatives` and the stimulation-column proposal (REQ-315, REQ-316)
+  are left to step S17. `evoparam.io.write_brainvision` writes BrainVision files.
+- `evoparam.sim.bids.write_bids`: a simulated TrialSet as a BIDS dataset (trials end to end
+  in one BrainVision recording, events, channels, sidecars, participants) with the truth in
+  `derivatives/truth`.
+- The command line `evoparam` (also `python -m evoparam`; `argparse` only): `fit` (read,
+  artifact and reference of the preset, baseline, fit, existence test, trial fits when the
+  preset says so, derivatives and the saved result), `test`, `clean`, `report`
+  (html/pdf/md), `simulate`, `detect-events`, `reproduce`, `migrate`, `info`, `presets
+  list|show`, `cite`, `--version` (with the research-use statement); `benchmark` and
+  `validate-bids` answer that they come with steps S19 and S17 (exit code 1). Common
+  options `--json` (one JSON summary on stdout), `--verbose`, `--n-jobs`,
+  `--random-state`, `--config`. Exit codes 0, 1, 2, 3, 4, 5, 6, 130 as in §10.5.
+  REQ-345 met: every command runs through `subprocess` on the simulated BIDS fixture, and
+  the TSV files of `evoparam fit` are byte-identical to those of the Python path
+  (`run_fit` then `write_bids_derivatives`). REQ-323 met: the exit codes are triggered
+  (usage, runtime, corrupt container, missing matplotlib, reproduction mismatch) and the
+  `--json` summary parses. A corrupt `manifest.json` now raises `DataError` (it raised the
+  JSON parser's error).
+- Deviation from the dependency table (§4.2): it forbids imports between `reports`,
+  `plots`, `cli`, `stream` and `benchmark` except `benchmark -> reports`, which would
+  forbid figures in the HTML report and the `report` command. The top layers are ordered
+  `plots < reports < cli` (and `benchmark -> plots`), without cycles; the import-graph test
+  lists these edges. REQ-349 met: `tests/reports/test_layering.py` fails if `reports`,
+  `plots` or `cli` import SciPy or call NumPy's numerical routines.
+- Not done: the stream module (`StreamFitter`, REQ-347, REQ-348: step S18), frozen methods
+  texts of the reference pipelines (REQ-340), BIDS validation of the derivatives (S17).
+
 ### Build step S15, part 2: validation layer 2 and the state of layer 3
 
 - `validation/layer2.py` (spec §7.2): the layer-2 runner. Each cell simulates trials with the

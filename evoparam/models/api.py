@@ -628,6 +628,10 @@ def compare_models(fits):
     return table
 
 
+def _article(word):
+    return "an" if str(word)[:1].lower() in "aeiou" else "a"
+
+
 def methods_text(fit):
     """Methods paragraph for a ResponseFit or GroupFit (spec REQ-123)."""
 
@@ -640,13 +644,14 @@ def methods_text(fit):
         f"Evoked responses were parameterized with evoparam {settings.get('package_version')}"
         + (f" ({settings.get('preset_note') or f'preset {preset!r}'})" if preset else "")
         + f". In the window {window[0] * 1000:g} to {window[1] * 1000:g} ms, each waveform was "
-        f"modelled as a {settings.get('background')} background plus up to "
+        f"modelled as {_article(settings.get('background'))} {settings.get('background')} "
+        f"background plus up to "
         f"{settings.get('max_components')} components ({shapes}; widths "
         f"{settings.get('min_fwhm') * 1000:g} to {settings.get('max_fwhm') * 1000:g} ms full "
         f"width at half maximum). Amplitudes and background coefficients were solved by "
         f"variable projection and the other parameters by bounded least squares. Components "
         f"were added one at a time and kept when the {crit} decreased by at least "
-        f"{settings.get('delta'):g}, with the number of samples corrected for the lag-1 "
-        f"autocorrelation of the baseline (effective sample size). Uncertainty: "
+        f"{settings.get('delta'):g}, computed on residuals whitened by an autoregressive "
+        f"model of the baseline noise ({settings.get('noise_model', 'ar')}). Uncertainty: "
         f"{settings.get('uncertainty')} ({settings.get('ci_level', 0.95) * 100:g} % intervals)."
     )

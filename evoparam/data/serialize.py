@@ -360,7 +360,10 @@ def _read_manifest(folder):
     if not os.path.exists(manifest_path):
         raise DataError(f"{folder}: not an evoparam container (no manifest.json).")
     with open(manifest_path, encoding="utf-8") as fobj:
-        manifest = loads(fobj.read())
+        try:
+            manifest = loads(fobj.read())
+        except ValueError as err:
+            raise DataError(f"{folder}: manifest.json is not valid JSON ({err}).") from err
     match = _SCHEMA_RE.match(str(manifest.get("schema", "")))
     if not match:
         raise DataError(f"{folder}: unknown schema {manifest.get('schema')!r}.")
