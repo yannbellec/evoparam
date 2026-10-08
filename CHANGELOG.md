@@ -317,6 +317,55 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S15, part 2: validation layer 2 and the state of layer 3
+
+- `validation/layer2.py` (spec §7.2): the layer-2 runner. Each cell simulates trials with the
+  time scale, sampling rate and first shape of a modality's preset (erp, ccep, tep, erna,
+  ecap, animal = rodent_ep), `K` components of a given width (samples) and separation (FWHM),
+  SNR (peak / noise SD of the average), trial count, latency jitter (fraction of the FWHM)
+  and noise family (white, AR(1) 0.5 and 0.9, pink 1 and 2), fits the average with the preset
+  and scores it with `evoparam.sim.score_fits`; then the simulation-based REQ test files are
+  run (with `EVOPARAM_SLOW_TESTS=1`) and reported passed or failed. Output:
+  `validation/layer2/<version>/report.json` and `report.md`.
+- Deviation from §7.2: the full factorial (276 480 cells, 1 000 replicates) does not fit in
+  6 hours; the `weekly` design varies every factor one at a time around a base cell (SNR 5,
+  two components 2 FWHM apart, width 12 samples, 20 trials, no jitter, white noise) for every
+  modality, plus the SNR x separation map of F1 for erp and ccep: 204 cells x 50 replicates.
+  The artifact factor is left to the artifact REQs (REQ-060 to REQ-069).
+- REQ-370 met: the weekly design and the REQ tests take 28 min on the Mac Studio (10 cores;
+  7 min of grid, 20 min of tests: 49 passed, 1 skipped, 0 failed). The weekly CI job is
+  `.github/workflows/validation.yml` (Sundays, 6 h limit, report kept as an artifact).
+  The report of this version is committed in `validation/layer2/0.1.0.dev0/`.
+- What the grid shows (F1 of components; base cell unless stated):
+  - erp, ccep, animal: F1 1.00 at SNR >= 5, about 0.98 at SNR 3, 0.5 to 0.66 at SNR 2,
+    0 at SNR 1 (SNR of the average; the BIC rule with delta 10 is strict by design, REQ-112).
+    Two components 0.3 FWHM apart are found as one below SNR 10 (F1 0 to 0.5).
+  - ccep at high SNR: F1 0.84 at SNR 20 and 0.74 to 0.83 at 1 FWHM separation for SNR 10 to
+    20 (an extra component; to examine with step S20, robustness).
+  - Coloured noise lowers F1 to 0.74 to 0.80 at AR(1) 0.9 (erp, ccep, animal).
+  - ecap: F1 0.92 at SNR 5 but an amplitude bias of +22 % and a width error of 53 %, and
+    erna: width error 67 %: the widths of the biexponential and damped-oscillation shapes
+    are not comparable with the simulated FWHM definition (to examine in S20).
+  - erna: F1 falls with latency jitter (0.22 at a quarter FWHM): an oscillation averaged
+    over jittered trials cancels.
+  - tep: F1 0.55 with the shapes of the table: one `gabor` describes a pair of components
+    of opposite sign (as N45 and P60), so the labelled sequence lost a component. Without
+    gabor F1 1.00 (20 replicates). **Deviation**: the `tep` preset's shapes are now
+    gaussian and skewed_gaussian (reason in its notes; `presets.derive` adds gabor back).
+    After the change: F1 1.00 at SNR >= 5, 0.97 at SNR 3, 0.91 to 1.00 across noises.
+- Layer 3, state:
+  - REQ-275 (TEP on ds002094) **not met, documented**: on sub-728 (100 trials, remote read
+    3 min) the preset's chain (cubic interpolation of -2 to 12 ms, subspace projection,
+    average reference, baseline) leaves the largest response on FP2 (eye or muscle) and a
+    broad positive deflection from 30 to 60 ms on C4; the fit finds no labelled N45 there.
+    Published TEP pipelines add ICA cleaning and filtering, which the preset does not do.
+  - REQ-372 (ds004977, CARLA) **blocked**: the responsive channels of the published analysis
+    are not in the dataset (its derivatives hold event annotations and FreeSurfer files) and
+    not in the authors' repository (MATLAB code, GPL-3.0, results only as figures). A
+    comparator needs their code run (MATLAB or Octave), not installed here.
+  - REQ-274 (ERP CORE), REQ-278 (Allen Neuropixels, NWB reader of S17), REQ-373
+    (Localize-MI) and REQ-374 (the layer-3 report format, with S16/S19 reports) remain open.
+
 ### Build step S15, part 1: presets
 
 - New module `evoparam.presets` (spec §6): the eleven presets of §6.1 as JSON files

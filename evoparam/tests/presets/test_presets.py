@@ -18,7 +18,8 @@ needs_docs = pytest.mark.skipif(not SPEC.exists(), reason="the specification is 
                                 "checkout (installed package)")
 
 # Values that differ from the table on purpose; each is explained in the preset's notes.
-DEVIATIONS = {("sep", "background"): "constant"}
+DEVIATIONS = {("sep", "background"): "constant",
+              ("tep", "shapes"): ("gaussian", "skewed_gaussian")}
 
 ARTIFACT = {"none": None, "`template` + `tail=\"joint\"`": "template+tail:joint",
             "`interpolate`": "interpolate", "`interpolate` then `subspace`": "interpolate+subspace",

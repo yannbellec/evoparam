@@ -133,9 +133,10 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 ## `tep`
 
 - fit window: (0.012, 0.3) s; baseline: (-0.8, -0.1); epoch: (-1.0, 1.0)
-- shapes: gaussian, skewed_gaussian, gabor; background: double_exponential; components: at most 8, FWHM 0.005 to 0.15 s
+- shapes: gaussian, skewed_gaussian; background: double_exponential; components: at most 8, FWHM 0.005 to 0.15 s
 - artifact: interpolate+subspace over (-0.002, 0.012); reference: average
 - labels: N15 (0.01, 0.02), P30 (0.022, 0.038), N45 (0.038, 0.055), P60 (0.05, 0.075), N100 (0.08, 0.14), P180 (0.15, 0.25)
 - trial fit: False
 - validation: pending: ds002094 (REQ-275)
 - note (methods): late peaks (N100, P180) may be contaminated by auditory and somatosensory responses to the coil click and scalp sensation
+- note (shapes): gabor removed from the default shapes of spec §6.1: one gabor describes a pair of components of opposite sign (as N45 and P60), so the labelled TEP sequence lost a component; layer-2 base cell (two components 2 FWHM apart, SNR 5, 20 replicates): F1 0.55 with gabor, 1.00 without. Add it back with presets.derive('tep', shapes=('gaussian', 'skewed_gaussian', 'gabor')) for oscillatory bursts (CHANGELOG, step S15)
