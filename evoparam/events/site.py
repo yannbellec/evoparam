@@ -13,11 +13,39 @@ from ._score import MAD_TO_SD, as_continuous, pick_index
 
 __all__ = ["identify_stim_site", "vote_sites", "contact_group"]
 
-# Reference sample for the artifact size, before the onset (s).
+# Shortest reference lag before the onset (s): used when pulses are too close for the
+# full lead window, and to decide that a train is too fast to identify the site.
 REFERENCE_LAG = 0.002
+
+# Lead window (s): the reference sample is taken this long before the onset, and the
+# samples between it and the onset are where a stimulating contact may move first. The
+# onset of detect_pulses is the start of the artifact shared by most channels; on the
+# Utrecht SPES recordings (OpenNeuro ds004080) the stimulating contacts move up to 3 ms
+# earlier, so 5 ms leaves a margin.
+LEAD_WINDOW = 0.005
+
+# Hold window (s, after the onset): once the common artifact is over (about 5 ms), a
+# stimulating contact that the amplifier holds, or that stays at the rail, is flat here.
+HOLD_WINDOW = (0.005, 0.100)
 
 # Pre-pulse window used to measure each channel's noise level (s, relative to the onset).
 NOISE_WINDOW = (-0.100, -0.005)
+
+# A channel without noise of its own (held, or at the rail) gets this fraction of the
+# median noise of the channels, so that its normalised artifact stays finite.
+NOISE_FLOOR = 0.1
+
+# Evidence that a channel carries a stimulating contact, besides the artifact size:
+# - it moves: its artifact is at least MOVED_FRACTION of the largest one (in data units);
+# - it leads: before the onset, it already moves by LEAD_MIN_SD times its noise and by
+#   LEAD_MIN_FRACTION of its whole artifact;
+# - it is held: at least HOLD_MIN_FRACTION of its steps in the hold window are smaller
+#   than HOLD_TOLERANCE times the typical step of the channels before the pulse.
+MOVED_FRACTION = 0.05
+LEAD_MIN_SD = 10.0
+LEAD_MIN_FRACTION = 0.3
+HOLD_MIN_FRACTION = 0.5
+HOLD_TOLERANCE = 0.1
 
 # Channel types that can carry a stimulating contact (channel table ``type`` column).
 NEURAL_TYPES = {"ecog", "seeg", "dbs", "eeg", "lfp", "ieeg", "meg"}
@@ -28,20 +56,52 @@ NON_NEURAL = re.compile(r"^(mkr|trig|sti|status|event|marker|dc\d|ecg|ekg|emg|eo
                         r"spo2|pulse|photic|aux|misc|ref$|gnd)", re.IGNORECASE)
 
 
+def _robust_sd(values):
+    """Scaled MAD of each row (NaN-aware only when needed, as it is slower)."""
+
+    median = np.nanmedian if np.isnan(values).any() else np.median
+    return MAD_TO_SD * median(np.abs(values - median(values, axis=1, keepdims=True)), axis=1)
+
+
+def _first_sign(trace):
+    """Sign of the first deflection: the first sample beyond half the largest one."""
+
+    peak = np.nanmax(np.abs(trace))
+    beyond = np.flatnonzero(np.abs(trace) >= 0.5 * peak) if peak > 0 else []
+    return np.sign(trace[beyond[0]]) if len(beyond) else 0.0
+
+
 def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.001, t0=0.0,
-                       picks=None, exclude=NON_NEURAL):
+                       picks=None, exclude=NON_NEURAL, lead=LEAD_WINDOW, hold=HOLD_WINDOW):
     """Guess the stimulated contact pair of each pulse from the artifact.
 
-    For each pulse and channel ``c``, the artifact size is
-    ``a_c = max_{|t| <= window} |x_c(t) - x_c(-2 ms)|``, divided by the channel's
-    noise level (scaled MAD over -100 to -5 ms before the pulse) so that channels
-    with different gains compare fairly. For a bipolar stimulation the two largest
-    sizes are expected on the two stimulating contacts, with first deflections of
-    opposite signs, on the same electrode.
+    Each pulse is examined on its own. For each channel ``c``:
 
-    ``stim_site_guess`` is ``"A-B"`` (the two top channels, ordered by channel index).
-    ``site_confidence = (a_1 - a_3) / a_1`` (the margin of the pair over the third
-    channel), halved when the polarity check or the electrode check fails.
+    - the artifact is ``a_c = max |x_c(t) - x_c(-lead)|`` for ``-lead <= t <= window``,
+      and its size ``s_c = a_c / noise_c``, where ``noise_c`` is the scaled MAD over -100
+      to -5 ms (a channel without noise gets a tenth of the median noise);
+    - it *leads* when, before the onset, it already moves by 10 times its noise and by
+      30 % of its artifact. The onset found by :func:`detect_pulses` is where the artifact
+      shared by most channels starts (the common reference spreads it to every contact);
+      a stimulating contact can move before it, when the stimulator connects to it;
+    - it is *held* when, in the ``hold`` window, at least half of its steps are below a
+      tenth of the channels' typical pre-pulse step: the amplifier holds a stimulating
+      contact, or leaves it at the rail, while the other contacts recover;
+    - its evidence ``e_c`` (0, 1 or 2) counts how many of the two it shows, among the
+      channels that move (artifact at least 5 % of the largest one).
+
+    Channels are ranked by evidence, then by size; ``stim_site_guess`` is ``"A-B"``, the
+    two first channels ordered by channel index. Without held or leading channels this
+    is the largest-artifact rule of the specification. ``site_confidence`` is the margin
+    of the weaker contact of the pair (rank 2) over the best other channel (rank 3):
+    ``(e_2 - e_3) / e_2`` when the evidence separates them, else ``(s_2 - s_3) / s_2``
+    (the specification's ``(a_1 - a_3) / a_1`` stays high when one contact dominates and
+    the second is a toss-up). It is halved when the first deflections of the pair do not
+    have opposite signs or when the two contacts are not on the same electrode.
+
+    On OpenNeuro ds004080 (25 runs, 199 pulses, without the channel table), this agrees
+    with ``events.tsv`` on 98 % of the pulses (99.5 % after :func:`vote_sites`), and on
+    every pulse with ``site_confidence >= 0.5`` (81 % of them).
 
     Parameters
     ----------
@@ -58,7 +118,8 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
         electrode check, and channels with ``bad`` True are ignored. Without it, the
         group is guessed from the names (:func:`contact_group`).
     window : float, default: 0.001
-        Half-width of the window around the onset, in seconds (at least one sample).
+        Part of the artifact after the onset used for its size, in seconds (at least one
+        sample).
     t0 : float, default: 0
         Time of the first sample, in seconds (kept for symmetry with the other functions).
     picks : array-like, optional
@@ -67,6 +128,11 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
         Channel names that are never stimulating contacts (default: markers, triggers,
         ECG, EMG, EOG and other auxiliary channels). With a ``ch_info`` that has a
         ``type`` column, only neural types are kept instead.
+    lead : float, default: 0.005
+        Lead window, in seconds: the reference sample is taken this long before the onset
+        (shortened to a quarter of the interval between pulses, but not below 2 ms).
+    hold : tuple of float, default: (0.005, 0.1)
+        Hold window, in seconds after the onset (cut before the next pulse).
 
     Returns
     -------
@@ -105,49 +171,78 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
     polarity = np.zeros(n_events, dtype=bool)
 
     half = max(1, int(round(window * sfreq)))
-    lag = max(half + 1, int(round(REFERENCE_LAG * sfreq)))
+    shortest = max(half + 1, int(round(REFERENCE_LAG * sfreq)))
+    interval = float(np.median(np.diff(np.sort(onsets)))) if n_events > 1 else np.inf
+    lag = max(shortest, int(round(min(lead * sfreq, 0.25 * interval))))
     noise_lo, noise_hi = (int(round(edge * sfreq)) for edge in NOISE_WINDOW)
+    hold_lo, hold_hi = (int(round(edge * sfreq)) for edge in hold)
+    ordered = np.sort(onsets)
 
-    if n_events > 1 and np.median(np.diff(np.sort(onsets))) < 2 * lag + 2 * half:
+    if n_events > 1 and interval < 2 * shortest + 2 * half:
         warnings.warn("identify_stim_site: pulses are closer than the identification window "
                       "(high-frequency train); the site is not identified.", stacklevel=2)
         index = np.array([], dtype=int)
 
     if len(index) >= 2:
         for row, onset in enumerate(onsets):
-            if onset - lag < 0 or onset + half + 1 > n_times:
+            lag_row = min(lag, onset)
+            if lag_row < shortest or onset + half + 1 > n_times:
                 continue
             # Only the samples around this pulse are copied, never the whole recording
-            reference = data[index, onset - lag]
-            deviation = data[index, onset - half:onset + half + 1] - reference[:, None]
-            size = np.nanmax(np.abs(deviation), axis=1)
-            lo, hi = max(0, onset + noise_lo), max(0, onset + noise_hi)
-            if hi - lo >= 8:
-                base = data[index, lo:hi]
-                median = np.nanmedian if np.isnan(base).any() else np.median
-                noise = MAD_TO_SD * median(
-                    np.abs(base - median(base, axis=1, keepdims=True)), axis=1)
-                floor = np.median(noise[noise > 0]) if np.any(noise > 0) else 1.0
-                size = size / np.maximum(noise, 1e-3 * floor)
-            size = np.nan_to_num(size, nan=0.0)
-            order = np.argsort(-size, kind="stable")
-            first, second = order[0], order[1]
-            if not size[first] > 0:
+            reference = data[index, onset - lag_row]
+            deviation = data[index, onset - lag_row:onset + half + 1] - reference[:, None]
+            amplitude = np.nan_to_num(np.nanmax(np.abs(deviation), axis=1), nan=0.0)
+            if not amplitude.max() > 0:
                 continue
-            third = size[order[2]] if len(order) > 2 else 0.0
+            early = np.nan_to_num(np.nanmax(np.abs(deviation[:, 1:lag_row]), axis=1), nan=0.0)
 
-            # Sign of the first deflection: first sample beyond half the artifact size
-            signs = []
-            for ch in (first, second):
-                trace = deviation[ch]
-                beyond = np.flatnonzero(np.abs(trace) >= 0.5 * np.nanmax(np.abs(trace)))
-                signs.append(np.sign(trace[beyond[0]]) if len(beyond) else 0.0)
-            opposite = signs[0] * signs[1] < 0
+            lo, hi = max(0, onset + noise_lo), max(0, onset + noise_hi)
+            known = hi - lo >= 8
+            if known:
+                base = data[index, lo:hi]
+                noise = _robust_sd(base)
+                floor = np.median(noise[noise > 0]) if np.any(noise > 0) else 1.0
+                noise = np.maximum(np.nan_to_num(noise, nan=0.0), NOISE_FLOOR * floor)
+                median = np.nanmedian if np.isnan(base).any() else np.median
+                typical_step = float(np.nanmedian(median(np.abs(np.diff(base, axis=1)), axis=1)))
+            else:
+                noise = np.ones(len(index))
+                typical_step = np.nan
+            size = amplitude / noise
+
+            # Evidence needs the noise level, so not for a pulse at the very start
+            moved = (amplitude >= MOVED_FRACTION * amplitude.max()) & known
+            leads = (moved & (early >= LEAD_MIN_SD * noise)
+                     & (early >= LEAD_MIN_FRACTION * amplitude))
+            held = np.zeros(len(index), dtype=bool)
+            start = onset + hold_lo
+            later = ordered[np.searchsorted(ordered, onset, side="right"):]
+            stop = min(onset + hold_hi, n_times, later[0] - lag if len(later) else n_times)
+            if stop - start >= 4 and known:
+                steps = np.abs(np.diff(data[index, start:stop], axis=1))
+                flat = np.mean(steps <= HOLD_TOLERANCE * typical_step, axis=1)
+                held = moved & (flat >= HOLD_MIN_FRACTION)
+            evidence = leads.astype(int) + held.astype(int)
+
+            order = np.lexsort((-size, -evidence))
+            first, second = order[0], order[1]
+            if len(order) > 2:
+                third = order[2]
+                e_2, e_3 = evidence[second], evidence[third]
+                if e_2 > e_3:
+                    score = (e_2 - e_3) / e_2
+                elif size[second] > 0:
+                    score = (size[second] - size[third]) / size[second]
+                else:
+                    score = 0.0
+            else:
+                score = 1.0
+
+            opposite = _first_sign(deviation[first]) * _first_sign(deviation[second]) < 0
             same_group = group[index[first]] == group[index[second]]
 
             pair = sorted((index[first], index[second]))
             guesses[row] = f"{names[pair[0]]}-{names[pair[1]]}"
-            score = (size[first] - third) / size[first]
             confidence[row] = score * (1.0 if (opposite and same_group) else 0.5)
             polarity[row] = bool(opposite)
 

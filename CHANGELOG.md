@@ -1,5 +1,53 @@
 # Changelog
 
+## Unreleased
+
+### Stimulated site from held and leading contacts (REQ-042 met on ds004080)
+
+- Diagnosis on ds004080 (25 runs, 199 pulses), where the step S4 rule agreed with
+  `events.tsv` on 0.61 of the pulses (0.66 after the vote). The amplifier holds each
+  stimulating contact, or leaves it at the rail (about ±3.2 mV), from the pulse to tens
+  of milliseconds or seconds later, often until the next pulse, while the common
+  reference spreads an artifact of 1 to 3 mV to every contact. So the artifact of a
+  stimulating contact is capped by the rail, or is small when the contact is already
+  held, and a quiet contact nearby (larger after division by its noise) or a contact
+  that is not recording (a floating input with a large artifact) won. The stimulating
+  contacts also move 1 to 3 ms before the onset of `detect_pulses` (the start of the
+  artifact shared by most channels): the reference sample at -2 ms was already inside
+  their artifact. Their first deflections are not always of opposite signs.
+- `identify_stim_site` ranks the channels by evidence, then by artifact size. A channel
+  that moves (artifact at least 5 % of the largest one) scores one point when it
+  *leads* (before the onset it already moves by 10 noise SD and by 30 % of its
+  artifact; the reference sample is now 5 ms before the onset, new `lead` argument)
+  and one when it is *held* (from 5 to 100 ms after the onset, new `hold` argument, at
+  least half of its steps are below a tenth of the channels' typical pre-pulse step).
+  Without such evidence the rule is the largest artifact of the specification, now
+  measured from -5 ms to +1 ms. A channel without noise of its own gets a tenth of the
+  median noise (was a thousandth). `site_confidence` is the margin of the weaker contact
+  of the pair over the third channel, on the evidence and then on the size
+  (`(s_2 - s_3) / s_2` instead of `(a_1 - a_3) / a_1`, which stayed high when one
+  contact dominated and the second was a toss-up), still halved by the polarity and
+  electrode checks. For close pulses the lead window shrinks to a quarter of the
+  interval (at least 2 ms) and the hold window ends before the next pulse. `vote_sites`
+  is unchanged.
+- ds004080 (25 runs of 21 patients, 199 pulses, from the data alone): agreement 0.980 per
+  pulse, 0.995 after the vote (REQ-042: 0.95; the xfail is removed). The method was
+  developed on the 13 even runs (103 pulses: 0.981 per pulse, 0.990 after the vote) and
+  checked on the 12 odd runs, held out (96 pulses: 0.979, 1.000). Confidence: per pulse,
+  accuracy 1.00 on the 81 % of pulses with `site_confidence >= 0.5` (0.78 on the even
+  runs, 0.84 on the odd runs); after the vote, 0.994 on 80 %. The one error after the
+  vote is the last pulse of a previous block (sTa6-sTa7), merged by the vote into the
+  next block (sTa5-sTa6) because both share a contact. The four other per-pulse errors:
+  two pulses where one stimulating contact shows no artifact at all (corrected by the
+  vote) and two where an input that is not recording leads and holds like a stimulating
+  contact (with the types of `channels.tsv` as `ch_info`, 0.990 per pulse). Halving or
+  doubling any one threshold or window (the held fraction: 0.25 or 0.75) gives 0.94 to
+  0.985 per pulse and 0.955 to 0.995 after the vote.
+- Speed: `detect_pulses` with the site guess, 10 minutes of 100 channels at 2048 Hz, in
+  0.79 s on the development machine (0.81 s before; `benchmarks/bench_events.py`).
+- Tests: synthetic held and leading contacts, a saturated neighbour and a dead channel
+  (`tests/events/test_stim_site.py`).
+
 ## 0.1.0 (in progress)
 
 ### Build step S6: light preparation

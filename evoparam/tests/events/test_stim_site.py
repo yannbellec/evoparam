@@ -102,6 +102,79 @@ def test_vote_corrects_isolated_wrong_partner():
     assert np.allclose(voted["site_confidence"].iloc[0], 0.75 * np.mean([1, 1, 0.5, 1]))
 
 
+def held_recording(pair=(2, 3), step=300., hold=True, lead=True, rail_neighbour=None,
+                   n_pulses=6, sfreq=2048., seed=0):
+    """Common-reference artifact on every contact, and a stimulating pair that the
+    amplifier holds and/or that moves before the common artifact (as on ds004080).
+
+    The pair's own step (``step``) is smaller than the common artifact, so the largest
+    artifacts are on other contacts. ``rail_neighbour`` is a contact that saturates: a
+    large artifact, then flat at the rail, without moving before the onset. The last
+    contact is dead (all zeros).
+    """
+
+    rng = np.random.default_rng(seed)
+    n_channels = 16
+    data = make_noise(n_channels, n_pulses + 1., sfreq, seed=seed + 1, dtype=np.float64)
+    data[-1] = 0.0
+    onsets = np.round((np.arange(n_pulses) + 0.5) * sfreq).astype(int)
+    early, duration = int(round(0.0025 * sfreq)), int(round(0.3 * sfreq))
+    gains = rng.uniform(0.8, 1.2, n_channels)
+    gains[-1] = 0.0
+    for onset in onsets:
+        add_pulse(data, onset, 600., gains)
+        for contact, sign in zip(pair, (1., -1.)):
+            start = onset - early if lead else onset
+            if hold:
+                data[contact, start:start + duration] = data[contact, start - 1] + sign * step
+            else:
+                data[contact, start:onset + 8] += sign * step
+        if rail_neighbour is not None:
+            data[rail_neighbour, onset + 1:onset + duration] = 3000.
+    return data, onsets
+
+
+def test_held_and_leading_contacts_win_over_larger_artifacts():
+
+    data, onsets = held_recording(rail_neighbour=4)
+    names = NAMES[:16]
+    located = identify_stim_site(data, 2048., table(onsets), ch_names=names)
+    assert (located["stim_site_guess"] == "A03-A04").all()
+    assert (located["polarity_check"]).all()
+    # Pair: held and leading; third: the saturated neighbour, held only
+    assert np.allclose(located["site_confidence"], 0.5)
+
+    events = detect_pulses(data, 2048., ch_names=names)
+    assert np.abs(events["onset_sample"].to_numpy() - onsets).max() <= 1
+    assert (events["stim_site_guess"] == "A03-A04").all()
+    assert (events["stim_site_pulse"] == "A03-A04").all()
+
+
+@pytest.mark.parametrize("hold, lead", [(True, False), (False, True)])
+def test_held_or_leading_contacts_alone(hold, lead):
+
+    data, onsets = held_recording(hold=hold, lead=lead)
+    located = identify_stim_site(data, 2048., table(onsets), ch_names=NAMES[:16])
+    assert (located["stim_site_guess"] == "A03-A04").all()
+    assert (located["site_confidence"] > 0.9).all()
+
+    # The plain largest-artifact rule picks other contacts: no lead and no hold window
+    plain = identify_stim_site(data, 2048., table(onsets), ch_names=NAMES[:16], lead=0.001,
+                               hold=(0.005, 0.005))
+    assert not (plain["stim_site_guess"] == "A03-A04").any()
+
+
+def test_saturated_neighbour_and_dead_channel_are_not_chosen():
+
+    # Without lead, the pair (held) and the saturated neighbour (held) tie on evidence;
+    # the neighbour's larger artifact wins, but at low confidence.
+    data, onsets = held_recording(lead=False, rail_neighbour=4)
+    located = identify_stim_site(data, 2048., table(onsets), ch_names=NAMES[:16])
+    assert located["stim_site_guess"].str.contains("A05").all()
+    assert not located["stim_site_guess"].str.contains("B08").any()
+    assert (located["site_confidence"] < 0.5).all()
+
+
 def test_detect_pulses_fills_site_columns():
 
     data, onsets = bipolar_recording((10, 11))

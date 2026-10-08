@@ -131,9 +131,6 @@ def test_req042_confidence_is_calibrated(results):
     assert fraction >= 0.4
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-042 not met on ds004080 (about two thirds): the "
-                   "amplifier holds the stimulating contacts and the artifact spreads to "
-                   "every contact through the common reference; see CHANGELOG, step S4.")
 def test_req042_site_agreement(results):
 
     agreement, _, _ = _site_agreement(results)
