@@ -26,6 +26,10 @@ evoparam covers the whole path from a raw recording to response parameters:
 * ``evoparam.prep``: baseline correction (with a check against the previous pulse's
   delayed responses), re-referencing (bipolar, common average, adjusted common average,
   Laplacian), montage-sensitivity report, trial rejection, resampling, averaging, filters.
+* ``evoparam.models``: the fitting engine. ``evoparam.fit(trials, preset="ccep")`` describes
+  each channel's response as a background plus components (latency, amplitude, width,
+  shape) chosen by model comparison, with uncertainties, conditioning diagnostics,
+  classical measures and labels (N1, N2, ...).
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact

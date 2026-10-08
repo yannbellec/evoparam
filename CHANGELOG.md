@@ -50,6 +50,65 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S7: the fitting engine
+
+- New module `evoparam.models` (spec §5.5): `ResponseModel` (settings in `__init__`,
+  `fit_waveform`, `fit_group`, `fit`, `predict`, `transform`, `score`, `get_params`,
+  `set_params`), `evoparam.fit(data, preset=...)` (also `evoparam.fit`), `fit_response`,
+  `classical_measures`, `label_components`, `compare_models`, `methods_text`,
+  `evaluate_fit`, and the fit fields of the eleven presets of spec §6.1 (`FIT_PRESETS`; the
+  full presets are build step S15).
+- Engine: the model `y = background + sum_k A_k s_k(t; theta_k)`; amplitudes and background
+  coefficients by variable projection, the other parameters by bounded least squares with
+  analytic Jacobians; components added one at a time from the extrema of the residual (window
+  edges included) and kept only when the criterion (BIC by default, AICc, cross-validation over
+  trials, or a fixed number) improves by `delta` (10); merge-and-compare of overlapping
+  neighbours; nothing deleted by a threshold, a width, an edge or an overlap rule. Results:
+  features from the fitted curves, Wald and delta-method intervals (`"jacobian"`), bootstrap
+  over trials, profile likelihood; covariance, condition number and sloppy pairs
+  (`"ill_conditioned"`), parameters at a bound, goodness of fit, classical measures with their
+  definitions, status `ok` / `no_response` (with the best rejected change) / `skipped` /
+  `failed` (with a message), provenance. `ResponseFit` gains a `diagnostics` field.
+- Changes to the specification, found on simulations and on ds004080:
+  - noise: instead of deflating the sample count to `n(1 - rho)/(1 + rho)` (on ds004080, lag-1
+    autocorrelation 0.98-0.99 leaves 1 or 2 effective samples, so not even a -500 uV N1 could
+    be accepted), the residual is prewhitened with an autoregressive model of the baseline
+    (Yule-Walker, order by AIC up to 10), and the criterion uses the number of whitened
+    samples (`noise_model="ar"`; `"white"` shows the false components that whitening prevents);
+  - three soft priors against degenerate decompositions (a negative N1 described as a negative
+    offset plus positive components, or two huge components that cancel): the background
+    constant is drawn to the baseline level with SD 3 baseline SD (`background_prior`); every
+    other coefficient has SD 3 times the data range (`amplitude_prior`); a component's location
+    stays within 5 % of the window length outside the window (`edge_extension`); and the CCEP
+    presets cap the background time constant at 50 ms (`background_tau_max`);
+  - the order of components is not a constraint inside the optimisation: they are sorted by
+    latency after each step (the components are exchangeable in the model);
+  - search: the first qualifying candidates are compared (three), and splitting a component
+    into two narrower neighbours is proposed at each step; with a forced number of components
+    (fixed, cv) merges are not tried (they undid the additions in an endless loop).
+- `skew_mode` (shapes): safeguarded Newton instead of bisection, and a small cache: the same
+  roots to 1e-15, about 15 times faster fits.
+- Acceptance criteria met on simulations: REQ-103, REQ-104, REQ-105 (recall and precision
+  0.99), REQ-106 (latency error under 0.5 sample, amplitude bias under 1 %), REQ-107 and
+  REQ-112 (no component in 100 % of white and AR(1) 0.5 / 0.9 noise windows; without
+  whitening at least 30 % false components), REQ-108, REQ-109, REQ-110, REQ-111 (two close
+  peaks separated in 95 % of runs), REQ-116 (interval coverage), REQ-118, REQ-119, REQ-120,
+  REQ-121, REQ-122 (cross-validation picks the true number in 10 of 10), REQ-123. Real
+  baselines of ds004080 (REQ-112): no component in 95 % of 80 pre-stimulus windows of two
+  runs (87 to 96 % per run over six runs).
+- **Not met**: REQ-113 and REQ-114 (agreement with the published N1 rule on ds004080 sub-01):
+  kappa 0.48 and latency within 2 ms on 14 % of the shared channels, on the 8-trial cached
+  segment. Inspection channel by channel: several of the rule's detections are the artifact
+  residue at 9.8 ms (the first sample of the window) or a slow drift at 100 ms; the model finds
+  clear small N1s (-30 to -45 uV) under the rule's 50 uV floor; and it misses 4 of the rule's
+  11 channels. The test is marked xfail; the floor test (at least 8 channels with an N1, where
+  the inherited engine found 2) passes. REQ-115 (speed): about 0.2 s per waveform instead of
+  50 ms (xfail).
+- The example now re-references to the adjusted common average and fits with the `ccep`
+  preset: an N1 with its uncertainty on 10 channels.
+- The inherited engine (`objs`, used by `param`, `plts`, `analysis`) is kept until the plots
+  and reports are rewritten (build step S16), instead of being deleted at the end of S7.
+
 ### Build step S6: light preparation
 
 - New module `evoparam.prep` (spec §5.4):

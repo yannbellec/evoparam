@@ -11,8 +11,8 @@ whole recording:
             to the onsets written in the events file.
 3. artifact: remove the stimulation artifact by template subtraction, and score each
             trial.
-4. param  : fit the peak model on the average response of each channel, and print
-            the latency and amplitude of the first negative peak (the N1).
+4. models : re-reference, fit each channel's average with the ccep preset, and print
+            the latency, amplitude and uncertainty of the N1.
 
 Data: van Blooijs et al., OpenNeuro ds004080 (CC0). Only about 55 MB are read.
 """
@@ -23,7 +23,8 @@ from evoparam.io import (openneuro_url, read_bids_events, select_stimulation_eve
                          read_brainvision_segment, epoch_data, from_array)
 from evoparam.events import detect_pulses, match_onsets
 from evoparam.artifact import remove_artifact
-from evoparam.param import fit_epochs
+import evoparam
+from evoparam.prep import rereference
 
 ###################################################################################################
 # Settings
@@ -34,7 +35,6 @@ RUN = ('sub-ccepAgeUMCU01/ses-1/ieeg/'
 SITE = 'PT01-PT02'                  # stimulated electrode pair
 EPOCH = (-0.5, 1.0)                 # seconds around each pulse
 ARTIFACT = (-0.002, 0.010)          # artifact window, in seconds
-FIT_RANGE = [0.010, 0.500]          # where to look for peaks (N1 and N2)
 BASELINE = [-0.5, -0.05]            # where to measure the noise level
 
 ###################################################################################################
@@ -77,16 +77,18 @@ epochs = cleaned.cleaned.data
 print('Artifact removed (template); median trial quality {:.2f}'.format(np.median(cleaned.quality)))
 
 ###################################################################################################
-# 4. param: fit the average response of each channel
+# 4. models: re-reference (adjusted common average), then fit each channel's average with
+#    the ccep preset: a recovery-tail background plus components chosen by model comparison
 
-model = fit_epochs(times, epochs, FIT_RANGE, BASELINE, max_n_peaks=4,
-                   peak_width_limits=(0.002, 0.2), peak_threshold=3.)
+cleaned_trials = rereference(cleaned.cleaned, 'car_adaptive', random_state=0)
+fits = evoparam.fit(cleaned_trials, 'ccep', baseline=(-0.5, -0.05))
 
-print('\nFirst negative peak between 10 and 50 ms (N1):')
-print('{:8} {:>12} {:>16}'.format('channel', 'latency (ms)', 'amplitude (µV)'))
-for ind, name in enumerate(ch_names):
-    peaks = model.get_evoparam(ind).gaussian_params_
-    n1 = [peak for peak in peaks if 0.010 <= peak[0] <= 0.050 and peak[1] < 0]
+print('\nN1 (negative component, 9-50 ms) per channel:')
+print('{:8} {:>12} {:>16} {:>12}'.format('channel', 'latency (ms)', 'amplitude (µV)', '± (ms)'))
+for name in ch_names:
+    fit = fits.get(name)
+    n1 = [c for c in fit.components if c.label == 'N1']
     if n1:
-        latency, amplitude = min(n1, key=lambda peak: peak[0])[:2]
-        print('{:8} {:12.1f} {:16.1f}'.format(name, 1000 * latency, amplitude))
+        comp = n1[0]
+        print('{:8} {:12.1f} {:16.1f} {:12.1f}'.format(name, 1000 * comp.latency, comp.amplitude,
+                                                      1000 * comp.se['latency']))

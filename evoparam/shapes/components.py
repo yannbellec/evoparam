@@ -175,6 +175,39 @@ class Gaussian(_WidthShape):
 ###################################################################################################
 ## Skewed Gaussian
 
+def _skew_root(a):
+    """Root of ``f(z) = z erfc(-a z/√2) - √(2/π) a exp(-a² z²/2)`` on ``[0, 2]``.
+
+    Safeguarded Newton (``f`` is increasing on the bracket): each step is kept inside the
+    current bracket, falling back to bisection otherwise; converges to a few ulps in about
+    six iterations instead of the ~50 of plain bisection.
+    """
+
+    a = np.asarray(a, dtype=np.float64)
+    low, high = np.zeros_like(a), np.full_like(a, 2.0)
+    z = np.clip(0.6 * a / np.sqrt(1.0 + a ** 2), 0.0, 2.0)
+    for _ in range(60):
+        g = np.exp(-0.5 * (a * z) ** 2)
+        f = z * erfc(-a * z / _SQRT2) - _SQRT_2_OVER_PI * a * g
+        low = np.where(f <= 0, z, low)
+        high = np.where(f >= 0, z, high)
+        slope = erfc(-a * z / _SQRT2) + _SQRT_2_OVER_PI * a * z * g * (1.0 + a ** 2)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            step = np.where(slope > 0, f / slope, np.inf)
+        new = z - step
+        outside = ~((new >= low) & (new <= high))
+        new = np.where(outside, 0.5 * (low + high), new)
+        done = np.abs(new - z) <= 4.0 * np.finfo(np.float64).eps * np.maximum(np.abs(z), 1.0)
+        z = new
+        if np.all(done | (f == 0)):
+            break
+    return z
+
+
+_MODE_CACHE = {}
+_MODE_CACHE_SIZE = 256
+
+
 def skew_mode(alpha):
     """Mode ``z*`` of ``g(z)(1 + erf(alpha z/√2))``, its value ``c`` and ``dc/dalpha``.
 
@@ -186,9 +219,16 @@ def skew_mode(alpha):
 
     alpha = np.asarray(alpha, dtype=np.float64)
     a = np.abs(alpha)
-    z = _bisect(lambda mid: mid * erfc(-a * mid / _SQRT2)
-                - _SQRT_2_OVER_PI * a * np.exp(-0.5 * (a * mid) ** 2) > 0,
-                np.zeros_like(a), np.full_like(a, 2.0))
+    # The same alpha is evaluated many times during one optimisation (model, Jacobian,
+    # features): small arrays are cached by value
+    key = (a.shape, a.tobytes()) if a.size <= 8 else None
+    z = _MODE_CACHE.get(key) if key is not None else None
+    if z is None:
+        z = _skew_root(a)
+        if key is not None:
+            if len(_MODE_CACHE) >= _MODE_CACHE_SIZE:
+                _MODE_CACHE.clear()
+            _MODE_CACHE[key] = z
     c = np.exp(-0.5 * z ** 2) * erfc(-a * z / _SQRT2)
     z_signed = np.sign(alpha) * z
     dc = _SQRT_2_OVER_PI * z_signed * np.exp(-0.5 * z ** 2 * (1.0 + alpha ** 2))

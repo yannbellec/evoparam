@@ -211,6 +211,7 @@ class ResponseFit(_ResultMixin):
     existence: ResponseTest | None = None
     warnings: list = field(default_factory=list)
     provenance: Provenance = field(default_factory=Provenance)
+    diagnostics: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.status not in FIT_STATUSES:
