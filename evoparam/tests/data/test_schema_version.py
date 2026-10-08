@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 
+import numpy as np
 import pytest
 
 from evoparam.data import Provenance, load_object, save_object
@@ -54,6 +55,11 @@ def test_req334_frozen_containers_load_and_equal(major, kind):
         assert json.load(fobj)["schema"].startswith(f"evoparam-result/{major}.")
     obj = load_object(path)
     reference = expected(kind)
+    if kind == "trialset":
+        # The factory's data differ from the frozen ones in the last bits from one CPU to
+        # another, and the data hash with them: compare the values, then the rest exactly.
+        np.testing.assert_allclose(obj.data, reference.data, rtol=1e-9, atol=0)
+        reference = dataclasses.replace(reference, data=obj.data, provenance=_provenance())
     assert obj == reference
     assert obj.provenance == reference.provenance
 

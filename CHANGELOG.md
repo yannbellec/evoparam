@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Integration of the N1 work, S16, S17 and the tep validation
+
+- REQ-171: the test as written stays as a documented xfail (5 of 6 datasets, 17 of 20 with
+  `EVOPARAM_SLOW_TESTS=1`). Proposed wording, written after these measures and pending a
+  decision: over the datasets, the RMSE of the EB latencies is below that of the channel
+  fits (1.47 ms against 1.59 ms over the 20 datasets); `test_req171_shrunken_latencies_are_better_on_average`
+  checks it.
+- `test_schema_version`: the frozen TrialSet is compared to the factory with a relative
+  tolerance of 1e-9 on the data (the last bits, and the data hash with them, differ from
+  one CPU to another), then exactly on everything else.
+- `test_sim_truth`: ERP CORE (CC-BY-4.0) and ds002094 (CC0) now have a licence in the
+  registry; the refusal of real noise without an allowed licence is checked on Localize-MI.
+
 ### N1 engine change: speed of the whitening, selection criterion, REQ-170 and REQ-113
 
 - Speed. The exact start rows of `Whitener` were whitened by a LAPACK triangular solve at
