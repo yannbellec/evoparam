@@ -134,6 +134,43 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S10: trial-by-trial parameters
+
+- New module `evoparam.trials` (spec §5.7): `fit_trials` returns a `TrialFitSet` (one
+  `TrialFit` per channel and condition, a tidy table with the trial metadata, skipped
+  channels, save/load). Modes `shift_scale` (default: per-trial shift and amplitude of each
+  component, variable projection), `free` (every parameter within +/-25 %), `template` (the
+  component's segment of the channel average as template, Woody style) and `regularized`
+  (ridge towards the channel values). Also `jitter`, `realign`, `dose_response` (Hill or
+  linear, threshold current) and `prestimulus_dependence` (phase from three estimators with
+  its circular SD, power, first-harmonic fit and permutation test); covariates `trend`,
+  `dose`, `prestim`.
+- Choices and changes to the specification:
+  - the trial model always keeps every component of the channel (a complete model);
+    `components=` only selects what is reported;
+  - the r² of a trial (and so `trusted`) is computed around the reported components (from
+    one width before their onset to one after their offset), not over the whole window,
+    where ongoing activity dominates; a trial is untrusted when a *reported* component's
+    shift is at its bound (a neighbour held by a tight bound no longer counts) — together
+    these raised the trusted fraction on ds004080 from 0.14-0.43 to 0.86;
+  - `jitter_sd_null` is estimated from five segments of each trial's baseline, with the
+    same trust rule as the trials, and only the reported components moving;
+  - realignment is refused unless the jitter exceeds both 1.2 x the noise-only jitter and the
+    95 % quantile of the ratio of two noise SDs (F distribution);
+  - `jitter()` adds `jitter_sd_excess = sqrt(jitter_sd^2 - jitter_sd_null^2)`, the best
+    estimate of the true jitter when noise inflates the raw SD;
+  - `regularized`: the penalty is chosen by split-sample prediction error (fit on even
+    samples, score on odd), not by leave-one-trial-out, which would refit the channel model
+    once per trial.
+- Acceptance criteria met: REQ-150 at a per-trial SNR of 3 (latency error 0.94 sample,
+  amplitude 9-10 %, excess jitter within 20 % at 2 and 5 ms; at SNR 2 the Cramer-Rao bound
+  of a 20 ms component at 1 kHz is about 1.2 samples, so "<= 1 sample at SNR >= 2" cannot be
+  reached; at 1 ms of jitter the error is 32 %, the jitter being as small as the noise's),
+  REQ-151, REQ-152, REQ-153, REQ-154, REQ-155, REQ-157, and on ds004080 the trusted fraction
+  of REQ-156 (median 0.86 over 87 N1 channels of six subjects).
+- Not met: REQ-156 speed (0.3 to 4.5 s per subject; 2 s up to about 12 N1 channels; xfail);
+  REQ-158 needs the 1 Hz repeated-pulse reference dataset of spec §7.
+
 ### Build step S8: is there a response?
 
 - New module `evoparam.existence` (spec §5.6): `test_response` with four methods:

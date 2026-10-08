@@ -34,6 +34,10 @@ evoparam covers the whole path from a raw recording to response parameters:
   permutation test (max-t or cluster), cross-projection test, model comparison, and a
   registry of published CCEP detection rules reproduced to the letter; corrections across
   channels; ``evoparam.fit(..., existence=True)`` reports the test next to the fit.
+* ``evoparam.trials``: trial-by-trial latency and amplitude of each component (shifted and
+  scaled channel model, warm-started), latency jitter against the jitter that noise alone
+  gives, realigned averages, and covariates (position in the train, dose-response,
+  pre-stimulus phase and power).
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact
