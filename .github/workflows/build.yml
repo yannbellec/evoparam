@@ -31,23 +31,25 @@ jobs:
     - name: Test with pytest
       run: |
         pytest --cov=./ -rf --junitxml=pytest-report.xml
+    - name: Run doctests
+      run: |
+        pytest --doctest-modules --ignore=$MODULE_NAME/tests $MODULE_NAME --junitxml=doctest-report.xml
     - name: Report failed tests as annotations
       if: failure()
       run: |
         python - <<'EOF'
         import os
         import xml.etree.ElementTree as ET
-        if os.path.exists("pytest-report.xml"):
-            root = ET.parse("pytest-report.xml").getroot()
+        for report in ("pytest-report.xml", "doctest-report.xml"):
+            if not os.path.exists(report):
+                continue
+            root = ET.parse(report).getroot()
             for case in root.iter("testcase"):
                 for tag in ("failure", "error"):
                     node = case.find(tag)
                     if node is not None:
-                        message = " ".join((node.get("message") or "").split())[:500]
+                        message = " ".join((node.get("message") or node.text or "").split())[:500]
                         print(f"::error title={case.get('classname')}.{case.get('name')}::{message}")
         EOF
-    - name: Run doctests
-      run: |
-        pytest --doctest-modules --ignore=$MODULE_NAME/tests $MODULE_NAME
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

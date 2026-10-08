@@ -50,3 +50,4 @@ doc/auto_tutorials/*
 doc/auto_motivations/*
 doc/generated/*
 pytest-report.xml
+doctest-report.xml

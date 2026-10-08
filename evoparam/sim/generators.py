@@ -1003,8 +1003,8 @@ def simulate_animal_ep(n_trials=100, *, species="mouse", stimulus="visual", n_ch
         artifact_info = {"model": "monopolar_pulse_tail", "site_mm": site.tolist(),
                          "current_mA": 0.1, "pulse_width_us": 100.0,
                          "trial_scale": variation.tolist()}
-    metadata = {"trial": np.arange(n_trials, dtype=np.int64), "condition": list(state_of),
-                "state": list(state_of)}
+    metadata = {"trial": np.arange(n_trials, dtype=np.int64), "condition": state_of.tolist(),
+                "state": state_of.tolist()}
     ch_info = _ch_info(names, coords, groups, "lfp")
     ts, truth = assemble(generator="evoparam.sim.simulate_animal_ep", settings=settings,
                          seed=entropy, rngs=rngs, times=times, sfreq=sfreq, ch_names=names,
@@ -1012,7 +1012,7 @@ def simulate_animal_ep(n_trials=100, *, species="mouse", stimulus="visual", n_ch
                          noise_kw=noise_kw, snr=snr, jitter_sd=jitter_sd,
                          amplitude_cv=amplitude_cv, artifact=artifact_data,
                          artifact_info=artifact_info, metadata=metadata, ch_info=ch_info,
-                         conditions=list(state_of), species=species, modality="lfp_ep",
+                         conditions=state_of.tolist(), species=species, modality="lfp_ep",
                          keep_arrays=keep_arrays, start=start)
     return ts, truth
 
