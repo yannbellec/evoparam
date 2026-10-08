@@ -1,3 +1,4 @@
 include LICENSE
 include NOTICE
 include evoparam/io/registry.json
+include evoparam/tests/sim/reference_sim.json

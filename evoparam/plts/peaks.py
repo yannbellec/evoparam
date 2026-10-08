@@ -4,7 +4,7 @@ from itertools import cycle
 
 import numpy as np
 
-from evoparam.sim.gen import gen_time_vector
+from evoparam.core.sim import gen_time_vector
 from evoparam.core.funcs import gaussian_function
 from evoparam.core.modutils import safe_import, check_dependency
 from evoparam.plts.settings import PLT_FIGSIZES

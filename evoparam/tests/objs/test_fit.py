@@ -15,7 +15,7 @@ from evoparam.core.errors import FitError
 from evoparam.core.utils import group_three
 from evoparam.core.modutils import safe_import
 from evoparam.core.errors import DataError, NoDataError, InconsistentDataError
-from evoparam.sim import gen_time_vector, simulate_erp
+from evoparam.core.sim import gen_time_vector, simulate_erp
 from evoparam.data import evoparamSettings, evoparamMetaData, evoparamResults
 
 pd = safe_import('pandas')

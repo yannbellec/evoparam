@@ -4,7 +4,7 @@ import numpy as np
 from pytest import raises
 
 from evoparam.param import fit_epochs
-from evoparam.sim.gen import simulate_erp
+from evoparam.core.sim import simulate_erp
 
 ###################################################################################################
 ###################################################################################################

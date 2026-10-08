@@ -3,7 +3,7 @@
 import numpy as np
 
 from evoparam import evoparam
-from evoparam.sim import simulate_erp
+from evoparam.core.sim import simulate_erp
 from evoparam.core.corrections import (correct_peaks_indices, 
                                        _find_overlapping_peaks, 
                                        _find_troughs, 

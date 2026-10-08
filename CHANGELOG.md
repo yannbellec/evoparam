@@ -2,6 +2,121 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S9: simulators with a known truth, noise models and scorers
+
+- New module `evoparam.sim` (spec §5.12), rewritten; it replaces the skeleton's `sim/*`.
+  Generators, each returning `(TrialSet, GroundTruth)`, deterministic for a `seed`:
+  - `simulate_erp`: scalp ERPs from the ERP presets `P1`, `N1`, `N170`, `MMN`, `N400`, `P3`
+    and `ERN` (or `ComponentSpec` objects or dicts). It supports latency jitter (normal or
+    ex-Gaussian, shared or per component), log-normal amplitude variability, and overlap
+    with the previous and next events (role `overlap`, event -1 and +1).
+  - `simulate_ccep`: sEEG shafts (3.5 mm) or an ECoG grid (10 mm) and a stimulation pair.
+    Responders carry N1 (15-40 ms, FWHM 5-15 ms), N2 (80-250 ms, FWHM 40-150 ms) and,
+    optionally, delayed responses (0.1-1 s). Other features:
+    - the dipole artifact `∝ 1/r+ − 1/r−` × the rectangular pulse through a 4th-order
+      Butterworth anti-aliasing filter, plus a double-exponential recovery tail;
+    - saturation at the rails, with masks;
+    - trains, recorded in `train_id` and `index_in_train`, with adaptation;
+    - the stimulation metadata of Table 4.1.
+  - `simulate_erna`: damped oscillations of 200-450 Hz after every pulse of a train, which
+    build up over the train, plus the pulse-train artifact; at least 4096 Hz.
+  - `simulate_tep`: the N15 to P180 components around the stimulated site and the
+    auditory N100/P200 (role `confound`). The artifact has three parts: pulse, decay and
+    muscle.
+  - `simulate_ecap`: spinal or cochlear biexponential N1/P2 at 30 kHz. It supports the
+    alternating-polarity and forward-masking (A/B/C/D) paradigms, with masker components
+    (role `masker`) and the switching artifact.
+  - `simulate_animal_ep`: a laminar probe with a depth-reversing profile and states
+    (`awake` ×1, `nrem` ×2) as conditions. An electrical stimulus adds an artifact.
+  - `inject`: adds simulated components to real recordings.
+- Shared building blocks:
+  - `make_noise`: white, AR(1), pink (`1/f^chi`), line (harmonics) and real noise, and
+    their sums such as `"pink+line"`.
+  - `shape_params`: places any shape by latency and FWHM.
+  - `ComponentSpec`, the presets (`ERP_COMPONENTS`, `TEP_COMPONENTS`, `CCEP_N1`,
+    `CCEP_N2`, `CCEP_DELAYED`) and the layouts.
+- SNR is the peak amplitude over the per-trial baseline noise SD (t < 0), averaged over
+  trials, on each channel. `snr` is a scalar, one value per component, or a dict keyed by
+  label or channel. The SNR is reached on the channel of largest weight and scaled by the
+  weight elsewhere. An SNR asked for a channel without a component raises `SettingsError`.
+  `snr=None` keeps the amplitudes in µV.
+- `GroundTruth` holds:
+  - every component with its nominal parameters, features, channel, role, event and SNR;
+  - per trial, its latency shift, amplitude scale and presence;
+  - the conditions, the noise and artifact records, the seed and every setting;
+  - optionally, the noise-free signal and the artifact.
+
+  `to_dataframe("component" | "trial")` uses the column names and units of
+  `GroupFit.to_dataframe()`, followed by `trial`/`n_trials`, `role`, `event`, `snr`,
+  `shift`, `scale` and `param_<name>`. Other methods: `trial_params`, `waveform`, and
+  `to_json` / `from_json` (strict JSON).
+- Scorers:
+  - `match_components`: Hungarian matching per waveform. The default tolerance is half the
+    true FWHM; it also accepts `"fwhm/k"`, `"k*fwhm"`, seconds or None. Options are roles,
+    window and polarity. The input can be a GroupFit, a ResponseFit or a table, at the
+    component or trial level.
+  - `score_fits`: recall, precision and F1; latency MAE and bias (s and samples);
+    amplitude and FWHM relative errors; interval coverage; false components per waveform
+    and the false rate on waveforms without a component (K = 0); optionally grouped
+    (`by=`).
+- Acceptance criteria met:
+  - REQ-250: byte-identical reruns for every generator with an int seed, `None` or a
+    Generator (the seed used is recorded). Fingerprints for seed 2024 are committed in
+    `tests/sim/reference_sim.json` and compared at rtol 1e-9.
+  - REQ-251: pink slope over 2-100 Hz, mean Welch spectrum of 100 realisations, for chi 0,
+    0.5, 1, 1.5 and 2: -0.005, 0.498, 1.004, 1.512 and 2.024. AR(1) lag-1 for rho 0, 0.5,
+    0.9 and -0.5: 0.000, 0.499, 0.898 and -0.500.
+  - REQ-252: the measured SNR matches the request within 3e-5 relative for every generator
+    at SNR 2 and 5, also with jitter, amplitude variability, every noise model and real
+    noise.
+  - REQ-253: `remove_artifact(method="template")` on the default `simulate_ccep` leaves a
+    residual RMS in (-2, 8) ms of 1.2 % of the RMS before removal (seeds 0-2): 7.8 % on
+    the non-stimulated contacts, and 3.9 % with saturation (clipped samples left out).
+  - REQ-254: `sim` reaches none of `models`, `objs`, `param` or the legacy fitter, checked
+    by a file-level transitive import test.
+  - REQ-255: shared columns, units and dtypes for every generator and both levels.
+  - REQ-256: every real-noise segment records the dataset, version, DOI, licence, subject,
+    session, run, source trial and channels, and its offsets in the epoch and in the
+    recording. Licences other than CC0, CC BY or CC BY-SA in the registry are refused.
+- Choices where the specification leaves room:
+  - `sim` imports `evoparam.io` (the licence registry); the import-graph rule now allows
+    `sim → io`.
+  - REQ-250 is met as byte-identical output on one platform and agreement within 1e-9
+    across platforms (the committed fingerprints). The checksum is compared only with the
+    numpy and scipy versions that made it.
+  - Pink noise is shaped in the frequency domain with `scipy.fft` over a twice-longer
+    segment and scaled to the exact SD. AR(1) starts from its stationary state.
+  - Real noise is cut from a `TrialSet` given as `source`, by default its pre-stimulus part.
+    Nothing is downloaded. The registry's ERP CORE and ds002094 entries have no licence
+    recorded, so they are refused. Other rates are resampled with
+    `scipy.signal.resample_poly` (the preprocessing step S6 does not exist yet), and the
+    resampling is recorded.
+  - `inject` accepts recordings that name no dataset (the user's own data), recorded with
+    `dataset = None`. A named dataset must pass the licence rule.
+  - The truth's `"component"` level is the expected component of the condition's average:
+    latency moved by the mean shift, and amplitude × the mean scale, a trial without the
+    component counting as 0. The smearing of the average by jitter is ignored. Trial-level
+    rows are exact. Features are those of the whole curve, also when a large shift moves
+    part of it outside the epoch.
+  - Relative errors in the scorers divide by the true value, so a fitted magnitude larger
+    than the truth gives a positive error whatever the polarity. `score_fits` scores every
+    role within the epoch by default (`roles=None`).
+  - The ERP preset ranges follow ERP CORE windows where ERP CORE defines the component.
+    P1 and N1 are not ERP CORE components and use usual visual ranges. Widths and
+    amplitudes are typical values.
+  - The generators take more keyword arguments than §5.12 lists, among them `noise`,
+    `snr`, `noise_sd`, `jitter`, `tmin`/`tmax` and the artifact sizes. `simulate_erna`
+    refuses `sfreq < 4096`.
+  - `GroundTruth` is saved as JSON (`to_json`), not as a `.evoparam` container.
+  - Without pandas the generators still run (`metadata` and `ch_info` are None). The tables
+    raise an ImportError that names the `data` extra. The ECAP paradigms need pandas.
+- The skeleton's simulator (`sim.gen`, `sim.params`, `sim.utils`) moves unchanged to
+  `evoparam.core.sim` for the inherited fitter until step S7; its tests move to
+  `tests/core/test_legacy_sim_*.py`. It has no compatibility alias, because the package is
+  unreleased and the name `simulate_erp` is reused.
+- `neurodsp` is no longer a dependency: the `sim` extra is gone. The inherited noise is
+  reproduced bit for bit with numpy, with the same draws from the global random state.
+
 ### Build step S5: stimulation-artifact removal with a quality score
 
 - New module `evoparam.artifact` (spec §5.3), replacing the skeleton's `evoparam.clean`

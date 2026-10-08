@@ -35,7 +35,9 @@ RULES = {
     "spatial": {"data", "models", "utils"},
     "tf": {"data", "models", "utils"},
     "stats": {"data", "models", "utils"},
-    "sim": {"data", "shapes", "artifact", "utils"},
+    # sim -> io: the licence of a real-noise dataset is read from the dataset registry
+    # (spec REQ-256); io imports nothing below data and utils.
+    "sim": {"data", "shapes", "artifact", "utils", "io"},
     "presets": set(),
     "utils": {"data"},
     "reports": {ANY}, "plots": {ANY}, "cli": {ANY}, "stream": {ANY}, "benchmark": {ANY},
@@ -50,11 +52,6 @@ TRANSITIONAL = {
     ("data/conversions.py", "analysis"): "S7",
     ("data/conversions.py", "core"): "S7",
     ("data/conversions.py", "__init__"): "S7",
-    ("sim/gen.py", "core"): "S9",
-    ("sim/gen.py", "data"): "S9",
-    ("sim/params.py", "core"): "S9",
-    ("sim/params.py", "data"): "S9",
-    ("sim/utils.py", "core"): "S9",
     ("utils", "core"): "S7",
     ("utils", "objs"): "S7",
 }
@@ -158,3 +155,56 @@ def test_no_cycles_between_new_modules():
 
     for node in list(graph):
         visit(node, [])
+
+
+# Modules that hold a fitting engine: the new one (spec §5.5) and the inherited fitter with
+# the modules built on it (removed at build step S7).
+FITTERS = ("models", "objs", "param", "_legacy")
+
+
+def _module_files(dotted):
+    """Files executed by importing ``dotted`` (package __init__ files included), without the
+    package root, whose own imports are the public API of the whole package."""
+
+    parts = dotted.split(".")[1:]
+    files = []
+    for depth in range(1, len(parts) + 1):
+        base = PACKAGE.joinpath(*parts[:depth])
+        if base.with_suffix(".py").is_file():
+            files.append(base.with_suffix(".py"))
+            break
+        if (base / "__init__.py").is_file():
+            files.append(base / "__init__.py")
+        else:
+            break
+    return files
+
+
+def test_sim_does_not_reach_the_fitter():
+    """REQ-254: nothing that evoparam.sim imports, directly or through other modules, is a
+    fitting engine, so the ground truth cannot depend on the estimator."""
+
+    start = sorted((PACKAGE / "sim").rglob("*.py"))
+    seen, queue, trail = set(start), list(start), {path: None for path in start}
+    while queue:
+        path = queue.pop()
+        for target in _imports(path):
+            if target.split(".")[0] != "evoparam":
+                continue
+            for dest in _module_files(target):
+                if dest not in seen:
+                    seen.add(dest)
+                    trail[dest] = path
+                    queue.append(dest)
+    reached = [path for path in seen if path.relative_to(PACKAGE).parts[0] in FITTERS]
+
+    def chain(path):
+        out = []
+        while path is not None:
+            out.append(path.relative_to(PACKAGE).as_posix())
+            path = trail[path]
+        return " <- ".join(out)
+
+    assert not reached, "evoparam.sim reaches a fitter:\n" + "\n".join(map(chain, reached))
+    modules = {path.relative_to(PACKAGE).parts[0] for path in seen}
+    assert "sim" in modules and "shapes" in modules and "data" in modules

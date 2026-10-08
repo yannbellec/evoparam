@@ -1,11 +1,11 @@
-"""Test functions for evoparam.sim.gen"""
+"""Tests of the inherited simulator (formerly evoparam.sim.gen), now evoparam.core.sim."""
 
 import numpy as np
 from numpy import array_equal
 
 from evoparam.tests.tutils import default_group_params
 
-from evoparam.sim.gen import *
+from evoparam.core.sim import *
 
 ###################################################################################################
 ###################################################################################################

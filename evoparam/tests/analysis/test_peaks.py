@@ -4,7 +4,7 @@ import numpy as np
 
 from evoparam.analysis.peaks import *
 from evoparam import evoparam, evoparamGroup
-from evoparam.sim import simulate_erp
+from evoparam.core.sim import simulate_erp
 from evoparam.core.items import PEAK_INDS
 
 from pytest import raises

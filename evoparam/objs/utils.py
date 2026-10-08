@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from evoparam.sim import gen_time_vector
+from evoparam.core.sim import gen_time_vector
 from evoparam.data import evoparamResults
 from evoparam.objs import evoparam, evoparamGroup
 from evoparam.analysis.peaks import get_window_peak_group_arr

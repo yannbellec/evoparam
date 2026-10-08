@@ -9,7 +9,7 @@ import numpy as np
 
 from evoparam.core.utils import nearest_ind
 from evoparam.core.modutils import safe_import, check_dependency
-from evoparam.sim.gen import sim_erp
+from evoparam.core.sim import sim_erp
 from evoparam.utils.data import trim_signal
 from evoparam.utils.params import compute_fwhm
 from evoparam.plts.signals import plot_signals

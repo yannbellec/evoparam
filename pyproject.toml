@@ -31,10 +31,9 @@ plot = ["matplotlib"]
 data = ["pandas"]
 mne = ["mne>=1.6"]
 edf = ["edfio>=0.4"]
-sim = ["neurodsp>=2.0"]
 progress = ["tqdm"]
 tests = ["pytest", "pytest-cov"]
-all = ["matplotlib", "pandas", "neurodsp>=2.0", "tqdm", "pytest", "pytest-cov"]
+all = ["matplotlib", "pandas", "tqdm", "pytest", "pytest-cov"]
 
 [project.urls]
 Source = "https://github.com/yannbellec/evoparam"
@@ -48,6 +47,7 @@ include = ["evoparam*"]
 
 [tool.setuptools.package-data]
 "evoparam.io" = ["registry.json"]
+"evoparam.tests.sim" = ["reference_sim.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["evoparam"]

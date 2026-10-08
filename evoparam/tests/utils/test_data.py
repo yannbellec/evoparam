@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from evoparam.sim.gen import simulate_erp, simulate_erps
+from evoparam.core.sim import simulate_erp, simulate_erps
 
 from evoparam.utils.data import *
 

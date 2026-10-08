@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from evoparam.sim.gen import sim_erp, simulate_erp
+from evoparam.core.sim import sim_erp, simulate_erp
 from evoparam.plts.error import plot_signals_error
 from evoparam.core.errors import NoModelError, NoDataError
 

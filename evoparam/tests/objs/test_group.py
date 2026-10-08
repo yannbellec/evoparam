@@ -16,7 +16,7 @@ from evoparam.core.items import OBJ_DESC, PEAK_INDS
 from evoparam.core.modutils import safe_import
 from evoparam.core.errors import NoDataError
 from evoparam.data import evoparamResults
-from evoparam.sim import simulate_erps
+from evoparam.core.sim import simulate_erps
 
 pd = safe_import('pandas')
 

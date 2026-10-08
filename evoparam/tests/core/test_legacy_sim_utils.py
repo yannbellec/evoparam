@@ -1,6 +1,6 @@
-"""Test functions for evoparam.sim.utils."""
+"""Tests of the inherited simulator (formerly evoparam.sim.utils), now evoparam.core.sim."""
 
-from evoparam.sim.utils import *
+from evoparam.core.sim import *
 
 ###################################################################################################
 ###################################################################################################

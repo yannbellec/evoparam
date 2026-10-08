@@ -63,7 +63,7 @@ from evoparam.utils.data import trim_signal
 from evoparam.utils.params import compute_gauss_std
 from evoparam.data import evoparamResults, evoparamSettings, evoparamMetaData
 from evoparam.data.conversions import model_to_dataframe
-from evoparam.sim.gen import gen_time_vector, sim_erp
+from evoparam.core.sim import gen_time_vector, sim_erp
 from evoparam.analysis.peaks import get_window_peak_arr, get_window_peak_ep
 
 ###################################################################################################

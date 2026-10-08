@@ -8,8 +8,8 @@ from evoparam.bands import Bands
 from evoparam.data import evoparamResults
 from evoparam.objs import evoparam, evoparamGroup
 from evoparam.core.modutils import safe_import
-from evoparam.sim.params import param_sampler
-from evoparam.sim.gen import simulate_erp, simulate_erps
+from evoparam.core.sim import param_sampler
+from evoparam.core.sim import simulate_erp, simulate_erps
 
 plt = safe_import('.pyplot', 'matplotlib')
 

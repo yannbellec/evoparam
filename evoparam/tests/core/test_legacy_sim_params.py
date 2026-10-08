@@ -1,4 +1,4 @@
-"""Test functions for evoparam.sim.params."""
+"""Tests of the inherited simulator (formerly evoparam.sim.params), now evoparam.core.sim."""
 
 from pytest import raises
 
@@ -6,7 +6,7 @@ from numpy import array_equal
 
 from evoparam.core.errors import InconsistentDataError
 
-from evoparam.sim.params import *
+from evoparam.core.sim import *
 
 ###################################################################################################
 ###################################################################################################

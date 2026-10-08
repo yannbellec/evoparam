@@ -7,7 +7,7 @@ import numpy as np
 
 from evoparam import evoparamGroup
 from evoparam.objs.utils import compare_info
-from evoparam.sim import simulate_erps
+from evoparam.core.sim import simulate_erps
 from evoparam.core.errors import NoModelError, IncompatibleSettingsError
 
 from evoparam.tests.tutils import default_group_params

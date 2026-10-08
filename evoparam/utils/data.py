@@ -38,7 +38,7 @@ def trim_signal(time, signal, t_range):
     --------
     Using a simulated signal, extract a time range:
 
-    >>> from evoparam.sim import simulate_erps
+    >>> from evoparam.core.sim import simulate_erps
     >>> time, signals = simulate_erps(2, [-0.1, 0.5], [0.03, -1, 0.01])
     >>> time, signals = trim_signal(time, signals, [0, 0.3])
     """
@@ -96,7 +96,7 @@ def interpolate_signal(time, signals, interp_range, buffer=3):
     --------
     Using a simulated signal, interpolate across a short window (for example, a stimulation artifact):
 
-    >>> from evoparam.sim import simulate_erps
+    >>> from evoparam.core.sim import simulate_erps
     >>> time, signals = simulate_erps(2, [-0.1, 0.5], [0.03, -1, 0.01])
     >>> time, signals = interpolate_signal(time, signals, [-0.01, 0.01])
     """
@@ -141,13 +141,13 @@ def subsample_signal(signals, selection, return_inds=False):
     --------
     Using a group of simulated signals, subsample a specific number:
 
-    >>> from evoparam.sim import simulate_erps
+    >>> from evoparam.core.sim import simulate_erps
     >>> time, signals = simulate_erps(10, [-0.1, 0.5], [0.03, -1, 0.01])
     >>> subsample = subsample_signal(signals, 5)
 
     Using a group of simulated signals, subsample a proportion:
 
-    >>> from evoparam.sim import simulate_erps
+    >>> from evoparam.core.sim import simulate_erps
     >>> time, signals = simulate_erps(10, [-0.1, 0.5], [0.03, -1, 0.01])
     >>> subsample = subsample_signal(signals, 0.25)
     """
