@@ -104,7 +104,11 @@ def capture_environment():
     import evoparam._plugins as _plugins
 
     env = copy.deepcopy(_environment())
-    env["plugins"] = {key.split(":", 1)[1]: origin for key, origin in _plugins.used().items()}
+    used = {key.split(":", 1)[1]: origin for key, origin in _plugins.used().items()}
+    if used:
+        # only when a plugin was used: results without plugins keep the environment
+        # record of earlier versions
+        env["plugins"] = used
     return env
 
 
