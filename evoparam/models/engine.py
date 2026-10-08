@@ -10,6 +10,7 @@ rule.
 
 import dataclasses
 import logging
+import threading
 import warnings
 
 import numpy as np
@@ -383,6 +384,7 @@ def _optimise(struct, theta0, settings, f_scale, tol=1e-8):
                                 loss=settings.loss, f_scale=f_scale or 1.0,
                                 max_nfev=settings.max_iter, x_scale="jac", ftol=tol,
                                 xtol=tol, gtol=tol)
+        _COUNTER.n = getattr(_COUNTER, "n", 0) + int(res.nfev)
     except (ValueError, np.linalg.LinAlgError) as exc:
         return theta0, None, None, False, f"{type(exc).__name__}: {exc}"
     beta, rw, _, _ = struct.solve(res.x)
@@ -514,8 +516,23 @@ def _starts(shape, guess, n_starts, tw):
     return out[:n_starts]
 
 
+# residual evaluations of the least-squares solves of the waveform being fitted (one
+# waveform is fitted in one thread)
+_COUNTER = threading.local()
+
+
 def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None):
-    """Fit one waveform. Returns a dict with everything the result object needs.
+    """
+
+    _COUNTER.n = 0
+    out = _fit_waveform_core(times, y, settings=settings, sfreq=sfreq, mask=mask, sem=sem,
+                             select_k=select_k)
+    out["n_evaluations"] = int(_COUNTER.n)
+    return out
+
+
+def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None):
+Fit one waveform. Returns a dict with everything the result object needs.
 
     Keys: ``status``, ``message``, ``warnings``, ``shapes`` (objects), ``theta``, ``beta``,
     ``struct`` (final structure), ``sigma``, ``rho``, ``n_eff``, ``window_mask``, ``model``,

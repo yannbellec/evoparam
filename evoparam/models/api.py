@@ -10,7 +10,7 @@ from scipy.stats import chi2, norm
 
 from evoparam.data import Component, Evoked, GoodnessOfFit, GroupFit, Provenance, ResponseFit
 from evoparam.data import TrialSet
-from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted
+from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, validate_array
 from evoparam.errors import DataError, SettingsError
 from evoparam.shapes import compute_features
 from evoparam.version import __version__
@@ -160,7 +160,8 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
         return ResponseFit(components=[], background={}, gof=None, status=core["status"],
                            message=core["message"], window=window, baseline=baseline,
                            settings=settings_dict, warnings=warns, provenance=provenance,
-                           diagnostics={"sigma": core.get("sigma"), "rho": core.get("rho")})
+                           diagnostics={"sigma": core.get("sigma"), "rho": core.get("rho"),
+                                        "n_evaluations": core.get("n_evaluations", 0)})
 
     struct = core["struct"]
     wmask = core["window_mask"]
@@ -211,6 +212,7 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
                                    "param_names": diag["param_names"],
                                    "best_rejected_delta": core["best_rejected_delta"],
                                    "sigma": core["sigma"], "rho": core["rho"],
+                                   "n_evaluations": core.get("n_evaluations", 0),
                                    "n_eff": core["n_eff"], "n_white": core["n_white"],
                                    "ar_order": core["ar_order"], "criterion": core["kind"],
                                    "uncertainty_method": settings.uncertainty,
@@ -556,14 +558,20 @@ class ResponseModel(BaseEstimatorMixin):
                                   [condition] * len(fits), settings=settings,
                                   provenance=provenance)
 
-    def _as_container(self, X):
+    def _as_container(self, X, *, reset):
+        """X as an Evoked or a TrialSet. An array is (n_waveforms, n_times) at ``sfreq``
+        from ``tmin``, checked the scikit-learn way (2-D, dense, real, finite; after ``fit``
+        as many time points as in ``fit``)."""
+
         X = _from_mne(X)
         if isinstance(X, (TrialSet, Evoked)):
+            if reset:
+                self.n_features_in_ = int(X.n_times)
+            elif X.n_times != getattr(self, "n_features_in_", X.n_times):
+                raise DataError(f"X has {X.n_times} time points, but {type(self).__name__} "
+                                f"is expecting {self.n_features_in_}.")
             return X
-        data = np.atleast_2d(np.asarray(X, dtype=float))
-        if data.ndim != 2:
-            raise DataError("X must be an Evoked, a TrialSet, an MNE object or a 2-D array "
-                            "(n_channels, n_times).")
+        data = validate_array(self, X, reset=reset)
         if self.sfreq is None:
             raise SettingsError("sfreq is required when X is an array.")
         tmin = 0.0 if self.tmin is None else self.tmin
@@ -571,36 +579,81 @@ class ResponseModel(BaseEstimatorMixin):
         return Evoked(data=data, times=times, sfreq=self.sfreq,
                       ch_names=[f"ch{i}" for i in range(len(data))])
 
+    def _fit_container(self, X):
+        """GroupFit of a container. Without a fit window (no ``fit_window``, no preset) the
+        window is the data range; when that range cannot hold a component (shorter than
+        3 x min_fwhm, or fewer than 5 samples) every waveform is returned as skipped
+        rather than raising, so that short tabular inputs keep the estimator contract."""
+
+        settings = self.settings()
+        if settings.fit_window is not None:
+            return self.fit_group(X)
+        times = np.asarray(X.times, float)
+        window = (float(times[0]), float(times[-1]))
+        sfreq = float(X.sfreq)
+        min_fwhm = max(settings.min_fwhm, 2.0 / sfreq)
+        if window[1] - window[0] >= 3 * min_fwhm and len(times) >= 5:
+            return self.fit_group(X, window=window)
+        settings = self.settings(fit_window=window)
+        evoked = X.average() if isinstance(X, TrialSet) else X
+        message = (f"skipped: the data range {window} is shorter than 3 x min_fwhm "
+                   f"({3 * min_fwhm:.4f} s) or has fewer than 5 samples")
+        fits = [_build_fit({"status": "skipped", "message": message, "warnings": []},
+                           times, np.asarray(row, float), settings, sfreq, None, None,
+                           _time.perf_counter(), _settings_dict(settings))
+                for row in evoked.data]
+        return GroupFit.from_fits(fits, list(evoked.ch_names), [""] * len(fits),
+                                  settings=_settings_dict(settings),
+                                  provenance=evoked.provenance)
+
     def fit(self, X, y=None):
         """Fit every channel. Learned: ``fit_`` (GroupFit), ``components_`` (table),
-        ``n_features_in_`` (samples per waveform)."""
+        ``times_``, ``n_features_in_`` (samples per waveform) and ``n_iter_`` (most residual
+        evaluations of one waveform's least-squares solves, at least 1). X: Evoked, TrialSet, MNE
+        object or array (n_waveforms, n_times); ``y`` is ignored."""
 
-        X = self._as_container(X)
-        self.fit_ = self.fit_group(X)
+        X = self._as_container(X, reset=True)
+        self.fit_ = self._fit_container(X)
         self.components_ = self.fit_.to_dataframe()
-        self.n_features_in_ = int(X.n_times)
+        self.times_ = np.array(X.times, float)
+        # the largest number of residual evaluations of one waveform (at least 1)
+        self.n_iter_ = max([1] + [int(f.diagnostics.get("n_evaluations") or 0)
+                                  for f in self.fit_.fits])
         return self
 
-    def predict(self, X=None):
-        """Fitted curves on the fit window, (n_channels, n_window_samples); NaN for a
-        channel without a model."""
+    def _group(self, X):
+        """``fit_`` for X=None, else the fits of X with the same settings."""
 
         check_is_fitted(self)
-        lengths = [len(f.model) for f in self.fit_.fits if f.model is not None]
-        width = max(lengths) if lengths else 0
-        out = np.full((len(self.fit_.fits), width), np.nan)
-        for i, fit in enumerate(self.fit_.fits):
+        if X is None:
+            return self.fit_
+        return self._fit_container(self._as_container(X, reset=False))
+
+    def fit_transform(self, X, y=None):
+        return self.fit(X, y).transform()
+
+    def predict(self, X=None):
+        """Fitted curves over the time axis, (n_waveforms, n_times); NaN outside the fit
+        window and for a waveform without a model. X=None: the waveforms of ``fit``; else
+        those of X fitted with the same settings."""
+
+        group = self._group(X)
+        out = np.full((len(group.fits), len(self.times_)), np.nan)
+        for i, fit in enumerate(group.fits):
             if fit.model is not None:
-                out[i, :len(fit.model)] = fit.model
+                inside = np.flatnonzero((self.times_ >= fit.window[0] - 1e-12) &
+                                        (self.times_ <= fit.window[1] + 1e-12))
+                n = min(len(inside), len(fit.model))
+                out[i, inside[:n]] = fit.model[:n]
         return out
 
     def transform(self, X=None):
-        """Feature matrix (n_channels, 3): latency, amplitude and width of the largest
-        component of each channel (NaN without component)."""
+        """Feature matrix (n_waveforms, 3): latency, amplitude and width of the largest
+        component of each waveform (NaN without component). X=None: the waveforms of
+        ``fit``; else those of X fitted with the same settings."""
 
-        check_is_fitted(self)
         rows = []
-        for fit in self.fit_.fits:
+        for fit in self._group(X).fits:
             if fit.components:
                 comp = max(fit.components, key=lambda c: abs(c.amplitude))
                 rows.append([comp.latency, comp.amplitude, comp.fwhm])
@@ -612,10 +665,9 @@ class ResponseModel(BaseEstimatorMixin):
         return np.array(["latency", "amplitude", "fwhm"])
 
     def score(self, X=None, y=None):
-        """Mean r2 over the channels that were fitted."""
+        """Mean r2 over the waveforms that were fitted (of ``fit``, or of X)."""
 
-        check_is_fitted(self)
-        values = [f.gof.r2 for f in self.fit_.fits if f.gof is not None]
+        values = [f.gof.r2 for f in self._group(X).fits if f.gof is not None]
         return float(np.nanmean(values)) if values else np.nan
 
 
