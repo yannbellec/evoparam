@@ -1,0 +1,85 @@
+{
+  "schema": "evoparam.existence.rules/1",
+  "description": "Published response-detection rules, reproduced to the letter. A field whose value the primary paper does not state is null and listed in 'unspecified': the rule refuses to run until the user supplies it.",
+  "rules": {
+    "vanblooijs2023": {
+      "statistic": "negative_peak_over_sd",
+      "k": 3.4,
+      "window": [0.009, 0.100],
+      "baseline": null,
+      "polarity": "negative",
+      "min_duration": 0.0,
+      "sd_floor_uv": 50.0,
+      "unspecified": ["baseline"],
+      "hint": "the ER-detect default baseline search epoch is (-1.0, -0.1) s",
+      "source": "van Blooijs et al. 2023, Sci Data (ds004080); ER-detect defaults",
+      "verified": {"k": true, "window": true, "sd_floor_uv": true, "baseline": false}
+    },
+    "hays2021": {
+      "statistic": "negative_peak_z",
+      "k": 6.0,
+      "window": [0.010, 0.050],
+      "baseline": null,
+      "polarity": "negative",
+      "min_duration": 0.0,
+      "sd_floor_uv": null,
+      "unspecified": ["baseline"],
+      "hint": "a pre-stimulus window, for example (-0.5, -0.05) s",
+      "source": "Hays et al. 2021",
+      "verified": {"k": true, "window": true, "baseline": false}
+    },
+    "keller2014": {
+      "statistic": "abs_peak_z",
+      "k": 6.0,
+      "window": [0.0, 0.050],
+      "baseline": [-0.5, -0.005],
+      "polarity": "both",
+      "min_duration": 0.0,
+      "sd_floor_uv": null,
+      "unspecified": [],
+      "source": "Keller et al. 2014, Brain",
+      "verified": {"k": true, "window": false, "baseline": false}
+    },
+    "silverstein2020": {
+      "statistic": "negative_peak_z",
+      "k": 5.0,
+      "window": [0.010, 0.050],
+      "baseline": null,
+      "polarity": "negative",
+      "min_duration": 0.0,
+      "sd_floor_uv": null,
+      "unspecified": ["baseline"],
+      "hint": "a pre-stimulus window, for example (-0.5, -0.05) s",
+      "source": "Silverstein et al. 2020",
+      "verified": {"k": true, "window": true, "baseline": false}
+    },
+    "ftract": {
+      "statistic": "abs_peak_z_bandpass",
+      "k": null,
+      "window": [0.0, 0.800],
+      "baseline": [-0.4, -0.01],
+      "polarity": "both",
+      "min_duration": 0.0,
+      "sd_floor_uv": null,
+      "band": [1.0, 45.0],
+      "max_peak_delay": null,
+      "unspecified": ["k"],
+      "hint": "F-TRACT uses Z thresholds between 3 and 7; set k, and max_peak_delay=0.2 for the optional peak-delay cut",
+      "source": "Lemarechal et al. 2022, Brain (F-TRACT); Trebaul et al. 2018",
+      "verified": {"window": true, "baseline": true, "band": true, "k": false}
+    },
+    "prime2020": {
+      "statistic": "rms_z",
+      "k": null,
+      "window": [0.010, 0.100],
+      "baseline": null,
+      "polarity": "both",
+      "min_duration": 0.0,
+      "sd_floor_uv": null,
+      "unspecified": ["k", "baseline"],
+      "hint": "the paper states neither the detection threshold nor the baseline",
+      "source": "Prime et al. 2020",
+      "verified": {"window": true, "k": false, "baseline": false}
+    }
+  }
+}

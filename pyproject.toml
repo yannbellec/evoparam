@@ -47,6 +47,7 @@ include = ["evoparam*"]
 
 [tool.setuptools.package-data]
 "evoparam.io" = ["registry.json"]
+"evoparam.existence" = ["rules.json"]
 "evoparam.tests.sim" = ["reference_sim.json"]
 
 [tool.pytest.ini_options]

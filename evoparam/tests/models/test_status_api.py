@@ -69,7 +69,8 @@ def test_req123_methods_text():
 def test_top_level_fit_inputs_and_errors():
 
     ts = _trials()
-    assert evoparam.fit is fit
+    from evoparam.existence import fit as fit_with_existence
+    assert evoparam.fit is fit_with_existence
     by = TrialSet(data=ts.data, times=ts.times, sfreq=ts.sfreq, ch_names=ts.ch_names,
                   metadata=pd.DataFrame({"condition": ["a", "b"] * 6}))
     grouped = fit(by, "ccep", by="condition")

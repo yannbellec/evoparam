@@ -30,6 +30,9 @@ COMPONENT_COLUMNS = {
     "sharpness": "", "status": "",
 }
 
+# Columns appended to the component table by the existence test of each channel (§5.6).
+EXISTENCE_COLUMNS = {"existence_p": "", "existence_significant": ""}
+
 # Columns of GroupFit.to_dataframe("fit"): one row per channel × condition.
 FIT_COLUMNS = {
     "channel": "", "condition": "", "status": "", "message": "", "n_components": "",
@@ -248,7 +251,15 @@ class ResponseFit(_ResultMixin):
         table = pd.DataFrame(rows, columns=list(COMPONENT_COLUMNS))
         table["polarity"] = table["polarity"].astype("int64")
         table["component"] = table["component"].astype("int64")
-        table.attrs["units"] = dict(COMPONENT_COLUMNS)
+        # The existence test of this channel, next to the fitted components, so that a
+        # component on a channel without a significant response is never hidden
+        if self.existence is not None:
+            table["existence_p"] = float(np.ravel(self.existence.p_value)[0])
+            table["existence_significant"] = bool(np.ravel(self.existence.significant)[0])
+        else:
+            table["existence_p"] = np.nan
+            table["existence_significant"] = pd.array([pd.NA] * len(table), dtype="boolean")
+        table.attrs["units"] = {**COMPONENT_COLUMNS, **EXISTENCE_COLUMNS}
         return table
 
 
@@ -316,8 +327,8 @@ class GroupFit(_ResultMixin):
                      for ch, cond, pos in self.index[["channel", "condition", "position"]]
                      .itertuples(index=False)]
             table = pd.concat(parts, ignore_index=True) if parts else \
-                pd.DataFrame(columns=list(COMPONENT_COLUMNS))
-            table.attrs["units"] = dict(COMPONENT_COLUMNS)
+                pd.DataFrame(columns=list(COMPONENT_COLUMNS) + list(EXISTENCE_COLUMNS))
+            table.attrs["units"] = {**COMPONENT_COLUMNS, **EXISTENCE_COLUMNS}
             return table
         if level == "fit":
             rows = []

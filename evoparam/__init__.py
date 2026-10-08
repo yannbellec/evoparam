@@ -9,7 +9,8 @@ from . import shapes
 from .bands import Bands
 from .objs import evoparam, evoparamGroup
 from .objs.utils import fit_evoparam_3d
-from .models import ResponseModel, fit
+from .models import ResponseModel
+from .existence import fit, test_response
 
 from . import io, events, artifact, prep, param
 from .events import detect_events

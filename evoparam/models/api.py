@@ -575,7 +575,8 @@ def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None
     if trials:
         raise SettingsError("trials=True needs the trial-by-trial models (build step S10).")
     if existence:
-        raise SettingsError("existence=True needs the existence test (build step S8).")
+        raise SettingsError("existence=True: use evoparam.fit (evoparam.existence.fit), which "
+                            "runs the existence test after the fit.")
     if not average:
         raise SettingsError("average=False: fit trials one by one with trials=True (S10).")
     model = ResponseModel(preset, fit_window=window, baseline=baseline, n_jobs=n_jobs,

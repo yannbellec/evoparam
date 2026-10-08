@@ -30,6 +30,10 @@ evoparam covers the whole path from a raw recording to response parameters:
   each channel's response as a background plus components (latency, amplitude, width,
   shape) chosen by model comparison, with uncertainties, conditioning diagnostics,
   classical measures and labels (N1, N2, ...).
+* ``evoparam.existence``: is there a response, and how long does it last? Sign-flip
+  permutation test (max-t or cluster), cross-projection test, model comparison, and a
+  registry of published CCEP detection rules reproduced to the letter; corrections across
+  channels; ``evoparam.fit(..., existence=True)`` reports the test next to the fit.
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact

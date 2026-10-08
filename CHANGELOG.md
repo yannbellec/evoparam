@@ -50,6 +50,40 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S8: is there a response?
+
+- New module `evoparam.existence` (spec §5.6): `test_response` with four methods:
+  `baseline_permutation` (default; pointwise t of the trials summarised by the largest |t|
+  or the largest cluster mass, random sign flips of whole trials, every pattern when there
+  are few trials; onset, offset and duration with a bootstrap interval; for an Evoked, a
+  weaker baseline-window null with a warning), `projection` (cross-projection test and
+  response duration, re-implemented from the published description of the canonical response
+  parameterisation; the GPL code is not used), `model_comparison` (change of BIC with a
+  parametric bootstrap) and `threshold` (the registry of published rules, `rules.json`:
+  vanblooijs2023, hays2021, keller2014, silverstein2020, ftract, prime2020, custom; a field the
+  paper does not state must be supplied, and the error names it and the paper).
+  Corrections `fdr_bh`, `holm`, `bonferroni`, `none` across channels and stimulation sites;
+  `response_duration`, `compare_detectors` (pairwise kappa, with the human reference 0.60),
+  `train_discordance`, `list_rules`, `methods_text`, `detectors.<rule>(...)`.
+- `evoparam.fit(..., existence=True)` (now `evoparam.existence.fit`) attaches the test to
+  every channel's fit; `ResponseFit.to_dataframe()` adds `existence_p` and
+  `existence_significant`, so a component on a channel without a significant response is
+  shown, not hidden.
+- Addition to the specification: permutation p-values use a generalised Pareto tail
+  (Knijnenburg et al. 2009) when fewer than 10 null values reach the observed one. With 8
+  trials there are 256 sign patterns, so the smallest plain p-value (1/256) never survives a
+  correction over a hundred channels: on ds004080 the test detected nothing on three of six
+  runs before this change.
+- Acceptance criteria met: REQ-130 (false-positive rate within [0.8 alpha, 1.2 alpha] on 2000
+  null channels, white and AR(1) 0.9 noise, both statistics), REQ-131 (power 0.9 or more;
+  the advantage of the cluster statistic shows at SNR 0.7 with 10 trials; at the spec's SNR 1
+  both statistics reach it), REQ-132 (duration within 10 %, onset within 2 ms), REQ-133,
+  REQ-135 (agreement with vanblooijs2023 on six ds004080 subjects: kappa 0.76 pooled, 0.85
+  median per run), REQ-136, REQ-137, REQ-138 (1.8 s for 100 channels x 50 trials x 1000
+  permutations), REQ-139, REQ-140.
+- Not done: REQ-134 (projection against the published numbers of ds003708) needs MEF3
+  reading; the projection test is checked on simulations instead.
+
 ### Build step S7: the fitting engine
 
 - New module `evoparam.models` (spec §5.5): `ResponseModel` (settings in `__init__`,

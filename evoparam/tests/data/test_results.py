@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from evoparam.data import GroupFit, ResponseFit
-from evoparam.data.results import COMPONENT_COLUMNS, FIT_COLUMNS
+from evoparam.data.results import COMPONENT_COLUMNS, EXISTENCE_COLUMNS, FIT_COLUMNS
 from evoparam.errors import DataError
 from evoparam.tests.data.factories import make_group_fit, make_response_fit, make_component
 
@@ -37,7 +37,8 @@ def test_component_checks():
 def test_group_tables_are_tidy_with_units():
     group = make_group_fit()
     components = group.to_dataframe("component")
-    assert list(components.columns) == list(COMPONENT_COLUMNS)
+    # The component columns, then the existence test of each channel (spec §5.6)
+    assert list(components.columns) == list(COMPONENT_COLUMNS) + list(EXISTENCE_COLUMNS)
     assert set(components.attrs["units"]) == set(components.columns)
     assert len(components) == 2 + 1 + 2
     assert components.loc[components["channel"] == "CH01", "status"].item() == "no_response"
