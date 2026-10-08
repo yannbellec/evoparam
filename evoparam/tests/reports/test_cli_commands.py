@@ -183,7 +183,8 @@ def test_req345_information_commands():
     shown = run("presets", "show", "ccep")
     assert shown["result"]["preset"]["name"] == "ccep"
     assert run("benchmark", code=1)["status"] == "error"          # step S19
-    assert run("validate-bids", ROOT, code=1)["status"] == "error"   # step S17 (REQ-314)
+    # the repository is not a BIDS dataset: input error (REQ-314, tests/io/test_bids_validator.py)
+    assert run("validate-bids", ROOT, code=5)["status"] == "error"
     code, stdout = run_text("--version")
     assert code == 0 and __version__ in stdout and "research use" in stdout.lower()
 

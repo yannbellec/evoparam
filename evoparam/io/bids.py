@@ -23,6 +23,7 @@ from evoparam.errors import DataError, EventError, ReaderError
 from evoparam.io._fetch import TransferLog, fetch_bytes, is_url, sha256_file
 from evoparam.io._harmonize import (HarmonizationReport, ValidationReport, harmonize_stim_events,
                                     normalize_site, validate_stimulation_events)
+from evoparam.io._validate import format_stim_report, validate_stim_metadata
 from evoparam.io.brainvision import (_n_samples, _open_data, _read_windows, _warn_units,
                                      read_brainvision_header)
 from evoparam.io.epochs import epoch_windows, overlap_flags
@@ -30,7 +31,8 @@ from evoparam.io.fetch import OPENNEURO_URL
 from evoparam.utils._optional import require
 
 __all__ = ["read_bids", "read_bids_events", "select_stimulation_events", "harmonize_stim_events",
-           "HarmonizationReport", "validate_stimulation_events", "ValidationReport"]
+           "HarmonizationReport", "validate_stimulation_events", "ValidationReport",
+           "validate_stim_metadata", "format_stim_report"]
 
 logger = logging.getLogger(__name__)
 

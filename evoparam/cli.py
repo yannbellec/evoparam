@@ -300,6 +300,23 @@ def cmd_cite(args, outcome):
         print(text)
 
 
+def cmd_validate_bids(args, outcome):
+    from evoparam.io import format_stim_report, validate_stim_metadata
+
+    table = validate_stim_metadata(args.input, subject=args.sub)
+    rows = table.astype(object).where(table.notna(), None)          # JSON has no NaN
+    outcome.extra = {"fields": rows.to_dict("records"),
+                     "counts": {k: int(v) for k, v in table["status"].value_counts().items()}}
+    if not args.json:
+        print(format_stim_report(table))
+    missing = table[table["status"] == "missing"]
+    outcome.warnings += [f"missing: {r.events_file} {r.field}" for r in missing.itertuples()]
+    if args.strict and len(missing):
+        # the report is printed first; the error gives the exit code 5 (input error)
+        raise ReaderError(f"{len(missing)} stimulation metadata field(s) missing "
+                          f"(--strict).")
+
+
 def cmd_later(step):
     def command(args, outcome):
         raise EvoparamError(f"'evoparam {args.command}' comes with build step {step} "
@@ -380,10 +397,13 @@ def _parser():
     p.add_argument("action", nargs="?", default="run")
     p.set_defaults(func=cmd_later("S19"))
     p = sub.add_parser("validate-bids", parents=[common], help="stimulation metadata "
-                       "validator (step S17)")
+                       "validator: which fields each run states (present, inferred, missing, "
+                       "inconsistent)")
     p.add_argument("input")
-    p.add_argument("--strict", action="store_true")
-    p.set_defaults(func=cmd_later("S17"))
+    p.add_argument("--sub", default=None, help="one subject (default: all)")
+    p.add_argument("--strict", action="store_true",
+                   help="exit 5 when a field is missing")
+    p.set_defaults(func=cmd_validate_bids)
     return parser
 
 

@@ -5,7 +5,8 @@
   :func:`read_mne` (extra ``mne``), :func:`read_edf` (extra ``edf``).
 - BIDS: :func:`read_bids` (local, or remote by HTTP byte ranges), with the stimulation
   events harmonised into the standard metadata columns (:func:`harmonize_stim_events`,
-  :func:`validate_stimulation_events`).
+  :func:`validate_stimulation_events`), and the dataset-level validator of the stimulation
+  metadata (:func:`validate_stim_metadata`, :func:`format_stim_report`).
 - Remote files: :class:`RemoteFile`, :func:`openneuro_url`, :func:`fetch_openneuro_file`.
 - Dataset registry: :func:`list_datasets`, :func:`dataset_info`.
 """
@@ -13,6 +14,7 @@
 from .brainvision import (read_brainvision, read_brainvision_header, read_brainvision_segment,
                           write_brainvision)
 from .bids import read_bids, read_bids_events, select_stimulation_events
+from ._validate import format_stim_report, validate_stim_metadata
 from ._harmonize import (harmonize_stim_events, HarmonizationReport, validate_stimulation_events,
                          ValidationReport)
 from .epochs import epoch, epoch_data
