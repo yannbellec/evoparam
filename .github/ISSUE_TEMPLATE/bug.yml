@@ -1,0 +1,32 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Code to reproduce
+      description: A short, self-contained snippet.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Actual and expected outcome
+    validations:
+      required: true
+  - type: textarea
+    id: info
+    attributes:
+      label: Output of `evoparam info`
+      render: text
+    validations:
+      required: true

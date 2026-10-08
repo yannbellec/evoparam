@@ -52,6 +52,64 @@
   with `EVOPARAM_NETWORK_TESTS=1` 8.5 min (fixture 445 s), against about 47 min before
   (six fits of 183 to 913 s).
 
+### Build step S17: MNE, BIDS, NWB, Neo, scikit-learn, plugins and community files
+
+Part 1 (readers and validation data):
+
+- `read_nwb` / `write_nwb` (extra `nwb`): epochs of an `ElectricalSeries` around the
+  events of an `EventsTable`, the `trials` table or `TimeIntervals`; events that fall in a
+  gap of the timestamps are dropped (they gave identical epochs). `read_neo` (extra `neo`):
+  epochs of a Neo `AnalogSignal` around an `Event` or `Epoch`, in µV through `quantities`.
+- `TrialSet.from_mne` / `to_mne`, `Evoked.from_mne` / `to_mne`: channel types, bad
+  channels, positions (mm <-> m, head frame), metadata and event names kept;
+  `GroupFit.to_annotations`, `GroupFit.to_evoked_model`.
+- `car_adaptive_select` follows the published CARLA code (covariance zeta curve, line
+  notch, bootstrap-mean curve, sensitive optimum; REQ-372), checked on ds004977.
+- Layer 3: Allen Neuropixels LFP (REQ-278) and ERP CORE (REQ-274): model 50 % area latency
+  against the published measurement on 40 participants and seven components.
+
+Part 2:
+
+- scikit-learn (REQ-320, REQ-321). `ResponseModel`, `TrialFitter` (trial-by-trial shift,
+  scale and latency of each component as features) and `ArtifactRemover` follow the
+  estimator contract and pass every check of `check_estimator` (scikit-learn 1.6+): the
+  list of excused checks, `evoparam/utils/_sklearn_checks.py`, is empty. Array inputs are
+  checked the scikit-learn way (2-D or 3-D, dense, real, finite, at least 2 time points,
+  the same number of time points as in `fit`). Without a fit window, the window is the data
+  range; a range too short for a component (shorter than 3 x min_fwhm, or fewer than 5
+  samples) gives skipped fits instead of an error. `ResponseModel.transform(X)`,
+  `predict(X)` and `score(X)` fit X with the settings of the estimator (X=None: the data of
+  `fit`); `predict` returns curves over the whole time axis (NaN outside the fit window);
+  `n_iter_` is the largest number of residual evaluations of one waveform (recorded in
+  `ResponseFit.diagnostics["n_evaluations"]`). `ArtifactRemover` returns X unchanged, with a
+  warning, when its window does not fit inside the epoch. New extra `sklearn`; scikit-learn
+  is in `tests` and `all`.
+- Stimulation-metadata validator (REQ-314). `evoparam.io.validate_stim_metadata(bids_root,
+  subject=None, strict=False)`: one row per run and field (the six stimulation fields,
+  `ElectricalStimulation`, channel `reference`, `type`, coordinates) with the status
+  `present`, `inferred` (unit guessed from the magnitude, site from `trial_type`, reference
+  from the sidecar only), `missing` or `inconsistent` (partly stated, unreadable values,
+  polarity without phase order, coordinates without units, `ElectricalStimulation` false
+  with stimulation events); `format_stim_report` prints it. `evoparam validate-bids <root>
+  [--sub S] [--strict]` prints the report and exits 5 with `--strict` when a field is
+  missing.
+- Plugins (REQ-328). The entry-point groups `evoparam.shapes`, `evoparam.presets` and
+  `evoparam.readers` are loaded lazily on first access to `SHAPES`, `BACKGROUNDS`,
+  `PRESETS` or `evoparam.io.read` (`evoparam/_plugins.py`, a module of the standard library
+  and `errors` only, importable everywhere). Shapes pass the checks of `register_shape`,
+  presets must be `Preset` instances, readers callables with `extensions`; a name taken by a
+  built-in or by another plugin raises `SettingsError` naming both distributions;
+  `EVOPARAM_DISABLE_PLUGINS=1` turns them off. Every plugin object a result used is in
+  `provenance.environment["plugins"]`; `evoparam info` lists the plugins. Example plugin:
+  `evoparam/tests/plugins/evoparam_dummy`; guide: `docs/contributing/add_shape.rst`.
+- `evoparam.io.read` now dispatches `.nwb` files to `read_nwb` and Neo objects (or
+  `format="neo"`) to `read_neo`.
+- Community files (REQ-327): `CONTRIBUTING.md` (development install, tests, coding rules,
+  plugins, Developer Certificate of Origin), `CODE_OF_CONDUCT.md` (Contributor Covenant
+  2.1), `GOVERNANCE.md`, `SECURITY.md`, `SUPPORT.md`, issue forms under
+  `.github/ISSUE_TEMPLATE/`; linked from the README. The DCO check as a required status on
+  `main` is a repository setting, not set here.
+
 ### N1 case (REQ-113, REQ-114): diagnosis on ds004080 and fixes
 
 - Diagnosis. The xfail test compared the model with a re-reading of the rule (most
