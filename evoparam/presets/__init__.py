@@ -230,8 +230,9 @@ def fit_fields(preset):
 
 
 def methods_note(preset):
-    """The preset's part of a methods text: name, version, parent and overrides, and the
-    validation status (spec REQ-279)."""
+    """The preset's part of a methods text: name, version, parent and overrides, the
+    validation status (spec REQ-279) and the preset's caveat for the methods
+    (``notes["methods"]``, for example the sensory confound of ``tep``, REQ-275)."""
 
     p = get(preset)
     text = f"preset '{p.name}' v{p.version}"
@@ -243,6 +244,8 @@ def methods_note(preset):
                  "validates it yet)")
     else:
         text += f"; validation: {p.validation}"
+    if p.notes.get("methods"):
+        text += f"; {p.notes['methods']}"
     return text
 
 

@@ -707,6 +707,58 @@ Part 2:
   and its provenance (REQ-336 for NWB, an expected failure until step S17),
   `validate-bids` (REQ-314, step S17), the benchmark (step S19).
 
+### Build step S15, part 3: the `tep` preset on ds002094 (REQ-275)
+
+- `evoparam/tests/validation/test_tep_ds002094.py` (EVOPARAM_NETWORK_TESTS=1): the 20
+  subjects of OpenNeuro ds002094 1.0.0 (single TMS pulses over the right motor cortex, 600
+  per subject, 30 EEG channels at 5 000 Hz). Each data file (0.6 to 2.4 GB) is downloaded,
+  read with `read_bids`, interpolated over the artifact window at 5 000 Hz, resampled to
+  1 000 Hz and deleted; the epochs (about 120 MB per subject) and the averages are cached in
+  the evoparam data folder. The first run takes about 1 h 30 min (42 GB transferred), later
+  runs a few minutes. Trials are removed as the dataset README asks (sub-767, sub-774,
+  sub-780) and epochs that cross a recording pause (`New Segment`) are dropped.
+- Method (written in the test before the pass rates were computed; criterion: components
+  labelled N45 and N100 by the preset's fit on the channel of maximal response, the largest
+  RMS of the average from 38 to 140 ms):
+  - variant A, the preset's chain alone: interpolation (-2, 12) ms, subspace projection,
+    average reference, baseline (-0.8, -0.1) s, mean of the trials; the channel is chosen
+    among the 17 channels off the outer ring of the montage (without ICA, FP1/FP2, F7/F8,
+    T7/T8, TP9/TP10, IZ, O1/O2 and P7/P8 carry the blink reflex and the cranial and neck
+    muscle activity: on the development subject sub-283 the largest RMS was on FP1, FP2
+    and T8);
+  - variant B, A plus the ICA cleaning of the published TESA pipeline (Rogasch et al. 2017,
+    [LIT-artifact-9]), re-implemented in the test from the paper with its default automatic
+    thresholds: epoch demeaning, FastICA round 1 (TMS-evoked muscle: mean |amplitude| of
+    the component average from 11 to 30 ms above 8 times its epoch mean), band-pass 1-100 Hz
+    and 60 Hz notch, round 2 (TMS muscle, blink z > 2.5 at FP1/FP2, horizontal eye movement
+    at F7/F8, electrode noise z > 4, persistent muscle: 30-100 Hz log-log slope above
+    -0.31); the channel is chosen among all 30 channels (the literal rule).
+- Result: **REQ-275 not met** (xfail with the measured values). Subjects with a labelled
+  N45 / N100 / both, out of 20:
+  - variant B, all channels (the criterion): 9 / 11 / 6 (30 %);
+  - variant B, inner channels: 8 / 16 / 6;
+  - variant A, inner channels: 11 / 13 / 9 (45 %), the best level reached;
+  - variant A, all channels: 8 / 8 / 4.
+  A floor test keeps these counts. The first run of variant B lacked the epoch demeaning of
+  the published pipeline; on this DC-coupled recording its ICA then mixed offsets of
+  thousands of microvolts into the data (a broken run, 5 of 20, not counted).
+- Causes seen in the fits: after ICA the largest response is often on TP9, TP10 or IZ
+  (neck muscle and electrode noise not removed by the published thresholds); the early
+  negativity of this dataset often peaks between 55 and 75 ms, after the N45 window
+  (38-55 ms) of the preset; and the fits often describe one deflection with two
+  overlapping components of opposite sign (for example -24 and +52 uV at 77 and 78 ms),
+  which take the label windows. The last point is an engine question (overlap of
+  opposite-sign components), left to the robustness step S20; no engine or preset value
+  was changed on these data.
+- The methods text now carries the preset's caveat (`notes["methods"]`): for `tep`, that
+  N100 and P180 may be contaminated by auditory and somatosensory responses to the coil
+  click and the scalp sensation (REQ-275, second part, met; `presets.methods_note`). The
+  `tep` preset's validation field states the result.
+- Dataset registry 2026.10.08: ds002094 licence CC0 (its `dataset_description.json`), 5 000
+  Hz, 20 subjects, 42.4 GB, events present, with its quirks (second run of three subjects,
+  trials to remove, recording pauses). The real-noise licence test now uses Localize-MI as
+  its example of a dataset without a recorded licence.
+
 ### Build step S15, part 2: validation layer 2 and the state of layer 3
 
 - `validation/layer2.py` (spec §7.2): the layer-2 runner. Each cell simulates trials with the
@@ -744,11 +796,8 @@ Part 2:
     gaussian and skewed_gaussian (reason in its notes; `presets.derive` adds gabor back).
     After the change: F1 1.00 at SNR >= 5, 0.97 at SNR 3, 0.91 to 1.00 across noises.
 - Layer 3, state:
-  - REQ-275 (TEP on ds002094) **not met, documented**: on sub-728 (100 trials, remote read
-    3 min) the preset's chain (cubic interpolation of -2 to 12 ms, subspace projection,
-    average reference, baseline) leaves the largest response on FP2 (eye or muscle) and a
-    broad positive deflection from 30 to 60 ms on C4; the fit finds no labelled N45 there.
-    Published TEP pipelines add ICA cleaning and filtering, which the preset does not do.
+  - REQ-275 (TEP on ds002094) **not met, documented**: first look on sub-728 (100 trials);
+    the measurement on the 20 subjects, with and without ICA cleaning, is in part 3.
   - REQ-372 (ds004977, CARLA) **blocked**: the responsive channels of the published analysis
     are not in the dataset (its derivatives hold event annotations and FreeSurfer files) and
     not in the authors' repository (MATLAB code, GPL-3.0, results only as figures). A

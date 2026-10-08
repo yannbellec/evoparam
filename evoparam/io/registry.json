@@ -1,6 +1,6 @@
 {
  "schema": "evoparam-registry/1",
- "version": "2026.10.07",
+ "version": "2026.10.08",
  "description": "Public datasets of evoked responses. Every value is taken from the literature review of the specification (docs/spec/LITERATURE.md, datasets axis, and docs/spec/GAPS.md); null means the value is not stated there.",
  "fields": {
   "sfreq": "sampling frequency in Hz stated for the dataset (runs may differ)",
@@ -206,17 +206,22 @@
    "publications": [],
    "modality": "tep",
    "recording": "eeg",
-   "species": null,
-   "sfreq": null,
-   "n_subjects": null,
-   "size_gb": null,
-   "license": null,
-   "events_status": "unknown",
+   "species": "human",
+   "sfreq": 5000.0,
+   "n_subjects": 20,
+   "size_gb": 42.4,
+   "license": "CC0",
+   "events_status": "present",
    "format": "bids",
    "loader": "evoparam.io.read_bids",
    "quirks": [
     "minimal metadata",
-    "NEMAR mirror on002094 (DOI 10.82901/nemar.on002094)"
+    "NEMAR mirror on002094 (DOI 10.82901/nemar.on002094)",
+    "licence, sampling rate, subjects, size and events read from the dataset files on 2026-10-08 (dataset_description.json: License CC0; no DOI given)",
+    "600 single TMS pulses per subject over the right motor cortex at 120 % of the resting motor threshold (sourcedata/README.txt), markers R128; 30 scalp EEG channels, reference POz, BrainVision float32",
+    "task tmseeg1, plus tmseeg2 for sub-728, sub-766 and sub-780 (to be read after tmseeg1); the README removes EEG trials 1-2 of sub-767, after 556 of sub-774 and 401-405 of sub-780",
+    "recordings are paused between blocks: several New Segment markers per run",
+    "task rest (no TMS) and EMG and neuronavigation files in sourcedata"
    ],
    "references": [
     "LIT-datasets-17"

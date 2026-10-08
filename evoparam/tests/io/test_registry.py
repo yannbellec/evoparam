@@ -58,6 +58,8 @@ def test_dataset_info():
     assert info['sfreq'] == 2048.0 and info['n_subjects'] == 74 and info['size_gb'] == 269.0
     assert info['license'] == 'CC0' and info['events_status'] == 'present'
     assert info['doi'] == '10.18112/openneuro.ds004080.v1.2.4'
+    tep = dataset_info('ds002094')                    # read from its files (REQ-275)
+    assert tep['license'] == 'CC0' and tep['sfreq'] == 5000.0 and tep['n_subjects'] == 20
     assert dataset_info('erpcore')['id'] == 'erp-core'
 
     # A copy: changing it does not change the registry
@@ -81,7 +83,8 @@ def test_list_datasets():
     assert 'ds004080' in set(spes['id']) and set(spes['modality']) == {'spes'}
     assert set(list_datasets(modality=['erp', 'tep'])['modality']) == {'erp', 'tep'}
     small = list_datasets(max_size_gb=300)
-    assert list(small['id']) == ['ds004080']          # the only dataset with a stated size
+    assert list(small['id']) == ['ds004080', 'ds002094']  # the datasets with a stated size
+    assert list(list_datasets(max_size_gb=100)['id']) == ['ds002094']
     assert len(list_datasets(max_size_gb=1)) == 0
 
 

@@ -17,7 +17,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 | primate_ep | LFP/ECoG | macaque | LIT-datasets-54, LIT-datasets-55 | 1.0 | pending |
 | rodent_ep | LFP/ECoG | mouse, rat | LIT-datasets-50, LIT-variability-45, LIT-variability-50 | 1.0 | pending: Allen Visual Coding Neuropixels LFP (REQ-278) |
 | sep | scalp/epidural SEP | human | LIT-domains-19, LIT-domains-20 | 1.0 | simulation (REQ-277) |
-| tep | TMS-EEG | human | LIT-domains-1, LIT-domains-3, LIT-domains-12 | 1.0 | pending: ds002094 (REQ-275) |
+| tep | TMS-EEG | human | LIT-domains-1, LIT-domains-3, LIT-domains-12 | 1.0 | ds002094: REQ-275 not met (N45 and N100 on the channel of maximal response for 9 of 20 subjects with the preset's cleaning, 6 of 20 with ICA cleaning added) |
 
 ## `ccep`
 
@@ -137,6 +137,6 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - artifact: interpolate+subspace over (-0.002, 0.012); reference: average
 - labels: N15 (0.01, 0.02), P30 (0.022, 0.038), N45 (0.038, 0.055), P60 (0.05, 0.075), N100 (0.08, 0.14), P180 (0.15, 0.25)
 - trial fit: False
-- validation: pending: ds002094 (REQ-275)
+- validation: ds002094: REQ-275 not met (N45 and N100 on the channel of maximal response for 9 of 20 subjects with the preset's cleaning, 6 of 20 with ICA cleaning added)
 - note (methods): late peaks (N100, P180) may be contaminated by auditory and somatosensory responses to the coil click and scalp sensation
 - note (shapes): gabor removed from the default shapes of spec §6.1: one gabor describes a pair of components of opposite sign (as N45 and P60), so the labelled TEP sequence lost a component; layer-2 base cell (two components 2 FWHM apart, SNR 5, 20 replicates): F1 0.55 with gabor, 1.00 without. Add it back with presets.derive('tep', shapes=('gaussian', 'skewed_gaussian', 'gabor')) for oscillatory bursts (CHANGELOG, step S15)
