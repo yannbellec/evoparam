@@ -44,6 +44,11 @@ evoparam covers the whole path from a raw recording to response parameters:
   channel or subject), split-half reliability and dependability with the trials needed,
   REML variance components, and tidy exports with model formulas for statsmodels, lme4 and
   brms.
+* ``evoparam.tf``: time-frequency response (generalised Morse or Morlet wavelets,
+  multitaper, STFT), baseline normalisation per trial or on the average, pixel tests (FDR,
+  cluster mass, TFCE), the power of the fitted evoked components separated exactly from the
+  residual power, data-driven time-frequency zones (non-negative factorisations with the
+  rank chosen by split-half stability) and published fixed zones.
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact

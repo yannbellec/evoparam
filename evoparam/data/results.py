@@ -487,3 +487,58 @@ class TFFit(_ResultMixin):
         self.maps = {key: np.asarray(value, dtype=np.float64) for key, value in self.maps.items()}
         if self.significant.shape != self.tmaps.shape:
             raise DataError("TFFit: significant and tmaps must have the same shape.")
+
+    def methods_text(self):
+        """Methods paragraph: transform and its parameters, baseline window and mode, the
+        statistic, alpha and the zone method (spec REQ-219)."""
+
+        s = self.settings
+        tp = s.get("transform_params", {})
+        transform = s.get("transform", "?")
+        if transform == "morse":
+            what = (f"generalised Morse wavelets (gamma = {tp.get('gamma'):g}, "
+                    f"beta = {tp.get('beta'):g})")
+        elif transform == "morlet":
+            cycles = np.unique(np.round(tp.get("n_cycles", [np.nan]), 3))
+            what = f"complex Morlet wavelets ({', '.join(f'{c:g}' for c in cycles)} cycles)"
+        elif transform == "multitaper":
+            what = (f"DPSS multitapers (time-bandwidth product {tp.get('time_bandwidth'):g}, "
+                    f"{tp.get('n_tapers')} tapers)")
+        else:
+            what = f"a short-time Fourier transform (Hann window of {tp.get('stft_window'):g} s)"
+        freqs = s.get("freqs", [np.nan])
+        base = s.get("baseline", [np.nan, np.nan])
+        win = s.get("window", [np.nan, np.nan])
+        level = {"single_trial": "each trial by its own baseline",
+                 "evoked": "the trial-average power by its baseline",
+                 "full_epoch": "each trial by its own full-epoch mean"}.get(
+                     s.get("baseline_level"), s.get("baseline_level"))
+        stat = {"fdr": "pixel-wise one-sample t-tests across trials with Benjamini-Hochberg "
+                       "false-discovery-rate control",
+                "cluster": f"a cluster-mass sign-flip permutation test "
+                           f"({s.get('n_permutations')} permutations)",
+                "tfce": f"threshold-free cluster enhancement (E = 0.5, H = 2) with "
+                        f"{s.get('n_permutations')} sign-flip permutations",
+                "none": "no statistical test"}.get(s.get("stats"), s.get("stats"))
+        zones = {"nmf": "data-driven zones were found by non-negative matrix factorisation of "
+                        "the significant group map, with the rank chosen by split-half "
+                        "stability (congruence >= 0.8, at most "
+                        f"{s.get('max_zones')} zones)",
+                 "cp": "data-driven zones were found by a non-negative canonical-polyadic "
+                       "decomposition (frequency x time x channel), with the rank chosen by "
+                       f"stability across restarts (at most {s.get('max_zones')} zones)",
+                 "published": f"the published zone '{(s.get('published_zone') or {}).get('name')}'"
+                              f" ({(s.get('published_zone') or {}).get('source')}) was used",
+                 "none": "no zones were computed"}.get(self.method, self.method)
+        text = (f"Time-frequency power was computed with {what} at {len(freqs)} frequencies "
+                f"from {freqs[0]:.3g} to {freqs[-1]:.3g} Hz; pixels within the wavelet "
+                f"support of an epoch edge or of the artifact mask were excluded. Power was "
+                f"normalised ({s.get('baseline_mode')}) {level}, baseline {base[0] * 1000:g} "
+                f"to {base[1] * 1000:g} ms. Pixels from {win[0] * 1000:g} to "
+                f"{win[1] * 1000:g} ms were tested with {stat} (alpha = {s.get('alpha'):g}; "
+                f"{s.get('channel_correction')} correction across channels). "
+                f"{zones[0].upper() + zones[1:]}.")
+        if s.get("footprint"):
+            text += (" The power of the fitted evoked components (footprint) was separated "
+                     "from the residual power; the cross term is reported.")
+        return text + f" (evoparam {s.get('package_version')}, seed {s.get('random_state')})."

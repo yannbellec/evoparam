@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "zones": {
+    "brinyark2026_delayed_high_gamma": {
+      "time": [0.05, 0.5],
+      "freq": [50.0, 250.0],
+      "verified": true,
+      "fields": {"time": "verified", "freq": "verified", "transform": "verified",
+                 "baseline": "verified", "baseline_mode": "unverified",
+                 "baseline_level": "unverified"},
+      "settings": {"transform": "morse", "gamma": 3.0, "p2": 30.0,
+                   "baseline": [-0.5, -0.1], "baseline_mode": "db",
+                   "baseline_level": "single_trial"},
+      "source": "Brinyark 2026, doctoral dissertation, UAB [LIT-tf-3]; transform and baseline of Hays et al. 2024 [LIT-tf-2]",
+      "reference": "delayed (50-500 ms) high-gamma (50-250 Hz) zone",
+      "note": "the delayed high-gamma zone; dB normalisation and its level are not confirmed against the source"
+    },
+    "brinyark2026_other_zones": {
+      "time": null,
+      "freq": null,
+      "verified": false,
+      "source": "Brinyark 2026, doctoral dissertation, UAB [LIT-tf-3]; Brinyark et al. (presumed) [LIT-tf-4]",
+      "reference": "zone table of the dissertation (page to be confirmed)",
+      "note": "the ten other zones of the eleven-zone scheme: bounds not entered, to be copied from the source and confirmed"
+    }
+  }
+}

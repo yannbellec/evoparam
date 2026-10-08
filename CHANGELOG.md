@@ -220,6 +220,109 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S13: time-frequency parameterisation
+
+- New module `evoparam.tf` (spec §5.10): `tf_fit`, `tf_zones`, `tf_compare`,
+  `list_published_zones`, `methods_text`; `TFFit.methods_text()`. `evoparam.tf` and
+  `evoparam.trials` are now imported by `import evoparam`.
+- Transforms (`tf.transforms`): generalised Morse wavelets (gamma 3, beta = P²/gamma = 10 by
+  default), complex Morlet, DPSS multitaper and STFT, all written as complex kernels applied
+  in the frequency domain, so the coefficients are linear in the signal. Gain: a cosine of
+  amplitude A gives a modulus A. Each kernel has a temporal support (the half-width holding
+  99 % of its energy); a pixel is invalid when this support reaches an epoch edge (cone of
+  influence) or a masked sample (the artifact mask widened at each frequency). Masked and
+  missing samples are set to zero before the transform; invalid pixels are never filled and
+  are left out of the statistics and the zones. Each frequency runs on the shortest padded
+  grid that keeps its valid pixels free of wrap-around (4 times less work at high
+  frequencies). Frequencies above sfreq/2.5 are dropped with a warning.
+- Maps: `total`, `evoked_footprint`, `residual` and `cross` are trial-average **powers**,
+  and `evoked_footprint + residual + cross == total` to 1e-9 relative for every pixel and
+  every transform (REQ-211). Deviation from §4.3.4, which calls these maps
+  baseline-normalised: the identity only holds for power; the normalised maps are
+  `total_norm`, `residual_norm` and `footprint_norm` (the footprint on the total's
+  baseline). The footprint is the transform of the channel's fitted model: components at all
+  times, background inside the fit window with 5 ms cosine ramps (a cut background would put
+  a step, broadband power, into both parts).
+- Normalisation (`db`, `percent`, `zscore`, `logratio`, `ratio`) of each trial by its own
+  baseline (`single_trial`, default), of the trial-average power (`evoked`), or of each
+  trial by its full-epoch mean (`full_epoch`; with `zscore`: `SettingsError`). For
+  `single_trial`, the reported map is the mode applied to the trial mean of the power
+  ratios (Grandchamp and Delorme 2011): the mean of per-trial dB values is about -2.5 dB on
+  noise (mean of a log below the log of the mean).
+- Statistics: the tested quantity is not the normalised map but, per trial, the cube root
+  of the power minus its mean over the baseline; one-sample t across trials; then
+  Benjamini-Hochberg over the pixels of the window, cluster mass with sign flips, or TFCE
+  (E 0.5, H 2, step 0.2 in t) with sign flips. Measured on null AR(1) trials: a t-test on
+  dB values gave 20.5 % of maps with a false pixel under FDR, all positive (dB values are
+  left-skewed); dividing by the trial's own baseline (a noisy divisor correlated with the
+  subtracted baseline) gave 17 % family-wise errors with clusters (Jensen bias). With the
+  cube root of the power (Wilson-Hilferty: nearly symmetric) and no division, the test does
+  not depend on the mode or the level, and the errors are within the target (below).
+  `channel_correction="bonferroni"` divides alpha by the number of map rows.
+- Zones: the positive and the negative parts of the significant group map (mean over
+  channels and conditions of the significant normalised pixels) are factorised separately by
+  NMF (frequency profile x time course) or by a non-negative CP decomposition over
+  (frequency x time x map row). Rank: the largest one whose parts are reproduced (mean
+  matched Tucker congruence >= 0.8) between two halves of the trials, over 20 random
+  splits (NMF), or across 20 restarts (CP: deviation, split halves of every row would need
+  20 x 2 maps per row in memory); the search stops after two unstable ranks in a row (a
+  rank-1 factor of two blobs of similar weight picks either one, so rank 1 can be unstable
+  while rank 2 is not). Each significant pixel goes to the zone that explains most of it;
+  touching zones with no dip between them (pass at least half of the smaller peak) are
+  merged: NMF otherwise cut one burst into 2 or 3 stable pieces (recovery 0.90 instead of
+  1.00 below). Zone table: bounds, time and log-frequency centroids and spreads, peak,
+  mean, onset and offset at the centroid frequency, area (s x octave), share of the
+  significant energy, stability, p-value (smallest trial-level p over rows, Bonferroni).
+  Zone metrics per channel and condition (and per trial with `by_trial=True`, `trial` index
+  joinable with `fit_trials`): signed mean of the normalised map, trial-level t and p, share
+  of significant pixels, of significant increases and of significant decreases.
+- Published zones (`tf/zones.json`, `zones="published:<name>"`, which also sets the
+  transform and the baseline of the source): the delayed 50-500 ms x 50-250 Hz zone
+  [LIT-tf-3] with the Morse transform and the -500 to -100 ms baseline of [LIT-tf-2]
+  (bounds, transform and baseline marked verified as in the spec; dB mode and level marked
+  unverified). The ten other zones of the eleven-zone scheme are **not entered**: their
+  bounds are not in the spec or the literature file (the article [LIT-tf-4] is
+  unverified), so the registry has one `unverified` entry without bounds instead of
+  invented numbers; it raises `SettingsError` without `allow_unverified=True` (REQ-217) and
+  again with it (no bounds). The bounds must be copied from the dissertation.
+- `tf_compare(tf_a, tf_b)`: contrast with the map rows as units (sign flips of paired
+  differences when the rows are the same, label permutation with Welch t otherwise),
+  clusters with permutation p-values or FDR.
+- Results (`tests/tf/`, `benchmarks/bench_tf.py`):
+  - REQ-210 met: the Morse coefficient of a cosine equals the analytic value
+    (half the wavelet's gain at that frequency) to 1e-6 relative at 4 signal frequencies x
+    14 kernels; the chirp ridge follows the instantaneous frequency within 0.1 octave; the
+    cone of influence is masked. No independent package (ssqueezepy) is installed: the
+    reference is the closed form.
+  - REQ-211 met: exact to 1e-9 for the four transforms.
+  - REQ-212 met: sharp N1 (FWHM 8 ms, -60 µV, AR(1) noise of SD 10 µV, 30 trials, 40
+    runs): significant high gamma in the total map in 100 % of runs, in the residual map in
+    2.5 %.
+  - REQ-213 met with an interpretation: "20 % power increase" is taken as a burst adding
+    20 % to the signal power over its 100 ms (amplitude 10.3 µV for noise of SD 10 µV):
+    frequency centroid within 10 % and time centroid within 20 ms in 20 of 20 runs (40 of 40
+    in a longer check; median errors 4 % and 1 ms). Read as +20 % of the local 80 Hz power
+    (0.8 dB, amplitude 1.3 µV), no method can find it pixel by pixel with 30 trials (pixel
+    t about 0.8): the burst box has a significant pixel in at most 10 % of runs (test kept
+    as a documented limit).
+  - REQ-214 met: maps with any false pixel on null AR(1) trials: FDR 2.5 % (200 runs; the
+    pixel-wise rate is 5e-5), cluster 3 % (100 runs, 200 permutations), TFCE 1 % (100 runs,
+    200 permutations, step 0.2).
+  - REQ-215 met: one trial with 100 times the noise power changes the zone value by a
+    median 6 % (at most 8 %) of the change with `evoked` normalisation.
+  - REQ-216 met on ds004080 (6 subjects, 7 or 8 trials, one site per subject, all
+    recording channels): the published summary statistic, the share of significant
+    increases in the delayed high-gamma zone, rises with the N1 amplitude across channels:
+    Spearman rho 0.65, 0.35, 0.40, 0.61, 0.19, 0.63 (|rho| >= 0.3 in 5 of 6, all positive).
+    The mean dB over the whole zone relates less consistently (rho -0.36, -0.23, 0.16,
+    -0.38, 0.22, 0.42; mixed signs).
+  - REQ-217 and REQ-219 met.
+  - REQ-218 met: 100 channels x 50 trials x 2 048 samples x 40 frequencies, FDR and zones,
+    in 33 to 43 s on one job (target 60 s).
+- Not done: `TFFit.to_mne()` (step S17, ecosystem); tutorials 60 to 62; the ECoG-versus-sEEG
+  comparison (needs an ECoG set in the registry and the modality covariate of S14). TFCE
+  is slow (about 1.5 s per map row with 100 permutations).
+
 ### Build step S10: trial-by-trial parameters
 
 - New module `evoparam.trials` (spec §5.7): `fit_trials` returns a `TrialFitSet` (one
