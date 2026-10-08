@@ -35,7 +35,8 @@
    "quirks": [
     "74 patients aged 4-51",
     "NEMAR mirror on004080 (DOI 10.82901/nemar.on004080) with chunked (Zarr) copies",
-    "catalogued in EEG-DaSh", "sampling rate differs between runs: run-021448 of sub-ccepAgeUMCU01 is recorded at 512 Hz (read on 2026-10-07)"
+    "catalogued in EEG-DaSh",
+    "sampling rate differs between runs: run-021448 of sub-ccepAgeUMCU01 is recorded at 512 Hz (read on 2026-10-07)"
    ],
    "references": [
     "LIT-datasets-1",
@@ -290,16 +291,17 @@
    "modality": "erp",
    "recording": "eeg",
    "species": "human",
-   "sfreq": null,
+   "sfreq": 256.0,
    "n_subjects": 40,
    "size_gb": null,
-   "license": null,
+   "license": "CC-BY-4.0",
    "events_status": "unknown",
-   "format": null,
+   "format": "eeglab",
    "loader": null,
    "quirks": [
     "seven components in six paradigms, with published pipelines and scores",
-    "a Python fetcher exists (hu-neuro-pipeline, pipeline.datasets.get_erpcore)"
+    "a Python fetcher exists (hu-neuro-pipeline, pipeline.datasets.get_erpcore)",
+    "epoched files after the published pipeline: <component>/<participant>/*_epoch_interp_ar.set (OSF nodes etdkz P3, pfde9 N170, 29xpq N400, 5q4xs MMN, yefrq N2pc, 28e6c LRP, q6gwp ERN); OSF throttles downloads to about 110 kB/s per connection (2026-10-08)"
    ],
    "references": [
     "LIT-datasets-29",
@@ -386,17 +388,18 @@
    "modality": "lfp_ep",
    "recording": "lfp",
    "species": "mouse",
-   "sfreq": null,
+   "sfreq": 1250.0,
    "n_subjects": null,
    "size_gb": null,
-   "license": null,
+   "license": "CC-BY-4.0",
    "events_status": "unknown",
    "format": "nwb",
-   "loader": null,
+   "loader": "evoparam.io.read_nwb",
    "quirks": [
     "the only large, fully open, NWB-formatted source of sensory-evoked LFP",
     "distributed through DANDI",
-    "no loader in this version (NWB reader planned for build step S17)"
+    "DANDI 000021: one session file (stimulus tables) and one file per probe (LFP); read remotely by byte ranges",
+    "LFP timestamps can have gaps (session 715093703, probe 810755797: 831 to 1846 s, over the flashes); read_nwb drops the events inside a gap"
    ],
    "references": [
     "LIT-datasets-50",

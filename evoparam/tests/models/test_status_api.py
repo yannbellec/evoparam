@@ -94,8 +94,10 @@ def test_estimator_contract_and_compare():
     assert m.get_params()["max_components"] == 4
     m.set_params(max_components=3)
     assert m.get_params()["max_components"] == 3
-    m.fit(_trials())
-    assert m.n_features_in_ == 3 and m.transform().shape == (3, 3)
+    trials = _trials()
+    m.fit(trials)
+    # scikit-learn semantics (spec §10.4): samples are the channels, features the time points
+    assert m.n_features_in_ == trials.n_times and m.transform().shape == (3, 3)
     assert np.isfinite(m.score())
     rng = np.random.default_rng(2)
     y = gauss(0.2, -8, 0.04) + noise(rng)

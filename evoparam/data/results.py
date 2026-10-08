@@ -352,6 +352,52 @@ class GroupFit(_ResultMixin):
             return table
         raise DataError(f"GroupFit.to_dataframe: level must be 'component' or 'fit', got {level!r}.")
 
+    def to_annotations(self, *, what="components", orig_time=None):
+        """``mne.Annotations`` of the components, for display on MNE plots: one per
+        component, onset to offset, description ``"<label>|<channel>"`` (extra ``mne``)."""
+
+        import mne
+
+        onsets, durations, descriptions, channels = [], [], [], []
+        for ch, cond, pos in self.index[["channel", "condition", "position"]].itertuples(
+                index=False):
+            for k, comp in enumerate(self.fits[int(pos)].components):
+                if not (np.isfinite(comp.onset) and np.isfinite(comp.offset)):
+                    continue
+                onsets.append(float(comp.onset))
+                durations.append(float(comp.offset - comp.onset))
+                descriptions.append(f"{comp.label or f'c{k}'}|{ch}")
+                channels.append((ch,))
+        return mne.Annotations(onsets, durations, descriptions, orig_time=orig_time,
+                               ch_names=channels)
+
+    def to_evoked_model(self, *, sfreq=None):
+        """The fitted curves (fit window, zero elsewhere) as an ``mne.EvokedArray`` whose
+        comment is ``"evoparam model"`` (extra ``mne``)."""
+
+        import mne
+
+        fits = [self.fits[int(p)] for p in self.index["position"]]
+        lengths = [len(f.model) for f in fits if f.model is not None]
+        if not lengths:
+            raise DataError("to_evoked_model: the fits hold no model curve (saved light?).")
+        starts = [f.window[0] for f in fits]
+        stops = [f.window[1] for f in fits]
+        ref = next(f for f in fits if f.model is not None)
+        rate = sfreq or (len(ref.model) - 1) / (ref.window[1] - ref.window[0])
+        times = np.arange(min(starts), max(stops) + 0.5 / rate, 1 / rate)
+        data = np.zeros((len(fits), times.size))
+        for i, f in enumerate(fits):
+            if f.model is not None and len(f.model):
+                grid = np.linspace(f.window[0], f.window[1], len(f.model))
+                inside = (times >= f.window[0]) & (times <= f.window[1])
+                data[i, inside] = np.interp(times[inside], grid, f.model)
+        names = [f"{c}|{d}" if d else str(c) for c, d in
+                 zip(self.index["channel"], self.index["condition"])]
+        info = mne.create_info(names, float(rate), "misc")
+        return mne.EvokedArray(data, info, tmin=float(times[0]), comment="evoparam model",
+                               verbose="error")
+
     def save(self, path, overwrite=False, light=False):
         """Save to a ``.evoparam`` container; ``light=True`` drops fitted curves and residuals."""
 

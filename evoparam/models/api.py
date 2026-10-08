@@ -10,6 +10,7 @@ from scipy.stats import chi2, norm
 
 from evoparam.data import Component, Evoked, GoodnessOfFit, GroupFit, Provenance, ResponseFit
 from evoparam.data import TrialSet
+from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted
 from evoparam.errors import DataError, SettingsError
 from evoparam.shapes import compute_features
 from evoparam.version import __version__
@@ -451,7 +452,7 @@ def _amplitude(fit, k):
     return comp.amplitude
 
 
-class ResponseModel:
+class ResponseModel(BaseEstimatorMixin):
     """Estimator for evoked waveforms (spec §5.5.8): settings in ``__init__``, learned
     attributes with a trailing underscore after :meth:`fit`.
 
@@ -472,20 +473,9 @@ class ResponseModel:
             if name != "self":
                 setattr(self, name, value)
 
-    # scikit-learn conventions
     @classmethod
     def _param_names(cls):
-        return [p for p in inspect.signature(cls.__init__).parameters if p != "self"]
-
-    def get_params(self, deep=True):
-        return {name: getattr(self, name) for name in self._param_names()}
-
-    def set_params(self, **params):
-        for name, value in params.items():
-            if name not in self._param_names():
-                raise SettingsError(f"Unknown parameter {name!r}.")
-            setattr(self, name, value)
-        return self
+        return cls._get_param_names()
 
     def settings(self, **extra):
         keys = set(FitSettings.__dataclass_fields__) - {"preset"}
@@ -566,31 +556,49 @@ class ResponseModel:
                                   [condition] * len(fits), settings=settings,
                                   provenance=provenance)
 
-    def fit(self, X, y=None):
-        """Fit every channel; learned attributes ``fit_``, ``components_``,
-        ``n_features_in_``."""
+    def _as_container(self, X):
+        X = _from_mne(X)
+        if isinstance(X, (TrialSet, Evoked)):
+            return X
+        data = np.atleast_2d(np.asarray(X, dtype=float))
+        if data.ndim != 2:
+            raise DataError("X must be an Evoked, a TrialSet, an MNE object or a 2-D array "
+                            "(n_channels, n_times).")
+        if self.sfreq is None:
+            raise SettingsError("sfreq is required when X is an array.")
+        tmin = 0.0 if self.tmin is None else self.tmin
+        times = tmin + np.arange(data.shape[-1]) / self.sfreq
+        return Evoked(data=data, times=times, sfreq=self.sfreq,
+                      ch_names=[f"ch{i}" for i in range(len(data))])
 
-        if isinstance(X, np.ndarray):
-            if self.sfreq is None:
-                raise SettingsError("sfreq is required when X is an array.")
-            data = np.atleast_2d(X)
-            tmin = 0.0 if self.tmin is None else self.tmin
-            times = tmin + np.arange(data.shape[-1]) / self.sfreq
-            X = Evoked(data=data, times=times, sfreq=self.sfreq,
-                       ch_names=[f"ch{i}" for i in range(len(data))])
+    def fit(self, X, y=None):
+        """Fit every channel. Learned: ``fit_`` (GroupFit), ``components_`` (table),
+        ``n_features_in_`` (samples per waveform)."""
+
+        X = self._as_container(X)
         self.fit_ = self.fit_group(X)
         self.components_ = self.fit_.to_dataframe()
-        self.n_features_in_ = len(self.fit_.fits)
+        self.n_features_in_ = int(X.n_times)
         return self
 
     def predict(self, X=None):
-        """Fitted curves of the window of every channel."""
+        """Fitted curves on the fit window, (n_channels, n_window_samples); NaN for a
+        channel without a model."""
 
-        return [fit.model for fit in self.fit_.fits]
+        check_is_fitted(self)
+        lengths = [len(f.model) for f in self.fit_.fits if f.model is not None]
+        width = max(lengths) if lengths else 0
+        out = np.full((len(self.fit_.fits), width), np.nan)
+        for i, fit in enumerate(self.fit_.fits):
+            if fit.model is not None:
+                out[i, :len(fit.model)] = fit.model
+        return out
 
     def transform(self, X=None):
-        """Feature matrix: latency and amplitude of the largest component per channel."""
+        """Feature matrix (n_channels, 3): latency, amplitude and width of the largest
+        component of each channel (NaN without component)."""
 
+        check_is_fitted(self)
         rows = []
         for fit in self.fit_.fits:
             if fit.components:
@@ -598,7 +606,7 @@ class ResponseModel:
                 rows.append([comp.latency, comp.amplitude, comp.fwhm])
             else:
                 rows.append([np.nan] * 3)
-        return np.array(rows)
+        return np.array(rows, dtype=float).reshape(-1, 3)
 
     def get_feature_names_out(self, input_features=None):
         return np.array(["latency", "amplitude", "fwhm"])
@@ -606,6 +614,7 @@ class ResponseModel:
     def score(self, X=None, y=None):
         """Mean r2 over the channels that were fitted."""
 
+        check_is_fitted(self)
         values = [f.gof.r2 for f in self.fit_.fits if f.gof is not None]
         return float(np.nanmean(values)) if values else np.nan
 
@@ -618,6 +627,24 @@ def fit_response(times, y, *, window, baseline, preset=None, **overrides):
 
     model = ResponseModel(preset, fit_window=window, baseline=baseline, **overrides)
     return model.fit_waveform(times, y)
+
+
+def _from_mne(data):
+    """MNE Epochs, Evoked or a list of Evoked as evoparam containers (others unchanged)."""
+
+    kind = type(data).__module__.split(".")[0]
+    if isinstance(data, (list, tuple)) and data and \
+            type(data[0]).__module__.split(".")[0] == "mne":
+        return [Evoked.from_mne(evoked) for evoked in data]
+    if kind != "mne":
+        return data
+    import mne
+
+    if isinstance(data, mne.BaseEpochs):
+        return TrialSet.from_mne(data)
+    if isinstance(data, mne.Evoked):
+        return Evoked.from_mne(data)
+    raise DataError(f"fit: cannot use an MNE {type(data).__name__}; epoch it first.")
 
 
 def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None, picks=None,
@@ -647,6 +674,17 @@ def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None
         window = given if window is None else window
     model = ResponseModel(preset, fit_window=window, baseline=baseline, n_jobs=n_jobs,
                           random_state=random_state, **overrides)
+    data = _from_mne(data)
+    if isinstance(data, list):
+        # MNE Evoked objects, one condition each (their comment is the condition label)
+        fits, chans, conds = [], [], []
+        for k, evoked in enumerate(data):
+            label = evoked.provenance.source.get("comment") or str(k)
+            group = model.fit_group(evoked, picks=picks, condition=label)
+            fits += group.fits
+            chans += list(group.index["channel"])
+            conds += [label] * len(group.fits)
+        return GroupFit.from_fits(fits, chans, conds, settings=_settings_dict(model.settings()))
     if isinstance(data, np.ndarray):
         if times is None:
             raise SettingsError("times is required when data is an array.")
