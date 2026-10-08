@@ -1,9 +1,7 @@
 """REQ-250: every generator is deterministic for a given seed."""
 
 import copy
-import hashlib
 import json
-import platform
 import pathlib
 
 import numpy as np
@@ -102,8 +100,9 @@ def test_truth_compares_equal_to_its_copy():
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
 def test_reference_fingerprints(name):
     """Values committed from a reference run (seed 2024): the same on every platform of the
-    CI within 1e-9 relative (REQ-295); byte-identical on the platform and with the numpy and
-    scipy versions that produced them (other platforms differ in the last bits: SIMD, libm)."""
+    CI within 1e-9 relative (REQ-295). Bytes are not compared with the committed run: they
+    differ in the last bits between CPUs and platforms (SIMD paths, libm), even with the same
+    numpy and scipy; byte identity is checked between two runs on the same machine above."""
 
     reference = json.loads(REFERENCE.read_text(encoding="utf-8"))
     expected = reference["generators"][name]
@@ -117,12 +116,6 @@ def test_reference_fingerprints(name):
     np.testing.assert_allclose(np.sum(np.abs(ts.data)), expected["sum_abs"], rtol=1e-9)
     np.testing.assert_allclose([c["features"]["latency"] for c in truth.components][:8],
                                expected["latencies"], rtol=1e-9, atol=1e-12)
-    made_with = reference["made_with"]
-    import scipy
-    here = (np.__version__, scipy.__version__, platform.machine(), platform.system())
-    if here == (made_with["numpy"], made_with["scipy"], made_with["machine"],
-                made_with["system"]):
-        assert hashlib.sha256(ts.data.tobytes()).hexdigest() == expected["sha256"]
 
 
 def test_bad_seed():

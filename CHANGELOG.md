@@ -123,9 +123,10 @@
 - Choices where the specification leaves room:
   - `sim` imports `evoparam.io` (the licence registry); the import-graph rule now allows
     `sim → io`.
-  - REQ-250 is met as byte-identical output on one platform and agreement within 1e-9
-    across platforms (the committed fingerprints). The checksum is compared only with the
-    numpy and scipy versions that made it.
+  - REQ-250 is met as byte-identical output between runs on one machine and agreement
+    within 1e-9 across platforms (the committed fingerprints). No checksum is committed:
+    the bytes differ in the last bits between CPUs (SIMD paths), even on Linux x86_64 with
+    the same numpy and scipy, and between Linux and macOS.
   - Pink noise is shaped in the frequency domain with `scipy.fft` over a twice-longer
     segment and scaled to the exact SD. AR(1) starts from its stationary state.
   - Real noise is cut from a `TrialSet` given as `source`, by default its pre-stimulus part.
