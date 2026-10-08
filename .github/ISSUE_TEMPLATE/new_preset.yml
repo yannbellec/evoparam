@@ -1,0 +1,31 @@
+name: New preset
+description: Propose settings for a recording modality.
+labels: [preset]
+body:
+  - type: input
+    id: modality
+    attributes:
+      label: Modality and species
+    validations:
+      required: true
+  - type: textarea
+    id: values
+    attributes:
+      label: Proposed values
+      description: Epoch, baseline, artifact window, fit window, shapes, widths, existence test.
+    validations:
+      required: true
+  - type: textarea
+    id: literature
+    attributes:
+      label: Literature keys
+      description: One reference (DOI) for each value, or the reason for the choice.
+    validations:
+      required: true
+  - type: textarea
+    id: dataset
+    attributes:
+      label: Test dataset
+      description: An open dataset (DOI, licence, size) on which the preset can be validated.
+    validations:
+      required: true

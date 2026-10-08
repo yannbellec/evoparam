@@ -157,3 +157,13 @@ We can fit the group of ERPs by doing:
 
     # Save out evoparamGroup results for further analysis later
     params.save(file_name='group_results', save_results=True)
+
+Community
+---------
+
+* `CONTRIBUTING.md <CONTRIBUTING.md>`_: development install, tests, coding rules, adding a
+  preset, shape, reader (plugins, `docs/contributing/add_shape.rst
+  <docs/contributing/add_shape.rst>`_) or dataset, Developer Certificate of Origin.
+* `CODE_OF_CONDUCT.md <CODE_OF_CONDUCT.md>`_, `GOVERNANCE.md <GOVERNANCE.md>`_,
+  `SUPPORT.md <SUPPORT.md>`_, `SECURITY.md <SECURITY.md>`_.
+* Questions: GitHub Discussions or the Neurostars tag ``evoparam``; bugs: the issue tracker.

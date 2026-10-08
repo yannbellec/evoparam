@@ -1,0 +1,23 @@
+name: New dataset
+description: Propose an open dataset for the registry.
+labels: [dataset]
+body:
+  - type: input
+    id: doi
+    attributes:
+      label: DOI or address
+    validations:
+      required: true
+  - type: input
+    id: licence
+    attributes:
+      label: Licence
+    validations:
+      required: true
+  - type: textarea
+    id: content
+    attributes:
+      label: Content
+      description: Modality, species, number of subjects, size, format (BIDS, NWB, ...).
+    validations:
+      required: true
