@@ -10,10 +10,16 @@
       "polarity": "negative",
       "min_duration": 0.0,
       "sd_floor_uv": 50.0,
+      "peak": "extremum",
+      "peak_selectivity_uv": 20.0,
+      "peak_search_end": 0.5,
+      "exclude_first_sample": true,
+      "saturation_uv": 3000.0,
       "unspecified": ["baseline"],
-      "hint": "the ER-detect default baseline search epoch is (-1.0, -0.1) s",
-      "source": "van Blooijs et al. 2023, Sci Data (ds004080); ER-detect defaults",
-      "verified": {"k": true, "window": true, "sd_floor_uv": true, "baseline": false}
+      "hint": "the ER-detect default baseline search epoch is (-1.0, -0.1) s; the published code (mnl_ccepAge, ccep_detect_n1peak_ECoG.m) takes the SD over (-2.0, -0.1) s of an average whose trials had their median over (-1.0, -0.1) s removed, and reads the peak with peak='local'",
+      "source": "van Blooijs et al. 2023, Nat Neurosci (ds004080); code: mnl_ccepAge ccep_detect_n1peak_ECoG.m",
+      "notes": "peak='extremum' (default): the most negative sample of the window, the paper's description. peak='local': the published code to the letter: local minima found with a selectivity of 20 uV (peakfinder) searched from the first sample after 9 ms to the first after 500 ms, the first sample excluded, kept up to the first sample after 100 ms, the minimum of largest magnitude chosen, measured from the baseline median, refused above 3000 uV (saturation) or when every minimum is positive (a positive-valued minimum is otherwise accepted on its magnitude, as in the code).",
+      "verified": {"k": true, "window": true, "sd_floor_uv": true, "peak": true, "baseline": false}
     },
     "hays2021": {
       "statistic": "negative_peak_z",

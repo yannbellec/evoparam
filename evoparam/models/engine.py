@@ -40,65 +40,111 @@ MAX_AR_ORDER = 10
 SAMPLES_PER_ORDER = 20
 
 
-def ar_model(z):
-    """Autoregressive model of a standardised baseline (Yule-Walker, order by AIC).
+def ar_model(z, return_acov=False):
+    """Autoregressive model of a standardised baseline (least squares, order by AIC).
 
-    Returns (filter coefficients ``a`` = [1, -phi_1, ..., -phi_p], innovation SD).
+    Returns (filter coefficients ``a`` = [1, -phi_1, ..., -phi_p], innovation SD), and with
+    ``return_acov`` the autocovariances of lags ``0 .. p - 1`` implied by the fitted model.
+
+    Least squares (the covariance method), not Yule-Walker: intracranial averages sit near a
+    unit root (sum of the coefficients 0.98 to 0.995 at 2 kHz), where Yule-Walker is biased
+    towards a faster decay; the model then under-states the slow power of the noise, and a
+    correct fit reads slow fluctuations of a real baseline as components (REQ-112 on
+    ds004080: 92.5 % silent with Yule-Walker, 97.5 % with least squares). Orders whose
+    fitted model is not stationary are skipped.
     """
-
-    from scipy.linalg import solve_toeplitz
 
     z = np.asarray(z, float) - np.mean(z)
     n = len(z)
     p_max = int(min(MAX_AR_ORDER, n // SAMPLES_PER_ORDER))
-    acov = np.array([np.dot(z[:n - k], z[k:]) / n for k in range(p_max + 1)])
-    if acov[0] <= 0:
-        return np.array([1.0]), 1.0
-    best = (n * np.log(acov[0]), np.array([1.0]), np.sqrt(acov[0]))
+    target = z[p_max:]
+    var0 = float(np.mean(target ** 2))
+    if not var0 > 0:
+        return (np.array([1.0]), 1.0, np.zeros(0)) if return_acov else (np.array([1.0]), 1.0)
+    best = (len(target) * np.log(var0), np.zeros(0), var0)
     for p in range(1, p_max + 1):
-        try:
-            phi = solve_toeplitz(acov[:p], acov[1:p + 1])
-        except np.linalg.LinAlgError:
-            break
-        var = acov[0] - np.dot(phi, acov[1:p + 1])
-        if not var > 0:
-            break
-        aic = n * np.log(var) + 2 * p
+        lagged = np.column_stack([z[p_max - k:n - k] for k in range(1, p + 1)])
+        phi = np.linalg.lstsq(lagged, target, rcond=None)[0]
+        var = float(np.mean((target - lagged @ phi) ** 2))
+        if not var > 0 or np.max(np.abs(np.roots(np.r_[1.0, -phi]))) >= 1.0:
+            continue
+        aic = len(target) * np.log(var) + 2 * p
         if aic < best[0]:
-            best = (aic, np.r_[1.0, -phi], np.sqrt(var))
-    return best[1], float(best[2])
+            best = (aic, phi, var)
+    _, phi, var = best
+    a = np.r_[1.0, -phi]
+    if not return_acov:
+        return a, float(np.sqrt(var))
+    return a, float(np.sqrt(var)), _ar_autocovariance(phi, var)[:len(phi)]
+
+
+def _ar_autocovariance(phi, var):
+    """Autocovariances of lags 0 .. p of a stationary AR(p) model (Yule-Walker equations
+    solved for the autocovariances)."""
+
+    p = len(phi)
+    lhs = np.eye(p + 1)
+    for k in range(p + 1):
+        for j in range(1, p + 1):
+            lhs[k, abs(k - j)] -= phi[j - 1]
+    rhs = np.zeros(p + 1)
+    rhs[0] = var
+    return np.linalg.solve(lhs, rhs)
 
 
 class Whitener:
     """Linear map that turns the model residual into (approximately) white noise.
 
     ``white(x) = AR-filter(x / scale) / innovation_sd``, with the autoregressive filter of
-    the baseline noise. Rows that depend on a masked sample (or on samples before the
-    window, for the first ``p`` rows) are set to zero: they carry no evidence.
+    the baseline noise. Rows that depend on a masked sample are set to zero: they carry no
+    evidence. The first ``p`` rows depend on samples before the window: without ``acov``
+    they are set to zero too (conditional likelihood); with ``acov`` (the autocovariances
+    of lags ``0 .. p - 1`` of the stationary noise) they are whitened by the Cholesky factor
+    of its ``p x p`` covariance (exact likelihood). The exact form keeps the information
+    about the level of the waveform: near a unit root (lag-1 autocorrelation 0.99 and
+    more, as in intracranial averages) the AR filter is almost a difference and the
+    conditional likelihood is blind to a misfit of the slow part of the waveform, so that
+    a curve hundreds of microvolts away from the data could be preferred.
     """
 
-    def __init__(self, scale, a, innovation, valid):
+    def __init__(self, scale, a, innovation, valid, acov=None):
         self.scale = np.asarray(scale, float)
         self.a = np.asarray(a, float)
         self.innovation = float(innovation)
         p = len(self.a) - 1
         ok = np.asarray(valid, bool).copy()
+        self.start = None
         if p:
             bad = ~ok
             spread = np.convolve(bad.astype(float), np.ones(p + 1))[:len(ok)] > 0
+            first_valid = bool(np.all(ok[:p])) and len(ok) > p
             ok = ~spread
             ok[:p] = False
+            if acov is not None and len(acov) == p and first_valid:
+                from scipy.linalg import cholesky, toeplitz
+
+                try:
+                    self.start = cholesky(toeplitz(np.asarray(acov, float)), lower=True)
+                    ok[:p] = True
+                except np.linalg.LinAlgError:
+                    self.start = None
+        self.p = p
         self.rows = ok
         self.n = int(ok.sum())
 
     def __call__(self, x):
+        from scipy.linalg import solve_triangular
         from scipy.signal import lfilter
 
         x = np.asarray(x, float)
-        u = x / (self.scale if x.ndim == 1 else self.scale[:, None])
+        raw = x / (self.scale if x.ndim == 1 else self.scale[:, None])
+        u = raw
         if len(self.a) > 1:
-            u = lfilter(self.a, [1.0], u, axis=0)
+            u = lfilter(self.a, [1.0], raw, axis=0)
         u = u / self.innovation
+        if self.start is not None:
+            u = np.array(u, copy=True)
+            u[:self.p] = solve_triangular(self.start, raw[:self.p], lower=True)
         if x.ndim == 1:
             return np.where(self.rows, u, 0.0)
         return np.where(self.rows[:, None], u, 0.0)
@@ -482,14 +528,14 @@ def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_
     if sem is not None:
         s_ = np.asarray(sem, float)[wmask]
         scale = np.maximum(np.nan_to_num(s_, nan=sigma), 0.1 * sigma)
-    a_coefs, innovation = np.array([1.0]), 1.0
+    a_coefs, innovation, acov = np.array([1.0]), 1.0, None
     if settings.noise_model == "ar" and settings.baseline is not None:
         base = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask
         if base.sum() >= MIN_BASELINE:
-            a_coefs, innovation = ar_model(y[base] / sigma)
+            a_coefs, innovation, acov = ar_model(y[base] / sigma, return_acov=True)
     if sem is not None:
         innovation = 1.0 if len(a_coefs) == 1 else innovation
-    white = Whitener(scale, a_coefs, innovation, valid)
+    white = Whitener(scale, a_coefs, innovation, valid, acov=acov)
     n_valid = int(valid.sum())
     n_eff = n_valid * (1 - rho) / (1 + rho)
     n_white = white.n

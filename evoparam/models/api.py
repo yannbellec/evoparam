@@ -20,7 +20,7 @@ from .classical import classical_measures
 from .labels import label_components
 
 __all__ = ["ResponseModel", "fit", "fit_response", "compare_models", "methods_text",
-           "evaluate_fit"]
+           "evaluate_fit", "fitted_peak"]
 
 FEATURES_WITH_SE = ("latency", "amplitude", "fwhm", "onset", "offset", "area")
 
@@ -377,6 +377,46 @@ def evaluate_fit(fit, times, *, components=None, background=True):
             basis = bg.basis(times, np.array(nl) if nl else None)
             total += np.asarray(lin) @ np.atleast_2d(basis)
     return total
+
+
+def fitted_peak(fit, window, *, polarity="negative", step=1e-4):
+    """Peak of the fitted waveform (background and components) inside a window.
+
+    The deepest interior local minimum (``polarity="negative"``) or highest interior local
+    maximum (``"positive"``) of the fitted curve between ``window[0]`` and ``window[1]``,
+    on a grid of ``step`` seconds; a curve that is monotone through the window has no peak.
+    The value is relative to zero (baseline-corrected data) and must have the sign of the
+    polarity.
+
+    Why: when an early component overlaps the recovery tail (the exponential background),
+    the split of the curve between them is sloppy (often flagged ``ill_conditioned``), so a
+    component's own latency can lie several ms from the trough of the waveform while the
+    fitted curve itself is well determined. On ds004080 the N1 latency of the component was
+    within 2 ms of the published rule's peak on about a quarter of the channels where both
+    find an N1, the trough of the fitted curve on about nine in ten (CHANGELOG).
+
+    Returns
+    -------
+    dict
+        ``latency`` (s) and ``amplitude`` (data unit), NaN when there is no such peak.
+    """
+
+    if polarity not in ("negative", "positive"):
+        raise SettingsError("polarity must be 'negative' or 'positive'.")
+    out = {"latency": np.nan, "amplitude": np.nan}
+    if fit.status != "ok" or not fit.background:
+        return out
+    grid = np.arange(window[0], window[1] + step / 2, step)
+    if len(grid) < 3:
+        return out
+    curve = evaluate_fit(fit, grid)
+    s = -curve if polarity == "negative" else curve
+    inner = np.flatnonzero((s[1:-1] >= s[:-2]) & (s[1:-1] > s[2:])) + 1
+    inner = inner[s[inner] > 0]
+    if inner.size:
+        j = inner[np.argmax(s[inner])]
+        out = {"latency": float(grid[j]), "amplitude": float(curve[j])}
+    return out
 
 
 def _amplitude(fit, k):

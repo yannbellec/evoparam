@@ -2,6 +2,154 @@
 
 ## Unreleased
 
+### N1 case (REQ-113, REQ-114): diagnosis on ds004080 and fixes
+
+- Diagnosis. The xfail test compared the model with a re-reading of the rule (most
+  negative sample of 9–100 ms below 3.4 x the SD of (-0.5, -0.02) s), applied after the
+  model's own preprocessing (template removal, `car_adaptive`), on the 8 trials of the cached
+  40 s segment and on 120 contacts, `el###` channels marked bad included. The published
+  pipeline (mnl_ccepAge, van Blooijs et al. 2023: `ccep01_averageCCEPsAndDetectN1s.m`,
+  `ccep_averageConditions.m`, `ccep_detect_n1peak_ECoG.m`) does otherwise: monopolar raw
+  data, no filter and no artifact removal, both polarities of the pair merged (10 trials
+  for PT01-PT02), the median of (-1, -0.1) s removed from each trial, then the median of
+  (-2, -0.1) s from the average; SD of (-2, -0.1) s with a 50 uV floor; local minima found
+  by `peakfinder` (selectivity 20 uV) from 9 to 500 ms, the first sample excluded, kept up
+  to the first sample after 100 ms, the one of largest magnitude chosen; refused above
+  3000 uV; good ECoG channels of channels.tsv only (100 on this run). Read so, the rule
+  finds 4 N1s on run-021448 (PT09, OC5, OC6, OC7), 1 of them on the 46 PT contacts; the old
+  re-reading found 8, four of them the artifact residue at the window start (9.8 ms: PT03,
+  PT10, PT11, OC8) and the rest drift near 100 ms. Disagreements between the model and the
+  published rule fell in four classes: (1) the old reading's artifact and drift
+  detections (the rule as read, not the model); (2) small real deflections (30–80 uV) that
+  the model finds and the 170 uV floor of the rule ignores (the rule's design: 8 of 20
+  engine-only N1s on six subjects lie between 3.4 SD and the floor, 5 below 3.4 SD);
+  (3) N1 latencies of the fitted component several ms from the trough, the early component
+  and the recovery tail trading amplitude (the engine's reading); (4) fits whose curve lay
+  hundreds of uV from the data (R² < 0) and were still accepted (the engine).
+- Engine, exact AR likelihood. `Whitener` takes the autocovariances of the baseline AR
+  model (`ar_model(..., return_acov=True)`) and whitens the first `p` samples of the window
+  by the Cholesky factor of their stationary covariance instead of dropping them. Near a
+  unit root (sum of the AR coefficients 0.98–0.995 in intracranial averages at 2 kHz) the
+  AR filter is almost a difference, and the conditional likelihood was blind to a misfit of
+  the slow part of the waveform: the curve could float away from the data (class 4).
+- Engine, noise model by least squares. `ar_model` fits the AR coefficients by least
+  squares (covariance method; orders whose model is not stationary are skipped; order by
+  AIC as before) instead of Yule-Walker, which is biased towards a faster decay near a unit
+  root and so under-states the slow power of the noise. With Yule-Walker and the exact
+  likelihood, correct fits read slow fluctuations of real baselines as components: REQ-112
+  on the ds004080 baselines fell to 92.5 % silent (74 of 80; 95.0 % before, partly because
+  the old fits failed: R² down to -2 on silent baselines). With least squares: 97.5 % (78
+  of 80; the two others are the stimulated contacts PT01, flat, and PT02).
+  The exact likelihood makes some fits slower (up to 10x on sub-ccepAgeUMCU19, 63 channels);
+  REQ-115 was already unmet.
+- `evoparam.models.fitted_peak(fit, window, polarity=...)`: the deepest interior trough
+  (or highest interior peak) of the fitted curve in a window, NaN when the curve is
+  monotone there. Where the tail and an early component overlap, their split is sloppy but
+  the curve is well determined (class 3): with the Yule-Walker engine, the latency of the
+  first N1 component was within 2 ms of the published peak on 27 % of the shared
+  channels, the trough of the curve on 96 %.
+- Registry rule `vanblooijs2023`: new fields `peak` (`"extremum"`, the default and the
+  paper's description, unchanged; `"local"`, the published code to the letter, measured
+  from the baseline median), `peak_selectivity_uv`, `peak_search_end`,
+  `exclude_first_sample`, `saturation_uv`; new public helper
+  `evoparam.existence.rules.selective_maxima` (re-implementation of N. C. Yoder's
+  `peakfinder`, BSD; it matched a direct port on 20 000 random signals and on all 427
+  channels below). With `peak="local"` and baseline (-2, -0.1) s the registry rule gives the
+  published detections on all 427 channels. Kept from the published code: a positive-valued
+  minimum is accepted on its magnitude unless all minima are positive. Notes: the code
+  labels the onset sample t = 1/fs (latencies here are on the evoparam axis, 1/fs earlier);
+  the registry SD stays the population SD (ddof 0; the code's ddof 1 changes no detection
+  here). `"local"` is not the default: REQ-135 (permutation test vs vanblooijs2023, kappa
+  0.763 >= 0.7, unchanged) falls to 0.40 with it, because the permutation test, like the
+  paper's text, looks at the most extreme deflection.
+- Model N1 for REQ-113/114: the trough of the fitted curve in 9–50 ms, at least as deep as
+  the published amplitude criterion (3.4 x max(SD, 50 uV) of the published average), i.e.
+  the rule's own criterion applied to the model's measurement. The engine runs the ccep
+  preset pipeline (epochs (-1, 2) s, template removal (-2, 8) ms, `car_adaptive`, baseline
+  (-0.5, -0.02) s); the rule runs the published pipeline on the same trials.
+- Tests (`tests/models/test_engine_ccep.py`, network only): all trials of the pair (both
+  polarities), read by byte ranges and cached as `.npz` under
+  `data_folder()/n1-validation/ds004080`, on run-021448 (PT01-PT02, the example) and the
+  runs of `validation/ds004080_subjects.txt` (REQ-371: UMCU01 run-061233, UMCU02
+  run-021804, UMCU03 run-031411, UMCU04 run-031148, UMCU05 run-031133), each with the
+  first stimulation pair of the run, in event order, with at least 10 trials (the list's
+  own rule): PT01-PT02, FC01-FC02, C01-C02, TPa1-TPa2, P01-P02. These runs were not used to
+  choose the method: the development subjects were UMCU07, 19, 28, 40 and 49 (the
+  existence validation), reported below. Passing: `test_req113_model_finds_the_published_n1s`
+  (at most one missed channel on the example; over the REQ-371 runs pooled kappa >= 0.8 and
+  each run >= 0.60, the inter-rater kappa of human reviewers) and
+  `test_req114_n1_latency_agrees_with_published_rule` (>= 90 % within 2 ms on the
+  example). Documented xfails: `test_req113_as_written` (kappa >= 0.8 on the 46 PT
+  contacts, and at most one missed channel and kappa >= 0.8 on each REQ-371 run) and
+  `test_req114_n1_latency_agrees_on_all_runs`. New registry tests for `peak="local"` and
+  `selective_maxima`.
+- Results against the published rule read as published (all trials, good ECoG channels;
+  kappa, missed channels, latency within 2 ms). Before: the S7 engine and reading (an N1
+  component with latency in 9–50 ms). After: exact likelihood, least-squares noise model
+  and the trough reading.
+
+  Development subjects (the method was chosen on these):
+
+  | subject (pair, channels) | rule N1 | kappa before | after | missed before | after | latency before | after |
+  |---|---|---|---|---|---|---|---|
+  | UMCU01 run-021448 (PT01-PT02, 100) | 4 | 0.34 | 0.88 | 0 | 0 | 2/4 | 4/4 |
+  | the same, 46 PT contacts | 1 | 0.17 | 0.66 | 0 | 0 | 0/1 | 1/1 |
+  | UMCU07 (sTa5-sTa6, 109) | 9 | 0.31 | 0.70 | 1 | 1 | 1/8 | 7/8 |
+  | UMCU19 (PT01-PT02, 63) | 3 | 0.46 | 0.47 | 0 | 1 | 1/3 | 2/2 |
+  | UMCU28 (F01-F02, 60) | 6 | 0.45 | 1.00 | 1 | 0 | 2/5 | 4/6 |
+  | UMCU40 (FB1-FB2, 53) | 2 | 0.17 | 1.00 | 1 | 0 | 0/1 | 2/2 |
+  | UMCU49 (HP01-HP02, 42) | 6 | 0.21 | 0.91 | 1 | 0 | 1/5 | 6/6 |
+  | pooled (427) | 30 | 0.34 | 0.81 | 4 | 2 | 27 % | 89 % (28) |
+
+  REQ-371 runs (confirmation, after the method was fixed):
+
+  | subject, run (pair, channels) | rule N1 | model N1 | kappa | missed | latency |
+  |---|---|---|---|---|---|
+  | UMCU01 run-061233 (PT01-PT02, 100) | 5 | 4 | 0.88 | 1 | 3/4 |
+  | UMCU02 run-021804 (FC01-FC02, 84) | 2 | 2 | 1.00 | 0 | 1/2 |
+  | UMCU03 run-031411 (C01-C02, 70) | 3 | 3 | 1.00 | 0 | 3/3 |
+  | UMCU04 run-031148 (TPa1-TPa2, 109) | 1 | 1 | 1.00 | 0 | 1/1 |
+  | UMCU05 run-031133 (P01-P02, 91) | 6 | 5 | 0.71 | 2 | 4/4 |
+  | pooled (454) | 17 | 15 | 0.87 | 3 | 12/14 |
+
+  With the example run: pooled kappa 0.87 over 554 channels, latency 16 of 18.
+
+  The old test's own measure (re-read rule on the 8-trial segment) was about 0.5. On the
+  46 PT contacts the only disagreement is PT03, next to the stimulated pair: a monotone
+  decaying tail for the rule, a 344 uV trough at 17 ms for the model. Missed channels:
+  UMCU07 sOc7 (rule 70 ms, outside the model's 9–50 ms N1 label), UMCU19 sT7 (model trough
+  169 uV against a 170 uV floor), UMCU01 run-061233 PT11 (the rule's peak is the second
+  sample of its window, 9.3 ms at 2048 Hz: artifact residue, class 1), UMCU05 OB6 (no
+  trough in the fitted curve) and PB6 (trough 146 uV, under the floor). The rule's
+  9.3 ms peaks also make the two latency misses of the REQ-371 runs (PT03 and FC10, model
+  trough at 17.5 and 33.3 ms); the development misses are 2.1–3.3 ms. UMCU19's low kappa
+  comes from PT03-PT05, next to the stimulated pair, whose troughs of 2.7–3.3 mV the rule
+  refuses (no local minimum, or above its 3000 uV saturation limit); the model's criterion
+  uses the floor only. Intermediate steps on the development subjects, pooled kappa /
+  latency: Yule-Walker engine with the trough reading 0.74 / 83 %; with the exact
+  likelihood 0.79 / 96 % (REQ-112 then unmet, above); exact likelihood with the component
+  reading 0.33 / 27 %.
+- REQ-113 is still unmet as written (0.66 on the 46 PT contacts; UMCU05 misses two
+  channels and has kappa 0.71). Its wording cannot be met by a better model alone: the
+  rule's 170 uV floor and its rejection of responses whose trough is not a local minimum
+  are a definition of "N1", not a measurement, its peak search takes artifact residue at
+  9.3 ms at 2048 Hz, and on the example run the rule finds one N1 on the 46 PT contacts,
+  so a single disagreement sets kappa at 0.66. "46 non-stimulated channels" are the PT
+  grid; the published channel set is the good ECoG channels (100). Proposed wording (the
+  spec text is not changed here): "on ds004080 sub-ccepAgeUMCU01 run-021448, stimulation
+  pair PT01-PT02, all trials of the pair, the published rule applied as the published code
+  applies it (monopolar average, median baselines, local minimum in 9–100 ms, 3.4 x SD with
+  a 50 uV floor) on the good ECoG channels, and the model's N1 (the trough of the fitted
+  curve in 9–50 ms) judged by the same amplitude criterion: the model misses at most one
+  of the rule's channels; on the runs of the REQ-371 subjects (first pair of >= 10
+  trials), Cohen's kappa is >= 0.8 pooled and >= 0.6 (the inter-rater agreement of human
+  reviewers) on each run". Measured against it: met (0 missed on the example; pooled 0.87,
+  each run >= 0.71). REQ-114 is met on run-021448 (4 of 4), not over all runs (89 %).
+- REQ-273 (the ccep preset meets REQ-113 and REQ-114 on ds004080) follows: the test
+  pipeline is the preset's (epochs, `template+tail:joint` artifact handling, `car_adaptive`,
+  baseline, fit settings); REQ-114 met on the example run, REQ-113 not met as written (met
+  under the proposed wording).
+
 ### Build step S12: shared shapes across channels, parameter maps and the volume-conduction screen
 
 - New module `evoparam.spatial` (spec §5.9): `shared_shapes` with `convergent` (sites into

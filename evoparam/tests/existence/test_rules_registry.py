@@ -71,3 +71,52 @@ def test_detectors_namespace_and_custom_rule():
     custom = {"statistic": "abs_peak_z", "k": 4.0, "window": (0.0, 0.05),
               "baseline": (-0.5, -0.05)}
     assert run_test(evoked, method="threshold", rule=custom).significant[0]
+
+
+def _uv(y):
+    y = np.atleast_2d(y)
+    return Evoked(data=y, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(len(y))],
+                  units="uV")
+
+
+def test_selective_maxima_matches_the_definition():
+
+    from evoparam.existence.rules import selective_maxima
+
+    x = np.array([0.0, 5.0, 4.0, 4.5, 0.0, 10.0, 9.0, 12.0, 0.0])
+    # 4.5 does not rise 2 above its valley (4.0); 10 does not fall 2 before 12
+    assert selective_maxima(x, 2.0).tolist() == [1, 7]
+    assert selective_maxima(x, 0.0).tolist() == [1, 3, 5, 7]
+    # a monotone signal: only an end point, when it stands out by more than sel
+    assert selective_maxima(np.arange(5.0), 1.0).tolist() == [4]
+    assert selective_maxima(np.arange(5.0), 10.0).tolist() == []
+
+
+def test_vanblooijs2023_published_code_reading():
+    """peak="local" reads the N1 as the published code does (mnl_ccepAge): a monotone tail
+    through the window start or a drift through its end is not a peak; a trough is."""
+
+    from .helpers import gaussian
+
+    base = (-0.5, -0.05)
+    rng = np.random.default_rng(3)
+    noise = rng.normal(0, 10, (4, len(TIMES)))
+    noise[:, TIMES > 0] = 0.0
+    tail = np.where(TIMES > 0, -600 * np.exp(-TIMES / 0.01), 0.0)
+    drift = np.where(TIMES > 0, -400 * np.clip((TIMES - 0.06) / 0.04, 0, None), 0.0)
+    trough = -300 * gaussian(0.025, 0.012)
+    small = -100 * gaussian(0.025, 0.012)                  # under the 170 uV floor
+    evoked = _uv(noise + np.array([tail, drift, trough, small]))
+    local = run_test(evoked, method="threshold", rule="vanblooijs2023",
+                     rule_overrides={"baseline": base, "peak": "local"})
+    extremum = run_test(evoked, method="threshold", rule="vanblooijs2023",
+                        rule_overrides={"baseline": base})
+    assert local.significant.tolist() == [False, False, True, False]
+    assert extremum.significant.tolist() == [True, True, True, False]
+    assert abs(local.onset[2] - 0.025) <= 1.0 / SFREQ
+    # a trough beyond 3000 uV is refused as saturated, as in the published code
+    big = run_test(_uv(noise[0] - 4000 * gaussian(0.025, 0.012)), method="threshold",
+                   rule="vanblooijs2023", rule_overrides={"baseline": base, "peak": "local"})
+    assert not big.significant[0]
+    with pytest.raises(SettingsError, match="peak"):
+        resolve_rule("vanblooijs2023", baseline=base, peak="global")
