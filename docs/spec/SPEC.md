@@ -449,7 +449,7 @@ Dependency rules (enforced by an import-graph test, REQ-296):
 | `spatial`, `tf`, `stats` | `data`, `models`, `utils` | `hierarchical` (stats is imported by hierarchical, not the reverse) |
 | `sim` | `data`, `shapes`, `artifact` (artifact templates) | `models` (ground truth must not depend on the fitter) |
 | `presets` | nothing but `dataclasses` | everything (presets are pure data) |
-| `reports`, `plots`, `cli`, `stream`, `benchmark` | any module above | each other, except `benchmark → reports` |
+| `reports`, `plots`, `cli`, `stream`, `benchmark` | any module above | each other, except `benchmark → reports`, `benchmark → plots`, `reports → plots`, `cli → reports` and `cli → plots` (the top layers are ordered `plots` < `reports` < `cli`, `benchmark`: the HTML and PDF reports embed the figures and the command line runs the reports; build step S16) |
 
 Circular imports are forbidden. The test `tests/test_import_graph.py` parses every module's imports with `ast` and fails on any edge not listed above. Two leaf modules, `evoparam.errors` (the hierarchy of §4.6) and `evoparam.version`, import nothing from the package and may be imported by every module, `data` included. Until the inherited modules are rewritten (§4.5, §12), the test lists their remaining edges explicitly, each with the build step that removes it.
 

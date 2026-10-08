@@ -1,0 +1,21 @@
+{
+ "format": "csv",
+ "n_rows": 3,
+ "index": {
+  "kind": "range"
+ },
+ "columns": {
+  "channel": {
+   "dtype": "str",
+   "unit": ""
+  },
+  "condition": {
+   "dtype": "str",
+   "unit": ""
+  },
+  "position": {
+   "dtype": "int64",
+   "unit": ""
+  }
+ }
+}

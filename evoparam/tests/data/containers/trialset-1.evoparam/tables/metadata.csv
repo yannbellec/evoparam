@@ -1,0 +1,7 @@
+trial,condition,stim_site,stim_current_mA,rejected,reject_reason
+0,low,PT01-PT02,1.0,False,
+1,high,PT01-PT02,2.0,False,
+2,low,PT01-PT02,3.0,False,
+3,high,PT01-PT02,4.0,False,
+4,low,PT01-PT02,5.0,False,
+5,high,PT01-PT02,6.0,False,

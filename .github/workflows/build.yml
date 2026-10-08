@@ -53,3 +53,25 @@ jobs:
         EOF
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
+
+  bids-validator:
+    # REQ-342: the BIDS derivatives and the simulated raw dataset pass the reference
+    # BIDS validator (run with Deno, version pinned).
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - uses: denoland/setup-deno@v2
+      with:
+        deno-version: v2.x
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[all]"
+    - name: Validate the written datasets
+      env:
+        EVOPARAM_BIDS_VALIDATOR: "deno run -A jsr:@bids/validator@3.0.2"
+      run: |
+        pytest -rsx evoparam/tests/io/test_bids_derivatives.py

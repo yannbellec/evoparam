@@ -352,10 +352,32 @@ class _FixedStructure(_engine._Structure):
 ###################################################################################################
 ## Estimator
 
+# Fields that are not settings of the preset: the preset itself and the random seed.
+_NOT_PRESET_FIELDS = ("preset", "preset_note", "random_state")
+
+
+def _overrides(settings):
+    """Names of the fields whose value differs from the preset's (or, without a preset,
+    from the package defaults): the settings a methods text must state (REQ-340)."""
+
+    try:
+        base = resolve_settings(settings.preset)
+    except SettingsError:
+        return []
+    out = []
+    for name in FitSettings.__dataclass_fields__:
+        if name in _NOT_PRESET_FIELDS:
+            continue
+        if getattr(settings, name) != getattr(base, name):
+            out.append(name)
+    return out
+
+
 def _settings_dict(settings):
     out = dataclasses.asdict(settings)
     out["shapes"] = list(settings.shapes)
     out["package_version"] = __version__
+    out["_overrides"] = _overrides(settings)
     return out
 
 
@@ -668,6 +690,10 @@ def compare_models(fits):
     return table
 
 
+def _article(word):
+    return "an" if str(word)[:1].lower() in "aeiou" else "a"
+
+
 def methods_text(fit):
     """Methods paragraph for a ResponseFit or GroupFit (spec REQ-123)."""
 
@@ -680,13 +706,14 @@ def methods_text(fit):
         f"Evoked responses were parameterized with evoparam {settings.get('package_version')}"
         + (f" ({settings.get('preset_note') or f'preset {preset!r}'})" if preset else "")
         + f". In the window {window[0] * 1000:g} to {window[1] * 1000:g} ms, each waveform was "
-        f"modelled as a {settings.get('background')} background plus up to "
+        f"modelled as {_article(settings.get('background'))} {settings.get('background')} "
+        f"background plus up to "
         f"{settings.get('max_components')} components ({shapes}; widths "
         f"{settings.get('min_fwhm') * 1000:g} to {settings.get('max_fwhm') * 1000:g} ms full "
         f"width at half maximum). Amplitudes and background coefficients were solved by "
         f"variable projection and the other parameters by bounded least squares. Components "
         f"were added one at a time and kept when the {crit} decreased by at least "
-        f"{settings.get('delta'):g}, with the number of samples corrected for the lag-1 "
-        f"autocorrelation of the baseline (effective sample size). Uncertainty: "
+        f"{settings.get('delta'):g}, computed on residuals whitened by an autoregressive "
+        f"model of the baseline noise ({settings.get('noise_model', 'ar')}). Uncertainty: "
         f"{settings.get('uncertainty')} ({settings.get('ci_level', 0.95) * 100:g} % intervals)."
     )

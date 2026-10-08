@@ -27,15 +27,20 @@ classifiers = [
 dependencies = ["numpy", "scipy>=1.8"]
 
 [project.optional-dependencies]
-plot = ["matplotlib"]
+plot = ["matplotlib>=3.7"]
 data = ["pandas"]
 mne = ["mne>=1.6"]
 edf = ["edfio>=0.4"]
 stats = ["statsmodels>=0.14", "formulaic>=1.0"]
+validate = ["jsonschema>=4.18", "bidsschematools>=0.7", "nwbinspector>=0.5"]
+cli = ["pandas", "tqdm"]
 bayes = ["numpyro>=0.15", "jax>=0.4.30", "pymc>=5.10", "arviz>=0.18"]
 progress = ["tqdm"]
 tests = ["pytest", "pytest-cov"]
-all = ["matplotlib", "pandas", "tqdm", "pytest", "pytest-cov"]
+all = ["matplotlib", "pandas", "tqdm", "jsonschema>=4.18", "pytest", "pytest-cov"]
+
+[project.scripts]
+evoparam = "evoparam.cli:main"
 
 [project.urls]
 Source = "https://github.com/yannbellec/evoparam"
@@ -52,7 +57,11 @@ include = ["evoparam*"]
 "evoparam.existence" = ["rules.json"]
 "evoparam.tf" = ["zones.json"]
 "evoparam.presets" = ["*.json"]
+"evoparam.reports" = ["schema/*.json"]
+"evoparam" = ["CITATION.cff"]
 "evoparam.tests.sim" = ["reference_sim.json"]
+"evoparam.tests.reports" = ["methods/*.txt"]
+"evoparam.tests.data" = ["containers/*.evoparam/*", "containers/*.evoparam/tables/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["evoparam"]

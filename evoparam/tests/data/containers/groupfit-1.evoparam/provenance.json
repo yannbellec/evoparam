@@ -1,0 +1,12 @@
+{
+ "package_version": "0.1.0.dev0",
+ "created": "2026-01-01T00:00:00+00:00",
+ "source": {
+  "path": "synthetic",
+  "format": "array"
+ },
+ "steps": [],
+ "environment": {},
+ "random_state": 0,
+ "data_hash": null
+}
