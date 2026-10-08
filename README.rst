@@ -49,6 +49,13 @@ evoparam covers the whole path from a raw recording to response parameters:
   cluster mass, TFCE), the power of the fitted evoked components separated exactly from the
   residual power, data-driven time-frequency zones (non-negative factorisations with the
   rank chosen by split-half stability) and published fixed zones.
+* ``evoparam.spatial``: the few response shapes shared across stimulation sites into one
+  channel, or across channels for one site (basis profile curves, re-implemented from the
+  published description), fits whose shape parameters are shared across channels (with
+  per-contact latency offsets and an optional smoothness penalty over neighbouring
+  contacts), per (site, channel) parameter maps with coordinates, the (site x channel)
+  connectivity export, and a volume-conduction screen (polarity reversal, distance decay,
+  reference sensitivity).
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact

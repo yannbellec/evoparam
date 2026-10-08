@@ -226,3 +226,16 @@ def test_stats_is_below_hierarchical():
         if "stats" in dests:
             assert source in ("hierarchical", "reports", "plots", "cli", "stream", "benchmark"), \
                 source
+
+
+def test_spatial_reaches_shapes_and_prep_through_models():
+    """evoparam.spatial (build step S12) imports data, models and utils only: the shapes
+    through ``models.component_shapes`` and the reference schemes through
+    ``models.references`` (spec §4.2)."""
+
+    dests = set()
+    for (source, _), targets in _edges().items():
+        if source == "spatial":
+            dests |= targets
+    assert dests and dests - LEAVES <= RULES["spatial"]
+    assert {"data", "models"} <= dests

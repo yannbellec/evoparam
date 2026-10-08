@@ -60,3 +60,33 @@ def test_offline_mode(tmp_path, monkeypatch):
     monkeypatch.setenv('EVOPARAM_OFFLINE', '1')
     with pytest.raises(ReaderError, match='EVOPARAM_OFFLINE'):
         fetch_openneuro_file('ds004080', 'dataset_description.json', str(tmp_path))
+
+
+def test_spurious_s3_not_found_is_retried(monkeypatch):
+
+    import io
+    from urllib.error import HTTPError
+
+    import evoparam.io._fetch as fetch_module
+
+    delays = []
+    monkeypatch.setattr(fetch_module, '_sleep', delays.append)
+    body = b'<?xml version="1.0"?><Error><Code>NoSuchBucket</Code></Error>'
+    answers = [HTTPError('u', 404, 'Not Found', {}, io.BytesIO(body)), b'data']
+
+    def once():
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    assert fetch_module._with_retries('u', once) == b'data' and delays == [0.5]
+    # A missing key is not retried
+    missing = b'<?xml version="1.0"?><Error><Code>NoSuchKey</Code></Error>'
+
+    def gone():
+        raise HTTPError('u', 404, 'Not Found', {}, io.BytesIO(missing))
+
+    with pytest.raises(ReaderError, match='HTTP 404'):
+        fetch_module._with_retries('u', gone)
+    assert delays == [0.5]

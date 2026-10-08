@@ -2,6 +2,103 @@
 
 ## Unreleased
 
+### Build step S12: shared shapes across channels, parameter maps and the volume-conduction screen
+
+- New module `evoparam.spatial` (spec §5.9): `shared_shapes` with `convergent` (sites into
+  one channel) and `divergent` (one site into the channels), returning a `ShapeBasis`;
+  `as_template` (a basis curve as a `template` component shape); `fit_shared` (the
+  engine's model with shape parameters shared across channels, optional per-channel
+  latency offsets and a graph-Laplacian penalty over neighbouring contacts); `neighbours`;
+  `parameter_map` and `plot_parameter_map`; `connectivity_matrix`, `connectivity_to_long`,
+  `connectivity_from_long`, `connectivity_array`; `screen_volume_conduction`. The
+  basis-profile-curve method is re-implemented from the published description (Miller,
+  Müller and Hermes, 2021); the GPL code is neither imported nor copied. Only numpy, scipy
+  and pandas are used (NMF, kernel PCA, k-means and the adjusted Rand index are written
+  here; scikit-learn is not needed).
+- `evoparam.models.references` re-exports `rereference` and `SCHEMES` of `evoparam.prep`,
+  as `models.component_shapes` does for the shapes, so that `spatial` depends on `models`
+  only (spec §4.2; new import-graph test).
+- `evoparam.io._fetch`: a 404 whose body is the S3 error `NoSuchBucket` is retried (up to
+  ten times, 0.5 s apart). Through the proxy of the development machine, S3 answered so to
+  20 to 40 % of the requests for files that exist, which made every remote MEF read fail
+  and could make an optional file (electrodes.tsv) look absent. Other 404s are still not
+  retried.
+- Choices and changes to the specification:
+  - number of shapes: the largest `q <= max_shapes` whose clustering uses all `q`
+    clusters, is stable (mean adjusted Rand index of the 20 restarts >= 0.8, as specified)
+    and splits no cluster: for every pair of clusters, the mean t-value between them is
+    below 0.75 times the geometric mean of the mean t-values within them. The published
+    degeneracy index (overlap of the rows of H below 0.5) rejected the true `q = 3` when
+    two shapes were partly correlated and the noise low; it is reported in the selection
+    table (`h_overlap`). `"unstable_basis"` is warned when `q = 1` is returned although some
+    `q >= 2` clustering splits no cluster but is unstable. A site joins the cluster of its
+    largest NMF loading when that loading is at least half the equal-contribution loading
+    `1/sqrt(n)` (the published tolerance); `kpca` clusters by k-means in the kernel PCA
+    coordinates.
+  - `ShapeBasis.weights` holds the mean projection `alpha` of each group on each curve
+    (signed, data units times sqrt(samples)), not non-negative loadings; the NMF loading of
+    each group is the column `nmf_loading` of `assignment` (with `group`, `shape_id`,
+    `weight`, `r2`, `n_trials`, `used`).
+  - `ShapeBasis.as_template(k)` is the function `evoparam.spatial.as_template(basis, k)`:
+    the data containers may not import the shapes (spec §4.2). The ends of the curve are
+    tapered (10 % cosine) so that the template starts and ends at rest.
+  - `fit_shared`: `shared` names parameters or roles (`"latency"`, `"fwhm"`,
+    `"asymmetry"`; `PARAMETER_ROLES`); the background time constants stay at the
+    per-channel values; residuals are divided by each channel's noise SD; `group_fit=`
+    reuses per-channel fits; `channels` defaults to the channels that are neither bad nor
+    stimulating contacts. Penalty: `lambda` on a grid of multiples of the median curvature
+    of the channels' fit in their offset (0 included); leave-one-channel-out predicts the
+    left-out channel's offset from its smoothed neighbours through the penalty, with a weak
+    pull (1e-3 of the median curvature) towards the shared latency, so that without
+    coupling the prediction is the shared latency and not the neighbours' raw estimates
+    (with them, the criterion chose a very large `lambda` when the latencies had no spatial
+    structure and doubled the latency error); the chosen `lambda` is kept only when its
+    held-out error is more than 1 % below that of `lambda = 0`. `smooth_lambda=` forces a
+    value; `smooth=True` needs `free_latency=True`.
+  - `parameter_map` takes `ch_info=` (a table, or the TrialSet / Evoked that carries it;
+    a GroupFit has no channel table), `component=` (default: the component of largest
+    absolute amplitude) and `basis=` (divergent shapes per site); `existence=` accepts a
+    ResponseTest (`existence_p`, `existence_significant`) or any object with a
+    `p_response` table (`p_response`; the hierarchical fits are build step S11). The map is
+    a table plus an electrode figure (matplotlib); the glass brain is left to nilearn,
+    which is not installed here. `connectivity_array` gives the (site x channel) array;
+    `mne-connectivity` objects are not built (the extra is not installed).
+  - `screen_volume_conduction(ts, group_fit=None, ...)`: the three flags are
+    `no_reversal` (adjacent contacts exist and none correlates <= -0.5 with at least 20 %
+    of the RMS), `decay` (zero-lag correlation with the waveform of the two contacts
+    nearest to the site >= 0.9 after correction for the attenuation by the channel's noise,
+    same sign, and amplitude within a factor 2 of the power law `|a| ~ r^-p`, `p > 0.5`,
+    fitted over such copies; `decay_model="none"` keeps the copy test only) and `reference`
+    (RMS below half, or correlation below 0.5, under a scheme of `reference_schemes`).
+    Risk: two flags or more `high`, one `medium`, none `low`.
+- Acceptance criteria met on simulations (tests in `tests/spatial/`): REQ-190 (10 of 10
+  runs give `n_shapes = 3` with `nmf` and with `kpca`; matched curves correlate 0.971 to
+  0.999 with the truth, median 0.991; site assignment exact), REQ-191 (latency RMSE over
+  30 channels at SNR 2: 1.67, 9.67 and 1.86 ms independently, 0.62, 0.12 and 0.26 ms
+  shared, on the channels where the independent fit found a component), REQ-192 (held-out
+  error on fresh noise 0.9997 times that of `lambda = 0` with a drifting latency, 1.0 when
+  the latencies have no spatial structure and the penalty is switched off), REQ-193 (`high`
+  on 128 of 128 volume-conducted channels, `low` on 20 of 20 local dipolar contacts, five
+  scenes), REQ-195.
+- Real data (EVOPARAM_NETWORK_TESTS=1):
+  - REQ-196 met on ds004080 sub-ccepAgeUMCU01 run 021448 (ECoG, 512 Hz; three sites of
+    the six cached, PT01-PT02, PT03-PT02, PT03-PT04; 104 channels): one row per (site,
+    channel), coordinates equal to `electrodes.tsv` (fsaverage, mm), no NaN amplitude
+    where the fit status is `ok`. The fits take about 0.8 s each (8 minutes for six
+    sites, hence three).
+  - REQ-194 on ds003708 (basis-profile-curve paper; MEF 3.0 read remotely, one contact,
+    459 good pulses of 48 sites): the paper's example contact is "a parahippocampal gyrus
+    electrode", not named; `electrodes.tsv` labels LMS1 and LMS2 so. With the paper's window
+    (50 ms to 2 s) and the monopolar recording, LMS2 gives **3 bases** as published (the
+    same with `random_state` 0 to 4), 36 of the 46 sites assigned. LMS1 gives 6 bases with
+    that window and 3 with the specification's default (9 to 500 ms); LMS2 gives 2 with the
+    default window. The paper used the adjusted common average of the derivatives, not read
+    here. The assignment part is **not verified** (test xfail): the figure's assignment is
+    not published as numbers and the figure could not be read here; against a proxy built
+    from the three regions the paper names (superior temporal gyrus, inferior temporal
+    gyrus, fusiform gyrus; a site is scored when both contacts share the Destrieux label),
+    4 of the 7 scored sites agree (0.57).
+
 ### Build step S14: statistics, intervals, comparisons, reliability and export to mixed models
 
 - New module `evoparam.stats` (spec §5.11): `bootstrap` and `bootstrap_interval`

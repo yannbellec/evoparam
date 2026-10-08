@@ -3,7 +3,8 @@
 This is the only module of the package that opens network connections. Every
 request logs its URL at INFO level, honours ``EVOPARAM_OFFLINE=1`` (a
 :class:`~evoparam.errors.ReaderError` is raised instead of connecting) and is
-retried on transient failures with a backoff of 2, 4, 8 and 16 seconds.
+retried on transient failures with a backoff of 2, 4, 8 and 16 seconds (and, up to ten
+times after 0.5 s, on the spurious S3 answer "404 NoSuchBucket").
 """
 
 import hashlib
@@ -25,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 BACKOFF = (2.0, 4.0, 8.0, 16.0)
 TRANSIENT_STATUS = (408, 429, 500, 502, 503, 504)
+SPURIOUS_RETRIES = 10
+SPURIOUS_DELAY = 0.5
 _TRANSIENT_ERRORS = (URLError, TimeoutError, ConnectionError, http.client.HTTPException)
 
 # Module-level so that tests can replace it and run without waiting.
@@ -71,14 +74,36 @@ class TransferLog:
         self.files.append(url)
 
 
+def _spurious_not_found(exc):
+    """True for a 404 whose body is the S3 error ``NoSuchBucket``: S3 (or a proxy in front
+    of it) intermittently answers so for a bucket that exists, and the same request then
+    succeeds. A missing key (``NoSuchKey``) or any other 404 is not retried."""
+
+    if exc.code != 404:
+        return False
+    try:
+        body = exc.read(4096) or b""
+    except (OSError, ValueError, AttributeError):
+        return False
+    return b"<Code>NoSuchBucket</Code>" in body
+
+
 def _with_retries(url, attempt_once, retries=len(BACKOFF)):
-    """Run ``attempt_once()`` and retry transient HTTP and network failures."""
+    """Run ``attempt_once()`` and retry transient HTTP and network failures (a spurious S3
+    404 up to SPURIOUS_RETRIES more times, after SPURIOUS_DELAY s, without using the
+    backoff)."""
 
     _check_online(url)
-    for attempt in range(retries + 1):
+    attempt = spurious = 0
+    while True:
         try:
             return attempt_once()
         except HTTPError as exc:
+            if _spurious_not_found(exc) and spurious < SPURIOUS_RETRIES:
+                spurious += 1
+                logger.info("Retrying %s after a spurious 404 (NoSuchBucket)", url)
+                _sleep(SPURIOUS_DELAY)
+                continue
             if exc.code not in TRANSIENT_STATUS or attempt == retries:
                 raise ReaderError(f"HTTP {exc.code} ({exc.reason}) for {url}.") from exc
             error = exc
@@ -89,7 +114,7 @@ def _with_retries(url, attempt_once, retries=len(BACKOFF)):
         delay = BACKOFF[min(attempt, len(BACKOFF) - 1)]
         logger.warning("Retrying %s in %g s after: %s", url, delay, error)
         _sleep(delay)
-    raise ReaderError(f"Cannot read {url}.")                         # not reached
+        attempt += 1
 
 
 def fetch_bytes(url, *, optional=False, timeout=30.0, log=None):
