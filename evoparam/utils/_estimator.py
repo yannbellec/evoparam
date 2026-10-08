@@ -8,7 +8,8 @@ names), ``__repr__``, ``__sklearn_is_fitted__`` and, when scikit-learn is import
 
 import inspect
 
-__all__ = ["BaseEstimatorMixin", "TransformerMixin", "NotFittedError", "check_is_fitted"]
+__all__ = ["BaseEstimatorMixin", "TransformerMixin", "NotFittedError", "check_is_fitted",
+           "validate_array"]
 
 
 def _sklearn_not_fitted():
@@ -78,9 +79,13 @@ class BaseEstimatorMixin:
             from sklearn.base import BaseEstimator
         except ImportError:  # pragma: no cover - only with scikit-learn
             return None
+        from sklearn.utils import TransformerTags
+
         tags = BaseEstimator.__sklearn_tags__(self)
         tags.target_tags.required = False
         tags.non_deterministic = False
+        if hasattr(self, "transform"):
+            tags.transformer_tags = TransformerTags()
         return tags
 
     def __repr__(self):
@@ -98,3 +103,42 @@ class TransformerMixin:
 
     def set_output(self, *, transform=None):
         return self
+
+
+def validate_array(estimator, X, *, reset, ndim=2, allow_nan=False):
+    """Check an array input the way scikit-learn does (its messages when it is installed):
+    dense, real, finite, at least 2-D with at least 2 time points, and, after ``fit``, as many features (last axis) as
+    seen in ``fit``. Sets ``n_features_in_`` when ``reset``."""
+
+    import numpy as np
+
+    try:
+        from sklearn.utils.validation import check_array
+    except ImportError:
+        check_array = None
+    if check_array is not None:
+        X = check_array(X, accept_sparse=False, ensure_all_finite=not allow_nan,
+                        ensure_2d=True, allow_nd=ndim > 2, dtype="numeric")
+    else:
+        if hasattr(X, "toarray"):
+            raise TypeError("A sparse matrix was passed, but dense data is required.")
+        X = np.asarray(X)
+        if np.iscomplexobj(X):
+            raise ValueError("Complex data not supported.")
+        X = X.astype(float)
+        if X.ndim < 2:
+            raise ValueError("Expected 2D array, got 1D array instead. Reshape your data.")
+        if not allow_nan and not np.all(np.isfinite(X)):
+            raise ValueError("Input contains NaN or infinity.")
+    n_features = int(X.shape[-1])
+    if not reset and n_features != getattr(estimator, "n_features_in_", n_features):
+        raise ValueError(f"X has {n_features} features, but {type(estimator).__name__} is "
+                         f"expecting {estimator.n_features_in_} features as input.")
+    if n_features < 2:
+        raise ValueError(f"Found array with {n_features} feature(s) (shape={X.shape}) while a "
+                         f"minimum of 2 is required (time points).")
+    if reset:
+        estimator.n_features_in_ = n_features
+    if X.ndim > ndim:
+        raise ValueError(f"Expected at most {ndim}-D input, got {X.ndim}-D.")
+    return X
