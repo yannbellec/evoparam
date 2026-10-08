@@ -199,11 +199,9 @@ def _others(agreement):
     return [agreement[subject, run] for subject, run, _ in PAIRS if (subject, run) != EXAMPLE]
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-113 as written not met: on the 46 PT contacts of "
-                   "run-021448 the published rule finds 1 N1 and the model 2 (kappa 0.66; 0.88 "
-                   "over the 100 good ECoG channels); on the REQ-371 runs kappa 0.88, 1.00, "
-                   "1.00, 1.00 and 0.71 (UMCU05, 2 channels missed). See CHANGELOG, N1 case.")
 def test_req113_as_written(agreement):
+    """REQ-113: kappa >= 0.8 on the 46 PT contacts of the example run; on each REQ-371 run at
+    most one of the rule's N1s missed and kappa >= 0.8."""
 
     r = agreement[EXAMPLE]
     grid = np.array([n.startswith("PT") for n in r["names"]])
@@ -239,7 +237,7 @@ def test_req114_n1_latency_agrees_with_published_rule(agreement):
     assert np.mean(close) >= 0.9
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-114 over all runs: 16 of 18 shared channels "
+@pytest.mark.xfail(strict=False, reason="REQ-114 over all runs: 17 of 19 shared channels "
                    "(89 %) within 2 ms; in the two others the rule takes the second sample of "
                    "its window (9.3 ms at 2048 Hz, artifact residue). See CHANGELOG, N1 case.")
 def test_req114_n1_latency_agrees_on_all_runs(agreement):

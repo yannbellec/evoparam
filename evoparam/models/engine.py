@@ -121,19 +121,13 @@ class Whitener:
             ok = ~spread
             ok[:p] = False
             if acov is not None and len(acov) == p and first_valid:
-                from scipy.linalg import cholesky, toeplitz
-
-                try:
-                    self.start = cholesky(toeplitz(np.asarray(acov, float)), lower=True)
-                    ok[:p] = True
-                except np.linalg.LinAlgError:
-                    self.start = None
+                self.start = _inverse_cholesky(np.asarray(acov, float))
+                ok[:p] = self.start is not None
         self.p = p
         self.rows = ok
         self.n = int(ok.sum())
 
     def __call__(self, x):
-        from scipy.linalg import solve_triangular
         from scipy.signal import lfilter
 
         x = np.asarray(x, float)
@@ -144,10 +138,37 @@ class Whitener:
         u = u / self.innovation
         if self.start is not None:
             u = np.array(u, copy=True)
-            u[:self.p] = solve_triangular(self.start, raw[:self.p], lower=True)
+            # einsum without BLAS: a LAPACK triangular solve here, called for every residual
+            # and Jacobian, woke OpenBLAS's threads, whose spinning took 3 to 4 cores per
+            # process (and stalled parallel fits)
+            u[:self.p] = np.einsum("ij,j...->i...", self.start, raw[:self.p])
         if x.ndim == 1:
             return np.where(self.rows, u, 0.0)
         return np.where(self.rows[:, None], u, 0.0)
+
+def _inverse_cholesky(acov):
+    """Inverse of the lower Cholesky factor of the Toeplitz matrix of ``acov`` (p <= 10),
+    by plain loops (no LAPACK call, see Whitener); None when it is not positive definite."""
+
+    p = len(acov)
+    cov = acov[np.abs(np.arange(p)[:, None] - np.arange(p)[None, :])]
+    chol = np.zeros((p, p))
+    for i in range(p):
+        for j in range(i + 1):
+            rest = cov[i, j] - np.dot(chol[i, :j], chol[j, :j])
+            if i == j:
+                if not rest > 0:
+                    return None
+                chol[i, i] = np.sqrt(rest)
+            else:
+                chol[i, j] = rest / chol[j, j]
+    inv = np.zeros((p, p))
+    for i in range(p):
+        inv[i, i] = 1.0 / chol[i, i]
+        for j in range(i):
+            inv[i, j] = -np.dot(chol[i, j:i], inv[j:i, j]) / chol[i, i]
+    return inv
+
 
 def noise_model(times, y, baseline, window_mask, mask):
     """Noise scale (MAD) and lag-1 autocorrelation from the baseline.
@@ -417,7 +438,8 @@ class _State:
     theta: np.ndarray
     beta: np.ndarray
     rw: np.ndarray
-    crit: float
+    crit: float                # selection criterion: innovation rows only (decides K)
+    fit_crit: float = None     # the same on every row: compares optima of one structure
 
 
 def _shape(name, settings):
@@ -438,8 +460,17 @@ def _evaluate_state(struct_maker, shapes, theta0, settings, n_eff, f_scale, kind
         return None, msg
     p = struct.n_theta + len(beta)
     data_rw = rw[:len(struct.y)]
-    crit = criterion(float(np.sum(data_rw ** 2)), n_eff, p, kind)
-    return _State(list(shapes), theta, beta, rw, crit), ""
+    fit_crit = criterion(float(np.sum(data_rw ** 2)), n_eff, p, kind)
+    # The start rows of the exact likelihood (Whitener) tie the curve to the data at the
+    # window start, so they take part in every fit; but the evidence for a component (the
+    # change of K, merges) counts the innovation rows only. The start rows judge the first
+    # samples against the stationary spread of the noise, and a chance deviation there was
+    # otherwise "explained" by a recovery tail plus a broad component cancelling it (on
+    # simulations: a spurious N1 at the window start; REQ-170, REQ-171).
+    skip = struct.white.p if getattr(struct.white, "start", None) is not None else 0
+    crit = criterion(float(np.sum(data_rw[skip:] ** 2)), n_eff - skip, p, kind) if skip \
+        else fit_crit
+    return _State(list(shapes), theta, beta, rw, crit, fit_crit), ""
 
 
 def _polish(state, make, settings, n_eff, f_scale, kind):
@@ -456,7 +487,7 @@ def _polish(state, make, settings, n_eff, f_scale, kind):
     for value in np.geomspace(np.maximum(lo, 1e-6), hi, 4):
         theta0 = np.r_[state.theta[:struct.offsets[-1]], value]
         cand, _ = _evaluate_state(make, state.shapes, theta0, settings, n_eff, f_scale, kind)
-        if cand is not None and cand.crit < best.crit:
+        if cand is not None and cand.fit_crit < best.fit_crit:
             best = cand
     return best
 
@@ -573,7 +604,7 @@ def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_
     for theta0 in (np.array(g) for g in np.array(np.meshgrid(*grids)).reshape(len(grids), -1).T) \
             if base_struct.n_theta else [np.zeros(0)]:
         state, _ = _evaluate_state(make, [], theta0, settings, n_white, f_scale, kind)
-        if state is not None and (best is None or state.crit < best.crit):
+        if state is not None and (best is None or state.fit_crit < best.fit_crit):
             best = state
     if best is None:
         out.update(status="failed", message="the background-only model could not be fitted")
@@ -611,7 +642,7 @@ def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_
                                current.theta[make(current.shapes).offsets[-1]:]]
                 state, _ = _evaluate_state(make, current.shapes + [shape], theta0, settings,
                                            n_white, f_scale, kind, tol=1e-4)
-                if state is not None and (quick is None or state.crit < quick[0].crit):
+                if state is not None and (quick is None or state.fit_crit < quick[0].fit_crit):
                     quick = (state, shape, guess)
             if quick is None:
                 continue
@@ -631,7 +662,7 @@ def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_
         for split in _split_proposals(current, make, settings, n_white, f_scale, kind):
             if forced or split.crit - current.crit <= -settings.delta:
                 ranked.append((split, None, None))
-        for state, shape, guess in sorted(ranked, key=lambda item: item[0].crit):
+        for state, shape, guess in sorted(ranked, key=lambda item: item[0].fit_crit):
             if shape is None:                     # a split: already optimised
                 best = _polish(state, make, settings, n_white, f_scale, kind)
                 gain = best.crit - current.crit
@@ -647,7 +678,7 @@ def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_
                                current.theta[make(current.shapes).offsets[-1]:]]
                 cand, _ = _evaluate_state(make, current.shapes + [shape], theta0, settings,
                                           n_white, f_scale, kind, tol=1e-5)
-                if cand is not None and cand.crit < best.crit:
+                if cand is not None and cand.fit_crit < best.fit_crit:
                     best = cand
             best = _polish(best, make, settings, n_white, f_scale, kind)
             gain = best.crit - current.crit
@@ -737,7 +768,7 @@ def _sort_state(state, make):
     theta = np.concatenate([struct.comp_params(state.theta, i) for i in order]
                            + [struct.bg_params(state.theta)]) if state.shapes else state.theta
     beta = np.r_[state.beta[order], state.beta[len(state.shapes):]]
-    return _State(shapes, theta, beta, state.rw, state.crit)
+    return _State(shapes, theta, beta, state.rw, state.crit, state.fit_crit)
 
 
 def _merge_pass(state, make, settings, n_eff, f_scale, kind, out):

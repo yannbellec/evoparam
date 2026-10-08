@@ -2,6 +2,56 @@
 
 ## Unreleased
 
+### N1 engine change: speed of the whitening, selection criterion, REQ-170 and REQ-113
+
+- Speed. The exact start rows of `Whitener` were whitened by a LAPACK triangular solve at
+  every residual and Jacobian evaluation; each call woke OpenBLAS's threads, whose spinning
+  took 3 to 4 cores per process: the fits of one simulated subject used 43 s of CPU for
+  10 s of wall time (10 s for 10 s before), and parallel fits stalled (the REQ-170
+  reference fixture, 1 000 channels in 4 processes: 918 s instead of 135 s). The inverse
+  Cholesky factor of the start rows is now computed once, by plain loops
+  (`_inverse_cholesky`, p <= 10), and applied with `einsum`: 9.4 s of CPU for the same
+  subject, 136 s for the reference fixture. The ds004080 N1 fits are 5 to 10 times faster
+  (run-021448: 60 s instead of 552 s).
+- Selection criterion. The criterion that decides the number of components (additions,
+  splits, merges, the best rejected change) now counts the innovation rows only; the
+  start rows still take part in every fit, and in the comparison of optima of one
+  structure (`fit_crit`). Their evidence rests on the stationary spread of a short AR
+  model at the window start, and a chance deviation of the first samples was "explained"
+  by a recovery tail plus a broad component cancelling it: on the hierarchical
+  simulations, a spurious N1 at 11 ms with a FWHM of 83 ms on a channel whose first
+  sample was 2.7 SD above the baseline (the conditional likelihood found no component).
+- REQ-170 (cause: the exact likelihood; least squares alone changes little): AUC of
+  `P(response)` 0.9506 on e8db3db, 0.9396 with the exact likelihood (Yule-Walker or least
+  squares alike), 0.9495 with least squares and the conditional likelihood, 0.9509 now;
+  reliability slope 0.997, 1.037, 0.991, 0.990. Met again, with the margin it had.
+- REQ-171 is not met (5 of 6 datasets in the default run, 17 of 20 with
+  `EVOPARAM_SLOW_TESTS=1`; e8db3db: 6 of 6, 19 of 20). The cause is the improvement of the
+  per-channel latencies the test compares with: their RMSE over the 20 datasets is 1.59 ms
+  now against 1.94 ms on e8db3db, and the EB latencies are also better (1.47 ms against
+  1.74 ms), but the margin between the two is smaller. On the failing dataset (seed 105)
+  the per-channel RMSE is 0.98 ms and the EB 1.05 ms; recomputing the shrinkage with the
+  true RMSE of the channel fits as standard error gives 0.99 ms: no choice of standard
+  error makes the shrinkage win there. With the minimum of the Wald and trial standard
+  errors (the fit of the average is at least as efficient as the mean of single-trial
+  estimates) 18 of 20 datasets are won but seed 105 is still lost; Wald errors alone 15
+  of 20, trial means 11 of 20. Not changed here; the requirement or its test needs a
+  decision (see the report of this change).
+- N1 results with this change (all trials, published rule read as published):
+  run-021448 4 rule N1s, 4 model N1s, kappa 1.00 (PT03 is no longer a model N1), so 1.00
+  on the 46 PT contacts; REQ-371 runs: UMCU01 run-061233 0.88 (1 missed), UMCU02 1.00,
+  UMCU03 1.00, UMCU04 1.00, UMCU05 0.82 (1 missed; PB6 is now found); pooled 0.91 over the
+  REQ-371 runs, 0.92 with the example. REQ-113 is met as written: `test_req113_as_written`
+  is no longer an xfail. REQ-114: 4 of 4 on the example run (met), 17 of 19 over all runs
+  (89 %; the two others are the rule's 9.3 ms peaks), still an xfail. REQ-112 on the
+  ds004080 baselines: 97.5 % silent (unchanged). REQ-273 (the ccep preset meets REQ-113
+  and REQ-114 on ds004080) is met, REQ-114 on run-021448 (89 % over all runs).
+- Timings (4 cores, otherwise idle): `tests/hierarchical/test_hier_eb.py` about 13 min,
+  as on e8db3db (REQ-170 fixture 133 s, REQ-171 108 s, REQ-172 234 s, REQ-175 230 s; on
+  f6f90bf the fixture took 918 s and REQ-171 628 s); `tests/models/test_engine_ccep.py`
+  with `EVOPARAM_NETWORK_TESTS=1` 8.5 min (fixture 445 s), against about 47 min before
+  (six fits of 183 to 913 s).
+
 ### N1 case (REQ-113, REQ-114): diagnosis on ds004080 and fixes
 
 - Diagnosis. The xfail test compared the model with a re-reading of the rule (most
