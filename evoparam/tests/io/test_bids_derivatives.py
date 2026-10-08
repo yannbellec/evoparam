@@ -70,13 +70,22 @@ def test_provenance_sidecar(written):
     assert Provenance.from_dict(artifact["Provenance"]) == last.provenance
 
 
-@pytest.mark.xfail(reason="write_nwb and its provenance (REQ-336, tests/test_nwb_io.py) are "
-                          "built at step S17", strict=True, raises=AttributeError)
-def test_nwb_provenance():
+def test_nwb_provenance(written):
+    """REQ-336: the NWB processing module holds the settings and provenance of each result."""
+
+    pynwb = pytest.importorskip("pynwb")
+    from datetime import datetime, timezone
 
     from evoparam import io
 
-    io.write_nwb  # noqa: B018
+    nwbfile = pynwb.NWBFile(session_description="evoparam test", identifier="evoparam-test",
+                            session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    group, test = written["result"].group, written["result"].test
+    io.write_nwb([group, test], nwbfile)
+    description = json.loads(nwbfile.processing["evoparam"].description)
+    assert [Provenance.from_dict(p) for p in description["provenance"]] == \
+        [group.provenance, test.provenance]
+    assert description["settings"][0]["max_components"] == group.settings["max_components"]
 
 
 def test_req342_every_column_has_a_description_and_unit(written):

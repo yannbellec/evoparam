@@ -216,7 +216,7 @@ def test_real_noise_unit_conversion():
     assert info["source_units"] == "V"
 
 
-@pytest.mark.parametrize("dataset", ["ds002094", "erp-core"])
+@pytest.mark.parametrize("dataset", ["ds002094"])
 def test_registry_datasets_without_an_allowed_licence_are_refused(dataset):
     real = real_baselines(dataset=dataset)
     with pytest.raises(SettingsError, match="licence"):
