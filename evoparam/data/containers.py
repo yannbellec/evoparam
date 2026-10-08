@@ -515,6 +515,24 @@ class TrialSet(_ContainerMixin):
         return self._new("evoparam.data.TrialSet.crop", {"tmin": tmin, "tmax": tmax}, start,
                          **changes)
 
+    @classmethod
+    def from_mne(cls, epochs, *, picks=None, units="uV", metadata=True, stim_columns="auto"):
+        """TrialSet from ``mne.Epochs``: V -> ``units``, channel types, bad channels,
+        positions (mm), metadata with the event names in ``condition``, event times
+        (spec §10.1, extra ``mne``)."""
+
+        from ._mne import trialset_from_mne
+
+        return trialset_from_mne(cls, epochs, picks=picks, units=units, metadata=metadata,
+                                 stim_columns=stim_columns)
+
+    def to_mne(self, *, ch_types=None):
+        """``mne.EpochsArray`` holding the same data, channels, metadata and events."""
+
+        from ._mne import trialset_to_mne
+
+        return trialset_to_mne(self, ch_types=ch_types)
+
     def average(self, by=None, robust=False, chunk=None):
         """Average over trials.
 
@@ -688,6 +706,21 @@ class Evoked(_ContainerMixin):
     modality: str | None = None
     provenance: Provenance = field(default_factory=Provenance)
 
+
+    @classmethod
+    def from_mne(cls, evoked, *, picks=None, units="uV"):
+        """Evoked from ``mne.Evoked`` (spec §10.1, extra ``mne``)."""
+
+        from ._mne import evoked_from_mne
+
+        return evoked_from_mne(cls, evoked, picks=picks, units=units)
+
+    def to_mne(self, *, ch_types=None, comment=""):
+        """``mne.EvokedArray`` holding the same data and channels."""
+
+        from ._mne import evoked_to_mne
+
+        return evoked_to_mne(self, ch_types=ch_types, comment=comment)
     def __post_init__(self):
         if not (isinstance(self.data, np.ndarray) and self.data.dtype == np.float64):
             self.data = np.asarray(self.data, dtype=np.float64)

@@ -130,38 +130,67 @@ def _cross_trial_covariance(data, window):
     return pairs / (n_trials * (n_trials - 1) * n_times)
 
 
-def _zeta(average, order, n):
-    """Most negative mean Fisher-z correlation between a channel of the n least
-    responsive ones and the others, after re-referencing to their average.
+def _zeta_curve(average, order):
+    """zeta(n) for n = 2..N on one (trial-averaged) signal set, from its covariance.
 
-    ``average`` is the trial average in the response window (channels x times):
-    re-referencing is linear, so averaging first gives the same result faster.
+    For the n least responsive channels U (``order[:n]``) and their average m, the
+    published statistic (Huang et al. 2024) correlates each channel U_i, *not*
+    re-referenced, with every re-referenced channel R_j = U_j - m (j != i), takes the mean
+    Fisher z of each U_i, and keeps the most negative one. With C the covariance (over time)
+    of the ordered channels: cov(U_i, R_j) = C_ij - s_i and var(R_j) = C_jj - 2 s_j + v,
+    where s_i = (1/n) sum_k C_ik and v = (1/n^2) sum_kl C_kl, so every n costs O(n^2).
     """
 
-    subset = average[order[:n]]
-    rereferenced = subset - subset.mean(axis=0, keepdims=True)
-    corr = np.corrcoef(rereferenced)
-    np.fill_diagonal(corr, np.nan)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)
-        fisher = np.arctanh(np.clip(corr, -0.999999, 0.999999))
-        return float(np.nanmin(np.nanmean(fisher, axis=1)))
+    seg = average[order]
+    seg = seg - seg.mean(axis=1, keepdims=True)
+    cov = seg @ seg.T / max(seg.shape[1] - 1, 1)
+    out = np.empty(len(order) - 1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        for n in range(2, len(order) + 1):
+            c = cov[:n, :n]
+            row = c.sum(axis=1) / n
+            var_m = c.sum() / n ** 2
+            var_r = np.diag(c) - 2 * row + var_m
+            corr = (c - row[:, None]) / np.sqrt(np.outer(np.diag(c), var_r))
+            np.fill_diagonal(corr, np.nan)
+            z = np.arctanh(np.clip(corr, -0.999999, 0.999999))
+            out[n - 2] = np.nanmin(np.nanmean(z, axis=1))
+    return out
+
+
+def _line_notch(data, sfreq, line_freq):
+    """Band-stop at the line frequency and its harmonics up to 180 Hz (4th order
+    Butterworth, +/- 2 Hz, zero phase), as the published code does before ranking."""
+
+    from scipy.signal import butter, filtfilt
+
+    if not line_freq:
+        return data
+    out = np.array(data, dtype=float, copy=True)
+    for f0 in np.arange(line_freq, 180.0 + 1e-9, line_freq):
+        if f0 + 2 >= sfreq / 2:
+            break
+        b, a = butter(2, [f0 - 2, f0 + 2], btype="bandstop", fs=sfreq)
+        out = filtfilt(b, a, out, axis=-1)
+    return out
 
 
 def car_adaptive_select(data, times, *, response_window=(0.01, 0.3), n_boot=100,
-                        random_state=None, candidates=None):
+                        random_state=None, candidates=None, sensitive=True, line_freq=60.0):
     """Choose the channels of an adjusted common average (least anticorrelation).
 
     Re-implemented from the published method (Huang et al., 2024, J Neurosci Methods,
-    "CARLA"): channels are ranked by increasing mean cross-trial covariance in the response
-    window (their evoked activity); for ``n = 2 ... N``, the common average of the ``n``
-    least responsive channels is formed and ``zeta_n``, the most negative mean Fisher-z
-    correlation between one of these channels and the others after re-referencing, is
-    computed. Adding a responsive channel to the average imprints its response, negatively,
-    on all the others, so ``zeta`` drops. ``n*`` is the global maximum of ``zeta``, unless an
-    earlier local maximum is followed by a significant fall (95 % bootstrap interval, over
-    trials, of the fall to the next low point above zero): then the first such local
-    maximum. At least 10 % of the channels are kept.
+    "CARLA"), and checked against the authors' code (spec REQ-372): line noise is removed
+    (``line_freq`` and harmonics to 180 Hz; None to skip); channels are ranked by increasing
+    mean covariance between pairs of trials in the response window (their evoked activity);
+    for ``n = 2 ... N``, ``zeta_n`` is the most negative mean Fisher-z correlation between
+    one of the ``n`` least responsive channels (not re-referenced) and the others after
+    re-referencing to their average, computed on ``n_boot`` bootstrap averages of the trials
+    and averaged over them. Adding a responsive channel imprints its response, negatively,
+    on all the others, so ``zeta`` drops. ``sensitive=True`` (the authors' choice on real
+    data): starting at 10 % of the channels, the first local maximum of ``zeta`` followed by
+    a significant fall (95th percentile of all bootstrap differences trough - peak below 0)
+    before the next higher value; else the global maximum.
 
     Parameters
     ----------
@@ -172,55 +201,66 @@ def car_adaptive_select(data, times, *, response_window=(0.01, 0.3), n_boot=100,
     random_state : int or Generator, optional
     candidates : 1d array of int, optional
         Channels allowed in the average (default: all).
+    sensitive : bool
+    line_freq : float or None
+        Line frequency (Hz); the published code notches 60, 120 and 180 Hz.
 
     Returns
     -------
     dict
         ``members`` (channel indices of the average), ``n_star``, ``order`` (ranking),
-        ``zeta`` (array over n = 2..N), ``ci`` (bootstrap 95 % interval of the drop at n*,
-        or None), ``responsiveness`` (per channel).
+        ``zeta`` (array over n = 2..N), ``ci`` (95th percentile of the fall at n*, or None),
+        ``responsiveness`` (per channel).
     """
 
     window = (times >= response_window[0]) & (times <= response_window[1])
     if not window.any():
         raise DataError("response_window contains no sample.")
+    sfreq = 1.0 / np.median(np.diff(times))
     candidates = np.arange(data.shape[1]) if candidates is None else np.asarray(candidates)
-    resp = _cross_trial_covariance(data[:, candidates], window)
-    order = candidates[np.argsort(resp, kind="stable")]
+    clean = _line_notch(data[:, candidates], sfreq, line_freq)[:, :, window]
+    resp = _cross_trial_covariance(clean, np.ones(clean.shape[-1], bool))
+    local_order = np.argsort(resp, kind="stable")
+    order = candidates[local_order]
     n_total = len(order)
     ns = np.arange(2, n_total + 1)
-    average = data[:, :, window].mean(axis=0)
-    zeta = np.array([_zeta(average, order, n) for n in ns])
-    n_min = max(2, int(np.ceil(MIN_CA_FRACTION * n_total)))
-
     rng = np.random.default_rng(random_state)
-    n_trials = data.shape[0]
+    n_trials = clean.shape[0]
     boots = None
     if n_boot and n_trials >= 3:
         boots = np.empty((n_boot, len(ns)))
         for b in range(n_boot):
             pick = rng.integers(0, n_trials, n_trials)
-            resampled = data[pick][:, :, window].mean(axis=0)
-            boots[b] = [_zeta(resampled, order, n) for n in ns]
-
-    allowed = ns >= n_min
-    global_pos = int(np.flatnonzero(allowed)[np.argmax(zeta[allowed])])
-    chosen, ci = int(ns[global_pos]), None
-    # An earlier local maximum wins when the fall that follows it is significant
-    for pos in np.flatnonzero(allowed):
-        if pos >= global_pos or pos == 0 or pos == len(ns) - 1 or boots is None:
-            continue
-        if not (zeta[pos] >= zeta[pos - 1] and zeta[pos] > zeta[pos + 1]):
-            continue
-        # The fall runs to the lowest value before zeta rises again
-        end = pos + 1
-        while end + 1 < len(ns) and zeta[end + 1] <= zeta[end]:
-            end += 1
-        drop = boots[:, pos] - boots[:, end]
-        low, high = np.percentile(drop, [2.5, 97.5])
-        if low > 0:
-            chosen, ci = int(ns[pos]), (float(low), float(high))
-            break
+            boots[b] = _zeta_curve(clean[pick].mean(axis=0), local_order)
+        zeta = boots.mean(axis=0)
+    else:
+        zeta = _zeta_curve(clean.mean(axis=0), local_order)
+    n_min = max(2, int(np.ceil(MIN_CA_FRACTION * n_total)))
+    chosen = int(ns[n_min - 2 + int(np.argmax(zeta[n_min - 2:]))])
+    ci = None
+    if sensitive and boots is not None:
+        values = zeta.copy()
+        pos = n_min - 2
+        while pos < len(ns):
+            if pos == len(ns) - 1:
+                chosen = int(ns[pos])
+                break
+            if values[pos + 1] > values[pos]:
+                pos += 1
+                continue
+            values[:pos] = np.nan
+            later = np.flatnonzero(values > values[pos])
+            if not later.size:
+                chosen = int(ns[pos])
+                break
+            nxt = int(later[0])
+            trough = pos + int(np.nanargmin(values[pos:nxt]))
+            diffs = (boots[:, trough][None, :] - boots[:, pos][:, None]).ravel()
+            upper = float(np.percentile(diffs, 95))
+            if upper < 0:
+                chosen, ci = int(ns[pos]), (-np.inf, upper)
+                break
+            pos = nxt
     resp_all = np.full(data.shape[1], np.nan)
     resp_all[candidates] = resp
     return {"members": np.sort(order[:chosen]), "n_star": int(chosen), "order": order,
