@@ -43,7 +43,7 @@ RULES = {
 FORBIDDEN_BETWEEN = {"reports", "plots", "cli", "stream", "benchmark"}
 
 # Inherited modules, rewritten or removed by the build steps of spec §12.
-LEGACY = {"analysis", "bands", "clean", "core", "objs", "param", "plts", "_legacy"}
+LEGACY = {"analysis", "bands", "core", "objs", "param", "plts", "_legacy"}
 
 # (source file relative to the package, imported module) -> build step that removes the edge.
 TRANSITIONAL = {
@@ -55,7 +55,6 @@ TRANSITIONAL = {
     ("sim/params.py", "core"): "S9",
     ("sim/params.py", "data"): "S9",
     ("sim/utils.py", "core"): "S9",
-    ("utils", "clean"): "S5",
     ("utils", "core"): "S7",
     ("utils", "objs"): "S7",
 }

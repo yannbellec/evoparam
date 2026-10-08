@@ -4,7 +4,7 @@ from itertools import repeat
 
 import numpy as np
 
-from evoparam.clean.interpolate import interpolate_artifact
+from evoparam.utils._interp import interpolate_window
 
 ###################################################################################################
 ###################################################################################################
@@ -110,8 +110,8 @@ def interpolate_signal(time, signals, interp_range, buffer=3):
     # Assuming list of two floats, interpolate a single time range
     else:
 
-        # Shared implementation with the clean module: works on 1d or nd arrays (time last)
-        signals = interpolate_artifact(time, signals, interp_range, buffer)
+        # Shared implementation with evoparam.artifact: works on 1d or nd arrays (time last)
+        signals, _ = interpolate_window(time, signals, interp_range, buffer, anchor="median")
 
     return time, signals
 

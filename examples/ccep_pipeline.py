@@ -9,7 +9,8 @@ whole recording:
             (OpenNeuro ds004080, Utrecht CCEP dataset, patient sub-ccepAgeUMCU01).
 2. events : find the stimulation onsets from the signal alone, and compare them
             to the onsets written in the events file.
-3. clean  : remove the stimulation artifact by interpolation.
+3. artifact: remove the stimulation artifact by template subtraction, and score each
+            trial.
 4. param  : fit the peak model on the average response of each channel, and print
             the latency and amplitude of the first negative peak (the N1).
 
@@ -19,9 +20,9 @@ Data: van Blooijs et al., OpenNeuro ds004080 (CC0). Only about 55 MB are read.
 import numpy as np
 
 from evoparam.io import (openneuro_url, read_bids_events, select_stimulation_events,
-                         read_brainvision_segment, epoch_data)
+                         read_brainvision_segment, epoch_data, from_array)
 from evoparam.events import detect_pulses, match_onsets
-from evoparam.clean import interpolate_artifact
+from evoparam.artifact import remove_artifact
 from evoparam.param import fit_epochs
 
 ###################################################################################################
@@ -32,7 +33,7 @@ RUN = ('sub-ccepAgeUMCU01/ses-1/ieeg/'
        'sub-ccepAgeUMCU01_ses-1_task-SPESclin_run-021448')
 SITE = 'PT01-PT02'                  # stimulated electrode pair
 EPOCH = (-0.5, 1.0)                 # seconds around each pulse
-ARTIFACT = (-0.002, 0.010)          # window replaced by a straight line
+ARTIFACT = (-0.002, 0.010)          # artifact window, in seconds
 FIT_RANGE = [0.010, 0.500]          # where to look for peaks (N1 and N2)
 BASELINE = [-0.5, -0.05]            # where to measure the noise level
 
@@ -63,11 +64,17 @@ print('Detection: {} / {} pulses found, {} false alarms, mean error {:.1f} ms'.f
     1000 * np.mean(check['errors']) if check['hits'] else np.nan))
 
 ###################################################################################################
-# 3. clean: cut epochs around the pulses, remove the artifact
+# 3. artifact: cut epochs around the pulses, remove the artifact
 
 times, epochs, kept = epoch_data(data, sfreq, onsets, *EPOCH, t0=t0)
 epochs = epochs - epochs[..., (times >= BASELINE[0]) & (times <= BASELINE[1])].mean(axis=-1, keepdims=True)
-epochs = interpolate_artifact(times, epochs, window=ARTIFACT)
+
+# Subtract the median artifact of the 10 pulses, scaled to each pulse and channel
+trials = from_array(epochs, sfreq=sfreq, times=times, ch_names=ch_names,
+                    metadata={'stim_site': [SITE] * len(epochs)})
+cleaned = remove_artifact(trials, method='template', window=ARTIFACT, baseline=BASELINE)
+epochs = cleaned.cleaned.data
+print('Artifact removed (template); median trial quality {:.2f}'.format(np.median(cleaned.quality)))
 
 ###################################################################################################
 # 4. param: fit the average response of each channel

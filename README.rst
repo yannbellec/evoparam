@@ -19,7 +19,10 @@ evoparam covers the whole path from a raw recording to response parameters:
   is missing or wrong (robust threshold, strength gate and template matching), flag
   amplifier saturation, guess the stimulated contact pair, group pulses into trains, and
   score detections against reference onsets.
-* ``evoparam.clean``: remove the stimulation artifact (interpolation, for now).
+* ``evoparam.artifact``: remove the stimulation artifact (interpolation, template, recovery
+  tail, period-based reconstruction for high-frequency trains, low-rank regression,
+  subspace projection, local polynomial, matching pursuit, paradigm-based cancellation,
+  learned basis), mark the replaced samples and score each trial.
 * ``evoparam.param``: describe each response as a set of peaks (latency, amplitude, width).
 
 Methods planned for the next versions (trial-by-trial fitting, uncertainty, more artifact

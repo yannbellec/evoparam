@@ -2,6 +2,61 @@
 
 ## 0.1.0 (in progress)
 
+### Build step S5: stimulation-artifact removal with a quality score
+
+- New module `evoparam.artifact` (spec §5.3), replacing the skeleton's `evoparam.clean`
+  (removed; its interpolation is method 1 and lives in `evoparam.utils._interp`, shared with
+  the legacy `utils.data.interpolate_signal`).
+- `remove_artifact(ts, method=...)` returns an `ArtifactResult` (cleaned `TrialSet`, method,
+  window, template or basis, per-trial quality and its components, every setting, provenance).
+  Methods, each from the published equations:
+  `interpolate` (linear, cubic, PCHIP); `template` (group median per site, current and
+  polarity, least-squares scaled per trial and channel; `"local"` moving template of the
+  nearest pulses; or a given array; masked pulses left out; warning when the template
+  correlates with the response after the window; groups under 3 pulses raise, or fall back
+  to interpolation); `tail` (two exponentials fitted after the window, `tau2 >= 3 tau1`,
+  the decaying part subtracted; `"joint"` leaves it to the response model);
+  `period_template` (fractional period by a three-stage grid search, then every sample minus
+  the mean of the samples whole periods away; causal variant); `lowrank` (sequential
+  regression across channels, pulses and trials); `subspace` (whitening with the baseline
+  covariance, projection away from the artifact directions); `polynomial` (local cubic as a
+  Savitzky-Golay filter, zeros while railed, one-sided fits after, masked until the residual
+  looks like noise); `matching_pursuit` (line, response and artifact atoms; patent warning);
+  `paradigm` (alternating polarity, forward masking; also `paradigm_subtract`); `learned`
+  (PCA basis per group, ridge regression; basis returned); `none`.
+- Masks: interpolated and zeroed samples are masked, with the existing (saturation) masks.
+  Methods that subtract an estimate keep the corrected samples as measurements and do not
+  mask them (a choice of this step: masking them would discard what template subtraction
+  recovers).
+- Quality per trial (`artifact_quality`): residual energy after the window, edge
+  discontinuity, saturation fraction and template-fit r2; written to `metadata["quality"]`.
+- Also: `estimate_artifact_template`, `estimate_period`, `apply_mask`, `compare_methods`
+  (RRMSE and signal-to-interference ratio against a ground truth).
+- Two additions to the published methods, found necessary by the tests: in `lowrank`, the
+  across-channel principal-component scores are denoised across pulse segments before the
+  regression (with 24 channels, raw scores inject the other channels' noise: silent-channel
+  RMS +35 % instead of <= 10 %); in `tail`, the subtracted part is `r(t) - r(t_end)`, so the
+  cleaned signal joins the untouched samples without a step.
+- Acceptance criteria met on synthetic overlays (REQ-060 to REQ-067, REQ-069): locality and
+  masks; >= 20 dB artifact reduction in the window for `template` and `learned`; period
+  estimate SD below 1e-4 samples over 100 realisations and residual indistinguishable from
+  the pre-stimulation noise (Wilcoxon p > 0.05) for a 130.2 Hz train with 10 and 50 Hz
+  sinusoids; spike waveform correlation >= 0.95 and silent channels within 10 % for
+  `lowrank`; >= 30 dB signal-to-interference improvement for `subspace`; recovery 2 ms after a
+  railed pulse at 25 kHz for `polynomial`; quality AUC >= 0.9 for corrupted trials;
+  alternating polarity exact to 1e-9 and the forward-masking identity; settings re-create the
+  result to 1e-12.
+- Not covered by this step: the latency and amplitude bias of *fitted* components after
+  cleaning (REQ-061, second part) needs the fitting engine (build step S7); MEF3 data cannot
+  be read yet.
+- Speed (REQ-068, `benchmarks/bench_artifact.py`): 50 trials x 128 channels x 3 s at 2048 Hz
+  in 0.5 to 1.3 s per method with the quality score, `subspace` 3.7 s and `lowrank` 8.6 s
+  (limits 2 s and 20 s), on one core of the Mac Studio.
+- The ds004080 example now subtracts a template; on that run, with a median reference and a
+  window to 14 ms, the inherited fitter finds an N1 on 6 channels instead of 1. This is a
+  diagnostic only: the N1 fix itself belongs to build steps S6 (referencing) and S7 (fitting
+  engine).
+
 ### Build step S4: stimulation events from the raw signal
 
 - New module `evoparam.events` (spec §5.2), replacing the skeleton's `evoparam.detect`
