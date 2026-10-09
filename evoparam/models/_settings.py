@@ -62,6 +62,8 @@ class FitSettings:
     latency_order: str = "parameterised"     # spec §5.5.3 step 5 ("sorted": not better)
     # "beam" (measured more robust and faster than "spec", §5.5.3 step 4; see CHANGELOG)
     candidate_search: str = "beam"
+    # refuse a model with two overlapping components of opposite signs (cancelling pair)
+    reject_cancelling: bool = True
     # "order": every extremum is a candidate, detection_threshold only orders them (REQ-104);
     # "select": only the extrema >= detection_threshold are candidates (§5.5.3 step 3)
     threshold_role: str = "order"

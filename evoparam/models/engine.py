@@ -526,6 +526,48 @@ def _param_latencies(struct, theta):
     return np.asarray(out)
 
 
+def _cancelling_pair(struct, theta, beta, settings):
+    """True when two components of opposite signs overlap: their latencies are closer than
+    ``overlap_c * (sigma_a + sigma_b)``, the overlap of spec §5.5.3 step 5 (sigma = FWHM /
+    2.3548 of each fitted component).
+
+    Such a pair is not identifiable: two large components of opposite signs at almost the
+    same latency describe one deflection (or a biphasic complex) as their difference, with
+    the same fit as the right components and arbitrary amplitudes (on clean ECAP
+    simulations -320 and +218 uV at 0.587 and 0.601 ms for a true N1 of -137 uV at 0.489 ms
+    and P2 of +111 uV at 0.752 ms). The engine does not accept a model holding one; the
+    search goes on with the other starts and candidates."""
+
+    k_max = len(struct.shapes)
+    if k_max < 2:
+        return False
+    amps = beta[:k_max]
+    if np.all(amps >= 0) or np.all(amps <= 0):
+        return False
+    sfreq = 1.0 / np.median(np.diff(struct.tw))
+    lat, sig = [], []
+    for k, shape in enumerate(struct.shapes):
+        feats = compute_features(shape, struct.tw, struct.comp_params(theta, k), amps[k],
+                                 sfreq=sfreq)
+        lat.append(feats.latency)
+        sig.append(feats.fwhm / FWHM_PER_SIGMA if np.isfinite(feats.fwhm) else 0.0)
+    return bool(cancelling_pairs(lat, sig, amps, settings.overlap_c))
+
+
+def cancelling_pairs(latencies, sigmas, amplitudes, overlap_c):
+    """Index pairs ``(a, b)`` of components of opposite signs whose latencies are closer
+    than ``overlap_c * (sigma_a + sigma_b)`` (the identifiability rule of the engine, also
+    used by :func:`evoparam.spatial.fit_shared`). A zero amplitude has no sign."""
+
+    out = []
+    for a in range(len(latencies)):
+        for b in range(a + 1, len(latencies)):
+            if amplitudes[a] * amplitudes[b] < 0 and \
+                    abs(latencies[a] - latencies[b]) < overlap_c * (sigmas[a] + sigmas[b]):
+                out.append((a, b))
+    return out
+
+
 def _reorder(struct_maker, shapes, theta, order):
     struct = struct_maker(shapes)
     shapes = [shapes[i] for i in order]
@@ -547,6 +589,8 @@ def _evaluate_state(struct_maker, shapes, theta0, settings, n_eff, f_scale, kind
     theta, beta, rw, ok, msg = _optimise(struct, theta0, settings, f_scale, tol)
     if not ok:
         return None, msg
+    if settings.reject_cancelling and _cancelling_pair(struct, theta, beta, settings):
+        return None, "cancelling_pair"
     p = struct.n_theta + len(beta)
     data_rw = rw[:len(struct.y)]
     fit_crit = criterion(float(np.sum(data_rw ** 2)), n_eff, p, kind)
