@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
+  "conventions": {
+    "intervals": "time and freq are [low, high] in s and Hz; 'intervals' gives the closure of each: '[]' closed (default), '[)' half-open (the upper bound belongs to the next zone). The N1 / N2 boundary at 50 ms and the band boundaries at 8, 13, 30 and 50 Hz belong to the later interval and the higher band, so that the ten band x interval zones tile the whole-response zone with no pixel counted twice."
+  },
   "zones": {
     "brinyark2026_delayed_high_gamma": {
       "time": [0.05, 0.5],
@@ -7,21 +10,59 @@
       "verified": true,
       "fields": {"time": "verified", "freq": "verified", "transform": "verified",
                  "baseline": "verified", "baseline_mode": "unverified",
-                 "baseline_level": "unverified"},
+                 "baseline_level": "unverified", "channel_correction": "unverified"},
       "settings": {"transform": "morse", "gamma": 3.0, "p2": 30.0,
                    "baseline": [-0.5, -0.1], "baseline_mode": "db",
-                   "baseline_level": "single_trial"},
-      "source": "Brinyark 2026, doctoral dissertation, UAB [LIT-tf-3]; transform and baseline of Hays et al. 2024 [LIT-tf-2]",
-      "reference": "delayed (50-500 ms) high-gamma (50-250 Hz) zone",
-      "note": "the delayed high-gamma zone; dB normalisation and its level are not confirmed against the source"
+                   "baseline_level": "single_trial", "channel_correction": "none"},
+      "source": "Brinyark 2026, doctoral dissertation, UAB [LIT-tf-3]; Brinyark et al. 2026, Clin Neurophysiol 186:2111855, doi:10.1016/j.clinph.2026.2111855 [LIT-tf-4] (zone GhN2); transform and baseline of Hays et al. 2024 [LIT-tf-2]",
+      "reference": "delayed (50-500 ms) high-gamma (50-250 Hz) zone; GhN2 of [LIT-tf-4], §2.4 and Fig. 2, p. 3",
+      "note": "the delayed high-gamma zone (GhN2); dB normalisation and its level are not confirmed against the source; Benjamini-Hochberg within each stimulation-response pair, none across channels (§2.4)"
     },
-    "brinyark2026_other_zones": {
-      "time": null,
-      "freq": null,
-      "verified": false,
-      "source": "Brinyark 2026, doctoral dissertation, UAB [LIT-tf-3]; Brinyark et al. (presumed) [LIT-tf-4]",
-      "reference": "zone table of the dissertation (page to be confirmed)",
-      "note": "the ten other zones of the eleven-zone scheme: bounds not entered, to be copied from the source and confirmed"
-    }
+    "brinyark2026_GhN2": {
+      "alias_of": "brinyark2026_delayed_high_gamma"
+    },
+    "brinyark2026_TN1": {"time": [0.015, 0.05], "freq": [4.0, 8.0],
+                         "intervals": {"time": "[)", "freq": "[)"}, "verified": false,
+                         "label": "theta x N1", "settings_of": "article"},
+    "brinyark2026_TN2": {"time": [0.05, 0.5], "freq": [4.0, 8.0],
+                         "intervals": {"time": "[]", "freq": "[)"}, "verified": false,
+                         "label": "theta x N2", "settings_of": "article"},
+    "brinyark2026_AN1": {"time": [0.015, 0.05], "freq": [8.0, 13.0],
+                         "intervals": {"time": "[)", "freq": "[)"}, "verified": false,
+                         "label": "alpha x N1", "settings_of": "article"},
+    "brinyark2026_AN2": {"time": [0.05, 0.5], "freq": [8.0, 13.0],
+                         "intervals": {"time": "[]", "freq": "[)"}, "verified": false,
+                         "label": "alpha x N2", "settings_of": "article"},
+    "brinyark2026_BN1": {"time": [0.015, 0.05], "freq": [13.0, 30.0],
+                         "intervals": {"time": "[)", "freq": "[)"}, "verified": false,
+                         "label": "beta x N1", "settings_of": "article"},
+    "brinyark2026_BN2": {"time": [0.05, 0.5], "freq": [13.0, 30.0],
+                         "intervals": {"time": "[]", "freq": "[)"}, "verified": false,
+                         "label": "beta x N2", "settings_of": "article"},
+    "brinyark2026_GlN1": {"time": [0.015, 0.05], "freq": [30.0, 50.0],
+                          "intervals": {"time": "[)", "freq": "[)"}, "verified": false,
+                          "label": "low gamma x N1", "settings_of": "article"},
+    "brinyark2026_GlN2": {"time": [0.05, 0.5], "freq": [30.0, 50.0],
+                          "intervals": {"time": "[]", "freq": "[)"}, "verified": false,
+                          "label": "low gamma x N2", "settings_of": "article"},
+    "brinyark2026_GhN1": {"time": [0.015, 0.05], "freq": [50.0, 250.0],
+                          "intervals": {"time": "[)", "freq": "[]"}, "verified": false,
+                          "label": "high gamma x N1", "settings_of": "article"},
+    "brinyark2026_WR": {"time": [0.015, 0.5], "freq": [4.0, 250.0],
+                        "intervals": {"time": "[]", "freq": "[]"}, "verified": false,
+                        "label": "whole response", "settings_of": "article"}
+  },
+  "article": {
+    "fields": {"time": "unverified", "freq": "unverified", "intervals": "unverified",
+               "transform": "unverified", "baseline": "unverified", "stats": "unverified",
+               "two_sided": "unverified", "window": "unverified",
+               "channel_correction": "unverified"},
+    "settings": {"transform": "morse", "gamma": 3.0, "p2": 30.0,
+                 "baseline": [-0.45, -0.15], "baseline_mode": "db",
+                 "baseline_level": "single_trial", "stats": "baseline_normal",
+                 "window": [0.015, 0.9], "channel_correction": "none"},
+    "source": "Brinyark et al. 2026, Clin Neurophysiol 186:2111855, doi:10.1016/j.clinph.2026.2111855 [LIT-tf-4]",
+    "reference": "§2.3 (transform), §2.4 and Fig. 2 legend (zones, statistic), p. 3",
+    "note": "bounds and method read from the article on 2026-10-09; to be confirmed by the user before publication. The boundary convention at 50 ms and at the band edges, the two-sided p-value and the test window (15 to 900 ms) are evoparam's reading: the article does not state them"
   }
 }

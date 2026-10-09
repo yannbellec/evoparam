@@ -7,18 +7,28 @@ The tested quantity is, per trial, the normalised power minus its baseline level
 - ``cluster``: sign-flip permutation, cluster mass (sum of ``|t|``) of the clusters of
   pixels above the two-sided ``t`` threshold at ``cluster_alpha`` (Maris and Oostenveld 2007);
   family-wise error by the maximum mass of each permutation;
+- ``baseline_normal``: the published test of the eleven-zone work (Brinyark et al. 2026,
+  §2.4): the trial-average dB power of each pixel against a normal distribution fitted to
+  the baseline of its frequency, Benjamini-Hochberg over the pixels of the window;
 - ``tfce``: threshold-free cluster enhancement (``E = 0.5``, ``H = 2``, step 0.2 in ``t``;
   Smith and Nichols 2009) with the maximum of each permutation.
+
+Across map rows (channels x conditions), each row is a family of pixel tests: its p-value is
+its smallest adjusted pixel p-value, the rows are corrected as in §5.6 (``row_levels``) and
+each row's pixels are then tested at the row's level.
 """
+
+import warnings
 
 import numpy as np
 from scipy import ndimage, stats as sstats
 
 from evoparam.errors import SettingsError
 
-__all__ = ["STATS", "t_map", "fdr_significant", "test_map"]
+__all__ = ["STATS", "CHANNEL_CORRECTIONS", "t_map", "fdr_significant", "bh_adjusted",
+           "within_map_p", "row_levels", "baseline_normal_map", "test_map"]
 
-STATS = ("fdr", "cluster", "tfce", "none")
+STATS = ("fdr", "cluster", "tfce", "baseline_normal", "none")
 MIN_TRIALS = 3
 # TFCE step in t units (the default of MNE-Python's threshold-free clustering).
 TFCE_E, TFCE_H, TFCE_DH = 0.5, 2.0, 0.2
@@ -62,6 +72,118 @@ def fdr_significant(p, alpha):
     threshold = ranked[np.flatnonzero(below).max()]
     out[np.isfinite(p)] = p[np.isfinite(p)] <= threshold
     return out
+
+
+def bh_adjusted(p):
+    """Benjamini-Hochberg adjusted p-values (NaN left out and kept): ``p <= q`` after
+    adjustment is the step-up procedure at level ``q``; the smallest adjusted value is the
+    Simes p-value of the whole map."""
+
+    p = np.asarray(p, float)
+    out = np.full(p.shape, np.nan)
+    ok = np.isfinite(p)
+    values = p[ok]
+    m = values.size
+    if m == 0:
+        return out
+    order = np.argsort(values, kind="stable")
+    scaled = values[order] * m / np.arange(1, m + 1)
+    adjusted = np.empty(m)
+    adjusted[order] = np.minimum(1.0, np.minimum.accumulate(scaled[::-1])[::-1])
+    out[ok] = adjusted
+    return out
+
+
+def within_map_p(p, method):
+    """Pixel p-values adjusted within one map, so that ``p <= alpha`` is the map's test at
+    level ``alpha``: Benjamini-Hochberg for ``fdr``, the permutation family-wise values for
+    ``cluster`` and ``tfce``, none for ``none`` (all NaN: no pixel is ever significant)."""
+
+    if method in ("fdr", "baseline_normal"):
+        return bh_adjusted(p)
+    if method == "none":
+        return np.full(np.shape(p), np.nan)
+    return np.asarray(p, float)
+
+
+def baseline_normal_map(power, baseline, window):
+    """The published per-pixel test of [LIT-tf-4] (§2.4): the trial average of the power in
+    dB (``10 log10``) is compared, at each frequency, with a normal distribution fitted to
+    that frequency's baseline pixels (mean and SD with divisor n - 1); two-sided p-values
+    of the pixels of ``window``.
+
+    Parameters
+    ----------
+    power : ndarray (n_trials, n_freqs, n_times)
+        Power per trial (NaN for invalid pixels).
+    baseline, window : bool arrays (n_times,) and (n_freqs, n_times)
+
+    Returns
+    -------
+    z, p : ndarrays (n_freqs, n_times), NaN outside ``window``.
+    """
+
+    with np.errstate(divide="ignore", invalid="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        db = np.nanmean(10 * np.log10(power), axis=0)
+        ref = np.where(baseline[None], db, np.nan)
+        mu = np.nanmean(ref, axis=1, keepdims=True)
+        sd = np.nanstd(ref, axis=1, ddof=1, keepdims=True)
+        z = (db - mu) / sd
+    z = np.where(window & np.isfinite(z), z, np.nan)
+    p = 2 * sstats.norm.sf(np.abs(z))
+    return z, np.where(np.isfinite(z), p, np.nan)
+
+
+CHANNEL_CORRECTIONS = ("fdr_bh", "holm", "bonferroni", "none")
+
+
+def row_levels(row_p, alpha, method):
+    """Level at which each map row (channel x condition) is tested, from the rows' smallest
+    adjusted pixel p-values (spec §5.10 method 4, "corrections across channels as in §5.6").
+
+    - ``none``: ``alpha`` for every row.
+    - ``bonferroni``: ``alpha / m``.
+    - ``holm``: rows in increasing order of their p-value; the k-th (from 0) is tested at
+      ``alpha / (m - k)`` while every earlier row was rejected, the rest at 0.
+    - ``fdr_bh``: Benjamini-Hochberg over the rows selects ``R`` of them; each selected row
+      is tested at ``R * alpha / m``, the others at 0 (selective inference on families of
+      hypotheses, Benjamini and Bogomolov 2014: the average false-discovery rate over the
+      selected rows is controlled at ``alpha``).
+
+    ``m`` is the number of rows with a p-value (rows with no tested pixel are left out, as
+    in §5.6). Returns an array of levels (0 for a row that is not tested).
+    """
+
+    if method not in CHANNEL_CORRECTIONS:
+        raise SettingsError(f"channel_correction must be one of {CHANNEL_CORRECTIONS}, not "
+                            f"{method!r}.")
+    p = np.asarray(row_p, float)
+    ok = np.isfinite(p)
+    m = int(ok.sum())
+    levels = np.zeros(p.shape)
+    if m == 0:
+        return levels
+    if method == "none":
+        levels[ok] = alpha
+        return levels
+    if method == "bonferroni":
+        levels[ok] = alpha / m
+        return levels
+    index = np.flatnonzero(ok)
+    order = index[np.argsort(p[ok], kind="stable")]
+    if method == "holm":
+        for k, row in enumerate(order):
+            threshold = alpha / (m - k)
+            if p[row] > threshold:
+                break
+            levels[row] = threshold
+        return levels
+    below = p[order] <= alpha * np.arange(1, m + 1) / m
+    if below.any():
+        selected = int(np.flatnonzero(below).max()) + 1
+        levels[order[:selected]] = selected * alpha / m
+    return levels
 
 
 def _flipped_t(signs, filled, sumsq, n):
@@ -151,8 +273,9 @@ def test_map(d, window, *, method="fdr", alpha=0.05, n_permutations=1000, rng=No
         p-value for ``cluster``).
     """
 
-    if method not in STATS:
-        raise SettingsError(f"stats must be one of {STATS}, not {method!r}.")
+    if method not in STATS or method == "baseline_normal":
+        raise SettingsError(f"stats must be one of {STATS} ('baseline_normal' through "
+                            f"baseline_normal_map), not {method!r}.")
     d = np.where(window[None], d, np.nan)
     t, n = t_map(d)
     tested = window & np.isfinite(t)

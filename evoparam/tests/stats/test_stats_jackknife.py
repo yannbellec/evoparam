@@ -83,10 +83,12 @@ def test_req231_smulders_worked_example():
 
 
 @pytest.mark.xfail(strict=False, reason="REQ-231, Kiesel et al. (2008) part: the worked "
-                   "example of the paper could not be read in the build environment (the "
-                   "publisher copy is not reachable), so its printed values are not frozen "
-                   "here; the corrections it uses (t / (n - 1), F / (n - 1)^2) are tested "
-                   "on the Smulders example and on simulations")
+                   "example of the paper could not be read in the build environment (on "
+                   "2026-10-09 the network policy refused the author's page at the University "
+                   "of Freiburg, the publisher, doi.org, OpenAlex, PubMed Central and Europe "
+                   "PMC), so its printed values are not "
+                   "frozen here; the corrections it uses (t / (n - 1), F / (n - 1)^2) are "
+                   "tested on the Smulders example and on simulations")
 def test_req231_kiesel_worked_example():
 
     printed = None            # the worked example of [LIT-erpmeas-2], to be transcribed

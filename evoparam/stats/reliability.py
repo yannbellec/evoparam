@@ -33,7 +33,7 @@ from ._scorers import TIME_SCORES, default_window, resolve_scorer
 from .variance import reml
 
 __all__ = ["reliability", "trials_needed", "spearman_brown", "dependability",
-           "RELIABILITY_COLUMNS", "TRIALS_NEEDED_COLUMNS"]
+           "RELIABILITY_COLUMNS", "TRIALS_NEEDED_COLUMNS", "EXTRAPOLATIONS"]
 
 METHODS = ("split_half", "dependability", "both")
 
@@ -54,6 +54,18 @@ _CHUNK = 64
 
 # Bootstrap resamples per unit for the measurement error of a non-linear score.
 _SME_BOOT = 200
+
+# Laws that extrapolate a score's SD beyond the recorded trials (trials_needed).
+EXTRAPOLATIONS = ("auto", "sqrt_n", "power")
+# Bounds of the fitted exponent of the power law: the SD of a score does not grow with the
+# trial count, and a latency approaches the 1/sqrt(n) law from below (its SD is bounded by
+# the window while the average is noisy), so its local exponent lies in [-1/2, 0].
+_POWER_EXPONENT = (-0.5, 0.0)
+# Scores extrapolated by the power law with extrapolation="auto": the two latencies whose
+# 80-trial SD the power law predicted better than the 1/sqrt(n) law on development
+# simulations (pink, white and AR(1) noise, per-trial SNR 0.5 to 2; CHANGELOG). The
+# fractional peak latency is not among them (the power law over-predicted it).
+_POWER_SCORES = ("peak_latency", "fractional_area_latency")
 
 
 ###################################################################################################
@@ -387,8 +399,38 @@ def _sme_rms(units, data, trial_scores, func, linear, rng):
 ###################################################################################################
 ## Trial-count planning
 
+def _extrapolate(sd, n_recorded, targets, law):
+    """SD at ``targets`` (> n_recorded) from the resampled SDs ``sd`` {count: (n_ch,)}.
+
+    ``sqrt_n``: ``c / sqrt(n)``, ``c`` the mean of ``sd(m) * sqrt(m)`` over the counts
+    ``m >= N / 2``. ``power``: ``log sd`` regressed on ``log m`` over the counts
+    ``m >= N / 4`` (at least two; else ``sqrt_n``), exponent clipped to [-1/2, 0]. Both
+    are multiplied by ``sqrt(N / (N - 1))`` (a bootstrap of N trials uses their variance
+    with divisor N). Returns {target: (n_ch,)} and the exponent per channel.
+    """
+
+    N = n_recorded
+    resampled = sorted(sd)
+    correction = np.sqrt(N / max(N - 1, 1))
+    fit = [m for m in resampled if m >= N / 4]
+    if law == "power" and len(fit) >= 2:
+        logm = np.log(np.asarray(fit, float))
+        dm = logm - logm.mean()
+        with warnings.catch_warnings(), np.errstate(divide="ignore", invalid="ignore"):
+            warnings.simplefilter("ignore", RuntimeWarning)
+            logsd = np.log(np.stack([sd[m] for m in fit]))           # (n_counts, n_ch)
+            slope = np.clip((dm @ (logsd - logsd.mean(axis=0))) / (dm @ dm), *_POWER_EXPONENT)
+            level = np.mean(logsd - slope[None] * logm[:, None], axis=0)
+            return ({n: np.exp(level + slope * np.log(n)) * correction for n in targets},
+                    slope)
+    base = [m for m in resampled if m >= N / 2] or resampled
+    c = np.mean([sd[m] * np.sqrt(m) for m in base], axis=0) * correction
+    return {n: c / np.sqrt(n) for n in targets}, np.full(np.shape(c), -0.5)
+
+
 def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random_state=None,
-                  window=None, picks=None, existence_kwargs=None, **scorer_kw):
+                  window=None, picks=None, existence_kwargs=None, extrapolation="auto",
+                  **scorer_kw):
     """How a score's precision, or the chance of detecting the response, grows with trials.
 
     Parameters
@@ -414,6 +456,16 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
     existence_kwargs : dict, optional
         Arguments of :func:`~evoparam.existence.test_response` (default: 200 permutations,
         no correction, no bootstrap of the duration, no grouping).
+    extrapolation : {"auto", "sqrt_n", "power"}
+        Law of a score's SD beyond the recorded trials. ``"sqrt_n"``: the ``1 / sqrt(n)``
+        law (spec §5.11, method 5). ``"power"``: ``sd(n) = a * n**b`` fitted on the
+        resampled counts, ``b`` in [-1/2, 0]. ``"auto"`` (default): ``"power"`` for
+        ``"peak_latency"`` and ``"fractional_area_latency"``, ``"sqrt_n"`` for the other
+        scores and for callables. These two latencies have an SD that falls more slowly
+        than ``1 / sqrt(n)`` while the average is noisy: from 20 trials to 80, on
+        development simulations (per-trial SNR 0.5 to 2), the ``1 / sqrt(n)`` law
+        predicted a median 0.55 to 0.89 of the true SD, the power law 0.83 to 1.18
+        (CHANGELOG).
 
     Returns
     -------
@@ -422,10 +474,13 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
         for the existence test), ``p_significant`` (NaN for a score), ``extrapolated``
         (True beyond the recorded trials), ``n_resamples``.
 
-        The extrapolation: ``sd(n) = c / sqrt(n)`` with ``c`` the mean of
-        ``sd(m) * sqrt(m)`` over the resampled counts ``m >= N / 2`` (``N`` trials),
-        times ``sqrt(N / (N - 1))`` (a bootstrap of the N trials uses their variance with
-        divisor N).
+        The extrapolation (``N`` trials): ``sqrt_n``, ``sd(n) = c / sqrt(n)`` with ``c``
+        the mean of ``sd(m) * sqrt(m)`` over the resampled counts ``m >= N / 2``;
+        ``power``, least squares of ``log sd(m)`` on ``log m`` over the resampled counts
+        ``m >= N / 4``, exponent clipped to [-1/2, 0]; both times ``sqrt(N / (N - 1))``
+        (a bootstrap of the N trials uses their variance with divisor N).
+        ``attrs["settings"]["extrapolation"]`` is the law used and ``attrs["exponents"]``
+        the exponent per channel.
 
     Examples
     --------
@@ -457,7 +512,11 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
     if steps[0] < 1:
         raise SettingsError("steps must be positive trial counts.")
     n_resamples = int(n_resamples)
+    if extrapolation not in EXTRAPOLATIONS:
+        raise SettingsError(f"extrapolation must be one of {EXTRAPOLATIONS}, not "
+                            f"{extrapolation!r}.")
     records = []
+    law, exponents = None, None
     if scorer == "existence":
         kwargs = {"n_permutations": 200, "correction": "none", "n_boot": 0, "by": ()}
         if window is not None:
@@ -500,11 +559,12 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 sd[n] = np.nanstd(scores, axis=0, ddof=1)
-        resampled = sorted(sd)
-        base = [m for m in resampled if m >= N / 2] or resampled
-        c = np.mean([sd[m] * np.sqrt(m) for m in base], axis=0) * np.sqrt(N / max(N - 1, 1))
+        law = extrapolation
+        if law == "auto":
+            law = "power" if isinstance(scorer, str) and name in _POWER_SCORES else "sqrt_n"
+        beyond, exponents = _extrapolate(sd, N, [s for s in steps if s > N], law)
         for n in steps:
-            values = sd[n] if n in sd else c / np.sqrt(n)
+            values = sd[n] if n in sd else beyond[n]
             for k, i in enumerate(index):
                 records.append({"channel": names[i], "scorer": name, "n_trials": n,
                                 "sd": float(values[k]), "p_significant": np.nan,
@@ -518,11 +578,14 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
     table.attrs["units"] = {k: v.replace("score", unit) for k, v in TRIALS_NEEDED_COLUMNS.items()}
     settings = {"scorer": name, "steps": steps, "n_resamples": n_resamples,
                 "n_recorded": int(N), "window": None if window is None else list(window),
+                "extrapolation": law,
                 "existence_kwargs": {k: v for k, v in (existence_kwargs or {}).items()
                                      if isinstance(v, (int, float, str, bool))},
                 "random_state": random_state if isinstance(random_state, (int, type(None)))
                 else "generator"}
     table.attrs["settings"] = settings
+    if exponents is not None:
+        table.attrs["exponents"] = {names[i]: float(exponents[k]) for k, i in enumerate(index)}
     table.attrs["provenance"] = ts.provenance.with_step(
         "evoparam.stats.trials_needed", settings,
         duration_s=_time.perf_counter() - start).to_dict()

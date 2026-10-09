@@ -5,8 +5,9 @@ significant group map are factorised separately, by non-negative matrix factoris
 (``nmf``: frequency profile x time course, Lee and Seung 1999) or by a non-negative
 canonical-polyadic decomposition over (frequency x time x map row) (``cp``; Morup et al.
 2006). The rank is the largest one whose factors are reproduced (mean Tucker congruence
->= 0.8) across 20 split halves of the trials (``nmf``) or 20 random restarts (``cp``), up to
-``max_zones`` (the search stops after two unstable ranks in a row). Each significant
+>= 0.8) across 20 split halves, up to ``max_zones`` (the search stops after two unstable
+ranks in a row): halves of the trials, of the group map (``nmf``) or of each map row
+(``cp``, which can also split the rows, the sample mode of its tensor, or compare restarts). Each significant
 pixel goes to the zone that explains most of it there; touching zones with no dip between
 them are merged.
 """
@@ -19,9 +20,10 @@ from scipy.optimize import linear_sum_assignment
 
 from evoparam.errors import SettingsError
 
-__all__ = ["nmf", "cp_nonneg", "select_rank", "zone_regions", "zone_table", "load_zones",
-           "resolve_published", "list_published_zones", "ZONE_COLUMNS", "STABILITY_MIN",
-           "N_SPLITS"]
+__all__ = ["nmf", "cp_nonneg", "cp_split_values", "CP_STABILITY", "select_rank",
+           "zone_regions", "zone_table", "load_zones", "resolve_published",
+           "list_published_zones", "ZONE_COLUMNS", "STABILITY_MIN", "N_SPLITS", "zone_mask",
+           "volume_conduction_weight"]
 
 STABILITY_MIN = 0.8
 N_SPLITS = 20
@@ -114,15 +116,64 @@ def _best_nmf(x, rank, rng, restarts=3):
     return best
 
 
-def select_rank(x, halves, max_zones, rng, method="nmf", tensor=None):
+def _cp_parts(tensor, rank, rng):
+    (a, b, _c), _ = cp_nonneg(tensor, rank, rng)
+    return _parts(a, b.T)
+
+
+CP_STABILITY = ("split_half", "rows", "restarts")
+
+
+def _cp_congruence(first, second, rank, rng):
+    if not (np.any(first > 0) and np.any(second > 0)):
+        return 0.0
+    return congruence(_cp_parts(first, rank, rng), _cp_parts(second, rank, rng))
+
+
+def cp_split_values(tensor, halves, rank, rng, row_halves=None, split="trials"):
+    """Split-half congruences of a rank-``rank`` CP (frequency x time x row).
+
+    ``split="trials"`` (spec §5.10): the tensors of two halves of each row's trials,
+    ``row_halves`` (n_splits, 2, n_freqs, n_times, n_rows; the same random halves as for
+    NMF), are decomposed and their matched (frequency x time) parts compared. Without
+    ``row_halves``, or with ``split="rows"``: the rows that carry the map (the sample mode
+    of ``tensor``) are split at random into two halves N_SPLITS times (split-half analysis
+    of PARAFAC models, Bro 1997); with fewer than two such rows, the trial halves of the
+    group map (``halves``), each a one-row tensor; without them, None.
+    """
+
+    if split == "trials" and row_halves is not None:
+        return [_cp_congruence(pair[0], pair[1], rank, rng) for pair in row_halves]
+    active = np.flatnonzero(tensor.reshape(-1, tensor.shape[-1]).any(axis=0))
+    if active.size >= 2:
+        values = []
+        for _ in range(N_SPLITS):
+            order = rng.permutation(active)
+            first, second = order[:active.size // 2], order[active.size // 2:]
+            values.append(_cp_congruence(tensor[..., first], tensor[..., second], rank, rng))
+        return values
+    if halves is None:
+        return None
+    return [_cp_congruence(pair[0][..., None], pair[1][..., None], rank, rng)
+            for pair in halves]
+
+
+def select_rank(x, halves, max_zones, rng, method="nmf", tensor=None,
+                cp_stability="split_half", row_halves=None):
     """Rank and stability per rank.
 
     ``x`` (n_freqs, n_times) is the non-negative part of the group map; ``halves`` an
     array (n_splits, 2, n_freqs, n_times) of the same part computed on two halves of the
-    trials (``nmf``). For ``cp``, ``tensor`` (n_freqs, n_times, n_rows) is decomposed from
-    random restarts and their factors compared.
+    trials (``nmf``). For ``cp``, ``tensor`` (n_freqs, n_times, n_rows) is compared over
+    split halves (:func:`cp_split_values`): of each row's trials (``row_halves``,
+    ``cp_stability="split_half"``, the spec's rule), of the rows (``"rows"``), or, as in
+    the first version, across random restarts of the whole tensor (``"restarts"``; also
+    used when no split is possible).
     """
 
+    if cp_stability not in CP_STABILITY:
+        raise SettingsError(f"cp_stability must be one of {CP_STABILITY}, not "
+                            f"{cp_stability!r}.")
     stability = {}
     chosen, failures = 1, 0
     if not np.any(x > 0):
@@ -140,11 +191,12 @@ def select_rank(x, halves, max_zones, rng, method="nmf", tensor=None):
                 wb, hb, _ = nmf(split[1], rank, rng)
                 values.append(congruence(_parts(wa, ha), _parts(wb, hb)))
         else:
-            runs = []
-            for _ in range(N_SPLITS):
-                (a, b, _c), _ = cp_nonneg(tensor, rank, rng)
-                runs.append(_parts(a, b.T))
-            values = [congruence(runs[0], other) for other in runs[1:]]
+            values = None if cp_stability == "restarts" else cp_split_values(
+                tensor, halves, rank, rng, row_halves=row_halves,
+                split="rows" if cp_stability == "rows" else "trials")
+            if values is None:
+                runs = [_cp_parts(tensor, rank, rng) for _ in range(N_SPLITS)]
+                values = [congruence(runs[0], other) for other in runs[1:]]
         stability[rank] = float(np.mean(values))
         if stability[rank] >= STABILITY_MIN:
             chosen, failures = rank, 0
@@ -292,10 +344,55 @@ def zone_table(zones, group, freqs, times, stability):
 ## Published fixed zones (compatibility layer)
 
 def load_zones():
-    """The registry (``zones.json``): name -> zone definition."""
+    """The registry (``zones.json``): name -> zone definition, with aliases (``alias_of``)
+    and shared method blocks (``settings_of``: source, reference, note, field status and
+    settings common to the zones of one publication) resolved."""
 
     text = resources.files("evoparam.tf").joinpath("zones.json").read_text("utf-8")
-    return json.loads(text)["zones"]
+    raw = json.loads(text)
+    zones = {}
+    for name, zone in raw["zones"].items():
+        zone = dict(zone)
+        if "alias_of" in zone:
+            target = zone["alias_of"]
+            zone = {**raw["zones"][target], "alias_of": target}
+        if "settings_of" in zone:
+            zone = {**raw[zone["settings_of"]], **zone}
+        zones[name] = zone
+    return zones
+
+
+def _interval(values, bounds, closure):
+    lo, hi = bounds
+    upper = values < hi if closure == "[)" else values <= hi
+    return (values >= lo) & upper
+
+
+def zone_mask(zone, freqs, times):
+    """Pixels (n_freqs, n_times) of a registry zone, with its interval closures
+    (``intervals``: ``"[]"`` closed, the default, or ``"[)"`` half-open)."""
+
+    closure = zone.get("intervals") or {}
+    in_f = _interval(np.asarray(freqs, float), zone["freq"], closure.get("freq", "[]"))
+    in_t = _interval(np.asarray(times, float), zone["time"], closure.get("time", "[]"))
+    return in_f[:, None] & in_t[None, :]
+
+
+def volume_conduction_weight(distance_mm, d_min=10.0, d_max=20.0):
+    """Weight of a stimulation-response pair against volume conduction ([LIT-tf-4], §2.5):
+    0 within ``d_min`` mm of the stimulated pair, 1 beyond ``d_max`` mm, and
+    ``(d^2 - d_min^2) / (d_max^2 - d_min^2)`` in between; multiplies a zone's significance
+    fraction.
+
+    Examples
+    --------
+    >>> float(volume_conduction_weight(15.0))
+    0.4166666666666667
+    """
+
+    d = np.asarray(distance_mm, float)
+    w = np.clip((d ** 2 - d_min ** 2) / (d_max ** 2 - d_min ** 2), 0.0, 1.0)
+    return np.where(np.isfinite(d), w, np.nan)
 
 
 def list_published_zones():
@@ -309,6 +406,9 @@ def list_published_zones():
                      "t_end": (zone.get("time") or [np.nan] * 2)[1],
                      "f_low": (zone.get("freq") or [np.nan] * 2)[0],
                      "f_high": (zone.get("freq") or [np.nan] * 2)[1],
+                     "intervals": "x".join((zone.get("intervals") or {}).get(k, "[]")
+                                           for k in ("time", "freq")),
+                     "label": zone.get("label", ""), "alias_of": zone.get("alias_of", ""),
                      "verified": bool(zone.get("verified")), "source": zone.get("source", ""),
                      "reference": zone.get("reference", ""), "note": zone.get("note", "")})
     return pd.DataFrame(rows)

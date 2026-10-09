@@ -254,6 +254,98 @@
   (0.97 ms) is estimated on the even runs and checked on the odd ones (within 1 sample);
   the reverse fold gives the same delay (0.972 ms; median error 0.02 sample).
 
+### Statistics and time-frequency against the reviewed spec (audit F13-F15, F51-F53, F68, F70, D11, D12)
+
+- REQ-234 (F14), `trials_needed(extrapolation=...)`: `"sqrt_n"` is the 1/sqrt(n) law of
+  the spec (§5.11 method 5), kept; `"power"` fits `sd(m) = a m^b` on the resampled counts
+  `m >= N/4` (log-log least squares, `b` clipped to [-1/2, 0]: a latency's SD is bounded by
+  the window while the average is noisy and approaches 1/sqrt(n) from below); `"auto"`
+  (default) uses `"power"` for `peak_latency` and `fractional_area_latency` and
+  `"sqrt_n"` for every other score and for callables. The choice was made on development
+  seeds (7 to 11; pink, white and AR(1) noise; per-trial SNR 0.5, 1 and 2; 30 channels of
+  20 trials, SD at 80 trials over 300 blocks), not on the test's seed 41. Median ratio
+  predicted / true SD at 80 trials from 20, development seeds: peak latency 0.55-0.76
+  (1/sqrt(n)) against 0.84-1.18 (power); fractional area latency 0.75-0.89 against
+  0.83-1.08; fractional peak latency 0.75-1.34 against 1.11-1.59 (power worse: kept on
+  1/sqrt(n)); peak amplitude 0.93-1.08 against 0.96-1.22 (kept on 1/sqrt(n)). Also tried
+  and rejected: bootstrap at the target count (fractional area latency 0.79-0.87), a
+  Wiener-filtered centre (latencies 1.34-1.61), a centre-noise extrapolation, and a power
+  law on the effective noise level of bootstrap averages (fractional area latency 0.93-1.03 at SNR 1
+  but 1.59 at SNR 0.5, peak latency up to 1.78). Test seed 41 (REQ-234 as written, median
+  within 15 %): mean amplitude 1.06 and peak amplitude 0.95 (60 channels, unchanged), peak
+  latency 0.937 (met; 0.701 with 1/sqrt(n)), fractional peak latency 1.016 (met), area
+  1.003 (met), fractional area latency 0.795 (not met, xfail with the value; 0.773 with
+  1/sqrt(n)). Cause measured: with the true average as the centre the bootstrap at 80
+  trials gives 0.95; around the noisy 20-trial average the rectified noise spreads the area
+  over the window and the 50 % point moves less (0.84-0.86).
+- REQ-231 (F13): the Kiesel et al. (2008) worked example stays an xfail. On 2026-10-09 the
+  network policy of the build environment refused the author's copy (University of
+  Freiburg), the publisher, doi.org, OpenAlex, PubMed Central and Europe PMC.
+- REQ-233, ERP CORE part (F15, F70, S14 done-when): still not run. The licence
+  (CC-BY-4.0) is in the registry; the OSF hosts (osf.io, files.osf.io, api.osf.io) are
+  refused by the network policy of the build environment (HTTP 403 at the proxy on
+  2026-10-09), so the N170 epochs could not be downloaded. The test is unchanged apart from
+  its docstring (licence recorded, OSF node pfde9).
+- Time-frequency, correction across channels (F52): `channel_correction` takes the
+  corrections of §5.6, `"fdr_bh"` (default, was `"none"`), `"holm"`, `"bonferroni"`,
+  `"none"`. Each map row (channel x condition) is a family of pixel tests whose p-value is
+  its smallest adjusted pixel p-value (Simes for `fdr`, the permutation family-wise value
+  for `cluster` and `tfce`); `fdr_bh` selects rows by Benjamini-Hochberg and tests the
+  pixels of the R selected rows of m at `R alpha / m` (Benjamini and Bogomolov 2014);
+  `holm` gives each rejected row its Holm level; `bonferroni` is the former rule (alpha /
+  rows). The rows' p-values and levels are in `settings["row_p_value"]` and
+  `settings["row_alpha"]`. The rows' levels need every row first: the split halves of the
+  zones are computed in a second pass over the rows with significant pixels (one more
+  transform of those rows). Null AR(1) channels (8 channels, 30 trials, 20 frequencies):
+  runs with any significant pixel, test seeds (30 runs), `fdr_bh` 3 (0.10), `holm` 3,
+  `bonferroni` 3, `none` 12 (0.40); 200 other runs (seeds 4000-4199), `fdr_bh` and
+  `bonferroni` 7 (0.035). Under the complete null this is the false-discovery rate over
+  channels, target 0.05. REQ-218 benchmark (morse, `fdr`), run alternately on the shared
+  machine (load average 4 to 9 on 4 CPUs): previous version 162 s and 194 s, this version
+  151 s and 223 s; no measurable cost, and the 60 s target is met by neither under that
+  load (not measured on an idle machine).
+- Time-frequency, CP rank (F51): chosen on split halves as §5.10 says
+  (`cp_stability="split_half"`, default). `tf_fit` keeps, for each row with significant
+  pixels, the maps of 20 random halves of its trials (float32, cropped to the box of the
+  significant pixels: `maps["zone_halves_rows"]`); the frequency x time x row tensors of
+  the two halves are factorised and their matched parts compared (Tucker congruence
+  >= 0.8). Without those maps (a TFFit saved before), halves of the rows; with fewer than
+  two rows, the trial halves of the group map (as for NMF). `cp_stability="restarts"`
+  (the former rule) and `"rows"` stay in `tf_zones`. Measured on the same TFFits
+  (6 channels, 30 trials, AR(1) noise, 5 runs per case, 20 frequencies; right = as many
+  positive zones as bursts, each within 10 % in frequency and 20 ms in time), right
+  answers for split halves of the trials / halves of the rows / restarts: one burst 5/5,
+  5/5, 5/5; two bursts in every channel 3/5, 4/5, 4/5; two bursts in separate channels
+  3/5, 0/5, 2/5; null 5/5, 5/5, 5/5; total 16/20, 14/20, 16/20. Mean time per call (shared
+  machine): 87-126 s, 38-222 s, 147-163 s. The former rule is not measurably better, so
+  the spec's rule is the default.
+- Published zones (F53, F68, S13 done-when): the article [LIT-tf-4] was read in full
+  (Brinyark et al. 2026, Clin Neurophysiol 186:2111855, doi:10.1016/j.clinph.2026.2111855,
+  CC BY 4.0; LITERATURE.md entry now VERIFIED). The registry holds its eleven zones: the
+  verified delayed high-gamma zone (alias `brinyark2026_GhN2`) and, as `unverified` with
+  the page reference (§2.4 and Fig. 2, p. 3) as §5.10 requires, TN1, TN2, AN1, AN2, BN1,
+  BN2, GlN1, GlN2, GhN1 (bands theta 4-8, alpha 8-13, beta 13-30, low gamma 30-50, high
+  gamma 50-250 Hz x N1 15-50 ms, N2 50-500 ms) and WR (4-250 Hz x 15-500 ms). Boundary
+  convention (not stated in the article; evoparam's reading): 50 ms belongs to N2 and each
+  band edge to the higher band (half-open intervals in `intervals`), so that the ten zones
+  tile WR. The article's method is in the registry and set by these zones: Morse wavelets
+  (gamma 3, time-bandwidth 30), new statistic `stats="baseline_normal"` (trial-average dB
+  power of each pixel against a normal fitted to the -450 to -150 ms baseline of its
+  frequency, two-sided, Benjamini-Hochberg over the pixels of the 15 to 900 ms window), no
+  correction across channels; the zone metric `fraction_significant` is the published
+  significance fraction (significant pixels / pixels of the zone).
+  `volume_conduction_weight(distance_mm)` gives the weights of §2.5 (0 below 10 mm, 1
+  above 20 mm, `(d^2 - 100) / 300` between). The delayed zone keeps the settings of the
+  spec (Hays et al. 2024 transform and baseline) and gains `channel_correction="none"`
+  (its behaviour before the new default; the REQ-216 numbers are unchanged).
+- REQ-213, strict reading (D11): new xfail test, a burst adding 20 % to the local 80 Hz
+  power (amplitude 1.32) is recovered in 0 of 20 runs (target 18 of 20); the reading
+  adopted (20 % of the signal power) stays met (20 of 20).
+- §4.3.4 and REQ-211 (D12): verified; both the power maps (`total`, `evoked_footprint`,
+  `residual`, `cross`) and the baseline-normalised maps (`total_norm`, `footprint_norm`,
+  `residual_norm`) are given; a new test checks the normalised maps against
+  `10 log10(map / baseline mean of the total)`.
+
 ### Integration of the N1 work, S16, S17 and the tep validation
 
 - REQ-171: the test as written stays as a documented xfail (5 of 6 datasets, 17 of 20 with

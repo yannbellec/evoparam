@@ -1,11 +1,11 @@
 """Reliability of the ERP CORE N170 (REQ-233, real-data part).
 
-ERP CORE (Kappenman et al. 2021; OSF, DOI 10.18115/D5JW4R) has no licence record in the
-dataset registry, so nothing of it is downloaded or redistributed by the test suite: the
-test reads a local copy that the user fetched from OSF, given by EVOPARAM_ERPCORE_N170 (a
-folder holding one epoched EEGLAB ``.set`` file per participant, as published in the N170
-folder of ERP CORE). The N170 is scored as the mean amplitude at PO8 from 110 to 150 ms
-(the ERP CORE measurement window), over every epoch of each participant. It needs the
+ERP CORE (Kappenman et al. 2021; OSF, DOI 10.18115/D5JW4R; CC-BY-4.0, recorded in the
+dataset registry) is not redistributed by the test suite: the test reads a local copy
+fetched from OSF (node pfde9, the N170 folder: ``<participant>/*N170*_epoch_interp_ar.set``
+and ``.fdt``), given by EVOPARAM_ERPCORE_N170. The N170 is scored as the mean amplitude
+at PO8 from 110 to 150 ms (the ERP CORE measurement window), over every epoch of each
+participant. It needs the
 extra ``mne`` (EEGLAB reader) and runs only with EVOPARAM_NETWORK_TESTS=1.
 """
 

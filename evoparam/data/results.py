@@ -741,6 +741,10 @@ class TFFit(_ResultMixin):
                            f"({s.get('n_permutations')} permutations)",
                 "tfce": f"threshold-free cluster enhancement (E = 0.5, H = 2) with "
                         f"{s.get('n_permutations')} sign-flip permutations",
+                "baseline_normal": "a comparison of each pixel of the trial-average dB power "
+                                   "with a normal distribution fitted to the baseline of its "
+                                   "frequency (two-sided), with Benjamini-Hochberg "
+                                   "false-discovery-rate control",
                 "none": "no statistical test"}.get(s.get("stats"), s.get("stats"))
         zones = {"nmf": "data-driven zones were found by non-negative matrix factorisation of "
                         "the significant group map, with the rank chosen by split-half "
@@ -748,17 +752,31 @@ class TFFit(_ResultMixin):
                         f"{s.get('max_zones')} zones)",
                  "cp": "data-driven zones were found by a non-negative canonical-polyadic "
                        "decomposition (frequency x time x channel), with the rank chosen by "
-                       f"stability across restarts (at most {s.get('max_zones')} zones)",
+                       "split-half stability over the trials of each channel (congruence "
+                       ">= 0.8, at most "
+                       f"{s.get('max_zones')} zones)",
                  "published": f"the published zone '{(s.get('published_zone') or {}).get('name')}'"
                               f" ({(s.get('published_zone') or {}).get('source')}) was used",
                  "none": "no zones were computed"}.get(self.method, self.method)
+        across = {
+            "fdr_bh": "the channels were selected by Benjamini-Hochberg false-discovery-rate "
+                      "control on their smallest adjusted p-value, and the pixels of each "
+                      "selected channel were tested at the level of that selection "
+                      "(Benjamini and Bogomolov 2014)",
+            "holm": "the level of each channel's pixels was set by the Holm step-down "
+                    "correction of the channels' smallest adjusted p-values",
+            "bonferroni": "each channel was tested at alpha divided by the number of "
+                          "channels (Bonferroni)",
+            "none": "no correction was applied across channels"}.get(
+                s.get("channel_correction"),
+                f"{s.get('channel_correction')} correction across channels")
         text = (f"Time-frequency power was computed with {what} at {len(freqs)} frequencies "
                 f"from {freqs[0]:.3g} to {freqs[-1]:.3g} Hz; pixels within the wavelet "
                 f"support of an epoch edge or of the artifact mask were excluded. Power was "
                 f"normalised ({s.get('baseline_mode')}) {level}, baseline {base[0] * 1000:g} "
                 f"to {base[1] * 1000:g} ms. Pixels from {win[0] * 1000:g} to "
-                f"{win[1] * 1000:g} ms were tested with {stat} (alpha = {s.get('alpha'):g}; "
-                f"{s.get('channel_correction')} correction across channels). "
+                f"{win[1] * 1000:g} ms were tested with {stat} (alpha = {s.get('alpha'):g}); "
+                f"{across}. "
                 f"{zones[0].upper() + zones[1:]}.")
         if s.get("footprint"):
             text += (" The power of the fitted evoked components (footprint) was separated "
