@@ -83,6 +83,32 @@ def load(component, participant):
                                                             zip(labels, keep) if k]
 
 
+def noise_reference(component, data, names, bins, wave="difference"):
+    """The plus-minus reference of the wave (trials of alternating signs averaged, then
+    combined as the wave is): its noise, without the response."""
+
+    from evoparam.models.engine import plus_minus
+
+    design = DESIGNS[component]
+
+    def pm(b, ch):
+        rows = [i for i, s in enumerate(bins) if b in s]
+        return plus_minus(data[rows][:, names.index(ch)])
+
+    if "lateral" in design:
+        left, right = design["lateral"]
+        ch_l, ch_r = design["pair"]
+        parts = [pm(left, ch_r), pm(left, ch_l), pm(right, ch_l), pm(right, ch_r)]
+        if any(p is None for p in parts):
+            return None
+        return 0.5 * ((parts[0] - parts[1]) + (parts[2] - parts[3]))
+    plus = pm(design["plus"], design["channel"])
+    if wave == "parent" or plus is None:
+        return plus
+    minus = pm(design["minus"], design["channel"])
+    return None if minus is None else plus - minus
+
+
 def difference_wave(component, times, data, names, bins, wave="difference"):
     """The published difference wave (``wave="difference"``) or the parent wave of the
     condition carrying the component (``"parent"``: rare, faces, unrelated, deviants,
@@ -120,10 +146,14 @@ def area_latency(times, wave, window, polarity, fraction=0.5):
     return float(times[inside][np.searchsorted(cumulative, fraction * total)])
 
 
-def fit_component(component, times, wave):
+def fit_component(component, times, wave, noise_ref=None):
+    """The fit of the wave; with ``noise_ref`` (the plus-minus reference), the noise model
+    comes from it when the engine's "auto" rule would take it (short baseline), as for a
+    fit of the trials."""
+
     from evoparam import presets
-    from evoparam.data import Evoked
-    from evoparam.models import fit
+    from evoparam.models import ResponseModel
+    from evoparam.models import engine
 
     design = DESIGNS[component]
     lo, hi = design["window"]
@@ -143,11 +173,12 @@ def fit_component(component, times, wave):
     preset = presets.derive("erp", name=f"erp_{component}", fit_window=fit_window,
                             baseline=baseline, component_labels={component: label},
                             label_polarity={component: design["polarity"]})
-    sfreq = 1.0 / np.median(np.diff(times))
-    evoked = Evoked(data=wave[None], times=times, sfreq=sfreq, ch_names=[component])
+    model = ResponseModel(preset)
+    if noise_ref is not None and not engine.use_plus_minus(model.settings(), times, wave):
+        noise_ref = None
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        result = fit(evoked, preset).fits[0]
+        result = model.fit_waveform(times, wave, noise_ref=noise_ref)
     comps = [c for c in result.components if c.label == component]
     return (comps[0] if comps else None), result
 
@@ -172,7 +203,8 @@ def run(components=None, participants=None, wave="difference"):
                              "excluded": True})
                 continue
             reference = area_latency(times, signal, design["window"], design["polarity"])
-            comp, result = fit_component(component, times, signal)
+            comp, result = fit_component(component, times, signal,
+                                         noise_reference(component, data, names, bins, wave))
             peak = comp.latency if comp is not None else np.nan
             latency = np.nan
             if comp is not None:
@@ -186,6 +218,7 @@ def run(components=None, participants=None, wave="difference"):
                          "model_peak_latency": peak, "labelled": comp is not None,
                          "excluded": False,
                          "status": result.status,
+                         "noise_reference": result.diagnostics.get("noise_reference"),
                          "within_10ms": bool(comp is not None and
                                              abs(latency - reference) <= TOLERANCE)})
     return rows
