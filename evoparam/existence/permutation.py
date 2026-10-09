@@ -12,7 +12,8 @@ from scipy.stats import t as student_t
 
 from evoparam.errors import DataError, warn as _warn
 
-__all__ = ["sign_flips", "permutation_test", "shuffle_test", "max_cluster_mass", "tail_p_value"]
+__all__ = ["sign_flips", "permutation_test", "shuffle_test", "max_cluster_mass", "tail_p_value",
+           "null_band"]
 
 MIN_TRIALS = 5
 
@@ -203,10 +204,28 @@ def permutation_test(data, times, window, baseline, *, n_permutations=1000, stat
         snr = 10 * np.log10(np.mean(avg[:, win] ** 2, axis=1) / noise)
     all_masked = ~usable.any(axis=1)
     p = np.where(all_masked, np.nan, p)
+    # The statistic over time and its null band (spec §5.13, plot_existence): the pointwise t
+    # of the trials and the level it must cross, the family-wise critical value of the
+    # null maximum |t| (max_t) or the cluster-forming threshold (cluster)
+    level = critical if statistic == "max_t" else np.full(n_ch, threshold)
     return {"statistic": observed, "p_value": p, "onset": onset, "offset": offset,
             "duration": offset - onset, "snr_db": snr, "duration_ci": ci,
             "onset_ci": onset_ci, "offset_ci": offset_ci,
-            "critical": critical, "exact": exact, "threshold": threshold}
+            "critical": critical, "exact": exact, "threshold": threshold,
+            "curve": np.where(usable, t_obs, np.nan), "curve_times": times[win],
+            "null_band": null_band(level, polarity, int(win.sum()))}
+
+
+def null_band(level, polarity, n_times):
+    """Band [n_channels, n_times, 2] (low, high) of a statistic over time from one level per
+    channel: (-level, level) for a two-sided test, NaN on the side a one-sided test does
+    not look at."""
+
+    level = np.asarray(level, float).reshape(-1)
+    low = np.where(polarity in ("both", "negative"), -level, np.nan)
+    high = np.where(polarity in ("both", "positive"), level, np.nan)
+    band = np.stack([low, high], axis=-1)[:, None, :]
+    return np.repeat(band, n_times, axis=1)
 
 
 def shuffle_test(avg, times, window, baseline, *, n_permutations=1000, polarity="both",
@@ -253,4 +272,5 @@ def shuffle_test(avg, times, window, baseline, *, n_permutations=1000, polarity=
     return {"statistic": observed, "p_value": p, "onset": onset, "offset": offset,
             "duration": offset - onset, "snr_db": snr,
             "duration_ci": np.full((len(z), 2), np.nan), "critical": np.full(len(z), critical),
-            "exact": False, "threshold": np.nan}
+            "exact": False, "threshold": np.nan, "curve": z[:, win], "curve_times": times[win],
+            "null_band": null_band(np.full(len(z), critical), polarity, int(win.sum()))}

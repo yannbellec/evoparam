@@ -9,7 +9,7 @@ from evoparam.errors import DataError, SettingsError, warn as _warn
 
 from ._common import check_trialset, masked_values, new, window_mask
 
-__all__ = ["baseline_correct", "previous_pulse_gaps", "train_starts"]
+__all__ = ["baseline_correct", "train_baseline", "previous_pulse_gaps", "train_starts"]
 
 MODES = ("mean", "median", "linear")
 SOURCES = ("own", "first_pulse")
@@ -147,3 +147,115 @@ def baseline_correct(ts, baseline=(-0.5, -0.05), *, mode="mean", check=True,
                {"baseline": list(baseline), "mode": mode, "check": check,
                 "delayed_margin": delayed_margin, "baseline_source": baseline_source},
                start, data=data)
+
+
+def _continuous(raw, sfreq, t0, ts):
+    """(data [channels of ts, n_times], sfreq, t0) of a continuous recording given as an
+    array or as a TrialSet holding one continuous trial (``evoparam.io.read`` without
+    onsets)."""
+
+    from evoparam.data import TrialSet
+
+    if isinstance(raw, TrialSet):
+        if raw.n_trials != 1:
+            raise DataError("train_baseline: raw must hold one continuous trial.")
+        names = list(raw.ch_names)
+        missing = [n for n in ts.ch_names if n not in names]
+        if missing:
+            raise DataError(f"train_baseline: raw has no channel {missing[:3]}.")
+        data = raw.data[0][[names.index(n) for n in ts.ch_names]]
+        return data, float(raw.sfreq), float(raw.times[0])
+    data = np.atleast_2d(np.asarray(raw, dtype=float))
+    if data.shape[0] != ts.n_channels:
+        raise DataError(f"train_baseline: raw has {data.shape[0]} channels, the trials "
+                        f"{ts.n_channels}.")
+    if sfreq is None:
+        raise DataError("train_baseline: sfreq is required with an array raw.")
+    return data, float(sfreq), float(t0)
+
+
+def train_baseline(ts, length=0.05, *, raw=None, sfreq=None, t0=0.0, train_column="train_id",
+                   mode="mean"):
+    """Baseline per stimulation train: per channel, the mean (or median) of the last
+    ``length`` seconds before each train is subtracted from every trial (pulse) of that
+    train (spec §6.1, preset ``erna``: "per train: last 50 ms before the train").
+
+    Trains: ``metadata[train_column]`` when present (``evoparam.events.group_trains``);
+    else, with ``event_times``, a pulse starts a train when no other pulse came in the
+    ``length`` seconds before it (so the baseline of a train never holds a pulse); else
+    each trial is one train whose epoch is locked to the train onset (a burst per trial).
+    The onset of a train is the earliest event time of its trials.
+
+    The baseline samples come from the continuous recording ``raw`` (an array [n_channels,
+    n_times] with ``sfreq`` and ``t0``, the time of its first sample, on the clock of
+    ``event_times``; or a TrialSet with one continuous trial), or, without it, from the
+    epoch of the first trial of each train, which must then start at least ``length``
+    seconds before its onset. Masked samples are left out.
+
+    Raises
+    ------
+    DataError
+        The baseline samples are not available (epochs too short and no ``raw``; a train
+        onset closer than ``length`` to the start of ``raw``), or fewer than half of them
+        are unmasked.
+    """
+
+    start = _time.perf_counter()
+    check_trialset(ts)
+    if mode not in ("mean", "median"):
+        raise SettingsError("train_baseline: mode must be 'mean' or 'median'.")
+    if not length > 0:
+        raise SettingsError("train_baseline: length must be positive.")
+    meta = ts.metadata
+    event_times = None if ts.event_times is None else np.asarray(ts.event_times, float)
+    if meta is not None and train_column in meta.columns:
+        keys = meta[train_column].astype(str).to_numpy()
+        rule = train_column
+    elif event_times is not None:
+        first = train_starts(event_times, length)
+        keys = first.astype(str)
+        rule = "gap"
+    else:
+        keys = np.arange(ts.n_trials).astype(str)
+        rule = "trial"
+    stat = np.nanmean if mode == "mean" else np.nanmedian
+    levels = np.empty((ts.n_trials, ts.n_channels))
+    source = "continuous" if raw is not None else "epochs"
+    if raw is not None:
+        if event_times is None:
+            raise DataError("train_baseline: raw needs the trials' event_times.")
+        data, rate, first_time = _continuous(raw, sfreq, t0, ts)
+    values = masked_values(ts)
+    n_wanted = int(round(length * (rate if raw is not None else ts.sfreq)))
+    for key in dict.fromkeys(keys):
+        rows = np.flatnonzero(keys == key)
+        if event_times is not None:
+            lead = rows[np.argmin(event_times[rows])]
+        else:
+            lead = rows[0]
+        if raw is not None:
+            onset = event_times[lead]
+            stop = int(round((onset - first_time) * rate))
+            begin = stop - n_wanted
+            if begin < 0 or stop > data.shape[1]:
+                raise DataError(f"train_baseline: the {length * 1000:g} ms before the train "
+                                f"at {onset:.3f} s are outside raw.")
+            segment = data[:, begin:stop]
+        else:
+            inside = (ts.times >= -length - 0.5 / ts.sfreq) & (ts.times < 0)
+            if ts.times[0] > -length + 0.5 / ts.sfreq:
+                raise DataError(f"train_baseline: the epochs start at {ts.times[0]:.4f} s; "
+                                f"the last {length * 1000:g} ms before the train need epochs "
+                                f"from -{length:g} s, or the continuous recording (raw=).")
+            segment = values[lead][:, inside]
+        valid = np.sum(np.isfinite(segment), axis=1)
+        if np.any(valid < MIN_VALID_FRACTION * max(segment.shape[1], 1)):
+            raise DataError(f"train_baseline: fewer than half of the baseline samples of "
+                            f"train {key} are unmasked.")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            levels[rows] = stat(segment, axis=1)[None]
+    data_out = ts.data - levels[..., None]
+    return new(ts, "evoparam.prep.train_baseline",
+               {"length": float(length), "mode": mode, "trains": rule, "source": source,
+                "n_trains": int(len(set(keys)))}, start, data=data_out)

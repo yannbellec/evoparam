@@ -53,7 +53,8 @@ def projection_test(data, times, window, baseline, *, rng=None):
     Returns a dict of arrays [n_channels]: statistic (one-sample t of the projections at the
     response end), p_value (one-sided), onset (window start), offset (response end tau_R),
     duration, snr_db (of the canonical-shape scalings), plus ``extra`` (per channel: profile,
-    canonical shape, alphas, R², SNR).
+    canonical shape, alphas, R², SNR), and ``curve`` [n_channels, n_times] (the normalised
+    profile), ``curve_times`` and ``null_band`` (NaN: no band over time for this method).
     """
 
     rng = np.random.default_rng(rng)
@@ -75,4 +76,9 @@ def projection_test(data, times, window, baseline, *, rng=None):
         extra.append(info)
     out["duration_ci"] = np.full((n_ch, 2), np.nan)
     out["extra"] = extra
+    # The statistic over time: the normalised mean projection profile, whose maximum is the
+    # response end; the method has no null band over time (its test is at the end only)
+    out["curve"] = np.array([info["profile"] for info in extra])
+    out["curve_times"] = tw
+    out["null_band"] = np.full(out["curve"].shape + (2,), np.nan)
     return out

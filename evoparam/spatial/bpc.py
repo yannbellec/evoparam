@@ -175,10 +175,10 @@ def _split_ratio(xi, labels, q):
 
 
 def _cluster_nmf(xi, q, n_restarts, rng):
-    _, hs, errors = _nmf(xi, q, rng, n_restarts)
+    ws, hs, errors = _nmf(xi, q, rng, n_restarts)
     labels = [_assign(h)[0] for h in hs]
     best = int(np.argmin(errors))
-    return labels[best], labels, hs[best], float(errors[best]), _degeneracy(hs[best])
+    return labels[best], labels, hs[best], float(errors[best]), _degeneracy(hs[best]), ws[best]
 
 
 def _cluster_kpca(xi, q, n_restarts, rng):
@@ -210,7 +210,7 @@ def _cluster_kpca(xi, q, n_restarts, rng):
     h = np.zeros((q, len(xi)))
     for k in range(q):
         h[k, labels_all[best] == k] = 1.0
-    return labels_all[best], labels_all, h, float(spread[best]), 0.0
+    return labels_all[best], labels_all, h, float(spread[best]), 0.0, None
 
 
 ###################################################################################################
@@ -239,6 +239,21 @@ def _t_matrix(trials, owner, n_groups):
             sd = np.std(values, ddof=1)
             xi[a, b] = np.mean(values) / (sd / np.sqrt(len(values))) if sd > 0 else 0.0
     return xi
+
+
+def _cross_t(trials, owner, n_groups, others):
+    """t-value of the projections of the trials ``others`` [n, n_times] (one group that
+    does not define the bases) into the unit-norm trials of each defining group."""
+
+    norms = np.linalg.norm(trials, axis=1)
+    unit = trials / np.maximum(norms, 1e-300)[:, None]
+    proj = unit @ others.T
+    out = np.zeros(n_groups)
+    for a in range(n_groups):
+        values = np.ravel(proj[owner == a])
+        sd = np.std(values, ddof=1) if len(values) > 1 else 0.0
+        out[a] = np.mean(values) / (sd / np.sqrt(len(values))) if sd > 0 else 0.0
+    return out
 
 
 def _basis_curve(trials):
@@ -377,9 +392,14 @@ def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0
     Returns
     -------
     ShapeBasis
-        ``weights`` [n_groups, n_shapes] are the mean projections (data units times
-        sqrt(samples), signed); ``assignment`` has the columns of :data:`BASIS_COLUMNS`;
-        ``settings`` holds the groups, the t-matrix and the selection table.
+        ``weights`` [n_groups, n_shapes] are the non-negative clustering loadings (spec
+        §4.3.4: the columns of the NMF factor H, rows of unit norm; 0/1 cluster indicators
+        for ``"kpca"``; for a group with fewer than 3 trials, the non-negative least-squares
+        loadings of its t-values on the factor W); ``assignment`` has the columns of
+        :data:`BASIS_COLUMNS`: ``weight`` is the group-level weight ``alpha_m``, the mean
+        projection of the group's trials on its shape (data units times sqrt(samples),
+        signed), and ``nmf_loading`` the group's loading on that shape; ``settings``
+        holds the groups, the t-matrix and the selection table.
 
     Raises
     ------
@@ -417,7 +437,7 @@ def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0
     cluster = _cluster_nmf if method == "nmf" else _cluster_kpca
     selection, chosen = [], None
     for q in range(1, min(max_shapes, len(defining) - 1) + 1):
-        labels, runs, h, err, overlap = cluster(xi, q, n_restarts, rng)
+        labels, runs, h, err, overlap, w = cluster(xi, q, n_restarts, rng)
         pairs = list(itertools.combinations(range(len(runs)), 2))
         ari = float(np.mean([adjusted_rand_index(runs[a], runs[b]) for a, b in pairs]))
         used = len(set(labels[labels >= 0]))
@@ -428,11 +448,11 @@ def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0
                           "accepted": bool(ok)})
         if ok or q == 1:
             stab = _jaccard_stability(labels, runs, q)
-            chosen = (q, labels, h, stab) if ok or chosen is None else chosen
+            chosen = (q, labels, h, stab, w) if ok or chosen is None else chosen
     unstable = all(not row["accepted"] for row in selection[1:]) and \
         any(row["split_ratio"] < SPLIT_MAX and row["clusters_used"] == row["n_shapes"]
             for row in selection[1:])
-    q, labels, h, stability = chosen
+    q, labels, h, stability, w_nmf = chosen
     warns = []
     if q == 1 and unstable:
         _warn("unstable_basis: no factorisation with two shapes or more was stable "
@@ -451,31 +471,47 @@ def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0
         curves.append(_basis_curve(np.concatenate([groups[i][1] for i in members])))
     curves = np.array(curves)
 
-    # Projection of every group on every curve
+    # Projection of every group on every curve: the group-level weight alpha_m (mean
+    # projection, data units) and R² of its shape
     n_groups = len(groups)
-    weights = np.zeros((n_groups, q))
+    alphas = np.zeros((n_groups, q))
     r2_all = np.zeros((n_groups, q))
     for g, (_, v, _) in enumerate(groups):
         alpha = v @ curves.T                                         # trials x shapes
-        weights[g] = alpha.mean(axis=0)
+        alphas[g] = alpha.mean(axis=0)
         total = np.sum(v ** 2)
         for k in range(q):
             resid = v - np.outer(alpha[:, k], curves[k])
             r2_all[g, k] = 1 - np.sum(resid ** 2) / total if total > 0 else np.nan
+    # ShapeBasis.weights (spec §4.3.4, §5.9): the clustering loadings, group x shape,
+    # non-negative (the columns of H); a group that does not define the bases (fewer than
+    # 3 trials) gets the non-negative least-squares loadings of its t-values against the
+    # defining groups on the factor W (x ~ W H), or, for kpca, its shape's indicator
+    from scipy.optimize import nnls
+
     position = {i: j for j, i in enumerate(defining)}
+    weights = np.zeros((n_groups, q))
+    scale = float(np.max(xi_raw)) if np.max(xi_raw) > 0 else 1.0
+    shape_ids = np.full(n_groups, -1)
+    for g, (_, v, _) in enumerate(groups):
+        if g in position:
+            weights[g] = h[:, position[g]]
+            shape_ids[g] = int(labels[position[g]])
+            continue
+        shape_ids[g] = int(np.nanargmax(r2_all[g])) if np.nanmax(r2_all[g]) > 0 else -1
+        if w_nmf is not None:
+            column = np.clip(_cross_t(trials, owner, len(defining), v), 0, None) / scale
+            weights[g] = nnls(w_nmf, column)[0]
+        elif shape_ids[g] >= 0:
+            weights[g, shape_ids[g]] = 1.0
     rows, r2 = [], np.full(n_groups, np.nan)
     for g, (label, v, _) in enumerate(groups):
-        if g in position:
-            shape_id = int(labels[position[g]])
-            loading = float(h[shape_id, position[g]]) if shape_id >= 0 else \
-                float(np.max(h[:, position[g]]))
-        else:
-            shape_id = int(np.nanargmax(r2_all[g])) if np.nanmax(r2_all[g]) > 0 else -1
-            loading = np.nan
+        shape_id = int(shape_ids[g])
+        loading = float(weights[g, shape_id]) if shape_id >= 0 else float(np.max(weights[g]))
         if shape_id >= 0:
             r2[g] = r2_all[g, shape_id]
         rows.append({"group": str(label), "shape_id": shape_id,
-                     "weight": float(weights[g, shape_id]) if shape_id >= 0 else np.nan,
+                     "weight": float(alphas[g, shape_id]) if shape_id >= 0 else np.nan,
                      "r2": float(r2[g]), "n_trials": int(len(v)), "used": g in position,
                      "nmf_loading": loading})
     assignment = pd.DataFrame(rows, columns=list(BASIS_COLUMNS))

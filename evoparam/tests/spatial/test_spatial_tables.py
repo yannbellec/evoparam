@@ -190,6 +190,66 @@ def test_plot_parameter_map(scene):
     plt.close(figure)
 
 
+def _mni(table, space="MNI152NLin2009aSym"):
+    """The table with its coordinates moved into a plausible MNI range (left temporal)."""
+
+    out = table.copy()
+    out["x"], out["y"], out["z"] = -40.0 + out["x"] / 4, -20.0 + out["y"], 10.0 + out["z"]
+    out["coord_space"] = space
+    out.attrs.update(table.attrs)
+    return out
+
+
+def test_parameter_map_glass_brain_with_nilearn(scene):
+    """Spec §5.9 method 3: a glass-brain figure, the nilearn plotting backend used when
+    installed (MNI-like coordinates), the stimulation contacts, bad and masked channels as
+    distinct markers."""
+
+    pytest.importorskip("matplotlib")
+    pytest.importorskip("nilearn")
+    import matplotlib.pyplot as plt
+    from matplotlib.collections import PathCollection
+
+    ts, group = scene
+    table = _mni(parameter_map(group, ch_info=ts))
+    site = table["stim_site"].iloc[0]
+    figure = plot_parameter_map(table, stim_site=site)          # backend "auto" -> nilearn
+    # the glass brain: one axes per view (ortho: sagittal, coronal, axial) plus the colour
+    # bar, each view with the response markers and the stimulation contacts
+    views = [a for a in figure.axes if any(isinstance(c, PathCollection)
+                                           for c in a.collections)]
+    assert len(views) >= 3
+    markers = table[table["stim_site"] == site]["marker"]
+    assert (markers == "stim_contact").any()
+    legend = [t.get_text() for t in figure.legends[0].get_texts()]
+    assert "stim_contact" in legend
+    plt.close(figure)
+    with pytest.raises(SettingsError, match="MNI-like"):
+        plot_parameter_map(parameter_map(group, ch_info=ts), backend="nilearn")
+
+
+def test_parameter_map_electrode_grid_fallback(scene, monkeypatch):
+    """Without nilearn (or in subject space) the electrode-grid figure is drawn."""
+
+    pytest.importorskip("matplotlib")
+    import matplotlib.pyplot as plt
+
+    import evoparam.spatial.maps as maps
+
+    ts, group = scene
+    table = _mni(parameter_map(group, ch_info=ts))
+    monkeypatch.setattr(maps, "_have_nilearn", lambda: False)
+    figure = plot_parameter_map(table, projection=("x", "z"))
+    assert len(figure.axes) == 2                                 # the grid and its colour bar
+    assert figure.axes[0].get_xlabel().startswith("x (mm, MNI152")
+    plt.close(figure)
+    monkeypatch.undo()
+    subject = table.assign(coord_space="ACPC")
+    figure = plot_parameter_map(subject)
+    assert len(figure.axes) == 2
+    plt.close(figure)
+
+
 ###################################################################################################
 ## REQ-196 on OpenNeuro ds004080
 

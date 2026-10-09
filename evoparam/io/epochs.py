@@ -126,8 +126,11 @@ def epoch(data, sfreq, onsets, tmin, tmax, *, t0=0.0, ch_names=None, units='uV',
         Continuous data, as [n_channels, n_times] (a 1d array is one channel).
     sfreq : float
         Sampling frequency, in Hz.
-    onsets : 1d array
-        Event onsets, in seconds, on the same clock as ``t0``.
+    onsets : 1d array or pandas.DataFrame
+        Event onsets, in seconds, on the same clock as ``t0``; or the event table of
+        :func:`evoparam.events.detect_pulses` (its ``onset_time`` column), whose detection
+        step is then recorded in the provenance before the epoching (so that the methods
+        text describes it).
     tmin, tmax : float
         Epoch window relative to each onset, in seconds; ``tmin`` included,
         ``tmax`` excluded.
@@ -162,6 +165,14 @@ def epoch(data, sfreq, onsets, tmin, tmax, *, t0=0.0, ch_names=None, units='uV',
     """
 
     start = _time.perf_counter()
+    prior = []
+    if type(onsets).__name__ == 'DataFrame':
+        record = onsets.attrs.get('provenance') or {}
+        prior = list(record.get('steps', [])) if isinstance(record, dict) else \
+            list(getattr(record, 'steps', []))
+        if 'onset_time' not in onsets.columns:
+            raise DataError('epoch: an event table needs the column onset_time.')
+        onsets = onsets['onset_time'].to_numpy(float)
     data = np.asarray(data, dtype=np.float64)
     if data.ndim == 1:
         data = data[np.newaxis]
@@ -194,7 +205,7 @@ def epoch(data, sfreq, onsets, tmin, tmax, *, t0=0.0, ch_names=None, units='uV',
     settings = {'sfreq' : float(sfreq), 'tmin' : float(tmin), 'tmax' : float(tmax),
                 't0' : float(t0), 'n_onsets' : int(onsets.size), 'units' : units}
     provenance = Provenance(source={'path' : None, 'format' : 'array',
-                                    'reader' : 'evoparam.io.epoch'})
+                                    'reader' : 'evoparam.io.epoch'}, steps=prior)
     provenance = provenance.with_step('evoparam.io.epoch', settings,
                                       duration_s=_time.perf_counter() - start,
                                       kept=kept.tolist(), overlaps_previous=overlaps.tolist())

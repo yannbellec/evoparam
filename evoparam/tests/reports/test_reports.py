@@ -108,6 +108,46 @@ def test_markdown_and_pdf(results, tmp_path):
     assert open(path, "rb").read(4) == b"%PDF"
 
 
+def _pages(path):
+    import re
+
+    return len(re.findall(rb"/Type\s*/Page\b", open(path, "rb").read()))
+
+
+def test_pdf_has_one_page_per_stimulation_site(tmp_path):
+    """Spec §5.13: report.pdf has one page per stimulation site (after the text page)."""
+
+    import dataclasses
+    import warnings
+
+    from evoparam import sim
+    from evoparam.existence import test_response
+    from evoparam.models import fit
+
+    ts, _ = sim.simulate_ccep(n_trials=18, n_channels=4, sfreq=1024.0, seed=2)
+    sites = ["A01-A02", "B01-B02", "C01-C02"]
+    meta = ts.metadata.copy()
+    meta["stim_site"] = [sites[i % 3] for i in range(ts.n_trials)]
+    ts = dataclasses.replace(ts, metadata=meta)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        group = fit(ts, "ccep", by="stim_site")
+        pages = reports._documents.site_pages(group, ts)
+        assert [site for site, _ in pages] == sites
+        assert all(len(members) == 4 for _, members in pages)
+        path = reports.pdf(group, tmp_path / "sites.pdf", data=ts, max_channels=0)
+        assert _pages(path) == 1 + len(sites)
+        # a test split by site (the default of test_response): one page per site too
+        test = test_response(ts, n_permutations=50, random_state=0)
+        assert test.settings["groups"] == sites
+        path = reports.pdf(test, tmp_path / "test.pdf")
+        assert _pages(path) == 1 + len(sites)
+        # the fits of one site, fitted on all its trials: one page named after the site
+        one = ts.select(trials=[i for i in range(ts.n_trials) if i % 3 == 0])
+        group = fit(one, "ccep")
+        assert [site for site, _ in reports._documents.site_pages(group, one)] == ["A01-A02"]
+
+
 def test_req346_citation_from_citation_cff():
 
     assert reports.citation().startswith("Bellec Y.")
@@ -189,3 +229,99 @@ def test_req346_citation_single_source():
     text = reports.citation()
     assert cff["title"] in text and f"version {cff['version']}" in text
     assert all(author["family-names"] in text for author in cff["authors"])
+
+
+def _recorded_steps():
+    """Every function name the package records as a provenance step."""
+
+    import pathlib
+
+    import evoparam
+
+    root = pathlib.Path(evoparam.__file__).parent
+    pattern = re.compile(r"(?:with_step|new|finish|_new)\(\s*(?:[\w.\[\]]+,\s*){0,3}"
+                         r"[\"'](evoparam\.[\w.]+)[\"']")
+    names = set()
+    for path in root.rglob("*.py"):
+        if "tests" not in path.relative_to(root).parts:
+            names |= set(pattern.findall(path.read_text("utf-8")))
+    # the filters record f"evoparam.prep.{name}"
+    return names | {"evoparam.prep.highpass", "evoparam.prep.lowpass", "evoparam.prep.notch"}
+
+
+def test_methods_text_has_a_template_for_every_recorded_step():
+    """Spec §5.13: one paragraph per processing step (events, artifact, preparation, fit,
+    existence, trials, hierarchical, tf, stats); a step without a template would only be
+    named, so every recorded step has one, or brings data in without changing a number."""
+
+    from evoparam.data._methods import _TEMPLATES, SILENT_PREFIXES
+
+    names = _recorded_steps()
+    assert {"evoparam.events.detect_pulses", "evoparam.stats.reliability",
+            "evoparam.prep.reference_sensitivity", "evoparam.prep.train_baseline"} <= names
+    missing = sorted(n for n in names if n not in _TEMPLATES
+                     and not n.startswith(SILENT_PREFIXES))
+    assert not missing, missing
+
+
+def test_methods_text_events_and_stats_paragraphs(results):
+
+    from evoparam import stats
+    from evoparam.data._methods import step_sentence
+    from evoparam.events import detect_pulses
+    from evoparam.io import epoch
+
+    # events: the detection step travels from the event table into the trials
+    rng = np.random.default_rng(0)
+    sfreq = 2048.0
+    raw = rng.normal(0, 1, (4, int(sfreq * 20)))
+    for onset in np.arange(2.0, 18.0, 2.0):
+        i = int(onset * sfreq)
+        raw[0, i:i + 4] += 800
+        raw[1, i:i + 4] -= 800
+    events = detect_pulses(raw, sfreq, ch_names=["A1", "A2", "A3", "A4"], expected_rate=0.5)
+    trials = epoch(raw, sfreq, events, -0.5, 1.0, ch_names=["A1", "A2", "A3", "A4"])
+    assert [s["function"] for s in trials.provenance.steps] == [
+        "evoparam.events.detect_pulses", "evoparam.io.epoch"]
+    text = reports.methods_text(trials)
+    assert "Stimulation pulses were detected from their artifact" in text
+    assert "exceeded 20" in text and "expected rate of 0.5 Hz" in text
+    assert "grouped into trains" in text
+    # stats: a table of evoparam.stats carries its step
+    table = stats.bootstrap(results["ts"], "peak_amplitude", n_boot=50, by=(),
+                            window=(0.01, 0.1), random_state=0)
+    text = reports.methods_text(table)
+    assert "were obtained by bootstrap over trials (50 resamples" in text
+    # and the other statistics have their own sentence (no generic "processed with")
+    steps = {
+        "evoparam.stats.compare_conditions": {"parameter": "latency", "condition": "drug",
+                                              "unit": "subject", "paired": True,
+                                              "n_permutations": 5000, "correction": "fdr_bh",
+                                              "conditions": ["off", "on"], "ci_level": 0.95,
+                                              "n_boot": 2000},
+        "evoparam.stats.reliability": {"scorer": "mean_amplitude", "facets": ["trial",
+                                                                             "subject"],
+                                       "method": "both", "n_splits": 1000,
+                                       "target_phi": 0.7, "window": [0.11, 0.15]},
+        "evoparam.stats.trials_needed": {"scorer": "existence", "n_resamples": 200},
+        "evoparam.stats.jackknife_latency": {"scorer": "fractional_area_latency",
+                                             "retrieve": True, "n_subjects": 12},
+        "evoparam.stats.group_summary": {"by": ["region"], "n_boot": 1000, "ci_level": 0.95},
+        "evoparam.prep.notch": {"freq": 50.0, "q": 30.0, "harmonics": 3,
+                                "frequencies": [50.0, 100.0, 150.0]},
+        "evoparam.prep.highpass": {"cutoff": 0.5, "order": 4},
+        "evoparam.prep.train_baseline": {"length": 0.05, "mode": "mean", "source": "epochs"},
+        "evoparam.prep.reference_sensitivity": {"schemes": ["bipolar", "car",
+                                                            "car_adaptive"]},
+    }
+    for function, settings in steps.items():
+        sentence = step_sentence({"function": function, "settings": settings})
+        assert "processed with" not in sentence and sentence.endswith("."), function
+    assert "Benjamini-Hochberg" in step_sentence(
+        {"function": "evoparam.stats.compare_conditions",
+         "settings": steps["evoparam.stats.compare_conditions"]})
+    assert "50, 100 and 150 Hz" in step_sentence(
+        {"function": "evoparam.prep.notch", "settings": steps["evoparam.prep.notch"]})
+    assert "last 50 ms before the train" in step_sentence(
+        {"function": "evoparam.prep.train_baseline",
+         "settings": steps["evoparam.prep.train_baseline"]})

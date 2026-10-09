@@ -183,7 +183,8 @@ def apply_rule(avg, times, sfreq, spec, units="uV"):
 
     Returns dict of arrays [n_channels]: statistic (the rule's quantity, in units of k),
     significant (statistic > k, strictly), onset and offset (both the peak time; NaN for the
-    RMS rule).
+    RMS rule); and ``curve`` [n_channels, n_times] (the baseline z-score of the average in
+    the window), ``curve_times`` and ``null_band`` [n_channels, n_times, 2] (the level k).
 
     With ``peak="local"`` (for vanblooijs2023, the reading of the published code) the peak is
     a local minimum found with a selectivity of ``peak_selectivity_uv``, never the window's
@@ -215,11 +216,23 @@ def apply_rule(avg, times, sfreq, spec, units="uV"):
     seg = z[:, win]
     tw = times[win]
     stat_kind = spec["statistic"]
+    k = float(spec["k"])
+    negative = stat_kind in ("negative_peak_over_sd", "negative_peak_z")
+    # The rule's quantity over time and the level it must cross (spec §5.13,
+    # plot_existence): the baseline z-score of the average, -k for the negative-peak rules,
+    # +/-k for the absolute ones, no band for the RMS rule (one value for the window)
+    band = np.full(seg.shape + (2,), np.nan)
+    if stat_kind != "rms_z":
+        band[..., 0] = -k
+        if not negative:
+            band[..., 1] = k
+    curve = {"curve": seg, "curve_times": tw, "null_band": band}
     if local:
         stat, peak = _local_negative_peak(z, times, spec, units, sd[:, 0])
         significant = stat > spec["k"]
         stat = np.where(np.isfinite(stat), stat, np.nan)
-        return {"statistic": stat, "significant": significant, "onset": peak, "offset": peak}
+        return {"statistic": stat, "significant": significant, "onset": peak, "offset": peak,
+                **curve}
     if stat_kind == "rms_z":
         stat = np.sqrt(np.mean(seg ** 2, axis=1))
         peak = np.full(len(avg), np.nan)
@@ -234,4 +247,5 @@ def apply_rule(avg, times, sfreq, spec, units="uV"):
     significant = stat > spec["k"]
     if spec.get("max_peak_delay") is not None:
         significant &= np.nan_to_num(peak, nan=np.inf) <= spec["max_peak_delay"]
-    return {"statistic": stat, "significant": significant, "onset": peak, "offset": peak}
+    return {"statistic": stat, "significant": significant, "onset": peak, "offset": peak,
+            **curve}

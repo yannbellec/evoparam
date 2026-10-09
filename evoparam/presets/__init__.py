@@ -31,7 +31,15 @@ _list = list  # the public function list() shadows the builtin in this module
 
 @dataclasses.dataclass(frozen=True)
 class Preset:
-    """One preset (spec §4.3.4, §6.1). Tuples for sequences, so that a preset is immutable."""
+    """One preset (spec §4.3.4, §6.1). Tuples for sequences, so that a preset is immutable.
+
+    The behaviours of spec §6.2 that the preset pipeline
+    (:func:`evoparam.reports.run_pipeline`, ``evoparam fit``) applies: ``reference_sensitivity``
+    (``ccep_seeg``: :func:`evoparam.prep.reference_sensitivity` is run and its kappa report
+    attached), ``trial_covariates`` (``rodent_ep``, ``primate_ep``: ``("state",)``, the
+    covariates of the trial fits) and ``train_baseline`` (``erna``: the baseline is the last
+    ``train_baseline`` seconds before each train, :func:`evoparam.prep.train_baseline`).
+    """
 
     name: str
     modality: str
@@ -63,11 +71,14 @@ class Preset:
     choices: dict = dataclasses.field(default_factory=dict)
     notes: dict = dataclasses.field(default_factory=dict)
     fit_extras: dict = dataclasses.field(default_factory=dict)
+    reference_sensitivity: bool = False
+    trial_covariates: tuple = ()
+    train_baseline: float | None = None
     parent: str | None = None
     overrides: dict = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
-        for name in ("species", "shapes", "citation"):
+        for name in ("species", "shapes", "citation", "trial_covariates"):
             object.__setattr__(self, name, tuple(getattr(self, name)))
         for name in ("epoch", "baseline", "artifact_window", "fit_window"):
             value = getattr(self, name)
@@ -82,6 +93,11 @@ class Preset:
             raise SettingsError(f"preset {self.name!r}: fit_window must increase.")
         if not 0 < self.min_fwhm < self.max_fwhm:
             raise SettingsError(f"preset {self.name!r}: need 0 < min_fwhm < max_fwhm.")
+        if self.train_baseline is not None:
+            object.__setattr__(self, "train_baseline", float(self.train_baseline))
+            if not self.train_baseline > 0:
+                raise SettingsError(f"preset {self.name!r}: train_baseline must be a positive "
+                                    f"duration (s).")
         if self.polarity not in ("both", "negative", "positive"):
             raise SettingsError(f"preset {self.name!r}: polarity must be both, negative or "
                                 f"positive.")

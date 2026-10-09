@@ -168,6 +168,9 @@ def _preset(settings):
     name = (settings or {}).get("preset")
     if not name:
         return None
+    if isinstance(name, dict):
+        # REQ-331: the preset is recorded as {"name", "version"}
+        return {"Name": name.get("name"), "Version": name.get("version")}
     note = (settings or {}).get("preset_note") or ""
     version = note.split(" v")[1].split(" ")[0].rstrip(";") if " v" in note else None
     return {"Name": name, "Version": version}

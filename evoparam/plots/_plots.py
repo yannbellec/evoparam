@@ -248,27 +248,103 @@ def plot_trials(trial_fit, trials=None, *, channel=None, axes=None):
     return fig
 
 
-def plot_existence(test, *, ax=None, channels=None):
-    """Existence test per channel: the statistic (significant channels filled) and the
-    response window from onset to offset."""
+def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_channels=16):
+    """Existence test: the statistic over time with its null band (spec §5.13).
 
-    fig, ax = _figure_ax(ax, figsize=(6.0, 0.25 * max(len(test.statistic), 8) + 1))
-    names = channels or test.settings.get("channels") or \
-        [f"ch{i}" for i in range(len(test.statistic))]
-    y = np.arange(len(test.statistic))
-    sig = np.asarray(test.significant, bool)
-    ax.barh(y, test.statistic, color=np.where(sig, PALETTE[0], "#cccccc"))
-    ax.set_yticks(y, names, fontsize=6)
-    ax.invert_yaxis()
-    ax.set_xlabel(f"statistic ({test.method})")
-    twin = ax.twiny()
-    for i in np.flatnonzero(sig):
-        if np.isfinite(test.onset[i]) and np.isfinite(test.offset[i]):
-            twin.plot([test.onset[i] * 1e3, test.offset[i] * 1e3], [i, i], color=PALETTE[1],
-                      lw=2)
-    twin.set_xlabel("response window (ms)", color=PALETTE[1])
-    ax.set_title(f"{int(sig.sum())} of {len(sig)} channels significant "
-                 f"(alpha {test.alpha:g}, {test.correction})", fontsize=9)
+    One panel per channel (``channels``: names to show; default the channels in their order,
+    at most ``max_channels``): the statistic over the test window (``test.curve``: the
+    pointwise t of the trials, the baseline z of the average, or the projection profile),
+    the null band shaded (``test.null_band``: the family-wise critical value of the null
+    maximum for ``max_t``, the cluster-forming threshold for ``cluster``, the rule's ``k``)
+    and the significant span from onset to offset. With ``ax``, the channels are drawn on
+    that one axes. ``group``: the group shown when the test was split by ``by``.
+
+    A test without a time course (``model_comparison``, or a result saved by an earlier
+    version) is drawn as one bar per channel (the statistic; significant channels filled).
+    """
+
+    names_all = test.settings.get("channels") or \
+        [f"ch{i}" for i in range(np.shape(test.statistic)[0])]
+
+    def per_channel(values):
+        values = np.asarray(values)
+        return values[:, group] if values.ndim > 1 and np.ndim(test.statistic) > 1 \
+            else values
+
+    sig = np.asarray(per_channel(test.significant), bool)
+    stat = np.asarray(per_channel(test.statistic), float)
+    onset, offset = per_channel(test.onset), per_channel(test.offset)
+    if test.curve is None or test.curve_times is None:
+        fig, ax = _figure_ax(ax, figsize=(6.0, 0.25 * max(len(stat), 8) + 1))
+        y = np.arange(len(stat))
+        ax.barh(y, stat, color=np.where(sig, PALETTE[0], "#cccccc"))
+        ax.set_yticks(y, (channels or names_all)[:len(stat)], fontsize=6)
+        ax.invert_yaxis()
+        ax.set_xlabel(f"statistic ({test.method})")
+        ax.set_title(f"{int(sig.sum())} of {len(sig)} channels significant "
+                     f"(alpha {test.alpha:g}, {test.correction})", fontsize=9)
+        return fig
+
+    curve = np.asarray(test.curve, float)
+    band = None if test.null_band is None else np.asarray(test.null_band, float)
+    if np.ndim(test.statistic) > 1:
+        curve = curve[:, group]
+        band = None if band is None else band[:, group]
+    if channels is None:
+        index = list(range(len(names_all)))[:max_channels]
+    else:
+        index = [names_all.index(c) if isinstance(c, str) else int(c) for c in channels]
+    t_ms = np.asarray(test.curve_times, float) * 1e3
+    plt = _plt()
+    if ax is not None:
+        fig, panels = ax.figure, [ax] * len(index)
+    elif axes is not None:
+        panels = list(np.ravel(axes))
+        fig = panels[0].figure
+    else:
+        cols = int(np.ceil(np.sqrt(len(index)))) or 1
+        rows = int(np.ceil(len(index) / cols)) or 1
+        fig, grid = plt.subplots(rows, cols, figsize=(2.4 * cols, 1.7 * rows + 0.4),
+                                 sharex=True, layout="constrained", squeeze=False)
+        panels = list(np.ravel(grid))
+        for a in panels[len(index):]:
+            a.axis("off")
+    single = ax is not None
+    for n, (a, i) in enumerate(zip(panels, index)):
+        colour = PALETTE[n % len(PALETTE)] if single else (PALETTE[0] if sig[i] else
+                                                           "#777777")
+        if band is not None:
+            low = np.nan_to_num(band[i, :, 0], nan=-np.inf)
+            high = np.nan_to_num(band[i, :, 1], nan=np.inf)
+            finite = np.isfinite(band[i]).any()
+            if finite:
+                lo = np.where(np.isfinite(low), low, np.nanmin(curve[i]))
+                hi = np.where(np.isfinite(high), high, np.nanmax(curve[i]))
+                a.fill_between(t_ms, lo, hi, color="#bbbbbb" if not single else colour,
+                               alpha=0.35 if not single else 0.12, lw=0,
+                               label=None if n else "null band")
+        a.plot(t_ms, curve[i], color=colour, lw=0.9,
+               label=names_all[i] if single else None)
+        a.axhline(0.0, color="#000000", lw=0.4)
+        if sig[i] and np.isfinite(onset[i]) and np.isfinite(offset[i]):
+            a.axvspan(onset[i] * 1e3, offset[i] * 1e3, color=PALETTE[1], alpha=0.15, lw=0)
+        if not single:
+            a.set_title(f"{names_all[i]}: {'significant' if sig[i] else 'n.s.'}", fontsize=7)
+            a.tick_params(labelsize=6)
+    what = {"baseline_permutation": "pointwise t", "projection": "projection profile",
+            "threshold": "baseline z"}.get(test.method, "statistic")
+    if single:
+        ax.set_xlabel("time (ms)")
+        ax.set_ylabel(what)
+        ax.legend(fontsize=6, frameon=False)
+        ax.set_title(f"{int(sig.sum())} of {len(sig)} channels significant "
+                     f"(alpha {test.alpha:g}, {test.correction})", fontsize=9)
+    else:
+        fig.supxlabel("time (ms)", fontsize=8)
+        fig.supylabel(what, fontsize=8)
+        fig.suptitle(f"{test.method}: {int(sig.sum())} of {len(sig)} channels significant "
+                     f"(alpha {test.alpha:g}, {test.correction}); shaded: null band",
+                     fontsize=8)
     return fig
 
 

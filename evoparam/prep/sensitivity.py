@@ -79,7 +79,8 @@ def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
         ``n_detected_a``, ``n_detected_b``, ``n_both``, ``median_latency_diff_ms`` (b minus a,
         channels detected by both), ``max_abs_latency_diff_ms``. ``attrs["channels"]`` holds
         the per-channel table (one column of detections and one of latencies per scheme) and
-        ``attrs["duration_s"]`` the run time.
+        ``attrs["duration_s"]`` the run time, ``attrs["provenance"]`` the provenance of the
+        trials with this step (for the methods text).
     """
 
     pd = require("pandas", extra="data", caller="evoparam.prep.reference_sensitivity")
@@ -118,4 +119,11 @@ def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
     channels = pd.concat({scheme: frame for scheme, frame in per_scheme.items()}, axis=1)
     table.attrs["channels"] = channels
     table.attrs["duration_s"] = _time.perf_counter() - start
+    # the step, for the methods text of a pipeline that attaches this report (spec §6.2)
+    table.attrs["provenance"] = ts.provenance.with_step(
+        "evoparam.prep.reference_sensitivity",
+        {"schemes": list(schemes), "detector": getattr(detector, "__name__", "custom"),
+         "test_kwargs": {k: v for k, v in test_kwargs.items()
+                         if isinstance(v, (int, float, str, bool, list, tuple))}},
+        duration_s=table.attrs["duration_s"]).to_dict()
     return table

@@ -50,6 +50,41 @@ def test_req190_recovers_three_shapes(method):
     assert np.median(agreement) == 1.0
 
 
+@pytest.mark.parametrize("method", ["nmf", "kpca"])
+def test_weights_are_the_clustering_loadings(method):
+    """Spec §4.3.4 and §5.9 (audit F56): ``weights`` (group x shape) are the non-negative
+    loadings of the clustering, which assign each group to its shape; the group-level
+    weight alpha_m of method 1 (mean projection on the shape) is ``assignment["weight"]``."""
+
+    ts, which = multi_site(3)
+    # site S19 keeps 2 trials: it is projected, not used to define the bases
+    meta = ts.metadata
+    keep = [i for i, site in enumerate(meta["stim_site"]) if site != "S19-T19" or
+            sum(meta["stim_site"][:i] == site) < 2]
+    ts = ts.select(trials=keep)
+    basis = convergent(ts, "R01", method=method, random_state=0)
+    table = basis.assignment
+    w = basis.weights
+    assert w.shape == (20, 3) and np.isfinite(w).all() and (w >= 0).all()
+    used = table["used"].to_numpy(bool)
+    assert not used[-1] and used[:-1].all()
+    ids = table["shape_id"].to_numpy()
+    assert (np.argmax(w[used], axis=1) == ids[used]).all()
+    assert np.allclose(table["nmf_loading"], w[np.arange(20), ids])
+    if method == "nmf":
+        # columns of H: unit-norm rows over the defining groups
+        assert np.allclose(np.linalg.norm(w[used], axis=0), 1.0, atol=1e-6)
+        # the projected group's loadings put it with the sites of its true shape
+        assert np.argmax(w[-1]) == ids[-1]
+    else:
+        assert set(np.unique(w)) <= {0.0, 1.0} and (w.sum(axis=1) == 1).all()
+    # alpha_m: the mean projection of the group's trials on its shape, data units
+    v = ts.data[np.asarray(ts.metadata["stim_site"] == "S00-T00"), 0]
+    win = (ts.times >= basis.times[0] - 1e-9) & (ts.times <= basis.times[-1] + 1e-9)
+    alpha = (v[:, win] @ basis.curves[ids[0]]).mean()
+    assert np.isclose(table["weight"].iloc[0], alpha)
+
+
 def test_shape_basis_contents_and_round_trip(tmp_path):
 
     ts, which = multi_site(3)

@@ -122,7 +122,12 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
     -------
     ResponseTest
         Arrays [n_channels] (or [n_channels, n_groups] when ``by`` splits the trials into
-        several groups, the group names in ``settings["groups"]``).
+        several groups, the group names in ``settings["groups"]``). ``curve`` holds the
+        statistic over time in the window (the pointwise t of the trials; the baseline z of
+        the average without trials or for a registry rule; the normalised projection profile
+        for ``"projection"``; None for ``"model_comparison"``) on ``curve_times``, and
+        ``null_band`` the level it must cross: the family-wise critical value of the null
+        maximum (``max_t``), the cluster-forming threshold (``cluster``), the rule's ``k``.
     """
 
     start = _time.perf_counter()
@@ -218,12 +223,18 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
                                         {k: v for k, v in settings.items()
                                          if k not in _PER_CHANNEL_SETTINGS},
                                         duration_s=_time.perf_counter() - start)
+    curve_times = curve = band = None
+    if all(r.get("curve") is not None for r in results):
+        # the statistic over time and its null band (spec §5.13, plot_existence)
+        curve_times = np.asarray(results[0]["curve_times"], float)
+        curve, band = stack("curve"), stack("null_band")
     return ResponseTest(method=method, statistic=stack("statistic"), p_value=adjusted,
                         p_value_raw=raw, significant=significant, duration=stack("duration"),
                         onset=stack("onset"), offset=stack("offset"), snr_db=stack("snr_db"),
                         rule=spec["name"] if spec else None, alpha=alpha, correction=correction,
                         n_permutations=n_permutations, window=window, settings=settings,
-                        provenance=provenance)
+                        provenance=provenance, curve_times=curve_times, curve=curve,
+                        null_band=band)
 
 
 def _interval(result, key):
@@ -472,7 +483,9 @@ def attach_test(group, test):
             test, statistic=test.statistic[i:i + 1], p_value=test.p_value[i:i + 1],
             p_value_raw=test.p_value_raw[i:i + 1], significant=test.significant[i:i + 1],
             duration=test.duration[i:i + 1], onset=test.onset[i:i + 1],
-            offset=test.offset[i:i + 1], snr_db=test.snr_db[i:i + 1])
+            offset=test.offset[i:i + 1], snr_db=test.snr_db[i:i + 1],
+            curve=None if test.curve is None else test.curve[i:i + 1],
+            null_band=None if test.null_band is None else test.null_band[i:i + 1])
         fits.append(dataclasses.replace(
             fit_, existence=one,
             provenance=fit_.provenance.with_step("evoparam.existence.test_response", step)))

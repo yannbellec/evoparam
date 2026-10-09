@@ -20,13 +20,16 @@ __all__ = ["PipelineResult", "run_pipeline", "REFERENCE_PIPELINES", "reference_i
 @dataclasses.dataclass
 class PipelineResult:
     """What :func:`run_pipeline` produced: the cleaned trials, the artifact results (one per
-    artifact step), the channel fits with their existence tests and the trial fits."""
+    artifact step), the channel fits with their existence tests, the trial fits, and the
+    reference-sensitivity report (the kappa table of
+    :func:`evoparam.prep.reference_sensitivity`, for a preset that runs it: ``ccep_seeg``)."""
 
     trials: object
     artifact: list
     group: object
     trial_fits: object = None
     test: object = None
+    reference_report: object = None
 
     @property
     def results(self):
@@ -98,7 +101,7 @@ def _test_window(ts, window):
 
 def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True,
                  existence=True, trial_fits=None, random_state=0, existence_kwargs=None,
-                 n_jobs=1, **overrides):
+                 n_jobs=1, reference_sensitivity=None, continuous=None, **overrides):
     """Run the preset's chain on a TrialSet.
 
     Parameters
@@ -116,6 +119,15 @@ def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True
         Seed of every step that draws random numbers.
     existence_kwargs : dict, optional
         Passed to the existence test (default: the preset's method and alpha).
+    reference_sensitivity : bool or None
+        Run :func:`evoparam.prep.reference_sensitivity` on the cleaned trials before the
+        re-referencing and attach its kappa report (``PipelineResult.reference_report``);
+        None follows the preset (``ccep_seeg``: yes, spec §6.2).
+    continuous : array, TrialSet or tuple, optional
+        The continuous recording, for a preset whose baseline is taken per train before the
+        train (``erna``, :func:`evoparam.prep.train_baseline`): a TrialSet with one
+        continuous trial, or ``(data, sfreq, t0)``. Without it the baseline comes from the
+        epochs when they start early enough, else it is not applied (warning).
     **overrides
         Fit settings that replace the preset's (recorded in the methods text).
 
@@ -125,9 +137,12 @@ def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True
     """
 
     from evoparam.artifact import remove_artifact
+    from evoparam.errors import DataError, warn
     from evoparam.existence import attach_test, test_response
     from evoparam.models import fit as fit_models
     from evoparam.prep import baseline_correct, rereference
+    from evoparam.prep import reference_sensitivity as sensitivity
+    from evoparam.prep import train_baseline
 
     p = _presets.get(preset)
     ts = trials
@@ -137,12 +152,32 @@ def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True
             result = remove_artifact(ts, random_state=random_state, **kwargs)
             artifacts.append(result)
             ts = result.cleaned
+    report = None
+    if reference_sensitivity if reference_sensitivity is not None else \
+            (reference and p.reference_sensitivity):
+        # spec §6.2 (ccep_seeg): the detections under several references, with their kappa
+        try:
+            report = sensitivity(ts, reference_kwargs={"random_state": random_state})
+        except (DataError, SettingsError) as exc:
+            warn(f"preset {p.name!r}: reference_sensitivity could not run ({exc}); no kappa "
+                 "report is attached.", UserWarning, stacklevel=2)
     scheme = reference_scheme(p)
     if reference and scheme is not None:
         extra = {"random_state": random_state} if scheme == "car_adaptive" else {}
         ts = rereference(ts, scheme, **extra)
     if baseline and p.baseline is not None:
         ts = baseline_correct(ts, tuple(p.baseline))
+    elif baseline and p.train_baseline is not None:
+        # spec §6.1 (erna): the last 50 ms before each train
+        raw = continuous
+        kwargs = {}
+        if isinstance(continuous, tuple):
+            raw, kwargs = continuous[0], {"sfreq": continuous[1], "t0": continuous[2]}
+        try:
+            ts = train_baseline(ts, p.train_baseline, raw=raw, **kwargs)
+        except DataError as exc:
+            warn(f"preset {p.name!r}: the baseline per train was not applied ({exc}).",
+                 UserWarning, stacklevel=2)
     test_kwargs = {"method": p.existence_method, "alpha": p.existence_alpha}
     window = _test_window(ts, tuple(overrides.get("fit_window") or p.fit_window))
     if window != tuple(overrides.get("fit_window") or p.fit_window):
@@ -162,10 +197,17 @@ def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True
     fits = None
     if trial_fits if trial_fits is not None else p.trial_fit:
         from evoparam.trials import fit_trials
+        # the preset's default covariates (rodent_ep, primate_ep: metadata["state"])
+        covariates = [c for c in p.trial_covariates
+                      if ts.metadata is not None and c in ts.metadata.columns]
+        for missing in sorted(set(p.trial_covariates) - set(covariates)):
+            warn(f"preset {p.name!r}: metadata[{missing!r}] is missing, so the default "
+                 f"covariate {missing!r} of the trial fits is not computed.", UserWarning,
+                 stacklevel=2)
         fits = fit_trials(ts, group, mode=p.trial_mode or "shift_scale",
-                          random_state=random_state, n_jobs=n_jobs)
+                          random_state=random_state, n_jobs=n_jobs, covariates=covariates)
     return PipelineResult(trials=ts, artifact=artifacts, group=group, trial_fits=fits,
-                          test=test)
+                          test=test, reference_report=report)
 
 
 ###################################################################################################
@@ -178,7 +220,8 @@ REFERENCE_PIPELINES = {
     "erpcore_p3": {
         "preset": "erp",
         "data": "ERP CORE P3 (active visual oddball), channel Pz, all epochs of one "
-                "participant (Kappenman et al. 2021; local copy, not redistributed)",
+                "participant (Kappenman et al. 2021; OSF node etdkz, CC-BY-4.0; downloaded "
+                "by the network test, not redistributed)",
         "stand_in": {"generator": "simulate_erp",
                      "kwargs": {"n_trials": 30, "n_channels": 1, "components": ["P3"],
                                 "ch_names": ["Pz"], "seed": 0}},

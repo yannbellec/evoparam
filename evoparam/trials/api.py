@@ -17,9 +17,10 @@ from evoparam.version import __version__
 from ._model import ChannelTemplate, fit_trial
 
 __all__ = ["fit_trials", "TrialFitSet", "jitter", "realign", "dose_response",
-           "prestimulus_dependence", "MODES"]
+           "prestimulus_dependence", "MODES", "state_dependence", "COVARIATES"]
 
 MODES = ("shift_scale", "free", "template", "regularized")
+COVARIATES = ("trend", "dose", "prestim", "state")
 SCALP_PRESETS = ("erp", "p300_bci", "tep", "sep")
 JITTER_REFUSE = 1.2
 NULL_REPEATS = 5
@@ -278,7 +279,10 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
 
     Covariates: ``"trend"`` (amplitude against the position in the train), ``"dose"``
     (against ``stim_current_mA``, see :func:`dose_response`), ``"prestim"`` (pre-stimulus
-    phase with its uncertainty across three estimators, and power, in ``prestim_band``).
+    phase with its uncertainty across three estimators, and power, in ``prestim_band``),
+    ``"state"`` (amplitude and latency per level of ``metadata["state"]``, see
+    :func:`state_dependence`; a default covariate of the ``rodent_ep`` and ``primate_ep``
+    presets, spec §6.2).
 
     Returns
     -------
@@ -291,7 +295,7 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
         raise DataError("fit_trials expects a TrialSet.")
     if mode not in MODES:
         raise SettingsError(f"mode must be one of {MODES}, not {mode!r}.")
-    unknown = set(covariates) - {"trend", "dose", "prestim"}
+    unknown = set(covariates) - set(COVARIATES)
     if unknown:
         raise SettingsError(f"Unknown covariates {sorted(unknown)}.")
     if group_fit is None:
@@ -461,6 +465,8 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
         covariate_tables["trend"] = _trend(table)
     if "dose" in covariates and len(table):
         covariate_tables["dose"] = dose_response(table)
+    if "state" in covariates and len(table):
+        covariate_tables["state"] = state_dependence(table)
     settings = {"mode": mode, "max_shift": max_shift, "r2_min": r2_min, "by": list(by or ()),
                 "covariates": list(covariates), "package_version": __version__,
                 "covariate_tables": {k: v.to_dict("list") for k, v in covariate_tables.items()}}
@@ -555,6 +561,68 @@ def _trend(table):
                      "slope": slope / intercept if intercept else np.nan,
                      "intercept": intercept, "x": order_col})
     return pd.DataFrame(rows)
+
+
+def state_dependence(trial_fit, *, column="state", reference=None):
+    """Amplitude and latency per behavioural or brain state (``metadata["state"]``: sleep,
+    wake, anaesthesia...), per channel and component, on the trusted trials.
+
+    State changes the gain of evoked field potentials up to about three-fold (spec §6.2,
+    rodent and primate presets), so the trial parameters are summarised per state level:
+    ``n_trials``, the median and mean amplitude and latency, the ``gain`` (median absolute
+    amplitude over that of the ``reference`` state, by default the most frequent one) and,
+    on the reference row's channel and component, the Kruskal-Wallis p-values of amplitude
+    and latency across the states (``p_amplitude``, ``p_latency``; NaN with one state).
+
+    Raises
+    ------
+    SettingsError
+        The trial table has no ``column``.
+    """
+
+    from scipy.stats import kruskal
+
+    pd = require("pandas", extra="data", caller="evoparam.trials.state_dependence")
+    table = trial_fit.table if isinstance(trial_fit, TrialFitSet) else trial_fit
+    if column not in table.columns:
+        raise SettingsError(f"state_dependence: the trial table has no column {column!r} "
+                            f"(metadata['{column}']).")
+    columns = ["channel", "component", "label", column, "n_trials", "amplitude_median",
+               "amplitude_mean", "latency_median", "latency_mean", "gain", "reference",
+               "p_amplitude", "p_latency"]
+    rows = []
+    trusted = table[table["trusted"].astype(bool) & table[column].notna()]
+    for (ch, k), g in trusted.groupby(["channel", "component"], sort=False):
+        states = g[column].astype(str)
+        counts = states.value_counts()
+        ref = str(reference) if reference is not None else str(counts.index[0])
+        groups = {state: g[states == state] for state in sorted(counts.index)}
+        ref_amp = (np.median(np.abs(groups[ref]["amplitude"].to_numpy(float)))
+                   if ref in groups else np.nan)
+        p_amp = p_lat = np.nan
+        usable = [v for v in groups.values() if len(v) >= 2]
+        if len(usable) >= 2:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                try:
+                    p_amp = float(kruskal(*[v["amplitude"].to_numpy(float)
+                                            for v in usable]).pvalue)
+                    p_lat = float(kruskal(*[v["latency"].to_numpy(float)
+                                            for v in usable]).pvalue)
+                except ValueError:          # all values identical
+                    pass
+        for state, v in groups.items():
+            amp, lat = v["amplitude"].to_numpy(float), v["latency"].to_numpy(float)
+            rows.append({"channel": ch, "component": int(k),
+                         "label": str(v["label"].iloc[0]) if "label" in v else "",
+                         column: state, "n_trials": int(len(v)),
+                         "amplitude_median": float(np.median(amp)),
+                         "amplitude_mean": float(np.mean(amp)),
+                         "latency_median": float(np.median(lat)),
+                         "latency_mean": float(np.mean(lat)),
+                         "gain": float(np.median(np.abs(amp)) / ref_amp) if ref_amp else np.nan,
+                         "reference": ref, "p_amplitude": p_amp, "p_latency": p_lat})
+    return pd.DataFrame(rows, columns=columns)
 
 
 def _hill(i, a_max, i50, h):

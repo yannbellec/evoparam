@@ -13,7 +13,7 @@ from evoparam.version import __version__
 
 from ._text import methods_text
 
-__all__ = ["qc", "markdown", "html", "pdf"]
+__all__ = ["qc", "markdown", "html", "pdf", "site_pages"]
 
 RESEARCH_USE = ("For research use only. evoparam is not a medical device and its outputs are "
                 "not intended for diagnosis or treatment decisions.")
@@ -195,9 +195,62 @@ def html(result, path=None, *, data=None, max_channels=24):
     return str(path)
 
 
-def pdf(result, path, *, data=None, max_channels=24):
+def _sites(values, column="stim_site"):
+    """Stimulation sites of a TrialSet (its metadata column), in order of appearance."""
+
+    meta = getattr(values, "metadata", None)
+    if meta is None or column not in meta.columns:
+        return []
+    return [str(v) for v in dict.fromkeys(meta[column].astype(str))
+            if v not in ("", "n/a", "nan", "None")]
+
+
+def site_pages(result, data=None, *, site_column="stim_site"):
+    """The pages of :func:`pdf`: ``(site, [(channel, condition, fit position), ...])`` per
+    stimulation site of a GroupFit.
+
+    The site of a fit is its condition when the GroupFit was fitted by stimulation site
+    (``evoparam.fit(trials, by="stim_site")``, or ``by`` with more columns: the part of the
+    label that is a site of ``data``); with a GroupFit fitted on all trials together and
+    ``data`` holding one site, that site. A GroupFit that pooled the trials of several
+    sites has one page for them all, named so (fit by site for one page per site).
+    """
+
+    known = _sites(data, site_column) if data is not None else []
+    pages = {}
+    for channel, cond, pos in result.index[["channel", "condition", "position"]].itertuples(
+            index=False):
+        cond = str(cond)
+        # the part of the label that is a site of the data, else the whole label (by=site)
+        site = next((p for p in cond.split("/") if p in known), cond) if cond else None
+        if site is None:
+            site = known[0] if len(known) == 1 else (
+                "all stimulation sites pooled" if len(known) > 1 else "all trials")
+        pages.setdefault(site, []).append((str(channel), cond, int(pos)))
+    return list(pages.items())
+
+
+def _site_data(data, site, site_column, single_condition):
+    """The trials behind one page: the site's trials, or all of them when the fits used all
+    trials (one condition); None when they cannot be told apart."""
+
+    if data is None:
+        return None
+    if site in _sites(data, site_column) and hasattr(data, "select"):
+        rows = [i for i, v in enumerate(data.metadata[site_column].astype(str)) if v == site]
+        return data.select(trials=rows)
+    return data if single_condition else None
+
+
+def pdf(result, path, *, data=None, max_channels=24, site_column="stim_site"):
     """PDF report (needs matplotlib): a text page (methods, quality), then one page per
-    condition with its channels, then the per-channel figures."""
+    stimulation site (spec §5.13), then the per-channel figures.
+
+    A site page holds every channel of that site: the data (when ``data`` is given) and the
+    model, for a :class:`GroupFit` (see :func:`site_pages` for how the site of a fit is
+    found); the statistic over time with its null band for a :class:`ResponseTest` split
+    by site (``by=("stim_site",)``, the default of ``test_response``).
+    """
 
     import matplotlib
 
@@ -215,13 +268,22 @@ def pdf(result, path, *, data=None, max_channels=24):
         pages.savefig(fig)
         plt.close(fig)
         if isinstance(result, GroupFit):
-            conditions = list(dict.fromkeys(result.index["condition"]))
-            for condition in conditions:
-                rows = result.index[result.index["condition"] == condition]
-                sub = GroupFit.from_fits([result.fits[int(p)] for p in rows["position"]],
-                                         list(rows["channel"]))
-                fig = plots.plot_group(sub, data if len(conditions) == 1 else None)
-                fig.suptitle(f"condition: {condition or '(all trials)'}")
+            for site, members in site_pages(result, data, site_column=site_column):
+                conds = {c for _, c, _ in members}
+                # several conditions of one site: one panel per channel and condition
+                names = [f"{n} {c}" if len(conds) > 1 else n for n, c, _ in members]
+                sub = GroupFit.from_fits([result.fits[pos] for _, _, pos in members], names)
+                site_data = None if len(conds) > 1 else _site_data(
+                    data, site, site_column, len(set(result.index["condition"])) == 1)
+                fig = plots.plot_group(sub, site_data, max_channels=max(64, len(members)))
+                fig.suptitle(f"stimulation site: {site}")
+                pages.savefig(fig)
+                plt.close(fig)
+        elif isinstance(result, ResponseTest):
+            groups = result.settings.get("groups") or [""]
+            for g, name in enumerate(groups):
+                fig = plots.plot_existence(result, group=g, max_channels=64)
+                fig.suptitle(f"stimulation site: {name or '(all trials)'}", fontsize=9)
                 pages.savefig(fig)
                 plt.close(fig)
         for title, fig in _figures(result, data, max_channels)[1:]:

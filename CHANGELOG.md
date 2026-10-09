@@ -2,6 +2,84 @@
 
 ## Unreleased
 
+### Reports, shared shapes and preset behaviours (audit F44, F56–F58)
+
+- ERP CORE P3 methods text on the real recording (F44, REQ-340). The network test
+  `test_req340_erpcore_p3_real_recording_gives_the_frozen_text`
+  (`EVOPARAM_NETWORK_TESTS=1`) downloads participant 1 of the P3 task from OSF (node
+  `etdkz`, CC-BY-4.0) into `EVOPARAM_ERPCORE` or `~/.cache/evoparam/erpcore`, checks the
+  sha256 of the files, runs `run_reference_pipeline("erpcore_p3", ...)` on Pz and compares
+  the result with the frozen text. The data is never stored in the repository.
+  **Not verified yet:** on 2026-10-09 the build environment's network policy refused
+  `api.osf.io`, `osf.io` and `files.osf.io` (proxy 403). The local runner (D16) runs this
+  test.
+- `ShapeBasis.weights` now holds the clustering loadings, group × shape (F56, §4.3.4,
+  §5.9). For NMF these are the columns of the coefficient matrix H, and groups with fewer
+  than 3 trials get the non-negative least-squares loadings of their t-values on W. For
+  kernel PCA they are the one-hot of the assigned shape. Before this change, the field
+  held the mean projections.
+  - The spec's group-level weight `α_m` (the mean projection on the assigned shape) stays
+    in `assignment["weight"]`. `assignment["nmf_loading"]` gives the group's loading on
+    that shape.
+  - The full matrix of mean projections on every shape is no longer returned. No
+    measurement showed it was better for any use.
+- `plot_parameter_map` can draw a glass brain (F56, §5.9). With `backend="auto"`, it uses
+  nilearn when nilearn is installed and the coordinates are MNI-like:
+  - one `plot_markers` panel set;
+  - stimulation contacts, bad channels and masked channels as distinct markers.
+
+  Otherwise it draws the matplotlib electrode grid, whose axis labels now name the
+  coordinate space. `backend="nilearn"` with subject-space coordinates raises
+  `SettingsError`. There is a new extra, `brain = ["nilearn>=0.10"]`, which is included in
+  `all`.
+- The existence statistic over time (F57, §5.6). `ResponseTest` gains `curve_times`,
+  `curve` and `null_band` (channel × time, × 2 for the band):
+  - permutation: the pointwise t, with a band of ±the max-t critical value or ±the cluster
+    threshold;
+  - shuffle: z, with a band of ±the critical z;
+  - threshold rules: the baseline z, with a band of ±k on the sides the rule tests;
+  - projection: the profile, with no band.
+
+  `plot_existence` draws one panel per channel: the curve, the shaded band and the
+  onset–offset span. It falls back to bars for old objects.
+- Methods-text paragraphs for every recorded step (F57, REQ-340). New templates cover:
+  - pulse detection (`detect_pulses` now records a step on the event table, which
+    `epoch` carries);
+  - filters;
+  - mask application;
+  - baseline per train;
+  - reference sensitivity;
+  - bootstrap, comparison, reliability, trials needed, jackknife and group summary;
+  - `TrialSet.apply`.
+
+  `methods_text` also accepts stats tables (`attrs["provenance"]`). A test checks that
+  every step recorded by the package has a template or is explicitly silent. The three
+  frozen texts are unchanged (`tools/freeze_methods_text.py --check`: same, same, same).
+- `report.pdf` has one page per stimulation site (F57, §5.13), after the text page:
+  - for fits, the site's group plot;
+  - for a test split by site, the site's existence curves.
+
+  Then come the per-channel figures. The new `reports._documents.site_pages` lists the
+  pages.
+- Preset behaviours of §6.1 and §6.2 (F58). There are three new `Preset` fields:
+  `reference_sensitivity`, `trial_covariates` and `train_baseline`.
+  - `ccep_seeg` runs `prep.reference_sensitivity` by default. Its κ report is attached as
+    `PipelineResult.reference_report` and described in the methods text.
+    `run_pipeline(..., reference_sensitivity=False)` turns it off.
+  - `rodent_ep` and `primate_ep` use `metadata["state"]` as a default trial covariate.
+    The new `trials.state_dependence` gives, per state, the medians and means, the gain
+    relative to the most frequent state, and Kruskal-Wallis p-values. When the column is
+    missing, there is a warning and the fits run without it.
+  - `erna` subtracts a baseline per train: the last 50 ms before each train. The new
+    `prep.train_baseline` takes it from the continuous recording
+    (`run_pipeline(continuous=...)`) or from the first pulse's epoch. If neither is
+    available, the pipeline warns and the baseline is not applied.
+  - "P1/N1 by depth": `label_components(polarity_rule="sign")` (the default) names a
+    component in a window called `P1/N1` as `P1` when it is positive and `N1` when it is
+    negative. The test of REQ-278 (`test_allen_lfp.py`) accepts `P1`, `N1` or `late`,
+    which is the same set as before.
+- BIDS derivatives: `_preset` accepts the `{"name", "version"}` preset form of REQ-294.
+
 ### Architecture, packaging and test infrastructure (audit F3, F4, F43, F45–F49, F60–F63, F66, F67)
 
 - Inherited code removed (§4.4, §4.5, §12 rule 1). The old engine and its modules are

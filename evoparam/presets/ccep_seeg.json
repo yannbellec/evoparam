@@ -71,5 +71,6 @@
     "background_tau_max": 0.05
   },
   "validation": "pending: Mayo sEEG sets",
-  "notes": {}
+  "notes": {},
+  "reference_sensitivity": true
 }

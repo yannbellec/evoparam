@@ -299,16 +299,74 @@ _STYLE = {"stim_contact": ("*", "black"), "bad": ("x", "red"), "masked": ("s", "
           "no_response": ("o", "lightgrey"), "failed": ("x", "grey")}
 
 
-def plot_parameter_map(table, *, ax=None, projection=("x", "y")):
-    """Electrode-grid figure of a :func:`parameter_map` table (needs the extra ``plot``):
-    responses coloured by ``value``, the other markers drawn distinctly. With ``nilearn``
-    installed and MNI coordinates, use ``nilearn.plotting.plot_markers`` on the same
-    columns for a glass brain (no template is shipped)."""
+# coord_space values (BIDS, lower case) in a template space whose glass brain nilearn draws
+MNI_SPACES = ("mni", "icbm", "fsaverage", "talairach")
+
+
+def _is_mni(table):
+    spaces = {str(v).lower() for v in table["coord_space"].dropna()} - {"", "nan", "none"} \
+        if "coord_space" in table.columns else set()
+    return bool(spaces) and all(space.startswith(MNI_SPACES) for space in spaces)
+
+
+def _have_nilearn():
+    import importlib.util
+
+    return importlib.util.find_spec("nilearn") is not None
+
+
+def plot_parameter_map(table, *, ax=None, projection=("x", "y"), backend="auto",
+                       stim_site=None, display_mode="ortho"):
+    """Glass-brain or electrode-grid figure of a :func:`parameter_map` table (spec §5.9,
+    method 3; needs the extra ``plot``): responses coloured by ``value``, the stimulating
+    contacts, bad, masked, non-responding and failed channels drawn as distinct markers.
+
+    Parameters
+    ----------
+    table : DataFrame
+        Output of :func:`parameter_map` (columns ``x, y, z`` in mm, ``coord_space``,
+        ``marker``, ``value``).
+    ax : matplotlib Axes, optional
+        Axes of the electrode-grid figure (matplotlib backend).
+    projection : (str, str)
+        Coordinates of the electrode-grid figure's axes.
+    backend : {"auto", "nilearn", "matplotlib"}
+        ``"nilearn"``: a glass brain (``nilearn.plotting.plot_markers``, then
+        ``add_markers`` for the other markers) in the template space of the coordinates,
+        which must be MNI-like (``coord_space`` starting with MNI, ICBM, fsaverage or
+        Talairach); no template is shipped, nilearn draws its own outline.
+        ``"matplotlib"``: the electrode grid in the coordinates as given (subject space
+        is honoured). ``"auto"``: nilearn when it is installed and the coordinates are
+        MNI-like, else matplotlib.
+    stim_site : str, optional
+        Draw the rows of this stimulation site only (default: every row).
+    display_mode : str
+        nilearn display mode (``"ortho"``, ``"lzr"``, ...).
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
 
     plt = require("matplotlib.pyplot", extra="plot",
                   caller="evoparam.spatial.plot_parameter_map")
+    if backend not in ("auto", "nilearn", "matplotlib"):
+        raise SettingsError("backend must be 'auto', 'nilearn' or 'matplotlib'.")
+    if stim_site is not None:
+        table = table[table["stim_site"].astype(str) == str(stim_site)]
+        if not len(table):
+            raise DataError(f"plot_parameter_map: no row of stimulation site {stim_site!r}.")
     if not np.isfinite(table[list(projection)].to_numpy(float)).any():
         raise DataError("plot_parameter_map: the table has no coordinates.")
+    mni = _is_mni(table)
+    if backend == "nilearn" and not mni:
+        raise SettingsError("plot_parameter_map(backend='nilearn'): a glass brain needs "
+                            "MNI-like coordinates (coord_space); these are in subject space, "
+                            "use backend='matplotlib' (electrode grid).")
+    use_nilearn = backend == "nilearn" or (backend == "auto" and mni and _have_nilearn()
+                                          and ax is None)
+    if use_nilearn:
+        return _glass_brain(table, display_mode)
     if ax is None:
         _, ax = plt.subplots(figsize=(5, 5))
     a, b = projection
@@ -319,9 +377,43 @@ def plot_parameter_map(table, *, ax=None, projection=("x", "y")):
         sub = table[table["marker"] == marker]
         if len(sub):
             ax.scatter(sub[a], sub[b], marker=symbol, c=colour, s=30, label=marker)
-    ax.set_xlabel(f"{a} (mm)")
+    space = sorted({str(v) for v in table.get("coord_space", []) if str(v) not in ("", "nan")})
+    ax.set_xlabel(f"{a} (mm{', ' + space[0] if len(space) == 1 else ''})")
     ax.set_ylabel(f"{b} (mm)")
     ax.set_aspect("equal", adjustable="datalim")
     ax.figure.colorbar(scatter, ax=ax, label=table.attrs.get("parameter", "value"))
     ax.legend(loc="best", fontsize="small")
     return ax.figure
+
+
+def _glass_brain(table, display_mode):
+    """The nilearn glass brain of a parameter-map table (responses coloured by value)."""
+
+    plotting = require("nilearn.plotting", extra="brain",
+                       caller="evoparam.spatial.plot_parameter_map")
+    import matplotlib.pyplot as plt
+
+    xyz = ["x", "y", "z"]
+    figure = plt.figure(figsize=(8, 3.2))
+    resp = table[(table["marker"] == "response") & np.isfinite(table["value"].to_numpy(float))]
+    resp = resp[np.isfinite(resp[xyz].to_numpy(float)).all(axis=1)]
+    if len(resp):
+        values = resp["value"].to_numpy(float)
+        limit = float(np.max(np.abs(values))) or 1.0
+        display = plotting.plot_markers(values, resp[xyz].to_numpy(float), node_cmap="coolwarm",
+                                        node_vmin=-limit, node_vmax=limit, node_size=30,
+                                        display_mode=display_mode, figure=figure,
+                                        colorbar=True,
+                                        title=str(table.attrs.get("parameter", "value")))
+    else:
+        display = plotting.plot_glass_brain(None, display_mode=display_mode, figure=figure)
+    for marker, (_, colour) in _STYLE.items():
+        sub = table[table["marker"] == marker]
+        coords = sub[xyz].to_numpy(float)
+        coords = coords[np.isfinite(coords).all(axis=1)]
+        if len(coords):
+            display.add_markers(coords, marker_color=colour, marker_size=20)
+    figure.legend(handles=[plt.Line2D([], [], ls="", marker="o", color=c, label=m)
+                           for m, (_, c) in _STYLE.items() if (table["marker"] == m).any()],
+                  loc="lower left", fontsize="small", frameon=False)
+    return figure

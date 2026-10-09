@@ -61,9 +61,12 @@
   ],
   "notes": {
     "artifact_window": "stimulus-dependent; (-0.001, 0.002) for electrical stimulation",
-    "trial_covariates": "metadata['state'] is a default covariate"
+    "trial_covariates": "metadata['state'] is a default covariate (spec §6.2)"
   },
   "validation": "pending: Allen Visual Coding Neuropixels LFP (REQ-278)",
   "choices": {},
-  "fit_extras": {}
+  "fit_extras": {},
+  "trial_covariates": [
+    "state"
+  ]
 }

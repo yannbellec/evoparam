@@ -5,7 +5,7 @@ DANDI 000021 (Allen Institute, CC-BY 4.0): the LFP of one probe (1 250 Hz) is re
 by byte ranges with ``read_nwb`` around the 150 full-field flashes of the session file;
 the epochs are cached in the evoparam data folder. Channels in visual cortex (``VIS*``)
 with a significant existence test must carry the labelled visual evoked complex
-(``P1/N1`` or ``late``) in at least 90 % of cases. Measured on 2026-10-08: session
+(``P1`` or ``N1``, named by sign, or ``late``) in at least 90 % of cases. Measured on 2026-10-08: session
 739448407, probes 757968489, 757968491 and 757968495: 16/17, 17/17, 16/16; session
 732592105, probe 733744649: 20/20.
 """
@@ -81,7 +81,7 @@ def test_req278_visual_evoked_complex_on_visual_cortex():
                              n_permutations=500, random_state=0, by=())
         significant = [n for n, s in zip(test.settings["channels"], test.significant) if s]
         group = fit(sub, "rodent_ep", picks=significant)
-    labelled = [any(c.label in ("P1/N1", "late") for c in group.get(ch).components)
+    labelled = [any(c.label in ("P1", "N1", "late") for c in group.get(ch).components)
                 for ch in significant]
     assert len(significant) >= 10
     assert sum(labelled) / len(significant) >= 0.9

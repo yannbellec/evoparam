@@ -54,11 +54,12 @@
   },
   "notes": {
     "epoch": "per pulse",
-    "baseline": "per train: last 50 ms before the train"
+    "baseline": "per train: last 50 ms before the train (train_baseline)"
   },
   "validation": "simulation_only",
   "fit_extras": {
     "freq_min": 200.0,
     "freq_max": 450.0
-  }
+  },
+  "train_baseline": 0.05
 }

@@ -453,6 +453,22 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
     if "stim_site_pulse" in events.columns:
         columns.append("stim_site_pulse")
     events = events[columns]
+    # The detection step, carried into the TrialSet by evoparam.io.epoch (onsets = this
+    # table) so that the methods text describes it (spec §5.13)
+    from evoparam.data import Provenance
+
+    settings = {"method": method, "threshold_sd": float(threshold_sd),
+                "min_interval": float(min_interval),
+                "expected_rate": None if expected_rate is None else float(expected_rate),
+                "rho_min": float(rho_min), "n_template": int(n_template),
+                "min_relative": float(min_relative), "recovery_sd": float(recovery_sd),
+                "refine": bool(refine), "saturation": bool(saturation),
+                "site": ch_names is not None, "vote": bool(vote and ch_names is not None),
+                "site_method": site_method, "user_template": template is not None,
+                "score_channels": score_channels}
+    events.attrs["provenance"] = Provenance(
+        source={"reader": "evoparam.events.detect_pulses"}).with_step(
+        "evoparam.events.detect_pulses", settings, n_events=int(len(events))).to_dict()
     if return_scores:
         return events, z, events["rho"].to_numpy()
     return events

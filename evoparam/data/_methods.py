@@ -27,7 +27,8 @@ __all__ = ["methods_text", "step_sentence", "SILENT_PREFIXES"]
 SILENT_PREFIXES = ("evoparam.io.", "evoparam.sim.", "evoparam.data.TrialSet.select",
                    "evoparam.data.TrialSet.crop", "evoparam.data.TrialSet.as_evoked",
                    "evoparam.data.Evoked.as_trialset", "evoparam.data.Evoked.select",
-                   "evoparam.data.migrate")
+                   "evoparam.data.migrate", "evoparam.stats.to_long",
+                   "evoparam.data.TrialSet.from_mne", "evoparam.data.Evoked.from_mne")
 
 _FIT_STEPS = ("evoparam.models.ResponseModel.fit_group", "evoparam.models.fit_waveform")
 
@@ -265,6 +266,13 @@ def _fit(settings):
         for label, value in windows.items():
             sign = {1: "positive", -1: "negative"}.get(int(value[2]) if len(value) > 2 else 0,
                                                         "either polarity")
+            parts = str(label).split("/")
+            if len(parts) == 2 and sign == "either polarity" and \
+                    sorted(p[:1] for p in parts) == ["N", "P"]:
+                # "P1/N1 by depth" (rodent and primate presets): named by its sign
+                positive, negative = sorted(parts, key=lambda p: p[:1] != "P")
+                sign = (f"named {positive} when positive and {negative} when negative, the "
+                        f"sign of the field potential reversing with recording depth")
             labels.append(f"{label} ({_window(value[:2])}, {sign})")
         text += f" Components were labelled by latency window: {_join(labels)}."
     if settings.get("classical"):
@@ -373,6 +381,143 @@ def _fit_shared(settings):
             f"{_join(shared) if shared else 'no'} parameters shared.")
 
 
+def _events(settings):
+    method = settings.get("method", "threshold+template")
+    text = (f"Stimulation pulses were detected from their artifact in the signal "
+            f"(evoparam.events.detect_pulses, method '{method}'): onsets where the robust "
+            f"z-score of the median absolute first difference across channels exceeded "
+            f"{_num(settings.get('threshold_sd'))}")
+    if "template" in method:
+        text += (f", kept when strong or when repeated with the same artifact shape "
+                 f"(normalised cross-correlation of at least {_num(settings.get('rho_min'))})")
+    interval = settings.get("min_interval")
+    if interval is not None:
+        text += f", at least {_ms(interval)} ms apart"
+    if settings.get("expected_rate"):
+        text += f", at an expected rate of {_num(settings['expected_rate'])} Hz"
+    text += "."
+    extra = []
+    if settings.get("saturation", True):
+        extra.append("amplifier saturation was detected per channel and pulse")
+    if settings.get("site"):
+        vote = " and voted across the pulses of each train" if settings.get("vote") else ""
+        extra.append(f"the stimulated contact pair was identified from the artifact "
+                     f"('{settings.get('site_method', 'evidence')}' rule{vote})")
+    extra.append("pulses were grouped into trains")
+    text += " " + _join(extra)[0].upper() + _join(extra)[1:] + "."
+    return text
+
+
+def _filter(kind):
+    def sentence(settings):
+        if kind == "notch":
+            freqs = settings.get("frequencies") or [settings.get("freq")]
+            return (f"Line noise was removed with zero-phase notch filters at "
+                    f"{_join(_num(f) for f in freqs)} Hz (quality factor "
+                    f"{_num(settings.get('q'))}).")
+        order = settings.get("order", 4)
+        return (f"A zero-phase Butterworth {kind} filter (order {order}, applied forward and "
+                f"backward) with a cutoff of {_num(settings.get('cutoff'))} Hz was applied.")
+    return sentence
+
+
+def _apply_mask(settings):
+    return ("Samples given by a user-supplied mask were excluded from every later step "
+            "(evoparam.artifact.apply_mask).")
+
+
+def _train_baseline(settings):
+    source = {"continuous": " (from the continuous recording)",
+              "epochs": " (from the epoch of the first pulse of the train)"}.get(
+                  settings.get("source"), "")
+    return (f"Each stimulation train was baseline-corrected: per channel, the "
+            f"{settings.get('mode', 'mean')} of the last {_ms(settings.get('length'))} ms "
+            f"before the train{source} was subtracted from every pulse of that train "
+            f"(evoparam.prep.train_baseline).")
+
+
+def _reference_sensitivity(settings):
+    schemes = list(settings.get("schemes") or [])
+    names = {"bipolar": "bipolar", "car": "common-average",
+             "car_adaptive": "adjusted common-average", "laplacian": "Laplacian",
+             "monopolar": "recording"}
+    detector = settings.get("detector")
+    return (f"The dependence of the detections on the reference was assessed by repeating "
+            f"the detection under the {_join(names.get(s, s) for s in schemes)} references "
+            f"and reporting the pairwise Cohen's kappa of the detections and the latency "
+            f"differences (evoparam.prep.reference_sensitivity"
+            + (f", detector {detector}" if detector else "") + ").")
+
+
+def _bootstrap(settings):
+    by = settings.get("by") or []
+    window = settings.get("window")
+    method = {"bca": "bias-corrected and accelerated", "percentile": "percentile"}.get(
+        settings.get("method"), str(settings.get("method")))
+    return (f"Intervals of the {str(settings.get('statistic')).replace('_', ' ')} were "
+            f"obtained by bootstrap over trials ({settings.get('n_boot')} resamples, "
+            f"{method} intervals at {_num(float(settings.get('ci_level', 0.95)) * 100)} %"
+            + (f", resampled within each {_join(by)}" if by else "")
+            + (f", window {_window(window)}" if window else "") + ").")
+
+
+def _compare(settings):
+    conditions = settings.get("conditions") or []
+    return (f"The {settings.get('parameter')} was compared between "
+            + (f"the conditions {_join(conditions)}" if conditions else
+               f"the levels of '{settings.get('condition')}'")
+            + f" by a {'paired' if settings.get('paired') else 'unpaired'} permutation test at "
+            f"the {settings.get('unit')} level ({settings.get('n_permutations')} permutations, "
+            f"{_CORRECTIONS.get(settings.get('correction'), settings.get('correction'))}), "
+            f"with bootstrap intervals of the difference ({settings.get('n_boot')} resamples, "
+            f"{_num(float(settings.get('ci_level', 0.95)) * 100)} %).")
+
+
+def _reliability(settings):
+    method = settings.get("method", "both")
+    parts = []
+    if method in ("both", "split_half"):
+        parts.append(f"split-half correlation over {settings.get('n_splits')} random splits "
+                     f"(Spearman-Brown corrected)")
+    if method in ("both", "dependability"):
+        parts.append(f"the dependability coefficient of generalisability theory over the "
+                     f"facets {_join(settings.get('facets') or [])}, with the number of "
+                     f"trials needed for a dependability of {_num(settings.get('target_phi'))}")
+    window = settings.get("window")
+    return (f"The reliability of the {str(settings.get('scorer')).replace('_', ' ')}"
+            + (f" in {_window(window)}" if window else "")
+            + f" was estimated by {_join(parts)}.")
+
+
+def _trials_needed(settings):
+    scorer = str(settings.get("scorer"))
+    what = ("the probability of detecting the response" if scorer == "existence" else
+            f"the precision of the {scorer.replace('_', ' ')}")
+    return (f"The growth of {what} with the number of trials was estimated by drawing "
+            f"{settings.get('n_resamples')} random subsets of trials at each count.")
+
+
+def _jackknife(settings):
+    return (f"Latencies were scored with the {str(settings.get('scorer')).replace('_', ' ')} "
+            f"on the leave-one-out grand averages of the {settings.get('n_subjects')} "
+            f"participants (jackknife)"
+            + (", and each participant's score was retrieved from them"
+               if settings.get("retrieve") else "") + ".")
+
+
+def _group_summary(settings):
+    by = settings.get("by")
+    by = _join(by) if isinstance(by, (list, tuple)) else by
+    return (f"Parameters were summarised per {by} with bootstrap intervals "
+            f"({settings.get('n_boot')} resamples, "
+            f"{_num(float(settings.get('ci_level', 0.95)) * 100)} %).")
+
+
+def _apply(settings):
+    return (f"A user-supplied transform ({settings.get('func')}) was applied to the trials "
+            f"(evoparam.data.TrialSet.apply, axis '{settings.get('axis')}').")
+
+
 def _generic(function, settings):
     scalars = [f"{key} = {_setting(value)}" for key, value in sorted(settings.items())
                if isinstance(value, (str, int, float, bool)) and key != "package_version"]
@@ -399,6 +544,20 @@ _TEMPLATES = {
     "evoparam.tf.tf_fit": _tf,
     "evoparam.spatial.shared_shapes": _shared_shapes,
     "evoparam.spatial.fit_shared": _fit_shared,
+    "evoparam.events.detect_pulses": _events,
+    "evoparam.prep.highpass": _filter("high-pass"),
+    "evoparam.prep.lowpass": _filter("low-pass"),
+    "evoparam.prep.notch": _filter("notch"),
+    "evoparam.prep.train_baseline": _train_baseline,
+    "evoparam.prep.reference_sensitivity": _reference_sensitivity,
+    "evoparam.artifact.apply_mask": _apply_mask,
+    "evoparam.data.TrialSet.apply": _apply,
+    "evoparam.stats.bootstrap": _bootstrap,
+    "evoparam.stats.compare_conditions": _compare,
+    "evoparam.stats.reliability": _reliability,
+    "evoparam.stats.trials_needed": _trials_needed,
+    "evoparam.stats.jackknife_latency": _jackknife,
+    "evoparam.stats.group_summary": _group_summary,
 }
 
 

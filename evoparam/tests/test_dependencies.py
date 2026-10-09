@@ -37,7 +37,7 @@ DISTRIBUTIONS = {"sklearn": "scikit-learn", "mpmath": "mpmath", "pandas": "panda
                  "jsonschema": "jsonschema", "bidsschematools": "bidsschematools",
                  "h5py": "h5py", "hdmf": "hdmf", "ndx_events": "ndx-events",
                  "remfile": "remfile", "formulaic": "formulaic", "hypothesis": "hypothesis",
-                 "tomli": "tomli"}
+                 "tomli": "tomli", "nilearn": "nilearn"}
 
 
 def _toml():

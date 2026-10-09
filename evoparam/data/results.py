@@ -195,6 +195,9 @@ class ResponseTest(_ResultMixin):
     window: tuple
     settings: dict
     provenance: Provenance = field(default_factory=Provenance)
+    curve_times: np.ndarray | None = None
+    curve: np.ndarray | None = None
+    null_band: np.ndarray | None = None
 
     def __post_init__(self):
         for name in ("statistic", "p_value", "p_value_raw", "duration", "onset", "offset",
@@ -208,6 +211,20 @@ class ResponseTest(_ResultMixin):
             if getattr(self, name).shape != n_channels:
                 raise DataError(f"ResponseTest: '{name}' has shape {getattr(self, name).shape}, "
                                 f"expected {n_channels}.")
+        # The statistic over time (spec §5.13): curve [*statistic.shape, n_times] on
+        # curve_times, and its null band [*statistic.shape, n_times, 2] (low, high; NaN on
+        # a side the test does not look at). None for a method without a time course.
+        for name in ("curve_times", "curve", "null_band"):
+            if getattr(self, name) is not None:
+                setattr(self, name, np.asarray(getattr(self, name), dtype=np.float64))
+        if self.curve is not None:
+            n_times = 0 if self.curve_times is None else self.curve_times.size
+            if self.curve.shape != n_channels + (n_times,):
+                raise DataError(f"ResponseTest: 'curve' has shape {self.curve.shape}, "
+                                f"expected {n_channels + (n_times,)}.")
+            if self.null_band is not None and self.null_band.shape != self.curve.shape + (2,):
+                raise DataError(f"ResponseTest: 'null_band' has shape {self.null_band.shape},"
+                                f" expected {self.curve.shape + (2,)}.")
 
 
 @dataclass(eq=False)

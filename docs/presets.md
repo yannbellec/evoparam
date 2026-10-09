@@ -37,6 +37,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - labels: N1 (0.009, 0.05), N2 (0.05, 0.3), delayed (0.1, 1.0)
 - trial fit: True (shift_scale)
 - validation: pending: Mayo sEEG sets
+- pipeline: reference_sensitivity is run and its kappa report attached
 - choice (artifact_window): as ccep
 
 ## `ecap`
@@ -74,9 +75,10 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - labels: ERNA (0.0015, 0.0077)
 - trial fit: True (free)
 - validation: simulation_only
+- baseline per train: the last 0.05 s before each train
 - choice (max_components): the oscillation plus at most one slow evoked deflection
 - note (epoch): per pulse
-- note (baseline): per train: last 50 ms before the train
+- note (baseline): per train: last 50 ms before the train (train_baseline)
 
 ## `erp`
 
@@ -105,7 +107,9 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - labels: P1/N1 (0.005, 0.06), late (0.06, 0.3)
 - trial fit: True (shift_scale)
 - validation: pending
+- trial covariates: state
 - note (artifact_window): as rodent_ep
+- note (trial_covariates): as rodent_ep: metadata['state'] is a default covariate (spec §6.2)
 
 ## `rodent_ep`
 
@@ -115,8 +119,9 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - labels: P1/N1 (0.005, 0.06), late (0.06, 0.3)
 - trial fit: True (shift_scale)
 - validation: pending: Allen Visual Coding Neuropixels LFP (REQ-278)
+- trial covariates: state
 - note (artifact_window): stimulus-dependent; (-0.001, 0.002) for electrical stimulation
-- note (trial_covariates): metadata['state'] is a default covariate
+- note (trial_covariates): metadata['state'] is a default covariate (spec §6.2)
 
 ## `sep`
 

@@ -36,6 +36,14 @@ def render():
                   "- labels: " + ", ".join(f"{k} {v}" for k, v in p.component_labels.items()),
                   f"- trial fit: {p.trial_fit}" + (f" ({p.trial_mode})" if p.trial_mode else ""),
                   f"- validation: {p.validation}"]
+        if p.reference_sensitivity:
+            lines.append("- pipeline: reference_sensitivity is run and its kappa report "
+                         "attached")
+        if p.trial_covariates:
+            lines.append(f"- trial covariates: {', '.join(p.trial_covariates)}")
+        if p.train_baseline is not None:
+            lines.append(f"- baseline per train: the last {p.train_baseline:g} s before "
+                         "each train")
         for field, reason in p.choices.items():
             lines.append(f"- choice ({field}): {reason}")
         for field, note in p.notes.items():

@@ -205,3 +205,172 @@ def test_fit_presets_view_follows_the_files():
     assert set(FIT_PRESETS) == set(presets.PRESETS)
     assert FIT_PRESETS["ccep"]["windows"]["N1"] == (0.009, 0.05, -1)
     assert FIT_PRESETS["erna"]["freq_min"] == 200.0
+
+
+###################################################################################################
+## Preset behaviours of spec §6.2 (audit F58), applied by the preset pipeline
+
+def test_f58_preset_fields():
+
+    assert presets.get("ccep_seeg").reference_sensitivity
+    assert not any(presets.get(n).reference_sensitivity for n in presets.PRESETS
+                   if n != "ccep_seeg")
+    assert presets.get("rodent_ep").trial_covariates == ("state",)
+    assert presets.get("primate_ep").trial_covariates == ("state",)
+    assert presets.get("erna").train_baseline == 0.05 and presets.get("erna").baseline is None
+    assert presets.from_json(presets.to_json("erna")) == presets.get("erna")
+    with pytest.raises(SettingsError, match="train_baseline"):
+        presets.derive("erna", train_baseline=-1.0)
+
+
+def test_f58_ccep_seeg_attaches_the_reference_sensitivity_report():
+    """§6.2: for ccep_seeg, reference_sensitivity (§5.4) is run by default and its kappa
+    report attached."""
+
+    from evoparam import reports, sim
+
+    ts, _ = sim.simulate_ccep(n_trials=8, n_channels=8, sfreq=1024.0, p_response=0.5, seed=3)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        result = reports.run_pipeline(ts, "ccep_seeg", trial_fits=False)
+        plain = reports.run_pipeline(ts, "ccep_seeg", trial_fits=False,
+                                     reference_sensitivity=False)
+        ccep = reports.run_pipeline(ts, "ccep", trial_fits=False)
+    report = result.reference_report
+    assert list(report[["scheme_a", "scheme_b"]].itertuples(index=False, name=None)) == [
+        ("bipolar", "car"), ("bipolar", "car_adaptive"), ("car", "car_adaptive")]
+    assert report["kappa"].notna().any() and "channels" in report.attrs
+    assert plain.reference_report is None and ccep.reference_report is None
+    text = reports.methods_text(result)
+    assert "dependence of the detections on the reference" in text
+    assert "dependence of the detections" not in reports.methods_text(ccep)
+    # the report does not change the fits (it runs on a copy of the cleaned trials)
+    assert np.allclose(result.group.to_dataframe()["latency"].to_numpy(float),
+                       plain.group.to_dataframe()["latency"].to_numpy(float), equal_nan=True)
+
+
+def test_f58_rodent_state_is_a_default_trial_covariate():
+    """§6.2: metadata["state"] is a default covariate in the trial table (rodent_ep and
+    primate_ep)."""
+
+    import dataclasses
+
+    from evoparam import reports, sim
+
+    ts, _ = sim.simulate_animal_ep(n_trials=40, n_channels=4, species="mouse", seed=0)
+    assert set(ts.metadata["state"]) == {"awake", "nrem"}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        result = reports.run_pipeline(ts, "rodent_ep")
+    fits = result.trial_fits
+    assert fits.table.groupby("state")["trusted"].sum().min() >= 2
+    assert fits.settings["covariates"] == ["state"]
+    table = fits.settings["covariate_tables"]["state"]
+    assert set(table["state"]) == {"awake", "nrem"}
+    gains = np.asarray(table["gain"], float)
+    ref = np.asarray(table["state"]) == np.asarray(table["reference"])
+    assert np.allclose(gains[ref], 1.0) and np.isfinite(table["p_amplitude"]).all()
+    assert "state" in fits.table.columns
+    assert "Trial covariates: state." in reports.methods_text(result)
+    # without the column: a warning, and the trial fits run without the covariate
+    no_state = dataclasses.replace(ts, metadata=ts.metadata.drop(columns="state"))
+    with pytest.warns(UserWarning, match="metadata\\['state'\\] is missing"):
+        result = reports.run_pipeline(no_state, "rodent_ep", existence=False)
+    assert result.trial_fits.settings["covariates"] == []
+
+
+def _pulse_trials(sfreq=4096.0, tmin=-0.002, tmax=0.008, levels=(5.0, -3.0, 8.0)):
+    """Per-pulse epochs of three 130 Hz trains of 10 pulses, 1 s apart, in a recording whose
+    DC level differs before each train (and stays during it), with noise from each train's
+    onset on; returns the epochs, the recording and the epochs of the noise alone."""
+
+    import dataclasses
+
+    from evoparam.io import epoch
+
+    n = int(4.0 * sfreq)
+    raw = np.zeros((2, n))
+    noise = np.zeros((2, n))
+    rng = np.random.default_rng(0)
+    onsets = []
+    for k, level in enumerate(levels):
+        start = 0.5 + k * 1.0
+        raw[:, int((start - 0.1) * sfreq):int((start + 0.2) * sfreq)] = level * np.array(
+            [[1.0], [2.0]])
+        first, last = int(np.ceil(start * sfreq)), int((start + 0.2) * sfreq)
+        noise[:, first:last] = rng.normal(0, 1, (2, last - first))
+        onsets += [start + i / 130.0 for i in range(10)]
+    raw = raw + noise
+    ts = epoch(raw, sfreq, np.array(onsets), tmin, tmax, ch_names=["c0", "c1"])
+    expected = epoch(noise, sfreq, np.array(onsets), tmin, tmax, ch_names=["c0", "c1"]).data
+    meta = ts.metadata.assign(train_id=np.repeat(np.arange(3), 10))
+    return dataclasses.replace(ts, metadata=meta), raw, expected
+
+
+def test_f58_erna_baseline_per_train():
+    """§6.1/§6.2: erna's baseline is per train, the last 50 ms before the train."""
+
+    from evoparam import reports
+    from evoparam.errors import DataError
+    from evoparam.prep import train_baseline
+
+    ts, raw, expected = _pulse_trials()
+    out = train_baseline(ts, 0.05, raw=raw, sfreq=4096.0)
+    assert np.allclose(out.data, expected)         # each train's level removed from its pulses
+    step = out.provenance.steps[-1]
+    assert step["function"] == "evoparam.prep.train_baseline"
+    assert step["settings"]["source"] == "continuous" and step["settings"]["n_trains"] == 3
+    # without train_id: trains from the gaps between pulses (no pulse in the 50 ms before)
+    import dataclasses
+
+    bare = dataclasses.replace(ts, metadata=ts.metadata.drop(columns="train_id"))
+    assert np.allclose(train_baseline(bare, 0.05, raw=raw, sfreq=4096.0).data, expected)
+    # from the epochs, when the first pulse's epoch holds the 50 ms before the train
+    long, _, expected_long = _pulse_trials(tmin=-0.06)
+    assert np.allclose(train_baseline(long, 0.05).data, expected_long)
+    with pytest.raises(DataError, match="epochs from -0.05 s"):
+        train_baseline(ts, 0.05)
+    # the preset pipeline applies it, given the recording, and says so in the methods text
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        result = reports.run_pipeline(ts, "erna", artifact=False, reference=False,
+                                      existence=False, trial_fits=False,
+                                      continuous=(raw, 4096.0, 0.0))
+    functions = [s["function"] for s in result.group.provenance.steps]
+    assert "evoparam.prep.train_baseline" in functions
+    assert np.allclose(result.trials.data, expected)
+    assert "the last 50 ms before the train (from the continuous recording)" in \
+        reports.methods_text(result)
+    with pytest.warns(UserWarning, match="baseline per train was not applied"):
+        reports.run_pipeline(ts, "erna", artifact=False, reference=False, existence=False,
+                             trial_fits=False)
+
+
+def test_f58_rodent_p1_n1_named_by_sign_at_each_depth():
+    """§6.1: rodent_ep and primate_ep label "P1/N1 by depth": the early field potential
+    reverses with depth, so each contact names its component by its own sign."""
+
+    from evoparam.data import Evoked
+    from evoparam.models import fit, label_components
+    from evoparam.models.labels import sign_name
+
+    assert (sign_name("P1/N1", 1), sign_name("P1/N1", -1)) == ("P1", "N1")
+    assert sign_name("N1/P1", 1) == "P1" and sign_name("N2", 1) == "N2"
+    assert sign_name("a/b", 1) == "a/b"
+    sfreq = 1250.0
+    times = np.arange(-0.1, 0.5, 1 / sfreq)
+    rng = np.random.default_rng(1)
+    early = np.exp(-0.5 * ((times - 0.025) / 0.005) ** 2)
+    # a laminar pair: positive above the reversal, negative below
+    data = np.array([60 * early, -60 * early]) + rng.normal(0, 1, (2, times.size))
+    ev = Evoked(data=data, times=times, sfreq=sfreq, ch_names=["L02", "L10"])
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        group = fit(ev, "rodent_ep")
+    labels = [[c.label for c in f.components] for f in group.fits]
+    assert "P1" in labels[0] and "N1" in labels[1], labels
+    kept = label_components(group, presets.fit_fields("rodent_ep")["windows"],
+                            polarity_rule="none")
+    assert "P1/N1" in [c.label for c in kept.fits[0].components]
+    with pytest.raises(SettingsError):
+        label_components(group, "rodent_ep", polarity_rule="depth")

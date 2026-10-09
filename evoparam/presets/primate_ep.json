@@ -58,9 +58,13 @@
     "LIT-datasets-55"
   ],
   "notes": {
-    "artifact_window": "as rodent_ep"
+    "artifact_window": "as rodent_ep",
+    "trial_covariates": "as rodent_ep: metadata['state'] is a default covariate (spec §6.2)"
   },
   "validation": "pending",
   "choices": {},
-  "fit_extras": {}
+  "fit_extras": {},
+  "trial_covariates": [
+    "state"
+  ]
 }

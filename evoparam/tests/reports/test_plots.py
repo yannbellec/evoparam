@@ -92,3 +92,33 @@ def test_req344_every_result_type_has_a_figure(results):
     fig, axes = plt.subplots(1, 2)
     assert plots.plot_hierarchical(made["HierarchicalFit"], axes=axes) is fig
     plt.close("all")
+
+
+def test_plot_existence_shows_the_statistic_over_time_with_its_null_band(results):
+    """Spec §5.13: plot_existence(test) draws the statistic over time with the null band."""
+
+    import dataclasses
+
+    from matplotlib.collections import PolyCollection
+
+    test = results["test"]
+    assert test.curve is not None and test.null_band is not None
+    fig = plots.plot_existence(test)
+    panels = [a for a in fig.axes if a.lines]
+    channels = test.settings["channels"]
+    assert len(panels) == len(channels)
+    for c, a in enumerate(panels):
+        curve = np.asarray(test.curve)[c]
+        curve = curve[0] if curve.ndim > 1 else curve          # the first group (site)
+        drawn = [line for line in a.lines if len(line.get_xdata()) == curve.size]
+        assert any(np.allclose(line.get_ydata(), curve, equal_nan=True) for line in drawn)
+        assert np.allclose(drawn[0].get_xdata(), test.curve_times * 1e3)
+        assert any(isinstance(item, PolyCollection) for item in a.collections)   # the band
+    # one axes: every channel on it; a test without a time course: one bar per channel
+    import matplotlib.pyplot as plt
+
+    _, ax = plt.subplots()
+    assert plots.plot_existence(test, ax=ax) is ax.figure and len(ax.lines) >= len(channels)
+    old = dataclasses.replace(test, curve=None, null_band=None, curve_times=None)
+    fig = plots.plot_existence(old)
+    assert len(fig.axes[0].patches) == len(channels)
