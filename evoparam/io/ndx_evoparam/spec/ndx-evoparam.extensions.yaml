@@ -1,0 +1,258 @@
+groups:
+- neurodata_type_def: EvokedResponseFitTable
+  neurodata_type_inc: DynamicTable
+  doc: Fitted components of evoked responses, one row per channel x condition x 
+    component.
+  datasets:
+  - name: channel
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: channel name
+    quantity: '?'
+  - name: stim_site
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: 'stimulation site (empty: none)'
+    quantity: '?'
+  - name: condition
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: condition
+    quantity: '?'
+  - name: component
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: component label
+    quantity: '?'
+  - name: shape
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: shape function
+    quantity: '?'
+  - name: status
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: 'fit status: ok, no_response, failed, skipped'
+    quantity: '?'
+  - name: present
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: 'existence decision: true, false or n/a'
+    quantity: '?'
+  - name: latency
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: latency (s)
+    quantity: '?'
+  - name: latency_se
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: latency standard error (s)
+    quantity: '?'
+  - name: amplitude
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: amplitude (V)
+    quantity: '?'
+  - name: amplitude_se
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: amplitude standard error (V)
+    quantity: '?'
+  - name: polarity
+    neurodata_type_inc: VectorData
+    dtype: int64
+    doc: sign of the extremum
+    quantity: '?'
+  - name: fwhm
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: full width at half maximum (s)
+    quantity: '?'
+  - name: onset
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: onset (s)
+    quantity: '?'
+  - name: offset
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: offset (s)
+    quantity: '?'
+  - name: area
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: area (V*s)
+    quantity: '?'
+  - name: r2
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: goodness of fit
+    quantity: '?'
+  - name: n_trials
+    neurodata_type_inc: VectorData
+    dtype: int64
+    doc: 'trials averaged (-1: unknown)'
+    quantity: '?'
+  - name: ci_level
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: level of the intervals
+    quantity: '?'
+- neurodata_type_def: ResponseTestTable
+  neurodata_type_inc: DynamicTable
+  doc: Existence tests of evoked responses, one row per channel x condition.
+  datasets:
+  - name: channel
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: channel name
+    quantity: '?'
+  - name: stim_site
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: 'stimulation site (empty: none)'
+    quantity: '?'
+  - name: condition
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: condition
+    quantity: '?'
+  - name: method
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: test method
+    quantity: '?'
+  - name: statistic
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: test statistic
+    quantity: '?'
+  - name: p_value
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: corrected p-value
+    quantity: '?'
+  - name: significant
+    neurodata_type_inc: VectorData
+    dtype: bool
+    doc: decision
+    quantity: '?'
+  - name: onset
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: response onset (s)
+    quantity: '?'
+  - name: offset
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: response offset (s)
+    quantity: '?'
+  - name: duration
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: duration (s)
+    quantity: '?'
+  - name: snr_db
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: signal-to-noise ratio (dB)
+    quantity: '?'
+- neurodata_type_def: TrialFitTable
+  neurodata_type_inc: DynamicTable
+  doc: Trial-by-trial parameters of the fitted components.
+  datasets:
+  - name: trial_index
+    neurodata_type_inc: VectorData
+    dtype: int64
+    doc: trial index in the source run
+    quantity: '?'
+  - name: channel
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: channel name
+    quantity: '?'
+  - name: component
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: component
+    quantity: '?'
+  - name: shift
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: latency shift (s)
+    quantity: '?'
+  - name: scale
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: amplitude scale
+    quantity: '?'
+  - name: latency
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: latency (s)
+    quantity: '?'
+  - name: amplitude
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: amplitude (V)
+    quantity: '?'
+  - name: converged
+    neurodata_type_inc: VectorData
+    dtype: bool
+    doc: fit converged
+    quantity: '?'
+- neurodata_type_def: StimulationEventsTable
+  neurodata_type_inc: EventsTable
+  doc: Electrical stimulation events.
+  datasets:
+  - name: stim_site
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: stimulated contact pair, 'A-B'
+    quantity: '?'
+  - name: stim_current
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: current amplitude (A)
+    quantity: '?'
+  - name: stim_pulse_width
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: width of one phase (s)
+    quantity: '?'
+  - name: stim_polarity
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: monophasic_cathodic, monophasic_anodic, biphasic_cathodic_first, 
+      biphasic_anodic_first, alternating or unknown
+    quantity: '?'
+  - name: stim_n_pulses
+    neurodata_type_inc: VectorData
+    dtype: int64
+    doc: pulses in the train
+    quantity: '?'
+  - name: stim_frequency
+    neurodata_type_inc: VectorData
+    dtype: float64
+    doc: pulse frequency in a train (Hz)
+    quantity: '?'
+- neurodata_type_def: ResponseFitSettings
+  neurodata_type_inc: LabMetaData
+  doc: Settings and provenance of the evoparam results of the file.
+  attributes:
+  - name: settings_json
+    dtype: text
+    doc: the resolved settings of each result, JSON
+  - name: provenance_json
+    dtype: text
+    doc: the provenance of each result, JSON
+  - name: package_version
+    dtype: text
+    doc: evoparam version
+  - name: preset_name
+    dtype: text
+    doc: 'preset of the fit (empty: none)'
+  - name: preset_version
+    dtype: text
+    doc: 'version of the preset (empty: none)'

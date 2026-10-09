@@ -30,11 +30,22 @@ def _provenance():
                       environment={}, random_state=0, data_hash=None)
 
 
-def expected(kind):
-    """The object frozen in the container of ``kind``, with a fixed provenance."""
+def expected(kind, frozen=None):
+    """The object frozen in the container of ``kind``, with a fixed provenance.
+
+    The simulated trials go through ``np.exp``, whose last bit differs between platforms
+    (the containers were frozen on Linux): with ``frozen`` (the loaded TrialSet), the data
+    must agree within 1e-12 and the reference then holds the frozen samples, so that every
+    other field, and the data hash of the stored samples, is compared exactly."""
 
     if kind == "trialset":
-        return dataclasses.replace(make_trialset(), provenance=_provenance())
+        base = make_trialset()
+        if frozen is not None:
+            import numpy as np
+
+            np.testing.assert_allclose(frozen.data, base.data, rtol=1e-12, atol=1e-12)
+            base = dataclasses.replace(base, data=np.array(frozen.data))
+        return dataclasses.replace(base, provenance=_provenance())
     group = make_group_fit()
     fits = []
     for fit in group.fits:
@@ -53,7 +64,7 @@ def test_req334_frozen_containers_load_and_equal(major, kind):
     with open(os.path.join(path, "manifest.json"), encoding="utf-8") as fobj:
         assert json.load(fobj)["schema"].startswith(f"evoparam-result/{major}.")
     obj = load_object(path)
-    reference = expected(kind)
+    reference = expected(kind, frozen=obj if kind == "trialset" else None)
     assert obj == reference
     assert obj.provenance == reference.provenance
 
