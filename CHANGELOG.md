@@ -80,6 +80,161 @@
     which is the same set as before.
 - BIDS derivatives: `_preset` accepts the `{"name", "version"}` preset form of REQ-294.
 
+### Trials: speed, REQ-150/151/155/156/158 as written, spec options (audit F10, F17, F36–F38, Q6, Q8, Q9)
+
+- Speed (F10, REQ-156). In `shift_scale` mode (and `template` mode), the trials of a channel
+  are now solved together. The solver is a projected Levenberg-Marquardt iteration
+  vectorised over trials, for the same model and bounds:
+  - variable projection with the Kaufman Jacobian;
+  - an active set on the bounds;
+  - damping from the gain ratio;
+  - a shape moved by `d` is evaluated once, on shifted times;
+  - columns that do not move are projected out once per channel;
+  - the Jacobian is computed only for the steps that are kept.
+
+  `jitter_sd_null` solves all its baseline segments in one call. The pre-stimulus
+  autoregressive phase estimate is vectorised (same numbers to 1e-12). The initial damping
+  (1) was chosen on simulated CCEPs, not on ds004080: 0.4 % of trials end at a worse local
+  optimum than the one-trial solver, against 1.4 % with 1e-3.
+
+  On the REQ-156 runs, `fit_trials` takes 1.03 s (UMCU03) and 1.25 s (UMCU06), against
+  11.4 s and 19.2 s on the base branch, with `OMP_NUM_THREADS=1` on the shared build
+  machine.
+- Trial model (Q8, REQ-156). `fit_trials(trial_model=...)` has three values:
+  - `"anchored"`, the new default: every component of the channel is in the model, but only
+    the reported ones move. The others keep their channel latency and shape, and their
+    amplitude is fitted. `max_shift` is clipped only against moving neighbours.
+  - `"all"`: every component moves.
+  - `"selected"` (the spec): only the reported components are in the model.
+
+  The reason for the change is on real data. With `"all"`, the channel fits of ds004080 often
+  split an N1 into overlapping parts (`N1`, `N1_b`, …). The neighbour rule then clips the
+  N1 `max_shift` to 0.1–2 ms, and trials sit at that bound. The choice of default was made
+  on four held-out ds004080 subjects (UMCU07, 08, 10 and 11; the first pair with 10 trials,
+  same pipeline), not on the six REQ-156 subjects. Median trusted fraction on the
+  significant N1 channels:
+
+  | Data | `"anchored"` | `"all"` |
+  |---|---|---|
+  | Held-out subjects (25 channels) | 0.9 | 0.7 |
+  | REQ-156 subjects, reported (56 channels) | 0.9 | 0.7 |
+
+  On simulations `"all"` is slightly more accurate. On simulate_ccep with 10 trials (N1
+  latency and normalised amplitude MAE, paired Wilcoxon test):
+
+  | Jitter | Channels | Latency MAE, anchored / all | Amplitude MAE, anchored / all | p (latency / amplitude) |
+  |---|---|---|---|---|
+  | 2 ms | 255 | 0.415 / 0.411 ms | 8.48 / 8.23 % | 0.006 / 4e-6 |
+  | 5 ms | 200 | 1.754 / 1.748 ms | 18.75 / 18.18 % | 0.003 / 6e-4 |
+
+  `"selected"` is much worse on the same runs: 0.532 ms and 24.3 % at 2 ms.
+
+  On REQ-153 (50 two-component channels, seeds 400–449), the regularized latency MAE is
+  1.828 ms (all), 1.858 ms (anchored) and 1.902 ms (selected); regularized beats free on
+  100 % of channels in all three.
+
+  On REQ-150 at SNR 3 with an N2 added (20 runs, seeds 500–519), all and anchored give the
+  same numbers. Against selected:
+
+  | Jitter | Latency MAE, all and anchored / selected | Amplitude MAE, all and anchored / selected |
+  |---|---|---|
+  | 2 ms | 0.88 / 0.87 sample | 7.5 / 12.1 % |
+  | 5 ms | 0.96 / 0.95 sample | 8.8 / 8.5 % |
+
+  `"anchored"` is also 30–45 % faster than `"all"`. It also makes the trials and
+  `jitter_sd_null` use the same procedure, as §5.7 asks: the null fit already held the other
+  components at their channel values. This default is a trade-off (robustness
+  and speed on real data against about 1–3 % of simulated MAE), so it is flagged for the
+  owner. `"all"` and `"selected"` stay available.
+- REQ-156 as written (F10). The six D14 subjects run with the ccep preset pipeline of
+  REQ-113 (template artifact removal, adjusted CAR, baseline, `evoparam.fit` with existence
+  test), all N1 channels, 10 trials per site. Results with the default model:
+
+  | Subject | Time | Median trusted fraction |
+  |---|---|---|
+  | UMCU01 | 0.71 s | 0.9 |
+  | UMCU02 | 0.77 s | 0.9 |
+  | UMCU03 | 1.03 s | 0.95 |
+  | UMCU04 | 0.36 s | no significant N1 channel |
+  | UMCU05 | 0.72 s | 0.9 |
+  | UMCU06 | 1.25 s | 0.9 |
+
+  The pooled median is 0.9. With `"all"` the times are 1.07–2.28 s and the pooled median is
+  0.7. The test is `test_trials_ccep.py` (network).
+- Spec options (Q6, Q9). `fit_trials` gains `ridge_cv` and `null_rule`. The spec's procedure
+  is available for each, and the default is the one measured as better.
+  - `ridge_cv` (Q6). `"loto"` (spec §5.7, leave-one-trial-out) is now the default. The
+    centre of the penalty is the channel model refitted on the other trials, and the trial
+    is scored on samples its fit did not see. `"split"` (the previous default) stays
+    available. On REQ-153 with 50 single-component channels (seeds 300–349), regularized
+    beats free on 100 % (loto) vs 98 % (split) of channels; mean latency MAE is 1.851 vs
+    1.852 ms. On 50 two-component channels: 100 % for both, 1.828 ms for both. `split` is
+    6–10 % faster, which is not a gain worth a divergence.
+  - `null_rule` (Q9). `"segments"` (default) uses five baseline segments per trial and
+    refuses realignment above max(1.2, F-quantile). `"spec"` uses one segment and the 1.2 x
+    rule. On REQ-151 with 200 jitter-free runs of 40 trials (seeds 100–299):
+    - ratio `jitter_sd_null / jitter_sd` below 0.8 in 7 runs (segments) vs 15 runs (spec);
+    - realignment refused in 99.0 % vs 86.5 % of runs (REQ-151 asks for at least 95 %).
+
+    With 200 trials per run (100 runs, seeds 1000–1099), both rules pass in every run: no
+    ratio below 0.8, and 100 % refused. `"segments"` is kept as the default.
+- REQ-150 as written (F36). At per-trial SNR 2 the REQ is out of reach for every width.
+  - Even an efficient unbiased estimator cannot have latency MAE <= 1 sample and amplitude
+    relative MAE <= 15 % together. This uses the Cramér-Rao bound for white noise and a
+    Gaussian with a per-trial constant and slope.
+  - The reason: the latency SD grows as sqrt(width) and the amplitude SD falls as
+    1/sqrt(width), so their product does not depend on the width.
+  - With CV 30 % amplitudes (E[1/a] = 1.09 for log-normal, 1.16 for normal), the best width
+    (FWHM 11.35 samples) misses by 1.6 % (log-normal) and 7.8 % (normal). This is
+    `test_req150_cramer_rao_bound`.
+
+  Measured with `shift_scale` at 1 kHz, SNR 2, six runs per cell. Medians, with the
+  [min, max] latency range at a jitter of 1 ms:
+
+  | FWHM (samples) | Latency MAE (samples), 1 / 2 / 5 ms | Amplitude MAE, 1 / 2 / 5 ms | Raw `jitter_sd` / truth, 1 / 2 / 5 ms |
+  |---|---|---|---|
+  | 8 | 0.90 [0.70, 1.28] / 1.01 / 1.61 | 18.0 / 17.7 / 27.9 % | 1.52 / 1.20 / 0.99 |
+  | 10 | 1.16 / 1.02 / 1.23 | 16.2 / 15.8 / 21.1 % | 1.96 / 1.28 / 0.99 |
+  | 11 | 1.16 / 1.05 / 1.23 | 15.7 / 15.1 / 19.4 % | 1.91 / 1.27 / 0.99 |
+  | 12 | 1.16 / 1.21 / 1.22 | 15.0 / 14.6 / 17.7 % | 1.90 / 1.27 / 0.99 |
+  | 14 | 1.17 / 1.21 / 1.24 | 14.1 / 13.7 / 14.7 % | 2.00 / 1.26 / 1.01 |
+  | 20 | 1.33 / 1.38 / 1.36 | 12.3 / 12.1 / 11.4 % | 2.15 / 1.37 / 1.02 |
+
+  The jitter part also fails at 1 ms: 1 ms is one sample here, and the per-trial latency
+  error is larger. The test as written is `test_req150_as_written` (strict xfail, FWHM 11
+  samples); the SNR-3 test is kept.
+- REQ-151 as written (F37), in every run. With 40 trials per run it fails in a few runs
+  (seed 104: 0.768; 7 of 200 runs below 0.8, smallest 0.756), because the SD of 40 shifts
+  varies by about 11 % from run to run. This is the strict xfail
+  `test_req151_as_written_40_trials`. With 200 trials per run it holds in every run under
+  both null rules (`test_req151_as_written`, 20 runs, seeds 2000–2019, not used for any
+  choice).
+- REQ-155 type-I error (F38). Tested as written: <= 0.06 with no added tolerance, on 1000
+  runs of 100 trials (binomial SD 0.007). Measured rate: 0.051. The runs are the channels
+  of ten TrialSets (one fit_trials call each) and share the channel model of one pilot run.
+  The power part keeps its own test.
+- REQ-158 (F17).
+  - The `trend` covariate now reports a t-test p-value of the slope and the number of
+    trials.
+  - `test_req158_direction_on_simulated_1hz_trains` uses simulated 1 Hz trains of 30 pulses
+    with a declining N1 (`simulate_ccep`, gain 1 - 0.01 x index, seeds 10–12). The test
+    asserts that the slope is negative at >= 80 % of the significant sites (at least 10);
+    it passes.
+  - REQ-158 as written cannot be run: spec §7 has no dataset of repeated single pulses at
+    1 Hz with an N1.
+    - The §7.3 CCEP datasets (ds004080, ds003708, ds004977) use about 0.2 Hz.
+    - Localize-MI (1 Hz; Mikulan et al. 2020, Sci Data, doi:10.1038/s41597-020-0467-x)
+      keeps epochs from -250 to +10 ms only, so it has no N1.
+    - The 1 Hz study cited for train effects (Cornblath et al. 2023, Epilepsia,
+      doi:10.1111/epi.17528; 30 pulses at 1 Hz) reports infrequent trends of both signs
+      (significant N1 trends in 0.84 % of CCEPs per patient on average), not a decline.
+    - The hosts of Localize-MI (GIN, EBRAINS) and of that paper's data were not reachable
+      from the build machine.
+  - On the six ds004080 runs (10 pulses of one pair, about 0.2 Hz, trial order), 4 of 68
+    sites have a significant slope (the rate expected by chance), and 1 of the 4 declines.
+  - `test_req158_as_written` is a strict xfail (not run). An owner decision is needed: a
+    1 Hz dataset with an N1 and a published direction.
+
 ### Architecture, packaging and test infrastructure (audit F3, F4, F43, F45–F49, F60–F63, F66, F67)
 
 - Inherited code removed (§4.4, §4.5, §12 rule 1). The old engine and its modules are
