@@ -11,6 +11,15 @@ SELECTIONS = ("bic", "aicc", "cv", "fixed")
 LOSSES = ("linear", "soft_l1", "huber", "cauchy")
 UNCERTAINTIES = ("jacobian", "profile", "bootstrap", "posterior")
 POLARITIES = ("both", "negative", "positive")
+# "ar": residuals whitened by an AR model of the baseline (default, measured better: K1);
+# "white": residuals over sigma_n with the raw sample count n
+NOISE_MODELS = ("ar", "white")
+# "parameterised": latencies ordered inside every optimisation, mu_{k+1} = mu_k + exp(v_k)
+# (spec §5.5.3 step 5); "sorted": free latencies, components sorted after each step
+LATENCY_ORDERS = ("parameterised", "sorted")
+# "spec": candidates tried strongest first, the first accepted is kept (spec §5.5.3 step 4);
+# "beam": the first qualifying candidates compared, split proposals, background restarts
+CANDIDATE_SEARCHES = ("spec", "beam")
 
 
 @dataclass(frozen=True)
@@ -49,6 +58,12 @@ class FitSettings:
     freq_min: float | None = None
     freq_max: float | None = None
     noise_model: str = "ar"
+    latency_order: str = "parameterised"     # spec §5.5.3 step 5 ("sorted": not better)
+    # "beam" (measured more robust and faster than "spec", §5.5.3 step 4; see CHANGELOG)
+    candidate_search: str = "beam"
+    # "order": every extremum is a candidate, detection_threshold only orders them (REQ-104);
+    # "select": only the extrema >= detection_threshold are candidates (§5.5.3 step 3)
+    threshold_role: str = "order"
     n_folds: int = 5
     preset: str | None = None
     preset_note: str | None = None
@@ -73,8 +88,14 @@ class FitSettings:
                                 f"({self.max_fwhm}).")
         if self.max_components < 0:
             raise SettingsError("max_components must be >= 0.")
-        if self.noise_model not in ("ar", "white"):
-            raise SettingsError("noise_model must be 'ar' or 'white'.")
+        if self.latency_order not in LATENCY_ORDERS:
+            raise SettingsError(f"latency_order must be one of {LATENCY_ORDERS}.")
+        if self.threshold_role not in ("select", "order"):
+            raise SettingsError("threshold_role must be 'select' or 'order'.")
+        if self.candidate_search not in CANDIDATE_SEARCHES:
+            raise SettingsError(f"candidate_search must be one of {CANDIDATE_SEARCHES}.")
+        if self.noise_model not in NOISE_MODELS:
+            raise SettingsError(f"noise_model must be one of {NOISE_MODELS}.")
         if self.selection == "fixed" and self.n_components is None:
             raise SettingsError("selection='fixed' needs n_components.")
         if self.n_starts < 1 or self.max_iter < 1:

@@ -57,6 +57,18 @@ def test_req119_req120_reproducible_tidy_and_saved(tmp_path):
     assert a.get("c2").status == "no_response"
 
 
+def test_req119_reproducible_with_parallel_jobs():
+    """REQ-119 with n_jobs > 1: two runs with the same random_state give byte-identical
+    to_dataframe() output, and the same output as n_jobs=1."""
+
+    ts = _trials(channels=4)
+    tables = [fit(ts, "ccep", random_state=0, n_jobs=jobs).to_dataframe()
+              for jobs in (2, 2, 4, 1)]
+    text = [t.to_csv(float_format="%.17g").encode() for t in tables]
+    assert text[0] == text[1] == text[2] == text[3]
+    assert all(t.equals(tables[0]) for t in tables)
+
+
 def test_req123_methods_text():
 
     fit_ = fit_response(TIMES, gauss(0.2, -8, 0.04) + noise(np.random.default_rng(1)),

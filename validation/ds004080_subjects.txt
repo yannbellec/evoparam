@@ -1,8 +1,9 @@
 # ds004080 v1.2.4; participants.tsv sha256 c62c806fd93f8b6ab5edd4ed3271e0ba82375ca406b111dadde350d45ea47abc
-# rule: first 5 subjects (alphabetical) with a run of >= 10 trials per stimulation pair at 2048 Hz, plus sub-ccepAgeUMCU01 (spec §7.3)
+# rule: first 5 subjects (alphabetical) with a run of >= 10 trials per stimulation pair at 2048 Hz other than sub-ccepAgeUMCU01, plus sub-ccepAgeUMCU01 (spec §7.3; six subjects, owner decision D14)
 # subject	first qualifying run
-sub-ccepAgeUMCU01	sub-ccepAgeUMCU01_ses-1_task-SPESclin_run-061233
 sub-ccepAgeUMCU02	sub-ccepAgeUMCU02_ses-1_task-SPESclin_run-021804
 sub-ccepAgeUMCU03	sub-ccepAgeUMCU03_ses-1_task-SPESclin_run-031411
 sub-ccepAgeUMCU04	sub-ccepAgeUMCU04_ses-1_task-SPESclin_run-031148
 sub-ccepAgeUMCU05	sub-ccepAgeUMCU05_ses-1_task-SPESclin_run-031133
+sub-ccepAgeUMCU06	sub-ccepAgeUMCU06_ses-1_task-SPESclin_run-030854
+sub-ccepAgeUMCU01	sub-ccepAgeUMCU01_ses-1_task-SPESclin_run-061233

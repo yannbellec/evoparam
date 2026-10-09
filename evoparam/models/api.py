@@ -470,7 +470,9 @@ class ResponseModel(BaseEstimatorMixin):
                  uncertainty=None, n_bootstrap=None, ci_level=None, classical=None,
                  windows=None, noise_model=None, background_prior=None, amplitude_prior=None,
                  edge_extension=None, background_tau_max=None, max_masked_fraction=None,
-                 n_folds=None, n_jobs=1, random_state=None, verbose=None):
+                 n_folds=None, latency_order=None, candidate_search=None,
+                 threshold_role=None, n_jobs=1,
+                 random_state=None, verbose=None):
         for name, value in locals().items():
             if name != "self":
                 setattr(self, name, value)

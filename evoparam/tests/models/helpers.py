@@ -58,3 +58,51 @@ def match(fit, truth):
             fn += 1
     fp = sum(1 for c in fit.components if id(c) not in used)
     return tp, fn, fp, lat, amp
+
+
+###################################################################################################
+## Designs of the acceptance tests on simulate_erp waveforms (REQ-104 to REQ-106)
+
+# Levels of spec §7.2: SNR (peak / noise SD of the waveform) and width (samples)
+SNR_LEVELS = (3, 5, 10, 20)
+WIDTH_SAMPLES = (3, 6, 12, 25)
+TRUTH_SHAPES = ("gaussian", "skewed_gaussian", "exgaussian", "gamma", "biexponential")
+
+
+def erp_waveform(seed, n_components, snr, widths, shape="gaussian", sfreq=SFREQ,
+                 span=(0.06, 0.55), noise="white", noise_kw=None):
+    """One waveform of ``evoparam.sim.simulate_erp`` (a single trial, so that the SNR of the
+    waveform is the requested one) on TIMES, with ``n_components`` components of the given
+    widths (samples) and random signs, latencies drawn in ``span`` at least three widths
+    apart. Returns (times, y, truth rows (latency, amplitude, fwhm))."""
+
+    from evoparam.sim import simulate_erp
+
+    rng = np.random.default_rng(seed)
+    fwhm = [w / sfreq for w in widths[:n_components]]
+    for _ in range(1000):
+        lats = np.sort(rng.uniform(*span, n_components))
+        gaps = [3 * max(fwhm[i], fwhm[i + 1]) for i in range(n_components - 1)]
+        if all(b - a >= g for a, b, g in zip(lats[:-1], lats[1:], gaps)):
+            break
+    comps = [dict(label=f"C{j}", shape=shape, latency=float(lats[j]), fwhm=fwhm[j],
+                  amplitude=float(rng.choice([-1.0, 1.0]))) for j in range(n_components)]
+    ts, truth = simulate_erp(1, sfreq=sfreq, tmin=TIMES[0], tmax=TIMES[-1] + 0.5 / sfreq,
+                             components=comps, snr=snr if n_components else None,
+                             noise=noise, noise_sd=1.0, noise_kw=noise_kw, seed=seed)
+    table = truth.to_dataframe()
+    rows = [(float(r.latency), float(r.amplitude), float(r.fwhm)) for r in table.itertuples()]
+    return ts.times, ts.data[0, 0], rows
+
+
+def same_decisions(a, b):
+    """Two fits accept the same components: as many, of the same signs, at latencies within
+    half the larger width."""
+
+    if len(a.components) != len(b.components):
+        return False
+    for x, y in zip(sorted(a.components, key=lambda c: c.latency),
+                    sorted(b.components, key=lambda c: c.latency)):
+        if x.polarity != y.polarity or abs(x.latency - y.latency) > max(x.fwhm, y.fwhm) / 2:
+            return False
+    return True
