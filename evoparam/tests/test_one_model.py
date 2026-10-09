@@ -24,6 +24,13 @@ pytest.importorskip("pandas")
 
 NO_ARTIFACT = dict(pulse_artifact=False, decay_artifact=False, muscle_artifact=False)
 
+# Median-nerve SEP (N20, P25, N33; as in the REQ-277 case of test_presets_sim): the P1, N1
+# and P3 of the ERP defaults lie after the 10-60 ms window of the sep preset, where a fit
+# rightly finds no response.
+SEP_COMPONENTS = (dict(label="N20", latency=0.020, fwhm=0.004, amplitude=-1.0),
+                  dict(label="P25", latency=0.025, fwhm=0.006, amplitude=0.8),
+                  dict(label="N33", latency=0.033, fwhm=0.008, amplitude=-0.6))
+
 # One simulated waveform per modality (§5.12 generators): the epoch covers the preset's
 # window. TEP at 1 kHz: the 5 kHz default takes about 70 s per fit (measured), the same
 # waveform at 1 kHz about 2 s.
@@ -39,7 +46,8 @@ MODALITIES = {
     "erna": lambda: sim.simulate_erna(n_trials=10, n_channels=2, seed=0),
     "erp": lambda: sim.simulate_erp(n_trials=30, seed=0),
     "p300_bci": lambda: sim.simulate_erp(n_trials=30, seed=0),
-    "sep": lambda: sim.simulate_erp(n_trials=30, seed=0),
+    "sep": lambda: sim.simulate_erp(n_trials=30, sfreq=5000.0, tmin=-0.05, tmax=0.1,
+                                    components=SEP_COMPONENTS, seed=0),
     "primate_ep": lambda: sim.simulate_animal_ep(n_trials=30, n_channels=4, species="macaque",
                                                  seed=0),
     "rodent_ep": lambda: sim.simulate_animal_ep(n_trials=30, n_channels=4, species="mouse",

@@ -115,6 +115,27 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
 - REQ-012: `tools/check_no_inherited_code.py` reads the inherited repository and commit
   from NOTICE instead of naming them.
 - Duplicate `noise_reference` key removed from the diagnostics of skipped fits.
+- REQ-004: the `min_amplitude` check of the engine (§5.5.10, off by default) is written
+  out again in the two acceptance loops, where the no-deletion scan reads it; the
+  `_too_small` helper of the engine corrections hid it from the scan, which then no longer
+  caught a mutation of it. Same behaviour (every component of the candidate, not only the
+  new one).
+- REQ-001 test: the `sep` preset now gets a median-nerve SEP waveform (N20, P25, N33). The
+  ERP default (P1, N1, P3) lies after its 10-60 ms window: it passed before only through a
+  component at 62.5 ms, outside the window, which the latency bounds now forbid
+  (`no_response` is the right answer there).
+- F58 test (`ccep_seeg` reference report): since the existence test became the detector
+  of `reference_sensitivity` (artifact corrections), the 8 simulated contacts at 50 %
+  responding were all detected under every scheme (decay tail after cleaning, spread of
+  the common average), so kappa was undefined. The test now simulates 16 contacts at 30 %
+  (the simulator's default): 8-11 of 14-16 detected, kappa 0.48-0.71.
+- `stats.fit_mixed`: rows with a missing value are dropped before statsmodels is called.
+  statsmodels 0.15 with `missing="drop"` does not find a quoted name (`Q("stim site")`,
+  `Q("if")`) and failed on REQ-236 cases 2 and 3.
+- `hierarchical`: `InferenceData` built with the API of the installed arviz (a dict of
+  groups for arviz >= 1, keywords for 0.x, as `HierarchicalFit.to_arviz` already did);
+  with arviz 0.23 the dict was read as one variable and R-hat failed (both engines, LOO
+  comparison).
 
 ### Reports, shared shapes and preset behaviours (audit F44, F56–F58)
 

@@ -229,7 +229,11 @@ def test_f58_ccep_seeg_attaches_the_reference_sensitivity_report():
 
     from evoparam import reports, sim
 
-    ts, _ = sim.simulate_ccep(n_trials=8, n_channels=8, sfreq=1024.0, p_response=0.5, seed=3)
+    # 16 contacts, 30 % responding (the simulator's default): with the existence test as the
+    # detector (spec §5.4, since the artefact corrections) the former 8 contacts at 50 % were
+    # all detected under CAR and under bipolar (decay tail and spread of the average), so
+    # kappa was undefined; here 8-11 of 14-16 are detected and kappa is 0.48-0.71.
+    ts, _ = sim.simulate_ccep(n_trials=8, n_channels=16, sfreq=1024.0, p_response=0.3, seed=3)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         result = reports.run_pipeline(ts, "ccep_seeg", trial_fits=False)

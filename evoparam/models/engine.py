@@ -901,7 +901,9 @@ def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select
                     best = cand
             best = _polish(best, make, settings, n_white, f_scale, kind)
             gain = best.crit - current.crit
-            if _too_small(best, settings):
+            # min_amplitude (§5.5.10, 0 = no limit): the only size rule, a user option
+            if settings.min_amplitude and \
+                    np.min(np.abs(best.beta[:len(best.shapes)])) < settings.min_amplitude:
                 best_rejected = min(best_rejected, gain)
                 continue
             if forced or gain <= -settings.delta:
@@ -955,13 +957,6 @@ def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select
 _WIDTH_PARAMS = ("sigma", "omega")
 
 
-def _too_small(state, settings):
-    """A component below ``min_amplitude`` (0: no limit) is not accepted."""
-
-    return bool(settings.min_amplitude) and \
-        np.min(np.abs(state.beta[:len(state.shapes)])) < settings.min_amplitude
-
-
 def _spec_starts(shape, guess, n_starts, tw):
     """Spec §5.5.3 step 4: the candidate itself and ``n_starts - 1`` perturbations, in this
     order: latency ``-/+ sigma_0/2``, width ``x 0.5`` and ``x 2``."""
@@ -1012,7 +1007,11 @@ def _spec_step(current, picks, smooth, make, settings, n_eff, f_scale, kind, tw,
         if best is None:
             continue
         gain = best.crit - current.crit
-        if not _too_small(best, settings) and (forced or gain <= -settings.delta):
+        if settings.min_amplitude and \
+                np.min(np.abs(best.beta[:len(best.shapes)])) < settings.min_amplitude:
+            rejected = min(rejected, gain)
+            continue
+        if forced or gain <= -settings.delta:
             return best, rejected
         rejected = min(rejected, gain)
     return None, rejected

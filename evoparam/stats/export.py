@@ -541,9 +541,25 @@ def fit_mixed(table, formula, groups, *, nested=(), re_formula=None, reml=True, 
         raise SettingsError(f"fit_mixed: no column '{groups}'.")
     nested = [nested] if isinstance(nested, str) else list(nested)
     vc = {name: f"0 + C({_py(name)})" for name in nested} or None
-    model = smf.mixedlm(formula, table, groups=table[groups], re_formula=re_formula,
-                        vc_formula=vc, missing="drop")
+    model = smf.mixedlm(formula, _complete_rows(table, formula, [groups] + nested, re_formula),
+                        groups=groups, re_formula=re_formula, vc_formula=vc, missing="none")
     return model.fit(reml=reml, **fit_kw)
+
+
+def _complete_rows(table, formula, columns, re_formula=None):
+    """The rows of ``table`` with every variable of the model present (what
+    ``missing="drop"`` of statsmodels does). statsmodels 0.15 drops them itself only for
+    plain names: a quoted one (``Q("N1 latency")``, ``Q("stim site")``) is not found."""
+
+    import patsy  # a dependency of statsmodels
+
+    data = table.loc[table[columns].notna().all(axis=1)]
+    _, design = patsy.dmatrices(formula, data, NA_action="drop", return_type="dataframe")
+    data = data.loc[design.index]
+    if re_formula:
+        design = patsy.dmatrix(re_formula, data, NA_action="drop", return_type="dataframe")
+        data = data.loc[design.index]
+    return data
 
 
 ###################################################################################################

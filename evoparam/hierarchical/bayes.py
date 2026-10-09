@@ -304,11 +304,21 @@ def _summary(draws):
             np.percentile(flat, 97.5, axis=0))
 
 
+def _from_dict(az, groups):
+    """``InferenceData`` from ``{group: {variable: draws}}``: one dict of groups with
+    arviz >= 1, one keyword per group with arviz 0.x (where a dict alone would be read as
+    a single variable named after the group)."""
+
+    if int(str(az.__version__).split(".")[0]) >= 1:
+        return az.from_dict(groups)
+    return az.from_dict(**groups)
+
+
 def _diagnostics(samples, diverging):
     import arviz as az
 
     names = [k for k in samples if not k.startswith(("responsibility",))]
-    data = az.from_dict({"posterior": {k: samples[k] for k in names}})
+    data = _from_dict(az, {"posterior": {k: samples[k] for k in names}})
     rhat = az.rhat(data)
     ess = az.ess(data)
     worst_rhat = max(float(np.nanmax(np.asarray(rhat[k]))) for k in names)
@@ -449,8 +459,8 @@ def loo_table(fits, var_name="lat_hat"):
             if ll is None:
                 continue
             name = f"fit{i}:{label}"
-            idatas[name] = az.from_dict({"posterior": {"_": np.zeros(ll.shape[:2])},
-                                         "log_likelihood": {var_name: ll}})
+            idatas[name] = _from_dict(az, {"posterior": {"_": np.zeros(ll.shape[:2])},
+                                           "log_likelihood": {var_name: ll}})
     if len(idatas) < 2:
         return pd.DataFrame()
     return az.compare(idatas, var_name=var_name)
