@@ -4,7 +4,9 @@ REQ-042).
 The four Mayo CCEP datasets of OpenNeuro store their recordings as MEF 3.0 sessions:
 ds003708 (1 run, ECoG, 2048 Hz), ds004457 (5 runs, sEEG, 2048 Hz), ds004696 (8 runs, of
 which 3 repeat ds004457 sub-1, sub-2 and sub-4: the 5 others are used) and ds004977
-(4800 Hz; censored with zeros outside one site per run, so one run per subject is used).
+(4800 Hz; censored by its authors with zeros outside one site per run, so one run per
+subject is used, at its uncensored site, and a reference pulse whose data are zeros on
+every channel is not counted: none in the segments used).
 For each run, ``SPAN`` s are read from 1 s before the first pulse of each listed site,
 and compared with ``events.tsv`` (172 pulses: 152 at 2048 Hz, 20 in ds004977).
 ``detect_pulses`` runs with its default settings and channel names only, as on ds004080
@@ -136,12 +138,26 @@ def detect(seg, **kwargs):
         return pd.DataFrame({"onset_time": [], "stim_site_guess": [], "site_confidence": []})
 
 
+def uncensored(seg, half_width=0.1):
+    """Reference pulses whose data are not zeros on every channel within 100 ms (ds004977
+    is censored with zeros by its authors)."""
+
+    keep = []
+    span = int(round(half_width * seg["sfreq"]))
+    for onset in seg["onsets"]:
+        i0 = int(round((onset - seg["t0"]) * seg["sfreq"]))
+        keep.append(bool(np.any(seg["data"][:, max(0, i0 - span):i0 + span] != 0)))
+    return np.array(keep, dtype=bool)
+
+
 @pytest.fixture(scope="module")
 def results():
     out = []
     for dataset, stem, sites in RUNS:
         for seg in run_segments(dataset, stem, sites):
-            out.append((dataset, stem, seg["sfreq"], detect(seg), seg["onsets"], seg["sites"]))
+            keep = uncensored(seg)
+            out.append((dataset, stem, seg["sfreq"], detect(seg), seg["onsets"][keep],
+                        seg["sites"][keep]))
     return out
 
 
@@ -215,20 +231,24 @@ def test_ds004977_pulses_found_with_defaults(results):
     assert hits / (hits + misses) >= 0.99
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-042 on the Mayo sets: agreement 0.67 (162 "
-                                        "pulses; 0.72 on the 2048 Hz runs, 0 on ds004977, whose "
-                                        "stimulated contacts are nearly flat, so the flanking "
-                                        "pair is named); 0.77 with the channels.tsv table")
 def test_req042_mayo_site_agreement(results):
+    """Agreement with events.tsv on every detected pulse of the Mayo sets (measured: 0.99,
+    160 of 162 pulses; 0.99 on the 2048 Hz runs, 1.0 on ds004977). The stimulating contacts
+    reach the amplifier's range (34.8 mV) in ds003708, ds004457 and ds004696, and are silent
+    (switched to the stimulator) in ds004977: the two kinds of evidence of
+    identify_stim_site added for these sets. Before them: 0.67 (0.72 and 0). Held-out
+    check, sites not used here (30th and 70th percentiles of the order of first stimulation
+    of the 11 runs at 2048 Hz, 101 pulses): 0.93 (0.49 before), every pulse with
+    site_confidence >= 0.5 right; 4 of the 7 errors in ds004457 sub-4."""
 
-    agreement, _, _, _ = site_agreement(results)
+    agreement, _, _, n = site_agreement(results)
+    assert n >= 160
     assert agreement >= 0.95
+    assert site_agreement(subset(results, mayo_2048=False))[0] >= 0.95
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-042 on the Mayo sets: accuracy 0.92 for "
-                                        "site_confidence >= 0.5, on 22 % of the pulses (0.95 "
-                                        "on 25 % with the channels.tsv table)")
 def test_req042_mayo_confidence_is_calibrated(results):
+    """Measured: accuracy 1.0 for site_confidence >= 0.5, on 41 % of the pulses."""
 
     _, accuracy, fraction, _ = site_agreement(results)
     assert accuracy >= 0.98

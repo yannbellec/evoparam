@@ -59,19 +59,27 @@ def test_car_excludes_stimulated_and_bad_channels():
     assert np.allclose(out.data, ts.data - ts.data[:, 3:7].mean(axis=1, keepdims=True))
 
 
-def test_req081_car_adaptive_simulation():
-    """Median false negatives 0 up to 84 % responsive channels, false positives <= 3.5."""
+LEVELS = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.84, 0.9)
 
-    for fraction in (0.0, 0.5, 0.84):
+
+def test_req081_car_adaptive_simulation():
+    """50 channels, 12 trials, 0 to 90 % responsive channels, 10 simulations per level, the
+    default bootstrap (100): median false negatives 0 up to 84 % responsive channels and
+    median false positives <= 2.5 at every level (the published value itself, without the
+    +/-1 tolerance). Measured: medians 0 and 0 at every level (largest single false-positive
+    count 2)."""
+
+    for fraction in LEVELS:
         fn, fp = [], []
-        for seed in range(5):
+        for seed in range(10):
             ts, responsive = sim_carla(fraction, seed)
-            chosen = car_adaptive_select(ts.data, ts.times, n_boot=30, random_state=seed)
+            chosen = car_adaptive_select(ts.data, ts.times, random_state=seed)
             members = set(chosen["members"].tolist())
             fn.append(len(members & responsive))
             fp.append(len(set(range(50)) - responsive - members))
-        assert np.median(fn) == 0, fraction
-        assert np.median(fp) <= 3.5, fraction
+        if fraction <= 0.84:
+            assert np.median(fn) == 0, fraction
+        assert np.median(fp) <= 2.5, fraction
 
 
 def test_car_adaptive_records_choice_and_falls_back():
@@ -105,3 +113,28 @@ def test_laplacian_and_monopolar():
     assert (mono.ch_info["reference"] == "monopolar").all()
     with pytest.raises(SettingsError):
         rereference(ts, "average")
+
+
+def test_reference_sensitivity_runs_the_existence_test():
+    """Spec §5.4, method 3: the existence test (§5.6) under each scheme, by default."""
+
+    from dataclasses import replace
+
+    from evoparam.existence import existence_detector
+    from evoparam.prep import reference_sensitivity
+
+    ts, responsive = sim_carla(0.3, 2)
+    ts = replace(ts, metadata=pd.DataFrame({"stim_site": ["S48-S49"] * ts.n_trials}))
+    table = reference_sensitivity(ts, schemes=("monopolar", "car"),
+                                  test_kwargs={"n_permutations": 200})
+    assert table.attrs["detector"] == "existence_detector"
+    channels = table.attrs["channels"]
+    detected, latency, groups = existence_detector(ts, n_permutations=200)
+    assert groups == ["S48-S49"] and np.ndim(detected) == 1       # one site: one column
+    assert channels["monopolar"]["detected"].reindex(ts.ch_names).tolist() == list(detected)
+    # Responsive channels are found under the original reference
+    found = {int(key[1:3]) for key in channels.index[channels["monopolar"]["detected"]]}
+    assert len(found & responsive) >= 0.8 * len(responsive)
+    # The interim threshold rule stays available by name
+    other = reference_sensitivity(ts, schemes=("monopolar", "car"), detector="threshold")
+    assert other.attrs["detector"] == "threshold_detector"

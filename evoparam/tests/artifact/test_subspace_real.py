@@ -1,0 +1,154 @@
+"""REQ-064 with real artifact templates: ``subspace`` on synthetic EEG overlaid with the
+measured artifacts of real recordings.
+
+Two sets of real templates, read from OpenNeuro (segments cached in the evoparam data
+folder; runs only with EVOPARAM_NETWORK_TESTS=1):
+
+- TMS-EEG, the modality of the published method: ds002094, the 20 subjects of task
+  ``tmseeg1`` (30 scalp channels at 5 000 Hz, DC). For each subject, 20 s are read from
+  1 s before the first ``R128`` marker; the template of each channel is the median over the
+  pulses of the signal on the ``tep`` preset's artifact window (-2 to 12 ms) minus its level
+  from -30 to -10 ms.
+- Intracranial SPES: ds004080, the 23 runs at 2048 Hz of the events validation
+  (``tests/events/test_ds004080_events.py``), 32 channels spread evenly over the recorded
+  ones, window -2 to 8 ms.
+
+Synthetic EEG as in ``test_subspace.py``: 30 trials of spatially correlated noise (5 uV)
+with a response (onset 12 ms) of random topography; each trial receives the template times
+a gain in [0.9, 1.1]. The criterion, signal-to-interference improvement >= 30 dB on the
+artifact window and up to 50 ms, is checked on every subject or run.
+
+Measured (evoparam 0.1.0.dev0): TMS median 1.6 dB (0.2 to 4.1); SPES median 9.3 dB (5.0 to
+18.4). The cause is the rule of the specification for the number of directions (95 % of the
+whitened window energy, at most 6): a real template has a different time course on every
+channel, so its spatial rank is high, while one whitened direction already holds 95 % of
+the energy. On ds002094 sub-283, forcing 6, 10 and 20 directions gives 17.6, 26.5 and
+57.1 dB on the window. The synthetic two-topography artifact of ``test_subspace.py`` (the
+published setting) reaches the criterion.
+"""
+
+import os
+import re
+
+import numpy as np
+import pytest
+
+from evoparam.artifact import compare_methods
+from evoparam.data import TrialSet
+
+from .helpers import response, times_axis
+
+pytestmark = [pytest.mark.network,
+              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+
+TMS_SUBJECTS = ["283", "711", "718", "728", "734", "735", "739", "743", "749", "759", "761",
+                "764", "766", "767", "768", "774", "779", "780", "783", "786"]
+TMS_WINDOW = (-0.002, 0.012)
+SPES_WINDOW = (-0.002, 0.008)
+SPAN = 20.0
+
+###################################################################################################
+###################################################################################################
+
+def _tms_segment(subject):
+    """20 s of ds002094 task tmseeg1 from 1 s before the first pulse (cached)."""
+
+    from evoparam.io import openneuro_url, read_bids_events, read_brainvision_segment
+    from evoparam.io._fetch import data_folder
+
+    cache = os.path.join(data_folder(), "artifact-validation", "ds002094")
+    os.makedirs(cache, exist_ok=True)
+    path = os.path.join(cache, f"sub-{subject}_task-tmseeg1_{SPAN:g}s.npz")
+    if not os.path.exists(path):
+        stem = f"sub-{subject}/eeg/sub-{subject}_task-tmseeg1"
+        events = read_bids_events(openneuro_url("ds002094", stem + "_events.tsv"))
+        onsets = np.array([float(ev["onset"]) for ev in events if ev.get("value") == "R128"])
+        tmin = max(onsets.min() - 1.0, 0.0)
+        data, sfreq, names, t0 = read_brainvision_segment(
+            openneuro_url("ds002094", stem + "_eeg.vhdr"), tmin, tmin + SPAN)
+        keep = (onsets >= t0 + 0.5) & (onsets <= t0 + data.shape[1] / sfreq - 0.5)
+        np.savez_compressed(path, data=data.astype(np.float32), sfreq=sfreq,
+                            names=np.array(names), t0=t0, onsets=onsets[keep])
+    seg = np.load(path)
+    return (seg["data"].astype(float), float(seg["sfreq"]), [str(n) for n in seg["names"]],
+            float(seg["t0"]), seg["onsets"])
+
+
+def _pulse_artifacts(data, sfreq, t0, onsets, window):
+    """Per pulse: the signal on ``window`` minus its level from -30 to -10 ms."""
+
+    lo, hi = int(round(window[0] * sfreq)), int(round(window[1] * sfreq))
+    pre = int(round(0.01 * sfreq))
+    out = []
+    for onset in onsets:
+        i0 = int(round((onset - t0) * sfreq))
+        level = np.median(data[:, i0 - 3 * pre:i0 - pre], axis=1, keepdims=True)
+        out.append(data[:, i0 + lo:i0 + hi + 1] - level)
+    return np.array(out)
+
+
+def tms_template(subject):
+    data, sfreq, names, t0, onsets = _tms_segment(subject)
+    return np.median(_pulse_artifacts(data, sfreq, t0, onsets, TMS_WINDOW), axis=0), sfreq
+
+
+def spes_template(stem, n_channels=32):
+    from evoparam.tests.events.test_ds004080_events import _segment
+
+    data, sfreq, names, t0, onsets, _ = _segment(stem)
+    keep = [i for i, n in enumerate(names) if re.match(r"^[A-Za-z]+\d+$", n)
+            and not n.upper().startswith(("MKR", "ECG", "EMG", "EOG"))]
+    arts = _pulse_artifacts(data[keep], sfreq, t0, onsets, SPES_WINDOW)
+    finite = np.flatnonzero(np.isfinite(arts).all(axis=(0, 2)))
+    pick = finite[np.linspace(0, len(finite) - 1, n_channels).round().astype(int)]
+    return np.median(arts[:, pick], axis=0), sfreq
+
+
+def sir_improvement(template, sfreq, window, seed=0, n_trials=30):
+    """Overlay the template on synthetic EEG and return the SIR improvement of subspace."""
+
+    rng = np.random.default_rng(seed)
+    n_channels = template.shape[0]
+    times = times_axis(sfreq)
+    mixing = rng.normal(0, 1, (n_channels, n_channels)) / np.sqrt(n_channels)
+    eeg = np.einsum("ij,kjt->kit", mixing,
+                    rng.normal(0, 5, (n_trials, n_channels, len(times))))
+    topo = rng.normal(0, 1, n_channels)
+    clean = eeg + topo[None, :, None] * response(times, 0.012, -20.0)[None, None]
+    start = int(np.searchsorted(times, window[0] - 1e-12))
+    noisy = clean.copy()
+    noisy[:, :, start:start + template.shape[1]] += (rng.uniform(0.9, 1.1, (n_trials, 1, 1))
+                                                     * template[None])
+    names = [f"E{i}" for i in range(n_channels)]
+    make = lambda d: TrialSet(data=d, times=times, sfreq=sfreq, ch_names=names)
+    table = compare_methods(make(noisy), [{"method": "subspace", "window": window}],
+                            truth=make(clean), window_eval=(window[1], 0.05))
+    return float(table["sir_improvement_db"].iloc[0])
+
+
+@pytest.mark.xfail(strict=True, reason="REQ-064 with real TMS artifact templates (ds002094, 20 "
+                                       "subjects): SIR improvement median 1.6 dB (0.2 to 4.1), "
+                                       "not 30 dB; the specification's rule for the number of "
+                                       "directions (95 % of the whitened energy, at most 6) "
+                                       "keeps one direction (module docstring)")
+def test_req064_real_tms_templates():
+
+    gains = [sir_improvement(*tms_template(subject), TMS_WINDOW) for subject in TMS_SUBJECTS]
+    assert min(gains) >= 30, np.round(gains, 1)
+
+
+@pytest.mark.xfail(strict=True, reason="REQ-064 with real intracranial SPES artifact templates "
+                                       "(ds004080, 23 runs at 2048 Hz): SIR improvement median "
+                                       "9.3 dB (5.0 to 18.4), not 30 dB (module docstring)")
+def test_req064_real_spes_templates():
+
+    from evoparam.tests.events.test_ds004080_events import RUNS, _segment
+
+    gains = []
+    for stem in RUNS:
+        if abs(_segment(stem)[1] - 2048.0) > 1:
+            continue
+        gains.append(sir_improvement(*spes_template(stem), SPES_WINDOW))
+    assert len(gains) == 23
+    assert min(gains) >= 30, np.round(gains, 1)

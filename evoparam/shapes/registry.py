@@ -20,7 +20,8 @@ from evoparam.shapes.backgrounds import (ArtifactBasisBackground, ConstantBackgr
 from evoparam.shapes.components import (Biexponential, DampedOscillation, ExGaussian, Gabor,
                                         Gamma, Gaussian, SkewedGaussian, Template)
 
-__all__ = ["SHAPES", "BACKGROUNDS", "BUILTIN_SHAPES", "register_shape", "unregister_shape",
+__all__ = ["SHAPES", "BACKGROUNDS", "BUILTIN_SHAPES", "list_shapes", "list_backgrounds",
+           "register_shape", "unregister_shape",
            "check_shape", "get_shape", "get_background", "CHECK_TIMES"]
 
 def _plugin_shape(name, obj, origin):
@@ -97,6 +98,18 @@ def get_shape(name, **settings):
     if name not in SHAPES:
         raise SettingsError(f"unknown shape '{name}'; registered: {sorted(SHAPES)}.")
     return _instance(SHAPES[name], settings)
+
+
+def list_shapes():
+    """Names of the registered component shapes (built-in and plugins), sorted."""
+
+    return sorted(SHAPES)
+
+
+def list_backgrounds():
+    """Names of the registered backgrounds (built-in and plugins), sorted."""
+
+    return sorted(BACKGROUNDS)
 
 
 def get_background(name, **settings):

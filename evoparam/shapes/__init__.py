@@ -12,4 +12,5 @@ from evoparam.shapes.backgrounds import (NoBackground, ConstantBackground, Linea
                                          ExponentialBackground, DoubleExponentialBackground,
                                          PSplineBackground, ArtifactBasisBackground)
 from evoparam.shapes.registry import (SHAPES, BACKGROUNDS, register_shape, unregister_shape,
-                                      check_shape, get_shape, get_background)
+                                      check_shape, get_shape, get_background, list_shapes,
+                                      list_backgrounds)

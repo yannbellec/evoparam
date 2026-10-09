@@ -7,8 +7,9 @@ from .filters import highpass, lowpass, notch
 from .reference import SCHEMES, car_adaptive_select, rereference
 from .reject import reject_trials
 from .resample import resample
-from .sensitivity import reference_sensitivity, threshold_detector
+from .sensitivity import (DETECTORS, reference_sensitivity, register_detector,
+                          threshold_detector)
 
 __all__ = ["baseline_correct", "rereference", "car_adaptive_select", "reference_sensitivity",
-           "threshold_detector", "reject_trials", "resample", "average", "highpass",
-           "lowpass", "notch", "SCHEMES", "AVERAGE_METHODS"]
+           "threshold_detector", "register_detector", "DETECTORS", "reject_trials",
+           "resample", "average", "highpass", "lowpass", "notch", "SCHEMES", "AVERAGE_METHODS"]

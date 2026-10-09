@@ -468,6 +468,91 @@ class HierarchicalFit(_ResultMixin):
             raise DataError(f"HierarchicalFit: engine must be 'eb', 'numpyro' or 'pymc', "
                             f"got {self.engine!r}.")
 
+    def _normal_draws(self, n_draws, random_state):
+        """Draws from the normal approximation of the empirical-Bayes tables, in the layout
+        of ``diagnostics["draws"]`` (one chain)."""
+
+        rng = np.random.default_rng(random_state)
+        out = {}
+        tables = self.level_tables or {}
+        for level, column in (("channel", "sites"), ("subject", "subjects")):
+            table = tables.get(level)
+            if table is None or len(table) == 0 or "component" not in table.columns:
+                continue
+            for label in dict.fromkeys(table["component"]):
+                part = table[table["component"] == label]
+                block = out.setdefault(str(label), {})
+                if level == "channel":
+                    block[column] = [f"{a}/{b}" for a, b in zip(part["subject"], part["channel"])]
+                else:
+                    block[column] = [str(v) for v in part["subject"]]
+                for parameter in ("latency", "amplitude"):
+                    if parameter not in part.columns:
+                        continue
+                    mean = part[parameter].to_numpy(dtype=float)
+                    se = (part[f"{parameter}_se"].to_numpy(dtype=float)
+                          if f"{parameter}_se" in part.columns else np.zeros(len(part)))
+                    se = np.where(np.isfinite(se), se, 0.0)
+                    block[f"{parameter}_{level}"] = (
+                        mean[None, None, :]
+                        + se[None, None, :] * rng.standard_normal((1, n_draws, len(part))))
+        return out
+
+    def to_arviz(self, *, n_draws=1000, random_state=None):
+        """The posterior as an ArviZ ``InferenceData`` (with ArviZ 1.x, the ``DataTree``
+        that replaces it), for ``arviz`` summaries and plots (extra ``bayes``).
+
+        Variables, per component label ``<c>``: ``<c>_latency_channel`` and
+        ``<c>_amplitude_channel`` (dim ``site``, one per subject and channel, in the order of
+        the channel table) and ``<c>_latency_subject``, ``<c>_amplitude_subject`` (dim
+        ``subject``), in seconds and in the data unit.
+
+        With a sampling engine (``numpyro``, ``pymc``) these are the posterior draws kept in
+        ``diagnostics["draws"]`` (per label: arrays chain x draw x site or subject, with the
+        ``sites`` and ``subjects`` names). The empirical-Bayes engine (``eb``) has no draws:
+        they are drawn from its normal approximation (estimate and standard error of each row of the
+        level tables; ``n_draws``, ``random_state``), which the attribute ``approximation``
+        states.
+        """
+
+        try:
+            import arviz as az
+        except ImportError as err:
+            raise ImportError("HierarchicalFit.to_arviz needs ArviZ, in the extra 'bayes': "
+                              "pip install 'evoparam[bayes]'.") from err
+        draws = (self.diagnostics or {}).get("draws")
+        approximation = "none (posterior draws)"
+        if not draws:
+            approximation = "normal (empirical-Bayes estimate and standard error)"
+            draws = self._normal_draws(int(n_draws), random_state)
+        posterior, coords, dims = {}, {}, {}
+        for label, block in draws.items():
+            for level, dim, names in (("channel", f"site_{label}", block.get("sites")),
+                                      ("subject", f"subject_{label}", block.get("subjects"))):
+                for parameter in ("latency", "amplitude"):
+                    values = block.get(f"{parameter}_{level}")
+                    if values is None:
+                        continue
+                    values = np.asarray(values, dtype=np.float64)
+                    key = f"{label}_{parameter}_{level}"
+                    posterior[key] = values
+                    dims[key] = [dim]
+                    coords[dim] = (list(names) if names is not None
+                                   and len(names) == values.shape[-1]
+                                   else list(range(values.shape[-1])))
+        if not posterior:
+            raise DataError("HierarchicalFit.to_arviz: no posterior to export (empty tables).")
+        if int(str(az.__version__).split(".")[0]) >= 1:
+            data = az.from_dict({"posterior": posterior}, coords=coords, dims=dims)
+        else:
+            data = az.from_dict(posterior=posterior, coords=coords, dims=dims)
+        try:
+            data.attrs["approximation"] = approximation
+            data.attrs["engine"] = self.engine
+        except (AttributeError, TypeError):
+            pass
+        return data
+
 
 ###################################################################################################
 ## Other module results
@@ -550,6 +635,51 @@ class TFFit(_ResultMixin):
         self.maps = {key: np.asarray(value, dtype=np.float64) for key, value in self.maps.items()}
         if self.significant.shape != self.tmaps.shape:
             raise DataError("TFFit: significant and tmaps must have the same shape.")
+
+    def to_mne(self, map="total", *, ch_type="misc"):
+        """One map as ``mne.time_frequency.AverageTFR`` (extra ``mne``).
+
+        Parameters
+        ----------
+        map : str, default: "total"
+            Key of :attr:`maps` holding channels x freqs x times (``"total"``,
+            ``"total_norm"``, ``"evoked_footprint"``, ``"residual"``, ``"cross"``, ...).
+        ch_type : str, default: "misc"
+            MNE channel type of every row.
+
+        Returns
+        -------
+        mne.time_frequency.AverageTFR
+            One channel per row of the fit (``"<channel>"``, or ``"<channel>|<group>"``
+            when the fit was split by condition), ``nave`` the smallest number of trials
+            of a row, ``comment`` the map name and ``method`` the transform.
+        """
+
+        try:
+            import mne
+        except ImportError as err:
+            raise ImportError("TFFit.to_mne needs the extra 'mne': pip install "
+                              "'evoparam[mne]'.") from err
+        if map not in self.maps:
+            raise DataError(f"TFFit.to_mne: unknown map {map!r}; available: "
+                            f"{sorted(self.maps)}.")
+        data = np.asarray(self.maps[map], dtype=np.float64)
+        if data.ndim != 3 or data.shape[1:] != (self.freqs.size, self.times.size):
+            raise DataError(f"TFFit.to_mne: map {map!r} is not channels x freqs x times.")
+        rows = self.settings.get("rows") or [[str(i), ""] for i in range(data.shape[0])]
+        names = [f"{row[0]}|{row[1]}" if len(row) > 1 and row[1] else str(row[0])
+                 for row in rows]
+        sfreq = 1.0 / float(np.median(np.diff(self.times))) if self.times.size > 1 else 1.0
+        info = mne.create_info(names, sfreq, ch_type)
+        n_trials = self.settings.get("n_trials") or [1]
+        nave = int(min(n_trials))
+        method = str(self.settings.get("transform", "unknown"))
+        if hasattr(mne.time_frequency, "AverageTFRArray"):
+            return mne.time_frequency.AverageTFRArray(
+                info=info, data=data, times=self.times, freqs=self.freqs, nave=nave,
+                comment=map, method=method)
+        return mne.time_frequency.AverageTFR(info, data, self.times, self.freqs, nave,
+                                             comment=map, method=method)
 
     def methods_text(self):
         """Methods paragraph: transform and its parameters, baseline window and mode, the

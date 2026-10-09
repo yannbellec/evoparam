@@ -74,12 +74,24 @@ def test_global_methods_change_baseline_level_by_two_percent_at_most(method, kwa
     rms = lambda x: np.sqrt(np.mean((x - x.mean(axis=-1, keepdims=True)) ** 2))
     before = rms(noisy.data[..., base])
     after = rms(result.cleaned.data[..., base])
-    if method == "polynomial":
-        # A local cubic removes activity slower than the fit window everywhere, by design;
-        # on white noise the level change stays small
-        assert abs(after / before - 1) <= 0.1
-    else:
-        assert abs(after / before - 1) <= 0.02
+    assert abs(after / before - 1) <= 0.02
+
+
+@pytest.mark.xfail(strict=True, reason="REQ-060 for the published polynomial method "
+                                       "(poly_extent='global', a local cubic subtracted at "
+                                       "every sample): a high-pass filter of the whole epoch, "
+                                       "the baseline RMS falls by 9.1 % on white noise at "
+                                       "2048 Hz (18 % at 1 kHz, 4.0 % at 4800 Hz, 0.75 % at "
+                                       "25 kHz); the default poly_extent='local' meets 2 %")
+def test_req060_polynomial_global_extent_as_published():
+
+    noisy, _ = make_overlay(n_channels=12)
+    result = _run(noisy, "polynomial", {"poly_extent": "global"})
+    base = (noisy.times >= -0.5) & (noisy.times <= -0.05)
+    rms = lambda x: np.sqrt(np.mean((x - x.mean(axis=-1, keepdims=True)) ** 2))
+    before = rms(noisy.data[..., base])
+    after = rms(result.cleaned.data[..., base])
+    assert abs(after / before - 1) <= 0.02
 
 
 def test_existing_saturation_masks_are_kept():

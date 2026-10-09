@@ -13,6 +13,7 @@ import pytest
 
 from evoparam.data import TrialSet
 from evoparam.io import epoch_data
+from evoparam.existence import existence_detector
 from evoparam.prep import baseline_correct, reference_sensitivity, threshold_detector
 
 pytestmark = [pytest.mark.network,
@@ -40,9 +41,11 @@ def _epochs():
 
 
 def test_req084_three_schemes_under_two_minutes():
+    """With the default detector, the existence test of spec §5.6 (method 3)."""
 
     ts = _epochs()
     table = reference_sensitivity(ts, reference_kwargs={"random_state": 0, "n_boot": 50})
+    assert table.attrs["detector"] == "existence_detector"
     assert table.attrs["duration_s"] < 120
     assert len(table) == 3
     assert set(zip(table["scheme_a"], table["scheme_b"])) == {
@@ -51,6 +54,15 @@ def test_req084_three_schemes_under_two_minutes():
     assert (table["n_channels"] > 20).all()
     channels = table.attrs["channels"]
     assert {"bipolar", "car", "car_adaptive"} <= set(channels.columns.get_level_values(0))
+
+
+def test_existence_detector_finds_responses():
+
+    detected, latency, groups = existence_detector(_epochs())
+    assert groups == ["PT01-PT02"]
+    assert detected.any() and not detected.all()
+    assert np.all((latency[detected] >= 0.009) & (latency[detected] <= 0.5))
+    assert np.all(np.isnan(latency[~detected]))
 
 
 def test_threshold_detector_finds_responses():

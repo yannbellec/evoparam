@@ -6,17 +6,37 @@ import warnings
 
 import numpy as np
 
+from evoparam.errors import SettingsError
 from evoparam.utils._optional import require
 
 from ._common import check_trialset, masked_values
 from .reference import rereference
 
-__all__ = ["reference_sensitivity", "threshold_detector"]
+__all__ = ["reference_sensitivity", "threshold_detector", "register_detector", "DETECTORS"]
+
+# Detectors by name. "existence" (the existence test of spec §5.6, the default) is registered
+# by the package root when evoparam is imported: the existence test is built on the fitting
+# engine, which itself uses this module, so prep cannot import it (spec §4.2).
+DETECTORS = {}
+
+
+def register_detector(name, detector):
+    """Register a detector for :func:`reference_sensitivity` under ``name``.
+
+    ``detector(ts, **test_kwargs)`` returns ``(detected, latency)`` (arrays [n_channels])
+    or ``(detected, latency, groups)`` with arrays [n_channels, n_groups] and the group
+    names (for example one group per stimulation site).
+    """
+
+    if not callable(detector):
+        raise SettingsError("detector must be callable.")
+    DETECTORS[str(name)] = detector
 
 
 def threshold_detector(ts, *, window=(0.009, 0.1), baseline=(-0.5, -0.05), threshold=3.4,
                        sd_floor_uv=50.0):
-    """Interim response detector, until the existence test of build step S8.
+    """Fixed-threshold response detector (``detector="threshold"``; the interim default of
+    build step S6, replaced by the existence test).
 
     The rule of the Utrecht SPES studies and of ER-detect's default: on the trial average,
     a channel responds when its most negative value in ``window`` is below
@@ -53,21 +73,25 @@ def _key(name):
 
 
 def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
-                          detector=None, test_kwargs=None, reference_kwargs=None):
+                          detector="existence", test_kwargs=None, reference_kwargs=None):
     """Detections and latencies under several references, and their agreement.
 
-    Each scheme is applied with :func:`rereference`, then ``detector`` (default
-    :func:`threshold_detector`; the existence test of build step S8 will replace it) is run.
-    For every pair of schemes, Cohen's kappa of the detections and the latency differences
-    are computed on the channels both schemes share (a bipolar channel ``"A1-A2"`` is
-    compared with contact ``A1``).
+    Each scheme is applied with :func:`rereference`, then the existence test of spec §5.6
+    is run (``detector="existence"``: :func:`evoparam.existence.existence_detector`, the
+    sign-flip permutation test of each channel and stimulation site, latency of the largest
+    deflection of the trial average within the significant interval). For every pair of
+    schemes, Cohen's kappa of the detections and the latency differences are computed on
+    the channels (and sites) both schemes share (a bipolar channel ``"A1-A2"`` is compared
+    with contact ``A1``).
 
     Parameters
     ----------
     ts : TrialSet
     schemes : tuple of str
-    detector : callable, optional
-        ``detector(ts, **test_kwargs) -> (detected bool [n_channels], latency s [n_channels])``.
+    detector : str or callable, default: "existence"
+        A registered name (``"existence"``, ``"threshold"``: :func:`threshold_detector`), or
+        ``detector(ts, **test_kwargs) -> (detected, latency[, groups])`` (see
+        :func:`register_detector`).
     test_kwargs : dict, optional
     reference_kwargs : dict, optional
         Passed to :func:`rereference` (for example ``random_state``, ``n_boot``).
@@ -85,7 +109,14 @@ def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
     pd = require("pandas", extra="data", caller="evoparam.prep.reference_sensitivity")
     start = _time.perf_counter()
     check_trialset(ts)
-    detector = detector or threshold_detector
+    if detector is None:
+        detector = "existence"
+    if isinstance(detector, str):
+        if detector not in DETECTORS:
+            raise SettingsError(f"unknown detector {detector!r}; registered: {sorted(DETECTORS)} "
+                                "('existence' is registered when evoparam is imported).")
+        detector = DETECTORS[detector]
+    detector_name = getattr(detector, "__name__", type(detector).__name__)
     test_kwargs = test_kwargs or {}
     reference_kwargs = reference_kwargs or {}
     per_scheme = {}
@@ -93,9 +124,15 @@ def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             ref = rereference(ts, scheme, **reference_kwargs)
-        detected, latency = detector(ref, **test_kwargs)
-        per_scheme[scheme] = pd.DataFrame({"key": [_key(n) for n in ref.ch_names],
-                                           "detected": detected, "latency": latency}
+        out = detector(ref, **test_kwargs)
+        detected, latency = np.asarray(out[0]), np.asarray(out[1], dtype=float)
+        keys = [_key(n) for n in ref.ch_names]
+        if detected.ndim == 2:
+            groups = list(out[2]) if len(out) > 2 else [str(g) for g in range(detected.shape[1])]
+            keys = [f"{key}@{group}" if group else key for group in groups for key in keys]
+            detected, latency = detected.T.ravel(), latency.T.ravel()
+        per_scheme[scheme] = pd.DataFrame({"key": keys, "detected": detected.astype(bool),
+                                           "latency": latency}
                                           ).drop_duplicates("key").set_index("key")
 
     rows = []
@@ -117,5 +154,9 @@ def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
     table = pd.DataFrame(rows)
     channels = pd.concat({scheme: frame for scheme, frame in per_scheme.items()}, axis=1)
     table.attrs["channels"] = channels
+    table.attrs["detector"] = detector_name
     table.attrs["duration_s"] = _time.perf_counter() - start
     return table
+
+
+DETECTORS["threshold"] = threshold_detector
