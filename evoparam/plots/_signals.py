@@ -3,8 +3,11 @@
 Spec §4.5 keeps the signal plots (``plts/signals.py``) and the summary plots
 (``plts/templates.py``) inside :mod:`evoparam.plots` with a lazy ``matplotlib`` import. They
 follow the conventions of the module: each function returns the ``Figure``, accepts ``ax=``,
-never calls ``show()`` and uses the Okabe and Ito palette. The jitter of the scatter plots
-comes from ``numpy.random.default_rng(random_state)`` (spec §9.4), not from the global state.
+never calls ``show()`` and uses the Okabe and Ito palette. The numbers they draw come from
+:mod:`evoparam.stats.waveforms` (REQ-349): the average and its band from
+:func:`~evoparam.stats.waveform_band`, the jitter of the scatter plots from
+:func:`~evoparam.stats.strip_jitter` (``numpy.random.default_rng(random_state)``, spec §9.4,
+not the global state).
 """
 
 from itertools import cycle
@@ -12,20 +15,11 @@ from itertools import cycle
 import numpy as np
 
 from evoparam.errors import SettingsError
+from evoparam.stats import strip_jitter, waveform_band
 
 from ._plots import PALETTE, _figure_ax
 
 __all__ = []
-
-_AVERAGES = {"mean": np.mean, "median": np.median}
-
-
-def _sem(values, axis=0):
-    values = np.asarray(values, dtype=float)
-    return np.std(values, axis=axis, ddof=1) / np.sqrt(values.shape[axis])
-
-
-_SHADES = {"std": np.std, "sem": _sem}
 
 
 def _style(ax, xlabel="Time (s)", ylabel="Amplitude"):
@@ -142,20 +136,7 @@ def plot_signals_yshade(times, signals, *, shade="std", average="mean", scale=1.
     matplotlib.figure.Figure
     """
 
-    signals = np.asarray(signals, dtype=float)
-    if (isinstance(shade, str) or callable(shade)) and signals.ndim != 2:
-        raise SettingsError("signals must be 2-D when shade is not given as an array.")
-    if signals.ndim == 2:
-        mean = _AVERAGES[average](signals, axis=0) if isinstance(average, str) \
-            else np.asarray(average(signals))
-    else:
-        mean = signals
-    if isinstance(shade, str):
-        half = scale * _SHADES[shade](signals, axis=0)
-    elif callable(shade):
-        half = scale * np.asarray(shade(signals))
-    else:
-        half = scale * np.asarray(shade, dtype=float)
+    mean, half = waveform_band(signals, spread=shade, average=average, scale=scale)
     color = color or PALETTE[0]
     fig, ax = _figure_ax(ax)
     ax.plot(times, mean, linewidth=2.0, color=color, label=label)
@@ -194,10 +175,13 @@ def plot_scatter_1(data, label=None, title=None, *, x_val=0, ax=None, random_sta
     """
 
     data = np.asarray(data, dtype=float)
-    rng = np.random.default_rng(random_state)
+    positions = strip_jitter(data.shape, x=x_val, random_state=random_state)
+    return _strip(data, positions, label, title, x_val, ax)
+
+
+def _strip(data, positions, label, title, x_val, ax):
     fig, ax = _figure_ax(ax, figsize=(3.0, 3.5))
-    jitter = x_val + rng.normal(0.0, 0.025, data.shape)
-    ax.scatter(jitter, data, s=36, alpha=_alpha(data.size), color=PALETTE[0])
+    ax.scatter(positions, data, s=36, alpha=_alpha(data.size), color=PALETTE[0])
     if label:
         ax.set_ylabel(label)
         ax.set(xticks=[x_val], xticklabels=[label])
@@ -215,11 +199,14 @@ def plot_scatter_2(data_0, label_0, data_1, label_1, title=None, *, ax=None, ran
     matplotlib.figure.Figure
     """
 
-    rng = np.random.default_rng(random_state)
+    data_0 = np.asarray(data_0, dtype=float)
+    data_1 = np.asarray(data_1, dtype=float)
+    # one stream for both strips (the second continues the first), as with one Generator
+    both = strip_jitter(data_0.size + data_1.size, random_state=random_state)
     fig, ax = _figure_ax(ax, figsize=(4.0, 3.5))
     other = ax.twinx()
-    plot_scatter_1(data_0, label_0, ax=ax, random_state=rng)
-    plot_scatter_1(data_1, label_1, x_val=1, ax=other, random_state=rng)
+    _strip(data_0, both[:data_0.size].reshape(data_0.shape), label_0, None, 0, ax)
+    _strip(data_1, 1 + both[data_0.size:].reshape(data_1.shape), label_1, None, 1, other)
     for collection in other.collections:
         collection.set_color(PALETTE[1])
     if title:

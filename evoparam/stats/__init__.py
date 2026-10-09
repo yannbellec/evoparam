@@ -15,6 +15,8 @@
 - :func:`to_long`, :func:`column_dictionary`, :func:`mixed_formula`, :func:`fit_mixed`,
   :func:`group_summary`: tidy exports, model formulas for statsmodels, lme4 and brms, and
   summaries that count every fit status.
+- :func:`waveform_band`, :func:`strip_jitter`: the average of a set of waveforms with its
+  spread band, and the positions of a strip plot (the numbers of the signal plots).
 
 Everything runs on numpy and scipy (tables need pandas); only :func:`fit_mixed` needs the
 extra ``stats`` (statsmodels).
@@ -29,6 +31,7 @@ from .jackknife import JACKKNIFE_COLUMNS, jackknife_f, jackknife_latency, jackkn
 from .reliability import (RELIABILITY_COLUMNS, TRIALS_NEEDED_COLUMNS, dependability,
                           reliability, spearman_brown, trials_needed)
 from .variance import VarianceResult, reml, variance_components
+from .waveforms import strip_jitter, waveform_band
 
 __all__ = ["bootstrap", "bootstrap_interval", "jackknife_latency", "jackknife_t",
            "jackknife_f", "compare_conditions", "hedges_g", "reliability", "trials_needed",
@@ -36,4 +39,4 @@ __all__ = ["bootstrap", "bootstrap_interval", "jackknife_latency", "jackknife_t"
            "to_long", "column_dictionary", "mixed_formula", "fit_mixed", "group_summary",
            "score_waveforms", "SCORES", "UNITS", "PARAMETERS", "LONG_COLUMNS",
            "BOOTSTRAP_COLUMNS", "COMPARE_COLUMNS", "JACKKNIFE_COLUMNS", "RELIABILITY_COLUMNS",
-           "TRIALS_NEEDED_COLUMNS"]
+           "TRIALS_NEEDED_COLUMNS", "waveform_band", "strip_jitter"]
