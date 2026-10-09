@@ -365,3 +365,16 @@ def test_req116_bootstrap_profile_coverage_as_written(method, rho):
     lat, amp, runs = req116_coverage(method, rho, 200)
     assert 0.92 <= lat <= 0.97 and 0.92 <= amp <= 0.97, (lat, amp, runs)
 
+
+def test_req107_neff_as_written():
+    """AR(1) rho = 0.9 noise windows: false components in <= 5 % with the n_eff correction of
+    spec §5.5.3 (noise_model="neff") and with the default AR whitening, >= 30 % when n_eff is
+    replaced by n (noise_model="white")."""
+
+    rates = {}
+    for kind in ("neff", "ar", "white"):
+        rates[kind] = np.mean([model(noise_model=kind).fit_waveform(
+            TIMES, noise(np.random.default_rng(11_000 + i), 0.9)).status == "ok"
+            for i in range(PER_CONDITION)])
+    assert rates["neff"] <= 0.05 and rates["ar"] <= 0.05, rates
+    assert rates["white"] >= 0.30, rates

@@ -69,6 +69,23 @@ def test_req119_reproducible_with_parallel_jobs():
     assert all(t.equals(tables[0]) for t in tables)
 
 
+def test_neff_noise_model_is_available():
+    """F64: the noise model of spec §5.5.3 step 1 (residuals over sigma_n, the AR(1)
+    effective count n_eff in the criterion and the covariance) is selectable and named in the
+    methods text."""
+
+    rng = np.random.default_rng(5)
+    y = gauss(0.2, -8, 0.04) + noise(rng, 0.9)
+    spec = model(noise_model="neff").fit_waveform(TIMES, y)
+    rho = spec.diagnostics["rho"]
+    n = int(np.sum((TIMES >= WINDOW[0]) & (TIMES <= WINDOW[1])))
+    assert spec.diagnostics["n_white"] == pytest.approx(n * (1 - rho) / (1 + rho))
+    assert spec.gof.n_eff == pytest.approx(n * (1 - rho) / (1 + rho))
+    assert "n_eff correction" in methods_text(spec)
+    with pytest.raises(SettingsError):
+        model(noise_model="nope").fit_waveform(TIMES, y)
+
+
 def test_req123_methods_text():
 
     fit_ = fit_response(TIMES, gauss(0.2, -8, 0.04) + noise(np.random.default_rng(1)),

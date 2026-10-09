@@ -4,7 +4,7 @@
 
 ### Fitting engine as written, and the N1 case as written
 
-Audit items F1, F2, F9, F24-F31, F50, F65, Q1, Q2 and owner decisions D8, D14
+Audit items F1, F2, F9, F24-F31, F50, F64, F65, Q1, Q2 and owner decisions D8, D14
 (`etapes/ecarts-spec.md`). Every REQ test below follows the REQ text (data, counts,
 tolerances); the ones not met stay as xfails that state the measured value.
 
@@ -79,6 +79,10 @@ tolerances); the ones not met stay as xfails that state the measured value.
   0.40/0.33 on 5 development runs, the same time on ds004080 (414 s against 416 s,
   interleaved) and on `fit_group` of the REQ-115 design (85 s against 83 s), 0.92 s against
   0.75 s per single waveform (5 waveforms).
+- Noise model of step 1 (F64). `noise_model="neff"`: residuals scaled by sigma_n (no AR
+  whitening) and n_eff = n (1 - rho) / (1 + rho) in the criterion and the covariance;
+  named in the methods text. REQ-107 as written: <= 5 % false components on AR(1)
+  rho = 0.9 noise with "neff" and with the default "ar", >= 30 % with "white" (met).
 - Soft priors (Q1), measured against the spec procedure (no priors: background_prior = 0,
   amplitude_prior = 0, no edge limit, no background time-constant limit): kept.
   Layer-2 grid (40 cells of the weekly design, 5 replicates): F1 0.760 with against 0.743

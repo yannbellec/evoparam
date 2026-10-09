@@ -248,8 +248,11 @@ def _fit(settings):
                  f"the best).")
     else:
         noise = settings.get("noise_model", "ar")
-        how = ("residuals whitened by an autoregressive model of the baseline noise"
-               if noise == "ar" else "residuals scaled by the baseline noise (white noise)")
+        how = {"ar": "residuals whitened by an autoregressive model of the baseline noise",
+               "neff": "residuals scaled by the baseline noise with the effective sample "
+                       "count of an AR(1) noise, n_eff = n (1 - rho)/(1 + rho) (n_eff "
+                       "correction)"}.get(noise, "residuals scaled by the baseline noise "
+                                                 "(white noise)")
         text += (f" Components were added one at a time and kept when the {crit} decreased "
                  f"by at least {_num(settings.get('delta'))}, computed on {how}.")
     level = settings.get("ci_level", 0.95)

@@ -674,6 +674,11 @@ def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select
     n_valid = int(valid.sum())
     n_eff = n_valid * (1 - rho) / (1 + rho)
     n_white = white.n
+    if settings.noise_model == "neff":
+        # spec §5.5.3 step 1 to the letter: residuals scaled by sigma_n, not whitened, and
+        # the AR(1) effective count n_eff = n_W (1 - rho) / (1 + rho) in every criterion
+        # and in the covariance
+        n_white = n_eff
     out.update(n_eff=n_eff, n_white=n_white, ar_order=len(a_coefs) - 1)
     kind = "aicc" if settings.selection == "aicc" else "bic"
     bg_fields = {f.name for f in dataclasses.fields(type(get_background(settings.background)))}

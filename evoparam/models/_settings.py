@@ -12,8 +12,9 @@ LOSSES = ("linear", "soft_l1", "huber", "cauchy")
 UNCERTAINTIES = ("jacobian", "profile", "bootstrap", "posterior")
 POLARITIES = ("both", "negative", "positive")
 # "ar": residuals whitened by an AR model of the baseline (default, measured better: K1);
+# "neff": spec §5.5.3 step 1 (residuals over sigma_n, n_eff = n (1 - rho) / (1 + rho));
 # "white": residuals over sigma_n with the raw sample count n
-NOISE_MODELS = ("ar", "white")
+NOISE_MODELS = ("ar", "neff", "white")
 # "parameterised": latencies ordered inside every optimisation, mu_{k+1} = mu_k + exp(v_k)
 # (spec §5.5.3 step 5); "sorted": free latencies, components sorted after each step
 LATENCY_ORDERS = ("parameterised", "sorted")
