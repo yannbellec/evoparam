@@ -14,7 +14,7 @@ from evoparam.models.component_shapes import (FWHM_PER_SIGMA, Template, compute_
 from evoparam.utils._optional import require
 from evoparam.version import __version__
 
-from ._model import ChannelTemplate, fit_trial
+from ._model import ChannelTemplate, fit_trial, fit_trials_batch
 
 __all__ = ["fit_trials", "TrialFitSet", "jitter", "realign", "dose_response",
            "prestimulus_dependence", "MODES"]
@@ -24,6 +24,9 @@ SCALP_PRESETS = ("erp", "p300_bci", "tep", "sep")
 JITTER_REFUSE = 1.2
 NULL_REPEATS = 5
 RIDGE_GRID = (0.0, 0.01, 0.1, 1.0, 10.0)
+RIDGE_CV = ("loto", "split")
+NULL_RULES = ("segments", "spec")
+TRIAL_MODELS = ("all", "anchored", "selected")
 MODALITY_PRESETS = {"spes": "ccep", "erp": "erp", "tep": "tep", "erna": "erna", "sep": "sep",
                     "ecap": "ecap", "lfp_ep": "rodent_ep"}
 
@@ -98,7 +101,7 @@ def _amplitude_of(comp):
     return 0.5 * (ci["A"][0] + ci["A"][1]) if "A" in ci else comp.amplitude
 
 
-def _template_for(fit, picks, times, max_shift, factor):
+def _template_for(fit, picks, times, max_shift, factor, moving=None):
     """Channel template restricted to the chosen components."""
 
     settings = fit.settings
@@ -119,7 +122,10 @@ def _template_for(fit, picks, times, max_shift, factor):
     # A trial's component must not reach its neighbour: at most half the distance
     lats = [fit.components[k].latency for k in picks]
     for i in range(len(picks)):
-        gaps = [abs(lats[i] - lats[j]) for j in range(len(picks)) if j != i]
+        if moving is not None and i not in moving:
+            continue
+        gaps = [abs(lats[i] - lats[j]) for j in range(len(picks))
+                if j != i and (moving is None or j in moving)]
         if gaps and shifts[i] > 0.5 * min(gaps):
             _warn(f"max_shift of component {picks[i]} clipped to half the distance to "
                   "its neighbour.", UserWarning, stacklevel=3)
@@ -156,12 +162,15 @@ def _template_mode(template, fit, average, times, picks):
     return dataclasses.replace(template, shapes=shapes, params=params, loc_index=locs)
 
 
-def _fit_all(template, data, valid, mode, ridge, support=None):
+def _fit_all(template, data, valid, mode, ridge, support=None, movable=None):
+    if mode == "shift_scale" and not ridge:
+        # every trial at once (the same model, a vectorised solver)
+        return fit_trials_batch(template, data, valid=valid, support=support, movable=movable)
     return [fit_trial(template, data[i], mode=mode, ridge=ridge, valid=valid[i],
-                      support=support) for i in range(len(data))]
+                      support=support, movable=movable) for i in range(len(data))]
 
 
-def _choose_ridge(template, data, valid):
+def _choose_ridge(template, data, valid, movable=None):
     """Penalty chosen by split-sample prediction error: fit on even samples, score on odd."""
 
     even = np.zeros(data.shape[1], bool)
@@ -171,7 +180,7 @@ def _choose_ridge(template, data, valid):
         err = 0.0
         for i in range(len(data)):
             res = fit_trial(template, data[i], mode="regularized", ridge=lam,
-                            valid=valid[i] & even, tol=1e-6)
+                            valid=valid[i] & even, tol=1e-6, movable=movable)
             odd = valid[i] & ~even
             err += np.sum((data[i][odd] - res["fitted"][odd]) ** 2)
         if err < best_err:
@@ -179,8 +188,39 @@ def _choose_ridge(template, data, valid):
     return best
 
 
+def _choose_ridge_loto(template, data, valid, movable=None):
+    """Penalty chosen by leave-one-trial-out prediction error (spec §5.7): for each trial,
+    the centre of the penalty is the channel model refitted to the average of the *other*
+    trials (``free`` fit of the channel components, warm-started at the channel values);
+    the trial is fitted with each penalty towards that centre and scored on its own samples
+    that the fit did not see (even samples to fit, odd to score: a penalised fit scored on
+    the samples it was fitted to always prefers no penalty)."""
+
+    n = len(data)
+    if n < 3:
+        return _choose_ridge(template, data, valid, movable)
+    even = np.zeros(data.shape[1], bool)
+    even[::2] = True
+    total = np.where(valid, data, 0.0).sum(axis=0)
+    count = valid.sum(axis=0)
+    errors = np.zeros(len(RIDGE_GRID))
+    for i in range(n):
+        others = count - valid[i]
+        average = (total - np.where(valid[i], data[i], 0.0)) / np.maximum(others, 1)
+        centre = fit_trial(template, average, mode="free", valid=others > 0, tol=1e-6,
+                           movable=movable)
+        loo = dataclasses.replace(template, params=[np.asarray(p, float)
+                                                    for p in centre["params"]])
+        odd = valid[i] & ~even
+        for j, lam in enumerate(RIDGE_GRID):
+            res = fit_trial(loo, data[i], mode="regularized", ridge=lam, valid=valid[i] & even,
+                            tol=1e-6, movable=movable)
+            errors[j] += np.sum((data[i][odd] - res["fitted"][odd]) ** 2)
+    return RIDGE_GRID[int(np.argmin(errors))]
+
+
 def _null_jitter(template, fit, trials, times, baseline, picks, support=None, r2_min=0.0,
-                 report=None):
+                 report=None, repeats=NULL_REPEATS):
     """Jitter found by the same procedure on noise only: the channel curve plus each trial's
     baseline segment (no response)."""
 
@@ -189,28 +229,29 @@ def _null_jitter(template, fit, trials, times, baseline, picks, support=None, r2
     n_win = len(tw)
     model = sum(s.evaluate(tw, p) * _amplitude_of(fit.components[k])
                 for s, p, k in zip(template.shapes, template.params, picks))
-    shifts = []
+    segments = []
     for x in trials:
         noise_all = np.nan_to_num(x[base])
         if len(noise_all) < 4:
             return np.full(len(picks), np.nan), 0
         # Several segments of each trial's baseline (circular offsets): the null SD is then
         # estimated from more values than the trial SD it is compared with
-        for offset in np.linspace(0, len(noise_all), NULL_REPEATS, endpoint=False).astype(int):
+        for offset in np.linspace(0, len(noise_all), repeats, endpoint=False).astype(int):
             idx = (offset + np.arange(n_win)) % len(noise_all)
-            noise = noise_all[idx] - noise_all.mean()
-            # only the reported components move: the others stay at their channel values
-            res = fit_trial(template, model + noise, mode="shift_scale", tol=1e-6,
-                            support=support, movable=report)
-            bound = res["at_bound_k"][report].any() if report is not None else res["at_bound"]
-            # the same trust rule as the real trials, so that both SDs describe the same set
-            if res["converged"] and not bound and \
-                    np.nan_to_num(res["r2"], nan=-1) >= r2_min:
-                shifts.append(res["shift"])
+            segments.append(model + noise_all[idx] - noise_all.mean())
+    # only the reported components move: the others stay at their channel values
+    results = fit_trials_batch(template, np.array(segments), tol=1e-6, support=support,
+                               movable=report)
+    shifts = []
+    for res in results:
+        bound = res["at_bound_k"][report].any() if report is not None else res["at_bound"]
+        # the same trust rule as the real trials, so that both SDs describe the same set
+        if res["converged"] and not bound and np.nan_to_num(res["r2"], nan=-1) >= r2_min:
+            shifts.append(res["shift"])
     if len(shifts) < 3:
         return np.full(len(picks), np.nan), 0
     # Repeats from one trial's baseline are not independent: count trials, not repeats
-    return np.nanstd(np.array(shifts), axis=0, ddof=1), int(np.ceil(len(shifts) / NULL_REPEATS))
+    return np.nanstd(np.array(shifts), axis=0, ddof=1), int(np.ceil(len(shifts) / repeats))
 
 
 def _prestim(trials, times, band, window):
@@ -231,16 +272,24 @@ def _prestim(trials, times, band, window):
     sos = butter(4, band, btype="bandpass", fs=sfreq, output="sos")
     phase2 = np.angle(hilbert(sosfiltfilt(sos, mirrored, axis=-1), axis=-1))[:, seg.shape[1] - 1]
     # Autoregressive forward prediction of the filtered signal, one cycle past the end
-    phase3 = []
-    for row in causal:
-        p = 8
-        lagged = np.column_stack([row[p - j - 1:len(row) - j - 1] for j in range(p)])
-        coef, *_ = np.linalg.lstsq(lagged, row[p:], rcond=None)
-        ext = list(row)
-        for _ in range(int(sfreq / band[0])):
-            ext.append(np.dot(coef, ext[-1:-p - 1:-1]))
-        phase3.append(np.angle(hilbert(np.array(ext)))[len(row) - 1])
-    phases = np.column_stack([phase1, phase2, np.array(phase3)])
+    # (order 8, least squares; all trials at once)
+    order = 8
+    n_seg = causal.shape[1]
+    lagged = np.stack([causal[:, order - j - 1:n_seg - j - 1] for j in range(order)], axis=-1)
+    q, r = np.linalg.qr(lagged)
+    rhs = np.matmul(np.swapaxes(q, 1, 2), causal[:, order:, None])
+    try:
+        coef = np.linalg.solve(r, rhs)[..., 0]
+    except np.linalg.LinAlgError:
+        coef = np.array([np.linalg.lstsq(lagged[i], causal[i, order:], rcond=None)[0]
+                         for i in range(len(causal))])
+    n_ahead = int(sfreq / band[0])
+    ext = np.concatenate([causal, np.zeros((len(causal), n_ahead))], axis=1)
+    for step in range(n_ahead):
+        pos = n_seg + step
+        ext[:, pos] = np.sum(coef * ext[:, pos - 1:pos - order - 1:-1], axis=1)
+    phase3 = np.angle(hilbert(ext, axis=-1))[:, n_seg - 1]
+    phases = np.column_stack([phase1, phase2, phase3])
     resultant = np.abs(np.mean(np.exp(1j * phases), axis=1))
     circ_sd = np.sqrt(-2 * np.log(np.clip(resultant, 1e-12, 1)))
     phase = np.angle(np.mean(np.exp(1j * phases), axis=1))
@@ -254,7 +303,8 @@ def _prestim(trials, times, band, window):
 def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_shift="auto",
                stretch=False, r2_min=0.2, realign=False, realign_on=None, covariates=(),
                prestim_band=(8.0, 13.0), prestim_window=(-0.5, -0.01), by=("stim_site",),
-               preset=None, n_jobs=1, random_state=None, verbose=None):
+               preset=None, trial_model="anchored", null_rule="segments", ridge_cv="loto",
+               n_jobs=1, random_state=None, verbose=None):
     """Latency, amplitude (and in the free modes, width) of each component in every trial.
 
     The channel fit (``group_fit``, or ``evoparam.models.fit`` of the trial average with
@@ -267,14 +317,30 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
     - ``"free"``: every parameter within +/-25 % of the channel value;
     - ``"template"``: the component's own segment of the channel average as template;
     - ``"regularized"``: ``"free"`` with a ridge penalty towards the channel values, the
-      penalty chosen by split-sample prediction error (even samples to fit, odd to score;
-      the specification's leave-one-trial-out would refit the channel model per trial).
+      penalty chosen by prediction error (``ridge_cv``): ``"loto"`` (default),
+      leave-one-trial-out (spec §5.7: the centre of the penalty is the channel model
+      refitted without the trial, and the trial is scored on samples its fit did not see),
+      or ``"split"``, split samples (even samples to fit, odd to score, towards the channel
+      model of all trials).
+
+    ``trial_model``: ``"anchored"`` (default) keeps every component of the channel in the
+    trial model but only those of ``components`` move (the others keep their channel latency
+    and shape; their amplitude is fitted), so ``max_shift`` is clipped against moving
+    neighbours only; ``"all"`` lets every component move, each with its own shift;
+    ``"selected"`` (spec) puts only the components of ``components`` in the model. Only the
+    components of ``components`` are reported. ``null_rule``: ``"segments"`` (default) estimates
+    ``jitter_sd_null`` from five baseline segments per trial and refuses realignment unless
+    ``jitter_sd`` exceeds both 1.2 x ``jitter_sd_null`` and the 95 % quantile of the ratio of
+    two noise SDs (F distribution); ``"spec"`` uses one baseline segment per trial and the
+    1.2 x rule alone (spec §5.7). The measurements behind the defaults are in the CHANGELOG.
 
     A trial is ``converged`` when the optimiser ends normally with finite numbers, and
     ``trusted`` when also its r² >= ``r2_min`` and its shift is not at a bound; untrusted
     trials keep their numbers. ``jitter_sd`` (SD of the shifts over trusted trials) is
     reported with ``jitter_sd_null``, the same procedure on the baseline noise added to the
-    channel curve; realignment is refused (warning) when ``jitter_sd <= 1.2 jitter_sd_null``.
+    channel curve; realignment is refused (warning) under the rule of ``null_rule``. In
+    ``shift_scale`` mode the trials of a channel are solved together (one vectorised
+    Levenberg-Marquardt iteration for the same model and bounds).
 
     Covariates: ``"trend"`` (amplitude against the position in the train), ``"dose"``
     (against ``stim_current_mA``, see :func:`dose_response`), ``"prestim"`` (pre-stimulus
@@ -291,6 +357,11 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
         raise DataError("fit_trials expects a TrialSet.")
     if mode not in MODES:
         raise SettingsError(f"mode must be one of {MODES}, not {mode!r}.")
+    for name, value, allowed in (("trial_model", trial_model, TRIAL_MODELS),
+                                 ("null_rule", null_rule, NULL_RULES),
+                                 ("ridge_cv", ridge_cv, RIDGE_CV)):
+        if value not in allowed:
+            raise SettingsError(f"{name} must be one of {allowed}, not {value!r}.")
     unknown = set(covariates) - {"trend", "dose", "prestim"}
     if unknown:
         raise SettingsError(f"Unknown covariates {sorted(unknown)}.")
@@ -337,13 +408,19 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
                 if not picks:
                     skipped.append(name)
                     continue
-            every = list(range(len(fit.components)))
+            # trial_model "anchored" and "all": the trial model keeps every component of the
+            # channel (a complete model) and only the chosen ones are reported; "selected"
+            # (spec): the model has the chosen components only
+            every = list(range(len(fit.components))) if trial_model != "selected" \
+                else list(picks)
+            report = [every.index(k) for k in picks]
+            # "anchored": the other components stay at their channel latency (scale only),
+            # so max_shift is clipped against the moving components only
+            movable = report if trial_model == "anchored" else None
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore" if verbose is False else "default")
-                # The trial model keeps every component of the channel (a complete model);
-                # only the chosen ones are reported
-                template = _template_for(fit, every, ts.times, max_shift, factor)
-            report = [every.index(k) for k in picks]
+                template = _template_for(fit, every, ts.times, max_shift, factor,
+                                         moving=movable)
             support = np.zeros(len(template.tw), bool)
             for k in picks:
                 comp = fit.components[k]
@@ -360,9 +437,13 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
                 fit_mode = "free"
             else:
                 fit_mode = "free" if mode == "free" else mode
-            ridge = _choose_ridge(template, x, valid) if mode == "regularized" else 0.0
+            ridge = 0.0
+            if mode == "regularized":
+                choose = _choose_ridge if ridge_cv == "split" else _choose_ridge_loto
+                ridge = choose(template, x, valid, movable)
             results = _fit_all(template, x, valid,
-                               "shift_scale" if mode == "template" else fit_mode, ridge, support)
+                               "shift_scale" if mode == "template" else fit_mode, ridge, support,
+                               movable=movable)
 
             shift = np.array([r["shift"] for r in results])[:, report]
             scale = np.array([r["scale"] for r in results])[:, report]
@@ -391,7 +472,8 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
                 good = trusted
                 jit[k] = float(np.std(shift[good, j], ddof=1)) if good.sum() >= 3 else np.nan
             null, n_null = _null_jitter(channel_template, fit, sub[:, ch], ts.times, baseline,
-                                        every, support, r2_min, report)
+                                        every, support, r2_min, report,
+                                        repeats=NULL_REPEATS if null_rule == "segments" else 1)
             null = null[report]
             jit_null = {k: float(null[j]) for j, k in enumerate(picks)}
             corrected = {}
@@ -414,7 +496,7 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
                 from scipy.stats import f as f_dist
                 n_t = int(trusted.sum())
                 limit = JITTER_REFUSE
-                if n_t > 2 and n_null > 2:
+                if null_rule == "segments" and n_t > 2 and n_null > 2:
                     limit = max(limit, float(np.sqrt(f_dist.ppf(0.95, n_t - 1, n_null - 1))))
                 if not jit[target] > limit * jit_null[target]:
                     _warn(f"{name}: jitter {jit[target]:.4f} s is not above "
@@ -462,6 +544,7 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
     if "dose" in covariates and len(table):
         covariate_tables["dose"] = dose_response(table)
     settings = {"mode": mode, "max_shift": max_shift, "r2_min": r2_min, "by": list(by or ()),
+                "trial_model": trial_model, "null_rule": null_rule, "ridge_cv": ridge_cv,
                 "covariates": list(covariates), "package_version": __version__,
                 "covariate_tables": {k: v.to_dict("list") for k, v in covariate_tables.items()}}
     provenance = ts.provenance.with_step("evoparam.trials.fit_trials",
@@ -541,6 +624,12 @@ def realign(ts, trial_fit, component=0):
 
 
 def _trend(table):
+    """Amplitude scale against the position in the train, per channel, condition and
+    component: ``a_i = a (1 + c i)`` by least squares over trusted trials. ``slope`` is ``c``
+    (relative change per pulse), ``p_value`` the two-sided t test of the slope."""
+
+    from scipy.stats import t as t_dist
+
     pd = require("pandas", extra="data", caller="evoparam.trials")
     order_col = "index_in_train" if "index_in_train" in table.columns else "trial"
     rows = []
@@ -550,10 +639,20 @@ def _trend(table):
             continue
         x = g[order_col].to_numpy(float)
         y = g["scale"].to_numpy(float)
-        slope, intercept = np.polyfit(x - x.min(), y, 1)
+        x = x - x.min()
+        slope, intercept = np.polyfit(x, y, 1)
+        resid = y - (intercept + slope * x)
+        sxx = np.sum((x - x.mean()) ** 2)
+        dof = len(y) - 2
+        if sxx > 0 and dof > 0:
+            se = np.sqrt(np.sum(resid ** 2) / dof / sxx)
+            p_value = float(2 * t_dist.sf(abs(slope) / se, dof)) if se > 0 else 0.0
+        else:
+            p_value = np.nan
         rows.append({"channel": ch, "condition": cond, "component": k,
                      "slope": slope / intercept if intercept else np.nan,
-                     "intercept": intercept, "x": order_col})
+                     "intercept": intercept, "p_value": p_value, "n_trials": len(y),
+                     "x": order_col})
     return pd.DataFrame(rows)
 
 
