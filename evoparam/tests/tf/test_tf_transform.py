@@ -106,6 +106,28 @@ def test_req211_decomposition_is_exact(transform):
     assert np.max(np.abs(parts[ok] - total[ok]) / np.maximum(np.abs(total[ok]), 1e-300)) <= 1e-9
 
 
+def test_power_maps_and_baseline_normalised_maps_are_both_given():
+    """Owner decision D12: the exact identity holds for power (REQ-211), the maps of §4.3.4
+    are baseline-normalised; both are in TFFit.maps, the normalised ones on the total's
+    baseline (evoked level, dB: 10 log10 of the map over the total's baseline mean)."""
+
+    ts, group = _fitted()
+    tf = tf_fit(ts, freqs=(4, 250, 20), group_fit=group, zones="none", stats="none",
+                baseline_level="evoked", baseline_mode="db")
+    for key in ("total", "evoked_footprint", "residual", "cross", "total_norm",
+                "footprint_norm", "residual_norm"):
+        assert key in tf.maps and tf.maps[key].shape == tf.maps["total"].shape
+    base = (tf.times >= -0.5) & (tf.times <= -0.1)
+    ref = np.nanmean(tf.maps["total"][0][:, base], axis=1)[:, None]
+    ok = np.isfinite(tf.maps["total_norm"][0])
+    assert ok.any()
+    expected = 10 * np.log10(tf.maps["total"][0] / ref)
+    assert np.allclose(tf.maps["total_norm"][0][ok], expected[ok], rtol=1e-9)
+    expected = 10 * np.log10(tf.maps["evoked_footprint"][0] / ref)
+    fp = np.isfinite(tf.maps["footprint_norm"][0])
+    assert np.allclose(tf.maps["footprint_norm"][0][fp], expected[fp], rtol=1e-9)
+
+
 def test_masked_samples_never_reach_valid_pixels():
 
     rng = np.random.default_rng(1)

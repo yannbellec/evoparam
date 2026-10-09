@@ -161,3 +161,47 @@ def test_zone_metrics_export_to_the_long_format():
     assert set(values["unit"]) == {"dB"}
     assert {"channel", "condition", "trial", "zone_id"} <= set(table.columns)
     assert len(values) == 31 * len(tf.zones)
+
+
+def _blob(freq_index, time_index, shape=(16, 60)):
+    f = np.exp(-0.5 * ((np.arange(shape[0]) - freq_index) / 1.5) ** 2)
+    t = np.exp(-0.5 * ((np.arange(shape[1]) - time_index) / 4.0) ** 2)
+    return np.outer(f, t)
+
+
+def test_cp_rank_is_chosen_on_split_halves():
+    """Spec §5.10 method 5: the CP rank by split-half stability, on halves of each row's
+    trials (default) or of the rows (channels x conditions, the sample mode of the
+    tensor). Two parts present in eight rows with
+    their own weights give rank 2 on halves of the trials and of the rows; the rule of the
+    first version (restarts) stays available."""
+
+    from evoparam.tf.zones import cp_split_values, select_rank
+
+    rng = np.random.default_rng(0)
+    a, b = _blob(3, 15), _blob(11, 40)
+    weights = rng.uniform(0.5, 1.5, (2, 8))
+    tensor = a[..., None] * weights[0] + b[..., None] * weights[1]
+    group = tensor.mean(axis=-1)
+    rank, stability = select_rank(group, None, 4, np.random.default_rng(1), method="cp",
+                                  tensor=tensor)
+    assert rank == 2 and stability[2] >= 0.8
+    values = cp_split_values(tensor, None, 2, np.random.default_rng(2))
+    assert len(values) == 20 and np.mean(values) >= 0.8
+    # trial halves of every row (the default when the TFFit holds them)
+    noisy = [tensor * rng.uniform(0.8, 1.2, tensor.shape) for _ in range(40)]
+    row_halves = np.stack(noisy).reshape(20, 2, *tensor.shape)
+    rank_t, stability_t = select_rank(group, None, 4, np.random.default_rng(1), method="cp",
+                                      tensor=tensor, row_halves=row_halves)
+    assert rank_t == 2 and stability_t[2] >= 0.8
+    rank_r, _ = select_rank(group, None, 4, np.random.default_rng(1), method="cp",
+                            tensor=tensor, cp_stability="restarts")
+    assert rank_r >= 1
+    # a single row carrying the map: halves of the trials, else restarts
+    single = np.zeros_like(tensor)
+    single[..., 0] = a + b
+    assert cp_split_values(single, None, 2, rng) is None
+    halves = np.stack([np.stack([a + b, a + b])] * 20)
+    assert np.mean(cp_split_values(single, halves, 2, rng)) >= 0.8
+    with pytest.raises(SettingsError, match="cp_stability"):
+        select_rank(group, None, 4, rng, method="cp", tensor=tensor, cp_stability="both")

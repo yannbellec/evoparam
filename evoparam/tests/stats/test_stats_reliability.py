@@ -93,7 +93,7 @@ def test_reliability_errors_and_facets():
     assert spearman_brown(0.5) == pytest.approx(2 / 3)
 
 
-def _req234(score, n_channels=60):
+def _req234(score, n_channels=60, extrapolation="auto"):
     """Predicted SD at 80 trials from the first 20 trials of each of n_channels simulated
     channels, divided by the SD over 300 independent 80-trial sets."""
 
@@ -106,7 +106,7 @@ def _req234(score, n_channels=60):
     for k in range(n_channels):
         first = _subset(ts, np.arange(k * 80, k * 80 + 20))
         table = trials_needed(first, scorer=score, window=window, steps=[5, 10, 15, 20, 80],
-                              n_resamples=400, random_state=k)
+                              n_resamples=400, random_state=k, extrapolation=extrapolation)
         row = table[table["n_trials"] == 80]
         assert row["extrapolated"].iloc[0]
         ratios.append(row["sd"].iloc[0] / true)
@@ -124,15 +124,44 @@ def test_req234_sd_at_80_trials(score):
     assert np.mean(np.abs(ratios - 1) <= 0.15) >= 0.5
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-234 for latency scores: the 1/sqrt(n) law "
-                   "underestimates the SD at 80 trials from 20 (median ratio about 0.77 for "
-                   "the fractional area latency and 0.70 for the peak latency at per-trial "
-                   "SNR 1): the latency of a noisy average improves faster than 1/sqrt(n)")
-@pytest.mark.parametrize("score", ["fractional_area_latency", "peak_latency"])
+@pytest.mark.parametrize("score", [
+    "peak_latency",
+    pytest.param("fractional_area_latency", marks=pytest.mark.xfail(
+        strict=False, reason="REQ-234 for the 50 % fractional area latency: median ratio "
+        "0.795 with the power law of extrapolation='auto' (0.773 with the 1/sqrt(n) law "
+        "of the spec); on development seeds the power law gave 0.86 to 1.08: the "
+        "bootstrap of a noisy 20-trial average, whose rectified noise spreads the area "
+        "over the window, under-estimates the spread of the 50 % point")),
+    "fractional_peak_latency", "area"])
 def test_req234_latency_scores(score):
+    """Every parameter, latencies included (the REQ says "the parameter SD"), with the
+    default extrapolation."""
 
     ratios = _req234(score, n_channels=30)
     assert abs(np.median(ratios) - 1) <= 0.15, np.median(ratios)
+
+
+def test_req234_spec_law_stays_available_and_power_law_is_better_for_latencies():
+    """The 1/sqrt(n) law of the spec is extrapolation='sqrt_n'; for the peak latency the
+    power law of 'auto' is closer to the true SD (0.94 against 0.70 at seed 41; 0.84 to
+    1.18 against 0.55 to 0.76 on the development seeds)."""
+
+    spec = _req234("peak_latency", n_channels=30, extrapolation="sqrt_n")
+    auto = _req234("peak_latency", n_channels=30)
+    assert abs(np.median(auto) - 1) < abs(np.median(spec) - 1)
+    # the laws agree on a linear score's resampled counts, and 'auto' keeps 1/sqrt(n) there
+    ts, _ = simulate_erp(20, components=[N1], snr=1.0, noise="pink", sfreq=250., tmin=-0.2,
+                         tmax=0.3, seed=0)
+    kw = dict(window=(0.06, 0.14), steps=[5, 10, 20, 80], n_resamples=100, random_state=0)
+    a = trials_needed(ts, scorer="mean_amplitude", **kw)
+    b = trials_needed(ts, scorer="mean_amplitude", extrapolation="sqrt_n", **kw)
+    assert a["sd"].tolist() == b["sd"].tolist()
+    assert a.attrs["settings"]["extrapolation"] == "sqrt_n"
+    c = trials_needed(ts, scorer="peak_latency", **kw)
+    assert c.attrs["settings"]["extrapolation"] == "power"
+    assert -0.5 <= c.attrs["exponents"]["Cz"] <= 0.0
+    with pytest.raises(SettingsError, match="extrapolation"):
+        trials_needed(ts, scorer="peak_latency", extrapolation="linear", **kw)
 
 
 def test_trials_needed_existence():
