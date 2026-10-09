@@ -533,6 +533,42 @@ class TrialSet(_ContainerMixin):
 
         return trialset_to_mne(self, ch_types=ch_types)
 
+    def to_xarray(self):
+        """``xarray.DataArray`` of the data, dims ``("trial", "channel", "time")`` (extra
+        ``xarray``).
+
+        Coordinates: ``trial`` (0..n-1), ``channel`` (names), ``time`` (s); every metadata
+        column of plain values is a coordinate along ``trial`` and every ``ch_info``
+        column along ``channel``; ``masks`` (when set) is the boolean coordinate ``mask``
+        on all three dims. Attributes: ``sfreq``, ``units``, ``species``, ``modality``.
+        """
+
+        try:
+            import xarray as xr
+        except ImportError as err:
+            raise ImportError("TrialSet.to_xarray needs the extra 'xarray': pip install "
+                              "'evoparam[xarray]'.") from err
+        coords = {"trial": np.arange(self.n_trials), "channel": list(self.ch_names),
+                  "time": np.asarray(self.times, dtype=float)}
+        for table, dim in ((self.metadata, "trial"), (self.ch_info, "channel")):
+            if table is None:
+                continue
+            for column in table.columns:
+                if column in coords or column in ("trial", "channel", "time", "mask"):
+                    continue
+                values = table[column].to_numpy()
+                if values.dtype == object and not all(
+                        isinstance(v, (str, int, float, bool, np.generic)) or v is None
+                        for v in values):
+                    continue
+                coords[str(column)] = (dim, values)
+        if self.masks is not None:
+            coords["mask"] = (("trial", "channel", "time"), np.asarray(self.masks, dtype=bool))
+        attrs = {"sfreq": float(self.sfreq), "units": self.units, "species": self.species,
+                 "modality": self.modality if self.modality is not None else ""}
+        return xr.DataArray(np.asarray(self.data), dims=("trial", "channel", "time"),
+                            coords=coords, attrs=attrs, name="data")
+
     def average(self, by=None, robust=False, chunk=None):
         """Average over trials.
 

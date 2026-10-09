@@ -383,6 +383,13 @@ def sample(engine, level_tables, settings, *, n_chains, n_warmup, n_draws, targe
             for idx in channel.index[rows]:
                 key = (channel.at[idx, "subject"], channel.at[idx, "channel"])
                 channel.at[idx, "p_response"] = resp[eindex[key]] if key in eindex else np.nan
+        # The draws themselves, for HierarchicalFit.to_arviz (chain x draw x site/subject)
+        diag.setdefault("draws", {})[label] = {
+            "sites": [f"{a}/{b}" for a, b in data["keys"]], "subjects": list(subjects),
+            "latency_channel": np.asarray(samples["latency_channel"]) / 1e3,
+            "amplitude_channel": np.asarray(samples["amplitude_channel"]) * A,
+            "latency_subject": np.asarray(samples["latency_subject"]) / 1e3,
+            "amplitude_subject": np.asarray(samples["amplitude_subject"]) * A}
         sl = _summary(samples["latency_subject"] / 1e3)
         sa = _summary(samples["amplitude_subject"] * A)
         for i, name in enumerate(subjects):

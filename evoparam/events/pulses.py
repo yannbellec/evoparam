@@ -9,6 +9,7 @@ from evoparam.utils._optional import require
 
 from ._score import (SCORE_CHANNELS, as_continuous, crossings, difference_score, far_from,
                      pick_index, robust_z, score_index, shifted_snippets, snippet_lengths)
+from . import _spec
 from .saturation import detect_saturation
 from .site import identify_stim_site, vote_sites
 from .trains import group_trains
@@ -16,6 +17,10 @@ from .trains import group_trains
 __all__ = ["detect_pulses", "match_onsets", "estimate_delay", "detect_events", "EVENT_COLUMNS"]
 
 METHODS = ("threshold", "template", "threshold+template")
+
+# Detection procedures: the default one (below), and the specification's methods 1 and 2 as
+# written (evoparam.events._spec).
+PROCEDURES = ("evoparam", "spec")
 
 # Fixed columns of the event table (spec §4.3.4), in order.
 EVENT_COLUMNS = ("onset_sample", "onset_time", "peak_abs", "channel_argmax", "saturated",
@@ -157,7 +162,7 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
                   min_interval=None, expected_rate=None, t0=0.0, picks=None, template=None,
                   rho_min=0.8, n_template=5, min_relative=0.25, recovery_sd=None, refine=True,
                   ch_names=None, ch_info=None, saturation=True, vote=True,
-                  score_channels=SCORE_CHANNELS, return_scores=False,
+                  score_channels=SCORE_CHANNELS, procedure="evoparam", return_scores=False,
                   site_method="evidence", verbose=None):
     """Find stimulation pulses from the artifact they leave in the signal.
 
@@ -244,6 +249,16 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
         Rule of :func:`identify_stim_site`; ``"spec"`` is spec §5.2 method 5 as reviewed.
     saturation : bool, default: True
         Fill ``saturated`` and ``n_saturated_channels`` with :func:`detect_saturation`.
+    procedure : {"evoparam", "spec"}, default: "evoparam"
+        ``"spec"``: steps 1 to 4 are replaced by methods 1 and 2 of the specification as
+        written (:mod:`evoparam.events._spec`: the median over every picked channel; the
+        first crossing after the refractory period; the onset at the largest change within
+        +/-2 ms minus one sample, the last pre-artifact sample; a template from the first
+        ``n_template`` detections scanned by normalised cross-correlation over the whole
+        recording, which rejects threshold detections that do not match it and adds the
+        pulses the threshold missed). ``min_relative``, ``recovery_sd`` and
+        ``score_channels`` are not used. On the 25 runs of OpenNeuro ds004080 it is less
+        accurate than the default (CHANGELOG).
     return_scores : bool, default: False
         Also return the z-score and the per-event correlation.
     verbose : bool, optional
@@ -276,6 +291,8 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
         raise SettingsError("min_relative must be in [0, 1).")
     if not 0 < rho_min <= 1:
         raise SettingsError("rho_min must be in (0, 1].")
+    if procedure not in PROCEDURES:
+        raise SettingsError(f"procedure must be one of {PROCEDURES}, not {procedure!r}.")
     if expected_rate is not None and not expected_rate > 0:
         raise SettingsError("expected_rate must be positive.")
     data = as_continuous(data)
@@ -294,79 +311,85 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
     # Crossings of one artifact are merged, but never across two pulses of a fast train
     merge_s = min(MERGE_WINDOW, min_interval / 2)
 
-    score = difference_score(data, score_index(index, score_channels))
-    z = robust_z(score)
+    if procedure == "spec":
+        score, z, onsets, strength, detector, rho, labels = _spec_candidates(
+            data, sfreq, index, method, threshold_sd, min_samples, refine, template, rho_min,
+            n_template)
+    else:
+        score = difference_score(data, score_index(index, score_channels))
+        z = robust_z(score)
 
-    # Candidates at the detection threshold
-    peaks, strength, firsts = _group_crossings(crossings(z, threshold_sd), z, sfreq, merge_s)
-    onsets = _onsets_from_peaks(peaks, firsts, score, sfreq) if refine else firsts + 1
+        # Candidates at the detection threshold
+        peaks, strength, firsts = _group_crossings(crossings(z, threshold_sd), z, sfreq, merge_s)
+        onsets = _onsets_from_peaks(peaks, firsts, score, sfreq) if refine else firsts + 1
 
-    n_pre, n_post, max_shift = snippet_lengths(sfreq)
-    detector = np.array(["threshold"] * len(onsets), dtype=object)
-    rho = np.ones(len(onsets))
-    labels = np.full(len(onsets), -1)
-
-    user = None
-    if template is not None:
-        user = np.asarray(template, dtype=float).ravel()
-        if user.size != len(index) * (n_pre + n_post):
-            raise SettingsError(f"template must have {len(index) * (n_pre + n_post)} values "
-                                f"({len(index)} channels x {n_pre + n_post} samples).")
-        user = user / np.linalg.norm(user)
-
-    if method != "threshold" and len(onsets):
-        # Strength gate. Strong candidates (>= min_relative of the reference) are pulses;
-        # candidates in the grey zone (>= GREY_FRACTION of the gate) are pulses when they
-        # repeat, that is when another candidate carries the same artifact.
-        reference = np.percentile(strength, 90)
-        relative = strength / reference
-        strong = relative >= min_relative
-        eligible = relative >= GREY_FRACTION * min_relative
-        stacks = shifted_snippets(data, index, onsets, n_pre, n_post, max_shift)
+        n_pre, n_post, max_shift = snippet_lengths(sfreq)
+        detector = np.array(["threshold"] * len(onsets), dtype=object)
+        rho = np.ones(len(onsets))
         labels = np.full(len(onsets), -1)
-        rho = np.zeros(len(onsets))
-        labels[eligible], clusters, rho[eligible] = _cluster(stacks[eligible], rho_min,
-                                                             int(n_template))
-        sizes = np.bincount(labels[eligible], minlength=len(clusters))
-        repeated = eligible & (sizes[np.maximum(labels, 0)] >= 2)
-        confirmed = strong | repeated
-        templates = clusters.reshape(len(clusters), -1)
-        if user is not None:
-            user_rho, _ = _match(stacks, user[np.newaxis])
-            hit = user_rho >= rho_min
-            labels[hit & ~confirmed] = len(templates)
-            confirmed |= hit
-            rho = np.where(hit, np.maximum(rho, user_rho), rho)
-            templates = np.vstack([templates, user])
-        # Only the templates of confirmed pulses are used for recovery
-        good = np.unique(labels[confirmed & (labels >= 0)])
-        relabel = np.full(len(templates), -1)
-        relabel[good] = np.arange(len(good))
-        labels = np.where(labels >= 0, relabel[np.maximum(labels, 0)], -1)
-        templates = templates[good]
-        if method == "template":
-            confirmed[:] = False
-        peaks, strength, onsets = peaks[confirmed], strength[confirmed], onsets[confirmed]
-        detector, rho, labels = detector[confirmed], rho[confirmed], labels[confirmed]
 
-        # Recovery: weaker artifacts that match a template of the confirmed pulses
-        if len(templates):
-            low_peaks, low_strength, low_firsts = _group_crossings(crossings(z, recovery_sd),
-                                                                   z, sfreq, merge_s)
-            low_onsets = (_onsets_from_peaks(low_peaks, low_firsts, score, sfreq) if refine
-                          else low_firsts + 1)
-            new = far_from(low_onsets, np.sort(onsets), min_samples)
-            low_peaks, low_strength, low_onsets = low_peaks[new], low_strength[new], low_onsets[new]
-            low_rho, low_label = _match(
-                shifted_snippets(data, index, low_onsets, n_pre, n_post, max_shift), templates)
-            match = (low_rho >= rho_min) & (low_strength >= RECOVERY_FRACTION * min_relative
-                                             * reference)
-            peaks = np.r_[peaks, low_peaks[match]]
-            strength = np.r_[strength, low_strength[match]]
-            onsets = np.r_[onsets, low_onsets[match]]
-            detector = np.r_[detector, ["template"] * int(match.sum())]
-            rho = np.r_[rho, low_rho[match]]
-            labels = np.r_[labels, low_label[match]]
+        user = None
+        if template is not None:
+            user = np.asarray(template, dtype=float).ravel()
+            if user.size != len(index) * (n_pre + n_post):
+                raise SettingsError(f"template must have {len(index) * (n_pre + n_post)} values "
+                                    f"({len(index)} channels x {n_pre + n_post} samples).")
+            user = user / np.linalg.norm(user)
+
+        if method != "threshold" and len(onsets):
+            # Strength gate. Strong candidates (>= min_relative of the reference) are pulses;
+            # candidates in the grey zone (>= GREY_FRACTION of the gate) are pulses when they
+            # repeat, that is when another candidate carries the same artifact.
+            reference = np.percentile(strength, 90)
+            relative = strength / reference
+            strong = relative >= min_relative
+            eligible = relative >= GREY_FRACTION * min_relative
+            stacks = shifted_snippets(data, index, onsets, n_pre, n_post, max_shift)
+            labels = np.full(len(onsets), -1)
+            rho = np.zeros(len(onsets))
+            labels[eligible], clusters, rho[eligible] = _cluster(stacks[eligible], rho_min,
+                                                                 int(n_template))
+            sizes = np.bincount(labels[eligible], minlength=len(clusters))
+            repeated = eligible & (sizes[np.maximum(labels, 0)] >= 2)
+            confirmed = strong | repeated
+            templates = clusters.reshape(len(clusters), -1)
+            if user is not None:
+                user_rho, _ = _match(stacks, user[np.newaxis])
+                hit = user_rho >= rho_min
+                labels[hit & ~confirmed] = len(templates)
+                confirmed |= hit
+                rho = np.where(hit, np.maximum(rho, user_rho), rho)
+                templates = np.vstack([templates, user])
+            # Only the templates of confirmed pulses are used for recovery
+            good = np.unique(labels[confirmed & (labels >= 0)])
+            relabel = np.full(len(templates), -1)
+            relabel[good] = np.arange(len(good))
+            labels = np.where(labels >= 0, relabel[np.maximum(labels, 0)], -1)
+            templates = templates[good]
+            if method == "template":
+                confirmed[:] = False
+            peaks, strength, onsets = peaks[confirmed], strength[confirmed], onsets[confirmed]
+            detector, rho, labels = detector[confirmed], rho[confirmed], labels[confirmed]
+
+            # Recovery: weaker artifacts that match a template of the confirmed pulses
+            if len(templates):
+                low_peaks, low_strength, low_firsts = _group_crossings(crossings(z, recovery_sd),
+                                                                       z, sfreq, merge_s)
+                low_onsets = (_onsets_from_peaks(low_peaks, low_firsts, score, sfreq) if refine
+                              else low_firsts + 1)
+                new = far_from(low_onsets, np.sort(onsets), min_samples)
+                low_peaks, low_strength = low_peaks[new], low_strength[new]
+                low_onsets = low_onsets[new]
+                low_rho, low_label = _match(
+                    shifted_snippets(data, index, low_onsets, n_pre, n_post, max_shift), templates)
+                match = (low_rho >= rho_min) & (low_strength >= RECOVERY_FRACTION * min_relative
+                                                 * reference)
+                peaks = np.r_[peaks, low_peaks[match]]
+                strength = np.r_[strength, low_strength[match]]
+                onsets = np.r_[onsets, low_onsets[match]]
+                detector = np.r_[detector, ["template"] * int(match.sum())]
+                rho = np.r_[rho, low_rho[match]]
+                labels = np.r_[labels, low_label[match]]
 
     # Refractory period: the strongest pulse wins
     keep = _suppress(onsets, strength, min_samples)
@@ -472,6 +495,58 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
     if return_scores:
         return events, z, events["rho"].to_numpy()
     return events
+
+
+def _spec_candidates(data, sfreq, index, method, threshold_sd, min_samples, refine, template,
+                     rho_min, n_template):
+    """Methods 1 and 2 of the specification as written (``procedure="spec"``)."""
+
+    score = _spec.spec_score(data, index)
+    z = _spec.spec_z(score)
+    onsets, strength = _spec.spec_threshold(score, z, sfreq, threshold_sd, min_samples, refine)
+    detector = np.array(["threshold"] * len(onsets), dtype=object)
+    rho = np.ones(len(onsets))
+    labels = np.full(len(onsets), -1)
+    if method == "threshold":
+        return score, z, onsets, strength, detector, rho, labels
+    if template is not None:
+        n_pre = max(1, int(round(0.001 * sfreq)))
+        shape = np.asarray(template, dtype=float).reshape(len(index), -1)
+        norms = np.linalg.norm(shape, axis=1, keepdims=True)
+        tpl = np.divide(shape, norms, out=np.zeros_like(shape), where=norms > 0)
+    else:
+        tpl, n_pre = _spec.spec_template(data, index, onsets, sfreq, n_template)
+    if tpl is None:
+        empty = np.array([], dtype=int)
+        return (score, z, empty, np.array([]), np.array([], dtype=object), np.array([]),
+                empty)
+    scan = _spec.spec_rho(data, index, tpl)
+    tolerance = max(1, int(round(0.0005 * sfreq)))
+
+    def rho_near(onset):
+        lo, hi = max(0, onset - n_pre - tolerance), min(len(scan), onset - n_pre + tolerance + 1)
+        return float(np.max(scan[lo:hi])) if hi > lo else 0.0
+
+    matched = np.array([rho_near(onset) for onset in onsets])
+    keep = matched >= rho_min
+    if method == "template":
+        keep[:] = False
+    onsets, strength, detector = onsets[keep], strength[keep], detector[keep]
+    rho, labels = matched[keep], np.zeros(int(keep.sum()), dtype=int)
+    half = max(1, int(round(0.002 * sfreq)))
+    peaks = _spec.spec_template_peaks(scan, rho_min, min_samples)
+    found = peaks + n_pre
+    new = far_from(found, np.sort(onsets), min_samples) if len(onsets) else \
+        np.ones(len(found), dtype=bool)
+    found = found[new]
+    found_strength = np.array([float(np.max(z[max(0, f - half):f + half + 1]))
+                               for f in found]) if len(found) else np.array([])
+    onsets = np.r_[onsets, found].astype(int)
+    strength = np.r_[strength, found_strength]
+    detector = np.r_[detector, ["template"] * len(found)]
+    rho = np.r_[rho, scan[peaks[new]]]
+    labels = np.r_[labels, np.zeros(len(found), dtype=int)]
+    return score, z, onsets, strength, detector, rho, labels
 
 
 def match_onsets(detected, reference, tolerance=0.01):

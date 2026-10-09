@@ -13,7 +13,7 @@ N_TAUS = 16
 TAU_RATIO = 3.0
 
 
-def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05)):
+def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05), part="full"):
     """Fit ``r(t) = c0 + c1 exp(-(t - b) / tau1) + c2 exp(-(t - b) / tau2)`` on the tail.
 
     The time constants are chosen on a log grid (``tau2 >= 3 tau1``) and the coefficients
@@ -29,13 +29,17 @@ def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05)):
         Tail duration, in seconds.
     tau_bounds : (float, float)
         Smallest and largest time constant, in seconds.
+    part : {"full", "joined"}
+        Part of the fit returned for subtraction. ``"full"`` (default): ``r(t)`` itself, as
+        the specification writes it (spec §5.3, method 3). ``"joined"``: ``r(t) - r(t_end)``,
+        zero at the end of the tail, so the level the signal settles to (``c0`` plus
+        whatever has not decayed) is kept and the cleaned signal joins the untouched samples
+        after the tail without a step.
 
     Returns
     -------
     tail : array, like ``data`` restricted to the tail samples
-        The decaying part of the fit, ``r(t) - r(t_end)``: zero at the end of the tail, so
-        the level the signal settles to (``c0`` plus whatever has not decayed) is kept and
-        the cleaned signal joins the untouched samples after the tail without a step.
+        The part of the fit to subtract (``part``).
     inds : 1d array
         Indices of the tail samples.
     params : dict
@@ -71,7 +75,12 @@ def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05)):
     tau1, tau2 = best[:, 0], best[:, 1]
     decay = lambda r: (best[:, 3:4] * np.exp(-r / tau1[:, None])
                        + best[:, 4:5] * np.exp(-r / tau2[:, None]))
-    tail = decay(rel[None]) - decay(rel[-1:][None])
+    if part == "full":
+        tail = best[:, 2:3] + decay(rel[None])
+    elif part == "joined":
+        tail = decay(rel[None]) - decay(rel[-1:][None])
+    else:
+        raise SettingsError("part must be 'joined' or 'full'.")
     params = {"tau1": tau1.reshape(shape), "tau2": tau2.reshape(shape),
               "c0": best[:, 2].reshape(shape), "c1": best[:, 3].reshape(shape),
               "c2": best[:, 4].reshape(shape), "rss": best_rss.reshape(shape)}

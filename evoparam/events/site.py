@@ -5,7 +5,7 @@ import re
 import numpy as np
 
 from evoparam.errors import DataError, SettingsError, warn as _warn
-from evoparam.utils._names import contact_group
+from evoparam.utils._names import contact_group, contact_number
 from evoparam.utils._optional import require
 
 from ._score import MAD_TO_SD, as_continuous, pick_index
@@ -50,6 +50,23 @@ LEAD_MIN_FRACTION = 0.3
 HOLD_MIN_FRACTION = 0.5
 HOLD_TOLERANCE = 0.1
 
+# Two more kinds of evidence, for recordings where the stimulating contacts behave
+# differently (measured on the Mayo Clinic CCEP sets of OpenNeuro, CHANGELOG):
+# - it reaches the rail (counted as held, the same amplifier limit): within ±RAIL_WINDOW of
+#   the onset, a channel that moves reaches (to RAIL_TOLERANCE) the largest absolute value
+#   of the candidate channels over the whole recording, the input range of the amplifier:
+#   the stimulating contacts receive the stimulation voltage itself (ds003708, ds004457,
+#   ds004696: 34.8 mV). Only when at least two channels reach it at that pulse;
+# - a silent pair: when the stimulating contacts are switched from the amplifier to the
+#   stimulator, they carry no signal at all (ds004977: 3 to 5 uV of noise against 260 to
+#   340 uV on the other contacts) and the largest artifact is on the contacts next to them.
+#   Two adjacent contacts of one electrode whose noise is below NOISE_FLOOR times the median
+#   noise and whose artifact is below MOVED_FRACTION of the median artifact of the other
+#   contacts of the electrode (themselves not silent), with the largest normalised artifact
+#   on the contact just outside the pair, are the site when exactly one pair qualifies.
+RAIL_WINDOW = 0.005
+RAIL_TOLERANCE = 1e-3
+
 # Channel types that can carry a stimulating contact (channel table ``type`` column).
 NEURAL_TYPES = {"ecog", "seeg", "dbs", "eeg", "lfp", "ieeg", "meg"}
 
@@ -72,6 +89,31 @@ def _first_sign(trace):
     peak = np.nanmax(np.abs(trace))
     beyond = np.flatnonzero(np.abs(trace) >= 0.5 * peak) if peak > 0 else []
     return np.sign(trace[beyond[0]]) if len(beyond) else 0.0
+
+
+def _silent_pair(names, group, raw_noise, floor, amplitude, size):
+    """Positions of the one silent pair of adjacent contacts (comment above RAIL_WINDOW)."""
+
+    quiet = np.flatnonzero((raw_noise > 0) & (raw_noise < NOISE_FLOOR * floor))
+    if len(quiet) < 2:
+        return None
+    number = [contact_number(names[k]) for k in range(len(names))]
+    top = int(np.argmax(size))
+    found = []
+    for a in quiet:
+        for b in quiet:
+            if not (a < b and group[a] == group[b] and number[a] is not None
+                    and number[b] is not None and abs(number[a] - number[b]) == 1):
+                continue
+            others = [k for k in range(len(names)) if group[k] == group[a] and k not in (a, b)]
+            if not others or np.median(raw_noise[others]) < NOISE_FLOOR * floor:
+                continue
+            if max(amplitude[a], amplitude[b]) >= MOVED_FRACTION * np.median(amplitude[others]):
+                continue
+            low, high = sorted((number[a], number[b]))
+            if group[top] == group[a] and number[top] in (low - 1, high + 1):
+                found.append((a, b))
+    return found[0] if len(found) == 1 else None
 
 
 def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.001, t0=0.0,
@@ -100,8 +142,18 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
     - it is *held* when, in the ``hold`` window, at least half of its steps are below a
       tenth of the channels' typical pre-pulse step: the amplifier holds a stimulating
       contact, or leaves it at the rail, while the other contacts recover;
+      it also counts as held when, within 5 ms of the onset, its absolute value reaches
+      (to 0.1 %) the largest absolute value of the candidate channels over the whole
+      recording, the amplifier's input range, which the stimulating contacts reach (when
+      at least two channels reach it at that pulse);
     - its evidence ``e_c`` (0, 1 or 2) counts how many of the two it shows, among the
       channels that move (artifact at least 5 % of the largest one).
+
+    When the stimulating contacts are disconnected from the amplifier during stimulation
+    they carry no signal: two adjacent contacts of one electrode with almost no noise
+    (below a tenth of the median noise) and no artifact (below 5 % of the median artifact
+    of the other contacts of that electrode), next to the contact with the largest
+    artifact, are the site when exactly one such pair exists (score 1).
 
     Channels are ranked by evidence, then by size; ``stim_site_guess`` is ``"A-B"``, the
     two first channels ordered by channel index. Without held or leading channels this
@@ -113,8 +165,9 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
     have opposite signs or when the two contacts are not on the same electrode.
 
     On OpenNeuro ds004080 (25 runs, 199 pulses, without the channel table), this agrees
-    with ``events.tsv`` on 98 % of the pulses (99.5 % after :func:`vote_sites`), and on
-    every pulse with ``site_confidence >= 0.5`` (81 % of them).
+    with ``events.tsv`` on 99.5 % of the pulses after :func:`vote_sites`; on the Mayo sets
+    (ds003708, ds004457, ds004696, ds004977: 15 runs, 162 detected pulses) on 98 %
+    (CHANGELOG).
 
     Parameters
     ----------
@@ -198,6 +251,13 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
     noise_lo, noise_hi = (int(round(edge * sfreq)) for edge in NOISE_WINDOW)
     hold_lo, hold_hi = (int(round(edge * sfreq)) for edge in hold)
     ordered = np.sort(onsets)
+    rail_span = int(round(RAIL_WINDOW * sfreq))
+    names_index = [names[ind] for ind in index]
+    # (method="spec" without ch_info.group has no groups; only the evidence rule uses these)
+    group_index = None if group is None else [group[ind] for ind in index]
+    # Largest absolute value of the candidate channels (one row at a time, no full copy)
+    rail = max((float(np.nan_to_num(np.nanmax(np.abs(data[ind])), nan=0.0)) for ind in index),
+               default=0.0)
 
     if n_events > 1 and interval < 2 * shortest + 2 * half:
         _warn("identify_stim_site: pulses are closer than the identification window "
@@ -230,12 +290,14 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
                 base = data[index, lo:hi]
                 noise = _robust_sd(base)
                 floor = np.median(noise[noise > 0]) if np.any(noise > 0) else 1.0
-                noise = np.maximum(np.nan_to_num(noise, nan=0.0), NOISE_FLOOR * floor)
+                raw_noise = np.nan_to_num(noise, nan=0.0)
+                noise = np.maximum(raw_noise, NOISE_FLOOR * floor)
                 median = np.nanmedian if np.isnan(base).any() else np.median
                 typical_step = float(np.nanmedian(median(np.abs(np.diff(base, axis=1)), axis=1)))
             else:
                 noise = np.ones(len(index))
                 typical_step = np.nan
+                raw_noise, floor = noise, 1.0
             size = amplitude / noise
 
             # Evidence needs the noise level, so not for a pulse at the very start
@@ -250,9 +312,23 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
                 steps = np.abs(np.diff(data[index, start:stop], axis=1))
                 flat = np.mean(steps <= HOLD_TOLERANCE * typical_step, axis=1)
                 held = moved & (flat >= HOLD_MIN_FRACTION)
+            if rail > 0:
+                # Reaching the amplifier's range is the same evidence as being held there
+                near = data[index, max(0, onset - rail_span):onset + rail_span + 1]
+                peak = np.nan_to_num(np.nanmax(np.abs(near), axis=1), nan=0.0)
+                at_range = moved & (peak >= (1 - RAIL_TOLERANCE) * rail)
+                # A range is reached by both contacts of the pair; one channel alone is
+                # just the largest artifact of a recording that never saturates
+                if at_range.sum() >= 2:
+                    held = held | at_range
             evidence = leads.astype(int) + held.astype(int)
 
+            silent = (_silent_pair(names_index, group_index, raw_noise, floor, amplitude, size)
+                      if known else None)
             order = np.lexsort((-size, -evidence))
+            if silent is not None:
+                rest = [k for k in order if k not in silent]
+                order = np.array(list(silent) + rest)
             first, second = order[0], order[1]
             if len(order) > 2:
                 third = order[2]
@@ -264,6 +340,8 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
                 else:
                     score = 0.0
             else:
+                score = 1.0
+            if silent is not None:
                 score = 1.0
 
             opposite = _first_sign(deviation[first]) * _first_sign(deviation[second]) < 0

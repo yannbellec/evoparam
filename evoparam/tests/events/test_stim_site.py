@@ -244,3 +244,51 @@ def test_unknown_site_method_raises():
     data, onsets = bipolar_recording((2, 3))
     with pytest.raises(SettingsError):
         identify_stim_site(data, 2048., table(onsets), ch_names=NAMES, method="other")
+
+def test_pair_at_the_amplifier_range_wins_over_quiet_channels(monkeypatch):
+
+    # Mayo recordings: the stimulating pair reaches the amplifier's range (clipped), while
+    # two very quiet contacts have the largest artifact relative to their noise.
+    rng = np.random.default_rng(5)
+    data = make_noise(16, 6., 2048., seed=6, dtype=np.float64)
+    data[8:10] *= 0.3
+    onsets = np.round((np.arange(5) + 0.5) * 2048.).astype(int)
+    gains = rng.uniform(0.15, 0.25, 16)
+    gains[2], gains[3] = 2.0, -2.0
+    gains[8:10] = 0.4
+    for onset in onsets:
+        add_pulse(data, onset, 3000., gains)
+    data = np.clip(data, -2500., 2500.)
+    located = identify_stim_site(data, 2048., table(onsets), ch_names=NAMES[:16])
+    assert (located["stim_site_guess"] == "A03-A04").all()
+    assert (located["site_confidence"] >= 0.5).all()
+
+    from evoparam.events import site
+    monkeypatch.setattr(site, "RAIL_TOLERANCE", -1.0)         # never at the range
+    plain = identify_stim_site(data, 2048., table(onsets), ch_names=NAMES[:16])
+    assert (plain["stim_site_guess"] == "B01-B02").all()
+
+
+def test_silent_pair_switched_to_the_stimulator():
+
+    # ds004977: the stimulating contacts are disconnected from the amplifier (almost no
+    # noise, no artifact); the largest artifact is on the contacts next to them.
+    rng = np.random.default_rng(7)
+    data = make_noise(16, 6., 2048., seed=8, dtype=np.float64)
+    onsets = np.round((np.arange(5) + 0.5) * 2048.).astype(int)
+    gains = rng.uniform(0.25, 0.35, 16)
+    gains[1], gains[4] = 1.0, -1.0
+    for onset in onsets:
+        add_pulse(data, onset, 500., gains)
+    data[2:4] = rng.normal(0, 0.02, (2, data.shape[1]))
+    located = identify_stim_site(data, 2048., table(onsets), ch_names=NAMES[:16])
+    assert (located["stim_site_guess"] == "A03-A04").all()
+    assert (located["site_confidence"] >= 0.5).all()
+
+    # A quiet pair elsewhere (not next to the largest artifact) is not a site
+    data[2:4] = make_noise(2, 6., 2048., seed=9, dtype=np.float64)
+    for onset in onsets:
+        add_pulse(data[2:4], onset, 500., gains[2:4])
+    data[12:14] = rng.normal(0, 0.02, (2, data.shape[1]))
+    located = identify_stim_site(data, 2048., table(onsets), ch_names=NAMES[:16])
+    assert (located["stim_site_guess"] == "A02-A05").all()

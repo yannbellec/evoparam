@@ -180,6 +180,80 @@
   - REQ-005: one `warnings.warn` remains in `io/nwb.py`.
   - REQ-315: npm has no `bids-validator@2`.
 
+### Specification gaps: artifact, prep and events
+
+- REQ-060 (polynomial). The published method fits the polynomial over the whole sweep and
+  subtracts it everywhere, which moves the baseline: -9.1 % of the baseline level at
+  2048 Hz (-18.3 % at 1 kHz, -4.0 % at 4800 Hz, -0.75 % at 25 kHz), above the 2 % of
+  REQ-060. `polynomial` now has `poly_extent="local"` (default in `remove_artifact`): the
+  correction is applied from the window start to the end of the artifact (first run of
+  samples where the fit is back within 3 robust SD of its baseline level, after the window
+  and the last railed sample), with half-cosine ramps; the baseline change is 0.0 %, and all
+  methods now meet 2 % with no exception. On the overlay benchmark the response after the
+  artifact is kept: RRMSE on 8-50 ms, global against local, 0.994 / 0.054 (1 kHz, onset
+  12 ms), 0.993 / 0.224 (2048 Hz), 0.992 / 0.587 (4800 Hz); 0.030, 0.019, 0.013 for an
+  onset at 20 ms. The published method stays as `poly_extent="global"` (REQ-065 runs it as
+  written; `test_req060_polynomial_global_extent_as_published` is a strict xfail with its
+  measured values); with the local extent the REQ-065 recording is also recovered, with a
+  smaller error against the truth (9.34 against 9.74).
+- REQ-061, second part (`tests/artifact/test_fitted_bias.py`). Template and learned
+  cleaning, onsets 8, 12 and 20 ms, fit from b: median latency error at most 0.013 ms and
+  amplitude error at most 0.10 % (criteria 0.5 ms and 5 %); a component found without the
+  artifact but lost after cleaning counts as an infinite error. Plain blanking: 153 %, lost,
+  lost, 42 % and 15 % for onsets 6 to 10 ms; at 10 ms below the >= 20 % of the
+  specification (strict xfail).
+- REQ-064 on real artifact templates (`tests/artifact/test_subspace_real.py`, network):
+  TMS-EEG ds002094 (20 subjects) and intracranial SPES ds004080 (23 runs at 2048 Hz).
+  SIR improvement: TMS median 1.6 dB (0.2 to 4.1), SPES 9.3 dB (5.0 to 18.4), not 30 dB
+  (strict xfails). Cause: the specification's rule for the number of directions (95 % of
+  the whitened energy, at most 6) keeps one; on ds002094 sub-283, 6, 10 and 20 directions
+  give 17.6, 26.5 and 57.1 dB.
+- REQ-081, simulation part: references at 0 to 90 % (0, 10, ..., 80, 84, 90 %), 10 seeds:
+  median false negatives and false positives 0 at every level (at most 2 false positives on
+  a single seed); the test asserts the specification's bounds as written.
+- `reference_sensitivity` (§5.4) runs the existence test by default (`detector=
+  "existence"`); registration by the package root, because `prep` may not import
+  `existence` (docs/spec/DECISIONS.md). The interim detector stays as
+  `detector="threshold"`.
+- Specified methods that were missing: `TFFit.to_mne`, `HierarchicalFit.to_arviz`
+  (posterior draws of the Bayesian engine, or draws of the normal approximation for the
+  empirical-Bayes engine, said in `attrs`), `TrialSet.to_xarray` (extra `xarray`),
+  `list_shapes`, `list_backgrounds` (`tests/data/test_exports.py`).
+- `detect_pulses`, method 1 (Q3). The specification's procedure (median over all channels,
+  first crossing, template pass with rho_min) is now `procedure="spec"`. Measured on the 25
+  ds004080 runs: recall 0.445 and precision 1.000 in 57 s, onsets about 1 sample early,
+  against 0.995, 0.990 in 2.4 s and 0.01 sample (held-out runs) for the default, which is
+  kept. Threshold pass alone: 0.930 / 0.765 (specification) against 1.000 / 0.760.
+- Samples corrected by subtraction (Q4). The specification masks them; they are kept as
+  measurements by default. With a fit starting inside the window (onset 8 ms), median
+  latency error 0.09 ms against 0.64 ms with them masked, amplitude 1.2 % against 17.8 %
+  (onset 12 ms: 0.010 ms against 1.20 ms); masked is better only at 10 ms (0.43 against
+  1.83 ms). Identical when the fit starts at b (the ccep preset). `mask_subtracted=True`
+  gives the specification's behaviour.
+- `tail` (Q5): the default now subtracts r(t), as written (`tail_part="full"`). The former
+  default, r(t) - r(t_end), is kept as `tail_part="joined"`: it is better for a response
+  inside the tail window (onset 20 ms: amplitude error 8.7 % against 48.5 %, latency
+  1.24 ms against 8.35 ms) and worse after it (onset 50 ms: 9.6 % against 0 %; residual
+  2.20 against 1.42).
+- REQ-044 on the Mayo protocol (`tests/events/test_trains.py`, network, no environment
+  variable besides EVOPARAM_NETWORK_TESTS): the events.tsv of 20 Mayo runs (ds003708,
+  ds004457, ds004696, ds004977 at its uncensored site); median pulses per site between
+  10 and 12 and intervals of 2.5 to 6 s on every run but ds004696 sub-07 (median 13,
+  strict xfail).
+- REQ-042 on the Mayo sets: agreement 0.67 -> 0.99 (160 of 162 detected pulses; 0.99 on
+  the 2048 Hz runs, 1.0 on ds004977), accuracy 1.0 for `site_confidence >= 0.5` on 41 % of
+  the pulses. Two kinds of evidence were added to `identify_stim_site` (nothing removed):
+  a channel that reaches, within 5 ms of the onset, the largest absolute value of the
+  recording (the amplifier's range, 34.8 mV on these sets), counted as held, when at least
+  two channels reach it; and a silent pair (ds004977: the stimulating contacts are switched
+  to the stimulator and carry 3 to 5 uV of noise against 260 to 340 uV), next to the
+  largest artifact. ds004080 unchanged (0.995, accuracy 0.994 on 80 %). Held-out check on
+  101 pulses at sites the test does not use: 0.93 (0.49 before). Reference pulses in
+  censored (all-zero) data are not counted (none in the segments used).
+- D9: `detect_pulses` reports the physical onset; the constant trigger delay of ds004080
+  (0.97 ms) is estimated on the even runs and checked on the odd ones (within 1 sample);
+  the reverse fold gives the same delay (0.972 ms; median error 0.02 sample).
+
 ### Integration of the N1 work, S16, S17 and the tep validation
 
 - REQ-171: the test as written stays as a documented xfail (5 of 6 datasets, 17 of 20 with

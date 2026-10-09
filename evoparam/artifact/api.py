@@ -41,12 +41,15 @@ def _check_window_vs_rate(ts, window, method):
 def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
                     interpolation="linear", template="global", group_by=GROUP_BY,
                     n_neighbors=10, scale=True, fallback=False, tail="none",
-                    tail_length=0.05, tau_bounds=(0.0005, 0.05), period=None,
+                    tail_length=0.05, tau_bounds=(0.0005, 0.05), tail_part="full",
+                    period=None,
                     expected_rate=None, n_bins=None, n_skip=None, d_period=None, causal=False,
                     pulse_times=None, ranks=(4, 2, 4), post_window=0.03,
                     baseline=(-0.5, -0.05), n_components=None, ridge=1e-3,
-                    poly_halfwidth=0.003, line_freq=50.0, n_atoms=20, pursuit_length=0.1,
-                    scheme=None, pairing="auto", quality=True, inplace=False,
+                    poly_halfwidth=0.003, poly_extent="local", line_freq=50.0, n_atoms=20,
+                    pursuit_length=0.1,
+                    scheme=None, pairing="auto", mask_subtracted=False, quality=True,
+                    inplace=False,
                     random_state=None, verbose=None):
     """Remove the stimulation artifact, mark replaced samples and score each trial.
 
@@ -58,9 +61,12 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
       ``template="local"``: the ``n_neighbors`` nearest pulses in time; or a given array),
       scaled to each trial by least squares (``scale``). Groups with fewer than 3 pulses
       raise :class:`ArtifactError`, or are interpolated with ``fallback=True``.
-    - ``"tail"``: interpolate the window, then fit ``c0 + c1 e^(-t/tau1) + c2 e^(-t/tau2)``
-      on ``tail_length`` after it and subtract the exponentials; ``tail="joint"`` leaves
-      the tail to the response model (background ``"exponential"``, build step S7).
+    - ``"tail"``: interpolate the window, then fit ``r(t) = c0 + c1 e^(-t/tau1) +
+      c2 e^(-t/tau2)`` on ``tail_length`` after it and subtract it (``tail_part="full"``,
+      the specification; ``"joined"`` subtracts ``r(t) - r(t_end)`` instead, which keeps
+      the level reached at the end of the tail: better for a response inside the tail
+      window, worse after it, CHANGELOG); ``tail="joint"`` leaves the tail to the response
+      model (background ``"exponential"``).
     - ``"period_template"``: for high-frequency trains: subtract from every sample the mean
       of the samples one or more periods away (fractional period from ``period`` or
       :func:`estimate_period` around ``expected_rate``); ``causal`` uses past samples only.
@@ -69,7 +75,11 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
     - ``"subspace"``: whitening with the ``baseline`` covariance and projection away from
       the artifact directions of the window.
     - ``"polynomial"``: local cubic fit (half-width ``poly_halfwidth``) subtracted; zeros
-      while railed (samples in ``ts.masks``), one-sided fits after.
+      while railed (samples in ``ts.masks``), one-sided fits after. ``poly_extent="local"``
+      (default) subtracts it from the window start to the end of the artifact (where the
+      fitted curve is back within 3 robust SD of its baseline level), with half-cosine
+      ramps; ``"global"`` subtracts it at every sample, as published (a high-pass filter
+      of the whole epoch: the baseline RMS falls by 9 % on white noise at 2048 Hz).
     - ``"matching_pursuit"``: greedy decomposition into line-noise, response and artifact
       atoms; the artifact atoms are subtracted (patent note, spec §13).
     - ``"paradigm"``: alternating polarity or forward masking (``scheme``; see
@@ -79,8 +89,12 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
     - ``"none"``: no change (quality only).
 
     Masks: replaced samples (interpolated, zeroed) are added to ``cleaned.masks``, with the
-    existing masks (for example saturation). Methods that subtract an estimate keep the
-    corrected samples as measurements and do not mask them.
+    existing masks (for example saturation). Methods that subtract an estimate (template,
+    learned, the tail of ``tail``, matching pursuit) keep the corrected samples as
+    measurements and do not mask them: a fit that starts inside the window then uses them
+    (median latency error 0.09 ms against 0.64 ms with them masked, response onset at
+    the window end; CHANGELOG). ``mask_subtracted=True`` masks them, as the specification
+    writes ("replaced samples are exactly the masked samples").
 
     Parameters
     ----------
@@ -151,6 +165,8 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
                                         fallback=fallback, interpolate=interp)
         if extra["fallback_trials"]:
             masks[np.ix_(extra["fallback_trials"], np.arange(ts.n_channels), inds)] = True
+        if mask_subtracted:
+            masks[:, :, inds] = True
         info.update(template=extra["template"], fit_r2=extra["fit_r2"],
                     template_response_correlation=extra["template_response_correlation"],
                     fallback_trials=extra["fallback_trials"])
@@ -158,6 +174,8 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
         from .template import subtract_learned
         data, extra = subtract_learned(ts, inds, group_by=group_by, n_components=n_components,
                                        ridge=ridge)
+        if mask_subtracted:
+            masks[:, :, inds] = True
         info.update(basis=extra["basis"], fit_r2=extra["fit_r2"],
                     basis_groups=extra["basis_groups"])
     elif method == "tail":
@@ -166,8 +184,10 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
         masks[:, :, inds] = True
         if tail != "joint":
             fitted, tail_inds, params = fit_tail(ts.times, data, inds[-1] + 1, tail_length,
-                                                 tau_bounds)
+                                                 tau_bounds, part=tail_part)
             data[:, :, tail_inds] -= fitted
+            if mask_subtracted:
+                masks[:, :, tail_inds] = True
             info.update(tail_tau1=params["tau1"], tail_tau2=params["tau2"])
     elif method == "period_template":
         data, extra = _period(ts, period, expected_rate, n_bins, n_skip, d_period, causal)
@@ -190,7 +210,11 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
     elif method == "polynomial":
         from .polynomial import polynomial_clean
         data, zeroed = polynomial_clean(ts.data, ts.sfreq, saturation,
-                                        halfwidth=poly_halfwidth)
+                                        halfwidth=poly_halfwidth, extent=poly_extent,
+                                        window_inds=inds,
+                                        baseline_inds=np.flatnonzero(
+                                            (ts.times >= baseline[0])
+                                            & (ts.times <= baseline[1])))
         masks |= zeroed
     elif method == "matching_pursuit":
         from .pursuit import pursuit_clean, warn_patent
@@ -201,6 +225,8 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
         cleaned_seg, _ = pursuit_clean(flat, ts.times[seg], window[1], line_freq=line_freq,
                                        n_iter=n_atoms)
         data[:, :, seg] = cleaned_seg.reshape(ts.n_trials, ts.n_channels, len(seg))
+        if mask_subtracted:
+            masks[:, :, seg] = True
     elif method == "paradigm":
         if scheme not in SCHEMES:
             raise ArtifactError(f"method 'paradigm' needs scheme in {SCHEMES}.")

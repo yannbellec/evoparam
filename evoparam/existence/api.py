@@ -4,6 +4,7 @@ import dataclasses
 import itertools
 import logging
 import time as _time
+import warnings
 
 import numpy as np
 
@@ -17,7 +18,8 @@ from .permutation import permutation_test, shuffle_test
 from .projection import projection_test
 from .rules import apply_rule, load_rules, resolve_rule
 
-__all__ = ["test_response", "response_duration", "compare_detectors", "list_rules",
+__all__ = ["test_response", "existence_detector", "response_duration", "compare_detectors",
+           "list_rules",
            "train_discordance", "methods_text", "detectors", "fit", "attach_test", "METHODS",
            "HUMAN_KAPPA"]
 
@@ -242,6 +244,53 @@ def _interval(result, key):
 
     n = len(np.atleast_1d(result["p_value"]))
     return np.asarray(result.get(key, np.full((n, 2), np.nan)), float).tolist()
+
+
+def existence_detector(ts, *, window=(0.009, 0.5), by=("stim_site",),
+                       allow_artifact_overlap=True, random_state=0, **kwargs):
+    """The existence test as a detector for :func:`evoparam.prep.reference_sensitivity`
+    (its default, ``detector="existence"``).
+
+    Runs :func:`test_response` (default method, ``by`` stimulation site; masked samples are
+    left out of the statistic, so a window touching the artifact mask is allowed) and
+    returns, per channel and group, whether the response is significant and its latency:
+    the time of the largest absolute value of the trial average between the test's onset
+    and offset (NaN when not significant).
+
+    Returns
+    -------
+    detected : bool array [n_channels] (one group) or [n_channels, n_groups]
+    latency : float array, same shape, seconds
+    groups : list of str
+        Group names (``[""]`` without grouping).
+    """
+
+    test = test_response(ts, window=window, by=by,
+                         allow_artifact_overlap=allow_artifact_overlap,
+                         random_state=random_state, **kwargs)
+    groups = list(test.settings["groups"])
+    index = [ts.ch_names.index(name) for name in test.settings["channels"]]
+    significant = np.asarray(test.significant, dtype=bool).reshape(len(index), -1)
+    onset = np.asarray(test.onset, dtype=float).reshape(len(index), -1)
+    offset = np.asarray(test.offset, dtype=float).reshape(len(index), -1)
+    latency = np.full(significant.shape, np.nan)
+    times = ts.times
+    for g, (_, rows) in enumerate(_groups(ts, by)):
+        data = ts.data[rows][:, index]
+        if ts.masks is not None:
+            data = np.where(ts.masks[rows][:, index], np.nan, data)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            avg = np.nanmean(data, axis=0)
+        for c in np.flatnonzero(significant[:, g]):
+            inside = (times >= onset[c, g]) & (times <= offset[c, g])
+            if not inside.any() or not np.isfinite(avg[c, inside]).any():
+                continue
+            values = np.where(np.isfinite(avg[c, inside]), np.abs(avg[c, inside]), -np.inf)
+            latency[c, g] = float(times[inside][int(np.argmax(values))])
+    if significant.shape[1] == 1:
+        return significant[:, 0], latency[:, 0], groups
+    return significant, latency, groups
 
 
 def response_duration(ts, *, method="baseline_permutation", **kwargs):

@@ -121,3 +121,45 @@ def test_return_scores():
     events, z, rho = detect_pulses(data, 2048., return_scores=True)
     assert len(z) == data.shape[1] - 1
     assert len(rho) == len(events)
+
+
+@pytest.mark.parametrize("method", ["threshold", "threshold+template", "template"])
+def test_spec_procedure_on_the_legacy_recording(method):
+    """procedure="spec": the specification's methods 1 and 2 as written. The onset is the
+    last pre-artifact sample, one sample before the default onset."""
+
+    sfreq, onsets = 1000., np.arange(1, 19, 2.5)
+    data = legacy_recording(onsets, sfreq)
+    events = detect_pulses(data, sfreq, method=method, procedure="spec")
+    results = match_onsets(events["onset_time"], onsets, tolerance=0.002)
+    assert results["hits"] == len(onsets)
+    assert results["false_alarms"] == 0
+    assert np.allclose(results["errors"], -1.0 / sfreq)
+    if method != "threshold":
+        assert (events["rho"] >= 0.8).all()
+
+
+def test_spec_procedure_template_pass_recovers_and_rejects():
+    """Method 2 as a second pass: a weaker pulse with the same artifact is added, a large
+    transient of another shape is rejected."""
+
+    sfreq = 1000.
+    onsets = np.arange(1, 19, 2.0)
+    data = legacy_recording(onsets, sfreq)
+    weak = 19.5
+    data[:, int(weak * sfreq):int(weak * sfreq) + 3] += 6.0        # below the threshold
+    data[:, 1500:1520] += 200.0 * (-1.0) ** np.arange(20)           # a fast oscillating burst
+    threshold_only = detect_pulses(data, sfreq, method="threshold", procedure="spec")
+    both = detect_pulses(data, sfreq, method="threshold+template", procedure="spec")
+    truth = np.r_[onsets, weak]
+    assert match_onsets(both["onset_time"], truth, 0.002)["recall"] == 1.0
+    assert match_onsets(both["onset_time"], truth, 0.002)["false_alarms"] == 0
+    alone = match_onsets(threshold_only["onset_time"], truth, 0.002)
+    assert alone["hits"] == len(onsets) and alone["false_alarms"] == 1
+    assert (both["detector"] == "template").sum() >= 1
+
+
+def test_unknown_procedure():
+
+    with pytest.raises(SettingsError, match="procedure"):
+        detect_pulses(legacy_recording([1.0]), 1000., procedure="other")
