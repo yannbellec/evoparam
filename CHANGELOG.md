@@ -950,6 +950,24 @@ tolerances); the ones not met stay as xfails that state the measured value.
   with `EVOPARAM_NETWORK_TESTS=1` 8.5 min (fixture 445 s), against about 47 min before
   (six fits of 183 to 913 s).
 
+### ERPs: targeted measurement (`presets.targeted`)
+
+- Why. Split-half reliability on ERP CORE (40 participants, odd vs even trials, Spearman-Brown,
+  parent waves at the published channels) showed that the model selection gives a value for
+  few participants (BIC: 3 to 19 of 34 to 40) and that its latencies are less reliable than
+  the classical ones (P3 0.28 against 0.85). The hierarchical model (EB) does not change this
+  (P3 latency 0.26, amplitude 0.86). `selection="fixed"` with 2 to 4 components raises the
+  coverage to 5 to 27 participants only (the labelled component is often outside the window).
+- `presets.targeted(base, label, window, polarity, margin=0.05)`: a derived preset that fits
+  one component of the expected polarity in the measurement window widened by `margin`, on
+  a linear background (`selection="fixed"`, `n_components=1`); whether the component is
+  there is the existence test's answer. Measured (targeted / classical; reliability of the
+  amplitude, then of the latency; coverage): P3 0.89 / 0.80, 0.65 / 0.85, 34 of 34; MMN
+  0.79 / 0.66, 0.57 / 0.12, 37 of 40; N170 0.95 / 0.97, 0.74 / 0.79, 34 of 39; N400 0.76 /
+  0.85, 0.46 / 0.67, 39 of 40. The model amplitude is as reliable as or more reliable than
+  the classical mean amplitude for three of the four components; the latencies are less
+  reliable except for the MMN.
+
 ### Engine: noise from the plus-minus average (ERPs)
 
 - Diagnosis. On ERP CORE (40 participants; N170, P3, MMN, N400), averages of the same trials

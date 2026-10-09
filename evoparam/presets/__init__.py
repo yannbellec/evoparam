@@ -23,8 +23,8 @@ from importlib import resources
 import evoparam._plugins as _plugins
 from evoparam.errors import SettingsError
 
-__all__ = ["Preset", "get", "list", "derive", "register", "to_json", "from_json", "to_yaml",
-           "from_yaml", "PRESETS", "fit_fields", "methods_note"]
+__all__ = ["Preset", "get", "list", "derive", "targeted", "register", "to_json", "from_json",
+           "to_yaml", "from_yaml", "PRESETS", "fit_fields", "methods_note"]
 
 _list = list  # the public function list() shadows the builtin in this module
 
@@ -180,6 +180,44 @@ def derive(base, **overrides):
     if "name" not in overrides:
         values["name"] = parent.name
     return Preset(**values)
+
+
+def targeted(base, label, window, polarity, *, margin=0.05, name=None):
+    """A preset that measures one expected component: one component of the given polarity,
+    fitted in ``window`` widened by ``margin`` on each side, on a linear background
+    (``selection="fixed"``). Every waveform gets a value; whether the component is there is
+    the existence test's answer, not the model selection's.
+
+    On ERP CORE (40 participants, parent waves at the published channels, measurement
+    window +/- 50 ms) the amplitudes measured so are as reliable as or more reliable than
+    the classical mean amplitude (split-half, Spearman-Brown): P3 0.89 (classical 0.80),
+    MMN 0.79 (0.66), N170 0.95 (0.97), but N400 0.76 (0.85); see CHANGELOG.
+
+    Parameters
+    ----------
+    base : str or Preset
+    label : str
+        Component label, for example ``"P3"``.
+    window : (float, float)
+        Measurement window (s), for example the published one.
+    polarity : {"negative", "positive"}
+    margin : float
+        Widening of the window on each side (s).
+    name : str, optional
+        Default ``"<base>_<label>"``.
+    """
+
+    if polarity not in ("negative", "positive"):
+        raise SettingsError("targeted: polarity must be 'negative' or 'positive'.")
+    parent = get(base)
+    lo, hi = float(window[0]) - margin, float(window[1]) + margin
+    extras = dict(parent.fit_extras)
+    extras["n_components"] = 1
+    return derive(parent, name=name or f"{parent.name}_{label}", fit_window=(lo, hi),
+                  polarity=polarity, selection="fixed", max_components=1,
+                  background="linear", component_labels={label: (lo, hi)},
+                  label_polarity={label: -1 if polarity == "negative" else 1},
+                  fit_extras=extras)
 
 
 def register(preset, *, overwrite=False):
