@@ -111,7 +111,7 @@ def test_req345_test(bids, tmp_path):
     test = test_response(trials, method="baseline_permutation", window=p.fit_window,
                          baseline=p.baseline, random_state=0, by=())
     write_bids_derivatives(test, str(bids), subject="01", task="ccep", datatype="ieeg",
-                           out=str(tmp_path / "api"), overwrite=True)
+                           out=str(tmp_path / "api"), overwrite=True, trials=trials)
     assert_same_tree(tmp_path / "cli", tmp_path / "api", only=("_existence.tsv",
                                                                 "_existence.json"))
 
@@ -125,12 +125,13 @@ def test_req345_clean(bids, tmp_path):
     summary = run("clean", bids, "--sub", "01", "--task", "ccep", "--preset", "ccep",
                   "--out", tmp_path / "cli")
     p = presets.get("ccep")
-    result = remove_artifact(_trials(bids), method="template", window=p.artifact_window,
+    source = _trials(bids)
+    result = remove_artifact(source, method="template", window=p.artifact_window,
                              random_state=0)
     write_bids_derivatives(result, str(bids), subject="01", task="ccep", datatype="ieeg",
-                           out=str(tmp_path / "api"), overwrite=True)
+                           out=str(tmp_path / "api"), overwrite=True, trials=source)
     assert_same_tree(tmp_path / "cli", tmp_path / "api", only=("_artifact.json",))
-    cleaned = next(p for p in summary["outputs"] if p.endswith(".evoparam"))
+    cleaned = next(p for p in summary["outputs"] if p.endswith("cleaned.evoparam"))
     assert load_object(cleaned).data.tobytes() == result.cleaned.data.tobytes()
 
 

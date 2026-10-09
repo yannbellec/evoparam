@@ -62,10 +62,10 @@ def test_req345_cli_equals_python(fitted, dataset, tmp_path):
     ts = read_bids(str(dataset / "bids"), "01", task="ccep", datatype="ieeg", epoch=p.epoch)
     results, _ = run_fit(ts, p, random_state=0)
     written = write_bids_derivatives(results, str(dataset / "bids"), subject="01", task="ccep",
-                                     out=str(tmp_path), overwrite=True)
+                                     out=str(tmp_path / "evoparam"), overwrite=True, trials=ts)
     for path in written:
         if path.endswith(".tsv") and "sub-01" in path:
-            cli = out / os.path.relpath(path, tmp_path)
+            cli = out / os.path.relpath(path, tmp_path / "evoparam")
             assert hashlib.sha256(open(path, "rb").read()).hexdigest() == \
                 hashlib.sha256(open(cli, "rb").read()).hexdigest(), path
 
@@ -77,7 +77,7 @@ def test_report_reproduce_migrate(fitted, tmp_path):
         proc = _run("report", str(out), "--format", fmt, "--out", str(tmp_path), "--json")
         assert proc.returncode == 0, proc.stderr
         assert json.loads(proc.stdout)["outputs"][0].endswith(f".{fmt}")
-    container = next(str(p) for p in out.rglob("*.evoparam"))
+    container = next(str(p) for p in out.rglob("*_responses.evoparam"))
     proc = _run("reproduce", container, "--json")
     assert proc.returncode == 0, proc.stderr
     assert json.loads(proc.stdout)["result"]["identical"] is True
@@ -110,7 +110,7 @@ def test_req323_exit_codes(fitted, tmp_path, monkeypatch, capsys):
     (bad / "manifest.json").write_text("{not json")
     assert main(["report", str(bad)]) == 5                       # input error
     monkeypatch.setitem(sys.modules, "matplotlib", None)
-    container = next(str(p) for p in out.rglob("*.evoparam"))
+    container = next(str(p) for p in out.rglob("*_responses.evoparam"))
     assert main(["report", container, "--format", "pdf", "--out", str(tmp_path)]) == 4
     monkeypatch.delitem(sys.modules, "matplotlib")
     # a changed setting in the saved provenance: reproduction differs (exit 6)
