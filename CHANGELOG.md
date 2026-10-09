@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Integration of the trials and engine corrections, defaults settled by measurement
+### Defaults settled by measurement: integration of the trials and engine corrections
 
 Merged into `integration-2`: `corrections-essais` (2b8aba2, trials), `corrections-moteur`
 (361135c and 07082b4, engine and N1 case as written, `noise_model="neff"`) and
@@ -30,7 +30,7 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   | the same, 46 PT contacts of the example run | 0.51 / 0.17 | 0.46 / 0.19 |
   | REQ-113 regression decision (trough with the code's floor), pooled / lowest run | 0.89 / 0.71 | 0.89 / 0.71 |
   | REQ-114, N1 latency within 2 ms (paper / code) | 21 % / 32 % | 24 % / 37 % |
-  | fitting time, development / REQ runs | 827 s / 1527 s | 578 s / 1073 s |
+  | fitting time, development / REQ runs | 846 s / 1557 s | 603 s / 1133 s |
   | REQ-115, one waveform (median of 5, two rounds) | 0.80 s, 0.76 s | 0.53 s, 0.57 s |
   | REQ-115, `fit_group` 100 channels | 80 s, 84 s | 53 s, 55 s |
   | layer-2 F1, all cells (development / held out) | 0.736 / 0.756 | 0.720 / 0.748 |
@@ -71,9 +71,9 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   | cochlear F1 | 1.00 / 1.00 | 1.00 / 1.00 | 1.00 / 1.00 |
   | cochlear amplitude error | 8.3 % / 6.8 % | 8.7 % / 14.6 % | 1.5 % / 5.1 % |
   | cochlear fits above 5 x the noise RSS (of 21) | 10 / 2 | 11 / 10 | 0 / 0 |
-  | spinal F1 | 0.91 / 0.90 | 0.91 / 0.90 | 0.91 / 0.91 |
-  | spinal amplitude error | 2.7 % / 6.5 % | 5.0 % / 10.8 % | 2.7 % / 3.9 % |
-  | fitting time, cochlear / spinal (3 seeds) | 4.9 s / 24 s | 4.3 s / 18 s | 12 s / 39 s |
+  | spinal F1 | 0.95 / 0.96 | 0.91 / 0.90 | 0.95 / 0.99 |
+  | spinal amplitude error | 2.7 % / 5.6 % | 5.0 % / 10.8 % | 2.7 % / 3.0 % |
+  | fitting time, cochlear / spinal (3 seeds) | 4.5 s / 25 s | 4.2 s / 23 s | 17 s / 43 s |
 
   On the layer-2 grid reject and reseed are within noise (F1 0.737 against 0.736
   development, 0.760 against 0.756 held out), as on the N1 case (pooled kappa 0.46 / 0.31
@@ -92,6 +92,15 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   `fit_shared` keeps its own pair rule, now its own keyword
   (`fit_shared(..., reject_cancelling=True)`, recorded in `settings["fit_shared"]`) and
   no longer read from the engine settings: the shared fit has no reseeding.
+- Pruning after a reseed (new). The greedy path may have needed three components to build
+  a cancelling set; after the refit from the extrema, a component that no longer lowers the
+  criterion by `delta` (the acceptance rule of §5.5.3 step 4) is removed (warning
+  `pruned:<k>`, named in the methods text). On the spinal ECAP simulations it removes
+  the tiny edge component the refit kept (F1 0.91 -> 0.95 development, 0.90 -> 0.96 held out
+  with `reseed=True`; 0.91 -> 0.99 held out with `"always"`); on the N1 runs and the layer-2
+  grid the kappas are unchanged to 0.001 and F1 within 0.001 (the tables above were
+  re-measured with it, except the `"neff"`, `"white"` and reject columns, which do not
+  reseed).
 - `candidate_search`: `"beam"` stays the default, `"spec"` (§5.5.3 step 4) available;
   checked after the merge.
 - Presets: `ccep` 1.0 -> 1.1 (`threshold_role="select"`), `ecap` and `ecap_ci` 1.0 -> 1.1

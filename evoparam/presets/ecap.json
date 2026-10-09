@@ -68,7 +68,7 @@
   },
   "notes": {
     "trial_fit": "per pulse",
-    "reseed": "always: every final model is refitted from the extrema of the data; on simulated spinal ECAPs (development seeds) amplitude error 2.7 % with 'always' and with the engine default, no fit left above five times the noise; on held-out seeds 3.9 % against 6.5 % (CHANGELOG 'Defaults settled by measurement'; v1.1)"
+    "reseed": "always: every final model is refitted from the extrema of the data; on simulated spinal ECAPs amplitude error 2.7 % with 'always' and with the engine default on the development seeds, 3.0 % against 5.6 % on held-out seeds, F1 0.99 against 0.96 (CHANGELOG 'Defaults settled by measurement'; v1.1)"
   },
   "validation": "simulation_only",
   "fit_extras": {

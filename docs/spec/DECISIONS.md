@@ -145,13 +145,13 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   resolvable when it stays (`reseed=True`, `Component.resolvable`). The **default is
   `reseed=True`, `reject_cancelling=False`**: on the ECAP simulations the refusal leaves
   the greedy path in a worse optimum (held-out seeds: amplitude error 14.6 % against 6.8 %
-  cochlear, 10.8 % against 6.5 % spinal; 10 of 21 cochlear fits above five times the noise
+  cochlear, 10.8 % against 5.6 % spinal; 10 of 21 cochlear fits above five times the noise
   against 2), and on ds004977 ROC11–ROC12 the shared fit built on refused pairs drops three
   components and its residual cost is 1.8 times higher. On the layer-2 grid and the N1 case
   the two are within noise of each other. The ECAP presets (`ecap`, `ecap_ci`, v1.1) set
   `reseed="always"` (every final model refitted from the extrema): amplitude error 1.5 %
-  against 8.3 % (cochlear, development seeds), 5.1 % against 6.8 % held out, at 1.6
-  to 2.4 times the fitting time.
+  against 8.3 % (cochlear, development seeds), 5.1 % against 6.8 % held out, at 1.7
+  to 3.7 times the fitting time.
   `fit_shared` keeps its own rule (`fit_shared(..., reject_cancelling=True)`): the shared
   fit has no reseeding, and a pair present in the per-channel fits is removed by dropping
   the member whose removal fits best. Its latency bounds keep every channel's latency in the

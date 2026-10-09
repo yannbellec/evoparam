@@ -57,7 +57,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - choice (min_fwhm): pending public data: no public SCS ECAP dataset was found
 - choice (max_fwhm): pending public data: no public SCS ECAP dataset was found
 - note (trial_fit): per pulse
-- note (reseed): always: every final model is refitted from the extrema of the data; on simulated spinal ECAPs (development seeds) amplitude error 2.7 % with 'always' and with the engine default, no fit left above five times the noise; on held-out seeds 3.9 % against 6.5 % (CHANGELOG 'Defaults settled by measurement'; v1.1)
+- note (reseed): always: every final model is refitted from the extrema of the data; on simulated spinal ECAPs amplitude error 2.7 % with 'always' and with the engine default on the development seeds, 3.0 % against 5.6 % on held-out seeds, F1 0.99 against 0.96 (CHANGELOG 'Defaults settled by measurement'; v1.1)
 
 ## `ecap_ci`
 
