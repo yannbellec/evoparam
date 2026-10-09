@@ -91,7 +91,6 @@ def _count(outcome, group):
 
 def cmd_fit(args, outcome):
     from evoparam.data import GroupFit
-    from evoparam.data.serialize import save_object
     from evoparam.io import write_bids_derivatives
     from evoparam.reports import methods_text
 
@@ -106,11 +105,10 @@ def cmd_fit(args, outcome):
     _count(outcome, group)
     out = args.out
     written = write_bids_derivatives(results, args.input, subject=args.sub, datatype=datatype,
-                                     out=out, overwrite=True, **_entities(args))
-    container = os.path.join(out, f"sub-{args.sub.removeprefix('sub-')}",
-                             f"{os.path.basename(written[0]).rsplit('_', 1)[0]}.evoparam")
-    save_object(group, container, overwrite=True)
-    outcome.outputs += written + [container]
+                                     out=out, overwrite=True, trials=ts, **_entities(args))
+    # the group fit is saved by write_bids_derivatives next to its table
+    # (<stem>_desc-evoparam_responses.evoparam), as every result of the run
+    outcome.outputs += written
     _log(args, methods_text(results))
     if outcome.n_units.get("failed"):
         outcome.code = EXIT_CODES["partial"]
@@ -131,7 +129,7 @@ def cmd_test(args, outcome):
                          random_state=args.random_state, by=())
     outcome.outputs += write_bids_derivatives(test, args.input, subject=args.sub,
                                               datatype=datatype, out=args.out, overwrite=True,
-                                              **_entities(args))
+                                              trials=ts, **_entities(args))
 
 
 def cmd_clean(args, outcome):
@@ -148,7 +146,7 @@ def cmd_clean(args, outcome):
                              random_state=args.random_state)
     outcome.outputs += write_bids_derivatives(result, args.input, subject=args.sub,
                                               datatype=datatype, out=args.out, overwrite=True,
-                                              **_entities(args))
+                                              trials=ts, **_entities(args))
     path = os.path.join(args.out, f"sub-{args.sub.removeprefix('sub-')}", "cleaned.evoparam")
     outcome.outputs.append(save_object(result.cleaned, path, overwrite=True))
 
@@ -157,9 +155,10 @@ def _containers(path):
     if path.endswith(".evoparam") or path.endswith(".zip"):
         return [path]
     found = []
-    for folder, dirs, _ in os.walk(path):
+    for folder, dirs, files in os.walk(path):
         for d in list(dirs):
-            if d.endswith(".evoparam"):
+            if d.endswith(".evoparam") and os.path.isfile(os.path.join(folder, d,
+                                                                       "manifest.json")):
                 found.append(os.path.join(folder, d))
                 dirs.remove(d)
     if not found:
