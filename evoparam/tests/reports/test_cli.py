@@ -128,3 +128,108 @@ def test_req323_exit_codes(fitted, tmp_path, monkeypatch, capsys):
         (copy / "structure.json").read_bytes()).hexdigest()
     (copy / "manifest.json").write_text(json.dumps(manifest))
     assert main(["reproduce", str(copy)]) == 6
+
+
+def test_req323_partial_and_interrupted(fitted, monkeypatch, capsys):
+    """Exit 3 with a channel whose fit failed, 130 when interrupted."""
+
+    import dataclasses
+
+    import evoparam.cli as cli
+
+    _, out = fitted
+    dataset = out.parent
+    real = cli.run_fit
+
+    def one_channel_fails(ts, preset, **kwargs):
+        results, notes = real(ts, preset, **kwargs)
+        group = results[0]
+        broken = dataclasses.replace(group.fits[0], status="failed", components=[],
+                                     message="forced failure (test)")
+        results[0] = dataclasses.replace(group, fits=[broken] + list(group.fits[1:]))
+        return results, notes
+
+    monkeypatch.setattr(cli, "run_fit", one_channel_fails)
+    code = main(["fit", str(dataset / "bids"), "--sub", "01", "--task", "ccep", "--preset",
+                 "ccep", "--out", str(dataset / "partial"), "--json"])
+    summary = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert code == 3 and summary["status"] == "partial" and summary["n_units"]["failed"] >= 1
+
+    def interrupted(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "run_fit", interrupted)
+    code = main(["fit", str(dataset / "bids"), "--sub", "01", "--task", "ccep",
+                 "--out", str(dataset / "stopped"), "--json"])
+    summary = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert code == 130 and summary["status"] == "interrupted"
+
+
+def test_req322_single_file_default_preset_and_toml(dataset, tmp_path, capsys):
+    """fit on one recording (its BIDS events.tsv next to it), no --preset (ccep for iEEG),
+    options from a TOML file with a table for the command."""
+
+    vhdr = next((dataset / "bids").rglob("*_ieeg.vhdr"))
+    config = tmp_path / "options.toml"
+    config.write_text('random-state = 0\n[fit]\nno-existence = true\n')
+    code = main(["fit", str(vhdr), "--out", str(tmp_path / "evoparam"), "--config",
+                 str(config), "--json"])
+    summary = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert code in (0, 3), summary
+    names = {os.path.basename(p) for p in summary["outputs"]}
+    assert "sub-01_task-ccep_desc-evoparam_responses.tsv" in names
+    assert not any(n.endswith("_existence.tsv") for n in names)       # from [fit]
+    from evoparam.io import read_bids_derivatives
+
+    group = read_bids_derivatives(str(tmp_path / "evoparam"), subject="01", task="ccep")
+    assert group.settings["preset"] == "ccep"
+
+    # .npz recording: data [trials, channels, times], sfreq, tmin
+    import numpy as np
+
+    from evoparam import sim
+
+    trials, _ = sim.simulate_ccep(n_trials=6, n_channels=3, seed=1)
+    npz = tmp_path / "sub-07_task-spes_ieeg.npz"
+    np.savez(npz, data=trials.data, sfreq=trials.sfreq, tmin=trials.times[0],
+             ch_names=np.array(trials.ch_names))
+    code = main(["test", str(npz), "--out", str(tmp_path / "evoparam-npz"), "--json"])
+    summary = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert code == 0, summary
+    assert any(p.endswith("sub-07_task-spes_desc-evoparam_existence.tsv")
+               for p in summary["outputs"])
+
+
+def test_req322_clean_writes_epochs_and_info_backends(dataset, tmp_path, capsys):
+
+    code = main(["clean", str(dataset / "bids"), "--sub", "01", "--task", "ccep",
+                 "--method", "template", "--window", "-0.002", "0.010",
+                 "--out", str(tmp_path / "evoparam"), "--json"])
+    summary = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert code == 0, summary
+    epochs = [p for p in summary["outputs"] if p.endswith(("_epo.fif", "_epo.npz"))]
+    assert len(epochs) == 1 and os.path.isfile(epochs[0])
+    assert any(p.endswith("_artifact.json") for p in summary["outputs"])
+    assert main(["info", "--json"]) == 0
+    info = json.loads(capsys.readouterr().out.splitlines()[-1])["result"]
+    assert info["backends"]["fit"] == {"numpy": True}
+    assert set(info["backends"]["hierarchical"]) == {"eb", "numpyro", "pymc"}
+    assert main(["simulate", "--modality", "ccep", "--n-trials", "4", "--n-channels", "3",
+                 "--seed", "5", "--out", str(tmp_path / "sim"), "--json"]) == 0
+
+
+def test_req322_fit_on_a_fif_file(tmp_path, capsys):
+
+    mne = pytest.importorskip("mne")
+    from evoparam import sim
+
+    trials, _ = sim.simulate_ccep(n_trials=8, n_channels=3, seed=2)
+    path = tmp_path / "sub-02_task-spes_epo.fif"
+    trials.to_mne().save(str(path), verbose="error")
+    code = main(["fit", str(path), "--preset", "ccep", "--no-existence",
+                 "--out", str(tmp_path / "evoparam"), "--json"])
+    summary = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert code in (0, 3), summary
+    assert any(p.endswith("sub-02_task-spes_desc-evoparam_responses.tsv")
+               for p in summary["outputs"])
+    del mne

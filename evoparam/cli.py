@@ -56,14 +56,148 @@ def _datatype(root, subject, wanted):
     return "ieeg"
 
 
+SINGLE_FILES = (".vhdr", ".edf", ".bdf", ".fif", ".fif.gz", ".nwb", ".npz")
+
+
+def _preset(args):
+    """The preset of --preset, else the one of the datatype (ieeg: ccep, eeg: erp)."""
+
+    from evoparam import presets
+
+    if getattr(args, "preset", None):
+        return presets.get(args.preset)
+    if _is_single(args.input):
+        return presets.get("erp" if args.input.lower().endswith((".edf", ".bdf", ".fif",
+                                                                  ".fif.gz")) else "ccep")
+    subject = (args.sub or "").removeprefix("sub-")
+    return presets.get("erp" if _datatype(args.input, subject,
+                                          getattr(args, "datatype", None)) == "eeg"
+                       else "ccep")
+
+
+def _is_single(path):
+    return os.path.isfile(path) and path.lower().endswith(SINGLE_FILES)
+
+
+def _file_entities(path):
+    """BIDS entities of a file name (sub, ses, task, run), for the derivative names."""
+
+    import re
+
+    found = dict(re.findall(r"(sub|ses|task|run)-([a-zA-Z0-9]+)", os.path.basename(path)))
+    return found
+
+
+def _events_for(path, args):
+    """Onsets (s) and metadata of a single recording: --events, else the BIDS events.tsv
+    next to it, else the annotations of an EDF+ file."""
+
+    import pandas as pd
+
+    from evoparam.data._harmonize import harmonize_stim_events
+
+    table = None
+    if getattr(args, "events", None):
+        table = pd.read_csv(args.events, sep="\t", na_values=["n/a"], keep_default_na=False)
+    else:
+        base = os.path.basename(path)
+        for suffix in ("_ieeg", "_eeg", "_meg"):
+            if suffix + "." in base:
+                candidate = os.path.join(os.path.dirname(path),
+                                         base.split(suffix + ".")[0] + "_events.tsv")
+                if os.path.isfile(candidate):
+                    table = pd.read_csv(candidate, sep="\t", na_values=["n/a"],
+                                        keep_default_na=False)
+                break
+    if table is None and path.lower().endswith((".edf", ".bdf")):
+        from evoparam.io import read_events_edf
+
+        table = pd.DataFrame(read_events_edf(path))
+    if table is None or "onset" not in table:
+        raise DataError(f"{path}: no events; give --events <events.tsv> (BIDS columns onset, "
+                        f"duration, trial_type).")
+    harmonized, _ = harmonize_stim_events(table)
+    if "trial_type" in harmonized:
+        stim = harmonized["trial_type"].astype(str) == "electrical_stimulation"
+        if stim.any():
+            harmonized = harmonized[stim].reset_index(drop=True)
+    return harmonized["onset"].to_numpy(float), harmonized
+
+
+def _read_single(path, args, epoch):
+    """A TrialSet from one file: .nwb (its events), .fif (MNE epochs, or raw with its
+    events), .npz (data [trials, channels, times], sfreq, tmin, optional ch_names), .vhdr /
+    .edf / .bdf (epochs around the events of --events, the BIDS events.tsv next to the file,
+    or the EDF+ annotations)."""
+
+    from evoparam.io import read, read_nwb
+
+    lower = path.lower()
+    if lower.endswith(".nwb"):
+        return read_nwb(path, tmin=epoch[0], tmax=epoch[1])
+    if lower.endswith((".fif", ".fif.gz")):
+        from evoparam.data import TrialSet
+        from evoparam.utils._optional import require
+
+        mne = require("mne", extra="mne", caller="evoparam fit <file>.fif")
+        try:
+            epochs = mne.read_epochs(path, verbose="error")
+        except (ValueError, RuntimeError, OSError):
+            raw = mne.io.read_raw_fif(path, preload=False, verbose="error")
+            try:
+                events = mne.find_events(raw, verbose="error")
+            except ValueError:
+                events, _ = mne.events_from_annotations(raw, verbose="error")
+            epochs = mne.Epochs(raw, events, tmin=epoch[0], tmax=epoch[1] - 1 / raw.info[
+                "sfreq"], baseline=None, preload=True, verbose="error")
+        return TrialSet.from_mne(epochs)
+    if lower.endswith(".npz"):
+        import numpy as np
+
+        from evoparam.data import Provenance, TrialSet
+
+        with np.load(path, allow_pickle=False) as archive:
+            data = np.asarray(archive["data"], float)
+            if data.ndim == 2:
+                data = data[None]
+            sfreq = float(archive["sfreq"])
+            tmin = float(archive["tmin"]) if "tmin" in archive else float(epoch[0])
+            names = [str(n) for n in archive["ch_names"]] if "ch_names" in archive else \
+                [f"ch{i}" for i in range(data.shape[1])]
+        times = tmin + np.arange(data.shape[-1]) / sfreq
+        return TrialSet(data=data, times=times, sfreq=sfreq, ch_names=names,
+                        provenance=Provenance(source={"path": path, "format": "npz"}))
+    onsets, metadata = _events_for(path, args)
+    return read(path, onsets=onsets, epoch=tuple(epoch), metadata=metadata)
+
+
 def _read(args, preset):
     from evoparam.io import read_bids
 
+    epoch = tuple(args.epoch) if getattr(args, "epoch", None) else preset.epoch
+    if _is_single(args.input):
+        ts = _read_single(args.input, args, epoch)
+        datatype = "eeg" if args.input.lower().endswith((".edf", ".bdf", ".fif", ".fif.gz")) \
+            else "ieeg"
+        return ts, getattr(args, "datatype", None) or datatype
+    if not args.sub:
+        raise DataError("--sub is needed with a BIDS dataset.")
     subject = args.sub.removeprefix("sub-")
     datatype = _datatype(args.input, subject, getattr(args, "datatype", None))
-    epoch = tuple(args.epoch) if getattr(args, "epoch", None) else preset.epoch
     return read_bids(args.input, subject, datatype=datatype, epoch=epoch,
                      remote=bool(getattr(args, "remote", False)), **_entities(args)), datatype
+
+
+def _target(args):
+    """(bids_root for SourceDatasets, subject, entities) of the derivatives."""
+
+    if _is_single(args.input):
+        found = _file_entities(args.input)
+        subject = (args.sub or found.get("sub") or "01").removeprefix("sub-")
+        entities = {"session": args.ses or found.get("ses"), "task": args.task or
+                    found.get("task") or "unknown", "run": args.run or found.get("run")}
+        return None, subject, entities
+    return args.input, args.sub, _entities(args)
 
 
 def run_fit(ts, preset, *, random_state=None, n_jobs=1, existence=True, trials=None,
@@ -90,46 +224,55 @@ def _count(outcome, group):
 
 
 def cmd_fit(args, outcome):
+    import numpy as np
+
     from evoparam.data import GroupFit
     from evoparam.io import write_bids_derivatives
     from evoparam.reports import methods_text
 
-    from evoparam import presets
-
-    preset = presets.get(args.preset)
+    preset = _preset(args)
     ts, datatype = _read(args, preset)
     results, notes = run_fit(ts, preset, random_state=args.random_state, n_jobs=args.n_jobs,
                              existence=not args.no_existence)
     outcome.warnings += notes
     group = next(r for r in results if isinstance(r, GroupFit))
     _count(outcome, group)
+    failed_trials = 0
+    for trial_fits in results:
+        for fit in getattr(trial_fits, "fits", []) if not isinstance(trial_fits, GroupFit) \
+                else []:
+            failed_trials += int(np.sum(~np.asarray(fit.converged, bool)))
+    if failed_trials:
+        # a trial whose fit did not converge is a failed trial (exit code 3, spec §10.5)
+        outcome.warnings.append(f"{failed_trials} trial fit(s) did not converge")
     out = args.out
-    written = write_bids_derivatives(results, args.input, subject=args.sub, datatype=datatype,
-                                     out=out, overwrite=True, trials=ts, **_entities(args))
+    root, subject, entities = _target(args)
+    written = write_bids_derivatives(results, root, subject=subject, datatype=datatype,
+                                     out=out, overwrite=True, trials=ts, **entities)
     # the group fit is saved by write_bids_derivatives next to its table
     # (<stem>_desc-evoparam_responses.evoparam), as every result of the run
     outcome.outputs += written
     _log(args, methods_text(results))
-    if outcome.n_units.get("failed"):
+    if outcome.n_units.get("failed") or failed_trials:
         outcome.code = EXIT_CODES["partial"]
 
 
 def cmd_test(args, outcome):
-    from evoparam import presets
     from evoparam.existence import test_response
     from evoparam.io import write_bids_derivatives
     from evoparam.prep import baseline_correct
 
-    preset = presets.get(args.preset)
+    preset = _preset(args)
     ts, datatype = _read(args, preset)
     if preset.baseline is not None:
         ts = baseline_correct(ts, preset.baseline, check=False)
     test = test_response(ts, method=args.method, window=preset.fit_window,
                          baseline=preset.baseline or (ts.times[0], 0.0),
                          random_state=args.random_state, by=())
-    outcome.outputs += write_bids_derivatives(test, args.input, subject=args.sub,
+    root, subject, entities = _target(args)
+    outcome.outputs += write_bids_derivatives(test, root, subject=subject,
                                               datatype=datatype, out=args.out, overwrite=True,
-                                              trials=ts, **_entities(args))
+                                              trials=ts, **entities)
 
 
 def cmd_clean(args, outcome):
@@ -137,18 +280,37 @@ def cmd_clean(args, outcome):
     from evoparam.data.serialize import save_object
     from evoparam.io import write_bids_derivatives
 
-    from evoparam import presets
-
-    preset = presets.get(args.preset)
+    preset = _preset(args)
     ts, datatype = _read(args, preset)
     window = tuple(args.window) if args.window else preset.artifact_window
+    if window is None:
+        raise DataError("clean: give --window TMIN TMAX (the preset has no artifact window).")
     result = remove_artifact(ts, method=args.method, window=window,
                              random_state=args.random_state)
-    outcome.outputs += write_bids_derivatives(result, args.input, subject=args.sub,
-                                              datatype=datatype, out=args.out, overwrite=True,
-                                              trials=ts, **_entities(args))
-    path = os.path.join(args.out, f"sub-{args.sub.removeprefix('sub-')}", "cleaned.evoparam")
-    outcome.outputs.append(save_object(result.cleaned, path, overwrite=True))
+    root, subject, entities = _target(args)
+    written = write_bids_derivatives(result, root, subject=subject, datatype=datatype,
+                                     out=args.out, overwrite=True, trials=ts, **entities)
+    outcome.outputs += written
+    folder = os.path.dirname(next(p for p in written if p.endswith("_artifact.json")))
+    stem = os.path.basename(next(p for p in written if p.endswith("_artifact.json")))
+    stem = stem[:-len("_artifact.json")]
+    # the cleaned epochs: FIF when mne is installed, else npz (spec §10.5); and the exact
+    # container
+    try:
+        import mne  # noqa: F401
+
+        path = os.path.join(folder, f"{stem}_epo.fif")
+        result.cleaned.to_mne().save(path, overwrite=True, verbose="error")
+    except ImportError:
+        import numpy as np
+
+        path = os.path.join(folder, f"{stem}_epo.npz")
+        np.savez(path, data=result.cleaned.data, sfreq=result.cleaned.sfreq,
+                 tmin=result.cleaned.times[0], ch_names=np.array(result.cleaned.ch_names))
+    outcome.outputs.append(path)
+    container = os.path.join(args.out, f"sub-{subject.removeprefix('sub-')}",
+                             "cleaned.evoparam")
+    outcome.outputs.append(save_object(result.cleaned, container, overwrite=True))
 
 
 def _containers(path):
@@ -193,7 +355,8 @@ def cmd_simulate(args, outcome):
 
     if args.modality not in GENERATORS:
         raise DataError(f"modality must be one of {sorted(GENERATORS)}.")
-    kwargs = {"n_trials": args.n_trials, "seed": args.random_state}
+    seed = args.seed if args.seed is not None else args.random_state
+    kwargs = {"n_trials": args.n_trials, "seed": seed}
     if args.n_channels:
         kwargs["n_channels"] = args.n_channels
     ts, truth = GENERATORS[args.modality](**kwargs)
@@ -273,10 +436,23 @@ def cmd_info(args, outcome):
                                        ("evoparam.presets", presets.PRESETS),
                                        ("evoparam.readers", READERS))
                for name, origin in sorted(registry.plugins().items())]
+    def installed(name):
+        try:
+            return metadata.version(name)
+        except metadata.PackageNotFoundError:
+            return None
+
+    # numerical backends: the fitting engine (NumPy/SciPy; the GPU backends of spec §9.1
+    # are not in this version) and the engines of the hierarchical model, with whether the
+    # packages they need are installed
+    backends = {"fit": {"numpy": True},
+                "hierarchical": {"eb": True,
+                                 "numpyro": bool(installed("numpyro") and installed("jax")),
+                                 "pymc": bool(installed("pymc"))}}
     outcome.extra = {"evoparam": __version__, "python": sys.version.split()[0],
                      "numpy": metadata.version("numpy"), "scipy": metadata.version("scipy"),
                      "optional": extras, "presets": sorted(presets.PRESETS),
-                     "plugins": plugins}
+                     "plugins": plugins, "backends": backends}
     if not args.json:
         for key, value in outcome.extra.items():
             print(f"{key}: {value}")
@@ -343,17 +519,21 @@ def _parser():
     common.add_argument("--verbose", default="warning", choices=("warning", "info", "debug"))
     common.add_argument("--n-jobs", type=int, default=1)
     common.add_argument("--random-state", type=int, default=0)
-    common.add_argument("--config", help="JSON file with option values")
+    common.add_argument("--config", help="JSON or TOML file with option values (the long "
+                                         "option names; command-line values win)")
     bids = argparse.ArgumentParser(add_help=False)
-    bids.add_argument("input", help="BIDS root")
-    bids.add_argument("--sub", required=True)
+    bids.add_argument("input", help="BIDS root, or one recording (.vhdr, .edf, .bdf, .fif, "
+                                    ".nwb, .npz)")
+    bids.add_argument("--sub", help="subject (required with a BIDS root)")
     bids.add_argument("--ses")
     bids.add_argument("--task")
     bids.add_argument("--run")
     bids.add_argument("--datatype", choices=("ieeg", "eeg"))
     bids.add_argument("--epoch", type=float, nargs=2, metavar=("TMIN", "TMAX"))
     bids.add_argument("--remote", action="store_true", help="read from OpenNeuro")
-    bids.add_argument("--preset", required=True)
+    bids.add_argument("--preset", help="default: ccep for iEEG, erp for EEG")
+    bids.add_argument("--events", help="events.tsv of a single recording (default: the BIDS "
+                                       "events.tsv next to it, or the EDF+ annotations)")
     bids.add_argument("--out", required=True)
     sub = parser.add_subparsers(dest="command")
     p = sub.add_parser("fit", parents=[common, bids], help="read, clean, fit, test, write")
@@ -375,6 +555,7 @@ def _parser():
     p.add_argument("--modality", default="ccep")
     p.add_argument("--n-trials", type=int, default=10)
     p.add_argument("--n-channels", type=int)
+    p.add_argument("--seed", type=int, help="seed of the simulation (default: --random-state)")
     p.add_argument("--sub", default="01")
     p.add_argument("--task")
     p.add_argument("--out", required=True)
@@ -416,13 +597,38 @@ def _parser():
     return parser
 
 
+def _read_config(path):
+    """Options of a JSON or TOML file (``.toml``: ``tomllib``, Python 3.11+, else ``tomli``).
+    Top-level keys apply to every command; a table ``[evoparam]`` too, and a table named
+    after the command (``[fit]``) only to it."""
+
+    if path.lower().endswith(".toml"):
+        try:
+            import tomllib
+        except ImportError:                       # Python 3.10
+            from evoparam.utils._optional import require
+
+            tomllib = require("tomli", extra="cli", caller="evoparam --config <file>.toml")
+        with open(path, "rb") as fobj:
+            config = tomllib.load(fobj)
+    else:
+        with open(path, encoding="utf-8") as fobj:
+            config = json.load(fobj)
+    if not isinstance(config, dict):
+        raise DataError(f"{path}: the configuration must be a table of options.")
+    return config
+
+
 def _apply_config(parser, args, argv):
     if not getattr(args, "config", None):
         return args
-    with open(args.config, encoding="utf-8") as fobj:
-        config = json.load(fobj)
+    config = _read_config(args.config)
     given = {a.split("=")[0].lstrip("-").replace("-", "_") for a in argv if a.startswith("--")}
-    for key, value in config.items():
+    flat = {k: v for k, v in config.items() if not isinstance(v, dict)}
+    for table in ("evoparam", args.command):          # [evoparam] then [<command>] tables
+        if isinstance(config.get(table), dict):
+            flat.update(config[table])
+    for key, value in flat.items():
         attr = key.replace("-", "_")
         if attr not in given:
             setattr(args, attr, value)
