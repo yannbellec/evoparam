@@ -94,6 +94,17 @@
   components (N170 54 %, P3 74 % at delta 3) but brings the false ones to 10 to 15 %: the
   default stays 10. Still open: 13 % of the N170 random-sign averages get a component, above
   the 5 % of REQ-112.
+- On the parent waves, half of the N170 "misses" are not fit failures: in 8 of 40
+  participants the wave at PO8 never goes below zero in the N170 window (the N170 is a dip
+  between P1 and P2, described by two positive components). ERP CORE measures it on the
+  difference wave, where with the plus-minus noise (of both conditions) the false components
+  fall from 12 to 28 % to 0 to 8 %, and the components found from 52 to 65 % to 40 to 65 %
+  (N170 54 -> 46 %, P3 63 -> 53 %, MMN 52 -> 40 %, N400 65 -> 65 %): part of what was found
+  before was noise.
+- Layer 3 (`validation/erpcore.py`) passes the plus-minus reference of the waves (combined as
+  the wave is) and applies the "auto" rule; `validation/layer3/erpcore_*.json` regenerated:
+  difference waves, labelled and within 10 ms: LRP 90 %, ERN 85 %, N400 57.5 %, N170 45 %,
+  MMN 37.5 %, N2pc 36 %, P3 30 %.
 - The methods texts of the reference pipelines are regenerated for this sentence and the
   reseeding sentence (`tools/freeze_methods_text.py`).
 

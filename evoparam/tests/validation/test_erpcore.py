@@ -2,12 +2,15 @@
 DOI 10.18115/D5JW4R) downloaded by ``validation/erpcore.py``'s documented layout; runs only
 when ``EVOPARAM_ERPCORE`` names that folder.
 
-Measured on 2026-10-08 (difference waves on the published channels, label window = the
+Measured on 2026-10-09 (difference waves on the published channels, label window = the
 published measurement window +/- 30 ms; model latency = 50 % area latency of the fitted
-component): labelled and within 10 ms in LRP 92.5 %, ERN 87.5 %, N170 55 %, N400 55 %,
-MMN 50 %, N2pc 38 %, P3 37.5 %. Most misses are fits without any component: on single
-participants' difference waves (40 to 60 trials per condition) the BIC rule with delta 10
-rejects components of about twice the noise SD; delta 2 raises N170 to 62.5 % only.
+component; noise from the plus-minus reference of the trials where the baseline is short,
+the engine's "auto" rule): labelled and within 10 ms in LRP 90 %, ERN 85 %, N400 57.5 %,
+N170 45 %, MMN 37.5 %, N2pc 36 %, P3 30 %. With the noise of the 200 ms baseline (before) the
+rates were higher (P3 37.5 %, MMN 50 %) but the same fits found a component in 12 to 28 % of
+random-sign averages, where there is none; with the plus-minus noise, 0 to 8 %. Most misses
+are fits without any component: on single participants' difference waves (40 to 60 trials
+per condition) the evidence for a component of about twice the noise SD is weak.
 """
 
 import importlib.util
