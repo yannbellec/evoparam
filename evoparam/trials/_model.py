@@ -14,8 +14,11 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.special import erfc
 
-from evoparam.shapes.components import (_SQRT2, _SQRT_2_OVER_PI, Gaussian, SkewedGaussian,
-                                        skew_mode)
+from evoparam.models.component_shapes import Gaussian, SkewedGaussian, skew_mode
+
+# the constants of the skewed Gaussian (evoparam.shapes.components)
+_SQRT2 = np.sqrt(2.0)
+_SQRT_2_OVER_PI = np.sqrt(2.0 / np.pi)
 
 __all__ = []
 

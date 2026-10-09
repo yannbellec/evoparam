@@ -30,9 +30,9 @@ from evoparam.data import (Component, Evoked, GoodnessOfFit, GroupFit, ResponseF
                            TrialSet)
 from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.models import ResponseModel
-from evoparam.models.component_shapes import compute_features, get_background, get_shape
+from evoparam.models.component_shapes import (FWHM_PER_SIGMA, compute_features, get_background,
+                                              get_shape)
 from evoparam.models.engine import cancelling_pairs
-from evoparam.shapes import FWHM_PER_SIGMA
 from evoparam.version import __version__
 
 __all__ = ["fit_shared", "neighbours", "PARAMETER_ROLES"]

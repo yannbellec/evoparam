@@ -1,8 +1,8 @@
 """Fail when a source file reuses code inherited under Apache-2.0 (spec §10.1, REQ-312).
 
 Code proposed upstream (MNE, MNE-BIDS) under BSD-3-Clause must be written new, never moved
-or adapted from the files inherited from ERPparam (NOTICE: ERPparam at commit
-98e52e3bf538031987ce2986bd93141efc475002, itself derived from FOOOF). This script compares
+or adapted from the inherited files (the origin named in NOTICE, with its repository and
+commit; NOTICE is the single place that names it). This script compares
 every window of 8 consecutive lines of the checked sources with every window of the
 inherited Python files, after normalising whitespace (each line stripped, runs of spaces
 and tabs reduced to one space, blank lines dropped), and exits with status 1 when any
@@ -13,7 +13,7 @@ Usage::
     python tools/check_no_inherited_code.py SOURCES... [--inherited DIR] [--window 8]
 
 ``SOURCES`` are files or folders (``*.py``). ``--inherited`` is a checkout of the inherited
-code; without it, ERPparam is cloned at the NOTICE commit into
+code; without it, the repository of the NOTICE origin is cloned at the NOTICE commit into
 ``~/.cache/evoparam/inherited`` (``git`` needed). The ``evoparam-upstream`` repository runs
 this script in its CI.
 """
@@ -25,9 +25,18 @@ import re
 import subprocess
 import sys
 
-UPSTREAM = "https://github.com/voytekresearch/ERPparam.git"
-COMMIT = "98e52e3bf538031987ce2986bd93141efc475002"
+NOTICE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "NOTICE")
 WINDOW = 8
+
+
+def origin(notice=NOTICE):
+    """(repository URL, commit) of the first origin listed in NOTICE."""
+
+    with open(notice, encoding="utf-8") as fobj:
+        text = fobj.read().split("Origin", 1)[1]
+    url = re.search(r"https://\S+", text).group(0)
+    commit = re.search(r"commit ([0-9a-f]{40})", text).group(1)
+    return url + ".git", commit
 
 
 def normalise(text):
@@ -75,12 +84,13 @@ def inherited_index(folder, size=WINDOW):
 
 
 def fetch_inherited(target):
-    """Clone ERPparam at the NOTICE commit (once)."""
+    """Clone the NOTICE origin at the NOTICE commit (once)."""
 
+    upstream, commit = origin()
     if not os.path.isdir(os.path.join(target, ".git")):
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        subprocess.run(["git", "clone", "--quiet", UPSTREAM, target], check=True)
-    subprocess.run(["git", "-C", target, "checkout", "--quiet", COMMIT], check=True)
+        subprocess.run(["git", "clone", "--quiet", upstream, target], check=True)
+    subprocess.run(["git", "-C", target, "checkout", "--quiet", commit], check=True)
     return target
 
 
@@ -104,7 +114,7 @@ def main(argv=None):
     parser.add_argument("--window", type=int, default=WINDOW)
     args = parser.parse_args(argv)
     inherited = args.inherited or fetch_inherited(
-        os.path.expanduser(os.path.join("~", ".cache", "evoparam", "inherited", "ERPparam")))
+        os.path.expanduser(os.path.join("~", ".cache", "evoparam", "inherited", "upstream")))
     matches = check(args.sources, inherited, args.window)
     for path, line, origin, origin_line in matches:
         print(f"{path}:{line}: {args.window} lines identical to {origin}:{origin_line} "
