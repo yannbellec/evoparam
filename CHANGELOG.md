@@ -65,6 +65,38 @@
   with `EVOPARAM_NETWORK_TESTS=1` 8.5 min (fixture 445 s), against about 47 min before
   (six fits of 183 to 913 s).
 
+### Engine: noise from the plus-minus average (ERPs)
+
+- Diagnosis. On ERP CORE (40 participants; N170, P3, MMN, N400), averages of the same trials
+  with random signs (no response, the same noise) gave a component in 20 to 29 % of the
+  fits with the `erp` preset (REQ-112 asks at most 5 % on noise). The false components
+  appear exactly where the noise scale estimated on the baseline is too low (0.31 µV for a
+  noise of 1.06 µV, 0.57 for 1.24): 200 ms of baseline, about 50 correlated samples, give a
+  scale that varies by a factor 2 to 3 between participants.
+- `FitSettings.noise_source` ("baseline" is spec §5.5.3 step 1, "plusminus", default
+  "auto"). The plus-minus reference (Schimmel 1967) is the trials averaged with alternating
+  signs over the whole epoch: it holds the noise of the average and none of the response, and
+  it involves no random draw. "auto" uses it when the fit has at least 10 trials and the
+  baseline holds fewer than 30 independent samples (n (1 - rho) / (1 + rho); the relative
+  error of a noise scale is about 1 / sqrt(2 n)), the baseline otherwise: 200 ms of ERP
+  baseline at 256 Hz gives about 9, 450 ms of CCEP baseline at 2048 Hz about 47. Each fit
+  records the reference in `diagnostics["noise_reference"]`, the settings of a group in
+  `noise_reference` ("baseline", "plusminus" or "mixed"), and the methods text names it.
+  Plus-minus everywhere was tried first and rejected: it assumes the same response in every
+  trial, and where the response varies (ERNA growing over a burst, trial variability of the
+  hierarchical simulations) it keeps part of it as noise (REQ-276 0.90 -> 0.85, REQ-170
+  AUC 0.95 -> 0.94).
+- Measured on ERP CORE with "auto" and the trials (component found on the parent wave /
+  a component on a random-sign average of the same trials): N170 38 % / 23 % -> 51 % / 13 %;
+  P3 66 % / 29 % -> 66 % / 3 %; MMN 35 % / 20 % -> 48 % / 2 %; N400 28 % / 22 % -> 25 % /
+  5 %. Simulated CCEPs and the ds004080 N1 tests (REQ-112, REQ-113, REQ-114) keep the
+  baseline and are unchanged. With the plus-minus noise, lowering `delta` finds more
+  components (N170 54 %, P3 74 % at delta 3) but brings the false ones to 10 to 15 %: the
+  default stays 10. Still open: 13 % of the N170 random-sign averages get a component, above
+  the 5 % of REQ-112.
+- The methods texts of the reference pipelines are regenerated for this sentence and the
+  reseeding sentence (`tools/freeze_methods_text.py`).
+
 ### Engine: reseeding and unresolvable components (risk S1)
 
 - Diagnosis. On a simulated cochlear ECAP the fit of contact E01 left a residual sum of

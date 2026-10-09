@@ -209,7 +209,10 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
                            message=core["message"], window=window, baseline=baseline,
                            settings=settings_dict, warnings=warns, provenance=provenance,
                            diagnostics={"sigma": core.get("sigma"), "rho": core.get("rho"),
-                                        "n_evaluations": core.get("n_evaluations", 0)})
+                                        "n_evaluations": core.get("n_evaluations", 0),
+                                   "noise_reference": core.get("noise_reference", "baseline"),
+                                        "noise_reference": core.get("noise_reference",
+                                                                    "baseline")})
 
     struct = core["struct"]
     wmask = core["window_mask"]
@@ -265,6 +268,7 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
                                    "best_rejected_delta": core["best_rejected_delta"],
                                    "sigma": core["sigma"], "rho": core["rho"],
                                    "n_evaluations": core.get("n_evaluations", 0),
+                                   "noise_reference": core.get("noise_reference", "baseline"),
                                    "n_eff": core["n_eff"], "n_white": core["n_white"],
                                    "ar_order": core["ar_order"], "criterion": core["kind"],
                                    "uncertainty_method": settings.uncertainty,
@@ -522,7 +526,8 @@ class ResponseModel(BaseEstimatorMixin):
                  uncertainty=None, n_bootstrap=None, ci_level=None, classical=None,
                  windows=None, noise_model=None, background_prior=None, amplitude_prior=None,
                  edge_extension=None, background_tau_max=None, max_masked_fraction=None,
-                 n_folds=None, reseed=None, n_jobs=1, random_state=None, verbose=None):
+                 n_folds=None, reseed=None, noise_source=None, n_jobs=1, random_state=None,
+                 verbose=None):
         for name, value in locals().items():
             if name != "self":
                 setattr(self, name, value)
@@ -538,7 +543,7 @@ class ResponseModel(BaseEstimatorMixin):
         return resolve_settings(self.preset, **overrides)
 
     def fit_waveform(self, times, y, *, window=None, baseline=None, sem=None, mask=None,
-                     trials=None):
+                     trials=None, noise_ref=None):
         """Fit one waveform; returns a :class:`ResponseFit` (never raises on a bad fit)."""
 
         start = _time.perf_counter()
@@ -560,6 +565,9 @@ class ResponseModel(BaseEstimatorMixin):
         sfreq = 1.0 / np.median(np.diff(times))
         mask = np.zeros(len(y), bool) if mask is None else np.asarray(mask, bool)
         select_k = None
+        if noise_ref is None and trials is not None and \
+                _engine.use_plus_minus(settings, times, y, mask):
+            noise_ref = _engine.plus_minus(trials)
         if settings.selection == "cv":
             if trials is None:
                 raise SettingsError("selection='cv' needs the trials (fit a TrialSet, or pass "
@@ -567,7 +575,8 @@ class ResponseModel(BaseEstimatorMixin):
             select_k = _cv_selector(np.asarray(trials, float), times, settings)
         try:
             core = _engine.fit_waveform_core(times, y, settings=settings, sfreq=sfreq,
-                                             mask=mask, sem=sem, select_k=select_k)
+                                             mask=mask, sem=sem, select_k=select_k,
+                                             noise_ref=noise_ref)
         except SettingsError:
             raise
         except Exception as exc:                      # never NaN with status "ok"
@@ -609,6 +618,10 @@ class ResponseModel(BaseEstimatorMixin):
             fits = [one(ch) for ch in index]
         resolved = self.settings(fit_window=window, baseline=baseline)
         settings = _settings_dict(resolved)
+        # the noise reference the fits used (the plus-minus average needs the trials)
+        used = {fit.diagnostics.get("noise_reference", "baseline") for fit in fits}
+        settings["noise_reference"] = "plusminus" if used == {"plusminus"} else (
+            "baseline" if used == {"baseline"} else "mixed")
         provenance = _with_plugins(evoked.provenance.with_step(
             "evoparam.models.ResponseModel.fit_group", settings,
             duration_s=_time.perf_counter() - start), resolved)

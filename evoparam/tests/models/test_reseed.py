@@ -1,4 +1,5 @@
-"""Reseeding the greedy path: no cancelling pair where the data have two components."""
+"""Reseeding the greedy path: no cancelling pair where the data have two components (noise
+from the baseline: the cases were found with it)."""
 
 import warnings
 
@@ -20,8 +21,9 @@ def test_ecap_components_are_found_not_a_cancelling_pair(kind):
     ts, truth = sim.simulate_ecap(40, kind=kind, paradigm=None, artifact=False, seed=0)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        group = fit(ts, preset, random_state=0, existence=False)
-        plain = fit(ts, preset, random_state=0, existence=False, reseed=False)
+        group = fit(ts, preset, random_state=0, existence=False, noise_source="baseline")
+        plain = fit(ts, preset, random_state=0, existence=False, reseed=False,
+                    noise_source="baseline")
     table = truth.to_dataframe()
     signal = np.asarray(truth.signal).mean(axis=0)
     average = ts.average()
@@ -50,8 +52,10 @@ def test_a_cancelling_pair_is_flagged_unresolvable():
     ts, _ = sim.simulate_ecap(40, kind="cochlear", paradigm=None, artifact=False, seed=0)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        plain = fit(ts, "ecap_ci", random_state=0, existence=False, reseed=False)
-        fixed = fit(ts, "ecap_ci", random_state=0, existence=False)
+        plain = fit(ts, "ecap_ci", random_state=0, existence=False, reseed=False,
+                    noise_source="baseline")
+        fixed = fit(ts, "ecap_ci", random_state=0, existence=False,
+                    noise_source="baseline")
     pair = plain.fits[1]
     assert [c.resolvable for c in pair.components] == [False, False]
     assert any(w.startswith("unresolvable:") for w in pair.warnings)

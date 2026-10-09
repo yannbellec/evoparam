@@ -171,6 +171,50 @@ def _inverse_cholesky(acov):
     return inv
 
 
+MIN_PLUS_MINUS = 10
+
+
+def plus_minus(trials):
+    """Plus-minus reference (Schimmel 1967): the trials averaged with alternating signs
+    (+, -, +, ... in their order; an odd last trial is left out). It holds the noise of the
+    average over the whole epoch and none of the response. None with fewer than
+    ``MIN_PLUS_MINUS`` trials."""
+
+    trials = np.asarray(trials, float)
+    n = (len(trials) // 2) * 2
+    if n < MIN_PLUS_MINUS:
+        return None
+    signs = np.where(np.arange(n) % 2 == 0, 1.0, -1.0)
+    with np.errstate(invalid="ignore"):
+        return np.nanmean(signs[:, None] * trials[:n], axis=0)
+
+
+# below this many independent baseline samples the noise scale is too uncertain (its
+# relative standard error is about 1 / sqrt(2 n)), and "auto" uses the plus-minus reference
+MIN_EFFECTIVE_BASELINE = 30
+
+
+def use_plus_minus(settings, times, y, mask=None):
+    """Whether the plus-minus reference replaces the baseline for the noise model."""
+
+    source = settings.noise_source
+    if source == "plusminus":
+        return True
+    if source != "auto" or settings.baseline is None:
+        return False
+    times = np.asarray(times, float)
+    base = (times >= settings.baseline[0]) & (times <= settings.baseline[1])
+    if mask is not None:
+        base &= ~np.asarray(mask, bool)
+    yb = np.asarray(y, float)[base]
+    yb = yb[np.isfinite(yb)]
+    if yb.size < 3:
+        return True
+    rho = float(np.corrcoef(yb[1:], yb[:-1])[0, 1]) if np.std(yb) > 0 else 0.0
+    rho = min(max(rho, 0.0), 0.999)
+    return yb.size * (1 - rho) / (1 + rho) < MIN_EFFECTIVE_BASELINE
+
+
 def noise_model(times, y, baseline, window_mask, mask):
     """Noise scale (MAD) and lag-1 autocorrelation from the baseline.
 
@@ -521,17 +565,19 @@ def _starts(shape, guess, n_starts, tw):
 _COUNTER = threading.local()
 
 
-def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None):
+def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None,
+                      noise_ref=None):
     """
 
     _COUNTER.n = 0
     out = _fit_waveform_core(times, y, settings=settings, sfreq=sfreq, mask=mask, sem=sem,
-                             select_k=select_k)
+                             select_k=select_k, noise_ref=noise_ref)
     out["n_evaluations"] = int(_COUNTER.n)
     return out
 
 
-def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None):
+def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None,
+                       noise_ref=None):
 Fit one waveform. Returns a dict with everything the result object needs.
 
     Keys: ``status``, ``message``, ``warnings``, ``shapes`` (objects), ``theta``, ``beta``,
@@ -561,7 +607,17 @@ Fit one waveform. Returns a dict with everything the result object needs.
     yw = np.where(mask[wmask], 0.0, y[wmask])
     valid = ~mask[wmask]
 
-    sigma, rho, warn = noise_model(times, y, settings.baseline, wmask, mask)
+    out["noise_reference"] = "plusminus" if noise_ref is not None else "baseline"
+    if noise_ref is not None:
+        # the plus-minus reference: the noise of the average over the whole epoch (trials of
+        # alternating sign averaged), longer than any baseline
+        ref = np.asarray(noise_ref, float)
+        good = np.isfinite(ref) & ~mask
+        sigma = 1.4826 * float(np.median(np.abs(ref[good] - np.median(ref[good]))))
+        rho = float(np.corrcoef(ref[good][1:], ref[good][:-1])[0, 1])
+        warn = None
+    else:
+        sigma, rho, warn = noise_model(times, y, settings.baseline, wmask, mask)
     if warn:
         out["warnings"].append(warn)
     out.update(sigma=sigma, rho=rho)
@@ -577,7 +633,9 @@ Fit one waveform. Returns a dict with everything the result object needs.
         s_ = np.asarray(sem, float)[wmask]
         scale = np.maximum(np.nan_to_num(s_, nan=sigma), 0.1 * sigma)
     a_coefs, innovation, acov = np.array([1.0]), 1.0, None
-    if settings.noise_model == "ar" and settings.baseline is not None:
+    if settings.noise_model == "ar" and noise_ref is not None:
+        a_coefs, innovation, acov = ar_model(ref[good] / sigma, return_acov=True)
+    elif settings.noise_model == "ar" and settings.baseline is not None:
         base = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask
         if base.sum() >= MIN_BASELINE:
             a_coefs, innovation, acov = ar_model(y[base] / sigma, return_acov=True)

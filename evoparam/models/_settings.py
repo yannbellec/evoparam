@@ -55,6 +55,11 @@ class FitSettings:
     # overlapping) or a nearly singular design from starts on the extrema of the data, and
     # keep it when it fits better; "always": for every state (slower; better on ERPs)
     reseed: object = True
+    # noise scale and AR model of the whitening: "baseline" (spec §5.5.3 step 1),
+    # "plusminus" (the trials averaged with alternating signs over the whole epoch, when the
+    # fit has at least 10 trials) or "auto": plus-minus when the baseline holds fewer than
+    # 30 independent samples (n (1 - rho) / (1 + rho)), the baseline otherwise
+    noise_source: str = "auto"
     preset: str | None = None
     preset_note: str | None = None
     random_state: object = None
