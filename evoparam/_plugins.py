@@ -148,19 +148,32 @@ class LazyRegistry(dict):
         if self._plugins and key in self._plugins:
             USED[f"{self._group}:{key}"] = self._plugins[key]
 
+    def _builtin_entry(self, key):
+        # a built-in name is answered without loading the plugins: a plugin module may use
+        # the built-ins while it is being imported (a preset derived from "ccep")
+        try:
+            return key in self._builtin and super().__contains__(key)
+        except TypeError:                         # unhashable key
+            return False
+
     def __getitem__(self, key):
-        self._load()
+        if not self._builtin_entry(key):
+            self._load()
         value = super().__getitem__(key)
         self._mark(key)
         return value
 
     def get(self, key, default=None):
+        if self._builtin_entry(key):
+            return super().__getitem__(key)
         self._load()
         if super().__contains__(key):
             return self[key]
         return default
 
     def __contains__(self, key):
+        if self._builtin_entry(key):
+            return True
         self._load()
         return super().__contains__(key)
 

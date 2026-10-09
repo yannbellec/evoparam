@@ -90,7 +90,8 @@ def _read_plugin(name, reader, path, kwargs):
     source["plugin"] = {name: origin}
     provenance = Provenance(source=source, steps=list(out.provenance.steps)).with_step(
         "evoparam.io.read", {"format": name, "plugin": origin})
-    return replace(out, provenance=provenance)
+    environment = dict(provenance.environment, plugins={name: origin})
+    return replace(out, provenance=replace(provenance, environment=environment))
 
 # MNE channel types measured in volts, and their type in the channel table (Table 4.2).
 _MNE_VOLTS = {"eeg": "eeg", "ecog": "ecog", "seeg": "seeg", "dbs": "dbs", "emg": "emg",

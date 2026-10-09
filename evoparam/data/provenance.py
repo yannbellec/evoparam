@@ -101,15 +101,9 @@ def _environment():
 def capture_environment():
     """Return the software environment as a JSON-serialisable dictionary."""
 
-    import evoparam._plugins as _plugins
-
-    env = copy.deepcopy(_environment())
-    used = {key.split(":", 1)[1]: origin for key, origin in _plugins.used().items()}
-    if used:
-        # only when a plugin was used: results without plugins keep the environment
-        # record of earlier versions
-        env["plugins"] = used
-    return env
+    # the plugins a result used are added by the functions that use them (models, readers):
+    # environment["plugins"] = {name: "dist==version"}, absent without plugins (spec §10.8)
+    return copy.deepcopy(_environment())
 
 
 def compute_data_hash(data, times, ch_names):
