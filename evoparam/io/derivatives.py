@@ -50,6 +50,9 @@ RESPONSE_COLUMNS = {
     "status": ("Outcome of the fit of the channel: ok, no_response, failed or skipped.", ""),
     "present": ("Existence decision of the channel's test (true, false, or n/a when no test "
                 "was run).", ""),
+    "resolvable": ("false when the component cannot be told apart from a neighbour "
+                   "(correlated amplitudes or latencies, or two overlapping components of "
+                   "opposite sign): do not read its numbers alone.", ""),
     "latency": ("Latency of the component extremum.", "s"),
     "latency_se": ("Standard error of the latency.", "s"),
     "latency_ci_low": ("Lower bound of the latency interval.", "s"),
@@ -145,6 +148,9 @@ LEVELS = {
                "skipped": "Not fitted (bad channel, masked samples or too short a window)."},
     "present": {"true": "The existence test found a response.",
                 "false": "The existence test found no response."},
+    "resolvable": {"true": "The component is identifiable.",
+                   "false": "It trades off with a neighbour; its numbers are not reliable "
+                            "alone."},
     "polarity": {"1": "Positive extremum.", "-1": "Negative extremum.",
                  "0": "No component."},
     "significant": {"true": "Significant after correction.",
@@ -337,7 +343,7 @@ def _response_rows(group, test=None, trials=None, extra_columns=()):
             continue
         for k, comp in enumerate(fit.components):
             row = dict(base, component=comp.label or f"c{k}", component_index=k,
-                       shape=comp.shape)
+                       shape=comp.shape, resolvable=comp.resolvable)
             for name in ("latency", "amplitude", "polarity", "fwhm", "onset", "offset", "area",
                          "rise_time", "decay_time", "symmetry", "sharpness"):
                 row[name] = getattr(comp, name)

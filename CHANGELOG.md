@@ -65,6 +65,37 @@
   with `EVOPARAM_NETWORK_TESTS=1` 8.5 min (fixture 445 s), against about 47 min before
   (six fits of 183 to 913 s).
 
+### Engine: reseeding and unresolvable components (risk S1)
+
+- Diagnosis. On a simulated cochlear ECAP the fit of contact E01 left a residual sum of
+  squares of 3,144 where the simulated curve leaves 25: a search failure, not an
+  ambiguity of the data. The greedy path adds the strongest component, then the next while
+  refitting all of them; the first slides onto the second and the two end as a pair of
+  opposite components that cancel, and the merge-and-compare of §5.5.3 step 5 keeps the
+  pair because one merged component fits worse than the pair.
+- Reseeding (`FitSettings.reseed`, default True). When the final state holds two
+  neighbours of opposite sign closer than `overlap_c` times their summed widths, or a nearly
+  singular design, the same number of components is refitted from starts on the extrema of
+  the data (the residual of the background-only model), and the result is kept when it fits
+  better (warning `reseeded`). `reseed="always"` tries it for every state. Measured
+  (`score_fits` on 12 simulations, 3 seeds each): `ecap_ci` F1 0.71 -> 1.00 and amplitude
+  error 21 % -> 5 %; `ecap` F1 0.77 -> 0.90 and 17 % -> 2 %; simulated ERP F1 0.83 -> 0.85;
+  CCEP unchanged (0.74); time x1.8 on these simulations, +3 % on real sEEG. On ERP CORE
+  (layer 3, parent waves, 40 participants) the default changes nothing; `"always"` raises
+  the N170 found from 37.5 % to 52.5 % of participants (within 10 ms: 25 % -> 40 %) at +43 %
+  time on a 46-channel CCEP fit, so it is an option, recommended for ERPs.
+- On real sEEG CCEPs (8 sites of a private clinical set, one per patient, run locally) the
+  default reseeds 0 to 3 channels per site and leaves the results almost unchanged: there the
+  overlapping opposite pairs mostly fit the data better than any separated pair (a biphasic
+  deflection that the shape library describes with two components), so they are a property
+  of the model, not a search failure.
+- `Component.resolvable` (spec §5.5.3 step 6 and risk S1, "unresolvable rather than a wrong
+  number"): False for the two members of a pair whose amplitudes or latencies correlate
+  beyond 0.95, or of a cancelling pair; warning `unresolvable:<k>`; column `resolvable` in
+  `to_dataframe()`, in `responses.tsv` (with `Levels`), in the NWB components table and in
+  `ndx-evoparam`. On the eight real sEEG sites, 3 to 19 % of the components are flagged.
+  Containers saved before keep loading (the field defaults to True).
+
 ### Build step S17: MNE, BIDS, NWB, Neo, scikit-learn, plugins and community files
 
 Part 1 (readers and validation data):
@@ -165,9 +196,7 @@ Part 3 (audit of REQ-310 to REQ-329 against the specification, and what it found
   the epochs themselves are 0.214 GB and the rest is the HDF5 library's cache, so the margin
   is small on other machines (`tests/io/test_nwb_memory.py`, `EVOPARAM_SLOW_TESTS=1`).
 - Containers. Columns holding pandas `NA` and nullable integers or booleans (`Int64`,
-  `boolean`) are saved and read back exactly (they raised before). The frozen-container test
-  compares the samples within 1e-12: the containers were frozen on Linux and `np.exp`
-  differs in the last bit on macOS.
+  `boolean`) are saved and read back exactly (they raised before).
 - Command line (REQ-322/323). `fit`, `test` and `clean` accept one recording (`.vhdr`,
   `.edf`, `.bdf`, `.fif`, `.nwb`, `.npz`; events from `--events`, the BIDS events.tsv next to
   it or the EDF+ annotations); `--preset` defaults to `ccep` (iEEG) or `erp` (EEG);
@@ -195,7 +224,7 @@ Part 3 (audit of REQ-310 to REQ-329 against the specification, and what it found
   the NOTICE commit; no match in the S17 modules, 2,509 in the inherited `objs` and `core`)
   and `RELEASING.md` with the 1.0 checklist.
 
-Found while writing the tutorials, not fixed in S17 (next work):
+Found while writing the tutorials (the first is addressed below):
 
 - The model selection accepts "cancelling pairs": two large components of opposite sign at
   almost the same latency, in place of the true components. Seen on clean simulated ECAPs

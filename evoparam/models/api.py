@@ -12,7 +12,7 @@ from evoparam.data import Component, Evoked, GoodnessOfFit, GroupFit, Provenance
 from evoparam.data import TrialSet
 from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, validate_array
 from evoparam.errors import DataError, SettingsError
-from evoparam.shapes import compute_features
+from evoparam.shapes import FWHM_PER_SIGMA, compute_features
 from evoparam.version import __version__
 
 from . import engine as _engine
@@ -150,6 +150,34 @@ def _bounds_warnings(core):
     return out
 
 
+def _unresolvable(comps, diag, settings):
+    """Indices of the components that cannot be told apart from a neighbour (spec §5.5.3
+    step 6, risk S1): the amplitudes or latencies of two components correlate beyond
+    ``CORR_LIMIT``, or two neighbours of opposite sign are closer than ``overlap_c`` times
+    their summed widths (a cancelling pair)."""
+
+    out = set()
+    latency = {}
+    for k, comp in enumerate(comps):
+        names = comp.param_names
+        latency[k] = names[0] if names else None
+    for a, b, _ in diag.get("flagged_pairs", []):
+        ka, na = a.split(":", 1)
+        kb, nb = b.split(":", 1)
+        if ka == kb or "bg" in (ka, kb):
+            continue
+        ka, kb = int(ka), int(kb)
+        if (na == "A" and nb == "A") or (na == latency.get(ka) and nb == latency.get(kb)):
+            out |= {ka, kb}
+    order = sorted(range(len(comps)), key=lambda k: comps[k].latency)
+    for i, j in zip(order, order[1:]):
+        a, b = comps[i], comps[j]
+        if np.sign(a.amplitude) != np.sign(b.amplitude) and abs(b.latency - a.latency) < \
+                settings.overlap_c * (a.fwhm + b.fwhm) / FWHM_PER_SIGMA:
+            out |= {i, j}
+    return sorted(out)
+
+
 def _with_plugins(provenance, settings):
     """``provenance.environment["plugins"]``: the plugin shapes, background and preset the
     settings use, ``{name: "dist==version"}`` (spec §10.8); unchanged without plugins."""
@@ -207,6 +235,10 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
                                onset=f.onset, offset=f.offset, area=f.area,
                                rise_time=f.rise_time, decay_time=f.decay_time,
                                symmetry=f.symmetry, sharpness=f.sharpness, se=se, ci=ci))
+
+    for k in _unresolvable(comps, diag, settings):
+        comps[k] = dataclasses.replace(comps[k], resolvable=False)
+        warns.append(f"unresolvable:{k}")
 
     bg = struct.background
     n_lin = getattr(bg, "n_linear", 0)
@@ -490,7 +522,7 @@ class ResponseModel(BaseEstimatorMixin):
                  uncertainty=None, n_bootstrap=None, ci_level=None, classical=None,
                  windows=None, noise_model=None, background_prior=None, amplitude_prior=None,
                  edge_extension=None, background_tau_max=None, max_masked_fraction=None,
-                 n_folds=None, n_jobs=1, random_state=None, verbose=None):
+                 n_folds=None, reseed=None, n_jobs=1, random_state=None, verbose=None):
         for name, value in locals().items():
             if name != "self":
                 setattr(self, name, value)

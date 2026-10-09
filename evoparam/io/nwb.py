@@ -380,6 +380,7 @@ def _component_rows(group, test, trials, to_volt):
                 "amplitude_se": (comp.se or {}).get("amplitude", nan) * to_volt
                 if comp else nan,
                 "polarity": int(comp.polarity) if comp else 0,
+                "resolvable": "true" if comp is None or comp.resolvable else "false",
                 "fwhm": comp.fwhm if comp else nan, "onset": comp.onset if comp else nan,
                 "offset": comp.offset if comp else nan,
                 "area": comp.area * to_volt if comp else nan,
@@ -396,6 +397,7 @@ COMPONENT_TABLE = [
     ("present", "existence decision: true, false or n/a"), ("latency", "latency (s)"),
     ("latency_se", "latency standard error (s)"), ("amplitude", "amplitude (V)"),
     ("amplitude_se", "amplitude standard error (V)"), ("polarity", "sign of the extremum"),
+    ("resolvable", "false: trades off with a neighbour, not reliable alone"),
     ("fwhm", "full width at half maximum (s)"), ("onset", "onset (s)"),
     ("offset", "offset (s)"), ("area", "area (V*s)"), ("r2", "goodness of fit"),
     ("n_trials", "trials averaged (-1: unknown)"),

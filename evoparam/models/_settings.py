@@ -51,6 +51,10 @@ class FitSettings:
     freq_max: float | None = None
     noise_model: str = "ar"
     n_folds: int = 5
+    # after the greedy path, refit a state holding a cancelling pair (opposite components
+    # overlapping) or a nearly singular design from starts on the extrema of the data, and
+    # keep it when it fits better; "always": for every state (slower; better on ERPs)
+    reseed: object = True
     preset: str | None = None
     preset_note: str | None = None
     random_state: object = None

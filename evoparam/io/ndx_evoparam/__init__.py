@@ -46,6 +46,7 @@ TABLES = {
         ("amplitude", "float64", "amplitude (V)"),
         ("amplitude_se", "float64", "amplitude standard error (V)"),
         ("polarity", "int64", "sign of the extremum"),
+        ("resolvable", "text", "false: trades off with a neighbour, not reliable alone"),
         ("fwhm", "float64", "full width at half maximum (s)"),
         ("onset", "float64", "onset (s)"), ("offset", "float64", "offset (s)"),
         ("area", "float64", "area (V*s)"), ("r2", "float64", "goodness of fit"),

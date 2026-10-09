@@ -64,6 +64,11 @@ groups:
     dtype: int64
     doc: sign of the extremum
     quantity: '?'
+  - name: resolvable
+    neurodata_type_inc: VectorData
+    dtype: text
+    doc: 'false: trades off with a neighbour, not reliable alone'
+    quantity: '?'
   - name: fwhm
     neurodata_type_inc: VectorData
     dtype: float64

@@ -718,6 +718,15 @@ Fit one waveform. Returns a dict with everything the result object needs.
         out["steps"].append({"K": len(current.shapes), "criterion": current.crit})
         out["path"].append(current)
 
+    if current.shapes and not forced and settings.reseed:
+        reseeded = _reseed(current, out["path"][0], make, settings, n_white, f_scale, kind,
+                           tw, valid, sigma, sfreq, residual_of)
+        if reseeded is not None:
+            out["warnings"].append("reseeded")
+            current = _merge_pass(reseeded, make, settings, n_white, f_scale, kind, out)
+            out["path"][-1] = current
+            out["steps"][-1] = {"K": len(current.shapes), "criterion": current.crit}
+
     out["best_rejected_delta"] = float(best_rejected) if np.isfinite(best_rejected) else np.nan
     out["make"] = make
     if settings.selection == "cv" and select_k is not None:
@@ -773,6 +782,76 @@ def _split_proposals(state, make, settings, n_eff, f_scale, kind, n_split=2):
         if cand is not None:
             out.append(_sort_state(cand, make))
     return out
+
+
+# Reseeding: the greedy path can end in a local optimum where two components of opposite sign
+# overlap and cancel (a "cancelling pair"): adding the second component lets the first slide
+# onto it, and the merge of the pair is worse than the pair, so it stays although placing
+# the components on the extrema of the data fits far better. Such a state is refitted from
+# starts on the extrema of the data (the residual of the background-only model).
+RESEED_EXTREMA = 6
+RESEED_COND = 1e5
+
+
+def _suspicious(state, make, settings):
+    """A pair of neighbouring components of opposite sign closer than ``overlap_c`` times
+    their summed widths, or a nearly singular design (one amplitude cancelling another)."""
+
+    struct = make(state.shapes)
+    info = []
+    for k, shape in enumerate(state.shapes):
+        params = struct.comp_params(state.theta, k)
+        feats = compute_features(shape, struct.tw, params, state.beta[k],
+                                 sfreq=1 / np.median(np.diff(struct.tw)))
+        info.append((feats.latency, (feats.fwhm or 0) / FWHM_PER_SIGMA,
+                     np.sign(state.beta[k])))
+    for (la, sa, pa), (lb, sb, pb) in zip(info, info[1:]):
+        if pa != pb and abs(lb - la) < settings.overlap_c * (sa + sb):
+            return True
+    if len(state.shapes) >= 2:
+        design = struct.design(state.theta)[:, :len(state.shapes)]
+        norms = np.linalg.norm(design, axis=0)
+        if np.all(norms > 0):
+            singular = np.linalg.svd(design / norms, compute_uv=False)
+            if singular[-1] <= 0 or singular[0] / singular[-1] > RESEED_COND ** 0.5:
+                return True
+    return False
+
+
+def _reseed(state, base, make, settings, n_eff, f_scale, kind, tw, valid, sigma, sfreq,
+            residual_of):
+    """A better state with the same number of components, started on the extrema of the
+    data, or None. Tried only when ``state`` is suspicious (see :func:`_suspicious`)."""
+
+    import itertools
+
+    if settings.reseed != "always" and not _suspicious(state, make, settings):
+        return None
+    k = len(state.shapes)
+    loose = dataclasses.replace(settings, detection_threshold=0.0)
+    picks, smooth = candidates(tw, residual_of(base), valid, sigma, sfreq, loose)
+    picks = sorted(picks[:max(RESEED_EXTREMA, k)])
+    if len(picks) < k:
+        return None
+    names = list(dict.fromkeys(s.name for s in state.shapes)) or list(settings.shapes)
+    best = None
+    bg = make(state.shapes).bg_params(state.theta)
+    for chosen in itertools.combinations(picks, k):
+        for name in names:
+            shape = _shape(name, settings)
+            try:
+                guesses = [shape.initial_guess(tw, smooth, p) for p in chosen]
+            except Exception:          # a shape that cannot start at one of the extrema
+                continue
+            theta0 = np.concatenate(guesses + [bg])
+            cand, _ = _evaluate_state(make, [shape] * k, theta0, settings, n_eff, f_scale,
+                                      kind, tol=1e-5)
+            if cand is not None and (best is None or cand.fit_crit < best.fit_crit):
+                best = cand
+    if best is None:
+        return None
+    best = _polish(_sort_state(best, make), make, settings, n_eff, f_scale, kind)
+    return best if best.fit_crit < state.fit_crit and best.crit <= state.crit else None
 
 
 def _sort_state(state, make):
