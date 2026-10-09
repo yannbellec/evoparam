@@ -277,7 +277,7 @@ def cmd_info(args, outcome):
     outcome.extra = {"evoparam": __version__, "python": sys.version.split()[0],
                      "numpy": metadata.version("numpy"), "scipy": metadata.version("scipy"),
                      "optional": extras, "presets": sorted(presets.PRESETS),
-                     "plugins": plugins}
+                     "plugins": plugins, "intended_use": RESEARCH_USE}
     if not args.json:
         for key, value in outcome.extra.items():
             print(f"{key}: {value}")

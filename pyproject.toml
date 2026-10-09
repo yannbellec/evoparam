@@ -97,4 +97,5 @@ testpaths = ["evoparam"]
 markers = [
     "network: reads public data over the internet; skipped unless EVOPARAM_NETWORK_TESTS=1",
     "core: runs with numpy and scipy only (the core-only job of REQ-291/REQ-297)",
+    "lsl: needs pylsl and the liblsl library (extra stream); skipped when they are missing",
 ]

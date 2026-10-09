@@ -176,7 +176,9 @@
   - REQ-007: `fit_trials` records no provenance step, and `tf_fit` neither records a seed
     nor replays identically.
   - REQ-009: fit tables give the amplitude unit as "data".
-  - REQ-015: there is no stream module yet.
+  - REQ-015: there was no stream module yet on this branch. Since the merge of S18
+    (`evoparam.stream`, section "Build step S18" below), `test_req015_stream_outputs`
+    checks its statement.
   - REQ-005: one `warnings.warn` remains in `io/nwb.py`.
   - REQ-315: npm has no `bids-validator@2`.
 
@@ -345,6 +347,112 @@
   `residual`, `cross`) and the baseline-normalised maps (`total_norm`, `footprint_norm`,
   `residual_norm`) are given; a new test checks the normalised maps against
   `10 log10(map / baseline mean of the total)`.
+
+### Build step S18: online mode (`evoparam.stream`)
+
+For research use only (not a medical device). The free package holds the API and the
+reference minimal estimator of spec §13.1; no device driver, controller logic or safety
+interlock. The tests follow the repository layout used by every step (`evoparam/tests/`):
+the spec's `tests/test_stream.py` and `tests/test_stream_lsl.py` are
+`evoparam/tests/stream/test_stream.py` and `evoparam/tests/stream/test_stream_lsl.py`.
+The reference machine and the benchmark numbers are in `benchmarks/README.md`.
+
+- `evoparam.stream.StreamFitter` with the signature of spec §10.6 (`push`, `push_pulse`,
+  `reset`, `latency_stats` with `p50`, `p95`, `p99`, `max`), `PulseEstimate` with the fields
+  of §10.6, `replay(trialset_or_raw, fitter, chunk_size=32)`, `LSLInlet(name=None,
+  stype="EEG", *, max_buflen=360)` and `LSLOutlet` (extra `stream`: `pylsl>=1.16`).
+  `StreamFitter.existence(final=False)` returns the running existence test per channel.
+  Parameters the specification needs but does not name: `saturation` (the level of the
+  `"saturated"` status), `existence_alpha` (0.05), `existence_max_pulses` (100, the
+  information horizon of the alpha-spending rule), `existence_looks` (`"pulse"`: a look
+  after every pulse; None: only through `existence()`), `random_state`. Fixed: the 20 ms
+  budget of the `"late"` status (REQ-324) and 1 000 sign flips (the default of
+  `test_response`). `push` takes `[n_samples, n_channels]` (the layout of LSL chunks).
+- Beyond the specification, for a measured gain in accuracy: `mode` of `StreamFitter` and
+  `FixedShapeModel`. `"common"` is the method of §10.6 (one shift and one scale for the
+  whole template); `"scale"` keeps one shift and gives each component its own scale; the
+  default `"shift_scale"` gives each component its own shift and scale, within `max_shift`
+  and half the distance to the nearest other component, as `fit_trials(mode="shift_scale")`.
+  With a single component the three modes are the same model and give bit-identical
+  estimates (tested). Measured on 200 simulated pulses with two components (N1 -40 uV at
+  30 ms, N2 +30 uV at 120 ms, jitter SD 1.5 ms, amplitude CV 20 %; one jitter for both
+  components / one per component), share of pulses within 1 % and one sample of
+  `fit_trials` on both components: `"common"` 1.5 % / 0.5 % (largest differences 92 % and
+  8.8 samples / 117 % and 12.7 samples), `"scale"` 41 % / 17 % (1.4 % and 9.0 samples /
+  2.9 % and 13.3 samples), `"shift_scale"` 100 % / 100 % (largest differences 2.3e-4
+  relative and 0.24 sample / 1.0e-4 and 0.31 sample). Latency (benchmark below, two
+  components): push p99 10.7 ms (`"common"`), 10.3 ms (`"scale"`) and 11.5 ms
+  (`"shift_scale"`), p50 5.7, 6.3 and 7.5 ms, all within the 20 ms budget.
+  `"shift_scale"` is therefore the default; `mode="common"` keeps the method of §10.6,
+  whose two-component agreement stays a documented strict xfail.
+- REQ-349: the stream module computes no number of its own; the estimators are public
+  functions of the analysis modules, and `evoparam/tests/reports/test_layering.py` now scans
+  `evoparam/stream` too:
+  - `evoparam.trials.FixedShapeModel`: the fixed-shape method of §10.6. Per pulse and
+    channel, a common shift on a one-sample grid over `+/- max_shift`, refined by parabolic
+    interpolation of the explained sum of squares, and a linear scale by closed-form least
+    squares (the template evaluated at the refined shift), with the linear terms of the
+    channel background re-estimated (time constants frozen). The normal matrices of every
+    grid shift are inverted once. In the `"shift_scale"` mode the per-component shifts
+    start from the best common shift and move by coordinate ascent on the grid (one
+    component at a time, the others fixed, its gain in explained sum of squares by
+    partitioned least squares from precomputed products of every pair of shifted
+    components) until no shift changes, then each is refined by parabolic interpolation;
+    the scales are then solved jointly at the refined shifts. The artifact window is
+    replaced by the core `interpolate` method of §5.3 (linear, 3 anchor samples on each
+    side) before the fit and the projections; the specification's "one-sided" interpolate
+    is not a method of §5.3, so the §5.3 method is used (both sides are available once a
+    window is complete).
+  - `evoparam.existence.OnlineExistence`, `SequentialSignFlip`, `sign_flip_test`,
+    `alpha_spending`. Per pulse, the projection of the window on the unit-norm unshifted
+    template; `existence_z` = (projection - mean of the baseline projections so far) / their
+    SD (the baseline is the segment of window length that ends before the window or the
+    artifact window; NaN until two baselines). Running test: one-sided sign-flip test of the
+    one-sample t of (window projection - baseline projection), with the Lan-DeMets
+    O'Brien-Fleming spending function applied to the permutation trajectories themselves
+    (the observed values and the sign-flipped copies are exchangeable; at information
+    fraction t at most floor(alpha(t) (P + 1)) trajectories may have crossed, the largest
+    live ones cross): the error over any number of looks is at most
+    floor(alpha (P + 1)) / (P + 1) <= alpha.
+  - `evoparam.events.OnlinePulseDetector`: the threshold step of `detect_pulses`, causal
+    (same score, robust z from the first second, onset = first crossing, `min_interval`
+    0.5 s), independent of the chunk sizes.
+- REQ-324 / REQ-347, agreement: on 200 simulated pulses (two channels, single-component
+  templates of the ccep preset), the streamed amplitude agrees with
+  `fit_trials(mode="shift_scale", max_shift=0.005)` within 6.6e-5 relative and the latency
+  within 0.0066 sample (limits 1 % and one sample). Chunk sizes 1, 32 and 1 024 give
+  bit-identical estimates. The running test evaluated once at the end gives the decisions
+  and p-values of `sign_flip_test` on the same per-pulse values (8 channels, 4 with a
+  response: 4 found, 0 false). With a two-component template the default mode agrees
+  within 2.3e-4 relative and 0.31 sample on 200 pulses (both jitter cases, test passes);
+  the specification's single shift and scale (`mode="common"`) stays a documented strict
+  xfail with the numbers above.
+- REQ-324 / REQ-347, latency (`benchmarks/stream_latency.py`, 1 000 simulated pulses, 64
+  channels at 2 048 Hz, a 0.5 s window from 0 to 0.5 s with the artifact window
+  interpolated, `max_shift` 5 ms, threshold detector, running test with a look after every
+  pulse, `OMP_NUM_THREADS=1`; the reference machine of `benchmarks/README.md`, other jobs
+  running): wall time of the `push` call that delivers the last sample of a window, one
+  component: p50 4.8 ms, p95 6.6 ms, p99 8.6 ms, max 11.3 ms with chunks of 32 samples
+  (p99 10.4 ms with chunks of 1), compute time per pulse p99 8.1 ms; two components (N1 and
+  N2 jittered independently), default mode: p50 7.5 ms, p95 10.0 ms, p99 11.5 ms, max
+  17.9 ms. Budget: p99 < 20 ms. The timed test (one and two components) runs with
+  `EVOPARAM_PERF_TESTS=1`; `test_latency_stats` always runs. Two speed-ups, numerically
+  equivalent: each component is evaluated only over the samples where, at some shift
+  within `max_shift`, it exceeds 1e-16 of its peak (largest change of any estimate
+  2.9e-16 relative; time to evaluate the components of 64 channels 3.9 -> 2.4 ms per
+  pulse with two components), and in the coordinate ascent a component is evaluated again
+  only when another one has moved (4.4 -> 3.2 steps per pulse).
+- REQ-348: over 50 looks on null data, false-positive rate 0.051 (4 000 channels of
+  Student t(3) values, P = 500; the same looks without the spending rule: 0.219) and 0.038
+  (16 null streams of 64 channels through `StreamFitter`); limit alpha + 0.01 = 0.06.
+- REQ-325: `evoparam/tests/stream/test_stream_lsl.py` (marker `lsl`, skipped without pylsl
+  or liblsl) sends a synthetic signal through a local outlet, reads 10 pulses with
+  `LSLInlet` and `StreamFitter` and checks the outlet metadata `intended_use = "research
+  only; not a medical device"` (passed with pylsl 1.16.2 and 1.18.5 on liblsl 1.16.2). The
+  outlet has one float32 channel per `PulseEstimate` field (strings as indices into the
+  JSON metadata) and is stamped with the pulse time. `evoparam info` prints `intended_use`; the tutorial
+  `tutorials/92_online_mapping_with_lsl.py` (simulated stream) states it, checked by
+  `evoparam/tests/test_docs.py`.
 
 ### Integration of the N1 work, S16, S17 and the tep validation
 
