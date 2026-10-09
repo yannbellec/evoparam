@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 from evoparam import _plugins, presets
-from evoparam.errors import SettingsError
+from evoparam.errors import EvoparamVersionError, SettingsError
 from evoparam.io.readers import READERS, read
 from evoparam.shapes import BACKGROUNDS, SHAPES
 
@@ -164,3 +164,52 @@ def test_plugins_can_be_disabled(site, monkeypatch):
     assert SHAPES.plugins() == {} and "lorentzian" not in SHAPES
     with pytest.raises(SettingsError):
         presets.get("dummy_lorentz")
+
+
+def test_reproduce_reports_a_missing_plugin(site, tmp_path):
+
+    import warnings
+
+    import evoparam
+    from evoparam.data import Evoked
+
+    _install(site)
+    _reload()
+    times = np.arange(-0.1, 0.6, 1e-3)
+    rng = np.random.default_rng(1)
+    rows = [-30.0 / (1.0 + ((times - 0.1) / 0.012) ** 2) + rng.normal(0, 1.0, times.size)
+            for _ in range(2)]
+    evoked = Evoked(data=np.array(rows), times=times, sfreq=1000.0, ch_names=["A1", "A2"])
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        group = evoparam.fit(evoked, "dummy_lorentz", existence=False)
+    assert group.provenance.environment["plugins"] == {
+        "lorentzian": "evoparam-dummy==0.1.0", "dummy_lorentz": "evoparam-dummy==0.1.0"}
+    path = group.save(str(tmp_path / "group"))
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        present = evoparam.reproduce(path, data=evoked)
+    assert present.missing_plugins == {}
+
+    # a fit with a plugin shape and a built-in preset replays without the plugin preset
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        shaped = evoparam.fit(evoked, "ccep", shapes=("lorentzian",), existence=False)
+    assert shaped.provenance.environment["plugins"] == {"lorentzian": "evoparam-dummy==0.1.0"}
+    shaped_path = shaped.save(str(tmp_path / "shaped"))
+
+    shutil.rmtree(os.path.join(site, "evoparam_dummy-0.1.0.dist-info"))
+    _reload()
+    with pytest.warns(UserWarning, match="plugin 'lorentzian' .* is not installed"):
+        report = evoparam.reproduce(shaped_path, data=evoked)
+    assert set(report.missing_plugins) == {"lorentzian"}
+    assert report.missing_plugins["lorentzian"]["installed"] is None
+    assert "pip install 'evoparam-dummy==0.1.0'" in report.missing_plugins["lorentzian"]["message"]
+    assert not report.identical
+
+    # the preset itself came from the missing plugin: the error names the plugin
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        with pytest.raises(EvoparamVersionError, match="pip install 'evoparam-dummy==0.1.0'"):
+            evoparam.reproduce(path, data=evoked)

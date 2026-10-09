@@ -15,7 +15,10 @@ answer within 7 days; a fix and an advisory follow as soon as the problem is con
 
 * No network access except the explicit `evoparam.io.fetch_*` functions and readers given
   an `http(s)://` address; `EVOPARAM_OFFLINE=1` forbids both.
-* Every download is checked against the sha256 of `evoparam/io/registry.json`.
+* Files downloaded by `fetch_openneuro_file` and `fetch_erpcore` are checked against the
+  sha256 of `evoparam/io/registry.json` when it records them (and, for ERP CORE, against
+  the sha256 published by OSF); a mismatch deletes the file. Remote partial reads record
+  the sha256 of the bytes read in the provenance.
 * No telemetry, no update check.
 * No `pickle` in public formats (`.evoparam` containers use JSON, `npz` with
   `allow_pickle=False`, parquet or CSV).

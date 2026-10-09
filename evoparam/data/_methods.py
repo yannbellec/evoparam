@@ -249,10 +249,24 @@ def _fit(settings):
                  f"the best).")
     else:
         noise = settings.get("noise_model", "ar")
-        how = ("residuals whitened by an autoregressive model of the baseline noise"
-               if noise == "ar" else "residuals scaled by the baseline noise (white noise)")
+        reference = settings.get("noise_reference")
+        source = ("the plus-minus average of the trials (alternating signs, whole epoch)"
+                  if reference == "plusminus" else
+                  "the plus-minus average of the trials where the baseline held fewer than "
+                  "30 independent samples, of the baseline elsewhere"
+                  if reference == "mixed" else "the baseline")
+        how = (f"residuals whitened by an autoregressive model of the noise of {source}"
+               if noise == "ar" else f"residuals scaled by the noise of {source} (white noise)")
         text += (f" Components were added one at a time and kept when the {crit} decreased "
                  f"by at least {_num(settings.get('delta'))}, computed on {how}.")
+        reseed = settings.get("reseed", False)
+        if reseed:
+            text += (" " + ("Every" if reseed == "always" else
+                            "A") + " final model " + ("" if reseed == "always" else
+                                                     "holding two overlapping components of "
+                                                     "opposite sign ")
+                     + "was refitted from starts on the extrema of the data and replaced "
+                       "when the refit was better.")
     level = settings.get("ci_level", 0.95)
     kind = settings.get("uncertainty")
     text += (f" Uncertainty: {_UNCERTAINTIES.get(kind, kind)} at {_num(level * 100)} %"

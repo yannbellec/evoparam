@@ -44,6 +44,20 @@ class PipelineResult:
         return out + list(self.artifact)
 
 
+def _artifact_baseline(ts, preset, window):
+    """Baseline of the artifact-quality score: the preset's baseline when the epoch holds
+    it, else the part of the epoch before the artifact window (the short epochs of the
+    ECAP presets have no sample in the default -0.5 to -0.05 s)."""
+
+    times = ts.times
+    if preset.baseline is not None:
+        lo, hi = preset.baseline
+        if ((times >= lo) & (times <= hi)).sum() >= 3:
+            return tuple(preset.baseline)
+    stop = (window[0] if window is not None else 0.0) - 1.0 / ts.sfreq
+    return (float(times[0]), float(stop))
+
+
 def artifact_steps(preset):
     """The ``remove_artifact`` keyword sets that the preset's ``artifact_method`` stands for.
 
@@ -149,6 +163,7 @@ def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True
     artifacts = []
     if artifact:
         for kwargs in artifact_steps(p):
+            kwargs.setdefault("baseline", _artifact_baseline(ts, p, kwargs.get("window")))
             result = remove_artifact(ts, random_state=random_state, **kwargs)
             artifacts.append(result)
             ts = result.cleaned

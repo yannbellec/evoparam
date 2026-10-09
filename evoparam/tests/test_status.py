@@ -16,7 +16,6 @@ from evoparam.data import TrialSet
 from evoparam.data.results import FIT_STATUSES
 
 PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
-PENDING = {"evoparam/io/nwb.py"}          # edited on branch s17-suite (see test below)
 DOCUMENTED = tuple(getattr(errors, name) for name in errors.__all__
                    if isinstance(getattr(errors, name), type)
                    and issubclass(getattr(errors, name), Exception))
@@ -50,14 +49,10 @@ def _modules():
 
 
 def test_req005_every_warning_goes_through_the_logging_helper():
-    hits = [f"{rel}:{line}" for rel, path in _modules() if rel not in PENDING
-            for line in _warn_calls(path)]
+    hits = [f"{rel}:{line}" for rel, path in _modules() for line in _warn_calls(path)]
     assert not hits, "use evoparam.errors.warn (warns and logs): " + ", ".join(hits)
 
 
-@pytest.mark.xfail(strict=True, reason="evoparam/io/nwb.py is being edited on branch "
-                   "s17-suite; its warnings.warn call is to be replaced by evoparam.errors.warn "
-                   "there (one line, reported).")
 def test_req005_nwb_reader_warnings_are_logged():
     path = PACKAGE / "io" / "nwb.py"
     assert not _warn_calls(path)

@@ -19,7 +19,7 @@ import time as _time
 import numpy as np
 
 from evoparam.data import Provenance, TrialSet
-from evoparam.errors import DataError, EventError, ReaderError
+from evoparam.errors import DataError, EventError, ReaderError, warn as _warn
 from evoparam.io._fetch import TransferLog, fetch_bytes, is_url, sha256_file
 from evoparam.io._harmonize import (HarmonizationReport, ValidationReport, harmonize_stim_events,
                                     normalize_site, validate_stimulation_events)
@@ -446,7 +446,7 @@ def _auto_chunk(trial_bytes):
 
 
 def _read_run(tree, folder, entities, data_name, datatype, epoch, events, select, picks,
-              cache_dir, pd):
+              cache_dir, pd, stim_mapping=None):
     stem = _stem(entities)
     tmin, tmax = epoch
     sidecar, recording = _events_sidecar(tree, folder, entities, datatype)
@@ -466,7 +466,7 @@ def _read_run(tree, folder, entities, data_name, datatype, epoch, events, select
         raise EventError('The events table has no onset column.')
     table = table.reset_index(drop=True)
     table['trial'] = np.arange(len(table), dtype=np.int64)
-    harmonized, report = harmonize_stim_events(table, sidecar)
+    harmonized, report = harmonize_stim_events(table, sidecar, mapping=stim_mapping)
     for line in report.warnings:
         logger.info('%s: %s', stem, line)
 
@@ -616,7 +616,7 @@ def _dataset_record(root, base, tree):
 
 def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=None,
               datatype='ieeg', epoch=(-0.5, 1.0), events='auto', select=None, picks=None,
-              remote=False, cache_dir=None, verbose=None):
+              remote=False, cache_dir=None, verbose=None, stim_mapping=None):
     """Read epochs around the events of a BIDS dataset, locally or remotely.
 
     Recordings in BrainVision (``.vhdr``), MEF 3.0 (``.mefd`` session folders: the Mayo
@@ -663,6 +663,10 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
         Where a remote data file is saved when the server ignores byte ranges.
     verbose : bool, str or None
         Logging level of the package during the call (None: unchanged).
+    stim_mapping : dict, optional
+        ``{source column: standard column}`` passed to :func:`harmonize_stim_events` as
+        ``mapping``: overrides the recognised columns (spec §10.2); the applied mapping is
+        in the harmonisation report of the provenance.
 
     Returns
     -------
@@ -705,7 +709,7 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
         for folder, entities, data_name in _find_runs(tree, wanted, datatype):
             parts.append((entities, _read_run(tree, folder, entities, data_name, datatype,
                                               (tmin, tmax), events, select, picks, cache_dir,
-                                              pd)))
+                                              pd, stim_mapping)))
     dataset, doi = _dataset_record(root, base, tree)
 
     if len(parts) == 1:
@@ -733,6 +737,15 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
         source = {'path' : [p['source']['path'] for _, p in parts], 'format' : 'bids',
                   'runs' : [p['source'] for _, p in parts]}
 
+    # Epochs whose samples are all exactly zero: data censored in the deposit (ds004977
+    # keeps one stimulation site per run and writes zeros elsewhere), never real signal
+    flat = np.flatnonzero(np.all(np.nan_to_num(data) == 0, axis=(1, 2)))
+    if flat.size:
+        _warn('{} of {} epochs hold only zeros (data censored in the deposit, or a '
+              'stimulation site outside the published span?); trials {}.'.format(
+                  flat.size, data.shape[0], flat[:10].tolist()), UserWarning,
+              stacklevel=2)
+        source['zero_epochs'] = flat.tolist()
     source.update({'reader' : 'evoparam.io.read_bids', 'bytes_read' : log.bytes_read,
                    'root' : base or os.path.abspath(os.fspath(root)), 'dataset' : dataset,
                    'doi' : doi, 'bids' : {'subject' : wanted['sub'], 'session' : wanted['ses'],

@@ -73,8 +73,9 @@ def test_pipeline_and_nested_parameters():
     pipe = make_pipeline(ArtifactRemover("interpolate", sfreq=SFREQ, tmin=-0.1,
                                          window=(0.0, 0.002)),
                          TrialFitter(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39)))
+    pipe.set_params(trialfitter__max_components=3)             # the call of REQ-320
+    assert pipe.get_params()["trialfitter__max_components"] == 3
     pipe.set_params(trialfitter__max_components=2)
-    assert pipe.get_params()["trialfitter__max_components"] == 2
     copy = clone(pipe)
     assert not copy.steps[1][1].__sklearn_is_fitted__()
     features = pipe.fit_transform(_array())

@@ -23,7 +23,7 @@ from evoparam.data import TrialSet, load_object, save_object
 from evoparam.data._jsonutil import loads, to_jsonable
 from evoparam.data.provenance import capture_environment
 from evoparam.data.serialize import SCHEMA
-from evoparam.errors import DataError, EvoparamVersionError, warn as _warn
+from evoparam.errors import DataError, EvoparamError, EvoparamVersionError, warn as _warn
 from evoparam.version import __version__
 
 __all__ = ["ReproduceReport", "reproduce", "migrate"]
@@ -46,7 +46,9 @@ class ReproduceReport:
     ``failed``) and ``message``; ``differences`` lists the fields that disagree;
     ``environment_differences`` maps each environment key that changed to
     ``[recorded, current]``; ``checksums_ok`` tells whether the container's files match
-    its manifest.
+    its manifest; ``missing_plugins`` maps each plugin the result used (recorded in
+    ``provenance.environment["plugins"]``, spec §10.8) that is not available now to
+    ``{"recorded": "dist==version", "installed": version or None, "message"}``.
     """
 
     path: str
@@ -57,6 +59,7 @@ class ReproduceReport:
     environment_differences: dict
     checksums_ok: bool
     settings_differences: list = dataclasses.field(default_factory=list)
+    missing_plugins: dict = dataclasses.field(default_factory=dict)
 
     def to_dict(self):
         out = dataclasses.asdict(self)
@@ -363,11 +366,44 @@ def _compare(new, old, path, rtol, atol, out):
     return 0.0
 
 
+def _missing_plugins(recorded):
+    """Plugins a result used that are not installed now, or not at the recorded version."""
+
+    from importlib import metadata
+
+    from evoparam import presets
+    from evoparam.io.readers import READERS
+    from evoparam.shapes import BACKGROUNDS, SHAPES
+
+    out = {}
+    available = set()
+    for registry in (SHAPES, BACKGROUNDS, presets.PRESETS, READERS):
+        try:
+            available |= set(registry)
+        except EvoparamError as err:            # a broken plugin set: report it, go on
+            out["<plugins>"] = {"recorded": None, "installed": None, "message": str(err)}
+    for name, origin in sorted((recorded or {}).items()):
+        dist, _, version = str(origin).partition("==")
+        try:
+            installed = metadata.version(dist)
+        except metadata.PackageNotFoundError:
+            installed = None
+        if installed is None or name not in available:
+            out[name] = {"recorded": origin, "installed": installed,
+                         "message": f"plugin {name!r} ({origin}) is not installed; "
+                                    f"pip install '{dist}=={version}'"}
+        elif version and installed != version:
+            out[name] = {"recorded": origin, "installed": installed,
+                         "message": f"plugin {name!r}: {dist} {installed} is installed, the "
+                                    f"result was made with {version}"}
+    return out
+
+
 def _environment_differences(recorded):
     current = capture_environment()
     out = {}
     for key in sorted(set(recorded) | set(current)):
-        if key in ("optional",):
+        if key in ("optional", "plugins"):    # plugins: reported by _missing_plugins
             continue
         if recorded.get(key) != current.get(key):
             out[key] = [recorded.get(key), current.get(key)]
@@ -404,7 +440,8 @@ def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=
     Raises
     ------
     EvoparamVersionError
-        A recorded step used a preset version that no longer exists.
+        A recorded step used a preset version that no longer exists (the message names the
+        plugin to install when the preset came from a plugin that is missing).
     """
 
     path = _resolve_path(result_path)
@@ -437,7 +474,18 @@ def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=
             _warn("evoparam.reproduce: the software environment differs from the "
                   f"recorded one ({', '.join(sorted(env_diff))}).", UserWarning,
                   stacklevel=2)
-    new, records = _replay(saved, final_settings, data)
+    missing_plugins = _missing_plugins((saved.provenance.environment or {}).get("plugins"))
+    if missing_plugins:
+        _warn("evoparam.reproduce: " + "; ".join(
+            item["message"] for item in missing_plugins.values()), UserWarning, stacklevel=2)
+    try:
+        new, records = _replay(saved, final_settings, data)
+    except EvoparamVersionError as err:
+        if not missing_plugins:
+            raise
+        # the preset came from a plugin that is not installed: say which one
+        raise EvoparamVersionError(f"{err} " + "; ".join(
+            item["message"] for item in missing_plugins.values())) from err
     if settings_differences:
         for record in records:
             if record["function"] == _FIT_STEP:
@@ -455,7 +503,8 @@ def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=
                            steps=records,
                            differences=[{"field": p, "rel_diff": d} for p, d in differences],
                            environment_differences=env_diff, checksums_ok=checksums_ok,
-                           settings_differences=settings_differences)
+                           settings_differences=settings_differences,
+                           missing_plugins=missing_plugins)
 
 
 def migrate(path):

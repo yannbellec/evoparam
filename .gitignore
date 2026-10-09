@@ -54,3 +54,9 @@ doctest-report.xml
 
 # local runs of tools/run_all_tests.py
 test-reports/
+
+# documentation build
+docs/_build/
+docs/auto_tutorials/
+docs/generated/
+docs/sg_execution_times.rst

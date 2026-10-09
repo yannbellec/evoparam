@@ -64,9 +64,19 @@ class TrialFitSet:
         for i, fit in enumerate(self.fits):
             fit.save(os.path.join(path, f"fit_{i:04d}.evoparam"), overwrite=True)
         self.table.to_csv(os.path.join(path, "table.csv"), index=False)
+        from evoparam.data.serialize import _Encoder
+
+        # settings and provenance in the typed encoding of the containers (tuples and NaN
+        # come back as they were)
+        encoder = _Encoder(None)
+        content = {"n_fits": len(self.fits), "skipped_channels": self.skipped_channels,
+                   "package_version": __version__,
+                   "settings": encoder.encode(self.settings, "settings"),
+                   "provenance": encoder.encode(self.provenance, "provenance")}
+        if encoder.arrays or encoder.tables:
+            raise DataError("TrialFitSet.save: settings must not hold arrays or tables.")
         with open(os.path.join(path, "set.json"), "w", encoding="utf-8") as fobj:
-            json.dump({"n_fits": len(self.fits), "skipped_channels": self.skipped_channels,
-                       "package_version": __version__}, fobj)
+            json.dump(content, fobj)
         return path
 
     @classmethod
@@ -74,14 +84,20 @@ class TrialFitSet:
         import json
 
         pd = require("pandas", extra="data", caller="evoparam.trials.TrialFitSet.load")
+        from evoparam.data.serialize import _Decoder
+
         with open(os.path.join(path, "set.json"), encoding="utf-8") as fobj:
             meta = json.load(fobj)
+        decoder = _Decoder(path, {}, False)
         fits = [TrialFit.load(os.path.join(path, f"fit_{i:04d}.evoparam"))
                 for i in range(meta["n_fits"])]
         table = pd.concat([f.table for f in fits], ignore_index=True) if fits else \
             pd.read_csv(os.path.join(path, "table.csv"))
+        settings = decoder.decode(meta["settings"]) if "settings" in meta else {}
+        provenance = decoder.decode(meta["provenance"]) if "provenance" in meta \
+            else Provenance()
         return cls(fits=fits, table=table, skipped_channels=meta["skipped_channels"],
-                   settings={})
+                   settings=settings, provenance=provenance)
 
 
 ###################################################################################################

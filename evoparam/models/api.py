@@ -13,7 +13,7 @@ from evoparam.data import TrialSet
 from evoparam.data.provenance import elapsed
 from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, validate_array
 from evoparam.errors import DataError, SettingsError, warn as _warn
-from evoparam.shapes import compute_features
+from evoparam.shapes import FWHM_PER_SIGMA, compute_features
 from evoparam.version import __version__
 
 from . import engine as _engine
@@ -151,18 +151,69 @@ def _bounds_warnings(core):
     return out
 
 
+def _unresolvable(comps, diag, settings):
+    """Indices of the components that cannot be told apart from a neighbour (spec §5.5.3
+    step 6, risk S1): the amplitudes or latencies of two components correlate beyond
+    ``CORR_LIMIT``, or two neighbours of opposite sign are closer than ``overlap_c`` times
+    their summed widths (a cancelling pair)."""
+
+    out = set()
+    latency = {}
+    for k, comp in enumerate(comps):
+        names = comp.param_names
+        latency[k] = names[0] if names else None
+    for a, b, _ in diag.get("flagged_pairs", []):
+        ka, na = a.split(":", 1)
+        kb, nb = b.split(":", 1)
+        if ka == kb or "bg" in (ka, kb):
+            continue
+        ka, kb = int(ka), int(kb)
+        if (na == "A" and nb == "A") or (na == latency.get(ka) and nb == latency.get(kb)):
+            out |= {ka, kb}
+    order = sorted(range(len(comps)), key=lambda k: comps[k].latency)
+    for i, j in zip(order, order[1:]):
+        a, b = comps[i], comps[j]
+        if np.sign(a.amplitude) != np.sign(b.amplitude) and abs(b.latency - a.latency) < \
+                settings.overlap_c * (a.fwhm + b.fwhm) / FWHM_PER_SIGMA:
+            out |= {i, j}
+    return sorted(out)
+
+
+def _with_plugins(provenance, settings):
+    """``provenance.environment["plugins"]``: the plugin shapes, background and preset the
+    settings use, ``{name: "dist==version"}`` (spec §10.8); unchanged without plugins."""
+
+    from evoparam.shapes import BACKGROUNDS, SHAPES
+
+    import evoparam.presets as presets
+
+    used = {}
+    for registry, names in ((SHAPES, settings.shapes), (BACKGROUNDS, (settings.background,)),
+                            (presets.PRESETS, (settings.preset,))):
+        origins = registry.plugins()
+        used.update({name: origins[name] for name in names if name in origins})
+    if not used:
+        return provenance
+    environment = dict(provenance.environment)
+    environment["plugins"] = {**(environment.get("plugins") or {}), **used}
+    return dataclasses.replace(provenance, environment=environment)
+
+
 def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_dict):
     window = settings.fit_window
     baseline = settings.baseline if settings.baseline is not None else (np.nan, np.nan)
     warns = list(core.get("warnings", []))
-    provenance = Provenance().with_step("evoparam.models.fit_waveform", settings_dict,
-                                        duration_s=None)
+    provenance = _with_plugins(Provenance().with_step("evoparam.models.fit_waveform",
+                                                      settings_dict, duration_s=None), settings)
     if core["status"] in ("skipped", "failed") or "struct" not in core:
         return ResponseFit(components=[], background={}, gof=None, status=core["status"],
                            message=core["message"], window=window, baseline=baseline,
                            settings=settings_dict, warnings=warns, provenance=provenance,
                            diagnostics={"sigma": core.get("sigma"), "rho": core.get("rho"),
-                                        "n_evaluations": core.get("n_evaluations", 0)})
+                                        "n_evaluations": core.get("n_evaluations", 0),
+                                   "noise_reference": core.get("noise_reference", "baseline"),
+                                        "noise_reference": core.get("noise_reference",
+                                                                    "baseline")})
 
     struct = core["struct"]
     wmask = core["window_mask"]
@@ -189,6 +240,10 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
                                rise_time=f.rise_time, decay_time=f.decay_time,
                                symmetry=f.symmetry, sharpness=f.sharpness, se=se, ci=ci))
 
+    for k in _unresolvable(comps, diag, settings):
+        comps[k] = dataclasses.replace(comps[k], resolvable=False)
+        warns.append(f"unresolvable:{k}")
+
     bg = struct.background
     n_lin = getattr(bg, "n_linear", 0)
     bg_values = dict(zip(getattr(bg, "linear_names", ()), core["beta"][len(comps):len(comps) + n_lin]))
@@ -214,6 +269,7 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
                                    "best_rejected_delta": core["best_rejected_delta"],
                                    "sigma": core["sigma"], "rho": core["rho"],
                                    "n_evaluations": core.get("n_evaluations", 0),
+                                   "noise_reference": core.get("noise_reference", "baseline"),
                                    "n_eff": core["n_eff"], "n_white": core["n_white"],
                                    "ar_order": core["ar_order"], "criterion": core["kind"],
                                    "uncertainty_method": settings.uncertainty,
@@ -512,7 +568,8 @@ class ResponseModel(BaseEstimatorMixin):
                  uncertainty=None, n_bootstrap=None, ci_level=None, classical=None,
                  windows=None, noise_model=None, background_prior=None, amplitude_prior=None,
                  edge_extension=None, background_tau_max=None, max_masked_fraction=None,
-                 n_folds=None, n_jobs=1, random_state=None, verbose=None):
+                 n_folds=None, reseed=None, noise_source=None, n_jobs=1, random_state=None,
+                 verbose=None):
         for name, value in locals().items():
             if name != "self":
                 setattr(self, name, value)
@@ -539,7 +596,7 @@ class ResponseModel(BaseEstimatorMixin):
         return resolve_settings(self.preset, **overrides)
 
     def fit_waveform(self, times, y, *, window=None, baseline=None, sem=None, mask=None,
-                     trials=None, random_state=None):
+                     trials=None, random_state=None, noise_ref=None):
         """Fit one waveform; returns a :class:`ResponseFit` (never raises on a bad fit).
 
         ``random_state`` replaces the estimator's for this call. When both are None a seed
@@ -556,12 +613,20 @@ class ResponseModel(BaseEstimatorMixin):
             raise DataError("times and y must have the same shape.")
         if settings.fit_window is None:
             raise SettingsError("A fit window is needed (fit_window=, window= or a preset).")
-        if settings.fit_window[0] < times[0] or settings.fit_window[1] > times[-1]:
+        # the end of an epoch is excluded (tmax), so a window that ends at the epoch end
+        # lies less than one sample beyond the last one: allowed (the fit uses the samples
+        # inside the window)
+        step = float(np.median(np.diff(times))) if times.size > 1 else 0.0
+        if settings.fit_window[0] < times[0] - step * (1 + 1e-9) or \
+                settings.fit_window[1] > times[-1] + step * (1 + 1e-9):
             raise DataError(f"fit window {settings.fit_window} exceeds the data "
                             f"({times[0]:.4f} to {times[-1]:.4f} s).")
         sfreq = 1.0 / np.median(np.diff(times))
         mask = np.zeros(len(y), bool) if mask is None else np.asarray(mask, bool)
         select_k = None
+        if noise_ref is None and trials is not None and \
+                _engine.use_plus_minus(settings, times, y, mask):
+            noise_ref = _engine.plus_minus(trials)
         if settings.selection == "cv":
             if trials is None:
                 raise SettingsError("selection='cv' needs the trials (fit a TrialSet, or pass "
@@ -569,7 +634,8 @@ class ResponseModel(BaseEstimatorMixin):
             select_k = _cv_selector(np.asarray(trials, float), times, settings)
         try:
             core = _engine.fit_waveform_core(times, y, settings=settings, sfreq=sfreq,
-                                             mask=mask, sem=sem, select_k=select_k)
+                                             mask=mask, sem=sem, select_k=select_k,
+                                             noise_ref=noise_ref)
         except SettingsError:
             raise
         except Exception as exc:                      # never NaN with status "ok"
@@ -617,10 +683,14 @@ class ResponseModel(BaseEstimatorMixin):
         resolved = self.settings(fit_window=window, baseline=baseline, random_state=seed)
         settings = _settings_dict(resolved, self._explicit(fit_window=window,
                                                            baseline=baseline))
-        provenance = evoked.provenance.with_step("evoparam.models.ResponseModel.fit_group",
-                                                 settings,
-                                                 duration_s=_time.perf_counter() - start,
-                                                 preset=preset_record(resolved))
+        # the noise reference the fits used (the plus-minus average needs the trials)
+        used = {fit.diagnostics.get("noise_reference", "baseline") for fit in fits}
+        settings["noise_reference"] = "plusminus" if used == {"plusminus"} else (
+            "baseline" if used == {"baseline"} else "mixed")
+        provenance = _with_plugins(evoked.provenance.with_step(
+            "evoparam.models.ResponseModel.fit_group", settings,
+            duration_s=_time.perf_counter() - start, preset=preset_record(resolved)),
+            resolved)
         return GroupFit.from_fits(fits, [names[i] for i in index],
                                   [condition] * len(fits), settings=settings,
                                   provenance=provenance)
@@ -774,8 +844,9 @@ def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None
 
     ``evoparam.fit(trials, preset="ccep")`` averages the trials (by condition with ``by``),
     fits every channel and returns a :class:`GroupFit`. ``data`` may be a TrialSet, an
-    Evoked or an array [n_channels, n_times] with ``times`` (convert MNE objects and files
-    with :func:`evoparam.io.read` first).
+    Evoked, an ``mne.Epochs``, an ``mne.Evoked``, a list of ``mne.Evoked`` (one condition
+    each, ``comment`` as the condition label) or an array [n_channels, n_times] with
+    ``times``; read files with :func:`evoparam.io.read` first.
 
     ``trials=True`` (trial-by-trial fits, build step S10) and ``existence=True`` (the
     existence test, build step S8) are not available yet and raise SettingsError.
@@ -789,6 +860,9 @@ def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None
     if not average:
         raise SettingsError("average=False: fit trials one by one with trials=True (S10).")
     recorded_version = overrides.pop("package_version", None)
+    # what the fits used (noise_source="auto" decides it again from the data): recorded, not
+    # a setting, so that ``fit(data, **result.settings)`` takes it back (REQ-331)
+    overrides.pop("noise_reference", None)
     if recorded_version is not None and recorded_version != __version__:
         # settings of a result made by another version (REQ-331: func(data, **settings))
         message = (f"evoparam.fit: the settings were recorded by evoparam "

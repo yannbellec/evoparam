@@ -7,7 +7,7 @@ import pytest
 
 pynwb = pytest.importorskip("pynwb")
 
-from evoparam.io import read_nwb, write_nwb  # noqa: E402
+from evoparam.io import read_nwb, read_nwb_results, write_nwb  # noqa: E402
 
 SFREQ = 1000.0
 N_CH = 4
@@ -70,6 +70,14 @@ def _nwbfile(source):
         for t in ONSETS:
             table.add_row(start_time=float(t), stop_time=float(t) + 0.25, color=1.0)
         nwb.add_time_intervals(table)
+    elif source == "stim_table":
+        StimTable = _stim_table_class()
+        table = StimTable(name="stimulation", description="biphasic pulses")
+        for t in ONSETS:
+            table.add_row(start_time=float(t), stop_time=float(t) + 0.0004,
+                          bipolar_pair="e0-e1", frequency=0.5, amplitude=0.004,
+                          pulse_width=0.0002)
+        nwb.add_acquisition(table)
     elif source == "icephys":
         from pynwb.icephys import CurrentClampStimulusSeries
 
@@ -84,16 +92,50 @@ def _nwbfile(source):
     return nwb
 
 
+_STIM_TABLE = {}
+
+
+def _stim_table_class():
+    """``StimTable`` of ndx-electrical-stim (dormant, not on PyPI): the same type, declared
+    with the NWB extension builder in a folder of the test session and loaded into pynwb."""
+
+    if _STIM_TABLE:
+        return _STIM_TABLE["cls"]
+    import tempfile
+
+    from pynwb import get_class, load_namespaces
+    from pynwb.spec import NWBDatasetSpec, NWBGroupSpec, NWBNamespaceBuilder
+
+    folder = tempfile.mkdtemp(prefix="ndx-electrical-stim-")
+    builder = NWBNamespaceBuilder(doc="electrical stimulation (test copy)",
+                                  name="ndx-electrical-stim", version="0.1.0",
+                                  author=["test"], contact=["test"])
+    builder.include_namespace("core")
+    columns = [NWBDatasetSpec(name=n, neurodata_type_inc="VectorData", dtype=d, doc=n)
+               for n, d in (("bipolar_pair", "text"), ("frequency", "float64"),
+                            ("amplitude", "float64"), ("pulse_width", "float64"))]
+    builder.add_spec("ndx-electrical-stim.extensions.yaml",
+                     NWBGroupSpec(neurodata_type_def="StimTable",
+                                  neurodata_type_inc="TimeIntervals",
+                                  doc="stimulation table", datasets=columns))
+    builder.export("ndx-electrical-stim.namespace.yaml", outdir=folder)
+    load_namespaces(f"{folder}/ndx-electrical-stim.namespace.yaml")
+    _STIM_TABLE["cls"] = get_class("StimTable", "ndx-electrical-stim")
+    return _STIM_TABLE["cls"]
+
+
 def _write(tmp_path, source):
     path = tmp_path / f"{source}.nwb"
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        nwbfile = _nwbfile(source)     # first: a source may load an extension namespace
         with pynwb.NWBHDF5IO(str(path), "w") as io:
-            io.write(_nwbfile(source))
+            io.write(nwbfile)
     return path
 
 
-@pytest.mark.parametrize("source", ["events_table", "trials", "intervals", "icephys"])
+@pytest.mark.parametrize("source", ["events_table", "trials", "intervals", "stim_table",
+                                    "icephys"])
 def test_req317_event_sources(tmp_path, source):
 
     path = _write(tmp_path, source)
@@ -113,6 +155,23 @@ def test_req317_stimulation_units(tmp_path):
     ts = read_nwb(str(_write(tmp_path, "events_table")), tmin=-0.1, tmax=0.2)
     assert np.allclose(ts.metadata["stim_current_mA"], 6.0)
     assert np.allclose(ts.metadata["stim_pulse_width_us"], 200.0)
+    stim = read_nwb(str(_write(tmp_path, "stim_table")), tmin=-0.1, tmax=0.2)
+    assert stim.provenance.source["events"] == "stim_table"
+    assert np.allclose(stim.metadata["stim_current_mA"], 4.0)
+    assert set(stim.metadata["stim_site"]) == {"e0-e1"}
+
+
+def test_req317_equal_to_the_trialset_built_in_memory(tmp_path):
+
+    from evoparam.io import epoch
+
+    ts = read_nwb(str(_write(tmp_path, "trials")), tmin=-0.1, tmax=0.2)
+    memory = epoch(_signal().T * 1e6, SFREQ, ONSETS, -0.1, 0.2,
+                   ch_names=[f"e{i}" for i in range(N_CH)])
+    assert ts.ch_names == memory.ch_names and ts.units == memory.units == "uV"
+    np.testing.assert_allclose(ts.times, memory.times, atol=1e-12)
+    np.testing.assert_allclose(ts.event_times, memory.event_times, atol=1e-12)
+    np.testing.assert_allclose(ts.data, memory.data, rtol=1e-12, atol=1e-9)
 
 
 def test_events_given_as_a_table_and_select(tmp_path):
@@ -128,31 +187,125 @@ def test_events_given_as_a_table_and_select(tmp_path):
     assert set(ts.metadata["kind"]) == {"a"}
 
 
-def test_req318_write_and_inspect(tmp_path):
-
+def _results(path):
     from evoparam.existence import test_response
     from evoparam.models import fit
+    from evoparam.trials import fit_trials
 
-    path = _write(tmp_path, "trials")
     ts = read_nwb(str(path), tmin=-0.5, tmax=0.6)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = fit(ts, "rodent_ep")
         test = test_response(ts, n_permutations=50, random_state=0, by=())
-        write_nwb([group, test], str(path))
-    with pynwb.NWBHDF5IO(str(path), "r") as io:
-        nwb = io.read()
-        module = nwb.processing["evoparam"]
-        components = module["evoparam_components"].to_dataframe()
-        assert set(components["channel"]) == set(ts.ch_names)
-        assert "evoparam_existence" in module.data_interfaces
-        assert '"settings"' in module.description
+        trial_fits = fit_trials(ts, group, by=(), random_state=0)
+    return ts, group, test, trial_fits
+
+
+def _inspect(path):
     inspector = pytest.importorskip("nwbinspector")
     messages = list(inspector.inspect_nwbfile(nwbfile_path=str(path)))
-    # messages about the tables evoparam wrote (the test file itself has no subject)
-    bad = [m for m in messages if m.importance.name in ("CRITICAL", "BEST_PRACTICE_VIOLATION")
-           and "evoparam" in str(m.location)]
-    assert not bad, [m.message for m in bad]
+    # messages about what evoparam wrote (the test file itself has no subject)
+    return [m.message for m in messages
+            if m.importance.name in ("CRITICAL", "BEST_PRACTICE_VIOLATION")
+            and "evoparam" in str(m.location)]
+
+
+@pytest.mark.parametrize("extension", [False, True])
+def test_req318_write_and_inspect(tmp_path, extension):
+
+    path = _write(tmp_path, "trials")
+    ts, group, test, trial_fits = _results(path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        write_nwb([group, test, trial_fits, ts], str(path), extension=extension)
+    with pynwb.NWBHDF5IO(str(path), "r", load_namespaces=True) as io:
+        nwb = io.read()
+        module = nwb.processing["evoparam"]
+        assert set(module.data_interfaces) == {"evoparam_components", "evoparam_existence",
+                                               "evoparam_trials", "evoparam_model",
+                                               "evoparam_results"}
+        components = module["evoparam_components"]
+        frame = components.to_dataframe()
+        for column in ("electrode", "stim_site", "condition", "component", "shape", "status",
+                       "present", "latency", "latency_se", "amplitude", "amplitude_se",
+                       "polarity", "fwhm", "onset", "offset", "area", "r2", "n_trials",
+                       "ci_level"):
+            assert column in components.colnames, column
+        assert set(frame["channel"]) == set(ts.ch_names)
+        # electrode: a region into the electrodes table, rows matching the channel names
+        assert components["electrode"].table is nwb.electrodes
+        rows = [int(r) for r in components["electrode"].data[:]]
+        assert [f"e{r}" for r in rows] == list(frame["channel"])
+        first = group.fits[0].components[0]
+        assert np.isclose(frame["amplitude"].iloc[0], first.amplitude * 1e-6)
+        assert set(frame["present"]) <= {"true", "false"}
+        existence = module["evoparam_existence"]
+        assert {"electrode", "stim_site", "condition"} <= set(existence.colnames)
+        trials = module["evoparam_trials"]
+        assert trials["trial"].table is nwb.trials
+        assert "electrode" in trials.colnames
+        model = module["evoparam_model"]
+        assert model.data.shape[1] == len(group.fits)
+        peak = np.max(np.abs(model.data[:]))
+        assert 1e-6 < peak < 1e-3                                   # volts
+        assert '"settings"' in module.description
+        if extension:
+            assert type(components).__name__ == "EvokedResponseFitTable"
+            assert type(existence).__name__ == "ResponseTestTable"
+            assert type(trials).__name__ == "TrialFitTable"
+            assert {"params", "param_names"} <= set(components.colnames)
+            assert list(components["param_names"][0]) == list(first.param_names)
+            assert np.allclose(components["params"][0], first.params)
+            record = nwb.lab_meta_data["evoparam_settings"]
+            assert record.preset_name == "rodent_ep" and record.package_version
+    assert _inspect(path) == []
+
+
+def test_req318_read_back_equal_results(tmp_path):
+
+    path = _write(tmp_path, "trials")
+    ts, group, test, trial_fits = _results(path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        write_nwb([group, test, trial_fits], str(path))
+    assert read_nwb_results(str(path)) == group
+    everything = read_nwb_results(str(path), kind="all")
+    assert everything["existence"] == test
+    assert everything["trials"] == trial_fits.fits
+    assert everything["components"].provenance == group.provenance
+
+
+def test_req318_edited_table_is_detected(tmp_path):
+
+    from evoparam.errors import DataError
+
+    path = _write(tmp_path, "trials")
+    _, group, _, _ = _results(path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        write_nwb(group, str(path))
+    import h5py
+
+    with h5py.File(str(path), "a") as handle:
+        latency = handle["processing/evoparam/evoparam_components/latency"]
+        values = latency[:]
+        values[0] += 0.001
+        latency[...] = values
+    with pytest.raises(DataError, match="edited"):
+        read_nwb_results(str(path))
+    assert read_nwb_results(str(path), verify=False) == group
+
+
+def test_ndx_spec_files_are_current(tmp_path):
+
+    from evoparam.io import ndx_evoparam
+
+    built = ndx_evoparam.build_spec(str(tmp_path))
+    for name in ("ndx-evoparam.namespace.yaml", "ndx-evoparam.extensions.yaml"):
+        with open(tmp_path / name, encoding="utf-8") as a, \
+                open(f"{ndx_evoparam.SPEC_DIR}/{name}", encoding="utf-8") as b:
+            assert a.read() == b.read(), name
+    assert built.endswith("ndx-evoparam.namespace.yaml")
 
 
 def test_events_in_a_gap_of_the_timestamps_are_dropped(tmp_path):

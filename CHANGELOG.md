@@ -131,8 +131,10 @@
 - GroundTruth (F63). `GroundTruth.save` and `GroundTruth.load` use the `.evoparam`
   container (`register_type` adds types defined outside `evoparam.data`).
 - Warnings (REQ-005). `evoparam.errors.warn` warns and logs. Every warning of the
-  package goes through it, except the single call in `io/nwb.py`, which is pending on
-  another branch (strict xfail). The `evoparam` logger has a `NullHandler` only.
+  package goes through it. The call in `io/nwb.py` was converted when the NWB branch was
+  merged (its strict xfail is removed), with the warnings that `evoparam.stream`,
+  `io/bids.py`, `io/derivatives.py` and `reproduce` brought. The `evoparam` logger has a
+  `NullHandler` only.
 - `evoparam.fit` runs the existence test by default (REQ-002). On an Evoked it uses the
   weaker null and warns. If the test cannot run, the columns are NaN and a warning says
   so. `existence=False` skips it. A preset without a baseline uses the pre-stimulus
@@ -179,7 +181,6 @@
   - REQ-015: there was no stream module yet on this branch. Since the merge of S18
     (`evoparam.stream`, section "Build step S18" below), `test_req015_stream_outputs`
     checks its statement.
-  - REQ-005: one `warnings.warn` remains in `io/nwb.py`.
   - REQ-315: npm has no `bids-validator@2`.
 
 ### Specification gaps: artifact, prep and events
@@ -517,6 +518,64 @@ The reference machine and the benchmark numbers are in `benchmarks/README.md`.
   with `EVOPARAM_NETWORK_TESTS=1` 8.5 min (fixture 445 s), against about 47 min before
   (six fits of 183 to 913 s).
 
+### Engine: noise from the plus-minus average (ERPs)
+
+- Diagnosis. On ERP CORE (40 participants; N170, P3, MMN, N400), averages of the same trials
+  with random signs (no response, the same noise) gave a component in 20 to 29 % of the
+  fits with the `erp` preset (REQ-112 asks at most 5 % on noise). The false components
+  appear exactly where the noise scale estimated on the baseline is too low (0.31 µV for a
+  noise of 1.06 µV, 0.57 for 1.24): 200 ms of baseline, about 50 correlated samples, give a
+  scale that varies by a factor 2 to 3 between participants.
+- `FitSettings.noise_source` ("baseline" is spec §5.5.3 step 1, "plusminus", default
+  "auto"). The plus-minus reference (Schimmel 1967) is the trials averaged with alternating
+  signs over the whole epoch: it holds the noise of the average and none of the response, and
+  it involves no random draw. "auto" uses it when the fit has at least 10 trials and the
+  baseline holds fewer than 30 independent samples (n (1 - rho) / (1 + rho); the relative
+  error of a noise scale is about 1 / sqrt(2 n)), the baseline otherwise: 200 ms of ERP
+  baseline at 256 Hz gives about 9, 450 ms of CCEP baseline at 2048 Hz about 47. Each fit
+  records the reference in `diagnostics["noise_reference"]`, the settings of a group in
+  `noise_reference` ("baseline", "plusminus" or "mixed"), and the methods text names it.
+  Plus-minus everywhere was tried first and rejected: it assumes the same response in every
+  trial, and where the response varies (ERNA growing over a burst, trial variability of the
+  hierarchical simulations) it keeps part of it as noise (REQ-276 0.90 -> 0.85, REQ-170
+  AUC 0.95 -> 0.94).
+- Measured on ERP CORE with "auto" and the trials (component found on the parent wave /
+  a component on a random-sign average of the same trials): N170 38 % / 23 % -> 51 % / 13 %;
+  P3 66 % / 29 % -> 66 % / 3 %; MMN 35 % / 20 % -> 48 % / 2 %; N400 28 % / 22 % -> 25 % /
+  5 %. Simulated CCEPs and the ds004080 N1 tests (REQ-112, REQ-113, REQ-114) keep the
+  baseline and are unchanged. With the plus-minus noise, lowering `delta` finds more
+  components (N170 54 %, P3 74 % at delta 3) but brings the false ones to 10 to 15 %: the
+  default stays 10. Still open: 13 % of the N170 random-sign averages get a component, above
+  the 5 % of REQ-112.
+- The methods texts of the reference pipelines are regenerated for this sentence and the
+  reseeding sentence (`tools/freeze_methods_text.py`).
+
+### Engine: reseeding and unresolvable components (risk S1)
+
+- Diagnosis. On a simulated cochlear ECAP the fit of contact E01 left a residual sum of
+  squares of 3,144 where the simulated curve leaves 25: a search failure, not an
+  ambiguity of the data. The greedy path adds the strongest component, then the next while
+  refitting all of them; the first slides onto the second and the two end as a pair of
+  opposite components that cancel, and the merge-and-compare of §5.5.3 step 5 keeps the
+  pair because one merged component fits worse than the pair.
+- Reseeding (`FitSettings.reseed`, default True). When the final state holds two
+  neighbours of opposite sign closer than `overlap_c` times their summed widths, or a nearly
+  singular design, the same number of components is refitted from starts on the extrema of
+  the data (the residual of the background-only model), and the result is kept when it fits
+  better (warning `reseeded`). `reseed="always"` tries it for every state. Measured
+  (`score_fits` on 12 simulations, 3 seeds each): `ecap_ci` F1 0.71 -> 1.00 and amplitude
+  error 21 % -> 5 %; `ecap` F1 0.77 -> 0.90 and 17 % -> 2 %; simulated ERP F1 0.83 -> 0.85;
+  CCEP unchanged (0.74); time x1.8 on these simulations. On ERP CORE
+  (layer 3, parent waves, 40 participants) the default changes nothing; `"always"` raises
+  the N170 found from 37.5 % to 52.5 % of participants (within 10 ms: 25 % -> 40 %) at +43 %
+  time on a 46-channel CCEP fit, so it is an option, recommended for ERPs.
+- `Component.resolvable` (spec §5.5.3 step 6 and risk S1, "unresolvable rather than a wrong
+  number"): False for the two members of a pair whose amplitudes or latencies correlate
+  beyond 0.95, or of a cancelling pair; warning `unresolvable:<k>`; column `resolvable` in
+  `to_dataframe()`, in `responses.tsv` (with `Levels`), in the NWB components table and in
+  `ndx-evoparam`.
+  Containers saved before keep loading (the field defaults to True).
+
 ### Build step S17: MNE, BIDS, NWB, Neo, scikit-learn, plugins and community files
 
 Part 1 (readers and validation data):
@@ -574,6 +633,89 @@ Part 2:
   2.1), `GOVERNANCE.md`, `SECURITY.md`, `SUPPORT.md`, issue forms under
   `.github/ISSUE_TEMPLATE/`; linked from the README. The DCO check as a required status on
   `main` is a repository setting, not set here.
+
+Part 3 (audit of REQ-310 to REQ-329 against the specification, and what it found):
+
+- MNE (REQ-310/311). `TrialSet.from_mne(stim_columns=...)` harmonises the stimulation
+  columns of the metadata ("auto", or a `{column: target}` mapping); `to_mne` gives back the
+  original metadata. Event times: `events[:, 0] / sfreq`, without adding `first_samp`.
+  Deviation from §10.1, for correctness: MNE event samples already count from the start of
+  the acquisition (they include `first_samp`); adding it again would shift every event and
+  `to_mne` would not give the events back (tested: events identical after the round trip).
+  `evoparam.fit` on an `mne.Evoked` is compared with the converted path in the tests. The
+  harmonisation moved to `evoparam.data._harmonize` (re-exported by `evoparam.io`) so that
+  `data` can use it.
+- BIDS (REQ-313). `read_bids(stim_mapping=...)` passes a user mapping to the harmonisation
+  (recorded in the provenance); `tests/io/test_bids_events.py` covers ds004080, ds003708
+  and ds004977 shapes (published headers) and a minimal file. `read_bids` warns when epochs
+  hold only zeros: ds004977 keeps the signal around one stimulation site per run and writes
+  zeros elsewhere, which used to give silent all-zero epochs.
+- BIDS derivatives (REQ-315/316). `responses.tsv` now holds the `classical_*` measures, the
+  `evoparam_stim_*` columns and the standard `electrical_stimulation_*` columns of the source
+  (from the fitted trials, `trials=`), the real `stim_site` (it held the condition label),
+  and sidecars with `LongName`, `Units` and `Levels`; the README has the methods paragraph;
+  `SourceDatasets` comes from the registry when the raw dataset gives no DOI; the datatype is
+  taken from the source. Beyond the specification: each result is saved next to its table
+  as an `.evoparam` container (`.evoparamset` for trial fits), so `read_bids_derivatives`
+  gives back the exact objects (model curves included, not only "same tables and
+  provenance") and detects a table edited after writing. Checked with the BIDS validator
+  3.0.2 (`--datasetTypes derivative`, 0 errors, run locally) and `bidsschematools`;
+  `docs/bids_stimulation_columns.rst` lists the proposed columns (the BEP issue is not
+  opened: an action of the author).
+- NWB (REQ-317/318). `write_nwb(extension=..., trials=..., model=...)`: `electrode`
+  (`DynamicTableRegion` into the electrodes) and `trial` (into `trials`) columns, the
+  missing columns (`stim_site`, `present`, `area`, `n_trials`, `ci_level`, `condition`),
+  `evoparam_model` (fitted curves, V), `evoparam_results` (each result as a zipped
+  container) and `read_nwb_results` (exact round trip, edited tables detected). The
+  `ndx-evoparam` extension (namespace 0.1.0, `evoparam/io/ndx_evoparam`, YAML generated by
+  `python -m evoparam.io.ndx_evoparam`) types the tables and adds `ResponseFitSettings`;
+  files pass `nwbinspector` with and without it. Publishing it (PyPI, NDX catalog) is a
+  release step. The StimTable event source is tested with a locally declared
+  ndx-electrical-stim type. `read_nwb` fills one array in place: reading epochs covering
+  10 % of a 1.07 GB file grows the peak memory by 0.248 GB (limit 0.25 GB; it was 0.47 GB);
+  the epochs themselves are 0.214 GB and the rest is the HDF5 library's cache, so the margin
+  is small on other machines (`tests/io/test_nwb_memory.py`, `EVOPARAM_SLOW_TESTS=1`).
+- Containers. Columns holding pandas `NA` and nullable integers or booleans (`Int64`,
+  `boolean`) are saved and read back exactly (they raised before).
+- Command line (REQ-322/323). `fit`, `test` and `clean` accept one recording (`.vhdr`,
+  `.edf`, `.bdf`, `.fif`, `.nwb`, `.npz`; events from `--events`, the BIDS events.tsv next to
+  it or the EDF+ annotations); `--preset` defaults to `ccep` (iEEG) or `erp` (EEG);
+  `simulate --seed`; `--config` reads TOML (with `[evoparam]` and per-command tables) as
+  well as JSON; `clean` writes the cleaned epochs as FIF (or npz without `mne`); `info`
+  lists the backends; a trial fit that did not converge gives exit code 3. Exit codes 3 and
+  130 are tested. `benchmark` comes with step S19.
+- Plugins (REQ-328). `reproduce` names a missing plugin (`missing_plugins`, with the `pip`
+  command) and the error of a missing plugin preset says which package to install; each
+  result records the plugins it used (not every plugin used in the process); built-in names
+  are answered without loading the plugins, so a plugin may use the built-in presets while
+  it is imported.
+- Tutorials (REQ-326). `docs/tutorials`: one per preset (11, REQ-303), six integrations and
+  `reporting_your_results`, each ending with the methods paragraph; `preset_ccep`,
+  `preset_ccep_seeg`, `integration_bids` read ds003708 / ds004977 remotely, `preset_erp`
+  reads ERP CORE through the new `fetch_erpcore` (SHA-256 of the registry, else of OSF).
+  The registry records the SHA-256 of the files the tutorials download. `integration_streaming`
+  comes with step S18. `tests/test_docs.py` checks them and runs them all
+  (`EVOPARAM_SLOW_TESTS=1`, and `EVOPARAM_NETWORK_TESTS=1` for the data). A minimal Sphinx
+  site (`docs/conf.py`, extra `docs`) builds without warning; the full site is step S20.
+- `run_pipeline` takes the baseline of the artifact-quality score from the preset, or from
+  the part of the epoch before the artifact: the ECAP presets (4 ms epochs) failed with the
+  default -0.5 to -0.05 s. A fit window may end at the (excluded) end of the epoch.
+- REQ-312 / REQ-329: `tools/check_no_inherited_code.py` (8-line windows against ERPparam at
+  the NOTICE commit; no match in the S17 modules, 2,509 in the inherited `objs` and `core`)
+  and `RELEASING.md` with the 1.0 checklist.
+
+Found while writing the tutorials (the first is addressed below):
+
+- The model selection accepts "cancelling pairs": two large components of opposite sign at
+  almost the same latency, in place of the true components. Seen on clean simulated ECAPs
+  (`ecap_ci`, contact E01: -320 and +218 µV for N1 -137 and P2 +111 µV), on a single
+  Hanning bump (Neo tutorial), and in `fit_shared` on ds004977 (which also returned a
+  component before the stimulus, outside the fit window).
+- On ERP CORE (layer 3), the `erp` preset finds and labels the component in 28 to 68 % of
+  the participants on the parent waves (N170 27.5 %, MMN 32.5 %, P3 67.5 %) and 41 to 70 % on
+  the difference waves; ERN and LRP 78 to 95 %.
+- `tep` on its own simulation: a residual of the decay artifact remains near 20 ms under the
+  coil after interpolation and subspace projection, and N15/P30 are not separated from it.
 
 ### N1 case (REQ-113, REQ-114): diagnosis on ds004080 and fixes
 

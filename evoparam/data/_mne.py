@@ -74,17 +74,52 @@ def trialset_from_mne(cls, epochs, *, picks=None, units="uV", metadata=True,
     if metadata and epochs.metadata is not None:
         extra = epochs.metadata.reset_index(drop=True)
         table = pd.concat([extra, table], axis=1) if "condition" not in extra else extra
-    event_times = (epochs.events[:, 0]) / sfreq
+    # MNE event samples count from the start of the acquisition: they already include
+    # first_samp (mne.find_events, Epochs.events), so the time of an event is
+    # events[:, 0] / sfreq. Adding first_samp / sfreq again (the formula of spec §10.1)
+    # would shift every event by the time between acquisition start and the first kept
+    # sample, and to_mne would not give the events back (CHANGELOG, step S17).
+    event_times = epochs.events[:, 0] / sfreq
     source = {"format": "mne", "object": type(epochs).__name__, "factor_to_units": factor,
               "condition_from_event_id": not (metadata and epochs.metadata is not None and
                                               "condition" in epochs.metadata),
               "first_samp": int(getattr(epochs, "_raw_first_samp", 0) or 0)}
+    if stim_columns is not None and metadata and epochs.metadata is not None:
+        table, source = _harmonize_metadata(table, stim_columns, source)
     provenance = Provenance(source=source).with_step("evoparam.data.TrialSet.from_mne",
                                                      {"units": units, "picks": picks})
     return cls(data=epochs.get_data(copy=True) * factor, times=np.array(epochs.times),
                sfreq=sfreq, ch_names=names, units=units, metadata=table,
                ch_info=_channel_table(epochs.info, names), event_times=event_times,
                provenance=provenance)
+
+
+def _harmonize_metadata(table, stim_columns, source):
+    """Standard stimulation columns (spec Table 4.1, REQ-313) from the metadata of the epochs:
+    ``"auto"`` maps the recognised columns, a dict is a ``{source: target}`` mapping."""
+
+    import warnings
+
+    from ._harmonize import SOURCES, _find_column, harmonize_stim_events
+
+    if isinstance(stim_columns, dict):
+        mapping = dict(stim_columns)
+    elif stim_columns == "auto":
+        mapping = None
+        if not any(_find_column(table.columns, cands) for target, cands in SOURCES.items()
+                   if target != "condition"):
+            return table, source
+    else:
+        raise DataError("stim_columns must be 'auto', a dict {column: target} or None.")
+    before = list(table.columns)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        out, report = harmonize_stim_events(table, None, mapping=mapping)
+    if "condition" in table:
+        out["condition"] = table["condition"].to_numpy()     # the event names, unchanged
+    source = dict(source, harmonization=report.to_dict(),
+                  added_columns=[c for c in out.columns if c not in before])
+    return out, source
 
 
 def _info(ch_names, sfreq, ch_info, ch_types):
@@ -128,6 +163,10 @@ def trialset_to_mne(ts, *, ch_types=None):
     events = np.column_stack([samples, np.zeros(ts.n_trials, int),
                               [event_id[c] for c in conditions]])
     metadata = None if meta is None else meta.reset_index(drop=True)
+    added = ts.provenance.source.get("added_columns") or []
+    if metadata is not None and added:
+        # the standard columns that from_mne added (REQ-313) are not given back to MNE
+        metadata = metadata.drop(columns=[c for c in added if c in metadata])
     if metadata is not None and ts.provenance.source.get("condition_from_event_id"):
         # the column that from_mne added from the event names goes back into event_id
         metadata = metadata.drop(columns=["condition"])

@@ -33,7 +33,8 @@ _SCALED = ("amplitude", "area")
 
 # Columns of GroundTruth.to_dataframe(): the component columns of GroupFit.to_dataframe()
 # (same names and units, without "status"), then the truth-only columns.
-TRUTH_COLUMNS = {key: unit for key, unit in COMPONENT_COLUMNS.items() if key != "status"}
+TRUTH_COLUMNS = {key: unit for key, unit in COMPONENT_COLUMNS.items()
+                 if key not in ("status", "resolvable")}
 TRUTH_COLUMNS.update({"trial": "", "role": "", "event": "", "snr": "", "shift": "s",
                       "scale": "", "n_trials": ""})
 

@@ -72,6 +72,9 @@ its p-value.
    * - ``sharpness``
      - (none)
      - Curvature of the unit-amplitude shape at the peak times fwhm squared.
+   * - ``resolvable``
+     - (none)
+     - False when the component cannot be told apart from a neighbour (amplitudes or latencies correlated beyond 0.95, or a cancelling pair of opposite signs, spec §5.5.3 step 6): its numbers are not to be read alone. Empty on the row of a fit without components.
    * - ``status``
      - (none)
      - Status of the fit: ok, no_response, failed or skipped.

@@ -30,7 +30,7 @@ def test_truth_and_groupfit_share_columns_and_units(name):
         table = truth.to_dataframe(level)
         common = [c for c in fit_table.columns if c in table.columns]
         # Every GroupFit component column but the fit status is in the truth.
-        assert common == [c for c in COMPONENT_COLUMNS if c != "status"]
+        assert common == [c for c in COMPONENT_COLUMNS if c not in ("status", "resolvable")]
         assert list(table.columns[:len(common)]) == common
         for column in common:
             assert table.attrs["units"][column] == fit_table.attrs["units"][column], column

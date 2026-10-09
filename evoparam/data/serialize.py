@@ -176,14 +176,24 @@ def _write_table(table, folder, key, table_format):
         dtype = table[column].dtype
         if dtype.kind not in "biufO" and str(dtype) not in ("str", "string"):
             raise DataError(f"table {key}: column '{column}' has unsupported dtype {dtype}.")
+        spec = {"dtype": str(dtype), "unit": str(units.get(column, ""))}
         if dtype.kind == "O" or str(dtype) in ("str", "string"):
-            values = [v for v in table[column].tolist() if not _missing(v)]
+            raw = table[column].tolist()
+            values = [v for v in raw if not _missing(v)]
             if any(not isinstance(v, str) for v in values):
                 raise DataError(f"table {key}: column '{column}' mixes strings and other values.")
             if MISSING in values:
                 raise DataError(f"table {key}: column '{column}' contains the reserved "
                                 f"value {MISSING!r}.")
-        sidecar["columns"][column] = {"dtype": str(dtype), "unit": str(units.get(column, ""))}
+            kinds = {_missing_kind(v) for v in raw if _missing(v)}
+            if kinds and kinds != {"none"}:
+                # which missing value the column held (None, NaN or pandas NA), restored on
+                # reading; one kind per column
+                if len(kinds) > 1:
+                    raise DataError(f"table {key}: column '{column}' mixes missing values of "
+                                    f"different kinds ({sorted(kinds)}).")
+                spec["missing"] = kinds.pop()
+        sidecar["columns"][column] = spec
     if table_format == "parquet":
         out.to_parquet(os.path.join(folder, f"{key}.parquet"), index=False)
     else:
@@ -196,7 +206,16 @@ def _write_table(table, folder, key, table_format):
 
 
 def _missing(value):
-    return value is None or (isinstance(value, float) and math.isnan(value))
+    return value is None or (isinstance(value, float) and math.isnan(value)) or \
+        type(value).__name__ == "NAType"
+
+
+def _missing_kind(value):
+    if value is None:
+        return "none"
+    if type(value).__name__ == "NAType":
+        return "na"
+    return "nan"
 
 
 def _write_tree(obj, folder, table_format):
@@ -311,7 +330,8 @@ def _read_table(folder, key, n_hint=None):
             if sidecar["index"]["kind"] == "column":
                 specs = {"__index__": {"dtype": sidecar["index"]["dtype"]}, **specs}
             for column, spec in specs.items():
-                table[column] = _convert_column(raw[column].tolist(), spec["dtype"], column, key)
+                table[column] = _convert_column(raw[column].tolist(), spec["dtype"], column, key,
+                                                spec.get("missing", "none"))
     if sidecar["index"]["kind"] == "column":
         table = table.set_index("__index__")
         table.index.name = sidecar["index"]["name"]
@@ -319,8 +339,15 @@ def _read_table(folder, key, n_hint=None):
     return table
 
 
-def _convert_column(values, dtype, column, key):
+def _convert_column(values, dtype, column, key, missing="none"):
     import pandas as pd
+    if dtype[:1] in "IU" and dtype[1:].startswith(("nt", "Int")) or dtype == "boolean":
+        # pandas nullable integers and booleans: missing values are pd.NA
+        if dtype == "boolean":
+            items = [pd.NA if v == MISSING else v == "True" for v in values]
+        else:
+            items = [pd.NA if v == MISSING else int(v) for v in values]
+        return pd.Series(pd.array(items, dtype=dtype))
     kind = np.dtype(dtype).kind if dtype not in ("str", "string") else "S"
     if kind == "f":
         return pd.Series([np.nan if v == MISSING else float(v) for v in values], dtype=dtype)
@@ -330,7 +357,8 @@ def _convert_column(values, dtype, column, key):
         return pd.Series([int(v) for v in values], dtype=dtype)
     if kind == "b":
         return pd.Series([v == "True" for v in values], dtype=dtype)
-    converted = [None if v == MISSING else v for v in values]
+    gap = {"none": None, "na": pd.NA, "nan": float("nan")}[missing]
+    converted = [gap if v == MISSING else v for v in values]
     return pd.Series(converted, dtype=dtype)
 
 

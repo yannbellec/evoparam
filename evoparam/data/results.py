@@ -28,7 +28,7 @@ COMPONENT_COLUMNS = {
     "channel": "", "condition": "", "component": "", "label": "", "shape": "",
     "latency": "s", "amplitude": "data", "polarity": "", "fwhm": "s", "onset": "s",
     "offset": "s", "area": "data·s", "rise_time": "s", "decay_time": "s", "symmetry": "",
-    "sharpness": "", "status": "",
+    "sharpness": "", "resolvable": "", "status": "",
 }
 
 # Interval of each reported feature, in the same row (REQ-006): the bounds of
@@ -131,9 +131,14 @@ class Component(_ResultMixin):
     se: dict | None = None
     ci: dict | None = None
     posterior: dict | None = None
+    # False when the component cannot be told apart from a neighbour: their amplitudes (or
+    # latencies) correlate beyond 0.95, or two components of opposite sign overlap and
+    # cancel (spec §5.5.3 step 6, risk S1): its numbers are not to be read alone
+    resolvable: bool = True
 
     def __post_init__(self):
         self.params = np.asarray(self.params, dtype=np.float64)
+        self.resolvable = bool(self.resolvable)
         self.param_names = tuple(self.param_names)
         if self.params.shape != (len(self.param_names),):
             raise DataError(f"Component: {self.params.size} params for "
@@ -272,6 +277,7 @@ class ResponseFit(_ResultMixin):
             row = {"channel": channel, "condition": condition, "component": position,
                    "label": comp.label if comp.label is not None else "", "shape": comp.shape}
             row.update({name: getattr(comp, name) for name in COMPONENT_FEATURES})
+            row["resolvable"] = comp.resolvable
             row["status"] = self.status
             for name in INTERVAL_FEATURES:
                 low, high = (comp.ci or {}).get(name, (np.nan, np.nan))
@@ -280,11 +286,13 @@ class ResponseFit(_ResultMixin):
         if not rows:
             rows.append({"channel": channel, "condition": condition, "component": -1,
                          "label": "", "shape": "", **{name: np.nan for name in COMPONENT_FEATURES},
-                         "status": self.status, **{name: np.nan for name in INTERVAL_COLUMNS}})
+                         "resolvable": pd.NA, "status": self.status,
+                         **{name: np.nan for name in INTERVAL_COLUMNS}})
             rows[0]["polarity"] = 0
         table = pd.DataFrame(rows, columns=list(COMPONENT_COLUMNS) + list(INTERVAL_COLUMNS))
         table["polarity"] = table["polarity"].astype("int64")
         table["component"] = table["component"].astype("int64")
+        table["resolvable"] = pd.array(table["resolvable"].tolist(), dtype="boolean")
         # The existence test of this channel, next to the fitted components, so that a
         # component on a channel without a significant response is never hidden
         if self.existence is not None:

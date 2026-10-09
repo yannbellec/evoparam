@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass, field, replace
 
 import evoparam.presets as _presets
+from collections.abc import Mapping
 from evoparam.errors import SettingsError
 
 __all__ = ["FitSettings", "FIT_PRESETS", "resolve_settings"]
@@ -50,6 +51,15 @@ class FitSettings:
     freq_max: float | None = None
     noise_model: str = "ar"
     n_folds: int = 5
+    # after the greedy path, refit a state holding a cancelling pair (opposite components
+    # overlapping) or a nearly singular design from starts on the extrema of the data, and
+    # keep it when it fits better; "always": for every state (slower; better on ERPs)
+    reseed: object = True
+    # noise scale and AR model of the whitening: "baseline" (spec §5.5.3 step 1),
+    # "plusminus" (the trials averaged with alternating signs over the whole epoch, when the
+    # fit has at least 10 trials) or "auto": plus-minus when the baseline holds fewer than
+    # 30 independent samples (n (1 - rho) / (1 + rho)), the baseline otherwise
+    noise_source: str = "auto"
     preset: str | None = None
     preset_note: str | None = None
     random_state: object = None
@@ -98,8 +108,23 @@ class FitSettings:
         return asdict(self)
 
 
-# Fit fields of the presets of spec §6.1, read from evoparam.presets (one source of truth).
-FIT_PRESETS = {name: _presets.fit_fields(name) for name in _presets.PRESETS}
+class _FitPresets(Mapping):
+    """Fit fields of every preset (spec §6.1), read from evoparam.presets on access (one
+    source of truth; plugin presets included, and loaded only when first needed)."""
+
+    def __getitem__(self, name):
+        if name not in _presets.PRESETS:
+            raise KeyError(name)
+        return _presets.fit_fields(name)
+
+    def __iter__(self):
+        return iter(_presets.PRESETS)
+
+    def __len__(self):
+        return len(_presets.PRESETS)
+
+
+FIT_PRESETS = _FitPresets()
 
 
 def resolve_settings(preset=None, **overrides):
