@@ -737,6 +737,17 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
         source = {'path' : [p['source']['path'] for _, p in parts], 'format' : 'bids',
                   'runs' : [p['source'] for _, p in parts]}
 
+    # Epochs whose samples are all exactly zero: data censored in the deposit (ds004977
+    # keeps one stimulation site per run and writes zeros elsewhere), never real signal
+    flat = np.flatnonzero(np.all(np.nan_to_num(data) == 0, axis=(1, 2)))
+    if flat.size:
+        import warnings
+
+        warnings.warn('{} of {} epochs hold only zeros (data censored in the deposit, or a '
+                      'stimulation site outside the published span?); trials {}.'.format(
+                          flat.size, data.shape[0], flat[:10].tolist()), UserWarning,
+                      stacklevel=2)
+        source['zero_epochs'] = flat.tolist()
     source.update({'reader' : 'evoparam.io.read_bids', 'bytes_read' : log.bytes_read,
                    'root' : base or os.path.abspath(os.fspath(root)), 'dataset' : dataset,
                    'doi' : doi, 'bids' : {'subject' : wanted['sub'], 'session' : wanted['ses'],

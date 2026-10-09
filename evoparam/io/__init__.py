@@ -19,7 +19,8 @@ from ._harmonize import (harmonize_stim_events, HarmonizationReport, validate_st
                          ValidationReport)
 from .epochs import epoch, epoch_data
 from .mef import read_mef, read_mef_header
-from .fetch import OPENNEURO_URL, RemoteFile, fetch_openneuro_file, openneuro_url
+from .fetch import (OPENNEURO_URL, RemoteFile, fetch_erpcore, fetch_openneuro_file,
+                    openneuro_url)
 from .readers import from_array, read, read_edf, read_events_edf, read_mne
 from .registry import dataset_info, list_datasets
 from .derivatives import read_bids_derivatives, write_bids_derivatives
