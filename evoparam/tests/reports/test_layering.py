@@ -1,10 +1,11 @@
-"""reports, plots and cli compute no scientific quantity of their own (REQ-349).
+"""reports, plots, cli and stream compute no scientific quantity of their own (REQ-349).
 
 Together with the import-graph rule (tests/test_import_graph.py), this test reads the source of
 these modules and fails on numerical code: scipy, the numerical parts of numpy (linear
 algebra, Fourier transforms, statistics, fitting, filtering), and the private numerical
 modules of the analysis packages. Every number they show must come from the result or from
-a public function of spec §5.1–§5.12. (``evoparam.stream`` is built at step S18.)
+a public function of spec §5.1–§5.12 (for ``evoparam.stream``: the estimators of
+``trials``, ``existence`` and ``events``, step S18).
 """
 
 import ast
@@ -13,7 +14,7 @@ import os
 import pytest
 
 PACKAGE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-LAYERS = ("reports", "plots", "cli.py")
+LAYERS = ("reports", "plots", "cli.py", "stream")
 
 # numpy functions that compute a statistic, a transform or a fit.
 NUMERICAL = {

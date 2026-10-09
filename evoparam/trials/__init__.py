@@ -4,6 +4,7 @@ from .api import (MODES, TrialFitSet, dose_response, fit_trials, jitter,
                   prestimulus_dependence, realign)
 
 from .estimator import TrialFitter
+from .online import FixedShapeModel
 
-__all__ = ["TrialFitter", "fit_trials", "TrialFitSet", "jitter", "realign", "dose_response",
-           "prestimulus_dependence", "MODES"]
+__all__ = ["TrialFitter", "FixedShapeModel", "fit_trials", "TrialFitSet", "jitter", "realign",
+           "dose_response", "prestimulus_dependence", "MODES"]

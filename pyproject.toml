@@ -39,6 +39,7 @@ neo = ["neo>=0.13", "quantities"]
 bayes = ["numpyro>=0.15", "jax>=0.4.30", "pymc>=5.10", "arviz>=0.18"]
 progress = ["tqdm"]
 sklearn = ["scikit-learn>=1.6"]
+stream = ["pylsl>=1.16"]
 tests = ["pytest", "pytest-cov", "scikit-learn>=1.6"]
 all = ["matplotlib", "pandas", "tqdm", "jsonschema>=4.18", "pytest", "pytest-cov",
        "scikit-learn>=1.6"]
@@ -71,4 +72,5 @@ include = ["evoparam*"]
 testpaths = ["evoparam"]
 markers = [
     "network: reads public data over the internet; skipped unless EVOPARAM_NETWORK_TESTS=1",
+    "lsl: needs pylsl and the liblsl library (extra stream); skipped when they are missing",
 ]
