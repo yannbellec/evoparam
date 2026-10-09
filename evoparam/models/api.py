@@ -211,7 +211,6 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
                            settings=settings_dict, warnings=warns, provenance=provenance,
                            diagnostics={"sigma": core.get("sigma"), "rho": core.get("rho"),
                                         "n_evaluations": core.get("n_evaluations", 0),
-                                   "noise_reference": core.get("noise_reference", "baseline"),
                                         "noise_reference": core.get("noise_reference",
                                                                     "baseline")})
 
