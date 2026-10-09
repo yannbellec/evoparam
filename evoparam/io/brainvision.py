@@ -10,12 +10,11 @@ voltage unit is converted to µV.
 
 import os
 import re
-import warnings
 from configparser import ConfigParser, Error as ConfigError
 
 import numpy as np
 
-from evoparam.errors import DataError, ReaderError
+from evoparam.errors import DataError, ReaderError, warn as _warn
 from evoparam.io._fetch import RemoteFile, fetch_bytes, is_url, sha256_file
 
 __all__ = ["read_brainvision", "read_brainvision_header", "read_brainvision_segment",
@@ -62,7 +61,7 @@ def _unique_names(names):
             out.append('{}-{}'.format(name, seen[name]))
         else:
             out.append(name)
-    warnings.warn('Duplicated channel names renamed with a suffix -1, -2, ...: {}.'.format(
+    _warn('Duplicated channel names renamed with a suffix -1, -2, ...: {}.'.format(
         ', '.join(duplicated)), UserWarning, stacklevel=3)
     return out
 
@@ -271,10 +270,10 @@ def _warn_units(header, ch_index):
                  if unit in _TO_UV and _TO_UV[unit] != 1.0]
     other = [name for name, unit in zip(names, units) if unit not in _TO_UV]
     if converted:
-        warnings.warn('Channels in another voltage unit were converted to µV: {}.'.format(
+        _warn('Channels in another voltage unit were converted to µV: {}.'.format(
             ', '.join(converted)), UserWarning, stacklevel=3)
     if other:
-        warnings.warn('Channels whose unit is not a voltage were left unconverted: {}.'.format(
+        _warn('Channels whose unit is not a voltage were left unconverted: {}.'.format(
             ', '.join(other)), UserWarning, stacklevel=3)
 
 

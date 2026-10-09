@@ -158,7 +158,7 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
                   rho_min=0.8, n_template=5, min_relative=0.25, recovery_sd=None, refine=True,
                   ch_names=None, ch_info=None, saturation=True, vote=True,
                   score_channels=SCORE_CHANNELS, return_scores=False,
-                  verbose=None):
+                  site_method="evidence", verbose=None):
     """Find stimulation pulses from the artifact they leave in the signal.
 
     1. **Score.** ``d[n] = median_c |x_c[n + 1] - x_c[n]|`` over the picked channels
@@ -240,6 +240,8 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
     vote : bool, default: True
         Replace each pulse's site guess by the vote of its block of consecutive pulses
         (:func:`vote_sites`); the per-pulse guess is kept in ``stim_site_pulse``.
+    site_method : {"evidence", "spec"}, default: "evidence"
+        Rule of :func:`identify_stim_site`; ``"spec"`` is spec §5.2 method 5 as reviewed.
     saturation : bool, default: True
         Fill ``saturated`` and ``n_saturated_channels`` with :func:`detect_saturation`.
     return_scores : bool, default: False
@@ -426,7 +428,7 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
 
     if ch_names is not None:
         located = identify_stim_site(data, sfreq, events, ch_names=names, ch_info=ch_info,
-                                     t0=t0, picks=index)
+                                     t0=t0, picks=index, method=site_method)
         events["stim_site_guess"] = located["stim_site_guess"]
         events["site_confidence"] = located["site_confidence"]
         if vote and len(events) > 1:

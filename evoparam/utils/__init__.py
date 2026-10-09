@@ -1,3 +1,6 @@
-"""Utilities sub-module for evoparam."""
+"""Utilities shared by the modules of evoparam (optional imports, names, interpolation)."""
 
-from .data import trim_signal, interpolate_signal, subsample_signal
+from ._estimator import NotFittedError
+from ._optional import require
+
+__all__ = ["NotFittedError", "require"]

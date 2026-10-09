@@ -25,7 +25,7 @@ import warnings
 import numpy as np
 
 from evoparam.data import Evoked, TrialSet
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.existence import test_response
 from evoparam.utils._optional import require
 
@@ -466,9 +466,9 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
         picked = [names[i] for i in index]
         for n in steps:
             if n > N:
-                warnings.warn(f"trials_needed: {n} trials exceed the {N} recorded; the "
-                              "detection probability is not extrapolated.", UserWarning,
-                              stacklevel=2)
+                _warn(f"trials_needed: {n} trials exceed the {N} recorded; the "
+                      "detection probability is not extrapolated.", UserWarning,
+                      stacklevel=2)
                 continue
             hits = np.zeros(len(index))
             draws = 1 if n == N else n_resamples

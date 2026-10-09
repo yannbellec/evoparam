@@ -8,7 +8,7 @@ import numpy as np
 
 from evoparam.data import GroupFit
 from evoparam.data.results import COMPONENT_FEATURES
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.utils._optional import require
 
 __all__ = ["parameter_map", "connectivity_matrix", "connectivity_to_long",
@@ -143,8 +143,8 @@ def parameter_map(group_fit, *, parameter="amplitude", stim_site=None, existence
             coords[str(row["name"])] = (float(row["x"]), float(row["y"]), float(row["z"]),
                                         str(row.get("coord_space", "") or ""))
     if not has_coords or not any(np.isfinite(v[:3]).all() for v in coords.values()):
-        warnings.warn("parameter_map: no channel coordinates (ch_info x, y, z); the map is "
-                      "a table only.", UserWarning, stacklevel=2)
+        _warn("parameter_map: no channel coordinates (ch_info x, y, z); the map is "
+              "a table only.", UserWarning, stacklevel=2)
     bad, stim_flag = set(), set()
     if info is not None and "name" in info.columns:
         names = info["name"].astype(str)

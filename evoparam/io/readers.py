@@ -7,14 +7,13 @@ given); so do the BrainVision and MEF 3.0 readers. :func:`read_mne` needs the ex
 
 import os
 import time as _time
-import warnings
 from dataclasses import replace
 
 import numpy as np
 
 import evoparam._plugins as _plugins
 from evoparam.data import Evoked, Provenance, TrialSet, load_object
-from evoparam.errors import DataError, ReaderError, SettingsError
+from evoparam.errors import DataError, ReaderError, SettingsError, warn as _warn
 from evoparam.io._fetch import is_url, sha256_file
 from evoparam.utils._optional import require
 
@@ -475,8 +474,8 @@ def read_edf(path, *, tmin=None, tmax=None, picks=None):
             other.append(signal.label)
         rows.append(np.asarray(signal.data[first:stop], dtype=np.float64) * factor)
     if other:
-        warnings.warn("Signals whose unit is not a voltage were left unconverted: "
-                      + ", ".join(other) + ".", UserWarning, stacklevel=2)
+        _warn("Signals whose unit is not a voltage were left unconverted: "
+              + ", ".join(other) + ".", UserWarning, stacklevel=2)
     if not rows or rows[0].size == 0:
         raise ReaderError(f"{path}: the requested time window is outside the recording.")
     return np.vstack(rows), sfreq, [names[ind] for ind in index], first / sfreq

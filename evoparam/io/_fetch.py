@@ -12,12 +12,11 @@ import http.client
 import logging
 import os
 import time
-import warnings
 from collections import OrderedDict
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from evoparam.errors import ReaderError
+from evoparam.errors import ReaderError, warn as _warn
 
 __all__ = ["RemoteFile", "is_url", "fetch_bytes", "download", "data_folder", "sha256_file",
            "TransferLog"]
@@ -419,8 +418,8 @@ class RemoteFile:
         path = os.path.join(folder, name)
         length = response.headers.get("Content-Length")
         size_text = f"{int(length) / 1e6:.1f} MB" if length else "unknown size"
-        warnings.warn(f"The server ignored the byte-range request; downloading the whole file "
-                      f"({size_text}) to {path}.", UserWarning, stacklevel=4)
+        _warn(f"The server ignored the byte-range request; downloading the whole file "
+              f"({size_text}) to {path}.", UserWarning, stacklevel=4)
         digest = hashlib.sha256()
         partial = path + ".part"
         total = 0

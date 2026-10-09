@@ -1,4 +1,8 @@
-"""evoparam - Parameterizing evoked neural responses"""
+"""evoparam - Parameterizing evoked neural responses.
+
+For research use only; not a medical device. Its outputs are not intended for diagnosis or
+treatment decisions.
+"""
 
 from .version import __version__
 
@@ -6,12 +10,10 @@ from . import errors
 from .data import TrialSet, Evoked, Provenance, load_object
 from . import shapes
 
-from .bands import Bands
-from .objs import evoparam, evoparamGroup
-from .objs.utils import fit_evoparam_3d
 from .models import ResponseModel
 from .existence import fit, test_response
+from .io import read
 
-from . import io, events, artifact, prep, param, trials, tf, spatial, hierarchical, presets
+from . import io, events, artifact, prep, trials, tf, spatial, hierarchical, presets
 from .reports import reproduce
 from .events import detect_events

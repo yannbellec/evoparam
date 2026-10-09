@@ -52,13 +52,12 @@ def test_req310_round_trip():
 def test_req311_fit_dispatch():
 
     import evoparam
-    from evoparam.models import fit
 
     e = _epochs()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         direct = evoparam.fit(e, "erp", fit_window=(0.05, 0.29))
-        converted = fit(TrialSet.from_mne(e), "erp", fit_window=(0.05, 0.29))
+        converted = evoparam.fit(TrialSet.from_mne(e), "erp", fit_window=(0.05, 0.29))
         pd.testing.assert_frame_equal(direct.to_dataframe(), converted.to_dataframe())
         evokeds = [e[c].average() for c in ("a", "b")]
         for ev, name in zip(evokeds, ("a", "b")):

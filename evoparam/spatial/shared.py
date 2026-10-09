@@ -21,7 +21,7 @@ from scipy.stats import norm
 
 from evoparam.data import (Component, Evoked, GoodnessOfFit, GroupFit, ResponseFit,
                            TrialSet)
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.models import ResponseModel
 from evoparam.models.component_shapes import compute_features, get_background, get_shape
 from evoparam.version import __version__
@@ -535,9 +535,9 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
     if smooth:
         weights = neighbours(info, channels, radius_mm)
         if weights is None or not weights.any():
-            warnings.warn("fit_shared: no neighbouring contacts (coordinates missing or no "
-                          f"pair within {radius_mm} mm); smooth=True has no effect.",
-                          UserWarning, stacklevel=2)
+            _warn("fit_shared: no neighbouring contacts (coordinates missing or no "
+                  f"pair within {radius_mm} mm); smooth=True has no effect.",
+                  UserWarning, stacklevel=2)
             smooth_info = {"lambda": 0.0, "reason": "no_neighbours"}
         else:
             grid, errors, h = _loco(chans, layout, base, z_shared, z_locals, tw, weights,

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.utils._estimator import (BaseEstimatorMixin, TransformerMixin, check_is_fitted,
                                        validate_array)
 
@@ -74,8 +74,6 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         """X without the artifact. When the artifact window does not fit inside the epoch
         (it needs 3 samples on each side) X is returned unchanged with a warning."""
 
-        import warnings
-
         from evoparam.artifact import remove_artifact
 
         check_is_fitted(self)
@@ -84,9 +82,9 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         step = 1.0 / float(trials.sfreq)
         window = tuple(float(v) for v in self.window)
         if window[0] - 3 * step < times[0] or window[1] + 3 * step > times[-1]:
-            warnings.warn(f"ArtifactRemover: the window {window} needs 3 samples on each side "
-                          f"inside the epoch ({times[0]:.4f} to {times[-1]:.4f} s); X is "
-                          f"returned unchanged.", UserWarning, stacklevel=2)
+            _warn(f"ArtifactRemover: the window {window} needs 3 samples on each side "
+                  f"inside the epoch ({times[0]:.4f} to {times[-1]:.4f} s); X is "
+                  f"returned unchanged.", UserWarning, stacklevel=2)
             return trials.copy() if shape is None else np.array(trials.data).reshape(shape)
         baseline = (max(self.baseline[0], float(times[0])),
                     min(self.baseline[1], float(times[-1])))

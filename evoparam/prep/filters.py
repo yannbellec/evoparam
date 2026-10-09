@@ -1,11 +1,10 @@
 """Zero-phase filters (thin wrappers over scipy.signal)."""
 
 import time as _time
-import warnings
 
 import numpy as np
 
-from evoparam.errors import SettingsError
+from evoparam.errors import SettingsError, warn as _warn
 
 from ._common import check_trialset, new
 
@@ -14,9 +13,9 @@ __all__ = ["highpass", "lowpass", "notch"]
 
 def _warn_masks(ts, name):
     if ts.masks is not None and ts.masks.any():
-        warnings.warn(f"{name}: the data have masked (replaced or blanked) samples; filtering "
-                      "can ring around them. Recommended order: artifact, filter, baseline, "
-                      "reference.", UserWarning, stacklevel=3)
+        _warn(f"{name}: the data have masked (replaced or blanked) samples; filtering "
+              "can ring around them. Recommended order: artifact, filter, baseline, "
+              "reference.", UserWarning, stacklevel=3)
 
 
 def _apply(ts, sos, name, settings, start):

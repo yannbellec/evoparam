@@ -51,3 +51,6 @@ doc/auto_motivations/*
 doc/generated/*
 pytest-report.xml
 doctest-report.xml
+
+# local runs of tools/run_all_tests.py
+test-reports/

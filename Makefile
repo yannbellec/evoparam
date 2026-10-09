@@ -117,6 +117,9 @@ clear-dist:
 #   Note: this doesn't run the commands (to avoid accidental publishing)
 #   This also assumes that you are using twine + .pypirc
 publish:
+	@if grep -q "HIIE decision: not on record" RELEASING.md; then \
+		printf "\nNo public step before the HIIE decision is on record (RELEASING.md).\n\n"; \
+		exit 1; fi
 	@printf "\n\nTO PUBLISH THE DISTRIBUTION:\n\n"
 	@printf "to testpypi: \n\ttwine upload --repository testpypi dist/*\n"
 	@printf "to pypi: \n\ttwine upload --repository pypi dist/*\n\n"

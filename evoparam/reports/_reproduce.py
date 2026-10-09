@@ -14,7 +14,6 @@ import math
 import os
 import re
 import tempfile
-import warnings
 import zipfile
 from importlib import import_module
 
@@ -24,14 +23,15 @@ from evoparam.data import TrialSet, load_object, save_object
 from evoparam.data._jsonutil import loads, to_jsonable
 from evoparam.data.provenance import capture_environment
 from evoparam.data.serialize import SCHEMA
-from evoparam.errors import DataError, EvoparamVersionError
+from evoparam.errors import DataError, EvoparamVersionError, warn as _warn
 from evoparam.version import __version__
 
 __all__ = ["ReproduceReport", "reproduce", "migrate"]
 
 _FIT_STEP = "evoparam.models.ResponseModel.fit_group"
 _TEST_STEP = "evoparam.existence.test_response"
-_NOT_FIT_KWARGS = ("preset", "preset_note", "package_version", "_overrides")
+_NOT_FIT_KWARGS = ("preset", "preset_note", "package_version", "_overrides",
+                   "_changed_from_preset")
 # Fields that change between two runs of the same computation.
 _VOLATILE = {"provenance", "duration_s"}
 
@@ -153,7 +153,13 @@ def _fit_group(trials, settings):
     if isinstance(kwargs.get("windows"), dict):
         kwargs["windows"] = {k: tuple(v) for k, v in kwargs["windows"].items()}
     accepted = _accepted(ResponseModel, kwargs)
-    model = ResponseModel(settings.get("preset"), **accepted)
+    preset = settings.get("preset")
+    model = ResponseModel(preset.get("name") if isinstance(preset, dict) else preset,
+                          **accepted)
+    # every setting is passed again; the regenerated result records the keys the user
+    # had set (REQ-331 ``_overrides``), not all of them
+    if settings.get("_overrides") is not None:
+        model._overrides_record = list(settings["_overrides"])
     # Settings that the constructor does not take (e.g. freq_min) are read by
     # ResponseModel.settings() from the model's attributes.
     for key in set(kwargs) - set(accepted):
@@ -252,7 +258,10 @@ def _replay(obj, final_settings, data):
                                     "message": "unknown function"})
                     return None, records
                 out = func(state, **_accepted(func, settings))
-                state = getattr(out, "cleaned", out)
+                # the result itself when it is the saved object (an ArtifactResult), else
+                # the cleaned data that the next step works on
+                state = out if i == len(steps) - 1 and type(out) is type(obj) else \
+                    getattr(out, "cleaned", out)
             records.append({"function": function, "status": "replayed", "message": ""})
         except EvoparamVersionError:
             raise
@@ -425,9 +434,9 @@ def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=
         if saved.provenance.package_version != __version__:
             env_diff["package_version"] = [saved.provenance.package_version, __version__]
         if env_diff:
-            warnings.warn("evoparam.reproduce: the software environment differs from the "
-                          f"recorded one ({', '.join(sorted(env_diff))}).", UserWarning,
-                          stacklevel=2)
+            _warn("evoparam.reproduce: the software environment differs from the "
+                  f"recorded one ({', '.join(sorted(env_diff))}).", UserWarning,
+                  stacklevel=2)
     new, records = _replay(saved, final_settings, data)
     if settings_differences:
         for record in records:

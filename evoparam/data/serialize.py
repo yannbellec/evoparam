@@ -32,7 +32,6 @@ import shutil
 import tempfile
 import zipfile
 from dataclasses import fields, is_dataclass
-from datetime import datetime, timezone
 
 import numpy as np
 
@@ -40,7 +39,8 @@ from evoparam.version import __version__
 from evoparam.errors import DataError, EvoparamVersionError
 from evoparam.data._jsonutil import dumps, loads
 
-__all__ = ["save_object", "load_object", "SCHEMA", "SCHEMA_MAJOR", "SCHEMA_MINOR"]
+__all__ = ["save_object", "load_object", "register_type", "SCHEMA", "SCHEMA_MAJOR",
+           "SCHEMA_MINOR"]
 
 SCHEMA_MAJOR = 1
 SCHEMA_MINOR = 0
@@ -50,12 +50,25 @@ MISSING = "\\N"
 _SCHEMA_RE = re.compile(r"^evoparam-result/(\d+)(?:\.(\d+))?$")
 
 
+# Result types defined outside evoparam.data (for example evoparam.sim.GroundTruth), added
+# by their module when it is imported; evoparam.data imports nothing from them (spec §4.2).
+_EXTRA_TYPES = {}
+
+
+def register_type(cls):
+    """Make a dataclass defined outside :mod:`evoparam.data` savable in a ``.evoparam``
+    container (spec §4.3.5). Its module calls this when it is imported."""
+
+    _EXTRA_TYPES[cls.__name__] = cls
+    return cls
+
+
 def _registry():
     from evoparam.data import containers, provenance, results
     classes = [containers.TrialSet, containers.Evoked, provenance.Provenance]
     classes += [getattr(results, name) for name in results.__all__
                 if isinstance(getattr(results, name), type)]
-    return {cls.__name__: cls for cls in classes}
+    return {**{cls.__name__: cls for cls in classes}, **_EXTRA_TYPES}
 
 
 def _is_dataframe(obj):
@@ -212,8 +225,10 @@ def _write_tree(obj, folder, table_format):
     with open(os.path.join(folder, "settings.json"), "w", encoding="utf-8") as fobj:
         fobj.write(dumps(getattr(obj, "settings", {}), indent=1))
     files += ["provenance.json", "settings.json"]
+    from evoparam.data.provenance import _now_utc
+
     manifest = {"schema": SCHEMA, "object": type(obj).__name__, "package_version": __version__,
-                "created": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+                "created": _now_utc(),
                 "table_format": table_format,
                 "files": {name: _sha256(os.path.join(folder, *name.split("/"))) for name in files}}
     with open(os.path.join(folder, "manifest.json"), "w", encoding="utf-8") as fobj:
@@ -350,7 +365,8 @@ class _Decoder:
         if "__type__" in node:
             cls = self.registry.get(node["__type__"])
             if cls is None:
-                raise DataError(f"Unknown object type {node['__type__']!r} in container.")
+                raise DataError(f"Unknown object type {node['__type__']!r} in container "
+                                "(import the module that defines it, e.g. evoparam.sim).")
             return cls(**{name: self.decode(value) for name, value in node["fields"].items()})
         raise DataError(f"Unrecognised node in structure.json: {sorted(node)}.")
 

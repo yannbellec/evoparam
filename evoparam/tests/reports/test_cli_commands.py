@@ -1,8 +1,11 @@
 """Every command of ``evoparam`` through ``subprocess``, compared with the Python API with the
 same seed (REQ-345), and ``evoparam cite`` (REQ-346).
 
-TSV files must be byte-identical. JSON files must be equal once the creation time and the
-step durations are removed (they record when and how long each run took).
+Every output file must be byte-identical, JSON included. The creation time and the step
+durations are the only parts of a result that depend on when and how fast it was made;
+with ``SOURCE_DATE_EPOCH`` set (the reproducible-builds convention, read by
+:func:`evoparam.data.provenance.fixed_clock`) they are fixed, in the command line and in
+the Python API alike.
 """
 
 import json
@@ -17,7 +20,7 @@ import evoparam
 from evoparam import __version__, presets, reports
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
-VOLATILE = {"created", "duration_s"}
+EPOCH = "1767225600"                      # 2026-01-01T00:00:00Z
 SIM = ["--modality", "ccep", "--n-trials", "8", "--n-channels", "3", "--random-state", "3"]
 
 
@@ -42,12 +45,13 @@ def run_text(*args):
     return proc.returncode, proc.stdout
 
 
-def _strip(node):
-    if isinstance(node, dict):
-        return {k: _strip(v) for k, v in node.items() if k not in VOLATILE}
-    if isinstance(node, list):
-        return [_strip(v) for v in node]
-    return node
+@pytest.fixture(scope="module", autouse=True)
+def fixed_clock():
+    """The same fixed clock for the command line (inherited environment) and the API."""
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("SOURCE_DATE_EPOCH", EPOCH)
+        yield
 
 
 def _files(root):
@@ -68,10 +72,7 @@ def assert_same_tree(cli_root, api_root, only=None):
     for name, path in cli.items():
         with open(path, "rb") as a, open(api[name], "rb") as b:
             left, right = a.read(), b.read()
-        if name.endswith(".json"):
-            assert _strip(json.loads(left)) == _strip(json.loads(right)), name
-        else:
-            assert left == right, name
+        assert left == right, name
 
 
 @pytest.fixture(scope="module")

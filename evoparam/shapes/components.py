@@ -6,8 +6,8 @@ array of shape ``(..., n_params)``. Shapes have unit amplitude
 (``max_t |s(t)| = 1`` on the real line); the signed amplitude ``A`` is a
 separate linear parameter. Parameters are in SI units (s, Hz, rad).
 
-The Gaussian and skewed-Gaussian equations come from the inherited
-``evoparam.core.funcs``; here they are rewritten with a fixed unit amplitude,
+The Gaussian and skewed-Gaussian equations come from the inherited shape functions
+(spec §4.5); here they are rewritten with a fixed unit amplitude,
 vectorised over parameter sets and given analytic Jacobians.
 """
 

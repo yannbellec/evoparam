@@ -2,6 +2,106 @@
 
 ## Unreleased
 
+### Architecture, packaging and test infrastructure (audit F3, F4, F43, F45–F49, F60–F63, F66, F67)
+
+- Inherited code removed (§4.4, §4.5, §12 rule 1). The old engine and its modules are
+  deleted: `objs`, `param`, `plts`, `analysis`, `core`, `bands`, `utils/{data, params, io,
+  reports, download, debug}` and `data/{data, conversions}`, with their tests. The package
+  no longer exports `evoparam` (the class), `evoparamGroup`, `fit_evoparam_3d` or `Bands`.
+  `core/modutils.py` is kept as `utils/_modutils.py`, and the signal plots are ported to
+  `evoparam.plots` (`plot_signals`, ...). `ComponentWindows` is now in
+  `evoparam.models.windows`. LICENSE and NOTICE keep the attribution. `import evoparam`
+  loads only numpy and scipy: before this change, scikit-learn and pandas were loaded
+  through `NotFittedError`, which is now built lazily.
+- Import graph (REQ-296, decisions D3–D5). The test checks the resolved table of
+  `docs/spec/DECISIONS.md` with no transitional edges. It finds cycles and top-level
+  optional imports, runs a mutation check, and checks that the light core does not pull
+  in the removed modules. `docs/spec/DECISIONS.md` records the D1–D16 resolutions and
+  the import table.
+- Stimulation site (F60, F61). The reviewed rule of §5.2 method 5 is available as
+  `identify_stim_site(..., method="spec")` (and `detect_pulses(site_method="spec")`).
+  `SPEC.md` §4.2 and §5.2 are back to the reviewed text. The default ("evidence") is kept
+  as a measured improvement. Per pulse it scores 0.980 against 0.61 for the reviewed rule,
+  and 0.995 against 0.66 after the vote. On the 12 held-out runs it scores 0.979 / 1.000.
+  The numbers are in DECISIONS.md.
+- Extras (F4). `all` is the union of every extra except `gpu`, `bayes` and `docs` (§9.2).
+  It now includes `mne`, `bids`, `nwb`, `neo`, `edf`, `fast`, `stats`, `validate`,
+  `stream`, `tests` and the others. The `pynwb` floor is the spec's 2.6. `tomli` is added
+  for Python 3.10. `test_dependencies.py` checks that every package the tests skip
+  without is in `all` (or in `bayes`, which the local runner installs).
+- Local runner (F3, D16). `tools/run_all_tests.py` runs the whole suite on a chosen
+  Python, with optional venv creation, with the network, slow and performance tests
+  switched on. It writes a JUnit report, `summary.md` and `summary.json`, which name the
+  tests skipped for a missing package. The workflow keeps its matrix, runs the REQ-113 and
+  REQ-114 tests in every build (REQ-017), and defines a weekly or on-demand
+  `network-slow-perf` job that runs the same thing.
+- BIDS validator (F62, REQ-315). The reference invocation as written (`npx bids-validator@2
+  --datasetTypes derivative`) is a network test. It is an expected failure while npm has
+  no 2.x release: on 2026-10-09 the latest was 1.15.0, giving ETARGET. The REQ-342 checks
+  pass `--datasetTypes derivative` for derivatives.
+- Byte-identical outputs (F43, REQ-345). When `SOURCE_DATE_EPOCH` is set, creation times
+  are that instant and step durations are 0. The CLI-versus-API tests now compare every
+  file byte for byte, with no volatile fields removed.
+- Settings record (F45, REQ-331). The preset is recorded as `{"name", "version"}` and a
+  wrong version raises. `_overrides` lists only the keys the user set. A seed is drawn
+  and recorded when `random_state` is None, so `fit(data, **result.settings)` gives the
+  same result.
+- Component table (F46, REQ-332, REQ-006). Each reported latency, amplitude, width,
+  onset, offset and area has `_ci_low` and `_ci_high` columns in the same row. The
+  documented column list is `docs/reference/tables.rst`, and `test_tidy.py` checks the
+  tables against it.
+- GroundTruth (F63). `GroundTruth.save` and `GroundTruth.load` use the `.evoparam`
+  container (`register_type` adds types defined outside `evoparam.data`).
+- Warnings (REQ-005). `evoparam.errors.warn` warns and logs. Every warning of the
+  package goes through it, except the single call in `io/nwb.py`, which is pending on
+  another branch (strict xfail). The `evoparam` logger has a `NullHandler` only.
+- `evoparam.fit` runs the existence test by default (REQ-002). On an Evoked it uses the
+  weaker null and warns. If the test cannot run, the columns are NaN and a warning says
+  so. `existence=False` skips it. A preset without a baseline uses the pre-stimulus
+  samples. A baseline with fewer than 2 samples now raises `DataError` instead of a numpy
+  `ValueError`. `evoparam.read` is exported.
+- Existence intervals (REQ-006, REQ-007). The bootstrap over trials gives intervals for
+  the onset and the offset as well as the duration. `response_duration` reports them
+  with the p-value. `test_response` records a drawn seed when `random_state` is None.
+  `reproduce` regenerates an `ArtifactResult`.
+- Product-level tests of §3.1 (F47), each as written:
+  - `test_one_model.py` (REQ-001, REQ-002): eleven presets on one simulated waveform
+    each. All give status ok, with the same types and columns. The five input kinds
+    pass. TEP is simulated at 1 kHz, because a 5 kHz TEP fit took 68 s against 1.6 s.
+  - `test_polarity.py` (REQ-003): on sign-flipped data the largest difference is
+    0.0 (CCEP and ERP) for fits, trial fits and the existence test. It also has a static
+    sign-rule scan.
+  - `test_no_deletion.py` (REQ-004): an AST scan of `evoparam/models` with seven
+    mutation forms. `min_amplitude` (default 0) is the only size rule.
+  - `test_status.py` (REQ-005).
+  - `test_uncertainty_columns.py` (REQ-006).
+  - `test_reproduce.py` (REQ-007): GroupFit, ResponseTest, ArtifactResult and Evoked
+    are identical when regenerated.
+  - `test_methods_text.py` (REQ-008).
+  - `test_units.py` (REQ-009).
+  - `test_core_only.py` (REQ-010).
+  - `test_dependencies.py` (REQ-011: GPL deny list, licence scan).
+  - `test_vocabulary.py` (REQ-012, with the word list in CONTRIBUTING.md).
+  - `test_determinism.py` (REQ-013, including `n_jobs=2` against 1).
+  - `test_research_use.py` (REQ-015).
+  - `test_no_network.py` (REQ-016): 132 modules and the CLI and API chain ran with
+    sockets refused, with 0 connection attempts.
+  - `test_release_gate.py`: REQ-017; REQ-018 with `tools/check_traceability.py` (49
+    addressed gaps traced; 100 of the 143 test files named in §14 exist); and REQ-019
+    with `RELEASING.md`, the `Private :: Do Not Upload` classifier and a gated
+    `make publish`.
+  - REQ-014 is REQ-271 (`presets/test_presets.py`).
+- Still not met as written (documented xfails, measured):
+  - REQ-010: `detect_events`, `remove_artifact`, `fit` (the GroupFit index), `fit_trials`
+    and saving a GroupFit need pandas.
+  - REQ-006: the existence onset of an Evoked has no interval.
+  - REQ-007: `fit_trials` records no provenance step, and `tf_fit` neither records a seed
+    nor replays identically.
+  - REQ-009: fit tables give the amplitude unit as "data".
+  - REQ-015: there is no stream module yet.
+  - REQ-005: one `warnings.warn` remains in `io/nwb.py`.
+  - REQ-315: npm has no `bids-validator@2`.
+
 ### Integration of the N1 work, S16, S17 and the tep validation
 
 - REQ-171: the test as written stays as a documented xfail (5 of 6 datasets, 17 of 20 with

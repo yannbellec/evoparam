@@ -30,8 +30,37 @@ OPTIONAL_PACKAGES = (
 )
 
 
+def fixed_clock():
+    """Seconds since the epoch from ``SOURCE_DATE_EPOCH``, or None.
+
+    ``SOURCE_DATE_EPOCH`` is the convention of reproducible builds. When it is set, every
+    creation time is that instant and every duration is recorded as 0, so two runs with
+    the same inputs and seed write byte-identical files (REQ-345). Without it, the real
+    clock is used.
+    """
+
+    value = os.environ.get("SOURCE_DATE_EPOCH", "").strip()
+    if not value:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def elapsed(start):
+    """Seconds since ``start`` (a ``time.perf_counter()`` value); 0 with a fixed clock."""
+
+    import time
+
+    return 0.0 if fixed_clock() is not None else time.perf_counter() - start
+
+
 def _now_utc():
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    epoch = fixed_clock()
+    when = datetime.fromtimestamp(epoch, timezone.utc) if epoch is not None \
+        else datetime.now(timezone.utc)
+    return when.isoformat(timespec="milliseconds")
 
 
 def _package_version(name):
@@ -191,6 +220,8 @@ class Provenance(DeepEqualMixin):
             Additional keys stored in the step (for example ``preset``).
         """
 
+        if duration_s is not None and fixed_clock() is not None:
+            duration_s = 0.0
         step = {"function": function, "settings": to_jsonable(settings or {}),
                 "version": __version__,
                 "duration_s": None if duration_s is None else float(duration_s)}

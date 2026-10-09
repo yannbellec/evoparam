@@ -17,7 +17,8 @@ from evoparam.data.provenance import Provenance
 
 __all__ = ["Component", "GoodnessOfFit", "ResponseFit", "GroupFit", "TrialFit",
            "HierarchicalFit", "ResponseTest", "ArtifactResult", "ShapeBasis", "TFFit",
-           "FIT_STATUSES", "COMPONENT_COLUMNS", "FIT_COLUMNS"]
+           "FIT_STATUSES", "COMPONENT_COLUMNS", "INTERVAL_COLUMNS", "EXISTENCE_COLUMNS",
+           "FIT_COLUMNS"]
 
 FIT_STATUSES = ("ok", "no_response", "failed", "skipped")
 
@@ -29,6 +30,12 @@ COMPONENT_COLUMNS = {
     "offset": "s", "area": "data·s", "rise_time": "s", "decay_time": "s", "symmetry": "",
     "sharpness": "", "status": "",
 }
+
+# Interval of each reported feature, in the same row (REQ-006): the bounds of
+# ``Component.ci`` at the fit's ``ci_level`` (NaN when the fit has no interval).
+INTERVAL_FEATURES = ("latency", "amplitude", "fwhm", "onset", "offset", "area")
+INTERVAL_COLUMNS = {f"{name}_ci_{side}": COMPONENT_COLUMNS[name]
+                    for name in INTERVAL_FEATURES for side in ("low", "high")}
 
 # Columns appended to the component table by the existence test of each channel (§5.6).
 EXISTENCE_COLUMNS = {"existence_p": "", "existence_significant": ""}
@@ -249,13 +256,16 @@ class ResponseFit(_ResultMixin):
                    "label": comp.label if comp.label is not None else "", "shape": comp.shape}
             row.update({name: getattr(comp, name) for name in COMPONENT_FEATURES})
             row["status"] = self.status
+            for name in INTERVAL_FEATURES:
+                low, high = (comp.ci or {}).get(name, (np.nan, np.nan))
+                row[f"{name}_ci_low"], row[f"{name}_ci_high"] = float(low), float(high)
             rows.append(row)
         if not rows:
             rows.append({"channel": channel, "condition": condition, "component": -1,
                          "label": "", "shape": "", **{name: np.nan for name in COMPONENT_FEATURES},
-                         "status": self.status})
+                         "status": self.status, **{name: np.nan for name in INTERVAL_COLUMNS}})
             rows[0]["polarity"] = 0
-        table = pd.DataFrame(rows, columns=list(COMPONENT_COLUMNS))
+        table = pd.DataFrame(rows, columns=list(COMPONENT_COLUMNS) + list(INTERVAL_COLUMNS))
         table["polarity"] = table["polarity"].astype("int64")
         table["component"] = table["component"].astype("int64")
         # The existence test of this channel, next to the fitted components, so that a
@@ -266,7 +276,7 @@ class ResponseFit(_ResultMixin):
         else:
             table["existence_p"] = np.nan
             table["existence_significant"] = pd.array([pd.NA] * len(table), dtype="boolean")
-        table.attrs["units"] = {**COMPONENT_COLUMNS, **EXISTENCE_COLUMNS}
+        table.attrs["units"] = {**COMPONENT_COLUMNS, **INTERVAL_COLUMNS, **EXISTENCE_COLUMNS}
         return table
 
 
@@ -334,8 +344,10 @@ class GroupFit(_ResultMixin):
                      for ch, cond, pos in self.index[["channel", "condition", "position"]]
                      .itertuples(index=False)]
             table = pd.concat(parts, ignore_index=True) if parts else \
-                pd.DataFrame(columns=list(COMPONENT_COLUMNS) + list(EXISTENCE_COLUMNS))
-            table.attrs["units"] = {**COMPONENT_COLUMNS, **EXISTENCE_COLUMNS}
+                pd.DataFrame(columns=list(COMPONENT_COLUMNS) + list(INTERVAL_COLUMNS)
+                             + list(EXISTENCE_COLUMNS))
+            table.attrs["units"] = {**COMPONENT_COLUMNS, **INTERVAL_COLUMNS,
+                                    **EXISTENCE_COLUMNS}
             return table
         if level == "fit":
             rows = []

@@ -58,3 +58,25 @@ def test_every_method_appends_one_step():
                     trials.convert_units("mV"), trials.apply(np.negative), trials.average()):
         assert len(derived.provenance.steps) == n_steps + 1
         json.dumps(derived.provenance.to_dict(), allow_nan=False)
+
+
+def test_fixed_clock_makes_records_reproducible(monkeypatch):
+    """REQ-345: with SOURCE_DATE_EPOCH the creation time is that instant and durations are
+    recorded as 0, so two runs write the same bytes; without it the real clock is used."""
+
+    import time
+
+    from evoparam.data.provenance import elapsed, fixed_clock
+
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1767225600")
+    assert fixed_clock() == 1767225600
+    first = Provenance(environment={}).with_step("f", {"a": 1}, duration_s=3.2)
+    second = Provenance(environment={}).with_step("f", {"a": 1}, duration_s=0.7)
+    assert first.created == "2026-01-01T00:00:00.000+00:00"
+    assert first.steps[-1]["duration_s"] == 0.0
+    assert first.to_json() == second.to_json()
+    assert elapsed(time.perf_counter() - 5.0) == 0.0
+    monkeypatch.delenv("SOURCE_DATE_EPOCH")
+    assert fixed_clock() is None
+    assert Provenance().with_step("f", duration_s=3.2).steps[-1]["duration_s"] == 3.2
+    assert elapsed(time.perf_counter() - 5.0) >= 5.0

@@ -7,31 +7,39 @@ names), ``__repr__``, ``__sklearn_is_fitted__`` and, when scikit-learn is import
 """
 
 import inspect
+import sys
 
 __all__ = ["BaseEstimatorMixin", "TransformerMixin", "NotFittedError", "check_is_fitted",
            "validate_array"]
 
 
-def _sklearn_not_fitted():
-    try:
-        from sklearn.exceptions import NotFittedError as SkNotFitted
-    except ImportError:
-        return None
-    return SkNotFitted
+class NotFittedError(ValueError, AttributeError):
+    """Raised when an estimator is used before ``fit`` (spec REQ-320).
+
+    When scikit-learn has been imported, the error raised is also an instance of
+    scikit-learn's ``NotFittedError``. Code that catches scikit-learn's class has imported
+    scikit-learn, so the check at raise time is enough, and ``import evoparam`` never imports
+    scikit-learn (light core, REQ-010)."""
 
 
-_base = _sklearn_not_fitted()
+_BOTH = {}
 
 
-class NotFittedError(*((_base,) if _base is not None else (ValueError, AttributeError))):
-    """Raised when an estimator is used before ``fit`` (scikit-learn's class when it is
-    installed; else a subclass of ValueError and AttributeError)."""
+def _not_fitted_class():
+    module = sys.modules.get("sklearn.exceptions")
+    base = getattr(module, "NotFittedError", None)
+    if base is None or issubclass(NotFittedError, base):
+        return NotFittedError
+    if base not in _BOTH:
+        _BOTH[base] = type("NotFittedError", (base, NotFittedError),
+                           {"__module__": __name__, "__doc__": NotFittedError.__doc__})
+    return _BOTH[base]
 
 
 def check_is_fitted(estimator):
     if not estimator.__sklearn_is_fitted__():
-        raise NotFittedError(f"This {type(estimator).__name__} instance is not fitted yet; "
-                             f"call fit first.")
+        raise _not_fitted_class()(f"This {type(estimator).__name__} instance is not fitted "
+                                  f"yet; call fit first.")
 
 
 class BaseEstimatorMixin:

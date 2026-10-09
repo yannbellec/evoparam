@@ -10,7 +10,7 @@ import warnings
 import numpy as np
 from scipy.stats import t as student_t
 
-from evoparam.errors import DataError
+from evoparam.errors import DataError, warn as _warn
 
 __all__ = ["sign_flips", "permutation_test", "shuffle_test", "max_cluster_mass", "tail_p_value"]
 
@@ -145,7 +145,8 @@ def permutation_test(data, times, window, baseline, *, n_permutations=1000, stat
     Returns
     -------
     dict of arrays [n_channels]: statistic, p_value, onset, offset, duration, snr_db,
-    duration_ci (n_channels x 2), critical, and ``exact`` (all sign patterns enumerated).
+    duration_ci, onset_ci and offset_ci (n_channels x 2, percentile intervals of the same
+    bootstrap over trials), critical, and ``exact`` (all sign patterns enumerated).
     """
 
     rng = np.random.default_rng(rng)
@@ -180,18 +181,21 @@ def permutation_test(data, times, window, baseline, *, n_permutations=1000, stat
     critical = np.quantile(null, 1 - alpha, axis=0)
     onset, offset = _extent(t_obs, critical, statistic, threshold, polarity, times[win])
 
-    # Duration interval: bootstrap over trials with the same critical value
-    durations = np.full((n_boot, n_ch), np.nan)
+    # Duration interval: bootstrap over trials with the same critical value (the same
+    # resamples give the intervals of the onset and the offset, REQ-006)
+    onsets, offsets = np.full((n_boot, n_ch), np.nan), np.full((n_boot, n_ch), np.nan)
     for b in range(n_boot):
         pick = rng.integers(0, n, n)
         xb = x[pick]
         tb = _t_series(xb.sum(axis=0), (xb ** 2).sum(axis=0), n) * usable
-        on, off = _extent(tb, critical, statistic, threshold, polarity, times[win])
-        durations[b] = off - on
+        onsets[b], offsets[b] = _extent(tb, critical, statistic, threshold, polarity,
+                                        times[win])
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        ci = np.nanpercentile(durations, [2.5, 97.5], axis=0).T if n_boot else \
-            np.full((n_ch, 2), np.nan)
+        interval = (lambda v: np.nanpercentile(v, [2.5, 97.5], axis=0).T if n_boot else
+                    np.full((n_ch, 2), np.nan))
+        ci, onset_ci, offset_ci = (interval(offsets - onsets), interval(onsets),
+                                   interval(offsets))
 
     avg = data.mean(axis=0)
     noise = np.var(avg[:, base], axis=1)
@@ -201,6 +205,7 @@ def permutation_test(data, times, window, baseline, *, n_permutations=1000, stat
     p = np.where(all_masked, np.nan, p)
     return {"statistic": observed, "p_value": p, "onset": onset, "offset": offset,
             "duration": offset - onset, "snr_db": snr, "duration_ci": ci,
+            "onset_ci": onset_ci, "offset_ci": offset_ci,
             "critical": critical, "exact": exact, "threshold": threshold}
 
 
@@ -210,10 +215,14 @@ def shuffle_test(avg, times, window, baseline, *, n_permutations=1000, polarity=
     the same length drawn from the baselines of every channel (a weaker null)."""
 
     rng = np.random.default_rng(rng)
-    warnings.warn("No trials: the null distribution comes from baseline windows of the "
-                  "average (weaker than a trial permutation).", UserWarning, stacklevel=3)
+    _warn("No trials: the null distribution comes from baseline windows of the "
+          "average (weaker than a trial permutation).", UserWarning, stacklevel=3)
     win = (times >= window[0]) & (times <= window[1])
     base = (times >= baseline[0]) & (times <= baseline[1])
+    if base.sum() < 2:
+        raise DataError(f"The baseline {tuple(baseline)} has {int(base.sum())} sample(s) in "
+                        f"the data ({times[0]:.4f} to {times[-1]:.4f} s); the test needs at "
+                        "least 2.")
     mu = avg[:, base].mean(axis=1, keepdims=True)
     sd = avg[:, base].std(axis=1, keepdims=True)
     z = (avg - mu) / np.where(sd > 0, sd, np.nan)
@@ -222,8 +231,8 @@ def shuffle_test(avg, times, window, baseline, *, n_permutations=1000, polarity=
     observed = stat(z[:, win])
     n_win, zb = int(win.sum()), z[:, base]
     if zb.shape[1] < n_win:
-        warnings.warn("The baseline is shorter than the window: null windows wrap around.",
-                      UserWarning, stacklevel=3)
+        _warn("The baseline is shorter than the window: null windows wrap around.",
+              UserWarning, stacklevel=3)
     null = np.empty(n_permutations)
     for i in range(n_permutations):
         ch = rng.integers(0, len(z))

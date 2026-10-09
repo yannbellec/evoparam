@@ -5,7 +5,7 @@ import warnings
 
 import numpy as np
 
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 
 from ._common import check_trialset, masked_values, new, window_mask
 
@@ -63,7 +63,7 @@ def _check_delayed(ts, baseline, delayed_margin, source):
         suggestion = ("baseline_source='first_pulse' (each pulse uses the baseline of the "
                       "first pulse of its train), or a smaller delayed_margin if delayed "
                       "responses are not expected")
-    warnings.warn(
+    _warn(
         f"baseline {tuple(baseline)} s starts within {delayed_margin} s of the previous pulse "
         f"for {int(bad.sum())} of {len(bad)} trials (shortest interval between pulses "
         f"{shortest:.3f} s): delayed responses of the previous pulse may bias it. "

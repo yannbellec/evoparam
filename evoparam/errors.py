@@ -9,6 +9,13 @@ This module imports nothing from the rest of the package, so every module may
 import it.
 """
 
+import logging
+import warnings
+
+# The package logs to "evoparam" and installs a NullHandler only (spec §9.8, REQ-304): the
+# application decides where records go, and nothing is printed twice when it does not.
+logging.getLogger("evoparam").addHandler(logging.NullHandler())
+
 __all__ = [
     "EvoparamError",
     "DataError",
@@ -20,6 +27,7 @@ __all__ = [
     "EvoparamVersionError",
     "NoResponseWarning",
     "ConvergenceWarning",
+    "warn",
 ]
 
 
@@ -61,3 +69,17 @@ class NoResponseWarning(UserWarning):
 
 class ConvergenceWarning(UserWarning):
     """Trial fits or MCMC chains did not converge."""
+
+
+def warn(message, category=UserWarning, stacklevel=2):
+    """Issue a warning and log it on the ``evoparam`` logger at WARNING level.
+
+    Every warning of the package goes through this function, so that it is also logged
+    (REQ-005): a pipeline run without a console still keeps its warnings in the log.
+    ``stacklevel`` counts from the caller, as for :func:`warnings.warn`.
+    """
+
+    text = str(message)
+    name = category.__name__ if isinstance(category, type) else type(message).__name__
+    logging.getLogger("evoparam").warning("%s: %s", name, text)
+    warnings.warn(message, category, stacklevel=stacklevel + 1)

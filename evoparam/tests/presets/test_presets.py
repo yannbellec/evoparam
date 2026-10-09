@@ -111,6 +111,7 @@ def dataclass_frozen(p):
 
 @needs_docs
 def test_req271_citations_resolve_and_choices_are_explained():
+    """REQ-271, and REQ-014 of §3.1 (presets cite their sources), which is REQ-271."""
 
     keys = set(re.findall(r"^- \*\*\[(LIT-[\w-]+)\]\*\*", LITERATURE.read_text("utf-8"),
                           flags=re.M))

@@ -78,7 +78,7 @@ def _ar1(rng, shape, rho):
 
 
 def _powerlaw(rng, shape, sfreq, chi):
-    """Noise with power spectrum ``1/f^chi`` and unit variance.
+    """Noise whose power falls as ``1/f^chi``, with unit variance.
 
     White noise is filtered in the frequency domain by ``|H(f)| = f^(-chi/2)``
     (zero at DC) over a segment twice as long as requested, of which the first

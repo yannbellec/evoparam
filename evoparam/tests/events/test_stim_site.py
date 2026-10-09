@@ -189,3 +189,58 @@ def test_contact_group():
     assert contact_group("LA'12") == "LA'"
     assert contact_group("Grid_3") == "Grid"
     assert contact_group("Cz") == "Cz"
+
+
+def _reviewed_rule(data, onset, sfreq, index, group=None):
+    """Spec §5.2 method 5 as reviewed, written out independently: a_c, ranking, margin."""
+
+    ref = data[index, onset - int(round(0.002 * sfreq))]
+    half = int(round(0.001 * sfreq))
+    dev = data[index, onset - half:onset + half + 1] - ref[:, None]
+    a = np.abs(dev).max(axis=1)
+    order = np.argsort(-a, kind="stable")
+    first, second = order[:2]
+
+    def sign(trace):
+        return np.sign(trace[np.flatnonzero(np.abs(trace) >= 0.5 * np.abs(trace).max())[0]])
+
+    checks = sign(dev[first]) * sign(dev[second]) < 0
+    if group is not None:
+        checks = checks and group[index[first]] == group[index[second]]
+    pair = sorted((index[first], index[second]))
+    return pair, (a[first] - a[order[2]]) / a[first] * (1.0 if checks else 0.5)
+
+
+@pytest.mark.parametrize("pair", [(2, 3), (7, 8)])
+def test_reviewed_spec_rule_is_available(pair):
+    """F60: method="spec" is the rule of the reviewed spec (§5.2 method 5): reference at
+    -2 ms, |t| <= 1 ms, confidence (a_1 - a_3) / a_1, halved by the polarity check and,
+    with ch_info.group only, by the shaft check."""
+
+    data, onsets = bipolar_recording(pair, marker=False)
+    located = identify_stim_site(data, 2048., table(onsets), ch_names=NAMES, method="spec")
+    index = np.arange(len(NAMES) - 1)                  # MKR1+ is excluded by name
+    for row, onset in enumerate(onsets):
+        expected, confidence = _reviewed_rule(data, onset, 2048., index)
+        assert located["stim_site_guess"].iloc[row] == f"{NAMES[expected[0]]}-" \
+                                                       f"{NAMES[expected[1]]}"
+        assert located["site_confidence"].iloc[row] == pytest.approx(confidence, rel=1e-12)
+    # the names do not stand for ch_info.group in the reviewed rule: no halving by shaft
+    assert (located["site_confidence"] > 0.5).all()
+    groups = pd.DataFrame({"name": NAMES, "group": [n[0] for n in NAMES]})
+    located = identify_stim_site(data, 2048., table(onsets), ch_names=NAMES, ch_info=groups,
+                                 method="spec")
+    expected, confidence = _reviewed_rule(data, onsets[0], 2048., index,
+                                          group=[n[0] for n in NAMES])
+    assert located["site_confidence"].iloc[0] == pytest.approx(confidence, rel=1e-12)
+    events = detect_pulses(data, 2048., ch_names=NAMES, site_method="spec", vote=False)
+    assert len(events) == len(onsets)
+
+
+def test_unknown_site_method_raises():
+
+    from evoparam.errors import SettingsError
+
+    data, onsets = bipolar_recording((2, 3))
+    with pytest.raises(SettingsError):
+        identify_stim_site(data, 2048., table(onsets), ch_names=NAMES, method="other")

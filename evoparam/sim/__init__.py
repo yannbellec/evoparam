@@ -8,8 +8,7 @@ real recordings; :func:`match_components` and :func:`score_fits` compare fits
 with the truth.
 
 This module never imports the fitting engine, so the truth cannot be shaped by
-the estimator (REQ-254). The inherited simulator of the skeleton lives in
-``evoparam.core.sim`` until build step S7.
+the estimator (REQ-254).
 """
 
 from .components import (ComponentSpec, ERP_COMPONENTS, TEP_COMPONENTS, CCEP_N1, CCEP_N2,

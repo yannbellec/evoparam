@@ -45,13 +45,12 @@ import hashlib
 import os
 import re
 import struct
-import warnings
 import xml.etree.ElementTree as ElementTree
 from urllib.parse import quote, unquote
 
 import numpy as np
 
-from evoparam.errors import DataError, ReaderError
+from evoparam.errors import DataError, ReaderError, warn as _warn
 from evoparam.io._fetch import RemoteFile, TransferLog, fetch_bytes, is_url
 from evoparam.io.brainvision import _pick, _sample
 
@@ -619,8 +618,8 @@ def _read_channel(session, name, segments, check_crc):
     units = meta['units']
     factor = meta['factor']
     if not np.isfinite(factor) or factor == 0:
-        warnings.warn('MEF channel {}: no units conversion factor; the stored integers are '
-                      'used.'.format(name), UserWarning, stacklevel=4)
+        _warn('MEF channel {}: no units conversion factor; the stored integers are '
+              'used.'.format(name), UserWarning, stacklevel=4)
         factor = 1.0
     to_uv = _TO_UV.get(units.strip().lower().replace(' ', ''))
     channel = {'name' : name, 'sfreq' : meta['sfreq'], 'units' : units, 'factor' : factor,
@@ -957,7 +956,7 @@ def _warn_units(header, ch_index):
     other = [header['ch_names'][ind] for ind in ch_index
              if not header['channels'][ind]['voltage']]
     if other:
-        warnings.warn('MEF channels whose unit is not a voltage were left unconverted: {}.'.format(
+        _warn('MEF channels whose unit is not a voltage were left unconverted: {}.'.format(
             ', '.join(other)), UserWarning, stacklevel=4)
 
 

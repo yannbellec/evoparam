@@ -13,12 +13,11 @@ trials. Each trial is then ``V = alpha B_q + residual``.
 import itertools
 import re
 import time as _time
-import warnings
 
 import numpy as np
 
 from evoparam.data import Provenance, ShapeBasis, TrialSet
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.models.component_shapes import Template
 from evoparam.utils._optional import require
 from evoparam.version import __version__
@@ -436,9 +435,9 @@ def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0
     q, labels, h, stability = chosen
     warns = []
     if q == 1 and unstable:
-        warnings.warn("unstable_basis: no factorisation with two shapes or more was stable "
-                      f"(adjusted Rand index >= {stability_min}); one shape is returned.",
-                      UserWarning, stacklevel=2)
+        _warn("unstable_basis: no factorisation with two shapes or more was stable "
+              f"(adjusted Rand index >= {stability_min}); one shape is returned.",
+              UserWarning, stacklevel=2)
         warns.append("unstable_basis")
     if q == 1:
         labels = np.where(labels >= 0, 0, -1)

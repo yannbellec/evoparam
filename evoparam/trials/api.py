@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 
 from evoparam.data import Evoked, Provenance, TrialFit, TrialSet
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.models.component_shapes import (FWHM_PER_SIGMA, Template, compute_features,
                                                get_background, get_shape)
 from evoparam.utils._optional import require
@@ -121,8 +121,8 @@ def _template_for(fit, picks, times, max_shift, factor):
     for i in range(len(picks)):
         gaps = [abs(lats[i] - lats[j]) for j in range(len(picks)) if j != i]
         if gaps and shifts[i] > 0.5 * min(gaps):
-            warnings.warn(f"max_shift of component {picks[i]} clipped to half the distance to "
-                          "its neighbour.", UserWarning, stacklevel=3)
+            _warn(f"max_shift of component {picks[i]} clipped to half the distance to "
+                  "its neighbour.", UserWarning, stacklevel=3)
             shifts[i] = 0.5 * min(gaps)
     bg = fit.background or {"name": "none"}
     background = get_background(bg["name"])
@@ -302,7 +302,9 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
         group_fit = fit_models(ts, preset, by=[c for c in by if ts.metadata is not None
                                                and c in ts.metadata.columns] or None)
     settings0 = group_fit.settings or {}
-    factor = 0.5 if settings0.get("preset") in SCALP_PRESETS else 0.25
+    preset0 = settings0.get("preset")
+    preset0 = preset0.get("name") if isinstance(preset0, dict) else preset0
+    factor = 0.5 if preset0 in SCALP_PRESETS else 0.25
     baseline = tuple(settings0.get("baseline") or (ts.times[0], ts.times[0] + 0.1))
 
     meta = ts.metadata
@@ -415,10 +417,10 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
                 if n_t > 2 and n_null > 2:
                     limit = max(limit, float(np.sqrt(f_dist.ppf(0.95, n_t - 1, n_null - 1))))
                 if not jit[target] > limit * jit_null[target]:
-                    warnings.warn(f"{name}: jitter {jit[target]:.4f} s is not above "
-                                  f"{limit:.2f} x the noise-only jitter "
-                                  f"{jit_null[target]:.4f} s; realignment refused.",
-                                  UserWarning, stacklevel=2)
+                    _warn(f"{name}: jitter {jit[target]:.4f} s is not above "
+                          f"{limit:.2f} x the noise-only jitter "
+                          f"{jit_null[target]:.4f} s; realignment refused.",
+                          UserWarning, stacklevel=2)
                 else:
                     realigned = _realigned(ts.times, sub[:, ch], shift[:, j], trusted,
                                            name, ts)

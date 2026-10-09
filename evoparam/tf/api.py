@@ -14,7 +14,7 @@ import warnings
 import numpy as np
 
 from evoparam.data import TFFit, TrialSet
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.models import evaluate_fit
 from evoparam.version import __version__
 
@@ -53,8 +53,8 @@ def _freq_grid(freqs, sfreq):
         raise SettingsError("freqs must be positive: an array or (fmin, fmax, n).")
     keep = grid <= sfreq / NYQUIST_FACTOR
     if not keep.all():
-        warnings.warn(f"{int((~keep).sum())} frequencies above sfreq/{NYQUIST_FACTOR:g} = "
-                      f"{sfreq / NYQUIST_FACTOR:g} Hz were dropped.", stacklevel=3)
+        _warn(f"{int((~keep).sum())} frequencies above sfreq/{NYQUIST_FACTOR:g} = "
+              f"{sfreq / NYQUIST_FACTOR:g} Hz were dropped.", stacklevel=3)
     if not keep.any():
         raise SettingsError(f"No frequency at or below sfreq/{NYQUIST_FACTOR:g}.")
     return grid[keep]
@@ -282,8 +282,8 @@ def tf_fit(ts, *, transform="morse", freqs=(2.0, 250.0, 40), gamma=3.0, p2=30.0,
     if stats == "cluster":
         smallest = min(int(np.sum(labels == g)) for g in groups)
         if smallest < MIN_CLUSTER_TRIALS:
-            warnings.warn(f"Only {smallest} trials in a condition: the sign-flip permutation "
-                          f"has few distinct patterns (coarse p-values).", stacklevel=2)
+            _warn(f"Only {smallest} trials in a condition: the sign-flip permutation "
+                  f"has few distinct patterns (coarse p-values).", stacklevel=2)
     kernels = make_kernels(transform, grid, ts.sfreq, ts.n_times, gamma=gamma, p2=p2,
                            n_cycles=n_cycles, time_bandwidth=time_bandwidth,
                            stft_window=stft_window)

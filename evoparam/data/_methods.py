@@ -428,7 +428,11 @@ def _fit_settings(steps, settings):
 
 
 def _overrides_sentence(fit_settings):
-    overrides = fit_settings.get("_overrides") or []
+    # the keys whose value differs from the preset (REQ-008); results written before
+    # REQ-331 held them in ``_overrides``
+    overrides = fit_settings.get("_changed_from_preset")
+    if overrides is None:
+        overrides = fit_settings.get("_overrides") or []
     if not overrides:
         return ""
     changed = [f"{key} = {_setting(fit_settings.get(key))}" for key in overrides]
@@ -476,7 +480,9 @@ def methods_text(obj, cite=True):
     if preset_note:
         opening += f" using the {preset_note}"
     elif fit_settings.get("preset"):
-        opening += f" using the preset '{fit_settings['preset']}'"
+        preset = fit_settings["preset"]
+        name = preset.get("name") if isinstance(preset, dict) else preset
+        opening += f" using the preset '{name}'"
     sentences = [opening + "."]
 
     seen = set()

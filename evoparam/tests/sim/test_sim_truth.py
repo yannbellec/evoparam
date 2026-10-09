@@ -139,6 +139,31 @@ def test_json_round_trip():
     assert "NaN" not in truth.to_json()
 
 
+@pytest.mark.parametrize("suffix", ["", ".zip"])
+def test_container_round_trip(tmp_path, suffix):
+    """Spec §4.3.5: the ground truth is saved like every result, as a ``.evoparam``
+    container (manifest, arrays in npz, provenance and settings), and loads back equal,
+    arrays included, with GroundTruth.load and with evoparam.load_object."""
+
+    import json
+
+    from evoparam import load_object
+
+    for name in ("tep", "ccep"):
+        _, truth = sim.GENERATORS[name](seed=3, **SMALL[name])
+        path = truth.save(str(tmp_path / f"truth_{name}{suffix}"))
+        assert path.endswith(".evoparam" + suffix if not suffix else suffix)
+        again = sim.GroundTruth.load(path)
+        assert again == truth
+        assert load_object(path) == truth
+        if not suffix:
+            with open(f"{path}/manifest.json", encoding="utf-8") as fobj:
+                assert json.load(fobj)["object"] == "GroundTruth"
+    with pytest.raises(DataError, match="not a GroundTruth"):
+        trials, _ = sim.simulate_erp(seed=0, n_trials=3)
+        sim.GroundTruth.load(trials.save(str(tmp_path / "trials")))
+
+
 def test_truth_validation_and_repr():
     _, truth = sim.simulate_erp(seed=0, n_trials=3)
     assert "3 trials" in repr(truth) and "seed 0" in repr(truth)

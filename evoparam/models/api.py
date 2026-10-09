@@ -10,8 +10,9 @@ from scipy.stats import chi2, norm
 
 from evoparam.data import Component, Evoked, GoodnessOfFit, GroupFit, Provenance, ResponseFit
 from evoparam.data import TrialSet
+from evoparam.data.provenance import elapsed
 from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, validate_array
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.shapes import compute_features
 from evoparam.version import __version__
 
@@ -217,7 +218,7 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
                                    "ar_order": core["ar_order"], "criterion": core["kind"],
                                    "uncertainty_method": settings.uncertainty,
                                    "steps": core["steps"],
-                                   "duration_s": _time.perf_counter() - start})
+                                   "duration_s": elapsed(start)})
     if settings.uncertainty == "bootstrap":
         fit = _bootstrap(fit, core, times, trials, settings, sfreq, z)
     elif settings.uncertainty == "profile":
@@ -359,9 +360,9 @@ class _FixedStructure(_engine._Structure):
 _NOT_PRESET_FIELDS = ("preset", "preset_note", "random_state")
 
 
-def _overrides(settings):
+def _changed_from_preset(settings):
     """Names of the fields whose value differs from the preset's (or, without a preset,
-    from the package defaults): the settings a methods text must state (REQ-340)."""
+    from the package defaults): the settings a methods text must state (REQ-008, REQ-340)."""
 
     try:
         base = resolve_settings(settings.preset)
@@ -376,11 +377,52 @@ def _overrides(settings):
     return out
 
 
-def _settings_dict(settings):
+def _draw_seed():
+    """A seed drawn from the operating system, recorded in the settings (REQ-295): a fit
+    made with ``random_state=None`` can be repeated from its settings (REQ-331)."""
+
+    return int(np.random.default_rng().integers(2 ** 31 - 1))
+
+
+def preset_record(settings):
+    """``{"name", "version"}`` of the preset of resolved settings (REQ-331), or None."""
+
+    import evoparam.presets as _presets
+
+    name = settings.preset
+    if not name:
+        return None
+    version = None
+    if name in _presets.PRESETS:
+        version = _presets.get(name).version
+    else:
+        note = settings.preset_note or ""
+        if " v" in note:
+            version = note.split(" v", 1)[1].split(" ")[0].rstrip(";")
+    return {"name": name, "version": version}
+
+
+def preset_name(value):
+    """Name of a recorded preset: ``settings["preset"]`` is ``{"name", "version"}``
+    (REQ-331); results written before it hold the name alone."""
+
+    if isinstance(value, dict):
+        return value.get("name")
+    return value
+
+
+def _settings_dict(settings, overrides=()):
+    """The ``settings`` record of a result (REQ-331): the full resolved settings, the preset
+    as ``{"name", "version"}``, ``_overrides`` (the keys the user set) and
+    ``_changed_from_preset`` (the keys whose value differs from the preset, stated by the
+    methods text)."""
+
     out = dataclasses.asdict(settings)
     out["shapes"] = list(settings.shapes)
+    out["preset"] = preset_record(settings)
     out["package_version"] = __version__
-    out["_overrides"] = _overrides(settings)
+    out["_overrides"] = list(overrides)
+    out["_changed_from_preset"] = _changed_from_preset(settings)
     return out
 
 
@@ -479,6 +521,17 @@ class ResponseModel(BaseEstimatorMixin):
     def _param_names(cls):
         return cls._get_param_names()
 
+    def _explicit(self, **extra):
+        """Keys of FitSettings that the user set (REQ-331 ``_overrides``), in field order."""
+
+        recorded = getattr(self, "_overrides_record", None)
+        if recorded is not None:
+            return list(recorded)
+        given = {k for k in FitSettings.__dataclass_fields__
+                 if getattr(self, k, None) is not None or extra.get(k) is not None}
+        return [k for k in FitSettings.__dataclass_fields__
+                if k in given and k not in _NOT_PRESET_FIELDS]
+
     def settings(self, **extra):
         keys = set(FitSettings.__dataclass_fields__) - {"preset"}
         overrides = {k: getattr(self, k) for k in keys if hasattr(self, k)}
@@ -486,11 +539,17 @@ class ResponseModel(BaseEstimatorMixin):
         return resolve_settings(self.preset, **overrides)
 
     def fit_waveform(self, times, y, *, window=None, baseline=None, sem=None, mask=None,
-                     trials=None):
-        """Fit one waveform; returns a :class:`ResponseFit` (never raises on a bad fit)."""
+                     trials=None, random_state=None):
+        """Fit one waveform; returns a :class:`ResponseFit` (never raises on a bad fit).
+
+        ``random_state`` replaces the estimator's for this call. When both are None a seed
+        is drawn from the operating system and recorded in ``settings`` (REQ-295)."""
 
         start = _time.perf_counter()
-        settings = self.settings(fit_window=window, baseline=baseline)
+        if random_state is None and self.random_state is None:
+            random_state = _draw_seed()
+        settings = self.settings(fit_window=window, baseline=baseline,
+                                 random_state=random_state)
         times = np.asarray(times, float)
         y = np.asarray(y, float)
         if times.shape != y.shape:
@@ -518,7 +577,8 @@ class ResponseModel(BaseEstimatorMixin):
                     "warnings": []}
             _engine.logger.warning("fit failed: %s", core["message"])
         return _build_fit(core, times, y, settings, sfreq, trials, mask, start,
-                          _settings_dict(settings))
+                          _settings_dict(settings, self._explicit(fit_window=window,
+                                                                  baseline=baseline)))
 
     def fit_group(self, data, *, window=None, baseline=None, picks=None, n_jobs=None,
                   condition=""):
@@ -537,12 +597,16 @@ class ResponseModel(BaseEstimatorMixin):
         index = range(len(names)) if picks is None else \
             [names.index(p) if isinstance(p, str) else int(p) for p in picks]
 
+        # one seed for every channel, drawn when none is given and recorded (REQ-295)
+        seed = _draw_seed() if self.random_state is None else None
+
         def one(ch):
             mask = None if evoked.masks is None else evoked.masks[ch]
             sem = None if evoked.sem is None else evoked.sem[ch]
             tr = None if trials is None else trials.data[:, ch]
             return self.fit_waveform(evoked.times, evoked.data[ch], window=window,
-                                     baseline=baseline, sem=sem, mask=mask, trials=tr)
+                                     baseline=baseline, sem=sem, mask=mask, trials=tr,
+                                     random_state=seed)
 
         jobs = self.n_jobs if n_jobs is None else n_jobs
         if jobs and jobs != 1:
@@ -550,10 +614,13 @@ class ResponseModel(BaseEstimatorMixin):
                 fits = list(pool.map(one, index))
         else:
             fits = [one(ch) for ch in index]
-        settings = _settings_dict(self.settings(fit_window=window, baseline=baseline))
+        resolved = self.settings(fit_window=window, baseline=baseline, random_state=seed)
+        settings = _settings_dict(resolved, self._explicit(fit_window=window,
+                                                           baseline=baseline))
         provenance = evoked.provenance.with_step("evoparam.models.ResponseModel.fit_group",
                                                  settings,
-                                                 duration_s=_time.perf_counter() - start)
+                                                 duration_s=_time.perf_counter() - start,
+                                                 preset=preset_record(resolved))
         return GroupFit.from_fits(fits, [names[i] for i in index],
                                   [condition] * len(fits), settings=settings,
                                   provenance=provenance)
@@ -598,12 +665,13 @@ class ResponseModel(BaseEstimatorMixin):
         evoked = X.average() if isinstance(X, TrialSet) else X
         message = (f"skipped: the data range {window} is shorter than 3 x min_fwhm "
                    f"({3 * min_fwhm:.4f} s) or has fewer than 5 samples")
+        explicit = self._explicit(fit_window=window)
         fits = [_build_fit({"status": "skipped", "message": message, "warnings": []},
                            times, np.asarray(row, float), settings, sfreq, None, None,
-                           _time.perf_counter(), _settings_dict(settings))
+                           _time.perf_counter(), _settings_dict(settings, explicit))
                 for row in evoked.data]
         return GroupFit.from_fits(fits, list(evoked.ch_names), [""] * len(fits),
-                                  settings=_settings_dict(settings),
+                                  settings=_settings_dict(settings, explicit),
                                   provenance=evoked.provenance)
 
     def fit(self, X, y=None):
@@ -720,12 +788,27 @@ def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None
                             "runs the existence test after the fit.")
     if not average:
         raise SettingsError("average=False: fit trials one by one with trials=True (S10).")
+    recorded_version = overrides.pop("package_version", None)
+    if recorded_version is not None and recorded_version != __version__:
+        # settings of a result made by another version (REQ-331: func(data, **settings))
+        message = (f"evoparam.fit: the settings were recorded by evoparam "
+                   f"{recorded_version}; this is {__version__}.")
+        _engine.logger.warning(message)
+        _warn(message, UserWarning, stacklevel=2)
     if "fit_window" in overrides:
         # the name of the preset field (spec §6.3) and of FitSettings, for ``window``
         given = overrides.pop("fit_window")
         window = given if window is None else window
+    # Settings that the constructor does not take (preset_note, freq_min, freq_max) are
+    # read by ResponseModel.settings() from the model's attributes, so that the settings
+    # of a result can be passed back as they are (REQ-331).
+    accepted = set(inspect.signature(ResponseModel.__init__).parameters)
+    extra = {k: overrides.pop(k) for k in list(overrides)
+             if k not in accepted and k in FitSettings.__dataclass_fields__}
     model = ResponseModel(preset, fit_window=window, baseline=baseline, n_jobs=n_jobs,
                           random_state=random_state, **overrides)
+    for key, value in extra.items():
+        setattr(model, key, value)
     data = _from_mne(data)
     if isinstance(data, list):
         # MNE Evoked objects, one condition each (their comment is the condition label)
@@ -736,7 +819,7 @@ def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None
             fits += group.fits
             chans += list(group.index["channel"])
             conds += [label] * len(group.fits)
-        return GroupFit.from_fits(fits, chans, conds, settings=_settings_dict(model.settings()))
+        return GroupFit.from_fits(fits, chans, conds, settings=_settings_dict(model.settings(), model._explicit()))
     if isinstance(data, np.ndarray):
         if times is None:
             raise SettingsError("times is required when data is an array.")
@@ -758,7 +841,7 @@ def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None
             fits += group.fits
             chans += list(group.index["channel"])
             conds += [label] * len(group.fits)
-        return GroupFit.from_fits(fits, chans, conds, settings=_settings_dict(model.settings()))
+        return GroupFit.from_fits(fits, chans, conds, settings=_settings_dict(model.settings(), model._explicit()))
     return model.fit_group(data, picks=picks)
 
 
@@ -789,7 +872,7 @@ def methods_text(fit):
 
     settings = fit.settings
     shapes = ", ".join(settings.get("shapes", []))
-    preset = settings.get("preset")
+    preset = preset_name(settings.get("preset"))
     window = settings.get("fit_window")
     crit = "BIC" if settings.get("selection") == "bic" else settings.get("selection", "").upper()
     return (

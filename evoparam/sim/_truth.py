@@ -18,6 +18,7 @@ from evoparam.data import Provenance
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data._jsonutil import dumps, loads, to_jsonable
 from evoparam.data.results import COMPONENT_COLUMNS
+from evoparam.data.serialize import register_type
 from evoparam.errors import DataError
 from evoparam.utils._optional import require
 
@@ -313,6 +314,30 @@ class GroundTruth(DeepEqualMixin):
                 dct[name] = np.asarray(dct[name], dtype=np.float64)
         return cls(**dct)
 
+    def save(self, path, overwrite=False, table_format="auto"):
+        """Save to a ``.evoparam`` container (spec §4.3.5), arrays included.
+
+        Returns
+        -------
+        str
+            The path written.
+        """
+
+        from evoparam.data.serialize import save_object
+
+        return save_object(self, path, overwrite=overwrite, table_format=table_format)
+
+    @classmethod
+    def load(cls, path, verify=True):
+        """Load a container written by :meth:`save` (also :func:`evoparam.load_object`)."""
+
+        from evoparam.data.serialize import load_object
+
+        obj = load_object(path, verify=verify)
+        if not isinstance(obj, cls):
+            raise DataError(f"{path}: holds a {type(obj).__name__}, not a GroundTruth.")
+        return obj
+
     def to_json(self, arrays=False, **kwargs):
         """Strict JSON text (NaN written as null); arrays left out by default."""
 
@@ -323,3 +348,6 @@ class GroundTruth(DeepEqualMixin):
         """Rebuild from :meth:`to_json` output."""
 
         return cls.from_dict(loads(text))
+
+
+register_type(GroundTruth)

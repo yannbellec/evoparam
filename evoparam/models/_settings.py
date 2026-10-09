@@ -58,6 +58,10 @@ class FitSettings:
         if isinstance(self.shapes, str):
             object.__setattr__(self, "shapes", (self.shapes,))
         object.__setattr__(self, "shapes", tuple(self.shapes))
+        if self.windows is not None:
+            # a ComponentWindows (evoparam.models.windows), any mapping of windows, or the
+            # lists of a settings record read back from JSON
+            object.__setattr__(self, "windows", {k: tuple(v) for k, v in self.windows.items()})
         if not self.shapes:
             raise SettingsError("shapes: at least one shape is needed.")
         if self.selection not in SELECTIONS:
@@ -110,6 +114,18 @@ def resolve_settings(preset=None, **overrides):
     if unknown:
         raise SettingsError(f"Unknown setting(s) {unknown}.")
     values = {}
+    if isinstance(preset, dict) and set(preset) == {"name", "version"}:
+        # the preset as recorded in a result's settings (REQ-331): the same preset, which
+        # must still have the recorded version
+        recorded = preset
+        preset = recorded["name"]
+        if preset in _presets.PRESETS and recorded["version"] is not None \
+                and _presets.get(preset).version != recorded["version"]:
+            from evoparam.errors import EvoparamVersionError
+
+            raise EvoparamVersionError(
+                f"The settings were made with preset {preset!r} v{recorded['version']}; this "
+                f"evoparam has v{_presets.get(preset).version}.")
     if preset is not None:
         if isinstance(preset, dict):
             values.update(preset)

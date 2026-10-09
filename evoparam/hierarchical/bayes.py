@@ -29,6 +29,7 @@ the order of the data spread.
 import numpy as np
 
 from evoparam.utils._optional import require
+from evoparam.errors import warn as _warn
 
 __all__ = ["require_engine", "sample", "loo_table", "prepare"]
 
@@ -333,8 +334,6 @@ def sample(engine, level_tables, settings, *, n_chains, n_warmup, n_draws, targe
            random_state, formula, covariates, eb_variance=None):
     """Sample every component and return the posterior tables."""
 
-    import warnings
-
     import pandas as pd
 
     require_engine(engine)
@@ -358,8 +357,8 @@ def sample(engine, level_tables, settings, *, n_chains, n_warmup, n_draws, targe
         d["ppc_p_latency_spread"] = _ppc(samples, data)
         d["loglik"] = loglik
         if d["divergent_fraction"] > DIVERGENCE_WARNING:
-            warnings.warn(f"component {label!r}: {100 * d['divergent_fraction']:.1f} % divergent "
-                          f"transitions; raise target_accept.", UserWarning, stacklevel=3)
+            _warn(f"component {label!r}: {100 * d['divergent_fraction']:.1f} % divergent "
+                  f"transitions; raise target_accept.", UserWarning, stacklevel=3)
         diag["bayes"][label] = d
         A = data["amp_scale"]
         # channel posteriors

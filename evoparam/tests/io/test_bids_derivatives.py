@@ -154,8 +154,41 @@ def _validator():
 def test_req342_bids_validator(written, which):
 
     folder = written["root"] if which == "raw" else written["out"]
-    proc = subprocess.run(_validator() + [str(folder), "--format", "json"],
+    # REQ-342: the derivatives are validated in derivative mode
+    mode = ["--datasetTypes", "derivative"] if which == "derivatives" else []
+    proc = subprocess.run(_validator() + mode + [str(folder), "--format", "json"],
                           capture_output=True, text=True, timeout=900)
+    report = json.loads(proc.stdout)
+    issues = report["issues"]["issues"] if isinstance(report.get("issues"), dict) \
+        else report.get("issues", [])
+    errors = [(i.get("code"), i.get("location")) for i in issues
+              if i.get("severity") == "error"]
+    assert errors == []
+
+
+# Spec §9.2 and REQ-315: the reference validator is the Node.js bids-validator@2, run with
+# npx, in derivative mode.
+REFERENCE_VALIDATOR = ["npx", "--yes", "bids-validator@2", "--datasetTypes", "derivative"]
+
+
+@pytest.mark.network
+@pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1" or not shutil.which("npx"),
+                    reason="needs npx and EVOPARAM_NETWORK_TESTS=1 (npx fetches the validator)")
+def test_req315_reference_validator_as_written(written):
+    """REQ-315 as written: ``npx bids-validator@2 --datasetTypes derivative`` reports no
+    error on the derivatives.
+
+    On 2026-10-09 the npm registry has no 2.x release of ``bids-validator``: its latest
+    version is 1.15.0 and npx stops with ``ETARGET No matching version found for
+    bids-validator@2``. The 2.x validator is published on JSR only, as ``@bids/validator``,
+    and test_req342_bids_validator runs it. The test therefore expects failure while npx
+    cannot resolve the version, and it passes as soon as npm has a 2.x release."""
+
+    proc = subprocess.run(REFERENCE_VALIDATOR + [str(written["out"]), "--json"],
+                          capture_output=True, text=True, timeout=900)
+    if "ETARGET" in proc.stderr or "No matching version found" in proc.stderr:
+        pytest.xfail("npm has no bids-validator@2 release (ETARGET); measured 2026-10-09, "
+                     "latest 1.15.0")
     report = json.loads(proc.stdout)
     issues = report["issues"]["issues"] if isinstance(report.get("issues"), dict) \
         else report.get("issues", [])

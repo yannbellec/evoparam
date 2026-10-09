@@ -1,7 +1,6 @@
 """Replace a time window by an interpolation between the samples around it.
 
-Shared by :mod:`evoparam.artifact` (method ``"interpolate"``) and the legacy
-:func:`evoparam.utils.data.interpolate_signal`.
+Used by :mod:`evoparam.artifact` (method ``"interpolate"``).
 """
 
 import numpy as np

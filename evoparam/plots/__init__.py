@@ -8,6 +8,10 @@ and Ito). The functions draw what the results hold; they compute no new scientif
 
 from ._plots import (PALETTE, plot_artifact, plot_compare, plot_existence, plot_fit,
                      plot_group, plot_hierarchical, plot_shapes, plot_tf, plot_trials)
+from ._signals import (plot_hist, plot_scatter_1, plot_scatter_2, plot_signals,
+                       plot_signals_shading, plot_signals_yshade)
 
 __all__ = ["plot_fit", "plot_group", "plot_trials", "plot_existence", "plot_tf", "plot_shapes",
-           "plot_artifact", "plot_compare", "plot_hierarchical", "PALETTE"]
+           "plot_artifact", "plot_compare", "plot_hierarchical", "plot_signals",
+           "plot_signals_shading", "plot_signals_yshade", "plot_scatter_1", "plot_scatter_2",
+           "plot_hist", "PALETTE"]

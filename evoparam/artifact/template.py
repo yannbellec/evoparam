@@ -4,7 +4,7 @@ import warnings
 
 import numpy as np
 
-from evoparam.errors import ArtifactError, SettingsError
+from evoparam.errors import ArtifactError, SettingsError, warn as _warn
 
 from ._common import GROUP_BY, check_trialset, groups, window_slice
 
@@ -111,8 +111,8 @@ def subtract_template(ts, inds, *, template="global", group_by=GROUP_BY, n_neigh
                         f"Template group {key} has {len(rows)} pulse(s); at least {MIN_PULSES} "
                         "are needed. Use fallback=True to interpolate these trials instead, "
                         "or group_by=() for one template over all trials.")
-                warnings.warn(f"Template group {key} has {len(rows)} pulse(s): these trials "
-                              "are interpolated instead.", stacklevel=3)
+                _warn(f"Template group {key} has {len(rows)} pulse(s): these trials "
+                      "are interpolated instead.", stacklevel=3)
                 fallback_trials.extend(rows.tolist())
                 continue
             if template == "global":
@@ -152,9 +152,9 @@ def subtract_template(ts, inds, *, template="global", group_by=GROUP_BY, n_neigh
             if np.std(a) > 0 and np.std(b) > 0:
                 correlation = max(correlation, float(np.corrcoef(a, b)[0, 1]))
         if correlation > RESPONSE_CORRELATION_WARN:
-            warnings.warn(f"The artifact template correlates with the response after the window "
-                          f"(r = {correlation:.2f}): the window may end inside the response.",
-                          stacklevel=3)
+            _warn(f"The artifact template correlates with the response after the window "
+                  f"(r = {correlation:.2f}): the window may end inside the response.",
+                  stacklevel=3)
 
     if fallback_trials and interpolate is not None:
         rows = np.array(fallback_trials)

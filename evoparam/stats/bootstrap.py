@@ -13,7 +13,6 @@ percentile interval.
 """
 
 import time as _time
-import warnings
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 
@@ -22,7 +21,7 @@ from scipy.stats import norm
 from scipy.stats import t as student_t
 
 from evoparam.data import Evoked, TrialSet
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.utils._optional import require
 
 from ._scorers import TIME_SCORES, default_window, resolve_scorer
@@ -377,9 +376,9 @@ def bootstrap(ts, statistic, *, n_boot=1000, by=("stim_site",), ci_level=0.95, m
                  zip(channels, labels, ci["reason"], ci["method"])
                  if why and method == "bca" and used == "percentile"]
     if fallbacks:
-        warnings.warn("bootstrap: BCa fell back to the percentile interval for "
-                      + "; ".join(fallbacks[:5]) + (" ..." if len(fallbacks) > 5 else ""),
-                      UserWarning, stacklevel=2)
+        _warn("bootstrap: BCa fell back to the percentile interval for "
+              + "; ".join(fallbacks[:5]) + (" ..." if len(fallbacks) > 5 else ""),
+              UserWarning, stacklevel=2)
     rows = {"channel": channels, "statistic": labels, "estimate": estimate,
             "bias": mean - estimate, "se": sd, "ci_low": ci["low"], "ci_high": ci["high"],
             "ci_level": float(ci_level), "method": list(ci["method"]),

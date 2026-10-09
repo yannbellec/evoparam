@@ -5,7 +5,7 @@ import warnings
 
 import numpy as np
 
-from evoparam.errors import SettingsError
+from evoparam.errors import SettingsError, warn as _warn
 from evoparam.utils._optional import require
 
 from ._common import check_trialset, masked_values, new, window_mask
@@ -102,9 +102,9 @@ def reject_trials(ts, *, response_window=(0.01, 0.5), baseline=(-0.5, -0.05), pt
             drop = np.setdiff1d(rows, keep)
             reasons[drop, c] = ""
     if capped:
-        warnings.warn(f"reject_trials: more than {max_fraction:.0%} of the trials are flagged on "
-                      f"{capped}; the channel, not the trials, is probably the problem (only "
-                      "the most extreme trials are flagged).", UserWarning, stacklevel=2)
+        _warn(f"reject_trials: more than {max_fraction:.0%} of the trials are flagged on "
+              f"{capped}; the channel, not the trials, is probably the problem (only "
+              "the most extreme trials are flagged).", UserWarning, stacklevel=2)
 
     flagged = reasons != ""
     meta = (ts.metadata.copy() if ts.metadata is not None

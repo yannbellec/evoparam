@@ -5,7 +5,9 @@ from .api import (ResponseModel, compare_models, evaluate_fit, fit, fit_response
                   fitted_peak, methods_text)
 from .classical import classical_measures
 from .labels import label_components
+from .windows import ComponentWindows
 
 __all__ = ["ResponseModel", "fit", "fit_response", "compare_models", "methods_text",
            "evaluate_fit", "fitted_peak", "classical_measures", "label_components",
+           "ComponentWindows",
            "FitSettings", "FIT_PRESETS", "resolve_settings"]

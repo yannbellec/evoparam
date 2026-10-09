@@ -8,11 +8,10 @@ exponentials for the artifact; a greedy decomposition of the residual picks one 
 a time, and only the artifact atoms are subtracted.
 """
 
-import warnings
 
 import numpy as np
 
-from evoparam.errors import SettingsError
+from evoparam.errors import SettingsError, warn as _warn
 
 __all__ = []
 
@@ -30,10 +29,10 @@ DECAY_START_STEP = 0.001                               # spacing of their onsets
 def warn_patent():
     global _WARNED
     if not _WARNED:
-        warnings.warn("method 'matching_pursuit' follows a published method that is the "
-                      "subject of patent publication US 2023/0240618 A1 (Washington "
-                      "University); check the licensing note in the specification, section "
-                      "13, before commercial use.", UserWarning, stacklevel=3)
+        _warn("method 'matching_pursuit' follows a published method that is the "
+              "subject of patent publication US 2023/0240618 A1 (Washington "
+              "University); check the licensing note in the specification, section "
+              "13, before commercial use.", UserWarning, stacklevel=3)
         _WARNED = True
 
 

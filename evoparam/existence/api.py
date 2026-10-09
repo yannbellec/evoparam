@@ -4,12 +4,11 @@ import dataclasses
 import itertools
 import logging
 import time as _time
-import warnings
 
 import numpy as np
 
 from evoparam.data import Evoked, Provenance, ResponseTest, TrialSet
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.utils._optional import require
 from evoparam.version import __version__
 
@@ -50,8 +49,8 @@ def _model_comparison(avg, times, window, baseline, n_permutations, rng):
     from evoparam.models import ResponseModel
 
     if n_permutations > 200:
-        warnings.warn("model_comparison refits the model for every bootstrap sample; "
-                      f"{n_permutations} samples may take long.", UserWarning, stacklevel=3)
+        _warn("model_comparison refits the model for every bootstrap sample; "
+              f"{n_permutations} samples may take long.", UserWarning, stacklevel=3)
     model = ResponseModel(fit_window=window, baseline=baseline, classical=False)
     background = ResponseModel(fit_window=window, baseline=baseline, classical=False,
                                max_components=0)
@@ -135,6 +134,10 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
         raise SettingsError("statistic must be 'max_t' or 'cluster'.")
     if polarity not in ("both", "negative", "positive"):
         raise SettingsError("polarity must be 'both', 'negative' or 'positive'.")
+    if random_state is None:
+        # a seed drawn from the operating system and recorded in the settings, so that the
+        # test can be regenerated from its provenance (REQ-007, REQ-333)
+        random_state = int(np.random.default_rng().integers(2 ** 31 - 1))
     rng = np.random.default_rng(random_state)
     spec = None
     if method == "threshold":
@@ -201,6 +204,9 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
                 "channels": [names[i] for i in index], "by": list(by or ()),
                 "duration_ci": (results[0]["duration_ci"].tolist() if len(results) == 1
                                 else [r["duration_ci"].tolist() for r in results]),
+                **{key: (_interval(results[0], key) if len(results) == 1
+                         else [_interval(r, key) for r in results])
+                   for key in ("onset_ci", "offset_ci")},
                 "exact": bool(results[0].get("exact", False)),
                 "package_version": __version__}
     if spec is not None:
@@ -210,7 +216,7 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
         settings["critical"] = [np.asarray(r.get("critical", np.nan)).tolist() for r in results]
     provenance = Provenance().with_step("evoparam.existence.test_response",
                                         {k: v for k, v in settings.items()
-                                         if k not in ("duration_ci", "critical")},
+                                         if k not in _PER_CHANNEL_SETTINGS},
                                         duration_s=_time.perf_counter() - start)
     return ResponseTest(method=method, statistic=stack("statistic"), p_value=adjusted,
                         p_value_raw=raw, significant=significant, duration=stack("duration"),
@@ -220,17 +226,29 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
                         provenance=provenance)
 
 
+def _interval(result, key):
+    """The [n_channels, 2] interval ``key`` of one result, NaN when the method has none."""
+
+    n = len(np.atleast_1d(result["p_value"]))
+    return np.asarray(result.get(key, np.full((n, 2), np.nan)), float).tolist()
+
+
 def response_duration(ts, *, method="baseline_permutation", **kwargs):
-    """Onset, offset and duration of the response of each channel, as a table."""
+    """Onset, offset and duration of the response of each channel, as a table: each value
+    with its interval (bootstrap over trials, NaN when the method gives none) and the
+    decision with its p-value (REQ-006)."""
 
     pd = require("pandas", extra="data", caller="evoparam.existence.response_duration")
     test = test_response(ts, method=method, **kwargs)
-    ci = np.asarray(test.settings["duration_ci"], float).reshape(-1, 2)
-    return pd.DataFrame({"channel": test.settings["channels"],
-                         "onset": np.ravel(test.onset), "offset": np.ravel(test.offset),
-                         "duration": np.ravel(test.duration),
-                         "duration_ci_low": ci[:, 0], "duration_ci_high": ci[:, 1],
-                         "significant": np.ravel(test.significant)})
+    columns = {"channel": test.settings["channels"]}
+    for name in ("onset", "offset", "duration"):
+        ci = np.asarray(test.settings.get(f"{name}_ci", np.nan), float)
+        ci = np.broadcast_to(ci, (len(columns["channel"]), 2)) if ci.size == 1 else \
+            ci.reshape(-1, 2)
+        columns.update({name: np.ravel(getattr(test, name)),
+                        f"{name}_ci_low": ci[:, 0], f"{name}_ci_high": ci[:, 1]})
+    columns.update(significant=np.ravel(test.significant), p_value=np.ravel(test.p_value))
+    return pd.DataFrame(columns)
 
 
 def list_rules():
@@ -364,25 +382,77 @@ for _name in load_rules():
     setattr(detectors, _name, _make_detector(_name))
 
 
-def fit(data, preset=None, *, existence=False, existence_kwargs=None, **kwargs):
-    """:func:`evoparam.models.fit`, and with ``existence=True`` the existence test of every
-    channel attached to its fit (``ResponseFit.existence``; ``existence_p`` and
-    ``existence_significant`` in ``GroupFit.to_dataframe()``)."""
+def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
+    """:func:`evoparam.models.fit` and the existence test of every channel attached to its
+    fit (``ResponseFit.existence``; ``existence_p`` and ``existence_significant`` in
+    ``GroupFit.to_dataframe()``).
+
+    ``data``: a TrialSet, an Evoked, MNE Epochs or Evoked, or an array [n_channels, n_times]
+    with ``times``. With no other argument the result has existence results, components,
+    their intervals and a methods paragraph (REQ-002).
+
+    ``existence``: None (default) runs the test and, when it cannot run (too few trials for
+    the method, a list of MNE Evoked), returns the fit with a warning and NaN existence
+    columns; True runs it and raises instead; False skips it. With an Evoked (no trials) the
+    test uses baseline windows of the average, a weaker null (warning). The test window is
+    the fit window; its baseline is the fit's, else (-0.5, -0.05) s when the data start
+    before -0.5 s, else the pre-stimulus samples. The seed of the test is ``random_state``,
+    or the seed drawn and recorded by the fit (REQ-331).
+    """
 
     from evoparam.models import fit as fit_models
+    from evoparam.models.api import _from_mne
 
+    data = _from_mne(data)
+    if isinstance(data, np.ndarray):
+        # the same Evoked as evoparam.models.fit builds, so that the test sees its channels
+        times = kwargs.pop("times", None)
+        sfreq = kwargs.pop("sfreq", None)
+        if times is None:
+            raise SettingsError("times is required when data is an array.")
+        values = np.atleast_2d(data)
+        times = np.asarray(times, dtype=float)
+        rate = sfreq or 1.0 / np.median(np.diff(times))
+        data = Evoked(data=values, times=times, sfreq=rate,
+                      ch_names=[f"ch{i}" for i in range(len(values))])
     group = fit_models(data, preset, **kwargs)
-    if not existence:
+    if existence is False:
         _log_methods(group, kwargs.get("verbose"))
         return group
-    if not isinstance(data, TrialSet):
-        raise SettingsError("existence=True needs a TrialSet (the trials).")
+    if not isinstance(data, (TrialSet, Evoked)):
+        if existence:
+            raise SettingsError("existence=True needs a TrialSet or one Evoked.")
+        _warn("evoparam.fit: the existence test was not run (one test per condition needs "
+              "the trials; pass a TrialSet with by=). The existence columns are NaN.",
+              UserWarning, stacklevel=2)
+        _log_methods(group, kwargs.get("verbose"))
+        return group
     settings = group.settings
-    test_kwargs = dict(window=tuple(settings["fit_window"]),
-                       baseline=tuple(settings["baseline"]) if settings.get("baseline") else
-                       (-0.5, -0.05), by=(), random_state=kwargs.get("random_state"))
+    seed = kwargs.get("random_state")
+    if seed is None:
+        seed = settings.get("random_state")
+    window = tuple(settings["fit_window"])
+    if settings.get("baseline"):
+        baseline = tuple(settings["baseline"])
+    elif data.times[0] <= -0.5:
+        baseline = (-0.5, -0.05)
+    else:
+        # a preset without a baseline (short epochs: ECAP, ERNA): the pre-stimulus samples
+        baseline = (float(data.times[0]), min(0.0, window[0]))
+    test_kwargs = dict(window=window, baseline=baseline, by=(), random_state=seed)
+    if kwargs.get("picks") is not None:
+        test_kwargs["picks"] = kwargs["picks"]
     test_kwargs.update(existence_kwargs or {})
-    test = test_response(data, **test_kwargs)
+    try:
+        test = test_response(data, **test_kwargs)
+    except (DataError, SettingsError) as exc:
+        if existence:
+            raise
+        _warn(f"evoparam.fit: the existence test could not run ({exc}). The existence "
+              "columns are NaN; pass existence_kwargs to choose another method.",
+              UserWarning, stacklevel=2)
+        _log_methods(group, kwargs.get("verbose"))
+        return group
     group = attach_test(group, test)
     _log_methods(group, kwargs.get("verbose"))
     return group
@@ -413,7 +483,8 @@ def attach_test(group, test):
 
 # Settings of a test that hold one value per channel; the provenance step of the test
 # attached to a fit keeps the settings that apply to every channel.
-_PER_CHANNEL_SETTINGS = ("channels", "duration_ci", "groups", "critical")
+_PER_CHANNEL_SETTINGS = ("channels", "duration_ci", "onset_ci", "offset_ci", "groups",
+                         "critical")
 
 
 def _log_methods(group, verbose):

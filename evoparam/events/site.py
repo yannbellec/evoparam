@@ -1,17 +1,20 @@
 """Identify the stimulated contact pair from the stimulation artifact."""
 
 import re
-import warnings
 
 import numpy as np
 
-from evoparam.errors import DataError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.utils._names import contact_group
 from evoparam.utils._optional import require
 
 from ._score import MAD_TO_SD, as_continuous, pick_index
 
-__all__ = ["identify_stim_site", "vote_sites", "contact_group"]
+__all__ = ["identify_stim_site", "vote_sites", "contact_group", "SITE_METHODS"]
+
+# "evidence": held and leading contacts (the default, measured better on ds004080:
+# docs/spec/DECISIONS.md, CHANGELOG); "spec": the rule of spec §5.2 method 5 as reviewed.
+SITE_METHODS = ("evidence", "spec")
 
 # Shortest reference lag before the onset (s): used when pulses are too close for the
 # full lead window, and to decide that a train is too fast to identify the site.
@@ -72,8 +75,18 @@ def _first_sign(trace):
 
 
 def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.001, t0=0.0,
-                       picks=None, exclude=NON_NEURAL, lead=LEAD_WINDOW, hold=HOLD_WINDOW):
+                       picks=None, exclude=NON_NEURAL, lead=LEAD_WINDOW, hold=HOLD_WINDOW,
+                       method="evidence"):
     """Guess the stimulated contact pair of each pulse from the artifact.
+
+    ``method="spec"`` applies the rule of spec §5.2 method 5 as reviewed, to the letter:
+    ``a_c = max_{|t| <= window} |x_c(t) - x_c(-2 ms)|`` (data units) is ranked, the guess
+    is the two largest channels ordered by channel index and ``site_confidence`` is
+    ``(a_1 - a_3) / a_1``, multiplied by 1 when the two first deflections have opposite
+    signs and, when ``ch_info`` has a ``group`` column, the two contacts are on the same
+    shaft or grid, and by 0.5 otherwise. The default ``method="evidence"`` is described
+    below; on ds004080 it agrees with ``events.tsv`` on 0.980 of the pulses against 0.61
+    for the reviewed rule (docs/spec/DECISIONS.md).
 
     Each pulse is examined on its own. For each channel ``c``:
 
@@ -133,6 +146,9 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
         (shortened to a quarter of the interval between pulses, but not below 2 ms).
     hold : tuple of float, default: (0.005, 0.1)
         Hold window, in seconds after the onset (cut before the next pulse).
+    method : {"evidence", "spec"}, default: "evidence"
+        ``"spec"``: the reviewed rule of spec §5.2 method 5 (``lead`` and ``hold`` are not
+        used; the reference sample is 2 ms before the onset).
 
     Returns
     -------
@@ -142,6 +158,8 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
     """
 
     require("pandas", extra="data", caller="evoparam.events.identify_stim_site")
+    if method not in SITE_METHODS:
+        raise SettingsError(f"method must be one of {SITE_METHODS}, got {method!r}.")
     data = as_continuous(data)
     n_channels, n_times = data.shape
     names = list(ch_names)
@@ -160,6 +178,9 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
     if ch_info is not None and "group" in ch_info.columns:
         groups = dict(zip(ch_info["name"], ch_info["group"].astype(str)))
         group = [groups.get(name, contact_group(name)) for name in names]
+    elif method == "spec":
+        # the reviewed rule checks the shaft only "when ch_info.group is available"
+        group = None
     else:
         group = [contact_group(name) for name in names]
 
@@ -179,11 +200,18 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
     ordered = np.sort(onsets)
 
     if n_events > 1 and interval < 2 * shortest + 2 * half:
-        warnings.warn("identify_stim_site: pulses are closer than the identification window "
-                      "(high-frequency train); the site is not identified.", stacklevel=2)
+        _warn("identify_stim_site: pulses are closer than the identification window "
+              "(high-frequency train); the site is not identified.", stacklevel=2)
         index = np.array([], dtype=int)
 
-    if len(index) >= 2:
+    if len(index) >= 2 and method == "spec":
+        for row, onset in enumerate(onsets):
+            found = _spec_site(data, index, onset, shortest, half, group)
+            if found is None:
+                continue
+            pair, confidence[row], polarity[row] = found
+            guesses[row] = f"{names[pair[0]]}-{names[pair[1]]}"
+    elif len(index) >= 2:
         for row, onset in enumerate(onsets):
             lag_row = min(lag, onset)
             if lag_row < shortest or onset + half + 1 > n_times:
@@ -250,6 +278,27 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
     out["site_confidence"] = confidence
     out["polarity_check"] = polarity
     return out
+
+
+def _spec_site(data, index, onset, lag, half, group):
+    """Spec §5.2 method 5 as reviewed, for one pulse: (pair, confidence, opposite)."""
+
+    n_times = data.shape[1]
+    if onset - lag < 0 or onset - half < 0 or onset + half + 1 > n_times:
+        return None
+    reference = data[index, onset - lag]
+    deviation = data[index, onset - half:onset + half + 1] - reference[:, None]
+    amplitude = np.nan_to_num(np.nanmax(np.abs(deviation), axis=1), nan=0.0)
+    if not amplitude.max() > 0:
+        return None
+    order = np.argsort(-amplitude, kind="stable")
+    first, second = order[0], order[1]
+    a_1 = amplitude[first]
+    a_3 = amplitude[order[2]] if len(order) > 2 else 0.0
+    opposite = bool(_first_sign(deviation[first]) * _first_sign(deviation[second]) < 0)
+    same_group = group is None or group[index[first]] == group[index[second]]
+    score = (a_1 - a_3) / a_1 * (1.0 if (opposite and same_group) else 0.5)
+    return sorted((index[first], index[second])), float(score), opposite
 
 
 def _contacts(site):

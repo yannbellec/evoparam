@@ -5,7 +5,7 @@ import warnings
 
 import numpy as np
 
-from evoparam.errors import DataError, SettingsError
+from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.utils._names import contact_group, contact_number
 from evoparam.utils._optional import require
 
@@ -63,8 +63,8 @@ def _bipolar(ts, groups):
     pd = require("pandas", extra="data", caller="evoparam.prep.rereference")
     pairs, gaps = bipolar_pairs(ts, groups)
     if gaps:
-        warnings.warn(f"bipolar: missing contacts between {gaps}; no pair across a gap.",
-                      UserWarning, stacklevel=3)
+        _warn(f"bipolar: missing contacts between {gaps}; no pair across a gap.",
+              UserWarning, stacklevel=3)
     a, b = np.array(pairs).T
     data = ts.data[:, a] - ts.data[:, b]
     masks = None if ts.masks is None else ts.masks[:, a] | ts.masks[:, b]
@@ -281,8 +281,8 @@ def _laplacian(ts, radius):
     neighbours = (dist <= radius) & (dist > 0)
     lonely = [ts.ch_names[i] for i in np.flatnonzero(~neighbours.any(axis=1))]
     if lonely:
-        warnings.warn(f"laplacian: no neighbour within {radius} for {lonely}; these channels "
-                      "keep their recording reference.", UserWarning, stacklevel=3)
+        _warn(f"laplacian: no neighbour within {radius} for {lonely}; these channels "
+              "keep their recording reference.", UserWarning, stacklevel=3)
     weights = neighbours / np.maximum(neighbours.sum(axis=1, keepdims=True), 1)
     values = masked_values(ts)
     with warnings.catch_warnings():
@@ -365,8 +365,8 @@ def rereference(ts, scheme="bipolar", *, exclude=None, groups="group",
         if scheme == "car_adaptive":
             candidates = np.flatnonzero(~excluded.any(axis=0))
             if len(candidates) < MIN_ADAPTIVE_CHANNELS:
-                warnings.warn(f"car_adaptive: only {len(candidates)} usable channels; the "
-                              "plain common average is used.", UserWarning, stacklevel=2)
+                _warn(f"car_adaptive: only {len(candidates)} usable channels; the "
+                      "plain common average is used.", UserWarning, stacklevel=2)
                 used = "car"
             else:
                 chosen = car_adaptive_select(ts.data, ts.times, response_window=response_window,

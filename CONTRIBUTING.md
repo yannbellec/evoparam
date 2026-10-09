@@ -40,9 +40,13 @@ $ pytest                                   # the test suite (network tests are s
 $ EVOPARAM_NETWORK_TESTS=1 pytest -m network   # tests that read public datasets
 $ EVOPARAM_SLOW_TESTS=1 pytest             # long simulation grids
 $ pytest --doctest-modules --ignore=evoparam/tests evoparam
+$ python tools/run_all_tests.py --venv .venv-3.12 --python python3.12   # everything
 ```
 
-Run one pytest process at a time: the legacy tests share a temporary folder.
+`tools/run_all_tests.py` runs the whole suite on the Python you choose, with the network,
+slow and performance tests switched on (`EVOPARAM_NETWORK_TESTS`, `EVOPARAM_SLOW_TESTS`,
+`EVOPARAM_PERF_TESTS`), and writes a JUnit report and a summary under `test-reports/`; it
+names every test skipped for a missing package.
 
 ## Coding rules
 
@@ -51,8 +55,37 @@ Run one pytest process at a time: the legacy tests share a temporary folder.
 * No silent failure: name the exception class in every `except` clause; a failed channel
   carries `status="failed"` and a message.
 * No new hard dependency: optional packages are imported lazily and listed as extras.
-* Modules import each other only along the dependency table of the specification (§4.2);
-  `evoparam/tests/test_import_graph.py` checks it.
+* Modules import each other only along the dependency table of the specification (§4.2,
+  as resolved in `docs/spec/DECISIONS.md`); `evoparam/tests/test_import_graph.py` checks it.
+* Every warning goes through `evoparam.errors.warn`, which also logs it on the `evoparam`
+  logger (REQ-005).
+
+## Vocabulary
+
+Names, docstrings and documentation describe evoked responses in the time domain
+(specification §4.1, REQ-012). The words below come from the spectral tools evoparam
+descends from; they are prohibited in the package (code, public names, docstrings) and in
+the documentation. The ancestor tools are acknowledged only in `NOTICE`; the specification
+(`docs/spec/`) and the change log quote them as history. `evoparam/tests/test_vocabulary.py`
+checks this list.
+
+<!-- prohibited-words -->
+| Prohibited | Say instead |
+|---|---|
+| `ERPparam`, `FOOOF`, `fooof`, `specparam` | evoparam (the ancestors are named in `NOTICE` only) |
+| `aperiodic` | background |
+| `periodic component` | component |
+| `power spectrum`, `power spectra`, `spectral peak` | describe the response in time |
+| `knee` | the parameters of the background shapes of `evoparam.shapes` |
+| `peak_width_limits` | `min_fwhm`, `max_fwhm` |
+| `max_n_peaks` | `max_components` |
+| `peak_threshold`, `min_peak_height` | the model-selection criterion (§5.5.4), `min_amplitude` |
+| `freq_range` | `fit_window` |
+| `evoparamGroup`, `fit_evoparam_3d`, `Bands` | `GroupFit`, `evoparam.fit`, `ComponentWindows` |
+<!-- end-prohibited-words -->
+
+Matching ignores case, except for the last class name of the table (frequency bands of
+`evoparam.tf` are allowed).
 
 ## Adding a preset, a shape, a reader or a dataset
 
