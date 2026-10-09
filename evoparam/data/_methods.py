@@ -255,8 +255,11 @@ def _fit(settings):
                   "the plus-minus average of the trials where the baseline held fewer than "
                   "30 independent samples, of the baseline elsewhere"
                   if reference == "mixed" else "the baseline")
-        how = (f"residuals whitened by an autoregressive model of the noise of {source}"
-               if noise == "ar" else f"residuals scaled by the noise of {source} (white noise)")
+        how = {"ar": f"residuals whitened by an autoregressive model of the noise of {source}",
+               "neff": f"residuals scaled by the noise of {source} with the effective sample "
+                       "count of an AR(1) noise, n_eff = n (1 - rho)/(1 + rho) (n_eff "
+                       "correction)"}.get(noise, f"residuals scaled by the noise of {source} "
+                                                 "(white noise)")
         text += (f" Components were added one at a time and kept when the {crit} decreased "
                  f"by at least {_num(settings.get('delta'))}, computed on {how}.")
         reseed = settings.get("reseed", False)

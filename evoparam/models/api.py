@@ -568,7 +568,8 @@ class ResponseModel(BaseEstimatorMixin):
                  uncertainty=None, n_bootstrap=None, ci_level=None, classical=None,
                  windows=None, noise_model=None, background_prior=None, amplitude_prior=None,
                  edge_extension=None, background_tau_max=None, max_masked_fraction=None,
-                 n_folds=None, reseed=None, noise_source=None, n_jobs=1, random_state=None,
+                 n_folds=None, reseed=None, noise_source=None, latency_order=None,
+                 candidate_search=None, threshold_role=None, n_jobs=1, random_state=None,
                  verbose=None):
         for name, value in locals().items():
             if name != "self":
@@ -941,6 +942,16 @@ def _article(word):
     return "an" if str(word)[:1].lower() in "aeiou" else "a"
 
 
+def _noise_phrase(settings):
+    noise = settings.get("noise_model", "ar")
+    if noise == "neff":
+        return ("residuals scaled by the baseline noise, with the n_eff correction "
+                "(effective sample count n (1 - rho)/(1 + rho) of an AR(1) noise) (neff)")
+    if noise == "white":
+        return "residuals scaled by the baseline noise (white)"
+    return f"residuals whitened by an autoregressive model of the baseline noise ({noise})"
+
+
 def methods_text(fit):
     """Methods paragraph for a ResponseFit or GroupFit (spec REQ-123)."""
 
@@ -960,7 +971,6 @@ def methods_text(fit):
         f"width at half maximum). Amplitudes and background coefficients were solved by "
         f"variable projection and the other parameters by bounded least squares. Components "
         f"were added one at a time and kept when the {crit} decreased by at least "
-        f"{settings.get('delta'):g}, computed on residuals whitened by an autoregressive "
-        f"model of the baseline noise ({settings.get('noise_model', 'ar')}). Uncertainty: "
+        f"{settings.get('delta'):g}, computed on {_noise_phrase(settings)}. Uncertainty: "
         f"{settings.get('uncertainty')} ({settings.get('ci_level', 0.95) * 100:g} % intervals)."
     )

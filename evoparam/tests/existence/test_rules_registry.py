@@ -14,6 +14,7 @@ from .helpers import SFREQ, TIMES
 ###################################################################################################
 
 COMPLETE = {"vanblooijs2023": {"baseline": (-0.5, -0.05)},
+            "vanblooijs2023_code": {"baseline": (-0.5, -0.05)},
             "hays2021": {"baseline": (-0.5, -0.05)},
             "keller2014": {},
             "silverstein2020": {"baseline": (-0.5, -0.05)},
@@ -92,9 +93,24 @@ def test_selective_maxima_matches_the_definition():
     assert selective_maxima(np.arange(5.0), 10.0).tolist() == []
 
 
+def test_vanblooijs2023_default_is_the_registry_row():
+    """F65: the default rule is the row of spec §5.6 as written (no SD floor, the window's
+    most negative sample); the published code's fields belong to 'vanblooijs2023_code'."""
+
+    paper = resolve_rule("vanblooijs2023", baseline=(-0.5, -0.05))
+    assert paper["sd_floor_uv"] is None and paper["peak"] == "extremum"
+    assert not paper.get("exclude_first_sample") and not paper.get("saturation_uv")
+    assert (paper["k"], paper["window"], paper["polarity"]) == (3.4, (0.009, 0.1), "negative")
+    code = resolve_rule("vanblooijs2023_code")
+    assert code["baseline"] == (-2.0, -0.1) and code["sd_floor_uv"] == 50.0
+    assert code["peak"] == "local" and code["exclude_first_sample"]
+    assert code["saturation_uv"] == 3000.0 and code["peak_search_end"] == 0.5
+
+
 def test_vanblooijs2023_published_code_reading():
-    """peak="local" reads the N1 as the published code does (mnl_ccepAge): a monotone tail
-    through the window start or a drift through its end is not a peak; a trough is."""
+    """'vanblooijs2023_code' reads the N1 as the published code does (mnl_ccepAge): a
+    monotone tail through the window start or a drift through its end is not a peak; a
+    trough is; the 50 uV SD floor leaves out a small trough that the registry row keeps."""
 
     from .helpers import gaussian
 
@@ -107,16 +123,25 @@ def test_vanblooijs2023_published_code_reading():
     trough = -300 * gaussian(0.025, 0.012)
     small = -100 * gaussian(0.025, 0.012)                  # under the 170 uV floor
     evoked = _uv(noise + np.array([tail, drift, trough, small]))
-    local = run_test(evoked, method="threshold", rule="vanblooijs2023",
-                     rule_overrides={"baseline": base, "peak": "local"})
+    local = run_test(evoked, method="threshold", rule="vanblooijs2023_code",
+                     rule_overrides={"baseline": base})
     extremum = run_test(evoked, method="threshold", rule="vanblooijs2023",
                         rule_overrides={"baseline": base})
+    floored = run_test(evoked, method="threshold", rule="vanblooijs2023",
+                       rule_overrides={"baseline": base, "sd_floor_uv": 50.0})
     assert local.significant.tolist() == [False, False, True, False]
-    assert extremum.significant.tolist() == [True, True, True, False]
+    assert extremum.significant.tolist() == [True, True, True, True]
+    assert floored.significant.tolist() == [True, True, True, False]
     assert abs(local.onset[2] - 0.025) <= 1.0 / SFREQ
+    # the same reading through the override of the default rule
+    override = run_test(evoked, method="threshold", rule="vanblooijs2023",
+                        rule_overrides={"baseline": base, "peak": "local", "sd_floor_uv": 50.0,
+                                        "exclude_first_sample": True, "saturation_uv": 3000.0,
+                                        "peak_search_end": 0.5, "peak_selectivity_uv": 20.0})
+    assert override.significant.tolist() == local.significant.tolist()
     # a trough beyond 3000 uV is refused as saturated, as in the published code
     big = run_test(_uv(noise[0] - 4000 * gaussian(0.025, 0.012)), method="threshold",
-                   rule="vanblooijs2023", rule_overrides={"baseline": base, "peak": "local"})
+                   rule="vanblooijs2023_code", rule_overrides={"baseline": base})
     assert not big.significant[0]
     with pytest.raises(SettingsError, match="peak"):
         resolve_rule("vanblooijs2023", baseline=base, peak="global")

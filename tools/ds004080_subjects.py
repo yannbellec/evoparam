@@ -3,7 +3,9 @@ chosen by the rule of spec §7.3 before any result is seen (REQ-371).
 
 Rule: the first five subjects in alphabetical order of BIDS subject label that have at least
 one run with >= 10 trials per stimulation pair at 2 048 Hz, plus sub-ccepAgeUMCU01 (the
-example of spec §1). The file records the dataset version and the SHA-256 of
+example of spec §1). The example is not one of the five (owner decision D14: six subjects,
+the first five qualifying subjects other than sub-ccepAgeUMCU01, then sub-ccepAgeUMCU01 with
+its first qualifying run). The file records the dataset version and the SHA-256 of
 participants.tsv. Changing the list needs a changelog entry stating why.
 
 Run ``python tools/ds004080_subjects.py`` (reads OpenNeuro's S3 bucket: the listing, then the
@@ -61,13 +63,15 @@ def select(fetch=None, listing=None):
     subjects = sorted({path.split("/")[0] for path in listing if path.startswith("sub-")})
     chosen = []
     for subject in subjects:
+        if subject == EXAMPLE:
+            continue
         ok, run = qualifies(listing, subject, fetch)
         if ok:
             chosen.append((subject, run))
         if len(chosen) == N_SUBJECTS:
             break
-    if EXAMPLE not in [s for s, _ in chosen]:
-        chosen.append((EXAMPLE, "example of spec §1"))
+    ok, run = qualifies(listing, EXAMPLE, fetch)
+    chosen.append((EXAMPLE, run if ok else "example of spec §1"))
     participants = fetch(f"{ROOT}/participants.tsv")
     return chosen, hashlib.sha256(participants).hexdigest()
 
@@ -76,7 +80,8 @@ def main(path="validation/ds004080_subjects.txt"):
     chosen, sha = select()
     lines = [f"# ds004080 v{VERSION}; participants.tsv sha256 {sha}",
              f"# rule: first {N_SUBJECTS} subjects (alphabetical) with a run of >= {MIN_TRIALS} "
-             f"trials per stimulation pair at {SFREQ:g} Hz, plus {EXAMPLE} (spec §7.3)",
+             f"trials per stimulation pair at {SFREQ:g} Hz other than {EXAMPLE}, plus {EXAMPLE} "
+             "(spec §7.3; six subjects, owner decision D14)",
              "# subject\tfirst qualifying run"]
     lines += [f"{subject}\t{run}" for subject, run in chosen]
     pathlib.Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -267,6 +267,7 @@ class _Structure:
     scale: float | None = None   # SD (data units) of the prior on every other coefficient
     edge: float | None = None    # how far (s) a component's location may lie outside the window
     level: float = 0.0           # prior mean of the background constant (the baseline level)
+    ordered: bool = False        # latencies ordered by parameterisation (spec §5.5.3 step 5)
 
     def __post_init__(self):
         self.sizes = [s.n_params for s in self.shapes]
@@ -277,6 +278,11 @@ class _Structure:
         names = tuple(getattr(self.background, "linear_names", ()))
         self.prior_col = (len(self.shapes) + names.index("c0")
                           if self.prior and "c0" in names else None)
+        # positions in theta of the latency parameters, in component order (the chain of
+        # the ordered parameterisation)
+        self.chain = [int(self.offsets[k]) + s.param_names.index(s.latency_param)
+                      for k, s in enumerate(self.shapes)
+                      if s.latency_param in s.param_names] if self.ordered else []
 
     def bounds(self):
         lows, highs = [], []
@@ -397,6 +403,43 @@ class _Structure:
         return self.white(np.column_stack(parts))
 
 
+class _OrderedMap:
+    """Ordered parameterisation of the latencies (spec §5.5.3 step 5): the optimiser sees
+    ``u = mu_1`` and ``v_k = ln(mu_{k+1} - mu_k)``, so that the components stay in ascending
+    latency order inside every optimisation. Other parameters are unchanged."""
+
+    def __init__(self, chain, lower, upper):
+        self.idx = np.asarray(chain, int)
+        lat_lo, lat_hi = lower[self.idx], upper[self.idx]
+        span = float(np.max(lat_hi) - np.min(lat_lo))
+        self.gap = 1e-9 * span if span > 0 else 1e-12
+        self.lower, self.upper = lower.copy(), upper.copy()
+        self.lower[self.idx[1:]] = np.log(self.gap)
+        self.upper[self.idx[1:]] = np.log(max(span, 2 * self.gap))
+
+    def to_phi(self, theta):
+        phi = np.array(theta, float)
+        lat = phi[self.idx]
+        phi[self.idx[1:]] = np.log(np.maximum(np.diff(lat), self.gap))
+        return phi
+
+    def to_theta(self, phi):
+        theta = np.array(phi, float)
+        steps = np.exp(theta[self.idx[1:]])
+        theta[self.idx] = theta[self.idx[0]] + np.r_[0.0, np.cumsum(steps)]
+        return theta
+
+    def jacobian(self, jac_theta, phi):
+        """d residual / d phi from d residual / d theta (chain rule)."""
+
+        out = np.array(jac_theta, float)
+        cols = jac_theta[:, self.idx]
+        tail = np.cumsum(cols[:, ::-1], axis=1)[:, ::-1]        # sum over j >= i
+        out[:, self.idx[0]] = tail[:, 0]
+        out[:, self.idx[1:]] = tail[:, 1:] * np.exp(phi[self.idx[1:]])
+        return out
+
+
 def _optimise(struct, theta0, settings, f_scale, tol=1e-8):
     """Bounded least squares on the projected residual; returns (theta, beta, rw, ok, msg)."""
 
@@ -406,6 +449,8 @@ def _optimise(struct, theta0, settings, f_scale, tol=1e-8):
         return theta0, beta, rw, True, ""
     span = upper - lower
     theta0 = np.clip(theta0, lower + 1e-9 * span, upper - 1e-9 * span)
+    chain = getattr(struct, "chain", [])
+    omap = _OrderedMap(chain, lower, upper) if len(chain) >= 2 else None
     cache = {}
 
     def solved(theta):
@@ -415,26 +460,38 @@ def _optimise(struct, theta0, settings, f_scale, tol=1e-8):
             cache[key] = struct.solve(theta)
         return cache[key]
 
-    fun = lambda theta: solved(theta)[1]
+    if omap is None:
+        x0, lo, hi = theta0, lower, upper
+        fun = lambda theta: solved(theta)[1]
 
-    def jac(theta):
-        beta, _, _, q = solved(theta)
-        return struct.kaufman_jacobian(theta, beta, q)
+        def jac(theta):
+            beta, _, _, q = solved(theta)
+            return struct.kaufman_jacobian(theta, beta, q)
+    else:
+        lo, hi = omap.lower, omap.upper
+        x0 = np.clip(omap.to_phi(theta0), lo + 1e-9 * (hi - lo), hi - 1e-9 * (hi - lo))
+        fun = lambda phi: solved(omap.to_theta(phi))[1]
+
+        def jac(phi):
+            theta = omap.to_theta(phi)
+            beta, _, _, q = solved(theta)
+            return omap.jacobian(struct.kaufman_jacobian(theta, beta, q), phi)
 
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
-            res = least_squares(fun, theta0, jac=jac, bounds=(lower, upper), method="trf",
+            res = least_squares(fun, x0, jac=jac, bounds=(lo, hi), method="trf",
                                 loss=settings.loss, f_scale=f_scale or 1.0,
                                 max_nfev=settings.max_iter, x_scale="jac", ftol=tol,
                                 xtol=tol, gtol=tol)
         _COUNTER.n = getattr(_COUNTER, "n", 0) + int(res.nfev)
     except (ValueError, np.linalg.LinAlgError) as exc:
         return theta0, None, None, False, f"{type(exc).__name__}: {exc}"
-    beta, rw, _, _ = struct.solve(res.x)
-    if not (np.all(np.isfinite(res.x)) and np.all(np.isfinite(beta))):
-        return res.x, None, None, False, "non-finite parameters"
-    return res.x, beta, rw, True, ""
+    x = res.x if omap is None else omap.to_theta(res.x)
+    beta, rw, _, _ = struct.solve(x)
+    if not (np.all(np.isfinite(x)) and np.all(np.isfinite(beta))):
+        return x, None, None, False, "non-finite parameters"
+    return x, beta, rw, True, ""
 
 
 ###################################################################################################
@@ -465,14 +522,18 @@ def candidates(tw, residual, valid, sigma, sfreq, settings):
         picks.append(0)
     if mag[-1] >= mag[-edge - 1:].max():
         picks.append(n - 1)
-    picks = [p for p in dict.fromkeys(picks) if mag[p] >= settings.detection_threshold
-             and valid[p]]
+    picks = [p for p in dict.fromkeys(picks) if valid[p]]
     if settings.polarity == "negative":
         picks = [p for p in picks if rs[p] < 0]
     elif settings.polarity == "positive":
         picks = [p for p in picks if rs[p] > 0]
     picks.sort(key=lambda p: -mag[p])
-    return picks, rs * sigma
+    above = [p for p in picks if mag[p] >= settings.detection_threshold]
+    if settings.threshold_role == "order":
+        # the threshold orders the candidates (those above it first) but does not remove
+        # any: acceptance is decided by the criterion alone (REQ-104)
+        return above + [p for p in picks if mag[p] < settings.detection_threshold], rs * sigma
+    return above, rs * sigma
 
 
 ###################################################################################################
@@ -498,9 +559,35 @@ def _shape(name, settings):
     return get_shape(name, **kwargs)
 
 
+def _param_latencies(struct, theta):
+    """Latency parameter of each component (the parameter the ordering acts on)."""
+
+    out = []
+    for k, shape in enumerate(struct.shapes):
+        params = struct.comp_params(theta, k)
+        out.append(float(params[shape.param_names.index(shape.latency_param)])
+                   if shape.latency_param in shape.param_names else _latency_of(shape, params))
+    return np.asarray(out)
+
+
+def _reorder(struct_maker, shapes, theta, order):
+    struct = struct_maker(shapes)
+    shapes = [shapes[i] for i in order]
+    theta = np.concatenate([struct.comp_params(theta, i) for i in order]
+                           + [struct.bg_params(theta)]) if len(order) else theta
+    return shapes, theta
+
+
 def _evaluate_state(struct_maker, shapes, theta0, settings, n_eff, f_scale, kind, tol=1e-8):
     # n_eff is the number of whitened (independent) samples used by the criterion
     struct = struct_maker(shapes)
+    if struct.ordered and len(shapes) >= 2:
+        # the start must respect the order of the parameterisation
+        order = np.argsort(_param_latencies(struct, theta0), kind="stable")
+        if np.any(order != np.arange(len(order))):
+            shapes, theta0 = _reorder(struct_maker, list(shapes), np.asarray(theta0, float),
+                                      order)
+            struct = struct_maker(shapes)
     theta, beta, rw, ok, msg = _optimise(struct, theta0, settings, f_scale, tol)
     if not ok:
         return None, msg
@@ -567,6 +654,12 @@ _COUNTER = threading.local()
 
 def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None,
                       noise_ref=None):
+    """Fit one waveform. Returns a dict with everything the result object needs.
+
+    Keys: ``status``, ``message``, ``warnings``, ``shapes`` (objects), ``theta``, ``beta``,
+    ``struct`` (final structure), ``sigma``, ``rho``, ``n_eff``, ``window_mask``, ``model``,
+    ``residual``, ``crit``, ``best_rejected_delta``, ``steps`` (provenance lines),
+    ``n_evaluations`` (residual evaluations of the least-squares solves), ``noise_reference``.
     """
 
     _COUNTER.n = 0
@@ -578,12 +671,6 @@ def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_
 
 def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None,
                        noise_ref=None):
-Fit one waveform. Returns a dict with everything the result object needs.
-
-    Keys: ``status``, ``message``, ``warnings``, ``shapes`` (objects), ``theta``, ``beta``,
-    ``struct`` (final structure), ``sigma``, ``rho``, ``n_eff``, ``window_mask``, ``model``,
-    ``residual``, ``crit``, ``best_rejected_delta``, ``steps`` (provenance lines).
-    """
 
     times = np.asarray(times, float)
     y = np.asarray(y, float)
@@ -645,6 +732,11 @@ Fit one waveform. Returns a dict with everything the result object needs.
     n_valid = int(valid.sum())
     n_eff = n_valid * (1 - rho) / (1 + rho)
     n_white = white.n
+    if settings.noise_model == "neff":
+        # spec §5.5.3 step 1 to the letter: residuals scaled by sigma_n, not whitened, and
+        # the AR(1) effective count n_eff = n_W (1 - rho) / (1 + rho) in every criterion
+        # and in the covariance
+        n_white = n_eff
     out.update(n_eff=n_eff, n_white=n_white, ar_order=len(a_coefs) - 1)
     kind = "aicc" if settings.selection == "aicc" else "bic"
     bg_fields = {f.name for f in dataclasses.fields(type(get_background(settings.background)))}
@@ -666,8 +758,9 @@ Fit one waveform. Returns a dict with everything the result object needs.
         base = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask
         if base.any():
             level = float(np.median(y[base]))
+    ordered = settings.latency_order == "parameterised"
     make = lambda shapes: _Structure(list(shapes), background, tw, white, yw, prior, scale, edge,
-                                     level)
+                                     level, ordered)
     f_scale = settings.f_scale
 
     # K = 0: background only (its time constants from a small grid)
@@ -704,6 +797,11 @@ Fit one waveform. Returns a dict with everything the result object needs.
         picks, smooth = candidates(tw, residual_of(current), valid, sigma, sfreq, cand_settings)
         accepted = None
         ranked = []
+        if settings.candidate_search == "spec":
+            accepted, rejected = _spec_step(current, picks, smooth, make, settings, n_white,
+                                            f_scale, kind, tw, forced)
+            best_rejected = min(best_rejected, rejected)
+            picks = []                            # the beam search below has nothing to do
         for peak in picks[:2 * max(settings.max_components, 1)]:
             # Quick evaluation: every shape from its initial guess, loose tolerance
             quick = None
@@ -734,7 +832,9 @@ Fit one waveform. Returns a dict with everything the result object needs.
                 best_rejected = min(best_rejected, gain)
         # Split proposals: one component replaced by two narrower neighbours of the same sign
         # (a single broad component often fits two close peaks first)
-        for split in _split_proposals(current, make, settings, n_white, f_scale, kind):
+        splits = [] if settings.candidate_search == "spec" else \
+            _split_proposals(current, make, settings, n_white, f_scale, kind)
+        for split in splits:
             if forced or split.crit - current.crit <= -settings.delta:
                 ranked.append((split, None, None))
         for state, shape, guess in sorted(ranked, key=lambda item: item[0].fit_crit):
@@ -757,8 +857,7 @@ Fit one waveform. Returns a dict with everything the result object needs.
                     best = cand
             best = _polish(best, make, settings, n_white, f_scale, kind)
             gain = best.crit - current.crit
-            if settings.min_amplitude and abs(best.beta[len(best.shapes) - 1]) \
-                    < settings.min_amplitude:
+            if _too_small(best, settings):
                 best_rejected = min(best_rejected, gain)
                 continue
             if forced or gain <= -settings.delta:
@@ -807,6 +906,69 @@ Fit one waveform. Returns a dict with everything the result object needs.
 
 # Width parameters that a split halves, by name.
 _WIDTH_PARAMS = ("sigma", "omega")
+
+
+def _too_small(state, settings):
+    """A component below ``min_amplitude`` (0: no limit) is not accepted."""
+
+    return bool(settings.min_amplitude) and \
+        np.min(np.abs(state.beta[:len(state.shapes)])) < settings.min_amplitude
+
+
+def _spec_starts(shape, guess, n_starts, tw):
+    """Spec §5.5.3 step 4: the candidate itself and ``n_starts - 1`` perturbations, in this
+    order: latency ``-/+ sigma_0/2``, width ``x 0.5`` and ``x 2``."""
+
+    guess = np.asarray(guess, float)
+    names = shape.param_names
+    lo, hi = (np.asarray(v, float) for v in shape.default_bounds(tw))
+    i = names.index(shape.latency_param) if shape.latency_param in names else None
+    j = next((names.index(n) for n in _WIDTH_PARAMS if n in names), None)
+    moves = []
+    if i is not None and j is not None:
+        moves += [(i, guess[i] - guess[j] / 2), (i, guess[i] + guess[j] / 2)]
+    if j is not None:
+        moves += [(j, guess[j] * 0.5), (j, guess[j] * 2.0)]
+    out = [guess]
+    for idx, value in moves[:max(n_starts - 1, 0)]:
+        g = guess.copy()
+        g[idx] = np.clip(value, lo[idx], hi[idx])
+        out.append(g)
+    return out
+
+
+def _spec_step(current, picks, smooth, make, settings, n_eff, f_scale, kind, tw, forced):
+    """One step of the forward search of spec §5.5.3 step 4: the candidates in order of
+    ``|r|``, each fitted with every allowed shape from ``n_starts`` starts (all parameters
+    re-optimised), the best kept; the first that improves the criterion by ``delta`` is
+    accepted, otherwise the next is tried (at most ``2 * max_components``).
+
+    Returns (accepted state or None, best rejected change of the criterion)."""
+
+    rejected = np.inf
+    base = make(current.shapes)
+    head, tail = current.theta[:base.offsets[-1]], current.theta[base.offsets[-1]:]
+    for peak in picks[:2 * max(settings.max_components, 1)]:
+        best = None
+        for name in settings.shapes:
+            shape = _shape(name, settings)
+            try:
+                guess = shape.initial_guess(tw, smooth, peak)
+            except Exception:          # a shape that cannot start here
+                continue
+            for start in _spec_starts(shape, guess, settings.n_starts, tw):
+                state, _ = _evaluate_state(make, current.shapes + [shape],
+                                           np.r_[head, start, tail], settings, n_eff,
+                                           f_scale, kind)
+                if state is not None and (best is None or state.fit_crit < best.fit_crit):
+                    best = state
+        if best is None:
+            continue
+        gain = best.crit - current.crit
+        if not _too_small(best, settings) and (forced or gain <= -settings.delta):
+            return best, rejected
+        rejected = min(rejected, gain)
+    return None, rejected
 
 
 def _split_proposals(state, make, settings, n_eff, f_scale, kind, n_split=2):
@@ -913,10 +1075,16 @@ def _reseed(state, base, make, settings, n_eff, f_scale, kind, tw, valid, sigma,
 
 
 def _sort_state(state, make):
-    """Components in ascending latency (the order carries no meaning in the model)."""
+    """Components in ascending latency. With the ordered parameterisation the order is that
+    of the latency parameters (part of the model); otherwise that of the features (sorted
+    after each step, the order carrying no meaning in the model)."""
 
     struct = make(state.shapes)
-    lats = [_latency_of(s, struct.comp_params(state.theta, k)) for k, s in enumerate(state.shapes)]
+    if struct.ordered:
+        lats = _param_latencies(struct, state.theta)
+    else:
+        lats = [_latency_of(s, struct.comp_params(state.theta, k))
+                for k, s in enumerate(state.shapes)]
     order = np.argsort(lats, kind="stable")
     shapes = [state.shapes[i] for i in order]
     theta = np.concatenate([struct.comp_params(state.theta, i) for i in order]

@@ -610,6 +610,114 @@ The reference machine and the benchmark numbers are in `benchmarks/README.md`.
   `tutorials/92_online_mapping_with_lsl.py` (simulated stream) states it, checked by
   `evoparam/tests/test_docs.py`.
 
+### Fitting engine as written, and the N1 case as written
+
+Audit items F1, F2, F9, F24-F31, F50, F64, F65, Q1, Q2 and owner decisions D8, D14
+(`etapes/ecarts-spec.md`). Every REQ test below follows the REQ text (data, counts,
+tolerances); the ones not met stay as xfails that state the measured value.
+
+- REQ-371 subject list (D14). `validation/ds004080_subjects.txt` lists six subjects: the
+  first five qualifying subjects other than sub-ccepAgeUMCU01 (UMCU02 run-021804, UMCU03
+  run-031411, UMCU04 run-031148, UMCU05 run-031133, UMCU06 run-030854), then
+  sub-ccepAgeUMCU01 itself (run-061233, its first qualifying run; run-021448 is the
+  example of spec §1). Before: five subjects, UMCU01 included, UMCU06 left out.
+  `tools/ds004080_subjects.py` builds the list so, `test_subject_list.py` checks it and
+  `test_engine_ccep.py` reads it (each run's first pair of >= 10 trials).
+- `vanblooijs2023` (F65, D8). The registry default is again the row of spec §5.6 as
+  written (the most negative sample of 9-100 ms beyond 3.4 SD, no SD floor, baseline
+  unspecified). The published code (mnl_ccepAge: 50 uV SD floor, local minimum by
+  peakfinder with selectivity 20 uV, first sample excluded, search to 500 ms, refusal above
+  3000 uV, baseline (-2, -0.1) s) is the new registry rule `vanblooijs2023_code`.
+- The two readings disagree with each other: kappa 0.35 over the 942 channels of the 12
+  runs used here (229 detections with the registry row, 60 with the code). The registry
+  row's extra detections are mostly slow drifts peaking at 70-100 ms (75) and small N1s of
+  20-50 ms under the code's 170 uV floor (44). For any decision rule M, min(kappa(M, paper),
+  kappa(M, code)) is at most 0.30 on the 46 PT contacts of the example run, 0.32 to 0.78 on
+  each REQ-371 run and 0.60 pooled over them (exhaustive search over the 2 x 2 tables): D8
+  ("REQ-113 under both readings") cannot be met by any detector.
+- REQ-113 to the letter (F1, D8). Decision = the preset's own: a negative component with
+  latency 9-50 ms (the component the ccep preset labels N1), no threshold borrowed from the
+  rule; all trials of the pair, the preset pipeline. Kappa with this change (origin/main in
+  brackets):
+  - registry row: 46 PT contacts of the example 0.51 (0.35), 18 rule N1s missed;
+    REQ-371 runs UMCU02 0.47 (0.42), UMCU03 0.54 (0.54), UMCU04 0.31 (0.34), UMCU05 0.43
+    (0.40), UMCU06 0.31 (0.38), UMCU01 run-061233 0.40 (0.47); pooled 0.45 (0.47);
+  - published code: PT contacts 0.17 (0.26), 1 rule N1 missed; REQ-371 runs 0.24 (0.20),
+    0.21 (0.21), 0.27 (0.32), 0.45 (0.39), 0.36 (0.20), 0.46 (0.56); pooled 0.37 (0.33).
+  REQ-113 is not met under either reading (`test_req113_as_written`, xfail for both).
+  The decision the earlier wording used (the trough of the fitted curve, judged by the
+  code's amplitude criterion; not the REQ) stays as a regression test: pooled kappa 0.89
+  over the REQ-371 runs (0.93), each run >= 0.71, none missed on the example.
+- REQ-114 to the letter (F2): the N1 component's latency within 2 ms of the rule's peak on
+  23 % of the channels where both find an N1 with the registry row (75 channels, example
+  and REQ-371 runs) and 32 % with the code (28); read as the trough of the fitted curve,
+  41 % and 82 %. Not met (xfail); REQ-273 not met with them.
+- REQ-135: kappa of the baseline permutation test with the registry row 0.687, with the code
+  0.399 (xfail for both); with the registry row and the code's 50 uV floor 0.763, kept as a
+  regression floor.
+- REQ-104 (F24). With the candidates limited to the extrema above `detection_threshold`,
+  as §5.5.3 step 3 says, the acceptance decisions for thresholds 1, 2 and 3 agreed on 82 %
+  of the suite's waveforms (49 of 60): a threshold of 3 drops candidates the criterion
+  accepts. New setting `threshold_role` (default `"order"`): every extremum is a
+  candidate, the threshold only orders them (the "affects only the order" of step 3);
+  `"select"` keeps step 3's reading. Agreement now 100 of 100 (met). Cost: about 1.7 times
+  the fitting time of the ds004080 runs (interleaved timing, 2 runs x 2 rounds: 230 s
+  against 410 s), and, on the N1 decision, kappa 0.41 instead of 0.55 on the two timed
+  runs (more components accepted).
+- REQ-105, REQ-106, REQ-110, REQ-111, REQ-116, REQ-117, REQ-119 (F25-F31): tests as
+  written (spec §7.2 designs, 100 waveforms per condition, 1 000 with
+  `EVOPARAM_SLOW_TESTS=1`). Met: REQ-104, REQ-106 for every shape fitted with its own shape
+  and for the Gaussian with the default pair, REQ-110 (warning iff the latency is before
+  t0; recall of edge components), REQ-111 at 1 FWHM, REQ-116 Jacobian coverage, REQ-117
+  (independent ERPLAB-definition implementation; the ERP CORE part needs
+  `EVOPARAM_ERPCORE`), REQ-119 with `n_jobs` 2 and 4 (byte-identical tables). Not met
+  (xfail with the values): REQ-105 recall 0.885 (precision 1.00); REQ-106 with the default
+  pair for skewed Gaussian, gamma and biexponential truths (latency MAE 0.52, 0.76 and
+  0.60 sample); REQ-111 at 0.5 FWHM (one component in 100 of 100 runs, never flagged
+  `merged`: the merge of step 5 runs only after a second component is accepted).
+  REQ-116 bootstrap and profile coverage: slow test (200 runs), not run here.
+- The comparisons on the 5 development runs of ds004080 (UMCU07, 19, 28, 40, 49; not the
+  REQ-371 runs, which are only reported) were measured with a rule against cancelling
+  pairs of components that is not part of this change (it is handed over to the work on
+  component selection); every other comparison below is on this change's engine.
+- Ordered latencies (F50). `latency_order="parameterised"` (now the default): latencies
+  ordered inside every optimisation, mu_{k+1} = mu_k + exp(v_k) (spec §5.5.3 step 5),
+  with the chain rule in the Jacobian. `"sorted"` (the earlier behaviour) was not better:
+  the same results on the simulation suites, N1 kappa 0.41/0.31 (registry/code) against
+  0.40/0.33 on 5 development runs, the same time on ds004080 (414 s against 416 s,
+  interleaved) and on `fit_group` of the REQ-115 design (85 s against 83 s), 0.92 s against
+  0.75 s per single waveform (5 waveforms).
+- Noise model of step 1 (F64). `noise_model="neff"`: residuals scaled by sigma_n (no AR
+  whitening) and n_eff = n (1 - rho) / (1 + rho) in the criterion and the covariance;
+  named in the methods text. REQ-107 as written: <= 5 % false components on AR(1)
+  rho = 0.9 noise with "neff" and with the default "ar", >= 30 % with "white" (met).
+- Soft priors (Q1), measured against the spec procedure (no priors: background_prior = 0,
+  amplitude_prior = 0, no edge limit, no background time-constant limit): kept.
+  Layer-2 grid (40 cells of the weekly design, 5 replicates): F1 0.760 with against 0.743
+  without (better in 7 cells, worse in 1), latency MAE 1.46 against 1.52 samples (better in
+  26 of 38), mean amplitude bias -0.03 against -433 (diverging fits without them); the
+  simulation suites of REQ-104 to REQ-112 unchanged; N1 kappa 0.40/0.33 against 0.37/0.32.
+- Candidate search (Q2), measured against step 4 as written (`candidate_search="spec"`:
+  candidates strongest first, each from n_starts starts, the first accepted kept): the
+  earlier search (`"beam"`: the first three qualifying candidates compared, split
+  proposals) is kept as the default. On CCEP-like simulations (40 waveforms: N1, a second
+  component, a recovery tail) the step-4 search inflated an amplitude beyond twice the
+  largest true one in 10 fits and lost the N1 in 8, the beam in 1 and 1; N1 kappa 0.33/0.27
+  against 0.40/0.33 (5 development runs); about 9 times slower (layer-2 cells 125 s against
+  14 s). On the layer-2 grid the step-4 search has the better F1 (0.776 against 0.760,
+  better in 9 cells, worse in 3) and fewer false components (0.08 against 0.10 per
+  waveform): the choice trades that for robustness and speed and is left to the owner.
+- Speed (F9, REQ-115). The test now has the REQ's 2 048 samples (the earlier one fitted a
+  window that the data did not reach and raised) and a `fit_group` part (100 channels x
+  2 048 samples, `n_jobs=1`). Measured (4 shared cores, load about 1): median 0.92 s per
+  waveform against 50 ms, `fit_group` 85 s against 10 s; with `threshold_role="select"`
+  and `latency_order="sorted"` (origin/main's behaviour) 0.42 s and 54 s. Not met (xfail).
+- Engine fix: `fit_waveform_core` had its docstring swallowing the wrapper body, so the
+  evaluation counter was never reset and `n_evaluations` never reported.
+- Kept green with these defaults: REQ-112 on the ds004080 baselines (>= 95 % silent),
+  REQ-170 (`test_hier_eb.py`, fixture 474 s), the layer-2 runner tests, the preset
+  simulations (REQ-276, REQ-277) and the scikit-learn checks.
+
 ### Integration of the N1 work, S16, S17 and the tep validation
 
 - REQ-171: the test as written stays as a documented xfail (5 of 6 datasets, 17 of 20 with
