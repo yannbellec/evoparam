@@ -80,7 +80,7 @@
   better (warning `reseeded`). `reseed="always"` tries it for every state. Measured
   (`score_fits` on 12 simulations, 3 seeds each): `ecap_ci` F1 0.71 -> 1.00 and amplitude
   error 21 % -> 5 %; `ecap` F1 0.77 -> 0.90 and 17 % -> 2 %; simulated ERP F1 0.83 -> 0.85;
-  CCEP unchanged (0.74); time x1.8 on these simulations, +3 % on real sEEG. On ERP CORE
+  CCEP unchanged (0.74); time x1.8 on these simulations, +1 to +25 % per site on real sEEG. On ERP CORE
   (layer 3, parent waves, 40 participants) the default changes nothing; `"always"` raises
   the N170 found from 37.5 % to 52.5 % of participants (within 10 ms: 25 % -> 40 %) at +43 %
   time on a 46-channel CCEP fit, so it is an option, recommended for ERPs.
@@ -93,7 +93,7 @@
   number"): False for the two members of a pair whose amplitudes or latencies correlate
   beyond 0.95, or of a cancelling pair; warning `unresolvable:<k>`; column `resolvable` in
   `to_dataframe()`, in `responses.tsv` (with `Levels`), in the NWB components table and in
-  `ndx-evoparam`. On the eight real sEEG sites, 3 to 19 % of the components are flagged.
+  `ndx-evoparam`. On the eight real sEEG sites, 3 to 23 % of the components are flagged.
   Containers saved before keep loading (the field defaults to True).
 
 ### Build step S17: MNE, BIDS, NWB, Neo, scikit-learn, plugins and community files
