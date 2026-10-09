@@ -8,7 +8,7 @@
   "events_status": "present | absent | unknown: stimulation or stimulus events in the files",
   "loader": "evoparam function that reads the dataset, or null",
   "references": "citation keys of docs/spec/LITERATURE.md",
-  "files": "path inside the dataset -> SHA-256, checked by fetch_openneuro_file"
+  "files": "path inside the dataset -> SHA-256, checked by fetch_openneuro_file and fetch_erpcore"
  },
  "datasets": [
   {
@@ -74,7 +74,12 @@
     "LIT-datasets-5",
     "LIT-datasets-6"
    ],
-   "files": {}
+   "files": {
+    "dataset_description.json": "7e877c6f3b2fff26d4eb0b491dca0d48fe62cbfdd743004a5cc65b765a21cd2d",
+    "sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_task-ccep_run-01_channels.tsv": "baf23675a6dd235a7a37549ec16ddcd9e0cebd5b7fa26348b0dcb0f5f82a1318",
+    "sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_task-ccep_run-01_events.tsv": "5b54c131d5688f9b3fcb4cc70909949dc1a8afeae2d489263b705efedf134c04",
+    "sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_task-ccep_run-01_ieeg.json": "0ae3e5e5ae635de040efa2d1613bcb4184ebdd7acdd794ffce74bf1adacd9c21"
+   }
   },
   {
    "id": "ds004457",
@@ -165,7 +170,12 @@
     "LIT-datasets-11",
     "LIT-datasets-12"
    ],
-   "files": {}
+   "files": {
+    "dataset_description.json": "eca2fbc2733eac1fbb5c902c3bfd4a1fca24d9828ce1aecdedb37805c1b9627f",
+    "sub-1/ses-ieeg01/ieeg/sub-1_ses-ieeg01_task-ccep_run-01_channels.tsv": "fdbfa1145153e1db6b575bf44a0b21ac48bcedfed32488a0097bd3cbe0b3af10",
+    "sub-1/ses-ieeg01/ieeg/sub-1_ses-ieeg01_task-ccep_run-01_events.tsv": "d35579b8c2f921f0d8293f2870680c74a251d2516f859004a6fb017eac980a09",
+    "sub-1/ses-ieeg01/ieeg/sub-1_ses-ieeg01_task-ccep_run-01_ieeg.json": "d93a4435a981b69fc7013719e14671ed8a5b890f37f01e06248d7e9a974a8b2c"
+   }
   },
   {
    "id": "ds006254",
@@ -309,7 +319,14 @@
     "LIT-datasets-31",
     "LIT-datasets-71"
    ],
-   "files": {}
+   "files": {
+    "MMN/1/1_MMN_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.fdt": "6fcd6b4bbfa3db92e48254d5d8291b78ff9d13bf945e9305de787795d9ecc035",
+    "MMN/1/1_MMN_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.set": "a56cf00f9e1785906de4c90be61e2c176ec25c3020840e936874ec296c3e478d",
+    "N170/1/1_N170_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.fdt": "1b3030f257cddf27158623332c21f6669aefae8b6fbe3988f153bc37e814bec6",
+    "N170/1/1_N170_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.set": "3f219184e578406dcaadcd3c27f2c5bb7d903af2045a27dd383526a5f1717c38",
+    "P3/1/1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.fdt": "f62f325b0c579481829afe6cb78ba3b742e7460f1383168385cff26e2ebda431",
+    "P3/1/1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.set": "546dd1bedb039f2a5cc8db620c957d4d2db6623fe914198986c1b1b674e2a6e6"
+   }
   },
   {
    "id": "localize-mi",

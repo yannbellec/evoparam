@@ -40,6 +40,8 @@ $ pytest                                   # the test suite (network tests are s
 $ EVOPARAM_NETWORK_TESTS=1 pytest -m network   # tests that read public datasets
 $ EVOPARAM_SLOW_TESTS=1 pytest             # long simulation grids
 $ pytest --doctest-modules --ignore=evoparam/tests evoparam
+$ EVOPARAM_SLOW_TESTS=1 pytest evoparam/tests/test_docs.py   # runs every tutorial
+$ sphinx-build -b html docs docs/_build/html                 # the documentation site
 ```
 
 Run one pytest process at a time: the legacy tests share a temporary folder.
@@ -62,8 +64,9 @@ Run one pytest process at a time: the legacy tests share a temporary folder.
   example plugin `evoparam/tests/plugins/evoparam_dummy`.
 * **Preset in evoparam itself**: open a *New preset* issue with the literature keys of each
   value and a test dataset, then add `evoparam/presets/<name>.json`.
-* **Dataset**: open a *New dataset* issue (DOI, licence, size); entries of
-  `evoparam/io/registry.json` carry a sha256 for each file.
+* **Dataset**: open a *New dataset* issue (DOI, licence, size); the files that the
+  tutorials and tests download are listed in `evoparam/io/registry.json` with their sha256,
+  checked by `fetch_openneuro_file` and `fetch_erpcore`.
 
 ## Making a contribution
 

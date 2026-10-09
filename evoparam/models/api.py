@@ -517,7 +517,12 @@ class ResponseModel(BaseEstimatorMixin):
             raise DataError("times and y must have the same shape.")
         if settings.fit_window is None:
             raise SettingsError("A fit window is needed (fit_window=, window= or a preset).")
-        if settings.fit_window[0] < times[0] or settings.fit_window[1] > times[-1]:
+        # the end of an epoch is excluded (tmax), so a window that ends at the epoch end
+        # lies less than one sample beyond the last one: allowed (the fit uses the samples
+        # inside the window)
+        step = float(np.median(np.diff(times))) if times.size > 1 else 0.0
+        if settings.fit_window[0] < times[0] - step * (1 + 1e-9) or \
+                settings.fit_window[1] > times[-1] + step * (1 + 1e-9):
             raise DataError(f"fit window {settings.fit_window} exceeds the data "
                             f"({times[0]:.4f} to {times[-1]:.4f} s).")
         sfreq = 1.0 / np.median(np.diff(times))
