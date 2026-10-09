@@ -58,6 +58,7 @@ include = ["evoparam*"]
 
 [tool.setuptools.package-data]
 "evoparam.io" = ["registry.json"]
+"evoparam.io.ndx_evoparam" = ["spec/*.yaml"]
 "evoparam.existence" = ["rules.json"]
 "evoparam.tf" = ["zones.json"]
 "evoparam.presets" = ["*.json"]

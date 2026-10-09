@@ -1,0 +1,11 @@
+namespaces:
+- author:
+  - Yann V. Bellec
+  contact:
+  - https://github.com/yannbellec
+  doc: Parameters of evoked neural responses fitted by evoparam
+  name: ndx-evoparam
+  schema:
+  - namespace: core
+  - source: ndx-evoparam.extensions.yaml
+  version: 0.1.0
