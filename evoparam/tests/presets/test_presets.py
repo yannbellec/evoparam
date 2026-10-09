@@ -183,7 +183,7 @@ def test_req279_simulation_only_presets_say_so_in_the_methods_text():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = fit(_waveform(), "ccep")
-    assert "preset 'ccep' v1.0" in methods_text(group.fits[0])
+    assert "preset 'ccep' v1.1" in methods_text(group.fits[0])
 
 
 @needs_docs

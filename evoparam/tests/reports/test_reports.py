@@ -26,7 +26,7 @@ def test_methods_text_follows_the_processing_steps(results):
     assert text.index("stimulation artifact was removed") < text.index("baseline-corrected") \
         < text.index("each waveform was modelled")
     assert "method 'interpolate'" in text and "-2 to 8 ms" in text
-    assert "preset 'ccep' v1.0" in text and "4 to 250 ms" in text
+    assert "preset 'ccep' v1.1" in text and "4 to 250 ms" in text
     assert "Settings changed from the preset (times in s): min_fwhm = 0.004" in text
     assert reports.citation() in text
     # deterministic, and the same from the saved result
@@ -170,7 +170,7 @@ def test_methods_text_roundtrip(ccep_run, tmp_path):
     text = group.methods_text()
     assert text == reports.methods_text(group)
     assert f"evoparam (version {__version__})" in text
-    assert "preset 'ccep' v1.0" in text
+    assert "preset 'ccep' v1.1" in text
     assert "In the window 9 to 500 ms" in text                       # fit window
     assert "method 'template'" in text                               # artifact method
     assert "sign-flip permutation test" in text                      # existence method

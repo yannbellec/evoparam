@@ -250,8 +250,9 @@ def _runs(agreement, reading, example=False):
 
 
 AS_WRITTEN = ("REQ-113 as written is not met under either reading of the published rule "
-              "(kappa on the 46 PT contacts 0.51 with the registry row, 0.17 with the code; "
-              "pooled over the REQ-371 runs 0.45 and 0.37; CHANGELOG, 'N1 case as written'): "
+              "(ccep v1.1: kappa on the 46 PT contacts 0.46 with the registry row, 0.19 with "
+              "the code; pooled over the REQ-371 runs 0.46 and 0.40; CHANGELOG, 'N1 case as "
+              "written' and 'Defaults settled by measurement'): "
               "no decision reaches 0.8 under both (bound 0.30 on the PT contacts); the code's "
               "170 uV floor "
               "leaves out small N1s the preset finds; the paper's extremum also counts "
@@ -278,8 +279,9 @@ def test_req113_as_written(agreement, reading):
 
 
 @pytest.mark.xfail(strict=False, reason="REQ-114 as written (latency of the N1 component) is "
-                   "not met: within 2 ms on 23 % (registry row) and 32 % (code) of the "
-                   "channels where both find an N1 (CHANGELOG, 'N1 case as written')")
+                   "not met: within 2 ms on 24 % (registry row) and 37 % (code) of the "
+                   "channels where both find an N1 on the REQ-371 runs and the example "
+                   "(ccep v1.1; CHANGELOG, 'Defaults settled by measurement')")
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_as_written(agreement, reading):
     """REQ-114: on the channels where both find an N1, the model latency (the N1

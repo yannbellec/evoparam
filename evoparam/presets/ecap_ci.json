@@ -6,7 +6,7 @@
   "selection": "bic",
   "delta": 10.0,
   "uncertainty": "jacobian",
-  "version": "1.0",
+  "version": "1.1",
   "modality": "cochlear implant",
   "species": [
     "human"
@@ -55,9 +55,12 @@
     "LIT-domains-62"
   ],
   "notes": {
-    "baseline": "none (paradigm subtraction)"
+    "baseline": "none (paradigm subtraction)",
+    "reseed": "always: every final model is refitted from the extrema of the data; on simulated cochlear ECAPs (development seeds) amplitude error 1.5 % against 8.3 % with the engine default, and no fit left above five times the noise against 10 of 21 (CHANGELOG 'Defaults settled by measurement'; v1.1)"
   },
   "validation": "simulation_only",
   "choices": {},
-  "fit_extras": {}
+  "fit_extras": {
+    "reseed": "always"
+  }
 }

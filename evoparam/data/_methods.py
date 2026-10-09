@@ -262,6 +262,9 @@ def _fit(settings):
                                                  "(white noise)")
         text += (f" Components were added one at a time and kept when the {crit} decreased "
                  f"by at least {_num(settings.get('delta'))}, computed on {how}.")
+        if settings.get("reject_cancelling"):
+            text += (" A model holding two overlapping components of opposite sign (a "
+                     "cancelling pair) was not accepted.")
         reseed = settings.get("reseed", False)
         if reseed:
             text += (" " + ("Every" if reseed == "always" else
@@ -269,7 +272,8 @@ def _fit(settings):
                                                      "holding two overlapping components of "
                                                      "opposite sign ")
                      + "was refitted from starts on the extrema of the data and replaced "
-                       "when the refit was better.")
+                       "when the refit was better; a component of the refitted model that "
+                       "no longer lowered the criterion by the same amount was removed.")
     level = settings.get("ci_level", 0.95)
     kind = settings.get("uncertainty")
     text += (f" Uncertainty: {_UNCERTAINTIES.get(kind, kind)} at {_num(level * 100)} %"

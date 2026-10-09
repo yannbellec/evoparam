@@ -496,7 +496,7 @@ def _shape_like(name, settings):
 
 def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "asymmetry"),
                free_latency=False, max_shift=0.005, smooth=False, radius_mm=10.0,
-               smooth_lambda=None, group_fit=None, **model_kw):
+               smooth_lambda=None, group_fit=None, reject_cancelling=True, **model_kw):
     """Fit the channels with component shapes shared across them.
 
     The per-channel fits of the engine (``ResponseModel(preset, **model_kw)``, or
@@ -522,6 +522,13 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
     ts : TrialSet or Evoked
     channels : list of str, optional
         Default: the channels that are not bad nor stimulating contacts (``ch_info``).
+    reject_cancelling : bool
+        Apply the identifiability rule to the shared model (default True): while two
+        components of opposite signs overlap on a channel, the member whose removal fits
+        best is dropped and the model refitted (``settings["fit_shared"]["dropped"]``).
+        This rule belongs to the shared fit (which has no reseeding); the per-channel fits
+        follow the engine's own ``reject_cancelling`` and ``reseed`` settings, passed in
+        ``model_kw``.
 
     Returns
     -------
@@ -632,7 +639,7 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
     z_shared, z_locals, cost, rounds = _alternate(chans, layout, base, z_shared, z_locals,
                                                   tw, max_shift)
     dropped = []
-    while settings.reject_cancelling and len(layout.shapes) > 1:
+    while reject_cancelling and len(layout.shapes) > 1:
         pairs = _cancelling(chans, layout, base, z_shared, z_locals, tw, settings,
                             evoked.sfreq)
         if not pairs:
@@ -689,7 +696,8 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
                for name, z in zip(channels, z_locals)}
     summary = {"shared": sorted(shared), "shared_values": shared_values, "modal_k": modal_k,
                "shapes": [shape_names[k] for k in original], "modal_shapes": shape_names,
-               "dropped": dropped, "flagged": flagged, "free_latency": bool(free_latency),
+               "dropped": dropped, "reject_cancelling": bool(reject_cancelling),
+               "flagged": flagged, "free_latency": bool(free_latency),
                "max_shift": float(max_shift), "offsets": offsets, "rounds": rounds,
                "cost": cost, "smooth": smooth_info, "channels": channels}
     settings_dict = {**{k: (list(v) if isinstance(v, tuple) else v)

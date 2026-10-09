@@ -57,10 +57,12 @@ def test_no_cancelling_pair_on_clean_ecap(kind, preset, channel, seed):
 
 
 def test_the_defect_is_reproduced_without_the_rule():
-    """With the rule off (``reject_cancelling=False``) and origin/main's free latencies
-    (``latency_order="sorted"``) the defect of the first case comes back: the test above
-    detects it. (The ordered parameterisation alone removes this case.)"""
+    """With the rule off (``reject_cancelling=False``), no reseeding (``reseed=False``, the
+    engine's default repair, which the ``ecap_ci`` preset runs on every fit) and origin/main's
+    free latencies (``latency_order="sorted"``) the defect of the first case comes back: the
+    test above detects it. (The ordered parameterisation alone removes this case.)"""
 
-    result, truth = _case(*CASES[0], reject_cancelling=False, latency_order="sorted")
+    result, truth = _case(*CASES[0], reject_cancelling=False, reseed=False,
+                          latency_order="sorted")
     assert _cancelling(result)
     assert max(abs(c.amplitude) for c in result.components) > 2 * np.max(np.abs(truth["amplitude"]))

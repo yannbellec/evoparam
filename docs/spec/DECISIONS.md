@@ -112,6 +112,58 @@ left in the test.
 - The text of §5.2 method 5 in `SPEC.md` is the reviewed text. The description above
   replaces the edit that had been made to the spec after review (audit F61).
 
+### Engine defaults settled by measurement (§5.5.3 steps 1, 3, 4 and 5)
+
+Measured on the merged engine of `integration-2` (2026-10-09). Choices were made on
+development data: the five ds004080 development runs (UMCU07, 19, 28, 40, 49), simulation
+seeds 0–2 of the ECAP simulators and the development seeds of the layer-2 grid (41 cells of
+the weekly design, every fifth cell, 5 replicates). The values reported for REQs are on the
+REQ data (the REQ-371 runs and the example run, held-out seeds). The full table is in
+`CHANGELOG.md`, "Defaults settled by measurement".
+
+- **`threshold_role` (step 3).** The reviewed reading (`"select"`: only the extrema above
+  `detection_threshold` are candidates) fails REQ-104 (87 of 100 waveforms agree for
+  thresholds 1, 2 and 3; REQ-104 asks 99). `"order"` (every extremum is a candidate, the
+  threshold only orders them) meets it (100 of 100), so it stays the **engine default**.
+  The `ccep` preset (v1.1) sets `"select"`: on the development runs the N1 decision agrees
+  better with both readings of the published rule (kappa 0.40 and 0.39 against 0.36 and
+  0.31) and the fits are 1.4 times faster; on the layer-2 grid the CCEP cells lose 0.02 of
+  F1 on the development seeds and nothing on the held-out seeds. REQ-104 is defined on the
+  `erp` preset, which keeps `"order"`.
+- **`noise_model` (step 1).** `"neff"` (the reviewed step 1) stays available and meets
+  REQ-107 as written. The default stays `"ar"` (AR whitening) for every data type: with
+  `"neff"` the CCEP fits of ds004080 find almost no component (12 components over all
+  the channels of 12 runs; N1 kappa about 0) and the layer-2 F1 drops (0.68 against 0.74 on the
+  development seeds, 0.69 against 0.76 held out). The noise reference (`noise_source`) is a
+  separate setting: `"auto"` (plus-minus average when the baseline holds fewer than 30
+  independent samples, the baseline otherwise; measured on ERP CORE by the earlier work,
+  CHANGELOG "Engine: noise from the plus-minus average") stays the default and
+  `"baseline"` is the reviewed procedure.
+- **Cancelling pairs (step 5, risk S1).** Two mechanisms were compared: refusing every
+  model with two overlapping components of opposite signs (`reject_cancelling=True`) and
+  refitting such a final state from the extrema of the data, marking the pair not
+  resolvable when it stays (`reseed=True`, `Component.resolvable`). The **default is
+  `reseed=True`, `reject_cancelling=False`**: on the ECAP simulations the refusal leaves
+  the greedy path in a worse optimum (held-out seeds: amplitude error 14.6 % against 6.8 %
+  cochlear, 10.8 % against 6.5 % spinal; 10 of 21 cochlear fits above five times the noise
+  against 2), and on ds004977 ROC11–ROC12 the shared fit built on refused pairs drops three
+  components and its residual cost is 1.8 times higher. On the layer-2 grid and the N1 case
+  the two are within noise of each other. The ECAP presets (`ecap`, `ecap_ci`, v1.1) set
+  `reseed="always"` (every final model refitted from the extrema): amplitude error 1.5 %
+  against 8.3 % (cochlear, development seeds), 5.1 % against 6.8 % held out, at 1.6
+  to 2.4 times the fitting time.
+  `fit_shared` keeps its own rule (`fit_shared(..., reject_cancelling=True)`): the shared
+  fit has no reseeding, and a pair present in the per-channel fits is removed by dropping
+  the member whose removal fits best. Its latency bounds keep every channel's latency in the
+  fit window (a bug fix, not a choice: on ds004977 all 11 channels had a component before
+  the stimulation, at −9 ms, or −18 ms with free latencies, before it; none after).
+- **`candidate_search` (step 4).** `"beam"` stays the default (more robust on CCEP-like
+  simulations, better N1 kappa, about 9 times faster; CHANGELOG "Fitting engine as written");
+  the reviewed search is `candidate_search="spec"`.
+- **`latency_order` (step 5).** The reviewed ordered parameterisation
+  (`"parameterised"`) stays the default; `"sorted"` is an option. On the ECAP simulations
+  neither is better on both kinds and both seed sets.
+
 ## 4. Readings needed to apply the spec
 
 - **§4.5, `core/info.py` and `core/items.py` ("merge into `utils/`").** These files only

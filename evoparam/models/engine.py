@@ -925,6 +925,9 @@ def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select
         if reseeded is not None:
             out["warnings"].append("reseeded")
             current = _merge_pass(reseeded, make, settings, n_white, f_scale, kind, out)
+            # the greedy path needed its components to build the pair; after the refit,
+            # each must still earn its place by the rule of the forward search
+            current = _prune(current, make, settings, n_white, f_scale, kind, out)
             out["path"][-1] = current
             out["steps"][-1] = {"K": len(current.shapes), "criterion": current.crit}
 
@@ -1135,6 +1138,30 @@ def _sort_state(state, make):
                            + [struct.bg_params(state.theta)]) if state.shapes else state.theta
     beta = np.r_[state.beta[order], state.beta[len(state.shapes):]]
     return _State(shapes, theta, beta, state.rw, state.crit, state.fit_crit)
+
+
+def _prune(state, make, settings, n_eff, f_scale, kind, out):
+    """Drop the components of a reseeded state that no longer lower the criterion by
+    ``delta`` (the acceptance rule of the forward search, §5.5.3 step 4): the state without
+    each component is refitted from the current values, and the best removal is applied
+    while its criterion is less than ``delta`` above the state's."""
+
+    while len(state.shapes) >= 2:
+        struct = make(state.shapes)
+        best = None
+        for k in range(len(state.shapes)):
+            shapes = [s for i, s in enumerate(state.shapes) if i != k]
+            theta0 = np.concatenate([struct.comp_params(state.theta, i)
+                                     for i in range(len(state.shapes)) if i != k]
+                                    + [struct.bg_params(state.theta)])
+            cand, _ = _evaluate_state(make, shapes, theta0, settings, n_eff, f_scale, kind)
+            if cand is not None and (best is None or cand.crit < best[0].crit):
+                best = (cand, k)
+        if best is None or not best[0].crit - state.crit < settings.delta:
+            break
+        out["warnings"].append(f"pruned:{best[1]}")
+        state = _sort_state(best[0], make)
+    return state
 
 
 def _merge_pass(state, make, settings, n_eff, f_scale, kind, out):

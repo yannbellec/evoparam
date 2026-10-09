@@ -2,6 +2,111 @@
 
 ## Unreleased
 
+### Integration of the trials and engine corrections, defaults settled by measurement
+
+Merged into `integration-2`: `corrections-essais` (2b8aba2, trials), `corrections-moteur`
+(361135c and 07082b4, engine and N1 case as written, `noise_model="neff"`) and
+`wip-paires-compensees` (57f977e, `fit_shared` latency bounds and `reject_cancelling`).
+Every feature of both sides is kept: the Mac's reseeding, `resolvable` column and
+plus-minus noise reference (`noise_source="auto"`) next to `latency_order`,
+`candidate_search`, `threshold_role`, `noise_model="neff"` and `reject_cancelling`.
+
+Protocol. Choices were made on development data and the REQ values are reported on the REQ
+data: the five ds004080 development runs (UMCU07 run-021752 sTa5-sTa6, UMCU19 run-040955
+PT01-PT02, UMCU28 run-021305 F01-F02, UMCU40 run-031553 FB1-FB2, UMCU49 run-031049
+HP01-HP02) against the REQ-371 runs and the example run; seeds 0-2 against 3-5 of
+`simulate_ecap` (cochlear: `ecap_ci`, spinal: `ecap`; 40 trials, no artifact, 7 contacts);
+the layer-2 grid on 41 cells of the weekly design (every fifth cell), 5 replicates, with
+development seeds and held-out seeds (offset 500 000). 4 cores, one process per task.
+
+- `threshold_role` (§5.5.3 step 3). Engine default kept at `"order"`; the `ccep` preset
+  (now v1.1) sets `"select"`.
+
+  | | `"order"` | `"select"` |
+  |---|---|---|
+  | REQ-104 (`erp`, 100 waveforms, thresholds 1/2/3 agree) | 100/100 (met) | 87/100 |
+  | N1 decision kappa, development runs (paper / code) | 0.36 / 0.31 | 0.40 / 0.39 |
+  | N1 decision kappa, REQ-371 runs pooled (paper / code) | 0.46 / 0.37 | 0.46 / 0.40 |
+  | the same, 46 PT contacts of the example run | 0.51 / 0.17 | 0.46 / 0.19 |
+  | REQ-113 regression decision (trough with the code's floor), pooled / lowest run | 0.89 / 0.71 | 0.89 / 0.71 |
+  | REQ-114, N1 latency within 2 ms (paper / code) | 21 % / 32 % | 24 % / 37 % |
+  | fitting time, development / REQ runs | 827 s / 1527 s | 578 s / 1073 s |
+  | REQ-115, one waveform (median of 5, two rounds) | 0.80 s, 0.76 s | 0.53 s, 0.57 s |
+  | REQ-115, `fit_group` 100 channels | 80 s, 84 s | 53 s, 55 s |
+  | layer-2 F1, all cells (development / held out) | 0.736 / 0.756 | 0.720 / 0.748 |
+  | layer-2 F1, CCEP cells | 0.715 / 0.707 | 0.693 / 0.707 |
+  | layer-2 F1, ECAP cells | 0.680 / 0.742 | 0.640 / 0.692 |
+
+  REQ-104 is met only with `"order"`, so it stays the engine default (and the `erp`
+  preset's). For `ccep` the real-data N1 agreement and the speed favour `"select"` (the
+  CCEP simulation cells lose 0.02 of F1 on the development seeds, nothing held out). REQ-113
+  and REQ-114 as written stay xfails under both; REQ-115 stays an xfail (0.55 s against
+  50 ms, 54 s against 10 s). `ccep_seeg` was not measured (no sEEG N1 reference here) and
+  keeps the engine default.
+- Noise model (§5.5.3 step 1). Default kept at `"ar"` for every data type; `"neff"` and
+  `"white"` stay options, and `noise_source="auto"` stays the default reference.
+
+  | | `"ar"` | `"neff"` | `"white"` |
+  |---|---|---|---|
+  | REQ-107, AR(1) rho 0.9, false components in 100 windows | 0 % | 0 % | 100 % |
+  | REQ-112, ds004080 baselines silent (80 channels, `ccep` v1.1) | 97.5 % | 97.5 % | 65 % |
+  | REQ-276, ERNA cases within tolerance (20) | 0.90 | 0.90 | 0.90 |
+  | ds004080 N1: components over all channels of the 12 runs | 2 092 | 12 | - |
+  | N1 decision kappa, REQ-371 runs pooled (paper / code) | 0.46 / 0.37 | 0.01 / 0.00 | - |
+  | layer-2 F1 (development / held out) | 0.736 / 0.756 | 0.681 / 0.693 | - |
+
+  With `"neff"` the criterion counts n (1 - rho) / (1 + rho) samples; at 2048 Hz rho is
+  close to 1 and the BIC penalty removes almost every CCEP component. REQ-170 was not rerun
+  with `"neff"` (`"neff"` was already excluded by the two rows above); it runs with the
+  default in the suite. The ERP CORE false-positive rates of the noise references are the
+  ones recorded by the plus-minus work ("Engine: noise from the plus-minus average"): OSF is
+  not reachable from this build machine.
+- Cancelling pairs (§5.5.3 step 5, risk S1). Default: `reseed=True`,
+  `reject_cancelling=False`; `reject_cancelling=True` stays an option (now named in the
+  methods text when on). The ECAP presets (`ecap`, `ecap_ci`, now v1.1) set
+  `reseed="always"`.
+
+  | ECAP simulations, development / held-out seeds | reseed (default) | reject | reseed "always" |
+  |---|---|---|---|
+  | cochlear F1 | 1.00 / 1.00 | 1.00 / 1.00 | 1.00 / 1.00 |
+  | cochlear amplitude error | 8.3 % / 6.8 % | 8.7 % / 14.6 % | 1.5 % / 5.1 % |
+  | cochlear fits above 5 x the noise RSS (of 21) | 10 / 2 | 11 / 10 | 0 / 0 |
+  | spinal F1 | 0.91 / 0.90 | 0.91 / 0.90 | 0.91 / 0.91 |
+  | spinal amplitude error | 2.7 % / 6.5 % | 5.0 % / 10.8 % | 2.7 % / 3.9 % |
+  | fitting time, cochlear / spinal (3 seeds) | 4.9 s / 24 s | 4.3 s / 18 s | 12 s / 39 s |
+
+  On the layer-2 grid reject and reseed are within noise (F1 0.737 against 0.736
+  development, 0.760 against 0.756 held out), as on the N1 case (pooled kappa 0.46 / 0.31
+  against 0.46 / 0.37 on the REQ-371 runs; 0.41 / 0.31 against 0.36 / 0.31 on the
+  development runs). On ds004977 sub-1 run-01 ROC11-ROC12 (11 bipolar ROC channels,
+  `ccep_seeg`, window 9-490 ms) the shared fit:
+
+  | `fit_shared` | channels with a latency outside the window | channels with a pair | residual cost |
+  |---|---|---|---|
+  | before the bounds fix (reseed) | 11 / 11 (-9.0 ms; -17.8 ms with free latencies) | 0 | 606 481 / 565 734 |
+  | bounds fix, reseed | 0 | 0 | 638 620 / 607 422 |
+  | bounds fix, reject and drop | 0 | 0 (3 components dropped) | 1 154 093 / 1 120 501 |
+
+  The latency bounds of `fit_shared` (every channel's latency, shared value plus offset,
+  inside the fit window, in reported-latency coordinates) are a bug fix and are merged.
+  `fit_shared` keeps its own pair rule, now its own keyword
+  (`fit_shared(..., reject_cancelling=True)`, recorded in `settings["fit_shared"]`) and
+  no longer read from the engine settings: the shared fit has no reseeding.
+- `candidate_search`: `"beam"` stays the default, `"spec"` (§5.5.3 step 4) available;
+  checked after the merge.
+- Presets: `ccep` 1.0 -> 1.1 (`threshold_role="select"`), `ecap` and `ecap_ci` 1.0 -> 1.1
+  (`reseed="always"`), each with its reason in the preset; `docs/presets.md` regenerated.
+  Results made with the 1.0 presets are refused by `evoparam.reproduce` (REQ-333).
+- REQ-349: `plots/_signals.py` no longer computes anything. The average and its band and
+  the strip-plot jitter come from two new public functions, `evoparam.stats.waveform_band`
+  and `evoparam.stats.strip_jitter` (same values as before, tested).
+- Import graph (§4.2): `trials` and `spatial` imported `evoparam.shapes` directly after the
+  merges; they now use `evoparam.models.component_shapes`, which re-exports `Gaussian`,
+  `SkewedGaussian` and `skew_mode`.
+- REQ-012: `tools/check_no_inherited_code.py` reads the inherited repository and commit
+  from NOTICE instead of naming them.
+- Duplicate `noise_reference` key removed from the diagnostics of skipped fits.
+
 ### Reports, shared shapes and preset behaviours (audit F44, F56–F58)
 
 - ERP CORE P3 methods text on the real recording (F44, REQ-340). The network test

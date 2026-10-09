@@ -47,13 +47,16 @@ def test_ecap_components_are_found_not_a_cancelling_pair(kind):
 
 def test_a_cancelling_pair_is_flagged_unresolvable():
     """Without reseeding the greedy path leaves a cancelling pair on contact E01 of the
-    simulated cochlear ECAP: both components are flagged, in the table too."""
+    simulated cochlear ECAP: both components are flagged, in the table too. (The pair is
+    reproduced with free latencies, ``latency_order="sorted"``: the ordered
+    parameterisation of spec §5.5.3 step 5 ends this case in another local optimum, which
+    the preset's reseeding repairs, see the test above.)"""
 
     ts, _ = sim.simulate_ecap(40, kind="cochlear", paradigm=None, artifact=False, seed=0)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         plain = fit(ts, "ecap_ci", random_state=0, existence=False, reseed=False,
-                    noise_source="baseline")
+                    noise_source="baseline", latency_order="sorted")
         fixed = fit(ts, "ecap_ci", random_state=0, existence=False,
                     noise_source="baseline")
     pair = plain.fits[1]

@@ -66,8 +66,9 @@ def _ecap(seed):
     evoked = ts.average()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        # per-channel fits without the rule: they hold cancelling pairs (seeds 0 and 3)
-        independent = ResponseModel("ecap_ci", reject_cancelling=False,
+        # per-channel fits without the rule and without reseeding: they hold cancelling
+        # pairs (seeds 0 and 3)
+        independent = ResponseModel("ecap_ci", reject_cancelling=False, reseed=False,
                                     latency_order="sorted").fit_group(
             evoked, picks=channels)
     return evoked, channels, independent

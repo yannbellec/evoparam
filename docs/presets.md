@@ -7,10 +7,10 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 
 | name | modality | species | citation | version | validation |
 |---|---|---|---|---|---|
-| ccep | ECoG (SPES) | human | LIT-ccep-7, LIT-ccep-8, LIT-ccep-1, LIT-ccep-3, LIT-ccep-5, LIT-ccep-18 | 1.0 | ds004080 (REQ-113, REQ-114, REQ-135) |
+| ccep | ECoG (SPES) | human | LIT-ccep-7, LIT-ccep-8, LIT-ccep-1, LIT-ccep-3, LIT-ccep-5, LIT-ccep-18 | 1.1 | ds004080 (REQ-113, REQ-114, REQ-135) |
 | ccep_seeg | sEEG (SPES) | human | LIT-ccep-46, LIT-ccep-47, LIT-ccep-27, LIT-ccep-25 | 1.0 | pending: Mayo sEEG sets |
-| ecap | epidural SCS | human | LIT-domains-37, LIT-domains-38 | 1.0 | simulation_only |
-| ecap_ci | cochlear implant | human | LIT-domains-61, LIT-domains-62 | 1.0 | simulation_only |
+| ecap | epidural SCS | human | LIT-domains-37, LIT-domains-38 | 1.1 | simulation_only |
+| ecap_ci | cochlear implant | human | LIT-domains-61, LIT-domains-62 | 1.1 | simulation_only |
 | erna | DBS LFP | human | LIT-domains-52, LIT-domains-53, LIT-domains-54 | 1.0 | simulation_only |
 | erp | scalp EEG/MEG | human | LIT-erpmeas-39, LIT-erpmeas-1 | 1.0 | pending: ERP CORE (REQ-274) |
 | p300_bci | scalp EEG | human | LIT-domains-66, LIT-domains-71 | 1.0 | pending: bigP3BCI |
@@ -28,6 +28,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - trial fit: True (shift_scale)
 - validation: ds004080 (REQ-113, REQ-114, REQ-135)
 - choice (artifact_window): ends 1 ms before the earliest fit sample, so the template never overlaps the response window (REQ-061)
+- note (threshold_role): select: the candidates are the extrema above detection_threshold (spec 5.5.3 step 3); on the five development runs of ds004080 the N1 decision agreed better with both readings of the published rule than with 'order' (kappa 0.40/0.39 against 0.36/0.31), 1.4 times faster (CHANGELOG 'Defaults settled by measurement'; v1.1)
 
 ## `ccep_seeg`
 
@@ -56,6 +57,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - choice (min_fwhm): pending public data: no public SCS ECAP dataset was found
 - choice (max_fwhm): pending public data: no public SCS ECAP dataset was found
 - note (trial_fit): per pulse
+- note (reseed): always: every final model is refitted from the extrema of the data; on simulated spinal ECAPs (development seeds) amplitude error 2.7 % with 'always' and with the engine default, no fit left above five times the noise; on held-out seeds 3.9 % against 6.5 % (CHANGELOG 'Defaults settled by measurement'; v1.1)
 
 ## `ecap_ci`
 
@@ -66,6 +68,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - trial fit: False
 - validation: simulation_only
 - note (baseline): none (paradigm subtraction)
+- note (reseed): always: every final model is refitted from the extrema of the data; on simulated cochlear ECAPs (development seeds) amplitude error 1.5 % against 8.3 % with the engine default, and no fit left above five times the noise against 10 of 21 (CHANGELOG 'Defaults settled by measurement'; v1.1)
 
 ## `erna`
 
