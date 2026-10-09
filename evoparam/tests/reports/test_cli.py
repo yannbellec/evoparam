@@ -182,7 +182,10 @@ def test_req322_single_file_default_preset_and_toml(dataset, tmp_path, capsys):
     from evoparam.io import read_bids_derivatives
 
     group = read_bids_derivatives(str(tmp_path / "evoparam"), subject="01", task="ccep")
-    assert group.settings["preset"] == "ccep"
+    from evoparam import presets
+
+    # the preset is recorded as {"name", "version"} (REQ-331)
+    assert group.settings["preset"] == {"name": "ccep", "version": presets.get("ccep").version}
 
     # .npz recording: data [trials, channels, times], sfreq, tmin
     import numpy as np

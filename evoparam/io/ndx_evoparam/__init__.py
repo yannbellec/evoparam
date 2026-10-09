@@ -144,10 +144,17 @@ def settings_record(items, description, version, name="evoparam_settings"):
 
     settings = next((getattr(i, "settings", None) for i in items
                      if (getattr(i, "settings", None) or {}).get("preset")), {}) or {}
-    note = settings.get("preset_note") or ""
-    preset_version = note.split(" v")[1].split(" ")[0].rstrip(";") if " v" in note else ""
+    preset = settings.get("preset")
+    if isinstance(preset, dict):
+        # the preset is recorded as {"name", "version"} (REQ-331)
+        preset_name = str(preset.get("name") or "")
+        preset_version = str(preset.get("version") or "")
+    else:
+        # results written before: the name alone, the version in preset_note
+        note = settings.get("preset_note") or ""
+        preset_name = str(preset or "")
+        preset_version = note.split(" v")[1].split(" ")[0].rstrip(";") if " v" in note else ""
     return load()["ResponseFitSettings"](
         name=name, settings_json=json.dumps(description["settings"], allow_nan=False),
         provenance_json=json.dumps(description["provenance"], allow_nan=False),
-        package_version=version, preset_name=str(settings.get("preset") or ""),
-        preset_version=preset_version)
+        package_version=version, preset_name=preset_name, preset_version=preset_version)
