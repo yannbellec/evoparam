@@ -150,12 +150,32 @@ def _bounds_warnings(core):
     return out
 
 
+def _with_plugins(provenance, settings):
+    """``provenance.environment["plugins"]``: the plugin shapes, background and preset the
+    settings use, ``{name: "dist==version"}`` (spec §10.8); unchanged without plugins."""
+
+    from evoparam.shapes import BACKGROUNDS, SHAPES
+
+    import evoparam.presets as presets
+
+    used = {}
+    for registry, names in ((SHAPES, settings.shapes), (BACKGROUNDS, (settings.background,)),
+                            (presets.PRESETS, (settings.preset,))):
+        origins = registry.plugins()
+        used.update({name: origins[name] for name in names if name in origins})
+    if not used:
+        return provenance
+    environment = dict(provenance.environment)
+    environment["plugins"] = {**(environment.get("plugins") or {}), **used}
+    return dataclasses.replace(provenance, environment=environment)
+
+
 def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_dict):
     window = settings.fit_window
     baseline = settings.baseline if settings.baseline is not None else (np.nan, np.nan)
     warns = list(core.get("warnings", []))
-    provenance = Provenance().with_step("evoparam.models.fit_waveform", settings_dict,
-                                        duration_s=None)
+    provenance = _with_plugins(Provenance().with_step("evoparam.models.fit_waveform",
+                                                      settings_dict, duration_s=None), settings)
     if core["status"] in ("skipped", "failed") or "struct" not in core:
         return ResponseFit(components=[], background={}, gof=None, status=core["status"],
                            message=core["message"], window=window, baseline=baseline,
@@ -550,10 +570,11 @@ class ResponseModel(BaseEstimatorMixin):
                 fits = list(pool.map(one, index))
         else:
             fits = [one(ch) for ch in index]
-        settings = _settings_dict(self.settings(fit_window=window, baseline=baseline))
-        provenance = evoked.provenance.with_step("evoparam.models.ResponseModel.fit_group",
-                                                 settings,
-                                                 duration_s=_time.perf_counter() - start)
+        resolved = self.settings(fit_window=window, baseline=baseline)
+        settings = _settings_dict(resolved)
+        provenance = _with_plugins(evoked.provenance.with_step(
+            "evoparam.models.ResponseModel.fit_group", settings,
+            duration_s=_time.perf_counter() - start), resolved)
         return GroupFit.from_fits(fits, [names[i] for i in index],
                                   [condition] * len(fits), settings=settings,
                                   provenance=provenance)
@@ -706,8 +727,9 @@ def fit(data, preset=None, *, window=None, baseline=None, times=None, sfreq=None
 
     ``evoparam.fit(trials, preset="ccep")`` averages the trials (by condition with ``by``),
     fits every channel and returns a :class:`GroupFit`. ``data`` may be a TrialSet, an
-    Evoked or an array [n_channels, n_times] with ``times`` (convert MNE objects and files
-    with :func:`evoparam.io.read` first).
+    Evoked, an ``mne.Epochs``, an ``mne.Evoked``, a list of ``mne.Evoked`` (one condition
+    each, ``comment`` as the condition label) or an array [n_channels, n_times] with
+    ``times``; read files with :func:`evoparam.io.read` first.
 
     ``trials=True`` (trial-by-trial fits, build step S10) and ``existence=True`` (the
     existence test, build step S8) are not available yet and raise SettingsError.

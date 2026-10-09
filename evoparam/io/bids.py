@@ -446,7 +446,7 @@ def _auto_chunk(trial_bytes):
 
 
 def _read_run(tree, folder, entities, data_name, datatype, epoch, events, select, picks,
-              cache_dir, pd):
+              cache_dir, pd, stim_mapping=None):
     stem = _stem(entities)
     tmin, tmax = epoch
     sidecar, recording = _events_sidecar(tree, folder, entities, datatype)
@@ -466,7 +466,7 @@ def _read_run(tree, folder, entities, data_name, datatype, epoch, events, select
         raise EventError('The events table has no onset column.')
     table = table.reset_index(drop=True)
     table['trial'] = np.arange(len(table), dtype=np.int64)
-    harmonized, report = harmonize_stim_events(table, sidecar)
+    harmonized, report = harmonize_stim_events(table, sidecar, mapping=stim_mapping)
     for line in report.warnings:
         logger.info('%s: %s', stem, line)
 
@@ -616,7 +616,7 @@ def _dataset_record(root, base, tree):
 
 def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=None,
               datatype='ieeg', epoch=(-0.5, 1.0), events='auto', select=None, picks=None,
-              remote=False, cache_dir=None, verbose=None):
+              remote=False, cache_dir=None, verbose=None, stim_mapping=None):
     """Read epochs around the events of a BIDS dataset, locally or remotely.
 
     Recordings in BrainVision (``.vhdr``), MEF 3.0 (``.mefd`` session folders: the Mayo
@@ -663,6 +663,10 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
         Where a remote data file is saved when the server ignores byte ranges.
     verbose : bool, str or None
         Logging level of the package during the call (None: unchanged).
+    stim_mapping : dict, optional
+        ``{source column: standard column}`` passed to :func:`harmonize_stim_events` as
+        ``mapping``: overrides the recognised columns (spec §10.2); the applied mapping is
+        in the harmonisation report of the provenance.
 
     Returns
     -------
@@ -705,7 +709,7 @@ def read_bids(root, subject, *, session=None, task=None, run=None, acquisition=N
         for folder, entities, data_name in _find_runs(tree, wanted, datatype):
             parts.append((entities, _read_run(tree, folder, entities, data_name, datatype,
                                               (tmin, tmax), events, select, picks, cache_dir,
-                                              pd)))
+                                              pd, stim_mapping)))
     dataset, doi = _dataset_record(root, base, tree)
 
     if len(parts) == 1:

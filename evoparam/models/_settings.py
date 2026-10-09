@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass, field, replace
 
 import evoparam.presets as _presets
+from collections.abc import Mapping
 from evoparam.errors import SettingsError
 
 __all__ = ["FitSettings", "FIT_PRESETS", "resolve_settings"]
@@ -94,8 +95,23 @@ class FitSettings:
         return asdict(self)
 
 
-# Fit fields of the presets of spec §6.1, read from evoparam.presets (one source of truth).
-FIT_PRESETS = {name: _presets.fit_fields(name) for name in _presets.PRESETS}
+class _FitPresets(Mapping):
+    """Fit fields of every preset (spec §6.1), read from evoparam.presets on access (one
+    source of truth; plugin presets included, and loaded only when first needed)."""
+
+    def __getitem__(self, name):
+        if name not in _presets.PRESETS:
+            raise KeyError(name)
+        return _presets.fit_fields(name)
+
+    def __iter__(self):
+        return iter(_presets.PRESETS)
+
+    def __len__(self):
+        return len(_presets.PRESETS)
+
+
+FIT_PRESETS = _FitPresets()
 
 
 def resolve_settings(preset=None, **overrides):
