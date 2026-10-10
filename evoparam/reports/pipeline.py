@@ -229,8 +229,11 @@ def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True
 ## Reference pipelines (REQ-340)
 
 # name -> preset, the published data it stands for, the stand-in used when those data are
-# not at hand, and the options of run_pipeline. The methods text depends only on the
-# settings, never on the data, so the stand-in gives the words of the real pipeline.
+# not at hand, and the options of run_pipeline. The methods text depends on the settings and
+# on the noise reference the fits resolved (noise_source="auto" switches to the plus-minus
+# average when the baseline holds fewer than 30 effective samples), so each stand-in has the
+# sampling of its real recording and resolves the same reference: it gives the words of the
+# real pipeline.
 REFERENCE_PIPELINES = {
     "erpcore_p3": {
         "preset": "erp",
@@ -239,7 +242,7 @@ REFERENCE_PIPELINES = {
                 "by the network test, not redistributed)",
         "stand_in": {"generator": "simulate_erp",
                      "kwargs": {"n_trials": 30, "n_channels": 1, "components": ["P3"],
-                                "ch_names": ["Pz"], "seed": 0}},
+                                "ch_names": ["Pz"], "sfreq": 256.0, "seed": 0}},
         "options": {},
     },
     "ds004080_ccep": {

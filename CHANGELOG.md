@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Network run on a machine with access (REQ-340, ERP CORE P3)
+
+- The full suite with `EVOPARAM_NETWORK_TESTS`, `EVOPARAM_SLOW_TESTS` and
+  `EVOPARAM_PERF_TESTS` and every optional package was run on a machine that reaches OSF,
+  DANDI and OpenNeuro. On the real ERP CORE P3 recording (participant 1, Pz, 256 Hz) the
+  methods text named the plus-minus noise reference, while the frozen text, made from the
+  stand-in, named the baseline: with `noise_source="auto"` the reference depends on the
+  effective size of the baseline (51 samples at 256 Hz, fewer than 30 effective ones), and
+  the stand-in was simulated at 500 Hz, where the baseline was long enough.
+- The ERP CORE P3 stand-in is now simulated at 256 Hz, the sampling of the real recording,
+  so it resolves the same noise reference; `methods/erpcore_p3.txt` is regenerated (one
+  sentence: "the noise of the plus-minus average of the trials (alternating signs, whole
+  epoch)" instead of "the noise of the baseline"). The real recording and the stand-in now
+  give the same frozen text.
+
 ### Interval coverage (REQ-116, bootstrap and profile, 200 runs each)
 
 - Profile intervals: the ends are now where the profile statistic crosses the chi-square
