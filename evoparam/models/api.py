@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from scipy.stats import chi2, norm
+from scipy.stats import t as student_t
 
 from evoparam.data import Component, Evoked, GoodnessOfFit, GroupFit, Provenance, ResponseFit
 from evoparam.data import TrialSet
@@ -308,7 +309,12 @@ def _bootstrap(fit, core, times, trials, settings, sfreq, z):
         for k, shape in enumerate(struct.shapes):
             draws[k].append(_feature_vector(shape, struct.tw, boot.comp_params(theta, k),
                                             beta[k], settings, sfreq))
-    alpha = 1 - settings.ci_level
+    # expanded percentile interval (Hesterberg 2015): the plain percentile interval of an
+    # average of n trials is too narrow by sqrt((n - 1) / n) and uses z instead of t_{n-1}
+    tail = 100 * (1 - settings.ci_level) / 2
+    if n >= 2:
+        q = np.sqrt(n / (n - 1)) * student_t.ppf(0.5 + settings.ci_level / 2, n - 1)
+        tail = 100 * norm.cdf(-q)
     comps = []
     for k, comp in enumerate(fit.components):
         values = np.array(draws[k])
@@ -319,11 +325,28 @@ def _bootstrap(fit, core, times, trials, settings, sfreq, z):
                 if len(col) < 10:
                     continue
                 se[name] = float(np.std(col, ddof=1))
-                ci[name] = tuple(np.percentile(col, [100 * alpha / 2, 100 * (1 - alpha / 2)]))
+                ci[name] = tuple(np.percentile(col, [tail, 100 - tail]))
         comps.append(dataclasses.replace(comp, se=se, ci=ci))
     diag = dict(fit.diagnostics, n_bootstrap_ok=min((len(v) for v in draws.values()),
                                                     default=0))
     return dataclasses.replace(fit, components=comps, diagnostics=diag)
+
+
+def _profile_bounds(grid, stat, limit):
+    """Ends of the profile interval: where the statistic crosses ``limit``, linearly
+    interpolated between the outermost grid value inside and its neighbour outside (the
+    grid values themselves would shorten the interval by up to one grid step per side)."""
+
+    idx = np.flatnonzero(stat <= limit)
+    first, last = idx[0], idx[-1]
+    ends = []
+    for inner, outer in ((first, first - 1), (last, last + 1)):
+        value = grid[inner]
+        if 0 <= outer < len(grid) and np.isfinite(stat[outer]) and stat[outer] > stat[inner]:
+            frac = (limit - stat[inner]) / (stat[outer] - stat[inner])
+            value = grid[inner] + frac * (grid[outer] - grid[inner])
+        ends.append(float(value))
+    return ends[0], ends[1]
 
 
 def _profile(fit, core, settings, sfreq, n_grid=21):
@@ -342,8 +365,8 @@ def _profile(fit, core, settings, sfreq, n_grid=21):
             j = struct.offsets[k] + i
             width = 4 * max(se.get(name, 0), 1e-6 * (upper[j] - lower[j]))
             grid = np.clip(theta[j] + np.linspace(-width, width, n_grid), lower[j], upper[j])
-            inside = []
-            for value in grid:
+            stat = np.full(n_grid, np.inf)
+            for g, value in enumerate(grid):
                 lo, hi = lower.copy(), upper.copy()
                 eps = 1e-9 * (upper[j] - lower[j])
                 lo[j], hi[j] = value - eps, value + eps
@@ -351,10 +374,11 @@ def _profile(fit, core, settings, sfreq, n_grid=21):
                 t0 = theta.copy()
                 t0[j] = value
                 th, be, rw, ok, _ = _engine._optimise(fixed, t0, settings, settings.f_scale)
-                if ok and (np.sum(rw ** 2) - rss0) / s2 <= limit:
-                    inside.append(value)
-            if inside:
-                ci[name] = (float(min(inside)), float(max(inside)))
+                if ok:
+                    stat[g] = (np.sum(rw ** 2) - rss0) / s2
+            inside = grid[stat <= limit]
+            if len(inside):
+                ci[name] = _profile_bounds(grid, stat, limit)
                 if len(inside) == n_grid:
                     flags.append(f"structurally_unidentifiable:{k}:{name}")
                 elif min(inside) == grid[0] or max(inside) == grid[-1]:

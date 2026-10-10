@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Interval coverage (REQ-116, bootstrap and profile, 200 runs each)
+
+- Profile intervals: the ends are now where the profile statistic crosses the chi-square
+  limit, linearly interpolated between the outermost grid value inside and its neighbour
+  outside. Before, the ends were grid values, which shortened the interval by up to one
+  grid step (0.4 SE) per side.
+- Bootstrap intervals: expanded percentile interval (Hesterberg 2015), the tails at
+  Phi(-sqrt(n / (n - 1)) t_{n-1}) instead of alpha / 2; the plain percentile interval of an
+  average of n trials is too narrow.
+
+  | Case | Latency before | Latency now | Amplitude before | Amplitude now |
+  |---|---|---|---|---|
+  | bootstrap, white noise | 0.900 | 0.935 | 0.945 | 0.960 |
+  | bootstrap, AR(1) rho 0.9 | 0.935 | 0.945 | 0.900 | 0.940 |
+  | profile, white noise | 0.870 | 0.935 | 0.975 | 0.975 |
+  | profile, AR(1) rho 0.9 | 0.880 | 0.925 | 0.955 | 0.955 |
+
+  Three of the four cases now meet the 92-97 % of the spec. The profile case under white
+  noise stays an xfail: its amplitude coverage is 0.975 (195 of 200, the Wald interval of
+  the linear amplitude, unchanged), above 0.97.
+
 ### Defaults settled by measurement: integration of the trials and engine corrections
 
 Merged into `integration-2`: `corrections-essais` (2b8aba2, trials), `corrections-moteur`
