@@ -136,6 +136,19 @@ development seeds and held-out seeds (offset 500 000). 4 cores, one process per 
   groups for arviz >= 1, keywords for 0.x, as `HierarchicalFit.to_arviz` already did);
   with arviz 0.23 the dict was read as one variable and R-hat failed (both engines, LOO
   comparison).
+- REQ-275 regression floor (ds002094, 20 subjects; Python 3.13, numpy 2.5.3), subjects
+  with N45 / N100 / both labelled:
+
+  | Variant | Floor (S15) | origin/main | before the merges (78cc6b0) | now |
+  |---|---|---|---|---|
+  | preset chain, 17 inner channels | 11 / 13 / 9 | 9 / 11 / 6 | 9 / 11 / 6 | 10 / 12 / 8 |
+  | with ICA, all 30 channels | 9 / 11 / 6 | 8 / 8 / 5 | 9 / 9 / 6 | 9 / 14 / 8 |
+  | with ICA, 17 inner channels, N100 | 16 | 12 | 13 | 16 |
+
+  The floor was already missed on origin/main in this environment; the merged engine
+  is better on every row but still misses the first. The guard is a strict xfail with
+  these numbers, and the REQ-275 criterion itself (both labelled for 80 % with ICA)
+  stays an xfail (8 of 20).
 
 ### Reports, shared shapes and preset behaviours (audit F44, F56–F58)
 
