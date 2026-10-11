@@ -2,6 +2,120 @@
 
 ## Unreleased
 
+### Engine speed (REQ-115, REQ-290 P1): same results, about 1.8 times faster
+
+REQ-115 is still not met. The criteria are unchanged and the xfail reasons in
+`models/test_performance.py` now give the new measurements. Timings were taken on the same
+machine with `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1`, the previous code (9b443b6) and the
+new one run interleaved or side by side:
+
+| workload | before | after |
+|---|---|---|
+| one waveform (REQ-115 test, `ccep`): median of 9, three interleaved rounds | 0.52 to 0.55 s | 0.29 to 0.30 s |
+| `fit_group`, 100 channels x 2 048 samples, `n_jobs=1` (two rounds) | 48.1 s, 45.4 s | 25.0 s, 24.9 s |
+| ds004080 sub-ccepAgeUMCU01: `fit(ts, "ccep", existence=False)`, 120 channels | 73.9 s | 40.0 s |
+| ds004080 sub-ccepAgeUMCU07, 120 channels | 212.1 s | 117.5 s |
+| ds004080 sub-ccepAgeUMCU19, 120 channels | 361.4 s | 214.5 s |
+
+What changed. Every change computes what the previous code computed:
+
+- `models/_trf.py` is a lean copy of SciPy's trust-region reflective solver, limited to the
+  bounded, dense, linear-loss, `x_scale="jac"`, exact-subproblem case the engine uses. The
+  file is derived from SciPy (BSD-3-Clause), which `NOTICE` records with its licence text;
+  `tools/add_spdx_headers.py` gives such files the header `Apache-2.0 AND BSD-3-Clause`.
+  - It takes SciPy's steps: on six test problems it gives the same number of evaluations and
+    the same status as `least_squares`, with x within 1e-10 relative (`test_trf.py`).
+  - Dropping SciPy's general wrappers alone saved 17 % on 14 test workloads (7.40 to 6.11 s).
+  - Each iteration then works on R and Q^T f, the QR factors of the Jacobian (n x n), rather
+    than on the SVD of the (m + n) x n augmented matrix.
+  - Robust losses keep `scipy.optimize.least_squares`.
+- The variable projection is solved by Householder QR of the whitened design, prior rows
+  included (`_Structure.reduced`):
+  - The residual is returned in the basis Q2^T b. It has the same norm, and with the Jacobian
+    in the same basis the inner products are the same, and they are all the solver uses.
+  - The Kaufman Jacobian is one `dormqr` call.
+  - A design that is not finite, or whose Frobenius condition number of R is 1e11 or more,
+    takes the previous SVD route, which truncates it (`test_fast_paths.py` covers both).
+  - On the 14 workloads, in the same process: SciPy with the SVD route 6.4 to 7.0 s;
+    lean solver on the reduced residual 3.6 to 3.8 s; lean solver with the R reduction 3.2
+    to 3.7 s. The number of evaluations is the same in all three (4 667), and the largest
+    relative parameter difference is 1.5e-7, the solver's tolerance.
+- Design columns and their derivatives are computed together (`models/_columns.py`, for the
+  Gaussian, the skewed Gaussian and the exponential background), using the formulas of
+  `evoparam.shapes` in the same order. They are bitwise equal to `evaluate` and `jacobian`.
+- `exp(-z^2/2)` is not computed where |z| > 38.7, where it underflows to exactly 0
+  (`shapes.components.gaussian_factor`). The result is bitwise equal, sign of zero
+  included.
+- The skewed-Gaussian mode has a scalar path when there is one skewness: 1.8 times faster
+  per call, bitwise equal on 3 000 skewness values.
+- The AR whitening is applied in place, with time along the first axis
+  (`Whitener.into`). This is 2.4 times faster than with time along the second axis.
+- Bounds are memoised per fit and per set of shapes, and the whitened target is cached.
+- The features of each component are measured once at unit amplitude and then scaled by
+  the amplitude. They are bitwise equal on 465 cases, and building a `ccep` result went from
+  19 to 12.6 ms.
+- The bootstrap of the classical measures draws from a time-major copy of the window and
+  keeps the same summation order. It is bitwise equal for 3 to 40 trials; the time per
+  channel went from 0.084, 0.092, 0.122 and 0.100 s to 0.078, 0.095, 0.101 and 0.098 s.
+
+Quality: the baselines were recorded before the first change, and the same runs were
+repeated on the final code.
+
+- Simulations: every metric is identical.
+  - REQ-105 (60 waveforms per K): recall 0.8167, 0.8583 and 0.9222 for K = 1, 2, 3, precision 1.
+  - REQ-116 coverage, latency and amplitude: 0.96 and 0.96 at rho 0; 0.92 and 0.95 at rho 0.9.
+  - REQ-107 false rate: 0 with neff and with ar, 1 with white.
+  - REQ-111: two components resolved in 1.0 at 1 FWHM and 0 at 0.5 FWHM.
+  - REQ-110 recall: 0.95.
+  - REQ-104 agreement: 1.
+  - REQ-106: the five shapes, with and without their own shape.
+  - `ecap`: recall 1, precision 0.9545.
+  - Simulated `ccep`: recall 1, precision 0.4444.
+  - Largest per-fit difference: 1.9e-10 s in latency and 1.5e-8 relative in amplitude.
+  - No status, number of components or label changed.
+- ds004080, three subjects, 360 fits:
+  - No status changed.
+  - 348 fits are within 1e-6 s and 1e-5 relative.
+  - 9 differ at the solver tolerance: the residual sum of squares is within 8.7e-5
+    relative, lower on 6 and higher on 3.
+  - 3 reach another local optimum:
+    - UMCU07 TOc19: 4 to 5 components, criterion -669.15 to -708.12 (better).
+    - UMCU19 el083: 3251.06 to 3263.31 (worse).
+    - UMCU19 el088: 4379.74 to 4380.30 (worse). Labels change on el083 and el088.
+  - Sum of the criterion changes: -26.2.
+  - These three are rounding effects. Scaling the data by 1 +/- 1e-15 or 3e-15 changes the
+    same channels with the previous code: TOc19 goes to 5 components (-708.12), el083 to
+    3263.31, and el088 to 4379.95 or 4380.22. The new code also lands on 3251.06 for el083
+    under such a perturbation.
+
+Tried and not adopted:
+
+- A projected Levenberg-Marquardt on the same reduced residual. On the 14 workloads it
+  needed 7 500 to 15 700 evaluations against 4 667 for the trust-region solver, and took
+  3.8 to 6.4 s against 3.3 to 4.0 s. It found better optima on 1 or 2 fits and worse ones on
+  1 or 2.
+- numba (the `fast` extra):
+  - A whitening kernel is bitwise equal to the NumPy one, but takes 78 to 146 us against 107
+    to 143 us per call. Whitening is 13 % of a ds004080 fit, so the gain is at most a few
+    percent, at the cost of import and compilation time.
+  - Kernels for `exp` and `erfc`, or for the solver, cannot match NumPy and SciPy to the last
+    bit (different libm). The selection is sensitive at that level, as the 1e-15
+    perturbations above show, so the 1e-9 agreement with the pure-NumPy fallback could not
+    be guaranteed.
+- Fewer evaluations in the search. No evaluation is repeated within a fit. On 30 ds004080
+  channels, the share of the time per call site is:
+  - quick evaluations of the candidates: 29 %;
+  - background restarts (`_polish`): 22 %, plus 9 % in reseeding;
+  - splits: 6 %;
+  - reseeding: 5 %;
+  - perturbed starts: 4 %;
+  - the K = 0 grid: 2 %.
+  None of them is provably redundant, and cutting any of them changes the selection.
+
+`compute_features` raises an IndexError on some gamma components (`_interp_cross` reads one
+sample past the grid). This was seen while writing `test_fast_paths.py`, is not changed
+here, and the test uses the ex-Gaussian instead.
+
 ### Second network run on the Mac (REQ-317, REQ-068)
 
 - REQ-317: reading epochs covering 10 % of the 1 GB synthetic NWB file grew the peak

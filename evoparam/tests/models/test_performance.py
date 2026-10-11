@@ -27,9 +27,9 @@ def _waveform(rng):
             - 60 * np.exp(-0.5 * ((TIMES - 0.15) / 0.04) ** 2) + rng.normal(0, 5, len(TIMES)))
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-115 not met: median 0.55 s per waveform with "
-                   "ccep v1.1 (4 cores; pure NumPy/SciPy; CHANGELOG, 'Speed (F9, REQ-115)' "
-                   "and 'Defaults settled by measurement')")
+@pytest.mark.xfail(strict=False, reason="REQ-115 not met: median 0.29 to 0.30 s per waveform "
+                   "with ccep v1.1, 0.52 to 0.55 s before (one thread; pure NumPy/SciPy; "
+                   "CHANGELOG, 'Engine speed (REQ-115, REQ-290 P1)')")
 def test_req115_one_waveform_under_50_ms():
 
     rng = np.random.default_rng(0)
@@ -42,8 +42,9 @@ def test_req115_one_waveform_under_50_ms():
     assert np.median(durations) <= 0.05
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-115 (fit_group) not met: 54 s for 100 channels "
-                   "with ccep v1.1 (CHANGELOG, 'Defaults settled by measurement')")
+@pytest.mark.xfail(strict=False, reason="REQ-115 (fit_group) not met: 25 s for 100 channels "
+                   "with ccep v1.1, 45 to 48 s before (one thread; CHANGELOG, 'Engine speed "
+                   "(REQ-115, REQ-290 P1)')")
 def test_req115_fit_group_100_channels_under_10_s():
 
     rng = np.random.default_rng(1)
