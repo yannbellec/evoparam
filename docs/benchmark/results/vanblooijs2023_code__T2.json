@@ -1,0 +1,160 @@
+{
+ "cells": [
+  {
+   "cell": "ccep_detection-p001",
+   "input_sha256": "4804fab6e78ee2072db1de82f85f412f6828cf183a584edced66f28405d99674",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 2,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p002",
+   "input_sha256": "b92fb355b45d73110c6b8e011b63cd0f73c574d447ee2cb693fa710bb3f5066b",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 5,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p003",
+   "input_sha256": "2868fabd46114d6c0ea00d642068f15d77005cfaaec223bb2cb801a66463e344",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 6,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p004",
+   "input_sha256": "da7be98164319627f55593cff353fa01499de935711c0c8926970acaedbb5cf7",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 8,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p005",
+   "input_sha256": "70f363880fcb38b0c1f1d408fa8175a55d70ba30368a2ed3063266f8428347fa",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 6,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p006",
+   "input_sha256": "c3e7c8e50abf118110736b6e4df5b535a652f8dd427bdf1ae6eb8c107ffc81c5",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 9,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p007",
+   "input_sha256": "2bbdd6c93ede75362902eee595b022952e2843ed86e95e572c0c0d81b13f9e9e",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 4,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p008",
+   "input_sha256": "3d9f56dada8bea67ab4307c005e08e40a3423814147d50e42ca5a0ee528c28fc",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 11,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "amplitude_rel_mae": null,
+  "coverage_latency": null,
+  "latency_bias": null,
+  "latency_mae": null,
+  "reported_fraction": 0.0
+ },
+ "inputs_sha256": "d36580fb6e7fc4ddd0572146312a50a382842579f10801d86f4c565321c7aff9",
+ "method": {
+  "citation": "van Blooijs et al. 2023, Nat Neurosci, published code (LIT-ccep-7, LIT-ccep-30)",
+  "description": "published threshold rule 'vanblooijs2023_code' of the registry of spec §5.6, applied to the letter",
+  "kind": "baseline",
+  "name": "vanblooijs2023_code",
+  "settings": {
+   "overrides": {},
+   "rule": "vanblooijs2023_code"
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "amplitude_bias": null,
+  "amplitude_mae": null,
+  "amplitude_rel_mae": null,
+  "coverage_amplitude": null,
+  "coverage_latency": null,
+  "latency_bias": null,
+  "latency_mae": null,
+  "n_reported": 0,
+  "n_true": 51,
+  "reported_fraction": 0.0
+ },
+ "missing_cells": [],
+ "outputs_sha256": "0090d0749c659376e9c10e69aa5e1705fe68e528eb99e16a1c5e0b3824faf984",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "a666c14e9354362d700303b8cbef943cfbbd3590b5db0c9d8569712e564d278b"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T2",
+ "task_name": "early component latency and amplitude",
+ "task_schema": "benchmark-task/T2/1"
+}

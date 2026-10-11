@@ -1,0 +1,192 @@
+{
+ "cells": [
+  {
+   "cell": "ccep_detection-p001",
+   "input_sha256": "75bc88a39f4dd47d8a54e23c8298c3229c3d51a99fba4e3a279fe754e3e61c70",
+   "metrics": {
+    "auc": 0.5,
+    "f1": 0.0,
+    "fn": 2,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 2,
+    "tn": 20,
+    "tp": 0
+   },
+   "output_sha256": "de7c822724ab50398f98dd2f23ec03b672ec0c9df7f8f7eca99c64b837baacac",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p002",
+   "input_sha256": "d504dffbb9089eabaab056652d3279fc45818a2e59c3b64c58d206cb97eb9c01",
+   "metrics": {
+    "auc": 0.5,
+    "f1": 0.0,
+    "fn": 5,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 5,
+    "tn": 17,
+    "tp": 0
+   },
+   "output_sha256": "a3234abb32babc383d8db9eae9d0bb5e0a8b6a35c686b7249dfcb91753690176",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p003",
+   "input_sha256": "974cf2420e78696fdd601c1da55ff49715240385698734880505793151aa2e60",
+   "metrics": {
+    "auc": 0.5,
+    "f1": 0.0,
+    "fn": 6,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 6,
+    "tn": 16,
+    "tp": 0
+   },
+   "output_sha256": "846a89bb596e56daf568ba0776681e3ac818e49487aa02eac67c2b1dd2b5a285",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p004",
+   "input_sha256": "abb67d1fba306edc6f3fd89595b0053a440b5afcf2f8d1dc76d8710d8b21ae28",
+   "metrics": {
+    "auc": 0.5,
+    "f1": 0.0,
+    "fn": 8,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 8,
+    "tn": 14,
+    "tp": 0
+   },
+   "output_sha256": "a548a27fe88567056589d3cffd96a8640fd70d580d0d6fcbcb9c67cdc3cdde5e",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p005",
+   "input_sha256": "732a5eb413a681f2cc414a392fc2a61c321b610a599c89f40f59f6e2e93370b3",
+   "metrics": {
+    "auc": 0.5,
+    "f1": 0.0,
+    "fn": 6,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 6,
+    "tn": 16,
+    "tp": 0
+   },
+   "output_sha256": "be9cb13135de573eadffc2d185c8f61070baa394d47c19b843b064e868442ab6",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p006",
+   "input_sha256": "5ff7729b79c6fee91555ae493b96eab3bcddc436002a5580c15f361bc748e454",
+   "metrics": {
+    "auc": 0.5,
+    "f1": 0.0,
+    "fn": 9,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 9,
+    "tn": 13,
+    "tp": 0
+   },
+   "output_sha256": "948c4abd0caa1b0c48be032e8520c8234608c50fb09304db93491e8ef7bef0dc",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p007",
+   "input_sha256": "ee507f79607f8cc3c92d77460ce60473ddc362d3073aafc906c177818d2fa1ce",
+   "metrics": {
+    "auc": 0.5,
+    "f1": 0.0,
+    "fn": 4,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 4,
+    "tn": 18,
+    "tp": 0
+   },
+   "output_sha256": "2c7207bcce3d3634d03310f30930d125eb5e8ec37dcf1acdac4cfa63446e4e11",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p008",
+   "input_sha256": "58ce64d14b6958e957ba389844187fbf63a2a3470f8228edbb4c4ea5fc629b7b",
+   "metrics": {
+    "auc": 0.5,
+    "f1": 0.0,
+    "fn": 11,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 11,
+    "tn": 11,
+    "tp": 0
+   },
+   "output_sha256": "19c7ffe7fcc43ff07648e1e9d9c77634843061c8082e13c3ba0bc4be8dab52c6",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "auc": 0.5,
+  "f1": 0.0,
+  "fpr_at_0.05": null,
+  "ks_uniform": null,
+  "precision": null,
+  "recall": 0.0
+ },
+ "inputs_sha256": "e2a5b02efbf6eef1a6343c3339389cf5686bdce45f2d6aabd30d6890f250da8c",
+ "method": {
+  "citation": "van Blooijs et al. 2023, Nat Neurosci, published code (LIT-ccep-7, LIT-ccep-30)",
+  "description": "published threshold rule 'vanblooijs2023_code' of the registry of spec §5.6, applied to the letter",
+  "kind": "baseline",
+  "name": "vanblooijs2023_code",
+  "settings": {
+   "overrides": {},
+   "rule": "vanblooijs2023_code"
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "auc": 0.5,
+  "auc_source": "decision",
+  "f1": 0.0,
+  "fn": 51,
+  "fp": 0,
+  "fpr_at_0.01": null,
+  "fpr_at_0.05": null,
+  "fpr_at_0.1": null,
+  "ks_uniform": null,
+  "n_channels": 176,
+  "n_null_p_values": 0,
+  "n_responders": 51,
+  "precision": null,
+  "recall": 0.0,
+  "specificity": 1.0,
+  "tn": 125,
+  "tp": 0
+ },
+ "missing_cells": [],
+ "outputs_sha256": "ebe508af2acc9fdf230a754fcaa9884fad107c245f83cb1153aef9b6e5fc25ac",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "a62f58fb42bef0a2b9a315952065b640b07662f4d1028fa846cf5cdb76dcd9e9"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T1",
+ "task_name": "response detection",
+ "task_schema": "benchmark-task/T1/1"
+}

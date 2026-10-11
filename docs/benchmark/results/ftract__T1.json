@@ -1,0 +1,194 @@
+{
+ "cells": [
+  {
+   "cell": "ccep_detection-p001",
+   "input_sha256": "75bc88a39f4dd47d8a54e23c8298c3229c3d51a99fba4e3a279fe754e3e61c70",
+   "metrics": {
+    "auc": 0.525,
+    "f1": 0.0,
+    "fn": 2,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 2,
+    "tn": 20,
+    "tp": 0
+   },
+   "output_sha256": "aad2bfe1e9f6e42f4aa875dd2a1ad4f23762eabb54169642e0610ccfe9426d5a",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p002",
+   "input_sha256": "d504dffbb9089eabaab056652d3279fc45818a2e59c3b64c58d206cb97eb9c01",
+   "metrics": {
+    "auc": 0.9058823529411765,
+    "f1": 0.75,
+    "fn": 2,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 5,
+    "tn": 17,
+    "tp": 3
+   },
+   "output_sha256": "ee1b899a61ed32e51097c493bc63b0da2075acf437bd14b4de0ac2b3f2e13815",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p003",
+   "input_sha256": "974cf2420e78696fdd601c1da55ff49715240385698734880505793151aa2e60",
+   "metrics": {
+    "auc": 1.0,
+    "f1": 1.0,
+    "fn": 0,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 6,
+    "tn": 16,
+    "tp": 6
+   },
+   "output_sha256": "520dde95ea5f75f9993315cbb732f5e441d2a1d82272de3a96e34c14377993df",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p004",
+   "input_sha256": "abb67d1fba306edc6f3fd89595b0053a440b5afcf2f8d1dc76d8710d8b21ae28",
+   "metrics": {
+    "auc": 1.0,
+    "f1": 1.0,
+    "fn": 0,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 8,
+    "tn": 14,
+    "tp": 8
+   },
+   "output_sha256": "6a78b4f64153428733368bc694586fa7fbbb574be48689c6cab4b34b0e807869",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p005",
+   "input_sha256": "732a5eb413a681f2cc414a392fc2a61c321b610a599c89f40f59f6e2e93370b3",
+   "metrics": {
+    "auc": 0.8020833333333334,
+    "f1": 0.5,
+    "fn": 4,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 6,
+    "tn": 16,
+    "tp": 2
+   },
+   "output_sha256": "6860f7c18ad070c8bbbda86dd50dfbb442e0758e61b6ec4654f153429a36162b",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p006",
+   "input_sha256": "5ff7729b79c6fee91555ae493b96eab3bcddc436002a5580c15f361bc748e454",
+   "metrics": {
+    "auc": 1.0,
+    "f1": 1.0,
+    "fn": 0,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 9,
+    "tn": 13,
+    "tp": 9
+   },
+   "output_sha256": "66272789a342c771bfcd3eddc3e56acc943b7019d0a8f8b34c907e1a69fee75c",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p007",
+   "input_sha256": "ee507f79607f8cc3c92d77460ce60473ddc362d3073aafc906c177818d2fa1ce",
+   "metrics": {
+    "auc": 1.0,
+    "f1": 1.0,
+    "fn": 0,
+    "fp": 0,
+    "n_channels": 22,
+    "n_responders": 4,
+    "tn": 18,
+    "tp": 4
+   },
+   "output_sha256": "71657e6e5ec8f949db033480a3166599d95e715aca684c273642a8639f27bffd",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p008",
+   "input_sha256": "58ce64d14b6958e957ba389844187fbf63a2a3470f8228edbb4c4ea5fc629b7b",
+   "metrics": {
+    "auc": 1.0,
+    "f1": 0.9565217391304348,
+    "fn": 0,
+    "fp": 1,
+    "n_channels": 22,
+    "n_responders": 11,
+    "tn": 10,
+    "tp": 11
+   },
+   "output_sha256": "123407edf7e1df9941f8108a2eed5f291c1a39c81d24c81e394992f00c59a863",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "auc": 0.9425882352941176,
+  "f1": 0.9052631578947369,
+  "fpr_at_0.05": null,
+  "ks_uniform": null,
+  "precision": 0.9772727272727273,
+  "recall": 0.8431372549019608
+ },
+ "inputs_sha256": "e2a5b02efbf6eef1a6343c3339389cf5686bdce45f2d6aabd30d6890f250da8c",
+ "method": {
+  "citation": "Lemarechal et al. 2022, Brain; Trebaul et al. 2018 (LIT-ccep-14, LIT-ccep-31)",
+  "description": "published threshold rule 'ftract' of the registry of spec §5.6, applied to the letter",
+  "kind": "baseline",
+  "name": "ftract",
+  "settings": {
+   "overrides": {
+    "k": 5.0
+   },
+   "rule": "ftract"
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "auc": 0.9425882352941176,
+  "auc_source": "score",
+  "f1": 0.9052631578947369,
+  "fn": 8,
+  "fp": 1,
+  "fpr_at_0.01": null,
+  "fpr_at_0.05": null,
+  "fpr_at_0.1": null,
+  "ks_uniform": null,
+  "n_channels": 176,
+  "n_null_p_values": 0,
+  "n_responders": 51,
+  "precision": 0.9772727272727273,
+  "recall": 0.8431372549019608,
+  "specificity": 0.992,
+  "tn": 124,
+  "tp": 43
+ },
+ "missing_cells": [],
+ "outputs_sha256": "9d10c8d25ad873dea2cd53632d301cbe8ce9dc70fb31ec13e19af0c2950df85b",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "a1de5fc4d7cad897e7d25cc564043b4404fae5b2a8e57707aeb50d6caeb68850"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T1",
+ "task_name": "response detection",
+ "task_schema": "benchmark-task/T1/1"
+}

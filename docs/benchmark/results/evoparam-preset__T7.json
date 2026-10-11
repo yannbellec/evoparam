@@ -1,0 +1,140 @@
+{
+ "cells": [
+  {
+   "cell": "tf-p001",
+   "input_sha256": "b2ff4b60f52c2d4c4de17e8460161bfb36a9df8dc0b38cc2877432b5118d8124",
+   "metrics": {
+    "n_bursts": 0,
+    "n_zones": 0,
+    "recovered": 0
+   },
+   "output_sha256": "63de8da005daa081788e7292be6c778a3402003cae021d5492070d9a60dee993",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p002",
+   "input_sha256": "adf675f806893a52264a11b2d05b2da48a1306787092b2fc639985ce8b6b87aa",
+   "metrics": {
+    "n_bursts": 0,
+    "n_zones": 0,
+    "recovered": 0
+   },
+   "output_sha256": "63de8da005daa081788e7292be6c778a3402003cae021d5492070d9a60dee993",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p003",
+   "input_sha256": "6e5a4b67fb4f77f1c436691db296747a4aa6d6e1d6bf856992c05c7bc3845248",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 2,
+    "recovered": 1
+   },
+   "output_sha256": "6e12d52b50c8d40e5ee6b67d894a38e0a93e699055bdbed02652f229a2425beb",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p004",
+   "input_sha256": "4bc6263ecc799f064391cdc2c07e52290b7b731f2126929a7884349138539a4a",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 1,
+    "recovered": 1
+   },
+   "output_sha256": "0581f73538efb27c28cce84fe111360b6e738bbbae8754e0b89ac0bfb5fc377f",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p005",
+   "input_sha256": "8408a51fe9d11dc0c6d4ba1748dd9e374af74aacfa06798943def2b0438b3ae4",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 1,
+    "recovered": 1
+   },
+   "output_sha256": "0f673cd94051d996a1ee2bebbd1e95d85922515da7a30f836744fc618724c62a",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p006",
+   "input_sha256": "20e03988a2f7c09755b39e44ed9763c399bcc19fdcb89fb2f576f29276f6bebc",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 3,
+    "recovered": 1
+   },
+   "output_sha256": "fb1764eca16c08a05e555f90129d8ac51dc4a57f659a9fe442d367c787c61a31",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p007",
+   "input_sha256": "6e0b96e1c6c718c10bbfb3e19922a2490cdd5866296ce35e2ecb316742fc4d66",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 2,
+    "recovered": 1
+   },
+   "output_sha256": "09b6afce11c56a701997d09a4386c63362405f107e596c50906d6dadb46fd4c7",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p008",
+   "input_sha256": "0e884ba8fdf41f02a2787a1d1fd04d4d79aac3b95b91931e8129190a4151f817",
+   "metrics": {
+    "n_bursts": 2,
+    "n_zones": 4,
+    "recovered": 2
+   },
+   "output_sha256": "536b573a42a28992a9452e585a8bd0a5770ef591d742f503d4d1f15d732de835",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "freq_centroid_rel_error": 0.04584199838016383,
+  "recovery_rate": 1.0,
+  "time_centroid_error": 0.0017058200574141694,
+  "type_i_error": 0.0
+ },
+ "inputs_sha256": "03e60d6786fa4f89dadc0b77eb2bf310e5c97fa7a75424668020288807795789",
+ "method": {
+  "citation": "evoparam (this package), preset defaults",
+  "description": "evoparam with the defaults of the preset named by the input",
+  "kind": "baseline",
+  "name": "evoparam-preset",
+  "settings": {
+   "preset": null
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "extra_zones_per_channel": 1.0,
+  "freq_centroid_rel_error": 0.04584199838016383,
+  "n_bursts": 7,
+  "n_null_channels": 2,
+  "recovered": 7,
+  "recovery_rate": 1.0,
+  "time_centroid_error": 0.0017058200574141694,
+  "type_i_error": 0.0
+ },
+ "missing_cells": [],
+ "outputs_sha256": "12702c083562f3a10703baafc0c0bfb66798759401108a3103bdef9520f0c5b1",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "006008a0236e9bfe7334ee2b8bbabbd8b4fcbd914a14c7f43dad6bc22b5caaa4"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T7",
+ "task_name": "time-frequency response",
+ "task_schema": "benchmark-task/T7/1"
+}

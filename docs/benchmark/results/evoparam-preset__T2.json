@@ -1,0 +1,159 @@
+{
+ "cells": [
+  {
+   "cell": "ccep_detection-p001",
+   "input_sha256": "4804fab6e78ee2072db1de82f85f412f6828cf183a584edced66f28405d99674",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 2,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "31792c6efbf37a36e91c1c78b1b23a8788e3a03a39142b4c31130f171ef1f9d6",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p002",
+   "input_sha256": "b92fb355b45d73110c6b8e011b63cd0f73c574d447ee2cb693fa710bb3f5066b",
+   "metrics": {
+    "latency_bias": 0.0012644381760681979,
+    "latency_mae": 0.0012644381760681979,
+    "n_reported": 2,
+    "n_true": 5,
+    "reported_fraction": 0.4
+   },
+   "output_sha256": "f0f6e9d6067723b643e106e547755c8469335962bd2dbcb62442a1901c7c4e3e",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p003",
+   "input_sha256": "2868fabd46114d6c0ea00d642068f15d77005cfaaec223bb2cb801a66463e344",
+   "metrics": {
+    "latency_bias": 0.00037794477098782264,
+    "latency_mae": 0.0005761268856400379,
+    "n_reported": 6,
+    "n_true": 6,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "f05d5b1e5f47261bd8489583e98950b81173b586dee321d22c5519a7f0cb8c72",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p004",
+   "input_sha256": "da7be98164319627f55593cff353fa01499de935711c0c8926970acaedbb5cf7",
+   "metrics": {
+    "latency_bias": -0.00016561831296900854,
+    "latency_mae": 0.0003576961860446591,
+    "n_reported": 8,
+    "n_true": 8,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "3d67cd362eb275f8681d05c74d6c1573f33af150b3fb4f7d9ce551a76d528f16",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p005",
+   "input_sha256": "70f363880fcb38b0c1f1d408fa8175a55d70ba30368a2ed3063266f8428347fa",
+   "metrics": {
+    "latency_bias": 0.002138161755886908,
+    "latency_mae": 0.002138161755886908,
+    "n_reported": 2,
+    "n_true": 6,
+    "reported_fraction": 0.3333333333333333
+   },
+   "output_sha256": "d077b17670b3adf3e2e409f9ea068dea5c904481dbb1ca296531a1753af6e99e",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p006",
+   "input_sha256": "c3e7c8e50abf118110736b6e4df5b535a652f8dd427bdf1ae6eb8c107ffc81c5",
+   "metrics": {
+    "latency_bias": 8.870355878742282e-05,
+    "latency_mae": 0.00032030451536764856,
+    "n_reported": 7,
+    "n_true": 9,
+    "reported_fraction": 0.7777777777777778
+   },
+   "output_sha256": "322830bc45510121d8a996cf67fb3e5500c4108339fd1d2084c3b60685395fce",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p007",
+   "input_sha256": "2bbdd6c93ede75362902eee595b022952e2843ed86e95e572c0c0d81b13f9e9e",
+   "metrics": {
+    "latency_bias": 2.8652797516609714e-05,
+    "latency_mae": 0.00024179050131153002,
+    "n_reported": 4,
+    "n_true": 4,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "c155f70e1be7f708aba5768d8bc8edccf84e34ee8b1e79adf4c758442a5d2ea2",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p008",
+   "input_sha256": "3d9f56dada8bea67ab4307c005e08e40a3423814147d50e42ca5a0ee528c28fc",
+   "metrics": {
+    "latency_bias": 3.814245625756504e-06,
+    "latency_mae": 9.19544861733634e-05,
+    "n_reported": 11,
+    "n_true": 11,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "c885bbbd64799eb9c221c5a4b7d4edbaaa73e0a0d252e44a2177a50306766b46",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "amplitude_rel_mae": 0.09177192651483213,
+  "coverage_latency": 0.9,
+  "latency_bias": 0.00021313536973867,
+  "latency_mae": 0.00043360809067085926,
+  "reported_fraction": 0.7843137254901961
+ },
+ "inputs_sha256": "d36580fb6e7fc4ddd0572146312a50a382842579f10801d86f4c565321c7aff9",
+ "method": {
+  "citation": "evoparam (this package), preset defaults",
+  "description": "evoparam with the defaults of the preset named by the input",
+  "kind": "baseline",
+  "name": "evoparam-preset",
+  "settings": {
+   "preset": null
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "amplitude_bias": 0.2650854804749163,
+  "amplitude_mae": 3.1716192977807642,
+  "amplitude_rel_mae": 0.09177192651483213,
+  "coverage_amplitude": 0.775,
+  "coverage_latency": 0.9,
+  "latency_bias": 0.00021313536973867,
+  "latency_mae": 0.00043360809067085926,
+  "n_reported": 40,
+  "n_true": 51,
+  "reported_fraction": 0.7843137254901961
+ },
+ "missing_cells": [],
+ "outputs_sha256": "a41776420977f814279059b890dace3c9e29d3f834bffcce14d6239c107cdbb4",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "47b7cee3efad5768676e31037d01ce16a7a1aa349f8dd10b33e58380f9bac81c"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T2",
+ "task_name": "early component latency and amplitude",
+ "task_schema": "benchmark-task/T2/1"
+}

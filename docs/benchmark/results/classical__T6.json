@@ -1,0 +1,157 @@
+{
+ "cells": [
+  {
+   "cell": "erp_scoring-p001",
+   "input_sha256": "6e7af813c387373caa899ebe6ba68c4730f7cc563880749c8ed89c3259d2ed21",
+   "metrics": {
+    "n_reported": 4
+   },
+   "output_sha256": "77ce5b782de8bffcfa3b81046613fa9e735fa83bd2d43312c810475c1d42dda8",
+   "split": "public"
+  },
+  {
+   "cell": "erp_scoring-p002",
+   "input_sha256": "6b00d380d0f927cc5934bc855a5729a36533d36bc00f34d85c327481e8d9b6f9",
+   "metrics": {
+    "n_reported": 4
+   },
+   "output_sha256": "1912de2afc49e2f428cb5250dec174e5746f8c99a773cd5cef2cfecdf905e95b",
+   "split": "public"
+  },
+  {
+   "cell": "erp_scoring-p003",
+   "input_sha256": "e1926c93706c44412d29317f0dd267fe90a55b6edc3de8f61c9e5b2487bfebb0",
+   "metrics": {
+    "n_reported": 4
+   },
+   "output_sha256": "44724ffeedfffb38bbb1573b50e8b23c8d0fd0a2edd97748c059da48008a15cd",
+   "split": "public"
+  },
+  {
+   "cell": "erp_scoring-p004",
+   "input_sha256": "caf28a2670edee18985839bf8a426760075f11659bfde3c955e16dac31e50823",
+   "metrics": {
+    "n_reported": 4
+   },
+   "output_sha256": "062d54e26669fbd5fedd5fae5ee321170a6872fdf47cd2393d8ec3b5cc5a775e",
+   "split": "public"
+  },
+  {
+   "cell": "erp_scoring-p005",
+   "input_sha256": "f880c6ac477ac0e0b508067345248aebc4532c3f813d0ece112ebec060ecae5a",
+   "metrics": {
+    "n_reported": 4
+   },
+   "output_sha256": "466ae56d374b94eea39caefa96da649b72ab414631ddd5649a4344f37a283002",
+   "split": "public"
+  },
+  {
+   "cell": "erp_scoring-p006",
+   "input_sha256": "306819644210efbb2da05ab287b9bada415eea8f1f34446ad147560d78f31d1f",
+   "metrics": {
+    "n_reported": 4
+   },
+   "output_sha256": "8c5c48cdeb07eb840c942fa3d37f8aeade539efc043e0205e962ef2dbf11a74b",
+   "split": "public"
+  },
+  {
+   "cell": "erp_scoring-p007",
+   "input_sha256": "06575e15697d90930ea158d3ec82a3445f8b3790eb92b82e2c42fc5d3b307fa0",
+   "metrics": {
+    "n_reported": 4
+   },
+   "output_sha256": "6ea3bd76e66cde6d05b7458e2159ce04b9696c5e46bc5fa116099092fe905af4",
+   "split": "public"
+  },
+  {
+   "cell": "erp_scoring-p008",
+   "input_sha256": "d43e192ea7b525603f9746b1e14356f7233fdae277fe84853b12d1a0fb5b2bbb",
+   "metrics": {
+    "n_reported": 4
+   },
+   "output_sha256": "b652a11317646ea30e0726978c048f84d384a3768fa60c8c6ee05b218800215c",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "fractional_area_latency.mae_vs_truth": 0.004441975328524332,
+  "mean_amplitude.mae_vs_definition": 0.0,
+  "mean_amplitude.mae_vs_truth": 0.6984421503944869,
+  "mean_amplitude.sme_ratio": 0.9258630464924346,
+  "peak_latency.mae_vs_truth": 0.01171875
+ },
+ "inputs_sha256": "3ac80bcb8070d57a8fdf34105808216040a704e509c7434a4cf6601b51260f65",
+ "method": {
+  "citation": "textbook ERP measures (LIT-erpmeas-1, LIT-erpmeas-3, LIT-erpmeas-41)",
+  "description": "classical measures (spec §5.5.6)",
+  "kind": "baseline",
+  "name": "classical",
+  "settings": {
+   "n_bootstrap": 1000
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "fractional_area_latency": {
+   "bias_vs_truth": -0.0013377212309189108,
+   "mae_vs_definition": 0.0,
+   "mae_vs_truth": 0.004441975328524332,
+   "max_abs_vs_definition": 0.0,
+   "n": 8,
+   "reported_fraction": 1.0,
+   "sme_mean": 0.003552274489242835,
+   "sme_ratio": 1.2691745878484073
+  },
+  "mean_amplitude": {
+   "bias_vs_truth": 0.09992884930935725,
+   "mae_vs_definition": 0.0,
+   "mae_vs_truth": 0.6984421503944869,
+   "max_abs_vs_definition": 0.0,
+   "n": 8,
+   "reported_fraction": 1.0,
+   "sme_mean": 0.8222334545581409,
+   "sme_ratio": 0.9258630464924346
+  },
+  "peak_amplitude": {
+   "bias_vs_truth": 0.2040589834614457,
+   "mae_vs_definition": 0.0,
+   "mae_vs_truth": 1.3210561736752835,
+   "max_abs_vs_definition": 0.0,
+   "n": 8,
+   "reported_fraction": 1.0,
+   "sme_mean": 1.2549600117978008,
+   "sme_ratio": 1.140770719090916
+  },
+  "peak_latency": {
+   "bias_vs_truth": -0.0087890625,
+   "mae_vs_definition": 0.0,
+   "mae_vs_truth": 0.01171875,
+   "max_abs_vs_definition": 0.0,
+   "n": 8,
+   "reported_fraction": 1.0,
+   "sme_mean": 0.012870975338811038,
+   "sme_ratio": 1.3261351414303386
+  }
+ },
+ "missing_cells": [],
+ "outputs_sha256": "7becfeb8e71f685e46dd00bcd2f7e2e1c1ba2f47a9bce5b97bd510be83176f3d",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "32c82142a858438ba03b93d59020b6e58b02eec720de50677a4ff03f4b802a5c"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T6",
+ "task_name": "ERP scoring",
+ "task_schema": "benchmark-task/T6/1"
+}

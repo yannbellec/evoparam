@@ -1,0 +1,159 @@
+{
+ "cells": [
+  {
+   "cell": "evoked-p001",
+   "input_sha256": "b3db7181f30130bd20e4b62c63c68a7c35eba3300eb49164c3012c18abf2d2f4",
+   "metrics": {
+    "f1": 0.9565217391304348,
+    "n_fit": 11.0,
+    "n_matched": 11.0,
+    "n_true": 12.0
+   },
+   "output_sha256": "a049e70dbfb27efbdaf71601f484f17eac1144ae9c26a7a9c9b0fb1537299a94",
+   "split": "public"
+  },
+  {
+   "cell": "evoked-p002",
+   "input_sha256": "744b82883b61fa1d1e313712cddd1a4cebbde6e22cc7f5a3c3277c633092c572",
+   "metrics": {
+    "f1": 1.0,
+    "n_fit": 12.0,
+    "n_matched": 12.0,
+    "n_true": 12.0
+   },
+   "output_sha256": "4ae8120e18c32f37a67d0fb64bffa537a431e6cb39cdae5d8dbff0fe7e84ec2c",
+   "split": "public"
+  },
+  {
+   "cell": "evoked-p003",
+   "input_sha256": "4a52098292e87b1b5a75f947fa4418e7b5c53dc6894d74fd17a1c816af3cf340",
+   "metrics": {
+    "f1": 1.0,
+    "n_fit": 12.0,
+    "n_matched": 12.0,
+    "n_true": 12.0
+   },
+   "output_sha256": "8e8b280e772891d45af650c2bce6a241dbb26145b366dd1c74da6347597f6edd",
+   "split": "public"
+  },
+  {
+   "cell": "evoked-p004",
+   "input_sha256": "852a6b709037c85d6fab4e8419cd0ae8e43f7c4c6f6af279d56f8310079777ec",
+   "metrics": {
+    "f1": 0.7692307692307693,
+    "n_fit": 14.0,
+    "n_matched": 10.0,
+    "n_true": 12.0
+   },
+   "output_sha256": "19466d16772ec1071341022e719b4ec296b59ad27c55cf3bb384696721cfc59d",
+   "split": "public"
+  },
+  {
+   "cell": "evoked-p005",
+   "input_sha256": "15ba91bfa2f43345caac159e5bb98788db1dfc15485461ea84fd19a5616df71f",
+   "metrics": {
+    "f1": 0.5882352941176471,
+    "n_fit": 5.0,
+    "n_matched": 5.0,
+    "n_true": 12.0
+   },
+   "output_sha256": "5116a7be3e8e483cb875dac3fe78229f9db99f6f8dc3ca2d41bb5c6a712d96f2",
+   "split": "public"
+  },
+  {
+   "cell": "evoked-p006",
+   "input_sha256": "21fb5be8848aca7bcf6798478f0a1c2b51b88d825e2834d1e3048ba9564f0a62",
+   "metrics": {
+    "f1": 0.8,
+    "n_fit": 7.0,
+    "n_matched": 6.0,
+    "n_true": 8.0
+   },
+   "output_sha256": "edd5507f83c5a9939a60b53a66d1d3fe24041df351f19a7799e8451b70343a39",
+   "split": "public"
+  },
+  {
+   "cell": "evoked-p007",
+   "input_sha256": "fa16f97cf267a16d53a461af3bc7806cf58761a599c647705774d2b6b854c473",
+   "metrics": {
+    "f1": 0.9285714285714286,
+    "n_fit": 14.0,
+    "n_matched": 13.0,
+    "n_true": 14.0
+   },
+   "output_sha256": "578bc82dc9f186f7773c8d3d46eb9dc9251f1233b6d9e8a6a14d45b1dbd814f2",
+   "split": "public"
+  },
+  {
+   "cell": "evoked-p008",
+   "input_sha256": "65f4deba0de7d62b823ba1b70b552221bda2c27433dd87eda426b3137f0ceeeb",
+   "metrics": {
+    "f1": 1.0,
+    "n_fit": 10.0,
+    "n_matched": 10.0,
+    "n_true": 10.0
+   },
+   "output_sha256": "a63dd3b1180be0251f20b949ed730a7a93a32775e9e56bbba2d076eaf2611c65",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "amplitude_rel_mae": 0.1020111738911221,
+  "f1": 0.8926553672316384,
+  "false_rate_empty": 0.038461538461538464,
+  "latency_mae": 0.0033629685428357937,
+  "precision": 0.9294117647058824,
+  "recall": 0.8586956521739131
+ },
+ "inputs_sha256": "11d0af0dcfb29e3399bc0c9e35c0ac6bd5a6308a38b889122467e0fabf992fe2",
+ "method": {
+  "citation": "evoparam (this package), preset defaults",
+  "description": "evoparam with the defaults of the preset named by the input",
+  "kind": "baseline",
+  "name": "evoparam-preset",
+  "settings": {
+   "preset": null
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "amplitude_rel_bias": 0.04258426889393475,
+  "amplitude_rel_mae": 0.1020111738911221,
+  "coverage_amplitude": 0.8354430379746836,
+  "coverage_latency": 0.7848101265822784,
+  "f1": 0.8926553672316384,
+  "false_per_waveform": 0.09375,
+  "false_rate_empty": 0.038461538461538464,
+  "fwhm_rel_mae": 0.10959631296014563,
+  "latency_bias": 0.0005564648899119699,
+  "latency_mae": 0.0033629685428357937,
+  "n_false": 6.0,
+  "n_fit": 85.0,
+  "n_matched": 79.0,
+  "n_true": 92.0,
+  "n_waveforms": 64.0,
+  "precision": 0.9294117647058824,
+  "recall": 0.8586956521739131
+ },
+ "missing_cells": [],
+ "outputs_sha256": "f4f6e4be8f6addf830682502490eb6103743caf5563f63cb21503bae90842766",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "ee331b6e012753b747a260e422ede4ed81e7d9e438e64cc968e36ebb08e77818"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T3",
+ "task_name": "component decomposition",
+ "task_schema": "benchmark-task/T3/1"
+}

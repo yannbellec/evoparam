@@ -1,0 +1,136 @@
+{
+ "cells": [
+  {
+   "cell": "single_trial-p001",
+   "input_sha256": "fbeb990dcabdc7c506f52de83b4e90a2b9383f96b017b7f41a78a90fc937e8bf",
+   "metrics": {
+    "latency_mae": 0.04607736539009314,
+    "n_reported": 80
+   },
+   "output_sha256": "4126c850585b4cd18da151adef5874e99f7154568bbc3ea15f2b972e8b7f89c6",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p002",
+   "input_sha256": "a6e397e7397b80060e606bc613af49ac96bdc16722b3d2168ccba064b03825f4",
+   "metrics": {
+    "latency_mae": 0.030382284417504467,
+    "n_reported": 80
+   },
+   "output_sha256": "04769b88aa7e9d46355cd71d0ffcbd7be51f9e2eaa4fa78e4be38361bd82bf87",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p003",
+   "input_sha256": "1a54469d655a7101391e05d3b41c8cf5d2a8b8e8826ddb89575eb1c192cf2c0b",
+   "metrics": {
+    "latency_mae": 0.08188552983951805,
+    "n_reported": 40
+   },
+   "output_sha256": "c7f683b06709998d2ca6eb96cc6612709141f26a37d4030ada7b7847b1d423dd",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p004",
+   "input_sha256": "41130494474f49f729fcb5c9ba560f589e77095d1f9214e68fffaf8a07c3b17e",
+   "metrics": {
+    "latency_mae": 0.026535282717972307,
+    "n_reported": 80
+   },
+   "output_sha256": "b552aaaf047ae8385b4dfa6b75c7e5efe85bf4cd221ac45e8b0ab5df3fb0c6ac",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p005",
+   "input_sha256": "0deb588bf66bb9fdbd8ce56959f6056c5bb7c3854545718c4a05e75c7c7fc142",
+   "metrics": {
+    "latency_mae": 0.0017908814336108872,
+    "n_reported": 120
+   },
+   "output_sha256": "906981d66d9adfa8ad8a735e2fa19164a36c5cb6fd9c5facc693f063f4445a5a",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p006",
+   "input_sha256": "c5d045a90b287e8722cd65f37f1136038a6e658e2b3e8e577db41f9cc528e7a2",
+   "metrics": {
+    "latency_mae": 0.0010729776816639914,
+    "n_reported": 120
+   },
+   "output_sha256": "17d32cfbee261dac1d469d1569e0f5a10389b213ba16e79e6a6b4f0d83b5fdfd",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p007",
+   "input_sha256": "91fdb712e3d473da4c352a952474358b349793641261b3603431b535e1177e07",
+   "metrics": {
+    "latency_mae": 0.0019935930928589754,
+    "n_reported": 60
+   },
+   "output_sha256": "a49fa2d6f93e6e4e56cc8768e7900df0c94014a4089b027966dc92b411f25220",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p008",
+   "input_sha256": "6e8c5ba092df717b215d3f276ac23221b1f3e90aadde8f0c1d9fda2e3db4cc67",
+   "metrics": {
+    "latency_mae": 0.0014840549036112876,
+    "n_reported": 120
+   },
+   "output_sha256": "fd1c204efd9a1886c760b75c76cff1a30cadd4dfa6f9a3ab057f4aebcb312109",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "amplitude_r": 0.46740061501775393,
+  "amplitude_rel_mae": 0.6119152509840563,
+  "jitter_sd_rel_error": 1.2327794252480884,
+  "latency_mae": 0.017366258662091703,
+  "latency_r": 0.4199043687048739
+ },
+ "inputs_sha256": "711af9ef00d28aa2bfd9ed50381bb03dd03eea3bc212f87c8d949342b8742aff",
+ "method": {
+  "citation": "evoparam (this package), preset defaults",
+  "description": "evoparam with the defaults of the preset named by the input",
+  "kind": "baseline",
+  "name": "evoparam-preset",
+  "settings": {
+   "preset": null
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "amplitude_mae": 12.21326687955594,
+  "amplitude_r": 0.46740061501775393,
+  "amplitude_rel_mae": 0.6119152509840563,
+  "jitter_sd_error": 0.013019639607912062,
+  "jitter_sd_rel_error": 1.2327794252480884,
+  "latency_bias": 0.0012018133485657489,
+  "latency_mae": 0.017366258662091703,
+  "latency_r": 0.4199043687048739,
+  "n_reported": 700,
+  "n_true": 800,
+  "reported_fraction": 0.875
+ },
+ "missing_cells": [],
+ "outputs_sha256": "2ea54ed1be1932b464523916a27f02e592271f3cf0721843106cc1d9fc7c4715",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "7bf01a6e01e3eb59cf2b23e96f3e358c6a062613cf73188fe3bbbe478265af03"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T5",
+ "task_name": "single-trial estimation",
+ "task_schema": "benchmark-task/T5/1"
+}

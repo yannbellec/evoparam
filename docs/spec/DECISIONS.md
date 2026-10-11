@@ -227,6 +227,45 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   refuses, and `make publish` stops.
 - **REQ-018.** `tools/check_traceability.py` checks GAPS.md against §14.1 and §14.2.
   `--files` also lists the test files named in §14 that do not exist yet.
+- **§8.3 item 6, REQ-309 (b) and REQ-354, where the GPL adapters live.** REQ-309 (b)
+  names a separate distribution `evoparam-adapters`; §8.3 and REQ-354 name a separate
+  directory with its own licence notice. Both are met by `adapters/` at the root of the
+  repository: GPL-3.0-or-later notice in `adapters/LICENSE`, an SPDX line in every
+  script, excluded from the source and binary distributions (`MANIFEST.in`: `prune
+  adapters`), and never imported by the package. The scripts use only NumPy and the task
+  files, so they can move to their own repository unchanged. The ER-detect and CRP
+  adapters are not verified against the tools, which are not installed here; their
+  README says so.
+- **§8.2, the hidden split.** 20 % of the cells of every group: 2 of 10 in `core`
+  (12 of 60 cells) and 10 of 50 in `full` (60 of 300). One hidden seeds document serves
+  both suites. It holds a random 256-bit nonce, so the hash cannot be inverted by trying
+  seeds, and both suite files hold its SHA-256 (canonical JSON). The document is kept
+  outside the repository. Methods see hidden cells only through the evaluator.
+- **REQ-355 and REQ-356, the deposit.** The deposit and the publication of the
+  commitment are public steps that wait for the owner's HIIE decision.
+  `evoparam benchmark prepare-deposit` writes, locally only, what the deposit will hold:
+  BIDS, NWB, inputs, truth, and a manifest with the generator version, the public seeds,
+  the file hashes and the commitment. Both criteria stay strict xfails until the deposit
+  is made.
+- **§8.4, "signed JSON".** Read as content-addressed: `signature.digest` is the SHA-256
+  of the document without its signature. It detects any hand edit, and the leaderboard
+  refuses such a file. It is not a key-based signature: anyone can recompute it, so it
+  does not authenticate the submitter. Pull-request review does that (§8.4).
+- **REQ-352.** A result holds no clock time and no machine path, so the same inputs and
+  outputs give the same bytes. It does record the package version, so byte identity
+  holds within one environment, which is what the test checks.
+- **§8.1, truth on real data.** No dataset of §8.2 ships human N1 ratings, so the T1/T2
+  truth is the consensus of at least 2 of the 4 rules named in each index; contacts where
+  exactly one rule detects a response are not scored. The T6 truth is the ERP CORE
+  definition computed on the noise-free average (simulated) or on the average (real).
+- **REQ-350, "the reference CI machine".** No CI machine is defined yet. The measured
+  time is that of the shared 4-CPU container used for the step, with one process
+  (`docs/benchmark/run-core.json`).
+- **§8.3 item 1, `vanblooijs2023_code`.** The registry's rule taken from the published
+  code, applied to the letter, is run as a seventh threshold baseline. Its 50 µV floor on
+  the baseline SD puts the threshold at 170 µV, above every simulated N1 of `core`, so it
+  detects nothing there. That is a property of the code as published, not a failure of
+  the run.
 
 ## 5. Requirements that cannot both be read literally
 
