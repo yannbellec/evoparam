@@ -13,6 +13,20 @@
   The limit is unchanged.
 - REQ-068 (`polynomial`, 2.09 s against 2.0 s) failed only while other work ran on the
   machine; run alone it passes. No change.
+- REQ-274, LRP: 34 of 40 participants within 10 ms of the published latency (85 %) where
+  the measurement of 2026-10-09 had 36 (90 %). Found by bisection over `integration-2`
+  (ERP CORE runs only with the data at hand): the first commit with 85 % is 636a266, the
+  engine default `reject_cancelling=False` with reseeding. For participants 14 and 36 the
+  reseeded model keeps a cancelling pair marked not resolvable (`unresolvable:0`,
+  `unresolvable:1`) and the labelled LRP is one of its members (latency -22 ms and -11 ms
+  against the published -51 ms); refusing the pair gives -56 ms and -54 ms.
+  `erp` 1.0 -> 1.1 sets `reject_cancelling=True`. Over the 7 ERP CORE components x 40
+  participants, only the LRP changes (34 -> 36 within 10 ms; MMN labelled 16 -> 15, within
+  10 ms unchanged at 15); the engine default stays (measured on the ECAP simulations; on
+  the layer-2 grid the two are within noise, DECISIONS). The methods text of the
+  `erpcore_p3` reference pipeline is regenerated (preset version and the sentence on the
+  refused pairs), `docs/presets.md` regenerated. Results made with `erp` 1.0 are refused
+  by `evoparam.reproduce` (REQ-333). The 90 % threshold is unchanged.
 
 ### Build step S19: public benchmark (`evoparam.benchmark`, spec §8, REQ-350 to REQ-357)
 

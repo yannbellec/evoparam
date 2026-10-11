@@ -12,7 +12,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 | ecap | epidural SCS | human | LIT-domains-37, LIT-domains-38 | 1.1 | simulation_only |
 | ecap_ci | cochlear implant | human | LIT-domains-61, LIT-domains-62 | 1.1 | simulation_only |
 | erna | DBS LFP | human | LIT-domains-52, LIT-domains-53, LIT-domains-54 | 1.0 | simulation_only |
-| erp | scalp EEG/MEG | human | LIT-erpmeas-39, LIT-erpmeas-1 | 1.0 | pending: ERP CORE (REQ-274) |
+| erp | scalp EEG/MEG | human | LIT-erpmeas-39, LIT-erpmeas-1 | 1.1 | pending: ERP CORE (REQ-274) |
 | p300_bci | scalp EEG | human | LIT-domains-66, LIT-domains-71 | 1.0 | pending: bigP3BCI |
 | primate_ep | LFP/ECoG | macaque | LIT-datasets-54, LIT-datasets-55 | 1.0 | pending |
 | rodent_ep | LFP/ECoG | mouse, rat | LIT-datasets-50, LIT-variability-45, LIT-variability-50 | 1.1 | pending: Allen Visual Coding Neuropixels LFP (REQ-278) |
@@ -92,6 +92,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - trial fit: False
 - validation: pending: ERP CORE (REQ-274)
 - choice (min_fwhm): one quarter of the narrowest component, to keep the search permissive
+- note (reject_cancelling): True: a model with two overlapping components of opposite signs is refused (the reviewed engine refits it from the extrema of the data instead, reseed); on ERP CORE (40 participants x 7 components, real recordings) the LRP is within 10 ms of the published latency for 36 of 40 participants against 34 with the engine default, every other component unchanged; the engine default was measured on ECAP simulations, and on the layer-2 grid the two are within noise (CHANGELOG 'Second network run'; v1.1)
 
 ## `p300_bci`
 

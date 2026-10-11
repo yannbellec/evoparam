@@ -6,7 +6,7 @@
   "selection": "bic",
   "delta": 10.0,
   "uncertainty": "jacobian",
-  "version": "1.0",
+  "version": "1.1",
   "modality": "scalp EEG/MEG",
   "species": [
     "human"
@@ -78,6 +78,10 @@
     "min_fwhm": "one quarter of the narrowest component, to keep the search permissive"
   },
   "validation": "pending: ERP CORE (REQ-274)",
-  "notes": {},
-  "fit_extras": {}
+  "notes": {
+    "reject_cancelling": "True: a model with two overlapping components of opposite signs is refused (the reviewed engine refits it from the extrema of the data instead, reseed); on ERP CORE (40 participants x 7 components, real recordings) the LRP is within 10 ms of the published latency for 36 of 40 participants against 34 with the engine default, every other component unchanged; the engine default was measured on ECAP simulations, and on the layer-2 grid the two are within noise (CHANGELOG 'Second network run'; v1.1)"
+  },
+  "fit_extras": {
+    "reject_cancelling": true
+  }
 }
