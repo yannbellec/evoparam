@@ -41,8 +41,20 @@ def _features(shape, tw, params, amp, settings, sfreq):
                             sfreq=sfreq, window=(tw[0], tw[-1]))
 
 
-def _feature_vector(shape, tw, params, amp, settings, sfreq):
-    f = _features(shape, tw, params, amp, settings, sfreq)
+def _scaled_features(unit, amp):
+    """The features of ``amp * s(t)`` from those of ``s(t)`` (``unit``, measured with
+    amplitude 1): only the amplitude, its sign and the area depend on ``amp``, and
+    compute_features gives them as ``amp`` times the unit values (the same numbers)."""
+
+    amp = float(amp)
+    signed = amp * unit.amplitude
+    return dataclasses.replace(unit, amplitude=signed, polarity=1 if signed >= 0 else -1,
+                               area=float(amp * unit.area))
+
+
+def _feature_vector(shape, tw, params, amp, settings, sfreq, unit=None):
+    f = _features(shape, tw, params, amp, settings, sfreq) if unit is None else \
+        _scaled_features(unit, amp)
     return np.array([getattr(f, name) for name in FEATURES_WITH_SE], float)
 
 
@@ -78,8 +90,9 @@ def _diagnostics(core, settings):
             "ill_conditioned": cond > _engine.COND_LIMIT or bool(flagged)}
 
 
-def _component_uncertainty(core, diag, k, settings, sfreq, z):
-    """Wald intervals for the parameters and delta-method intervals for the features."""
+def _component_uncertainty(core, diag, k, settings, sfreq, z, unit=None):
+    """Wald intervals for the parameters and delta-method intervals for the features
+    (``unit``: the features of the component with amplitude 1, when already measured)."""
 
     struct, theta, beta = core["struct"], core["theta"], core["beta"]
     shape = core["shapes"][k]
@@ -93,7 +106,9 @@ def _component_uncertainty(core, diag, k, settings, sfreq, z):
         se[name], ci[name] = s, (params[i] - z * s, params[i] + z * s)
     s_amp = float(np.sqrt(max(sub[-1, -1], 0)))
     x0 = np.r_[params, amp]
-    f0 = _feature_vector(shape, struct.tw, params, amp, settings, sfreq)
+    if unit is None:
+        unit = _features(shape, struct.tw, params, 1.0, settings, sfreq)
+    f0 = _feature_vector(shape, struct.tw, params, amp, settings, sfreq, unit=unit)
     grads = np.zeros((len(f0), len(x0)))
     lo, hi = shape.default_bounds(struct.tw)
     for i in range(len(x0)):
@@ -106,8 +121,10 @@ def _component_uncertainty(core, diag, k, settings, sfreq, z):
         step = xp[i] - xm[i]
         if step <= 0:
             continue
-        fp = _feature_vector(shape, struct.tw, xp[:-1], xp[-1], settings, sfreq)
-        fm = _feature_vector(shape, struct.tw, xm[:-1], xm[-1], settings, sfreq)
+        # a change of the amplitude alone scales the unit features
+        same = None if i < len(params) else unit
+        fp = _feature_vector(shape, struct.tw, xp[:-1], xp[-1], settings, sfreq, unit=same)
+        fm = _feature_vector(shape, struct.tw, xm[:-1], xm[-1], settings, sfreq, unit=same)
         grads[:, i] = (fp - fm) / step
     for j, name in enumerate(FEATURES_WITH_SE):
         g = np.nan_to_num(grads[j])
@@ -235,8 +252,9 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
     for k, shape in enumerate(core["shapes"]):
         params = struct.comp_params(core["theta"], k)
         amp = float(core["beta"][k])
-        f = _features(shape, struct.tw, params, amp, settings, sfreq)
-        se, ci = _component_uncertainty(core, diag, k, settings, sfreq, z)
+        unit = _features(shape, struct.tw, params, 1.0, settings, sfreq)
+        f = _scaled_features(unit, amp)
+        se, ci = _component_uncertainty(core, diag, k, settings, sfreq, z, unit=unit)
         warns += [f"{w}:{k}" for w in f.warnings]
         comps.append(Component(shape=shape.name, params=params, param_names=shape.param_names,
                                latency=f.latency, amplitude=f.amplitude,

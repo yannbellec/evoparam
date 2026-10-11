@@ -69,6 +69,16 @@ def test_req396_inherited_files_carry_the_modification_notice():
     assert re.search(r"commit [0-9a-f]{40}", notice) and "Apache License, Version 2.0" in notice
 
 
+def test_req396_files_derived_from_third_party_code_name_it_in_notice():
+    tool = _tool("add_spdx_headers")
+    notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
+    for rel, licence in tool.DERIVED.items():
+        first = (ROOT / rel).read_text(encoding="utf-8").splitlines()[0]
+        assert first == f"{tool.SPDX} AND {licence}", rel
+        assert rel in notice, rel
+    assert "Redistribution and use in source and binary forms" in notice
+
+
 def _inherited_export(tmp_path):
     archive = tmp_path / "first.tar"
     done = subprocess.run(["git", "-C", str(ROOT), "archive", "-o", str(archive),

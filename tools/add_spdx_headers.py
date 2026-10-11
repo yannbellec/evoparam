@@ -14,6 +14,9 @@ commit of this repository) carries a second line::
 
 where ``<upstream>`` points to the project and commit named in ``NOTICE``, the single place
 that names the inherited project (REQ-012; docs/spec/DECISIONS.md).
+A file derived from third-party code under another licence (``DERIVED`` below, named with
+its licence text in ``NOTICE``) names both licences on its first line, for example
+``# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause``.
 
 Usage::
 
@@ -47,6 +50,17 @@ INHERITED = {
                                      "rewritten with unit amplitude, vectorised over parameter "
                                      "sets, with analytic Jacobians; the other shapes are new",
 }
+# file → licence of the third-party code it derives from (named, with its licence text, in
+# NOTICE); its SPDX header names both licences
+DERIVED = {
+    "evoparam/models/_trf.py": "BSD-3-Clause",       # SciPy's trust-region reflective solver
+}
+
+
+def spdx(rel):
+    """The SPDX header line of the file ``rel`` (relative to the repository root)."""
+
+    return f"{SPDX} AND {DERIVED[rel]}" if rel in DERIVED else SPDX
 
 
 def notice(changes):
@@ -83,7 +97,7 @@ def problems(path, root=ROOT):
     lines = path.read_text(encoding="utf-8").splitlines()
     start = _header(lines)
     found = []
-    if len(lines) <= start or lines[start] != SPDX:
+    if len(lines) <= start or lines[start] != spdx(rel):
         found.append("no SPDX header on its first line")
     if rel in INHERITED:
         if len(lines) <= start + 1 or not lines[start + 1].startswith("# Modified from "):
@@ -99,8 +113,8 @@ def add(path, root=ROOT):
     lines = text.splitlines(keepends=True)
     start = _header(lines)
     changed = False
-    if len(lines) <= start or lines[start].rstrip("\n") != SPDX:
-        lines.insert(start, SPDX + "\n")
+    if len(lines) <= start or lines[start].rstrip("\n") != spdx(rel):
+        lines.insert(start, spdx(rel) + "\n")
         changed = True
     if rel in INHERITED and not (len(lines) > start + 1
                                  and lines[start + 1].startswith("# Modified from ")):

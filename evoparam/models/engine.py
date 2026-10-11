@@ -10,14 +10,21 @@ rule.
 """
 
 import dataclasses
+import functools
 import logging
 import threading
 import warnings
 
 import numpy as np
+from scipy.linalg.lapack import dgeqrf as _dgeqrf
+from scipy.linalg.lapack import dormqr as _dormqr
+from scipy.linalg.lapack import dtrtri as _dtrtri
+from scipy.linalg.lapack import dtrtrs as _dtrtrs
 from scipy.optimize import least_squares
 
 from evoparam.errors import SettingsError
+from evoparam.models import _columns
+from evoparam.models._trf import least_squares_trf
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features, get_background, get_shape
 
 __all__ = ["fit_waveform_core", "noise_model", "criterion"]
@@ -29,6 +36,10 @@ MIN_BASELINE = 20
 COND_LIMIT = 1e8
 CORR_LIMIT = 0.95
 BOUND_TOL = 1e-3
+
+# Optimiser of the non-linear parameters: "trf" (models/_trf.py), "trf-full" (the same
+# without the QR reduction: SciPy's operations), "scipy" (scipy.optimize.least_squares)
+_OPTIMISER = "trf"
 
 # Qualifying candidates compared before one is accepted at each step.
 CANDIDATE_BEAM = 3
@@ -127,6 +138,7 @@ class Whitener:
                 ok[:p] = self.start is not None
         self.p = p
         self.rows = ok
+        self._row_weight = ok.astype(float)
         self.n = int(ok.sum())
 
     def __call__(self, x):
@@ -151,6 +163,26 @@ class Whitener:
         if x.ndim == 1:
             return np.where(self.rows, u, 0.0)
         return np.where(self.rows[:, None], u, 0.0)
+
+    def into(self, x, out):
+        """``self(x)`` for a matrix ``x`` (n x k, time along the first axis), written into
+        ``out`` (which may be ``x``): the same operations, without the temporary arrays.
+        Masked rows are multiplied by 0 (``self`` selects 0 for them)."""
+
+        raw = x / self.scale[:, None]
+        if len(self.a) > 1:
+            np.multiply(raw, self.a[0], out=out)
+            for k in range(1, len(self.a)):
+                if k < len(raw):
+                    out[k:] += self.a[k] * raw[:-k]
+        else:
+            out[...] = raw
+        out /= self.innovation
+        if self.start is not None:
+            out[:self.p] = np.einsum("ij,j...->i...", self.start, raw[:self.p])
+        out *= self._row_weight[:, None]
+        return out
+
 
 def _inverse_cholesky(acov):
     """Inverse of the lower Cholesky factor of the Toeplitz matrix of ``acov`` (p <= 10),
@@ -273,6 +305,9 @@ class _Structure:
     edge: float | None = None    # how far (s) a component's location may lie outside the window
     level: float = 0.0           # prior mean of the background constant (the baseline level)
     ordered: bool = False        # latencies ordered by parameterisation (spec §5.5.3 step 5)
+    # bounds of each shape on this window (they depend on tw and edge only), shared by the
+    # structures of one fit
+    memo: dict | None = dataclasses.field(default=None, repr=False, compare=False)
 
     def __post_init__(self):
         self.sizes = [s.n_params for s in self.shapes]
@@ -280,6 +315,7 @@ class _Structure:
         self.n_bg = getattr(self.background, "n_nonlinear", 0)
         self.n_lin_bg = getattr(self.background, "n_linear", 0)
         self.n_theta = int(self.offsets[-1]) + self.n_bg
+        self._aug = None
         names = tuple(getattr(self.background, "linear_names", ()))
         self.prior_col = (len(self.shapes) + names.index("c0")
                           if self.prior and "c0" in names else None)
@@ -290,6 +326,15 @@ class _Structure:
                       if s.latency_param in s.param_names] if self.ordered else []
 
     def bounds(self):
+        if self.memo is None:
+            return self._bounds()
+        key = ("bounds", tuple(self.shapes), self.background, self.edge)
+        if key not in self.memo:
+            self.memo[key] = self._bounds()
+        lo, hi = self.memo[key]
+        return lo.copy(), hi.copy()
+
+    def _bounds(self):
         lows, highs = [], []
         for shape in self.shapes:
             lo, hi = (np.array(v, float) for v in shape.default_bounds(self.tw))
@@ -350,6 +395,101 @@ class _Structure:
         beta = vt.T @ ((u.T @ b) / s)
         return beta, b - a @ beta, m, u
 
+    def _target(self):
+        """Whitened data followed by the targets of the prior rows, and the prior rows
+        (None without them); computed once per structure."""
+
+        if self._aug is None:
+            n_cols = len(self.shapes) + self.n_lin_bg
+            b = self.white(self.y)
+            rows = self.prior_rows(n_cols)
+            if rows is not None:
+                target = np.zeros(len(rows))
+                if self.prior_col is not None:
+                    position = int(np.sum(np.diag(self.prior_rows_mask(n_cols))[:self.prior_col]))
+                    target[position] = self.level / self.prior
+                b = np.r_[b, target]
+            self._aug = (b, rows)
+        return self._aug
+
+    def reduced(self, theta):
+        """The projected residual of :meth:`solve` in the basis of the QR factorisation of
+        the whitened design, and what :meth:`reduced_jacobian` and :meth:`reduced_solution`
+        need.
+
+        With ``A = Q R`` (the whitened design and the prior rows, Householder QR) the
+        residual is ``(I - Q1 Q1^T) b = Q2 Q2^T b``, returned as ``z = Q2^T b``: the same
+        norm, and with the Jacobian expressed in the same basis the same inner products,
+        which are all the optimiser uses. A design that is not finite or not clearly of
+        full rank (Frobenius condition number of ``R``, an upper bound of the 2-norm one,
+        not below 1e11) takes the SVD route of :meth:`solve`, which truncates it.
+        """
+
+        b, rows = self._target()
+        n = len(self.tw)
+        k_max = len(self.shapes)
+        c = k_max + self.n_lin_bg
+        r = 0 if rows is None else len(rows)
+        if c == 0:
+            return self._full(theta)
+        # time along the first axis: the whitening filter then runs over contiguous blocks
+        a = np.empty((n + r, c))
+        aux = []
+        for k, shape in enumerate(self.shapes):
+            a[:n, k], extra = _columns.component(shape, self.tw, self.comp_params(theta, k))
+            aux.append(extra)
+        if self.n_lin_bg:
+            aux.append(_columns.background(self.background, self.tw, self.bg_params(theta),
+                                           a[:n, k_max:].T))
+        self.white.into(a[:n], a[:n])
+        if r:
+            a[n:] = rows
+        if not np.isfinite(a).all():
+            return self._full(theta)
+        qr, tau, _, info = _dgeqrf(a)
+        upper = qr[:c] * _upper_mask(c)
+        inverse, info_inv = _dtrtri(upper)
+        if info or info_inv or not np.isfinite(inverse).all() or \
+                not np.sqrt((upper ** 2).sum() * (inverse ** 2).sum()) < 1e11:
+            return self._full(theta)
+        qtb, _, _ = _dormqr("L", "T", qr, tau, b[:, None], 64)
+        qtb = qtb[:, 0]
+        beta, _ = _dtrtrs(qr[:c, :c], qtb[:c])
+        return qtb[c:], ("qr", qr, tau, beta, a, aux)
+
+    def _full(self, theta):
+        beta, rw, _, q = self.solve(theta)
+        return rw, ("svd", beta, q, rw)
+
+    def reduced_solution(self, theta, ctx):
+        """(beta, residual_w) of :meth:`solve` from the ``ctx`` of :meth:`reduced`."""
+
+        if ctx[0] == "svd":
+            return ctx[1], ctx[3]
+        beta, a = ctx[3], ctx[4]
+        return beta, self._target()[0] - a @ beta
+
+    def reduced_jacobian(self, theta, ctx):
+        """:meth:`kaufman_jacobian` in the basis of :meth:`reduced` (the same ``ctx``)."""
+
+        if ctx[0] == "svd":
+            return self.kaufman_jacobian(theta, ctx[1], ctx[2])
+        _, qr, tau, beta, _, aux = ctx
+        n = len(self.tw)
+        c = len(self.shapes) + self.n_lin_bg
+        dm = np.zeros((qr.shape[0], self.n_theta))
+        for k, shape in enumerate(self.shapes):
+            dm[:n, self.offsets[k]:self.offsets[k + 1]] = beta[k] * \
+                _columns.component_derivatives(shape, self.tw, self.comp_params(theta, k),
+                                               aux[k])
+        if self.n_bg:
+            dm[:n, self.offsets[-1]:] = _columns.background_derivatives(
+                self.background, self.tw, self.bg_params(theta), beta[len(self.shapes):],
+                aux[-1])
+        self.white.into(dm[:n], dm[:n])
+        qtd, _, _ = _dormqr("L", "T", qr, tau, dm, 64 * max(self.n_theta, 1), overwrite_c=1)
+        return -qtd[c:]
+
     def prior_rows(self, n_cols):
         """Pseudo-observations (coefficient = 0) that keep the linear coefficients sane.
 
@@ -408,6 +548,13 @@ class _Structure:
         return self.white(np.column_stack(parts))
 
 
+@functools.lru_cache(maxsize=64)
+def _upper_mask(n):
+    """``np.triu(np.ones((n, n)))``: the upper triangle of an ``n x n`` matrix, by product."""
+
+    return np.triu(np.ones((n, n)))
+
+
 class _OrderedMap:
     """Ordered parameterisation of the latencies (spec §5.5.3 step 5): the optimiser sees
     ``u = mu_1`` and ``v_k = ln(mu_{k+1} - mu_k)``, so that the components stay in ascending
@@ -430,8 +577,10 @@ class _OrderedMap:
 
     def to_theta(self, phi):
         theta = np.array(phi, float)
-        steps = np.exp(theta[self.idx[1:]])
-        theta[self.idx] = theta[self.idx[0]] + np.r_[0.0, np.cumsum(steps)]
+        offsets = np.empty(len(self.idx))
+        offsets[0] = 0.0
+        np.cumsum(np.exp(theta[self.idx[1:]]), out=offsets[1:])
+        theta[self.idx] = theta[self.idx[0]] + offsets
         return theta
 
     def jacobian(self, jac_theta, phi):
@@ -457,43 +606,58 @@ def _optimise(struct, theta0, settings, f_scale, tol=1e-8):
     chain = getattr(struct, "chain", [])
     omap = _OrderedMap(chain, lower, upper) if len(chain) >= 2 else None
     cache = {}
+    lean = settings.loss == "linear" and _OPTIMISER != "scipy"
 
     def solved(theta):
         key = theta.tobytes()
         if key not in cache:
             cache.clear()
-            cache[key] = struct.solve(theta)
+            cache[key] = struct.reduced(theta) if lean else struct.solve(theta)
         return cache[key]
 
+    def jac_theta(theta):
+        if lean:
+            return struct.reduced_jacobian(theta, solved(theta)[1])
+        beta, _, _, q = solved(theta)
+        return struct.kaufman_jacobian(theta, beta, q)
+
+    # the lean optimiser works on the residual in the basis of the QR factorisation
+    # (Structure.reduced); a robust loss acts on each residual and needs the residuals
     if omap is None:
         x0, lo, hi = theta0, lower, upper
-        fun = lambda theta: solved(theta)[1]
-
-        def jac(theta):
-            beta, _, _, q = solved(theta)
-            return struct.kaufman_jacobian(theta, beta, q)
+        fun = lambda theta: solved(theta)[0 if lean else 1]
+        jac = jac_theta
     else:
         lo, hi = omap.lower, omap.upper
         x0 = np.clip(omap.to_phi(theta0), lo + 1e-9 * (hi - lo), hi - 1e-9 * (hi - lo))
-        fun = lambda phi: solved(omap.to_theta(phi))[1]
+        fun = lambda phi: solved(omap.to_theta(phi))[0 if lean else 1]
 
         def jac(phi):
-            theta = omap.to_theta(phi)
-            beta, _, _, q = solved(theta)
-            return omap.jacobian(struct.kaufman_jacobian(theta, beta, q), phi)
+            return omap.jacobian(jac_theta(omap.to_theta(phi)), phi)
 
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
-            res = least_squares(fun, x0, jac=jac, bounds=(lo, hi), method="trf",
-                                loss=settings.loss, f_scale=f_scale or 1.0,
-                                max_nfev=settings.max_iter, x_scale="jac", ftol=tol,
-                                xtol=tol, gtol=tol)
-        _COUNTER.n = getattr(_COUNTER, "n", 0) + int(res.nfev)
+            if lean:
+                # the same algorithm as least_squares(method="trf"), lighter (models/_trf.py)
+                xr, _, nfev, _ = least_squares_trf(fun, jac, x0, lo, hi, ftol=tol, xtol=tol,
+                                                   gtol=tol, max_nfev=settings.max_iter,
+                                                   reduced=_OPTIMISER != "trf-full",
+                                                   m=len(struct._target()[0]))
+            else:
+                res = least_squares(fun, x0, jac=jac, bounds=(lo, hi), method="trf",
+                                    loss=settings.loss, f_scale=f_scale or 1.0,
+                                    max_nfev=settings.max_iter, x_scale="jac", ftol=tol,
+                                    xtol=tol, gtol=tol)
+                xr, nfev = res.x, res.nfev
+        _COUNTER.n = getattr(_COUNTER, "n", 0) + int(nfev)
     except (ValueError, np.linalg.LinAlgError) as exc:
         return theta0, None, None, False, f"{type(exc).__name__}: {exc}"
-    x = res.x if omap is None else omap.to_theta(res.x)
-    beta, rw, _, _ = struct.solve(x)
+    x = xr if omap is None else omap.to_theta(xr)
+    if lean:
+        beta, rw = struct.reduced_solution(x, solved(x)[1])
+    else:
+        beta, rw, _, _ = struct.solve(x)
     if not (np.all(np.isfinite(x)) and np.all(np.isfinite(beta))):
         return x, None, None, False, "non-finite parameters"
     return x, beta, rw, True, ""
@@ -808,8 +972,9 @@ def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select
         if base.any():
             level = float(np.median(y[base]))
     ordered = settings.latency_order == "parameterised"
+    memo = {}
     make = lambda shapes: _Structure(list(shapes), background, tw, white, yw, prior, scale, edge,
-                                     level, ordered)
+                                     level, ordered, memo)
     f_scale = settings.f_scale
 
     # K = 0: background only (its time constants from a small grid)

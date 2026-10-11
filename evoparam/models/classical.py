@@ -185,9 +185,14 @@ def classical_measures(times, y, *, window, polarity="negative",
         names = [k for k in scores if k not in ("definition", "mean_amplitude")]
         if names:
             boots = {k: [] for k in names}
+            # the window first, without copying the whole epochs at each draw; time is kept
+            # along the contiguous axis, as in trials[pick][:, inside], so that the averages
+            # are summed in the same order (the same numbers)
+            by_time = np.ascontiguousarray(trials[:, inside].T)
             for _ in range(n_bootstrap):
                 pick = rng.integers(0, n, n)
-                values, _ = _scores(t, trials[pick][:, inside].mean(axis=0), **kwargs)
+                values, _ = _scores(t, np.take(by_time, pick, axis=1).T.mean(axis=0),
+                                    **kwargs)
                 for k in names:
                     boots[k].append(values[k])
             for k in names:

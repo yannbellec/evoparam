@@ -58,6 +58,27 @@ def _bisect(past_root, low, high):
     return 0.5 * (low + high)
 
 
+# exp(-z^2 / 2) is exactly 0 in double precision for |z| > 38.61 (below the smallest
+# subnormal number): beyond this bound the Gaussian factors are not computed
+SUPPORT_Z = 38.7
+
+
+def gaussian_factor(z, value):
+    """``value(z)``, a product with ``exp(-z^2/2)`` as a factor (or a narrower Gaussian),
+    computed only where ``|z| < SUPPORT_Z``: elsewhere it is exactly 0, which is returned
+    without evaluating the exponential and the other factors (the same array)."""
+
+    outside = np.abs(z) >= SUPPORT_Z
+    n_out = np.count_nonzero(outside)
+    if 4 * n_out < z.size:
+        return value(z)
+    out = np.zeros(z.shape)
+    if n_out < z.size:
+        inside = ~outside
+        out[inside] = value(z[inside])
+    return out
+
+
 ###################################################################################################
 ## Shapes with width settings
 
@@ -169,6 +190,10 @@ class Gaussian(_WidthShape):
     latency_param: ClassVar[str] = "mu"
 
     def evaluate(self, times, params):
+        params = self._params(params)
+        if params.ndim == 1:
+            z = (as_times(times) - params[0]) / params[1]
+            return gaussian_factor(z, lambda x: np.exp(-0.5 * x ** 2))
         mu, sigma = self._columns(params)
         return np.exp(-0.5 * ((as_times(times) - mu) / sigma) ** 2)
 
@@ -271,6 +296,24 @@ def skew_mode(alpha):
     """
 
     alpha = np.asarray(alpha, dtype=np.float64)
+    if alpha.size == 1:
+        # one skewness (the usual case inside a fit): the same operations on scalars, which
+        # give the same values as on one-element arrays without their overhead
+        shape = alpha.shape
+        value = alpha.reshape(-1)[0]
+        a = abs(value)
+        key = ((1,), np.array([a]).tobytes())
+        z = _MODE_CACHE.get(key)
+        if z is None:
+            z = _skew_root(np.array([a]))
+            if len(_MODE_CACHE) >= _MODE_CACHE_SIZE:
+                _MODE_CACHE.clear()
+            _MODE_CACHE[key] = z
+        z = z[0]
+        c = np.exp(-0.5 * (z * z)) * erfc(-a * z / _SQRT2)
+        z_signed = np.sign(value) * z
+        dc = _SQRT_2_OVER_PI * z_signed * np.exp(-0.5 * (z * z) * (1.0 + value * value))
+        return (np.full(shape, z_signed), np.full(shape, c), np.full(shape, dc))
     a = np.abs(alpha)
     # The same alpha is evaluated many times during one optimisation (model, Jacobian,
     # features): small arrays are cached by value
@@ -314,7 +357,11 @@ class SkewedGaussian(_WidthShape):
         xi, omega, alpha = self._columns(params)
         _, c, dc = skew_mode(alpha)
         z = (as_times(times) - xi) / omega
-        numerator = np.exp(-0.5 * z ** 2) * erfc(-alpha * z / _SQRT2)
+        if z.ndim == 1:
+            numerator = gaussian_factor(
+                z, lambda x: np.exp(-0.5 * x ** 2) * erfc(-alpha * x / _SQRT2))
+        else:
+            numerator = np.exp(-0.5 * z ** 2) * erfc(-alpha * z / _SQRT2)
         return z, omega, alpha, c, dc, numerator
 
     def evaluate(self, times, params):
