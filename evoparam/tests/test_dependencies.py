@@ -28,7 +28,8 @@ DENY = ("erdetect", "ieegprep", "teppy", "ultranest")
 NOT_IN_ALL = {"gpu", "bayes", "docs", "all"}
 
 # import name -> distribution, for the packages the tests skip without
-DISTRIBUTIONS = {"sklearn": "scikit-learn", "mpmath": "mpmath", "pandas": "pandas",
+DISTRIBUTIONS = {"mypy": "mypy", "coverage": "pytest-cov",   # pytest-cov installs coverage
+                 "sklearn": "scikit-learn", "mpmath": "mpmath", "pandas": "pandas",
                  "mne": "mne", "pynwb": "pynwb", "matplotlib": "matplotlib",
                  "quantities": "quantities", "nwbinspector": "nwbinspector", "neo": "neo",
                  "jax": "jax", "numpyro": "numpyro", "statsmodels": "statsmodels",
