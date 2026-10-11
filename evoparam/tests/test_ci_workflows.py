@@ -8,8 +8,11 @@ jobs, matrices and commands the requirements name are checked. Branch protection
 checks) is a repository setting that cannot be read from the files.
 """
 
+import os
 import pathlib
 import re
+import subprocess
+import sys
 
 import pytest
 
@@ -99,6 +102,29 @@ def test_req298_coverage_gates():
     assert any("--fail-under=80" in s["run"] for s in gates)
     for step in gates:
         assert step["if"] == "matrix.python == '3.12' && matrix.os == 'ubuntu-latest'"
+
+
+@pytest.mark.xfail(strict=True, reason="REQ-298: evoparam.shapes is covered at 90 % (lines and "
+                   "branches: 1180 statements, 78 missed, 238 branches, 48 partial; registry.py "
+                   "70 %) by its own tests, evoparam/tests/shapes (S20, 2026-10-11, coverage "
+                   "7.x with --branch); the 100 % gate counts the whole suite, which is not run "
+                   "in this step")
+@pytest.mark.skipif(os.environ.get("EVOPARAM_SLOW_TESTS") != "1",
+                    reason="runs the shapes tests under coverage; set EVOPARAM_SLOW_TESTS=1")
+def test_req298_shapes_coverage_is_100_percent(tmp_path):
+    pytest.importorskip("coverage")
+    env = dict(os.environ, COVERAGE_FILE=str(tmp_path / ".coverage"),
+               PYTHONPATH=os.pathsep.join(filter(None, [str(ROOT),
+                                                        os.environ.get("PYTHONPATH")])))
+    run = [sys.executable, "-m", "coverage", "run", "--rcfile=/dev/null", "--branch",
+           "--source=evoparam/shapes", "-m", "pytest", "-q", "-p", "no:cacheprovider",
+           str(ROOT / "evoparam" / "tests" / "shapes")]
+    subprocess.run(run, cwd=str(ROOT), env=env, capture_output=True, text=True, timeout=1200,
+                   check=True)
+    report = subprocess.run([sys.executable, "-m", "coverage", "report", "--rcfile=/dev/null",
+                             "--fail-under=100"], cwd=str(ROOT), env=env, capture_output=True,
+                            text=True)
+    assert report.returncode == 0, report.stdout[-1500:]
 
 
 def test_req299_perf_workflow():
@@ -211,24 +237,24 @@ def _ruff(*args):
 
 
 @pytest.mark.xfail(strict=True, reason="REQ-305 'ruff check evoparam tests benchmarks "
-                   "docs/tutorials examples exits 0' is not met: 4532 findings (2805 in the "
-                   "package outside its tests; most frequent D202, D205, D209, PLR2004, D401, "
-                   "B905, F401), measured with ruff 0.16.8 on 2026-10-11 (S20); not rewritten in "
-                   "this step")
+                   "docs/tutorials examples exits 0' is not met: 4652 findings (2830 in the "
+                   "package outside its tests; most frequent PLR2004, D202, PT018, D205, D209, "
+                   "B905, D401, F401), measured with ruff 0.16.10 on 2026-10-11 (S20); not "
+                   "rewritten in this step")
 def test_req305_ruff_check_passes():
     result = _ruff("check", "evoparam", "benchmarks", "docs/tutorials", "examples")
     assert result.returncode == 0, result.stdout[-1500:]
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-305 'ruff format --check' is not met: 358 of 394 "
-                   "files would be reformatted (ruff 0.16.8, 2026-10-11, S20)")
+@pytest.mark.xfail(strict=True, reason="REQ-305 'ruff format --check' is not met: 371 of 413 "
+                   "files would be reformatted (ruff 0.16.10, 2026-10-11, S20)")
 def test_req305_ruff_format_passes():
     result = _ruff("format", "--check", "evoparam", "benchmarks", "docs/tutorials", "examples")
     assert result.returncode == 0, result.stdout[-1500:]
 
 
 @pytest.mark.xfail(strict=True, reason="REQ-305 'interrogate -v evoparam reports >= 95 %' is "
-                   "not met: 63.3 % (interrogate 1.7.0, 2026-10-11, S20)")
+                   "not met: 63.0 % (interrogate 1.7.0, 2026-10-11, S20)")
 def test_req305_docstring_coverage():
     import shutil
     import subprocess

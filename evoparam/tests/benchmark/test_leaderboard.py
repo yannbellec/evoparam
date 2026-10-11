@@ -102,3 +102,54 @@ def test_req353_report_holds_rules_and_projection_t1_t2():
                  "prime2020", "projection"):
         assert f"| {name} |" in t1 and f"| {name} |" in t2, name
     assert "suite `core` 1.0.0" in report
+
+
+HIIE = "waits for the owner's HIIE decision (nothing public before it)"
+
+
+def test_req392_submission_format_is_documented():
+    """REQ-392: the leaderboard accepts outside submissions in a documented format."""
+
+    text = (DOCS / "SUBMITTING.md").read_text(encoding="utf-8")
+    for needed in ("evoparam benchmark run", "evoparam benchmark score", "--predictions",
+                   "signature", "docs/benchmark/results/", "benchmark_leaderboard.py --check",
+                   "schemas/<task>.json", "<cell>.tsv", "<cell>.npz"):
+        assert needed in text, needed
+
+
+def test_req392_submission_ci_checks_the_results():
+    """REQ-392: the CI job ``benchmark-results`` checks every submitted result."""
+
+    yaml = pytest.importorskip("yaml")
+    workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml")
+                              .read_text(encoding="utf-8"))
+    job = workflow["jobs"]["benchmark-results"]
+    commands = " ".join(step.get("run", "") for step in job["steps"])
+    assert "tools/benchmark_leaderboard.py --check" in commands
+
+
+def test_req392_an_entry_is_reproduced_by_one_command(tmp_path):
+    """REQ-392: ``evoparam benchmark run --task <t> --method <m>`` reproduces a published
+    entry (here exactly: same metrics, hashes and signature)."""
+
+    proc = subprocess.run([sys.executable, "-m", "evoparam", "benchmark", "run", "--suite",
+                           "core", "--task", "T1", "--method", "vanblooijs2023", "--out",
+                           str(tmp_path / "check")],
+                          capture_output=True, text=True, check=False, cwd=str(tmp_path))
+    assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
+    again = json.loads((tmp_path / "check" / "results" / "vanblooijs2023__T1.json")
+                       .read_text(encoding="utf-8"))
+    published = json.loads((RESULTS / "vanblooijs2023__T1.json").read_text(encoding="utf-8"))
+    assert again["headline"] == published["headline"]
+    assert again["inputs_sha256"] == published["inputs_sha256"]
+    assert again["signature"] == published["signature"]
+
+
+@pytest.mark.xfail(strict=True, reason=HIIE)
+def test_req392_benchmark_is_public_and_archived():
+    """REQ-392: tasks, metrics, simulated sets and labels are versioned and archived in a
+    public archive, and the leaderboard is public. Nothing is deposited or published before
+    the owner's HIIE decision (REQ-019, REQ-398): no archive DOI is recorded."""
+
+    run = json.loads((DOCS / "run-core.json").read_text(encoding="utf-8"))
+    assert run.get("archive_doi"), "no archive DOI recorded for the benchmark version"

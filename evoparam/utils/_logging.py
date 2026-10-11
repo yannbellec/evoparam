@@ -12,10 +12,14 @@ import contextlib
 import functools
 import inspect
 import logging
+import os
+from typing import Any, Callable, Union
 
 __all__ = ["verbose", "set_log_level", "set_log_file", "LEVELS"]
 
 LOGGER = "evoparam"
+# the values ``verbose`` accepts (a logging level as an int is also accepted)
+VerboseLevel = Union[None, bool, int, str]
 # verbose value -> logging level (None: inherit, the logger keeps its level)
 LEVELS = {None: None, False: None, True: logging.INFO, "info": logging.INFO,
           "debug": logging.DEBUG, "warning": logging.WARNING, "error": logging.ERROR,
@@ -57,7 +61,7 @@ class _Verbose(contextlib.ContextDecorator):
         return False
 
 
-def verbose(level=None):
+def verbose(level: Union[VerboseLevel, Callable[..., Any]] = None) -> Any:
     """Context manager, decorator, or decorator factory mapping ``verbose`` to a level.
 
     - ``with verbose("debug"): ...`` sets the ``evoparam`` logger to DEBUG in the block;
@@ -85,7 +89,7 @@ def verbose(level=None):
     return _Verbose(level)
 
 
-def set_log_level(level):
+def set_log_level(level: VerboseLevel) -> int:
     """Set the level of the ``evoparam`` logger (``verbose`` values or a logging level);
     returns the previous level."""
 
@@ -96,7 +100,9 @@ def set_log_level(level):
     return previous
 
 
-def set_log_file(path=None, *, mode="a", fmt="%(asctime)s %(name)s %(levelname)s %(message)s"):
+def set_log_file(path: Union[str, "os.PathLike[str]", None] = None, *, mode: str = "a",
+                 fmt: str = "%(asctime)s %(name)s %(levelname)s %(message)s",
+                 ) -> Union[logging.FileHandler, None]:
     """Write the ``evoparam`` log to ``path`` (a ``FileHandler``); ``None`` removes the file
     handler set by a previous call. Returns the handler (or None)."""
 
@@ -109,6 +115,6 @@ def set_log_file(path=None, *, mode="a", fmt="%(asctime)s %(name)s %(levelname)s
         return None
     handler = logging.FileHandler(path, mode=mode, encoding="utf-8")
     handler.setFormatter(logging.Formatter(fmt))
-    handler._evoparam_log_file = True
+    handler._evoparam_log_file = True  # type: ignore[attr-defined]
     logger.addHandler(handler)
     return handler

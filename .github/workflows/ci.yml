@@ -159,6 +159,20 @@ jobs:
     # REQ-302: the same build as docs.yml, required to merge
     uses: ./.github/workflows/docs.yml
 
+  benchmark-results:
+    # REQ-392, REQ-357: a submitted result is accepted only with a valid signature, and the
+    # leaderboard page and report are regenerated from the results
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e .
+    - run: python tools/benchmark_leaderboard.py --check
+
   import-graph:
     # REQ-296
     runs-on: ubuntu-latest

@@ -10,11 +10,16 @@ Results are plain data: they hold numbers, tables, the resolved settings and a
 import copy
 from dataclasses import dataclass, field, fields, replace
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from evoparam.errors import DataError
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data.provenance import Provenance
+
+if TYPE_CHECKING:                        # annotations only (containers imports this module)
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["Component", "GoodnessOfFit", "ResponseFit", "GroupFit", "TrialFit",
            "HierarchicalFit", "ResponseTest", "ArtifactResult", "ShapeBasis", "TFFit",
@@ -599,7 +604,7 @@ class HierarchicalFit(_ResultMixin):
 class ArtifactResult(_ResultMixin):
     """Output of stimulation-artifact removal."""
 
-    cleaned: object
+    cleaned: "TrialSet"
     method: str
     window: tuple
     template: np.ndarray | None

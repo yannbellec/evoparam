@@ -5,6 +5,8 @@ For research use only; not a medical device. Its outputs are not intended for di
 treatment decisions.
 """
 
+import typing as _typing
+
 from .version import __version__
 
 from . import errors
@@ -27,7 +29,7 @@ prep.register_detector("existence", existence.existence_detector)
 from .utils import verbose, set_log_level, set_log_file  # noqa: E402  (REQ-304)
 
 
-def selftest(*, tolerance=0.001):
+def selftest(*, tolerance: float = 0.001) -> float:
     """Fit one bundled synthetic CCEP and check the recovered N1 latency (REQ-291).
 
     The CCEP is simulated with :func:`evoparam.sim.simulate_ccep` (``seed=0``, 3 channels,
@@ -68,7 +70,7 @@ def selftest(*, tolerance=0.001):
     return float(error)
 
 
-def cite(*, bibtex=False, file=None):
+def cite(*, bibtex: bool = False, file: "_typing.TextIO | None" = None) -> str:
     """Print and return how to cite evoparam (REQ-391): the software citation of
     ``CITATION.cff`` with the version, its DOIs when they exist and the preferred paper
     citation when there is one. ``bibtex=True`` gives a BibTeX entry."""

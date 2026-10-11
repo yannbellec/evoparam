@@ -508,6 +508,7 @@
     "issubdtype",
     "ix_",
     "lexsort",
+    "lib.format",
     "lib.stride_tricks",
     "lib.stride_tricks.sliding_window_view",
     "linalg.LinAlgError",

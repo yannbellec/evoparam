@@ -17,7 +17,7 @@ import sys
 import time
 import warnings
 
-from evoparam.errors import DataError, EvoparamError, ReaderError
+from evoparam.errors import DataError, EvoparamError, ReaderError, SettingsError
 from evoparam.version import __version__
 
 __all__ = ["main", "run_fit", "EXIT_CODES"]
@@ -514,7 +514,23 @@ def cmd_benchmark(args, outcome):
 
     log = (lambda message: _log(args, message)) if args.verbose in ("info", "debug") \
         else None
-    if args.action == "run":
+    if args.action == "run" and args.suite in ("perf", "ci"):
+        # the performance workloads P1-P6 (spec §9.1, REQ-290)
+        from evoparam.benchmark import timing
+
+        # --tasks selects workloads here (for example --task P1,P6)
+        document = timing.run_suite(args.suite, only=_csv(args.tasks),
+                                    log=log or (lambda line: _log(args, line)))
+        path = timing.write_results(document, timing.results_path(
+            document, args.out or os.path.join("benchmarks", "results")))
+        outcome.outputs.append(path)
+        outcome.extra = {"suite": args.suite,
+                         "results": {timing._key(r): {"median_s": r["median_s"],
+                                                      "target_met": r["target_met"]}
+                                     for r in document["results"]}}
+    elif args.action == "run":
+        if not args.out:
+            raise SettingsError("benchmark run --suite core|full|<file> needs --out.")
         summary = benchmark.run_suite(args.suite, args.out, tasks=_csv(args.tasks),
                                       methods=_csv(args.methods), adapters=args.adapter or (),
                                       hidden_seeds=args.hidden_seeds, split=args.split,
@@ -570,16 +586,21 @@ def _benchmark_parser(sub, common):
     actions = p.add_subparsers(dest="action", required=True)
     q = actions.add_parser("run", parents=[common], help="run baselines (and adapters) on a "
                            "suite, score them, write results, report and leaderboard")
-    q.add_argument("--suite", default="core", help="core, full, or a suite file")
-    q.add_argument("--tasks", help="comma-separated tasks (default: all)")
-    q.add_argument("--methods", help="comma-separated baselines (default: all; '' writes "
-                                     "the task inputs only)")
+    q.add_argument("--suite", default="core", help="core, full, or a suite file; perf or "
+                   "ci for the performance workloads P1-P6 (spec §9.1)")
+    q.add_argument("--tasks", "--task", dest="tasks",
+                   help="comma-separated tasks (default: all); with --suite perf or ci, "
+                        "workload ids P1-P6")
+    q.add_argument("--methods", "--method", dest="methods",
+                   help="comma-separated baselines (default: all; '' writes the task inputs "
+                        "only); --task T --method M reproduces one leaderboard entry")
     q.add_argument("--adapter", action="append", help="adapter specification (JSON) of an "
                    "external tool, run in a separate process (repeatable)")
     q.add_argument("--hidden-seeds", help="hidden seeds document (checked against the "
                                           "suite's commitment)")
     q.add_argument("--split", default="public", choices=("public", "hidden", "all"))
-    q.add_argument("--out", required=True)
+    q.add_argument("--out", help="output folder (required for core, full or a suite file; "
+                   "perf and ci: default benchmarks/results)")
     q = actions.add_parser("score", parents=[common], help="score predictions of one task "
                            "and write the signed result")
     q.add_argument("--task", required=True, choices=("T1", "T2", "T3", "T4", "T5", "T6",
