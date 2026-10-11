@@ -2,6 +2,197 @@
 
 ## Unreleased
 
+### Build step S20: robustness layer, release engineering, documentation (spec §7.4, §9, §11.8, §13.7)
+
+Requirements REQ-290 to REQ-309, REQ-375, REQ-376 and REQ-390 to REQ-399. Nothing public
+was done: every step that publishes (PyPI, Zenodo, a public leaderboard, a preprint, the
+freeze of the name, the filing with HIIE) waits for the owner's HIIE decision, and its
+test is a strict expected failure with that reason. Readings of the spec are in
+`docs/spec/DECISIONS.md`, section 6.
+
+#### Package behaviour
+
+- Logging (REQ-304): `evoparam.verbose`, `set_log_level` and `set_log_file`. Every
+  module logs to a child of the `evoparam` logger; the default level is WARNING.
+- Deprecation shims (REQ-293): `evoparam.utils._deprecation` keeps a renamed public name
+  for two minor versions. The old name emits a `FutureWarning` that names the new one and
+  the version that removes it. The table of deprecated names is `evoparam/_deprecated.py`
+  (empty at 0.1.0).
+- Extras (REQ-292): the table `evoparam/_extras.py` names, for each optional
+  distribution, its single extra. `numpy>=1.24,<3` and `scipy>=1.10` are now the only
+  core dependencies (REQ-309 floors; before: `numpy`, `scipy>=1.8`). `pyyaml>=6` was
+  added to the `tests` and `all` extras.
+- `evoparam.selftest()` (REQ-291) fits one bundled synthetic CCEP with the `ccep` preset
+  and checks the N1 latency within 1 ms: an error of 0.043 ms, in 2.5 s on the reference
+  machine. `evoparam.cite()` prints the citation of the installed version.
+- `on_error` (REQ-307): `ResponseModel.fit_waveform` and `fit_group` take
+  `on_error="record"` (default) or `"raise"`:
+  - with `"record"`, a failed channel is kept with `status="failed"` and the exception in
+    `message`, and exactly one WARNING names the channel;
+  - with `"raise"`, a `FitError` is raised;
+  - data and settings errors always propagate.
+- Provenance (REQ-294, REQ-399): every step records `function`, `settings`, `version`,
+  `algorithm_version` (`evoparam.version.ALGORITHM_VERSIONS`), `preset`, `random_state`,
+  `duration_s` and `n_jobs`. The environment records `lock_sha256`: the SHA-256 of
+  `ci/locks/pyX.Y.lock` when the installed packages are exactly its pins, else null.
+- Reference values (REQ-295): `evoparam/tests/reference/fit_fixture_ccep.json` holds the
+  fit of the bundled fixture. Any platform must reproduce it within rtol 1e-9.
+- Network (REQ-306): the tests of the `core` marker set run behind a socket guard
+  (`conftest.py`). The only network code is in the explicit fetch functions.
+- Methods text (REQ-390):
+  - every saved result that has a methods paragraph stores it as `methods.txt`, listed in
+    the container's manifest;
+  - NWB processing modules carry it in their description (`"methods"`);
+  - `TFFit.methods_text` no longer fails on a fit with empty settings ("not recorded").
+- Typing (REQ-301): annotated `evoparam.selftest`, `evoparam.cite`, the logging functions
+  and `ArtifactResult.cleaned`.
+- CLI:
+  - `evoparam benchmark run --suite perf|ci` runs the performance workloads P1–P6;
+    `--task` selects workloads, for example `--task P1,P6`;
+  - `--task` and `--method` are aliases of `--tasks` and `--methods`, so
+    `evoparam benchmark run --suite core --task T1 --method vanblooijs2023` reproduces one
+    leaderboard entry (REQ-392). For `vanblooijs2023__T1` it gives the same metrics, hashes
+    and signature as the committed file, in 14 s.
+
+#### Performance (REQ-290, REQ-299)
+
+- `evoparam.benchmark.timing` and `benchmarks/run_benchmarks.py` run the six workloads of
+  §9.1 on fixtures generated with `evoparam.sim` (`random_state=0`).
+  - Results go to `benchmarks/results/<platform>-<python>-<commit>.json`; the `ci` suite
+    writes `...-ci.json`.
+  - Peak memory is sampled every 50 ms from `/proc/self/statm`.
+  - `--compare` fails above 1.25× the baseline median time or 1.10× its peak memory, or
+    when a P3 figure is above its bound, with a message naming the workload and the ratio.
+    It warns between 1.10× and 1.25×.
+  - `--repeat-runs 3 --write-baseline` writes the baseline as the median of three runs; the
+    `perf` workflow's `baseline-update` job uses it.
+- The perf suite on the reference machine (`benchmarks/results/linux-3.13.16-bddedc9aa35f.json`,
+  one thread, load average 9.7 on 4 cores):
+
+  | id | measured | target | met |
+  |---|---|---|---|
+  | P1 | median 1.30 s (20 runs) | < 0.050 s | no |
+  | P2 | 53.7 s (5 000 fits, `n_jobs=4`) | < 60 s | yes |
+  | P3 | see below | < 2× data; mapped < 0.25× + 512 MB | in memory no, mapped yes |
+  | P4 | no GPU backend in this version | CPU = GPU within 1e-6 | not available |
+  | P5 | 266.5 s for a 270.7 s original fit (0.98×), identical numbers | < 1.5× | yes |
+  | P6 | median 0.909 s (10 runs), no optional module loaded | < 0.300 s | no |
+
+  P3 at the CI size (50 × 64 × 4 096 float64, 105 MB; medians of 3 runs): in memory, peak
+  RSS +331 MiB (347 MB, 3.3× the data, bound 210 MB); memory-mapped, the same +331 MiB,
+  under its bound of 563 MB (0.25× data + 512 MiB). The full size (4.19 GB) was not run:
+  at 3.3× it would exceed the machine's 15 GB.
+- `benchmarks/baseline-ci.json` is the median of three runs of the `ci` suite: P1 1.20 s,
+  P2 2.68 s, P3 55.7 s (memory-mapped 53.8 s), P5 29.4 s, P6 0.904 s. It was written on the reference machine. It holds
+  until the `perf` workflow's `baseline-update` job regenerates it on its runner. The CI
+  run of P3 in memory fails its bound, so the `perf` job will fail on it until the memory
+  use of `evoparam.fit` is reduced.
+
+#### Robustness layer (REQ-375, REQ-376)
+
+- `validation/robustness.py` runs the five analyses of §7.4. It writes
+  `validation/layer4/<version>/report.json` and `report.md`, and
+  `docs/preset_sensitivity.md` (linked from the preset page). The release workflow runs it
+  and keeps the report with the release records. It was run once on the reference machine
+  (77.8 min, 2 processes), with the ds004080 and ds004977 epochs already cached; nothing was
+  downloaded.
+  1. Montage: 7 ds004080 runs and 4 ds004977 sites, existence test under three references.
+     Median Cohen's κ: bipolar–CAR 0.23, bipolar–adjusted CAR 0.38, CAR–adjusted CAR 0.76.
+     The lowest κ is 0.00, 0.00 and 0.04. The median latency differences are 0.00, 0.21
+     and 0.00 ms.
+  2. Preset: each *(choice)* field ×0.5 and ×1.5, 20 seeds. There are 4 sensitivities, all
+     on `ecap`:
+     - `epoch` ×0.5: recall 0.875 → 0.000;
+     - `fit_window` ×0.5: recall → 0.750;
+     - `fit_window` ×1.5: recall → 0.725;
+     - `component_labels` ×0.5: label recall → 0.000.
+
+     `ccep`, `ccep_seeg`, `erna`, `erp` and `sep` show none: the largest latency change is
+     0.17 ms, and the largest recall change −0.015.
+  3. Sampling rate, N1 recall against the published rule at the native rate:
+     - paper reading: 0.460 native, 0.466 at 1024 Hz (−0.6 points), 0.466 at 512 Hz. Met.
+     - code reading: 0.882 native, 0.765 at 1024 Hz (+11.8 points), 0.853 at 512 Hz. Not
+       met: the criterion is at most 5 points, so the test is a strict expected failure
+       with these values.
+  4. Trial count, 35 draws per count. The share of existence decisions that change against
+     all trials: 0.259 with 5 trials (median κ 0.00), 0.115 with 7 (0.59), 0.000 with 10
+     (1.00).
+  5. Platform: the bundled fixture's fit equals the reference values exactly on Linux
+     x86-64 (largest relative difference 0). macOS and Windows are cells of the CI matrix,
+     not run here (strict expected failure).
+
+  The report waits to be attached to release notes until there is a release (HIIE).
+- `validation/layer3/n1_ds004080.json` is new: the layer-3 N1 agreement at the native rate,
+  on 7 runs and 615 channels.
+
+  | reading | κ | recall | median latency difference | within 2 ms |
+  |---|---|---|---|---|
+  | paper | 0.458 | 0.460 | 8.46 ms | 0.243 |
+  | code | 0.398 | 0.882 | 3.47 ms | 0.367 |
+
+- `tools/layer3_gate.py` is the release gate of REQ-376. It reads the pre-registered
+  tolerances in `validation/layer3/tolerances.json`: κ −0.05, median latency +1 ms, recall
+  −3 points. It compares 42 metrics (the N1 file and the ERP CORE files) with the latest
+  `v*` tag, or with `HEAD` when there is no tag. A regression blocks the release unless the
+  `## Unreleased` section has a line `Layer-3 regression explained: <metric>: <reason>`.
+  On this branch: 0 regressions.
+
+#### Release engineering (REQ-297 to REQ-300, REQ-305, REQ-308, REQ-309)
+
+- Workflows (written, checked statically by `tests/test_ci_workflows.py`; none was run):
+  - `ci` (lint, format, typecheck, tests matrix 3.10–3.13 × three systems, core-only,
+    lowest floors, doctests, import graph, build, `benchmark-results`);
+  - `docs`, `perf`, `nightly`, `smoke`;
+  - `release`, which starts with `tools/release_gate.py`. The PyPI upload job is kept
+    outside `.github/workflows` (`ci/release-publish-job.yml`) until the HIIE decision.
+- Lock files `ci/locks/py3.10.lock` to `py3.13.lock`, with hashes.
+- `GOVERNANCE.md`, holding the HIIE decision block.
+- `RELEASING.md`: 12 steps, plus checks 6–9 (provenance map, traceability, algorithm-version
+  bump, review of TRADEMARK.md at a major release).
+- `.pre-commit-config.yaml` and a pull-request template.
+- Sphinx configuration: bibtex with 1 095 entries generated from the spec's references,
+  version switcher, linkcheck, examples gallery.
+- Quality, measured (nothing was installed or rewritten for a linter):
+  - `ruff check`: 4 644 findings on the CI scope, 2 830 in the package outside its tests.
+    `PLC0415` is ignored (DECISIONS).
+  - `ruff format --check`: 371 of 413 files would be reformatted.
+  - `interrogate`: 63.0 %.
+  - `mypy --strict evoparam`: 5 209 errors in 142 of 163 modules.
+  - `pyright --verifytypes`: 34.8 % of the exported symbols have a known type.
+  - Coverage of `evoparam.shapes` by its own tests: 90 %.
+
+  Each is a strict expected failure with these numbers.
+
+#### Documentation (REQ-302, REQ-303, REQ-391, REQ-393)
+
+- New pages:
+  - getting started;
+  - reporting and citing;
+  - FAQ (seven questions);
+  - glossary of spec section 4;
+  - API index;
+  - dataset registry;
+  - preset sensitivity.
+- The glossary, the API index, the registry page and the preset page are generated by
+  `tools/gen_*.py`; each tool has a `--check` mode that is tested.
+- `docs/benchmark/SUBMITTING.md`: the submission format of the benchmark (REQ-392).
+- `make figures` (`tools/make_figures.py`) regenerates the three figures of the papers
+  from repository files. The output is SVG with a fixed hash salt and no date, listed with
+  SHA-256 in `figures/manifest.json`. `--check` reproduced 3 of 3 hashes (matplotlib
+  3.11.2).
+
+#### Provenance map and inventory (REQ-395 to REQ-397, REQ-399)
+
+- An SPDX header (`Apache-2.0`) is in every Python file outside `adapters/`. The three
+  inherited files say what they were modified from (`tools/add_spdx_headers.py --check`).
+- `REIMPLEMENTED.md` lists the modules reimplemented from published descriptions.
+- `TRADEMARK.md`.
+- `soup.json` and `THIRD_PARTY.md` list 54 packages, with their role, licence and the
+  functions used (`tools/gen_soup.py --check`).
+- `tools/gen_traceability.py` writes the requirement → test report attached to each
+  release. On this branch, 4 of the 227 requirements of the matrix are named by no test:
+  REQ-024, REQ-134, REQ-373 and REQ-374, all of earlier build steps.
+
 ### Build step S19: public benchmark (`evoparam.benchmark`, spec §8, REQ-350 to REQ-357)
 
 - Seven tasks (T1 response detection, T2 early component latency and amplitude, T3

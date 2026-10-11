@@ -1,0 +1,36 @@
+{
+ "dataset": "ds004080",
+ "version": "0.1.0.dev0",
+ "runs": [
+  "sub-ccepAgeUMCU01 run-021448 PT01-PT02",
+  "sub-ccepAgeUMCU02 run-021804 FC01-FC02",
+  "sub-ccepAgeUMCU03 run-031411 C01-C02",
+  "sub-ccepAgeUMCU04 run-031148 TPa1-TPa2",
+  "sub-ccepAgeUMCU05 run-031133 P01-P02",
+  "sub-ccepAgeUMCU06 run-030854 C01-C02",
+  "sub-ccepAgeUMCU01 run-061233 PT01-PT02"
+ ],
+ "pipeline": "ccep preset (template artifact removal, car_adaptive, baseline, average, fit_group); N1: negative component in 9-50 ms",
+ "metrics": {
+  "paper": {
+   "kappa": 0.45840314850173386,
+   "recall": 0.45962732919254656,
+   "median_abs_latency_diff_ms": 8.46099234177041,
+   "within_2ms": 0.24324324324324326,
+   "n_channels": 615,
+   "n_rule": 161,
+   "n_model": 100,
+   "n_both": 74
+  },
+  "code": {
+   "kappa": 0.39809549001454825,
+   "recall": 0.8823529411764706,
+   "median_abs_latency_diff_ms": 3.4659479744270802,
+   "within_2ms": 0.36666666666666664,
+   "n_channels": 615,
+   "n_rule": 34,
+   "n_model": 100,
+   "n_both": 30
+  }
+ }
+}

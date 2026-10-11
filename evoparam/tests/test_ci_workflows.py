@@ -237,7 +237,7 @@ def _ruff(*args):
 
 
 @pytest.mark.xfail(strict=True, reason="REQ-305 'ruff check evoparam tests benchmarks "
-                   "docs/tutorials examples exits 0' is not met: 4652 findings (2830 in the "
+                   "docs/tutorials examples exits 0' is not met: 4644 findings (2830 in the "
                    "package outside its tests; most frequent PLR2004, D202, PT018, D205, D209, "
                    "B905, D401, F401), measured with ruff 0.16.10 on 2026-10-11 (S20); not "
                    "rewritten in this step")

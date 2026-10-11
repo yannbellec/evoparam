@@ -102,9 +102,9 @@ def test_req301_good_examples_pass_under_strict(tmp_path):
     assert code == 0, out
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-301: mypy --strict evoparam reports 5220 errors in "
-                   "142 of 163 modules (S20, 2026-10-11, mypy 2.4.0: 2797 no-untyped-call, "
-                   "1661 no-untyped-def, 271 attr-defined, 127 type-arg, ...); annotating the "
+@pytest.mark.xfail(strict=True, reason="REQ-301: mypy --strict evoparam reports 5209 errors in "
+                   "142 of 163 modules (S20, 2026-10-11, mypy 2.4.0: 2798 no-untyped-call, "
+                   "1656 no-untyped-def, 263 attr-defined, 127 type-arg, ...); annotating the "
                    "package is a step of its own")
 @pytest.mark.skipif(os.environ.get("EVOPARAM_SLOW_TESTS") != "1",
                     reason="about two minutes; set EVOPARAM_SLOW_TESTS=1")
@@ -115,8 +115,8 @@ def test_req301_mypy_strict_on_the_package(tmp_path):
 
 
 @pytest.mark.xfail(strict=True, reason="REQ-301: pyright 1.1.414 --verifytypes evoparam "
-                   "--ignoreexternal: 35.0 % of the exported symbols have a known type (1307 "
-                   "known, 121 ambiguous, 2310 unknown; S20, 2026-10-11) against >= 95 %")
+                   "--ignoreexternal: 34.8 % of the exported symbols have a known type (1324 "
+                   "known, 123 ambiguous, 2361 unknown; S20, 2026-10-11) against >= 95 %")
 def test_req301_pyright_verifytypes_known_share():
     pyright = shutil.which("pyright") or os.path.expanduser("~/.local/bin/pyright")
     if not os.path.exists(pyright):

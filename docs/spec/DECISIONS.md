@@ -290,3 +290,90 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   (the table equals the existence test's detections) and
   `tests/prep/test_reference_sensitivity.py` (REQ-084 on ds004080, `attrs["detector"] ==
   "existence_detector"`); `tests/test_import_graph.py` unchanged.
+
+## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
+
+Each point below is a reading needed to apply a requirement of S20 literally, or a place
+where the literal acceptance cannot hold. Where a criterion is not met, the test is a strict
+expected failure whose reason gives the measured value; no criterion was weakened.
+
+- **CITATION.cff version vs package version (REQ-391).** The package is `0.1.0.dev0`;
+  `CITATION.cff` carries `version: 0.1.0`, the version the first release will have, because
+  the Citation File Format describes a released work. `evoparam.cite()` prints the same
+  version. `tests/test_citation.py` checks that `CITATION.cff` carries the version being
+  prepared (the package version itself on a release); RELEASING.md bumps both together.
+  No DOI is recorded before the owner's HIIE decision (REQ-019, REQ-398).
+- **Ruff rule PLC0415 (REQ-305) vs lazy imports (REQ-292).** PLC0415 forbids imports
+  outside the top level, which REQ-292 requires for every optional dependency. It is ignored
+  in `pyproject.toml` (`[tool.ruff.lint] ignore`); every other rule of the spec's selection
+  stays on.
+- **jax in two extras (REQ-292 "exactly one extra").** `bayes` needs `jax` (CPU) for
+  `numpyro`, and `gpu` needs `jax[cuda12]`. These are two different requirement strings for
+  two installs. Read as: every distribution is declared once per *purpose*. The extras table
+  (`evoparam/_extras.py`) lists `jax` under `bayes` and `jax[cuda12]` under `gpu`.
+- **`grep errstate` acceptance (REQ-307 iv).** The literal acceptance is "at most three
+  lines, all in `models/_engine.py`". It is not met: 25 lines in 17 modules use
+  `np.errstate(divide=/invalid="ignore")` around a documented NaN/inf result. The rule's
+  intent is that no `errstate(all="ignore")` hides errors; that is tested and holds. The
+  literal grep is a strict expected failure (`tests/test_errors.py`).
+- **Network grep (REQ-306).** The literal grep also matches lines that are not network
+  access: 7 lines in 2 modules ("HTTP range requests" in docstrings, `urllib.parse` for URL
+  text). The import-level check and the socket guard on the `core` tests hold. The literal
+  grep is a strict expected failure (`tests/test_network.py`).
+- **LGPL packages in the resolved tree (REQ-395).** No module of evoparam imports, vendors
+  or declares a GPL/LGPL/AGPL package. `pybids` (extra `bids`, named by §9.2) pulls in
+  `frozendict` (LGPL-3.0) and `num2words` (LGPL) transitively. The scan of the installed tree
+  is a strict expected failure naming them; replacing `pybids` is a decision for the owner.
+- **Preset perturbation (§7.4 item 2).** "±50 %" is read as ×0.5 and ×1.5 of each
+  *(choice)* field of `Preset.choices`, one at a time. Intervals are scaled at both ends,
+  integers are rounded with a floor of 1, and flags are left alone. "Change of > 10 % in
+  recall" is relative to the unperturbed recall; "> 2 ms median latency" is the change of the
+  median absolute latency error, in ms. `artifact_window` is compared with its own
+  unperturbed case: simulated stimulation with artifacts, since the clean simulation has no
+  artifact to remove. `component_labels` is scored by label recall.
+- **Sampling-rate recall (§7.4 item 3).** "N1 recall" is the share of the channels where the
+  published rule (registry `vanblooijs2023`, both readings: paper and code) finds an N1 at
+  the native rate, and where the `ccep` pipeline also finds one at the given rate. The
+  criterion compares the recall at 1024 Hz with the recall at the native rate, in percentage
+  points.
+- **Layer-3 N1 file (REQ-376).** The gate needs a layer-3 N1 metric file. Layer 3 had none
+  for ds004080 (the N1 agreement lived in tests). `validation/robustness.py` writes it
+  (`validation/layer3/n1_ds004080.json`), and the gate reads it with the ERP CORE files.
+  Without a release tag, the baseline is the committed files.
+- **Six-step chain (REQ-294).** "The final result holds the six steps in order" does not hold
+  as written. Reading a saved container restores its record without a read step.
+  `detect_events` returns a table, which keeps its step in `EventTable.attrs`. `fit_trials`
+  keeps the steps of the trials, not those of the group fit. The per-step keys and the round
+  trip hold; the literal chain is recorded as an expected failure.
+- **"Modified from" notice vs the vocabulary rule (REQ-396 vs REQ-012).** REQ-396 asks every
+  inherited file to say what it was modified from. REQ-012 forbids naming the inherited
+  project outside `NOTICE`. The three inherited files therefore say "Modified from the
+  upstream project and commit named in NOTICE (Apache-2.0); changes: …", and `NOTICE` names
+  them.
+- **SPDX scope (REQ-396).** "Every source file" is read as every Python file outside
+  `adapters/`; `tools/add_spdx_headers.py --check` enforces it in CI. Adapters are
+  external tools run in a separate process, under their own licences. Data, documentation
+  and configuration files are not source files.
+- **Traceability counting (REQ-399).** A requirement counts as tested when a test file names
+  it in a test name, a docstring or a comment. Other strings do not count, so that a list of
+  untested requirements, or the reason of an expected failure, cannot mark them as tested.
+- **P3 chunked fit (REQ-290).** §9.1 P3 reads "chunked", but `evoparam.fit` has no `chunk`
+  argument. P3 is measured on the plain call and on the memory-mapped set. The full size
+  (500 × 256 × 4 096 float64, 4.19 GB) was not run on the 15 GB reference machine: the
+  in-memory peak measured at the CI size, 3.3× the data, would exceed its RAM.
+- **P6 in a full environment.** P6 is measured with every extra installed. No optional
+  module is loaded by `import evoparam` (`optional_modules_loaded` is empty in the results),
+  so the time is that of the core.
+- **Shapes coverage (REQ-298).** The 100 % line-and-branch target for `evoparam.shapes` is
+  measured with the tests of `evoparam/tests/shapes` alone: 90 %, with `registry.py` at
+  70 %. The whole suite cannot run here. The CI job measures it with the whole suite.
+- **SOUP inventory roles (REQ-396).** `soup.json` lists every third-party package that the
+  source imports or the extras declare. Packages imported only through another package's
+  API (`packaging`, `tabulate`, `patsy`, `pytensor`) have the role `transitive`. These
+  declared extras are not imported by the source: `bidsschematools`, `formulaic`, `joblib`,
+  `mne-bids`, `ndx-events`, `numba`, `nwbinspector`, `pybids`, `tqdm`. They are kept,
+  because §9.2 names them; the inventory marks them `optional`.
+- **Public steps (REQ-308 run, REQ-391 archive, REQ-392, REQ-393, REQ-394, REQ-398).**
+  Everything that can be prepared locally is in the repository. The steps that publish
+  (PyPI, Zenodo, a public leaderboard, a preprint, the freeze of the name) wait for the
+  owner's HIIE decision. Their tests are strict expected failures with that reason.

@@ -93,6 +93,17 @@ summary:
 	@make run-lints
 
 ##########################################################################
+## FIGURES
+
+# Regenerate the figures of the papers from this version (spec §11.8, REQ-393); run it on
+# the release tag: every file must have the SHA-256 of figures/manifest.json
+figures:
+	@python tools/make_figures.py
+
+check-figures:
+	@python tools/make_figures.py --check
+
+##########################################################################
 ## DISTRIBUTION
 
 # Create a distribution build of the module

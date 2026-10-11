@@ -136,12 +136,13 @@ def test_req399_traceability_generator():
     assert "evoparam/tests/test_soup_inventory.py" in row["tests_naming_it"]
 
 
-UNTESTED = ["REQ-024", "REQ-134", "REQ-290", "REQ-301", "REQ-373", "REQ-374", "REQ-376",
-            "REQ-392", "REQ-393"]
+# requirements of earlier build steps that no test names (none of S20)
+UNTESTED = ["REQ-024", "REQ-134", "REQ-373", "REQ-374"]
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-399: the traceability report (S20, 2026-10-11, "
-                   "intermediate) has 9 untested requirements of 227")
+@pytest.mark.xfail(strict=True, reason="REQ-399: the traceability report (S20, 2026-10-11) "
+                   "has 4 untested requirements of 227: REQ-024, REQ-134, REQ-373 and REQ-374, "
+                   "all of earlier build steps")
 def test_req399_no_untested_requirement():
     assert _tool("gen_traceability").report()["untested"] == []
 
