@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-019 (no public step before the institutional decision), REQ-017 (the N1 tests in every
 CI build) and REQ-018 (every gap traced).
 

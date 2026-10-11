@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Scoring of task outputs against the truth, and the signed result (spec §8.1, §8.4).
 
 ``score(task, predictions, suite)`` regenerates the inputs and the truth of every cell of

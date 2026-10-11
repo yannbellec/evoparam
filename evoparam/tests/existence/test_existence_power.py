@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Power (REQ-131), duration (REQ-132), projection duration, discordance (REQ-139)."""
 
 import numpy as np

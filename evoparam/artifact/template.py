@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Artifact templates: group median, moving (local) median, and learned bases."""
 
 import warnings

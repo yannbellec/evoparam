@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Empirical-Bayes engine of the hierarchical model (spec §5.8, step 2).
 
 Three pieces, each closed-form or one-dimensional:

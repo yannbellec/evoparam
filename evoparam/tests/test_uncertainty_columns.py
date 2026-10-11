@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-006 (uncertainty everywhere): every reported latency, amplitude, width, onset, area and
 existence decision has an interval or a p-value in the same table row."""
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Layer 3, ERP CORE (spec §7.3, REQ-274): the component of each paradigm on its canonical
 channel, model latency against the 50 % area latency of the same average.
 

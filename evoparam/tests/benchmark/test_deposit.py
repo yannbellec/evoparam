@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-355 (deposit of the simulated suites as NWB/BIDS with a DOI, with the generator
 version and the seeds of the public split) and REQ-356 (the hidden split's seeds committed
 as a SHA-256 hash at deposit time, revealed at paper acceptance).

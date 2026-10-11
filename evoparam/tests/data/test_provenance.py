@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for Provenance (spec §4.3.3; REQ-294 steps, REQ-335 environment keys, REQ-337 data hash)."""
 
 import json

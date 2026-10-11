@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Robust rejection of bad trials (flagged, never deleted)."""
 
 import time as _time

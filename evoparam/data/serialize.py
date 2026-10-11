@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The ``.evoparam`` container: saving and loading containers and results.
 
 A container is a directory (or a zip when the path ends in ``.zip``) holding:

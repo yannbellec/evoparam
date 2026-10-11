@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Scorers: Hungarian matching of fitted to true components, and their summary."""
 
 import numpy as np

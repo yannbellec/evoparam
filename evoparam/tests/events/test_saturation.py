@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Amplifier saturation (REQ-043)."""
 
 import numpy as np

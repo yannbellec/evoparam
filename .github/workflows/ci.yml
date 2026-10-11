@@ -29,6 +29,10 @@ jobs:
       run: interrogate -v --fail-under 95 evoparam
     - name: citation file (REQ-391)
       run: python -c "import yaml; d = yaml.safe_load(open('CITATION.cff')); assert d['cff-version'] == '1.2.0'"
+    - name: SPDX headers and modification notices (REQ-396)
+      run: python tools/add_spdx_headers.py --check
+    - name: SOUP inventory and THIRD_PARTY.md regenerated and diffed (REQ-399)
+      run: python tools/gen_soup.py --check
 
   format:
     runs-on: ubuntu-latest

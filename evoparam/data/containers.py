@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Data containers: :class:`TrialSet` (trials × channels × time) and :class:`Evoked`.
 
 Containers are dataclasses that are frozen by convention: every method returns

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-251 (noise models) and REQ-252 (requested SNR is the measured SNR)."""
 
 import numpy as np

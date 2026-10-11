@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """BIDS derivatives (REQ-336, REQ-342) and the simulated raw dataset they come from.
 
 The reference BIDS validator runs when it is available: set ``EVOPARAM_BIDS_VALIDATOR`` to

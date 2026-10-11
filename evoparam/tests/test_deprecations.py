@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-293 (deprecation shims) and REQ-394 (frozen name; renamed symbols keep shims).
 
 Every entry of ``evoparam/_deprecated.py`` (``{old_name: (new_name, since, remove_in)}``) is

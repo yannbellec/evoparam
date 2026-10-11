@@ -803,46 +803,46 @@ Names that replace inherited ones
 .. glossary::
 
    ResponseModel
-      Replaces the inherited class ``evoparam`` (one waveform fitter + results): ``ResponseModel`` (estimator) + ``ResponseFit`` (result). Reason: a class named like the package shadows the module in ``from evoparam import evoparam``; estimator and result are separated as in scikit-learn so results are plain data.
+      Name chosen in place of an inherited one (spec §4.4): ``ResponseModel`` (estimator) + ``ResponseFit`` (result). Reason: a class named like the package shadows the module in ``from evoparam import evoparam``; estimator and result are separated as in scikit-learn so results are plain data.
 
    GroupFit
-      Replaces the inherited class ``evoparamGroup``: ``GroupFit`` (result) ; fitting via ``ResponseModel.fit_group`` / ``evoparam.fit``. Reason: same split.
+      Name chosen in place of an inherited one (spec §4.4): ``GroupFit`` (result) ; fitting via ``ResponseModel.fit_group`` / ``evoparam.fit``. Reason: same split.
 
    Component.params
-      Replaces the inherited ``gaussian_params_`` / ``shape_params_``: ``Component.params`` + feature fields. Reason: names say what the numbers are.
+      Name chosen in place of an inherited one (spec §4.4): ``Component.params`` + feature fields. Reason: names say what the numbers are.
 
    min_fwhm
-      Replaces the inherited ``peak_width_limits``: ``min_fwhm``, ``max_fwhm`` (seconds). Reason: one unit, two explicit bounds.
+      Name chosen in place of an inherited one (spec §4.4): ``min_fwhm``, ``max_fwhm`` (seconds). Reason: one unit, two explicit bounds.
 
    max_components
-      Replaces the inherited ``max_n_peaks``: ``max_components``. Reason: the model fits components, not only peaks.
+      Name chosen in place of an inherited one (spec §4.4): ``max_components``. Reason: the model fits components, not only peaks.
 
    min_amplitude
-      Replaces the inherited ``min_peak_height``: ``min_amplitude`` (data units).
+      Name chosen in place of an inherited one (spec §4.4): ``min_amplitude`` (data units).
 
    detection_threshold
-      Replaces the inherited ``peak_threshold``: ``detection_threshold`` (in baseline-SD units) — used only for initial guesses, never as the final acceptance rule (§5.5.3).
+      Name chosen in place of an inherited one (spec §4.4): ``detection_threshold`` (in baseline-SD units) — used only for initial guesses, never as the final acceptance rule (§5.5.3).
 
    shapes
-      Replaces the inherited ``peak_mode``: ``shapes`` (tuple of allowed shape names). Reason: several shapes may compete under model selection.
+      Name chosen in place of an inherited one (spec §4.4): ``shapes`` (tuple of allowed shape names). Reason: several shapes may compete under model selection.
 
    overlap_threshold
-      Replaces the inherited ``gauss_overlap_thresh``: ``overlap_threshold``. Reason: shape-agnostic.
+      Name chosen in place of an inherited one (spec §4.4): ``overlap_threshold``. Reason: shape-agnostic.
 
    max_iter
-      Replaces the inherited ``maxfev``: ``max_iter``. Reason: scipy-agnostic name.
+      Name chosen in place of an inherited one (spec §4.4): ``max_iter``. Reason: scipy-agnostic name.
 
    onset_fraction
-      Replaces the inherited ``amplitude_fraction``: ``onset_fraction`` (fraction of amplitude defining onset/offset, default 0.10). Reason: the inherited 0.5 half-magnitude rule is replaced; 0.5 remains available.
+      Name chosen in place of an inherited one (spec §4.4): ``onset_fraction`` (fraction of amplitude defining onset/offset, default 0.10).
 
    gof.r2
-      Replaces the inherited ``r_squared_`` (Pearson²): ``gof.r2`` (coefficient of determination). Reason: the inherited value is a correlation, not an R².
+      Name chosen in place of an inherited one (spec §4.4): ``gof.r2`` (coefficient of determination).
 
    ComponentWindows
-      Replaces the inherited ``Bands`` / ``bands``: ``ComponentWindows`` in ``evoparam.models.windows``. Reason: windows name components in time, not frequency bands.
+      Name chosen in place of an inherited one (spec §4.4): ``ComponentWindows`` in ``evoparam.models.windows``. Reason: windows name components in time, not frequency bands.
 
    evoparam.sim.simulate_erp
-      Replaces the inherited ``sim.gen.simulate_erp``: ``evoparam.sim.simulate_erp`` (kept name), plus ``simulate_ccep``, ``simulate_erna``, ``simulate_tep``, ``simulate_animal_ep``.
+      Name chosen in place of an inherited one (spec §4.4): ``evoparam.sim.simulate_erp`` (kept name), plus ``simulate_ccep``, ``simulate_erna``, ``simulate_tep``, ``simulate_animal_ep``.
 
 Errors and warnings
 -------------------

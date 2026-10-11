@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Backgrounds with analytic Jacobians (spec §5.5.2).
 
 A background is ``b(t) = Σ_j c_j B_j(t; τ)``: linear coefficients ``c_j`` on

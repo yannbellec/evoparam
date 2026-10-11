@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Fixtures of the io tests: a mini BIDS dataset and an isolated download folder."""
 
 import pytest

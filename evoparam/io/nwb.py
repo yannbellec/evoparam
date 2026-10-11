@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """NWB reading and writing (spec §10.3, REQ-317, REQ-318; extra ``nwb``).
 
 ``read_nwb`` epochs one ``ElectricalSeries`` (or any ``TimeSeries`` whose data are

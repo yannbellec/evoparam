@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Multiple-comparison corrections of p-values."""
 
 import numpy as np

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Synthetic waveforms with known components for the engine tests."""
 
 import numpy as np

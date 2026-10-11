@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Lab Streaming Layer adapters of the online mode (extra ``stream``: ``pylsl`` >= 1.16).
 
 For research use only: not a medical device. Every outlet of pulse estimates carries the

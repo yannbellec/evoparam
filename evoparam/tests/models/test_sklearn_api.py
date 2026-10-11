@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The scikit-learn contract of ResponseModel, TrialFitter and ArtifactRemover (REQ-320)."""
 
 import pickle

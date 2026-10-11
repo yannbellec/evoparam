@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Published zone on OpenNeuro ds004080 (REQ-216); runs only with EVOPARAM_NETWORK_TESTS=1."""
 
 import os

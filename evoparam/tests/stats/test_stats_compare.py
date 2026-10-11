@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Condition contrasts by permutation (REQ-232)."""
 
 import numpy as np

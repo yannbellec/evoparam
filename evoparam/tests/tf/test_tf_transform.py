@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Transforms and the exact footprint / residual decomposition (REQ-210, REQ-211)."""
 
 import warnings

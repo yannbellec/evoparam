@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-331: the settings and the preset are recorded in every result.
 
 ``settings`` is the full resolved dictionary, ``_overrides`` names the keys the user set,

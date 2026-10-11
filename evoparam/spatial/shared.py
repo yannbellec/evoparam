@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Multi-channel parametric model with shared shape parameters (spec §5.9, method 2).
 
 ``y_c(t) = b_c(t) + sum_k A_ck s_k(t - delta_ck; theta_k)``: the shape parameters

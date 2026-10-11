@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Utilities shared by the modules of evoparam (optional imports, names, interpolation, logging, deprecations)."""
 
 from ._deprecation import EvoparamDeprecationWarning

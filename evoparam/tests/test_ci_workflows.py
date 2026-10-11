@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """CI workflows, checked statically (spec §9.5 test map: ci.yml, nightly.yml, docs.yml,
 release.yml, smoke.yml, perf.yml; REQ-297, REQ-298, REQ-299, REQ-300, REQ-302, REQ-305,
 REQ-309 c, REQ-375).

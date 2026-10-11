@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Reference values of the bundled fixture fit (REQ-295 (ii), spec §7.4 analysis 5).
 
 ``fit_fixture_ccep.json`` holds the fit of a fixed simulated CCEP (``simulate_ccep``,

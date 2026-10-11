@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Three-level simulations (trial -> channel -> subject) with a known truth."""
 
 import numpy as np

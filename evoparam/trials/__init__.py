@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Trials: trial-by-trial parameters, latency jitter, realignment and covariates (spec §5.7)."""
 
 from .api import (COVARIATES, MODES, TrialFitSet, dose_response, fit_trials, jitter,

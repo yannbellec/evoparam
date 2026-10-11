@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Methods text (REQ-219)."""
 
 import numpy as np

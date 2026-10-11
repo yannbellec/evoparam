@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Logging through the standard library (spec §9.8, REQ-304).
 
 All diagnostics go to ``logging.getLogger("evoparam")`` and its children (``evoparam.models``,

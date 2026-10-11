@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """from_array, read dispatch and the light core (REQ-020, REQ-025)."""
 
 import subprocess

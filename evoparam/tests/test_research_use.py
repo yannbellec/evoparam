@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-015: the package documentation, the CLI ``--version`` output, the HTML and PDF reports
 and the stream outputs carry the statement "research use only; not a medical device"
 (§13.3)."""

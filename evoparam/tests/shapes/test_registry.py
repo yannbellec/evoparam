@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-102: the shape registry and the checks of ``register_shape``."""
 
 import numpy as np

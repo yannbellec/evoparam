@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Figures of every result type (spec §5.13, extra ``plot``).
 
 Every function returns the matplotlib ``Figure``, accepts ``ax=`` (or ``axes=`` when it

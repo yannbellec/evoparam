@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Frozen methods text of the reference pipelines (REQ-340).
 
 The frozen files are in ``methods/``; the package version is written ``{version}``. After

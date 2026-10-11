@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """read_mne (REQ-020); runs only when MNE-Python is installed (extra "mne")."""
 
 import numpy as np

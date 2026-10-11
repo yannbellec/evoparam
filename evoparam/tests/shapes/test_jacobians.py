@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-101: analytic Jacobians against central finite differences.
 
 For every shape and background, 100 random parameter sets inside the default

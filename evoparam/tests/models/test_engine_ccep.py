@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The N1 case on OpenNeuro ds004080 (REQ-112 on real baselines, REQ-113, REQ-114, REQ-273).
 
 REQ-112 and the regression floor use the 40 s segments cached by the events validation.

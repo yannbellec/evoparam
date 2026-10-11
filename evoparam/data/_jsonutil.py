@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Strict JSON helpers.
 
 Every JSON file written by evoparam is valid RFC 8259 JSON: NaN and infinities

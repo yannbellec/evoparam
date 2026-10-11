@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Statistics: intervals, comparisons, reliability and export to mixed models (spec §5.11).
 
 - :func:`bootstrap`: percentile and BCa intervals of any statistic, by resampling trials

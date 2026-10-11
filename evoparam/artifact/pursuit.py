@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Matching-pursuit decomposition of each pulse: line noise, evoked response, artifact.
 
 Specified only from the public abstract and claim summary of the published single-pulse

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Status semantics, reproducibility, tidy output, methods text and the API (REQ-118 to
 REQ-120, REQ-123)."""
 

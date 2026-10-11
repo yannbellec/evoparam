@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """BIDS derivatives of evoparam results (spec §10.2, REQ-315, REQ-316, REQ-336).
 
 Layout::

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Full Bayesian engines (REQ-172 to REQ-174, REQ-176). The reference runs take minutes:
 they run with EVOPARAM_SLOW_TESTS=1 (weekly in CI, spec §5.8); a short run of each engine
 is part of the regular suite."""

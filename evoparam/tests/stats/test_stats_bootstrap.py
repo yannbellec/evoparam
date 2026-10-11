@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Bootstrap intervals (REQ-230), the vectorised scores and the bootstrap interface."""
 
 import copy

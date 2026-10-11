@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Baseline correction, with checks against artifact masks and delayed responses."""
 
 import time as _time

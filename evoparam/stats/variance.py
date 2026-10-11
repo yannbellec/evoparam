@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Variance components of nested random effects by restricted maximum likelihood (REML).
 
 The model is the linear mixed model with nested random intercepts and, optionally,

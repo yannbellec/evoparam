@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Identify the stimulated contact pair from the stimulation artifact."""
 
 import re

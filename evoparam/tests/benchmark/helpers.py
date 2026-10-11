@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Shared pieces of the benchmark tests: the suites, cached task inputs, outputs built from
 the truth, and the environment switches."""
 

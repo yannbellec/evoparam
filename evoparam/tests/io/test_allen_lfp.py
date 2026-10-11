@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """rodent_ep on Allen Visual Coding Neuropixels LFP (REQ-278); runs only with
 EVOPARAM_NETWORK_TESTS=1.
 

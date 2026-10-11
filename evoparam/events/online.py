@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Pulse detection on a stream: the threshold step of :func:`detect_pulses`, causal.
 
 The score is that of the offline detector (median across channels of the absolute

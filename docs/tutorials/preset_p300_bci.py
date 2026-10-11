@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 P300 for brain-computer interfaces: the ``p300_bci`` preset
 ===========================================================

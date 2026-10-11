@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The seven benchmark tasks, their versioned schemas and their files (spec §8.1, §8.4).
 
 A task **input** is a JSON descriptor ``<cell>.json`` next to an ``.npz`` file of arrays

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Read BIDS datasets: stimulation events (events.tsv) and epochs around them.
 
 :func:`read_bids` reads one run (or every run that matches) of a BIDS dataset,

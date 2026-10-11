@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Induced oscillatory bursts with a known truth, for the time-frequency task of the
 benchmark (spec §8.1, T7).
 

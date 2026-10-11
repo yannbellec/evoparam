@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Import-graph test (REQ-296): module dependencies follow the table of spec §4.2.
 
 Every module of the package is parsed with ``ast`` and the directed graph of intra-package

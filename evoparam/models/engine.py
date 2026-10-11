@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The fitting engine (spec §5.5.3): background plus components, chosen by model comparison.
 
 ``y(t) = b(t) + sum_k A_k s_k(t; theta_k) + noise`` on the fit window. The amplitudes and

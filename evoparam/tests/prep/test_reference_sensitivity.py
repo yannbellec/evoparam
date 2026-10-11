@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Montage sensitivity on OpenNeuro ds004080 sub-ccepAgeUMCU01 (REQ-084).
 
 Uses the 40 s segment cached by the events validation (tests/events/test_ds004080_events.py);

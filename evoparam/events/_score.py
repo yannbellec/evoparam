@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Shared helpers: the artifact score, robust scaling, channel picks and artifact snippets."""
 
 import numpy as np

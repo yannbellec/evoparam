@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Settings and provenance re-create the result (REQ-069)."""
 
 import warnings

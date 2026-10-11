@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-313: stimulation-event harmonisation on the three deposit shapes, and read_bids.
 
 Fixtures copy the column layout of the deposits: ds004080 (Utrecht: currents in A and pulse

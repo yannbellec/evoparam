@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Public interface of the fitting engine: ResponseModel, fit, fit_response (spec §5.5.8)."""
 
 import dataclasses

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Layer 2 of the scientific validation: recovery on simulations with a known truth (spec §7.2).
 
 Two parts, one JSON report and one Markdown summary in ``validation/layer2/<version>/``:

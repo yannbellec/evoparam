@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the result dataclasses (spec §4.3.4)."""
 
 import copy

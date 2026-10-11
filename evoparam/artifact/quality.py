@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Quality score of each trial after artifact removal."""
 
 import numpy as np

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Trial fits on OpenNeuro ds004080 (REQ-156) and the train-position effect (REQ-158).
 
 The ds004080 tests run only with EVOPARAM_NETWORK_TESTS=1. REQ-156 uses every trial of one

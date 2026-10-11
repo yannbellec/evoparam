@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-061, second part: bias of the fitted components after cleaning.
 
 Overlay benchmark at 2048 Hz (``helpers.make_overlay``): 20 trials, 4 channels, a negative

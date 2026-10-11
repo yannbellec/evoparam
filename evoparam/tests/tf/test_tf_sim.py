@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Time-frequency simulations with known truth (REQ-212 to REQ-215)."""
 
 import warnings

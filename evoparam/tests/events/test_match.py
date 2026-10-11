@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Matching detections to reference onsets, and the system delay."""
 
 import numpy as np

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Fit the auditory N1 and P2 of the MNE ``sample`` dataset
 ========================================================

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from the upstream project and commit named in NOTICE (Apache-2.0); changes: moved from
+#   core/modutils.py into utils/ (spec §4.5); module docstring rewritten; functions unchanged
 """Module utilities kept from the inherited code (spec §4.5: `core/modutils.py` is merged into
 `utils/` as is). Optional packages of the package itself are imported with
 :func:`evoparam.utils._optional.require` (spec §9.2); these helpers serve tests and docs."""

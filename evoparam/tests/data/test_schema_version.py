@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Schema versioning and migration of the ``.evoparam`` container (REQ-334).
 
 ``containers/`` keeps one frozen container per released schema major. Each must load and

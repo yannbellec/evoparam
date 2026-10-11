@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Stimulated-site identification (REQ-042, synthetic part)."""
 
 import numpy as np

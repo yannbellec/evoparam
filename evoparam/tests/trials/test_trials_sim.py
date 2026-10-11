@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Single-trial estimation on simulations (REQ-150 to REQ-155)."""
 
 import warnings

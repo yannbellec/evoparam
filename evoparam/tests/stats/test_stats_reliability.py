@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Reliability (REQ-233, simulation part) and trial-count planning (REQ-234)."""
 
 import numpy as np

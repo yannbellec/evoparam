@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Registry of public datasets of evoked responses.
 
 The registry is a versioned JSON file shipped with the package

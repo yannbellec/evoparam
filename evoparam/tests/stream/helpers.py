@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Simulated pulses for the online mode: epochs with known responses, and their channel fits."""
 
 import warnings

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Reliability of scores and trial-count planning (spec §5.11, methods 4 and 5).
 
 Split-half reliability: each unit's trials (the units are subjects, or stimulation trains

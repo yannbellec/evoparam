@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Specified exports and listings: TrialSet.to_xarray (spec §4.3.1), TFFit.to_mne (§5.10),
 HierarchicalFit.to_arviz (§5.8), list_shapes and list_backgrounds (§5.5.8)."""
 

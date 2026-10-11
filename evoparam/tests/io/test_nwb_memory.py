@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-317: reading epochs of a 1 GB ElectricalSeries keeps the memory low.
 
 A synthetic file of 1 GB (64 channels x 4,194,304 samples of float32 at 4096 Hz, fixed seed)

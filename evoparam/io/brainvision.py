@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Read BrainVision recordings (.vhdr / .eeg), from a local file or a remote address.
 
 BrainVision is a common format in BIDS iEEG datasets (for example OpenNeuro ds004080).

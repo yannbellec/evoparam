@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Cancelling pairs: two components of opposite signs at almost the same latency, with large
 amplitudes that cancel, describing one deflection (engine defect of build step S7).
 

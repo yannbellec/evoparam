@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-013 (determinism): identical inputs, settings and ``random_state`` give identical
 outputs (REQ-119, REQ-250, §9.4): the same numbers, bit for bit, and the same bytes for the
 saved files under a fixed clock."""

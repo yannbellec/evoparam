@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Example evoparam plugin (spec §10.8): a shape, a preset and a reader.
 
 * ``Lorentzian``: ``s(t) = 1 / (1 + ((t - mu) / gamma)²)``, parameters ``(mu, gamma)`` in s,

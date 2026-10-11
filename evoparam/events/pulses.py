@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Find stimulation pulses in the raw signal: robust threshold, then template confirmation."""
 
 import time as _time

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Quality score (REQ-066)."""
 
 from dataclasses import replace

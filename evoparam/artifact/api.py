@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """remove_artifact: one entry point for every method, plus compare_methods."""
 
 import time as _time

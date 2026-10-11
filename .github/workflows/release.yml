@@ -4,7 +4,8 @@
 # sdist and the wheel, runs the five robustness analyses of layer 4 and the layer-3 gate
 # (a regression beyond the pre-registered tolerances blocks the release unless the
 # CHANGELOG explains it), and keeps the distribution, the benchmark results, the robustness
-# report and the gate report as artifacts for the release notes. The upload step (trusted
+# report, the gate report, the SOUP inventory and the traceability report as artifacts for
+# the release notes. The upload step (trusted
 # publishing, no stored token) is added after the decision, as RELEASING.md describes;
 # until then this workflow publishes nothing.
 
@@ -73,6 +74,12 @@ jobs:
       run: python tools/layer3_gate.py --json validation/layer3/gate-report.json
     - name: Benchmarks (REQ-290)
       run: python benchmarks/run_benchmarks.py --suite perf
+    - name: Provenance map, SOUP inventory and traceability report (REQ-396, REQ-399)
+      run: |
+        python tools/add_spdx_headers.py --check
+        python tools/gen_soup.py --check
+        mkdir -p release-records && cp soup.json THIRD_PARTY.md REIMPLEMENTED.md release-records/
+        python tools/gen_traceability.py --out release-records/traceability.json
     - uses: actions/upload-artifact@v4
       if: always()
       with:
@@ -81,3 +88,4 @@ jobs:
           validation/layer4/
           validation/layer3/
           benchmarks/results/
+          release-records/

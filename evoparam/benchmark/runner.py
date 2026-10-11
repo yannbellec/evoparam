@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Run methods on a suite and score them (``evoparam benchmark run``, REQ-350).
 
 ``run_suite`` generates every cell of the suite from its seed, writes the task inputs,

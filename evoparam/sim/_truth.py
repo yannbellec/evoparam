@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """GroundTruth: what a simulator put in the data, exactly.
 
 The truth stores every component once (its nominal parameters, channel, role

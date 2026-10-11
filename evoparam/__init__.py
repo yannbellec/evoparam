@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """evoparam - Parameterizing evoked neural responses.
 
 For research use only; not a medical device. Its outputs are not intended for diagnosis or

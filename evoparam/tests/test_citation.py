@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-308 (release process and citation metadata) and REQ-391 (CITATION.cff, DOIs, cite).
 
 ``CITATION.cff`` is read without cffconvert (the package's own YAML-subset reader, and

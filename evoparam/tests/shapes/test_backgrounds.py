@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the backgrounds (spec §5.5.2; REQ-100 for the equations)."""
 
 import numpy as np

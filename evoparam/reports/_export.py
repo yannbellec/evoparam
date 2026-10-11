@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Machine-readable report: one JSON file holding the ``.evoparam`` container (REQ-341)."""
 
 import json

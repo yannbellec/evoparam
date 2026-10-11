@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Shared shapes on the example dataset of the basis-profile-curve paper (REQ-194).
 
 OpenNeuro ds003708 (Miller, Müller and Hermes, 2021, PLOS Computational Biology): one

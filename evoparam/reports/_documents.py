@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Human-readable reports: quality summary, Markdown, self-contained HTML, PDF."""
 
 import base64

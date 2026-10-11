@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """read_edf; runs only when edfio is installed (extra "edf")."""
 
 import numpy as np

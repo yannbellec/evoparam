@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from the upstream project and commit named in NOTICE (Apache-2.0); changes: signal and
+#   summary figures of plts/signals.py and plts/templates.py rewritten: each returns the Figure,
+#   accepts ax=, never calls show(), uses the Okabe and Ito palette and draws numbers computed by
+#   evoparam.stats
 """Waveform and summary figures kept from the inherited plotting helpers (spec §4.5).
 
 Spec §4.5 keeps the signal plots (``plts/signals.py``) and the summary plots

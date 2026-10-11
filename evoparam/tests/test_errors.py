@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-307: no silent failure.
 
 A failure injected on one channel is recorded on that channel (``status="failed"``, a

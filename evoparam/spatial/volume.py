@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Local versus volume-conducted responses (spec §5.9, method 4).
 
 Three published screens, each a flag on every (stimulation site, channel):

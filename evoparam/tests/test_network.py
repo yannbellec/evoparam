@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-306: no network, no telemetry.
 
 - The tests of the ``core`` marker set run with a socket guard (``conftest.py``): only tests

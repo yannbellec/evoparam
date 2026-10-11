@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Sequential low-rank regression (REQ-063)."""
 
 import numpy as np

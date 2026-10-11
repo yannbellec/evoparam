@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Layer 3, ds004977 (spec §7.3, REQ-372): the channels left out of the adjusted common
 average by the authors' CARLA code and by evoparam's ``car_adaptive``, on the same data.
 

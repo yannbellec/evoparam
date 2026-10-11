@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Reports: methods text, machine-readable JSON, quality summary, HTML, Markdown and PDF,
 reproduction of a saved result, and the preset pipeline (spec §5.13, §9.12).
 

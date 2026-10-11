@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Registries of shapes and backgrounds, and the checks run on user shapes (spec §5.5.1).
 
 ``SHAPES`` and ``BACKGROUNDS`` map a name to a class (or, for a user shape

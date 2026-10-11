@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Time-frequency parameterisation of evoked responses (spec §5.10).
 
 ``tf_fit`` computes, for every channel (and condition), the power of the trials in a

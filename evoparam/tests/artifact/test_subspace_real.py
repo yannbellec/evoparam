@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-064 with real artifact templates: ``subspace`` on synthetic EEG overlaid with the
 measured artifacts of real recordings.
 

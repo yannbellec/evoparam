@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Refuse to release before the HIIE decision is on record (spec §13.7, REQ-398).
 
 The release workflow (``.github/workflows/release.yml``) runs this first. It exits with

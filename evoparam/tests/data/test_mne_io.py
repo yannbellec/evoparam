@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """MNE round trip and fitting MNE objects (REQ-310, REQ-311)."""
 
 import warnings

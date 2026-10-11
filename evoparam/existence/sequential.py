@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Sign-flip test of per-pulse values, at a fixed sample size or with repeated looks.
 
 Each pulse gives one value per channel (for the online mode, the projection of the response

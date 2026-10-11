@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-321: the scikit-learn ``check_estimator`` subset."""
 
 import warnings

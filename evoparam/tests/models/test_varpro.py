@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Variable projection, masks and DC invariance (REQ-103, REQ-108, REQ-109)."""
 
 import numpy as np

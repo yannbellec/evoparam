@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Masks and locality of every method (REQ-060)."""
 
 import warnings

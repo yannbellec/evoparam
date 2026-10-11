@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Provenance: the record that lets anyone regenerate a result.
 
 Every container and every result carries a :class:`Provenance`. It stores the

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Speed of every artifact-removal method (REQ-068); runs only with EVOPARAM_PERF_TESTS=1."""
 
 import os

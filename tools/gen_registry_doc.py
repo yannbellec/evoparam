@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Write ``docs/datasets.rst`` from ``evoparam/io/registry.json`` (spec §9.7, REQ-303 (g)).
 
 One row per registered dataset: name, DOI, size, sampling rate, licence, events status and

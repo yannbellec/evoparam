@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-253: simulated stimulation artifacts and their removal (link of §5.3 and §5.12)."""
 
 import numpy as np

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Presets: the table of spec §6.1, citations, derive and the generated page (REQ-270 to
 REQ-272, REQ-279, REQ-280)."""
 

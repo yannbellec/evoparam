@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the component shapes (spec §5.5.1; REQ-100).
 
 REQ-100 compares every shape with values computed independently in mpmath at

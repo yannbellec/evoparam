@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Shared response shapes across stimulation sites or channels (spec §5.9, method 1).
 
 Re-implemented from the published description of the basis-profile-curve method (Miller,

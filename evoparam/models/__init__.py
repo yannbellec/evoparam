@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Models: the fitting engine for evoked waveforms (spec §5.5)."""
 
 from ._settings import FIT_PRESETS, FitSettings, resolve_settings

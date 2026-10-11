@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Speed and memory of pulse detection (REQ-045); runs only with EVOPARAM_PERF_TESTS=1.
 
 The target is for one core of the reference machine (spec §9.1); shared CI runners are

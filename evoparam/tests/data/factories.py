@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Small, deterministic containers and results for the data-model tests."""
 
 import numpy as np

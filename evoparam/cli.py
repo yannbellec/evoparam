@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The ``evoparam`` command (spec §5.13, §10.5): standard-library ``argparse`` only.
 
 Every sub-command accepts ``--json`` (one JSON summary object on stdout, logs on stderr),

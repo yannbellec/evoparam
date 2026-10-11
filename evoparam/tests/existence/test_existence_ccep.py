@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Agreement with the field on OpenNeuro ds004080 (REQ-135); runs only with
 EVOPARAM_NETWORK_TESTS=1 (uses the segments cached by the events validation)."""
 

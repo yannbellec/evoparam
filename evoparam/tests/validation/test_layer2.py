@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The layer-2 runner (REQ-370): the smoke design runs and reports every metric."""
 
 import importlib.util

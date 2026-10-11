@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Protocols, the feature record and the helpers shared by shapes and backgrounds.
 
 A component shape is a unit-amplitude function ``s(t; θ)`` with ``max_t |s| = 1``;

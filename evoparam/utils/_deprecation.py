@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Deprecation shims (spec §9.3, REQ-293).
 
 A renamed or removed public name keeps a shim for two minor versions. The shims are listed

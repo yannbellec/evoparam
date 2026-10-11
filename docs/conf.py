@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Sphinx configuration of the evoparam documentation (spec §9.7; completed at step S20).
 
 ``sphinx-build -b html docs docs/_build/html`` builds the site and runs the tutorials of

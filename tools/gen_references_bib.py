@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Write ``docs/references.bib`` from ``docs/spec/LITERATURE.md`` (spec §9.7, REQ-302).
 
 Every numbered reference ``- **[LIT-<axis>-<n>]** <record>`` becomes one ``@misc`` entry

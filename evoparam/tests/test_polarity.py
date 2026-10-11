@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-003 (polarity-agnostic): no code path in fitting, existence or trial modules discards
 a candidate or component because of its sign unless the user sets ``polarity``; a test on
 sign-flipped data returns mirrored results (latencies equal, amplitudes negated) to 1e-9."""

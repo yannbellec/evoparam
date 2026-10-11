@@ -18,7 +18,7 @@ at least:
 
 In a 2025 systematic review of clinical studies that used the ancestor tool, 30 % reported a
 goodness-of-fit check and 56 % documented the settings, although the tool could print them
-(Donoghue 2025, [LIT-fooof-4]). evoparam therefore writes this paragraph for you by default,
+(Donoghue 2025, medRxiv, doi:10.1101/2024.10.14.24314925). evoparam therefore writes this paragraph for you by default,
 and stores it with the result.
 
 How ``methods_text()`` fills it

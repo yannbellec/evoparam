@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Resampling with an anti-aliasing filter."""
 
 import time as _time

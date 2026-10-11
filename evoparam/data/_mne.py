@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Conversions between evoparam containers and MNE-Python objects (spec §10.1, REQ-310).
 
 MNE stores voltages in V; evoparam in µV (``units``). The conversion keeps the channel

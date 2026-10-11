@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Fixed-shape estimates of single pulses: frozen templates, shifted and scaled.
 
 The reference minimal estimator of the online mode (spec §10.6): the components of each

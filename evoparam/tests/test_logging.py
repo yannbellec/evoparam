@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-304: logging through the standard library.
 
 A failed channel emits exactly one WARNING record naming the channel (with REQ-307);

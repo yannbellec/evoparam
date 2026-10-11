@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Inject simulated components into real recordings (real-noise benchmark, spec §5.12)."""
 
 import time as _time

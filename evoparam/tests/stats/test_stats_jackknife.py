@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Jackknife scoring over participants (REQ-231)."""
 
 import numpy as np

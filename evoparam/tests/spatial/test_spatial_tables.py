@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Parameter maps and the connectivity export (REQ-195, REQ-196).
 
 REQ-196 reads six stimulation sites of one ds004080 run (OpenNeuro, remote byte ranges;

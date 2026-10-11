@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REML variance components of nested random intercepts (dependability, and the hierarchical
 models of §5.8 that build on them)."""
 

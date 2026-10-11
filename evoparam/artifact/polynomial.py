@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Local cubic fit and subtraction, with recovery after amplifier saturation.
 
 Implemented from the published local-curve-fitting approach to artifact suppression in

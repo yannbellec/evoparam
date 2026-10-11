@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-008 (methods text): every result produces a methods paragraph naming the package
 version, the preset, the settings that differ from the preset, the statistical choices and
 the citations (REQ-340, REQ-390)."""

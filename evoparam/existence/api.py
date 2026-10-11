@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Is there a response? test_response and its companions (spec §5.6)."""
 
 import dataclasses

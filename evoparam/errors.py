@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Exception and warning hierarchy for evoparam.
 
 Every error raised by the package derives from :class:`EvoparamError`. A

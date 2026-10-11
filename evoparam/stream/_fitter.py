@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """StreamFitter: samples in, one estimate per pulse, channel and component out (spec §10.6).
 
 This module buffers samples, finds the pulses and hands each complete window to the

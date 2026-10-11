@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Does the result depend on the montage? Detections and latencies under several references."""
 
 import itertools

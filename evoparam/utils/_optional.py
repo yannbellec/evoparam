@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Import optional dependencies, or raise an ImportError that names the extra to install.
 
 Every package other than numpy and scipy is optional. Functions that need one

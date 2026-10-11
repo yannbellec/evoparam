@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Result dataclasses returned by the fitting, testing and analysis modules.
 
 Results are plain data: they hold numbers, tables, the resolved settings and a

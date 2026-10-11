@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The package citation, read from ``CITATION.cff`` (the single source of truth, spec §11).
 
 ``CITATION.cff`` is YAML. The package keeps numpy and scipy as its only required

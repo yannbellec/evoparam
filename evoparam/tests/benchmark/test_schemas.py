@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-351: every task's input and output schemas are versioned (``benchmark-task/<id>/1``)
 and validated on read; scoring rejects outputs that do not validate, naming the first
 violation."""

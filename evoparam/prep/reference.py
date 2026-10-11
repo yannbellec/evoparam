@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Re-referencing: monopolar, bipolar, common average, adjusted common average, Laplacian."""
 
 import time as _time

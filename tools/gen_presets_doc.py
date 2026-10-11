@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Write docs/presets.md from evoparam.presets (spec REQ-280: no hand-maintained copy).
 
 Run ``python tools/gen_presets_doc.py``; ``evoparam/tests/presets/test_presets.py`` fails

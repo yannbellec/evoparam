@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Component names by latency window and polarity (spec §5.5.7). Labels are cosmetic."""
 
 import dataclasses

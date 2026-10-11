@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Linear time-frequency transforms: generalised Morse and Morlet wavelets, multitaper, STFT.
 
 Every transform is a set of complex kernels, one per frequency (and per taper for the

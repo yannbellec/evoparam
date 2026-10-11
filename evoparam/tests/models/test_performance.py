@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Speed of the engine (REQ-115); runs only with EVOPARAM_PERF_TESTS=1.
 
 REQ-115: one waveform of 2 048 samples with ``max_components = 6``, the default shapes and

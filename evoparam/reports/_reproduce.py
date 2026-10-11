@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Regenerate a saved result from its provenance and compare (spec §9.12, REQ-333, REQ-334,
 REQ-335).
 

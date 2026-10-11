@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Public benchmark: tasks, frozen suites, baselines, adapters, scoring and leaderboard
 (spec §8).
 

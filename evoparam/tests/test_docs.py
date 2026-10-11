@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Documentation content (spec §10.7).
 
 REQ-326 (and the tutorial files of REQ-303): the tutorials exist, end with the methods

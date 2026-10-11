@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Classical ERP measures from their textbook definitions (spec §5.5.6).
 
 Every score records the exact definition used, so that the differing defaults of ERP

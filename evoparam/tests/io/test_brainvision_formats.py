@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """BrainVision formats: INT_16 / IEEE_FLOAT_32, multiplexed / vectorized, units, picks."""
 
 import numpy as np

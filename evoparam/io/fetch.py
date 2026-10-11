@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Fetch files from OpenNeuro, the open archive of BIDS datasets."""
 
 import os

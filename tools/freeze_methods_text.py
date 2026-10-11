@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Freeze the methods text of the reference pipelines (REQ-340).
 
 Runs every pipeline of ``evoparam.reports.REFERENCE_PIPELINES`` on its stand-in input and

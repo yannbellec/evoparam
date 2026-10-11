@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Contact names: electrode group and contact number."""
 
 import re

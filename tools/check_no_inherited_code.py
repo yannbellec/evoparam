@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Fail when a source file reuses code inherited under Apache-2.0 (spec §10.1, REQ-312).
 
 Code proposed upstream (MNE, MNE-BIDS) under BSD-3-Clause must be written new, never moved

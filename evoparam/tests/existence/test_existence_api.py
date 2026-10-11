@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """API, groups, text (REQ-140), integration with evoparam.fit, edge cases."""
 
 import numpy as np

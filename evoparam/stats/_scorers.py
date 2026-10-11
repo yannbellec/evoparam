@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Classical scores of many waveforms at once, with the definitions of
 :func:`evoparam.models.classical_measures`.
 

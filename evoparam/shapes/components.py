@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from the upstream project and commit named in NOTICE (Apache-2.0); changes: Gaussian and
+#   skewed-Gaussian equations of core/funcs.py rewritten with unit amplitude, vectorised over
+#   parameter sets, with analytic Jacobians; the other shapes are new
 """Component shapes with analytic Jacobians (spec §5.5.1).
 
 Every shape is a frozen dataclass whose fields are settings (width limits,

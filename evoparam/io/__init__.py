@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Input / output: build TrialSets from arrays, files and BIDS datasets, locally or remotely.
 
 - Arrays and files: :func:`from_array`, :func:`read` (dispatch), :func:`epoch`,

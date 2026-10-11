@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-005 (no silent failure): every public function either returns a result whose
 ``status`` explains a non-result or raises a documented exception; no NaN parameter appears
 with ``status="ok"`` (REQ-118); every warning is also logged."""

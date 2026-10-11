@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Write the benchmark leaderboard page and report from the result JSONs (spec §8.4, REQ-357).
 
 The page (``docs/benchmark/leaderboard.html``) and the report

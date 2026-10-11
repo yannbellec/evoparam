@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Recovery tail after the pulse: a two-exponential fit, subtracted."""
 
 import numpy as np

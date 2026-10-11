@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Frozen simulated suites: cells, seeds, the hidden split, task inputs and truth (spec §8.2).
 
 A suite file (``suites/core.json``, ``suites/full.json``; schema

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Trial -> channel -> subject model with uncertainty at every level (spec §5.8).
 
 ``fit_hierarchical`` takes one TrialSet per subject (or one TrialSet with a ``subject``

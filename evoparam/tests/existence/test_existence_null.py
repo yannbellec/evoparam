@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Calibration under the null (REQ-130) and corrections (REQ-136)."""
 
 import numpy as np

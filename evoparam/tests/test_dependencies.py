@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-011 (licence hygiene) and the extras of §9.2.
 
 - GPL deny list (REQ-309 a): ``erdetect``, ``ieegprep``, ``teppy``, ``ultranest`` appear in
@@ -37,7 +38,7 @@ DISTRIBUTIONS = {"sklearn": "scikit-learn", "mpmath": "mpmath", "pandas": "panda
                  "jsonschema": "jsonschema", "bidsschematools": "bidsschematools",
                  "h5py": "h5py", "hdmf": "hdmf", "ndx_events": "ndx-events",
                  "remfile": "remfile", "formulaic": "formulaic", "hypothesis": "hypothesis",
-                 "tomli": "tomli", "nilearn": "nilearn"}
+                 "tomli": "tomli", "nilearn": "nilearn", "yaml": "pyyaml"}
 
 
 def _toml():
@@ -420,3 +421,17 @@ def test_req395_the_scan_finds_a_copyleft_licence():
     assert COPYLEFT.search("License :: OSI Approved :: GNU General Public License v3 (GPLv3)")
     assert COPYLEFT.search("LGPL-2.1-or-later")
     assert not COPYLEFT.search("Apache-2.0") and not COPYLEFT.search("BSD-3-Clause")
+
+
+def test_req309_version_floors():
+    """Spec §9.2: ``python>=3.10``, ``numpy>=1.24,<3``, ``scipy>=1.10`` (S20: the
+    pyproject declared ``numpy`` and ``scipy>=1.8``, inherited)."""
+
+    try:
+        import tomllib
+    except ImportError:                  # Python 3.10
+        tomllib = pytest.importorskip("tomli")
+    with open(ROOT / "pyproject.toml", "rb") as fobj:
+        project = tomllib.load(fobj)["project"]
+    assert project["requires-python"] == ">=3.10"
+    assert sorted(project["dependencies"]) == ["numpy>=1.24,<3", "scipy>=1.10"]

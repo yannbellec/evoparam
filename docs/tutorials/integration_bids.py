@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 BIDS: read a deposit, check its stimulation metadata, write derivatives
 =======================================================================

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Canonical JSON and hashes of the benchmark (spec §8.4, REQ-352).
 
 The signed result of a scoring run must be reproducible byte for byte from the same

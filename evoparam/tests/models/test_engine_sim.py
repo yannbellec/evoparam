@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The engine on simulations with known components (REQ-104 to REQ-107, REQ-110 to REQ-112,
 REQ-116, REQ-121, REQ-122).
 

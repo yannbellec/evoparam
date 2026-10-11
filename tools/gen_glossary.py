@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Write ``docs/glossary.rst`` from section 4 of the specification (spec §9.7, REQ-303 (f)).
 
 The glossary holds every term that section 4 (Architecture) defines:
@@ -128,7 +129,31 @@ def table_columns(body, title):
     return rows
 
 
+def prohibited_words():
+    """The words of the vocabulary rule (the table of CONTRIBUTING.md, REQ-012)."""
+
+    text = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    block = text.split("<!-- prohibited-words -->")[1].split("<!-- end-prohibited-words -->")[0]
+    words = []
+    for line in block.splitlines()[2:]:
+        if line.startswith("|"):
+            words += re.findall(r"`([^`]+)`", line.split("|")[1])
+    return words
+
+
+def _clean(text, words):
+    """False when ``text`` holds a word of the vocabulary rule (the docs never name them)."""
+
+    return not any(re.search(r"(?<![A-Za-z0-9_])" + re.escape(w) + r"(?![A-Za-z0-9_])", text,
+                             0 if w[:1].isupper() and w[1:].islower() else re.IGNORECASE)
+               for w in words)
+
+
 def renames(body):
+    """The new names of §4.4, without the inherited names they replace (REQ-012: the docs
+    never name them; the specification keeps the table)."""
+
+    words = prohibited_words()
     out = []
     for line in body.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
@@ -137,8 +162,12 @@ def renames(body):
         new = re.findall(r"`([\w.]+)`", cells[1])
         if not new or cells[1].startswith("removed"):
             continue
-        reason = f" Reason: {rst(cells[2])}." if cells[2] else ""
-        out.append((new[0], f"Replaces the inherited {rst(cells[0])}: {rst(cells[1])}.{reason}"))
+        text = "Name chosen in place of an inherited one (spec §4.4)"
+        if _clean(cells[1], words):
+            text += f": {rst(cells[1])}"
+        if cells[2] and _clean(cells[2], words) and "inherited" not in cells[2]:
+            text += f". Reason: {rst(cells[2])}"
+        out.append((new[0], text + "."))
     return out
 
 

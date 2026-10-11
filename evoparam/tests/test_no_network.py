@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-016: no network by default.
 
 No function accesses the network unless it is a documented fetch or remote-read function

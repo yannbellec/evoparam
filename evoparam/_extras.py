@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The extras table of spec §9.2 (REQ-292), as data.
 
 ``EXTRAS`` is the table of the specification: extra name -> {distribution: floor or None}.
@@ -56,6 +57,8 @@ ADDITIONS = {
              "neo": "Neo integration tutorial", "scikit-learn": "scikit-learn tutorial"},
     "tests": {"bidsschematools": "BIDS schema checks of written derivatives (REQ-315)",
               "mpmath": "high-precision reference values of the shape tests",
+              "pyyaml": "static checks of the CI workflows and CITATION.cff (REQ-297, "
+                        "REQ-308, REQ-398)",
               "tomli": "pyproject parsing in the tests on Python 3.10"},
 }
 

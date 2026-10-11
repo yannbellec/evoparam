@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Baseline correction and its checks (REQ-080)."""
 
 import warnings

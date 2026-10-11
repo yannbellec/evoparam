@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Write a simulated TrialSet as a small BIDS dataset with its ground truth.
 
 The trials are laid end to end as one continuous BrainVision recording (one event per

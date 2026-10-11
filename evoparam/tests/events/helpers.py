@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Synthetic continuous recordings with known stimulation pulses, for the events tests."""
 
 import numpy as np

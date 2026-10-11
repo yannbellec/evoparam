@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-010 (light core): ``import evoparam`` and the core functions of REQ-291 work with
 NumPy and SciPy only.
 

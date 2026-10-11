@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Write ``docs/api.rst``, the API reference index (spec §9.7, REQ-303 (e)).
 
 One ``autosummary`` table per public module, listing that module's public symbols: the names

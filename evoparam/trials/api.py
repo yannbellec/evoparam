@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Trial-by-trial parameters, jitter, realignment and covariates (spec §5.7)."""
 
 import dataclasses

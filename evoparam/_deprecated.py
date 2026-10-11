@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Registry of deprecated public names (spec §9.3, REQ-293; REQ-394).
 
 ``REGISTRY = {old_name: (new_name, since, remove_in)}``: ``old_name`` is the name under the

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """reports, plots, cli and stream compute no scientific quantity of their own (REQ-349).
 
 Together with the import-graph rule (tests/test_import_graph.py), this test reads the source of

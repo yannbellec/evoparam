@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Simulated trials with known per-trial shifts, amplitudes, doses and phases."""
 
 import warnings

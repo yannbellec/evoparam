@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The six generators of spec §5.12: ERP, CCEP, ERNA, TEP, ECAP and animal evoked LFP.
 
 Each returns a :class:`~evoparam.data.TrialSet` and the :class:`GroundTruth` of

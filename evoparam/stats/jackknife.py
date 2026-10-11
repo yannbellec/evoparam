@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Jackknife scoring of latencies over participants (spec §5.11, method 2).
 
 A latency measured on one participant's noisy average is unreliable; measured on the

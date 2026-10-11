@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Run the whole test suite, network, slow and performance tests included, on one Python.
 
 Spec §12 asks for every step to end "with its REQs green in CI", and REQ-017 asks for

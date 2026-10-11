@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Remote reads by HTTP byte ranges (REQ-021), against local HTTP servers.
 
 The servers run on 127.0.0.1: one honours Range headers, one ignores them (fallback to a

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Results of every type, made once for the report and plot tests."""
 
 import warnings

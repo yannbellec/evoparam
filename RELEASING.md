@@ -90,6 +90,16 @@ DOI added to the release notes) and a CHANGELOG section.
    tutorial runs.
 4. `python -m build`, `twine check dist/*`; the tag `vX.Y.Z` is signed by the author.
 5. Zenodo archives the tag (DOI recorded in `CITATION.cff`).
+6. The provenance map is complete: `python tools/add_spdx_headers.py --check` (SPDX header in
+   every file, modification notice on the inherited files), `python tools/gen_soup.py
+   --check` (`soup.json` and `THIRD_PARTY.md` regenerated; review the diff), and
+   `REIMPLEMENTED.md` lists every algorithm written from a paper (REQ-396, REQ-399).
+7. `python tools/gen_traceability.py` reports no untested requirement; its report goes with
+   the release artefacts (REQ-399).
+8. A numerical change of a public function is announced by a bump of its algorithm version
+   in `evoparam/version.py` and of the reference values of `evoparam/tests/reference`
+   (REQ-295, REQ-399).
+9. At a major release: `TRADEMARK.md` is reviewed (REQ-397).
 
 ## 1.0 checklist (REQ-329)
 

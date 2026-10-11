@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The ds004080 subject list of the layer-3 validation (REQ-371)."""
 
 import importlib.util

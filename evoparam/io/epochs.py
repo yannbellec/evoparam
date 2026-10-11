@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Cut a continuous recording into epochs around events."""
 
 import time as _time

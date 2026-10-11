@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Local preparation of the deposit of the simulated suites (spec §8.2, REQ-355, REQ-356).
 
 The deposit itself (files with a DOI) is a public step and is not made by this module:

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Spatial: shared shapes across channels, maps and the convergent paradigm (spec §5.9).
 
 - :func:`shared_shapes` (:func:`convergent`, :func:`divergent`): the few response shapes

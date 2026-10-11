@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Trial table, modes, persistence and edge cases (REQ-157)."""
 
 import warnings

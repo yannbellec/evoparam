@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tidy exports for mixed models, model formulas and group summaries (spec §5.11, 6 and 7).
 
 ``to_long`` turns any result into one row per (trial x) channel x component x parameter,

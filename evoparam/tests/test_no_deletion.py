@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-004: no deletion heuristics.
 
 Components are accepted or rejected only by the model-selection criterion (§5.5.4). This
