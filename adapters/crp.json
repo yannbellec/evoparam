@@ -1,0 +1,19 @@
+{
+ "name": "crp",
+ "version": "unverified",
+ "citation": "Miller et al. 2023, PLoS Comput Biol (LIT-fooof-92); canonical response parameterization scripts, GPL",
+ "tasks": [
+  "T1",
+  "T2"
+ ],
+ "command": [
+  "{python}",
+  "{here}/crp_adapter.py",
+  "{input}",
+  "{output}"
+ ],
+ "timeout": 7200,
+ "env": {
+  "CRP_ENGINE": "matlab"
+ }
+}

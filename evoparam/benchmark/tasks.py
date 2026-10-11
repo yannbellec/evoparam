@@ -93,10 +93,10 @@ def output_path(folder, task, cell):
 
 
 def _validator(task, role):
-    jsonschema = require("jsonschema", extra="validate", min_version="4.18",
-                         caller="evoparam.benchmark (task schemas)")
     key = (task, role, "validator")
     if key not in _CACHE:
+        jsonschema = require("jsonschema", extra="validate", min_version="4.18",
+                             caller="evoparam.benchmark (task schemas)")
         schema = load_schema(task)
         schema["$ref"] = f"#/$defs/{role}"
         _CACHE[key] = jsonschema.Draft202012Validator(schema)

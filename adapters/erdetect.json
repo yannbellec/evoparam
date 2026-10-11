@@ -1,0 +1,16 @@
+{
+ "name": "er-detect",
+ "version": "unverified",
+ "citation": "van Blooijs et al. 2023, Nat Neurosci (LIT-ccep-7, LIT-datasets-62); ER-detect, GPL-3.0",
+ "tasks": [
+  "T1",
+  "T2"
+ ],
+ "command": [
+  "{python}",
+  "{here}/erdetect_adapter.py",
+  "{input}",
+  "{output}"
+ ],
+ "timeout": 3600
+}

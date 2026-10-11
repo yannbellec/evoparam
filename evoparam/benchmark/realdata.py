@@ -74,8 +74,18 @@ def load_bids_trials(index, entry, *, cache_dir=None):
         raise DataError(f"index {index['dataset']} is not read from BIDS.")
     ts = read_bids(index["dataset"], entry["subject"], session=entry.get("session"),
                    task=entry.get("task"), run=entry.get("run"), datatype=index["datatype"],
-                   epoch=tuple(index["epoch"]), picks=index.get("picks"),
+                   epoch=tuple(index["epoch"]), picks=None,
                    remote=index.get("remote", "openneuro"), cache_dir=cache_dir)
+    if index.get("picks"):
+        # channel types of channels.tsv; a run need not have every type of the index
+        types = {str(t).lower() for t in index["picks"]}
+        info = ts.ch_info
+        if info is None or "type" not in info:
+            raise DataError(f"{index['dataset']} {entry}: no channel types to pick {types}.")
+        keep = [i for i, t in enumerate(info["type"].astype(str).str.lower()) if t in types]
+        if not keep:
+            raise DataError(f"{index['dataset']} {entry}: no channel of type {sorted(types)}.")
+        ts = ts.select(picks=keep)
     meta = ts.metadata
     if meta is None or "stim_site" not in meta.columns:
         return [("", ts)]
