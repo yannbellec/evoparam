@@ -2,6 +2,142 @@
 
 ## Unreleased
 
+### Build step S19: public benchmark (`evoparam.benchmark`, spec §8, REQ-350 to REQ-357)
+
+- Seven tasks (T1 response detection, T2 early component latency and amplitude, T3
+  component decomposition, T4 artifact removal, T5 single-trial estimation, T6 ERP
+  scoring, T7 time-frequency response). Each has a versioned JSON Schema
+  `benchmark-task/<id>/1` (`evoparam/benchmark/schemas/`, JSON Schema 2020-12) for its
+  input (a JSON descriptor next to an `.npz`) and its output (a TSV with fixed columns, or
+  an `.npz` for T4). Every file is validated when it is read. A file that does not
+  validate raises `BenchmarkValidationError`, which names the file, the line, the column
+  and the first violation (REQ-351).
+- Frozen suites `core` (60 cells: 48 public, 12 hidden) and `full` (300 cells: 240
+  public, 60 hidden), generated on the fly by `evoparam.sim` from their settings and
+  seeds (`evoparam/benchmark/suites/*.json`, written by `tools/benchmark_suites.py`).
+  The hidden seeds are drawn once into a document kept outside the repository; that
+  document holds a 256-bit nonce. Both suite files hold its SHA-256 (canonical JSON):
+  `ff9e2df66b2065833a2bb83b197f90a35bebe1d51c263cbcd6d150534185f701`. A document that
+  does not match is refused.
+- New generator `evoparam.sim.simulate_bursts`: induced bursts, Hann-windowed cosines
+  with a random phase per trial, the T7 truth.
+- Baselines (§8.3):
+  - the six published threshold rules of §5.6, plus the registry's code version of
+    vanblooijs2023;
+  - the cross-projection test;
+  - classical measures;
+  - template alignment;
+  - the evoparam presets;
+  - interpolation and no removal for T4;
+  - `evoparam.tf` with cluster permutations for T7.
+- Adapters (REQ-354): `Adapter.run(task_input_path) -> task_output_path` runs an
+  external tool in a subprocess on the task files and validates its output.
+  - Nothing of the tool is imported.
+  - The ER-detect and CRP adapters are in `adapters/` at the root of the repository,
+    under a GPL-3.0-or-later notice. That folder is outside the package and is not
+    shipped (`prune adapters`).
+  - These two adapters are not verified against the tools, which are not installed
+    here.
+- Scoring (REQ-352): `evoparam benchmark score` writes a signed result.
+  - The result holds the SHA-256 of every input and output, the suite and its SHA-256,
+    and the package version.
+  - `signature.digest` is the SHA-256 of the document without its signature.
+  - The result holds no clock time and no path, so the same inputs and outputs give the
+    same bytes.
+- Report and leaderboard (REQ-357): `tools/benchmark_leaderboard.py` writes
+  `docs/benchmark/leaderboard.html` and `docs/benchmark/report-core.md` from the signed
+  result files of `docs/benchmark/results/` only. `--check` fails when the page or the
+  report differs from what the results give. A result whose signature does not match is
+  refused.
+- Real data (§8.2): index files and loaders only, no data.
+  - `ds004080`: the six runs of `validation/ds004080_subjects.txt`.
+  - `ds003708` and `ds004977`.
+  - `ds002094`, for real-noise injection.
+  - `erpcore`: 5 components × 40 participants, referenced only.
+  - The T1/T2 truth is the consensus of at least 2 of 4 published rules; contacts where
+    exactly one rule detects a response are not scored.
+  - The BIDS loader picks channels by their type in channels.tsv (a run need not have
+    every type).
+- Command line: `evoparam benchmark run | score | leaderboard | prepare-deposit`.
+  `cli → benchmark` is added to the import table (DECISIONS §2).
+- Deposit (REQ-355, REQ-356): `prepare-deposit` writes, locally only, BIDS, NWB, the task
+  inputs, the truth and a manifest. The manifest holds the generator version, the public
+  seeds, every file's SHA-256 and the commitment, checked against the hidden seeds
+  document. Nothing is uploaded. The deposit with a DOI waits for the owner's HIIE
+  decision, so both criteria are strict xfails.
+- Measured.
+  - `evoparam benchmark run --suite core` covered T1 to T7: 48 public cells, 15 methods,
+    30 signed results, no failure.
+  - It took 811.2 s in total (13.5 min): cells 796.9 s, scoring 14.4 s, 812.6 s wall
+    clock with the imports. Machine: one process on a shared 4-CPU container, load
+    average 4.6 to 10.5 during the run (`docs/benchmark/run-core.json`).
+  - Time by group of cells: tf 564.4 s, ccep_detection 144.6 s, single_trial 42.6 s,
+    evoked 36.6 s, erp_scoring 4.5 s, artifact 2.4 s.
+  - Time by method: evoparam-preset 509.2 s, tf-cluster 248.4 s, template 21.9 s,
+    simulation 6.4 s, projection 3.0 s, classical 1.6 s, each threshold rule at most
+    0.6 s.
+  - `prepare-deposit --suite core` (BIDS and NWB) took 17.4 s and wrote 645 files,
+    640 MB: BIDS 110 MB, NWB 225 MB, inputs 303 MB, truth 1.8 MB.
+  - Through NWB the trials come back with a largest difference of 0.
+- First results on `core` (public split, 8 cells per task; latencies in ms):
+
+  | T1 | AUC | F1 | precision | recall | FPR at 0.05 |
+  |---|---|---|---|---|---|
+  | vanblooijs2023 | 0.9849 | 0.8596 | 0.7778 | 0.9608 | n/a |
+  | hays2021 | 0.9882 | 0.8276 | 1 | 0.7059 | n/a |
+  | keller2014 | 0.9805 | 0.8276 | 1 | 0.7059 | n/a |
+  | silverstein2020 | 0.9882 | 0.8667 | 1 | 0.7647 | n/a |
+  | ftract | 0.9426 | 0.9053 | 0.9773 | 0.8431 | n/a |
+  | prime2020 | 0.9451 | 0.6923 | 1 | 0.5294 | n/a |
+  | projection | 0.9379 | 0.7765 | 0.9706 | 0.6471 | 0.064 |
+  | evoparam-preset | 0.9484 | 0.8444 | 0.9744 | 0.7451 | 0.032 |
+
+  | T2 | reported | latency MAE | latency bias | amplitude rel. MAE |
+  |---|---|---|---|---|
+  | vanblooijs2023 | 0.9608 | 8.719 | 7.753 | 0.2566 |
+  | hays2021 | 0.7059 | 0.937 | 0.1324 | 0.1386 |
+  | keller2014 | 0.7059 | 0.937 | 0.1324 | 0.138 |
+  | silverstein2020 | 0.7647 | 0.9172 | 0.1302 | 0.1697 |
+  | ftract | 0.8431 | 125.9 | 125.8 | 0.1427 |
+  | prime2020 | 0.5294 | 6.419 | 5.697 | 0.1723 |
+  | projection | 0.6471 | 0.8593 | 0.08741 | 0.1651 |
+  | evoparam-preset | 0.7843 | 0.4336 | 0.2131 | 0.09177 |
+
+  - T3 F1: evoparam-preset 0.8927, classical 0.6212. False components per empty
+    waveform: 0.038 and 2.96.
+  - T4 residual over artifact: evoparam-preset 0.2144, interpolation 0.2538, no removal 1.
+  - T5 latency MAE: template 6.94 ms, evoparam-preset 17.37 ms, classical 28.59 ms.
+  - T6 mean-amplitude MAE against the truth: evoparam-preset 0.6466, classical 0.6984.
+    Classical against the definition: 0. Peak-latency MAE: 7.43 ms and 11.72 ms.
+  - T7 burst recovery: evoparam-preset 1 (type I error 0), tf-cluster 0.8571 (type I
+    error 0).
+- What the numbers show.
+  - The registry's code version of vanblooijs2023 detects nothing on `core` (AUC 0.5).
+    Its 50 µV floor on the baseline SD puts the threshold at 170 µV, and the simulated
+    N1 range from 9 to 78 µV.
+  - ftract's T2 latency is the absolute peak of 0 to 0.8 s. That is a later component,
+    hence the 126 ms bias.
+  - No T4 baseline removes the decaying tail beyond the artifact window: the N1 latency
+    error is 2.43 ms with and without removal.
+- Tests: `evoparam/tests/benchmark/`, with `test_suite_core.py`, `test_schemas.py`,
+  `test_scoring.py`, `test_adapters.py`, `test_deposit.py`, `test_leaderboard.py` and
+  `test_realdata.py`; also `tests/sim/test_sim_bursts.py`.
+  - The byte-for-byte check of REQ-352 scores the same predictions in two separate
+    processes and compares the files. The other comparisons use rtol 1e-9.
+  - The timing test runs with `EVOPARAM_PERF_TESTS`, the re-run of the committed
+    results with `EVOPARAM_SLOW_TESTS`, the loaders with `EVOPARAM_NETWORK_TESTS`.
+  - The check of the kept hidden seeds runs when `EVOPARAM_BENCHMARK_HIDDEN_SEEDS` names
+    the document.
+- Results:
+  - default run: 107 passed, 4 skipped, 2 strict xfails (REQ-355, REQ-356);
+  - slow re-run of T1/T2: passed (same output hashes, same metrics);
+  - ds004080 loader: passed, in 223 s;
+  - ERP CORE loader: failed here because OSF is unreachable through this machine's
+    proxy (HTTP 403), which is not a verdict on the loader;
+  - timing test (`EVOPARAM_PERF_TESTS=1`): passed. The second full run of
+    `benchmark run --suite core` took 359.9 s (6.0 min) on the same container under less
+    load.
+
 ### Subspace projection on real artifact templates (REQ-064)
 
 - REQ-064 asks `subspace` for at least 30 dB of signal-to-interference improvement on
