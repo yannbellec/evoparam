@@ -22,6 +22,9 @@ HOOK = textwrap.dedent("""
     import sys
 
     ALLOWED = set(sys.stdlib_module_names) | {"numpy", "scipy", "evoparam", "__main__"}
+    # modules the interpreter loaded before this code, through the .pth files of site-packages
+    # (for example the namespace package sphinxcontrib of the docs extra): not evoparam's
+    PRELOADED = {m.split(".")[0] for m in sys.modules}
 
     class Hide:
         hidden = set()
@@ -49,7 +52,7 @@ CHAIN = textwrap.dedent("""
 
     warnings.simplefilter("ignore")
     loaded = sorted({m.split(".")[0] for m in sys.modules} - set(sys.stdlib_module_names)
-                    - {"cython_runtime", "sitecustomize", "usercustomize"})
+                    - {"cython_runtime", "sitecustomize", "usercustomize"} - PRELOADED)
     loaded = [m for m in loaded if not m.startswith("_")]
     steps = {"import": "ok" if set(loaded) <= {"numpy", "scipy", "evoparam"} else str(loaded)}
     state = {}
