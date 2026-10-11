@@ -15,7 +15,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 | erp | scalp EEG/MEG | human | LIT-erpmeas-39, LIT-erpmeas-1 | 1.0 | pending: ERP CORE (REQ-274) |
 | p300_bci | scalp EEG | human | LIT-domains-66, LIT-domains-71 | 1.0 | pending: bigP3BCI |
 | primate_ep | LFP/ECoG | macaque | LIT-datasets-54, LIT-datasets-55 | 1.0 | pending |
-| rodent_ep | LFP/ECoG | mouse, rat | LIT-datasets-50, LIT-variability-45, LIT-variability-50 | 1.0 | pending: Allen Visual Coding Neuropixels LFP (REQ-278) |
+| rodent_ep | LFP/ECoG | mouse, rat | LIT-datasets-50, LIT-variability-45, LIT-variability-50 | 1.1 | pending: Allen Visual Coding Neuropixels LFP (REQ-278) |
 | sep | scalp/epidural SEP | human | LIT-domains-19, LIT-domains-20 | 1.0 | simulation (REQ-277) |
 | tep | TMS-EEG | human | LIT-domains-1, LIT-domains-3, LIT-domains-12 | 1.0 | ds002094: REQ-275 not met (N45 and N100 on the channel of maximal response for 9 of 20 subjects with the preset's cleaning, 6 of 20 with ICA cleaning added) |
 
@@ -125,6 +125,7 @@ citation keys resolve in `docs/spec/LITERATURE.md`.
 - trial covariates: state
 - note (artifact_window): stimulus-dependent; (-0.001, 0.002) for electrical stimulation
 - note (trial_covariates): metadata['state'] is a default covariate (spec §6.2)
+- note (noise_source): baseline: the noise of the baseline (spec 5.5.3 step 1, the reviewed procedure) instead of 'auto', whose plus-minus reference was measured on scalp ERPs only; on the Allen Visual Coding Neuropixels LFP session the visual evoked complex is recovered on 16 of the 17 visual-cortex channels where the existence test is significant, against 15 of 17 with 'auto' (REQ-278; CHANGELOG 'Network run'; v1.1)
 
 ## `sep`
 

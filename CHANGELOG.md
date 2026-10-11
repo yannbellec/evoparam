@@ -16,6 +16,18 @@
   sentence: "the noise of the plus-minus average of the trials (alternating signs, whole
   epoch)" instead of "the noise of the baseline"). The real recording and the stand-in now
   give the same frozen text.
+- `rodent_ep` 1.1 (REQ-278, Allen Visual Coding Neuropixels LFP, 17 visual-cortex channels
+  where the existence test is significant): with `noise_source="auto"` the baseline
+  (-100 to -5 ms at 1250 Hz) holds fewer than 30 effective samples, so the fits used the
+  plus-minus reference, whose AR whitening leaves little evidence for the broad late LFP
+  deflections: 15 of 17 channels (88 %) with a P1/N1 or late component, two channels
+  "no_response" although a one-component model explains 60 % and 36 % of their variance.
+  The preset now sets `noise_source="baseline"`, the reviewed procedure of spec §5.5.3
+  step 1 (the plus-minus reference was measured on scalp ERPs only): 16 of 17 (94 %).
+  Measured on the only public rodent session of the tests, the same one REQ-278 scores,
+  so it is a development measure; the remaining channel (e850211775, a weak trough at
+  100-250 ms followed by a slow rise) stays "no_response" with either reference. The
+  threshold of REQ-278 (90 %) is unchanged. `docs/presets.md` regenerated.
 
 ### Interval coverage (REQ-116, bootstrap and profile, 200 runs each)
 

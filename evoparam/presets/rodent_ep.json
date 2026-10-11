@@ -6,7 +6,7 @@
   "selection": "bic",
   "delta": 10.0,
   "uncertainty": "jacobian",
-  "version": "1.0",
+  "version": "1.1",
   "modality": "LFP/ECoG",
   "species": [
     "mouse",
@@ -61,11 +61,14 @@
   ],
   "notes": {
     "artifact_window": "stimulus-dependent; (-0.001, 0.002) for electrical stimulation",
-    "trial_covariates": "metadata['state'] is a default covariate (spec §6.2)"
+    "trial_covariates": "metadata['state'] is a default covariate (spec §6.2)",
+    "noise_source": "baseline: the noise of the baseline (spec 5.5.3 step 1, the reviewed procedure) instead of 'auto', whose plus-minus reference was measured on scalp ERPs only; on the Allen Visual Coding Neuropixels LFP session the visual evoked complex is recovered on 16 of the 17 visual-cortex channels where the existence test is significant, against 15 of 17 with 'auto' (REQ-278; CHANGELOG 'Network run'; v1.1)"
   },
   "validation": "pending: Allen Visual Coding Neuropixels LFP (REQ-278)",
   "choices": {},
-  "fit_extras": {},
+  "fit_extras": {
+    "noise_source": "baseline"
+  },
   "trial_covariates": [
     "state"
   ]
