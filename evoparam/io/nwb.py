@@ -35,7 +35,12 @@ def _open(path):
     else:
         if not os.path.exists(path):
             raise ReaderError(f"NWB file not found: {path}")
-        io = pynwb.NWBHDF5IO(path, mode="r", load_namespaces=True)
+        # opened here with h5py's default chunk cache (1 MiB per dataset): given a path,
+        # hdmf opens the file with a larger cache, which added about 35 MB to a read of
+        # epochs scattered over a 1 GB series (REQ-317); NWBHDF5IO.close closes this file
+        h5py = require("h5py", extra="nwb", caller="evoparam.io.read_nwb")
+        handle = h5py.File(path, "r")
+        io = pynwb.NWBHDF5IO(file=handle, mode="r", load_namespaces=True)
     return io
 
 

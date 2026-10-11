@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Second network run on the Mac (REQ-317, REQ-068)
+
+- REQ-317: reading epochs covering 10 % of the 1 GB synthetic NWB file grew the peak
+  memory by 0.251 to 0.252 GB in 2 of 4 runs (limit 0.25 GB; the epochs themselves are
+  0.214 GB of float64). Given a path, hdmf opens the HDF5 file with a larger chunk cache
+  than h5py's default, which added about 35 MB when the epochs are scattered over the
+  series. `read_nwb` and `read_nwb_results` now open local files with `h5py.File` (default
+  1 MiB cache per dataset) and hand them to `NWBHDF5IO`: growth 0.224 GB, 4 of 4 runs pass.
+  The limit is unchanged.
+- REQ-068 (`polynomial`, 2.09 s against 2.0 s) failed only while other work ran on the
+  machine; run alone it passes. No change.
+
 ### Build step S19: public benchmark (`evoparam.benchmark`, spec §8, REQ-350 to REQ-357)
 
 - Seven tasks (T1 response detection, T2 early component latency and amplitude, T3
