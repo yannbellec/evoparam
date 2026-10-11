@@ -11,6 +11,7 @@ The Gaussian and skewed-Gaussian equations come from the inherited shape functio
 vectorised over parameter sets and given analytic Jacobians.
 """
 
+import math
 from dataclasses import dataclass, field
 from typing import ClassVar
 
@@ -201,6 +202,10 @@ def _skew_root(a):
     """
 
     a = np.asarray(a, dtype=np.float64)
+    if a.size == 1:
+        # one skewness (the usual case inside a fit): the same iteration on Python floats,
+        # about ten times faster than on one-element arrays
+        return np.full(a.shape, _skew_root_scalar(float(a.reshape(-1)[0])))
     low, high = np.zeros_like(a), np.full_like(a, 2.0)
     z = np.clip(0.6 * a / np.sqrt(1.0 + a ** 2), 0.0, 2.0)
     for _ in range(60):
@@ -217,6 +222,33 @@ def _skew_root(a):
         done = np.abs(new - z) <= 4.0 * np.finfo(np.float64).eps * np.maximum(np.abs(z), 1.0)
         z = new
         if np.all(done | (f == 0)):
+            break
+    return z
+
+
+def _skew_root_scalar(a):
+    """:func:`_skew_root` for one value of ``a``."""
+
+    if not math.isfinite(a):
+        return float(_skew_root(np.array([a]))[0])
+    low, high = 0.0, 2.0
+    z = min(max(0.6 * a / math.sqrt(1.0 + a * a), 0.0), 2.0)
+    eps = 4.0 * np.finfo(np.float64).eps
+    for _ in range(60):
+        g = math.exp(-0.5 * (a * z) ** 2)
+        e = math.erfc(-a * z / _SQRT2)
+        f = z * e - _SQRT_2_OVER_PI * a * g
+        if f <= 0:
+            low = z
+        if f >= 0:
+            high = z
+        slope = e + _SQRT_2_OVER_PI * a * z * g * (1.0 + a * a)
+        new = z - f / slope if slope > 0 else -math.inf
+        if not low <= new <= high:
+            new = 0.5 * (low + high)
+        done = abs(new - z) <= eps * max(abs(z), 1.0)
+        z = new
+        if done or f == 0:
             break
     return z
 

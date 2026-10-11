@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Fitting speed on intracranial recordings
+
+- Measured on one ds004080 subject (120 channels, `fit(ts, "ccep")`, both versions run side
+  by side on the same machine): 100 s before, 72 s after; the tables agree (same labels and
+  statuses, largest relative difference 2e-5, the tolerance of the optimiser).
+- Reseeding is not what made CCEP fits slow: on three ds004080 subjects it is tried on 3 to
+  5 of 120 channels, and skipping its final polish when it cannot win saves 3 to 6 % only
+  (not adopted). The time goes to the base fit, about 1 s per channel.
+- The three changes, each checked against the previous code: the AR whitening applies its
+  FIR filter as shifted sums (scipy's `lfilter` with denominator `[1]` convolves column by
+  column through `apply_along_axis`; difference 4e-16); the ERPLAB-style local peak of the
+  classical measures compares all samples at once (identical choice on 3000 random
+  waveforms); the mode of the skewed Gaussian is solved on Python floats when there is one
+  skewness (difference 1e-16, about 20 times faster per call).
+
 ### Network run on a machine with access (REQ-340, ERP CORE P3)
 
 - The full suite with `EVOPARAM_NETWORK_TESTS`, `EVOPARAM_SLOW_TESTS` and

@@ -27,15 +27,29 @@ def _local_peak(t, y, polarity, n_neighbors):
     """ERPLAB-style local peak: larger than ``n_neighbors`` samples on each side (and than
     their mean); falls back to the simple extremum when no sample qualifies."""
 
-    s = _signed(y, polarity)
+    s = np.asarray(_signed(y, polarity), float)
     n = len(s)
     best = None
-    for i in range(n_neighbors, n - n_neighbors):
-        left, right = s[i - n_neighbors:i], s[i + 1:i + 1 + n_neighbors]
-        if s[i] > left.max() and s[i] > right.max() and s[i] > left.mean() \
-                and s[i] > right.mean():
-            if best is None or s[i] > s[best]:
-                best = i
+    if n_neighbors >= 1 and n > 2 * n_neighbors:
+        # all samples at once (the loop over samples took a sixth of the time of a fit):
+        # windows[j] holds s[j : j + n_neighbors], left of i is j = i - n_neighbors and
+        # right of i is j = i + 1
+        windows = np.lib.stride_tricks.sliding_window_view(s, n_neighbors)
+        centre = s[n_neighbors:n - n_neighbors]
+        left = windows[:n - 2 * n_neighbors]
+        right = windows[n_neighbors + 1:n - n_neighbors + 1]
+        ok = (centre > left.max(axis=1)) & (centre > right.max(axis=1)) \
+            & (centre > left.mean(axis=1)) & (centre > right.mean(axis=1))
+        if ok.any():
+            # the first of the largest qualifying samples, as the loop kept
+            best = n_neighbors + int(np.argmax(np.where(ok, centre, -np.inf)))
+    elif n_neighbors < 1:
+        for i in range(n_neighbors, n - n_neighbors):
+            left, right = s[i - n_neighbors:i], s[i + 1:i + 1 + n_neighbors]
+            if s[i] > left.max() and s[i] > right.max() and s[i] > left.mean() \
+                    and s[i] > right.mean():
+                if best is None or s[i] > s[best]:
+                    best = i
     local = best is not None
     if best is None:
         best = int(np.argmax(s))

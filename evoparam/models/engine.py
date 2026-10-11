@@ -129,13 +129,17 @@ class Whitener:
         self.n = int(ok.sum())
 
     def __call__(self, x):
-        from scipy.signal import lfilter
-
         x = np.asarray(x, float)
         raw = x / (self.scale if x.ndim == 1 else self.scale[:, None])
         u = raw
         if len(self.a) > 1:
-            u = lfilter(self.a, [1.0], raw, axis=0)
+            # the FIR filter u[n] = sum_k a[k] raw[n - k] as shifted sums: scipy's lfilter
+            # with a denominator [1] convolves column by column (apply_along_axis), which
+            # took an eighth of the time of a fit on intracranial recordings
+            u = self.a[0] * raw
+            for k in range(1, len(self.a)):
+                if k < len(raw):
+                    u[k:] += self.a[k] * raw[:-k]
         u = u / self.innovation
         if self.start is not None:
             u = np.array(u, copy=True)
