@@ -10,7 +10,7 @@ forwards every argument.
 
 import functools
 import importlib
-import warnings
+from evoparam.errors import warn
 
 __all__ = ["EvoparamDeprecationWarning", "shim", "resolve", "minor_gap", "version_tuple"]
 
@@ -68,12 +68,12 @@ def shim(old, new, since, remove_in):
     target = resolve(new)
     text = message(old, new, since, remove_in)
     if not callable(target):
-        warnings.warn(text, EvoparamDeprecationWarning, stacklevel=3)
+        warn(text, EvoparamDeprecationWarning, stacklevel=3)
         return target
 
     @functools.wraps(target)
     def forward(*args, **kwargs):
-        warnings.warn(text, EvoparamDeprecationWarning, stacklevel=2)
+        warn(text, EvoparamDeprecationWarning, stacklevel=2)
         return target(*args, **kwargs)
 
     forward.__deprecated__ = text

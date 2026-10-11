@@ -92,7 +92,8 @@ def test_req399_licences_agree_with_the_installed_metadata():
 
 
 def _third_party_imports():
-    stdlib = set(sys.stdlib_module_names)
+    # tomllib is standard from Python 3.11 (the package falls back to tomli on 3.10)
+    stdlib = set(sys.stdlib_module_names) | {"tomllib"}
     found = set()
     for path in (ROOT / "evoparam").rglob("*.py"):
         if "tests" in path.relative_to(ROOT).parts:

@@ -246,7 +246,7 @@ def p3(n_trials=500, n_channels=256, n_times=4096, mmap=True):
             mapped.flush()
             del mapped
             saved = os.path.join(folder, "p3.evoparam")
-            data = np.load(path, mmap_mode="r")
+            data = np.load(path, mmap_mode="r", allow_pickle=False)
             TrialSet(data=data, times=times, sfreq=SFREQ,
                      ch_names=[f"C{i:03d}" for i in range(n_channels)]).save(saved)
             del data
