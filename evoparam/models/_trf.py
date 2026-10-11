@@ -74,7 +74,7 @@ def least_squares_trf(fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, 
     scale = 1 / scale_inv
 
     v, dv = _cl_scaling(x, g, lb, ub, finite_lb, finite_ub)
-    v[dv != 0] *= scale_inv[dv != 0]
+    v = np.where(dv != 0, v * scale_inv, v)
     delta = _norm(x * scale_inv / v ** 0.5)
     if delta == 0:
         delta = 1.0
@@ -92,7 +92,7 @@ def least_squares_trf(fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, 
             status = 1
         if status is not None or nfev == max_nfev:
             break
-        v[dv != 0] *= scale_inv[dv != 0]
+        v = np.where(dv != 0, v * scale_inv, v)
         d = v ** 0.5 * scale
         diag_h = g * dv * scale
         g_h = d * g
@@ -170,14 +170,11 @@ def _upper(n):
 def _cl_scaling(x, g, lb, ub, finite_lb, finite_ub):
     """Coleman-Li scaling vector ``v`` and its derivative ``dv``."""
 
-    v = np.ones_like(x)
-    dv = np.zeros_like(x)
-    mask = (g < 0) & finite_ub
-    v[mask] = ub[mask] - x[mask]
-    dv[mask] = -1
-    mask = (g > 0) & finite_lb
-    v[mask] = x[mask] - lb[mask]
-    dv[mask] = 1
+    upper = (g < 0) & finite_ub
+    lower = (g > 0) & finite_lb
+    with np.errstate(invalid="ignore"):           # inf - inf where a bound is infinite
+        v = np.where(lower, x - lb, np.where(upper, ub - x, 1.0))
+    dv = lower - upper.astype(float)
     return v, dv
 
 
