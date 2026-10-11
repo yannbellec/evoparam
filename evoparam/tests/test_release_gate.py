@@ -114,3 +114,76 @@ def test_req018_the_check_finds_a_broken_mapping(tmp_path):
                             timeout=120)
     assert result.returncode == 1
     assert "GAP-03: no test file" in result.stdout
+
+
+###################################################################################################
+## REQ-398: the release workflow refuses to publish without the recorded decision
+
+def _workflow(name):
+    yaml = pytest.importorskip("yaml")
+    return yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8"))
+
+
+def test_req398_release_workflow_starts_with_the_gate():
+    jobs = _workflow("release.yml")["jobs"]
+    steps = " ".join(str(s.get("run", "")) for s in jobs["gate"]["steps"])
+    assert "tools/release_gate.py" in steps
+    for name, job in jobs.items():
+        if name != "gate":
+            needs = job.get("needs", [])
+            needs = [needs] if isinstance(needs, str) else needs
+            assert "gate" in needs, f"job {name} does not wait for the gate"
+
+
+def test_req398_the_gate_refuses_now():
+    if _decided():
+        pytest.skip("the HIIE decision is on record (RELEASING.md)")
+    result = subprocess.run([sys.executable, str(ROOT / "tools" / "release_gate.py")],
+                            capture_output=True, text=True, timeout=60)
+    assert result.returncode == 1
+    assert "GOVERNANCE.md" in result.stdout and "RELEASING.md" in result.stdout
+
+
+def test_req398_the_gate_passes_with_a_recorded_decision(tmp_path):
+    governance = (ROOT / "GOVERNANCE.md").read_text(encoding="utf-8")
+    governance = governance.replace(
+        "- Invention disclosure: not filed",
+        "- Invention disclosure: HIIE disclosure 2027-001, 2027-01-15").replace(
+        "- HIIE decision reference: none",
+        "- HIIE decision reference: HIIE ref. 2027-123, 2027-03-01 (patent: no)")
+    releasing = (ROOT / "RELEASING.md").read_text(encoding="utf-8").replace(
+        "- HIIE decision: not on record",
+        "- HIIE decision: on record, 2027-03-01, HIIE-2027-123")
+    (tmp_path / "GOVERNANCE.md").write_text(governance, encoding="utf-8")
+    (tmp_path / "RELEASING.md").write_text(releasing, encoding="utf-8")
+    result = subprocess.run([sys.executable, str(ROOT / "tools" / "release_gate.py"),
+                             "--root", str(tmp_path)], capture_output=True, text=True,
+                            timeout=60)
+    assert result.returncode == 0, result.stdout
+
+
+def test_req398_no_repository_secret_in_any_workflow():
+    """REQ-300 (d): no workflow uses a repository secret (trusted publishing needs none)."""
+
+    hits = [f"{p.name}:{n}" for p in sorted((ROOT / ".github").rglob("*.y*ml"))
+            for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
+            if "secrets." in line]
+    assert not hits, hits
+
+
+def test_req398_the_upload_job_waits_outside_the_workflows():
+    """The trusted-publishing job is kept in ci/ until the decision (RELEASING.md step 9)."""
+
+    job = (ROOT / "ci" / "release-publish-job.yml").read_text(encoding="utf-8")
+    assert "pypa/gh-action-pypi-publish" in job and "id-token: write" in job
+    assert "step 9" in (ROOT / "RELEASING.md").read_text(encoding="utf-8").lower() or \
+        "ci/release-publish-job.yml" in (ROOT / "RELEASING.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.xfail(strict=True, reason="REQ-398: the invention disclosure and the HIIE "
+                   "written decision are not on record; waits for the owner's HIIE decision "
+                   "(nothing public before it)")
+def test_req398_decision_on_record():
+    result = subprocess.run([sys.executable, str(ROOT / "tools" / "release_gate.py")],
+                            capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0

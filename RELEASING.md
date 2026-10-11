@@ -43,14 +43,41 @@ provisional, and foreign filing decisions are taken before M2.
 
 ## Making a release (from M2 on)
 
-1. Update the gate above with the decision record; remove the `Private :: Do Not Upload`
-   classifier from `pyproject.toml`.
-2. Run the whole suite with `python tools/run_all_tests.py --venv .venv-3.12 --python
-   python3.12` (network, slow and performance tests included) and the traceability check
-   `python tools/check_traceability.py --files`.
-3. Update `CHANGELOG.md`, `CITATION.cff` and the version; tag the release.
-4. Build and check the distribution (`make dist check-dist`), then upload (`make publish`
-   prints the commands).
+Each release is produced by this checklist (REQ-308) and yields a tag `vX.Y.Z`, a GitHub
+release, a PyPI upload of the sdist and the wheel by the `release` workflow (trusted
+publishing, no stored token), a Zenodo DOI under the concept DOI of `CITATION.cff` (version
+DOI added to the release notes) and a CHANGELOG section.
+
+1. Record the decision: update the gate above and the `hiie-decision` block of
+   `GOVERNANCE.md` (reference and date; `python tools/release_gate.py` must pass); remove the
+   `Private :: Do Not Upload` classifier from `pyproject.toml`.
+2. Freeze the CHANGELOG: rename `## Unreleased` to `## X.Y.Z (YYYY-MM-DD)`; every layer-3
+   regression beyond its tolerance has its line `Layer-3 regression explained: <metric id>:
+   <reason>` (REQ-376).
+3. Bump the version in `evoparam/version.py` and in `CITATION.cff` (`version`,
+   `date-released`); `evoparam/tests/test_citation.py` checks both.
+4. Run `python benchmarks/run_benchmarks.py --suite perf` on the reference machine named in
+   `benchmarks/README.md` and record P1–P6 in the CHANGELOG (REQ-290); the results file is
+   attached to the release.
+5. Run the robustness layer `python validation/robustness.py --jobs 4` (the five analyses of
+   spec §7.4, REQ-375) and the gate `python tools/layer3_gate.py` against the previous tag
+   (REQ-376); a blocked gate stops the release. Both reports go into the release notes.
+6. Run the whole suite (`python tools/run_all_tests.py`, network, slow and performance tests
+   included), `python tools/check_traceability.py --strict` and `python tools/gen_soup.py
+   --check` (REQ-399).
+7. Build the docs with `sphinx-build -W --keep-going -b html docs docs/_build/html`
+   (warnings are errors, REQ-302).
+8. Tag the release (`git tag -s vX.Y.Z`) and push the tag: the `release` workflow runs the
+   gate, builds and checks the distribution and the validation reports.
+9. After M1 only: add the upload job of `ci/release-publish-job.yml` to
+   `.github/workflows/release.yml` (PyPI trusted publishing, environment `pypi`), so that the
+   tag publishes the distribution.
+10. Verify the PyPI smoke test (`smoke` workflow: clean environment, `pip install
+    evoparam==X.Y.Z`, `evoparam.selftest()`, `evoparam fit --help`, REQ-300) and link its
+    log from the release notes.
+11. Verify the Zenodo DOI of the version (GitHub–Zenodo integration) and add it to the
+    release notes and to `CITATION.cff` (`identifiers`).
+12. Announce (release notes, mailing list, Neurostars), only after steps 10 and 11.
 
 ## Checks for every release (from M2 on)
 

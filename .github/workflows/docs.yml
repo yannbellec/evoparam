@@ -1,0 +1,45 @@
+# Documentation build (spec §9.7, REQ-302): Sphinx with -W --keep-going (warnings are
+# errors), the tutorials executed by sphinx-gallery (stale examples cached between runs),
+# and linkcheck. Called by ci.yml (required to merge) and runnable alone. Publication of the
+# site (latest / stable) is a public step that waits for the HIIE decision (RELEASING.md).
+
+name: docs
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EVOPARAM_DATA: ${{ github.workspace }}/.evoparam-data
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Gallery and dataset cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          .evoparam-data
+          docs/auto_tutorials
+        key: docs-gallery-v1
+    - run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e ".[all,docs]"
+    - name: HTML with warnings as errors
+      env:
+        EVOPARAM_NETWORK_TESTS: "1"
+      run: sphinx-build -W --keep-going -b html docs docs/_build/html
+    - name: Links
+      run: sphinx-build -b linkcheck docs docs/_build/linkcheck
+    - uses: actions/upload-artifact@v4
+      with:
+        name: docs-html
+        path: docs/_build/html

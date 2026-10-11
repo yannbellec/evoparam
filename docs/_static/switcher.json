@@ -1,0 +1,4 @@
+[
+  {"name": "latest (main)", "version": "latest", "url": "latest/"},
+  {"name": "stable (last tag)", "version": "stable", "url": "stable/", "preferred": true}
+]
