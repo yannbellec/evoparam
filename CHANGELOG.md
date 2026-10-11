@@ -2,6 +2,67 @@
 
 ## Unreleased
 
+### Layer 4, sampling rate (REQ-375, §7.4 (3)): no upsampling; still not met
+
+§7.4 (3) decimates ds004080 to 1024 and 512 Hz. `validation/robustness.py` also
+resampled the example run, sub-ccepAgeUMCU01 run 021448, which is recorded at 512 Hz. At
+"1024 Hz" this run was therefore upsampled. Upsampling is not decimation, and the result is
+not a 1024 Hz recording: it has no power between 256 and 512 Hz. On these data the AR noise
+model of the `ccep` fit (order chosen up to 10 samples) whitens a spectrum with an empty
+band. Small misfits in that band then count as strong evidence, and the fit keeps many
+narrow components, often in cancelling pairs, before 30 ms. The fit found an N1 on 54 of the
+100 channels of that run instead of 14. Most of the rise of `n_model` from 100 to 127, and
+the drop of κ (code reading) from 0.40 to 0.26, came from this run.
+
+A run recorded at or below a rate is now kept as recorded (`robustness.decimates`); the
+report names it. The sampling section of `validation/layer4/0.1.0.dev0/report.json` and
+`report.md` was recomputed alone (19.4 min, 1 process). The other analyses and the
+native-rate N1 file are unchanged. The native decisions are identical (0 of 615 changed).
+The criterion and the reference rule are unchanged.
+
+| reading | rate | recall before | recall after | κ before | κ after | n_model before | n_model after |
+|---|---|---|---|---|---|---|---|
+| paper | native | 0.460 (74/161) | 0.460 (74/161) | 0.458 | 0.458 | 100 | 100 |
+| paper | 1024 | 0.466 (75/161) | 0.410 (66/161) | 0.377 | 0.434 | 127 | 85 |
+| paper | 512 | 0.466 (75/161) | 0.460 (74/161) | 0.413 | 0.404 | 116 | 116 |
+| code | native | 0.882 (30/34) | 0.882 (30/34) | 0.398 | 0.398 | 100 | 100 |
+| code | 1024 | 0.765 (26/34) | 0.794 (27/34) | 0.258 | 0.407 | 127 | 85 |
+| code | 512 | 0.853 (29/34) | 0.824 (28/34) | 0.329 | 0.315 | 116 | 116 |
+
+The recall drop at 1024 Hz is now +4.97 points for the paper reading (met; it was −0.6
+because the upsampled run's spurious N1s also hit rule channels) and +8.82 points for the
+code reading (not met; it was +11.8). The test stays a strict expected failure, and its
+reason now gives both values with two decimals. On unchanged inputs, 5 decisions of the
+resampled 2 048 Hz runs differ from the previous report: 1 at 1024 Hz and 4 at 512 Hz. One of
+them is ccepAgeUMCU02 channel 6 at 512 Hz, a rule channel in both readings. These are fits
+that flip between local optima with the current engine code.
+
+Why the code reading still fails. The three code-rule channels lost at 1024 Hz are all in
+sub-ccepAgeUMCU06 run 030854, and they are recovered at 512 Hz:
+
+- channel 0: the rule's N1 is at 10.3 ms, at the start of the fit window (9 ms). The model's
+  early negative component peaks at 14.8 ms natively and at 1.3 ms at 1024 Hz, before the
+  N1 window.
+- channels 6 and 10: the rule's N1 is at 93.7 ms and 94.7 ms, outside the model's N1 window
+  (9–50 ms). The native "hits" are small unrelated components at 47.5 ms and 20.1 ms.
+
+No parameter of the `ccep` path was found to be in samples where it should be in time. The
+candidate smoothing, the edge rule, the widths, the windows, the priors and the artifact
+window are all in seconds. `min_fwhm` is raised to 2 samples only below 667 Hz. The one
+count in samples is the cap of the AR order (10). At 1024 Hz, a cap of 20 or of 5 gives 8
+of 13 rule hits on that run instead of 7, each time on different channels, so the cap is
+not the cause. Other checks:
+
+- perturbing the native trials by 1e-15 and by 1e-6 relative changes 1 and 4 of the 615
+  decisions, and none of the 34 code-rule channels;
+- the other decimation phase at 1024 Hz (odd samples) gives 25 of 34: five rule channels
+  flip between the two phases, while the total stays at 25–26.
+
+The loss is therefore systematic at 1024 Hz. It is not rounding noise. It comes from how the
+engine decomposes the early deflection at the edge of the fit window. The engine's
+sensitivity to oversampled input remains: a recording whose noise does not fill its band up
+to the Nyquist frequency is over-fitted in the same way. It is not changed here.
+
 ### Engine speed (REQ-115, REQ-290 P1): same results, about 1.8 times faster
 
 REQ-115 is still not met. The criteria are unchanged and the xfail reasons in

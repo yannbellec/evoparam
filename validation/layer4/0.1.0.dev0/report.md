@@ -54,15 +54,21 @@
 | reading | rate | kappa | recall | median abs latency diff (ms) |
 |---|---|---|---|---|
 | paper | native | 0.458 | 0.460 | 8.46 |
-| paper | 1024 | 0.377 | 0.466 | 11.79 |
-| paper | 512 | 0.413 | 0.466 | 7.58 |
+| paper | 1024 | 0.434 | 0.410 | 8.56 |
+| paper | 512 | 0.404 | 0.460 | 7.22 |
 | code | native | 0.398 | 0.882 | 3.47 |
-| code | 1024 | 0.258 | 0.765 | 4.92 |
-| code | 512 | 0.329 | 0.853 | 2.58 |
+| code | 1024 | 0.407 | 0.794 | 4.45 |
+| code | 512 | 0.315 | 0.824 | 2.37 |
 
-paper: recall drop at 1024 Hz -0.6 points (criterion <= 5.0): met.
+This section was recomputed alone on 2026-10-11 (19.4 min; Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, 4 CPUs).
 
-code: recall drop at 1024 Hz +11.8 points (criterion <= 5.0): NOT met.
+At 1024 Hz, recorded at or below the rate and not resampled: ccepAgeUMCU01 run 021448 (512 Hz).
+
+At 512 Hz, recorded at or below the rate and not resampled: ccepAgeUMCU01 run 021448 (512 Hz).
+
+paper: recall drop at 1024 Hz +4.97 points (criterion <= 5.0): met.
+
+code: recall drop at 1024 Hz +8.82 points (criterion <= 5.0): NOT met.
 
 ## 4. Trial count (existence decisions against all trials)
 

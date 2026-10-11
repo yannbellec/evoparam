@@ -85,6 +85,16 @@ def test_req375_preset_perturbation(robustness):
     assert robustness.perturb({"N1": [0.01, 0.05]}, 0.5) == {"N1": [0.005, 0.025]}
 
 
+def test_req375_sampling_decimates_and_never_upsamples(robustness):
+    """§7.4 (3): runs are decimated; a run recorded at or below the rate is kept as is."""
+
+    assert robustness.decimates(2048.0002097152214, 1024.0)
+    assert robustness.decimates(2048.0002097152214, 512.0)
+    assert not robustness.decimates(512.0, 1024.0)
+    assert not robustness.decimates(512.0, 512.0)
+    assert not robustness.decimates(1024.0001048576107, 1024.0)
+
+
 def test_req375_release_pipeline_runs_the_analyses_and_keeps_them():
     """REQ-375: the release workflow runs the five analyses and keeps their report with the
     release records."""
@@ -129,7 +139,8 @@ def _sampling_reason():
         return "no layer-4 report"
     verdict = json.loads(path.read_text(encoding="utf-8"))["sampling"]["verdict"]
     return "; ".join(f"{reading} reading: N1 recall {v['recall_native']:.3f} native, "
-                     f"{v['recall_1024']:.3f} at 1024 Hz ({v['drop_points_1024']:+.1f} points)"
+                     f"{v['recall_1024']:.3f} at 1024 Hz ({v['drop_points_1024']:+.2f} points, "
+                     f"{'met' if v['met'] else 'not met'})"
                      for reading, v in verdict.items())
 
 

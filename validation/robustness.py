@@ -16,7 +16,8 @@ The five analyses of §7.4, run by the release pipeline of every minor version
    the median latency error larger than 2 ms, is reported as a sensitivity and listed in
    ``docs/preset_sensitivity.md``.
 3. **sampling**: the ds004080 layer-3 runs decimated to 1024 and 512 Hz
-   (:func:`evoparam.prep.resample` on the raw trials, then the whole ``ccep`` pipeline);
+   (:func:`evoparam.prep.resample` on the raw trials, then the whole ``ccep`` pipeline; a
+   run recorded at or below the rate is kept as recorded, see :func:`decimates`);
    N1 recall against the published rule at the native rate must stay within 5 percentage
    points of the native recall down to 1024 Hz.
 4. **trials**: 5, 7 and 10 trials drawn per site (5 draws each, seeded), cleaned and
@@ -242,6 +243,19 @@ def montage_table(ts, baseline):
             for row in table.to_dict("records")]
 
 
+def decimates(sfreq, rate):
+    """Whether the sampling analysis resamples a run recorded at ``sfreq`` to ``rate``.
+
+    §7.4 (3) *decimates* ds004080 to 1024 and 512 Hz: only a run recorded above the rate is
+    resampled. A run recorded at or below it (the example run of spec §1 is at 512 Hz) is
+    analysed as recorded. Upsampling it would not give a 1024 Hz recording: the result has
+    no power between the old and the new Nyquist frequency. On that run the ``ccep`` fit then
+    finds N1s on 54 channels instead of 14 (CHANGELOG, REQ-375).
+    """
+
+    return sfreq > rate * (1 + 1e-6)
+
+
 def run_ds004080(subject, run, pair, analyses):
     """Everything §7.4 asks of one ds004080 run."""
 
@@ -260,11 +274,16 @@ def run_ds004080(subject, run, pair, analyses):
     if "sampling" in analyses:
         out["sampling"] = {}
         for rate in RATES:
+            if not decimates(ts.sfreq, rate):
+                # §7.4 decimates: a run recorded at or below the rate is kept as recorded
+                out["sampling"][str(int(rate))] = dict(out["native"], resampled=False)
+                continue
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 low = resample(ts, rate)
             d, lat = model_n1(low)
-            out["sampling"][str(int(rate))] = {"decision": d.tolist(), "latency": lat.tolist()}
+            out["sampling"][str(int(rate))] = {"decision": d.tolist(), "latency": lat.tolist(),
+                                               "resampled": True}
     if "montage" in analyses:
         out["montage"] = montage_table(clean(ts), (-0.5, -0.05))
     if "trials" in analyses:
@@ -625,6 +644,25 @@ def _rounded(value):
     return value
 
 
+def _sampling_notes(report):
+    """Lines of the sampling section: when it was recomputed alone, and the runs kept as
+    recorded."""
+
+    lines = []
+    again = report["sampling"].get("regenerated")
+    if again:
+        lines.append(f"\nThis section was recomputed alone on {again['date']} "
+                     f"({again['duration_min']} min; {again['machine']}).")
+    for rate in (str(int(x)) for x in RATES):
+        names = [f"{r['subject']} run {r['run']} ({r['sfreq']:g} Hz)"
+                 for r in report.get("ds004080", [])
+                 if r.get("sampling", {}).get(rate, {}).get("resampled") is False]
+        if names:
+            lines.append(f"\nAt {rate} Hz, recorded at or below the rate and not "
+                         f"resampled: {', '.join(names)}.")
+    return lines
+
+
 def markdown(report):
     lines = [f"# Layer-4 robustness, evoparam {report['version']}", "",
              f"{report['date']}; {report['machine']}; {report['duration_s'] / 60:.1f} min "
@@ -657,8 +695,9 @@ def markdown(report):
             for rate, m in rows.items():
                 lines.append(f"| {reading} | {rate} | {_f(m['kappa'])} | {_f(m['recall'])} | "
                              f"{_f(m['median_abs_latency_diff_ms'], '.2f')} |")
+        lines += _sampling_notes(report)
         for reading, v in report["sampling"]["verdict"].items():
-            lines.append(f"\n{reading}: recall drop at 1024 Hz {v['drop_points_1024']:+.1f} "
+            lines.append(f"\n{reading}: recall drop at 1024 Hz {v['drop_points_1024']:+.2f} "
                          f"points (criterion <= {SAMPLING_RECALL_POINTS}): "
                          f"{'met' if v['met'] else 'NOT met'}.")
         lines.append("")
