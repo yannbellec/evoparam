@@ -441,9 +441,10 @@ def write_nwb(result, nwbfile_or_path, *, module="evoparam", extension=False, un
     Every table has an ``electrode`` column (``DynamicTableRegion`` into the electrodes
     table) when the channels are electrodes of the file; ``evoparam_trials`` has ``trial``
     (``DynamicTableRegion`` into ``trials``) when the file has a trials table covering the
-    indices. The module description holds the settings and provenance as JSON (REQ-336);
-    the table ``evoparam_results`` holds each result as a zipped ``.evoparam`` container,
-    so that :func:`read_nwb_results` gives back the exact objects.
+    indices. The module description holds the settings, provenance (REQ-336) and methods
+    paragraph (REQ-390) of each result as JSON; the table ``evoparam_results`` holds each
+    result as a zipped ``.evoparam`` container, so that :func:`read_nwb_results` gives back
+    the exact objects.
     """
 
     pynwb = require("pynwb", extra="nwb", caller="evoparam.io.write_nwb")
@@ -474,7 +475,10 @@ def write_nwb(result, nwbfile_or_path, *, module="evoparam", extension=False, un
         raise DataError(f"write_nwb: units must be uV, mV or V, not {units!r}.")
     description = {"settings": [to_jsonable(getattr(i, "settings", {})) for i in items],
                    "provenance": [getattr(getattr(i, "provenance", None), "to_dict",
-                                          lambda: None)() for i in items]}
+                                          lambda: None)() for i in items],
+                   # the methods paragraph of each result (spec §11.8, REQ-390)
+                   "methods": [i.methods_text() if callable(getattr(i, "methods_text", None))
+                               else None for i in items]}
     if module in nwbfile.processing:
         raise DataError(f"The file already has a processing module {module!r}; pass "
                         f"another module= name.")

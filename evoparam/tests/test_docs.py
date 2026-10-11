@@ -130,3 +130,130 @@ def test_streaming_tutorial_runs(capsys):
     runpy.run_path(STREAM_TUTORIAL, run_name="__main__")
     out = capsys.readouterr().out
     assert "c0: response" in out and "c7: no response" in out
+
+
+# ---------------------------------------------------------------------------------------
+# REQ-302, REQ-303: documentation pages (S20)
+# ---------------------------------------------------------------------------------------
+
+DOCS = os.path.join(ROOT, "docs")
+
+
+def _tool(name):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(name, os.path.join(ROOT, "tools", f"{name}.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _page(name):
+    with open(os.path.join(DOCS, name), encoding="utf-8") as fobj:
+        return fobj.read()
+
+
+def test_req303_pages_are_in_the_toctree():
+    index = _page("index.rst")
+    for page in ("getting_started", "auto_tutorials/index", "auto_examples/index", "reporting",
+                 "faq", "presets", "preset_sensitivity", "datasets", "api", "glossary"):
+        assert f"\n   {page}\n" in index, page
+        if "/" not in page:
+            assert any(os.path.isfile(os.path.join(DOCS, page + ext)) for ext in (".rst", ".md"))
+
+
+def test_req303_getting_started():
+    text = _page("getting_started.rst")
+    for item in ("pip install evoparam", "evoparam.selftest()", "What the numbers mean",
+                 "latency", "amplitude", "polarity", "fwhm", "status", "r2"):
+        assert item in text, item
+    example = text.split("A ten-line example", 1)[1].split(".. code-block:: python", 1)[1]
+    example = example.split("\n\n", 2)[1]
+    assert len([line for line in example.splitlines() if line.strip()]) <= 10
+
+
+def test_req303_reporting_page():
+    text = _page("reporting.rst")
+    for item in ("settings", "preset", "package version", "goodness of fit", "existence test",
+                 "artifact method", "montage", "methods_text()", "CITATION.cff", "Zenodo",
+                 "evoparam.cite()", "methods.txt"):
+        assert item in text, item
+
+
+FAQ = ("Which preset for my data?", "Why is polarity a separate field?",
+       "Why is ``r2`` not the inherited correlation?", "My N1 is missing",
+       "GPU gives slightly different numbers", "How do I add a shape?",
+       "Is this a medical device?")
+
+
+def test_req303_faq_has_the_seven_questions():
+    text = _page("faq.rst")
+    headings = re.findall(r"^(.+)\n-{3,}$", text, flags=re.MULTILINE)
+    assert [h for h in headings if h in FAQ] == list(FAQ)
+    medical = text.split("Is this a medical device?", 1)[1]
+    assert "Section 13" in medical and "research use only" in medical
+    for name in presets.PRESETS.builtin:                  # the preset question covers them all
+        assert f"``{name}``" in text.split("Why is polarity", 1)[0], name
+
+
+def test_req303_every_public_symbol_in_the_api_index():
+    tool = _tool("gen_api_index")
+    index = _page("api.rst")
+    sections = dict(re.findall(r"^\.\. currentmodule:: (\S+)\n\n\.\. autosummary::\n"
+                               r"   :toctree: generated/\n\n((?:   \S+\n)+)", index,
+                               flags=re.MULTILINE))
+    missing = []
+    for module, names in tool.public_symbols().items():
+        listed = set(sections.get(module, "").split())
+        missing += [f"{module}.{n}" for n in names if n != "__version__" and n not in listed]
+    assert missing == []
+    assert tool.main(["--check"]) == 0, "docs/api.rst is out of date"
+
+
+def test_req303_glossary_holds_every_term_of_section_4():
+    tool = _tool("gen_glossary")
+    text = _page("glossary.rst")
+    terms = set(re.findall(r"^   (\S.*)$", text, flags=re.MULTILINE))
+    expected = tool.terms()
+    assert len(expected) > 150
+    assert [t for t in expected if t not in terms] == []
+    for name in ("TrialSet", "Evoked", "Provenance", "ResponseFit", "GroupFit", "TrialFit",
+                 "ResponseTest", "ArtifactResult", "Preset", "Component.polarity",
+                 "GoodnessOfFit.r2", "FitError", "stim_site", "ch_info.stim_contact"):
+        assert name in terms, name
+    assert tool.main(["--check"]) == 0, "docs/glossary.rst is out of date"
+
+
+def test_req303_datasets_page_generated_from_the_registry():
+    tool = _tool("gen_registry_doc")
+    with open(os.path.join(ROOT, "evoparam", "io", "registry.json"), encoding="utf-8") as fobj:
+        registry = json.load(fobj)
+    text = _page("datasets.rst")
+    for item in registry["datasets"]:
+        assert f"``{item['id']}``" in text, item["id"]
+        if item.get("doi"):
+            assert item["doi"] in text
+    for column in ("DOI", "size (GB)", "sampling rate (Hz)", "licence", "events", "loader"):
+        assert column in text
+    assert tool.main(["--check"]) == 0, "docs/datasets.rst is out of date"
+
+
+def _cited_keys():
+    keys = set()
+    for folder, _, files in os.walk(DOCS):
+        if os.path.relpath(folder, DOCS).split(os.sep)[0] in ("spec", "_build"):
+            continue
+        for name in files:
+            if name.endswith((".rst", ".md", ".py", ".txt")) and name != "references.bib":
+                with open(os.path.join(folder, name), encoding="utf-8") as fobj:
+                    keys |= set(re.findall(r"LIT-[a-z]+-\d+", fobj.read()))
+    return keys
+
+
+def test_req302_every_cited_literature_key_is_in_references_bib():
+    bib = set(re.findall(r"^@misc\{(LIT-[a-z]+-\d+),", _page("references.bib"),
+                         flags=re.MULTILINE))
+    cited = _cited_keys()
+    assert cited, "the documentation cites no literature key"
+    assert sorted(cited - bib) == []
+    assert _tool("gen_references_bib").main(["--check"]) == 0, "references.bib is out of date"

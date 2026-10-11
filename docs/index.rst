@@ -11,7 +11,15 @@ a methods paragraph generated from what was run.
 .. toctree::
    :maxdepth: 2
 
+   getting_started
    auto_tutorials/index
-   bids_stimulation_columns
+   auto_examples/index
+   reporting
+   faq
    presets
+   preset_sensitivity
+   bids_stimulation_columns
+   datasets
+   api
+   glossary
    contributing/add_shape
