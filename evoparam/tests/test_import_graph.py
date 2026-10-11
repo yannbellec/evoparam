@@ -70,6 +70,8 @@ RULES = {
     "utils": set(),
     # Entry-point loader of §10.8: the leaves only.
     "_plugins": set(),
+    # Data tables of §9.2 and §9.3 (REQ-292 extras, REQ-293 deprecated names).
+    "_extras": set(), "_deprecated": set(),
     "reports": {ANY}, "plots": {ANY}, "cli": {ANY}, "stream": {ANY}, "benchmark": {ANY},
     # The package root re-exports the public API; ``python -m evoparam`` runs the cli.
     "__init__": {ANY},

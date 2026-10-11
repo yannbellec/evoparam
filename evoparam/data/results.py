@@ -556,7 +556,7 @@ class HierarchicalFit(_ResultMixin):
             import arviz as az
         except ImportError as err:
             raise ImportError("HierarchicalFit.to_arviz needs ArviZ, in the extra 'bayes': "
-                              "pip install 'evoparam[bayes]'.") from err
+                              "pip install \"evoparam[bayes]\".") from err
         draws = (self.diagnostics or {}).get("draws")
         approximation = "none (posterior draws)"
         if not draws:
@@ -696,7 +696,7 @@ class TFFit(_ResultMixin):
             import mne
         except ImportError as err:
             raise ImportError("TFFit.to_mne needs the extra 'mne': pip install "
-                              "'evoparam[mne]'.") from err
+                              "\"evoparam[mne]\".") from err
         if map not in self.maps:
             raise DataError(f"TFFit.to_mne: unknown map {map!r}; available: "
                             f"{sorted(self.maps)}.")

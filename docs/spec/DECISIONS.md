@@ -62,6 +62,7 @@ import of an optional package (REQ-296 i–iii).
 | `presets` | `_plugins` | D5: preset entry points (REQ-328) |
 | `utils` | none (the two leaves only) | cross-cutting helpers of the §4.2 figure |
 | `_plugins` | none (the two leaves only) | entry-point loader of §10.8 |
+| `_extras`, `_deprecated` | none (the two leaves only) | data tables of §9.2 (extras, REQ-292) and §9.3 (deprecated names, REQ-293) |
 | `reports`, `plots`, `cli`, `stream`, `benchmark` | any module above | D3: between them only `benchmark → reports`, `benchmark → plots`, `reports → plots`, `cli → reports`, `cli → plots` and (S19) `cli → benchmark`, because §8.4 and §10.5 make `evoparam benchmark` a command |
 | `__init__` | any module above | the package root re-exports the public API; no module imports the root |
 | `__main__` | `cli` | `python -m evoparam` |

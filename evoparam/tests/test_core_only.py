@@ -146,12 +146,17 @@ CHAIN = textwrap.dedent("""
         assert np.array_equal(again.data, state["trials"].data)
 
 
+    @step("selftest")
+    def _():
+        assert evoparam.selftest() <= 0.001
+
+
     print(json.dumps(steps))
 """)
 
 STEPS = ("import", "simulate", "detect_events", "remove_artifact interpolate",
          "remove_artifact template", "fit", "test_response", "fit_trials", "save/load trials",
-         "save/load group", "save/load evoked", "read npz")
+         "save/load group", "save/load evoked", "read npz", "selftest")
 
 # Measured on 2026-10-09 (Python 3.12, NumPy and SciPy only): these steps need pandas
 # (extra ``data``), so REQ-010 is not met for them yet. detect_events returns a DataFrame
@@ -195,3 +200,14 @@ def test_req010_the_hook_hides_optional_packages():
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                             timeout=120)
     assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_req291_selftest():
+    """REQ-291: ``evoparam.selftest()`` fits the bundled synthetic CCEP and recovers the N1
+    latency within 1 ms; in the NumPy-and-SciPy-only subprocess too (step ``selftest`` of
+    the chain above, which must be "ok")."""
+
+    import evoparam
+
+    assert evoparam.selftest() <= 0.001
+    assert run_chain()["selftest"] == "ok"

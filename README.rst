@@ -1,9 +1,10 @@
-=========================================
-evoparam
-=========================================
+=========================================================
+evoparam: evoked response parameterization
+=========================================================
 
-evoparam is a tool to parameterize neural evoked responses: it describes each
-response (ERP, CCEP, ...) as a small set of peaks with a latency, an amplitude and a width.
+evoparam (evoked response parameterization) is a tool to parameterize neural evoked
+responses: it describes each response (ERP, CCEP, ...) as a small set of peaks with a
+latency, an amplitude and a width.
 
 Status: early development (version 0.1, working name). Origin of the code and licence:
 see ``NOTICE`` and ``LICENSE``.

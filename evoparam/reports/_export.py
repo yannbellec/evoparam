@@ -132,7 +132,7 @@ def validate_json(document):
         import jsonschema
     except ImportError as err:
         raise ImportError("Validating evoparam JSON needs jsonschema: pip install "
-                          "'evoparam[validate]'.") from err
+                          "\"evoparam[validate]\".") from err
     if isinstance(document, (str, os.PathLike)):
         text = open(document, encoding="utf-8").read() if os.path.exists(document) \
             else document

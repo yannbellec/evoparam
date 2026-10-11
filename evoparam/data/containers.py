@@ -547,7 +547,7 @@ class TrialSet(_ContainerMixin):
             import xarray as xr
         except ImportError as err:
             raise ImportError("TrialSet.to_xarray needs the extra 'xarray': pip install "
-                              "'evoparam[xarray]'.") from err
+                              "\"evoparam[xarray]\".") from err
         coords = {"trial": np.arange(self.n_trials), "channel": list(self.ch_names),
                   "time": np.asarray(self.times, dtype=float)}
         for table, dim in ((self.metadata, "trial"), (self.ch_info, "channel")):

@@ -24,7 +24,7 @@ def _mne():
         import mne
     except ImportError as err:
         raise ImportError("MNE conversions need the extra 'mne': pip install "
-                          "'evoparam[mne]'.") from err
+                          "\"evoparam[mne]\".") from err
     return mne
 
 

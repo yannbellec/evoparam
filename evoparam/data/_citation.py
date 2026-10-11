@@ -130,11 +130,51 @@ def citation_text(cff=None):
     text = f"{authors.rstrip('.')}. " if authors else ""
     text += f"{cff.get('title', 'evoparam')}"
     text += f" (version {cff['version']})." if cff.get("version") else "."
-    if cff.get("doi"):
+    version_doi = _version_doi(cff)
+    if cff.get("doi") and version_doi:
+        # REQ-391: the concept DOI (every version) and the DOI of this version
+        text += f" https://doi.org/{version_doi} (this version; all versions: " \
+                f"https://doi.org/{cff['doi']})"
+    elif cff.get("doi"):
         text += f" https://doi.org/{cff['doi']}"
     elif cff.get("repository-code"):
         text += f" {cff['repository-code']}"
+    paper = _preferred(cff)
+    if paper:
+        text += f" Please also cite: {paper}"
     return text
+
+
+def _version_doi(cff):
+    """The DOI of this version: an ``identifiers`` entry of type ``doi`` whose description
+    names the version (Zenodo's version DOI), when the citation file has one."""
+
+    for item in cff.get("identifiers") or []:
+        if isinstance(item, dict) and item.get("type") == "doi" and \
+                "version" in str(item.get("description", "")).lower():
+            return item.get("value")
+    return None
+
+
+def _preferred(cff):
+    """The ``preferred-citation`` (the paper), formatted on one line, or None."""
+
+    paper = cff.get("preferred-citation")
+    if not isinstance(paper, dict) or not paper.get("title"):
+        return None
+    authors = ", ".join(" ".join([family] + [f"{n[0]}." for n in given.replace("-", " ").split()])
+                        .strip() for family, given in _authors(paper))
+    parts = [authors.rstrip(".") + "." if authors else "", f"{paper['title']}."]
+    venue = paper.get("journal") or paper.get("collection-title") or paper.get("publisher")
+    if isinstance(venue, dict):
+        venue = venue.get("name")
+    if venue:
+        parts.append(f"{venue}")
+    if paper.get("year"):
+        parts.append(f"({paper['year']}).")
+    if paper.get("doi"):
+        parts.append(f"https://doi.org/{paper['doi']}")
+    return " ".join(p for p in parts if p)
 
 
 def citation_bibtex(cff=None):

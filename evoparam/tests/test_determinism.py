@@ -83,3 +83,42 @@ def test_req013_different_seeds_differ_where_randomness_is_used():
     b = evoparam.test_response(ts, random_state=1, **kwargs)
     assert not np.array_equal(a.settings["duration_ci"], b.settings["duration_ci"]) or \
         not np.array_equal(a.p_value_raw, b.p_value_raw)
+
+
+###################################################################################################
+## REQ-295 (ii) and (iii), REQ-399 (algorithm versions)
+
+def test_req295_fixture_matches_the_reference_values():
+    """(ii) the fit of the bundled fixture equals the reference values of
+    ``tests/reference/fit_fixture_ccep.json`` within rtol 1e-9 (the CI matrix runs this on
+    Linux, macOS and Windows). REQ-399: when the values change, the algorithm versions
+    recorded with them must have changed too (then regenerate the file)."""
+
+    from evoparam.tests.reference import compare_fixture
+
+    out = compare_fixture()
+    if not out["match"]:
+        assert out["algorithm_versions_changed"], (
+            "the numerical output of the fixture changed without an algorithm version bump "
+            f"(evoparam/version.py ALGORITHM_VERSIONS): {out['differ']}")
+        pytest.fail("algorithm version bumped: regenerate the reference with "
+                    "python -m evoparam.tests.reference and record the change in CHANGELOG")
+    assert out["max_rel_diff"] <= 1e-9
+
+
+def test_req295_no_legacy_global_random_state():
+    """(iii) no ``np.random.seed``, ``np.random.rand`` or ``np.random.randn`` in the package
+    (every random draw comes from ``numpy.random.default_rng(random_state)``)."""
+
+    import pathlib
+    import re
+
+    import evoparam
+
+    package = pathlib.Path(evoparam.__file__).resolve().parent
+    pattern = re.compile(r"np\.random\.(seed|rand|randn)\b|numpy\.random\.(seed|rand|randn)\b")
+    hits = [f"{p.relative_to(package)}:{n}" for p in sorted(package.rglob("*.py"))
+            if "tests" not in p.relative_to(package).parts
+            for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
+            if pattern.search(line)]
+    assert not hits, hits

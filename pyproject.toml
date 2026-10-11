@@ -90,7 +90,8 @@ include = ["evoparam*"]
 "evoparam.benchmark" = ["*.json", "schemas/*.json", "suites/*.json", "realdata/*.json"]
 "evoparam.presets" = ["*.json"]
 "evoparam.reports" = ["schema/*.json"]
-"evoparam" = ["CITATION.cff"]
+"evoparam" = ["CITATION.cff", "py.typed"]
+"evoparam.tests.reference" = ["*.json"]
 "evoparam.tests.sim" = ["reference_sim.json"]
 "evoparam.tests.reports" = ["methods/*.txt"]
 "evoparam.tests.data" = ["containers/*.evoparam/*", "containers/*.evoparam/tables/*"]
@@ -102,3 +103,63 @@ markers = [
     "core: runs with numpy and scipy only (the core-only job of REQ-291/REQ-297)",
     "lsl: needs pylsl and the liblsl library (extra stream); skipped when they are missing",
 ]
+
+# Static quality rules (spec §9.9, REQ-305; REQ-307: E722, S110, BLE001)
+[tool.ruff]
+line-length = 99
+target-version = "py310"
+extend-exclude = ["adapters"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "PT", "RET", "ARG", "PL",
+          "NPY", "D", "C90", "E722", "S110", "BLE001"]
+# PLC0415 (import outside top level) contradicts the lazy imports that REQ-292 requires
+# (docs/spec/DECISIONS.md)
+ignore = ["PLC0415"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.ruff.lint.pylint]
+max-args = 8
+max-statements = 60
+
+[tool.ruff.lint.per-file-ignores]
+"evoparam/tests/**" = ["D"]
+
+# Static typing (spec §9.6, REQ-301): optional packages only are allowed without stubs
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["evoparam"]
+exclude = ["evoparam/tests/"]
+
+[[tool.mypy.overrides]]
+module = ["mne.*", "mne_bids.*", "bids.*", "pynwb.*", "hdmf.*", "ndx_events.*", "neo.*",
+          "edfio.*", "pyedflib.*", "numpyro.*", "jax.*", "arviz.*", "pymc.*", "cupy.*",
+          "numba.*", "matplotlib.*", "pandas.*", "pyarrow.*", "xarray.*", "statsmodels.*",
+          "formulaic.*", "bidsschematools.*", "nwbinspector.*", "jsonschema.*", "tqdm.*",
+          "joblib.*", "pylsl.*", "sklearn.*", "h5py.*", "remfile.*", "quantities.*",
+          "nilearn.*"]
+ignore_missing_imports = true
+
+# Coverage (spec §9.5, REQ-298): the core packages >= 90 %; evoparam.shapes = 100 % and the
+# outer layers >= 80 % are separate `coverage report --include=...` calls in ci.yml
+[tool.coverage.run]
+source = ["evoparam"]
+branch = true
+omit = ["evoparam/tests/*", "evoparam/plots/*", "evoparam/cli.py", "evoparam/stream/*",
+        "evoparam/benchmark/*", "evoparam/reports/*", "evoparam/hierarchical/*",
+        "evoparam/spatial/*", "evoparam/tf/*", "evoparam/stats/*", "evoparam/sim/*",
+        "evoparam/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = false
+
+[tool.interrogate]
+fail-under = 95
+exclude = ["evoparam/tests"]

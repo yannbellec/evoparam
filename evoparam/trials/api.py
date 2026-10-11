@@ -569,10 +569,14 @@ def fit_trials(ts, group_fit=None, *, mode="shift_scale", components=None, max_s
                 "trial_model": trial_model, "null_rule": null_rule, "ridge_cv": ridge_cv,
                 "covariates": list(covariates), "package_version": __version__,
                 "covariate_tables": {k: v.to_dict("list") for k, v in covariate_tables.items()}}
+    # REQ-294: the seed of the call is recorded with the step
+    seed = random_state if random_state is None or isinstance(random_state, (int, np.integer)) \
+        else type(random_state).__name__
     provenance = ts.provenance.with_step("evoparam.trials.fit_trials",
                                          {k: v for k, v in settings.items()
                                           if k != "covariate_tables"},
-                                         duration_s=_time.perf_counter() - start)
+                                         duration_s=_time.perf_counter() - start,
+                                         random_state=seed)
     return TrialFitSet(fits=fits, table=table, skipped_channels=sorted(set(skipped)),
                        settings=settings, provenance=provenance)
 

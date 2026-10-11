@@ -151,7 +151,7 @@ def _pandas(caller):
     try:
         import pandas
     except ImportError as err:
-        raise ImportError(f"{caller} needs pandas: pip install 'evoparam[data]'.") from err
+        raise ImportError(f"{caller} needs pandas: pip install \"evoparam[data]\".") from err
     return pandas
 
 
