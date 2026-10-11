@@ -84,8 +84,10 @@ REQUIRE_ONLY = {"hierarchical": {"evoparam.utils._optional", "evoparam.utils.req
 # Spec §4.2: the top layers do not import each other, except benchmark -> reports.
 # D3 (owner): the HTML/PDF reports embed the figures and the command line runs the reports
 # (§5.13), so the top layers are ordered plots < reports < cli, benchmark.
+# S19: the command line runs the benchmark (§8.4 `evoparam benchmark score ...`, §10.5), so
+# cli -> benchmark; the benchmark never imports the command line.
 ALLOWED_BETWEEN = {("benchmark", "reports"), ("reports", "plots"), ("cli", "reports"),
-                   ("cli", "plots"), ("benchmark", "plots")}
+                   ("cli", "plots"), ("benchmark", "plots"), ("cli", "benchmark")}
 
 # Import names of the packages of the extras of spec §9.2 (and of the test tool chain).
 OPTIONAL_IMPORTS = {"mne", "mne_bids", "bids", "pynwb", "hdmf", "ndx_events", "neo", "edfio",

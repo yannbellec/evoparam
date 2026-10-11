@@ -102,9 +102,15 @@ def test_req323_exit_codes(fitted, tmp_path, monkeypatch, capsys):
 
     _, out = fitted
     assert main(["fit"]) == 2                                   # usage
-    assert main(["benchmark", "--json"]) == 1                    # runtime (not built yet)
+    spec = tmp_path / "missing_tool.json"                         # runtime: the external
+    spec.write_text(json.dumps({"name": "missing", "tasks": ["T7"],  # tool cannot be found
+                                "command": [str(tmp_path / "no-such-tool")]}))
+    assert main(["benchmark", "run", "--suite", "core", "--tasks", "T7", "--methods", "",
+                 "--adapter", str(spec), "--out", str(tmp_path / "bench"), "--json"]) == 1
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert summary["exit_code"] == 1 and summary["status"] == "error"
+    assert main(["benchmark", "--json"]) == 2                    # usage: no action
+    capsys.readouterr()
     bad = tmp_path / "bad.evoparam"
     bad.mkdir()
     (bad / "manifest.json").write_text("{not json")

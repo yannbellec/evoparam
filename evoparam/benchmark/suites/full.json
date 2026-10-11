@@ -1,0 +1,6741 @@
+{
+ "schema": "evoparam-benchmark-suite/1",
+ "name": "full",
+ "version": "1.0.0",
+ "description": "Simulated suite 'full' of the evoparam benchmark (spec §8.2): the data are generated on the fly by evoparam.sim from the settings and seeds below.",
+ "groups": {
+  "ccep_detection": {
+   "generator": "simulate_ccep",
+   "tasks": [
+    "T1",
+    "T2"
+   ],
+   "description": "Single-pulse stimulation, one site, 24 sEEG contacts, about 30 % responding with an N1 (80 % also with an N2); no stimulation artifact (the artifact is task T4); pink noise of SD 20 uV; per-trial SNR of the components from 0.5 to 4.",
+   "settings": {
+    "n_channels": 24,
+    "artifact": false,
+    "tmin": -1.0,
+    "tmax": 1.0,
+    "noise": "pink",
+    "noise_sd": 20.0,
+    "p_response": 0.3,
+    "polarity": "negative",
+    "sfreq": 2048.0,
+    "_": {
+     "hints": {
+      "window": [
+       0.009,
+       0.1
+      ],
+      "baseline": [
+       -1.0,
+       -0.1
+      ],
+      "preset": "ccep"
+     }
+    }
+   },
+   "cells": [
+    {
+     "id": "ccep_detection-p001",
+     "split": "public",
+     "seed": 9001001,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p002",
+     "split": "public",
+     "seed": 9001002,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p003",
+     "split": "public",
+     "seed": 9001003,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p004",
+     "split": "public",
+     "seed": 9001004,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p005",
+     "split": "public",
+     "seed": 9001005,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p006",
+     "split": "public",
+     "seed": 9001006,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p007",
+     "split": "public",
+     "seed": 9001007,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p008",
+     "split": "public",
+     "seed": 9001008,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p009",
+     "split": "public",
+     "seed": 9001009,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p010",
+     "split": "public",
+     "seed": 9001010,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p011",
+     "split": "public",
+     "seed": 9001011,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p012",
+     "split": "public",
+     "seed": 9001012,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p013",
+     "split": "public",
+     "seed": 9001013,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p014",
+     "split": "public",
+     "seed": 9001014,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p015",
+     "split": "public",
+     "seed": 9001015,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p016",
+     "split": "public",
+     "seed": 9001016,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p017",
+     "split": "public",
+     "seed": 9001017,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p018",
+     "split": "public",
+     "seed": 9001018,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p019",
+     "split": "public",
+     "seed": 9001019,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p020",
+     "split": "public",
+     "seed": 9001020,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p021",
+     "split": "public",
+     "seed": 9001021,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p022",
+     "split": "public",
+     "seed": 9001022,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p023",
+     "split": "public",
+     "seed": 9001023,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p024",
+     "split": "public",
+     "seed": 9001024,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p025",
+     "split": "public",
+     "seed": 9001025,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p026",
+     "split": "public",
+     "seed": 9001026,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p027",
+     "split": "public",
+     "seed": 9001027,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p028",
+     "split": "public",
+     "seed": 9001028,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p029",
+     "split": "public",
+     "seed": 9001029,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p030",
+     "split": "public",
+     "seed": 9001030,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p031",
+     "split": "public",
+     "seed": 9001031,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p032",
+     "split": "public",
+     "seed": 9001032,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p033",
+     "split": "public",
+     "seed": 9001033,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p034",
+     "split": "public",
+     "seed": 9001034,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p035",
+     "split": "public",
+     "seed": 9001035,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p036",
+     "split": "public",
+     "seed": 9001036,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p037",
+     "split": "public",
+     "seed": 9001037,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p038",
+     "split": "public",
+     "seed": 9001038,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p039",
+     "split": "public",
+     "seed": 9001039,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p040",
+     "split": "public",
+     "seed": 9001040,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-h001",
+     "split": "hidden",
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-h002",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-h003",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-h004",
+     "split": "hidden",
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-h005",
+     "split": "hidden",
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-h006",
+     "split": "hidden",
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-h007",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-h008",
+     "split": "hidden",
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-h009",
+     "split": "hidden",
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-h010",
+     "split": "hidden",
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    }
+   ]
+  },
+  "evoked": {
+   "generator": "mixed",
+   "tasks": [
+    "T3"
+   ],
+   "description": "Averaged waveforms: scalp ERPs (4 channels, P1, N1 and P3, 60 trials, 500 Hz) and CCEPs (12 contacts, N1 and N2 on half of them, 10 trials, 2048 Hz, no artifact); the input is the average.",
+   "settings": {},
+   "cells": [
+    {
+     "id": "evoked-p001",
+     "split": "public",
+     "seed": 9002001,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p002",
+     "split": "public",
+     "seed": 9002002,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p003",
+     "split": "public",
+     "seed": 9002003,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p004",
+     "split": "public",
+     "seed": 9002004,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p005",
+     "split": "public",
+     "seed": 9002005,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p006",
+     "split": "public",
+     "seed": 9002006,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p007",
+     "split": "public",
+     "seed": 9002007,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p008",
+     "split": "public",
+     "seed": 9002008,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p009",
+     "split": "public",
+     "seed": 9002009,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p010",
+     "split": "public",
+     "seed": 9002010,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p011",
+     "split": "public",
+     "seed": 9002011,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p012",
+     "split": "public",
+     "seed": 9002012,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p013",
+     "split": "public",
+     "seed": 9002013,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p014",
+     "split": "public",
+     "seed": 9002014,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p015",
+     "split": "public",
+     "seed": 9002015,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p016",
+     "split": "public",
+     "seed": 9002016,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p017",
+     "split": "public",
+     "seed": 9002017,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p018",
+     "split": "public",
+     "seed": 9002018,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p019",
+     "split": "public",
+     "seed": 9002019,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p020",
+     "split": "public",
+     "seed": 9002020,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p021",
+     "split": "public",
+     "seed": 9002021,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p022",
+     "split": "public",
+     "seed": 9002022,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p023",
+     "split": "public",
+     "seed": 9002023,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p024",
+     "split": "public",
+     "seed": 9002024,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p025",
+     "split": "public",
+     "seed": 9002025,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p026",
+     "split": "public",
+     "seed": 9002026,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p027",
+     "split": "public",
+     "seed": 9002027,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p028",
+     "split": "public",
+     "seed": 9002028,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p029",
+     "split": "public",
+     "seed": 9002029,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p030",
+     "split": "public",
+     "seed": 9002030,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p031",
+     "split": "public",
+     "seed": 9002031,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p032",
+     "split": "public",
+     "seed": 9002032,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p033",
+     "split": "public",
+     "seed": 9002033,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p034",
+     "split": "public",
+     "seed": 9002034,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p035",
+     "split": "public",
+     "seed": 9002035,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p036",
+     "split": "public",
+     "seed": 9002036,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p037",
+     "split": "public",
+     "seed": 9002037,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p038",
+     "split": "public",
+     "seed": 9002038,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p039",
+     "split": "public",
+     "seed": 9002039,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p040",
+     "split": "public",
+     "seed": 9002040,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-h001",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.5,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-h002",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.5,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-h003",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-h004",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-h005",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-h006",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-h007",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-h008",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-h009",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-h010",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "white"
+     }
+    }
+   ]
+  },
+  "artifact": {
+   "generator": "simulate_ccep",
+   "tasks": [
+    "T4"
+   ],
+   "description": "Single-pulse stimulation with its artifact (dipole potential of the pulse, anti-aliasing filter, double-exponential tail), 30 pulses, 12 contacts, half of them responding (drawn amplitudes), pink noise of SD 20 uV; currents 2 to 8 mA and tails of 2 or 5 % of the pulse.",
+   "settings": {
+    "n_trials": 30,
+    "n_channels": 12,
+    "artifact": true,
+    "tmin": -0.5,
+    "tmax": 0.5,
+    "noise": "pink",
+    "noise_sd": 20.0,
+    "p_response": 0.5,
+    "polarity": "negative",
+    "sfreq": 2048.0,
+    "_": {
+     "artifact_window": [
+      -0.002,
+      0.008
+     ],
+     "hints": {
+      "window": [
+       0.009,
+       0.1
+      ],
+      "baseline": [
+       -0.5,
+       -0.05
+      ],
+      "preset": "ccep"
+     }
+    }
+   },
+   "cells": [
+    {
+     "id": "artifact-p001",
+     "split": "public",
+     "seed": 9003001,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p002",
+     "split": "public",
+     "seed": 9003002,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p003",
+     "split": "public",
+     "seed": 9003003,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p004",
+     "split": "public",
+     "seed": 9003004,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p005",
+     "split": "public",
+     "seed": 9003005,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p006",
+     "split": "public",
+     "seed": 9003006,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p007",
+     "split": "public",
+     "seed": 9003007,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p008",
+     "split": "public",
+     "seed": 9003008,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p009",
+     "split": "public",
+     "seed": 9003009,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p010",
+     "split": "public",
+     "seed": 9003010,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p011",
+     "split": "public",
+     "seed": 9003011,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p012",
+     "split": "public",
+     "seed": 9003012,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p013",
+     "split": "public",
+     "seed": 9003013,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p014",
+     "split": "public",
+     "seed": 9003014,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p015",
+     "split": "public",
+     "seed": 9003015,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p016",
+     "split": "public",
+     "seed": 9003016,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p017",
+     "split": "public",
+     "seed": 9003017,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p018",
+     "split": "public",
+     "seed": 9003018,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p019",
+     "split": "public",
+     "seed": 9003019,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p020",
+     "split": "public",
+     "seed": 9003020,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p021",
+     "split": "public",
+     "seed": 9003021,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p022",
+     "split": "public",
+     "seed": 9003022,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p023",
+     "split": "public",
+     "seed": 9003023,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p024",
+     "split": "public",
+     "seed": 9003024,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p025",
+     "split": "public",
+     "seed": 9003025,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p026",
+     "split": "public",
+     "seed": 9003026,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p027",
+     "split": "public",
+     "seed": 9003027,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p028",
+     "split": "public",
+     "seed": 9003028,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p029",
+     "split": "public",
+     "seed": 9003029,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p030",
+     "split": "public",
+     "seed": 9003030,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p031",
+     "split": "public",
+     "seed": 9003031,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p032",
+     "split": "public",
+     "seed": 9003032,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p033",
+     "split": "public",
+     "seed": 9003033,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p034",
+     "split": "public",
+     "seed": 9003034,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p035",
+     "split": "public",
+     "seed": 9003035,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p036",
+     "split": "public",
+     "seed": 9003036,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p037",
+     "split": "public",
+     "seed": 9003037,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p038",
+     "split": "public",
+     "seed": 9003038,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p039",
+     "split": "public",
+     "seed": 9003039,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p040",
+     "split": "public",
+     "seed": 9003040,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-h001",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 3.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-h002",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 5.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-h003",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-h004",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-h005",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-h006",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-h007",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-h008",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-h009",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-h010",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.02
+     }
+    }
+   ]
+  },
+  "single_trial": {
+   "generator": "mixed",
+   "tasks": [
+    "T5"
+   ],
+   "description": "Trials with latency jitter and amplitude variability (CV 30 %): a scalp P3 (2 channels, 40 trials, jitter SD 10 or 30 ms) and a CCEP N1 (6 contacts all responding, 30 trials, jitter SD 1 or 3 ms); per-trial SNR 1 or 3. The targets are the component of every channel that holds it.",
+   "settings": {},
+   "cells": [
+    {
+     "id": "single_trial-p001",
+     "split": "public",
+     "seed": 9004001,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p002",
+     "split": "public",
+     "seed": 9004002,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p003",
+     "split": "public",
+     "seed": 9004003,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p004",
+     "split": "public",
+     "seed": 9004004,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p005",
+     "split": "public",
+     "seed": 9004005,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p006",
+     "split": "public",
+     "seed": 9004006,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p007",
+     "split": "public",
+     "seed": 9004007,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p008",
+     "split": "public",
+     "seed": 9004008,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p009",
+     "split": "public",
+     "seed": 9004009,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p010",
+     "split": "public",
+     "seed": 9004010,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p011",
+     "split": "public",
+     "seed": 9004011,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p012",
+     "split": "public",
+     "seed": 9004012,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p013",
+     "split": "public",
+     "seed": 9004013,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p014",
+     "split": "public",
+     "seed": 9004014,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p015",
+     "split": "public",
+     "seed": 9004015,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p016",
+     "split": "public",
+     "seed": 9004016,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p017",
+     "split": "public",
+     "seed": 9004017,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p018",
+     "split": "public",
+     "seed": 9004018,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p019",
+     "split": "public",
+     "seed": 9004019,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p020",
+     "split": "public",
+     "seed": 9004020,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p021",
+     "split": "public",
+     "seed": 9004021,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p022",
+     "split": "public",
+     "seed": 9004022,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p023",
+     "split": "public",
+     "seed": 9004023,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p024",
+     "split": "public",
+     "seed": 9004024,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p025",
+     "split": "public",
+     "seed": 9004025,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p026",
+     "split": "public",
+     "seed": 9004026,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p027",
+     "split": "public",
+     "seed": 9004027,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p028",
+     "split": "public",
+     "seed": 9004028,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p029",
+     "split": "public",
+     "seed": 9004029,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p030",
+     "split": "public",
+     "seed": 9004030,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p031",
+     "split": "public",
+     "seed": 9004031,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p032",
+     "split": "public",
+     "seed": 9004032,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p033",
+     "split": "public",
+     "seed": 9004033,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p034",
+     "split": "public",
+     "seed": 9004034,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p035",
+     "split": "public",
+     "seed": 9004035,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p036",
+     "split": "public",
+     "seed": 9004036,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p037",
+     "split": "public",
+     "seed": 9004037,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p038",
+     "split": "public",
+     "seed": 9004038,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p039",
+     "split": "public",
+     "seed": 9004039,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p040",
+     "split": "public",
+     "seed": 9004040,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-h001",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.02,
+      "snr": 2.0
+     }
+    },
+    {
+     "id": "single_trial-h002",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.002,
+      "snr": 2.0
+     }
+    },
+    {
+     "id": "single_trial-h003",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-h004",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-h005",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-h006",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-h007",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-h008",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-h009",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-h010",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 3.0
+     }
+    }
+   ]
+  },
+  "erp_scoring": {
+   "generator": "simulate_erp",
+   "tasks": [
+    "T6"
+   ],
+   "description": "ERP CORE-like scalp components on their canonical channel (P3 Pz, N170 PO8, N400 CPz, MMN FCz, ERN FCz), 60 trials at 256 Hz, latency jitter SD 10 ms, amplitude CV 20 %, pink noise of SD 10 uV, per-trial SNR 1 or 2; scored with the ERP CORE measurement windows.",
+   "settings": {
+    "n_trials": 60,
+    "n_channels": 1,
+    "sfreq": 256.0,
+    "tmin": -0.2,
+    "tmax": 0.8,
+    "jitter_sd": 0.01,
+    "amplitude_cv": 0.2,
+    "noise": "pink",
+    "noise_sd": 10.0
+   },
+   "cells": [
+    {
+     "id": "erp_scoring-p001",
+     "split": "public",
+     "seed": 9005001,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p002",
+     "split": "public",
+     "seed": 9005002,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p003",
+     "split": "public",
+     "seed": 9005003,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p004",
+     "split": "public",
+     "seed": 9005004,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "MMN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "MMN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p005",
+     "split": "public",
+     "seed": 9005005,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "ERN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "ERN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p006",
+     "split": "public",
+     "seed": 9005006,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p007",
+     "split": "public",
+     "seed": 9005007,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p008",
+     "split": "public",
+     "seed": 9005008,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p009",
+     "split": "public",
+     "seed": 9005009,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p010",
+     "split": "public",
+     "seed": 9005010,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p011",
+     "split": "public",
+     "seed": 9005011,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p012",
+     "split": "public",
+     "seed": 9005012,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "MMN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "MMN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p013",
+     "split": "public",
+     "seed": 9005013,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "ERN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "ERN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p014",
+     "split": "public",
+     "seed": 9005014,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p015",
+     "split": "public",
+     "seed": 9005015,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p016",
+     "split": "public",
+     "seed": 9005016,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p017",
+     "split": "public",
+     "seed": 9005017,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p018",
+     "split": "public",
+     "seed": 9005018,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p019",
+     "split": "public",
+     "seed": 9005019,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p020",
+     "split": "public",
+     "seed": 9005020,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "MMN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "MMN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p021",
+     "split": "public",
+     "seed": 9005021,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "ERN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "ERN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p022",
+     "split": "public",
+     "seed": 9005022,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p023",
+     "split": "public",
+     "seed": 9005023,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p024",
+     "split": "public",
+     "seed": 9005024,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p025",
+     "split": "public",
+     "seed": 9005025,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p026",
+     "split": "public",
+     "seed": 9005026,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p027",
+     "split": "public",
+     "seed": 9005027,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p028",
+     "split": "public",
+     "seed": 9005028,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "MMN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "MMN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p029",
+     "split": "public",
+     "seed": 9005029,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "ERN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "ERN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p030",
+     "split": "public",
+     "seed": 9005030,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p031",
+     "split": "public",
+     "seed": 9005031,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p032",
+     "split": "public",
+     "seed": 9005032,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p033",
+     "split": "public",
+     "seed": 9005033,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p034",
+     "split": "public",
+     "seed": 9005034,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p035",
+     "split": "public",
+     "seed": 9005035,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p036",
+     "split": "public",
+     "seed": 9005036,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "MMN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "MMN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p037",
+     "split": "public",
+     "seed": 9005037,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "ERN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "ERN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p038",
+     "split": "public",
+     "seed": 9005038,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p039",
+     "split": "public",
+     "seed": 9005039,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p040",
+     "split": "public",
+     "seed": 9005040,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h001",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "MMN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "MMN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h002",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "ERN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "ERN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h003",
+     "split": "hidden",
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h004",
+     "split": "hidden",
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "MMN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "MMN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h005",
+     "split": "hidden",
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "ERN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "ERN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h006",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h007",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h008",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h009",
+     "split": "hidden",
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h010",
+     "split": "hidden",
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "tf": {
+   "generator": "simulate_bursts",
+   "tasks": [
+    "T7"
+   ],
+   "description": "Induced bursts (random phase per trial, Hann envelope) in AR(1) noise (rho 0.9, SD 10 uV), 30 trials, one channel at 1000 Hz; cells without burst estimate the type-I error.",
+   "settings": {
+    "n_trials": 30,
+    "n_channels": 1,
+    "sfreq": 1000.0,
+    "tmin": -0.6,
+    "tmax": 0.8,
+    "noise": "ar1",
+    "noise_sd": 10.0,
+    "_": {
+     "hints": {
+      "window": [
+       0.0,
+       0.8
+      ],
+      "baseline": [
+       -0.5,
+       -0.1
+      ]
+     }
+    }
+   },
+   "cells": [
+    {
+     "id": "tf-p001",
+     "split": "public",
+     "seed": 9006001,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p002",
+     "split": "public",
+     "seed": 9006002,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p003",
+     "split": "public",
+     "seed": 9006003,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p004",
+     "split": "public",
+     "seed": 9006004,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p005",
+     "split": "public",
+     "seed": 9006005,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p006",
+     "split": "public",
+     "seed": 9006006,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p007",
+     "split": "public",
+     "seed": 9006007,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 150.0,
+        "centre": 0.2,
+        "duration": 0.08,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p008",
+     "split": "public",
+     "seed": 9006008,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.15,
+        "duration": 0.1,
+        "amplitude": 15.0
+       },
+       {
+        "freq": 20.0,
+        "centre": 0.5,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p009",
+     "split": "public",
+     "seed": 9006009,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p010",
+     "split": "public",
+     "seed": 9006010,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p011",
+     "split": "public",
+     "seed": 9006011,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p012",
+     "split": "public",
+     "seed": 9006012,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p013",
+     "split": "public",
+     "seed": 9006013,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p014",
+     "split": "public",
+     "seed": 9006014,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p015",
+     "split": "public",
+     "seed": 9006015,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 150.0,
+        "centre": 0.2,
+        "duration": 0.08,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p016",
+     "split": "public",
+     "seed": 9006016,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.15,
+        "duration": 0.1,
+        "amplitude": 15.0
+       },
+       {
+        "freq": 20.0,
+        "centre": 0.5,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p017",
+     "split": "public",
+     "seed": 9006017,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p018",
+     "split": "public",
+     "seed": 9006018,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p019",
+     "split": "public",
+     "seed": 9006019,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p020",
+     "split": "public",
+     "seed": 9006020,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p021",
+     "split": "public",
+     "seed": 9006021,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p022",
+     "split": "public",
+     "seed": 9006022,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p023",
+     "split": "public",
+     "seed": 9006023,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 150.0,
+        "centre": 0.2,
+        "duration": 0.08,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p024",
+     "split": "public",
+     "seed": 9006024,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.15,
+        "duration": 0.1,
+        "amplitude": 15.0
+       },
+       {
+        "freq": 20.0,
+        "centre": 0.5,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p025",
+     "split": "public",
+     "seed": 9006025,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p026",
+     "split": "public",
+     "seed": 9006026,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p027",
+     "split": "public",
+     "seed": 9006027,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p028",
+     "split": "public",
+     "seed": 9006028,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p029",
+     "split": "public",
+     "seed": 9006029,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p030",
+     "split": "public",
+     "seed": 9006030,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p031",
+     "split": "public",
+     "seed": 9006031,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 150.0,
+        "centre": 0.2,
+        "duration": 0.08,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p032",
+     "split": "public",
+     "seed": 9006032,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.15,
+        "duration": 0.1,
+        "amplitude": 15.0
+       },
+       {
+        "freq": 20.0,
+        "centre": 0.5,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p033",
+     "split": "public",
+     "seed": 9006033,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p034",
+     "split": "public",
+     "seed": 9006034,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p035",
+     "split": "public",
+     "seed": 9006035,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p036",
+     "split": "public",
+     "seed": 9006036,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p037",
+     "split": "public",
+     "seed": 9006037,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p038",
+     "split": "public",
+     "seed": 9006038,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p039",
+     "split": "public",
+     "seed": 9006039,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 150.0,
+        "centre": 0.2,
+        "duration": 0.08,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p040",
+     "split": "public",
+     "seed": 9006040,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.15,
+        "duration": 0.1,
+        "amplitude": 15.0
+       },
+       {
+        "freq": 20.0,
+        "centre": 0.5,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-h001",
+     "split": "hidden",
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-h002",
+     "split": "hidden",
+     "settings": {
+      "bursts": [
+       {
+        "freq": 60.0,
+        "centre": 0.3,
+        "duration": 0.12,
+        "amplitude": 12.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-h003",
+     "split": "hidden",
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-h004",
+     "split": "hidden",
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-h005",
+     "split": "hidden",
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-h006",
+     "split": "hidden",
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-h007",
+     "split": "hidden",
+     "settings": {
+      "bursts": [
+       {
+        "freq": 150.0,
+        "centre": 0.2,
+        "duration": 0.08,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-h008",
+     "split": "hidden",
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.15,
+        "duration": 0.1,
+        "amplitude": 15.0
+       },
+       {
+        "freq": 20.0,
+        "centre": 0.5,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-h009",
+     "split": "hidden",
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-h010",
+     "split": "hidden",
+     "settings": {
+      "bursts": []
+     }
+    }
+   ]
+  }
+ },
+ "tasks": {
+  "T1": [
+   "ccep_detection"
+  ],
+  "T2": [
+   "ccep_detection"
+  ],
+  "T3": [
+   "evoked"
+  ],
+  "T4": [
+   "artifact"
+  ],
+  "T5": [
+   "single_trial"
+  ],
+  "T6": [
+   "erp_scoring"
+  ],
+  "T7": [
+   "tf"
+  ]
+ },
+ "hidden_split": {
+  "fraction": 0.2,
+  "n_hidden_cells": 60,
+  "n_cells": 300,
+  "commitment_sha256": "ff9e2df66b2065833a2bb83b197f90a35bebe1d51c263cbcd6d150534185f701",
+  "commitment": "SHA-256 of the canonical JSON (keys sorted, no whitespace, UTF-8) of the hidden seeds document (schema evoparam-benchmark-hidden-seeds/1: a random 256-bit nonce and the seeds of the hidden cells of the core and full suites)",
+  "reveal": "the hidden seeds document is published at the acceptance of the benchmark paper; evoparam.benchmark checks it against this hash"
+ }
+}

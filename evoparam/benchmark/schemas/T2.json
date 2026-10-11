@@ -1,0 +1,250 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "benchmark-task/T2/1",
+ "title": "evoparam benchmark task T2 (early component latency and amplitude), version 1",
+ "description": "Task input (a JSON descriptor next to an .npz file of arrays) and task output. One row per channel the method reports: the N1 peak latency (s) and amplitude (data units, signed), null when the method finds no N1; optional interval bounds.",
+ "x-task": "T2",
+ "x-name": "early component latency and amplitude",
+ "x-output-format": "tsv",
+ "$defs": {
+  "number_or_null": {
+   "type": [
+    "number",
+    "null"
+   ]
+  },
+  "probability": {
+   "type": [
+    "number",
+    "null"
+   ],
+   "minimum": 0,
+   "maximum": 1
+  },
+  "sha256": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "window": {
+   "type": "array",
+   "items": {
+    "type": "number"
+   },
+   "minItems": 2,
+   "maxItems": 2
+  },
+  "array": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "shape",
+    "sha256"
+   ],
+   "properties": {
+    "shape": {
+     "type": "array",
+     "items": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "minItems": 1,
+     "maxItems": 4
+    },
+    "sha256": {
+     "$ref": "#/$defs/sha256"
+    }
+   }
+  },
+  "channel": {
+   "type": "string",
+   "minLength": 1
+  },
+  "input": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "schema",
+    "role",
+    "task",
+    "suite",
+    "cell",
+    "split",
+    "data_file",
+    "arrays",
+    "sfreq",
+    "tmin",
+    "units",
+    "ch_names",
+    "n_trials",
+    "site",
+    "stim_channels"
+   ],
+   "properties": {
+    "schema": {
+     "const": "benchmark-task/T2/1"
+    },
+    "role": {
+     "const": "input"
+    },
+    "task": {
+     "const": "T2"
+    },
+    "suite": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "name",
+      "version"
+     ],
+     "properties": {
+      "name": {
+       "type": "string",
+       "minLength": 1
+      },
+      "version": {
+       "type": "string",
+       "pattern": "^\\d+\\.\\d+\\.\\d+$"
+      }
+     }
+    },
+    "cell": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "split": {
+     "enum": [
+      "public",
+      "hidden",
+      "real"
+     ]
+    },
+    "data_file": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+\\.npz$"
+    },
+    "arrays": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "data"
+     ],
+     "properties": {
+      "data": {
+       "$ref": "#/$defs/array"
+      }
+     }
+    },
+    "sfreq": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "tmin": {
+     "type": "number"
+    },
+    "units": {
+     "type": "string",
+     "minLength": 1
+    },
+    "ch_names": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/channel"
+     },
+     "minItems": 1,
+     "uniqueItems": true
+    },
+    "modality": {
+     "type": "string"
+    },
+    "site": {
+     "type": "string"
+    },
+    "stim_channels": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/channel"
+     }
+    },
+    "n_trials": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "hints": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "window": {
+       "$ref": "#/$defs/window"
+      },
+      "baseline": {
+       "$ref": "#/$defs/window"
+      },
+      "preset": {
+       "type": "string"
+      }
+     }
+    },
+    "source": {
+     "type": "object"
+    }
+   }
+  },
+  "output_row": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "site",
+    "channel",
+    "latency",
+    "amplitude"
+   ],
+   "properties": {
+    "site": {
+     "type": "string",
+     "minLength": 1
+    },
+    "channel": {
+     "$ref": "#/$defs/channel"
+    },
+    "latency": {
+     "$ref": "#/$defs/number_or_null"
+    },
+    "amplitude": {
+     "$ref": "#/$defs/number_or_null"
+    },
+    "latency_ci_low": {
+     "$ref": "#/$defs/number_or_null"
+    },
+    "latency_ci_high": {
+     "$ref": "#/$defs/number_or_null"
+    },
+    "amplitude_ci_low": {
+     "$ref": "#/$defs/number_or_null"
+    },
+    "amplitude_ci_high": {
+     "$ref": "#/$defs/number_or_null"
+    }
+   }
+  },
+  "output": {
+   "type": "array",
+   "items": {
+    "$ref": "#/$defs/output_row"
+   }
+  }
+ },
+ "x-columns": {
+  "required": [
+   "site",
+   "channel",
+   "latency",
+   "amplitude"
+  ],
+  "optional": [
+   "latency_ci_low",
+   "latency_ci_high",
+   "amplitude_ci_low",
+   "amplitude_ci_high"
+  ]
+ }
+}

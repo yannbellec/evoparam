@@ -1,0 +1,15 @@
+{
+ "schema": "evoparam.benchmark.erpcore/1",
+ "description": "Reference definitions of the ERP scores of task T6: for each ERP CORE component, the canonical channel, the measurement window and the polarity of the published analysis (Kappenman et al. 2021, NeuroImage 225:117465; data OSF 10.18115/D5JW4R). The scores are computed by evoparam.models.classical: mean amplitude over the window; peak amplitude and latency of the local peak (3 samples on each side) of the component's polarity; 50 % fractional area latency of the area of the component's polarity, above zero. The same windows are used by validation/erpcore.py.",
+ "measures": ["mean_amplitude", "peak_amplitude", "peak_latency", "fractional_area_latency"],
+ "n_neighbors": 3,
+ "fraction": 0.5,
+ "components": {
+  "P3": {"channel": "Pz", "window": [0.3, 0.6], "polarity": "positive"},
+  "N170": {"channel": "PO8", "window": [0.11, 0.15], "polarity": "negative"},
+  "N400": {"channel": "CPz", "window": [0.3, 0.5], "polarity": "negative"},
+  "MMN": {"channel": "FCz", "window": [0.125, 0.225], "polarity": "negative"},
+  "ERN": {"channel": "FCz", "window": [0.0, 0.1], "polarity": "negative"}
+ },
+ "source": "ERP CORE (Kappenman et al. 2021), measurement windows of the published analysis"
+}

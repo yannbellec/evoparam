@@ -1,0 +1,29 @@
+{
+ "schema": "evoparam-benchmark-realdata/1",
+ "dataset": "ds002094",
+ "title": "Single-pulse open-loop TMS-EEG dataset",
+ "version": "1.0.0",
+ "doi": null,
+ "licence": "CC0",
+ "redistribution": "CC0: the benchmark may redistribute epoched NWB files of this subset; the repository holds this index only",
+ "reader": "bids",
+ "remote": "openneuro",
+ "datatype": "eeg",
+ "tasks": [
+  "T3",
+  "T4"
+ ],
+ "epoch": [
+  -0.5,
+  0.5
+ ],
+ "picks": null,
+ "site_rule": {
+  "min_trials": 10,
+  "max_sites": 3,
+  "order": "first stimulation sites in the order of the events file with at least min_trials trials"
+ },
+ "selection": "none yet: the entries are chosen by a rule fixed before the first run (as REQ-371 does for ds004080)",
+ "entries": [],
+ "role": "real-noise injection (spec §8.1 T4, §5.12 noise='real'): pre-stimulus segments are injected under simulated components with evoparam.sim.inject"
+}

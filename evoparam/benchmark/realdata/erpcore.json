@@ -1,0 +1,866 @@
+{
+ "schema": "evoparam-benchmark-realdata/1",
+ "dataset": "erp-core",
+ "title": "ERP CORE",
+ "version": null,
+ "doi": "10.18115/D5JW4R",
+ "licence": "CC-BY-4.0",
+ "redistribution": "referenced only (not redistributed): the files are fetched from OSF by evoparam.io.fetch_erpcore",
+ "reader": "erpcore",
+ "tasks": [
+  "T6"
+ ],
+ "components": [
+  "P3",
+  "N170",
+  "N400",
+  "MMN",
+  "ERN"
+ ],
+ "participants": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+  29,
+  30,
+  31,
+  32,
+  33,
+  34,
+  35,
+  36,
+  37,
+  38,
+  39,
+  40
+ ],
+ "condition": "the trials of the first bin of the published difference (the 'plus' bins of validation/erpcore.py), after the published artifact rejection; the scores use the definitions of evoparam/benchmark/erpcore.json",
+ "selection": "all 40 participants, the five components of erpcore.json",
+ "entries": [
+  {
+   "component": "P3",
+   "participant": 1
+  },
+  {
+   "component": "P3",
+   "participant": 2
+  },
+  {
+   "component": "P3",
+   "participant": 3
+  },
+  {
+   "component": "P3",
+   "participant": 4
+  },
+  {
+   "component": "P3",
+   "participant": 5
+  },
+  {
+   "component": "P3",
+   "participant": 6
+  },
+  {
+   "component": "P3",
+   "participant": 7
+  },
+  {
+   "component": "P3",
+   "participant": 8
+  },
+  {
+   "component": "P3",
+   "participant": 9
+  },
+  {
+   "component": "P3",
+   "participant": 10
+  },
+  {
+   "component": "P3",
+   "participant": 11
+  },
+  {
+   "component": "P3",
+   "participant": 12
+  },
+  {
+   "component": "P3",
+   "participant": 13
+  },
+  {
+   "component": "P3",
+   "participant": 14
+  },
+  {
+   "component": "P3",
+   "participant": 15
+  },
+  {
+   "component": "P3",
+   "participant": 16
+  },
+  {
+   "component": "P3",
+   "participant": 17
+  },
+  {
+   "component": "P3",
+   "participant": 18
+  },
+  {
+   "component": "P3",
+   "participant": 19
+  },
+  {
+   "component": "P3",
+   "participant": 20
+  },
+  {
+   "component": "P3",
+   "participant": 21
+  },
+  {
+   "component": "P3",
+   "participant": 22
+  },
+  {
+   "component": "P3",
+   "participant": 23
+  },
+  {
+   "component": "P3",
+   "participant": 24
+  },
+  {
+   "component": "P3",
+   "participant": 25
+  },
+  {
+   "component": "P3",
+   "participant": 26
+  },
+  {
+   "component": "P3",
+   "participant": 27
+  },
+  {
+   "component": "P3",
+   "participant": 28
+  },
+  {
+   "component": "P3",
+   "participant": 29
+  },
+  {
+   "component": "P3",
+   "participant": 30
+  },
+  {
+   "component": "P3",
+   "participant": 31
+  },
+  {
+   "component": "P3",
+   "participant": 32
+  },
+  {
+   "component": "P3",
+   "participant": 33
+  },
+  {
+   "component": "P3",
+   "participant": 34
+  },
+  {
+   "component": "P3",
+   "participant": 35
+  },
+  {
+   "component": "P3",
+   "participant": 36
+  },
+  {
+   "component": "P3",
+   "participant": 37
+  },
+  {
+   "component": "P3",
+   "participant": 38
+  },
+  {
+   "component": "P3",
+   "participant": 39
+  },
+  {
+   "component": "P3",
+   "participant": 40
+  },
+  {
+   "component": "N170",
+   "participant": 1
+  },
+  {
+   "component": "N170",
+   "participant": 2
+  },
+  {
+   "component": "N170",
+   "participant": 3
+  },
+  {
+   "component": "N170",
+   "participant": 4
+  },
+  {
+   "component": "N170",
+   "participant": 5
+  },
+  {
+   "component": "N170",
+   "participant": 6
+  },
+  {
+   "component": "N170",
+   "participant": 7
+  },
+  {
+   "component": "N170",
+   "participant": 8
+  },
+  {
+   "component": "N170",
+   "participant": 9
+  },
+  {
+   "component": "N170",
+   "participant": 10
+  },
+  {
+   "component": "N170",
+   "participant": 11
+  },
+  {
+   "component": "N170",
+   "participant": 12
+  },
+  {
+   "component": "N170",
+   "participant": 13
+  },
+  {
+   "component": "N170",
+   "participant": 14
+  },
+  {
+   "component": "N170",
+   "participant": 15
+  },
+  {
+   "component": "N170",
+   "participant": 16
+  },
+  {
+   "component": "N170",
+   "participant": 17
+  },
+  {
+   "component": "N170",
+   "participant": 18
+  },
+  {
+   "component": "N170",
+   "participant": 19
+  },
+  {
+   "component": "N170",
+   "participant": 20
+  },
+  {
+   "component": "N170",
+   "participant": 21
+  },
+  {
+   "component": "N170",
+   "participant": 22
+  },
+  {
+   "component": "N170",
+   "participant": 23
+  },
+  {
+   "component": "N170",
+   "participant": 24
+  },
+  {
+   "component": "N170",
+   "participant": 25
+  },
+  {
+   "component": "N170",
+   "participant": 26
+  },
+  {
+   "component": "N170",
+   "participant": 27
+  },
+  {
+   "component": "N170",
+   "participant": 28
+  },
+  {
+   "component": "N170",
+   "participant": 29
+  },
+  {
+   "component": "N170",
+   "participant": 30
+  },
+  {
+   "component": "N170",
+   "participant": 31
+  },
+  {
+   "component": "N170",
+   "participant": 32
+  },
+  {
+   "component": "N170",
+   "participant": 33
+  },
+  {
+   "component": "N170",
+   "participant": 34
+  },
+  {
+   "component": "N170",
+   "participant": 35
+  },
+  {
+   "component": "N170",
+   "participant": 36
+  },
+  {
+   "component": "N170",
+   "participant": 37
+  },
+  {
+   "component": "N170",
+   "participant": 38
+  },
+  {
+   "component": "N170",
+   "participant": 39
+  },
+  {
+   "component": "N170",
+   "participant": 40
+  },
+  {
+   "component": "N400",
+   "participant": 1
+  },
+  {
+   "component": "N400",
+   "participant": 2
+  },
+  {
+   "component": "N400",
+   "participant": 3
+  },
+  {
+   "component": "N400",
+   "participant": 4
+  },
+  {
+   "component": "N400",
+   "participant": 5
+  },
+  {
+   "component": "N400",
+   "participant": 6
+  },
+  {
+   "component": "N400",
+   "participant": 7
+  },
+  {
+   "component": "N400",
+   "participant": 8
+  },
+  {
+   "component": "N400",
+   "participant": 9
+  },
+  {
+   "component": "N400",
+   "participant": 10
+  },
+  {
+   "component": "N400",
+   "participant": 11
+  },
+  {
+   "component": "N400",
+   "participant": 12
+  },
+  {
+   "component": "N400",
+   "participant": 13
+  },
+  {
+   "component": "N400",
+   "participant": 14
+  },
+  {
+   "component": "N400",
+   "participant": 15
+  },
+  {
+   "component": "N400",
+   "participant": 16
+  },
+  {
+   "component": "N400",
+   "participant": 17
+  },
+  {
+   "component": "N400",
+   "participant": 18
+  },
+  {
+   "component": "N400",
+   "participant": 19
+  },
+  {
+   "component": "N400",
+   "participant": 20
+  },
+  {
+   "component": "N400",
+   "participant": 21
+  },
+  {
+   "component": "N400",
+   "participant": 22
+  },
+  {
+   "component": "N400",
+   "participant": 23
+  },
+  {
+   "component": "N400",
+   "participant": 24
+  },
+  {
+   "component": "N400",
+   "participant": 25
+  },
+  {
+   "component": "N400",
+   "participant": 26
+  },
+  {
+   "component": "N400",
+   "participant": 27
+  },
+  {
+   "component": "N400",
+   "participant": 28
+  },
+  {
+   "component": "N400",
+   "participant": 29
+  },
+  {
+   "component": "N400",
+   "participant": 30
+  },
+  {
+   "component": "N400",
+   "participant": 31
+  },
+  {
+   "component": "N400",
+   "participant": 32
+  },
+  {
+   "component": "N400",
+   "participant": 33
+  },
+  {
+   "component": "N400",
+   "participant": 34
+  },
+  {
+   "component": "N400",
+   "participant": 35
+  },
+  {
+   "component": "N400",
+   "participant": 36
+  },
+  {
+   "component": "N400",
+   "participant": 37
+  },
+  {
+   "component": "N400",
+   "participant": 38
+  },
+  {
+   "component": "N400",
+   "participant": 39
+  },
+  {
+   "component": "N400",
+   "participant": 40
+  },
+  {
+   "component": "MMN",
+   "participant": 1
+  },
+  {
+   "component": "MMN",
+   "participant": 2
+  },
+  {
+   "component": "MMN",
+   "participant": 3
+  },
+  {
+   "component": "MMN",
+   "participant": 4
+  },
+  {
+   "component": "MMN",
+   "participant": 5
+  },
+  {
+   "component": "MMN",
+   "participant": 6
+  },
+  {
+   "component": "MMN",
+   "participant": 7
+  },
+  {
+   "component": "MMN",
+   "participant": 8
+  },
+  {
+   "component": "MMN",
+   "participant": 9
+  },
+  {
+   "component": "MMN",
+   "participant": 10
+  },
+  {
+   "component": "MMN",
+   "participant": 11
+  },
+  {
+   "component": "MMN",
+   "participant": 12
+  },
+  {
+   "component": "MMN",
+   "participant": 13
+  },
+  {
+   "component": "MMN",
+   "participant": 14
+  },
+  {
+   "component": "MMN",
+   "participant": 15
+  },
+  {
+   "component": "MMN",
+   "participant": 16
+  },
+  {
+   "component": "MMN",
+   "participant": 17
+  },
+  {
+   "component": "MMN",
+   "participant": 18
+  },
+  {
+   "component": "MMN",
+   "participant": 19
+  },
+  {
+   "component": "MMN",
+   "participant": 20
+  },
+  {
+   "component": "MMN",
+   "participant": 21
+  },
+  {
+   "component": "MMN",
+   "participant": 22
+  },
+  {
+   "component": "MMN",
+   "participant": 23
+  },
+  {
+   "component": "MMN",
+   "participant": 24
+  },
+  {
+   "component": "MMN",
+   "participant": 25
+  },
+  {
+   "component": "MMN",
+   "participant": 26
+  },
+  {
+   "component": "MMN",
+   "participant": 27
+  },
+  {
+   "component": "MMN",
+   "participant": 28
+  },
+  {
+   "component": "MMN",
+   "participant": 29
+  },
+  {
+   "component": "MMN",
+   "participant": 30
+  },
+  {
+   "component": "MMN",
+   "participant": 31
+  },
+  {
+   "component": "MMN",
+   "participant": 32
+  },
+  {
+   "component": "MMN",
+   "participant": 33
+  },
+  {
+   "component": "MMN",
+   "participant": 34
+  },
+  {
+   "component": "MMN",
+   "participant": 35
+  },
+  {
+   "component": "MMN",
+   "participant": 36
+  },
+  {
+   "component": "MMN",
+   "participant": 37
+  },
+  {
+   "component": "MMN",
+   "participant": 38
+  },
+  {
+   "component": "MMN",
+   "participant": 39
+  },
+  {
+   "component": "MMN",
+   "participant": 40
+  },
+  {
+   "component": "ERN",
+   "participant": 1
+  },
+  {
+   "component": "ERN",
+   "participant": 2
+  },
+  {
+   "component": "ERN",
+   "participant": 3
+  },
+  {
+   "component": "ERN",
+   "participant": 4
+  },
+  {
+   "component": "ERN",
+   "participant": 5
+  },
+  {
+   "component": "ERN",
+   "participant": 6
+  },
+  {
+   "component": "ERN",
+   "participant": 7
+  },
+  {
+   "component": "ERN",
+   "participant": 8
+  },
+  {
+   "component": "ERN",
+   "participant": 9
+  },
+  {
+   "component": "ERN",
+   "participant": 10
+  },
+  {
+   "component": "ERN",
+   "participant": 11
+  },
+  {
+   "component": "ERN",
+   "participant": 12
+  },
+  {
+   "component": "ERN",
+   "participant": 13
+  },
+  {
+   "component": "ERN",
+   "participant": 14
+  },
+  {
+   "component": "ERN",
+   "participant": 15
+  },
+  {
+   "component": "ERN",
+   "participant": 16
+  },
+  {
+   "component": "ERN",
+   "participant": 17
+  },
+  {
+   "component": "ERN",
+   "participant": 18
+  },
+  {
+   "component": "ERN",
+   "participant": 19
+  },
+  {
+   "component": "ERN",
+   "participant": 20
+  },
+  {
+   "component": "ERN",
+   "participant": 21
+  },
+  {
+   "component": "ERN",
+   "participant": 22
+  },
+  {
+   "component": "ERN",
+   "participant": 23
+  },
+  {
+   "component": "ERN",
+   "participant": 24
+  },
+  {
+   "component": "ERN",
+   "participant": 25
+  },
+  {
+   "component": "ERN",
+   "participant": 26
+  },
+  {
+   "component": "ERN",
+   "participant": 27
+  },
+  {
+   "component": "ERN",
+   "participant": 28
+  },
+  {
+   "component": "ERN",
+   "participant": 29
+  },
+  {
+   "component": "ERN",
+   "participant": 30
+  },
+  {
+   "component": "ERN",
+   "participant": 31
+  },
+  {
+   "component": "ERN",
+   "participant": 32
+  },
+  {
+   "component": "ERN",
+   "participant": 33
+  },
+  {
+   "component": "ERN",
+   "participant": 34
+  },
+  {
+   "component": "ERN",
+   "participant": 35
+  },
+  {
+   "component": "ERN",
+   "participant": 36
+  },
+  {
+   "component": "ERN",
+   "participant": 37
+  },
+  {
+   "component": "ERN",
+   "participant": 38
+  },
+  {
+   "component": "ERN",
+   "participant": 39
+  },
+  {
+   "component": "ERN",
+   "participant": 40
+  }
+ ]
+}

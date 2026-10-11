@@ -3,6 +3,10 @@ include NOTICE
 include evoparam/io/registry.json
 include evoparam/existence/rules.json
 include evoparam/tf/zones.json
+include evoparam/benchmark/*.json
+include evoparam/benchmark/schemas/*.json
+include evoparam/benchmark/suites/*.json
+include evoparam/benchmark/realdata/*.json
 include evoparam/presets/*.json
 include evoparam/reports/schema/*.json
 include CITATION.cff
@@ -10,3 +14,5 @@ include evoparam/CITATION.cff
 include evoparam/tests/reports/methods/*.txt
 recursive-include evoparam/tests/data/containers *
 include evoparam/tests/sim/reference_sim.json
+# GPL adapter scripts of external tools: outside the Apache-2.0 package (spec §8.3, REQ-354)
+prune adapters

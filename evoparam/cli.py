@@ -502,11 +502,112 @@ def cmd_validate_bids(args, outcome):
                           f"(--strict).")
 
 
-def cmd_later(step):
-    def command(args, outcome):
-        raise EvoparamError(f"'evoparam {args.command}' comes with build step {step} "
-                            f"(not in evoparam {__version__}).")
-    return command
+def _csv(text):
+    return [t.strip() for t in text.split(",") if t.strip()] if text is not None else None
+
+
+def cmd_benchmark(args, outcome):
+    """``evoparam benchmark run | score | leaderboard | prepare-deposit`` (spec §8)."""
+
+    from evoparam import benchmark
+
+    log = (lambda message: _log(args, message)) if args.verbose in ("info", "debug") \
+        else None
+    if args.action == "run":
+        summary = benchmark.run_suite(args.suite, args.out, tasks=_csv(args.tasks),
+                                      methods=_csv(args.methods), adapters=args.adapter or (),
+                                      hidden_seeds=args.hidden_seeds, split=args.split,
+                                      n_jobs=args.n_jobs, log=log)
+        outcome.extra = {k: summary[k] for k in ("suite", "split", "tasks", "methods",
+                                                 "adapters", "n_cells", "duration_s",
+                                                 "failures")}
+        outcome.outputs += summary["results"] + summary["pages"] + \
+            [os.path.join(args.out, "summary.json")]
+        outcome.warnings += [f"{f['method']} failed on {f['cell']}: {f['error']}"
+                             for f in summary["failures"]]
+        if summary["failures"]:
+            outcome.code = EXIT_CODES["partial"]
+        _log(args, f"benchmark run: {summary['n_cells']} cells in "
+                   f"{summary['duration_s']['total']:.1f} s")
+    elif args.action == "score":
+        method = {"name": args.method_name, "version": args.method_version,
+                  "citation": args.citation, "kind": "submission", "settings": {}}
+        document = benchmark.score(args.task, args.predictions, args.suite, method=method,
+                                   hidden_seeds=args.hidden_seeds, split=args.split,
+                                   allow_missing=args.allow_missing)
+        out = args.out or os.path.join(args.predictions,
+                                       f"{args.method_name}__{args.task}.json")
+        outcome.outputs.append(benchmark.write_result(document, out))
+        outcome.extra = {"task": args.task, "metrics": document["metrics"],
+                         "signature": document["signature"]["digest"]}
+        if not args.json:
+            from evoparam.benchmark.report import format_metric, metric_label
+
+            for key, value in document["headline"].items():
+                print(f"{metric_label(key)}\t{format_metric(key, value)}")
+    elif args.action == "leaderboard":
+        outcome.outputs.append(benchmark.write_leaderboard(args.results, args.out))
+        if args.report:
+            outcome.outputs.append(benchmark.write_report(args.results, args.report))
+    else:                                                    # prepare-deposit
+        path = benchmark.prepare_deposit(args.suite, args.out, formats=_csv(args.formats),
+                                         tasks=_csv(args.tasks),
+                                         hidden_seeds=args.hidden_seeds,
+                                         overwrite=args.overwrite, log=log)
+        with open(path, encoding="utf-8") as fobj:
+            manifest = json.load(fobj)
+        outcome.outputs.append(path)
+        outcome.extra = {"status": manifest["status"], "doi": manifest["doi"],
+                         "n_public_cells": manifest["public_split"]["n_cells"],
+                         "hidden_commitment_sha256":
+                             manifest["hidden_split"]["commitment_sha256"]}
+
+
+def _benchmark_parser(sub, common):
+    p = sub.add_parser("benchmark", help="public benchmark: run, score, leaderboard, "
+                                         "prepare-deposit (spec §8)")
+    actions = p.add_subparsers(dest="action", required=True)
+    q = actions.add_parser("run", parents=[common], help="run baselines (and adapters) on a "
+                           "suite, score them, write results, report and leaderboard")
+    q.add_argument("--suite", default="core", help="core, full, or a suite file")
+    q.add_argument("--tasks", help="comma-separated tasks (default: all)")
+    q.add_argument("--methods", help="comma-separated baselines (default: all; '' writes "
+                                     "the task inputs only)")
+    q.add_argument("--adapter", action="append", help="adapter specification (JSON) of an "
+                   "external tool, run in a separate process (repeatable)")
+    q.add_argument("--hidden-seeds", help="hidden seeds document (checked against the "
+                                          "suite's commitment)")
+    q.add_argument("--split", default="public", choices=("public", "hidden", "all"))
+    q.add_argument("--out", required=True)
+    q = actions.add_parser("score", parents=[common], help="score predictions of one task "
+                           "and write the signed result")
+    q.add_argument("--task", required=True, choices=("T1", "T2", "T3", "T4", "T5", "T6",
+                                                      "T7"))
+    q.add_argument("--predictions", required=True, help="folder of <cell>.tsv (.npz for T4)")
+    q.add_argument("--suite", default="core")
+    q.add_argument("--method-name", default="submission")
+    q.add_argument("--method-version", default="")
+    q.add_argument("--citation", default="")
+    q.add_argument("--hidden-seeds")
+    q.add_argument("--split", default="public", choices=("public", "hidden", "all"))
+    q.add_argument("--allow-missing", action="store_true")
+    q.add_argument("--out", help="result file (default: <predictions>/<method>__<task>.json)")
+    q = actions.add_parser("leaderboard", parents=[common], help="static leaderboard page "
+                           "from result JSONs")
+    q.add_argument("--results", required=True, help="folder of result JSONs")
+    q.add_argument("--out", required=True, help="HTML page to write")
+    q.add_argument("--report", help="also write the Markdown report here")
+    q = actions.add_parser("prepare-deposit", parents=[common], help="write the public "
+                           "split as NWB/BIDS files with its manifest (local only; nothing "
+                           "is uploaded)")
+    q.add_argument("--suite", default="core")
+    q.add_argument("--out", required=True)
+    q.add_argument("--formats", default="bids,nwb")
+    q.add_argument("--tasks")
+    q.add_argument("--hidden-seeds")
+    q.add_argument("--overwrite", action="store_true")
+    for parser in actions.choices.values():
+        parser.set_defaults(func=cmd_benchmark)
 
 
 def _parser():
@@ -583,9 +684,7 @@ def _parser():
     p = sub.add_parser("cite", parents=[common], help="how to cite evoparam")
     p.add_argument("--bibtex", action="store_true")
     p.set_defaults(func=cmd_cite)
-    p = sub.add_parser("benchmark", parents=[common], help="benchmark suites (step S19)")
-    p.add_argument("action", nargs="?", default="run")
-    p.set_defaults(func=cmd_later("S19"))
+    _benchmark_parser(sub, common)
     p = sub.add_parser("validate-bids", parents=[common], help="stimulation metadata "
                        "validator: which fields each run states (present, inferred, missing, "
                        "inconsistent)")

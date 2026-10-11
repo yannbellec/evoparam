@@ -1,0 +1,244 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "benchmark-task/T4/1",
+ "title": "evoparam benchmark task T4 (artifact removal), version 1",
+ "description": "Task input (a JSON descriptor next to an .npz file of arrays) and task output. The cleaned epochs: an .npz file holding 'data' with the shape of the input (trials x channels x times), finite values, in the units of the input.",
+ "x-task": "T4",
+ "x-name": "artifact removal",
+ "x-output-format": "npz",
+ "$defs": {
+  "number_or_null": {
+   "type": [
+    "number",
+    "null"
+   ]
+  },
+  "probability": {
+   "type": [
+    "number",
+    "null"
+   ],
+   "minimum": 0,
+   "maximum": 1
+  },
+  "sha256": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "window": {
+   "type": "array",
+   "items": {
+    "type": "number"
+   },
+   "minItems": 2,
+   "maxItems": 2
+  },
+  "array": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "shape",
+    "sha256"
+   ],
+   "properties": {
+    "shape": {
+     "type": "array",
+     "items": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "minItems": 1,
+     "maxItems": 4
+    },
+    "sha256": {
+     "$ref": "#/$defs/sha256"
+    }
+   }
+  },
+  "channel": {
+   "type": "string",
+   "minLength": 1
+  },
+  "input": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "schema",
+    "role",
+    "task",
+    "suite",
+    "cell",
+    "split",
+    "data_file",
+    "arrays",
+    "sfreq",
+    "tmin",
+    "units",
+    "ch_names",
+    "n_trials",
+    "site",
+    "stim_channels",
+    "artifact_window"
+   ],
+   "properties": {
+    "schema": {
+     "const": "benchmark-task/T4/1"
+    },
+    "role": {
+     "const": "input"
+    },
+    "task": {
+     "const": "T4"
+    },
+    "suite": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "name",
+      "version"
+     ],
+     "properties": {
+      "name": {
+       "type": "string",
+       "minLength": 1
+      },
+      "version": {
+       "type": "string",
+       "pattern": "^\\d+\\.\\d+\\.\\d+$"
+      }
+     }
+    },
+    "cell": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "split": {
+     "enum": [
+      "public",
+      "hidden",
+      "real"
+     ]
+    },
+    "data_file": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+\\.npz$"
+    },
+    "arrays": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "data"
+     ],
+     "properties": {
+      "data": {
+       "$ref": "#/$defs/array"
+      }
+     }
+    },
+    "sfreq": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "tmin": {
+     "type": "number"
+    },
+    "units": {
+     "type": "string",
+     "minLength": 1
+    },
+    "ch_names": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/channel"
+     },
+     "minItems": 1,
+     "uniqueItems": true
+    },
+    "modality": {
+     "type": "string"
+    },
+    "site": {
+     "type": "string"
+    },
+    "stim_channels": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/channel"
+     }
+    },
+    "n_trials": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "hints": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "window": {
+       "$ref": "#/$defs/window"
+      },
+      "baseline": {
+       "$ref": "#/$defs/window"
+      },
+      "preset": {
+       "type": "string"
+      }
+     }
+    },
+    "source": {
+     "type": "object"
+    },
+    "artifact_window": {
+     "$ref": "#/$defs/window"
+    }
+   }
+  },
+  "output": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "arrays"
+   ],
+   "properties": {
+    "arrays": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "data"
+     ],
+     "properties": {
+      "data": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "shape",
+        "dtype",
+        "finite"
+       ],
+       "properties": {
+        "shape": {
+         "type": "array",
+         "items": {
+          "type": "integer",
+          "minimum": 1
+         },
+         "minItems": 3,
+         "maxItems": 3
+        },
+        "dtype": {
+         "enum": [
+          "float32",
+          "float64"
+         ]
+        },
+        "finite": {
+         "const": true
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}
