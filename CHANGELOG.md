@@ -28,6 +28,18 @@
   so it is a development measure; the remaining channel (e850211775, a weak trough at
   100-250 ms followed by a slow rise) stays "no_response" with either reference. The
   threshold of REQ-278 (90 %) is unchanged. `docs/presets.md` regenerated.
+- Hierarchical models (REQ-172, numpyro engine, run for the first time with the `bayes`
+  extra installed): the between-channel latency SD fell inside its 95 % posterior interval
+  in 7 of 10 reference datasets (17 of 20 checks with the trial SD, 85 %), always missed
+  from above. Cause: the standard error given to the channel latency (the spread of the
+  trusted trial shifts) left out the noise of the average: on four reference datasets
+  (348 responding channels) the latency errors had an SD of 2.27 ms against a median
+  standard error of 1.14 ms (z-scores SD 1.81; 1.55 with the Wald error alone), and the
+  missing error went into the between-channel SD. The channel latency now carries both
+  errors in quadrature (z-scores SD 1.02): 9 of 10 datasets, 19 of 20 checks (95 %); the
+  ±20 % EB part of REQ-172 and every other hierarchical test pass, REQ-171 stays an
+  expected failure. The 90 % threshold is unchanged; a slight upward tendency remains (the
+  one miss is again from above).
 
 ### Interval coverage (REQ-116, bootstrap and profile, 200 runs each)
 

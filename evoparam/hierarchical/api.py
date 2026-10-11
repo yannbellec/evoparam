@@ -195,7 +195,14 @@ def fit_hierarchical(ts, *, levels=LEVELS, components=None, engine="eb", existen
                         se_trials = float(values.std(ddof=1) / np.sqrt(values.size))
                         if p in TRIAL_PARAMETERS:
                             row[f"{p}_raw"] = float(values.mean())
-                        row[f"{p}_raw_se"] = se_trials
+                            row[f"{p}_raw_se"] = se_trials
+                        else:
+                            # the fitted value keeps both errors: the noise of the average
+                            # (Wald) and the mean of the trial jitter (spread of the trusted
+                            # trials); either alone gave z-scores with an SD of 1.5 to 1.8 on
+                            # the reference simulations, their sum in quadrature 1.0
+                            row[f"{p}_raw_se"] = float(np.hypot(row[f"{p}_fit_se"], se_trials)) \
+                                if np.isfinite(row[f"{p}_fit_se"]) else se_trials
                 rows.append(row)
             if len(sub):
                 part = sub[sub["trusted"]].copy()
