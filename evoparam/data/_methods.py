@@ -161,8 +161,21 @@ def _artifact(settings):
                            f"{_ms(settings.get('tail_length', 0))} ms)")
     if method == "period_template" and settings.get("period") is not None:
         details.append(f"period {_ms(settings['period'])} ms")
-    if method in ("lowrank", "subspace") and settings.get("n_components") is not None:
+    if method == "lowrank" and settings.get("n_components") is not None:
         details.append(f"{settings['n_components']} components")
+    if method == "subspace":
+        rule = settings.get("n_components")
+        # results saved before the option existed projected every sample
+        extent = settings.get("subspace_extent", "all")
+        if rule == "energy":
+            details.append("directions holding 95 % of the whitened window energy, at most 6")
+        elif rule in (None, "noise"):
+            details.append("directions whose whitened window energy exceeds twice the noise "
+                           "level")
+        else:
+            details.append(f"{rule} directions")
+        details.append("window samples projected" if extent == "window" else
+                       "every sample projected")
     if method == "paradigm" and settings.get("scheme"):
         details.append(f"scheme '{settings['scheme']}'")
     if details:

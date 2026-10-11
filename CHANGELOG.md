@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### Subspace projection on real artifact templates (REQ-064)
+
+- REQ-064 asks `subspace` for at least 30 dB of signal-to-interference improvement on
+  synthetic EEG with real artifact templates. With the specification's version (the
+  directions holding 95 % of the whitened window energy, at most 6; every sample
+  projected) the overlays of `tests/artifact/test_subspace_real.py` gave 0.2 to 4.1 dB on
+  the 20 TMS subjects of ds002094 and 5.0 to 18.4 dB on the 23 SPES runs of ds004080: one
+  whitened direction holds 95 % of the energy of a real template, whose spatial rank is
+  high. Sweeping the number of directions shows that projecting every sample reaches
+  30 dB only by removing most of the signal (45 dB on TMS with 15 to 29 directions, but a
+  relative error of 0.95 to 1.20 on 12 to 50 ms, the error as large as the signal).
+- `n_components="noise"`: the directions whose whitened window energy per sample exceeds
+  twice the largest eigenvalue of whitened noise, `(1 + sqrt(n_channels / n_samples))^2`
+  (at most `n_channels - 1`). `subspace_extent="window"`: only the samples of the window
+  are projected, the rest of the epoch stays as recorded.
+- Measured on the same overlays (seed 0, 30 trials) and on the synthetic two-topography
+  artifact with a decay beyond the window of `test_subspace.py` (seeds 4 to 13):
+
+  | version | TMS (20) | SPES (23) | synthetic (10) | relative error 12-50 ms (TMS) |
+  |---|---|---|---|---|
+  | specification (energy, every sample) | 0.2-4.1 dB, 0/20 | 5.0-18.4 dB, 0/23 | 14.9-33.1 dB, 5/10 | 0.48-2.20 |
+  | noise level, every sample | 45.0-47.0 dB | 33.1-38.5 dB | 28.0-48.0 dB, 9/10 | 0.95-1.20 |
+  | noise level, window only (new default) | 59.4-60.7 dB, 20/20 | 48.6-55.0 dB, 23/23 | 42.7-43.7 dB, 10/10 | 0.02-0.03 |
+
+  The new version is the default of `remove_artifact(method="subspace")`; the
+  specification's is `n_components="energy", subspace_extent="all"`, kept in tests as a
+  strict xfail with the numbers above. The `tep` preset keeps the specification's version
+  after its interpolation (the projection there is meant for the decay beyond the window;
+  the new default has not been measured on TEPs). The methods text now states the rule and
+  the extent of the projection (`methods/sim_tep.txt` regenerated).
+
 ### Fitting speed on intracranial recordings
 
 - Measured on one ds004080 subject (120 channels, `fit(ts, "ccep")`, both versions run side

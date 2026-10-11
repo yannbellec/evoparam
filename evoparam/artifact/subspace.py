@@ -15,6 +15,9 @@ __all__ = []
 # Energy of the artifact window removed when the number of directions is automatic.
 ENERGY = 0.95
 MAX_DIRECTIONS = 6
+# ``n_components="noise"``: directions whose whitened window energy per sample exceeds this
+# multiple of the largest eigenvalue expected from white noise (Marchenko-Pastur edge)
+NOISE_FACTOR = 2.0
 
 
 def _sqrtm(cov, inverse=False):
@@ -24,7 +27,7 @@ def _sqrtm(cov, inverse=False):
     return (vecs * vals ** power) @ vecs.T
 
 
-def subspace_clean(data, window_inds, baseline_inds, *, n_components=None):
+def subspace_clean(data, window_inds, baseline_inds, *, n_components=None, extent="all"):
     """Remove the artifact directions found in the window from every sample.
 
     ``X_w = S^{-1/2} (X - mu)`` with ``S`` the baseline covariance across channels and
@@ -32,6 +35,12 @@ def subspace_clean(data, window_inds, baseline_inds, *, n_components=None):
     singular vectors of ``X_w`` on the window (all trials), ``k`` the smallest number
     that reaches 95 % of the window energy (at most 6) unless ``n_components`` is given;
     ``X_hat = S^{1/2} (I - U_a U_a^T) X_w + mu``.
+
+    ``n_components="noise"`` keeps every direction whose window energy per sample is above
+    ``NOISE_FACTOR`` times the largest eigenvalue of whitened noise,
+    ``(1 + sqrt(n_channels / n_samples))^2`` (at most ``n_channels - 1``).
+    ``extent="window"`` projects the samples of the window only (the rest of the epoch is
+    left as recorded); ``"all"`` (the specification) projects every sample.
 
     Returns
     -------
@@ -47,8 +56,12 @@ def subspace_clean(data, window_inds, baseline_inds, *, n_components=None):
     if len(baseline_inds) < n_channels + 1:
         raise ArtifactError(f"method 'subspace' needs a baseline longer than the number of "
                             f"channels ({n_channels}) to estimate their covariance.")
-    if n_components is not None and not 1 <= n_components < n_channels:
-        raise SettingsError("n_components must be between 1 and n_channels - 1.")
+    if extent not in ("all", "window"):
+        raise SettingsError("extent must be 'all' or 'window'.")
+    if n_components not in (None, "energy", "noise") and not (
+            isinstance(n_components, (int, np.integer)) and 1 <= n_components < n_channels):
+        raise SettingsError("n_components must be None, 'energy', 'noise' or an integer "
+                            "between 1 and n_channels - 1.")
     mu = data[:, :, baseline_inds].mean(axis=-1, keepdims=True)
     centred = data - mu
     base = centred[:, :, baseline_inds].transpose(1, 0, 2).reshape(n_channels, -1)
@@ -60,12 +73,22 @@ def subspace_clean(data, window_inds, baseline_inds, *, n_components=None):
     win = white[:, :, window_inds].transpose(1, 0, 2).reshape(n_channels, -1)
     u, s, _ = np.linalg.svd(win, full_matrices=False)
     energy = np.cumsum(s ** 2) / np.sum(s ** 2)
-    if n_components is None:
+    if n_components in (None, "energy"):
         k = int(min(np.searchsorted(energy, ENERGY) + 1, MAX_DIRECTIONS, n_channels - 1))
+    elif n_components == "noise":
+        edge = (1.0 + np.sqrt(n_channels / win.shape[1])) ** 2
+        k = int(np.clip(np.sum(s ** 2 / win.shape[1] > NOISE_FACTOR * edge), 1,
+                        n_channels - 1))
     else:
         k = int(n_components)
     directions = u[:, :k]
-    projected = white - np.einsum("ij,kjt->kit", directions @ directions.T, white)
+    projector = directions @ directions.T
+    if extent == "all":
+        projected = white - np.einsum("ij,kjt->kit", projector, white)
+    else:
+        projected = white.copy()
+        projected[:, :, window_inds] -= np.einsum("ij,kjt->kit", projector,
+                                                  white[:, :, window_inds])
     cleaned = np.einsum("ij,kjt->kit", w, projected) + mu
     return cleaned, {"n_directions": k, "directions": directions,
                      "window_energy_removed": float(energy[k - 1])}

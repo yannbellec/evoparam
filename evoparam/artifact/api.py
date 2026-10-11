@@ -45,7 +45,8 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
                     period=None,
                     expected_rate=None, n_bins=None, n_skip=None, d_period=None, causal=False,
                     pulse_times=None, ranks=(4, 2, 4), post_window=0.03,
-                    baseline=(-0.5, -0.05), n_components=None, ridge=1e-3,
+                    baseline=(-0.5, -0.05), n_components=None, subspace_extent="window",
+                    ridge=1e-3,
                     poly_halfwidth=0.003, poly_extent="local", line_freq=50.0, n_atoms=20,
                     pursuit_length=0.1,
                     scheme=None, pairing="auto", mask_subtracted=False, quality=True,
@@ -73,7 +74,13 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
     - ``"lowrank"``: sequential low-rank regression across channels, pulses and trials
       (``ranks``; pulses at ``pulse_times`` or every ``1 / expected_rate`` from 0).
     - ``"subspace"``: whitening with the ``baseline`` covariance and projection away from
-      the artifact directions of the window.
+      the artifact directions of the window. By default (``n_components=None`` for this
+      method) the directions above the whitened noise level are removed
+      (``n_components="noise"``) and only the window is projected
+      (``subspace_extent="window"``); the specification's version (95 % of the window
+      energy, at most 6 directions, every sample projected) is
+      ``n_components="energy", subspace_extent="all"`` (REQ-064: on real TMS and SPES
+      artifact templates 45 to 60 dB of SIR improvement against 0.2 to 18 dB, CHANGELOG).
     - ``"polynomial"``: local cubic fit (half-width ``poly_halfwidth``) subtracted; zeros
       while railed (samples in ``ts.masks``), one-sided fits after. ``poly_extent="local"``
       (default) subtracts it from the window start to the end of the artifact (where the
@@ -204,7 +211,8 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
     elif method == "subspace":
         from .subspace import subspace_clean
         data, extra = subspace_clean(ts.data, inds, window_slice(ts, baseline),
-                                     n_components=n_components)
+                                     n_components="noise" if n_components is None
+                                     else n_components, extent=subspace_extent)
         info.update(n_directions=extra["n_directions"],
                     window_energy_removed=extra["window_energy_removed"])
     elif method == "polynomial":

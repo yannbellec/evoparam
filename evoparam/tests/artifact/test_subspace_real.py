@@ -18,13 +18,18 @@ with a response (onset 12 ms) of random topography; each trial receives the temp
 a gain in [0.9, 1.1]. The criterion, signal-to-interference improvement >= 30 dB on the
 artifact window and up to 50 ms, is checked on every subject or run.
 
-Measured (evoparam 0.1.0.dev0): TMS median 1.6 dB (0.2 to 4.1); SPES median 9.3 dB (5.0 to
-18.4). The cause is the rule of the specification for the number of directions (95 % of the
-whitened window energy, at most 6): a real template has a different time course on every
-channel, so its spatial rank is high, while one whitened direction already holds 95 % of
-the energy. On ds002094 sub-283, forcing 6, 10 and 20 directions gives 17.6, 26.5 and
-57.1 dB on the window. The synthetic two-topography artifact of ``test_subspace.py`` (the
-published setting) reaches the criterion.
+Measured (both versions on the same overlays, CHANGELOG "REQ-064"):
+
+- the default of ``remove_artifact`` (directions above the whitened noise level,
+  ``n_components="noise"``; projection of the window only, ``subspace_extent="window"``):
+  TMS 59.4 to 60.7 dB, SPES 48.6 to 55.0 dB, every subject and run above 30 dB;
+- the specification's version (95 % of the whitened window energy, at most 6 directions,
+  every sample projected): TMS median 1.6 dB (0.2 to 4.1), SPES median 9.3 dB (5.0 to
+  18.4). A real template has a different time course on every channel, so its spatial rank
+  is high, while one whitened direction already holds 95 % of the energy. Projecting every
+  sample away from enough directions reaches 30 dB (45 dB on TMS) only by removing most of
+  the signal (relative error 0.95 to 1.20 on the 12 to 50 ms window, against 0.02 to 0.03 for the
+  default).
 """
 
 import os
@@ -105,8 +110,9 @@ def spes_template(stem, n_channels=32):
     return np.median(arts[:, pick], axis=0), sfreq
 
 
-def sir_improvement(template, sfreq, window, seed=0, n_trials=30):
-    """Overlay the template on synthetic EEG and return the SIR improvement of subspace."""
+def sir_improvement(template, sfreq, window, seed=0, n_trials=30, **options):
+    """Overlay the template on synthetic EEG and return the SIR improvement of subspace
+    (``options``: keyword arguments of ``remove_artifact``)."""
 
     rng = np.random.default_rng(seed)
     n_channels = template.shape[0]
@@ -122,33 +128,50 @@ def sir_improvement(template, sfreq, window, seed=0, n_trials=30):
                                                      * template[None])
     names = [f"E{i}" for i in range(n_channels)]
     make = lambda d: TrialSet(data=d, times=times, sfreq=sfreq, ch_names=names)
-    table = compare_methods(make(noisy), [{"method": "subspace", "window": window}],
+    table = compare_methods(make(noisy), [{"method": "subspace", "window": window, **options}],
                             truth=make(clean), window_eval=(window[1], 0.05))
     return float(table["sir_improvement_db"].iloc[0])
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-064 with real TMS artifact templates (ds002094, 20 "
-                                       "subjects): SIR improvement median 1.6 dB (0.2 to 4.1), "
-                                       "not 30 dB; the specification's rule for the number of "
-                                       "directions (95 % of the whitened energy, at most 6) "
-                                       "keeps one direction (module docstring)")
+SPEC_VERSION = {"n_components": "energy", "subspace_extent": "all"}
+
+
+def _spes_runs():
+    from evoparam.tests.events.test_ds004080_events import RUNS, _segment
+
+    return [stem for stem in RUNS if abs(_segment(stem)[1] - 2048.0) <= 1]
+
+
 def test_req064_real_tms_templates():
 
     gains = [sir_improvement(*tms_template(subject), TMS_WINDOW) for subject in TMS_SUBJECTS]
     assert min(gains) >= 30, np.round(gains, 1)
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-064 with real intracranial SPES artifact templates "
-                                       "(ds004080, 23 runs at 2048 Hz): SIR improvement median "
-                                       "9.3 dB (5.0 to 18.4), not 30 dB (module docstring)")
 def test_req064_real_spes_templates():
 
-    from evoparam.tests.events.test_ds004080_events import RUNS, _segment
+    runs = _spes_runs()
+    assert len(runs) == 23
+    gains = [sir_improvement(*spes_template(stem), SPES_WINDOW) for stem in runs]
+    assert min(gains) >= 30, np.round(gains, 1)
 
-    gains = []
-    for stem in RUNS:
-        if abs(_segment(stem)[1] - 2048.0) > 1:
-            continue
-        gains.append(sir_improvement(*spes_template(stem), SPES_WINDOW))
-    assert len(gains) == 23
+
+@pytest.mark.xfail(strict=True, reason="the specification's subspace (95 % of the whitened "
+                                       "energy, at most 6 directions, every sample "
+                                       "projected) on real TMS templates: median 1.6 dB "
+                                       "(0.2 to 4.1), not 30 dB (module docstring)")
+def test_req064_real_tms_templates_specification_version():
+
+    gains = [sir_improvement(*tms_template(subject), TMS_WINDOW, **SPEC_VERSION)
+             for subject in TMS_SUBJECTS]
+    assert min(gains) >= 30, np.round(gains, 1)
+
+
+@pytest.mark.xfail(strict=True, reason="the specification's subspace on real SPES templates "
+                                       "(ds004080, 23 runs at 2048 Hz): median 9.3 dB (5.0 to "
+                                       "18.4), not 30 dB (module docstring)")
+def test_req064_real_spes_templates_specification_version():
+
+    gains = [sir_improvement(*spes_template(stem), SPES_WINDOW, **SPEC_VERSION)
+             for stem in _spes_runs()]
     assert min(gains) >= 30, np.round(gains, 1)

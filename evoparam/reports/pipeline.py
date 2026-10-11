@@ -84,6 +84,12 @@ def artifact_steps(preset):
             kwargs["window"] = window
         if name == "paradigm":
             kwargs["scheme"] = option
+        if name == "subspace":
+            # the specification's projection of every sample, after the interpolation of
+            # the window: the two-stage logic of the TMS pipelines (§5.6, tep), where the
+            # projection is meant for the decay beyond the window (the default of
+            # remove_artifact projects the window only; not measured on TEPs)
+            kwargs.update(n_components="energy", subspace_extent="all")
         steps.append(kwargs)
     return steps
 
