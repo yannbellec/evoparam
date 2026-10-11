@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Synthetic trials for the existence tests."""
 
 import numpy as np

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Helpers shared by the preparation functions."""
 
 import time as _time

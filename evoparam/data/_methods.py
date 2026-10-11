@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Methods paragraph generated from a result's provenance and settings (spec §5.13, REQ-338).
 
 The paragraph is built from frozen templates, one per processing step recorded in

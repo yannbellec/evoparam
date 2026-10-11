@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Registry of published detection rules, applied to the letter (spec §5.6, method 4)."""
 
 import copy

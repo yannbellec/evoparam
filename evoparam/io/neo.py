@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Neo reader (spec §10.3, REQ-319; extra ``neo``)."""
 
 import os

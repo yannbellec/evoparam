@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Per-subject inputs of the hierarchical model: channel fits, trial fits, templates.
 
 For every subject: the channel fits of spec §5.5 (``evoparam.models.fit``), the trial fits of

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Reseeding the greedy path: no cancelling pair where the data have two components (noise
 from the baseline: the cases were found with it)."""
 

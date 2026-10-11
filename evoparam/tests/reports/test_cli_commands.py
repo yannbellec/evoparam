@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Every command of ``evoparam`` through ``subprocess``, compared with the Python API with the
 same seed (REQ-345), and ``evoparam cite`` (REQ-346).
 

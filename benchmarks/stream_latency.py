@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Latency of the online mode (REQ-324, REQ-347).
 
 Run with ``OMP_NUM_THREADS=1 python benchmarks/stream_latency.py``. A simulated stream of

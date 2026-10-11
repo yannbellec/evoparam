@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Harmonisation of stimulation events and the validator report (REQ-022)."""
 
 import io

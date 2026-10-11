@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Component specifications, presets, and the conversion of latency and FWHM to shape parameters.
 
 A simulated component is described by a :class:`ComponentSpec`: a label, a shape

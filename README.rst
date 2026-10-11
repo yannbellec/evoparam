@@ -1,12 +1,14 @@
-=========================================
-evoparam
-=========================================
+=========================================================
+evoparam: evoked response parameterization
+=========================================================
 
-evoparam is a tool to parameterize neural evoked responses: it describes each
-response (ERP, CCEP, ...) as a small set of peaks with a latency, an amplitude and a width.
+evoparam (evoked response parameterization) is a tool to parameterize neural evoked
+responses: it describes each response (ERP, CCEP, ...) as a small set of peaks with a
+latency, an amplitude and a width.
 
 Status: early development (version 0.1, working name). Origin of the code and licence:
-see ``NOTICE`` and ``LICENSE``.
+see ``NOTICE`` and ``LICENSE``; third-party packages: ``THIRD_PARTY.md``; algorithms written
+from papers: ``REIMPLEMENTED.md``; use of the name: `TRADEMARK.md <TRADEMARK.md>`_.
 
 What it does
 ------------
@@ -129,5 +131,5 @@ Community
   preset, shape, reader (plugins, `docs/contributing/add_shape.rst
   <docs/contributing/add_shape.rst>`_) or dataset, Developer Certificate of Origin.
 * `CODE_OF_CONDUCT.md <CODE_OF_CONDUCT.md>`_, `GOVERNANCE.md <GOVERNANCE.md>`_,
-  `SUPPORT.md <SUPPORT.md>`_, `SECURITY.md <SECURITY.md>`_.
+  `SUPPORT.md <SUPPORT.md>`_, `SECURITY.md <SECURITY.md>`_, `TRADEMARK.md <TRADEMARK.md>`_.
 * Questions: GitHub Discussions or the Neurostars tag ``evoparam``; bugs: the issue tracker.

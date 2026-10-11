@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Provenance: the record that lets anyone regenerate a result.
 
 Every container and every result carries a :class:`Provenance`. It stores the
@@ -18,7 +19,7 @@ from importlib import metadata
 
 import numpy as np
 
-from evoparam.version import __version__
+from evoparam.version import __version__, algorithm_version
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data._jsonutil import dumps, loads, to_jsonable
 
@@ -108,6 +109,51 @@ def _git_commit():
     return None
 
 
+def _lock_path():
+    """The lock file of this Python minor version (REQ-309 c): ``ci/locks/pyX.Y.lock`` of
+    the source tree, or of the folder named by ``EVOPARAM_LOCK_DIR``."""
+
+    folder = os.environ.get("EVOPARAM_LOCK_DIR") or os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "ci", "locks")
+    return os.path.join(folder, "py{}.{}.lock".format(*sys.version_info[:2]))
+
+
+def lock_sha256(path=None):
+    """SHA-256 of the lock file when the installed packages are exactly its pins for this
+    interpreter (every applicable pin installed at its version), else None (REQ-309 d)."""
+
+    path = path or _lock_path()
+    if not os.path.isfile(path):
+        return None
+    with open(path, "rb") as fobj:
+        raw = fobj.read()
+    try:
+        from packaging.markers import Marker
+    except ImportError:                       # markers cannot be evaluated: no claim
+        Marker = None
+    from importlib import metadata
+
+    for line in raw.decode("utf-8").splitlines():
+        line = line.split("#", 1)[0].strip().rstrip("\\").strip()
+        if not line or line.startswith("-") or "==" not in line:
+            continue
+        pin, _, marker = line.partition(";")
+        name, _, version = pin.partition("==")
+        if marker.strip():
+            if Marker is None:
+                return None
+            if not Marker(marker.strip()).evaluate():
+                continue
+        try:
+            installed = metadata.version(name.split("[")[0].strip())
+        except metadata.PackageNotFoundError:
+            return None
+        if installed != version.strip():
+            return None
+    return hashlib.sha256(raw).hexdigest()
+
+
 @functools.lru_cache(maxsize=1)
 def _environment():
     env = {
@@ -121,7 +167,7 @@ def _environment():
         "jax_enable_x64": None,
         "n_threads": os.environ.get("OMP_NUM_THREADS"),
         "git_commit": _git_commit(),
-        "lock_sha256": None,
+        "lock_sha256": lock_sha256(),
         "executable": os.path.basename(sys.executable),
     }
     return env
@@ -216,9 +262,17 @@ class Provenance(DeepEqualMixin):
 
         if duration_s is not None and fixed_clock() is not None:
             duration_s = 0.0
-        step = {"function": function, "settings": to_jsonable(settings or {}),
+        settings = settings or {}
+        # REQ-294: every step has the seven keys (function, settings, version, preset,
+        # random_state, duration_s, n_jobs); REQ-399: and the version of its algorithm
+        step = {"function": function, "settings": to_jsonable(settings),
                 "version": __version__,
-                "duration_s": None if duration_s is None else float(duration_s)}
+                "algorithm_version": algorithm_version(function),
+                "preset": None,
+                "random_state": settings.get("random_state")
+                if isinstance(settings, dict) else None,
+                "duration_s": None if duration_s is None else float(duration_s),
+                "n_jobs": settings.get("n_jobs", 1) if isinstance(settings, dict) else 1}
         step.update(to_jsonable(extra))
         new = self.copy()
         new.steps.append(step)

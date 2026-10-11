@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Online mode: agreement with fit_trials, chunk independence, latency (REQ-324, REQ-347) and
 the running existence test (REQ-347, REQ-348).
 

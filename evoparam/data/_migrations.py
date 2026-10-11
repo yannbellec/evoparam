@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Migrations between major versions of the ``.evoparam`` container schema.
 
 ``MIGRATIONS`` maps ``(from_major, to_major)`` to a function that receives the

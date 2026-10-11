@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Paradigm-based cancellation: alternating polarity and forward masking."""
 
 import time as _time

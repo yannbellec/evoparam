@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Harmonise stimulation events into the standard metadata columns (spec §10.2, REQ-313).
 
 In ``evoparam.data`` so that every reader uses it (``read_bids``, ``read_nwb``,
@@ -151,7 +152,7 @@ def _pandas(caller):
     try:
         import pandas
     except ImportError as err:
-        raise ImportError(f"{caller} needs pandas: pip install 'evoparam[data]'.") from err
+        raise ImportError(f"{caller} needs pandas: pip install \"evoparam[data]\".") from err
     return pandas
 
 

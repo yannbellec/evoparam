@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Learned artifact basis (REQ-061)."""
 
 import numpy as np

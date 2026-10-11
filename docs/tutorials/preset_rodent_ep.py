@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Mouse visual evoked LFP: the ``rodent_ep`` preset
 =================================================

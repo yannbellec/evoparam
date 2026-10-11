@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-354: the adapter mechanism runs an external command-line tool on task files without
 importing it; the adapters for GPL tools live outside the Apache-licensed package tree
 (checked by a licence-scan test)."""

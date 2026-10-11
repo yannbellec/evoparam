@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Online mode: per-pulse evoked parameters from a stream of samples (spec §5.13, §10.6).
 
 For research use only: evoparam is not a medical device and is not validated for

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Macaque visual evoked LFP: the ``primate_ep`` preset
 ====================================================

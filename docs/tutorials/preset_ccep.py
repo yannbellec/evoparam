@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Cortico-cortical evoked potentials in ECoG: the ``ccep`` preset
 ================================================================

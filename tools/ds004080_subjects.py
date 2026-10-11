@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Write validation/ds004080_subjects.txt: the ds004080 subjects of the layer-3 validation,
 chosen by the rule of spec §7.3 before any result is seen (REQ-371).
 

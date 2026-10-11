@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Checks of scikit-learn's ``check_estimator`` that the estimators are excused from
 (spec §10.4, REQ-321): ``{check name: reason}``, at most 15 entries.
 

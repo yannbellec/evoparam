@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Writers of small BrainVision files, MEF 3.0 sessions and BIDS datasets, and a local HTTP
 server (io tests)."""
 

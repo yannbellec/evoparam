@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The numbers of the signal plots (REQ-349): the average of a set of waveforms with its
 spread band, and the positions of a strip plot, computed in :mod:`evoparam.stats`."""
 

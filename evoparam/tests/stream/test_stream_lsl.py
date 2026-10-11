@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """LSL adapters (REQ-325): a local outlet with a synthetic signal, read through LSLInlet into
 a StreamFitter; the outlet of pulse estimates carries the intended-use metadata.
 

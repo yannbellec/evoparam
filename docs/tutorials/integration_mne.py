@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 MNE-Python: fit MNE objects, get MNE objects back
 =================================================

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Condition contrasts by permutation at the level of the exchangeable unit (spec §5.11).
 
 A contrast compares one parameter between two conditions. The observations are first

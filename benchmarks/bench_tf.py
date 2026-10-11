@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Speed of the time-frequency parameterisation (REQ-218).
 
 Run with ``python benchmarks/bench_tf.py``. Target, with one job: at most 60 s for

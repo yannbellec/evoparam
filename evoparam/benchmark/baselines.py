@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Baseline methods of the benchmark (spec §8.3), run on the task inputs.
 
 1. The published threshold rules of the registry of §5.6 (``vanblooijs2023``,

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Check the traceability of the gaps (REQ-018).
 
 Every gap of ``docs/spec/GAPS.md`` marked "Addressed" must map to at least one requirement,

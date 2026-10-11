@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Classical measures against an independent implementation of the ERPLAB definitions
 (REQ-117).
 

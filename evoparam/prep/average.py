@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Averaging over trials: mean, trimmed mean, median, quality-weighted mean."""
 
 import time as _time

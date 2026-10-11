@@ -20,6 +20,46 @@ CI machines are about twice as slow: the timed tests run only with
 (REQ-045), `bench_tf.py` (REQ-218) and `stream_latency.py` (REQ-324, REQ-347); each
 docstring gives its target and the test that checks it.
 
+## Performance targets P1–P6: `run_benchmarks.py`
+
+```
+OMP_NUM_THREADS=1 python benchmarks/run_benchmarks.py --suite perf
+python benchmarks/run_benchmarks.py --suite ci --compare benchmarks/baseline-ci.json
+```
+
+(also `evoparam benchmark run --suite perf`). The workloads of spec §9.1 are generated with
+`evoparam.sim` (`random_state=0`). The results go to
+`results/<platform>-<python>-<commit>.json`, or `...-ci.json` for the `ci` suite, with
+`{id, median_s, p90_s, peak_rss_bytes, n_repeats, environment}` per workload. Peak memory is
+the increase of the resident set during the call, sampled every 50 ms.
+
+Measured on the reference machine, one thread, load average 9.7 on the 4 cores
+(`results/linux-3.13.16-bddedc9aa35f.json`):
+
+| id | workload | measured | target | met |
+|---|---|---|---|---|
+| P1 | one waveform, 2 048 Hz, `max_components=6`, `ccep` | median 1.30 s (20 runs) | < 50 ms | no |
+| P2 | `fit_trials`, 100 channels x 50 trials, `n_jobs=4` | 53.7 s | < 60 s | yes |
+| P3 | `evoparam.fit`, in memory and memory-mapped | ci size only, see below | < 2x data; mapped < 0.25x + 512 MB | in memory no, mapped yes |
+| P4 | GPU backend against the CPU | no GPU backend in this version | 1e-6 relative | not available |
+| P5 | `evoparam.reproduce`, 256 channels | 266.5 s for a 270.7 s fit (0.98x), identical | < 1.5x | yes |
+| P6 | `import evoparam` | median 0.909 s (10 runs) | < 300 ms | no |
+
+P3 was run at the `ci` size (50 x 64 x 4 096 float64, 105 MB): in memory, peak RSS
++331 MiB (347 MB, 3.3x the data; bound 2x = 210 MB); memory-mapped, the same +331 MiB against
+its bound of 563 MB (0.25 x data + 512 MiB); medians of the three runs of `baseline-ci.json`.
+The full size (4.19 GB) was not run: at 3.3x it would exceed the machine's 15 GB.
+`evoparam/tests/benchmark/test_timing.py` reads these files: the unmet targets are strict
+expected failures that give the measured values.
+
+`baseline-ci.json` is the median of three runs of the `ci` suite
+(`--repeat-runs 3 --write-baseline`). This one was written on the reference machine, so it
+holds until the `perf` workflow's `baseline-update` job (label `perf-baseline-update`)
+regenerates it on the CI runner. Its medians: P1 1.20 s, P2 (8 channels x 50
+trials, one job) 2.68 s, P3 55.7 s in memory and 53.8 s memory-mapped, P5 29.4 s (1.04x
+its fit), P6 0.904 s. The `ci` run of P3 in memory is above its bound (3.3x the data), so
+the `perf` job fails on it until the memory use of `evoparam.fit` is reduced.
+
 ## Online mode: `stream_latency.py`
 
 ```

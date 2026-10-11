@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-332 (tidy tables): the column set of ``GroupFit.to_dataframe("component")`` equals
 the documented list in ``docs/reference/tables.rst``, and every column has a unit entry
 (in ``table.attrs["units"]`` and in the sidecar of the saved container)."""

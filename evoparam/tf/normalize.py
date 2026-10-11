@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Baseline normalisation of time-frequency power (spec §5.10, method 2)."""
 
 import warnings

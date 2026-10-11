@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Parameter maps and the (stimulation site x channel) connectivity export (spec §5.9,
 methods 3 and 6)."""
 

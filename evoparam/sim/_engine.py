@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Assembly shared by the generators: seeds, noise, SNR, trial variability, artifact, truth.
 
 A generator describes its components as a list of :class:`Source` (one per

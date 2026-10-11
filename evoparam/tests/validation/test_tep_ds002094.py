@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The ``tep`` preset on OpenNeuro ds002094, single-pulse TMS-EEG (REQ-275).
 
 Dataset: ds002094 v1.0.0 (licence CC0, in ``dataset_description.json``), 20 healthy

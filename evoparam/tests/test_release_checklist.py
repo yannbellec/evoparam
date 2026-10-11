@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-329: the 1.0 release checklist; REQ-312: the inherited-code check."""
 
 import os

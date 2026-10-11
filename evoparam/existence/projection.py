@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Cross-projection test and response duration.
 
 Re-implemented from the published description of the canonical response parameterisation

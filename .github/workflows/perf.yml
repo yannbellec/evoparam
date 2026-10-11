@@ -1,0 +1,78 @@
+# Performance job (spec §9.1, REQ-299): benchmarks/run_benchmarks.py --suite ci on one fixed
+# runner image with one thread, compared with benchmarks/baseline-ci.json: it fails when a
+# median time exceeds 1.25 x its baseline or a peak memory exceeds 1.10 x, and warns between
+# 1.10 x and 1.25 x. The label perf-baseline-update on a merged pull request regenerates the
+# baseline from three runs (median).
+
+name: perf
+
+on:
+  pull_request:
+    paths:
+    - "evoparam/shapes/**"
+    - "evoparam/models/**"
+    - "evoparam/trials/**"
+    - "evoparam/artifact/**"
+    - "benchmarks/**"
+  pull_request_target:
+    types: [ closed ]
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  perf:
+    if: github.event_name != 'pull_request_target'
+    runs-on: ubuntu-22.04
+    env:
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e ".[all]"
+    - name: Benchmarks against the CI baseline
+      run: python benchmarks/run_benchmarks.py --suite ci --compare benchmarks/baseline-ci.json --time-tolerance 1.25 --memory-tolerance 1.10 --warn-above 1.10
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: perf-results
+        path: benchmarks/results/
+
+  baseline-update:
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'perf-baseline-update')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      OMP_NUM_THREADS: "1"
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e ".[all]"
+    - name: Three runs, median, new baseline
+      run: python benchmarks/run_benchmarks.py --suite ci --repeat-runs 3 --write-baseline benchmarks/baseline-ci.json
+    - name: Pull request with the new baseline
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        git switch -c perf-baseline-${{ github.run_id }}
+        git add benchmarks/baseline-ci.json
+        git -c user.name="evoparam CI" -c user.email="ci@invalid" commit -m "perf: new CI baseline"
+        git push origin HEAD
+        gh pr create --fill --label perf-baseline-update

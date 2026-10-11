@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Stimulation-metadata validator over a BIDS tree (spec §10.2, REQ-314).
 
 For every run with an ``*_events.tsv``, each stimulation field of Table 4.1, the

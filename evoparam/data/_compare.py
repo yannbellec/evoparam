@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Deep equality used by the container and result ``__eq__`` methods.
 
 Arrays are equal when they have the same shape, the same dtype kind and the

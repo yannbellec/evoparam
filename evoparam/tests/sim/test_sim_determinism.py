@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-250: every generator is deterministic for a given seed."""
 
 import copy

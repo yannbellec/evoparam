@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Generators: containers, provenance, settings, presets and the behaviour of each simulator."""
 
 import json

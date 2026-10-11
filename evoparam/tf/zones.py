@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Time-frequency zones: data-driven parts of the significant map, and published fixed zones.
 
 Data-driven zones (spec §5.10, method 5): the positive and the negative parts of the

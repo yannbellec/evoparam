@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Pre-whitening and projection away from the artifact subspace.
 
 Implemented from the published pre-whitening and null-projection approach to

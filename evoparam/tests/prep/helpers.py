@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Synthetic epochs for the preparation tests."""
 
 import numpy as np

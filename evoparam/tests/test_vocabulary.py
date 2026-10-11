@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-012: no inherited spectral vocabulary.
 
 Public names, docstrings and documentation contain none of the prohibited words of the

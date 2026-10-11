@@ -35,3 +35,18 @@ change of this policy is a steering-group decision recorded in this file.
 GitHub Discussions (questions, show-and-tell), the Neurostars tag `evoparam`, and the
 issue tracker for bugs only. The target is a median first response within 7 days, reported
 in a yearly status post.
+
+## Institutional decision (HIIE)
+
+The invention disclosure and the written decision of HIIE (patent or not; licence; trademark
+owner) come before any public step (specification §11.4 and §13.7, REQ-398). The release
+workflow (`.github/workflows/release.yml`, `tools/release_gate.py`) reads the two lines
+below and refuses to go on until both carry a reference and a date.
+
+<!-- hiie-decision -->
+- Invention disclosure: not filed
+- HIIE decision reference: none
+<!-- end-hiie-decision -->
+
+Once recorded, each line reads, for example, `- HIIE decision reference: HIIE ref. 2027-123,
+2027-03-01 (patent: no; licence: Apache-2.0; trademark owner: ...)`.

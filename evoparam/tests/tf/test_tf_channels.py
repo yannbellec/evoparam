@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Corrections across channels of the time-frequency statistics (spec §5.10 method 4: "as in
 §5.6", whose default is fdr_bh)."""
 

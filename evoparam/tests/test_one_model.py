@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-001 (one model) and REQ-002 (one call).
 
 REQ-001: the same fitting engine and result types serve every preset of §6; one simulated

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Simulated data for the statistics tests."""
 
 import numpy as np

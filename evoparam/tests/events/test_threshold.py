@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Robust threshold detection (inherited from the skeleton's detect_stim_onsets)."""
 
 import numpy as np

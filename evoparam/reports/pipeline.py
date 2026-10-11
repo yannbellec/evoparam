@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The preset pipeline (artifact → reference → baseline → fit → existence → trials) and the
 three reference pipelines whose methods text is frozen (spec §5.13, REQ-340).
 

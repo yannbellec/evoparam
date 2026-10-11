@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """External methods run as separate processes on task files (spec §8.3 item 6, REQ-354).
 
 An adapter wraps an external command-line tool: ``Adapter.run(task_input_path) ->

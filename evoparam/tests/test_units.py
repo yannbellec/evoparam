@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-009 (units and time): all times in seconds, all amplitudes with an explicit unit;
 mixing units raises ``DataError``."""
 

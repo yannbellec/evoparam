@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Component shapes and backgrounds with analytic Jacobians (spec §5.5.1, §5.5.2).
 
 This module depends on numpy and scipy only.

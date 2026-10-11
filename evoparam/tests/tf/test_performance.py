@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Speed of the time-frequency parameterisation (REQ-218); runs only with
 EVOPARAM_PERF_TESTS=1."""
 

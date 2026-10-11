@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Simulators with ground truth, noise models and scorers (spec §5.12).
 
 Six generators (:func:`simulate_erp`, :func:`simulate_ccep`, :func:`simulate_erna`,

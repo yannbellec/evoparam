@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Evoked resonant neural activity: the ``erna`` preset
 ====================================================

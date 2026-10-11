@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Reading the Mayo Clinic MEF 3.0 recordings of OpenNeuro (network).
 
 ds003708 (ECoG, 2048 Hz) and ds004977 (sEEG, 4800 Hz, stored in nV with a conversion

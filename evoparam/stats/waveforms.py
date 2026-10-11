@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Summaries of a set of waveforms for display: the average with a spread band, and the
 positions of a strip plot.
 

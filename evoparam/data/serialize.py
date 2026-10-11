@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The ``.evoparam`` container: saving and loading containers and results.
 
 A container is a directory (or a zip when the path ends in ``.zip``) holding:
@@ -18,6 +19,8 @@ A container is a directory (or a zip when the path ends in ``.zip``) holding:
     sidecar records column dtypes, the index and the unit of every column.
 ``provenance.json``, ``settings.json``
     The object's provenance and settings, for reading without evoparam.
+``methods.txt``
+    Results only: the methods paragraph (``methods_text()``) at saving time (REQ-390).
 
 All JSON is strict RFC 8259 JSON: NaN and infinities are written as ``null``
 in ``provenance.json``, ``settings.json`` and the table sidecars, and as
@@ -244,6 +247,12 @@ def _write_tree(obj, folder, table_format):
     with open(os.path.join(folder, "settings.json"), "w", encoding="utf-8") as fobj:
         fobj.write(dumps(getattr(obj, "settings", {}), indent=1))
     files += ["provenance.json", "settings.json"]
+    if callable(getattr(obj, "methods_text", None)):
+        # the methods paragraph is stored with every saved result, not only produced on
+        # request (spec §11.8, REQ-390)
+        with open(os.path.join(folder, "methods.txt"), "w", encoding="utf-8") as fobj:
+            fobj.write(obj.methods_text() + "\n")
+        files.append("methods.txt")
     from evoparam.data.provenance import _now_utc
 
     manifest = {"schema": SCHEMA, "object": type(obj).__name__, "package_version": __version__,

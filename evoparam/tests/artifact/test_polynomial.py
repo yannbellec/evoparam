@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Local cubic fit with recovery after saturation (REQ-065)."""
 
 import numpy as np

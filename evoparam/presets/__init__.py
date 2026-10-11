@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Presets: every setting a user would otherwise choose, for one recording modality (spec §6).
 
 Presets are data: one JSON file per preset in this folder, read with the standard library

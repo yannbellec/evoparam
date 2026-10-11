@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Simulated multi-site and multi-channel data with known shapes, latencies and sources."""
 
 import warnings

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-352: scoring is deterministic and the signed JSON is reproducible byte for byte from
 the same inputs.
 

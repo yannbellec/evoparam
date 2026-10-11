@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Settings of the fitting engine: package defaults, fit presets and validation."""
 
 from dataclasses import asdict, dataclass, field, replace

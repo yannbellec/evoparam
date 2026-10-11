@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Scorers: match fitted components to the ground truth and summarise the errors.
 
 Components are matched per waveform (channel, and condition when the fits have

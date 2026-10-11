@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-314: the stimulation-metadata validator over a BIDS tree and ``evoparam validate-bids``."""
 
 import json

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-350 (``evoparam benchmark run --suite core`` completes in at most 30 min and covers
 T1-T7) and REQ-353 (the six published threshold rules and the cross-projection test are
 baselines, and their T1/T2 results on the simulated ``core`` suite are in the first public

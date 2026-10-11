@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Named latency windows that label fitted components (spec §4.4, §4.5, §5.5.7).
 
 :class:`ComponentWindows` replaces the inherited frequency-band object: the windows name

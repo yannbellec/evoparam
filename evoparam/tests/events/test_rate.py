@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Rate-constrained detection (REQ-041) and interval flags."""
 
 import numpy as np

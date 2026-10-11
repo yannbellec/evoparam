@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Whitening and projection away from the artifact subspace (REQ-064)."""
 
 import numpy as np

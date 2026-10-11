@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Methods paragraphs from provenance (spec §5.13, report 1; REQ-338, REQ-340) and the
 package citation (REQ-346).
 

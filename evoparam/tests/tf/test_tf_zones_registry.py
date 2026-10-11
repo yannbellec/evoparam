@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Published zones registry (REQ-217) and the compatibility layer."""
 
 import numpy as np

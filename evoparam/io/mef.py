@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Read MEF 3.0 sessions (Multiscale Electrophysiology Format), locally or remotely.
 
 MEF 3.0 is the format of the Mayo Clinic iEEG recordings on OpenNeuro (ds003708,

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Re-export of :mod:`evoparam.data._harmonize` (the harmonisation used by every reader)."""
 
 from evoparam.data._harmonize import *  # noqa: F401,F403

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Real-data suites: index files and loaders, no copies of data (spec §8.2).
 
 Each index (``realdata/<name>.json``, schema ``evoparam-benchmark-realdata/1``) names a

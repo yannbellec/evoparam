@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Bootstrap over trials: percentile and bias-corrected accelerated (BCa) intervals (spec §5.11).
 
 Trials are resampled with replacement within each stratum (``by``: stimulation site,

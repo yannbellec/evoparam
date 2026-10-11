@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Every plot function runs headless on its result type and returns a Figure (REQ-344)."""
 
 import numpy as np

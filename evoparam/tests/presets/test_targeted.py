@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """presets.targeted: one expected component measured on every waveform."""
 
 import warnings

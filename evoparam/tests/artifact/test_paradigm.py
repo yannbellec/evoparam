@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Paradigm-based cancellation (REQ-067)."""
 
 import numpy as np

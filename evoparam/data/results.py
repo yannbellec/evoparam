@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Result dataclasses returned by the fitting, testing and analysis modules.
 
 Results are plain data: they hold numbers, tables, the resolved settings and a
@@ -9,11 +10,16 @@ Results are plain data: they hold numbers, tables, the resolved settings and a
 import copy
 from dataclasses import dataclass, field, fields, replace
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from evoparam.errors import DataError
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data.provenance import Provenance
+
+if TYPE_CHECKING:                        # annotations only (containers imports this module)
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["Component", "GoodnessOfFit", "ResponseFit", "GroupFit", "TrialFit",
            "HierarchicalFit", "ResponseTest", "ArtifactResult", "ShapeBasis", "TFFit",
@@ -556,7 +562,7 @@ class HierarchicalFit(_ResultMixin):
             import arviz as az
         except ImportError as err:
             raise ImportError("HierarchicalFit.to_arviz needs ArviZ, in the extra 'bayes': "
-                              "pip install 'evoparam[bayes]'.") from err
+                              "pip install \"evoparam[bayes]\".") from err
         draws = (self.diagnostics or {}).get("draws")
         approximation = "none (posterior draws)"
         if not draws:
@@ -598,7 +604,7 @@ class HierarchicalFit(_ResultMixin):
 class ArtifactResult(_ResultMixin):
     """Output of stimulation-artifact removal."""
 
-    cleaned: object
+    cleaned: "TrialSet"
     method: str
     window: tuple
     template: np.ndarray | None
@@ -696,7 +702,7 @@ class TFFit(_ResultMixin):
             import mne
         except ImportError as err:
             raise ImportError("TFFit.to_mne needs the extra 'mne': pip install "
-                              "'evoparam[mne]'.") from err
+                              "\"evoparam[mne]\".") from err
         if map not in self.maps:
             raise DataError(f"TFFit.to_mne: unknown map {map!r}; available: "
                             f"{sorted(self.maps)}.")
@@ -722,20 +728,24 @@ class TFFit(_ResultMixin):
         """Methods paragraph: transform and its parameters, baseline window and mode, the
         statistic, alpha and the zone method (spec REQ-219)."""
 
-        s = self.settings
-        tp = s.get("transform_params", {})
+        s = self.settings or {}
+        tp = s.get("transform_params") or {}
+
+        def _g(value):                   # a value missing from the settings is named as such
+            return f"{value:g}" if isinstance(value, (int, float)) else "not recorded"
+
         transform = s.get("transform", "?")
         if transform == "morse":
-            what = (f"generalised Morse wavelets (gamma = {tp.get('gamma'):g}, "
-                    f"beta = {tp.get('beta'):g})")
+            what = (f"generalised Morse wavelets (gamma = {_g(tp.get('gamma'))}, "
+                    f"beta = {_g(tp.get('beta'))})")
         elif transform == "morlet":
             cycles = np.unique(np.round(tp.get("n_cycles", [np.nan]), 3))
             what = f"complex Morlet wavelets ({', '.join(f'{c:g}' for c in cycles)} cycles)"
         elif transform == "multitaper":
-            what = (f"DPSS multitapers (time-bandwidth product {tp.get('time_bandwidth'):g}, "
+            what = (f"DPSS multitapers (time-bandwidth product {_g(tp.get('time_bandwidth'))}, "
                     f"{tp.get('n_tapers')} tapers)")
         else:
-            what = f"a short-time Fourier transform (Hann window of {tp.get('stft_window'):g} s)"
+            what = f"a short-time Fourier transform (Hann window of {_g(tp.get('stft_window'))} s)"
         freqs = s.get("freqs", [np.nan])
         base = s.get("baseline", [np.nan, np.nan])
         win = s.get("window", [np.nan, np.nan])
@@ -783,7 +793,7 @@ class TFFit(_ResultMixin):
                 f"support of an epoch edge or of the artifact mask were excluded. Power was "
                 f"normalised ({s.get('baseline_mode')}) {level}, baseline {base[0] * 1000:g} "
                 f"to {base[1] * 1000:g} ms. Pixels from {win[0] * 1000:g} to "
-                f"{win[1] * 1000:g} ms were tested with {stat} (alpha = {s.get('alpha'):g}); "
+                f"{win[1] * 1000:g} ms were tested with {stat} (alpha = {_g(s.get('alpha'))}); "
                 f"{across}. "
                 f"{zones[0].upper() + zones[1:]}.")
         if s.get("footprint"):

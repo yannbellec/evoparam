@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Noise models: white, AR(1), power-law ("pink"), real baselines and line noise.
 
 All synthetic noise is generated here with numpy and scipy (no external

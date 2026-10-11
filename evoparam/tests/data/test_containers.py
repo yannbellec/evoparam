@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for TrialSet and Evoked (spec §4.3.1, §4.3.2)."""
 
 import numpy as np

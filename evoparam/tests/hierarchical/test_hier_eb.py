@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Empirical-Bayes hierarchical engine on simulations (REQ-170 to REQ-172, REQ-175 to
 REQ-177)."""
 

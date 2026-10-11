@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Group pulses into trains, summarise them, and turn an event table into trial metadata."""
 
 import numpy as np

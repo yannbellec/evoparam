@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The registry of published rules (REQ-133, REQ-137)."""
 
 import numpy as np

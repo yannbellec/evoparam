@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-328: plugins through the entry points evoparam.shapes, evoparam.presets and
 evoparam.readers.
 

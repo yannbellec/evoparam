@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Shared fixtures of the shape tests: time axis, template and parameter samplers."""
 
 import numpy as np

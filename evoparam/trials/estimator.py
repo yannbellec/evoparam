@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """``TrialFitter``: trial-by-trial parameters with the scikit-learn conventions (spec §10.4)."""
 
 import numpy as np

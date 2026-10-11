@@ -1,0 +1,167 @@
+{
+ "schema": "evoparam-perf/1",
+ "suite": "perf",
+ "repeat_runs": 1,
+ "environment": {
+  "evoparam": "0.1.0.dev0",
+  "python": "3.13.16",
+  "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "cpu": "x86_64",
+  "cpu_count": 4,
+  "numpy": "2.5.3",
+  "scipy": "1.18.1",
+  "omp_num_threads": "1",
+  "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+  "load_average": [
+   9.6669921875,
+   10.052734375,
+   9.55859375
+  ]
+ },
+ "results": [
+  {
+   "id": "P1",
+   "workload": "1 waveform, 2048 samples, max_components=6, ccep, 3 starts",
+   "median_s": 1.299527595001564,
+   "p90_s": 1.4170320707009523,
+   "peak_rss_bytes": 3129344,
+   "n_repeats": 20,
+   "target": "median < 0.050 s",
+   "target_met": false,
+   "environment": {
+    "evoparam": "0.1.0.dev0",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "omp_num_threads": "1",
+    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "load_average": [
+     9.6669921875,
+     10.052734375,
+     9.55859375
+    ]
+   }
+  },
+  {
+   "id": "P2",
+   "workload": "fit_trials, 100 channels x 50 trials, n_jobs=4",
+   "median_s": 53.725344528997084,
+   "p90_s": 53.725344528997084,
+   "peak_rss_bytes": 263639040,
+   "n_repeats": 1,
+   "target": "< 60 s on 4 cores",
+   "n_fits": 5000,
+   "target_met": true,
+   "environment": {
+    "evoparam": "0.1.0.dev0",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "omp_num_threads": "1",
+    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "load_average": [
+     9.6669921875,
+     10.052734375,
+     9.55859375
+    ]
+   }
+  },
+  {
+   "id": "P4",
+   "workload": "GPU backend against the CPU on P1 and P2",
+   "median_s": null,
+   "p90_s": null,
+   "peak_rss_bytes": null,
+   "n_repeats": 0,
+   "target": "GPU equals CPU within 1e-6 relative",
+   "target_met": null,
+   "status": "not_available",
+   "note": "no GPU backend in this version (the fitting engine is NumPy/SciPy; Provenance.environment['backend'] is 'numpy')",
+   "environment": {
+    "evoparam": "0.1.0.dev0",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "omp_num_threads": "1",
+    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "load_average": [
+     9.6669921875,
+     10.052734375,
+     9.55859375
+    ]
+   }
+  },
+  {
+   "id": "P5",
+   "workload": "evoparam.reproduce of a saved GroupFit of 256 channels",
+   "median_s": 266.5244764569943,
+   "p90_s": 266.5244764569943,
+   "peak_rss_bytes": 1014157312,
+   "n_repeats": 1,
+   "target": "< 1.5 x the original fit",
+   "original_s": 270.6748818060005,
+   "ratio": 0.984666455485955,
+   "identical": true,
+   "target_met": true,
+   "environment": {
+    "evoparam": "0.1.0.dev0",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "omp_num_threads": "1",
+    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "load_average": [
+     9.6669921875,
+     10.052734375,
+     9.55859375
+    ]
+   }
+  },
+  {
+   "id": "P6",
+   "workload": "python -X importtime -c 'import evoparam' (cumulative time of evoparam)",
+   "median_s": 0.9086405,
+   "p90_s": 0.9608234,
+   "peak_rss_bytes": 0,
+   "n_repeats": 10,
+   "target": "median < 0.300 s",
+   "process_wall_median_s": 1.09449959199992,
+   "optional_modules_loaded": [],
+   "target_met": false,
+   "environment": {
+    "evoparam": "0.1.0.dev0",
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu": "x86_64",
+    "cpu_count": 4,
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "omp_num_threads": "1",
+    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "load_average": [
+     9.6669921875,
+     10.052734375,
+     9.55859375
+    ]
+   }
+  }
+ ]
+}

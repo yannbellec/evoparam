@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Pixel statistics of time-frequency maps (spec §5.10, method 4).
 
 The tested quantity is, per trial, the normalised power minus its baseline level (see

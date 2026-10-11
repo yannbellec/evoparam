@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """tf_fit options, edge cases, conditions, zone methods, comparisons and round trips."""
 
 import warnings

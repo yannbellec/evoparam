@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Plugins through ``importlib.metadata`` entry points (spec §10.8, REQ-328).
 
 Third-party distributions extend three registries::

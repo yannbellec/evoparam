@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tidy export (REQ-235), model formulas (REQ-236) and group summaries (REQ-237)."""
 
 import importlib.util

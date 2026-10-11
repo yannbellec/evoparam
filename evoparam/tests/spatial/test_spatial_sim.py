@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Shared shapes, shared-parameter fits and the volume-conduction screen on simulations
 (REQ-190 to REQ-193)."""
 

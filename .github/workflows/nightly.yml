@@ -1,0 +1,68 @@
+# Nightly (spec §9.5, REQ-300 a): the test suite against pre-release wheels of numpy and
+# scipy and MNE main, without the lock file; an issue labelled upstream-breakage is opened on
+# failure. The same workflow refreshes the lock files monthly by pull request (REQ-309 c).
+
+name: nightly
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pre-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: write
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - name: Pre-release numpy and scipy, MNE main
+      run: |
+        pip install --pre --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple numpy scipy
+        pip install "mne @ git+https://github.com/mne-tools/mne-python@main"
+        pip install -e ".[all]"
+    - run: pytest -p no:cacheprovider --timeout=120 -n auto -rfx
+    - name: Open an upstream-breakage issue
+      if: failure()
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh issue create --title "Nightly failure against pre-release dependencies" --label upstream-breakage --body "See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  refresh-locks:
+    # monthly (first day): regenerate ci/locks/*.lock and open a pull request
+    if: github.event_name == 'workflow_dispatch' || (github.event.schedule == '0 4 * * *' && github.run_attempt == 1)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+    - name: Only on the first day of the month
+      id: day
+      run: echo "first=$([ "$(date +%d)" = "01" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+    - uses: astral-sh/setup-uv@v5
+      if: steps.day.outputs.first == 'yes' || github.event_name == 'workflow_dispatch'
+    - name: Compile the locks
+      if: steps.day.outputs.first == 'yes' || github.event_name == 'workflow_dispatch'
+      run: |
+        for v in 3.10 3.11 3.12 3.13; do
+          uv pip compile pyproject.toml --extra all --extra tests --extra docs --generate-hashes --universal --python-version $v -o ci/locks/py$v.lock
+        done
+    - name: Pull request
+      if: steps.day.outputs.first == 'yes' || github.event_name == 'workflow_dispatch'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        git diff --quiet && exit 0
+        git switch -c locks-${{ github.run_id }}
+        git -c user.name="evoparam CI" -c user.email="ci@invalid" commit -am "ci: monthly lock refresh"
+        git push origin HEAD
+        gh pr create --fill

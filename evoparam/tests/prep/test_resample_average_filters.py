@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Resampling (REQ-085), averaging and filters."""
 
 from dataclasses import replace

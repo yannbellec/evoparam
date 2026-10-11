@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The evoparam command (REQ-322, REQ-323, REQ-345, REQ-346)."""
 
 import hashlib

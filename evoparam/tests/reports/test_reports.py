@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Reports: methods text (REQ-338), JSON with its schema (REQ-341), quality summary, HTML,
 Markdown, PDF (REQ-343), citation (REQ-346). The frozen methods texts of the reference
 pipelines (REQ-340) are in test_reports_text.py."""

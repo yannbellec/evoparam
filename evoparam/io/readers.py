@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Build a TrialSet from arrays, files and objects of other packages.
 
 :func:`from_array` and :func:`read` need numpy only (pandas when tables are

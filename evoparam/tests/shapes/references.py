@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Independent scalar references for the shape and background equations.
 
 Each function takes a backend ``B`` providing ``mpf``, ``exp``, ``log``,

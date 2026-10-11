@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
 """Public interface of the fitting engine: ResponseModel, fit, fit_response (spec §5.5.8)."""
 
 import dataclasses
 import inspect
+import logging
 import time as _time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -13,11 +15,14 @@ from evoparam.data import Component, Evoked, GoodnessOfFit, GroupFit, Provenance
 from evoparam.data import TrialSet
 from evoparam.data.provenance import elapsed
 from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, validate_array
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, FitError, SettingsError, warn as _warn
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features
 from evoparam.version import __version__
 
 from . import engine as _engine
+
+# diagnostics of the fitting API (spec §9.8: child logger named after the module)
+logger = logging.getLogger("evoparam.models")
 from ._settings import FitSettings, resolve_settings
 from .classical import classical_measures
 from .labels import label_components
@@ -620,11 +625,18 @@ class ResponseModel(BaseEstimatorMixin):
         return resolve_settings(self.preset, **overrides)
 
     def fit_waveform(self, times, y, *, window=None, baseline=None, sem=None, mask=None,
-                     trials=None, random_state=None, noise_ref=None):
+                     trials=None, random_state=None, noise_ref=None, unit=None,
+                     on_error="record"):
         """Fit one waveform; returns a :class:`ResponseFit` (never raises on a bad fit).
 
         ``random_state`` replaces the estimator's for this call. When both are None a seed
-        is drawn from the operating system and recorded in ``settings`` (REQ-295)."""
+        is drawn from the operating system and recorded in ``settings`` (REQ-295).
+
+        When the optimiser fails (REQ-307), ``on_error="record"`` (default) returns the fit
+        with ``status="failed"`` and the exception in ``message``, and logs exactly one
+        WARNING naming ``unit`` (the channel, when called by :meth:`fit_group`);
+        ``on_error="raise"`` raises :class:`~evoparam.errors.FitError` instead. Data and
+        settings errors always propagate."""
 
         start = _time.perf_counter()
         if random_state is None and self.random_state is None:
@@ -656,23 +668,37 @@ class ResponseModel(BaseEstimatorMixin):
                 raise SettingsError("selection='cv' needs the trials (fit a TrialSet, or pass "
                                     "trials= to fit_waveform).")
             select_k = _cv_selector(np.asarray(trials, float), times, settings)
+        if on_error not in ("record", "raise"):
+            raise SettingsError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
         try:
             core = _engine.fit_waveform_core(times, y, settings=settings, sfreq=sfreq,
                                              mask=mask, sem=sem, select_k=select_k,
                                              noise_ref=noise_ref)
-        except SettingsError:
+        except (SettingsError, DataError):
             raise
         except Exception as exc:                      # never NaN with status "ok"
+            if on_error == "raise":
+                raise FitError(f"fit failed on {unit or 'the waveform'}: "
+                               f"{type(exc).__name__}: {exc}") from exc
             core = {"status": "failed", "message": f"{type(exc).__name__}: {exc}",
                     "warnings": []}
-            _engine.logger.warning("fit failed: %s", core["message"])
-        return _build_fit(core, times, y, settings, sfreq, trials, mask, start,
-                          _settings_dict(settings, self._explicit(fit_window=window,
-                                                                  baseline=baseline)))
+            _engine.logger.warning("fit failed on %s: %s", unit or "the waveform",
+                                   core["message"])
+        fit = _build_fit(core, times, y, settings, sfreq, trials, mask, start,
+                         _settings_dict(settings, self._explicit(fit_window=window,
+                                                                 baseline=baseline)))
+        logger.debug("fit of %s: status %s, %d components, %.3f s", unit or "a waveform",
+                     fit.status, len(fit.components), _time.perf_counter() - start)
+        return fit
 
     def fit_group(self, data, *, window=None, baseline=None, picks=None, n_jobs=None,
-                  condition=""):
-        """Fit every channel of an Evoked (or of the average of a TrialSet)."""
+                  condition="", on_error="record"):
+        """Fit every channel of an Evoked (or of the average of a TrialSet).
+
+        A channel whose fit fails is kept with ``status="failed"`` and the exception in
+        ``message``, with one WARNING record naming the channel (``on_error="record"``, the
+        default); ``on_error="raise"`` raises the first :class:`~evoparam.errors.FitError`
+        (REQ-307)."""
 
         start = _time.perf_counter()
         trials = None
@@ -696,7 +722,7 @@ class ResponseModel(BaseEstimatorMixin):
             tr = None if trials is None else trials.data[:, ch]
             return self.fit_waveform(evoked.times, evoked.data[ch], window=window,
                                      baseline=baseline, sem=sem, mask=mask, trials=tr,
-                                     random_state=seed)
+                                     random_state=seed, unit=names[ch], on_error=on_error)
 
         jobs = self.n_jobs if n_jobs is None else n_jobs
         if jobs and jobs != 1:

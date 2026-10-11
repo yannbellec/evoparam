@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Data containers, results, provenance and the ``.evoparam`` container format."""
 
 from .provenance import Provenance, capture_environment, compute_data_hash

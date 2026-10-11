@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Zero-phase filters (thin wrappers over scipy.signal)."""
 
 import time as _time

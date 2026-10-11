@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """read_bids on a synthetic mini BIDS dataset (REQ-020)."""
 
 import hashlib

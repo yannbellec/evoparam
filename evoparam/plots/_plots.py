@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Implementation of :mod:`evoparam.plots`."""
 
 import numpy as np

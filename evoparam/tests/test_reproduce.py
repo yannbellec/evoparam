@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-007 (provenance everywhere): every result can be regenerated from its saved
 provenance with ``evoparam.reproduce`` (REQ-333).
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The shape and background tools that modules built on the engine use (trials, spatial).
 
 Re-exported here because, in the dependency table of spec §4.2, those modules depend on

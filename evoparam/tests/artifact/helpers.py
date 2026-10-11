@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Overlay benchmark for the artifact tests: artifact-free epochs with known responses,
 plus an artifact of known shape (spec §5.3 acceptance criteria)."""
 

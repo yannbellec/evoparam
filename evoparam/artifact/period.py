@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Period-based reconstruction of a repeating artifact (high-frequency trains, DBS).
 
 Implemented from the open-access description of period-based artifact reconstruction

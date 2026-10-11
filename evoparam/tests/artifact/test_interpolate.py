@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Interpolation (method 1, inherited from the skeleton's clean.interpolate)."""
 
 import numpy as np

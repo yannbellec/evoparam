@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """NWB reader and writer (REQ-317, REQ-318)."""
 
 import warnings

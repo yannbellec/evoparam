@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Period-based reconstruction for high-frequency trains (REQ-062)."""
 
 import numpy as np

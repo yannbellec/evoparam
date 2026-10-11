@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """HTTP access: whole-file downloads and partial reads by byte ranges.
 
 This is the only module of the package that opens network connections. Every

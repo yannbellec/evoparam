@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """simulate_bursts: induced bursts with a random phase per trial (benchmark task T7)."""
 
 import numpy as np

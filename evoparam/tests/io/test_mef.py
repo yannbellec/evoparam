@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """MEF 3.0 reader on synthetic sessions written by the test writer (helpers.write_mef).
 
 The writer is an independent port of the meflib encoder (byte-by-byte CRC, range encoder of

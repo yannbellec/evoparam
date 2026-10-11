@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Speed and memory of pulse detection (REQ-045).
 
 Run with ``python benchmarks/bench_events.py``. Target: at most 1 s per 10 minutes of

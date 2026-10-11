@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The ``ndx-evoparam`` NWB extension (spec §10.3, REQ-318).
 
 Types (namespace ``ndx-evoparam``, version 0.1.0):

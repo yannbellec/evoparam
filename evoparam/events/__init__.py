@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Events: stimulation pulses, amplifier saturation, stimulated site and trains, from the raw signal."""
 
 from .pulses import EVENT_COLUMNS, detect_events, detect_pulses, estimate_delay, match_onsets

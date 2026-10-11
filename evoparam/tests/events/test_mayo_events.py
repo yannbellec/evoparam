@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Pulse detection and site identification on the Mayo Clinic MEF 3.0 datasets (REQ-040,
 REQ-042).
 

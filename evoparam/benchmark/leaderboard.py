@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Static leaderboard page generated from result JSONs only (spec §8.4, REQ-357).
 
 ``write_leaderboard(results_folder, path)`` reads the signed result documents of a folder

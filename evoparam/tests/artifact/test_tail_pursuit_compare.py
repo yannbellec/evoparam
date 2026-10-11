@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Recovery tail, matching pursuit and method comparison."""
 
 import warnings

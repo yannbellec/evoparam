@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """REQ-327: community files, their policies and links (source tree only)."""
 
 import os

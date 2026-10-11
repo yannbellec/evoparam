@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Real-data suites (spec §8.2): index files and loaders only, no copy of the data.
 
 The indices are checked offline; the loaders read public data and run only with

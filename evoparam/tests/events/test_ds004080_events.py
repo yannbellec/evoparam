@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Pulse detection and site identification on OpenNeuro ds004080 (REQ-040, REQ-042).
 
 25 runs of 21 patients (Utrecht SPES, ECoG, 512 or 2048 Hz). For each run, 40 s of

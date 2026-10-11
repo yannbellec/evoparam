@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Write the frozen suite files of the benchmark (spec §8.2): evoparam/benchmark/suites/
 core.json and full.json.
 

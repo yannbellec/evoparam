@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Electrode layouts and stimulation-artifact waveforms for the simulators.
 
 The stimulation artifact of an electrical pulse is modelled as the potential of

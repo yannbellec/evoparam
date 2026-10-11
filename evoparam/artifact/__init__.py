@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Artifact: remove the stimulation artifact, mark replaced samples, score each trial."""
 
 from ._common import apply_mask

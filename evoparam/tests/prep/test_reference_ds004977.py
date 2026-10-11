@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Adjusted common average on OpenNeuro ds004977 (REQ-081, real-data part).
 
 ds004977 (Mayo Clinic, sEEG, 4800 Hz, MEF 3.0) is the dataset of the adjusted common

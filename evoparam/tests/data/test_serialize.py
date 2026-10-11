@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the .evoparam container (REQ-020 save/load round trip, REQ-330, REQ-332, REQ-334)."""
 
 import json

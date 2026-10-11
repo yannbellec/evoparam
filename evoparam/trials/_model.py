@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The trial model: the channel's components, shifted and scaled for each trial.
 
 ``x_i(t) = b_i(t) + sum_k a_ik s_k(t; theta_k + delta_ik e_loc) + noise``: for shapes whose

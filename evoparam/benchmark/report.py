@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Markdown report of benchmark results (spec §8.4; the report of REQ-353).
 
 The report is built from the signed result documents only (their signatures are checked);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 CCEPs in stereo-EEG: the ``ccep_seeg`` preset
 =============================================

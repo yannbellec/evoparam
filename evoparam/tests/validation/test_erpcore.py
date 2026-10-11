@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """ERP CORE, 40 participants x 7 components (REQ-274), on a local copy (CC-BY 4.0, OSF
 DOI 10.18115/D5JW4R) downloaded by ``validation/erpcore.py``'s documented layout; runs only
 when ``EVOPARAM_ERPCORE`` names that folder.

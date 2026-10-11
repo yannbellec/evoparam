@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """GroundTruth: REQ-255 (same schema as GroupFit) and REQ-256 (real noise record and licences)."""
 
 import copy

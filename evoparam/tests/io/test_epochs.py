@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for evoparam.io.epochs."""
 
 import numpy as np

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Presets on simulations: ERNA (REQ-276) and SEP (REQ-277)."""
 
 import warnings

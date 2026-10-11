@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """fit_shared keeps every latency in the fit window and applies the identifiability rule of
 the engine (no two components of opposite signs overlapping on a channel).
 

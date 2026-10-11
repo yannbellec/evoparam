@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Replace a time window by an interpolation between the samples around it.
 
 Used by :mod:`evoparam.artifact` (method ``"interpolate"``).

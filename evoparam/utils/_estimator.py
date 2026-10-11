@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """scikit-learn conventions without scikit-learn (spec §10.4).
 
 ``BaseEstimatorMixin`` gives ``get_params``/``set_params`` (with nested ``step__param``

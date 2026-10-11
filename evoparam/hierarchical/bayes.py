@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Full Bayesian engines of the hierarchical model (spec §5.8, step 3): numpyro and PyMC.
 
 The same model in both engines, sampled with NUTS and initialised at the empirical-Bayes

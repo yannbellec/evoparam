@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Reliability of the ERP CORE N170 (REQ-233, real-data part).
 
 ERP CORE (Kappenman et al. 2021; OSF, DOI 10.18115/D5JW4R; CC-BY-4.0, recorded in the

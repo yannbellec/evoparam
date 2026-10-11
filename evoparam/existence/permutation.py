@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Baseline-permutation test: is the window different from zero (the baseline level)?
 
 Sign flips of whole trials keep each trial's time course and the correlation between

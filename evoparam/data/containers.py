@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Data containers: :class:`TrialSet` (trials × channels × time) and :class:`Evoked`.
 
 Containers are dataclasses that are frozen by convention: every method returns
@@ -547,7 +548,7 @@ class TrialSet(_ContainerMixin):
             import xarray as xr
         except ImportError as err:
             raise ImportError("TrialSet.to_xarray needs the extra 'xarray': pip install "
-                              "'evoparam[xarray]'.") from err
+                              "\"evoparam[xarray]\".") from err
         coords = {"trial": np.arange(self.n_trials), "channel": list(self.ch_names),
                   "time": np.asarray(self.times, dtype=float)}
         for table, dim in ((self.metadata, "trial"), (self.ch_info, "channel")):

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Simulated trials for the time-frequency tests: AR(1) noise, a sharp N1, gamma bursts."""
 
 import numpy as np

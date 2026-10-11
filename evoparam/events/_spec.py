@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """The pulse detector of the specification as written (spec §5.2, methods 1 and 2).
 
 ``detect_pulses(..., procedure="spec")`` uses these steps instead of the default ones:

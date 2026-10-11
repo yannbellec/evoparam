@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """``ArtifactRemover``: stimulation-artifact removal with the scikit-learn conventions."""
 
 import numpy as np

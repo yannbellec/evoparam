@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Adjusted common average against the authors' CARLA code on ds004977 (REQ-372); runs with
 EVOPARAM_NETWORK_TESTS=1. The authors' channel lists come from
 ``validation/carla_ds004977.py`` (their MATLAB code, run as an external comparator)."""

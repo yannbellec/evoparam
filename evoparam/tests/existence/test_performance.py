@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Speed of the permutation test (REQ-138); runs only with EVOPARAM_PERF_TESTS=1."""
 
 import os

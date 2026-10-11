@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Speed of every artifact-removal method (REQ-068).
 
 Run with ``python benchmarks/bench_artifact.py``. Target, on one core: at most 2 s for
