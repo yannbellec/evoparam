@@ -9,11 +9,21 @@ REQ-171 (EB channel latencies beat the channel fits on >= 90 % of datasets, per-
 was run on 200 development datasets (seeds 1000-1199, chosen before looking at the
 results) and on the test's 20 seeds, which were not used for any choice.
 
-- Before (main 3b222bb): the EB wins on 3 of the test's 6 datasets (the reason of the
-  expected failure still read 5 of 6, measured before later engine changes), 11 of 20
-  with `EVOPARAM_SLOW_TESTS=1`, 129 of 200 development datasets (64.5 %). RMS over the
+- Before (main 3b222bb): the EB wins on 3 of the test's 6 datasets, 11 of 20 with
+  `EVOPARAM_SLOW_TESTS=1`, 129 of 200 development datasets (64.5 %). RMS over the
   datasets of the channel latency RMSE: development, channel fits 1.80 ms, EB 1.56 ms;
   test seeds 1.66 / 1.50 ms (20), 1.85 / 1.47 ms (6).
+- Attribution of the 5 of 6 / 17 of 20 of the earlier reason (the test as written, run
+  in a worktree of each commit): 971633c (where the reason was written) and 9492870 give
+  5 of 6 and 17 of 20, channel 1.854 / 1.656 ms, EB 1.547 / 1.493 ms; 1b91be1 (REQ-172:
+  Wald error in quadrature with the trial spread) and every later commit measured
+  (9b443b6, 75c443a, e552ba7, 3b222bb) give 3 of 6 and 11 of 20, channel 1.854 / 1.656 ms,
+  EB 1.469 / 1.497 ms. The channel fits did not change (latencies within 1.1 µs from
+  971633c to 3b222bb; `noise_stride` is 1 on all 1 600 channel fits of the 20 seeds): the
+  drop comes from the standard error of 1b91be1 alone. The trial spread alone, used
+  before it, is too small (z-score SD 1.51) and under-shrinks: 180 of 200 development
+  datasets (90 %) but an EB RMSE of 1.62 ms, and the NUTS coverage of REQ-172 was 17 of
+  20 with it.
 - Cause: the standard error given to the channel latency. It was the Wald error of the fit
   in quadrature with the spread of the trusted trial latencies over sqrt(n). The trial
   spread already holds the noise of the average, so the noise counted twice: median |z|
