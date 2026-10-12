@@ -53,9 +53,16 @@ def _main_component(fit):
 def _fit(ts, fit_window):
     model = ResponseModel(fit_window=fit_window, baseline=(-0.5, -0.05))
     avg = ts.average()
-    return np.array([_main_component(model.fit_waveform(
-        avg.times, avg.data[ch], mask=None if avg.masks is None else avg.masks[ch]))
-        for ch in range(avg.data.shape[0])])
+    return np.array(
+        [
+            _main_component(
+                model.fit_waveform(
+                    avg.times, avg.data[ch], mask=None if avg.masks is None else avg.masks[ch]
+                )
+            )
+            for ch in range(avg.data.shape[0])
+        ]
+    )
 
 
 def _overlay(onset, seed):
@@ -85,10 +92,11 @@ def _errors(onset, fit_window, **kwargs):
     return np.where(np.isfinite(lat), lat, np.inf), np.where(np.isfinite(amp), amp, np.inf)
 
 
-@pytest.mark.parametrize("kwargs", [{"method": "template"},
-                                    {"method": "template", "template": "local"},
-                                    {"method": "learned"}],
-                         ids=["template", "template-local", "learned"])
+@pytest.mark.parametrize(
+    "kwargs",
+    [{"method": "template"}, {"method": "template", "template": "local"}, {"method": "learned"}],
+    ids=["template", "template-local", "learned"],
+)
 @pytest.mark.parametrize("onset", [0.008, 0.012, 0.020])
 def test_req061_fitted_components_after_cleaning(onset, kwargs):
 
@@ -97,9 +105,12 @@ def test_req061_fitted_components_after_cleaning(onset, kwargs):
     assert np.median(amp) <= 0.05
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-061: plain blanking with the onset 2 ms after b "
-                                       "(10 ms) gives a median amplitude error of 15 %, not "
-                                       ">= 20 % (6 to 9 ms: 42 % or more; module docstring)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-061: plain blanking with the onset 2 ms after b "
+    "(10 ms) gives a median amplitude error of 15 %, not "
+    ">= 20 % (6 to 9 ms: 42 % or more; module docstring)",
+)
 def test_req061_blanking_amplitude_bias_near_window_end():
 
     for onset in (0.006, 0.007, 0.008, 0.009, 0.010):

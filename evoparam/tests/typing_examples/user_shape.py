@@ -27,7 +27,7 @@ class Triangle:
         centre, half = params[..., 0:1], params[..., 1:2]
         inside = np.abs(times - centre) < half
         d_centre = np.where(inside, np.sign(times - centre) / half, 0.0)
-        d_half = np.where(inside, np.abs(times - centre) / half ** 2, 0.0)
+        d_half = np.where(inside, np.abs(times - centre) / half**2, 0.0)
         return np.stack([d_centre, d_half], axis=-1)
 
     def default_bounds(self, times: Array, data_range: Any = None) -> tuple[Array, Array]:

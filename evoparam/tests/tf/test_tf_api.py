@@ -56,10 +56,19 @@ def test_every_normalisation_finds_the_burst(mode, level):
 
     if level == "full_epoch" and mode == "zscore":
         pytest.skip("undefined")
-    tf = tf_fit(_burst_set(amp=12.0), baseline_mode=mode, baseline_level=level, zones="none",
-                freqs=(4, 250, 30))
-    box = ((tf.freqs[:, None] >= 65) & (tf.freqs[:, None] <= 100)
-           & (tf.times[None] >= 0.2) & (tf.times[None] <= 0.3))
+    tf = tf_fit(
+        _burst_set(amp=12.0),
+        baseline_mode=mode,
+        baseline_level=level,
+        zones="none",
+        freqs=(4, 250, 30),
+    )
+    box = (
+        (tf.freqs[:, None] >= 65)
+        & (tf.freqs[:, None] <= 100)
+        & (tf.times[None] >= 0.2)
+        & (tf.times[None] <= 0.3)
+    )
     assert tf.significant[0][box].mean() > 0.3
     centre = 1.0 if mode == "ratio" else 0.0
     assert np.nanmean(tf.maps["total_norm"][0][box]) > centre
@@ -132,8 +141,16 @@ def test_compare_two_conditions():
     rng = np.random.default_rng(9)
     b = tf_fit(trialset(ar1(rng, (30, 4, len(TIMES)))), zones="none", freqs=(4, 250, 20))
     table = tf_compare(a, b, n_permutations=100, random_state=0)
-    assert list(table.columns) == ["sign", "t_start", "t_end", "f_low", "f_high", "mass",
-                                   "n_pixels", "p_value"]
+    assert list(table.columns) == [
+        "sign",
+        "t_start",
+        "t_end",
+        "f_low",
+        "f_high",
+        "mass",
+        "n_pixels",
+        "p_value",
+    ]
     with pytest.raises(SettingsError):
         tf_compare(a, tf_fit(_burst_set(), zones="none", freqs=(4, 250, 10)))
 
@@ -148,8 +165,9 @@ def test_tffit_round_trip(tmp_path):
     assert np.array_equal(back.significant, tf.significant)
     np.testing.assert_allclose(back.maps["total_norm"], tf.maps["total_norm"], equal_nan=True)
     assert back.settings["rows"] == tf.settings["rows"]
-    pd.testing.assert_frame_equal(back.zones.reset_index(drop=True),
-                                  tf.zones.reset_index(drop=True), check_dtype=False)
+    pd.testing.assert_frame_equal(
+        back.zones.reset_index(drop=True), tf.zones.reset_index(drop=True), check_dtype=False
+    )
 
 
 def test_zone_metrics_export_to_the_long_format():
@@ -184,19 +202,28 @@ def test_cp_rank_is_chosen_on_split_halves():
     weights = rng.uniform(0.5, 1.5, (2, 8))
     tensor = a[..., None] * weights[0] + b[..., None] * weights[1]
     group = tensor.mean(axis=-1)
-    rank, stability = select_rank(group, None, 4, np.random.default_rng(1), method="cp",
-                                  tensor=tensor)
+    rank, stability = select_rank(
+        group, None, 4, np.random.default_rng(1), method="cp", tensor=tensor
+    )
     assert rank == 2 and stability[2] >= 0.8
     values = cp_split_values(tensor, None, 2, np.random.default_rng(2))
     assert len(values) == 20 and np.mean(values) >= 0.8
     # trial halves of every row (the default when the TFFit holds them)
     noisy = [tensor * rng.uniform(0.8, 1.2, tensor.shape) for _ in range(40)]
     row_halves = np.stack(noisy).reshape(20, 2, *tensor.shape)
-    rank_t, stability_t = select_rank(group, None, 4, np.random.default_rng(1), method="cp",
-                                      tensor=tensor, row_halves=row_halves)
+    rank_t, stability_t = select_rank(
+        group, None, 4, np.random.default_rng(1), method="cp", tensor=tensor, row_halves=row_halves
+    )
     assert rank_t == 2 and stability_t[2] >= 0.8
-    rank_r, _ = select_rank(group, None, 4, np.random.default_rng(1), method="cp",
-                            tensor=tensor, cp_stability="restarts")
+    rank_r, _ = select_rank(
+        group,
+        None,
+        4,
+        np.random.default_rng(1),
+        method="cp",
+        tensor=tensor,
+        cp_stability="restarts",
+    )
     assert rank_r >= 1
     # a single row carrying the map: halves of the trials, else restarts
     single = np.zeros_like(tensor)

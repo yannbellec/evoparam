@@ -10,8 +10,7 @@ from evoparam.utils._optional import require
 __all__ = []
 
 # Okabe and Ito (2008), colour-blind safe.
-PALETTE = ("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#F0E442",
-           "#000000")
+PALETTE = ("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#F0E442", "#000000")
 DATA_COLOR, MODEL_COLOR, BG_COLOR, RESID_COLOR = "#000000", "#0072B2", "#999999", "#E69F00"
 
 
@@ -48,8 +47,17 @@ def _window_times(fit):
     return np.linspace(fit.window[0], fit.window[1], n) if n else np.zeros(0)
 
 
-def plot_fit(fit, data=None, *, channel=None, ax=None, components=True, background=True,
-             residual=True, intervals=True):
+def plot_fit(
+    fit,
+    data=None,
+    *,
+    channel=None,
+    ax=None,
+    components=True,
+    background=True,
+    residual=True,
+    intervals=True,
+):
     """Data, model, components, background and residual of one :class:`ResponseFit`.
 
     Parameters
@@ -73,17 +81,28 @@ def plot_fit(fit, data=None, *, channel=None, ax=None, components=True, backgrou
         if mask is not None and mask.any():
             edges = np.flatnonzero(np.diff(np.r_[0, mask.astype(int), 0]))
             for start, stop in zip(edges[::2], edges[1::2]):
-                ax.axvspan(times[start] * 1e3, times[stop - 1] * 1e3, color="#dddddd", lw=0,
-                           label="masked" if start == edges[0] else None)
+                ax.axvspan(
+                    times[start] * 1e3,
+                    times[stop - 1] * 1e3,
+                    color="#dddddd",
+                    lw=0,
+                    label="masked" if start == edges[0] else None,
+                )
         grid = times[(times >= fit.window[0]) & (times <= fit.window[1])]
     else:
         grid = _window_times(fit)
         if fit.model is not None and fit.residual is not None:
-            ax.plot(grid * 1e3, fit.model + fit.residual, color=DATA_COLOR, lw=0.8,
-                    label="data (fit window)")
+            ax.plot(
+                grid * 1e3,
+                fit.model + fit.residual,
+                color=DATA_COLOR,
+                lw=0.8,
+                label="data (fit window)",
+            )
     if fit.components or fit.background:
-        ax.plot(grid * 1e3, evaluate_fit(fit, grid), color=MODEL_COLOR, lw=1.8, label="model",
-                zorder=5)
+        ax.plot(
+            grid * 1e3, evaluate_fit(fit, grid), color=MODEL_COLOR, lw=1.8, label="model", zorder=5
+        )
     if background and fit.background:
         bg = evaluate_fit(fit, grid, components=[])
         ax.plot(grid * 1e3, bg, color=BG_COLOR, lw=1.0, ls="--", label="background")
@@ -91,8 +110,15 @@ def plot_fit(fit, data=None, *, channel=None, ax=None, components=True, backgrou
         for k, comp in enumerate(fit.components):
             curve = evaluate_fit(fit, grid, components=[k], background=False)
             color = PALETTE[(k + 1) % len(PALETTE)]
-            ax.plot(grid * 1e3, curve, color=color, lw=1.0, ls=":", zorder=4,
-                    label=comp.label or f"C{k + 1}")
+            ax.plot(
+                grid * 1e3,
+                curve,
+                color=color,
+                lw=1.0,
+                ls=":",
+                zorder=4,
+                label=comp.label or f"C{k + 1}",
+            )
             ci = (comp.ci or {}).get("latency")
             if intervals and ci is not None and np.all(np.isfinite(ci)):
                 ax.axvspan(ci[0] * 1e3, ci[1] * 1e3, color=color, alpha=0.15, lw=0)
@@ -102,13 +128,23 @@ def plot_fit(fit, data=None, *, channel=None, ax=None, components=True, backgrou
     high = max((np.nanmax(v) for v in lines if len(v)), default=1.0)
     shift = low - 0.6 * (high - low)
     if residual and fit.residual is not None and data is None:
-        ax.plot(_window_times(fit) * 1e3, fit.residual + shift, color=RESID_COLOR, lw=0.6,
-                label="residual (offset)")
+        ax.plot(
+            _window_times(fit) * 1e3,
+            fit.residual + shift,
+            color=RESID_COLOR,
+            lw=0.6,
+            label="residual (offset)",
+        )
     elif residual and data is not None and (fit.components or fit.background):
         times, y, _ = _evoked(data, channel)
         inside = (times >= fit.window[0]) & (times <= fit.window[1])
-        ax.plot(grid * 1e3, y[inside] - evaluate_fit(fit, grid) + shift, color=RESID_COLOR,
-                lw=0.6, label="residual (offset)")
+        ax.plot(
+            grid * 1e3,
+            y[inside] - evaluate_fit(fit, grid) + shift,
+            color=RESID_COLOR,
+            lw=0.6,
+            label="residual (offset)",
+        )
     ax.axvline(0, color="#000000", lw=0.5)
     ax.set_xlabel("time (ms)")
     ax.set_ylabel("amplitude")
@@ -117,8 +153,18 @@ def plot_fit(fit, data=None, *, channel=None, ax=None, components=True, backgrou
     return fig
 
 
-def plot_group(group_fit, data=None, *, kind="grid", ax=None, axes=None, max_channels=64,
-               coords=None, parameter="amplitude", component=0):
+def plot_group(
+    group_fit,
+    data=None,
+    *,
+    kind="grid",
+    ax=None,
+    axes=None,
+    max_channels=64,
+    coords=None,
+    parameter="amplitude",
+    component=0,
+):
     """Every channel of a :class:`GroupFit`.
 
     ``kind="grid"``: one small panel per channel (data and model); ``"shaft"``: the channels
@@ -140,8 +186,14 @@ def plot_group(group_fit, data=None, *, kind="grid", ax=None, axes=None, max_cha
         cols = int(np.ceil(np.sqrt(n)))
         rows = int(np.ceil(n / cols))
         if axes is None:
-            fig, axes = plt.subplots(rows, cols, figsize=(1.8 * cols, 1.3 * rows),
-                                     sharex=True, layout="constrained", squeeze=False)
+            fig, axes = plt.subplots(
+                rows,
+                cols,
+                figsize=(1.8 * cols, 1.3 * rows),
+                sharex=True,
+                layout="constrained",
+                squeeze=False,
+            )
         else:
             fig = np.ravel(axes)[0].figure
         flat = np.ravel(axes)
@@ -159,7 +211,7 @@ def plot_group(group_fit, data=None, *, kind="grid", ax=None, axes=None, max_cha
             label = ",".join(c.label or "" for c in fit.components)
             a.set_title(f"{name} {label}", fontsize=6)
             a.tick_params(labelsize=5)
-        for a in flat[len(fits):]:
+        for a in flat[len(fits) :]:
             a.axis("off")
         return fig
     if kind == "shaft":
@@ -169,14 +221,20 @@ def plot_group(group_fit, data=None, *, kind="grid", ax=None, axes=None, max_cha
             groups.setdefault(contact_group(name), []).append((name, fit))
         offset = 0.0
         ticks, labels = [], []
-        span = max((float(np.ptp(f.model)) for f in fits if f.model is not None
-                    and len(f.model)), default=1.0) or 1.0
+        span = (
+            max(
+                (float(np.ptp(f.model)) for f in fits if f.model is not None and len(f.model)),
+                default=1.0,
+            )
+            or 1.0
+        )
         for g, (shaft, members) in enumerate(groups.items()):
             for name, fit in members:
                 grid = _window_times(fit)
                 if fit.model is not None and len(fit.model):
-                    ax.plot(grid * 1e3, fit.model - offset, color=PALETTE[g % len(PALETTE)],
-                            lw=0.8)
+                    ax.plot(
+                        grid * 1e3, fit.model - offset, color=PALETTE[g % len(PALETTE)], lw=0.8
+                    )
                 ticks.append(-offset)
                 labels.append(name)
                 offset += span
@@ -187,19 +245,29 @@ def plot_group(group_fit, data=None, *, kind="grid", ax=None, axes=None, max_cha
         if coords is None and data is not None and getattr(data, "ch_info", None) is not None:
             info = data.ch_info
             if {"x", "y"} <= set(info.columns):
-                coords = info[["x", "y"]].to_numpy(float)[:len(names)]
+                coords = info[["x", "y"]].to_numpy(float)[: len(names)]
         if coords is None:
-            raise SettingsError("kind='brain' needs coords= (n_channels x 2 or 3) or a data "
-                                "argument whose ch_info has x and y.")
+            raise SettingsError(
+                "kind='brain' needs coords= (n_channels x 2 or 3) or a data "
+                "argument whose ch_info has x and y."
+            )
         coords = np.asarray(coords, float)
         values = []
         for fit in fits:
             comps = fit.components
-            values.append(getattr(comps[component], parameter) if len(comps) > component
-                          else np.nan)
+            values.append(
+                getattr(comps[component], parameter) if len(comps) > component else np.nan
+            )
         fig, ax = _figure_ax(ax, figsize=(5.0, 4.5))
-        scatter = ax.scatter(coords[:, 0], coords[:, 1], c=values, cmap="cividis", s=30,
-                             edgecolors="#333333", linewidths=0.4)
+        scatter = ax.scatter(
+            coords[:, 0],
+            coords[:, 1],
+            c=values,
+            cmap="cividis",
+            s=30,
+            edgecolors="#333333",
+            linewidths=0.4,
+        )
         fig.colorbar(scatter, ax=ax, label=f"{parameter} (component {component})")
         ax.set_aspect("equal")
         return fig
@@ -220,8 +288,9 @@ def plot_trials(trial_fit, trials=None, *, channel=None, axes=None):
     order = np.argsort(np.nan_to_num(latency, nan=np.inf))
     n_panels = 2 if trials is not None else 1
     if axes is None:
-        fig, axes = plt.subplots(1, n_panels, figsize=(4.0 * n_panels, 3.5),
-                                 layout="constrained", squeeze=False)
+        fig, axes = plt.subplots(
+            1, n_panels, figsize=(4.0 * n_panels, 3.5), layout="constrained", squeeze=False
+        )
         axes = axes[0]
     else:
         axes = np.ravel(axes)
@@ -230,18 +299,24 @@ def plot_trials(trial_fit, trials=None, *, channel=None, axes=None):
         index = trials.ch_names.index(fit.channel)
         image = trials.data[:, index][order]
         limit = float(np.nanmax(np.abs(image))) or 1.0
-        axes[0].imshow(image, aspect="auto", cmap="RdBu_r", vmin=-limit, vmax=limit,
-                       extent=[trials.times[0] * 1e3, trials.times[-1] * 1e3, len(order), 0])
-        axes[0].plot(latency[order] * 1e3, np.arange(len(order)) + 0.5, color="#000000",
-                     lw=0.8)
+        axes[0].imshow(
+            image,
+            aspect="auto",
+            cmap="RdBu_r",
+            vmin=-limit,
+            vmax=limit,
+            extent=[trials.times[0] * 1e3, trials.times[-1] * 1e3, len(order), 0],
+        )
+        axes[0].plot(latency[order] * 1e3, np.arange(len(order)) + 0.5, color="#000000", lw=0.8)
         axes[0].set_xlabel("time (ms)")
         axes[0].set_ylabel("trial (sorted by latency)")
     hist_ax = axes[-1]
     trusted = np.asarray(fit.trusted, bool)
     hist_ax.hist(latency[trusted] * 1e3, bins=20, color=PALETTE[0], alpha=0.8, label="trusted")
     if (~trusted).any():
-        hist_ax.hist(latency[~trusted] * 1e3, bins=20, color=PALETTE[1], alpha=0.6,
-                     label="not trusted")
+        hist_ax.hist(
+            latency[~trusted] * 1e3, bins=20, color=PALETTE[1], alpha=0.6, label="not trusted"
+        )
     hist_ax.set_xlabel("latency (ms)")
     hist_ax.set_ylabel("trials")
     hist_ax.legend(fontsize=7, frameon=False)
@@ -264,13 +339,13 @@ def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_chan
     version) is drawn as one bar per channel (the statistic; significant channels filled).
     """
 
-    names_all = test.settings.get("channels") or \
-        [f"ch{i}" for i in range(np.shape(test.statistic)[0])]
+    names_all = test.settings.get("channels") or [
+        f"ch{i}" for i in range(np.shape(test.statistic)[0])
+    ]
 
     def per_channel(values):
         values = np.asarray(values)
-        return values[:, group] if values.ndim > 1 and np.ndim(test.statistic) > 1 \
-            else values
+        return values[:, group] if values.ndim > 1 and np.ndim(test.statistic) > 1 else values
 
     sig = np.asarray(per_channel(test.significant), bool)
     stat = np.asarray(per_channel(test.statistic), float)
@@ -279,11 +354,14 @@ def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_chan
         fig, ax = _figure_ax(ax, figsize=(6.0, 0.25 * max(len(stat), 8) + 1))
         y = np.arange(len(stat))
         ax.barh(y, stat, color=np.where(sig, PALETTE[0], "#cccccc"))
-        ax.set_yticks(y, (channels or names_all)[:len(stat)], fontsize=6)
+        ax.set_yticks(y, (channels or names_all)[: len(stat)], fontsize=6)
         ax.invert_yaxis()
         ax.set_xlabel(f"statistic ({test.method})")
-        ax.set_title(f"{int(sig.sum())} of {len(sig)} channels significant "
-                     f"(alpha {test.alpha:g}, {test.correction})", fontsize=9)
+        ax.set_title(
+            f"{int(sig.sum())} of {len(sig)} channels significant "
+            f"(alpha {test.alpha:g}, {test.correction})",
+            fontsize=9,
+        )
         return fig
 
     curve = np.asarray(test.curve, float)
@@ -305,15 +383,20 @@ def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_chan
     else:
         cols = int(np.ceil(np.sqrt(len(index)))) or 1
         rows = int(np.ceil(len(index) / cols)) or 1
-        fig, grid = plt.subplots(rows, cols, figsize=(2.4 * cols, 1.7 * rows + 0.4),
-                                 sharex=True, layout="constrained", squeeze=False)
+        fig, grid = plt.subplots(
+            rows,
+            cols,
+            figsize=(2.4 * cols, 1.7 * rows + 0.4),
+            sharex=True,
+            layout="constrained",
+            squeeze=False,
+        )
         panels = list(np.ravel(grid))
-        for a in panels[len(index):]:
+        for a in panels[len(index) :]:
             a.axis("off")
     single = ax is not None
     for n, (a, i) in enumerate(zip(panels, index)):
-        colour = PALETTE[n % len(PALETTE)] if single else (PALETTE[0] if sig[i] else
-                                                           "#777777")
+        colour = PALETTE[n % len(PALETTE)] if single else (PALETTE[0] if sig[i] else "#777777")
         if band is not None:
             low = np.nan_to_num(band[i, :, 0], nan=-np.inf)
             high = np.nan_to_num(band[i, :, 1], nan=np.inf)
@@ -321,31 +404,44 @@ def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_chan
             if finite:
                 lo = np.where(np.isfinite(low), low, np.nanmin(curve[i]))
                 hi = np.where(np.isfinite(high), high, np.nanmax(curve[i]))
-                a.fill_between(t_ms, lo, hi, color="#bbbbbb" if not single else colour,
-                               alpha=0.35 if not single else 0.12, lw=0,
-                               label=None if n else "null band")
-        a.plot(t_ms, curve[i], color=colour, lw=0.9,
-               label=names_all[i] if single else None)
+                a.fill_between(
+                    t_ms,
+                    lo,
+                    hi,
+                    color="#bbbbbb" if not single else colour,
+                    alpha=0.35 if not single else 0.12,
+                    lw=0,
+                    label=None if n else "null band",
+                )
+        a.plot(t_ms, curve[i], color=colour, lw=0.9, label=names_all[i] if single else None)
         a.axhline(0.0, color="#000000", lw=0.4)
         if sig[i] and np.isfinite(onset[i]) and np.isfinite(offset[i]):
             a.axvspan(onset[i] * 1e3, offset[i] * 1e3, color=PALETTE[1], alpha=0.15, lw=0)
         if not single:
             a.set_title(f"{names_all[i]}: {'significant' if sig[i] else 'n.s.'}", fontsize=7)
             a.tick_params(labelsize=6)
-    what = {"baseline_permutation": "pointwise t", "projection": "projection profile",
-            "threshold": "baseline z"}.get(test.method, "statistic")
+    what = {
+        "baseline_permutation": "pointwise t",
+        "projection": "projection profile",
+        "threshold": "baseline z",
+    }.get(test.method, "statistic")
     if single:
         ax.set_xlabel("time (ms)")
         ax.set_ylabel(what)
         ax.legend(fontsize=6, frameon=False)
-        ax.set_title(f"{int(sig.sum())} of {len(sig)} channels significant "
-                     f"(alpha {test.alpha:g}, {test.correction})", fontsize=9)
+        ax.set_title(
+            f"{int(sig.sum())} of {len(sig)} channels significant "
+            f"(alpha {test.alpha:g}, {test.correction})",
+            fontsize=9,
+        )
     else:
         fig.supxlabel("time (ms)", fontsize=8)
         fig.supylabel(what, fontsize=8)
-        fig.suptitle(f"{test.method}: {int(sig.sum())} of {len(sig)} channels significant "
-                     f"(alpha {test.alpha:g}, {test.correction}); shaded: null band",
-                     fontsize=8)
+        fig.suptitle(
+            f"{test.method}: {int(sig.sum())} of {len(sig)} channels significant "
+            f"(alpha {test.alpha:g}, {test.correction}); shaded: null band",
+            fontsize=8,
+        )
     return fig
 
 
@@ -356,8 +452,9 @@ def plot_tf(tf, *, row=0, axes=None, maps=("total_norm", "footprint_norm", "resi
     plt = _plt()
     present = [m for m in maps if m in tf.maps]
     if axes is None:
-        fig, axes = plt.subplots(1, len(present), figsize=(3.6 * len(present), 3.2),
-                                 layout="constrained", squeeze=False)
+        fig, axes = plt.subplots(
+            1, len(present), figsize=(3.6 * len(present), 3.2), layout="constrained", squeeze=False
+        )
         axes = axes[0]
     else:
         axes = np.ravel(axes)
@@ -368,19 +465,38 @@ def plot_tf(tf, *, row=0, axes=None, maps=("total_norm", "footprint_norm", "resi
     for a, name in zip(axes, present):
         image = tf.maps[name][row]
         limit = float(np.nanmax(np.abs(image))) if np.isfinite(image).any() else 1.0
-        shown = a.imshow(image, aspect="auto", origin="lower", cmap="RdBu_r", vmin=-limit,
-                         vmax=limit, extent=extent)
+        shown = a.imshow(
+            image,
+            aspect="auto",
+            origin="lower",
+            cmap="RdBu_r",
+            vmin=-limit,
+            vmax=limit,
+            extent=extent,
+        )
         if name == "total_norm" and tf.significant[row].any():
-            a.contour(tf.significant[row].astype(float), levels=[0.5], colors="#000000",
-                      linewidths=0.6, extent=extent)
+            a.contour(
+                tf.significant[row].astype(float),
+                levels=[0.5],
+                colors="#000000",
+                linewidths=0.6,
+                extent=extent,
+            )
         zones = tf.zones
         if zones is not None and len(zones) and {"t_start", "f_low"} <= set(zones.columns):
             for _, z in zones.iterrows():
                 lo = np.searchsorted(tf.freqs, z["f_low"])
                 hi = np.searchsorted(tf.freqs, z["f_high"], side="right")
-                a.add_patch(Rectangle((z["t_start"] * 1e3, lo),
-                                      (z["t_end"] - z["t_start"]) * 1e3, hi - lo, fill=False,
-                                      edgecolor=PALETTE[4], lw=1.0))
+                a.add_patch(
+                    Rectangle(
+                        (z["t_start"] * 1e3, lo),
+                        (z["t_end"] - z["t_start"]) * 1e3,
+                        hi - lo,
+                        fill=False,
+                        edgecolor=PALETTE[4],
+                        lw=1.0,
+                    )
+                )
         ticks = np.linspace(0, len(tf.freqs) - 1, 5).astype(int)
         a.set_yticks(ticks + 0.5, [f"{tf.freqs[t]:.0f}" for t in ticks])
         a.set_xlabel("time (ms)")
@@ -396,8 +512,12 @@ def plot_shapes(basis, *, ax=None):
     fig, ax = _figure_ax(ax)
     for k, curve in enumerate(basis.curves):
         stability = basis.stability[k] if k < len(basis.stability) else np.nan
-        ax.plot(basis.times * 1e3, curve, color=PALETTE[k % len(PALETTE)],
-                label=f"shape {k + 1} (stability {stability:.2f})")
+        ax.plot(
+            basis.times * 1e3,
+            curve,
+            color=PALETTE[k % len(PALETTE)],
+            label=f"shape {k + 1} (stability {stability:.2f})",
+        )
     ax.set_xlabel("time (ms)")
     ax.legend(fontsize=7, frameon=False)
     ax.set_title(f"{basis.n_shapes} shared shape(s), {basis.method}", fontsize=9)
@@ -421,13 +541,24 @@ def plot_artifact(result, raw=None, *, channel=0, axes=None):
     if raw is not None:
         a.plot(times, raw.average().data[index], color=BG_COLOR, lw=0.8, label="before")
     a.plot(times, cleaned.average().data[index], color=MODEL_COLOR, lw=1.0, label="after")
-    a.axvspan(result.window[0] * 1e3, result.window[1] * 1e3, color="#dddddd", lw=0,
-              label="artifact window")
+    a.axvspan(
+        result.window[0] * 1e3,
+        result.window[1] * 1e3,
+        color="#dddddd",
+        lw=0,
+        label="artifact window",
+    )
     if result.template is not None:
         template = np.asarray(result.template)
         if template.ndim >= 2 and template.shape[-1] == len(times):
-            a.plot(times, template.reshape(-1, len(times))[min(index, len(template) - 1)],
-                   color=RESID_COLOR, lw=0.8, ls="--", label="template")
+            a.plot(
+                times,
+                template.reshape(-1, len(times))[min(index, len(template) - 1)],
+                color=RESID_COLOR,
+                lw=0.8,
+                ls="--",
+                label="template",
+            )
     a.set_xlabel("time (ms)")
     a.legend(fontsize=7, frameon=False)
     a.set_title(f"{result.method}: {cleaned.ch_names[index]}", fontsize=9)
@@ -449,11 +580,19 @@ def plot_compare(fits, data=None, *, channel=None, labels=None, ax=None):
         times, y, _ = _evoked(data, channel)
         ax.plot(times * 1e3, y, color=DATA_COLOR, lw=0.8, label="data")
     for k, fit in enumerate(fits):
-        grid = _window_times(fit) if data is None else \
-            times[(times >= fit.window[0]) & (times <= fit.window[1])]
+        grid = (
+            _window_times(fit)
+            if data is None
+            else times[(times >= fit.window[0]) & (times <= fit.window[1])]
+        )
         name = labels[k] if labels else f"fit {k + 1} ({len(fit.components)} comp.)"
-        ax.plot(grid * 1e3, evaluate_fit(fit, grid), color=PALETTE[k % len(PALETTE)],
-                lw=1.2, label=name)
+        ax.plot(
+            grid * 1e3,
+            evaluate_fit(fit, grid),
+            color=PALETTE[k % len(PALETTE)],
+            lw=1.2,
+            label=name,
+        )
     ax.set_xlabel("time (ms)")
     ax.legend(fontsize=7, frameon=False)
     return fig
@@ -466,15 +605,22 @@ def plot_hierarchical(fit, *, axes=None):
     from evoparam.data import HierarchicalFit
 
     if not isinstance(fit, HierarchicalFit):
-        raise SettingsError(f"plot_hierarchical expects a HierarchicalFit, not "
-                            f"{type(fit).__name__}.")
+        raise SettingsError(
+            f"plot_hierarchical expects a HierarchicalFit, not {type(fit).__name__}."
+        )
     if axes is None:
         fig, axes = _plt().subplots(1, 2, figsize=(9.0, 3.5), layout="constrained")
     else:
         fig = axes[0].figure
     table = fit.p_response
-    column = next((c for c in ("p_response", "p") if table is not None
-                   and c in getattr(table, "columns", ())), None)
+    column = next(
+        (
+            c
+            for c in ("p_response", "p")
+            if table is not None and c in getattr(table, "columns", ())
+        ),
+        None,
+    )
     if column is not None and len(table):
         values = np.asarray(table[column], float)
         axes[0].hist(values[np.isfinite(values)], bins=np.linspace(0, 1, 21), color=PALETTE[0])
@@ -482,13 +628,22 @@ def plot_hierarchical(fit, *, axes=None):
     axes[0].set_ylabel("units")
     axes[0].set_title(f"engine: {fit.engine}", fontsize=9)
     variance = fit.variance_components
-    value = next((c for c in ("sd", "var") if variance is not None
-                  and c in getattr(variance, "columns", ())), None)
+    value = next(
+        (
+            c
+            for c in ("sd", "var")
+            if variance is not None and c in getattr(variance, "columns", ())
+        ),
+        None,
+    )
     if value is not None and len(variance):
         keys = [c for c in ("component", "parameter", "level") if c in variance.columns]
         labels = [" ".join(str(row[k]) for k in keys) for _, row in variance.iterrows()]
-        axes[1].barh(np.arange(len(variance)), np.asarray(variance[value], float),
-                     color=[PALETTE[k % len(PALETTE)] for k in range(len(variance))])
+        axes[1].barh(
+            np.arange(len(variance)),
+            np.asarray(variance[value], float),
+            color=[PALETTE[k % len(PALETTE)] for k in range(len(variance))],
+        )
         axes[1].set_yticks(np.arange(len(variance)), labels, fontsize=7)
         axes[1].set_xlabel(value)
     axes[1].set_title("variance components", fontsize=9)

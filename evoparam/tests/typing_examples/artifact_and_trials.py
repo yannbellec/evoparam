@@ -8,8 +8,7 @@ from evoparam.trials import fit_trials
 
 
 def clean(trials: TrialSet) -> TrialSet:
-    result: ArtifactResult = remove_artifact(trials, method="interpolate",
-                                             window=(-0.002, 0.006))
+    result: ArtifactResult = remove_artifact(trials, method="interpolate", window=(-0.002, 0.006))
     return result.cleaned
 
 

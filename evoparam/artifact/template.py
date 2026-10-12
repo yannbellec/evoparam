@@ -30,13 +30,14 @@ def _window_values(ts, inds, masks):
 
 def _nan_statistic(values, statistic, axis=0):
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)       # all-NaN columns
+        warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN columns
         out = (np.nanmedian if statistic == "median" else np.nanmean)(values, axis=axis)
     return np.nan_to_num(out, nan=0.0)
 
 
-def estimate_artifact_template(ts, window=(-0.002, 0.008), *, group_by=GROUP_BY,
-                               statistic="median"):
+def estimate_artifact_template(
+    ts, window=(-0.002, 0.008), *, group_by=GROUP_BY, statistic="median"
+):
     """Artifact template of each group of pulses.
 
     ``T_g(t) = median_{k in g} x_k(t)`` on the window, per channel (median rather than
@@ -73,8 +74,17 @@ def _neighbours(times, row, n):
     return order[:n]
 
 
-def subtract_template(ts, inds, *, template="global", group_by=GROUP_BY, n_neighbors=10,
-                      scale=True, fallback=False, interpolate=None):
+def subtract_template(
+    ts,
+    inds,
+    *,
+    template="global",
+    group_by=GROUP_BY,
+    n_neighbors=10,
+    scale=True,
+    fallback=False,
+    interpolate=None,
+):
     """Template subtraction on the window ``inds``.
 
     Returns (data, info). ``info`` holds the template(s), the per-trial fit r²
@@ -97,23 +107,30 @@ def subtract_template(ts, inds, *, template="global", group_by=GROUP_BY, n_neigh
         if user.ndim == 1:
             user = np.broadcast_to(user, (n_channels, n_window))
         if user.shape != (n_channels, n_window):
-            raise SettingsError(f"template must have shape ({n_channels}, {n_window}) or "
-                                f"({n_window},), got {user.shape}.")
+            raise SettingsError(
+                f"template must have shape ({n_channels}, {n_window}) or "
+                f"({n_window},), got {user.shape}."
+            )
         per_trial = np.broadcast_to(user, raw.shape)
         templates[("user",)] = user
     elif template in ("global", "local"):
         per_trial = np.zeros(raw.shape)
-        order_times = (ts.event_times if ts.event_times is not None
-                       else np.arange(n_trials, dtype=float))
+        order_times = (
+            ts.event_times if ts.event_times is not None else np.arange(n_trials, dtype=float)
+        )
         for key, rows in groups(ts, group_by):
             if len(rows) < MIN_PULSES:
                 if not fallback:
                     raise ArtifactError(
                         f"Template group {key} has {len(rows)} pulse(s); at least {MIN_PULSES} "
                         "are needed. Use fallback=True to interpolate these trials instead, "
-                        "or group_by=() for one template over all trials.")
-                _warn(f"Template group {key} has {len(rows)} pulse(s): these trials "
-                      "are interpolated instead.", stacklevel=3)
+                        "or group_by=() for one template over all trials."
+                    )
+                _warn(
+                    f"Template group {key} has {len(rows)} pulse(s): these trials "
+                    "are interpolated instead.",
+                    stacklevel=3,
+                )
                 fallback_trials.extend(rows.tolist())
                 continue
             if template == "global":
@@ -140,8 +157,9 @@ def subtract_template(ts, inds, *, template="global", group_by=GROUP_BY, n_neigh
     data[:, :, inds] = residual
 
     total = np.sum((raw - raw.mean(axis=-1, keepdims=True)) ** 2, axis=(1, 2))
-    fit_r2 = 1 - np.divide(np.sum(residual ** 2, axis=(1, 2)), total,
-                           out=np.zeros(n_trials), where=total > 0)
+    fit_r2 = 1 - np.divide(
+        np.sum(residual**2, axis=(1, 2)), total, out=np.zeros(n_trials), where=total > 0
+    )
     fit_r2 = np.clip(fit_r2, 0.0, 1.0)
 
     # Response protection: a template that looks like the response just after it
@@ -153,9 +171,11 @@ def subtract_template(ts, inds, *, template="global", group_by=GROUP_BY, n_neigh
             if np.std(a) > 0 and np.std(b) > 0:
                 correlation = max(correlation, float(np.corrcoef(a, b)[0, 1]))
         if correlation > RESPONSE_CORRELATION_WARN:
-            _warn(f"The artifact template correlates with the response after the window "
-                  f"(r = {correlation:.2f}): the window may end inside the response.",
-                  stacklevel=3)
+            _warn(
+                f"The artifact template correlates with the response after the window "
+                f"(r = {correlation:.2f}): the window may end inside the response.",
+                stacklevel=3,
+            )
 
     if fallback_trials and interpolate is not None:
         rows = np.array(fallback_trials)
@@ -163,13 +183,19 @@ def subtract_template(ts, inds, *, template="global", group_by=GROUP_BY, n_neigh
         fit_r2[rows] = 0.0
 
     stacked = np.stack(list(templates.values())) if templates else None
-    return data, {"templates": templates, "template": stacked, "fit_r2": fit_r2,
-                  "template_response_correlation": correlation,
-                  "fallback_trials": sorted(fallback_trials), "alpha": alpha}
+    return data, {
+        "templates": templates,
+        "template": stacked,
+        "fit_r2": fit_r2,
+        "template_response_correlation": correlation,
+        "fallback_trials": sorted(fallback_trials),
+        "alpha": alpha,
+    }
 
 
-def subtract_learned(ts, inds, *, group_by=GROUP_BY, n_components=None, ridge=1e-3,
-                     variance=0.95, max_components=8):
+def subtract_learned(
+    ts, inds, *, group_by=GROUP_BY, n_components=None, ridge=1e-3, variance=0.95, max_components=8
+):
     """Learned artifact basis per group: PCA (uncentred SVD) of the window waveforms of
     every pulse and channel of the group; each window is ridge-regressed on the basis and
     the fit is subtracted.
@@ -193,18 +219,24 @@ def subtract_learned(ts, inds, *, group_by=GROUP_BY, n_components=None, ridge=1e
             raise ArtifactError(f"Group {key}: not enough unmasked pulses to learn a basis.")
         _, sing, vt = np.linalg.svd(waves, full_matrices=False)
         if n_components is None:
-            energy = np.cumsum(sing ** 2) / np.sum(sing ** 2)
+            energy = np.cumsum(sing**2) / np.sum(sing**2)
             k = int(min(np.searchsorted(energy, variance) + 1, max_components, len(sing)))
         else:
             k = int(min(n_components, len(sing)))
-        basis = vt[:k]                                        # orthonormal rows
+        basis = vt[:k]  # orthonormal rows
         coefs = (raw[rows] @ basis.T) / (1.0 + ridge)
         fitted = coefs @ basis
         residual = raw[rows] - fitted
         data[np.ix_(rows, np.arange(n_channels), inds)] = residual
         total = np.sum((raw[rows] - raw[rows].mean(axis=-1, keepdims=True)) ** 2, axis=(1, 2))
-        fit_r2[rows] = np.clip(1 - np.divide(np.sum(residual ** 2, axis=(1, 2)), total,
-                                             out=np.zeros(len(rows)), where=total > 0), 0, 1)
+        fit_r2[rows] = np.clip(
+            1
+            - np.divide(
+                np.sum(residual**2, axis=(1, 2)), total, out=np.zeros(len(rows)), where=total > 0
+            ),
+            0,
+            1,
+        )
         bases.append(basis)
         owners.extend([g] * k)
     return data, {"basis": np.vstack(bases), "basis_groups": owners, "fit_r2": fit_r2}

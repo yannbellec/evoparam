@@ -50,17 +50,24 @@ def test_req393_figures_reproduce_their_hashes(tmp_path):
 
 
 def _tags():
-    done = subprocess.run(["git", "-C", str(ROOT), "tag", "--list", "v*"],
-                          capture_output=True, text=True)
+    done = subprocess.run(
+        ["git", "-C", str(ROOT), "tag", "--list", "v*"], capture_output=True, text=True
+    )
     return done.stdout.split()
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-393: the immutable, archived release tag that the "
-                   "preprint names, and the preprint itself, wait for the owner's HIIE "
-                   "decision (nothing public before it)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-393: the immutable, archived release tag that the "
+    "preprint names, and the preprint itself, wait for the owner's HIIE "
+    "decision (nothing public before it)",
+)
 def test_req393_make_figures_on_the_release_tag():
     tags = _tags()
     assert tags, "no release tag"
-    manifest = subprocess.run(["git", "-C", str(ROOT), "show", f"{tags[-1]}:figures/"
-                               "manifest.json"], capture_output=True, text=True)
+    manifest = subprocess.run(
+        ["git", "-C", str(ROOT), "show", f"{tags[-1]}:figures/manifest.json"],
+        capture_output=True,
+        text=True,
+    )
     assert manifest.returncode == 0

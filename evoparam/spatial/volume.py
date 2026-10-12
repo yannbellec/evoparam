@@ -33,9 +33,23 @@ from evoparam.utils._optional import require
 __all__ = ["screen_volume_conduction", "SCREEN_COLUMNS", "RISKS"]
 
 RISKS = ("low", "medium", "high")
-SCREEN_COLUMNS = ("stim_site", "channel", "evaluated", "response", "reversal", "no_reversal",
-                  "copy_corr", "distance_mm", "decay", "reference_ratio", "reference_corr",
-                  "reference", "n_screens", "screens", "volume_conduction_risk")
+SCREEN_COLUMNS = (
+    "stim_site",
+    "channel",
+    "evaluated",
+    "response",
+    "reversal",
+    "no_reversal",
+    "copy_corr",
+    "distance_mm",
+    "decay",
+    "reference_ratio",
+    "reference_corr",
+    "reference",
+    "n_screens",
+    "screens",
+    "volume_conduction_risk",
+)
 REVERSAL_CORR = -0.5
 REVERSAL_RMS = 0.2
 COPY_CORR = 0.9
@@ -64,7 +78,7 @@ def _corr(a, b):
 
 
 def _rms(a):
-    return float(np.sqrt(np.mean(a ** 2)))
+    return float(np.sqrt(np.mean(a**2)))
 
 
 def _counterpart(name, names, scheme):
@@ -90,8 +104,11 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
             avg = avg - np.nanmean(avg[:, base], axis=1, keepdims=True)
     wave = np.nan_to_num(avg[:, win])
     # Noise of the average from its baseline, to correct correlations for attenuation
-    pre = (sub.times >= baseline[0]) & (sub.times <= baseline[1]) if baseline is not None \
+    pre = (
+        (sub.times >= baseline[0]) & (sub.times <= baseline[1])
+        if baseline is not None
         else sub.times < min(0.0, window[0])
+    )
     noise_var = np.nanvar(avg[:, pre], axis=1) if pre.sum() > 2 else np.zeros(len(names))
     reliability = np.clip(1 - noise_var / np.maximum(np.var(wave, axis=1), 1e-300), 0, 1)
     stim = set(_contacts(site))
@@ -113,13 +130,23 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
         if not evaluated[c] or position[n][1] is None:
             continue
         shaft, number = position[n]
-        adjacent = [j for j, m in enumerate(names) if evaluated[j] and position[m][0] == shaft
-                    and position[m][1] is not None and abs(position[m][1] - number) == 1]
+        adjacent = [
+            j
+            for j, m in enumerate(names)
+            if evaluated[j]
+            and position[m][0] == shaft
+            and position[m][1] is not None
+            and abs(position[m][1] - number) == 1
+        ]
         if not adjacent:
             continue
         own = _rms(wave[c])
-        reversal[c] = float(any(_corr(wave[c], wave[j]) <= REVERSAL_CORR and
-                                _rms(wave[j]) >= REVERSAL_RMS * own for j in adjacent))
+        reversal[c] = float(
+            any(
+                _corr(wave[c], wave[j]) <= REVERSAL_CORR and _rms(wave[j]) >= REVERSAL_RMS * own
+                for j in adjacent
+            )
+        )
 
     # Screen 2: scaled copy of the waveform next to the site, decaying with distance
     copy_corr = np.full(len(names), np.nan)
@@ -129,8 +156,12 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
     if info is not None and {"name", "x", "y", "z"} <= set(info.columns):
         table = info.set_index(info["name"].astype(str))
         coords = table.reindex(names)[["x", "y", "z"]].to_numpy(float)
-    if coords is not None and all(s in names for s in stim) and stim and \
-            np.isfinite(coords[[names.index(s) for s in stim]]).all():
+    if (
+        coords is not None
+        and all(s in names for s in stim)
+        and stim
+        and np.isfinite(coords[[names.index(s) for s in stim]]).all()
+    ):
         centre = coords[[names.index(s) for s in stim]].mean(axis=0)
         distance = np.linalg.norm(coords - centre, axis=1)
         candidates = np.flatnonzero(evaluated & np.isfinite(distance))
@@ -138,8 +169,9 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
         if len(nearest):
             # Signs aligned on the nearest channel before averaging
             ref = wave[nearest[0]]
-            source = np.mean([wave[j] * (1 if _corr(wave[j], ref) >= 0 else -1)
-                              for j in nearest], axis=0)
+            source = np.mean(
+                [wave[j] * (1 if _corr(wave[j], ref) >= 0 else -1) for j in nearest], axis=0
+            )
             norm = np.linalg.norm(source)
             if norm > 0:
                 unit = source / norm
@@ -147,8 +179,12 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
                 for c in np.flatnonzero(evaluated & (reliability >= MIN_RELIABILITY)):
                     # Correlation corrected for the attenuation by the channel's noise
                     copy_corr[c] = min(_corr(wave[c], source) / np.sqrt(reliability[c]), 1.0)
-                copies = evaluated & (np.nan_to_num(copy_corr) >= COPY_CORR) & (amp > 0) & \
-                    (distance > 0)
+                copies = (
+                    evaluated
+                    & (np.nan_to_num(copy_corr) >= COPY_CORR)
+                    & (amp > 0)
+                    & (distance > 0)
+                )
                 decay = copies.copy()
                 if decay_model == "published":
                     decay[:] = False
@@ -188,8 +224,9 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
             k = abs(_corr(w, wave[c])) if np.std(w) > 0 else 0.0
             ratio[c] = r if np.isnan(ratio[c]) else min(ratio[c], r)
             corr[c] = k if np.isnan(corr[c]) else min(corr[c], k)
-    sensitive = (np.nan_to_num(ratio, nan=1.0) < REFERENCE_RATIO) | \
-        (np.nan_to_num(corr, nan=1.0) < REFERENCE_CORR)
+    sensitive = (np.nan_to_num(ratio, nan=1.0) < REFERENCE_RATIO) | (
+        np.nan_to_num(corr, nan=1.0) < REFERENCE_CORR
+    )
 
     out = []
     for c, n in enumerate(names):
@@ -203,20 +240,37 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
             if sensitive[c]:
                 flags.append("reference")
         risk = RISKS[min(len(flags), 2)] if evaluated[c] else ""
-        out.append({"stim_site": site, "channel": n, "evaluated": bool(evaluated[c]),
-                    "response": bool(fit is not None and fit.status == "ok"),
-                    "reversal": pd.NA if np.isnan(reversal[c]) else bool(reversal[c]),
-                    "no_reversal": bool(reversal[c] == 0), "copy_corr": copy_corr[c],
-                    "distance_mm": distance[c], "decay": bool(decay[c] and evaluated[c]),
-                    "reference_ratio": ratio[c], "reference_corr": corr[c],
-                    "reference": bool(sensitive[c] and evaluated[c]),
-                    "n_screens": len(flags), "screens": ",".join(flags),
-                    "volume_conduction_risk": risk})
+        out.append(
+            {
+                "stim_site": site,
+                "channel": n,
+                "evaluated": bool(evaluated[c]),
+                "response": bool(fit is not None and fit.status == "ok"),
+                "reversal": pd.NA if np.isnan(reversal[c]) else bool(reversal[c]),
+                "no_reversal": bool(reversal[c] == 0),
+                "copy_corr": copy_corr[c],
+                "distance_mm": distance[c],
+                "decay": bool(decay[c] and evaluated[c]),
+                "reference_ratio": ratio[c],
+                "reference_corr": corr[c],
+                "reference": bool(sensitive[c] and evaluated[c]),
+                "n_screens": len(flags),
+                "screens": ",".join(flags),
+                "volume_conduction_risk": risk,
+            }
+        )
     return out
 
 
-def screen_volume_conduction(ts, group_fit=None, *, reference_schemes=("bipolar", "car_adaptive"),
-                             decay_model="published", window=None, baseline=None):
+def screen_volume_conduction(
+    ts,
+    group_fit=None,
+    *,
+    reference_schemes=("bipolar", "car_adaptive"),
+    decay_model="published",
+    window=None,
+    baseline=None,
+):
     """Flag channels whose response may be volume-conducted rather than local.
 
     For every stimulation site of ``ts`` (``metadata["stim_site"]``; the whole TrialSet
@@ -263,16 +317,21 @@ def screen_volume_conduction(ts, group_fit=None, *, reference_schemes=("bipolar"
     for site, idx in groups:
         fits = {}
         if group_fit is not None:
-            for ch, cond, pos in group_fit.index[["channel", "condition", "position"]] \
-                    .itertuples(index=False):
+            for ch, cond, pos in group_fit.index[["channel", "condition", "position"]].itertuples(
+                index=False
+            ):
                 if str(cond) in (site, ""):
                     fits[str(ch)] = group_fit.fits[int(pos)]
-        rows += _site_table(ts, site, idx, fits, window, baseline, reference_schemes,
-                            decay_model, ts.ch_info, pd)
+        rows += _site_table(
+            ts, site, idx, fits, window, baseline, reference_schemes, decay_model, ts.ch_info, pd
+        )
     table = pd.DataFrame(rows, columns=list(SCREEN_COLUMNS))
     table["reversal"] = table["reversal"].astype("boolean")
-    table.attrs["settings"] = {"reference_schemes": list(reference_schemes),
-                               "decay_model": decay_model, "window": list(window),
-                               "baseline": None if baseline is None else list(baseline)}
+    table.attrs["settings"] = {
+        "reference_schemes": list(reference_schemes),
+        "decay_model": decay_model,
+        "window": list(window),
+        "baseline": None if baseline is None else list(baseline),
+    }
     table.attrs["duration_s"] = _time.perf_counter() - start
     return table

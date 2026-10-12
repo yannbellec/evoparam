@@ -62,7 +62,7 @@ def _statistic(sums, sum_sq, n):
     n = np.asarray(n, float)
     with np.errstate(divide="ignore", invalid="ignore"):
         mean = sums / n
-        var = (sum_sq - sums ** 2 / n) / (n - 1)
+        var = (sum_sq - sums**2 / n) / (n - 1)
         t = mean / np.sqrt(np.clip(var, 0.0, None) / n)
     return np.where(np.isnan(t) | (n < 2), -np.inf, t)
 
@@ -106,12 +106,16 @@ def sign_flip_test(values, *, alpha=0.05, n_permutations=1000, random_state=None
         sums[0] += row
         sums[1:] += signs[:, None] * row[None]
     n = present.sum(axis=0)
-    stat = _statistic(sums, (v ** 2).sum(axis=0), n)
+    stat = _statistic(sums, (v**2).sum(axis=0), n)
     count = (stat[1:] >= stat[0] - 1e-12).sum(axis=0)
     p = (1.0 + count) / (1.0 + n_perm)
     p = np.where(n >= 2, p, np.nan)
-    return {"statistic": stat[0], "p_value": p, "significant": np.nan_to_num(p, nan=1.0) <= alpha,
-            "n": n}
+    return {
+        "statistic": stat[0],
+        "p_value": p,
+        "significant": np.nan_to_num(p, nan=1.0) <= alpha,
+        "n": n,
+    }
 
 
 class SequentialSignFlip:
@@ -136,8 +140,9 @@ class SequentialSignFlip:
     crossed stays significant. The cost of a pulse is ``O(n_permutations x n_channels)``.
     """
 
-    def __init__(self, n_channels, *, alpha=0.05, max_n=100, n_permutations=1000,
-                 random_state=None):
+    def __init__(
+        self, n_channels, *, alpha=0.05, max_n=100, n_permutations=1000, random_state=None
+    ):
         _check(alpha, n_permutations)
         if int(max_n) < 2:
             raise SettingsError("max_n must be at least 2.")
@@ -180,7 +185,7 @@ class SequentialSignFlip:
         signs = _signs(self._rng, self.n_permutations)
         self._sums[0] += v
         self._sums[1:] += signs[:, None] * v[None]
-        self._sum_sq += v ** 2
+        self._sum_sq += v**2
         self.n += present
         self._values.append(values)
 
@@ -224,8 +229,13 @@ class SequentialSignFlip:
             self.significant[cols] |= cross[0]
         self.alpha_spent = spent
         self.n_looks += 1
-        return {"significant": self.significant.copy(), "statistic": stat[0], "p_value": p,
-                "alpha_spent": spent.copy(), "n": self.n.copy()}
+        return {
+            "significant": self.significant.copy(),
+            "statistic": stat[0],
+            "p_value": p,
+            "alpha_spent": spent.copy(),
+            "n": self.n.copy(),
+        }
 
 
 class OnlineExistence:
@@ -244,15 +254,28 @@ class OnlineExistence:
     (``"pulse"`` or None: only when :meth:`look` is called).
     """
 
-    def __init__(self, n_channels, *, threshold_sd=3.0, alpha=0.05, max_n=100,
-                 n_permutations=1000, looks="pulse", random_state=None):
+    def __init__(
+        self,
+        n_channels,
+        *,
+        threshold_sd=3.0,
+        alpha=0.05,
+        max_n=100,
+        n_permutations=1000,
+        looks="pulse",
+        random_state=None,
+    ):
         if looks not in ("pulse", None):
             raise SettingsError("looks must be 'pulse' or None.")
         self.threshold_sd = float(threshold_sd)
         self.looks = looks
-        self.test = SequentialSignFlip(n_channels, alpha=alpha, max_n=max_n,
-                                       n_permutations=n_permutations,
-                                       random_state=random_state)
+        self.test = SequentialSignFlip(
+            n_channels,
+            alpha=alpha,
+            max_n=max_n,
+            n_permutations=n_permutations,
+            random_state=random_state,
+        )
         self.reset()
 
     def reset(self):

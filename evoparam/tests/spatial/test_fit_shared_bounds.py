@@ -26,9 +26,12 @@ from .helpers import BASELINE, shared_channels
 
 def _outside(group):
     lo, hi = group.fits[0].window
-    return [(name, c.latency) for name, f in zip(group.settings["fit_shared"]["channels"],
-                                                  group.fits)
-            for c in f.components if not lo <= c.latency <= hi]
+    return [
+        (name, c.latency)
+        for name, f in zip(group.settings["fit_shared"]["channels"], group.fits)
+        for c in f.components
+        if not lo <= c.latency <= hi
+    ]
 
 
 def _pairs(group, overlap_c=0.5):
@@ -36,9 +39,11 @@ def _pairs(group, overlap_c=0.5):
     for name, f in zip(group.settings["fit_shared"]["channels"], group.fits):
         comps = f.components
         for i, a in enumerate(comps):
-            for b in comps[i + 1:]:
-                if a.amplitude * b.amplitude < 0 and abs(a.latency - b.latency) < \
-                        overlap_c * (a.fwhm + b.fwhm) / FWHM_PER_SIGMA:
+            for b in comps[i + 1 :]:
+                if (
+                    a.amplitude * b.amplitude < 0
+                    and abs(a.latency - b.latency) < overlap_c * (a.fwhm + b.fwhm) / FWHM_PER_SIGMA
+                ):
                     out.append((name, a.latency, a.amplitude, b.latency, b.amplitude))
     return out
 
@@ -54,8 +59,9 @@ def test_latencies_stay_in_the_fit_window(seed, free_latency):
     evoked = draw()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        group = fit_shared(evoked, preset="ccep", baseline=BASELINE,
-                           free_latency=free_latency, max_shift=0.005)
+        group = fit_shared(
+            evoked, preset="ccep", baseline=BASELINE, free_latency=free_latency, max_shift=0.005
+        )
     assert not _outside(group)
 
 
@@ -69,9 +75,9 @@ def _ecap(seed):
         warnings.simplefilter("ignore")
         # per-channel fits without the rule and without reseeding: they hold cancelling
         # pairs (seeds 0 and 3)
-        independent = ResponseModel("ecap_ci", reject_cancelling=False, reseed=False,
-                                    latency_order="sorted").fit_group(
-            evoked, picks=channels)
+        independent = ResponseModel(
+            "ecap_ci", reject_cancelling=False, reseed=False, latency_order="sorted"
+        ).fit_group(evoked, picks=channels)
     return evoked, channels, independent
 
 
@@ -82,9 +88,14 @@ def test_no_cancelling_pair_in_the_shared_fit(seed):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = fit_shared(evoked, channels=channels, preset="ecap_ci", group_fit=independent)
-        reproduced = fit_shared(evoked, channels=channels, preset="ecap_ci",
-                                group_fit=independent, reject_cancelling=False)
-    assert _pairs(reproduced)                     # the defect without the rule
+        reproduced = fit_shared(
+            evoked,
+            channels=channels,
+            preset="ecap_ci",
+            group_fit=independent,
+            reject_cancelling=False,
+        )
+    assert _pairs(reproduced)  # the defect without the rule
     assert not _pairs(group)
     dropped = group.settings["fit_shared"]["dropped"]
     assert dropped and all(d["reason"] == "cancelling_pair" for d in dropped)
@@ -92,8 +103,10 @@ def test_no_cancelling_pair_in_the_shared_fit(seed):
 
 
 @pytest.mark.network
-@pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                    reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")
+@pytest.mark.skipif(
+    os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+    reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+)
 @pytest.mark.parametrize("free_latency", [False, True])
 def test_ds004977_shared_fit_in_window_without_cancelling_pairs(free_latency):
 
@@ -106,12 +119,20 @@ def test_ds004977_shared_fit_in_window_without_cancelling_pairs(free_latency):
     bipolar = baseline_correct(bipolar, (-0.2, -0.02), check=False)
     average = bipolar.average()
     # the channels that are not the stimulated pair and not censored (zeros)
-    channels = [n for i, n in enumerate(bipolar.ch_names)
-                if "ROC11" not in n and "ROC12" not in n and np.nanstd(average.data[i]) > 0]
+    channels = [
+        n
+        for i, n in enumerate(bipolar.ch_names)
+        if "ROC11" not in n and "ROC12" not in n and np.nanstd(average.data[i]) > 0
+    ]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        group = fit_shared(bipolar, channels=channels, preset="ccep_seeg",
-                           fit_window=(0.009, 0.49), baseline=(-0.2, -0.02),
-                           free_latency=free_latency)
+        group = fit_shared(
+            bipolar,
+            channels=channels,
+            preset="ccep_seeg",
+            fit_window=(0.009, 0.49),
+            baseline=(-0.2, -0.02),
+            free_latency=free_latency,
+        )
     assert not _outside(group)
     assert not _pairs(group)

@@ -13,7 +13,8 @@ __all__ = ["epoch", "epoch_data"]
 ###################################################################################################
 ###################################################################################################
 
-def epoch_data(data, sfreq, onsets, tmin, tmax, t0=0.):
+
+def epoch_data(data, sfreq, onsets, tmin, tmax, t0=0.0):
     """Cut epochs from continuous data, around event onsets.
 
     Parameters
@@ -54,7 +55,7 @@ def epoch_data(data, sfreq, onsets, tmin, tmax, t0=0.):
     return times, epochs, kept
 
 
-def epoch_windows(onsets, sfreq, tmin, tmax, n_samples, t0=0.):
+def epoch_windows(onsets, sfreq, tmin, tmax, n_samples, t0=0.0):
     """Sample windows of the epochs ``[tmin, tmax)`` around onsets.
 
     The onset sample is the sample nearest each onset; the window holds the samples
@@ -72,13 +73,15 @@ def epoch_windows(onsets, sfreq, tmin, tmax, n_samples, t0=0.):
     """
 
     if not tmax > tmin:
-        raise DataError('epoch: tmax ({}) must be greater than tmin ({}).'.format(tmax, tmin))
+        raise DataError("epoch: tmax ({}) must be greater than tmin ({}).".format(tmax, tmin))
     first, stop = int(np.round(tmin * sfreq)), int(np.round(tmax * sfreq))
     if stop - first < 2:
-        raise DataError('epoch: the window ({}, {}) holds fewer than 2 samples.'.format(tmin, tmax))
+        raise DataError(
+            "epoch: the window ({}, {}) holds fewer than 2 samples.".format(tmin, tmax)
+        )
     onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
     if onsets.ndim != 1 or not np.all(np.isfinite(onsets)):
-        raise EventError('epoch: onsets must be a 1d array of finite times (s).')
+        raise EventError("epoch: onsets must be a 1d array of finite times (s).")
     centers = np.round((onsets - t0) * sfreq).astype(np.int64)
     starts = centers + first
     kept = (starts >= 0) & (centers + stop <= n_samples)
@@ -89,7 +92,7 @@ def overlap_flags(onsets, length):
     """True for each event closer than ``length`` seconds to the previous event in time."""
 
     onsets = np.asarray(onsets, dtype=float)
-    order = np.argsort(onsets, kind='stable')
+    order = np.argsort(onsets, kind="stable")
     flags = np.zeros(onsets.size, dtype=bool)
     if onsets.size > 1:
         flags[order[1:]] = np.diff(onsets[order]) < length
@@ -100,12 +103,13 @@ def _as_table(table, n_rows, name):
     """DataFrame (RangeIndex) from a DataFrame or a dict of columns."""
 
     import pandas as pd
+
     if isinstance(table, dict):
         table = pd.DataFrame(table)
-    if not (type(table).__name__ == 'DataFrame'):
-        raise DataError('{}: expected a pandas DataFrame or a dict of columns.'.format(name))
+    if not (type(table).__name__ == "DataFrame"):
+        raise DataError("{}: expected a pandas DataFrame or a dict of columns.".format(name))
     if len(table) != n_rows:
-        raise DataError('{}: expected {} rows, got {}.'.format(name, n_rows, len(table)))
+        raise DataError("{}: expected {} rows, got {}.".format(name, n_rows, len(table)))
     return table.reset_index(drop=True)
 
 
@@ -117,8 +121,19 @@ def _pandas():
     return pandas
 
 
-def epoch(data, sfreq, onsets, tmin, tmax, *, t0=0.0, ch_names=None, units='uV', metadata=None,
-          ch_info=None):
+def epoch(
+    data,
+    sfreq,
+    onsets,
+    tmin,
+    tmax,
+    *,
+    t0=0.0,
+    ch_names=None,
+    units="uV",
+    metadata=None,
+    ch_info=None,
+):
     """Cut a continuous recording into a TrialSet of epochs around events.
 
     Parameters
@@ -167,24 +182,29 @@ def epoch(data, sfreq, onsets, tmin, tmax, *, t0=0.0, ch_names=None, units='uV',
 
     start = _time.perf_counter()
     prior = []
-    if type(onsets).__name__ == 'DataFrame':
-        record = onsets.attrs.get('provenance') or {}
-        prior = list(record.get('steps', [])) if isinstance(record, dict) else \
-            list(getattr(record, 'steps', []))
-        if 'onset_time' not in onsets.columns:
-            raise DataError('epoch: an event table needs the column onset_time.')
-        onsets = onsets['onset_time'].to_numpy(float)
+    if type(onsets).__name__ == "DataFrame":
+        record = onsets.attrs.get("provenance") or {}
+        prior = (
+            list(record.get("steps", []))
+            if isinstance(record, dict)
+            else list(getattr(record, "steps", []))
+        )
+        if "onset_time" not in onsets.columns:
+            raise DataError("epoch: an event table needs the column onset_time.")
+        onsets = onsets["onset_time"].to_numpy(float)
     data = np.asarray(data, dtype=np.float64)
     if data.ndim == 1:
         data = data[np.newaxis]
     if data.ndim != 2:
-        raise DataError('epoch: data must be 2d (n_channels, n_times), got shape {}.'.format(
-            data.shape))
+        raise DataError(
+            "epoch: data must be 2d (n_channels, n_times), got shape {}.".format(data.shape)
+        )
     onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
     times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, data.shape[1], t0=t0)
     if not kept.any():
-        raise EventError('epoch: no epoch of ({}, {}) s fits inside the recording.'.format(
-            tmin, tmax))
+        raise EventError(
+            "epoch: no epoch of ({}, {}) s fits inside the recording.".format(tmin, tmax)
+        )
 
     index = starts[kept][:, None] + np.arange(times.size)[None, :]
     trials = np.moveaxis(data[:, index], 0, 1)
@@ -194,27 +214,46 @@ def epoch(data, sfreq, onsets, tmin, tmax, *, t0=0.0, ch_names=None, units='uV',
     pd = _pandas()
     table = None
     if metadata is not None:
-        table = _as_table(metadata, onsets.size, 'metadata').iloc[np.flatnonzero(kept)]
+        table = _as_table(metadata, onsets.size, "metadata").iloc[np.flatnonzero(kept)]
         table = table.reset_index(drop=True)
     elif pd is not None:
-        table = pd.DataFrame({'trial' : np.flatnonzero(kept).astype(np.int64)})
+        table = pd.DataFrame({"trial": np.flatnonzero(kept).astype(np.int64)})
     if table is not None:
-        table['overlaps_previous'] = overlaps
+        table["overlaps_previous"] = overlaps
     if ch_info is not None:
-        ch_info = _as_table(ch_info, len(ch_names), 'ch_info')
+        ch_info = _as_table(ch_info, len(ch_names), "ch_info")
 
-    settings = {'sfreq' : float(sfreq), 'tmin' : float(tmin), 'tmax' : float(tmax),
-                't0' : float(t0), 'n_onsets' : int(onsets.size), 'units' : units}
-    provenance = Provenance(source={'path' : None, 'format' : 'array',
-                                    'reader' : 'evoparam.io.epoch'}, steps=prior)
-    provenance = provenance.with_step('evoparam.io.epoch', settings,
-                                      duration_s=_time.perf_counter() - start,
-                                      kept=kept.tolist(), overlaps_previous=overlaps.tolist())
-    return TrialSet(data=trials, times=times, sfreq=sfreq, ch_names=ch_names, units=units,
-                    metadata=table, ch_info=ch_info, event_times=onsets[kept],
-                    provenance=provenance)
+    settings = {
+        "sfreq": float(sfreq),
+        "tmin": float(tmin),
+        "tmax": float(tmax),
+        "t0": float(t0),
+        "n_onsets": int(onsets.size),
+        "units": units,
+    }
+    provenance = Provenance(
+        source={"path": None, "format": "array", "reader": "evoparam.io.epoch"}, steps=prior
+    )
+    provenance = provenance.with_step(
+        "evoparam.io.epoch",
+        settings,
+        duration_s=_time.perf_counter() - start,
+        kept=kept.tolist(),
+        overlaps_previous=overlaps.tolist(),
+    )
+    return TrialSet(
+        data=trials,
+        times=times,
+        sfreq=sfreq,
+        ch_names=ch_names,
+        units=units,
+        metadata=table,
+        ch_info=ch_info,
+        event_times=onsets[kept],
+        provenance=provenance,
+    )
 
 
 def _default_names(n_channels):
     width = max(3, len(str(n_channels)))
-    return ['CH{:0{}d}'.format(ind + 1, width) for ind in range(n_channels)]
+    return ["CH{:0{}d}".format(ind + 1, width) for ind in range(n_channels)]

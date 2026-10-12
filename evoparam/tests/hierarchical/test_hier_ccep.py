@@ -8,9 +8,13 @@ import os
 
 import pytest
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+]
 
 PARTICIPANTS = "https://s3.amazonaws.com/openneuro.org/ds004080/participants.tsv"
 
@@ -47,8 +51,7 @@ def _subjects():
 def age_fit():
     from evoparam.hierarchical import fit_hierarchical
 
-    return fit_hierarchical(_subjects(), components=["N1"], formula="latency ~ age",
-                            n_jobs=-1)
+    return fit_hierarchical(_subjects(), components=["N1"], formula="latency ~ age", n_jobs=-1)
 
 
 def test_req178_n1_latency_decreases_with_age(age_fit):

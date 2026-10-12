@@ -24,15 +24,24 @@ import tempfile
 import numpy as np
 
 from evoparam import reports
-from evoparam.io import (fetch_openneuro_file, format_stim_report, read_bids,
-                         read_bids_derivatives, validate_stim_metadata,
-                         write_bids_derivatives)
+from evoparam.io import (
+    fetch_openneuro_file,
+    format_stim_report,
+    read_bids,
+    read_bids_derivatives,
+    validate_stim_metadata,
+    write_bids_derivatives,
+)
 
 DATASET = "ds003708"
 STEM = "sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_task-ccep_run-01"
 work = tempfile.mkdtemp(prefix="evoparam-bids-")
-for name in ("dataset_description.json", STEM + "_events.tsv", STEM + "_channels.tsv",
-             STEM + "_ieeg.json"):
+for name in (
+    "dataset_description.json",
+    STEM + "_events.tsv",
+    STEM + "_channels.tsv",
+    STEM + "_ieeg.json",
+):
     fetch_openneuro_file(DATASET, name, folder=work)
 root = os.path.join(work, DATASET)
 
@@ -47,12 +56,22 @@ print(format_stim_report(table))
 # Epochs of one site, read remotely
 # ---------------------------------
 
-trials = read_bids(DATASET, "01", session="ieeg01", task="ccep", run="01", remote=True,
-                   select={"stim_site": "LTG1-LTG2"},
-                   picks=["LTG3", "LTG4", "LTG9", "LTG10", "LTG17", "LTG18"],
-                   epoch=(-1.0, 2.0))
-print(trials.metadata[["stim_site", "stim_current_mA", "stim_polarity",
-                       "electrical_stimulation_current"]].head(3))
+trials = read_bids(
+    DATASET,
+    "01",
+    session="ieeg01",
+    task="ccep",
+    run="01",
+    remote=True,
+    select={"stim_site": "LTG1-LTG2"},
+    picks=["LTG3", "LTG4", "LTG9", "LTG10", "LTG17", "LTG18"],
+    epoch=(-1.0, 2.0),
+)
+print(
+    trials.metadata[
+        ["stim_site", "stim_current_mA", "stim_polarity", "electrical_stimulation_current"]
+    ].head(3)
+)
 
 # %%
 # Results as BIDS derivatives
@@ -60,9 +79,17 @@ print(trials.metadata[["stim_site", "stim_current_mA", "stim_polarity",
 
 result = reports.run_pipeline(trials, "ccep", random_state=0, trial_fits=False)
 out = os.path.join(root, "derivatives", "evoparam")
-files = write_bids_derivatives(result.results, root, subject="01", session="ieeg01",
-                               task="ccep", run="01", out=out, trials=result.trials,
-                               overwrite=True)
+files = write_bids_derivatives(
+    result.results,
+    root,
+    subject="01",
+    session="ieeg01",
+    task="ccep",
+    run="01",
+    out=out,
+    trials=result.trials,
+    overwrite=True,
+)
 for path in files:
     print(os.path.relpath(path, root))
 with open(next(f for f in files if f.endswith("_responses.tsv")), encoding="utf-8") as fobj:

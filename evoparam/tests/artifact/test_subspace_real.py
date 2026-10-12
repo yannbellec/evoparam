@@ -44,18 +44,43 @@ from evoparam.data import TrialSet
 
 from .helpers import response, times_axis
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+]
 
-TMS_SUBJECTS = ["283", "711", "718", "728", "734", "735", "739", "743", "749", "759", "761",
-                "764", "766", "767", "768", "774", "779", "780", "783", "786"]
+TMS_SUBJECTS = [
+    "283",
+    "711",
+    "718",
+    "728",
+    "734",
+    "735",
+    "739",
+    "743",
+    "749",
+    "759",
+    "761",
+    "764",
+    "766",
+    "767",
+    "768",
+    "774",
+    "779",
+    "780",
+    "783",
+    "786",
+]
 TMS_WINDOW = (-0.002, 0.012)
 SPES_WINDOW = (-0.002, 0.008)
 SPAN = 20.0
 
 ###################################################################################################
 ###################################################################################################
+
 
 def _tms_segment(subject):
     """20 s of ds002094 task tmseeg1 from 1 s before the first pulse (cached)."""
@@ -72,13 +97,25 @@ def _tms_segment(subject):
         onsets = np.array([float(ev["onset"]) for ev in events if ev.get("value") == "R128"])
         tmin = max(onsets.min() - 1.0, 0.0)
         data, sfreq, names, t0 = read_brainvision_segment(
-            openneuro_url("ds002094", stem + "_eeg.vhdr"), tmin, tmin + SPAN)
+            openneuro_url("ds002094", stem + "_eeg.vhdr"), tmin, tmin + SPAN
+        )
         keep = (onsets >= t0 + 0.5) & (onsets <= t0 + data.shape[1] / sfreq - 0.5)
-        np.savez_compressed(path, data=data.astype(np.float32), sfreq=sfreq,
-                            names=np.array(names), t0=t0, onsets=onsets[keep])
+        np.savez_compressed(
+            path,
+            data=data.astype(np.float32),
+            sfreq=sfreq,
+            names=np.array(names),
+            t0=t0,
+            onsets=onsets[keep],
+        )
     seg = np.load(path)
-    return (seg["data"].astype(float), float(seg["sfreq"]), [str(n) for n in seg["names"]],
-            float(seg["t0"]), seg["onsets"])
+    return (
+        seg["data"].astype(float),
+        float(seg["sfreq"]),
+        [str(n) for n in seg["names"]],
+        float(seg["t0"]),
+        seg["onsets"],
+    )
 
 
 def _pulse_artifacts(data, sfreq, t0, onsets, window):
@@ -89,8 +126,8 @@ def _pulse_artifacts(data, sfreq, t0, onsets, window):
     out = []
     for onset in onsets:
         i0 = int(round((onset - t0) * sfreq))
-        level = np.median(data[:, i0 - 3 * pre:i0 - pre], axis=1, keepdims=True)
-        out.append(data[:, i0 + lo:i0 + hi + 1] - level)
+        level = np.median(data[:, i0 - 3 * pre : i0 - pre], axis=1, keepdims=True)
+        out.append(data[:, i0 + lo : i0 + hi + 1] - level)
     return np.array(out)
 
 
@@ -103,8 +140,12 @@ def spes_template(stem, n_channels=32):
     from evoparam.tests.events.test_ds004080_events import _segment
 
     data, sfreq, names, t0, onsets, _ = _segment(stem)
-    keep = [i for i, n in enumerate(names) if re.match(r"^[A-Za-z]+\d+$", n)
-            and not n.upper().startswith(("MKR", "ECG", "EMG", "EOG"))]
+    keep = [
+        i
+        for i, n in enumerate(names)
+        if re.match(r"^[A-Za-z]+\d+$", n)
+        and not n.upper().startswith(("MKR", "ECG", "EMG", "EOG"))
+    ]
     arts = _pulse_artifacts(data[keep], sfreq, t0, onsets, SPES_WINDOW)
     finite = np.flatnonzero(np.isfinite(arts).all(axis=(0, 2)))
     pick = finite[np.linspace(0, len(finite) - 1, n_channels).round().astype(int)]
@@ -119,18 +160,22 @@ def sir_improvement(template, sfreq, window, seed=0, n_trials=30, **options):
     n_channels = template.shape[0]
     times = times_axis(sfreq)
     mixing = rng.normal(0, 1, (n_channels, n_channels)) / np.sqrt(n_channels)
-    eeg = np.einsum("ij,kjt->kit", mixing,
-                    rng.normal(0, 5, (n_trials, n_channels, len(times))))
+    eeg = np.einsum("ij,kjt->kit", mixing, rng.normal(0, 5, (n_trials, n_channels, len(times))))
     topo = rng.normal(0, 1, n_channels)
     clean = eeg + topo[None, :, None] * response(times, 0.012, -20.0)[None, None]
     start = int(np.searchsorted(times, window[0] - 1e-12))
     noisy = clean.copy()
-    noisy[:, :, start:start + template.shape[1]] += (rng.uniform(0.9, 1.1, (n_trials, 1, 1))
-                                                     * template[None])
+    noisy[:, :, start : start + template.shape[1]] += (
+        rng.uniform(0.9, 1.1, (n_trials, 1, 1)) * template[None]
+    )
     names = [f"E{i}" for i in range(n_channels)]
     make = lambda d: TrialSet(data=d, times=times, sfreq=sfreq, ch_names=names)
-    table = compare_methods(make(noisy), [{"method": "subspace", "window": window, **options}],
-                            truth=make(clean), window_eval=(window[1], 0.05))
+    table = compare_methods(
+        make(noisy),
+        [{"method": "subspace", "window": window, **options}],
+        truth=make(clean),
+        window_eval=(window[1], 0.05),
+    )
     return float(table["sir_improvement_db"].iloc[0])
 
 
@@ -157,22 +202,31 @@ def test_req064_real_spes_templates():
     assert min(gains) >= 30, np.round(gains, 1)
 
 
-@pytest.mark.xfail(strict=True, reason="the specification's subspace (95 % of the whitened "
-                                       "energy, at most 6 directions, every sample "
-                                       "projected) on real TMS templates: median 1.6 dB "
-                                       "(0.2 to 4.1), not 30 dB (module docstring)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="the specification's subspace (95 % of the whitened "
+    "energy, at most 6 directions, every sample "
+    "projected) on real TMS templates: median 1.6 dB "
+    "(0.2 to 4.1), not 30 dB (module docstring)",
+)
 def test_req064_real_tms_templates_specification_version():
 
-    gains = [sir_improvement(*tms_template(subject), TMS_WINDOW, **SPEC_VERSION)
-             for subject in TMS_SUBJECTS]
+    gains = [
+        sir_improvement(*tms_template(subject), TMS_WINDOW, **SPEC_VERSION)
+        for subject in TMS_SUBJECTS
+    ]
     assert min(gains) >= 30, np.round(gains, 1)
 
 
-@pytest.mark.xfail(strict=True, reason="the specification's subspace on real SPES templates "
-                                       "(ds004080, 23 runs at 2048 Hz): median 9.3 dB (5.0 to "
-                                       "18.4), not 30 dB (module docstring)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="the specification's subspace on real SPES templates "
+    "(ds004080, 23 runs at 2048 Hz): median 9.3 dB (5.0 to "
+    "18.4), not 30 dB (module docstring)",
+)
 def test_req064_real_spes_templates_specification_version():
 
-    gains = [sir_improvement(*spes_template(stem), SPES_WINDOW, **SPEC_VERSION)
-             for stem in _spes_runs()]
+    gains = [
+        sir_improvement(*spes_template(stem), SPES_WINDOW, **SPEC_VERSION) for stem in _spes_runs()
+    ]
     assert min(gains) >= 30, np.round(gains, 1)

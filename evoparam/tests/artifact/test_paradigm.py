@@ -14,9 +14,10 @@ from .helpers import artifact_shape, response, times_axis
 ###################################################################################################
 ###################################################################################################
 
+
 def alternating(n_pairs=10, extra=0, seed=0):
     rng = np.random.default_rng(seed)
-    sfreq = 2048.
+    sfreq = 2048.0
     times = times_axis(sfreq)
     art = artifact_shape(times, sfreq)
     resp = response(times, 0.012, -80.0)
@@ -25,9 +26,12 @@ def alternating(n_pairs=10, extra=0, seed=0):
     data = np.empty((n, 2, len(times)))
     for k in range(n):
         data[k] = resp + signs[k] * art + 0.0 * rng.normal(size=(2, len(times)))
-    meta = pd.DataFrame({"stim_site": ["A-B"] * n,
-                         "stim_polarity": np.where(signs < 0, "monophasic_cathodic",
-                                                   "monophasic_anodic")})
+    meta = pd.DataFrame(
+        {
+            "stim_site": ["A-B"] * n,
+            "stim_polarity": np.where(signs < 0, "monophasic_cathodic", "monophasic_anodic"),
+        }
+    )
     ts = TrialSet(data=data, times=times, sfreq=sfreq, ch_names=["x", "y"], metadata=meta)
     return ts, resp, art
 
@@ -49,8 +53,9 @@ def test_alternating_with_imperfect_inversion_and_unpaired_trials():
 
     ts, resp, art = alternating(extra=1)
     data = ts.data.copy()
-    data[1::2][:10] += 0.005 * art               # the anodic artifact is 0.5 % larger
+    data[1::2][:10] += 0.005 * art  # the anodic artifact is 0.5 % larger
     from dataclasses import replace
+
     out = paradigm_subtract(replace(ts, data=data), scheme="alternating")
     paired = out.data[out.metadata["paired"].to_numpy()]
     assert np.abs(paired - resp).max() / np.abs(art).max() <= 0.01
@@ -63,9 +68,14 @@ def test_explicit_pair_ids():
     ts, resp, _ = alternating(n_pairs=3)
     meta = ts.metadata.copy()
     meta["pair_id"] = [0, 1, 0, 1, 2, 2]
-    meta.loc[[0, 1, 2, 3], "stim_polarity"] = ["monophasic_cathodic", "monophasic_cathodic",
-                                              "monophasic_anodic", "monophasic_anodic"]
+    meta.loc[[0, 1, 2, 3], "stim_polarity"] = [
+        "monophasic_cathodic",
+        "monophasic_cathodic",
+        "monophasic_anodic",
+        "monophasic_anodic",
+    ]
     from dataclasses import replace
+
     out = paradigm_subtract(replace(ts, metadata=meta), scheme="alternating", pairing="pair_id")
     assert out.n_trials == 3
 
@@ -73,12 +83,12 @@ def test_explicit_pair_ids():
 def test_req067_forward_masking_identity():
 
     rng = np.random.default_rng(1)
-    times = times_axis(1000.)
+    times = times_axis(1000.0)
     conds = {name: rng.normal(size=(1, len(times))) for name in "ABCD"}
     order = list("ABCD") * 3
     data = np.array([conds[name] for name in order])
     meta = pd.DataFrame({"paradigm_condition": order})
-    ts = TrialSet(data=data, times=times, sfreq=1000., ch_names=["x"], metadata=meta)
+    ts = TrialSet(data=data, times=times, sfreq=1000.0, ch_names=["x"], metadata=meta)
     out = paradigm_subtract(ts, scheme="forward_masking")
     expected = conds["A"] - conds["B"] + (conds["C"] - conds["D"])
     assert out.n_trials == 3

@@ -12,10 +12,14 @@ import pytest
 
 ROOT = pathlib.Path(__file__).parents[3]
 REFERENCE = ROOT / "validation" / "layer3" / "carla_ds004977.json"
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro"),
-              pytest.mark.skipif(not REFERENCE.exists(), reason="comparator file missing")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+    pytest.mark.skipif(not REFERENCE.exists(), reason="comparator file missing"),
+]
 
 
 def test_req372_left_out_channels_agree_with_the_authors_code():
@@ -27,8 +31,9 @@ def test_req372_left_out_channels_agree_with_the_authors_code():
     for site in reference["sites"]:
         trials = load_trials(site["subject"], site["run"], site["site"])
         index = np.array([trials.ch_names.index(c) for c in site["channels"]])
-        chosen = car_adaptive_select(trials.data[:, index], trials.times, n_boot=100,
-                                     random_state=0)
+        chosen = car_adaptive_select(
+            trials.data[:, index], trials.times, n_boot=100, random_state=0
+        )
         ours = {site["channels"][i] for i in chosen["members"]}
         left_ours = set(site["channels"]) - ours
         left_theirs = set(site["channels"]) - set(site["carla_used"])

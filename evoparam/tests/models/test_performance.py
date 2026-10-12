@@ -15,21 +15,29 @@ import pytest
 from evoparam.data import Evoked
 from evoparam.models import ResponseModel, fit_response
 
-pytestmark = pytest.mark.skipif(os.environ.get("EVOPARAM_PERF_TESTS") != "1",
-                                reason="set EVOPARAM_PERF_TESTS=1 to time the engine")
+pytestmark = pytest.mark.skipif(
+    os.environ.get("EVOPARAM_PERF_TESTS") != "1",
+    reason="set EVOPARAM_PERF_TESTS=1 to time the engine",
+)
 
-SFREQ = 2048.
-TIMES = (np.arange(2048) - 1022) / SFREQ                    # 2 048 samples, to 0.5005 s
+SFREQ = 2048.0
+TIMES = (np.arange(2048) - 1022) / SFREQ  # 2 048 samples, to 0.5005 s
 
 
 def _waveform(rng):
-    return (-100 * np.exp(-0.5 * ((TIMES - 0.025) / 0.006) ** 2)
-            - 60 * np.exp(-0.5 * ((TIMES - 0.15) / 0.04) ** 2) + rng.normal(0, 5, len(TIMES)))
+    return (
+        -100 * np.exp(-0.5 * ((TIMES - 0.025) / 0.006) ** 2)
+        - 60 * np.exp(-0.5 * ((TIMES - 0.15) / 0.04) ** 2)
+        + rng.normal(0, 5, len(TIMES))
+    )
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-115 not met: median 0.29 to 0.30 s per waveform "
-                   "with ccep v1.1, 0.52 to 0.55 s before (one thread; pure NumPy/SciPy; "
-                   "CHANGELOG, 'Engine speed (REQ-115, REQ-290 P1)')")
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-115 not met: median 0.29 to 0.30 s per waveform "
+    "with ccep v1.1, 0.52 to 0.55 s before (one thread; pure NumPy/SciPy; "
+    "CHANGELOG, 'Engine speed (REQ-115, REQ-290 P1)')",
+)
 def test_req115_one_waveform_under_50_ms():
 
     rng = np.random.default_rng(0)
@@ -42,14 +50,18 @@ def test_req115_one_waveform_under_50_ms():
     assert np.median(durations) <= 0.05
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-115 (fit_group) not met: 25 s for 100 channels "
-                   "with ccep v1.1, 45 to 48 s before (one thread; CHANGELOG, 'Engine speed "
-                   "(REQ-115, REQ-290 P1)')")
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-115 (fit_group) not met: 25 s for 100 channels "
+    "with ccep v1.1, 45 to 48 s before (one thread; CHANGELOG, 'Engine speed "
+    "(REQ-115, REQ-290 P1)')",
+)
 def test_req115_fit_group_100_channels_under_10_s():
 
     rng = np.random.default_rng(1)
-    data = np.array([_waveform(rng) * rng.uniform(0, 1.5) + rng.normal(0, 5, len(TIMES))
-                     for _ in range(100)])
+    data = np.array(
+        [_waveform(rng) * rng.uniform(0, 1.5) + rng.normal(0, 5, len(TIMES)) for _ in range(100)]
+    )
     evoked = Evoked(data=data, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(100)])
     model = ResponseModel("ccep", n_jobs=1)
     start = time.perf_counter()

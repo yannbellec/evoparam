@@ -25,9 +25,25 @@ from evoparam.data._jsonutil import dumps, loads, to_jsonable
 
 # Optional packages whose versions are recorded when installed (None when absent).
 OPTIONAL_PACKAGES = (
-    "pandas", "pyarrow", "matplotlib", "mne", "mne-bids", "pynwb", "neo", "pyedflib",
-    "xarray", "joblib", "tqdm", "click", "statsmodels", "jsonschema", "pylsl",
-    "jax", "numpyro", "pymc", "cupy",
+    "pandas",
+    "pyarrow",
+    "matplotlib",
+    "mne",
+    "mne-bids",
+    "pynwb",
+    "neo",
+    "pyedflib",
+    "xarray",
+    "joblib",
+    "tqdm",
+    "click",
+    "statsmodels",
+    "jsonschema",
+    "pylsl",
+    "jax",
+    "numpyro",
+    "pymc",
+    "cupy",
 )
 
 
@@ -59,8 +75,11 @@ def elapsed(start):
 
 def _now_utc():
     epoch = fixed_clock()
-    when = datetime.fromtimestamp(epoch, timezone.utc) if epoch is not None \
+    when = (
+        datetime.fromtimestamp(epoch, timezone.utc)
+        if epoch is not None
         else datetime.now(timezone.utc)
+    )
     return when.isoformat(timespec="milliseconds")
 
 
@@ -88,8 +107,9 @@ def _cpu_name():
 def _git_commit():
     """Commit of the package source tree when installed from a git checkout."""
 
-    git_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                           os.pardir, ".git")
+    git_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), os.pardir, ".git"
+    )
     try:
         with open(os.path.join(git_dir, "HEAD"), encoding="utf-8") as fobj:
             head = fobj.read().strip()
@@ -114,8 +134,8 @@ def _lock_path():
     the source tree, or of the folder named by ``EVOPARAM_LOCK_DIR``."""
 
     folder = os.environ.get("EVOPARAM_LOCK_DIR") or os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-        "ci", "locks")
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "ci", "locks"
+    )
     return os.path.join(folder, "py{}.{}.lock".format(*sys.version_info[:2]))
 
 
@@ -130,7 +150,7 @@ def lock_sha256(path=None):
         raw = fobj.read()
     try:
         from packaging.markers import Marker
-    except ImportError:                       # markers cannot be evaluated: no claim
+    except ImportError:  # markers cannot be evaluated: no claim
         Marker = None
     from importlib import metadata
 
@@ -265,14 +285,16 @@ class Provenance(DeepEqualMixin):
         settings = settings or {}
         # REQ-294: every step has the seven keys (function, settings, version, preset,
         # random_state, duration_s, n_jobs); REQ-399: and the version of its algorithm
-        step = {"function": function, "settings": to_jsonable(settings),
-                "version": __version__,
-                "algorithm_version": algorithm_version(function),
-                "preset": None,
-                "random_state": settings.get("random_state")
-                if isinstance(settings, dict) else None,
-                "duration_s": None if duration_s is None else float(duration_s),
-                "n_jobs": settings.get("n_jobs", 1) if isinstance(settings, dict) else 1}
+        step = {
+            "function": function,
+            "settings": to_jsonable(settings),
+            "version": __version__,
+            "algorithm_version": algorithm_version(function),
+            "preset": None,
+            "random_state": settings.get("random_state") if isinstance(settings, dict) else None,
+            "duration_s": None if duration_s is None else float(duration_s),
+            "n_jobs": settings.get("n_jobs", 1) if isinstance(settings, dict) else 1,
+        }
         step.update(to_jsonable(extra))
         new = self.copy()
         new.steps.append(step)
@@ -281,10 +303,15 @@ class Provenance(DeepEqualMixin):
     def to_dict(self):
         """Return a JSON-serialisable dictionary."""
 
-        return {"package_version": self.package_version, "created": self.created,
-                "source": copy.deepcopy(self.source), "steps": copy.deepcopy(self.steps),
-                "environment": copy.deepcopy(self.environment),
-                "random_state": self.random_state, "data_hash": self.data_hash}
+        return {
+            "package_version": self.package_version,
+            "created": self.created,
+            "source": copy.deepcopy(self.source),
+            "steps": copy.deepcopy(self.steps),
+            "environment": copy.deepcopy(self.environment),
+            "random_state": self.random_state,
+            "data_hash": self.data_hash,
+        }
 
     @classmethod
     def from_dict(cls, dct):

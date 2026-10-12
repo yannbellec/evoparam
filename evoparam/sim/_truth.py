@@ -26,23 +26,50 @@ from evoparam.utils._optional import require
 __all__ = ["GroundTruth", "TRUTH_COLUMNS", "PARAM_UNITS"]
 
 # Features shared with ResponseFit / GroupFit tables, with the same units.
-FEATURES = ("latency", "amplitude", "polarity", "fwhm", "onset", "offset", "area",
-            "rise_time", "decay_time", "symmetry", "sharpness")
+FEATURES = (
+    "latency",
+    "amplitude",
+    "polarity",
+    "fwhm",
+    "onset",
+    "offset",
+    "area",
+    "rise_time",
+    "decay_time",
+    "symmetry",
+    "sharpness",
+)
 # Features that move with the latency shift, and those that scale with the amplitude.
 _SHIFTED = ("latency", "onset", "offset", "peak_time")
 _SCALED = ("amplitude", "area")
 
 # Columns of GroundTruth.to_dataframe(): the component columns of GroupFit.to_dataframe()
 # (same names and units, without "status"), then the truth-only columns.
-TRUTH_COLUMNS = {key: unit for key, unit in COMPONENT_COLUMNS.items()
-                 if key not in ("status", "resolvable")}
-TRUTH_COLUMNS.update({"trial": "", "role": "", "event": "", "snr": "", "shift": "s",
-                      "scale": "", "n_trials": ""})
+TRUTH_COLUMNS = {
+    key: unit for key, unit in COMPONENT_COLUMNS.items() if key not in ("status", "resolvable")
+}
+TRUTH_COLUMNS.update(
+    {"trial": "", "role": "", "event": "", "snr": "", "shift": "s", "scale": "", "n_trials": ""}
+)
 
 # Units of the shape parameters (columns "param_<name>").
-PARAM_UNITS = {"mu": "s", "sigma": "s", "xi": "s", "omega": "s", "alpha": "", "tau": "s",
-               "t0": "s", "kappa": "", "theta": "s", "tau_rise": "s", "tau_decay": "s",
-               "freq": "Hz", "phase": "rad", "shift": "s", "stretch": ""}
+PARAM_UNITS = {
+    "mu": "s",
+    "sigma": "s",
+    "xi": "s",
+    "omega": "s",
+    "alpha": "",
+    "tau": "s",
+    "t0": "s",
+    "kappa": "",
+    "theta": "s",
+    "tau_rise": "s",
+    "tau_decay": "s",
+    "freq": "Hz",
+    "phase": "rad",
+    "shift": "s",
+    "stretch": "",
+}
 
 
 @dataclass(eq=False)
@@ -122,8 +149,10 @@ class GroundTruth(DeepEqualMixin):
             self.scale = np.asarray(self.scale, dtype=np.float64).reshape(shape)
             self.present = np.asarray(self.present, dtype=bool).reshape(shape)
         except ValueError:
-            raise DataError(f"GroundTruth: shift, scale and present must have shape {shape} "
-                            "(trials × components).") from None
+            raise DataError(
+                f"GroundTruth: shift, scale and present must have shape {shape} "
+                "(trials × components)."
+            ) from None
         self.seed = None if self.seed is None else int(self.seed)
         for name in ("signal", "artifact_data"):
             value = getattr(self, name)
@@ -144,9 +173,11 @@ class GroundTruth(DeepEqualMixin):
         return copy.deepcopy(self)
 
     def __repr__(self):
-        return (f"<GroundTruth from {self.generator}: {self.n_trials} trials, "
-                f"{len(self.ch_names)} channels, {self.n_components} components, "
-                f"seed {self.seed}>")
+        return (
+            f"<GroundTruth from {self.generator}: {self.n_trials} trials, "
+            f"{len(self.ch_names)} channels, {self.n_components} components, "
+            f"seed {self.seed}>"
+        )
 
     ###############################################################################################
     ## Trial-level values
@@ -167,6 +198,7 @@ class GroundTruth(DeepEqualMixin):
         """
 
         from evoparam.shapes import get_shape
+
         comp = self.components[index]
         shape = get_shape(comp["shape"])
         params = self.trial_params(index)
@@ -192,24 +224,36 @@ class GroundTruth(DeepEqualMixin):
 
     def _row(self, index, position, shift, scale):
         comp = self.components[index]
-        feats = {key: np.nan if value is None else value
-                 for key, value in comp["features"].items()}
+        feats = {
+            key: np.nan if value is None else value for key, value in comp["features"].items()
+        }
         for name in _SHIFTED:
             if name in feats:
                 feats[name] = feats[name] + shift
         for name in _SCALED:
             feats[name] = feats[name] * scale
         feats["polarity"] = int(np.sign(feats["amplitude"])) or int(feats["polarity"])
-        row = {"channel": comp["channel"], "component": int(position),
-               "label": comp["label"], "shape": comp["shape"]}
+        row = {
+            "channel": comp["channel"],
+            "component": int(position),
+            "label": comp["label"],
+            "shape": comp["shape"],
+        }
         row.update({name: feats[name] for name in FEATURES})
-        row.update({"role": comp["role"], "event": int(comp["event"]),
-                    "snr": np.nan if comp["snr"] is None else float(comp["snr"]) * scale,
-                    "shift": float(shift), "scale": float(scale)})
+        row.update(
+            {
+                "role": comp["role"],
+                "event": int(comp["event"]),
+                "snr": np.nan if comp["snr"] is None else float(comp["snr"]) * scale,
+                "shift": float(shift),
+                "scale": float(scale),
+            }
+        )
         params = np.asarray(comp["params"], dtype=np.float64).copy()
         params[comp["param_names"].index(comp["loc_param"])] += shift
-        row.update({f"param_{name}": float(value)
-                    for name, value in zip(comp["param_names"], params)})
+        row.update(
+            {f"param_{name}": float(value) for name, value in zip(comp["param_names"], params)}
+        )
         return row
 
     def to_dataframe(self, level="component"):
@@ -241,16 +285,18 @@ class GroundTruth(DeepEqualMixin):
 
         pd = require("pandas", extra="data", caller="evoparam.sim.GroundTruth.to_dataframe")
         if level not in ("component", "trial"):
-            raise DataError(f"GroundTruth.to_dataframe: level must be 'component' or 'trial', "
-                            f"got {level!r}.")
+            raise DataError(
+                f"GroundTruth.to_dataframe: level must be 'component' or 'trial', got {level!r}."
+            )
         order = self._component_order()
         conditions = np.asarray(self.conditions, dtype=object)
         rows = []
         if level == "trial":
             for trial in range(self.n_trials):
                 for index in np.flatnonzero(self.present[trial]):
-                    row = self._row(index, order[index], self.shift[trial, index],
-                                    self.scale[trial, index])
+                    row = self._row(
+                        index, order[index], self.shift[trial, index], self.scale[trial, index]
+                    )
                     row.update(trial=trial, condition=self.conditions[trial])
                     rows.append(row)
         else:
@@ -266,11 +312,13 @@ class GroundTruth(DeepEqualMixin):
                     row.update(n_trials=int(held.sum()), condition=condition)
                     rows.append(row)
         param_columns = sorted({key for row in rows for key in row if key.startswith("param_")})
-        base = [key for key in TRUTH_COLUMNS if key != ("n_trials" if level == "trial"
-                                                        else "trial")]
+        base = [
+            key for key in TRUTH_COLUMNS if key != ("n_trials" if level == "trial" else "trial")
+        ]
         table = pd.DataFrame(rows, columns=base + param_columns)
-        for column in ("component", "polarity", "event") + (("trial",) if level == "trial"
-                                                            else ("n_trials",)):
+        for column in ("component", "polarity", "event") + (
+            ("trial",) if level == "trial" else ("n_trials",)
+        ):
             table[column] = table[column].astype("int64")
         units = {key: TRUTH_COLUMNS[key] for key in base}
         units.update({key: PARAM_UNITS.get(key[6:], "") for key in param_columns})
@@ -285,18 +333,28 @@ class GroundTruth(DeepEqualMixin):
         """JSON-serialisable dictionary; ``arrays=False`` leaves out ``signal`` and
         ``artifact_data``."""
 
-        out = {"generator": self.generator, "ch_names": list(self.ch_names),
-               "times": self.times.tolist(), "sfreq": self.sfreq, "units": self.units,
-               "components": copy.deepcopy(self.components), "shift": self.shift.tolist(),
-               "scale": self.scale.tolist(), "present": self.present.tolist(),
-               "conditions": list(self.conditions), "noise": copy.deepcopy(self.noise),
-               "artifact": copy.deepcopy(self.artifact), "seed": self.seed,
-               "settings": copy.deepcopy(self.settings),
-               "provenance": self.provenance.to_dict()}
+        out = {
+            "generator": self.generator,
+            "ch_names": list(self.ch_names),
+            "times": self.times.tolist(),
+            "sfreq": self.sfreq,
+            "units": self.units,
+            "components": copy.deepcopy(self.components),
+            "shift": self.shift.tolist(),
+            "scale": self.scale.tolist(),
+            "present": self.present.tolist(),
+            "conditions": list(self.conditions),
+            "noise": copy.deepcopy(self.noise),
+            "artifact": copy.deepcopy(self.artifact),
+            "seed": self.seed,
+            "settings": copy.deepcopy(self.settings),
+            "provenance": self.provenance.to_dict(),
+        }
         if arrays:
             out["signal"] = None if self.signal is None else self.signal.tolist()
-            out["artifact_data"] = None if self.artifact_data is None \
-                else self.artifact_data.tolist()
+            out["artifact_data"] = (
+                None if self.artifact_data is None else self.artifact_data.tolist()
+            )
         return to_jsonable(out)
 
     @classmethod
@@ -308,8 +366,9 @@ class GroundTruth(DeepEqualMixin):
         components = copy.deepcopy(dct["components"])
         for comp in components:
             # Strict JSON writes NaN as null; features are numbers, so null means NaN.
-            comp["features"] = {key: np.nan if value is None else value
-                                for key, value in comp["features"].items()}
+            comp["features"] = {
+                key: np.nan if value is None else value for key, value in comp["features"].items()
+            }
         dct["components"] = components
         for name in ("signal", "artifact_data"):
             if dct.get(name) is not None:

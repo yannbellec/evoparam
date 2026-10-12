@@ -12,14 +12,36 @@ from evoparam.data.results import COMPONENT_FEATURES
 from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.utils._optional import require
 
-__all__ = ["parameter_map", "connectivity_matrix", "connectivity_to_long",
-           "connectivity_from_long", "connectivity_array", "plot_parameter_map",
-           "MAP_COLUMNS", "MARKERS"]
+__all__ = [
+    "parameter_map",
+    "connectivity_matrix",
+    "connectivity_to_long",
+    "connectivity_from_long",
+    "connectivity_array",
+    "plot_parameter_map",
+    "MAP_COLUMNS",
+    "MARKERS",
+]
 
 # Columns of parameter_map(), one row per (stimulation site, channel).
-MAP_COLUMNS = ("stim_site", "channel", "status", "component", "label", "shape") + \
-    COMPONENT_FEATURES + ("r2", "value", "existence_p", "existence_significant", "p_response",
-                          "shape_id", "shape_weight", "x", "y", "z", "coord_space", "marker")
+MAP_COLUMNS = (
+    ("stim_site", "channel", "status", "component", "label", "shape")
+    + COMPONENT_FEATURES
+    + (
+        "r2",
+        "value",
+        "existence_p",
+        "existence_significant",
+        "p_response",
+        "shape_id",
+        "shape_weight",
+        "x",
+        "y",
+        "z",
+        "coord_space",
+        "marker",
+    )
+)
 # Marker of each row: a stimulating contact of that site, a bad channel, a channel whose
 # window was masked (not fitted), a fitted response, no response, or a failed fit.
 MARKERS = ("stim_contact", "bad", "masked", "response", "no_response", "failed")
@@ -61,10 +83,12 @@ def _existence_lookup(existence):
         return tests, probs
     p_table = getattr(existence, "p_response", None)
     if p_table is not None and hasattr(p_table, "columns"):
-        site_col = next((c for c in ("stim_site", "condition", "site") if c in p_table.columns),
-                        None)
-        value_col = next((c for c in ("p_response", "probability", "p") if c in
-                          p_table.columns), None)
+        site_col = next(
+            (c for c in ("stim_site", "condition", "site") if c in p_table.columns), None
+        )
+        value_col = next(
+            (c for c in ("p_response", "probability", "p") if c in p_table.columns), None
+        )
         if value_col is not None and "channel" in p_table.columns:
             for _, row in p_table.iterrows():
                 site = str(row[site_col]) if site_col else ""
@@ -100,8 +124,16 @@ def _basis_lookup(basis):
     return out
 
 
-def parameter_map(group_fit, *, parameter="amplitude", stim_site=None, existence=None,
-                  ch_info=None, component=None, basis=None):
+def parameter_map(
+    group_fit,
+    *,
+    parameter="amplitude",
+    stim_site=None,
+    existence=None,
+    ch_info=None,
+    component=None,
+    basis=None,
+):
     """Per (stimulation site, channel) table of a component's parameters with coordinates.
 
     The stimulation site of a fit is its condition (``evoparam.fit(..., by="stim_site")``)
@@ -141,11 +173,18 @@ def parameter_map(group_fit, *, parameter="amplitude", stim_site=None, existence
     has_coords = info is not None and {"name", "x", "y", "z"} <= set(info.columns)
     if has_coords:
         for _, row in info.iterrows():
-            coords[str(row["name"])] = (float(row["x"]), float(row["y"]), float(row["z"]),
-                                        str(row.get("coord_space", "") or ""))
+            coords[str(row["name"])] = (
+                float(row["x"]),
+                float(row["y"]),
+                float(row["z"]),
+                str(row.get("coord_space", "") or ""),
+            )
     if not has_coords or not any(np.isfinite(v[:3]).all() for v in coords.values()):
-        _warn("parameter_map: no channel coordinates (ch_info x, y, z); the map is "
-              "a table only.", UserWarning, stacklevel=2)
+        _warn(
+            "parameter_map: no channel coordinates (ch_info x, y, z); the map is a table only.",
+            UserWarning,
+            stacklevel=2,
+        )
     bad, stim_flag = set(), set()
     if info is not None and "name" in info.columns:
         names = info["name"].astype(str)
@@ -157,15 +196,22 @@ def parameter_map(group_fit, *, parameter="amplitude", stim_site=None, existence
     shapes = _basis_lookup(basis)
 
     rows = []
-    for ch, cond, pos in group_fit.index[["channel", "condition", "position"]] \
-            .itertuples(index=False):
+    for ch, cond, pos in group_fit.index[["channel", "condition", "position"]].itertuples(
+        index=False
+    ):
         site = str(cond) if str(cond) else (str(stim_site) if stim_site is not None else "")
         if stim_site is not None and site != str(stim_site):
             continue
         fit = group_fit.fits[int(pos)]
         k = _pick(fit, component) if fit.status == "ok" else None
-        row = {"stim_site": site, "channel": str(ch), "status": fit.status,
-               "component": -1 if k is None else k, "label": "", "shape": ""}
+        row = {
+            "stim_site": site,
+            "channel": str(ch),
+            "status": fit.status,
+            "component": -1 if k is None else k,
+            "label": "",
+            "shape": "",
+        }
         row.update({name: np.nan for name in COMPONENT_FEATURES})
         row["polarity"] = 0
         if k is not None:
@@ -207,8 +253,10 @@ def parameter_map(group_fit, *, parameter="amplitude", stim_site=None, existence
 ###################################################################################################
 ## Connectivity export
 
-def connectivity_matrix(group_fit, parameter="amplitude", *, long=False, component=None,
-                        existence=None):
+
+def connectivity_matrix(
+    group_fit, parameter="amplitude", *, long=False, component=None, existence=None
+):
     """(stimulation site x channel) matrix of one parameter, wide or long.
 
     Wide: rows are the stimulation sites (index ``stim_site``), columns the channels, in
@@ -229,8 +277,9 @@ def connectivity_matrix(group_fit, parameter="amplitude", *, long=False, compone
     pd = require("pandas", extra="data", caller="evoparam.spatial.connectivity_matrix")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        table = parameter_map(group_fit, parameter=parameter, component=component,
-                              existence=existence)
+        table = parameter_map(
+            group_fit, parameter=parameter, component=component, existence=existence
+        )
     if long:
         out = table[["stim_site", "channel"]].copy()
         out["parameter"] = parameter
@@ -239,8 +288,9 @@ def connectivity_matrix(group_fit, parameter="amplitude", *, long=False, compone
         return out.reset_index(drop=True)
     sites = list(dict.fromkeys(table["stim_site"]))
     channels = list(dict.fromkeys(table["channel"]))
-    wide = pd.DataFrame(np.nan, index=pd.Index(sites, name="stim_site"),
-                        columns=pd.Index(channels, name="channel"))
+    wide = pd.DataFrame(
+        np.nan, index=pd.Index(sites, name="stim_site"), columns=pd.Index(channels, name="channel")
+    )
     for site, ch, value in table[["stim_site", "channel", "value"]].itertuples(index=False):
         wide.loc[site, ch] = value
     wide.attrs["parameter"] = parameter
@@ -259,9 +309,16 @@ def connectivity_to_long(wide, parameter=None):
 
     pd = require("pandas", extra="data", caller="evoparam.spatial.connectivity_to_long")
     parameter = parameter or wide.attrs.get("parameter", "")
-    rows = [{"stim_site": str(site), "channel": str(ch), "parameter": parameter,
-             "value": float(wide.loc[site, ch])}
-            for site in wide.index for ch in wide.columns]
+    rows = [
+        {
+            "stim_site": str(site),
+            "channel": str(ch),
+            "parameter": parameter,
+            "value": float(wide.loc[site, ch]),
+        }
+        for site in wide.index
+        for ch in wide.columns
+    ]
     return pd.DataFrame(rows, columns=list(LONG_COLUMNS))
 
 
@@ -274,10 +331,10 @@ def connectivity_from_long(long_table):
         raise DataError(f"connectivity_from_long: missing columns {sorted(missing)}.")
     sites = list(dict.fromkeys(long_table["stim_site"].astype(str)))
     channels = list(dict.fromkeys(long_table["channel"].astype(str)))
-    wide = pd.DataFrame(np.nan, index=pd.Index(sites, name="stim_site"),
-                        columns=pd.Index(channels, name="channel"))
-    for site, ch, value in long_table[["stim_site", "channel", "value"]] \
-            .itertuples(index=False):
+    wide = pd.DataFrame(
+        np.nan, index=pd.Index(sites, name="stim_site"), columns=pd.Index(channels, name="channel")
+    )
+    for site, ch, value in long_table[["stim_site", "channel", "value"]].itertuples(index=False):
         wide.loc[str(site), str(ch)] = float(value)
     params = long_table["parameter"].unique() if "parameter" in long_table.columns else []
     if len(params) == 1:
@@ -296,8 +353,13 @@ def connectivity_array(wide):
 ###################################################################################################
 ## Figure
 
-_STYLE = {"stim_contact": ("*", "black"), "bad": ("x", "red"), "masked": ("s", "grey"),
-          "no_response": ("o", "lightgrey"), "failed": ("x", "grey")}
+_STYLE = {
+    "stim_contact": ("*", "black"),
+    "bad": ("x", "red"),
+    "masked": ("s", "grey"),
+    "no_response": ("o", "lightgrey"),
+    "failed": ("x", "grey"),
+}
 
 
 # coord_space values (BIDS, lower case) in a template space whose glass brain nilearn draws
@@ -305,8 +367,11 @@ MNI_SPACES = ("mni", "icbm", "fsaverage", "talairach")
 
 
 def _is_mni(table):
-    spaces = {str(v).lower() for v in table["coord_space"].dropna()} - {"", "nan", "none"} \
-        if "coord_space" in table.columns else set()
+    spaces = (
+        {str(v).lower() for v in table["coord_space"].dropna()} - {"", "nan", "none"}
+        if "coord_space" in table.columns
+        else set()
+    )
     return bool(spaces) and all(space.startswith(MNI_SPACES) for space in spaces)
 
 
@@ -316,8 +381,9 @@ def _have_nilearn():
     return importlib.util.find_spec("nilearn") is not None
 
 
-def plot_parameter_map(table, *, ax=None, projection=("x", "y"), backend="auto",
-                       stim_site=None, display_mode="ortho"):
+def plot_parameter_map(
+    table, *, ax=None, projection=("x", "y"), backend="auto", stim_site=None, display_mode="ortho"
+):
     """Glass-brain or electrode-grid figure of a :func:`parameter_map` table (spec §5.9,
     method 3; needs the extra ``plot``): responses coloured by ``value``, the stimulating
     contacts, bad, masked, non-responding and failed channels drawn as distinct markers.
@@ -349,8 +415,7 @@ def plot_parameter_map(table, *, ax=None, projection=("x", "y"), backend="auto",
     matplotlib.figure.Figure
     """
 
-    plt = require("matplotlib.pyplot", extra="plot",
-                  caller="evoparam.spatial.plot_parameter_map")
+    plt = require("matplotlib.pyplot", extra="plot", caller="evoparam.spatial.plot_parameter_map")
     if backend not in ("auto", "nilearn", "matplotlib"):
         raise SettingsError("backend must be 'auto', 'nilearn' or 'matplotlib'.")
     if stim_site is not None:
@@ -361,19 +426,23 @@ def plot_parameter_map(table, *, ax=None, projection=("x", "y"), backend="auto",
         raise DataError("plot_parameter_map: the table has no coordinates.")
     mni = _is_mni(table)
     if backend == "nilearn" and not mni:
-        raise SettingsError("plot_parameter_map(backend='nilearn'): a glass brain needs "
-                            "MNI-like coordinates (coord_space); these are in subject space, "
-                            "use backend='matplotlib' (electrode grid).")
-    use_nilearn = backend == "nilearn" or (backend == "auto" and mni and _have_nilearn()
-                                          and ax is None)
+        raise SettingsError(
+            "plot_parameter_map(backend='nilearn'): a glass brain needs "
+            "MNI-like coordinates (coord_space); these are in subject space, "
+            "use backend='matplotlib' (electrode grid)."
+        )
+    use_nilearn = backend == "nilearn" or (
+        backend == "auto" and mni and _have_nilearn() and ax is None
+    )
     if use_nilearn:
         return _glass_brain(table, display_mode)
     if ax is None:
         _, ax = plt.subplots(figsize=(5, 5))
     a, b = projection
     resp = table[table["marker"] == "response"]
-    scatter = ax.scatter(resp[a], resp[b], c=resp["value"], cmap="coolwarm", s=40,
-                         label="response")
+    scatter = ax.scatter(
+        resp[a], resp[b], c=resp["value"], cmap="coolwarm", s=40, label="response"
+    )
     for marker, (symbol, colour) in _STYLE.items():
         sub = table[table["marker"] == marker]
         if len(sub):
@@ -390,8 +459,9 @@ def plot_parameter_map(table, *, ax=None, projection=("x", "y"), backend="auto",
 def _glass_brain(table, display_mode):
     """The nilearn glass brain of a parameter-map table (responses coloured by value)."""
 
-    plotting = require("nilearn.plotting", extra="brain",
-                       caller="evoparam.spatial.plot_parameter_map")
+    plotting = require(
+        "nilearn.plotting", extra="brain", caller="evoparam.spatial.plot_parameter_map"
+    )
     import matplotlib.pyplot as plt
 
     xyz = ["x", "y", "z"]
@@ -401,11 +471,18 @@ def _glass_brain(table, display_mode):
     if len(resp):
         values = resp["value"].to_numpy(float)
         limit = float(np.max(np.abs(values))) or 1.0
-        display = plotting.plot_markers(values, resp[xyz].to_numpy(float), node_cmap="coolwarm",
-                                        node_vmin=-limit, node_vmax=limit, node_size=30,
-                                        display_mode=display_mode, figure=figure,
-                                        colorbar=True,
-                                        title=str(table.attrs.get("parameter", "value")))
+        display = plotting.plot_markers(
+            values,
+            resp[xyz].to_numpy(float),
+            node_cmap="coolwarm",
+            node_vmin=-limit,
+            node_vmax=limit,
+            node_size=30,
+            display_mode=display_mode,
+            figure=figure,
+            colorbar=True,
+            title=str(table.attrs.get("parameter", "value")),
+        )
     else:
         display = plotting.plot_glass_brain(None, display_mode=display_mode, figure=figure)
     for marker, (_, colour) in _STYLE.items():
@@ -414,7 +491,14 @@ def _glass_brain(table, display_mode):
         coords = coords[np.isfinite(coords).all(axis=1)]
         if len(coords):
             display.add_markers(coords, marker_color=colour, marker_size=20)
-    figure.legend(handles=[plt.Line2D([], [], ls="", marker="o", color=c, label=m)
-                           for m, (_, c) in _STYLE.items() if (table["marker"] == m).any()],
-                  loc="lower left", fontsize="small", frameon=False)
+    figure.legend(
+        handles=[
+            plt.Line2D([], [], ls="", marker="o", color=c, label=m)
+            for m, (_, c) in _STYLE.items()
+            if (table["marker"] == m).any()
+        ],
+        loc="lower left",
+        fontsize="small",
+        frameon=False,
+    )
     return figure

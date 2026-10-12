@@ -43,9 +43,11 @@ mne.set_log_level("ERROR")
 
 # component -> channel, bin of the condition carrying it, other bin, measurement window,
 # polarity (published ERP CORE analysis)
-DESIGNS = {"N170": ("PO8", 1, 2, (0.110, 0.150), -1),
-           "P3": ("Pz", 1, 2, (0.300, 0.600), 1),
-           "MMN": ("FCz", 1, 2, (0.125, 0.225), -1)}
+DESIGNS = {
+    "N170": ("PO8", 1, 2, (0.110, 0.150), -1),
+    "P3": ("Pz", 1, 2, (0.300, 0.600), 1),
+    "MMN": ("FCz", 1, 2, (0.125, 0.225), -1),
+}
 
 
 def averages(component):
@@ -58,8 +60,9 @@ def averages(component):
     flags = np.atleast_1d(getattr(eeg.reject, "rejmanual", np.zeros(0))).astype(bool)
     keep = ~flags if flags.size == len(epochs) else np.ones(len(epochs), bool)
     inverse = {code: name for name, code in epochs.event_id.items()}
-    bins = [set(map(int, re.findall(r"B(\d+)", inverse[c].split("(")[0])))
-            for c in epochs.events[:, 2]]
+    bins = [
+        set(map(int, re.findall(r"B(\d+)", inverse[c].split("(")[0]))) for c in epochs.events[:, 2]
+    ]
     data = epochs.get_data(picks=[channel])[:, 0] * 1e6
     out = {}
     for name, number in (("carrying", plus), ("other", minus)):
@@ -78,10 +81,12 @@ for component, (channel, _, _, window, polarity) in DESIGNS.items():
     sfreq = 1.0 / np.median(np.diff(times))
     wave, n = waves["carrying"]
     # the label window is the measurement window widened by 30 ms on each side
-    preset = presets.derive("erp", name=f"erp_{component}",
-                            component_labels={component: (window[0] - 0.03,
-                                                          window[1] + 0.03)},
-                            label_polarity={component: polarity})
+    preset = presets.derive(
+        "erp",
+        name=f"erp_{component}",
+        component_labels={component: (window[0] - 0.03, window[1] + 0.03)},
+        label_polarity={component: polarity},
+    )
     evoked = Evoked(data=wave[None], times=times, sfreq=sfreq, ch_names=[channel])
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -89,18 +94,29 @@ for component, (channel, _, _, window, polarity) in DESIGNS.items():
     groups[component] = group
     fit = group.fits[0]
     comp = next((c for c in fit.components if c.label == component), None)
-    classical = classical_measures(times, wave, window=window,
-                                   polarity="negative" if polarity < 0 else "positive")
-    other = classical_measures(times, waves["other"][0], window=window,
-                               polarity="negative" if polarity < 0 else "positive")
-    rows.append({"component": component, "channel": channel, "n_trials": n,
-                 "status": fit.status,
-                 "model_latency_ms": 1e3 * comp.latency if comp else np.nan,
-                 "model_amplitude": comp.amplitude if comp else np.nan,
-                 "classical_peak_latency_ms": 1e3 * classical["peak_latency"],
-                 "classical_50%_area_ms": 1e3 * classical["fractional_area_latency"],
-                 "mean_amplitude": classical["mean_amplitude"],
-                 "mean_amplitude_other": other["mean_amplitude"]})
+    classical = classical_measures(
+        times, wave, window=window, polarity="negative" if polarity < 0 else "positive"
+    )
+    other = classical_measures(
+        times,
+        waves["other"][0],
+        window=window,
+        polarity="negative" if polarity < 0 else "positive",
+    )
+    rows.append(
+        {
+            "component": component,
+            "channel": channel,
+            "n_trials": n,
+            "status": fit.status,
+            "model_latency_ms": 1e3 * comp.latency if comp else np.nan,
+            "model_amplitude": comp.amplitude if comp else np.nan,
+            "classical_peak_latency_ms": 1e3 * classical["peak_latency"],
+            "classical_50%_area_ms": 1e3 * classical["fractional_area_latency"],
+            "mean_amplitude": classical["mean_amplitude"],
+            "mean_amplitude_other": other["mean_amplitude"],
+        }
+    )
 table = pd.DataFrame(rows)
 print(table.round(2).to_string(index=False))
 
@@ -119,8 +135,13 @@ print(table[["component", "contrast_uV"]].round(2).to_string(index=False))
 import json
 import os
 
-summary = os.path.join(os.path.dirname(os.path.abspath(evoparam.__file__)), os.pardir,
-                       "validation", "layer3", "erpcore_parent.json")
+summary = os.path.join(
+    os.path.dirname(os.path.abspath(evoparam.__file__)),
+    os.pardir,
+    "validation",
+    "layer3",
+    "erpcore_parent.json",
+)
 if os.path.isfile(summary):
     with open(summary, encoding="utf-8") as fobj:
         print(pd.DataFrame(json.load(fobj)["summary"]).round(3).to_string(index=False))

@@ -8,12 +8,12 @@ import pytest
 import evoparam
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
-FILES = ("CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "GOVERNANCE.md", "SECURITY.md",
-         "SUPPORT.md")
+FILES = ("CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "GOVERNANCE.md", "SECURITY.md", "SUPPORT.md")
 TEMPLATES = ("bug.yml", "feature.yml", "new_preset.yml", "new_dataset.yml", "config.yml")
 
-pytestmark = pytest.mark.skipif(not os.path.isfile(os.path.join(ROOT, "pyproject.toml")),
-                                reason="needs the source tree")
+pytestmark = pytest.mark.skipif(
+    not os.path.isfile(os.path.join(ROOT, "pyproject.toml")), reason="needs the source tree"
+)
 
 
 def _read(*parts):

@@ -14,8 +14,13 @@ VERIFIED = "brinyark2026_delayed_high_gamma"
 UNVERIFIED = "brinyark2026_TN1"
 # The eleven zones of Brinyark et al. 2026 ([LIT-tf-4], §2.4 and Fig. 2): five bands x N1
 # (15-50 ms) and N2 (50-500 ms), and the whole response (4-250 Hz x 15-500 ms).
-BANDS = {"T": (4.0, 8.0), "A": (8.0, 13.0), "B": (13.0, 30.0), "Gl": (30.0, 50.0),
-         "Gh": (50.0, 250.0)}
+BANDS = {
+    "T": (4.0, 8.0),
+    "A": (8.0, 13.0),
+    "B": (13.0, 30.0),
+    "Gl": (30.0, 50.0),
+    "Gh": (50.0, 250.0),
+}
 INTERVALS = {"N1": (0.015, 0.05), "N2": (0.05, 0.5)}
 
 
@@ -59,8 +64,11 @@ def test_the_eleven_published_zones_have_the_article_bounds():
     whole = registry["brinyark2026_WR"]
     assert whole["freq"] == [4.0, 250.0] and whole["time"] == [0.015, 0.5]
     # the ten other zones are unverified (spec §5.10: confirmed by the user before use)
-    others = [n for n in registry if n.startswith("brinyark2026_") and
-              registry[n].get("alias_of") is None and n != VERIFIED]
+    others = [
+        n
+        for n in registry
+        if n.startswith("brinyark2026_") and registry[n].get("alias_of") is None and n != VERIFIED
+    ]
     assert len(others) == 10 and not any(registry[n]["verified"] for n in others)
     table = list_published_zones().set_index("name")
     assert table.loc["brinyark2026_GhN1", "intervals"] == "[)x[]"
@@ -84,8 +92,11 @@ def test_band_and_interval_zones_tile_the_whole_response():
     registry = load_zones()
     freqs = np.array([4.0, 6.0, 8.0, 10.0, 13.0, 20.0, 30.0, 40.0, 50.0, 100.0, 250.0])
     times = np.round(np.arange(0.0, 0.6, 0.001), 6)
-    count = sum(zone_mask(registry[f"brinyark2026_{b}{i}"], freqs, times).astype(int)
-                for b in BANDS for i in INTERVALS)
+    count = sum(
+        zone_mask(registry[f"brinyark2026_{b}{i}"], freqs, times).astype(int)
+        for b in BANDS
+        for i in INTERVALS
+    )
     whole = zone_mask(registry["brinyark2026_WR"], freqs, times)
     assert np.array_equal(count, whole.astype(int))
     at_50ms = np.flatnonzero(times == 0.05)[0]
@@ -99,12 +110,19 @@ def test_band_and_interval_zones_tile_the_whole_response():
 def test_article_zone_uses_the_published_statistic_and_significance_fraction():
 
     rng = np.random.default_rng(7)
-    ts = trialset(ar1(rng, (30, len(TIMES))) + burst(rng, 30, freq=100.0, centre=0.03,
-                                                      duration=0.04, amp=15.0))
+    ts = trialset(
+        ar1(rng, (30, len(TIMES)))
+        + burst(rng, 30, freq=100.0, centre=0.03, duration=0.04, amp=15.0)
+    )
     with pytest.raises(SettingsError, match="unverified"):
         tf_fit(ts, zones="published:brinyark2026_GhN1")
-    tf = tf_fit(ts, zones="published:brinyark2026_GhN1", allow_unverified=True,
-                freqs=(4, 250, 40), random_state=0)
+    tf = tf_fit(
+        ts,
+        zones="published:brinyark2026_GhN1",
+        allow_unverified=True,
+        freqs=(4, 250, 40),
+        random_state=0,
+    )
     s = tf.settings
     assert s["stats"] == "baseline_normal" and s["baseline"] == [-0.45, -0.15]
     assert s["channel_correction"] == "none" and s["window"][0] == 0.015
@@ -155,8 +173,9 @@ def test_published_zone_sets_the_source_settings_and_measures_the_zone():
 
     rng = np.random.default_rng(3)
     ts = trialset(ar1(rng, (30, len(TIMES))) + burst(rng, 30, freq=100.0, centre=0.2, amp=10.0))
-    tf = tf_fit(ts, zones=f"published:{VERIFIED}", freqs=(4, 250, 40), by_trial=True,
-                random_state=0)
+    tf = tf_fit(
+        ts, zones=f"published:{VERIFIED}", freqs=(4, 250, 40), by_trial=True, random_state=0
+    )
     assert tf.method == "published"
     assert tf.settings["transform"] == "morse"
     assert tf.settings["transform_params"]["beta"] == 10.0

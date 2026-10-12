@@ -26,18 +26,57 @@ extra ``stats`` (statsmodels).
 from ._scorers import SCORES, score_waveforms
 from .bootstrap import BOOTSTRAP_COLUMNS, bootstrap, bootstrap_interval
 from .compare import COMPARE_COLUMNS, UNITS, compare_conditions, hedges_g
-from .export import (LONG_COLUMNS, PARAMETERS, column_dictionary, fit_mixed, group_summary,
-                     mixed_formula, to_long)
+from .export import (
+    LONG_COLUMNS,
+    PARAMETERS,
+    column_dictionary,
+    fit_mixed,
+    group_summary,
+    mixed_formula,
+    to_long,
+)
 from .jackknife import JACKKNIFE_COLUMNS, jackknife_f, jackknife_latency, jackknife_t
-from .reliability import (RELIABILITY_COLUMNS, TRIALS_NEEDED_COLUMNS, dependability,
-                          reliability, spearman_brown, trials_needed)
+from .reliability import (
+    RELIABILITY_COLUMNS,
+    TRIALS_NEEDED_COLUMNS,
+    dependability,
+    reliability,
+    spearman_brown,
+    trials_needed,
+)
 from .variance import VarianceResult, reml, variance_components
 from .waveforms import strip_jitter, waveform_band
 
-__all__ = ["bootstrap", "bootstrap_interval", "jackknife_latency", "jackknife_t",
-           "jackknife_f", "compare_conditions", "hedges_g", "reliability", "trials_needed",
-           "spearman_brown", "dependability", "variance_components", "reml", "VarianceResult",
-           "to_long", "column_dictionary", "mixed_formula", "fit_mixed", "group_summary",
-           "score_waveforms", "SCORES", "UNITS", "PARAMETERS", "LONG_COLUMNS",
-           "BOOTSTRAP_COLUMNS", "COMPARE_COLUMNS", "JACKKNIFE_COLUMNS", "RELIABILITY_COLUMNS",
-           "TRIALS_NEEDED_COLUMNS", "waveform_band", "strip_jitter"]
+__all__ = [
+    "bootstrap",
+    "bootstrap_interval",
+    "jackknife_latency",
+    "jackknife_t",
+    "jackknife_f",
+    "compare_conditions",
+    "hedges_g",
+    "reliability",
+    "trials_needed",
+    "spearman_brown",
+    "dependability",
+    "variance_components",
+    "reml",
+    "VarianceResult",
+    "to_long",
+    "column_dictionary",
+    "mixed_formula",
+    "fit_mixed",
+    "group_summary",
+    "score_waveforms",
+    "SCORES",
+    "UNITS",
+    "PARAMETERS",
+    "LONG_COLUMNS",
+    "BOOTSTRAP_COLUMNS",
+    "COMPARE_COLUMNS",
+    "JACKKNIFE_COLUMNS",
+    "RELIABILITY_COLUMNS",
+    "TRIALS_NEEDED_COLUMNS",
+    "waveform_band",
+    "strip_jitter",
+]

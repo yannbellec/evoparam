@@ -22,18 +22,27 @@ import os
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+]
 
 # (subject, run, uncensored stimulation site)
-RUNS = [("1", "01", "ROC11-ROC12"), ("2", "12", "RZ4-RZ5"), ("3", "03", "LA2-LA3"),
-        ("4", "02", "RO3-RO4")]
+RUNS = [
+    ("1", "01", "ROC11-ROC12"),
+    ("2", "12", "RZ4-RZ5"),
+    ("3", "03", "LA2-LA3"),
+    ("4", "02", "RO3-RO4"),
+]
 EPOCH = (-0.2, 0.5)
 WINDOW = (0.01, 0.3)
 
 ###################################################################################################
 ###################################################################################################
+
 
 def load_trials(subject, run, site):
     """Epochs of the 12 pulses of ``site`` (cached), as a TrialSet."""
@@ -47,18 +56,36 @@ def load_trials(subject, run, site):
     os.makedirs(cache, exist_ok=True)
     path = os.path.join(cache, "sub-{}_run-{}_{}.npz".format(subject, run, site))
     if not os.path.exists(path):
-        trials = read_bids("ds004977", subject, session="ieeg01", task="ccep", run=run,
-                           remote=True, picks="seeg", epoch=EPOCH, select={"stim_site": site})
-        np.savez_compressed(path, data=trials.data.astype(np.float32), times=trials.times,
-                            sfreq=trials.sfreq, names=np.array(trials.ch_names),
-                            bad=trials.ch_info["bad"].to_numpy(dtype=bool),
-                            sites=trials.metadata["stim_site"].to_numpy(dtype=str))
+        trials = read_bids(
+            "ds004977",
+            subject,
+            session="ieeg01",
+            task="ccep",
+            run=run,
+            remote=True,
+            picks="seeg",
+            epoch=EPOCH,
+            select={"stim_site": site},
+        )
+        np.savez_compressed(
+            path,
+            data=trials.data.astype(np.float32),
+            times=trials.times,
+            sfreq=trials.sfreq,
+            names=np.array(trials.ch_names),
+            bad=trials.ch_info["bad"].to_numpy(dtype=bool),
+            sites=trials.metadata["stim_site"].to_numpy(dtype=str),
+        )
     saved = np.load(path)
     names = [str(name) for name in saved["names"]]
-    return TrialSet(data=saved["data"].astype(float), times=saved["times"],
-                    sfreq=float(saved["sfreq"]), ch_names=names,
-                    metadata=pd.DataFrame({"stim_site": saved["sites"].astype(str)}),
-                    ch_info=pd.DataFrame({"name": names, "bad": saved["bad"]}))
+    return TrialSet(
+        data=saved["data"].astype(float),
+        times=saved["times"],
+        sfreq=float(saved["sfreq"]),
+        ch_names=names,
+        metadata=pd.DataFrame({"stim_site": saved["sites"].astype(str)}),
+        ch_info=pd.DataFrame({"name": names, "bad": saved["bad"]}),
+    )
 
 
 def cross_channel_r2(trials, keep):
@@ -79,7 +106,8 @@ def compare(trials):
 
     stim = {part for site in trials.metadata["stim_site"] for part in site.split("-")}
     keep = ~trials.ch_info["bad"].to_numpy(dtype=bool) & np.array(
-        [name not in stim for name in trials.ch_names])
+        [name not in stim for name in trials.ch_names]
+    )
     keep &= np.isfinite(trials.data).all(axis=(0, 2))
     car = rereference(trials, "car")
     adaptive = rereference(trials, "car_adaptive", random_state=0)

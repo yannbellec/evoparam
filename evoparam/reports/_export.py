@@ -64,12 +64,17 @@ def to_json(result, path=None, *, validate=None):
         folder = save_object(result, os.path.join(work, "result.evoparam"), table_format="csv")
         read = lambda name: open(os.path.join(folder, name), encoding="utf-8").read()
         manifest = json.loads(read("manifest.json"))
-        document = {"schema": manifest["schema"], "object": manifest["object"],
-                    "package_version": manifest["package_version"],
-                    "created": manifest["created"],
-                    "structure": json.loads(read("structure.json")), "arrays": {},
-                    "tables": {}, "provenance": json.loads(read("provenance.json")),
-                    "settings": json.loads(read("settings.json"))}
+        document = {
+            "schema": manifest["schema"],
+            "object": manifest["object"],
+            "package_version": manifest["package_version"],
+            "created": manifest["created"],
+            "structure": json.loads(read("structure.json")),
+            "arrays": {},
+            "tables": {},
+            "provenance": json.loads(read("provenance.json")),
+            "settings": json.loads(read("settings.json")),
+        }
         for name in ("data.npz", "data.npy"):
             full = os.path.join(folder, name)
             if not os.path.exists(full):
@@ -80,9 +85,11 @@ def to_json(result, path=None, *, validate=None):
             else:
                 items = {"__main__": np.load(full, allow_pickle=False)}
             for key, array in items.items():
-                document["arrays"][key] = {"dtype": str(array.dtype),
-                                           "shape": list(array.shape),
-                                           "values": [_encode_value(v) for v in array.ravel()]}
+                document["arrays"][key] = {
+                    "dtype": str(array.dtype),
+                    "shape": list(array.shape),
+                    "values": [_encode_value(v) for v in array.ravel()],
+                }
         tables = os.path.join(folder, "tables")
         if os.path.isdir(tables):
             for name in sorted(os.listdir(tables)):
@@ -90,7 +97,8 @@ def to_json(result, path=None, *, validate=None):
                     key = name[:-4]
                     document["tables"][key] = {
                         "csv": read(os.path.join("tables", name)),
-                        "sidecar": json.loads(read(os.path.join("tables", key + ".json")))}
+                        "sidecar": json.loads(read(os.path.join("tables", key + ".json"))),
+                    }
     text = json.dumps(document, allow_nan=False, indent=None, separators=(",", ":"))
     if validate or (validate is None and _have_jsonschema()):
         validate_json(document)
@@ -114,8 +122,9 @@ def schema():
 
     from importlib import resources
 
-    return json.loads(resources.files("evoparam.reports").joinpath("schema", SCHEMA_FILE)
-                      .read_text("utf-8"))
+    return json.loads(
+        resources.files("evoparam.reports").joinpath("schema", SCHEMA_FILE).read_text("utf-8")
+    )
 
 
 def validate_json(document):
@@ -132,18 +141,19 @@ def validate_json(document):
     try:
         import jsonschema
     except ImportError as err:
-        raise ImportError("Validating evoparam JSON needs jsonschema: pip install "
-                          "\"evoparam[validate]\".") from err
+        raise ImportError(
+            'Validating evoparam JSON needs jsonschema: pip install "evoparam[validate]".'
+        ) from err
     if isinstance(document, (str, os.PathLike)):
-        text = open(document, encoding="utf-8").read() if os.path.exists(document) \
-            else document
+        text = open(document, encoding="utf-8").read() if os.path.exists(document) else document
         document = json.loads(text)
     try:
         jsonschema.validate(document, schema())
     except jsonschema.ValidationError as err:
         place = "/".join(str(p) for p in err.absolute_path) or "(top level)"
-        raise DataError(f"evoparam JSON does not follow {SCHEMA_FILE} at {place}: "
-                        f"{err.message}") from err
+        raise DataError(
+            f"evoparam JSON does not follow {SCHEMA_FILE} at {place}: {err.message}"
+        ) from err
     return True
 
 
@@ -156,8 +166,9 @@ def from_json(source):
     if isinstance(source, dict):
         document = source
     else:
-        text = open(source, encoding="utf-8").read() if os.path.exists(os.fspath(source)) \
-            else source
+        text = (
+            open(source, encoding="utf-8").read() if os.path.exists(os.fspath(source)) else source
+        )
         document = json.loads(text)
     for key in ("schema", "object", "structure", "arrays", "tables"):
         if key not in document:
@@ -165,8 +176,9 @@ def from_json(source):
     with tempfile.TemporaryDirectory(prefix=".evoparam-json-") as work:
         folder = os.path.join(work, "result.evoparam")
         os.makedirs(os.path.join(folder, "tables"))
-        write = lambda name, text: open(os.path.join(folder, name), "w",
-                                        encoding="utf-8").write(text)
+        write = lambda name, text: open(os.path.join(folder, name), "w", encoding="utf-8").write(
+            text
+        )
         write("structure.json", json.dumps(document["structure"]))
         write("provenance.json", json.dumps(document.get("provenance")))
         write("settings.json", dumps(document.get("settings") or {}))
@@ -182,8 +194,13 @@ def from_json(source):
         for key, table in document["tables"].items():
             write(os.path.join("tables", key + ".csv"), table["csv"])
             write(os.path.join("tables", key + ".json"), json.dumps(table["sidecar"]))
-        manifest = {"schema": document["schema"], "object": document["object"],
-                    "package_version": document.get("package_version"),
-                    "created": document.get("created"), "table_format": "csv", "files": {}}
+        manifest = {
+            "schema": document["schema"],
+            "object": document["object"],
+            "package_version": document.get("package_version"),
+            "created": document.get("created"),
+            "table_format": "csv",
+            "files": {},
+        }
         write("manifest.json", json.dumps(manifest))
         return load_object(folder, verify=False)

@@ -44,7 +44,7 @@ def test_req374_every_layer3_file_has_comparison_records(records):
     assert results
     for name in results:
         assert name in records["sources"], name
-        prefix = name[:-len(".json")] + "/"
+        prefix = name[: -len(".json")] + "/"
         assert any(r["id"].startswith(prefix) for r in records["comparisons"]), name
 
 
@@ -56,8 +56,7 @@ def test_req374_records_give_both_numbers_the_difference_and_its_interval(record
     rules = json.loads((ROOT / "evoparam" / "existence" / "rules.json").read_text("utf-8"))
     for r in records["comparisons"]:
         assert set(report.REQUIRED) <= set(r), r["id"]
-        values = [r["comparator_value"], r["evoparam_value"], r["difference"],
-                  *r["difference_ci"]]
+        values = [r["comparator_value"], r["evoparam_value"], r["difference"], *r["difference_ci"]]
         assert all(isinstance(v, float) and math.isfinite(v) for v in values), r["id"]
         lo, hi = r["difference_ci"]
         assert lo <= r["difference"] <= hi, r["id"]
@@ -66,8 +65,7 @@ def test_req374_records_give_both_numbers_the_difference_and_its_interval(record
         definition = r["comparator_definition"]
         if "registry_rule" in definition:
             assert definition["registry_rule"] in rules["rules"], r["id"]
-            entry = dict(rules["rules"][definition["registry_rule"]],
-                         **definition["overrides"])
+            entry = dict(rules["rules"][definition["registry_rule"]], **definition["overrides"])
             assert definition["version"] == report.digest(entry), r["id"]
         else:
             assert definition["id"], r["id"]
@@ -85,8 +83,9 @@ def test_req374_n1_difference_is_the_difference_of_the_fractions(records):
 
     n1 = json.loads((LAYER3 / "n1_ds004080.json").read_text(encoding="utf-8"))
     for reading, m in n1["metrics"].items():
-        r = next(x for x in records["comparisons"]
-                 if x["id"] == f"n1_ds004080/{reading}/n1_fraction")
+        r = next(
+            x for x in records["comparisons"] if x["id"] == f"n1_ds004080/{reading}/n1_fraction"
+        )
         assert r["comparator_value"] == pytest.approx(m["n_rule"] / m["n_channels"], abs=1e-6)
         assert r["evoparam_value"] == pytest.approx(m["n_model"] / m["n_channels"], abs=1e-6)
         assert r["data"]["version"] == "1.2.4"
@@ -107,18 +106,24 @@ def test_req374_erpcore_records_the_files_it_reads(tmp_path, monkeypatch):
     assert hashes["P3/1/1_P3_epoch_interp_ar.set"] == hashlib.sha256(b"set").hexdigest()
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-374: the exact versions are not recorded for two "
-                   "of the committed results, both produced before this check: ERP CORE "
-                   "(14 records; the OSF deposit has no version and the run of 2026-10-09 "
-                   "did not record the SHA-256 of the files read) and the CARLA comparator "
-                   "on ds004977 (4 records; the commit of CARLA_JNM run on 2026-10-08 was "
-                   "not recorded). validation/erpcore.py and validation/carla_ds004977.py "
-                   "record them from now on; they need a rerun with the data and MATLAB")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-374: the exact versions are not recorded for two "
+    "of the committed results, both produced before this check: ERP CORE "
+    "(14 records; the OSF deposit has no version and the run of 2026-10-09 "
+    "did not record the SHA-256 of the files read) and the CARLA comparator "
+    "on ds004977 (4 records; the commit of CARLA_JNM run on 2026-10-08 was "
+    "not recorded). validation/erpcore.py and validation/carla_ds004977.py "
+    "record them from now on; they need a rerun with the data and MATLAB",
+)
 def test_req374_exact_versions_of_data_and_comparator(records):
     """REQ-374: every record names the exact version of its data (a version number, or the
     SHA-256 of the files read) and of its comparator definition."""
 
-    missing = [r["id"] for r in records["comparisons"]
-               if not (r["data"].get("version") or r["data"].get("files_sha256"))
-               or not r["comparator_definition"].get("version")]
+    missing = [
+        r["id"]
+        for r in records["comparisons"]
+        if not (r["data"].get("version") or r["data"].get("files_sha256"))
+        or not r["comparator_definition"].get("version")
+    ]
     assert missing == []

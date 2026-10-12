@@ -27,11 +27,25 @@ EXTRAS = {
     "progress": {"tqdm": "4.66"},
     "parallel": {"joblib": "1.3"},
     "stream": {"pylsl": "1.16"},
-    "docs": {"sphinx": "7", "pydata-sphinx-theme": "0.15", "sphinx-gallery": "0.15",
-             "numpydoc": "1.6", "sphinx-copybutton": None, "sphinxcontrib-bibtex": None},
-    "tests": {"pytest": "8", "pytest-cov": "5", "pytest-timeout": "2.3", "pytest-xdist": "3.5",
-              "hypothesis": "6.100", "scikit-learn": "1.4", "mypy": "1.10", "ruff": "0.5",
-              "interrogate": "1.7"},
+    "docs": {
+        "sphinx": "7",
+        "pydata-sphinx-theme": "0.15",
+        "sphinx-gallery": "0.15",
+        "numpydoc": "1.6",
+        "sphinx-copybutton": None,
+        "sphinxcontrib-bibtex": None,
+    },
+    "tests": {
+        "pytest": "8",
+        "pytest-cov": "5",
+        "pytest-timeout": "2.3",
+        "pytest-xdist": "3.5",
+        "hypothesis": "6.100",
+        "scikit-learn": "1.4",
+        "mypy": "1.10",
+        "ruff": "0.5",
+        "interrogate": "1.7",
+    },
 }
 
 # "edfio>=0.4 (preferred) or pyedflib>=0.1.36"; "(alternative backend pymc>=5.10)";
@@ -43,23 +57,35 @@ ALTERNATIVES = {
 }
 
 ADDITIONS = {
-    "nwb": {"h5py": "the NWB reader opens HDF5 files directly (remote reads, §5.1)",
-            "remfile": "remote NWB reads by byte ranges (§5.1, DANDI)"},
+    "nwb": {
+        "h5py": "the NWB reader opens HDF5 files directly (remote reads, §5.1)",
+        "remfile": "remote NWB reads by byte ranges (§5.1, DANDI)",
+    },
     "neo": {"quantities": "Neo returns quantities arrays; units are converted on read"},
-    "brain": {"nilearn": "glass-brain backend of spec §5.9 method 3 ('the nilearn plotting "
-                         "backend is used when installed')"},
-    "sklearn": {"scikit-learn": "scikit-learn >= 1.6 for the estimator tags API of §10.4 "
-                                "(the tests extra keeps it for check_estimator)"},
+    "brain": {
+        "nilearn": "glass-brain backend of spec §5.9 method 3 ('the nilearn plotting "
+        "backend is used when installed')"
+    },
+    "sklearn": {
+        "scikit-learn": "scikit-learn >= 1.6 for the estimator tags API of §10.4 "
+        "(the tests extra keeps it for check_estimator)"
+    },
     "cli": {"tomli": "TOML configuration files of the command line on Python 3.10"},
-    "docs": {"myst-parser": "Markdown pages of the docs (presets.md)",
-             "matplotlib": "gallery figures", "pandas": "gallery tables",
-             "mne": "MNE integration tutorial", "pynwb": "NWB integration tutorial",
-             "neo": "Neo integration tutorial", "scikit-learn": "scikit-learn tutorial"},
-    "tests": {"bidsschematools": "BIDS schema checks of written derivatives (REQ-315)",
-              "mpmath": "high-precision reference values of the shape tests",
-              "pyyaml": "static checks of the CI workflows and CITATION.cff (REQ-297, "
-                        "REQ-308, REQ-398)",
-              "tomli": "pyproject parsing in the tests on Python 3.10"},
+    "docs": {
+        "myst-parser": "Markdown pages of the docs (presets.md)",
+        "matplotlib": "gallery figures",
+        "pandas": "gallery tables",
+        "mne": "MNE integration tutorial",
+        "pynwb": "NWB integration tutorial",
+        "neo": "Neo integration tutorial",
+        "scikit-learn": "scikit-learn tutorial",
+    },
+    "tests": {
+        "bidsschematools": "BIDS schema checks of written derivatives (REQ-315)",
+        "mpmath": "high-precision reference values of the shape tests",
+        "pyyaml": "static checks of the CI workflows and CITATION.cff (REQ-297, REQ-308, REQ-398)",
+        "tomli": "pyproject parsing in the tests on Python 3.10",
+    },
 }
 
 UNIONS = {"all", "cli", "docs", "tests"}

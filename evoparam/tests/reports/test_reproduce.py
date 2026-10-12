@@ -66,8 +66,9 @@ def test_req333_changed_setting_is_detected_and_named(saved, tmp_path):
         report = reports.reproduce(path)
     assert not report.identical
     assert report.settings_differences == ["max_components"]
-    fit_step = next(s for s in report.steps
-                    if s["function"] == "evoparam.models.ResponseModel.fit_group")
+    fit_step = next(
+        s for s in report.steps if s["function"] == "evoparam.models.ResponseModel.fit_group"
+    )
     assert "max_components" in fit_step["message"]
     assert report.differences
 
@@ -87,8 +88,7 @@ def test_req333_environment_differences_are_reported(saved, monkeypatch):
     from evoparam.reports import _reproduce
 
     current = _reproduce.capture_environment()
-    monkeypatch.setattr(_reproduce, "capture_environment",
-                        lambda: dict(current, numpy="0.0.1"))
+    monkeypatch.setattr(_reproduce, "capture_environment", lambda: dict(current, numpy="0.0.1"))
     with pytest.warns(UserWarning, match="environment differs"):
         report = reports.reproduce(saved)
     assert "numpy" in report.environment_differences
@@ -100,10 +100,19 @@ def test_req333_cli_returns_the_same_report(saved):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         report = reports.reproduce(saved).to_dict()
-    env = dict(os.environ, PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
-               PYTHONWARNINGS="ignore")
-    out = subprocess.run([sys.executable, "-m", "evoparam", "reproduce", saved, "--json"],
-                         capture_output=True, text=True, env=env, cwd=ROOT, timeout=600)
+    env = dict(
+        os.environ,
+        PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
+        PYTHONWARNINGS="ignore",
+    )
+    out = subprocess.run(
+        [sys.executable, "-m", "evoparam", "reproduce", saved, "--json"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=ROOT,
+        timeout=600,
+    )
     assert out.returncode == 0, out.stderr
     summary = json.loads(out.stdout)
     assert summary["command"] == "reproduce" and summary["exit_code"] == 0

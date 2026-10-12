@@ -6,7 +6,7 @@ from scipy.signal import lfilter
 
 from evoparam.data import TrialSet
 
-SFREQ = 1000.
+SFREQ = 1000.0
 TIMES = np.arange(-0.5, 0.6, 1 / SFREQ)
 
 
@@ -18,8 +18,13 @@ def noise_trials(rng, n_trials, n_channels, rho=0.0, sd=1.0):
 
 
 def trialset(data, metadata=None):
-    return TrialSet(data=data, times=TIMES, sfreq=SFREQ,
-                    ch_names=[f"c{i}" for i in range(data.shape[1])], metadata=metadata)
+    return TrialSet(
+        data=data,
+        times=TIMES,
+        sfreq=SFREQ,
+        ch_names=[f"c{i}" for i in range(data.shape[1])],
+        metadata=metadata,
+    )
 
 
 def gaussian(latency, fwhm):

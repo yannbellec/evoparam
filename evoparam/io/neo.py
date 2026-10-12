@@ -33,8 +33,7 @@ def _microvolts(signal):
         return np.asarray(signal.magnitude, float), "au"
 
 
-def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5,
-             io_class=None):
+def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5, io_class=None):
     """Epochs of a Neo ``AnalogSignal`` around events (spec §10.3).
 
     Parameters
@@ -71,8 +70,11 @@ def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5
         signals = seg.analogsignals
         if not signals:
             continue
-        sig = signals[signal] if isinstance(signal, int) else \
-            next(s for s in signals if s.name == signal)
+        sig = (
+            signals[signal]
+            if isinstance(signal, int)
+            else next(s for s in signals if s.name == signal)
+        )
         values, units = _microvolts(sig)
         rate = float(sig.sampling_rate.rescale("Hz").magnitude)
         start = float(sig.t_start.rescale("s").magnitude)
@@ -80,12 +82,17 @@ def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5
             raise DataError("Segments with different sampling rates.")
         sfreq = rate
         n_ch = values.shape[1]
-        this_names = [str(n) for n in sig.array_annotations.get("channel_names",
-                                                                [f"ch{i}" for i in range(n_ch)])]
+        this_names = [
+            str(n)
+            for n in sig.array_annotations.get("channel_names", [f"ch{i}" for i in range(n_ch)])
+        ]
         names = names or this_names
         if seg.events and events is not False:
-            event = seg.events[0] if events is None else \
-                next(e for e in seg.events if e.name == events)
+            event = (
+                seg.events[0]
+                if events is None
+                else next(e for e in seg.events if e.name == events)
+            )
             times = np.asarray(event.times.rescale("s").magnitude, float)
             labels = [str(l) for l in event.labels] if len(event.labels) else [""] * len(times)
         elif seg.epochs:
@@ -100,18 +107,37 @@ def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5
             i0 = int(np.ceil(np.round((t - start) * rate, 6))) + first
             if i0 < 0 or i0 + n_times > values.shape[0]:
                 continue
-            epochs.append(values[i0:i0 + n_times].T)
+            epochs.append(values[i0 : i0 + n_times].T)
             rows.append({"onset": t, "condition": label, "run": str(run)})
     if not epochs:
         raise DataError("No epoch fits inside the signals.")
     first = int(np.ceil(np.round(tmin * sfreq, 6)))
     times_axis = (first + np.arange(epochs[0].shape[1])) / sfreq
-    provenance = Provenance(source={"format": "neo", "reader": "evoparam.io.read_neo",
-                                    "path": None if hasattr(source, "segments")
-                                    else os.fspath(source)}).with_step(
-        "evoparam.io.read_neo", {"segment": segment, "signal": signal, "events": events,
-                                 "tmin": tmin, "tmax": tmax, "io_class": io_class})
+    provenance = Provenance(
+        source={
+            "format": "neo",
+            "reader": "evoparam.io.read_neo",
+            "path": None if hasattr(source, "segments") else os.fspath(source),
+        }
+    ).with_step(
+        "evoparam.io.read_neo",
+        {
+            "segment": segment,
+            "signal": signal,
+            "events": events,
+            "tmin": tmin,
+            "tmax": tmax,
+            "io_class": io_class,
+        },
+    )
     meta = pd.DataFrame(rows)
-    return TrialSet(data=np.stack(epochs), times=times_axis, sfreq=sfreq, ch_names=names,
-                    units=units, metadata=meta, event_times=meta["onset"].to_numpy(float),
-                    provenance=provenance)
+    return TrialSet(
+        data=np.stack(epochs),
+        times=times_axis,
+        sfreq=sfreq,
+        ch_names=names,
+        units=units,
+        metadata=meta,
+        event_times=meta["onset"].to_numpy(float),
+        provenance=provenance,
+    )

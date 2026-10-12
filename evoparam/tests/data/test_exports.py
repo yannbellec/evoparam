@@ -12,17 +12,26 @@ from evoparam.errors import DataError
 ###################################################################################################
 ###################################################################################################
 
+
 def _trialset():
     rng = np.random.default_rng(0)
     times = np.arange(-50, 150) / 1000.0
     data = rng.normal(0, 1, (4, 3, len(times)))
     masks = np.zeros(data.shape, dtype=bool)
     masks[:, :, 50:55] = True
-    meta = pd.DataFrame({"stim_site": ["A1-A2"] * 2 + ["B1-B2"] * 2,
-                         "stim_current_mA": [4.0, 4.0, 6.0, 6.0]})
+    meta = pd.DataFrame(
+        {"stim_site": ["A1-A2"] * 2 + ["B1-B2"] * 2, "stim_current_mA": [4.0, 4.0, 6.0, 6.0]}
+    )
     info = pd.DataFrame({"name": ["a", "b", "c"], "bad": [False, True, False]})
-    return TrialSet(data=data, times=times, sfreq=1000.0, ch_names=["a", "b", "c"],
-                    metadata=meta, ch_info=info, masks=masks)
+    return TrialSet(
+        data=data,
+        times=times,
+        sfreq=1000.0,
+        ch_names=["a", "b", "c"],
+        metadata=meta,
+        ch_info=info,
+        masks=masks,
+    )
 
 
 def test_list_shapes_and_backgrounds():
@@ -59,6 +68,7 @@ def test_trialset_to_xarray():
 def test_trialset_to_xarray_without_xarray(monkeypatch):
 
     import builtins
+
     real = builtins.__import__
 
     def fake(name, *args, **kwargs):
@@ -99,8 +109,9 @@ def test_hierarchical_to_arviz_eb():
     from evoparam.hierarchical import fit_hierarchical
     from evoparam.tests.hierarchical.helpers import simulate_group
 
-    sets, _ = simulate_group(n_subjects=3, n_channels=8, n_trials=15, p_respond=1.0, snr=3.0,
-                             seed=4)
+    sets, _ = simulate_group(
+        n_subjects=3, n_channels=8, n_trials=15, p_respond=1.0, snr=3.0, seed=4
+    )
     fit = fit_hierarchical(sets, components=["N1"])
     data = fit.to_arviz(n_draws=4000, random_state=0)
     posterior = data["posterior"] if not hasattr(data, "posterior") else data.posterior
@@ -110,10 +121,11 @@ def test_hierarchical_to_arviz_eb():
     assert draws.shape == (1, 4000, len(channel))
     # The draws follow the normal approximation of the table: mean and SD
     finite = np.isfinite(channel["latency"].to_numpy(dtype=float))
-    assert np.allclose(draws.mean(axis=(0, 1))[finite],
-                       channel["latency"].to_numpy(dtype=float)[finite],
-                       atol=4 * channel["latency_se"].to_numpy(dtype=float)[finite].max()
-                       / np.sqrt(4000) + 1e-12)
+    assert np.allclose(
+        draws.mean(axis=(0, 1))[finite],
+        channel["latency"].to_numpy(dtype=float)[finite],
+        atol=4 * channel["latency_se"].to_numpy(dtype=float)[finite].max() / np.sqrt(4000) + 1e-12,
+    )
     sites = np.asarray(posterior["site_N1"]).tolist()
     assert sites == [f"{a}/{b}" for a, b in zip(channel["subject"], channel["channel"])]
     assert "N1_amplitude_subject" in posterior
@@ -128,17 +140,30 @@ def test_hierarchical_to_arviz_uses_stored_draws():
     from evoparam.data import HierarchicalFit
 
     rng = np.random.default_rng(1)
-    draws = {"N1": {"sites": ["s1/a", "s1/b"], "subjects": ["s1"],
-                    "latency_channel": rng.normal(0.02, 1e-3, (2, 50, 2)),
-                    "amplitude_channel": rng.normal(-50, 5, (2, 50, 2)),
-                    "latency_subject": rng.normal(0.02, 1e-3, (2, 50, 1)),
-                    "amplitude_subject": rng.normal(-50, 5, (2, 50, 1))}}
-    fit = HierarchicalFit(levels=("channel", "subject"), summary=None, level_tables={},
-                          p_response=None, variance_components=None, effects=None,
-                          engine="numpyro", diagnostics={"draws": draws})
+    draws = {
+        "N1": {
+            "sites": ["s1/a", "s1/b"],
+            "subjects": ["s1"],
+            "latency_channel": rng.normal(0.02, 1e-3, (2, 50, 2)),
+            "amplitude_channel": rng.normal(-50, 5, (2, 50, 2)),
+            "latency_subject": rng.normal(0.02, 1e-3, (2, 50, 1)),
+            "amplitude_subject": rng.normal(-50, 5, (2, 50, 1)),
+        }
+    }
+    fit = HierarchicalFit(
+        levels=("channel", "subject"),
+        summary=None,
+        level_tables={},
+        p_response=None,
+        variance_components=None,
+        effects=None,
+        engine="numpyro",
+        diagnostics={"draws": draws},
+    )
     data = fit.to_arviz()
     posterior = data["posterior"] if not hasattr(data, "posterior") else data.posterior
-    assert np.array_equal(np.asarray(posterior["N1_latency_channel"]),
-                          draws["N1"]["latency_channel"])
+    assert np.array_equal(
+        np.asarray(posterior["N1_latency_channel"]), draws["N1"]["latency_channel"]
+    )
     assert np.asarray(posterior["site_N1"]).tolist() == ["s1/a", "s1/b"]
     assert "draws" in data.attrs["approximation"]

@@ -20,18 +20,33 @@ import numpy as np
 
 from evoparam.errors import DataError
 
-__all__ = ["harmonize_stim_events", "HarmonizationReport", "validate_stimulation_events",
-           "ValidationReport", "STIM_FIELDS", "POLARITIES", "normalize_site"]
+__all__ = [
+    "harmonize_stim_events",
+    "HarmonizationReport",
+    "validate_stimulation_events",
+    "ValidationReport",
+    "STIM_FIELDS",
+    "POLARITIES",
+    "normalize_site",
+]
 
 # Target column -> recognised source columns, first match wins (case-insensitive).
 # The target name itself comes last: an already harmonised table keeps its values.
 SOURCES = {
     "stim_site": ("electrical_stimulation_site", "stim_site", "site", "electrodes_involved_onset"),
-    "stim_current_mA": ("electrical_stimulation_current", "stim_current", "current",
-                        "stim_current_mA"),
-    "stim_pulse_width_us": ("electrical_stimulation_pulsewidth",
-                            "electrical_stimulation_pulse_width", "pulse_width", "pulsewidth",
-                            "stim_pulse_width_us"),
+    "stim_current_mA": (
+        "electrical_stimulation_current",
+        "stim_current",
+        "current",
+        "stim_current_mA",
+    ),
+    "stim_pulse_width_us": (
+        "electrical_stimulation_pulsewidth",
+        "electrical_stimulation_pulse_width",
+        "pulse_width",
+        "pulsewidth",
+        "stim_pulse_width_us",
+    ),
     "stim_polarity": ("electrical_stimulation_type", "stim_type", "polarity", "stim_polarity"),
     "stim_frequency_hz": ("electrical_stimulation_frequency", "frequency", "stim_frequency_hz"),
     "stim_n_pulses": ("n_pulses", "pulse_count", "stim_n_pulses"),
@@ -39,19 +54,55 @@ SOURCES = {
 }
 
 # Fields checked by the validator, in report order.
-STIM_FIELDS = ("stim_site", "stim_current_mA", "stim_pulse_width_us", "stim_polarity",
-               "stim_frequency_hz", "stim_n_pulses")
+STIM_FIELDS = (
+    "stim_site",
+    "stim_current_mA",
+    "stim_pulse_width_us",
+    "stim_polarity",
+    "stim_frequency_hz",
+    "stim_n_pulses",
+)
 
-POLARITIES = ("monophasic_cathodic", "monophasic_anodic", "biphasic_cathodic_first",
-              "biphasic_anodic_first", "alternating")
+POLARITIES = (
+    "monophasic_cathodic",
+    "monophasic_anodic",
+    "biphasic_cathodic_first",
+    "biphasic_anodic_first",
+    "alternating",
+)
 
 # Unit name (lower case) -> factor to the target unit.
-_CURRENT = {"a": 1e3, "amp": 1e3, "ampere": 1e3, "amperes": 1e3, "ma": 1.0, "milliampere": 1.0,
-            "milliamperes": 1.0, "ua": 1e-3, "µa": 1e-3, "μa": 1e-3, "microampere": 1e-3,
-            "microamperes": 1e-3}
-_WIDTH = {"s": 1e6, "sec": 1e6, "second": 1e6, "seconds": 1e6, "ms": 1e3, "msec": 1e3,
-          "millisecond": 1e3, "milliseconds": 1e3, "us": 1.0, "µs": 1.0, "μs": 1.0, "usec": 1.0,
-          "microsecond": 1.0, "microseconds": 1.0, "ns": 1e-3}
+_CURRENT = {
+    "a": 1e3,
+    "amp": 1e3,
+    "ampere": 1e3,
+    "amperes": 1e3,
+    "ma": 1.0,
+    "milliampere": 1.0,
+    "milliamperes": 1.0,
+    "ua": 1e-3,
+    "µa": 1e-3,
+    "μa": 1e-3,
+    "microampere": 1e-3,
+    "microamperes": 1e-3,
+}
+_WIDTH = {
+    "s": 1e6,
+    "sec": 1e6,
+    "second": 1e6,
+    "seconds": 1e6,
+    "ms": 1e3,
+    "msec": 1e3,
+    "millisecond": 1e3,
+    "milliseconds": 1e3,
+    "us": 1.0,
+    "µs": 1.0,
+    "μs": 1.0,
+    "usec": 1.0,
+    "microsecond": 1.0,
+    "microseconds": 1.0,
+    "ns": 1e-3,
+}
 _FREQUENCY = {"hz": 1.0, "khz": 1e3}
 
 # Quantity target -> (unit table, target unit, unit of unit-less values below the threshold,
@@ -62,8 +113,14 @@ _QUANTITIES = {
     "stim_frequency_hz": (_FREQUENCY, "Hz", None, None, "Hz"),
 }
 
-UNITS = {"onset": "s", "duration": "s", "stim_current_mA": "mA", "stim_pulse_width_us": "us",
-         "stim_frequency_hz": "Hz", "stim_charge_uC": "uC"}
+UNITS = {
+    "onset": "s",
+    "duration": "s",
+    "stim_current_mA": "mA",
+    "stim_pulse_width_us": "us",
+    "stim_frequency_hz": "Hz",
+    "stim_charge_uC": "uC",
+}
 
 _MISSING = {"", "n/a", "na", "nan", "none", "null"}
 _NUMBER = re.compile(r"^\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*([^\d\s].*?)?\s*$")
@@ -72,6 +129,7 @@ _PAIR = re.compile(r"^[A-Za-z]+\d+-[A-Za-z]+\d+$")
 
 ###################################################################################################
 ## Reports
+
 
 @dataclass
 class HarmonizationReport:
@@ -148,11 +206,12 @@ class ValidationReport:
 ###################################################################################################
 ## Helpers
 
+
 def _pandas(caller):
     try:
         import pandas
     except ImportError as err:
-        raise ImportError(f"{caller} needs pandas: pip install \"evoparam[data]\".") from err
+        raise ImportError(f'{caller} needs pandas: pip install "evoparam[data]".') from err
     return pandas
 
 
@@ -216,31 +275,38 @@ def _parse_quantity(values, column, target, sidecar, report):
     side_unit = None if native else _sidecar_unit(sidecar, column)
     side_factor = _unit_factor(side_unit, table)
     if side_unit is not None and side_factor is None:
-        report.warnings.append(f"unit_unknown: {column} has Units {side_unit!r} in the sidecar, "
-                               f"which is not a unit of {target}; values left as missing")
+        report.warnings.append(
+            f"unit_unknown: {column} has Units {side_unit!r} in the sidecar, "
+            f"which is not a unit of {target}; values left as missing"
+        )
         report.units[target] = f"sidecar:{side_unit}"
         return np.full(len(values), np.nan)
 
     out = np.full(len(values), np.nan)
-    unitless = []                                     # positions of numbers without a unit
+    unitless = []  # positions of numbers without a unit
     inline = False
     for pos, value in enumerate(values):
         if _is_missing(value):
             continue
-        if isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool):
+        if isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(
+            value, bool
+        ):
             number, unit = float(value), None
         else:
             match = _NUMBER.match(str(value))
             if not match:
-                report.warnings.append(f"unparsable: {column} value {value!r} is not a number "
-                                       "with a unit; left as missing")
+                report.warnings.append(
+                    f"unparsable: {column} value {value!r} is not a number "
+                    "with a unit; left as missing"
+                )
                 continue
             number, unit = float(match.group(1)), match.group(2)
         if unit:
             factor = _unit_factor(unit, table)
             if factor is None:
-                report.warnings.append(f"unit_unknown: {column} value {value!r} has an unknown "
-                                       f"unit; left as missing")
+                report.warnings.append(
+                    f"unit_unknown: {column} value {value!r} has an unknown unit; left as missing"
+                )
                 continue
             out[pos] = number * factor
             inline = True
@@ -260,10 +326,15 @@ def _parse_quantity(values, column, target, sidecar, report):
             unit = large_unit
         out[unitless] = out[unitless] * table[unit.lower()]
         if unit != target_unit or small_unit is not None:
-            rule = (f"values < {threshold} are read as {small_unit}, others as {large_unit}"
-                    if small_unit is not None else f"values are read as {large_unit}")
-            report.warnings.append(f"unit_inferred: {column} has no unit ({rule}); read as "
-                                   f"{unit} and converted to {target_unit}")
+            rule = (
+                f"values < {threshold} are read as {small_unit}, others as {large_unit}"
+                if small_unit is not None
+                else f"values are read as {large_unit}"
+            )
+            report.warnings.append(
+                f"unit_inferred: {column} has no unit ({rule}); read as "
+                f"{unit} and converted to {target_unit}"
+            )
         report.units[target] = f"inferred:{unit}"
         if inline:
             report.units[target] = "mixed"
@@ -316,6 +387,7 @@ def _polarity(value, parameters):
 
 ###################################################################################################
 ## Public functions
+
 
 def harmonize_stim_events(events, sidecar=None, *, mapping=None):
     """Map stimulation columns of an events table to the standard metadata columns.
@@ -383,8 +455,9 @@ def harmonize_stim_events(events, sidecar=None, *, mapping=None):
     chosen = {}
     for source, target in mapping.items():
         if target not in SOURCES:
-            raise DataError(f"mapping: unknown target column {target!r}; "
-                            f"expected one of {sorted(SOURCES)}.")
+            raise DataError(
+                f"mapping: unknown target column {target!r}; expected one of {sorted(SOURCES)}."
+            )
         if source not in events.columns:
             raise DataError(f"mapping: column {source!r} is not in the events table.")
         chosen[target] = source
@@ -403,8 +476,11 @@ def harmonize_stim_events(events, sidecar=None, *, mapping=None):
     if column is not None:
         values = out[column].tolist()
         if column.lower() == "electrodes_involved_onset" and "stim_site" not in mapping.values():
-            is_stim = ([False] * n_rows if trial_type is None else
-                       [not _is_missing(t) and "stim" in str(t).lower() for t in trial_type])
+            is_stim = (
+                [False] * n_rows
+                if trial_type is None
+                else [not _is_missing(t) and "stim" in str(t).lower() for t in trial_type]
+            )
             values = [value if keep else None for value, keep in zip(values, is_stim)]
         sites = [normalize_site(value) for value in values]
     else:
@@ -415,9 +491,11 @@ def harmonize_stim_events(events, sidecar=None, *, mapping=None):
                 sites = [str(t).strip() if pair else "n/a" for t, pair in zip(trial_type, pairs)]
                 report.mapping["stim_site"] = "trial_type"
                 report.missing.remove("stim_site")
-                report.warnings.append(f"site_from_trial_type: no site column; {sum(pairs)} "
-                                       "trial_type values that look like a contact pair "
-                                       "were used as stim_site")
+                report.warnings.append(
+                    f"site_from_trial_type: no site column; {sum(pairs)} "
+                    "trial_type values that look like a contact pair "
+                    "were used as stim_site"
+                )
     out["stim_site"] = pd.Series(sites)
 
     # Quantities
@@ -437,8 +515,13 @@ def harmonize_stim_events(events, sidecar=None, *, mapping=None):
 
     # Polarity
     column = chosen["stim_polarity"]
-    raw = ["n/a"] * n_rows if column is None else [
-        "n/a" if _is_missing(value) else str(value).strip() for value in out[column].tolist()]
+    raw = (
+        ["n/a"] * n_rows
+        if column is None
+        else [
+            "n/a" if _is_missing(value) else str(value).strip() for value in out[column].tolist()
+        ]
+    )
     polarity, unknown = [], set()
     for value in raw:
         if value == "n/a":
@@ -451,9 +534,11 @@ def harmonize_stim_events(events, sidecar=None, *, mapping=None):
     out["stim_polarity"] = pd.Series(polarity)
     if unknown:
         out["evoparam_stim_type_raw"] = pd.Series(raw)
-        report.warnings.append("polarity_unknown: the phase order is not stated for "
-                               f"{sorted(unknown)}; stim_polarity set to 'unknown', raw values "
-                               "kept in evoparam_stim_type_raw")
+        report.warnings.append(
+            "polarity_unknown: the phase order is not stated for "
+            f"{sorted(unknown)}; stim_polarity set to 'unknown', raw values "
+            "kept in evoparam_stim_type_raw"
+        )
 
     # Charge per phase (µC) = current (mA) × pulse width (µs) / 1000
     out["stim_charge_uC"] = out["stim_current_mA"] * out["stim_pulse_width_us"] / 1000.0
@@ -478,13 +563,16 @@ def _parse_count(values, column, report):
         try:
             number = float(value) if isinstance(value, (int, float)) else float(str(value).strip())
         except ValueError:
-            report.warnings.append(f"unparsable: {column} value {value!r} is not a count; "
-                                   "left as missing")
+            report.warnings.append(
+                f"unparsable: {column} value {value!r} is not a count; left as missing"
+            )
             out.append(None)
             continue
         if number != int(number):
-            report.warnings.append(f"n_pulses_not_integer: {column} value {value!r} is not an "
-                                   "integer; left as missing")
+            report.warnings.append(
+                f"n_pulses_not_integer: {column} value {value!r} is not an "
+                "integer; left as missing"
+            )
             out.append(None)
             continue
         out.append(int(number))
@@ -542,8 +630,9 @@ def validate_stimulation_events(events, sidecar=None):
     for name in STIM_FIELDS:
         values = rows[name].tolist()
         if name == "stim_polarity":
-            present = [value not in ("n/a", "unknown") and not _is_missing(value)
-                       for value in values]
+            present = [
+                value not in ("n/a", "unknown") and not _is_missing(value) for value in values
+            ]
         elif name == "stim_site":
             present = [value != "n/a" and not _is_missing(value) for value in values]
         else:
@@ -552,8 +641,10 @@ def validate_stimulation_events(events, sidecar=None):
         if n_rows == 0 or n_present == 0:
             missing.append(name)
         elif n_present < n_rows:
-            messages.append(f"partial: {name} is missing in {n_rows - n_present} of "
-                            f"{n_rows} stimulation rows")
+            messages.append(
+                f"partial: {name} is missing in {n_rows - n_present} of {n_rows} stimulation rows"
+            )
     sites = sorted({value for value in rows["stim_site"].tolist() if value != "n/a"})
-    return ValidationReport(missing=missing, warnings=messages, n_rows=n_rows,
-                            n_sites=len(sites), sites=sites)
+    return ValidationReport(
+        missing=missing, warnings=messages, n_rows=n_rows, n_sites=len(sites), sites=sites
+    )

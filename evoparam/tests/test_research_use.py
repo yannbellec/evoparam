@@ -65,16 +65,20 @@ def test_req015_pdf_report(group, tmp_path):
     raw = (tmp_path / "report.pdf").read_bytes().decode("latin-1")
     shown = " ".join(re.findall(r"\(((?:[^()\\]|\\.)*)\)\s*Tj", raw)) + " ".join(
         "".join(re.findall(r"\(((?:[^()\\]|\\.)*)\)", block))
-        for block in re.findall(r"\[(.*?)\]\s*TJ", raw, re.DOTALL))
-    shown = shown.replace("\x00", "")              # TrueType text is UTF-16 in the file
-    assert carries_statement(shown) or carries_statement(raw), \
+        for block in re.findall(r"\[(.*?)\]\s*TJ", raw, re.DOTALL)
+    )
+    shown = shown.replace("\x00", "")  # TrueType text is UTF-16 in the file
+    assert carries_statement(shown) or carries_statement(raw), (
         "the statement is not in the PDF text"
+    )
 
 
 def test_req015_stream_outputs():
     if importlib.util.find_spec("evoparam.stream") is None:
-        pytest.xfail("evoparam.stream (§10.6) is built on branch s18-en-ligne; its outputs "
-                     "must carry the statement once it is merged.")
+        pytest.xfail(
+            "evoparam.stream (§10.6) is built on branch s18-en-ligne; its outputs "
+            "must carry the statement once it is merged."
+        )
     import evoparam.stream as stream
 
     text = " ".join(str(getattr(stream, name, "")) for name in ("RESEARCH_USE", "__doc__"))

@@ -79,16 +79,16 @@ def test_noise_model_does_not_change_components():
 
 def test_make_noise_and_inject_are_deterministic():
     for kind in ("white", "ar1", "pink", "line", "pink+line"):
-        a = sim.make_noise(300, 250., kind, size=(2, 3), seed=9)
-        b = sim.make_noise(300, 250., kind, size=(2, 3), seed=9)
+        a = sim.make_noise(300, 250.0, kind, size=(2, 3), seed=9)
+        b = sim.make_noise(300, 250.0, kind, size=(2, 3), seed=9)
         assert a.tobytes() == b.tobytes()
     real = real_baselines()
-    a, truth_a = sim.inject(real, ["N1"], snr=3., seed=3)
-    b, truth_b = sim.inject(real, ["N1"], snr=3., seed=3)
+    a, truth_a = sim.inject(real, ["N1"], snr=3.0, seed=3)
+    b, truth_b = sim.inject(real, ["N1"], snr=3.0, seed=3)
     assert a.data.tobytes() == b.data.tobytes()
     assert truth_a.components == truth_b.components
-    noise_a = sim.make_noise(400, 500., "real", size=(3, 2), source=real, seed=1)
-    noise_b = sim.make_noise(400, 500., "real", size=(3, 2), source=real, seed=1)
+    noise_a = sim.make_noise(400, 500.0, "real", size=(3, 2), source=real, seed=1)
+    noise_b = sim.make_noise(400, 500.0, "real", size=(3, 2), source=real, seed=1)
     assert noise_a.tobytes() == noise_b.tobytes()
 
 
@@ -112,11 +112,16 @@ def test_reference_fingerprints(name):
     assert truth.n_components == expected["n_components"]
     flat = ts.data.ravel()
     scale = np.max(np.abs(ts.data))
-    np.testing.assert_allclose(flat[expected["index"]], expected["values"], rtol=1e-9,
-                               atol=1e-9 * scale)
+    np.testing.assert_allclose(
+        flat[expected["index"]], expected["values"], rtol=1e-9, atol=1e-9 * scale
+    )
     np.testing.assert_allclose(np.sum(np.abs(ts.data)), expected["sum_abs"], rtol=1e-9)
-    np.testing.assert_allclose([c["features"]["latency"] for c in truth.components][:8],
-                               expected["latencies"], rtol=1e-9, atol=1e-12)
+    np.testing.assert_allclose(
+        [c["features"]["latency"] for c in truth.components][:8],
+        expected["latencies"],
+        rtol=1e-9,
+        atol=1e-12,
+    )
 
 
 def test_bad_seed():

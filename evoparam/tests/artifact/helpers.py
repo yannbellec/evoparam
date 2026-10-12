@@ -10,6 +10,7 @@ from evoparam.data import TrialSet
 ###################################################################################################
 ###################################################################################################
 
+
 def times_axis(sfreq, tmin=-0.5, tmax=0.5):
     return np.arange(int(round(tmin * sfreq)), int(round(tmax * sfreq))) / sfreq
 
@@ -30,15 +31,28 @@ def artifact_shape(times, sfreq, amplitude=3000.0, tail=500.0, tau=0.002):
     pulse = np.array([1.0, -0.7, 0.3, -0.1])
     width = max(1, int(round(0.0005 * sfreq)))
     pulse = np.repeat(pulse, width)
-    art[i0:i0 + len(pulse)] = amplitude * pulse
+    art[i0 : i0 + len(pulse)] = amplitude * pulse
     start = i0 + len(pulse)
     art[start:] += tail * np.exp(-(times[start:] - times[start]) / tau)
     return art
 
 
-def make_overlay(sfreq=2048., n_trials=20, n_channels=8, onset=0.012, amplitude=-80.0,
-                 width=0.004, noise=5.0, art_amplitude=3000.0, art_tail=500.0, art_tau=0.002,
-                 jitter=0.1, channel_jitter=True, seed=0, metadata=True):
+def make_overlay(
+    sfreq=2048.0,
+    n_trials=20,
+    n_channels=8,
+    onset=0.012,
+    amplitude=-80.0,
+    width=0.004,
+    noise=5.0,
+    art_amplitude=3000.0,
+    art_tail=500.0,
+    art_tau=0.002,
+    jitter=0.1,
+    channel_jitter=True,
+    seed=0,
+    metadata=True,
+):
     """Return (with_artifact, truth) TrialSets that differ only by the artifact.
 
     With ``channel_jitter`` the artifact size varies independently per trial and channel;
@@ -49,20 +63,30 @@ def make_overlay(sfreq=2048., n_trials=20, n_channels=8, onset=0.012, amplitude=
     rng = np.random.default_rng(seed)
     times = times_axis(sfreq)
     gains = rng.uniform(0.5, 1.5, n_channels)
-    clean = (rng.normal(0, noise, (n_trials, n_channels, len(times)))
-             + gains[None, :, None] * response(times, onset, amplitude, width)[None, None])
+    clean = (
+        rng.normal(0, noise, (n_trials, n_channels, len(times)))
+        + gains[None, :, None] * response(times, onset, amplitude, width)[None, None]
+    )
     art = artifact_shape(times, sfreq, art_amplitude, art_tail, art_tau)
-    scale = rng.uniform(1 - jitter, 1 + jitter,
-                        (n_trials, n_channels if channel_jitter else 1, 1))
+    scale = rng.uniform(1 - jitter, 1 + jitter, (n_trials, n_channels if channel_jitter else 1, 1))
     spatial = rng.uniform(0.3, 1.0, (1, n_channels, 1))
     noisy = clean + scale * spatial * art[None, None]
     meta = None
     if metadata:
-        meta = pd.DataFrame({"stim_site": ["C1-C2"] * n_trials,
-                             "stim_current_mA": [4.0] * n_trials,
-                             "stim_polarity": ["biphasic_cathodic_first"] * n_trials})
+        meta = pd.DataFrame(
+            {
+                "stim_site": ["C1-C2"] * n_trials,
+                "stim_current_mA": [4.0] * n_trials,
+                "stim_polarity": ["biphasic_cathodic_first"] * n_trials,
+            }
+        )
     names = [f"ch{i:02d}" for i in range(n_channels)]
-    make = lambda data: TrialSet(data=data, times=times, sfreq=sfreq, ch_names=names,
-                                 metadata=None if meta is None else meta.copy(),
-                                 event_times=np.arange(n_trials) * 5.0)
+    make = lambda data: TrialSet(
+        data=data,
+        times=times,
+        sfreq=sfreq,
+        ch_names=names,
+        metadata=None if meta is None else meta.copy(),
+        event_times=np.arange(n_trials) * 5.0,
+    )
     return make(noisy), make(clean)

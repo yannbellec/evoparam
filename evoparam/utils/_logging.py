@@ -21,9 +21,16 @@ LOGGER = "evoparam"
 # the values ``verbose`` accepts (a logging level as an int is also accepted)
 VerboseLevel = Union[None, bool, int, str]
 # verbose value -> logging level (None: inherit, the logger keeps its level)
-LEVELS = {None: None, False: None, True: logging.INFO, "info": logging.INFO,
-          "debug": logging.DEBUG, "warning": logging.WARNING, "error": logging.ERROR,
-          "progress": logging.INFO}
+LEVELS = {
+    None: None,
+    False: None,
+    True: logging.INFO,
+    "info": logging.INFO,
+    "debug": logging.DEBUG,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+    "progress": logging.INFO,
+}
 
 
 def _level(value):
@@ -36,8 +43,10 @@ def _level(value):
     if key not in LEVELS:
         from evoparam.errors import SettingsError
 
-        raise SettingsError(f"verbose must be one of None, False, True, 'info', 'debug', "
-                            f"'warning', 'error', 'progress' or a logging level; got {value!r}.")
+        raise SettingsError(
+            f"verbose must be one of None, False, True, 'info', 'debug', "
+            f"'warning', 'error', 'progress' or a logging level; got {value!r}."
+        )
     return LEVELS[key]
 
 
@@ -100,9 +109,12 @@ def set_log_level(level: VerboseLevel) -> int:
     return previous
 
 
-def set_log_file(path: Union[str, "os.PathLike[str]", None] = None, *, mode: str = "a",
-                 fmt: str = "%(asctime)s %(name)s %(levelname)s %(message)s",
-                 ) -> Union[logging.FileHandler, None]:
+def set_log_file(
+    path: Union[str, "os.PathLike[str]", None] = None,
+    *,
+    mode: str = "a",
+    fmt: str = "%(asctime)s %(name)s %(levelname)s %(message)s",
+) -> Union[logging.FileHandler, None]:
     """Write the ``evoparam`` log to ``path`` (a ``FileHandler``); ``None`` removes the file
     handler set by a previous call. Returns the handler (or None)."""
 

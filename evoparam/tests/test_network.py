@@ -22,8 +22,21 @@ import evoparam
 pytestmark = pytest.mark.core
 
 PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
-NETWORK = {"socket", "urllib.request", "urllib3", "http.client", "requests", "httpx",
-           "aiohttp", "ftplib", "smtplib", "pickle", "dill", "cloudpickle", "shelve"}
+NETWORK = {
+    "socket",
+    "urllib.request",
+    "urllib3",
+    "http.client",
+    "requests",
+    "httpx",
+    "aiohttp",
+    "ftplib",
+    "smtplib",
+    "pickle",
+    "dill",
+    "cloudpickle",
+    "shelve",
+}
 
 
 def test_core_tests_run_with_the_socket_guard():
@@ -65,21 +78,29 @@ def test_np_load_never_allows_pickle():
         if rel.startswith("tests/"):
             continue
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "load" and \
-                    getattr(node.func.value, "id", "") in ("np", "numpy"):
+            if (
+                isinstance(node, ast.Call)
+                and getattr(node.func, "attr", "") == "load"
+                and getattr(node.func.value, "id", "") in ("np", "numpy")
+            ):
                 flag = [k for k in node.keywords if k.arg == "allow_pickle"]
-                if not flag or not (isinstance(flag[0].value, ast.Constant) and
-                                    flag[0].value.value is False):
+                if not flag or not (
+                    isinstance(flag[0].value, ast.Constant) and flag[0].value.value is False
+                ):
                     hits.append(f"{rel}:{node.lineno}")
     assert not hits, hits
 
 
 def test_no_telemetry_or_update_check():
-    pattern = re.compile(r"telemetry|analytics|update[_ ]check|check_for_update|pypi\.org/pypi",
-                         re.IGNORECASE)
-    hits = [f"{p.relative_to(PACKAGE)}" for p in PACKAGE.rglob("*.py")
-            if "tests" not in p.relative_to(PACKAGE).parts and
-            pattern.search(p.read_text(encoding="utf-8"))]
+    pattern = re.compile(
+        r"telemetry|analytics|update[_ ]check|check_for_update|pypi\.org/pypi", re.IGNORECASE
+    )
+    hits = [
+        f"{p.relative_to(PACKAGE)}"
+        for p in PACKAGE.rglob("*.py")
+        if "tests" not in p.relative_to(PACKAGE).parts
+        and pattern.search(p.read_text(encoding="utf-8"))
+    ]
     assert not hits, hits
 
 
@@ -93,16 +114,20 @@ def _grep_as_written():
         if rel.startswith("tests/") or rel == "io/_fetch.py":
             continue
         for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if re.search(r"pickle|urllib|requests|httpx", line) and \
-                    not re.search(r"allow_pickle=False", line):
+            if re.search(r"pickle|urllib|requests|httpx", line) and not re.search(
+                r"allow_pickle=False", line
+            ):
                 hits.append(f"{rel}:{n}")
     return hits
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-306 grep as written matches lines that are not "
-                   "network access: 'HTTP range requests' in docstrings of the remote readers "
-                   "(brainvision, mef), 'from urllib.parse import quote, unquote' in io/mef.py "
-                   "(URL text only); 7 lines in 2 modules measured on "
-                   "2026-10-11 (S20). The import-level check above holds")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-306 grep as written matches lines that are not "
+    "network access: 'HTTP range requests' in docstrings of the remote readers "
+    "(brainvision, mef), 'from urllib.parse import quote, unquote' in io/mef.py "
+    "(URL text only); 7 lines in 2 modules measured on "
+    "2026-10-11 (S20). The import-level check above holds",
+)
 def test_grep_as_written():
     assert not _grep_as_written(), _grep_as_written()

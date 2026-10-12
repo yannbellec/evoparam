@@ -39,8 +39,17 @@ def test_upsampled_noise_has_the_stride_of_its_upsampling(factor, rho):
         assert eng.noise_stride(z) == factor
 
 
-@pytest.mark.parametrize("sfreq, cutoff", [(256.0, 30.0), (256.0, 40.0), (1024.0, 30.0),
-                                           (1024.0, 40.0), (2048.0, 300.0), (2048.0, 500.0)])
+@pytest.mark.parametrize(
+    "sfreq, cutoff",
+    [
+        (256.0, 30.0),
+        (256.0, 40.0),
+        (1024.0, 30.0),
+        (1024.0, 40.0),
+        (2048.0, 300.0),
+        (2048.0, 500.0),
+    ],
+)
 def test_a_gentle_low_pass_keeps_stride_one(sfreq, cutoff):
     """A zero-phase Butterworth low-pass of order 2 (the gentler ERPLAB setting) leaves a
     band that is low but not empty: the previous path. Its fits were never better strided
@@ -114,20 +123,22 @@ def test_the_strided_whitening_is_the_whitening_at_the_lower_rate(exact, phase):
     low = eng.Whitener(scale[phase::2], a, innovation, valid[phase::2], acov=acov)
     full = strided(x)
     assert np.array_equal(full[phase::2], low(x[phase::2]))
-    assert not full[1 - phase::2].any()
+    assert not full[1 - phase :: 2].any()
     assert strided.n == low.n
     assert strided.p == low.p
     assert np.array_equal(strided.into(x.copy(), np.empty_like(x)), full)
     assert np.array_equal(strided(x[:, 0]), full[:, 0])
     if exact:
         # the innovation rows (the evidence of a component) are the same
-        innovations = np.sum(low(x[phase::2])[low.p:] ** 2)
-        assert np.sum(full[strided.skip:] ** 2) == pytest.approx(innovations)
+        innovations = np.sum(low(x[phase::2])[low.p :] ** 2)
+        assert np.sum(full[strided.skip :] ** 2) == pytest.approx(innovations)
 
 
 def _n1(group):
-    return [any(0.009 <= c.latency <= 0.05 and c.amplitude < 0 for c in f.components)
-            for f in group.fits], sum(len(f.components) for f in group.fits)
+    return [
+        any(0.009 <= c.latency <= 0.05 and c.amplitude < 0 for c in f.components)
+        for f in group.fits
+    ], sum(len(f.components) for f in group.fits)
 
 
 def test_an_upsampled_ccep_is_fitted_as_at_its_recorded_rate(monkeypatch):

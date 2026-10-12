@@ -53,15 +53,17 @@ def selftest(*, tolerance: float = 0.001) -> float:
     from .models import ResponseModel
     from .sim import simulate_ccep
 
-    trials, truth = simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=0,
-                                  artifact=False)
+    trials, truth = simulate_ccep(
+        n_trials=10, n_channels=3, p_response=1.0, seed=0, artifact=False
+    )
     channel = trials.ch_names[0]
     true = next(c for c in truth.components if c["channel"] == channel and c["label"] == "N1")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         # one waveform (a ResponseFit), so that only NumPy and SciPy are needed
         fit = ResponseModel("ccep", random_state=0).fit_waveform(
-            trials.times, trials.data[:, 0].mean(axis=0), trials=trials.data[:, 0])
+            trials.times, trials.data[:, 0].mean(axis=0), trials=trials.data[:, 0]
+        )
     found = [c for c in fit.components if 0.009 <= c.latency <= 0.05 and c.amplitude < 0]
     assert found, "selftest: no N1 found on the bundled CCEP"
     n1 = max(found, key=lambda c: abs(c.amplitude))

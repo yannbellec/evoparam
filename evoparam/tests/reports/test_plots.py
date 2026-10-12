@@ -45,15 +45,23 @@ def test_plot_trials_existence_tf_artifact_compare(results):
     assert _is_figure(plots.plot_existence(results["test"]))
     assert _is_figure(plots.plot_tf(results["tf"]))
     assert _is_figure(plots.plot_artifact(results["artifact"], results["ts"]))
-    assert _is_figure(plots.plot_compare([results["fit"], results["group"].fits[1]],
-                                         results["ts"], channel="c0"))
+    assert _is_figure(
+        plots.plot_compare([results["fit"], results["group"].fits[1]], results["ts"], channel="c0")
+    )
 
 
 def test_plot_shapes(results):
 
     basis = results["basis"] or ShapeBasis(
-        curves=np.ones((1, 10)), times=np.linspace(0, 0.1, 10), weights=np.ones((2, 1)),
-        r2=np.ones(2), assignment=None, stability=np.ones(1), n_shapes=1, method="nmf")
+        curves=np.ones((1, 10)),
+        times=np.linspace(0, 0.1, 10),
+        weights=np.ones((2, 1)),
+        r2=np.ones(2),
+        assignment=None,
+        stability=np.ones(1),
+        n_shapes=1,
+        method="nmf",
+    )
     assert _is_figure(plots.plot_shapes(basis))
 
 
@@ -110,11 +118,11 @@ def test_plot_existence_shows_the_statistic_over_time_with_its_null_band(results
     assert len(panels) == len(channels)
     for c, a in enumerate(panels):
         curve = np.asarray(test.curve)[c]
-        curve = curve[0] if curve.ndim > 1 else curve          # the first group (site)
+        curve = curve[0] if curve.ndim > 1 else curve  # the first group (site)
         drawn = [line for line in a.lines if len(line.get_xdata()) == curve.size]
         assert any(np.allclose(line.get_ydata(), curve, equal_nan=True) for line in drawn)
         assert np.allclose(drawn[0].get_xdata(), test.curve_times * 1e3)
-        assert any(isinstance(item, PolyCollection) for item in a.collections)   # the band
+        assert any(isinstance(item, PolyCollection) for item in a.collections)  # the band
     # one axes: every channel on it; a test without a time course: one bar per channel
     import matplotlib.pyplot as plt
 

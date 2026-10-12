@@ -78,8 +78,10 @@ class _Channel:
         self.support = np.zeros(len(tw), bool)
         for comp in fit.components:
             self.support |= (tw >= comp.onset - comp.fwhm) & (tw <= comp.offset + comp.fwhm)
-        self.key = tuple((type(s).__name__, repr(s), p.tobytes(), a)
-                         for s, p, a in zip(self.shapes, self.params, self.amps))
+        self.key = tuple(
+            (type(s).__name__, repr(s), p.tobytes(), a)
+            for s, p, a in zip(self.shapes, self.params, self.amps)
+        )
         self.spans = [slice(None)] * len(self.shapes)
 
     def curves(self, tw, shifts, component=None):
@@ -195,8 +197,17 @@ class FixedShapeModel:
     MODES = ("shift_scale", "scale", "common")
     MAX_SWEEPS = 20
 
-    def __init__(self, template, *, sfreq, ch_names, window=None, artifact_window=None,
-                 max_shift=0.005, mode="shift_scale"):
+    def __init__(
+        self,
+        template,
+        *,
+        sfreq,
+        ch_names,
+        window=None,
+        artifact_window=None,
+        max_shift=0.005,
+        mode="shift_scale",
+    ):
         if not sfreq > 0:
             raise SettingsError("sfreq must be positive.")
         if not max_shift >= 0:
@@ -208,8 +219,10 @@ class FixedShapeModel:
         names = [str(name) for name in ch_names]
         fits = self._channel_fits(template, names)
         if not fits:
-            raise DataError("FixedShapeModel: no channel has a usable fit (status 'ok' and at "
-                            "least one component).")
+            raise DataError(
+                "FixedShapeModel: no channel has a usable fit (status 'ok' and at "
+                "least one component)."
+            )
         if window is None:
             windows = {tuple(fit.window) for _, fit in fits}
             if len(windows) > 1:
@@ -271,8 +284,10 @@ class FixedShapeModel:
         for name in names:
             n_fits = int((template.index["channel"] == name).sum())
             if n_fits > 1:
-                raise DataError(f"The GroupFit has {n_fits} fits (conditions) for channel "
-                                f"{name!r}; give a GroupFit with one fit per channel.")
+                raise DataError(
+                    f"The GroupFit has {n_fits} fits (conditions) for channel "
+                    f"{name!r}; give a GroupFit with one fit per channel."
+                )
             if n_fits == 0:
                 continue
             fit = template.get(name)
@@ -286,8 +301,9 @@ class FixedShapeModel:
         n_ch, n_w = len(self._channels), len(self.tw)
         n_b = max(ch.basis.shape[0] for ch in self._channels)
         if any(ch.basis.shape[0] != n_b for ch in self._channels):
-            raise SettingsError("The channel fits use backgrounds with different numbers of "
-                                "linear terms.")
+            raise SettingsError(
+                "The channel fits use backgrounds with different numbers of linear terms."
+            )
         k_max = max(len(labels) for labels in self.labels)
         # Columns of the design: the whole template, or one per component (zero beyond a
         # channel's components, whose coefficient a unit diagonal term keeps at zero)
@@ -298,10 +314,11 @@ class FixedShapeModel:
         bound = np.full((n_ch, q), self.max_shift)
         for c, ch in enumerate(self._channels):
             if q > 1:
-                self._pad[c, len(ch.shapes):] = 1.0
+                self._pad[c, len(ch.shapes) :] = 1.0
                 bound[c] = 0.0
-                bound[c, :len(ch.shapes)] = ch.bounds(self.max_shift) \
-                    if self.mode == "shift_scale" else self.max_shift
+                bound[c, : len(ch.shapes)] = (
+                    ch.bounds(self.max_shift) if self.mode == "shift_scale" else self.max_shift
+                )
         self._bound = bound
         steps = np.minimum(np.floor(bound * self.sfreq + 1e-9).astype(int), self.n_grid)
         self._allowed = np.abs(np.arange(len(self.grid)) - self.n_grid) <= steps[..., None]
@@ -309,7 +326,7 @@ class FixedShapeModel:
         for c, ch in enumerate(self._channels):
             self._group_of[c] = groups.setdefault(ch.key, len(groups))
         self._groups = [np.flatnonzero(self._group_of == g) for g in range(len(groups))]
-        self._templates = []                                        # [q, n_shifts, n_times]
+        self._templates = []  # [q, n_shifts, n_times]
         for idx in self._groups:
             ch = self._channels[idx[0]]
             cols = np.zeros((q, len(self.grid), n_w))
@@ -323,9 +340,10 @@ class FixedShapeModel:
         # with a leading axis of length 1, so that a pulse reads them from the cache
         basis = np.stack([ch.basis for ch in self._channels])
         support = np.stack([ch.support for ch in self._channels])
-        self._shared = bool(np.array_equal(basis, np.broadcast_to(basis[:1], basis.shape))
-                            and np.array_equal(support, np.broadcast_to(support[:1],
-                                                                        support.shape)))
+        self._shared = bool(
+            np.array_equal(basis, np.broadcast_to(basis[:1], basis.shape))
+            and np.array_equal(support, np.broadcast_to(support[:1], support.shape))
+        )
         self._basis = basis[:1] if self._shared else basis
         self._support = support[:1] if self._shared else support
         self._keep = (self._support & (self.weights > 0)).astype(float)
@@ -336,15 +354,22 @@ class FixedShapeModel:
         if self._descent:
             self._tables = self._pair_tables(clean)
         # Existence projection: the unshifted template, unit norm over the weighted samples
-        centre = np.stack([self._templates[self._group_of[c]][:, self.n_grid].sum(axis=0)
-                           for c in range(n_ch)]) * self.weights
+        centre = (
+            np.stack(
+                [
+                    self._templates[self._group_of[c]][:, self.n_grid].sum(axis=0)
+                    for c in range(n_ch)
+                ]
+            )
+            * self.weights
+        )
         norm = np.sqrt(np.einsum("ct,ct->c", centre, centre))
         self._unit = centre / np.where(norm > 0, norm, 1.0)[:, None]
         self._lat0 = np.full((n_ch, k_max), np.nan)
         self._amp0 = np.full((n_ch, k_max), np.nan)
         for c in range(n_ch):
-            self._lat0[c, :len(self.latencies[c])] = self.latencies[c]
-            self._amp0[c, :len(self.amplitudes[c])] = self.amplitudes[c]
+            self._lat0[c, : len(self.latencies[c])] = self.latencies[c]
+            self._amp0[c, : len(self.amplitudes[c])] = self.amplitudes[c]
 
     def _normal_inverse(self, weights, channels=None):
         """Inverse normal matrices [n_channels, n_shifts, m, m] of the common shifts, for
@@ -354,13 +379,13 @@ class FixedShapeModel:
         q, diag = self.n_columns, np.arange(self.n_columns)
         out = np.empty((len(channels), len(self.grid), self.n_linear, self.n_linear))
         for i, c in enumerate(channels):
-            t = self._templates[self._group_of[c]]                  # [q, n_shifts, n_times]
-            b = self._basis[0 if self._shared else c]              # [n_b, n_times]
+            t = self._templates[self._group_of[c]]  # [q, n_shifts, n_times]
+            b = self._basis[0 if self._shared else c]  # [n_b, n_times]
             w = weights[i]
             gram = np.empty((len(self.grid), self.n_linear, self.n_linear))
             gram[:, :q, :q] = np.einsum("ajt,bjt->jab", t * w, t)
             gram[:, diag, diag] += self._pad[c]
-            cross = np.einsum("ajt,bt->jab", t * w, b)              # [n_shifts, q, n_b]
+            cross = np.einsum("ajt,bt->jab", t * w, b)  # [n_shifts, q, n_b]
             gram[:, :q, q:] = cross
             gram[:, q:, :q] = np.swapaxes(cross, 1, 2)
             gram[:, q:, q:] = (b * w) @ b.T
@@ -440,15 +465,25 @@ class FixedShapeModel:
                 if not stale[k]:
                     continue
                 others = np.delete(comps, k)
-                j = current[:, others]                              # [n_ch, n_o]
-                gram[:, :n_o, :n_o] = pairs[rows[:, :, None], others[None, :, None],
-                                            others[None, None, :], j[:, :, None], j[:, None, :]]
+                j = current[:, others]  # [n_ch, n_o]
+                gram[:, :n_o, :n_o] = pairs[
+                    rows[:, :, None],
+                    others[None, :, None],
+                    others[None, None, :],
+                    j[:, :, None],
+                    j[:, None, :],
+                ]
                 gram[:, diag, diag] += self._pad[:, others]
                 rhs[:, :n_o] = r[rows, others[None], j]
-                products[..., :n_o] = pairs[rows[:, :, None], k, others[None, None, :],
-                                            candidates[None, :, None], j[:, None, :]]
+                products[..., :n_o] = pairs[
+                    rows[:, :, None],
+                    k,
+                    others[None, None, :],
+                    candidates[None, :, None],
+                    j[:, None, :],
+                ]
                 if n_b:
-                    tb = cross[rows, others[None], j]               # [n_ch, n_o, n_b]
+                    tb = cross[rows, others[None], j]  # [n_ch, n_o, n_b]
                     gram[:, :n_o, n_o:] = tb
                     gram[:, n_o:, :n_o] = np.swapaxes(tb, 1, 2)
                     products[..., n_o:] = cross[:, k]
@@ -505,8 +540,9 @@ class FixedShapeModel:
         if y.shape != (n_ch, n_seg):
             raise DataError(f"window_data must be [{n_ch}, {n_seg}], got {list(y.shape)}.")
         if self.artifact_window is not None:
-            y, _ = interpolate_window(self._segment_times, y, self.artifact_window,
-                                      INTERP_BUFFER, "linear")
+            y, _ = interpolate_window(
+                self._segment_times, y, self.artifact_window, INTERP_BUFFER, "linear"
+            )
         y = y[:, self._in_window]
         finite = np.isfinite(y)
         all_finite = finite.all(axis=1)
@@ -565,17 +601,23 @@ class FixedShapeModel:
         target = np.empty((n_ch, self.n_linear))
         target[:, :q] = np.einsum("cat,ct->ca", cw, y)
         if self.n_linear > q:
-            cross = self._basis_dot(cw)                              # [n_ch, q, n_b]
+            cross = self._basis_dot(cw)  # [n_ch, q, n_b]
             gram[:, :q, q:] = cross
             gram[:, q:, :q] = np.swapaxes(cross, 1, 2)
-            gram[:, q:, q:] = self._basis_gram if clean else \
-                np.matmul(self._basis * weights[:, None, :], np.swapaxes(self._basis, 1, 2))
+            gram[:, q:, q:] = (
+                self._basis_gram
+                if clean
+                else np.matmul(self._basis * weights[:, None, :], np.swapaxes(self._basis, 1, 2))
+            )
             target[:, q:] = rb
         coef = _solve(gram, target)
         fitted = np.einsum("ca,cat->ct", coef[:, :q], curve)
         if self.n_linear > q:
-            fitted += coef[:, q:] @ self._basis[0] if self._shared else \
-                np.matmul(coef[:, None, q:], self._basis)[:, 0]
+            fitted += (
+                coef[:, q:] @ self._basis[0]
+                if self._shared
+                else np.matmul(coef[:, None, q:], self._basis)[:, 0]
+            )
         if clean and self._shared:
             keep = self._keep[0]
             count = np.full(n_ch, keep.sum())
@@ -591,7 +633,7 @@ class FixedShapeModel:
             sum_y = np.einsum("ct,ct->c", keep, y)
             sum_y2 = np.einsum("ct,ct->c", keep, y * y)
         with np.errstate(divide="ignore", invalid="ignore"):
-            tss = sum_y2 - sum_y ** 2 / count
+            tss = sum_y2 - sum_y**2 / count
             r2 = np.where(tss > 0, 1 - rss / tss, np.nan)
         absent = np.isnan(self._lat0)
         k_max = absent.shape[1]
@@ -611,11 +653,18 @@ class FixedShapeModel:
             if b.shape != (n_ch, n_w):
                 raise DataError(f"baseline_data must be [{n_ch}, {n_w}].")
             base = np.einsum("ct,ct->c", self._unit, b)
-        return {"shift": shift, "scale": scale, "amplitude": self._amp0 * scale,
-                "latency": self._lat0 + shift, "r2": r2, "at_bound": at_bound.any(axis=1),
-                "n_valid": np.broadcast_to((weights > 0).sum(axis=1), n_ch).copy(),
-                "projection": projection,
-                "baseline_projection": base, "finite": all_finite}
+        return {
+            "shift": shift,
+            "scale": scale,
+            "amplitude": self._amp0 * scale,
+            "latency": self._lat0 + shift,
+            "r2": r2,
+            "at_bound": at_bound.any(axis=1),
+            "n_valid": np.broadcast_to((weights > 0).sum(axis=1), n_ch).copy(),
+            "projection": projection,
+            "baseline_projection": base,
+            "finite": all_finite,
+        }
 
     def fit_trialset(self, ts):
         """Fit every trial of a TrialSet (onset at t = 0, the sampling frequency of the model).
@@ -634,13 +683,19 @@ class FixedShapeModel:
         i0, i1 = self.segment_offsets
         b0, b1 = self.baseline_offsets
         if zero + i0 < 0 or zero + i1 >= ts.n_times:
-            raise DataError("The fit window (with the anchors of the artifact interpolation) "
-                            "is outside the epochs.")
+            raise DataError(
+                "The fit window (with the anchors of the artifact interpolation) "
+                "is outside the epochs."
+            )
         has_base = zero + b0 >= 0
         data = ts.data[:, index]
         if ts.masks is not None:
             data = np.where(ts.masks[:, index], np.nan, data)
-        results = [self.fit(trial[:, zero + i0:zero + i1 + 1],
-                            trial[:, zero + b0:zero + b1 + 1] if has_base else None)
-                   for trial in data]
+        results = [
+            self.fit(
+                trial[:, zero + i0 : zero + i1 + 1],
+                trial[:, zero + b0 : zero + b1 + 1] if has_base else None,
+            )
+            for trial in data
+        ]
         return {key: np.stack([res[key] for res in results]) for key in results[0]}

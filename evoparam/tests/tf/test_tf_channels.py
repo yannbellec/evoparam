@@ -54,8 +54,9 @@ def test_bonferroni_is_alpha_over_rows_on_each_row():
     rng = np.random.default_rng(2)
     data = ar1(rng, (30, 3, len(TIMES)))
     data[:, 0] += burst(rng, 30, amp=12.0)
-    tf = tf_fit(trialset(data), freqs=FREQS, zones="none", channel_correction="bonferroni",
-                random_state=0)
+    tf = tf_fit(
+        trialset(data), freqs=FREQS, zones="none", channel_correction="bonferroni", random_state=0
+    )
     assert tf.significant[0].any()
     assert np.allclose(tf.settings["row_alpha"], 0.05 / 3)
 
@@ -65,8 +66,7 @@ def _null_family_error(method, runs=30, n_channels=8):
     for seed in range(runs):
         rng = np.random.default_rng(3000 + seed)
         ts = trialset(ar1(rng, (30, n_channels, len(TIMES))))
-        tf = tf_fit(ts, freqs=FREQS, zones="none", channel_correction=method,
-                    random_state=seed)
+        tf = tf_fit(ts, freqs=FREQS, zones="none", channel_correction=method, random_state=seed)
         hits += bool(tf.significant.any())
     return hits / runs
 

@@ -64,8 +64,9 @@ def average(ts, *, by=None, method="mean", trim=0.2, use_rejected=False):
         columns = [by] if isinstance(by, str) else list(by)
         out = []
         for _, rows in work.metadata.groupby(columns, sort=True, dropna=False).indices.items():
-            out.append(average(work.select(trials=list(rows)), method=method,
-                               use_rejected=use_rejected))
+            out.append(
+                average(work.select(trials=list(rows)), method=method, use_rejected=use_rejected)
+            )
         return out
 
     keep = np.arange(work.n_trials)
@@ -89,11 +90,22 @@ def average(ts, *, by=None, method="mean", trim=0.2, use_rejected=False):
     sem[count < 2] = np.nan
     masks = count == 0
     provenance = work.provenance.with_step(
-        "evoparam.prep.average", {"method": method, "use_rejected": use_rejected,
-                                  "n_used": int(keep.size)},
-        duration_s=_time.perf_counter() - start)
+        "evoparam.prep.average",
+        {"method": method, "use_rejected": use_rejected, "n_used": int(keep.size)},
+        duration_s=_time.perf_counter() - start,
+    )
     provenance.data_hash = None
-    return Evoked(data=np.where(masks, np.nan, mean), times=work.times, sfreq=work.sfreq,
-                  ch_names=work.ch_names, units=work.units, n_trials=count.min(axis=1),
-                  sem=sem, masks=masks if masks.any() else None, ch_info=work.ch_info,
-                  species=work.species, modality=work.modality, provenance=provenance)
+    return Evoked(
+        data=np.where(masks, np.nan, mean),
+        times=work.times,
+        sfreq=work.sfreq,
+        ch_names=work.ch_names,
+        units=work.units,
+        n_trials=count.min(axis=1),
+        sem=sem,
+        masks=masks if masks.any() else None,
+        ch_info=work.ch_info,
+        species=work.species,
+        modality=work.modality,
+        provenance=provenance,
+    )

@@ -11,6 +11,7 @@ from functools import wraps
 ###################################################################################################
 ###################################################################################################
 
+
 def safe_import(*args):
     """Try to import a module, with a safety net for if the module is not available.
 
@@ -75,10 +76,13 @@ def check_dependency(dep, name):
         @wraps(func)
         def wrapped_func(*args, **kwargs):
             if not dep:
-                raise ImportError("Optional evoparam dependency " + name + \
-                                  " is required for this functionality.")
+                raise ImportError(
+                    "Optional evoparam dependency " + name + " is required for this functionality."
+                )
             return func(*args, **kwargs)
+
         return wrapped_func
+
     return wrap
 
 
@@ -101,12 +105,12 @@ def docs_drop_param(docstring):
     It also assumes the parameter description to be dropped is only 2 lines long.
     """
 
-    sep = '----------\n'
+    sep = "----------\n"
     ind = docstring.find(sep) + len(sep)
     front, back = docstring[:ind], docstring[ind:]
 
     for loop in range(2):
-        back = back[back.find('\n')+1:]
+        back = back[back.find("\n") + 1 :]
 
     return front + back
 
@@ -133,8 +137,9 @@ def docs_append_to_section(docstring, section, add):
     This function assumes numpydoc documentation standard.
     """
 
-    return '\n\n'.join([split + add if section in split else split \
-                        for split in docstring.split('\n\n')])
+    return "\n\n".join(
+        [split + add if section in split else split for split in docstring.split("\n\n")]
+    )
 
 
 def copy_doc_func_to_method(source):
@@ -160,7 +165,7 @@ def copy_doc_func_to_method(source):
     return wrapper
 
 
-def copy_doc_class(source, section='Attributes', add=''):
+def copy_doc_class(source, section="Attributes", add=""):
     """Decorator that copies method docstring from class, to another class, adding extra info.
 
     Parameters

@@ -12,14 +12,32 @@ import pytest
 from evoparam.data import ShapeBasis, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.models import ResponseModel
-from evoparam.spatial import (adjusted_rand_index, as_template, convergent, divergent,
-                              fit_shared, neighbours, screen_volume_conduction, shared_shapes)
+from evoparam.spatial import (
+    adjusted_rand_index,
+    as_template,
+    convergent,
+    divergent,
+    fit_shared,
+    neighbours,
+    screen_volume_conduction,
+    shared_shapes,
+)
 
-from .helpers import (BASELINE, SFREQ, SHAPES, TIMES, gauss, independent_fits, multi_site,
-                      shared_channels, volume_scene)
+from .helpers import (
+    BASELINE,
+    SFREQ,
+    SHAPES,
+    TIMES,
+    gauss,
+    independent_fits,
+    multi_site,
+    shared_channels,
+    volume_scene,
+)
 
 ###################################################################################################
 ###################################################################################################
+
 
 def _matched_correlations(basis, shapes=SHAPES):
     """Best correlation of each true shape with a recovered curve (one curve per shape)."""
@@ -27,10 +45,13 @@ def _matched_correlations(basis, shapes=SHAPES):
     from itertools import permutations
 
     win = (TIMES >= basis.times[0] - 1e-9) & (TIMES <= basis.times[-1] + 1e-9)
-    corr = np.array([[np.corrcoef(curve, shape[win])[0, 1] for shape in shapes]
-                     for curve in basis.curves])
-    best = max(permutations(range(len(basis.curves)), len(shapes)),
-               key=lambda p: sum(corr[p[j], j] for j in range(len(shapes))))
+    corr = np.array(
+        [[np.corrcoef(curve, shape[win])[0, 1] for shape in shapes] for curve in basis.curves]
+    )
+    best = max(
+        permutations(range(len(basis.curves)), len(shapes)),
+        key=lambda p: sum(corr[p[j], j] for j in range(len(shapes))),
+    )
     return np.array([corr[best[j], j] for j in range(len(shapes))])
 
 
@@ -60,8 +81,11 @@ def test_weights_are_the_clustering_loadings(method):
     ts, which = multi_site(3)
     # site S19 keeps 2 trials: it is projected, not used to define the bases
     meta = ts.metadata
-    keep = [i for i, site in enumerate(meta["stim_site"]) if site != "S19-T19" or
-            sum(meta["stim_site"][:i] == site) < 2]
+    keep = [
+        i
+        for i, site in enumerate(meta["stim_site"])
+        if site != "S19-T19" or sum(meta["stim_site"][:i] == site) < 2
+    ]
     ts = ts.select(trials=keep)
     basis = convergent(ts, "R01", method=method, random_state=0)
     table = basis.assignment
@@ -127,12 +151,18 @@ def test_divergent_groups_channels():
     for c in range(12):
         data[:, c] += rng.uniform(50, 100) * SHAPES[c % 2]
     info = pd.DataFrame({"name": names, "bad": [False] * 13 + [True]})
-    ts = TrialSet(data=data, times=TIMES, sfreq=SFREQ, ch_names=names, ch_info=info,
-                  metadata=pd.DataFrame({"stim_site": ["C12-C99"] * 10}))
+    ts = TrialSet(
+        data=data,
+        times=TIMES,
+        sfreq=SFREQ,
+        ch_names=names,
+        ch_info=info,
+        metadata=pd.DataFrame({"stim_site": ["C12-C99"] * 10}),
+    )
     basis = divergent(ts, "C12-C99", random_state=0)
     assert basis.n_shapes == 2
     groups = list(basis.assignment["group"])
-    assert "C12" not in groups and "C13" not in groups          # stimulated and bad
+    assert "C12" not in groups and "C13" not in groups  # stimulated and bad
     ids = basis.assignment["shape_id"].to_numpy()
     assert adjusted_rand_index(ids, np.arange(12) % 2) == 1.0
     assert basis.settings["stim_site"] == "C12-C99"
@@ -142,7 +172,7 @@ def test_small_groups_are_projected_not_used():
 
     ts, which = multi_site(5)
     keep = np.ones(ts.n_trials, bool)
-    keep[np.flatnonzero(ts.metadata["stim_site"] == "S00-T00")[2:]] = False   # 2 trials
+    keep[np.flatnonzero(ts.metadata["stim_site"] == "S00-T00")[2:]] = False  # 2 trials
     small = ts.select(trials=np.flatnonzero(keep))
     basis = shared_shapes(small, random_state=0)
     row = basis.assignment.set_index("group").loc["S00-T00"]
@@ -158,8 +188,13 @@ def test_recording_contact_sites_are_left_out():
 
     ts, _ = multi_site(6)
     sites = ts.metadata["stim_site"].replace({"S01-T01": "R01-T01"})
-    ts = TrialSet(data=ts.data, times=ts.times, sfreq=ts.sfreq, ch_names=ts.ch_names,
-                  metadata=pd.DataFrame({"stim_site": sites}))
+    ts = TrialSet(
+        data=ts.data,
+        times=ts.times,
+        sfreq=ts.sfreq,
+        ch_names=ts.ch_names,
+        metadata=pd.DataFrame({"stim_site": sites}),
+    )
     basis = shared_shapes(ts, random_state=0)
     assert "R01-T01" not in list(basis.assignment["group"])
 
@@ -168,16 +203,21 @@ def test_edge_cases():
 
     ts, _ = multi_site(0, n_sites=2)
     with pytest.raises(DataError):
-        shared_shapes(ts)                                    # fewer than 3 groups
+        shared_shapes(ts)  # fewer than 3 groups
     ts, _ = multi_site(0)
     with pytest.raises(SettingsError):
         shared_shapes(ts, method="pca")
     with pytest.raises(SettingsError):
-        shared_shapes(ts, by="channel")                      # many sites: stim_site needed
-    two = TrialSet(data=np.repeat(ts.data, 2, axis=1), times=ts.times, sfreq=ts.sfreq,
-                   ch_names=["a", "b"], metadata=ts.metadata)
+        shared_shapes(ts, by="channel")  # many sites: stim_site needed
+    two = TrialSet(
+        data=np.repeat(ts.data, 2, axis=1),
+        times=ts.times,
+        sfreq=ts.sfreq,
+        ch_names=["a", "b"],
+        metadata=ts.metadata,
+    )
     with pytest.raises(SettingsError):
-        shared_shapes(two)                                   # channel needed
+        shared_shapes(two)  # channel needed
 
 
 def test_unstable_basis_returns_one_shape_with_a_warning():
@@ -190,17 +230,23 @@ def test_unstable_basis_returns_one_shape_with_a_warning():
         for _ in range(8):
             data.append(wave + rng.normal(0, 30, len(TIMES)))
             sites.append(f"S{s}-T{s}")
-    ts = TrialSet(data=np.array(data)[:, None], times=TIMES, sfreq=SFREQ, ch_names=["R1"],
-                  metadata=pd.DataFrame({"stim_site": sites}))
+    ts = TrialSet(
+        data=np.array(data)[:, None],
+        times=TIMES,
+        sfreq=SFREQ,
+        ch_names=["R1"],
+        metadata=pd.DataFrame({"stim_site": sites}),
+    )
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         basis = shared_shapes(ts, random_state=0, stability_min=0.99)
     if basis.n_shapes == 1:
         assert "unstable_basis" in basis.settings["warnings"]
         assert any("unstable_basis" in str(w.message) for w in caught)
-    else:                                   # a stable decomposition was found instead
-        assert all(row["stability"] >= 0.99 for row in basis.settings["selection"]
-                   if row["accepted"])
+    else:  # a stable decomposition was found instead
+        assert all(
+            row["stability"] >= 0.99 for row in basis.settings["selection"] if row["accepted"]
+        )
 
 
 def test_as_template_returns_a_template_shape():
@@ -219,6 +265,7 @@ def test_as_template_returns_a_template_shape():
 ###################################################################################################
 ## Shared-parameter fits
 
+
 def _closest_latency(fit, latency):
     if fit.status != "ok" or not fit.components:
         return np.nan
@@ -235,7 +282,7 @@ def test_req191_shared_fit_reduces_latency_rmse():
         shared = fit_shared(evoked, preset="ccep", baseline=BASELINE, group_fit=independent)
         ind = np.array([_closest_latency(f, 0.03) - 0.03 for f in independent.fits])
         sha = np.array([_closest_latency(f, 0.03) - 0.03 for f in shared.fits])
-        ok = np.isfinite(ind)                  # channels with an independent estimate
+        ok = np.isfinite(ind)  # channels with an independent estimate
         assert ok.sum() >= 5 and np.isfinite(sha).all()
         ratios.append(np.sqrt(np.mean(sha[ok] ** 2)) / np.sqrt(np.mean(ind[ok] ** 2)))
     # RMSE reduced by >= 30 % in every run (0.01 to 0.37 at the time of writing)
@@ -251,7 +298,7 @@ def test_fit_shared_result_and_flags():
     assert info["modal_k"] == 1 and info["shapes"] in (["gaussian"], ["skewed_gaussian"])
     assert len(group.fits) == 10 and all(f.status == "ok" for f in group.fits)
     latencies = [f.components[0].latency for f in group.fits]
-    assert np.ptp(latencies) < 1e-6                         # one shared latency
+    assert np.ptp(latencies) < 1e-6  # one shared latency
     assert abs(latencies[0] - 0.03) < 0.002
     for f, truth in zip(group.fits, clean):
         amp = f.components[0].amplitude
@@ -272,12 +319,13 @@ def test_free_latency_recovers_offsets():
 
     offsets = np.tile(np.linspace(-0.003, 0.003, 10), 1)
     draw, _, _ = shared_channels(2, n=10, snr=8.0, offsets=offsets)
-    group = fit_shared(draw(), preset="ccep", baseline=BASELINE, free_latency=True,
-                       max_shift=0.005)
+    group = fit_shared(
+        draw(), preset="ccep", baseline=BASELINE, free_latency=True, max_shift=0.005
+    )
     latencies = np.array([f.components[0].latency for f in group.fits])
     assert np.max(np.abs(latencies - 0.03 - offsets)) < 0.0015
     fwhm = [f.components[0].fwhm for f in group.fits]
-    assert np.ptp(fwhm) < 1e-6                              # width still shared
+    assert np.ptp(fwhm) < 1e-6  # width still shared
 
 
 def test_req192_penalty_never_hurts_held_out_prediction():
@@ -286,19 +334,21 @@ def test_req192_penalty_never_hurts_held_out_prediction():
     rng = np.random.default_rng(0)
     for seed in range(2):
         smooth_field = seed % 2 == 0
-        if smooth_field:      # latency drifting along each shaft
+        if smooth_field:  # latency drifting along each shaft
             offsets = np.concatenate([np.linspace(-0.004, 0.004, 10) * s for s in (1, -1, 1)])
-        else:                 # no spatial structure
+        else:  # no spatial structure
             offsets = rng.uniform(-0.004, 0.004, 30)
         draw, _, _ = shared_channels(seed, snr=3.0, offsets=offsets)
         train, test = draw(), draw()
         independent = independent_fits(train)
-        kw = dict(preset="ccep", baseline=BASELINE, group_fit=independent,
-                  free_latency=True, smooth=True)
+        kw = dict(
+            preset="ccep", baseline=BASELINE, group_fit=independent, free_latency=True, smooth=True
+        )
         chosen = fit_shared(train, **kw)
         off = fit_shared(train, smooth_lambda=0.0, **kw)
-        err = lambda g: sum(np.sum((test.data[i, win] - f.model) ** 2)
-                            for i, f in enumerate(g.fits))
+        err = lambda g: sum(
+            np.sum((test.data[i, win] - f.model) ** 2) for i, f in enumerate(g.fits)
+        )
         smooth = chosen.settings["fit_shared"]["smooth"]
         assert smooth["grid"][0] == 0.0 and len(smooth["loco_error"]) == len(smooth["grid"])
         assert min(smooth["loco_error"]) <= smooth["loco_error"][0]
@@ -312,11 +362,11 @@ def test_smooth_needs_free_latency_and_neighbours():
     evoked = draw()
     with pytest.raises(SettingsError):
         fit_shared(evoked, preset="ccep", baseline=BASELINE, smooth=True)
-    bare = type(evoked)(data=evoked.data, times=evoked.times, sfreq=evoked.sfreq,
-                        ch_names=evoked.ch_names)
+    bare = type(evoked)(
+        data=evoked.data, times=evoked.times, sfreq=evoked.sfreq, ch_names=evoked.ch_names
+    )
     with pytest.warns(UserWarning, match="no neighbouring"):
-        group = fit_shared(bare, preset="ccep", baseline=BASELINE, free_latency=True,
-                           smooth=True)
+        group = fit_shared(bare, preset="ccep", baseline=BASELINE, free_latency=True, smooth=True)
     assert group.settings["fit_shared"]["smooth"]["lambda"] == 0.0
     weights = neighbours(info, list(info["name"]), radius_mm=10.0)
     # Contacts 3.5 mm apart on a shaft: two neighbours on each side, none across shafts
@@ -325,6 +375,7 @@ def test_smooth_needs_free_latency_and_neighbours():
 
 ###################################################################################################
 ## Volume conduction
+
 
 def test_req193_volume_conduction_screen():
 
@@ -344,7 +395,8 @@ def test_volume_screen_columns_and_markers():
 
     ts, volume, local = volume_scene(0)
     group = ResponseModel("ccep", baseline=BASELINE).fit_group(
-        ts.select(picks=volume[:3] + local[:1]))
+        ts.select(picks=volume[:3] + local[:1])
+    )
     table = screen_volume_conduction(ts, group, decay_model="none")
     assert set(table["volume_conduction_risk"]) <= {"", "low", "medium", "high"}
     rows = table.set_index("channel")

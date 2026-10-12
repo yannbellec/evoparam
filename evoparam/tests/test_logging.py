@@ -35,8 +35,11 @@ def _evoked():
 def test_package_logger_has_a_null_handler_only():
     handlers = logging.getLogger("evoparam").handlers
     assert any(isinstance(h, logging.NullHandler) for h in handlers)
-    assert not [h for h in handlers if not isinstance(h, logging.NullHandler)
-                and not getattr(h, "_evoparam_log_file", False)]
+    assert not [
+        h
+        for h in handlers
+        if not isinstance(h, logging.NullHandler) and not getattr(h, "_evoparam_log_file", False)
+    ]
 
 
 def test_failed_channel_emits_one_warning_with_its_name(caplog, monkeypatch):
@@ -51,8 +54,11 @@ def test_failed_channel_emits_one_warning_with_its_name(caplog, monkeypatch):
     monkeypatch.setattr(_engine, "fit_waveform_core", failing)
     with caplog.at_level(logging.WARNING, logger="evoparam"):
         group = ResponseModel("ccep", max_components=1).fit_group(evoked)
-    records = [r for r in caplog.records if r.levelno == logging.WARNING
-               and "injected failure" in r.getMessage()]
+    records = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and "injected failure" in r.getMessage()
+    ]
     assert len(records) == 1
     assert "A2" in records[0].getMessage()
     assert [f.status for f in group.fits].count("failed") == 1
@@ -63,15 +69,22 @@ def test_verbose_debug_gives_debug_records_from_models(caplog):
         with verbose("debug"):
             assert logging.getLogger("evoparam").getEffectiveLevel() == logging.DEBUG
             ResponseModel("ccep", max_components=1).fit_group(_evoked())
-    assert any(r.levelno == logging.DEBUG and r.name.startswith("evoparam") for r in
-               caplog.records)
+    assert any(
+        r.levelno == logging.DEBUG and r.name.startswith("evoparam") for r in caplog.records
+    )
 
 
-@pytest.mark.parametrize("value,level", [(True, logging.INFO), ("info", logging.INFO),
-                                         ("debug", logging.DEBUG),
-                                         ("warning", logging.WARNING),
-                                         ("error", logging.ERROR),
-                                         ("progress", logging.INFO)])
+@pytest.mark.parametrize(
+    "value,level",
+    [
+        (True, logging.INFO),
+        ("info", logging.INFO),
+        ("debug", logging.DEBUG),
+        ("warning", logging.WARNING),
+        ("error", logging.ERROR),
+        ("progress", logging.INFO),
+    ],
+)
 def test_verbose_mapping(value, level):
     logger = logging.getLogger("evoparam")
     before = logger.level
@@ -131,5 +144,8 @@ def test_no_print_outside_the_cli():
 def _cite_print_line():
     tree = ast.parse((PACKAGE / "__init__.py").read_text(encoding="utf-8"))
     cite = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "cite")
-    return next(n.lineno for n in ast.walk(cite) if isinstance(n, ast.Call)
-                and getattr(n.func, "id", None) == "print")
+    return next(
+        n.lineno
+        for n in ast.walk(cite)
+        if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "print"
+    )

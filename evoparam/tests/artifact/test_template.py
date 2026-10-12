@@ -74,7 +74,7 @@ def test_user_template_and_estimate():
 def test_small_groups_raise_or_fall_back():
 
     noisy, truth = make_overlay(n_trials=10)
-    noisy.metadata.loc[:1, "stim_site"] = "C3-C4"            # a group of 2 pulses
+    noisy.metadata.loc[:1, "stim_site"] = "C3-C4"  # a group of 2 pulses
     with pytest.raises(ArtifactError, match="at least 3"):
         remove_artifact(noisy, method="template", window=WINDOW)
     with pytest.warns(UserWarning, match="interpolated"):
@@ -87,8 +87,9 @@ def test_small_groups_raise_or_fall_back():
 def test_response_inside_window_warns():
 
     # The response starts inside the window: the template contains it
-    noisy, _ = make_overlay(onset=0.0, amplitude=-3000.0, width=0.02, art_amplitude=200.0,
-                            art_tail=0.0)
+    noisy, _ = make_overlay(
+        onset=0.0, amplitude=-3000.0, width=0.02, art_amplitude=200.0, art_tail=0.0
+    )
     with pytest.warns(UserWarning, match="correlates with the response"):
         remove_artifact(noisy, method="template", window=(-0.002, 0.004))
 
@@ -104,13 +105,15 @@ def test_window_longer_than_train_interval_is_refused():
 def test_saturated_pulses_left_out_of_template():
 
     from evoparam.artifact import apply_mask
+
     noisy, truth = make_overlay(n_trials=12)
     inside = np.flatnonzero((noisy.times >= WINDOW[0]) & (noisy.times <= WINDOW[1]))
     data = noisy.data.copy()
-    data[0, :, inside] = 9e4                                   # a clipped pulse
+    data[0, :, inside] = 9e4  # a clipped pulse
     sat = np.zeros(data.shape, dtype=bool)
     sat[0, :, inside] = True
     from dataclasses import replace
+
     corrupted = apply_mask(replace(noisy, data=data), sat)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

@@ -15,8 +15,16 @@ from scipy.fft import fft, ifft, next_fast_len
 
 from evoparam.errors import SettingsError
 
-__all__ = ["TRANSFORMS", "Kernels", "make_kernels", "apply_kernels", "morse_spectrum",
-           "morse_peak", "log_freqs", "morse_reference_modulus"]
+__all__ = [
+    "TRANSFORMS",
+    "Kernels",
+    "make_kernels",
+    "apply_kernels",
+    "morse_spectrum",
+    "morse_peak",
+    "log_freqs",
+    "morse_reference_modulus",
+]
 
 TRANSFORMS = ("morse", "morlet", "multitaper", "stft")
 # Fraction of a kernel's energy that defines its temporal support (cone of influence and
@@ -50,7 +58,7 @@ def morse_spectrum(omega, gamma, beta):
     w = omega[pos]
     # log form avoids overflow of omega**beta for large beta
     log_a = (beta / gamma) * (1.0 + np.log(gamma) - np.log(beta))
-    out[pos] = 2.0 * np.exp(log_a + beta * np.log(w) - w ** gamma)
+    out[pos] = 2.0 * np.exp(log_a + beta * np.log(w) - w**gamma)
     return out
 
 
@@ -104,13 +112,23 @@ def _centred_spectrum(h, n_fft):
     m = len(h)
     buf = np.zeros(n_fft, complex)
     centre = m // 2
-    buf[:m - centre] = h[centre:]
-    buf[n_fft - centre:] = h[:centre]
+    buf[: m - centre] = h[centre:]
+    buf[n_fft - centre :] = h[:centre]
     return fft(buf)
 
 
-def make_kernels(transform, freqs, sfreq, n_times, *, gamma=3.0, p2=30.0, n_cycles=7.0,
-                 time_bandwidth=4.0, stft_window=0.2):
+def make_kernels(
+    transform,
+    freqs,
+    sfreq,
+    n_times,
+    *,
+    gamma=3.0,
+    p2=30.0,
+    n_cycles=7.0,
+    time_bandwidth=4.0,
+    stft_window=0.2,
+):
     """Kernels of one transform for a frequency grid.
 
     Parameters
@@ -151,8 +169,9 @@ def make_kernels(transform, freqs, sfreq, n_times, *, gamma=3.0, p2=30.0, n_cycl
         def spectrum(j, n_fft):
             nu = np.fft.fftfreq(n_fft, 1.0 / sfreq)
             sigma_t = cycles[j] / (2 * np.pi * freqs[j])
-            return np.where(nu > 0, 2.0 * np.exp(-0.5 * (2 * np.pi * (nu - freqs[j])
-                                                         * sigma_t) ** 2), 0.0)[None]
+            return np.where(
+                nu > 0, 2.0 * np.exp(-0.5 * (2 * np.pi * (nu - freqs[j]) * sigma_t) ** 2), 0.0
+            )[None]
     else:
         if transform == "multitaper":
             from scipy.signal.windows import dpss
@@ -160,8 +179,9 @@ def make_kernels(transform, freqs, sfreq, n_times, *, gamma=3.0, p2=30.0, n_cycl
             nw = time_bandwidth / 2.0
             n_tapers = max(1, int(np.floor(time_bandwidth - 1)))
             lengths = np.maximum(np.round(cycles / freqs * sfreq).astype(int), 3)
-            params.update(time_bandwidth=float(time_bandwidth), n_tapers=n_tapers,
-                          n_cycles=cycles.tolist())
+            params.update(
+                time_bandwidth=float(time_bandwidth), n_tapers=n_tapers, n_cycles=cycles.tolist()
+            )
 
             def time_kernels(j):
                 m = lengths[j]
@@ -217,6 +237,6 @@ def morse_reference_modulus(freq_signal, freq_kernel, gamma, beta):
     for the kernel centred at ``freq_kernel``: half the wavelet's gain at that frequency."""
 
     peak = morse_peak(gamma, beta)
-    return 0.5 * float(morse_spectrum(np.array([freq_signal * peak / freq_kernel]),
-                                      gamma, beta)[0])
-
+    return 0.5 * float(
+        morse_spectrum(np.array([freq_signal * peak / freq_kernel]), gamma, beta)[0]
+    )

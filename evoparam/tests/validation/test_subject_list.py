@@ -35,6 +35,7 @@ def _fake(n_trials, sfreq):
 
     def fetch(url):
         return files[url.split("/ds004080/")[1]]
+
     return listing, fetch
 
 
@@ -46,7 +47,7 @@ def test_rule_selects_by_trials_and_rate():
     tool.EXAMPLE = "sub-04"
     chosen, sha = tool.select(fetch=fetch, listing=listing)
     assert [s for s, _ in chosen] == ["sub-01", "sub-03", "sub-04"]
-    assert chosen[-1][1] == "example of spec §1"         # sub-04 does not qualify itself
+    assert chosen[-1][1] == "example of spec §1"  # sub-04 does not qualify itself
     assert len(sha) == 64
 
 
@@ -70,5 +71,8 @@ def test_list_is_committed_with_version_and_checksum():
     subjects = [l.split("\t")[0] for l in lines if not l.startswith("#")]
     assert len(subjects) == 6 and len(set(subjects)) == 6
     assert subjects[-1] == "sub-ccepAgeUMCU01"
-    assert all(line.split("\t")[1].startswith(line.split("\t")[0] + "_")
-               for line in lines if not line.startswith("#"))
+    assert all(
+        line.split("\t")[1].startswith(line.split("\t")[0] + "_")
+        for line in lines
+        if not line.startswith("#")
+    )

@@ -21,8 +21,7 @@ import numpy as np
 import evoparam
 from evoparam import presets, sim
 
-ts, truth = sim.simulate_animal_ep(n_trials=80, species="macaque", n_channels=16,
-                                   seed=0)
+ts, truth = sim.simulate_animal_ep(n_trials=80, species="macaque", n_channels=16, seed=0)
 print(ts)
 print(ts.metadata["state"].value_counts())
 print(presets.methods_note("primate_ep"))
@@ -34,8 +33,9 @@ print(presets.methods_note("primate_ep"))
 group = evoparam.fit(ts, "primate_ep", by="state", existence=False, random_state=0)
 table = group.to_dataframe()
 first = table[table["component"] == 0]
-summary = first.groupby("condition").agg(latency_ms=("latency", lambda v: 1e3 * v.median()),
-                                         amplitude=("amplitude", "median"))
+summary = first.groupby("condition").agg(
+    latency_ms=("latency", lambda v: 1e3 * v.median()), amplitude=("amplitude", "median")
+)
 print(summary.round(2))
 
 # %%

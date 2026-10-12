@@ -40,13 +40,24 @@ def resample(ts, sfreq):
     # Keep the sample nearest to t = 0 at exactly 0 when the grid allows it
     first = ts.times[0]
     offset = round(-first * new_sfreq)
-    times = (np.arange(n_new) - offset) / new_sfreq if abs(-first * new_sfreq - offset) < 1e-6 \
+    times = (
+        (np.arange(n_new) - offset) / new_sfreq
+        if abs(-first * new_sfreq - offset) < 1e-6
         else first + np.arange(n_new) / new_sfreq
+    )
     masks = None
     if ts.masks is not None:
-        nearest = np.clip(np.round((times - ts.times[0]) * ts.sfreq).astype(int), 0,
-                          ts.n_times - 1)
+        nearest = np.clip(
+            np.round((times - ts.times[0]) * ts.sfreq).astype(int), 0, ts.n_times - 1
+        )
         masks = ts.masks[:, :, nearest]
-    return new(ts, "evoparam.prep.resample",
-               {"sfreq": float(sfreq), "up": up, "down": down, "from_sfreq": ts.sfreq},
-               start, data=data, times=times, sfreq=new_sfreq, masks=masks)
+    return new(
+        ts,
+        "evoparam.prep.resample",
+        {"sfreq": float(sfreq), "up": up, "down": down, "from_sfreq": ts.sfreq},
+        start,
+        data=data,
+        times=times,
+        sfreq=new_sfreq,
+        masks=masks,
+    )

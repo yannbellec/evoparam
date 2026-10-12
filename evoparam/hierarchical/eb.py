@@ -33,8 +33,14 @@ from scipy.optimize import minimize_scalar
 from evoparam.errors import SettingsError
 from evoparam.stats.variance import reml
 
-__all__ = ["mixture_em", "shrink", "jitter_components", "latency_standard_error",
-           "parse_formula", "design_matrix"]
+__all__ = [
+    "mixture_em",
+    "shrink",
+    "jitter_components",
+    "latency_standard_error",
+    "parse_formula",
+    "design_matrix",
+]
 
 PARAMETERS = ("latency", "amplitude", "fwhm")
 EM_TOL = 1e-9
@@ -81,7 +87,7 @@ def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
     previous = -np.inf
     converged = False
     for it in range(1, max_iter + 1):
-        var1 = tau ** 2 + se2
+        var1 = tau**2 + se2
         l1 = np.log(pi[subject]) + _normal_logpdf(y, mu[subject], var1)
         l0 = np.log(1 - pi[subject]) + _normal_logpdf(y, 0.0, se2)
         top = np.maximum(l1, l0)
@@ -93,28 +99,41 @@ def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
             break
         previous = loglik
         counts = np.bincount(subject[ok], minlength=n_sub)
-        pi = np.clip(np.bincount(subject, weights=r, minlength=n_sub) / np.maximum(counts, 1),
-                     *PI_BOUNDS)
+        pi = np.clip(
+            np.bincount(subject, weights=r, minlength=n_sub) / np.maximum(counts, 1), *PI_BOUNDS
+        )
         w = np.where(ok, r / var1, 0.0)
         prior = 0.0 if not np.isfinite(var_group) or var_group <= 0 else 1.0 / var_group
-        num = np.bincount(subject, weights=w * np.nan_to_num(y), minlength=n_sub) \
-            + prior * mu_group
+        num = (
+            np.bincount(subject, weights=w * np.nan_to_num(y), minlength=n_sub) + prior * mu_group
+        )
         den = np.bincount(subject, weights=w, minlength=n_sub) + prior
         mu = np.where(den > 0, num / np.where(den > 0, den, 1.0), mu_group)
 
         def objective(t):
-            v = t ** 2 + se2[ok]
+            v = t**2 + se2[ok]
             return -np.sum(r[ok] * _normal_logpdf(y[ok], mu[subject[ok]], v))
 
         bound = 10 * np.nanmax(np.abs(y[ok])) + 1e-12
-        tau = float(minimize_scalar(objective, bounds=(0.0, bound), method="bounded",
-                                    options={"xatol": 1e-10 * bound}).x)
+        tau = float(
+            minimize_scalar(
+                objective, bounds=(0.0, bound), method="bounded", options={"xatol": 1e-10 * bound}
+            ).x
+        )
         if n_sub > 1:
             mu_group = float(np.mean(mu))
-            var_group = max(float(np.var(mu, ddof=1)), 1e-12 * mu_group ** 2 + 1e-300)
-    return {"p_response": r, "pi": pi, "mu": mu, "tau": tau, "mu_group": mu_group,
-            "sd_group": float(np.sqrt(var_group)) if np.isfinite(var_group) else np.nan,
-            "loglik": loglik, "n_iter": it, "converged": converged}
+            var_group = max(float(np.var(mu, ddof=1)), 1e-12 * mu_group**2 + 1e-300)
+    return {
+        "p_response": r,
+        "pi": pi,
+        "mu": mu,
+        "tau": tau,
+        "mu_group": mu_group,
+        "sd_group": float(np.sqrt(var_group)) if np.isfinite(var_group) else np.nan,
+        "loglik": loglik,
+        "n_iter": it,
+        "converged": converged,
+    }
 
 
 def shrink(y, se, subject, channel, X=None):
@@ -153,12 +172,17 @@ def jitter_components(latency, noise_sd, subject, channel):
     for key in dict.fromkeys(keys):
         rows = np.array([k == key for k in keys])
         centred[rows] = latency[rows] - latency[rows].mean()
-    m3 = float(np.mean(centred ** 3))
+    m3 = float(np.mean(centred**3))
     tau = (m3 / 2) ** (1 / 3) if m3 > 0 else 0.0
     tau = min(tau, sd)
-    sigma = float(np.sqrt(max(sd ** 2 - tau ** 2, 0.0)))
-    return {"sd": sd, "sigma": sigma, "tau": float(tau), "n_trials": int(latency.size),
-            "converged": bool(out["converged"])}
+    sigma = float(np.sqrt(max(sd**2 - tau**2, 0.0)))
+    return {
+        "sd": sd,
+        "sigma": sigma,
+        "tau": float(tau),
+        "n_trials": int(latency.size),
+        "converged": bool(out["converged"]),
+    }
 
 
 def latency_standard_error(latency, wald_se, jitter_sd, n_trials, low, high, fallback=None):
@@ -175,13 +199,12 @@ def latency_standard_error(latency, wald_se, jitter_sd, n_trials, low, high, fal
     latency = np.asarray(latency, float)
     wald_se = np.asarray(wald_se, float)
     n_trials = np.asarray(n_trials, float)
-    var = wald_se ** 2 + np.where(n_trials > 0, jitter_sd ** 2 / np.maximum(n_trials, 1), 0.)
+    var = wald_se**2 + np.where(n_trials > 0, jitter_sd**2 / np.maximum(n_trials, 1), 0.0)
     sd = np.sqrt(var)
     low = np.broadcast_to(np.asarray(low, float), latency.shape)
     high = np.broadcast_to(np.asarray(high, float), latency.shape)
     out = sd.copy()
-    ok = np.isfinite(latency) & np.isfinite(sd) & (sd > 0) & (latency >= low) \
-        & (latency <= high)
+    ok = np.isfinite(latency) & np.isfinite(sd) & (sd > 0) & (latency >= low) & (latency <= high)
     if ok.any():
         a, b = (low[ok] - latency[ok]) / sd[ok], (high[ok] - latency[ok]) / sd[ok]
         truncated = sstats.truncnorm.std(a, b, loc=latency[ok], scale=sd[ok])
@@ -203,13 +226,15 @@ def parse_formula(formula):
         raise SettingsError(f"formula must read 'parameter ~ term + term', not {formula!r}.")
     parameter, rhs = match.groups()
     if parameter not in PARAMETERS:
-        raise SettingsError(f"formula: the parameter must be one of {PARAMETERS}, not "
-                            f"{parameter!r}.")
+        raise SettingsError(
+            f"formula: the parameter must be one of {PARAMETERS}, not {parameter!r}."
+        )
     terms = [t.strip() for t in rhs.split("+") if t.strip() not in ("", "1")]
     for term in terms:
         if not re.fullmatch(r"[A-Za-z_]\w*", term):
-            raise SettingsError(f"formula: only main effects of metadata columns are "
-                                f"supported, not {term!r}.")
+            raise SettingsError(
+                f"formula: only main effects of metadata columns are supported, not {term!r}."
+            )
     return parameter, terms
 
 
@@ -244,6 +269,14 @@ def effects_table(out, names, level=0.95):
     q = sstats.norm.ppf(0.5 + level / 2)
     with np.errstate(divide="ignore", invalid="ignore"):
         z = beta / se
-    return pd.DataFrame({"term": names, "estimate": beta, "se": se, "ci_low": beta - q * se,
-                         "ci_high": beta + q * se, "z": z,
-                         "p_value": 2 * sstats.norm.sf(np.abs(z))})
+    return pd.DataFrame(
+        {
+            "term": names,
+            "estimate": beta,
+            "se": se,
+            "ci_low": beta - q * se,
+            "ci_high": beta + q * se,
+            "z": z,
+            "p_value": 2 * sstats.norm.sf(np.abs(z)),
+        }
+    )

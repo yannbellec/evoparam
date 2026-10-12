@@ -24,16 +24,24 @@ from .helpers import independent_dependability, independent_split_half
 
 ROOT = os.environ.get("EVOPARAM_ERPCORE_N170", "")
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 for real-data checks"),
-              pytest.mark.skipif(not ROOT, reason="set EVOPARAM_ERPCORE_N170 to a local copy "
-                                 "of the ERP CORE N170 epochs (not redistributed)")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 for real-data checks",
+    ),
+    pytest.mark.skipif(
+        not ROOT,
+        reason="set EVOPARAM_ERPCORE_N170 to a local copy "
+        "of the ERP CORE N170 epochs (not redistributed)",
+    ),
+]
 
 WINDOW = (0.110, 0.150)
 
 ###################################################################################################
 ###################################################################################################
+
 
 def _load():
     mne = pytest.importorskip("mne")
@@ -42,15 +50,19 @@ def _load():
     data, subjects, times = [], [], None
     for path in files:
         epochs = mne.read_epochs_eeglab(path, verbose="error")
-        x = epochs.get_data(picks=["PO8"]) * 1e6                     # V -> uV
+        x = epochs.get_data(picks=["PO8"]) * 1e6  # V -> uV
         if times is None:
             times = epochs.times
         assert np.allclose(epochs.times, times), path
         data.append(x)
         subjects += [os.path.basename(path).split("_")[0]] * len(x)
-    return TrialSet(data=np.concatenate(data), times=times,
-                    sfreq=1.0 / np.median(np.diff(times)), ch_names=["PO8"],
-                    metadata=pd.DataFrame({"subject": subjects}))
+    return TrialSet(
+        data=np.concatenate(data),
+        times=times,
+        sfreq=1.0 / np.median(np.diff(times)),
+        ch_names=["PO8"],
+        metadata=pd.DataFrame({"subject": subjects}),
+    )
 
 
 def test_req233_erpcore_n170():
@@ -62,4 +74,4 @@ def test_req233_erpcore_n170():
     phi, _, _ = independent_dependability(ts, WINDOW)
     assert out["split_half_odd_even"] == pytest.approx(split, abs=0.01)
     assert out["dependability"] == pytest.approx(phi, abs=0.01)
-    assert out["dependability"] > 0.7                  # a strong, reliable component
+    assert out["dependability"] > 0.7  # a strong, reliable component

@@ -4,8 +4,12 @@
 import numpy as np
 
 from evoparam.errors import DataError, SettingsError
-from evoparam.utils._estimator import (BaseEstimatorMixin, TransformerMixin, check_is_fitted,
-                                       validate_array)
+from evoparam.utils._estimator import (
+    BaseEstimatorMixin,
+    TransformerMixin,
+    check_is_fitted,
+    validate_array,
+)
 
 __all__ = ["TrialFitter"]
 
@@ -28,8 +32,17 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
     random_state : int, optional
     """
 
-    def __init__(self, preset=None, *, sfreq=None, tmin=None, fit_window=None,
-                 max_components=None, mode="shift_scale", random_state=None):
+    def __init__(
+        self,
+        preset=None,
+        *,
+        sfreq=None,
+        tmin=None,
+        fit_window=None,
+        max_components=None,
+        mode="shift_scale",
+        random_state=None,
+    ):
         self.preset = preset
         self.sfreq = sfreq
         self.tmin = tmin
@@ -51,8 +64,10 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
             if reset:
                 self.n_features_in_ = int(X.n_times)
             elif X.n_times != self.n_features_in_:
-                raise DataError(f"X has {X.n_times} time points, but TrialFitter is "
-                                f"expecting {self.n_features_in_}.")
+                raise DataError(
+                    f"X has {X.n_times} time points, but TrialFitter is "
+                    f"expecting {self.n_features_in_}."
+                )
             return X
         data = validate_array(self, X, reset=reset, ndim=3)
         if data.ndim == 2:
@@ -61,8 +76,12 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
             raise SettingsError("sfreq is required when X is an array.")
         tmin = 0.0 if self.tmin is None else self.tmin
         times = tmin + np.arange(data.shape[-1]) / self.sfreq
-        return TrialSet(data=data, times=times, sfreq=self.sfreq,
-                        ch_names=[f"ch{i}" for i in range(data.shape[1])])
+        return TrialSet(
+            data=data,
+            times=times,
+            sfreq=self.sfreq,
+            ch_names=[f"ch{i}" for i in range(data.shape[1])],
+        )
 
     def fit(self, X, y=None):
         """Fit the trial average of each channel (``group_fit_``); ``y`` is ignored. Without
@@ -71,9 +90,12 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         from evoparam.models import ResponseModel
 
         trials = self._trials(X, reset=True)
-        model = ResponseModel(self.preset, fit_window=self.fit_window,
-                              max_components=self.max_components,
-                              random_state=self.random_state).fit(trials)
+        model = ResponseModel(
+            self.preset,
+            fit_window=self.fit_window,
+            max_components=self.max_components,
+            random_state=self.random_state,
+        ).fit(trials)
         self.group_fit_ = model.fit_
         found = [len(f.components) for f in self.group_fit_.fits]
         self.n_components_ = int(self.max_components or max(found + [1]))
@@ -89,12 +111,20 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         check_is_fitted(self)
         trials = self._trials(X, reset=False)
         if trials.n_channels != len(self.ch_names_):
-            raise DataError(f"X has {trials.n_channels} channels, but TrialFitter was fitted "
-                            f"on {len(self.ch_names_)}.")
+            raise DataError(
+                f"X has {trials.n_channels} channels, but TrialFitter was fitted "
+                f"on {len(self.ch_names_)}."
+            )
         out = np.full((trials.n_trials, len(self.ch_names_), self.n_components_, 3), np.nan)
         if any(f.components for f in self.group_fit_.fits):
-            result = fit_trials(trials, self.group_fit_, mode=self.mode, by=(),
-                                random_state=self.random_state, verbose=False)
+            result = fit_trials(
+                trials,
+                self.group_fit_,
+                mode=self.mode,
+                by=(),
+                random_state=self.random_state,
+                verbose=False,
+            )
             table = result.table
             for row in table.to_dict("records"):
                 ch = self.ch_names_.index(row["channel"])
@@ -104,6 +134,11 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         return out.reshape(trials.n_trials, -1)
 
     def get_feature_names_out(self, input_features=None):
-        return np.array([f"{ch}_c{k}_{name}" for ch in self.ch_names_
-                         for k in range(self.n_components_)
-                         for name in ("shift", "scale", "latency")])
+        return np.array(
+            [
+                f"{ch}_c{k}_{name}"
+                for ch in self.ch_names_
+                for k in range(self.n_components_)
+                for name in ("shift", "scale", "latency")
+            ]
+        )

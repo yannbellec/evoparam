@@ -19,12 +19,26 @@ import numpy as np
 from scipy.interpolate import BSpline
 
 from evoparam.errors import DataError, SettingsError
-from evoparam.shapes._base import (as_params, as_times, check_bounds, check_waveform,
-                                   clip_to_bounds, window_info)
+from evoparam.shapes._base import (
+    as_params,
+    as_times,
+    check_bounds,
+    check_waveform,
+    clip_to_bounds,
+    window_info,
+)
 
-__all__ = ["BackgroundBase", "NoBackground", "ConstantBackground", "LinearBackground",
-           "ExponentialBackground", "DoubleExponentialBackground", "PSplineBackground",
-           "ArtifactBasisBackground", "TAU_MIN"]
+__all__ = [
+    "BackgroundBase",
+    "NoBackground",
+    "ConstantBackground",
+    "LinearBackground",
+    "ExponentialBackground",
+    "DoubleExponentialBackground",
+    "PSplineBackground",
+    "ArtifactBasisBackground",
+    "TAU_MIN",
+]
 
 # Shortest time constant of the exponential backgrounds (s).
 TAU_MIN = 5e-4
@@ -87,8 +101,8 @@ class BackgroundBase:
 
         times = as_times(times)
         params = as_params(params, self.n_params, self.name)
-        basis = self.basis(times, params[..., self.n_linear:])
-        return np.einsum("...j,...jt->...t", params[..., :self.n_linear], basis)
+        basis = self.basis(times, params[..., self.n_linear :])
+        return np.einsum("...j,...jt->...t", params[..., : self.n_linear], basis)
 
     def jacobian(self, times, params):
         """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
@@ -96,13 +110,13 @@ class BackgroundBase:
         times = as_times(times)
         params = as_params(params, self.n_params, self.name)
         lead = params.shape[:-1]
-        nonlinear = params[..., self.n_linear:]
+        nonlinear = params[..., self.n_linear :]
         basis = np.swapaxes(self.basis(times, nonlinear), -1, -2)
         linear = np.broadcast_to(basis, lead + (times.size, self.n_linear))
         if self.n_nonlinear == 0:
             return np.array(linear)
         d_basis = self.basis_jacobian(times, nonlinear)
-        d_nonlinear = np.einsum("...j,...jtk->...tk", params[..., :self.n_linear], d_basis)
+        d_nonlinear = np.einsum("...j,...jtk->...tk", params[..., : self.n_linear], d_basis)
         return np.concatenate([linear, d_nonlinear], axis=-1)
 
     def _scale(self, data_range):
@@ -121,8 +135,9 @@ class BackgroundBase:
         basis = self.basis(times, self._nonlinear_guess(times))
         peak = np.max(np.abs(basis), axis=-1) if basis.size else np.zeros(self.n_linear)
         bound = COEF_BOUND * self._scale(data_range) / np.where(peak > 0, peak, 1.0)
-        return check_bounds(self.name, np.concatenate([-bound, nl_lower]),
-                            np.concatenate([bound, nl_upper]))
+        return check_bounds(
+            self.name, np.concatenate([-bound, nl_lower]), np.concatenate([bound, nl_upper])
+        )
 
     def _nonlinear_bounds(self, times):
         return np.zeros(0), np.zeros(0)
@@ -140,12 +155,15 @@ class BackgroundBase:
             coefs = np.linalg.lstsq(basis.T, waveform, rcond=None)[0]
         else:
             coefs = np.zeros(0)
-        return clip_to_bounds(np.concatenate([coefs, nonlinear]),
-                              self.default_bounds(times, (waveform.min(), waveform.max())))
+        return clip_to_bounds(
+            np.concatenate([coefs, nonlinear]),
+            self.default_bounds(times, (waveform.min(), waveform.max())),
+        )
 
 
 ###################################################################################################
 ## Linear backgrounds
+
 
 @dataclass(frozen=True)
 class NoBackground(BackgroundBase):
@@ -190,6 +208,7 @@ class LinearBackground(BackgroundBase):
 ###################################################################################################
 ## Exponential backgrounds
 
+
 def _tau_limits(obj, times):
     _, _, length, _ = window_info(times)
     tau_max = length if obj.tau_max is None else float(obj.tau_max)
@@ -212,8 +231,9 @@ class ExponentialBackground(BackgroundBase):
 
     def __post_init__(self):
         if not self.tau_min > 0 or (self.tau_max is not None and self.tau_max <= self.tau_min):
-            raise SettingsError(f"{self.name}: need 0 < tau_min < tau_max, got "
-                                f"{self.tau_min}, {self.tau_max}.")
+            raise SettingsError(
+                f"{self.name}: need 0 < tau_min < tau_max, got {self.tau_min}, {self.tau_max}."
+            )
 
     def basis(self, times, nonlinear):
         """Basis functions, shape ``(..., 2, n_times)``."""
@@ -227,7 +247,7 @@ class ExponentialBackground(BackgroundBase):
         times = as_times(times)
         tau = self._nonlinear(nonlinear)[..., 0, None]
         lag = times - self._t_ref(times)
-        d_decay = np.exp(-lag / tau) * lag / tau ** 2
+        d_decay = np.exp(-lag / tau) * lag / tau**2
         return np.stack([np.zeros_like(d_decay), d_decay], axis=-2)[..., None]
 
     def _nonlinear_bounds(self, times):
@@ -258,10 +278,10 @@ class DoubleExponentialBackground(BackgroundBase):
     constraints: ClassVar[tuple] = ("tau2 >= 3 * tau1",)
 
     def __post_init__(self):
-        if not self.tau_min > 0 or (self.tau_max is not None
-                                    and self.tau_max <= 3 * self.tau_min):
-            raise SettingsError(f"{self.name}: need 0 < 3 tau_min < tau_max, got "
-                                f"{self.tau_min}, {self.tau_max}.")
+        if not self.tau_min > 0 or (self.tau_max is not None and self.tau_max <= 3 * self.tau_min):
+            raise SettingsError(
+                f"{self.name}: need 0 < 3 tau_min < tau_max, got {self.tau_min}, {self.tau_max}."
+            )
 
     def basis(self, times, nonlinear):
         """Basis functions, shape ``(..., 3, n_times)``."""
@@ -279,13 +299,15 @@ class DoubleExponentialBackground(BackgroundBase):
         nonlinear = self._nonlinear(nonlinear)
         lag = times - self._t_ref(times)
         tau1, tau2 = nonlinear[..., 0, None], nonlinear[..., 1, None]
-        d1 = np.exp(-lag / tau1) * lag / tau1 ** 2
-        d2 = np.exp(-lag / tau2) * lag / tau2 ** 2
+        d1 = np.exp(-lag / tau1) * lag / tau1**2
+        d2 = np.exp(-lag / tau2) * lag / tau2**2
         d1, d2 = np.broadcast_arrays(d1, d2)
         zero = np.zeros_like(d1)
         # Rows: basis functions; last axis: (tau1, tau2).
-        return np.stack([np.stack([zero, zero], -1), np.stack([d1, zero], -1),
-                         np.stack([zero, d2], -1)], axis=-3)
+        return np.stack(
+            [np.stack([zero, zero], -1), np.stack([d1, zero], -1), np.stack([zero, d2], -1)],
+            axis=-3,
+        )
 
     def _nonlinear_bounds(self, times):
         low, high = _tau_limits(self, times)
@@ -301,6 +323,7 @@ class DoubleExponentialBackground(BackgroundBase):
 
 ###################################################################################################
 ## P-spline
+
 
 @dataclass(frozen=True, eq=False)
 class PSplineBackground(BackgroundBase):
@@ -337,15 +360,18 @@ class PSplineBackground(BackgroundBase):
     def __post_init__(self):
         start, end = map(float, self.window)
         if not (np.isfinite(start) and np.isfinite(end) and end > start):
-            raise SettingsError(f"pspline: window must be (start, end) with end > start, "
-                                f"got {self.window}.")
+            raise SettingsError(
+                f"pspline: window must be (start, end) with end > start, got {self.window}."
+            )
         if not (np.isfinite(self.max_fwhm) and self.max_fwhm > 0):
             raise SettingsError(f"pspline: max_fwhm must be positive, got {self.max_fwhm}.")
         requested = 2.0 * self.max_fwhm if self.knot_spacing is None else float(self.knot_spacing)
         if not requested >= 2.0 * self.max_fwhm:
-            raise SettingsError(f"pspline: knot spacing {requested} s is smaller than "
-                                f"2 · max_fwhm = {2.0 * self.max_fwhm} s; the spline could "
-                                "absorb a component.")
+            raise SettingsError(
+                f"pspline: knot spacing {requested} s is smaller than "
+                f"2 · max_fwhm = {2.0 * self.max_fwhm} s; the spline could "
+                "absorb a component."
+            )
         if self.lam is not None and not self.lam >= 0:
             raise SettingsError(f"pspline: lam must be non-negative, got {self.lam}.")
         n_intervals = max(1, int(np.floor((end - start) / requested)))
@@ -411,6 +437,7 @@ class PSplineBackground(BackgroundBase):
 ###################################################################################################
 ## Artifact basis
 
+
 @dataclass(frozen=True, eq=False)
 class ArtifactBasisBackground(BackgroundBase):
     """Learned artifact basis: ``b = Σ_j c_j u_j(t)`` (``ArtifactResult.basis``, spec §5.3).
@@ -433,14 +460,23 @@ class ArtifactBasisBackground(BackgroundBase):
     def __post_init__(self):
         vectors = np.asarray(self.basis_vectors, dtype=np.float64)
         times = np.asarray(self.basis_times, dtype=np.float64)
-        if vectors.ndim != 2 or vectors.shape[0] < 1 or times.ndim != 1 \
-                or vectors.shape[1] != times.size or times.size < 2:
-            raise DataError("artifact_basis: basis_vectors must be (n_basis, n_samples) with "
-                            "n_basis >= 1 and basis_times of length n_samples >= 2.")
-        if not (np.all(np.isfinite(vectors)) and np.all(np.isfinite(times))) \
-                or np.any(np.diff(times) <= 0):
-            raise DataError("artifact_basis: basis must be finite and basis_times strictly "
-                            "increasing.")
+        if (
+            vectors.ndim != 2
+            or vectors.shape[0] < 1
+            or times.ndim != 1
+            or vectors.shape[1] != times.size
+            or times.size < 2
+        ):
+            raise DataError(
+                "artifact_basis: basis_vectors must be (n_basis, n_samples) with "
+                "n_basis >= 1 and basis_times of length n_samples >= 2."
+            )
+        if not (np.all(np.isfinite(vectors)) and np.all(np.isfinite(times))) or np.any(
+            np.diff(times) <= 0
+        ):
+            raise DataError(
+                "artifact_basis: basis must be finite and basis_times strictly increasing."
+            )
         object.__setattr__(self, "basis_vectors", vectors)
         object.__setattr__(self, "basis_times", times)
 
@@ -452,5 +488,9 @@ class ArtifactBasisBackground(BackgroundBase):
         """Basis functions, shape ``(n_basis, n_times)``."""
 
         times = as_times(times)
-        return np.stack([np.interp(times, self.basis_times, row, left=0.0, right=0.0)
-                         for row in self.basis_vectors])
+        return np.stack(
+            [
+                np.interp(times, self.basis_times, row, left=0.0, right=0.0)
+                for row in self.basis_vectors
+            ]
+        )

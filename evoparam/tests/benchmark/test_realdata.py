@@ -41,13 +41,24 @@ def test_indices_hold_no_data():
 
 def test_ds004080_entries_follow_the_fixed_selection():
     index = load_index("ds004080")
-    lines = [line.split("\t") for line in (ROOT / "validation" / "ds004080_subjects.txt")
-             .read_text(encoding="utf-8").splitlines() if line and not line.startswith("#")]
+    lines = [
+        line.split("\t")
+        for line in (ROOT / "validation" / "ds004080_subjects.txt")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line and not line.startswith("#")
+    ]
     expected = [(s.replace("sub-", ""), r.rsplit("run-", 1)[1]) for s, r in lines]
     assert [(e["subject"], e["run"]) for e in index["entries"]] == expected
     assert index["truth"]["min_agree"] == 2
-    assert set(index["truth"]["rules"]) <= {"vanblooijs2023", "hays2021", "keller2014",
-                                            "silverstein2020", "ftract", "prime2020"}
+    assert set(index["truth"]["rules"]) <= {
+        "vanblooijs2023",
+        "hays2021",
+        "keller2014",
+        "silverstein2020",
+        "ftract",
+        "prime2020",
+    }
 
 
 def test_erpcore_index_uses_the_reference_definitions():
@@ -91,5 +102,4 @@ def test_erpcore_loader_reads_one_entry():
     ti = real_inputs("erpcore", 0, task="T6")[0]
     entry = load_index("erpcore")["entries"][0]
     assert ti.descriptor["definitions"][0]["condition"] == entry["component"]
-    np.testing.assert_allclose(ti.arrays["average"], ti.arrays["data"].mean(axis=0),
-                               rtol=1e-9)
+    np.testing.assert_allclose(ti.arrays["average"], ti.arrays["data"].mean(axis=0), rtol=1e-9)

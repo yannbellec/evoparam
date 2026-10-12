@@ -75,8 +75,9 @@ def _leave_out_pass(matrix, k, exclude, blocks=None, denoise_rank=None):
     return out
 
 
-def lowrank_clean(data, sfreq, times, pulse_times, *, ranks=(4, 2, 4), post_window=0.03,
-                  neighbours=1):
+def lowrank_clean(
+    data, sfreq, times, pulse_times, *, ranks=(4, 2, 4), post_window=0.03, neighbours=1
+):
     """Remove an artifact train by sequential low-rank regression.
 
     Parameters
@@ -108,28 +109,36 @@ def lowrank_clean(data, sfreq, times, pulse_times, *, ranks=(4, 2, 4), post_wind
     n_trials, n_channels, n_times = data.shape
     pulses = np.sort(np.asarray(pulse_times, dtype=float))
     if n_channels < MIN_CHANNELS:
-        raise ArtifactError(f"method 'lowrank' needs at least {MIN_CHANNELS} channels, "
-                            f"got {n_channels}.")
+        raise ArtifactError(
+            f"method 'lowrank' needs at least {MIN_CHANNELS} channels, got {n_channels}."
+        )
     if len(pulses) < MIN_PULSES:
-        raise ArtifactError(f"method 'lowrank' needs at least {MIN_PULSES} pulses per train, "
-                            f"got {len(pulses)}.")
+        raise ArtifactError(
+            f"method 'lowrank' needs at least {MIN_PULSES} pulses per train, got {len(pulses)}."
+        )
     if n_trials < MIN_TRIALS:
-        raise ArtifactError(f"method 'lowrank' needs at least {MIN_TRIALS} trials, "
-                            f"got {n_trials}.")
+        raise ArtifactError(
+            f"method 'lowrank' needs at least {MIN_TRIALS} trials, got {n_trials}."
+        )
     starts = np.searchsorted(times, pulses)
     length = int(np.min(np.diff(starts)))
     if starts[0] < 0 or starts[-1] + length > n_times or length < 2:
         raise ArtifactError("The pulse train does not fit inside the epoch.")
 
     cleaned = np.array(data, dtype=float, copy=True)
-    seg_inds = (starts[:, None] + np.arange(length)[None]).ravel()           # P x L
+    seg_inds = (starts[:, None] + np.arange(length)[None]).ravel()  # P x L
     seg = cleaned[:, :, seg_inds].reshape(n_trials, n_channels, len(pulses), length)
     before = seg.copy()
 
     # 1. Across channels: (R P L) x C
     mat = seg.transpose(0, 2, 3, 1).reshape(-1, n_channels)
-    mat = _leave_out_pass(mat, k_c, lambda j: set(range(j - neighbours, j + neighbours + 1)),
-                          blocks=n_trials * len(pulses), denoise_rank=max(1, k_p))
+    mat = _leave_out_pass(
+        mat,
+        k_c,
+        lambda j: set(range(j - neighbours, j + neighbours + 1)),
+        blocks=n_trials * len(pulses),
+        denoise_rank=max(1, k_p),
+    )
     seg = mat.reshape(n_trials, len(pulses), length, n_channels).transpose(0, 3, 1, 2)
 
     # 2. Across pulses, per channel: (R L) x P
@@ -141,8 +150,9 @@ def lowrank_clean(data, sfreq, times, pulse_times, *, ranks=(4, 2, 4), post_wind
     # 3. Across trials, per channel: (P L) x R
     for ch in range(n_channels):
         mat = seg[:, ch].reshape(n_trials, -1).T
-        seg[:, ch] = _leave_out_pass(mat, k_r, lambda j: {j}).T.reshape(n_trials,
-                                                                         len(pulses), length)
+        seg[:, ch] = _leave_out_pass(mat, k_r, lambda j: {j}).T.reshape(
+            n_trials, len(pulses), length
+        )
 
     cleaned[:, :, seg_inds] = seg.reshape(n_trials, n_channels, -1)
 
@@ -156,5 +166,8 @@ def lowrank_clean(data, sfreq, times, pulse_times, *, ranks=(4, 2, 4), post_wind
 
     total = np.var(before)
     removed = 1 - np.var(seg) / total if total > 0 else 0.0
-    return cleaned, {"segment_inds": seg_inds, "post_inds": post_inds,
-                     "removed_fraction": float(removed)}
+    return cleaned, {
+        "segment_inds": seg_inds,
+        "post_inds": post_inds,
+        "removed_fraction": float(removed),
+    }

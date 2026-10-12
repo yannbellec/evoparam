@@ -24,11 +24,28 @@ from scipy.interpolate import CubicSpline
 from scipy.special import erfc, erfcx, lambertw
 
 from evoparam.errors import DataError, SettingsError
-from evoparam.shapes._base import (FWHM_PER_SIGMA, ShapeBase, as_times, check_bounds,
-                                   check_waveform, clip_to_bounds, peak_fwhm, window_info)
+from evoparam.shapes._base import (
+    FWHM_PER_SIGMA,
+    ShapeBase,
+    as_times,
+    check_bounds,
+    check_waveform,
+    clip_to_bounds,
+    peak_fwhm,
+    window_info,
+)
 
-__all__ = ["Gaussian", "SkewedGaussian", "ExGaussian", "Gamma", "Biexponential",
-           "DampedOscillation", "Gabor", "Template", "gamma_fwhm_factor"]
+__all__ = [
+    "Gaussian",
+    "SkewedGaussian",
+    "ExGaussian",
+    "Gamma",
+    "Biexponential",
+    "DampedOscillation",
+    "Gabor",
+    "Template",
+    "gamma_fwhm_factor",
+]
 
 _SQRT2 = np.sqrt(2.0)
 _SQRT_2_OVER_PI = np.sqrt(2.0 / np.pi)
@@ -46,8 +63,9 @@ def _bisect(past_root, low, high):
     Stops when every interval is down to a few ulps of ``max(|x|, 1)``.
     """
 
-    low, high = np.broadcast_arrays(np.asarray(low, dtype=np.float64),
-                                    np.asarray(high, dtype=np.float64))
+    low, high = np.broadcast_arrays(
+        np.asarray(low, dtype=np.float64), np.asarray(high, dtype=np.float64)
+    )
     for _ in range(_BISECTIONS):
         scale = np.maximum(np.maximum(np.abs(low), np.abs(high)), 1.0)
         if np.all(high - low <= 4.0 * np.finfo(np.float64).eps * scale):
@@ -82,6 +100,7 @@ def gaussian_factor(z, value):
 ###################################################################################################
 ## Shapes with width settings
 
+
 @dataclass(frozen=True)
 class _WidthShape(ShapeBase):
     """Shape whose bounds depend on the admissible widths ``[min_fwhm, max_fwhm]`` (s).
@@ -97,12 +116,16 @@ class _WidthShape(ShapeBase):
         for name in ("min_fwhm", "max_fwhm"):
             value = getattr(self, name)
             if value is not None and not (np.isfinite(value) and value > 0):
-                raise SettingsError(f"{self.name}: {name} must be a positive number, "
-                                    f"got {value}.")
-        if self.min_fwhm is not None and self.max_fwhm is not None \
-                and self.min_fwhm >= self.max_fwhm:
-            raise SettingsError(f"{self.name}: min_fwhm ({self.min_fwhm}) must be smaller "
-                                f"than max_fwhm ({self.max_fwhm}).")
+                raise SettingsError(f"{self.name}: {name} must be a positive number, got {value}.")
+        if (
+            self.min_fwhm is not None
+            and self.max_fwhm is not None
+            and self.min_fwhm >= self.max_fwhm
+        ):
+            raise SettingsError(
+                f"{self.name}: min_fwhm ({self.min_fwhm}) must be smaller "
+                f"than max_fwhm ({self.max_fwhm})."
+            )
 
     def _window(self, times):
         """Window start, end, length, sfreq, min_fwhm and max_fwhm."""
@@ -111,8 +134,10 @@ class _WidthShape(ShapeBase):
         low = 2.0 / sfreq if self.min_fwhm is None else float(self.min_fwhm)
         high = length / 2.0 if self.max_fwhm is None else float(self.max_fwhm)
         if not low < high:
-            raise SettingsError(f"{self.name}: min_fwhm ({low}) must be smaller than "
-                                f"max_fwhm ({high}) for this window.")
+            raise SettingsError(
+                f"{self.name}: min_fwhm ({low}) must be smaller than "
+                f"max_fwhm ({high}) for this window."
+            )
         return start, end, length, sfreq, low, high
 
     def _center_width(self, times, waveform, peak_index):
@@ -140,12 +165,16 @@ class _OscillationShape(_WidthShape):
         for name in ("freq_min", "freq_max"):
             value = getattr(self, name)
             if value is not None and not (np.isfinite(value) and value > 0):
-                raise SettingsError(f"{self.name}: {name} must be a positive number, "
-                                    f"got {value}.")
-        if self.freq_min is not None and self.freq_max is not None \
-                and self.freq_min >= self.freq_max:
-            raise SettingsError(f"{self.name}: freq_min ({self.freq_min}) must be smaller "
-                                f"than freq_max ({self.freq_max}).")
+                raise SettingsError(f"{self.name}: {name} must be a positive number, got {value}.")
+        if (
+            self.freq_min is not None
+            and self.freq_max is not None
+            and self.freq_min >= self.freq_max
+        ):
+            raise SettingsError(
+                f"{self.name}: freq_min ({self.freq_min}) must be smaller "
+                f"than freq_max ({self.freq_max})."
+            )
 
     def _freq_guess(self, times, waveform, low, high):
         """Frequency of the largest periodogram peak of the waveform within [low, high]
@@ -168,13 +197,16 @@ class _OscillationShape(_WidthShape):
         low = 2.0 / length if self.freq_min is None else float(self.freq_min)
         high = sfreq / 4.0 if self.freq_max is None else float(self.freq_max)
         if not low < high:
-            raise SettingsError(f"{self.name}: freq_min ({low}) must be smaller than "
-                                f"freq_max ({high}) for this window.")
+            raise SettingsError(
+                f"{self.name}: freq_min ({low}) must be smaller than "
+                f"freq_max ({high}) for this window."
+            )
         return low, high
 
 
 ###################################################################################################
 ## Gaussian
+
 
 @dataclass(frozen=True)
 class Gaussian(_WidthShape):
@@ -193,15 +225,15 @@ class Gaussian(_WidthShape):
         params = self._params(params)
         if params.ndim == 1:
             z = (as_times(times) - params[0]) / params[1]
-            return gaussian_factor(z, lambda x: np.exp(-0.5 * x ** 2))
+            return gaussian_factor(z, lambda x: np.exp(-0.5 * x**2))
         mu, sigma = self._columns(params)
         return np.exp(-0.5 * ((as_times(times) - mu) / sigma) ** 2)
 
     def jacobian(self, times, params):
         mu, sigma = self._columns(params)
         z = (as_times(times) - mu) / sigma
-        s = np.exp(-0.5 * z ** 2)
-        return _stack([s * z / sigma, s * z ** 2 / sigma])
+        s = np.exp(-0.5 * z**2)
+        return _stack([s * z / sigma, s * z**2 / sigma])
 
     def latency(self, params):
         return self._params(params)[..., 0]
@@ -211,8 +243,11 @@ class Gaussian(_WidthShape):
     def default_bounds(self, times, data_range=None):
         start, end, _, _, low, high = self._window(times)
         sigma_max = high / FWHM_PER_SIGMA
-        return check_bounds(self.name, [start - sigma_max / 2, low / FWHM_PER_SIGMA],
-                            [end + sigma_max / 2, sigma_max])
+        return check_bounds(
+            self.name,
+            [start - sigma_max / 2, low / FWHM_PER_SIGMA],
+            [end + sigma_max / 2, sigma_max],
+        )
 
     def initial_guess(self, times, waveform, peak_index):
         mu, sigma = self._center_width(times, waveform, peak_index)
@@ -221,6 +256,7 @@ class Gaussian(_WidthShape):
 
 ###################################################################################################
 ## Skewed Gaussian
+
 
 def _skew_root(a):
     """Root of ``f(z) = z erfc(-a z/√2) - √(2/π) a exp(-a² z²/2)`` on ``[0, 2]``.
@@ -236,13 +272,13 @@ def _skew_root(a):
         # about ten times faster than on one-element arrays
         return np.full(a.shape, _skew_root_scalar(float(a.reshape(-1)[0])))
     low, high = np.zeros_like(a), np.full_like(a, 2.0)
-    z = np.clip(0.6 * a / np.sqrt(1.0 + a ** 2), 0.0, 2.0)
+    z = np.clip(0.6 * a / np.sqrt(1.0 + a**2), 0.0, 2.0)
     for _ in range(60):
         g = np.exp(-0.5 * (a * z) ** 2)
         f = z * erfc(-a * z / _SQRT2) - _SQRT_2_OVER_PI * a * g
         low = np.where(f <= 0, z, low)
         high = np.where(f >= 0, z, high)
-        slope = erfc(-a * z / _SQRT2) + _SQRT_2_OVER_PI * a * z * g * (1.0 + a ** 2)
+        slope = erfc(-a * z / _SQRT2) + _SQRT_2_OVER_PI * a * z * g * (1.0 + a**2)
         with np.errstate(divide="ignore", invalid="ignore"):
             step = np.where(slope > 0, f / slope, np.inf)
         new = z - step
@@ -325,9 +361,9 @@ def skew_mode(alpha):
             if len(_MODE_CACHE) >= _MODE_CACHE_SIZE:
                 _MODE_CACHE.clear()
             _MODE_CACHE[key] = z
-    c = np.exp(-0.5 * z ** 2) * erfc(-a * z / _SQRT2)
+    c = np.exp(-0.5 * z**2) * erfc(-a * z / _SQRT2)
     z_signed = np.sign(alpha) * z
-    dc = _SQRT_2_OVER_PI * z_signed * np.exp(-0.5 * z ** 2 * (1.0 + alpha ** 2))
+    dc = _SQRT_2_OVER_PI * z_signed * np.exp(-0.5 * z**2 * (1.0 + alpha**2))
     return z_signed, c, dc
 
 
@@ -350,8 +386,7 @@ class SkewedGaussian(_WidthShape):
     def __post_init__(self):
         super().__post_init__()
         if not (np.isfinite(self.alpha_max) and self.alpha_max > 0):
-            raise SettingsError(f"{self.name}: alpha_max must be positive, "
-                                f"got {self.alpha_max}.")
+            raise SettingsError(f"{self.name}: alpha_max must be positive, got {self.alpha_max}.")
 
     def _parts(self, times, params):
         xi, omega, alpha = self._columns(params)
@@ -359,9 +394,10 @@ class SkewedGaussian(_WidthShape):
         z = (as_times(times) - xi) / omega
         if z.ndim == 1:
             numerator = gaussian_factor(
-                z, lambda x: np.exp(-0.5 * x ** 2) * erfc(-alpha * x / _SQRT2))
+                z, lambda x: np.exp(-0.5 * x**2) * erfc(-alpha * x / _SQRT2)
+            )
         else:
-            numerator = np.exp(-0.5 * z ** 2) * erfc(-alpha * z / _SQRT2)
+            numerator = np.exp(-0.5 * z**2) * erfc(-alpha * z / _SQRT2)
         return z, omega, alpha, c, dc, numerator
 
     def evaluate(self, times, params):
@@ -370,11 +406,12 @@ class SkewedGaussian(_WidthShape):
 
     def jacobian(self, times, params):
         z, omega, alpha, c, dc, numerator = self._parts(times, params)
-        gauss = _SQRT_2_OVER_PI * np.exp(-0.5 * z ** 2 * (1.0 + alpha ** 2))
+        gauss = _SQRT_2_OVER_PI * np.exp(-0.5 * z**2 * (1.0 + alpha**2))
         d_z = -z * numerator + alpha * gauss
         d_alpha = z * gauss
-        return _stack([-d_z / (omega * c), -d_z * z / (omega * c),
-                       d_alpha / c - numerator * dc / c ** 2])
+        return _stack(
+            [-d_z / (omega * c), -d_z * z / (omega * c), d_alpha / c - numerator * dc / c**2]
+        )
 
     def latency(self, params):
         params = self._params(params)
@@ -386,9 +423,11 @@ class SkewedGaussian(_WidthShape):
     def default_bounds(self, times, data_range=None):
         start, end, _, _, low, high = self._window(times)
         sigma_max = high / FWHM_PER_SIGMA
-        return check_bounds(self.name,
-                            [start - sigma_max / 2, low / FWHM_PER_SIGMA, -self.alpha_max],
-                            [end + sigma_max / 2, sigma_max, self.alpha_max])
+        return check_bounds(
+            self.name,
+            [start - sigma_max / 2, low / FWHM_PER_SIGMA, -self.alpha_max],
+            [end + sigma_max / 2, sigma_max, self.alpha_max],
+        )
 
     def initial_guess(self, times, waveform, peak_index):
         mu, sigma = self._center_width(times, waveform, peak_index)
@@ -397,6 +436,7 @@ class SkewedGaussian(_WidthShape):
 
 ###################################################################################################
 ## Ex-Gaussian
+
 
 def exgauss_core(z, lam):
     """``f(z, lam) = exp(lam²/2 - lam z) erfc((lam - z)/√2)``, without overflow.
@@ -408,7 +448,7 @@ def exgauss_core(z, lam):
 
     x = (lam - z) / _SQRT2
     right = x >= 0
-    scaled = np.exp(-0.5 * z ** 2) * erfcx(np.where(right, x, 0.0))
+    scaled = np.exp(-0.5 * z**2) * erfcx(np.where(right, x, 0.0))
     direct = np.exp(np.minimum(lam * (0.5 * lam - z), 0.0)) * erfc(np.where(right, 0.0, x))
     return np.where(right, scaled, direct)
 
@@ -427,7 +467,7 @@ def exgauss_mode(lam):
     low = -np.sqrt(np.maximum(np.log(target), 0.0)) - 0.5
     x_mode = _bisect(lambda mid: erfcx(mid) <= target, low, high)
     z_mode = lam - _SQRT2 * x_mode
-    return z_mode, _SQRT_2_OVER_PI * np.exp(-0.5 * z_mode ** 2) / lam
+    return z_mode, _SQRT_2_OVER_PI * np.exp(-0.5 * z_mode**2) / lam
 
 
 @dataclass(frozen=True)
@@ -457,7 +497,7 @@ class ExGaussian(_WidthShape):
 
     def jacobian(self, times, params):
         z, sigma, tau, lam, z_mode, q, f = self._parts(times, params)
-        gauss = _SQRT_2_OVER_PI * np.exp(-0.5 * z ** 2)
+        gauss = _SQRT_2_OVER_PI * np.exp(-0.5 * z**2)
         s = f / q
         d_z = (gauss - lam * f) / q
         d_lam = ((lam - z) * f - gauss) / q + s * z_mode
@@ -473,20 +513,24 @@ class ExGaussian(_WidthShape):
     def default_bounds(self, times, data_range=None):
         start, end, _, sfreq, low, high = self._window(times)
         sigma_max = high / FWHM_PER_SIGMA
-        return check_bounds(self.name,
-                            [start - sigma_max / 2, low / FWHM_PER_SIGMA, 1.0 / sfreq],
-                            [end + sigma_max / 2, sigma_max, high])
+        return check_bounds(
+            self.name,
+            [start - sigma_max / 2, low / FWHM_PER_SIGMA, 1.0 / sfreq],
+            [end + sigma_max / 2, sigma_max, high],
+        )
 
     def initial_guess(self, times, waveform, peak_index):
         peak, sigma = self._center_width(times, waveform, peak_index)
         tau = sigma
         z_mode, _ = exgauss_mode(np.float64(1.0))
-        return clip_to_bounds([peak - sigma * float(z_mode), sigma, tau],
-                              self.default_bounds(times))
+        return clip_to_bounds(
+            [peak - sigma * float(z_mode), sigma, tau], self.default_bounds(times)
+        )
 
 
 ###################################################################################################
 ## Gamma
+
 
 def gamma_fwhm_factor(kappa):
     """FWHM of the gamma shape in units of ``theta``, from the Lambert W function.
@@ -523,8 +567,10 @@ class Gamma(_WidthShape):
     def __post_init__(self):
         super().__post_init__()
         if not 1.0 < self.kappa_min < self.kappa_max:
-            raise SettingsError(f"{self.name}: need 1 < kappa_min < kappa_max, got "
-                                f"{self.kappa_min}, {self.kappa_max}.")
+            raise SettingsError(
+                f"{self.name}: need 1 < kappa_min < kappa_max, got "
+                f"{self.kappa_min}, {self.kappa_max}."
+            )
 
     def _parts(self, times, params):
         t0, kappa, theta = self._columns(params)
@@ -553,19 +599,22 @@ class Gamma(_WidthShape):
         start, end, _, _, low, high = self._window(times)
         theta_low = low / gamma_fwhm_factor(self.kappa_max)
         theta_high = high / gamma_fwhm_factor(self.kappa_min)
-        return check_bounds(self.name, [start - high, self.kappa_min, theta_low],
-                            [end, self.kappa_max, theta_high])
+        return check_bounds(
+            self.name, [start - high, self.kappa_min, theta_low], [end, self.kappa_max, theta_high]
+        )
 
     def initial_guess(self, times, waveform, peak_index):
         peak, sigma = self._center_width(times, waveform, peak_index)
         kappa = 2.0
         theta = sigma * FWHM_PER_SIGMA / float(gamma_fwhm_factor(kappa))
-        return clip_to_bounds([peak - (kappa - 1.0) * theta, kappa, theta],
-                              self.default_bounds(times))
+        return clip_to_bounds(
+            [peak - (kappa - 1.0) * theta, kappa, theta], self.default_bounds(times)
+        )
 
 
 ###################################################################################################
 ## Biexponential
+
 
 def biexp_peak(tau_rise, tau_decay):
     """Peak delay ``u* = tau_r tau_d/(tau_d - tau_r) ln(tau_d/tau_r)`` and peak value
@@ -612,13 +661,18 @@ class Biexponential(_WidthShape):
     def jacobian(self, times, params):
         u, after, tau_r, tau_d, decay, rise, numerator, delay, peak = self._parts(times, params)
         # Envelope theorem: the peak value moves with the partial derivatives at the peak.
-        d_peak_r = -np.exp(-delay / tau_r) * delay / tau_r ** 2
-        d_peak_d = np.exp(-delay / tau_d) * delay / tau_d ** 2
+        d_peak_r = -np.exp(-delay / tau_r) * delay / tau_r**2
+        d_peak_d = np.exp(-delay / tau_d) * delay / tau_d**2
         d_t0 = np.where(after, decay / tau_d - rise / tau_r, 0.0)
-        d_r = np.where(after, -rise * u / tau_r ** 2, 0.0)
-        d_d = np.where(after, decay * u / tau_d ** 2, 0.0)
-        return _stack([d_t0 / peak, d_r / peak - numerator * d_peak_r / peak ** 2,
-                       d_d / peak - numerator * d_peak_d / peak ** 2])
+        d_r = np.where(after, -rise * u / tau_r**2, 0.0)
+        d_d = np.where(after, decay * u / tau_d**2, 0.0)
+        return _stack(
+            [
+                d_t0 / peak,
+                d_r / peak - numerator * d_peak_r / peak**2,
+                d_d / peak - numerator * d_peak_d / peak**2,
+            ]
+        )
 
     def latency(self, params):
         params = self._params(params)
@@ -628,8 +682,9 @@ class Biexponential(_WidthShape):
 
     def default_bounds(self, times, data_range=None):
         start, end, length, sfreq, _, high = self._window(times)
-        return check_bounds(self.name, [start - high, 1.0 / sfreq, 1.5 / sfreq],
-                            [end, length / 1.5, length])
+        return check_bounds(
+            self.name, [start - high, 1.0 / sfreq, 1.5 / sfreq], [end, length / 1.5, length]
+        )
 
     def initial_guess(self, times, waveform, peak_index):
         peak, sigma = self._center_width(times, waveform, peak_index)
@@ -640,6 +695,7 @@ class Biexponential(_WidthShape):
 
 ###################################################################################################
 ## Damped oscillation
+
 
 def damped_peak(tau, freq, phase):
     """Delay ``u`` (from ``t0``) and value ``m`` of the largest
@@ -696,16 +752,19 @@ class DampedOscillation(_OscillationShape):
         u, tau, freq, phase, envelope, angle, raw = self._parts(times, params)
         omega = _TWO_PI * freq
         sine = envelope * np.sin(angle)
-        d_raw = [raw / tau + omega * sine, raw * u / tau ** 2, -sine * _TWO_PI * u, -sine]
+        d_raw = [raw / tau + omega * sine, raw * u / tau**2, -sine * _TWO_PI * u, -sine]
         # Envelope theorem on the normaliser, at the delay of the largest extremum.
         delay, peak = damped_peak(tau, freq, phase)
         peak_angle = omega * delay + phase
         e_peak = np.exp(-delay / tau)
         sign = np.sign(np.cos(peak_angle))
-        d_peak = [0.0, sign * e_peak * np.cos(peak_angle) * delay / tau ** 2,
-                  -sign * e_peak * np.sin(peak_angle) * _TWO_PI * delay,
-                  -sign * e_peak * np.sin(peak_angle)]
-        return _stack([d / peak - raw * dp / peak ** 2 for d, dp in zip(d_raw, d_peak)])
+        d_peak = [
+            0.0,
+            sign * e_peak * np.cos(peak_angle) * delay / tau**2,
+            -sign * e_peak * np.sin(peak_angle) * _TWO_PI * delay,
+            -sign * e_peak * np.sin(peak_angle),
+        ]
+        return _stack([d / peak - raw * dp / peak**2 for d, dp in zip(d_raw, d_peak)])
 
     def latency(self, params):
         return self._params(params)[..., 0]
@@ -718,8 +777,9 @@ class DampedOscillation(_OscillationShape):
     def default_bounds(self, times, data_range=None):
         start, end, length, sfreq, _, high = self._window(times)
         f_low, f_high = self._freqs(length, sfreq)
-        return check_bounds(self.name, [start - high, 1.0 / f_high, f_low, -np.pi],
-                            [end, length, f_high, np.pi])
+        return check_bounds(
+            self.name, [start - high, 1.0 / f_high, f_low, -np.pi], [end, length, f_high, np.pi]
+        )
 
     def initial_guess(self, times, waveform, peak_index):
         # Frequency from the periodogram of the window (a fixed mid-range start left the
@@ -728,12 +788,14 @@ class DampedOscillation(_OscillationShape):
         peak, sigma = self._center_width(times, waveform, peak_index)
         lower, upper = self.default_bounds(times)
         freq = self._freq_guess(times, waveform, lower[2], upper[2])
-        return clip_to_bounds([peak - 0.25 / freq, 2.0 * sigma, freq, -0.5 * np.pi],
-                              (lower, upper))
+        return clip_to_bounds(
+            [peak - 0.25 / freq, 2.0 * sigma, freq, -0.5 * np.pi], (lower, upper)
+        )
 
 
 ###################################################################################################
 ## Gabor
+
 
 def gabor_peak(sigma, freq, phase, n_grid=257, n_newton=8):
     """Offset ``u*`` (from ``t0``) and value ``m`` of the largest
@@ -744,22 +806,27 @@ def gabor_peak(sigma, freq, phase, n_grid=257, n_newton=8):
     located on a grid and refined by Newton steps on the derivative.
     """
 
-    sigma, freq, phase = np.broadcast_arrays(*(np.asarray(x, dtype=np.float64)
-                                               for x in (sigma, freq, phase)))
+    sigma, freq, phase = np.broadcast_arrays(
+        *(np.asarray(x, dtype=np.float64) for x in (sigma, freq, phase))
+    )
     omega = _TWO_PI * freq
     reach = np.minimum(np.pi / (2.0 * omega), 8.0 * sigma)
     nodes = reach[..., None] * np.linspace(-1.0, 1.0, n_grid)
-    values = np.exp(-0.5 * (nodes / sigma[..., None]) ** 2) * \
-        np.cos(omega[..., None] * nodes + phase[..., None])
+    values = np.exp(-0.5 * (nodes / sigma[..., None]) ** 2) * np.cos(
+        omega[..., None] * nodes + phase[..., None]
+    )
     best = np.take_along_axis(nodes, np.argmax(np.abs(values), axis=-1)[..., None], -1)[..., 0]
     step = 2.0 * reach / (n_grid - 1)
     u = best
     for _ in range(n_newton):
         env = np.exp(-0.5 * (u / sigma) ** 2)
         cos, sin = np.cos(omega * u + phase), np.sin(omega * u + phase)
-        first = env * (-(u / sigma ** 2) * cos - omega * sin)
-        second = env * ((u ** 2 / sigma ** 4 - 1.0 / sigma ** 2) * cos
-                        + 2.0 * (u / sigma ** 2) * omega * sin - omega ** 2 * cos)
+        first = env * (-(u / sigma**2) * cos - omega * sin)
+        second = env * (
+            (u**2 / sigma**4 - 1.0 / sigma**2) * cos
+            + 2.0 * (u / sigma**2) * omega * sin
+            - omega**2 * cos
+        )
         update = np.divide(first, second, out=np.zeros_like(first), where=second != 0)
         u = np.clip(u - update, best - step, best + step)
     value = np.exp(-0.5 * (u / sigma) ** 2) * np.cos(omega * u + phase)
@@ -796,17 +863,24 @@ class Gabor(_OscillationShape):
         u, sigma, freq, phase, envelope, angle, raw = self._parts(times, params)
         omega = _TWO_PI * freq
         sine = envelope * np.sin(angle)
-        d_raw = [u / sigma ** 2 * raw + omega * sine, raw * u ** 2 / sigma ** 3,
-                 -sine * _TWO_PI * u, -sine]
+        d_raw = [
+            u / sigma**2 * raw + omega * sine,
+            raw * u**2 / sigma**3,
+            -sine * _TWO_PI * u,
+            -sine,
+        ]
         # Envelope theorem on the normaliser, at the offset of the largest extremum.
         offset, peak = gabor_peak(sigma, freq, phase)
         e_peak = np.exp(-0.5 * (offset / sigma) ** 2)
         peak_angle = omega * offset + phase
         sign = np.sign(np.cos(peak_angle))
-        d_peak = [0.0, peak * offset ** 2 / sigma ** 3,
-                  -sign * e_peak * np.sin(peak_angle) * _TWO_PI * offset,
-                  -sign * e_peak * np.sin(peak_angle)]
-        return _stack([d / peak - raw * dp / peak ** 2 for d, dp in zip(d_raw, d_peak)])
+        d_peak = [
+            0.0,
+            peak * offset**2 / sigma**3,
+            -sign * e_peak * np.sin(peak_angle) * _TWO_PI * offset,
+            -sign * e_peak * np.sin(peak_angle),
+        ]
+        return _stack([d / peak - raw * dp / peak**2 for d, dp in zip(d_raw, d_peak)])
 
     def latency(self, params):
         return self._params(params)[..., 0]
@@ -820,9 +894,11 @@ class Gabor(_OscillationShape):
         start, end, length, sfreq, low, high = self._window(times)
         f_low, f_high = self._freqs(length, sfreq)
         sigma_max = high / FWHM_PER_SIGMA
-        return check_bounds(self.name,
-                            [start - sigma_max / 2, low / FWHM_PER_SIGMA, f_low, -np.pi],
-                            [end + sigma_max / 2, sigma_max, f_high, np.pi])
+        return check_bounds(
+            self.name,
+            [start - sigma_max / 2, low / FWHM_PER_SIGMA, f_low, -np.pi],
+            [end + sigma_max / 2, sigma_max, f_high, np.pi],
+        )
 
     def initial_guess(self, times, waveform, peak_index):
         peak, sigma = self._center_width(times, waveform, peak_index)
@@ -833,6 +909,7 @@ class Gabor(_OscillationShape):
 
 ###################################################################################################
 ## Template
+
 
 @dataclass(frozen=True, eq=False)
 class Template(ShapeBase):
@@ -866,8 +943,10 @@ class Template(ShapeBase):
         times = np.asarray(self.template_times, dtype=np.float64)
         values = np.asarray(self.template_values, dtype=np.float64)
         if times.ndim != 1 or times.size < 4 or values.shape != times.shape:
-            raise DataError("template: template_times and template_values must be 1-D arrays "
-                            "of the same length (at least 4 samples).")
+            raise DataError(
+                "template: template_times and template_values must be 1-D arrays "
+                "of the same length (at least 4 samples)."
+            )
         if not (np.all(np.isfinite(times)) and np.all(np.isfinite(values))):
             raise DataError("template: template_times and template_values must be finite.")
         if np.any(np.diff(times) <= 0):
@@ -877,17 +956,24 @@ class Template(ShapeBase):
         if self.max_shift is not None and not self.max_shift > 0:
             raise SettingsError(f"template: max_shift must be positive, got {self.max_shift}.")
         if not 0 < self.stretch_min < 1.0 < self.stretch_max:
-            raise SettingsError("template: need 0 < stretch_min < 1 < stretch_max, got "
-                                f"{self.stretch_min}, {self.stretch_max}.")
+            raise SettingsError(
+                "template: need 0 < stretch_min < 1 < stretch_max, got "
+                f"{self.stretch_min}, {self.stretch_max}."
+            )
         spline = CubicSpline(times, values, bc_type="clamped")
         slope = spline.derivative()
         roots = slope.roots(extrapolate=False)
         candidates = np.concatenate([roots[np.isfinite(roots)], times[[0, -1]], times])
         found = spline(candidates)
         best = int(np.argmax(np.abs(found)))
-        for name, value in (("template_times", times), ("template_values", values),
-                            ("_spline", spline), ("_slope", slope),
-                            ("_norm", float(abs(found[best]))), ("_peak", float(candidates[best]))):
+        for name, value in (
+            ("template_times", times),
+            ("template_values", values),
+            ("_spline", spline),
+            ("_slope", slope),
+            ("_norm", float(abs(found[best]))),
+            ("_peak", float(candidates[best])),
+        ):
             object.__setattr__(self, name, value)
 
     @property

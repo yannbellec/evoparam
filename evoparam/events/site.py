@@ -73,8 +73,11 @@ NEURAL_TYPES = {"ecog", "seeg", "dbs", "eeg", "lfp", "ieeg", "meg"}
 
 # Names of channels that never are stimulating contacts: markers, triggers, status,
 # physiological and auxiliary channels.
-NON_NEURAL = re.compile(r"^(mkr|trig|sti|status|event|marker|dc\d|ecg|ekg|emg|eog|resp|"
-                        r"spo2|pulse|photic|aux|misc|ref$|gnd)", re.IGNORECASE)
+NON_NEURAL = re.compile(
+    r"^(mkr|trig|sti|status|event|marker|dc\d|ecg|ekg|emg|eog|resp|"
+    r"spo2|pulse|photic|aux|misc|ref$|gnd)",
+    re.IGNORECASE,
+)
 
 
 def _robust_sd(values):
@@ -103,8 +106,13 @@ def _silent_pair(names, group, raw_noise, floor, amplitude, size):
     found = []
     for a in quiet:
         for b in quiet:
-            if not (a < b and group[a] == group[b] and number[a] is not None
-                    and number[b] is not None and abs(number[a] - number[b]) == 1):
+            if not (
+                a < b
+                and group[a] == group[b]
+                and number[a] is not None
+                and number[b] is not None
+                and abs(number[a] - number[b]) == 1
+            ):
                 continue
             others = [k for k in range(len(names)) if group[k] == group[a] and k not in (a, b)]
             if not others or np.median(raw_noise[others]) < NOISE_FLOOR * floor:
@@ -117,9 +125,21 @@ def _silent_pair(names, group, raw_noise, floor, amplitude, size):
     return found[0] if len(found) == 1 else None
 
 
-def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.001, t0=0.0,
-                       picks=None, exclude=NON_NEURAL, lead=LEAD_WINDOW, hold=HOLD_WINDOW,
-                       method="evidence"):
+def identify_stim_site(
+    data,
+    sfreq,
+    events,
+    *,
+    ch_names,
+    ch_info=None,
+    window=0.001,
+    t0=0.0,
+    picks=None,
+    exclude=NON_NEURAL,
+    lead=LEAD_WINDOW,
+    hold=HOLD_WINDOW,
+    method="evidence",
+):
     """Guess the stimulated contact pair of each pulse from the artifact.
 
     ``method="spec"`` applies the rule of spec §5.2 method 5 as reviewed, to the letter:
@@ -257,12 +277,16 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
     # (method="spec" without ch_info.group has no groups; only the evidence rule uses these)
     group_index = None if group is None else [group[ind] for ind in index]
     # Largest absolute value of the candidate channels (one row at a time, no full copy)
-    rail = max((float(np.nan_to_num(np.nanmax(np.abs(data[ind])), nan=0.0)) for ind in index),
-               default=0.0)
+    rail = max(
+        (float(np.nan_to_num(np.nanmax(np.abs(data[ind])), nan=0.0)) for ind in index), default=0.0
+    )
 
     if n_events > 1 and interval < 2 * shortest + 2 * half:
-        _warn("identify_stim_site: pulses are closer than the identification window "
-              "(high-frequency train); the site is not identified.", stacklevel=2)
+        _warn(
+            "identify_stim_site: pulses are closer than the identification window "
+            "(high-frequency train); the site is not identified.",
+            stacklevel=2,
+        )
         index = np.array([], dtype=int)
 
     if len(index) >= 2 and method == "spec":
@@ -279,7 +303,7 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
                 continue
             # Only the samples around this pulse are copied, never the whole recording
             reference = data[index, onset - lag_row]
-            deviation = data[index, onset - lag_row:onset + half + 1] - reference[:, None]
+            deviation = data[index, onset - lag_row : onset + half + 1] - reference[:, None]
             amplitude = np.nan_to_num(np.nanmax(np.abs(deviation), axis=1), nan=0.0)
             if not amplitude.max() > 0:
                 continue
@@ -303,11 +327,12 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
 
             # Evidence needs the noise level, so not for a pulse at the very start
             moved = (amplitude >= MOVED_FRACTION * amplitude.max()) & known
-            leads = (moved & (early >= LEAD_MIN_SD * noise)
-                     & (early >= LEAD_MIN_FRACTION * amplitude))
+            leads = (
+                moved & (early >= LEAD_MIN_SD * noise) & (early >= LEAD_MIN_FRACTION * amplitude)
+            )
             held = np.zeros(len(index), dtype=bool)
             start = onset + hold_lo
-            later = ordered[np.searchsorted(ordered, onset, side="right"):]
+            later = ordered[np.searchsorted(ordered, onset, side="right") :]
             stop = min(onset + hold_hi, n_times, later[0] - lag if len(later) else n_times)
             if stop - start >= 4 and known:
                 steps = np.abs(np.diff(data[index, start:stop], axis=1))
@@ -315,7 +340,7 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
                 held = moved & (flat >= HOLD_MIN_FRACTION)
             if rail > 0:
                 # Reaching the amplifier's range is the same evidence as being held there
-                near = data[index, max(0, onset - rail_span):onset + rail_span + 1]
+                near = data[index, max(0, onset - rail_span) : onset + rail_span + 1]
                 peak = np.nan_to_num(np.nanmax(np.abs(near), axis=1), nan=0.0)
                 at_range = moved & (peak >= (1 - RAIL_TOLERANCE) * rail)
                 # A range is reached by both contacts of the pair; one channel alone is
@@ -324,8 +349,11 @@ def identify_stim_site(data, sfreq, events, *, ch_names, ch_info=None, window=0.
                     held = held | at_range
             evidence = leads.astype(int) + held.astype(int)
 
-            silent = (_silent_pair(names_index, group_index, raw_noise, floor, amplitude, size)
-                      if known else None)
+            silent = (
+                _silent_pair(names_index, group_index, raw_noise, floor, amplitude, size)
+                if known
+                else None
+            )
             order = np.lexsort((-size, -evidence))
             if silent is not None:
                 rest = [k for k in order if k not in silent]
@@ -366,7 +394,7 @@ def _spec_site(data, index, onset, lag, half, group):
     if onset - lag < 0 or onset - half < 0 or onset + half + 1 > n_times:
         return None
     reference = data[index, onset - lag]
-    deviation = data[index, onset - half:onset + half + 1] - reference[:, None]
+    deviation = data[index, onset - half : onset + half + 1] - reference[:, None]
     amplitude = np.nan_to_num(np.nanmax(np.abs(deviation), axis=1), nan=0.0)
     if not amplitude.max() > 0:
         return None

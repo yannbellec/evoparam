@@ -59,8 +59,9 @@ def _durations(data):
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        return response_duration(data, window=(0.009, 0.5), baseline=(-0.5, -0.05), by=(),
-                                 random_state=0)
+        return response_duration(
+            data, window=(0.009, 0.5), baseline=(-0.5, -0.05), by=(), random_state=0
+        )
 
 
 def test_req006_existence_table_with_trials():
@@ -75,10 +76,13 @@ def test_req006_existence_table_with_trials():
         assert np.all(np.isfinite(low) & np.isfinite(high) & (low <= high)), name
 
 
-@pytest.mark.xfail(strict=True, reason="An Evoked has no trials to resample: the onset, "
-                   "offset and duration of its existence test (baseline windows of the "
-                   "average, §5.6) are reported without an interval (measured: NaN on all "
-                   "4 channels of the simulated CCEP). Its decision has its p-value.")
+@pytest.mark.xfail(
+    strict=True,
+    reason="An Evoked has no trials to resample: the onset, "
+    "offset and duration of its existence test (baseline windows of the "
+    "average, §5.6) are reported without an interval (measured: NaN on all "
+    "4 channels of the simulated CCEP). Its decision has its p-value.",
+)
 def test_req006_existence_table_of_an_evoked():
     trials, _ = sim.simulate_ccep(n_trials=10, n_channels=4, seed=3)
     frame = _durations(trials.average())

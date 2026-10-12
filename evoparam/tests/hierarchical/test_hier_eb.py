@@ -12,8 +12,7 @@ import pytest
 
 from evoparam.errors import SettingsError
 from evoparam.hierarchical import fit_hierarchical, posterior_summary
-from evoparam.tests.hierarchical.helpers import (auc, merged, reliability_slope,
-                                                 simulate_group)
+from evoparam.tests.hierarchical.helpers import auc, merged, reliability_slope, simulate_group
 
 SLOW = os.environ.get("EVOPARAM_SLOW_TESTS") == "1"
 
@@ -26,8 +25,9 @@ def _fit(sets, **kwargs):
 def reference():
     """20 subjects x 50 channels x 20 trials, 30 % responding (spec REQ-170)."""
 
-    sets, truth = simulate_group(n_subjects=20, n_channels=50, n_trials=20, p_respond=0.3,
-                                 snr=0.7, seed=0)
+    sets, truth = simulate_group(
+        n_subjects=20, n_channels=50, n_trials=20, p_respond=0.3, snr=0.7, seed=0
+    )
     start = time.perf_counter()
     fit = _fit(sets)
     return fit, truth, time.perf_counter() - start
@@ -47,8 +47,15 @@ def test_level_tables_and_summary(reference):
     fit, truth, _ = reference
     assert set(fit.level_tables) == {"trial", "channel", "subject", "group"}
     channel = posterior_summary(fit, "channel")
-    for column in ("latency", "latency_se", "latency_shrinkage", "amplitude", "p_response",
-                   "flag", "n_trusted"):
+    for column in (
+        "latency",
+        "latency_se",
+        "latency_shrinkage",
+        "amplitude",
+        "p_response",
+        "flag",
+        "n_trusted",
+    ):
         assert column in channel.columns
     subject = posterior_summary(fit, "subject")
     assert len(subject) == 20 and subject["latency"].notna().all()
@@ -59,8 +66,9 @@ def test_level_tables_and_summary(reference):
 
 
 def _rmse_pair(seed, snr):
-    sets, truth = simulate_group(n_subjects=4, n_channels=20, n_trials=20, p_respond=0.6,
-                                 snr=snr, seed=seed)
+    sets, truth = simulate_group(
+        n_subjects=4, n_channels=20, n_trials=20, p_respond=0.6, snr=snr, seed=seed
+    )
     m = merged(_fit(sets), truth)
     d = m[m["has_component"] & m["respond"] & m["latency"].notna()]
     raw = np.sqrt(np.mean((d["latency_fit"] - d["latency_true"]) ** 2))
@@ -74,12 +82,14 @@ def rmse_pairs():
     return np.array([_rmse_pair(100 + s, 1.5) for s in range(runs)])
 
 
-@pytest.mark.xfail(reason="REQ-171 as written (EB wins on >= 90 % of datasets) is not met: 4 of 6 "
-                          "datasets, 14 of 20 with EVOPARAM_SLOW_TESTS=1, 160 of 200 on the "
-                          "development seeds 1000-1199 (seed 100: channel 1.48 ms, EB 1.57 ms; "
-                          "seed 105: 0.98 ms, 1.06 ms); with the true prior the posterior mean "
-                          "wins on 86 % of them (DECISIONS 5.6); wording pending, see CHANGELOG",
-                   strict=False)
+@pytest.mark.xfail(
+    reason="REQ-171 as written (EB wins on >= 90 % of datasets) is not met: 4 of 6 "
+    "datasets, 14 of 20 with EVOPARAM_SLOW_TESTS=1, 160 of 200 on the "
+    "development seeds 1000-1199 (seed 100: channel 1.48 ms, EB 1.57 ms; "
+    "seed 105: 0.98 ms, 1.06 ms); with the true prior the posterior mean "
+    "wins on 86 % of them (DECISIONS 5.6); wording pending, see CHANGELOG",
+    strict=False,
+)
 def test_req171_shrunken_latencies_beat_the_channel_fits(rmse_pairs):
 
     raw, eb = rmse_pairs.T
@@ -91,19 +101,23 @@ def test_req171_shrunken_latencies_are_better_on_average(rmse_pairs):
     the RMSE of the EB latencies is below that of the channel fits."""
 
     raw, eb = rmse_pairs.T
-    assert np.sqrt(np.mean(eb ** 2)) < np.sqrt(np.mean(raw ** 2))
+    assert np.sqrt(np.mean(eb**2)) < np.sqrt(np.mean(raw**2))
 
 
 def _variance_case(seed):
-    sets, truth = simulate_group(n_subjects=6, n_channels=30, n_trials=20, p_respond=0.5,
-                                 snr=3.0, seed=seed, jitter=0.003)
+    sets, truth = simulate_group(
+        n_subjects=6, n_channels=30, n_trials=20, p_respond=0.5, snr=3.0, seed=seed, jitter=0.003
+    )
     fit = _fit(sets)
     vc = fit.variance_components
     sd_amp = vc[(vc["parameter"] == "amplitude") & (vc["level"] == "channel")]["sd"].iloc[0]
     sd_jit = vc[(vc["parameter"] == "latency") & (vc["level"] == "trial")]["sd"].iloc[0]
     resp = truth[truth["respond"]]
-    true_amp = np.sqrt(np.mean((resp["amplitude"] - resp.groupby("subject")["amplitude"]
-                                .transform("mean")) ** 2) * len(resp) / (len(resp) - 6))
+    true_amp = np.sqrt(
+        np.mean((resp["amplitude"] - resp.groupby("subject")["amplitude"].transform("mean")) ** 2)
+        * len(resp)
+        / (len(resp) - 6)
+    )
     return sd_amp / true_amp, sd_jit / 0.003
 
 
@@ -116,8 +130,15 @@ def test_req172_variance_components_by_eb():
 
 
 def _age_case(seed):
-    sets, truth = simulate_group(n_subjects=20, n_channels=10, n_trials=20, p_respond=0.6,
-                                 snr=2.0, seed=seed, age_slope=0.0002)
+    sets, truth = simulate_group(
+        n_subjects=20,
+        n_channels=10,
+        n_trials=20,
+        p_respond=0.6,
+        snr=2.0,
+        seed=seed,
+        age_slope=0.0002,
+    )
     fit = _fit(sets, formula="latency ~ age")
     row = fit.effects[fit.effects["term"] == "age"].iloc[0]
     return row["ci_low"] <= 0.0002 <= row["ci_high"], row
@@ -146,9 +167,11 @@ def test_req176_eb_model_time_per_subject(reference):
     assert fit.diagnostics["timing_s"]["model"] / 20 <= 0.5
 
 
-@pytest.mark.skipif(os.environ.get("EVOPARAM_PERF_TESTS") != "1",
-                    reason="set EVOPARAM_PERF_TESTS=1 to time the whole fit (the shared CI "
-                           "runners are about twice as slow as the reference machine)")
+@pytest.mark.skipif(
+    os.environ.get("EVOPARAM_PERF_TESTS") != "1",
+    reason="set EVOPARAM_PERF_TESTS=1 to time the whole fit (the shared CI "
+    "runners are about twice as slow as the reference machine)",
+)
 def test_req176_eb_time_per_subject(reference):
 
     _, _, duration = reference
@@ -169,8 +192,9 @@ def test_req177_no_new_dependency_for_eb(monkeypatch):
 
 def test_one_subject_drops_the_subject_level():
 
-    sets, truth = simulate_group(n_subjects=1, n_channels=20, n_trials=15, p_respond=0.6,
-                                 snr=2.0, seed=4)
+    sets, truth = simulate_group(
+        n_subjects=1, n_channels=20, n_trials=15, p_respond=0.6, snr=2.0, seed=4
+    )
     fit = fit_hierarchical(sets[0], components=["N1"])
     assert any("subject level is dropped" in n for n in fit.diagnostics["notes"])
     assert fit.level_tables["channel"]["latency"].notna().sum() >= 5
@@ -179,8 +203,9 @@ def test_one_subject_drops_the_subject_level():
 
 def test_channel_with_few_trusted_trials_is_prior_dominated():
 
-    sets, truth = simulate_group(n_subjects=3, n_channels=10, n_trials=20, p_respond=1.0,
-                                 snr=3.0, seed=5)
+    sets, truth = simulate_group(
+        n_subjects=3, n_channels=10, n_trials=20, p_respond=1.0, snr=3.0, seed=5
+    )
     # two trials only on one channel: drop the others by NaN masking
     import dataclasses
 
@@ -203,12 +228,17 @@ def test_single_trialset_with_subject_column():
 
     from evoparam.data import TrialSet
 
-    sets, _ = simulate_group(n_subjects=2, n_channels=6, n_trials=10, p_respond=1.0, snr=3.0,
-                             seed=6)
-    joined = TrialSet(data=np.concatenate([s.data for s in sets]), times=sets[0].times,
-                      sfreq=sets[0].sfreq, ch_names=[f"c{i}" for i in range(6)],
-                      metadata=pd.concat([s.metadata for s in sets], ignore_index=True),
-                      modality="spes")
+    sets, _ = simulate_group(
+        n_subjects=2, n_channels=6, n_trials=10, p_respond=1.0, snr=3.0, seed=6
+    )
+    joined = TrialSet(
+        data=np.concatenate([s.data for s in sets]),
+        times=sets[0].times,
+        sfreq=sets[0].sfreq,
+        ch_names=[f"c{i}" for i in range(6)],
+        metadata=pd.concat([s.metadata for s in sets], ignore_index=True),
+        modality="spes",
+    )
     fit = fit_hierarchical(joined, components=["N1"])
     assert fit.settings["subjects"] == ["sub00", "sub01"]
 
@@ -217,8 +247,9 @@ def test_round_trip(tmp_path):
 
     from evoparam.data.serialize import load_object, save_object
 
-    sets, _ = simulate_group(n_subjects=3, n_channels=6, n_trials=8, p_respond=1.0, snr=3.0,
-                             seed=1)
+    sets, _ = simulate_group(
+        n_subjects=3, n_channels=6, n_trials=8, p_respond=1.0, snr=3.0, seed=1
+    )
     fit = fit_hierarchical(sets, components=["N1"], formula="latency ~ age")
     back = load_object(save_object(fit, tmp_path / "h.evoparam"))
     assert back.engine == "eb"
@@ -232,8 +263,15 @@ def test_latency_standard_error_adds_jitter_and_truncates_to_the_window():
 
     lat = np.array([0.030, 0.030, 0.030, 0.030])
     wald = np.array([0.001, 0.015, np.nan, 0.001])
-    out = latency_standard_error(lat, wald, 0.002, np.array([16, 16, 16, 0]), 0.009, 0.05,
-                                 fallback=np.array([9., 9., 0.0007, 9.]))
+    out = latency_standard_error(
+        lat,
+        wald,
+        0.002,
+        np.array([16, 16, 16, 0]),
+        0.009,
+        0.05,
+        fallback=np.array([9.0, 9.0, 0.0007, 9.0]),
+    )
     # a narrow error is the noise and the mean jitter in quadrature (window far away)
     assert out[0] == pytest.approx(np.hypot(0.001, 0.002 / 4), rel=1e-6)
     # a wide one is the SD of the normal truncated to the label window

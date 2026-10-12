@@ -28,13 +28,13 @@ def component(shape, tw, params):
     kind = type(shape)
     if kind is Gaussian:
         z = (tw - params[0]) / params[1]
-        s = gaussian_factor(z, lambda x: np.exp(-0.5 * x ** 2))
+        s = gaussian_factor(z, lambda x: np.exp(-0.5 * x**2))
         return s, (z, s)
     if kind is SkewedGaussian:
         alpha = params[2:3]
         _, c, dc = skew_mode(alpha)
         z = (tw - params[0]) / params[1]
-        numerator = gaussian_factor(z, lambda x: np.exp(-0.5 * x ** 2) * erfc(-alpha * x / _SQRT2))
+        numerator = gaussian_factor(z, lambda x: np.exp(-0.5 * x**2) * erfc(-alpha * x / _SQRT2))
         return numerator / c, (z, c, dc, numerator)
     return shape.evaluate(tw, params), None
 
@@ -46,16 +46,19 @@ def component_derivatives(shape, tw, params, aux):
     if kind is Gaussian and aux is not None:
         z, s = aux
         sigma = params[1]
-        return np.stack([s * z / sigma, s * z ** 2 / sigma], axis=-1)
+        return np.stack([s * z / sigma, s * z**2 / sigma], axis=-1)
     if kind is SkewedGaussian and aux is not None:
         z, c, dc, numerator = aux
         omega, alpha = params[1:2], params[2:3]
-        gauss = _SQRT_2_OVER_PI * gaussian_factor(z, lambda x: np.exp(-0.5 * x ** 2 *
-                                                                      (1.0 + alpha ** 2)))
+        gauss = _SQRT_2_OVER_PI * gaussian_factor(
+            z, lambda x: np.exp(-0.5 * x**2 * (1.0 + alpha**2))
+        )
         d_z = -z * numerator + alpha * gauss
         d_alpha = z * gauss
-        return np.stack([-d_z / (omega * c), -d_z * z / (omega * c),
-                         d_alpha / c - numerator * dc / c ** 2], axis=-1)
+        return np.stack(
+            [-d_z / (omega * c), -d_z * z / (omega * c), d_alpha / c - numerator * dc / c**2],
+            axis=-1,
+        )
     return shape.jacobian(tw, params)
 
 
@@ -67,7 +70,7 @@ def background(bg, tw, nonlinear, out):
         lag = tw - bg._t_ref(tw)
         decay = np.exp(-lag / nonlinear[0:1])
         out[0] = 1.0
-        out[1] = decay                    # out is whitened in place afterwards: a copy
+        out[1] = decay  # out is whitened in place afterwards: a copy
         return (lag, decay)
     out[...] = np.atleast_2d(bg.basis(tw, nonlinear))
     return None
@@ -80,7 +83,7 @@ def background_derivatives(bg, tw, nonlinear, coefs, aux):
     if type(bg) is ExponentialBackground and aux is not None:
         lag, decay = aux
         tau = nonlinear[0:1]
-        d_decay = decay * lag / tau ** 2
+        d_decay = decay * lag / tau**2
         return (coefs[1] * d_decay)[:, None]
     dj = bg.basis_jacobian(tw, nonlinear)
     return np.einsum("l,lnj->nj", coefs, dj)

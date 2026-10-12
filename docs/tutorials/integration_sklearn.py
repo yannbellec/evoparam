@@ -29,11 +29,25 @@ from evoparam.trials import TrialFitter
 
 n1_low = {"amplitude": (-100.0, -100.0), "latency": (0.025, 0.025)}
 n1_high = {"amplitude": (-300.0, -300.0), "latency": (0.025, 0.025)}
-low, _ = sim.simulate_ccep(n_trials=40, n_channels=3, stim_current_mA=2.0, seed=0,
-                           p_response=1.0, n1=n1_low, amplitude_cv=0.3)
-high, _ = sim.simulate_ccep(n_trials=40, n_channels=3, stim_current_mA=6.0, seed=1,
-                            p_response=1.0, n1=n1_high, amplitude_cv=0.3)
-X = np.concatenate([low.data, high.data])               # (trials, channels, times), µV
+low, _ = sim.simulate_ccep(
+    n_trials=40,
+    n_channels=3,
+    stim_current_mA=2.0,
+    seed=0,
+    p_response=1.0,
+    n1=n1_low,
+    amplitude_cv=0.3,
+)
+high, _ = sim.simulate_ccep(
+    n_trials=40,
+    n_channels=3,
+    stim_current_mA=6.0,
+    seed=1,
+    p_response=1.0,
+    n1=n1_high,
+    amplitude_cv=0.3,
+)
+X = np.concatenate([low.data, high.data])  # (trials, channels, times), µV
 y = np.r_[np.zeros(len(low.data)), np.ones(len(high.data))]
 sfreq, tmin = low.sfreq, float(low.times[0])
 print(X.shape)
@@ -50,11 +64,13 @@ from sklearn.preprocessing import StandardScaler
 
 pipe = make_pipeline(
     ArtifactRemover("template", sfreq=sfreq, tmin=tmin, window=(-0.002, 0.008)),
-    TrialFitter(sfreq=sfreq, tmin=tmin, fit_window=(0.009, 0.5), max_components=2,
-                random_state=0),
-    SimpleImputer(), StandardScaler(), LogisticRegression())
+    TrialFitter(sfreq=sfreq, tmin=tmin, fit_window=(0.009, 0.5), max_components=2, random_state=0),
+    SimpleImputer(),
+    StandardScaler(),
+    LogisticRegression(),
+)
 print(pipe)
-pipe.set_params(trialfitter__max_components=2)       # nested parameters, as in scikit-learn
+pipe.set_params(trialfitter__max_components=2)  # nested parameters, as in scikit-learn
 
 # %%
 # Cross-validated decoding

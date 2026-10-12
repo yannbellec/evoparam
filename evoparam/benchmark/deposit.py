@@ -40,8 +40,10 @@ from .tasks import write_input
 __all__ = ["prepare_deposit", "write_trials_nwb", "DEPOSIT_SCHEMA", "DEPOSIT_STATUS"]
 
 DEPOSIT_SCHEMA = "evoparam-benchmark-deposit/1"
-DEPOSIT_STATUS = ("prepared locally; not deposited: the deposit (a public step with a DOI) "
-                  "waits for the owner's HIIE decision (nothing public before it)")
+DEPOSIT_STATUS = (
+    "prepared locally; not deposited: the deposit (a public step with a DOI) "
+    "waits for the owner's HIIE decision (nothing public before it)"
+)
 
 
 def _label(cell_id):
@@ -59,20 +61,31 @@ def write_trials_nwb(ts, path, *, identifier, description):
     from pynwb.ecephys import ElectricalSeries
 
     n_trials, n_channels, n_times = ts.data.shape
-    nwb = pynwb.NWBFile(session_description=description, identifier=identifier,
-                        session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    nwb = pynwb.NWBFile(
+        session_description=description,
+        identifier=identifier,
+        session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
     device = nwb.create_device(name="simulation")
-    group = nwb.create_electrode_group(name="simulated", description="simulated contacts",
-                                       location="simulated", device=device)
+    group = nwb.create_electrode_group(
+        name="simulated", description="simulated contacts", location="simulated", device=device
+    )
     nwb.add_electrode_column(name="label", description="channel name")
     for name in ts.ch_names:
         nwb.add_electrode(group=group, location="simulated", label=str(name))
     region = nwb.create_electrode_table_region(list(range(n_channels)), "all channels")
     data = np.nan_to_num(ts.data).transpose(0, 2, 1).reshape(n_trials * n_times, n_channels)
-    nwb.add_acquisition(ElectricalSeries(name="trials", data=data, electrodes=region,
-                                         rate=float(ts.sfreq), starting_time=0.0,
-                                         conversion=1e-6,
-                                         description="simulated trials laid end to end"))
+    nwb.add_acquisition(
+        ElectricalSeries(
+            name="trials",
+            data=data,
+            electrodes=region,
+            rate=float(ts.sfreq),
+            starting_time=0.0,
+            conversion=1e-6,
+            description="simulated trials laid end to end",
+        )
+    )
     nwb.add_trial_column("stim_onset", "time zero of the trial (s)")
     site = None
     if ts.metadata is not None and "stim_site" in ts.metadata.columns:
@@ -82,15 +95,27 @@ def write_trials_nwb(ts, path, *, identifier, description):
     for k in range(n_trials):
         start = k * duration
         extra = {"stim_site": site[k]} if site is not None else {}
-        nwb.add_trial(start_time=start, stop_time=start + duration,
-                      stim_onset=start - float(ts.times[0]), **extra)
+        nwb.add_trial(
+            start_time=start,
+            stop_time=start + duration,
+            stim_onset=start - float(ts.times[0]),
+            **extra,
+        )
     with pynwb.NWBHDF5IO(path, "w") as io:
         io.write(nwb)
     return path
 
 
-def prepare_deposit(suite="core", out="deposit", *, formats=("bids", "nwb"), tasks=None,
-                    hidden_seeds=None, overwrite=False, log=None):
+def prepare_deposit(
+    suite="core",
+    out="deposit",
+    *,
+    formats=("bids", "nwb"),
+    tasks=None,
+    hidden_seeds=None,
+    overwrite=False,
+    log=None,
+):
     """Write the public split of a suite and its manifest into a local folder.
 
     Parameters
@@ -129,8 +154,10 @@ def prepare_deposit(suite="core", out="deposit", *, formats=("bids", "nwb"), tas
     if hidden_seeds is not None:
         verified = hidden_commitment(load_hidden_seeds(hidden_seeds)) == commitment
         if not verified:
-            raise DataError("the hidden seeds document does not match the commitment of the "
-                            f"suite ({commitment}).")
+            raise DataError(
+                "the hidden seeds document does not match the commitment of the "
+                f"suite ({commitment})."
+            )
     tasks = list(tasks) if tasks else suite.task_ids()
     start = time.perf_counter()
     cells_out = []
@@ -143,15 +170,24 @@ def prepare_deposit(suite="core", out="deposit", *, formats=("bids", "nwb"), tas
         if "bids" in formats:
             from evoparam.sim.bids import write_bids
 
-            vhdr = write_bids(ts, truth, os.path.join(out, "bids"), subject=_label(cell.id),
-                              task=_label(cell.group))
+            vhdr = write_bids(
+                ts,
+                truth,
+                os.path.join(out, "bids"),
+                subject=_label(cell.id),
+                task=_label(cell.group),
+            )
             files.append(os.path.relpath(vhdr, out))
         if "nwb" in formats:
             path = os.path.join(out, "nwb", f"{cell.id}.nwb")
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            write_trials_nwb(ts, path, identifier=f"evoparam-benchmark-{suite.name}-{cell.id}",
-                             description=f"evoparam benchmark suite {suite.name} "
-                                         f"{suite.version}, cell {cell.id}")
+            write_trials_nwb(
+                ts,
+                path,
+                identifier=f"evoparam-benchmark-{suite.name}-{cell.id}",
+                description=f"evoparam benchmark suite {suite.name} "
+                f"{suite.version}, cell {cell.id}",
+            )
             files.append(os.path.relpath(path, out))
         truth_path = os.path.join(out, "truth", f"{cell.id}.json")
         os.makedirs(os.path.dirname(truth_path), exist_ok=True)
@@ -160,12 +196,23 @@ def prepare_deposit(suite="core", out="deposit", *, formats=("bids", "nwb"), tas
         files.append(os.path.relpath(truth_path, out))
         for task, task_input in make_inputs(cell, ts, truth, tasks=cell_tasks).items():
             path = write_input(task_input, os.path.join(out, "inputs", task))
-            files += [os.path.relpath(path, out),
-                      os.path.relpath(os.path.join(os.path.dirname(path),
-                                                   task_input.descriptor["data_file"]), out)]
-        cells_out.append({"id": cell.id, "group": cell.group, "generator": cell.generator,
-                          "seed": cell.seed, "settings": cell.settings,
-                          "tasks": cell_tasks, "files": files})
+            files += [
+                os.path.relpath(path, out),
+                os.path.relpath(
+                    os.path.join(os.path.dirname(path), task_input.descriptor["data_file"]), out
+                ),
+            ]
+        cells_out.append(
+            {
+                "id": cell.id,
+                "group": cell.group,
+                "generator": cell.generator,
+                "seed": cell.seed,
+                "settings": cell.settings,
+                "tasks": cell_tasks,
+                "files": files,
+            }
+        )
         log(f"{cell.id}: written")
     shutil.copyfile(suite.path, os.path.join(out, f"suite-{suite.name}.json"))
     hashes = {}
@@ -175,25 +222,46 @@ def prepare_deposit(suite="core", out="deposit", *, formats=("bids", "nwb"), tas
             rel = os.path.relpath(path, out).replace(os.sep, "/")
             hashes[rel] = sha256_file(path)
     for cell in cells_out:
-        cell["files"] = {rel.replace(os.sep, "/"): hashes[rel.replace(os.sep, "/")]
-                         for rel in cell["files"]}
+        cell["files"] = {
+            rel.replace(os.sep, "/"): hashes[rel.replace(os.sep, "/")] for rel in cell["files"]
+        }
     manifest = {
-        "schema": DEPOSIT_SCHEMA, "status": DEPOSIT_STATUS, "doi": None, "licence": None,
-        "suite": {"name": suite.name, "version": suite.version, "sha256": suite.sha256,
-                  "file": f"suite-{suite.name}.json"},
-        "generator": {"package": "evoparam", "version": __version__,
-                      "functions": sorted({f"evoparam.sim.{c['generator']}"
-                                           for c in cells_out})},
-        "formats": list(formats), "tasks": tasks,
+        "schema": DEPOSIT_SCHEMA,
+        "status": DEPOSIT_STATUS,
+        "doi": None,
+        "licence": None,
+        "suite": {
+            "name": suite.name,
+            "version": suite.version,
+            "sha256": suite.sha256,
+            "file": f"suite-{suite.name}.json",
+        },
+        "generator": {
+            "package": "evoparam",
+            "version": __version__,
+            "functions": sorted({f"evoparam.sim.{c['generator']}" for c in cells_out}),
+        },
+        "formats": list(formats),
+        "tasks": tasks,
         "public_split": {"n_cells": len(cells_out), "cells": cells_out},
-        "hidden_split": {"n_cells": suite.hidden_split["n_hidden_cells"],
-                         "commitment_sha256": commitment,
-                         "commitment": suite.hidden_split["commitment"],
-                         "verified_against_seeds": verified,
-                         "cells": [{"id": c.id, "group": c.group, "generator": c.generator,
-                                    "settings": c.settings, "tasks": list(c.tasks)}
-                                   for c in suite.cells(split="hidden")]},
-        "files": hashes, "duration_s": time.perf_counter() - start,
+        "hidden_split": {
+            "n_cells": suite.hidden_split["n_hidden_cells"],
+            "commitment_sha256": commitment,
+            "commitment": suite.hidden_split["commitment"],
+            "verified_against_seeds": verified,
+            "cells": [
+                {
+                    "id": c.id,
+                    "group": c.group,
+                    "generator": c.generator,
+                    "settings": c.settings,
+                    "tasks": list(c.tasks),
+                }
+                for c in suite.cells(split="hidden")
+            ],
+        },
+        "files": hashes,
+        "duration_s": time.perf_counter() - start,
     }
     path = os.path.join(out, "manifest.json")
     with open(path, "w", encoding="utf-8") as fobj:

@@ -29,17 +29,24 @@ sfreq = 1000.0
 block = Block(name="slice recording")
 for run in range(2):
     n = int(30 * sfreq)
-    data = rng.normal(0, 0.01, (n, 3))                        # mV
-    onsets = np.arange(2.0, 28.0, 1.0)          # s
+    data = rng.normal(0, 0.01, (n, 3))  # mV
+    onsets = np.arange(2.0, 28.0, 1.0)  # s
     for t in onsets:
         i = int(t * sfreq)
-        data[i + 8:i + 30, :] += -0.08 * np.hanning(22)[:, None]   # an evoked response
+        data[i + 8 : i + 30, :] += -0.08 * np.hanning(22)[:, None]  # an evoked response
     segment = Segment(name=f"run {run}")
-    segment.analogsignals.append(AnalogSignal(
-        data, units="mV", sampling_rate=sfreq * pq.Hz, name="field",
-        array_annotations={"channel_names": np.array(["F1", "F2", "F3"])}))
-    segment.events.append(Event(onsets * pq.s, labels=np.array(["shock"] * len(onsets)),
-                                name="stimulus"))
+    segment.analogsignals.append(
+        AnalogSignal(
+            data,
+            units="mV",
+            sampling_rate=sfreq * pq.Hz,
+            name="field",
+            array_annotations={"channel_names": np.array(["F1", "F2", "F3"])},
+        )
+    )
+    segment.events.append(
+        Event(onsets * pq.s, labels=np.array(["shock"] * len(onsets)), name="stimulus")
+    )
     block.segments.append(segment)
 
 # %%
@@ -48,8 +55,7 @@ for run in range(2):
 
 trials = read_neo(block, events="stimulus", tmin=-0.1, tmax=0.35)
 print(trials)
-print(trials.metadata.groupby("run").size().to_dict(), "epochs per run; units:",
-      trials.units)
+print(trials.metadata.groupby("run").size().to_dict(), "epochs per run; units:", trials.units)
 
 # %%
 # Fit

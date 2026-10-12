@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Re-referencing (REQ-081, REQ-082)."""
 
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -49,8 +48,7 @@ def test_bipolar_uses_groups_and_masks():
 def test_car_excludes_stimulated_and_bad_channels():
 
     meta = pd.DataFrame({"stim_site": ["A1-A2"] * 4})
-    info = pd.DataFrame({"name": [f"A{i}" for i in range(1, 9)],
-                         "bad": [False] * 7 + [True]})
+    info = pd.DataFrame({"name": [f"A{i}" for i in range(1, 9)], "bad": [False] * 7 + [True]})
     ts = epochs(n_trials=4, metadata=meta, ch_info=info)
     out = rereference(ts, "car")
     expected = ts.data - ts.data[:, 2:7].mean(axis=1, keepdims=True)
@@ -99,8 +97,14 @@ def test_car_adaptive_records_choice_and_falls_back():
 
 def test_laplacian_and_monopolar():
 
-    info = pd.DataFrame({"name": ["G1", "G2", "G3", "G4"], "x": [0., 10., 20., 100.],
-                         "y": [0.] * 4, "z": [0.] * 4})
+    info = pd.DataFrame(
+        {
+            "name": ["G1", "G2", "G3", "G4"],
+            "x": [0.0, 10.0, 20.0, 100.0],
+            "y": [0.0] * 4,
+            "z": [0.0] * 4,
+        }
+    )
     ts = epochs(names=["G1", "G2", "G3", "G4"], ch_info=info, n_trials=2)
     with pytest.warns(UserWarning, match="no neighbour"):
         out = rereference(ts, "laplacian", radius=12.0)
@@ -126,12 +130,13 @@ def test_reference_sensitivity_runs_the_existence_test():
 
     ts, responsive = sim_carla(0.3, 2)
     ts = replace(ts, metadata=pd.DataFrame({"stim_site": ["S48-S49"] * ts.n_trials}))
-    table = reference_sensitivity(ts, schemes=("monopolar", "car"),
-                                  test_kwargs={"n_permutations": 200})
+    table = reference_sensitivity(
+        ts, schemes=("monopolar", "car"), test_kwargs={"n_permutations": 200}
+    )
     assert table.attrs["detector"] == "existence_detector"
     channels = table.attrs["channels"]
     detected, latency, groups = existence_detector(ts, n_permutations=200)
-    assert groups == ["S48-S49"] and np.ndim(detected) == 1       # one site: one column
+    assert groups == ["S48-S49"] and np.ndim(detected) == 1  # one site: one column
     assert channels["monopolar"]["detected"].reindex(ts.ch_names).tolist() == list(detected)
     # Responsive channels are found under the original reference
     found = {int(key[1:3]) for key in channels.index[channels["monopolar"]["detected"]]}

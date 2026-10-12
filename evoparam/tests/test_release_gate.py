@@ -21,10 +21,13 @@ import evoparam
 pytestmark = pytest.mark.core
 
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
-PUBLISHING = re.compile(r"pypa/gh-action-pypi-publish|twine upload(?!.*printf)|"
-                        r"actions/deploy-pages|peaceiris/actions-gh-pages|zenodo|"
-                        r"conda-forge.*upload|anaconda upload|flit publish|poetry publish|"
-                        r"uv publish|hatch publish", re.IGNORECASE)
+PUBLISHING = re.compile(
+    r"pypa/gh-action-pypi-publish|twine upload(?!.*printf)|"
+    r"actions/deploy-pages|peaceiris/actions-gh-pages|zenodo|"
+    r"conda-forge.*upload|anaconda upload|flit publish|poetry publish|"
+    r"uv publish|hatch publish",
+    re.IGNORECASE,
+)
 
 
 def gate():
@@ -53,7 +56,7 @@ def test_req019_no_upload_before_the_decision():
         pytest.skip("the HIIE decision is on record (RELEASING.md): public steps are allowed")
     try:
         import tomllib
-    except ImportError:                  # Python 3.10
+    except ImportError:  # Python 3.10
         tomllib = pytest.importorskip("tomli")
     with open(ROOT / "pyproject.toml", "rb") as fobj:
         project = tomllib.load(fobj)["project"]
@@ -72,8 +75,9 @@ def test_req019_no_upload_before_the_decision():
 def test_req019_make_publish_stops_before_the_decision():
     if _decided():
         pytest.skip("the HIIE decision is on record (RELEASING.md)")
-    result = subprocess.run(["make", "-s", "publish"], cwd=ROOT, capture_output=True,
-                            text=True, timeout=60)
+    result = subprocess.run(
+        ["make", "-s", "publish"], cwd=ROOT, capture_output=True, text=True, timeout=60
+    )
     assert result.returncode != 0
     assert "HIIE decision" in result.stdout + result.stderr
 
@@ -83,19 +87,24 @@ def test_req017_n1_tests_run_in_every_build():
     triggers = workflow.split("\njobs:")[0]
     assert "push:" in triggers and "pull_request:" in triggers
     build = workflow.split("\n  build:")[1].split("\n  docs:")[0]
-    assert "\n    if:" not in build.split("steps:")[0]      # the job runs on every trigger
+    assert "\n    if:" not in build.split("steps:")[0]  # the job runs on every trigger
     step = build.split("REQ-113 and REQ-114 in every build (REQ-017)")[1].split("- name:")[0]
     assert 'EVOPARAM_NETWORK_TESTS: "1"' in step
     assert "evoparam/tests/models/test_engine_ccep.py" in step
     assert "\n      if:" not in step
     engine = (ROOT / "evoparam" / "tests" / "models" / "test_engine_ccep.py").read_text(
-        encoding="utf-8")
+        encoding="utf-8"
+    )
     assert re.search(r"def test_req113_", engine) and re.search(r"def test_req114_", engine)
 
 
 def test_req018_every_addressed_gap_is_traced():
-    result = subprocess.run([sys.executable, str(ROOT / "tools" / "check_traceability.py")],
-                            capture_output=True, text=True, timeout=120)
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "check_traceability.py")],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "49 gaps marked Addressed" in result.stdout
 
@@ -103,22 +112,27 @@ def test_req018_every_addressed_gap_is_traced():
 def test_req018_the_check_finds_a_broken_mapping(tmp_path):
     spec = tmp_path / "docs" / "spec"
     spec.mkdir(parents=True)
-    (spec / "GAPS.md").write_text((ROOT / "docs" / "spec" / "GAPS.md").read_text("utf-8"),
-                                  encoding="utf-8")
+    (spec / "GAPS.md").write_text(
+        (ROOT / "docs" / "spec" / "GAPS.md").read_text("utf-8"), encoding="utf-8"
+    )
     text = (ROOT / "docs" / "spec" / "SPEC.md").read_text("utf-8")
     row = next(line for line in text.splitlines() if line.startswith("| GAP-03 |"))
     cells = row.split("|")
-    cells[6] = " "                                    # no test file for GAP-03
+    cells[6] = " "  # no test file for GAP-03
     (spec / "SPEC.md").write_text(text.replace(row, "|".join(cells)), encoding="utf-8")
-    result = subprocess.run([sys.executable, str(ROOT / "tools" / "check_traceability.py"),
-                             "--root", str(tmp_path)], capture_output=True, text=True,
-                            timeout=120)
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "check_traceability.py"), "--root", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
     assert result.returncode == 1
     assert "GAP-03: no test file" in result.stdout
 
 
 ###################################################################################################
 ## REQ-398: the release workflow refuses to publish without the recorded decision
+
 
 def _workflow(name):
     yaml = pytest.importorskip("yaml")
@@ -139,8 +153,12 @@ def test_req398_release_workflow_starts_with_the_gate():
 def test_req398_the_gate_refuses_now():
     if _decided():
         pytest.skip("the HIIE decision is on record (RELEASING.md)")
-    result = subprocess.run([sys.executable, str(ROOT / "tools" / "release_gate.py")],
-                            capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "release_gate.py")],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
     assert result.returncode == 1
     assert "GOVERNANCE.md" in result.stdout and "RELEASING.md" in result.stdout
 
@@ -149,26 +167,39 @@ def test_req398_the_gate_passes_with_a_recorded_decision(tmp_path):
     governance = (ROOT / "GOVERNANCE.md").read_text(encoding="utf-8")
     governance = governance.replace(
         "- Invention disclosure: not filed",
-        "- Invention disclosure: HIIE disclosure 2027-001, 2027-01-15").replace(
+        "- Invention disclosure: HIIE disclosure 2027-001, 2027-01-15",
+    ).replace(
         "- HIIE decision reference: none",
-        "- HIIE decision reference: HIIE ref. 2027-123, 2027-03-01 (patent: no)")
-    releasing = (ROOT / "RELEASING.md").read_text(encoding="utf-8").replace(
-        "- HIIE decision: not on record",
-        "- HIIE decision: on record, 2027-03-01, HIIE-2027-123")
+        "- HIIE decision reference: HIIE ref. 2027-123, 2027-03-01 (patent: no)",
+    )
+    releasing = (
+        (ROOT / "RELEASING.md")
+        .read_text(encoding="utf-8")
+        .replace(
+            "- HIIE decision: not on record",
+            "- HIIE decision: on record, 2027-03-01, HIIE-2027-123",
+        )
+    )
     (tmp_path / "GOVERNANCE.md").write_text(governance, encoding="utf-8")
     (tmp_path / "RELEASING.md").write_text(releasing, encoding="utf-8")
-    result = subprocess.run([sys.executable, str(ROOT / "tools" / "release_gate.py"),
-                             "--root", str(tmp_path)], capture_output=True, text=True,
-                            timeout=60)
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "release_gate.py"), "--root", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
     assert result.returncode == 0, result.stdout
 
 
 def test_req398_no_repository_secret_in_any_workflow():
     """REQ-300 (d): no workflow uses a repository secret (trusted publishing needs none)."""
 
-    hits = [f"{p.name}:{n}" for p in sorted((ROOT / ".github").rglob("*.y*ml"))
-            for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
-            if "secrets." in line]
+    hits = [
+        f"{p.name}:{n}"
+        for p in sorted((ROOT / ".github").rglob("*.y*ml"))
+        for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
+        if "secrets." in line
+    ]
     assert not hits, hits
 
 
@@ -177,14 +208,24 @@ def test_req398_the_upload_job_waits_outside_the_workflows():
 
     job = (ROOT / "ci" / "release-publish-job.yml").read_text(encoding="utf-8")
     assert "pypa/gh-action-pypi-publish" in job and "id-token: write" in job
-    assert "step 9" in (ROOT / "RELEASING.md").read_text(encoding="utf-8").lower() or \
-        "ci/release-publish-job.yml" in (ROOT / "RELEASING.md").read_text(encoding="utf-8")
+    assert "step 9" in (ROOT / "RELEASING.md").read_text(
+        encoding="utf-8"
+    ).lower() or "ci/release-publish-job.yml" in (ROOT / "RELEASING.md").read_text(
+        encoding="utf-8"
+    )
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-398: the invention disclosure and the HIIE "
-                   "written decision are not on record; waits for the owner's HIIE decision "
-                   "(nothing public before it)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-398: the invention disclosure and the HIIE "
+    "written decision are not on record; waits for the owner's HIIE decision "
+    "(nothing public before it)",
+)
 def test_req398_decision_on_record():
-    result = subprocess.run([sys.executable, str(ROOT / "tools" / "release_gate.py")],
-                            capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "release_gate.py")],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
     assert result.returncode == 0

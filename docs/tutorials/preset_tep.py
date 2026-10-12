@@ -30,8 +30,12 @@ print(presets.get("tep").artifact_method, presets.get("tep").artifact_window)
 result = reports.run_pipeline(ts, "tep", random_state=0, trial_fits=False)
 table = result.group.to_dataframe()
 print(table.groupby("label")["latency"].median().round(4))
-print("channels with a response:", int(result.test.significant.sum()), "of",
-      len(result.test.significant))
+print(
+    "channels with a response:",
+    int(result.test.significant.sum()),
+    "of",
+    len(result.test.significant),
+)
 
 # %%
 # Under the coil: fitted and simulated components at C3

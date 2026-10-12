@@ -7,9 +7,13 @@ import warnings
 import numpy as np
 import pytest
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+]
 
 ZONE = "published:brinyark2026_delayed_high_gamma"
 

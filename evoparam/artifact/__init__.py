@@ -9,5 +9,14 @@ from .period import estimate_period
 from .quality import artifact_quality
 from .template import estimate_artifact_template
 
-__all__ = ["ArtifactRemover", "remove_artifact", "estimate_artifact_template", "estimate_period",
-           "artifact_quality", "paradigm_subtract", "apply_mask", "compare_methods", "METHODS"]
+__all__ = [
+    "ArtifactRemover",
+    "remove_artifact",
+    "estimate_artifact_template",
+    "estimate_period",
+    "artifact_quality",
+    "paradigm_subtract",
+    "apply_mask",
+    "compare_methods",
+    "METHODS",
+]

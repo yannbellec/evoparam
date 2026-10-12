@@ -40,11 +40,10 @@ print(reports.methods_text(result.results))
 # The tidy table, with units
 # --------------------------
 
-table = result.group.to_dataframe()                 # one row per component
-print(table[["channel", "label", "latency", "amplitude", "fwhm", "existence_p"]].round(4)
-      .head())
+table = result.group.to_dataframe()  # one row per component
+print(table[["channel", "label", "latency", "amplitude", "fwhm", "existence_p"]].round(4).head())
 print({k: v for k, v in table.attrs["units"].items() if k in ("latency", "amplitude")})
-fits = result.group.to_dataframe("fit")             # one row per channel: goodness of fit
+fits = result.group.to_dataframe("fit")  # one row per channel: goodness of fit
 print(fits[["channel", "status", "n_components", "r2", "bic"]].round(3))
 
 # %%

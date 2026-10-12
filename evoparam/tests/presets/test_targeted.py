@@ -15,8 +15,7 @@ def test_targeted_measures_the_component_on_every_channel():
     p3 = presets.targeted("erp", "P3", (0.3, 0.6), "positive")
     assert p3.name == "erp_P3" and p3.parent == "erp" and p3.selection == "fixed"
     assert p3.fit_window == pytest.approx((0.25, 0.65))
-    ts, truth = sim.simulate_erp(60, n_channels=4, components=("P1", "N1", "P3"), seed=0,
-                                 snr=1)
+    ts, truth = sim.simulate_erp(60, n_channels=4, components=("P1", "N1", "P3"), seed=0, snr=1)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = fit(ts, p3, random_state=0, existence=False)

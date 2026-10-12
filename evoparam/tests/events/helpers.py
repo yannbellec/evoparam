@@ -10,8 +10,9 @@ import numpy as np
 PULSE_SHAPE = np.array([0.45, 1.0, 0.7, -0.5, -0.25, -0.08])
 
 
-def make_noise(n_channels, duration, sfreq, sd=1.0, line_hz=None, line_amp=0.0, seed=0,
-               dtype=np.float32):
+def make_noise(
+    n_channels, duration, sfreq, sd=1.0, line_hz=None, line_amp=0.0, seed=0, dtype=np.float32
+):
     """Gaussian background noise, with an optional line-noise sinusoid on every channel."""
 
     rng = np.random.default_rng(seed)
@@ -20,7 +21,9 @@ def make_noise(n_channels, duration, sfreq, sd=1.0, line_hz=None, line_amp=0.0, 
     if line_hz:
         times = np.arange(n_times) / sfreq
         phases = rng.uniform(0, 2 * np.pi, n_channels)
-        data += (line_amp * np.sin(2 * np.pi * line_hz * times[None] + phases[:, None])).astype(dtype)
+        data += (line_amp * np.sin(2 * np.pi * line_hz * times[None] + phases[:, None])).astype(
+            dtype
+        )
     return data
 
 
@@ -28,8 +31,10 @@ def add_pulse(data, onset_sample, amplitude, gains, polarity=1.0, shape=PULSE_SH
     """Add one artifact: ``amplitude * gains[c] * polarity * shape`` from ``onset_sample``."""
 
     stop = min(data.shape[1], onset_sample + len(shape))
-    seg = shape[:stop - onset_sample]
-    data[:, onset_sample:stop] += (polarity * amplitude * gains[:, None] * seg[None]).astype(data.dtype)
+    seg = shape[: stop - onset_sample]
+    data[:, onset_sample:stop] += (polarity * amplitude * gains[:, None] * seg[None]).astype(
+        data.dtype
+    )
 
 
 def spatial_gains(n_channels, stim_pair, rng, floor=0.3):
@@ -41,9 +46,19 @@ def spatial_gains(n_channels, stim_pair, rng, floor=0.3):
     return gains
 
 
-def make_recording(n_channels=16, sfreq=2048., duration=20., interval=1.0, first=0.5,
-                   amplitude=(200., 400.), line_hz=None, line_amp=0.0, n_transients=0,
-                   transient_sd=5., seed=0):
+def make_recording(
+    n_channels=16,
+    sfreq=2048.0,
+    duration=20.0,
+    interval=1.0,
+    first=0.5,
+    amplitude=(200.0, 400.0),
+    line_hz=None,
+    line_amp=0.0,
+    n_transients=0,
+    transient_sd=5.0,
+    seed=0,
+):
     """Noise plus regularly spaced pulses (and optional movement transients).
 
     Returns
@@ -54,8 +69,9 @@ def make_recording(n_channels=16, sfreq=2048., duration=20., interval=1.0, first
     """
 
     rng = np.random.default_rng(seed)
-    data = make_noise(n_channels, duration, sfreq, line_hz=line_hz, line_amp=line_amp,
-                      seed=seed + 1)
+    data = make_noise(
+        n_channels, duration, sfreq, line_hz=line_hz, line_amp=line_amp, seed=seed + 1
+    )
     n_times = data.shape[1]
     onsets = np.arange(first, duration - 0.1, interval)
     onsets = np.round(onsets * sfreq).astype(int)
@@ -73,6 +89,6 @@ def make_recording(n_channels=16, sfreq=2048., duration=20., interval=1.0, first
                 break
         # A movement transient: a smooth bump of transient_sd on most channels
         chans = rng.random(n_channels) < 0.8
-        data[chans, start:start + 2 * width] += (transient_sd * bump).astype(data.dtype)
+        data[chans, start : start + 2 * width] += (transient_sd * bump).astype(data.dtype)
         transients.append(start)
     return data, onsets, np.array(transients, dtype=int)

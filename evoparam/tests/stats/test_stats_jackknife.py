@@ -17,12 +17,15 @@ from evoparam.stats import jackknife_f, jackknife_latency, jackknife_t, score_wa
 # Smulders (2010), Table 1: hypothetical Age (between, 5 participants per group) x Sleep
 # deprivation (within) design; the retrieved latencies (ms) are the participants' own.
 SMULDERS_LATENCIES = {
-    "young": [[479, 503, 659], [471, 580, 593], [490, 476, 654], [440, 434, 620],
-              [270, 457, 374]],
-    "middle": [[616, 459, 512], [535, 377, 510], [589, 451, 505], [514, 463, 523],
-               [546, 600, 600]],
-    "old": [[596, 578, 707], [556, 694, 694], [594, 626, 667], [603, 590, 748],
-            [501, 662, 634]],
+    "young": [[479, 503, 659], [471, 580, 593], [490, 476, 654], [440, 434, 620], [270, 457, 374]],
+    "middle": [
+        [616, 459, 512],
+        [535, 377, 510],
+        [589, 451, 505],
+        [514, 463, 523],
+        [546, 600, 600],
+    ],
+    "old": [[596, 578, 707], [556, 694, 694], [594, 626, 667], [603, 590, 748], [501, 662, 634]],
 }
 # Printed subaverage (jackknife) scores of the young group without sleep deprivation.
 SMULDERS_SUBAVERAGES = [417.75, 419.75, 415.0, 427.5, 470.0]
@@ -35,10 +38,16 @@ def _constant_evokeds(rows, group):
     """One Evoked per participant whose 'mean amplitude' on each channel is a latency."""
 
     times = np.array([0.0, 0.001])
-    return [Evoked(data=np.repeat(np.asarray(row, float)[:, None], 2, axis=1), times=times,
-                   sfreq=1000., ch_names=CONDITIONS,
-                   metadata=pd.DataFrame({"subject": [f"{group}{k}"]}))
-            for k, row in enumerate(rows)]
+    return [
+        Evoked(
+            data=np.repeat(np.asarray(row, float)[:, None], 2, axis=1),
+            times=times,
+            sfreq=1000.0,
+            ch_names=CONDITIONS,
+            metadata=pd.DataFrame({"subject": [f"{group}{k}"]}),
+        )
+        for k, row in enumerate(rows)
+    ]
 
 
 def _mixed_anova(y, group):
@@ -57,16 +66,20 @@ def _mixed_anova(y, group):
     ss_ab = n * np.sum((cell - gmean[:, None] - cmean[None, :] + gm) ** 2)
     ss_e = np.sum((y - gm) ** 2) - ss_a - ss_s - ss_b - ss_ab
     df_s, df_e = a * (n - 1), a * (n - 1) * (b - 1)
-    return {"age": (ss_a / (a - 1)) / (ss_s / df_s), "sleep": (ss_b / (b - 1)) / (ss_e / df_e),
-            "interaction": (ss_ab / ((a - 1) * (b - 1))) / (ss_e / df_e)}
+    return {
+        "age": (ss_a / (a - 1)) / (ss_s / df_s),
+        "sleep": (ss_b / (b - 1)) / (ss_e / df_e),
+        "interaction": (ss_ab / ((a - 1) * (b - 1))) / (ss_e / df_e),
+    }
 
 
 def test_req231_smulders_worked_example():
 
     jack, retrieved, group = [], [], []
     for name, rows in SMULDERS_LATENCIES.items():
-        table = jackknife_latency(_constant_evokeds(rows, name), scorer="mean_amplitude",
-                                  window=(0.0, 0.001))
+        table = jackknife_latency(
+            _constant_evokeds(rows, name), scorer="mean_amplitude", window=(0.0, 0.001)
+        )
         wide = table.pivot(index="subject", columns="channel")
         jack.append(wide["jackknife"][CONDITIONS].to_numpy())
         retrieved.append(wide["retrieved"][CONDITIONS].to_numpy())
@@ -91,25 +104,32 @@ def test_req231_smulders_worked_example():
 # SDs, power and Type I error rates over data sets A and B, whose participant data are
 # not published. Its one worked number is the linear interpolation of a criterion
 # crossing (p. 254): -.98 at 62.50 ms, -1.02 at 66.41 ms, criterion -1.0, "64.46 ms".
-KIESEL_INTERPOLATION = {"times_ms": (62.50, 66.41), "values": (-0.98, -1.02),
-                        "criterion": -1.0, "printed_ms": 64.46}
+KIESEL_INTERPOLATION = {
+    "times_ms": (62.50, 66.41),
+    "values": (-0.98, -1.02),
+    "criterion": -1.0,
+    "printed_ms": 64.46,
+}
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-231, Kiesel et al. (2008) part: no corrected "
-                   "statistic of the paper to reproduce. Read on 2026-10-12 (authors' copy, "
-                   "psychologie.uni-freiburg.de .../Kiesel_Miller_Jolicoeur_Brisson_2008_PP"
-                   ".pdf/at_download/file; the direct .pdf URL is refused by robots.txt): "
-                   "pp. 250-264 give t_c = t / (n - 1) and F_c = F / (n - 1)^2 as Equation 1 "
-                   "only, and no t or F value; Tables 1-8 are Monte Carlo summaries over "
-                   "unpublished data sets. pp. 265-274 could not be read (the text returned "
-                   "stops on p. 264; Wiley, ResearchGate and Semantic Scholar refused the "
-                   "fetch; doi.org, OpenAlex, Crossref, Unpaywall, Europe PMC, PubMed, CORE "
-                   "and the Wayback Machine answered HTTP 403 at the proxy). The corrections "
-                   "are tested on the Smulders (2010) example and on simulations; the "
-                   "paper's interpolation example (p. 254) is tested below")
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-231, Kiesel et al. (2008) part: no corrected "
+    "statistic of the paper to reproduce. Read on 2026-10-12 (authors' copy, "
+    "psychologie.uni-freiburg.de .../Kiesel_Miller_Jolicoeur_Brisson_2008_PP"
+    ".pdf/at_download/file; the direct .pdf URL is refused by robots.txt): "
+    "pp. 250-264 give t_c = t / (n - 1) and F_c = F / (n - 1)^2 as Equation 1 "
+    "only, and no t or F value; Tables 1-8 are Monte Carlo summaries over "
+    "unpublished data sets. pp. 265-274 could not be read (the text returned "
+    "stops on p. 264; Wiley, ResearchGate and Semantic Scholar refused the "
+    "fetch; doi.org, OpenAlex, Crossref, Unpaywall, Europe PMC, PubMed, CORE "
+    "and the Wayback Machine answered HTTP 403 at the proxy). The corrections "
+    "are tested on the Smulders (2010) example and on simulations; the "
+    "paper's interpolation example (p. 254) is tested below",
+)
 def test_req231_kiesel_worked_example():
 
-    printed = None            # a corrected statistic printed in [LIT-erpmeas-2]: none found
+    printed = None  # a corrected statistic printed in [LIT-erpmeas-2]: none found
     assert printed is not None
 
 
@@ -124,8 +144,15 @@ def test_req231_kiesel_interpolation_example():
     ex = KIESEL_INTERPOLATION
     times = np.array([0.050, ex["times_ms"][0] / 1e3, ex["times_ms"][1] / 1e3, 0.070, 0.075])
     y = np.array([0.0, *ex["values"], 2 * ex["criterion"], -1.0])
-    out = classical_measures(times, y, window=(0.05, 0.075), polarity="negative",
-                             measures=("fractional_peak_latency",), fraction=0.5, n_neighbors=1)
+    out = classical_measures(
+        times,
+        y,
+        window=(0.05, 0.075),
+        polarity="negative",
+        measures=("fractional_peak_latency",),
+        fraction=0.5,
+        n_neighbors=1,
+    )
     ms = 1e3 * out["fractional_peak_latency"]
     assert ms == pytest.approx(64.455, abs=1e-9)
     assert abs(ms - ex["printed_ms"]) <= 0.005 + 1e-9
@@ -137,9 +164,18 @@ def test_req231_noise_free_retrieval():
     shifts = np.linspace(-0.012, 0.015, 9)
     evokeds = []
     for k, d in enumerate(shifts):
-        ts, _ = simulate_erp(1, components=[{"label": "N1", "latency": 0.1 + d, "fwhm": 0.04,
-                                             "amplitude": -4.0 - 0.2 * k}],
-                             snr=None, noise="none", sfreq=1000., tmin=-0.2, tmax=0.5, seed=k)
+        ts, _ = simulate_erp(
+            1,
+            components=[
+                {"label": "N1", "latency": 0.1 + d, "fwhm": 0.04, "amplitude": -4.0 - 0.2 * k}
+            ],
+            snr=None,
+            noise="none",
+            sfreq=1000.0,
+            tmin=-0.2,
+            tmax=0.5,
+            seed=k,
+        )
         evokeds.append(ts.average())
 
     def centroid(ev):
@@ -151,15 +187,19 @@ def test_req231_noise_free_retrieval():
 
     direct = np.array([centroid(ev)[0] for ev in evokeds])
     assert np.allclose(direct, 0.1 + shifts, atol=1e-9)
-    normalised = [Evoked(data=ev.data / -ev.data.sum(), times=ev.times, sfreq=ev.sfreq,
-                         ch_names=ev.ch_names) for ev in evokeds]
+    normalised = [
+        Evoked(data=ev.data / -ev.data.sum(), times=ev.times, sfreq=ev.sfreq, ch_names=ev.ch_names)
+        for ev in evokeds
+    ]
     table = jackknife_latency(normalised, scorer=centroid)
     assert np.allclose(table["retrieved"], direct, rtol=0, atol=1e-9)
     # the default scorer (50 % fractional area latency) is not linear across participants:
     # retrieval is then close, not exact
     table = jackknife_latency(evokeds, window=(0.0, 0.3))
-    own = [score_waveforms(ev.times, ev.data[0], "fractional_area_latency", window=(0.0, 0.3))
-           for ev in evokeds]
+    own = [
+        score_waveforms(ev.times, ev.data[0], "fractional_area_latency", window=(0.0, 0.3))
+        for ev in evokeds
+    ]
     error = np.abs(table["retrieved"].to_numpy() - np.array(own))
     assert 1e-6 < error.max() < 3e-3
 
@@ -172,28 +212,36 @@ def test_corrected_statistics_on_retrieved_scores():
     for k in range(12):
         lat = 0.1 + rng.normal(0, 0.008)
         for store, extra in ((a, 0.0), (b, 0.01)):
-            ts, _ = simulate_erp(20, components=[{"label": "N1", "latency": lat + extra,
-                                                  "fwhm": 0.04, "amplitude": -5.0}],
-                                 snr=None, noise="white", noise_sd=4., seed=100 * k + len(store))
+            ts, _ = simulate_erp(
+                20,
+                components=[
+                    {"label": "N1", "latency": lat + extra, "fwhm": 0.04, "amplitude": -5.0}
+                ],
+                snr=None,
+                noise="white",
+                noise_sd=4.0,
+                seed=100 * k + len(store),
+            )
             store.append(ts.average())
     ja = jackknife_latency(a, window=(0.0, 0.3), scorer="fractional_area_latency")
     jb = jackknife_latency(b, window=(0.0, 0.3), scorer="fractional_area_latency")
     t_jack = sps.ttest_rel(jb["jackknife"], ja["jackknife"]).statistic
     t_retrieved = sps.ttest_rel(jb["retrieved"], ja["retrieved"]).statistic
     assert t_retrieved == pytest.approx(jackknife_t(t_jack, 12), rel=1e-9)
-    assert jackknife_f(t_jack ** 2, 12) == pytest.approx(t_retrieved ** 2, rel=1e-9)
+    assert jackknife_f(t_jack**2, 12) == pytest.approx(t_retrieved**2, rel=1e-9)
     summary = pd.DataFrame(ja.attrs["summary"])
     j = ja["jackknife"].to_numpy()
     assert summary["jackknife_se"].iloc[0] == pytest.approx(
-        np.sqrt(11 / 12 * np.sum((j - j.mean()) ** 2)))
-    assert t_retrieved > 2                             # the 10 ms delay is detected
+        np.sqrt(11 / 12 * np.sum((j - j.mean()) ** 2))
+    )
+    assert t_retrieved > 2  # the 10 ms delay is detected
     assert ja.attrs["units"]["retrieved"] == "s"
     assert ja.attrs["provenance"]["steps"][-1]["function"] == "evoparam.stats.jackknife_latency"
 
 
 def test_edge_cases():
 
-    ts, _ = simulate_erp(5, components=["N1"], snr=3., noise="white", seed=0)
+    ts, _ = simulate_erp(5, components=["N1"], snr=3.0, noise="white", seed=0)
     ev = ts.average()
     with pytest.raises(DataError, match="at least 3"):
         jackknife_latency([ev, ev])

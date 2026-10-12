@@ -72,6 +72,8 @@ def require(module, *, extra, min_version=None, caller=None):
     if min_version is not None:
         found = _installed_version(imported, module.split(".")[0])
         if found is not None and _version_tuple(found) < _version_tuple(min_version):
-            raise ImportError(f"{who} needs the optional package '{module}'{floor}; "
-                              f"version {found} is installed.\n{hint}")
+            raise ImportError(
+                f"{who} needs the optional package '{module}'{floor}; "
+                f"version {found} is installed.\n{hint}"
+            )
     return imported

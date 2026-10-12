@@ -42,8 +42,7 @@ from evoparam.version import __version__
 from evoparam.errors import DataError, EvoparamVersionError
 from evoparam.data._jsonutil import dumps, loads
 
-__all__ = ["save_object", "load_object", "register_type", "SCHEMA", "SCHEMA_MAJOR",
-           "SCHEMA_MINOR"]
+__all__ = ["save_object", "load_object", "register_type", "SCHEMA", "SCHEMA_MAJOR", "SCHEMA_MINOR"]
 
 SCHEMA_MAJOR = 1
 SCHEMA_MINOR = 0
@@ -68,9 +67,13 @@ def register_type(cls):
 
 def _registry():
     from evoparam.data import containers, provenance, results
+
     classes = [containers.TrialSet, containers.Evoked, provenance.Provenance]
-    classes += [getattr(results, name) for name in results.__all__
-                if isinstance(getattr(results, name), type)]
+    classes += [
+        getattr(results, name)
+        for name in results.__all__
+        if isinstance(getattr(results, name), type)
+    ]
     return {**{cls.__name__: cls for cls in classes}, **_EXTRA_TYPES}
 
 
@@ -97,8 +100,8 @@ def _have_pyarrow():
 ###################################################################################################
 ## Encoding
 
-class _Encoder:
 
+class _Encoder:
     def __init__(self, top):
         self.top = top
         self.arrays = {}
@@ -127,8 +130,11 @@ class _Encoder:
         if isinstance(obj, np.ndarray):
             if obj.dtype.kind in "OV":
                 raise DataError(f"{path}: arrays of dtype {obj.dtype} cannot be saved.")
-            if obj is getattr(self.top, "data", None) and path == "data" \
-                    and type(self.top).__name__ in ("TrialSet", "Evoked"):
+            if (
+                obj is getattr(self.top, "data", None)
+                and path == "data"
+                and type(self.top).__name__ in ("TrialSet", "Evoked")
+            ):
                 self.main_array = obj
                 return {"__npy__": "data.npy"}
             key = self._key(path, self.arrays)
@@ -142,21 +148,32 @@ class _Encoder:
             name = type(obj).__name__
             if name not in _registry():
                 raise DataError(f"{path}: {name} is not a savable evoparam type.")
-            return {"__type__": name,
-                    "fields": {fld.name: self.encode(getattr(obj, fld.name), f"{path}.{fld.name}"
-                                                     if path else fld.name)
-                               for fld in fields(obj)}}
+            return {
+                "__type__": name,
+                "fields": {
+                    fld.name: self.encode(
+                        getattr(obj, fld.name), f"{path}.{fld.name}" if path else fld.name
+                    )
+                    for fld in fields(obj)
+                },
+            }
         if isinstance(obj, tuple):
             return {"__tuple__": [self.encode(v, f"{path}.{i}") for i, v in enumerate(obj)]}
         if isinstance(obj, list):
             return [self.encode(v, f"{path}.{i}") for i, v in enumerate(obj)]
         if isinstance(obj, dict):
             if all(isinstance(key, str) for key in obj):
-                return {"__dict__": {key: self.encode(value, f"{path}.{key}")
-                                     for key, value in obj.items()}}
-            return {"__items__": [[self.encode(key, f"{path}.k{i}"),
-                                   self.encode(value, f"{path}.{i}")]
-                                  for i, (key, value) in enumerate(obj.items())]}
+                return {
+                    "__dict__": {
+                        key: self.encode(value, f"{path}.{key}") for key, value in obj.items()
+                    }
+                }
+            return {
+                "__items__": [
+                    [self.encode(key, f"{path}.k{i}"), self.encode(value, f"{path}.{i}")]
+                    for i, (key, value) in enumerate(obj.items())
+                ]
+            }
         raise DataError(f"{path}: values of type {type(obj).__name__} cannot be saved.")
 
 
@@ -169,11 +186,15 @@ def _write_table(table, folder, key, table_format):
         raise DataError(f"table {key}: a MultiIndex cannot be saved.")
     units = dict(table.attrs.get("units", {}))
     index = table.index
-    is_range = (type(index).__name__ == "RangeIndex" and index.start == 0 and index.step == 1)
-    sidecar = {"format": table_format, "n_rows": int(len(table)),
-               "index": {"kind": "range"} if is_range else
-               {"kind": "column", "name": index.name, "dtype": str(index.dtype)},
-               "columns": {}}
+    is_range = type(index).__name__ == "RangeIndex" and index.start == 0 and index.step == 1
+    sidecar = {
+        "format": table_format,
+        "n_rows": int(len(table)),
+        "index": {"kind": "range"}
+        if is_range
+        else {"kind": "column", "name": index.name, "dtype": str(index.dtype)},
+        "columns": {},
+    }
     out = table if is_range else table.reset_index(names="__index__")
     for column in table.columns:
         dtype = table[column].dtype
@@ -186,15 +207,18 @@ def _write_table(table, folder, key, table_format):
             if any(not isinstance(v, str) for v in values):
                 raise DataError(f"table {key}: column '{column}' mixes strings and other values.")
             if MISSING in values:
-                raise DataError(f"table {key}: column '{column}' contains the reserved "
-                                f"value {MISSING!r}.")
+                raise DataError(
+                    f"table {key}: column '{column}' contains the reserved value {MISSING!r}."
+                )
             kinds = {_missing_kind(v) for v in raw if _missing(v)}
             if kinds and kinds != {"none"}:
                 # which missing value the column held (None, NaN or pandas NA), restored on
                 # reading; one kind per column
                 if len(kinds) > 1:
-                    raise DataError(f"table {key}: column '{column}' mixes missing values of "
-                                    f"different kinds ({sorted(kinds)}).")
+                    raise DataError(
+                        f"table {key}: column '{column}' mixes missing values of "
+                        f"different kinds ({sorted(kinds)})."
+                    )
                 spec["missing"] = kinds.pop()
         sidecar["columns"][column] = spec
     if table_format == "parquet":
@@ -209,8 +233,11 @@ def _write_table(table, folder, key, table_format):
 
 
 def _missing(value):
-    return value is None or (isinstance(value, float) and math.isnan(value)) or \
-        type(value).__name__ == "NAType"
+    return (
+        value is None
+        or (isinstance(value, float) and math.isnan(value))
+        or type(value).__name__ == "NAType"
+    )
 
 
 def _missing_kind(value):
@@ -229,8 +256,11 @@ def _write_tree(obj, folder, table_format):
         fobj.write(dumps(structure, indent=1))
     files.append("structure.json")
     if encoder.main_array is not None:
-        np.save(os.path.join(folder, "data.npy"), np.ascontiguousarray(encoder.main_array),
-                allow_pickle=False)
+        np.save(
+            os.path.join(folder, "data.npy"),
+            np.ascontiguousarray(encoder.main_array),
+            allow_pickle=False,
+        )
         files.append("data.npy")
     if encoder.arrays:
         np.savez(os.path.join(folder, "data.npz"), allow_pickle=False, **encoder.arrays)
@@ -239,8 +269,10 @@ def _write_tree(obj, folder, table_format):
         os.makedirs(os.path.join(folder, "tables"))
         for key, table in encoder.tables.items():
             _write_table(table, os.path.join(folder, "tables"), key, table_format)
-            files += [f"tables/{key}.{'parquet' if table_format == 'parquet' else 'csv'}",
-                      f"tables/{key}.json"]
+            files += [
+                f"tables/{key}.{'parquet' if table_format == 'parquet' else 'csv'}",
+                f"tables/{key}.json",
+            ]
     provenance = getattr(obj, "provenance", None)
     with open(os.path.join(folder, "provenance.json"), "w", encoding="utf-8") as fobj:
         fobj.write(provenance.to_json(indent=1) if provenance is not None else "null")
@@ -255,10 +287,14 @@ def _write_tree(obj, folder, table_format):
         files.append("methods.txt")
     from evoparam.data.provenance import _now_utc
 
-    manifest = {"schema": SCHEMA, "object": type(obj).__name__, "package_version": __version__,
-                "created": _now_utc(),
-                "table_format": table_format,
-                "files": {name: _sha256(os.path.join(folder, *name.split("/"))) for name in files}}
+    manifest = {
+        "schema": SCHEMA,
+        "object": type(obj).__name__,
+        "package_version": __version__,
+        "created": _now_utc(),
+        "table_format": table_format,
+        "files": {name: _sha256(os.path.join(folder, *name.split("/"))) for name in files},
+    }
     with open(os.path.join(folder, "manifest.json"), "w", encoding="utf-8") as fobj:
         fobj.write(dumps(manifest, indent=1))
 
@@ -322,8 +358,10 @@ def save_object(obj, path, overwrite=False, table_format="auto"):
 ###################################################################################################
 ## Decoding
 
+
 def _read_table(folder, key, n_hint=None):
     import pandas as pd
+
     with open(os.path.join(folder, f"{key}.json"), encoding="utf-8") as fobj:
         sidecar = loads(fobj.read())
     if sidecar["format"] == "parquet":
@@ -339,8 +377,9 @@ def _read_table(folder, key, n_hint=None):
             if sidecar["index"]["kind"] == "column":
                 specs = {"__index__": {"dtype": sidecar["index"]["dtype"]}, **specs}
             for column, spec in specs.items():
-                table[column] = _convert_column(raw[column].tolist(), spec["dtype"], column, key,
-                                                spec.get("missing", "none"))
+                table[column] = _convert_column(
+                    raw[column].tolist(), spec["dtype"], column, key, spec.get("missing", "none")
+                )
     if sidecar["index"]["kind"] == "column":
         table = table.set_index("__index__")
         table.index.name = sidecar["index"]["name"]
@@ -350,6 +389,7 @@ def _read_table(folder, key, n_hint=None):
 
 def _convert_column(values, dtype, column, key, missing="none"):
     import pandas as pd
+
     if dtype[:1] in "IU" and dtype[1:].startswith(("nt", "Int")) or dtype == "boolean":
         # pandas nullable integers and booleans: missing values are pd.NA
         if dtype == "boolean":
@@ -372,7 +412,6 @@ def _convert_column(values, dtype, column, key, missing="none"):
 
 
 class _Decoder:
-
     def __init__(self, folder, arrays, mmap):
         self.folder = folder
         self.arrays = arrays
@@ -389,8 +428,11 @@ class _Decoder:
         if "__array__" in node:
             return np.array(self.arrays[node["__array__"]])
         if "__npy__" in node:
-            return np.load(os.path.join(self.folder, node["__npy__"]), allow_pickle=False,
-                           mmap_mode="r" if self.mmap else None)
+            return np.load(
+                os.path.join(self.folder, node["__npy__"]),
+                allow_pickle=False,
+                mmap_mode="r" if self.mmap else None,
+            )
         if "__table__" in node:
             return _read_table(os.path.join(self.folder, "tables"), node["__table__"])
         if "__tuple__" in node:
@@ -402,8 +444,10 @@ class _Decoder:
         if "__type__" in node:
             cls = self.registry.get(node["__type__"])
             if cls is None:
-                raise DataError(f"Unknown object type {node['__type__']!r} in container "
-                                "(import the module that defines it, e.g. evoparam.sim).")
+                raise DataError(
+                    f"Unknown object type {node['__type__']!r} in container "
+                    "(import the module that defines it, e.g. evoparam.sim)."
+                )
             return cls(**{name: self.decode(value) for name, value in node["fields"].items()})
         raise DataError(f"Unrecognised node in structure.json: {sorted(node)}.")
 
@@ -422,8 +466,10 @@ def _read_manifest(folder):
         raise DataError(f"{folder}: unknown schema {manifest.get('schema')!r}.")
     major = int(match.group(1))
     if major > SCHEMA_MAJOR:
-        raise EvoparamVersionError(f"{folder}: container schema {manifest['schema']} is newer "
-                                   f"than this evoparam ({SCHEMA}); upgrade evoparam.")
+        raise EvoparamVersionError(
+            f"{folder}: container schema {manifest['schema']} is newer "
+            f"than this evoparam ({SCHEMA}); upgrade evoparam."
+        )
     return manifest, major
 
 
@@ -435,18 +481,21 @@ def _load_folder(folder, mmap, verify):
             if not os.path.exists(full):
                 raise DataError(f"{folder}: file {name} listed in the manifest is missing.")
             if _sha256(full) != digest:
-                raise DataError(f"{folder}: checksum mismatch for {name}; the file was modified "
-                                f"or corrupted.")
+                raise DataError(
+                    f"{folder}: checksum mismatch for {name}; the file was modified or corrupted."
+                )
     with open(os.path.join(folder, "structure.json"), encoding="utf-8") as fobj:
         structure = loads(fobj.read())
     applied = []
     if major < SCHEMA_MAJOR:
         from evoparam.data._migrations import migrate
+
         try:
             structure, applied = migrate(structure, major, SCHEMA_MAJOR)
         except KeyError as err:
-            raise EvoparamVersionError(f"{folder}: no migration from schema major {major} "
-                                       f"to {SCHEMA_MAJOR}.") from err
+            raise EvoparamVersionError(
+                f"{folder}: no migration from schema major {major} to {SCHEMA_MAJOR}."
+            ) from err
     arrays = {}
     npz_path = os.path.join(folder, "data.npz")
     if os.path.exists(npz_path):
@@ -455,7 +504,8 @@ def _load_folder(folder, mmap, verify):
     obj = _Decoder(folder, arrays, mmap).decode(structure)
     for from_major, to_major in applied:
         obj.provenance = obj.provenance.with_step(
-            "evoparam.data.migrate", {"from_schema": from_major, "to_schema": to_major})
+            "evoparam.data.migrate", {"from_schema": from_major, "to_schema": to_major}
+        )
     return obj
 
 

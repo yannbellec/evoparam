@@ -57,19 +57,38 @@ def _cell_job(args):
         try:
             outputs = baseline.run(wanted)
         except Exception as err:  # a failing method is recorded, the run goes on
-            failures.append({"cell": cell.id, "method": name,
-                             "error": f"{type(err).__name__}: {err}",
-                             "trace": traceback.format_exc(limit=3)})
+            failures.append(
+                {
+                    "cell": cell.id,
+                    "method": name,
+                    "error": f"{type(err).__name__}: {err}",
+                    "trace": traceback.format_exc(limit=3),
+                }
+            )
             continue
         timings[name] = time.perf_counter() - start
         for task, value in outputs.items():
-            write_output(task, value, output_path(os.path.join(out, "predictions", name, task),
-                                                  task, cell.id))
+            write_output(
+                task,
+                value,
+                output_path(os.path.join(out, "predictions", name, task), task, cell.id),
+            )
     return cell.id, timings, failures
 
 
-def run_suite(suite="core", out=".", *, tasks=None, methods=None, adapters=(),
-              hidden_seeds=None, split="public", n_jobs=1, page=True, log=None):
+def run_suite(
+    suite="core",
+    out=".",
+    *,
+    tasks=None,
+    methods=None,
+    adapters=(),
+    hidden_seeds=None,
+    split="public",
+    n_jobs=1,
+    page=True,
+    log=None,
+):
     """Run baselines and adapters on a suite, score them and write the results.
 
     Parameters
@@ -122,14 +141,13 @@ def run_suite(suite="core", out=".", *, tasks=None, methods=None, adapters=(),
         raise DataError(f"unknown baselines {unknown}; baselines: {sorted(BASELINES)}.")
     adapters = [a if isinstance(a, Adapter) else load_adapter(a) for a in adapters]
     for adapter in adapters:
-        adapter.check()                   # a missing program stops the run before any work
+        adapter.check()  # a missing program stops the run before any work
     os.makedirs(out, exist_ok=True)
     cells = {}
     for task in tasks:
         for cell in suite.cells(task, split=split):
             cells.setdefault(cell.id, cell)
-    jobs = [(cell, [t for t in tasks if t in cell.tasks], methods, out)
-            for cell in cells.values()]
+    jobs = [(cell, [t for t in tasks if t in cell.tasks], methods, out) for cell in cells.values()]
     timings, failures = {}, []
     if n_jobs > 1:
         with ProcessPoolExecutor(max_workers=n_jobs) as pool:
@@ -156,8 +174,13 @@ def run_suite(suite="core", out=".", *, tasks=None, methods=None, adapters=(),
                 try:
                     adapter.run(os.path.join(out, "inputs", task, f"{cell.id}.json"), folder)
                 except Exception as err:  # recorded; the cell is listed as missing
-                    failures.append({"cell": cell.id, "method": adapter.name,
-                                     "error": f"{type(err).__name__}: {err}"})
+                    failures.append(
+                        {
+                            "cell": cell.id,
+                            "method": adapter.name,
+                            "error": f"{type(err).__name__}: {err}",
+                        }
+                    )
                 adapter_seconds += time.perf_counter() - t0
             log(f"adapter {adapter.name}, {task}: done")
 
@@ -172,29 +195,47 @@ def run_suite(suite="core", out=".", *, tasks=None, methods=None, adapters=(),
             if not os.path.isdir(folder):
                 continue
             if task_inputs is None:
-                task_inputs = [make_inputs(cell, tasks=[task])[task]
-                               for cell in suite.cells(task, split=split)]
-            document = score(task, folder, suite, method=method_info[name],
-                             allow_missing=True, inputs=task_inputs)
-            path = write_result(document, os.path.join(out, "results",
-                                                       result_name(name, task)))
+                task_inputs = [
+                    make_inputs(cell, tasks=[task])[task]
+                    for cell in suite.cells(task, split=split)
+                ]
+            document = score(
+                task,
+                folder,
+                suite,
+                method=method_info[name],
+                allow_missing=True,
+                inputs=task_inputs,
+            )
+            path = write_result(document, os.path.join(out, "results", result_name(name, task)))
             results.append(path)
             log(f"scored {name} on {task}")
     score_seconds = time.perf_counter() - t0
     pages = []
     if page and results:
         pages.append(write_report(os.path.join(out, "results"), os.path.join(out, "report.md")))
-        pages.append(write_leaderboard(os.path.join(out, "results"),
-                                       os.path.join(out, "leaderboard.html")))
-    summary = {"suite": {"name": suite.name, "version": suite.version, "sha256": suite.sha256},
-               "split": split, "tasks": tasks, "methods": list(methods),
-               "adapters": [a.name for a in adapters], "n_cells": len(cells),
-               "n_jobs": n_jobs, "duration_s": {"cells": run_seconds,
-                                                "adapters": adapter_seconds,
-                                                "scoring": score_seconds,
-                                                "total": time.perf_counter() - start},
-               "cell_timings_s": timings, "failures": failures, "results": results,
-               "pages": pages}
+        pages.append(
+            write_leaderboard(os.path.join(out, "results"), os.path.join(out, "leaderboard.html"))
+        )
+    summary = {
+        "suite": {"name": suite.name, "version": suite.version, "sha256": suite.sha256},
+        "split": split,
+        "tasks": tasks,
+        "methods": list(methods),
+        "adapters": [a.name for a in adapters],
+        "n_cells": len(cells),
+        "n_jobs": n_jobs,
+        "duration_s": {
+            "cells": run_seconds,
+            "adapters": adapter_seconds,
+            "scoring": score_seconds,
+            "total": time.perf_counter() - start,
+        },
+        "cell_timings_s": timings,
+        "failures": failures,
+        "results": results,
+        "pages": pages,
+    }
     with open(os.path.join(out, "summary.json"), "w", encoding="utf-8") as fobj:
         json.dump(clean(summary), fobj, indent=1, sort_keys=True)
         fobj.write("\n")

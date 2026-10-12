@@ -34,9 +34,15 @@ DECISIONS = PACKAGE.parent / "docs" / "spec" / "DECISIONS.md"
 LEAVES = {"errors", "version"}
 
 # Every top-level module of the package (subpackages and single files).
-MODULES = sorted({p.name if p.is_dir() else p.stem for p in PACKAGE.iterdir()
-                  if (p.is_dir() and (p / "__init__.py").is_file())
-                  or (p.suffix == ".py" and p.stem != "__init__")} - {"tests"})
+MODULES = sorted(
+    {
+        p.name if p.is_dir() else p.stem
+        for p in PACKAGE.iterdir()
+        if (p.is_dir() and (p / "__init__.py").is_file())
+        or (p.suffix == ".py" and p.stem != "__init__")
+    }
+    - {"tests"}
+)
 
 ANY = "*"
 TOP = {"reports", "plots", "cli", "stream", "benchmark"}
@@ -72,8 +78,13 @@ RULES = {
     # Entry-point loader of §10.8: the leaves only.
     "_plugins": set(),
     # Data tables of §9.2 and §9.3 (REQ-292 extras, REQ-293 deprecated names).
-    "_extras": set(), "_deprecated": set(),
-    "reports": {ANY}, "plots": {ANY}, "cli": {ANY}, "stream": {ANY}, "benchmark": {ANY},
+    "_extras": set(),
+    "_deprecated": set(),
+    "reports": {ANY},
+    "plots": {ANY},
+    "cli": {ANY},
+    "stream": {ANY},
+    "benchmark": {ANY},
     # The package root re-exports the public API; ``python -m evoparam`` runs the cli.
     "__init__": {ANY},
     "__main__": {"cli"},
@@ -82,23 +93,62 @@ RULES = {
 }
 # Modules whose only allowed use of utils is utils.require (the rows of §4.2 do not list
 # utils for them; §9.2 makes require the only way to import an optional package).
-REQUIRE_ONLY = {"hierarchical": {"evoparam.utils._optional", "evoparam.utils.require"},
-                "sim": {"evoparam.utils._optional", "evoparam.utils.require"}}
+REQUIRE_ONLY = {
+    "hierarchical": {"evoparam.utils._optional", "evoparam.utils.require"},
+    "sim": {"evoparam.utils._optional", "evoparam.utils.require"},
+}
 # Spec §4.2: the top layers do not import each other, except benchmark -> reports.
 # D3 (owner): the HTML/PDF reports embed the figures and the command line runs the reports
 # (§5.13), so the top layers are ordered plots < reports < cli, benchmark.
 # S19: the command line runs the benchmark (§8.4 `evoparam benchmark score ...`, §10.5), so
 # cli -> benchmark; the benchmark never imports the command line.
-ALLOWED_BETWEEN = {("benchmark", "reports"), ("reports", "plots"), ("cli", "reports"),
-                   ("cli", "plots"), ("benchmark", "plots"), ("cli", "benchmark")}
+ALLOWED_BETWEEN = {
+    ("benchmark", "reports"),
+    ("reports", "plots"),
+    ("cli", "reports"),
+    ("cli", "plots"),
+    ("benchmark", "plots"),
+    ("cli", "benchmark"),
+}
 
 # Import names of the packages of the extras of spec §9.2 (and of the test tool chain).
-OPTIONAL_IMPORTS = {"mne", "mne_bids", "bids", "pynwb", "hdmf", "ndx_events", "neo", "edfio",
-                    "pyedflib", "numpyro", "jax", "arviz", "pymc", "cupy", "numba",
-                    "matplotlib", "pandas", "pyarrow", "xarray", "statsmodels", "formulaic",
-                    "bidsschematools", "nwbinspector", "jsonschema", "tqdm", "joblib", "pylsl",
-                    "sklearn", "h5py", "remfile", "quantities", "mpmath", "pytest",
-                    "hypothesis", "click"}
+OPTIONAL_IMPORTS = {
+    "mne",
+    "mne_bids",
+    "bids",
+    "pynwb",
+    "hdmf",
+    "ndx_events",
+    "neo",
+    "edfio",
+    "pyedflib",
+    "numpyro",
+    "jax",
+    "arviz",
+    "pymc",
+    "cupy",
+    "numba",
+    "matplotlib",
+    "pandas",
+    "pyarrow",
+    "xarray",
+    "statsmodels",
+    "formulaic",
+    "bidsschematools",
+    "nwbinspector",
+    "jsonschema",
+    "tqdm",
+    "joblib",
+    "pylsl",
+    "sklearn",
+    "h5py",
+    "remfile",
+    "quantities",
+    "mpmath",
+    "pytest",
+    "hypothesis",
+    "click",
+}
 
 # (iii) packages that may be imported at the top level of a module: the standard library
 # and the two hard dependencies (REQ-291).
@@ -126,7 +176,7 @@ def _imports(path, source=None):
                 yield alias.name
         elif isinstance(node, ast.ImportFrom):
             if node.level:
-                base = package[:len(package) - (node.level - 1)]
+                base = package[: len(package) - (node.level - 1)]
                 module = base + (node.module.split(".") if node.module else [])
             else:
                 module = node.module.split(".") if node.module else []
@@ -152,8 +202,7 @@ def _source(path):
 
 
 def _files():
-    return [p for p in sorted(PACKAGE.rglob("*.py"))
-            if p.relative_to(PACKAGE).parts[0] != "tests"]
+    return [p for p in sorted(PACKAGE.rglob("*.py")) if p.relative_to(PACKAGE).parts[0] != "tests"]
 
 
 def _edges(sources=None):
@@ -189,9 +238,13 @@ def _violations(edges):
                 continue
             if dest not in allowed:
                 out.append(f"{rel_path} -> {dest} ({dotted})")
-            elif dest == "utils" and source in REQUIRE_ONLY and \
-                    not any(dotted == ok or dotted.startswith(ok + ".")
-                            for ok in REQUIRE_ONLY[source]):
+            elif (
+                dest == "utils"
+                and source in REQUIRE_ONLY
+                and not any(
+                    dotted == ok or dotted.startswith(ok + ".") for ok in REQUIRE_ONLY[source]
+                )
+            ):
                 out.append(f"{rel_path} -> {dotted} (only utils.require is allowed)")
     return sorted(out)
 
@@ -208,7 +261,7 @@ def _cycle(edges):
         if node in done:
             return None
         if node in visiting:
-            return trail[trail.index(node):] + [node]
+            return trail[trail.index(node) :] + [node]
         visiting.add(node)
         for nxt in sorted(graph[node]):
             found = visit(nxt, trail + [node])
@@ -297,8 +350,11 @@ def test_mutation_forbidden_import_is_detected():
 
     init = PACKAGE / "shapes" / "__init__.py"
     text = init.read_text(encoding="utf-8")
-    for line in ("import evoparam.models\n", "from evoparam import models\n",
-                 "from .. import models\n"):
+    for line in (
+        "import evoparam.models\n",
+        "from evoparam import models\n",
+        "from .. import models\n",
+    ):
         violations = _violations(_edges({init: text + line}))
         assert any(v.startswith("shapes/__init__.py -> models") for v in violations), line
     # data imports nothing but the leaves and _plugins
@@ -320,10 +376,16 @@ def test_light_core_import_pulls_no_optional_package():
 
     import subprocess
 
-    code = ("import sys, evoparam\n"
-            "print(','.join(sorted({m.split('.')[0] for m in sys.modules})))\n")
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                         cwd=str(PACKAGE.parent), check=True).stdout.strip()
+    code = (
+        "import sys, evoparam\nprint(','.join(sorted({m.split('.')[0] for m in sys.modules})))\n"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        cwd=str(PACKAGE.parent),
+        check=True,
+    ).stdout.strip()
     loaded = sorted(set(out.split(",")) & OPTIONAL_IMPORTS)
     assert loaded == [], loaded
     for legacy in ("objs", "plts", "core", "analysis", "bands", "param"):
@@ -407,8 +469,9 @@ def test_stats_is_below_hierarchical():
     stats does not reach the trial-level module."""
 
     edges = _edges()
-    stats_dests = {dest for (source, _), targets in edges.items() if source == "stats"
-                   for dest, _ in targets}
+    stats_dests = {
+        dest for (source, _), targets in edges.items() if source == "stats" for dest, _ in targets
+    }
     assert stats_dests
     assert not stats_dests & {"hierarchical", "trials", "spatial", "tf", "sim"}, stats_dests
     for (source, _), targets in edges.items():
@@ -419,7 +482,11 @@ def test_stats_is_below_hierarchical():
 def test_spatial_reaches_shapes_and_prep_through_models():
     """evoparam.spatial imports data, models and utils only (spec §4.2)."""
 
-    dests = {dest for (source, _), targets in _edges().items() if source == "spatial"
-             for dest, _ in targets}
+    dests = {
+        dest
+        for (source, _), targets in _edges().items()
+        if source == "spatial"
+        for dest, _ in targets
+    }
     assert dests and dests - LEAVES <= RULES["spatial"]
     assert {"data", "models"} <= dests

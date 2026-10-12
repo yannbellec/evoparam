@@ -18,8 +18,14 @@ from evoparam.models.classical import AREAS, POLARITIES
 
 __all__ = ["SCORES", "score_waveforms", "resolve_scorer", "LINEAR_SCORES", "TIME_SCORES"]
 
-SCORES = ("mean_amplitude", "peak_amplitude", "peak_latency", "area",
-          "fractional_area_latency", "fractional_peak_latency")
+SCORES = (
+    "mean_amplitude",
+    "peak_amplitude",
+    "peak_latency",
+    "area",
+    "fractional_area_latency",
+    "fractional_peak_latency",
+)
 
 # Scores that are linear in the waveform: the score of an average is the average of the
 # scores, so they can be computed once per trial.
@@ -47,9 +53,13 @@ def _local_peak(s, n_neighbors):
         return np.argmax(s, axis=-1)
     win = sliding_window_view(s, 2 * n_neighbors + 1, axis=-1)
     centre = win[..., n_neighbors]
-    left, right = win[..., :n_neighbors], win[..., n_neighbors + 1:]
-    ok = (centre > left.max(axis=-1)) & (centre > right.max(axis=-1)) \
-        & (centre > left.mean(axis=-1)) & (centre > right.mean(axis=-1))
+    left, right = win[..., :n_neighbors], win[..., n_neighbors + 1 :]
+    ok = (
+        (centre > left.max(axis=-1))
+        & (centre > right.max(axis=-1))
+        & (centre > left.mean(axis=-1))
+        & (centre > right.mean(axis=-1))
+    )
     candidate = np.where(ok, centre, -np.inf)
     best = np.argmax(candidate, axis=-1) + n_neighbors
     return np.where(ok.any(axis=-1), best, np.argmax(s, axis=-1))
@@ -87,8 +97,7 @@ def _fractional_area_latency(t, y, base, area, fraction):
     else:
         values = np.abs(values)
     steps = 0.5 * (values[..., 1:] + values[..., :-1]) * np.diff(t)
-    cum = np.concatenate([np.zeros(values.shape[:-1] + (1,)), np.cumsum(steps, axis=-1)],
-                         axis=-1)
+    cum = np.concatenate([np.zeros(values.shape[:-1] + (1,)), np.cumsum(steps, axis=-1)], axis=-1)
     total = cum[..., -1]
     target = fraction * total
     i = np.argmax(cum >= target[..., None], axis=-1)
@@ -115,8 +124,18 @@ def _fractional_peak_latency(t, s, peak, fraction):
     return np.where(has, out, t[0])
 
 
-def score_waveforms(times, waveforms, score, *, window, polarity="negative", fraction=0.5,
-                    area="total", area_baseline="zero", n_neighbors=3):
+def score_waveforms(
+    times,
+    waveforms,
+    score,
+    *,
+    window,
+    polarity="negative",
+    fraction=0.5,
+    area="total",
+    area_baseline="zero",
+    n_neighbors=3,
+):
     """One classical score of every waveform of an array ``[..., n_times]``.
 
     Parameters
@@ -194,8 +213,7 @@ def resolve_scorer(scorer, times, window=None, **scorer_kw):
     window = (float(window[0]), float(window[1]))
     if isinstance(scorer, str):
         if scorer not in SCORES:
-            raise SettingsError(f"scorer must be a callable or one of {SCORES}, "
-                                f"not {scorer!r}.")
+            raise SettingsError(f"scorer must be a callable or one of {SCORES}, not {scorer!r}.")
 
         def func(waveforms):
             return score_waveforms(times, waveforms, scorer, window=window, **scorer_kw)
@@ -209,8 +227,10 @@ def resolve_scorer(scorer, times, window=None, **scorer_kw):
         flat = waveforms.reshape(-1, waveforms.shape[-1])
         out = np.asarray(scorer(times, flat, **scorer_kw), float).reshape(-1)
         if out.size != flat.shape[0]:
-            raise SettingsError(f"the scorer returned {out.size} values for {flat.shape[0]} "
-                                "waveforms; it must return one value per row.")
+            raise SettingsError(
+                f"the scorer returned {out.size} values for {flat.shape[0]} "
+                "waveforms; it must return one value per row."
+            )
         return out.reshape(waveforms.shape[:-1])
 
     return call, getattr(scorer, "__name__", "custom"), False, window

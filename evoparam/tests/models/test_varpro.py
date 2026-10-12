@@ -11,6 +11,7 @@ from .helpers import TIMES, gauss, model, noise
 ###################################################################################################
 ###################################################################################################
 
+
 def test_req103_linear_solution_is_weighted_least_squares():
 
     rng = np.random.default_rng(0)
@@ -61,7 +62,7 @@ def test_req108_component_inside_a_masked_gap():
     for seed in range(20):
         rng = np.random.default_rng(seed)
         y = gauss(0.2, -8, 0.04) + noise(rng)
-        mask = (TIMES >= 0.199) & (TIMES <= 0.201)          # a 2 ms gap at the peak
+        mask = (TIMES >= 0.199) & (TIMES <= 0.201)  # a 2 ms gap at the peak
         fit = model().fit_waveform(TIMES, y, mask=mask)
         hits += any(abs(c.latency - 0.2) <= 0.02 and c.amplitude < 0 for c in fit.components)
     assert hits / 20 >= 0.9

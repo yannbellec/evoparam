@@ -35,20 +35,36 @@ from evoparam.prep import rereference
 DATASET = "ds004977"
 STEM = "sub-1/ses-ieeg01/ieeg/sub-1_ses-ieeg01_task-ccep_run-01"
 cache = os.path.join(os.path.expanduser("~"), ".cache", "evoparam", "openneuro")
-events = pd.read_csv(fetch_openneuro_file(DATASET, STEM + "_events.tsv", folder=cache),
-                     sep="\t")
-channels = pd.read_csv(fetch_openneuro_file(DATASET, STEM + "_channels.tsv", folder=cache),
-                       sep="\t")
+events = pd.read_csv(fetch_openneuro_file(DATASET, STEM + "_events.tsv", folder=cache), sep="\t")
+channels = pd.read_csv(
+    fetch_openneuro_file(DATASET, STEM + "_channels.tsv", folder=cache), sep="\t"
+)
 site = "ROC11-ROC12"
 stim = events[events["electrical_stimulation_site"] == site]
-print(len(stim), "pulses on", site, "; polarities:",
-      stim["electrical_stimulation_type"].value_counts().to_dict())
+print(
+    len(stim),
+    "pulses on",
+    site,
+    "; polarities:",
+    stim["electrical_stimulation_type"].value_counts().to_dict(),
+)
 # the stimulated shaft (ROC) and a neighbouring one (RB)
-shaft = [n for n, t in zip(channels["name"], channels["type"])
-         if t == "SEEG" and n.rstrip("0123456789") in ("ROC", "RB")
-         and n not in site.split("-")]
-trials = read_bids(DATASET, "1", session="ieeg01", task="ccep", run="01", remote=True,
-                   select={"stim_site": site}, picks=shaft, epoch=(-1.0, 2.0))
+shaft = [
+    n
+    for n, t in zip(channels["name"], channels["type"])
+    if t == "SEEG" and n.rstrip("0123456789") in ("ROC", "RB") and n not in site.split("-")
+]
+trials = read_bids(
+    DATASET,
+    "1",
+    session="ieeg01",
+    task="ccep",
+    run="01",
+    remote=True,
+    select={"stim_site": site},
+    picks=shaft,
+    epoch=(-1.0, 2.0),
+)
 print(trials)
 
 # %%
@@ -59,8 +75,11 @@ result = reports.run_pipeline(trials, "ccep_seeg", random_state=0, trial_fits=Fa
 table = result.group.to_dataframe()
 responding = np.array(result.test.settings["channels"])[np.ravel(result.test.significant)]
 print("responding bipolar channels:", list(responding))
-print(table[table["label"] == "N1"][["channel", "latency", "amplitude", "polarity"]]
-      .round(4).to_string(index=False))
+print(
+    table[table["label"] == "N1"][["channel", "latency", "amplitude", "polarity"]]
+    .round(4)
+    .to_string(index=False)
+)
 
 # %%
 # Adjusted common average instead
@@ -82,8 +101,12 @@ carla = rereference(trials, "car_adaptive", random_state=0)
 from evoparam.spatial import fit_shared
 
 shared = fit_shared(result.trials, channels=[str(c) for c in responding], preset="ccep_seeg")
-print(shared.to_dataframe()[["channel", "component", "latency", "amplitude"]].head(12)
-      .round(4).to_string(index=False))
+print(
+    shared.to_dataframe()[["channel", "component", "latency", "amplitude"]]
+    .head(12)
+    .round(4)
+    .to_string(index=False)
+)
 
 # %%
 # Known limit (under investigation)

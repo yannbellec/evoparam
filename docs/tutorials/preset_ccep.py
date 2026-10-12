@@ -31,10 +31,10 @@ from evoparam.io import fetch_openneuro_file, read_bids
 DATASET = "ds003708"
 STEM = "sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_task-ccep_run-01"
 cache = os.path.join(os.path.expanduser("~"), ".cache", "evoparam", "openneuro")
-events = pd.read_csv(fetch_openneuro_file(DATASET, STEM + "_events.tsv", folder=cache),
-                     sep="\t")
-channels = pd.read_csv(fetch_openneuro_file(DATASET, STEM + "_channels.tsv", folder=cache),
-                       sep="\t")
+events = pd.read_csv(fetch_openneuro_file(DATASET, STEM + "_events.tsv", folder=cache), sep="\t")
+channels = pd.read_csv(
+    fetch_openneuro_file(DATASET, STEM + "_channels.tsv", folder=cache), sep="\t"
+)
 stim = events[events["trial_type"] == "electrical_stimulation"]
 print(stim["electrical_stimulation_site"].value_counts().head())
 
@@ -44,10 +44,22 @@ print(stim["electrical_stimulation_site"].value_counts().head())
 # The ECoG grid contacts only, without the two stimulated ones.
 
 site = "LTG1-LTG2"
-grid = [n for n, t in zip(channels["name"], channels["type"])
-        if t == "ECOG" and n.startswith("LTG") and n not in site.split("-")][:16]
-trials = read_bids(DATASET, "01", session="ieeg01", task="ccep", run="01", remote=True,
-                   select={"stim_site": site}, picks=grid, epoch=(-1.0, 2.0))
+grid = [
+    n
+    for n, t in zip(channels["name"], channels["type"])
+    if t == "ECOG" and n.startswith("LTG") and n not in site.split("-")
+][:16]
+trials = read_bids(
+    DATASET,
+    "01",
+    session="ieeg01",
+    task="ccep",
+    run="01",
+    remote=True,
+    select={"stim_site": site},
+    picks=grid,
+    epoch=(-1.0, 2.0),
+)
 print(trials)
 print("bytes transferred:", trials.provenance.source["bytes_read"])
 
@@ -65,9 +77,13 @@ print(n1.round(4).to_string(index=False))
 # -------------
 # Corrected p-value and decision of each contact.
 
-existence = pd.DataFrame({"channel": result.test.settings["channels"],
-                          "p_value": np.ravel(result.test.p_value),
-                          "response": np.ravel(result.test.significant)})
+existence = pd.DataFrame(
+    {
+        "channel": result.test.settings["channels"],
+        "p_value": np.ravel(result.test.p_value),
+        "response": np.ravel(result.test.significant),
+    }
+)
 print(existence.round(4).to_string(index=False))
 
 # %%

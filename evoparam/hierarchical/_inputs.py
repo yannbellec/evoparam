@@ -60,8 +60,10 @@ def split_subjects(ts, subject_column):
         if meta is not None and subject_column in meta.columns and len(meta):
             values = meta[subject_column].astype(str).unique()
             if len(values) > 1:
-                raise DataError(f"TrialSet {i} holds several subjects ({list(values)}); pass one "
-                                f"TrialSet per subject or a single TrialSet.")
+                raise DataError(
+                    f"TrialSet {i} holds several subjects ({list(values)}); pass one "
+                    f"TrialSet per subject or a single TrialSet."
+                )
             name = values[0]
         else:
             name = f"sub-{i + 1}"
@@ -79,12 +81,15 @@ def subject_covariates(name, ts, columns):
     for column in columns:
         meta = ts.metadata
         if meta is None or column not in meta.columns:
-            raise SettingsError(f"formula: the column {column!r} is not in the metadata of "
-                                f"subject {name!r}.")
+            raise SettingsError(
+                f"formula: the column {column!r} is not in the metadata of subject {name!r}."
+            )
         values = meta[column].dropna().unique()
         if len(values) != 1:
-            raise SettingsError(f"formula: {column!r} must be constant within a subject "
-                                f"(subject {name!r} has {len(values)} values).")
+            raise SettingsError(
+                f"formula: {column!r} must be constant within a subject "
+                f"(subject {name!r} has {len(values)} values)."
+            )
         out[column] = values[0]
     return out
 
@@ -102,8 +107,15 @@ def trial_fits(ts, group_fit, label, max_shift, random_state=None):
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        return fit_trials(ts, group_fit, components=[label], by=(), max_shift=max_shift,
-                          random_state=random_state, verbose=False)
+        return fit_trials(
+            ts,
+            group_fit,
+            components=[label],
+            by=(),
+            max_shift=max_shift,
+            random_state=random_state,
+            verbose=False,
+        )
 
 
 def run_subjects(function, arguments, n_jobs):
@@ -160,8 +172,13 @@ def template(components):
     latency = float(np.median([c.latency for c in components if c.shape == shape]))
     fwhm = float(np.median([c.fwhm for c in components if c.shape == shape]))
     polarity = int(np.sign(np.median([c.amplitude for c in components])))
-    return {"shape": shape, "params": params, "latency": latency, "fwhm": fwhm,
-            "polarity": polarity}
+    return {
+        "shape": shape,
+        "params": params,
+        "latency": latency,
+        "fwhm": fwhm,
+        "polarity": polarity,
+    }
 
 
 def template_amplitudes(ts, tmpl):

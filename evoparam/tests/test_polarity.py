@@ -18,19 +18,39 @@ pytest.importorskip("pandas")
 
 TOL = 1e-9
 PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
-SAME = ("latency", "fwhm", "onset", "offset", "latency_ci_low", "latency_ci_high",
-        "fwhm_ci_low", "fwhm_ci_high", "existence_p")
-NEGATED = (("amplitude", "amplitude"), ("area", "area"),
-           ("amplitude_ci_low", "amplitude_ci_high"), ("amplitude_ci_high", "amplitude_ci_low"))
+SAME = (
+    "latency",
+    "fwhm",
+    "onset",
+    "offset",
+    "latency_ci_low",
+    "latency_ci_high",
+    "fwhm_ci_low",
+    "fwhm_ci_high",
+    "existence_p",
+)
+NEGATED = (
+    ("amplitude", "amplitude"),
+    ("area", "area"),
+    ("amplitude_ci_low", "amplitude_ci_high"),
+    ("amplitude_ci_high", "amplitude_ci_low"),
+)
 
 
 def flip(trials):
-    return TrialSet(data=-trials.data, times=trials.times, sfreq=trials.sfreq,
-                    ch_names=trials.ch_names, metadata=trials.metadata)
+    return TrialSet(
+        data=-trials.data,
+        times=trials.times,
+        sfreq=trials.sfreq,
+        ch_names=trials.ch_names,
+        metadata=trials.metadata,
+    )
 
 
-CASES = {"ccep": lambda: sim.simulate_ccep(n_trials=10, n_channels=4, seed=3, artifact=False),
-         "erp": lambda: sim.simulate_erp(n_trials=30, n_channels=2, seed=1)}
+CASES = {
+    "ccep": lambda: sim.simulate_ccep(n_trials=10, n_channels=4, seed=3, artifact=False),
+    "erp": lambda: sim.simulate_erp(n_trials=30, n_channels=2, seed=1),
+}
 
 
 @pytest.fixture(scope="module", params=sorted(CASES))
@@ -102,13 +122,27 @@ def _sign_rules(path):
         if not isinstance(node, ast.If):
             continue
         test = ast.unparse(node.test)
-        signed = any(isinstance(n, ast.Compare) and any(
-            isinstance(c, ast.Constant) and c.value == 0 for c in [n.left, *n.comparators])
-            for n in ast.walk(node.test)) or "np.sign(" in test
+        signed = (
+            any(
+                isinstance(n, ast.Compare)
+                and any(
+                    isinstance(c, ast.Constant) and c.value == 0 for c in [n.left, *n.comparators]
+                )
+                for n in ast.walk(node.test)
+            )
+            or "np.sign(" in test
+        )
         sized = any(word in test for word in ("amplitude", "beta", "sign", "height", "peak"))
-        drops = any(isinstance(n, ast.Continue) or (isinstance(n, ast.Call) and isinstance(
-            n.func, ast.Attribute) and n.func.attr in ("remove", "pop"))
-            for stmt in node.body for n in ast.walk(stmt))
+        drops = any(
+            isinstance(n, ast.Continue)
+            or (
+                isinstance(n, ast.Call)
+                and isinstance(n.func, ast.Attribute)
+                and n.func.attr in ("remove", "pop")
+            )
+            for stmt in node.body
+            for n in ast.walk(stmt)
+        )
         if not (signed and sized and drops):
             continue
         guarded, up = "polarity" in test, parents.get(node)
@@ -131,14 +165,16 @@ def test_req003_no_sign_rule_without_polarity():
 
 def test_req003_sign_rule_scan_finds_a_mutation(tmp_path):
     bad = tmp_path / "bad.py"
-    bad.write_text("def f(cands, polarity):\n"
-                   "    for c in cands:\n"
-                   "        if c.amplitude > 0:\n"
-                   "            continue\n"
-                   "    if polarity == 'negative':\n"
-                   "        for c in cands:\n"
-                   "            if c.amplitude > 0:\n"
-                   "                continue\n")
+    bad.write_text(
+        "def f(cands, polarity):\n"
+        "    for c in cands:\n"
+        "        if c.amplitude > 0:\n"
+        "            continue\n"
+        "    if polarity == 'negative':\n"
+        "        for c in cands:\n"
+        "            if c.amplitude > 0:\n"
+        "                continue\n"
+    )
     global PACKAGE
     saved, PACKAGE = PACKAGE, tmp_path
     try:

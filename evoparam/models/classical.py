@@ -36,19 +36,27 @@ def _local_peak(t, y, polarity, n_neighbors):
         # windows[j] holds s[j : j + n_neighbors], left of i is j = i - n_neighbors and
         # right of i is j = i + 1
         windows = np.lib.stride_tricks.sliding_window_view(s, n_neighbors)
-        centre = s[n_neighbors:n - n_neighbors]
-        left = windows[:n - 2 * n_neighbors]
-        right = windows[n_neighbors + 1:n - n_neighbors + 1]
-        ok = (centre > left.max(axis=1)) & (centre > right.max(axis=1)) \
-            & (centre > left.mean(axis=1)) & (centre > right.mean(axis=1))
+        centre = s[n_neighbors : n - n_neighbors]
+        left = windows[: n - 2 * n_neighbors]
+        right = windows[n_neighbors + 1 : n - n_neighbors + 1]
+        ok = (
+            (centre > left.max(axis=1))
+            & (centre > right.max(axis=1))
+            & (centre > left.mean(axis=1))
+            & (centre > right.mean(axis=1))
+        )
         if ok.any():
             # the first of the largest qualifying samples, as the loop kept
             best = n_neighbors + int(np.argmax(np.where(ok, centre, -np.inf)))
     elif n_neighbors < 1:
         for i in range(n_neighbors, n - n_neighbors):
-            left, right = s[i - n_neighbors:i], s[i + 1:i + 1 + n_neighbors]
-            if s[i] > left.max() and s[i] > right.max() and s[i] > left.mean() \
-                    and s[i] > right.mean():
+            left, right = s[i - n_neighbors : i], s[i + 1 : i + 1 + n_neighbors]
+            if (
+                s[i] > left.max()
+                and s[i] > right.max()
+                and s[i] > left.mean()
+                and s[i] > right.mean()
+            ):
                 if best is None or s[i] > s[best]:
                     best = i
     local = best is not None
@@ -90,7 +98,7 @@ def _fractional_area_latency(t, y, fraction, kind, baseline):
 def _fractional_peak_latency(t, y, peak, fraction, polarity):
     s = _signed(y, polarity)
     level = fraction * s[peak]
-    below = np.flatnonzero(s[:peak + 1] < level)
+    below = np.flatnonzero(s[: peak + 1] < level)
     if below.size == 0:
         return float(t[0])
     j = below[-1]
@@ -123,10 +131,21 @@ def _scores(t, y, *, polarity, measures, fraction, area, area_baseline, n_neighb
     return out, local
 
 
-def classical_measures(times, y, *, window, polarity="negative",
-                       measures=("peak", "mean", "area", "fractional_area_latency"),
-                       fraction=0.5, area="total", area_baseline="zero", n_neighbors=3,
-                       trials=None, n_bootstrap=1000, random_state=None):
+def classical_measures(
+    times,
+    y,
+    *,
+    window,
+    polarity="negative",
+    measures=("peak", "mean", "area", "fractional_area_latency"),
+    fraction=0.5,
+    area="total",
+    area_baseline="zero",
+    n_neighbors=3,
+    trials=None,
+    n_bootstrap=1000,
+    random_state=None,
+):
     """Conventional scores of one waveform in a window, with their definitions.
 
     - ``peak_amplitude`` / ``peak_latency``: local peak (larger than ``n_neighbors``
@@ -159,19 +178,29 @@ def classical_measures(times, y, *, window, polarity="negative",
     times = np.asarray(times, float)
     inside = (times >= window[0]) & (times <= window[1])
     t, w = times[inside], np.asarray(y, float)[inside]
-    kwargs = dict(polarity=polarity, measures=measures, fraction=fraction, area=area,
-                  area_baseline=area_baseline, n_neighbors=n_neighbors)
+    kwargs = dict(
+        polarity=polarity,
+        measures=measures,
+        fraction=fraction,
+        area=area,
+        area_baseline=area_baseline,
+        n_neighbors=n_neighbors,
+    )
     scores, local = _scores(t, w, **kwargs)
     win = f"window=[{window[0]:g}, {window[1]:g}]"
-    peak_def = (f"local_peak(n_neighbors={n_neighbors}), polarity={polarity}, {win}"
-                + ("" if local else ", fallback=simple_extremum"))
-    definition = {"peak_amplitude": peak_def, "peak_latency": peak_def,
-                  "mean_amplitude": f"mean, {win}",
-                  "area": f"area={area}, baseline={area_baseline}, {win}",
-                  "fractional_area_latency": f"fractional_area(fraction={fraction}), area={area},"
-                                             f" baseline={area_baseline}, {win}",
-                  "fractional_peak_latency": f"fractional_peak(fraction={fraction}), "
-                                             f"polarity={polarity}, {win}"}
+    peak_def = f"local_peak(n_neighbors={n_neighbors}), polarity={polarity}, {win}" + (
+        "" if local else ", fallback=simple_extremum"
+    )
+    definition = {
+        "peak_amplitude": peak_def,
+        "peak_latency": peak_def,
+        "mean_amplitude": f"mean, {win}",
+        "area": f"area={area}, baseline={area_baseline}, {win}",
+        "fractional_area_latency": f"fractional_area(fraction={fraction}), area={area},"
+        f" baseline={area_baseline}, {win}",
+        "fractional_peak_latency": f"fractional_peak(fraction={fraction}), "
+        f"polarity={polarity}, {win}",
+    }
     scores["definition"] = {k: v for k, v in definition.items() if k in scores}
 
     if trials is not None:
@@ -179,8 +208,9 @@ def classical_measures(times, y, *, window, polarity="negative",
         n = len(trials)
         sme = {}
         if "mean_amplitude" in scores:
-            sme["mean_amplitude"] = float(np.std(trials[:, inside].mean(axis=1), ddof=1)
-                                          / np.sqrt(n))
+            sme["mean_amplitude"] = float(
+                np.std(trials[:, inside].mean(axis=1), ddof=1) / np.sqrt(n)
+            )
         rng = np.random.default_rng(random_state)
         names = [k for k in scores if k not in ("definition", "mean_amplitude")]
         if names:
@@ -191,8 +221,7 @@ def classical_measures(times, y, *, window, polarity="negative",
             by_time = np.ascontiguousarray(trials[:, inside].T)
             for _ in range(n_bootstrap):
                 pick = rng.integers(0, n, n)
-                values, _ = _scores(t, np.take(by_time, pick, axis=1).T.mean(axis=0),
-                                    **kwargs)
+                values, _ = _scores(t, np.take(by_time, pick, axis=1).T.mean(axis=0), **kwargs)
                 for k in names:
                     boots[k].append(values[k])
             for k in names:

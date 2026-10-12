@@ -15,8 +15,7 @@ import math
 
 import numpy as np
 
-__all__ = ["canonical", "canonical_bytes", "sha256_bytes", "sha256_file", "array_sha256",
-           "clean"]
+__all__ = ["canonical", "canonical_bytes", "sha256_bytes", "sha256_file", "array_sha256", "clean"]
 
 
 def clean(value):
@@ -42,8 +41,9 @@ def clean(value):
 def canonical(value):
     """Canonical JSON text of ``value`` (sorted keys, no spaces, NaN as null)."""
 
-    return json.dumps(clean(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False,
-                      allow_nan=False)
+    return json.dumps(
+        clean(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    )
 
 
 def canonical_bytes(value):

@@ -26,8 +26,7 @@ from importlib import metadata
 
 from evoparam.errors import SettingsError
 
-__all__ = ["GROUPS", "LazyRegistry", "load_group", "loaded", "used", "enabled", "USED",
-           "SKIP"]
+__all__ = ["GROUPS", "LazyRegistry", "load_group", "loaded", "used", "enabled", "USED", "SKIP"]
 
 GROUPS = ("evoparam.shapes", "evoparam.presets", "evoparam.readers")
 
@@ -45,7 +44,11 @@ def enabled():
     """False when ``EVOPARAM_DISABLE_PLUGINS`` is set to a true value."""
 
     return os.environ.get("EVOPARAM_DISABLE_PLUGINS", "").strip().lower() not in (
-        "1", "true", "yes", "on")
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 def _entry_points(group):
@@ -77,16 +80,22 @@ def load_group(group, builtin, check):
         origin = _origin(entry)
         name = entry.name
         if name in builtin:
-            raise SettingsError(f"plugin {name!r} of {origin} ({group}) has the name of a "
-                                f"built-in of evoparam; rename it in its entry point.")
+            raise SettingsError(
+                f"plugin {name!r} of {origin} ({group}) has the name of a "
+                f"built-in of evoparam; rename it in its entry point."
+            )
         if name in out:
-            raise SettingsError(f"plugin name {name!r} ({group}) is used by both {out[name][1]} "
-                                f"and {origin}; uninstall one of them.")
+            raise SettingsError(
+                f"plugin name {name!r} ({group}) is used by both {out[name][1]} "
+                f"and {origin}; uninstall one of them."
+            )
         try:
             obj = entry.load()
-        except Exception as err:     # a broken plugin is named, never silently skipped
-            raise SettingsError(f"plugin {name!r} of {origin} ({group}) cannot be loaded: "
-                                f"{type(err).__name__}: {err}") from err
+        except Exception as err:  # a broken plugin is named, never silently skipped
+            raise SettingsError(
+                f"plugin {name!r} of {origin} ({group}) cannot be loaded: "
+                f"{type(err).__name__}: {err}"
+            ) from err
         out[name] = (check(name, obj, origin), origin)
     _LOADED.setdefault(group, {}).update({name: origin for name, (_, origin) in out.items()})
     out = {name: item for name, item in out.items() if item[0] is not SKIP}
@@ -125,7 +134,7 @@ class LazyRegistry(dict):
 
     def _load(self):
         if self._plugins is None:
-            self._plugins = {}           # set first: a check may read the registry
+            self._plugins = {}  # set first: a check may read the registry
             found = load_group(self._group, self._builtin, self._check)
             for name, (obj, origin) in found.items():
                 super().__setitem__(name, obj)
@@ -154,7 +163,7 @@ class LazyRegistry(dict):
         # the built-ins while it is being imported (a preset derived from "ccep")
         try:
             return key in self._builtin and super().__contains__(key)
-        except TypeError:                         # unhashable key
+        except TypeError:  # unhashable key
             return False
 
     def __getitem__(self, key):

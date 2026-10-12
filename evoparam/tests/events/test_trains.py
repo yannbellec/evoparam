@@ -13,6 +13,7 @@ from evoparam.events import events_to_metadata, group_trains, trains
 ###################################################################################################
 ###################################################################################################
 
+
 def test_req044_synthetic_design_exactly():
     """1 Hz x 30 pulses x 20 sites, 4 s between sites."""
 
@@ -42,8 +43,9 @@ def test_req044_synthetic_design_exactly():
 
 def test_site_change_splits_even_without_gap():
 
-    events = pd.DataFrame({"onset_time": np.arange(10) * 5.0,
-                           "stim_site_guess": ["A-B"] * 5 + ["C-D"] * 5})
+    events = pd.DataFrame(
+        {"onset_time": np.arange(10) * 5.0, "stim_site_guess": ["A-B"] * 5 + ["C-D"] * 5}
+    )
     assert group_trains(events)["train_id"].tolist() == [0] * 5 + [1] * 5
     assert group_trains(events, site_column=None)["train_id"].nunique() == 1
 
@@ -56,9 +58,16 @@ def test_trains_needs_train_id():
 
 def test_events_to_metadata():
 
-    events = group_trains(pd.DataFrame({
-        "onset_time": [1.0, 2.0, 10.0], "stim_site_guess": ["A-B", "A-B", "C-D"],
-        "detector": ["threshold"] * 3, "stim_current_mA": [4.0, 4.0, "6"]}))
+    events = group_trains(
+        pd.DataFrame(
+            {
+                "onset_time": [1.0, 2.0, 10.0],
+                "stim_site_guess": ["A-B", "A-B", "C-D"],
+                "detector": ["threshold"] * 3,
+                "stim_current_mA": [4.0, 4.0, "6"],
+            }
+        )
+    )
     meta = events_to_metadata(events)
     assert meta["trial"].tolist() == [0, 1, 2]
     assert meta["stim_site"].tolist() == ["A-B", "A-B", "C-D"]
@@ -72,10 +81,14 @@ def test_events_to_metadata():
 # times and sites are used).
 MAYO_EVENTS = [
     "ds003708/sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_task-ccep_run-01",
-    *(f"ds004457/sub-{k}/ses-ieeg01/ieeg/sub-{k}_ses-ieeg01_task-ccep_run-01"
-      for k in range(1, 6)),
-    *(f"ds004696/sub-0{k}/ses-ieeg01/ieeg/sub-0{k}_ses-ieeg01_task-ccep_run-01"
-      for k in range(1, 9)),
+    *(
+        f"ds004457/sub-{k}/ses-ieeg01/ieeg/sub-{k}_ses-ieeg01_task-ccep_run-01"
+        for k in range(1, 6)
+    ),
+    *(
+        f"ds004696/sub-0{k}/ses-ieeg01/ieeg/sub-0{k}_ses-ieeg01_task-ccep_run-01"
+        for k in range(1, 9)
+    ),
     *(f"ds004977/sub-1/ses-ieeg01/ieeg/sub-1_ses-ieeg01_task-ccep_run-0{k}" for k in (1, 2, 3)),
     "ds004977/sub-2/ses-ieeg01/ieeg/sub-2_ses-ieeg01_task-ccep_run-12",
     "ds004977/sub-3/ses-ieeg01/ieeg/sub-3_ses-ieeg01_task-ccep_run-03",
@@ -85,8 +98,10 @@ MAYO_EVENTS = [
 # block, 378 pulses on 27 sites).
 MAYO_LONG = "ds004696/sub-07/ses-ieeg01/ieeg/sub-07_ses-ieeg01_task-ccep_run-01"
 
-network = pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                             reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")
+network = pytest.mark.skipif(
+    os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+    reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+)
 
 
 def _mayo_events(stem):
@@ -104,8 +119,12 @@ def _mayo_events(stem):
             handle.write(fetch_bytes(openneuro_url(dataset, rel + "_events.tsv")))
     raw = pd.read_csv(path, sep="\t")
     raw = raw[raw["trial_type"] == "electrical_stimulation"]
-    return pd.DataFrame({"onset_time": raw["onset"].astype(float).to_numpy(),
-                         "stim_site_guess": raw["electrical_stimulation_site"].to_numpy()})
+    return pd.DataFrame(
+        {
+            "onset_time": raw["onset"].astype(float).to_numpy(),
+            "stim_site_guess": raw["electrical_stimulation_site"].to_numpy(),
+        }
+    )
 
 
 def _mayo_trains(stem):
@@ -140,10 +159,13 @@ def test_req044_mayo_protocol(stem):
 
 @pytest.mark.network
 @network
-@pytest.mark.xfail(strict=True, reason="ds004696 sub-07: the run's own events.tsv has a median "
-                                       "of 13 pulses per site (378 pulses on 27 sites; 14 per "
-                                       "site counting all its blocks), above the protocol's "
-                                       "10-12; group_trains reproduces its blocks exactly")
+@pytest.mark.xfail(
+    strict=True,
+    reason="ds004696 sub-07: the run's own events.tsv has a median "
+    "of 13 pulses per site (378 pulses on 27 sites; 14 per "
+    "site counting all its blocks), above the protocol's "
+    "10-12; group_trains reproduces its blocks exactly",
+)
 def test_req044_mayo_protocol_ds004696_sub07():
 
     events, grouped, summary = _mayo_trains(MAYO_LONG)

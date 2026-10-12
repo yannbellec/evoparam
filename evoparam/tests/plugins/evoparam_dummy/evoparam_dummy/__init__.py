@@ -36,13 +36,13 @@ class Lorentzian:
     def evaluate(self, times, params):
         mu, gamma = self._split(params)
         z = (np.asarray(times, float) - mu) / gamma
-        return 1.0 / (1.0 + z ** 2)
+        return 1.0 / (1.0 + z**2)
 
     def jacobian(self, times, params):
         mu, gamma = self._split(params)
         z = (np.asarray(times, float) - mu) / gamma
-        s2 = (1.0 / (1.0 + z ** 2)) ** 2
-        return np.stack([2.0 * z * s2 / gamma, 2.0 * z ** 2 * s2 / gamma], axis=-1)
+        s2 = (1.0 / (1.0 + z**2)) ** 2
+        return np.stack([2.0 * z * s2 / gamma, 2.0 * z**2 * s2 / gamma], axis=-1)
 
     def _widths(self, times):
         times = np.asarray(times, float)
@@ -76,8 +76,9 @@ def _preset():
     from evoparam import presets
 
     # built on the ccep preset; presets.derive keeps the parent name in the record
-    return presets.derive("ccep", name="dummy_lorentz", shapes=("lorentzian",),
-                          validation="simulation_only")
+    return presets.derive(
+        "ccep", name="dummy_lorentz", shapes=("lorentzian",), validation="simulation_only"
+    )
 
 
 DUMMY_LORENTZ = _preset()
@@ -97,8 +98,13 @@ def read_dummy(path, *, picks=None):
         index = [names.index(p) for p in picks]
         data, names = data[:, index], [names[i] for i in index]
     times = tmin + np.arange(data.shape[-1]) / sfreq
-    return TrialSet(data=data, times=times, sfreq=sfreq, ch_names=names,
-                    provenance=Provenance(source={"format": "dummy", "path": str(path)}))
+    return TrialSet(
+        data=data,
+        times=times,
+        sfreq=sfreq,
+        ch_names=names,
+        provenance=Provenance(source={"format": "dummy", "path": str(path)}),
+    )
 
 
 read_dummy.extensions = (".dummy",)

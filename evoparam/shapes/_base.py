@@ -16,8 +16,15 @@ import numpy as np
 
 from evoparam.errors import DataError, SettingsError
 
-__all__ = ["ComponentShape", "Background", "ComponentFeatures", "compute_features",
-           "ShapeBase", "FWHM_PER_SIGMA", "ONSET_FRACTION"]
+__all__ = [
+    "ComponentShape",
+    "Background",
+    "ComponentFeatures",
+    "compute_features",
+    "ShapeBase",
+    "FWHM_PER_SIGMA",
+    "ONSET_FRACTION",
+]
 
 # Full width at half maximum of a Gaussian in units of its standard deviation.
 FWHM_PER_SIGMA = 2.0 * np.sqrt(2.0 * np.log(2.0))
@@ -31,6 +38,7 @@ FEATURE_OVERSAMPLING = 10
 
 ###################################################################################################
 ## Protocols
+
 
 @runtime_checkable
 class ComponentShape(Protocol):
@@ -81,6 +89,7 @@ class Background(Protocol):
 ###################################################################################################
 ## Helpers
 
+
 def as_times(times):
     """Return ``times`` as a finite 1-D float64 array."""
 
@@ -99,8 +108,7 @@ def as_params(params, n_params, name):
 
     params = np.asarray(params, dtype=np.float64)
     if params.ndim == 0 or params.shape[-1] != n_params:
-        raise DataError(f"{name}: params must have shape (..., {n_params}), "
-                        f"got {params.shape}.")
+        raise DataError(f"{name}: params must have shape (..., {n_params}), got {params.shape}.")
     return params
 
 
@@ -113,8 +121,12 @@ def window_info(times):
     steps = np.diff(times)
     if np.any(steps <= 0):
         raise DataError("times: must be strictly increasing.")
-    return float(times[0]), float(times[-1]), float(times[-1] - times[0]), \
-        float(1.0 / np.median(steps))
+    return (
+        float(times[0]),
+        float(times[-1]),
+        float(times[-1] - times[0]),
+        float(1.0 / np.median(steps)),
+    )
 
 
 def check_waveform(times, waveform, peak_index=None):
@@ -141,7 +153,7 @@ def peak_fwhm(times, waveform, peak_index):
     if not half > 0:
         return None
     sides = []
-    below = np.nonzero(values[:peak_index + 1] < half)[0]
+    below = np.nonzero(values[: peak_index + 1] < half)[0]
     if below.size:
         j = below[-1]
         sides.append(times[peak_index] - _interp_cross(times, values, j, j + 1, half))
@@ -163,8 +175,10 @@ def check_bounds(name, lower, upper):
     lower = np.asarray(lower, dtype=np.float64)
     upper = np.asarray(upper, dtype=np.float64)
     if not np.all(lower < upper):
-        raise SettingsError(f"{name}: empty parameter bounds for this window "
-                            f"(lower {lower.tolist()}, upper {upper.tolist()}).")
+        raise SettingsError(
+            f"{name}: empty parameter bounds for this window "
+            f"(lower {lower.tolist()}, upper {upper.tolist()})."
+        )
     return lower, upper
 
 
@@ -207,9 +221,10 @@ def _half_height_edges(grid, lobe, peak_time, height):
     # each have a neighbour on the lobe, inside the grid
     below = np.nonzero(lobe[:k] < half)[0]
     left = _interp_cross(grid, lobe, below[-1], below[-1] + 1, half) if below.size else np.nan
-    below = np.nonzero(lobe[k + 1:] < half)[0]
-    right = _interp_cross(grid, lobe, k + below[0], k + below[0] + 1, half) \
-        if below.size else np.nan
+    below = np.nonzero(lobe[k + 1 :] < half)[0]
+    right = (
+        _interp_cross(grid, lobe, k + below[0], k + below[0] + 1, half) if below.size else np.nan
+    )
     return left, right
 
 
@@ -228,6 +243,7 @@ def _trapezoid(y, x):
 
 ###################################################################################################
 ## Features
+
 
 @dataclass(frozen=True)
 class ComponentFeatures:
@@ -319,8 +335,9 @@ def _grid_extremum(grid, values):
     return float(grid[k])
 
 
-def compute_features(shape, times, params, amplitude=1.0, *, onset_fraction=ONSET_FRACTION,
-                     sfreq=None, window=None):
+def compute_features(
+    shape, times, params, amplitude=1.0, *, onset_fraction=ONSET_FRACTION, sfreq=None, window=None
+):
     """Features of the component curve ``amplitude · shape(t; params)`` (spec §5.5.1).
 
     Every feature is measured on the component curve evaluated on a grid ten
@@ -352,8 +369,9 @@ def compute_features(shape, times, params, amplitude=1.0, *, onset_fraction=ONSE
 
     params = np.asarray(params, dtype=np.float64)
     if params.shape != (shape.n_params,):
-        raise DataError(f"{shape.name}: features need params of shape ({shape.n_params},), "
-                        f"got {params.shape}.")
+        raise DataError(
+            f"{shape.name}: features need params of shape ({shape.n_params},), got {params.shape}."
+        )
     if not 0.0 < onset_fraction < 1.0:
         raise SettingsError(f"onset_fraction: must be in (0, 1), got {onset_fraction}.")
     amplitude = float(amplitude)
@@ -411,8 +429,8 @@ def compute_features(shape, times, params, amplitude=1.0, *, onset_fraction=ONSE
     else:
         x = peak_time + step * np.arange(-1, 2)
     v = shape.evaluate(x, params)
-    curvature = (v[0] - 2.0 * v[1] + v[2]) / step ** 2
-    sharpness = abs(curvature) / height * fwhm ** 2 if height > 0 else np.nan
+    curvature = (v[0] - 2.0 * v[1] + v[2]) / step**2
+    sharpness = abs(curvature) / height * fwhm**2 if height > 0 else np.nan
 
     # Local extrema of the curve above the onset fraction (oscillatory shapes have several).
     diff = np.diff(curve)
@@ -430,15 +448,27 @@ def compute_features(shape, times, params, amplitude=1.0, *, onset_fraction=ONSE
         warnings.append("latency_outside_window")
     signed = amplitude * peak_value
     return ComponentFeatures(
-        latency=latency, amplitude=signed, polarity=1 if signed >= 0 else -1,
-        fwhm=float(fwhm), onset=float(onset), offset=float(offset), area=float(area),
-        rise_time=float(rise_time), decay_time=float(decay_time), symmetry=float(symmetry),
-        sharpness=float(sharpness), peak_time=peak_time, peak_times=tuple(peak_times),
-        onset_fraction=float(onset_fraction), warnings=tuple(warnings))
+        latency=latency,
+        amplitude=signed,
+        polarity=1 if signed >= 0 else -1,
+        fwhm=float(fwhm),
+        onset=float(onset),
+        offset=float(offset),
+        area=float(area),
+        rise_time=float(rise_time),
+        decay_time=float(decay_time),
+        symmetry=float(symmetry),
+        sharpness=float(sharpness),
+        peak_time=peak_time,
+        peak_times=tuple(peak_times),
+        onset_fraction=float(onset_fraction),
+        warnings=tuple(warnings),
+    )
 
 
 ###################################################################################################
 ## Base class
+
 
 class ShapeBase:
     """Common methods of the built-in shapes.
@@ -468,9 +498,24 @@ class ShapeBase:
         params = self._params(params)
         return [params[..., i, None] for i in range(self.n_params)]
 
-    def features(self, times, params, amplitude=1.0, *, onset_fraction=ONSET_FRACTION,
-                 sfreq=None, window=None):
+    def features(
+        self,
+        times,
+        params,
+        amplitude=1.0,
+        *,
+        onset_fraction=ONSET_FRACTION,
+        sfreq=None,
+        window=None,
+    ):
         """Features of ``amplitude · s(t; params)``; see :func:`compute_features`."""
 
-        return compute_features(self, times, params, amplitude, onset_fraction=onset_fraction,
-                                sfreq=sfreq, window=window)
+        return compute_features(
+            self,
+            times,
+            params,
+            amplitude,
+            onset_fraction=onset_fraction,
+            sfreq=sfreq,
+            window=window,
+        )

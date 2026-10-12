@@ -22,14 +22,14 @@ class Lorentzian:
     def evaluate(self, times, params):
         params = np.asarray(params, dtype=float)
         z = (np.asarray(times) - params[..., 0, None]) / params[..., 1, None]
-        return 1.0 / (1.0 + z ** 2)
+        return 1.0 / (1.0 + z**2)
 
     def jacobian(self, times, params):
         params = np.asarray(params, dtype=float)
         width = params[..., 1, None]
         z = (np.asarray(times) - params[..., 0, None]) / width
-        s = 1.0 / (1.0 + z ** 2)
-        return np.stack([2 * z * s ** 2 / width, 2 * z ** 2 * s ** 2 / width], axis=-1)
+        s = 1.0 / (1.0 + z**2)
+        return np.stack([2 * z * s**2 / width, 2 * z**2 * s**2 / width], axis=-1)
 
     def default_bounds(self, times, data_range=None):
         return np.array([times[0], 0.002]), np.array([times[-1], 0.05])
@@ -46,7 +46,7 @@ class WrongJacobian(Lorentzian):
 
     def jacobian(self, times, params):
         jac = super().jacobian(times, params)
-        jac[..., 1] *= 0.5    # forgotten factor 2
+        jac[..., 1] *= 0.5  # forgotten factor 2
         return jac
 
 
@@ -90,10 +90,21 @@ def test_get_shape_and_background():
         shapes.get_background("polynomial")
 
 
-@pytest.mark.parametrize("shape", [shapes.Gaussian(), shapes.SkewedGaussian(), shapes.ExGaussian(),
-                                   shapes.Gamma(), shapes.Biexponential(),
-                                   shapes.DampedOscillation(), shapes.Gabor(), make_template(),
-                                   make_template(stretch=True)], ids=lambda s: s.name)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        shapes.Gaussian(),
+        shapes.SkewedGaussian(),
+        shapes.ExGaussian(),
+        shapes.Gamma(),
+        shapes.Biexponential(),
+        shapes.DampedOscillation(),
+        shapes.Gabor(),
+        make_template(),
+        make_template(stretch=True),
+    ],
+    ids=lambda s: s.name,
+)
 def test_builtin_shapes_pass_the_checks(shape):
     check_shape(shape)
     check_shape(shape, TIMES)
@@ -121,12 +132,15 @@ def test_register_as_decorator(clean_registry):
     assert shapes.SHAPES["decorated"] is Decorated
 
 
-@pytest.mark.parametrize("cls, check", [
-    (WrongJacobian, "jacobian"),
-    (NotNormalised, "unit_amplitude"),
-    (MissingMethod, "protocol"),
-    (NeedsArguments, "instantiate"),
-])
+@pytest.mark.parametrize(
+    "cls, check",
+    [
+        (WrongJacobian, "jacobian"),
+        (NotNormalised, "unit_amplitude"),
+        (MissingMethod, "protocol"),
+        (NeedsArguments, "instantiate"),
+    ],
+)
 def test_register_rejects_a_faulty_shape(clean_registry, cls, check):
     with pytest.raises(SettingsError, match=f"check '{check}' failed"):
         shapes.register_shape(cls)
@@ -143,7 +157,8 @@ def test_builtin_names_are_protected(clean_registry):
         shapes.unregister_shape("gaussian")
     assert shapes.SHAPES["gaussian"] is shapes.Gaussian
     assert BUILTIN_SHAPES == frozenset(shapes.SHAPES) - {
-        name for name in shapes.SHAPES if name not in BUILTIN_SHAPES}
+        name for name in shapes.SHAPES if name not in BUILTIN_SHAPES
+    }
 
 
 def test_wrong_bounds_and_output_shapes_are_rejected():

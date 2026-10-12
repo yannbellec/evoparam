@@ -24,19 +24,50 @@ __all__ = ["match_components", "score_fits", "MATCH_COLUMNS", "SCORE_COLUMNS"]
 
 # Columns of match_components() and score_fits(), with their units.
 MATCH_COLUMNS = {
-    "channel": "", "condition": "", "kind": "", "truth_component": "", "fit_component": "",
-    "label": "", "role": "", "latency_true": "s", "latency_fit": "s", "latency_error": "s",
-    "amplitude_true": "data", "amplitude_fit": "data", "amplitude_error": "data",
-    "amplitude_rel_error": "", "fwhm_true": "s", "fwhm_fit": "s", "fwhm_error": "s",
-    "fwhm_rel_error": "", "polarity_true": "", "polarity_fit": "", "latency_covered": "",
-    "amplitude_covered": "", "fwhm_covered": "",
+    "channel": "",
+    "condition": "",
+    "kind": "",
+    "truth_component": "",
+    "fit_component": "",
+    "label": "",
+    "role": "",
+    "latency_true": "s",
+    "latency_fit": "s",
+    "latency_error": "s",
+    "amplitude_true": "data",
+    "amplitude_fit": "data",
+    "amplitude_error": "data",
+    "amplitude_rel_error": "",
+    "fwhm_true": "s",
+    "fwhm_fit": "s",
+    "fwhm_error": "s",
+    "fwhm_rel_error": "",
+    "polarity_true": "",
+    "polarity_fit": "",
+    "latency_covered": "",
+    "amplitude_covered": "",
+    "fwhm_covered": "",
 }
 SCORE_COLUMNS = {
-    "n_waveforms": "", "n_true": "", "n_fit": "", "n_matched": "", "n_false": "",
-    "recall": "", "precision": "", "f1": "", "latency_mae": "s", "latency_bias": "s",
-    "latency_mae_samples": "", "amplitude_rel_bias": "", "amplitude_rel_mae": "",
-    "fwhm_rel_mae": "", "coverage_latency": "", "coverage_amplitude": "", "coverage_fwhm": "",
-    "false_per_waveform": "", "false_rate_empty": "",
+    "n_waveforms": "",
+    "n_true": "",
+    "n_fit": "",
+    "n_matched": "",
+    "n_false": "",
+    "recall": "",
+    "precision": "",
+    "f1": "",
+    "latency_mae": "s",
+    "latency_bias": "s",
+    "latency_mae_samples": "",
+    "amplitude_rel_bias": "",
+    "amplitude_rel_mae": "",
+    "fwhm_rel_mae": "",
+    "coverage_latency": "",
+    "coverage_amplitude": "",
+    "coverage_fwhm": "",
+    "false_per_waveform": "",
+    "false_rate_empty": "",
 }
 _COVERED = ("latency", "amplitude", "fwhm")
 # Cost of a forbidden pair: larger than any sum of allowed latency differences (s).
@@ -45,6 +76,7 @@ _FORBIDDEN = 1e9
 
 ###################################################################################################
 ## Inputs
+
 
 def _tolerance(tolerance, fwhm):
     """Per-component tolerance (s) from "fwhm/k", "k*fwhm", a number or None."""
@@ -60,8 +92,9 @@ def _tolerance(tolerance, fwhm):
         match = re.fullmatch(r"([0-9.]+)\*fwhm", text)
         if match:
             return np.nan_to_num(fwhm * float(match.group(1)), nan=0.0)
-        raise SettingsError(f"tolerance {tolerance!r}: use 'fwhm/<k>', '<k>*fwhm', a number "
-                            "of seconds or None.")
+        raise SettingsError(
+            f"tolerance {tolerance!r}: use 'fwhm/<k>', '<k>*fwhm', a number of seconds or None."
+        )
     value = float(tolerance)
     if not value >= 0:
         raise SettingsError(f"tolerance must be >= 0 s, got {tolerance}.")
@@ -84,8 +117,9 @@ def _truth_table(truth, level, roles, window):
         table = truth.copy()
         sfreq = truth.attrs.get("sfreq")
     else:
-        raise SettingsError(f"truth must be a GroundTruth or a DataFrame, got "
-                            f"{type(truth).__name__}.")
+        raise SettingsError(
+            f"truth must be a GroundTruth or a DataFrame, got {type(truth).__name__}."
+        )
     for column in ("channel", "latency", "amplitude", "fwhm"):
         if column not in table.columns:
             raise SettingsError(f"truth table has no column '{column}'.")
@@ -117,9 +151,16 @@ def _truth_table(truth, level, roles, window):
 def _component_rows(fit, channel, condition):
     rows = []
     for position, comp in enumerate(fit.components):
-        row = {"channel": str(channel), "condition": str(condition), "component": position,
-               "label": comp.label or "", "latency": comp.latency, "amplitude": comp.amplitude,
-               "fwhm": comp.fwhm, "polarity": comp.polarity}
+        row = {
+            "channel": str(channel),
+            "condition": str(condition),
+            "component": position,
+            "label": comp.label or "",
+            "latency": comp.latency,
+            "amplitude": comp.amplitude,
+            "fwhm": comp.fwhm,
+            "polarity": comp.polarity,
+        }
         for name in _COVERED:
             if comp.ci is not None and name in comp.ci:
                 row[f"{name}_ci_low"], row[f"{name}_ci_high"] = comp.ci[name]
@@ -132,8 +173,9 @@ def _fit_table(pd, fit, channel, condition, truth_waveforms):
 
     if isinstance(fit, GroupFit):
         rows, waveforms = [], []
-        for ch, cond, pos in fit.index[["channel", "condition", "position"]] \
-                .itertuples(index=False):
+        for ch, cond, pos in fit.index[["channel", "condition", "position"]].itertuples(
+            index=False
+        ):
             waveforms.append((str(ch), str(cond)))
             rows.extend(_component_rows(fit.fits[int(pos)], ch, cond))
         table = pd.DataFrame(rows)
@@ -141,8 +183,10 @@ def _fit_table(pd, fit, channel, condition, truth_waveforms):
         if channel is None:
             channels = {ch for ch, _ in truth_waveforms}
             if len(channels) != 1:
-                raise SettingsError("match_components: name the channel of a ResponseFit "
-                                    "(channel=...) when the truth has several channels.")
+                raise SettingsError(
+                    "match_components: name the channel of a ResponseFit "
+                    "(channel=...) when the truth has several channels."
+                )
             channel = channels.pop()
         condition = "" if condition is None else condition
         table = pd.DataFrame(_component_rows(fit, channel, condition))
@@ -155,10 +199,19 @@ def _fit_table(pd, fit, channel, condition, truth_waveforms):
         table["channel"] = table["channel"].astype(str)
         waveforms = list(dict.fromkeys(zip(table["channel"], table["condition"])))
     else:
-        raise SettingsError(f"fit must be a GroupFit, a ResponseFit or a DataFrame, got "
-                            f"{type(fit).__name__}.")
-    columns = ["channel", "condition", "component", "label", "latency", "amplitude", "fwhm",
-               "polarity"]
+        raise SettingsError(
+            f"fit must be a GroupFit, a ResponseFit or a DataFrame, got {type(fit).__name__}."
+        )
+    columns = [
+        "channel",
+        "condition",
+        "component",
+        "label",
+        "latency",
+        "amplitude",
+        "fwhm",
+        "polarity",
+    ]
     for column in columns:
         if column not in table.columns:
             table[column] = {"label": "", "component": -1}.get(column, np.nan)
@@ -172,6 +225,7 @@ def _fit_table(pd, fit, channel, condition, truth_waveforms):
 ###################################################################################################
 ## Matching
 
+
 def _covered(row, name, true_value):
     low, high = row.get(f"{name}_ci_low"), row.get(f"{name}_ci_high")
     if low is None or high is None or not (np.isfinite(low) and np.isfinite(high)):
@@ -182,16 +236,23 @@ def _covered(row, name, true_value):
 def _pair(true_row, fit_row, key):
     out = {"channel": key[0], "condition": key[1]}
     if true_row is not None:
-        out.update(truth_component=int(true_row["component"]), label=true_row["label"],
-                   role=true_row["role"], latency_true=float(true_row["latency"]),
-                   amplitude_true=float(true_row["amplitude"]),
-                   fwhm_true=float(true_row["fwhm"]), polarity_true=int(true_row["polarity"]))
+        out.update(
+            truth_component=int(true_row["component"]),
+            label=true_row["label"],
+            role=true_row["role"],
+            latency_true=float(true_row["latency"]),
+            amplitude_true=float(true_row["amplitude"]),
+            fwhm_true=float(true_row["fwhm"]),
+            polarity_true=int(true_row["polarity"]),
+        )
     if fit_row is not None:
-        out.update(fit_component=int(fit_row["component"]),
-                   latency_fit=float(fit_row["latency"]),
-                   amplitude_fit=float(fit_row["amplitude"]), fwhm_fit=float(fit_row["fwhm"]),
-                   polarity_fit=int(fit_row["polarity"]) if np.isfinite(fit_row["polarity"])
-                   else 0)
+        out.update(
+            fit_component=int(fit_row["component"]),
+            latency_fit=float(fit_row["latency"]),
+            amplitude_fit=float(fit_row["amplitude"]),
+            fwhm_fit=float(fit_row["fwhm"]),
+            polarity_fit=int(fit_row["polarity"]) if np.isfinite(fit_row["polarity"]) else 0,
+        )
         if not out.get("label"):
             out["label"] = fit_row["label"]
     if true_row is not None and fit_row is not None:
@@ -208,8 +269,18 @@ def _pair(true_row, fit_row, key):
     return out
 
 
-def match_components(truth, fit, tolerance="fwhm/2", *, level="component", roles=None,
-                     window=None, match_polarity=False, channel=None, condition=None):
+def match_components(
+    truth,
+    fit,
+    tolerance="fwhm/2",
+    *,
+    level="component",
+    roles=None,
+    window=None,
+    match_polarity=False,
+    channel=None,
+    condition=None,
+):
     """Match fitted components to true components, one waveform at a time.
 
     Parameters
@@ -268,28 +339,32 @@ def match_components(truth, fit, tolerance="fwhm/2", *, level="component", roles
     fit_table, fit_waveforms = _fit_table(pd, fit, channel, condition, truth_waveforms)
     by_condition = any(cond for _, cond in fit_waveforms)
     if not by_condition and len(set(true_table["condition"])) > 1:
-        raise SettingsError("match_components: the truth has several conditions but the fits "
-                            "have none; select the truth rows of one condition (or fit per "
-                            "condition).")
+        raise SettingsError(
+            "match_components: the truth has several conditions but the fits "
+            "have none; select the truth rows of one condition (or fit per "
+            "condition)."
+        )
     trial_level = level == "trial" and "trial" in true_table.columns
     if trial_level and "trial" not in fit_table.columns:
-        raise SettingsError("match_components: level='trial' needs a 'trial' column in the "
-                            "fits.")
+        raise SettingsError("match_components: level='trial' needs a 'trial' column in the fits.")
 
     def key_of(channel_name, cond):
         return (channel_name, cond if by_condition else "")
 
-    waveforms = list(dict.fromkeys([key_of(*w) for w in truth_waveforms]
-                                   + [key_of(*w) for w in fit_waveforms]))
+    waveforms = list(
+        dict.fromkeys([key_of(*w) for w in truth_waveforms] + [key_of(*w) for w in fit_waveforms])
+    )
     group_cols = ["channel", "condition"] + (["trial"] if trial_level else [])
-    true_table = true_table.assign(condition=[key_of(c, d)[1] for c, d in
-                                              zip(true_table["channel"], true_table["condition"])])
-    fit_table = fit_table.assign(condition=[key_of(c, d)[1] for c, d in
-                                            zip(fit_table["channel"], fit_table["condition"])])
-    true_groups = dict(tuple(true_table.groupby(group_cols, sort=False))) if len(true_table) \
-        else {}
-    fit_groups = dict(tuple(fit_table.groupby(group_cols, sort=False))) if len(fit_table) \
-        else {}
+    true_table = true_table.assign(
+        condition=[key_of(c, d)[1] for c, d in zip(true_table["channel"], true_table["condition"])]
+    )
+    fit_table = fit_table.assign(
+        condition=[key_of(c, d)[1] for c, d in zip(fit_table["channel"], fit_table["condition"])]
+    )
+    true_groups = (
+        dict(tuple(true_table.groupby(group_cols, sort=False))) if len(true_table) else {}
+    )
+    fit_groups = dict(tuple(fit_table.groupby(group_cols, sort=False))) if len(fit_table) else {}
     rows = []
     for key in dict.fromkeys(list(true_groups) + list(fit_groups)):
         wave = (key[0], key[1])
@@ -304,8 +379,10 @@ def match_components(truth, fit, tolerance="fwhm/2", *, level="component", roles
             diff = np.abs(t_lat[:, None] - f_lat[None, :])
             allowed = diff <= limits[:, None] + 1e-12
             if match_polarity:
-                allowed &= (np.sign(t_rows["amplitude"].to_numpy(dtype=float))[:, None]
-                            == np.sign(f_rows["amplitude"].to_numpy(dtype=float))[None, :])
+                allowed &= (
+                    np.sign(t_rows["amplitude"].to_numpy(dtype=float))[:, None]
+                    == np.sign(f_rows["amplitude"].to_numpy(dtype=float))[None, :]
+                )
             cost = np.where(allowed, diff, _FORBIDDEN)
             for i, j in zip(*linear_sum_assignment(cost)):
                 if allowed[i, j]:
@@ -329,13 +406,15 @@ def match_components(truth, fit, tolerance="fwhm/2", *, level="component", roles
     table.attrs["units"] = dict(MATCH_COLUMNS)
     table.attrs["waveforms"] = waveforms
     table.attrs["sfreq"] = sfreq
-    table.attrs["true_waveforms"] = sorted({(c, d) for c, d in
-                                            zip(true_table["channel"], true_table["condition"])})
+    table.attrs["true_waveforms"] = sorted(
+        {(c, d) for c, d in zip(true_table["channel"], true_table["condition"])}
+    )
     return table
 
 
 ###################################################################################################
 ## Summary
+
 
 def _summary(group, waveforms, true_waveforms, sfreq):
     kinds = group["kind"].to_numpy()
@@ -345,8 +424,15 @@ def _summary(group, waveforms, true_waveforms, sfreq):
     n_fit = int(np.sum(kinds != "miss"))
     n_false = n_fit - n_matched
     empty = [w for w in waveforms if w not in true_waveforms]
-    false_empty = int(np.sum([(c, d) in empty for c, d, k in
-                              zip(group["channel"], group["condition"], kinds) if k == "false"]))
+    false_empty = int(
+        np.sum(
+            [
+                (c, d) in empty
+                for c, d, k in zip(group["channel"], group["condition"], kinds)
+                if k == "false"
+            ]
+        )
+    )
 
     def mean(values):
         values = np.asarray(values, dtype=float)
@@ -354,25 +440,40 @@ def _summary(group, waveforms, true_waveforms, sfreq):
         return float(np.mean(values)) if values.size else np.nan
 
     latency_error = matched["latency_error"].to_numpy(dtype=float)
-    out = {"n_waveforms": len(waveforms), "n_true": n_true, "n_fit": n_fit,
-           "n_matched": n_matched, "n_false": n_false,
-           "recall": n_matched / n_true if n_true else np.nan,
-           "precision": n_matched / n_fit if n_fit else np.nan,
-           "f1": 2.0 * n_matched / (n_true + n_fit) if (n_true + n_fit) else np.nan,
-           "latency_mae": mean(np.abs(latency_error)), "latency_bias": mean(latency_error),
-           "latency_mae_samples": mean(np.abs(latency_error)) * sfreq if sfreq else np.nan,
-           "amplitude_rel_bias": mean(matched["amplitude_rel_error"]),
-           "amplitude_rel_mae": mean(np.abs(matched["amplitude_rel_error"].to_numpy(float))),
-           "fwhm_rel_mae": mean(np.abs(matched["fwhm_rel_error"].to_numpy(float))),
-           "false_per_waveform": n_false / len(waveforms) if waveforms else np.nan,
-           "false_rate_empty": false_empty / len(empty) if empty else np.nan}
+    out = {
+        "n_waveforms": len(waveforms),
+        "n_true": n_true,
+        "n_fit": n_fit,
+        "n_matched": n_matched,
+        "n_false": n_false,
+        "recall": n_matched / n_true if n_true else np.nan,
+        "precision": n_matched / n_fit if n_fit else np.nan,
+        "f1": 2.0 * n_matched / (n_true + n_fit) if (n_true + n_fit) else np.nan,
+        "latency_mae": mean(np.abs(latency_error)),
+        "latency_bias": mean(latency_error),
+        "latency_mae_samples": mean(np.abs(latency_error)) * sfreq if sfreq else np.nan,
+        "amplitude_rel_bias": mean(matched["amplitude_rel_error"]),
+        "amplitude_rel_mae": mean(np.abs(matched["amplitude_rel_error"].to_numpy(float))),
+        "fwhm_rel_mae": mean(np.abs(matched["fwhm_rel_error"].to_numpy(float))),
+        "false_per_waveform": n_false / len(waveforms) if waveforms else np.nan,
+        "false_rate_empty": false_empty / len(empty) if empty else np.nan,
+    }
     for name in _COVERED:
         out[f"coverage_{name}"] = mean(matched[f"{name}_covered"])
     return out
 
 
-def score_fits(truth, fits, *, tolerance="fwhm/2", by=None, level="component", roles=None,
-               window=None, match_polarity=False):
+def score_fits(
+    truth,
+    fits,
+    *,
+    tolerance="fwhm/2",
+    by=None,
+    level="component",
+    roles=None,
+    window=None,
+    match_polarity=False,
+):
     """Recall, precision, F1, parameter errors and interval coverage of fits against the truth.
 
     Parameters
@@ -397,8 +498,15 @@ def score_fits(truth, fits, *, tolerance="fwhm/2", by=None, level="component", r
         waveform without a true component, the false-component rate at K = 0).
     """
 
-    table = match_components(truth, fits, tolerance, level=level, roles=roles, window=window,
-                             match_polarity=match_polarity)
+    table = match_components(
+        truth,
+        fits,
+        tolerance,
+        level=level,
+        roles=roles,
+        window=window,
+        match_polarity=match_polarity,
+    )
     pd = require("pandas", extra="data", caller="evoparam.sim.score_fits")
     waveforms = table.attrs["waveforms"]
     true_waveforms = set(table.attrs["true_waveforms"])

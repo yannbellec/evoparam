@@ -32,20 +32,49 @@ VALIDATOR_FIELDS = STIM_FIELDS + ("ElectricalStimulation", "reference", "type", 
 STATUSES = ("present", "inferred", "missing", "inconsistent")
 _DATATYPES = ("ieeg", "eeg")
 _ENTITY = re.compile(r"(sub|ses|task|acq|run)-([a-zA-Z0-9]+)")
-_KNOWN_TYPES = {"ecog", "seeg", "dbs", "eeg", "meg", "megmag", "meggradaxial",
-                "meggradplanar", "emg", "eog", "ecg", "misc", "trig", "resp", "temp", "gsr",
-                "ppg", "audio", "sysclock", "ref", "vehicle", "eyegaze", "pupil", "hrv"}
+_KNOWN_TYPES = {
+    "ecog",
+    "seeg",
+    "dbs",
+    "eeg",
+    "meg",
+    "megmag",
+    "meggradaxial",
+    "meggradplanar",
+    "emg",
+    "eog",
+    "ecg",
+    "misc",
+    "trig",
+    "resp",
+    "temp",
+    "gsr",
+    "ppg",
+    "audio",
+    "sysclock",
+    "ref",
+    "vehicle",
+    "eyegaze",
+    "pupil",
+    "hrv",
+}
 
 
 def _events_files(root, subject):
-    subjects = [f"sub-{subject.removeprefix('sub-')}"] if subject else \
-        sorted(os.path.basename(p) for p in glob.glob(os.path.join(root, "sub-*"))
-               if os.path.isdir(p))
+    subjects = (
+        [f"sub-{subject.removeprefix('sub-')}"]
+        if subject
+        else sorted(
+            os.path.basename(p) for p in glob.glob(os.path.join(root, "sub-*")) if os.path.isdir(p)
+        )
+    )
     files = []
     for sub in subjects:
         for datatype in _DATATYPES:
-            for pattern in (os.path.join(root, sub, datatype, "*_events.tsv"),
-                            os.path.join(root, sub, "ses-*", datatype, "*_events.tsv")):
+            for pattern in (
+                os.path.join(root, sub, datatype, "*_events.tsv"),
+                os.path.join(root, sub, "ses-*", datatype, "*_events.tsv"),
+            ):
                 files += [(path, datatype) for path in glob.glob(pattern)]
     return sorted(set(files))
 
@@ -64,9 +93,13 @@ def _field_status(name, values, n_rows, units, mapping, messages):
         unknown = 0
     n_filled = int(np.sum(filled))
     column = mapping.get(name)
-    problems = [m for m in messages if column is not None and
-                m.split(":", 1)[0] in ("unparsable", "unit_unknown", "n_pulses_not_integer")
-                and f" {column} " in f" {m.split(':', 1)[1]} "]
+    problems = [
+        m
+        for m in messages
+        if column is not None
+        and m.split(":", 1)[0] in ("unparsable", "unit_unknown", "n_pulses_not_integer")
+        and f" {column} " in f" {m.split(':', 1)[1]} "
+    ]
     if n_rows == 0:
         return "missing", "no stimulation event in the run"
     if n_filled == 0 and not problems:
@@ -82,8 +115,11 @@ def _field_status(name, values, n_rows, units, mapping, messages):
         return "inconsistent", f"{name} (from {column!r}): " + "; ".join(parts)
     unit = units.get(name, "")
     if unit.startswith("inferred:") or (name == "stim_site" and column == "trial_type"):
-        how = f"unit {unit.split(':', 1)[1]} guessed from the magnitude" if \
-            unit.startswith("inferred:") else "site read from trial_type"
+        how = (
+            f"unit {unit.split(':', 1)[1]} guessed from the magnitude"
+            if unit.startswith("inferred:")
+            else "site read from trial_type"
+        )
         return "inferred", f"{name} (from {column!r}): {how}"
     return "present", f"{name} from {column!r}" + (f" ({unit})" if unit else "")
 
@@ -96,13 +132,20 @@ def _read_tsv(path):
 def _channel_rows(folder, stem_parts, recording, n_events):
     """Statuses of reference, type and coordinates for one run."""
 
-    stem = "_".join(f"{k}-{stem_parts[k]}" for k in ("sub", "ses", "task", "acq", "run")
-                    if stem_parts.get(k))
+    stem = "_".join(
+        f"{k}-{stem_parts[k]}" for k in ("sub", "ses", "task", "acq", "run") if stem_parts.get(k)
+    )
     rows = []
     channels_path = os.path.join(folder, stem + "_channels.tsv")
     channels = _read_tsv(channels_path) if os.path.isfile(channels_path) else None
-    side_ref = next((recording[k] for k in ("iEEGReference", "EEGReference")
-                     if isinstance(recording.get(k), str) and recording[k].strip()), None)
+    side_ref = next(
+        (
+            recording[k]
+            for k in ("iEEGReference", "EEGReference")
+            if isinstance(recording.get(k), str) and recording[k].strip()
+        ),
+        None,
+    )
 
     def column_values(table, column):
         if table is None or column not in table.columns:
@@ -112,23 +155,44 @@ def _channel_rows(folder, stem_parts, recording, n_events):
     # reference
     values = column_values(channels, "reference")
     if values is not None and all(values):
-        rows.append(("reference", "present", f"channels.tsv reference for {len(values)} "
-                                             f"channels"))
+        rows.append(("reference", "present", f"channels.tsv reference for {len(values)} channels"))
     elif values is not None and any(values):
-        rows.append(("reference", "inconsistent", f"channels.tsv reference stated for "
-                                                  f"{sum(map(bool, values))} of {len(values)} "
-                                                  f"channels"))
+        rows.append(
+            (
+                "reference",
+                "inconsistent",
+                f"channels.tsv reference stated for "
+                f"{sum(map(bool, values))} of {len(values)} "
+                f"channels",
+            )
+        )
     elif side_ref is not None:
-        rows.append(("reference", "inferred", f"from the recording sidecar: {side_ref!r} "
-                                              f"(not per channel)"))
+        rows.append(
+            (
+                "reference",
+                "inferred",
+                f"from the recording sidecar: {side_ref!r} (not per channel)",
+            )
+        )
     else:
-        rows.append(("reference", "missing", "no reference column in channels.tsv and no "
-                                             "iEEGReference/EEGReference in the sidecar"))
+        rows.append(
+            (
+                "reference",
+                "missing",
+                "no reference column in channels.tsv and no "
+                "iEEGReference/EEGReference in the sidecar",
+            )
+        )
     # type
     values = column_values(channels, "type")
     if values is None:
-        rows.append(("type", "missing", "no channels.tsv" if channels is None else
-                     "channels.tsv has no type column"))
+        rows.append(
+            (
+                "type",
+                "missing",
+                "no channels.tsv" if channels is None else "channels.tsv has no type column",
+            )
+        )
     else:
         bad = [v for v in values if v.lower() not in _KNOWN_TYPES]
         if not bad:
@@ -136,8 +200,14 @@ def _channel_rows(folder, stem_parts, recording, n_events):
         elif len(bad) == len(values):
             rows.append(("type", "missing", "no channel has a BIDS type"))
         else:
-            rows.append(("type", "inconsistent", f"{len(bad)} of {len(values)} channels "
-                                                 f"without a BIDS type ({sorted(set(bad))[:5]})"))
+            rows.append(
+                (
+                    "type",
+                    "inconsistent",
+                    f"{len(bad)} of {len(values)} channels "
+                    f"without a BIDS type ({sorted(set(bad))[:5]})",
+                )
+            )
     # coordinates (electrodes.tsv of the subject/session/acquisition, units in coordsystem)
     keys = "_".join(f"{k}-{stem_parts[k]}" for k in ("sub", "ses", "acq") if stem_parts.get(k))
     electrodes_path = os.path.join(folder, keys + "_electrodes.tsv")
@@ -152,31 +222,50 @@ def _channel_rows(folder, stem_parts, recording, n_events):
         if os.path.isfile(system_path):
             with open(system_path, encoding="utf-8") as fobj:
                 system = json.load(fobj)
-        unit = next((system[k] for k in ("iEEGCoordinateUnits", "EEGCoordinateUnits")
-                     if k in system), None)
+        unit = next(
+            (system[k] for k in ("iEEGCoordinateUnits", "EEGCoordinateUnits") if k in system), None
+        )
         if not {"name", "x", "y", "z"} <= set(electrodes.columns):
             rows.append(("coordinates", "inconsistent", "electrodes.tsv lacks x, y or z"))
         else:
-            xyz = electrodes[["x", "y", "z"]].apply(
-                lambda c: c.map(lambda v: np.nan if _is_missing(v) else float(v))).to_numpy()
+            xyz = (
+                electrodes[["x", "y", "z"]]
+                .apply(lambda c: c.map(lambda v: np.nan if _is_missing(v) else float(v)))
+                .to_numpy()
+            )
             n_ok = int(np.isfinite(xyz).all(axis=1).sum())
             names = set(map(str, electrodes["name"]))
             listed = set(column_values(channels, "name") or [])
             n_without = len(listed - names) if listed else 0
             if unit is None or str(unit).lower() not in ("m", "cm", "mm"):
-                rows.append(("coordinates", "inconsistent",
-                             f"electrodes.tsv has coordinates but coordsystem.json gives no "
-                             f"metric unit ({unit!r})"))
+                rows.append(
+                    (
+                        "coordinates",
+                        "inconsistent",
+                        f"electrodes.tsv has coordinates but coordsystem.json gives no "
+                        f"metric unit ({unit!r})",
+                    )
+                )
             elif n_ok == 0:
                 rows.append(("coordinates", "missing", "electrodes.tsv coordinates are all n/a"))
             elif n_ok < len(electrodes) or n_without:
-                rows.append(("coordinates", "inconsistent",
-                             f"coordinates for {n_ok} of {len(electrodes)} electrodes"
-                             + (f"; {n_without} channels not in electrodes.tsv" if n_without
-                                else "")))
+                rows.append(
+                    (
+                        "coordinates",
+                        "inconsistent",
+                        f"coordinates for {n_ok} of {len(electrodes)} electrodes"
+                        + (f"; {n_without} channels not in electrodes.tsv" if n_without else ""),
+                    )
+                )
             else:
-                rows.append(("coordinates", "present", f"{n_ok} electrodes in {unit}, "
-                                                       f"{system.get('iEEGCoordinateSystem', system.get('EEGCoordinateSystem', 'unknown space'))}"))
+                rows.append(
+                    (
+                        "coordinates",
+                        "present",
+                        f"{n_ok} electrodes in {unit}, "
+                        f"{system.get('iEEGCoordinateSystem', system.get('EEGCoordinateSystem', 'unknown space'))}",
+                    )
+                )
     return [(field, status, n_events, message) for field, status, message in rows]
 
 
@@ -192,16 +281,21 @@ def _sidecars(root, folder, parts, datatype):
             content = json.load(fobj)
         return content if isinstance(content, dict) else {}
 
-    stem = "_".join(f"{k}-{parts[k]}" for k in ("sub", "ses", "task", "acq", "run")
-                    if parts.get(k))
+    stem = "_".join(
+        f"{k}-{parts[k]}" for k in ("sub", "ses", "task", "acq", "run") if parts.get(k)
+    )
     sidecar = {}
-    for path in (os.path.join(root, "events.json"),
-                 os.path.join(root, f"task-{parts.get('task')}_events.json"),
-                 os.path.join(folder, stem + "_events.json")):
+    for path in (
+        os.path.join(root, "events.json"),
+        os.path.join(root, f"task-{parts.get('task')}_events.json"),
+        os.path.join(folder, stem + "_events.json"),
+    ):
         sidecar.update(load(path))
     recording = {}
-    for path in (os.path.join(root, f"task-{parts.get('task')}_{datatype}.json"),
-                 os.path.join(folder, f"{stem}_{datatype}.json")):
+    for path in (
+        os.path.join(root, f"task-{parts.get('task')}_{datatype}.json"),
+        os.path.join(folder, f"{stem}_{datatype}.json"),
+    ):
         recording.update(load(path))
     if "ElectricalStimulationParameters" in recording:
         sidecar["ElectricalStimulationParameters"] = recording["ElectricalStimulationParameters"]
@@ -237,9 +331,11 @@ def validate_stim_metadata(bids_root, *, subject=None, strict=False):
         raise ReaderError(f"validate_stim_metadata: {root} is not a local BIDS folder.")
     files = _events_files(root, subject)
     if not files:
-        raise ReaderError(f"No *_events.tsv under {root}"
-                          + (f" for sub-{subject.removeprefix('sub-')}" if subject else "")
-                          + ".")
+        raise ReaderError(
+            f"No *_events.tsv under {root}"
+            + (f" for sub-{subject.removeprefix('sub-')}" if subject else "")
+            + "."
+        )
     rows = []
     for path, datatype in files:
         folder = os.path.dirname(path)
@@ -253,35 +349,63 @@ def validate_stim_metadata(bids_root, *, subject=None, strict=False):
         n_events = len(stim)
         found = []
         for name in STIM_FIELDS:
-            status, message = _field_status(name, stim[name].tolist(), n_events, report.units,
-                                            report.mapping, report.warnings)
+            status, message = _field_status(
+                name, stim[name].tolist(), n_events, report.units, report.mapping, report.warnings
+            )
             found.append((name, status, n_events, message))
         flag = recording.get("ElectricalStimulation")
         if flag is None:
-            found.append(("ElectricalStimulation", "missing", n_events,
-                          f"no ElectricalStimulation in the {datatype}.json sidecar"))
-        elif str(flag).lower() in ("false", "0") and n_events and \
-                report.mapping.get("stim_site") is not None:
-            found.append(("ElectricalStimulation", "inconsistent", n_events,
-                          "ElectricalStimulation is false but the events describe "
-                          "stimulations"))
+            found.append(
+                (
+                    "ElectricalStimulation",
+                    "missing",
+                    n_events,
+                    f"no ElectricalStimulation in the {datatype}.json sidecar",
+                )
+            )
+        elif (
+            str(flag).lower() in ("false", "0")
+            and n_events
+            and report.mapping.get("stim_site") is not None
+        ):
+            found.append(
+                (
+                    "ElectricalStimulation",
+                    "inconsistent",
+                    n_events,
+                    "ElectricalStimulation is false but the events describe stimulations",
+                )
+            )
         else:
-            found.append(("ElectricalStimulation", "present", n_events,
-                          f"ElectricalStimulation = {flag}"))
+            found.append(
+                ("ElectricalStimulation", "present", n_events, f"ElectricalStimulation = {flag}")
+            )
         found += _channel_rows(folder, parts, recording, n_events)
         for name, status, n, message in found:
-            rows.append({"subject": parts.get("sub"), "session": parts.get("ses"),
-                         "task": parts.get("task"), "acquisition": parts.get("acq"),
-                         "run": parts.get("run"), "datatype": datatype,
-                         "events_file": os.path.relpath(path, root).replace(os.sep, "/"),
-                         "field": name, "status": status, "n_events": int(n),
-                         "message": message})
+            rows.append(
+                {
+                    "subject": parts.get("sub"),
+                    "session": parts.get("ses"),
+                    "task": parts.get("task"),
+                    "acquisition": parts.get("acq"),
+                    "run": parts.get("run"),
+                    "datatype": datatype,
+                    "events_file": os.path.relpath(path, root).replace(os.sep, "/"),
+                    "field": name,
+                    "status": status,
+                    "n_events": int(n),
+                    "message": message,
+                }
+            )
     table = pd.DataFrame(rows)
     if strict and (table["status"] == "missing").any():
         missing = table[table["status"] == "missing"]
         lines = [f"{r.events_file}: {r.field}" for r in missing.itertuples()]
-        raise ReaderError(f"{len(lines)} stimulation metadata field(s) missing:\n  "
-                          + "\n  ".join(lines[:50]) + ("\n  ..." if len(lines) > 50 else ""))
+        raise ReaderError(
+            f"{len(lines)} stimulation metadata field(s) missing:\n  "
+            + "\n  ".join(lines[:50])
+            + ("\n  ..." if len(lines) > 50 else "")
+        )
     return table
 
 

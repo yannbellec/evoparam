@@ -9,8 +9,20 @@ from evoparam import __version__
 from evoparam.data import Provenance, capture_environment, compute_data_hash
 from evoparam.tests.data.factories import make_trialset
 
-ENVIRONMENT_KEYS = {"python", "platform", "cpu", "numpy", "scipy", "optional", "backend",
-                    "jax_enable_x64", "n_threads", "git_commit", "lock_sha256", "executable"}
+ENVIRONMENT_KEYS = {
+    "python",
+    "platform",
+    "cpu",
+    "numpy",
+    "scipy",
+    "optional",
+    "backend",
+    "jax_enable_x64",
+    "n_threads",
+    "git_commit",
+    "lock_sha256",
+    "executable",
+}
 
 
 def test_defaults_and_json_round_trip():
@@ -24,8 +36,12 @@ def test_defaults_and_json_round_trip():
 
 def test_with_step_copies_and_converts():
     prov = Provenance()
-    new = prov.with_step("evoparam.x.f", {"window": (0.0, 0.1), "level": float("nan")},
-                         duration_s=0.5, preset={"name": "ccep", "version": "1"})
+    new = prov.with_step(
+        "evoparam.x.f",
+        {"window": (0.0, 0.1), "level": float("nan")},
+        duration_s=0.5,
+        preset={"name": "ccep", "version": "1"},
+    )
     assert prov.steps == []
     step = new.steps[-1]
     assert step["function"] == "evoparam.x.f" and step["version"] == __version__
@@ -55,8 +71,13 @@ def test_data_hash_changes_with_one_sample():
 def test_every_method_appends_one_step():
     trials = make_trialset()
     n_steps = len(trials.provenance.steps)
-    for derived in (trials.select(trials=[0, 1]), trials.crop(0.0, 0.1),
-                    trials.convert_units("mV"), trials.apply(np.negative), trials.average()):
+    for derived in (
+        trials.select(trials=[0, 1]),
+        trials.crop(0.0, 0.1),
+        trials.convert_units("mV"),
+        trials.apply(np.negative),
+        trials.average(),
+    ):
         assert len(derived.provenance.steps) == n_steps + 1
         json.dumps(derived.provenance.to_dict(), allow_nan=False)
 
@@ -97,16 +118,25 @@ def _chain(tmp_path):
     path = tmp_path / "trials.evoparam"
     evoparam.data.save_object(trials, str(path))
     ts = evoparam.io.read(str(path))
-    events = evoparam.detect_events(np.concatenate(list(ts.data), axis=-1), sfreq=ts.sfreq,
-                                    ch_names=ts.ch_names)
-    clean = evoparam.artifact.remove_artifact(ts, method="template",
-                                              window=(-0.002, 0.008)).cleaned
+    events = evoparam.detect_events(
+        np.concatenate(list(ts.data), axis=-1), sfreq=ts.sfreq, ch_names=ts.ch_names
+    )
+    clean = evoparam.artifact.remove_artifact(
+        ts, method="template", window=(-0.002, 0.008)
+    ).cleaned
     group = evoparam.fit(clean, preset="ccep", random_state=0)
-    test = evoparam.test_response(clean, window=(0.009, 0.5), baseline=(-0.5, -0.02), by=(),
-                                  random_state=0)
+    test = evoparam.test_response(
+        clean, window=(0.009, 0.5), baseline=(-0.5, -0.02), by=(), random_state=0
+    )
     single = evoparam.trials.fit_trials(clean, group, random_state=0)
-    return {"read": ts, "events": events, "clean": clean, "group": group, "test": test,
-            "single": single}
+    return {
+        "read": ts,
+        "events": events,
+        "clean": clean,
+        "group": group,
+        "test": test,
+        "single": single,
+    }
 
 
 def test_req294_every_step_has_the_seven_keys(tmp_path):
@@ -139,15 +169,22 @@ def test_req294_six_steps_in_order(tmp_path):
     pytest.importorskip("pandas")
     out = _chain(tmp_path)
     functions = [s["function"] for s in out["single"].provenance.steps]
-    expected = ["evoparam.io.read", "evoparam.events.detect_events",
-                "evoparam.artifact.remove_artifact", "evoparam.fit",
-                "evoparam.existence.test_response", "evoparam.trials.fit_trials"]
-    if functions[-len(expected):] != expected:
-        pytest.xfail("REQ-294 six-step chain not met as written (S20, measured): the TrialFit "
-                     f"holds {functions}; reading a saved container restores its record and "
-                     "adds no read step, detect_events returns a table (its step is in "
-                     "EventTable.attrs['provenance']), and fit_trials keeps the steps of the "
-                     "trials, not those of the group fit it starts from")
+    expected = [
+        "evoparam.io.read",
+        "evoparam.events.detect_events",
+        "evoparam.artifact.remove_artifact",
+        "evoparam.fit",
+        "evoparam.existence.test_response",
+        "evoparam.trials.fit_trials",
+    ]
+    if functions[-len(expected) :] != expected:
+        pytest.xfail(
+            "REQ-294 six-step chain not met as written (S20, measured): the TrialFit "
+            f"holds {functions}; reading a saved container restores its record and "
+            "adds no read step, detect_events returns a table (its step is in "
+            "EventTable.attrs['provenance']), and fit_trials keeps the steps of the "
+            "trials, not those of the group fit it starts from"
+        )
 
 
 def test_req309_lock_hash(tmp_path):
@@ -160,9 +197,12 @@ def test_req309_lock_hash(tmp_path):
     from evoparam.data.provenance import lock_sha256
 
     good = tmp_path / "good.lock"
-    good.write_text(f"numpy=={md.version('numpy')} \\\n    --hash=sha256:00\n"
-                    f"scipy=={md.version('scipy')}\n"
-                    "notinstalled==1.0 ; python_version < '3.0'\n", encoding="utf-8")
+    good.write_text(
+        f"numpy=={md.version('numpy')} \\\n    --hash=sha256:00\n"
+        f"scipy=={md.version('scipy')}\n"
+        "notinstalled==1.0 ; python_version < '3.0'\n",
+        encoding="utf-8",
+    )
     assert lock_sha256(str(good)) == hashlib.sha256(good.read_bytes()).hexdigest()
     bad = tmp_path / "bad.lock"
     bad.write_text("numpy==0.0.1\n", encoding="utf-8")

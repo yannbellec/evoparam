@@ -41,8 +41,9 @@ def _pairs_alternating(meta, n_trials, pairing):
         raise ArtifactError("scheme 'alternating' needs metadata['stim_polarity'].")
     signs = np.array([_polarity_sign(v) for v in meta["stim_polarity"]])
     pairs, used = [], np.zeros(n_trials, dtype=bool)
-    if pairing == "pair_id" or (pairing == "auto" and "pair_id" in meta.columns
-                                and meta["pair_id"].notna().all()):
+    if pairing == "pair_id" or (
+        pairing == "auto" and "pair_id" in meta.columns and meta["pair_id"].notna().all()
+    ):
         if "pair_id" not in meta.columns:
             raise ArtifactError("pairing='pair_id' needs metadata['pair_id'].")
         for _, rows in meta.groupby("pair_id", sort=False).indices.items():
@@ -71,8 +72,10 @@ def _pairs_alternating(meta, n_trials, pairing):
 
 def _sets_forward_masking(meta, pairing):
     if meta is None or "paradigm_condition" not in meta.columns:
-        raise ArtifactError("scheme 'forward_masking' needs metadata['paradigm_condition'] "
-                            "with the conditions A, B, C and D.")
+        raise ArtifactError(
+            "scheme 'forward_masking' needs metadata['paradigm_condition'] "
+            "with the conditions A, B, C and D."
+        )
     cond = meta["paradigm_condition"].astype(str).str.upper().to_numpy()
     if pairing == "pair_id" or (pairing == "auto" and "pair_id" in meta.columns):
         keys = meta["pair_id"].to_numpy()
@@ -127,12 +130,17 @@ def paradigm_subtract(ts, *, scheme, pairing="auto"):
         raise ArtifactError(f"scheme {scheme!r}: no complete pair or set was found.")
 
     order = [g[0] for g in groups] + list(unpaired)
-    data = np.concatenate([np.array(combined), ts.data[unpaired]]) if len(unpaired) else \
-        np.array(combined)
+    data = (
+        np.concatenate([np.array(combined), ts.data[unpaired]])
+        if len(unpaired)
+        else np.array(combined)
+    )
     masks = None
     if ts.masks is not None:
-        masks = np.array([np.any([ts.masks[r] for r in g], axis=0) for g in groups]
-                         + [ts.masks[r] for r in unpaired])
+        masks = np.array(
+            [np.any([ts.masks[r] for r in g], axis=0) for g in groups]
+            + [ts.masks[r] for r in unpaired]
+        )
     if meta is not None:
         new_meta = meta.iloc[order].reset_index(drop=True).copy()
     else:
@@ -141,8 +149,16 @@ def paradigm_subtract(ts, *, scheme, pairing="auto"):
     new_meta["n_combined"] = [len(g) for g in groups] + [1] * len(unpaired)
     event_times = None if ts.event_times is None else ts.event_times[order]
     provenance = ts.provenance.with_step(
-        "evoparam.artifact.paradigm_subtract", {"scheme": scheme, "pairing": pairing},
-        duration_s=_time.perf_counter() - start)
+        "evoparam.artifact.paradigm_subtract",
+        {"scheme": scheme, "pairing": pairing},
+        duration_s=_time.perf_counter() - start,
+    )
     provenance.data_hash = None
-    return replace(ts, data=data, masks=masks, metadata=new_meta, event_times=event_times,
-                   provenance=provenance)
+    return replace(
+        ts,
+        data=data,
+        masks=masks,
+        metadata=new_meta,
+        event_times=event_times,
+        provenance=provenance,
+    )

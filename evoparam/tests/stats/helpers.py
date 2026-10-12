@@ -19,7 +19,8 @@ def nominal_mean(truth, times, window, index=0):
 
     comp = truth.components[index]
     curve = comp["amplitude"] * get_shape(comp["shape"]).evaluate(
-        times, np.asarray(comp["params"], float))
+        times, np.asarray(comp["params"], float)
+    )
     inside = (times >= window[0]) & (times <= window[1])
     return float(curve[inside].mean())
 
@@ -28,18 +29,31 @@ def replicates(n_trials, n_replicates, seed, **kwargs):
     """``n_replicates`` independent simulations of ``n_trials`` trials of one channel, as
     the channels of one TrialSet (cropped around the N1), and the true window mean."""
 
-    ts, truth = simulate_erp(n_trials * n_replicates, components=[N1], sfreq=250., tmin=-0.1,
-                             tmax=0.15, seed=seed, keep_arrays=False, **kwargs)
+    ts, truth = simulate_erp(
+        n_trials * n_replicates,
+        components=[N1],
+        sfreq=250.0,
+        tmin=-0.1,
+        tmax=0.15,
+        seed=seed,
+        keep_arrays=False,
+        **kwargs,
+    )
     true = nominal_mean(truth, ts.times, WINDOW)
     inside = (ts.times >= 0.08) & (ts.times <= 0.12)
     data = ts.data[:, 0][:, inside].reshape(n_replicates, n_trials, -1).transpose(1, 0, 2)
-    big = TrialSet(data=np.ascontiguousarray(data), times=ts.times[inside], sfreq=ts.sfreq,
-                   ch_names=[f"r{i}" for i in range(n_replicates)])
+    big = TrialSet(
+        data=np.ascontiguousarray(data),
+        times=ts.times[inside],
+        sfreq=ts.sfreq,
+        ch_names=[f"r{i}" for i in range(n_replicates)],
+    )
     return big, true
 
 
-def subjects_trialset(n_subjects, n_trials, *, sd_subject, sd_trial, seed, n_times=41,
-                      unbalanced=False):
+def subjects_trialset(
+    n_subjects, n_trials, *, sd_subject, sd_trial, seed, n_times=41, unbalanced=False
+):
     """Trials of several subjects: a constant per-subject level plus white noise, one channel.
 
     With ``unbalanced``, subject k keeps ``n_trials - (k % 4) * 5`` trials.
@@ -52,7 +66,7 @@ def subjects_trialset(n_subjects, n_trials, *, sd_subject, sd_trial, seed, n_tim
     level = rng.normal(0, sd_subject, n_subjects)[subject]
     data = level[:, None, None] + rng.normal(0, sd_trial, (subject.size, 1, n_times))
     meta = pd.DataFrame({"subject": [f"s{k:02d}" for k in subject]})
-    return TrialSet(data=data, times=times, sfreq=100., ch_names=["Cz"], metadata=meta)
+    return TrialSet(data=data, times=times, sfreq=100.0, ch_names=["Cz"], metadata=meta)
 
 
 def independent_split_half(ts, score):
@@ -87,7 +101,7 @@ def independent_dependability(ts, window):
         means = np.array([g.mean() for g in groups])
         msw = sum(((g - g.mean()) ** 2).sum() for g in groups) / (N - k)
         msb = (sizes * (means - y.mean()) ** 2).sum() / (k - 1)
-        n0 = (N - (sizes ** 2).sum() / N) / (k - 1)
+        n0 = (N - (sizes**2).sum() / N) / (k - 1)
         var_u, var_e = (msb - msw) / n0, msw
     elif np.all(sizes == sizes[0]):
         n, k = sizes[0], len(groups)
@@ -105,11 +119,13 @@ def independent_dependability(ts, window):
             beta = np.linalg.solve(X.T @ Hi @ X, X.T @ Hi @ y)
             r = y - X @ beta
             s2 = r @ Hi @ r / (len(y) - 1)
-            return ((len(y) - 1) * np.log(s2) + np.linalg.slogdet(H)[1]
-                    + np.linalg.slogdet(X.T @ Hi @ X)[1])
+            return (
+                (len(y) - 1) * np.log(s2)
+                + np.linalg.slogdet(H)[1]
+                + np.linalg.slogdet(X.T @ Hi @ X)[1]
+            )
 
-        best = minimize_scalar(neg, bounds=(-10, 5), method="bounded",
-                               options={"xatol": 1e-10})
+        best = minimize_scalar(neg, bounds=(-10, 5), method="bounded", options={"xatol": 1e-10})
         H = np.eye(len(y)) + np.exp(best.x) * Z @ Z.T
         Hi = np.linalg.inv(H)
         beta = (X.T @ Hi @ y) / (X.T @ Hi @ X)

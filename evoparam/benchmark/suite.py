@@ -32,9 +32,20 @@ from evoparam.errors import DataError, SettingsError
 from ._canon import canonical_bytes, sha256_bytes
 from .tasks import TASKS, TaskInput, make_descriptor
 
-__all__ = ["Suite", "Cell", "load_suite", "list_suites", "simulate_cell", "make_inputs",
-           "hidden_commitment", "load_hidden_seeds", "GENERATOR_NAMES", "SUITE_SCHEMA",
-           "HIDDEN_SCHEMA", "ERPCORE"]
+__all__ = [
+    "Suite",
+    "Cell",
+    "load_suite",
+    "list_suites",
+    "simulate_cell",
+    "make_inputs",
+    "hidden_commitment",
+    "load_hidden_seeds",
+    "GENERATOR_NAMES",
+    "SUITE_SCHEMA",
+    "HIDDEN_SCHEMA",
+    "ERPCORE",
+]
 
 SUITE_SCHEMA = "evoparam-benchmark-suite/1"
 HIDDEN_SCHEMA = "evoparam-benchmark-hidden-seeds/1"
@@ -69,8 +80,9 @@ class Cell:
         the seed."""
 
         if self.seed is None:
-            raise DataError(f"cell {self.id}: hidden cell without its seed (give the hidden "
-                            "seeds document).")
+            raise DataError(
+                f"cell {self.id}: hidden cell without its seed (give the hidden seeds document)."
+            )
         out = copy.deepcopy(self.settings)
         out.pop("_", None)
         out["seed"] = int(self.seed)
@@ -105,15 +117,27 @@ class Suite:
                     continue
                 seed = raw.get("seed")
                 if raw["split"] == "hidden":
-                    seed = None if self.hidden_seeds is None else \
-                        self.hidden_seeds[self.name][raw["id"]]
+                    seed = (
+                        None
+                        if self.hidden_seeds is None
+                        else self.hidden_seeds[self.name][raw["id"]]
+                    )
                 settings = copy.deepcopy(group.get("settings", {}))
                 settings.update(copy.deepcopy(raw.get("settings", {})))
-                out.append(Cell(suite=self.name, version=self.version, group=gname,
-                                id=raw["id"], split=raw["split"], seed=seed,
-                                generator=raw.get("generator", group["generator"]),
-                                settings=settings,
-                                tasks=tuple(group["tasks"]), kind=raw.get("kind", "")))
+                out.append(
+                    Cell(
+                        suite=self.name,
+                        version=self.version,
+                        group=gname,
+                        id=raw["id"],
+                        split=raw["split"],
+                        seed=seed,
+                        generator=raw.get("generator", group["generator"]),
+                        settings=settings,
+                        tasks=tuple(group["tasks"]),
+                        kind=raw.get("kind", ""),
+                    )
+                )
         return out
 
     def task_ids(self):
@@ -134,8 +158,10 @@ class Suite:
         document = load_hidden_seeds(document)
         digest = hidden_commitment(document)
         if digest != self.hidden_split["commitment_sha256"]:
-            raise DataError(f"hidden seeds: SHA-256 {digest} is not the commitment of suite "
-                            f"{self.name!r} ({self.hidden_split['commitment_sha256']}).")
+            raise DataError(
+                f"hidden seeds: SHA-256 {digest} is not the commitment of suite "
+                f"{self.name!r} ({self.hidden_split['commitment_sha256']})."
+            )
         seeds = document["seeds"].get(self.name, {})
         missing = [c.id for c in self.cells(split="hidden") if c.id not in seeds]
         if missing:
@@ -158,8 +184,9 @@ def _check_suite(doc, where):
     ids = set()
     for gname, group in doc["groups"].items():
         if group.get("generator") not in GENERATOR_NAMES + ("mixed",):
-            raise DataError(f"{where}: group {gname}: generator must be one of "
-                            f"{GENERATOR_NAMES} or 'mixed'.")
+            raise DataError(
+                f"{where}: group {gname}: generator must be one of {GENERATOR_NAMES} or 'mixed'."
+            )
         for task in group["tasks"]:
             if task not in TASKS:
                 raise DataError(f"{where}: group {gname}: unknown task {task}.")
@@ -168,8 +195,9 @@ def _check_suite(doc, where):
                 raise DataError(f"{where}: duplicate cell id {cell['id']}.")
             ids.add(cell["id"])
             if cell.get("generator", group["generator"]) not in GENERATOR_NAMES:
-                raise DataError(f"{where}: cell {cell['id']}: generator must be one of "
-                                f"{GENERATOR_NAMES}.")
+                raise DataError(
+                    f"{where}: cell {cell['id']}: generator must be one of {GENERATOR_NAMES}."
+                )
             if cell["split"] == "public" and not isinstance(cell.get("seed"), int):
                 raise DataError(f"{where}: public cell {cell['id']} without an integer seed.")
             if cell["split"] == "hidden" and "seed" in cell:
@@ -196,16 +224,25 @@ def load_suite(name_or_path, hidden_seeds=None):
             raw = fobj.read()
     else:
         if name_or_path not in list_suites():
-            raise SettingsError(f"Unknown suite {name_or_path!r}; shipped suites: "
-                                f"{list_suites()}, or the path of a suite file.")
+            raise SettingsError(
+                f"Unknown suite {name_or_path!r}; shipped suites: "
+                f"{list_suites()}, or the path of a suite file."
+            )
         res = resources.files("evoparam.benchmark").joinpath("suites", f"{name_or_path}.json")
         raw = res.read_bytes()
         path = str(res)
     doc = json.loads(raw.decode("utf-8"))
     _check_suite(doc, path)
-    suite = Suite(name=doc["name"], version=doc["version"], description=doc["description"],
-                  groups=doc["groups"], tasks=doc["tasks"], hidden_split=doc["hidden_split"],
-                  sha256=sha256_bytes(raw), path=path)
+    suite = Suite(
+        name=doc["name"],
+        version=doc["version"],
+        description=doc["description"],
+        groups=doc["groups"],
+        tasks=doc["tasks"],
+        hidden_split=doc["hidden_split"],
+        sha256=sha256_bytes(raw),
+        path=path,
+    )
     if hidden_seeds is not None:
         suite = suite.with_hidden_seeds(hidden_seeds)
     return suite
@@ -217,8 +254,11 @@ def load_hidden_seeds(document):
     if not isinstance(document, dict):
         with open(document, encoding="utf-8") as fobj:
             document = json.load(fobj)
-    if document.get("schema") != HIDDEN_SCHEMA or "nonce" not in document or \
-            "seeds" not in document:
+    if (
+        document.get("schema") != HIDDEN_SCHEMA
+        or "nonce" not in document
+        or "seeds" not in document
+    ):
         raise DataError(f"not a hidden seeds document (schema {HIDDEN_SCHEMA}).")
     return document
 
@@ -231,6 +271,7 @@ def hidden_commitment(document):
 
 ###################################################################################################
 ## Simulation
+
 
 def simulate_cell(cell):
     """(TrialSet, GroundTruth) of a cell, from its generator, settings and seed."""
@@ -248,10 +289,17 @@ def _hints(cell, **extra):
 
 
 def _base_fields(cell, ts, task):
-    return {"suite": {"name": cell.suite, "version": cell.version}, "cell": cell.id,
-            "split": cell.split, "sfreq": float(ts.sfreq), "tmin": float(ts.times[0]),
-            "units": ts.units, "ch_names": list(ts.ch_names), "n_trials": int(ts.n_trials),
-            "modality": ts.modality or ""}
+    return {
+        "suite": {"name": cell.suite, "version": cell.version},
+        "cell": cell.id,
+        "split": cell.split,
+        "sfreq": float(ts.sfreq),
+        "tmin": float(ts.times[0]),
+        "units": ts.units,
+        "ch_names": list(ts.ch_names),
+        "n_trials": int(ts.n_trials),
+        "modality": ts.modality or "",
+    }
 
 
 def _truth_components(truth):
@@ -287,63 +335,86 @@ def make_inputs(cell, ts=None, truth=None, tasks=None):
         if task in ("T1", "T2"):
             arrays = {"data": ts.data}
             site = truth.settings["stim_site"]
-            fields.update(site=site, stim_channels=site.split("-"),
-                          hints=_hints(cell))
+            fields.update(site=site, stim_channels=site.split("-"), hints=_hints(cell))
             comps = _truth_components(truth)
             n1 = comps[comps["label"] == "N1"]
-            truth_t = {"stim_channels": site.split("-"),
-                       "responders": sorted(set(truth.settings["responders"])),
-                       "n1": {r.channel: {"latency": float(r.latency),
-                                          "amplitude": float(r.amplitude)}
-                              for r in n1.itertuples()}}
+            truth_t = {
+                "stim_channels": site.split("-"),
+                "responders": sorted(set(truth.settings["responders"])),
+                "n1": {
+                    r.channel: {"latency": float(r.latency), "amplitude": float(r.amplitude)}
+                    for r in n1.itertuples()
+                },
+            }
         elif task == "T3":
             arrays = {"evoked": ts.data.mean(axis=0)}
             fields.update(hints=_hints(cell))
             comps = _truth_components(truth)
-            truth_t = {"components": comps[["channel", "label", "latency", "amplitude",
-                                            "fwhm"]].reset_index(drop=True)}
+            truth_t = {
+                "components": comps[
+                    ["channel", "label", "latency", "amplitude", "fwhm"]
+                ].reset_index(drop=True)
+            }
         elif task == "T4":
             arrays = {"data": ts.data}
             site = truth.settings["stim_site"]
-            fields.update(site=site, stim_channels=site.split("-"),
-                          artifact_window=list(meta.get("artifact_window", [-0.002, 0.008])),
-                          hints=_hints(cell))
+            fields.update(
+                site=site,
+                stim_channels=site.split("-"),
+                artifact_window=list(meta.get("artifact_window", [-0.002, 0.008])),
+                hints=_hints(cell),
+            )
             comps = _truth_components(truth)
-            truth_t = {"clean": ts.data - truth.artifact_data,
-                       "artifact": truth.artifact_data,
-                       "stim_channels": site.split("-"),
-                       "responders": sorted(set(comps[comps["label"] == "N1"]["channel"]))}
+            truth_t = {
+                "clean": ts.data - truth.artifact_data,
+                "artifact": truth.artifact_data,
+                "stim_channels": site.split("-"),
+                "responders": sorted(set(comps[comps["label"] == "N1"]["channel"])),
+            }
         elif task == "T5":
             arrays = {"data": ts.data}
             label, window = meta["target_label"], meta["target_window"]
             trial_table = truth.to_dataframe("trial")
             trial_table = trial_table[trial_table["label"] == label]
             channels = [c for c in ts.ch_names if c in set(trial_table["channel"])]
-            fields.update(targets=[{"channel": c, "label": label, "window": list(window)}
-                                   for c in channels], hints=_hints(cell))
-            truth_t = {"trials": trial_table[["channel", "trial", "latency", "amplitude"]]
-                       .reset_index(drop=True)}
+            fields.update(
+                targets=[{"channel": c, "label": label, "window": list(window)} for c in channels],
+                hints=_hints(cell),
+            )
+            truth_t = {
+                "trials": trial_table[["channel", "trial", "latency", "amplitude"]].reset_index(
+                    drop=True
+                )
+            }
         elif task == "T6":
             average = ts.data.mean(axis=0)
             arrays = {"data": ts.data, "average": average}
             label = meta["component"]
             definition = ERPCORE["components"][label]
-            fields.update(definitions=[{"condition": label, "channel": definition["channel"],
-                                        "window": list(definition["window"]),
-                                        "polarity": definition["polarity"],
-                                        "measures": list(ERPCORE["measures"]),
-                                        "source": ERPCORE["source"]}],
-                          hints=_hints(cell))
+            fields.update(
+                definitions=[
+                    {
+                        "condition": label,
+                        "channel": definition["channel"],
+                        "window": list(definition["window"]),
+                        "polarity": definition["polarity"],
+                        "measures": list(ERPCORE["measures"]),
+                        "source": ERPCORE["source"],
+                    }
+                ],
+                hints=_hints(cell),
+            )
             truth_t = {"signal_average": truth.signal.mean(axis=0)}
         elif task == "T7":
             arrays = {"data": ts.data}
             fields.update(hints=_hints(cell))
             truth_t = {"bursts": copy.deepcopy(truth.settings.get("bursts", []))}
-        else:                                           # pragma: no cover
+        else:  # pragma: no cover
             raise DataError(task)
         descriptor = make_descriptor(task, arrays, **fields)
-        out[task] = TaskInput(descriptor=descriptor,
-                              arrays={k: np.asarray(v, dtype=np.float64)
-                                      for k, v in arrays.items()},
-                              truth=truth_t)
+        out[task] = TaskInput(
+            descriptor=descriptor,
+            arrays={k: np.asarray(v, dtype=np.float64) for k, v in arrays.items()},
+            truth=truth_t,
+        )
     return out

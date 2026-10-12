@@ -13,8 +13,14 @@ from scipy.stats import t as student_t
 
 from evoparam.errors import DataError, warn as _warn
 
-__all__ = ["sign_flips", "permutation_test", "shuffle_test", "max_cluster_mass", "tail_p_value",
-           "null_band"]
+__all__ = [
+    "sign_flips",
+    "permutation_test",
+    "shuffle_test",
+    "max_cluster_mass",
+    "tail_p_value",
+    "null_band",
+]
 
 MIN_TRIALS = 5
 
@@ -51,7 +57,7 @@ def tail_p_value(null, observed):
         return plain
     try:
         shape, _, scale = genpareto.fit(excess, floc=0.0)
-    except Exception:          # the fit did not converge: keep the plain estimate
+    except Exception:  # the fit did not converge: keep the plain estimate
         return plain
     tail = np.mean(null > u) * genpareto.sf(observed - u, shape, loc=0.0, scale=scale)
     return float(np.clip(tail, 1e-300, plain))
@@ -60,8 +66,8 @@ def tail_p_value(null, observed):
 def sign_flips(n_trials, n_permutations, rng):
     """Random sign patterns (P x n), or every pattern when there are at most n_permutations."""
 
-    if 2 ** n_trials <= n_permutations:
-        grid = ((np.arange(2 ** n_trials)[:, None] >> np.arange(n_trials)) & 1)
+    if 2**n_trials <= n_permutations:
+        grid = (np.arange(2**n_trials)[:, None] >> np.arange(n_trials)) & 1
         return 1.0 - 2.0 * grid, True
     return rng.choice([-1.0, 1.0], size=(n_permutations, n_trials)), False
 
@@ -95,7 +101,7 @@ def _summary(t, statistic, threshold, polarity):
 
 def _t_series(sum_x, sum_x2, n):
     mean = sum_x / n
-    var = np.clip((sum_x2 - n * mean ** 2) / (n - 1), 0, None)
+    var = np.clip((sum_x2 - n * mean**2) / (n - 1), 0, None)
     with np.errstate(divide="ignore", invalid="ignore"):
         t = mean / np.sqrt(var / n)
     return np.nan_to_num(t, nan=0.0, posinf=0.0, neginf=0.0)
@@ -115,7 +121,7 @@ def _extent(t, critical, statistic, threshold, polarity, times):
             hits = np.flatnonzero(values > critical[c])
         else:
             hits = []
-            for sign in ((1, -1) if polarity == "both" else (1,)):
+            for sign in (1, -1) if polarity == "both" else (1,):
                 v = np.where(sign * signed[c] > threshold, sign * signed[c], 0.0)
                 edges = np.diff(np.r_[0, (v > 0).astype(int), 0])
                 for a, b in zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)):
@@ -127,9 +133,21 @@ def _extent(t, critical, statistic, threshold, polarity, times):
     return onset, offset
 
 
-def permutation_test(data, times, window, baseline, *, n_permutations=1000, statistic="max_t",
-                     cluster_threshold=None, polarity="both", alpha=0.05, rng=None,
-                     n_boot=200, masks=None):
+def permutation_test(
+    data,
+    times,
+    window,
+    baseline,
+    *,
+    n_permutations=1000,
+    statistic="max_t",
+    cluster_threshold=None,
+    polarity="both",
+    alpha=0.05,
+    rng=None,
+    n_boot=200,
+    masks=None,
+):
     """Sign-flip permutation test of every channel.
 
     Parameters
@@ -154,8 +172,10 @@ def permutation_test(data, times, window, baseline, *, n_permutations=1000, stat
     rng = np.random.default_rng(rng)
     n, n_ch, _ = data.shape
     if n < MIN_TRIALS:
-        raise DataError(f"The permutation test needs at least {MIN_TRIALS} trials, got {n}; "
-                        "use method='threshold' with a published rule instead.")
+        raise DataError(
+            f"The permutation test needs at least {MIN_TRIALS} trials, got {n}; "
+            "use method='threshold' with a published rule instead."
+        )
     win = (times >= window[0]) & (times <= window[1])
     base = (times >= baseline[0]) & (times <= baseline[1])
     x = data[:, :, win]
@@ -163,10 +183,11 @@ def permutation_test(data, times, window, baseline, *, n_permutations=1000, stat
     if masks is not None:
         usable = ~masks[:, :, win].any(axis=0)
     x = np.where(usable[None], np.nan_to_num(x), 0.0)
-    threshold = (student_t.ppf(0.975, n - 1) if cluster_threshold is None
-                 else float(cluster_threshold))
+    threshold = (
+        student_t.ppf(0.975, n - 1) if cluster_threshold is None else float(cluster_threshold)
+    )
 
-    sum_x, sum_x2 = x.sum(axis=0), (x ** 2).sum(axis=0)
+    sum_x, sum_x2 = x.sum(axis=0), (x**2).sum(axis=0)
     t_obs = _t_series(sum_x, sum_x2, n)
     t_obs = np.where(usable, t_obs, 0.0)
     observed = _summary(t_obs, statistic, threshold, polarity)
@@ -175,10 +196,10 @@ def permutation_test(data, times, window, baseline, *, n_permutations=1000, stat
     null = np.empty((len(flips), n_ch))
     flat = x.reshape(n, -1)
     for start in range(0, len(flips), _CHUNK):
-        chunk = flips[start:start + _CHUNK]
+        chunk = flips[start : start + _CHUNK]
         sums = (chunk @ flat).reshape(len(chunk), n_ch, -1)
         t_null = _t_series(sums, sum_x2[None], n) * usable[None]
-        null[start:start + len(chunk)] = _summary(t_null, statistic, threshold, polarity)
+        null[start : start + len(chunk)] = _summary(t_null, statistic, threshold, polarity)
     p = np.array([tail_p_value(null[:, c], observed[c]) for c in range(n_ch)])
     critical = np.quantile(null, 1 - alpha, axis=0)
     onset, offset = _extent(t_obs, critical, statistic, threshold, polarity, times[win])
@@ -189,15 +210,14 @@ def permutation_test(data, times, window, baseline, *, n_permutations=1000, stat
     for b in range(n_boot):
         pick = rng.integers(0, n, n)
         xb = x[pick]
-        tb = _t_series(xb.sum(axis=0), (xb ** 2).sum(axis=0), n) * usable
-        onsets[b], offsets[b] = _extent(tb, critical, statistic, threshold, polarity,
-                                        times[win])
+        tb = _t_series(xb.sum(axis=0), (xb**2).sum(axis=0), n) * usable
+        onsets[b], offsets[b] = _extent(tb, critical, statistic, threshold, polarity, times[win])
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        interval = (lambda v: np.nanpercentile(v, [2.5, 97.5], axis=0).T if n_boot else
-                    np.full((n_ch, 2), np.nan))
-        ci, onset_ci, offset_ci = (interval(offsets - onsets), interval(onsets),
-                                   interval(offsets))
+        interval = lambda v: (
+            np.nanpercentile(v, [2.5, 97.5], axis=0).T if n_boot else np.full((n_ch, 2), np.nan)
+        )
+        ci, onset_ci, offset_ci = (interval(offsets - onsets), interval(onsets), interval(offsets))
 
     avg = data.mean(axis=0)
     noise = np.var(avg[:, base], axis=1)
@@ -209,12 +229,23 @@ def permutation_test(data, times, window, baseline, *, n_permutations=1000, stat
     # of the trials and the level it must cross, the family-wise critical value of the
     # null maximum |t| (max_t) or the cluster-forming threshold (cluster)
     level = critical if statistic == "max_t" else np.full(n_ch, threshold)
-    return {"statistic": observed, "p_value": p, "onset": onset, "offset": offset,
-            "duration": offset - onset, "snr_db": snr, "duration_ci": ci,
-            "onset_ci": onset_ci, "offset_ci": offset_ci,
-            "critical": critical, "exact": exact, "threshold": threshold,
-            "curve": np.where(usable, t_obs, np.nan), "curve_times": times[win],
-            "null_band": null_band(level, polarity, int(win.sum()))}
+    return {
+        "statistic": observed,
+        "p_value": p,
+        "onset": onset,
+        "offset": offset,
+        "duration": offset - onset,
+        "snr_db": snr,
+        "duration_ci": ci,
+        "onset_ci": onset_ci,
+        "offset_ci": offset_ci,
+        "critical": critical,
+        "exact": exact,
+        "threshold": threshold,
+        "curve": np.where(usable, t_obs, np.nan),
+        "curve_times": times[win],
+        "null_band": null_band(level, polarity, int(win.sum())),
+    }
 
 
 def null_band(level, polarity, n_times):
@@ -229,30 +260,43 @@ def null_band(level, polarity, n_times):
     return np.repeat(band, n_times, axis=1)
 
 
-def shuffle_test(avg, times, window, baseline, *, n_permutations=1000, polarity="both",
-                 alpha=0.05, rng=None):
+def shuffle_test(
+    avg, times, window, baseline, *, n_permutations=1000, polarity="both", alpha=0.05, rng=None
+):
     """Test for an average without trials: the largest |z| of the window against windows of
     the same length drawn from the baselines of every channel (a weaker null)."""
 
     rng = np.random.default_rng(rng)
-    _warn("No trials: the null distribution comes from baseline windows of the "
-          "average (weaker than a trial permutation).", UserWarning, stacklevel=3)
+    _warn(
+        "No trials: the null distribution comes from baseline windows of the "
+        "average (weaker than a trial permutation).",
+        UserWarning,
+        stacklevel=3,
+    )
     win = (times >= window[0]) & (times <= window[1])
     base = (times >= baseline[0]) & (times <= baseline[1])
     if base.sum() < 2:
-        raise DataError(f"The baseline {tuple(baseline)} has {int(base.sum())} sample(s) in "
-                        f"the data ({times[0]:.4f} to {times[-1]:.4f} s); the test needs at "
-                        "least 2.")
+        raise DataError(
+            f"The baseline {tuple(baseline)} has {int(base.sum())} sample(s) in "
+            f"the data ({times[0]:.4f} to {times[-1]:.4f} s); the test needs at "
+            "least 2."
+        )
     mu = avg[:, base].mean(axis=1, keepdims=True)
     sd = avg[:, base].std(axis=1, keepdims=True)
     z = (avg - mu) / np.where(sd > 0, sd, np.nan)
-    stat = lambda seg: (np.nanmax(np.abs(seg), axis=-1) if polarity == "both"
-                        else np.nanmax(seg if polarity == "positive" else -seg, axis=-1))
+    stat = lambda seg: (
+        np.nanmax(np.abs(seg), axis=-1)
+        if polarity == "both"
+        else np.nanmax(seg if polarity == "positive" else -seg, axis=-1)
+    )
     observed = stat(z[:, win])
     n_win, zb = int(win.sum()), z[:, base]
     if zb.shape[1] < n_win:
-        _warn("The baseline is shorter than the window: null windows wrap around.",
-              UserWarning, stacklevel=3)
+        _warn(
+            "The baseline is shorter than the window: null windows wrap around.",
+            UserWarning,
+            stacklevel=3,
+        )
     null = np.empty(n_permutations)
     for i in range(n_permutations):
         ch = rng.integers(0, len(z))
@@ -263,15 +307,28 @@ def shuffle_test(avg, times, window, baseline, *, n_permutations=1000, polarity=
     critical = np.quantile(null, 1 - alpha)
     onset, offset = np.full(len(z), np.nan), np.full(len(z), np.nan)
     for c in range(len(z)):
-        values = np.abs(z[c, win]) if polarity == "both" else z[c, win] * (1 if polarity ==
-                                                                           "positive" else -1)
+        values = (
+            np.abs(z[c, win])
+            if polarity == "both"
+            else z[c, win] * (1 if polarity == "positive" else -1)
+        )
         hits = np.flatnonzero(values > critical)
         if len(hits):
             onset[c], offset[c] = times[win][hits[0]], times[win][hits[-1]]
     with np.errstate(divide="ignore", invalid="ignore"):
         snr = 10 * np.log10(np.mean(avg[:, win] ** 2, axis=1) / np.var(avg[:, base], axis=1))
-    return {"statistic": observed, "p_value": p, "onset": onset, "offset": offset,
-            "duration": offset - onset, "snr_db": snr,
-            "duration_ci": np.full((len(z), 2), np.nan), "critical": np.full(len(z), critical),
-            "exact": False, "threshold": np.nan, "curve": z[:, win], "curve_times": times[win],
-            "null_band": null_band(np.full(len(z), critical), polarity, int(win.sum()))}
+    return {
+        "statistic": observed,
+        "p_value": p,
+        "onset": onset,
+        "offset": offset,
+        "duration": offset - onset,
+        "snr_db": snr,
+        "duration_ci": np.full((len(z), 2), np.nan),
+        "critical": np.full(len(z), critical),
+        "exact": False,
+        "threshold": np.nan,
+        "curve": z[:, win],
+        "curve_times": times[win],
+        "null_band": null_band(np.full(len(z), critical), polarity, int(win.sum())),
+    }

@@ -22,17 +22,39 @@ from evoparam.errors import SettingsError
 from evoparam.utils._optional import require
 
 from ._engine import Source, assemble, seed_streams, time_axis
-from .artifacts import (dipole_gain, grid_layout, line_layout, pulse_shape, scalp_layout,
-                        seeg_layout, tail_shape)
-from .components import (CCEP_DELAYED, CCEP_N1, CCEP_N2, ERP_COMPONENTS, TEP_COMPONENTS,
-                         ComponentSpec, as_spec)
+from .artifacts import (
+    dipole_gain,
+    grid_layout,
+    line_layout,
+    pulse_shape,
+    scalp_layout,
+    seeg_layout,
+    tail_shape,
+)
+from .components import (
+    CCEP_DELAYED,
+    CCEP_N1,
+    CCEP_N2,
+    ERP_COMPONENTS,
+    TEP_COMPONENTS,
+    ComponentSpec,
+    as_spec,
+)
 
-__all__ = ["simulate_erp", "simulate_ccep", "simulate_erna", "simulate_tep", "simulate_ecap",
-           "simulate_animal_ep", "GENERATORS"]
+__all__ = [
+    "simulate_erp",
+    "simulate_ccep",
+    "simulate_erna",
+    "simulate_tep",
+    "simulate_ecap",
+    "simulate_animal_ep",
+    "GENERATORS",
+]
 
 
 ###################################################################################################
 ## Helpers
+
 
 def _channel_indices(channels, ch_names, label):
     if channels is None:
@@ -56,11 +78,13 @@ def _spec_sources(spec, rng, ch_names, event=0, **extra):
 
     params, amplitude = spec.resolve(rng)
     channels = _channel_indices(spec.channels, ch_names, spec.label)
-    weights = np.ones(len(channels)) if spec.weights is None else \
-        np.asarray(spec.weights, dtype=float)
+    weights = (
+        np.ones(len(channels)) if spec.weights is None else np.asarray(spec.weights, dtype=float)
+    )
     if spec.weights is not None and spec.channels is None and weights.size != len(ch_names):
-        raise SettingsError(f"component '{spec.label}': {weights.size} weights for "
-                            f"{len(ch_names)} channels.")
+        raise SettingsError(
+            f"component '{spec.label}': {weights.size} weights for {len(ch_names)} channels."
+        )
     peak = np.max(np.abs(weights)) if weights.size else 0.0
     if not peak > 0:
         raise SettingsError(f"component '{spec.label}': every weight is zero.")
@@ -68,9 +92,19 @@ def _spec_sources(spec, rng, ch_names, event=0, **extra):
     for channel, weight in zip(channels, weights):
         if weight == 0:
             continue
-        out.append(Source(label=spec.label, shape=spec.shape, params=params,
-                          amplitude=amplitude * weight / peak, channel=channel, role=spec.role,
-                          event=event, rel=abs(weight) / peak, **extra))
+        out.append(
+            Source(
+                label=spec.label,
+                shape=spec.shape,
+                params=params,
+                amplitude=amplitude * weight / peak,
+                channel=channel,
+                role=spec.role,
+                event=event,
+                rel=abs(weight) / peak,
+                **extra,
+            )
+        )
     return out
 
 
@@ -79,8 +113,11 @@ def _start():
 
 
 def _settings(local, drop=()):
-    return {key: value for key, value in local.items()
-            if key not in ("start",) + tuple(drop) and not key.startswith("_")}
+    return {
+        key: value
+        for key, value in local.items()
+        if key not in ("start",) + tuple(drop) and not key.startswith("_")
+    }
 
 
 def _check_count(name, value, minimum=1):
@@ -91,24 +128,36 @@ def _check_count(name, value, minimum=1):
 
 def _ch_info(names, coords, groups, kind, stim=(), coord_space="simulated"):
     n_channels = len(names)
-    return {"name": list(names), "type": [kind] * n_channels, "group": list(groups),
-            "x": coords[:, 0], "y": coords[:, 1], "z": coords[:, 2],
-            "coord_space": [coord_space] * n_channels, "reference": [""] * n_channels,
-            "bad": np.zeros(n_channels, dtype=bool),
-            "stim_contact": np.array([name in stim for name in names], dtype=bool),
-            "tissue": ["unknown"] * n_channels, "region": [""] * n_channels}
+    return {
+        "name": list(names),
+        "type": [kind] * n_channels,
+        "group": list(groups),
+        "x": coords[:, 0],
+        "y": coords[:, 1],
+        "z": coords[:, 2],
+        "coord_space": [coord_space] * n_channels,
+        "reference": [""] * n_channels,
+        "bad": np.zeros(n_channels, dtype=bool),
+        "stim_contact": np.array([name in stim for name in names], dtype=bool),
+        "tissue": ["unknown"] * n_channels,
+        "region": [""] * n_channels,
+    }
 
 
 def _stim_metadata(n_trials, site, current, width, polarity, frequency=np.nan, n_pulses=1):
-    return {"trial": np.arange(n_trials, dtype=np.int64), "condition": [""] * n_trials,
-            "stim_site": [site] * n_trials,
-            "stim_current_mA": np.full(n_trials, float(current)),
-            "stim_pulse_width_us": np.full(n_trials, float(width)),
-            "stim_polarity": list(polarity) if not isinstance(polarity, str)
-            else [polarity] * n_trials,
-            "stim_frequency_hz": np.full(n_trials, float(frequency)),
-            "stim_n_pulses": np.full(n_trials, int(n_pulses), dtype=np.int64),
-            "stim_charge_uC": np.full(n_trials, float(current) * float(width) * 1e-3)}
+    return {
+        "trial": np.arange(n_trials, dtype=np.int64),
+        "condition": [""] * n_trials,
+        "stim_site": [site] * n_trials,
+        "stim_current_mA": np.full(n_trials, float(current)),
+        "stim_pulse_width_us": np.full(n_trials, float(width)),
+        "stim_polarity": list(polarity)
+        if not isinstance(polarity, str)
+        else [polarity] * n_trials,
+        "stim_frequency_hz": np.full(n_trials, float(frequency)),
+        "stim_n_pulses": np.full(n_trials, int(n_pulses), dtype=np.int64),
+        "stim_charge_uC": np.full(n_trials, float(current) * float(width) * 1e-3),
+    }
 
 
 def _overlap_offsets(overlap, n_trials, rng):
@@ -135,10 +184,28 @@ def _overlap_offsets(overlap, n_trials, rng):
 ###################################################################################################
 ## ERP
 
-def simulate_erp(n_trials=60, *, n_channels=1, sfreq=500., tmin=-0.2, tmax=0.8,
-                 components=("P1", "N1", "P3"), jitter_sd=0., amplitude_cv=0., noise="pink",
-                 snr=5., overlap=None, seed=None, jitter="normal", jitter_tau=None,
-                 noise_sd=10., noise_kw=None, ch_names=None, keep_arrays=True):
+
+def simulate_erp(
+    n_trials=60,
+    *,
+    n_channels=1,
+    sfreq=500.0,
+    tmin=-0.2,
+    tmax=0.8,
+    components=("P1", "N1", "P3"),
+    jitter_sd=0.0,
+    amplitude_cv=0.0,
+    noise="pink",
+    snr=5.0,
+    overlap=None,
+    seed=None,
+    jitter="normal",
+    jitter_tau=None,
+    noise_sd=10.0,
+    noise_kw=None,
+    ch_names=None,
+    keep_arrays=True,
+):
     """Simulate scalp event-related potentials with a known truth.
 
     Parameters
@@ -234,20 +301,49 @@ def simulate_erp(n_trials=60, *, n_channels=1, sfreq=500., tmin=-0.2, tmax=0.8,
         for k in range(len(sources)):
             src = sources[k]
             for event, offset in ((-1, -previous), (1, following)):
-                sources.append(Source(label=src.label, shape=src.shape, params=src.params,
-                                      amplitude=ratio, channel=src.channel, role="overlap",
-                                      event=event, offset=offset, parent=k))
+                sources.append(
+                    Source(
+                        label=src.label,
+                        shape=src.shape,
+                        params=src.params,
+                        amplitude=ratio,
+                        channel=src.channel,
+                        role="overlap",
+                        event=event,
+                        offset=offset,
+                        parent=k,
+                    )
+                )
     ch_info = _ch_info(names, coords, groups, "eeg", coord_space="unit_disc")
-    return assemble(generator="evoparam.sim.simulate_erp", settings=settings, seed=entropy,
-                    rngs=rngs, times=times, sfreq=sfreq, ch_names=names, sources=sources,
-                    n_trials=n_trials, noise=noise, noise_sd=noise_sd, noise_kw=noise_kw,
-                    snr=snr, jitter_sd=jitter_sd, jitter=jitter, jitter_tau=jitter_tau,
-                    amplitude_cv=amplitude_cv, metadata=metadata, ch_info=ch_info,
-                    modality="erp", keep_arrays=keep_arrays, start=start)
+    return assemble(
+        generator="evoparam.sim.simulate_erp",
+        settings=settings,
+        seed=entropy,
+        rngs=rngs,
+        times=times,
+        sfreq=sfreq,
+        ch_names=names,
+        sources=sources,
+        n_trials=n_trials,
+        noise=noise,
+        noise_sd=noise_sd,
+        noise_kw=noise_kw,
+        snr=snr,
+        jitter_sd=jitter_sd,
+        jitter=jitter,
+        jitter_tau=jitter_tau,
+        amplitude_cv=amplitude_cv,
+        metadata=metadata,
+        ch_info=ch_info,
+        modality="erp",
+        keep_arrays=keep_arrays,
+        start=start,
+    )
 
 
 ###################################################################################################
 ## CCEP
+
 
 def _stim_pair(names, groups, coords, rng, layout):
     """Two adjacent contacts of one shaft (sEEG) or one grid row."""
@@ -271,18 +367,23 @@ def _ccep_spec(value, default, name):
         return value
     if isinstance(value, dict):
         from dataclasses import replace
+
         return replace(default, **value)
-    raise SettingsError(f"{name} must be None, a dict of ComponentSpec fields or a "
-                        "ComponentSpec.")
+    raise SettingsError(f"{name} must be None, a dict of ComponentSpec fields or a ComponentSpec.")
 
 
 def _train_layout(n_trials, train_structure, rng):
     """Event times, train columns and the adaptation gain of each pulse."""
 
     if train_structure is None:
-        return {"event_times": 5.0 * np.arange(n_trials), "train_id": np.zeros(n_trials, int),
-                "index_in_train": np.arange(n_trials), "rate": np.nan, "n_pulses": 1,
-                "gain": None}
+        return {
+            "event_times": 5.0 * np.arange(n_trials),
+            "train_id": np.zeros(n_trials, int),
+            "index_in_train": np.arange(n_trials),
+            "rate": np.nan,
+            "n_pulses": 1,
+            "gain": None,
+        }
     structure = dict(train_structure)
     n_pulses = _check_count("train_structure['n_pulses']", structure.get("n_pulses", 10))
     rate = structure.get("rate_hz", (0.2, 1.0))
@@ -295,14 +396,36 @@ def _train_layout(n_trials, train_structure, rng):
     train = np.arange(n_trials) // n_pulses
     event_times = train * (n_pulses / rate + gap) + index / rate
     gain = np.maximum(0.0, 1.0 + adaptation * index)
-    return {"event_times": event_times, "train_id": train, "index_in_train": index,
-            "rate": rate, "n_pulses": n_pulses, "gain": gain, "adaptation": adaptation}
+    return {
+        "event_times": event_times,
+        "train_id": train,
+        "index_in_train": index,
+        "rate": rate,
+        "n_pulses": n_pulses,
+        "gain": gain,
+        "adaptation": adaptation,
+    }
 
 
-def stimulation_artifact(times, sfreq, coords, *, source, sink=None, current_mA,
-                         pulse_width_us, biphasic=True, polarity=-1, onset=0.0,
-                         scale_uV_per_mA=25000.0, tail_fraction=0.02, tau1=0.0015,
-                         tau2=0.015, tail_weight=0.7, radius=1.0):
+def stimulation_artifact(
+    times,
+    sfreq,
+    coords,
+    *,
+    source,
+    sink=None,
+    current_mA,
+    pulse_width_us,
+    biphasic=True,
+    polarity=-1,
+    onset=0.0,
+    scale_uV_per_mA=25000.0,
+    tail_fraction=0.02,
+    tau1=0.0015,
+    tau2=0.015,
+    tail_weight=0.7,
+    radius=1.0,
+):
     """Artifact template of one pulse on every channel, shape (n_channels, n_times).
 
     ``scale_uV_per_mA × current × (r0/r+ − r0/r−)`` times the recorded pulse plus a
@@ -311,24 +434,56 @@ def stimulation_artifact(times, sfreq, coords, *, source, sink=None, current_mA,
 
     gain = scale_uV_per_mA * float(current_mA) * dipole_gain(coords, source, sink, radius)
     width = float(pulse_width_us)
-    shape = pulse_shape(times, sfreq, pulse_width_us=width,
-                        kind="biphasic" if biphasic else "monophasic", polarity=polarity,
-                        onset=onset)
+    shape = pulse_shape(
+        times,
+        sfreq,
+        pulse_width_us=width,
+        kind="biphasic" if biphasic else "monophasic",
+        polarity=polarity,
+        onset=onset,
+    )
     if tail_fraction:
         end = onset + (2 if biphasic else 1) * width * 1e-6
-        shape = shape + polarity * tail_fraction * tail_shape(times, sfreq, start=end, tau1=tau1,
-                                                              tau2=tau2, weight=tail_weight)
+        shape = shape + polarity * tail_fraction * tail_shape(
+            times, sfreq, start=end, tau1=tau1, tau2=tau2, weight=tail_weight
+        )
     return gain[:, None] * shape[None, :]
 
 
-def simulate_ccep(n_trials=10, *, n_channels=46, sfreq=2048., stim_current_mA=4.,
-                  pulse_width_us=200., biphasic=True, n1=None, n2=None, p_response=0.3,
-                  delayed=False, artifact=True, saturation=False, train_structure=None,
-                  seed=None, tmin=-0.5, tmax=1.0, layout="seeg", p_n2=0.8, p_delayed=0.5,
-                  polarity="negative", noise="pink", noise_sd=20., noise_kw=None, snr=None,
-                  jitter_sd=0., amplitude_cv=0., artifact_scale_uV_per_mA=100000.,
-                  artifact_cv=0.02, tail_fraction=0.02, tail_tau=(0.0015, 0.015),
-                  keep_arrays=True):
+def simulate_ccep(
+    n_trials=10,
+    *,
+    n_channels=46,
+    sfreq=2048.0,
+    stim_current_mA=4.0,
+    pulse_width_us=200.0,
+    biphasic=True,
+    n1=None,
+    n2=None,
+    p_response=0.3,
+    delayed=False,
+    artifact=True,
+    saturation=False,
+    train_structure=None,
+    seed=None,
+    tmin=-0.5,
+    tmax=1.0,
+    layout="seeg",
+    p_n2=0.8,
+    p_delayed=0.5,
+    polarity="negative",
+    noise="pink",
+    noise_sd=20.0,
+    noise_kw=None,
+    snr=None,
+    jitter_sd=0.0,
+    amplitude_cv=0.0,
+    artifact_scale_uV_per_mA=100000.0,
+    artifact_cv=0.02,
+    tail_fraction=0.02,
+    tail_tau=(0.0015, 0.015),
+    keep_arrays=True,
+):
     """Simulate cortico-cortical evoked potentials of single-pulse stimulation.
 
     One stimulation site (two adjacent contacts) and ``n_channels`` recording
@@ -401,16 +556,22 @@ def simulate_ccep(n_trials=10, *, n_channels=46, sfreq=2048., stim_current_mA=4.
     site = f"{names[anode]}-{names[cathode]}"
     trains = _train_layout(n_trials, train_structure, design)
 
-    specs = {"N1": _ccep_spec(n1, CCEP_N1, "n1"), "N2": _ccep_spec(n2, CCEP_N2, "n2"),
-             "delayed": CCEP_DELAYED}
+    specs = {
+        "N1": _ccep_spec(n1, CCEP_N1, "n1"),
+        "N2": _ccep_spec(n2, CCEP_N2, "n2"),
+        "delayed": CCEP_DELAYED,
+    }
     sources = []
     responders = []
     for channel in range(n_channels):
         if channel in (anode, cathode) or design.random() >= p_response:
             continue
         responders.append(names[channel])
-        flip = {"negative": 1.0, "positive": -1.0,
-                "random": -1.0 if design.random() < 0.5 else 1.0}[polarity]
+        flip = {
+            "negative": 1.0,
+            "positive": -1.0,
+            "random": -1.0 if design.random() < 0.5 else 1.0,
+        }[polarity]
         chosen = ["N1"]
         if design.random() < p_n2:
             chosen.append("N2")
@@ -418,48 +579,100 @@ def simulate_ccep(n_trials=10, *, n_channels=46, sfreq=2048., stim_current_mA=4.
             chosen.append("delayed")
         for label in chosen:
             params, amplitude = specs[label].resolve(design)
-            sources.append(Source(label=specs[label].label, shape=specs[label].shape,
-                                  params=params, amplitude=flip * amplitude, channel=channel,
-                                  gain=trains["gain"]))
+            sources.append(
+                Source(
+                    label=specs[label].label,
+                    shape=specs[label].shape,
+                    params=params,
+                    amplitude=flip * amplitude,
+                    channel=channel,
+                    gain=trains["gain"],
+                )
+            )
 
     artifact_data, artifact_info, rail = None, None, None
     polarity_name = "biphasic_cathodic_first" if biphasic else "monophasic_cathodic"
     if artifact:
-        template = stimulation_artifact(times, sfreq, coords, source=coords[anode],
-                                        sink=coords[cathode], current_mA=stim_current_mA,
-                                        pulse_width_us=pulse_width_us, biphasic=biphasic,
-                                        scale_uV_per_mA=artifact_scale_uV_per_mA,
-                                        tail_fraction=tail_fraction, tau1=tail_tau[0],
-                                        tau2=tail_tau[1])
+        template = stimulation_artifact(
+            times,
+            sfreq,
+            coords,
+            source=coords[anode],
+            sink=coords[cathode],
+            current_mA=stim_current_mA,
+            pulse_width_us=pulse_width_us,
+            biphasic=biphasic,
+            scale_uV_per_mA=artifact_scale_uV_per_mA,
+            tail_fraction=tail_fraction,
+            tau1=tail_tau[0],
+            tau2=tail_tau[1],
+        )
         variation = 1.0 + artifact_cv * rngs["artifact"].standard_normal(n_trials)
         artifact_data = variation[:, None, None] * template[None]
-        artifact_info = {"model": "dipole_pulse_tail", "stim_site": site,
-                         "stim_contacts": [names[anode], names[cathode]],
-                         "current_mA": float(stim_current_mA),
-                         "pulse_width_us": float(pulse_width_us), "biphasic": bool(biphasic),
-                         "scale_uV_per_mA": float(artifact_scale_uV_per_mA),
-                         "tail_fraction": float(tail_fraction), "tail_tau": list(tail_tau),
-                         "filter": {"type": "butterworth_lowpass", "order": 4,
-                                    "cutoff_hz": 0.25 * sfreq},
-                         "trial_scale": variation.tolist(),
-                         "peak_uV": np.max(np.abs(template), axis=1).tolist()}
+        artifact_info = {
+            "model": "dipole_pulse_tail",
+            "stim_site": site,
+            "stim_contacts": [names[anode], names[cathode]],
+            "current_mA": float(stim_current_mA),
+            "pulse_width_us": float(pulse_width_us),
+            "biphasic": bool(biphasic),
+            "scale_uV_per_mA": float(artifact_scale_uV_per_mA),
+            "tail_fraction": float(tail_fraction),
+            "tail_tau": list(tail_tau),
+            "filter": {"type": "butterworth_lowpass", "order": 4, "cutoff_hz": 0.25 * sfreq},
+            "trial_scale": variation.tolist(),
+            "peak_uV": np.max(np.abs(template), axis=1).tolist(),
+        }
         if saturation is not False and saturation is not None:
-            rail = 0.3 * float(np.max(np.abs(template))) if saturation is True \
-                else float(saturation)
-    metadata = _stim_metadata(n_trials, site, stim_current_mA, pulse_width_us, polarity_name,
-                              trains["rate"], trains["n_pulses"])
-    metadata.update(train_id=np.asarray(trains["train_id"], dtype=np.int64),
-                    index_in_train=np.asarray(trains["index_in_train"], dtype=np.int64))
-    ch_info = _ch_info(names, coords, groups, "seeg" if layout == "seeg" else "ecog",
-                       stim=(names[anode], names[cathode]))
-    ts, truth = assemble(generator="evoparam.sim.simulate_ccep", settings=settings, seed=entropy,
-                         rngs=rngs, times=times, sfreq=sfreq, ch_names=names, sources=sources,
-                         n_trials=n_trials, noise=noise, noise_sd=noise_sd, noise_kw=noise_kw,
-                         snr=snr, jitter_sd=jitter_sd, amplitude_cv=amplitude_cv,
-                         artifact=artifact_data, artifact_info=artifact_info, rail=rail,
-                         metadata=metadata, ch_info=ch_info,
-                         event_times=np.asarray(trains["event_times"], dtype=float),
-                         modality="spes", keep_arrays=keep_arrays, start=start)
+            rail = (
+                0.3 * float(np.max(np.abs(template))) if saturation is True else float(saturation)
+            )
+    metadata = _stim_metadata(
+        n_trials,
+        site,
+        stim_current_mA,
+        pulse_width_us,
+        polarity_name,
+        trains["rate"],
+        trains["n_pulses"],
+    )
+    metadata.update(
+        train_id=np.asarray(trains["train_id"], dtype=np.int64),
+        index_in_train=np.asarray(trains["index_in_train"], dtype=np.int64),
+    )
+    ch_info = _ch_info(
+        names,
+        coords,
+        groups,
+        "seeg" if layout == "seeg" else "ecog",
+        stim=(names[anode], names[cathode]),
+    )
+    ts, truth = assemble(
+        generator="evoparam.sim.simulate_ccep",
+        settings=settings,
+        seed=entropy,
+        rngs=rngs,
+        times=times,
+        sfreq=sfreq,
+        ch_names=names,
+        sources=sources,
+        n_trials=n_trials,
+        noise=noise,
+        noise_sd=noise_sd,
+        noise_kw=noise_kw,
+        snr=snr,
+        jitter_sd=jitter_sd,
+        amplitude_cv=amplitude_cv,
+        artifact=artifact_data,
+        artifact_info=artifact_info,
+        rail=rail,
+        metadata=metadata,
+        ch_info=ch_info,
+        event_times=np.asarray(trains["event_times"], dtype=float),
+        modality="spes",
+        keep_arrays=keep_arrays,
+        start=start,
+    )
     truth.settings["responders"] = responders
     truth.settings["stim_site"] = site
     if train_structure is not None:
@@ -470,12 +683,33 @@ def simulate_ccep(n_trials=10, *, n_channels=46, sfreq=2048., stim_current_mA=4.
 ###################################################################################################
 ## ERNA
 
-def simulate_erna(n_pulses=10, *, n_trials=20, sfreq=4096., f=(200., 450.), tau=0.004,
-                  pulse_rate=130., artifact=True, n_channels=4, tmin=-0.02, tmax=None,
-                  onset_delay=0.001, buildup=2.0, amplitude=(-300., -100.),
-                  stim_current_mA=3., pulse_width_us=60., noise="pink", noise_sd=5.,
-                  noise_kw=None, snr=None, jitter_sd=0., amplitude_cv=0., seed=None,
-                  keep_arrays=True):
+
+def simulate_erna(
+    n_pulses=10,
+    *,
+    n_trials=20,
+    sfreq=4096.0,
+    f=(200.0, 450.0),
+    tau=0.004,
+    pulse_rate=130.0,
+    artifact=True,
+    n_channels=4,
+    tmin=-0.02,
+    tmax=None,
+    onset_delay=0.001,
+    buildup=2.0,
+    amplitude=(-300.0, -100.0),
+    stim_current_mA=3.0,
+    pulse_width_us=60.0,
+    noise="pink",
+    noise_sd=5.0,
+    noise_kw=None,
+    snr=None,
+    jitter_sd=0.0,
+    amplitude_cv=0.0,
+    seed=None,
+    keep_arrays=True,
+):
     """Simulate evoked resonant neural activity (ERNA) of deep brain stimulation.
 
     Each trial is a burst of ``n_pulses`` pulses at ``pulse_rate`` Hz on a DBS lead
@@ -535,8 +769,11 @@ def simulate_erna(n_pulses=10, *, n_trials=20, sfreq=4096., f=(200., 450.), tau=
     names, coords, groups = line_layout(n_channels, 2.0, "L")
     freq = float(design.uniform(*f)) if isinstance(f, (tuple, list)) else float(f)
     decay = float(design.uniform(*tau)) if isinstance(tau, (tuple, list)) else float(tau)
-    peak = float(design.uniform(*amplitude)) if isinstance(amplitude, (tuple, list)) \
+    peak = (
+        float(design.uniform(*amplitude))
+        if isinstance(amplitude, (tuple, list))
         else float(amplitude)
+    )
     if freq * 2.5 > sfreq:
         raise SettingsError(f"simulate_erna: {freq} Hz is too fast for {sfreq} Hz sampling.")
     distance = dipole_gain(coords, coords[1], radius=2.0)
@@ -547,34 +784,79 @@ def simulate_erna(n_pulses=10, *, n_trials=20, sfreq=4096., f=(200., 450.), tau=
         rel_space = distance[channel] / distance[1:].max()
         for pulse in range(n_pulses):
             params = np.array([pulse / pulse_rate + onset_delay, decay, freq, -np.pi / 2])
-            sources.append(Source(label="ERNA", shape="damped_oscillation", params=params,
-                                  amplitude=peak * rel_space * build[pulse], channel=channel,
-                                  event=pulse, rel=rel_space * build[pulse], group="ERNA"))
+            sources.append(
+                Source(
+                    label="ERNA",
+                    shape="damped_oscillation",
+                    params=params,
+                    amplitude=peak * rel_space * build[pulse],
+                    channel=channel,
+                    event=pulse,
+                    rel=rel_space * build[pulse],
+                    group="ERNA",
+                )
+            )
     artifact_data, artifact_info = None, None
     if artifact:
         template = np.zeros((n_channels, times.size))
         for pulse in range(n_pulses):
-            template += stimulation_artifact(times, sfreq, coords, source=coords[0],
-                                             current_mA=stim_current_mA,
-                                             pulse_width_us=pulse_width_us,
-                                             onset=pulse / pulse_rate, tail_fraction=0.05,
-                                             tau1=0.0003, tau2=0.001)
+            template += stimulation_artifact(
+                times,
+                sfreq,
+                coords,
+                source=coords[0],
+                current_mA=stim_current_mA,
+                pulse_width_us=pulse_width_us,
+                onset=pulse / pulse_rate,
+                tail_fraction=0.05,
+                tau1=0.0003,
+                tau2=0.001,
+            )
         artifact_data = np.repeat(template[None], n_trials, axis=0)
-        artifact_info = {"model": "monopolar_pulse_train", "stim_contact": names[0],
-                         "pulse_rate_hz": float(pulse_rate), "n_pulses": n_pulses,
-                         "current_mA": float(stim_current_mA),
-                         "pulse_width_us": float(pulse_width_us),
-                         "peak_uV": np.max(np.abs(template), axis=1).tolist()}
-    metadata = _stim_metadata(n_trials, names[0], stim_current_mA, pulse_width_us,
-                              "biphasic_cathodic_first", pulse_rate, n_pulses)
+        artifact_info = {
+            "model": "monopolar_pulse_train",
+            "stim_contact": names[0],
+            "pulse_rate_hz": float(pulse_rate),
+            "n_pulses": n_pulses,
+            "current_mA": float(stim_current_mA),
+            "pulse_width_us": float(pulse_width_us),
+            "peak_uV": np.max(np.abs(template), axis=1).tolist(),
+        }
+    metadata = _stim_metadata(
+        n_trials,
+        names[0],
+        stim_current_mA,
+        pulse_width_us,
+        "biphasic_cathodic_first",
+        pulse_rate,
+        n_pulses,
+    )
     ch_info = _ch_info(names, coords, groups, "dbs", stim=(names[0],))
-    ts, truth = assemble(generator="evoparam.sim.simulate_erna", settings=settings, seed=entropy,
-                         rngs=rngs, times=times, sfreq=sfreq, ch_names=names, sources=sources,
-                         n_trials=n_trials, noise=noise, noise_sd=noise_sd, noise_kw=noise_kw,
-                         snr=snr, jitter_sd=jitter_sd, amplitude_cv=amplitude_cv,
-                         artifact=artifact_data, artifact_info=artifact_info, metadata=metadata,
-                         ch_info=ch_info, event_times=2.0 * np.arange(n_trials),
-                         modality="erna", keep_arrays=keep_arrays, start=start)
+    ts, truth = assemble(
+        generator="evoparam.sim.simulate_erna",
+        settings=settings,
+        seed=entropy,
+        rngs=rngs,
+        times=times,
+        sfreq=sfreq,
+        ch_names=names,
+        sources=sources,
+        n_trials=n_trials,
+        noise=noise,
+        noise_sd=noise_sd,
+        noise_kw=noise_kw,
+        snr=snr,
+        jitter_sd=jitter_sd,
+        amplitude_cv=amplitude_cv,
+        artifact=artifact_data,
+        artifact_info=artifact_info,
+        metadata=metadata,
+        ch_info=ch_info,
+        event_times=2.0 * np.arange(n_trials),
+        modality="erna",
+        keep_arrays=keep_arrays,
+        start=start,
+    )
     truth.settings.update(erna_freq_hz=freq, erna_tau_s=decay)
     return ts, truth
 
@@ -583,10 +865,20 @@ def simulate_erna(n_pulses=10, *, n_trials=20, sfreq=4096., f=(200., 450.), tau=
 ## TEP
 
 AUDITORY_COMPONENTS = {
-    "AEP_N100": ComponentSpec("AEP_N100", latency=(0.090, 0.120), fwhm=(0.030, 0.050),
-                              amplitude=(-6.0, -2.0), role="confound"),
-    "AEP_P200": ComponentSpec("AEP_P200", latency=(0.170, 0.230), fwhm=(0.050, 0.080),
-                              amplitude=(3.0, 6.0), role="confound"),
+    "AEP_N100": ComponentSpec(
+        "AEP_N100",
+        latency=(0.090, 0.120),
+        fwhm=(0.030, 0.050),
+        amplitude=(-6.0, -2.0),
+        role="confound",
+    ),
+    "AEP_P200": ComponentSpec(
+        "AEP_P200",
+        latency=(0.170, 0.230),
+        fwhm=(0.050, 0.080),
+        amplitude=(3.0, 6.0),
+        role="confound",
+    ),
 }
 
 # Spatial spread (head radii) of each TEP component around the stimulated site.
@@ -594,16 +886,33 @@ _TEP_SPREAD = {"N15": 0.25, "P30": 0.25, "N45": 0.35, "P60": 0.35, "N100": 0.6, 
 
 
 def _blob(coords, centre, spread, floor=0.05):
-    weights = np.exp(-np.sum((coords[:, :2] - centre[:2]) ** 2, axis=1) / (2 * spread ** 2))
+    weights = np.exp(-np.sum((coords[:, :2] - centre[:2]) ** 2, axis=1) / (2 * spread**2))
     weights[weights < floor] = 0.0
     return weights
 
 
-def simulate_tep(n_trials=40, *, n_channels=32, sfreq=5000., tmin=-0.2, tmax=0.4,
-                 components=tuple(TEP_COMPONENTS), stim_site="C3", auditory=True,
-                 pulse_artifact=True, decay_artifact=True, muscle_artifact=True, noise="pink",
-                 noise_sd=5., noise_kw=None, snr=None, jitter_sd=0., amplitude_cv=0.,
-                 seed=None, keep_arrays=True):
+def simulate_tep(
+    n_trials=40,
+    *,
+    n_channels=32,
+    sfreq=5000.0,
+    tmin=-0.2,
+    tmax=0.4,
+    components=tuple(TEP_COMPONENTS),
+    stim_site="C3",
+    auditory=True,
+    pulse_artifact=True,
+    decay_artifact=True,
+    muscle_artifact=True,
+    noise="pink",
+    noise_sd=5.0,
+    noise_kw=None,
+    snr=None,
+    jitter_sd=0.0,
+    amplitude_cv=0.0,
+    seed=None,
+    keep_arrays=True,
+):
     """Simulate TMS-evoked potentials with their artifacts and the auditory confound.
 
     Components N15, P30, N45, P60, N100 and P180 (latency ranges of
@@ -648,34 +957,39 @@ def simulate_tep(n_trials=40, *, n_channels=32, sfreq=5000., tmin=-0.2, tmax=0.4
     times = time_axis(sfreq, tmin, tmax)
     names, coords, groups = scalp_layout(n_channels)
     if stim_site not in names:
-        raise SettingsError(f"stim_site '{stim_site}' is not one of the {n_channels} channels "
-                            f"{names}.")
+        raise SettingsError(
+            f"stim_site '{stim_site}' is not one of the {n_channels} channels {names}."
+        )
     centre = coords[names.index(stim_site)]
     sources = []
     for item in components:
         spec = as_spec(item, TEP_COMPONENTS)
         if spec.weights is None and spec.channels is None:
             from dataclasses import replace
-            spec = replace(spec, weights=tuple(_blob(coords, centre,
-                                                     _TEP_SPREAD.get(spec.label, 0.4))))
+
+            spec = replace(
+                spec, weights=tuple(_blob(coords, centre, _TEP_SPREAD.get(spec.label, 0.4)))
+            )
         sources.extend(_spec_sources(spec, design, names))
     if auditory:
         vertex = np.zeros(3)
         for spec in AUDITORY_COMPONENTS.values():
             from dataclasses import replace
+
             spec = replace(spec, weights=tuple(_blob(coords, vertex, 0.5)))
             sources.extend(_spec_sources(spec, design, names))
 
     distance = np.linalg.norm(coords[:, :2] - centre[:2], axis=1)
-    near = np.exp(-distance ** 2 / (2 * 0.25 ** 2))
+    near = np.exp(-(distance**2) / (2 * 0.25**2))
     template_parts, info = {}, {"model": "tms", "stim_site": stim_site}
     if pulse_artifact:
         peak = float(art_rng.uniform(2000.0, 8000.0))
         recovery = float(art_rng.uniform(0.001, 0.002))
         shape = pulse_shape(times, sfreq, pulse_width_us=150.0, kind="biphasic", polarity=1)
         shape = shape / max(np.max(np.abs(shape)), 1e-12)
-        shape = shape + tail_shape(times, sfreq, start=0.0003, tau1=recovery, tau2=recovery,
-                                   weight=1.0)
+        shape = shape + tail_shape(
+            times, sfreq, start=0.0003, tau1=recovery, tau2=recovery, weight=1.0
+        )
         template_parts["pulse"] = (peak * (0.1 + 0.9 * near))[:, None] * shape[None]
         info["pulse"] = {"peak_uV": peak, "recovery_tau_s": recovery}
     if decay_artifact:
@@ -686,16 +1000,26 @@ def simulate_tep(n_trials=40, *, n_channels=32, sfreq=5000., tmin=-0.2, tmax=0.4
         info["decay"] = {"amplitude_uV": float(amp), "tau_s": tau}
     if muscle_artifact:
         from evoparam.shapes import get_shape
-        params = np.array([art_rng.uniform(0.010, 0.020), art_rng.uniform(0.003, 0.006),
-                           art_rng.uniform(60.0, 120.0), art_rng.uniform(-np.pi, np.pi)])
+
+        params = np.array(
+            [
+                art_rng.uniform(0.010, 0.020),
+                art_rng.uniform(0.003, 0.006),
+                art_rng.uniform(60.0, 120.0),
+                art_rng.uniform(-np.pi, np.pi),
+            ]
+        )
         if params[2] * 2.5 > sfreq:
             params[2] = sfreq / 2.5
         amp = float(art_rng.uniform(20.0, 150.0))
         shape = get_shape("gabor").evaluate(times, params)
-        lateral = np.exp(-distance ** 2 / (2 * 0.3 ** 2))
+        lateral = np.exp(-(distance**2) / (2 * 0.3**2))
         template_parts["muscle"] = (amp * lateral)[:, None] * shape[None]
-        info["muscle"] = {"amplitude_uV": amp, "shape": "gabor",
-                          "params": dict(zip(("t0", "sigma", "freq", "phase"), params.tolist()))}
+        info["muscle"] = {
+            "amplitude_uV": amp,
+            "shape": "gabor",
+            "params": dict(zip(("t0", "sigma", "freq", "phase"), params.tolist())),
+        }
     artifact_data = None
     if template_parts:
         cvs = {"pulse": 0.02, "decay": 0.1, "muscle": 0.2}
@@ -706,15 +1030,36 @@ def simulate_tep(n_trials=40, *, n_channels=32, sfreq=5000., tmin=-0.2, tmax=0.4
             info[name]["trial_cv"] = cvs[name]
     else:
         info = None
-    metadata = {"trial": np.arange(n_trials, dtype=np.int64), "condition": [""] * n_trials,
-                "stim_site": [stim_site] * n_trials}
+    metadata = {
+        "trial": np.arange(n_trials, dtype=np.int64),
+        "condition": [""] * n_trials,
+        "stim_site": [stim_site] * n_trials,
+    }
     ch_info = _ch_info(names, coords, groups, "eeg", coord_space="unit_disc")
-    return assemble(generator="evoparam.sim.simulate_tep", settings=settings, seed=entropy,
-                    rngs=rngs, times=times, sfreq=sfreq, ch_names=names, sources=sources,
-                    n_trials=n_trials, noise=noise, noise_sd=noise_sd, noise_kw=noise_kw,
-                    snr=snr, jitter_sd=jitter_sd, amplitude_cv=amplitude_cv,
-                    artifact=artifact_data, artifact_info=info, metadata=metadata,
-                    ch_info=ch_info, modality="tep", keep_arrays=keep_arrays, start=start)
+    return assemble(
+        generator="evoparam.sim.simulate_tep",
+        settings=settings,
+        seed=entropy,
+        rngs=rngs,
+        times=times,
+        sfreq=sfreq,
+        ch_names=names,
+        sources=sources,
+        n_trials=n_trials,
+        noise=noise,
+        noise_sd=noise_sd,
+        noise_kw=noise_kw,
+        snr=snr,
+        jitter_sd=jitter_sd,
+        amplitude_cv=amplitude_cv,
+        artifact=artifact_data,
+        artifact_info=info,
+        metadata=metadata,
+        ch_info=ch_info,
+        modality="tep",
+        keep_arrays=keep_arrays,
+        start=start,
+    )
 
 
 ###################################################################################################
@@ -723,23 +1068,56 @@ def simulate_tep(n_trials=40, *, n_channels=32, sfreq=5000., tmin=-0.2, tmax=0.4
 _ECAP_KINDS = {
     # N1 latency at the nearest recording contact (s), N1 -> P2 delay (s), FWHMs (s),
     # contact spacing (mm), conduction velocity (mm/s, None: no propagation), space constant.
-    "spinal": {"n1": (0.0008, 0.0012), "p2_delay": (0.0003, 0.0006),
-               "n1_fwhm": (0.00015, 0.0003), "p2_fwhm": (0.0003, 0.0006), "spacing": 7.0,
-               "velocity": 60000.0, "space": 20.0},
-    "cochlear": {"n1": (0.0003, 0.0005), "p2_delay": (0.0002, 0.0004),
-                 "n1_fwhm": (0.0001, 0.0002), "p2_fwhm": (0.0002, 0.0004), "spacing": 0.75,
-                 "velocity": None, "space": 2.0},
+    "spinal": {
+        "n1": (0.0008, 0.0012),
+        "p2_delay": (0.0003, 0.0006),
+        "n1_fwhm": (0.00015, 0.0003),
+        "p2_fwhm": (0.0003, 0.0006),
+        "spacing": 7.0,
+        "velocity": 60000.0,
+        "space": 20.0,
+    },
+    "cochlear": {
+        "n1": (0.0003, 0.0005),
+        "p2_delay": (0.0002, 0.0004),
+        "n1_fwhm": (0.0001, 0.0002),
+        "p2_fwhm": (0.0002, 0.0004),
+        "spacing": 0.75,
+        "velocity": None,
+        "space": 2.0,
+    },
 }
 PARADIGMS = (None, "alternating", "forward_masking")
 
 
-def simulate_ecap(n_trials=40, *, kind="spinal", n_channels=8, sfreq=30000., tmin=-0.001,
-                  tmax=0.003, paradigm=None, masker_probe_interval=0.0005, masking=1.0,
-                  stim_current_mA=1., pulse_width_us=50., artifact=True,
-                  amplitude=((-200., -50.), (40., 150.)), noise="white", noise_sd=5.,
-                  noise_kw=None, snr=None, jitter_sd=0., amplitude_cv=0.,
-                  artifact_scale_uV_per_mA=20000., tail_fraction=0.05, tail_tau=0.0002,
-                  switch_artifact_uV=20., seed=None, keep_arrays=True):
+def simulate_ecap(
+    n_trials=40,
+    *,
+    kind="spinal",
+    n_channels=8,
+    sfreq=30000.0,
+    tmin=-0.001,
+    tmax=0.003,
+    paradigm=None,
+    masker_probe_interval=0.0005,
+    masking=1.0,
+    stim_current_mA=1.0,
+    pulse_width_us=50.0,
+    artifact=True,
+    amplitude=((-200.0, -50.0), (40.0, 150.0)),
+    noise="white",
+    noise_sd=5.0,
+    noise_kw=None,
+    snr=None,
+    jitter_sd=0.0,
+    amplitude_cv=0.0,
+    artifact_scale_uV_per_mA=20000.0,
+    tail_fraction=0.05,
+    tail_tau=0.0002,
+    switch_artifact_uV=20.0,
+    seed=None,
+    keep_arrays=True,
+):
     """Simulate evoked compound action potentials (spinal cord or cochlea).
 
     The response is an N1-P2 complex of two ``biexponential`` components (N1 at
@@ -817,8 +1195,9 @@ def simulate_ecap(n_trials=40, *, kind="spinal", n_channels=8, sfreq=30000., tmi
         condition = np.array([""] * n_trials)
         pair_id = np.arange(n_trials)
     sign = np.where((np.arange(n_trials) % 2 == 1) & (paradigm == "alternating"), 1, -1)
-    polarity_names = ["biphasic_anodic_first" if s > 0 else "biphasic_cathodic_first"
-                      for s in sign]
+    polarity_names = [
+        "biphasic_anodic_first" if s > 0 else "biphasic_cathodic_first" for s in sign
+    ]
 
     n1_latency = float(design.uniform(*form["n1"]))
     p2_delay = float(design.uniform(*form["p2_delay"]))
@@ -831,34 +1210,67 @@ def simulate_ecap(n_trials=40, *, kind="spinal", n_channels=8, sfreq=30000., tmi
         probe_present &= condition != "B"
     masker_present = (condition == "B") | (condition == "C")
     from .components import shape_params
+
     sources = []
     for channel in range(1, n_channels):
-        delay = 0.0 if form["velocity"] is None else \
-            (distance[channel] - distance[1]) / form["velocity"]
+        delay = (
+            0.0
+            if form["velocity"] is None
+            else (distance[channel] - distance[1]) / form["velocity"]
+        )
         space = np.exp(-(distance[channel] - distance[1]) / form["space"])
-        for label, latency, width, peak in (("N1", n1_latency, fwhm[0], peaks[0]),
-                                            ("P2", n1_latency + p2_delay, fwhm[1], peaks[1])):
+        for label, latency, width, peak in (
+            ("N1", n1_latency, fwhm[0], peaks[0]),
+            ("P2", n1_latency + p2_delay, fwhm[1], peaks[1]),
+        ):
             params = shape_params("biexponential", latency + delay, width, tau_decay_ratio=3.0)
-            sources.append(Source(label=label, shape="biexponential", params=params,
-                                  amplitude=peak * space, channel=channel, rel=space,
-                                  present=probe_present, gain=probe_gain))
+            sources.append(
+                Source(
+                    label=label,
+                    shape="biexponential",
+                    params=params,
+                    amplitude=peak * space,
+                    channel=channel,
+                    rel=space,
+                    present=probe_present,
+                    gain=probe_gain,
+                )
+            )
             if paradigm == "forward_masking":
-                sources.append(Source(label=label, shape="biexponential", params=params,
-                                      amplitude=1.0, channel=channel, role="masker", event=-1,
-                                      present=masker_present,
-                                      offset=np.full(n_trials, -masker_probe_interval),
-                                      parent=len(sources) - 1))
+                sources.append(
+                    Source(
+                        label=label,
+                        shape="biexponential",
+                        params=params,
+                        amplitude=1.0,
+                        channel=channel,
+                        role="masker",
+                        event=-1,
+                        present=masker_present,
+                        offset=np.full(n_trials, -masker_probe_interval),
+                        parent=len(sources) - 1,
+                    )
+                )
 
     artifact_data, artifact_info = None, None
     if artifact:
+
         def pulse(onset, polarity):
-            return stimulation_artifact(times, sfreq, coords, source=coords[0],
-                                        current_mA=stim_current_mA,
-                                        pulse_width_us=pulse_width_us, polarity=polarity,
-                                        onset=onset,
-                                        scale_uV_per_mA=artifact_scale_uV_per_mA,
-                                        tail_fraction=tail_fraction, tau1=tail_tau,
-                                        tau2=tail_tau)
+            return stimulation_artifact(
+                times,
+                sfreq,
+                coords,
+                source=coords[0],
+                current_mA=stim_current_mA,
+                pulse_width_us=pulse_width_us,
+                polarity=polarity,
+                onset=onset,
+                scale_uV_per_mA=artifact_scale_uV_per_mA,
+                tail_fraction=tail_fraction,
+                tau1=tail_tau,
+                tau2=tail_tau,
+            )
+
         probe = {s: pulse(0.0, s) for s in (-1, 1)}
         artifact_data = np.zeros((n_trials, n_channels, times.size))
         for trial in range(n_trials):
@@ -866,36 +1278,59 @@ def simulate_ecap(n_trials=40, *, kind="spinal", n_channels=8, sfreq=30000., tmi
                 artifact_data[trial] += probe[sign[trial]]
         if paradigm == "forward_masking":
             masker = pulse(-masker_probe_interval, -1)
-            switch = switch_artifact_uV * tail_shape(times, sfreq, start=tmin + 0.1 * (0 - tmin),
-                                                     tau1=0.0002, tau2=0.0002, weight=1.0)
+            switch = switch_artifact_uV * tail_shape(
+                times, sfreq, start=tmin + 0.1 * (0 - tmin), tau1=0.0002, tau2=0.0002, weight=1.0
+            )
             for trial in range(n_trials):
                 if condition[trial] in ("B", "C"):
                     artifact_data[trial] += masker
                 artifact_data[trial] += switch[None, :]
-        artifact_info = {"model": "monopolar_pulse_tail", "stim_contact": names[0],
-                         "current_mA": float(stim_current_mA),
-                         "pulse_width_us": float(pulse_width_us),
-                         "scale_uV_per_mA": float(artifact_scale_uV_per_mA),
-                         "tail_fraction": float(tail_fraction), "tail_tau_s": float(tail_tau),
-                         "paradigm": paradigm,
-                         "masker_probe_interval_s": float(masker_probe_interval),
-                         "switch_artifact_uV": float(switch_artifact_uV)
-                         if paradigm == "forward_masking" else None}
-    metadata = _stim_metadata(n_trials, names[0], stim_current_mA, pulse_width_us,
-                              polarity_names)
+        artifact_info = {
+            "model": "monopolar_pulse_tail",
+            "stim_contact": names[0],
+            "current_mA": float(stim_current_mA),
+            "pulse_width_us": float(pulse_width_us),
+            "scale_uV_per_mA": float(artifact_scale_uV_per_mA),
+            "tail_fraction": float(tail_fraction),
+            "tail_tau_s": float(tail_tau),
+            "paradigm": paradigm,
+            "masker_probe_interval_s": float(masker_probe_interval),
+            "switch_artifact_uV": float(switch_artifact_uV)
+            if paradigm == "forward_masking"
+            else None,
+        }
+    metadata = _stim_metadata(n_trials, names[0], stim_current_mA, pulse_width_us, polarity_names)
     metadata["condition"] = list(condition)
     if paradigm is not None:
         metadata["pair_id"] = pair_id.astype(np.int64)
     if paradigm == "forward_masking":
         metadata["paradigm_condition"] = list(condition)
     ch_info = _ch_info(names, coords, groups, "ecap", stim=(names[0],))
-    ts, truth = assemble(generator="evoparam.sim.simulate_ecap", settings=settings, seed=entropy,
-                         rngs=rngs, times=times, sfreq=sfreq, ch_names=names, sources=sources,
-                         n_trials=n_trials, noise=noise, noise_sd=noise_sd, noise_kw=noise_kw,
-                         snr=snr, jitter_sd=jitter_sd, amplitude_cv=amplitude_cv,
-                         artifact=artifact_data, artifact_info=artifact_info, metadata=metadata,
-                         ch_info=ch_info, conditions=list(condition), modality="ecap",
-                         keep_arrays=keep_arrays, start=start)
+    ts, truth = assemble(
+        generator="evoparam.sim.simulate_ecap",
+        settings=settings,
+        seed=entropy,
+        rngs=rngs,
+        times=times,
+        sfreq=sfreq,
+        ch_names=names,
+        sources=sources,
+        n_trials=n_trials,
+        noise=noise,
+        noise_sd=noise_sd,
+        noise_kw=noise_kw,
+        snr=snr,
+        jitter_sd=jitter_sd,
+        amplitude_cv=amplitude_cv,
+        artifact=artifact_data,
+        artifact_info=artifact_info,
+        metadata=metadata,
+        ch_info=ch_info,
+        conditions=list(condition),
+        modality="ecap",
+        keep_arrays=keep_arrays,
+        start=start,
+    )
     return ts, truth
 
 
@@ -903,23 +1338,48 @@ def simulate_ecap(n_trials=40, *, kind="spinal", n_channels=8, sfreq=30000., tmi
 ## Animal evoked LFP
 
 ANIMAL_COMPONENTS = {
-    "visual": (ComponentSpec("N1", latency=(0.040, 0.060), fwhm=(0.020, 0.035),
-                             amplitude=(-300.0, -100.0)),
-               ComponentSpec("P2", latency=(0.080, 0.120), fwhm=(0.040, 0.070),
-                             amplitude=(100.0, 250.0))),
-    "electrical": (ComponentSpec("early", latency=(0.003, 0.008), fwhm=(0.002, 0.005),
-                                 amplitude=(-300.0, -100.0)),
-                   ComponentSpec("late", latency=(0.015, 0.030), fwhm=(0.010, 0.020),
-                                 amplitude=(50.0, 200.0))),
+    "visual": (
+        ComponentSpec(
+            "N1", latency=(0.040, 0.060), fwhm=(0.020, 0.035), amplitude=(-300.0, -100.0)
+        ),
+        ComponentSpec("P2", latency=(0.080, 0.120), fwhm=(0.040, 0.070), amplitude=(100.0, 250.0)),
+    ),
+    "electrical": (
+        ComponentSpec(
+            "early", latency=(0.003, 0.008), fwhm=(0.002, 0.005), amplitude=(-300.0, -100.0)
+        ),
+        ComponentSpec(
+            "late", latency=(0.015, 0.030), fwhm=(0.010, 0.020), amplitude=(50.0, 200.0)
+        ),
+    ),
 }
 
 
-def simulate_animal_ep(n_trials=100, *, species="mouse", stimulus="visual", n_channels=32,
-                       spacing_um=40., sfreq=1250., tmin=-0.2, tmax=0.5, components=None,
-                       reversal_um=(300., 500.), reversal_width_um=100.,
-                       states=("awake", "nrem"), state_gain=None, artifact=None,
-                       noise="pink", noise_sd=30., noise_kw=None, snr=None, jitter_sd=0.,
-                       amplitude_cv=0., seed=None, keep_arrays=True):
+def simulate_animal_ep(
+    n_trials=100,
+    *,
+    species="mouse",
+    stimulus="visual",
+    n_channels=32,
+    spacing_um=40.0,
+    sfreq=1250.0,
+    tmin=-0.2,
+    tmax=0.5,
+    components=None,
+    reversal_um=(300.0, 500.0),
+    reversal_width_um=100.0,
+    states=("awake", "nrem"),
+    state_gain=None,
+    artifact=None,
+    noise="pink",
+    noise_sd=30.0,
+    noise_kw=None,
+    snr=None,
+    jitter_sd=0.0,
+    amplitude_cv=0.0,
+    seed=None,
+    keep_arrays=True,
+):
     """Simulate visual or electrically evoked LFP on a laminar probe.
 
     Each component has a depth profile ``tanh((z_rev - depth) / width)``: one
@@ -985,10 +1445,14 @@ def simulate_animal_ep(n_trials=100, *, species="mouse", stimulus="visual", n_ch
     sources = []
     for item in specs:
         spec = as_spec(item, {s.label: s for s in ANIMAL_COMPONENTS[stimulus]})
-        reversal = float(design.uniform(*reversal_um)) if isinstance(reversal_um, (tuple, list)) \
+        reversal = (
+            float(design.uniform(*reversal_um))
+            if isinstance(reversal_um, (tuple, list))
             else float(reversal_um)
+        )
         if spec.weights is None and spec.channels is None:
             from dataclasses import replace
+
             profile = np.tanh((reversal - depth_um) / float(reversal_width_um))
             spec = replace(spec, weights=tuple(profile))
         sources.extend(_spec_sources(spec, design, names, gain=trial_gain))
@@ -996,27 +1460,68 @@ def simulate_animal_ep(n_trials=100, *, species="mouse", stimulus="visual", n_ch
     artifact_data, artifact_info = None, None
     if use_artifact:
         site = np.array([0.5, 0.0, -0.4])
-        template = stimulation_artifact(times, sfreq, coords, source=site, current_mA=0.1,
-                                        pulse_width_us=100.0, scale_uV_per_mA=20000.0,
-                                        radius=0.05, tail_fraction=0.05, tau1=0.001, tau2=0.005)
+        template = stimulation_artifact(
+            times,
+            sfreq,
+            coords,
+            source=site,
+            current_mA=0.1,
+            pulse_width_us=100.0,
+            scale_uV_per_mA=20000.0,
+            radius=0.05,
+            tail_fraction=0.05,
+            tau1=0.001,
+            tau2=0.005,
+        )
         variation = 1.0 + 0.02 * rngs["artifact"].standard_normal(n_trials)
         artifact_data = variation[:, None, None] * template[None]
-        artifact_info = {"model": "monopolar_pulse_tail", "site_mm": site.tolist(),
-                         "current_mA": 0.1, "pulse_width_us": 100.0,
-                         "trial_scale": variation.tolist()}
-    metadata = {"trial": np.arange(n_trials, dtype=np.int64), "condition": state_of.tolist(),
-                "state": state_of.tolist()}
+        artifact_info = {
+            "model": "monopolar_pulse_tail",
+            "site_mm": site.tolist(),
+            "current_mA": 0.1,
+            "pulse_width_us": 100.0,
+            "trial_scale": variation.tolist(),
+        }
+    metadata = {
+        "trial": np.arange(n_trials, dtype=np.int64),
+        "condition": state_of.tolist(),
+        "state": state_of.tolist(),
+    }
     ch_info = _ch_info(names, coords, groups, "lfp")
-    ts, truth = assemble(generator="evoparam.sim.simulate_animal_ep", settings=settings,
-                         seed=entropy, rngs=rngs, times=times, sfreq=sfreq, ch_names=names,
-                         sources=sources, n_trials=n_trials, noise=noise, noise_sd=noise_sd,
-                         noise_kw=noise_kw, snr=snr, jitter_sd=jitter_sd,
-                         amplitude_cv=amplitude_cv, artifact=artifact_data,
-                         artifact_info=artifact_info, metadata=metadata, ch_info=ch_info,
-                         conditions=state_of.tolist(), species=species, modality="lfp_ep",
-                         keep_arrays=keep_arrays, start=start)
+    ts, truth = assemble(
+        generator="evoparam.sim.simulate_animal_ep",
+        settings=settings,
+        seed=entropy,
+        rngs=rngs,
+        times=times,
+        sfreq=sfreq,
+        ch_names=names,
+        sources=sources,
+        n_trials=n_trials,
+        noise=noise,
+        noise_sd=noise_sd,
+        noise_kw=noise_kw,
+        snr=snr,
+        jitter_sd=jitter_sd,
+        amplitude_cv=amplitude_cv,
+        artifact=artifact_data,
+        artifact_info=artifact_info,
+        metadata=metadata,
+        ch_info=ch_info,
+        conditions=state_of.tolist(),
+        species=species,
+        modality="lfp_ep",
+        keep_arrays=keep_arrays,
+        start=start,
+    )
     return ts, truth
 
 
-GENERATORS = {"erp": simulate_erp, "ccep": simulate_ccep, "erna": simulate_erna,
-              "tep": simulate_tep, "ecap": simulate_ecap, "animal": simulate_animal_ep}
+GENERATORS = {
+    "erp": simulate_erp,
+    "ccep": simulate_ccep,
+    "erna": simulate_erna,
+    "tep": simulate_tep,
+    "ecap": simulate_ecap,
+    "animal": simulate_animal_ep,
+}

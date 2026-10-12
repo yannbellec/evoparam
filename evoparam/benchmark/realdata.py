@@ -30,8 +30,14 @@ from evoparam.errors import DataError
 from .suite import ERPCORE
 from .tasks import TaskInput, make_descriptor
 
-__all__ = ["list_indices", "load_index", "load_bids_trials", "real_inputs", "consensus_truth",
-           "REALDATA_SCHEMA"]
+__all__ = [
+    "list_indices",
+    "load_index",
+    "load_bids_trials",
+    "real_inputs",
+    "consensus_truth",
+    "REALDATA_SCHEMA",
+]
 
 REALDATA_SCHEMA = "evoparam-benchmark-realdata/1"
 
@@ -48,8 +54,11 @@ def load_index(name):
 
     if name not in list_indices():
         raise DataError(f"Unknown real-data index {name!r}; indices: {list_indices()}.")
-    text = resources.files("evoparam.benchmark").joinpath("realdata", f"{name}.json") \
+    text = (
+        resources.files("evoparam.benchmark")
+        .joinpath("realdata", f"{name}.json")
         .read_text("utf-8")
+    )
     doc = json.loads(text)
     if doc.get("schema") != REALDATA_SCHEMA:
         raise DataError(f"realdata/{name}.json: schema must be {REALDATA_SCHEMA}.")
@@ -73,10 +82,18 @@ def load_bids_trials(index, entry, *, cache_dir=None):
         index = load_index(index)
     if index["reader"] != "bids":
         raise DataError(f"index {index['dataset']} is not read from BIDS.")
-    ts = read_bids(index["dataset"], entry["subject"], session=entry.get("session"),
-                   task=entry.get("task"), run=entry.get("run"), datatype=index["datatype"],
-                   epoch=tuple(index["epoch"]), picks=None,
-                   remote=index.get("remote", "openneuro"), cache_dir=cache_dir)
+    ts = read_bids(
+        index["dataset"],
+        entry["subject"],
+        session=entry.get("session"),
+        task=entry.get("task"),
+        run=entry.get("run"),
+        datatype=index["datatype"],
+        epoch=tuple(index["epoch"]),
+        picks=None,
+        remote=index.get("remote", "openneuro"),
+        cache_dir=cache_dir,
+    )
     if index.get("picks"):
         # channel types of channels.tsv; a run need not have every type of the index
         types = {str(t).lower() for t in index["picks"]}
@@ -122,9 +139,14 @@ def consensus_truth(ts, index):
     spec = index["truth"]
     decisions, peaks = {}, None
     for rule in spec["rules"]:
-        result = test_response(ts, method="threshold", rule=rule,
-                               rule_overrides=dict(RULE_OVERRIDES[rule]), by=(),
-                               random_state=0)
+        result = test_response(
+            ts,
+            method="threshold",
+            rule=rule,
+            rule_overrides=dict(RULE_OVERRIDES[rule]),
+            by=(),
+            random_state=0,
+        )
         decisions[rule] = np.asarray(result.significant, bool)
         if rule == "vanblooijs2023":
             peaks = (np.asarray(result.onset, float), result.settings["rule_spec"])
@@ -139,10 +161,16 @@ def consensus_truth(ts, index):
         for i, c in enumerate(ts.ch_names):
             if c in responders and np.isfinite(latency[i]):
                 k = int(np.argmin(np.abs(ts.times - latency[i])))
-                n1[c] = {"latency": float(ts.times[k]),
-                         "amplitude": float(avg[i, k] - avg[i, base].mean())}
-    return {"responders": responders, "excluded": excluded, "n1": n1,
-            "decisions": {r: v.tolist() for r, v in decisions.items()}}
+                n1[c] = {
+                    "latency": float(ts.times[k]),
+                    "amplitude": float(avg[i, k] - avg[i, base].mean()),
+                }
+    return {
+        "responders": responders,
+        "excluded": excluded,
+        "n1": n1,
+        "decisions": {r: v.tolist() for r, v in decisions.items()},
+    }
 
 
 def real_inputs(name, entry_index=0, *, task="T1", cache_dir=None):
@@ -170,20 +198,37 @@ def real_inputs(name, entry_index=0, *, task="T1", cache_dir=None):
             truth["stim_channels"] = []
             cell = f"{name}-{entry_index:03d}-{''.join(ch for ch in site if ch.isalnum())}"
             data = np.nan_to_num(ts.data)
-            fields = {"suite": suite, "cell": cell, "split": "real", "sfreq": float(ts.sfreq),
-                      "tmin": float(ts.times[0]), "units": ts.units,
-                      "ch_names": list(ts.ch_names), "n_trials": int(ts.n_trials),
-                      "modality": ts.modality or "", "site": site, "stim_channels": [],
-                      "hints": {"window": [0.009, 0.1], "baseline": [-1.0, -0.1],
-                                "preset": "ccep"},
-                      "source": {"dataset": index["dataset"], "version": index["version"],
-                                 "doi": index["doi"], **entry}}
-            out.append(TaskInput(descriptor=make_descriptor(task, {"data": data}, **fields),
-                                 arrays={"data": data}, truth=truth))
+            fields = {
+                "suite": suite,
+                "cell": cell,
+                "split": "real",
+                "sfreq": float(ts.sfreq),
+                "tmin": float(ts.times[0]),
+                "units": ts.units,
+                "ch_names": list(ts.ch_names),
+                "n_trials": int(ts.n_trials),
+                "modality": ts.modality or "",
+                "site": site,
+                "stim_channels": [],
+                "hints": {"window": [0.009, 0.1], "baseline": [-1.0, -0.1], "preset": "ccep"},
+                "source": {
+                    "dataset": index["dataset"],
+                    "version": index["version"],
+                    "doi": index["doi"],
+                    **entry,
+                },
+            }
+            out.append(
+                TaskInput(
+                    descriptor=make_descriptor(task, {"data": data}, **fields),
+                    arrays={"data": data},
+                    truth=truth,
+                )
+            )
         return out
     if task == "T6":
         return [_erpcore_input(index, entry, entry_index, suite)]
-    raise DataError(f"no loader for task {task} of index {name}.")    # pragma: no cover
+    raise DataError(f"no loader for task {task} of index {name}.")  # pragma: no cover
 
 
 def _erpcore_input(index, entry, entry_index, suite):
@@ -203,16 +248,36 @@ def _erpcore_input(index, entry, entry_index, suite):
     times = picked.times
     cell = f"erpcore-{component}-{participant:02d}"
     arrays = {"data": data, "average": data.mean(axis=0)}
-    fields = {"suite": suite, "cell": cell, "split": "real", "sfreq": float(picked.info["sfreq"]),
-              "tmin": float(times[0]), "units": "uV", "ch_names": [definition["channel"]],
-              "n_trials": int(len(data)), "modality": "erp",
-              "definitions": [{"condition": component, "channel": definition["channel"],
-                               "window": list(definition["window"]),
-                               "polarity": definition["polarity"],
-                               "measures": list(ERPCORE["measures"]),
-                               "source": ERPCORE["source"]}],
-              "hints": {"preset": "erp"},
-              "source": {"dataset": index["dataset"], "doi": index["doi"],
-                         "component": component, "participant": participant}}
-    return TaskInput(descriptor=make_descriptor("T6", arrays, **fields), arrays=arrays,
-                     truth={"signal_average": arrays["average"]})
+    fields = {
+        "suite": suite,
+        "cell": cell,
+        "split": "real",
+        "sfreq": float(picked.info["sfreq"]),
+        "tmin": float(times[0]),
+        "units": "uV",
+        "ch_names": [definition["channel"]],
+        "n_trials": int(len(data)),
+        "modality": "erp",
+        "definitions": [
+            {
+                "condition": component,
+                "channel": definition["channel"],
+                "window": list(definition["window"]),
+                "polarity": definition["polarity"],
+                "measures": list(ERPCORE["measures"]),
+                "source": ERPCORE["source"],
+            }
+        ],
+        "hints": {"preset": "erp"},
+        "source": {
+            "dataset": index["dataset"],
+            "doi": index["doi"],
+            "component": component,
+            "participant": participant,
+        },
+    }
+    return TaskInput(
+        descriptor=make_descriptor("T6", arrays, **fields),
+        arrays=arrays,
+        truth={"signal_average": arrays["average"]},
+    )

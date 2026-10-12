@@ -26,6 +26,7 @@ MIN_ADAPTIVE_CHANNELS = 8
 ###################################################################################################
 ## Bipolar
 
+
 def bipolar_pairs(ts, groups="group"):
     """Consecutive contacts of each electrode: (anode, cathode) index pairs, and gaps.
 
@@ -55,8 +56,10 @@ def bipolar_pairs(ts, groups="group"):
             else:
                 gaps.append((names[a], names[b]))
     if not pairs:
-        raise DataError("bipolar: no pair of consecutive contacts found; give the electrode "
-                        "groups in ch_info['group'] or with groups=.")
+        raise DataError(
+            "bipolar: no pair of consecutive contacts found; give the electrode "
+            "groups in ch_info['group'] or with groups=."
+        )
     return pairs, gaps
 
 
@@ -64,8 +67,11 @@ def _bipolar(ts, groups):
     pd = require("pandas", extra="data", caller="evoparam.prep.rereference")
     pairs, gaps = bipolar_pairs(ts, groups)
     if gaps:
-        _warn(f"bipolar: missing contacts between {gaps}; no pair across a gap.",
-              UserWarning, stacklevel=3)
+        _warn(
+            f"bipolar: missing contacts between {gaps}; no pair across a gap.",
+            UserWarning,
+            stacklevel=3,
+        )
     a, b = np.array(pairs).T
     data = ts.data[:, a] - ts.data[:, b]
     masks = None if ts.masks is None else ts.masks[:, a] | ts.masks[:, b]
@@ -85,14 +91,15 @@ def _bipolar(ts, groups):
             else:
                 row[col] = first
         rows.append(row)
-    info = pd.DataFrame(rows, columns=list(dict.fromkeys(["name", "reference"]
-                                                        + list(old.columns))))
-    return data, masks, names, info, {"pairs": [list(map(int, p)) for p in pairs],
-                                      "gaps": gaps}
+    info = pd.DataFrame(
+        rows, columns=list(dict.fromkeys(["name", "reference"] + list(old.columns)))
+    )
+    return data, masks, names, info, {"pairs": [list(map(int, p)) for p in pairs], "gaps": gaps}
 
 
 ###################################################################################################
 ## Common averages
+
 
 def _excluded(ts, exclude):
     """Per trial, a boolean matrix [n_channels] of channels left out of a common average."""
@@ -101,8 +108,7 @@ def _excluded(ts, exclude):
     out = np.zeros((ts.n_trials, ts.n_channels), dtype=bool)
     fixed = set(exclude or ()) | bad_channels(ts)
     if ts.ch_info is not None and "stim_contact" in ts.ch_info.columns:
-        fixed |= set(ts.ch_info.loc[ts.ch_info["stim_contact"].fillna(False).astype(bool),
-                                    "name"])
+        fixed |= set(ts.ch_info.loc[ts.ch_info["stim_contact"].fillna(False).astype(bool), "name"])
     for row, stim in enumerate(stim_contacts(ts)):
         out[row] = [name in fixed or name in stim for name in names]
     return out
@@ -127,7 +133,7 @@ def _cross_trial_covariance(data, window):
     if n_trials < 2:
         return np.mean(seg[0] ** 2, axis=-1)
     total = seg.sum(axis=0)
-    pairs = np.sum(total ** 2, axis=-1) - np.sum(seg ** 2, axis=(0, 2))
+    pairs = np.sum(total**2, axis=-1) - np.sum(seg**2, axis=(0, 2))
     return pairs / (n_trials * (n_trials - 1) * n_times)
 
 
@@ -150,7 +156,7 @@ def _zeta_curve(average, order):
         for n in range(2, len(order) + 1):
             c = cov[:n, :n]
             row = c.sum(axis=1) / n
-            var_m = c.sum() / n ** 2
+            var_m = c.sum() / n**2
             var_r = np.diag(c) - 2 * row + var_m
             corr = (c - row[:, None]) / np.sqrt(np.outer(np.diag(c), var_r))
             np.fill_diagonal(corr, np.nan)
@@ -176,8 +182,17 @@ def _line_notch(data, sfreq, line_freq):
     return out
 
 
-def car_adaptive_select(data, times, *, response_window=(0.01, 0.3), n_boot=100,
-                        random_state=None, candidates=None, sensitive=True, line_freq=60.0):
+def car_adaptive_select(
+    data,
+    times,
+    *,
+    response_window=(0.01, 0.3),
+    n_boot=100,
+    random_state=None,
+    candidates=None,
+    sensitive=True,
+    line_freq=60.0,
+):
     """Choose the channels of an adjusted common average (least anticorrelation).
 
     Re-implemented from the published method (Huang et al., 2024, J Neurosci Methods,
@@ -237,7 +252,7 @@ def car_adaptive_select(data, times, *, response_window=(0.01, 0.3), n_boot=100,
     else:
         zeta = _zeta_curve(clean.mean(axis=0), local_order)
     n_min = max(2, int(np.ceil(MIN_CA_FRACTION * n_total)))
-    chosen = int(ns[n_min - 2 + int(np.argmax(zeta[n_min - 2:]))])
+    chosen = int(ns[n_min - 2 + int(np.argmax(zeta[n_min - 2 :]))])
     ci = None
     if sensitive and boots is not None:
         values = zeta.copy()
@@ -264,12 +279,19 @@ def car_adaptive_select(data, times, *, response_window=(0.01, 0.3), n_boot=100,
             pos = nxt
     resp_all = np.full(data.shape[1], np.nan)
     resp_all[candidates] = resp
-    return {"members": np.sort(order[:chosen]), "n_star": int(chosen), "order": order,
-            "zeta": zeta, "ci": ci, "responsiveness": resp_all}
+    return {
+        "members": np.sort(order[:chosen]),
+        "n_star": int(chosen),
+        "order": order,
+        "zeta": zeta,
+        "ci": ci,
+        "responsiveness": resp_all,
+    }
 
 
 ###################################################################################################
 ## Laplacian
+
 
 def _laplacian(ts, radius):
     info = ts.ch_info
@@ -282,8 +304,12 @@ def _laplacian(ts, radius):
     neighbours = (dist <= radius) & (dist > 0)
     lonely = [ts.ch_names[i] for i in np.flatnonzero(~neighbours.any(axis=1))]
     if lonely:
-        _warn(f"laplacian: no neighbour within {radius} for {lonely}; these channels "
-              "keep their recording reference.", UserWarning, stacklevel=3)
+        _warn(
+            f"laplacian: no neighbour within {radius} for {lonely}; these channels "
+            "keep their recording reference.",
+            UserWarning,
+            stacklevel=3,
+        )
     weights = neighbours / np.maximum(neighbours.sum(axis=1, keepdims=True), 1)
     values = masked_values(ts)
     with warnings.catch_warnings():
@@ -297,8 +323,18 @@ def _laplacian(ts, radius):
 ###################################################################################################
 ## Entry point
 
-def rereference(ts, scheme="bipolar", *, exclude=None, groups="group",
-                response_window=(0.01, 0.3), n_boot=100, radius=12.0, random_state=None):
+
+def rereference(
+    ts,
+    scheme="bipolar",
+    *,
+    exclude=None,
+    groups="group",
+    response_window=(0.01, 0.3),
+    n_boot=100,
+    radius=12.0,
+    random_state=None,
+):
     """Change the reference of every channel and record it in ``ch_info["reference"]``.
 
     - ``"monopolar"``: keep the recording reference.
@@ -338,10 +374,15 @@ def rereference(ts, scheme="bipolar", *, exclude=None, groups="group",
     require("pandas", extra="data", caller="evoparam.prep.rereference")
     if scheme not in SCHEMES:
         raise SettingsError(f"scheme must be one of {SCHEMES}, not {scheme!r}.")
-    settings = {"scheme": scheme, "exclude": list(exclude or []), "groups": groups
-                if not isinstance(groups, dict) else "dict", "response_window":
-                list(response_window), "n_boot": n_boot, "radius": radius,
-                "random_state": random_state}
+    settings = {
+        "scheme": scheme,
+        "exclude": list(exclude or []),
+        "groups": groups if not isinstance(groups, dict) else "dict",
+        "response_window": list(response_window),
+        "n_boot": n_boot,
+        "radius": radius,
+        "random_state": random_state,
+    }
     info = ch_table(ts)
     changes = {}
 
@@ -366,19 +407,31 @@ def rereference(ts, scheme="bipolar", *, exclude=None, groups="group",
         if scheme == "car_adaptive":
             candidates = np.flatnonzero(~excluded.any(axis=0))
             if len(candidates) < MIN_ADAPTIVE_CHANNELS:
-                _warn(f"car_adaptive: only {len(candidates)} usable channels; the "
-                      "plain common average is used.", UserWarning, stacklevel=2)
+                _warn(
+                    f"car_adaptive: only {len(candidates)} usable channels; the "
+                    "plain common average is used.",
+                    UserWarning,
+                    stacklevel=2,
+                )
                 used = "car"
             else:
-                chosen = car_adaptive_select(ts.data, ts.times, response_window=response_window,
-                                             n_boot=n_boot, random_state=random_state,
-                                             candidates=candidates)
+                chosen = car_adaptive_select(
+                    ts.data,
+                    ts.times,
+                    response_window=response_window,
+                    n_boot=n_boot,
+                    random_state=random_state,
+                    candidates=candidates,
+                )
                 in_ca = np.zeros(ts.n_channels, dtype=bool)
                 in_ca[chosen["members"]] = True
                 members = members & in_ca[None]
-                settings.update(n_star=chosen["n_star"], zeta=chosen["zeta"].tolist(),
-                                ci=chosen["ci"], members=[ts.ch_names[i]
-                                                          for i in chosen["members"]])
+                settings.update(
+                    n_star=chosen["n_star"],
+                    zeta=chosen["zeta"].tolist(),
+                    ci=chosen["ci"],
+                    members=[ts.ch_names[i] for i in chosen["members"]],
+                )
         ref = _common_average(ts, members)
         if np.isnan(ref).all(axis=-1).any():
             raise DataError("common average: a trial has no usable channel.")

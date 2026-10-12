@@ -24,8 +24,15 @@ import os
 from evoparam.errors import DataError
 from evoparam.utils._optional import require
 
-__all__ = ["NAMESPACE", "VERSION", "build_spec", "load", "table_class", "settings_record",
-           "SPEC_DIR"]
+__all__ = [
+    "NAMESPACE",
+    "VERSION",
+    "build_spec",
+    "load",
+    "table_class",
+    "settings_record",
+    "SPEC_DIR",
+]
 
 NAMESPACE = "ndx-evoparam"
 VERSION = "0.1.0"
@@ -34,56 +41,93 @@ NAMESPACE_FILE = os.path.join(SPEC_DIR, f"{NAMESPACE}.namespace.yaml")
 
 # type -> (parent, parent namespace, doc, [(column, dtype, doc)])
 TABLES = {
-    "EvokedResponseFitTable": ("DynamicTable", "hdmf-common", "Fitted components of evoked "
-                               "responses, one row per channel x condition x component.", [
-        ("channel", "text", "channel name"),
-        ("stim_site", "text", "stimulation site (empty: none)"),
-        ("condition", "text", "condition"), ("component", "text", "component label"),
-        ("shape", "text", "shape function"),
-        ("status", "text", "fit status: ok, no_response, failed, skipped"),
-        ("present", "text", "existence decision: true, false or n/a"),
-        ("latency", "float64", "latency (s)"),
-        ("latency_se", "float64", "latency standard error (s)"),
-        ("amplitude", "float64", "amplitude (V)"),
-        ("amplitude_se", "float64", "amplitude standard error (V)"),
-        ("polarity", "int64", "sign of the extremum"),
-        ("resolvable", "text", "false: trades off with a neighbour, not reliable alone"),
-        ("fwhm", "float64", "full width at half maximum (s)"),
-        ("onset", "float64", "onset (s)"), ("offset", "float64", "offset (s)"),
-        ("area", "float64", "area (V*s)"), ("r2", "float64", "goodness of fit"),
-        ("n_trials", "int64", "trials averaged (-1: unknown)"),
-        ("ci_level", "float64", "level of the intervals")]),
-    "ResponseTestTable": ("DynamicTable", "hdmf-common", "Existence tests of evoked "
-                          "responses, one row per channel x condition.", [
-        ("channel", "text", "channel name"),
-        ("stim_site", "text", "stimulation site (empty: none)"),
-        ("condition", "text", "condition"), ("method", "text", "test method"),
-        ("statistic", "float64", "test statistic"), ("p_value", "float64", "corrected p-value"),
-        ("significant", "bool", "decision"), ("onset", "float64", "response onset (s)"),
-        ("offset", "float64", "response offset (s)"), ("duration", "float64", "duration (s)"),
-        ("snr_db", "float64", "signal-to-noise ratio (dB)")]),
-    "TrialFitTable": ("DynamicTable", "hdmf-common", "Trial-by-trial parameters of the "
-                      "fitted components.", [
-        ("trial_index", "int64", "trial index in the source run"),
-        ("channel", "text", "channel name"), ("component", "text", "component"),
-        ("shift", "float64", "latency shift (s)"), ("scale", "float64", "amplitude scale"),
-        ("latency", "float64", "latency (s)"), ("amplitude", "float64", "amplitude (V)"),
-        ("converged", "bool", "fit converged")]),
-    "StimulationEventsTable": ("EventsTable", "core", "Electrical stimulation events.", [
-        ("stim_site", "text", "stimulated contact pair, 'A-B'"),
-        ("stim_current", "float64", "current amplitude (A)"),
-        ("stim_pulse_width", "float64", "width of one phase (s)"),
-        ("stim_polarity", "text", "monophasic_cathodic, monophasic_anodic, "
-                                  "biphasic_cathodic_first, biphasic_anodic_first, "
-                                  "alternating or unknown"),
-        ("stim_n_pulses", "int64", "pulses in the train"),
-        ("stim_frequency", "float64", "pulse frequency in a train (Hz)")]),
+    "EvokedResponseFitTable": (
+        "DynamicTable",
+        "hdmf-common",
+        "Fitted components of evoked responses, one row per channel x condition x component.",
+        [
+            ("channel", "text", "channel name"),
+            ("stim_site", "text", "stimulation site (empty: none)"),
+            ("condition", "text", "condition"),
+            ("component", "text", "component label"),
+            ("shape", "text", "shape function"),
+            ("status", "text", "fit status: ok, no_response, failed, skipped"),
+            ("present", "text", "existence decision: true, false or n/a"),
+            ("latency", "float64", "latency (s)"),
+            ("latency_se", "float64", "latency standard error (s)"),
+            ("amplitude", "float64", "amplitude (V)"),
+            ("amplitude_se", "float64", "amplitude standard error (V)"),
+            ("polarity", "int64", "sign of the extremum"),
+            ("resolvable", "text", "false: trades off with a neighbour, not reliable alone"),
+            ("fwhm", "float64", "full width at half maximum (s)"),
+            ("onset", "float64", "onset (s)"),
+            ("offset", "float64", "offset (s)"),
+            ("area", "float64", "area (V*s)"),
+            ("r2", "float64", "goodness of fit"),
+            ("n_trials", "int64", "trials averaged (-1: unknown)"),
+            ("ci_level", "float64", "level of the intervals"),
+        ],
+    ),
+    "ResponseTestTable": (
+        "DynamicTable",
+        "hdmf-common",
+        "Existence tests of evoked responses, one row per channel x condition.",
+        [
+            ("channel", "text", "channel name"),
+            ("stim_site", "text", "stimulation site (empty: none)"),
+            ("condition", "text", "condition"),
+            ("method", "text", "test method"),
+            ("statistic", "float64", "test statistic"),
+            ("p_value", "float64", "corrected p-value"),
+            ("significant", "bool", "decision"),
+            ("onset", "float64", "response onset (s)"),
+            ("offset", "float64", "response offset (s)"),
+            ("duration", "float64", "duration (s)"),
+            ("snr_db", "float64", "signal-to-noise ratio (dB)"),
+        ],
+    ),
+    "TrialFitTable": (
+        "DynamicTable",
+        "hdmf-common",
+        "Trial-by-trial parameters of the fitted components.",
+        [
+            ("trial_index", "int64", "trial index in the source run"),
+            ("channel", "text", "channel name"),
+            ("component", "text", "component"),
+            ("shift", "float64", "latency shift (s)"),
+            ("scale", "float64", "amplitude scale"),
+            ("latency", "float64", "latency (s)"),
+            ("amplitude", "float64", "amplitude (V)"),
+            ("converged", "bool", "fit converged"),
+        ],
+    ),
+    "StimulationEventsTable": (
+        "EventsTable",
+        "core",
+        "Electrical stimulation events.",
+        [
+            ("stim_site", "text", "stimulated contact pair, 'A-B'"),
+            ("stim_current", "float64", "current amplitude (A)"),
+            ("stim_pulse_width", "float64", "width of one phase (s)"),
+            (
+                "stim_polarity",
+                "text",
+                "monophasic_cathodic, monophasic_anodic, "
+                "biphasic_cathodic_first, biphasic_anodic_first, "
+                "alternating or unknown",
+            ),
+            ("stim_n_pulses", "int64", "pulses in the train"),
+            ("stim_frequency", "float64", "pulse frequency in a train (Hz)"),
+        ],
+    ),
 }
-SETTINGS_FIELDS = (("settings_json", "the resolved settings of each result, JSON"),
-                   ("provenance_json", "the provenance of each result, JSON"),
-                   ("package_version", "evoparam version"),
-                   ("preset_name", "preset of the fit (empty: none)"),
-                   ("preset_version", "version of the preset (empty: none)"))
+SETTINGS_FIELDS = (
+    ("settings_json", "the resolved settings of each result, JSON"),
+    ("provenance_json", "the provenance of each result, JSON"),
+    ("package_version", "evoparam version"),
+    ("preset_name", "preset of the fit (empty: none)"),
+    ("preset_version", "version of the preset (empty: none)"),
+)
 
 
 def build_spec(folder=SPEC_DIR):
@@ -91,21 +135,41 @@ def build_spec(folder=SPEC_DIR):
 
     spec = require("pynwb", extra="nwb", caller="evoparam.io.ndx_evoparam.build_spec").spec
     builder = spec.NWBNamespaceBuilder(
-        doc="Parameters of evoked neural responses fitted by evoparam", name=NAMESPACE,
-        version=VERSION, author=["Yann V. Bellec"], contact=["https://github.com/yannbellec"])
+        doc="Parameters of evoked neural responses fitted by evoparam",
+        name=NAMESPACE,
+        version=VERSION,
+        author=["Yann V. Bellec"],
+        contact=["https://github.com/yannbellec"],
+    )
     builder.include_namespace("core")
     types = []
     for name, (parent, _, doc, columns) in TABLES.items():
-        datasets = [spec.NWBDatasetSpec(name=column, neurodata_type_inc="VectorData",
-                                        dtype=dtype, doc=column_doc, quantity="?")
-                    for column, dtype, column_doc in columns]
-        types.append(spec.NWBGroupSpec(neurodata_type_def=name, neurodata_type_inc=parent,
-                                       doc=doc, datasets=datasets))
-    types.append(spec.NWBGroupSpec(
-        neurodata_type_def="ResponseFitSettings", neurodata_type_inc="LabMetaData",
-        doc="Settings and provenance of the evoparam results of the file.",
-        attributes=[spec.NWBAttributeSpec(name=field, dtype="text", doc=doc)
-                    for field, doc in SETTINGS_FIELDS]))
+        datasets = [
+            spec.NWBDatasetSpec(
+                name=column,
+                neurodata_type_inc="VectorData",
+                dtype=dtype,
+                doc=column_doc,
+                quantity="?",
+            )
+            for column, dtype, column_doc in columns
+        ]
+        types.append(
+            spec.NWBGroupSpec(
+                neurodata_type_def=name, neurodata_type_inc=parent, doc=doc, datasets=datasets
+            )
+        )
+    types.append(
+        spec.NWBGroupSpec(
+            neurodata_type_def="ResponseFitSettings",
+            neurodata_type_inc="LabMetaData",
+            doc="Settings and provenance of the evoparam results of the file.",
+            attributes=[
+                spec.NWBAttributeSpec(name=field, dtype="text", doc=doc)
+                for field, doc in SETTINGS_FIELDS
+            ],
+        )
+    )
     os.makedirs(folder, exist_ok=True)
     source = f"{NAMESPACE}.extensions.yaml"
     for type_spec in types:
@@ -135,16 +199,28 @@ def load():
 def table_class(kind):
     """Class of the table of ``kind``: components, existence or trials."""
 
-    names = {"components": "EvokedResponseFitTable", "existence": "ResponseTestTable",
-             "trials": "TrialFitTable"}
+    names = {
+        "components": "EvokedResponseFitTable",
+        "existence": "ResponseTestTable",
+        "trials": "TrialFitTable",
+    }
     return load()[names[kind]]
 
 
 def settings_record(items, description, version, name="evoparam_settings"):
     """``ResponseFitSettings`` of the results written to a file."""
 
-    settings = next((getattr(i, "settings", None) for i in items
-                     if (getattr(i, "settings", None) or {}).get("preset")), {}) or {}
+    settings = (
+        next(
+            (
+                getattr(i, "settings", None)
+                for i in items
+                if (getattr(i, "settings", None) or {}).get("preset")
+            ),
+            {},
+        )
+        or {}
+    )
     preset = settings.get("preset")
     if isinstance(preset, dict):
         # the preset is recorded as {"name", "version"} (REQ-331)
@@ -156,6 +232,10 @@ def settings_record(items, description, version, name="evoparam_settings"):
         preset_name = str(preset or "")
         preset_version = note.split(" v")[1].split(" ")[0].rstrip(";") if " v" in note else ""
     return load()["ResponseFitSettings"](
-        name=name, settings_json=json.dumps(description["settings"], allow_nan=False),
+        name=name,
+        settings_json=json.dumps(description["settings"], allow_nan=False),
         provenance_json=json.dumps(description["provenance"], allow_nan=False),
-        package_version=version, preset_name=preset_name, preset_version=preset_version)
+        package_version=version,
+        preset_name=preset_name,
+        preset_version=preset_version,
+    )

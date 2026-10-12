@@ -14,10 +14,20 @@ from .helpers import make_overlay
 ###################################################################################################
 
 WINDOW = (-0.002, 0.008)
-LOCAL = [("interpolate", {}), ("template", {}), ("template", {"template": "local"}),
-         ("learned", {}), ("matching_pursuit", {}), ("none", {})]
-GLOBAL = [("subspace", {}), ("polynomial", {}), ("period_template", {"period": 0.05}),
-          ("lowrank", {"pulse_times": np.arange(0, 0.04, 0.01)})]
+LOCAL = [
+    ("interpolate", {}),
+    ("template", {}),
+    ("template", {"template": "local"}),
+    ("learned", {}),
+    ("matching_pursuit", {}),
+    ("none", {}),
+]
+GLOBAL = [
+    ("subspace", {}),
+    ("polynomial", {}),
+    ("period_template", {"period": 0.05}),
+    ("lowrank", {"pulse_times": np.arange(0, 0.04, 0.01)}),
+]
 
 
 def _run(ts, method, kwargs):
@@ -78,12 +88,15 @@ def test_global_methods_change_baseline_level_by_two_percent_at_most(method, kwa
     assert abs(after / before - 1) <= 0.02
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-060 for the published polynomial method "
-                                       "(poly_extent='global', a local cubic subtracted at "
-                                       "every sample): a high-pass filter of the whole epoch, "
-                                       "the baseline RMS falls by 9.1 % on white noise at "
-                                       "2048 Hz (18 % at 1 kHz, 4.0 % at 4800 Hz, 0.75 % at "
-                                       "25 kHz); the default poly_extent='local' meets 2 %")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-060 for the published polynomial method "
+    "(poly_extent='global', a local cubic subtracted at "
+    "every sample): a high-pass filter of the whole epoch, "
+    "the baseline RMS falls by 9.1 % on white noise at "
+    "2048 Hz (18 % at 1 kHz, 4.0 % at 4800 Hz, 0.75 % at "
+    "25 kHz); the default poly_extent='local' meets 2 %",
+)
 def test_req060_polynomial_global_extent_as_published():
 
     noisy, _ = make_overlay(n_channels=12)
@@ -98,6 +111,7 @@ def test_req060_polynomial_global_extent_as_published():
 def test_existing_saturation_masks_are_kept():
 
     from evoparam.artifact import apply_mask
+
     noisy, _ = make_overlay()
     sat = np.zeros(noisy.data.shape, dtype=bool)
     sat[0, 0, 1030:1034] = True

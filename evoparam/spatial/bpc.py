@@ -23,22 +23,29 @@ from evoparam.models.component_shapes import Template
 from evoparam.utils._optional import require
 from evoparam.version import __version__
 
-__all__ = ["shared_shapes", "convergent", "divergent", "as_template", "adjusted_rand_index",
-           "BASIS_COLUMNS"]
+__all__ = [
+    "shared_shapes",
+    "convergent",
+    "divergent",
+    "as_template",
+    "adjusted_rand_index",
+    "BASIS_COLUMNS",
+]
 
 # Columns of ShapeBasis.assignment, one row per group (stimulation site or channel).
 BASIS_COLUMNS = ("group", "shape_id", "weight", "r2", "n_trials", "used", "nmf_loading")
 
 MIN_TRIALS = 3
 MIN_GROUPS = 3
-SPLIT_MAX = 0.75              # largest between / within ratio of the mean t-values of two clusters
-TOLERANCE = 0.5               # inclusion: at least half the equal-contribution loading
+SPLIT_MAX = 0.75  # largest between / within ratio of the mean t-values of two clusters
+TOLERANCE = 0.5  # inclusion: at least half the equal-contribution loading
 NMF_TOL = 1e-5
 NMF_MAX_ITER = 1000
 
 
 ###################################################################################################
 ## Clustering tools
+
 
 def adjusted_rand_index(a, b):
     """Adjusted Rand index of two labelings (1 = identical partitions).
@@ -164,13 +171,17 @@ def _split_ratio(xi, labels, q):
     geometric mean of the mean t-values within them: about 1 when one cluster has been
     split in two, well below 1 for distinct shapes (even partly correlated ones)."""
 
-    within = [xi[np.ix_(labels == k, labels == k)].mean() if np.any(labels == k) else 0.0
-              for k in range(q)]
+    within = [
+        xi[np.ix_(labels == k, labels == k)].mean() if np.any(labels == k) else 0.0
+        for k in range(q)
+    ]
     ratio = 0.0
     for a, b in itertools.combinations(range(q), 2):
         if within[a] > 0 and within[b] > 0:
-            between = 0.5 * (xi[np.ix_(labels == a, labels == b)].mean() +
-                             xi[np.ix_(labels == b, labels == a)].mean())
+            between = 0.5 * (
+                xi[np.ix_(labels == a, labels == b)].mean()
+                + xi[np.ix_(labels == b, labels == a)].mean()
+            )
             ratio = max(ratio, between / np.sqrt(within[a] * within[b]))
     return float(ratio)
 
@@ -194,7 +205,7 @@ def _cluster_kpca(xi, q, n_restarts, rng):
     n = len(kernel)
     centring = np.eye(n) - 1.0 / n
     vals, vecs = np.linalg.eigh(centring @ kernel @ centring)
-    order = np.argsort(vals)[::-1][:max(q, 1)]
+    order = np.argsort(vals)[::-1][: max(q, 1)]
     coords = vecs[:, order] * np.sqrt(np.clip(vals[order], 0, None))
     labels_all = []
     for _ in range(n_restarts):
@@ -205,8 +216,13 @@ def _cluster_kpca(xi, q, n_restarts, rng):
     spread = []
     for lab in labels_all:
         sub = lab[keep]
-        spread.append(sum(np.sum((coords[sub == k] - coords[sub == k].mean(axis=0)) ** 2)
-                          for k in range(q) if np.any(sub == k)))
+        spread.append(
+            sum(
+                np.sum((coords[sub == k] - coords[sub == k].mean(axis=0)) ** 2)
+                for k in range(q)
+                if np.any(sub == k)
+            )
+        )
     best = int(np.argmin(spread))
     h = np.zeros((q, len(xi)))
     for k in range(q):
@@ -216,6 +232,7 @@ def _cluster_kpca(xi, q, n_restarts, rng):
 
 ###################################################################################################
 ## Projections
+
 
 def _t_matrix(trials, owner, n_groups):
     """t-value of the projections between every pair of groups (self-projections left out).
@@ -271,6 +288,7 @@ def _basis_curve(trials):
 ###################################################################################################
 ## Groups
 
+
 def _contacts(site):
     return [part.strip() for part in re.split(r"[-–]", str(site)) if part.strip()]
 
@@ -298,8 +316,9 @@ def _groups(ts, by, channel, stim_site, win):
             raise DataError("shared_shapes(by='stim_site') needs metadata['stim_site'].")
         if channel is None:
             if len(names) != 1:
-                raise SettingsError("shared_shapes(by='stim_site'): give channel= (the "
-                                    "recording channel).")
+                raise SettingsError(
+                    "shared_shapes(by='stim_site'): give channel= (the recording channel)."
+                )
             channel = names[0]
         ch = names.index(channel) if isinstance(channel, str) else int(channel)
         sites = meta["stim_site"].astype(str).to_numpy()
@@ -318,8 +337,10 @@ def _groups(ts, by, channel, stim_site, win):
             if stim_site is None:
                 present = list(dict.fromkeys(sites[rows_all]))
                 if len(present) > 1:
-                    raise SettingsError("shared_shapes(by='channel'): give stim_site= (the "
-                                        "trials hold several sites).")
+                    raise SettingsError(
+                        "shared_shapes(by='channel'): give stim_site= (the "
+                        "trials hold several sites)."
+                    )
                 stim_site = present[0] if present else None
             if stim_site is not None:
                 rows = rows_all[sites[rows_all] == str(stim_site)]
@@ -337,17 +358,28 @@ def _groups(ts, by, channel, stim_site, win):
             trials, used = _usable_trials(ts, rows, ch, win)
             if len(trials):
                 out.append((name, trials, used))
-        return out, {"channel": None, "stim_site": None if stim_site is None
-                     else str(stim_site)}
+        return out, {"channel": None, "stim_site": None if stim_site is None else str(stim_site)}
     raise SettingsError(f"by must be 'stim_site' or 'channel', not {by!r}.")
 
 
 ###################################################################################################
 ## Main entry point
 
-def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0.009, 0.5),
-                  max_shapes=6, method="nmf", n_restarts=20, stability_min=0.8,
-                  random_state=None, n_jobs=1):
+
+def shared_shapes(
+    ts,
+    *,
+    by="stim_site",
+    channel=None,
+    stim_site=None,
+    window=(0.009, 0.5),
+    max_shapes=6,
+    method="nmf",
+    n_restarts=20,
+    stability_min=0.8,
+    random_state=None,
+    n_jobs=1,
+):
     """Find the few response shapes shared across stimulation sites (or channels).
 
     ``by="stim_site"``: the groups are the stimulation sites recorded on one ``channel``
@@ -424,8 +456,10 @@ def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0
     groups, where = _groups(ts, by, channel, stim_site, win)
     defining = [i for i, (_, trials, _) in enumerate(groups) if len(trials) >= MIN_TRIALS]
     if len(defining) < MIN_GROUPS:
-        raise DataError(f"shared_shapes needs at least {MIN_GROUPS} groups with "
-                        f"{MIN_TRIALS} trials or more; found {len(defining)}.")
+        raise DataError(
+            f"shared_shapes needs at least {MIN_GROUPS} groups with "
+            f"{MIN_TRIALS} trials or more; found {len(defining)}."
+        )
     rng = np.random.default_rng(random_state)
 
     trials = np.concatenate([groups[i][1] for i in defining])
@@ -444,21 +478,33 @@ def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0
         used = len(set(labels[labels >= 0]))
         split = _split_ratio(xi, labels, q)
         ok = split < SPLIT_MAX and ari >= stability_min and used == q
-        selection.append({"n_shapes": q, "error": err, "split_ratio": split,
-                          "h_overlap": overlap, "stability": ari, "clusters_used": used,
-                          "accepted": bool(ok)})
+        selection.append(
+            {
+                "n_shapes": q,
+                "error": err,
+                "split_ratio": split,
+                "h_overlap": overlap,
+                "stability": ari,
+                "clusters_used": used,
+                "accepted": bool(ok),
+            }
+        )
         if ok or q == 1:
             stab = _jaccard_stability(labels, runs, q)
             chosen = (q, labels, h, stab, w) if ok or chosen is None else chosen
-    unstable = all(not row["accepted"] for row in selection[1:]) and \
-        any(row["split_ratio"] < SPLIT_MAX and row["clusters_used"] == row["n_shapes"]
-            for row in selection[1:])
+    unstable = all(not row["accepted"] for row in selection[1:]) and any(
+        row["split_ratio"] < SPLIT_MAX and row["clusters_used"] == row["n_shapes"]
+        for row in selection[1:]
+    )
     q, labels, h, stability, w_nmf = chosen
     warns = []
     if q == 1 and unstable:
-        _warn("unstable_basis: no factorisation with two shapes or more was stable "
-              f"(adjusted Rand index >= {stability_min}); one shape is returned.",
-              UserWarning, stacklevel=2)
+        _warn(
+            "unstable_basis: no factorisation with two shapes or more was stable "
+            f"(adjusted Rand index >= {stability_min}); one shape is returned.",
+            UserWarning,
+            stacklevel=2,
+        )
         warns.append("unstable_basis")
     if q == 1:
         labels = np.where(labels >= 0, 0, -1)
@@ -478,12 +524,12 @@ def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0
     alphas = np.zeros((n_groups, q))
     r2_all = np.zeros((n_groups, q))
     for g, (_, v, _) in enumerate(groups):
-        alpha = v @ curves.T                                         # trials x shapes
+        alpha = v @ curves.T  # trials x shapes
         alphas[g] = alpha.mean(axis=0)
-        total = np.sum(v ** 2)
+        total = np.sum(v**2)
         for k in range(q):
             resid = v - np.outer(alpha[:, k], curves[k])
-            r2_all[g, k] = 1 - np.sum(resid ** 2) / total if total > 0 else np.nan
+            r2_all[g, k] = 1 - np.sum(resid**2) / total if total > 0 else np.nan
     # ShapeBasis.weights (spec §4.3.4, §5.9): the clustering loadings, group x shape,
     # non-negative (the columns of H); a group that does not define the bases (fewer than
     # 3 trials) gets the non-negative least-squares loadings of its t-values against the
@@ -511,28 +557,54 @@ def shared_shapes(ts, *, by="stim_site", channel=None, stim_site=None, window=(0
         loading = float(weights[g, shape_id]) if shape_id >= 0 else float(np.max(weights[g]))
         if shape_id >= 0:
             r2[g] = r2_all[g, shape_id]
-        rows.append({"group": str(label), "shape_id": shape_id,
-                     "weight": float(alphas[g, shape_id]) if shape_id >= 0 else np.nan,
-                     "r2": float(r2[g]), "n_trials": int(len(v)), "used": g in position,
-                     "nmf_loading": loading})
+        rows.append(
+            {
+                "group": str(label),
+                "shape_id": shape_id,
+                "weight": float(alphas[g, shape_id]) if shape_id >= 0 else np.nan,
+                "r2": float(r2[g]),
+                "n_trials": int(len(v)),
+                "used": g in position,
+                "nmf_loading": loading,
+            }
+        )
     assignment = pd.DataFrame(rows, columns=list(BASIS_COLUMNS))
     assignment["shape_id"] = assignment["shape_id"].astype("int64")
     assignment["n_trials"] = assignment["n_trials"].astype("int64")
 
-    settings = {"by": by, **where, "window": [float(window[0]), float(window[1])],
-                "max_shapes": int(max_shapes), "method": method, "n_restarts": int(n_restarts),
-                "stability_min": float(stability_min), "random_state": random_state,
-                "groups": [str(g[0]) for g in groups],
-                "defining_groups": [str(groups[i][0]) for i in defining],
-                "t_matrix": xi_raw.tolist(), "selection": selection, "warnings": warns,
-                "package_version": __version__}
+    settings = {
+        "by": by,
+        **where,
+        "window": [float(window[0]), float(window[1])],
+        "max_shapes": int(max_shapes),
+        "method": method,
+        "n_restarts": int(n_restarts),
+        "stability_min": float(stability_min),
+        "random_state": random_state,
+        "groups": [str(g[0]) for g in groups],
+        "defining_groups": [str(groups[i][0]) for i in defining],
+        "t_matrix": xi_raw.tolist(),
+        "selection": selection,
+        "warnings": warns,
+        "package_version": __version__,
+    }
     provenance = ts.provenance.with_step(
         "evoparam.spatial.shared_shapes",
         {k: v for k, v in settings.items() if k not in ("t_matrix", "selection")},
-        duration_s=_time.perf_counter() - start)
-    return ShapeBasis(curves=curves, times=ts.times[win], weights=weights, r2=r2,
-                      assignment=assignment, stability=stability, n_shapes=q, method=method,
-                      settings=settings, provenance=provenance)
+        duration_s=_time.perf_counter() - start,
+    )
+    return ShapeBasis(
+        curves=curves,
+        times=ts.times[win],
+        weights=weights,
+        r2=r2,
+        assignment=assignment,
+        stability=stability,
+        n_shapes=q,
+        method=method,
+        settings=settings,
+        provenance=provenance,
+    )
 
 
 def convergent(ts, channel, **kwargs):
@@ -565,8 +637,12 @@ def as_template(basis, k, *, max_shift=None, stretch=False):
     edge = max(2, int(0.1 * n))
     taper = np.ones(n)
     ramp = 0.5 * (1 - np.cos(np.pi * np.arange(edge) / edge))
-    taper[:edge], taper[n - edge:] = ramp, ramp[::-1]
+    taper[:edge], taper[n - edge :] = ramp, ramp[::-1]
     values = curve * taper
     values[0] = values[-1] = 0.0
-    return Template(template_times=np.array(basis.times, float), template_values=values,
-                    max_shift=max_shift, stretch=stretch)
+    return Template(
+        template_times=np.array(basis.times, float),
+        template_values=values,
+        max_shift=max_shift,
+        stretch=stretch,
+    )

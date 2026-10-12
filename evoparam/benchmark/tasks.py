@@ -32,14 +32,32 @@ from evoparam.utils._optional import require
 
 from ._canon import array_sha256, canonical_bytes, sha256_bytes
 
-__all__ = ["TASKS", "TASK_IDS", "BenchmarkValidationError", "TaskInput", "load_schema",
-           "schema_id", "validate", "output_columns", "output_format", "write_input",
-           "read_input", "write_output", "read_output", "output_path"]
+__all__ = [
+    "TASKS",
+    "TASK_IDS",
+    "BenchmarkValidationError",
+    "TaskInput",
+    "load_schema",
+    "schema_id",
+    "validate",
+    "output_columns",
+    "output_format",
+    "write_input",
+    "read_input",
+    "write_output",
+    "read_output",
+    "output_path",
+]
 
-TASKS = {"T1": "response detection", "T2": "early component latency and amplitude",
-         "T3": "component decomposition", "T4": "artifact removal",
-         "T5": "single-trial estimation", "T6": "ERP scoring",
-         "T7": "time-frequency response"}
+TASKS = {
+    "T1": "response detection",
+    "T2": "early component latency and amplitude",
+    "T3": "component decomposition",
+    "T4": "artifact removal",
+    "T5": "single-trial estimation",
+    "T6": "ERP scoring",
+    "T7": "time-frequency response",
+}
 TASK_IDS = tuple(TASKS)
 SCHEMA_VERSION = 1
 _CACHE = {}
@@ -66,8 +84,11 @@ def load_schema(task):
 
     _check_task(task)
     if task not in _CACHE:
-        text = resources.files("evoparam.benchmark").joinpath("schemas", f"{task}.json") \
+        text = (
+            resources.files("evoparam.benchmark")
+            .joinpath("schemas", f"{task}.json")
             .read_text("utf-8")
+        )
         _CACHE[task] = json.loads(text)
     return copy.deepcopy(_CACHE[task])
 
@@ -96,8 +117,12 @@ def output_path(folder, task, cell):
 def _validator(task, role):
     key = (task, role, "validator")
     if key not in _CACHE:
-        jsonschema = require("jsonschema", extra="validate", min_version="4.18",
-                             caller="evoparam.benchmark (task schemas)")
+        jsonschema = require(
+            "jsonschema",
+            extra="validate",
+            min_version="4.18",
+            caller="evoparam.benchmark (task schemas)",
+        )
         schema = load_schema(task)
         schema["$ref"] = f"#/$defs/{role}"
         _CACHE[key] = jsonschema.Draft202012Validator(schema)
@@ -115,8 +140,14 @@ def _first_error(validator, document):
         return None
     # the first violation in document order: by the path of the instance, then by the
     # schema keyword, so that the same file always reports the same first violation
-    return min(errors, key=lambda e: ([str(p) for p in e.absolute_path],
-                                      [str(p) for p in e.absolute_schema_path], e.message))
+    return min(
+        errors,
+        key=lambda e: (
+            [str(p) for p in e.absolute_path],
+            [str(p) for p in e.absolute_schema_path],
+            e.message,
+        ),
+    )
 
 
 def validate(document, task, role, *, where=""):
@@ -133,12 +164,13 @@ def validate(document, task, role, *, where=""):
     if error is not None:
         place = f"{where}: " if where else ""
         raise BenchmarkValidationError(
-            f"{place}{_path_text(error)}: {error.message} (schema {schema_id(task)}, "
-            f"{role})")
+            f"{place}{_path_text(error)}: {error.message} (schema {schema_id(task)}, {role})"
+        )
 
 
 ###################################################################################################
 ## Inputs
+
 
 @dataclass
 class TaskInput:
@@ -190,20 +222,29 @@ class TaskInput:
         meta = pd.DataFrame({"trial": np.arange(len(data))})
         if self.descriptor.get("site"):
             meta["stim_site"] = self.descriptor["site"]
-        return TrialSet(data=data, times=self.times, sfreq=float(self.descriptor["sfreq"]),
-                        ch_names=list(self.descriptor["ch_names"]),
-                        units=self.descriptor["units"], metadata=meta,
-                        modality=self.descriptor.get("modality"))
+        return TrialSet(
+            data=data,
+            times=self.times,
+            sfreq=float(self.descriptor["sfreq"]),
+            ch_names=list(self.descriptor["ch_names"]),
+            units=self.descriptor["units"],
+            metadata=meta,
+            modality=self.descriptor.get("modality"),
+        )
 
     def to_evoked(self):
         """An :class:`~evoparam.data.Evoked` of ``evoked`` (T3)."""
 
         from evoparam.data import Evoked
 
-        return Evoked(data=self.arrays["evoked"], times=self.times,
-                      sfreq=float(self.descriptor["sfreq"]),
-                      ch_names=list(self.descriptor["ch_names"]),
-                      units=self.descriptor["units"], n_trials=self.descriptor["n_trials"])
+        return Evoked(
+            data=self.arrays["evoked"],
+            times=self.times,
+            sfreq=float(self.descriptor["sfreq"]),
+            ch_names=list(self.descriptor["ch_names"]),
+            units=self.descriptor["units"],
+            n_trials=self.descriptor["n_trials"],
+        )
 
 
 def make_descriptor(task, arrays, **fields):
@@ -211,9 +252,10 @@ def make_descriptor(task, arrays, **fields):
 
     descriptor = {"schema": schema_id(task), "role": "input", "task": task}
     descriptor.update(fields)
-    descriptor["arrays"] = {name: {"shape": list(np.shape(value)),
-                                   "sha256": array_sha256(value)}
-                            for name, value in arrays.items()}
+    descriptor["arrays"] = {
+        name: {"shape": list(np.shape(value)), "sha256": array_sha256(value)}
+        for name, value in arrays.items()
+    }
     descriptor["data_file"] = f"{fields['cell']}.npz"
     return descriptor
 
@@ -225,11 +267,12 @@ def write_input(task_input, folder):
     validate(descriptor, descriptor["task"], "input", where=descriptor["cell"])
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, f"{descriptor['cell']}.json")
-    np.savez(os.path.join(folder, descriptor["data_file"]),
-             **{k: np.asarray(v, dtype=np.float64) for k, v in task_input.arrays.items()})
+    np.savez(
+        os.path.join(folder, descriptor["data_file"]),
+        **{k: np.asarray(v, dtype=np.float64) for k, v in task_input.arrays.items()},
+    )
     with open(path, "w", encoding="utf-8") as fobj:
-        json.dump(descriptor, fobj, indent=1, sort_keys=True, ensure_ascii=False,
-                  allow_nan=False)
+        json.dump(descriptor, fobj, indent=1, sort_keys=True, ensure_ascii=False, allow_nan=False)
         fobj.write("\n")
     return path
 
@@ -261,14 +304,16 @@ def read_input(path):
                 raise BenchmarkValidationError(f"{npz}: array {name!r} is missing.")
             value = np.asarray(archive[name], dtype=np.float64)
             if list(value.shape) != info["shape"] or array_sha256(value) != info["sha256"]:
-                raise BenchmarkValidationError(f"{npz}: array {name!r} differs from the "
-                                               "shape or SHA-256 of its descriptor.")
+                raise BenchmarkValidationError(
+                    f"{npz}: array {name!r} differs from the shape or SHA-256 of its descriptor."
+                )
             arrays[name] = value
     return TaskInput(descriptor=descriptor, arrays=arrays)
 
 
 ###################################################################################################
 ## Outputs
+
 
 def _format(value):
     if value is None:
@@ -331,10 +376,12 @@ def _parse(text, column, strings, where):
     try:
         number = float(text)
     except ValueError:
-        return text                      # the schema reports the wrong type
+        return text  # the schema reports the wrong type
     if not math.isfinite(number):
-        raise BenchmarkValidationError(f"{where}, column '{column}': {text!r} is not a finite "
-                                       "number (write n/a for a missing value)")
+        raise BenchmarkValidationError(
+            f"{where}, column '{column}': {text!r} is not a finite "
+            "number (write n/a for a missing value)"
+        )
     return number
 
 
@@ -369,9 +416,12 @@ def read_output(task, path):
         description = {"arrays": {}}
         if data is not None:
             description["arrays"]["data"] = {
-                "shape": list(data.shape), "dtype": str(data.dtype),
-                "finite": bool(np.issubdtype(data.dtype, np.floating)
-                               and np.all(np.isfinite(data)))}
+                "shape": list(data.shape),
+                "dtype": str(data.dtype),
+                "finite": bool(
+                    np.issubdtype(data.dtype, np.floating) and np.all(np.isfinite(data))
+                ),
+            }
         for name in names:
             if name != "data":
                 description["arrays"][name] = {}
@@ -387,31 +437,37 @@ def read_output(task, path):
     header = [c.strip() for c in lines[0].rstrip("\r").split("\t")]
     for column in header:
         if column not in required + optional:
-            raise BenchmarkValidationError(f"{path}: header: unknown column '{column}' "
-                                           f"(columns of {schema_id(task)}: "
-                                           f"{required + optional})")
+            raise BenchmarkValidationError(
+                f"{path}: header: unknown column '{column}' "
+                f"(columns of {schema_id(task)}: "
+                f"{required + optional})"
+            )
     for column in required:
         if column not in header:
-            raise BenchmarkValidationError(f"{path}: header: missing required column "
-                                           f"'{column}' (schema {schema_id(task)})")
+            raise BenchmarkValidationError(
+                f"{path}: header: missing required column '{column}' (schema {schema_id(task)})"
+            )
     expected = [c for c in required + optional if c in header]
     if header != expected:
-        raise BenchmarkValidationError(f"{path}: header: columns must be in the order "
-                                       f"{expected}, found {header}")
+        raise BenchmarkValidationError(
+            f"{path}: header: columns must be in the order {expected}, found {header}"
+        )
     strings = _string_columns(task)
     rows = []
     for number, line in enumerate(lines[1:], start=2):
         fields = line.rstrip("\r").split("\t")
         where = f"{path}: line {number}"
         if len(fields) != len(header):
-            raise BenchmarkValidationError(f"{where}: {len(fields)} fields for {len(header)} "
-                                           "columns")
+            raise BenchmarkValidationError(
+                f"{where}: {len(fields)} fields for {len(header)} columns"
+            )
         row = {c: _parse(v, c, strings, where) for c, v in zip(header, fields)}
         error = _first_error(_validator(task, "output_row"), row)
         if error is not None:
             column = next(iter(error.absolute_path), None)
             place = f", column '{column}'" if column is not None else ""
-            raise BenchmarkValidationError(f"{where}{place}: {error.message} (schema "
-                                           f"{schema_id(task)})")
+            raise BenchmarkValidationError(
+                f"{where}{place}: {error.message} (schema {schema_id(task)})"
+            )
         rows.append(row)
     return rows

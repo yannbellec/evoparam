@@ -38,14 +38,25 @@ MIN_UNIQUE = 20
 _CHUNK = 256
 
 BOOTSTRAP_COLUMNS = {
-    "channel": "", "statistic": "", "estimate": "stat", "bias": "stat", "se": "stat",
-    "ci_low": "stat", "ci_high": "stat", "ci_level": "", "method": "", "n_boot": "",
-    "n_trials": "", "z0": "", "acceleration": "",
+    "channel": "",
+    "statistic": "",
+    "estimate": "stat",
+    "bias": "stat",
+    "se": "stat",
+    "ci_low": "stat",
+    "ci_high": "stat",
+    "ci_level": "",
+    "method": "",
+    "n_boot": "",
+    "n_trials": "",
+    "z0": "",
+    "acceleration": "",
 }
 
 
 ###################################################################################################
 ## Intervals
+
 
 def _quantile_z(ci_level, expand_n):
     """Lower and upper standard-normal quantiles of the interval, expanded for small samples."""
@@ -62,8 +73,9 @@ def _quantile_z(ci_level, expand_n):
     return np.array([-q, q])
 
 
-def bootstrap_interval(estimate, boot, *, jackknife=None, ci_level=0.95, method="bca",
-                       expand_n=None):
+def bootstrap_interval(
+    estimate, boot, *, jackknife=None, ci_level=0.95, method="bca", expand_n=None
+):
     """Percentile or BCa interval of one statistic from its bootstrap values.
 
     Parameters
@@ -101,11 +113,19 @@ def bootstrap_interval(estimate, boot, *, jackknife=None, ci_level=0.95, method=
     """
 
     jack = None if jackknife is None else np.asarray(jackknife, float).reshape(-1, 1)
-    out = _intervals(np.atleast_1d(np.asarray(estimate, float)),
-                     np.asarray(boot, float).reshape(-1, 1), jack, ci_level, method, expand_n)
+    out = _intervals(
+        np.atleast_1d(np.asarray(estimate, float)),
+        np.asarray(boot, float).reshape(-1, 1),
+        jack,
+        ci_level,
+        method,
+        expand_n,
+    )
     first = {key: value[0] for key, value in out.items()}
-    return {key: (value.item() if isinstance(value, np.generic) else value)
-            for key, value in first.items()}
+    return {
+        key: (value.item() if isinstance(value, np.generic) else value)
+        for key, value in first.items()
+    }
 
 
 def _sorted_quantile(sorted_boot, n_finite, levels):
@@ -148,8 +168,9 @@ def _intervals(estimate, boot, jack, ci_level, method, expand_n):
         reason[few] = f"fewer than {MIN_UNIQUE} distinct resample values"
         below = np.sum(finite & (boot < estimate), axis=0)
         equal = np.sum(finite & (boot == estimate), axis=0)
-        share = np.divide(below + 0.5 * equal, n_finite, out=np.full(k, np.nan),
-                          where=n_finite > 0)
+        share = np.divide(
+            below + 0.5 * equal, n_finite, out=np.full(k, np.nan), where=n_finite > 0
+        )
         z0_all = norm.ppf(share)
         side = usable & ~few & ~np.isfinite(z0_all)
         reason[side] = "every resample value lies on one side of the estimate"
@@ -161,20 +182,27 @@ def _intervals(estimate, boot, jack, ci_level, method, expand_n):
             count = np.maximum(jfin.sum(axis=0), 1)
             mean = np.where(jfin, jack, 0.0).sum(axis=0) / count
             d = np.where(jfin, mean - jack, 0.0)
-            denom = 6.0 * np.sum(d ** 2, axis=0) ** 1.5
-            a = np.divide(np.sum(d ** 3, axis=0), denom, out=np.zeros(k), where=denom > 0)
+            denom = 6.0 * np.sum(d**2, axis=0) ** 1.5
+            a = np.divide(np.sum(d**3, axis=0), denom, out=np.zeros(k), where=denom > 0)
         zz = z0_all[None, :] + z[:, None]
         bca_levels = norm.cdf(z0_all[None, :] + zz / (1 - a[None, :] * zz))
         levels = np.where(ok[None, :], bca_levels, levels)
         z0[ok], acc[ok] = z0_all[ok], a[ok]
     bounds = _sorted_quantile(ordered, n_finite, levels)
     bounds[:, ~usable] = np.nan
-    return {"low": bounds[0], "high": bounds[1], "method": used, "z0": z0,
-            "acceleration": acc, "reason": reason}
+    return {
+        "low": bounds[0],
+        "high": bounds[1],
+        "method": used,
+        "z0": z0,
+        "acceleration": acc,
+        "reason": reason,
+    }
 
 
 ###################################################################################################
 ## Resampling
+
 
 def _strata(ts, by):
     """Row indices of each stratum (one stratum when no ``by`` column is in the metadata)."""
@@ -198,15 +226,19 @@ def _subset(ts, rows):
     """The trials ``rows`` of a TrialSet (same provenance: a resample is not a new step)."""
 
     meta = None if ts.metadata is None else ts.metadata.iloc[rows].reset_index(drop=True)
-    return replace(ts, data=ts.data[rows], metadata=meta,
-                   masks=None if ts.masks is None else ts.masks[rows],
-                   event_times=None if ts.event_times is None else ts.event_times[rows])
+    return replace(
+        ts,
+        data=ts.data[rows],
+        metadata=meta,
+        masks=None if ts.masks is None else ts.masks[rows],
+        event_times=None if ts.event_times is None else ts.event_times[rows],
+    )
 
 
 def _as_vector(value):
     """Statistic value -> (labels, values)."""
 
-    if hasattr(value, "index") and hasattr(value, "to_numpy"):      # pandas Series
+    if hasattr(value, "index") and hasattr(value, "to_numpy"):  # pandas Series
         return [str(k) for k in value.index], np.asarray(value.to_numpy(), float).ravel()
     arr = np.asarray(value, float)
     if arr.ndim == 0:
@@ -237,10 +269,10 @@ def _score_path(ts, func, strata, n_boot, rng, inside):
     index = _indices(strata, n_boot, rng)
     boot = np.empty((n_boot, n_ch))
     for start in range(0, n_boot, _CHUNK):
-        rows = index[start:start + _CHUNK]
+        rows = index[start : start + _CHUNK]
         weights = np.zeros((len(rows), n))
         np.add.at(weights, (np.repeat(np.arange(len(rows)), n), rows.ravel()), 1.0)
-        boot[start:start + _CHUNK] = func(average(weights))
+        boot[start : start + _CHUNK] = func(average(weights))
     jack = np.empty((n, n_ch))
     for start in range(0, n, _CHUNK):
         stop = min(start + _CHUNK, n)
@@ -257,8 +289,10 @@ def _callable_path(ts, statistic, strata, n_boot, rng, n_jobs):
     def one(rows):
         lab, val = _as_vector(statistic(_subset(ts, rows)))
         if val.size != estimate.size:
-            raise DataError(f"bootstrap: the statistic returned {val.size} values on a "
-                            f"resample and {estimate.size} on the data.")
+            raise DataError(
+                f"bootstrap: the statistic returned {val.size} values on a "
+                f"resample and {estimate.size} on the data."
+            )
         return val
 
     loo = [np.delete(np.arange(ts.n_trials), i) for i in range(ts.n_trials)]
@@ -275,8 +309,21 @@ def _callable_path(ts, statistic, strata, n_boot, rng, n_jobs):
 ###################################################################################################
 ## Public function
 
-def bootstrap(ts, statistic, *, n_boot=1000, by=("stim_site",), ci_level=0.95, method="bca",
-              random_state=None, n_jobs=1, window=None, expand=True, **scorer_kw):
+
+def bootstrap(
+    ts,
+    statistic,
+    *,
+    n_boot=1000,
+    by=("stim_site",),
+    ci_level=0.95,
+    method="bca",
+    random_state=None,
+    n_jobs=1,
+    window=None,
+    expand=True,
+    **scorer_kw,
+):
     """Bootstrap interval of any statistic of the trials.
 
     Parameters
@@ -357,8 +404,7 @@ def bootstrap(ts, statistic, *, n_boot=1000, by=("stim_site",), ci_level=0.95, m
         channels, labels = list(ts.ch_names), [name] * ts.n_channels
         unit = "s" if name in TIME_SCORES else ("data·s" if name == "area" else ts.units)
     elif callable(statistic):
-        labels, estimate, boot, jack = _callable_path(ts, statistic, strata, n_boot, rng,
-                                                      n_jobs)
+        labels, estimate, boot, jack = _callable_path(ts, statistic, strata, n_boot, rng, n_jobs)
         channels = [""] * len(labels)
     else:
         raise SettingsError("statistic must be a callable or the name of a classical score.")
@@ -371,29 +417,62 @@ def bootstrap(ts, statistic, *, n_boot=1000, by=("stim_site",), ci_level=0.95, m
     total = np.where(finite, boot, 0.0).sum(axis=0)
     mean = np.divide(total, n_finite, out=np.full(len(estimate), np.nan), where=n_finite > 0)
     dev = np.where(finite, boot - mean, 0.0)
-    sd = np.sqrt(np.divide(np.sum(dev ** 2, axis=0), n_finite - 1,
-                           out=np.full(len(estimate), np.nan), where=n_finite > 1))
-    fallbacks = [f"{c or lab}: {why}" for c, lab, why, used in
-                 zip(channels, labels, ci["reason"], ci["method"])
-                 if why and method == "bca" and used == "percentile"]
+    sd = np.sqrt(
+        np.divide(
+            np.sum(dev**2, axis=0),
+            n_finite - 1,
+            out=np.full(len(estimate), np.nan),
+            where=n_finite > 1,
+        )
+    )
+    fallbacks = [
+        f"{c or lab}: {why}"
+        for c, lab, why, used in zip(channels, labels, ci["reason"], ci["method"])
+        if why and method == "bca" and used == "percentile"
+    ]
     if fallbacks:
-        _warn("bootstrap: BCa fell back to the percentile interval for "
-              + "; ".join(fallbacks[:5]) + (" ..." if len(fallbacks) > 5 else ""),
-              UserWarning, stacklevel=2)
-    rows = {"channel": channels, "statistic": labels, "estimate": estimate,
-            "bias": mean - estimate, "se": sd, "ci_low": ci["low"], "ci_high": ci["high"],
-            "ci_level": float(ci_level), "method": list(ci["method"]),
-            "n_boot": n_finite.astype(np.int64), "n_trials": int(ts.n_trials),
-            "z0": ci["z0"], "acceleration": ci["acceleration"]}
+        _warn(
+            "bootstrap: BCa fell back to the percentile interval for "
+            + "; ".join(fallbacks[:5])
+            + (" ..." if len(fallbacks) > 5 else ""),
+            UserWarning,
+            stacklevel=2,
+        )
+    rows = {
+        "channel": channels,
+        "statistic": labels,
+        "estimate": estimate,
+        "bias": mean - estimate,
+        "se": sd,
+        "ci_low": ci["low"],
+        "ci_high": ci["high"],
+        "ci_level": float(ci_level),
+        "method": list(ci["method"]),
+        "n_boot": n_finite.astype(np.int64),
+        "n_trials": int(ts.n_trials),
+        "z0": ci["z0"],
+        "acceleration": ci["acceleration"],
+    }
     table = pd.DataFrame(rows, columns=list(BOOTSTRAP_COLUMNS))
-    settings = {"statistic": statistic if isinstance(statistic, str)
-                else getattr(statistic, "__name__", "callable"),
-                "n_boot": n_boot, "by": list(by or ()), "ci_level": ci_level, "method": method,
-                "random_state": random_state if isinstance(random_state, (int, type(None)))
-                else "generator", "window": None if window is None else list(window),
-                "n_strata": len(strata), "expand": bool(expand), **scorer_kw}
+    settings = {
+        "statistic": statistic
+        if isinstance(statistic, str)
+        else getattr(statistic, "__name__", "callable"),
+        "n_boot": n_boot,
+        "by": list(by or ()),
+        "ci_level": ci_level,
+        "method": method,
+        "random_state": random_state
+        if isinstance(random_state, (int, type(None)))
+        else "generator",
+        "window": None if window is None else list(window),
+        "n_strata": len(strata),
+        "expand": bool(expand),
+        **scorer_kw,
+    }
     table.attrs["units"] = {k: (unit if v == "stat" else v) for k, v in BOOTSTRAP_COLUMNS.items()}
     table.attrs["settings"] = settings
     table.attrs["provenance"] = ts.provenance.with_step(
-        "evoparam.stats.bootstrap", settings, duration_s=_time.perf_counter() - start).to_dict()
+        "evoparam.stats.bootstrap", settings, duration_s=_time.perf_counter() - start
+    ).to_dict()
     return table

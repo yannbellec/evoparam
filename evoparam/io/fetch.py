@@ -6,13 +6,19 @@ import os
 from evoparam.errors import ReaderError
 from evoparam.io._fetch import RemoteFile, download, sha256_file
 
-__all__ = ["OPENNEURO_URL", "openneuro_url", "fetch_openneuro_file", "fetch_erpcore", "RemoteFile",
-           "ERPCORE_NODES"]
+__all__ = [
+    "OPENNEURO_URL",
+    "openneuro_url",
+    "fetch_openneuro_file",
+    "fetch_erpcore",
+    "RemoteFile",
+    "ERPCORE_NODES",
+]
 
 ###################################################################################################
 ###################################################################################################
 
-OPENNEURO_URL = 'https://s3.amazonaws.com/openneuro.org/'
+OPENNEURO_URL = "https://s3.amazonaws.com/openneuro.org/"
 
 
 def openneuro_url(dataset, path):
@@ -31,16 +37,17 @@ def openneuro_url(dataset, path):
     url : str
     """
 
-    return OPENNEURO_URL + dataset + '/' + path.lstrip('/')
+    return OPENNEURO_URL + dataset + "/" + path.lstrip("/")
 
 
 def _registry_files(dataset):
     """``files`` (path -> SHA-256) of a dataset of the registry, or None."""
 
     from evoparam.io.registry import _load_registry
-    for entry in _load_registry()['datasets']:
-        if entry['id'].lower() == dataset.lower():
-            return entry.get('files') or {}
+
+    for entry in _load_registry()["datasets"]:
+        if entry["id"].lower() == dataset.lower():
+            return entry.get("files") or {}
     return None
 
 
@@ -48,13 +55,14 @@ def _registry_sha256(dataset, path):
     """SHA-256 recorded for this file in the dataset registry, if any."""
 
     from evoparam.io.registry import _load_registry
-    for entry in _load_registry()['datasets']:
-        if entry['id'].lower() == dataset.lower():
-            return (entry.get('files') or {}).get(path.lstrip('/'))
+
+    for entry in _load_registry()["datasets"]:
+        if entry["id"].lower() == dataset.lower():
+            return (entry.get("files") or {}).get(path.lstrip("/"))
     return None
 
 
-def fetch_openneuro_file(dataset, path, folder='data', *, sha256=None):
+def fetch_openneuro_file(dataset, path, folder="data", *, sha256=None):
     """Download one file of an OpenNeuro dataset, if not already present.
 
     Parameters
@@ -82,7 +90,7 @@ def fetch_openneuro_file(dataset, path, folder='data', *, sha256=None):
         or if the file does not match the expected SHA-256.
     """
 
-    local_path = os.path.join(folder, dataset, *path.lstrip('/').split('/'))
+    local_path = os.path.join(folder, dataset, *path.lstrip("/").split("/"))
     expected = sha256 or _registry_sha256(dataset, path)
 
     if os.path.isfile(local_path):
@@ -92,8 +100,11 @@ def fetch_openneuro_file(dataset, path, folder='data', *, sha256=None):
 
     if expected and found.lower() != expected.lower():
         os.remove(local_path)
-        raise ReaderError('{}: SHA-256 {} does not match the expected {}; the file was '
-                          'deleted.'.format(local_path, found, expected))
+        raise ReaderError(
+            "{}: SHA-256 {} does not match the expected {}; the file was deleted.".format(
+                local_path, found, expected
+            )
+        )
 
     return local_path
 
@@ -101,8 +112,15 @@ def fetch_openneuro_file(dataset, path, folder='data', *, sha256=None):
 # OSF project of ERP CORE (Kappenman et al. 2021, DOI 10.18115/D5JW4R): one node per
 # component, each with the folder "<component> All Data and Scripts" holding one folder per
 # participant
-ERPCORE_NODES = {"P3": "etdkz", "N170": "pfde9", "N400": "29xpq", "MMN": "5q4xs",
-                 "N2pc": "yefrq", "LRP": "28e6c", "ERN": "q6gwp"}
+ERPCORE_NODES = {
+    "P3": "etdkz",
+    "N170": "pfde9",
+    "N400": "29xpq",
+    "MMN": "5q4xs",
+    "N2pc": "yefrq",
+    "LRP": "28e6c",
+    "ERN": "q6gwp",
+}
 ERPCORE_SUFFIXES = ("_epoch_interp_ar.set", "_epoch_interp_ar.fdt")
 
 
@@ -151,38 +169,45 @@ def fetch_erpcore(component, participant=1, folder=None):
 
     if component not in ERPCORE_NODES:
         raise ReaderError(f"ERP CORE component must be one of {sorted(ERPCORE_NODES)}.")
-    folder = folder or os.environ.get("EVOPARAM_ERPCORE",
-                                      os.path.expanduser("~/.cache/evoparam/erpcore"))
+    folder = folder or os.environ.get(
+        "EVOPARAM_ERPCORE", os.path.expanduser("~/.cache/evoparam/erpcore")
+    )
     import glob
 
     target = os.path.join(folder, component, str(int(participant)))
     prefix = f"{component}/{int(participant)}/"
-    registry = {key[len(prefix):]: value for key, value in
-                (_registry_files("erp-core") or {}).items() if key.startswith(prefix)}
+    registry = {
+        key[len(prefix) :]: value
+        for key, value in (_registry_files("erp-core") or {}).items()
+        if key.startswith(prefix)
+    }
 
     def local(suffix):
         found = glob.glob(os.path.join(target, f"*{suffix}"))
         return found[0] if found else None
 
     published = {}
-    if any(local(suffix) is None for suffix in ERPCORE_SUFFIXES) or \
-            not all(any(n.endswith(suffix) for n in registry) for suffix in ERPCORE_SUFFIXES):
+    if any(local(suffix) is None for suffix in ERPCORE_SUFFIXES) or not all(
+        any(n.endswith(suffix) for n in registry) for suffix in ERPCORE_SUFFIXES
+    ):
         _check_online("https://api.osf.io")
         node = ERPCORE_NODES[component]
         top = list(_osf_pages(f"https://api.osf.io/v2/nodes/{node}/files/osfstorage/"))
         data = next(f for f in top if f["attributes"]["name"].endswith("All Data and Scripts"))
-        subjects = _osf_pages(data["relationships"]["files"]["links"]["related"]["href"]
-                              + "?page[size]=100")
-        subject = next((s for s in subjects if s["attributes"]["name"] == str(participant)),
-                       None)
+        subjects = _osf_pages(
+            data["relationships"]["files"]["links"]["related"]["href"] + "?page[size]=100"
+        )
+        subject = next((s for s in subjects if s["attributes"]["name"] == str(participant)), None)
         if subject is None:
             raise ReaderError(f"ERP CORE {component}: no participant {participant} on OSF.")
-        for item in _osf_pages(subject["relationships"]["files"]["links"]["related"]["href"]
-                               + "?page[size]=100"):
+        for item in _osf_pages(
+            subject["relationships"]["files"]["links"]["related"]["href"] + "?page[size]=100"
+        ):
             name = item["attributes"]["name"]
             if name.endswith(ERPCORE_SUFFIXES):
-                published[name] = ((item["attributes"].get("extra") or {}).get("hashes")
-                                   or {}).get("sha256")
+                published[name] = (
+                    (item["attributes"].get("extra") or {}).get("hashes") or {}
+                ).get("sha256")
                 path = os.path.join(target, name)
                 if not os.path.isfile(path):
                     download(item["links"]["download"], path)
@@ -197,7 +222,9 @@ def fetch_erpcore(component, participant=1, folder=None):
             found = sha256_file(path)
             if found.lower() != want.lower():
                 os.remove(path)
-                raise ReaderError(f"{path}: SHA-256 {found} does not match the expected "
-                                  f"{want}; the file was deleted.")
+                raise ReaderError(
+                    f"{path}: SHA-256 {found} does not match the expected "
+                    f"{want}; the file was deleted."
+                )
         out.append(path)
     return out[0]

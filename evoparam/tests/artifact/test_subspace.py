@@ -11,6 +11,7 @@ from .helpers import artifact_shape, response, times_axis
 ###################################################################################################
 ###################################################################################################
 
+
 def _overlay(seed):
     rng = np.random.default_rng(seed)
     sfreq, n_trials, n_channels = 2048.0, 30, 32
@@ -22,8 +23,12 @@ def _overlay(seed):
     clean = eeg + topo_response[None, :, None] * response(times, 0.012, -20.0)[None, None]
     # One stimulation site: two fixed artifact topographies
     topo_art = rng.normal(0, 1, (n_channels, 2))
-    shapes = np.array([artifact_shape(times, sfreq, 3000.0, 400.0, 0.002),
-                       artifact_shape(times, sfreq, 800.0, 0.0, 0.002) * 0.5])
+    shapes = np.array(
+        [
+            artifact_shape(times, sfreq, 3000.0, 400.0, 0.002),
+            artifact_shape(times, sfreq, 800.0, 0.0, 0.002) * 0.5,
+        ]
+    )
     gains = rng.uniform(0.9, 1.1, (n_trials, 1, 1))
     noisy = clean + gains * (topo_art @ shapes)[None]
     names = [f"E{i}" for i in range(n_channels)]
@@ -34,9 +39,12 @@ def _overlay(seed):
 
 def _gain(seed, **options):
     noisy, clean = _overlay(seed)
-    table = compare_methods(noisy, [{"method": "subspace", "window": (-0.002, 0.008),
-                                     **options}],
-                            truth=clean, window_eval=(0.008, 0.05))
+    table = compare_methods(
+        noisy,
+        [{"method": "subspace", "window": (-0.002, 0.008), **options}],
+        truth=clean,
+        window_eval=(0.008, 0.05),
+    )
     return table["sir_improvement_db"].iloc[0]
 
 

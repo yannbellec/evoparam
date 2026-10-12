@@ -18,20 +18,22 @@ def _erna_case(seed):
 
     from evoparam.sim import simulate_erna
 
-    ts, truth = simulate_erna(10, n_trials=20, seed=seed, snr=3, artifact=False, tmax=0.09,
-                              onset_delay=0.002)
+    ts, truth = simulate_erna(
+        10, n_trials=20, seed=seed, snr=3, artifact=False, tmax=0.09, onset_delay=0.002
+    )
     table = truth.to_dataframe()
     last = table[(table["event"] == 9) & (table["channel"] == "L01")].iloc[0]
     n = int(round(0.0105 * ts.sfreq))
     epochs = []
     for k in range(5, 10):
         start = np.searchsorted(ts.times, k / 130.0 - 0.002)
-        epochs.append(ts.data[:, 1:2, start:start + n])
+        epochs.append(ts.data[:, 1:2, start : start + n])
     pulse = 9 / 130.0
     start = np.searchsorted(ts.times, pulse - 0.002)
-    times = ts.times[start:start + n] - pulse
-    sub = TrialSet(data=np.concatenate(epochs), times=times, sfreq=ts.sfreq, ch_names=["L01"],
-                   modality="erna")
+    times = ts.times[start : start + n] - pulse
+    sub = TrialSet(
+        data=np.concatenate(epochs), times=times, sfreq=ts.sfreq, ch_names=["L01"], modality="erna"
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         result = fit(sub, "erna").fits[0]
@@ -39,10 +41,10 @@ def _erna_case(seed):
     if not comps:
         return np.nan, np.nan
     comp = max(comps, key=lambda c: abs(c.amplitude))
-    true = np.array([last["param_t0"], last["param_tau"], last["param_freq"],
-                     last["param_phase"]])
-    first_peak = float(DAMPED.extremum(np.asarray(comp.params))) - \
-        (float(DAMPED.extremum(true)) - pulse)
+    true = np.array([last["param_t0"], last["param_tau"], last["param_freq"], last["param_phase"]])
+    first_peak = float(DAMPED.extremum(np.asarray(comp.params))) - (
+        float(DAMPED.extremum(true)) - pulse
+    )
     return comp.params[2] - last["param_freq"], first_peak * 1e3
 
 
@@ -66,10 +68,13 @@ def _sep_case(seed, snr=5.0, phi=0.0):
 
     rng = np.random.default_rng(seed)
     latency = rng.uniform(0.0185, 0.0215)
-    y = -_gauss(latency, 0.004) + 0.8 * _gauss(latency + 0.005, 0.006) \
+    y = (
+        -_gauss(latency, 0.004)
+        + 0.8 * _gauss(latency + 0.005, 0.006)
         - 0.6 * _gauss(latency + 0.013, 0.008)
+    )
     sd = 1.0 / snr
-    e = rng.normal(0, sd * np.sqrt(1 - phi ** 2), SEP_TIMES.size)
+    e = rng.normal(0, sd * np.sqrt(1 - phi**2), SEP_TIMES.size)
     noise = np.empty_like(e)
     noise[0] = rng.normal(0, sd)
     for k in range(1, SEP_TIMES.size):

@@ -82,21 +82,47 @@ from evoparam import presets
 NETWORK = os.environ.get("EVOPARAM_NETWORK_TESTS") == "1"
 
 DATASET = "ds002094"
-SUBJECTS = ["283", "711", "718", "728", "734", "735", "739", "743", "749", "759", "761",
-            "764", "766", "767", "768", "774", "779", "780", "783", "786"]
-RUNS = {"728": ("tmseeg1", "tmseeg2"), "766": ("tmseeg1", "tmseeg2"),
-        "780": ("tmseeg1", "tmseeg2")}
+SUBJECTS = [
+    "283",
+    "711",
+    "718",
+    "728",
+    "734",
+    "735",
+    "739",
+    "743",
+    "749",
+    "759",
+    "761",
+    "764",
+    "766",
+    "767",
+    "768",
+    "774",
+    "779",
+    "780",
+    "783",
+    "786",
+]
+RUNS = {
+    "728": ("tmseeg1", "tmseeg2"),
+    "766": ("tmseeg1", "tmseeg2"),
+    "780": ("tmseeg1", "tmseeg2"),
+}
 # Trials (1-based, over the runs in order) removed from the EEG by the dataset README.
-README_DROP = {"767": lambda n: n in (1, 2), "774": lambda n: n > 556,
-               "780": lambda n: 401 <= n <= 405}
-OUTER_RING = ("FP1", "FP2", "F7", "F8", "T7", "T8", "P7", "P8", "O1", "O2", "IZ", "TP9",
-              "TP10")
+README_DROP = {
+    "767": lambda n: n in (1, 2),
+    "774": lambda n: n > 556,
+    "780": lambda n: 401 <= n <= 405,
+}
+OUTER_RING = ("FP1", "FP2", "F7", "F8", "T7", "T8", "P7", "P8", "O1", "O2", "IZ", "TP9", "TP10")
 SFREQ = 1000.0
 CACHE_VERSION = 1
 CHUNK = 100
 
 ###################################################################################################
 ###################################################################################################
+
 
 def _cache_dir():
     from evoparam.io._fetch import data_folder
@@ -136,8 +162,17 @@ def _download(subject, folder):
     files = ["dataset_description.json"]
     for task in RUNS.get(subject, ("tmseeg1",)):
         stem = f"sub-{subject}/eeg/sub-{subject}_task-{task}"
-        files += [stem + suffix for suffix in ("_events.tsv", "_channels.tsv", "_eeg.json",
-                                               "_eeg.vhdr", "_eeg.vmrk", "_eeg.eeg")]
+        files += [
+            stem + suffix
+            for suffix in (
+                "_events.tsv",
+                "_channels.tsv",
+                "_eeg.json",
+                "_eeg.vhdr",
+                "_eeg.vmrk",
+                "_eeg.eeg",
+            )
+        ]
     return [fetch_openneuro_file(DATASET, f, folder=folder) for f in files]
 
 
@@ -162,15 +197,21 @@ def load_epochs(subject):
             for task in RUNS.get(subject, ("tmseeg1",)):
                 mine = [row for t, row in pulses if t == task]
                 for start in range(0, len(mine), CHUNK):
-                    chunk = mine[start:start + CHUNK]
-                    ts = read_bids(root, subject, task=task, datatype="eeg",
-                                   epoch=preset.epoch, select=f"trial in {chunk}")
+                    chunk = mine[start : start + CHUNK]
+                    ts = read_bids(
+                        root,
+                        subject,
+                        task=task,
+                        datatype="eeg",
+                        epoch=preset.epoch,
+                        select=f"trial in {chunk}",
+                    )
                     assert list(ts.metadata["trial"]) == chunk
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
-                        ts = remove_artifact(ts, method="interpolate",
-                                             window=preset.artifact_window,
-                                             quality=False).cleaned
+                        ts = remove_artifact(
+                            ts, method="interpolate", window=preset.artifact_window, quality=False
+                        ).cleaned
                     parts.append(resample(ts, SFREQ))
                     rows += [(task, row) for row in chunk]
         finally:
@@ -178,18 +219,25 @@ def load_epochs(subject):
             for name in os.listdir(eeg) if os.path.isdir(eeg) else []:
                 if name.endswith((".eeg", ".part")):
                     os.remove(os.path.join(eeg, name))
-        np.savez_compressed(path, data=np.concatenate([p.data for p in parts]).astype(np.float32),
-                            masks=np.concatenate([p.masks for p in parts]),
-                            times=parts[0].times, sfreq=parts[0].sfreq,
-                            names=np.array(parts[0].ch_names),
-                            task=np.array([t for t, _ in rows]),
-                            row=np.array([r for _, r in rows]))
+        np.savez_compressed(
+            path,
+            data=np.concatenate([p.data for p in parts]).astype(np.float32),
+            masks=np.concatenate([p.masks for p in parts]),
+            times=parts[0].times,
+            sfreq=parts[0].sfreq,
+            names=np.array(parts[0].ch_names),
+            task=np.array([t for t, _ in rows]),
+            row=np.array([r for _, r in rows]),
+        )
     saved = np.load(path)
-    return TrialSet(data=saved["data"].astype(float), times=saved["times"],
-                    sfreq=float(saved["sfreq"]), ch_names=[str(n) for n in saved["names"]],
-                    masks=saved["masks"],
-                    metadata=pd.DataFrame({"task": saved["task"].astype(str),
-                                           "trial": saved["row"]}))
+    return TrialSet(
+        data=saved["data"].astype(float),
+        times=saved["times"],
+        sfreq=float(saved["sfreq"]),
+        ch_names=[str(n) for n in saved["names"]],
+        masks=saved["masks"],
+        metadata=pd.DataFrame({"task": saved["task"].astype(str), "trial": saved["row"]}),
+    )
 
 
 def _preset_stages(ts):
@@ -201,8 +249,13 @@ def _preset_stages(ts):
     preset = presets.get("tep")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        ts = remove_artifact(ts, method="subspace", window=preset.artifact_window,
-                             baseline=preset.baseline, quality=False).cleaned
+        ts = remove_artifact(
+            ts,
+            method="subspace",
+            window=preset.artifact_window,
+            baseline=preset.baseline,
+            quality=False,
+        ).cleaned
         ts = rereference(ts, "car")
         ts = baseline_correct(ts, preset.baseline, check=False)
     return ts.average()
@@ -227,7 +280,7 @@ def fastica(x, *, seed=0, max_iter=1000, tol=1e-4):
     w = decorrelate(np.random.default_rng(seed).standard_normal((k, k)))
     for _ in range(max_iter):
         g = np.tanh(w @ z)
-        new = g @ z.T / z.shape[1] - np.diag((1 - g ** 2).mean(axis=1)) @ w
+        new = g @ z.T / z.shape[1] - np.diag((1 - g**2).mean(axis=1)) @ w
         new = decorrelate(new)
         done = np.max(np.abs(np.abs(np.einsum("ij,ij->i", new, w)) - 1)) < tol
         w = new
@@ -263,15 +316,18 @@ def ica_round(ts, *, second):
         fp = [names.index(c) for c in ("FP1", "FP2")]
         f7, f8 = names.index("F7"), names.index("F8")
         reasons["blink"] = np.abs(z[:, fp].mean(axis=1)) > 2.5
-        reasons["eye_movement"] = ((z[:, f7] * z[:, f8] < 0)
-                                   & (np.minimum(np.abs(z[:, f7]), np.abs(z[:, f8])) > 2.0))
+        reasons["eye_movement"] = (z[:, f7] * z[:, f8] < 0) & (
+            np.minimum(np.abs(z[:, f7]), np.abs(z[:, f8])) > 2.0
+        )
         reasons["electrode_noise"] = np.abs(z).max(axis=1) > 4.0
         from scipy.signal import periodogram
+
         freqs, power = periodogram(act, fs=ts.sfreq, window="hann", axis=-1)
         power = power.mean(axis=1)
         band = (freqs >= 30) & (freqs <= 100) & ((freqs < 57) | (freqs > 63))
-        slope = np.array([np.polyfit(np.log10(freqs[band]), np.log10(p[band]), 1)[0]
-                          for p in power])
+        slope = np.array(
+            [np.polyfit(np.log10(freqs[band]), np.log10(p[band]), 1)[0] for p in power]
+        )
         reasons["persistent_muscle"] = slope > -0.31
     remove = np.any(list(reasons.values()), axis=0)
     cleaned = flat - mixing[:, remove] @ (unmixing[remove] @ (flat - mean))
@@ -311,15 +367,28 @@ def average(subject, variant="A"):
         if variant == "B":
             ts, info = _ica_stages(ts)
         evoked = _preset_stages(ts)
-        np.savez(path, data=evoked.data, sem=evoked.sem, masks=evoked.masks,
-                 n_trials=evoked.n_trials, times=evoked.times, sfreq=evoked.sfreq,
-                 names=np.array(evoked.ch_names), info=repr(info))
+        np.savez(
+            path,
+            data=evoked.data,
+            sem=evoked.sem,
+            masks=evoked.masks,
+            n_trials=evoked.n_trials,
+            times=evoked.times,
+            sfreq=evoked.sfreq,
+            names=np.array(evoked.ch_names),
+            info=repr(info),
+        )
     saved = np.load(path)
     n_trials = saved["n_trials"]
-    return Evoked(data=saved["data"], times=saved["times"], sfreq=float(saved["sfreq"]),
-                  ch_names=[str(n) for n in saved["names"]],
-                  n_trials=int(n_trials) if n_trials.ndim == 0 else n_trials,
-                  sem=saved["sem"], masks=saved["masks"]), str(saved["info"])
+    return Evoked(
+        data=saved["data"],
+        times=saved["times"],
+        sfreq=float(saved["sfreq"]),
+        ch_names=[str(n) for n in saved["names"]],
+        n_trials=int(n_trials) if n_trials.ndim == 0 else n_trials,
+        sem=saved["sem"],
+        masks=saved["masks"],
+    ), str(saved["info"])
 
 
 def judge(evoked, channels=None):
@@ -333,18 +402,24 @@ def judge(evoked, channels=None):
         channels = [n for n in names if n.upper() not in OUTER_RING]
     window = (preset.component_labels["N45"][0], preset.component_labels["N100"][1])
     inside = (evoked.times >= window[0]) & (evoked.times <= window[1])
-    rms = {n: float(np.sqrt(np.nanmean(evoked.data[names.index(n), inside] ** 2)))
-           for n in channels}
+    rms = {
+        n: float(np.sqrt(np.nanmean(evoked.data[names.index(n), inside] ** 2))) for n in channels
+    }
     channel = max(rms, key=rms.get)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = ResponseModel("tep").fit_group(evoked, picks=[channel])
     fit = group.fits[0]
     labels = {c.label for c in fit.components}
-    return {"channel": channel, "status": fit.status, "N45": "N45" in labels,
-            "N100": "N100" in labels,
-            "components": [(c.label, round(c.latency * 1000, 1), round(c.amplitude, 2))
-                           for c in fit.components]}
+    return {
+        "channel": channel,
+        "status": fit.status,
+        "N45": "N45" in labels,
+        "N100": "N100" in labels,
+        "components": [
+            (c.label, round(c.latency * 1000, 1), round(c.amplitude, 2)) for c in fit.components
+        ],
+    }
 
 
 def evaluate(subjects=SUBJECTS):
@@ -380,6 +455,7 @@ def results():
 ###################################################################################################
 ###################################################################################################
 
+
 def test_req275_methods_text_names_the_sensory_confound():
 
     from evoparam.models import methods_text, resolve_settings
@@ -390,6 +466,7 @@ def test_req275_methods_text_names_the_sensory_confound():
     times = np.arange(-0.2, 0.4, 0.001)
     y = -5 * np.exp(-0.5 * ((times - 0.1) / 0.02) ** 2)
     from evoparam.models import fit_response
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         fit = fit_response(times, y, window=(0.012, 0.3), baseline=(-0.2, 0.0), preset="tep")
@@ -414,9 +491,10 @@ def test_req275_methods_text_names_the_sensory_confound():
 # Variant A never strides the noise; variant B always does (k = 3, or 2; the 100 Hz low-pass).
 # Without the stride (= commit 7044dc1 for 1.0): B all 8 / 15 / 8 (1.0) and 8 / 13 / 6 (1.1),
 # B inner 7 / 18 / 6 and 9 / 17 / 9, from fits that reach max_components (CHANGELOG).
-needs_data = [pytest.mark.network,
-              pytest.mark.skipif(not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read "
-                                 "OpenNeuro")]
+needs_data = [
+    pytest.mark.network,
+    pytest.mark.skipif(not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro"),
+]
 
 
 def _network(test):
@@ -426,15 +504,18 @@ def _network(test):
 
 
 @_network
-@pytest.mark.xfail(strict=False, reason="REQ-275 not met: with the published ICA cleaning, "
-                   "N45 and N100 are both labelled on the channel of maximal response for 8 of "
-                   "20 subjects (N45 10, N100 11; preset tep 1.1; 5 of 20 with tep 1.0), 8 of "
-                   "20 with the preset's chain alone and the 17 inner channels. On 10 of the "
-                   "20 subjects the largest response after ICA is on TP9, TP10, IZ or O1, where "
-                   "the fronto-central N100 appears inverted under the average reference (the "
-                   "largest fitted component from 80 to 140 ms is positive on 9 of them): both "
-                   "labels on 1 of these 10, on 7 of the other 10; on the 17 inner channels 12 "
-                   "of 20. See CHANGELOG, REQ-275 'Preset tep 1.1', and step S15 part 3.")
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-275 not met: with the published ICA cleaning, "
+    "N45 and N100 are both labelled on the channel of maximal response for 8 of "
+    "20 subjects (N45 10, N100 11; preset tep 1.1; 5 of 20 with tep 1.0), 8 of "
+    "20 with the preset's chain alone and the 17 inner channels. On 10 of the "
+    "20 subjects the largest response after ICA is on TP9, TP10, IZ or O1, where "
+    "the fronto-central N100 appears inverted under the average reference (the "
+    "largest fitted component from 80 to 140 ms is positive on 9 of them): both "
+    "labels on 1 of these 10, on 7 of the other 10; on the 17 inner channels 12 "
+    "of 20. See CHANGELOG, REQ-275 'Preset tep 1.1', and step S15 part 3.",
+)
 def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results):
 
     n45, n100, both = rates(results, "B_all")
@@ -442,13 +523,16 @@ def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results):
 
 
 @_network
-@pytest.mark.xfail(strict=True, reason="floor of step S15 not reached (Python 3.13, numpy "
-                   "2.5.3, preset tep 1.1): N45 / N100 / both on the 17 inner channels with the "
-                   "preset chain 9 / 15 / 8 (floor 11 / 15 / 9; N100 met); with ICA on all 30 "
-                   "channels 10 / 11 / 8 and on the 17 inner channels 12 / 17 / 12 (floors "
-                   "raised to these levels) are met. Preset tep 1.0 at 3b222bb: 9 / 12 / 8, "
-                   "7 / 11 / 5, 7 / 14 / 5; the preset chain gives 9 / 12 / 8 at 7044dc1 too, "
-                   "before the strided whitening (CHANGELOG).")
+@pytest.mark.xfail(
+    strict=True,
+    reason="floor of step S15 not reached (Python 3.13, numpy "
+    "2.5.3, preset tep 1.1): N45 / N100 / both on the 17 inner channels with the "
+    "preset chain 9 / 15 / 8 (floor 11 / 15 / 9; N100 met); with ICA on all 30 "
+    "channels 10 / 11 / 8 and on the 17 inner channels 12 / 17 / 12 (floors "
+    "raised to these levels) are met. Preset tep 1.0 at 3b222bb: 9 / 12 / 8, "
+    "7 / 11 / 5, 7 / 14 / 5; the preset chain gives 9 / 12 / 8 at 7044dc1 too, "
+    "before the strided whitening (CHANGELOG).",
+)
 def test_req275_level_reached_with_the_preset_chain(results):
     """Floor of the level reached (the counts measured in S15, raised where preset tep 1.1
     reached more): a regression guard, not the criterion of REQ-275."""
@@ -467,8 +551,9 @@ def test_fastica_recovers_mixed_sources():
 
     rng = np.random.default_rng(1)
     t = np.arange(20000) / 1000.0
-    sources = np.vstack([np.sign(np.sin(2 * np.pi * 3 * t)), np.sin(2 * np.pi * 7 * t),
-                         rng.laplace(size=t.size)])
+    sources = np.vstack(
+        [np.sign(np.sin(2 * np.pi * 3 * t)), np.sin(2 * np.pi * 7 * t), rng.laplace(size=t.size)]
+    )
     mixing = rng.standard_normal((5, 3))
     unmixing, estimated = fastica(mixing @ sources)
     assert unmixing.shape == (3, 5) and estimated.shape == (5, 3)

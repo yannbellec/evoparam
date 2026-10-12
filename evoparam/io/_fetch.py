@@ -19,8 +19,15 @@ from urllib.request import Request, urlopen
 
 from evoparam.errors import ReaderError, warn as _warn
 
-__all__ = ["RemoteFile", "is_url", "fetch_bytes", "download", "data_folder", "sha256_file",
-           "TransferLog"]
+__all__ = [
+    "RemoteFile",
+    "is_url",
+    "fetch_bytes",
+    "download",
+    "data_folder",
+    "sha256_file",
+    "TransferLog",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +50,9 @@ def is_url(path):
 def data_folder():
     """Folder for downloads: ``EVOPARAM_DATA``, or ``~/.cache/evoparam``."""
 
-    return os.environ.get("EVOPARAM_DATA") or os.path.join(os.path.expanduser("~"), ".cache",
-                                                            "evoparam")
+    return os.environ.get("EVOPARAM_DATA") or os.path.join(
+        os.path.expanduser("~"), ".cache", "evoparam"
+    )
 
 
 def sha256_file(path, block=1 << 20):
@@ -224,8 +232,9 @@ class RemoteFile:
     ``with RemoteFile(url) as remote: header = remote.read(0, 1024)``
     """
 
-    def __init__(self, url, *, chunk_size=8 << 20, timeout=30.0, max_chunks=32, cache_dir=None,
-                 log=None):
+    def __init__(
+        self, url, *, chunk_size=8 << 20, timeout=30.0, max_chunks=32, cache_dir=None, log=None
+    ):
         if not is_url(url):
             raise ReaderError(f"RemoteFile needs an http(s) address, got {url!r}.")
         if int(chunk_size) < 1 or int(max_chunks) < 1:
@@ -240,7 +249,7 @@ class RemoteFile:
         self.full_download = False
         self._size = None
         self._cache = OrderedDict()
-        self._digests = {}                # chunk index -> (start, stop, sha256 of the chunk)
+        self._digests = {}  # chunk index -> (start, stop, sha256 of the chunk)
         self._local = None
         self._local_sha256 = None
 
@@ -269,10 +278,12 @@ class RemoteFile:
         """Size of the remote file in bytes (one HEAD request the first time)."""
 
         if self._size is None:
+
             def once():
                 logger.info("HEAD %s", self.url)
                 with urlopen(Request(self.url, method="HEAD"), timeout=self.timeout) as response:
                     return response.headers.get("Content-Length")
+
             length = _with_retries(self.url, once)
             if length is None:
                 raise ReaderError(f"The server gives no size for {self.url}.")
@@ -304,8 +315,9 @@ class RemoteFile:
 
         if self.full_download:
             return self._local_sha256
-        lines = [f"{start}-{stop}:{digest}"
-                 for start, stop, digest in sorted(self._digests.values())]
+        lines = [
+            f"{start}-{stop}:{digest}" for start, stop, digest in sorted(self._digests.values())
+        ]
         return hashlib.sha256("\n".join(lines).encode("ascii")).hexdigest()
 
     def read(self, offset, nbytes):
@@ -338,17 +350,17 @@ class RemoteFile:
                 missing.append(index)
         for run in _runs(missing):
             fetched = self._fetch_chunks(run[0], run[-1])
-            if fetched is None:                                     # whole-file fallback
+            if fetched is None:  # whole-file fallback
                 return self._read_local(offset, nbytes)
             got.update(fetched)
         parts = []
         for index in range(first, last + 1):
-            if index not in got:                                    # past the end of the file
+            if index not in got:  # past the end of the file
                 break
             parts.append(got[index])
         joined = b"".join(parts)
         start = offset - first * self.chunk_size
-        return joined[start:start + (stop - offset)]
+        return joined[start : start + (stop - offset)]
 
     def _read_local(self, offset, nbytes):
         with open(self._local, "rb") as fobj:
@@ -386,12 +398,15 @@ class RemoteFile:
         out = {}
         for index in range(first, last + 1):
             lo = (index - first) * self.chunk_size
-            chunk = body[lo:lo + self.chunk_size]
+            chunk = body[lo : lo + self.chunk_size]
             if not chunk:
                 break
             chunk_start = index * self.chunk_size
-            self._digests[index] = (chunk_start, chunk_start + len(chunk),
-                                    hashlib.sha256(chunk).hexdigest())
+            self._digests[index] = (
+                chunk_start,
+                chunk_start + len(chunk),
+                hashlib.sha256(chunk).hexdigest(),
+            )
             out[index] = chunk
             self._cache[index] = chunk
             self._cache.move_to_end(index)
@@ -406,21 +421,29 @@ class RemoteFile:
         span, _, total = header[6:].partition("/")
         first = int(span.split("-")[0])
         if first != start:
-            raise ReaderError(f"The server returned bytes from {first} instead of {start} "
-                              f"for {self.url}.")
+            raise ReaderError(
+                f"The server returned bytes from {first} instead of {start} for {self.url}."
+            )
         if total and total != "*":
             self._size = int(total)
 
     def _download_whole(self, response):
         folder = self.cache_dir or os.path.join(data_folder(), "remote")
         os.makedirs(folder, exist_ok=True)
-        name = hashlib.sha256(self.url.encode("utf-8")).hexdigest()[:16] + "_" + \
-            os.path.basename(self.url.split("?")[0])
+        name = (
+            hashlib.sha256(self.url.encode("utf-8")).hexdigest()[:16]
+            + "_"
+            + os.path.basename(self.url.split("?")[0])
+        )
         path = os.path.join(folder, name)
         length = response.headers.get("Content-Length")
         size_text = f"{int(length) / 1e6:.1f} MB" if length else "unknown size"
-        _warn(f"The server ignored the byte-range request; downloading the whole file "
-              f"({size_text}) to {path}.", UserWarning, stacklevel=4)
+        _warn(
+            f"The server ignored the byte-range request; downloading the whole file "
+            f"({size_text}) to {path}.",
+            UserWarning,
+            stacklevel=4,
+        )
         digest = hashlib.sha256()
         partial = path + ".part"
         total = 0

@@ -17,8 +17,17 @@ import numpy as np
 from evoparam.errors import SettingsError
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features, get_shape
 
-__all__ = ["ComponentSpec", "ERP_COMPONENTS", "TEP_COMPONENTS", "CCEP_N1", "CCEP_N2",
-           "CCEP_DELAYED", "shape_params", "as_spec", "ROLES"]
+__all__ = [
+    "ComponentSpec",
+    "ERP_COMPONENTS",
+    "TEP_COMPONENTS",
+    "CCEP_N1",
+    "CCEP_N2",
+    "CCEP_DELAYED",
+    "shape_params",
+    "as_spec",
+    "ROLES",
+]
 
 # Roles of a simulated component in the ground truth.
 #   target: what the generator was asked to produce; overlap: response to a neighbouring
@@ -34,8 +43,7 @@ SHAPE_FORMS = {
     "skewed_gaussian": {"loc": "xi", "scale": "omega", "fixed": {"alpha": 2.0}, "ratios": {}},
     "exgaussian": {"loc": "mu", "scale": "sigma", "fixed": {}, "ratios": {"tau": 1.0}},
     "gamma": {"loc": "t0", "scale": "theta", "fixed": {"kappa": 3.0}, "ratios": {}},
-    "biexponential": {"loc": "t0", "scale": "tau_rise", "fixed": {},
-                      "ratios": {"tau_decay": 4.0}},
+    "biexponential": {"loc": "t0", "scale": "tau_rise", "fixed": {}, "ratios": {"tau_decay": 4.0}},
 }
 
 # Oscillatory shapes: latency is the onset (damped) or the envelope centre (Gabor).
@@ -44,6 +52,7 @@ OSCILLATORY = ("damped_oscillation", "gabor")
 
 ###################################################################################################
 ## Latency and FWHM -> shape parameters
+
 
 def _form_settings(name, form):
     """Split ``form`` into the fixed and ratio parameters of a shape, with defaults."""
@@ -57,8 +66,10 @@ def _form_settings(name, form):
         elif key.endswith("_ratio") and key[:-6] in ratios:
             ratios[key[:-6]] = float(value)
         else:
-            raise SettingsError(f"shape '{name}': unknown setting '{key}'; expected "
-                                f"{sorted(fixed) + sorted(k + '_ratio' for k in ratios)}.")
+            raise SettingsError(
+                f"shape '{name}': unknown setting '{key}'; expected "
+                f"{sorted(fixed) + sorted(k + '_ratio' for k in ratios)}."
+            )
     return tuple(sorted(fixed.items())), tuple(sorted(ratios.items()))
 
 
@@ -87,8 +98,9 @@ def _unit_form(name, fixed, ratios):
     times = np.linspace(-20.0, 60.0, 1601)
     features = compute_features(shape, times, params)
     if not np.isfinite(features.fwhm) or features.fwhm <= 0:
-        raise SettingsError(f"shape '{name}': the FWHM of {dict(fixed + ratios)} cannot be "
-                            "measured.")
+        raise SettingsError(
+            f"shape '{name}': the FWHM of {dict(fixed + ratios)} cannot be measured."
+        )
     return float(shape.latency(params)), float(features.fwhm)
 
 
@@ -135,26 +147,30 @@ def shape_params(shape, latency, fwhm=None, **form):
     if shape in OSCILLATORY:
         extra = set(form) - {"freq", "phase", "tau"}
         if extra or "freq" not in form:
-            raise SettingsError(f"shape '{shape}' needs 'freq' (and optionally 'phase'"
-                                f"{', tau' if shape == 'damped_oscillation' else ''}); "
-                                f"got {sorted(form)}.")
+            raise SettingsError(
+                f"shape '{shape}' needs 'freq' (and optionally 'phase'"
+                f"{', tau' if shape == 'damped_oscillation' else ''}); "
+                f"got {sorted(form)}."
+            )
         freq, phase = float(form["freq"]), float(form.get("phase", 0.0))
         if shape == "gabor":
             if "tau" in form or fwhm is None or not fwhm > 0:
-                raise SettingsError("shape 'gabor' needs a positive fwhm (of its envelope) "
-                                    "and no 'tau'.")
+                raise SettingsError(
+                    "shape 'gabor' needs a positive fwhm (of its envelope) and no 'tau'."
+                )
             return np.array([latency, float(fwhm) / FWHM_PER_SIGMA, freq, phase])
         tau = form.get("tau")
         if tau is None:
             if fwhm is None or not fwhm > 0:
-                raise SettingsError("shape 'damped_oscillation' needs 'tau' or a positive "
-                                    "fwhm.")
+                raise SettingsError("shape 'damped_oscillation' needs 'tau' or a positive fwhm.")
             tau = float(fwhm) / np.log(2.0)
         return np.array([latency, float(tau), freq, phase])
     if shape not in SHAPE_FORMS:
-        raise SettingsError(f"shape '{shape}' cannot be placed by latency and FWHM; "
-                            f"use one of {sorted(SHAPE_FORMS) + list(OSCILLATORY)} or give "
-                            "its params.")
+        raise SettingsError(
+            f"shape '{shape}' cannot be placed by latency and FWHM; "
+            f"use one of {sorted(SHAPE_FORMS) + list(OSCILLATORY)} or give "
+            "its params."
+        )
     if fwhm is None or not (np.isfinite(fwhm) and fwhm > 0):
         raise SettingsError(f"shape '{shape}': fwhm must be a positive number, got {fwhm}.")
     fixed, ratios = _form_settings(shape, form)
@@ -165,6 +181,7 @@ def shape_params(shape, latency, fwhm=None, **form):
 
 ###################################################################################################
 ## Specifications
+
 
 def _draw(value, rng):
     """A number, or a uniform draw in a ``(low, high)`` range."""
@@ -222,14 +239,20 @@ class ComponentSpec:
 
     def __post_init__(self):
         if not isinstance(self.label, str) or not self.label:
-            raise SettingsError(f"ComponentSpec: label must be a non-empty string, "
-                                f"got {self.label!r}.")
+            raise SettingsError(
+                f"ComponentSpec: label must be a non-empty string, got {self.label!r}."
+            )
         if self.role not in ROLES:
             raise SettingsError(f"ComponentSpec '{self.label}': role must be one of {ROLES}.")
-        if self.weights is not None and self.channels is not None \
-                and len(self.weights) != len(self.channels):
-            raise SettingsError(f"ComponentSpec '{self.label}': {len(self.weights)} weights "
-                                f"for {len(self.channels)} channels.")
+        if (
+            self.weights is not None
+            and self.channels is not None
+            and len(self.weights) != len(self.channels)
+        ):
+            raise SettingsError(
+                f"ComponentSpec '{self.label}': {len(self.weights)} weights "
+                f"for {len(self.channels)} channels."
+            )
 
     def to_dict(self):
         """Plain dictionary of the specification (JSON-serialisable)."""
@@ -237,8 +260,9 @@ class ComponentSpec:
         out = asdict(self)
         for key in ("latency", "fwhm", "amplitude", "params", "channels", "weights"):
             if isinstance(out[key], (tuple, np.ndarray)):
-                out[key] = list(np.asarray(out[key]).tolist()) if key != "channels" \
-                    else list(out[key])
+                out[key] = (
+                    list(np.asarray(out[key]).tolist()) if key != "channels" else list(out[key])
+                )
         return out
 
     def resolve(self, rng):
@@ -249,8 +273,10 @@ class ComponentSpec:
             shape = get_shape(self.shape)
             params = np.asarray(self.params, dtype=np.float64)
             if params.shape != (shape.n_params,):
-                raise SettingsError(f"ComponentSpec '{self.label}': shape '{self.shape}' "
-                                    f"takes {shape.n_params} params {shape.param_names}.")
+                raise SettingsError(
+                    f"ComponentSpec '{self.label}': shape '{self.shape}' "
+                    f"takes {shape.n_params} params {shape.param_names}."
+                )
             return params, amplitude
         latency = _draw(self.latency, rng)
         fwhm = _draw(self.fwhm, rng)
@@ -269,8 +295,12 @@ def as_spec(obj, presets=None):
         return table[obj]
     if isinstance(obj, dict):
         base = dict(obj)
-        if "label" in base and presets is not None and base["label"] in presets \
-                and base.get("preset", True):
+        if (
+            "label" in base
+            and presets is not None
+            and base["label"] in presets
+            and base.get("preset", True)
+        ):
             base.pop("preset", None)
             return replace(presets[base["label"]], **base)
         base.pop("preset", None)
@@ -288,40 +318,49 @@ def as_spec(obj, presets=None):
 # simulation, not a claim about the literature.
 ERP_COMPONENTS = {
     "P1": ComponentSpec("P1", latency=(0.080, 0.130), fwhm=(0.030, 0.050), amplitude=(2.0, 5.0)),
-    "N1": ComponentSpec("N1", latency=(0.130, 0.200), fwhm=(0.040, 0.070),
-                        amplitude=(-6.0, -2.0)),
-    "N170": ComponentSpec("N170", latency=(0.110, 0.150), fwhm=(0.030, 0.050),
-                          amplitude=(-8.0, -3.0)),
-    "MMN": ComponentSpec("MMN", latency=(0.125, 0.225), fwhm=(0.050, 0.100),
-                         amplitude=(-4.0, -1.0)),
-    "N400": ComponentSpec("N400", latency=(0.300, 0.500), fwhm=(0.150, 0.250),
-                          amplitude=(-8.0, -3.0)),
-    "P3": ComponentSpec("P3", latency=(0.300, 0.600), fwhm=(0.150, 0.300),
-                        amplitude=(5.0, 15.0)),
-    "ERN": ComponentSpec("ERN", latency=(0.000, 0.100), fwhm=(0.040, 0.080),
-                         amplitude=(-12.0, -4.0)),
+    "N1": ComponentSpec("N1", latency=(0.130, 0.200), fwhm=(0.040, 0.070), amplitude=(-6.0, -2.0)),
+    "N170": ComponentSpec(
+        "N170", latency=(0.110, 0.150), fwhm=(0.030, 0.050), amplitude=(-8.0, -3.0)
+    ),
+    "MMN": ComponentSpec(
+        "MMN", latency=(0.125, 0.225), fwhm=(0.050, 0.100), amplitude=(-4.0, -1.0)
+    ),
+    "N400": ComponentSpec(
+        "N400", latency=(0.300, 0.500), fwhm=(0.150, 0.250), amplitude=(-8.0, -3.0)
+    ),
+    "P3": ComponentSpec("P3", latency=(0.300, 0.600), fwhm=(0.150, 0.300), amplitude=(5.0, 15.0)),
+    "ERN": ComponentSpec(
+        "ERN", latency=(0.000, 0.100), fwhm=(0.040, 0.080), amplitude=(-12.0, -4.0)
+    ),
 }
 
 # TMS-evoked components and their latency ranges [LIT-domains-1]; widths and amplitudes
 # (µV at the stimulated site) are typical values.
 TEP_COMPONENTS = {
-    "N15": ComponentSpec("N15", latency=(0.010, 0.020), fwhm=(0.006, 0.010),
-                         amplitude=(-3.0, -1.0)),
+    "N15": ComponentSpec(
+        "N15", latency=(0.010, 0.020), fwhm=(0.006, 0.010), amplitude=(-3.0, -1.0)
+    ),
     "P30": ComponentSpec("P30", latency=(0.025, 0.035), fwhm=(0.008, 0.014), amplitude=(1.5, 4.0)),
-    "N45": ComponentSpec("N45", latency=(0.040, 0.055), fwhm=(0.012, 0.020),
-                         amplitude=(-5.0, -2.0)),
+    "N45": ComponentSpec(
+        "N45", latency=(0.040, 0.055), fwhm=(0.012, 0.020), amplitude=(-5.0, -2.0)
+    ),
     "P60": ComponentSpec("P60", latency=(0.055, 0.070), fwhm=(0.012, 0.020), amplitude=(2.0, 5.0)),
-    "N100": ComponentSpec("N100", latency=(0.090, 0.130), fwhm=(0.030, 0.050),
-                          amplitude=(-8.0, -3.0)),
-    "P180": ComponentSpec("P180", latency=(0.160, 0.220), fwhm=(0.050, 0.080),
-                          amplitude=(3.0, 7.0)),
+    "N100": ComponentSpec(
+        "N100", latency=(0.090, 0.130), fwhm=(0.030, 0.050), amplitude=(-8.0, -3.0)
+    ),
+    "P180": ComponentSpec(
+        "P180", latency=(0.160, 0.220), fwhm=(0.050, 0.080), amplitude=(3.0, 7.0)
+    ),
 }
 
 # CCEP components (spec §5.12): N1 15-40 ms, FWHM 5-15 ms; N2 80-250 ms, FWHM 40-150 ms;
 # delayed responses 100 ms-1 s [LIT-ccep-19]. Amplitudes in µV.
-CCEP_N1 = ComponentSpec("N1", latency=(0.015, 0.040), fwhm=(0.005, 0.015),
-                        amplitude=(-500.0, -50.0))
-CCEP_N2 = ComponentSpec("N2", latency=(0.080, 0.250), fwhm=(0.040, 0.150),
-                        amplitude=(-300.0, -30.0))
-CCEP_DELAYED = ComponentSpec("delayed", latency=(0.100, 1.000), fwhm=(0.050, 0.200),
-                             amplitude=(-200.0, -30.0))
+CCEP_N1 = ComponentSpec(
+    "N1", latency=(0.015, 0.040), fwhm=(0.005, 0.015), amplitude=(-500.0, -50.0)
+)
+CCEP_N2 = ComponentSpec(
+    "N2", latency=(0.080, 0.250), fwhm=(0.040, 0.150), amplitude=(-300.0, -30.0)
+)
+CCEP_DELAYED = ComponentSpec(
+    "delayed", latency=(0.100, 1.000), fwhm=(0.050, 0.200), amplitude=(-200.0, -30.0)
+)

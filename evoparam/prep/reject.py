@@ -27,9 +27,19 @@ def _robust_z(values):
     return (values - center) / spread
 
 
-def reject_trials(ts, *, response_window=(0.01, 0.5), baseline=(-0.5, -0.05), ptp_z=5.0,
-                  rms_z=5.0, flat_threshold=1e-3, quality_min=0.5, max_masked_fraction=0.2,
-                  max_fraction=0.3, all_channels_fraction=0.5):
+def reject_trials(
+    ts,
+    *,
+    response_window=(0.01, 0.5),
+    baseline=(-0.5, -0.05),
+    ptp_z=5.0,
+    rms_z=5.0,
+    flat_threshold=1e-3,
+    quality_min=0.5,
+    max_masked_fraction=0.2,
+    max_fraction=0.3,
+    all_channels_fraction=0.5,
+):
     """Flag bad trials; trials are never deleted.
 
     For each trial and channel, robust z-scores over trials (median and scaled MAD) of the
@@ -103,13 +113,16 @@ def reject_trials(ts, *, response_window=(0.01, 0.5), baseline=(-0.5, -0.05), pt
             drop = np.setdiff1d(rows, keep)
             reasons[drop, c] = ""
     if capped:
-        _warn(f"reject_trials: more than {max_fraction:.0%} of the trials are flagged on "
-              f"{capped}; the channel, not the trials, is probably the problem (only "
-              "the most extreme trials are flagged).", UserWarning, stacklevel=2)
+        _warn(
+            f"reject_trials: more than {max_fraction:.0%} of the trials are flagged on "
+            f"{capped}; the channel, not the trials, is probably the problem (only "
+            "the most extreme trials are flagged).",
+            UserWarning,
+            stacklevel=2,
+        )
 
     flagged = reasons != ""
-    meta = (ts.metadata.copy() if ts.metadata is not None
-            else pd.DataFrame(index=range(n_trials)))
+    meta = ts.metadata.copy() if ts.metadata is not None else pd.DataFrame(index=range(n_trials))
     low_quality = np.zeros(n_trials, dtype=bool)
     if "quality" in meta.columns:
         low_quality = meta["quality"].to_numpy(dtype=float) < quality_min
@@ -121,8 +134,11 @@ def reject_trials(ts, *, response_window=(0.01, 0.5), baseline=(-0.5, -0.05), pt
         if low_quality[k]:
             parts.append("quality")
         reason_text.append("+".join(parts) if rejected[k] else "")
-    previous = (meta["rejected"].to_numpy(dtype=bool) if "rejected" in meta.columns
-                else np.zeros(n_trials, dtype=bool))
+    previous = (
+        meta["rejected"].to_numpy(dtype=bool)
+        if "rejected" in meta.columns
+        else np.zeros(n_trials, dtype=bool)
+    )
     meta["rejected"] = previous | rejected
     meta["reject_reason"] = reason_text
     meta["n_flagged_channels"] = flagged.sum(axis=1).astype("int64")
@@ -130,10 +146,24 @@ def reject_trials(ts, *, response_window=(0.01, 0.5), baseline=(-0.5, -0.05), pt
     masks = np.zeros(ts.data.shape, dtype=bool) if ts.masks is None else ts.masks.copy()
     masks |= flagged[:, :, None]
     masks |= low_quality[:, None, None]
-    settings = {"response_window": list(response_window), "baseline": list(baseline),
-                "ptp_z": ptp_z, "rms_z": rms_z, "flat_threshold": flat_threshold,
-                "quality_min": quality_min, "max_masked_fraction": max_masked_fraction,
-                "max_fraction": max_fraction, "all_channels_fraction": all_channels_fraction,
-                "n_rejected": int(rejected.sum()), "capped_channels": capped}
-    return new(ts, "evoparam.prep.reject_trials", settings, start, metadata=meta,
-               masks=masks if masks.any() else None)
+    settings = {
+        "response_window": list(response_window),
+        "baseline": list(baseline),
+        "ptp_z": ptp_z,
+        "rms_z": rms_z,
+        "flat_threshold": flat_threshold,
+        "quality_min": quality_min,
+        "max_masked_fraction": max_masked_fraction,
+        "max_fraction": max_fraction,
+        "all_channels_fraction": all_channels_fraction,
+        "n_rejected": int(rejected.sum()),
+        "capped_channels": capped,
+    }
+    return new(
+        ts,
+        "evoparam.prep.reject_trials",
+        settings,
+        start,
+        metadata=meta,
+        masks=masks if masks.any() else None,
+    )

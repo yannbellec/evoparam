@@ -62,6 +62,7 @@ class Source:
 ###################################################################################################
 ## Seeds and settings
 
+
 def seed_streams(seed):
     """Seed actually used and one Generator per stream of :data:`STREAMS`.
 
@@ -71,14 +72,15 @@ def seed_streams(seed):
     """
 
     if isinstance(seed, np.random.Generator):
-        entropy = int(seed.integers(0, 2 ** 63 - 1))
+        entropy = int(seed.integers(0, 2**63 - 1))
     elif seed is None:
         entropy = int(np.random.SeedSequence().entropy)
     elif isinstance(seed, (int, np.integer)) and not isinstance(seed, bool) and seed >= 0:
         entropy = int(seed)
     else:
-        raise SettingsError(f"seed must be a non-negative int, a numpy Generator or None, "
-                            f"got {seed!r}.")
+        raise SettingsError(
+            f"seed must be a non-negative int, a numpy Generator or None, got {seed!r}."
+        )
     children = np.random.SeedSequence(entropy).spawn(len(STREAMS))
     return entropy, {name: np.random.default_rng(child) for name, child in zip(STREAMS, children)}
 
@@ -91,8 +93,9 @@ def time_axis(sfreq, tmin, tmax):
     first = int(np.ceil(tmin * sfreq - 1e-9))
     last = int(np.ceil(tmax * sfreq - 1e-9))
     if last - first < 2:
-        raise SettingsError(f"the epoch ({tmin}, {tmax}) s holds fewer than 2 samples at "
-                            f"{sfreq} Hz.")
+        raise SettingsError(
+            f"the epoch ({tmin}, {tmax}) s holds fewer than 2 samples at {sfreq} Hz."
+        )
     return np.arange(first, last) / float(sfreq)
 
 
@@ -104,9 +107,12 @@ def jsonable_settings(settings):
         if hasattr(value, "to_dict") and not isinstance(value, TrialSet):
             value = value.to_dict()
         elif isinstance(value, TrialSet):
-            value = {"TrialSet": value.provenance.source.get("dataset"),
-                     "shape": list(value.data.shape), "sfreq": value.sfreq,
-                     "data_hash": value.provenance.data_hash}
+            value = {
+                "TrialSet": value.provenance.source.get("dataset"),
+                "shape": list(value.data.shape),
+                "sfreq": value.sfreq,
+                "data_hash": value.provenance.data_hash,
+            }
         elif isinstance(value, np.random.Generator):
             value = "numpy.random.Generator"
         elif isinstance(value, (list, tuple)):
@@ -128,13 +134,19 @@ def table(columns, n_rows):
         pd = require("pandas", extra="data", caller="evoparam.sim")
     except ImportError:
         return None
-    frame = pd.DataFrame({key: (np.asarray(value) if not isinstance(value, list) else value)
-                          for key, value in columns.items()}, index=pd.RangeIndex(n_rows))
+    frame = pd.DataFrame(
+        {
+            key: (np.asarray(value) if not isinstance(value, list) else value)
+            for key, value in columns.items()
+        },
+        index=pd.RangeIndex(n_rows),
+    )
     return frame
 
 
 ###################################################################################################
 ## Amplitudes from signal-to-noise ratios
+
 
 def _check_snr_value(value, what):
     value = float(value)
@@ -166,8 +178,9 @@ def requested_snr(snr, sources, ch_names):
                 raise SettingsError(f"snr key '{key}' is both a component label and a channel.")
             if key in names:
                 if key not in with_component:
-                    raise SettingsError(f"snr requested for channel '{key}', which has no "
-                                        "component.")
+                    raise SettingsError(
+                        f"snr requested for channel '{key}', which has no component."
+                    )
                 value = _check_snr_value(value, f"channel '{key}'")
                 for k in primary:
                     if ch_names[sources[k].channel] == key:
@@ -178,16 +191,20 @@ def requested_snr(snr, sources, ch_names):
                     if sources[k].label == key and out[k] is None:
                         out[k] = value * sources[k].rel
             else:
-                raise SettingsError(f"snr key '{key}' is neither a component label "
-                                    f"{sorted(labels)} nor a channel name.")
+                raise SettingsError(
+                    f"snr key '{key}' is neither a component label "
+                    f"{sorted(labels)} nor a channel name."
+                )
         return out
     if isinstance(snr, (list, tuple, np.ndarray)):
         labels = list(dict.fromkeys(sources[k].label for k in primary))
         if len(snr) != len(labels):
-            raise SettingsError(f"snr: {len(snr)} values for the {len(labels)} components "
-                                f"{labels}.")
-        values = {label: _check_snr_value(v, f"component '{label}'")
-                  for label, v in zip(labels, snr)}
+            raise SettingsError(
+                f"snr: {len(snr)} values for the {len(labels)} components {labels}."
+            )
+        values = {
+            label: _check_snr_value(v, f"component '{label}'") for label, v in zip(labels, snr)
+        }
         for k in primary:
             out[k] = values[sources[k].label] * sources[k].rel
         return out
@@ -199,6 +216,7 @@ def requested_snr(snr, sources, ch_names):
 
 ###################################################################################################
 ## Trial variability
+
 
 def _per_label(value, label, name):
     if isinstance(value, dict):
@@ -243,7 +261,7 @@ def trial_variability(sources, n_trials, rng, jitter_sd, jitter, jitter_tau, amp
         if akey not in factors:
             cv = _per_label(amplitude_cv, label, "amplitude_cv")
             if cv > 0:
-                sigma2 = np.log1p(cv ** 2)
+                sigma2 = np.log1p(cv**2)
                 factors[akey] = np.exp(rng.normal(-0.5 * sigma2, np.sqrt(sigma2), n_trials))
             else:
                 factors[akey] = np.ones(n_trials)
@@ -255,6 +273,7 @@ def trial_variability(sources, n_trials, rng, jitter_sd, jitter, jitter_tau, amp
 ###################################################################################################
 ## Assembly
 
+
 def baseline_index(times):
     """Samples before the onset (t < 0), or every sample when fewer than 2 precede it."""
 
@@ -262,12 +281,41 @@ def baseline_index(times):
     return index if index.size >= 2 else np.arange(times.size)
 
 
-def assemble(*, generator, settings, seed, rngs, times, sfreq, ch_names, sources, n_trials,
-             noise="pink", noise_sd=1.0, noise_kw=None, snr=None, jitter_sd=0.0,
-             jitter="normal", jitter_tau=None, amplitude_cv=0.0, artifact=None,
-             artifact_info=None, rail=None, metadata=None, ch_info=None, event_times=None,
-             conditions=None, species="human", modality=None, units="uV", keep_arrays=True,
-             noise_data=None, noise_info=None, base=None, start=None):
+def assemble(
+    *,
+    generator,
+    settings,
+    seed,
+    rngs,
+    times,
+    sfreq,
+    ch_names,
+    sources,
+    n_trials,
+    noise="pink",
+    noise_sd=1.0,
+    noise_kw=None,
+    snr=None,
+    jitter_sd=0.0,
+    jitter="normal",
+    jitter_tau=None,
+    amplitude_cv=0.0,
+    artifact=None,
+    artifact_info=None,
+    rail=None,
+    metadata=None,
+    ch_info=None,
+    event_times=None,
+    conditions=None,
+    species="human",
+    modality=None,
+    units="uV",
+    keep_arrays=True,
+    noise_data=None,
+    noise_info=None,
+    base=None,
+    start=None,
+):
     """Build the TrialSet and the GroundTruth of one simulation (see module docstring).
 
     ``noise_data`` / ``noise_info`` replace the noise model (used by ``inject``, whose
@@ -289,9 +337,16 @@ def assemble(*, generator, settings, seed, rngs, times, sfreq, ch_names, sources
             kwargs = dict(noise_kw or {})
             if broadband != "real" or "sd" in kwargs:
                 kwargs.setdefault("sd", noise_sd)
-            noise_data, noise_info = make_noise(n_times, sfreq, noise, size=(n_trials, n_channels),
-                                                units=units, seed=rngs["noise"],
-                                                return_info=True, **kwargs)
+            noise_data, noise_info = make_noise(
+                n_times,
+                sfreq,
+                noise,
+                size=(n_trials, n_channels),
+                units=units,
+                seed=rngs["noise"],
+                return_info=True,
+                **kwargs,
+            )
     base_idx = baseline_index(times)
     with np.errstate(invalid="ignore"):
         trial_sd = np.nanstd(noise_data[:, :, base_idx], axis=-1)
@@ -312,8 +367,10 @@ def assemble(*, generator, settings, seed, rngs, times, sfreq, ch_names, sources
             continue
         sd = baseline_sd[src.channel]
         if not (np.isfinite(sd) and sd > 0):
-            raise SettingsError(f"snr cannot be set on channel '{ch_names[src.channel]}': its "
-                                "baseline noise SD is zero (no noise).")
+            raise SettingsError(
+                f"snr cannot be set on channel '{ch_names[src.channel]}': its "
+                "baseline noise SD is zero (no noise)."
+            )
         sign = -1.0 if src.amplitude < 0 else 1.0
         amplitude[k] = sign * targets[k] * sd
         record_snr[k] = targets[k]
@@ -324,8 +381,9 @@ def assemble(*, generator, settings, seed, rngs, times, sfreq, ch_names, sources
                 record_snr[k] = record_snr[src.parent] * abs(float(src.amplitude))
 
     # Trial variability
-    shift, factor = trial_variability(sources, n_trials, rngs["trial"], jitter_sd, jitter,
-                                      jitter_tau, amplitude_cv)
+    shift, factor = trial_variability(
+        sources, n_trials, rngs["trial"], jitter_sd, jitter, jitter_tau, amplitude_cv
+    )
     present = np.ones((n_trials, len(sources)), dtype=bool)
     for k, src in enumerate(sources):
         if src.offset is not None:
@@ -351,21 +409,44 @@ def assemble(*, generator, settings, seed, rngs, times, sfreq, ch_names, sources
             signal[:, src.channel] += weights[:, None] * shape_obj.evaluate(times, trial_params)
         key = (src.shape, params.tobytes())
         if key not in feature_cache:
-            feature_cache[key] = compute_features(shape_obj, times, params, 1.0,
-                                                  sfreq=sfreq).to_dict()
+            feature_cache[key] = compute_features(
+                shape_obj, times, params, 1.0, sfreq=sfreq
+            ).to_dict()
         feats = dict(feature_cache[key])
         feats["amplitude"] = feats["amplitude"] * amplitude[k]
         feats["area"] = feats["area"] * amplitude[k]
         feats["polarity"] = 1 if feats["amplitude"] >= 0 else -1
-        components.append({
-            "label": src.label, "shape": src.shape, "param_names": list(shape_obj.param_names),
-            "params": params.tolist(), "loc_param": shape_obj.latency_param,
-            "amplitude": float(amplitude[k]), "channel": ch_names[src.channel],
-            "role": src.role, "event": int(src.event), "snr": record_snr[k],
-            "features": {name: feats[name] for name in
-                         ("latency", "amplitude", "polarity", "fwhm", "onset", "offset", "area",
-                          "rise_time", "decay_time", "symmetry", "sharpness", "peak_time")},
-        })
+        components.append(
+            {
+                "label": src.label,
+                "shape": src.shape,
+                "param_names": list(shape_obj.param_names),
+                "params": params.tolist(),
+                "loc_param": shape_obj.latency_param,
+                "amplitude": float(amplitude[k]),
+                "channel": ch_names[src.channel],
+                "role": src.role,
+                "event": int(src.event),
+                "snr": record_snr[k],
+                "features": {
+                    name: feats[name]
+                    for name in (
+                        "latency",
+                        "amplitude",
+                        "polarity",
+                        "fwhm",
+                        "onset",
+                        "offset",
+                        "area",
+                        "rise_time",
+                        "decay_time",
+                        "symmetry",
+                        "sharpness",
+                        "peak_time",
+                    )
+                },
+            }
+        )
 
     # Data, artifact and saturation
     data = signal + noise_data
@@ -386,27 +467,53 @@ def assemble(*, generator, settings, seed, rngs, times, sfreq, ch_names, sources
     settings = jsonable_settings(settings)
     duration = _time.perf_counter() - start
     if base is None:
-        provenance = Provenance(source={"format": "simulation", "generator": generator},
-                                random_state=seed)
-        provenance = provenance.with_step(generator, settings, duration_s=duration,
-                                          random_state=seed)
-        ts = TrialSet(data=data, times=times, sfreq=sfreq, ch_names=list(ch_names), units=units,
-                      metadata=table(metadata, n_trials), ch_info=table(ch_info, n_channels),
-                      masks=masks, event_times=event_times, species=species, modality=modality,
-                      provenance=provenance)
+        provenance = Provenance(
+            source={"format": "simulation", "generator": generator}, random_state=seed
+        )
+        provenance = provenance.with_step(
+            generator, settings, duration_s=duration, random_state=seed
+        )
+        ts = TrialSet(
+            data=data,
+            times=times,
+            sfreq=sfreq,
+            ch_names=list(ch_names),
+            units=units,
+            metadata=table(metadata, n_trials),
+            ch_info=table(ch_info, n_channels),
+            masks=masks,
+            event_times=event_times,
+            species=species,
+            modality=modality,
+            provenance=provenance,
+        )
     else:
-        provenance = base.provenance.with_step(generator, settings, duration_s=duration,
-                                               random_state=seed)
+        provenance = base.provenance.with_step(
+            generator, settings, duration_s=duration, random_state=seed
+        )
         provenance.data_hash = None
         from dataclasses import replace
+
         ts = replace(base, data=data, masks=masks, provenance=provenance)
     if conditions is None:
         conditions = [""] * n_trials
-    truth = GroundTruth(generator=generator, ch_names=list(ch_names), times=times, sfreq=sfreq,
-                        units=units, components=components, shift=shift, scale=scale,
-                        present=present, conditions=list(conditions), noise=noise_info,
-                        artifact=artifact_info, seed=seed, settings=settings,
-                        signal=signal if keep_arrays else None,
-                        artifact_data=artifact if (keep_arrays and artifact is not None) else None,
-                        provenance=ts.provenance.copy())
+    truth = GroundTruth(
+        generator=generator,
+        ch_names=list(ch_names),
+        times=times,
+        sfreq=sfreq,
+        units=units,
+        components=components,
+        shift=shift,
+        scale=scale,
+        present=present,
+        conditions=list(conditions),
+        noise=noise_info,
+        artifact=artifact_info,
+        seed=seed,
+        settings=settings,
+        signal=signal if keep_arrays else None,
+        artifact_data=artifact if (keep_arrays and artifact is not None) else None,
+        provenance=ts.provenance.copy(),
+    )
     return ts, truth

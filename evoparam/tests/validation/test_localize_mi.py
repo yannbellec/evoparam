@@ -36,15 +36,18 @@ ROOT = pathlib.Path(__file__).parents[3]
 REFERENCE = ROOT / "validation" / "layer3" / "localize_mi_responses.json"
 GIN = "https://gin.g-node.org/ezemikulan/Localize-MI/raw/master/"
 EPOCHS = "derivatives/epochs/sub-01/eeg/sub-01_task-seegstim_run-01_epochs.npy"
-SFREQ, TMIN = 8000.0, -0.25          # the authors' load_bids (fx_bids.py)
+SFREQ, TMIN = 8000.0, -0.25  # the authors' load_bids (fx_bids.py)
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-373: the Localize-MI authors report no list of "
-                   "stimulations producing a scalp response, and the dataset has no sham "
-                   "trials (Mikulan et al. 2020; the BIDS metadata hold the stimulated pair "
-                   "and intensity only), so the comparator "
-                   "validation/layer3/localize_mi_responses.json cannot be built from "
-                   "published values")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-373: the Localize-MI authors report no list of "
+    "stimulations producing a scalp response, and the dataset has no sham "
+    "trials (Mikulan et al. 2020; the BIDS metadata hold the stimulated pair "
+    "and intensity only), so the comparator "
+    "validation/layer3/localize_mi_responses.json cannot be built from "
+    "published values",
+)
 def test_req373_scalp_responses_reported_by_the_authors():
     """REQ-373: the comparator (per session: stimulated pair, intensity, the authors'
     report of a scalp response, sham or not) exists."""
@@ -53,12 +56,17 @@ def test_req373_scalp_responses_reported_by_the_authors():
 
 
 @pytest.mark.network
-@pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                    reason="set EVOPARAM_NETWORK_TESTS=1 to read Localize-MI on GIN")
-@pytest.mark.xfail(strict=True, reason="REQ-373: the authors' conversion code crops the shared "
-                   "epochs at +10 ms after the pulse (fx_bids.export_data_bids, "
-                   "github.com/iTCf/mikulan_et_al_2020), shorter than the existence window; "
-                   "an unexpected pass means the deposit holds longer epochs")
+@pytest.mark.skipif(
+    os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+    reason="set EVOPARAM_NETWORK_TESTS=1 to read Localize-MI on GIN",
+)
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-373: the authors' conversion code crops the shared "
+    "epochs at +10 ms after the pulse (fx_bids.export_data_bids, "
+    "github.com/iTCf/mikulan_et_al_2020), shorter than the existence window; "
+    "an unexpected pass means the deposit holds longer epochs",
+)
 def test_req373_deposit_holds_the_scalp_response_window():
     """REQ-373: the shared epochs reach the end of the default existence window of
     ``test_response``, so that a scalp response after the stimulation artifact can be
@@ -77,7 +85,7 @@ def test_req373_deposit_holds_the_scalp_response_window():
     if not head.startswith(b"\x93NUMPY"):
         pytest.skip("GIN did not serve the content of the epochs file (annexed pointer?)")
     length = int.from_bytes(head[8:10], "little")
-    header = ast.literal_eval(head[10:10 + length].decode("latin1"))
+    header = ast.literal_eval(head[10 : 10 + length].decode("latin1"))
     n_times = header["shape"][-1]
     last = TMIN + (n_times - 1) / SFREQ
     assert last >= window[1], (header["shape"], last)

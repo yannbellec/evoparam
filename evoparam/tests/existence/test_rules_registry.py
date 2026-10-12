@@ -14,13 +14,15 @@ from .helpers import SFREQ, TIMES
 ###################################################################################################
 ###################################################################################################
 
-COMPLETE = {"vanblooijs2023": {"baseline": (-0.5, -0.05)},
-            "vanblooijs2023_code": {"baseline": (-0.5, -0.05)},
-            "hays2021": {"baseline": (-0.5, -0.05)},
-            "keller2014": {},
-            "silverstein2020": {"baseline": (-0.5, -0.05)},
-            "ftract": {"k": 5.0},
-            "prime2020": {"k": 3.0, "baseline": (-0.5, -0.05)}}
+COMPLETE = {
+    "vanblooijs2023": {"baseline": (-0.5, -0.05)},
+    "vanblooijs2023_code": {"baseline": (-0.5, -0.05)},
+    "hays2021": {"baseline": (-0.5, -0.05)},
+    "keller2014": {},
+    "silverstein2020": {"baseline": (-0.5, -0.05)},
+    "ftract": {"k": 5.0},
+    "prime2020": {"k": 3.0, "baseline": (-0.5, -0.05)},
+}
 
 
 def _evoked_at(spec, value):
@@ -49,8 +51,7 @@ def test_req133_decision_flips_at_threshold(name):
     spec = resolve_rule(name, **COMPLETE[name])
     for delta, expected in ((1e-6, True), (-1e-6, False)):
         evoked = _evoked_at(spec, spec["k"] + delta)
-        test = run_test(evoked, method="threshold", rule=name,
-                             rule_overrides=COMPLETE[name])
+        test = run_test(evoked, method="threshold", rule=name, rule_overrides=COMPLETE[name])
         assert bool(test.significant[0]) is expected, (name, delta)
 
 
@@ -70,15 +71,20 @@ def test_detectors_namespace_and_custom_rule():
 
     evoked = _evoked_at(resolve_rule("keller2014"), 10.0)
     assert detectors.keller2014(evoked).significant[0]
-    custom = {"statistic": "abs_peak_z", "k": 4.0, "window": (0.0, 0.05),
-              "baseline": (-0.5, -0.05)}
+    custom = {
+        "statistic": "abs_peak_z",
+        "k": 4.0,
+        "window": (0.0, 0.05),
+        "baseline": (-0.5, -0.05),
+    }
     assert run_test(evoked, method="threshold", rule=custom).significant[0]
 
 
 def _uv(y):
     y = np.atleast_2d(y)
-    return Evoked(data=y, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(len(y))],
-                  units="uV")
+    return Evoked(
+        data=y, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(len(y))], units="uV"
+    )
 
 
 def test_selective_maxima_matches_the_definition():
@@ -122,27 +128,47 @@ def test_vanblooijs2023_published_code_reading():
     tail = np.where(TIMES > 0, -600 * np.exp(-TIMES / 0.01), 0.0)
     drift = np.where(TIMES > 0, -400 * np.clip((TIMES - 0.06) / 0.04, 0, None), 0.0)
     trough = -300 * gaussian(0.025, 0.012)
-    small = -100 * gaussian(0.025, 0.012)                  # under the 170 uV floor
+    small = -100 * gaussian(0.025, 0.012)  # under the 170 uV floor
     evoked = _uv(noise + np.array([tail, drift, trough, small]))
-    local = run_test(evoked, method="threshold", rule="vanblooijs2023_code",
-                     rule_overrides={"baseline": base})
-    extremum = run_test(evoked, method="threshold", rule="vanblooijs2023",
-                        rule_overrides={"baseline": base})
-    floored = run_test(evoked, method="threshold", rule="vanblooijs2023",
-                       rule_overrides={"baseline": base, "sd_floor_uv": 50.0})
+    local = run_test(
+        evoked, method="threshold", rule="vanblooijs2023_code", rule_overrides={"baseline": base}
+    )
+    extremum = run_test(
+        evoked, method="threshold", rule="vanblooijs2023", rule_overrides={"baseline": base}
+    )
+    floored = run_test(
+        evoked,
+        method="threshold",
+        rule="vanblooijs2023",
+        rule_overrides={"baseline": base, "sd_floor_uv": 50.0},
+    )
     assert local.significant.tolist() == [False, False, True, False]
     assert extremum.significant.tolist() == [True, True, True, True]
     assert floored.significant.tolist() == [True, True, True, False]
     assert abs(local.onset[2] - 0.025) <= 1.0 / SFREQ
     # the same reading through the override of the default rule
-    override = run_test(evoked, method="threshold", rule="vanblooijs2023",
-                        rule_overrides={"baseline": base, "peak": "local", "sd_floor_uv": 50.0,
-                                        "exclude_first_sample": True, "saturation_uv": 3000.0,
-                                        "peak_search_end": 0.5, "peak_selectivity_uv": 20.0})
+    override = run_test(
+        evoked,
+        method="threshold",
+        rule="vanblooijs2023",
+        rule_overrides={
+            "baseline": base,
+            "peak": "local",
+            "sd_floor_uv": 50.0,
+            "exclude_first_sample": True,
+            "saturation_uv": 3000.0,
+            "peak_search_end": 0.5,
+            "peak_selectivity_uv": 20.0,
+        },
+    )
     assert override.significant.tolist() == local.significant.tolist()
     # a trough beyond 3000 uV is refused as saturated, as in the published code
-    big = run_test(_uv(noise[0] - 4000 * gaussian(0.025, 0.012)), method="threshold",
-                   rule="vanblooijs2023_code", rule_overrides={"baseline": base})
+    big = run_test(
+        _uv(noise[0] - 4000 * gaussian(0.025, 0.012)),
+        method="threshold",
+        rule="vanblooijs2023_code",
+        rule_overrides={"baseline": base},
+    )
     assert not big.significant[0]
     with pytest.raises(SettingsError, match="peak"):
         resolve_rule("vanblooijs2023", baseline=base, peak="global")

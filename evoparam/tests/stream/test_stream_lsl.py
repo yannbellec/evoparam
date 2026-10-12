@@ -18,13 +18,16 @@ from .helpers import N1, SFREQ, channel_fits, gauss, simulate
 
 try:
     import pylsl
+
     pylsl.local_clock()
-except Exception as exc:                          # missing package or missing library
+except Exception as exc:  # missing package or missing library
     pylsl = None
     REASON = f"pylsl unavailable: {exc}"
 
-pytestmark = [pytest.mark.lsl,
-              pytest.mark.skipif(pylsl is None, reason=REASON if pylsl is None else "")]
+pytestmark = [
+    pytest.mark.lsl,
+    pytest.mark.skipif(pylsl is None, reason=REASON if pylsl is None else ""),
+]
 
 N_CHANNELS = 4
 N_PULSES = 10
@@ -39,7 +42,7 @@ def _signal(seed=0):
     onsets = (np.arange(N_PULSES + 1) + 1.5) * SFREQ
     times = np.arange(n) / SFREQ
     for onset in onsets.astype(int):
-        data[onset:onset + 3] += np.array([3000.0, -2000.0, 500.0])[:, None]
+        data[onset : onset + 3] += np.array([3000.0, -2000.0, 500.0])[:, None]
         data[:, :2] += (N1[0] * gauss(times - onset / SFREQ, N1[1], N1[2]))[:, None]
     return data, onsets.astype(int)
 
@@ -47,8 +50,9 @@ def _signal(seed=0):
 def test_req325_inlet_fitter_and_outlet_metadata():
 
     data, _ = _signal()
-    info = pylsl.StreamInfo("evoparam-test-signal", "EEG", N_CHANNELS, SFREQ, "float32",
-                            "evoparam-test-signal")
+    info = pylsl.StreamInfo(
+        "evoparam-test-signal", "EEG", N_CHANNELS, SFREQ, "float32", "evoparam-test-signal"
+    )
     channels = info.desc().append_child("channels")
     for i in range(N_CHANNELS):
         channels.append_child("channel").append_child_value("label", f"c{i}")
@@ -57,13 +61,18 @@ def test_req325_inlet_fitter_and_outlet_metadata():
     assert inlet.sfreq == SFREQ and inlet.ch_names == [f"c{i}" for i in range(N_CHANNELS)]
 
     template = channel_fits(simulate(n_trials=40, n_channels=1, seed=6)).fits[0]
-    fitter = StreamFitter(template, sfreq=inlet.sfreq, ch_names=inlet.ch_names,
-                          artifact_window=(-0.002, 0.008), existence_max_pulses=N_PULSES)
+    fitter = StreamFitter(
+        template,
+        sfreq=inlet.sfreq,
+        ch_names=inlet.ch_names,
+        artifact_window=(-0.002, 0.008),
+        existence_max_pulses=N_PULSES,
+    )
 
     def send():
         start = pylsl.local_clock()
-        for first in range(0, len(data), 256):                # 8 times faster than real time
-            chunk = data[first:first + 256]
+        for first in range(0, len(data), 256):  # 8 times faster than real time
+            chunk = data[first : first + 256]
             stamps = start + (first + np.arange(len(chunk))) / SFREQ
             outlet.push_chunk(chunk.tolist(), stamps.tolist())
             time.sleep(256 / SFREQ / 8)
@@ -101,5 +110,6 @@ def test_req325_inlet_fitter_and_outlet_metadata():
         stamps += ts
     assert len(rows) == len(estimates)
     assert np.allclose(stamps, [e.pulse_time for e in estimates])
-    assert np.allclose([r[FIELDS.index("amplitude")] for r in rows],
-                       [e.amplitude for e in estimates], rtol=1e-6)
+    assert np.allclose(
+        [r[FIELDS.index("amplitude")] for r in rows], [e.amplitude for e in estimates], rtol=1e-6
+    )

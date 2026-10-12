@@ -9,8 +9,14 @@ import pytest
 from evoparam.models import fit as fit_models
 from evoparam.tests.tf.helpers import SFREQ, TIMES, ar1, n1, trialset
 from evoparam.tf import TRANSFORMS, tf_fit
-from evoparam.tf.transforms import (apply_kernels, log_freqs, make_kernels, morse_peak,
-                                    morse_reference_modulus, morse_spectrum)
+from evoparam.tf.transforms import (
+    apply_kernels,
+    log_freqs,
+    make_kernels,
+    morse_peak,
+    morse_reference_modulus,
+    morse_spectrum,
+)
 
 
 def test_req210_morse_matches_the_analytic_modulus():
@@ -48,7 +54,7 @@ def test_morse_chirp_ridge_follows_the_instantaneous_frequency():
     t = np.arange(n) / SFREQ
     f0, f1 = 20.0, 200.0
     rate = (f1 - f0) / t[-1]
-    x = np.cos(2 * np.pi * (f0 * t + 0.5 * rate * t ** 2))
+    x = np.cos(2 * np.pi * (f0 * t + 0.5 * rate * t**2))
     freqs = log_freqs(10, 300, 80)
     kernels = make_kernels("morse", freqs, SFREQ, n)
     power = np.abs(apply_kernels(kernels, x)[0]) ** 2
@@ -67,7 +73,7 @@ def test_every_transform_has_unit_gain_at_its_frequency(transform):
     kernels = make_kernels(transform, freqs, SFREQ, n)
     for j in (4, 8):
         coef = apply_kernels(kernels, 3.0 * np.cos(2 * np.pi * freqs[j] * t))
-        power = np.mean(np.abs(coef[:, j, n // 2 - 20:n // 2 + 20]) ** 2, axis=0)
+        power = np.mean(np.abs(coef[:, j, n // 2 - 20 : n // 2 + 20]) ** 2, axis=0)
         # multitaper: the higher tapers have lower gain, so the mean power is below 9
         assert 0.3 * 9 <= power.mean() <= 9 * 1.001
 
@@ -76,8 +82,14 @@ def test_req210_cone_of_influence_is_masked():
 
     rng = np.random.default_rng(0)
     ts = trialset(ar1(rng, (12, len(TIMES))))
-    tf = tf_fit(ts, freqs=(4, 250, 20), window=(-0.6, 0.8), baseline=(-0.5, -0.1),
-                zones="none", stats="none")
+    tf = tf_fit(
+        ts,
+        freqs=(4, 250, 20),
+        window=(-0.6, 0.8),
+        baseline=(-0.5, -0.1),
+        zones="none",
+        stats="none",
+    )
     half = np.array(tf.settings["half_support_s"])
     for j in range(len(tf.freqs)):
         edge = (tf.times - TIMES[0] < half[j] - 1e-9) | (TIMES[-1] - tf.times < half[j] - 1e-9)
@@ -97,8 +109,9 @@ def _fitted(seed=0, n=20):
 def test_req211_decomposition_is_exact(transform):
 
     ts, group = _fitted()
-    tf = tf_fit(ts, transform=transform, freqs=(4, 250, 20), group_fit=group, zones="none",
-                stats="none")
+    tf = tf_fit(
+        ts, transform=transform, freqs=(4, 250, 20), group_fit=group, zones="none", stats="none"
+    )
     total = tf.maps["total"]
     parts = tf.maps["evoked_footprint"] + tf.maps["residual"] + tf.maps["cross"]
     ok = np.isfinite(total)
@@ -113,10 +126,24 @@ def test_power_maps_and_baseline_normalised_maps_are_both_given():
     baseline (evoked level, dB: 10 log10 of the map over the total's baseline mean)."""
 
     ts, group = _fitted()
-    tf = tf_fit(ts, freqs=(4, 250, 20), group_fit=group, zones="none", stats="none",
-                baseline_level="evoked", baseline_mode="db")
-    for key in ("total", "evoked_footprint", "residual", "cross", "total_norm",
-                "footprint_norm", "residual_norm"):
+    tf = tf_fit(
+        ts,
+        freqs=(4, 250, 20),
+        group_fit=group,
+        zones="none",
+        stats="none",
+        baseline_level="evoked",
+        baseline_mode="db",
+    )
+    for key in (
+        "total",
+        "evoked_footprint",
+        "residual",
+        "cross",
+        "total_norm",
+        "footprint_norm",
+        "residual_norm",
+    ):
         assert key in tf.maps and tf.maps[key].shape == tf.maps["total"].shape
     base = (tf.times >= -0.5) & (tf.times <= -0.1)
     ref = np.nanmean(tf.maps["total"][0][:, base], axis=1)[:, None]

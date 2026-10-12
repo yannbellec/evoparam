@@ -9,7 +9,6 @@ exponentials for the artifact; a greedy decomposition of the residual picks one 
 a time, and only the artifact atoms are subtracted.
 """
 
-
 import numpy as np
 
 from evoparam.errors import SettingsError, warn as _warn
@@ -20,20 +19,24 @@ _WARNED = False
 
 # Dictionary grid.
 N_HARMONICS = 3
-GAUSS_WIDTHS = (0.002, 0.005, 0.01, 0.02, 0.05)       # SD of the response atoms (s)
-GAUSS_STEP = 0.005                                     # spacing of their centres (s)
-N_DECAYS = 12                                          # exponential time constants
-DECAY_RANGE = (0.0002, 0.05)                           # s
-DECAY_START_STEP = 0.001                               # spacing of their onsets (s)
+GAUSS_WIDTHS = (0.002, 0.005, 0.01, 0.02, 0.05)  # SD of the response atoms (s)
+GAUSS_STEP = 0.005  # spacing of their centres (s)
+N_DECAYS = 12  # exponential time constants
+DECAY_RANGE = (0.0002, 0.05)  # s
+DECAY_START_STEP = 0.001  # spacing of their onsets (s)
 
 
 def warn_patent():
     global _WARNED
     if not _WARNED:
-        _warn("method 'matching_pursuit' follows a published method that is the "
-              "subject of patent publication US 2023/0240618 A1 (Washington "
-              "University); check the licensing note in the specification, section "
-              "13, before commercial use.", UserWarning, stacklevel=3)
+        _warn(
+            "method 'matching_pursuit' follows a published method that is the "
+            "subject of patent publication US 2023/0240618 A1 (Washington "
+            "University); check the licensing note in the specification, section "
+            "13, before commercial use.",
+            UserWarning,
+            stacklevel=3,
+        )
         _WARNED = True
 
 
@@ -88,15 +91,15 @@ def pursuit_clean(series, rel, window_end, *, line_freq=50.0, n_iter=20, tol=0.0
     atoms, kinds = dictionary(rel, window_end, line_freq)
     is_artifact = kinds == "artifact"
     gram = atoms @ atoms.T
-    corr = series @ atoms.T                       # correlation of the residual with each atom
-    energy = np.sum(series ** 2, axis=1)
+    corr = series @ atoms.T  # correlation of the residual with each atom
+    energy = np.sum(series**2, axis=1)
     coefs = np.zeros(corr.shape)
     active = np.ones(len(series), dtype=bool)
     rows = np.arange(len(series))
     for _ in range(n_iter):
         pick = np.argmax(np.abs(corr), axis=1)
         value = corr[rows, pick]
-        gain = value ** 2
+        gain = value**2
         active &= gain > tol * np.maximum(energy, 1e-300)
         if not active.any():
             break

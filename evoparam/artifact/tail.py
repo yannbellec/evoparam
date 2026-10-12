@@ -53,8 +53,9 @@ def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05), part="full")
     t0 = times[start]
     inds = np.flatnonzero((times >= t0) & (times <= t0 + length))
     if len(inds) < 8:
-        raise ArtifactError("The tail holds fewer than 8 samples; lengthen tail_length or the "
-                            "epoch.")
+        raise ArtifactError(
+            "The tail holds fewer than 8 samples; lengthen tail_length or the epoch."
+        )
     rel = times[inds] - t0
     series = np.asarray(data)[..., inds]
     shape = series.shape[:-1]
@@ -71,18 +72,25 @@ def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05), part="full")
             rss = np.sum((flat - coefs @ design.T) ** 2, axis=1)
             better = rss < best_rss
             best_rss[better] = rss[better]
-            best[better] = np.c_[np.full(better.sum(), tau1), np.full(better.sum(), tau2),
-                                 coefs[better]]
+            best[better] = np.c_[
+                np.full(better.sum(), tau1), np.full(better.sum(), tau2), coefs[better]
+            ]
     tau1, tau2 = best[:, 0], best[:, 1]
-    decay = lambda r: (best[:, 3:4] * np.exp(-r / tau1[:, None])
-                       + best[:, 4:5] * np.exp(-r / tau2[:, None]))
+    decay = lambda r: (
+        best[:, 3:4] * np.exp(-r / tau1[:, None]) + best[:, 4:5] * np.exp(-r / tau2[:, None])
+    )
     if part == "full":
         tail = best[:, 2:3] + decay(rel[None])
     elif part == "joined":
         tail = decay(rel[None]) - decay(rel[-1:][None])
     else:
         raise SettingsError("part must be 'joined' or 'full'.")
-    params = {"tau1": tau1.reshape(shape), "tau2": tau2.reshape(shape),
-              "c0": best[:, 2].reshape(shape), "c1": best[:, 3].reshape(shape),
-              "c2": best[:, 4].reshape(shape), "rss": best_rss.reshape(shape)}
+    params = {
+        "tau1": tau1.reshape(shape),
+        "tau2": tau2.reshape(shape),
+        "c0": best[:, 2].reshape(shape),
+        "c1": best[:, 3].reshape(shape),
+        "c2": best[:, 4].reshape(shape),
+        "rss": best_rss.reshape(shape),
+    }
     return tail.reshape(shape + (len(inds),)), inds, params

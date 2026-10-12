@@ -10,8 +10,13 @@ names), ``__repr__``, ``__sklearn_is_fitted__`` and, when scikit-learn is import
 import inspect
 import sys
 
-__all__ = ["BaseEstimatorMixin", "TransformerMixin", "NotFittedError", "check_is_fitted",
-           "validate_array"]
+__all__ = [
+    "BaseEstimatorMixin",
+    "TransformerMixin",
+    "NotFittedError",
+    "check_is_fitted",
+    "validate_array",
+]
 
 
 class NotFittedError(ValueError, AttributeError):
@@ -32,15 +37,19 @@ def _not_fitted_class():
     if base is None or issubclass(NotFittedError, base):
         return NotFittedError
     if base not in _BOTH:
-        _BOTH[base] = type("NotFittedError", (base, NotFittedError),
-                           {"__module__": __name__, "__doc__": NotFittedError.__doc__})
+        _BOTH[base] = type(
+            "NotFittedError",
+            (base, NotFittedError),
+            {"__module__": __name__, "__doc__": NotFittedError.__doc__},
+        )
     return _BOTH[base]
 
 
 def check_is_fitted(estimator):
     if not estimator.__sklearn_is_fitted__():
-        raise _not_fitted_class()(f"This {type(estimator).__name__} instance is not fitted "
-                                  f"yet; call fit first.")
+        raise _not_fitted_class()(
+            f"This {type(estimator).__name__} instance is not fitted yet; call fit first."
+        )
 
 
 class BaseEstimatorMixin:
@@ -49,8 +58,11 @@ class BaseEstimatorMixin:
     @classmethod
     def _get_param_names(cls):
         signature = inspect.signature(cls.__init__)
-        return sorted(p.name for p in signature.parameters.values()
-                      if p.name != "self" and p.kind not in (p.VAR_KEYWORD, p.VAR_POSITIONAL))
+        return sorted(
+            p.name
+            for p in signature.parameters.values()
+            if p.name != "self" and p.kind not in (p.VAR_KEYWORD, p.VAR_POSITIONAL)
+        )
 
     def get_params(self, deep=True):
         out = {}
@@ -69,8 +81,9 @@ class BaseEstimatorMixin:
         for key, value in params.items():
             name, _, sub = key.partition("__")
             if name not in valid:
-                raise SettingsError(f"Invalid parameter {name!r} for {type(self).__name__}; "
-                                    f"valid: {valid}.")
+                raise SettingsError(
+                    f"Invalid parameter {name!r} for {type(self).__name__}; valid: {valid}."
+                )
             if sub:
                 nested.setdefault(name, {})[sub] = value
             else:
@@ -98,11 +111,14 @@ class BaseEstimatorMixin:
         return tags
 
     def __repr__(self):
-        defaults = {p.name: p.default for p in
-                    inspect.signature(type(self).__init__).parameters.values()}
-        shown = [f"{k}={getattr(self, k)!r}" for k in self._get_param_names()
-                 if getattr(self, k) is not defaults.get(k) and
-                 getattr(self, k) != defaults.get(k)]
+        defaults = {
+            p.name: p.default for p in inspect.signature(type(self).__init__).parameters.values()
+        }
+        shown = [
+            f"{k}={getattr(self, k)!r}"
+            for k in self._get_param_names()
+            if getattr(self, k) is not defaults.get(k) and getattr(self, k) != defaults.get(k)
+        ]
         return f"{type(self).__name__}({', '.join(shown)})"
 
 
@@ -126,8 +142,14 @@ def validate_array(estimator, X, *, reset, ndim=2, allow_nan=False):
     except ImportError:
         check_array = None
     if check_array is not None:
-        X = check_array(X, accept_sparse=False, ensure_all_finite=not allow_nan,
-                        ensure_2d=True, allow_nd=ndim > 2, dtype="numeric")
+        X = check_array(
+            X,
+            accept_sparse=False,
+            ensure_all_finite=not allow_nan,
+            ensure_2d=True,
+            allow_nd=ndim > 2,
+            dtype="numeric",
+        )
     else:
         if hasattr(X, "toarray"):
             raise TypeError("A sparse matrix was passed, but dense data is required.")
@@ -141,11 +163,15 @@ def validate_array(estimator, X, *, reset, ndim=2, allow_nan=False):
             raise ValueError("Input contains NaN or infinity.")
     n_features = int(X.shape[-1])
     if not reset and n_features != getattr(estimator, "n_features_in_", n_features):
-        raise ValueError(f"X has {n_features} features, but {type(estimator).__name__} is "
-                         f"expecting {estimator.n_features_in_} features as input.")
+        raise ValueError(
+            f"X has {n_features} features, but {type(estimator).__name__} is "
+            f"expecting {estimator.n_features_in_} features as input."
+        )
     if n_features < 2:
-        raise ValueError(f"Found array with {n_features} feature(s) (shape={X.shape}) while a "
-                         f"minimum of 2 is required (time points).")
+        raise ValueError(
+            f"Found array with {n_features} feature(s) (shape={X.shape}) while a "
+            f"minimum of 2 is required (time points)."
+        )
     if reset:
         estimator.n_features_in_ = n_features
     if X.ndim > ndim:

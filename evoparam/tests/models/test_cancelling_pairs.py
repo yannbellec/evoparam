@@ -19,8 +19,12 @@ import pytest
 from evoparam.models import fit
 from evoparam.shapes import FWHM_PER_SIGMA
 
-CASES = [("cochlear", "ecap_ci", "E01", 0), ("cochlear", "ecap_ci", "E01", 3),
-         ("cochlear", "ecap_ci", "E01", 4), ("spinal", "ecap", "E02", 0)]
+CASES = [
+    ("cochlear", "ecap_ci", "E01", 0),
+    ("cochlear", "ecap_ci", "E01", 3),
+    ("cochlear", "ecap_ci", "E01", 4),
+    ("spinal", "ecap", "E02", 0),
+]
 
 
 def _case(kind, preset, channel, seed, **settings):
@@ -38,7 +42,7 @@ def _case(kind, preset, channel, seed, **settings):
 def _cancelling(result, overlap_c=0.5):
     comps = result.components
     for i, a in enumerate(comps):
-        for b in comps[i + 1:]:
+        for b in comps[i + 1 :]:
             close = abs(a.latency - b.latency) < overlap_c * (a.fwhm + b.fwhm) / FWHM_PER_SIGMA
             if a.polarity != b.polarity and close:
                 return True
@@ -63,7 +67,8 @@ def test_the_defect_is_reproduced_without_the_rule():
     free latencies (``latency_order="sorted"``) the defect of the first case comes back: the
     test above detects it. (The ordered parameterisation alone removes this case.)"""
 
-    result, truth = _case(*CASES[0], reject_cancelling=False, reseed=False,
-                          latency_order="sorted")
+    result, truth = _case(*CASES[0], reject_cancelling=False, reseed=False, latency_order="sorted")
     assert _cancelling(result)
-    assert max(abs(c.amplitude) for c in result.components) > 2 * np.max(np.abs(truth["amplitude"]))
+    assert max(abs(c.amplitude) for c in result.components) > 2 * np.max(
+        np.abs(truth["amplitude"])
+    )

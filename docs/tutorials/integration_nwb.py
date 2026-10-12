@@ -38,19 +38,24 @@ continuous = np.zeros((trials.n_trials * (n_epoch + gap), trials.n_channels))
 onsets = []
 for k in range(trials.n_trials):
     start = k * (n_epoch + gap)
-    continuous[start:start + n_epoch] = trials.data[k].T * 1e-6        # V
+    continuous[start : start + n_epoch] = trials.data[k].T * 1e-6  # V
     onsets.append((start - trials.times[0] * sfreq) / sfreq)
 
-nwb = NWBFile(session_description="simulated laminar LFP", identifier="evoparam-tutorial",
-              session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc))
+nwb = NWBFile(
+    session_description="simulated laminar LFP",
+    identifier="evoparam-tutorial",
+    session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+)
 device = nwb.create_device(name="probe")
-shank = nwb.create_electrode_group(name="shank0", description="laminar probe",
-                                   location="VISp", device=device)
+shank = nwb.create_electrode_group(
+    name="shank0", description="laminar probe", location="VISp", device=device
+)
 for i in range(trials.n_channels):
     nwb.add_electrode(group=shank, location="VISp", x=0.0, y=0.0, z=40.0 * i)
 region = nwb.create_electrode_table_region(list(range(trials.n_channels)), "probe")
-nwb.add_acquisition(ElectricalSeries(name="lfp", data=continuous, electrodes=region,
-                                     rate=sfreq, starting_time=0.0))
+nwb.add_acquisition(
+    ElectricalSeries(name="lfp", data=continuous, electrodes=region, rate=sfreq, starting_time=0.0)
+)
 nwb.add_trial_column("stim_onset", "time of the stimulus (s)")
 for t in onsets:
     nwb.add_trial(start_time=t - 0.1, stop_time=t + 0.5, stim_onset=t)
@@ -62,7 +67,7 @@ with NWBHDF5IO(path, "w") as io:
 # Epochs from the trials table
 # ----------------------------
 
-epochs = read_nwb(path, tmin=-0.1, tmax=0.5)       # onsets: the stim_onset column of trials
+epochs = read_nwb(path, tmin=-0.1, tmax=0.5)  # onsets: the stim_onset column of trials
 print(epochs, epochs.provenance.source["events"])
 
 # %%

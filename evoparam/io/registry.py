@@ -21,8 +21,22 @@ __all__ = ["list_datasets", "dataset_info", "EVENTS_STATUS"]
 EVENTS_STATUS = ("present", "absent", "unknown")
 
 # Columns of list_datasets, in order.
-_COLUMNS = ("id", "title", "repository", "modality", "recording", "species", "sfreq",
-            "n_subjects", "size_gb", "license", "events_status", "format", "loader", "doi")
+_COLUMNS = (
+    "id",
+    "title",
+    "repository",
+    "modality",
+    "recording",
+    "species",
+    "sfreq",
+    "n_subjects",
+    "size_gb",
+    "license",
+    "events_status",
+    "format",
+    "loader",
+    "doi",
+)
 
 
 @functools.lru_cache(maxsize=1)
@@ -107,8 +121,9 @@ def list_datasets(*, modality=None, species=None, max_size_gb=None):
             continue
         if species_set is not None and entry["species"] not in species_set:
             continue
-        if max_size_gb is not None and (entry["size_gb"] is None
-                                        or entry["size_gb"] > max_size_gb):
+        if max_size_gb is not None and (
+            entry["size_gb"] is None or entry["size_gb"] > max_size_gb
+        ):
             continue
         rows.append({column: entry[column] for column in _COLUMNS})
     table = pd.DataFrame(rows, columns=list(_COLUMNS))

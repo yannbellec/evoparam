@@ -18,8 +18,19 @@ from .quality import artifact_quality
 
 __all__ = ["remove_artifact", "compare_methods", "METHODS"]
 
-METHODS = ("interpolate", "template", "tail", "period_template", "lowrank", "subspace",
-           "polynomial", "matching_pursuit", "paradigm", "learned", "none")
+METHODS = (
+    "interpolate",
+    "template",
+    "tail",
+    "period_template",
+    "lowrank",
+    "subspace",
+    "polynomial",
+    "matching_pursuit",
+    "paradigm",
+    "learned",
+    "none",
+)
 
 # Methods that change samples outside the declared window (spec REQ-060).
 GLOBAL_METHODS = ("period_template", "lowrank", "subspace", "polynomial")
@@ -34,25 +45,55 @@ def _check_window_vs_rate(ts, window, method):
         values = values[np.isfinite(values) & (values > 0)]
         rate = float(np.max(values)) if len(values) else None
     if rate and window[1] - window[0] >= 1.0 / rate:
-        raise ArtifactError(f"The window {tuple(window)} s is longer than the interval between "
-                            f"pulses of a {rate:g} Hz train; method {method!r} cannot work "
-                            "on one pulse at a time. Use method='period_template'.")
+        raise ArtifactError(
+            f"The window {tuple(window)} s is longer than the interval between "
+            f"pulses of a {rate:g} Hz train; method {method!r} cannot work "
+            "on one pulse at a time. Use method='period_template'."
+        )
 
 
-def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
-                    interpolation="linear", template="global", group_by=GROUP_BY,
-                    n_neighbors=10, scale=True, fallback=False, tail="none",
-                    tail_length=0.05, tau_bounds=(0.0005, 0.05), tail_part="full",
-                    period=None,
-                    expected_rate=None, n_bins=None, n_skip=None, d_period=None, causal=False,
-                    pulse_times=None, ranks=(4, 2, 4), post_window=0.03,
-                    baseline=(-0.5, -0.05), n_components=None, subspace_extent="window",
-                    ridge=1e-3,
-                    poly_halfwidth=0.003, poly_extent="local", line_freq=50.0, n_atoms=20,
-                    pursuit_length=0.1,
-                    scheme=None, pairing="auto", mask_subtracted=False, quality=True,
-                    inplace=False,
-                    random_state=None, verbose=None):
+def remove_artifact(
+    ts,
+    *,
+    method="template",
+    window=(-0.002, 0.008),
+    buffer=3,
+    interpolation="linear",
+    template="global",
+    group_by=GROUP_BY,
+    n_neighbors=10,
+    scale=True,
+    fallback=False,
+    tail="none",
+    tail_length=0.05,
+    tau_bounds=(0.0005, 0.05),
+    tail_part="full",
+    period=None,
+    expected_rate=None,
+    n_bins=None,
+    n_skip=None,
+    d_period=None,
+    causal=False,
+    pulse_times=None,
+    ranks=(4, 2, 4),
+    post_window=0.03,
+    baseline=(-0.5, -0.05),
+    n_components=None,
+    subspace_extent="window",
+    ridge=1e-3,
+    poly_halfwidth=0.003,
+    poly_extent="local",
+    line_freq=50.0,
+    n_atoms=20,
+    pursuit_length=0.1,
+    scheme=None,
+    pairing="auto",
+    mask_subtracted=False,
+    quality=True,
+    inplace=False,
+    random_state=None,
+    verbose=None,
+):
     """Remove the stimulation artifact, mark replaced samples and score each trial.
 
     Methods (spec §5.3; each implemented from the published equations):
@@ -168,31 +209,47 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
         masks[:, :, inds] = True
     elif method == "template":
         from .template import subtract_template
-        data, extra = subtract_template(ts, inds, template=template, group_by=group_by,
-                                        n_neighbors=n_neighbors, scale=scale,
-                                        fallback=fallback, interpolate=interp)
+
+        data, extra = subtract_template(
+            ts,
+            inds,
+            template=template,
+            group_by=group_by,
+            n_neighbors=n_neighbors,
+            scale=scale,
+            fallback=fallback,
+            interpolate=interp,
+        )
         if extra["fallback_trials"]:
             masks[np.ix_(extra["fallback_trials"], np.arange(ts.n_channels), inds)] = True
         if mask_subtracted:
             masks[:, :, inds] = True
-        info.update(template=extra["template"], fit_r2=extra["fit_r2"],
-                    template_response_correlation=extra["template_response_correlation"],
-                    fallback_trials=extra["fallback_trials"])
+        info.update(
+            template=extra["template"],
+            fit_r2=extra["fit_r2"],
+            template_response_correlation=extra["template_response_correlation"],
+            fallback_trials=extra["fallback_trials"],
+        )
     elif method == "learned":
         from .template import subtract_learned
-        data, extra = subtract_learned(ts, inds, group_by=group_by, n_components=n_components,
-                                       ridge=ridge)
+
+        data, extra = subtract_learned(
+            ts, inds, group_by=group_by, n_components=n_components, ridge=ridge
+        )
         if mask_subtracted:
             masks[:, :, inds] = True
-        info.update(basis=extra["basis"], fit_r2=extra["fit_r2"],
-                    basis_groups=extra["basis_groups"])
+        info.update(
+            basis=extra["basis"], fit_r2=extra["fit_r2"], basis_groups=extra["basis_groups"]
+        )
     elif method == "tail":
         from .tail import fit_tail
+
         data = interp(ts.data)
         masks[:, :, inds] = True
         if tail != "joint":
-            fitted, tail_inds, params = fit_tail(ts.times, data, inds[-1] + 1, tail_length,
-                                                 tau_bounds, part=tail_part)
+            fitted, tail_inds, params = fit_tail(
+                ts.times, data, inds[-1] + 1, tail_length, tau_bounds, part=tail_part
+            )
             data[:, :, tail_inds] -= fitted
             if mask_subtracted:
                 masks[:, :, tail_inds] = True
@@ -202,37 +259,52 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
         info.update(extra)
     elif method == "lowrank":
         from .lowrank import lowrank_clean
+
         if pulse_times is None:
             if not expected_rate:
                 raise ArtifactError("method 'lowrank' needs pulse_times or expected_rate.")
             pulse_times = np.arange(0.0, ts.times[-1] - post_window, 1.0 / expected_rate)
-        data, extra = lowrank_clean(ts.data, ts.sfreq, ts.times, pulse_times, ranks=ranks,
-                                    post_window=post_window)
+        data, extra = lowrank_clean(
+            ts.data, ts.sfreq, ts.times, pulse_times, ranks=ranks, post_window=post_window
+        )
         info.update(removed_fraction=extra["removed_fraction"])
     elif method == "subspace":
         from .subspace import subspace_clean
-        data, extra = subspace_clean(ts.data, inds, window_slice(ts, baseline),
-                                     n_components="noise" if n_components is None
-                                     else n_components, extent=subspace_extent)
-        info.update(n_directions=extra["n_directions"],
-                    window_energy_removed=extra["window_energy_removed"])
+
+        data, extra = subspace_clean(
+            ts.data,
+            inds,
+            window_slice(ts, baseline),
+            n_components="noise" if n_components is None else n_components,
+            extent=subspace_extent,
+        )
+        info.update(
+            n_directions=extra["n_directions"],
+            window_energy_removed=extra["window_energy_removed"],
+        )
     elif method == "polynomial":
         from .polynomial import polynomial_clean
-        data, zeroed = polynomial_clean(ts.data, ts.sfreq, saturation,
-                                        halfwidth=poly_halfwidth, extent=poly_extent,
-                                        window_inds=inds,
-                                        baseline_inds=np.flatnonzero(
-                                            (ts.times >= baseline[0])
-                                            & (ts.times <= baseline[1])))
+
+        data, zeroed = polynomial_clean(
+            ts.data,
+            ts.sfreq,
+            saturation,
+            halfwidth=poly_halfwidth,
+            extent=poly_extent,
+            window_inds=inds,
+            baseline_inds=np.flatnonzero((ts.times >= baseline[0]) & (ts.times <= baseline[1])),
+        )
         masks |= zeroed
     elif method == "matching_pursuit":
         from .pursuit import pursuit_clean, warn_patent
+
         warn_patent()
         seg = np.flatnonzero((ts.times >= window[0]) & (ts.times <= window[1] + pursuit_length))
         data = ts.data.copy()
         flat = data[:, :, seg].reshape(-1, len(seg))
-        cleaned_seg, _ = pursuit_clean(flat, ts.times[seg], window[1], line_freq=line_freq,
-                                       n_iter=n_atoms)
+        cleaned_seg, _ = pursuit_clean(
+            flat, ts.times[seg], window[1], line_freq=line_freq, n_iter=n_atoms
+        )
         data[:, :, seg] = cleaned_seg.reshape(ts.n_trials, ts.n_channels, len(seg))
         if mask_subtracted:
             masks[:, :, seg] = True
@@ -246,29 +318,48 @@ def remove_artifact(ts, *, method="template", window=(-0.002, 0.008), buffer=3,
         ts_out = None
 
     reference = ts if ts_out is None else ts_out
-    cleaned = finish(reference, data, masks, "evoparam.artifact.remove_artifact",
-                     _jsonable_settings(settings), start)
+    cleaned = finish(
+        reference,
+        data,
+        masks,
+        "evoparam.artifact.remove_artifact",
+        _jsonable_settings(settings),
+        start,
+    )
 
     components = None
     scores = np.ones(cleaned.n_trials)
     if quality:
-        components = artifact_quality(cleaned, window=window, baseline=baseline,
-                                      saturation=saturation, fit_r2=info["fit_r2"])
+        components = artifact_quality(
+            cleaned, window=window, baseline=baseline, saturation=saturation, fit_r2=info["fit_r2"]
+        )
         scores = components["quality"].to_numpy()
         pd = require("pandas", extra="data", caller="evoparam.artifact.remove_artifact")
-        meta = (cleaned.metadata.copy() if cleaned.metadata is not None
-                else pd.DataFrame(index=range(cleaned.n_trials)))
+        meta = (
+            cleaned.metadata.copy()
+            if cleaned.metadata is not None
+            else pd.DataFrame(index=range(cleaned.n_trials))
+        )
         meta["quality"] = scores
         from dataclasses import replace
+
         cleaned = replace(cleaned, metadata=meta)
 
-    extras = {key: value for key, value in info.items()
-              if key not in ("template", "basis", "fit_r2")}
+    extras = {
+        key: value for key, value in info.items() if key not in ("template", "basis", "fit_r2")
+    }
     result_settings = dict(settings, **{"_info": extras})
-    return ArtifactResult(cleaned=cleaned, method=method, window=window,
-                          template=info["template"], quality=scores,
-                          quality_components=components, basis=info["basis"],
-                          settings=result_settings, provenance=cleaned.provenance.copy())
+    return ArtifactResult(
+        cleaned=cleaned,
+        method=method,
+        window=window,
+        template=info["template"],
+        quality=scores,
+        quality_components=components,
+        basis=info["basis"],
+        settings=result_settings,
+        provenance=cleaned.provenance.copy(),
+    )
 
 
 def _jsonable_settings(settings):
@@ -294,8 +385,9 @@ def _period(ts, period, expected_rate, n_bins, n_skip, d_period, causal):
             strongest = int(np.argmax(np.std(ts.data[trial], axis=-1)))
             samples = estimate_period(ts.data[trial, strongest], ts.sfreq, expected_rate)
         periods.append(samples)
-        lags, used_bins = period_lags(samples, n_times, n_bins=n_bins, n_skip=skip,
-                                      d_period=d_period)
+        lags, used_bins = period_lags(
+            samples, n_times, n_bins=n_bins, n_skip=skip, d_period=d_period
+        )
         data[trial], _ = period_filter(ts.data[trial], lags, causal=causal)
     return data, {"period_samples": periods, "n_bins": used_bins, "n_skip": skip}
 
@@ -335,20 +427,28 @@ def compare_methods(ts, methods, *, truth=None, window_eval=(0.008, 0.05)):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             result = remove_artifact(ts, **spec)
-        row = {"label": label, "method": result.method,
-               "median_quality": float(np.median(result.quality)),
-               "mean_residual_ratio": float(result.quality_components["residual_ratio"].mean()),
-               "runtime_s": _time.perf_counter() - begin}
+        row = {
+            "label": label,
+            "method": result.method,
+            "median_quality": float(np.median(result.quality)),
+            "mean_residual_ratio": float(result.quality_components["residual_ratio"].mean()),
+            "runtime_s": _time.perf_counter() - begin,
+        }
         if truth is not None and result.cleaned.data.shape == truth.data.shape:
             times = ts.times
             ev = (times >= window_eval[0]) & (times <= window_eval[1])
             full = (times >= result.window[0]) & (times <= window_eval[1])
             clean, ref, raw = result.cleaned.data, truth.data, ts.data
-            row["rrmse"] = float(np.linalg.norm(clean[..., ev] - ref[..., ev])
-                                 / np.linalg.norm(ref[..., ev]))
+            row["rrmse"] = float(
+                np.linalg.norm(clean[..., ev] - ref[..., ev]) / np.linalg.norm(ref[..., ev])
+            )
             power = np.sum(ref[..., full] ** 2)
-            row["sir_before_db"] = float(10 * np.log10(power / np.sum((raw - ref)[..., full] ** 2)))
-            row["sir_after_db"] = float(10 * np.log10(power / np.sum((clean - ref)[..., full] ** 2)))
+            row["sir_before_db"] = float(
+                10 * np.log10(power / np.sum((raw - ref)[..., full] ** 2))
+            )
+            row["sir_after_db"] = float(
+                10 * np.log10(power / np.sum((clean - ref)[..., full] ** 2))
+            )
             row["sir_improvement_db"] = row["sir_after_db"] - row["sir_before_db"]
         rows.append(row)
     return pd.DataFrame(rows)

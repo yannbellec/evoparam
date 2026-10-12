@@ -32,20 +32,36 @@ def test_req357_committed_page_and_report_come_from_the_results(tmp_path):
 
 
 def test_req357_the_script_checks_the_committed_files():
-    proc = subprocess.run([sys.executable, str(ROOT / "tools" / "benchmark_leaderboard.py"),
-                           "--check"], capture_output=True, text=True, check=False)
+    proc = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "benchmark_leaderboard.py"), "--check"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "leaderboard: ok" in proc.stdout
 
 
 def test_req357_the_script_finds_a_stale_page(tmp_path):
     page = tmp_path / "leaderboard.html"
-    page.write_text((DOCS / "leaderboard.html").read_text(encoding="utf-8")
-                    .replace("<td>0.", "<td>1.", 1), encoding="utf-8")
-    proc = subprocess.run([sys.executable, str(ROOT / "tools" / "benchmark_leaderboard.py"),
-                           "--check", "--page", str(page), "--report",
-                           str(DOCS / "report-core.md")],
-                          capture_output=True, text=True, check=False)
+    page.write_text(
+        (DOCS / "leaderboard.html").read_text(encoding="utf-8").replace("<td>0.", "<td>1.", 1),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "tools" / "benchmark_leaderboard.py"),
+            "--check",
+            "--page",
+            str(page),
+            "--report",
+            str(DOCS / "report-core.md"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     assert proc.returncode == 1
     assert "not up to date" in proc.stdout
 
@@ -88,8 +104,11 @@ def test_req357_every_number_on_the_page_comes_from_a_result():
     assert cells and set(cells) <= allowed
     for d in docs:
         assert d["signature"]["digest"][:12] in text
-    assert "<script" not in text and "src=" not in text and "http" not in text.split(
-        "</head>")[0].replace("http-equiv", "")
+    assert (
+        "<script" not in text
+        and "src=" not in text
+        and "http" not in text.split("</head>")[0].replace("http-equiv", "")
+    )
 
 
 def test_req353_report_holds_rules_and_projection_t1_t2():
@@ -99,8 +118,15 @@ def test_req353_report_holds_rules_and_projection_t1_t2():
     report = (DOCS / "report-core.md").read_text(encoding="utf-8")
     t1 = report.split("## T1")[1].split("## T2")[0]
     t2 = report.split("## T2")[1].split("## T3")[0]
-    for name in ("vanblooijs2023", "hays2021", "keller2014", "silverstein2020", "ftract",
-                 "prime2020", "projection"):
+    for name in (
+        "vanblooijs2023",
+        "hays2021",
+        "keller2014",
+        "silverstein2020",
+        "ftract",
+        "prime2020",
+        "projection",
+    ):
         assert f"| {name} |" in t1 and f"| {name} |" in t2, name
     assert "suite `core` 1.0.0" in report
 
@@ -112,9 +138,17 @@ def test_req392_submission_format_is_documented():
     """REQ-392: the leaderboard accepts outside submissions in a documented format."""
 
     text = (DOCS / "SUBMITTING.md").read_text(encoding="utf-8")
-    for needed in ("evoparam benchmark run", "evoparam benchmark score", "--predictions",
-                   "signature", "docs/benchmark/results/", "benchmark_leaderboard.py --check",
-                   "schemas/<task>.json", "<cell>.tsv", "<cell>.npz"):
+    for needed in (
+        "evoparam benchmark run",
+        "evoparam benchmark score",
+        "--predictions",
+        "signature",
+        "docs/benchmark/results/",
+        "benchmark_leaderboard.py --check",
+        "schemas/<task>.json",
+        "<cell>.tsv",
+        "<cell>.npz",
+    ):
         assert needed in text, needed
 
 
@@ -122,8 +156,9 @@ def test_req392_submission_ci_checks_the_results():
     """REQ-392: the CI job ``benchmark-results`` checks every submitted result."""
 
     yaml = pytest.importorskip("yaml")
-    workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml")
-                              .read_text(encoding="utf-8"))
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
     job = workflow["jobs"]["benchmark-results"]
     commands = " ".join(step.get("run", "") for step in job["steps"])
     assert "tools/benchmark_leaderboard.py --check" in commands
@@ -136,13 +171,31 @@ def test_req392_an_entry_is_reproduced_by_one_command(tmp_path):
     the platform's libm gave inputs that differ in their last bits (macOS arm64 against the
     Linux machine that made the published results)."""
 
-    proc = subprocess.run([sys.executable, "-m", "evoparam", "benchmark", "run", "--suite",
-                           "core", "--task", "T1", "--method", "vanblooijs2023", "--out",
-                           str(tmp_path / "check")],
-                          capture_output=True, text=True, check=False, cwd=str(tmp_path))
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evoparam",
+            "benchmark",
+            "run",
+            "--suite",
+            "core",
+            "--task",
+            "T1",
+            "--method",
+            "vanblooijs2023",
+            "--out",
+            str(tmp_path / "check"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=str(tmp_path),
+    )
     assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
-    again = json.loads((tmp_path / "check" / "results" / "vanblooijs2023__T1.json")
-                       .read_text(encoding="utf-8"))
+    again = json.loads(
+        (tmp_path / "check" / "results" / "vanblooijs2023__T1.json").read_text(encoding="utf-8")
+    )
     published = json.loads((RESULTS / "vanblooijs2023__T1.json").read_text(encoding="utf-8"))
     assert again["headline"] == published["headline"]
     if again["inputs_sha256"] == published["inputs_sha256"]:

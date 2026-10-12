@@ -87,7 +87,7 @@ def difference_score(data, index):
     score = np.empty(n_times - 1)
     for start in range(0, n_times - 1, _CHUNK):
         stop = min(start + _CHUNK, n_times - 1)
-        block = np.abs(np.diff(data[index, start:stop + 1], axis=1))
+        block = np.abs(np.diff(data[index, start : stop + 1], axis=1))
         np.nan_to_num(block, copy=False, nan=0.0)
         if len(index) == 1:
             score[start:stop] = block[0]
@@ -138,8 +138,11 @@ def snippet_lengths(sfreq):
     """Samples before and after the onset used for artifact snippets (-1 ms to +3 ms),
     and the largest shift tried when matching (0.5 ms, at least one sample)."""
 
-    return (max(1, int(round(0.001 * sfreq))), max(3, int(round(0.003 * sfreq))),
-            max(1, int(round(0.0005 * sfreq))))
+    return (
+        max(1, int(round(0.001 * sfreq))),
+        max(3, int(round(0.003 * sfreq))),
+        max(1, int(round(0.0005 * sfreq))),
+    )
 
 
 def shifted_snippets(data, index, onsets, n_pre, n_post, max_shift):

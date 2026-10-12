@@ -12,11 +12,17 @@ __all__ = ["EXPECTED", "FORBIDDEN", "expected_failed_checks"]
 EXPECTED = {}
 
 # checks that must never be excused (REQ-321)
-FORBIDDEN = ("check_get_params_invariance", "check_set_params",
-             "check_no_attributes_set_in_init", "check_dont_overwrite_parameters",
-             "check_fit_idempotent", "check_estimators_unfitted",
-             "check_parameters_default_constructible", "check_estimators_overwrite_params",
-             "check_n_features_in")
+FORBIDDEN = (
+    "check_get_params_invariance",
+    "check_set_params",
+    "check_no_attributes_set_in_init",
+    "check_dont_overwrite_parameters",
+    "check_fit_idempotent",
+    "check_estimators_unfitted",
+    "check_parameters_default_constructible",
+    "check_estimators_overwrite_params",
+    "check_n_features_in",
+)
 
 
 def expected_failed_checks(estimator):

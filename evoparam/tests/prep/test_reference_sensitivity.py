@@ -17,9 +17,13 @@ from evoparam.io import epoch_data
 from evoparam.existence import existence_detector
 from evoparam.prep import baseline_correct, reference_sensitivity, threshold_detector
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+]
 
 RUN = "sub-ccepAgeUMCU01/ses-1/ieeg/sub-ccepAgeUMCU01_ses-1_task-SPESclin_run-021448"
 
@@ -28,16 +32,21 @@ def _epochs():
     from evoparam.tests.events.test_ds004080_events import _segment
 
     data, sfreq, names, t0, onsets, sites = _segment(RUN)
-    keep = [i for i, n in enumerate(names) if re.match(r"^[A-Za-z]+\d+$", n)
-            and not n.upper().startswith(("MKR", "ECG", "EMG", "EOG"))]
+    keep = [
+        i
+        for i, n in enumerate(names)
+        if re.match(r"^[A-Za-z]+\d+$", n)
+        and not n.upper().startswith(("MKR", "ECG", "EMG", "EOG"))
+    ]
     names = [names[i] for i in keep]
     times, epochs, kept = epoch_data(data[keep], sfreq, onsets, -0.5, 1.0, t0=t0)
     meta = pd.DataFrame({"stim_site": np.asarray(sites)[kept]})
     inside = (times >= -0.002) & (times <= 0.010)
     masks = np.broadcast_to(inside, epochs.shape).copy()
     epochs[..., inside] = 0.0
-    ts = TrialSet(data=epochs, times=times, sfreq=sfreq, ch_names=names, metadata=meta,
-                  masks=masks)
+    ts = TrialSet(
+        data=epochs, times=times, sfreq=sfreq, ch_names=names, metadata=meta, masks=masks
+    )
     return baseline_correct(ts, check=False)
 
 
@@ -50,7 +59,10 @@ def test_req084_three_schemes_under_two_minutes():
     assert table.attrs["duration_s"] < 120
     assert len(table) == 3
     assert set(zip(table["scheme_a"], table["scheme_b"])) == {
-        ("bipolar", "car"), ("bipolar", "car_adaptive"), ("car", "car_adaptive")}
+        ("bipolar", "car"),
+        ("bipolar", "car_adaptive"),
+        ("car", "car_adaptive"),
+    }
     assert table["kappa"].between(-1, 1).all()
     assert (table["n_channels"] > 20).all()
     channels = table.attrs["channels"]

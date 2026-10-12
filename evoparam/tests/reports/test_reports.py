@@ -24,8 +24,11 @@ def test_methods_text_follows_the_processing_steps(results):
     cleaned = baseline_correct(cleaned, (-0.5, -0.05), check=False)
     group = fit(cleaned, "ccep", min_fwhm=0.004)
     text = reports.methods_text(group)
-    assert text.index("stimulation artifact was removed") < text.index("baseline-corrected") \
+    assert (
+        text.index("stimulation artifact was removed")
+        < text.index("baseline-corrected")
         < text.index("each waveform was modelled")
+    )
     assert "method 'interpolate'" in text and "-2 to 8 ms" in text
     assert "preset 'ccep' v1.1" in text and "4 to 250 ms" in text
     assert "Settings changed from the preset (times in s): min_fwhm = 0.004" in text
@@ -62,18 +65,35 @@ def test_invalid_json_is_named():
     from evoparam.errors import DataError
 
     with pytest.raises(DataError, match="at object"):
-        reports.validate_json({"schema": "evoparam-result/1", "object": "Nope",
-                               "package_version": "x", "structure": {}, "arrays": {},
-                               "tables": {}, "provenance": None, "settings": {}})
+        reports.validate_json(
+            {
+                "schema": "evoparam-result/1",
+                "object": "Nope",
+                "package_version": "x",
+                "structure": {},
+                "arrays": {},
+                "tables": {},
+                "provenance": None,
+                "settings": {},
+            }
+        )
 
 
 def test_quality_summary(results):
 
-    table = reports.qc(results["group"], trials=results["artifact"].cleaned,
-                       artifact=results["artifact"], trial_fits=results["trials"])
+    table = reports.qc(
+        results["group"],
+        trials=results["artifact"].cleaned,
+        artifact=results["artifact"],
+        trial_fits=results["trials"],
+    )
     quantities = set(table["quantity"])
-    assert {"ill-conditioned fits", "masked fraction", "artifact quality, median",
-            "trials not trusted"} <= quantities
+    assert {
+        "ill-conditioned fits",
+        "masked fraction",
+        "artifact quality, median",
+        "trials not trusted",
+    } <= quantities
     assert any(q.startswith("fits: ") for q in quantities)
 
 
@@ -164,18 +184,17 @@ def test_methods_text_roundtrip(ccep_run, tmp_path):
     from evoparam import __version__, load_object
 
     group = ccep_run.group
-    assert load_object(group.save(str(tmp_path / "group"))).methods_text() == \
-        group.methods_text()
+    assert load_object(group.save(str(tmp_path / "group"))).methods_text() == group.methods_text()
     fit = group.fits[0]
     assert load_object(fit.save(str(tmp_path / "fit"))).methods_text() == fit.methods_text()
     text = group.methods_text()
     assert text == reports.methods_text(group)
     assert f"evoparam (version {__version__})" in text
     assert "preset 'ccep' v1.1" in text
-    assert "In the window 9 to 500 ms" in text                       # fit window
-    assert "method 'template'" in text                               # artifact method
-    assert "sign-flip permutation test" in text                      # existence method
-    assert "Random draws used the seed 0;" in text                   # reproducibility
+    assert "In the window 9 to 500 ms" in text  # fit window
+    assert "method 'template'" in text  # artifact method
+    assert "sign-flip permutation test" in text  # existence method
+    assert "Random draws used the seed 0;" in text  # reproducibility
     assert "evoparam.reproduce" in text
 
 
@@ -193,7 +212,7 @@ def test_methods_text_reads_only_provenance_and_settings(ccep_run):
 def test_pipeline_methods_text_merges_every_result(ccep_run):
 
     text = reports.methods_text(ccep_run)
-    assert "Single-trial parameters were estimated" in text           # trial fits
+    assert "Single-trial parameters were estimated" in text  # trial fits
     assert text.count("The stimulation artifact was removed") == 1
     assert reports.methods_text(ccep_run.results) == text
     assert "Software:" not in reports.methods_text(ccep_run, cite=False)
@@ -204,8 +223,12 @@ def test_methods_text_without_seed_says_so(ccep_run):
     from evoparam.data import Provenance
 
     group = ccep_run.group
-    steps = [dict(s, settings={k: v for k, v in (s.get("settings") or {}).items()
-                               if k != "random_state"}) for s in group.provenance.steps]
+    steps = [
+        dict(
+            s, settings={k: v for k, v in (s.get("settings") or {}).items() if k != "random_state"}
+        )
+        for s in group.provenance.steps
+    ]
 
     class Record:
         provenance = Provenance(steps=steps, random_state=None)
@@ -221,8 +244,10 @@ def test_req346_citation_single_source():
     from evoparam.data._citation import parse_cff, read_citation
 
     package = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    with open(os.path.join(package, "CITATION.cff"), "rb") as a, \
-            open(os.path.join(os.path.dirname(package), "CITATION.cff"), "rb") as b:
+    with (
+        open(os.path.join(package, "CITATION.cff"), "rb") as a,
+        open(os.path.join(os.path.dirname(package), "CITATION.cff"), "rb") as b,
+    ):
         assert a.read() == b.read(), "evoparam/CITATION.cff must be a copy of CITATION.cff"
     cff = read_citation()
     with open(os.path.join(os.path.dirname(package), "CITATION.cff"), encoding="utf-8") as f:
@@ -240,8 +265,10 @@ def _recorded_steps():
     import evoparam
 
     root = pathlib.Path(evoparam.__file__).parent
-    pattern = re.compile(r"(?:with_step|new|finish|_new)\(\s*(?:[\w.\[\]]+,\s*){0,3}"
-                         r"[\"'](evoparam\.[\w.]+)[\"']")
+    pattern = re.compile(
+        r"(?:with_step|new|finish|_new)\(\s*(?:[\w.\[\]]+,\s*){0,3}"
+        r"[\"'](evoparam\.[\w.]+)[\"']"
+    )
     names = set()
     for path in root.rglob("*.py"):
         if "tests" not in path.relative_to(root).parts:
@@ -258,10 +285,13 @@ def test_methods_text_has_a_template_for_every_recorded_step():
     from evoparam.data._methods import _TEMPLATES, SILENT_PREFIXES
 
     names = _recorded_steps()
-    assert {"evoparam.events.detect_pulses", "evoparam.stats.reliability",
-            "evoparam.prep.reference_sensitivity", "evoparam.prep.train_baseline"} <= names
-    missing = sorted(n for n in names if n not in _TEMPLATES
-                     and not n.startswith(SILENT_PREFIXES))
+    assert {
+        "evoparam.events.detect_pulses",
+        "evoparam.stats.reliability",
+        "evoparam.prep.reference_sensitivity",
+        "evoparam.prep.train_baseline",
+    } <= names
+    missing = sorted(n for n in names if n not in _TEMPLATES and not n.startswith(SILENT_PREFIXES))
     assert not missing, missing
 
 
@@ -278,51 +308,77 @@ def test_methods_text_events_and_stats_paragraphs(results):
     raw = rng.normal(0, 1, (4, int(sfreq * 20)))
     for onset in np.arange(2.0, 18.0, 2.0):
         i = int(onset * sfreq)
-        raw[0, i:i + 4] += 800
-        raw[1, i:i + 4] -= 800
+        raw[0, i : i + 4] += 800
+        raw[1, i : i + 4] -= 800
     events = detect_pulses(raw, sfreq, ch_names=["A1", "A2", "A3", "A4"], expected_rate=0.5)
     trials = epoch(raw, sfreq, events, -0.5, 1.0, ch_names=["A1", "A2", "A3", "A4"])
     assert [s["function"] for s in trials.provenance.steps] == [
-        "evoparam.events.detect_pulses", "evoparam.io.epoch"]
+        "evoparam.events.detect_pulses",
+        "evoparam.io.epoch",
+    ]
     text = reports.methods_text(trials)
     assert "Stimulation pulses were detected from their artifact" in text
     assert "exceeded 20" in text and "expected rate of 0.5 Hz" in text
     assert "grouped into trains" in text
     # stats: a table of evoparam.stats carries its step
-    table = stats.bootstrap(results["ts"], "peak_amplitude", n_boot=50, by=(),
-                            window=(0.01, 0.1), random_state=0)
+    table = stats.bootstrap(
+        results["ts"], "peak_amplitude", n_boot=50, by=(), window=(0.01, 0.1), random_state=0
+    )
     text = reports.methods_text(table)
     assert "were obtained by bootstrap over trials (50 resamples" in text
     # and the other statistics have their own sentence (no generic "processed with")
     steps = {
-        "evoparam.stats.compare_conditions": {"parameter": "latency", "condition": "drug",
-                                              "unit": "subject", "paired": True,
-                                              "n_permutations": 5000, "correction": "fdr_bh",
-                                              "conditions": ["off", "on"], "ci_level": 0.95,
-                                              "n_boot": 2000},
-        "evoparam.stats.reliability": {"scorer": "mean_amplitude", "facets": ["trial",
-                                                                             "subject"],
-                                       "method": "both", "n_splits": 1000,
-                                       "target_phi": 0.7, "window": [0.11, 0.15]},
+        "evoparam.stats.compare_conditions": {
+            "parameter": "latency",
+            "condition": "drug",
+            "unit": "subject",
+            "paired": True,
+            "n_permutations": 5000,
+            "correction": "fdr_bh",
+            "conditions": ["off", "on"],
+            "ci_level": 0.95,
+            "n_boot": 2000,
+        },
+        "evoparam.stats.reliability": {
+            "scorer": "mean_amplitude",
+            "facets": ["trial", "subject"],
+            "method": "both",
+            "n_splits": 1000,
+            "target_phi": 0.7,
+            "window": [0.11, 0.15],
+        },
         "evoparam.stats.trials_needed": {"scorer": "existence", "n_resamples": 200},
-        "evoparam.stats.jackknife_latency": {"scorer": "fractional_area_latency",
-                                             "retrieve": True, "n_subjects": 12},
+        "evoparam.stats.jackknife_latency": {
+            "scorer": "fractional_area_latency",
+            "retrieve": True,
+            "n_subjects": 12,
+        },
         "evoparam.stats.group_summary": {"by": ["region"], "n_boot": 1000, "ci_level": 0.95},
-        "evoparam.prep.notch": {"freq": 50.0, "q": 30.0, "harmonics": 3,
-                                "frequencies": [50.0, 100.0, 150.0]},
+        "evoparam.prep.notch": {
+            "freq": 50.0,
+            "q": 30.0,
+            "harmonics": 3,
+            "frequencies": [50.0, 100.0, 150.0],
+        },
         "evoparam.prep.highpass": {"cutoff": 0.5, "order": 4},
         "evoparam.prep.train_baseline": {"length": 0.05, "mode": "mean", "source": "epochs"},
-        "evoparam.prep.reference_sensitivity": {"schemes": ["bipolar", "car",
-                                                            "car_adaptive"]},
+        "evoparam.prep.reference_sensitivity": {"schemes": ["bipolar", "car", "car_adaptive"]},
     }
     for function, settings in steps.items():
         sentence = step_sentence({"function": function, "settings": settings})
         assert "processed with" not in sentence and sentence.endswith("."), function
     assert "Benjamini-Hochberg" in step_sentence(
-        {"function": "evoparam.stats.compare_conditions",
-         "settings": steps["evoparam.stats.compare_conditions"]})
+        {
+            "function": "evoparam.stats.compare_conditions",
+            "settings": steps["evoparam.stats.compare_conditions"],
+        }
+    )
     assert "50, 100 and 150 Hz" in step_sentence(
-        {"function": "evoparam.prep.notch", "settings": steps["evoparam.prep.notch"]})
+        {"function": "evoparam.prep.notch", "settings": steps["evoparam.prep.notch"]}
+    )
     assert "last 50 ms before the train" in step_sentence(
-        {"function": "evoparam.prep.train_baseline",
-         "settings": steps["evoparam.prep.train_baseline"]})
+        {
+            "function": "evoparam.prep.train_baseline",
+            "settings": steps["evoparam.prep.train_baseline"],
+        }
+    )

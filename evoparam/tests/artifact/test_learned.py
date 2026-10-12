@@ -11,6 +11,7 @@ from .test_template import WINDOW, residual_db
 ###################################################################################################
 ###################################################################################################
 
+
 def test_req061_learned_reduces_window_residual_by_20_db():
 
     noisy, truth = make_overlay(onset=0.012)

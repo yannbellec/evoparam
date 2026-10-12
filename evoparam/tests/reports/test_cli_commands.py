@@ -21,17 +21,26 @@ import evoparam
 from evoparam import __version__, presets, reports
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
-EPOCH = "1767225600"                      # 2026-01-01T00:00:00Z
+EPOCH = "1767225600"  # 2026-01-01T00:00:00Z
 SIM = ["--modality", "ccep", "--n-trials", "8", "--n-channels", "3", "--random-state", "3"]
 
 
 def run(*args, code=0):
     """``python -m evoparam <args> --json``: the parsed summary (exit code checked)."""
 
-    env = dict(os.environ, PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
-               PYTHONWARNINGS="ignore")
-    proc = subprocess.run([sys.executable, "-m", "evoparam", *map(str, args), "--json"],
-                          capture_output=True, text=True, env=env, cwd=ROOT, timeout=900)
+    env = dict(
+        os.environ,
+        PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
+        PYTHONWARNINGS="ignore",
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "evoparam", *map(str, args), "--json"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=ROOT,
+        timeout=900,
+    )
     assert proc.returncode == code, (args, proc.stdout[-2000:], proc.stderr[-2000:])
     summary = json.loads(proc.stdout.splitlines()[-1])
     assert summary["exit_code"] == code and summary["version"] == __version__
@@ -39,10 +48,19 @@ def run(*args, code=0):
 
 
 def run_text(*args):
-    env = dict(os.environ, PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
-               PYTHONWARNINGS="ignore")
-    proc = subprocess.run([sys.executable, "-m", "evoparam", *map(str, args)],
-                          capture_output=True, text=True, env=env, cwd=ROOT, timeout=300)
+    env = dict(
+        os.environ,
+        PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
+        PYTHONWARNINGS="ignore",
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "evoparam", *map(str, args)],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=ROOT,
+        timeout=300,
+    )
     return proc.returncode, proc.stdout
 
 
@@ -86,8 +104,9 @@ def bids(tmp_path_factory):
 def _trials(bids, preset="ccep"):
     from evoparam.io import read_bids
 
-    return read_bids(str(bids), "01", task="ccep", datatype="ieeg",
-                     epoch=presets.get(preset).epoch)
+    return read_bids(
+        str(bids), "01", task="ccep", datatype="ieeg", epoch=presets.get(preset).epoch
+    )
 
 
 def test_req345_simulate(bids, tmp_path):
@@ -106,16 +125,41 @@ def test_req345_test(bids, tmp_path):
     from evoparam.io import write_bids_derivatives
     from evoparam.prep import baseline_correct
 
-    run("test", bids, "--sub", "01", "--task", "ccep", "--preset", "ccep",
-        "--out", tmp_path / "cli")
+    run(
+        "test",
+        bids,
+        "--sub",
+        "01",
+        "--task",
+        "ccep",
+        "--preset",
+        "ccep",
+        "--out",
+        tmp_path / "cli",
+    )
     p = presets.get("ccep")
     trials = baseline_correct(_trials(bids), p.baseline, check=False)
-    test = test_response(trials, method="baseline_permutation", window=p.fit_window,
-                         baseline=p.baseline, random_state=0, by=())
-    write_bids_derivatives(test, str(bids), subject="01", task="ccep", datatype="ieeg",
-                           out=str(tmp_path / "api"), overwrite=True, trials=trials)
-    assert_same_tree(tmp_path / "cli", tmp_path / "api", only=("_existence.tsv",
-                                                                "_existence.json"))
+    test = test_response(
+        trials,
+        method="baseline_permutation",
+        window=p.fit_window,
+        baseline=p.baseline,
+        random_state=0,
+        by=(),
+    )
+    write_bids_derivatives(
+        test,
+        str(bids),
+        subject="01",
+        task="ccep",
+        datatype="ieeg",
+        out=str(tmp_path / "api"),
+        overwrite=True,
+        trials=trials,
+    )
+    assert_same_tree(
+        tmp_path / "cli", tmp_path / "api", only=("_existence.tsv", "_existence.json")
+    )
 
 
 def test_req345_clean(bids, tmp_path):
@@ -124,14 +168,31 @@ def test_req345_clean(bids, tmp_path):
     from evoparam.data import load_object
     from evoparam.io import write_bids_derivatives
 
-    summary = run("clean", bids, "--sub", "01", "--task", "ccep", "--preset", "ccep",
-                  "--out", tmp_path / "cli")
+    summary = run(
+        "clean",
+        bids,
+        "--sub",
+        "01",
+        "--task",
+        "ccep",
+        "--preset",
+        "ccep",
+        "--out",
+        tmp_path / "cli",
+    )
     p = presets.get("ccep")
     source = _trials(bids)
-    result = remove_artifact(source, method="template", window=p.artifact_window,
-                             random_state=0)
-    write_bids_derivatives(result, str(bids), subject="01", task="ccep", datatype="ieeg",
-                           out=str(tmp_path / "api"), overwrite=True, trials=source)
+    result = remove_artifact(source, method="template", window=p.artifact_window, random_state=0)
+    write_bids_derivatives(
+        result,
+        str(bids),
+        subject="01",
+        task="ccep",
+        datatype="ieeg",
+        out=str(tmp_path / "api"),
+        overwrite=True,
+        trials=source,
+    )
     assert_same_tree(tmp_path / "cli", tmp_path / "api", only=("_artifact.json",))
     cleaned = next(p for p in summary["outputs"] if p.endswith("cleaned.evoparam"))
     assert load_object(cleaned).data.tobytes() == result.cleaned.data.tobytes()
@@ -162,8 +223,18 @@ def test_req345_report_json_and_migrate(bids, tmp_path):
 
     from evoparam.data import load_object
 
-    run("fit", bids, "--sub", "01", "--task", "ccep", "--preset", "ccep", "--out",
-        tmp_path / "deriv")
+    run(
+        "fit",
+        bids,
+        "--sub",
+        "01",
+        "--task",
+        "ccep",
+        "--preset",
+        "ccep",
+        "--out",
+        tmp_path / "deriv",
+    )
     container = next(str(p) for p in (tmp_path / "deriv").rglob("*.evoparam"))
     summary = run("report", container, "--format", "json", "--out", tmp_path / "rep")
     group = load_object(container)
@@ -185,7 +256,7 @@ def test_req345_information_commands():
     assert {row["name"] for row in listing["result"]["presets"]} == set(presets.PRESETS)
     shown = run("presets", "show", "ccep")
     assert shown["result"]["preset"]["name"] == "ccep"
-    assert run_text("benchmark")[0] == 2                          # an action is required
+    assert run_text("benchmark")[0] == 2  # an action is required
     # the repository is not a BIDS dataset: input error (REQ-314, tests/io/test_bids_validator.py)
     assert run("validate-bids", ROOT, code=5)["status"] == "error"
     code, stdout = run_text("--version")
@@ -204,12 +275,35 @@ def test_req346_cite_prints_citation_cff():
 def test_methods_text_is_logged_at_info_level(bids, tmp_path):
     """Spec §5.13: the methods paragraph ends a fit when verbose is INFO."""
 
-    env = dict(os.environ, PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
-               PYTHONWARNINGS="ignore")
-    proc = subprocess.run([sys.executable, "-m", "evoparam", "fit", str(bids), "--sub", "01",
-                           "--task", "ccep", "--preset", "ccep", "--out",
-                           str(tmp_path / "d"), "--verbose", "info"],
-                          capture_output=True, text=True, env=env, cwd=ROOT, timeout=900)
+    env = dict(
+        os.environ,
+        PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
+        PYTHONWARNINGS="ignore",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evoparam",
+            "fit",
+            str(bids),
+            "--sub",
+            "01",
+            "--task",
+            "ccep",
+            "--preset",
+            "ccep",
+            "--out",
+            str(tmp_path / "d"),
+            "--verbose",
+            "info",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=ROOT,
+        timeout=900,
+    )
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert "Evoked responses were analysed with evoparam" in proc.stderr
     assert "Software:" in proc.stderr

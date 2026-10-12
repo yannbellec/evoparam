@@ -12,17 +12,27 @@ pd = pytest.importorskip("pandas")
 
 
 def _truth_table(latencies, fwhm=0.02, channel="c", amplitude=-5.0):
-    return pd.DataFrame({"channel": [channel] * len(latencies), "latency": latencies,
-                         "amplitude": [amplitude] * len(latencies),
-                         "fwhm": [fwhm] * len(latencies)})
+    return pd.DataFrame(
+        {
+            "channel": [channel] * len(latencies),
+            "latency": latencies,
+            "amplitude": [amplitude] * len(latencies),
+            "fwhm": [fwhm] * len(latencies),
+        }
+    )
 
 
 def _fit_table(latencies, channel="c", amplitude=-5.0, **columns):
-    table = pd.DataFrame({"channel": [channel] * len(latencies),
-                          "component": np.arange(len(latencies)), "latency": latencies,
-                          "amplitude": [amplitude] * len(latencies),
-                          "fwhm": [0.02] * len(latencies),
-                          "polarity": [int(np.sign(amplitude))] * len(latencies)})
+    table = pd.DataFrame(
+        {
+            "channel": [channel] * len(latencies),
+            "component": np.arange(len(latencies)),
+            "latency": latencies,
+            "amplitude": [amplitude] * len(latencies),
+            "fwhm": [0.02] * len(latencies),
+            "polarity": [int(np.sign(amplitude))] * len(latencies),
+        }
+    )
     for key, value in columns.items():
         table[key] = value
     return table
@@ -53,7 +63,7 @@ def test_errors_and_coverage():
     assert np.isclose(score["latency_mae_samples"], 0.001 * truth.sfreq)
     assert np.isclose(score["amplitude_rel_bias"], 0.1)
     assert score["coverage_latency"] == 1.0
-    assert np.isnan(score["coverage_amplitude"])          # no amplitude interval
+    assert np.isnan(score["coverage_amplitude"])  # no amplitude interval
     narrow = fits_from_truth(truth, latency_error=0.001, ci_halfwidth=0.0005)
     assert sim.score_fits(truth, narrow).iloc[0]["coverage_latency"] == 0.0
 
@@ -134,10 +144,15 @@ def test_conditions():
     assert sim.score_fits(truth, fits).iloc[0]["recall"] == 1.0
     one = fits.fits[fits.index["position"][(fits.index["condition"] == "awake")].iloc[0]]
     with pytest.raises(SettingsError, match="several conditions"):
-        sim.match_components(truth, pd.DataFrame({"channel": ["L00"], "latency": [0.05],
-                                                  "amplitude": [1.0], "fwhm": [0.01]}))
-    out = sim.match_components(truth.to_dataframe().query("condition == 'awake'"), one,
-                               channel=truth.ch_names[0])
+        sim.match_components(
+            truth,
+            pd.DataFrame(
+                {"channel": ["L00"], "latency": [0.05], "amplitude": [1.0], "fwhm": [0.01]}
+            ),
+        )
+    out = sim.match_components(
+        truth.to_dataframe().query("condition == 'awake'"), one, channel=truth.ch_names[0]
+    )
     assert (out["kind"] == "match").sum() >= 1
 
 
@@ -160,9 +175,16 @@ def test_response_fit_and_dataframe_inputs():
     with pytest.raises(SettingsError):
         sim.match_components(truth, table, level="channel")
     # A fit without any component (component == -1 row) counts as fitted, with no rows.
-    empty = pd.DataFrame({"channel": [truth.ch_names[0]], "component": [-1],
-                          "latency": [np.nan], "amplitude": [np.nan], "fwhm": [np.nan],
-                          "polarity": [0]})
+    empty = pd.DataFrame(
+        {
+            "channel": [truth.ch_names[0]],
+            "component": [-1],
+            "latency": [np.nan],
+            "amplitude": [np.nan],
+            "fwhm": [np.nan],
+            "polarity": [0],
+        }
+    )
     out = sim.match_components(truth, empty)
     assert list(out["kind"]) == ["miss", "miss"]
 
@@ -170,8 +192,9 @@ def test_response_fit_and_dataframe_inputs():
 def test_trial_level_matching():
     _, truth = sim.simulate_erp(seed=2, n_trials=4, components=["P3"], jitter_sd=0.02)
     trials = truth.to_dataframe("trial")
-    fit = trials[["channel", "trial", "component", "latency", "amplitude", "fwhm",
-                  "polarity"]].copy()
+    fit = trials[
+        ["channel", "trial", "component", "latency", "amplitude", "fwhm", "polarity"]
+    ].copy()
     out = sim.match_components(truth, fit, level="trial")
     assert list(out["kind"]) == ["match"] * 4 and list(out["trial"]) == [0, 1, 2, 3]
     np.testing.assert_allclose(out["latency_error"], 0.0, atol=1e-12)

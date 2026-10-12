@@ -23,8 +23,10 @@ def window_mask(times, window, name="window"):
 
     inside = (times >= window[0]) & (times <= window[1])
     if not inside.any():
-        raise DataError(f"{name} {tuple(window)} s contains no sample "
-                        f"(epoch {times[0]:.4f} to {times[-1]:.4f} s).")
+        raise DataError(
+            f"{name} {tuple(window)} s contains no sample "
+            f"(epoch {times[0]:.4f} to {times[-1]:.4f} s)."
+        )
     return inside
 
 
@@ -40,8 +42,9 @@ def masked_values(ts):
 def new(ts, function, settings, start, **changes):
     """Copy of ``ts`` with changes and one provenance step."""
 
-    provenance = ts.provenance.with_step(function, settings,
-                                         duration_s=_time.perf_counter() - start)
+    provenance = ts.provenance.with_step(
+        function, settings, duration_s=_time.perf_counter() - start
+    )
     if "data" in changes:
         provenance.data_hash = None
     return replace(ts, provenance=provenance, **changes)

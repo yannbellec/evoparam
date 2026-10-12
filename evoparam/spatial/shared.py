@@ -27,12 +27,15 @@ from scipy.optimize import least_squares
 from scipy.sparse import lil_matrix
 from scipy.stats import norm
 
-from evoparam.data import (Component, Evoked, GoodnessOfFit, GroupFit, ResponseFit,
-                           TrialSet)
+from evoparam.data import Component, Evoked, GoodnessOfFit, GroupFit, ResponseFit, TrialSet
 from evoparam.errors import DataError, SettingsError, warn as _warn
 from evoparam.models import ResponseModel
-from evoparam.models.component_shapes import (FWHM_PER_SIGMA, compute_features, get_background,
-                                              get_shape)
+from evoparam.models.component_shapes import (
+    FWHM_PER_SIGMA,
+    compute_features,
+    get_background,
+    get_shape,
+)
 from evoparam.models.engine import cancelling_pairs
 from evoparam.version import __version__
 
@@ -41,10 +44,19 @@ __all__ = ["fit_shared", "neighbours", "PARAMETER_ROLES"]
 # Role of each shape parameter, so that ``shared`` can name roles ("latency", "fwhm",
 # "asymmetry") instead of the parameter names of each shape. The location parameter of
 # every shape has the role "latency".
-PARAMETER_ROLES = {"sigma": "fwhm", "omega": "fwhm", "theta": "fwhm", "tau_rise": "fwhm",
-                   "stretch": "fwhm", "alpha": "asymmetry", "tau": "asymmetry",
-                   "kappa": "asymmetry", "tau_decay": "asymmetry", "freq": "frequency",
-                   "phase": "phase"}
+PARAMETER_ROLES = {
+    "sigma": "fwhm",
+    "omega": "fwhm",
+    "theta": "fwhm",
+    "tau_rise": "fwhm",
+    "stretch": "fwhm",
+    "alpha": "asymmetry",
+    "tau": "asymmetry",
+    "kappa": "asymmetry",
+    "tau_decay": "asymmetry",
+    "freq": "frequency",
+    "phase": "phase",
+}
 LAMBDA_FACTORS = (0.0, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0)
 MAX_ROUNDS = 10
 LAMBDA_MARGIN = 0.01
@@ -52,6 +64,7 @@ LAMBDA_MARGIN = 0.01
 
 ###################################################################################################
 ## Neighbours
+
 
 def neighbours(ch_info, names, radius_mm=10.0):
     """Adjacency weights [n, n] of the contacts within ``radius_mm`` of each other (from
@@ -80,6 +93,7 @@ def neighbours(ch_info, names, radius_mm=10.0):
 ###################################################################################################
 ## The model
 
+
 class _Channel:
     """Data, background and fixed parts of one channel in the window."""
 
@@ -91,8 +105,11 @@ class _Channel:
         self.bg_nonlinear = np.asarray(bg_nonlinear, float)
         self.t_ref = float(background._t_ref(tw)) if hasattr(background, "t_ref") else None
         nl = bg_nonlinear if len(bg_nonlinear) else None
-        self.basis = (np.atleast_2d(background.basis(tw, nl)) if background.n_linear
-                      else np.zeros((0, len(tw))))
+        self.basis = (
+            np.atleast_2d(background.basis(tw, nl))
+            if background.n_linear
+            else np.zeros((0, len(tw)))
+        )
 
 
 class _Layout:
@@ -104,8 +121,9 @@ class _Layout:
         self.shared_idx, self.local_idx = [], []
         for k, shape in enumerate(shapes):
             for i, name in enumerate(shape.param_names):
-                role = "latency" if name == shape.latency_param else \
-                    PARAMETER_ROLES.get(name, name)
+                role = (
+                    "latency" if name == shape.latency_param else PARAMETER_ROLES.get(name, name)
+                )
                 is_shared = name in shared or role in shared
                 if name == shape.latency_param:
                     # The latency is shared (with per-channel offsets when free_latency) or,
@@ -122,8 +140,9 @@ class _Layout:
         self.shared = shared
         self.loc = [shape.param_names.index(shape.latency_param) for shape in shapes]
         # A latency offset per channel and component when the latency is shared
-        self.offset_k = [k for k in range(len(shapes)) if free_latency and
-                         (k, self.loc[k]) in self.shared_idx]
+        self.offset_k = [
+            k for k in range(len(shapes)) if free_latency and (k, self.loc[k]) in self.shared_idx
+        ]
 
     def n_local(self):
         return len(self.local_idx) + len(self.offset_k)
@@ -146,11 +165,13 @@ class _Layout:
         """The layout of the components ``keep`` and the matching parameter vectors."""
 
         layout = _Layout([self.shapes[k] for k in keep], self.shared, self.free_latency)
-        z_shared = np.array([v for (k, _), v in zip(self.shared_idx, z_shared) if k in keep],
-                            float)
+        z_shared = np.array(
+            [v for (k, _), v in zip(self.shared_idx, z_shared) if k in keep], float
+        )
         n = len(self.local_idx)
-        sel = [j for j, (k, _) in enumerate(self.local_idx) if k in keep] + \
-            [n + j for j, k in enumerate(self.offset_k) if k in keep]
+        sel = [j for j, (k, _) in enumerate(self.local_idx) if k in keep] + [
+            n + j for j, k in enumerate(self.offset_k) if k in keep
+        ]
         return layout, z_shared, [np.asarray(z, float)[sel] for z in z_locals]
 
 
@@ -245,22 +266,46 @@ def _clip(z, lo, hi):
 ###################################################################################################
 ## Fitting steps
 
+
 def _shared_step(channels, layout, base, z_shared, z_locals, tw):
     if not len(z_shared):
         return z_shared
     lo, hi = _shared_bounds(layout, tw, z_locals)
 
     def residual(z):
-        return np.concatenate([_solve(ch, layout.shapes, layout.params(base, z, zl), tw)[2]
-                               for ch, zl in zip(channels, z_locals)])
+        return np.concatenate(
+            [
+                _solve(ch, layout.shapes, layout.params(base, z, zl), tw)[2]
+                for ch, zl in zip(channels, z_locals)
+            ]
+        )
 
-    res = least_squares(residual, _clip(z_shared, lo, hi), bounds=(lo, hi), method="trf",
-                        x_scale="jac", ftol=1e-8, xtol=1e-8, gtol=1e-8, max_nfev=200)
+    res = least_squares(
+        residual,
+        _clip(z_shared, lo, hi),
+        bounds=(lo, hi),
+        method="trf",
+        x_scale="jac",
+        ftol=1e-8,
+        xtol=1e-8,
+        gtol=1e-8,
+        max_nfev=200,
+    )
     return res.x
 
 
-def _local_step(channels, layout, base, z_shared, z_locals, tw, max_shift, laplacian=None,
-                lam=0.0, z_start=None):
+def _local_step(
+    channels,
+    layout,
+    base,
+    z_shared,
+    z_locals,
+    tw,
+    max_shift,
+    laplacian=None,
+    lam=0.0,
+    z_start=None,
+):
     """Per-channel parameters; with a penalty, the latency offsets of all channels jointly."""
 
     n_loc = layout.n_local()
@@ -272,10 +317,18 @@ def _local_step(channels, layout, base, z_shared, z_locals, tw, max_shift, lapla
         out = []
         for ch, z0 in zip(channels, start):
             res = least_squares(
-                lambda z, ch=ch: _solve(ch, layout.shapes, layout.params(base, z_shared, z),
-                                        tw)[2],
-                _clip(z0, lo, hi), bounds=(lo, hi), method="trf", x_scale="jac", ftol=1e-8,
-                xtol=1e-8, gtol=1e-8, max_nfev=200)
+                lambda z, ch=ch: _solve(ch, layout.shapes, layout.params(base, z_shared, z), tw)[
+                    2
+                ],
+                _clip(z0, lo, hi),
+                bounds=(lo, hi),
+                method="trf",
+                x_scale="jac",
+                ftol=1e-8,
+                xtol=1e-8,
+                gtol=1e-8,
+                max_nfev=200,
+            )
             out.append(res.x)
         return out
     n_ch = len(channels)
@@ -286,8 +339,10 @@ def _local_step(channels, layout, base, z_shared, z_locals, tw, max_shift, lapla
 
     def residual(zz):
         z = zz.reshape(n_ch, n_loc)
-        parts = [_solve(ch, layout.shapes, layout.params(base, z_shared, zc), tw)[2]
-                 for ch, zc in zip(channels, z)]
+        parts = [
+            _solve(ch, layout.shapes, layout.params(base, z_shared, zc), tw)[2]
+            for ch, zc in zip(channels, z)
+        ]
         if len(edges):
             d = z[edges[:, 0], first:] - z[edges[:, 1], first:]
             parts.append(np.sqrt(lam * laplacian[edges[:, 0], edges[:, 1]])[:, None] * d)
@@ -295,7 +350,7 @@ def _local_step(channels, layout, base, z_shared, z_locals, tw, max_shift, lapla
 
     sparsity = lil_matrix((n_ch * n_t + len(edges) * n_off, n_ch * n_loc), dtype=int)
     for c in range(n_ch):
-        sparsity[c * n_t:(c + 1) * n_t, c * n_loc:(c + 1) * n_loc] = 1
+        sparsity[c * n_t : (c + 1) * n_t, c * n_loc : (c + 1) * n_loc] = 1
     for e, (a, b) in enumerate(edges):
         for j in range(n_off):
             row = n_ch * n_t + e * n_off + j
@@ -303,24 +358,38 @@ def _local_step(channels, layout, base, z_shared, z_locals, tw, max_shift, lapla
             sparsity[row, b * n_loc + first + j] = 1
     lo_all, hi_all = np.tile(lo, n_ch), np.tile(hi, n_ch)
     z0 = _clip(np.concatenate(start), lo_all, hi_all)
-    res = least_squares(residual, z0, bounds=(lo_all, hi_all), method="trf", x_scale="jac",
-                        jac_sparsity=sparsity, ftol=1e-8, xtol=1e-8, gtol=1e-8, max_nfev=200)
+    res = least_squares(
+        residual,
+        z0,
+        bounds=(lo_all, hi_all),
+        method="trf",
+        x_scale="jac",
+        jac_sparsity=sparsity,
+        ftol=1e-8,
+        xtol=1e-8,
+        gtol=1e-8,
+        max_nfev=200,
+    )
     return list(res.x.reshape(n_ch, n_loc))
 
 
 def _cost(channels, layout, base, z_shared, z_locals, tw):
-    return float(sum(np.sum(_solve(ch, layout.shapes, layout.params(base, z_shared, zl),
-                                   tw)[2] ** 2) for ch, zl in zip(channels, z_locals)))
+    return float(
+        sum(
+            np.sum(_solve(ch, layout.shapes, layout.params(base, z_shared, zl), tw)[2] ** 2)
+            for ch, zl in zip(channels, z_locals)
+        )
+    )
 
 
-def _alternate(channels, layout, base, z_shared, z_locals, tw, max_shift, laplacian=None,
-               lam=0.0):
+def _alternate(channels, layout, base, z_shared, z_locals, tw, max_shift, laplacian=None, lam=0.0):
     cost = _cost(channels, layout, base, z_shared, z_locals, tw)
     rounds = 0
     for rounds in range(1, MAX_ROUNDS + 1):
         z_shared = _shared_step(channels, layout, base, z_shared, z_locals, tw)
-        z_locals = _local_step(channels, layout, base, z_shared, z_locals, tw, max_shift,
-                               laplacian, lam)
+        z_locals = _local_step(
+            channels, layout, base, z_shared, z_locals, tw, max_shift, laplacian, lam
+        )
         new = _cost(channels, layout, base, z_shared, z_locals, tw)
         if layout.n_local() == 0 or abs(cost - new) <= 1e-6 * max(new, 1e-300):
             cost = new
@@ -331,6 +400,7 @@ def _alternate(channels, layout, base, z_shared, z_locals, tw, max_shift, laplac
 
 ###################################################################################################
 ## Leave-one-channel-out choice of the penalty
+
 
 def _offset_curvature(channels, layout, base, z_shared, z_locals, tw, max_shift):
     """Curvature of each channel's weighted residual sum of squares in each latency offset
@@ -386,8 +456,9 @@ def _loco(channels, layout, base, z_shared, z_locals, tw, weights, max_shift):
         for c in range(n):
             keep = np.flatnonzero(np.arange(n) != c)
             sub = weights[np.ix_(keep, keep)]
-            smoothed = _smooth_offsets(delta_hat[keep], h[keep], sub, lam) if lam > 0 \
-                else delta_hat[keep]
+            smoothed = (
+                _smooth_offsets(delta_hat[keep], h[keep], sub, lam) if lam > 0 else delta_hat[keep]
+            )
             w = weights[c, keep]
             pred = lam * (w @ smoothed) / (lam * w.sum() + rho)
             z = z_locals[c].copy()
@@ -412,6 +483,7 @@ def _choose_lambda(grid, errors):
 ###################################################################################################
 ## Results
 
+
 def _cancelling(channels, layout, base, z_shared, z_locals, tw, settings, sfreq):
     """Counter of the component pairs that cancel (engine rule, ``cancelling_pairs``), by
     number of channels on which they do."""
@@ -425,15 +497,14 @@ def _cancelling(channels, layout, base, z_shared, z_locals, tw, settings, sfreq)
             f = compute_features(shape, tw, p, beta[k], sfreq=sfreq)
             lat.append(f.latency)
             sig.append(f.fwhm / FWHM_PER_SIGMA if np.isfinite(f.fwhm) else 0.0)
-        found.update(cancelling_pairs(lat, sig, beta[:len(layout.shapes)],
-                                      settings.overlap_c))
+        found.update(cancelling_pairs(lat, sig, beta[: len(layout.shapes)], settings.overlap_c))
     return found
 
 
 def _gof(y, fitted, valid, sigma, n_params):
     yv, rv = y[valid], (y - fitted)[valid]
     n = len(yv)
-    rss = float(np.sum(rv ** 2))
+    rss = float(np.sum(rv**2))
     tss = float(np.sum((yv - yv.mean()) ** 2))
     r2 = 1 - rss / tss if tss > 0 else np.nan
     rmse = float(np.sqrt(rss / n)) if n else np.nan
@@ -442,17 +513,39 @@ def _gof(y, fitted, valid, sigma, n_params):
     aic = loglik + 2 * n_params
     aicc = aic + 2 * n_params * (n_params + 1) / max(n - n_params - 1, 1)
     lag = float(np.corrcoef(rv[1:], rv[:-1])[0, 1]) if n > 3 and np.std(rv) > 0 else np.nan
-    return GoodnessOfFit(r2=r2, adj_r2=1 - (1 - r2) * (n - 1) / max(n - n_params - 1, 1)
-                         if np.isfinite(r2) else np.nan, rmse=rmse,
-                         mae=float(np.mean(np.abs(rv))) if n else np.nan,
-                         nrmse=rmse / span if span else np.nan, aic=aic, aicc=aicc,
-                         bic=loglik + n_params * np.log(max(n, 1)), n_params=n_params,
-                         n_samples=n, n_eff=float(n), residual_lag1_autocorr=lag,
-                         baseline_sd=sigma)
+    return GoodnessOfFit(
+        r2=r2,
+        adj_r2=1 - (1 - r2) * (n - 1) / max(n - n_params - 1, 1) if np.isfinite(r2) else np.nan,
+        rmse=rmse,
+        mae=float(np.mean(np.abs(rv))) if n else np.nan,
+        nrmse=rmse / span if span else np.nan,
+        aic=aic,
+        aicc=aicc,
+        bic=loglik + n_params * np.log(max(n, 1)),
+        n_params=n_params,
+        n_samples=n,
+        n_eff=float(n),
+        residual_lag1_autocorr=lag,
+        baseline_sd=sigma,
+    )
 
 
-def _channel_fit(ch, layout, base, z_shared, z_local, tw, y, valid, settings, sfreq,
-                 settings_dict, warns, provenance, n_shared):
+def _channel_fit(
+    ch,
+    layout,
+    base,
+    z_shared,
+    z_local,
+    tw,
+    y,
+    valid,
+    settings,
+    sfreq,
+    settings_dict,
+    warns,
+    provenance,
+    n_shared,
+):
     shapes = layout.shapes
     params = layout.params(base, z_shared, z_local)
     beta, design, _ = _solve(ch, shapes, params, tw)
@@ -463,18 +556,38 @@ def _channel_fit(ch, layout, base, z_shared, z_local, tw, y, valid, settings, sf
     comps = []
     for k, (shape, p) in enumerate(zip(shapes, params)):
         amp = float(beta[k])
-        f = compute_features(shape, tw, p, amp, onset_fraction=settings.onset_fraction,
-                             sfreq=sfreq, window=(tw[0], tw[-1]))
+        f = compute_features(
+            shape,
+            tw,
+            p,
+            amp,
+            onset_fraction=settings.onset_fraction,
+            sfreq=sfreq,
+            window=(tw[0], tw[-1]),
+        )
         se = float(np.sqrt(max(cov[k, k], 0.0)))
-        comps.append(Component(shape=shape.name, params=p, param_names=shape.param_names,
-                               latency=f.latency, amplitude=f.amplitude,
-                               polarity=1 if f.amplitude >= 0 else -1, fwhm=f.fwhm,
-                               onset=f.onset, offset=f.offset, area=f.area,
-                               rise_time=f.rise_time, decay_time=f.decay_time,
-                               symmetry=f.symmetry, sharpness=f.sharpness,
-                               se={"A": se}, ci={"A": (amp - z * se, amp + z * se)}))
+        comps.append(
+            Component(
+                shape=shape.name,
+                params=p,
+                param_names=shape.param_names,
+                latency=f.latency,
+                amplitude=f.amplitude,
+                polarity=1 if f.amplitude >= 0 else -1,
+                fwhm=f.fwhm,
+                onset=f.onset,
+                offset=f.offset,
+                area=f.area,
+                rise_time=f.rise_time,
+                decay_time=f.decay_time,
+                symmetry=f.symmetry,
+                sharpness=f.sharpness,
+                se={"A": se},
+                ci={"A": (amp - z * se, amp + z * se)},
+            )
+        )
     bg = ch.background
-    values = dict(zip(bg.linear_names, beta[len(shapes):]))
+    values = dict(zip(bg.linear_names, beta[len(shapes) :]))
     # the time constants (held from the channel's own fit) and the time origin with the
     # coefficients, so that evaluate_fit gives this channel's fitted background
     values.update(zip(getattr(bg, "nonlinear_names", ()), ch.bg_nonlinear, strict=True))
@@ -482,16 +595,25 @@ def _channel_fit(ch, layout, base, z_shared, z_local, tw, y, valid, settings, sf
     if ch.t_ref is not None:
         background["t_ref"] = ch.t_ref
     n_params = len(beta) + layout.n_local() + n_shared
-    return ResponseFit(components=comps, background=background,
-                       gof=_gof(y, fitted, valid, ch.sigma, n_params), status="ok",
-                       message="", window=settings.fit_window,
-                       baseline=settings.baseline if settings.baseline is not None
-                       else (np.nan, np.nan), settings=settings_dict, model=fitted,
-                       residual=y - fitted, warnings=warns, provenance=provenance)
+    return ResponseFit(
+        components=comps,
+        background=background,
+        gof=_gof(y, fitted, valid, ch.sigma, n_params),
+        status="ok",
+        message="",
+        window=settings.fit_window,
+        baseline=settings.baseline if settings.baseline is not None else (np.nan, np.nan),
+        settings=settings_dict,
+        model=fitted,
+        residual=y - fitted,
+        warnings=warns,
+        provenance=provenance,
+    )
 
 
 ###################################################################################################
 ## Entry point
+
 
 def _shape_like(name, settings):
     import dataclasses
@@ -502,9 +624,21 @@ def _shape_like(name, settings):
     return get_shape(name, **kwargs)
 
 
-def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "asymmetry"),
-               free_latency=False, max_shift=0.005, smooth=False, radius_mm=10.0,
-               smooth_lambda=None, group_fit=None, reject_cancelling=True, **model_kw):
+def fit_shared(
+    ts,
+    *,
+    channels=None,
+    preset=None,
+    shared=("latency", "fwhm", "asymmetry"),
+    free_latency=False,
+    max_shift=0.005,
+    smooth=False,
+    radius_mm=10.0,
+    smooth_lambda=None,
+    group_fit=None,
+    reject_cancelling=True,
+    **model_kw,
+):
     """Fit the channels with component shapes shared across them.
 
     The per-channel fits of the engine (``ResponseModel(preset, **model_kw)``, or
@@ -564,8 +698,7 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
         if info is not None:
             for column in ("bad", "stim_contact"):
                 if column in info.columns:
-                    drop |= {n for n, v in zip(info["name"].astype(str), info[column])
-                             if bool(v)}
+                    drop |= {n for n, v in zip(info["name"].astype(str), info[column]) if bool(v)}
         channels = [n for n in names if n not in drop]
     channels = [names[c] if not isinstance(c, str) else c for c in channels]
     if len(channels) < 2:
@@ -580,24 +713,33 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
     else:
         settings = model.settings(fit_window=tuple(group_fit.fits[0].window))
     independent = {ch: group_fit.get(ch) for ch in channels}
-    counts = Counter(len(f.components) for f in independent.values()
-                     if f.status == "ok" and f.components)
+    counts = Counter(
+        len(f.components) for f in independent.values() if f.status == "ok" and f.components
+    )
     if not counts:
         raise DataError("fit_shared: no channel has a fitted component.")
     modal_k = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
-    reference = [ch for ch in channels if independent[ch].status == "ok"
-                 and len(independent[ch].components) == modal_k]
-    shape_names = [Counter(independent[ch].components[k].shape for ch in reference)
-                   .most_common(1)[0][0] for k in range(modal_k)]
+    reference = [
+        ch
+        for ch in channels
+        if independent[ch].status == "ok" and len(independent[ch].components) == modal_k
+    ]
+    shape_names = [
+        Counter(independent[ch].components[k].shape for ch in reference).most_common(1)[0][0]
+        for k in range(modal_k)
+    ]
     shapes = [_shape_like(name, settings) for name in shape_names]
     base = []
     for k, name in enumerate(shape_names):
         # latency in place of the location parameter (the coordinates of the fit)
-        values = [_to_latency(shapes[k], independent[ch].components[k].params)
-                  for ch in reference if independent[ch].components[k].shape == name]
+        values = [
+            _to_latency(shapes[k], independent[ch].components[k].params)
+            for ch in reference
+            if independent[ch].components[k].shape == name
+        ]
         base.append(np.median(np.array(values), axis=0))
     layout = _Layout(shapes, set(shared), free_latency)
-    original = list(range(len(shapes)))         # index in the modal-K model of each component
+    original = list(range(len(shapes)))  # index in the modal-K model of each component
 
     window = settings.fit_window
     if window is None:
@@ -612,9 +754,11 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
         valid = np.isfinite(y)
         if evoked.masks is not None:
             valid &= ~evoked.masks[c, win]
-        sigma = fit.gof.baseline_sd if fit.gof is not None and \
-            np.isfinite(fit.gof.baseline_sd) and fit.gof.baseline_sd > 0 else \
-            float(np.nanstd(y)) or 1.0
+        sigma = (
+            fit.gof.baseline_sd
+            if fit.gof is not None and np.isfinite(fit.gof.baseline_sd) and fit.gof.baseline_sd > 0
+            else float(np.nanstd(y)) or 1.0
+        )
         bg = fit.background or {}
         if "name" in bg:
             background = get_background(bg["name"])
@@ -636,20 +780,23 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
         z = []
         for k, i in layout.local_idx:
             ok = name not in flagged and fit.components[k].shape == shape_names[k]
-            z.append(_to_latency(shapes[k], fit.components[k].params)[i] if ok
-                     else base[k][i])
+            z.append(_to_latency(shapes[k], fit.components[k].params)[i] if ok else base[k][i])
         for k in layout.offset_k:
             ok = name not in flagged and fit.components[k].shape == shape_names[k]
-            z.append(_to_latency(shapes[k], fit.components[k].params)[layout.loc[k]]
-                     - base[k][layout.loc[k]] if ok else 0.0)
+            z.append(
+                _to_latency(shapes[k], fit.components[k].params)[layout.loc[k]]
+                - base[k][layout.loc[k]]
+                if ok
+                else 0.0
+            )
         z_locals.append(_clip(np.array(z, float), lo, hi) if len(z) else np.zeros(0))
 
-    z_shared, z_locals, cost, rounds = _alternate(chans, layout, base, z_shared, z_locals,
-                                                  tw, max_shift)
+    z_shared, z_locals, cost, rounds = _alternate(
+        chans, layout, base, z_shared, z_locals, tw, max_shift
+    )
     dropped = []
     while reject_cancelling and len(layout.shapes) > 1:
-        pairs = _cancelling(chans, layout, base, z_shared, z_locals, tw, settings,
-                            evoked.sfreq)
+        pairs = _cancelling(chans, layout, base, z_shared, z_locals, tw, settings, evoked.sfreq)
         if not pairs:
             break
         # the pair found on most channels; the member whose removal fits best is dropped
@@ -664,27 +811,39 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
                 best = (c, drop, keep, sub, sub_base, zs, zl, r)
         cost, drop, keep, layout, base, z_shared, z_locals, r = best
         rounds += r
-        dropped.append({"component": int(original[drop]), "shape": shape_names[original[drop]],
-                        "reason": "cancelling_pair", "n_channels": int(n_channels)})
+        dropped.append(
+            {
+                "component": int(original[drop]),
+                "shape": shape_names[original[drop]],
+                "reason": "cancelling_pair",
+                "n_channels": int(n_channels),
+            }
+        )
         original = [original[k] for k in keep]
     shapes = layout.shapes
     smooth_info = {}
     if smooth:
         weights = neighbours(info, channels, radius_mm)
         if weights is None or not weights.any():
-            _warn("fit_shared: no neighbouring contacts (coordinates missing or no "
-                  f"pair within {radius_mm} mm); smooth=True has no effect.",
-                  UserWarning, stacklevel=2)
+            _warn(
+                "fit_shared: no neighbouring contacts (coordinates missing or no "
+                f"pair within {radius_mm} mm); smooth=True has no effect.",
+                UserWarning,
+                stacklevel=2,
+            )
             smooth_info = {"lambda": 0.0, "reason": "no_neighbours"}
         else:
-            grid, errors, h = _loco(chans, layout, base, z_shared, z_locals, tw, weights,
-                                    max_shift)
-            lam = _choose_lambda(grid, errors) if smooth_lambda is None else \
-                float(smooth_lambda)
-            smooth_info = {"lambda": float(lam), "grid": [float(g) for g in grid],
-                           "loco_error": errors.tolist(),
-                           "n_edges": int(np.triu(weights > 0, 1).sum()),
-                           "radius_mm": float(radius_mm)}
+            grid, errors, h = _loco(
+                chans, layout, base, z_shared, z_locals, tw, weights, max_shift
+            )
+            lam = _choose_lambda(grid, errors) if smooth_lambda is None else float(smooth_lambda)
+            smooth_info = {
+                "lambda": float(lam),
+                "grid": [float(g) for g in grid],
+                "loco_error": errors.tolist(),
+                "n_edges": int(np.triu(weights > 0, 1).sum()),
+                "radius_mm": float(radius_mm),
+            }
             if lam > 0:
                 n_off = len(layout.offset_k)
                 first = layout.n_local() - n_off
@@ -692,34 +851,79 @@ def fit_shared(ts, *, channels=None, preset=None, shared=("latency", "fwhm", "as
                 start_offsets = _smooth_offsets(delta_hat, h, weights, lam)
                 z_start = [np.r_[z[:first], d] for z, d in zip(z_locals, start_offsets)]
                 for _ in range(3):
-                    z_locals = _local_step(chans, layout, base, z_shared, z_locals, tw,
-                                           max_shift, weights, lam, z_start)
+                    z_locals = _local_step(
+                        chans,
+                        layout,
+                        base,
+                        z_shared,
+                        z_locals,
+                        tw,
+                        max_shift,
+                        weights,
+                        lam,
+                        z_start,
+                    )
                     z_start = None
                     z_shared = _shared_step(chans, layout, base, z_shared, z_locals, tw)
 
     # the latency (the shape's reported latency) under "latency", the others by name
-    shared_values = {f"{k}:" + ("latency" if i == layout.loc[k] else shapes[k].param_names[i]):
-                     float(v) for (k, i), v in zip(layout.shared_idx, z_shared)}
-    offsets = {name: [float(v) for v in z[layout.n_local() - len(layout.offset_k):]]
-               for name, z in zip(channels, z_locals)}
-    summary = {"shared": sorted(shared), "shared_values": shared_values, "modal_k": modal_k,
-               "shapes": [shape_names[k] for k in original], "modal_shapes": shape_names,
-               "dropped": dropped, "reject_cancelling": bool(reject_cancelling),
-               "flagged": flagged, "free_latency": bool(free_latency),
-               "max_shift": float(max_shift), "offsets": offsets, "rounds": rounds,
-               "cost": cost, "smooth": smooth_info, "channels": channels}
-    settings_dict = {**{k: (list(v) if isinstance(v, tuple) else v)
-                        for k, v in settings.to_dict().items()},
-                     "package_version": __version__, "fit_shared": summary}
+    shared_values = {
+        f"{k}:" + ("latency" if i == layout.loc[k] else shapes[k].param_names[i]): float(v)
+        for (k, i), v in zip(layout.shared_idx, z_shared)
+    }
+    offsets = {
+        name: [float(v) for v in z[layout.n_local() - len(layout.offset_k) :]]
+        for name, z in zip(channels, z_locals)
+    }
+    summary = {
+        "shared": sorted(shared),
+        "shared_values": shared_values,
+        "modal_k": modal_k,
+        "shapes": [shape_names[k] for k in original],
+        "modal_shapes": shape_names,
+        "dropped": dropped,
+        "reject_cancelling": bool(reject_cancelling),
+        "flagged": flagged,
+        "free_latency": bool(free_latency),
+        "max_shift": float(max_shift),
+        "offsets": offsets,
+        "rounds": rounds,
+        "cost": cost,
+        "smooth": smooth_info,
+        "channels": channels,
+    }
+    settings_dict = {
+        **{k: (list(v) if isinstance(v, tuple) else v) for k, v in settings.to_dict().items()},
+        "package_version": __version__,
+        "fit_shared": summary,
+    }
     provenance = evoked.provenance.with_step(
         "evoparam.spatial.fit_shared",
         {k: v for k, v in summary.items() if k not in ("offsets", "smooth")},
-        duration_s=_time.perf_counter() - start)
+        duration_s=_time.perf_counter() - start,
+    )
     n_shared = len(z_shared)
     fits = []
     for name, ch, z, y, valid in zip(channels, chans, z_locals, ys, valids):
         warns = [f"k_mismatch:{flagged[name]}"] if name in flagged else []
-        fits.append(_channel_fit(ch, layout, base, z_shared, z, tw, y, valid, settings,
-                                 evoked.sfreq, settings_dict, warns, provenance, n_shared))
-    return GroupFit.from_fits(fits, channels, [""] * len(fits), settings=settings_dict,
-                              provenance=provenance)
+        fits.append(
+            _channel_fit(
+                ch,
+                layout,
+                base,
+                z_shared,
+                z,
+                tw,
+                y,
+                valid,
+                settings,
+                evoked.sfreq,
+                settings_dict,
+                warns,
+                provenance,
+                n_shared,
+            )
+        )
+    return GroupFit.from_fits(
+        fits, channels, [""] * len(fits), settings=settings_dict, provenance=provenance
+    )

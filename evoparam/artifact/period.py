@@ -37,7 +37,7 @@ def _periodic_mse(x, period, half):
     values = x[np.argsort(phase, kind="stable")]
     padded = np.r_[values[-half:], values, values[:half]]
     csum = np.r_[0.0, np.cumsum(padded)]
-    window = csum[2 * half + 1:] - csum[:-(2 * half + 1)]
+    window = csum[2 * half + 1 :] - csum[: -(2 * half + 1)]
     pred = (window - values) / (2 * half)
     return float(np.mean((values - pred) ** 2))
 
@@ -74,8 +74,10 @@ def estimate_period(x, sfreq, f_guess, *, search=0.02, n_stages=3):
         raise SettingsError("sfreq and f_guess must be positive, search in (0, 0.5).")
     guess = sfreq / f_guess
     if guess < 2:
-        raise ArtifactError(f"A {f_guess} Hz train is not resolvable at {sfreq} Hz "
-                            "(fewer than 2 samples per period).")
+        raise ArtifactError(
+            f"A {f_guess} Hz train is not resolvable at {sfreq} Hz "
+            "(fewer than 2 samples per period)."
+        )
     if len(x) < 10 * guess:
         raise ArtifactError("estimate_period needs at least 10 periods of signal.")
     x = x - np.mean(x)
@@ -116,7 +118,8 @@ def period_lags(period, n_times, *, n_bins=None, n_skip=0, d_period=None):
         if len(lags) < needed:
             raise ArtifactError(
                 f"Only {2 * len(lags)} matching samples within the epoch for period "
-                f"{period:.4f}; use longer epochs or a larger d_period.")
+                f"{period:.4f}; use longer epochs or a larger d_period."
+            )
         lags = lags[:needed]
         n_bins = int(lags[-1])
     if len(lags) == 0:
@@ -148,9 +151,9 @@ def period_filter(data, lags, causal=False):
     n_times = data.shape[-1]
     reach = int(lags.max())
     kernel = np.zeros(2 * reach + 1)
-    kernel[reach + lags] = 1.0           # past samples x[t - L] (convolution flips)
+    kernel[reach + lags] = 1.0  # past samples x[t - L] (convolution flips)
     if not causal:
-        kernel[reach - lags] = 1.0       # future samples x[t + L]
+        kernel[reach - lags] = 1.0  # future samples x[t + L]
     flat = data.reshape(-1, n_times)
     sums = fftconvolve(flat, kernel[None], mode="same", axes=-1)
     counts = fftconvolve(np.ones((1, n_times)), kernel[None], mode="same", axes=-1)

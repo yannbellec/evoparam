@@ -19,8 +19,14 @@ from evoparam.data import TrialSet
 from evoparam.data.containers import UNITS
 from evoparam.errors import SettingsError
 
-__all__ = ["make_noise", "NOISE_KINDS", "ALLOWED_LICENSES", "normalize_license",
-           "check_license", "resolve_rng"]
+__all__ = [
+    "make_noise",
+    "NOISE_KINDS",
+    "ALLOWED_LICENSES",
+    "normalize_license",
+    "check_license",
+    "resolve_rng",
+]
 
 NOISE_KINDS = ("white", "ar1", "pink", "real", "line")
 BROADBAND = ("white", "ar1", "pink", "real")
@@ -50,8 +56,10 @@ def parse_kind(kind):
     parts = [part.strip() for part in str(kind).split("+")]
     unknown = [part for part in parts if part not in NOISE_KINDS]
     if unknown or len(set(parts)) != len(parts):
-        raise SettingsError(f"noise kind {kind!r}: use one of {NOISE_KINDS}, optionally "
-                            "combined with '+line' (for example 'pink+line').")
+        raise SettingsError(
+            f"noise kind {kind!r}: use one of {NOISE_KINDS}, optionally "
+            "combined with '+line' (for example 'pink+line')."
+        )
     broadband = [part for part in parts if part in BROADBAND]
     if len(broadband) > 1:
         raise SettingsError(f"noise kind {kind!r}: at most one of {BROADBAND}.")
@@ -60,6 +68,7 @@ def parse_kind(kind):
 
 ###################################################################################################
 ## Synthetic noise
+
 
 def _white(rng, shape):
     return rng.standard_normal(shape)
@@ -73,8 +82,7 @@ def _ar1(rng, shape, rho):
     innovations = rng.standard_normal(shape)
     first = rng.standard_normal(shape[:-1])
     zi = (rho * first)[..., None]
-    out, _ = sp_signal.lfilter([np.sqrt(1.0 - rho ** 2)], [1.0, -rho], innovations, axis=-1,
-                               zi=zi)
+    out, _ = sp_signal.lfilter([np.sqrt(1.0 - rho**2)], [1.0, -rho], innovations, axis=-1, zi=zi)
     return out
 
 
@@ -99,7 +107,7 @@ def _powerlaw(rng, shape, sfreq, chi):
     weights[0] = 1.0
     if n_fft % 2 == 0:
         weights[-1] = 1.0
-    variance = np.sum(weights * gain ** 2) / n_fft
+    variance = np.sum(weights * gain**2) / n_fft
     white = rng.standard_normal(shape[:-1] + (n_fft,))
     out = sp_fft.irfft(sp_fft.rfft(white, axis=-1) * gain, n=n_fft, axis=-1)[..., :n_times]
     return out / np.sqrt(variance)
@@ -122,6 +130,7 @@ def _line(rng, shape, sfreq, line_freq, n_harmonics, amplitude):
 
 ###################################################################################################
 ## Licences and real noise
+
 
 def normalize_license(text):
     """Canonical form of a Creative Commons licence name, or None.
@@ -161,18 +170,27 @@ def check_license(dataset):
 
     from evoparam.errors import ReaderError
     from evoparam.io.registry import dataset_info
+
     try:
         entry = dataset_info(dataset)
     except ReaderError as exc:
-        raise SettingsError(f"real noise: dataset {dataset!r} is not in the registry, so its "
-                            "licence cannot be checked.") from exc
+        raise SettingsError(
+            f"real noise: dataset {dataset!r} is not in the registry, so its "
+            "licence cannot be checked."
+        ) from exc
     licence = normalize_license(entry.get("license"))
     if licence not in ALLOWED_LICENSES:
-        raise SettingsError(f"real noise: the licence of {entry['id']} in the registry is "
-                            f"{entry.get('license')!r}; only {ALLOWED_LICENSES} may be "
-                            "injected.")
-    return {"dataset": entry["id"], "version": entry.get("version"), "doi": entry.get("doi"),
-            "license": entry.get("license")}
+        raise SettingsError(
+            f"real noise: the licence of {entry['id']} in the registry is "
+            f"{entry.get('license')!r}; only {ALLOWED_LICENSES} may be "
+            "injected."
+        )
+    return {
+        "dataset": entry["id"],
+        "version": entry.get("version"),
+        "doi": entry.get("doi"),
+        "license": entry.get("license"),
+    }
 
 
 def _source_value(source, trial, column, bids_key):
@@ -195,8 +213,10 @@ def _real(rng, shape, sfreq, source, window, dataset, units):
         raise SettingsError("real noise needs source=<TrialSet of real recordings>.")
     dataset = dataset or source.provenance.source.get("dataset")
     if not dataset:
-        raise SettingsError("real noise: the source does not name its dataset "
-                            "(provenance.source['dataset']); pass dataset=<registry id>.")
+        raise SettingsError(
+            "real noise: the source does not name its dataset "
+            "(provenance.source['dataset']); pass dataset=<registry id>."
+        )
     record = check_license(dataset)
     if source.units != units:
         if UNITS.get(source.units) is None or UNITS.get(units) is None:
@@ -217,14 +237,20 @@ def _real(rng, shape, sfreq, source, window, dataset, units):
         if masks is not None:
             index = np.floor(np.arange(values.shape[-1]) * source.sfreq / sfreq).astype(int)
             masks = masks[..., np.minimum(index, masks.shape[-1] - 1)]
-        resampling = {"method": "scipy.signal.resample_poly", "from_sfreq": source.sfreq,
-                      "to_sfreq": float(sfreq), "up": ratio.numerator,
-                      "down": ratio.denominator}
+        resampling = {
+            "method": "scipy.signal.resample_poly",
+            "from_sfreq": source.sfreq,
+            "to_sfreq": float(sfreq),
+            "up": ratio.numerator,
+            "down": ratio.denominator,
+        }
     n_times = shape[-1]
     available = values.shape[-1]
     if available < n_times:
-        raise SettingsError(f"real noise: the source window {tmin, tmax} s holds {available} "
-                            f"samples at {sfreq} Hz; {n_times} are needed per segment.")
+        raise SettingsError(
+            f"real noise: the source window {tmin, tmax} s holds {available} "
+            f"samples at {sfreq} Hz; {n_times} are needed per segment."
+        )
     size = shape[:-1]
     n_channels = size[-1] if len(size) >= 2 else 1
     n_segments = int(np.prod(size[:-1])) if len(size) >= 2 else int(np.prod(size))
@@ -235,15 +261,17 @@ def _real(rng, shape, sfreq, source, window, dataset, units):
         for _ in range(_MAX_TRIES):
             trial = int(rng.integers(source.n_trials))
             start = int(rng.integers(available - n_times + 1))
-            piece = values[trial][channel_map, start:start + n_times]
+            piece = values[trial][channel_map, start : start + n_times]
             bad = np.isnan(piece).any()
             if masks is not None:
-                bad = bad or masks[trial][channel_map, start:start + n_times].any()
+                bad = bad or masks[trial][channel_map, start : start + n_times].any()
             if not bad:
                 break
         else:
-            raise SettingsError("real noise: no segment without masked or missing samples "
-                                f"was found in {_MAX_TRIES} attempts.")
+            raise SettingsError(
+                "real noise: no segment without masked or missing samples "
+                f"was found in {_MAX_TRIES} attempts."
+            )
         out[index] = piece - piece.mean(axis=-1, keepdims=True)
         scale = source.sfreq / sfreq
         offset = first + int(round(start * scale))
@@ -253,30 +281,57 @@ def _real(rng, shape, sfreq, source, window, dataset, units):
             onset_sample = source.event_times[trial] * source.sfreq
             epoch_start = int(round(onset_sample + source.times[0] * source.sfreq))
             absolute = [epoch_start + offset, epoch_start + stop]
-        segments.append({
-            "segment": index, "dataset": record["dataset"], "version": record["version"],
-            "doi": record["doi"], "license": record["license"],
-            "subject": _source_value(source, trial, "subject", "subject"),
-            "session": _source_value(source, trial, "session", "session"),
-            "run": _source_value(source, trial, "run", "run"),
-            "source_trial": trial,
-            "source_channels": [source.ch_names[c] for c in channel_map],
-            "epoch_samples": [offset, stop],
-            "recording_samples": absolute,
-            "source_sfreq": source.sfreq,
-        })
-    info = {"dataset": record, "window": [tmin, tmax], "segments": segments,
-            "resampling": resampling, "source_units": source.units,
-            "source_path": source.provenance.source.get("path")}
+        segments.append(
+            {
+                "segment": index,
+                "dataset": record["dataset"],
+                "version": record["version"],
+                "doi": record["doi"],
+                "license": record["license"],
+                "subject": _source_value(source, trial, "subject", "subject"),
+                "session": _source_value(source, trial, "session", "session"),
+                "run": _source_value(source, trial, "run", "run"),
+                "source_trial": trial,
+                "source_channels": [source.ch_names[c] for c in channel_map],
+                "epoch_samples": [offset, stop],
+                "recording_samples": absolute,
+                "source_sfreq": source.sfreq,
+            }
+        )
+    info = {
+        "dataset": record,
+        "window": [tmin, tmax],
+        "segments": segments,
+        "resampling": resampling,
+        "source_units": source.units,
+        "source_path": source.provenance.source.get("path"),
+    }
     return out.reshape(shape), info
 
 
 ###################################################################################################
 ## Public function
 
-def make_noise(n_times, sfreq, kind="pink", *, size=(), sd=None, chi=1.0, rho=0.5,
-               line_freq=50.0, line_harmonics=3, line_amplitude=None, source=None,
-               window=None, dataset=None, units="uV", seed=None, return_info=False):
+
+def make_noise(
+    n_times,
+    sfreq,
+    kind="pink",
+    *,
+    size=(),
+    sd=None,
+    chi=1.0,
+    rho=0.5,
+    line_freq=50.0,
+    line_harmonics=3,
+    line_amplitude=None,
+    source=None,
+    window=None,
+    dataset=None,
+    units="uV",
+    seed=None,
+    return_info=False,
+):
     """Generate noise of one of the models of spec §5.12.
 
     Parameters
@@ -392,8 +447,12 @@ def make_noise(n_times, sfreq, kind="pink", *, size=(), sd=None, chi=1.0, rho=0.
             amplitude = float(np.std(out))
         else:
             amplitude = level
-        out = out + _line(rng, shape, float(sfreq), float(line_freq), int(line_harmonics),
-                          amplitude)
-        info["line"] = {"freq": float(line_freq), "harmonics": int(line_harmonics),
-                        "amplitude": amplitude}
+        out = out + _line(
+            rng, shape, float(sfreq), float(line_freq), int(line_harmonics), amplitude
+        )
+        info["line"] = {
+            "freq": float(line_freq),
+            "harmonics": int(line_harmonics),
+            "amplitude": amplitude,
+        }
     return (out, info) if return_info else out

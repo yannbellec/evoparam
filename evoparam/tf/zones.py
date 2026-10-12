@@ -21,10 +21,23 @@ from scipy.optimize import linear_sum_assignment
 
 from evoparam.errors import SettingsError
 
-__all__ = ["nmf", "cp_nonneg", "cp_split_values", "CP_STABILITY", "select_rank",
-           "zone_regions", "zone_table", "load_zones", "resolve_published",
-           "list_published_zones", "ZONE_COLUMNS", "STABILITY_MIN", "N_SPLITS", "zone_mask",
-           "volume_conduction_weight"]
+__all__ = [
+    "nmf",
+    "cp_nonneg",
+    "cp_split_values",
+    "CP_STABILITY",
+    "select_rank",
+    "zone_regions",
+    "zone_table",
+    "load_zones",
+    "resolve_published",
+    "list_published_zones",
+    "ZONE_COLUMNS",
+    "STABILITY_MIN",
+    "N_SPLITS",
+    "zone_mask",
+    "volume_conduction_weight",
+]
 
 STABILITY_MIN = 0.8
 N_SPLITS = 20
@@ -35,11 +48,27 @@ EPS = 1e-12
 
 # Columns of the zone table and their units.
 ZONE_COLUMNS = {
-    "zone_id": "", "sign": "", "t_start": "s", "t_end": "s", "f_low": "Hz", "f_high": "Hz",
-    "time_centroid": "s", "time_extent": "s", "freq_centroid": "Hz", "freq_extent": "octave",
-    "peak_t": "s", "peak_f": "Hz", "peak_value": "normalised power",
-    "mean_value": "normalised power", "onset": "s", "offset": "s", "area": "s x octave",
-    "energy_fraction": "", "stability": "", "p_value": "", "source": "",
+    "zone_id": "",
+    "sign": "",
+    "t_start": "s",
+    "t_end": "s",
+    "f_low": "Hz",
+    "f_high": "Hz",
+    "time_centroid": "s",
+    "time_extent": "s",
+    "freq_centroid": "Hz",
+    "freq_extent": "octave",
+    "peak_t": "s",
+    "peak_f": "Hz",
+    "peak_value": "normalised power",
+    "mean_value": "normalised power",
+    "onset": "s",
+    "offset": "s",
+    "area": "s x octave",
+    "energy_fraction": "",
+    "stability": "",
+    "p_value": "",
+    "source": "",
 }
 
 
@@ -150,17 +179,24 @@ def cp_split_values(tensor, halves, rank, rng, row_halves=None, split="trials"):
         values = []
         for _ in range(N_SPLITS):
             order = rng.permutation(active)
-            first, second = order[:active.size // 2], order[active.size // 2:]
+            first, second = order[: active.size // 2], order[active.size // 2 :]
             values.append(_cp_congruence(tensor[..., first], tensor[..., second], rank, rng))
         return values
     if halves is None:
         return None
-    return [_cp_congruence(pair[0][..., None], pair[1][..., None], rank, rng)
-            for pair in halves]
+    return [_cp_congruence(pair[0][..., None], pair[1][..., None], rank, rng) for pair in halves]
 
 
-def select_rank(x, halves, max_zones, rng, method="nmf", tensor=None,
-                cp_stability="split_half", row_halves=None):
+def select_rank(
+    x,
+    halves,
+    max_zones,
+    rng,
+    method="nmf",
+    tensor=None,
+    cp_stability="split_half",
+    row_halves=None,
+):
     """Rank and stability per rank.
 
     ``x`` (n_freqs, n_times) is the non-negative part of the group map; ``halves`` an
@@ -173,8 +209,7 @@ def select_rank(x, halves, max_zones, rng, method="nmf", tensor=None,
     """
 
     if cp_stability not in CP_STABILITY:
-        raise SettingsError(f"cp_stability must be one of {CP_STABILITY}, not "
-                            f"{cp_stability!r}.")
+        raise SettingsError(f"cp_stability must be one of {CP_STABILITY}, not {cp_stability!r}.")
     stability = {}
     chosen, failures = 1, 0
     if not np.any(x > 0):
@@ -192,9 +227,18 @@ def select_rank(x, halves, max_zones, rng, method="nmf", tensor=None,
                 wb, hb, _ = nmf(split[1], rank, rng)
                 values.append(congruence(_parts(wa, ha), _parts(wb, hb)))
         else:
-            values = None if cp_stability == "restarts" else cp_split_values(
-                tensor, halves, rank, rng, row_halves=row_halves,
-                split="rows" if cp_stability == "rows" else "trials")
+            values = (
+                None
+                if cp_stability == "restarts"
+                else cp_split_values(
+                    tensor,
+                    halves,
+                    rank,
+                    rng,
+                    row_halves=row_halves,
+                    split="rows" if cp_stability == "rows" else "trials",
+                )
+            )
             if values is None:
                 runs = [_cp_parts(tensor, rank, rng) for _ in range(N_SPLITS)]
                 values = [congruence(runs[0], other) for other in runs[1:]]
@@ -244,8 +288,9 @@ def zone_regions(parts_by_sign, group):
             region = support & (owner == k) & (part > 0)
             if region.any():
                 found.append((part, region))
-        out.extend((sign, part, region) for part, region in _merge_without_dip(found,
-                                                                               sign * group))
+        out.extend(
+            (sign, part, region) for part, region in _merge_without_dip(found, sign * group)
+        )
     return out
 
 
@@ -302,8 +347,7 @@ def zone_table(zones, group, freqs, times, stability):
     dt = float(np.median(np.diff(times))) if len(times) > 1 else 0.0
     dlogf = float(np.median(np.diff(logf))) if len(freqs) > 1 else 0.0
     total = np.nansum(np.abs(group))
-    order = sorted(range(len(zones)),
-                   key=lambda i: -np.nansum(np.abs(group[zones[i][2]])))
+    order = sorted(range(len(zones)), key=lambda i: -np.nansum(np.abs(group[zones[i][2]])))
     for zone_id, i in enumerate(order):
         sign, part, region = zones[i]
         weight = np.where(region, part, 0.0)
@@ -321,21 +365,33 @@ def zone_table(zones, group, freqs, times, stability):
         at_centre = np.flatnonzero(region[row_c])
         if not at_centre.size:
             at_centre = t_cols
-        rows.append({
-            "zone_id": zone_id, "sign": int(sign),
-            "t_start": float(times[t_cols.min()]), "t_end": float(times[t_cols.max()]),
-            "f_low": float(freqs[f_rows.min()]), "f_high": float(freqs[f_rows.max()]),
-            "time_centroid": t_c, "time_extent": t_sd,
-            "freq_centroid": float(2 ** lf_c), "freq_extent": lf_sd,
-            "peak_t": float(times[ti]), "peak_f": float(freqs[fi]),
-            "peak_value": float(group[fi, ti]), "mean_value": float(np.nanmean(values)),
-            "onset": float(times[at_centre.min()]), "offset": float(times[at_centre.max()]),
-            "area": float(region.sum() * dt * dlogf),
-            "energy_fraction": float(np.nansum(np.abs(group[region])) / total) if total else
-            np.nan,
-            "stability": float(stability.get(int(sign), np.nan)),
-            "p_value": np.nan, "source": "data-driven",
-        })
+        rows.append(
+            {
+                "zone_id": zone_id,
+                "sign": int(sign),
+                "t_start": float(times[t_cols.min()]),
+                "t_end": float(times[t_cols.max()]),
+                "f_low": float(freqs[f_rows.min()]),
+                "f_high": float(freqs[f_rows.max()]),
+                "time_centroid": t_c,
+                "time_extent": t_sd,
+                "freq_centroid": float(2**lf_c),
+                "freq_extent": lf_sd,
+                "peak_t": float(times[ti]),
+                "peak_f": float(freqs[fi]),
+                "peak_value": float(group[fi, ti]),
+                "mean_value": float(np.nanmean(values)),
+                "onset": float(times[at_centre.min()]),
+                "offset": float(times[at_centre.max()]),
+                "area": float(region.sum() * dt * dlogf),
+                "energy_fraction": float(np.nansum(np.abs(group[region])) / total)
+                if total
+                else np.nan,
+                "stability": float(stability.get(int(sign), np.nan)),
+                "p_value": np.nan,
+                "source": "data-driven",
+            }
+        )
     table = pd.DataFrame(rows, columns=list(ZONE_COLUMNS))
     table.attrs["units"] = dict(ZONE_COLUMNS)
     return table
@@ -343,6 +399,7 @@ def zone_table(zones, group, freqs, times, stability):
 
 ###################################################################################################
 ## Published fixed zones (compatibility layer)
+
 
 def load_zones():
     """The registry (``zones.json``): name -> zone definition, with aliases (``alias_of``)
@@ -392,7 +449,7 @@ def volume_conduction_weight(distance_mm, d_min=10.0, d_max=20.0):
     """
 
     d = np.asarray(distance_mm, float)
-    w = np.clip((d ** 2 - d_min ** 2) / (d_max ** 2 - d_min ** 2), 0.0, 1.0)
+    w = np.clip((d**2 - d_min**2) / (d_max**2 - d_min**2), 0.0, 1.0)
     return np.where(np.isfinite(d), w, np.nan)
 
 
@@ -403,15 +460,24 @@ def list_published_zones():
 
     rows = []
     for name, zone in load_zones().items():
-        rows.append({"name": name, "t_start": (zone.get("time") or [np.nan] * 2)[0],
-                     "t_end": (zone.get("time") or [np.nan] * 2)[1],
-                     "f_low": (zone.get("freq") or [np.nan] * 2)[0],
-                     "f_high": (zone.get("freq") or [np.nan] * 2)[1],
-                     "intervals": "x".join((zone.get("intervals") or {}).get(k, "[]")
-                                           for k in ("time", "freq")),
-                     "label": zone.get("label", ""), "alias_of": zone.get("alias_of", ""),
-                     "verified": bool(zone.get("verified")), "source": zone.get("source", ""),
-                     "reference": zone.get("reference", ""), "note": zone.get("note", "")})
+        rows.append(
+            {
+                "name": name,
+                "t_start": (zone.get("time") or [np.nan] * 2)[0],
+                "t_end": (zone.get("time") or [np.nan] * 2)[1],
+                "f_low": (zone.get("freq") or [np.nan] * 2)[0],
+                "f_high": (zone.get("freq") or [np.nan] * 2)[1],
+                "intervals": "x".join(
+                    (zone.get("intervals") or {}).get(k, "[]") for k in ("time", "freq")
+                ),
+                "label": zone.get("label", ""),
+                "alias_of": zone.get("alias_of", ""),
+                "verified": bool(zone.get("verified")),
+                "source": zone.get("source", ""),
+                "reference": zone.get("reference", ""),
+                "note": zone.get("note", ""),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -433,11 +499,13 @@ def resolve_published(name, allow_unverified=False):
         raise SettingsError(
             f"Published zone {name!r} is unverified (source: {zone.get('source', '?')}; "
             f"{zone.get('reference', 'no page reference')}): check its bounds against the "
-            f"source, then run with allow_unverified=True.")
+            f"source, then run with allow_unverified=True."
+        )
     if not zone.get("time") or not zone.get("freq"):
         raise SettingsError(
             f"Published zone {name!r} has no bounds in the registry yet "
             f"({zone.get('note', '')}); enter them from {zone.get('source', 'the source')} "
-            f"or pass a custom zone.")
+            f"or pass a custom zone."
+        )
     zone["name"] = name
     return zone

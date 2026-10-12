@@ -32,11 +32,13 @@ def burst_waveform(times, *, freq, centre, duration, amplitude, phase=0.0):
 
     times = np.asarray(times, float)
     rel = times - float(centre)
-    envelope = np.where(np.abs(rel) <= duration / 2.0,
-                        0.5 + 0.5 * np.cos(2.0 * np.pi * rel / float(duration)), 0.0)
+    envelope = np.where(
+        np.abs(rel) <= duration / 2.0, 0.5 + 0.5 * np.cos(2.0 * np.pi * rel / float(duration)), 0.0
+    )
     phase = np.asarray(phase, float)
-    return float(amplitude) * envelope * np.cos(2.0 * np.pi * float(freq) * times
-                                                + phase[..., None])
+    return (
+        float(amplitude) * envelope * np.cos(2.0 * np.pi * float(freq) * times + phase[..., None])
+    )
 
 
 def _check_burst(burst, n_channels, ch_names, sfreq):
@@ -60,9 +62,20 @@ def _check_burst(burst, n_channels, ch_names, sfreq):
     return out
 
 
-def simulate_bursts(n_trials=30, *, n_channels=1, sfreq=1000., tmin=-0.6, tmax=0.8,
-                    bursts=(), noise="ar1", noise_sd=10., noise_kw=None, seed=None,
-                    keep_arrays=True):
+def simulate_bursts(
+    n_trials=30,
+    *,
+    n_channels=1,
+    sfreq=1000.0,
+    tmin=-0.6,
+    tmax=0.8,
+    bursts=(),
+    noise="ar1",
+    noise_sd=10.0,
+    noise_kw=None,
+    seed=None,
+    keep_arrays=True,
+):
     """Simulate trials with induced oscillatory bursts (random phase per trial).
 
     Parameters
@@ -109,10 +122,19 @@ def simulate_bursts(n_trials=30, *, n_channels=1, sfreq=1000., tmin=-0.6, tmax=0
     """
 
     start = _time.perf_counter()
-    settings = {"n_trials": n_trials, "n_channels": n_channels, "sfreq": sfreq, "tmin": tmin,
-                "tmax": tmax, "bursts": [dict(b) for b in bursts], "noise": noise,
-                "noise_sd": noise_sd, "noise_kw": noise_kw, "seed": seed,
-                "keep_arrays": keep_arrays}
+    settings = {
+        "n_trials": n_trials,
+        "n_channels": n_channels,
+        "sfreq": sfreq,
+        "tmin": tmin,
+        "tmax": tmax,
+        "bursts": [dict(b) for b in bursts],
+        "noise": noise,
+        "noise_sd": noise_sd,
+        "noise_kw": noise_kw,
+        "seed": seed,
+        "keep_arrays": keep_arrays,
+    }
     if int(n_trials) < 1 or int(n_channels) < 1:
         raise SettingsError("simulate_bursts: n_trials and n_channels must be >= 1.")
     n_trials, n_channels = int(n_trials), int(n_channels)
@@ -123,24 +145,45 @@ def simulate_bursts(n_trials=30, *, n_channels=1, sfreq=1000., tmin=-0.6, tmax=0
     kw = dict(noise_kw or {})
     if noise == "ar1":
         kw.setdefault("rho", 0.9)
-    ts, truth = assemble(generator="evoparam.sim.simulate_bursts", settings=settings,
-                         seed=entropy, rngs=rngs, times=times, sfreq=sfreq, ch_names=names,
-                         sources=[], n_trials=n_trials, noise=noise, noise_sd=noise_sd,
-                         noise_kw=kw,
-                         metadata={"trial": np.arange(n_trials, dtype=np.int64),
-                                   "condition": [""] * n_trials},
-                         modality="erp", keep_arrays=keep_arrays, start=start)
+    ts, truth = assemble(
+        generator="evoparam.sim.simulate_bursts",
+        settings=settings,
+        seed=entropy,
+        rngs=rngs,
+        times=times,
+        sfreq=sfreq,
+        ch_names=names,
+        sources=[],
+        n_trials=n_trials,
+        noise=noise,
+        noise_sd=noise_sd,
+        noise_kw=kw,
+        metadata={"trial": np.arange(n_trials, dtype=np.int64), "condition": [""] * n_trials},
+        modality="erp",
+        keep_arrays=keep_arrays,
+        start=start,
+    )
     signal = np.zeros(ts.data.shape)
     phases, records = [], []
     for burst in checked:
         phase = rngs["trial"].uniform(0.0, 2.0 * np.pi, n_trials)
         signal[:, burst["channel"]] += burst_waveform(
-            times, freq=burst["freq"], centre=burst["centre"], duration=burst["duration"],
-            amplitude=burst["amplitude"], phase=phase)
+            times,
+            freq=burst["freq"],
+            centre=burst["centre"],
+            duration=burst["duration"],
+            amplitude=burst["amplitude"],
+            phase=phase,
+        )
         phases.append(phase.tolist())
-        records.append({**burst, "channel": names[burst["channel"]],
-                        "t_start": burst["centre"] - burst["duration"] / 2.0,
-                        "t_end": burst["centre"] + burst["duration"] / 2.0})
+        records.append(
+            {
+                **burst,
+                "channel": names[burst["channel"]],
+                "t_start": burst["centre"] - burst["duration"] / 2.0,
+                "t_end": burst["centre"] + burst["duration"] / 2.0,
+            }
+        )
     provenance = ts.provenance.copy()
     provenance.data_hash = None
     ts = replace(ts, data=ts.data + signal, provenance=provenance)

@@ -18,8 +18,15 @@ from evoparam.errors import DataError
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data.provenance import Provenance, compute_data_hash
 
-__all__ = ["TrialSet", "Evoked", "UNITS", "MODALITIES", "METADATA_COLUMNS", "CH_INFO_COLUMNS",
-           "auto_chunk"]
+__all__ = [
+    "TrialSet",
+    "Evoked",
+    "UNITS",
+    "MODALITIES",
+    "METADATA_COLUMNS",
+    "CH_INFO_COLUMNS",
+    "auto_chunk",
+]
 
 # Allowed amplitude units and their factor to volts (None: not a voltage).
 UNITS = {"uV": 1e-6, "mV": 1e-3, "V": 1.0, "fT": None, "au": None}
@@ -29,16 +36,40 @@ MODALITIES = ("spes", "erp", "tep", "erna", "sep", "ecap", "vep", "baep", "mep",
 # Standard metadata columns (spec Table 4.1) and the dtype kind they must have.
 # Kinds: "i" integer, "f" float, "b" bool, "s" string.
 METADATA_COLUMNS = {
-    "trial": "i", "subject": "s", "session": "s", "run": "s", "task": "s", "condition": "s",
-    "stim_site": "s", "stim_current_mA": "f", "stim_pulse_width_us": "f", "stim_polarity": "s",
-    "stim_frequency_hz": "f", "stim_n_pulses": "i", "stim_charge_uC": "f", "state": "s",
-    "block": "i", "quality": "f", "rejected": "b", "reject_reason": "s",
+    "trial": "i",
+    "subject": "s",
+    "session": "s",
+    "run": "s",
+    "task": "s",
+    "condition": "s",
+    "stim_site": "s",
+    "stim_current_mA": "f",
+    "stim_pulse_width_us": "f",
+    "stim_polarity": "s",
+    "stim_frequency_hz": "f",
+    "stim_n_pulses": "i",
+    "stim_charge_uC": "f",
+    "state": "s",
+    "block": "i",
+    "quality": "f",
+    "rejected": "b",
+    "reject_reason": "s",
 }
 
 # Standard channel-table columns (spec Table 4.2).
 CH_INFO_COLUMNS = {
-    "name": "s", "type": "s", "group": "s", "x": "f", "y": "f", "z": "f", "coord_space": "s",
-    "reference": "s", "bad": "b", "stim_contact": "b", "tissue": "s", "region": "s",
+    "name": "s",
+    "type": "s",
+    "group": "s",
+    "x": "f",
+    "y": "f",
+    "z": "f",
+    "coord_space": "s",
+    "reference": "s",
+    "bad": "b",
+    "stim_contact": "b",
+    "tissue": "s",
+    "region": "s",
 }
 
 TRIMMED_PROPORTION = 0.2
@@ -46,6 +77,7 @@ TRIMMED_PROPORTION = 0.2
 
 ###################################################################################################
 ## Helpers
+
 
 def _is_dataframe(obj):
     return type(obj).__name__ == "DataFrame" and type(obj).__module__.startswith("pandas")
@@ -76,8 +108,10 @@ def _check_table(table, name, n_rows, columns):
         if column in table.columns:
             found = _dtype_kind(table[column])
             if found != kind and not (kind == "f" and found == "i"):
-                raise DataError(f"{name}: column '{column}' must have dtype kind '{kind}', "
-                                f"got '{table[column].dtype}'.")
+                raise DataError(
+                    f"{name}: column '{column}' must have dtype kind '{kind}', "
+                    f"got '{table[column].dtype}'."
+                )
 
 
 def _check_axis(times, sfreq, n_times):
@@ -150,7 +184,9 @@ def _pick_index(ch_names, picks):
     picks = list(picks) if not isinstance(picks, np.ndarray) else picks
     if isinstance(picks, np.ndarray) and picks.dtype == bool:
         if picks.size != n_channels:
-            raise DataError(f"picks: boolean mask of length {picks.size} for {n_channels} channels.")
+            raise DataError(
+                f"picks: boolean mask of length {picks.size} for {n_channels} channels."
+            )
         return np.flatnonzero(picks)
     index = []
     lookup = {name: position for position, name in enumerate(ch_names)}
@@ -183,9 +219,9 @@ def auto_chunk(n_trials, n_times, n_channels, max_memory_gb=None):
             physical = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
             budget = 0.25 * physical
         except (AttributeError, ValueError, OSError):
-            budget = 2 * 1024 ** 3
+            budget = 2 * 1024**3
     else:
-        budget = max_memory_gb * 1024 ** 3
+        budget = max_memory_gb * 1024**3
     per_channel = max(1, n_trials) * max(1, n_times) * 8 * 3
     return int(min(n_channels, max(1, budget // per_channel)))
 
@@ -222,11 +258,13 @@ def _average_block(block, mask_block, robust):
             spread = np.nanstd(block, axis=0, ddof=1)
             sem = spread / np.sqrt(count)
         else:
-            ordered = np.sort(block, axis=0)                       # NaN sorted last
+            ordered = np.sort(block, axis=0)  # NaN sorted last
             trim = np.floor(TRIMMED_PROPORTION * count).astype(int)
-            low, high = trim, count - trim                         # kept: ordered[low:high]
-            cumulative = np.concatenate([np.zeros((1,) + block.shape[1:]),
-                                         np.cumsum(np.nan_to_num(ordered), axis=0)], axis=0)
+            low, high = trim, count - trim  # kept: ordered[low:high]
+            cumulative = np.concatenate(
+                [np.zeros((1,) + block.shape[1:]), np.cumsum(np.nan_to_num(ordered), axis=0)],
+                axis=0,
+            )
             total = _take0(cumulative, high) - _take0(cumulative, low)
             mean = total / (high - low)
             low_value = _take0(ordered, np.clip(low, 0, block.shape[0] - 1))
@@ -241,6 +279,7 @@ def _average_block(block, mask_block, robust):
 
 ###################################################################################################
 ## Shared behaviour
+
 
 class _ContainerMixin(DeepEqualMixin):
     """copy, to_dict / from_dict, save / load and the new-object helper."""
@@ -274,8 +313,9 @@ class _ContainerMixin(DeepEqualMixin):
         return cls(**dct)
 
     def _new(self, function, settings, start, data_changed=True, **changes):
-        provenance = self.provenance.with_step(function, settings,
-                                               duration_s=_time.perf_counter() - start)
+        provenance = self.provenance.with_step(
+            function, settings, duration_s=_time.perf_counter() - start
+        )
         if data_changed:
             provenance.data_hash = None
         return replace(self, provenance=provenance, **changes)
@@ -288,6 +328,7 @@ class _ContainerMixin(DeepEqualMixin):
         """
 
         from evoparam.data.serialize import save_object
+
         return save_object(self, path, overwrite=overwrite)
 
     @classmethod
@@ -306,6 +347,7 @@ class _ContainerMixin(DeepEqualMixin):
         """
 
         from evoparam.data.serialize import load_object
+
         obj = load_object(path, mmap=mmap, verify=verify)
         if not isinstance(obj, cls):
             raise DataError(f"{path} holds a {type(obj).__name__}, not a {cls.__name__}.")
@@ -334,20 +376,29 @@ class _ContainerMixin(DeepEqualMixin):
         if units not in UNITS:
             raise DataError(f"units: '{units}' is not one of {sorted(UNITS)}.")
         if units == self.units:
-            return self._new(f"evoparam.data.{type(self).__name__}.convert_units",
-                             {"units": units}, start, data_changed=False)
+            return self._new(
+                f"evoparam.data.{type(self).__name__}.convert_units",
+                {"units": units},
+                start,
+                data_changed=False,
+            )
         if UNITS[units] is None or UNITS[self.units] is None:
             raise DataError(f"Cannot convert '{self.units}' to '{units}'.")
         factor = UNITS[self.units] / UNITS[units]
         changes = {"data": np.asarray(self.data) * factor, "units": units}
         if getattr(self, "sem", None) is not None:
             changes["sem"] = self.sem * factor
-        return self._new(f"evoparam.data.{type(self).__name__}.convert_units",
-                         {"units": units}, start, **changes)
+        return self._new(
+            f"evoparam.data.{type(self).__name__}.convert_units",
+            {"units": units},
+            start,
+            **changes,
+        )
 
 
 ###################################################################################################
 ## TrialSet
+
 
 @dataclass(eq=False, repr=False)
 class TrialSet(_ContainerMixin):
@@ -412,8 +463,10 @@ class TrialSet(_ContainerMixin):
         """Check every invariant; raise :class:`~evoparam.errors.DataError` naming the field."""
 
         if self.data.ndim != 3:
-            raise DataError(f"data: expected 3 dimensions (trials, channels, times), "
-                            f"got shape {self.data.shape}.")
+            raise DataError(
+                f"data: expected 3 dimensions (trials, channels, times), "
+                f"got shape {self.data.shape}."
+            )
         n_trials, n_channels, n_times = self.data.shape
         if n_trials < 1:
             raise DataError("data: at least one trial is required.")
@@ -421,9 +474,13 @@ class TrialSet(_ContainerMixin):
         _check_names(self.ch_names, n_channels)
         _check_common(self)
         if self.masks is not None and self.masks.shape != self.data.shape:
-            raise DataError(f"masks: shape {self.masks.shape} differs from data {self.data.shape}.")
+            raise DataError(
+                f"masks: shape {self.masks.shape} differs from data {self.data.shape}."
+            )
         if self.event_times is not None and self.event_times.shape != (n_trials,):
-            raise DataError(f"event_times: expected shape ({n_trials},), got {self.event_times.shape}.")
+            raise DataError(
+                f"event_times: expected shape ({n_trials},), got {self.event_times.shape}."
+            )
         if self.metadata is not None:
             _check_table(self.metadata, "metadata", n_trials, METADATA_COLUMNS)
         if self.ch_info is not None:
@@ -439,9 +496,11 @@ class TrialSet(_ContainerMixin):
 
     def __repr__(self):
         modality = f", {self.modality}" if self.modality else ""
-        return (f"<TrialSet | {self.n_trials} trials × {self.n_channels} channels × "
-                f"{self.n_times} times, {self.tmin:.3f} – {self.tmax:.3f} s, "
-                f"{self.sfreq:g} Hz, {self.units}, {self.species}{modality}>")
+        return (
+            f"<TrialSet | {self.n_trials} trials × {self.n_channels} channels × "
+            f"{self.n_times} times, {self.tmin:.3f} – {self.tmax:.3f} s, "
+            f"{self.sfreq:g} Hz, {self.units}, {self.species}{modality}>"
+        )
 
     def _trial_index(self, trials, query):
         n_trials = self.n_trials
@@ -453,8 +512,9 @@ class TrialSet(_ContainerMixin):
             index = np.atleast_1d(np.asarray(trials))
             if index.dtype == bool:
                 if index.size != n_trials:
-                    raise DataError(f"trials: boolean mask of length {index.size} "
-                                    f"for {n_trials} trials.")
+                    raise DataError(
+                        f"trials: boolean mask of length {index.size} for {n_trials} trials."
+                    )
                 index = np.flatnonzero(index)
             elif index.dtype.kind not in "iu":
                 raise DataError("trials: expected integers, a boolean mask or a slice.")
@@ -496,13 +556,20 @@ class TrialSet(_ContainerMixin):
             "ch_names": [self.ch_names[i] for i in c_index],
             "masks": None if self.masks is None else self.masks[t_index][:, c_index, s_slice],
             "event_times": None if self.event_times is None else self.event_times[t_index],
-            "metadata": None if self.metadata is None
+            "metadata": None
+            if self.metadata is None
             else self.metadata.iloc[t_index].reset_index(drop=True),
-            "ch_info": None if self.ch_info is None
+            "ch_info": None
+            if self.ch_info is None
             else self.ch_info.iloc[c_index].reset_index(drop=True),
         }
-        settings = {"trials": t_index.tolist(), "picks": changes["ch_names"],
-                    "tmin": tmin, "tmax": tmax, "query": query}
+        settings = {
+            "trials": t_index.tolist(),
+            "picks": changes["ch_names"],
+            "tmin": tmin,
+            "tmax": tmax,
+            "query": query,
+        }
         return self._new("evoparam.data.TrialSet.select", settings, start, **changes)
 
     def crop(self, tmin=None, tmax=None):
@@ -510,11 +577,14 @@ class TrialSet(_ContainerMixin):
 
         start = _time.perf_counter()
         s_slice = _time_slice(self.times, self.sfreq, tmin, tmax)
-        changes = {"data": np.asarray(self.data[:, :, s_slice], dtype=np.float64),
-                   "times": self.times[s_slice].copy(),
-                   "masks": None if self.masks is None else self.masks[:, :, s_slice]}
-        return self._new("evoparam.data.TrialSet.crop", {"tmin": tmin, "tmax": tmax}, start,
-                         **changes)
+        changes = {
+            "data": np.asarray(self.data[:, :, s_slice], dtype=np.float64),
+            "times": self.times[s_slice].copy(),
+            "masks": None if self.masks is None else self.masks[:, :, s_slice],
+        }
+        return self._new(
+            "evoparam.data.TrialSet.crop", {"tmin": tmin, "tmax": tmax}, start, **changes
+        )
 
     @classmethod
     def from_mne(cls, epochs, *, picks=None, units="uV", metadata=True, stim_columns="auto"):
@@ -524,8 +594,9 @@ class TrialSet(_ContainerMixin):
 
         from ._mne import trialset_from_mne
 
-        return trialset_from_mne(cls, epochs, picks=picks, units=units, metadata=metadata,
-                                 stim_columns=stim_columns)
+        return trialset_from_mne(
+            cls, epochs, picks=picks, units=units, metadata=metadata, stim_columns=stim_columns
+        )
 
     def to_mne(self, *, ch_types=None):
         """``mne.EpochsArray`` holding the same data, channels, metadata and events."""
@@ -547,10 +618,14 @@ class TrialSet(_ContainerMixin):
         try:
             import xarray as xr
         except ImportError as err:
-            raise ImportError("TrialSet.to_xarray needs the extra 'xarray': pip install "
-                              "\"evoparam[xarray]\".") from err
-        coords = {"trial": np.arange(self.n_trials), "channel": list(self.ch_names),
-                  "time": np.asarray(self.times, dtype=float)}
+            raise ImportError(
+                "TrialSet.to_xarray needs the extra 'xarray': pip install \"evoparam[xarray]\"."
+            ) from err
+        coords = {
+            "trial": np.arange(self.n_trials),
+            "channel": list(self.ch_names),
+            "time": np.asarray(self.times, dtype=float),
+        }
         for table, dim in ((self.metadata, "trial"), (self.ch_info, "channel")):
             if table is None:
                 continue
@@ -559,16 +634,25 @@ class TrialSet(_ContainerMixin):
                     continue
                 values = table[column].to_numpy()
                 if values.dtype == object and not all(
-                        isinstance(v, (str, int, float, bool, np.generic)) or v is None
-                        for v in values):
+                    isinstance(v, (str, int, float, bool, np.generic)) or v is None for v in values
+                ):
                     continue
                 coords[str(column)] = (dim, values)
         if self.masks is not None:
             coords["mask"] = (("trial", "channel", "time"), np.asarray(self.masks, dtype=bool))
-        attrs = {"sfreq": float(self.sfreq), "units": self.units, "species": self.species,
-                 "modality": self.modality if self.modality is not None else ""}
-        return xr.DataArray(np.asarray(self.data), dims=("trial", "channel", "time"),
-                            coords=coords, attrs=attrs, name="data")
+        attrs = {
+            "sfreq": float(self.sfreq),
+            "units": self.units,
+            "species": self.species,
+            "modality": self.modality if self.modality is not None else "",
+        }
+        return xr.DataArray(
+            np.asarray(self.data),
+            dims=("trial", "channel", "time"),
+            coords=coords,
+            attrs=attrs,
+            name="data",
+        )
 
     def average(self, by=None, robust=False, chunk=None):
         """Average over trials.
@@ -626,27 +710,47 @@ class TrialSet(_ContainerMixin):
         sem = np.empty((self.n_channels, n_times))
         count = np.empty((self.n_channels, n_times), dtype=int)
         for part in _chunks(self.n_channels, chunk, index.size, n_times):
-            block = self.data[index][:, part] if index.size != self.n_trials else self.data[:, part]
+            block = (
+                self.data[index][:, part] if index.size != self.n_trials else self.data[:, part]
+            )
             mask_block = None
             if self.masks is not None:
                 mask_block = self.masks[index][:, part]
-            mean[part], sem[part], count[part] = _average_block(block, mask_block, settings["robust"])
+            mean[part], sem[part], count[part] = _average_block(
+                block, mask_block, settings["robust"]
+            )
         masks = count == 0
         metadata = None
         if group_row is not None:
             import pandas as pd
+
             metadata = pd.DataFrame(group_row)
-        step_settings = dict(settings, group=None if group_row is None
-                             else {k: v[0] for k, v in group_row.items()},
-                             n_trials=int(index.size))
-        provenance = self.provenance.with_step("evoparam.data.TrialSet.average", step_settings,
-                                               duration_s=_time.perf_counter() - start)
+        step_settings = dict(
+            settings,
+            group=None if group_row is None else {k: v[0] for k, v in group_row.items()},
+            n_trials=int(index.size),
+        )
+        provenance = self.provenance.with_step(
+            "evoparam.data.TrialSet.average",
+            step_settings,
+            duration_s=_time.perf_counter() - start,
+        )
         provenance.data_hash = None
-        return Evoked(data=mean, times=self.times.copy(), sfreq=self.sfreq,
-                      ch_names=list(self.ch_names), units=self.units, n_trials=int(index.size),
-                      sem=sem, masks=masks if masks.any() else None, metadata=metadata,
-                      ch_info=None if self.ch_info is None else self.ch_info.copy(deep=True),
-                      species=self.species, modality=self.modality, provenance=provenance)
+        return Evoked(
+            data=mean,
+            times=self.times.copy(),
+            sfreq=self.sfreq,
+            ch_names=list(self.ch_names),
+            units=self.units,
+            n_trials=int(index.size),
+            sem=sem,
+            masks=masks if masks.any() else None,
+            metadata=metadata,
+            ch_info=None if self.ch_info is None else self.ch_info.copy(deep=True),
+            species=self.species,
+            modality=self.modality,
+            provenance=provenance,
+        )
 
     def apply(self, func, axis="trials", chunk=None):
         """Apply a vectorised transform and record it in the provenance.
@@ -675,11 +779,14 @@ class TrialSet(_ContainerMixin):
                 flat = block.reshape(-1, self.n_times)
                 result = np.asarray(func(flat), dtype=np.float64)
                 if result.shape != flat.shape:
-                    raise DataError(f"apply: func returned shape {result.shape}, "
-                                    f"expected {flat.shape}.")
+                    raise DataError(
+                        f"apply: func returned shape {result.shape}, expected {flat.shape}."
+                    )
                 result = result.reshape(block.shape)
             if result.shape != block.shape:
-                raise DataError(f"apply: func returned shape {result.shape}, expected {block.shape}.")
+                raise DataError(
+                    f"apply: func returned shape {result.shape}, expected {block.shape}."
+                )
             out[:, part] = result
         name = getattr(func, "__qualname__", repr(func))
         module = getattr(func, "__module__", None)
@@ -697,18 +804,29 @@ class TrialSet(_ContainerMixin):
         if self.n_trials > 1:
             return self.average()
         start = _time.perf_counter()
-        provenance = self.provenance.with_step("evoparam.data.TrialSet.as_evoked", {},
-                                               duration_s=_time.perf_counter() - start)
-        return Evoked(data=np.array(self.data[0]), times=self.times.copy(), sfreq=self.sfreq,
-                      ch_names=list(self.ch_names), units=self.units, n_trials=1, sem=None,
-                      masks=None if self.masks is None else self.masks[0].copy(),
-                      metadata=None, ch_info=None if self.ch_info is None
-                      else self.ch_info.copy(deep=True),
-                      species=self.species, modality=self.modality, provenance=provenance)
+        provenance = self.provenance.with_step(
+            "evoparam.data.TrialSet.as_evoked", {}, duration_s=_time.perf_counter() - start
+        )
+        return Evoked(
+            data=np.array(self.data[0]),
+            times=self.times.copy(),
+            sfreq=self.sfreq,
+            ch_names=list(self.ch_names),
+            units=self.units,
+            n_trials=1,
+            sem=None,
+            masks=None if self.masks is None else self.masks[0].copy(),
+            metadata=None,
+            ch_info=None if self.ch_info is None else self.ch_info.copy(deep=True),
+            species=self.species,
+            modality=self.modality,
+            provenance=provenance,
+        )
 
 
 ###################################################################################################
 ## Evoked
+
 
 @dataclass(eq=False, repr=False)
 class Evoked(_ContainerMixin):
@@ -743,7 +861,6 @@ class Evoked(_ContainerMixin):
     modality: str | None = None
     provenance: Provenance = field(default_factory=Provenance)
 
-
     @classmethod
     def from_mne(cls, evoked, *, picks=None, units="uV"):
         """Evoked from ``mne.Evoked`` (spec §10.1, extra ``mne``)."""
@@ -758,6 +875,7 @@ class Evoked(_ContainerMixin):
         from ._mne import evoked_to_mne
 
         return evoked_to_mne(self, ch_types=ch_types, comment=comment)
+
     def __post_init__(self):
         if not (isinstance(self.data, np.ndarray) and self.data.dtype == np.float64):
             self.data = np.asarray(self.data, dtype=np.float64)
@@ -780,22 +898,26 @@ class Evoked(_ContainerMixin):
         """Check every invariant; raise :class:`~evoparam.errors.DataError` naming the field."""
 
         if self.data.ndim != 2:
-            raise DataError(f"data: expected 2 dimensions (channels, times), got shape "
-                            f"{self.data.shape}.")
+            raise DataError(
+                f"data: expected 2 dimensions (channels, times), got shape {self.data.shape}."
+            )
         n_channels, n_times = self.data.shape
         _check_axis(self.times, self.sfreq, n_times)
         _check_names(self.ch_names, n_channels)
         _check_common(self)
         if isinstance(self.n_trials, np.ndarray):
             if self.n_trials.shape != (n_channels,) or np.any(self.n_trials < 1):
-                raise DataError("n_trials: per-channel counts must have shape (n_channels,) "
-                                "and be >= 1.")
+                raise DataError(
+                    "n_trials: per-channel counts must have shape (n_channels,) and be >= 1."
+                )
         elif not isinstance(self.n_trials, int) or self.n_trials < 1:
             raise DataError(f"n_trials: must be a positive integer, got {self.n_trials!r}.")
         if self.sem is not None and self.sem.shape != self.data.shape:
             raise DataError(f"sem: shape {self.sem.shape} differs from data {self.data.shape}.")
         if self.masks is not None and self.masks.shape != self.data.shape:
-            raise DataError(f"masks: shape {self.masks.shape} differs from data {self.data.shape}.")
+            raise DataError(
+                f"masks: shape {self.masks.shape} differs from data {self.data.shape}."
+            )
         if self.metadata is not None:
             if not _is_dataframe(self.metadata) or len(self.metadata) > 1:
                 raise DataError("metadata: must be a DataFrame with at most one row.")
@@ -803,17 +925,21 @@ class Evoked(_ContainerMixin):
             _check_table(self.ch_info, "ch_info", n_channels, CH_INFO_COLUMNS)
             if "name" in self.ch_info.columns and list(self.ch_info["name"]) != self.ch_names:
                 raise DataError("ch_info: column 'name' must equal ch_names.")
-        _check_nan(self.data[np.newaxis],
-                   None if self.masks is None else self.masks[np.newaxis])
+        _check_nan(self.data[np.newaxis], None if self.masks is None else self.masks[np.newaxis])
         return self
 
     def __repr__(self):
         modality = f", {self.modality}" if self.modality else ""
-        n_trials = self.n_trials if isinstance(self.n_trials, int) else \
-            f"{int(self.n_trials.min())}–{int(self.n_trials.max())}"
-        return (f"<Evoked | {self.n_channels} channels × {self.n_times} times, "
-                f"{self.tmin:.3f} – {self.tmax:.3f} s, {self.sfreq:g} Hz, {self.units}, "
-                f"n_trials={n_trials}, {self.species}{modality}>")
+        n_trials = (
+            self.n_trials
+            if isinstance(self.n_trials, int)
+            else f"{int(self.n_trials.min())}–{int(self.n_trials.max())}"
+        )
+        return (
+            f"<Evoked | {self.n_channels} channels × {self.n_times} times, "
+            f"{self.tmin:.3f} – {self.tmax:.3f} s, {self.sfreq:g} Hz, {self.units}, "
+            f"n_trials={n_trials}, {self.species}{modality}>"
+        )
 
     def select(self, picks=None, tmin=None, tmax=None):
         """Select channels (by name or index) and a time window (``tmin`` ≤ t < ``tmax``)."""
@@ -825,11 +951,13 @@ class Evoked(_ContainerMixin):
             "data": self.data[c_index, s_slice].copy(),
             "times": self.times[s_slice].copy(),
             "ch_names": [self.ch_names[i] for i in c_index],
-            "n_trials": self.n_trials[c_index] if isinstance(self.n_trials, np.ndarray)
+            "n_trials": self.n_trials[c_index]
+            if isinstance(self.n_trials, np.ndarray)
             else self.n_trials,
             "sem": None if self.sem is None else self.sem[c_index, s_slice].copy(),
             "masks": None if self.masks is None else self.masks[c_index, s_slice].copy(),
-            "ch_info": None if self.ch_info is None
+            "ch_info": None
+            if self.ch_info is None
             else self.ch_info.iloc[c_index].reset_index(drop=True),
         }
         settings = {"picks": changes["ch_names"], "tmin": tmin, "tmax": tmax}
@@ -849,10 +977,18 @@ class Evoked(_ContainerMixin):
         """Return a one-trial :class:`TrialSet` (the SEM is not carried over)."""
 
         start = _time.perf_counter()
-        provenance = self.provenance.with_step("evoparam.data.Evoked.as_trialset", {},
-                                               duration_s=_time.perf_counter() - start)
-        return TrialSet(data=self.data[np.newaxis].copy(), times=self.times.copy(),
-                        sfreq=self.sfreq, ch_names=list(self.ch_names), units=self.units,
-                        masks=None if self.masks is None else self.masks[np.newaxis].copy(),
-                        ch_info=None if self.ch_info is None else self.ch_info.copy(deep=True),
-                        species=self.species, modality=self.modality, provenance=provenance)
+        provenance = self.provenance.with_step(
+            "evoparam.data.Evoked.as_trialset", {}, duration_s=_time.perf_counter() - start
+        )
+        return TrialSet(
+            data=self.data[np.newaxis].copy(),
+            times=self.times.copy(),
+            sfreq=self.sfreq,
+            ch_names=list(self.ch_names),
+            units=self.units,
+            masks=None if self.masks is None else self.masks[np.newaxis].copy(),
+            ch_info=None if self.ch_info is None else self.ch_info.copy(deep=True),
+            species=self.species,
+            modality=self.modality,
+            provenance=provenance,
+        )

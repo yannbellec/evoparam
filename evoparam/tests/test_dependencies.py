@@ -28,24 +28,50 @@ DENY = ("erdetect", "ieegprep", "teppy", "ultranest")
 NOT_IN_ALL = {"gpu", "bayes", "docs", "all"}
 
 # import name -> distribution, for the packages the tests skip without
-DISTRIBUTIONS = {"mypy": "mypy", "coverage": "pytest-cov",   # pytest-cov installs coverage
-                 "sklearn": "scikit-learn", "mpmath": "mpmath", "pandas": "pandas",
-                 "mne": "mne", "pynwb": "pynwb", "matplotlib": "matplotlib",
-                 "quantities": "quantities", "nwbinspector": "nwbinspector", "neo": "neo",
-                 "jax": "jax", "numpyro": "numpyro", "statsmodels": "statsmodels",
-                 "pymc": "pymc", "arviz": "arviz", "pyarrow": "pyarrow", "xarray": "xarray",
-                 "mne_bids": "mne-bids", "bids": "pybids", "edfio": "edfio",
-                 "numba": "numba", "tqdm": "tqdm", "joblib": "joblib", "pylsl": "pylsl",
-                 "jsonschema": "jsonschema", "bidsschematools": "bidsschematools",
-                 "h5py": "h5py", "hdmf": "hdmf", "ndx_events": "ndx-events",
-                 "remfile": "remfile", "formulaic": "formulaic", "hypothesis": "hypothesis",
-                 "tomli": "tomli", "nilearn": "nilearn", "yaml": "pyyaml"}
+DISTRIBUTIONS = {
+    "mypy": "mypy",
+    "coverage": "pytest-cov",  # pytest-cov installs coverage
+    "sklearn": "scikit-learn",
+    "mpmath": "mpmath",
+    "pandas": "pandas",
+    "mne": "mne",
+    "pynwb": "pynwb",
+    "matplotlib": "matplotlib",
+    "quantities": "quantities",
+    "nwbinspector": "nwbinspector",
+    "neo": "neo",
+    "jax": "jax",
+    "numpyro": "numpyro",
+    "statsmodels": "statsmodels",
+    "pymc": "pymc",
+    "arviz": "arviz",
+    "pyarrow": "pyarrow",
+    "xarray": "xarray",
+    "mne_bids": "mne-bids",
+    "bids": "pybids",
+    "edfio": "edfio",
+    "numba": "numba",
+    "tqdm": "tqdm",
+    "joblib": "joblib",
+    "pylsl": "pylsl",
+    "jsonschema": "jsonschema",
+    "bidsschematools": "bidsschematools",
+    "h5py": "h5py",
+    "hdmf": "hdmf",
+    "ndx_events": "ndx-events",
+    "remfile": "remfile",
+    "formulaic": "formulaic",
+    "hypothesis": "hypothesis",
+    "tomli": "tomli",
+    "nilearn": "nilearn",
+    "yaml": "pyyaml",
+}
 
 
 def _toml():
     try:
         import tomllib
-    except ImportError:                  # Python 3.10
+    except ImportError:  # Python 3.10
         tomllib = pytest.importorskip("tomli")
     with open(ROOT / "pyproject.toml", "rb") as f:
         return tomllib.load(f)
@@ -66,10 +92,14 @@ def _imports(path):
             yield from (alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
             yield node.module
-        elif isinstance(node, ast.Call) and getattr(node.func, "id", getattr(
-                node.func, "attr", "")) in ("require", "import_module", "importorskip") \
-                and node.args and isinstance(node.args[0], ast.Constant) and \
-                isinstance(node.args[0].value, str):
+        elif (
+            isinstance(node, ast.Call)
+            and getattr(node.func, "id", getattr(node.func, "attr", ""))
+            in ("require", "import_module", "importorskip")
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+        ):
             yield node.args[0].value
 
 
@@ -81,8 +111,11 @@ def test_no_gpl_imports():
                 hits.append(f"{path.relative_to(ROOT)}: {name}")
     for extra, requirements in _extras().items():
         hits += [f"pyproject [{extra}]: {r}" for r in requirements if _name(r) in DENY]
-    hits += [f"pyproject dependencies: {r}" for r in _toml()["project"]["dependencies"]
-             if _name(r) in DENY]
+    hits += [
+        f"pyproject dependencies: {r}"
+        for r in _toml()["project"]["dependencies"]
+        if _name(r) in DENY
+    ]
     assert not hits, hits
 
 
@@ -92,8 +125,11 @@ def test_no_gpl_imports_finds_a_mutation(tmp_path):
     assert [n for n in _imports(bad) if n in DENY] == ["ieegprep", "erdetect"]
 
 
-GPL_TEXT = re.compile(r"GNU (Lesser |Affero )?General Public License|SPDX-License-Identifier:"
-                      r"\s*(?!Apache-2\.0)\S+|\b(L|A)?GPL-?[23]", re.IGNORECASE)
+GPL_TEXT = re.compile(
+    r"GNU (Lesser |Affero )?General Public License|SPDX-License-Identifier:"
+    r"\s*(?!Apache-2\.0)\S+|\b(L|A)?GPL-?[23]",
+    re.IGNORECASE,
+)
 
 
 def test_licence_scan():
@@ -104,14 +140,21 @@ def test_licence_scan():
     hits = []
     for path in sorted(PACKAGE.rglob("*")):
         rel = path.relative_to(ROOT).as_posix()
-        if not path.is_file() or "__pycache__" in rel or path.suffix not in (
-                ".py", ".json", ".txt", ".csv", ".tsv", ".md", ".rst", ".html", ".cff"):
+        if (
+            not path.is_file()
+            or "__pycache__" in rel
+            or path.suffix
+            not in (".py", ".json", ".txt", ".csv", ".tsv", ".md", ".rst", ".html", ".cff")
+        ):
             continue
         if rel == "evoparam/tests/test_dependencies.py":
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
-        hits += [f"{rel}: {m.group(0)}" for m in GPL_TEXT.finditer(text)
-                 if not _mentions_isolation(text, m.start())]
+        hits += [
+            f"{rel}: {m.group(0)}"
+            for m in GPL_TEXT.finditer(text)
+            if not _mentions_isolation(text, m.start())
+        ]
     assert not hits, hits
 
 
@@ -119,9 +162,15 @@ def _mentions_isolation(text, start):
     """A sentence that says a GPL tool is NOT used (REQ-309, the comparator scripts run as
     separate processes) is not a licence notice."""
 
-    line = text[text.rfind("\n", 0, start) + 1:text.find("\n", start)]
-    return bool(re.search(r"not (imported|vendored|a dependency)|separate process|"
-                          r"subprocess|outside the|never import", line, re.IGNORECASE))
+    line = text[text.rfind("\n", 0, start) + 1 : text.find("\n", start)]
+    return bool(
+        re.search(
+            r"not (imported|vendored|a dependency)|separate process|"
+            r"subprocess|outside the|never import",
+            line,
+            re.IGNORECASE,
+        )
+    )
 
 
 def test_all_is_the_union_of_the_extras():
@@ -131,19 +180,40 @@ def test_all_is_the_union_of_the_extras():
         if name not in NOT_IN_ALL:
             union |= {r.replace(" ", "") for r in requirements}
     assert {r.replace(" ", "") for r in extras["all"]} == union
-    assert set(extras) >= {"mne", "bids", "nwb", "neo", "edf", "bayes", "gpu", "fast", "plot",
-                           "data", "xarray", "stats", "validate", "cli", "progress",
-                           "parallel", "stream", "docs", "tests", "all"}
+    assert set(extras) >= {
+        "mne",
+        "bids",
+        "nwb",
+        "neo",
+        "edf",
+        "bayes",
+        "gpu",
+        "fast",
+        "plot",
+        "data",
+        "xarray",
+        "stats",
+        "validate",
+        "cli",
+        "progress",
+        "parallel",
+        "stream",
+        "docs",
+        "tests",
+        "all",
+    }
 
 
 def _skipped_imports():
     names = set()
-    pattern = re.compile(r"importorskip\(\s*[\"']([\w.]+)[\"']|find_spec\(\s*[\"']([\w.]+)"
-                         r"[\"']|available\(\s*[\"']([\w.]+)[\"']")
+    pattern = re.compile(
+        r"importorskip\(\s*[\"']([\w.]+)[\"']|find_spec\(\s*[\"']([\w.]+)"
+        r"[\"']|available\(\s*[\"']([\w.]+)[\"']"
+    )
     for path in sorted((PACKAGE / "tests").rglob("*.py")):
         for match in pattern.finditer(path.read_text(encoding="utf-8")):
             name = next(g for g in match.groups() if g).split(".")[0]
-            if name != "evoparam":                # the package's own optional modules
+            if name != "evoparam":  # the package's own optional modules
                 names.add(name)
     return names
 
@@ -192,8 +262,9 @@ def _spec_extras():
         if extra in ("cli", "all"):
             continue
         main = re.split(r"\(alternative|\bor\b", cells[1])[0]
-        out[extra] = {_name(r): _floor(r) for r in re.findall(r"`([^`]+)`", main)
-                      if "_" not in r}             # `check_estimator` is not a package
+        out[extra] = {
+            _name(r): _floor(r) for r in re.findall(r"`([^`]+)`", main) if "_" not in r
+        }  # `check_estimator` is not a package
     return out
 
 
@@ -226,12 +297,18 @@ def test_req292_pyproject_matches_the_extras_table():
             if dist not in declared and not set(alternatives) & set(declared):
                 problems.append(f"[{extra}] {dist} missing")
                 continue
-            if dist in declared and floor and (declared[dist] is None or
-                                               _vt(declared[dist]) < _vt(floor)):
+            if (
+                dist in declared
+                and floor
+                and (declared[dist] is None or _vt(declared[dist]) < _vt(floor))
+            ):
                 problems.append(f"[{extra}] {dist} floor {declared[dist]} < {floor}")
         for dist in declared:
-            if dist not in packages and dist not in table.ALTERNATIVES.get(extra, {}) and \
-                    dist not in table.ADDITIONS.get(extra, {}):
+            if (
+                dist not in packages
+                and dist not in table.ALTERNATIVES.get(extra, {})
+                and dist not in table.ADDITIONS.get(extra, {})
+            ):
                 problems.append(f"[{extra}] {dist} is not in the table nor in ADDITIONS")
     for extra in set(extras) - set(table.EXTRAS) - {"all"}:
         if extra not in table.ADDITIONS:
@@ -265,10 +342,18 @@ ENTRY_POINTS = [
     ("neo", "from evoparam.io import read_neo; read_neo('x')", "neo"),
     ("pynwb", "from evoparam.io import read_nwb; read_nwb('x.nwb')", "nwb"),
     ("pylsl", "from evoparam.stream.lsl import _pylsl; _pylsl('evoparam.stream')", "stream"),
-    ("xarray", "import numpy as np, evoparam; evoparam.TrialSet(data=np.zeros((2, 1, 5)), "
-               "times=np.arange(5) / 100., sfreq=100., ch_names=['a']).to_xarray()", "xarray"),
-    ("mne", "import numpy as np, evoparam; evoparam.TrialSet(data=np.zeros((2, 1, 5)), "
-            "times=np.arange(5) / 100., sfreq=100., ch_names=['a']).to_mne()", "mne"),
+    (
+        "xarray",
+        "import numpy as np, evoparam; evoparam.TrialSet(data=np.zeros((2, 1, 5)), "
+        "times=np.arange(5) / 100., sfreq=100., ch_names=['a']).to_xarray()",
+        "xarray",
+    ),
+    (
+        "mne",
+        "import numpy as np, evoparam; evoparam.TrialSet(data=np.zeros((2, 1, 5)), "
+        "times=np.arange(5) / 100., sfreq=100., ch_names=['a']).to_mne()",
+        "mne",
+    ),
     ("matplotlib", "from evoparam.plots._plots import _plt; _plt()", "plot"),
 ]
 
@@ -282,19 +367,49 @@ def test_req292_missing_package_message(module, code, extra):
     import sys
 
     script = f"import sys\nsys.modules[{module!r}] = None\n{code}\n"
-    result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True,
-                            timeout=120, cwd=ROOT)
+    result = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=120, cwd=ROOT
+    )
     assert result.returncode != 0
     assert "ImportError" in result.stderr, result.stderr[-2000:]
     match = re.search(r'pip install "evoparam\[(\w+)\]"', result.stderr)
     assert match and match.group(1) == extra, result.stderr[-2000:]
 
 
-OPTIONAL = {"mne", "mne_bids", "bids", "pynwb", "hdmf", "ndx_events", "neo", "edfio",
-            "pyedflib", "numpyro", "jax", "arviz", "pymc", "cupy", "numba", "matplotlib",
-            "pandas", "pyarrow", "xarray", "statsmodels", "formulaic", "bidsschematools",
-            "nwbinspector", "jsonschema", "tqdm", "joblib", "pylsl", "sklearn", "h5py",
-            "remfile", "quantities", "nilearn"}
+OPTIONAL = {
+    "mne",
+    "mne_bids",
+    "bids",
+    "pynwb",
+    "hdmf",
+    "ndx_events",
+    "neo",
+    "edfio",
+    "pyedflib",
+    "numpyro",
+    "jax",
+    "arviz",
+    "pymc",
+    "cupy",
+    "numba",
+    "matplotlib",
+    "pandas",
+    "pyarrow",
+    "xarray",
+    "statsmodels",
+    "formulaic",
+    "bidsschematools",
+    "nwbinspector",
+    "jsonschema",
+    "tqdm",
+    "joblib",
+    "pylsl",
+    "sklearn",
+    "h5py",
+    "remfile",
+    "quantities",
+    "nilearn",
+}
 
 
 def _imports_outside_require():
@@ -310,28 +425,38 @@ def _imports_outside_require():
         for fn in ast.walk(tree):
             if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
-            required = {str(n.args[0].value).split(".")[0] for n in ast.walk(fn)
-                        if isinstance(n, ast.Call) and getattr(n.func, "id", getattr(
-                            n.func, "attr", "")) == "require" and n.args and
-                        isinstance(n.args[0], ast.Constant)}
+            required = {
+                str(n.args[0].value).split(".")[0]
+                for n in ast.walk(fn)
+                if isinstance(n, ast.Call)
+                and getattr(n.func, "id", getattr(n.func, "attr", "")) == "require"
+                and n.args
+                and isinstance(n.args[0], ast.Constant)
+            }
             for node in ast.walk(fn):
                 names = []
                 if isinstance(node, ast.Import):
                     names = [a.name for a in node.names]
                 elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
                     names = [node.module]
-                out += [f"{path.relative_to(ROOT)}:{node.lineno} {n}" for n in names
-                        if n.split(".")[0] in OPTIONAL and n.split(".")[0] not in required]
+                out += [
+                    f"{path.relative_to(ROOT)}:{node.lineno} {n}"
+                    for n in names
+                    if n.split(".")[0] in OPTIONAL and n.split(".")[0] not in required
+                ]
     return sorted(set(out))
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-292 'imported only through evoparam.utils.require' "
-                   "is not met yet: 66 import statements of an optional package in 25 modules "
-                   "are inside functions that do not call require for it (measured 2026-10-11, "
-                   "S20; most follow a require of the caller or are capability checks). Each "
-                   "of them is lazy (no top-level import, test_import_graph (iii)), and the "
-                   "messages of the public entry points name the extra "
-                   "(test_req292_missing_package_message)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-292 'imported only through evoparam.utils.require' "
+    "is not met yet: 66 import statements of an optional package in 25 modules "
+    "are inside functions that do not call require for it (measured 2026-10-11, "
+    "S20; most follow a require of the caller or are capability checks). Each "
+    "of them is lazy (no top-level import, test_import_graph (iii)), and the "
+    "messages of the public entry points name the extra "
+    "(test_req292_missing_package_message)",
+)
 def test_req292_optional_packages_only_through_require():
     found = _imports_outside_require()
     assert not found, f"{len(found)}: {found[:10]}"
@@ -351,9 +476,13 @@ def _licence(dist):
     except metadata.PackageNotFoundError:
         return None
     short = meta.get("License") if len(meta.get("License") or "") <= 200 else None
-    text = " ".join(filter(None, [meta.get("License-Expression"), short] +
-                           [c for c in meta.get_all("Classifier") or []
-                            if c.startswith("License ::")]))
+    text = " ".join(
+        filter(
+            None,
+            [meta.get("License-Expression"), short]
+            + [c for c in meta.get_all("Classifier") or [] if c.startswith("License ::")],
+        )
+    )
     return text
 
 
@@ -385,9 +514,9 @@ def _resolved_tree(roots):
 # the reason (docs/spec/DECISIONS.md, REQ-395).
 COPYLEFT_ALLOWED = {
     "frozendict": "LGPL-3.0, a requirement of pybids (extra bids, named by spec §9.2); "
-                  "evoparam neither imports nor declares it",
+    "evoparam neither imports nor declares it",
     "num2words": "LGPL, a requirement of pybids (extra bids, named by spec §9.2); evoparam "
-                 "neither imports nor declares it",
+    "neither imports nor declares it",
 }
 
 
@@ -396,8 +525,12 @@ def test_req395_no_copyleft_package_in_the_installed_extras():
     ``docs`` and ``tests``, the tool chains) is not GPL, LGPL or AGPL. Distributions that
     are not installed here are checked by the CI licence scan of every extras set."""
 
-    roots = {_name(r) for extra, reqs in _extras().items()
-             if extra not in ("docs", "tests", "all") for r in reqs}
+    roots = {
+        _name(r)
+        for extra, reqs in _extras().items()
+        if extra not in ("docs", "tests", "all")
+        for r in reqs
+    }
     hits = []
     for dist in sorted(_resolved_tree(roots)):
         text = _licence(dist)
@@ -406,15 +539,23 @@ def test_req395_no_copyleft_package_in_the_installed_extras():
     assert not hits, hits
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-395 verification read as 'the resolved tree has no "
-                   "copyleft package at all': pybids (extra bids, spec §9.2) requires "
-                   "frozendict (LGPL-3.0) and num2words (LGPL) (measured 2026-10-11 on the installed tree); "
-                   "evoparam does not import, vendor or declare it (DECISIONS.md)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-395 verification read as 'the resolved tree has no "
+    "copyleft package at all': pybids (extra bids, spec §9.2) requires "
+    "frozendict (LGPL-3.0) and num2words (LGPL) (measured 2026-10-11 on the installed tree); "
+    "evoparam does not import, vendor or declare it (DECISIONS.md)",
+)
 def test_req395_resolved_tree_has_no_copyleft_package_at_all():
-    roots = {_name(r) for extra, reqs in _extras().items()
-             if extra not in ("docs", "tests", "all") for r in reqs}
-    hits = [d for d in sorted(_resolved_tree(roots))
-            if _licence(d) and COPYLEFT.search(_licence(d))]
+    roots = {
+        _name(r)
+        for extra, reqs in _extras().items()
+        if extra not in ("docs", "tests", "all")
+        for r in reqs
+    }
+    hits = [
+        d for d in sorted(_resolved_tree(roots)) if _licence(d) and COPYLEFT.search(_licence(d))
+    ]
     assert not hits, hits
 
 
@@ -430,7 +571,7 @@ def test_req309_version_floors():
 
     try:
         import tomllib
-    except ImportError:                  # Python 3.10
+    except ImportError:  # Python 3.10
         tomllib = pytest.importorskip("tomli")
     with open(ROOT / "pyproject.toml", "rb") as fobj:
         project = tomllib.load(fobj)["project"]

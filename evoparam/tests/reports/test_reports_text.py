@@ -44,10 +44,12 @@ def test_req340_reference_pipelines_match_frozen_text(name):
         # Name the first differing sentence, so that a failure is easy to read.
         new, old = text.split(". "), frozen.split(". ")
         first = next(i for i, (a, b) in enumerate(zip(new + [""], old + [""])) if a != b)
-        pytest.fail(f"{name}: methods text differs from methods/{name}.txt at sentence "
-                    f"{first}:\n  frozen: {old[first] if first < len(old) else ''}\n"
-                    f"  now:    {new[first] if first < len(new) else ''}\n"
-                    "Regenerate with tools/freeze_methods_text.py if the change is wanted.")
+        pytest.fail(
+            f"{name}: methods text differs from methods/{name}.txt at sentence "
+            f"{first}:\n  frozen: {old[first] if first < len(old) else ''}\n"
+            f"  now:    {new[first] if first < len(new) else ''}\n"
+            "Regenerate with tools/freeze_methods_text.py if the change is wanted."
+        )
 
 
 def test_req340_frozen_text_has_no_run_specific_content():
@@ -56,8 +58,8 @@ def test_req340_frozen_text_has_no_run_specific_content():
         raw = FOLDER.joinpath(name + ".txt").read_text("utf-8")
         # The version appears only as a placeholder (the citation names the cited release).
         assert "{version}" in raw and __version__ not in raw.split("Software:")[0]
-        assert not re.search(r"\d{4}-\d{2}-\d{2}", raw)              # no date
-        assert not re.search(r"\d+\.\d{5,}", raw)                     # no long float
+        assert not re.search(r"\d{4}-\d{2}-\d{2}", raw)  # no date
+        assert not re.search(r"\d+\.\d{5,}", raw)  # no long float
         assert "duration" not in raw and "/home/" not in raw and "/tmp/" not in raw
         assert raw.count("\n") == 1
 
@@ -65,8 +67,13 @@ def test_req340_frozen_text_has_no_run_specific_content():
 def test_req340_every_changed_setting_is_in_the_text(erp_run):
 
     trials = reports.reference_input("erpcore_p3")
-    changed = {"max_components": 3, "fit_window": (0.1, 0.6), "loss": "soft_l1",
-               "min_fwhm": 0.02, "n_starts": 5}
+    changed = {
+        "max_components": 3,
+        "fit_window": (0.1, 0.6),
+        "loss": "soft_l1",
+        "min_fwhm": 0.02,
+        "n_starts": 5,
+    }
     result = reports.run_pipeline(trials, "erp", **changed)
     text = reports.methods_text(result)
     sentence = next(s for s in text.split(". ") if s.startswith("Settings changed"))
@@ -86,8 +93,10 @@ def test_req340_seed_sentence_follows_the_seed():
 
 
 @pytest.mark.network
-@pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                    reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro ds004080")
+@pytest.mark.skipif(
+    os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+    reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro ds004080",
+)
 def test_req340_ds004080_real_recording_gives_the_frozen_text():
     """sub-ccepAgeUMCU01 run-021448, site PT01-PT02 (120 channels, 8 pulses; ~3 min)."""
 
@@ -101,16 +110,25 @@ def test_req340_ds004080_real_recording_gives_the_frozen_text():
     data, sfreq, names, t0, onsets, sites = _segment(run)
     site = "PT01-PT02"
     onsets = onsets[np.asarray(sites) == site]
-    keep = [i for i, n in enumerate(names) if re.match(r"^[A-Za-z]+\d+$", n)
-            and not n.upper().startswith(("MKR", "ECG")) and n not in site.split("-")]
+    keep = [
+        i
+        for i, n in enumerate(names)
+        if re.match(r"^[A-Za-z]+\d+$", n)
+        and not n.upper().startswith(("MKR", "ECG"))
+        and n not in site.split("-")
+    ]
     times, epochs, _ = epoch_data(data[keep], sfreq, onsets, -1.0, 1.0, t0=t0)
-    trials = TrialSet(data=epochs, times=times, sfreq=sfreq, ch_names=[names[i] for i in keep],
-                      metadata=pd.DataFrame({"stim_site": [site] * len(epochs)}))
+    trials = TrialSet(
+        data=epochs,
+        times=times,
+        sfreq=sfreq,
+        ch_names=[names[i] for i in keep],
+        metadata=pd.DataFrame({"stim_site": [site] * len(epochs)}),
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         result = reports.run_reference_pipeline("ds004080_ccep", trials)
     assert _text(result) == _frozen("ds004080_ccep")
-
 
 
 ###################################################################################################
@@ -123,10 +141,8 @@ ERPCORE_SUFFIXES = ("_epoch_interp_ar.set", "_epoch_interp_ar.fdt")
 # SHA-256 of participant 1's files, recorded on 2026-10-08 (also checked against the hash
 # OSF publishes for every file)
 ERPCORE_P3_SHA256 = {
-    "1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.fdt":
-        "f62f325b0c579481829afe6cb78ba3b742e7460f1383168385cff26e2ebda431",
-    "1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.set":
-        "546dd1bedb039f2a5cc8db620c957d4d2db6623fe914198986c1b1b674e2a6e6",
+    "1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.fdt": "f62f325b0c579481829afe6cb78ba3b742e7460f1383168385cff26e2ebda431",
+    "1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.set": "546dd1bedb039f2a5cc8db620c957d4d2db6623fe914198986c1b1b674e2a6e6",
 }
 
 
@@ -156,11 +172,15 @@ def fetch_erpcore_p3(participant=1):
     published = {}
     if any(not local(suffix) for suffix in ERPCORE_SUFFIXES):
         base = f"https://api.osf.io/v2/nodes/{ERPCORE_P3_NODE}/files/osfstorage/"
-        folder = next(f for f in _osf_pages(base)
-                      if f["attributes"]["name"].endswith("All Data and Scripts"))
+        folder = next(
+            f for f in _osf_pages(base) if f["attributes"]["name"].endswith("All Data and Scripts")
+        )
         related = lambda item: item["relationships"]["files"]["links"]["related"]["href"]
-        subject = next(s for s in _osf_pages(related(folder) + "?page[size]=100")
-                       if s["attributes"]["name"] == str(int(participant)))
+        subject = next(
+            s
+            for s in _osf_pages(related(folder) + "?page[size]=100")
+            if s["attributes"]["name"] == str(int(participant))
+        )
         for item in _osf_pages(related(subject) + "?page[size]=100"):
             name = item["attributes"]["name"]
             if name.endswith(ERPCORE_SUFFIXES):
@@ -177,8 +197,10 @@ def fetch_erpcore_p3(participant=1):
 
 
 @pytest.mark.network
-@pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                    reason="set EVOPARAM_NETWORK_TESTS=1 to read ERP CORE from OSF")
+@pytest.mark.skipif(
+    os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+    reason="set EVOPARAM_NETWORK_TESTS=1 to read ERP CORE from OSF",
+)
 def test_req340_erpcore_p3_real_recording_gives_the_frozen_text():
     """ERP CORE P3 (active visual oddball), participant 1, channel Pz, all epochs (rare and
     frequent) after the published pipeline, in µV: the data the frozen text describes."""
@@ -191,10 +213,13 @@ def test_req340_erpcore_p3_real_recording_gives_the_frozen_text():
     path = fetch_erpcore_p3(1)
     epochs = mne.read_epochs_eeglab(path, verbose="error")
     inverse = {code: label for label, code in epochs.event_id.items()}
-    trials = TrialSet(data=epochs.get_data(picks=["Pz"]) * 1e6, times=epochs.times,
-                      sfreq=float(epochs.info["sfreq"]), ch_names=["Pz"],
-                      metadata=pd.DataFrame({"event": [inverse[c] for c in
-                                                       epochs.events[:, 2]]}))
+    trials = TrialSet(
+        data=epochs.get_data(picks=["Pz"]) * 1e6,
+        times=epochs.times,
+        sfreq=float(epochs.info["sfreq"]),
+        ch_names=["Pz"],
+        metadata=pd.DataFrame({"event": [inverse[c] for c in epochs.events[:, 2]]}),
+    )
     assert trials.n_trials > 100 and trials.times[0] < 0
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)

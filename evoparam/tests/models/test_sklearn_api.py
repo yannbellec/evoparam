@@ -23,9 +23,11 @@ def _array(seed=0, n=20, channels=2):
 
 
 def _estimators():
-    return [ResponseModel(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39), max_components=3),
-            TrialFitter(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39), random_state=0),
-            ArtifactRemover("interpolate", sfreq=SFREQ, tmin=-0.1, window=(0.0, 0.002))]
+    return [
+        ResponseModel(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39), max_components=3),
+        TrialFitter(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39), random_state=0),
+        ArtifactRemover("interpolate", sfreq=SFREQ, tmin=-0.1, window=(0.0, 0.002)),
+    ]
 
 
 def _input(est, data):
@@ -46,8 +48,10 @@ def test_req320_contract(est):
     assert est.__sklearn_is_fitted__()
     assert all(not k.endswith("_") for k in params)
     again = pickle.loads(pickle.dumps(est))
-    assert np.allclose(np.nan_to_num(again.transform(_input(est, data))),
-                       np.nan_to_num(est.transform(_input(est, data))))
+    assert np.allclose(
+        np.nan_to_num(again.transform(_input(est, data))),
+        np.nan_to_num(est.transform(_input(est, data))),
+    )
     # no learned state on a fresh copy built from the parameters
     fresh = type(est)(**est.get_params())
     assert not fresh.__sklearn_is_fitted__()
@@ -62,7 +66,7 @@ def test_same_random_state_same_fit():
     features = a.transform(data)
     assert features.shape == (20, 2 * a.n_components_ * 3)
     assert len(a.get_feature_names_out()) == features.shape[1]
-    assert np.nanmax(np.abs(features[:, 2] - 0.08)) < 0.01   # channel 0 latency ~ 80 ms
+    assert np.nanmax(np.abs(features[:, 2] - 0.08)) < 0.01  # channel 0 latency ~ 80 ms
 
 
 def test_pipeline_and_nested_parameters():
@@ -71,10 +75,11 @@ def test_pipeline_and_nested_parameters():
     from sklearn.base import clone
     from sklearn.pipeline import make_pipeline
 
-    pipe = make_pipeline(ArtifactRemover("interpolate", sfreq=SFREQ, tmin=-0.1,
-                                         window=(0.0, 0.002)),
-                         TrialFitter(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39)))
-    pipe.set_params(trialfitter__max_components=3)             # the call of REQ-320
+    pipe = make_pipeline(
+        ArtifactRemover("interpolate", sfreq=SFREQ, tmin=-0.1, window=(0.0, 0.002)),
+        TrialFitter(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39)),
+    )
+    pipe.set_params(trialfitter__max_components=3)  # the call of REQ-320
     assert pipe.get_params()["trialfitter__max_components"] == 3
     pipe.set_params(trialfitter__max_components=2)
     copy = clone(pipe)

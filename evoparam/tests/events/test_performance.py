@@ -10,8 +10,10 @@ import sys
 
 import pytest
 
-pytestmark = pytest.mark.skipif(os.environ.get("EVOPARAM_PERF_TESTS") != "1",
-                                reason="set EVOPARAM_PERF_TESTS=1 to time detect_pulses")
+pytestmark = pytest.mark.skipif(
+    os.environ.get("EVOPARAM_PERF_TESTS") != "1",
+    reason="set EVOPARAM_PERF_TESTS=1 to time detect_pulses",
+)
 
 
 def test_req045_runtime_and_memory():

@@ -16,14 +16,20 @@ from ._text import methods_text
 
 __all__ = ["qc", "markdown", "html", "pdf", "site_pages"]
 
-RESEARCH_USE = ("For research use only. evoparam is not a medical device and its outputs are "
-                "not intended for diagnosis or treatment decisions.")
+RESEARCH_USE = (
+    "For research use only. evoparam is not a medical device and its outputs are "
+    "not intended for diagnosis or treatment decisions."
+)
 
 
 def _fits(result):
     if isinstance(result, GroupFit):
-        return [(ch, cond, result.fits[int(pos)]) for ch, cond, pos in
-                result.index[["channel", "condition", "position"]].itertuples(index=False)]
+        return [
+            (ch, cond, result.fits[int(pos)])
+            for ch, cond, pos in result.index[["channel", "condition", "position"]].itertuples(
+                index=False
+            )
+        ]
     if isinstance(result, ResponseFit):
         return [("", "", result)]
     return []
@@ -49,8 +55,9 @@ def qc(result, *, trials=None, artifact=None, trial_fits=None):
         warnings = Counter(w.split(":")[0] for _, _, f in fits for w in f.warnings)
         for name in sorted(warnings):
             rows.append(("warning: " + name, warnings[name]))
-        rows.append(("ill-conditioned fits",
-                     sum("ill_conditioned" in f.warnings for _, _, f in fits)))
+        rows.append(
+            ("ill-conditioned fits", sum("ill_conditioned" in f.warnings for _, _, f in fits))
+        )
     if isinstance(result, ResponseTest):
         rows.append(("significant channels", int(np.sum(result.significant))))
         rows.append(("channels tested", int(len(result.significant))))
@@ -59,14 +66,18 @@ def qc(result, *, trials=None, artifact=None, trial_fits=None):
     if artifact is not None:
         quality = np.asarray(artifact.quality, float)
         summary = artifact.quality_summary()
-        rows += [("artifact quality, median", summary["median"]),
-                 ("artifact quality, 5th percentile", summary["p05"]),
-                 ("artifact quality, minimum", float(np.nanmin(quality))),
-                 ("artifact quality below 0.5", int(np.sum(quality < 0.5)))]
+        rows += [
+            ("artifact quality, median", summary["median"]),
+            ("artifact quality, 5th percentile", summary["p05"]),
+            ("artifact quality, minimum", float(np.nanmin(quality))),
+            ("artifact quality below 0.5", int(np.sum(quality < 0.5))),
+        ]
     if trial_fits is not None and len(trial_fits.table):
         trusted = trial_fits.table["trusted"].astype(bool)
-        rows += [("trials fitted", int(len(trusted))),
-                 ("trials not trusted", int((~trusted).sum()))]
+        rows += [
+            ("trials fitted", int(len(trusted))),
+            ("trials not trusted", int((~trusted).sum())),
+        ]
     table = pd.DataFrame(rows, columns=["quantity", "value"])
     return table
 
@@ -76,14 +87,33 @@ def _summary_table(result):
 
     if isinstance(result, (GroupFit, ResponseFit)):
         table = result.to_dataframe()
-        keep = [c for c in ("channel", "condition", "label", "latency", "amplitude", "fwhm",
-                            "status", "existence_p") if c in table.columns]
+        keep = [
+            c
+            for c in (
+                "channel",
+                "condition",
+                "label",
+                "latency",
+                "amplitude",
+                "fwhm",
+                "status",
+                "existence_p",
+            )
+            if c in table.columns
+        ]
         return table[keep]
     if isinstance(result, ResponseTest):
         names = result.settings.get("channels") or list(range(len(result.statistic)))
-        return pd.DataFrame({"channel": names, "statistic": result.statistic,
-                             "p_value": result.p_value, "significant": result.significant,
-                             "onset": result.onset, "offset": result.offset})
+        return pd.DataFrame(
+            {
+                "channel": names,
+                "statistic": result.statistic,
+                "p_value": result.p_value,
+                "significant": result.significant,
+                "onset": result.onset,
+                "offset": result.offset,
+            }
+        )
     if isinstance(result, TFFit):
         return result.zones if result.zones is not None else pd.DataFrame()
     if hasattr(result, "to_dataframe"):
@@ -107,8 +137,12 @@ def _figures(result, data=None, max_channels=24):
         out.append(("All channels", plots.plot_group(result, data, max_channels=64)))
         for ch, cond, fit in _fits(result)[:max_channels]:
             if fit.components:
-                out.append((f"{ch} {cond}".strip(),
-                            plots.plot_fit(fit, data, channel=ch if data is not None else None)))
+                out.append(
+                    (
+                        f"{ch} {cond}".strip(),
+                        plots.plot_fit(fit, data, channel=ch if data is not None else None),
+                    )
+                )
     elif isinstance(result, ResponseFit):
         out.append(("Fit", plots.plot_fit(result)))
     elif isinstance(result, ResponseTest):
@@ -130,14 +164,32 @@ def _png(fig):
 def markdown(result, *, data=None):
     """Markdown report: methods text, summary table, quality summary, provenance steps."""
 
-    lines = [f"# evoparam report ({type(result).__name__})", "", RESEARCH_USE, "",
-             "## Methods", "", methods_text(result), "", "## Summary", ""]
+    lines = [
+        f"# evoparam report ({type(result).__name__})",
+        "",
+        RESEARCH_USE,
+        "",
+        "## Methods",
+        "",
+        methods_text(result),
+        "",
+        "## Summary",
+        "",
+    ]
     table = _summary_table(result)
-    lines += [table.to_markdown(index=False) if _have_tabulate() else table.to_string(),
-              "", "## Quality", ""]
+    lines += [
+        table.to_markdown(index=False) if _have_tabulate() else table.to_string(),
+        "",
+        "## Quality",
+        "",
+    ]
     quality = qc(result)
-    lines += [quality.to_markdown(index=False) if _have_tabulate() else quality.to_string(),
-              "", "## Provenance", ""]
+    lines += [
+        quality.to_markdown(index=False) if _have_tabulate() else quality.to_string(),
+        "",
+        "## Provenance",
+        "",
+    ]
     for step in getattr(getattr(result, "provenance", None), "steps", []) or []:
         lines.append(f"- `{step['function']}` (evoparam {step.get('version')})")
     return "\n".join(lines) + "\n"
@@ -162,32 +214,43 @@ def html(result, path=None, *, data=None, max_channels=24):
     provenance = getattr(result, "provenance", None)
     steps = getattr(provenance, "steps", []) or []
     esc = _html.escape
-    parts = ["<!doctype html><html lang='en'><head><meta charset='utf-8'>",
-             f"<title>evoparam report: {esc(type(result).__name__)}</title>",
-             "<style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:2em auto;"
-             "padding:0 1em;color:#222}table{border-collapse:collapse;font-size:12px}"
-             "td,th{border:1px solid #ccc;padding:3px 6px;text-align:right}"
-             "th{background:#f2f2f2}.note{color:#666;font-size:13px}"
-             "img{max-width:100%}pre{white-space:pre-wrap;font-size:11px;background:#f7f7f7;"
-             "padding:1em}</style></head><body>",
-             f"<h1>evoparam report: {esc(type(result).__name__)}</h1>",
-             f"<p class='note'>evoparam {esc(__version__)}. {esc(RESEARCH_USE)}</p>",
-             "<h2>Methods</h2>", f"<p>{esc(methods_text(result))}</p>",
-             "<h2>Summary</h2>", table.to_html(index=False, float_format=lambda v: f"{v:.4g}",
-                                               na_rep=""),
-             "<h2>Quality</h2>", quality.to_html(index=False)]
+    parts = [
+        "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
+        f"<title>evoparam report: {esc(type(result).__name__)}</title>",
+        "<style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:2em auto;"
+        "padding:0 1em;color:#222}table{border-collapse:collapse;font-size:12px}"
+        "td,th{border:1px solid #ccc;padding:3px 6px;text-align:right}"
+        "th{background:#f2f2f2}.note{color:#666;font-size:13px}"
+        "img{max-width:100%}pre{white-space:pre-wrap;font-size:11px;background:#f7f7f7;"
+        "padding:1em}</style></head><body>",
+        f"<h1>evoparam report: {esc(type(result).__name__)}</h1>",
+        f"<p class='note'>evoparam {esc(__version__)}. {esc(RESEARCH_USE)}</p>",
+        "<h2>Methods</h2>",
+        f"<p>{esc(methods_text(result))}</p>",
+        "<h2>Summary</h2>",
+        table.to_html(index=False, float_format=lambda v: f"{v:.4g}", na_rep=""),
+        "<h2>Quality</h2>",
+        quality.to_html(index=False),
+    ]
     if warnings:
         parts += ["<h2>Warnings</h2><ul>"] + [f"<li>{esc(w)}</li>" for w in warnings] + ["</ul>"]
     if figures:
         parts.append("<h2>Figures</h2>")
         for title, fig in figures:
-            parts.append(f"<h3>{esc(title)}</h3><img alt='{esc(title)}' "
-                         f"src='data:image/png;base64,{_png(fig)}'>")
-    record = {"steps": steps, "source": getattr(provenance, "source", {}),
-              "environment": getattr(provenance, "environment", {})}
-    parts += ["<h2>Provenance</h2>",
-              f"<pre>{esc(json.dumps(record, indent=1, default=str))}</pre>",
-              "</body></html>"]
+            parts.append(
+                f"<h3>{esc(title)}</h3><img alt='{esc(title)}' "
+                f"src='data:image/png;base64,{_png(fig)}'>"
+            )
+    record = {
+        "steps": steps,
+        "source": getattr(provenance, "source", {}),
+        "environment": getattr(provenance, "environment", {}),
+    }
+    parts += [
+        "<h2>Provenance</h2>",
+        f"<pre>{esc(json.dumps(record, indent=1, default=str))}</pre>",
+        "</body></html>",
+    ]
     text = "\n".join(parts)
     if path is None:
         return text
@@ -202,8 +265,11 @@ def _sites(values, column="stim_site"):
     meta = getattr(values, "metadata", None)
     if meta is None or column not in meta.columns:
         return []
-    return [str(v) for v in dict.fromkeys(meta[column].astype(str))
-            if v not in ("", "n/a", "nan", "None")]
+    return [
+        str(v)
+        for v in dict.fromkeys(meta[column].astype(str))
+        if v not in ("", "n/a", "nan", "None")
+    ]
 
 
 def site_pages(result, data=None, *, site_column="stim_site"):
@@ -220,13 +286,17 @@ def site_pages(result, data=None, *, site_column="stim_site"):
     known = _sites(data, site_column) if data is not None else []
     pages = {}
     for channel, cond, pos in result.index[["channel", "condition", "position"]].itertuples(
-            index=False):
+        index=False
+    ):
         cond = str(cond)
         # the part of the label that is a site of the data, else the whole label (by=site)
         site = next((p for p in cond.split("/") if p in known), cond) if cond else None
         if site is None:
-            site = known[0] if len(known) == 1 else (
-                "all stimulation sites pooled" if len(known) > 1 else "all trials")
+            site = (
+                known[0]
+                if len(known) == 1
+                else ("all stimulation sites pooled" if len(known) > 1 else "all trials")
+            )
         pages.setdefault(site, []).append((str(channel), cond, int(pos)))
     return list(pages.items())
 
@@ -263,8 +333,10 @@ def pdf(result, path, *, data=None, max_channels=24, site_column="stim_site"):
 
     with PdfPages(path) as pages:
         fig = plt.figure(figsize=(8.27, 11.69))
-        text = (f"evoparam {__version__} report: {type(result).__name__}\n\n{RESEARCH_USE}\n\n"
-                f"Methods\n{methods_text(result)}\n\nQuality\n{qc(result).to_string(index=False)}")
+        text = (
+            f"evoparam {__version__} report: {type(result).__name__}\n\n{RESEARCH_USE}\n\n"
+            f"Methods\n{methods_text(result)}\n\nQuality\n{qc(result).to_string(index=False)}"
+        )
         fig.text(0.07, 0.95, _wrap(text, 95), va="top", family="monospace", fontsize=7)
         pages.savefig(fig)
         plt.close(fig)
@@ -274,8 +346,13 @@ def pdf(result, path, *, data=None, max_channels=24, site_column="stim_site"):
                 # several conditions of one site: one panel per channel and condition
                 names = [f"{n} {c}" if len(conds) > 1 else n for n, c, _ in members]
                 sub = GroupFit.from_fits([result.fits[pos] for _, _, pos in members], names)
-                site_data = None if len(conds) > 1 else _site_data(
-                    data, site, site_column, len(set(result.index["condition"])) == 1)
+                site_data = (
+                    None
+                    if len(conds) > 1
+                    else _site_data(
+                        data, site, site_column, len(set(result.index["condition"])) == 1
+                    )
+                )
                 fig = plots.plot_group(sub, site_data, max_channels=max(64, len(members)))
                 fig.suptitle(f"stimulation site: {site}")
                 pages.savefig(fig)

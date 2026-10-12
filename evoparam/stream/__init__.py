@@ -21,5 +21,13 @@ interlock, and acting on its output is the user's responsibility.
 from ._fitter import INTENDED_USE, STATUSES, PulseEstimate, StreamFitter, replay
 from .lsl import FIELDS, LSLInlet, LSLOutlet
 
-__all__ = ["StreamFitter", "PulseEstimate", "replay", "LSLInlet", "LSLOutlet", "INTENDED_USE",
-           "STATUSES", "FIELDS"]
+__all__ = [
+    "StreamFitter",
+    "PulseEstimate",
+    "replay",
+    "LSLInlet",
+    "LSLOutlet",
+    "INTENDED_USE",
+    "STATUSES",
+    "FIELDS",
+]

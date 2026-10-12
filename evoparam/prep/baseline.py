@@ -59,20 +59,32 @@ def _check_delayed(ts, baseline, delayed_margin, source):
     shortest = float(np.min(gaps))
     latest_start = -(shortest - delayed_margin)
     if latest_start < baseline[1]:
-        suggestion = (f"baseline=({latest_start:.3f}, {baseline[1]:.3f})")
+        suggestion = f"baseline=({latest_start:.3f}, {baseline[1]:.3f})"
     else:
-        suggestion = ("baseline_source='first_pulse' (each pulse uses the baseline of the "
-                      "first pulse of its train), or a smaller delayed_margin if delayed "
-                      "responses are not expected")
+        suggestion = (
+            "baseline_source='first_pulse' (each pulse uses the baseline of the "
+            "first pulse of its train), or a smaller delayed_margin if delayed "
+            "responses are not expected"
+        )
     _warn(
         f"baseline {tuple(baseline)} s starts within {delayed_margin} s of the previous pulse "
         f"for {int(bad.sum())} of {len(bad)} trials (shortest interval between pulses "
         f"{shortest:.3f} s): delayed responses of the previous pulse may bias it. "
-        f"Suggested: {suggestion}.", UserWarning, stacklevel=3)
+        f"Suggested: {suggestion}.",
+        UserWarning,
+        stacklevel=3,
+    )
 
 
-def baseline_correct(ts, baseline=(-0.5, -0.05), *, mode="mean", check=True,
-                     delayed_margin=1.0, baseline_source="own"):
+def baseline_correct(
+    ts,
+    baseline=(-0.5, -0.05),
+    *,
+    mode="mean",
+    check=True,
+    delayed_margin=1.0,
+    baseline_source="own",
+):
     """Subtract each trial's and channel's baseline.
 
     ``x(t) - m`` with ``m`` the mean (or median) of the baseline window, or with a straight
@@ -115,8 +127,10 @@ def baseline_correct(ts, baseline=(-0.5, -0.05), *, mode="mean", check=True,
     values = masked_values(ts)[:, :, inside]
     valid = np.sum(~np.isnan(values), axis=-1)
     if np.any(valid < MIN_VALID_FRACTION * inside.sum()):
-        raise DataError(f"baseline {tuple(baseline)} s: fewer than half of its samples are "
-                        "unmasked for some trial and channel; move or widen the baseline.")
+        raise DataError(
+            f"baseline {tuple(baseline)} s: fewer than half of its samples are "
+            "unmasked for some trial and channel; move or widen the baseline."
+        )
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
@@ -127,7 +141,7 @@ def baseline_correct(ts, baseline=(-0.5, -0.05), *, mode="mean", check=True,
             n = w.sum(-1)
             st, sv = (w * t).sum(-1), v.sum(-1)
             stt, stv = (w * t * t).sum(-1), (v * t).sum(-1)
-            slope = (n * stv - st * sv) / (n * stt - st ** 2)
+            slope = (n * stv - st * sv) / (n * stt - st**2)
             offset = (sv - slope * st) / n
             trend = offset[..., None] + slope[..., None] * (ts.times - ts.times[inside].mean())
         else:
@@ -144,10 +158,19 @@ def baseline_correct(ts, baseline=(-0.5, -0.05), *, mode="mean", check=True,
         trend = trend[first]
 
     data = ts.data - trend
-    return new(ts, "evoparam.prep.baseline_correct",
-               {"baseline": list(baseline), "mode": mode, "check": check,
-                "delayed_margin": delayed_margin, "baseline_source": baseline_source},
-               start, data=data)
+    return new(
+        ts,
+        "evoparam.prep.baseline_correct",
+        {
+            "baseline": list(baseline),
+            "mode": mode,
+            "check": check,
+            "delayed_margin": delayed_margin,
+            "baseline_source": baseline_source,
+        },
+        start,
+        data=data,
+    )
 
 
 def _continuous(raw, sfreq, t0, ts):
@@ -168,15 +191,17 @@ def _continuous(raw, sfreq, t0, ts):
         return data, float(raw.sfreq), float(raw.times[0])
     data = np.atleast_2d(np.asarray(raw, dtype=float))
     if data.shape[0] != ts.n_channels:
-        raise DataError(f"train_baseline: raw has {data.shape[0]} channels, the trials "
-                        f"{ts.n_channels}.")
+        raise DataError(
+            f"train_baseline: raw has {data.shape[0]} channels, the trials {ts.n_channels}."
+        )
     if sfreq is None:
         raise DataError("train_baseline: sfreq is required with an array raw.")
     return data, float(sfreq), float(t0)
 
 
-def train_baseline(ts, length=0.05, *, raw=None, sfreq=None, t0=0.0, train_column="train_id",
-                   mode="mean"):
+def train_baseline(
+    ts, length=0.05, *, raw=None, sfreq=None, t0=0.0, train_column="train_id", mode="mean"
+):
     """Baseline per stimulation train: per channel, the mean (or median) of the last
     ``length`` seconds before each train is subtracted from every trial (pulse) of that
     train (spec §6.1, preset ``erna``: "per train: last 50 ms before the train").
@@ -239,24 +264,40 @@ def train_baseline(ts, length=0.05, *, raw=None, sfreq=None, t0=0.0, train_colum
             stop = int(round((onset - first_time) * rate))
             begin = stop - n_wanted
             if begin < 0 or stop > data.shape[1]:
-                raise DataError(f"train_baseline: the {length * 1000:g} ms before the train "
-                                f"at {onset:.3f} s are outside raw.")
+                raise DataError(
+                    f"train_baseline: the {length * 1000:g} ms before the train "
+                    f"at {onset:.3f} s are outside raw."
+                )
             segment = data[:, begin:stop]
         else:
             inside = (ts.times >= -length - 0.5 / ts.sfreq) & (ts.times < 0)
             if ts.times[0] > -length + 0.5 / ts.sfreq:
-                raise DataError(f"train_baseline: the epochs start at {ts.times[0]:.4f} s; "
-                                f"the last {length * 1000:g} ms before the train need epochs "
-                                f"from -{length:g} s, or the continuous recording (raw=).")
+                raise DataError(
+                    f"train_baseline: the epochs start at {ts.times[0]:.4f} s; "
+                    f"the last {length * 1000:g} ms before the train need epochs "
+                    f"from -{length:g} s, or the continuous recording (raw=)."
+                )
             segment = values[lead][:, inside]
         valid = np.sum(np.isfinite(segment), axis=1)
         if np.any(valid < MIN_VALID_FRACTION * max(segment.shape[1], 1)):
-            raise DataError(f"train_baseline: fewer than half of the baseline samples of "
-                            f"train {key} are unmasked.")
+            raise DataError(
+                f"train_baseline: fewer than half of the baseline samples of "
+                f"train {key} are unmasked."
+            )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             levels[rows] = stat(segment, axis=1)[None]
     data_out = ts.data - levels[..., None]
-    return new(ts, "evoparam.prep.train_baseline",
-               {"length": float(length), "mode": mode, "trains": rule, "source": source,
-                "n_trains": int(len(set(keys)))}, start, data=data_out)
+    return new(
+        ts,
+        "evoparam.prep.train_baseline",
+        {
+            "length": float(length),
+            "mode": mode,
+            "trains": rule,
+            "source": source,
+            "n_trains": int(len(set(keys))),
+        },
+        start,
+        data=data_out,
+    )

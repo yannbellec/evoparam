@@ -28,33 +28,43 @@ NO_ARTIFACT = dict(pulse_artifact=False, decay_artifact=False, muscle_artifact=F
 # Median-nerve SEP (N20, P25, N33; as in the REQ-277 case of test_presets_sim): the P1, N1
 # and P3 of the ERP defaults lie after the 10-60 ms window of the sep preset, where a fit
 # rightly finds no response.
-SEP_COMPONENTS = (dict(label="N20", latency=0.020, fwhm=0.004, amplitude=-1.0),
-                  dict(label="P25", latency=0.025, fwhm=0.006, amplitude=0.8),
-                  dict(label="N33", latency=0.033, fwhm=0.008, amplitude=-0.6))
+SEP_COMPONENTS = (
+    dict(label="N20", latency=0.020, fwhm=0.004, amplitude=-1.0),
+    dict(label="P25", latency=0.025, fwhm=0.006, amplitude=0.8),
+    dict(label="N33", latency=0.033, fwhm=0.008, amplitude=-0.6),
+)
 
 # One simulated waveform per modality (§5.12 generators): the epoch covers the preset's
 # window. TEP at 1 kHz: the 5 kHz default takes about 70 s per fit (measured), the same
 # waveform at 1 kHz about 2 s.
 MODALITIES = {
-    "ccep": lambda: sim.simulate_ccep(n_trials=10, n_channels=4, p_response=1.0,
-                                      layout="grid", seed=0),
-    "ccep_seeg": lambda: sim.simulate_ccep(n_trials=10, n_channels=4, p_response=1.0,
-                                           layout="seeg", seed=0),
-    "ecap": lambda: sim.simulate_ecap(n_trials=20, n_channels=3, kind="spinal", tmax=0.0035,
-                                      seed=0),
-    "ecap_ci": lambda: sim.simulate_ecap(n_trials=20, n_channels=3, kind="cochlear",
-                                         tmax=0.0035, seed=0),
+    "ccep": lambda: sim.simulate_ccep(
+        n_trials=10, n_channels=4, p_response=1.0, layout="grid", seed=0
+    ),
+    "ccep_seeg": lambda: sim.simulate_ccep(
+        n_trials=10, n_channels=4, p_response=1.0, layout="seeg", seed=0
+    ),
+    "ecap": lambda: sim.simulate_ecap(
+        n_trials=20, n_channels=3, kind="spinal", tmax=0.0035, seed=0
+    ),
+    "ecap_ci": lambda: sim.simulate_ecap(
+        n_trials=20, n_channels=3, kind="cochlear", tmax=0.0035, seed=0
+    ),
     "erna": lambda: sim.simulate_erna(n_trials=10, n_channels=2, seed=0),
     "erp": lambda: sim.simulate_erp(n_trials=30, seed=0),
     "p300_bci": lambda: sim.simulate_erp(n_trials=30, seed=0),
-    "sep": lambda: sim.simulate_erp(n_trials=30, sfreq=5000.0, tmin=-0.05, tmax=0.1,
-                                    components=SEP_COMPONENTS, seed=0),
-    "primate_ep": lambda: sim.simulate_animal_ep(n_trials=30, n_channels=4, species="macaque",
-                                                 seed=0),
-    "rodent_ep": lambda: sim.simulate_animal_ep(n_trials=30, n_channels=4, species="mouse",
-                                                seed=0),
-    "tep": lambda: sim.simulate_tep(n_trials=20, n_channels=4, sfreq=1000.0, seed=0,
-                                    **NO_ARTIFACT),
+    "sep": lambda: sim.simulate_erp(
+        n_trials=30, sfreq=5000.0, tmin=-0.05, tmax=0.1, components=SEP_COMPONENTS, seed=0
+    ),
+    "primate_ep": lambda: sim.simulate_animal_ep(
+        n_trials=30, n_channels=4, species="macaque", seed=0
+    ),
+    "rodent_ep": lambda: sim.simulate_animal_ep(
+        n_trials=30, n_channels=4, species="mouse", seed=0
+    ),
+    "tep": lambda: sim.simulate_tep(
+        n_trials=20, n_channels=4, sfreq=1000.0, seed=0, **NO_ARTIFACT
+    ),
 }
 
 
@@ -94,8 +104,9 @@ def test_req001_same_columns_for_every_preset(results):
     reference = columns["ccep"]
     for name, names in columns.items():
         assert names == reference, name
-    fit_columns = {name: list(group.to_dataframe(level="fit").columns)
-                   for name, group in results.items()}
+    fit_columns = {
+        name: list(group.to_dataframe(level="fit").columns) for name, group in results.items()
+    }
     for name, names in fit_columns.items():
         assert names == fit_columns["ccep"], name
 
@@ -106,6 +117,7 @@ def test_req001_only_the_preset_differs(results):
 
 
 # REQ-002 -----------------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def trials():

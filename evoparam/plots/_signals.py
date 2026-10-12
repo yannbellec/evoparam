@@ -43,8 +43,9 @@ def _rows(values):
     return [np.asarray(row) for row in values]
 
 
-def plot_signals(times, signals, *, colors=None, labels=None, ax=None, linewidth=2.0,
-                 ylabel="Amplitude"):
+def plot_signals(
+    times, signals, *, colors=None, labels=None, ax=None, linewidth=2.0, ylabel="Amplitude"
+):
     """Plot one or several waveforms.
 
     Parameters
@@ -73,8 +74,9 @@ def plot_signals(times, signals, *, colors=None, labels=None, ax=None, linewidth
         time_rows = _rows(times)
     if len(time_rows) != len(rows):
         raise SettingsError("times must be one array or one array per waveform.")
-    colors = cycle(colors if isinstance(colors, (list, tuple)) else
-                   [colors] if colors else PALETTE)
+    colors = cycle(
+        colors if isinstance(colors, (list, tuple)) else [colors] if colors else PALETTE
+    )
     labels = cycle(labels if isinstance(labels, (list, tuple)) else [labels])
     for time, row, color, label in zip(time_rows, rows, colors, labels):
         ax.plot(time, row, color=color, label=label, linewidth=linewidth)
@@ -82,8 +84,9 @@ def plot_signals(times, signals, *, colors=None, labels=None, ax=None, linewidth
     return fig
 
 
-def plot_signals_shading(times, signals, shades, *, shade_colors="#E69F00", add_center=False,
-                         ax=None, **kwargs):
+def plot_signals_shading(
+    times, signals, shades, *, shade_colors="#E69F00", add_center=False, ax=None, **kwargs
+):
     """Plot waveforms with one or several shaded time windows.
 
     Parameters
@@ -116,8 +119,19 @@ def plot_signals_shading(times, signals, shades, *, shade_colors="#E69F00", add_
     return fig
 
 
-def plot_signals_yshade(times, signals, *, shade="std", average="mean", scale=1.0, color=None,
-                        label=None, alpha=0.25, ax=None, ylabel="Amplitude"):
+def plot_signals_yshade(
+    times,
+    signals,
+    *,
+    shade="std",
+    average="mean",
+    scale=1.0,
+    color=None,
+    label=None,
+    alpha=0.25,
+    ax=None,
+    ylabel="Amplitude",
+):
     """Plot the average waveform with a shaded band above and below it.
 
     Parameters
@@ -210,8 +224,8 @@ def plot_scatter_2(data_0, label_0, data_1, label_1, title=None, *, ax=None, ran
     both = strip_jitter(data_0.size + data_1.size, random_state=random_state)
     fig, ax = _figure_ax(ax, figsize=(4.0, 3.5))
     other = ax.twinx()
-    _strip(data_0, both[:data_0.size].reshape(data_0.shape), label_0, None, 0, ax)
-    _strip(data_1, 1 + both[data_0.size:].reshape(data_1.shape), label_1, None, 1, other)
+    _strip(data_0, both[: data_0.size].reshape(data_0.shape), label_0, None, 0, ax)
+    _strip(data_1, 1 + both[data_0.size :].reshape(data_1.shape), label_1, None, 1, other)
     for collection in other.collections:
         collection.set_color(PALETTE[1])
     if title:

@@ -65,6 +65,7 @@ __all__ = ["variance_components", "VarianceResult", "reml"]
 ###################################################################################################
 ## Numerical core
 
+
 def _codes(groups):
     """Nested integer codes: unit ``k`` of level ``l`` is the combination of the labels of
     levels ``0..l``; returns the codes and the labels of each unit."""
@@ -73,8 +74,11 @@ def _codes(groups):
     keys = None
     for column in groups:
         column = [str(v) for v in column]
-        keys = [(k,) for k in column] if keys is None else \
-            [prev + (k,) for prev, k in zip(keys, column)]
+        keys = (
+            [(k,) for k in column]
+            if keys is None
+            else [prev + (k,) for prev, k in zip(keys, column)]
+        )
         unique = list(dict.fromkeys(keys))
         lookup = {key: i for i, key in enumerate(unique)}
         codes.append(np.array([lookup[key] for key in keys], dtype=np.int64))
@@ -101,9 +105,17 @@ class _Blocks:
                     level_of.append(level)
                     unit_of.append(unit)
             Z = np.column_stack(columns).astype(float)
-            self.blocks.append({"rows": rows, "y": y[rows], "X": X[rows], "Z": Z,
-                                "se2": se2[rows], "level": np.array(level_of),
-                                "unit": np.array(unit_of)})
+            self.blocks.append(
+                {
+                    "rows": rows,
+                    "y": y[rows],
+                    "X": X[rows],
+                    "Z": Z,
+                    "se2": se2[rows],
+                    "level": np.array(level_of),
+                    "unit": np.array(unit_of),
+                }
+            )
 
     def solve(self, sds, sd_res):
         """Accumulate X'V^-1 X, X'V^-1 y, y'V^-1 y and log|V| for the given SDs."""
@@ -112,7 +124,7 @@ class _Blocks:
         xvx, xvy, yvy, logdet = np.zeros((p, p)), np.zeros(p), 0.0, 0.0
         cache = []
         for blk in self.blocks:
-            d = blk["se2"] + sd_res ** 2
+            d = blk["se2"] + sd_res**2
             if np.any(d <= 0):
                 return None
             lam = sds[blk["level"]]
@@ -161,7 +173,7 @@ def _one_level_profile(y, code):
     N = len(y)
 
     def parts(gamma):
-        w = n_i / (1 + gamma * n_i)                  # 1' H_i^-1 1 for each unit
+        w = n_i / (1 + gamma * n_i)  # 1' H_i^-1 1 for each unit
         mu = np.sum(w * ybar) / np.sum(w)
         quad = within + np.sum(w * (ybar - mu) ** 2)  # r' H^-1 r
         logdet = np.sum(np.log1p(gamma * n_i))
@@ -179,10 +191,12 @@ def _one_level_profile(y, code):
     values = [neg(g) for g in grid]
     best = int(np.argmin(values))
     lo, hi = np.log(grid[max(best - 1, 0)]), np.log(grid[min(best + 1, len(grid) - 1)])
-    res = minimize_scalar(lambda lg: neg(np.exp(lg)), bounds=(lo, hi), method="bounded",
-                          options={"xatol": 1e-12})
-    gamma, value = (np.exp(res.x), res.fun) if res.fun <= values[best] else \
-        (grid[best], values[best])
+    res = minimize_scalar(
+        lambda lg: neg(np.exp(lg)), bounds=(lo, hi), method="bounded", options={"xatol": 1e-12}
+    )
+    gamma, value = (
+        (np.exp(res.x), res.fun) if res.fun <= values[best] else (grid[best], values[best])
+    )
     if neg(0.0) <= value:
         gamma = 0.0
     _, quad, _, _ = parts(gamma)
@@ -264,18 +278,25 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
         n_par = n_levels + int(residual)
 
         def fun(theta):
-            sds_, res_ = theta[:n_levels] * scale, (theta[n_levels] * scale if residual else 0.)
+            sds_, res_ = theta[:n_levels] * scale, (theta[n_levels] * scale if residual else 0.0)
             return blocks.objective(sds_, res_)[0]
 
         # without sampling variances, a zero residual would make V singular
         floor = 1e-6 if (residual and not np.any(se2 > 0)) else 0.0
         bounds = [(0.0, None)] * n_levels + [(floor, None)] * int(residual)
-        starts = [np.full(n_par, 1.0 / np.sqrt(n_par)),
-                  np.r_[np.full(n_levels, 0.1), [1.0] * int(residual)]]
+        starts = [
+            np.full(n_par, 1.0 / np.sqrt(n_par)),
+            np.r_[np.full(n_levels, 0.1), [1.0] * int(residual)],
+        ]
         best = None
         for x0 in starts:
-            res = minimize(fun, x0, method="L-BFGS-B", bounds=bounds,
-                           options={"maxiter": max_iter, "ftol": tol, "gtol": 1e-8})
+            res = minimize(
+                fun,
+                x0,
+                method="L-BFGS-B",
+                bounds=bounds,
+                options={"maxiter": max_iter, "ftol": tol, "gtol": 1e-8},
+            )
             n_iter += int(res.nit)
             if best is None or res.fun < best.fun:
                 best = res
@@ -290,7 +311,8 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
     xvx, _, _, _, cache = blocks.solve(sds, sd_res)
     beta_cov = np.linalg.inv(xvx)
     blup, blup_se, unit_mean, unit_mean_se, shrinkage, n_obs = (
-        [np.zeros(len(lab)) for lab in labels] for _ in range(6))
+        [np.zeros(len(lab)) for lab in labels] for _ in range(6)
+    )
     for blk, (d, lam, zl, chol) in zip(blocks.blocks, cache):
         Xb, Zb = blk["X"], blk["Z"]
         r = blk["y"] - Xb @ beta
@@ -307,9 +329,12 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
         path = path.astype(float)
         mean = xbar @ beta + path @ est
         xc = xbar @ beta_cov
-        mean_var = (np.sum(xc * xbar, axis=1) + np.sum((path @ M) * path, axis=1)
-                    - 2 * np.sum((xc @ H.T) * path, axis=1))
-        var_u = lam ** 2
+        mean_var = (
+            np.sum(xc * xbar, axis=1)
+            + np.sum((path @ M) * path, axis=1)
+            - 2 * np.sum((xc @ H.T) * path, axis=1)
+        )
+        var_u = lam**2
         with np.errstate(divide="ignore", invalid="ignore"):
             weight = np.where(var_u > 0, 1.0 - np.diag(cond) / var_u, 0.0)
         for level in range(n_levels):
@@ -322,15 +347,27 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
             shrinkage[level][units] = np.clip(weight[sel], 0.0, 1.0)
             n_obs[level][units] = counts[sel]
     loglik = -0.5 * (value + (n - p) * np.log(2 * np.pi))
-    return {"variances": [float(s ** 2) for s in sds], "residual": float(sd_res ** 2),
-            "beta": beta, "beta_cov": beta_cov, "blup": blup, "blup_se": blup_se,
-            "unit_mean": unit_mean, "unit_mean_se": unit_mean_se, "shrinkage": shrinkage,
-            "n_obs": [c.astype(np.int64) for c in n_obs], "labels": labels, "loglik": float(loglik), "converged": bool(converged),
-            "n_iter": int(n_iter)}
+    return {
+        "variances": [float(s**2) for s in sds],
+        "residual": float(sd_res**2),
+        "beta": beta,
+        "beta_cov": beta_cov,
+        "blup": blup,
+        "blup_se": blup_se,
+        "unit_mean": unit_mean,
+        "unit_mean_se": unit_mean_se,
+        "shrinkage": shrinkage,
+        "n_obs": [c.astype(np.int64) for c in n_obs],
+        "labels": labels,
+        "loglik": float(loglik),
+        "converged": bool(converged),
+        "n_iter": int(n_iter),
+    }
 
 
 ###################################################################################################
 ## Table interface
+
 
 @dataclass(eq=False)
 class VarianceResult:
@@ -425,27 +462,43 @@ def variance_components(table, *, value, groups, se=None, fixed=None, residual=T
         keep &= np.isfinite(pd.to_numeric(table[se], errors="coerce").to_numpy(float))
     data = table.loc[keep]
     design = pd.get_dummies(data[fixed], drop_first=True, dtype=float) if fixed else None
-    X = np.ones((len(data), 1)) if design is None else \
-        np.column_stack([np.ones(len(data)), design.to_numpy(float)])
+    X = (
+        np.ones((len(data), 1))
+        if design is None
+        else np.column_stack([np.ones(len(data)), design.to_numpy(float)])
+    )
     names = ["(Intercept)"] + ([] if design is None else list(design.columns))
-    out = reml(data[value].to_numpy(float), [data[g].to_numpy() for g in groups],
-               se=None if se is None else data[se].to_numpy(float), X=X, residual=residual)
-    rows = [{"level": g, "variance": v, "n_units": len(lab)}
-            for g, v, lab in zip(groups, out["variances"], out["labels"])]
+    out = reml(
+        data[value].to_numpy(float),
+        [data[g].to_numpy() for g in groups],
+        se=None if se is None else data[se].to_numpy(float),
+        X=X,
+        residual=residual,
+    )
+    rows = [
+        {"level": g, "variance": v, "n_units": len(lab)}
+        for g, v, lab in zip(groups, out["variances"], out["labels"])
+    ]
     rows.append({"level": "residual", "variance": out["residual"], "n_units": len(data)})
     if se is not None:
-        rows.append({"level": "sampling", "variance": float(np.mean(data[se].to_numpy(float) ** 2)),
-                     "n_units": len(data)})
+        rows.append(
+            {
+                "level": "sampling",
+                "variance": float(np.mean(data[se].to_numpy(float) ** 2)),
+                "n_units": len(data),
+            }
+        )
     vc = pd.DataFrame(rows)
     vc["sd"] = np.sqrt(vc["variance"])
     total = vc["variance"].sum()
     vc["fraction"] = vc["variance"] / total if total > 0 else np.nan
     vc = vc[["level", "variance", "sd", "n_units", "fraction"]]
-    fixed_table = pd.DataFrame({"term": names, "estimate": out["beta"],
-                                "se": np.sqrt(np.diag(out["beta_cov"]))})
+    fixed_table = pd.DataFrame(
+        {"term": names, "estimate": out["beta"], "se": np.sqrt(np.diag(out["beta_cov"]))}
+    )
     effects = {}
     for level, (g, lab) in enumerate(zip(groups, out["labels"])):
-        frame = pd.DataFrame(list(lab), columns=groups[:level + 1])
+        frame = pd.DataFrame(list(lab), columns=groups[: level + 1])
         frame["n_obs"] = out["n_obs"][level]
         frame["estimate"] = out["blup"][level]
         frame["se"] = out["blup_se"][level]
@@ -453,11 +506,25 @@ def variance_components(table, *, value, groups, se=None, fixed=None, residual=T
         frame["shrunken_se"] = out["unit_mean_se"][level]
         frame["shrinkage"] = out["shrinkage"][level]
         effects[g] = frame
-    settings = {"value": value, "groups": groups, "se": se, "fixed": fixed,
-                "residual": residual, "method": "reml", "n_used": int(keep.sum()),
-                "n_excluded": int((~keep).sum())}
-    provenance = Provenance().with_step("evoparam.stats.variance_components", settings,
-                                        duration_s=_time.perf_counter() - start)
-    return VarianceResult(table=vc, fixed=fixed_table, random_effects=effects,
-                          loglik=out["loglik"], converged=out["converged"], settings=settings,
-                          provenance=provenance)
+    settings = {
+        "value": value,
+        "groups": groups,
+        "se": se,
+        "fixed": fixed,
+        "residual": residual,
+        "method": "reml",
+        "n_used": int(keep.sum()),
+        "n_excluded": int((~keep).sum()),
+    }
+    provenance = Provenance().with_step(
+        "evoparam.stats.variance_components", settings, duration_s=_time.perf_counter() - start
+    )
+    return VarianceResult(
+        table=vc,
+        fixed=fixed_table,
+        random_effects=effects,
+        loglik=out["loglik"],
+        converged=out["converged"],
+        settings=settings,
+        provenance=provenance,
+    )

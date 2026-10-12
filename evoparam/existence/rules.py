@@ -11,11 +11,27 @@ from evoparam.errors import SettingsError
 
 __all__ = ["load_rules", "resolve_rule", "apply_rule", "selective_maxima", "RULE_FIELDS"]
 
-RULE_FIELDS = ("statistic", "k", "window", "baseline", "polarity", "min_duration", "sd_floor_uv",
-               "peak", "peak_selectivity_uv", "peak_search_end", "exclude_first_sample",
-               "saturation_uv")
-STATISTICS = ("negative_peak_over_sd", "negative_peak_z", "abs_peak_z", "abs_peak_z_bandpass",
-              "rms_z")
+RULE_FIELDS = (
+    "statistic",
+    "k",
+    "window",
+    "baseline",
+    "polarity",
+    "min_duration",
+    "sd_floor_uv",
+    "peak",
+    "peak_selectivity_uv",
+    "peak_search_end",
+    "exclude_first_sample",
+    "saturation_uv",
+)
+STATISTICS = (
+    "negative_peak_over_sd",
+    "negative_peak_z",
+    "abs_peak_z",
+    "abs_peak_z_bandpass",
+    "rms_z",
+)
 
 
 def load_rules():
@@ -37,8 +53,14 @@ def resolve_rule(rule, **overrides):
 
     registry = load_rules()
     if isinstance(rule, dict):
-        spec = {"statistic": "abs_peak_z", "polarity": "both", "min_duration": 0.0,
-                "sd_floor_uv": None, "unspecified": [], "source": "custom"}
+        spec = {
+            "statistic": "abs_peak_z",
+            "polarity": "both",
+            "min_duration": 0.0,
+            "sd_floor_uv": None,
+            "unspecified": [],
+            "source": "custom",
+        }
         spec.update(rule)
         name = spec.get("name", "custom")
     elif rule in registry:
@@ -54,7 +76,8 @@ def resolve_rule(rule, **overrides):
         raise SettingsError(
             f"Rule {name!r} ({spec.get('source', 'custom')}): the field(s) {missing} are not "
             f"stated by the paper and must be supplied (for example "
-            f"{missing[0]}=...){'; ' + hint if hint else ''}.")
+            f"{missing[0]}=...){'; ' + hint if hint else ''}."
+        )
     if spec["statistic"] not in STATISTICS:
         raise SettingsError(f"Rule statistic must be one of {STATISTICS}.")
     if spec.get("peak", "extremum") not in ("extremum", "local"):
@@ -142,15 +165,18 @@ def _local_negative_peak(z, times, spec, units, sd):
     ``saturation_uv`` (data in microvolts)."""
 
     start = int(np.argmax(times > spec["window"][0]))
-    end = int(np.argmax(times > spec["window"][1])) if times[-1] > spec["window"][1] \
+    end = (
+        int(np.argmax(times > spec["window"][1]))
+        if times[-1] > spec["window"][1]
         else len(times) - 1
+    )
     last = spec.get("peak_search_end") or spec["window"][1]
     stop = int(np.argmax(times > last)) if times[-1] > last else len(times) - 1
     in_uv = units == "uV"
     stat = np.full(len(z), -np.inf)
     peak = np.full(len(z), np.nan)
     for c, row in enumerate(z):
-        seg = row[start:stop + 1]
+        seg = row[start : stop + 1]
         if not np.all(np.isfinite(seg)):
             continue
         sel = (spec.get("peak_selectivity_uv") or 0.0) / sd[c] if in_uv else 0.0
@@ -203,8 +229,10 @@ def apply_rule(avg, times, sfreq, spec, units="uV"):
     base = (times >= spec["baseline"][0]) & (times <= spec["baseline"][1])
     if not win.any() or not base.any():
         raise SettingsError(f"Rule {spec['name']!r}: window or baseline outside the epoch.")
-    local = spec.get("peak") == "local" and spec["statistic"] in ("negative_peak_over_sd",
-                                                                   "negative_peak_z")
+    local = spec.get("peak") == "local" and spec["statistic"] in (
+        "negative_peak_over_sd",
+        "negative_peak_z",
+    )
     if local:
         level = np.median(avg[:, base], axis=1, keepdims=True)
     else:
@@ -232,10 +260,15 @@ def apply_rule(avg, times, sfreq, spec, units="uV"):
         stat, peak = _local_negative_peak(z, times, spec, units, sd[:, 0])
         significant = stat > spec["k"]
         stat = np.where(np.isfinite(stat), stat, np.nan)
-        return {"statistic": stat, "significant": significant, "onset": peak, "offset": peak,
-                **curve}
+        return {
+            "statistic": stat,
+            "significant": significant,
+            "onset": peak,
+            "offset": peak,
+            **curve,
+        }
     if stat_kind == "rms_z":
-        stat = np.sqrt(np.mean(seg ** 2, axis=1))
+        stat = np.sqrt(np.mean(seg**2, axis=1))
         peak = np.full(len(avg), np.nan)
     else:
         if stat_kind in ("negative_peak_over_sd", "negative_peak_z"):
@@ -248,5 +281,4 @@ def apply_rule(avg, times, sfreq, spec, units="uV"):
     significant = stat > spec["k"]
     if spec.get("max_peak_delay") is not None:
         significant &= np.nan_to_num(peak, nan=np.inf) <= spec["max_peak_delay"]
-    return {"statistic": stat, "significant": significant, "onset": peak, "offset": peak,
-            **curve}
+    return {"statistic": stat, "significant": significant, "onset": peak, "offset": peak, **curve}

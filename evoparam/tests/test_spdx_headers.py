@@ -18,10 +18,12 @@ import evoparam
 
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 TOOL = ROOT / "tools" / "add_spdx_headers.py"
-FIRST_COMMIT = "e6def07"            # the copy of the inherited project, renamed (NOTICE)
+FIRST_COMMIT = "e6def07"  # the copy of the inherited project, renamed (NOTICE)
 
-pytestmark = [pytest.mark.core,
-              pytest.mark.skipif(not TOOL.exists(), reason="needs the source tree")]
+pytestmark = [
+    pytest.mark.core,
+    pytest.mark.skipif(not TOOL.exists(), reason="needs the source tree"),
+]
 
 
 def _tool(name):
@@ -52,8 +54,10 @@ def test_req396_check_fails_on_a_file_without_the_header(tmp_path):
     script = tmp_path / "pkg" / "script.py"
     script.write_text("#!/usr/bin/env python\nprint(1)\n", encoding="utf-8")
     tool.add(script, root=tmp_path)
-    assert script.read_text(encoding="utf-8").splitlines()[:2] == ["#!/usr/bin/env python",
-                                                                    tool.SPDX]
+    assert script.read_text(encoding="utf-8").splitlines()[:2] == [
+        "#!/usr/bin/env python",
+        tool.SPDX,
+    ]
 
 
 def test_req396_inherited_files_carry_the_modification_notice():
@@ -62,8 +66,10 @@ def test_req396_inherited_files_carry_the_modification_notice():
     for rel, changes in tool.INHERITED.items():
         lines = (ROOT / rel).read_text(encoding="utf-8").splitlines()
         assert lines[0] == tool.SPDX, rel
-        assert lines[1].startswith("# Modified from the upstream project and commit named in "
-                                   "NOTICE (Apache-2.0); changes: "), rel
+        assert lines[1].startswith(
+            "# Modified from the upstream project and commit named in "
+            "NOTICE (Apache-2.0); changes: "
+        ), rel
         assert changes.split()[0] in " ".join(lines[1:6]), rel
     notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
     assert re.search(r"commit [0-9a-f]{40}", notice) and "Apache License, Version 2.0" in notice
@@ -81,8 +87,11 @@ def test_req396_files_derived_from_third_party_code_name_it_in_notice():
 
 def _inherited_export(tmp_path):
     archive = tmp_path / "first.tar"
-    done = subprocess.run(["git", "-C", str(ROOT), "archive", "-o", str(archive),
-                           FIRST_COMMIT], capture_output=True, text=True)
+    done = subprocess.run(
+        ["git", "-C", str(ROOT), "archive", "-o", str(archive), FIRST_COMMIT],
+        capture_output=True,
+        text=True,
+    )
     if done.returncode != 0:
         pytest.skip(f"needs the git history ({done.stderr.strip()[:80]})")
     with tarfile.open(archive) as tar:
@@ -96,9 +105,16 @@ def test_req396_every_file_with_inherited_code_is_marked(tmp_path):
 
     checker = _tool("check_no_inherited_code")
     inherited = _inherited_export(tmp_path)
-    matches = checker.check([str(ROOT / "evoparam"), str(ROOT / "tools"),
-                             str(ROOT / "benchmarks"), str(ROOT / "validation"),
-                             str(ROOT / "examples")], str(inherited))
+    matches = checker.check(
+        [
+            str(ROOT / "evoparam"),
+            str(ROOT / "tools"),
+            str(ROOT / "benchmarks"),
+            str(ROOT / "validation"),
+            str(ROOT / "examples"),
+        ],
+        str(inherited),
+    )
     files = {pathlib.Path(m[0]).resolve().relative_to(ROOT).as_posix() for m in matches}
     assert files, "the check finds the inherited module utilities"
     assert sorted(files - set(_tool("add_spdx_headers").INHERITED)) == []
@@ -107,7 +123,7 @@ def test_req396_every_file_with_inherited_code_is_marked(tmp_path):
 def _implemented_from_a_paper():
     out = []
     for path in sorted((ROOT / "evoparam").rglob("*.py")):
-        if "tests" in path.parts or path.name == "__init__.py":    # packages only summarise
+        if "tests" in path.parts or path.name == "__init__.py":  # packages only summarise
             continue
         doc = ast.get_docstring(ast.parse(path.read_text(encoding="utf-8"))) or ""
         if re.search(r"\b(Re-)?[Ii]mplemented from\b|\bSpecified only from\b", doc):
@@ -121,9 +137,12 @@ def test_req396_reimplemented_lists_every_algorithm_written_from_a_paper():
     modules = _implemented_from_a_paper()
     assert len(modules) >= 7
     assert [m for m in modules if f"`{m}`" not in text] == []
-    table_rows = [line for line in text.splitlines() if line.startswith("| ")
-                  and not line.startswith("| method")]
-    for row in table_rows:                               # paper and patent column filled
+    table_rows = [
+        line
+        for line in text.splitlines()
+        if line.startswith("| ") and not line.startswith("| method")
+    ]
+    for row in table_rows:  # paper and patent column filled
         cells = [c.strip() for c in row.strip("|").split("|")]
         assert len(cells) == 4 and all(cells), row
     assert "US 2022/0338786 A1" in text and "US 2023/0240618 A1" in text

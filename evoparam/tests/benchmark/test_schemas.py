@@ -9,9 +9,19 @@ import shutil
 import numpy as np
 import pytest
 
-from evoparam.benchmark import (TASKS, BenchmarkValidationError, get_baseline, load_schema,
-                                read_input, read_output, schema_id, score, validate,
-                                write_input, write_output)
+from evoparam.benchmark import (
+    TASKS,
+    BenchmarkValidationError,
+    get_baseline,
+    load_schema,
+    read_input,
+    read_output,
+    schema_id,
+    score,
+    validate,
+    write_input,
+    write_output,
+)
 from evoparam.benchmark.tasks import output_columns, output_format
 
 from .helpers import inputs, perfect_t1, suite
@@ -26,8 +36,9 @@ def test_req351_schemas_are_versioned_and_valid(task):
     assert schema["$id"] == schema_id(task)
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     jsonschema.Draft202012Validator.check_schema(schema)
-    assert {"input", "output"} | ({"output_row"} if task != "T4" else set()) \
-        <= set(schema["$defs"])
+    assert {"input", "output"} | ({"output_row"} if task != "T4" else set()) <= set(
+        schema["$defs"]
+    )
     assert schema["$defs"]["input"]["properties"]["schema"]["const"] == schema_id(task)
     assert output_format(task) == ("npz" if task == "T4" else "tsv")
     if task != "T4":
@@ -57,14 +68,19 @@ def _broken_input(tmp_path, change):
     return path
 
 
-@pytest.mark.parametrize("change, message", [
-    (lambda d: d.pop("sfreq"), "(document): 'sfreq' is a required property"),
-    (lambda d: d.update(sfreq=-1), "sfreq: -1 is less than or equal to the minimum of 0"),
-    (lambda d: d.update(schema="benchmark-task/T1/2"), "schema: 'benchmark-task/T1/1' was "
-                                                        "expected"),
-    (lambda d: d["ch_names"].append(3), "ch_names/24: 3 is not of type 'string'"),
-    (lambda d: d.update(split="secret"), "split: 'secret' is not one of"),
-])
+@pytest.mark.parametrize(
+    "change, message",
+    [
+        (lambda d: d.pop("sfreq"), "(document): 'sfreq' is a required property"),
+        (lambda d: d.update(sfreq=-1), "sfreq: -1 is less than or equal to the minimum of 0"),
+        (
+            lambda d: d.update(schema="benchmark-task/T1/2"),
+            "schema: 'benchmark-task/T1/1' was expected",
+        ),
+        (lambda d: d["ch_names"].append(3), "ch_names/24: 3 is not of type 'string'"),
+        (lambda d: d.update(split="secret"), "split: 'secret' is not one of"),
+    ],
+)
 def test_req351_invalid_input_names_the_first_violation(tmp_path, change, message):
     path = _broken_input(tmp_path, change)
     with pytest.raises(BenchmarkValidationError) as info:
@@ -105,21 +121,32 @@ def _write(path, text):
     return path
 
 
-@pytest.mark.parametrize("text, message", [
-    ("site\tchannel\tresponsive\n", "header: missing required column 'p_value'"),
-    ("site\tchannel\tresponsive\tp_value\tcolour\n", "header: unknown column 'colour'"),
-    ("site\tchannel\tp_value\tresponsive\n", "header: columns must be in the order"),
-    ("site\tchannel\tresponsive\tp_value\nA1-A2\tA3\t1\n", "line 2: 3 fields for 4 columns"),
-    ("site\tchannel\tresponsive\tp_value\nA1-A2\tA3\t2\t0.01\n",
-     "line 2, column 'responsive': 2 is not one of [0, 1]"),
-    ("site\tchannel\tresponsive\tp_value\nA1-A2\tA3\t1\t0.01\nA1-A2\tA4\t0\t1.5\n",
-     "line 3, column 'p_value': 1.5 is greater than the maximum of 1"),
-    ("site\tchannel\tresponsive\tp_value\nA1-A2\tA3\t1\tnan\n",
-     "line 2, column 'p_value': 'nan' is not a finite number"),
-    ("site\tchannel\tresponsive\tp_value\nA1-A2\tA3\tyes\t0.01\n",
-     "line 2, column 'responsive': 'yes' is not one of [0, 1]"),
-    ("", "empty file"),
-])
+@pytest.mark.parametrize(
+    "text, message",
+    [
+        ("site\tchannel\tresponsive\n", "header: missing required column 'p_value'"),
+        ("site\tchannel\tresponsive\tp_value\tcolour\n", "header: unknown column 'colour'"),
+        ("site\tchannel\tp_value\tresponsive\n", "header: columns must be in the order"),
+        ("site\tchannel\tresponsive\tp_value\nA1-A2\tA3\t1\n", "line 2: 3 fields for 4 columns"),
+        (
+            "site\tchannel\tresponsive\tp_value\nA1-A2\tA3\t2\t0.01\n",
+            "line 2, column 'responsive': 2 is not one of [0, 1]",
+        ),
+        (
+            "site\tchannel\tresponsive\tp_value\nA1-A2\tA3\t1\t0.01\nA1-A2\tA4\t0\t1.5\n",
+            "line 3, column 'p_value': 1.5 is greater than the maximum of 1",
+        ),
+        (
+            "site\tchannel\tresponsive\tp_value\nA1-A2\tA3\t1\tnan\n",
+            "line 2, column 'p_value': 'nan' is not a finite number",
+        ),
+        (
+            "site\tchannel\tresponsive\tp_value\nA1-A2\tA3\tyes\t0.01\n",
+            "line 2, column 'responsive': 'yes' is not one of [0, 1]",
+        ),
+        ("", "empty file"),
+    ],
+)
 def test_req351_invalid_tsv_names_the_first_violation(tmp_path, text, message):
     path = _write(tmp_path / "cell.tsv", text)
     with pytest.raises(BenchmarkValidationError) as info:
@@ -129,9 +156,10 @@ def test_req351_invalid_tsv_names_the_first_violation(tmp_path, text, message):
 
 
 def test_req351_valid_tsv_is_typed():
-    rows = [{"site": "A1-A2", "channel": "A3", "responsive": 1, "p_value": 0.01,
-             "score": 2.5}, {"site": "A1-A2", "channel": "A4", "responsive": 0,
-                             "p_value": None}]
+    rows = [
+        {"site": "A1-A2", "channel": "A3", "responsive": 1, "p_value": 0.01, "score": 2.5},
+        {"site": "A1-A2", "channel": "A4", "responsive": 0, "p_value": None},
+    ]
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -141,20 +169,47 @@ def test_req351_valid_tsv_is_typed():
     assert back[1] == {**rows[1], "score": None}
 
 
-@pytest.mark.parametrize("task, header, row, message", [
-    ("T2", "site\tchannel\tlatency\tamplitude", "S\tA1\tsoon\t-50",
-     "column 'latency': 'soon' is not of type 'number'"),
-    ("T3", "channel\tcomponent\tlatency\tamplitude\tfwhm", "A1\t-1\t0.02\t-50\t0.01",
-     "column 'component': -1 is less than the minimum of 0"),
-    ("T3", "channel\tcomponent\tlatency\tamplitude\tfwhm", "A1\t0\t0.02\t-50\t0",
-     "column 'fwhm': 0 is less than or equal to the minimum of 0"),
-    ("T5", "channel\ttrial\tlatency\tamplitude", "A1\t0.5\t0.02\t-50",
-     "column 'trial': 0.5 is not of type 'integer'"),
-    ("T6", "channel\tcondition\tmeasure\tvalue\tsme", "Pz\tP3\tpeak\t5\t1",
-     "column 'measure': 'peak' is not one of"),
-    ("T7", "channel\tzone\tsign\tfreq_centroid\ttime_centroid", "A1\t0\t0\t80\t0.2",
-     "column 'sign': 0 is not one of [-1, 1]"),
-])
+@pytest.mark.parametrize(
+    "task, header, row, message",
+    [
+        (
+            "T2",
+            "site\tchannel\tlatency\tamplitude",
+            "S\tA1\tsoon\t-50",
+            "column 'latency': 'soon' is not of type 'number'",
+        ),
+        (
+            "T3",
+            "channel\tcomponent\tlatency\tamplitude\tfwhm",
+            "A1\t-1\t0.02\t-50\t0.01",
+            "column 'component': -1 is less than the minimum of 0",
+        ),
+        (
+            "T3",
+            "channel\tcomponent\tlatency\tamplitude\tfwhm",
+            "A1\t0\t0.02\t-50\t0",
+            "column 'fwhm': 0 is less than or equal to the minimum of 0",
+        ),
+        (
+            "T5",
+            "channel\ttrial\tlatency\tamplitude",
+            "A1\t0.5\t0.02\t-50",
+            "column 'trial': 0.5 is not of type 'integer'",
+        ),
+        (
+            "T6",
+            "channel\tcondition\tmeasure\tvalue\tsme",
+            "Pz\tP3\tpeak\t5\t1",
+            "column 'measure': 'peak' is not one of",
+        ),
+        (
+            "T7",
+            "channel\tzone\tsign\tfreq_centroid\ttime_centroid",
+            "A1\t0\t0\t80\t0.2",
+            "column 'sign': 0 is not one of [-1, 1]",
+        ),
+    ],
+)
 def test_req351_each_task_checks_its_rows(tmp_path, task, header, row, message):
     path = _write(tmp_path / "cell.tsv", f"{header}\n{row}\n")
     with pytest.raises(BenchmarkValidationError) as info:
@@ -164,12 +219,15 @@ def test_req351_each_task_checks_its_rows(tmp_path, task, header, row, message):
     assert schema_id(task) in str(info.value)
 
 
-@pytest.mark.parametrize("data, message", [
-    (np.zeros((2, 3, 4, 5)), "arrays/data/shape: [2, 3, 4, 5] is too long"),
-    (np.array([[[np.nan]]]), "arrays/data/finite: True was expected"),
-    (None, "arrays: Additional properties are not allowed ('cleaned' was unexpected)"),
-    ("empty", "arrays: 'data' is a required property"),
-])
+@pytest.mark.parametrize(
+    "data, message",
+    [
+        (np.zeros((2, 3, 4, 5)), "arrays/data/shape: [2, 3, 4, 5] is too long"),
+        (np.array([[[np.nan]]]), "arrays/data/finite: True was expected"),
+        (None, "arrays: Additional properties are not allowed ('cleaned' was unexpected)"),
+        ("empty", "arrays: 'data' is a required property"),
+    ],
+)
 def test_req351_t4_output_is_validated(tmp_path, data, message):
     path = tmp_path / "cell.npz"
     if data is None:
@@ -199,15 +257,17 @@ def test_req351_scoring_rejects_an_invalid_output(tmp_path):
     bad.write_text("\n".join(lines), encoding="utf-8")
     with pytest.raises(BenchmarkValidationError) as info:
         score("T1", str(folder), suite("core"), inputs=list(cells))
-    assert str(info.value).startswith(f"{bad}: line 6, column 'p_value': -0.2 is less than "
-                                      "the minimum of 0")
+    assert str(info.value).startswith(
+        f"{bad}: line 6, column 'p_value': -0.2 is less than the minimum of 0"
+    )
     shutil.rmtree(folder)
 
 
 def test_req351_scoring_rejects_rows_for_unknown_channels(tmp_path):
     ti = inputs("T1", 1)[0]
-    rows = perfect_t1(ti) + [{"site": ti.descriptor["site"], "channel": "Z99",
-                              "responsive": 1, "p_value": 0.01}]
+    rows = perfect_t1(ti) + [
+        {"site": ti.descriptor["site"], "channel": "Z99", "responsive": 1, "p_value": 0.01}
+    ]
     write_output("T1", rows, str(tmp_path / f"{ti.cell}.tsv"))
     with pytest.raises(BenchmarkValidationError, match="Z99"):
         score("T1", str(tmp_path), suite("core"), inputs=[ti])

@@ -25,8 +25,15 @@ def _epochs():
     data[:, 0] -= 30e-6 * np.exp(-0.5 * ((times - 0.1) / 0.01) ** 2)
     events = np.column_stack([np.arange(6) * 500 + 1000, np.zeros(6, int), [1, 2] * 3])
     metadata = pd.DataFrame({"stim_current_mA": np.arange(6, dtype=float)})
-    return mne.EpochsArray(data, info, events=events, tmin=-0.05, event_id={"a": 1, "b": 2},
-                           metadata=metadata, verbose="error")
+    return mne.EpochsArray(
+        data,
+        info,
+        events=events,
+        tmin=-0.05,
+        event_id={"a": 1, "b": 2},
+        metadata=metadata,
+        verbose="error",
+    )
 
 
 def test_req310_round_trip():
@@ -40,8 +47,9 @@ def test_req310_round_trip():
     back = ts.to_mne()
     np.testing.assert_allclose(back.get_data(), e.get_data(), rtol=1e-12)
     assert back.info["bads"] == e.info["bads"]
-    pd.testing.assert_frame_equal(back.metadata.reset_index(drop=True),
-                                  e.metadata.reset_index(drop=True))
+    pd.testing.assert_frame_equal(
+        back.metadata.reset_index(drop=True), e.metadata.reset_index(drop=True)
+    )
     assert back.event_id == e.event_id
     # event times survive (the samples of MNE already include first_samp)
     np.testing.assert_allclose(ts.event_times, e.events[:, 0] / 1000.0)
@@ -49,12 +57,15 @@ def test_req310_round_trip():
     # stim_columns="auto": standard columns added (REQ-313), not given back to MNE
     assert ts.metadata["stim_current_mA"].tolist() == list(np.arange(6.0))
     assert {"stim_site", "stim_pulse_width_us", "stim_polarity"} <= set(ts.metadata)
-    assert "stim_current_mA" in ts.provenance.source["harmonization"]["mapping"].values() or \
-        ts.provenance.source["harmonization"]["mapping"]["stim_current_mA"] == "stim_current_mA"
+    assert (
+        "stim_current_mA" in ts.provenance.source["harmonization"]["mapping"].values()
+        or ts.provenance.source["harmonization"]["mapping"]["stim_current_mA"] == "stim_current_mA"
+    )
     raw = TrialSet.from_mne(e, stim_columns=None)
     assert "stim_site" not in raw.metadata
-    np.testing.assert_allclose([c["loc"][:3] for c in back.info["chs"]],
-                               [c["loc"][:3] for c in e.info["chs"]], atol=1e-9)
+    np.testing.assert_allclose(
+        [c["loc"][:3] for c in back.info["chs"]], [c["loc"][:3] for c in e.info["chs"]], atol=1e-9
+    )
     ev = e.average()
     again = Evoked.from_mne(ev).to_mne()
     np.testing.assert_allclose(again.data, ev.data, rtol=1e-12)
@@ -63,8 +74,7 @@ def test_req310_round_trip():
 def test_req310_stim_columns_mapping():
 
     e = _epochs()
-    e.metadata = pd.DataFrame({"amp": ["4 mA", "4 mA", "2 mA"] * 2,
-                               "pair": ["PT01-PT02"] * 6})
+    e.metadata = pd.DataFrame({"amp": ["4 mA", "4 mA", "2 mA"] * 2, "pair": ["PT01-PT02"] * 6})
     ts = TrialSet.from_mne(e, stim_columns={"amp": "stim_current_mA", "pair": "stim_site"})
     assert ts.metadata["stim_current_mA"].tolist() == [4.0, 4.0, 2.0] * 2
     assert set(ts.metadata["stim_site"]) == {"PT01-PT02"}
@@ -84,10 +94,11 @@ def test_req311_fit_dispatch():
         average = e.average()
         # evoparam.fit runs the existence test, whose null draws a seed when none is given
         pd.testing.assert_frame_equal(
-            evoparam.fit(average, "erp", fit_window=(0.05, 0.29),
-                         random_state=0).to_dataframe(),
-            evoparam.fit(Evoked.from_mne(average), "erp", fit_window=(0.05, 0.29),
-                         random_state=0).to_dataframe())
+            evoparam.fit(average, "erp", fit_window=(0.05, 0.29), random_state=0).to_dataframe(),
+            evoparam.fit(
+                Evoked.from_mne(average), "erp", fit_window=(0.05, 0.29), random_state=0
+            ).to_dataframe(),
+        )
         evokeds = [e[c].average() for c in ("a", "b")]
         for ev, name in zip(evokeds, ("a", "b")):
             ev.comment = name

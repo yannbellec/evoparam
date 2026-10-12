@@ -31,8 +31,13 @@ __all__ = ["ReproduceReport", "reproduce", "migrate"]
 
 _FIT_STEP = "evoparam.models.ResponseModel.fit_group"
 _TEST_STEP = "evoparam.existence.test_response"
-_NOT_FIT_KWARGS = ("preset", "preset_note", "package_version", "_overrides",
-                   "_changed_from_preset")
+_NOT_FIT_KWARGS = (
+    "preset",
+    "preset_note",
+    "package_version",
+    "_overrides",
+    "_changed_from_preset",
+)
 # Fields that change between two runs of the same computation.
 _VOLATILE = {"provenance", "duration_s"}
 
@@ -64,13 +69,13 @@ class ReproduceReport:
 
     def to_dict(self):
         out = dataclasses.asdict(self)
-        out["max_rel_diff"] = None if not math.isfinite(self.max_rel_diff) else \
-            self.max_rel_diff
+        out["max_rel_diff"] = None if not math.isfinite(self.max_rel_diff) else self.max_rel_diff
         return out
 
 
 ###################################################################################################
 ## Reading the container
+
 
 def _read_settings_json(path):
     """``settings.json`` of a container (directory or zip), as written on disk."""
@@ -91,6 +96,7 @@ def _resolve_path(path):
 
 ###################################################################################################
 ## Replaying the steps
+
 
 def _callable(function):
     """The public function (or container method name) of a dotted step name."""
@@ -138,12 +144,14 @@ def _check_preset(settings):
         return
     name, version = match.group(1), match.group(2)
     if name not in presets.PRESETS:
-        raise EvoparamVersionError(f"The recorded preset {name!r} (v{version}) does not exist "
-                                   "in this evoparam any more.")
+        raise EvoparamVersionError(
+            f"The recorded preset {name!r} (v{version}) does not exist in this evoparam any more."
+        )
     current = presets.get(name).version
     if current != version:
-        raise EvoparamVersionError(f"The result was made with preset {name!r} v{version}; "
-                                   f"this evoparam has v{current}.")
+        raise EvoparamVersionError(
+            f"The result was made with preset {name!r} v{version}; this evoparam has v{current}."
+        )
 
 
 def _fit_group(trials, settings):
@@ -152,14 +160,16 @@ def _fit_group(trials, settings):
 
     _check_preset(settings)
     names = set(FitSettings.__dataclass_fields__) - {"preset", "preset_note"}
-    kwargs = {k: (tuple(v) if isinstance(v, list) and k in ("fit_window", "baseline", "shapes")
-                  else v) for k, v in settings.items() if k in names}
+    kwargs = {
+        k: (tuple(v) if isinstance(v, list) and k in ("fit_window", "baseline", "shapes") else v)
+        for k, v in settings.items()
+        if k in names
+    }
     if isinstance(kwargs.get("windows"), dict):
         kwargs["windows"] = {k: tuple(v) for k, v in kwargs["windows"].items()}
     accepted = _accepted(ResponseModel, kwargs)
     preset = settings.get("preset")
-    model = ResponseModel(preset.get("name") if isinstance(preset, dict) else preset,
-                          **accepted)
+    model = ResponseModel(preset.get("name") if isinstance(preset, dict) else preset, **accepted)
     # every setting is passed again; the regenerated result records the keys the user
     # had set (REQ-331 ``_overrides``), not all of them
     if settings.get("_overrides") is not None:
@@ -196,8 +206,7 @@ def _replay_source(step, source, data):
 
         kwargs = {k: v for k, v in settings.items() if k in ("tmin", "tmax", "picks")}
         return read(path, **kwargs), "replayed", ""
-    return None, "not_replayable", ("the source cannot be read again from the record; "
-                                    "pass data=")
+    return None, "not_replayable", ("the source cannot be read again from the record; pass data=")
 
 
 def _replay(obj, final_settings, data):
@@ -211,8 +220,9 @@ def _replay(obj, final_settings, data):
     for i, step in enumerate(steps):
         function = step["function"]
         settings = dict(step.get("settings") or {})
-        last = i == len(steps) - 1 or (function == _FIT_STEP and all(
-            s["function"] == _TEST_STEP for s in steps[i + 1:]))
+        last = i == len(steps) - 1 or (
+            function == _FIT_STEP and all(s["function"] == _TEST_STEP for s in steps[i + 1 :])
+        )
         if function == _FIT_STEP and last and final_settings is not None:
             settings = dict(final_settings)
         try:
@@ -221,8 +231,7 @@ def _replay(obj, final_settings, data):
                 records.append({"function": function, "status": status, "message": message})
                 if state is None:
                     return None, records
-                if data is not None and not function.startswith(("evoparam.io.",
-                                                                  "evoparam.sim.")):
+                if data is not None and not function.startswith(("evoparam.io.", "evoparam.sim.")):
                     # the caller's data stand for the source; this step is replayed below
                     records[-1]["status"] = "skipped"
                 else:
@@ -230,14 +239,23 @@ def _replay(obj, final_settings, data):
             if function == "evoparam.data.TrialSet.average":
                 if i + 1 < len(steps) and steps[i + 1]["function"] == _FIT_STEP:
                     trials_before_average = state
-                    records.append({"function": function, "status": "replayed",
-                                    "message": "inside the group fit"})
+                    records.append(
+                        {
+                            "function": function,
+                            "status": "replayed",
+                            "message": "inside the group fit",
+                        }
+                    )
                     continue
                 state = state.average(**_accepted(state.average, settings))
             elif function == _FIT_STEP:
                 trials_before_average = trials_before_average or state
-                group = _fit_group(trials_before_average if isinstance(
-                    trials_before_average, TrialSet) else state, settings)
+                group = _fit_group(
+                    trials_before_average
+                    if isinstance(trials_before_average, TrialSet)
+                    else state,
+                    settings,
+                )
                 state = group
             elif function == _TEST_STEP and group is not None:
                 from evoparam.existence import attach_test, test_response
@@ -258,26 +276,40 @@ def _replay(obj, final_settings, data):
             else:
                 func = _callable(function)
                 if func is None:
-                    records.append({"function": function, "status": "not_replayable",
-                                    "message": "unknown function"})
+                    records.append(
+                        {
+                            "function": function,
+                            "status": "not_replayable",
+                            "message": "unknown function",
+                        }
+                    )
                     return None, records
                 out = func(state, **_accepted(func, settings))
                 # the result itself when it is the saved object (an ArtifactResult), else
                 # the cleaned data that the next step works on
-                state = out if i == len(steps) - 1 and type(out) is type(obj) else \
-                    getattr(out, "cleaned", out)
+                state = (
+                    out
+                    if i == len(steps) - 1 and type(out) is type(obj)
+                    else getattr(out, "cleaned", out)
+                )
             records.append({"function": function, "status": "replayed", "message": ""})
         except EvoparamVersionError:
             raise
-        except Exception as exc:                       # reported, never hidden
-            records.append({"function": function, "status": "failed",
-                            "message": f"{type(exc).__name__}: {exc}"})
+        except Exception as exc:  # reported, never hidden
+            records.append(
+                {
+                    "function": function,
+                    "status": "failed",
+                    "message": f"{type(exc).__name__}: {exc}",
+                }
+            )
             return None, records
     return state, records
 
 
 ###################################################################################################
 ## Comparing
+
 
 def _rel(a, b):
     a = np.asarray(a, float)
@@ -304,19 +336,39 @@ def _compare(new, old, path, rtol, atol, out):
         for fld in dataclasses.fields(old):
             if fld.name in _VOLATILE:
                 continue
-            worst = max(worst, _compare(getattr(new, fld.name), getattr(old, fld.name),
-                                        f"{path}.{fld.name}" if path else fld.name, rtol, atol,
-                                        out))
+            worst = max(
+                worst,
+                _compare(
+                    getattr(new, fld.name),
+                    getattr(old, fld.name),
+                    f"{path}.{fld.name}" if path else fld.name,
+                    rtol,
+                    atol,
+                    out,
+                ),
+            )
         return worst
     if type(old).__name__ == "DataFrame":
-        if type(new).__name__ != "DataFrame" or list(new.columns) != list(old.columns) or \
-                len(new) != len(old):
+        if (
+            type(new).__name__ != "DataFrame"
+            or list(new.columns) != list(old.columns)
+            or len(new) != len(old)
+        ):
             out.append((path, None))
             return math.inf
         worst = 0.0
         for column in old.columns:
-            worst = max(worst, _compare(new[column].to_numpy(), old[column].to_numpy(),
-                                        f"{path}[{column}]", rtol, atol, out))
+            worst = max(
+                worst,
+                _compare(
+                    new[column].to_numpy(),
+                    old[column].to_numpy(),
+                    f"{path}[{column}]",
+                    rtol,
+                    atol,
+                    out,
+                ),
+            )
         return worst
     if isinstance(old, dict):
         if not isinstance(new, dict) or set(new) != set(old):
@@ -328,8 +380,9 @@ def _compare(new, old, path, rtol, atol, out):
                 continue
             worst = max(worst, _compare(new[key], old[key], f"{path}.{key}", rtol, atol, out))
         return worst
-    if isinstance(old, (list, tuple)) and not (old and all(
-            isinstance(v, (int, float)) and not isinstance(v, bool) for v in old)):
+    if isinstance(old, (list, tuple)) and not (
+        old and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in old)
+    ):
         if not isinstance(new, (list, tuple)) or len(new) != len(old):
             out.append((path, None))
             return math.inf
@@ -337,13 +390,14 @@ def _compare(new, old, path, rtol, atol, out):
         for i, (a, b) in enumerate(zip(new, old)):
             worst = max(worst, _compare(a, b, f"{path}[{i}]", rtol, atol, out))
         return worst
-    numeric_old = isinstance(old, (float, int, np.number, np.ndarray, list, tuple)) and \
-        not isinstance(old, bool)
+    numeric_old = isinstance(
+        old, (float, int, np.number, np.ndarray, list, tuple)
+    ) and not isinstance(old, bool)
     if numeric_old:
         try:
             a = np.asarray(new)
             b = np.asarray(old)
-        except Exception:                               # noqa: BLE001 (reported as a difference)
+        except Exception:  # noqa: BLE001 (reported as a difference)
             out.append((path, None))
             return math.inf
         if a.shape != b.shape:
@@ -351,8 +405,13 @@ def _compare(new, old, path, rtol, atol, out):
             return math.inf
         if b.dtype.kind in "fiucb" and a.dtype.kind in "fiucb":
             rel, diff, both_nan = _rel(a, b)
-            ok = np.all(both_nan | (diff <= atol + rtol * np.maximum(np.abs(a.astype(float)),
-                                                                      np.abs(b.astype(float)))))
+            ok = np.all(
+                both_nan
+                | (
+                    diff
+                    <= atol + rtol * np.maximum(np.abs(a.astype(float)), np.abs(b.astype(float)))
+                )
+            )
             if not ok:
                 out.append((path, rel))
             return rel
@@ -360,8 +419,9 @@ def _compare(new, old, path, rtol, atol, out):
             out.append((path, None))
             return math.inf
         return 0.0
-    if new != old and not (isinstance(old, float) and isinstance(new, float)
-                           and math.isnan(old) and math.isnan(new)):
+    if new != old and not (
+        isinstance(old, float) and isinstance(new, float) and math.isnan(old) and math.isnan(new)
+    ):
         out.append((path, None))
         return math.inf
     return 0.0
@@ -381,7 +441,7 @@ def _missing_plugins(recorded):
     for registry in (SHAPES, BACKGROUNDS, presets.PRESETS, READERS):
         try:
             available |= set(registry)
-        except EvoparamError as err:            # a broken plugin set: report it, go on
+        except EvoparamError as err:  # a broken plugin set: report it, go on
             out["<plugins>"] = {"recorded": None, "installed": None, "message": str(err)}
     for name, origin in sorted((recorded or {}).items()):
         dist, _, version = str(origin).partition("==")
@@ -390,13 +450,19 @@ def _missing_plugins(recorded):
         except metadata.PackageNotFoundError:
             installed = None
         if installed is None or name not in available:
-            out[name] = {"recorded": origin, "installed": installed,
-                         "message": f"plugin {name!r} ({origin}) is not installed; "
-                                    f"pip install '{dist}=={version}'"}
+            out[name] = {
+                "recorded": origin,
+                "installed": installed,
+                "message": f"plugin {name!r} ({origin}) is not installed; "
+                f"pip install '{dist}=={version}'",
+            }
         elif version and installed != version:
-            out[name] = {"recorded": origin, "installed": installed,
-                         "message": f"plugin {name!r}: {dist} {installed} is installed, the "
-                                    f"result was made with {version}"}
+            out[name] = {
+                "recorded": origin,
+                "installed": installed,
+                "message": f"plugin {name!r}: {dist} {installed} is installed, the "
+                f"result was made with {version}",
+            }
     return out
 
 
@@ -404,7 +470,7 @@ def _environment_differences(recorded):
     current = capture_environment()
     out = {}
     for key in sorted(set(recorded) | set(current)):
-        if key in ("optional", "plugins"):    # plugins: reported by _missing_plugins
+        if key in ("optional", "plugins"):  # plugins: reported by _missing_plugins
             continue
         if recorded.get(key) != current.get(key):
             out[key] = [recorded.get(key), current.get(key)]
@@ -417,6 +483,7 @@ def _environment_differences(recorded):
 
 ###################################################################################################
 ## Public functions
+
 
 def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=True):
     """Regenerate a saved result from its provenance and compare it with the saved one.
@@ -463,35 +530,47 @@ def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=
     if isinstance(on_disk, dict) and isinstance(getattr(saved, "settings", None), dict):
         final_settings = on_disk
         settings_differences = sorted(
-            key for key in set(on_disk) | set(saved.settings)
+            key
+            for key in set(on_disk) | set(saved.settings)
             if key != "package_version"
-            and on_disk.get(key) != to_jsonable(saved.settings.get(key)))
+            and on_disk.get(key) != to_jsonable(saved.settings.get(key))
+        )
     env_diff = {}
     if check_environment:
         env_diff = _environment_differences(saved.provenance.environment or {})
         if saved.provenance.package_version != __version__:
             env_diff["package_version"] = [saved.provenance.package_version, __version__]
         if env_diff:
-            _warn("evoparam.reproduce: the software environment differs from the "
-                  f"recorded one ({', '.join(sorted(env_diff))}).", UserWarning,
-                  stacklevel=2)
+            _warn(
+                "evoparam.reproduce: the software environment differs from the "
+                f"recorded one ({', '.join(sorted(env_diff))}).",
+                UserWarning,
+                stacklevel=2,
+            )
     missing_plugins = _missing_plugins((saved.provenance.environment or {}).get("plugins"))
     if missing_plugins:
-        _warn("evoparam.reproduce: " + "; ".join(
-            item["message"] for item in missing_plugins.values()), UserWarning, stacklevel=2)
+        _warn(
+            "evoparam.reproduce: "
+            + "; ".join(item["message"] for item in missing_plugins.values()),
+            UserWarning,
+            stacklevel=2,
+        )
     try:
         new, records = _replay(saved, final_settings, data)
     except EvoparamVersionError as err:
         if not missing_plugins:
             raise
         # the preset came from a plugin that is not installed: say which one
-        raise EvoparamVersionError(f"{err} " + "; ".join(
-            item["message"] for item in missing_plugins.values())) from err
+        raise EvoparamVersionError(
+            f"{err} " + "; ".join(item["message"] for item in missing_plugins.values())
+        ) from err
     if settings_differences:
         for record in records:
             if record["function"] == _FIT_STEP:
-                record["message"] = ("settings.json differs from the recorded settings: "
-                                     + ", ".join(settings_differences))
+                record["message"] = (
+                    "settings.json differs from the recorded settings: "
+                    + ", ".join(settings_differences)
+                )
     differences = []
     if new is None:
         worst = math.inf
@@ -499,13 +578,17 @@ def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=
     else:
         worst = _compare(new, saved, "", rtol, atol, differences)
     identical = new is not None and not differences
-    return ReproduceReport(path=os.path.abspath(path), identical=identical,
-                           max_rel_diff=worst,
-                           steps=records,
-                           differences=[{"field": p, "rel_diff": d} for p, d in differences],
-                           environment_differences=env_diff, checksums_ok=checksums_ok,
-                           settings_differences=settings_differences,
-                           missing_plugins=missing_plugins)
+    return ReproduceReport(
+        path=os.path.abspath(path),
+        identical=identical,
+        max_rel_diff=worst,
+        steps=records,
+        differences=[{"field": p, "rel_diff": d} for p, d in differences],
+        environment_differences=env_diff,
+        checksums_ok=checksums_ok,
+        settings_differences=settings_differences,
+        missing_plugins=missing_plugins,
+    )
 
 
 def migrate(path):
@@ -528,8 +611,7 @@ def migrate(path):
     obj = load_object(path)
     from_schema = manifest.get("schema")
     if from_schema == SCHEMA:
-        return {"path": path, "from_schema": from_schema, "to_schema": SCHEMA,
-                "migrated": False}
+        return {"path": path, "from_schema": from_schema, "to_schema": SCHEMA, "migrated": False}
     parent = os.path.dirname(os.path.abspath(path))
     with tempfile.TemporaryDirectory(prefix=".evoparam-migrate-", dir=parent) as tmp:
         # Write and re-read the new container next to the old one, then swap them, so that
@@ -540,4 +622,3 @@ def migrate(path):
         os.replace(path, os.path.join(tmp, "old"))
         os.replace(written, path)
     return {"path": path, "from_schema": from_schema, "to_schema": SCHEMA, "migrated": True}
-

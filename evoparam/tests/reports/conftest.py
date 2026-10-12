@@ -31,8 +31,16 @@ def results():
             basis = shared_shapes(ts, random_state=0)
         except Exception:
             basis = None
-    return {"ts": ts, "group": group, "fit": group.fits[0], "test": test, "trials": trials,
-            "tf": tf, "artifact": artifact, "basis": basis}
+    return {
+        "ts": ts,
+        "group": group,
+        "fit": group.fits[0],
+        "test": test,
+        "trials": trials,
+        "tf": tf,
+        "artifact": artifact,
+        "basis": basis,
+    }
 
 
 @pytest.fixture(scope="session")

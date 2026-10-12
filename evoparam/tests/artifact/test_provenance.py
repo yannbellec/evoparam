@@ -13,9 +13,16 @@ from .helpers import make_overlay
 ###################################################################################################
 ###################################################################################################
 
-CASES = [("interpolate", {"interpolation": "pchip"}), ("template", {"template": "local"}),
-         ("learned", {}), ("tail", {"tail": "subtract"}), ("subspace", {}),
-         ("polynomial", {}), ("matching_pursuit", {}), ("none", {})]
+CASES = [
+    ("interpolate", {"interpolation": "pchip"}),
+    ("template", {"template": "local"}),
+    ("learned", {}),
+    ("tail", {"tail": "subtract"}),
+    ("subspace", {}),
+    ("polynomial", {}),
+    ("matching_pursuit", {}),
+    ("none", {}),
+]
 
 
 @pytest.mark.parametrize("method, kwargs", CASES)
@@ -32,8 +39,10 @@ def test_req069_settings_recreate_the_result(method, kwargs):
     step = result.cleaned.provenance.steps[-1]
     assert step["function"] == "evoparam.artifact.remove_artifact"
     assert step["settings"]["method"] == method
-    assert step["settings"]["window"] == list(result.window) or \
-        tuple(step["settings"]["window"]) == result.window
+    assert (
+        step["settings"]["window"] == list(result.window)
+        or tuple(step["settings"]["window"]) == result.window
+    )
     if result.cleaned.masks is not None:
         assert result.cleaned.masks.shape == noisy.data.shape
 
@@ -44,6 +53,7 @@ def test_result_saves_and_loads(tmp_path):
     result = remove_artifact(noisy, method="template")
     path = result.cleaned.save(tmp_path / "cleaned.evoparam")
     from evoparam.data import TrialSet
+
     loaded = TrialSet.load(path)
     assert np.array_equal(loaded.data, result.cleaned.data)
     assert np.allclose(loaded.metadata["quality"], result.quality)

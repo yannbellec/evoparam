@@ -29,13 +29,33 @@ BENCH = ROOT / "benchmarks"
 FIELDS = ("id", "median_s", "p90_s", "peak_rss_bytes", "n_repeats", "environment")
 
 
-def _doc(p1=0.05, p2=3.0, p2_rss=200 * 2 ** 20):
-    rows = [{"id": "P1", "workload": "one waveform", "median_s": p1, "p90_s": p1,
-             "peak_rss_bytes": 3 * 2 ** 20, "n_repeats": 5, "target_met": None},
-            {"id": "P2", "workload": "fit_trials", "median_s": p2, "p90_s": p2,
-             "peak_rss_bytes": p2_rss, "n_repeats": 1, "target_met": None}]
-    return {"schema": timing.SCHEMA, "suite": "ci", "environment": {"python": "3.x"},
-            "results": rows}
+def _doc(p1=0.05, p2=3.0, p2_rss=200 * 2**20):
+    rows = [
+        {
+            "id": "P1",
+            "workload": "one waveform",
+            "median_s": p1,
+            "p90_s": p1,
+            "peak_rss_bytes": 3 * 2**20,
+            "n_repeats": 5,
+            "target_met": None,
+        },
+        {
+            "id": "P2",
+            "workload": "fit_trials",
+            "median_s": p2,
+            "p90_s": p2,
+            "peak_rss_bytes": p2_rss,
+            "n_repeats": 1,
+            "target_met": None,
+        },
+    ]
+    return {
+        "schema": timing.SCHEMA,
+        "suite": "ci",
+        "environment": {"python": "3.x"},
+        "results": rows,
+    }
 
 
 def test_req299_p1_twice_slower_fails_naming_workload_and_ratio():
@@ -48,8 +68,9 @@ def test_req299_p1_twice_slower_fails_naming_workload_and_ratio():
     assert "2.00 x the baseline" in failures[0]
 
 
-@pytest.mark.parametrize("ratio, failed, warned", [(1.05, False, False), (1.20, False, True),
-                                                   (1.30, True, False)])
+@pytest.mark.parametrize(
+    "ratio, failed, warned", [(1.05, False, False), (1.20, False, True), (1.30, True, False)]
+)
 def test_req299_tolerance_and_warning_band(ratio, failed, warned):
     """REQ-299 / §9.1: fail above 1.25x, warn (no failure) between 1.10x and 1.25x."""
 
@@ -61,14 +82,23 @@ def test_req299_tolerance_and_warning_band(ratio, failed, warned):
 def test_req299_memory_tolerance_and_p3_bound():
     """REQ-299: 10 % tolerance on peak memory; a P3 figure above its bound fails."""
 
-    failures, _ = timing.compare(_doc(p2_rss=230 * 2 ** 20), _doc(p2_rss=200 * 2 ** 20))
+    failures, _ = timing.compare(_doc(p2_rss=230 * 2**20), _doc(p2_rss=200 * 2**20))
     assert failures and "peak memory 1.15 x" in failures[0]
-    failures, _ = timing.compare(_doc(p2_rss=215 * 2 ** 20), _doc(p2_rss=200 * 2 ** 20))
+    failures, _ = timing.compare(_doc(p2_rss=215 * 2**20), _doc(p2_rss=200 * 2**20))
     assert not failures
     run = _doc()
-    run["results"].append({"id": "P3", "workload": "fit", "median_s": 1.0, "p90_s": 1.0,
-                           "peak_rss_bytes": 300 * 2 ** 20, "bound_bytes": 200 * 2 ** 20,
-                           "n_repeats": 1, "target_met": False})
+    run["results"].append(
+        {
+            "id": "P3",
+            "workload": "fit",
+            "median_s": 1.0,
+            "p90_s": 1.0,
+            "peak_rss_bytes": 300 * 2**20,
+            "bound_bytes": 200 * 2**20,
+            "n_repeats": 1,
+            "target_met": False,
+        }
+    )
     failures, _ = timing.compare(run, _doc())
     assert failures == ["P3: peak RSS increase 300 MiB above its bound 200 MiB"]
 
@@ -83,8 +113,7 @@ def test_req299_baseline_is_the_median_of_runs():
 
 
 def _load_script():
-    spec = importlib.util.spec_from_file_location("run_benchmarks",
-                                                  BENCH / "run_benchmarks.py")
+    spec = importlib.util.spec_from_file_location("run_benchmarks", BENCH / "run_benchmarks.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -99,8 +128,16 @@ def test_req299_script_exit_code_and_annotations(tmp_path, monkeypatch, capsys):
     (tmp_path / "baseline.json").write_text(json.dumps(baseline), encoding="utf-8")
     slow = _doc(p1=0.10, p2=3.6)
     monkeypatch.setattr(script.timing, "run_suite", lambda *a, **k: copy.deepcopy(slow))
-    code = script.main(["--suite", "ci", "--out", str(tmp_path / "results"), "--compare",
-                        str(tmp_path / "baseline.json")])
+    code = script.main(
+        [
+            "--suite",
+            "ci",
+            "--out",
+            str(tmp_path / "results"),
+            "--compare",
+            str(tmp_path / "baseline.json"),
+        ]
+    )
     out = capsys.readouterr().out
     assert code == 1
     assert "::error::P1 (one waveform): median 0.1000 s is 2.00 x the baseline" in out
@@ -128,9 +165,25 @@ def test_req290_cli_runs_the_perf_suite(tmp_path):
     """§9.1: the workloads are also reachable as ``evoparam benchmark run --suite perf``
     (here ``--suite ci --task P4``, the workload that only records its status)."""
 
-    proc = subprocess.run([sys.executable, "-m", "evoparam", "benchmark", "run", "--suite",
-                           "ci", "--task", "P4", "--out", str(tmp_path)],
-                          capture_output=True, text=True, check=False, cwd=str(tmp_path))
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evoparam",
+            "benchmark",
+            "run",
+            "--suite",
+            "ci",
+            "--task",
+            "P4",
+            "--out",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=str(tmp_path),
+    )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     files = glob.glob(str(tmp_path / "*-ci.json"))
     assert len(files) == 1
@@ -149,10 +202,14 @@ def test_req299_baseline_is_committed():
 ###################################################################################################
 ## Absolute targets on the reference machine (committed results)
 
+
 def _committed(suite):
     suffix = "-ci.json" if suite == "ci" else ".json"
-    paths = sorted(p for p in glob.glob(str(BENCH / "results" / "*.json"))
-                   if p.endswith(suffix) and (suite == "ci" or not p.endswith("-ci.json")))
+    paths = sorted(
+        p
+        for p in glob.glob(str(BENCH / "results" / "*.json"))
+        if p.endswith(suffix) and (suite == "ci" or not p.endswith("-ci.json"))
+    )
     assert paths, f"no committed {suite} results under benchmarks/results/"
     rows = json.loads(pathlib.Path(paths[-1]).read_text(encoding="utf-8"))["results"]
     return {timing._key(r): r for r in rows}
@@ -161,13 +218,13 @@ def _committed(suite):
 # measured on the reference machine (benchmarks/README.md), load average 9 to 11 on 4 cores
 MEASURED = {
     "P1": "median 1.30 s over 20 repetitions (target < 0.050 s); one fit of the ccep preset "
-          "with 3 starts and max_components=6 on a 1 s window at 2 048 Hz",
+    "with 3 starts and max_components=6 on a 1 s window at 2 048 Hz",
     "P3": "peak RSS increase 331 MiB (347 MB) for 105 MB of trials in memory (3.3 x, "
-          "target < 2 x; median of 3 runs), "
-          "measured on the ci size (50 x 64 x 4 096); the full size (4.19 GB) was not run",
+    "target < 2 x; median of 3 runs), "
+    "measured on the ci size (50 x 64 x 4 096); the full size (4.19 GB) was not run",
     "P4": "not available: no GPU backend in this version (NumPy/SciPy engine)",
     "P6": "median 0.909 s over 10 runs for import evoparam (target < 0.300 s); "
-          "scipy.stats and scipy.interpolate dominate the import time",
+    "scipy.stats and scipy.interpolate dominate the import time",
 }
 
 

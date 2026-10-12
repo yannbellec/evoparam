@@ -22,9 +22,12 @@ import evoparam
 
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 
-pytestmark = [pytest.mark.core,
-              pytest.mark.skipif(not (ROOT / "tools" / "gen_soup.py").exists(),
-                                 reason="needs the source tree")]
+pytestmark = [
+    pytest.mark.core,
+    pytest.mark.skipif(
+        not (ROOT / "tools" / "gen_soup.py").exists(), reason="needs the source tree"
+    ),
+]
 
 
 def _tool(name):
@@ -40,7 +43,7 @@ def _soup():
 
 def test_req399_soup_and_third_party_are_up_to_date():
     if sys.version_info < (3, 11):
-        pytest.importorskip("tomli")                 # the generator reads pyproject.toml
+        pytest.importorskip("tomli")  # the generator reads pyproject.toml
     assert _tool("gen_soup").main(["--check"]) == 0, "run python tools/gen_soup.py"
 
 
@@ -50,8 +53,15 @@ def test_req399_soup_fields():
     names = {row["package"] for row in soup["packages"]}
     assert {"numpy", "scipy", "mne", "pandas", "matplotlib"} <= names
     for row in soup["packages"]:
-        assert set(row) >= {"package", "version_range", "licence", "anomaly_url",
-                            "functions_used", "role", "locked_version"}, row["package"]
+        assert set(row) >= {
+            "package",
+            "version_range",
+            "licence",
+            "anomaly_url",
+            "functions_used",
+            "role",
+            "locked_version",
+        }, row["package"]
         assert row["anomaly_url"].startswith("https://"), row["package"]
         assert row["licence"] and "GPL" not in row["licence"], row["package"]
         assert row["role"] in ("core", "optional", "transitive", "tooling")
@@ -65,9 +75,13 @@ def test_req399_soup_fields():
 def _family(text):
     text = text.lower()
     out = set()
-    for family, words in (("bsd", ("bsd",)), ("mit", ("mit",)), ("apache", ("apache",)),
-                          ("mpl", ("mpl", "mozilla")),
-                          ("psf", ("psf", "python software foundation"))):
+    for family, words in (
+        ("bsd", ("bsd",)),
+        ("mit", ("mit",)),
+        ("apache", ("apache",)),
+        ("mpl", ("mpl", "mozilla")),
+        ("psf", ("psf", "python software foundation")),
+    ):
         if any(w in text for w in words):
             out.add(family)
     return out
@@ -80,12 +94,18 @@ def test_req399_licences_agree_with_the_installed_metadata():
             meta = metadata.metadata(row["package"])
         except metadata.PackageNotFoundError:
             continue
-        declared = " ".join(filter(None, [
-            meta.get("License-Expression"),
-            meta.get("License") if len(meta.get("License") or "") <= 200 else None,
-            *[c for c in meta.get_all("Classifier") or [] if c.startswith("License")]]))
+        declared = " ".join(
+            filter(
+                None,
+                [
+                    meta.get("License-Expression"),
+                    meta.get("License") if len(meta.get("License") or "") <= 200 else None,
+                    *[c for c in meta.get_all("Classifier") or [] if c.startswith("License")],
+                ],
+            )
+        )
         if not _family(declared):
-            continue                                 # the metadata names no licence
+            continue  # the metadata names no licence
         assert _family(row["licence"]) & _family(declared), (row["package"], declared)
         checked += 1
     assert checked >= 5
@@ -103,8 +123,12 @@ def _third_party_imports():
                 found |= {a.name.split(".")[0] for a in node.names}
             elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
                 found.add(node.module.split(".")[0])
-            elif (isinstance(node, ast.Call) and getattr(node.func, "id", None) == "require"
-                  and node.args and isinstance(node.args[0], ast.Constant)):
+            elif (
+                isinstance(node, ast.Call)
+                and getattr(node.func, "id", None) == "require"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+            ):
                 found.add(str(node.args[0].value).split(".")[0])
     return {n for n in found if n not in stdlib and n != "evoparam" and not n.startswith("_")}
 
@@ -120,8 +144,7 @@ def test_req399_algorithm_version_in_every_step():
     from evoparam import sim
     from evoparam.version import ALGORITHM_VERSIONS
 
-    trials, _ = sim.simulate_ccep(n_trials=4, n_channels=3, seed=0, artifact=False,
-                                  p_response=1.0)
+    trials, _ = sim.simulate_ccep(n_trials=4, n_channels=3, seed=0, artifact=False, p_response=1.0)
     steps = trials.provenance.steps
     assert steps and all(re.fullmatch(r"\d+\.\d+", s["algorithm_version"]) for s in steps)
     assert steps[-1]["algorithm_version"] == ALGORITHM_VERSIONS["evoparam.sim.simulate_ccep"]

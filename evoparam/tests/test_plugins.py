@@ -36,8 +36,7 @@ def _install(site, name="evoparam_dummy", version="0.1.0", entry_points=ENTRY_PO
     info = os.path.join(site, f"{name}-{version}.dist-info")
     os.makedirs(info, exist_ok=True)
     with open(os.path.join(info, "METADATA"), "w", encoding="utf-8") as fobj:
-        fobj.write(f"Metadata-Version: 2.1\nName: {name.replace('_', '-')}\n"
-                   f"Version: {version}\n")
+        fobj.write(f"Metadata-Version: 2.1\nName: {name.replace('_', '-')}\nVersion: {version}\n")
     with open(os.path.join(info, "entry_points.txt"), "w", encoding="utf-8") as fobj:
         fobj.write(entry_points)
 
@@ -85,8 +84,15 @@ def test_dummy_shape_preset_and_reader(site, tmp_path):
     times = np.arange(-0.1, 0.5, 1e-3)
     rng = np.random.default_rng(0)
     y = -40.0 / (1.0 + ((times - 0.12) / 0.015) ** 2) + rng.normal(0, 1.0, times.size)
-    result = fit_response(times, y, window=(0.01, 0.45), baseline=(-0.1, -0.005),
-                          shapes=("lorentzian",), background="constant", random_state=0)
+    result = fit_response(
+        times,
+        y,
+        window=(0.01, 0.45),
+        baseline=(-0.1, -0.005),
+        shapes=("lorentzian",),
+        background="constant",
+        random_state=0,
+    )
     assert result.status == "ok"
     comp = max(result.components, key=lambda c: abs(c.amplitude))
     assert comp.shape == "lorentzian"
@@ -120,8 +126,11 @@ def test_cli_info_lists_the_plugins(site, capsys):
     assert main(["info", "--json"]) == 0
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
     names = {(p["group"], p["name"]) for p in summary["result"]["plugins"]}
-    assert names == {("evoparam.shapes", "lorentzian"), ("evoparam.presets", "dummy_lorentz"),
-                     ("evoparam.readers", "dummy")}
+    assert names == {
+        ("evoparam.shapes", "lorentzian"),
+        ("evoparam.presets", "dummy_lorentz"),
+        ("evoparam.readers", "dummy"),
+    }
     assert "dummy_lorentz" in summary["result"]["presets"]
 
 
@@ -135,12 +144,20 @@ def test_name_collisions_raise(site):
 
     # between two distributions
     shutil.copytree(os.path.join(site, "evoparam_dummy"), os.path.join(site, "evoparam_other"))
-    _install(site, entry_points="[evoparam.presets]\ndummy_lorentz = "
-                                "evoparam_dummy:DUMMY_LORENTZ\n")
-    _install(site, name="evoparam_other", version="2.0",
-             entry_points="[evoparam.presets]\ndummy_lorentz = evoparam_other:DUMMY_LORENTZ\n")
-    with pytest.raises(SettingsError, match="evoparam-dummy==0.1.0.*evoparam-other==2.0|"
-                                            "evoparam-other==2.0.*evoparam-dummy==0.1.0"):
+    _install(
+        site, entry_points="[evoparam.presets]\ndummy_lorentz = evoparam_dummy:DUMMY_LORENTZ\n"
+    )
+    _install(
+        site,
+        name="evoparam_other",
+        version="2.0",
+        entry_points="[evoparam.presets]\ndummy_lorentz = evoparam_other:DUMMY_LORENTZ\n",
+    )
+    with pytest.raises(
+        SettingsError,
+        match="evoparam-dummy==0.1.0.*evoparam-other==2.0|"
+        "evoparam-other==2.0.*evoparam-dummy==0.1.0",
+    ):
         presets.PRESETS.reload()
 
 
@@ -178,14 +195,18 @@ def test_reproduce_reports_a_missing_plugin(site, tmp_path):
     _reload()
     times = np.arange(-0.1, 0.6, 1e-3)
     rng = np.random.default_rng(1)
-    rows = [-30.0 / (1.0 + ((times - 0.1) / 0.012) ** 2) + rng.normal(0, 1.0, times.size)
-            for _ in range(2)]
+    rows = [
+        -30.0 / (1.0 + ((times - 0.1) / 0.012) ** 2) + rng.normal(0, 1.0, times.size)
+        for _ in range(2)
+    ]
     evoked = Evoked(data=np.array(rows), times=times, sfreq=1000.0, ch_names=["A1", "A2"])
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = evoparam.fit(evoked, "dummy_lorentz", existence=False)
     assert group.provenance.environment["plugins"] == {
-        "lorentzian": "evoparam-dummy==0.1.0", "dummy_lorentz": "evoparam-dummy==0.1.0"}
+        "lorentzian": "evoparam-dummy==0.1.0",
+        "dummy_lorentz": "evoparam-dummy==0.1.0",
+    }
     path = group.save(str(tmp_path / "group"))
 
     with warnings.catch_warnings():

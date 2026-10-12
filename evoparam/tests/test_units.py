@@ -26,11 +26,21 @@ def test_req009_containers_have_times_in_seconds_and_an_explicit_unit():
     evoked = trials.average()
     assert evoked.units == trials.units
     with pytest.raises(DataError):
-        TrialSet(data=trials.data, times=trials.times, sfreq=trials.sfreq,
-                 ch_names=trials.ch_names, units="microvolts")
+        TrialSet(
+            data=trials.data,
+            times=trials.times,
+            sfreq=trials.sfreq,
+            ch_names=trials.ch_names,
+            units="microvolts",
+        )
     with pytest.raises(DataError):
-        Evoked(data=evoked.data, times=evoked.times, sfreq=evoked.sfreq,
-               ch_names=evoked.ch_names, units="")
+        Evoked(
+            data=evoked.data,
+            times=evoked.times,
+            sfreq=evoked.sfreq,
+            ch_names=evoked.ch_names,
+            units="",
+        )
 
 
 def test_req009_result_tables_give_times_in_seconds():
@@ -49,11 +59,14 @@ def test_req009_unit_conversion_is_explicit():
         trials.convert_units("au")
 
 
-@pytest.mark.xfail(strict=True, reason="The fit tables give the amplitude unit as 'data' (the "
-                   "unit of the fitted data), not the unit itself: fits do not record the unit "
-                   "of their data (measured: GroupFit.to_dataframe().attrs['units']['amplitude']"
-                   " == 'data' for a TrialSet in uV). evoparam/models and data/results are "
-                   "being changed by other builders; reported.")
+@pytest.mark.xfail(
+    strict=True,
+    reason="The fit tables give the amplitude unit as 'data' (the "
+    "unit of the fitted data), not the unit itself: fits do not record the unit "
+    "of their data (measured: GroupFit.to_dataframe().attrs['units']['amplitude']"
+    " == 'data' for a TrialSet in uV). evoparam/models and data/results are "
+    "being changed by other builders; reported.",
+)
 def test_req009_result_amplitudes_have_an_explicit_unit():
     pytest.importorskip("pandas")
     trials, _ = sim.simulate_erp(n_trials=10, seed=0)

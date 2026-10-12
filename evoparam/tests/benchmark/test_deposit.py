@@ -19,8 +19,13 @@ import os
 import numpy as np
 import pytest
 
-from evoparam.benchmark import (hidden_commitment, load_hidden_seeds, load_suite,
-                                prepare_deposit, simulate_cell)
+from evoparam.benchmark import (
+    hidden_commitment,
+    load_hidden_seeds,
+    load_suite,
+    prepare_deposit,
+    simulate_cell,
+)
 from evoparam.benchmark.deposit import DEPOSIT_SCHEMA
 from evoparam.benchmark.suite import HIDDEN_SCHEMA
 from evoparam.errors import DataError
@@ -28,8 +33,7 @@ from evoparam.version import __version__
 
 from .helpers import ROOT, hidden_seeds_path, suite
 
-DEPOSIT_REASON = ("deposit not made: waits for the owner's HIIE decision (nothing public "
-                  "before it)")
+DEPOSIT_REASON = "deposit not made: waits for the owner's HIIE decision (nothing public before it)"
 
 
 @pytest.fixture(scope="module")
@@ -49,8 +53,12 @@ def test_req355_manifest_has_generator_version_and_public_seeds(deposit):
     assert manifest["generator"]["package"] == "evoparam"
     assert manifest["generator"]["version"] == __version__
     assert manifest["generator"]["functions"] == ["evoparam.sim.simulate_erp"]
-    assert manifest["suite"] == {"name": "core", "version": core.version,
-                                 "sha256": core.sha256, "file": "suite-core.json"}
+    assert manifest["suite"] == {
+        "name": "core",
+        "version": core.version,
+        "sha256": core.sha256,
+        "file": "suite-core.json",
+    }
     public = {c.id: c for c in core.cells("T6", split="public")}
     cells = manifest["public_split"]["cells"]
     assert [c["id"] for c in cells] == list(public)
@@ -64,8 +72,9 @@ def test_req355_manifest_has_generator_version_and_public_seeds(deposit):
 
 def test_req355_files_and_hashes(deposit):
     out, manifest = deposit
-    assert (out / "suite-core.json").read_bytes() == \
-        (ROOT / "evoparam" / "benchmark" / "suites" / "core.json").read_bytes()
+    assert (out / "suite-core.json").read_bytes() == (
+        ROOT / "evoparam" / "benchmark" / "suites" / "core.json"
+    ).read_bytes()
     for rel, digest in manifest["files"].items():
         assert hashlib.sha256((out / rel).read_bytes()).hexdigest() == digest, rel
     on_disk = {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()}
@@ -83,8 +92,11 @@ def test_req355_nwb_holds_the_simulated_trials(deposit):
     entry = manifest["public_split"]["cells"][0]
     cell = next(c for c in suite("core").cells("T6") if c.id == entry["id"])
     ts, _ = simulate_cell(cell)
-    back = read_nwb(str(out / "nwb" / f"{cell.id}.nwb"), tmin=float(ts.times[0]),
-                    tmax=float(ts.times[-1]) + 0.5 / ts.sfreq)
+    back = read_nwb(
+        str(out / "nwb" / f"{cell.id}.nwb"),
+        tmin=float(ts.times[0]),
+        tmax=float(ts.times[-1]) + 0.5 / ts.sfreq,
+    )
     assert back.data.shape == ts.data.shape
     np.testing.assert_allclose(back.data, ts.data, rtol=1e-9, atol=1e-9)
     assert list(back.ch_names) == list(ts.ch_names)
@@ -113,9 +125,14 @@ def test_req356_commitment_is_the_same_for_both_suites():
 
 
 def _fake_document(core, full):
-    return {"schema": HIDDEN_SCHEMA, "nonce": "00" * 32,
-            "seeds": {"core": {c.id: 1 for c in core.cells(split="hidden")},
-                      "full": {c.id: 2 for c in full.cells(split="hidden")}}}
+    return {
+        "schema": HIDDEN_SCHEMA,
+        "nonce": "00" * 32,
+        "seeds": {
+            "core": {c.id: 1 for c in core.cells(split="hidden")},
+            "full": {c.id: 2 for c in full.cells(split="hidden")},
+        },
+    }
 
 
 def test_req356_a_different_seeds_document_is_refused(tmp_path):
@@ -125,8 +142,7 @@ def test_req356_a_different_seeds_document_is_refused(tmp_path):
     with pytest.raises(DataError, match="is not the commitment"):
         core.with_hidden_seeds(document)
     with pytest.raises(DataError, match="does not match the commitment"):
-        prepare_deposit(core, str(tmp_path / "d"), tasks=["T6"], formats=(),
-                        hidden_seeds=document)
+        prepare_deposit(core, str(tmp_path / "d"), tasks=["T6"], formats=(), hidden_seeds=document)
     with pytest.raises(DataError, match="hidden cell without its seed"):
         simulate_cell(core.cells(split="hidden")[0])
 
@@ -134,8 +150,9 @@ def test_req356_a_different_seeds_document_is_refused(tmp_path):
 def test_req356_commitment_is_the_hash_of_the_canonical_document():
     core, full = suite("core"), load_suite("full")
     document = _fake_document(core, full)
-    canonical = json.dumps(document, sort_keys=True, separators=(",", ":"),
-                           ensure_ascii=False).encode("utf-8")
+    canonical = json.dumps(
+        document, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
     assert hidden_commitment(document) == hashlib.sha256(canonical).hexdigest()
     # key order and whitespace do not change the commitment; any seed does
     shuffled = json.loads(json.dumps(document, indent=3))
@@ -159,8 +176,9 @@ def test_req356_the_kept_seeds_match_the_commitment(tmp_path):
         hidden = loaded.cells(split="hidden")
         assert hidden and all(isinstance(c.seed, int) for c in hidden)
         assert hidden_commitment(document) == loaded.hidden_split["commitment_sha256"]
-    manifest_path = prepare_deposit("core", str(tmp_path / "d"), tasks=["T6"], formats=(),
-                                    hidden_seeds=path)
+    manifest_path = prepare_deposit(
+        "core", str(tmp_path / "d"), tasks=["T6"], formats=(), hidden_seeds=path
+    )
     with open(manifest_path, encoding="utf-8") as fobj:
         manifest = json.load(fobj)
     assert manifest["hidden_split"]["verified_against_seeds"] is True

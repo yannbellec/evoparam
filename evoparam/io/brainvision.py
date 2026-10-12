@@ -18,40 +18,44 @@ import numpy as np
 from evoparam.errors import DataError, ReaderError, warn as _warn
 from evoparam.io._fetch import RemoteFile, fetch_bytes, is_url, sha256_file
 
-__all__ = ["read_brainvision", "read_brainvision_header", "read_brainvision_segment",
-           "write_brainvision"]
+__all__ = [
+    "read_brainvision",
+    "read_brainvision_header",
+    "read_brainvision_segment",
+    "write_brainvision",
+]
 
 ###################################################################################################
 ###################################################################################################
 
-_DTYPES = {'IEEE_FLOAT_32' : '<f4', 'INT_16' : '<i2', 'INT_32' : '<i4'}
+_DTYPES = {"IEEE_FLOAT_32": "<f4", "INT_16": "<i2", "INT_32": "<i4"}
 
 # Factor from each voltage unit to µV. The micro sign (U+00B5) and the Greek mu
 # (U+03BC) are both used in headers; the default unit of BrainVision is µV.
-_TO_UV = {'µV' : 1.0, 'μV' : 1.0, 'uV' : 1.0, 'mV' : 1e3, 'V' : 1e6, 'nV' : 1e-3}
+_TO_UV = {"µV": 1.0, "μV": 1.0, "uV": 1.0, "mV": 1e3, "V": 1e6, "nV": 1e-3}
 
 
 def _decode(content):
     try:
-        return content.decode('utf-8')
+        return content.decode("utf-8")
     except UnicodeDecodeError:
-        return content.decode('latin-1')
+        return content.decode("latin-1")
 
 
 def _read_text(path, log=None):
     if is_url(path):
         return _decode(fetch_bytes(path, log=log))
     try:
-        with open(path, 'rb') as file:
+        with open(path, "rb") as file:
             return _decode(file.read())
     except OSError as exc:
-        raise ReaderError('Cannot read {}: {}'.format(path, exc)) from exc
+        raise ReaderError("Cannot read {}: {}".format(path, exc)) from exc
 
 
 def _unique_names(names):
     """Suffix duplicated channel names with -1, -2, ..., with a warning."""
 
-    counts = {name : names.count(name) for name in names}
+    counts = {name: names.count(name) for name in names}
     duplicated = sorted(name for name, count in counts.items() if count > 1)
     if not duplicated:
         return list(names)
@@ -59,11 +63,16 @@ def _unique_names(names):
     for name in names:
         if counts[name] > 1:
             seen[name] = seen.get(name, 0) + 1
-            out.append('{}-{}'.format(name, seen[name]))
+            out.append("{}-{}".format(name, seen[name]))
         else:
             out.append(name)
-    _warn('Duplicated channel names renamed with a suffix -1, -2, ...: {}.'.format(
-        ', '.join(duplicated)), UserWarning, stacklevel=3)
+    _warn(
+        "Duplicated channel names renamed with a suffix -1, -2, ...: {}.".format(
+            ", ".join(duplicated)
+        ),
+        UserWarning,
+        stacklevel=3,
+    )
     return out
 
 
@@ -98,52 +107,60 @@ def read_brainvision_header(vhdr, *, log=None):
     text = _read_text(vhdr, log=log)
 
     # The header is an INI file, with a first line that is not a section: drop it
-    if '[' not in text:
-        raise ReaderError('{} is not a BrainVision header.'.format(vhdr))
-    text = text[text.index('['):]
+    if "[" not in text:
+        raise ReaderError("{} is not a BrainVision header.".format(vhdr))
+    text = text[text.index("[") :]
     parser = ConfigParser(interpolation=None, strict=False)
     parser.optionxform = str
     try:
         parser.read_string(text)
-        common = parser['Common Infos']
-        channels = parser['Channel Infos']
+        common = parser["Common Infos"]
+        channels = parser["Channel Infos"]
     except (ConfigError, KeyError) as exc:
-        raise ReaderError('{}: malformed BrainVision header ({}).'.format(vhdr, exc)) from exc
+        raise ReaderError("{}: malformed BrainVision header ({}).".format(vhdr, exc)) from exc
 
-    if common.get('DataFormat', 'BINARY').upper() != 'BINARY':
-        raise ReaderError('{}: only binary BrainVision data are supported.'.format(vhdr))
-    orientation = common.get('DataOrientation', 'MULTIPLEXED').upper()
-    if orientation not in ('MULTIPLEXED', 'VECTORIZED'):
-        raise ReaderError('{}: data orientation {} is not supported.'.format(vhdr, orientation))
+    if common.get("DataFormat", "BINARY").upper() != "BINARY":
+        raise ReaderError("{}: only binary BrainVision data are supported.".format(vhdr))
+    orientation = common.get("DataOrientation", "MULTIPLEXED").upper()
+    if orientation not in ("MULTIPLEXED", "VECTORIZED"):
+        raise ReaderError("{}: data orientation {} is not supported.".format(vhdr, orientation))
 
-    n_channels = int(common['NumberOfChannels'])
-    sfreq = 1e6 / float(common['SamplingInterval'])
-    binary = parser['Binary Infos'] if parser.has_section('Binary Infos') else {}
-    binary_format = binary.get('BinaryFormat', 'INT_16').upper()
+    n_channels = int(common["NumberOfChannels"])
+    sfreq = 1e6 / float(common["SamplingInterval"])
+    binary = parser["Binary Infos"] if parser.has_section("Binary Infos") else {}
+    binary_format = binary.get("BinaryFormat", "INT_16").upper()
     if binary_format not in _DTYPES:
-        raise ReaderError('{}: binary format {} is not supported.'.format(vhdr, binary_format))
+        raise ReaderError("{}: binary format {} is not supported.".format(vhdr, binary_format))
 
     ch_names, resolutions, units = [], [], []
     for ind in range(1, n_channels + 1):
-        key = 'Ch{}'.format(ind)
+        key = "Ch{}".format(ind)
         if key not in channels:
-            raise ReaderError('{}: channel {} is not described.'.format(vhdr, key))
-        fields = re.split(r'(?<!\\),', channels[key])
-        ch_names.append(fields[0].replace('\\1', ','))
+            raise ReaderError("{}: channel {} is not described.".format(vhdr, key))
+        fields = re.split(r"(?<!\\),", channels[key])
+        ch_names.append(fields[0].replace("\\1", ","))
         resolutions.append(float(fields[2]) if len(fields) > 2 and fields[2].strip() else 1.0)
-        unit = fields[3].strip() if len(fields) > 3 and fields[3].strip() else 'µV'
-        units.append('µV' if unit == '�V' else unit)
+        unit = fields[3].strip() if len(fields) > 3 and fields[3].strip() else "µV"
+        units.append("µV" if unit == "�V" else unit)
     to_uv = np.array([_TO_UV.get(unit, 1.0) for unit in units])
 
-    data_file = common['DataFile']
-    base = vhdr.rsplit('/', 1)[0] if is_url(vhdr) else os.path.dirname(vhdr)
-    data_file = base + '/' + data_file if is_url(vhdr) else os.path.join(base, data_file)
-    n_samples = int(common['DataPoints']) if common.get('DataPoints', '').strip() else None
+    data_file = common["DataFile"]
+    base = vhdr.rsplit("/", 1)[0] if is_url(vhdr) else os.path.dirname(vhdr)
+    data_file = base + "/" + data_file if is_url(vhdr) else os.path.join(base, data_file)
+    n_samples = int(common["DataPoints"]) if common.get("DataPoints", "").strip() else None
 
-    return {'data_file' : data_file, 'n_channels' : n_channels, 'sfreq' : sfreq,
-            'dtype' : _DTYPES[binary_format], 'ch_names' : _unique_names(ch_names),
-            'resolutions' : np.array(resolutions), 'units' : units, 'to_uv' : to_uv,
-            'orientation' : orientation, 'n_samples' : n_samples}
+    return {
+        "data_file": data_file,
+        "n_channels": n_channels,
+        "sfreq": sfreq,
+        "dtype": _DTYPES[binary_format],
+        "ch_names": _unique_names(ch_names),
+        "resolutions": np.array(resolutions),
+        "units": units,
+        "to_uv": to_uv,
+        "orientation": orientation,
+        "n_samples": n_samples,
+    }
 
 
 class _LocalFile:
@@ -151,11 +168,11 @@ class _LocalFile:
 
     def __init__(self, path):
         if not os.path.isfile(path):
-            raise ReaderError('Data file not found: {}'.format(path))
+            raise ReaderError("Data file not found: {}".format(path))
         self.path = path
         self.size = os.path.getsize(path)
         self.bytes_read = 0
-        self._file = open(path, 'rb')
+        self._file = open(path, "rb")
 
     def read(self, offset, nbytes):
         self._file.seek(offset)
@@ -176,13 +193,13 @@ class _LocalFile:
 def _open_data(header, remote=None, *, chunk_size=1 << 20, cache_dir=None, log=None):
     """Open the binary data file of a header, locally or through range requests."""
 
-    path = header['data_file']
+    path = header["data_file"]
     if remote is None:
         remote = is_url(path)
     if remote and not is_url(path):
-        raise ReaderError('remote=True needs an http(s) address, got {}.'.format(path))
+        raise ReaderError("remote=True needs an http(s) address, got {}.".format(path))
     if not remote and is_url(path):
-        raise ReaderError('remote=False but {} is an http(s) address.'.format(path))
+        raise ReaderError("remote=False but {} is an http(s) address.".format(path))
     if remote:
         return RemoteFile(path, chunk_size=chunk_size, cache_dir=cache_dir, log=log)
     return _LocalFile(path)
@@ -191,13 +208,13 @@ def _open_data(header, remote=None, *, chunk_size=1 << 20, cache_dir=None, log=N
 def _n_samples(header, reader):
     """Number of samples per channel, from the file size."""
 
-    itemsize = np.dtype(header['dtype']).itemsize
-    from_size = reader.size // (header['n_channels'] * itemsize)
-    return from_size if header['n_samples'] is None else min(header['n_samples'], from_size)
+    itemsize = np.dtype(header["dtype"]).itemsize
+    from_size = reader.size // (header["n_channels"] * itemsize)
+    return from_size if header["n_samples"] is None else min(header["n_samples"], from_size)
 
 
 def _scaling(header, ch_index):
-    return header['resolutions'][ch_index] * header['to_uv'][ch_index]
+    return header["resolutions"][ch_index] * header["to_uv"][ch_index]
 
 
 def _read_windows(reader, header, starts, n_times, ch_index, n_samples):
@@ -209,20 +226,23 @@ def _read_windows(reader, header, starts, n_times, ch_index, n_samples):
         As [n_windows, n_selected_channels, n_times], in µV, float64.
     """
 
-    dtype, n_channels = np.dtype(header['dtype']), header['n_channels']
+    dtype, n_channels = np.dtype(header["dtype"]), header["n_channels"]
     itemsize = dtype.itemsize
     starts = np.asarray(starts, dtype=np.int64)
     ch_index = np.asarray(ch_index, dtype=int)
     out = np.empty((starts.size, ch_index.size, n_times))
     scale = _scaling(header, ch_index)[:, None]
 
-    if header['orientation'] == 'MULTIPLEXED':
+    if header["orientation"] == "MULTIPLEXED":
         frame = n_channels * itemsize
         for ind, start in enumerate(starts):
             raw = reader.read(int(start) * frame, n_times * frame)
             if len(raw) != n_times * frame:
-                raise ReaderError('{}: the file ends before sample {}.'.format(
-                    header['data_file'], int(start) + n_times))
+                raise ReaderError(
+                    "{}: the file ends before sample {}.".format(
+                        header["data_file"], int(start) + n_times
+                    )
+                )
             block = np.frombuffer(raw, dtype=dtype).reshape(n_times, n_channels)
             out[ind] = block[:, ch_index].T * scale
     else:
@@ -233,8 +253,11 @@ def _read_windows(reader, header, starts, n_times, ch_index, n_samples):
                 offset = (int(channel) * n_samples + int(start)) * itemsize
                 raw = reader.read(offset, n_times * itemsize)
                 if len(raw) != n_times * itemsize:
-                    raise ReaderError('{}: the file ends before sample {}.'.format(
-                        header['data_file'], int(start) + n_times))
+                    raise ReaderError(
+                        "{}: the file ends before sample {}.".format(
+                            header["data_file"], int(start) + n_times
+                        )
+                    )
                 out[ind, pos] = np.frombuffer(raw, dtype=dtype) * scale[pos, 0]
     return out
 
@@ -246,59 +269,79 @@ def _pick(ch_names, picks):
         return list(range(len(ch_names)))
     if isinstance(picks, (str, int, np.integer)):
         picks = [picks]
-    lookup = {name : ind for ind, name in enumerate(ch_names)}
+    lookup = {name: ind for ind, name in enumerate(ch_names)}
     out = []
     for pick in picks:
         if isinstance(pick, str):
             if pick not in lookup:
-                raise DataError('picks: unknown channel {!r}.'.format(pick))
+                raise DataError("picks: unknown channel {!r}.".format(pick))
             out.append(lookup[pick])
         elif isinstance(pick, (int, np.integer)) and -len(ch_names) <= pick < len(ch_names):
             out.append(int(pick) % len(ch_names))
         else:
-            raise DataError('picks: cannot select a channel with {!r}.'.format(pick))
+            raise DataError("picks: cannot select a channel with {!r}.".format(pick))
     if not out:
-        raise DataError('picks: the selection is empty.')
+        raise DataError("picks: the selection is empty.")
     return out
 
 
 def _warn_units(header, ch_index):
     """Warn about converted and non-voltage channel units among the picked channels."""
 
-    units = [header['units'][ind] for ind in ch_index]
-    names = [header['ch_names'][ind] for ind in ch_index]
-    converted = [name for name, unit in zip(names, units)
-                 if unit in _TO_UV and _TO_UV[unit] != 1.0]
+    units = [header["units"][ind] for ind in ch_index]
+    names = [header["ch_names"][ind] for ind in ch_index]
+    converted = [
+        name for name, unit in zip(names, units) if unit in _TO_UV and _TO_UV[unit] != 1.0
+    ]
     other = [name for name, unit in zip(names, units) if unit not in _TO_UV]
     if converted:
-        _warn('Channels in another voltage unit were converted to µV: {}.'.format(
-            ', '.join(converted)), UserWarning, stacklevel=3)
+        _warn(
+            "Channels in another voltage unit were converted to µV: {}.".format(
+                ", ".join(converted)
+            ),
+            UserWarning,
+            stacklevel=3,
+        )
     if other:
-        _warn('Channels whose unit is not a voltage were left unconverted: {}.'.format(
-            ', '.join(other)), UserWarning, stacklevel=3)
+        _warn(
+            "Channels whose unit is not a voltage were left unconverted: {}.".format(
+                ", ".join(other)
+            ),
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 def _segment(vhdr, header, first, stop, picks, remote, cache_dir=None, hash_file=False):
     """Samples ``first <= n < stop`` (clipped to the recording), in µV, and the record of
     the bytes read (the SHA-256 of a local data file only when ``hash_file``)."""
 
-    ch_index = _pick(header['ch_names'], picks)
+    ch_index = _pick(header["ch_names"], picks)
     _warn_units(header, ch_index)
     with _open_data(header, remote, cache_dir=cache_dir) as reader:
         n_samples = _n_samples(header, reader)
         first, stop = max(int(first), 0), min(int(stop), n_samples)
         if stop <= first:
-            raise ReaderError('{}: the requested time window is outside the recording '
-                              '({} samples).'.format(vhdr, n_samples))
+            raise ReaderError(
+                "{}: the requested time window is outside the recording ({} samples).".format(
+                    vhdr, n_samples
+                )
+            )
         data = _read_windows(reader, header, [first], stop - first, ch_index, n_samples)[0]
         if isinstance(reader, RemoteFile):
-            source = {'sha256' : reader.sha256(), 'bytes_read' : reader.bytes_read,
-                      'ranges' : reader.ranges, 'full_download' : reader.full_download}
+            source = {
+                "sha256": reader.sha256(),
+                "bytes_read": reader.bytes_read,
+                "ranges": reader.ranges,
+                "full_download": reader.full_download,
+            }
         else:
-            source = {'sha256' : sha256_file(header['data_file']) if hash_file else None,
-                      'bytes_read' : reader.bytes_read}
-    source.update({'path' : header['data_file'], 'format' : 'brainvision'})
-    return data, header['sfreq'], [header['ch_names'][ind] for ind in ch_index], first, source
+            source = {
+                "sha256": sha256_file(header["data_file"]) if hash_file else None,
+                "bytes_read": reader.bytes_read,
+            }
+    source.update({"path": header["data_file"], "format": "brainvision"})
+    return data, header["sfreq"], [header["ch_names"][ind] for ind in ch_index], first, source
 
 
 def _sample(time, sfreq):
@@ -342,8 +385,9 @@ def read_brainvision(vhdr, *, tmin=None, tmax=None, picks=None, remote=None):
         Unknown channel in ``picks``.
     """
 
-    data, sfreq, ch_names, t0, _ = _read_with_source(vhdr, tmin, tmax, picks, remote,
-                                                     hash_file=False)
+    data, sfreq, ch_names, t0, _ = _read_with_source(
+        vhdr, tmin, tmax, picks, remote, hash_file=False
+    )
 
     return data, sfreq, ch_names, t0
 
@@ -352,11 +396,12 @@ def _read_with_source(vhdr, tmin=None, tmax=None, picks=None, remote=None, hash_
     """read_brainvision, plus the record of the bytes read (sha256, bytes_read, ranges)."""
 
     header = read_brainvision_header(vhdr)
-    sfreq = header['sfreq']
+    sfreq = header["sfreq"]
     first = 0 if tmin is None else _sample(tmin, sfreq)
     stop = np.iinfo(np.int64).max if tmax is None else _sample(tmax, sfreq)
-    data, sfreq, ch_names, first, source = _segment(vhdr, header, first, stop, picks, remote,
-                                                   hash_file=hash_file)
+    data, sfreq, ch_names, first, source = _segment(
+        vhdr, header, first, stop, picks, remote, hash_file=hash_file
+    )
 
     return data, sfreq, ch_names, first / sfreq, source
 
@@ -387,7 +432,7 @@ def read_brainvision_segment(vhdr, tmin, tmax, picks=None):
     """
 
     header = read_brainvision_header(vhdr)
-    sfreq = header['sfreq']
+    sfreq = header["sfreq"]
     first = max(int(np.ceil(tmin * sfreq)), 0)
     stop = int(np.floor(tmax * sfreq)) + 1
     data, sfreq, ch_names, first, _ = _segment(vhdr, header, first, stop, picks, None)
@@ -395,8 +440,9 @@ def read_brainvision_segment(vhdr, tmin, tmax, picks=None):
     return data, sfreq, ch_names, first / sfreq
 
 
-def write_brainvision(vhdr, data, sfreq, ch_names, *, markers=None, resolution=0.1,
-                      fmt="IEEE_FLOAT_32"):
+def write_brainvision(
+    vhdr, data, sfreq, ch_names, *, markers=None, resolution=0.1, fmt="IEEE_FLOAT_32"
+):
     """Write a BrainVision recording (``.vhdr``, ``.vmrk``, ``.eeg``; multiplexed).
 
     Parameters
@@ -423,19 +469,40 @@ def write_brainvision(vhdr, data, sfreq, ch_names, *, markers=None, resolution=0
     folder, name = os.path.split(vhdr)
     stem = name[:-5] if name.endswith(".vhdr") else name
     data = np.asarray(data, dtype=float)
-    lines = ["Brain Vision Data Exchange Header File Version 1.0",
-             "; written by evoparam", "", "[Common Infos]", "Codepage=UTF-8",
-             f"DataFile={stem}.eeg", f"MarkerFile={stem}.vmrk", "DataFormat=BINARY",
-             "DataOrientation=MULTIPLEXED", f"NumberOfChannels={len(ch_names)}",
-             f"SamplingInterval={1e6 / float(sfreq)!r}", "", "[Binary Infos]",
-             f"BinaryFormat={fmt}", "", "[Channel Infos]"]
-    lines += [f"Ch{i + 1}={ch.replace(',', chr(92) + '1')},,{resolution!r},µV"
-              for i, ch in enumerate(ch_names)]
+    lines = [
+        "Brain Vision Data Exchange Header File Version 1.0",
+        "; written by evoparam",
+        "",
+        "[Common Infos]",
+        "Codepage=UTF-8",
+        f"DataFile={stem}.eeg",
+        f"MarkerFile={stem}.vmrk",
+        "DataFormat=BINARY",
+        "DataOrientation=MULTIPLEXED",
+        f"NumberOfChannels={len(ch_names)}",
+        f"SamplingInterval={1e6 / float(sfreq)!r}",
+        "",
+        "[Binary Infos]",
+        f"BinaryFormat={fmt}",
+        "",
+        "[Channel Infos]",
+    ]
+    lines += [
+        f"Ch{i + 1}={ch.replace(',', chr(92) + '1')},,{resolution!r},µV"
+        for i, ch in enumerate(ch_names)
+    ]
     with open(os.path.join(folder, stem + ".vhdr"), "w", encoding="utf-8") as fobj:
         fobj.write("\n".join(lines) + "\n")
-    marks = ["Brain Vision Data Exchange Marker File, Version 1.0", "", "[Common Infos]",
-             "Codepage=UTF-8", f"DataFile={stem}.eeg", "", "[Marker Infos]",
-             "Mk1=New Segment,,1,1,0"]
+    marks = [
+        "Brain Vision Data Exchange Marker File, Version 1.0",
+        "",
+        "[Common Infos]",
+        "Codepage=UTF-8",
+        f"DataFile={stem}.eeg",
+        "",
+        "[Marker Infos]",
+        "Mk1=New Segment,,1,1,0",
+    ]
     for k, (sample, description) in enumerate(markers or [], start=2):
         marks.append(f"Mk{k}=Stimulus,{description},{int(sample) + 1},1,0")
     with open(os.path.join(folder, stem + ".vmrk"), "w", encoding="utf-8") as fobj:

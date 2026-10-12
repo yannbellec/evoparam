@@ -88,9 +88,11 @@ def normalize(power, ref_times, mode, level, trials=None):
     if level not in BASELINE_LEVELS:
         raise SettingsError(f"baseline_level must be one of {BASELINE_LEVELS}, not {level!r}.")
     if level == "full_epoch" and mode == "zscore":
-        raise SettingsError("baseline_level='full_epoch' with baseline_mode='zscore' is "
-                            "undefined (the full epoch contains the response); use 'db', "
-                            "'percent', 'logratio' or 'ratio'.")
+        raise SettingsError(
+            "baseline_level='full_epoch' with baseline_mode='zscore' is "
+            "undefined (the full epoch contains the response); use 'db', "
+            "'percent', 'logratio' or 'ratio'."
+        )
     if trials is not None:
         power = power[trials]
     ref_sel = np.ones(power.shape[-1], bool) if level == "full_epoch" else np.asarray(ref_times)

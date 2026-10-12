@@ -28,14 +28,16 @@ def _check(name, definition):
     elif len(definition) == 3:
         start, end, polarity = definition
     else:
-        raise SettingsError(f"window {name!r} must be (start, end) or (start, end, polarity) "
-                            f"in seconds.")
+        raise SettingsError(
+            f"window {name!r} must be (start, end) or (start, end, polarity) in seconds."
+        )
     start, end = float(start), float(end)
     if not start < end:
         raise SettingsError(f"window {name!r}: start ({start} s) must be before end ({end} s).")
     if polarity not in _POLARITIES:
-        raise SettingsError(f"window {name!r}: polarity must be -1, +1 or 0 (either), "
-                            f"got {polarity!r}.")
+        raise SettingsError(
+            f"window {name!r}: polarity must be -1, +1 or 0 (either), got {polarity!r}."
+        )
     return start, end, int(polarity)
 
 

@@ -22,8 +22,21 @@ pytestmark = pytest.mark.core
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 GUIDE = ROOT / "CONTRIBUTING.md"
 CASE_SENSITIVE = {"Bands"}
-TEXT_SUFFIXES = {".py", ".rst", ".md", ".txt", ".json", ".toml", ".cff", ".yml", ".yaml",
-                 ".cfg", ".in", ".html", ".tsv"}
+TEXT_SUFFIXES = {
+    ".py",
+    ".rst",
+    ".md",
+    ".txt",
+    ".json",
+    ".toml",
+    ".cff",
+    ".yml",
+    ".yaml",
+    ".cfg",
+    ".in",
+    ".html",
+    ".tsv",
+}
 
 
 def prohibited_words():
@@ -51,17 +64,29 @@ def scanned_files():
     for folder in ("evoparam", "docs", "examples", "tools", "benchmarks", "validation"):
         for path in sorted((ROOT / folder).rglob("*")):
             rel = path.relative_to(ROOT).as_posix()
-            if (path.is_file() and path.suffix in TEXT_SUFFIXES
-                    and not rel.startswith(("evoparam/tests/", "docs/spec/"))
-                    and "__pycache__" not in rel and ".egg-info" not in rel):
+            if (
+                path.is_file()
+                and path.suffix in TEXT_SUFFIXES
+                and not rel.startswith(("evoparam/tests/", "docs/spec/"))
+                and "__pycache__" not in rel
+                and ".egg-info" not in rel
+            ):
                 files.append(path)
     return [path for path in files if path.exists()]
 
 
 def test_the_style_guide_lists_the_words():
     assert len(WORDS) >= 15
-    for word in ("ERPparam", "FOOOF", "specparam", "aperiodic", "peak_width_limits",
-                 "max_n_peaks", "power spectrum", "knee"):
+    for word in (
+        "ERPparam",
+        "FOOOF",
+        "specparam",
+        "aperiodic",
+        "peak_width_limits",
+        "max_n_peaks",
+        "power spectrum",
+        "knee",
+    ):
         assert word in WORDS
 
 
@@ -74,15 +99,19 @@ def test_req012_package_and_documentation():
         except UnicodeDecodeError:
             continue
         for number, line in enumerate(text.splitlines(), 1):
-            hits += [f"{path.relative_to(ROOT)}:{number}: {word!r}"
-                     for word, regex in patterns if regex.search(line)]
+            hits += [
+                f"{path.relative_to(ROOT)}:{number}: {word!r}"
+                for word, regex in patterns
+                if regex.search(line)
+            ]
     assert not hits, "\n".join(hits)
 
 
 def test_req012_contributing_outside_the_list():
     text = GUIDE.read_text(encoding="utf-8")
-    outside = text.split("<!-- prohibited-words -->")[0] + \
-        text.split("<!-- end-prohibited-words -->")[1]
+    outside = (
+        text.split("<!-- prohibited-words -->")[0] + text.split("<!-- end-prohibited-words -->")[1]
+    )
     hits = [word for word in WORDS if pattern(word).search(outside)]
     assert not hits
 
@@ -111,8 +140,9 @@ def test_req012_public_names():
             hits += [f"{name}.{attr}" for word, regex in patterns if regex.search(attr)]
             obj = getattr(module, attr, None)
             for param in _parameters(obj):
-                hits += [f"{name}.{attr}({param}=)" for word, regex in patterns
-                         if regex.search(param)]
+                hits += [
+                    f"{name}.{attr}({param}=)" for word, regex in patterns if regex.search(param)
+                ]
     assert not hits, hits
 
 

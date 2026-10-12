@@ -33,7 +33,7 @@ def spec_score(data, index):
     score = np.empty(n_times - 1)
     for start in range(0, n_times - 1, _CHUNK):
         stop = min(start + _CHUNK, n_times - 1)
-        block = np.abs(np.diff(data[index, start:stop + 1], axis=1))
+        block = np.abs(np.diff(data[index, start : stop + 1], axis=1))
         np.nan_to_num(block, copy=False, nan=0.0)
         score[start:stop] = np.median(block, axis=0)
     return score
@@ -63,13 +63,13 @@ def spec_threshold(score, z, sfreq, threshold_sd, min_samples, refine=True):
     half = max(1, int(round(0.002 * sfreq)))
     n = len(score)
     for i in above:
-        sample = i + 1                                  # d[sample] crosses the threshold
+        sample = i + 1  # d[sample] crosses the threshold
         if sample - last < min_samples:
             continue
         lo, hi = max(0, i - half), min(n, i + half + 1)
         if refine:
-            best = lo + int(np.argmax(score[lo:hi]))    # d[best + 1] is the largest
-            onset = best                                # (best + 1) - 1: last pre-artifact
+            best = lo + int(np.argmax(score[lo:hi]))  # d[best + 1] is the largest
+            onset = best  # (best + 1) - 1: last pre-artifact
         else:
             onset = sample
         onsets.append(max(onset, 0))
@@ -86,8 +86,11 @@ def spec_template(data, index, onsets, sfreq, n_template):
 
     n_pre, n_post = max(1, int(round(0.001 * sfreq))), max(1, int(round(0.003 * sfreq)))
     n_times = data.shape[1]
-    rows = [data[index, onset - n_pre:onset + n_post] for onset in onsets
-            if onset - n_pre >= 0 and onset + n_post <= n_times][:int(n_template)]
+    rows = [
+        data[index, onset - n_pre : onset + n_post]
+        for onset in onsets
+        if onset - n_pre >= 0 and onset + n_post <= n_times
+    ][: int(n_template)]
     if not rows:
         return None, n_pre
     template = np.nan_to_num(np.mean(rows, axis=0))
@@ -113,8 +116,7 @@ def spec_rho(data, index, template):
             numerator += fftconvolve(x, template[row][::-1], mode="valid")
         energy += fftconvolve(x * x, kernel, mode="valid")
     denominator = np.linalg.norm(template) * np.sqrt(np.maximum(energy, 0.0))
-    return np.divide(numerator, denominator, out=np.zeros_like(numerator),
-                     where=denominator > 0)
+    return np.divide(numerator, denominator, out=np.zeros_like(numerator), where=denominator > 0)
 
 
 def spec_template_peaks(rho, rho_min, min_samples):

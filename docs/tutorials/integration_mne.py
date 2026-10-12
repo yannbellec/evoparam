@@ -26,7 +26,7 @@ import mne
 
 mne.set_log_level("ERROR")
 trials, _ = sim.simulate_ccep(n_trials=20, n_channels=6, seed=0, artifact=False)
-epochs = trials.to_mne()              # µV -> V, metadata and event times kept
+epochs = trials.to_mne()  # µV -> V, metadata and event times kept
 print(epochs)
 
 # %%
@@ -54,8 +54,8 @@ print(set(per_condition.index["condition"]))
 # Results as MNE objects
 # ----------------------
 
-model = group.to_evoked_model()          # fitted curves, comment "evoparam model"
-annotations = group.to_annotations()     # one annotation per component: "<label>|<channel>"
+model = group.to_evoked_model()  # fitted curves, comment "evoparam model"
+annotations = group.to_annotations()  # one annotation per component: "<label>|<channel>"
 print(model.comment, len(annotations), annotations.description[:3])
 
 import matplotlib

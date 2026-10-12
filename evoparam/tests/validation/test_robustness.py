@@ -62,6 +62,7 @@ def _workflow(name):
 ###################################################################################################
 ## REQ-375
 
+
 def test_req375_the_five_analyses_are_defined(robustness):
     """REQ-375: the script runs exactly the five analyses of §7.4."""
 
@@ -118,8 +119,13 @@ def test_req375_report_holds_the_five_analyses(report):
     assert [r["n_trials"] for r in report["trials"]["summary"]] == [5, 7, 10]
     assert report["platform"]["match"] is True
     text = (LAYER4 / "report.md").read_text(encoding="utf-8")
-    for heading in ("## 1. Montage", "## 2. Preset", "## 3. Sampling rate",
-                    "## 4. Trial count", "## 5. Platform"):
+    for heading in (
+        "## 1. Montage",
+        "## 2. Preset",
+        "## 3. Sampling rate",
+        "## 4. Trial count",
+        "## 5. Platform",
+    ):
         assert heading in text
 
 
@@ -138,10 +144,12 @@ def _sampling_reason():
     if not path.exists():
         return "no layer-4 report"
     verdict = json.loads(path.read_text(encoding="utf-8"))["sampling"]["verdict"]
-    return "; ".join(f"{reading} reading: N1 recall {v['recall_native']:.3f} native, "
-                     f"{v['recall_1024']:.3f} at 1024 Hz ({v['drop_points_1024']:+.2f} points, "
-                     f"{'met' if v['met'] else 'not met'})"
-                     for reading, v in verdict.items())
+    return "; ".join(
+        f"{reading} reading: N1 recall {v['recall_native']:.3f} native, "
+        f"{v['recall_1024']:.3f} at 1024 Hz ({v['drop_points_1024']:+.2f} points, "
+        f"{'met' if v['met'] else 'not met'})"
+        for reading, v in verdict.items()
+    )
 
 
 def _sampling_met():
@@ -152,8 +160,9 @@ def _sampling_met():
     return all(v["met"] for v in verdict.values())
 
 
-@pytest.mark.xfail(not _sampling_met(), strict=True,
-                   reason="§7.4 (3) not met: " + _sampling_reason())
+@pytest.mark.xfail(
+    not _sampling_met(), strict=True, reason="§7.4 (3) not met: " + _sampling_reason()
+)
 def test_req375_sampling_recall_within_5_points_at_1024_hz(report):
     """§7.4 (3): N1 recall stays within 5 percentage points of the native rate at 1024 Hz
     (both readings of the published rule)."""
@@ -173,8 +182,10 @@ def test_req375_preset_sensitivities_are_listed_in_the_preset_docs(report):
         line = f"| `{row['preset']}` | `{row['field']}` | {row['factor']} |"
         assert line in page, line
         if row["sensitive"]:
-            assert any(text.startswith(line) and text.rstrip().endswith("**yes** |")
-                       for text in page.splitlines())
+            assert any(
+                text.startswith(line) and text.rstrip().endswith("**yes** |")
+                for text in page.splitlines()
+            )
     assert "preset_sensitivity" in (ROOT / "docs" / "presets.md").read_text(encoding="utf-8")
 
 
@@ -192,9 +203,12 @@ def test_req375_platform_this_machine(report):
     assert report["platform"]["match"] is True
 
 
-@pytest.mark.xfail(strict=True, reason="§7.4 (5) on macOS and Windows: the cells of the CI "
-                   "matrix (.github/workflows/ci.yml), which cannot run on this machine; "
-                   "only Linux x86-64 measured")
+@pytest.mark.xfail(
+    strict=True,
+    reason="§7.4 (5) on macOS and Windows: the cells of the CI "
+    "matrix (.github/workflows/ci.yml), which cannot run on this machine; "
+    "only Linux x86-64 measured",
+)
 def test_req375_platform_macos_and_windows(report):
     """§7.4 (5): identical results on Linux, macOS and Windows."""
 
@@ -207,13 +221,15 @@ def test_req375_report_attached_to_the_release_notes():
     """REQ-375: the report is attached to the release notes of every minor version (no
     release exists before the owner's HIIE decision)."""
 
-    tags = subprocess.run(["git", "tag", "--list", "v*"], capture_output=True, text=True,
-                          cwd=ROOT).stdout.split()
+    tags = subprocess.run(
+        ["git", "tag", "--list", "v*"], capture_output=True, text=True, cwd=ROOT
+    ).stdout.split()
     assert tags, "no release tag"
 
 
 ###################################################################################################
 ## REQ-376
+
 
 def test_req376_tolerances_are_the_preregistered_ones(gate):
     """REQ-376: kappa -0.05, latency +1 ms median, recall -3 points."""
@@ -222,8 +238,10 @@ def test_req376_tolerances_are_the_preregistered_ones(gate):
 
 
 def _docs():
-    return {name: json.loads((LAYER3 / name).read_text(encoding="utf-8"))
-            for name in ("n1_ds004080.json", "erpcore_difference.json", "erpcore_parent.json")}
+    return {
+        name: json.loads((LAYER3 / name).read_text(encoding="utf-8"))
+        for name in ("n1_ds004080.json", "erpcore_difference.json", "erpcore_parent.json")
+    }
 
 
 def test_req376_committed_files_have_the_metrics(gate):
@@ -231,17 +249,28 @@ def test_req376_committed_files_have_the_metrics(gate):
     components; every value is finite."""
 
     found = gate.metrics(_docs())
-    assert {"n1_ds004080/paper/kappa", "n1_ds004080/code/recall",
-            "n1_ds004080/paper/median_abs_latency_diff_ms"} <= set(found)
+    assert {
+        "n1_ds004080/paper/kappa",
+        "n1_ds004080/code/recall",
+        "n1_ds004080/paper/median_abs_latency_diff_ms",
+    } <= set(found)
     assert any(k.startswith("erpcore_parent/") for k in found)
     n1 = {k: v for k, v in found.items() if k.startswith("n1_")}
     assert all(math.isfinite(v) for _, v in n1.values())
 
 
-@pytest.mark.parametrize("field, delta, blocks", [
-    ("kappa", -0.051, True), ("kappa", -0.049, False),
-    ("median_abs_latency_diff_ms", 1.01, True), ("median_abs_latency_diff_ms", 0.99, False),
-    ("recall", -0.031, True), ("recall", -0.029, False), ("recall", +0.2, False)])
+@pytest.mark.parametrize(
+    "field, delta, blocks",
+    [
+        ("kappa", -0.051, True),
+        ("kappa", -0.049, False),
+        ("median_abs_latency_diff_ms", 1.01, True),
+        ("median_abs_latency_diff_ms", 0.99, False),
+        ("recall", -0.031, True),
+        ("recall", -0.029, False),
+        ("recall", +0.2, False),
+    ],
+)
 def test_req376_regression_beyond_tolerance_blocks(gate, field, delta, blocks):
     """REQ-376: a change beyond its tolerance blocks the release; within it does not."""
 
@@ -276,15 +305,19 @@ def test_req376_changelog_explanation_unblocks(gate):
     base = _docs()
     now = copy.deepcopy(base)
     now["n1_ds004080.json"]["metrics"]["paper"]["kappa"] -= 0.2
-    text = ("# Changelog\n\n## Unreleased\n\n- Layer-3 regression explained: "
-            "n1_ds004080/paper/kappa: the N1 window now follows the published rule.\n\n"
-            "## 0.0.1\n")
+    text = (
+        "# Changelog\n\n## Unreleased\n\n- Layer-3 regression explained: "
+        "n1_ds004080/paper/kappa: the N1 window now follows the published rule.\n\n"
+        "## 0.0.1\n"
+    )
     result = gate.gate(base, now, text)
     assert result["regressions"] == ["n1_ds004080/paper/kappa"]
     assert not result["release_blocked"]
     # an explanation under an older release does not count
-    old = "# Changelog\n\n## Unreleased\n\n## 0.0.1\n\n- Layer-3 regression explained: " \
-          "n1_ds004080/paper/kappa: old.\n"
+    old = (
+        "# Changelog\n\n## Unreleased\n\n## 0.0.1\n\n- Layer-3 regression explained: "
+        "n1_ds004080/paper/kappa: old.\n"
+    )
     assert gate.gate(base, now, old)["release_blocked"]
 
 
@@ -292,9 +325,19 @@ def test_req376_gate_passes_on_the_committed_files(tmp_path):
     """REQ-376: the gate script against the committed layer-3 files (no release tag yet:
     the baseline is the files themselves) exits 0."""
 
-    proc = subprocess.run([sys.executable, str(ROOT / "tools" / "layer3_gate.py"),
-                           "--baseline", str(LAYER3), "--json", str(tmp_path / "gate.json")],
-                          capture_output=True, text=True, check=False)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "tools" / "layer3_gate.py"),
+            "--baseline",
+            str(LAYER3),
+            "--json",
+            str(tmp_path / "gate.json"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     out = json.loads((tmp_path / "gate.json").read_text(encoding="utf-8"))
     assert out["n_metrics"] > 0 and not out["blocking"]
@@ -302,8 +345,9 @@ def test_req376_gate_passes_on_the_committed_files(tmp_path):
 
 def test_req376_release_workflow_runs_the_gate():
     workflow = _workflow("release.yml")
-    runs = " ".join(s.get("run", "") for job in workflow["jobs"].values()
-                    for s in job.get("steps", []))
+    runs = " ".join(
+        s.get("run", "") for job in workflow["jobs"].values() for s in job.get("steps", [])
+    )
     assert "python tools/layer3_gate.py" in runs
     assert "layer3_gate" in (ROOT / "RELEASING.md").read_text(encoding="utf-8")
 

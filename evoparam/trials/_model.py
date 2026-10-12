@@ -36,13 +36,13 @@ MU_DOWN = 1 / 3
 class ChannelTemplate:
     """What a trial fit needs from the channel fit."""
 
-    shapes: list                 # shape objects, one per component
-    params: list                 # channel parameters of each component
-    loc_index: list              # index of the location parameter of each component
-    max_shift: np.ndarray        # per component (s)
-    background: object           # background object
-    bg_nonlinear: np.ndarray     # background time constants, fixed
-    tw: np.ndarray               # window times
+    shapes: list  # shape objects, one per component
+    params: list  # channel parameters of each component
+    loc_index: list  # index of the location parameter of each component
+    max_shift: np.ndarray  # per component (s)
+    background: object  # background object
+    bg_nonlinear: np.ndarray  # background time constants, fixed
+    tw: np.ndarray  # window times
 
     def basis(self):
         if not getattr(self.background, "n_linear", 0):
@@ -57,10 +57,13 @@ def _layout(template, mode, movable=None):
     (only their amplitude is fitted)."""
 
     if mode in ("free", "regularized"):
-        return [list(range(s.n_params)) if movable is None or k in movable else []
-                for k, s in enumerate(template.shapes)]
-    return [[i] if movable is None or k in movable else []
-            for k, i in enumerate(template.loc_index)]
+        return [
+            list(range(s.n_params)) if movable is None or k in movable else []
+            for k, s in enumerate(template.shapes)
+        ]
+    return [
+        [i] if movable is None or k in movable else [] for k, i in enumerate(template.loc_index)
+    ]
 
 
 def _bounds(template, mode, layout):
@@ -189,8 +192,9 @@ def _batched_lstsq(a, y, pad=None):
     return beta, project_out
 
 
-def fit_trials_batch(template, data, valid=None, tol=1e-8, support=None, movable=None,
-                     max_iter=100):
+def fit_trials_batch(
+    template, data, valid=None, tol=1e-8, support=None, movable=None, max_iter=100
+):
     """``shift_scale`` fit of every trial at once (rows of ``data``, window samples).
 
     The same model and bounds as :func:`fit_trial` in ``shift_scale`` mode, solved by a
@@ -198,8 +202,19 @@ def fit_trials_batch(template, data, valid=None, tol=1e-8, support=None, movable
     Kaufman Jacobian). Returns one dict per trial, with the keys of :func:`fit_trial`.
     """
 
-    return fit_trials_multi([{"template": template, "data": data, "valid": valid, "tol": tol,
-                              "support": support, "movable": movable}], max_iter=max_iter)[0]
+    return fit_trials_multi(
+        [
+            {
+                "template": template,
+                "data": data,
+                "valid": valid,
+                "tol": tol,
+                "support": support,
+                "movable": movable,
+            }
+        ],
+        max_iter=max_iter,
+    )[0]
 
 
 def _fast_kind(shape, loc):
@@ -257,9 +272,21 @@ def _solve_multi(problems, max_iter):
         valid = np.ones(data.shape, bool) if valid is None else np.asarray(valid, bool)
         basis = tpl.basis()
         fixed = [k for k, free in enumerate(layout) if not free]
-        infos.append({"tpl": tpl, "data": data, "layout": layout, "lo": lo, "hi": hi,
-                      "basis": basis, "valid": valid, "n": len(data), "fixed": fixed,
-                      "tol": float(pr.get("tol", 1e-8)), "support": pr.get("support")})
+        infos.append(
+            {
+                "tpl": tpl,
+                "data": data,
+                "layout": layout,
+                "lo": lo,
+                "hi": hi,
+                "basis": basis,
+                "valid": valid,
+                "n": len(data),
+                "fixed": fixed,
+                "tol": float(pr.get("tol", 1e-8)),
+                "support": pr.get("support"),
+            }
+        )
     n = sum(f["n"] for f in infos)
     p = max(len(f["lo"]) for f in infos)
     n_fix = max(len(f["fixed"]) + len(f["basis"]) for f in infos)
@@ -270,8 +297,8 @@ def _solve_multi(problems, max_iter):
     lo, hi = np.zeros((n, p)), np.zeros((n, p))
     z = np.zeros((n, p))
     tol = np.zeros(n)
-    pad = np.ones((n, p), bool)              # parameter slots that are padding
-    fcols = np.zeros((n, n_t, n_fix))        # columns that do not move (unweighted)
+    pad = np.ones((n, p), bool)  # parameter slots that are padding
+    fcols = np.zeros((n, n_t, n_fix))  # columns that do not move (unweighted)
     # one entry per (trial, moving component)
     pr_row, pr_q, pr_prob, pr_comp = [], [], [], []
     start = 0
@@ -280,8 +307,11 @@ def _solve_multi(problems, max_iter):
         q_n = len(f["lo"])
         tol[rows] = f["tol"]
         lo[rows, :q_n], hi[rows, :q_n] = f["lo"], f["hi"]
-        z[rows, :q_n] = np.clip([tpl.params[k][i] for k, free in enumerate(f["layout"])
-                                 for i in free], f["lo"], f["hi"])
+        z[rows, :q_n] = np.clip(
+            [tpl.params[k][i] for k, free in enumerate(f["layout"]) for i in free],
+            f["lo"],
+            f["hi"],
+        )
         pad[rows, :q_n] = False
         q = 0
         for k, free in enumerate(f["layout"]):
@@ -322,7 +352,7 @@ def _solve_multi(problems, max_iter):
     kinds = {"gauss": [], "skew": []}
     generic = {}
     base_loc = np.zeros(len(pr_row))
-    pars = np.zeros((len(pr_row), 4))        # gauss: mu, sigma; skew: xi, omega, alpha, c
+    pars = np.zeros((len(pr_row), 4))  # gauss: mu, sigma; skew: xi, omega, alpha, c
     for e in range(len(pr_row)):
         tpl = infos[pr_prob[e]]["tpl"]
         k = pr_comp[e]
@@ -392,8 +422,7 @@ def _solve_multi(problems, max_iter):
             lr = local[pr_row[e]]
             delta = zr[lr, pr_q[e]] - base_loc[e]
             t = (tpl.tw[None, :] - delta[:, None]).ravel()
-            values, d = _value_and_loc_derivative(tpl.shapes[k], t, base, tpl.loc_index[k],
-                                                  jac)
+            values, d = _value_and_loc_derivative(tpl.shapes[k], t, base, tpl.loc_index[k], jac)
             put(e, values.reshape(len(e), n_t), None if d is None else d.reshape(len(e), n_t))
         return ms, dm
 
@@ -436,7 +465,7 @@ def _solve_multi(problems, max_iter):
         mu = np.full(n, MU0)
         r, beta, _, jacobian = evaluate(z, np.arange(n))
         j = jacobian()
-        cost = 0.5 * np.sum(r ** 2, axis=1)
+        cost = 0.5 * np.sum(r**2, axis=1)
         eye = np.eye(p)[None]
         for _ in range(max_iter):
             act = np.flatnonzero(~finished)
@@ -466,10 +495,9 @@ def _solve_multi(problems, max_iter):
             gstop = np.all(np.abs(g) / dh_safe <= ta * (ta + np.abs(za)), axis=1)
             z_new = np.clip(za + step, la, ha)
             r_new, beta_new, _, jacobian_new = evaluate(z_new, act)
-            cost_new = 0.5 * np.sum(r_new ** 2, axis=1)
+            cost_new = 0.5 * np.sum(r_new**2, axis=1)
             step = z_new - za
-            pred = -np.einsum("np,np->n", g, step) - 0.5 * np.einsum("np,npq,nq->n", step, h,
-                                                                     step)
+            pred = -np.einsum("np,np->n", g, step) - 0.5 * np.einsum("np,npq,nq->n", step, h, step)
             rho = (cost[act] - cost_new) / np.where(pred > 0, pred, np.inf)
             better = np.isfinite(cost_new) & (cost_new <= cost[act]) & ~gstop
             moved = np.abs(z_new - za)
@@ -484,9 +512,11 @@ def _solve_multi(problems, max_iter):
             cost[idx] = cost_new[better]
             # Nielsen's update of the damping from the gain ratio (overshooting steps along a
             # curved valley raise the damping instead of zig-zagging)
-            mu[act] = np.where(better, mu[act] * np.maximum(MU_DOWN, 1 - (2 * np.clip(rho, 0, 1)
-                                                                        - 1) ** 3),
-                               mu[act] * 4.0)
+            mu[act] = np.where(
+                better,
+                mu[act] * np.maximum(MU_DOWN, 1 - (2 * np.clip(rho, 0, 1) - 1) ** 3),
+                mu[act] * 4.0,
+            )
             stop = gstop | xstop | fstop
             converged[act[stop]] = True
             finished[act[stop | (mu[act] > 1e10)]] = True
@@ -497,21 +527,24 @@ def _solve_multi(problems, max_iter):
     _, beta_s, ms, _ = evaluate(z, np.arange(n), jac=False)
     rest = wx - np.matmul(ms * w[:, :, None], beta_s[..., None])[..., 0]
     if n_fix and shared:
-        inv_s = np.where(s_f > 1e-10 * max(s_f[0], 1e-300), 1.0 / np.where(s_f > 0, s_f, 1.0),
-                         0.0)
+        inv_s = np.where(s_f > 1e-10 * max(s_f[0], 1e-300), 1.0 / np.where(s_f > 0, s_f, 1.0), 0.0)
         beta_f = ((rest @ u_f) * inv_s) @ vt_f
     elif n_fix:
-        inv_s = np.where(s_f > 1e-10 * np.maximum(s_f[:, :1], 1e-300), 1.0 / np.where(
-            s_f > 0, s_f, 1.0), 0.0)
-        beta_f = np.matmul(np.swapaxes(vt_f, 1, 2),
-                           (inv_s * np.matmul(np.swapaxes(u_f, 1, 2),
-                                              rest[..., None])[..., 0])[..., None])[..., 0]
+        inv_s = np.where(
+            s_f > 1e-10 * np.maximum(s_f[:, :1], 1e-300), 1.0 / np.where(s_f > 0, s_f, 1.0), 0.0
+        )
+        beta_f = np.matmul(
+            np.swapaxes(vt_f, 1, 2),
+            (inv_s * np.matmul(np.swapaxes(u_f, 1, 2), rest[..., None])[..., 0])[..., None],
+        )[..., 0]
     else:
         beta_f = np.zeros((n, 0))
-    fitted = np.matmul(ms, beta_s[..., None])[..., 0] + \
-        np.matmul(fcols, beta_f[..., None])[..., 0]
-    converged &= np.all(np.isfinite(z), axis=1) & np.all(np.isfinite(beta_s), axis=1) & \
-        np.all(np.isfinite(beta_f), axis=1)
+    fitted = np.matmul(ms, beta_s[..., None])[..., 0] + np.matmul(fcols, beta_f[..., None])[..., 0]
+    converged &= (
+        np.all(np.isfinite(z), axis=1)
+        & np.all(np.isfinite(beta_s), axis=1)
+        & np.all(np.isfinite(beta_f), axis=1)
+    )
     span = hi - lo
     hit = (z - lo <= 1e-3 * span) | (hi - z <= 1e-3 * span)
     results, start = [], 0
@@ -536,26 +569,39 @@ def _solve_multi(problems, max_iter):
         scale = np.zeros((f["n"], n_comp))
         scale[:, moving_k] = beta_s[rows, :q_n]
         scale[:, f["fixed"]] = beta_f[rows, :n_fixed]
-        background = beta_f[rows, n_fixed:n_fixed + len(f["basis"])]
+        background = beta_f[rows, n_fixed : n_fixed + len(f["basis"])]
         params_k = []
         for k, free in enumerate(layout):
             pk = np.tile(np.asarray(tpl.params[k], float), (f["n"], 1))
             if free:
                 pk[:, free[0]] = z[rows, moving_k.index(k)]
             params_k.append(pk)
-        shifts = np.stack([pk[:, li] - c[li] for pk, c, li in zip(params_k, tpl.params,
-                                                                   tpl.loc_index)], axis=1)
-        results.append([{"params": [pk[i].copy() for pk in params_k], "scale": scale[i],
-                         "shift": shifts[i], "background": background[i].copy(),
-                         "r2": float(r2[i]), "converged": bool(converged[start + i]),
-                         "at_bound": bool(at_k[i].any()), "at_bound_k": at_k[i],
-                         "fitted": fit_x[i]} for i in range(f["n"])])
+        shifts = np.stack(
+            [pk[:, li] - c[li] for pk, c, li in zip(params_k, tpl.params, tpl.loc_index)], axis=1
+        )
+        results.append(
+            [
+                {
+                    "params": [pk[i].copy() for pk in params_k],
+                    "scale": scale[i],
+                    "shift": shifts[i],
+                    "background": background[i].copy(),
+                    "r2": float(r2[i]),
+                    "converged": bool(converged[start + i]),
+                    "at_bound": bool(at_k[i].any()),
+                    "at_bound_k": at_k[i],
+                    "fitted": fit_x[i],
+                }
+                for i in range(f["n"])
+            ]
+        )
         start += f["n"]
     return results
 
 
-def fit_trial(template, x, mode="shift_scale", ridge=0.0, valid=None, tol=1e-8, support=None,
-              movable=None):
+def fit_trial(
+    template, x, mode="shift_scale", ridge=0.0, valid=None, tol=1e-8, support=None, movable=None
+):
     """Fit one trial (window samples ``x``). Returns a dict of the per-trial numbers.
 
     ``support`` (bool over the window) restricts the r² to the samples around the components
@@ -609,8 +655,18 @@ def fit_trial(template, x, mode="shift_scale", ridge=0.0, valid=None, tol=1e-8, 
         return j
 
     try:
-        res = least_squares(residual, z0, jac=jac, bounds=(lo, hi), method="trf", x_scale="jac",
-                            ftol=tol, xtol=tol, gtol=tol, max_nfev=200)
+        res = least_squares(
+            residual,
+            z0,
+            jac=jac,
+            bounds=(lo, hi),
+            method="trf",
+            x_scale="jac",
+            ftol=tol,
+            xtol=tol,
+            gtol=tol,
+            max_nfev=200,
+        )
         z, converged = res.x, bool(res.status > 0 and np.all(np.isfinite(res.x)))
     except (ValueError, np.linalg.LinAlgError):
         z, converged = z0, False
@@ -619,16 +675,23 @@ def fit_trial(template, x, mode="shift_scale", ridge=0.0, valid=None, tol=1e-8, 
     keep = valid if support is None else valid & support
     resid = (x - fitted)[keep]
     tss = np.sum((x[keep] - x[keep].mean()) ** 2)
-    r2 = 1 - np.sum(resid ** 2) / tss if tss > 0 else np.nan
+    r2 = 1 - np.sum(resid**2) / tss if tss > 0 else np.nan
     span = hi - lo
     hit = (z - lo <= 1e-3 * span) | (hi - z <= 1e-3 * span)
     # per component: any of its free parameters at a bound
     owner = np.array([k for k, free in enumerate(layout) for _ in free], dtype=int)
     at_bound_k = np.array([bool(np.any(hit[owner == k])) for k in range(len(layout))])
-    shifts = np.array([p[i] - c[i] for p, c, i in zip(params, template.params,
-                                                       template.loc_index)])
-    return {"params": params, "scale": beta[:len(template.shapes)], "shift": shifts,
-            "background": beta[len(template.shapes):], "r2": float(r2),
-            "converged": converged and np.all(np.isfinite(beta)),
-            "at_bound": bool(at_bound_k.any()), "at_bound_k": at_bound_k,
-            "fitted": fitted}
+    shifts = np.array(
+        [p[i] - c[i] for p, c, i in zip(params, template.params, template.loc_index)]
+    )
+    return {
+        "params": params,
+        "scale": beta[: len(template.shapes)],
+        "shift": shifts,
+        "background": beta[len(template.shapes) :],
+        "r2": float(r2),
+        "converged": converged and np.all(np.isfinite(beta)),
+        "at_bound": bool(at_bound_k.any()),
+        "at_bound_k": at_bound_k,
+        "fitted": fitted,
+    }

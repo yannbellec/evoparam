@@ -18,12 +18,19 @@ from evoparam.tests.sim._helpers import SMALL
 
 pd = pytest.importorskip("pandas")
 
-MODALITIES = {"erp": "erp", "ccep": "spes", "erna": "erna", "tep": "tep", "ecap": "ecap",
-              "animal": "lfp_ep"}
+MODALITIES = {
+    "erp": "erp",
+    "ccep": "spes",
+    "erna": "erna",
+    "tep": "tep",
+    "ecap": "ecap",
+    "animal": "lfp_ep",
+}
 
 
 ###################################################################################################
 ## Every generator
+
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
 def test_containers_and_provenance(name):
@@ -48,7 +55,7 @@ def test_containers_and_provenance(name):
     assert source["generator"] == truth.generator == f"evoparam.sim.{gen.__name__}"
     step = ts.provenance.steps[-1]
     assert step["function"] == truth.generator
-    json.loads(dumps(step["settings"]))                       # settings are strict JSON
+    json.loads(dumps(step["settings"]))  # settings are strict JSON
     assert step["settings"]["seed"] == 7
     for key, value in SMALL[name].items():
         assert truth.settings[key] == value
@@ -62,8 +69,9 @@ def test_truth_features_are_the_nominal_curves(name):
         shape = get_shape(comp["shape"])
         assert list(comp["param_names"]) == list(shape.param_names)
         assert comp["loc_param"] in comp["param_names"]
-        feats = compute_features(shape, truth.times, np.asarray(comp["params"]),
-                                 comp["amplitude"], sfreq=truth.sfreq).to_dict()
+        feats = compute_features(
+            shape, truth.times, np.asarray(comp["params"]), comp["amplitude"], sfreq=truth.sfreq
+        ).to_dict()
         assert np.isclose(comp["features"]["latency"], feats["latency"], atol=1e-12)
         assert np.isclose(comp["features"]["amplitude"], feats["amplitude"], rtol=1e-12)
         assert comp["role"] in sim.ROLES
@@ -73,8 +81,7 @@ def test_truth_features_are_the_nominal_curves(name):
 def test_noise_level_is_noise_sd(name):
     """With snr=None the amplitudes are in µV and the noise SD is noise_sd."""
 
-    ts, truth = sim.GENERATORS[name](seed=3, snr=None, noise="white", noise_sd=4.0,
-                                     **SMALL[name])
+    ts, truth = sim.GENERATORS[name](seed=3, snr=None, noise="white", noise_sd=4.0, **SMALL[name])
     noise = ts.data - truth.signal
     if truth.artifact_data is not None:
         noise = noise - truth.artifact_data
@@ -84,9 +91,14 @@ def test_noise_level_is_noise_sd(name):
 
 
 def test_bad_counts():
-    for gen, key in ((sim.simulate_erp, "n_trials"), (sim.simulate_ccep, "n_trials"),
-                     (sim.simulate_tep, "n_trials"), (sim.simulate_ecap, "n_trials"),
-                     (sim.simulate_animal_ep, "n_trials"), (sim.simulate_erna, "n_pulses")):
+    for gen, key in (
+        (sim.simulate_erp, "n_trials"),
+        (sim.simulate_ccep, "n_trials"),
+        (sim.simulate_tep, "n_trials"),
+        (sim.simulate_ecap, "n_trials"),
+        (sim.simulate_animal_ep, "n_trials"),
+        (sim.simulate_erna, "n_pulses"),
+    ):
         for value in (0, 1.5, True):
             with pytest.raises(SettingsError, match=key):
                 gen(**{key: value}, seed=0)
@@ -95,11 +107,12 @@ def test_bad_counts():
 ###################################################################################################
 ## Components and presets
 
+
 @pytest.mark.parametrize("shape", sorted(SHAPE_FORMS))
 def test_shape_params_reach_latency_and_fwhm(shape):
     params = sim.shape_params(shape, 0.2, 0.04)
     times = np.arange(-0.5, 1.5, 0.001)
-    feats = compute_features(get_shape(shape), times, params, 1.0, sfreq=1000.).to_dict()
+    feats = compute_features(get_shape(shape), times, params, 1.0, sfreq=1000.0).to_dict()
     assert abs(feats["latency"] - 0.2) < 1e-6
     assert abs(feats["fwhm"] - 0.04) < 1e-5
 
@@ -116,8 +129,9 @@ def test_component_spec():
     rng = np.random.default_rng(0)
     for _ in range(20):
         params, amplitude = spec.resolve(rng)
-        feats = compute_features(get_shape("gaussian"), np.arange(0, 0.5, 0.001), params,
-                                 amplitude, sfreq=1000.).to_dict()
+        feats = compute_features(
+            get_shape("gaussian"), np.arange(0, 0.5, 0.001), params, amplitude, sfreq=1000.0
+        ).to_dict()
         assert 0.1 <= feats["latency"] <= 0.2 and -3.0 <= amplitude <= -1.0
     json.dumps(spec.to_dict())
     with pytest.raises(SettingsError):
@@ -147,11 +161,23 @@ def test_presets():
 ###################################################################################################
 ## ERP
 
+
 def test_erp_components_and_overrides():
-    ts, truth = sim.simulate_erp(seed=1, n_trials=5, n_channels=4,
-                                 components=["P1", {"label": "P3", "latency": 0.35,
-                                                    "fwhm": 0.2, "channels": ("Pz", "Cz"),
-                                                    "weights": (1.0, 0.5)}])
+    ts, truth = sim.simulate_erp(
+        seed=1,
+        n_trials=5,
+        n_channels=4,
+        components=[
+            "P1",
+            {
+                "label": "P3",
+                "latency": 0.35,
+                "fwhm": 0.2,
+                "channels": ("Pz", "Cz"),
+                "weights": (1.0, 0.5),
+            },
+        ],
+    )
     assert ts.ch_names == ["Cz", "Pz", "Fz", "C3"]
     p3 = [c for c in truth.components if c["label"] == "P3"]
     assert {c["channel"] for c in p3} == {"Pz", "Cz"}
@@ -176,12 +202,21 @@ def test_erp_noise_only():
 
 
 def test_erp_jitter_distributions():
-    _, normal = sim.simulate_erp(seed=2, n_trials=400, components=["P3"], jitter_sd=0.02,
-                                 noise="none", snr=None)
+    _, normal = sim.simulate_erp(
+        seed=2, n_trials=400, components=["P3"], jitter_sd=0.02, noise="none", snr=None
+    )
     shift = normal.shift[:, 0]
     assert abs(shift.std() - 0.02) < 0.003 and abs(shift.mean()) < 0.004
-    _, exg = sim.simulate_erp(seed=2, n_trials=400, components=["P3"], jitter_sd=0.01,
-                              jitter="exgaussian", jitter_tau=0.03, noise="none", snr=None)
+    _, exg = sim.simulate_erp(
+        seed=2,
+        n_trials=400,
+        components=["P3"],
+        jitter_sd=0.01,
+        jitter="exgaussian",
+        jitter_tau=0.03,
+        noise="none",
+        snr=None,
+    )
     shift = exg.shift[:, 0]
     assert abs(shift.mean() - 0.03) < 0.006
     skew = np.mean((shift - shift.mean()) ** 3) / shift.std() ** 3
@@ -193,14 +228,16 @@ def test_erp_jitter_distributions():
 def test_erp_jitter_per_component():
     _, shared = sim.simulate_erp(seed=2, n_trials=50, components=["N1", "P3"], jitter_sd=0.01)
     np.testing.assert_array_equal(shared.shift[:, 0], shared.shift[:, 1])
-    _, separate = sim.simulate_erp(seed=2, n_trials=50, components=["N1", "P3"],
-                                   jitter_sd={"N1": 0.005, "P3": 0.02})
+    _, separate = sim.simulate_erp(
+        seed=2, n_trials=50, components=["N1", "P3"], jitter_sd={"N1": 0.005, "P3": 0.02}
+    )
     assert separate.shift[:, 0].std() < separate.shift[:, 1].std()
 
 
 def test_erp_overlap():
-    ts, truth = sim.simulate_erp(seed=4, n_trials=10, components=["P3"],
-                                 overlap={"soa": (0.3, 0.5), "scale": 0.5}, snr=None)
+    ts, truth = sim.simulate_erp(
+        seed=4, n_trials=10, components=["P3"], overlap={"soa": (0.3, 0.5), "scale": 0.5}, snr=None
+    )
     soa_prev = ts.metadata["soa_previous"].to_numpy()
     assert np.all((soa_prev >= 0.3) & (soa_prev <= 0.5))
     roles = {(c["role"], c["event"]) for c in truth.components}
@@ -215,9 +252,11 @@ def test_erp_overlap():
 ###################################################################################################
 ## CCEP
 
+
 def test_ccep_design():
-    ts, truth = sim.simulate_ccep(seed=9, n_trials=4, n_channels=20, p_response=1.0,
-                                  delayed=True, p_delayed=1.0, tmax=1.2)
+    ts, truth = sim.simulate_ccep(
+        seed=9, n_trials=4, n_channels=20, p_response=1.0, delayed=True, p_delayed=1.0, tmax=1.2
+    )
     stim = truth.artifact["stim_contacts"]
     responders = truth.settings["responders"]
     assert not set(stim) & set(responders)
@@ -234,8 +273,9 @@ def test_ccep_design():
     assert ts.ch_info["stim_contact"].sum() == 2
     _, none = sim.simulate_ccep(seed=9, n_trials=2, n_channels=8, p_response=0.0, tmax=0.2)
     assert none.n_components == 0
-    _, positive = sim.simulate_ccep(seed=9, n_trials=2, n_channels=8, p_response=1.0,
-                                    polarity="positive", tmax=0.3)
+    _, positive = sim.simulate_ccep(
+        seed=9, n_trials=2, n_channels=8, p_response=1.0, polarity="positive", tmax=0.3
+    )
     assert all(c["amplitude"] > 0 for c in positive.components)
 
 
@@ -255,9 +295,15 @@ def test_ccep_grid_and_errors():
 
 
 def test_ccep_overrides():
-    _, truth = sim.simulate_ccep(seed=1, n_trials=2, n_channels=10, p_response=1.0, p_n2=0.0,
-                                 n1={"latency": 0.02, "fwhm": 0.01, "amplitude": -100.0},
-                                 tmax=0.2)
+    _, truth = sim.simulate_ccep(
+        seed=1,
+        n_trials=2,
+        n_channels=10,
+        p_response=1.0,
+        p_n2=0.0,
+        n1={"latency": 0.02, "fwhm": 0.01, "amplitude": -100.0},
+        tmax=0.2,
+    )
     for comp in truth.components:
         assert comp["label"] == "N1"
         assert np.isclose(comp["features"]["latency"], 0.02)
@@ -265,9 +311,14 @@ def test_ccep_overrides():
 
 
 def test_ccep_trains():
-    ts, truth = sim.simulate_ccep(20, seed=0, n_channels=10, p_response=1.0, tmax=0.2,
-                                  train_structure={"n_pulses": 10, "rate_hz": 0.5,
-                                                   "adaptation": -0.03})
+    ts, truth = sim.simulate_ccep(
+        20,
+        seed=0,
+        n_channels=10,
+        p_response=1.0,
+        tmax=0.2,
+        train_structure={"n_pulses": 10, "rate_hz": 0.5, "adaptation": -0.03},
+    )
     meta = ts.metadata
     assert list(meta["index_in_train"][:10]) == list(range(10))
     assert list(meta["train_id"][[0, 9, 10]]) == [0, 0, 1]
@@ -284,9 +335,9 @@ def test_ccep_trains():
 ###################################################################################################
 ## ERNA, TEP, ECAP, animal
 
+
 def test_erna_pulses():
-    ts, truth = sim.simulate_erna(n_pulses=5, n_trials=2, seed=0, noise="none",
-                                  artifact=False)
+    ts, truth = sim.simulate_erna(n_pulses=5, n_trials=2, seed=0, noise="none", artifact=False)
     assert ts.modality == "erna"
     events = sorted({c["event"] for c in truth.components})
     assert events == list(range(5))
@@ -294,19 +345,27 @@ def test_erna_pulses():
     assert len(freq) == 1 and 200.0 <= freq.pop() <= 450.0
     first = [c for c in truth.components if c["channel"] == ts.ch_names[1]]
     amplitudes = [abs(c["amplitude"]) for c in sorted(first, key=lambda c: c["event"])]
-    assert all(np.diff(amplitudes) > 0)                       # build-up over the train
+    assert all(np.diff(amplitudes) > 0)  # build-up over the train
     assert truth.components[0]["shape"] == "damped_oscillation"
     assert ts.metadata["stim_n_pulses"].iloc[0] == 5
     with pytest.raises(SettingsError, match="4096"):
-        sim.simulate_erna(n_pulses=2, sfreq=2048.)
+        sim.simulate_erna(n_pulses=2, sfreq=2048.0)
     with pytest.raises(SettingsError):
         sim.simulate_erna(n_pulses=2, pulse_rate=0.0)
 
 
 def test_tep_components_and_site():
-    ts, truth = sim.simulate_tep(seed=0, n_trials=3, n_channels=8, sfreq=2000., noise="none",
-                                 auditory=False, pulse_artifact=False, decay_artifact=False,
-                                 muscle_artifact=False)
+    ts, truth = sim.simulate_tep(
+        seed=0,
+        n_trials=3,
+        n_channels=8,
+        sfreq=2000.0,
+        noise="none",
+        auditory=False,
+        pulse_artifact=False,
+        decay_artifact=False,
+        muscle_artifact=False,
+    )
     assert {c["label"] for c in truth.components} == set(sim.TEP_COMPONENTS)
     assert all(c["role"] == "target" for c in truth.components)
     n100 = [c for c in truth.components if c["label"] == "N100"]
@@ -317,14 +376,12 @@ def test_tep_components_and_site():
 
 
 def test_ecap_masking_and_paradigms():
-    ts, truth = sim.simulate_ecap(8, seed=0, paradigm="forward_masking", masking=1.0,
-                                  noise="none")
+    ts, truth = sim.simulate_ecap(8, seed=0, paradigm="forward_masking", masking=1.0, noise="none")
     probe = [i for i, c in enumerate(truth.components) if c["role"] == "target"]
     # Full masking: no probe response in condition B (masker + probe).
     b_trials = [t for t, cond in enumerate(truth.conditions) if cond == "B"]
     assert not truth.present[np.ix_(b_trials, probe)].any()
-    _, half = sim.simulate_ecap(8, seed=0, paradigm="forward_masking", masking=0.5,
-                                noise="none")
+    _, half = sim.simulate_ecap(8, seed=0, paradigm="forward_masking", masking=0.5, noise="none")
     np.testing.assert_allclose(half.scale[np.ix_(b_trials, probe)], 0.5)
     maskers = [i for i, c in enumerate(truth.components) if c["role"] == "masker"]
     for trial, cond in enumerate(truth.conditions):
@@ -340,17 +397,25 @@ def test_ecap_masking_and_paradigms():
 
 
 def test_animal_depth_reversal_and_states():
-    ts, truth = sim.simulate_animal_ep(seed=2, n_trials=6, n_channels=24, spacing_um=40.,
-                                       noise="none", reversal_um=400.)
+    ts, truth = sim.simulate_animal_ep(
+        seed=2, n_trials=6, n_channels=24, spacing_um=40.0, noise="none", reversal_um=400.0
+    )
     assert ts.species == "mouse" and set(ts.metadata["state"]) == {"awake", "nrem"}
     first = truth.components[0]["label"]
     amps = [c["amplitude"] for c in truth.components if c["label"] == first]
-    assert np.sign(amps[0]) == -np.sign(amps[-1])            # polarity reverses with depth
-    _, custom = sim.simulate_animal_ep(seed=2, n_trials=6, n_channels=4, states=("a", "b"),
-                                       state_gain={"a": 1.0, "b": 3.0}, noise="none")
+    assert np.sign(amps[0]) == -np.sign(amps[-1])  # polarity reverses with depth
+    _, custom = sim.simulate_animal_ep(
+        seed=2,
+        n_trials=6,
+        n_channels=4,
+        states=("a", "b"),
+        state_gain={"a": 1.0, "b": 3.0},
+        noise="none",
+    )
     assert set(custom.conditions) == {"a", "b"}
-    ts, truth = sim.simulate_animal_ep(seed=2, n_trials=4, n_channels=4, stimulus="electrical",
-                                       noise="none")
+    ts, truth = sim.simulate_animal_ep(
+        seed=2, n_trials=4, n_channels=4, stimulus="electrical", noise="none"
+    )
     assert truth.artifact is not None and truth.artifact_data.any()
     with pytest.raises(SettingsError):
         sim.simulate_animal_ep(seed=2, stimulus="auditory")
@@ -363,11 +428,12 @@ def test_animal_depth_reversal_and_states():
 ###################################################################################################
 ## Light core
 
+
 def test_generators_without_pandas_in_a_subprocess():
     """Optional dependencies stay optional: the simulators run without pandas (metadata and
     ch_info are then None) and the tables raise ImportError naming the extra."""
 
-    code = textwrap.dedent('''
+    code = textwrap.dedent("""
         import sys
         for name in ("pandas", "pyarrow", "mne"):
             sys.modules[name] = None
@@ -388,8 +454,9 @@ def test_generators_without_pandas_in_a_subprocess():
         else:
             raise AssertionError("to_dataframe did not raise ImportError")
         print("ok")
-    ''')
-    result = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True,
-                            timeout=300)
+    """)
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=300
+    )
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip().endswith('ok')
+    assert result.stdout.strip().endswith("ok")

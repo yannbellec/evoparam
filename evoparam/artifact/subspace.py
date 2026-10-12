@@ -25,7 +25,7 @@ def _sqrtm(cov, inverse=False):
     vals, vecs = np.linalg.eigh(cov)
     vals = np.clip(vals, vals.max() * 1e-12, None)
     power = -0.5 if inverse else 0.5
-    return (vecs * vals ** power) @ vecs.T
+    return (vecs * vals**power) @ vecs.T
 
 
 def subspace_clean(data, window_inds, baseline_inds, *, n_components=None, extent="all"):
@@ -55,14 +55,19 @@ def subspace_clean(data, window_inds, baseline_inds, *, n_components=None, exten
     if n_channels < 2:
         raise ArtifactError("method 'subspace' needs at least 2 channels.")
     if len(baseline_inds) < n_channels + 1:
-        raise ArtifactError(f"method 'subspace' needs a baseline longer than the number of "
-                            f"channels ({n_channels}) to estimate their covariance.")
+        raise ArtifactError(
+            f"method 'subspace' needs a baseline longer than the number of "
+            f"channels ({n_channels}) to estimate their covariance."
+        )
     if extent not in ("all", "window"):
         raise SettingsError("extent must be 'all' or 'window'.")
     if n_components not in (None, "energy", "noise") and not (
-            isinstance(n_components, (int, np.integer)) and 1 <= n_components < n_channels):
-        raise SettingsError("n_components must be None, 'energy', 'noise' or an integer "
-                            "between 1 and n_channels - 1.")
+        isinstance(n_components, (int, np.integer)) and 1 <= n_components < n_channels
+    ):
+        raise SettingsError(
+            "n_components must be None, 'energy', 'noise' or an integer "
+            "between 1 and n_channels - 1."
+        )
     mu = data[:, :, baseline_inds].mean(axis=-1, keepdims=True)
     centred = data - mu
     base = centred[:, :, baseline_inds].transpose(1, 0, 2).reshape(n_channels, -1)
@@ -73,13 +78,12 @@ def subspace_clean(data, window_inds, baseline_inds, *, n_components=None, exten
     white = np.einsum("ij,kjt->kit", w_inv, centred)
     win = white[:, :, window_inds].transpose(1, 0, 2).reshape(n_channels, -1)
     u, s, _ = np.linalg.svd(win, full_matrices=False)
-    energy = np.cumsum(s ** 2) / np.sum(s ** 2)
+    energy = np.cumsum(s**2) / np.sum(s**2)
     if n_components in (None, "energy"):
         k = int(min(np.searchsorted(energy, ENERGY) + 1, MAX_DIRECTIONS, n_channels - 1))
     elif n_components == "noise":
         edge = (1.0 + np.sqrt(n_channels / win.shape[1])) ** 2
-        k = int(np.clip(np.sum(s ** 2 / win.shape[1] > NOISE_FACTOR * edge), 1,
-                        n_channels - 1))
+        k = int(np.clip(np.sum(s**2 / win.shape[1] > NOISE_FACTOR * edge), 1, n_channels - 1))
     else:
         k = int(n_components)
     directions = u[:, :k]
@@ -88,8 +92,12 @@ def subspace_clean(data, window_inds, baseline_inds, *, n_components=None, exten
         projected = white - np.einsum("ij,kjt->kit", projector, white)
     else:
         projected = white.copy()
-        projected[:, :, window_inds] -= np.einsum("ij,kjt->kit", projector,
-                                                  white[:, :, window_inds])
+        projected[:, :, window_inds] -= np.einsum(
+            "ij,kjt->kit", projector, white[:, :, window_inds]
+        )
     cleaned = np.einsum("ij,kjt->kit", w, projected) + mu
-    return cleaned, {"n_directions": k, "directions": directions,
-                     "window_energy_removed": float(energy[k - 1])}
+    return cleaned, {
+        "n_directions": k,
+        "directions": directions,
+        "window_energy_removed": float(energy[k - 1]),
+    }

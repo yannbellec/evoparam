@@ -35,10 +35,14 @@ print(evoked)
 # The ``erp`` preset, with the fit window inside the epoch (-200 to 500 ms) and the
 # windows of the auditory N1 and P2.
 
-preset = presets.derive("erp", name="erp_auditory", fit_window=(0.04, 0.45),
-                        baseline=(-0.2, 0.0),
-                        component_labels={"N1": (0.07, 0.14), "P2": (0.14, 0.27)},
-                        label_polarity={"N1": -1, "P2": 1})
+preset = presets.derive(
+    "erp",
+    name="erp_auditory",
+    fit_window=(0.04, 0.45),
+    baseline=(-0.2, 0.0),
+    component_labels={"N1": (0.07, 0.14), "P2": (0.14, 0.27)},
+    label_polarity={"N1": -1, "P2": 1},
+)
 
 # %%
 # Fit the MNE object
@@ -46,9 +50,16 @@ preset = presets.derive("erp", name="erp_auditory", fit_window=(0.04, 0.45),
 
 group = evoparam.fit(evoked, preset, existence=False, random_state=0)
 table = group.to_dataframe()
-summary = table[table["label"].isin(["N1", "P2"])].groupby("label").agg(
-    channels=("channel", "nunique"), latency_ms=("latency", lambda v: 1e3 * v.median()),
-    amplitude_uV=("amplitude", "median"), fwhm_ms=("fwhm", lambda v: 1e3 * v.median()))
+summary = (
+    table[table["label"].isin(["N1", "P2"])]
+    .groupby("label")
+    .agg(
+        channels=("channel", "nunique"),
+        latency_ms=("latency", lambda v: 1e3 * v.median()),
+        amplitude_uV=("amplitude", "median"),
+        fwhm_ms=("fwhm", lambda v: 1e3 * v.median()),
+    )
+)
 print(summary.round(1))
 
 # %%

@@ -45,8 +45,10 @@ def test_req213_zone_recovery_of_induced_gamma_bursts():
         zones = tf.zones[tf.zones["sign"] > 0]
         if len(zones):
             best = zones.iloc[0]
-            recovered += (abs(best["freq_centroid"] / 80.0 - 1) <= 0.1
-                          and abs(best["time_centroid"] - 0.25) <= 0.02)
+            recovered += (
+                abs(best["freq_centroid"] / 80.0 - 1) <= 0.1
+                and abs(best["time_centroid"] - 0.25) <= 0.02
+            )
     assert recovered / runs >= 0.9
 
 
@@ -59,16 +61,21 @@ def _recovery(amp, runs=20):
         zones = tf.zones[tf.zones["sign"] > 0]
         if len(zones):
             best = zones.iloc[0]
-            recovered += (abs(best["freq_centroid"] / 80.0 - 1) <= 0.1
-                          and abs(best["time_centroid"] - 0.25) <= 0.02)
+            recovered += (
+                abs(best["freq_centroid"] / 80.0 - 1) <= 0.1
+                and abs(best["time_centroid"] - 0.25) <= 0.02
+            )
     return recovered / runs
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-213, strict reading (owner decision D11): a burst "
-                   "adding 20 % to the local 80 Hz power (amplitude 1.32 for AR(1) noise of SD "
-                   "10: 0.8 dB, pixel t about 0.8 with 30 trials) is recovered in 0 of 20 runs "
-                   "(target 18 of 20); with the reading adopted (20 % of the signal power) in "
-                   "20 of 20 (test_req213_zone_recovery_of_induced_gamma_bursts)")
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-213, strict reading (owner decision D11): a burst "
+    "adding 20 % to the local 80 Hz power (amplitude 1.32 for AR(1) noise of SD "
+    "10: 0.8 dB, pixel t about 0.8 with 30 trials) is recovered in 0 of 20 runs "
+    "(target 18 of 20); with the reading adopted (20 % of the signal power) in "
+    "20 of 20 (test_req213_zone_recovery_of_induced_gamma_bursts)",
+)
 def test_req213_strict_reading_twenty_percent_of_local_power():
 
     assert _recovery(1.32) >= 0.9
@@ -84,8 +91,12 @@ def test_narrow_band_twenty_percent_is_below_pixel_resolution():
         rng = np.random.default_rng(seed)
         ts = trialset(ar1(rng, (30, len(TIMES))) + burst(rng, 30, amp=1.32))
         tf = tf_fit(ts, freqs=FREQS, zones="none", random_state=seed)
-        burst_box = ((tf.freqs[:, None] >= 65) & (tf.freqs[:, None] <= 100)
-                     & (tf.times[None] >= 0.2) & (tf.times[None] <= 0.3))
+        burst_box = (
+            (tf.freqs[:, None] >= 65)
+            & (tf.freqs[:, None] <= 100)
+            & (tf.times[None] >= 0.2)
+            & (tf.times[None] <= 0.3)
+        )
         found += bool(tf.significant[0][burst_box].any())
     assert found / runs <= 0.1
 
@@ -95,8 +106,14 @@ def _null_rate(stats, runs, n_permutations=200):
     for seed in range(runs):
         rng = np.random.default_rng(1000 + seed)
         ts = trialset(ar1(rng, (30, len(TIMES))))
-        tf = tf_fit(ts, freqs=FREQS, zones="none", stats=stats, n_permutations=n_permutations,
-                    random_state=seed)
+        tf = tf_fit(
+            ts,
+            freqs=FREQS,
+            zones="none",
+            stats=stats,
+            n_permutations=n_permutations,
+            random_state=seed,
+        )
         hits += bool(tf.significant[0].any())
     return hits / runs
 
@@ -128,11 +145,16 @@ def test_req215_single_trial_normalisation_resists_a_noisy_trial():
         for level in ("single_trial", "evoked"):
             values = []
             for data in (clean, noisy):
-                tf = tf_fit(trialset(data), freqs=FREQS, zones="none", stats="none",
-                            baseline_level=level)
+                tf = tf_fit(
+                    trialset(data), freqs=FREQS, zones="none", stats="none", baseline_level=level
+                )
                 if region is None:
-                    region = ((tf.freqs[:, None] >= 65) & (tf.freqs[:, None] <= 100)
-                              & (tf.times[None] >= 0.2) & (tf.times[None] <= 0.3))
+                    region = (
+                        (tf.freqs[:, None] >= 65)
+                        & (tf.freqs[:, None] <= 100)
+                        & (tf.times[None] >= 0.2)
+                        & (tf.times[None] <= 0.3)
+                    )
                 values.append(np.nanmean(tf.maps["total_norm"][0][region]))
             change[level] = abs(values[1] - values[0])
         ratios.append(change["single_trial"] / change["evoked"])

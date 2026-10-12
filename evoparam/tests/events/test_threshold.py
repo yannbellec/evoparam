@@ -12,21 +12,22 @@ from .helpers import make_recording
 ###################################################################################################
 ###################################################################################################
 
-def legacy_recording(onsets, sfreq=1000., duration=20., n_channels=4, seed=0):
+
+def legacy_recording(onsets, sfreq=1000.0, duration=20.0, n_channels=4, seed=0):
     """The skeleton's test recording: a 3-sample block of 500 on every channel."""
 
     rng = np.random.default_rng(seed)
     data = rng.normal(0, 1, (n_channels, int(duration * sfreq)))
     for onset in onsets:
         ind = int(round(onset * sfreq))
-        data[:, ind:ind + 3] += 500.
+        data[:, ind : ind + 3] += 500.0
     return data
 
 
 @pytest.mark.parametrize("method", ["threshold", "threshold+template"])
 def test_detects_legacy_recording(method):
 
-    sfreq, onsets = 1000., np.arange(1, 19, 2.5)
+    sfreq, onsets = 1000.0, np.arange(1, 19, 2.5)
     data = legacy_recording(onsets, sfreq)
 
     events = detect_pulses(data, sfreq, method=method)
@@ -37,15 +38,15 @@ def test_detects_legacy_recording(method):
     assert np.allclose(results["errors"], 0)
 
     # Clock offset is carried through
-    events = detect_pulses(data, sfreq, method=method, t0=100.)
-    assert np.allclose(events["onset_time"] - 100., onsets, atol=0.001)
+    events = detect_pulses(data, sfreq, method=method, t0=100.0)
+    assert np.allclose(events["onset_time"] - 100.0, onsets, atol=0.001)
 
 
 def test_event_table_columns_and_types():
 
-    data, onsets, _ = make_recording(duration=6., seed=3)
-    events = detect_pulses(data, 2048.)
-    assert list(events.columns[:len(EVENT_COLUMNS)]) == list(EVENT_COLUMNS)
+    data, onsets, _ = make_recording(duration=6.0, seed=3)
+    events = detect_pulses(data, 2048.0)
+    assert list(events.columns[: len(EVENT_COLUMNS)]) == list(EVENT_COLUMNS)
     assert events["onset_sample"].dtype == np.int64
     assert events["onset_time"].dtype == np.float64
     assert events["train_id"].dtype == np.int64
@@ -57,10 +58,10 @@ def test_event_table_columns_and_types():
 def test_onset_is_first_artifact_sample_with_precursor():
 
     # A small switching transient 2 samples before the pulse must not move the onset
-    sfreq = 2048.
-    data, onsets, _ = make_recording(duration=6., seed=4)
+    sfreq = 2048.0
+    data, onsets, _ = make_recording(duration=6.0, seed=4)
     for onset in onsets:
-        data[:, onset - 3:onset - 1] += 4.
+        data[:, onset - 3 : onset - 1] += 4.0
     events = detect_pulses(data, sfreq)
     assert (events["onset_sample"].to_numpy() == onsets).all()
 
@@ -68,20 +69,20 @@ def test_onset_is_first_artifact_sample_with_precursor():
 def test_strongest_wins_in_refractory_period():
 
     # A click 100 ms before each pulse, strong enough to cross the threshold
-    sfreq = 2048.
-    data, onsets, _ = make_recording(n_channels=16, duration=10., interval=2., seed=5)
+    sfreq = 2048.0
+    data, onsets, _ = make_recording(n_channels=16, duration=10.0, interval=2.0, seed=5)
     click = int(0.1 * sfreq)
     for onset in onsets:
-        data[:, onset - click] += 40.
-        data[:, onset - click + 1] -= 40.
+        data[:, onset - click] += 40.0
+        data[:, onset - click + 1] -= 40.0
     events = detect_pulses(data, sfreq, min_interval=0.5)
     assert (events["onset_sample"].to_numpy() == onsets).all()
 
 
 def test_single_channel_and_1d_input():
 
-    data, onsets, _ = make_recording(n_channels=1, duration=6., seed=6)
-    events = detect_pulses(data[0], 2048.)
+    data, onsets, _ = make_recording(n_channels=1, duration=6.0, seed=6)
+    events = detect_pulses(data[0], 2048.0)
     assert (events["onset_sample"].to_numpy() == onsets).all()
 
 
@@ -89,37 +90,37 @@ def test_no_pulse_raises_with_diagnostics():
 
     rng = np.random.default_rng(0)
     with pytest.raises(EventError, match="largest score"):
-        detect_pulses(rng.normal(size=(4, 4096)), 2048.)
+        detect_pulses(rng.normal(size=(4, 4096)), 2048.0)
 
 
 def test_invalid_settings():
 
-    data, _, _ = make_recording(duration=3., seed=7)
+    data, _, _ = make_recording(duration=3.0, seed=7)
     with pytest.raises(SettingsError):
-        detect_pulses(data, 2048., method="magic")
+        detect_pulses(data, 2048.0, method="magic")
     with pytest.raises(SettingsError):
-        detect_pulses(data, 2048., threshold_sd=0)
+        detect_pulses(data, 2048.0, threshold_sd=0)
     with pytest.raises(SettingsError):
-        detect_pulses(data, 2048., rho_min=1.5)
+        detect_pulses(data, 2048.0, rho_min=1.5)
     with pytest.raises(DataError):
-        detect_pulses(np.zeros((2, 3, 4)), 2048.)
+        detect_pulses(np.zeros((2, 3, 4)), 2048.0)
     with pytest.raises(DataError):
-        detect_pulses(data, 2048., picks=["nope"])
+        detect_pulses(data, 2048.0, picks=["nope"])
 
 
 def test_picks_restrict_channels():
 
-    data, onsets, _ = make_recording(n_channels=8, duration=6., seed=8)
+    data, onsets, _ = make_recording(n_channels=8, duration=6.0, seed=8)
     # Destroy the artifact on half of the channels: picking the other half still works
     data[:4] = np.random.default_rng(1).normal(size=data[:4].shape)
-    events = detect_pulses(data, 2048., picks=[4, 5, 6, 7])
+    events = detect_pulses(data, 2048.0, picks=[4, 5, 6, 7])
     assert (events["onset_sample"].to_numpy() == onsets).all()
 
 
 def test_return_scores():
 
-    data, _, _ = make_recording(duration=4., seed=9)
-    events, z, rho = detect_pulses(data, 2048., return_scores=True)
+    data, _, _ = make_recording(duration=4.0, seed=9)
+    events, z, rho = detect_pulses(data, 2048.0, return_scores=True)
     assert len(z) == data.shape[1] - 1
     assert len(rho) == len(events)
 
@@ -129,7 +130,7 @@ def test_spec_procedure_on_the_legacy_recording(method):
     """procedure="spec": the specification's methods 1 and 2 as written. The onset is the
     last pre-artifact sample, one sample before the default onset."""
 
-    sfreq, onsets = 1000., np.arange(1, 19, 2.5)
+    sfreq, onsets = 1000.0, np.arange(1, 19, 2.5)
     data = legacy_recording(onsets, sfreq)
     events = detect_pulses(data, sfreq, method=method, procedure="spec")
     results = match_onsets(events["onset_time"], onsets, tolerance=0.002)
@@ -144,12 +145,12 @@ def test_spec_procedure_template_pass_recovers_and_rejects():
     """Method 2 as a second pass: a weaker pulse with the same artifact is added, a large
     transient of another shape is rejected."""
 
-    sfreq = 1000.
+    sfreq = 1000.0
     onsets = np.arange(1, 19, 2.0)
     data = legacy_recording(onsets, sfreq)
     weak = 19.5
-    data[:, int(weak * sfreq):int(weak * sfreq) + 3] += 6.0        # below the threshold
-    data[:, 1500:1520] += 200.0 * (-1.0) ** np.arange(20)           # a fast oscillating burst
+    data[:, int(weak * sfreq) : int(weak * sfreq) + 3] += 6.0  # below the threshold
+    data[:, 1500:1520] += 200.0 * (-1.0) ** np.arange(20)  # a fast oscillating burst
     threshold_only = detect_pulses(data, sfreq, method="threshold", procedure="spec")
     both = detect_pulses(data, sfreq, method="threshold+template", procedure="spec")
     truth = np.r_[onsets, weak]
@@ -163,4 +164,4 @@ def test_spec_procedure_template_pass_recovers_and_rejects():
 def test_unknown_procedure():
 
     with pytest.raises(SettingsError, match="procedure"):
-        detect_pulses(legacy_recording([1.0]), 1000., procedure="other")
+        detect_pulses(legacy_recording([1.0]), 1000.0, procedure="other")

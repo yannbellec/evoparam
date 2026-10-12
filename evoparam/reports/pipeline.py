@@ -14,8 +14,15 @@ import numpy as np
 import evoparam.presets as _presets
 from evoparam.errors import SettingsError
 
-__all__ = ["PipelineResult", "run_pipeline", "REFERENCE_PIPELINES", "reference_input",
-           "run_reference_pipeline", "artifact_steps", "reference_scheme"]
+__all__ = [
+    "PipelineResult",
+    "run_pipeline",
+    "REFERENCE_PIPELINES",
+    "reference_input",
+    "run_reference_pipeline",
+    "artifact_steps",
+    "reference_scheme",
+]
 
 
 @dataclasses.dataclass
@@ -120,9 +127,22 @@ def _test_window(ts, window):
     return (float(later[0]), float(window[1])) if later.size else window
 
 
-def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True,
-                 existence=True, trial_fits=None, random_state=0, existence_kwargs=None,
-                 n_jobs=1, reference_sensitivity=None, continuous=None, **overrides):
+def run_pipeline(
+    trials,
+    preset,
+    *,
+    artifact=True,
+    reference=True,
+    baseline=True,
+    existence=True,
+    trial_fits=None,
+    random_state=0,
+    existence_kwargs=None,
+    n_jobs=1,
+    reference_sensitivity=None,
+    continuous=None,
+    **overrides,
+):
     """Run the preset's chain on a TrialSet.
 
     Parameters
@@ -175,14 +195,21 @@ def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True
             artifacts.append(result)
             ts = result.cleaned
     report = None
-    if reference_sensitivity if reference_sensitivity is not None else \
-            (reference and p.reference_sensitivity):
+    if (
+        reference_sensitivity
+        if reference_sensitivity is not None
+        else (reference and p.reference_sensitivity)
+    ):
         # spec §6.2 (ccep_seeg): the detections under several references, with their kappa
         try:
             report = sensitivity(ts, reference_kwargs={"random_state": random_state})
         except (DataError, SettingsError) as exc:
-            warn(f"preset {p.name!r}: reference_sensitivity could not run ({exc}); no kappa "
-                 "report is attached.", UserWarning, stacklevel=2)
+            warn(
+                f"preset {p.name!r}: reference_sensitivity could not run ({exc}); no kappa "
+                "report is attached.",
+                UserWarning,
+                stacklevel=2,
+            )
     scheme = reference_scheme(p)
     if reference and scheme is not None:
         extra = {"random_state": random_state} if scheme == "car_adaptive" else {}
@@ -198,8 +225,11 @@ def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True
         try:
             ts = train_baseline(ts, p.train_baseline, raw=raw, **kwargs)
         except DataError as exc:
-            warn(f"preset {p.name!r}: the baseline per train was not applied ({exc}).",
-                 UserWarning, stacklevel=2)
+            warn(
+                f"preset {p.name!r}: the baseline per train was not applied ({exc}).",
+                UserWarning,
+                stacklevel=2,
+            )
     test_kwargs = {"method": p.existence_method, "alpha": p.existence_alpha}
     window = _test_window(ts, tuple(overrides.get("fit_window") or p.fit_window))
     if window != tuple(overrides.get("fit_window") or p.fit_window):
@@ -210,26 +240,46 @@ def run_pipeline(trials, preset, *, artifact=True, reference=True, baseline=True
     if existence:
         # as evoparam.existence.fit(existence=True), keeping the test for the derivatives
         settings = group.settings
-        kwargs = dict(window=tuple(settings["fit_window"]),
-                      baseline=tuple(settings["baseline"]) if settings.get("baseline") else
-                      (-0.5, -0.05), by=(), random_state=random_state)
+        kwargs = dict(
+            window=tuple(settings["fit_window"]),
+            baseline=tuple(settings["baseline"]) if settings.get("baseline") else (-0.5, -0.05),
+            by=(),
+            random_state=random_state,
+        )
         kwargs.update(test_kwargs)
         test = test_response(ts, **kwargs)
         group = attach_test(group, test)
     fits = None
     if trial_fits if trial_fits is not None else p.trial_fit:
         from evoparam.trials import fit_trials
+
         # the preset's default covariates (rodent_ep, primate_ep: metadata["state"])
-        covariates = [c for c in p.trial_covariates
-                      if ts.metadata is not None and c in ts.metadata.columns]
+        covariates = [
+            c for c in p.trial_covariates if ts.metadata is not None and c in ts.metadata.columns
+        ]
         for missing in sorted(set(p.trial_covariates) - set(covariates)):
-            warn(f"preset {p.name!r}: metadata[{missing!r}] is missing, so the default "
-                 f"covariate {missing!r} of the trial fits is not computed.", UserWarning,
-                 stacklevel=2)
-        fits = fit_trials(ts, group, mode=p.trial_mode or "shift_scale",
-                          random_state=random_state, n_jobs=n_jobs, covariates=covariates)
-    return PipelineResult(trials=ts, artifact=artifacts, group=group, trial_fits=fits,
-                          test=test, reference_report=report)
+            warn(
+                f"preset {p.name!r}: metadata[{missing!r}] is missing, so the default "
+                f"covariate {missing!r} of the trial fits is not computed.",
+                UserWarning,
+                stacklevel=2,
+            )
+        fits = fit_trials(
+            ts,
+            group,
+            mode=p.trial_mode or "shift_scale",
+            random_state=random_state,
+            n_jobs=n_jobs,
+            covariates=covariates,
+        )
+    return PipelineResult(
+        trials=ts,
+        artifact=artifacts,
+        group=group,
+        trial_fits=fits,
+        test=test,
+        reference_report=report,
+    )
 
 
 ###################################################################################################
@@ -245,29 +295,46 @@ REFERENCE_PIPELINES = {
     "erpcore_p3": {
         "preset": "erp",
         "data": "ERP CORE P3 (active visual oddball), channel Pz, all epochs of one "
-                "participant (Kappenman et al. 2021; OSF node etdkz, CC-BY-4.0; downloaded "
-                "by the network test, not redistributed)",
-        "stand_in": {"generator": "simulate_erp",
-                     "kwargs": {"n_trials": 30, "n_channels": 1, "components": ["P3"],
-                                "ch_names": ["Pz"], "sfreq": 256.0, "seed": 0}},
+        "participant (Kappenman et al. 2021; OSF node etdkz, CC-BY-4.0; downloaded "
+        "by the network test, not redistributed)",
+        "stand_in": {
+            "generator": "simulate_erp",
+            "kwargs": {
+                "n_trials": 30,
+                "n_channels": 1,
+                "components": ["P3"],
+                "ch_names": ["Pz"],
+                "sfreq": 256.0,
+                "seed": 0,
+            },
+        },
         "options": {},
     },
     "ds004080_ccep": {
         "preset": "ccep",
         "data": "OpenNeuro ds004080, sub-ccepAgeUMCU01 run-021448, stimulation site "
-                "PT01-PT02 (van Blooijs et al. 2023; CC0)",
-        "stand_in": {"generator": "simulate_ccep",
-                     "kwargs": {"n_trials": 10, "n_channels": 10, "sfreq": 1024.0,
-                                "seed": 0}},
+        "PT01-PT02 (van Blooijs et al. 2023; CC0)",
+        "stand_in": {
+            "generator": "simulate_ccep",
+            "kwargs": {"n_trials": 10, "n_channels": 10, "sfreq": 1024.0, "seed": 0},
+        },
         "options": {"trial_fits": True},
     },
     "sim_tep": {
         "preset": "tep",
         "data": "evoparam.sim.simulate_tep, 20 trials, 3 channels (stimulated site Cz), "
-                "epochs -1 to 1 s, seed 0",
-        "stand_in": {"generator": "simulate_tep",
-                     "kwargs": {"n_trials": 20, "n_channels": 3, "stim_site": "Cz",
-                                "tmin": -1.0, "tmax": 1.0, "seed": 0}},
+        "epochs -1 to 1 s, seed 0",
+        "stand_in": {
+            "generator": "simulate_tep",
+            "kwargs": {
+                "n_trials": 20,
+                "n_channels": 3,
+                "stim_site": "Cz",
+                "tmin": -1.0,
+                "tmax": 1.0,
+                "seed": 0,
+            },
+        },
         "options": {},
     },
 }
@@ -287,8 +354,9 @@ def run_reference_pipeline(name, trials=None, *, random_state=0):
     """Run reference pipeline ``name`` on ``trials`` (default: its stand-in input)."""
 
     if name not in REFERENCE_PIPELINES:
-        raise SettingsError(f"Unknown reference pipeline {name!r}; known: "
-                            f"{sorted(REFERENCE_PIPELINES)}.")
+        raise SettingsError(
+            f"Unknown reference pipeline {name!r}; known: {sorted(REFERENCE_PIPELINES)}."
+        )
     spec = REFERENCE_PIPELINES[name]
     ts = reference_input(name) if trials is None else trials
     return run_pipeline(ts, spec["preset"], random_state=random_state, **spec["options"])

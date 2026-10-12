@@ -9,8 +9,9 @@ import pytest
 
 ROOT = pathlib.Path(__file__).parents[3]
 RUNNER = ROOT / "validation" / "layer2.py"
-pytestmark = pytest.mark.skipif(not RUNNER.exists(), reason="repository files not in this "
-                                "checkout")
+pytestmark = pytest.mark.skipif(
+    not RUNNER.exists(), reason="repository files not in this checkout"
+)
 
 
 def _runner():
@@ -33,8 +34,19 @@ def test_weekly_design_covers_every_factor_level():
 def test_smoke_run_writes_the_report(tmp_path):
 
     layer2 = _runner()
-    report = layer2.main(["--design", "smoke", "--replicates", "2", "--jobs", "1",
-                          "--no-tests", "--out", str(tmp_path)])
+    report = layer2.main(
+        [
+            "--design",
+            "smoke",
+            "--replicates",
+            "2",
+            "--jobs",
+            "1",
+            "--no-tests",
+            "--out",
+            str(tmp_path),
+        ]
+    )
     saved = json.loads((tmp_path / "report.json").read_text())
     assert len(saved["grid"]) == len(report["grid"]) == 4
     with_components = [row for row in saved["grid"] if row["n_components"] > 0]

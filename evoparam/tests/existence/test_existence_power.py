@@ -11,11 +11,19 @@ from .helpers import gaussian, noise_trials, plateau, trialset
 ###################################################################################################
 ###################################################################################################
 
+
 def _power(signal, statistic, n_sets=100, n_trials=10, seed=0):
     rng = np.random.default_rng(seed)
     data = noise_trials(rng, n_trials, n_sets) + signal[None, None]
-    test = run_test(trialset(data), statistic=statistic, correction="none",
-                         n_permutations=500, n_boot=0, by=(), random_state=0)
+    test = run_test(
+        trialset(data),
+        statistic=statistic,
+        correction="none",
+        n_permutations=500,
+        n_boot=0,
+        by=(),
+        random_state=0,
+    )
     return np.mean(test.significant)
 
 
@@ -57,9 +65,9 @@ def test_req139_train_discordance():
     n_trains, per = 6, 10
     data = noise_trials(rng, n_trains * per, 2)
     signal = 3.0 * gaussian(0.03, 0.01)
-    data[:, 0] += signal                                         # every train responds
-    for train in range(0, n_trains, 2):                          # every other train responds
-        data[train * per:(train + 1) * per, 1] += signal
+    data[:, 0] += signal  # every train responds
+    for train in range(0, n_trains, 2):  # every other train responds
+        data[train * per : (train + 1) * per, 1] += signal
     meta = pd.DataFrame({"train_id": np.repeat(np.arange(n_trains), per)})
     ts = trialset(data, meta)
     test = run_test(ts, n_permutations=200, n_boot=0, by=(), random_state=0)

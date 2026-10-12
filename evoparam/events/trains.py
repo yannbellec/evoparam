@@ -118,10 +118,16 @@ def trains(events, *, site_column="stim_site_guess", current_column="stim_curren
         current = np.nan
         if current_column in group.columns:
             current = float(np.nanmedian(pd.to_numeric(group[current_column], errors="coerce")))
-        rows.append({"train_id": int(train_id), "site": site, "n_pulses": len(group),
-                     "onset": float(times[0]),
-                     "mean_interval": float(np.mean(np.diff(times))) if len(times) > 1 else np.nan,
-                     "current": current})
+        rows.append(
+            {
+                "train_id": int(train_id),
+                "site": site,
+                "n_pulses": len(group),
+                "onset": float(times[0]),
+                "mean_interval": float(np.mean(np.diff(times))) if len(times) > 1 else np.nan,
+                "current": current,
+            }
+        )
     columns = ["train_id", "site", "n_pulses", "onset", "mean_interval", "current"]
     return pd.DataFrame(rows, columns=columns)
 
@@ -155,6 +161,7 @@ def events_to_metadata(events, *, site_column="stim_site_guess"):
     if "detector" in events.columns:
         meta["detector"] = events["detector"].astype(str).to_numpy()
     if "stim_current_mA" in events.columns:
-        meta["stim_current_mA"] = pd.to_numeric(events["stim_current_mA"],
-                                                errors="coerce").to_numpy(dtype=float)
+        meta["stim_current_mA"] = pd.to_numeric(
+            events["stim_current_mA"], errors="coerce"
+        ).to_numpy(dtype=float)
     return meta

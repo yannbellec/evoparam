@@ -28,6 +28,7 @@ TOL = 1e-9
 ###################################################################################################
 ## Independent reference (definitions only)
 
+
 def _ref_signed(v, polarity):
     return -v if polarity == "negative" else (abs(v) if polarity == "absolute" else v)
 
@@ -39,9 +40,8 @@ def ref_local_peak(t, y, polarity, n):
     s = [_ref_signed(v, polarity) for v in y]
     best = None
     for i in range(n, len(s) - n):
-        left, right = s[i - n:i], s[i + 1:i + n + 1]
-        ok = all(s[i] > v for v in left + right) and s[i] > sum(left) / n \
-            and s[i] > sum(right) / n
+        left, right = s[i - n : i], s[i + 1 : i + n + 1]
+        ok = all(s[i] > v for v in left + right) and s[i] > sum(left) / n and s[i] > sum(right) / n
         if ok and (best is None or s[i] > s[best]):
             best = i
     if best is None:
@@ -96,56 +96,76 @@ def ref_fractional_peak_latency(t, y, peak, fraction, polarity):
     return t[0]
 
 
-def reference(times, y, window, polarity, fraction=0.5, area="total", area_baseline="zero",
-              n_neighbors=3):
+def reference(
+    times, y, window, polarity, fraction=0.5, area="total", area_baseline="zero", n_neighbors=3
+):
     idx = [i for i, v in enumerate(times) if window[0] <= v <= window[1]]
     t = [float(times[i]) for i in idx]
     w = [float(y[i]) for i in idx]
     peak = ref_local_peak(t, w, polarity, n_neighbors)
     base = 0.0 if area_baseline == "zero" else fraction * w[peak]
-    return {"peak_amplitude": w[peak], "peak_latency": t[peak],
-            "mean_amplitude": sum(w) / len(w), "area": ref_area(t, w, area, base),
-            "fractional_area_latency": ref_fractional_area_latency(t, w, fraction, area, base),
-            "fractional_peak_latency": ref_fractional_peak_latency(t, w, peak, fraction,
-                                                                   polarity)}
+    return {
+        "peak_amplitude": w[peak],
+        "peak_latency": t[peak],
+        "mean_amplitude": sum(w) / len(w),
+        "area": ref_area(t, w, area, base),
+        "fractional_area_latency": ref_fractional_area_latency(t, w, fraction, area, base),
+        "fractional_peak_latency": ref_fractional_peak_latency(t, w, peak, fraction, polarity),
+    }
 
 
 MEASURES = ("peak", "mean", "area", "fractional_area_latency", "fractional_peak_latency")
-VARIANTS = [dict(area="total", area_baseline="zero", fraction=0.5),
-            dict(area="positive", area_baseline="zero", fraction=0.5),
-            dict(area="negative", area_baseline="fraction_of_peak", fraction=0.3),
-            dict(area="rectified", area_baseline="zero", fraction=0.5)]
+VARIANTS = [
+    dict(area="total", area_baseline="zero", fraction=0.5),
+    dict(area="positive", area_baseline="zero", fraction=0.5),
+    dict(area="negative", area_baseline="fraction_of_peak", fraction=0.3),
+    dict(area="rectified", area_baseline="zero", fraction=0.5),
+]
 
 
 def _compare(times, average, window, polarity):
     for variant in VARIANTS:
-        got = classical_measures(times, average, window=window, polarity=polarity,
-                                 measures=MEASURES, **variant)
+        got = classical_measures(
+            times, average, window=window, polarity=polarity, measures=MEASURES, **variant
+        )
         want = reference(times, average, window, polarity, **variant)
         for name, value in want.items():
             if math.isnan(value):
                 assert math.isnan(got[name]), name
             else:
-                assert abs(got[name] - value) <= TOL * max(1.0, abs(value)), \
-                    (name, variant, got[name], value)
+                assert abs(got[name] - value) <= TOL * max(1.0, abs(value)), (
+                    name,
+                    variant,
+                    got[name],
+                    value,
+                )
 
 
 ###################################################################################################
 ## Simulated N170 and P3 averages (every build)
 
-@pytest.mark.parametrize("component, channel_window, polarity",
-                         [("N170", (0.110, 0.150), "negative"),
-                          ("P3", (0.300, 0.600), "positive")])
-def test_req117_classical_measures_match_independent_definitions(component, channel_window,
-                                                                  polarity):
+
+@pytest.mark.parametrize(
+    "component, channel_window, polarity",
+    [("N170", (0.110, 0.150), "negative"), ("P3", (0.300, 0.600), "positive")],
+)
+def test_req117_classical_measures_match_independent_definitions(
+    component, channel_window, polarity
+):
     """40 simulated participants' averages (60 trials, pink noise), the ERP CORE
     measurement window of the component; every measure and the four area variants."""
 
     from evoparam.sim import simulate_erp
 
     for participant in range(40):
-        ts, _ = simulate_erp(60, components=["P1", component], snr=1.0, noise="pink",
-                             sfreq=256.0, seed=1700 + participant)
+        ts, _ = simulate_erp(
+            60,
+            components=["P1", component],
+            snr=1.0,
+            noise="pink",
+            sfreq=256.0,
+            seed=1700 + participant,
+        )
         _compare(ts.times, ts.data.mean(axis=0)[0], channel_window, polarity)
 
 
@@ -156,8 +176,10 @@ ERPCORE = os.environ.get("EVOPARAM_ERPCORE", "")
 SCRIPT = pathlib.Path(__file__).parents[3] / "validation" / "erpcore.py"
 
 
-@pytest.mark.skipif(not (ERPCORE and os.path.isdir(ERPCORE) and SCRIPT.exists()),
-                    reason="set EVOPARAM_ERPCORE to the local ERP CORE copy")
+@pytest.mark.skipif(
+    not (ERPCORE and os.path.isdir(ERPCORE) and SCRIPT.exists()),
+    reason="set EVOPARAM_ERPCORE to the local ERP CORE copy",
+)
 @pytest.mark.parametrize("component", ["N170", "P3"])
 def test_req117_on_erp_core_averages(component):
     """REQ-117 as written: the 40 ERP CORE participants' difference waves of N170 and P3 on
@@ -175,7 +197,7 @@ def test_req117_on_erp_core_averages(component):
         loaded += 1
         wave, _ = erpcore.difference_wave(component, times, data, names, bins)
         if not np.all(np.isfinite(wave)):
-            continue                  # no difference wave (as in the published analysis)
+            continue  # no difference wave (as in the published analysis)
         _compare(np.asarray(times), np.asarray(wave), design["window"], polarity)
         compared += 1
     assert loaded == 40 and compared > 0

@@ -22,8 +22,9 @@ import evoparam
 from evoparam import presets, sim
 from evoparam.data import TrialSet
 
-ts, truth = sim.simulate_erna(10, n_trials=20, seed=0, snr=4, artifact=False, tmax=0.09,
-                              onset_delay=0.002)
+ts, truth = sim.simulate_erna(
+    10, n_trials=20, seed=0, snr=4, artifact=False, tmax=0.09, onset_delay=0.002
+)
 print(ts)
 
 # %%
@@ -36,11 +37,12 @@ n = int(round(0.0105 * ts.sfreq))
 epochs = []
 for k in range(5, 10):
     start = np.searchsorted(ts.times, k * period - 0.002)
-    epochs.append(ts.data[:, :, start:start + n])
+    epochs.append(ts.data[:, :, start : start + n])
 start = np.searchsorted(ts.times, 9 * period - 0.002)
-times = ts.times[start:start + n] - 9 * period
-pulses = TrialSet(data=np.concatenate(epochs), times=times, sfreq=ts.sfreq,
-                  ch_names=ts.ch_names, modality="erna")
+times = ts.times[start : start + n] - 9 * period
+pulses = TrialSet(
+    data=np.concatenate(epochs), times=times, sfreq=ts.sfreq, ch_names=ts.ch_names, modality="erna"
+)
 
 # %%
 # Fit with the preset
@@ -54,8 +56,10 @@ freq = [fit.components[0].params[2] for fit in group.fits if fit.components]
 print(osc[["channel", "latency", "amplitude"]].round(4))
 truth_table = truth.to_dataframe()
 print("fitted frequency (Hz):", np.round(freq, 1))
-print("simulated frequency (Hz):",
-      np.round(truth_table.groupby("channel")["param_freq"].first().to_numpy(), 1))
+print(
+    "simulated frequency (Hz):",
+    np.round(truth_table.groupby("channel")["param_freq"].first().to_numpy(), 1),
+)
 
 # %%
 # Figure

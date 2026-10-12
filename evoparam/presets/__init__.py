@@ -24,8 +24,21 @@ from importlib import resources
 import evoparam._plugins as _plugins
 from evoparam.errors import SettingsError
 
-__all__ = ["Preset", "get", "list", "derive", "targeted", "register", "to_json", "from_json",
-           "to_yaml", "from_yaml", "PRESETS", "fit_fields", "methods_note"]
+__all__ = [
+    "Preset",
+    "get",
+    "list",
+    "derive",
+    "targeted",
+    "register",
+    "to_json",
+    "from_json",
+    "to_yaml",
+    "from_yaml",
+    "PRESETS",
+    "fit_fields",
+    "methods_note",
+]
 
 _list = list  # the public function list() shadows the builtin in this module
 
@@ -85,9 +98,11 @@ class Preset:
             value = getattr(self, name)
             if value is not None:
                 object.__setattr__(self, name, tuple(float(v) for v in value))
-        object.__setattr__(self, "component_labels",
-                           {k: tuple(float(x) for x in v) for k, v in
-                            self.component_labels.items()})
+        object.__setattr__(
+            self,
+            "component_labels",
+            {k: tuple(float(x) for x in v) for k, v in self.component_labels.items()},
+        )
         for name in ("label_polarity", "choices", "notes", "fit_extras", "overrides"):
             object.__setattr__(self, name, dict(getattr(self, name)))
         if not self.fit_window[1] > self.fit_window[0]:
@@ -97,11 +112,13 @@ class Preset:
         if self.train_baseline is not None:
             object.__setattr__(self, "train_baseline", float(self.train_baseline))
             if not self.train_baseline > 0:
-                raise SettingsError(f"preset {self.name!r}: train_baseline must be a positive "
-                                    f"duration (s).")
+                raise SettingsError(
+                    f"preset {self.name!r}: train_baseline must be a positive duration (s)."
+                )
         if self.polarity not in ("both", "negative", "positive"):
-            raise SettingsError(f"preset {self.name!r}: polarity must be both, negative or "
-                                f"positive.")
+            raise SettingsError(
+                f"preset {self.name!r}: polarity must be both, negative or positive."
+            )
 
     @property
     def fields(self):
@@ -150,11 +167,20 @@ def list():  # noqa: A001 (the name of the spec's API)
 
     import pandas as pd
 
-    rows = [{"name": p.name, "modality": p.modality, "species": ", ".join(p.species),
-             "citation": ", ".join(p.citation), "version": p.version,
-             "validation": p.validation} for p in PRESETS.values()]
-    return pd.DataFrame(rows, columns=["name", "modality", "species", "citation", "version",
-                                       "validation"])
+    rows = [
+        {
+            "name": p.name,
+            "modality": p.modality,
+            "species": ", ".join(p.species),
+            "citation": ", ".join(p.citation),
+            "version": p.version,
+            "validation": p.validation,
+        }
+        for p in PRESETS.values()
+    ]
+    return pd.DataFrame(
+        rows, columns=["name", "modality", "species", "citation", "version", "validation"]
+    )
 
 
 def derive(base, **overrides):
@@ -214,11 +240,18 @@ def targeted(base, label, window, polarity, *, margin=0.05, name=None):
     lo, hi = float(window[0]) - margin, float(window[1]) + margin
     extras = dict(parent.fit_extras)
     extras["n_components"] = 1
-    return derive(parent, name=name or f"{parent.name}_{label}", fit_window=(lo, hi),
-                  polarity=polarity, selection="fixed", max_components=1,
-                  background="linear", component_labels={label: (lo, hi)},
-                  label_polarity={label: -1 if polarity == "negative" else 1},
-                  fit_extras=extras)
+    return derive(
+        parent,
+        name=name or f"{parent.name}_{label}",
+        fit_window=(lo, hi),
+        polarity=polarity,
+        selection="fixed",
+        max_components=1,
+        background="linear",
+        component_labels={label: (lo, hi)},
+        label_polarity={label: -1 if polarity == "negative" else 1},
+        fit_extras=extras,
+    )
 
 
 def register(preset, *, overwrite=False):
@@ -252,8 +285,10 @@ def _yaml():
     try:
         import yaml
     except ImportError as err:
-        raise ImportError("YAML presets need PyYAML: pip install PyYAML (JSON works without "
-                          "it: presets.to_json / presets.from_json).") from err
+        raise ImportError(
+            "YAML presets need PyYAML: pip install PyYAML (JSON works without "
+            "it: presets.to_json / presets.from_json)."
+        ) from err
     return yaml
 
 
@@ -273,13 +308,24 @@ def fit_fields(preset):
     """The settings of the fitting engine that a preset fixes (``FitSettings`` names)."""
 
     p = get(preset)
-    windows = {label: (lo, hi, int(p.label_polarity.get(label, 0)))
-               for label, (lo, hi) in p.component_labels.items()}
-    out = {"fit_window": p.fit_window, "baseline": p.baseline, "shapes": p.shapes,
-           "background": p.background, "max_components": p.max_components,
-           "min_fwhm": p.min_fwhm, "max_fwhm": p.max_fwhm, "polarity": p.polarity,
-           "selection": p.selection, "delta": p.delta, "uncertainty": p.uncertainty,
-           "windows": windows}
+    windows = {
+        label: (lo, hi, int(p.label_polarity.get(label, 0)))
+        for label, (lo, hi) in p.component_labels.items()
+    }
+    out = {
+        "fit_window": p.fit_window,
+        "baseline": p.baseline,
+        "shapes": p.shapes,
+        "background": p.background,
+        "max_components": p.max_components,
+        "min_fwhm": p.min_fwhm,
+        "max_fwhm": p.max_fwhm,
+        "polarity": p.polarity,
+        "selection": p.selection,
+        "delta": p.delta,
+        "uncertainty": p.uncertainty,
+        "windows": windows,
+    }
     out.update(p.fit_extras)
     return out
 
@@ -295,8 +341,9 @@ def methods_note(preset):
         changed = ", ".join(f"{k}={v}" for k, v in p.overrides.items())
         text += f" (derived from '{p.parent}' with {changed})"
     if p.validation == "simulation_only":
-        text += ("; this preset is validated on simulations only (no public dataset "
-                 "validates it yet)")
+        text += (
+            "; this preset is validated on simulations only (no public dataset validates it yet)"
+        )
     else:
         text += f"; validation: {p.validation}"
     if p.notes.get("methods"):
@@ -308,11 +355,14 @@ def _plugin_preset(name, obj, origin):
     """Check a preset of the entry-point group ``evoparam.presets`` (spec §10.8)."""
 
     if not isinstance(obj, Preset):
-        raise SettingsError(f"plugin preset {name!r} of {origin} is a {type(obj).__name__}, "
-                            f"not a Preset.")
+        raise SettingsError(
+            f"plugin preset {name!r} of {origin} is a {type(obj).__name__}, not a Preset."
+        )
     if obj.name != name:
-        raise SettingsError(f"plugin preset {name!r} of {origin}: its name is {obj.name!r}; "
-                            f"the entry-point name must be the same.")
+        raise SettingsError(
+            f"plugin preset {name!r} of {origin}: its name is {obj.name!r}; "
+            f"the entry-point name must be the same."
+        )
     return obj
 
 

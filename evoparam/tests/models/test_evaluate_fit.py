@@ -23,14 +23,17 @@ def _tail_fit():
     rng = np.random.default_rng(3)
     times = np.arange(-0.5, 0.3, 1 / SFREQ)
     t = np.clip(times, 0, None)
-    y = (600 * np.exp(-t / 0.004) * (times >= 0)
-         - 250 * np.exp(-0.5 * ((times - 0.021) / 0.003) ** 2)
-         - 120 * np.exp(-0.5 * ((times - 0.08) / 0.02) ** 2)
-         + rng.normal(0, 5, len(times)))
+    y = (
+        600 * np.exp(-t / 0.004) * (times >= 0)
+        - 250 * np.exp(-0.5 * ((times - 0.021) / 0.003) ** 2)
+        - 120 * np.exp(-0.5 * ((times - 0.08) / 0.02) ** 2)
+        + rng.normal(0, 5, len(times))
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        fit = ResponseModel("ccep", fit_window=(0.009, 0.25), uncertainty="jacobian",
-                            sfreq=SFREQ, tmin=times[0]).fit_waveform(times, y)
+        fit = ResponseModel(
+            "ccep", fit_window=(0.009, 0.25), uncertainty="jacobian", sfreq=SFREQ, tmin=times[0]
+        ).fit_waveform(times, y)
     return times, y, fit
 
 
@@ -66,7 +69,7 @@ def test_fitted_peak_is_the_trough_of_the_fitted_model():
     peak = fitted_peak(fit, (0.009, 0.05))
     assert abs(peak["latency"] - 0.021) <= 1 / SFREQ
     w = (times >= fit.window[0]) & (times <= 0.05)
-    j = np.argmin(fit.model[:w.sum()])
+    j = np.argmin(fit.model[: w.sum()])
     assert abs(peak["latency"] - times[w][j]) <= 1 / SFREQ
 
 

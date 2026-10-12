@@ -19,9 +19,20 @@ import time
 import numpy as np
 import pytest
 
-from evoparam.benchmark import (BASELINES, RULES, TASKS, get_baseline, list_suites,
-                                load_results, make_inputs, read_output, read_result,
-                                run_suite, simulate_cell, write_output)
+from evoparam.benchmark import (
+    BASELINES,
+    RULES,
+    TASKS,
+    get_baseline,
+    list_suites,
+    load_results,
+    make_inputs,
+    read_output,
+    read_result,
+    run_suite,
+    simulate_cell,
+    write_output,
+)
 from evoparam.benchmark._canon import array_sha256
 from evoparam.benchmark.tasks import output_path
 
@@ -30,8 +41,14 @@ from .helpers import DOCS, PERF, RESULTS, ROOT, SLOW, inputs, suite
 pytest.importorskip("jsonschema")
 
 LIMIT_S = 30 * 60
-PUBLISHED_RULES = ("vanblooijs2023", "hays2021", "keller2014", "silverstein2020", "ftract",
-                   "prime2020")
+PUBLISHED_RULES = (
+    "vanblooijs2023",
+    "hays2021",
+    "keller2014",
+    "silverstein2020",
+    "ftract",
+    "prime2020",
+)
 
 
 def test_req350_core_covers_t1_to_t7():
@@ -56,12 +73,12 @@ def test_req350_suite_files_are_what_the_builder_writes():
     """The frozen files are those of ``tools/benchmark_suites.py`` (the commitment aside,
     which needs the hidden seeds document)."""
 
-    spec = importlib.util.spec_from_file_location("benchmark_suites",
-                                                  ROOT / "tools" / "benchmark_suites.py")
+    spec = importlib.util.spec_from_file_location(
+        "benchmark_suites", ROOT / "tools" / "benchmark_suites.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    for name, replicates, hidden, base in (("core", 1, 2, 8_000_000),
-                                          ("full", 5, 10, 9_000_000)):
+    for name, replicates, hidden, base in (("core", 1, 2, 8_000_000), ("full", 5, 10, 9_000_000)):
         doc, hidden_ids = module.build(name, replicates, hidden, base)
         path = ROOT / "evoparam" / "benchmark" / "suites" / f"{name}.json"
         frozen = json.loads(path.read_text(encoding="utf-8"))
@@ -87,15 +104,20 @@ def test_req350_every_baseline_answers_its_tasks(tmp_path):
     """Each baseline on one cell of each task it answers: its output validates. The slow
     ones (evoparam-preset on T1/T2/T7, tf-cluster) run in the slow test below."""
 
-    slow = {("evoparam-preset", "T1"), ("evoparam-preset", "T2"), ("evoparam-preset", "T7"),
-            ("tf-cluster", "T7")}
+    slow = {
+        ("evoparam-preset", "T1"),
+        ("evoparam-preset", "T2"),
+        ("evoparam-preset", "T7"),
+        ("tf-cluster", "T7"),
+    }
     for name, baseline in BASELINES.items():
         for task in baseline.tasks:
             if (name, task) in slow:
                 continue
             out = baseline.run({task: inputs(task, 1)[0]})
-            path = write_output(task, out[task], output_path(str(tmp_path / name), task,
-                                                             inputs(task, 1)[0].cell))
+            path = write_output(
+                task, out[task], output_path(str(tmp_path / name), task, inputs(task, 1)[0].cell)
+            )
             assert read_output(task, path) is not None, (name, task)
 
 
@@ -120,7 +142,7 @@ def test_req353_committed_results_on_core():
     for task in TASKS:
         assert any(t == task for _, t in docs), task
     for path in RESULTS.glob("*.json"):
-        read_result(str(path))                              # signatures hold
+        read_result(str(path))  # signatures hold
 
 
 def test_req350_committed_run_covers_t1_to_t7_within_the_limit():
@@ -133,18 +155,33 @@ def test_req350_committed_run_covers_t1_to_t7_within_the_limit():
 
 @PERF
 def test_req350_core_run_completes_within_30_minutes(tmp_path):
-    env = dict(os.environ,
-               PYTHONPATH=str(ROOT) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    env = dict(os.environ, PYTHONPATH=str(ROOT) + os.pathsep + os.environ.get("PYTHONPATH", ""))
     start = time.perf_counter()
-    proc = subprocess.run([sys.executable, "-m", "evoparam", "benchmark", "run", "--suite",
-                           "core", "--out", str(tmp_path / "run"), "--json"],
-                          capture_output=True, text=True, env=env, check=False)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evoparam",
+            "benchmark",
+            "run",
+            "--suite",
+            "core",
+            "--out",
+            str(tmp_path / "run"),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
     duration = time.perf_counter() - start
     assert proc.returncode == 0, proc.stderr[-3000:]
     summary = json.loads((tmp_path / "run" / "summary.json").read_text(encoding="utf-8"))
     assert summary["tasks"] == list(TASKS) and summary["failures"] == []
-    assert {json.loads(open(p, encoding="utf-8").read())["task"] for p in summary["results"]} \
-        == set(TASKS)
+    assert {
+        json.loads(open(p, encoding="utf-8").read())["task"] for p in summary["results"]
+    } == set(TASKS)
     assert duration <= LIMIT_S, f"core run took {duration:.0f} s"
 
 
@@ -154,8 +191,7 @@ def test_req353_rerun_reproduces_the_committed_results(tmp_path):
     1e-9, the cross-platform tolerance of REQ-295) and, when the simulated inputs are the
     same bytes as the committed ones (same platform), the same output hashes (REQ-352)."""
 
-    methods = list(PUBLISHED_RULES) + ["projection", "vanblooijs2023_code",
-                                       "evoparam-preset"]
+    methods = list(PUBLISHED_RULES) + ["projection", "vanblooijs2023_code", "evoparam-preset"]
     run_suite("core", str(tmp_path), tasks=["T1", "T2"], methods=methods, page=False)
     other_platform = []
     for name in methods:
@@ -164,17 +200,20 @@ def test_req353_rerun_reproduces_the_committed_results(tmp_path):
             old = read_result(str(RESULTS / f"{name}__{task}.json"))
             same_inputs = new["inputs_sha256"] == old["inputs_sha256"]
             if same_inputs:
-                assert [c["output_sha256"] for c in new["cells"]] == \
-                    [c["output_sha256"] for c in old["cells"]], (name, task)
+                assert [c["output_sha256"] for c in new["cells"]] == [
+                    c["output_sha256"] for c in old["cells"]
+                ], (name, task)
             for key, value in old["metrics"].items():
                 if not isinstance(value, float):
                     continue
                 if same_inputs:
-                    np.testing.assert_allclose(new["metrics"][key], value, rtol=1e-9,
-                                               err_msg=f"{name} {task} {key}")
+                    np.testing.assert_allclose(
+                        new["metrics"][key], value, rtol=1e-9, err_msg=f"{name} {task} {key}"
+                    )
                 elif not np.isclose(new["metrics"][key], value, rtol=1e-9, atol=0):
-                    other_platform.append((abs(new["metrics"][key] / value - 1),
-                                           f"{name} {task} {key}"))
+                    other_platform.append(
+                        (abs(new["metrics"][key] / value - 1), f"{name} {task} {key}")
+                    )
     if other_platform:
         # REQ-295 asks 1e-9 across platforms; on simulated inputs that differ in their last
         # bits (another libm), the threshold rules agree to 1e-9 but the fits of the
@@ -182,5 +221,7 @@ def test_req353_rerun_reproduces_the_committed_results(tmp_path):
         # results, at the commit that made them: amplitude bias 7e-5 relative). Reported,
         # not hidden: the tolerance is not loosened (CHANGELOG, "Second network run").
         worst = max(other_platform)
-        pytest.xfail(f"REQ-295 across platforms not met by {len(other_platform)} metric(s); "
-                     f"largest relative difference {worst[0]:.1e} ({worst[1]})")
+        pytest.xfail(
+            f"REQ-295 across platforms not met by {len(other_platform)} metric(s); "
+            f"largest relative difference {worst[0]:.1e} ({worst[1]})"
+        )

@@ -15,8 +15,12 @@ import pytest
 
 from evoparam import shapes
 from evoparam.shapes import backgrounds as bg
-from evoparam.tests.shapes.helpers import (TIMES, make_template, sample_params,
-                                           sample_background_params)
+from evoparam.tests.shapes.helpers import (
+    TIMES,
+    make_template,
+    sample_params,
+    sample_background_params,
+)
 
 N_SETS = 100
 RTOL = 1e-6
@@ -45,8 +49,8 @@ BACKGROUND_CASES = {
     "double_exponential": bg.DoubleExponentialBackground(),
     "pspline": bg.PSplineBackground((TIMES[0], TIMES[-1]), max_fwhm=0.03),
     "artifact_basis": bg.ArtifactBasisBackground(
-        np.vstack([np.exp(-np.arange(40) / 8.0), np.sin(np.arange(40) / 3.0)]),
-        TIMES[:40]),
+        np.vstack([np.exp(-np.arange(40) / 8.0), np.sin(np.arange(40) / 3.0)]), TIMES[:40]
+    ),
 }
 
 
@@ -105,8 +109,13 @@ def test_shape_jacobian_matches_finite_differences(case):
     assert analytic.shape == (N_SETS, TIMES.size, shape.n_params)
     worst = 0.0
     for row in range(N_SETS):
-        errors = _column_errors(lambda p: shape.evaluate(TIMES, p), analytic[row], params[row],
-                                bounds, _kinks(shape, params[row], _steps(params[row], bounds)))
+        errors = _column_errors(
+            lambda p: shape.evaluate(TIMES, p),
+            analytic[row],
+            params[row],
+            bounds,
+            _kinks(shape, params[row], _steps(params[row], bounds)),
+        )
         worst = max([worst] + errors)
     assert worst < RTOL, f"{case}: worst relative Jacobian error {worst:.3g}"
 
@@ -115,14 +124,16 @@ def test_shape_jacobian_matches_finite_differences(case):
 def test_background_jacobian_matches_finite_differences(case):
     background = BACKGROUND_CASES[case]
     bounds = background.default_bounds(TIMES, data_range=(-50.0, 80.0))
-    params = sample_background_params(background, TIMES, N_SETS, np.random.default_rng(7),
-                                      data_range=(-50.0, 80.0))
+    params = sample_background_params(
+        background, TIMES, N_SETS, np.random.default_rng(7), data_range=(-50.0, 80.0)
+    )
     analytic = background.jacobian(TIMES, params)
     assert analytic.shape == (N_SETS, TIMES.size, background.n_params)
     worst = 0.0
     for row in range(N_SETS):
-        errors = _column_errors(lambda p: background.evaluate(TIMES, p), analytic[row],
-                                params[row], bounds)
+        errors = _column_errors(
+            lambda p: background.evaluate(TIMES, p), analytic[row], params[row], bounds
+        )
         worst = max([worst] + errors)
     assert worst < RTOL, f"{case}: worst relative Jacobian error {worst:.3g}"
 
@@ -132,14 +143,15 @@ def test_basis_jacobian_matches_finite_differences(case):
     background = BACKGROUND_CASES[case]
     lower, upper = background.default_bounds(TIMES)
     params = sample_background_params(background, TIMES, 20, np.random.default_rng(3))
-    nonlinear = params[:, background.n_linear:]
-    bounds = (lower[background.n_linear:], upper[background.n_linear:])
+    nonlinear = params[:, background.n_linear :]
+    bounds = (lower[background.n_linear :], upper[background.n_linear :])
     d_basis = background.basis_jacobian(TIMES, nonlinear)
     assert d_basis.shape == (20, background.n_linear, TIMES.size, background.n_nonlinear)
     for row in range(20):
         for j in range(background.n_linear):
-            errors = _column_errors(lambda p: background.basis(TIMES, p)[j], d_basis[row, j],
-                                    nonlinear[row], bounds)
+            errors = _column_errors(
+                lambda p: background.basis(TIMES, p)[j], d_basis[row, j], nonlinear[row], bounds
+            )
             assert max(errors, default=0.0) < RTOL
 
 

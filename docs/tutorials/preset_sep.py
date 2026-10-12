@@ -51,8 +51,10 @@ group = evoparam.fit(evoked, "sep", existence=False, random_state=0)
 table = group.to_dataframe()
 print(table[["component", "label", "latency", "amplitude", "fwhm"]].round(4))
 n20 = table[table["label"] == "N20"].iloc[0]
-print(f"N20 at {n20['latency'] * 1e3:.2f} ms (simulated 20.1 ms), "
-      f"amplitude {n20['amplitude']:.2f} µV")
+print(
+    f"N20 at {n20['latency'] * 1e3:.2f} ms (simulated 20.1 ms), "
+    f"amplitude {n20['amplitude']:.2f} µV"
+)
 
 # %%
 # Figure

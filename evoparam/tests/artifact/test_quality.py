@@ -12,6 +12,7 @@ from .helpers import artifact_shape, make_overlay
 ###################################################################################################
 ###################################################################################################
 
+
 def auc(scores_good, scores_bad):
     """Probability that a clean trial scores higher than a corrupted one."""
 
@@ -51,8 +52,12 @@ def test_req066_quality_separates_corrupted_trials():
     assert auc(result.quality[good], result.quality[corrupted]) >= 0.9
     assert np.allclose(result.cleaned.metadata["quality"], result.quality)
     assert list(result.quality_components.columns) == [
-        "residual_ratio", "edge_discontinuity", "saturation_fraction", "template_fit_r2",
-        "quality"]
+        "residual_ratio",
+        "edge_discontinuity",
+        "saturation_fraction",
+        "template_fit_r2",
+        "quality",
+    ]
 
 
 def test_quality_range_and_components():

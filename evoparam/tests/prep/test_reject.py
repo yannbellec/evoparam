@@ -15,6 +15,7 @@ from .helpers import ccep, epochs
 ###################################################################################################
 ###################################################################################################
 
+
 def test_req083_flags_corrupted_trials_without_deleting():
 
     rng = np.random.default_rng(3)
@@ -22,11 +23,11 @@ def test_req083_flags_corrupted_trials_without_deleting():
     data = ts.data + ccep(ts.times)[None, None]
     corrupted = rng.choice(200, 30, replace=False)
     big, flat, masked = corrupted[:10], corrupted[10:20], corrupted[20:]
-    data[big] *= 10                                         # 10x the baseline amplitude
-    data[flat] = 0.0                                        # flat
+    data[big] *= 10  # 10x the baseline amplitude
+    data[flat] = 0.0  # flat
     mask = np.zeros(data.shape, dtype=bool)
     resp = np.flatnonzero((ts.times >= 0.01) & (ts.times <= 0.5))
-    mask[np.ix_(masked, np.arange(ts.n_channels), resp[:int(0.3 * len(resp))])] = True
+    mask[np.ix_(masked, np.arange(ts.n_channels), resp[: int(0.3 * len(resp))])] = True
     out = reject_trials(apply_mask(replace(ts, data=data), mask))
 
     assert out.n_trials == 200
@@ -48,7 +49,7 @@ def test_quality_threshold_and_cap():
 
     # A broken channel: most trials extreme on it -> capped, with a warning
     data = ts.data.copy()
-    data[:8, 0] *= 50                                      # 40 % of the trials
+    data[:8, 0] *= 50  # 40 % of the trials
     with pytest.warns(UserWarning, match="the channel, not the trials"):
         out = reject_trials(replace(ts, data=data, metadata=None))
     assert out.provenance.steps[-1]["settings"]["capped_channels"] == ["A1"]

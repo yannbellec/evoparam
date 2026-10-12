@@ -125,35 +125,70 @@ class StreamFitter:
     medical device).
     """
 
-    def __init__(self, template, *, sfreq, ch_names, window=None, artifact_window=None,
-                 detector="threshold", detector_channel=None, max_shift=0.005,
-                 existence_threshold_sd=3.0, buffer_seconds=5.0, backend="numpy",
-                 saturation=None, existence_alpha=0.05, existence_max_pulses=100,
-                 existence_looks="pulse", random_state=None, mode="shift_scale"):
+    def __init__(
+        self,
+        template,
+        *,
+        sfreq,
+        ch_names,
+        window=None,
+        artifact_window=None,
+        detector="threshold",
+        detector_channel=None,
+        max_shift=0.005,
+        existence_threshold_sd=3.0,
+        buffer_seconds=5.0,
+        backend="numpy",
+        saturation=None,
+        existence_alpha=0.05,
+        existence_max_pulses=100,
+        existence_looks="pulse",
+        random_state=None,
+        mode="shift_scale",
+    ):
         if backend not in BACKENDS:
             raise SettingsError(f"backend must be one of {BACKENDS}, not {backend!r}.")
         self.sfreq = float(sfreq)
         self.ch_names = [str(name) for name in ch_names]
-        self.model = FixedShapeModel(template, sfreq=sfreq, ch_names=self.ch_names,
-                                     window=window, artifact_window=artifact_window,
-                                     max_shift=max_shift, mode=mode)
-        self.settings = {"window": list(self.model.window), "max_shift": float(max_shift),
-                         "mode": mode,
-                         "artifact_window": None if artifact_window is None
-                         else [float(v) for v in artifact_window],
-                         "baseline_offsets": list(self.model.baseline_offsets),
-                         "existence_threshold_sd": float(existence_threshold_sd),
-                         "existence_alpha": float(existence_alpha),
-                         "existence_max_pulses": int(existence_max_pulses),
-                         "existence_looks": existence_looks, "n_permutations": N_PERMUTATIONS,
-                         "budget_ms": BUDGET_MS, "saturation": saturation,
-                         "buffer_seconds": float(buffer_seconds), "backend": backend,
-                         "random_state": random_state, "intended_use": INTENDED_USE}
+        self.model = FixedShapeModel(
+            template,
+            sfreq=sfreq,
+            ch_names=self.ch_names,
+            window=window,
+            artifact_window=artifact_window,
+            max_shift=max_shift,
+            mode=mode,
+        )
+        self.settings = {
+            "window": list(self.model.window),
+            "max_shift": float(max_shift),
+            "mode": mode,
+            "artifact_window": None
+            if artifact_window is None
+            else [float(v) for v in artifact_window],
+            "baseline_offsets": list(self.model.baseline_offsets),
+            "existence_threshold_sd": float(existence_threshold_sd),
+            "existence_alpha": float(existence_alpha),
+            "existence_max_pulses": int(existence_max_pulses),
+            "existence_looks": existence_looks,
+            "n_permutations": N_PERMUTATIONS,
+            "budget_ms": BUDGET_MS,
+            "saturation": saturation,
+            "buffer_seconds": float(buffer_seconds),
+            "backend": backend,
+            "random_state": random_state,
+            "intended_use": INTENDED_USE,
+        }
         self.saturation = None if saturation is None else float(saturation)
         self.existence_stats = OnlineExistence(
-            len(self.model.ch_names), threshold_sd=existence_threshold_sd,
-            alpha=existence_alpha, max_n=existence_max_pulses, n_permutations=N_PERMUTATIONS,
-            looks=existence_looks, random_state=random_state)
+            len(self.model.ch_names),
+            threshold_sd=existence_threshold_sd,
+            alpha=existence_alpha,
+            max_n=existence_max_pulses,
+            n_permutations=N_PERMUTATIONS,
+            looks=existence_looks,
+            random_state=random_state,
+        )
 
         i0, i1 = self.model.segment_offsets
         b0, _ = self.model.baseline_offsets
@@ -162,8 +197,10 @@ class StreamFitter:
         self._span = self._last - self._first + 1
         self._n_buffer = int(round(buffer_seconds * self.sfreq))
         if self._n_buffer < 2 * self._span:
-            raise SettingsError(f"buffer_seconds must hold at least twice the window and "
-                                f"baseline ({2 * self._span / self.sfreq:.3f} s).")
+            raise SettingsError(
+                f"buffer_seconds must hold at least twice the window and "
+                f"baseline ({2 * self._span / self.sfreq:.3f} s)."
+            )
         self._window_rows = np.arange(i0, i1 + 1)
         self._baseline_rows = np.arange(b0, b0 + len(self.model.tw))
         self._picks = self.model.picks
@@ -208,10 +245,18 @@ class StreamFitter:
 
         values = sorted(self._compute_ms)
         if not values:
-            return {"p50": float("nan"), "p95": float("nan"), "p99": float("nan"),
-                    "max": float("nan")}
-        return {"p50": _quantile(values, 50), "p95": _quantile(values, 95),
-                "p99": _quantile(values, 99), "max": values[-1]}
+            return {
+                "p50": float("nan"),
+                "p95": float("nan"),
+                "p99": float("nan"),
+                "max": float("nan"),
+            }
+        return {
+            "p50": _quantile(values, 50),
+            "p95": _quantile(values, 95),
+            "p99": _quantile(values, 99),
+            "max": values[-1],
+        }
 
     def existence(self, final=False):
         """Running existence test, per channel (a look of the sequential test).
@@ -264,8 +309,9 @@ class StreamFitter:
         if samples.ndim == 1:
             samples = samples[None]
         if samples.ndim != 2 or samples.shape[1] != len(self.ch_names):
-            raise DataError(f"samples must be [n_samples, {len(self.ch_names)}], got "
-                            f"{list(samples.shape)}.")
+            raise DataError(
+                f"samples must be [n_samples, {len(self.ch_names)}], got {list(samples.shape)}."
+            )
         if timestamps is not None:
             timestamps = np.asarray(timestamps, float).ravel()
             if len(timestamps) != len(samples):
@@ -274,8 +320,8 @@ class StreamFitter:
         out = []
         step = self._n_buffer - self._span
         for start in range(0, len(samples), step):
-            chunk = samples[start:start + step]
-            stamps = None if timestamps is None else timestamps[start:start + step]
+            chunk = samples[start : start + step]
+            stamps = None if timestamps is None else timestamps[start : start + step]
             out.extend(self._push_chunk(chunk, stamps))
         return out
 
@@ -286,9 +332,11 @@ class StreamFitter:
         if stamps is not None:
             self._stamps[rows] = stamps
         self.n_samples += len(chunk)
-        onsets = self.detector.update(chunk[:, self._detector_picks]) \
-            if isinstance(self.detector, OnlinePulseDetector) \
+        onsets = (
+            self.detector.update(chunk[:, self._detector_picks])
+            if isinstance(self.detector, OnlinePulseDetector)
             else self.detector(chunk[:, self._detector_picks], first)
+        )
         for onset in onsets:
             heapq.heappush(self._pending, (int(onset), self._time_of(int(onset))))
         out = []
@@ -306,16 +354,23 @@ class StreamFitter:
         start = first % self._n_buffer
         stop = start + length
         if stop <= self._n_buffer:
-            return self._buffer[:, start:stop] if self._all_picked else \
-                self._buffer[self._picks, start:stop]
+            return (
+                self._buffer[:, start:stop]
+                if self._all_picked
+                else self._buffer[self._picks, start:stop]
+            )
         return self._buffer[self._picks[:, None], np.arange(start, stop) % self._n_buffer]
 
     def _estimate(self, onset, pulse_time):
         start = time.perf_counter()
         oldest = max(0, self.n_samples - self._n_buffer)
         if onset + self._window_rows[0] < oldest:
-            _warn(f"Pulse at sample {onset}: its window is no longer (or not yet) in the "
-                  "buffer; skipped.", UserWarning, stacklevel=3)
+            _warn(
+                f"Pulse at sample {onset}: its window is no longer (or not yet) in the "
+                "buffer; skipped.",
+                UserWarning,
+                stacklevel=3,
+            )
             return []
         window = self._segment(onset + self._window_rows[0], len(self._window_rows))
         baseline = None
@@ -323,8 +378,9 @@ class StreamFitter:
             baseline = self._segment(onset + self._baseline_rows[0], len(self._baseline_rows))
         res = self.model.fit(window, baseline)
         z, present = self.existence_stats.update(res["projection"], res["baseline_projection"])
-        saturated = None if self.saturation is None else \
-            (np.abs(window) >= self.saturation).any(axis=1)
+        saturated = (
+            None if self.saturation is None else (np.abs(window) >= self.saturation).any(axis=1)
+        )
         compute_ms = (time.perf_counter() - start) * 1e3
         self._compute_ms.append(compute_ms)
         self.n_pulses += 1
@@ -336,12 +392,28 @@ class StreamFitter:
         z, present = z.tolist(), present.tolist()
         out = []
         for c, name in enumerate(self.model.ch_names):
-            status = "saturated" if sat[c] else ("artifact" if not finite[c] else
-                                                 ("late" if late else "ok"))
+            status = (
+                "saturated"
+                if sat[c]
+                else ("artifact" if not finite[c] else ("late" if late else "ok"))
+            )
             for k, label in enumerate(self.model.labels[c]):
-                out.append(PulseEstimate(pulse_time, name, label, amp[c][k], lat[c][k],
-                                         scale[c][k], shift[c][k], z[c], bool(present[c]),
-                                         r2[c], compute_ms, status))
+                out.append(
+                    PulseEstimate(
+                        pulse_time,
+                        name,
+                        label,
+                        amp[c][k],
+                        lat[c][k],
+                        scale[c][k],
+                        shift[c][k],
+                        z[c],
+                        bool(present[c]),
+                        r2[c],
+                        compute_ms,
+                        status,
+                    )
+                )
         return out
 
 
@@ -394,5 +466,5 @@ def replay(trialset_or_raw, fitter, chunk_size=32):
         fitter.push_pulse(int(sample) / fitter.sfreq)
     out = []
     for first in range(0, len(stream), int(chunk_size)):
-        out.extend(fitter.push(stream[first:first + int(chunk_size)]))
+        out.extend(fitter.push(stream[first : first + int(chunk_size)]))
     return out

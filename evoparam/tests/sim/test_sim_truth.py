@@ -18,6 +18,7 @@ pd = pytest.importorskip("pandas")
 ###################################################################################################
 ## REQ-255: shared columns and units
 
+
 def _kind(series):
     kind = series.dtype.kind
     return {"i": "int", "u": "int", "f": "float", "b": "bool"}.get(kind, "object")
@@ -32,7 +33,7 @@ def test_truth_and_groupfit_share_columns_and_units(name):
         common = [c for c in fit_table.columns if c in table.columns]
         # Every GroupFit component column but the fit status is in the truth.
         assert common == [c for c in COMPONENT_COLUMNS if c not in ("status", "resolvable")]
-        assert list(table.columns[:len(common)]) == common
+        assert list(table.columns[: len(common)]) == common
         for column in common:
             assert table.attrs["units"][column] == fit_table.attrs["units"][column], column
             if len(table) and len(fit_table):
@@ -60,6 +61,7 @@ def test_perfect_fit_table_equals_truth_table():
 ###################################################################################################
 ## Exactness of the truth
 
+
 @pytest.mark.parametrize("name, jitter", [("erp", 0.004), ("ccep", 0.004), ("ecap", 0.0001)])
 def test_trial_rows_are_the_features_of_the_trial_curves(name, jitter):
     """Features of a trial are those of its curve (components inside the epoch)."""
@@ -76,25 +78,34 @@ def test_trial_rows_are_the_features_of_the_trial_curves(name, jitter):
         shape = get_shape(comp["shape"])
         for trial in np.flatnonzero(truth.present[:, index])[:3]:
             amp = comp["amplitude"] * truth.scale[trial, index]
-            feats = compute_features(shape, truth.times, params[trial], amp,
-                                     sfreq=truth.sfreq).to_dict()
-            match = [r for r in rows if r["trial"] == trial and r["channel"] == comp["channel"]
-                     and r["label"] == comp["label"] and r["event"] == comp["event"]
-                     and np.isclose(r["shift"], truth.shift[trial, index])]
+            feats = compute_features(
+                shape, truth.times, params[trial], amp, sfreq=truth.sfreq
+            ).to_dict()
+            match = [
+                r
+                for r in rows
+                if r["trial"] == trial
+                and r["channel"] == comp["channel"]
+                and r["label"] == comp["label"]
+                and r["event"] == comp["event"]
+                and np.isclose(r["shift"], truth.shift[trial, index])
+            ]
             assert match, (comp["label"], trial)
             row = match[0]
             np.testing.assert_allclose(row["latency"], feats["latency"], rtol=0, atol=1e-9)
             np.testing.assert_allclose(row["amplitude"], feats["amplitude"], rtol=1e-9)
             for column in ("fwhm", "onset", "offset"):
-                np.testing.assert_allclose(row[column], feats[column], rtol=0,
-                                           atol=0.2 / truth.sfreq)
+                np.testing.assert_allclose(
+                    row[column], feats[column], rtol=0, atol=0.2 / truth.sfreq
+                )
             checked += 1
     assert checked > 0
 
 
 def test_signal_is_the_sum_of_the_waveforms():
-    ts, truth = sim.simulate_erp(seed=6, n_trials=8, n_channels=2, jitter_sd=0.01,
-                                 amplitude_cv=0.3, overlap=0.4)
+    ts, truth = sim.simulate_erp(
+        seed=6, n_trials=8, n_channels=2, jitter_sd=0.01, amplitude_cv=0.3, overlap=0.4
+    )
     total = np.zeros_like(truth.signal)
     for index, comp in enumerate(truth.components):
         total[:, truth.ch_names.index(comp["channel"])] += truth.waveform(index)
@@ -105,8 +116,9 @@ def test_signal_is_the_sum_of_the_waveforms():
 
 
 def test_component_level_averages_the_trials():
-    _, truth = sim.simulate_erp(seed=6, n_trials=30, jitter_sd=0.005, amplitude_cv=0.2,
-                                components=["P3"])
+    _, truth = sim.simulate_erp(
+        seed=6, n_trials=30, jitter_sd=0.005, amplitude_cv=0.2, components=["P3"]
+    )
     row = truth.to_dataframe().iloc[0]
     comp = truth.components[0]
     assert row["n_trials"] == 30
@@ -136,7 +148,8 @@ def test_json_round_trip():
     with_arrays = sim.GroundTruth.from_dict(truth.to_dict(arrays=True))
     assert with_arrays == copy.deepcopy(truth)
     import json
-    json.loads(truth.to_json())                      # strict JSON, no NaN tokens
+
+    json.loads(truth.to_json())  # strict JSON, no NaN tokens
     assert "NaN" not in truth.to_json()
 
 
@@ -188,10 +201,12 @@ def test_keep_arrays_false():
 ###################################################################################################
 ## REQ-256: real noise records and licences
 
+
 def test_real_noise_records_every_segment():
-    real = real_baselines(n_trials=6, n_channels=3, sfreq=500., tmin=-2.0)
-    ts, truth = sim.simulate_erp(seed=2, n_trials=5, n_channels=3, noise="real",
-                                 noise_kw={"source": real}, snr=3.0)
+    real = real_baselines(n_trials=6, n_channels=3, sfreq=500.0, tmin=-2.0)
+    ts, truth = sim.simulate_erp(
+        seed=2, n_trials=5, n_channels=3, noise="real", noise_kw={"source": real}, snr=3.0
+    )
     record = truth.noise
     assert record["kind"] == "real"
     assert record["dataset"]["dataset"] == "ds004080"
@@ -200,15 +215,26 @@ def test_real_noise_records_every_segment():
     segments = record["segments"]
     assert len(segments) == ts.n_trials
     for trial, segment in enumerate(segments):
-        for key in ("dataset", "version", "subject", "run", "source_trial", "epoch_samples",
-                    "recording_samples", "source_channels"):
+        for key in (
+            "dataset",
+            "version",
+            "subject",
+            "run",
+            "source_trial",
+            "epoch_samples",
+            "recording_samples",
+            "source_channels",
+        ):
             assert segment[key] is not None, key
         assert segment["dataset"] == "ds004080" and segment["version"] == "1.2.4"
         assert segment["subject"] == "ccepAgeUMCU01" and segment["run"] == "021448"
         start, stop = segment["epoch_samples"]
         assert stop - start == ts.n_times
-        epoch_start = int(round(real.event_times[segment["source_trial"]] * real.sfreq
-                                + real.times[0] * real.sfreq))
+        epoch_start = int(
+            round(
+                real.event_times[segment["source_trial"]] * real.sfreq + real.times[0] * real.sfreq
+            )
+        )
         assert segment["recording_samples"] == [epoch_start + start, epoch_start + stop]
         # The noise in the data is exactly this segment (demeaned, scaled to noise_sd).
         noise = ts.data[trial] - truth.signal[trial]
@@ -221,20 +247,28 @@ def test_real_noise_records_every_segment():
 
 
 def test_real_noise_resampling_is_recorded():
-    real = real_baselines(n_trials=4, n_channels=2, sfreq=1000., tmin=-2.0)
-    ts, truth = sim.simulate_erp(seed=2, n_trials=3, n_channels=2, sfreq=500., noise="real",
-                                 noise_kw={"source": real}, snr=3.0)
+    real = real_baselines(n_trials=4, n_channels=2, sfreq=1000.0, tmin=-2.0)
+    ts, truth = sim.simulate_erp(
+        seed=2,
+        n_trials=3,
+        n_channels=2,
+        sfreq=500.0,
+        noise="real",
+        noise_kw={"source": real},
+        snr=3.0,
+    )
     resampling = truth.noise["resampling"]
     assert resampling["from_sfreq"] == 1000.0 and resampling["to_sfreq"] == 500.0
     assert (resampling["up"], resampling["down"]) == (1, 2)
     start, stop = truth.noise["segments"][0]["epoch_samples"]
-    assert stop - start == 2 * ts.n_times                   # in source samples
+    assert stop - start == 2 * ts.n_times  # in source samples
 
 
 def test_real_noise_unit_conversion():
     real = real_baselines(n_trials=4, n_channels=2, units="V")
-    noise, info = sim.make_noise(400, 500., "real", size=(2, 2), source=real, units="uV",
-                                 seed=0, return_info=True)
+    noise, info = sim.make_noise(
+        400, 500.0, "real", size=(2, 2), source=real, units="uV", seed=0, return_info=True
+    )
     segment = info["segments"][0]
     start, stop = segment["epoch_samples"]
     piece = real.data[segment["source_trial"], :, start:stop] * 1e6
@@ -246,29 +280,44 @@ def test_real_noise_unit_conversion():
 def test_registry_datasets_without_an_allowed_licence_are_refused(dataset):
     real = real_baselines(dataset=dataset)
     with pytest.raises(SettingsError, match="licence"):
-        sim.simulate_erp(seed=0, n_trials=3, n_channels=3, noise="real",
-                         noise_kw={"source": real})
+        sim.simulate_erp(seed=0, n_trials=3, n_channels=3, noise="real", noise_kw={"source": real})
     with pytest.raises(SettingsError, match="licence"):
         sim.inject(real, ["N1"], snr=2.0, seed=0)
 
 
 def test_unknown_or_unnamed_dataset_is_refused_for_real_noise():
     with pytest.raises(SettingsError, match="not in the registry"):
-        sim.make_noise(400, 500., "real", size=(1, 3), source=real_baselines(dataset="ds999999"))
+        sim.make_noise(400, 500.0, "real", size=(1, 3), source=real_baselines(dataset="ds999999"))
     with pytest.raises(SettingsError, match="does not name"):
-        sim.make_noise(400, 500., "real", size=(1, 3), source=real_baselines(dataset=None))
+        sim.make_noise(400, 500.0, "real", size=(1, 3), source=real_baselines(dataset=None))
     # Naming the dataset explicitly is enough.
-    noise = sim.make_noise(400, 500., "real", size=(1, 3), source=real_baselines(dataset=None),
-                           dataset="ds004080", seed=0)
+    noise = sim.make_noise(
+        400,
+        500.0,
+        "real",
+        size=(1, 3),
+        source=real_baselines(dataset=None),
+        dataset="ds004080",
+        seed=0,
+    )
     assert noise.shape == (1, 3, 400)
 
 
-@pytest.mark.parametrize("licence, allowed", [("CC-BY-NC-4.0", False), ("CC BY-NC-SA 4.0", False),
-                                              ("proprietary", False), (None, False),
-                                              ("CC-BY-4.0", True), ("CC BY-SA 4.0", True),
-                                              ("CC0 1.0", True)])
+@pytest.mark.parametrize(
+    "licence, allowed",
+    [
+        ("CC-BY-NC-4.0", False),
+        ("CC BY-NC-SA 4.0", False),
+        ("proprietary", False),
+        (None, False),
+        ("CC-BY-4.0", True),
+        ("CC BY-SA 4.0", True),
+        ("CC0 1.0", True),
+    ],
+)
 def test_licence_rule(monkeypatch, licence, allowed):
     from evoparam.io import registry
+
     original = registry.dataset_info
 
     def patched(dataset_id):
@@ -298,20 +347,22 @@ def test_normalize_license():
 
 def test_inject_records_and_adds_components():
     real = real_baselines(n_trials=6, n_channels=3)
-    ts, truth = sim.inject(real, ["N1", {"label": "P3", "channels": ("R01",)}], snr=4.0,
-                           seed=1)
+    ts, truth = sim.inject(real, ["N1", {"label": "P3", "channels": ("R01",)}], snr=4.0, seed=1)
     np.testing.assert_allclose(ts.data - truth.signal, real.data)
     assert ts.metadata.equals(real.metadata)
     assert ts.provenance.steps[-1]["function"] == "evoparam.sim.inject"
     segments = truth.noise["segments"]
     assert [s["source_trial"] for s in segments] == list(range(6))
-    assert segments[0]["recording_samples"] == [int(round(10.0 * 500 - 2.0 * 500)),
-                                                int(round(10.0 * 500 - 2.0 * 500)) + real.n_times]
+    assert segments[0]["recording_samples"] == [
+        int(round(10.0 * 500 - 2.0 * 500)),
+        int(round(10.0 * 500 - 2.0 * 500)) + real.n_times,
+    ]
     labels = [(c["label"], c["channel"]) for c in truth.components]
     assert ("P3", "R01") in labels and ("N1", "R00") in labels and ("N1", "R02") in labels
     for index, comp in enumerate(truth.components):
-        sd = np.std(real.data[:, truth.ch_names.index(comp["channel"]), real.times < 0],
-                    axis=-1).mean()
+        sd = np.std(
+            real.data[:, truth.ch_names.index(comp["channel"]), real.times < 0], axis=-1
+        ).mean()
         peak = np.max(np.abs(truth.waveform(index)), axis=-1).mean()
         assert abs(peak / sd / comp["snr"] - 1) < 0.02
     # The user's own data (no dataset named) are accepted and recorded as such.

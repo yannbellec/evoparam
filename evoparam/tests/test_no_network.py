@@ -29,11 +29,29 @@ import evoparam
 pytestmark = pytest.mark.core
 
 PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
-NETWORK_MODULES = {"socket", "urllib.request", "http.client", "http", "requests", "urllib3",
-                   "httpx", "aiohttp", "ftplib", "smtplib", "fsspec", "pooch", "remfile",
-                   "websocket", "telnetlib", "xmlrpc.client", "ssl"}
-ALLOWED = {"evoparam/io/_fetch.py": {"urllib.request", "http.client"},
-           "evoparam/io/nwb.py": {"remfile"}}       # read_nwb of an http(s) address only
+NETWORK_MODULES = {
+    "socket",
+    "urllib.request",
+    "http.client",
+    "http",
+    "requests",
+    "urllib3",
+    "httpx",
+    "aiohttp",
+    "ftplib",
+    "smtplib",
+    "fsspec",
+    "pooch",
+    "remfile",
+    "websocket",
+    "telnetlib",
+    "xmlrpc.client",
+    "ssl",
+}
+ALLOWED = {
+    "evoparam/io/_fetch.py": {"urllib.request", "http.client"},
+    "evoparam/io/nwb.py": {"remfile"},
+}  # read_nwb of an http(s) address only
 
 
 def _network_imports(path):
@@ -45,9 +63,13 @@ def _network_imports(path):
             names = [alias.name for alias in node.names]
         elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
             names = [node.module]
-        elif isinstance(node, ast.Call) and getattr(node.func, "id", getattr(
-                node.func, "attr", "")) in ("require", "import_module") and node.args and \
-                isinstance(node.args[0], ast.Constant):
+        elif (
+            isinstance(node, ast.Call)
+            and getattr(node.func, "id", getattr(node.func, "attr", ""))
+            in ("require", "import_module")
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+        ):
             names = [str(node.args[0].value)]
         for name in names:
             if name in NETWORK_MODULES or name.split(".")[0] in NETWORK_MODULES - {"http"}:
@@ -157,11 +179,18 @@ SCRIPT = textwrap.dedent("""
 
 def test_req016_no_network_without_remote_options(tmp_path):
     pytest.importorskip("pandas")
-    env = dict(os.environ, PYTHONWARNINGS="ignore", MPLBACKEND="Agg",
-               EVOPARAM_DATA=str(tmp_path / "data"))
+    env = dict(
+        os.environ, PYTHONWARNINGS="ignore", MPLBACKEND="Agg", EVOPARAM_DATA=str(tmp_path / "data")
+    )
     env.pop("EVOPARAM_NETWORK_TESTS", None)
-    result = subprocess.run([sys.executable, "-c", GUARD + SCRIPT], capture_output=True,
-                            text=True, timeout=1200, env=env, cwd=str(tmp_path))
+    result = subprocess.run(
+        [sys.executable, "-c", GUARD + SCRIPT],
+        capture_output=True,
+        text=True,
+        timeout=1200,
+        env=env,
+        cwd=str(tmp_path),
+    )
     assert result.returncode == 0, result.stderr[-3000:]
     report = json.loads(result.stdout.strip().splitlines()[-1])
     assert report["attempts"] == []
@@ -178,6 +207,11 @@ def test_req016_the_guard_records_an_attempt():
             pass
         print(len(ATTEMPTS))
     """)
-    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                            timeout=120, env=dict(os.environ, EVOPARAM_OFFLINE=""))
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=dict(os.environ, EVOPARAM_OFFLINE=""),
+    )
     assert int(result.stdout.strip().splitlines()[-1]) >= 1, result.stderr[-2000:]

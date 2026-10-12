@@ -19,22 +19,25 @@ def test_construction_and_repr():
     assert trials.provenance.data_hash is not None
 
 
-@pytest.mark.parametrize("change, field", [
-    (dict(data=np.zeros((3, 400))), "data"),
-    (dict(times=np.arange(399) / SFREQ), "times"),
-    (dict(times=np.arange(400)[::-1] / SFREQ), "times"),
-    (dict(sfreq=999.0), "sfreq"),
-    (dict(ch_names=["A", "A", "B"]), "ch_names"),
-    (dict(ch_names=["A", "B"]), "ch_names"),
-    (dict(units="microvolt"), "units"),
-    (dict(modality="fmri"), "modality"),
-    (dict(species="Human"), "species"),
-    (dict(masks=np.zeros((6, 3, 10), bool)), "masks"),
-    (dict(event_times=np.zeros(4)), "event_times"),
-    (dict(metadata=pd.DataFrame({"trial": range(5)})), "metadata"),
-    (dict(metadata=pd.DataFrame({"stim_current_mA": ["1"] * 6})), "stim_current_mA"),
-    (dict(ch_info=pd.DataFrame({"name": ["X", "Y", "Z"]})), "ch_info"),
-])
+@pytest.mark.parametrize(
+    "change, field",
+    [
+        (dict(data=np.zeros((3, 400))), "data"),
+        (dict(times=np.arange(399) / SFREQ), "times"),
+        (dict(times=np.arange(400)[::-1] / SFREQ), "times"),
+        (dict(sfreq=999.0), "sfreq"),
+        (dict(ch_names=["A", "A", "B"]), "ch_names"),
+        (dict(ch_names=["A", "B"]), "ch_names"),
+        (dict(units="microvolt"), "units"),
+        (dict(modality="fmri"), "modality"),
+        (dict(species="Human"), "species"),
+        (dict(masks=np.zeros((6, 3, 10), bool)), "masks"),
+        (dict(event_times=np.zeros(4)), "event_times"),
+        (dict(metadata=pd.DataFrame({"trial": range(5)})), "metadata"),
+        (dict(metadata=pd.DataFrame({"stim_current_mA": ["1"] * 6})), "stim_current_mA"),
+        (dict(ch_info=pd.DataFrame({"name": ["X", "Y", "Z"]})), "ch_info"),
+    ],
+)
 def test_invariants(change, field):
     base = make_trialset(with_tables=False)
     kwargs = dict(data=base.data, times=base.times, sfreq=base.sfreq, ch_names=base.ch_names)
@@ -97,8 +100,9 @@ def test_average_mean_and_sem():
     evoked = trials.average()
     assert isinstance(evoked, Evoked)
     np.testing.assert_allclose(evoked.data, trials.data.mean(axis=0), rtol=1e-12)
-    np.testing.assert_allclose(evoked.sem, trials.data.std(axis=0, ddof=1) / np.sqrt(6),
-                               rtol=1e-12)
+    np.testing.assert_allclose(
+        evoked.sem, trials.data.std(axis=0, ddof=1) / np.sqrt(6), rtol=1e-12
+    )
     assert evoked.n_trials == 6 and evoked.masks is None
 
 
@@ -131,6 +135,7 @@ def test_average_with_masks():
 
 def test_average_robust_matches_scipy():
     from scipy.stats import trim_mean
+
     trials = make_trialset(n_trials=11)
     evoked = trials.average(robust=True)
     np.testing.assert_allclose(evoked.data, trim_mean(trials.data, 0.2, axis=0), rtol=1e-10)
@@ -149,7 +154,7 @@ def test_chunk_does_not_change_result():
 
 
 def test_auto_chunk_rule():
-    assert auto_chunk(500, 4096, 256, max_memory_gb=1.0) == int(1024 ** 3 // (500 * 4096 * 24))
+    assert auto_chunk(500, 4096, 256, max_memory_gb=1.0) == int(1024**3 // (500 * 4096 * 24))
     assert auto_chunk(1, 10, 3, max_memory_gb=100) == 3
 
 
@@ -170,8 +175,9 @@ def test_convert_units():
     evoked = trials.average().convert_units("V")
     np.testing.assert_allclose(evoked.sem, trials.average().sem * 1e-6)
     with pytest.raises(DataError):
-        TrialSet(trials.data, trials.times, trials.sfreq, trials.ch_names, units="au") \
-            .convert_units("uV")
+        TrialSet(
+            trials.data, trials.times, trials.sfreq, trials.ch_names, units="au"
+        ).convert_units("uV")
 
 
 def test_as_evoked_and_as_trialset():
@@ -191,8 +197,9 @@ def test_evoked_validation_and_select():
         Evoked(evoked.data, evoked.times, evoked.sfreq, evoked.ch_names, n_trials=0)
     with pytest.raises(DataError, match="sem"):
         Evoked(evoked.data, evoked.times, evoked.sfreq, evoked.ch_names, sem=np.zeros((1, 2)))
-    per_channel = Evoked(evoked.data, evoked.times, evoked.sfreq, evoked.ch_names,
-                         n_trials=np.array([5, 6, 4]))
+    per_channel = Evoked(
+        evoked.data, evoked.times, evoked.sfreq, evoked.ch_names, n_trials=np.array([5, 6, 4])
+    )
     sub = per_channel.select(picks=["CH02"], tmin=0.0, tmax=0.05)
     assert list(sub.n_trials) == [4] and sub.n_times == 50
 

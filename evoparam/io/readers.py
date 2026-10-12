@@ -21,8 +21,7 @@ from evoparam.utils._optional import require
 __all__ = ["from_array", "read", "read_mne", "read_edf", "read_events_edf", "READERS"]
 
 # formats of read(format=...) and their extensions; a plugin reader may use neither
-BUILTIN_FORMATS = ("array", "mne", "brainvision", "mef", "edf", "bids", "evoparam", "nwb",
-                   "neo")
+BUILTIN_FORMATS = ("array", "mne", "brainvision", "mef", "edf", "bids", "evoparam", "nwb", "neo")
 BUILTIN_EXTENSIONS = (".vhdr", ".edf", ".bdf", ".nwb", ".mefd", ".evoparam", ".zip")
 
 
@@ -35,29 +34,39 @@ def _plugin_reader(name, obj, origin):
     if not callable(obj):
         raise SettingsError(f"plugin reader {name!r} of {origin} is not callable.")
     extensions = getattr(obj, "extensions", None)
-    if isinstance(extensions, str) or not isinstance(extensions, (tuple, list)) or not \
-            extensions or not all(isinstance(e, str) and e.startswith(".") for e in extensions):
-        raise SettingsError(f"plugin reader {name!r} of {origin} must declare extensions = "
-                            f"('.ext', ...).")
+    if (
+        isinstance(extensions, str)
+        or not isinstance(extensions, (tuple, list))
+        or not extensions
+        or not all(isinstance(e, str) and e.startswith(".") for e in extensions)
+    ):
+        raise SettingsError(
+            f"plugin reader {name!r} of {origin} must declare extensions = ('.ext', ...)."
+        )
     taken = sorted({e.lower() for e in extensions} & set(BUILTIN_EXTENSIONS))
     if taken:
-        raise SettingsError(f"plugin reader {name!r} of {origin} claims the built-in "
-                            f"extension(s) {taken}.")
+        raise SettingsError(
+            f"plugin reader {name!r} of {origin} claims the built-in extension(s) {taken}."
+        )
     try:
         params = list(inspect.signature(obj).parameters.values())
     except (TypeError, ValueError):
         params = None
-    if params is not None and not (params and params[0].kind in (
-            params[0].POSITIONAL_ONLY, params[0].POSITIONAL_OR_KEYWORD, params[0].VAR_POSITIONAL)):
-        raise SettingsError(f"plugin reader {name!r} of {origin} must take the path as its "
-                            f"first positional argument.")
+    if params is not None and not (
+        params
+        and params[0].kind
+        in (params[0].POSITIONAL_ONLY, params[0].POSITIONAL_OR_KEYWORD, params[0].VAR_POSITIONAL)
+    ):
+        raise SettingsError(
+            f"plugin reader {name!r} of {origin} must take the path as its "
+            f"first positional argument."
+        )
     return obj
 
 
 # plugin readers by name, loaded on the first call of read (no built-in entries: the
 # built-in formats are dispatched by read itself)
-READERS = _plugins.LazyRegistry("evoparam.readers", {}, _plugin_reader,
-                                builtin=BUILTIN_FORMATS)
+READERS = _plugins.LazyRegistry("evoparam.readers", {}, _plugin_reader, builtin=BUILTIN_FORMATS)
 
 
 def _plugin_for(path, format):
@@ -67,36 +76,52 @@ def _plugin_for(path, format):
     if format is not None:
         return (format, READERS[format]) if format in READERS else None
     lower = path.lower().rstrip("/")
-    claims = [(name, reader) for name, reader in READERS.items()
-              if any(lower.endswith(e.lower()) for e in reader.extensions)]
+    claims = [
+        (name, reader)
+        for name, reader in READERS.items()
+        if any(lower.endswith(e.lower()) for e in reader.extensions)
+    ]
     if len(claims) > 1:
         origins = READERS.plugins()
-        raise SettingsError("plugin readers " + " and ".join(
-            f"{name!r} ({origins[name]})" for name, _ in claims) + f" both claim {path!r}.")
+        raise SettingsError(
+            "plugin readers "
+            + " and ".join(f"{name!r} ({origins[name]})" for name, _ in claims)
+            + f" both claim {path!r}."
+        )
     if claims:
         name = claims[0][0]
-        return name, READERS[name]          # marks the plugin as used
+        return name, READERS[name]  # marks the plugin as used
     return None
 
 
 def _read_plugin(name, reader, path, kwargs):
     out = reader(path, **kwargs)
     if not isinstance(out, TrialSet):
-        raise ReaderError(f"plugin reader {name!r} returned a {type(out).__name__}, not a "
-                          f"TrialSet.")
+        raise ReaderError(
+            f"plugin reader {name!r} returned a {type(out).__name__}, not a TrialSet."
+        )
     origin = READERS.plugins()[name]
     source = dict(out.provenance.source)
     source.setdefault("format", name)
     source["plugin"] = {name: origin}
     provenance = Provenance(source=source, steps=list(out.provenance.steps)).with_step(
-        "evoparam.io.read", {"format": name, "plugin": origin})
+        "evoparam.io.read", {"format": name, "plugin": origin}
+    )
     environment = dict(provenance.environment, plugins={name: origin})
     return replace(out, provenance=replace(provenance, environment=environment))
 
+
 # MNE channel types measured in volts, and their type in the channel table (Table 4.2).
-_MNE_VOLTS = {"eeg": "eeg", "ecog": "ecog", "seeg": "seeg", "dbs": "dbs", "emg": "emg",
-              "eog": "misc", "ecg": "misc"}
-_MNE_HEAD_FRAME = 4                       # FIFFV_COORD_HEAD
+_MNE_VOLTS = {
+    "eeg": "eeg",
+    "ecog": "ecog",
+    "seeg": "seeg",
+    "dbs": "dbs",
+    "emg": "emg",
+    "eog": "misc",
+    "ecg": "misc",
+}
+_MNE_HEAD_FRAME = 4  # FIFFV_COORD_HEAD
 
 # Physical dimensions of EDF signals -> factor to µV.
 _EDF_TO_UV = {"uv": 1.0, "µv": 1.0, "μv": 1.0, "mv": 1e3, "v": 1e6, "nv": 1e-3}
@@ -118,8 +143,18 @@ def _table(value, name):
     return value.reset_index(drop=True)
 
 
-def from_array(data, sfreq, *, times=None, ch_names=None, units="uV", metadata=None,
-               ch_info=None, species="human", modality=None):
+def from_array(
+    data,
+    sfreq,
+    *,
+    times=None,
+    ch_names=None,
+    units="uV",
+    metadata=None,
+    ch_info=None,
+    species="human",
+    modality=None,
+):
     """Build a TrialSet from an array.
 
     Parameters
@@ -161,8 +196,10 @@ def from_array(data, sfreq, *, times=None, ch_names=None, units="uV", metadata=N
     if data.ndim == 2:
         data = data[np.newaxis]
     elif data.ndim != 3:
-        raise DataError(f"data: expected 2 dimensions (channels, times) or 3 (trials, channels, "
-                        f"times), got shape {data.shape}.")
+        raise DataError(
+            f"data: expected 2 dimensions (channels, times) or 3 (trials, channels, "
+            f"times), got shape {data.shape}."
+        )
     n_trials, n_channels, n_times = data.shape
     sfreq = float(sfreq)
     if not (np.isfinite(sfreq) and sfreq > 0):
@@ -174,18 +211,29 @@ def from_array(data, sfreq, *, times=None, ch_names=None, units="uV", metadata=N
     if len(ch_names) != n_channels:
         raise DataError(f"ch_names: {len(ch_names)} names for {n_channels} channels.")
     settings = {"sfreq": sfreq, "shape": [n_trials, n_channels, n_times], "units": units}
-    provenance = Provenance(source={"path": None, "format": "array",
-                                    "reader": "evoparam.io.from_array"})
-    provenance = provenance.with_step("evoparam.io.from_array", settings,
-                                      duration_s=_time.perf_counter() - start)
-    return TrialSet(data=np.asarray(data, dtype=np.float64), times=times, sfreq=sfreq,
-                    ch_names=ch_names, units=units, metadata=_table(metadata, "metadata"),
-                    ch_info=_table(ch_info, "ch_info"), species=species, modality=modality,
-                    provenance=provenance)
+    provenance = Provenance(
+        source={"path": None, "format": "array", "reader": "evoparam.io.from_array"}
+    )
+    provenance = provenance.with_step(
+        "evoparam.io.from_array", settings, duration_s=_time.perf_counter() - start
+    )
+    return TrialSet(
+        data=np.asarray(data, dtype=np.float64),
+        times=times,
+        sfreq=sfreq,
+        ch_names=ch_names,
+        units=units,
+        metadata=_table(metadata, "metadata"),
+        ch_info=_table(ch_info, "ch_info"),
+        species=species,
+        modality=modality,
+        provenance=provenance,
+    )
 
 
 ###################################################################################################
 ## Dispatch
+
 
 def _guess_format(path):
     lower = path.lower().rstrip("/")
@@ -202,17 +250,30 @@ def _guess_format(path):
     if not is_url(path) and os.path.isdir(path):
         if os.path.isfile(os.path.join(path, "manifest.json")):
             return "evoparam"
-        if os.path.isfile(os.path.join(path, "dataset_description.json")) or \
-                any(name.startswith("sub-") for name in os.listdir(path)):
+        if os.path.isfile(os.path.join(path, "dataset_description.json")) or any(
+            name.startswith("sub-") for name in os.listdir(path)
+        ):
             return "bids"
     if lower.endswith(".zip"):
         return "evoparam"
     raise ReaderError(f"Cannot tell the format of {path!r}; give format=.")
 
 
-def _read_continuous(path, fmt, *, onsets=None, epoch=(-0.5, 1.0), tmin=None, tmax=None,
-                     picks=None, remote=None, metadata=None, ch_info=None, species="human",
-                     modality=None):
+def _read_continuous(
+    path,
+    fmt,
+    *,
+    onsets=None,
+    epoch=(-0.5, 1.0),
+    tmin=None,
+    tmax=None,
+    picks=None,
+    remote=None,
+    metadata=None,
+    ch_info=None,
+    species="human",
+    modality=None,
+):
     """A recording file: epochs around ``onsets``, or the recording as one trial."""
 
     from evoparam.io.brainvision import _read_with_source
@@ -228,6 +289,7 @@ def _read_continuous(path, fmt, *, onsets=None, epoch=(-0.5, 1.0), tmin=None, tm
         data, sfreq, names, t0, source = _read_with_source(path, tmin, tmax, picks, remote)
     elif fmt == "mef":
         from evoparam.io.mef import _read_with_source as _read_mef
+
         data, sfreq, names, t0, source = _read_mef(path, tmin, tmax, picks, remote)
     else:
         data, sfreq, names, t0 = read_edf(path, tmin=tmin, tmax=tmax, picks=picks)
@@ -236,30 +298,54 @@ def _read_continuous(path, fmt, *, onsets=None, epoch=(-0.5, 1.0), tmin=None, tm
     # Samples without data (gaps of a MEF recording) are NaN and masked
     gaps = np.isnan(data) if fmt == "mef" else np.zeros(data.shape, dtype=bool)
     if onsets is not None:
-        trials = cut(np.where(gaps, 0.0, data) if gaps.any() else data, sfreq, onsets, epoch[0],
-                     epoch[1], t0=t0, ch_names=names, metadata=metadata, ch_info=ch_info)
+        trials = cut(
+            np.where(gaps, 0.0, data) if gaps.any() else data,
+            sfreq,
+            onsets,
+            epoch[0],
+            epoch[1],
+            t0=t0,
+            ch_names=names,
+            metadata=metadata,
+            ch_info=ch_info,
+        )
         step = trials.provenance.steps[-1]
         provenance = Provenance(source=source).with_step(
-            "evoparam.io.read", {"format": fmt, "epoch": list(epoch), "picks": picks},
-            duration_s=_time.perf_counter() - start, kept=step["kept"],
-            overlaps_previous=step["overlaps_previous"])
+            "evoparam.io.read",
+            {"format": fmt, "epoch": list(epoch), "picks": picks},
+            duration_s=_time.perf_counter() - start,
+            kept=step["kept"],
+            overlaps_previous=step["overlaps_previous"],
+        )
         changes = {}
         if gaps.any():
-            times, starts, kept = epoch_windows(onsets, sfreq, epoch[0], epoch[1],
-                                                data.shape[1], t0=t0)
+            times, starts, kept = epoch_windows(
+                onsets, sfreq, epoch[0], epoch[1], data.shape[1], t0=t0
+            )
             index = starts[kept][:, None] + np.arange(times.size)[None, :]
             masks = np.moveaxis(gaps[:, index], 0, 1)
             changes = {"data": np.where(masks, np.nan, trials.data), "masks": masks}
-        return replace(trials, provenance=provenance, species=species, modality=modality,
-                       **changes)
+        return replace(
+            trials, provenance=provenance, species=species, modality=modality, **changes
+        )
     provenance = Provenance(source=source).with_step(
-        "evoparam.io.read", {"format": fmt, "tmin": tmin, "tmax": tmax, "picks": picks},
-        duration_s=_time.perf_counter() - start)
-    return TrialSet(data=data[np.newaxis], times=t0 + np.arange(data.shape[1]) / sfreq,
-                    sfreq=sfreq, ch_names=names, units="uV", metadata=_table(metadata, "metadata"),
-                    ch_info=_table(ch_info, "ch_info"),
-                    masks=gaps[np.newaxis] if gaps.any() else None, species=species,
-                    modality=modality, provenance=provenance)
+        "evoparam.io.read",
+        {"format": fmt, "tmin": tmin, "tmax": tmax, "picks": picks},
+        duration_s=_time.perf_counter() - start,
+    )
+    return TrialSet(
+        data=data[np.newaxis],
+        times=t0 + np.arange(data.shape[1]) / sfreq,
+        sfreq=sfreq,
+        ch_names=names,
+        units="uV",
+        metadata=_table(metadata, "metadata"),
+        ch_info=_table(ch_info, "ch_info"),
+        masks=gaps[np.newaxis] if gaps.any() else None,
+        species=species,
+        modality=modality,
+        provenance=provenance,
+    )
 
 
 def read(source, *, format=None, **kwargs):
@@ -313,6 +399,7 @@ def read(source, *, format=None, **kwargs):
         return read_mne(source, **kwargs)
     if format == "neo" or module.split(".")[0] == "neo":
         from evoparam.io.neo import read_neo
+
         return read_neo(source, **kwargs)
     if not isinstance(source, (str, os.PathLike)):
         raise ReaderError(f"Cannot read an object of type {type(source).__name__}.")
@@ -322,13 +409,16 @@ def read(source, *, format=None, **kwargs):
         if plugin is not None:
             return _read_plugin(*plugin, path, kwargs)
         if format is not None:
-            raise ReaderError(f"Unknown format {format!r}; built-in: {BUILTIN_FORMATS}, "
-                              f"plugins: {sorted(READERS)}.")
+            raise ReaderError(
+                f"Unknown format {format!r}; built-in: {BUILTIN_FORMATS}, "
+                f"plugins: {sorted(READERS)}."
+            )
     fmt = format or _guess_format(path)
     if fmt in ("brainvision", "edf", "mef"):
         return _read_continuous(path, fmt, **kwargs)
     if fmt == "bids":
         from evoparam.io.bids import read_bids
+
         return read_bids(path, **kwargs)
     if fmt == "evoparam":
         obj = load_object(path, **kwargs)
@@ -339,12 +429,14 @@ def read(source, *, format=None, **kwargs):
         return obj
     if fmt == "nwb":
         from evoparam.io.nwb import read_nwb
+
         return read_nwb(path, **kwargs)
     raise ReaderError(f"Unknown format {fmt!r}.")
 
 
 ###################################################################################################
 ## MNE-Python
+
 
 def read_mne(obj, *, units="uV"):
     """Convert an MNE-Python ``Epochs`` or ``Evoked`` object to a TrialSet (extra ``mne``).
@@ -396,31 +488,53 @@ def read_mne(obj, *, units="uV"):
             raise DataError("read_mne: magnetometers are converted to fT; use units='fT'.")
         factor = 1e15
     else:
-        raise DataError(f"read_mne: channel types {sorted(set(types))} do not share one unit; "
-                        "pick channels of one kind first (obj.copy().pick(...)).")
+        raise DataError(
+            f"read_mne: channel types {sorted(set(types))} do not share one unit; "
+            "pick channels of one kind first (obj.copy().pick(...))."
+        )
 
     coords = np.array([ch["loc"][:3] for ch in obj.info["chs"]], dtype=float) * 1e3
     frames = {ch.get("coord_frame") for ch in obj.info["chs"]}
     head = frames == {_MNE_HEAD_FRAME}
-    ch_info = pd.DataFrame({
-        "name": names,
-        "type": [_MNE_VOLTS.get(kind, "meg" if kind in ("mag", "grad") else "misc")
-                 for kind in types],
-        "x": coords[:, 0] if head else np.nan, "y": coords[:, 1] if head else np.nan,
-        "z": coords[:, 2] if head else np.nan, "coord_space": "head" if head else "",
-        "bad": [name in obj.info["bads"] for name in names],
-    })
-    source = {"path": None, "format": "mne", "reader": "evoparam.io.read_mne",
-              "object": type(obj).__name__}
+    ch_info = pd.DataFrame(
+        {
+            "name": names,
+            "type": [
+                _MNE_VOLTS.get(kind, "meg" if kind in ("mag", "grad") else "misc")
+                for kind in types
+            ],
+            "x": coords[:, 0] if head else np.nan,
+            "y": coords[:, 1] if head else np.nan,
+            "z": coords[:, 2] if head else np.nan,
+            "coord_space": "head" if head else "",
+            "bad": [name in obj.info["bads"] for name in names],
+        }
+    )
+    source = {
+        "path": None,
+        "format": "mne",
+        "reader": "evoparam.io.read_mne",
+        "object": type(obj).__name__,
+    }
     provenance = Provenance(source=source).with_step(
-        "evoparam.io.read_mne", {"units": units}, duration_s=_time.perf_counter() - start)
-    return TrialSet(data=np.asarray(data, dtype=np.float64) * factor, times=np.array(obj.times),
-                    sfreq=obj.info["sfreq"], ch_names=names, units=units, metadata=metadata,
-                    ch_info=ch_info, event_times=event_times, provenance=provenance)
+        "evoparam.io.read_mne", {"units": units}, duration_s=_time.perf_counter() - start
+    )
+    return TrialSet(
+        data=np.asarray(data, dtype=np.float64) * factor,
+        times=np.array(obj.times),
+        sfreq=obj.info["sfreq"],
+        ch_names=names,
+        units=units,
+        metadata=metadata,
+        ch_info=ch_info,
+        event_times=event_times,
+        provenance=provenance,
+    )
 
 
 ###################################################################################################
 ## EDF
+
 
 def read_edf(path, *, tmin=None, tmax=None, picks=None):
     """Read an EDF, EDF+ or BDF recording, or a time window of it (extra ``edf``).
@@ -462,8 +576,10 @@ def read_edf(path, *, tmin=None, tmax=None, picks=None):
     index = _pick(names, picks)
     rates = {float(signals[ind].sampling_frequency) for ind in index}
     if len(rates) != 1:
-        raise DataError(f"read_edf: the picked signals have different sampling frequencies "
-                        f"{sorted(rates)}; pick signals of one frequency.")
+        raise DataError(
+            f"read_edf: the picked signals have different sampling frequencies "
+            f"{sorted(rates)}; pick signals of one frequency."
+        )
     sfreq = rates.pop()
     first = 0 if tmin is None else max(_sample(tmin, sfreq), 0)
     rows, other = [], []
@@ -476,8 +592,11 @@ def read_edf(path, *, tmin=None, tmax=None, picks=None):
             other.append(signal.label)
         rows.append(np.asarray(signal.data[first:stop], dtype=np.float64) * factor)
     if other:
-        _warn("Signals whose unit is not a voltage were left unconverted: "
-              + ", ".join(other) + ".", UserWarning, stacklevel=2)
+        _warn(
+            "Signals whose unit is not a voltage were left unconverted: " + ", ".join(other) + ".",
+            UserWarning,
+            stacklevel=2,
+        )
     if not rows or rows[0].size == 0:
         raise ReaderError(f"{path}: the requested time window is outside the recording.")
     return np.vstack(rows), sfreq, [names[ind] for ind in index], first / sfreq
@@ -495,6 +614,11 @@ def read_events_edf(path):
 
     edfio = require("edfio", extra="edf", min_version="0.4", caller="evoparam.io.read_events_edf")
     edf = edfio.read_edf(path)
-    return [{"onset": float(item.onset),
-             "duration": None if item.duration is None else float(item.duration),
-             "description": item.text} for item in edf.annotations]
+    return [
+        {
+            "onset": float(item.onset),
+            "duration": None if item.duration is None else float(item.duration),
+            "description": item.text,
+        }
+        for item in edf.annotations
+    ]

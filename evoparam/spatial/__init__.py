@@ -14,16 +14,46 @@
 - :func:`screen_volume_conduction`: local versus volume-conducted responses.
 """
 
-from .bpc import (BASIS_COLUMNS, adjusted_rand_index, as_template, convergent, divergent,
-                  shared_shapes)
-from .maps import (MAP_COLUMNS, MARKERS, connectivity_array, connectivity_from_long,
-                   connectivity_matrix, connectivity_to_long, parameter_map,
-                   plot_parameter_map)
+from .bpc import (
+    BASIS_COLUMNS,
+    adjusted_rand_index,
+    as_template,
+    convergent,
+    divergent,
+    shared_shapes,
+)
+from .maps import (
+    MAP_COLUMNS,
+    MARKERS,
+    connectivity_array,
+    connectivity_from_long,
+    connectivity_matrix,
+    connectivity_to_long,
+    parameter_map,
+    plot_parameter_map,
+)
 from .shared import PARAMETER_ROLES, fit_shared, neighbours
 from .volume import RISKS, SCREEN_COLUMNS, screen_volume_conduction
 
-__all__ = ["shared_shapes", "convergent", "divergent", "as_template", "fit_shared",
-           "neighbours", "parameter_map", "connectivity_matrix", "connectivity_to_long",
-           "connectivity_from_long", "connectivity_array", "plot_parameter_map",
-           "screen_volume_conduction", "adjusted_rand_index", "BASIS_COLUMNS",
-           "PARAMETER_ROLES", "MAP_COLUMNS", "MARKERS", "SCREEN_COLUMNS", "RISKS"]
+__all__ = [
+    "shared_shapes",
+    "convergent",
+    "divergent",
+    "as_template",
+    "fit_shared",
+    "neighbours",
+    "parameter_map",
+    "connectivity_matrix",
+    "connectivity_to_long",
+    "connectivity_from_long",
+    "connectivity_array",
+    "plot_parameter_map",
+    "screen_volume_conduction",
+    "adjusted_rand_index",
+    "BASIS_COLUMNS",
+    "PARAMETER_ROLES",
+    "MAP_COLUMNS",
+    "MARKERS",
+    "SCREEN_COLUMNS",
+    "RISKS",
+]

@@ -57,18 +57,22 @@ def _make(path):
         def _get_dtype(self):
             return np.dtype("float32")
 
-    nwb = NWBFile(session_description="1 GB synthetic", identifier="evoparam-1gb",
-                  session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    nwb = NWBFile(
+        session_description="1 GB synthetic",
+        identifier="evoparam-1gb",
+        session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
     device = nwb.create_device(name="probe")
-    group = nwb.create_electrode_group(name="shank", description="s", location="x",
-                                       device=device)
+    group = nwb.create_electrode_group(name="shank", description="s", location="x", device=device)
     for _ in range(N_CH):
         nwb.add_electrode(group=group, location="x")
     region = nwb.create_electrode_table_region(list(range(N_CH)), "all")
-    data = Synthetic(buffer_shape=(CHUNK, N_CH), chunk_shape=(CHUNK // 16, N_CH),
-                     display_progress=False)
-    nwb.add_acquisition(ElectricalSeries(name="lfp", data=data, electrodes=region,
-                                         rate=SFREQ, starting_time=0.0))
+    data = Synthetic(
+        buffer_shape=(CHUNK, N_CH), chunk_shape=(CHUNK // 16, N_CH), display_progress=False
+    )
+    nwb.add_acquisition(
+        ElectricalSeries(name="lfp", data=data, electrodes=region, rate=SFREQ, starting_time=0.0)
+    )
     tmp = path + ".part"
     with NWBHDF5IO(tmp, "w") as io:
         io.write(nwb)
@@ -103,8 +107,12 @@ def test_req317_peak_memory_reading_10_percent_of_1gb():
     if not os.path.exists(path):
         _make(path)
     assert os.path.getsize(path) >= N_TIMES * N_CH * 4
-    proc = subprocess.run([sys.executable, "-c", SCRIPT, path, str(N_TIMES), str(SFREQ)],
-                          capture_output=True, text=True, timeout=1800)
+    proc = subprocess.run(
+        [sys.executable, "-c", SCRIPT, path, str(N_TIMES), str(SFREQ)],
+        capture_output=True,
+        text=True,
+        timeout=1800,
+    )
     assert proc.returncode == 0, proc.stderr[-2000:]
     import json
 

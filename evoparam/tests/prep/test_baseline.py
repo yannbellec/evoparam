@@ -15,6 +15,7 @@ from .helpers import epochs
 ###################################################################################################
 ###################################################################################################
 
+
 def test_mean_median_linear():
 
     ts = epochs()
@@ -24,6 +25,7 @@ def test_mean_median_linear():
         stat = np.mean if mode == "mean" else np.median
         assert np.allclose(stat(out.data[..., base], axis=-1), 0, atol=1e-9)
     from dataclasses import replace
+
     trend = replace(ts, data=ts.data + 30 * ts.times)
     out = baseline_correct(trend, mode="linear")
     slope = np.polyfit(ts.times[base], out.data[0, 0, base], 1)[0]
@@ -72,6 +74,7 @@ def test_masked_baseline_is_respected():
     data = ts.data.copy()
     data[0, 0, base[:100]] = 1e6
     from dataclasses import replace
+
     masked = apply_mask(replace(ts, data=data), mask)
     out = baseline_correct(masked)
     assert abs(np.mean(out.data[0, 0, base[100:]])) < 1.0

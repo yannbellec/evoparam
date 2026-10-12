@@ -27,9 +27,15 @@ FROZEN = {1: {"groupfit": "groupfit-1.evoparam", "trialset": "trialset-1.evopara
 
 
 def _provenance():
-    return Provenance(package_version="0.1.0.dev0", created="2026-01-01T00:00:00+00:00",
-                      source={"path": "synthetic", "format": "array"}, steps=[],
-                      environment={}, random_state=0, data_hash=None)
+    return Provenance(
+        package_version="0.1.0.dev0",
+        created="2026-01-01T00:00:00+00:00",
+        source={"path": "synthetic", "format": "array"},
+        steps=[],
+        environment={},
+        random_state=0,
+        data_hash=None,
+    )
 
 
 def expected(kind):
@@ -87,8 +93,9 @@ def test_req334_newer_major_raises(tmp_path):
 
 def test_req334_older_major_is_migrated_and_recorded(tmp_path, monkeypatch):
 
-    path = str(shutil.copytree(os.path.join(FOLDER, FROZEN[1]["groupfit"]),
-                               tmp_path / "old.evoparam"))
+    path = str(
+        shutil.copytree(os.path.join(FOLDER, FROZEN[1]["groupfit"]), tmp_path / "old.evoparam")
+    )
     manifest = os.path.join(path, "manifest.json")
     with open(manifest, encoding="utf-8") as fobj:
         data = json.load(fobj)
@@ -96,22 +103,29 @@ def test_req334_older_major_is_migrated_and_recorded(tmp_path, monkeypatch):
     with open(manifest, "w", encoding="utf-8") as fobj:
         json.dump(data, fobj)
     calls = []
-    monkeypatch.setitem(_migrations.MIGRATIONS, (SCHEMA_MAJOR - 1, SCHEMA_MAJOR),
-                        lambda structure: calls.append(1) or structure)
+    monkeypatch.setitem(
+        _migrations.MIGRATIONS,
+        (SCHEMA_MAJOR - 1, SCHEMA_MAJOR),
+        lambda structure: calls.append(1) or structure,
+    )
     obj = load_object(path)
     assert calls == [1]
     step = obj.provenance.steps[-1]
     assert step["function"] == "evoparam.data.migrate"
     assert step["settings"] == {"from_schema": SCHEMA_MAJOR - 1, "to_schema": SCHEMA_MAJOR}
     report = migrate(path)
-    assert report == {"path": path, "from_schema": f"evoparam-result/{SCHEMA_MAJOR - 1}.0",
-                      "to_schema": SCHEMA, "migrated": True}
+    assert report == {
+        "path": path,
+        "from_schema": f"evoparam-result/{SCHEMA_MAJOR - 1}.0",
+        "to_schema": SCHEMA,
+        "migrated": True,
+    }
     with open(manifest, encoding="utf-8") as fobj:
         assert json.load(fobj)["schema"] == SCHEMA
-    again = load_object(path)                          # verified checksums, current schema
+    again = load_object(path)  # verified checksums, current schema
     assert again == obj and again.provenance.steps[-1]["function"] == "evoparam.data.migrate"
     assert migrate(path)["migrated"] is False
-    assert sorted(os.listdir(tmp_path)) == ["old.evoparam"]   # no temporary file left
+    assert sorted(os.listdir(tmp_path)) == ["old.evoparam"]  # no temporary file left
 
 
 def _freeze():

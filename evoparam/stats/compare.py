@@ -33,20 +33,47 @@ UNITS = ("trial", "channel", "subject")
 _ABOVE = {"trial": ("channel", "subject"), "channel": ("subject",), "subject": ()}
 
 # Parameters measured in seconds (reported in ms as well) when the table has no unit record.
-_TIME_NAMES = ("latency", "onset", "offset", "fwhm", "rise_time", "decay_time", "duration",
-               "shift")
+_TIME_NAMES = (
+    "latency",
+    "onset",
+    "offset",
+    "fwhm",
+    "rise_time",
+    "decay_time",
+    "duration",
+    "shift",
+)
 
 COMPARE_COLUMNS = {
-    "parameter": "", "condition_a": "", "condition_b": "", "unit": "", "paired": "",
-    "n_a": "", "n_b": "", "mean_a": "param", "mean_b": "param", "difference": "param",
-    "ci_low": "param", "ci_high": "param", "difference_ms": "ms", "ci_low_ms": "ms",
-    "ci_high_ms": "ms", "statistic": "", "p_value_raw": "", "p_value": "", "hedges_g": "",
-    "n_permutations": "", "exact": "", "n_excluded": "", "n_missing": "",
+    "parameter": "",
+    "condition_a": "",
+    "condition_b": "",
+    "unit": "",
+    "paired": "",
+    "n_a": "",
+    "n_b": "",
+    "mean_a": "param",
+    "mean_b": "param",
+    "difference": "param",
+    "ci_low": "param",
+    "ci_high": "param",
+    "difference_ms": "ms",
+    "ci_low_ms": "ms",
+    "ci_high_ms": "ms",
+    "statistic": "",
+    "p_value_raw": "",
+    "p_value": "",
+    "hedges_g": "",
+    "n_permutations": "",
+    "exact": "",
+    "n_excluded": "",
+    "n_missing": "",
 }
 
 
 ###################################################################################################
 ## Statistics
+
 
 def _paired_t(d):
     """Paired t of each row of ``d`` [..., n] (0 when the differences have no spread)."""
@@ -89,8 +116,11 @@ def hedges_g(a, b=None, *, paired=False):
     else:
         b = np.asarray(b, float)
         df = a.size + b.size - 2
-        pooled = np.sqrt(((a.size - 1) * a.var(ddof=1) + (b.size - 1) * b.var(ddof=1)) / df) \
-            if df > 0 else np.nan
+        pooled = (
+            np.sqrt(((a.size - 1) * a.var(ddof=1) + (b.size - 1) * b.var(ddof=1)) / df)
+            if df > 0
+            else np.nan
+        )
         g = (a.mean() - b.mean()) / pooled if pooled > 0 else np.nan
     if not df > 0:
         return float("nan")
@@ -100,8 +130,8 @@ def hedges_g(a, b=None, *, paired=False):
 def _paired_test(d, n_permutations, rng):
     n = d.size
     observed = _paired_t(d)
-    if 2 ** n <= n_permutations:
-        grid = (np.arange(2 ** n)[:, None] >> np.arange(n)) & 1
+    if 2**n <= n_permutations:
+        grid = (np.arange(2**n)[:, None] >> np.arange(n)) & 1
         signs, exact = 1.0 - 2.0 * grid, True
     else:
         signs, exact = rng.choice([-1.0, 1.0], size=(n_permutations, n)), False
@@ -117,8 +147,10 @@ def _unpaired_test(a, b, n_permutations, rng):
     observed = _welch_t(a, b)
     n_split = _n_choose(n_a + n_b, n_a)
     if n_split <= n_permutations:
-        rows = [np.r_[list(c), [i for i in range(n_a + n_b) if i not in c]]
-                for c in itertools.combinations(range(n_a + n_b), n_a)]
+        rows = [
+            np.r_[list(c), [i for i in range(n_a + n_b) if i not in c]]
+            for c in itertools.combinations(range(n_a + n_b), n_a)
+        ]
         order, exact = np.array(rows), True
     else:
         order = rng.permuted(np.tile(np.arange(n_a + n_b), (n_permutations, 1)), axis=1)
@@ -139,11 +171,13 @@ def _percentile(boot, ci_level, n):
 
 def _n_choose(n, k):
     from math import comb
+
     return comb(n, k)
 
 
 ###################################################################################################
 ## Public function
+
 
 def _is_time(table, parameter):
     units = getattr(table, "attrs", {}).get("units", {})
@@ -152,9 +186,21 @@ def _is_time(table, parameter):
     return parameter in _TIME_NAMES or parameter.endswith("_latency")
 
 
-def compare_conditions(table, *, parameter, condition, unit="subject", paired=True,
-                       n_permutations=5000, correction="fdr_bh", random_state=None, by=None,
-                       conditions=None, ci_level=0.95, n_boot=2000):
+def compare_conditions(
+    table,
+    *,
+    parameter,
+    condition,
+    unit="subject",
+    paired=True,
+    n_permutations=5000,
+    correction="fdr_bh",
+    random_state=None,
+    by=None,
+    conditions=None,
+    ci_level=0.95,
+    n_boot=2000,
+):
     """Contrast a parameter between conditions by permutation at the named unit level.
 
     Parameters
@@ -247,11 +293,11 @@ def compare_conditions(table, *, parameter, condition, unit="subject", paired=Tr
     if unit == "trial" and "trial" not in data.columns:
         data["trial"] = np.arange(len(data))
     data["_cond"] = data[condition].astype(str)
-    labels = [str(c) for c in (conditions if conditions is not None
-                               else dict.fromkeys(data["_cond"]))]
+    labels = [
+        str(c) for c in (conditions if conditions is not None else dict.fromkeys(data["_cond"]))
+    ]
     if len(labels) < 2:
-        raise DataError(f"compare_conditions: column '{condition}' has fewer than 2 "
-                        "conditions.")
+        raise DataError(f"compare_conditions: column '{condition}' has fewer than 2 conditions.")
 
     if by:
         group_code, group_keys = pd.MultiIndex.from_frame(data[by].astype(object)).factorize()
@@ -260,10 +306,12 @@ def compare_conditions(table, *, parameter, condition, unit="subject", paired=Tr
         group_code, group_keys = np.zeros(len(data), np.int64), [()]
     n_groups = len(group_keys)
     data["_group"] = group_code
-    n_excluded = np.bincount(group_code, weights=data["_excluded"].to_numpy(float),
-                             minlength=n_groups).astype(int)
-    n_missing = np.bincount(group_code, weights=data["_missing"].to_numpy(float),
-                            minlength=n_groups).astype(int)
+    n_excluded = np.bincount(
+        group_code, weights=data["_excluded"].to_numpy(float), minlength=n_groups
+    ).astype(int)
+    n_missing = np.bincount(
+        group_code, weights=data["_missing"].to_numpy(float), minlength=n_groups
+    ).astype(int)
     use = data[~data["_excluded"] & ~data["_missing"]]
     for level in _ABOVE[unit]:
         if level in use.columns and level not in by:
@@ -274,10 +322,14 @@ def compare_conditions(table, *, parameter, condition, unit="subject", paired=Tr
                 raise SettingsError(
                     f"unit='{unit}' but several {level}s{where}: {unit}s of different "
                     f"{level}s are not exchangeable. Compare at unit='{level}', or add "
-                    f"'{level}' to by to test each {level} separately.")
+                    f"'{level}' to by to test each {level} separately."
+                )
     # one value per group x unit x condition, then each group as plain arrays
-    cells = use.groupby(["_group", unit, "_cond"], sort=False, dropna=False)["_value"] \
-        .mean().reset_index()
+    cells = (
+        use.groupby(["_group", unit, "_cond"], sort=False, dropna=False)["_value"]
+        .mean()
+        .reset_index()
+    )
     cell_group = cells["_group"].to_numpy()
     cell_unit = pd.factorize(cells[unit])[0]
     cell_cond = cells["_cond"].to_numpy()
@@ -286,13 +338,19 @@ def compare_conditions(table, *, parameter, condition, unit="subject", paired=Tr
     bounds = np.searchsorted(cell_group[order], np.arange(n_groups + 1))
     rows = []
     for gi, key in enumerate(group_keys):
-        idx = order[bounds[gi]:bounds[gi + 1]]
+        idx = order[bounds[gi] : bounds[gi + 1]]
         units_g, cond_g, value_g = cell_unit[idx], cell_cond[idx], cell_value[idx]
         for cond_a, cond_b in itertools.combinations(labels, 2):
             row = dict(zip(by, key))
-            row.update(parameter=parameter, condition_a=cond_a, condition_b=cond_b, unit=unit,
-                       paired=bool(paired), n_excluded=int(n_excluded[gi]),
-                       n_missing=int(n_missing[gi]))
+            row.update(
+                parameter=parameter,
+                condition_a=cond_a,
+                condition_b=cond_b,
+                unit=unit,
+                paired=bool(paired),
+                n_excluded=int(n_excluded[gi]),
+                n_missing=int(n_missing[gi]),
+            )
             in_a, in_b = cond_g == cond_a, cond_g == cond_b
             ua, va, ub, vb = units_g[in_a], value_g[in_a], units_g[in_b], value_g[in_b]
             if paired:
@@ -303,16 +361,27 @@ def compare_conditions(table, *, parameter, condition, unit="subject", paired=Tr
                 if shared.size:
                     raise SettingsError(
                         f"paired=False but {shared.size} {unit}s are observed in both "
-                        f"'{cond_a}' and '{cond_b}'; use paired=True.")
+                        f"'{cond_a}' and '{cond_b}'; use paired=True."
+                    )
                 a, b = va, vb
-            row.update(n_a=int(a.size), n_b=int(b.size),
-                       mean_a=float(a.mean()) if a.size else np.nan,
-                       mean_b=float(b.mean()) if b.size else np.nan)
+            row.update(
+                n_a=int(a.size),
+                n_b=int(b.size),
+                mean_a=float(a.mean()) if a.size else np.nan,
+                mean_b=float(b.mean()) if b.size else np.nan,
+            )
             enough = a.size >= 2 if paired else (a.size >= 2 and b.size >= 2)
             if not enough:
-                row.update(difference=row["mean_a"] - row["mean_b"], ci_low=np.nan,
-                           ci_high=np.nan, statistic=np.nan, p_value_raw=np.nan,
-                           hedges_g=np.nan, n_permutations=0, exact=False)
+                row.update(
+                    difference=row["mean_a"] - row["mean_b"],
+                    ci_low=np.nan,
+                    ci_high=np.nan,
+                    statistic=np.nan,
+                    p_value_raw=np.nan,
+                    hedges_g=np.nan,
+                    n_permutations=0,
+                    exact=False,
+                )
                 rows.append(row)
                 continue
             if paired:
@@ -324,14 +393,22 @@ def compare_conditions(table, *, parameter, condition, unit="subject", paired=Tr
                 diff = float(d.mean())
             else:
                 stat, p, n_perm, exact = _unpaired_test(a, b, int(n_permutations), rng)
-                boot = a[rng.integers(0, a.size, (n_boot, a.size))].mean(axis=1) \
-                    - b[rng.integers(0, b.size, (n_boot, b.size))].mean(axis=1)
+                boot = a[rng.integers(0, a.size, (n_boot, a.size))].mean(axis=1) - b[
+                    rng.integers(0, b.size, (n_boot, b.size))
+                ].mean(axis=1)
                 diff = float(a.mean() - b.mean())
                 ci = _percentile(boot, ci_level, min(a.size, b.size))
                 g = hedges_g(a, b)
-            row.update(difference=diff, ci_low=ci["low"], ci_high=ci["high"], statistic=stat,
-                       p_value_raw=p, hedges_g=g, n_permutations=int(n_perm),
-                       exact=bool(exact))
+            row.update(
+                difference=diff,
+                ci_low=ci["low"],
+                ci_high=ci["high"],
+                statistic=stat,
+                p_value_raw=p,
+                hedges_g=g,
+                n_permutations=int(n_perm),
+                exact=bool(exact),
+            )
             rows.append(row)
 
     out = pd.DataFrame(rows, columns=by + list(COMPARE_COLUMNS))
@@ -341,16 +418,30 @@ def compare_conditions(table, *, parameter, condition, unit="subject", paired=Tr
         out[f"{name}_ms"] = out[name] * scale
     units = dict(getattr(table, "attrs", {}).get("units", {}))
     param_unit = units.get(parameter, "s" if is_time else "")
-    out.attrs["units"] = {k: (param_unit if v == "param" else v)
-                          for k, v in COMPARE_COLUMNS.items()}
-    settings = {"parameter": parameter, "condition": condition, "unit": unit,
-                "paired": bool(paired), "n_permutations": int(n_permutations),
-                "correction": correction, "by": by, "conditions": labels,
-                "ci_level": ci_level, "n_boot": int(n_boot),
-                "random_state": random_state if isinstance(random_state, (int, type(None)))
-                else "generator"}
+    out.attrs["units"] = {
+        k: (param_unit if v == "param" else v) for k, v in COMPARE_COLUMNS.items()
+    }
+    settings = {
+        "parameter": parameter,
+        "condition": condition,
+        "unit": unit,
+        "paired": bool(paired),
+        "n_permutations": int(n_permutations),
+        "correction": correction,
+        "by": by,
+        "conditions": labels,
+        "ci_level": ci_level,
+        "n_boot": int(n_boot),
+        "random_state": random_state
+        if isinstance(random_state, (int, type(None)))
+        else "generator",
+    }
     out.attrs["settings"] = settings
-    out.attrs["provenance"] = Provenance().with_step(
-        "evoparam.stats.compare_conditions", settings,
-        duration_s=_time.perf_counter() - start).to_dict()
+    out.attrs["provenance"] = (
+        Provenance()
+        .with_step(
+            "evoparam.stats.compare_conditions", settings, duration_s=_time.perf_counter() - start
+        )
+        .to_dict()
+    )
     return out

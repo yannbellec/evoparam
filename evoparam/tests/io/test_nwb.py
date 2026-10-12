@@ -22,7 +22,7 @@ def _signal():
     data = rng.normal(0, 1e-6, (n, N_CH))
     for t in ONSETS:
         i = int(round(t * SFREQ))
-        data[i + 20:i + 40, 0] += -50e-6
+        data[i + 20 : i + 40, 0] += -50e-6
     return data
 
 
@@ -32,22 +32,33 @@ def _nwbfile(source):
     from pynwb import NWBFile
     from pynwb.ecephys import ElectricalSeries
 
-    nwb = NWBFile(session_description="test", identifier=f"evoparam-{source}",
-                  session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    nwb = NWBFile(
+        session_description="test",
+        identifier=f"evoparam-{source}",
+        session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
     device = nwb.create_device(name="probe")
-    group = nwb.create_electrode_group(name="shank0", description="shank", location="VISp",
-                                       device=device)
+    group = nwb.create_electrode_group(
+        name="shank0", description="shank", location="VISp", device=device
+    )
     for i in range(N_CH):
-        nwb.add_electrode(group=group, location="VISp" if i < 2 else "CA1", x=float(i),
-                          y=0.0, z=0.0)
+        nwb.add_electrode(
+            group=group, location="VISp" if i < 2 else "CA1", x=float(i), y=0.0, z=0.0
+        )
     region = nwb.create_electrode_table_region(list(range(N_CH)), "all")
     data = _signal()
     if source == "icephys":
-        nwb.add_acquisition(ElectricalSeries(name="lfp", data=data, electrodes=region,
-                                             rate=SFREQ, starting_time=0.0))
+        nwb.add_acquisition(
+            ElectricalSeries(
+                name="lfp", data=data, electrodes=region, rate=SFREQ, starting_time=0.0
+            )
+        )
     else:
-        nwb.add_acquisition(ElectricalSeries(name="lfp", data=data, electrodes=region,
-                                             rate=SFREQ, starting_time=0.0))
+        nwb.add_acquisition(
+            ElectricalSeries(
+                name="lfp", data=data, electrodes=region, rate=SFREQ, starting_time=0.0
+            )
+        )
     if source == "events_table":
         from pynwb.event import EventsTable
 
@@ -55,14 +66,12 @@ def _nwbfile(source):
         table.add_column("amplitude", "current (A)")
         table.add_column("pulse_width", "pulse width (s)")
         for t in ONSETS:
-            table.add_row(timestamp=float(t), duration=0.001, amplitude=0.006,
-                          pulse_width=0.0002)
+            table.add_row(timestamp=float(t), duration=0.001, amplitude=0.006, pulse_width=0.0002)
         nwb.add_acquisition(table)
     elif source == "trials":
         nwb.add_trial_column("stim_onset", "stimulus onset")
         for t in ONSETS:
-            nwb.add_trial(start_time=float(t) - 0.5, stop_time=float(t) + 1.0,
-                          stim_onset=float(t))
+            nwb.add_trial(start_time=float(t) - 0.5, stop_time=float(t) + 1.0, stim_onset=float(t))
     elif source == "intervals":
         from pynwb.epoch import TimeIntervals
 
@@ -75,21 +84,33 @@ def _nwbfile(source):
         StimTable = _stim_table_class()
         table = StimTable(name="stimulation", description="biphasic pulses")
         for t in ONSETS:
-            table.add_row(start_time=float(t), stop_time=float(t) + 0.0004,
-                          bipolar_pair="e0-e1", frequency=0.5, amplitude=0.004,
-                          pulse_width=0.0002)
+            table.add_row(
+                start_time=float(t),
+                stop_time=float(t) + 0.0004,
+                bipolar_pair="e0-e1",
+                frequency=0.5,
+                amplitude=0.004,
+                pulse_width=0.0002,
+            )
         nwb.add_acquisition(table)
     elif source == "icephys":
         from pynwb.icephys import CurrentClampStimulusSeries
 
-        electrode = nwb.create_icephys_electrode(name="cell", description="patch",
-                                                 device=device)
+        electrode = nwb.create_icephys_electrode(name="cell", description="patch", device=device)
         for k, t in enumerate(ONSETS[:4]):
             wave = np.zeros(int(SFREQ))
             wave[100:300] = 1e-10
-            nwb.add_stimulus(CurrentClampStimulusSeries(
-                name=f"sweep{k}", data=wave, rate=SFREQ, starting_time=float(t) - 0.1,
-                electrode=electrode, gain=1.0, sweep_number=k))
+            nwb.add_stimulus(
+                CurrentClampStimulusSeries(
+                    name=f"sweep{k}",
+                    data=wave,
+                    rate=SFREQ,
+                    starting_time=float(t) - 0.1,
+                    electrode=electrode,
+                    gain=1.0,
+                    sweep_number=k,
+                )
+            )
     return nwb
 
 
@@ -108,17 +129,32 @@ def _stim_table_class():
     from pynwb.spec import NWBDatasetSpec, NWBGroupSpec, NWBNamespaceBuilder
 
     folder = tempfile.mkdtemp(prefix="ndx-electrical-stim-")
-    builder = NWBNamespaceBuilder(doc="electrical stimulation (test copy)",
-                                  name="ndx-electrical-stim", version="0.1.0",
-                                  author=["test"], contact=["test"])
+    builder = NWBNamespaceBuilder(
+        doc="electrical stimulation (test copy)",
+        name="ndx-electrical-stim",
+        version="0.1.0",
+        author=["test"],
+        contact=["test"],
+    )
     builder.include_namespace("core")
-    columns = [NWBDatasetSpec(name=n, neurodata_type_inc="VectorData", dtype=d, doc=n)
-               for n, d in (("bipolar_pair", "text"), ("frequency", "float64"),
-                            ("amplitude", "float64"), ("pulse_width", "float64"))]
-    builder.add_spec("ndx-electrical-stim.extensions.yaml",
-                     NWBGroupSpec(neurodata_type_def="StimTable",
-                                  neurodata_type_inc="TimeIntervals",
-                                  doc="stimulation table", datasets=columns))
+    columns = [
+        NWBDatasetSpec(name=n, neurodata_type_inc="VectorData", dtype=d, doc=n)
+        for n, d in (
+            ("bipolar_pair", "text"),
+            ("frequency", "float64"),
+            ("amplitude", "float64"),
+            ("pulse_width", "float64"),
+        )
+    ]
+    builder.add_spec(
+        "ndx-electrical-stim.extensions.yaml",
+        NWBGroupSpec(
+            neurodata_type_def="StimTable",
+            neurodata_type_inc="TimeIntervals",
+            doc="stimulation table",
+            datasets=columns,
+        ),
+    )
     builder.export("ndx-electrical-stim.namespace.yaml", outdir=folder)
     load_namespaces(f"{folder}/ndx-electrical-stim.namespace.yaml")
     _STIM_TABLE["cls"] = get_class("StimTable", "ndx-electrical-stim")
@@ -129,14 +165,15 @@ def _write(tmp_path, source):
     path = tmp_path / f"{source}.nwb"
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        nwbfile = _nwbfile(source)     # first: a source may load an extension namespace
+        nwbfile = _nwbfile(source)  # first: a source may load an extension namespace
         with pynwb.NWBHDF5IO(str(path), "w") as io:
             io.write(nwbfile)
     return path
 
 
-@pytest.mark.parametrize("source", ["events_table", "trials", "intervals", "stim_table",
-                                    "icephys"])
+@pytest.mark.parametrize(
+    "source", ["events_table", "trials", "intervals", "stim_table", "icephys"]
+)
 def test_req317_event_sources(tmp_path, source):
 
     path = _write(tmp_path, source)
@@ -167,8 +204,9 @@ def test_req317_equal_to_the_trialset_built_in_memory(tmp_path):
     from evoparam.io import epoch
 
     ts = read_nwb(str(_write(tmp_path, "trials")), tmin=-0.1, tmax=0.2)
-    memory = epoch(_signal().T * 1e6, SFREQ, ONSETS, -0.1, 0.2,
-                   ch_names=[f"e{i}" for i in range(N_CH)])
+    memory = epoch(
+        _signal().T * 1e6, SFREQ, ONSETS, -0.1, 0.2, ch_names=[f"e{i}" for i in range(N_CH)]
+    )
     assert ts.ch_names == memory.ch_names and ts.units == memory.units == "uV"
     np.testing.assert_allclose(ts.times, memory.times, atol=1e-12)
     np.testing.assert_allclose(ts.event_times, memory.event_times, atol=1e-12)
@@ -182,8 +220,9 @@ def test_events_given_as_a_table_and_select(tmp_path):
     path = _write(tmp_path, "trials")
     kinds = ["a" if k % 2 == 0 else "b" for k in range(len(ONSETS))]
     table = pd.DataFrame({"start_time": ONSETS, "kind": kinds})
-    ts = read_nwb(str(path), events=table, select="kind == 'a'", tmin=-0.05, tmax=0.1,
-                  picks=["e0", "e1"])
+    ts = read_nwb(
+        str(path), events=table, select="kind == 'a'", tmin=-0.05, tmax=0.1, picks=["e0", "e1"]
+    )
     assert ts.n_trials == kinds.count("a") and ts.ch_names == ["e0", "e1"]
     assert set(ts.metadata["kind"]) == {"a"}
 
@@ -206,9 +245,12 @@ def _inspect(path):
     inspector = pytest.importorskip("nwbinspector")
     messages = list(inspector.inspect_nwbfile(nwbfile_path=str(path)))
     # messages about what evoparam wrote (the test file itself has no subject)
-    return [m.message for m in messages
-            if m.importance.name in ("CRITICAL", "BEST_PRACTICE_VIOLATION")
-            and "evoparam" in str(m.location)]
+    return [
+        m.message
+        for m in messages
+        if m.importance.name in ("CRITICAL", "BEST_PRACTICE_VIOLATION")
+        and "evoparam" in str(m.location)
+    ]
 
 
 @pytest.mark.parametrize("extension", [False, True])
@@ -222,15 +264,36 @@ def test_req318_write_and_inspect(tmp_path, extension):
     with pynwb.NWBHDF5IO(str(path), "r", load_namespaces=True) as io:
         nwb = io.read()
         module = nwb.processing["evoparam"]
-        assert set(module.data_interfaces) == {"evoparam_components", "evoparam_existence",
-                                               "evoparam_trials", "evoparam_model",
-                                               "evoparam_results"}
+        assert set(module.data_interfaces) == {
+            "evoparam_components",
+            "evoparam_existence",
+            "evoparam_trials",
+            "evoparam_model",
+            "evoparam_results",
+        }
         components = module["evoparam_components"]
         frame = components.to_dataframe()
-        for column in ("electrode", "stim_site", "condition", "component", "shape", "status",
-                       "present", "latency", "latency_se", "amplitude", "amplitude_se",
-                       "polarity", "fwhm", "onset", "offset", "area", "r2", "n_trials",
-                       "ci_level"):
+        for column in (
+            "electrode",
+            "stim_site",
+            "condition",
+            "component",
+            "shape",
+            "status",
+            "present",
+            "latency",
+            "latency_se",
+            "amplitude",
+            "amplitude_se",
+            "polarity",
+            "fwhm",
+            "onset",
+            "offset",
+            "area",
+            "r2",
+            "n_trials",
+            "ci_level",
+        ):
             assert column in components.colnames, column
         assert set(frame["channel"]) == set(ts.ch_names)
         # electrode: a region into the electrodes table, rows matching the channel names
@@ -248,7 +311,7 @@ def test_req318_write_and_inspect(tmp_path, extension):
         model = module["evoparam_model"]
         assert model.data.shape[1] == len(group.fits)
         peak = np.max(np.abs(model.data[:]))
-        assert 1e-6 < peak < 1e-3                                   # volts
+        assert 1e-6 < peak < 1e-3  # volts
         assert '"settings"' in module.description
         if extension:
             assert type(components).__name__ == "EvokedResponseFitTable"
@@ -280,7 +343,7 @@ def test_req024_write_nwb_rereads_and_passes_pynwb_validate(tmp_path, extension)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         errors = pynwb.validate(path=str(path))
-    errors = errors[0] if isinstance(errors, tuple) else errors     # pynwb < 3: (errors, status)
+    errors = errors[0] if isinstance(errors, tuple) else errors  # pynwb < 3: (errors, status)
     assert list(errors) == []
 
 
@@ -325,8 +388,10 @@ def test_ndx_spec_files_are_current(tmp_path):
 
     built = ndx_evoparam.build_spec(str(tmp_path))
     for name in ("ndx-evoparam.namespace.yaml", "ndx-evoparam.extensions.yaml"):
-        with open(tmp_path / name, encoding="utf-8") as a, \
-                open(f"{ndx_evoparam.SPEC_DIR}/{name}", encoding="utf-8") as b:
+        with (
+            open(tmp_path / name, encoding="utf-8") as a,
+            open(f"{ndx_evoparam.SPEC_DIR}/{name}", encoding="utf-8") as b,
+        ):
             assert a.read() == b.read(), name
     assert built.endswith("ndx-evoparam.namespace.yaml")
 
@@ -338,16 +403,20 @@ def test_events_in_a_gap_of_the_timestamps_are_dropped(tmp_path):
     from pynwb import NWBFile
     from pynwb.ecephys import ElectricalSeries
 
-    nwb = NWBFile(session_description="gap", identifier="gap",
-                  session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    nwb = NWBFile(
+        session_description="gap",
+        identifier="gap",
+        session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
     device = nwb.create_device(name="probe")
     group = nwb.create_electrode_group(name="g", description="g", location="x", device=device)
     nwb.add_electrode(group=group, location="x")
     region = nwb.create_electrode_table_region([0], "e")
     stamps = np.r_[np.arange(0, 10, 0.001), np.arange(20, 30, 0.001)]
     data = np.sin(stamps)[:, None] * 1e-6
-    nwb.add_acquisition(ElectricalSeries(name="lfp", data=data, electrodes=region,
-                                         timestamps=stamps))
+    nwb.add_acquisition(
+        ElectricalSeries(name="lfp", data=data, electrodes=region, timestamps=stamps)
+    )
     path = tmp_path / "gap.nwb"
     with pynwb.NWBHDF5IO(str(path), "w") as io:
         io.write(nwb)

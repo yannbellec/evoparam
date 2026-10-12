@@ -50,9 +50,14 @@ class _Merged:
                 if key not in keys:
                     keys.append(key)
                     steps.append(step)
-        self.provenance = Provenance(package_version=main.package_version,
-                                     created=main.created, source=main.source, steps=steps,
-                                     environment={}, random_state=main.random_state)
+        self.provenance = Provenance(
+            package_version=main.package_version,
+            created=main.created,
+            source=main.source,
+            steps=steps,
+            environment={},
+            random_state=main.random_state,
+        )
         settings = getattr(parts[0], "settings", None)
         self.settings = settings if isinstance(settings, dict) else {}
 
@@ -69,8 +74,16 @@ def methods_text(result, *, cite=True):
     """
 
     if type(result).__name__ == "PipelineResult":
-        parts = [p for p in (result.group, result.trial_fits, *result.artifact,
-                             getattr(result, "reference_report", None)) if p is not None]
+        parts = [
+            p
+            for p in (
+                result.group,
+                result.trial_fits,
+                *result.artifact,
+                getattr(result, "reference_report", None),
+            )
+            if p is not None
+        ]
         return _methods_text(_Merged(parts), cite=cite)
     if isinstance(result, (list, tuple)):
         parts = [p for p in result if p is not None]

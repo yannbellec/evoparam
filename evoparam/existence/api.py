@@ -19,10 +19,20 @@ from .permutation import permutation_test, shuffle_test
 from .projection import projection_test
 from .rules import apply_rule, load_rules, resolve_rule
 
-__all__ = ["test_response", "existence_detector", "response_duration", "compare_detectors",
-           "list_rules",
-           "train_discordance", "methods_text", "detectors", "fit", "attach_test", "METHODS",
-           "HUMAN_KAPPA"]
+__all__ = [
+    "test_response",
+    "existence_detector",
+    "response_duration",
+    "compare_detectors",
+    "list_rules",
+    "train_discordance",
+    "methods_text",
+    "detectors",
+    "fit",
+    "attach_test",
+    "METHODS",
+    "HUMAN_KAPPA",
+]
 
 METHODS = ("baseline_permutation", "projection", "model_comparison", "threshold")
 
@@ -44,21 +54,30 @@ def _check_artifact(ts, window, allow):
         return
     win = (ts.times >= window[0]) & (ts.times <= window[1])
     if ts.masks[:, :, win].all(axis=0).any():
-        raise SettingsError("The test window overlaps samples replaced in every trial (the "
-                            "artifact window); move the window, or allow_artifact_overlap=True.")
+        raise SettingsError(
+            "The test window overlaps samples replaced in every trial (the "
+            "artifact window); move the window, or allow_artifact_overlap=True."
+        )
 
 
 def _model_comparison(avg, times, window, baseline, n_permutations, rng):
     from evoparam.models import ResponseModel
 
     if n_permutations > 200:
-        _warn("model_comparison refits the model for every bootstrap sample; "
-              f"{n_permutations} samples may take long.", UserWarning, stacklevel=3)
+        _warn(
+            "model_comparison refits the model for every bootstrap sample; "
+            f"{n_permutations} samples may take long.",
+            UserWarning,
+            stacklevel=3,
+        )
     model = ResponseModel(fit_window=window, baseline=baseline, classical=False)
-    background = ResponseModel(fit_window=window, baseline=baseline, classical=False,
-                               max_components=0)
-    out = {k: np.full(len(avg), np.nan) for k in ("statistic", "p_value", "onset", "offset",
-                                                    "duration", "snr_db")}
+    background = ResponseModel(
+        fit_window=window, baseline=baseline, classical=False, max_components=0
+    )
+    out = {
+        k: np.full(len(avg), np.nan)
+        for k in ("statistic", "p_value", "onset", "offset", "duration", "snr_db")
+    }
     win = (times >= window[0]) & (times <= window[1])
     for c, y in enumerate(avg):
         fit = model.fit_waveform(times, y)
@@ -74,7 +93,7 @@ def _model_comparison(avg, times, window, baseline, n_permutations, rng):
             noise = np.empty_like(e)
             noise[0] = e[0]
             for i in range(1, len(e)):
-                noise[i] = rho * noise[i - 1] + np.sqrt(1 - rho ** 2) * e[i]
+                noise[i] = rho * noise[i - 1] + np.sqrt(1 - rho**2) * e[i]
             synthetic = y.copy()
             synthetic[win] = null_fit.model + sigma * noise[win]
             synthetic[~win] = sigma * noise[~win]
@@ -93,13 +112,31 @@ def _model_comparison(avg, times, window, baseline, n_permutations, rng):
     return out
 
 
-def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
-                  baseline=(-0.5, -0.05), alpha=0.05, correction="fdr_bh",
-                  n_permutations=1000, statistic="max_t", cluster_threshold=None,
-                  polarity="both", rule=None, rule_overrides=None, picks=None,
-                  by=("stim_site",), return_null=False, allow_artifact_overlap=False,
-                  n_boot=200, random_state=None, n_jobs=1, verbose=None,
-                  projection_profile="published", projection_pairs="disjoint"):
+def test_response(
+    ts,
+    *,
+    method="baseline_permutation",
+    window=(0.009, 0.5),
+    baseline=(-0.5, -0.05),
+    alpha=0.05,
+    correction="fdr_bh",
+    n_permutations=1000,
+    statistic="max_t",
+    cluster_threshold=None,
+    polarity="both",
+    rule=None,
+    rule_overrides=None,
+    picks=None,
+    by=("stim_site",),
+    return_null=False,
+    allow_artifact_overlap=False,
+    n_boot=200,
+    random_state=None,
+    n_jobs=1,
+    verbose=None,
+    projection_profile="published",
+    projection_pairs="disjoint",
+):
     """Is there a response in the window, on each channel (and stimulation site)?
 
     Methods:
@@ -153,7 +190,7 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
     if random_state is None:
         # a seed drawn from the operating system and recorded in the settings, so that the
         # test can be regenerated from its provenance (REQ-007, REQ-333)
-        random_state = int(np.random.default_rng().integers(2 ** 31 - 1))
+        random_state = int(np.random.default_rng().integers(2**31 - 1))
     rng = np.random.default_rng(random_state)
     spec = None
     if method == "threshold":
@@ -169,8 +206,11 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
         raise DataError("test_response expects a TrialSet or an Evoked.")
     base_obj = trials_ts if trials_ts is not None else evoked
     names = list(base_obj.ch_names)
-    index = list(range(len(names))) if picks is None else \
-        [names.index(p) if isinstance(p, str) else int(p) for p in picks]
+    index = (
+        list(range(len(names)))
+        if picks is None
+        else [names.index(p) if isinstance(p, str) else int(p) for p in picks]
+    )
     times = base_obj.times
 
     groups = _groups(trials_ts, by) if trials_ts is not None else [("", None)]
@@ -181,75 +221,141 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
             masks = None if trials_ts.masks is None else trials_ts.masks[rows][:, index]
         if method == "baseline_permutation":
             if trials_ts is None:
-                res = shuffle_test(evoked.data[index], times, window, baseline,
-                                   n_permutations=n_permutations, polarity=polarity,
-                                   alpha=alpha, rng=rng)
+                res = shuffle_test(
+                    evoked.data[index],
+                    times,
+                    window,
+                    baseline,
+                    n_permutations=n_permutations,
+                    polarity=polarity,
+                    alpha=alpha,
+                    rng=rng,
+                )
             else:
-                res = permutation_test(data, times, window, baseline,
-                                       n_permutations=n_permutations, statistic=statistic,
-                                       cluster_threshold=cluster_threshold, polarity=polarity,
-                                       alpha=alpha, rng=rng, n_boot=n_boot, masks=masks)
+                res = permutation_test(
+                    data,
+                    times,
+                    window,
+                    baseline,
+                    n_permutations=n_permutations,
+                    statistic=statistic,
+                    cluster_threshold=cluster_threshold,
+                    polarity=polarity,
+                    alpha=alpha,
+                    rng=rng,
+                    n_boot=n_boot,
+                    masks=masks,
+                )
         elif method == "projection":
             if trials_ts is None:
                 raise DataError("method 'projection' needs trials.")
-            res = projection_test(data, times, window, baseline, rng=rng,
-                                  profile=projection_profile, pairs=projection_pairs)
+            res = projection_test(
+                data,
+                times,
+                window,
+                baseline,
+                rng=rng,
+                profile=projection_profile,
+                pairs=projection_pairs,
+            )
         elif method == "model_comparison":
             avg = evoked.data[index] if trials_ts is None else data.mean(axis=0)
             res = _model_comparison(avg, times, window, baseline, n_permutations, rng)
         else:
             avg = evoked.data[index] if trials_ts is None else np.nanmean(data, axis=0)
             res = apply_rule(avg, times, base_obj.sfreq, spec, base_obj.units)
-            res.update(p_value=np.full(len(index), np.nan), duration=np.full(len(index), np.nan),
-                       snr_db=np.full(len(index), np.nan),
-                       duration_ci=np.full((len(index), 2), np.nan))
+            res.update(
+                p_value=np.full(len(index), np.nan),
+                duration=np.full(len(index), np.nan),
+                snr_db=np.full(len(index), np.nan),
+                duration_ci=np.full((len(index), 2), np.nan),
+            )
         results.append(res)
 
-    stack = lambda key: (np.asarray(results[0][key], float) if len(results) == 1
-                         else np.stack([np.asarray(r[key], float) for r in results], axis=1))
+    stack = lambda key: (
+        np.asarray(results[0][key], float)
+        if len(results) == 1
+        else np.stack([np.asarray(r[key], float) for r in results], axis=1)
+    )
     raw = stack("p_value")
     adjusted = correct(raw, correction)
     if method == "threshold":
-        significant = np.asarray(results[0]["significant"]) if len(results) == 1 else \
-            np.stack([r["significant"] for r in results], axis=1)
+        significant = (
+            np.asarray(results[0]["significant"])
+            if len(results) == 1
+            else np.stack([r["significant"] for r in results], axis=1)
+        )
     else:
         significant = np.nan_to_num(adjusted, nan=1.0) <= alpha
-    settings = {"method": method, "window": list(window), "baseline": list(baseline),
-                "statistic": statistic, "polarity": polarity, "alpha": alpha,
-                "correction": correction, "n_permutations": n_permutations,
-                "random_state": random_state, "groups": [g for g, _ in groups],
-                "channels": [names[i] for i in index], "by": list(by or ()),
-                "duration_ci": (results[0]["duration_ci"].tolist() if len(results) == 1
-                                else [r["duration_ci"].tolist() for r in results]),
-                **{key: (_interval(results[0], key) if len(results) == 1
-                         else [_interval(r, key) for r in results])
-                   for key in ("onset_ci", "offset_ci")},
-                "exact": bool(results[0].get("exact", False)),
-                "package_version": __version__}
+    settings = {
+        "method": method,
+        "window": list(window),
+        "baseline": list(baseline),
+        "statistic": statistic,
+        "polarity": polarity,
+        "alpha": alpha,
+        "correction": correction,
+        "n_permutations": n_permutations,
+        "random_state": random_state,
+        "groups": [g for g, _ in groups],
+        "channels": [names[i] for i in index],
+        "by": list(by or ()),
+        "duration_ci": (
+            results[0]["duration_ci"].tolist()
+            if len(results) == 1
+            else [r["duration_ci"].tolist() for r in results]
+        ),
+        **{
+            key: (
+                _interval(results[0], key)
+                if len(results) == 1
+                else [_interval(r, key) for r in results]
+            )
+            for key in ("onset_ci", "offset_ci")
+        },
+        "exact": bool(results[0].get("exact", False)),
+        "package_version": __version__,
+    }
     if method == "projection":
         settings["projection_profile"] = projection_profile
         settings["projection_pairs"] = projection_pairs
     if spec is not None:
-        settings["rule_spec"] = {k: (list(v) if isinstance(v, tuple) else v)
-                                 for k, v in spec.items() if k != "verified"}
+        settings["rule_spec"] = {
+            k: (list(v) if isinstance(v, tuple) else v) for k, v in spec.items() if k != "verified"
+        }
     if return_null:
         settings["critical"] = [np.asarray(r.get("critical", np.nan)).tolist() for r in results]
-    provenance = Provenance().with_step("evoparam.existence.test_response",
-                                        {k: v for k, v in settings.items()
-                                         if k not in _PER_CHANNEL_SETTINGS},
-                                        duration_s=_time.perf_counter() - start)
+    provenance = Provenance().with_step(
+        "evoparam.existence.test_response",
+        {k: v for k, v in settings.items() if k not in _PER_CHANNEL_SETTINGS},
+        duration_s=_time.perf_counter() - start,
+    )
     curve_times = curve = band = None
     if all(r.get("curve") is not None for r in results):
         # the statistic over time and its null band (spec §5.13, plot_existence)
         curve_times = np.asarray(results[0]["curve_times"], float)
         curve, band = stack("curve"), stack("null_band")
-    return ResponseTest(method=method, statistic=stack("statistic"), p_value=adjusted,
-                        p_value_raw=raw, significant=significant, duration=stack("duration"),
-                        onset=stack("onset"), offset=stack("offset"), snr_db=stack("snr_db"),
-                        rule=spec["name"] if spec else None, alpha=alpha, correction=correction,
-                        n_permutations=n_permutations, window=window, settings=settings,
-                        provenance=provenance, curve_times=curve_times, curve=curve,
-                        null_band=band)
+    return ResponseTest(
+        method=method,
+        statistic=stack("statistic"),
+        p_value=adjusted,
+        p_value_raw=raw,
+        significant=significant,
+        duration=stack("duration"),
+        onset=stack("onset"),
+        offset=stack("offset"),
+        snr_db=stack("snr_db"),
+        rule=spec["name"] if spec else None,
+        alpha=alpha,
+        correction=correction,
+        n_permutations=n_permutations,
+        window=window,
+        settings=settings,
+        provenance=provenance,
+        curve_times=curve_times,
+        curve=curve,
+        null_band=band,
+    )
 
 
 def _interval(result, key):
@@ -259,8 +365,15 @@ def _interval(result, key):
     return np.asarray(result.get(key, np.full((n, 2), np.nan)), float).tolist()
 
 
-def existence_detector(ts, *, window=(0.009, 0.5), by=("stim_site",),
-                       allow_artifact_overlap=True, random_state=0, **kwargs):
+def existence_detector(
+    ts,
+    *,
+    window=(0.009, 0.5),
+    by=("stim_site",),
+    allow_artifact_overlap=True,
+    random_state=0,
+    **kwargs,
+):
     """The existence test as a detector for :func:`evoparam.prep.reference_sensitivity`
     (its default, ``detector="existence"``).
 
@@ -278,9 +391,14 @@ def existence_detector(ts, *, window=(0.009, 0.5), by=("stim_site",),
         Group names (``[""]`` without grouping).
     """
 
-    test = test_response(ts, window=window, by=by,
-                         allow_artifact_overlap=allow_artifact_overlap,
-                         random_state=random_state, **kwargs)
+    test = test_response(
+        ts,
+        window=window,
+        by=by,
+        allow_artifact_overlap=allow_artifact_overlap,
+        random_state=random_state,
+        **kwargs,
+    )
     groups = list(test.settings["groups"])
     index = [ts.ch_names.index(name) for name in test.settings["channels"]]
     significant = np.asarray(test.significant, dtype=bool).reshape(len(index), -1)
@@ -316,10 +434,18 @@ def response_duration(ts, *, method="baseline_permutation", **kwargs):
     columns = {"channel": test.settings["channels"]}
     for name in ("onset", "offset", "duration"):
         ci = np.asarray(test.settings.get(f"{name}_ci", np.nan), float)
-        ci = np.broadcast_to(ci, (len(columns["channel"]), 2)) if ci.size == 1 else \
-            ci.reshape(-1, 2)
-        columns.update({name: np.ravel(getattr(test, name)),
-                        f"{name}_ci_low": ci[:, 0], f"{name}_ci_high": ci[:, 1]})
+        ci = (
+            np.broadcast_to(ci, (len(columns["channel"]), 2))
+            if ci.size == 1
+            else ci.reshape(-1, 2)
+        )
+        columns.update(
+            {
+                name: np.ravel(getattr(test, name)),
+                f"{name}_ci_low": ci[:, 0],
+                f"{name}_ci_high": ci[:, 1],
+            }
+        )
     columns.update(significant=np.ravel(test.significant), p_value=np.ravel(test.p_value))
     return pd.DataFrame(columns)
 
@@ -330,10 +456,17 @@ def list_rules():
     pd = require("pandas", extra="data", caller="evoparam.existence.list_rules")
     rows = []
     for name, spec in load_rules().items():
-        rows.append({"name": name, "statistic": spec["statistic"], "k": spec["k"],
-                     "window": spec["window"], "baseline": spec["baseline"],
-                     "unspecified": ",".join(spec.get("unspecified", [])),
-                     "source": spec["source"]})
+        rows.append(
+            {
+                "name": name,
+                "statistic": spec["statistic"],
+                "k": spec["k"],
+                "window": spec["window"],
+                "baseline": spec["baseline"],
+                "unspecified": ",".join(spec.get("unspecified", [])),
+                "source": spec["source"],
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -344,8 +477,13 @@ def _kappa(a, b):
     return float((po - pe) / (1 - pe)) if pe < 1 else 1.0
 
 
-def compare_detectors(ts, rules=("baseline_permutation", "vanblooijs2023", "hays2021",
-                                 "projection"), *, rule_overrides=None, **kwargs):
+def compare_detectors(
+    ts,
+    rules=("baseline_permutation", "vanblooijs2023", "hays2021", "projection"),
+    *,
+    rule_overrides=None,
+    **kwargs,
+):
     """Decisions of several methods and rules on every channel, and their agreement.
 
     Parameters
@@ -372,18 +510,25 @@ def compare_detectors(ts, rules=("baseline_permutation", "vanblooijs2023", "hays
         if name in METHODS:
             test = test_response(ts, method=name, by=(), **kwargs)
         else:
-            test = test_response(ts, method="threshold", rule=name, by=(),
-                                 rule_overrides=(rule_overrides or {}).get(name),
-                                 random_state=kwargs.get("random_state"))
+            test = test_response(
+                ts,
+                method="threshold",
+                rule=name,
+                by=(),
+                rule_overrides=(rule_overrides or {}).get(name),
+                random_state=kwargs.get("random_state"),
+            )
         decisions[name] = np.ravel(test.significant)
     table = pd.DataFrame(decisions, index=test.settings["channels"])
     kappa = pd.DataFrame(np.eye(len(rules)), index=list(rules), columns=list(rules))
     for a, b in itertools.combinations(rules, 2):
         kappa.loc[a, b] = kappa.loc[b, a] = _kappa(decisions[a], decisions[b])
     table.attrs["kappa"] = kappa
-    table.attrs["caption"] = (f"Pairwise Cohen's kappa between detectors; for reference, "
-                              f"human experts agree on N1 presence with kappa about "
-                              f"{HUMAN_KAPPA:.2f} (van Blooijs et al.).")
+    table.attrs["caption"] = (
+        f"Pairwise Cohen's kappa between detectors; for reference, "
+        f"human experts agree on N1 presence with kappa about "
+        f"{HUMAN_KAPPA:.2f} (van Blooijs et al.)."
+    )
     return table
 
 
@@ -401,18 +546,35 @@ def train_discordance(ts, test):
     decisions = []
     for _, rows in ts.metadata.groupby("train_id").indices.items():
         sub = ts.select(trials=list(rows))
-        kwargs = dict(method=s["method"], window=tuple(s["window"]),
-                      baseline=tuple(s["baseline"]), alpha=s["alpha"], correction="none",
-                      n_permutations=s["n_permutations"], statistic=s["statistic"],
-                      polarity=s["polarity"], by=(), picks=s["channels"],
-                      random_state=s["random_state"], n_boot=0)
+        kwargs = dict(
+            method=s["method"],
+            window=tuple(s["window"]),
+            baseline=tuple(s["baseline"]),
+            alpha=s["alpha"],
+            correction="none",
+            n_permutations=s["n_permutations"],
+            statistic=s["statistic"],
+            polarity=s["polarity"],
+            by=(),
+            picks=s["channels"],
+            random_state=s["random_state"],
+            n_boot=0,
+        )
         if s["method"] == "threshold":
-            kwargs.update(rule=test.rule, rule_overrides={"baseline": tuple(s["baseline"]),
-                                                          "window": tuple(s["window"])})
+            kwargs.update(
+                rule=test.rule,
+                rule_overrides={"baseline": tuple(s["baseline"]), "window": tuple(s["window"])},
+            )
         decisions.append(np.ravel(test_response(sub, **kwargs).significant))
     share = np.mean(decisions, axis=0)
-    return pd.DataFrame({"channel": s["channels"], "n_trains": len(decisions),
-                         "p_significant": share, "discordance": 1 - 2 * np.abs(share - 0.5)})
+    return pd.DataFrame(
+        {
+            "channel": s["channels"],
+            "n_trains": len(decisions),
+            "p_significant": share,
+            "discordance": 1 - 2 * np.abs(share - 0.5),
+        }
+    )
 
 
 def methods_text(test):
@@ -423,20 +585,26 @@ def methods_text(test):
     baseline = f"{s['baseline'][0] * 1000:g} to {s['baseline'][1] * 1000:g} ms"
     if test.method == "threshold":
         spec = s.get("rule_spec", {})
-        return (f"Responses were detected with the published rule '{test.rule}' "
-                f"({spec.get('source', 'custom')}): {spec.get('statistic')} above "
-                f"{spec.get('k')} in {window}, baseline {baseline} (evoparam "
-                f"{s['package_version']}).")
-    what = {"baseline_permutation": f"a sign-flip permutation test of the trials "
-                                    f"({s['statistic']} statistic, {s['n_permutations']} "
-                                    f"permutations{', all patterns' if s['exact'] else ''})",
-            "projection": "the cross-projection test of the trials",
-            "model_comparison": f"a model comparison (change of BIC) with a parametric "
-                                f"bootstrap ({s['n_permutations']} samples)"}[test.method]
-    return (f"The presence of a response in {window} was tested with {what} against the "
-            f"baseline {baseline}, {s['polarity']} polarity, alpha {s['alpha']:g}, "
-            f"{s['correction']} correction across channels, random seed "
-            f"{s['random_state']} (evoparam {s['package_version']}).")
+        return (
+            f"Responses were detected with the published rule '{test.rule}' "
+            f"({spec.get('source', 'custom')}): {spec.get('statistic')} above "
+            f"{spec.get('k')} in {window}, baseline {baseline} (evoparam "
+            f"{s['package_version']})."
+        )
+    what = {
+        "baseline_permutation": f"a sign-flip permutation test of the trials "
+        f"({s['statistic']} statistic, {s['n_permutations']} "
+        f"permutations{', all patterns' if s['exact'] else ''})",
+        "projection": "the cross-projection test of the trials",
+        "model_comparison": f"a model comparison (change of BIC) with a parametric "
+        f"bootstrap ({s['n_permutations']} samples)",
+    }[test.method]
+    return (
+        f"The presence of a response in {window} was tested with {what} against the "
+        f"baseline {baseline}, {s['polarity']} polarity, alpha {s['alpha']:g}, "
+        f"{s['correction']} correction across channels, random seed "
+        f"{s['random_state']} (evoparam {s['package_version']})."
+    )
 
 
 class detectors:
@@ -446,6 +614,7 @@ class detectors:
 def _make_detector(name):
     def detector(ts, **overrides):
         return test_response(ts, method="threshold", rule=name, rule_overrides=overrides, by=())
+
     detector.__name__ = name
     detector.__doc__ = f"Published rule '{name}' ({load_rules()[name]['source']})."
     return staticmethod(detector)
@@ -486,8 +655,9 @@ def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
         values = np.atleast_2d(data)
         times = np.asarray(times, dtype=float)
         rate = sfreq or 1.0 / np.median(np.diff(times))
-        data = Evoked(data=values, times=times, sfreq=rate,
-                      ch_names=[f"ch{i}" for i in range(len(values))])
+        data = Evoked(
+            data=values, times=times, sfreq=rate, ch_names=[f"ch{i}" for i in range(len(values))]
+        )
     group = fit_models(data, preset, **kwargs)
     if existence is False:
         _log_methods(group, kwargs.get("verbose"))
@@ -495,9 +665,12 @@ def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
     if not isinstance(data, (TrialSet, Evoked)):
         if existence:
             raise SettingsError("existence=True needs a TrialSet or one Evoked.")
-        _warn("evoparam.fit: the existence test was not run (one test per condition needs "
-              "the trials; pass a TrialSet with by=). The existence columns are NaN.",
-              UserWarning, stacklevel=2)
+        _warn(
+            "evoparam.fit: the existence test was not run (one test per condition needs "
+            "the trials; pass a TrialSet with by=). The existence columns are NaN.",
+            UserWarning,
+            stacklevel=2,
+        )
         _log_methods(group, kwargs.get("verbose"))
         return group
     settings = group.settings
@@ -521,9 +694,12 @@ def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
     except (DataError, SettingsError) as exc:
         if existence:
             raise
-        _warn(f"evoparam.fit: the existence test could not run ({exc}). The existence "
-              "columns are NaN; pass existence_kwargs to choose another method.",
-              UserWarning, stacklevel=2)
+        _warn(
+            f"evoparam.fit: the existence test could not run ({exc}). The existence "
+            "columns are NaN; pass existence_kwargs to choose another method.",
+            UserWarning,
+            stacklevel=2,
+        )
         _log_methods(group, kwargs.get("verbose"))
         return group
     group = attach_test(group, test)
@@ -542,24 +718,35 @@ def attach_test(group, test):
     for fit_, ch in zip(group.fits, group.index["channel"]):
         i = channels.index(ch)
         one = dataclasses.replace(
-            test, statistic=test.statistic[i:i + 1], p_value=test.p_value[i:i + 1],
-            p_value_raw=test.p_value_raw[i:i + 1], significant=test.significant[i:i + 1],
-            duration=test.duration[i:i + 1], onset=test.onset[i:i + 1],
-            offset=test.offset[i:i + 1], snr_db=test.snr_db[i:i + 1],
-            curve=None if test.curve is None else test.curve[i:i + 1],
-            null_band=None if test.null_band is None else test.null_band[i:i + 1])
-        fits.append(dataclasses.replace(
-            fit_, existence=one,
-            provenance=fit_.provenance.with_step("evoparam.existence.test_response", step)))
+            test,
+            statistic=test.statistic[i : i + 1],
+            p_value=test.p_value[i : i + 1],
+            p_value_raw=test.p_value_raw[i : i + 1],
+            significant=test.significant[i : i + 1],
+            duration=test.duration[i : i + 1],
+            onset=test.onset[i : i + 1],
+            offset=test.offset[i : i + 1],
+            snr_db=test.snr_db[i : i + 1],
+            curve=None if test.curve is None else test.curve[i : i + 1],
+            null_band=None if test.null_band is None else test.null_band[i : i + 1],
+        )
+        fits.append(
+            dataclasses.replace(
+                fit_,
+                existence=one,
+                provenance=fit_.provenance.with_step("evoparam.existence.test_response", step),
+            )
+        )
     return dataclasses.replace(
-        group, fits=fits,
-        provenance=group.provenance.with_step("evoparam.existence.test_response", step))
+        group,
+        fits=fits,
+        provenance=group.provenance.with_step("evoparam.existence.test_response", step),
+    )
 
 
 # Settings of a test that hold one value per channel; the provenance step of the test
 # attached to a fit keeps the settings that apply to every channel.
-_PER_CHANNEL_SETTINGS = ("channels", "duration_ci", "onset_ci", "offset_ci", "groups",
-                         "critical")
+_PER_CHANNEL_SETTINGS = ("channels", "duration_ci", "onset_ci", "offset_ci", "groups", "critical")
 
 
 def _log_methods(group, verbose):

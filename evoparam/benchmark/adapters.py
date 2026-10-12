@@ -79,8 +79,12 @@ class Adapter:
             raise DataError(f"adapter {self.name!r}: unknown tasks {unknown}.")
 
     def _argv(self, input_path, output_path):
-        values = {"python": sys.executable, "here": self.here, "input": input_path,
-                  "output": output_path}
+        values = {
+            "python": sys.executable,
+            "here": self.here,
+            "input": input_path,
+            "output": output_path,
+        }
         argv = [part.format(**values) for part in self.command]
         if not any("{input}" in part for part in self.command):
             argv += [input_path, output_path]
@@ -92,8 +96,10 @@ class Adapter:
         import shutil
 
         program = self._argv("", "")[0]
-        if not (os.path.isfile(program) and os.access(program, os.X_OK)) and \
-                shutil.which(program) is None:
+        if (
+            not (os.path.isfile(program) and os.access(program, os.X_OK))
+            and shutil.which(program) is None
+        ):
             raise AdapterError(f"adapter {self.name!r}: program {program!r} not found.")
 
     def run(self, task_input_path, output_dir=None):
@@ -124,8 +130,9 @@ class Adapter:
         task = task_input.task
         if self.tasks and task not in self.tasks:
             raise DataError(f"adapter {self.name!r} does not answer task {task}.")
-        output_dir = output_dir or os.path.join(os.path.dirname(task_input_path),
-                                                f"adapter-{self.name}")
+        output_dir = output_dir or os.path.join(
+            os.path.dirname(task_input_path), f"adapter-{self.name}"
+        )
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, f"{task_input.cell}.{output_format(task)}")
         if os.path.exists(output_path):
@@ -133,21 +140,27 @@ class Adapter:
         argv = self._argv(os.path.abspath(task_input_path), os.path.abspath(output_path))
         start = time.perf_counter()
         try:
-            proc = subprocess.run(argv, capture_output=True, text=True, timeout=self.timeout,
-                                  env={**os.environ, **{k: str(v) for k, v in
-                                                        self.env.items()}},
-                                  check=False)
+            proc = subprocess.run(
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+                env={**os.environ, **{k: str(v) for k, v in self.env.items()}},
+                check=False,
+            )
         except subprocess.TimeoutExpired:
-            raise AdapterError(f"adapter {self.name!r}: {argv[0]} did not finish within "
-                               f"{self.timeout} s on {task_input.cell}.") from None
+            raise AdapterError(
+                f"adapter {self.name!r}: {argv[0]} did not finish within "
+                f"{self.timeout} s on {task_input.cell}."
+            ) from None
         except OSError as err:
-            raise AdapterError(f"adapter {self.name!r}: cannot run {argv[0]} ({err}).") \
-                from None
+            raise AdapterError(f"adapter {self.name!r}: cannot run {argv[0]} ({err}).") from None
         self.last_duration = time.perf_counter() - start
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout or "").strip()[-2000:]
-            raise AdapterError(f"adapter {self.name!r}: exit code {proc.returncode} on "
-                               f"{task_input.cell}: {tail}")
+            raise AdapterError(
+                f"adapter {self.name!r}: exit code {proc.returncode} on {task_input.cell}: {tail}"
+            )
         if not os.path.isfile(output_path):
             raise AdapterError(f"adapter {self.name!r}: no output written at {output_path}.")
         read_output(task, output_path)
@@ -156,9 +169,14 @@ class Adapter:
     def info(self):
         """The ``method`` record of a result document."""
 
-        return {"name": self.name, "version": self.version, "kind": "adapter",
-                "citation": self.citation, "description": "external tool run in a "
-                "separate process", "settings": {"command": list(self.command)}}
+        return {
+            "name": self.name,
+            "version": self.version,
+            "kind": "adapter",
+            "citation": self.citation,
+            "description": "external tool run in a separate process",
+            "settings": {"command": list(self.command)},
+        }
 
 
 def load_adapter(path):
@@ -169,8 +187,13 @@ def load_adapter(path):
     missing = [k for k in ("name", "command") if k not in spec]
     if missing:
         raise DataError(f"{path}: adapter specification without {missing}.")
-    return Adapter(name=spec["name"], command=list(spec["command"]),
-                   tasks=tuple(spec.get("tasks", ())), version=str(spec.get("version", "")),
-                   citation=spec.get("citation", ""),
-                   timeout=float(spec.get("timeout", 3600.0)), env=spec.get("env", {}),
-                   here=os.path.dirname(os.path.abspath(path)))
+    return Adapter(
+        name=spec["name"],
+        command=list(spec["command"]),
+        tasks=tuple(spec.get("tasks", ())),
+        version=str(spec.get("version", "")),
+        citation=spec.get("citation", ""),
+        timeout=float(spec.get("timeout", 3600.0)),
+        env=spec.get("env", {}),
+        here=os.path.dirname(os.path.abspath(path)),
+    )

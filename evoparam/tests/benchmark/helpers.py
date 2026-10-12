@@ -16,13 +16,21 @@ DOCS = ROOT / "docs" / "benchmark"
 RESULTS = DOCS / "results"
 ADAPTERS = ROOT / "adapters"
 
-SLOW = pytest.mark.skipif(os.environ.get("EVOPARAM_SLOW_TESTS") != "1",
-                          reason="set EVOPARAM_SLOW_TESTS=1 to run the long benchmark tests")
-PERF = pytest.mark.skipif(os.environ.get("EVOPARAM_PERF_TESTS") != "1",
-                          reason="set EVOPARAM_PERF_TESTS=1 to time the core suite")
-NETWORK = [pytest.mark.network,
-           pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                              reason="set EVOPARAM_NETWORK_TESTS=1 to read public data")]
+SLOW = pytest.mark.skipif(
+    os.environ.get("EVOPARAM_SLOW_TESTS") != "1",
+    reason="set EVOPARAM_SLOW_TESTS=1 to run the long benchmark tests",
+)
+PERF = pytest.mark.skipif(
+    os.environ.get("EVOPARAM_PERF_TESTS") != "1",
+    reason="set EVOPARAM_PERF_TESTS=1 to time the core suite",
+)
+NETWORK = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read public data",
+    ),
+]
 
 
 def hidden_seeds_path():
@@ -53,14 +61,27 @@ def perfect_t1(ti, p_value=1e-6):
 
     truth = ti.truth
     stim = set(truth["stim_channels"])
-    return [{"site": ti.descriptor["site"], "channel": c,
-             "responsive": int(c in truth["responders"]),
-             "p_value": p_value if c in truth["responders"] else 0.5}
-            for c in ti.descriptor["ch_names"] if c not in stim]
+    return [
+        {
+            "site": ti.descriptor["site"],
+            "channel": c,
+            "responsive": int(c in truth["responders"]),
+            "p_value": p_value if c in truth["responders"] else 0.5,
+        }
+        for c in ti.descriptor["ch_names"]
+        if c not in stim
+    ]
 
 
 def perfect_t2(ti, shift=0.0):
     """T2 rows with the true N1 of every true responder (latency shifted by ``shift``)."""
 
-    return [{"site": ti.descriptor["site"], "channel": c, "latency": v["latency"] + shift,
-             "amplitude": v["amplitude"]} for c, v in sorted(ti.truth["n1"].items())]
+    return [
+        {
+            "site": ti.descriptor["site"],
+            "channel": c,
+            "latency": v["latency"] + shift,
+            "amplitude": v["amplitude"],
+        }
+        for c, v in sorted(ti.truth["n1"].items())
+    ]

@@ -61,7 +61,7 @@ class FitSettings:
     freq_min: float | None = None
     freq_max: float | None = None
     noise_model: str = "ar"
-    latency_order: str = "parameterised"     # spec §5.5.3 step 5 ("sorted": not better)
+    latency_order: str = "parameterised"  # spec §5.5.3 step 5 ("sorted": not better)
     # "beam" (measured more robust and faster than "spec", §5.5.3 step 4; see CHANGELOG)
     candidate_search: str = "beam"
     # True: refuse every model with two overlapping components of opposite signs (a
@@ -105,8 +105,9 @@ class FitSettings:
         if self.polarity not in POLARITIES:
             raise SettingsError(f"polarity must be one of {POLARITIES}.")
         if not 0 < self.min_fwhm < self.max_fwhm:
-            raise SettingsError(f"need 0 < min_fwhm ({self.min_fwhm}) < max_fwhm "
-                                f"({self.max_fwhm}).")
+            raise SettingsError(
+                f"need 0 < min_fwhm ({self.min_fwhm}) < max_fwhm ({self.max_fwhm})."
+            )
         if self.max_components < 0:
             raise SettingsError("max_components must be >= 0.")
         if self.latency_order not in LATENCY_ORDERS:
@@ -172,13 +173,17 @@ def resolve_settings(preset=None, **overrides):
         # must still have the recorded version
         recorded = preset
         preset = recorded["name"]
-        if preset in _presets.PRESETS and recorded["version"] is not None \
-                and _presets.get(preset).version != recorded["version"]:
+        if (
+            preset in _presets.PRESETS
+            and recorded["version"] is not None
+            and _presets.get(preset).version != recorded["version"]
+        ):
             from evoparam.errors import EvoparamVersionError
 
             raise EvoparamVersionError(
                 f"The settings were made with preset {preset!r} v{recorded['version']}; this "
-                f"evoparam has v{_presets.get(preset).version}.")
+                f"evoparam has v{_presets.get(preset).version}."
+            )
     if preset is not None:
         if isinstance(preset, dict):
             values.update(preset)

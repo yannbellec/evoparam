@@ -27,11 +27,14 @@ def window_indices(times, window, buffer=0):
         raise ArtifactError(f"window {tuple(window)} ends before it starts.")
     inds = np.flatnonzero((times >= window[0]) & (times <= window[1]))
     if len(inds) == 0:
-        raise ArtifactError(f"The window {tuple(window)} s contains no sample "
-                            f"(epoch {times[0]:.4f} to {times[-1]:.4f} s).")
+        raise ArtifactError(
+            f"The window {tuple(window)} s contains no sample "
+            f"(epoch {times[0]:.4f} to {times[-1]:.4f} s)."
+        )
     if inds[0] - buffer < 0 or inds[-1] + 1 + buffer > len(times):
-        raise ArtifactError(f"The window {tuple(window)} s needs {buffer} samples on each side "
-                            "inside the epoch.")
+        raise ArtifactError(
+            f"The window {tuple(window)} s needs {buffer} samples on each side inside the epoch."
+        )
     return inds
 
 

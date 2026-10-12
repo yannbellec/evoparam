@@ -72,8 +72,7 @@ def _parse_block(lines, start, indent):
             i += 1
         elif i + 1 < len(lines) and lines[i + 1][0] > indent:
             mapping[key], i = _parse_block(lines, i + 1, lines[i + 1][0])
-        elif i + 1 < len(lines) and lines[i + 1][0] == indent and \
-                lines[i + 1][1].startswith("- "):
+        elif i + 1 < len(lines) and lines[i + 1][0] == indent and lines[i + 1][1].startswith("- "):
             mapping[key], i = _parse_block(lines, i + 1, indent)
         else:
             mapping[key] = None
@@ -95,8 +94,10 @@ def _cff_text():
     try:
         return resources.files("evoparam").joinpath("CITATION.cff").read_text("utf-8")
     except (FileNotFoundError, OSError):
-        root = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))), "CITATION.cff")
+        root = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "CITATION.cff",
+        )
         with open(root, encoding="utf-8") as fobj:
             return fobj.read()
 
@@ -126,16 +127,19 @@ def citation_text(cff=None):
 
     cff = read_citation() if cff is None else cff
     authors = ", ".join(
-        " ".join([family] + ["".join(f"{n[0]}." for n in given.replace("-", " ").split())])
-        .strip() for family, given in _authors(cff))
+        " ".join([family] + ["".join(f"{n[0]}." for n in given.replace("-", " ").split())]).strip()
+        for family, given in _authors(cff)
+    )
     text = f"{authors.rstrip('.')}. " if authors else ""
     text += f"{cff.get('title', 'evoparam')}"
     text += f" (version {cff['version']})." if cff.get("version") else "."
     version_doi = _version_doi(cff)
     if cff.get("doi") and version_doi:
         # REQ-391: the concept DOI (every version) and the DOI of this version
-        text += f" https://doi.org/{version_doi} (this version; all versions: " \
-                f"https://doi.org/{cff['doi']})"
+        text += (
+            f" https://doi.org/{version_doi} (this version; all versions: "
+            f"https://doi.org/{cff['doi']})"
+        )
     elif cff.get("doi"):
         text += f" https://doi.org/{cff['doi']}"
     elif cff.get("repository-code"):
@@ -151,8 +155,11 @@ def _version_doi(cff):
     names the version (Zenodo's version DOI), when the citation file has one."""
 
     for item in cff.get("identifiers") or []:
-        if isinstance(item, dict) and item.get("type") == "doi" and \
-                "version" in str(item.get("description", "")).lower():
+        if (
+            isinstance(item, dict)
+            and item.get("type") == "doi"
+            and "version" in str(item.get("description", "")).lower()
+        ):
             return item.get("value")
     return None
 
@@ -163,8 +170,10 @@ def _preferred(cff):
     paper = cff.get("preferred-citation")
     if not isinstance(paper, dict) or not paper.get("title"):
         return None
-    authors = ", ".join(" ".join([family] + [f"{n[0]}." for n in given.replace("-", " ").split()])
-                        .strip() for family, given in _authors(paper))
+    authors = ", ".join(
+        " ".join([family] + [f"{n[0]}." for n in given.replace("-", " ").split()]).strip()
+        for family, given in _authors(paper)
+    )
     parts = [authors.rstrip(".") + "." if authors else "", f"{paper['title']}."]
     venue = paper.get("journal") or paper.get("collection-title") or paper.get("publisher")
     if isinstance(venue, dict):
@@ -184,9 +193,14 @@ def citation_bibtex(cff=None):
     cff = read_citation() if cff is None else cff
     names = _authors(cff)
     authors = " and ".join(f"{family}, {given}".rstrip(", ") for family, given in names)
-    fields = [("title", cff.get("title")), ("author", authors), ("version", cff.get("version")),
-              ("doi", cff.get("doi")), ("url", cff.get("repository-code")),
-              ("license", cff.get("license"))]
+    fields = [
+        ("title", cff.get("title")),
+        ("author", authors),
+        ("version", cff.get("version")),
+        ("doi", cff.get("doi")),
+        ("url", cff.get("repository-code")),
+        ("license", cff.get("license")),
+    ]
     if cff.get("date-released"):
         fields.append(("year", str(cff["date-released"])[:4]))
     key = f"{names[0][0].lower()}_evoparam" if names else "evoparam"

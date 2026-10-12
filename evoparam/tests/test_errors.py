@@ -54,8 +54,11 @@ def test_failed_unit_is_recorded(evoked, inject, caplog):
     assert status[2] == "failed"
     assert group.fits[2].message and "singular Jacobian" in group.fits[2].message
     assert all(s != "failed" for i, s in enumerate(status) if i != 2)
-    warned = [r for r in caplog.records if r.levelno == logging.WARNING and
-              "singular Jacobian" in r.getMessage()]
+    warned = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and "singular Jacobian" in r.getMessage()
+    ]
     assert len(warned) == 1 and "C3" in warned[0].getMessage()
 
 
@@ -86,38 +89,55 @@ def test_no_bare_except_and_no_swallowed_exception():
             if isinstance(node, ast.ExceptHandler):
                 if node.type is None:
                     hits.append(f"{path.name}:{node.lineno} bare except")
-                elif getattr(node.type, "id", "") in ("Exception", "BaseException") and \
-                        len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
+                elif (
+                    getattr(node.type, "id", "") in ("Exception", "BaseException")
+                    and len(node.body) == 1
+                    and isinstance(node.body[0], ast.Pass)
+                ):
                     hits.append(f"{path.name}:{node.lineno} except Exception: pass")
     assert not hits, hits
 
 
 def test_errstate_never_ignores_everything():
-    hits = [f"{path.name}:{n}" for path, text in _sources()
-            for n, line in enumerate(text.splitlines(), 1)
-            if re.search(r"errstate\([^)]*all\s*=\s*['\"]ignore", line)]
+    hits = [
+        f"{path.name}:{n}"
+        for path, text in _sources()
+        for n, line in enumerate(text.splitlines(), 1)
+        if re.search(r"errstate\([^)]*all\s*=\s*['\"]ignore", line)
+    ]
     assert not hits, hits
 
 
 def _errstate_lines():
-    return [f"{path.relative_to(PACKAGE)}:{n}" for path, text in _sources()
-            for n, line in enumerate(text.splitlines(), 1) if "errstate" in line]
+    return [
+        f"{path.relative_to(PACKAGE)}:{n}"
+        for path, text in _sources()
+        for n, line in enumerate(text.splitlines(), 1)
+        if "errstate" in line
+    ]
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-307 (iv) acceptance as written ('grep errstate "
-                   "matches at most three lines, all in models/_engine.py') is not met: 25 "
-                   "lines in 17 modules use np.errstate(divide/invalid='ignore') around a "
-                   "documented NaN/inf result (measured 2026-10-11, S20); none uses "
-                   "all='ignore' (test_errstate_never_ignores_everything)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-307 (iv) acceptance as written ('grep errstate "
+    "matches at most three lines, all in models/_engine.py') is not met: 25 "
+    "lines in 17 modules use np.errstate(divide/invalid='ignore') around a "
+    "documented NaN/inf result (measured 2026-10-11, S20); none uses "
+    "all='ignore' (test_errstate_never_ignores_everything)",
+)
 def test_errstate_at_most_three_lines_in_the_engine():
     lines = _errstate_lines()
-    assert len(lines) <= 3 and all(line.startswith("models/_engine.py") for line in lines), \
+    assert len(lines) <= 3 and all(line.startswith("models/_engine.py") for line in lines), (
         f"{len(lines)} lines"
+    )
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-307 (ii): on_error='record' is implemented for "
-                   "ResponseModel.fit_group (and fit_waveform); fit_trials, test_response and "
-                   "remove_artifact do not take on_error yet (S20)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-307 (ii): on_error='record' is implemented for "
+    "ResponseModel.fit_group (and fit_waveform); fit_trials, test_response and "
+    "remove_artifact do not take on_error yet (S20)",
+)
 def test_on_error_on_every_unit_function():
     import inspect
 

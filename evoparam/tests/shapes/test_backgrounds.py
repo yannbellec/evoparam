@@ -19,21 +19,29 @@ def test_linear_and_exponential_equations():
     np.testing.assert_array_equal(bg.NoBackground().evaluate(t, np.zeros(0)), np.zeros(t.size))
     assert bg.NoBackground().jacobian(t, np.zeros((4, 0))).shape == (4, t.size, 0)
     np.testing.assert_array_equal(bg.ConstantBackground().evaluate(t, [3.5]), np.full(t.size, 3.5))
-    np.testing.assert_allclose(bg.LinearBackground().evaluate(t, [2.0, -5.0]),
-                               2.0 - 5.0 * (t - t0), rtol=1e-15)
-    np.testing.assert_allclose(bg.LinearBackground(t_ref=0.0).evaluate(t, [2.0, -5.0]),
-                               2.0 - 5.0 * t, rtol=1e-15)
-    np.testing.assert_allclose(bg.ExponentialBackground().evaluate(t, [1.0, 40.0, 0.01]),
-                               1.0 + 40.0 * np.exp(-(t - t0) / 0.01), rtol=1e-14)
+    np.testing.assert_allclose(
+        bg.LinearBackground().evaluate(t, [2.0, -5.0]), 2.0 - 5.0 * (t - t0), rtol=1e-15
+    )
+    np.testing.assert_allclose(
+        bg.LinearBackground(t_ref=0.0).evaluate(t, [2.0, -5.0]), 2.0 - 5.0 * t, rtol=1e-15
+    )
+    np.testing.assert_allclose(
+        bg.ExponentialBackground().evaluate(t, [1.0, 40.0, 0.01]),
+        1.0 + 40.0 * np.exp(-(t - t0) / 0.01),
+        rtol=1e-14,
+    )
     double = bg.DoubleExponentialBackground(t_ref=0.0)
-    np.testing.assert_allclose(double.evaluate(t, [1.0, 40.0, -8.0, 0.002, 0.05]),
-                               1.0 + 40.0 * np.exp(-t / 0.002) - 8.0 * np.exp(-t / 0.05),
-                               rtol=1e-13)
+    np.testing.assert_allclose(
+        double.evaluate(t, [1.0, 40.0, -8.0, 0.002, 0.05]),
+        1.0 + 40.0 * np.exp(-t / 0.002) - 8.0 * np.exp(-t / 0.05),
+        rtol=1e-13,
+    )
 
 
 def test_long_double_exponential():
-    params = sample_background_params(bg.DoubleExponentialBackground(), TIMES, 20,
-                                      np.random.default_rng(1), data_range=(-20, 20))
+    params = sample_background_params(
+        bg.DoubleExponentialBackground(), TIMES, 20, np.random.default_rng(1), data_range=(-20, 20)
+    )
     t = TIMES.astype(np.longdouble)
     for row in params:
         p = row.astype(np.longdouble)
@@ -57,17 +65,20 @@ def test_parameter_names_and_linearity():
 
 def test_vectorised_backgrounds():
     rng = np.random.default_rng(2)
-    for background in (bg.LinearBackground(), bg.ExponentialBackground(),
-                       bg.DoubleExponentialBackground()):
+    for background in (
+        bg.LinearBackground(),
+        bg.ExponentialBackground(),
+        bg.DoubleExponentialBackground(),
+    ):
         params = sample_background_params(background, TIMES, 6, rng).reshape(3, 2, -1)
         values = background.evaluate(TIMES, params)
         jac = background.jacobian(TIMES, params)
         assert values.shape == (3, 2, TIMES.size)
         assert jac.shape == (3, 2, TIMES.size, background.n_params)
-        np.testing.assert_allclose(values[2, 1], background.evaluate(TIMES, params[2, 1]),
-                                   rtol=1e-14)
-        np.testing.assert_allclose(jac[0, 1], background.jacobian(TIMES, params[0, 1]),
-                                   rtol=1e-14)
+        np.testing.assert_allclose(
+            values[2, 1], background.evaluate(TIMES, params[2, 1]), rtol=1e-14
+        )
+        np.testing.assert_allclose(jac[0, 1], background.jacobian(TIMES, params[0, 1]), rtol=1e-14)
 
 
 def test_pspline_knot_rule():
@@ -93,8 +104,9 @@ def test_pspline_basis():
     assert np.all(spline.basis(np.array([WINDOW[0] - 0.01, WINDOW[1] + 1.0])) == 0)
     grid = TIMES[::23]
     for j in range(spline.n_basis):
-        expected = [references.bspline(references.MATH, list(spline.knots), j, 3, float(t))
-                    for t in grid]
+        expected = [
+            references.bspline(references.MATH, list(spline.knots), j, 3, float(t)) for t in grid
+        ]
         np.testing.assert_allclose(basis[j, ::23], expected, rtol=1e-12, atol=1e-15)
     penalty = spline.penalty_matrix()
     assert penalty.shape == (spline.n_basis,) * 2
@@ -112,7 +124,9 @@ def test_pspline_basis_mpmath():
     knots = [backend.mpf(float(k)) for k in spline.knots]
     for j in range(spline.n_basis):
         for i in range(0, TIMES.size, 37):
-            expected = float(references.bspline(backend, knots, j, 3, backend.mpf(float(TIMES[i]))))
+            expected = float(
+                references.bspline(backend, knots, j, 3, backend.mpf(float(TIMES[i])))
+            )
             assert abs(basis[j, i] - expected) <= 1e-10 * abs(expected) + 1e-15
 
 
@@ -150,18 +164,24 @@ def test_artifact_basis():
         bg.ArtifactBasisBackground(vectors[:, :10], basis_times)
 
 
-@pytest.mark.parametrize("background", [bg.ConstantBackground(), bg.LinearBackground(),
-                                        bg.ExponentialBackground(),
-                                        bg.DoubleExponentialBackground()],
-                         ids=lambda b: b.name)
+@pytest.mark.parametrize(
+    "background",
+    [
+        bg.ConstantBackground(),
+        bg.LinearBackground(),
+        bg.ExponentialBackground(),
+        bg.DoubleExponentialBackground(),
+    ],
+    ids=lambda b: b.name,
+)
 def test_initial_guess_and_bounds(background):
     lower, upper = background.default_bounds(TIMES, data_range=(-30.0, 60.0))
     assert np.all(np.isfinite(lower)) and np.all(lower < upper)
     nonlinear = background._nonlinear_guess(TIMES)
-    coefs = np.array([5.0, -12.0, 3.0][:background.n_linear])
+    coefs = np.array([5.0, -12.0, 3.0][: background.n_linear])
     waveform = background.evaluate(TIMES, np.concatenate([coefs, nonlinear]))
     guess = background.initial_guess(TIMES, waveform)
-    np.testing.assert_allclose(guess[:background.n_linear], coefs, rtol=1e-8, atol=1e-8)
+    np.testing.assert_allclose(guess[: background.n_linear], coefs, rtol=1e-8, atol=1e-8)
 
 
 def test_invalid_settings():

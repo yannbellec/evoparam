@@ -24,8 +24,9 @@ def sign_name(name, polarity):
     if len(parts) != 2 or polarity == 0:
         return name
     signs = [{"P": 1, "N": -1}.get(part[:1]) for part in parts]
-    if sorted(s for s in signs if s is not None) != [-1, 1] or \
-            not all(re.fullmatch(r"[PN]\w*", part) for part in parts):
+    if sorted(s for s in signs if s is not None) != [-1, 1] or not all(
+        re.fullmatch(r"[PN]\w*", part) for part in parts
+    ):
         return name
     return parts[signs.index(1 if polarity > 0 else -1)]
 
@@ -37,21 +38,28 @@ def _label_fit(fit, windows, unassigned, polarity_rule="sign"):
     assigned = {}
     warnings = []
     for name, (start, end, polarity) in windows.items():
-        inside = [k for k, comp in enumerate(fit.components)
-                  if start <= comp.latency <= end and (polarity == 0 or comp.polarity == polarity)]
+        inside = [
+            k
+            for k, comp in enumerate(fit.components)
+            if start <= comp.latency <= end and (polarity == 0 or comp.polarity == polarity)
+        ]
         inside.sort(key=lambda k: -abs(fit.components[k].amplitude))
         for rank, k in enumerate(inside):
             if k in assigned:
                 continue
-            label = sign_name(name, fit.components[k].polarity) \
-                if polarity_rule == "sign" else name
+            label = (
+                sign_name(name, fit.components[k].polarity) if polarity_rule == "sign" else name
+            )
             assigned[k] = label if rank == 0 else f"{label}_b"
             if rank:
                 warnings.append(f"multiple_in_window:{name}")
-    comps = [dataclasses.replace(comp, label=assigned.get(k, unassigned.format(k=k + 1)))
-             for k, comp in enumerate(fit.components)]
-    return dataclasses.replace(fit, components=comps,
-                               warnings=list(fit.warnings) + sorted(set(warnings)))
+    comps = [
+        dataclasses.replace(comp, label=assigned.get(k, unassigned.format(k=k + 1)))
+        for k, comp in enumerate(fit.components)
+    ]
+    return dataclasses.replace(
+        fit, components=comps, warnings=list(fit.warnings) + sorted(set(warnings))
+    )
 
 
 def label_components(fit, windows, *, polarity_rule="sign", unassigned="C{k}"):
@@ -89,6 +97,7 @@ def label_components(fit, windows, *, polarity_rule="sign", unassigned="C{k}"):
     if isinstance(windows, str):
         windows = FIT_PRESETS[windows]["windows"]
     if isinstance(fit, GroupFit):
-        return dataclasses.replace(fit, fits=[_label_fit(f, windows, unassigned, polarity_rule)
-                                              for f in fit.fits])
+        return dataclasses.replace(
+            fit, fits=[_label_fit(f, windows, unassigned, polarity_rule) for f in fit.fits]
+        )
     return _label_fit(fit, windows, unassigned, polarity_rule)

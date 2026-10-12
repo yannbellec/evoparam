@@ -27,8 +27,9 @@ ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 
 def _check_entry(old, new, since, remove_in):
     assert minor_gap(since, remove_in) == 2, (old, since, remove_in)
-    assert version_tuple(evoparam.__version__) < version_tuple(remove_in), \
+    assert version_tuple(evoparam.__version__) < version_tuple(remove_in), (
         f"{old}: the shim must be removed in {remove_in} (this is {evoparam.__version__})"
+    )
     with pytest.warns(EvoparamDeprecationWarning) as record:
         shim = getattr(evoparam, old)
         if callable(shim):
@@ -73,10 +74,10 @@ def test_req293_the_mechanism_with_a_temporary_entry(monkeypatch):
 def test_req293_the_rules_fail_on_a_bad_entry(monkeypatch):
     monkeypatch.setitem(_deprecated.REGISTRY, "old_mean", ("numpy:mean", "0.2.0", "0.3.0"))
     with pytest.raises(AssertionError):
-        _check_entry("old_mean", "numpy:mean", "0.2.0", "0.3.0")      # one minor version only
+        _check_entry("old_mean", "numpy:mean", "0.2.0", "0.3.0")  # one minor version only
     monkeypatch.setitem(_deprecated.REGISTRY, "old_mean", ("numpy:mean", "0.0.0", "0.1.0"))
     with pytest.raises(AssertionError):
-        _check_entry("old_mean", "numpy:mean", "0.0.0", "0.1.0")      # removal version reached
+        _check_entry("old_mean", "numpy:mean", "0.0.0", "0.1.0")  # removal version reached
 
 
 def test_req293_unknown_name_still_raises_attribute_error():
@@ -90,8 +91,9 @@ def test_req394_name_paired_with_the_phrase():
 
     for path in ("README.rst", "docs/index.rst"):
         text = (ROOT / path).read_text(encoding="utf-8")
-        assert re.search(r"evoparam.{0,80}evoked response parameterization", text,
-                         re.IGNORECASE | re.DOTALL), path
+        assert re.search(
+            r"evoparam.{0,80}evoked response parameterization", text, re.IGNORECASE | re.DOTALL
+        ), path
 
 
 def test_req394_name_is_frozen_in_the_metadata():
@@ -101,13 +103,17 @@ def test_req394_name_is_frozen_in_the_metadata():
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert re.search(r'^name = "evoparam"$', text, re.MULTILINE)
     assert 'evoparam = "evoparam.cli:main"' in text
-    assert re.search(r'^title: "evoparam', (ROOT / "CITATION.cff").read_text("utf-8"),
-                     re.MULTILINE)
+    assert re.search(
+        r'^title: "evoparam', (ROOT / "CITATION.cff").read_text("utf-8"), re.MULTILINE
+    )
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-394: the name is frozen at the first public "
-                   "release, which waits for the owner's HIIE decision (nothing public "
-                   "before it)")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-394: the name is frozen at the first public "
+    "release, which waits for the owner's HIIE decision (nothing public "
+    "before it)",
+)
 def test_req394_frozen_at_the_first_public_release():
     text = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
     gate = text.split("<!-- release-gate -->")[1].split("<!-- end-release-gate -->")[0]

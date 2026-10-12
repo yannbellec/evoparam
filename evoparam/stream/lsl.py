@@ -25,8 +25,20 @@ RESOLVE_TIMEOUT = 5.0
 # Channels of the outlet (float32), the fields of PulseEstimate with the strings as indices
 # into the metadata; the LSL timestamp of each sample is also the pulse time (in double
 # precision, which float32 lacks for clock values).
-FIELDS = ("pulse_time", "channel_index", "component_index", "amplitude", "latency", "scale",
-          "shift", "existence_z", "present", "r2", "compute_ms", "status_code")
+FIELDS = (
+    "pulse_time",
+    "channel_index",
+    "component_index",
+    "amplitude",
+    "latency",
+    "scale",
+    "shift",
+    "existence_z",
+    "present",
+    "r2",
+    "compute_ms",
+    "status_code",
+)
 
 
 def _pylsl(caller):
@@ -92,8 +104,9 @@ class LSLInlet:
         chunk, stamps = self._inlet.pull_chunk(timeout=timeout, max_samples=max_samples)
         if not stamps:
             return np.zeros((0, self.n_channels)), np.zeros(0)
-        return np.asarray(chunk, float).reshape(len(stamps), self.n_channels), \
-            np.asarray(stamps, float)
+        return np.asarray(chunk, float).reshape(len(stamps), self.n_channels), np.asarray(
+            stamps, float
+        )
 
     def feed(self, fitter, *, duration=None, max_pulses=None, timeout=0.05, callback=None):
         """Pull samples and push them into ``fitter`` (with their LSL timestamps) until
@@ -147,12 +160,18 @@ class LSLOutlet:
         pylsl = _pylsl("evoparam.stream.LSLOutlet")
         self.channels = list(fitter.model.ch_names)
         self.components = [list(labels) for labels in fitter.model.labels]
-        self.metadata = {"intended_use": INTENDED_USE, "fields": list(FIELDS),
-                         "channels": self.channels, "components": self.components,
-                         "status_codes": {status: i for i, status in enumerate(STATUSES)},
-                         "settings": fitter.settings, "evoparam_version": __version__}
-        info = pylsl.StreamInfo(name, "EvokedParameters", len(FIELDS), pylsl.IRREGULAR_RATE,
-                                "float32", source_id)
+        self.metadata = {
+            "intended_use": INTENDED_USE,
+            "fields": list(FIELDS),
+            "channels": self.channels,
+            "components": self.components,
+            "status_codes": {status: i for i, status in enumerate(STATUSES)},
+            "settings": fitter.settings,
+            "evoparam_version": __version__,
+        }
+        info = pylsl.StreamInfo(
+            name, "EvokedParameters", len(FIELDS), pylsl.IRREGULAR_RATE, "float32", source_id
+        )
         desc = info.desc()
         desc.append_child_value("intended_use", INTENDED_USE)
         desc.append_child_value("evoparam", json.dumps(self.metadata))
@@ -161,18 +180,29 @@ class LSLOutlet:
             fields.append_child("channel").append_child_value("label", field)
         self._outlet = pylsl.StreamOutlet(info)
         self._channel = {name: i for i, name in enumerate(self.channels)}
-        self._component = [{label: k for k, label in enumerate(labels)}
-                           for labels in self.components]
+        self._component = [
+            {label: k for k, label in enumerate(labels)} for labels in self.components
+        ]
         self._status = {status: i for i, status in enumerate(STATUSES)}
 
     def row(self, estimate):
         """The float values of one estimate, in the order of :data:`FIELDS`."""
 
         c = self._channel[estimate.channel]
-        return [estimate.pulse_time, float(c), float(self._component[c][estimate.component]),
-                estimate.amplitude, estimate.latency, estimate.scale, estimate.shift,
-                estimate.existence_z, float(estimate.present), estimate.r2, estimate.compute_ms,
-                float(self._status[estimate.status])]
+        return [
+            estimate.pulse_time,
+            float(c),
+            float(self._component[c][estimate.component]),
+            estimate.amplitude,
+            estimate.latency,
+            estimate.scale,
+            estimate.shift,
+            estimate.existence_z,
+            float(estimate.present),
+            estimate.r2,
+            estimate.compute_ms,
+            float(self._status[estimate.status]),
+        ]
 
     def push(self, estimates):
         """Publish estimates (one LSL sample each, stamped with its pulse time)."""

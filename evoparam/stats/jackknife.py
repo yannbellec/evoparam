@@ -26,8 +26,13 @@ __all__ = ["jackknife_latency", "jackknife_t", "jackknife_f", "JACKKNIFE_COLUMNS
 
 MIN_SUBJECTS = 3
 
-JACKKNIFE_COLUMNS = {"subject": "", "channel": "", "jackknife": "score", "retrieved": "score",
-                     "n_subjects": ""}
+JACKKNIFE_COLUMNS = {
+    "subject": "",
+    "channel": "",
+    "jackknife": "score",
+    "retrieved": "score",
+    "n_subjects": "",
+}
 
 
 def jackknife_t(t, n):
@@ -65,8 +70,15 @@ def _subject_label(evoked, position):
     return str(position)
 
 
-def jackknife_latency(evokeds, *, scorer="fractional_area_latency", retrieve=True, picks=None,
-                      window=None, **scorer_kw):
+def jackknife_latency(
+    evokeds,
+    *,
+    scorer="fractional_area_latency",
+    retrieve=True,
+    picks=None,
+    window=None,
+    **scorer_kw,
+):
     """Score the leave-one-out grand averages of participants, and retrieve each one's score.
 
     Parameters
@@ -120,34 +132,49 @@ def jackknife_latency(evokeds, *, scorer="fractional_area_latency", retrieve=Tru
     evokeds = list(evokeds)
     n = len(evokeds)
     if n < MIN_SUBJECTS:
-        raise DataError(f"jackknife_latency needs at least {MIN_SUBJECTS} participants, "
-                        f"got {n}.")
+        raise DataError(f"jackknife_latency needs at least {MIN_SUBJECTS} participants, got {n}.")
     for ev in evokeds:
         if not isinstance(ev, Evoked):
-            raise DataError("jackknife_latency expects one Evoked per participant "
-                            "(use TrialSet.average()).")
+            raise DataError(
+                "jackknife_latency expects one Evoked per participant (use TrialSet.average())."
+            )
     first = evokeds[0]
     for ev in evokeds[1:]:
-        if list(ev.ch_names) != list(first.ch_names) or ev.times.shape != first.times.shape \
-                or not np.allclose(ev.times, first.times, rtol=0, atol=1e-9):
-            raise DataError("jackknife_latency: every Evoked must have the same channels "
-                            "and time axis.")
+        if (
+            list(ev.ch_names) != list(first.ch_names)
+            or ev.times.shape != first.times.shape
+            or not np.allclose(ev.times, first.times, rtol=0, atol=1e-9)
+        ):
+            raise DataError(
+                "jackknife_latency: every Evoked must have the same channels and time axis."
+            )
     names = list(first.ch_names)
-    index = list(range(len(names))) if picks is None else \
-        [names.index(p) if isinstance(p, str) else int(p) for p in picks]
-    stack = np.stack([np.where(ev.masks, np.nan, ev.data) if ev.masks is not None else ev.data
-                      for ev in evokeds])[:, index]
+    index = (
+        list(range(len(names)))
+        if picks is None
+        else [names.index(p) if isinstance(p, str) else int(p) for p in picks]
+    )
+    stack = np.stack(
+        [
+            np.where(ev.masks, np.nan, ev.data) if ev.masks is not None else ev.data
+            for ev in evokeds
+        ]
+    )[:, index]
     finite = np.isfinite(stack)
     total, count = np.where(finite, stack, 0.0).sum(axis=0), finite.sum(axis=0)
     loo_count = count[None] - finite
-    loo = np.divide(total[None] - np.where(finite, stack, 0.0), loo_count,
-                    out=np.full(stack.shape, np.nan), where=loo_count > 0)
+    loo = np.divide(
+        total[None] - np.where(finite, stack, 0.0),
+        loo_count,
+        out=np.full(stack.shape, np.nan),
+        where=loo_count > 0,
+    )
     grand = np.divide(total, count, out=np.full(total.shape, np.nan), where=count > 0)
 
     if isinstance(scorer, str):
         window = default_window(first.times) if window is None else window
         func, name, _, window = resolve_scorer(scorer, first.times, window, **scorer_kw)
-        jack = func(loo)                                       # (n, n_channels)
+        jack = func(loo)  # (n, n_channels)
         full = func(grand)
         unit = "s" if name in TIME_SCORES else ("data·s" if name == "area" else first.units)
     elif callable(scorer):
@@ -155,10 +182,15 @@ def jackknife_latency(evokeds, *, scorer="fractional_area_latency", retrieve=Tru
         picked = [names[i] for i in index]
 
         def score(data):
-            ev = Evoked(data=data, times=first.times, sfreq=first.sfreq, ch_names=picked,
-                        units=first.units, n_trials=n - 1)
-            return np.broadcast_to(np.asarray(scorer(ev, **scorer_kw), float),
-                                   (len(picked),))
+            ev = Evoked(
+                data=data,
+                times=first.times,
+                sfreq=first.sfreq,
+                ch_names=picked,
+                units=first.units,
+                n_trials=n - 1,
+            )
+            return np.broadcast_to(np.asarray(scorer(ev, **scorer_kw), float), (len(picked),))
 
         jack = np.stack([score(loo[i]) for i in range(n)])
         full = score(grand)
@@ -170,19 +202,34 @@ def jackknife_latency(evokeds, *, scorer="fractional_area_latency", retrieve=Tru
     se = np.sqrt((n - 1) / n * np.nansum((jack - mean_j[None]) ** 2, axis=0))
     subjects = [_subject_label(ev, i) for i, ev in enumerate(evokeds)]
     channels = [names[i] for i in index]
-    table = pd.DataFrame({"subject": np.repeat(subjects, len(channels)),
-                          "channel": channels * n, "jackknife": jack.ravel(),
-                          "retrieved": retrieved.ravel(), "n_subjects": n})
-    summary = pd.DataFrame({"channel": channels, "grand_average": full, "mean_jackknife": mean_j,
-                            "jackknife_se": se})
-    settings = {"scorer": name, "retrieve": bool(retrieve), "n_subjects": n,
-                "window": None if window is None else list(window),
-                "channels": channels, **{k: v for k, v in scorer_kw.items()
-                                         if isinstance(v, (int, float, str, bool))}}
+    table = pd.DataFrame(
+        {
+            "subject": np.repeat(subjects, len(channels)),
+            "channel": channels * n,
+            "jackknife": jack.ravel(),
+            "retrieved": retrieved.ravel(),
+            "n_subjects": n,
+        }
+    )
+    summary = pd.DataFrame(
+        {"channel": channels, "grand_average": full, "mean_jackknife": mean_j, "jackknife_se": se}
+    )
+    settings = {
+        "scorer": name,
+        "retrieve": bool(retrieve),
+        "n_subjects": n,
+        "window": None if window is None else list(window),
+        "channels": channels,
+        **{k: v for k, v in scorer_kw.items() if isinstance(v, (int, float, str, bool))},
+    }
     table.attrs["summary"] = summary.to_dict("list")
     table.attrs["units"] = {k: (unit if v == "score" else v) for k, v in JACKKNIFE_COLUMNS.items()}
     table.attrs["settings"] = settings
-    table.attrs["provenance"] = Provenance().with_step(
-        "evoparam.stats.jackknife_latency", settings,
-        duration_s=_time.perf_counter() - start).to_dict()
+    table.attrs["provenance"] = (
+        Provenance()
+        .with_step(
+            "evoparam.stats.jackknife_latency", settings, duration_s=_time.perf_counter() - start
+        )
+        .to_dict()
+    )
     return table

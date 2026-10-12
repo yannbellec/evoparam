@@ -29,8 +29,9 @@ def make_train(n_channels=24, n_pulses=20, n_trials=10, interval=0.01, seed=0):
     i0 = np.searchsorted(times, 0.0)
     step = int(round(interval * SFREQ))
     rel = np.arange(step) / SFREQ
-    shapes = np.array([np.exp(-rel / 0.0008) * np.sin(2 * np.pi * rel / 0.002),
-                       np.exp(-rel / 0.003)])
+    shapes = np.array(
+        [np.exp(-rel / 0.0008) * np.sin(2 * np.pi * rel / 0.002), np.exp(-rel / 0.003)]
+    )
     mixing = rng.normal(0, 1, (n_channels, 2)) * np.array([800.0, 200.0])
 
     clean = rng.normal(0, 5, (n_trials, n_channels, n_times))
@@ -42,14 +43,14 @@ def make_train(n_channels=24, n_pulses=20, n_trials=10, interval=0.01, seed=0):
             for ch in active:
                 if rng.random() < 0.5:
                     at = i0 + pulse * step + int(rng.uniform(0.002, 0.008) * SFREQ)
-                    clean[trial, ch, at:at + len(wave)] += wave
+                    clean[trial, ch, at : at + len(wave)] += wave
                     spikes.append((trial, ch, at))
     noisy = clean.copy()
     for trial in range(n_trials):
         for pulse in range(n_pulses):
             gain = rng.uniform(0.95, 1.05) * (1 + 0.02 * pulse)
             start = i0 + pulse * step
-            noisy[trial, :, start:start + step] += gain * (mixing @ shapes)
+            noisy[trial, :, start : start + step] += gain * (mixing @ shapes)
     names = [f"e{i:02d}" for i in range(n_channels)]
     make = lambda data: TrialSet(data=data, times=times, sfreq=SFREQ, ch_names=names)
     silent = np.setdiff1d(np.arange(n_channels), active)
@@ -59,12 +60,18 @@ def make_train(n_channels=24, n_pulses=20, n_trials=10, interval=0.01, seed=0):
 def test_req063_spikes_kept_and_silent_channels_clean():
 
     noisy, truth, spikes, silent, pulse_times = make_train()
-    result = remove_artifact(noisy, method="lowrank", pulse_times=pulse_times,
-                             baseline=(-0.09, -0.01), window=(0.0, 0.0005), quality=False)
+    result = remove_artifact(
+        noisy,
+        method="lowrank",
+        pulse_times=pulse_times,
+        baseline=(-0.09, -0.01),
+        window=(0.0, 0.0005),
+        quality=False,
+    )
     cleaned = result.cleaned.data
     length = len(spike(SFREQ))
-    got = np.mean([cleaned[t, c, a:a + length] for t, c, a in spikes], axis=0)
-    ref = np.mean([truth.data[t, c, a:a + length] for t, c, a in spikes], axis=0)
+    got = np.mean([cleaned[t, c, a : a + length] for t, c, a in spikes], axis=0)
+    ref = np.mean([truth.data[t, c, a : a + length] for t, c, a in spikes], axis=0)
     assert np.corrcoef(got, ref)[0, 1] >= 0.95
 
     train = (noisy.times >= 0) & (noisy.times < pulse_times[-1] + 0.01)
@@ -80,13 +87,28 @@ def test_lowrank_requirements():
 
     noisy, _, _, _, pulse_times = make_train(n_channels=8, n_trials=4, n_pulses=4)
     with pytest.raises(ArtifactError, match="channels"):
-        remove_artifact(noisy.select(picks=list(range(7))), method="lowrank",
-                        pulse_times=pulse_times, baseline=(-0.09, -0.01), quality=False)
+        remove_artifact(
+            noisy.select(picks=list(range(7))),
+            method="lowrank",
+            pulse_times=pulse_times,
+            baseline=(-0.09, -0.01),
+            quality=False,
+        )
     with pytest.raises(ArtifactError, match="pulses"):
-        remove_artifact(noisy, method="lowrank", pulse_times=pulse_times[:3],
-                        baseline=(-0.09, -0.01), quality=False)
+        remove_artifact(
+            noisy,
+            method="lowrank",
+            pulse_times=pulse_times[:3],
+            baseline=(-0.09, -0.01),
+            quality=False,
+        )
     with pytest.raises(ArtifactError, match="trials"):
-        remove_artifact(noisy.select(trials=[0, 1, 2]), method="lowrank",
-                        pulse_times=pulse_times, baseline=(-0.09, -0.01), quality=False)
+        remove_artifact(
+            noisy.select(trials=[0, 1, 2]),
+            method="lowrank",
+            pulse_times=pulse_times,
+            baseline=(-0.09, -0.01),
+            quality=False,
+        )
     with pytest.raises(ArtifactError, match="pulse_times or expected_rate"):
         remove_artifact(noisy, method="lowrank", baseline=(-0.09, -0.01), quality=False)

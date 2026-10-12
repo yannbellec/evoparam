@@ -15,8 +15,17 @@ import sys
 import numpy as np
 import pytest
 
-from evoparam.benchmark import (BASELINES, TASKS, get_baseline, read_result, score,
-                                score_outputs, verify_result, write_output, write_result)
+from evoparam.benchmark import (
+    BASELINES,
+    TASKS,
+    get_baseline,
+    read_result,
+    score,
+    score_outputs,
+    verify_result,
+    write_output,
+    write_result,
+)
 from evoparam.benchmark.scoring import HEADLINE, RESULT_SCHEMA, auc_score
 from evoparam.benchmark.tasks import output_path
 from evoparam.errors import DataError
@@ -39,14 +48,34 @@ def _predict(tmp_path, task, method="vanblooijs2023", n=None):
 
 
 def _cli_score(folder, out, task="T1"):
-    env = dict(os.environ,
-               PYTHONPATH=str(ROOT) + os.pathsep + os.environ.get("PYTHONPATH", ""))
-    proc = subprocess.run([sys.executable, "-m", "evoparam", "benchmark", "score", "--task",
-                           task, "--predictions", str(folder), "--suite", "core",
-                           "--method-name", "vanblooijs2023", "--method-version", "1",
-                           "--out", str(out), "--json"],
-                          capture_output=True, text=True, env=env, cwd=str(out.parent),
-                          check=False)
+    env = dict(os.environ, PYTHONPATH=str(ROOT) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evoparam",
+            "benchmark",
+            "score",
+            "--task",
+            task,
+            "--predictions",
+            str(folder),
+            "--suite",
+            "core",
+            "--method-name",
+            "vanblooijs2023",
+            "--method-version",
+            "1",
+            "--out",
+            str(out),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(out.parent),
+        check=False,
+    )
     assert proc.returncode == 0, proc.stderr[-3000:]
     return out.read_bytes()
 
@@ -58,14 +87,19 @@ def test_req352_signed_json_is_byte_identical_across_two_runs(tmp_path):
     assert first == second
     document = json.loads(first)
     assert verify_result(document)
-    assert str(tmp_path) not in first.decode("utf-8")       # no machine path in the result
+    assert str(tmp_path) not in first.decode("utf-8")  # no machine path in the result
 
 
 def test_req352_in_process_scoring_matches_the_command_line(tmp_path):
     folder = _predict(tmp_path, "T1")
     cli = _cli_score(folder, tmp_path / "cli.json")
-    method = {"name": "vanblooijs2023", "version": "1", "citation": "", "kind": "submission",
-              "settings": {}}
+    method = {
+        "name": "vanblooijs2023",
+        "version": "1",
+        "citation": "",
+        "kind": "submission",
+        "settings": {},
+    }
     document = score("T1", str(folder), "core", method=method)
     path = write_result(document, str(tmp_path / "api.json"))
     with open(path, "rb") as fobj:
@@ -83,8 +117,9 @@ def test_req352_result_document_is_signed_and_complete(tmp_path):
     assert document["package"] == {"name": "evoparam", "version": __version__}
     cells = suite("core").cells("T2", split="public")
     assert [c["cell"] for c in document["cells"]] == [c.id for c in cells]
-    assert all(len(c["input_sha256"]) == 64 and len(c["output_sha256"]) == 64
-               for c in document["cells"])
+    assert all(
+        len(c["input_sha256"]) == 64 and len(c["output_sha256"]) == 64 for c in document["cells"]
+    )
     assert len(document["inputs_sha256"]) == len(document["outputs_sha256"]) == 64
     assert set(HEADLINE["T2"]) <= set(document["headline"])
     assert "created" not in json.dumps(document)
@@ -129,12 +164,25 @@ def test_req352_scoring_is_deterministic_for_every_task(task):
     and the same signature)."""
 
     ti = inputs(task, 1)[0]
-    method = next(b for b in BASELINES.values() if task in b.tasks
-                  and b.name not in ("evoparam-preset", "tf-cluster")) \
-        if task != "T7" else None
+    method = (
+        next(
+            b
+            for b in BASELINES.values()
+            if task in b.tasks and b.name not in ("evoparam-preset", "tf-cluster")
+        )
+        if task != "T7"
+        else None
+    )
     if method is None:
-        rows = [{"channel": ti.descriptor["ch_names"][0], "zone": 0, "sign": 1,
-                 "freq_centroid": 80.0, "time_centroid": 0.25}]
+        rows = [
+            {
+                "channel": ti.descriptor["ch_names"][0],
+                "zone": 0,
+                "sign": 1,
+                "freq_centroid": 80.0,
+                "time_centroid": 0.25,
+            }
+        ]
         outputs = {ti.cell: rows}
     else:
         outputs = {ti.cell: method.run({task: ti})[task]}
@@ -157,8 +205,9 @@ def test_req352_perfect_answers_score_perfectly():
     assert r2["metrics"]["reported_fraction"] == 1.0
     assert r2["metrics"]["latency_mae"] == pytest.approx(0.0, abs=1e-12)
     assert r2["metrics"]["amplitude_mae"] == pytest.approx(0.0, abs=1e-12)
-    shifted = score_outputs("T2", t2, {ti.cell: perfect_t2(ti, shift=0.002) for ti in t2},
-                            suite=suite("core"))
+    shifted = score_outputs(
+        "T2", t2, {ti.cell: perfect_t2(ti, shift=0.002) for ti in t2}, suite=suite("core")
+    )
     np.testing.assert_allclose(shifted["metrics"]["latency_mae"], 0.002, rtol=1e-9)
     np.testing.assert_allclose(shifted["metrics"]["latency_bias"], 0.002, rtol=1e-9)
 

@@ -8,8 +8,10 @@ import sys
 
 import pytest
 
-pytestmark = pytest.mark.skipif(os.environ.get("EVOPARAM_PERF_TESTS") != "1",
-                                reason="set EVOPARAM_PERF_TESTS=1 to time the transform")
+pytestmark = pytest.mark.skipif(
+    os.environ.get("EVOPARAM_PERF_TESTS") != "1",
+    reason="set EVOPARAM_PERF_TESTS=1 to time the transform",
+)
 
 
 def test_req218_100_channels_50_trials_2048_samples_40_freqs():

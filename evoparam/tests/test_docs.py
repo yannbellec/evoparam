@@ -34,14 +34,20 @@ ONLINE = os.environ.get("EVOPARAM_NETWORK_TESTS") == "1"
 
 STREAM_TUTORIAL = os.path.join(ROOT, "tutorials", "92_online_mapping_with_lsl.py")
 
-pytestmark = [pytest.mark.skipif(not os.path.isdir(TUTORIALS), reason="needs the source tree"),
-              pytest.mark.skipif(not os.path.isfile(os.path.join(ROOT, "pyproject.toml")),
-                                 reason="needs the source tree")]
+pytestmark = [
+    pytest.mark.skipif(not os.path.isdir(TUTORIALS), reason="needs the source tree"),
+    pytest.mark.skipif(
+        not os.path.isfile(os.path.join(ROOT, "pyproject.toml")), reason="needs the source tree"
+    ),
+]
 
 
 def _names():
-    return [f"preset_{name}" for name in sorted(presets.PRESETS.builtin)] + \
-        [f"integration_{name}" for name in INTEGRATIONS] + ["reporting_your_results"]
+    return (
+        [f"preset_{name}" for name in sorted(presets.PRESETS.builtin)]
+        + [f"integration_{name}" for name in INTEGRATIONS]
+        + ["reporting_your_results"]
+    )
 
 
 def _source(name):
@@ -67,7 +73,7 @@ def test_tutorial_structure(name):
     source = _source(name)
     tree = ast.parse(source)
     docstring = ast.get_docstring(tree)
-    assert docstring and "=====" in docstring, name                 # sphinx-gallery title
+    assert docstring and "=====" in docstring, name  # sphinx-gallery title
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
     called = {getattr(c.func, "attr", getattr(c.func, "id", None)) for c in calls}
     assert "methods_text" in called, name
@@ -86,8 +92,9 @@ def test_datasets_named_are_in_the_registry_with_checksums():
             continue
         source = _source(name)
         # the datasets a tutorial reads: DATASET = "..." or the first argument of a reader
-        named = set(re.findall(r'DATASET = "(ds\d{6})"', source)) | \
-            set(re.findall(r'(?:read_bids|fetch_openneuro_file)\("(ds\d{6})"', source))
+        named = set(re.findall(r'DATASET = "(ds\d{6})"', source)) | set(
+            re.findall(r'(?:read_bids|fetch_openneuro_file)\("(ds\d{6})"', source)
+        )
         if "fetch_erpcore" in source:
             named.add("erp-core")
         for dataset in named:
@@ -96,8 +103,9 @@ def test_datasets_named_are_in_the_registry_with_checksums():
             for path, digest in registry[dataset]["files"].items():
                 assert re.fullmatch(r"[0-9a-f]{64}", digest), (dataset, path)
         # every file a tutorial fetches from OpenNeuro is in the registry
-        for stem, suffix in re.findall(r'fetch_openneuro_file\(DATASET, (STEM) \+ "([^"]+)"',
-                                       source):
+        for stem, suffix in re.findall(
+            r'fetch_openneuro_file\(DATASET, (STEM) \+ "([^"]+)"', source
+        ):
             dataset = re.search(r'DATASET = "(ds\d{6})"', source).group(1)
             path = re.search(r'STEM = "([^"]+)"', source).group(1) + suffix
             assert path in registry[dataset]["files"], (name, path)
@@ -109,11 +117,20 @@ def test_tutorial_runs(name, tmp_path):
 
     if name in NETWORK and not ONLINE:
         pytest.skip("reads public data: EVOPARAM_NETWORK_TESTS=1")
-    env = dict(os.environ, MPLBACKEND="Agg", PYTHONWARNINGS="ignore",
-               PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""))
-    proc = subprocess.run([sys.executable, os.path.join(TUTORIALS, f"{name}.py")],
-                          capture_output=True, text=True, cwd=str(tmp_path), env=env,
-                          timeout=1800)
+    env = dict(
+        os.environ,
+        MPLBACKEND="Agg",
+        PYTHONWARNINGS="ignore",
+        PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
+    )
+    proc = subprocess.run(
+        [sys.executable, os.path.join(TUTORIALS, f"{name}.py")],
+        capture_output=True,
+        text=True,
+        cwd=str(tmp_path),
+        env=env,
+        timeout=1800,
+    )
     assert proc.returncode == 0, proc.stderr[-3000:]
     assert "were analysed with evoparam" in proc.stdout, name
 
@@ -156,8 +173,18 @@ def _page(name):
 
 def test_req303_pages_are_in_the_toctree():
     index = _page("index.rst")
-    for page in ("getting_started", "auto_tutorials/index", "auto_examples/index", "reporting",
-                 "faq", "presets", "preset_sensitivity", "datasets", "api", "glossary"):
+    for page in (
+        "getting_started",
+        "auto_tutorials/index",
+        "auto_examples/index",
+        "reporting",
+        "faq",
+        "presets",
+        "preset_sensitivity",
+        "datasets",
+        "api",
+        "glossary",
+    ):
         assert f"\n   {page}\n" in index, page
         if "/" not in page:
             assert any(os.path.isfile(os.path.join(DOCS, page + ext)) for ext in (".rst", ".md"))
@@ -165,8 +192,17 @@ def test_req303_pages_are_in_the_toctree():
 
 def test_req303_getting_started():
     text = _page("getting_started.rst")
-    for item in ("pip install evoparam", "evoparam.selftest()", "What the numbers mean",
-                 "latency", "amplitude", "polarity", "fwhm", "status", "r2"):
+    for item in (
+        "pip install evoparam",
+        "evoparam.selftest()",
+        "What the numbers mean",
+        "latency",
+        "amplitude",
+        "polarity",
+        "fwhm",
+        "status",
+        "r2",
+    ):
         assert item in text, item
     example = text.split("A ten-line example", 1)[1].split(".. code-block:: python", 1)[1]
     example = example.split("\n\n", 2)[1]
@@ -175,16 +211,32 @@ def test_req303_getting_started():
 
 def test_req303_reporting_page():
     text = _page("reporting.rst")
-    for item in ("settings", "preset", "package version", "goodness of fit", "existence test",
-                 "artifact method", "montage", "methods_text()", "CITATION.cff", "Zenodo",
-                 "evoparam.cite()", "methods.txt"):
+    for item in (
+        "settings",
+        "preset",
+        "package version",
+        "goodness of fit",
+        "existence test",
+        "artifact method",
+        "montage",
+        "methods_text()",
+        "CITATION.cff",
+        "Zenodo",
+        "evoparam.cite()",
+        "methods.txt",
+    ):
         assert item in text, item
 
 
-FAQ = ("Which preset for my data?", "Why is polarity a separate field?",
-       "Why is ``r2`` not the inherited correlation?", "My N1 is missing",
-       "GPU gives slightly different numbers", "How do I add a shape?",
-       "Is this a medical device?")
+FAQ = (
+    "Which preset for my data?",
+    "Why is polarity a separate field?",
+    "Why is ``r2`` not the inherited correlation?",
+    "My N1 is missing",
+    "GPU gives slightly different numbers",
+    "How do I add a shape?",
+    "Is this a medical device?",
+)
 
 
 def test_req303_faq_has_the_seven_questions():
@@ -193,16 +245,21 @@ def test_req303_faq_has_the_seven_questions():
     assert [h for h in headings if h in FAQ] == list(FAQ)
     medical = text.split("Is this a medical device?", 1)[1]
     assert "Section 13" in medical and "research use only" in medical
-    for name in presets.PRESETS.builtin:                  # the preset question covers them all
+    for name in presets.PRESETS.builtin:  # the preset question covers them all
         assert f"``{name}``" in text.split("Why is polarity", 1)[0], name
 
 
 def test_req303_every_public_symbol_in_the_api_index():
     tool = _tool("gen_api_index")
     index = _page("api.rst")
-    sections = dict(re.findall(r"^\.\. currentmodule:: (\S+)\n\n\.\. autosummary::\n"
-                               r"   :toctree: generated/\n\n((?:   \S+\n)+)", index,
-                               flags=re.MULTILINE))
+    sections = dict(
+        re.findall(
+            r"^\.\. currentmodule:: (\S+)\n\n\.\. autosummary::\n"
+            r"   :toctree: generated/\n\n((?:   \S+\n)+)",
+            index,
+            flags=re.MULTILINE,
+        )
+    )
     missing = []
     for module, names in tool.public_symbols().items():
         listed = set(sections.get(module, "").split())
@@ -218,9 +275,22 @@ def test_req303_glossary_holds_every_term_of_section_4():
     expected = tool.terms()
     assert len(expected) > 150
     assert [t for t in expected if t not in terms] == []
-    for name in ("TrialSet", "Evoked", "Provenance", "ResponseFit", "GroupFit", "TrialFit",
-                 "ResponseTest", "ArtifactResult", "Preset", "Component.polarity",
-                 "GoodnessOfFit.r2", "FitError", "stim_site", "ch_info.stim_contact"):
+    for name in (
+        "TrialSet",
+        "Evoked",
+        "Provenance",
+        "ResponseFit",
+        "GroupFit",
+        "TrialFit",
+        "ResponseTest",
+        "ArtifactResult",
+        "Preset",
+        "Component.polarity",
+        "GoodnessOfFit.r2",
+        "FitError",
+        "stim_site",
+        "ch_info.stim_contact",
+    ):
         assert name in terms, name
     assert tool.main(["--check"]) == 0, "docs/glossary.rst is out of date"
 
@@ -252,8 +322,9 @@ def _cited_keys():
 
 
 def test_req302_every_cited_literature_key_is_in_references_bib():
-    bib = set(re.findall(r"^@misc\{(LIT-[a-z]+-\d+),", _page("references.bib"),
-                         flags=re.MULTILINE))
+    bib = set(
+        re.findall(r"^@misc\{(LIT-[a-z]+-\d+),", _page("references.bib"), flags=re.MULTILINE)
+    )
     cited = _cited_keys()
     assert cited, "the documentation cites no literature key"
     assert sorted(cited - bib) == []

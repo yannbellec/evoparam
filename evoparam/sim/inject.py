@@ -20,6 +20,7 @@ def _segments(ts, record):
     """One record per trial of ``ts``: dataset, subject, run and sample offsets."""
 
     from .noise import _source_value
+
     segments = []
     for trial in range(ts.n_trials):
         absolute = None
@@ -27,19 +28,37 @@ def _segments(ts, record):
             onset = ts.event_times[trial] * ts.sfreq
             first = int(round(onset + ts.times[0] * ts.sfreq))
             absolute = [first, first + ts.n_times]
-        segments.append({"segment": trial, **record,
-                         "subject": _source_value(ts, trial, "subject", "subject"),
-                         "session": _source_value(ts, trial, "session", "session"),
-                         "run": _source_value(ts, trial, "run", "run"),
-                         "source_trial": trial, "source_channels": list(ts.ch_names),
-                         "epoch_samples": [0, ts.n_times], "recording_samples": absolute,
-                         "source_sfreq": ts.sfreq})
+        segments.append(
+            {
+                "segment": trial,
+                **record,
+                "subject": _source_value(ts, trial, "subject", "subject"),
+                "session": _source_value(ts, trial, "session", "session"),
+                "run": _source_value(ts, trial, "run", "run"),
+                "source_trial": trial,
+                "source_channels": list(ts.ch_names),
+                "epoch_samples": [0, ts.n_times],
+                "recording_samples": absolute,
+                "source_sfreq": ts.sfreq,
+            }
+        )
     return segments
 
 
-def inject(ts_real, components, *, snr, channels=None, seed=None, jitter_sd=0.,
-           jitter="normal", jitter_tau=None, amplitude_cv=0., dataset=None,
-           keep_arrays=True):
+def inject(
+    ts_real,
+    components,
+    *,
+    snr,
+    channels=None,
+    seed=None,
+    jitter_sd=0.0,
+    jitter="normal",
+    jitter_tau=None,
+    amplitude_cv=0.0,
+    dataset=None,
+    keep_arrays=True,
+):
     """Add simulated components to real recordings, whose own signal becomes the noise.
 
     Parameters
@@ -101,19 +120,41 @@ def inject(ts_real, components, *, snr, channels=None, seed=None, jitter_sd=0.,
     for spec in specs:
         if spec.channels is None:
             from dataclasses import replace
+
             weights = spec.weights
             if weights is not None and len(weights) == ts_real.n_channels:
                 weights = tuple(weights[c] for c in targets)
             spec = replace(spec, channels=tuple(targets), weights=weights)
         sources.extend(_spec_sources(spec, rngs["design"], ts_real.ch_names))
     noise_data = np.array(ts_real.data, dtype=np.float64)
-    noise_info = {"kind": "real", "dataset": record, "segments": _segments(ts_real, record),
-                  "resampling": None, "source_units": ts_real.units,
-                  "source_path": ts_real.provenance.source.get("path")}
-    ts, truth = assemble(generator="evoparam.sim.inject", settings=settings, seed=entropy,
-                         rngs=rngs, times=ts_real.times, sfreq=ts_real.sfreq,
-                         ch_names=ts_real.ch_names, sources=sources, n_trials=ts_real.n_trials,
-                         snr=snr, jitter_sd=jitter_sd, jitter=jitter, jitter_tau=jitter_tau,
-                         amplitude_cv=amplitude_cv, units=ts_real.units, keep_arrays=keep_arrays,
-                         noise_data=noise_data, noise_info=noise_info, base=ts_real, start=start)
+    noise_info = {
+        "kind": "real",
+        "dataset": record,
+        "segments": _segments(ts_real, record),
+        "resampling": None,
+        "source_units": ts_real.units,
+        "source_path": ts_real.provenance.source.get("path"),
+    }
+    ts, truth = assemble(
+        generator="evoparam.sim.inject",
+        settings=settings,
+        seed=entropy,
+        rngs=rngs,
+        times=ts_real.times,
+        sfreq=ts_real.sfreq,
+        ch_names=ts_real.ch_names,
+        sources=sources,
+        n_trials=ts_real.n_trials,
+        snr=snr,
+        jitter_sd=jitter_sd,
+        jitter=jitter,
+        jitter_tau=jitter_tau,
+        amplitude_cv=amplitude_cv,
+        units=ts_real.units,
+        keep_arrays=keep_arrays,
+        noise_data=noise_data,
+        noise_info=noise_info,
+        base=ts_real,
+        start=start,
+    )
     return ts, truth

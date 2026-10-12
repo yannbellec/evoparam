@@ -35,8 +35,7 @@ class OnlinePulseDetector:
         inside it are reported when it ends.
     """
 
-    def __init__(self, sfreq, n_channels, *, threshold_sd=20.0, min_interval=0.5,
-                 calibration=1.0):
+    def __init__(self, sfreq, n_channels, *, threshold_sd=20.0, min_interval=0.5, calibration=1.0):
         if not sfreq > 0:
             raise SettingsError("sfreq must be positive.")
         if not threshold_sd > 0:
@@ -111,5 +110,5 @@ class OnlinePulseDetector:
             return []
         score = np.concatenate(self._pending)
         self._pending = []
-        self._calibrate(score[:self.n_calibration])
+        self._calibrate(score[: self.n_calibration])
         return self._crossings(score, self._n_seen - len(score))

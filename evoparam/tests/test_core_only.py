@@ -155,9 +155,21 @@ CHAIN = textwrap.dedent("""
     print(json.dumps(steps))
 """)
 
-STEPS = ("import", "simulate", "detect_events", "remove_artifact interpolate",
-         "remove_artifact template", "fit", "test_response", "fit_trials", "save/load trials",
-         "save/load group", "save/load evoked", "read npz", "selftest")
+STEPS = (
+    "import",
+    "simulate",
+    "detect_events",
+    "remove_artifact interpolate",
+    "remove_artifact template",
+    "fit",
+    "test_response",
+    "fit_trials",
+    "save/load trials",
+    "save/load group",
+    "save/load evoked",
+    "read npz",
+    "selftest",
+)
 
 # Measured on 2026-10-09 (Python 3.12, NumPy and SciPy only): these steps need pandas
 # (extra ``data``), so REQ-010 is not met for them yet. detect_events returns a DataFrame
@@ -166,13 +178,20 @@ STEPS = ("import", "simulate", "detect_events", "remove_artifact interpolate",
 # (GroupFit.from_fits, evoparam/data/results.py); fit_trials and saving a GroupFit need that
 # fit. import, simulate, test_response and save/load of TrialSet and Evoked (data.npz) work.
 # The test fails if any other step stops working; it passes once these work.
-NEEDS_PANDAS = {"detect_events", "remove_artifact interpolate", "remove_artifact template",
-                "fit", "fit_trials", "save/load group"}
+NEEDS_PANDAS = {
+    "detect_events",
+    "remove_artifact interpolate",
+    "remove_artifact template",
+    "fit",
+    "fit_trials",
+    "save/load group",
+}
 
 
 def run_chain():
-    result = subprocess.run([sys.executable, "-c", HOOK + CHAIN], capture_output=True,
-                            text=True, timeout=900)
+    result = subprocess.run(
+        [sys.executable, "-c", HOOK + CHAIN], capture_output=True, text=True, timeout=900
+    )
     assert result.returncode == 0, result.stderr[-3000:]
     return json.loads(result.stdout.strip().splitlines()[-1])
 
@@ -184,8 +203,10 @@ def test_req010_core_chain_with_numpy_and_scipy_only():
     unexpected = {name: error for name, error in failing.items() if name not in NEEDS_PANDAS}
     assert not unexpected, unexpected
     if failing:
-        pytest.xfail("REQ-010 not met as written; steps that need pandas: " +
-                     "; ".join(f"{k}: {v}" for k, v in failing.items()))
+        pytest.xfail(
+            "REQ-010 not met as written; steps that need pandas: "
+            + "; ".join(f"{k}: {v}" for k, v in failing.items())
+        )
 
 
 def test_req010_the_hook_hides_optional_packages():
@@ -198,8 +219,9 @@ def test_req010_the_hook_hides_optional_packages():
             raise SystemExit(f"{name} was importable")
         print("ok")
     """)
-    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                            timeout=120)
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=120
+    )
     assert result.returncode == 0, result.stderr + result.stdout
 
 

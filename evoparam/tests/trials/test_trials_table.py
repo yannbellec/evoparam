@@ -15,6 +15,7 @@ from .helpers import channel_fit, gauss, simulate
 ###################################################################################################
 ###################################################################################################
 
+
 def test_req157_table_shape_flags_and_round_trip(tmp_path):
 
     meta = pd.DataFrame({"stim_site": ["A-B"] * 30, "index_in_train": np.arange(30)})
@@ -32,8 +33,9 @@ def test_req157_table_shape_flags_and_round_trip(tmp_path):
     assert "trend" in tf.settings["covariate_tables"]
     path = tf.save(str(tmp_path / "trials"))
     loaded = TrialFitSet.load(path)
-    pd.testing.assert_frame_equal(loaded.table.reset_index(drop=True),
-                                  tf.table.reset_index(drop=True), check_dtype=False)
+    pd.testing.assert_frame_equal(
+        loaded.table.reset_index(drop=True), tf.table.reset_index(drop=True), check_dtype=False
+    )
     assert np.array_equal(loaded.fits[0].shift, tf.fits[0].shift)
 
 
@@ -58,14 +60,19 @@ def test_realign_and_errors():
         tf = fit_trials(ts, channel_fit(ts), max_shift=0.02)
     evoked = realign(ts, tf)[0]
     plain = ts.data[:, 0].mean(axis=0)
-    assert np.min(evoked.data[0]) < np.min(plain)          # sharper, deeper peak
+    assert np.min(evoked.data[0]) < np.min(plain)  # sharper, deeper peak
     with pytest.raises(SettingsError):
         fit_trials(ts, mode="magic")
     with pytest.raises(SettingsError):
         fit_trials(ts, channel_fit(ts), covariates=("weather",))
     with pytest.raises(SettingsError, match="three cycles"):
-        fit_trials(ts, channel_fit(ts), covariates=("prestim",), prestim_window=(-0.1, -0.01),
-                   prestim_band=(2.0, 4.0))
+        fit_trials(
+            ts,
+            channel_fit(ts),
+            covariates=("prestim",),
+            prestim_window=(-0.1, -0.01),
+            prestim_band=(2.0, 4.0),
+        )
 
 
 def test_options_are_checked_and_recorded():
@@ -87,7 +94,7 @@ def test_options_are_checked_and_recorded():
 def test_selected_trial_model_keeps_only_the_chosen_components():
 
     ts, shifts, _ = simulate(n=30, jitter=0.003, seed=5)
-    ts.data[:, 0] += 15 * gauss(0.2, 0.06)[None]               # a second, later component
+    ts.data[:, 0] += 15 * gauss(0.2, 0.06)[None]  # a second, later component
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = channel_fit(ts)

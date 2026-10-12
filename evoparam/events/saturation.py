@@ -25,8 +25,19 @@ RAIL_MIN_SD = 8.0
 _SPREAD_STEP = 16
 
 
-def detect_saturation(data, sfreq, *, events=None, rail=None, min_run=3, recovery=0.005,
-                      search=0.05, t0=0.0, ch_names=None, picks=None):
+def detect_saturation(
+    data,
+    sfreq,
+    *,
+    events=None,
+    rail=None,
+    min_run=3,
+    recovery=0.005,
+    search=0.05,
+    t0=0.0,
+    ch_names=None,
+    picks=None,
+):
     """Find amplifier saturation, channel by channel and pulse by pulse.
 
     A channel is saturated over a run of samples when either:
@@ -138,8 +149,10 @@ def detect_saturation(data, sfreq, *, events=None, rail=None, min_run=3, recover
         flat &= np.abs(np.nan_to_num(segment)) >= FLAT_MIN_FRACTION * level
         # A flat run of k equal samples has k - 1 zero differences: grow it by one sample.
         flat |= np.c_[flat[:, 1:], np.zeros((len(segment), 1), bool)]
-        for kind, values, min_len in (("rail", railed, 1 if known else 2),
-                                      ("flat", flat, min_run)):
+        for kind, values, min_len in (
+            ("rail", railed, 1 if known else 2),
+            ("flat", flat, min_run),
+        ):
             if not values.any():
                 continue
             edges = np.diff(np.pad(values.astype(np.int8), ((0, 0), (1, 1))), axis=1)
@@ -152,15 +165,24 @@ def detect_saturation(data, sfreq, *, events=None, rail=None, min_run=3, recover
                     continue
                 end = min(n_times, b_ + extra)
                 mask[ch, a_:end] = True
-                rows.append({"channel": names[ch], "start_time": t0 + a_ / sfreq,
-                             "end_time": t0 + end / sfreq, "n_samples": int(b_ - a_),
-                             "event_index": int(row) if events is not None else -1,
-                             "kind": kind})
+                rows.append(
+                    {
+                        "channel": names[ch],
+                        "start_time": t0 + a_ / sfreq,
+                        "end_time": t0 + end / sfreq,
+                        "n_samples": int(b_ - a_),
+                        "event_index": int(row) if events is not None else -1,
+                        "kind": kind,
+                    }
+                )
 
     columns = ["channel", "start_time", "end_time", "n_samples", "event_index", "kind"]
     table = pd.DataFrame(rows, columns=columns)
     if len(table):
-        table = (table.sort_values(["start_time", "channel"])
-                 .drop_duplicates(["channel", "start_time"]).reset_index(drop=True))
+        table = (
+            table.sort_values(["start_time", "channel"])
+            .drop_duplicates(["channel", "start_time"])
+            .reset_index(drop=True)
+        )
     table = table.astype({"n_samples": "int64", "event_index": "int64"})
     return mask, table

@@ -34,8 +34,9 @@ def register_detector(name, detector):
     DETECTORS[str(name)] = detector
 
 
-def threshold_detector(ts, *, window=(0.009, 0.1), baseline=(-0.5, -0.05), threshold=3.4,
-                       sd_floor_uv=50.0):
+def threshold_detector(
+    ts, *, window=(0.009, 0.1), baseline=(-0.5, -0.05), threshold=3.4, sd_floor_uv=50.0
+):
     """Fixed-threshold response detector (``detector="threshold"``; the interim default of
     build step S6, replaced by the existence test).
 
@@ -73,8 +74,14 @@ def _key(name):
     return str(name).split("-")[0]
 
 
-def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
-                          detector="existence", test_kwargs=None, reference_kwargs=None):
+def reference_sensitivity(
+    ts,
+    *,
+    schemes=("bipolar", "car", "car_adaptive"),
+    detector="existence",
+    test_kwargs=None,
+    reference_kwargs=None,
+):
     """Detections and latencies under several references, and their agreement.
 
     Each scheme is applied with :func:`rereference`, then the existence test of spec §5.6
@@ -115,8 +122,10 @@ def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
         detector = "existence"
     if isinstance(detector, str):
         if detector not in DETECTORS:
-            raise SettingsError(f"unknown detector {detector!r}; registered: {sorted(DETECTORS)} "
-                                "('existence' is registered when evoparam is imported).")
+            raise SettingsError(
+                f"unknown detector {detector!r}; registered: {sorted(DETECTORS)} "
+                "('existence' is registered when evoparam is imported)."
+            )
         detector = DETECTORS[detector]
     detector_name = getattr(detector, "__name__", type(detector).__name__)
     test_kwargs = test_kwargs or {}
@@ -133,9 +142,11 @@ def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
             groups = list(out[2]) if len(out) > 2 else [str(g) for g in range(detected.shape[1])]
             keys = [f"{key}@{group}" if group else key for group in groups for key in keys]
             detected, latency = detected.T.ravel(), latency.T.ravel()
-        per_scheme[scheme] = pd.DataFrame({"key": keys, "detected": detected.astype(bool),
-                                           "latency": latency}
-                                          ).drop_duplicates("key").set_index("key")
+        per_scheme[scheme] = (
+            pd.DataFrame({"key": keys, "detected": detected.astype(bool), "latency": latency})
+            .drop_duplicates("key")
+            .set_index("key")
+        )
 
     rows = []
     for a, b in itertools.combinations(schemes, 2):
@@ -147,12 +158,19 @@ def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
         kappa = (observed - expected) / (1 - expected) if n and expected < 1 else np.nan
         both = da & db
         diff = (joined["latency_b"] - joined["latency_a"]).to_numpy()[both] * 1000
-        rows.append({"scheme_a": a, "scheme_b": b, "kappa": kappa, "n_channels": n,
-                     "n_detected_a": int(da.sum()), "n_detected_b": int(db.sum()),
-                     "n_both": int(both.sum()),
-                     "median_latency_diff_ms": float(np.median(diff)) if len(diff) else np.nan,
-                     "max_abs_latency_diff_ms": float(np.max(np.abs(diff))) if len(diff)
-                     else np.nan})
+        rows.append(
+            {
+                "scheme_a": a,
+                "scheme_b": b,
+                "kappa": kappa,
+                "n_channels": n,
+                "n_detected_a": int(da.sum()),
+                "n_detected_b": int(db.sum()),
+                "n_both": int(both.sum()),
+                "median_latency_diff_ms": float(np.median(diff)) if len(diff) else np.nan,
+                "max_abs_latency_diff_ms": float(np.max(np.abs(diff))) if len(diff) else np.nan,
+            }
+        )
     table = pd.DataFrame(rows)
     channels = pd.concat({scheme: frame for scheme, frame in per_scheme.items()}, axis=1)
     table.attrs["channels"] = channels
@@ -161,10 +179,17 @@ def reference_sensitivity(ts, *, schemes=("bipolar", "car", "car_adaptive"),
     # the step, for the methods text of a pipeline that attaches this report (spec §6.2)
     table.attrs["provenance"] = ts.provenance.with_step(
         "evoparam.prep.reference_sensitivity",
-        {"schemes": list(schemes), "detector": getattr(detector, "__name__", "custom"),
-         "test_kwargs": {k: v for k, v in test_kwargs.items()
-                         if isinstance(v, (int, float, str, bool, list, tuple))}},
-        duration_s=table.attrs["duration_s"]).to_dict()
+        {
+            "schemes": list(schemes),
+            "detector": getattr(detector, "__name__", "custom"),
+            "test_kwargs": {
+                k: v
+                for k, v in test_kwargs.items()
+                if isinstance(v, (int, float, str, bool, list, tuple))
+            },
+        },
+        duration_s=table.attrs["duration_s"],
+    ).to_dict()
     return table
 
 

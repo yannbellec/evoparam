@@ -16,6 +16,7 @@ from .helpers import SFREQ, TIMES, channel_fit, gauss, simulate
 ###################################################################################################
 ###################################################################################################
 
+
 def _run(ts, **kwargs):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -30,7 +31,7 @@ def test_req150_latency_amplitude_and_jitter(sd):
 
     ratios, lat, amp = [], [], []
     for seed in range(6):
-        ts, shifts, scales = simulate(jitter=sd, seed=seed)       # per-trial SNR 3
+        ts, shifts, scales = simulate(jitter=sd, seed=seed)  # per-trial SNR 3
         tf = _run(ts, max_shift=0.015, r2_min=0.0)
         fit = tf.fits[0]
         lat.append(np.mean(np.abs(fit.shift[:, 0] - (shifts - shifts.mean()))) * SFREQ)
@@ -48,7 +49,8 @@ FWHM_150 = 0.011
 AS_WRITTEN_150 = (
     "REQ-150 at SNR 2 is out of reach: no width makes the latency MAE <= 1 sample and the "
     "amplitude relative MAE <= 15 % together (test_req150_cramer_rao_bound). Measured with "
-    "shift_scale at FWHM 11 samples, six runs: see CHANGELOG (trials, F36).")
+    "shift_scale at FWHM 11 samples, six runs: see CHANGELOG (trials, F36)."
+)
 
 
 @pytest.mark.xfail(strict=True, reason=AS_WRITTEN_150)
@@ -56,8 +58,9 @@ AS_WRITTEN_150 = (
 def test_req150_as_written(sd):
 
     for seed in range(6):
-        ts, shifts, scales = simulate(jitter=sd, amp=-20.0, noise=10.0, fwhm=FWHM_150,
-                                      seed=5000 + seed)               # per-trial SNR 2
+        ts, shifts, scales = simulate(
+            jitter=sd, amp=-20.0, noise=10.0, fwhm=FWHM_150, seed=5000 + seed
+        )  # per-trial SNR 2
         tf = _run(ts, max_shift=max(0.015, 3 * sd), r2_min=0.0)
         fit = tf.fits[0]
         lat = np.mean(np.abs(fit.shift[:, 0] - (shifts - shifts.mean()))) * SFREQ
@@ -76,7 +79,7 @@ def _cramer_rao(fwhm, snr=2.0, n_win=491):
     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
     t = np.arange(n_win) - n_win / 3.0
     g = np.exp(-0.5 * (t / sigma) ** 2)
-    design = np.column_stack([g, snr * g * t / sigma ** 2, np.ones(n_win), t / n_win])
+    design = np.column_stack([g, snr * g * t / sigma**2, np.ones(n_win), t / n_win])
     cov = np.linalg.inv(design.T @ design)
     return np.sqrt(cov[1, 1]), np.sqrt(cov[0, 0]) / snr
 
@@ -89,9 +92,9 @@ def test_req150_cramer_rao_bound():
     a, so their means carry E[1/a] = exp(log(1 + CV^2)) = 1.09 for log-normal amplitudes of
     CV 30 % (the simulator of spec 5.12), and more for normal ones."""
 
-    factor = np.sqrt(2 / np.pi) * (1 + 0.3 ** 2)
+    factor = np.sqrt(2 / np.pi) * (1 + 0.3**2)
     worst = []
-    for fwhm in np.arange(2.0, 60.0, 0.05):                # samples
+    for fwhm in np.arange(2.0, 60.0, 0.05):  # samples
         lat_sd, amp_sd = _cramer_rao(fwhm)
         worst.append(max(factor * lat_sd / 1.0, factor * amp_sd / 0.15))
     # the best width misses one of the limits by 1.6 % (FWHM 11.35 samples)
@@ -130,10 +133,13 @@ def _req151_runs(seeds, n_trials, null_rule):
     return np.array(ratios), refused / len(seeds)
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-151 in every run with 40 trials per run: the SD "
-                   "of 40 shifts varies by about 11 % from run to run, so jitter_sd exceeds "
-                   "1.25 jitter_sd_null in a few runs (seed 104: ratio 0.768; 7 of 200 runs "
-                   "below 0.8, smallest 0.756). See CHANGELOG (trials, F37).")
+@pytest.mark.xfail(
+    strict=True,
+    reason="REQ-151 in every run with 40 trials per run: the SD "
+    "of 40 shifts varies by about 11 % from run to run, so jitter_sd exceeds "
+    "1.25 jitter_sd_null in a few runs (seed 104: ratio 0.768; 7 of 200 runs "
+    "below 0.8, smallest 0.756). See CHANGELOG (trials, F37).",
+)
 def test_req151_as_written_40_trials():
 
     ratios, refused = _req151_runs(range(100, 120), 40, "segments")
@@ -161,8 +167,9 @@ def test_req152_jitter_corrected_amplitude():
     assert abs(corrected / -30 - 1) <= 0.10
 
 
-@pytest.mark.parametrize("ridge_cv, trial_model", [("loto", "all"), ("split", "all"),
-                                                   ("loto", "selected")])
+@pytest.mark.parametrize(
+    "ridge_cv, trial_model", [("loto", "all"), ("split", "all"), ("loto", "selected")]
+)
 def test_req153_regularized_beats_free_at_low_snr(ridge_cv, trial_model):
     """REQ-153 with the default penalty choice (leave-one-trial-out, the spec's) and split
     samples, and with the spec's trial model (selected components only)."""
@@ -170,16 +177,18 @@ def test_req153_regularized_beats_free_at_low_snr(ridge_cv, trial_model):
     better = 0
     for seed in range(10):
         ts, shifts, _ = simulate(jitter=0.003, amp=-30.0, noise=30.0, seed=200 + seed)
-        group = channel_fit(TrialSet(data=ts.data - 0, times=ts.times, sfreq=ts.sfreq,
-                                     ch_names=ts.ch_names))
+        group = channel_fit(
+            TrialSet(data=ts.data - 0, times=ts.times, sfreq=ts.sfreq, ch_names=ts.ch_names)
+        )
         if group.fits[0].status != "ok":
             continue
         errs = {}
         for mode in ("free", "regularized"):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                fit = fit_trials(ts, group, mode=mode, r2_min=0.0, ridge_cv=ridge_cv,
-                                 trial_model=trial_model).fits[0]
+                fit = fit_trials(
+                    ts, group, mode=mode, r2_min=0.0, ridge_cv=ridge_cv, trial_model=trial_model
+                ).fits[0]
             errs[mode] = np.mean(np.abs(fit.shift[:, 0] - (shifts - shifts.mean())))
         better += errs["regularized"] <= errs["free"]
     assert better / 10 >= 0.9
@@ -190,7 +199,7 @@ def test_req154_dose_response_hill():
     rng = np.random.default_rng(8)
     currents = np.repeat([1.0, 2.0, 3.0, 5.0, 8.0], 10)
     i50, h = 3.0, 2.5
-    amps = -60 * currents ** h / (i50 ** h + currents ** h)
+    amps = -60 * currents**h / (i50**h + currents**h)
     data = rng.normal(0, 60 / 3 / 3, (len(currents), 1, len(TIMES)))
     for i, a in enumerate(amps):
         data[i, 0] += a * gauss(0.08, 0.03)
@@ -228,11 +237,11 @@ def _phase_block(seed, n_runs, n=100):
     phases = rng.uniform(-np.pi, np.pi, (n, n_runs))
     data = rng.normal(0, 1.0, (n, n_runs, len(TIMES)))
     pre = TIMES < 0
-    data[:, :, pre] += 5 * np.cos(2 * np.pi * 10 * (TIMES[pre] + 0.01)[None, None]
-                                  + phases[..., None])
+    data[:, :, pre] += 5 * np.cos(
+        2 * np.pi * 10 * (TIMES[pre] + 0.01)[None, None] + phases[..., None]
+    )
     data += -40 * gauss(0.08, 0.03)[None, None]
-    return TrialSet(data=data, times=TIMES, sfreq=SFREQ,
-                    ch_names=[f"c{i}" for i in range(n_runs)])
+    return TrialSet(data=data, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(n_runs)])
 
 
 def test_req155_type_one_error():
@@ -262,6 +271,8 @@ def test_req155_power():
     hits = []
     for seed in range(10):
         tf = _run(_phase_trials(0.3, 1000 + seed), r2_min=0.0, covariates=("prestim",))
-        hits.append(prestimulus_dependence(tf, n_permutations=200, random_state=0)
-                    .iloc[0]["p_value"] <= 0.05)
+        hits.append(
+            prestimulus_dependence(tf, n_permutations=200, random_state=0).iloc[0]["p_value"]
+            <= 0.05
+        )
     assert np.mean(hits) >= 0.8

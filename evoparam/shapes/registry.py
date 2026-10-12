@@ -15,15 +15,40 @@ import numpy as np
 import evoparam._plugins as _plugins
 from evoparam.errors import SettingsError
 from evoparam.shapes._base import FEATURE_OVERSAMPLING, Background, ComponentShape
-from evoparam.shapes.backgrounds import (ArtifactBasisBackground, ConstantBackground,
-                                         DoubleExponentialBackground, ExponentialBackground,
-                                         LinearBackground, NoBackground, PSplineBackground)
-from evoparam.shapes.components import (Biexponential, DampedOscillation, ExGaussian, Gabor,
-                                        Gamma, Gaussian, SkewedGaussian, Template)
+from evoparam.shapes.backgrounds import (
+    ArtifactBasisBackground,
+    ConstantBackground,
+    DoubleExponentialBackground,
+    ExponentialBackground,
+    LinearBackground,
+    NoBackground,
+    PSplineBackground,
+)
+from evoparam.shapes.components import (
+    Biexponential,
+    DampedOscillation,
+    ExGaussian,
+    Gabor,
+    Gamma,
+    Gaussian,
+    SkewedGaussian,
+    Template,
+)
 
-__all__ = ["SHAPES", "BACKGROUNDS", "BUILTIN_SHAPES", "list_shapes", "list_backgrounds",
-           "register_shape", "unregister_shape",
-           "check_shape", "get_shape", "get_background", "CHECK_TIMES"]
+__all__ = [
+    "SHAPES",
+    "BACKGROUNDS",
+    "BUILTIN_SHAPES",
+    "list_shapes",
+    "list_backgrounds",
+    "register_shape",
+    "unregister_shape",
+    "check_shape",
+    "get_shape",
+    "get_background",
+    "CHECK_TIMES",
+]
+
 
 def _plugin_shape(name, obj, origin):
     """Check a shape of the entry-point group ``evoparam.shapes`` (spec §10.8)."""
@@ -35,14 +60,17 @@ def _plugin_shape(name, obj, origin):
         try:
             instance = obj()
         except Exception as err:
-            raise SettingsError(f"plugin shape {name!r} of {origin}: the class must build "
-                                f"without arguments ({err!r}).") from err
+            raise SettingsError(
+                f"plugin shape {name!r} of {origin}: the class must build "
+                f"without arguments ({err!r})."
+            ) from err
     if not isinstance(instance, ComponentShape):
-        raise SettingsError(f"plugin shape {name!r} of {origin} does not satisfy "
-                            f"ComponentShape.")
+        raise SettingsError(f"plugin shape {name!r} of {origin} does not satisfy ComponentShape.")
     if instance.name != name:
-        raise SettingsError(f"plugin shape {name!r} of {origin}: its name attribute is "
-                            f"{instance.name!r}; the entry-point name must be the same.")
+        raise SettingsError(
+            f"plugin shape {name!r} of {origin}: its name attribute is "
+            f"{instance.name!r}; the entry-point name must be the same."
+        )
     try:
         check_shape(instance)
     except SettingsError as err:
@@ -55,29 +83,65 @@ def _plugin_background(name, obj, origin):
         return _plugins.SKIP
     instance = obj() if isinstance(obj, type) else obj
     if not isinstance(instance, Background) or instance.name != name:
-        raise SettingsError(f"plugin background {name!r} of {origin} does not satisfy "
-                            f"Background (or its name attribute differs).")
+        raise SettingsError(
+            f"plugin background {name!r} of {origin} does not satisfy "
+            f"Background (or its name attribute differs)."
+        )
     return obj
 
 
 SHAPES = _plugins.LazyRegistry(
-    "evoparam.shapes", {cls.name: cls for cls in (Gaussian, SkewedGaussian, ExGaussian, Gamma,
-                                                  Biexponential, DampedOscillation, Gabor,
-                                                  Template)}, _plugin_shape)
+    "evoparam.shapes",
+    {
+        cls.name: cls
+        for cls in (
+            Gaussian,
+            SkewedGaussian,
+            ExGaussian,
+            Gamma,
+            Biexponential,
+            DampedOscillation,
+            Gabor,
+            Template,
+        )
+    },
+    _plugin_shape,
+)
 BUILTIN_SHAPES = SHAPES.builtin
 
 BACKGROUNDS = _plugins.LazyRegistry(
-    "evoparam.shapes", {cls.name: cls for cls in (NoBackground, ConstantBackground,
-                                                  LinearBackground, ExponentialBackground,
-                                                  DoubleExponentialBackground,
-                                                  PSplineBackground, ArtifactBasisBackground)},
-    _plugin_background)
+    "evoparam.shapes",
+    {
+        cls.name: cls
+        for cls in (
+            NoBackground,
+            ConstantBackground,
+            LinearBackground,
+            ExponentialBackground,
+            DoubleExponentialBackground,
+            PSplineBackground,
+            ArtifactBasisBackground,
+        )
+    },
+    _plugin_background,
+)
 
 # Reference axis of the registration checks: 300 ms at 1 kHz.
 CHECK_TIMES = np.arange(-0.05, 0.25, 1e-3)
 
-FEATURE_FIELDS = ("latency", "amplitude", "polarity", "fwhm", "onset", "offset", "area",
-                  "rise_time", "decay_time", "symmetry", "sharpness")
+FEATURE_FIELDS = (
+    "latency",
+    "amplitude",
+    "polarity",
+    "fwhm",
+    "onset",
+    "offset",
+    "area",
+    "rise_time",
+    "decay_time",
+    "symmetry",
+    "sharpness",
+)
 
 METHODS = ("evaluate", "jacobian", "default_bounds", "initial_guess", "features")
 
@@ -87,8 +151,9 @@ def _instance(entry, settings):
         return entry(**settings)
     if settings:
         if not dataclasses.is_dataclass(entry):
-            raise SettingsError(f"shape '{entry.name}' was registered as an instance and "
-                                "takes no settings.")
+            raise SettingsError(
+                f"shape '{entry.name}' was registered as an instance and takes no settings."
+            )
         return dataclasses.replace(entry, **settings)
     return entry
 
@@ -124,6 +189,7 @@ def get_background(name, **settings):
 ###################################################################################################
 ## Checks
 
+
 def _fail(name, check, detail):
     raise SettingsError(f"register_shape('{name}'): check '{check}' failed: {detail}")
 
@@ -134,8 +200,9 @@ def _finite_difference(shape, times, params, index, step):
     def central(h):
         delta = np.zeros(params.shape[-1])
         delta[index] = h
-        return (shape.evaluate(times, params + delta) - shape.evaluate(times, params - delta)) \
-            / (2.0 * h)
+        return (shape.evaluate(times, params + delta) - shape.evaluate(times, params - delta)) / (
+            2.0 * h
+        )
 
     coarse, fine = central(step), central(step / 2.0)
     return (4.0 * fine - coarse) / 3.0, coarse, fine
@@ -201,8 +268,12 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
     if not isinstance(name, str) or not name:
         _fail(name, "protocol", "'name' must be a non-empty string.")
     names = getattr(shape, "param_names", None)
-    if not isinstance(names, (tuple, list)) or not names \
-            or not all(isinstance(item, str) for item in names) or len(set(names)) != len(names):
+    if (
+        not isinstance(names, (tuple, list))
+        or not names
+        or not all(isinstance(item, str) for item in names)
+        or len(set(names)) != len(names)
+    ):
         _fail(name, "protocol", "'param_names' must be a non-empty tuple of distinct strings.")
     if getattr(shape, "n_params", None) != len(names):
         _fail(name, "protocol", "'n_params' must equal len(param_names).")
@@ -216,12 +287,21 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
     n = len(names)
     try:
         lower, upper = (np.asarray(b, dtype=np.float64) for b in shape.default_bounds(times))
-    except Exception as err:   # report any failure of user code as a failed check
+    except Exception as err:  # report any failure of user code as a failed check
         _fail(name, "bounds", f"default_bounds raised {err!r}.")
-    if lower.shape != (n,) or upper.shape != (n,) or not np.all(np.isfinite(lower)) \
-            or not np.all(np.isfinite(upper)) or not np.all(lower < upper):
-        _fail(name, "bounds", "default_bounds must return finite (lower, upper) arrays of "
-                              f"shape ({n},) with lower < upper.")
+    if (
+        lower.shape != (n,)
+        or upper.shape != (n,)
+        or not np.all(np.isfinite(lower))
+        or not np.all(np.isfinite(upper))
+        or not np.all(lower < upper)
+    ):
+        _fail(
+            name,
+            "bounds",
+            "default_bounds must return finite (lower, upper) arrays of "
+            f"shape ({n},) with lower < upper.",
+        )
 
     rng = np.random.default_rng(random_state)
     params = lower + (upper - lower) * rng.random((n_sets, n))
@@ -232,11 +312,18 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
     except Exception as err:
         _fail(name, "evaluate", f"evaluate or jacobian raised {err!r}.")
     if values.shape != (n_sets, times.size) or single.shape != (times.size,):
-        _fail(name, "evaluate", f"evaluate must map (..., {n}) to (..., n_times); got "
-                                f"{values.shape} for {params.shape}.")
+        _fail(
+            name,
+            "evaluate",
+            f"evaluate must map (..., {n}) to (..., n_times); got "
+            f"{values.shape} for {params.shape}.",
+        )
     if jac.shape != (n_sets, times.size, n):
-        _fail(name, "evaluate", f"jacobian must have shape (..., n_times, {n}); got "
-                                f"{jac.shape} for {params.shape}.")
+        _fail(
+            name,
+            "evaluate",
+            f"jacobian must have shape (..., n_times, {n}); got {jac.shape} for {params.shape}.",
+        )
     if not (np.all(np.isfinite(values)) and np.all(np.isfinite(jac))):
         _fail(name, "evaluate", "evaluate or jacobian returned non-finite values.")
     if not np.allclose(single, values[0], rtol=1e-12, atol=1e-14):
@@ -247,8 +334,11 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
     fine = np.arange(times[0] - span, times[-1] + span, step)
     peaks = np.max(np.abs(shape.evaluate(fine, params)), axis=-1)
     if np.any(peaks > 1.0 + 1e-6) or np.median(peaks) < 1.0 - 5e-3:
-        _fail(name, "unit_amplitude", "max |s| must be 1; found values from "
-                                      f"{peaks.min():.6g} to {peaks.max():.6g}.")
+        _fail(
+            name,
+            "unit_amplitude",
+            f"max |s| must be 1; found values from {peaks.min():.6g} to {peaks.max():.6g}.",
+        )
 
     error = jacobian_error(shape, times, params, bounds=(lower, upper))
     if np.all(np.isnan(error)):
@@ -256,9 +346,13 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
     worst = np.nanmax(error)
     if worst > rtol:
         row, col = np.unravel_index(np.nanargmax(error), error.shape)
-        _fail(name, "jacobian", f"analytic derivative of '{names[col]}' differs from finite "
-                                f"differences by {worst:.3g} (relative), above {rtol:g}, at "
-                                f"params {params[row].tolist()}.")
+        _fail(
+            name,
+            "jacobian",
+            f"analytic derivative of '{names[col]}' differs from finite "
+            f"differences by {worst:.3g} (relative), above {rtol:g}, at "
+            f"params {params[row].tolist()}.",
+        )
 
     middle = 0.5 * (lower + upper)
     waveform = shape.evaluate(times, middle)
@@ -267,10 +361,15 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
         guess = np.asarray(shape.initial_guess(times, waveform, peak_index), dtype=np.float64)
     except Exception as err:
         _fail(name, "initial_guess", f"initial_guess raised {err!r}.")
-    if guess.shape != (n,) or not np.all(np.isfinite(guess)) \
-            or np.any(guess < lower) or np.any(guess > upper):
-        _fail(name, "initial_guess", "initial_guess must return finite parameters inside "
-                                     "the bounds.")
+    if (
+        guess.shape != (n,)
+        or not np.all(np.isfinite(guess))
+        or np.any(guess < lower)
+        or np.any(guess > upper)
+    ):
+        _fail(
+            name, "initial_guess", "initial_guess must return finite parameters inside the bounds."
+        )
 
     try:
         features = shape.features(times, middle)
@@ -312,9 +411,10 @@ def register_shape(shape, *, overwrite=False, times=None, **check_settings):
         try:
             instance = shape()
         except Exception as err:
-            raise SettingsError(f"register_shape({shape.__name__}): check 'instantiate' "
-                                f"failed: the class must build without arguments ({err!r}).") \
-                from err
+            raise SettingsError(
+                f"register_shape({shape.__name__}): check 'instantiate' "
+                f"failed: the class must build without arguments ({err!r})."
+            ) from err
     else:
         instance = shape
     check_shape(instance, times, **check_settings)

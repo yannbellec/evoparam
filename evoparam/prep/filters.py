@@ -14,9 +14,13 @@ __all__ = ["highpass", "lowpass", "notch"]
 
 def _warn_masks(ts, name):
     if ts.masks is not None and ts.masks.any():
-        _warn(f"{name}: the data have masked (replaced or blanked) samples; filtering "
-              "can ring around them. Recommended order: artifact, filter, baseline, "
-              "reference.", UserWarning, stacklevel=3)
+        _warn(
+            f"{name}: the data have masked (replaced or blanked) samples; filtering "
+            "can ring around them. Recommended order: artifact, filter, baseline, "
+            "reference.",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 def _apply(ts, sos, name, settings, start):
@@ -72,5 +76,10 @@ def notch(ts, freq=60.0, q=30.0, harmonics=3):
         sections.append(tf2sos(b, a))
         used.append(f)
     sos = np.vstack(sections)
-    return _apply(ts, sos, "notch", {"freq": freq, "q": q, "harmonics": harmonics,
-                                     "frequencies": used}, start)
+    return _apply(
+        ts,
+        sos,
+        "notch",
+        {"freq": freq, "q": q, "harmonics": harmonics, "frequencies": used},
+        start,
+    )

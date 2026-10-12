@@ -71,25 +71,34 @@ def _local_weights(fit, window_inds, baseline_inds, railed, half):
     # artifact (the end of the series when there is none)
     quiet = np.abs(fit - level[:, None]) <= TRUST_SD * spread[:, None]
     count = np.cumsum(np.c_[np.zeros(n_rows, dtype=int), quiet.astype(int)], axis=1)
-    runs = count[:, hold:] - count[:, :-hold]                 # runs[:, t]: quiet in t..t+hold-1
+    runs = count[:, hold:] - count[:, :-hold]  # runs[:, t]: quiet in t..t+hold-1
     candidate = (runs == hold) & (np.arange(runs.shape[1])[None] >= starts[:, None])
     ends = np.where(candidate.any(axis=1), np.argmax(candidate, axis=1), n_times)
     positions = np.arange(n_times)[None]
     weights = ((positions >= lo) & (positions < ends[:, None])).astype(float)
     # Half-cosine ramps of ``half`` samples before the window and after the end
     if half > 0:
-        rise = positions - (lo - half - 1)                      # 1..half before the window
+        rise = positions - (lo - half - 1)  # 1..half before the window
         ramp = 0.5 - 0.5 * np.cos(np.pi * np.clip(rise, 0, half + 1) / (half + 1))
         weights = np.where((positions >= lo - half) & (positions < lo), ramp, weights)
-        fall = (ends[:, None] + half) - positions               # half..1 after the end
+        fall = (ends[:, None] + half) - positions  # half..1 after the end
         ramp = 0.5 - 0.5 * np.cos(np.pi * np.clip(fall, 0, half + 1) / (half + 1))
         after = (positions >= ends[:, None]) & (positions < ends[:, None] + half)
         weights = np.where(after, ramp, weights)
     return weights
 
 
-def polynomial_clean(data, sfreq, railed=None, *, halfwidth=0.003, order=3, extent="global",
-                     window_inds=None, baseline_inds=None):
+def polynomial_clean(
+    data,
+    sfreq,
+    railed=None,
+    *,
+    halfwidth=0.003,
+    order=3,
+    extent="global",
+    window_inds=None,
+    baseline_inds=None,
+):
     """Subtract a local polynomial fit from each series (time last).
 
     Parameters
@@ -122,8 +131,10 @@ def polynomial_clean(data, sfreq, railed=None, *, halfwidth=0.003, order=3, exte
 
     half = int(round(halfwidth * sfreq))
     if half < (order + 1) // 2 + 1:
-        raise SettingsError(f"halfwidth {halfwidth} s is too short at {sfreq} Hz for a "
-                            f"polynomial of order {order}.")
+        raise SettingsError(
+            f"halfwidth {halfwidth} s is too short at {sfreq} Hz for a "
+            f"polynomial of order {order}."
+        )
     if extent not in ("global", "local"):
         raise SettingsError("extent must be 'global' or 'local'.")
     if extent == "local" and (window_inds is None or len(window_inds) == 0):
@@ -142,8 +153,9 @@ def polynomial_clean(data, sfreq, railed=None, *, halfwidth=0.003, order=3, exte
         window_inds = np.asarray(window_inds)
         for lo in range(0, len(flat), CHUNK):
             rows = slice(lo, lo + CHUNK)
-            weights = _local_weights(fit[rows], window_inds, baseline_inds,
-                                     None if rails is None else rails[rows], half)
+            weights = _local_weights(
+                fit[rows], window_inds, baseline_inds, None if rails is None else rails[rows], half
+            )
             cleaned[rows] = flat[rows] + weights * (cleaned[rows] - flat[rows])
             masked[rows] &= weights > 0
     return cleaned.reshape(shape), masked.reshape(shape)
@@ -152,7 +164,7 @@ def polynomial_clean(data, sfreq, railed=None, *, halfwidth=0.003, order=3, exte
 def _depeg(flat, cleaned, masked, rails, half, n_window, order):
     """Zeros while railed, one-sided fits next to the rail, masked until trusted (in place)."""
 
-    forward = _poly_rows(n_window, order, np.arange(half))           # fit on [t0, t0 + 2 tau]
+    forward = _poly_rows(n_window, order, np.arange(half))  # fit on [t0, t0 + 2 tau]
     backward = _poly_rows(n_window, order, np.arange(half + 1, n_window))
     trust = max(1, half // 2)
     n_times = flat.shape[1]
@@ -166,16 +178,18 @@ def _depeg(flat, cleaned, masked, rails, half, n_window, order):
             # Depegging: one-sided fits next to the rail
             after = last
             if after + n_window <= n_times:
-                cleaned[row, after:after + half] = (x[after:after + half]
-                                                    - forward @ x[after:after + n_window])
+                cleaned[row, after : after + half] = (
+                    x[after : after + half] - forward @ x[after : after + n_window]
+                )
             before = first - n_window
             if before >= 0:
-                cleaned[row, first - half:first] = (x[first - half:first]
-                                                    - backward @ x[before:first])
+                cleaned[row, first - half : first] = (
+                    x[first - half : first] - backward @ x[before:first]
+                )
             # Masked until the residual over 0.5 tau looks like noise
             t = after
             while t + trust <= n_times:
-                if np.sqrt(np.mean(cleaned[row, t:t + trust] ** 2)) <= TRUST_SD * noise:
+                if np.sqrt(np.mean(cleaned[row, t : t + trust] ** 2)) <= TRUST_SD * noise:
                     break
-                masked[row, t:t + trust] = True
+                masked[row, t : t + trust] = True
                 t += trust

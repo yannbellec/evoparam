@@ -60,9 +60,9 @@ def _one_channel(v, times, t0_index, rng, profile="published", pairs="disjoint")
     n, n_t = v.shape
     # Cumulative Gram matrices over the prefix [t0, t]
     outer = np.einsum("kt,lt->tkl", v, v)
-    gram = np.cumsum(outer, axis=0)                               # times x n x n
+    gram = np.cumsum(outer, axis=0)  # times x n x n
     norms = np.sqrt(np.clip(np.einsum("tkk->tk", gram), 1e-300, None))
-    proj = gram / norms[:, None, :]                               # P_kl = <V_k, V_l> / ||V_l||
+    proj = gram / norms[:, None, :]  # P_kl = <V_k, V_l> / ||V_l||
     off = ~np.eye(n, dtype=bool)
     mean_proj = proj[:, off].mean(axis=1)
     if profile == "normalised":
@@ -75,24 +75,29 @@ def _one_channel(v, times, t0_index, rng, profile="published", pairs="disjoint")
         rows, cols = _half_pairs(n)
     else:
         order = rng.permutation(n)
-        rows, cols = order[0:n - 1:2], order[1:n:2]
+        rows, cols = order[0 : n - 1 : 2], order[1:n:2]
     values = proj[end, rows, cols]
     stat, p = ttest_1samp(values, 0.0, alternative="greater")
     # Canonical shape and per-trial scalings
-    seg = v[:, :end + 1]
+    seg = v[:, : end + 1]
     _, s, vt = np.linalg.svd(seg, full_matrices=False)
     shape = vt[0] * np.sign(vt[0][np.argmax(np.abs(vt[0]))])
     alpha = seg @ shape
     resid = seg - np.outer(alpha, shape)
-    r2 = 1 - np.sum(resid ** 2) / np.sum(seg ** 2) if np.sum(seg ** 2) > 0 else np.nan
-    noise = np.sum(resid ** 2) / max(resid.size - n, 1)
-    snr = np.sum(alpha ** 2) / (n * noise) if noise > 0 else np.nan
-    return end, float(stat), float(p), {"profile": curve, "shape": shape, "alpha": alpha,
-                                        "r2": float(r2), "snr": float(snr)}
+    r2 = 1 - np.sum(resid**2) / np.sum(seg**2) if np.sum(seg**2) > 0 else np.nan
+    noise = np.sum(resid**2) / max(resid.size - n, 1)
+    snr = np.sum(alpha**2) / (n * noise) if noise > 0 else np.nan
+    return (
+        end,
+        float(stat),
+        float(p),
+        {"profile": curve, "shape": shape, "alpha": alpha, "r2": float(r2), "snr": float(snr)},
+    )
 
 
-def projection_test(data, times, window, baseline, *, rng=None, profile="published",
-                    pairs="disjoint"):
+def projection_test(
+    data, times, window, baseline, *, rng=None, profile="published", pairs="disjoint"
+):
     """Cross-projection test of every channel.
 
     ``profile`` chooses the reading of the response duration (module docstring):
@@ -119,8 +124,10 @@ def projection_test(data, times, window, baseline, *, rng=None, profile="publish
         raise DataError("The projection test needs at least 5 trials.")
     win = (times >= window[0]) & (times <= window[1])
     tw = times[win]
-    out = {k: np.full(n_ch, np.nan) for k in ("statistic", "p_value", "onset", "offset",
-                                               "duration", "snr_db")}
+    out = {
+        k: np.full(n_ch, np.nan)
+        for k in ("statistic", "p_value", "onset", "offset", "duration", "snr_db")
+    }
     extra = []
     for c in range(n_ch):
         v = np.nan_to_num(data[:, c, win])

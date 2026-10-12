@@ -14,8 +14,9 @@ RESIDUAL_WINDOW = 0.010
 SATURATION_WINDOW = 0.020
 
 
-def artifact_quality(ts, *, window, baseline=(-0.5, -0.05), template=None, saturation=None,
-                     fit_r2=None):
+def artifact_quality(
+    ts, *, window, baseline=(-0.5, -0.05), template=None, saturation=None, fit_r2=None
+):
     """Quality of each trial, from 0 (unusable) to 1 (clean).
 
     ``q = 1 - clip(mean(p1, p2, p3, p4), 0, 1)`` with:
@@ -61,18 +62,19 @@ def artifact_quality(ts, *, window, baseline=(-0.5, -0.05), template=None, satur
 
     residual_inds = np.flatnonzero((times > b) & (times <= b + RESIDUAL_WINDOW))
     base_part = data[:, :, base] - np.nanmean(data[:, :, base], axis=-1, keepdims=True)
-    base_rms = np.sqrt(np.nanmean(base_part ** 2, axis=(1, 2)))
+    base_rms = np.sqrt(np.nanmean(base_part**2, axis=(1, 2)))
     if len(residual_inds):
         res = data[:, :, residual_inds] - np.nanmean(data[:, :, base], axis=-1, keepdims=True)
-        res_rms = np.sqrt(np.nanmean(res ** 2, axis=(1, 2)))
+        res_rms = np.sqrt(np.nanmean(res**2, axis=(1, 2)))
     else:
         res_rms = np.zeros(ts.n_trials)
     ratio = np.divide(res_rms, base_rms, out=np.ones_like(res_rms), where=base_rms > 0)
     p1 = 0.5 * np.minimum(ratio, 1.0)
 
     steps = np.abs(np.diff(data[:, :, base], axis=-1))
-    noise = 1.4826 * np.nanmedian(np.abs(steps - np.nanmedian(steps, axis=-1, keepdims=True)),
-                                  axis=-1)
+    noise = 1.4826 * np.nanmedian(
+        np.abs(steps - np.nanmedian(steps, axis=-1, keepdims=True)), axis=-1
+    )
     noise = np.maximum(noise, 1e-12 + 1e-9 * np.nanmax(np.abs(data), axis=-1))
     edges = []
     if first >= 1:
@@ -84,13 +86,20 @@ def artifact_quality(ts, *, window, baseline=(-0.5, -0.05), template=None, satur
 
     sat = ts.masks if saturation is None else saturation
     sat_inds = np.flatnonzero((times >= times[first]) & (times <= b + SATURATION_WINDOW))
-    p3 = (np.zeros(ts.n_trials) if sat is None
-          else np.asarray(sat)[:, :, sat_inds].mean(axis=(1, 2)))
+    p3 = (
+        np.zeros(ts.n_trials) if sat is None else np.asarray(sat)[:, :, sat_inds].mean(axis=(1, 2))
+    )
 
     r2 = np.full(ts.n_trials, np.nan) if fit_r2 is None else np.asarray(fit_r2, dtype=float)
     p4 = np.where(np.isnan(r2), 0.0, 1.0 - np.clip(r2, 0, 1))
 
     quality = 1.0 - np.clip(np.mean([p1, p2, p3, p4], axis=0), 0.0, 1.0)
-    return pd.DataFrame({"residual_ratio": ratio, "edge_discontinuity": jump,
-                         "saturation_fraction": p3, "template_fit_r2": r2,
-                         "quality": quality})
+    return pd.DataFrame(
+        {
+            "residual_ratio": ratio,
+            "edge_discontinuity": jump,
+            "saturation_fraction": p3,
+            "template_fit_r2": r2,
+            "quality": quality,
+        }
+    )

@@ -23,19 +23,22 @@ NETWORK = os.environ.get("EVOPARAM_NETWORK_TESTS") == "1"
 
 
 def network(test):
-    test = pytest.mark.skipif(not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read "
-                              "OpenNeuro")(test)
+    test = pytest.mark.skipif(
+        not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro"
+    )(test)
     return pytest.mark.network(test)
 
 
 # (subject, run, stimulation pair): decision D14; the pair is the first of the run with at
 # least 10 trials (the rule of validation/ds004080_subjects.txt), as in test_engine_ccep.py
-PAIRS_156 = [("ccepAgeUMCU01", "061233", "PT01-PT02"),
-             ("ccepAgeUMCU02", "021804", "FC01-FC02"),
-             ("ccepAgeUMCU03", "031411", "C01-C02"),
-             ("ccepAgeUMCU04", "031148", "TPa1-TPa2"),
-             ("ccepAgeUMCU05", "031133", "P01-P02"),
-             ("ccepAgeUMCU06", "030854", "C01-C02")]
+PAIRS_156 = [
+    ("ccepAgeUMCU01", "061233", "PT01-PT02"),
+    ("ccepAgeUMCU02", "021804", "FC01-FC02"),
+    ("ccepAgeUMCU03", "031411", "C01-C02"),
+    ("ccepAgeUMCU04", "031148", "TPa1-TPa2"),
+    ("ccepAgeUMCU05", "031133", "P01-P02"),
+    ("ccepAgeUMCU06", "030854", "C01-C02"),
+]
 
 
 def _prepared(subject, run, site):
@@ -49,8 +52,9 @@ def _prepared(subject, run, site):
     ts = _pair_trials(subject, run, site).select(tmin=-1.0, tmax=2.0)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        ts = remove_artifact(ts, method="template", window=(-0.002, 0.008),
-                             baseline=(-0.5, -0.02)).cleaned
+        ts = remove_artifact(
+            ts, method="template", window=(-0.002, 0.008), baseline=(-0.5, -0.02)
+        ).cleaned
         ts = rereference(ts, "car_adaptive", random_state=0)
         ts = baseline_correct(ts, (-0.5, -0.02), check=False)
         group = evoparam.fit(ts, "ccep", random_state=0)
@@ -61,10 +65,16 @@ def _n1_channels(group):
     """Channels whose fit has an N1, and the subset with a significant existence test."""
 
     names = list(group.index["channel"])
-    n1 = [n for n, f in zip(names, group.fits)
-          if f.status == "ok" and any(c.label == "N1" for c in f.components)]
-    significant = {n for n, f in zip(names, group.fits)
-                   if f.existence is not None and bool(np.all(f.existence.significant))}
+    n1 = [
+        n
+        for n, f in zip(names, group.fits)
+        if f.status == "ok" and any(c.label == "N1" for c in f.components)
+    ]
+    significant = {
+        n
+        for n, f in zip(names, group.fits)
+        if f.existence is not None and bool(np.all(f.existence.significant))
+    }
     return n1, significant
 
 
@@ -79,21 +89,23 @@ def results():
         n1, significant = _n1_channels(group)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            fit_trials(ts, group, components=["N1"])           # warm-up (imports, caches)
+            fit_trials(ts, group, components=["N1"])  # warm-up (imports, caches)
             start = time.perf_counter()
             tf = fit_trials(ts, group, components=["N1"])
             duration = time.perf_counter() - start
         assert sorted(f.channel for f in tf.fits) == sorted(n1)
-        out.append(dict(subject=subject, duration=duration, fits=tf.fits, n1=n1,
-                        significant=significant))
+        out.append(
+            dict(subject=subject, duration=duration, fits=tf.fits, n1=n1, significant=significant)
+        )
     return out
 
 
 @network
 def test_req156_trusted_fraction(results):
 
-    fractions = [f.trusted.mean() for r in results for f in r["fits"]
-                 if f.channel in r["significant"]]
+    fractions = [
+        f.trusted.mean() for r in results for f in r["fits"] if f.channel in r["significant"]
+    ]
     assert len({r["subject"] for r in results if r["fits"]}) >= 5
     assert np.median(fractions) >= 0.8
 
@@ -109,6 +121,7 @@ def test_req156_speed(results):
 ###################################################################################################
 ## REQ-158: amplitude slope across a train
 
+
 def _trend_table(ts, group):
     from evoparam.trials import fit_trials
 
@@ -123,8 +136,9 @@ def _sign_agreement(table, alpha=0.05):
     whose amplitude declines across the train."""
 
     significant = table[table["p_value"] <= alpha]
-    return len(significant), float(np.mean(significant["slope"] < 0)) if len(significant) \
-        else np.nan
+    return len(significant), float(np.mean(significant["slope"] < 0)) if len(
+        significant
+    ) else np.nan
 
 
 def test_req158_direction_on_simulated_1hz_trains():
@@ -138,9 +152,16 @@ def test_req158_direction_on_simulated_1hz_trains():
 
     counts, agree = 0, []
     for seed in (10, 11, 12):
-        ts, _ = simulate_ccep(30, n_channels=20, artifact=False, seed=seed, p_response=0.5,
-                              train_structure={"n_pulses": 30, "rate_hz": 1.0,
-                                               "adaptation": -0.01}, tmin=-0.5, tmax=0.6)
+        ts, _ = simulate_ccep(
+            30,
+            n_channels=20,
+            artifact=False,
+            seed=seed,
+            p_response=0.5,
+            train_structure={"n_pulses": 30, "rate_hz": 1.0, "adaptation": -0.01},
+            tmin=-0.5,
+            tmax=0.6,
+        )
         assert np.all(ts.metadata["stim_frequency_hz"] == 1.0)
         ts = baseline_correct(ts, (-0.5, -0.02), check=False)
         with warnings.catch_warnings():
@@ -154,15 +175,20 @@ def test_req158_direction_on_simulated_1hz_trains():
     assert np.mean(agree) >= 0.8
 
 
-@pytest.mark.xfail(strict=True, run=False, reason=(
-    "REQ-158 as written needs 'the reference dataset used in spec 7' with repeated single "
-    "pulses at 1 Hz and a reported declining N1. None exists: the 7.3 datasets with CCEPs "
-    "(ds004080, ds003708, ds004977) use about 0.2 Hz; Localize-MI (1 Hz) keeps epochs from "
-    "-250 to +10 ms only, before any N1 (Mikulan et al. 2020, doi:10.1038/s41597-020-0467-x);"
-    " the 1 Hz "
-    "study cited for train effects (Cornblath et al. 2023, Epilepsia, 30 pulses at 1 Hz) "
-    "reports infrequent trends of both signs (0.84 % of CCEPs per patient), not a decline. "
-    "Owner decision needed; see CHANGELOG (trials, F17)."))
+@pytest.mark.xfail(
+    strict=True,
+    run=False,
+    reason=(
+        "REQ-158 as written needs 'the reference dataset used in spec 7' with repeated single "
+        "pulses at 1 Hz and a reported declining N1. None exists: the 7.3 datasets with CCEPs "
+        "(ds004080, ds003708, ds004977) use about 0.2 Hz; Localize-MI (1 Hz) keeps epochs from "
+        "-250 to +10 ms only, before any N1 (Mikulan et al. 2020, doi:10.1038/s41597-020-0467-x);"
+        " the 1 Hz "
+        "study cited for train effects (Cornblath et al. 2023, Epilepsia, 30 pulses at 1 Hz) "
+        "reports infrequent trends of both signs (0.84 % of CCEPs per patient), not a decline. "
+        "Owner decision needed; see CHANGELOG (trials, F17)."
+    ),
+)
 def test_req158_as_written():
 
     raise AssertionError("no 1 Hz reference dataset with an N1 in spec 7")

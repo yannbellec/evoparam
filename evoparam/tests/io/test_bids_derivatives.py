@@ -22,7 +22,7 @@ import pytest
 from evoparam import __version__, reports, sim
 from evoparam.data import Provenance
 from evoparam.io import read_bids, read_bids_derivatives, write_bids_derivatives
-from evoparam.io.derivatives import (CLASSICAL_COLUMNS, RESPONSE_COLUMNS, STIM_COLUMNS)
+from evoparam.io.derivatives import CLASSICAL_COLUMNS, RESPONSE_COLUMNS, STIM_COLUMNS
 from evoparam.sim.bids import write_bids
 
 TSV_SUFFIXES = ("_responses.tsv", "_existence.tsv", "_trials.tsv")
@@ -40,10 +40,17 @@ def written(tmp_path_factory):
         warnings.simplefilter("ignore", UserWarning)
         result = reports.run_pipeline(read, "ccep", trial_fits=True)
     out = root / "derivatives" / f"evoparam-{__version__}"
-    files = write_bids_derivatives(result.results, str(root), subject="01", task="spes",
-                                   out=str(out), trials=result.trials)
-    return {"root": root, "out": out, "files": files, "result": result, "trials": trials,
-            "read": read}
+    files = write_bids_derivatives(
+        result.results, str(root), subject="01", task="spes", out=str(out), trials=result.trials
+    )
+    return {
+        "root": root,
+        "out": out,
+        "files": files,
+        "result": result,
+        "trials": trials,
+        "read": read,
+    }
 
 
 def _json(files, suffix):
@@ -82,13 +89,18 @@ def test_nwb_provenance(written):
 
     from evoparam import io
 
-    nwbfile = pynwb.NWBFile(session_description="evoparam test", identifier="evoparam-test",
-                            session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    nwbfile = pynwb.NWBFile(
+        session_description="evoparam test",
+        identifier="evoparam-test",
+        session_start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
     group, test = written["result"].group, written["result"].test
     io.write_nwb([group, test], nwbfile)
     description = json.loads(nwbfile.processing["evoparam"].description)
-    assert [Provenance.from_dict(p) for p in description["provenance"]] == \
-        [group.provenance, test.provenance]
+    assert [Provenance.from_dict(p) for p in description["provenance"]] == [
+        group.provenance,
+        test.provenance,
+    ]
     assert description["settings"][0]["max_components"] == group.settings["max_components"]
 
 
@@ -126,8 +138,9 @@ def test_two_artifact_steps_make_one_record(tmp_path):
     trials, _ = sim.simulate_tep(n_trials=6, n_channels=3, stim_site="Cz", seed=0)
     first = remove_artifact(trials, method="interpolate", window=(-0.002, 0.012))
     second = remove_artifact(first.cleaned, method="subspace", window=(-0.002, 0.012))
-    files = write_bids_derivatives([first, second], subject="01", task="tep", datatype="eeg",
-                                   out=str(tmp_path / "evoparam"))
+    files = write_bids_derivatives(
+        [first, second], subject="01", task="tep", datatype="eeg", out=str(tmp_path / "evoparam")
+    )
     record = _json(files, "_artifact.json")
     assert record["Method"] == "subspace"
     assert [step["Method"] for step in record["Steps"]] == ["interpolate", "subspace"]
@@ -139,7 +152,7 @@ def test_simulated_dataset_round_trip(written):
     trials, read = written["trials"], written["read"]
     assert read.ch_names == trials.ch_names and read.n_trials == trials.n_trials
     index = int(np.argmin(np.abs(read.times - trials.times[0])))
-    part = read.data[:, :, index:index + trials.times.size]
+    part = read.data[:, :, index : index + trials.times.size]
     scale = float(np.nanmax(np.abs(trials.data)))
     assert np.nanmax(np.abs(part - trials.data)) <= 1e-6 * scale
 
@@ -155,8 +168,9 @@ def _validator():
     return [deno, "run", "-A", "jsr:@bids/validator@3.0.2"] if deno else None
 
 
-@pytest.mark.skipif(_validator() is None,
-                    reason="bids-validator not installed (set EVOPARAM_BIDS_VALIDATOR)")
+@pytest.mark.skipif(
+    _validator() is None, reason="bids-validator not installed (set EVOPARAM_BIDS_VALIDATOR)"
+)
 @pytest.mark.parametrize("which", ["raw", "derivatives"])
 def test_req342_bids_validator(written, which):
     """REQ-024 and REQ-342: the output of ``write_bids_derivatives`` passes the BIDS
@@ -166,13 +180,19 @@ def test_req342_bids_validator(written, which):
     folder = written["root"] if which == "raw" else written["out"]
     # REQ-342: the derivatives are validated in derivative mode (the raw data in raw mode)
     types = ["--datasetTypes", "raw" if which == "raw" else "derivative"]
-    proc = subprocess.run(_validator() + [str(folder), "--format", "json"] + types,
-                          capture_output=True, text=True, timeout=900)
+    proc = subprocess.run(
+        _validator() + [str(folder), "--format", "json"] + types,
+        capture_output=True,
+        text=True,
+        timeout=900,
+    )
     report = json.loads(proc.stdout)
-    issues = report["issues"]["issues"] if isinstance(report.get("issues"), dict) \
+    issues = (
+        report["issues"]["issues"]
+        if isinstance(report.get("issues"), dict)
         else report.get("issues", [])
-    errors = [(i.get("code"), i.get("location")) for i in issues
-              if i.get("severity") == "error"]
+    )
+    errors = [(i.get("code"), i.get("location")) for i in issues if i.get("severity") == "error"]
     assert errors == []
 
 
@@ -182,8 +202,10 @@ REFERENCE_VALIDATOR = ["npx", "--yes", "bids-validator@2", "--datasetTypes", "de
 
 
 @pytest.mark.network
-@pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1" or not shutil.which("npx"),
-                    reason="needs npx and EVOPARAM_NETWORK_TESTS=1 (npx fetches the validator)")
+@pytest.mark.skipif(
+    os.environ.get("EVOPARAM_NETWORK_TESTS") != "1" or not shutil.which("npx"),
+    reason="needs npx and EVOPARAM_NETWORK_TESTS=1 (npx fetches the validator)",
+)
 def test_req315_reference_validator_as_written(written):
     """REQ-315 as written: ``npx bids-validator@2 --datasetTypes derivative`` reports no
     error on the derivatives.
@@ -194,16 +216,23 @@ def test_req315_reference_validator_as_written(written):
     and test_req342_bids_validator runs it. The test therefore expects failure while npx
     cannot resolve the version, and it passes as soon as npm has a 2.x release."""
 
-    proc = subprocess.run(REFERENCE_VALIDATOR + [str(written["out"]), "--json"],
-                          capture_output=True, text=True, timeout=900)
+    proc = subprocess.run(
+        REFERENCE_VALIDATOR + [str(written["out"]), "--json"],
+        capture_output=True,
+        text=True,
+        timeout=900,
+    )
     if "ETARGET" in proc.stderr or "No matching version found" in proc.stderr:
-        pytest.xfail("npm has no bids-validator@2 release (ETARGET); measured 2026-10-09, "
-                     "latest 1.15.0")
+        pytest.xfail(
+            "npm has no bids-validator@2 release (ETARGET); measured 2026-10-09, latest 1.15.0"
+        )
     report = json.loads(proc.stdout)
-    issues = report["issues"]["issues"] if isinstance(report.get("issues"), dict) \
+    issues = (
+        report["issues"]["issues"]
+        if isinstance(report.get("issues"), dict)
         else report.get("issues", [])
-    errors = [(i.get("code"), i.get("location")) for i in issues
-              if i.get("severity") == "error"]
+    )
+    errors = [(i.get("code"), i.get("location")) for i in issues if i.get("severity") == "error"]
     assert errors == []
 
 
@@ -212,7 +241,7 @@ def test_req315_tree_columns_and_generated_by(written):
     out = written["out"]
     description = _json(written["files"], "dataset_description.json")
     generated = description["GeneratedBy"][0]
-    assert generated["Name"] in os.path.basename(str(out))          # BIDS substring rule
+    assert generated["Name"] in os.path.basename(str(out))  # BIDS substring rule
     assert set(generated) >= {"Name", "Version", "CodeURL", "Description"}
     assert description["SourceDatasets"] == [] or "URL" in description["SourceDatasets"][0]
     for name in ("descriptions.tsv", "README", ".bidsignore"):
@@ -227,11 +256,12 @@ def test_req315_tree_columns_and_generated_by(written):
     with open(path, encoding="utf-8") as fobj:
         header = fobj.readline().rstrip("\n").split("\t")
     stim = [c for c in STIM_COLUMNS if c in header]
-    assert header[:len(RESPONSE_COLUMNS)] == list(RESPONSE_COLUMNS)
+    assert header[: len(RESPONSE_COLUMNS)] == list(RESPONSE_COLUMNS)
     classical = [c for c in header if c.startswith("classical_")]
     assert classical == [c for c in CLASSICAL_COLUMNS if c in classical] and classical
-    assert header == list(RESPONSE_COLUMNS) + classical + stim + \
-        [c for c in header if c.startswith("electrical_stimulation_")]
+    assert header == list(RESPONSE_COLUMNS) + classical + stim + [
+        c for c in header if c.startswith("electrical_stimulation_")
+    ]
     assert {"evoparam_stim_current_mA", "evoparam_stim_pulse_width_us"} <= set(stim)
     sidecar = _json(written["files"], "_responses.json")
     assert sidecar["status"]["Levels"].keys() == {"ok", "no_response", "failed", "skipped"}
@@ -261,8 +291,12 @@ def test_req316_stimulation_columns(written):
     registry = {c.get("name", k) for k, c in schema.load_schema().objects.columns.items()}
     sidecar = _json(written["files"], "_responses.json")
     for column in rows[0]:
-        if column in registry or column in RESPONSE_COLUMNS or \
-                column in CLASSICAL_COLUMNS or column.startswith("electrical_stimulation_"):
+        if (
+            column in registry
+            or column in RESPONSE_COLUMNS
+            or column in CLASSICAL_COLUMNS
+            or column.startswith("electrical_stimulation_")
+        ):
             continue
         assert column.startswith("evoparam_"), column
         assert sidecar[column]["Description"], column
@@ -281,11 +315,20 @@ def test_req315_bidsschematools_validation(written):
     import fnmatch
 
     files = [str(p) for p in written["out"].rglob("*") if p.is_file()]
-    kept = [f for f in files if not any(fnmatch.fnmatch(os.path.basename(f), pattern) or
-                                        ".evoparam" in f for pattern in ignored)
-            and not os.path.basename(f).startswith(".")]
-    assert {os.path.basename(f) for f in kept} == {"dataset_description.json", "README",
-                                                   "descriptions.tsv"}
+    kept = [
+        f
+        for f in files
+        if not any(
+            fnmatch.fnmatch(os.path.basename(f), pattern) or ".evoparam" in f
+            for pattern in ignored
+        )
+        and not os.path.basename(f).startswith(".")
+    ]
+    assert {os.path.basename(f) for f in kept} == {
+        "dataset_description.json",
+        "README",
+        "descriptions.tsv",
+    }
     derived = validator.validate_bids(kept, accept_non_bids_dir=True)
     assert [os.path.basename(p) for p in derived["path_tracking"]] in ([], ["descriptions.tsv"])
 
@@ -295,11 +338,12 @@ def test_req315_read_back_equal_results(written):
     result = written["result"]
     root = written["root"]
     group = read_bids_derivatives(str(root), subject="01", task="spes")
-    assert group == result.group                                   # same tables, same provenance
+    assert group == result.group  # same tables, same provenance
     assert group.to_dataframe().equals(result.group.to_dataframe())
     assert group.provenance == result.group.provenance
-    everything = read_bids_derivatives(str(written["out"]), subject="sub-01", task="spes",
-                                       kind="all")
+    everything = read_bids_derivatives(
+        str(written["out"]), subject="sub-01", task="spes", kind="all"
+    )
     assert everything["existence"] == result.test
     assert [a.method for a in everything["artifact"]] == [a.method for a in result.artifact]
     assert everything["artifact"][-1] == result.artifact[-1]
@@ -318,8 +362,9 @@ def test_req315_edited_table_is_detected(written, tmp_path):
 
     copy = tmp_path / "deriv"
     shutil.copytree(written["out"], copy)
-    path = next(p for p in (copy / "sub-01" / "ieeg").iterdir()
-                if p.name.endswith("_responses.tsv"))
+    path = next(
+        p for p in (copy / "sub-01" / "ieeg").iterdir() if p.name.endswith("_responses.tsv")
+    )
     lines = path.read_text().splitlines()
     cells = lines[1].split("\t")
     header = lines[0].split("\t")
@@ -334,10 +379,12 @@ def test_req316_docs_page_lists_the_columns():
 
     import evoparam
 
-    page = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__))),
-                        "docs", "bids_stimulation_columns.rst")
-    if not os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(page)),
-                                       "pyproject.toml")):
+    page = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__))),
+        "docs",
+        "bids_stimulation_columns.rst",
+    )
+    if not os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(page)), "pyproject.toml")):
         pytest.skip("needs the source tree")
     with open(page, encoding="utf-8") as fobj:
         text = fobj.read()

@@ -26,8 +26,17 @@ from scipy import ndimage, stats as sstats
 
 from evoparam.errors import SettingsError
 
-__all__ = ["STATS", "CHANNEL_CORRECTIONS", "t_map", "fdr_significant", "bh_adjusted",
-           "within_map_p", "row_levels", "baseline_normal_map", "test_map"]
+__all__ = [
+    "STATS",
+    "CHANNEL_CORRECTIONS",
+    "t_map",
+    "fdr_significant",
+    "bh_adjusted",
+    "within_map_p",
+    "row_levels",
+    "baseline_normal_map",
+    "test_map",
+]
 
 STATS = ("fdr", "cluster", "tfce", "baseline_normal", "none")
 MIN_TRIALS = 3
@@ -43,7 +52,7 @@ def t_map(d):
     filled = np.nan_to_num(d)
     with np.errstate(divide="ignore", invalid="ignore"):
         mean = filled.sum(0) / n
-        var = (np.sum(filled ** 2, 0) - n * mean ** 2) / (n - 1)
+        var = (np.sum(filled**2, 0) - n * mean**2) / (n - 1)
         t = mean / np.sqrt(var / n)
     t[n < MIN_TRIALS] = np.nan
     return t, n
@@ -157,8 +166,9 @@ def row_levels(row_p, alpha, method):
     """
 
     if method not in CHANNEL_CORRECTIONS:
-        raise SettingsError(f"channel_correction must be one of {CHANNEL_CORRECTIONS}, not "
-                            f"{method!r}.")
+        raise SettingsError(
+            f"channel_correction must be one of {CHANNEL_CORRECTIONS}, not {method!r}."
+        )
     p = np.asarray(row_p, float)
     ok = np.isfinite(p)
     m = int(ok.sum())
@@ -192,7 +202,7 @@ def _flipped_t(signs, filled, sumsq, n):
 
     with np.errstate(divide="ignore", invalid="ignore"):
         mean = (signs @ filled) / n
-        var = (sumsq - n * mean ** 2) / (n - 1)
+        var = (sumsq - n * mean**2) / (n - 1)
         return mean / np.sqrt(var / n)
 
 
@@ -249,12 +259,13 @@ def _tfce(stack, dh):
                 break
             extent = np.bincount(lab.ravel())
             extent[0] = 0
-            out += sign * (extent[lab] ** TFCE_E) * (h ** TFCE_H) * dh
+            out += sign * (extent[lab] ** TFCE_E) * (h**TFCE_H) * dh
     return out
 
 
-def test_map(d, window, *, method="fdr", alpha=0.05, n_permutations=1000, rng=None,
-             cluster_alpha=0.05):
+def test_map(
+    d, window, *, method="fdr", alpha=0.05, n_permutations=1000, rng=None, cluster_alpha=0.05
+):
     """Statistics of one map.
 
     Parameters
@@ -275,8 +286,10 @@ def test_map(d, window, *, method="fdr", alpha=0.05, n_permutations=1000, rng=No
     """
 
     if method not in STATS or method == "baseline_normal":
-        raise SettingsError(f"stats must be one of {STATS} ('baseline_normal' through "
-                            f"baseline_normal_map), not {method!r}.")
+        raise SettingsError(
+            f"stats must be one of {STATS} ('baseline_normal' through "
+            f"baseline_normal_map), not {method!r}."
+        )
     d = np.where(window[None], d, np.nan)
     t, n = t_map(d)
     tested = window & np.isfinite(t)
@@ -290,8 +303,17 @@ def test_map(d, window, *, method="fdr", alpha=0.05, n_permutations=1000, rng=No
     if not rows.size:
         return t, np.zeros(t.shape, bool), np.full(t.shape, np.nan)
     box = (slice(rows[0], rows[-1] + 1), slice(cols[0], cols[-1] + 1))
-    t_box, sig_box, p_box = _permutation(d[:, box[0], box[1]], t[box], n[box], tested[box],
-                                         method, alpha, n_permutations, rng, cluster_alpha)
+    t_box, sig_box, p_box = _permutation(
+        d[:, box[0], box[1]],
+        t[box],
+        n[box],
+        tested[box],
+        method,
+        alpha,
+        n_permutations,
+        rng,
+        cluster_alpha,
+    )
     sig = np.zeros(t.shape, bool)
     p = np.full(t.shape, np.nan)
     sig[box], p[box] = sig_box, p_box
@@ -303,7 +325,7 @@ def _permutation(d, t, n, tested, method, alpha, n_permutations, rng, cluster_al
     n_trials = d.shape[0]
     shape = t.shape
     filled = np.nan_to_num(d).reshape(n_trials, -1)
-    sumsq = np.sum(filled ** 2, 0)
+    sumsq = np.sum(filled**2, 0)
     n_flat = n.reshape(-1).astype(float)
     keep = tested.reshape(-1)
     if method == "cluster":
@@ -316,14 +338,15 @@ def _permutation(d, t, n, tested, method, alpha, n_permutations, rng, cluster_al
     signs = rng.choice((-1.0, 1.0), size=(n_permutations, n_trials))
     signs[0] = 1.0
     for start in range(0, n_permutations, PERM_CHUNK):
-        block = _flipped_t(signs[start:start + PERM_CHUNK], filled, sumsq, n_flat)
+        block = _flipped_t(signs[start : start + PERM_CHUNK], filled, sumsq, n_flat)
         block[:, ~keep] = np.nan
         stack = block.reshape((-1,) + shape)
         if method == "cluster":
-            null[start:start + len(stack)] = _null_cluster_max(stack, threshold)
+            null[start : start + len(stack)] = _null_cluster_max(stack, threshold)
         else:
-            null[start:start + len(stack)] = np.abs(_tfce(stack, dh)).reshape(
-                len(stack), -1).max(axis=1)
+            null[start : start + len(stack)] = (
+                np.abs(_tfce(stack, dh)).reshape(len(stack), -1).max(axis=1)
+            )
     if method == "cluster":
         masses, labels = _cluster_masses(t, threshold)
         p = np.full(shape, np.nan)

@@ -14,9 +14,13 @@ import pytest
 
 from evoparam.events import detect_pulses, estimate_delay, match_onsets
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+]
 
 RUNS = [
     "sub-ccepAgeUMCU01/ses-1/ieeg/sub-ccepAgeUMCU01_ses-1_task-SPESclin_run-021448",
@@ -50,6 +54,7 @@ SPAN = 40.0
 ###################################################################################################
 ###################################################################################################
 
+
 def _segment(stem):
     """40 s of one run (cached), its reference onsets and sites."""
 
@@ -65,14 +70,28 @@ def _segment(stem):
         onsets = np.array([float(ev["onset"]) for ev in stim])
         tmin = max(onsets.min() - 1.0, 0.0)
         data, sfreq, names, t0 = read_brainvision_segment(
-            openneuro_url("ds004080", stem + "_ieeg.vhdr"), tmin, tmin + SPAN)
+            openneuro_url("ds004080", stem + "_ieeg.vhdr"), tmin, tmin + SPAN
+        )
         keep = (onsets >= t0) & (onsets <= t0 + data.shape[1] / sfreq)
         sites = np.array([str(ev.get("electrical_stimulation_site", "")) for ev in stim])
-        np.savez_compressed(path, data=data.astype(np.float32), sfreq=sfreq,
-                            names=np.array(names), t0=t0, onsets=onsets[keep], sites=sites[keep])
+        np.savez_compressed(
+            path,
+            data=data.astype(np.float32),
+            sfreq=sfreq,
+            names=np.array(names),
+            t0=t0,
+            onsets=onsets[keep],
+            sites=sites[keep],
+        )
     seg = np.load(path)
-    return (seg["data"].astype(float), float(seg["sfreq"]), list(seg["names"]),
-            float(seg["t0"]), seg["onsets"], seg["sites"])
+    return (
+        seg["data"].astype(float),
+        float(seg["sfreq"]),
+        list(seg["names"]),
+        float(seg["t0"]),
+        seg["onsets"],
+        seg["sites"],
+    )
 
 
 @pytest.fixture(scope="module")
@@ -102,8 +121,11 @@ def test_req040_recall_precision_and_onset(results):
     # error is checked on the odd runs, held out, within 1 sample. (Estimated on the odd runs
     # instead, the delay is the same, 0.972 ms, and 11 of the 13 even runs are within 1
     # sample: the median absolute error over their pulses is 0.02 sample.)
-    calib = [(ev["onset_time"].to_numpy(), on) for i, (_, _, ev, on, _) in enumerate(results)
-             if i % 2 == 0]
+    calib = [
+        (ev["onset_time"].to_numpy(), on)
+        for i, (_, _, ev, on, _) in enumerate(results)
+        if i % 2 == 0
+    ]
     delay, _ = estimate_delay([c[0] for c in calib], [c[1] for c in calib])
     assert 0 < delay < 0.0015
     for i, (stem, sfreq, events, onsets, _) in enumerate(results):
@@ -121,8 +143,9 @@ def _site_agreement(results):
             k = int(np.argmin(np.abs(times - onset)))
             if abs(times[k] - onset) > 0.01:
                 continue
-            same = (set(events["stim_site_guess"].iloc[k].upper().split("-"))
-                    == set(site.upper().split("-")))
+            same = set(events["stim_site_guess"].iloc[k].upper().split("-")) == set(
+                site.upper().split("-")
+            )
             agree.append(same)
             if events["site_confidence"].iloc[k] >= 0.5:
                 confident.append(same)
@@ -152,7 +175,7 @@ def spec_results():
         try:
             events = detect_pulses(data, sfreq, t0=t0, procedure="spec", saturation=False)
             detected = events["onset_time"].to_numpy()
-        except Exception:            # no pulse found
+        except Exception:  # no pulse found
             detected = np.array([])
         out.append((stem, sfreq, detected, onsets))
     return out

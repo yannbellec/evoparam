@@ -33,8 +33,9 @@ __all__ = ["least_squares_trf"]
 EPS = np.finfo(float).eps
 
 
-def least_squares_trf(fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, max_nfev=None,
-                      reduced=True, m=None):
+def least_squares_trf(
+    fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, max_nfev=None, reduced=True, m=None
+):
     """Minimise ``0.5 * ||fun(x)||^2`` subject to ``lb <= x <= ub``.
 
     ``jac(x)`` is called only at a point where ``fun`` was just called (the engine keeps
@@ -69,13 +70,13 @@ def least_squares_trf(fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, 
     finite_lb, finite_ub = np.isfinite(lb), np.isfinite(ub)
 
     jr, jf, g = _reduce(J, f, reduced)
-    scale_inv = (jr ** 2).sum(axis=0) ** 0.5
+    scale_inv = (jr**2).sum(axis=0) ** 0.5
     scale_inv[scale_inv == 0] = 1
     scale = 1 / scale_inv
 
     v, dv = _cl_scaling(x, g, lb, ub, finite_lb, finite_ub)
     v = np.where(dv != 0, v * scale_inv, v)
-    delta = _norm(x * scale_inv / v ** 0.5)
+    delta = _norm(x * scale_inv / v**0.5)
     if delta == 0:
         delta = 1.0
 
@@ -93,14 +94,14 @@ def least_squares_trf(fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, 
         if status is not None or nfev == max_nfev:
             break
         v = np.where(dv != 0, v * scale_inv, v)
-        d = v ** 0.5 * scale
+        d = v**0.5 * scale
         diag_h = g * dv * scale
         g_h = d * g
 
         f_augmented[:rows] = jf
         augmented[:rows] = jr * d
         j_h = augmented[:rows]
-        augmented[rows:] = np.diag(diag_h ** 0.5)
+        augmented[rows:] = np.diag(diag_h**0.5)
         u, s, vt, info = dgesdd(augmented, compute_uv=1, full_matrices=0, lwork=lwork)
         if info > 0:
             raise np.linalg.LinAlgError("SVD did not converge")
@@ -112,8 +113,9 @@ def least_squares_trf(fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, 
         while actual_reduction <= 0 and nfev < max_nfev:
             p_h, alpha = _solve_trust_region(n, m, uf, s, V, delta, alpha)
             p = d * p_h
-            step, step_h, predicted = _select_step(x, j_h, diag_h, g_h, p, p_h, d, delta,
-                                                   lb, ub, theta)
+            step, step_h, predicted = _select_step(
+                x, j_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta
+            )
             x_new = _strictly_feasible(x + step, lb, ub, 0)
             f_new = np.atleast_1d(fun(x_new))
             nfev += 1
@@ -123,10 +125,10 @@ def least_squares_trf(fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, 
                 continue
             cost_new = 0.5 * np.dot(f_new, f_new)
             actual_reduction = cost - cost_new
-            delta_new, ratio = _update_radius(delta, actual_reduction, predicted, step_h_norm,
-                                              step_h_norm > 0.95 * delta)
-            status = _termination(actual_reduction, cost, _norm(step), _norm(x), ratio, ftol,
-                                  xtol)
+            delta_new, ratio = _update_radius(
+                delta, actual_reduction, predicted, step_h_norm, step_h_norm > 0.95 * delta
+            )
+            status = _termination(actual_reduction, cost, _norm(step), _norm(x), ratio, ftol, xtol)
             if status is not None:
                 break
             alpha *= delta / delta_new
@@ -136,7 +138,7 @@ def least_squares_trf(fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, 
             x, f, cost = x_new, f_new, cost_new
             J = np.atleast_2d(jac(x))
             jr, jf, g = _reduce(J, f, reduced)
-            scale_inv = np.maximum((jr ** 2).sum(axis=0) ** 0.5, scale_inv)
+            scale_inv = np.maximum((jr**2).sum(axis=0) ** 0.5, scale_inv)
             scale = 1 / scale_inv
     return x, cost, nfev, 0 if status is None else status
 
@@ -172,7 +174,7 @@ def _cl_scaling(x, g, lb, ub, finite_lb, finite_ub):
 
     upper = (g < 0) & finite_ub
     lower = (g > 0) & finite_lb
-    with np.errstate(invalid="ignore"):           # inf - inf where a bound is infinite
+    with np.errstate(invalid="ignore"):  # inf - inf where a bound is infinite
         v = np.where(lower, x - lb, np.where(upper, ub - x, 1.0))
     dv = lower - upper.astype(float)
     return v, dv
@@ -183,7 +185,7 @@ def _strictly_feasible(x, lb, ub, rstep):
 
     x_new = x.copy()
     if rstep == 0 and ((x > lb) & (x < ub)).all():
-        return x_new                      # no bound active: nothing moves
+        return x_new  # no bound active: nothing moves
     active = _active(x, lb, ub, rstep)
     lower, upper = active == -1, active == 1
     if rstep == 0:
@@ -227,9 +229,9 @@ def _solve_trust_region(n, m, uf, s, V, delta, alpha, rtol=0.01, max_iter=10):
             return p, 0.0
 
     def phi_and_derivative(alpha):
-        denom = s ** 2 + alpha
+        denom = s**2 + alpha
         p_norm = _norm(suf / denom)
-        return p_norm - delta, -(suf ** 2 / denom ** 3).sum() / p_norm
+        return p_norm - delta, -(suf**2 / denom**3).sum() / p_norm
 
     alpha_upper = _norm(suf) / delta
     if full_rank:
@@ -250,7 +252,7 @@ def _solve_trust_region(n, m, uf, s, V, delta, alpha, rtol=0.01, max_iter=10):
         alpha -= (phi + delta) * ratio / delta
         if np.abs(phi) < rtol * delta:
             break
-    p = -V.dot(suf / (s ** 2 + alpha))
+    p = -V.dot(suf / (s**2 + alpha))
     p *= delta / _norm(p)
     return p, alpha
 
@@ -324,8 +326,9 @@ def _step_to_bound(x, s, lb, ub):
     steps = np.empty_like(x)
     steps.fill(np.inf)
     with np.errstate(over="ignore"):
-        steps[non_zero] = np.maximum((lb - x)[non_zero] / s_non_zero,
-                                     (ub - x)[non_zero] / s_non_zero)
+        steps[non_zero] = np.maximum(
+            (lb - x)[non_zero] / s_non_zero, (ub - x)[non_zero] / s_non_zero
+        )
     min_step = steps.min()
     return min_step, np.equal(steps, min_step) * np.sign(s).astype(int)
 
@@ -335,7 +338,7 @@ def _intersect_trust_region(x, s, delta):
     if a == 0:
         raise ValueError("`s` is zero.")
     b = np.dot(x, s)
-    c = np.dot(x, x) - delta ** 2
+    c = np.dot(x, x) - delta**2
     if c > 0:
         raise ValueError("`x` is not within the trust region.")
     d = np.sqrt(b * b - a * c)

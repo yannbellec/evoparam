@@ -58,8 +58,10 @@ def resolve(target):
 
 
 def message(old, new, since, remove_in):
-    return (f"{old} is deprecated since evoparam {since} and will be removed in evoparam "
-            f"{remove_in}; use {new} instead.")
+    return (
+        f"{old} is deprecated since evoparam {since} and will be removed in evoparam "
+        f"{remove_in}; use {new} instead."
+    )
 
 
 def shim(old, new, since, remove_in):

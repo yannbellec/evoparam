@@ -11,10 +11,32 @@ from ._documents import RESEARCH_USE, html, markdown, pdf, qc
 from ._export import from_json, schema, to_json, validate_json
 from ._reproduce import ReproduceReport, migrate, reproduce
 from ._text import citation, methods_text
-from .pipeline import (REFERENCE_PIPELINES, PipelineResult, reference_input, run_pipeline,
-                       run_reference_pipeline)
+from .pipeline import (
+    REFERENCE_PIPELINES,
+    PipelineResult,
+    reference_input,
+    run_pipeline,
+    run_reference_pipeline,
+)
 
-__all__ = ["methods_text", "citation", "to_json", "from_json", "validate_json", "schema",
-           "qc", "html", "markdown", "pdf", "RESEARCH_USE", "reproduce", "ReproduceReport",
-           "migrate", "run_pipeline", "PipelineResult", "REFERENCE_PIPELINES",
-           "reference_input", "run_reference_pipeline"]
+__all__ = [
+    "methods_text",
+    "citation",
+    "to_json",
+    "from_json",
+    "validate_json",
+    "schema",
+    "qc",
+    "html",
+    "markdown",
+    "pdf",
+    "RESEARCH_USE",
+    "reproduce",
+    "ReproduceReport",
+    "migrate",
+    "run_pipeline",
+    "PipelineResult",
+    "REFERENCE_PIPELINES",
+    "reference_input",
+    "run_reference_pipeline",
+]

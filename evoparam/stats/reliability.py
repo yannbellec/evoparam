@@ -33,21 +33,45 @@ from evoparam.utils._optional import require
 from ._scorers import TIME_SCORES, default_window, resolve_scorer
 from .variance import reml
 
-__all__ = ["reliability", "trials_needed", "spearman_brown", "dependability",
-           "RELIABILITY_COLUMNS", "TRIALS_NEEDED_COLUMNS", "EXTRAPOLATIONS"]
+__all__ = [
+    "reliability",
+    "trials_needed",
+    "spearman_brown",
+    "dependability",
+    "RELIABILITY_COLUMNS",
+    "TRIALS_NEEDED_COLUMNS",
+    "EXTRAPOLATIONS",
+]
 
 METHODS = ("split_half", "dependability", "both")
 
 RELIABILITY_COLUMNS = {
-    "channel": "", "scorer": "", "facet": "", "n_units": "", "n_trials_mean": "",
-    "split_half_odd_even": "", "split_half_random": "", "split_half_low": "",
-    "split_half_high": "", "var_unit": "score²", "var_trial": "score²", "dependability": "",
-    "trials_needed": "", "target_phi": "", "sme_rms": "score", "n_units_dropped": "",
+    "channel": "",
+    "scorer": "",
+    "facet": "",
+    "n_units": "",
+    "n_trials_mean": "",
+    "split_half_odd_even": "",
+    "split_half_random": "",
+    "split_half_low": "",
+    "split_half_high": "",
+    "var_unit": "score²",
+    "var_trial": "score²",
+    "dependability": "",
+    "trials_needed": "",
+    "target_phi": "",
+    "sme_rms": "score",
+    "n_units_dropped": "",
 }
 
 TRIALS_NEEDED_COLUMNS = {
-    "channel": "", "scorer": "", "n_trials": "", "sd": "score", "p_significant": "",
-    "extrapolated": "", "n_resamples": "",
+    "channel": "",
+    "scorer": "",
+    "n_trials": "",
+    "sd": "score",
+    "p_significant": "",
+    "extrapolated": "",
+    "n_resamples": "",
 }
 
 # Random splits processed at once for scores that need the half averages (bounds memory).
@@ -71,6 +95,7 @@ _POWER_SCORES = ("peak_latency", "fractional_area_latency")
 
 ###################################################################################################
 ## Formulas
+
 
 def spearman_brown(r, factor=2.0):
     """Reliability of a test ``factor`` times longer: ``k r / (1 + (k - 1) r)``.
@@ -116,13 +141,15 @@ def _pearson(x, y):
     mx = np.divide(xs.sum(axis=0), n, out=np.full(n.shape, np.nan), where=n > 0)
     my = np.divide(ys.sum(axis=0), n, out=np.full(n.shape, np.nan), where=n > 0)
     dx, dy = np.where(ok, x - mx, 0.0), np.where(ok, y - my, 0.0)
-    den = np.sqrt((dx ** 2).sum(axis=0) * (dy ** 2).sum(axis=0))
-    return np.divide((dx * dy).sum(axis=0), den, out=np.full(n.shape, np.nan),
-                     where=(den > 0) & (n >= 3))
+    den = np.sqrt((dx**2).sum(axis=0) * (dy**2).sum(axis=0))
+    return np.divide(
+        (dx * dy).sum(axis=0), den, out=np.full(n.shape, np.nan), where=(den > 0) & (n >= 3)
+    )
 
 
 ###################################################################################################
 ## Helpers
+
 
 def _check_trialset(ts, caller):
     if isinstance(ts, Evoked):
@@ -166,9 +193,20 @@ def _nanmean(x, axis):
 ###################################################################################################
 ## Reliability
 
-def reliability(ts, *, scorer="mean_amplitude", facets=("trial", "subject"), method="both",
-                n_splits=1000, target_phi=0.70, random_state=None, window=None, picks=None,
-                **scorer_kw):
+
+def reliability(
+    ts,
+    *,
+    scorer="mean_amplitude",
+    facets=("trial", "subject"),
+    method="both",
+    n_splits=1000,
+    target_phi=0.70,
+    random_state=None,
+    window=None,
+    picks=None,
+    **scorer_kw,
+):
     """Split-half reliability, dependability and the trials needed for a target dependability.
 
     Parameters
@@ -240,8 +278,9 @@ def reliability(ts, *, scorer="mean_amplitude", facets=("trial", "subject"), met
         raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
     facets = tuple(facets)
     if len(facets) != 2 or facets[0] != "trial":
-        raise SettingsError("facets must be ('trial', <unit column>), for example "
-                            "('trial', 'subject').")
+        raise SettingsError(
+            "facets must be ('trial', <unit column>), for example ('trial', 'subject')."
+        )
     unit_col = facets[1]
     if ts.metadata is None or unit_col not in ts.metadata.columns:
         raise SettingsError(f"reliability: the metadata has no column '{unit_col}'.")
@@ -249,8 +288,11 @@ def reliability(ts, *, scorer="mean_amplitude", facets=("trial", "subject"), met
         raise SettingsError("target_phi must be in (0, 1).")
     rng = np.random.default_rng(random_state)
     names = list(ts.ch_names)
-    index = list(range(len(names))) if picks is None else \
-        [names.index(p) if isinstance(p, str) else int(p) for p in picks]
+    index = (
+        list(range(len(names)))
+        if picks is None
+        else [names.index(p) if isinstance(p, str) else int(p) for p in picks]
+    )
     func, name, linear, window, inside = _scorer_on_window(scorer, ts.times, window, scorer_kw)
     data, keep = _trial_data(ts, index)
     data = data[..., inside]
@@ -259,11 +301,13 @@ def reliability(ts, *, scorer="mean_amplitude", facets=("trial", "subject"), met
     dropped = sum(len(u) < 2 for u in units)
     units = [u for u in units if len(u) >= 2]
     if len(units) < 3:
-        raise DataError(f"reliability needs at least 3 units ('{unit_col}') with 2 or more "
-                        f"trials; found {len(units)}.")
+        raise DataError(
+            f"reliability needs at least 3 units ('{unit_col}') with 2 or more "
+            f"trials; found {len(units)}."
+        )
     n_units, n_ch = len(units), len(index)
     sizes = np.array([len(u) for u in units])
-    trial_scores = func(data)                                  # (n_trials, n_ch)
+    trial_scores = func(data)  # (n_trials, n_ch)
     unit_of = np.full(ts.n_trials, -1)
     for k, rows in enumerate(units):
         unit_of[rows] = k
@@ -276,11 +320,17 @@ def reliability(ts, *, scorer="mean_amplitude", facets=("trial", "subject"), met
         avgs = np.stack([_nanmean(data[rows[selector(rows)]], 0) for rows in units])
         return func(avgs)
 
-    out = {"split_half_odd_even": np.full(n_ch, np.nan), "split_half_random": np.full(n_ch, np.nan),
-           "split_half_low": np.full(n_ch, np.nan), "split_half_high": np.full(n_ch, np.nan),
-           "var_unit": np.full(n_ch, np.nan), "var_trial": np.full(n_ch, np.nan),
-           "dependability": np.full(n_ch, np.nan), "trials_needed": np.full(n_ch, np.nan),
-           "sme_rms": np.full(n_ch, np.nan)}
+    out = {
+        "split_half_odd_even": np.full(n_ch, np.nan),
+        "split_half_random": np.full(n_ch, np.nan),
+        "split_half_low": np.full(n_ch, np.nan),
+        "split_half_high": np.full(n_ch, np.nan),
+        "var_unit": np.full(n_ch, np.nan),
+        "var_trial": np.full(n_ch, np.nan),
+        "dependability": np.full(n_ch, np.nan),
+        "trials_needed": np.full(n_ch, np.nan),
+        "sme_rms": np.full(n_ch, np.nan),
+    }
     if method in ("split_half", "both"):
         odd = half_scores(lambda rows: np.arange(len(rows)) % 2 == 0)
         even = half_scores(lambda rows: np.arange(len(rows)) % 2 == 1)
@@ -300,27 +350,46 @@ def reliability(ts, *, scorer="mean_amplitude", facets=("trial", "subject"), met
             out["trials_needed"][c] = _trials_for(target_phi, var_u, var_e)
     out["sme_rms"] = _sme_rms(units, data, trial_scores, func, linear, rng)
 
-    table = pd.DataFrame({"channel": [names[i] for i in index], "scorer": name,
-                          "facet": unit_col, "n_units": float(n_units),
-                          "n_trials_mean": float(sizes.mean()), **out,
-                          "target_phi": float(target_phi),
-                          "n_units_dropped": int(dropped)}, columns=list(RELIABILITY_COLUMNS))
+    table = pd.DataFrame(
+        {
+            "channel": [names[i] for i in index],
+            "scorer": name,
+            "facet": unit_col,
+            "n_units": float(n_units),
+            "n_trials_mean": float(sizes.mean()),
+            **out,
+            "target_phi": float(target_phi),
+            "n_units_dropped": int(dropped),
+        },
+        columns=list(RELIABILITY_COLUMNS),
+    )
     n_max = int(2 * sizes.max())
     grid = np.arange(1, n_max + 1)
-    table.attrs["d_study"] = {"n_trials": grid.tolist(),
-                              **{names[i]: dependability(out["var_unit"][c], out["var_trial"][c],
-                                                         grid).tolist()
-                                 for c, i in enumerate(index)}}
+    table.attrs["d_study"] = {
+        "n_trials": grid.tolist(),
+        **{
+            names[i]: dependability(out["var_unit"][c], out["var_trial"][c], grid).tolist()
+            for c, i in enumerate(index)
+        },
+    }
     unit = "s" if name in TIME_SCORES else ("data·s" if name == "area" else ts.units)
     table.attrs["units"] = {k: v.replace("score", unit) for k, v in RELIABILITY_COLUMNS.items()}
-    settings = {"scorer": name, "facets": list(facets), "method": method,
-                "n_splits": int(n_splits), "target_phi": target_phi, "window": list(window),
-                "random_state": random_state if isinstance(random_state, (int, type(None)))
-                else "generator", **{k: v for k, v in scorer_kw.items()
-                                     if isinstance(v, (int, float, str, bool))}}
+    settings = {
+        "scorer": name,
+        "facets": list(facets),
+        "method": method,
+        "n_splits": int(n_splits),
+        "target_phi": target_phi,
+        "window": list(window),
+        "random_state": random_state
+        if isinstance(random_state, (int, type(None)))
+        else "generator",
+        **{k: v for k, v in scorer_kw.items() if isinstance(v, (int, float, str, bool))},
+    }
     table.attrs["settings"] = settings
     table.attrs["provenance"] = ts.provenance.with_step(
-        "evoparam.stats.reliability", settings, duration_s=_time.perf_counter() - start).to_dict()
+        "evoparam.stats.reliability", settings, duration_s=_time.perf_counter() - start
+    ).to_dict()
     return table
 
 
@@ -345,8 +414,9 @@ def _random_splits(units, data, trial_scores, func, linear, n_splits, rng):
                 sv = np.where(fin, s, 0.0)
                 for target, w in ((first, weights), (second, 1.0 - weights)):
                     num, den = w @ sv, w @ fin.astype(float)
-                    target[:, k] = np.divide(num, den, out=np.full(num.shape, np.nan),
-                                             where=den > 0)
+                    target[:, k] = np.divide(
+                        num, den, out=np.full(num.shape, np.nan), where=den > 0
+                    )
             else:
                 x = data[rows]
                 flat = x.reshape(n, -1)
@@ -359,10 +429,12 @@ def _random_splits(units, data, trial_scores, func, linear, n_splits, rng):
         for j in range(m):
             r_sb[start + j] = spearman_brown(_pearson(first[j], second[j]))
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)       # all-NaN channels stay NaN
-        return {"split_half_random": np.nanmean(r_sb, axis=0),
-                "split_half_low": np.nanpercentile(r_sb, 2.5, axis=0),
-                "split_half_high": np.nanpercentile(r_sb, 97.5, axis=0)}
+        warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN channels stay NaN
+        return {
+            "split_half_random": np.nanmean(r_sb, axis=0),
+            "split_half_low": np.nanpercentile(r_sb, 2.5, axis=0),
+            "split_half_high": np.nanpercentile(r_sb, 97.5, axis=0),
+        }
 
 
 def _sme_rms(units, data, trial_scores, func, linear, rng):
@@ -378,8 +450,11 @@ def _sme_rms(units, data, trial_scores, func, linear, rng):
             count = fin.sum(axis=0)
             mean = _nanmean(s, 0)
             dev = np.where(fin, s - mean, 0.0)
-            sd = np.sqrt(np.divide((dev ** 2).sum(axis=0), count - 1,
-                                   out=np.full(n_ch, np.nan), where=count > 1))
+            sd = np.sqrt(
+                np.divide(
+                    (dev**2).sum(axis=0), count - 1, out=np.full(n_ch, np.nan), where=count > 1
+                )
+            )
             sme[k] = sd / np.sqrt(np.maximum(count, 1))
         else:
             pick = rng.integers(0, n, (_SME_BOOT, n))
@@ -394,11 +469,12 @@ def _sme_rms(units, data, trial_scores, func, linear, rng):
             sme[k] = np.nanstd(boot, axis=0, ddof=1)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        return np.sqrt(np.nanmean(sme ** 2, axis=0))
+        return np.sqrt(np.nanmean(sme**2, axis=0))
 
 
 ###################################################################################################
 ## Trial-count planning
+
 
 def _extrapolate(sd, n_recorded, targets, law):
     """SD at ``targets`` (> n_recorded) from the resampled SDs ``sd`` {count: (n_ch,)}.
@@ -419,19 +495,28 @@ def _extrapolate(sd, n_recorded, targets, law):
         dm = logm - logm.mean()
         with warnings.catch_warnings(), np.errstate(divide="ignore", invalid="ignore"):
             warnings.simplefilter("ignore", RuntimeWarning)
-            logsd = np.log(np.stack([sd[m] for m in fit]))           # (n_counts, n_ch)
+            logsd = np.log(np.stack([sd[m] for m in fit]))  # (n_counts, n_ch)
             slope = np.clip((dm @ (logsd - logsd.mean(axis=0))) / (dm @ dm), *_POWER_EXPONENT)
             level = np.mean(logsd - slope[None] * logm[:, None], axis=0)
-            return ({n: np.exp(level + slope * np.log(n)) * correction for n in targets},
-                    slope)
+            return ({n: np.exp(level + slope * np.log(n)) * correction for n in targets}, slope)
     base = [m for m in resampled if m >= N / 2] or resampled
     c = np.mean([sd[m] * np.sqrt(m) for m in base], axis=0) * correction
     return {n: c / np.sqrt(n) for n in targets}, np.full(np.shape(c), -0.5)
 
 
-def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random_state=None,
-                  window=None, picks=None, existence_kwargs=None, extrapolation="auto",
-                  **scorer_kw):
+def trials_needed(
+    ts,
+    *,
+    scorer="existence",
+    steps=None,
+    n_resamples=200,
+    random_state=None,
+    window=None,
+    picks=None,
+    existence_kwargs=None,
+    extrapolation="auto",
+    **scorer_kw,
+):
     """How a score's precision, or the chance of detecting the response, grows with trials.
 
     Parameters
@@ -498,8 +583,11 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
     _check_trialset(ts, "trials_needed")
     rng = np.random.default_rng(random_state)
     names = list(ts.ch_names)
-    index = list(range(len(names))) if picks is None else \
-        [names.index(p) if isinstance(p, str) else int(p) for p in picks]
+    index = (
+        list(range(len(names)))
+        if picks is None
+        else [names.index(p) if isinstance(p, str) else int(p) for p in picks]
+    )
     data, keep = _trial_data(ts, index)
     rows_kept = np.flatnonzero(keep)
     N = rows_kept.size
@@ -514,8 +602,9 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
         raise SettingsError("steps must be positive trial counts.")
     n_resamples = int(n_resamples)
     if extrapolation not in EXTRAPOLATIONS:
-        raise SettingsError(f"extrapolation must be one of {EXTRAPOLATIONS}, not "
-                            f"{extrapolation!r}.")
+        raise SettingsError(
+            f"extrapolation must be one of {EXTRAPOLATIONS}, not {extrapolation!r}."
+        )
     records = []
     law, exponents = None, None
     if scorer == "existence":
@@ -526,25 +615,35 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
         picked = [names[i] for i in index]
         for n in steps:
             if n > N:
-                _warn(f"trials_needed: {n} trials exceed the {N} recorded; the "
-                      "detection probability is not extrapolated.", UserWarning,
-                      stacklevel=2)
+                _warn(
+                    f"trials_needed: {n} trials exceed the {N} recorded; the "
+                    "detection probability is not extrapolated.",
+                    UserWarning,
+                    stacklevel=2,
+                )
                 continue
             hits = np.zeros(len(index))
             draws = 1 if n == N else n_resamples
             for _ in range(draws):
                 rows = np.sort(rng.choice(rows_kept, n, replace=False))
                 sub = ts.select(trials=rows.tolist(), picks=picked)
-                test = test_response(sub, random_state=int(rng.integers(2 ** 31)), **kwargs)
+                test = test_response(sub, random_state=int(rng.integers(2**31)), **kwargs)
                 hits += np.asarray(test.significant, bool).reshape(len(index), -1).any(axis=1)
             for c, i in enumerate(index):
-                records.append({"channel": names[i], "scorer": "existence", "n_trials": n,
-                                "sd": np.nan, "p_significant": hits[c] / draws,
-                                "extrapolated": False, "n_resamples": draws})
+                records.append(
+                    {
+                        "channel": names[i],
+                        "scorer": "existence",
+                        "n_trials": n,
+                        "sd": np.nan,
+                        "p_significant": hits[c] / draws,
+                        "extrapolated": False,
+                        "n_resamples": draws,
+                    }
+                )
         name, unit = "existence", ""
     else:
-        func, name, linear, window, inside = _scorer_on_window(scorer, ts.times, window,
-                                                               scorer_kw)
+        func, name, linear, window, inside = _scorer_on_window(scorer, ts.times, window, scorer_kw)
         x = data[rows_kept][..., inside]
         flat = x.reshape(N, -1)
         fin = np.isfinite(flat)
@@ -567,27 +666,47 @@ def trials_needed(ts, *, scorer="existence", steps=None, n_resamples=200, random
         for n in steps:
             values = sd[n] if n in sd else beyond[n]
             for k, i in enumerate(index):
-                records.append({"channel": names[i], "scorer": name, "n_trials": n,
-                                "sd": float(values[k]), "p_significant": np.nan,
-                                "extrapolated": n > N, "n_resamples": n_resamples
-                                if n <= N else 0})
+                records.append(
+                    {
+                        "channel": names[i],
+                        "scorer": name,
+                        "n_trials": n,
+                        "sd": float(values[k]),
+                        "p_significant": np.nan,
+                        "extrapolated": n > N,
+                        "n_resamples": n_resamples if n <= N else 0,
+                    }
+                )
         unit = "s" if name in TIME_SCORES else ("data·s" if name == "area" else ts.units)
     table = pd.DataFrame(records, columns=list(TRIALS_NEEDED_COLUMNS))
-    table = table.sort_values(["channel", "n_trials"], kind="stable",
-                              key=lambda col: col.map({n: i for i, n in enumerate(names)})
-                              if col.name == "channel" else col).reset_index(drop=True)
+    table = table.sort_values(
+        ["channel", "n_trials"],
+        kind="stable",
+        key=lambda col: (
+            col.map({n: i for i, n in enumerate(names)}) if col.name == "channel" else col
+        ),
+    ).reset_index(drop=True)
     table.attrs["units"] = {k: v.replace("score", unit) for k, v in TRIALS_NEEDED_COLUMNS.items()}
-    settings = {"scorer": name, "steps": steps, "n_resamples": n_resamples,
-                "n_recorded": int(N), "window": None if window is None else list(window),
-                "extrapolation": law,
-                "existence_kwargs": {k: v for k, v in (existence_kwargs or {}).items()
-                                     if isinstance(v, (int, float, str, bool))},
-                "random_state": random_state if isinstance(random_state, (int, type(None)))
-                else "generator"}
+    settings = {
+        "scorer": name,
+        "steps": steps,
+        "n_resamples": n_resamples,
+        "n_recorded": int(N),
+        "window": None if window is None else list(window),
+        "extrapolation": law,
+        "existence_kwargs": {
+            k: v
+            for k, v in (existence_kwargs or {}).items()
+            if isinstance(v, (int, float, str, bool))
+        },
+        "random_state": random_state
+        if isinstance(random_state, (int, type(None)))
+        else "generator",
+    }
     table.attrs["settings"] = settings
     if exponents is not None:
         table.attrs["exponents"] = {names[i]: float(exponents[k]) for k, i in enumerate(index)}
     table.attrs["provenance"] = ts.provenance.with_step(
-        "evoparam.stats.trials_needed", settings,
-        duration_s=_time.perf_counter() - start).to_dict()
+        "evoparam.stats.trials_needed", settings, duration_s=_time.perf_counter() - start
+    ).to_dict()
     return table

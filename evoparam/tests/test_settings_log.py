@@ -27,8 +27,9 @@ def fitted():
             warnings.simplefilter("ignore", UserWarning)
             group = evoparam.fit(trials, preset="ccep", min_fwhm=0.003)
             settings = group.settings
-            again = evoparam.fit(trials, **{k: v for k, v in settings.items()
-                                            if not k.startswith("_")})
+            again = evoparam.fit(
+                trials, **{k: v for k, v in settings.items() if not k.startswith("_")}
+            )
     return trials, group, again
 
 
@@ -42,14 +43,18 @@ def _without_overrides(group):
 
     def clean_prov(prov):
         prov = prov.copy()
-        prov.steps = [dict(step, settings=clean(step.get("settings") or {}))
-                      for step in prov.steps]
+        prov.steps = [
+            dict(step, settings=clean(step.get("settings") or {})) for step in prov.steps
+        ]
         return prov
 
-    fits = [dataclasses.replace(f, settings=clean(f.settings),
-                                provenance=clean_prov(f.provenance)) for f in group.fits]
-    return dataclasses.replace(group, fits=fits, settings=clean(group.settings),
-                               provenance=clean_prov(group.provenance))
+    fits = [
+        dataclasses.replace(f, settings=clean(f.settings), provenance=clean_prov(f.provenance))
+        for f in group.fits
+    ]
+    return dataclasses.replace(
+        group, fits=fits, settings=clean(group.settings), provenance=clean_prov(group.provenance)
+    )
 
 
 def test_settings_log(fitted):
@@ -59,8 +64,11 @@ def test_settings_log(fitted):
     assert settings["min_fwhm"] == 0.003
     assert settings["_overrides"] == ["min_fwhm"]
     assert settings["preset"] == {"name": "ccep", "version": presets.get("ccep").version}
-    fit_step = next(step for step in group.provenance.steps
-                    if step["function"] == "evoparam.models.ResponseModel.fit_group")
+    fit_step = next(
+        step
+        for step in group.provenance.steps
+        if step["function"] == "evoparam.models.ResponseModel.fit_group"
+    )
     assert fit_step["preset"] == settings["preset"]
     json.dumps(settings, allow_nan=False)
     assert all(f.settings["_overrides"] == ["min_fwhm"] for f in group.fits)

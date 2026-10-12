@@ -53,8 +53,11 @@ def waveform_band(signals, *, spread="std", average="mean", scale=1.0):
     if isinstance(spread, str) and spread not in SPREADS:
         raise SettingsError(f"spread must be one of {tuple(SPREADS)}, an array or a function.")
     if signals.ndim == 2:
-        center = AVERAGES[average](signals, axis=0) if isinstance(average, str) \
+        center = (
+            AVERAGES[average](signals, axis=0)
+            if isinstance(average, str)
             else np.asarray(average(signals), dtype=float)
+        )
     else:
         center = signals
     if isinstance(spread, str):

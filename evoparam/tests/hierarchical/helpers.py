@@ -6,14 +6,14 @@ import pandas as pd
 
 from evoparam.data import TrialSet
 
-SFREQ = 1000.
+SFREQ = 1000.0
 TIMES = np.arange(-0.3, 0.55, 1 / SFREQ)
 NOISE_SD = 10.0
 PHI = 0.6
 
 
 def ar1(rng, shape, phi=PHI, sd=NOISE_SD):
-    e = rng.normal(0, sd * np.sqrt(1 - phi ** 2), shape)
+    e = rng.normal(0, sd * np.sqrt(1 - phi**2), shape)
     out = np.empty(shape)
     out[..., 0] = rng.normal(0, sd, shape[:-1])
     for k in range(1, shape[-1]):
@@ -25,10 +25,23 @@ def gauss(latency, fwhm, times=TIMES):
     return np.exp(-0.5 * ((times[None] - np.asarray(latency)[:, None]) / (fwhm / 2.3548)) ** 2)
 
 
-def simulate_group(n_subjects=20, n_channels=50, n_trials=20, p_respond=0.3, snr=2.0,
-                   amp_sd=0.3, subject_amp_sd=0.15, latency=0.03, latency_sd_channel=0.004,
-                   latency_sd_subject=0.003, jitter=0.002, fwhm=0.02, age_slope=0.0,
-                   n2=0.0, seed=0):
+def simulate_group(
+    n_subjects=20,
+    n_channels=50,
+    n_trials=20,
+    p_respond=0.3,
+    snr=2.0,
+    amp_sd=0.3,
+    subject_amp_sd=0.15,
+    latency=0.03,
+    latency_sd_channel=0.004,
+    latency_sd_subject=0.003,
+    jitter=0.002,
+    fwhm=0.02,
+    age_slope=0.0,
+    n2=0.0,
+    seed=0,
+):
     """List of TrialSets (one per subject) and the truth table (one row per channel).
 
     Amplitudes are negative (an N1): subject mean ``-snr * NOISE_SD * (1 + subject
@@ -52,17 +65,27 @@ def simulate_group(n_subjects=20, n_channels=50, n_trials=20, p_respond=0.3, snr
             shifts = jitter * rng.normal(size=n_trials)
             data[:, c] += amps[c] * gauss(lats[c] + shifts, fwhm)
             if n2:
-                data[:, c] -= n2 * amps[c] * gauss(0.15 + 3 * (lats[c] - base_lat) + shifts,
-                                                   0.06)
+                data[:, c] -= n2 * amps[c] * gauss(0.15 + 3 * (lats[c] - base_lat) + shifts, 0.06)
         names = [f"s{s}c{c}" for c in range(n_channels)]
         meta = pd.DataFrame({"subject": [f"sub{s:02d}"] * n_trials, "age": ages[s]})
-        sets.append(TrialSet(data=data, times=TIMES, sfreq=SFREQ, ch_names=names,
-                             metadata=meta, modality="spes"))
+        sets.append(
+            TrialSet(
+                data=data, times=TIMES, sfreq=SFREQ, ch_names=names, metadata=meta, modality="spes"
+            )
+        )
         for c in range(n_channels):
-            truth.append({"subject": f"sub{s:02d}", "channel": names[c],
-                          "respond": bool(respond[c]), "amplitude": amps[c],
-                          "latency": lats[c], "subject_amplitude": base_amp,
-                          "subject_latency": base_lat, "age": ages[s]})
+            truth.append(
+                {
+                    "subject": f"sub{s:02d}",
+                    "channel": names[c],
+                    "respond": bool(respond[c]),
+                    "amplitude": amps[c],
+                    "latency": lats[c],
+                    "subject_amplitude": base_amp,
+                    "subject_latency": base_lat,
+                    "age": ages[s],
+                }
+            )
     return sets, pd.DataFrame(truth)
 
 

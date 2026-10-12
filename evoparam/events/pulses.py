@@ -8,8 +8,18 @@ import numpy as np
 from evoparam.errors import DataError, EventError, SettingsError
 from evoparam.utils._optional import require
 
-from ._score import (SCORE_CHANNELS, as_continuous, crossings, difference_score, far_from,
-                     pick_index, robust_z, score_index, shifted_snippets, snippet_lengths)
+from ._score import (
+    SCORE_CHANNELS,
+    as_continuous,
+    crossings,
+    difference_score,
+    far_from,
+    pick_index,
+    robust_z,
+    score_index,
+    shifted_snippets,
+    snippet_lengths,
+)
 from . import _spec
 from .saturation import detect_saturation
 from .site import identify_stim_site, vote_sites
@@ -24,9 +34,20 @@ METHODS = ("threshold", "template", "threshold+template")
 PROCEDURES = ("evoparam", "spec")
 
 # Fixed columns of the event table (spec §4.3.4), in order.
-EVENT_COLUMNS = ("onset_sample", "onset_time", "peak_abs", "channel_argmax", "saturated",
-                 "n_saturated_channels", "stim_site_guess", "site_confidence", "train_id",
-                 "index_in_train", "detector", "threshold")
+EVENT_COLUMNS = (
+    "onset_sample",
+    "onset_time",
+    "peak_abs",
+    "channel_argmax",
+    "saturated",
+    "n_saturated_channels",
+    "stim_site_guess",
+    "site_confidence",
+    "train_id",
+    "index_in_train",
+    "detector",
+    "threshold",
+)
 
 # Crossings closer than this belong to the same artifact (s).
 MERGE_WINDOW = 0.020
@@ -48,6 +69,7 @@ RECOVERY_FRACTION = 0.1
 
 # Lower edge of the grey zone, as a fraction of the strength gate.
 GREY_FRACTION = 0.4
+
 
 def _group_crossings(cross, score, sfreq, merge_s=MERGE_WINDOW):
     """One candidate per artifact: the crossing group's largest peak.
@@ -86,7 +108,7 @@ def _onsets_from_peaks(peaks, firsts, score, sfreq):
     onsets = np.empty(len(peaks), dtype=int)
     for row, (peak, first) in enumerate(zip(peaks, firsts)):
         lo = max(0, min(peak - back, first - 1))
-        above = np.flatnonzero(score[lo:peak + 1] >= ONSET_FRACTION * score[peak])
+        above = np.flatnonzero(score[lo : peak + 1] >= ONSET_FRACTION * score[peak])
         onsets[row] = lo + above[0] + 1
     return onsets
 
@@ -103,7 +125,7 @@ def _suppress(positions, strength, min_samples):
     for _ in range(2):
         new = np.zeros(len(pos), dtype=bool)
         for ind in range(len(pos)):
-            rivals = np.flatnonzero(keep[lo[ind]:hi[ind]]) + lo[ind]
+            rivals = np.flatnonzero(keep[lo[ind] : hi[ind]]) + lo[ind]
             rivals = rivals[rivals != ind]
             new[ind] = len(rivals) == 0 or val[ind] >= val[rivals].max()
         if np.array_equal(new, keep):
@@ -134,7 +156,7 @@ def _cluster(stacks, rho_min, n_members):
         if not np.any(stack[middle]):
             continue
         if templates:
-            rho = stack @ np.array(templates).T            # shifts x clusters
+            rho = stack @ np.array(templates).T  # shifts x clusters
             shift, k = np.unravel_index(int(np.argmax(rho)), rho.shape)
             if rho[shift, k] >= rho_min:
                 labels[row], best[row] = k, rho[shift, k]
@@ -159,12 +181,32 @@ def _match(stacks, templates):
     return rho.max(axis=1), rho.argmax(axis=1)
 
 
-def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0,
-                  min_interval=None, expected_rate=None, t0=0.0, picks=None, template=None,
-                  rho_min=0.8, n_template=5, min_relative=0.25, recovery_sd=None, refine=True,
-                  ch_names=None, ch_info=None, saturation=True, vote=True,
-                  score_channels=SCORE_CHANNELS, procedure="evoparam", return_scores=False,
-                  site_method="evidence", verbose=None):
+def detect_pulses(
+    data,
+    sfreq,
+    *,
+    method="threshold+template",
+    threshold_sd=20.0,
+    min_interval=None,
+    expected_rate=None,
+    t0=0.0,
+    picks=None,
+    template=None,
+    rho_min=0.8,
+    n_template=5,
+    min_relative=0.25,
+    recovery_sd=None,
+    refine=True,
+    ch_names=None,
+    ch_info=None,
+    saturation=True,
+    vote=True,
+    score_channels=SCORE_CHANNELS,
+    procedure="evoparam",
+    return_scores=False,
+    site_method="evidence",
+    verbose=None,
+):
     """Find stimulation pulses from the artifact they leave in the signal.
 
     1. **Score.** ``d[n] = median_c |x_c[n + 1] - x_c[n]|`` over the picked channels
@@ -314,8 +356,17 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
 
     if procedure == "spec":
         score, z, onsets, strength, detector, rho, labels = _spec_candidates(
-            data, sfreq, index, method, threshold_sd, min_samples, refine, template, rho_min,
-            n_template)
+            data,
+            sfreq,
+            index,
+            method,
+            threshold_sd,
+            min_samples,
+            refine,
+            template,
+            rho_min,
+            n_template,
+        )
     else:
         score = difference_score(data, score_index(index, score_channels))
         z = robust_z(score)
@@ -333,8 +384,10 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
         if template is not None:
             user = np.asarray(template, dtype=float).ravel()
             if user.size != len(index) * (n_pre + n_post):
-                raise SettingsError(f"template must have {len(index) * (n_pre + n_post)} values "
-                                    f"({len(index)} channels x {n_pre + n_post} samples).")
+                raise SettingsError(
+                    f"template must have {len(index) * (n_pre + n_post)} values "
+                    f"({len(index)} channels x {n_pre + n_post} samples)."
+                )
             user = user / np.linalg.norm(user)
 
         if method != "threshold" and len(onsets):
@@ -348,8 +401,9 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
             stacks = shifted_snippets(data, index, onsets, n_pre, n_post, max_shift)
             labels = np.full(len(onsets), -1)
             rho = np.zeros(len(onsets))
-            labels[eligible], clusters, rho[eligible] = _cluster(stacks[eligible], rho_min,
-                                                                 int(n_template))
+            labels[eligible], clusters, rho[eligible] = _cluster(
+                stacks[eligible], rho_min, int(n_template)
+            )
             sizes = np.bincount(labels[eligible], minlength=len(clusters))
             repeated = eligible & (sizes[np.maximum(labels, 0)] >= 2)
             confirmed = strong | repeated
@@ -374,17 +428,23 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
 
             # Recovery: weaker artifacts that match a template of the confirmed pulses
             if len(templates):
-                low_peaks, low_strength, low_firsts = _group_crossings(crossings(z, recovery_sd),
-                                                                       z, sfreq, merge_s)
-                low_onsets = (_onsets_from_peaks(low_peaks, low_firsts, score, sfreq) if refine
-                              else low_firsts + 1)
+                low_peaks, low_strength, low_firsts = _group_crossings(
+                    crossings(z, recovery_sd), z, sfreq, merge_s
+                )
+                low_onsets = (
+                    _onsets_from_peaks(low_peaks, low_firsts, score, sfreq)
+                    if refine
+                    else low_firsts + 1
+                )
                 new = far_from(low_onsets, np.sort(onsets), min_samples)
                 low_peaks, low_strength = low_peaks[new], low_strength[new]
                 low_onsets = low_onsets[new]
                 low_rho, low_label = _match(
-                    shifted_snippets(data, index, low_onsets, n_pre, n_post, max_shift), templates)
-                match = (low_rho >= rho_min) & (low_strength >= RECOVERY_FRACTION * min_relative
-                                                 * reference)
+                    shifted_snippets(data, index, low_onsets, n_pre, n_post, max_shift), templates
+                )
+                match = (low_rho >= rho_min) & (
+                    low_strength >= RECOVERY_FRACTION * min_relative * reference
+                )
                 peaks = np.r_[peaks, low_peaks[match]]
                 strength = np.r_[strength, low_strength[match]]
                 onsets = np.r_[onsets, low_onsets[match]]
@@ -401,9 +461,11 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
 
     if len(onsets) == 0:
         top = float(np.max(z)) if len(z) else 0.0
-        raise EventError(f"No stimulation pulse found: the largest score is {top:.1f} robust SD "
-                         f"(threshold {threshold_sd}); try threshold_sd={max(top / 2, 1):.1f}, "
-                         "or check that the picked channels record the stimulation.")
+        raise EventError(
+            f"No stimulation pulse found: the largest score is {top:.1f} robust SD "
+            f"(threshold {threshold_sd}); try threshold_sd={max(top / 2, 1):.1f}, "
+            "or check that the picked channels record the stimulation."
+        )
 
     # Artifact size and the channel that carries it
     width = max(1, int(round(PEAK_WINDOW * sfreq)))
@@ -411,7 +473,7 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
     argmax = []
     for row, onset in enumerate(onsets):
         lo, hi = max(0, onset - 1), min(n_times, onset + width + 1)
-        dev = np.abs(data[index, lo:hi] - data[index, lo:lo + 1])
+        dev = np.abs(data[index, lo:hi] - data[index, lo : lo + 1])
         per_channel = np.nanmax(dev, axis=1)
         best = int(np.argmax(per_channel))
         peak_abs[row] = per_channel[best]
@@ -424,35 +486,44 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
         if label >= 0:
             classes[row] = seen.setdefault(int(label), len(seen))
 
-    events = pd.DataFrame({
-        "onset_sample": onsets.astype("int64"),
-        "onset_time": t0 + onsets / sfreq,
-        "peak_abs": peak_abs,
-        "channel_argmax": argmax,
-        "saturated": np.zeros(len(onsets), dtype=bool),
-        "n_saturated_channels": np.zeros(len(onsets), dtype="int64"),
-        "stim_site_guess": [""] * len(onsets),
-        "site_confidence": np.zeros(len(onsets)),
-        "train_id": np.zeros(len(onsets), dtype="int64"),
-        "index_in_train": np.zeros(len(onsets), dtype="int64"),
-        "detector": detector.astype(str),
-        "threshold": np.full(len(onsets), float(threshold_sd)),
-        "z_peak": strength,
-        "rho": rho,
-        "template_class": classes.astype("int64"),
-    })
+    events = pd.DataFrame(
+        {
+            "onset_sample": onsets.astype("int64"),
+            "onset_time": t0 + onsets / sfreq,
+            "peak_abs": peak_abs,
+            "channel_argmax": argmax,
+            "saturated": np.zeros(len(onsets), dtype=bool),
+            "n_saturated_channels": np.zeros(len(onsets), dtype="int64"),
+            "stim_site_guess": [""] * len(onsets),
+            "site_confidence": np.zeros(len(onsets)),
+            "train_id": np.zeros(len(onsets), dtype="int64"),
+            "index_in_train": np.zeros(len(onsets), dtype="int64"),
+            "detector": detector.astype(str),
+            "threshold": np.full(len(onsets), float(threshold_sd)),
+            "z_peak": strength,
+            "rho": rho,
+            "template_class": classes.astype("int64"),
+        }
+    )
 
     if saturation:
-        _, sat = detect_saturation(data, sfreq, events=events, ch_names=names, picks=index,
-                                   t0=t0)
+        _, sat = detect_saturation(data, sfreq, events=events, ch_names=names, picks=index, t0=t0)
         if len(sat):
             counts = sat.groupby("event_index")["channel"].nunique()
             events.loc[counts.index, "n_saturated_channels"] = counts.to_numpy(dtype="int64")
             events["saturated"] = events["n_saturated_channels"] > 0
 
     if ch_names is not None:
-        located = identify_stim_site(data, sfreq, events, ch_names=names, ch_info=ch_info,
-                                     t0=t0, picks=index, method=site_method)
+        located = identify_stim_site(
+            data,
+            sfreq,
+            events,
+            ch_names=names,
+            ch_info=ch_info,
+            t0=t0,
+            picks=index,
+            method=site_method,
+        )
         events["stim_site_guess"] = located["stim_site_guess"]
         events["site_confidence"] = located["site_confidence"]
         if vote and len(events) > 1:
@@ -481,25 +552,36 @@ def detect_pulses(data, sfreq, *, method="threshold+template", threshold_sd=20.0
     # table) so that the methods text describes it (spec §5.13)
     from evoparam.data import Provenance
 
-    settings = {"method": method, "threshold_sd": float(threshold_sd),
-                "min_interval": float(min_interval),
-                "expected_rate": None if expected_rate is None else float(expected_rate),
-                "rho_min": float(rho_min), "n_template": int(n_template),
-                "min_relative": float(min_relative), "recovery_sd": float(recovery_sd),
-                "refine": bool(refine), "saturation": bool(saturation),
-                "site": ch_names is not None, "vote": bool(vote and ch_names is not None),
-                "site_method": site_method, "user_template": template is not None,
-                "score_channels": score_channels}
-    events.attrs["provenance"] = Provenance(
-        source={"reader": "evoparam.events.detect_pulses"}).with_step(
-        "evoparam.events.detect_pulses", settings, n_events=int(len(events))).to_dict()
+    settings = {
+        "method": method,
+        "threshold_sd": float(threshold_sd),
+        "min_interval": float(min_interval),
+        "expected_rate": None if expected_rate is None else float(expected_rate),
+        "rho_min": float(rho_min),
+        "n_template": int(n_template),
+        "min_relative": float(min_relative),
+        "recovery_sd": float(recovery_sd),
+        "refine": bool(refine),
+        "saturation": bool(saturation),
+        "site": ch_names is not None,
+        "vote": bool(vote and ch_names is not None),
+        "site_method": site_method,
+        "user_template": template is not None,
+        "score_channels": score_channels,
+    }
+    events.attrs["provenance"] = (
+        Provenance(source={"reader": "evoparam.events.detect_pulses"})
+        .with_step("evoparam.events.detect_pulses", settings, n_events=int(len(events)))
+        .to_dict()
+    )
     if return_scores:
         return events, z, events["rho"].to_numpy()
     return events
 
 
-def _spec_candidates(data, sfreq, index, method, threshold_sd, min_samples, refine, template,
-                     rho_min, n_template):
+def _spec_candidates(
+    data, sfreq, index, method, threshold_sd, min_samples, refine, template, rho_min, n_template
+):
     """Methods 1 and 2 of the specification as written (``procedure="spec"``)."""
 
     score = _spec.spec_score(data, index)
@@ -519,8 +601,7 @@ def _spec_candidates(data, sfreq, index, method, threshold_sd, min_samples, refi
         tpl, n_pre = _spec.spec_template(data, index, onsets, sfreq, n_template)
     if tpl is None:
         empty = np.array([], dtype=int)
-        return (score, z, empty, np.array([]), np.array([], dtype=object), np.array([]),
-                empty)
+        return (score, z, empty, np.array([]), np.array([], dtype=object), np.array([]), empty)
     scan = _spec.spec_rho(data, index, tpl)
     tolerance = max(1, int(round(0.0005 * sfreq)))
 
@@ -537,11 +618,17 @@ def _spec_candidates(data, sfreq, index, method, threshold_sd, min_samples, refi
     half = max(1, int(round(0.002 * sfreq)))
     peaks = _spec.spec_template_peaks(scan, rho_min, min_samples)
     found = peaks + n_pre
-    new = far_from(found, np.sort(onsets), min_samples) if len(onsets) else \
-        np.ones(len(found), dtype=bool)
+    new = (
+        far_from(found, np.sort(onsets), min_samples)
+        if len(onsets)
+        else np.ones(len(found), dtype=bool)
+    )
     found = found[new]
-    found_strength = np.array([float(np.max(z[max(0, f - half):f + half + 1]))
-                               for f in found]) if len(found) else np.array([])
+    found_strength = (
+        np.array([float(np.max(z[max(0, f - half) : f + half + 1])) for f in found])
+        if len(found)
+        else np.array([])
+    )
     onsets = np.r_[onsets, found].astype(int)
     strength = np.r_[strength, found_strength]
     detector = np.r_[detector, ["template"] * len(found)]
@@ -571,7 +658,10 @@ def match_onsets(detected, reference, tolerance=0.01):
         ``precision``.
     """
 
-    detected, reference = np.sort(np.asarray(detected, float)), np.sort(np.asarray(reference, float))
+    detected, reference = (
+        np.sort(np.asarray(detected, float)),
+        np.sort(np.asarray(reference, float)),
+    )
     used, errors = np.zeros(len(detected), dtype=bool), []
     for ref in reference:
         if len(detected) == 0:
@@ -583,10 +673,14 @@ def match_onsets(detected, reference, tolerance=0.01):
             used[ind] = True
             errors.append(detected[ind] - ref)
     hits = len(errors)
-    return {"hits": hits, "misses": len(reference) - hits, "false_alarms": int(np.sum(~used)),
-            "errors": np.array(errors),
-            "recall": hits / len(reference) if len(reference) else np.nan,
-            "precision": hits / len(detected) if len(detected) else np.nan}
+    return {
+        "hits": hits,
+        "misses": len(reference) - hits,
+        "false_alarms": int(np.sum(~used)),
+        "errors": np.array(errors),
+        "recall": hits / len(reference) if len(reference) else np.nan,
+        "precision": hits / len(detected) if len(detected) else np.nan,
+    }
 
 
 def estimate_delay(detected, reference, tolerance=0.01):
@@ -617,8 +711,10 @@ def estimate_delay(detected, reference, tolerance=0.01):
 
     if len(detected) and np.ndim(detected[0]) == 0:
         detected, reference = [detected], [reference]
-    errors = np.concatenate([match_onsets(det, ref, tolerance)["errors"]
-                             for det, ref in zip(detected, reference)] or [np.array([])])
+    errors = np.concatenate(
+        [match_onsets(det, ref, tolerance)["errors"] for det, ref in zip(detected, reference)]
+        or [np.array([])]
+    )
     if len(errors) == 0:
         return np.nan, np.nan
     delay = float(np.median(errors))

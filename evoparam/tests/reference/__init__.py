@@ -36,8 +36,11 @@ def fixture_values():
         group = fit(ts, "ccep", random_state=0)
     out = {}
     for fit_ in group.fits:
-        channel = fit_.provenance.source.get("channel") if isinstance(
-            getattr(fit_.provenance, "source", None), dict) else None
+        channel = (
+            fit_.provenance.source.get("channel")
+            if isinstance(getattr(fit_.provenance, "source", None), dict)
+            else None
+        )
         prefix = channel or str(group.fits.index(fit_))
         for k, value in vars(fit_.gof).items():
             if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -76,24 +79,31 @@ def compare_fixture(path=PATH, rtol=RTOL):
             differ.append(key)
     from evoparam.version import ALGORITHM_VERSIONS
 
-    return {"match": not differ, "max_rel_diff": worst, "rtol": rtol, "n_values": len(ref),
-            "differ": differ[:20], "reference_machine": reference.get("machine"),
-            "algorithm_versions_changed": reference.get("algorithm_versions") !=
-            dict(ALGORITHM_VERSIONS)}
+    return {
+        "match": not differ,
+        "max_rel_diff": worst,
+        "rtol": rtol,
+        "n_values": len(ref),
+        "differ": differ[:20],
+        "reference_machine": reference.get("machine"),
+        "algorithm_versions_changed": reference.get("algorithm_versions")
+        != dict(ALGORITHM_VERSIONS),
+    }
 
 
 def write(path=PATH):
     from evoparam.version import ALGORITHM_VERSIONS, __version__
 
     values = fixture_values()
-    doc = {"fixture": "simulate_ccep(n_trials=10, n_channels=4, p_response=1.0, seed=0, "
-                      "artifact=False); evoparam.models.fit(ts, 'ccep', random_state=0)",
-           "package_version": __version__,
-           "algorithm_versions": dict(ALGORITHM_VERSIONS),
-           "machine": f"{platform.platform()} {platform.machine()}, numpy "
-                      f"{np.__version__}, python {platform.python_version()}",
-           "values": {k: (v if np.isfinite(v) else None) for k, v in values.items()}}
+    doc = {
+        "fixture": "simulate_ccep(n_trials=10, n_channels=4, p_response=1.0, seed=0, "
+        "artifact=False); evoparam.models.fit(ts, 'ccep', random_state=0)",
+        "package_version": __version__,
+        "algorithm_versions": dict(ALGORITHM_VERSIONS),
+        "machine": f"{platform.platform()} {platform.machine()}, numpy "
+        f"{np.__version__}, python {platform.python_version()}",
+        "values": {k: (v if np.isfinite(v) else None) for k, v in values.items()},
+    }
     with open(path, "w", encoding="utf-8") as fobj:
         json.dump(doc, fobj, indent=1, sort_keys=True)
         fobj.write("\n")
-

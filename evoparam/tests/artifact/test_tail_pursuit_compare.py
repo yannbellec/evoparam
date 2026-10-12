@@ -14,6 +14,7 @@ from .helpers import make_overlay
 ###################################################################################################
 ###################################################################################################
 
+
 def test_tail_subtraction_removes_slow_recovery():
 
     noisy, truth = make_overlay(onset=0.03, art_tail=600.0, art_tau=0.006, n_channels=4)
@@ -38,10 +39,12 @@ def test_tail_joint_leaves_tail_for_the_model():
 
 def test_matching_pursuit_removes_decaying_artifact():
 
-    noisy, truth = make_overlay(onset=0.03, art_amplitude=0.0, art_tail=800.0, art_tau=0.004,
-                                n_channels=4)
+    noisy, truth = make_overlay(
+        onset=0.03, art_amplitude=0.0, art_tail=800.0, art_tau=0.004, n_channels=4
+    )
     with pytest.warns(UserWarning, match="patent"):
         from evoparam.artifact import pursuit
+
         pursuit._WARNED = False
         result = remove_artifact(noisy, method="matching_pursuit")
     seg = (noisy.times > 0.0) & (noisy.times < 0.02)
@@ -55,8 +58,9 @@ def test_compare_methods_with_truth():
     noisy, truth = make_overlay()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        table = compare_methods(noisy, [{"method": "interpolate"},
-                                        {"method": "template", "label": "tpl"}], truth=truth)
+        table = compare_methods(
+            noisy, [{"method": "interpolate"}, {"method": "template", "label": "tpl"}], truth=truth
+        )
     assert table["label"].tolist() == ["interpolate", "tpl"]
     assert {"rrmse", "sir_improvement_db", "median_quality", "runtime_s"} <= set(table.columns)
     assert (table["sir_improvement_db"] > 10).all()

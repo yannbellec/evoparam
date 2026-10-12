@@ -63,8 +63,9 @@ def finish(ts, data, masks, function, settings, start, **changes):
     masks = masks if masks is not None and masks.any() else None
     if masks is None and ts.masks is not None and ts.masks.any():
         masks = ts.masks.copy()
-    provenance = ts.provenance.with_step(function, settings,
-                                         duration_s=_time.perf_counter() - start)
+    provenance = ts.provenance.with_step(
+        function, settings, duration_s=_time.perf_counter() - start
+    )
     provenance.data_hash = None
     return replace(ts, data=data, masks=masks, provenance=provenance, **changes)
 
@@ -90,11 +91,18 @@ def apply_mask(ts, mask):
     try:
         mask = np.broadcast_to(np.asarray(mask, dtype=bool), ts.data.shape)
     except ValueError:
-        raise DataError(f"mask of shape {np.shape(mask)} does not broadcast to "
-                        f"{ts.data.shape}.") from None
+        raise DataError(
+            f"mask of shape {np.shape(mask)} does not broadcast to {ts.data.shape}."
+        ) from None
     masks = base_masks(ts) | mask
-    return finish(ts, ts.data.copy(), masks, "evoparam.artifact.apply_mask",
-                  {"n_masked": int(mask.sum())}, start)
+    return finish(
+        ts,
+        ts.data.copy(),
+        masks,
+        "evoparam.artifact.apply_mask",
+        {"n_masked": int(mask.sum())},
+        start,
+    )
 
 
 def baseline_rms(data, inds):

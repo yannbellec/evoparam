@@ -18,9 +18,13 @@ import pytest
 
 from evoparam.io import openneuro_url, read, read_mef, read_mef_header
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+]
 
 DS003708 = ("ds003708", "sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_task-ccep_run-01")
 DS004977 = ("ds004977", "sub-1/ses-ieeg01/ieeg/sub-1_ses-ieeg01_task-ccep_run-01")
@@ -28,8 +32,10 @@ DS004977 = ("ds004977", "sub-1/ses-ieeg01/ieeg/sub-1_ses-ieeg01_task-ccep_run-01
 ###################################################################################################
 ###################################################################################################
 
+
 def _table(dataset, stem, suffix):
     from evoparam.io._fetch import fetch_bytes
+
     text = fetch_bytes(openneuro_url(dataset, stem + suffix)).decode("utf-8")
     return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
 
@@ -37,8 +43,10 @@ def _table(dataset, stem, suffix):
 def _stim_onsets(dataset, stem):
     rows = _table(dataset, stem, "_events.tsv")
     stim = [row for row in rows if row["trial_type"] == "electrical_stimulation"]
-    return (np.array([float(row["onset"]) for row in stim]),
-            [row["electrical_stimulation_site"] for row in stim])
+    return (
+        np.array([float(row["onset"]) for row in stim]),
+        [row["electrical_stimulation_site"] for row in stim],
+    )
 
 
 def test_ds003708_header_matches_channels_tsv():
@@ -59,7 +67,7 @@ def test_ds003708_window_matches_events_tsv():
 
     dataset, stem = DS003708
     onsets, _ = _stim_onsets(dataset, stem)
-    tmin = float(np.sort(onsets)[1]) - 1.0                # the first pulse is isolated
+    tmin = float(np.sort(onsets)[1]) - 1.0  # the first pulse is isolated
     trials = read(openneuro_url(dataset, stem + "_ieeg.mefd"), tmin=tmin, tmax=tmin + 20.0)
     source = trials.provenance.source
     assert source["format"] == "mef" and source["remote"]

@@ -72,12 +72,18 @@ def deep_equal(a, b):
     if isinstance(a, dict) and isinstance(b, dict):
         return a.keys() == b.keys() and all(deep_equal(a[k], b[k]) for k in a)
     if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
-        return (type(a) is type(b) and len(a) == len(b)
-                and all(deep_equal(x, y) for x, y in zip(a, b)))
+        return (
+            type(a) is type(b) and len(a) == len(b) and all(deep_equal(x, y) for x, y in zip(a, b))
+        )
     if isinstance(a, (bool, np.bool_)) or isinstance(b, (bool, np.bool_)):
-        return isinstance(a, (bool, np.bool_)) and isinstance(b, (bool, np.bool_)) and bool(a) == bool(b)
-    if isinstance(a, (int, float, np.integer, np.floating)) \
-            and isinstance(b, (int, float, np.integer, np.floating)):
+        return (
+            isinstance(a, (bool, np.bool_))
+            and isinstance(b, (bool, np.bool_))
+            and bool(a) == bool(b)
+        )
+    if isinstance(a, (int, float, np.integer, np.floating)) and isinstance(
+        b, (int, float, np.integer, np.floating)
+    ):
         return _float_equal(float(a), float(b))
     return a == b
 

@@ -15,22 +15,34 @@ from evoparam.errors import SettingsError
 ROOT = pathlib.Path(__file__).parents[3]
 SPEC = ROOT / "docs" / "spec" / "SPEC.md"
 LITERATURE = ROOT / "docs" / "spec" / "LITERATURE.md"
-needs_docs = pytest.mark.skipif(not SPEC.exists(), reason="the specification is not in this "
-                                "checkout (installed package)")
+needs_docs = pytest.mark.skipif(
+    not SPEC.exists(), reason="the specification is not in this checkout (installed package)"
+)
 
 # Values that differ from the table on purpose; each is explained in the preset's notes.
-DEVIATIONS = {("sep", "background"): "constant",
-              ("tep", "shapes"): ("gaussian", "skewed_gaussian"),
-              ("tep", "background"): "constant"}
+DEVIATIONS = {
+    ("sep", "background"): "constant",
+    ("tep", "shapes"): ("gaussian", "skewed_gaussian"),
+    ("tep", "background"): "constant",
+}
 
-ARTIFACT = {"none": None, "`template` + `tail=\"joint\"`": "template+tail:joint",
-            "`interpolate`": "interpolate", "`interpolate` then `subspace`": "interpolate+subspace",
-            "`period_template`": "period_template",
-            "`paradigm` (alternating polarity)": "paradigm:alternating",
-            "`paradigm` (forward masking)": "paradigm:forward_masking", "`template`": "template"}
-REFERENCE = {"as recorded": "as_recorded", "`car_adaptive`": "car_adaptive",
-             "`bipolar`": "bipolar", "average": "average",
-             "bipolar (adjacent contacts)": "bipolar"}
+ARTIFACT = {
+    "none": None,
+    '`template` + `tail="joint"`': "template+tail:joint",
+    "`interpolate`": "interpolate",
+    "`interpolate` then `subspace`": "interpolate+subspace",
+    "`period_template`": "period_template",
+    "`paradigm` (alternating polarity)": "paradigm:alternating",
+    "`paradigm` (forward masking)": "paradigm:forward_masking",
+    "`template`": "template",
+}
+REFERENCE = {
+    "as recorded": "as_recorded",
+    "`car_adaptive`": "car_adaptive",
+    "`bipolar`": "bipolar",
+    "average": "average",
+    "bipolar (adjacent contacts)": "bipolar",
+}
 
 
 def _number(text):
@@ -38,14 +50,15 @@ def _number(text):
 
 
 def _tuples(cell):
-    return [(_number(a), _number(b)) for a, b in
-            re.findall(r"\(([−\-\d.]+),\s*([−\-\d.]+)\)", cell)]
+    return [
+        (_number(a), _number(b)) for a, b in re.findall(r"\(([−\-\d.]+),\s*([−\-\d.]+)\)", cell)
+    ]
 
 
 def _table():
     lines = SPEC.read_text("utf-8").split("\n")
     start = next(i for i, l in enumerate(lines) if l.startswith("### 6.1"))
-    rows = [l for l in lines[start:start + 40] if l.startswith("| ")]
+    rows = [l for l in lines[start : start + 40] if l.startswith("| ")]
     names = [c.split()[0].strip("`") for c in rows[0].strip("|").split("|")[1:]]
     out = {n: {} for n in names}
     for row in rows[1:]:
@@ -65,22 +78,30 @@ def _table():
 def _expected(name, row):
     window = lambda cell: (_tuples(cell) or [None])[0]
     labels = {}
-    for label, lo, hi in re.findall(r"([A-Za-z0-9/]+)(?: by depth)? \(([\d.]+)–([\d.]+)\)",
-                                    row["component labels (s)"]):
+    for label, lo, hi in re.findall(
+        r"([A-Za-z0-9/]+)(?: by depth)? \(([\d.]+)–([\d.]+)\)", row["component labels (s)"]
+    ):
         labels[label] = (float(lo), float(hi))
     keys = tuple(re.findall(r"\[(LIT-[\w-]+)\]", row["key sources"]))
-    return {"epoch": window(row["epoch (s)"]), "baseline": window(row["baseline (s)"]),
-            "artifact_window": window(row["artifact window (s)"]),
-            "artifact_method": ARTIFACT.get(row["artifact method"].split(";")[0].strip(),
-                                            row["artifact method"]),
-            "reference": REFERENCE.get(row["reference"], row["reference"]),
-            "fit_window": window(row["fit window (s)"]),
-            "shapes": tuple(s.strip() for s in row["shapes"].split(",")),
-            "background": row["background"], "max_components": int(row["max components"]),
-            "min_fwhm": float(row["min FWHM (s)"]), "max_fwhm": float(row["max FWHM (s)"]),
-            "component_labels": labels, "trial_fit": row["trial fit"].startswith("yes"),
-            "species": tuple(s.strip() for s in row["species"].split(",")),
-            "citation": keys}
+    return {
+        "epoch": window(row["epoch (s)"]),
+        "baseline": window(row["baseline (s)"]),
+        "artifact_window": window(row["artifact window (s)"]),
+        "artifact_method": ARTIFACT.get(
+            row["artifact method"].split(";")[0].strip(), row["artifact method"]
+        ),
+        "reference": REFERENCE.get(row["reference"], row["reference"]),
+        "fit_window": window(row["fit window (s)"]),
+        "shapes": tuple(s.strip() for s in row["shapes"].split(",")),
+        "background": row["background"],
+        "max_components": int(row["max components"]),
+        "min_fwhm": float(row["min FWHM (s)"]),
+        "max_fwhm": float(row["max FWHM (s)"]),
+        "component_labels": labels,
+        "trial_fit": row["trial fit"].startswith("yes"),
+        "species": tuple(s.strip() for s in row["species"].split(",")),
+        "citation": keys,
+    }
 
 
 @needs_docs
@@ -115,8 +136,9 @@ def dataclass_frozen(p):
 def test_req271_citations_resolve_and_choices_are_explained():
     """REQ-271, and REQ-014 of §3.1 (presets cite their sources), which is REQ-271."""
 
-    keys = set(re.findall(r"^- \*\*\[(LIT-[\w-]+)\]\*\*", LITERATURE.read_text("utf-8"),
-                          flags=re.M))
+    keys = set(
+        re.findall(r"^- \*\*\[(LIT-[\w-]+)\]\*\*", LITERATURE.read_text("utf-8"), flags=re.M)
+    )
     assert len(keys) > 500
     for p in presets.PRESETS.values():
         assert p.citation, p.name
@@ -153,8 +175,11 @@ def _waveform():
     sfreq = 2048.0
     times = np.arange(-0.5, 0.6, 1 / sfreq)
     rng = np.random.default_rng(0)
-    y = -40 * np.exp(-0.5 * ((times - 0.025) / 0.004) ** 2) \
-        - 20 * np.exp(-0.5 * ((times - 0.12) / 0.03) ** 2) + rng.normal(0, 3, times.size)
+    y = (
+        -40 * np.exp(-0.5 * ((times - 0.025) / 0.004) ** 2)
+        - 20 * np.exp(-0.5 * ((times - 0.12) / 0.03) ** 2)
+        + rng.normal(0, 3, times.size)
+    )
     return Evoked(data=y[None], times=times, sfreq=sfreq, ch_names=["c0"])
 
 
@@ -212,11 +237,13 @@ def test_fit_presets_view_follows_the_files():
 ###################################################################################################
 ## Preset behaviours of spec §6.2 (audit F58), applied by the preset pipeline
 
+
 def test_f58_preset_fields():
 
     assert presets.get("ccep_seeg").reference_sensitivity
-    assert not any(presets.get(n).reference_sensitivity for n in presets.PRESETS
-                   if n != "ccep_seeg")
+    assert not any(
+        presets.get(n).reference_sensitivity for n in presets.PRESETS if n != "ccep_seeg"
+    )
     assert presets.get("rodent_ep").trial_covariates == ("state",)
     assert presets.get("primate_ep").trial_covariates == ("state",)
     assert presets.get("erna").train_baseline == 0.05 and presets.get("erna").baseline is None
@@ -239,20 +266,27 @@ def test_f58_ccep_seeg_attaches_the_reference_sensitivity_report():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         result = reports.run_pipeline(ts, "ccep_seeg", trial_fits=False)
-        plain = reports.run_pipeline(ts, "ccep_seeg", trial_fits=False,
-                                     reference_sensitivity=False)
+        plain = reports.run_pipeline(
+            ts, "ccep_seeg", trial_fits=False, reference_sensitivity=False
+        )
         ccep = reports.run_pipeline(ts, "ccep", trial_fits=False)
     report = result.reference_report
     assert list(report[["scheme_a", "scheme_b"]].itertuples(index=False, name=None)) == [
-        ("bipolar", "car"), ("bipolar", "car_adaptive"), ("car", "car_adaptive")]
+        ("bipolar", "car"),
+        ("bipolar", "car_adaptive"),
+        ("car", "car_adaptive"),
+    ]
     assert report["kappa"].notna().any() and "channels" in report.attrs
     assert plain.reference_report is None and ccep.reference_report is None
     text = reports.methods_text(result)
     assert "dependence of the detections on the reference" in text
     assert "dependence of the detections" not in reports.methods_text(ccep)
     # the report does not change the fits (it runs on a copy of the cleaned trials)
-    assert np.allclose(result.group.to_dataframe()["latency"].to_numpy(float),
-                       plain.group.to_dataframe()["latency"].to_numpy(float), equal_nan=True)
+    assert np.allclose(
+        result.group.to_dataframe()["latency"].to_numpy(float),
+        plain.group.to_dataframe()["latency"].to_numpy(float),
+        equal_nan=True,
+    )
 
 
 def test_f58_rodent_state_is_a_default_trial_covariate():
@@ -301,8 +335,9 @@ def _pulse_trials(sfreq=4096.0, tmin=-0.002, tmax=0.008, levels=(5.0, -3.0, 8.0)
     onsets = []
     for k, level in enumerate(levels):
         start = 0.5 + k * 1.0
-        raw[:, int((start - 0.1) * sfreq):int((start + 0.2) * sfreq)] = level * np.array(
-            [[1.0], [2.0]])
+        raw[:, int((start - 0.1) * sfreq) : int((start + 0.2) * sfreq)] = level * np.array(
+            [[1.0], [2.0]]
+        )
         first, last = int(np.ceil(start * sfreq)), int((start + 0.2) * sfreq)
         noise[:, first:last] = rng.normal(0, 1, (2, last - first))
         onsets += [start + i / 130.0 for i in range(10)]
@@ -322,7 +357,7 @@ def test_f58_erna_baseline_per_train():
 
     ts, raw, expected = _pulse_trials()
     out = train_baseline(ts, 0.05, raw=raw, sfreq=4096.0)
-    assert np.allclose(out.data, expected)         # each train's level removed from its pulses
+    assert np.allclose(out.data, expected)  # each train's level removed from its pulses
     step = out.provenance.steps[-1]
     assert step["function"] == "evoparam.prep.train_baseline"
     assert step["settings"]["source"] == "continuous" and step["settings"]["n_trains"] == 3
@@ -339,17 +374,26 @@ def test_f58_erna_baseline_per_train():
     # the preset pipeline applies it, given the recording, and says so in the methods text
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        result = reports.run_pipeline(ts, "erna", artifact=False, reference=False,
-                                      existence=False, trial_fits=False,
-                                      continuous=(raw, 4096.0, 0.0))
+        result = reports.run_pipeline(
+            ts,
+            "erna",
+            artifact=False,
+            reference=False,
+            existence=False,
+            trial_fits=False,
+            continuous=(raw, 4096.0, 0.0),
+        )
     functions = [s["function"] for s in result.group.provenance.steps]
     assert "evoparam.prep.train_baseline" in functions
     assert np.allclose(result.trials.data, expected)
-    assert "the last 50 ms before the train (from the continuous recording)" in \
-        reports.methods_text(result)
+    assert (
+        "the last 50 ms before the train (from the continuous recording)"
+        in reports.methods_text(result)
+    )
     with pytest.warns(UserWarning, match="baseline per train was not applied"):
-        reports.run_pipeline(ts, "erna", artifact=False, reference=False, existence=False,
-                             trial_fits=False)
+        reports.run_pipeline(
+            ts, "erna", artifact=False, reference=False, existence=False, trial_fits=False
+        )
 
 
 def test_f58_rodent_p1_n1_named_by_sign_at_each_depth():
@@ -375,8 +419,9 @@ def test_f58_rodent_p1_n1_named_by_sign_at_each_depth():
         group = fit(ev, "rodent_ep")
     labels = [[c.label for c in f.components] for f in group.fits]
     assert "P1" in labels[0] and "N1" in labels[1], labels
-    kept = label_components(group, presets.fit_fields("rodent_ep")["windows"],
-                            polarity_rule="none")
+    kept = label_components(
+        group, presets.fit_fields("rodent_ep")["windows"], polarity_rule="none"
+    )
     assert "P1/N1" in [c.label for c in kept.fits[0].components]
     with pytest.raises(SettingsError):
         label_components(group, "rodent_ep", polarity_rule="depth")

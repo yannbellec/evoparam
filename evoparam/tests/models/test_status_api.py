@@ -9,20 +9,30 @@ import pytest
 import evoparam
 from evoparam.data import GroupFit, TrialSet
 from evoparam.errors import DataError, SettingsError
-from evoparam.models import (ResponseModel, classical_measures, compare_models, fit,
-                             fit_response, label_components, methods_text)
+from evoparam.models import (
+    ResponseModel,
+    classical_measures,
+    compare_models,
+    fit,
+    fit_response,
+    label_components,
+    methods_text,
+)
 
 from .helpers import BASELINE, SFREQ, TIMES, WINDOW, gauss, model, noise
 
 ###################################################################################################
 ###################################################################################################
 
+
 def _trials(n=12, seed=0, channels=3):
     rng = np.random.default_rng(seed)
     sig = gauss(0.025, -100, 0.012) + gauss(0.15, -50, 0.08)
     data = sig[None, None] + rng.normal(0, 10, (n, channels, len(TIMES)))
-    data[:, -1] = rng.normal(0, 10, (n, len(TIMES)))            # a channel without response
-    return TrialSet(data=data, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(channels)])
+    data[:, -1] = rng.normal(0, 10, (n, len(TIMES)))  # a channel without response
+    return TrialSet(
+        data=data, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(channels)]
+    )
 
 
 def test_req118_status_semantics():
@@ -63,8 +73,7 @@ def test_req119_reproducible_with_parallel_jobs():
     to_dataframe() output, and the same output as n_jobs=1."""
 
     ts = _trials(channels=4)
-    tables = [fit(ts, "ccep", random_state=0, n_jobs=jobs).to_dataframe()
-              for jobs in (2, 2, 4, 1)]
+    tables = [fit(ts, "ccep", random_state=0, n_jobs=jobs).to_dataframe() for jobs in (2, 2, 4, 1)]
     text = [t.to_csv(float_format="%.17g").encode() for t in tables]
     assert text[0] == text[1] == text[2] == text[3]
     assert all(t.equals(tables[0]) for t in tables)
@@ -89,8 +98,13 @@ def test_neff_noise_model_is_available():
 
 def test_req123_methods_text():
 
-    fit_ = fit_response(TIMES, gauss(0.2, -8, 0.04) + noise(np.random.default_rng(1)),
-                        window=WINDOW, baseline=BASELINE, preset="erp")
+    fit_ = fit_response(
+        TIMES,
+        gauss(0.2, -8, 0.04) + noise(np.random.default_rng(1)),
+        window=WINDOW,
+        baseline=BASELINE,
+        preset="erp",
+    )
     text = methods_text(fit_)
     assert text.startswith("Evoked responses were parameterized with evoparam")
     assert "preset 'erp'" in text and "BIC" in text and "constant background" in text
@@ -100,9 +114,15 @@ def test_top_level_fit_inputs_and_errors():
 
     ts = _trials()
     from evoparam.existence import fit as fit_with_existence
+
     assert evoparam.fit is fit_with_existence
-    by = TrialSet(data=ts.data, times=ts.times, sfreq=ts.sfreq, ch_names=ts.ch_names,
-                  metadata=pd.DataFrame({"condition": ["a", "b"] * 6}))
+    by = TrialSet(
+        data=ts.data,
+        times=ts.times,
+        sfreq=ts.sfreq,
+        ch_names=ts.ch_names,
+        metadata=pd.DataFrame({"condition": ["a", "b"] * 6}),
+    )
     grouped = fit(by, "ccep", by="condition")
     assert set(grouped.index["condition"]) == {"a", "b"}
     arr = fit(ts.data.mean(0), "ccep", times=TIMES)
@@ -112,8 +132,9 @@ def test_top_level_fit_inputs_and_errors():
     with pytest.raises(SettingsError):
         fit(ts, "nope")
     with pytest.raises(SettingsError):
-        ResponseModel(fit_window=(0.0, 0.002), baseline=BASELINE).fit_waveform(TIMES, noise(
-            np.random.default_rng(0)))
+        ResponseModel(fit_window=(0.0, 0.002), baseline=BASELINE).fit_waveform(
+            TIMES, noise(np.random.default_rng(0))
+        )
     with pytest.raises(DataError):
         ResponseModel(fit_window=(0.5, 2.0)).fit_waveform(TIMES, noise(np.random.default_rng(0)))
 
@@ -131,8 +152,9 @@ def test_estimator_contract_and_compare():
     assert np.isfinite(m.score())
     rng = np.random.default_rng(2)
     y = gauss(0.2, -8, 0.04) + noise(rng)
-    table = compare_models([model(shapes=(s,)).fit_waveform(TIMES, y)
-                            for s in ("gaussian", "skewed_gaussian")])
+    table = compare_models(
+        [model(shapes=(s,)).fit_waveform(TIMES, y) for s in ("gaussian", "skewed_gaussian")]
+    )
     assert list(table["delta_bic"]).count(0.0) == 1
 
 
@@ -156,18 +178,27 @@ def test_classical_measures_and_labels():
     rng = np.random.default_rng(4)
     trials = gauss(0.1, -8, 0.04)[None] + rng.normal(0, 2, (30, len(TIMES)))
     y = trials.mean(0)
-    scores = classical_measures(TIMES, y, window=(0.05, 0.15), trials=trials, n_bootstrap=100,
-                                random_state=0)
+    scores = classical_measures(
+        TIMES, y, window=(0.05, 0.15), trials=trials, n_bootstrap=100, random_state=0
+    )
     assert abs(scores["peak_latency"] - 0.1) <= 0.01
     inside = (TIMES >= 0.05) & (TIMES <= 0.15)
-    assert np.isclose(scores["sme"]["mean_amplitude"],
-                      np.std(trials[:, inside].mean(1), ddof=1) / np.sqrt(30))
+    assert np.isclose(
+        scores["sme"]["mean_amplitude"], np.std(trials[:, inside].mean(1), ddof=1) / np.sqrt(30)
+    )
     assert scores["definition"]["peak_latency"].startswith("local_peak(n_neighbors=3)")
     clean = gauss(0.1, -8, 0.04)
-    assert abs(classical_measures(TIMES, clean, window=(0.0, 0.2),
-                                  measures=("fractional_area_latency",))
-               ["fractional_area_latency"] - 0.1) < 1e-3
-    fit_ = model().fit_waveform(TIMES, gauss(0.025, -8, 0.012) + gauss(0.15, -6, 0.08)
-                                + noise(rng))
+    assert (
+        abs(
+            classical_measures(
+                TIMES, clean, window=(0.0, 0.2), measures=("fractional_area_latency",)
+            )["fractional_area_latency"]
+            - 0.1
+        )
+        < 1e-3
+    )
+    fit_ = model().fit_waveform(
+        TIMES, gauss(0.025, -8, 0.012) + gauss(0.15, -6, 0.08) + noise(rng)
+    )
     labelled = label_components(fit_, "ccep")
     assert {c.label for c in labelled.components} >= {"N1", "N2"}

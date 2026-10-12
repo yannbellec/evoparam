@@ -21,6 +21,7 @@ FORMATS = ["csv"] + (["parquet"] if serialize._have_pyarrow() else [])
 def _strict_load(path):
     def refuse(name):
         raise ValueError(name)
+
     with open(path, encoding="utf-8") as fobj:
         return json.loads(fobj.read(), parse_constant=refuse)
 
@@ -57,8 +58,14 @@ def test_trialset_data_exact_and_mmap(tmp_path):
 def test_manifest_keys(tmp_path):
     path = save_object(make_group_fit(), tmp_path / "g")
     manifest = _strict_load(os.path.join(path, "manifest.json"))
-    assert set(manifest) == {"schema", "object", "package_version", "created",
-                             "table_format", "files"}
+    assert set(manifest) == {
+        "schema",
+        "object",
+        "package_version",
+        "created",
+        "table_format",
+        "files",
+    }
     assert manifest["schema"] == serialize.SCHEMA
     assert manifest["object"] == "GroupFit"
     for name in ("structure.json", "data.npz", "provenance.json", "settings.json"):

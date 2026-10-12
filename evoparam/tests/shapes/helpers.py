@@ -15,7 +15,9 @@ def make_template(stretch=False):
 
     t = np.arange(201) / 1000.0
     taper = np.sin(np.pi * t / 0.2) ** 2
-    values = taper * (np.exp(-((t - 0.05) / 0.012) ** 2) - 0.6 * np.exp(-((t - 0.1) / 0.02) ** 2))
+    values = taper * (
+        np.exp(-(((t - 0.05) / 0.012) ** 2)) - 0.6 * np.exp(-(((t - 0.1) / 0.02) ** 2))
+    )
     return shapes.Template(t, values, stretch=stretch)
 
 

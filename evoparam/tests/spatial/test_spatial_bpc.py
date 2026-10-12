@@ -23,19 +23,27 @@ import numpy as np
 import pandas as pd
 import pytest
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+]
 
 CHANNEL = "LMS2"
 EPOCH = (-0.5, 2.05)
-WINDOW = (0.05, 2.0)              # t1 = 50 ms, t2 = 2 s, as in the paper
+WINDOW = (0.05, 2.0)  # t1 = 50 ms, t2 = 2 s, as in the paper
 BASELINE = (-0.5, -0.05)
-REGIONS = {"lh_G_temp_sup-Lateral": "STG", "lh_G_temporal_inf": "ITG",
-           "lh_G_oc-temp_lat-fusifor": "fusiform"}
+REGIONS = {
+    "lh_G_temp_sup-Lateral": "STG",
+    "lh_G_temporal_inf": "ITG",
+    "lh_G_oc-temp_lat-fusifor": "fusiform",
+}
 
 ###################################################################################################
 ###################################################################################################
+
 
 def load_ds003708(channel=CHANNEL):
     """Epochs of one channel for every pulse marked good (cached), as a TrialSet."""
@@ -48,38 +56,60 @@ def load_ds003708(channel=CHANNEL):
     os.makedirs(cache, exist_ok=True)
     path = os.path.join(cache, f"sub-01_run-01_{channel}.npz")
     if not os.path.exists(path):
-        ts = read_bids("ds003708", "01", session="ieeg01", task="ccep", run="01",
-                       remote=True, picks=[channel], epoch=EPOCH)
+        ts = read_bids(
+            "ds003708",
+            "01",
+            session="ieeg01",
+            task="ccep",
+            run="01",
+            remote=True,
+            picks=[channel],
+            epoch=EPOCH,
+        )
         meta = ts.metadata
-        status = meta["status"].to_numpy(dtype=str) if "status" in meta.columns else \
-            np.array(["good"] * ts.n_trials)
-        np.savez_compressed(path, data=ts.data.astype(np.float32), times=ts.times,
-                            sfreq=ts.sfreq, sites=meta["stim_site"].to_numpy(dtype=str),
-                            status=status,
-                            masked=np.zeros(ts.n_trials, bool) if ts.masks is None
-                            else ts.masks.any(axis=(1, 2)))
+        status = (
+            meta["status"].to_numpy(dtype=str)
+            if "status" in meta.columns
+            else np.array(["good"] * ts.n_trials)
+        )
+        np.savez_compressed(
+            path,
+            data=ts.data.astype(np.float32),
+            times=ts.times,
+            sfreq=ts.sfreq,
+            sites=meta["stim_site"].to_numpy(dtype=str),
+            status=status,
+            masked=np.zeros(ts.n_trials, bool) if ts.masks is None else ts.masks.any(axis=(1, 2)),
+        )
     saved = np.load(path)
     keep = (saved["status"] == "good") & ~saved["masked"]
     data = saved["data"][keep].astype(float)
     times = saved["times"]
     base = (times >= BASELINE[0]) & (times <= BASELINE[1])
     data = data - data[:, :, base].mean(axis=-1, keepdims=True)
-    return TrialSet(data=data, times=times, sfreq=float(saved["sfreq"]), ch_names=[channel],
-                    metadata=pd.DataFrame({"stim_site": saved["sites"][keep]}))
+    return TrialSet(
+        data=data,
+        times=times,
+        sfreq=float(saved["sfreq"]),
+        ch_names=[channel],
+        metadata=pd.DataFrame({"stim_site": saved["sites"][keep]}),
+    )
 
 
 def _electrodes():
     from evoparam.io import openneuro_url
     from evoparam.io._fetch import data_folder
 
-    cache = os.path.join(data_folder(), "spatial-validation", "ds003708",
-                         "sub-01_electrodes.tsv")
+    cache = os.path.join(data_folder(), "spatial-validation", "ds003708", "sub-01_electrodes.tsv")
     if not os.path.exists(cache):
         from evoparam.io._fetch import fetch_bytes
 
-        content = fetch_bytes(openneuro_url(
-            "ds003708", "sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_space-MNI152NLin6Sym_"
-            "electrodes.tsv"))
+        content = fetch_bytes(
+            openneuro_url(
+                "ds003708",
+                "sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_space-MNI152NLin6Sym_electrodes.tsv",
+            )
+        )
         with open(cache, "wb") as fobj:
             fobj.write(content)
     return pd.read_csv(cache, sep="\t", na_values=["n/a"])
@@ -106,11 +136,21 @@ def agreement(assignment, regions):
     scored = [s for s in regions if s in table.index]
     names = sorted(set(regions.values()))
     shapes = sorted(set(table["shape_id"]) - {-1})
-    counts = np.array([[sum(1 for s in scored if regions[s] == r and
-                            table.loc[s, "shape_id"] == k) for k in shapes] for r in names])
+    counts = np.array(
+        [
+            [
+                sum(1 for s in scored if regions[s] == r and table.loc[s, "shape_id"] == k)
+                for k in shapes
+            ]
+            for r in names
+        ]
+    )
     from itertools import permutations
-    best = max(permutations(range(len(shapes)), min(len(names), len(shapes))),
-               key=lambda p: sum(counts[i, p[i]] for i in range(len(p))))
+
+    best = max(
+        permutations(range(len(shapes)), min(len(names), len(shapes))),
+        key=lambda p: sum(counts[i, p[i]] for i in range(len(p))),
+    )
     hits = sum(counts[i, best[i]] for i in range(len(best)))
     return hits / len(scored), len(scored)
 
@@ -139,10 +179,13 @@ def test_req194_number_of_bases(basis):
     assert (basis.assignment["shape_id"] >= 0).sum() >= 24
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-194 assignment: the figure's site-by-site "
-                   "assignment is not published as numbers; against the region proxy built "
-                   "from the Destrieux labels, 4 of the 7 scored sites agree (0.57); see the "
-                   "CHANGELOG, step S12.")
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-194 assignment: the figure's site-by-site "
+    "assignment is not published as numbers; against the region proxy built "
+    "from the Destrieux labels, 4 of the 7 scored sites agree (0.57); see the "
+    "CHANGELOG, step S12.",
+)
 def test_req194_assignment_agrees_with_the_figure(basis):
 
     score, n_scored = agreement(basis.assignment, reference_regions())

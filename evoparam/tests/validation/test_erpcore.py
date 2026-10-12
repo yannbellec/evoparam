@@ -22,8 +22,10 @@ import pytest
 
 ROOT = os.environ.get("EVOPARAM_ERPCORE", "")
 SCRIPT = pathlib.Path(__file__).parents[3] / "validation" / "erpcore.py"
-pytestmark = pytest.mark.skipif(not (ROOT and os.path.isdir(ROOT) and SCRIPT.exists()),
-                                reason="set EVOPARAM_ERPCORE to the local ERP CORE copy")
+pytestmark = pytest.mark.skipif(
+    not (ROOT and os.path.isdir(ROOT) and SCRIPT.exists()),
+    reason="set EVOPARAM_ERPCORE to the local ERP CORE copy",
+)
 
 
 @pytest.fixture(scope="module")
@@ -41,8 +43,11 @@ def test_req274_lateralized_readiness_potential(table):
     assert table.loc["LRP", "within_10ms"] >= 0.9
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-274 not met for P3, N170, N400, MMN, N2pc and "
-                   "ERN on single-participant waves (see the module docstring and CHANGELOG)")
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-274 not met for P3, N170, N400, MMN, N2pc and "
+    "ERN on single-participant waves (see the module docstring and CHANGELOG)",
+)
 @pytest.mark.parametrize("component", ["ERN", "N170", "N400", "MMN", "N2pc", "P3"])
 def test_req274_other_components(table, component):
 

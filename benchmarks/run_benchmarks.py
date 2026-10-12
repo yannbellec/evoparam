@@ -34,8 +34,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--suite", default="perf", choices=sorted(timing.SUITES))
     parser.add_argument("--only", help="comma-separated workload ids (default: P1 to P6)")
-    parser.add_argument("--out", default=os.path.join(HERE, "results"),
-                        help="folder of the results file")
+    parser.add_argument(
+        "--out", default=os.path.join(HERE, "results"), help="folder of the results file"
+    )
     parser.add_argument("--compare", help="baseline results file")
     parser.add_argument("--time-tolerance", type=float, default=1.25)
     parser.add_argument("--memory-tolerance", type=float, default=1.10)
@@ -44,8 +45,7 @@ def main(argv=None):
     parser.add_argument("--write-baseline", help="write the run as a baseline file here")
     args = parser.parse_args(argv)
     only = [s.strip() for s in args.only.split(",")] if args.only else None
-    document = timing.run_suite(args.suite, only=only, repeat_runs=args.repeat_runs,
-                                log=print)
+    document = timing.run_suite(args.suite, only=only, repeat_runs=args.repeat_runs, log=print)
     path = timing.write_results(document, timing.results_path(document, args.out))
     print(f"results: {path}")
     if args.write_baseline:
@@ -54,10 +54,13 @@ def main(argv=None):
     if args.compare:
         with open(args.compare, encoding="utf-8") as fobj:
             baseline = json.load(fobj)
-        failures, notes = timing.compare(document, baseline,
-                                         time_tolerance=args.time_tolerance,
-                                         memory_tolerance=args.memory_tolerance,
-                                         warn_above=args.warn_above)
+        failures, notes = timing.compare(
+            document,
+            baseline,
+            time_tolerance=args.time_tolerance,
+            memory_tolerance=args.memory_tolerance,
+            warn_above=args.warn_above,
+        )
         for note in notes:
             print(f"::warning::{note}")
         for failure in failures:

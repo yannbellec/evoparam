@@ -30,16 +30,25 @@ from evoparam.io import epoch_data
 from evoparam.models import ResponseModel
 from evoparam.prep import baseline_correct, rereference
 
-pytestmark = [pytest.mark.network,
-              pytest.mark.skipif(os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
-                                 reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro")]
+pytestmark = [
+    pytest.mark.network,
+    pytest.mark.skipif(
+        os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
+        reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
+    ),
+]
 
 RUN = "sub-ccepAgeUMCU01/ses-1/ieeg/sub-ccepAgeUMCU01_ses-1_task-SPESclin_run-021448"
 
 
 def _contacts(names, site=""):
-    return [i for i, n in enumerate(names) if re.match(r"^[A-Za-z]+\d+$", n)
-            and not n.upper().startswith(("MKR", "ECG", "EMG", "EOG")) and n not in site.split("-")]
+    return [
+        i
+        for i, n in enumerate(names)
+        if re.match(r"^[A-Za-z]+\d+$", n)
+        and not n.upper().startswith(("MKR", "ECG", "EMG", "EOG"))
+        and n not in site.split("-")
+    ]
 
 
 def _average(run):
@@ -50,12 +59,18 @@ def _average(run):
     onsets = onsets[np.asarray(sites) == site]
     keep = _contacts(names, site)
     times, epochs, _ = epoch_data(data[keep], sfreq, onsets, -1.0, 1.0, t0=t0)
-    ts = TrialSet(data=epochs, times=times, sfreq=sfreq, ch_names=[names[i] for i in keep],
-                  metadata=pd.DataFrame({"stim_site": [site] * len(epochs)}))
+    ts = TrialSet(
+        data=epochs,
+        times=times,
+        sfreq=sfreq,
+        ch_names=[names[i] for i in keep],
+        metadata=pd.DataFrame({"stim_site": [site] * len(epochs)}),
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        ts = remove_artifact(ts, method="template", window=(-0.002, 0.008),
-                             baseline=(-0.5, -0.02)).cleaned
+        ts = remove_artifact(
+            ts, method="template", window=(-0.002, 0.008), baseline=(-0.5, -0.02)
+        ).cleaned
         ts = rereference(ts, "car_adaptive", random_state=0, n_boot=50)
     return baseline_correct(ts, (-0.5, -0.02), check=False).average()
 
@@ -86,8 +101,9 @@ def _agreement():
 ###################################################################################################
 ## Agreement with the published rule, applied as the published pipeline applies it
 
-LIST = os.path.join(os.path.dirname(__file__), "..", "..", "..", "validation",
-                    "ds004080_subjects.txt")
+LIST = os.path.join(
+    os.path.dirname(__file__), "..", "..", "..", "validation", "ds004080_subjects.txt"
+)
 OPENNEURO = "https://s3.amazonaws.com/openneuro.org/ds004080"
 EXAMPLE = ("ccepAgeUMCU01", "021448")
 
@@ -119,8 +135,10 @@ def req371_pairs():
 
     with open(LIST, encoding="utf-8") as f:
         rows = [line.strip().split("\t") for line in f if not line.startswith("#")]
-    return [(subject[len("sub-"):], stem.split("_run-")[1], _first_pair(subject, stem))
-            for subject, stem in rows]
+    return [
+        (subject[len("sub-") :], stem.split("_run-")[1], _first_pair(subject, stem))
+        for subject, stem in rows
+    ]
 
 
 def _pair_trials(subject, run, site):
@@ -135,21 +153,41 @@ def _pair_trials(subject, run, site):
     path = os.path.join(cache, f"sub-{subject}_run-{run}_{site}.npz")
     if not os.path.exists(path):
         a, b = site.split("-")
-        ts = read_bids("ds004080", subject, session="1", task="SPESclin", run=run,
-                       epoch=(-2.0, 3.0), select={"electrical_stimulation_site":
-                                                  [f"{a}-{b}", f"{b}-{a}"]}, remote=True)
+        ts = read_bids(
+            "ds004080",
+            subject,
+            session="1",
+            task="SPESclin",
+            run=run,
+            epoch=(-2.0, 3.0),
+            select={"electrical_stimulation_site": [f"{a}-{b}", f"{b}-{a}"]},
+            remote=True,
+        )
         info = ts.ch_info
-        keep = ((info["type"].str.lower() == "ecog") & ~info["bad"].astype(bool)
-                & ~info["name"].isin([a, b])).to_numpy()
+        keep = (
+            (info["type"].str.lower() == "ecog")
+            & ~info["bad"].astype(bool)
+            & ~info["name"].isin([a, b])
+        ).to_numpy()
         tmp = f"{path[:-4]}.{os.getpid()}.tmp.npz"  # atomic: concurrent runs share the cache
-        np.savez_compressed(tmp, data=ts.data[:, keep].astype(np.float32), times=ts.times,
-                            sfreq=ts.sfreq, names=np.array(ts.ch_names)[keep])
+        np.savez_compressed(
+            tmp,
+            data=ts.data[:, keep].astype(np.float32),
+            times=ts.times,
+            sfreq=ts.sfreq,
+            names=np.array(ts.ch_names)[keep],
+        )
         os.replace(tmp, path)
     seg = np.load(path)
     names = [str(n) for n in seg["names"]]
     data = seg["data"].astype(float)
-    return TrialSet(data=data, times=seg["times"], sfreq=float(seg["sfreq"]), ch_names=names,
-                    metadata=pd.DataFrame({"stim_site": [site] * len(data)}))
+    return TrialSet(
+        data=data,
+        times=seg["times"],
+        sfreq=float(seg["sfreq"]),
+        ch_names=names,
+        metadata=pd.DataFrame({"stim_site": [site] * len(data)}),
+    )
 
 
 # The two readings of "the published rule" (owner decision D8): the registry row of spec
@@ -197,8 +235,11 @@ def _rule_peak_is_n1_trough(ts, rule_lat, window=(0.009, 0.05)):
     for y, lat in zip(_rule_average(ts)[:, m], rule_lat, strict=True):
         inner = np.flatnonzero((y[1:-1] <= y[:-2]) & (y[1:-1] < y[2:])) + 1
         inner = inner[y[inner] < 0]
-        out.append(bool(inner.size) and np.isfinite(lat) and
-                   abs(t[m][inner[np.argmin(y[inner])]] - lat) <= 1.0 / ts.sfreq + 1e-9)
+        out.append(
+            bool(inner.size)
+            and np.isfinite(lat)
+            and abs(t[m][inner[np.argmin(y[inner])]] - lat) <= 1.0 / ts.sfreq + 1e-9
+        )
     return np.array(out, bool)
 
 
@@ -210,8 +251,9 @@ def _model_fits(ts):
     sub = ts.select(tmin=-1.0, tmax=2.0)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        sub = remove_artifact(sub, method="template", window=(-0.002, 0.008),
-                              baseline=(-0.5, -0.02)).cleaned
+        sub = remove_artifact(
+            sub, method="template", window=(-0.002, 0.008), baseline=(-0.5, -0.02)
+        ).cleaned
         sub = rereference(sub, "car_adaptive", random_state=0)
     evoked = baseline_correct(sub, (-0.5, -0.02), check=False).average()
     return ResponseModel("ccep").fit_group(evoked).fits
@@ -253,12 +295,17 @@ def agreement():
         for reading in READINGS:
             rule, rule_lat, floor = _published_rule(ts, reading)
             out[(subject, run, reading)] = dict(
-                rule=rule, rule_lat=rule_lat, model=det, lat=lat, trough=trough,
+                rule=rule,
+                rule_lat=rule_lat,
+                model=det,
+                lat=lat,
+                trough=trough,
                 n1_trough=_rule_peak_is_n1_trough(ts, rule_lat),
                 # the decision of the earlier proposed wording (not the REQ): the trough of
                 # the fitted curve at least as deep as the code's amplitude criterion
                 trough_floor=np.isfinite(trough) & (-np.nan_to_num(trough_amp) >= floor),
-                names=ts.ch_names)
+                names=ts.ch_names,
+            )
     return out
 
 
@@ -267,23 +314,32 @@ def _scores(r, mask=None, decision="model", latency="lat"):
     rule, model = r["rule"][mask], r[decision][mask]
     both = rule & model
     close = np.abs(r[latency][mask][both] - r["rule_lat"][mask][both]) <= 0.002
-    return dict(kappa=_kappa(rule, model), missed=int(np.sum(rule & ~model)),
-                close=close, n_both=int(both.sum()))
+    return dict(
+        kappa=_kappa(rule, model),
+        missed=int(np.sum(rule & ~model)),
+        close=close,
+        n_both=int(both.sum()),
+    )
 
 
 def _runs(agreement, reading, example=False):
-    return [v for (s, r, rd), v in agreement.items()
-            if rd == reading and ((s, r) == EXAMPLE) == example]
+    return [
+        v
+        for (s, r, rd), v in agreement.items()
+        if rd == reading and ((s, r) == EXAMPLE) == example
+    ]
 
 
-AS_WRITTEN = ("REQ-113 as written is not met under either reading of the published rule "
-              "(ccep v1.1: kappa on the 46 PT contacts 0.46 with the registry row, 0.19 with "
-              "the code; pooled over the REQ-371 runs 0.46 and 0.40; CHANGELOG, 'N1 case as "
-              "written' and 'Defaults settled by measurement'): "
-              "no decision reaches 0.8 under both (bound 0.30 on the PT contacts); the code's "
-              "170 uV floor "
-              "leaves out small N1s the preset finds; the paper's extremum also counts "
-              "drifts at 70-100 ms; the two readings agree with each other at kappa 0.35")
+AS_WRITTEN = (
+    "REQ-113 as written is not met under either reading of the published rule "
+    "(ccep v1.1: kappa on the 46 PT contacts 0.46 with the registry row, 0.19 with "
+    "the code; pooled over the REQ-371 runs 0.46 and 0.40; CHANGELOG, 'N1 case as "
+    "written' and 'Defaults settled by measurement'): "
+    "no decision reaches 0.8 under both (bound 0.30 on the PT contacts); the code's "
+    "170 uV floor "
+    "leaves out small N1s the preset finds; the paper's extremum also counts "
+    "drifts at 70-100 ms; the two readings agree with each other at kappa 0.35"
+)
 
 
 @pytest.mark.xfail(strict=False, reason=AS_WRITTEN)
@@ -314,9 +370,11 @@ def test_req113_as_written(agreement, reading):
 # sample just after 50 ms; a positive-valued minimum). A latency in 9-50 ms within 2 ms of
 # every peak would reach 58 of 74 and 28 of 30, but only by naming an N1 where the data
 # have no trough.
-CEILING = ("the rule's peak is an N1 trough of its average on 53 % (registry row) and 80 % "
-           "(code) of these channels; elsewhere it is the window start on the recovery tail "
-           "(no trough there) or a deflection at 52-100 ms, after the N1 window")
+CEILING = (
+    "the rule's peak is an N1 trough of its average on 53 % (registry row) and 80 % "
+    "(code) of these channels; elsewhere it is the window start on the recovery tail "
+    "(no trough there) or a deflection at 52-100 ms, after the N1 window"
+)
 
 
 def _close(agreement, reading, latency, n1_trough=False):
@@ -328,10 +386,13 @@ def _close(agreement, reading, latency, n1_trough=False):
     return np.concatenate(close)
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-114 as written (latency of the N1 component) is "
-                   "not met: within 2 ms on 24 % (registry row, 18 of 74) and 37 % (code, 11 "
-                   "of 30) of the channels where both find an N1 on the REQ-371 runs and the "
-                   "example; " + CEILING)
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-114 as written (latency of the N1 component) is "
+    "not met: within 2 ms on 24 % (registry row, 18 of 74) and 37 % (code, 11 "
+    "of 30) of the channels where both find an N1 on the REQ-371 runs and the "
+    "example; " + CEILING,
+)
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_as_written(agreement, reading):
     """REQ-114: on the channels where both find an N1, the model latency (the N1
@@ -342,9 +403,12 @@ def test_req114_as_written(agreement, reading):
     assert np.mean(close) >= 0.9, (np.mean(close), close.size)
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-114 with the latency read as the trough of the "
-                   "fitted curve (K3) is not met over all runs: 42 % (registry row, 31 of 74), "
-                   "80 % (code, 24 of 30); " + CEILING)
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-114 with the latency read as the trough of the "
+    "fitted curve (K3) is not met over all runs: 42 % (registry row, 31 of 74), "
+    "80 % (code, 24 of 30); " + CEILING,
+)
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_trough_latency(agreement, reading):
     """REQ-114 with the model latency read as the trough of the fitted curve (K3), on the
@@ -411,7 +475,10 @@ def test_req112_real_baselines_mostly_silent():
     from evoparam.tests.events.test_ds004080_events import _segment
 
     statuses = []
-    for run in [RUN, "sub-ccepAgeUMCU04/ses-1/ieeg/sub-ccepAgeUMCU04_ses-1_task-SPESclin_run-031148"]:
+    for run in [
+        RUN,
+        "sub-ccepAgeUMCU04/ses-1/ieeg/sub-ccepAgeUMCU04_ses-1_task-SPESclin_run-031148",
+    ]:
         data, sfreq, names, t0, onsets, _ = _segment(run)
         keep = _contacts(names)[:40]
         times, epochs, _ = epoch_data(data[keep], sfreq, onsets, -2.0, 0.0, t0=t0)
