@@ -5,7 +5,7 @@ import dataclasses
 import os
 import time as _time
 import warnings
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import numpy as np
 
@@ -24,9 +24,6 @@ from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 from ._model import ChannelTemplate, fit_trial, fit_trials_batch
-
-if TYPE_CHECKING:
-    from evoparam.shapes._base import ComponentShape
 
 __all__ = [
     "fit_trials",
@@ -154,7 +151,9 @@ class TrialFitSet:
 ## Helpers
 
 
-def _shape_for(comp: Any, settings: Any) -> "ComponentShape":
+def _shape_for(
+    comp: Any, settings: Any
+) -> Any:  # a ComponentShape (shapes is reached through models only)
     name = comp.shape
     fields = {f.name for f in dataclasses.fields(cast(Any, type(get_shape(name))))}
     kwargs = {k: settings[k] for k in ("min_fwhm", "max_fwhm") if k in fields and k in settings}

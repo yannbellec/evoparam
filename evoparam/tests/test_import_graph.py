@@ -31,8 +31,9 @@ DECISIONS = PACKAGE.parent / "docs" / "spec" / "DECISIONS.md"
 
 # Leaf modules that import nothing from the package and that every module may import:
 # the error hierarchy that §4.6 asks every module to raise (D4: data raises DataError) and
-# the package version that every provenance record carries (§4.1 principle 3).
-LEAVES = {"errors", "version"}
+# the package version that every provenance record carries (§4.1 principle 3); and the
+# array type aliases of REQ-301 (§9.6: numpy.typing.NDArray), which import numpy only.
+LEAVES = {"errors", "version", "_typing"}
 
 # Every top-level module of the package (subpackages and single files).
 MODULES = sorted(
@@ -91,6 +92,7 @@ RULES = {
     "__main__": {"cli"},
     "errors": set(),
     "version": set(),
+    "_typing": set(),
 }
 # Modules whose only allowed use of utils is utils.require (the rows of §4.2 do not list
 # utils for them; §9.2 makes require the only way to import an optional package).

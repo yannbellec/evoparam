@@ -21,7 +21,7 @@ is dropped (the one whose removal fits best) and the model is refitted.
 import time as _time
 import warnings
 from collections import Counter
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import numpy as np
 from scipy.optimize import least_squares
@@ -41,9 +41,6 @@ from evoparam.models.component_shapes import (
 )
 from evoparam.models.engine import cancelling_pairs
 from evoparam.version import __version__
-
-if TYPE_CHECKING:
-    from evoparam.shapes._base import ComponentShape
 
 __all__ = ["fit_shared", "neighbours", "PARAMETER_ROLES"]
 
@@ -668,7 +665,9 @@ def _channel_fit(
 ## Entry point
 
 
-def _shape_like(name: Any, settings: Any) -> "ComponentShape":
+def _shape_like(
+    name: Any, settings: Any
+) -> Any:  # a ComponentShape (shapes is reached through models only)
     import dataclasses
 
     shape = get_shape(name)
