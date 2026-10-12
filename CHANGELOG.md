@@ -2,6 +2,67 @@
 
 ## Unreleased
 
+### Static quality: ruff and typing (spec §9.6 REQ-301, §9.9 REQ-305, REQ-307)
+
+No change of behaviour apart from the fix below: formatting, equivalent rewrites,
+annotations, `cast()` calls (no effect at run time) and justified `noqa` / `type: ignore`
+comments. The reference fixture, the frozen methods texts and the API index are unchanged.
+
+- **ruff check** `evoparam benchmarks docs/tutorials examples`: 4780 findings on main
+  (ruff 0.16.8 and 0.16.10; 4644 were recorded in the expected failure) -> 1246. Of these,
+  393 are in the package outside its tests: PLR2004 204, complexity and argument counts
+  170 on functions whose signature the spec does not fix (C901 41, PLR0912 39, PLR0913 44,
+  PLR0915 18, PLR0917 18, PLR0911 10), ARG001/ARG002 13, BLE001 6; 852 in the tests
+  (PLR2004 831); 1 in benchmarks. The expected failure stays, with these values.
+- **ruff format --check**: 380 of 422 files to reformat -> 0.
+- **REQ-307** (E722, S110, BLE001 in the package): 14 -> 6. The 8 `except Exception` that
+  record or re-raise the error carry a justified `noqa`; the 6 that fall back without a
+  trace stay reported (existence/permutation tail fit, hierarchical/api REML,
+  hierarchical/bayes log-likelihood, three initial guesses in models/engine): restricting
+  them changes behaviour, a decision of its own.
+- **mypy --strict evoparam** (mypy 2.4.0, the Python 3.10, 3.12 and 3.13 environments of
+  the lock files): 5345 errors -> 47, all `[import-untyped]`: scipy (45 imports), yaml and
+  tabulate have no stubs in the lock files, and the spec allows `ignore_missing_imports`
+  for optional packages only. With `scipy-stubs` 1.15.3.0, `types-PyYAML` and
+  `types-tabulate` installed, 22 errors remain, from the stubs (lapack wrappers,
+  `least_squares`, `ndimage.label`, `minimize_scalar`) and `patsy`. Adding the stubs to
+  the `tests` extra and the locks is left to a decision; the expected failure stays.
+- Arrays are typed `NDArray[np.float64]`, `NDArray[np.intp]` and `NDArray[np.bool_]`
+  (aliases in `evoparam._typing`, from `numpy.typing`; `soup.json` and `THIRD_PARTY.md`
+  regenerated). The typing examples pass under `mypy --strict` (expected failure removed).
+- **pyright --verifytypes evoparam --ignoreexternal** (1.1.414): 34.8 % of the exported
+  symbols with a known type -> 97.3 % (3885 known, 76 ambiguous, 30 unknown, all in
+  `evoparam.tests`, whose functions are now annotated); criterion met, expected failure
+  removed.
+- Comments that silence a rule: `noqa` 19 -> 216 comments (301 codes), each with its
+  reason: sphinx-gallery layout of the tutorials (E402, D205, D400), signatures fixed by
+  the spec (C901, PLR09xx; N803 on public keywords: unit suffixes, the design `X`), the
+  shape protocol (ARG002 on `data_range`), public functions named `test_*` that are not
+  pytest tests (PT028),
+  scikit-learn signatures, closures called within their iteration (B023), the NumPy < 2.0
+  fallback (NPY201) and the 8 BLE001 above. `type: ignore` 1 -> 17, each with its error
+  code and reason: untyped calls of jax (1), PyTensor (4), ArviZ (2) and `open_memmap` (1),
+  `np.trapz` absent from NumPy >= 2.0 (3), `tomllib` before Python 3.11 (1),
+  `__hash__ = None` (1), the `__deprecated__` attribute read by the tests (1), and
+  `basis_jacobian` of the two exponential backgrounds, which needs the non-linear
+  parameters (2).
+- Annotations that did not match what the code accepts were corrected: `StreamFitter`
+  `detector` (a callable too), `dependability` and `latency_standard_error` `n_trials` (an
+  array), `burst_waveform` `phase` (an array), `reliability` `facets` (a sequence),
+  `make_noise` (overloads on `return_info`), `simulate_*` (return
+  `(TrialSet, GroundTruth)`).
+- **Fix:** `hierarchical` with `n_jobs=None` or negative raised a TypeError when
+  `os.cpu_count()` returned None; one process is used then.
+- Found, not changed (behaviour): `verbose=` is not used by `fit`, `test_response`,
+  `fit_hierarchical`, `tf_fit` and `detect_pulses`; `n_jobs` is not used by
+  `test_response`, `fit_trials` and `shared_shapes`; `prestimulus_dependence(band=)`,
+  `GroupFit.to_annotations(what=)`, `artifact_quality(template=)`,
+  `reports.markdown(data=)` and the `log` argument of the CLI fit are not used;
+  `benchmark` `suite=` also takes a Suite and `read_neo` `events=` also takes False while
+  the docstrings say str; `fetch_openneuro_file` `folder` cannot be None; a plugin
+  background that only satisfies the `Background` protocol has no `basis` /
+  `basis_jacobian`, which `fit` needs.
+
 ### `compute_features`: half-height crossings at the ends of the feature grid; REQ-231 (Kiesel et al. 2008) read
 
 - **Fix: `compute_features` no longer raises an IndexError.** The FWHM search started from
