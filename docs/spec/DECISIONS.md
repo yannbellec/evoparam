@@ -165,6 +165,43 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   (`"parameterised"`) stays the default; `"sorted"` is an option. On the ECAP simulations
   neither is better on both kinds and both seed sets.
 
+### Cross-projection test: response duration and pairs tested (§5.6 item 2, REQ-134)
+
+- **Reviewed formula** (still available as `test_response(..., method="projection",
+  projection_profile="normalised")`): `tau_R = argmax_t mean P(t) / sqrt(t - t0)`. The
+  projections are semi-normalised (`<V_k, V_l> / ||V_l||`), so they do not accumulate with
+  the window: after the response the norm of the projected trial grows and the mean
+  projection falls. The extra division moves the peak to the first milliseconds of the
+  window.
+- **Default** (`projection_profile="published"`): `tau_R = argmax_t mean P(t)`, the
+  definition of the paper [LIT-ccep-15], which §5.6 says the implementation re-implements
+  and REQ-134 says it must reproduce.
+- **Measured** on the paper's public example data (the `sampledata` of the authors'
+  repository, commit f6efb4e; window 15 ms to 1 s), against the durations the paper prints:
+
+  | example | published | default | reviewed formula |
+  |---|---|---|---|
+  | Fig. 3 | 80 ms | 76.2 ms | 15.6 ms |
+  | Fig. 9, all trials | 0.23 s | 232.9 ms | 17.1 ms |
+  | Fig. 9, trial 6 removed | 0.28 s | 282.7 ms | 15.1 ms |
+
+- **Pairs tested at `tau_R`.** "One half of the non-overlapping pairs" has two readings.
+  The paper's set (`projection_pairs="half"`: one projection per unordered pair of trials,
+  `K(K-1)/2` values) reproduces the paper's ten published decisions (Fig. 5 and Fig. 6, 10
+  of 10), but its values share trials: on pure noise (white or AR(1) 0.9, 10 or 20 trials)
+  it rejects at 0.33 to 0.44 at alpha = 0.05. The default stays the earlier reading
+  (`"disjoint"`: each trial in one pair, `K // 2` independent values): 0.07 to 0.13 on the
+  same noise, and 0.8 to 1.0 agreement with the published decisions over seeds 0 to 9
+  (mean 0.89), because the pairing is random. The REQ-134 significance test runs with
+  `projection_pairs="half"`.
+- **ds003708.** REQ-134 names ds003708 as the public example dataset of the
+  cross-projection paper. ds003708 is the dataset of the basis-profile-curve paper
+  [LIT-ccep-16]; the cross-projection paper's example data are the files of its code
+  repository, and no per-channel-pair duration or significance has been published for
+  ds003708. REQ-134 on ds003708 is a strict expected failure stating this; the published
+  values are tested on the paper's own example files
+  (`tests/existence/test_projection_published.py`).
+
 ## 4. Readings needed to apply the spec
 
 - **§4.5, `core/info.py` and `core/items.py` ("merge into `utils/`").** These files only
@@ -354,6 +391,27 @@ expected failure whose reason gives the measured value; no criterion was weakene
   `adapters/`; `tools/add_spdx_headers.py --check` enforces it in CI. Adapters are
   external tools run in a separate process, under their own licences. Data, documentation
   and configuration files are not source files.
+- **Localize-MI (REQ-373).** The criterion needs the stimulations "that the dataset authors
+  report as producing a scalp response" and sham or low-intensity trials. The data paper
+  [LIT-datasets-24] reports no such list (its validation is the source localisation of the
+  stimulation artifact), the BIDS metadata of a session give the stimulated pair and the
+  intensity only, there is no sham condition (lowest intensity 0.1 mA), and the authors'
+  conversion code crops the shared epochs at +10 ms after the pulse. The hosts of the data
+  (G-Node GIN, EBRAINS) are refused by the network policy of the build machine. Both points
+  are strict expected failures (`tests/validation/test_localize_mi.py`); the second reads
+  the header of one epochs file on GIN when run with the network.
+- **Layer-3 comparison records (REQ-374).** The records are generated from the layer-3
+  result files by `validation/layer3_report.py` into `validation/layer3/comparisons.json`:
+  for each comparison, the comparator's number, evoparam's number, the difference
+  (evoparam minus comparator) with a 95 % paired percentile bootstrap interval over the
+  participants or channels, the dataset id, version and DOI, and the comparator definition
+  (registry rule id with the SHA-256 of its entry and overrides, or the definition written
+  out with its SHA-256, or the commit of an external comparator). Kappa and recall stay in
+  the result files (they are agreement measures, not two numbers to subtract). Versions not
+  recorded when a result was produced are `null` with a note: the ERP CORE files read on
+  2026-10-09 (OSF has no versions; their SHA-256 were not kept) and the commit of
+  CARLA_JNM run on 2026-10-08. Both producers record them from now on; until a rerun, the
+  version check is a strict expected failure.
 - **Traceability counting (REQ-399).** A requirement counts as tested when a test file names
   it in a test name, a docstring or a comment. Other strings do not count, so that a list of
   untested requirements, or the reason of an expected failure, cannot mark them as tested.

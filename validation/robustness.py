@@ -620,6 +620,10 @@ def layer3_file(pooled, runs, version):
     the input of the REQ-376 gate."""
 
     return {"dataset": "ds004080", "version": version,
+            "data": {"dataset": "ds004080", "version": "1.2.4"},
+            "comparators": {reading: {"registry_rule": rule, "overrides": {"baseline":
+                                                                         [-2.0, -0.1]}}
+                            for reading, rule in READINGS.items()},
             "runs": [f"sub-{r['subject']} run-{r['run']} {r['pair']}" for r in runs],
             "pipeline": "ccep preset (template artifact removal, car_adaptive, baseline, "
                         "average, fit_group); N1: negative component in 9-50 ms",

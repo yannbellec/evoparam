@@ -2,6 +2,86 @@
 
 ## Unreleased
 
+### Requirements without a test: REQ-024, REQ-134, REQ-373, REQ-374
+
+The traceability report now has 0 untested requirements of 227 (it had 4); the strict
+expected failure of REQ-399 is removed. Two of the four criteria are met, two are not, for
+the reasons below.
+
+**REQ-134, cross-projection against the published values.** `method="projection"` defined
+the response end as the peak of the mean projection divided by `sqrt(t - t0)` (the formula
+of §5.6 item 2 as reviewed). The projections are semi-normalised and do not accumulate, so
+this division put the end in the first milliseconds of the window. The default is now the
+paper's definition, the peak of the mean projection (`projection_profile="published"`); the
+reviewed formula stays available (`"normalised"`). The paper's set of tested projections,
+one per unordered pair of trials, is available as `projection_pairs="half"`; the default
+stays each trial in one pair (`"disjoint"`), because the paper's set rejects pure noise far
+above alpha. `docs/spec/DECISIONS.md` records both choices.
+
+- Published values: Miller et al. 2023, PLOS Comput Biol 19(5):e1011105, on the paper's
+  public example data (`sampledata` of github.com/kaijmiller/crp_scripts, commit f6efb4e,
+  read at test time and never copied; window 15 ms to 1 s).
+- Durations (within 5 ms required): Fig. 3, 80 ms published, 76.2 ms measured (-3.8 ms;
+  15.6 ms before); Fig. 9, 0.23 s published, 232.9 ms (+2.9 ms; 17.1 ms before); Fig. 9
+  without trial 6, 0.28 s published, 282.7 ms (+2.7 ms; 15.1 ms before). Met (3 of 3).
+- Significance (95 % required): Fig. 5 (four significant, one not, published p = 0.37) and
+  Fig. 6 (A, C, E significant; B, F not). With `projection_pairs="half"`: 10 of 10 (Fig. 5
+  bottom p = 0.368). With the default pairs: 0.8 to 1.0 over seeds 0 to 9 (mean 0.89);
+  before this change, 9 of 10 at seed 0. Met with the paper's set.
+- Pure noise, rejection rate at alpha = 0.05 (10 or 20 trials, white or AR(1) 0.9, 300
+  draws): paper's set 0.33 to 0.44 (0.24 to 0.35 with the reviewed profile), default set
+  0.07 to 0.13 (either profile).
+- Benchmark `core`, projection baseline rerun on T1 and T2 alone (the committed results in
+  `docs/benchmark/` are those of the earlier run): T1 AUC 0.938 -> 0.946, F1 0.776 ->
+  0.809, recall 0.647 -> 0.706, FPR at 0.05 0.064 -> 0.080; T2 reported fraction 0.647 ->
+  0.706, latency MAE 0.86 -> 0.95 ms, amplitude relative MAE 0.165 -> 0.150.
+- Not met as written: REQ-134 names ds003708, the dataset of the basis-profile-curve paper.
+  No per-channel-pair duration or significance of the cross-projection method has been
+  published for it (not in the paper, its supporting figures, its code repository or the
+  ds003708 deposit and derivatives). Strict expected failure stating this
+  (`tests/existence/test_projection_published.py`).
+
+**REQ-373, Localize-MI.** Not met; strict expected failures
+(`tests/validation/test_localize_mi.py`). The data paper (Mikulan et al. 2020, Sci Data
+7:127) reports no list of stimulations producing a scalp response, there is no sham
+condition (0.1 to 5 mA), and the authors' conversion code (github.com/iTCf/mikulan_et_al_2020,
+`fx_bids.export_data_bids`) crops the shared epochs at +10 ms after the pulse. G-Node GIN and
+EBRAINS, which host the data, are refused by the network policy of this machine; the second
+test reads the header of one epochs file on GIN with `EVOPARAM_NETWORK_TESTS=1`.
+
+**REQ-374, layer-3 comparison records.** `validation/layer3_report.py` writes
+`validation/layer3/comparisons.json` (22 records) from the layer-3 result files: comparator
+number, evoparam number, difference (evoparam minus comparator) with a 95 % paired bootstrap
+interval (2 000 resamples, seed 0), dataset id, version and DOI, and the comparator
+definition with its version (registry rule id and SHA-256, or the definition and its
+SHA-256, or the external comparator's commit). `--check` tells whether the file is current.
+`validation/layer3/carla_ds004977.json` now holds evoparam's own selection on the same
+channels (Jaccard index with CARLA: 1.000, 0.857, 0.863, 0.981 for ROC11-ROC12, RZ4-RZ5,
+LA2-LA3, RO3-RO4). Selected records:
+
+| record | comparator | evoparam | difference [95 % interval] |
+|---|---|---|---|
+| ds004080 N1 fraction, `vanblooijs2023` | 0.262 | 0.163 | -0.099 [-0.133, -0.067] |
+| ds004080 N1 fraction, `vanblooijs2023_code` | 0.055 | 0.163 | +0.107 [+0.083, +0.133] |
+| ds004080 N1 latency (ms), `vanblooijs2023` (74 channels) | 27.59 | 28.89 | -0.57 [-3.01, +0.63] |
+| ds004080 N1 latency (ms), `vanblooijs2023_code` (30 channels) | 23.44 | 20.23 | -0.54 [-2.36, +0.15] |
+| ERP CORE P3 area latency (ms), difference wave | 425.8 | 429.7 | +3.9 [0.0, +11.7] |
+| ERP CORE MMN area latency (ms), parent wave | 203.1 | 179.7 | -7.8 [-43.0, -3.9] |
+| ds004977 left-out fraction, LA2-LA3 | 0.276 | 0.238 | -0.038 [-0.070, -0.016] |
+
+Two versions were not recorded when the results were produced: the SHA-256 of the ERP CORE
+files read on 2026-10-09 (OSF has no versions) and the commit of CARLA_JNM run on
+2026-10-08. They are `null` with a note in 18 of the 22 records, and the version check is a
+strict expected failure until a rerun; `validation/erpcore.py` and
+`validation/carla_ds004977.py` record them from now on, and `validation/robustness.py`
+writes the data version and the rule ids into the N1 file.
+
+**REQ-024, writers.** Met here. `write_nwb` output (with and without the evoparam
+extension) re-reads with pynwb 4.2.0 and `pynwb.validate` reports no error. The
+`write_bids_derivatives` output passes the BIDS validator 3.0.2 (`jsr:@bids/validator`,
+through Deno 2.2.15) with no error in derivative mode, and the simulated raw data in raw
+mode; that test runs when the validator is installed.
+
 ### Layer 4, sampling rate (REQ-375, §7.4 (3)): no upsampling; still not met
 
 §7.4 (3) decimates ds004080 to 1024 and 512 Hz. `validation/robustness.py` also

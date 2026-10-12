@@ -262,6 +262,28 @@ def test_req318_write_and_inspect(tmp_path, extension):
     assert _inspect(path) == []
 
 
+@pytest.mark.parametrize("extension", [False, True])
+def test_req024_write_nwb_rereads_and_passes_pynwb_validate(tmp_path, extension):
+    """REQ-024: the output of ``write_nwb`` re-reads with pynwb and passes
+    ``pynwb.validate`` (against the namespaces cached in the file, with the evoparam
+    extension or without it)."""
+
+    path = _write(tmp_path, "trials")
+    ts, group, test, trial_fits = _results(path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        write_nwb([group, test, trial_fits, ts], str(path), extension=extension)
+    with pynwb.NWBHDF5IO(str(path), "r", load_namespaces=True) as io:
+        nwb = io.read()
+        assert "evoparam" in nwb.processing
+        assert len(nwb.processing["evoparam"]["evoparam_components"].to_dataframe()) > 0
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        errors = pynwb.validate(path=str(path))
+    errors = errors[0] if isinstance(errors, tuple) else errors     # pynwb < 3: (errors, status)
+    assert list(errors) == []
+
+
 def test_req318_read_back_equal_results(tmp_path):
 
     path = _write(tmp_path, "trials")

@@ -159,6 +159,9 @@ def _validator():
                     reason="bids-validator not installed (set EVOPARAM_BIDS_VALIDATOR)")
 @pytest.mark.parametrize("which", ["raw", "derivatives"])
 def test_req342_bids_validator(written, which):
+    """REQ-024 and REQ-342: the output of ``write_bids_derivatives`` passes the BIDS
+    validator in derivative mode (the simulated raw data in raw mode), when the validator
+    is installed."""
 
     folder = written["root"] if which == "raw" else written["out"]
     # REQ-342: the derivatives are validated in derivative mode (the raw data in raw mode)
