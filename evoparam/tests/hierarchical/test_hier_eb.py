@@ -74,10 +74,12 @@ def rmse_pairs():
     return np.array([_rmse_pair(100 + s, 1.5) for s in range(runs)])
 
 
-@pytest.mark.xfail(reason="REQ-171 as written (EB wins on >= 90 % of datasets) is not met since "
-                          "the engine change of the N1 work improved the channel fits: 5 of 6 "
-                          "datasets, 17 of 20 with EVOPARAM_SLOW_TESTS=1 (seed 105: channel "
-                          "0.98 ms, EB 1.05 ms); wording pending, see CHANGELOG", strict=False)
+@pytest.mark.xfail(reason="REQ-171 as written (EB wins on >= 90 % of datasets) is not met: 4 of 6 "
+                          "datasets, 14 of 20 with EVOPARAM_SLOW_TESTS=1, 160 of 200 on the "
+                          "development seeds 1000-1199 (seed 100: channel 1.48 ms, EB 1.57 ms; "
+                          "seed 105: 0.98 ms, 1.06 ms); with the true prior the posterior mean "
+                          "wins on 86 % of them (DECISIONS 5.3); wording pending, see CHANGELOG",
+                   strict=False)
 def test_req171_shrunken_latencies_beat_the_channel_fits(rmse_pairs):
 
     raw, eb = rmse_pairs.T
@@ -222,3 +224,19 @@ def test_round_trip(tmp_path):
     assert back.engine == "eb"
     assert back.level_tables["channel"].shape == fit.level_tables["channel"].shape
     np.testing.assert_allclose(back.effects["estimate"], fit.effects["estimate"])
+
+
+def test_latency_standard_error_adds_jitter_and_truncates_to_the_window():
+
+    from evoparam.hierarchical.eb import latency_standard_error
+
+    lat = np.array([0.030, 0.030, 0.030, 0.030])
+    wald = np.array([0.001, 0.015, np.nan, 0.001])
+    out = latency_standard_error(lat, wald, 0.002, np.array([16, 16, 16, 0]), 0.009, 0.05,
+                                 fallback=np.array([9., 9., 0.0007, 9.]))
+    # a narrow error is the noise and the mean jitter in quadrature (window far away)
+    assert out[0] == pytest.approx(np.hypot(0.001, 0.002 / 4), rel=1e-6)
+    # a wide one is the SD of the normal truncated to the label window
+    assert out[1] < 0.015 and out[1] < (0.05 - 0.009) / np.sqrt(12) * 1.01
+    # no Wald error: the fallback; no trial: the Wald error alone
+    assert out[2] == 0.0007 and out[3] == pytest.approx(0.001)

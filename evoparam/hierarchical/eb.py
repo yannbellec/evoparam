@@ -11,7 +11,9 @@ Three pieces, each closed-form or one-dimensional:
    together. EM gives ``pi_s``, ``mu_s``, ``tau``; ``P(response)`` of a channel is its
    posterior responsibility.
 2. **Shrinkage**: the channel estimates of the fitted components (latency, amplitude,
-   width; standard errors from their Wald intervals) enter the nested random-effects model
+   width; standard errors from their Wald intervals, and for the latency also the mean of
+   the trial jitter and the label window, see :func:`latency_standard_error`) enter the
+   nested random-effects model
    ``y_sc = x_s' beta + u_s + v_sc + e_sc`` (``e`` with the known standard errors),
    fitted by REML (:func:`evoparam.stats.variance.reml`); the BLUPs are the shrunken
    channel and subject estimates.
@@ -31,7 +33,8 @@ from scipy.optimize import minimize_scalar
 from evoparam.errors import SettingsError
 from evoparam.stats.variance import reml
 
-__all__ = ["mixture_em", "shrink", "jitter_components", "parse_formula", "design_matrix"]
+__all__ = ["mixture_em", "shrink", "jitter_components", "latency_standard_error",
+           "parse_formula", "design_matrix"]
 
 PARAMETERS = ("latency", "amplitude", "fwhm")
 EM_TOL = 1e-9
@@ -156,6 +159,37 @@ def jitter_components(latency, noise_sd, subject, channel):
     sigma = float(np.sqrt(max(sd ** 2 - tau ** 2, 0.0)))
     return {"sd": sd, "sigma": sigma, "tau": float(tau), "n_trials": int(latency.size),
             "converged": bool(out["converged"])}
+
+
+def latency_standard_error(latency, wald_se, jitter_sd, n_trials, low, high, fallback=None):
+    """Standard error of channel latencies fitted on the average of ``n_trials`` trials.
+
+    Two errors add up: the noise of the average (``wald_se``, from the fit) and the mean of
+    the trial-to-trial jitter (``jitter_sd`` beyond noise, divided by ``sqrt(n_trials)``).
+    The latency of a labelled component lies in the label's window ``[low, high]``, so the
+    error is the SD of that normal distribution truncated to the window (it is the normal
+    SD when the window is wide). Where the Wald error is missing, ``fallback`` is used
+    (NaN without it).
+    """
+
+    latency = np.asarray(latency, float)
+    wald_se = np.asarray(wald_se, float)
+    n_trials = np.asarray(n_trials, float)
+    var = wald_se ** 2 + np.where(n_trials > 0, jitter_sd ** 2 / np.maximum(n_trials, 1), 0.)
+    sd = np.sqrt(var)
+    low = np.broadcast_to(np.asarray(low, float), latency.shape)
+    high = np.broadcast_to(np.asarray(high, float), latency.shape)
+    out = sd.copy()
+    ok = np.isfinite(latency) & np.isfinite(sd) & (sd > 0) & (latency >= low) \
+        & (latency <= high)
+    if ok.any():
+        a, b = (low[ok] - latency[ok]) / sd[ok], (high[ok] - latency[ok]) / sd[ok]
+        truncated = sstats.truncnorm.std(a, b, loc=latency[ok], scale=sd[ok])
+        out[ok] = np.where(np.isfinite(truncated) & (truncated > 0), truncated, sd[ok])
+    if fallback is not None:
+        fallback = np.asarray(fallback, float)
+        out = np.where(np.isfinite(wald_se), out, fallback)
+    return out
 
 
 _FORMULA = re.compile(r"^\s*([A-Za-z_]\w*)\s*~\s*(.+?)\s*$")

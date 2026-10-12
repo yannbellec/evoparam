@@ -1134,6 +1134,7 @@
     "stats.t",
     "stats.t.ppf",
     "stats.t.sf",
+    "stats.truncnorm.std",
     "stats.ttest_1samp"
    ]
   },
