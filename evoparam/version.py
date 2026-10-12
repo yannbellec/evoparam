@@ -21,6 +21,9 @@ ALGORITHM_VERSIONS = {
     "evoparam.models.evaluate_fit": "1.1",
     "evoparam.models.fitted_peak": "1.1",
     "evoparam.tf.tf_fit": "1.1",
+    # 1.1: the standard error of the channel latency is the noise of the average (Wald)
+    # plus the mean of the jitter beyond noise, truncated to the label window (REQ-171)
+    "evoparam.hierarchical.fit_hierarchical": "1.1",
 }
 
 

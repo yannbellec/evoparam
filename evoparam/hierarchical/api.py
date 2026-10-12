@@ -20,9 +20,9 @@ from evoparam.errors import SettingsError
 from evoparam.version import __version__
 
 from . import eb
-from ._inputs import (MIN_TEMPLATE_CHANNELS, channel_fits, component_rows, run_subjects,
-                      split_subjects, subject_covariates, template, template_amplitudes,
-                      trial_fits, wald_se)
+from ._inputs import (MIN_TEMPLATE_CHANNELS, channel_fits, comp_window, component_rows,
+                      run_subjects, split_subjects, subject_covariates, template,
+                      template_amplitudes, trial_fits, wald_se)
 
 __all__ = ["fit_hierarchical", "posterior_summary", "compare_hierarchical", "ENGINES",
            "LEVELS"]
@@ -36,9 +36,15 @@ MIN_TRUSTED = 3
 # fit's: the average is not biased by a symmetric jitter, and its estimate beat the mean
 # of the trial latencies (latency RMSE lower in 2 of 3 simulated datasets).
 TRIAL_PARAMETERS = ("amplitude",)
-# Channel statistics whose standard error comes from the spread of the trusted trials: the
-# Wald error of the fitted latency is unstable (its z-scores had an SD of 1.2 to 1.5 on
-# simulations, with some errors ten times too large, which shrank good channels away).
+# The standard error of the channel latency (the fit of the average) has two parts: the
+# noise of the average (Wald error of the fit) and the mean of the trial jitter, whose
+# variance is the jitter SD beyond noise (estimated below, pooled over the channels)
+# divided by the number of trials. The latency of a labelled component lies in the label's
+# window, so the error is the SD of that normal truncated to the window: on simulations,
+# Wald errors with medians of 7.1 and 15.5 ms went with errors of RMS 4.2 and 9.7 ms, and
+# shrank those channels too far (CHANGELOG, REQ-171). The spread of the trusted trials,
+# used before in quadrature with the Wald error, counted the noise twice (median |z| 0.54
+# against the normal 0.67); it is kept for a channel without a Wald error.
 TRIAL_SE_PARAMETERS = ("latency",)
 # Largest trial shift, in FWHM of the component (see the trial fits below).
 JITTER_RANGE = 0.75
@@ -198,12 +204,11 @@ def fit_hierarchical(ts, *, levels=LEVELS, components=None, engine="eb", existen
                             row[f"{p}_raw"] = float(values.mean())
                             row[f"{p}_raw_se"] = se_trials
                         else:
-                            # the fitted value keeps both errors: the noise of the average
-                            # (Wald) and the mean of the trial jitter (spread of the trusted
-                            # trials); either alone gave z-scores with an SD of 1.5 to 1.8 on
-                            # the reference simulations, their sum in quadrature 1.0
-                            row[f"{p}_raw_se"] = float(np.hypot(row[f"{p}_fit_se"], se_trials)) \
-                                if np.isfinite(row[f"{p}_fit_se"]) else se_trials
+                            # completed below, once the jitter SD is known
+                            row[f"_{p}_se_trials"] = se_trials
+                window = (comp_window(gf.get(ch), label) if comp is not None
+                          else (np.nan, np.nan))
+                row["_window_low"], row["_window_high"] = window
                 rows.append(row)
             if len(sub):
                 part = sub[sub["trusted"]].copy()
@@ -212,6 +217,22 @@ def fit_hierarchical(ts, *, levels=LEVELS, components=None, engine="eb", existen
                     part.insert(0, "subject", name)
                     trial_tables.append(part)
         frame = pd.DataFrame(rows)
+        trial_part = [t for t in trial_tables if len(t) and t["label"].iloc[0] == label]
+        jit = None
+        if trial_part:
+            tt = pd.concat(trial_part, ignore_index=True)
+            noise = frame.set_index(["subject", "channel"])["latency_noise_sd"]
+            sd = noise.reindex(list(zip(tt["subject"], tt["channel"]))).to_numpy()
+            jit = eb.jitter_components(tt["latency"].to_numpy(), sd, tt["subject"].to_numpy(),
+                                       tt["channel"].to_numpy())
+        jitter_sd = jit["sd"] if jit is not None and np.isfinite(jit["sd"]) else 0.0
+        for p in TRIAL_SE_PARAMETERS:
+            frame[f"{p}_raw_se"] = eb.latency_standard_error(
+                frame[f"{p}_fit"].to_numpy(float), frame[f"{p}_fit_se"].to_numpy(float),
+                jitter_sd, frame["n_trials"].to_numpy(float),
+                frame["_window_low"].to_numpy(float), frame["_window_high"].to_numpy(float),
+                fallback=frame.get(f"_{p}_se_trials", pd.Series(np.nan, index=frame.index))
+                .to_numpy(float))
 
         if existence:
             em = eb.mixture_em(frame["existence_amplitude"].to_numpy(),
@@ -309,13 +330,7 @@ def fit_hierarchical(ts, *, levels=LEVELS, components=None, engine="eb", existen
             row.update(covariates[name])
             subject_rows.append(row)
 
-        trial_part = [t for t in trial_tables if len(t) and t["label"].iloc[0] == label]
-        if trial_part:
-            tt = pd.concat(trial_part, ignore_index=True)
-            noise = frame.set_index(["subject", "channel"])["latency_noise_sd"]
-            sd = noise.reindex(list(zip(tt["subject"], tt["channel"]))).to_numpy()
-            jit = eb.jitter_components(tt["latency"].to_numpy(), sd, tt["subject"].to_numpy(),
-                                       tt["channel"].to_numpy())
+        if jit is not None:
             diagnostics["jitter"][label] = jit
             var_rows.append({"component": label, "parameter": "latency", "level": "trial",
                              "sd": jit["sd"], "method": "REML (residual beyond noise)"})
@@ -326,7 +341,8 @@ def fit_hierarchical(ts, *, levels=LEVELS, components=None, engine="eb", existen
                 var_rows.append({"component": label, "parameter": "latency",
                                  "level": "trial (ex-Gaussian tau)", "sd": jit["tau"],
                                  "method": "moments"})
-        channel_rows.append(frame.drop(columns=["subject_index"]))
+        channel_rows.append(frame.drop(columns=["subject_index"] + [
+            c for c in frame.columns if c.startswith("_")]))
 
     channel_table = pd.concat(channel_rows, ignore_index=True) if channel_rows else \
         pd.DataFrame(columns=list(CHANNEL_COLUMNS))

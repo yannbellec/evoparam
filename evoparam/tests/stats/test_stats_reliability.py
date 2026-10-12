@@ -130,9 +130,12 @@ def test_req234_sd_at_80_trials(score):
     pytest.param("fractional_area_latency", marks=pytest.mark.xfail(
         strict=False, reason="REQ-234 for the 50 % fractional area latency: median ratio "
         "0.795 with the power law of extrapolation='auto' (0.773 with the 1/sqrt(n) law "
-        "of the spec); on development seeds the power law gave 0.86 to 1.08: the "
-        "bootstrap of a noisy 20-trial average, whose rectified noise spreads the area "
-        "over the window, under-estimates the spread of the 50 % point")),
+        "of the spec); 0.83 to 1.18 on 45 development cells (seeds 7-11, pink, white and "
+        "AR(1) noise, SNR 0.5-2), 0.83 to 0.91 for pink noise at SNR 1 (the test's): where "
+        "the response is weak the rectified area of the noisy 20-trial average has random "
+        "signs, so the bootstrap SD falls faster with the trial count than the true SD "
+        "(80/20-trial ratio 1 to 18 % low); a delete-d jackknife level with a "
+        "subsampling exponent was not better there (0.81 to 0.90; CHANGELOG)")),
     "fractional_peak_latency", "area"])
 def test_req234_latency_scores(score):
     """Every parameter, latencies included (the REQ says "the parameter SD"), with the

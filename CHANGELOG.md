@@ -299,6 +299,95 @@ strict xfail because the preset chain on the inner channels has N45 9 and both 8
 and 9). No engine code changed: no algorithm version changes (the preset carries its own
 version, 1.1); the reference fixture holds only `ccep` fits and is unchanged.
 
+### Empirical-Bayes channel latencies (REQ-171) and trial counts for latencies (REQ-234), measured on simulations
+
+REQ-171 (EB channel latencies beat the channel fits on >= 90 % of datasets, per-trial SNR
+<= 2). The test's design (4 subjects x 20 channels x 20 trials, 60 % responding, SNR 1.5)
+was run on 200 development datasets (seeds 1000-1199, chosen before looking at the
+results) and on the test's 20 seeds, which were not used for any choice.
+
+- Before (main 3b222bb): the EB wins on 3 of the test's 6 datasets, 11 of 20 with
+  `EVOPARAM_SLOW_TESTS=1`, 129 of 200 development datasets (64.5 %). RMS over the
+  datasets of the channel latency RMSE: development, channel fits 1.80 ms, EB 1.56 ms;
+  test seeds 1.66 / 1.50 ms (20), 1.85 / 1.47 ms (6).
+- Attribution of the 5 of 6 / 17 of 20 of the earlier reason (the test as written, run
+  in a worktree of each commit): 971633c (where the reason was written) and 9492870 give
+  5 of 6 and 17 of 20, channel 1.854 / 1.656 ms, EB 1.547 / 1.493 ms; 1b91be1 (REQ-172:
+  Wald error in quadrature with the trial spread) and every later commit measured
+  (9b443b6, 75c443a, e552ba7, 3b222bb) give 3 of 6 and 11 of 20, channel 1.854 / 1.656 ms,
+  EB 1.469 / 1.497 ms. The channel fits did not change (latencies within 1.1 µs from
+  971633c to 3b222bb; `noise_stride` is 1 on all 1 600 channel fits of the 20 seeds): the
+  drop comes from the standard error of 1b91be1 alone. The trial spread alone, used
+  before it, is too small (z-score SD 1.51) and under-shrinks: 180 of 200 development
+  datasets (90 %) but an EB RMSE of 1.62 ms, and the NUTS coverage of REQ-172 was 17 of
+  20 with it.
+- Cause: the standard error given to the channel latency. It was the Wald error of the fit
+  in quadrature with the spread of the trusted trial latencies over sqrt(n). The trial
+  spread already holds the noise of the average, so the noise counted twice: median |z|
+  0.54 against 0.67 for a normal (7 829 responding channels). And the Wald error of a
+  poorly determined latency is far too large: binned by Wald error, the medians 7.1 and
+  15.5 ms went with error RMS of 4.2 and 9.7 ms, the best shrinkage weights there were
+  0.55 and 0.25 against the 0.23 and 0.06 the model used (log |error| grows as 0.69 x log
+  Wald error). Those channels were pulled to the subject mean, the good ones were
+  over-shrunk: with the true subject latencies and the true between-channel SD, these
+  errors won on only 75 % of the development datasets. Not causes: misassigned channels
+  (7 false-positive channels in 200 datasets; fitting the variances on the channels with
+  `P(response) >= 0.5` gave 64 %), errors correlated with the true deviation (slope 0.01),
+  correlated errors within a subject.
+- Change (`evoparam.hierarchical`, `fit_hierarchical` algorithm version 1.1): the standard
+  error of the channel latency is the noise of the average (Wald error) plus the mean of
+  the trial jitter (the jitter SD beyond noise, pooled by REML, over sqrt(number of
+  trials)), as the SD of that normal truncated to the label window (the latency of a
+  labelled N1 lies in it); `eb.latency_standard_error`. The trial spread is kept for a
+  channel without a Wald error.
+- After: 4 of 6 test datasets (seed 100: channel 1.48 ms, EB 1.57 ms; seed 105: 0.98 ms,
+  1.06 ms), 14 of 20 with `EVOPARAM_SLOW_TESTS=1`, 160 of 200 development datasets (80 %).
+  RMSE: development 1.48 ms (1.56 before), test seeds 1.43 ms (1.50) and 1.41 ms (1.47).
+  Between-channel latency SD (REML) over the realised one, median of 100 development
+  datasets: 0.943 (0.905 before). Not met: the test stays an expected failure with these
+  values.
+- Bound: with the true subject latencies and between-channel SD and the new errors, the
+  posterior mean wins on 86 % of the development datasets; on datasets drawn from the
+  Gaussian model itself (errors exactly normal with those SDs) on 84 %. The posterior
+  mean minimises the expected squared error; the chance of beating the channel fits on a
+  given dataset grows as the shrinkage falls (new standard errors divided by 2, 4 and 10:
+  93.5 %, 96.5 %, 97 % of the development datasets, RMSE 1.48, 1.65, 1.77 ms; divided by
+  2: 5 of 6 and 17 of 20 on the test's seeds). Halving the old standard errors gave 92.5 %
+  (RMSE 1.45 ms) by under-shrinking the channels with small errors; the minimum of the
+  Wald and trial errors 93.5 % with an RMSE of 1.62 ms (worse than before). Neither is an
+  empirical-Bayes estimate; not used (DECISIONS 5.6, with the other options measured:
+  Wald error alone 78 %, a dispersion factor estimated by REML 62-70 %, trial-bootstrap
+  errors of the fit worse calibrated and 50 s per dataset).
+- Kept green: `tests/hierarchical/test_hier_eb.py` (REQ-170, REQ-172 EB, REQ-175, the
+  proposed wording of REQ-171; also with `EVOPARAM_SLOW_TESTS=1`), the NUTS reference runs
+  of `tests/hierarchical/test_hier_bayes.py` with `EVOPARAM_SLOW_TESTS=1` (REQ-172 with
+  numpyro, REQ-173, REQ-174, REQ-176: the Bayesian engines read the same standard error),
+  `tests/hierarchical/test_hier_ccep.py` with `EVOPARAM_NETWORK_TESTS=1` (REQ-178, age
+  effect on the N1 latency of ds004080), `tests/stats`, `tests/trials`, `tests/reports`,
+  `test_exports`, `test_docs`, `test_determinism`. SOUP inventory regenerated (`scipy.stats.truncnorm.std`).
+
+REQ-234 (`trials_needed` predicts the SD at 80 trials from 20 within 15 %), fractional
+area latency: no change, the cause measured further. Development cells: seeds 7-11, pink,
+white and AR(1) noise, per-trial SNR 0.5, 1 and 2, 30 channels of 20 trials, true SD over
+300 blocks of 80 trials (the test's seed 41 was not used).
+
+- The power law of `extrapolation="auto"` gives median ratios of 0.83 to 1.18 over the 45
+  cells, 0.83 to 0.91 with pink noise at SNR 1 (the test's condition; 0.795 at seed 41).
+- Mechanism: with the true waveform as the centre, the bootstrap at 80 trials gives 0.92
+  to 1.04; around the noisy 20-trial average it gives 0.74 to 0.95. Where the response is
+  weak (the window edges) the rectified area of the noisy average takes random signs, so
+  slow (pink) noise cancels in the cumulative area; the true SD falls more slowly than
+  1/sqrt(n) (ratio of the SDs at 80 and 20 trials 0.53 to 0.65, against 0.5) while the
+  bootstrap ratio is 1 to 18 % lower than the true one.
+- Tried, not used: simulation-extrapolation of the centre noise (SIMEX, 0.45 to 0.98: the
+  SD is not monotone in the centre noise); the fitted model of the 20-trial average as the
+  centre (0.52 to 0.94 on the 4 of 6 channels of one cell where a component was found; the
+  fitted background moves the window edges); the true-world SD at 20 trials
+  by delete-d jackknife (half-samples, 0.80 to 1.10) extrapolated with the exponent of
+  subsamples of 5, 10 and 20 trials (0.81 to 1.08 over the cells, mean |log ratio| 0.068
+  and 0.079 against 0.077 and 0.091, but 0.81 to 0.90 at pink SNR 1, and not better for
+  the peak latency). The expected failure keeps 0.795; its reason now gives the cause.
+
 ### N1 latency agreement (REQ-114, REQ-273): why the rule's peak is missed; fitted background on any time grid
 
 REQ-114 asks the model latency within 2 ms of the published rule's peak on 90 % of the

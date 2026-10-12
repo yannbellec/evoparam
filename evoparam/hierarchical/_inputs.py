@@ -131,6 +131,17 @@ def component_rows(group_fit, label):
     return out
 
 
+def comp_window(fit, label):
+    """The label window ``(low, high)`` (s) of a channel fit: the latency of a component
+    carrying ``label`` lies in it (``(-inf, inf)`` when the fit has no such window)."""
+
+    windows = (getattr(fit, "settings", None) or {}).get("windows") or {}
+    window = windows.get(label)
+    if window is None or len(window) < 2:
+        return -np.inf, np.inf
+    return float(window[0]), float(window[1])
+
+
 def wald_se(comp, name):
     """Standard error from a component's Wald interval (NaN when absent)."""
 

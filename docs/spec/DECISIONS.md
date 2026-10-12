@@ -475,6 +475,42 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   often on single components would not say that two were merged. REQ-111 at 0.5 FWHM stays
   an expected failure; its other clause (no unflagged pair) holds.
 
+### 5.6 REQ-171: how often a posterior mean beats the channel fits (§5.8)
+
+- REQ-171 asks the EB channel latencies to have a lower RMSE than the channel fits on
+  ≥ 90 % of simulated datasets at per-trial SNR ≤ 2. The test's design is 4 subjects × 20
+  channels × 20 trials, 60 % responding, SNR 1.5: about 39 responding channels with a
+  latency per dataset, a between-channel SD of 4 ms and channel errors of 1 to 2 ms.
+- Measured bound. With the true subject latencies, the true between-channel SD and the
+  standard errors of the engine, the posterior mean wins on 86 % of 200 development datasets
+  (seeds 1000–1199); on datasets drawn from the Gaussian model itself (known prior, errors
+  exactly normal with those standard errors) it wins on 84 %. The posterior mean minimises
+  the expected squared error, not the chance of beating the raw estimates on a given
+  dataset: that chance rises as the shrinkage falls (with the new standard errors divided
+  by 2, 4 and 10, the EB wins on 93.5 %, 96.5 % and 97 % of the development datasets while
+  its RMSE goes from 1.48 ms to 1.48, 1.65 and 1.77 ms, against 1.79 ms for the channel
+  fits). Halved on purpose, the new standard errors keep the RMSE and reach 93.5 %, but
+  only 5 of 6 and 17 of 20 on the test's seeds; they under-shrink the channels with small
+  errors and are not the empirical-Bayes estimate, so they are not used (owner's call).
+- What changed (the standard error of the channel latency): the noise of the average (Wald
+  error of the fit) plus the mean of the trial jitter (jitter SD beyond noise, pooled by
+  REML over the channels, over the square root of the number of trials), truncated to the
+  label window. Before, the spread of the trusted trials in quadrature with the Wald error
+  counted the noise twice (median |z| 0.54 against the normal 0.67), and the Wald error of
+  poorly determined latencies (median 7.1 and 15.5 ms in the two largest bins, where the
+  errors had an RMS of 4.2 and 9.7 ms) shrank them too far. Development datasets: wins
+  64.5 % → 80 %, RMSE 1.56 → 1.48 ms (channel fits 1.80 ms), between-channel latency SD
+  0.905 → 0.943 of the realised one (median). Test seeds: 3 → 4 of 6, 11 → 14 of 20.
+- Measured and not used: REML on the channels with `P(response) ≥ 0.5` only (64 %, false
+  positives are 7 channels in 200 datasets); the Wald error alone (78 %, 1.50 ms); the
+  minimum of the Wald and trial errors (93.5 % but RMSE 1.62 ms, worse than before: it
+  under-shrinks); standard errors scaled by a factor estimated by REML in each dataset
+  (62 % to 70 %, too noisy with 40 channels); trial-bootstrap errors of the fit
+  (`uncertainty="bootstrap"`, 100 resamples, 22 datasets: z-score SD 1.39 against 1.21,
+  13 % beyond 1.96, 50 s per dataset); the mean of the trusted trial latencies combined
+  with the fit (errors correlated 0.89, RMSE 1.774 against 1.781 ms at best).
+- The criterion is unchanged; the test stays an expected failure with the measured values.
+
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
 Each point below is a reading needed to apply a requirement of S20 literally, or a place
