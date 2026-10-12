@@ -272,6 +272,11 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
     bg_values = dict(zip(getattr(bg, "linear_names", ()), core["beta"][len(comps):len(comps) + n_lin]))
     bg_values.update(zip(getattr(bg, "nonlinear_names", ()), struct.bg_params(core["theta"])))
     background = {"name": bg.name, **{k: float(v) for k, v in bg_values.items()}}
+    if hasattr(bg, "t_ref"):
+        # the time origin of the background's basis (the first sample of the fit window
+        # unless the background sets one), so that evaluate_fit gives the fitted curve on
+        # any other time axis
+        background["t_ref"] = float(bg._t_ref(struct.tw))
 
     classical = {}
     if settings.classical:
@@ -529,7 +534,15 @@ def _settings_dict(settings, overrides=()):
 
 
 def evaluate_fit(fit, times, *, components=None, background=True):
-    """Curve of a ResponseFit on any time grid (all components, or a subset)."""
+    """Curve of a ResponseFit on any time grid (all components, or a subset).
+
+    The background is evaluated with the time origin of the fit (``t_ref`` of
+    ``fit.background``, the first sample of the fit window): a background whose basis
+    depends on time (exponential tail, linear drift) is the fitted one on any grid, not
+    only on a grid that starts at the window's first sample. Before that sample, where it
+    was not fitted, the background keeps its value there (a recovery tail extrapolated
+    backwards grows without bound).
+    """
 
     from evoparam.shapes import get_background, get_shape
 
@@ -540,10 +553,16 @@ def evaluate_fit(fit, times, *, components=None, background=True):
             total += _amplitude(fit, k) * get_shape(comp.shape).evaluate(times, comp.params)
     if background and fit.background:
         bg = get_background(fit.background["name"])
+        t_ref = fit.background.get("t_ref")
+        bg_times = times
+        if t_ref is not None and dataclasses.is_dataclass(bg) and \
+                "t_ref" in {f.name for f in dataclasses.fields(bg)}:
+            bg = dataclasses.replace(bg, t_ref=float(t_ref))
+            bg_times = np.maximum(times, float(t_ref))
         lin = [fit.background[n] for n in getattr(bg, "linear_names", ())]
         nl = [fit.background[n] for n in getattr(bg, "nonlinear_names", ())]
         if lin:
-            basis = bg.basis(times, np.array(nl) if nl else None)
+            basis = bg.basis(bg_times, np.array(nl) if nl else None)
             total += np.asarray(lin) @ np.atleast_2d(basis)
     return total
 
@@ -552,17 +571,20 @@ def fitted_peak(fit, window, *, polarity="negative", step=1e-4):
     """Peak of the fitted waveform (background and components) inside a window.
 
     The deepest interior local minimum (``polarity="negative"``) or highest interior local
-    maximum (``"positive"``) of the fitted curve between ``window[0]`` and ``window[1]``,
-    on a grid of ``step`` seconds; a curve that is monotone through the window has no peak.
+    maximum (``"positive"``) of the fitted curve between ``window[0]`` (or the first sample
+    of the fit window, when later) and ``window[1]``, on a grid of ``step`` seconds; a curve
+    that is monotone through the window has no peak.
     The value is relative to zero (baseline-corrected data) and must have the sign of the
     polarity.
 
     Why: when an early component overlaps the recovery tail (the exponential background),
     the split of the curve between them is sloppy (often flagged ``ill_conditioned``), so a
     component's own latency can lie several ms from the trough of the waveform while the
-    fitted curve itself is well determined. On ds004080 the N1 latency of the component was
-    within 2 ms of the published rule's peak on about a quarter of the channels where both
-    find an N1, the trough of the fitted curve on about nine in ten (CHANGELOG).
+    fitted curve itself is well determined. On ds004080 (the example run and the REQ-371
+    runs) the N1 component's latency is within 2 ms of the published rule's peak on 24 %
+    (registry row) and 37 % (code) of the channels where both find an N1, the trough of the
+    fitted curve on 42 % and 80 %; where that peak is an N1 trough of the rule's average,
+    on 31 of 39 and 24 of 24 channels (CHANGELOG, "N1 latency agreement").
 
     Returns
     -------
@@ -575,7 +597,11 @@ def fitted_peak(fit, window, *, polarity="negative", step=1e-4):
     out = {"latency": np.nan, "amplitude": np.nan}
     if fit.status != "ok" or not fit.background:
         return out
-    grid = np.arange(window[0], window[1] + step / 2, step)
+    # from the first fitted sample: before it the background was not fitted
+    # (evaluate_fit holds it there), and a held value next to a falling tail would make a
+    # trough at the window's start
+    start = max(window[0], fit.background.get("t_ref", window[0]))
+    grid = np.arange(start, window[1] + step / 2, step)
     if len(grid) < 3:
         return out
     curve = evaluate_fit(fit, grid)

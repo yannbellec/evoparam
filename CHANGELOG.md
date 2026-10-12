@@ -2,6 +2,79 @@
 
 ## Unreleased
 
+### N1 latency agreement (REQ-114, REQ-273): why the rule's peak is missed; fitted background on any time grid
+
+REQ-114 asks the model latency within 2 ms of the published rule's peak on 90 % of the
+channels where both find an N1 (ds004080: the example run and the REQ-371 runs, both
+readings of the rule, owner decision D8). Each channel was examined: the rule's average,
+the preset's input average, the fitted curve, its components and background.
+
+Causes, on the REQ runs (registry row / code):
+
+- **The rule's peak is often not an N1.** It is an N1 trough of the average the rule reads
+  (the deepest negative interior local minimum in 9-50 ms) on 39 of the 74 channels where
+  both find an N1 and on 24 of 30. The others are the first samples of the window, on the
+  recovery tail (18 / 3), slow deflections peaking at 52-100 ms (16 / 2), and one more each
+  (the deepest sample just after 50 ms; a positive-valued minimum). The rule has no
+  smoothing; its window is 9-100 ms. A model whose N1 latency is a trough of the data is
+  therefore bounded by 53 % / 80 %, below the 90 % asked.
+- **The component the preset names N1 is not the waveform's trough.** On the 39 / 24
+  channels where the rule's peak is an N1 trough, the trough of the fitted curve is within
+  2 ms on 31 / 24, the N1 component's own latency on 18 / 11. Where the trough is right and
+  the component is not (12 / 13 channels), every fit is `ill_conditioned`, 8 / 9 have
+  several negative components in 9-50 ms, the one named N1 (larger `|A|`, §5.5.7) is wider
+  than 20 ms on 8 / 9, and it is in a cancelling pair on 7 / 7. The median miss is 4.5 ms.
+- **Reference (registry row).** On 6 of the 8 N1 troughs the fitted trough misses, the
+  trough of the preset's own input misses too: the rule reads the monopolar average, the
+  preset the adjusted common average (on sub-ccepAgeUMCU03 the registry row's peak is at
+  32.7 ms on 35 of the 70 channels, a common-mode deflection the common average removes).
+  Fitted on the rule's own average (a diagnostic), the input's trough is within 2 ms on 33
+  of 33 such channels.
+- Not causes: the sampling (on the example run, recorded at 512 Hz, the fitted trough is
+  within 2 ms on its 4 N1 troughs under both readings), the
+  `min_fwhm` floor (3 ms in the preset, below the 4-8 ms N1s; 2 ms changes nothing), the
+  whitening (the fitted trough follows the data's trough).
+
+Model changes measured on the five development runs, none adopted (DECISIONS §5.2, all
+values there): `reject_cancelling`, `reseed="always"`, `min_fwhm` 2 ms,
+`amplitude_prior` 1, `max_components` 8, and the shapes plus `exgaussian`,
+`biexponential` or `gamma`. Each moves one to three of 20-38 channels, in both directions.
+The two that also raised the development kappa lowered it on the REQ runs (`gamma`:
+0.46/0.40 to 0.44/0.34; `amplitude_prior` 1: to 0.44/0.32).
+
+Fixed (a defect found on the way): **the fitted background on another time grid.** The
+exponential background is `c0 + c1 exp(-(t - t_ref)/tau)` with `t_ref` the first sample
+of the fit window, but the fit did not record `t_ref` and `evaluate_fit` took the first
+time of the grid it was given. On a grid starting elsewhere the tail was scaled by
+`exp((t_grid - t_ref)/tau)`: curves drawn from 5 ms ran hundreds of uV below the data; on
+the whole epoch (the time-frequency footprint of `tf_fit`, `test_reseed`'s residual) the
+tail was missing. Now the fit records `t_ref` in `fit.background`, `evaluate_fit` uses it
+and holds the background at its first fitted value before it, and `fitted_peak` searches
+from the first fitted sample. `fit_shared` now keeps the time constants and `t_ref` with
+the coefficients (`evaluate_fit` raised `KeyError: 'tau'` on its channels).
+Algorithm versions: `evaluate_fit`, `fitted_peak` and `tf_fit` 1.1. No fit changes: the
+615 fits of the REQ runs are identical bit for bit (components, amplitudes, decisions),
+so REQ-113 and `validation/layer3/n1_ds004080.json` are unchanged.
+`evoparam/tests/reference/fit_fixture_ccep.json` was regenerated with
+`python -m evoparam.tests.reference` to record the new versions; its values move by at
+most 4.2e-12 relative, which origin/main already gives (the solver change of REQ-115).
+
+| REQ runs (example + REQ-371), registry row / code | before | after |
+|---|---|---|
+| REQ-114 as written, N1 component within 2 ms | 24 % (18/74) / 37 % (11/30) | unchanged |
+| REQ-114, trough of the fitted curve (K3) | 41 % (30/74) / 80 % (24/30) | 42 % (31/74) / 80 % (24/30) |
+| the same where the rule's peak is an N1 trough | 30/39 / 24/24 | 31/39 / 24/24 |
+| N1 component, same channels | 18/39 / 11/24 | unchanged |
+| REQ-113 kappa (pooled) / recall | 0.458 / 0.398; 0.460 / 0.882 | unchanged |
+| trough with the code's floor (regression), pooled kappa / lowest run | 0.890 / 0.71 | 0.907 / 0.71 |
+
+Tests: `test_req114_as_written` and `test_req114_trough_latency` stay non-strict expected
+failures; their reasons give the measured values and the bound. New:
+`test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression` (not a REQ: with the
+code's reading, the fitted trough within 2 ms on >= 90 % of the channels where the rule's
+peak is an N1 trough; 24 of 24) and `tests/models/test_evaluate_fit.py` (the background on
+any grid, `fitted_peak`, `fit_shared`).
+
 ### Third network run on the Mac (S20 merged): benchmark across platforms (REQ-353, REQ-392)
 
 - Run on macOS arm64, the committed `core` results (made on Linux) are not reproduced byte

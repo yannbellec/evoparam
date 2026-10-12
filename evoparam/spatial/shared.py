@@ -88,6 +88,8 @@ class _Channel:
         self.w = valid.astype(float) / sigma
         self.sigma = sigma
         self.background = background
+        self.bg_nonlinear = np.asarray(bg_nonlinear, float)
+        self.t_ref = float(background._t_ref(tw)) if hasattr(background, "t_ref") else None
         nl = bg_nonlinear if len(bg_nonlinear) else None
         self.basis = (np.atleast_2d(background.basis(tw, nl)) if background.n_linear
                       else np.zeros((0, len(tw))))
@@ -473,7 +475,12 @@ def _channel_fit(ch, layout, base, z_shared, z_local, tw, y, valid, settings, sf
                                se={"A": se}, ci={"A": (amp - z * se, amp + z * se)}))
     bg = ch.background
     values = dict(zip(bg.linear_names, beta[len(shapes):]))
+    # the time constants (held from the channel's own fit) and the time origin with the
+    # coefficients, so that evaluate_fit gives this channel's fitted background
+    values.update(zip(getattr(bg, "nonlinear_names", ()), ch.bg_nonlinear, strict=True))
     background = {"name": bg.name, **{key: float(v) for key, v in values.items()}}
+    if ch.t_ref is not None:
+        background["t_ref"] = ch.t_ref
     n_params = len(beta) + layout.n_local() + n_shared
     return ResponseFit(components=comps, background=background,
                        gof=_gof(y, fitted, valid, ch.sigma, n_params), status="ok",

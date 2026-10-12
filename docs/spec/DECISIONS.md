@@ -328,6 +328,52 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   `tests/prep/test_reference_sensitivity.py` (REQ-084 on ds004080, `attrs["detector"] ==
   "existence_detector"`); `tests/test_import_graph.py` unchanged.
 
+### 5.2 REQ-114: the published rule's peak is not always an N1 (§5.5.10, §5.5.7)
+
+- REQ-114 compares "the model latency" with the published rule's peak on the channels where
+  both find an N1. The rule's peak is the most negative sample of 9–100 ms (registry row)
+  or the largest local minimum there (published code). On the REQ runs (the example run
+  and the REQ-371 runs) that peak is an N1 trough of the average the rule reads (the
+  deepest negative interior local minimum in 9–50 ms) on 39 of the 74 channels where the
+  registry row and the preset both find an N1, and on 24 of 30 with the code. The other
+  peaks are the first samples of the window on the recovery tail (18 and 3), slow
+  deflections at 52–100 ms (16 and 2) and one more each (the deepest sample just after
+  50 ms; a positive-valued minimum). A model whose N1 latency is a trough of the data is
+  therefore bounded by 53 % (registry row) and 80 % (code). Any latency in 9–50 ms is
+  bounded by 78 % (58 of 74) and 93 % (28 of 30); reaching the second bound would mean
+  naming an N1 at the window start, where the average is on the recovery tail and has no
+  trough. The criterion is unchanged: the tests stay expected failures with the measured
+  values.
+- "The model latency" is read two ways, as before: the latency of the component the
+  preset names N1 (§5.5.7: the larger `|A|` of the negative components in 9–50 ms; the
+  test as written) and the trough of the fitted curve (`fitted_peak`, K3). On the
+  channels where the rule's peak is an N1 trough, the trough is within 2 ms on 24 of 24
+  (code) and 31 of 39 (registry row), the component on 11 of 24 and 18 of 39. On real
+  N1s the engine's fit puts its trough on the data's trough; the component's own mode
+  misses because the N1 is fitted by overlapping components (several negative components
+  in 9–50 ms, the one named N1 often 20–250 ms wide, about half in cancelling pairs, every
+  fit `ill_conditioned`). The label rule of §5.5.7 is kept.
+- With the registry row, 8 of the 39 N1 troughs are missed by the fitted trough. On 6 of
+  them the trough of the preset's own input misses too: the rule reads the monopolar
+  average, the `ccep` preset the adjusted common average, which moves shallow troughs
+  (sub-ccepAgeUMCU03: the registry row's peak is at 32.7 ms on 35 of the 70 channels, the
+  trough of the channels' median, a common-mode deflection the common average removes). Fitted on the
+  rule's own average (no re-referencing; a diagnostic, not the preset), the input's trough
+  is within 2 ms on 33 of 33 such channels and the fitted trough on 29 of 33. The other
+  misses are flat-bottomed N1s 20–70 ms wide, whose deepest sample moves with the noise.
+- Model changes tried for the component latency, chosen on the five development runs
+  (UMCU07, 19, 28, 40, 49), none adopted (component / trough within 2 ms, registry row,
+  then code; current 26 % / 54 % and 33 % / 81 %): `reject_cancelling=True` 26 / 51 and
+  40 / 80; `reseed="always"` 29 / 57 and 36 / 82 (1.5 times slower); `min_fwhm` 2 ms
+  26 / 50 and 37 / 79; `amplitude_prior` 1 30 / 54 and 36 / 86; `max_components` 8 29 / 49
+  and 33 / 76; shapes plus `exgaussian` 22 / 53 and 32 / 84, plus `biexponential` 24 / 55
+  and 30 / 80, plus `gamma` 29 / 47 and 41 / 77. Each moves one to three of 20 to 38
+  channels, in both directions. The two that also raised the development kappa were
+  checked on the REQ runs and lowered it there: shapes plus `gamma` (development 0.40 to
+  0.48 and 0.39 to 0.44; REQ runs 0.46 to 0.44 and 0.40 to 0.34, code recall 0.88 to 0.74)
+  and `amplitude_prior` 1 (development 0.40 to 0.42 and 0.39 to 0.40; REQ runs 0.46 to 0.44
+  and 0.40 to 0.32, code recall 0.88 to 0.76). Neither is used.
+
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
 Each point below is a reading needed to apply a requirement of S20 literally, or a place
