@@ -137,6 +137,7 @@ class Whitener:
                 self.start = _inverse_cholesky(np.asarray(acov, float))
                 ok[:p] = self.start is not None
         self.p = p
+        self.skip = p            # rows before this one hold the start rows (if any)
         self.rows = ok
         self._row_weight = ok.astype(float)
         self.n = int(ok.sum())
@@ -206,6 +207,105 @@ def _inverse_cholesky(acov):
         for j in range(i):
             inv[i, j] = -np.dot(chol[i, j:i], inv[j:i, j]) / chol[i, i]
     return inv
+
+
+# A band above 1 / k of the Nyquist frequency is empty when the median periodogram level of
+# the half-octave above it is below EMPTY_BAND times that of the octave below it; strides
+# tried, largest first, and periodogram points needed in each band
+EMPTY_BAND = 1e-3
+MAX_STRIDE = 4
+MIN_BAND_POINTS = 8
+
+
+def noise_stride(z):
+    """Largest stride ``k`` (2 .. ``MAX_STRIDE``) such that the noise ``z`` has an empty band
+    just above ``1 / k`` of the Nyquist frequency; 1 when it fills its band.
+
+    The test compares the median level of the Hann-tapered periodogram of the detrended
+    noise in ``(1/k, 1.5/k]`` and in ``(0.5/k, 1/k]`` (fractions of the Nyquist frequency).
+    Medians make it robust to lines and to the image left near the Nyquist frequency by
+    an upsampling filter. On the ds004080 baselines the ratio is -1.6 decades or more at the
+    recorded rates and decimated to 1024 and 512 Hz, and -5.4 decades or less on the example
+    run (recorded at 512 Hz) upsampled to 1024 Hz (CHANGELOG): ``EMPTY_BAND`` lies between."""
+
+    z = np.asarray(z, float)
+    t = np.arange(len(z), dtype=float)
+    z = (z - np.polyval(np.polyfit(t, z, 1), t)) * np.hanning(len(z))
+    power = np.abs(np.fft.rfft(z)) ** 2
+    f = np.arange(len(power)) / max(len(power) - 1, 1)
+    for k in range(MAX_STRIDE, 1, -1):
+        above = power[(f > 1.0 / k) & (f <= 1.5 / k)]
+        below = power[(f > 0.5 / k) & (f <= 1.0 / k)]
+        if min(len(above), len(below)) >= MIN_BAND_POINTS and \
+                np.median(above) < EMPTY_BAND * np.median(below):
+            return k
+    return 1
+
+
+class StridedWhitener(Whitener):
+    """Whitening of a noise that fills only the lowest ``1 / k`` of its band (``k`` =
+    ``stride``, from ``noise_stride``): an upsampled recording, or one whose anti-alias or
+    hardware low-pass is well below the Nyquist frequency.
+
+    Only every k-th row carries evidence, the rows of the samples ``phase``, ``phase + k``,
+    ... of the window, and they are whitened by the AR model of the noise sampled at the
+    same rate (``a`` acts at lags ``0, k, 2k, ...``); the other rows are set to zero. Such
+    samples hold all that the band of the noise holds, and the fit is judged as it would be
+    on a recording at the lower rate. The ordinary whitening of such a noise amplifies its
+    empty band by orders of magnitude: misfits there (the interpolation of the model, the
+    ringing of an upsampling filter next to a stimulation artifact) count as strong
+    evidence, and the fit keeps narrow components, often in cancelling pairs (on ds004080
+    upsampled from 512 to 1024 Hz: an N1 on 54 channels instead of 14, CHANGELOG). Rows that
+    depend on a masked sample are zero; the first ``p`` kept rows are the start rows of the
+    exact likelihood (``acov``, as in ``Whitener``)."""
+
+    def __init__(self, scale, a, innovation, valid, stride, phase=0, acov=None):
+        self.scale = np.asarray(scale, float)
+        self.a = np.asarray(a, float)
+        self.innovation = float(innovation)
+        k = self.stride = int(stride)
+        valid = np.asarray(valid, bool)
+        n = len(valid)
+        p = len(self.a) - 1
+        spread = ~valid
+        for j in range(1, p + 1):
+            if j * k < n:
+                spread[j * k:] |= ~valid[:-j * k]
+        kept = np.zeros(n, bool)
+        kept[phase::k] = True
+        ok = kept & valid & ~spread
+        self.start = None
+        self.start_rows = np.arange(phase, phase + p * k, k)
+        if p:
+            first = self.start_rows[self.start_rows < n]
+            ok[first] = False
+            if acov is not None and len(acov) == p and len(first) == p and valid[first].all():
+                self.start = _inverse_cholesky(np.asarray(acov, float))
+                ok[first] = self.start is not None
+        self.p = p
+        self.skip = int(self.start_rows[-1]) + 1 if p else 0
+        self.rows = ok
+        self._row_weight = ok.astype(float)
+        self.n = int(ok.sum())
+
+    def __call__(self, x):
+        x = np.asarray(x, float)
+        raw = x / (self.scale if x.ndim == 1 else self.scale[:, None])
+        u = self.a[0] * raw
+        for j in range(1, len(self.a)):
+            lag = j * self.stride
+            if lag < len(raw):
+                u[lag:] += self.a[j] * raw[:-lag]
+        u = u / self.innovation
+        if self.start is not None:
+            u[self.start_rows] = np.einsum("ij,j...->i...", self.start, raw[self.start_rows])
+        if x.ndim == 1:
+            return np.where(self.rows, u, 0.0)
+        return np.where(self.rows[:, None], u, 0.0)
+
+    def into(self, x, out):
+        out[...] = self(x)
+        return out
 
 
 MIN_PLUS_MINUS = 10
@@ -813,9 +913,10 @@ def _evaluate_state(struct_maker, shapes, theta0, settings, n_eff, f_scale, kind
     # samples against the stationary spread of the noise, and a chance deviation there was
     # otherwise "explained" by a recovery tail plus a broad component cancelling it (on
     # simulations: a spurious N1 at the window start; REQ-170, REQ-171).
-    skip = struct.white.p if getattr(struct.white, "start", None) is not None else 0
-    crit = criterion(float(np.sum(data_rw[skip:] ** 2)), n_eff - skip, p, kind) if skip \
-        else fit_crit
+    exact = getattr(struct.white, "start", None) is not None
+    skip = struct.white.p if exact else 0
+    crit = criterion(float(np.sum(data_rw[struct.white.skip:] ** 2)), n_eff - skip, p,
+                     kind) if skip else fit_crit
     return _State(list(shapes), theta, beta, rw, crit, fit_crit), ""
 
 
@@ -865,6 +966,24 @@ def _starts(shape, guess, n_starts, tw):
 _COUNTER = threading.local()
 
 
+def _noise_stride(times, y, settings, mask, noise_ref):
+    """``noise_stride`` of the noise the AR model is fitted to (the plus-minus reference or
+    the baseline); 1 for the other noise models or without enough noise samples."""
+
+    if settings.noise_model != "ar":
+        return 1
+    if noise_ref is not None:
+        ref = np.asarray(noise_ref, float)
+        z = ref[np.isfinite(ref) & ~mask]
+    elif settings.baseline is not None:
+        base = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask & \
+            np.isfinite(y)
+        z = y[base]
+    else:
+        return 1
+    return noise_stride(z) if len(z) >= MIN_BASELINE else 1
+
+
 def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None,
                       noise_ref=None):
     """Fit one waveform. Returns a dict with everything the result object needs.
@@ -893,9 +1012,14 @@ def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select
     if win is None:
         raise SettingsError("fit_window is required (no preset gives one).")
     out = {"warnings": [], "steps": [], "best_rejected_delta": np.nan}
+    stride = _noise_stride(times, y, settings, mask, noise_ref)
+    out["noise_stride"] = stride
+    if stride > 1:
+        out["warnings"].append(f"band_limited_noise:{stride}")
     min_fwhm = settings.min_fwhm
-    if sfreq < 2.0 / min_fwhm:
-        min_fwhm = 2.0 / sfreq
+    if sfreq / stride < 2.0 / min_fwhm:
+        # two samples at the rate the noise occupies (the recorded rate when stride is 1)
+        min_fwhm = 2.0 * stride / sfreq
         out["warnings"].append("min_fwhm_raised")
         settings = dataclasses.replace(settings, min_fwhm=min_fwhm,
                                        max_fwhm=max(settings.max_fwhm, 2 * min_fwhm))
@@ -933,15 +1057,23 @@ def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select
         s_ = np.asarray(sem, float)[wmask]
         scale = np.maximum(np.nan_to_num(s_, nan=sigma), 0.1 * sigma)
     a_coefs, innovation, acov = np.array([1.0]), 1.0, None
+    # the noise of a band-limited recording is modelled at the rate it occupies: on every
+    # stride-th sample from the first of the epoch (an upsampled recording keeps its own
+    # samples there)
+    grid = np.arange(len(y)) % stride == 0
     if settings.noise_model == "ar" and noise_ref is not None:
-        a_coefs, innovation, acov = ar_model(ref[good] / sigma, return_acov=True)
+        a_coefs, innovation, acov = ar_model(ref[good & grid] / sigma, return_acov=True)
     elif settings.noise_model == "ar" and settings.baseline is not None:
         base = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask
         if base.sum() >= MIN_BASELINE:
-            a_coefs, innovation, acov = ar_model(y[base] / sigma, return_acov=True)
+            a_coefs, innovation, acov = ar_model(y[base & grid] / sigma, return_acov=True)
     if sem is not None:
         innovation = 1.0 if len(a_coefs) == 1 else innovation
-    white = Whitener(scale, a_coefs, innovation, valid, acov=acov)
+    if stride > 1:
+        white = StridedWhitener(scale, a_coefs, innovation, valid, stride,
+                                phase=int(np.argmax(grid[wmask])), acov=acov)
+    else:
+        white = Whitener(scale, a_coefs, innovation, valid, acov=acov)
     n_valid = int(valid.sum())
     n_eff = n_valid * (1 - rho) / (1 + rho)
     n_white = white.n

@@ -158,6 +158,15 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   the member whose removal fits best. Its latency bounds keep every channel's latency in the
   fit window (a bug fix, not a choice: on ds004977 all 11 channels had a component before
   the stimulation, at −9 ms, or −18 ms with free latencies, before it; none after).
+- **Noise that does not fill its band (step 1).** When the noise has an empty band above
+  1/k of the Nyquist frequency (k = 2 to 4: an upsampled recording, or an anti-alias or
+  hardware low-pass well below the Nyquist frequency), the whitened residuals of step 1 are
+  those of every k-th sample, whitened by the AR model of the noise at that rate
+  (`engine.noise_stride`, `engine.StridedWhitener`). Whitening such a noise at the full rate
+  amplifies the empty band by orders of magnitude: on ds004080 run 021448 upsampled from 512
+  to 1024 Hz the `ccep` fit found an N1 on 54 of 100 channels instead of 14, and 12 with the
+  stride. A noise that fills its band takes the reviewed procedure, bit for bit
+  (CHANGELOG "Engine: noise that does not fill its band").
 - **`candidate_search` (step 4).** `"beam"` stays the default (more robust on CCEP-like
   simulations, better N1 kappa, about 9 times faster; CHANGELOG "Fitting engine as written");
   the reviewed search is `candidate_search="spec"`.

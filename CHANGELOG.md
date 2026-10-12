@@ -2,6 +2,102 @@
 
 ## Unreleased
 
+### Engine: noise that does not fill its band is modelled at the rate it occupies
+
+The `ccep` fit of ds004080 sub-ccepAgeUMCU01 run 021448 (recorded at 512 Hz) found an N1 on
+54 of 100 channels once the run was upsampled to 1024 Hz, against 14 at 512 Hz (entry
+below). The same happens with any recording whose noise stops well below the Nyquist
+frequency: upsampled data, or an anti-alias or hardware low-pass well below it.
+
+Cause, measured on that run. The AR model of the baseline (order up to 10) sees a band with
+almost no power. The largest power gain of its whitening filter is 1 956 (median over the
+100 channels; 183 to 2 496), against 32 (4 to 73) at 512 Hz. In the
+fit window the upsampled data are not empty there: the upsampling filter rings next to the
+stimulation artifact, and only the interpolated samples carry that ringing (fitting the
+recorded samples alone gives 12 N1s, the interpolated ones 43). On four channels, 53 to 92 %
+of the whitened residual of the background-only model lay in the upper half of the band, and
+the fit spent narrow components, often in cancelling pairs of thousands of µV, on it.
+
+Fix (`models/engine.py`). `noise_stride` compares the median level of the Hann-tapered
+periodogram of the noise (the baseline, or the plus-minus reference) in the half-octave just
+above 1/k of the Nyquist frequency with the octave below it, for k = 4, 3, 2. When it is below
+`EMPTY_BAND` = 1e-3, the fit is judged on every k-th sample from the first of the epoch
+(`StridedWhitener`): the AR model is fitted to the baseline sampled at that rate, it whitens
+the residual at lags k, 2k, ..., and the other rows carry no evidence. `min_fwhm` is raised
+to two samples of that rate, as it already is for a recording at that rate. An upsampled
+recording keeps its own samples on that grid, so its fit is judged as at its recorded rate.
+The fit says so: the warning `band_limited_noise:k` and `diagnostics["noise_stride"]`. When
+the noise fills its band (k = 1) the code path is the previous one, and the results are the
+same bit for bit.
+
+The threshold sits between the two groups. On the ds004080 baselines of the REQ-375 runs,
+at their recorded rates and decimated to 1024 and 512 Hz, the level ratio is -1.64 decades or
+more (615 channels x 3 rates, k = 2 to 4). On the upsampled run it is -5.40 decades or less
+(k = 2). No fit of the test suites or of the quality sets below has a stride other than 1.
+
+Results.
+
+| | 512 Hz (recorded) | 1024 Hz before | 1024 Hz after |
+|---|---|---|---|
+| channels with an N1 (of 100) | 14 | 54 | 12 |
+| decisions equal to 512 Hz | - | 56 | 98 (2 N1s lost, none added) |
+| components per channel (mean) | 1.15 | 2.59 | 1.14 |
+| channels with a component above 1 000 µV before 30 ms | 1 | 22 | 2 |
+| rule channels found, paper reading (32) / code reading (4) | 13 / 4 | 22 / 3 | 11 / 4 |
+| `fit_group` time, 100 channels | 30 s | 429 s | 43 s |
+
+If the sampling analysis still upsampled this run (it no longer does, entry below), the pooled
+1024 Hz reading would be: paper recall 0.466 (75/161) before and 0.398 (64/161) after, kappa
+0.383 and 0.422, n_model 125 and 83; code recall 0.765 (26/34) and 0.794 (27/34), kappa 0.263
+and 0.416.
+
+On simulations (`simulate_ccep`, 512 Hz, with artifact, upsampled with `prep.resample`;
+seeds 0 to 3, 12, 8, 8 and 8 channels) the total number of components went from 11, 12, 13
+and 11 at 512 Hz to 28, 33, 32 and 28 at 1024 Hz before and 10, 12, 7 and 11 after. The N1
+decisions agree with 512 Hz on 12/12, 8/8, 7/8 and 8/8 channels after (11/12, 8/8, 7/8 and
+7/8 before). `tests/models/test_band_limited_noise.py` checks the detection (noise that fills
+its band, upsampled by 2, 3 and 4), that the strided whitening equals the whitening at the
+lower rate bit for bit, and the seed-1 case (components 12 at 512 Hz, 12 after, 33 without
+the stride).
+
+Unchanged, checked:
+
+- Quality sets of the engine (`fit_waveform`/`fit` on the REQ-104 to REQ-111 and REQ-116
+  designs, ECAP and CCEP simulations, three ds004080 runs): 2 182 fits, all identical bit for
+  bit (components, residual, warnings, number of evaluations). REQ-105 recall stays 0.8167,
+  0.8583 and 0.9222 for K = 1, 2 and 3 with precision 1.
+- Layer 3, `validation/layer3/n1_ds004080.json`: the 615 native decisions and latencies are
+  identical (paper kappa 0.458, recall 0.460; code kappa 0.398, recall 0.882).
+- REQ-375 sampling analysis, recomputed (19.4 min, 1 process): every decision and latency at
+  the recorded rate, 1024 Hz and 512 Hz equals the report, which was not rewritten. Paper
+  reading: recall 0.460, 0.410 and 0.460, kappa 0.458, 0.434 and 0.404 (recorded, 1024, 512);
+  code reading: recall 0.882, 0.794 and 0.824, kappa 0.398, 0.407 and 0.315. The 1024 Hz drop
+  stays +4.97 points (paper, met) and +8.82 points (code, not met; strict expected failure).
+- The reference fixture (`tests/reference/fit_fixture_ccep.json`) is unchanged: the fixture
+  fit is the same (largest relative difference 4.2e-12, as before this change).
+
+Algorithm versions (REQ-399): `fit_group`, `fit_waveform`, `test_response` (its
+`model_comparison` method fits) and `fit_trials` (it fits when no group fit is given) go to
+1.1, since their output changes for band-limited noise. `soup.json` and `THIRD_PARTY.md` were
+regenerated by `tools/gen_soup.py`: `numpy.polyval` is new, and 11 names used by the REQ-115
+solver work were missing (numpy `copy`, `equal`, `multiply`, `nextafter`, `take`; SciPy
+`linalg.lapack.dgeqrf`, `dgesdd`, `dgesdd_lwork`, `dormqr`, `dtrtri`, `dtrtrs`), which made
+`test_req399_soup_and_third_party_are_up_to_date` fail.
+
+Tried and not kept, on the same run (N1 channels at 1024 Hz, 14 at 512 Hz):
+
+- a limit on the whitening gain (white noise added to the AR model, diagonal loading, then
+  the AR refitted at the same order): 42, 48 and 55 for a power gain limit of 1 000, 316
+  and 100. The band still holds the ringing, and an AR of order 10 refitted to the loaded
+  autocovariances distorts the occupied band;
+- the same with the samples counted by their Satterthwaite number of degrees of freedom: at a
+  limit of 100 the count fell to 2 to 64 % of the samples, and N1s found at 512 Hz were lost
+  (channel 3);
+- every other sample after a triangular low-pass (which cancels the ringing): 43, because the
+  low-pass and the upsampling filter leave a dip at the new Nyquist frequency that the
+  whitening amplifies again;
+- every other sample on the interpolated samples instead of the recorded ones: 43.
+
 ### Layer 4, sampling rate (REQ-375, §7.4 (3)): no upsampling; still not met
 
 §7.4 (3) decimates ds004080 to 1024 and 512 Hz. `validation/robustness.py` also
