@@ -60,6 +60,13 @@ current preset or of variant B.
    80 % of the subjects; it is judged on variant B, the published cleaning, and the level
    of the preset's chain alone (variant A) is tested as well.
 
+Preset ``tep`` 1.1 (background ``constant`` and ``reject_cancelling``, instead of the double
+exponential background of 1.0): chosen on 8 development subjects (sub-283, which had served
+for variant A, and 7 drawn with ``numpy.random.default_rng(275)`` from the 19 others:
+sub-739, 749, 759, 764, 766, 767, 774) before the 12 others were fitted with it; the
+counts of both groups are kept apart in the CHANGELOG (REQ-275, "Preset tep 1.1"). The
+method above (cleaning, channel rule, label windows) is unchanged.
+
 The methods text check (REQ-275, second part) needs no data and always runs.
 """
 
@@ -398,6 +405,15 @@ def test_req275_methods_text_names_the_sensory_confound():
 #   variant A, all 30 channels:                    8 /  8 / 4
 #   variant B (with ICA), all 30 channels:          9 / 11 / 6   <- REQ-275 criterion
 #   variant B, 17 inner channels:                   8 / 16 / 6
+# Measured again (Python 3.13, numpy 2.5.3), development 8 + held-out 12 = total:
+#                         preset tep 1.0 (3b222bb)   preset tep 1.1
+#   A, 17 inner channels:  9 / 12 / 8               4/6/3 + 5/9/5 = 9 / 15 / 8
+#   A, all 30 channels:    5 /  7 / 3               4/4/2 + 2/5/2 = 6 / 9 / 4
+#   B, all 30 channels:    7 / 11 / 5               6/7/6 + 4/4/2 = 10 / 11 / 8  <- criterion
+#   B, 17 inner channels:  7 / 14 / 5               6/7/6 + 6/10/6 = 12 / 17 / 12
+# Variant A never strides the noise; variant B always does (k = 3, or 2; the 100 Hz low-pass).
+# Without the stride (= commit 7044dc1 for 1.0): B all 8 / 15 / 8 (1.0) and 8 / 13 / 6 (1.1),
+# B inner 7 / 18 / 6 and 9 / 17 / 9, from fits that reach max_components (CHANGELOG).
 needs_data = [pytest.mark.network,
               pytest.mark.skipif(not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read "
                                  "OpenNeuro")]
@@ -412,12 +428,13 @@ def _network(test):
 @_network
 @pytest.mark.xfail(strict=False, reason="REQ-275 not met: with the published ICA cleaning, "
                    "N45 and N100 are both labelled on the channel of maximal response for 8 of "
-                   "20 subjects (N45 9, N100 14); 8 of 20 with the preset's chain alone and the "
-                   "17 inner channels (6 and 9 at step S15). The largest response is often on a mastoid or inion "
-                   "channel (TP9, TP10, IZ: residual neck muscle), the early negativity of this "
-                   "dataset often peaks after 55 ms, outside the N45 window, and the fits often "
-                   "describe one deflection with two overlapping components of opposite sign "
-                   "that take the label windows; see CHANGELOG, step S15 part 3.")
+                   "20 subjects (N45 10, N100 11; preset tep 1.1; 5 of 20 with tep 1.0), 8 of "
+                   "20 with the preset's chain alone and the 17 inner channels. On 10 of the "
+                   "20 subjects the largest response after ICA is on TP9, TP10, IZ or O1, where "
+                   "the fronto-central N100 appears inverted under the average reference (the "
+                   "largest fitted component from 80 to 140 ms is positive on 9 of them): both "
+                   "labels on 1 of these 10, on 7 of the other 10; on the 17 inner channels 12 "
+                   "of 20. See CHANGELOG, REQ-275 'Preset tep 1.1', and step S15 part 3.")
 def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results):
 
     n45, n100, both = rates(results, "B_all")
@@ -426,24 +443,24 @@ def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results):
 
 @_network
 @pytest.mark.xfail(strict=True, reason="floor of step S15 not reached (Python 3.13, numpy "
-                   "2.5): N45 / N100 / both on the 17 inner channels with the preset chain "
-                   "10 / 12 / 8 (floor 11 / 13 / 9); with ICA on all 30 channels 9 / 14 / 8 "
-                   "(floor 9 / 11 / 6) and N100 on the inner channels 16 (floor 16) are met. "
-                   "Measured the same way: origin/main 9 / 11 / 6, 8 / 8 / 5, 12; "
-                   "integration-2 before the engine merges 9 / 11 / 6, 9 / 9 / 6, 13 "
-                   "(CHANGELOG).")
+                   "2.5.3, preset tep 1.1): N45 / N100 / both on the 17 inner channels with the "
+                   "preset chain 9 / 15 / 8 (floor 11 / 15 / 9; N100 met); with ICA on all 30 "
+                   "channels 10 / 11 / 8 and on the 17 inner channels 12 / 17 / 12 (floors "
+                   "raised to these levels) are met. Preset tep 1.0 at 3b222bb: 9 / 12 / 8, "
+                   "7 / 11 / 5, 7 / 14 / 5; the preset chain gives 9 / 12 / 8 at 7044dc1 too, "
+                   "before the strided whitening (CHANGELOG).")
 def test_req275_level_reached_with_the_preset_chain(results):
-    """Floor of the level reached (the counts measured in S15): a regression guard, not the
-    criterion of REQ-275."""
+    """Floor of the level reached (the counts measured in S15, raised where preset tep 1.1
+    reached more): a regression guard, not the criterion of REQ-275."""
 
     n = len(results)
     assert n == 20
     n45, n100, both = rates(results, "A_inner")
-    assert round(n45 * n) >= 11 and round(n100 * n) >= 13 and round(both * n) >= 9
+    assert round(n45 * n) >= 11 and round(n100 * n) >= 15 and round(both * n) >= 9
     n45, n100, both = rates(results, "B_all")
-    assert round(n45 * n) >= 9 and round(n100 * n) >= 11 and round(both * n) >= 6
-    _, n100, _ = rates(results, "B_inner")
-    assert round(n100 * n) >= 16
+    assert round(n45 * n) >= 10 and round(n100 * n) >= 11 and round(both * n) >= 8
+    n45, n100, both = rates(results, "B_inner")
+    assert round(n45 * n) >= 12 and round(n100 * n) >= 17 and round(both * n) >= 12
 
 
 def test_fastica_recovers_mixed_sources():
