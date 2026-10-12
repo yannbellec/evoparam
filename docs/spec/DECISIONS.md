@@ -217,6 +217,38 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   values are tested on the paper's own example files
   (`tests/existence/test_projection_published.py`).
 
+### `tep` preset 1.1: constant background and refusal of cancelling pairs (§6.1, REQ-275)
+
+- **Reviewed values** (still available as
+  `presets.derive("tep", background="double_exponential", fit_extras={})`): background
+  `double_exponential`, cancelling pairs refitted, not refused (engine default).
+- **Kept** (`tep` 1.1): background `constant` and `reject_cancelling=True`
+  (`fit_extras`). A double exponential with coefficients of opposite signs is the
+  biexponential component shape starting at the window's first sample, so the background
+  can represent a component, which §5.5.2 rules out for `pspline` by its knot rule. On
+  ds002094 it did: the background had an interior extremum in 30 of the 32 development
+  fits, taking the N100 (sub-764) or the P30-N45-P60 complex (sub-749). The constant is the
+  §5.5.2 background "when a baseline correction has been applied", which the `tep` chain
+  does; the decay artifact is interpolated up to 12 ms and recovers within 5-10 ms with
+  DC-coupled amplifiers ([LIT-artifact-9]). Refusing cancelling pairs closes the other way
+  of describing one deflection with two opposing terms; alone, it changed little because
+  the background's bump took the part of the second term.
+- **Measured** on ds002094, chosen on 8 development subjects before the 12 others were
+  fitted (subjects and the full table in `CHANGELOG.md`, "Preset tep 1.1"). Subjects with
+  N45 and N100 both labelled, development / held-out / total, 1.0 → 1.1: with ICA, all
+  channels (the REQ-275 reading) 3 / 2 / 5 → 6 / 2 / 8; with ICA, 17 inner channels
+  3 / 2 / 5 → 6 / 6 / 12; preset chain, 17 inner channels 3 / 5 / 8 → 3 / 5 / 8; preset
+  chain, all channels 1 / 2 / 3 → 2 / 2 / 4. Components not resolvable over the 32
+  development fits: 56 → 19. REQ-275 stays an expected failure (8 of 20; 16 needed): on
+  10 of 20 subjects the channel of maximal response after ICA is TP9, TP10, IZ or O1,
+  where the N100 is positive under the average reference. The channel rule is the spec's
+  and is not changed.
+- **Cost on simulations** (layer 2, the 26 `tep` cells, 50 replicates): mean F1 0.947 →
+  0.945, false components per waveform 0.046 → 0.058; worse under pink noise (1/f^2: F1
+  0.99 → 0.91, 0.40 false components per waveform), which a constant background cannot
+  follow, and for opposite components 0.3-0.5 FWHM apart; better with latency jitter and
+  three components.
+
 ## 4. Readings needed to apply the spec
 
 - **§4.5, `core/info.py` and `core/items.py` ("merge into `utils/`").** These files only

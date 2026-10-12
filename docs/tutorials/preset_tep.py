@@ -38,10 +38,11 @@ print("channels with a response:", int(result.test.significant.sum()), "of",
 # -----------------------------------------------------
 # Far from the coil the simulated components are a fraction of a microvolt, below what
 # 40 trials resolve. Under the coil, in this simulation, a residual of the decay artifact
-# remains around 20 ms after interpolation and subspace projection (the pair of opposite
-# components C1/C2 near 20 ms) and the early TEPs (N15, P30) are not separated from it;
-# the later components are. The ``tep`` preset is still waiting for its validation on
-# ds002094 (REQ-275): compare with the artifact figure below before trusting early TEPs.
+# remains around 17 ms after interpolation and subspace projection (component C1; preset
+# version 1.0 described it as a pair of opposite components near 20 ms, which version 1.1
+# refuses), and the N15 is not separated from it. On ds002094 (REQ-275, not met) the
+# preset labels N45 and N100 on the channel of maximal response for 8 of 20 subjects:
+# compare with the artifact figure below before trusting early TEPs.
 
 fitted = table[table["channel"] == "C3"][["label", "latency", "amplitude"]]
 simulated = truth.to_dataframe()

@@ -2,6 +2,147 @@
 
 ## Unreleased
 
+### Preset tep 1.1 (REQ-275): constant background and refusal of cancelling pairs
+
+REQ-275 asks for labelled N45 and N100 on the channel of maximal response for 80 % of the
+20 subjects of ds002094. At 3b222bb (preset `tep` 1.0, after the merges of the strided
+whitening) the counts were lower than the ones recorded above: N45 / N100 / both, out of 20,
+preset chain on the 17 inner channels 9 / 12 / 8, with ICA on all 30 channels (the
+criterion) 7 / 11 / 5, with ICA on the 17 inner channels 7 / 14 / 5, preset chain on all
+channels 5 / 7 / 3.
+
+Method. Changes were chosen on 8 development subjects: sub-283 (already used for variant A
+in S15) and 7 drawn with `numpy.random.default_rng(275)` from the 19 others (sub-739, 749,
+759, 764, 766, 767, 774). The 12 others (sub-711, 718, 728, 734, 735, 743, 761, 768, 779,
+780, 783, 786) were fitted once, with the chosen preset, after the choice. The cleaning
+variants, the channel rule and the label windows of the test are unchanged.
+
+Causes, on the development subjects:
+
+- **The data has the deflections, the fits do not label them.** On the channel of maximal
+  response after ICA, the average has a local minimum in 38-55 ms on 8 of 8 and in 80-140
+  ms on 7 of 8 (both on 7 of 8; on the 17 inner channels 7 of 8 too); preset 1.0 labelled
+  both on 3 of 8.
+- **The double exponential background forms a bump.** With coefficients of opposite signs,
+  `c1 e^(-t/tau1) + c2 e^(-t/tau2)` is the biexponential component shape starting at 12 ms.
+  The background had an interior extremum in 30 of the 32 development fits (up to 208 uV
+  from the chord between its ends): on sub-764 (FZ) a -11 uV trough at about 110 ms that
+  takes the N100, on sub-749 (FC2) a 5 uV rise from 12 to 25 ms that takes the P30-N45-P60
+  complex, on sub-283 (FC2) a 15 uV bump at 20 ms. Spec §5.5.2 asks that a background cannot
+  represent a component (the knot rule of `pspline`); this one can.
+- **Cancelling pairs.** 56 components of the 32 fits were not resolvable (in a pair of
+  overlapping components of opposite signs, for example +28.7 and -29.6 uV, both at
+  81 ms, on sub-283 IZ).
+- **Not causes on these subjects:** the label windows (after ICA, the first minimum of the
+  average after 30 ms is inside 38-55 ms on 8 of 8 subjects on all channels and 7 of 8 on
+  the inner channels, the exception sub-283 FZ at 63 and 79 ms; 38-55 ms is
+  the N45 window of Belardinelli et al. 2021, Sci Rep 11:8159, inside the 35-60 and 40-60 ms
+  of Premoli et al. 2014, J Neurosci 34:5603, the two experiments), and the cleaning
+  (below).
+
+Candidates on the development subjects, N45 / N100 / both out of 8 (A = preset chain,
+B = with the TESA-like ICA; inner = 17 channels off the outer ring, all = 30 channels), the
+sum of the four "both" counts, and the components not resolvable (sum over the 32 fits;
+n/a: not recorded for that run):
+
+| Fit settings (preset 1.0 otherwise) | A inner | A all | B all | B inner | both | not resolvable |
+|---|---|---|---|---|---|---|
+| preset 1.0 (double exponential) | 4/6/3 | 2/4/1 | 3/7/3 | 3/7/3 | 10 | 56 |
+| `reject_cancelling` | 4/6/3 | 1/3/0 | 3/7/3 | 3/8/3 | 9 | n/a |
+| `reseed="always"` | 4/6/3 | 2/5/1 | 3/7/3 | 3/7/3 | 10 | 54 |
+| `amplitude_prior=1` | 2/4/1 | 2/1/0 | 4/6/3 | 3/7/3 | 7 | 65 |
+| `max_components=6` | 4/6/3 | 2/3/0 | 3/7/3 | 3/7/3 | 9 | 64 |
+| `background_tau_max=0.05` | 6/6/5 | 4/4/2 | 3/8/3 | 2/7/2 | 12 | n/a |
+| monotone double exponential (a prototype background `c0 + c1 (w e^(-t/tau1) + (1-w) e^(-t/tau2))`, not kept) | 5/4/3 | 3/4/1 | 4/6/3 | 4/5/3 | 10 | 73 |
+| monotone + `reject_cancelling` | 2/4/1 | 2/4/1 | 4/5/4 | 3/5/3 | 9 | 38 |
+| `exponential` | 4/6/4 | 4/4/2 | 4/5/4 | 3/5/3 | 13 | n/a |
+| `exponential`, tau max 50 ms | 5/6/4 | 5/4/2 | 3/6/3 | 2/5/2 | 11 | 61 |
+| `exponential` + `reject_cancelling` | 3/6/3 | 3/4/2 | 3/5/3 | 2/6/2 | 10 | 31 |
+| `linear` | 3/5/2 | 3/1/0 | 6/6/4 | 5/6/4 | 10 | 89 |
+| `linear` + `reject_cancelling` | 2/4/2 | 3/1/0 | 6/6/6 | 5/6/5 | 13 | 33 |
+| `constant` | 3/5/2 | 4/4/2 | 6/7/5 | 5/6/4 | 13 | 77 |
+| **`constant` + `reject_cancelling`** | 4/6/3 | 4/4/2 | 6/7/6 | 6/7/6 | **17** | **19** |
+| `noise_model="neff"` | 0/0/0 | 0/0/0 | 0/0/0 | 0/0/0 | 0 | 0 |
+
+The refusal of cancelling pairs alone changes little: the bump of the background then
+plays the part of the second member of the pair. A constant background alone moves the
+degeneracy into the components (77 not resolvable). Together they close both ways of
+describing one deflection by two opposing terms, the fits describe the TEP sequence (for
+example sub-739 CZ: P30 27 ms, N45 41 ms, N100 89 ms, P180 198 ms), no reading gets worse
+and the 32 fits take about a third of the time (64 s against 193 s). Chosen:
+**preset `tep` 1.1 = background `constant`, `fit_extras={"reject_cancelling": True}`**.
+A constant is the background of spec §5.5.2 "when a baseline correction has been
+applied" (the `tep` chain subtracts the -800 to -100 ms baseline); the decay artifact is
+interpolated up to 12 ms, and with a DC-coupled amplifier most decay artifacts recover
+within 5-10 ms (Rogasch et al. 2017, NeuroImage 147:934, [LIT-artifact-9]).
+
+Result (the test's own code path, `EVOPARAM_NETWORK_TESTS=1`), N45 / N100 / both:
+
+| Reading | 1.0: development / held-out / total | 1.1: development / held-out / total |
+|---|---|---|
+| A, 17 inner channels | 4/6/3 · 5/6/5 · 9/12/8 | 4/6/3 · 5/9/5 · 9/15/8 |
+| A, all 30 channels | 2/4/1 · 3/3/2 · 5/7/3 | 4/4/2 · 2/5/2 · 6/9/4 |
+| **B, all 30 channels (criterion)** | 3/7/3 · 4/4/2 · 7/11/5 | 6/7/6 · 4/4/2 · **10/11/8** |
+| B, 17 inner channels | 3/7/3 · 4/7/2 · 7/14/5 | 6/7/6 · 6/10/6 · 12/17/12 |
+
+On the held-out subjects the criterion reading does not move (2 of 12) while the inner
+channels go from 2 to 6 of 12: there, the channel is the limit. **REQ-275 stays not met
+(8 of 20, 40 %).** After ICA, the channel of maximal response (largest RMS from 38 to
+140 ms over the 30 channels) is TP9, TP10, IZ or O1 on 10 of the 20 subjects (2 of the
+development subjects, 8 of the held-out ones); on 9 of these 10 the largest fitted
+component from 80 to 140 ms is positive, the fronto-central N100 seen from the other side
+of the average reference; both labels on 1 of these 10 subjects, on 7 of the other 10. The
+rule of the test is the spec's words and is kept; the 17-channel reading is reported
+(12 of 20). Under the coil (C4, a diagnostic, not a rule of the test): A 6 / 14 / 5,
+B 5 / 17 / 5.
+
+Simulations (layer 2, the 26 `tep` cells of the weekly design, 50 replicates each, same
+seeds, 1.0 → 1.1): mean F1 0.947 → 0.945 over the 25 cells with components, false
+components per waveform 0.046 → 0.058. Better with jitter 0.5 FWHM (F1 0.92 → 1.00,
+false 0.16 → 0), three components (0.98 → 1.00) and separation 1 FWHM (0.98 → 1.00);
+worse with pink noise (1/f: F1 0.91 → 0.88, false 0.14 → 0.34; 1/f^2: 0.99 → 0.91,
+0.02 → 0.40: a constant background cannot follow the slow drift that the double
+exponential absorbed), separation 0.3 and 0.5 FWHM (0.94 → 0.90, 1.00 → 0.97: the
+components alternate in sign and close opposite pairs are refused), 5 trials (0.89 → 0.87)
+and SNR 1 (0.19 → 0.17); AR(1) 0.9 noise 0.89 → 0.91; the 14 other cells within 0.01.
+The trade-off is kept: the real-data gain is on the REQ dataset, the simulated mean is
+unchanged within 0.003. The recorded weekly report
+(`validation/layer2/0.1.0.dev0`) is not regenerated here.
+
+Not adopted:
+
+- **SOUND + SSP-SIR cleaning** (Mutanen et al. 2016, NeuroImage 139:157, [LIT-artifact-15];
+  Mutanen et al. 2018, NeuroImage 166:135, [LIT-artifact-16]; the third pipeline compared by
+  Brancaccio et al. 2024, [LIT-artifact-12]), re-implemented from the papers for this
+  comparison (not kept in the repository): average reference, SSP-SIR on every trial with
+  the two topographies of the 100 Hz high-passed trial average in 5-50 ms (two singular
+  values stood out on 5 of the 8 development subjects, three on one, one on one, none on
+  one; two dimensions as Mutanen et al. 2024, Front Hum Neurosci 18:1324958), suppression in
+  5-50 ms with a 10 ms taper, three-layer spherical lead field (MNE sphere model, standard
+  10-05 positions, 10 mm volume grid), 1-100 Hz band-pass and 60 Hz notch, one ICA round for
+  blinks and eye movements, SOUND (lambda 0.1) on the trial average applied to every trial.
+  On the development subjects the decay and muscle activity next to the coil (C4, CP6, P4,
+  P8) stays the largest response after 50 ms: both labels 1 of 8 (all channels) and 1 of 8
+  (inner) with preset 1.0, 0 and 0 with 1.1; the average has a minimum in both windows on 5
+  and 3 of 8 (7 and 7 with the TESA-like ICA). The test keeps the TESA-like ICA (variant B).
+- **Wider label windows.** The windows are the published ones (above) and the development
+  data did not need them.
+- **Another channel rule** (GMFP, the channel under the coil, the inner channels for
+  variant B): the spec names the channel of maximal response; the readings are reported,
+  not substituted.
+
+Changed files: `evoparam/presets/tep.json` (version 1.1, background `constant`, `fit_extras`
+`reject_cancelling`, notes and validation text), `docs/presets.md` (regenerated,
+`tools/gen_presets_doc.py`), `evoparam/tests/reports/methods/sim_tep.txt` (regenerated,
+`tools/freeze_methods_text.py sim_tep`: preset version, validation text, background, refusal
+of cancelling pairs), the deviation listed in `evoparam/tests/presets/test_presets.py`, and
+`evoparam/tests/validation/test_tep_ds002094.py` (docstring, measured values; the regression
+floor raised to the new levels where they are higher: inner channels with the preset chain
+N100 15, with ICA all channels 10 / 11 / 8, with ICA inner channels 12 / 17 / 12; it stays a
+strict xfail because the preset chain on the inner channels has N45 9 and both 8, floor 11
+and 9). No engine code changed: no algorithm version changes (the preset carries its own
+version, 1.1); the reference fixture holds only `ccep` fits and is unchanged.
+
 ### N1 latency agreement (REQ-114, REQ-273): why the rule's peak is missed; fitted background on any time grid
 
 REQ-114 asks the model latency within 2 ms of the published rule's peak on 90 % of the

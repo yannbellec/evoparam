@@ -19,7 +19,7 @@ and shown in [Preset sensitivity](preset_sensitivity.md) (spec §7.4, REQ-375).
 | primate_ep | LFP/ECoG | macaque | LIT-datasets-54, LIT-datasets-55 | 1.0 | pending |
 | rodent_ep | LFP/ECoG | mouse, rat | LIT-datasets-50, LIT-variability-45, LIT-variability-50 | 1.1 | pending: Allen Visual Coding Neuropixels LFP (REQ-278) |
 | sep | scalp/epidural SEP | human | LIT-domains-19, LIT-domains-20 | 1.0 | simulation (REQ-277) |
-| tep | TMS-EEG | human | LIT-domains-1, LIT-domains-3, LIT-domains-12 | 1.0 | ds002094: REQ-275 not met (N45 and N100 on the channel of maximal response for 9 of 20 subjects with the preset's cleaning, 6 of 20 with ICA cleaning added) |
+| tep | TMS-EEG | human | LIT-domains-1, LIT-domains-3, LIT-domains-12 | 1.1 | ds002094: REQ-275 not met (N45 and N100 on the channel of maximal response for 8 of 20 subjects with ICA cleaning added, 8 of 20 with the preset's cleaning on the 17 inner channels) |
 
 ## `ccep`
 
@@ -145,10 +145,11 @@ and shown in [Preset sensitivity](preset_sensitivity.md) (spec §7.4, REQ-375).
 ## `tep`
 
 - fit window: (0.012, 0.3) s; baseline: (-0.8, -0.1); epoch: (-1.0, 1.0)
-- shapes: gaussian, skewed_gaussian; background: double_exponential; components: at most 8, FWHM 0.005 to 0.15 s
+- shapes: gaussian, skewed_gaussian; background: constant; components: at most 8, FWHM 0.005 to 0.15 s
 - artifact: interpolate+subspace over (-0.002, 0.012); reference: average
 - labels: N15 (0.01, 0.02), P30 (0.022, 0.038), N45 (0.038, 0.055), P60 (0.05, 0.075), N100 (0.08, 0.14), P180 (0.15, 0.25)
 - trial fit: False
-- validation: ds002094: REQ-275 not met (N45 and N100 on the channel of maximal response for 9 of 20 subjects with the preset's cleaning, 6 of 20 with ICA cleaning added)
+- validation: ds002094: REQ-275 not met (N45 and N100 on the channel of maximal response for 8 of 20 subjects with ICA cleaning added, 8 of 20 with the preset's cleaning on the 17 inner channels)
 - note (methods): late peaks (N100, P180) may be contaminated by auditory and somatosensory responses to the coil click and scalp sensation
 - note (shapes): gabor removed from the default shapes of spec §6.1: one gabor describes a pair of components of opposite sign (as N45 and P60), so the labelled TEP sequence lost a component; layer-2 base cell (two components 2 FWHM apart, SNR 5, 20 replicates): F1 0.55 with gabor, 1.00 without. Add it back with presets.derive('tep', shapes=('gaussian', 'skewed_gaussian', 'gabor')) for oscillatory bursts (CHANGELOG, step S15)
+- note (background): constant instead of the double exponential of spec §6.1, with reject_cancelling: two exponentials of opposite signs form a bump (the biexponential component shape), which took the N100 or the P30-N45-P60 complex on ds002094; alone, either change moves the degeneracy to the other term. On 8 development subjects N45 and N100 were both labelled on 6 of 8 with ICA cleaning (3 of 8 with v1.0) and the components not resolvable fell from 56 to 19 over 32 fits; on the 12 held-out subjects 2 of 12 on all channels (2 with v1.0) and 6 of 12 on the 17 inner channels (2) (CHANGELOG, REQ-275, preset tep 1.1). Restore with presets.derive('tep', background='double_exponential', fit_extras={})
