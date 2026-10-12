@@ -2,15 +2,15 @@
  "algorithm_versions": {
   "evoparam.artifact.remove_artifact": "1.0",
   "evoparam.events.detect_events": "1.0",
-  "evoparam.existence.test_response": "1.0",
-  "evoparam.models.ResponseModel.fit_group": "1.0",
-  "evoparam.models.ResponseModel.fit_waveform": "1.0",
+  "evoparam.existence.test_response": "1.1",
+  "evoparam.models.ResponseModel.fit_group": "1.1",
+  "evoparam.models.ResponseModel.fit_waveform": "1.1",
   "evoparam.models.evaluate_fit": "1.1",
   "evoparam.models.fitted_peak": "1.1",
   "evoparam.prep.rereference": "1.0",
   "evoparam.sim.simulate_ccep": "1.0",
   "evoparam.tf.tf_fit": "1.1",
-  "evoparam.trials.fit_trials": "1.0"
+  "evoparam.trials.fit_trials": "1.1"
  },
  "fixture": "simulate_ccep(n_trials=10, n_channels=4, p_response=1.0, seed=0, artifact=False); evoparam.models.fit(ts, 'ccep', random_state=0)",
  "machine": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39 x86_64, numpy 2.5.3, python 3.13.16",
