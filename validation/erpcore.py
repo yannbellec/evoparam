@@ -16,7 +16,10 @@ and 200 ms around the measurement window for the response-locked LRP and ERN).
 
 Data: ``EVOPARAM_ERPCORE`` (default ``~/.cache/evoparam/erpcore``) holding
 ``<component>/<participant>/*_epoch_interp_ar.set`` (and ``.fdt``), downloaded from OSF.
-Needs the extra ``mne`` (EEGLAB reader). Run ``python validation/erpcore.py``.
+Needs the extra ``mne`` (EEGLAB reader). Run ``python validation/erpcore.py``. The OSF
+deposit has no version number, so the output records the SHA-256 of every file read
+(``data.files_sha256``), the exact version of the data for the layer-3 comparison records
+(REQ-374, ``validation/layer3_report.py``).
 """
 
 import glob
@@ -184,7 +187,23 @@ def fit_component(component, times, wave, noise_ref=None):
     return (comps[0] if comps else None), result
 
 
-def run(components=None, participants=None, wave="difference"):
+def files_sha256(component, participant):
+    """{path under ROOT: SHA-256} of the epoched files of one participant."""
+
+    import hashlib
+
+    out = {}
+    for path in sorted(glob.glob(os.path.join(ROOT, component, str(participant),
+                                              "*_epoch_interp_ar.*"))):
+        digest = hashlib.sha256()
+        with open(path, "rb") as fobj:
+            for block in iter(lambda: fobj.read(1 << 20), b""):
+                digest.update(block)
+        out[os.path.relpath(path, ROOT).replace(os.sep, "/")] = digest.hexdigest()
+    return out
+
+
+def run(components=None, participants=None, wave="difference", hashes=None):
     rows = []
     for component in components or DESIGNS:
         folders = sorted(int(os.path.basename(p)) for p in
@@ -195,6 +214,8 @@ def run(components=None, participants=None, wave="difference"):
                 times, data, names, bins = load(component, participant)
             except (FileNotFoundError, ValueError):  # missing or incomplete download
                 continue
+            if hashes is not None:
+                hashes.update(files_sha256(component, participant))
             signal, n = difference_wave(component, times, data, names, bins, wave)
             design = DESIGNS[component]
             if not np.all(np.isfinite(signal)):
@@ -242,11 +263,15 @@ def summary(rows):
 
 if __name__ == "__main__":
     wave = "parent" if "--parent" in sys.argv else "difference"
-    rows = run([a for a in sys.argv[1:] if not a.startswith("--")] or None, wave=wave)
+    hashes = {}
+    rows = run([a for a in sys.argv[1:] if not a.startswith("--")] or None, wave=wave,
+               hashes=hashes)
     table = summary(rows)
     print(table.to_string())
     out = os.path.join(os.path.dirname(__file__), "layer3", f"erpcore_{wave}.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as fobj:
-        json.dump({"rows": rows, "summary": table.reset_index().to_dict("records")}, fobj,
+        json.dump({"data": {"dataset": "erp-core", "doi": "10.18115/D5JW4R",
+                            "files_sha256": hashes},
+                   "rows": rows, "summary": table.reset_index().to_dict("records")}, fobj,
                   indent=1, default=float)
