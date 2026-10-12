@@ -5,7 +5,7 @@ The published numbers are those of the canonical response parameterisation paper
 al., 2023, PLOS Computational Biology 19(5):e1011105, doi:10.1371/journal.pcbi.1011105),
 computed on its public example data: the ``sampledata`` folder of
 https://github.com/kaijmiller/crp_scripts (commit f6efb4e, the data and code statement of
-the paper; GPL-3.0 code, data "for use without restriction (other than attribution)").
+the paper; copyleft code, data "for use without restriction (other than attribution)").
 Each file holds the trials of one stimulation site recorded on one channel (one channel
 pair). Only the data are read, at test time; the code is neither imported nor copied.
 
