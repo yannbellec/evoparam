@@ -77,8 +77,7 @@ def qc(result, *, trials=None, artifact=None, trial_fits=None):
             ("trials fitted", int(len(trusted))),
             ("trials not trusted", int((~trusted).sum())),
         ]
-    table = pd.DataFrame(rows, columns=["quantity", "value"])
-    return table
+    return pd.DataFrame(rows, columns=["quantity", "value"])
 
 
 def _summary_table(result):
@@ -282,10 +281,10 @@ def site_pages(result, data=None, *, site_column="stim_site"):
     """
     known = _sites(data, site_column) if data is not None else []
     pages = {}
-    for channel, cond, pos in result.index[["channel", "condition", "position"]].itertuples(
+    for channel, raw_cond, pos in result.index[["channel", "condition", "position"]].itertuples(
         index=False
     ):
-        cond = str(cond)
+        cond = str(raw_cond)
         # the part of the label that is a site of the data, else the whole label (by=site)
         site = next((p for p in cond.split("/") if p in known), cond) if cond else None
         if site is None:

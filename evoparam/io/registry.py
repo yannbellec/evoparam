@@ -135,8 +135,8 @@ def match_dataset(path):
     """Registry entry whose identifier appears in a path or URL, or None."""
     text = str(path).lower().replace("\\", "/")
     for entry in _load_registry()["datasets"]:
-        for name in [entry["id"]] + list(entry["aliases"]):
-            name = name.lower()
+        for raw_name in [entry["id"]] + list(entry["aliases"]):
+            name = raw_name.lower()
             if text == name or f"/{name}/" in f"/{text}/" or text.endswith("/" + name):
                 return copy.deepcopy(entry)
     return None

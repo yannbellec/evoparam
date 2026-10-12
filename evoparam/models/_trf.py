@@ -215,10 +215,7 @@ def _solve_trust_region(n, m, uf, s, v_mat, delta, alpha, rtol=0.01, max_iter=10
     Returns the step and the Levenberg-Marquardt parameter.
     """
     suf = s * uf
-    if m >= n:
-        full_rank = s[-1] > EPS * m * s[0]
-    else:
-        full_rank = False
+    full_rank = s[-1] > EPS * m * s[0] if m >= n else False
     if full_rank:
         p = -v_mat.dot(uf / s)
         if _norm(p) <= delta:

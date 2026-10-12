@@ -45,8 +45,8 @@ def _pairs_alternating(meta, n_trials, pairing):
     ):
         if "pair_id" not in meta.columns:
             raise ArtifactError("pairing='pair_id' needs metadata['pair_id'].")
-        for _, rows in meta.groupby("pair_id", sort=False).indices.items():
-            rows = np.asarray(rows)
+        for _, raw_rows in meta.groupby("pair_id", sort=False).indices.items():
+            rows = np.asarray(raw_rows)
             pos, neg = rows[signs[rows] > 0], rows[signs[rows] < 0]
             if len(pos) == 1 and len(neg) == 1:
                 pairs.append((neg[0], pos[0]))

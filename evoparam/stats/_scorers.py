@@ -35,7 +35,7 @@ LINEAR_SCORES = ("mean_amplitude",)
 # Scores in seconds (the others are in the data unit, or data unit x s for the area).
 TIME_SCORES = ("peak_latency", "fractional_area_latency", "fractional_peak_latency")
 
-_TRAPEZOID = getattr(np, "trapezoid", None) or np.trapz
+_TRAPEZOID = getattr(np, "trapezoid", None) or np.trapz  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
 
 
 def _signed(y, polarity):

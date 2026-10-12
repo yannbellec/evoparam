@@ -269,10 +269,7 @@ def apply_rule(avg, times, sfreq, spec, units="uV"):
         stat = np.sqrt(np.mean(seg**2, axis=1))
         peak = np.full(len(avg), np.nan)
     else:
-        if stat_kind in ("negative_peak_over_sd", "negative_peak_z"):
-            values = -seg
-        else:
-            values = np.abs(seg)
+        values = -seg if stat_kind in ("negative_peak_over_sd", "negative_peak_z") else np.abs(seg)
         idx = np.nanargmax(values, axis=1)
         stat = values[np.arange(len(avg)), idx]
         peak = tw[idx]

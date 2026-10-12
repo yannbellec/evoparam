@@ -230,7 +230,7 @@ def _interp_points(t0, v0, t1, v1, level):
 
 
 def _trapezoid(y, x):
-    integrate = getattr(np, "trapezoid", None) or np.trapz
+    integrate = getattr(np, "trapezoid", None) or np.trapz  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
     return float(integrate(y, x))
 
 

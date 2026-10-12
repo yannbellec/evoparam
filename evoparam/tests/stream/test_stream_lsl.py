@@ -20,7 +20,7 @@ try:
     import pylsl
 
     pylsl.local_clock()
-except Exception as exc:  # missing package or missing library
+except Exception as exc:  # noqa: BLE001  (missing package or missing library)
     pylsl = None
     REASON = f"pylsl unavailable: {exc}"
 

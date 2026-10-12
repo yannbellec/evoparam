@@ -518,8 +518,8 @@ def score_fits(
     else:
         by = [by] if isinstance(by, str) else list(by)
         rows = []
-        for key, group in table.groupby(by, sort=False, dropna=False):
-            key = key if isinstance(key, tuple) else (key,)
+        for raw_key, group in table.groupby(by, sort=False, dropna=False):
+            key = raw_key if isinstance(raw_key, tuple) else (raw_key,)
             subset = waveforms
             if by == ["channel"]:
                 subset = [w for w in waveforms if w[0] == key[0]]

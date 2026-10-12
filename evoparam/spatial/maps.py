@@ -118,14 +118,14 @@ def _basis_lookup(basis):
     if basis is None:
         return out
     items = basis.items() if isinstance(basis, dict) else [(None, basis)]
-    for site, b in items:
-        site = str(site if site is not None else b.settings.get("stim_site") or "")
+    for raw_site, b in items:
+        site = str(raw_site if raw_site is not None else b.settings.get("stim_site") or "")
         for _, row in b.assignment.iterrows():
             out[(site, str(row["group"]))] = (int(row["shape_id"]), float(row["weight"]))
     return out
 
 
-def parameter_map(
+def parameter_map(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.9)
     group_fit,
     *,
     parameter="amplitude",

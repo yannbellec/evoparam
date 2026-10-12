@@ -81,7 +81,10 @@ def test_req065_local_extent_zeros_while_railed_and_keeps_more_of_the_signal():
     half = int(round(0.003 * SFREQ))
     assert np.array_equal(local.data[..., : i0 - half], ts.data[..., : i0 - half])
     after = slice(i0 + int(0.002 * SFREQ), len(ts.times) - half)
-    rms = lambda x: np.sqrt(np.mean((x[..., after] - truth[..., after]) ** 2))
+
+    def rms(x):
+        return np.sqrt(np.mean((x[..., after] - truth[..., after]) ** 2))
+
     assert rms(local.data) < rms(published.data)
 
 

@@ -147,7 +147,8 @@ def test_req396_reimplemented_lists_every_algorithm_written_from_a_paper():
     ]
     for row in table_rows:  # paper and patent column filled
         cells = [c.strip() for c in row.strip("|").split("|")]
-        assert len(cells) == 4 and all(cells), row
+        assert len(cells) == 4, row
+        assert all(cells), row
     assert "US 2022/0338786 A1" in text
     assert "US 2023/0240618 A1" in text
     period = next(r for r in table_rows if "artifact/period.py" in r)

@@ -75,9 +75,12 @@ def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05), part="full")
                 np.full(better.sum(), tau1), np.full(better.sum(), tau2), coefs[better]
             ]
     tau1, tau2 = best[:, 0], best[:, 1]
-    decay = lambda r: (
-        best[:, 3:4] * np.exp(-r / tau1[:, None]) + best[:, 4:5] * np.exp(-r / tau2[:, None])
-    )
+
+    def decay(r):
+        return best[:, 3:4] * np.exp(-r / tau1[:, None]) + best[:, 4:5] * np.exp(
+            -r / tau2[:, None]
+        )
+
     if part == "full":
         tail = best[:, 2:3] + decay(rel[None])
     elif part == "joined":

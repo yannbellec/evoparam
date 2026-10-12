@@ -56,7 +56,7 @@ def _cell_job(args):
         start = time.perf_counter()
         try:
             outputs = baseline.run(wanted)
-        except Exception as err:  # a failing method is recorded, the run goes on
+        except Exception as err:  # noqa: BLE001  (a failing method is recorded, the run goes on)
             failures.append(
                 {
                     "cell": cell.id,
@@ -172,7 +172,7 @@ def run_suite(
                 t0 = time.perf_counter()
                 try:
                     adapter.run(os.path.join(out, "inputs", task, f"{cell.id}.json"), folder)
-                except Exception as err:  # recorded; the cell is listed as missing
+                except Exception as err:  # noqa: BLE001  (recorded; the cell is listed as missing)
                     failures.append(
                         {
                             "cell": cell.id,

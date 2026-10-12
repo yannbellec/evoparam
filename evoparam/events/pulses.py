@@ -178,7 +178,7 @@ def _match(stacks, templates):
     return rho.max(axis=1), rho.argmax(axis=1)
 
 
-def detect_pulses(
+def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
     data,
     sfreq,
     *,

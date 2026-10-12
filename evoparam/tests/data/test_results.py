@@ -48,11 +48,11 @@ def test_status_rules():
 
 
 def test_component_checks():
+    comp = make_component()
     with pytest.raises(DataError, match="polarity"):
-        comp = make_component()
         type(comp)(**{**comp.to_dict(), "polarity": 0})
+    comp = make_component()
     with pytest.raises(DataError, match="param_names"):
-        comp = make_component()
         type(comp)(**{**comp.to_dict(), "params": np.zeros(2)})
 
 

@@ -262,7 +262,14 @@ def _tfce(stack, dh):
 
 
 def test_map(
-    d, window, *, method="fdr", alpha=0.05, n_permutations=1000, rng=None, cluster_alpha=0.05
+    d,
+    window,
+    *,
+    method="fdr",  # noqa: PT028  (not a pytest test: the statistical test of a map)
+    alpha=0.05,  # noqa: PT028  (not a pytest test: the statistical test of a map)
+    n_permutations=1000,  # noqa: PT028  (not a pytest test: the statistical test of a map)
+    rng=None,  # noqa: PT028  (not a pytest test: the statistical test of a map)
+    cluster_alpha=0.05,  # noqa: PT028  (not a pytest test: the statistical test of a map)
 ):
     """Statistics of one map.
 

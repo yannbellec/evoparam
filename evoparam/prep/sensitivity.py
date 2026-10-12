@@ -169,7 +169,7 @@ def reference_sensitivity(
             }
         )
     table = pd.DataFrame(rows)
-    channels = pd.concat({scheme: frame for scheme, frame in per_scheme.items()}, axis=1)
+    channels = pd.concat(dict(per_scheme.items()), axis=1)
     table.attrs["channels"] = channels
     table.attrs["detector"] = detector_name
     table.attrs["duration_s"] = _time.perf_counter() - start

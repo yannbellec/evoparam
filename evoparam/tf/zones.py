@@ -408,8 +408,8 @@ def load_zones():
     text = resources.files("evoparam.tf").joinpath("zones.json").read_text("utf-8")
     raw = json.loads(text)
     zones = {}
-    for name, zone in raw["zones"].items():
-        zone = dict(zone)
+    for name, raw_zone in raw["zones"].items():
+        zone = dict(raw_zone)
         if "alias_of" in zone:
             target = zone["alias_of"]
             zone = {**raw["zones"][target], "alias_of": target}

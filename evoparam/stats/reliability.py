@@ -193,7 +193,7 @@ def _nanmean(x, axis):
 ## Reliability
 
 
-def reliability(
+def reliability(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed by spec §5.11)
     ts,
     *,
     scorer="mean_amplitude",
@@ -498,7 +498,7 @@ def _extrapolate(sd, n_recorded, targets, law):
     return {n: c / np.sqrt(n) for n in targets}, np.full(np.shape(c), -0.5)
 
 
-def trials_needed(
+def trials_needed(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.11)
     ts,
     *,
     scorer="existence",

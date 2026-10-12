@@ -8,6 +8,7 @@ matching) is refused; the page depends on nothing but the results.
 """
 
 import json
+import pathlib
 import re
 import shutil
 import subprocess
@@ -27,8 +28,8 @@ from .helpers import DOCS, RESULTS, ROOT
 def test_req357_committed_page_and_report_come_from_the_results(tmp_path):
     page = write_leaderboard(str(RESULTS), str(tmp_path / "leaderboard.html"))
     report = write_report(str(RESULTS), str(tmp_path / "report.md"))
-    assert open(page, "rb").read() == (DOCS / "leaderboard.html").read_bytes()
-    assert open(report, "rb").read() == (DOCS / "report-core.md").read_bytes()
+    assert pathlib.Path(page).read_bytes() == (DOCS / "leaderboard.html").read_bytes()
+    assert pathlib.Path(report).read_bytes() == (DOCS / "report-core.md").read_bytes()
 
 
 def test_req357_the_script_checks_the_committed_files():
@@ -87,7 +88,7 @@ def test_req357_page_depends_only_on_the_results(tmp_path):
     for path in sorted(RESULTS.glob("*.json"), reverse=True):
         shutil.copyfile(path, folder / path.name)
     page = write_leaderboard(str(folder), str(tmp_path / "page.html"))
-    assert open(page, "rb").read() == (DOCS / "leaderboard.html").read_bytes()
+    assert pathlib.Path(page).read_bytes() == (DOCS / "leaderboard.html").read_bytes()
     (folder / "keller2014__T1.json").unlink()
     text = leaderboard_html(load_results(str(folder)))
     t1 = text.split('<h2 id="T1">')[1].split("</table>")[0]
@@ -126,7 +127,8 @@ def test_req353_report_holds_rules_and_projection_t1_t2():
         "prime2020",
         "projection",
     ):
-        assert f"| {name} |" in t1 and f"| {name} |" in t2, name
+        assert f"| {name} |" in t1, name
+        assert f"| {name} |" in t2, name
     assert "suite `core` 1.0.0" in report
 
 

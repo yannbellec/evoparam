@@ -123,7 +123,7 @@ def _silent_pair(names, group, raw_noise, floor, amplitude, size):
     return found[0] if len(found) == 1 else None
 
 
-def identify_stim_site(
+def identify_stim_site(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
     data,
     sfreq,
     events,

@@ -271,7 +271,7 @@ def test_ccep_design():
     assert not set(stim) & set(responders)
     assert len(responders) == 18
     labels = {c["label"] for c in truth.components}
-    assert labels == {"N1", "N2", "delayed"} or labels == {"N1", "delayed"}
+    assert labels in ({"N1", "N2", "delayed"}, {"N1", "delayed"})
     for comp in truth.components:
         if comp["label"] == "N1":
             assert 0.015 - 1e-9 <= comp["features"]["latency"] <= 0.040 + 1e-9

@@ -3,6 +3,7 @@
 
 import hashlib
 import os
+import pathlib
 
 import pytest
 
@@ -34,7 +35,7 @@ def test_fetch_openneuro_file_with_sha256(tmp_path, monkeypatch):
         monkeypatch.setattr(fetch, "OPENNEURO_URL", base)
         path = fetch_openneuro_file("dsTEST", "sub-01/events.tsv", folder, sha256=good)
         assert path == os.path.join(folder, "dsTEST", "sub-01", "events.tsv")
-        assert open(path, "rb").read() == content
+        assert pathlib.Path(path).read_bytes() == content
 
         # Present: not downloaded again, but checked
         n_requests = len(stats.requests)

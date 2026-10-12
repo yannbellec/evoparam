@@ -92,7 +92,7 @@ def _preset_for(ts, preset):
     raise SettingsError("Give preset= (the TrialSet has no modality).")
 
 
-def fit_hierarchical(
+def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.8)
     ts,
     *,
     levels=LEVELS,
@@ -438,7 +438,7 @@ def fit_hierarchical(
                 table.insert(0, "component", label)
                 effect_tables.append(table)
 
-        for si, (name, s) in enumerate(subjects):
+        for si, (name, _s) in enumerate(subjects):
             row = {
                 "subject": name,
                 "component": label,
@@ -550,7 +550,7 @@ def fit_hierarchical(
         )
     provenance = subjects[0][1].provenance.with_step(
         "evoparam.hierarchical.fit_hierarchical",
-        {k: v for k, v in settings.items()},
+        dict(settings.items()),
         duration_s=_time.perf_counter() - start,
     )
     return HierarchicalFit(

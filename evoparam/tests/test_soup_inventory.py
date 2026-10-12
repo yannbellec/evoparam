@@ -63,7 +63,8 @@ def test_req399_soup_fields():
             "locked_version",
         }, row["package"]
         assert row["anomaly_url"].startswith("https://"), row["package"]
-        assert row["licence"] and "GPL" not in row["licence"], row["package"]
+        assert row["licence"], row["package"]
+        assert "GPL" not in row["licence"], row["package"]
         assert row["role"] in ("core", "optional", "transitive", "tooling")
     core = {row["package"]: row for row in soup["packages"] if row["role"] == "core"}
     assert sorted(core) == ["numpy", "scipy"]

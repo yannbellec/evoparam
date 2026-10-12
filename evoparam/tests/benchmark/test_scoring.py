@@ -9,6 +9,7 @@ themselves are compared with a relative tolerance of 1e-9.
 
 import json
 import os
+import pathlib
 import subprocess
 import sys
 
@@ -125,14 +126,14 @@ def test_req352_result_document_is_signed_and_complete(tmp_path):
     assert "created" not in json.dumps(document)
     assert verify_result(document)
     path = write_result(document, str(tmp_path / "r.json"))
-    assert read_result(path) == json.loads(open(path, encoding="utf-8").read())
+    assert read_result(path) == json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
 
 
 def test_req352_a_changed_number_breaks_the_signature(tmp_path):
     folder = _predict(tmp_path, "T1", n=2)
     document = score("T1", str(folder), "core", inputs=list(inputs("T1", 2)))
     path = write_result(document, str(tmp_path / "r.json"))
-    text = open(path, encoding="utf-8").read()
+    text = pathlib.Path(path).read_text(encoding="utf-8")
     data = json.loads(text)
     data["metrics"]["f1"] = 0.999
     with open(path, "w", encoding="utf-8") as fobj:

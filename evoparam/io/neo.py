@@ -16,10 +16,7 @@ def _block(source, io_class):
     if isinstance(source, neo.Block):
         return source
     path = os.fspath(source)
-    if io_class:
-        reader = getattr(neo.io, io_class)(path)
-    else:
-        reader = neo.io.get_io(path)
+    reader = getattr(neo.io, io_class)(path) if io_class else neo.io.get_io(path)
     return reader.read_block()
 
 

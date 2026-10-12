@@ -25,7 +25,7 @@ RAIL_MIN_SD = 8.0
 _SPREAD_STEP = 16
 
 
-def detect_saturation(
+def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
     data,
     sfreq,
     *,

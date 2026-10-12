@@ -87,8 +87,7 @@ def neighbours(ch_info, names, radius_mm=10.0):
     if not np.all(np.isfinite(coords)):
         return None
     dist = np.linalg.norm(coords[:, None] - coords[None], axis=2)
-    weights = ((dist <= radius_mm) & (dist > 0)).astype(float)
-    return weights
+    return ((dist <= radius_mm) & (dist > 0)).astype(float)
 
 
 ###################################################################################################
@@ -391,7 +390,7 @@ def _cost(channels, layout, base, z_shared, z_locals, tw):
 def _alternate(channels, layout, base, z_shared, z_locals, tw, max_shift, laplacian=None, lam=0.0):
     cost = _cost(channels, layout, base, z_shared, z_locals, tw)
     rounds = 0
-    for rounds in range(1, MAX_ROUNDS + 1):
+    for rounds in range(1, MAX_ROUNDS + 1):  # noqa: B007  (the count is read after the loop)
         z_shared = _shared_step(channels, layout, base, z_shared, z_locals, tw)
         z_locals = _local_step(
             channels, layout, base, z_shared, z_locals, tw, max_shift, laplacian, lam
@@ -636,7 +635,7 @@ def _shape_like(name, settings):
     return get_shape(name, **kwargs)
 
 
-def fit_shared(
+def fit_shared(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.9)
     ts,
     *,
     channels=None,

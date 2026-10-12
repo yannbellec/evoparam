@@ -131,9 +131,8 @@ def _errstate_lines():
 )
 def test_errstate_at_most_three_lines_in_the_engine():
     lines = _errstate_lines()
-    assert len(lines) <= 3 and all(line.startswith("models/_engine.py") for line in lines), (
-        f"{len(lines)} lines"
-    )
+    assert len(lines) <= 3, f"{len(lines)} lines"
+    assert all(line.startswith("models/_engine.py") for line in lines), f"{len(lines)} lines"
 
 
 @pytest.mark.xfail(

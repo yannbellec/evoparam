@@ -38,9 +38,10 @@ def test_ecap_components_are_found_not_a_cancelling_pair(kind):
             assert np.sign(comp.amplitude) == np.sign(row["amplitude"])
             assert abs(comp.latency - row["latency"]) < 0.5 * row["fwhm"]
         w = (average.times >= fitted.window[0]) & (average.times <= fitted.window[1])
-        rss = lambda f: float(
-            np.sum((average.data[ch][w] - evaluate_fit(f, average.times)[w]) ** 2)
-        )
+
+        def rss(f):
+            return float(np.sum((average.data[ch][w] - evaluate_fit(f, average.times)[w]) ** 2))  # noqa: B023  (called within this iteration only)
+
         noise = float(np.sum((average.data[ch][w] - signal[ch][w]) ** 2))
         assert rss(fitted) < 2 * noise  # as good as the true curve
         better += rss(fitted) < rss(plain.fits[ch]) - 1e-9

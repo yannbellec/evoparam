@@ -67,7 +67,7 @@ def _table():
         for name, cell in zip(names, cells[1:], strict=False):
             out[name][cells[0]] = cell
     # "as rodent", "as `ccep`": copy the referenced column
-    for name, values in out.items():
+    for _name, values in out.items():
         for key, cell in values.items():
             match = re.fullmatch(r"as (`?)(\w+)\1", cell)
             if match and key not in ("reference",) and match.group(2) in ("rodent", "ccep"):
@@ -77,7 +77,9 @@ def _table():
 
 
 def _expected(_name, row):
-    window = lambda cell: (_tuples(cell) or [None])[0]
+    def window(cell):
+        return (_tuples(cell) or [None])[0]
+
     labels = {}
     for label, lo, hi in re.findall(
         r"([A-Za-z0-9/]+)(?: by depth)? \(([\d.]+)–([\d.]+)\)", row["component labels (s)"]
@@ -145,7 +147,8 @@ def test_req271_citations_resolve_and_choices_are_explained():
         assert p.citation, p.name
         assert set(p.citation) <= keys, (p.name, set(p.citation) - keys)
         for field, reason in p.choices.items():
-            assert field in p.fields and reason.strip(), (p.name, field)
+            assert field in p.fields, (p.name, field)
+            assert reason.strip(), (p.name, field)
 
 
 def test_derive_and_registry():
@@ -428,7 +431,8 @@ def test_f58_rodent_p1_n1_named_by_sign_at_each_depth():
         warnings.simplefilter("ignore")
         group = fit(ev, "rodent_ep")
     labels = [[c.label for c in f.components] for f in group.fits]
-    assert "P1" in labels[0] and "N1" in labels[1], labels
+    assert "P1" in labels[0], labels
+    assert "N1" in labels[1], labels
     kept = label_components(
         group, presets.fit_fields("rodent_ep")["windows"], polarity_rule="none"
     )

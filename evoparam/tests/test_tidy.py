@@ -50,7 +50,8 @@ def test_component_columns_are_the_documented_list(group, tmp_path):
     assert sidecars
     for sidecar in sidecars:
         columns = json.loads(sidecar.read_text(encoding="utf-8"))["columns"]
-        assert columns and all("unit" in entry for entry in columns.values()), sidecar.name
+        assert columns, sidecar.name
+        assert all("unit" in entry for entry in columns.values()), sidecar.name
 
 
 def test_fit_columns_are_the_documented_list(group):

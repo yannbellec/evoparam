@@ -280,7 +280,7 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
     n = len(names)
     try:
         lower, upper = (np.asarray(b, dtype=np.float64) for b in shape.default_bounds(times))
-    except Exception as err:  # report any failure of user code as a failed check
+    except Exception as err:  # noqa: BLE001  (report any failure of user code as a failed check)
         _fail(name, "bounds", f"default_bounds raised {err!r}.")
     if (
         lower.shape != (n,)
@@ -302,7 +302,7 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
         values = np.asarray(shape.evaluate(times, params))
         single = np.asarray(shape.evaluate(times, params[0]))
         jac = np.asarray(shape.jacobian(times, params))
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001  (user code: any failure becomes a failed check (SettingsError))
         _fail(name, "evaluate", f"evaluate or jacobian raised {err!r}.")
     if values.shape != (n_sets, times.size) or single.shape != (times.size,):
         _fail(
@@ -352,7 +352,7 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
     peak_index = int(np.argmax(np.abs(waveform)))
     try:
         guess = np.asarray(shape.initial_guess(times, waveform, peak_index), dtype=np.float64)
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001  (user code: any failure becomes a failed check (SettingsError))
         _fail(name, "initial_guess", f"initial_guess raised {err!r}.")
     if (
         guess.shape != (n,)
@@ -366,7 +366,7 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
 
     try:
         features = shape.features(times, middle)
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001  (user code: any failure becomes a failed check (SettingsError))
         _fail(name, "features", f"features raised {err!r}.")
     missing = [item for item in FEATURE_FIELDS if not hasattr(features, item)]
     if missing:

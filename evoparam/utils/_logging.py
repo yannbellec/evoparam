@@ -35,10 +35,7 @@ LEVELS = {
 
 
 def _level(value):
-    if isinstance(value, str):
-        key = value.lower()
-    else:
-        key = value
+    key = value.lower() if isinstance(value, str) else value
     if isinstance(key, int) and not isinstance(key, bool):
         return key
     if key not in LEVELS:

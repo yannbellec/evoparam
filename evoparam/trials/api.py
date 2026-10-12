@@ -414,7 +414,7 @@ def _prestim(trials, times, band, window):
 ## Main entry point
 
 
-def fit_trials(
+def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.7)
     ts,
     group_fit=None,
     *,
@@ -644,7 +644,7 @@ def fit_trials(
             null = null[report]
             jit_null = {k: float(null[j]) for j, k in enumerate(picks)}
             corrected = {}
-            for j, k in enumerate(picks):
+            for _j, k in enumerate(picks):
                 comp = fit.components[k]
                 sigma = comp.fwhm / FWHM_PER_SIGMA
                 jj = jit[k] if np.isfinite(jit[k]) else 0.0
@@ -1081,7 +1081,7 @@ def prestimulus_dependence(trial_fit, *, band=(8.0, 13.0), n_permutations=1000, 
 
         def harmonic(p):
             design = np.column_stack([np.ones_like(p), np.cos(p), np.sin(p)])
-            coef, *_ = np.linalg.lstsq(design, amp, rcond=None)
+            coef, *_ = np.linalg.lstsq(design, amp, rcond=None)  # noqa: B023  (called within this iteration only)
             return coef
 
         c0, cc, cs = harmonic(phi)

@@ -82,7 +82,10 @@ def test_global_methods_change_baseline_level_by_two_percent_at_most(method, kwa
         noisy, _ = make_overlay(n_channels=12)
     result = _run(noisy, method, kwargs)
     base = (noisy.times >= -0.5) & (noisy.times <= -0.05)
-    rms = lambda x: np.sqrt(np.mean((x - x.mean(axis=-1, keepdims=True)) ** 2))
+
+    def rms(x):
+        return np.sqrt(np.mean((x - x.mean(axis=-1, keepdims=True)) ** 2))
+
     before = rms(noisy.data[..., base])
     after = rms(result.cleaned.data[..., base])
     assert abs(after / before - 1) <= 0.02
@@ -102,7 +105,10 @@ def test_req060_polynomial_global_extent_as_published():
     noisy, _ = make_overlay(n_channels=12)
     result = _run(noisy, "polynomial", {"poly_extent": "global"})
     base = (noisy.times >= -0.5) & (noisy.times <= -0.05)
-    rms = lambda x: np.sqrt(np.mean((x - x.mean(axis=-1, keepdims=True)) ** 2))
+
+    def rms(x):
+        return np.sqrt(np.mean((x - x.mean(axis=-1, keepdims=True)) ** 2))
+
     before = rms(noisy.data[..., base])
     after = rms(result.cleaned.data[..., base])
     assert abs(after / before - 1) <= 0.02

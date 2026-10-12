@@ -123,7 +123,8 @@ def _accepted(func, settings):
     if any(p.kind == p.VAR_KEYWORD for p in params.values()):
         return dict(settings)
     out = {}
-    for key, value in settings.items():
+    for key, raw_value in settings.items():
+        value = raw_value
         if key in params:
             p = params[key]
             if isinstance(value, list) and isinstance(p.default, tuple):
@@ -292,7 +293,7 @@ def _replay(obj, final_settings, data):
             records.append({"function": function, "status": "replayed", "message": ""})
         except EvoparamVersionError:
             raise
-        except Exception as exc:  # reported, never hidden
+        except Exception as exc:  # noqa: BLE001  (reported with status failed, never hidden)
             records.append(
                 {
                     "function": function,

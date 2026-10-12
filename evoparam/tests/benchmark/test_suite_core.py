@@ -12,6 +12,7 @@ the measured duration.
 import importlib.util
 import json
 import os
+import pathlib
 import subprocess
 import sys
 import time
@@ -184,7 +185,7 @@ def test_req350_core_run_completes_within_30_minutes(tmp_path):
     assert summary["tasks"] == list(TASKS)
     assert summary["failures"] == []
     assert {
-        json.loads(open(p, encoding="utf-8").read())["task"] for p in summary["results"]
+        json.loads(pathlib.Path(p).read_text(encoding="utf-8"))["task"] for p in summary["results"]
     } == set(TASKS)
     assert duration <= LIMIT_S, f"core run took {duration:.0f} s"
 

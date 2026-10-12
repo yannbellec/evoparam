@@ -970,7 +970,8 @@ def simulate_tep(
         sources.extend(_spec_sources(spec, design, names))
     if auditory:
         vertex = np.zeros(3)
-        for spec in AUDITORY_COMPONENTS.values():
+        for raw_spec in AUDITORY_COMPONENTS.values():
+            spec = raw_spec
             from dataclasses import replace
 
             spec = replace(spec, weights=tuple(_blob(coords, vertex, 0.5)))

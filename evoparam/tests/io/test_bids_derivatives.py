@@ -114,7 +114,8 @@ def test_req342_every_column_has_a_description_and_unit(written):
         sidecar = _json(written["files"], suffix[:-4] + ".json")
         for column in header:
             entry = sidecar.get(column)
-            assert isinstance(entry, dict) and entry.get("Description"), (suffix, column)
+            assert isinstance(entry, dict), (suffix, column)
+            assert entry.get("Description"), (suffix, column)
             assert entry.get("Units"), (suffix, column)
     responses = _json(written["files"], "_responses.json")
     assert responses["latency"]["Units"] == "s"

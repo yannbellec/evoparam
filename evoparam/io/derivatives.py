@@ -479,7 +479,7 @@ def _response_columns(group, trials):
     return {**RESPONSE_COLUMNS, **classical, **stim, **standard}
 
 
-def write_bids_derivatives(
+def write_bids_derivatives(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.1)
     results,
     bids_root=None,
     *,

@@ -58,9 +58,8 @@ def _local_peak(_t, y, polarity, n_neighbors):
                 and s[i] > right.max()
                 and s[i] > left.mean()
                 and s[i] > right.mean()
-            ):
-                if best is None or s[i] > s[best]:
-                    best = i
+            ) and (best is None or s[i] > s[best]):
+                best = i
     local = best is not None
     if best is None:
         best = int(np.argmax(s))
@@ -75,7 +74,7 @@ def _area(t, y, kind, baseline):
         values = np.clip(values, None, 0)
     elif kind == "rectified":
         values = np.abs(values)
-    integrate = getattr(np, "trapezoid", None) or np.trapz
+    integrate = getattr(np, "trapezoid", None) or np.trapz  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
     return float(integrate(values, t))
 
 
@@ -133,7 +132,7 @@ def _scores(t, y, *, polarity, measures, fraction, area, area_baseline, n_neighb
     return out, local
 
 
-def classical_measures(
+def classical_measures(  # noqa: PLR0913  (public API, signature fixed by spec §5.5.8)
     times,
     y,
     *,

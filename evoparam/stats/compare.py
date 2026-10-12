@@ -182,7 +182,7 @@ def _is_time(table, parameter):
     return parameter in _TIME_NAMES or parameter.endswith("_latency")
 
 
-def compare_conditions(
+def compare_conditions(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.11)
     table,
     *,
     parameter,

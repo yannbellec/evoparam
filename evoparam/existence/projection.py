@@ -66,10 +66,7 @@ def _one_channel(v, _times, _t0_index, rng, profile="published", pairs="disjoint
     proj = gram / norms[:, None, :]  # P_kl = <V_k, V_l> / ||V_l||
     off = ~np.eye(n, dtype=bool)
     mean_proj = proj[:, off].mean(axis=1)
-    if profile == "normalised":
-        curve = mean_proj / np.sqrt(np.arange(1, n_t + 1))
-    else:
-        curve = mean_proj
+    curve = mean_proj / np.sqrt(np.arange(1, n_t + 1)) if profile == "normalised" else mean_proj
     end = int(np.argmax(curve))
     # Significance at the end: each trial in one pair, or one projection per unordered pair
     if pairs == "half":

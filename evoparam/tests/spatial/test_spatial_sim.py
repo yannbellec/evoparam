@@ -367,9 +367,10 @@ def test_req192_penalty_never_hurts_held_out_prediction():
         }
         chosen = fit_shared(train, **kw)
         off = fit_shared(train, smooth_lambda=0.0, **kw)
-        err = lambda g: sum(
-            np.sum((test.data[i, win] - f.model) ** 2) for i, f in enumerate(g.fits)
-        )
+
+        def err(g):
+            return sum(np.sum((test.data[i, win] - f.model) ** 2) for i, f in enumerate(g.fits))  # noqa: B023  (called within this iteration only)
+
         smooth = chosen.settings["fit_shared"]["smooth"]
         assert smooth["grid"][0] == 0.0
         assert len(smooth["loco_error"]) == len(smooth["grid"])

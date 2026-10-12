@@ -209,9 +209,8 @@ def _real(rng, shape, sfreq, source, window, dataset, units):
             "(provenance.source['dataset']); pass dataset=<registry id>."
         )
     record = check_license(dataset)
-    if source.units != units:
-        if UNITS.get(source.units) is None or UNITS.get(units) is None:
-            raise SettingsError(f"real noise: cannot convert {source.units} to {units}.")
+    if source.units != units and (UNITS.get(source.units) is None or UNITS.get(units) is None):
+        raise SettingsError(f"real noise: cannot convert {source.units} to {units}.")
     factor = 1.0 if source.units == units else UNITS[source.units] / UNITS[units]
 
     tmin, tmax = (source.times[0], 0.0) if window is None else window

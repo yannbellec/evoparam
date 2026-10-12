@@ -587,7 +587,7 @@ class FixedShapeModel:
 
         # Refined shifts: the components evaluated there, and their least-squares scales
         curve = np.zeros((n_ch, q, n_w))
-        for g, idx in enumerate(self._groups):
+        for _g, idx in enumerate(self._groups):
             ch = self._channels[idx[0]]
             if q == 1:
                 curve[idx, 0] = ch.curves(self.tw, shift[idx, 0])

@@ -96,8 +96,7 @@ def load_group(group, builtin, check):
             ) from err
         out[name] = (check(name, obj, origin), origin)
     _LOADED.setdefault(group, {}).update({name: origin for name, (_, origin) in out.items()})
-    out = {name: item for name, item in out.items() if item[0] is not SKIP}
-    return out
+    return {name: item for name, item in out.items() if item[0] is not SKIP}
 
 
 def loaded():

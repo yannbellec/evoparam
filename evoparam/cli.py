@@ -101,8 +101,7 @@ def _file_entities(path):
     """BIDS entities of a file name (sub, ses, task, run), for the derivative names."""
     import re
 
-    found = dict(re.findall(r"(sub|ses|task|run)-([a-zA-Z0-9]+)", os.path.basename(path)))
-    return found
+    return dict(re.findall(r"(sub|ses|task|run)-([a-zA-Z0-9]+)", os.path.basename(path)))
 
 
 def _events_for(path, args):
@@ -272,7 +271,7 @@ def run_fit(ts, preset, *, random_state=None, n_jobs=1, existence=True, trials=N
 def _count(outcome, group):
     for fit in group.fits:
         outcome.n_units[fit.status] = outcome.n_units.get(fit.status, 0) + 1
-        outcome.warnings += [w for w in fit.warnings]
+        outcome.warnings += list(fit.warnings)
 
 
 def cmd_fit(args, outcome):
@@ -1018,7 +1017,7 @@ def main(argv=None):
     except EvoparamError as err:
         code, status = EXIT_CODES["error"], "error"
         print(f"evoparam: {err}", file=sys.stderr)
-    except Exception as err:  # every other failure is a runtime error with exit code 1
+    except Exception as err:  # noqa: BLE001  (every other failure is a runtime error with exit code 1)
         code, status = EXIT_CODES["error"], "error"
         print(f"evoparam: {type(err).__name__}: {err}", file=sys.stderr)
     if args.json:

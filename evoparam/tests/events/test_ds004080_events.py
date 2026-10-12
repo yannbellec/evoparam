@@ -175,7 +175,7 @@ def spec_results():
         try:
             events = detect_pulses(data, sfreq, t0=t0, procedure="spec", saturation=False)
             detected = events["onset_time"].to_numpy()
-        except Exception:  # no pulse found
+        except Exception:  # noqa: BLE001  (no pulse found: any failure counts as no detection)
             detected = np.array([])
         out.append((stem, sfreq, detected, onsets))
     return out

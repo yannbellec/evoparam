@@ -115,7 +115,7 @@ def _pandas():
     return pandas
 
 
-def epoch(
+def epoch(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
     data,
     sfreq,
     onsets,

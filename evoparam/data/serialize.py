@@ -327,9 +327,8 @@ def save_object(obj, path, overwrite=False, table_format="auto"):
     as_zip = path.endswith(".zip")
     if not as_zip and not path.endswith(SUFFIX):
         path += SUFFIX
-    if os.path.exists(path):
-        if not overwrite:
-            raise FileExistsError(f"{path} exists; pass overwrite=True to replace it.")
+    if os.path.exists(path) and not overwrite:
+        raise FileExistsError(f"{path} exists; pass overwrite=True to replace it.")
     parent = os.path.dirname(os.path.abspath(path))
     os.makedirs(parent, exist_ok=True)
     workdir = tempfile.mkdtemp(prefix=".evoparam-", dir=parent)

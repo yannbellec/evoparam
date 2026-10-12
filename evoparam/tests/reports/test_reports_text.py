@@ -177,14 +177,20 @@ def fetch_erpcore_p3(participant=1):
 
     root = os.environ.get("EVOPARAM_ERPCORE") or os.path.expanduser("~/.cache/evoparam/erpcore")
     target = os.path.join(root, "P3", str(int(participant)))
-    local = lambda suffix: sorted(glob.glob(os.path.join(target, "*" + suffix)))
+
+    def local(suffix):
+        return sorted(glob.glob(os.path.join(target, "*" + suffix)))
+
     published = {}
     if any(not local(suffix) for suffix in ERPCORE_SUFFIXES):
         base = f"https://api.osf.io/v2/nodes/{ERPCORE_P3_NODE}/files/osfstorage/"
         folder = next(
             f for f in _osf_pages(base) if f["attributes"]["name"].endswith("All Data and Scripts")
         )
-        related = lambda item: item["relationships"]["files"]["links"]["related"]["href"]
+
+        def related(item):
+            return item["relationships"]["files"]["links"]["related"]["href"]
+
         subject = next(
             s
             for s in _osf_pages(related(folder) + "?page[size]=100")

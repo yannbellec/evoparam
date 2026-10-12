@@ -27,7 +27,7 @@ def _robust_z(values):
     return (values - center) / spread
 
 
-def reject_trials(
+def reject_trials(  # noqa: PLR0913, PLR0915  (public API, signature fixed by spec §5.4)
     ts,
     *,
     response_window=(0.01, 0.5),

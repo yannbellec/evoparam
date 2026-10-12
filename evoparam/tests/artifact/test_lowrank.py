@@ -52,7 +52,10 @@ def make_train(n_channels=24, n_pulses=20, n_trials=10, interval=0.01, seed=0):
             start = i0 + pulse * step
             noisy[trial, :, start : start + step] += gain * (mixing @ shapes)
     names = [f"e{i:02d}" for i in range(n_channels)]
-    make = lambda data: TrialSet(data=data, times=times, sfreq=SFREQ, ch_names=names)
+
+    def make(data):
+        return TrialSet(data=data, times=times, sfreq=SFREQ, ch_names=names)
+
     silent = np.setdiff1d(np.arange(n_channels), active)
     return make(noisy), make(clean), spikes, silent, np.arange(n_pulses) * interval
 

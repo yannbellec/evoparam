@@ -152,10 +152,7 @@ class BackgroundBase:
         times, waveform = check_waveform(times, waveform)
         nonlinear = self._nonlinear_guess(times)
         basis = self.basis(times, nonlinear)
-        if self.n_linear:
-            coefs = np.linalg.lstsq(basis.T, waveform, rcond=None)[0]
-        else:
-            coefs = np.zeros(0)
+        coefs = np.linalg.lstsq(basis.T, waveform, rcond=None)[0] if self.n_linear else np.zeros(0)
         return clip_to_bounds(
             np.concatenate([coefs, nonlinear]),
             self.default_bounds(times, (waveform.min(), waveform.max())),

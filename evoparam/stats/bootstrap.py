@@ -307,7 +307,7 @@ def _callable_path(ts, statistic, strata, n_boot, rng, n_jobs):
 ## Public function
 
 
-def bootstrap(
+def bootstrap(  # noqa: PLR0913  (public API, signature fixed by spec §5.11)
     ts,
     statistic,
     *,

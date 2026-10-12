@@ -74,8 +74,8 @@ def _codes(groups):
     """
     codes, labels = [], []
     keys = None
-    for column in groups:
-        column = [str(v) for v in column]
+    for raw_column in groups:
+        column = [str(v) for v in raw_column]
         keys = (
             [(k,) for k in column]
             if keys is None

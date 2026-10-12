@@ -28,7 +28,7 @@ DECAY_START_STEP = 0.001  # spacing of their onsets (s)
 
 
 def warn_patent():
-    global _WARNED
+    global _WARNED  # noqa: PLW0603  (once-only warning flag, reset by the tests)
     if not _WARNED:
         _warn(
             "method 'matching_pursuit' follows a published method that is the "

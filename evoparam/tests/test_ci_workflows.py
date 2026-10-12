@@ -360,10 +360,12 @@ def _ruff(*args):
 @pytest.mark.xfail(
     strict=True,
     reason="REQ-305 'ruff check evoparam tests benchmarks "
-    "docs/tutorials examples exits 0' is not met: 4644 findings (2830 in the "
-    "package outside its tests; most frequent PLR2004, D202, PT018, D205, D209, "
-    "B905, D401, F401), measured with ruff 0.16.10 on 2026-10-11 (S20); not "
-    "rewritten in this step",
+    "docs/tutorials examples exits 0' is not met: 1246 findings (4644 before the "
+    "qualite-statique branch). 393 in the package outside its tests: PLR2004 204, "
+    "complexity and argument counts 170 (C901 41, PLR0912 39, PLR0913 44, PLR0915 18, "
+    "PLR0917 18, PLR0911 10, on functions whose signature the spec does not fix), "
+    "ARG001/ARG002 13 and BLE001 6 (real issues, CHANGELOG); 852 in the tests (PLR2004 "
+    "831); 1 in benchmarks (PLR2004). Measured with ruff 0.16.10 and 0.16.8 on 2026-10-12",
 )
 def test_req305_ruff_check_passes():
     result = _ruff("check", "evoparam", "benchmarks", "docs/tutorials", "examples")
@@ -401,9 +403,12 @@ def test_req305_docstring_coverage():
 
 @pytest.mark.xfail(
     strict=True,
-    reason="REQ-305 / REQ-307: ruff E722, S110 and BLE001 report 14 "
-    "findings in the package, all BLE001 (blind 'except Exception' that record or "
-    "re-raise the error, measured 2026-10-11, S20)",
+    reason="REQ-305 / REQ-307: ruff E722, S110 and BLE001 report 6 findings in "
+    "the package (14 before the qualite-statique branch), all BLE001: 'except "
+    "Exception' that fall back without recording the error (existence/permutation "
+    "tail fit, hierarchical/api REML, hierarchical/bayes log-likelihood, three initial "
+    "guesses in models/engine); the 8 that record or re-raise carry a justified noqa "
+    "(measured 2026-10-12)",
 )
 def test_req307_ruff_blind_except_rules():
     result = _ruff(

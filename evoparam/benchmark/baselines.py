@@ -406,8 +406,8 @@ def _evoparam_t4(inputs, settings):
     preset = _preset(ti, settings)
     ts = ti.to_trialset()
     window = tuple(ti.descriptor["artifact_window"])
-    for step in artifact_steps(preset.name):
-        step = dict(step, window=window)
+    for raw_step in artifact_steps(preset.name):
+        step = dict(raw_step, window=window)
         ts = remove_artifact(
             ts, baseline=_artifact_baseline(ts, preset, window), **step, random_state=0
         ).cleaned

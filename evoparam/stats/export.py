@@ -332,7 +332,7 @@ def _ordered(table):
     return table[ids + rest + [c for c in LONG_COLUMNS if c in table.columns]]
 
 
-def to_long(result, *, wide=False, units=None, metadata=None):
+def to_long(result, *, wide=False, units=None, metadata=None):  # noqa: C901, PLR0912  (public API, signature fixed by spec §5.11)
     """Tidy table of every parameter of a result, ready for mixed-effects modelling.
 
     Parameters
@@ -720,7 +720,7 @@ def _complete_rows(table, formula, columns, re_formula=None):
 _UNIT_KEYS = ("subject", "session", "run", "stim_site", "condition", "channel")
 
 
-def group_summary(
+def group_summary(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.11)
     table, *, by, parameters=None, ch_info=None, n_boot=1000, ci_level=0.95, random_state=None
 ):
     """Summary of each parameter per group, with the count of every fit status.

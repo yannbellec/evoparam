@@ -4,6 +4,7 @@
 import hashlib
 import json
 import os
+import pathlib
 import subprocess
 import sys
 
@@ -13,14 +14,13 @@ from evoparam.cli import main
 
 
 def _run(*args, cwd=None):
-    proc = subprocess.run(
+    return subprocess.run(
         [sys.executable, "-m", "evoparam", *args],
         capture_output=True,
         text=True,
         cwd=cwd,
         check=False,
     )
-    return proc
 
 
 @pytest.fixture(scope="module")
@@ -111,8 +111,8 @@ def test_req345_cli_equals_python(fitted, dataset, tmp_path):
         if path.endswith(".tsv") and "sub-01" in path:
             cli = out / os.path.relpath(path, tmp_path / "evoparam")
             assert (
-                hashlib.sha256(open(path, "rb").read()).hexdigest()
-                == hashlib.sha256(open(cli, "rb").read()).hexdigest()
+                hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+                == hashlib.sha256(pathlib.Path(cli).read_bytes()).hexdigest()
             ), path
 
 

@@ -125,7 +125,7 @@ def _prints():
     hits = []
     for path in sorted(PACKAGE.rglob("*.py")):
         rel = path.relative_to(PACKAGE)
-        if rel.parts[0] == "tests" or rel.name == "cli.py" or rel.name == "__main__.py":
+        if rel.parts[0] == "tests" or rel.name in {"cli.py", "__main__.py"}:
             continue
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "print":

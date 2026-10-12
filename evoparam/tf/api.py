@@ -260,7 +260,7 @@ def _region_values(per_trial, test, sig, tmap, reported, region, valid):
     )
 
 
-def tf_fit(
+def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.10)
     ts,
     *,
     transform="morse",
@@ -814,7 +814,7 @@ def tf_zones(tf, *, method="nmf", max_zones=8, random_state=None, cp_stability="
     return table
 
 
-def tf_compare(tf_a, tf_b, *, stats="cluster", n_permutations=1000, alpha=0.05, random_state=None):
+def tf_compare(tf_a, tf_b, *, stats="cluster", n_permutations=1000, alpha=0.05, random_state=None):  # noqa: C901  (public API, signature fixed by spec §5.10)
     """Contrast of two TFFits (conditions or modalities), with the map rows as units.
 
     Rows present in both (same channel and condition order) are paired (sign flips of the

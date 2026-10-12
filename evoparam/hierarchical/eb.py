@@ -85,7 +85,7 @@ def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
     mu_group, var_group = float(start), np.inf
     previous = -np.inf
     converged = False
-    for it in range(1, max_iter + 1):
+    for it in range(1, max_iter + 1):  # noqa: B007  (the count is read after the loop)
         var1 = tau**2 + se2
         l1 = np.log(pi[subject]) + _normal_logpdf(y, mu[subject], var1)
         l0 = np.log(1 - pi[subject]) + _normal_logpdf(y, 0.0, se2)
@@ -111,7 +111,7 @@ def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
 
         def objective(t):
             v = t**2 + se2[ok]
-            return -np.sum(r[ok] * _normal_logpdf(y[ok], mu[subject[ok]], v))
+            return -np.sum(r[ok] * _normal_logpdf(y[ok], mu[subject[ok]], v))  # noqa: B023  (called within this iteration only)
 
         bound = 10 * np.nanmax(np.abs(y[ok])) + 1e-12
         tau = float(

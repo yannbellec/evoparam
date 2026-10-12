@@ -52,7 +52,7 @@ def test_invariants(change, field):
 
 
 def test_data_error_is_value_error():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011  (the test checks that DataError is a ValueError)
         TrialSet(np.zeros((1, 1, 1)), np.zeros(1), 1.0, ["A"])
 
 

@@ -101,11 +101,13 @@ def test_server_ignoring_range_falls_back_to_full_download(bids_root, tmp_path):
 
     local = read_bids(bids_root, "01", task="spes", run="01")
     size = os.path.getsize(os.path.join(bids_root, *DATA_FILE.split("/")))
-    with http_server(bids_root, honour_range=False) as (base, stats):
-        with pytest.warns(UserWarning, match=r"ignored the byte-range request.*\(0\.7 MB\)"):
-            remote = read_bids(
-                base, "01", task="spes", run="01", remote=True, cache_dir=str(tmp_path / "cache")
-            )
+    with (
+        http_server(bids_root, honour_range=False) as (base, stats),
+        pytest.warns(UserWarning, match=r"ignored the byte-range request.*\(0\.7 MB\)"),
+    ):
+        remote = read_bids(
+            base, "01", task="spes", run="01", remote=True, cache_dir=str(tmp_path / "cache")
+        )
     assert np.array_equal(remote.data, local.data)
     source = remote.provenance.source
     assert source["full_download"] is True
@@ -128,9 +130,11 @@ def test_retries_with_backoff(bids_root, delays):
 
 def test_gives_up_after_four_retries(bids_root, delays):
 
-    with http_server(bids_root, failures=100) as (base, stats):
-        with pytest.raises(ReaderError, match="HTTP 503"):
-            read_bids(base, "01", task="spes", run="01", remote=True)
+    with (
+        http_server(bids_root, failures=100) as (base, stats),
+        pytest.raises(ReaderError, match="HTTP 503"),
+    ):
+        read_bids(base, "01", task="spes", run="01", remote=True)
     assert delays == [2.0, 4.0, 8.0, 16.0]
     assert len(stats.requests) == 5
 

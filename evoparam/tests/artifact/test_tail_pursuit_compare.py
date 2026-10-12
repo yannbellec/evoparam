@@ -21,7 +21,10 @@ def test_tail_subtraction_removes_slow_recovery():
     plain = remove_artifact(noisy, method="interpolate")
     tailed = remove_artifact(noisy, method="tail", tail="subtract", tail_length=0.02)
     seg = (noisy.times > 0.008) & (noisy.times < 0.025)
-    err = lambda res: np.sqrt(np.mean((res.cleaned.data - truth.data)[..., seg] ** 2))
+
+    def err(res):
+        return np.sqrt(np.mean((res.cleaned.data - truth.data)[..., seg] ** 2))
+
     assert err(tailed) < 0.3 * err(plain)
     taus = tailed.settings["_info"]["tail_tau1"]
     assert taus.shape == noisy.data.shape[:2]
@@ -42,10 +45,10 @@ def test_matching_pursuit_removes_decaying_artifact():
     noisy, truth = make_overlay(
         onset=0.03, art_amplitude=0.0, art_tail=800.0, art_tau=0.004, n_channels=4
     )
-    with pytest.warns(UserWarning, match="patent"):
-        from evoparam.artifact import pursuit
+    from evoparam.artifact import pursuit
 
-        pursuit._WARNED = False
+    pursuit._WARNED = False
+    with pytest.warns(UserWarning, match="patent"):
         result = remove_artifact(noisy, method="matching_pursuit")
     seg = (noisy.times > 0.0) & (noisy.times < 0.02)
     before = np.sum((noisy.data - truth.data)[..., seg] ** 2)

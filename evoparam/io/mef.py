@@ -885,7 +885,7 @@ def _fetch_runs(session, rel, runs):
         reader = RemoteFile(session.location(rel), chunk_size=_CHUNK, max_chunks=1 << 16)
         read = reader.read
     else:
-        reader = open(session.location(rel), "rb")
+        reader = open(session.location(rel), "rb")  # noqa: SIM115  (closed in the finally block below, as the remote reader is)
 
         def read(offset, nbytes):
             reader.seek(offset)
@@ -972,7 +972,7 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
 
     chunks, lines, network, cursor = [], [], 0, 0
     block_starts, info = [], []  # info: col, ch, block, n, bytes, constant
-    for (rel, runs), (contents, file_lines, nbytes) in zip(jobs, fetched, strict=False):
+    for (_rel, runs), (contents, file_lines, nbytes) in zip(jobs, fetched, strict=False):
         lines += file_lines
         network += nbytes
         for (_, offset, _, members, col, ch), content in zip(runs, contents, strict=False):

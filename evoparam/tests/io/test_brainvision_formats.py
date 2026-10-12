@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """BrainVision formats: INT_16 / IEEE_FLOAT_32, multiplexed / vectorized, units, picks."""
 
+import pathlib
+
 import numpy as np
 import pytest
 
@@ -55,17 +57,17 @@ def test_formats_and_orientations(tmp_path, fmt, orientation):
 def test_per_channel_resolution_and_units(tmp_path):
 
     data = small_signal()
+    vhdr = write_brainvision(
+        tmp_path,
+        "rec",
+        data,
+        SFREQ,
+        NAMES,
+        fmt="INT_16",
+        resolutions=[0.5, 0.001, 1e-6],
+        units=["µV", "mV", "V"],
+    )
     with pytest.warns(UserWarning, match="converted to µV: C2, C3"):
-        vhdr = write_brainvision(
-            tmp_path,
-            "rec",
-            data,
-            SFREQ,
-            NAMES,
-            fmt="INT_16",
-            resolutions=[0.5, 0.001, 1e-6],
-            units=["µV", "mV", "V"],
-        )
         out, _, _, _ = read_brainvision(vhdr)
     assert np.allclose(out, data, rtol=1e-3, atol=1e-6)
 
@@ -111,12 +113,16 @@ def test_errors(tmp_path):
     with pytest.raises(ReaderError):
         read_brainvision(str(tmp_path / "missing.vhdr"))
 
-    text = open(vhdr, encoding="utf-8").read().replace("DataFormat=BINARY", "DataFormat=ASCII")
+    text = (
+        pathlib.Path(vhdr)
+        .read_text(encoding="utf-8")
+        .replace("DataFormat=BINARY", "DataFormat=ASCII")
+    )
     (tmp_path / "ascii.vhdr").write_text(text, encoding="utf-8")
     with pytest.raises(ReaderError, match="only binary"):
         read_brainvision_header(str(tmp_path / "ascii.vhdr"))
 
-    text = open(vhdr, encoding="utf-8").read().replace("IEEE_FLOAT_32", "UINT_8")
+    text = pathlib.Path(vhdr).read_text(encoding="utf-8").replace("IEEE_FLOAT_32", "UINT_8")
     (tmp_path / "uint8.vhdr").write_text(text, encoding="utf-8")
     with pytest.raises(ReaderError, match="not supported"):
         read_brainvision_header(str(tmp_path / "uint8.vhdr"))
@@ -125,7 +131,7 @@ def test_errors(tmp_path):
 def test_latin1_header(tmp_path):
 
     vhdr = write_brainvision(tmp_path, "rec", small_signal(100), SFREQ, NAMES)
-    text = open(vhdr, encoding="utf-8").read()
+    text = pathlib.Path(vhdr).read_text(encoding="utf-8")
     with open(vhdr, "wb") as file:
         file.write(text.encode("latin-1"))
     header = read_brainvision_header(vhdr)

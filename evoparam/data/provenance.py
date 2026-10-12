@@ -156,8 +156,8 @@ def lock_sha256(path=None):
         marker_cls = Marker
     from importlib import metadata
 
-    for line in raw.decode("utf-8").splitlines():
-        line = line.split("#", 1)[0].strip().rstrip("\\").strip()
+    for raw_line in raw.decode("utf-8").splitlines():
+        line = raw_line.split("#", 1)[0].strip().rstrip("\\").strip()
         if not line or line.startswith("-") or "==" not in line:
             continue
         pin, _, marker = line.partition(";")
@@ -178,7 +178,7 @@ def lock_sha256(path=None):
 
 @functools.lru_cache(maxsize=1)
 def _environment():
-    env = {
+    return {
         "python": platform.python_version(),
         "platform": platform.platform(),
         "cpu": _cpu_name(),
@@ -192,7 +192,6 @@ def _environment():
         "lock_sha256": lock_sha256(),
         "executable": os.path.basename(sys.executable),
     }
-    return env
 
 
 def capture_environment():

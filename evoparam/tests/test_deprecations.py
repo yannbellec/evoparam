@@ -30,7 +30,7 @@ def _check_entry(old, new, since, remove_in):
     assert version_tuple(evoparam.__version__) < version_tuple(remove_in), (
         f"{old}: the shim must be removed in {remove_in} (this is {evoparam.__version__})"
     )
-    with pytest.warns(EvoparamDeprecationWarning) as record:
+    with pytest.warns(EvoparamDeprecationWarning) as record:  # noqa: PT031  (the shim warns on access or on call: both are in the block)
         shim = getattr(evoparam, old)
         if callable(shim):
             # forwarding is checked with a temporary target in the test below; here the

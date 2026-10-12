@@ -84,8 +84,8 @@ def read_bids_events(events_tsv):
     lines = _read_bytes(events_tsv).decode("utf-8").splitlines()
 
     events = []
-    for row in csv.DictReader(lines, delimiter="\t"):
-        row = {key: (None if val == "n/a" else val) for key, val in row.items()}
+    for raw_row in csv.DictReader(lines, delimiter="\t"):
+        row = {key: (None if val == "n/a" else val) for key, val in raw_row.items()}
         for key in ("onset", "duration"):
             if row.get(key) is not None:
                 row[key] = float(row[key])
@@ -357,8 +357,7 @@ def _channel_table(tree, folder, entities, names, content=None):
             "units": text("units"),
         }
     )
-    out = _add_coordinates(tree, folder, entities, out)
-    return out
+    return _add_coordinates(tree, folder, entities, out)
 
 
 def _reference(value):
@@ -464,7 +463,8 @@ def _apply_select(events, select):
         return events.query(select)
     if isinstance(select, dict):
         keep = np.ones(len(events), dtype=bool)
-        for column, value in select.items():
+        for column, raw_value in select.items():
+            value = raw_value
             if column not in events.columns:
                 raise EventError(f"select: no column {column!r} in the events table.")
             values = events[column]
@@ -829,7 +829,7 @@ def _dataset_record(root, base, tree):
     return None, None
 
 
-def read_bids(
+def read_bids(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
     root,
     subject,
     *,

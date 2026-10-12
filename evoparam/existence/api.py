@@ -113,30 +113,30 @@ def _model_comparison(avg, times, window, baseline, n_permutations, rng):
     return out
 
 
-def test_response(
+def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.6)
     ts,
     *,
-    method="baseline_permutation",
-    window=(0.009, 0.5),
-    baseline=(-0.5, -0.05),
-    alpha=0.05,
-    correction="fdr_bh",
-    n_permutations=1000,
-    statistic="max_t",
-    cluster_threshold=None,
-    polarity="both",
-    rule=None,
-    rule_overrides=None,
-    picks=None,
-    by=("stim_site",),
-    return_null=False,
-    allow_artifact_overlap=False,
-    n_boot=200,
-    random_state=None,
-    n_jobs=1,
-    verbose=None,
-    projection_profile="published",
-    projection_pairs="disjoint",
+    method="baseline_permutation",  # noqa: PT028  (public API test_response, not a pytest test)
+    window=(0.009, 0.5),  # noqa: PT028  (public API test_response, not a pytest test)
+    baseline=(-0.5, -0.05),  # noqa: PT028  (public API test_response, not a pytest test)
+    alpha=0.05,  # noqa: PT028  (public API test_response, not a pytest test)
+    correction="fdr_bh",  # noqa: PT028  (public API test_response, not a pytest test)
+    n_permutations=1000,  # noqa: PT028  (public API test_response, not a pytest test)
+    statistic="max_t",  # noqa: PT028  (public API test_response, not a pytest test)
+    cluster_threshold=None,  # noqa: PT028  (public API test_response, not a pytest test)
+    polarity="both",  # noqa: PT028  (public API test_response, not a pytest test)
+    rule=None,  # noqa: PT028  (public API test_response, not a pytest test)
+    rule_overrides=None,  # noqa: PT028  (public API test_response, not a pytest test)
+    picks=None,  # noqa: PT028  (public API test_response, not a pytest test)
+    by=("stim_site",),  # noqa: PT028  (public API test_response, not a pytest test)
+    return_null=False,  # noqa: PT028  (public API test_response, not a pytest test)
+    allow_artifact_overlap=False,  # noqa: PT028  (public API test_response, not a pytest test)
+    n_boot=200,  # noqa: PT028  (public API test_response, not a pytest test)
+    random_state=None,  # noqa: PT028  (public API test_response, not a pytest test)
+    n_jobs=1,  # noqa: PT028  (public API test_response, not a pytest test)
+    verbose=None,  # noqa: PT028  (public API test_response, not a pytest test)
+    projection_profile="published",  # noqa: PT028  (public API test_response, not a pytest test)
+    projection_pairs="disjoint",  # noqa: PT028  (public API test_response, not a pytest test)
 ):
     """Test whether there is a response in the window, on each channel (and stimulation site).
 
@@ -272,11 +272,13 @@ def test_response(
             )
         results.append(res)
 
-    stack = lambda key: (
-        np.asarray(results[0][key], float)
-        if len(results) == 1
-        else np.stack([np.asarray(r[key], float) for r in results], axis=1)
-    )
+    def stack(key):
+        return (
+            np.asarray(results[0][key], float)
+            if len(results) == 1
+            else np.stack([np.asarray(r[key], float) for r in results], axis=1)
+        )
+
     raw = stack("p_value")
     adjusted = correct(raw, correction)
     if method == "threshold":

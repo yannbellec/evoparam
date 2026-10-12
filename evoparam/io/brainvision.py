@@ -172,7 +172,7 @@ class _LocalFile:
         self.path = path
         self.size = os.path.getsize(path)
         self.bytes_read = 0
-        self._file = open(path, "rb")
+        self._file = open(path, "rb")  # noqa: SIM115  (the reader owns the file; close() and __exit__ close it)
 
     def read(self, offset, nbytes):
         self._file.seek(offset)

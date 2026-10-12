@@ -5,6 +5,7 @@ pipelines (REQ-340) are in test_reports_text.py."""
 
 import json
 import os
+import pathlib
 import re
 
 import numpy as np
@@ -49,7 +50,7 @@ def test_req341_json_round_trip_and_schema(results, tmp_path):
 
     group = results["group"]
     path = reports.to_json(group, tmp_path / "group.json", validate=True)
-    text = open(path, encoding="utf-8").read()
+    text = pathlib.Path(path).read_text(encoding="utf-8")
     json.loads(text, parse_constant=lambda name: (_ for _ in ()).throw(ValueError(name)))
     assert reports.validate_json(path)
     back = reports.from_json(path)
@@ -102,7 +103,7 @@ def test_quality_summary(results):
 def test_req343_html_is_self_contained(results, tmp_path):
 
     path = reports.html(results["group"], tmp_path / "report.html", data=results["ts"])
-    text = open(path, encoding="utf-8").read()
+    text = pathlib.Path(path).read_text(encoding="utf-8")
     assert "data:image/png;base64," in text
     assert not re.search(r"(src|href)=['\"]https?://", text)
     assert "For research use only" in text
@@ -130,13 +131,13 @@ def test_markdown_and_pdf(results, tmp_path):
     assert text.startswith("# evoparam report")
     assert "## Methods" in text
     path = reports.pdf(results["group"], tmp_path / "report.pdf", data=results["ts"])
-    assert open(path, "rb").read(4) == b"%PDF"
+    assert pathlib.Path(path).read_bytes()[:4] == b"%PDF"
 
 
 def _pages(path):
     import re
 
-    return len(re.findall(rb"/Type\s*/Page\b", open(path, "rb").read()))
+    return len(re.findall(rb"/Type\s*/Page\b", pathlib.Path(path).read_bytes()))
 
 
 def test_pdf_has_one_page_per_stimulation_site(tmp_path):
@@ -374,7 +375,8 @@ def test_methods_text_events_and_stats_paragraphs(results):
     }
     for function, settings in steps.items():
         sentence = step_sentence({"function": function, "settings": settings})
-        assert "processed with" not in sentence and sentence.endswith("."), function
+        assert "processed with" not in sentence, function
+        assert sentence.endswith("."), function
     assert "Benjamini-Hochberg" in step_sentence(
         {
             "function": "evoparam.stats.compare_conditions",

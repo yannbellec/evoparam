@@ -72,20 +72,24 @@ def test_req005_nwb_reader_warnings_are_logged():
 
 
 def test_req005_the_helper_warns_and_logs(caplog):
-    with caplog.at_level(logging.WARNING, logger="evoparam"):
-        with pytest.warns(errors.NoResponseWarning, match="nothing here"):
-            errors.warn("nothing here", errors.NoResponseWarning)
+    with (
+        caplog.at_level(logging.WARNING, logger="evoparam"),
+        pytest.warns(errors.NoResponseWarning, match="nothing here"),
+    ):
+        errors.warn("nothing here", errors.NoResponseWarning)
     assert any("NoResponseWarning: nothing here" in r.getMessage() for r in caplog.records)
 
 
 def test_req005_warnings_of_a_pipeline_are_logged(caplog):
     trials, _ = sim.simulate_ccep(n_trials=8, n_channels=3, seed=0)
     evoked = trials.average()
-    with caplog.at_level(logging.WARNING, logger="evoparam"):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            # an Evoked: the existence test warns that its null is weaker (no trials)
-            evoparam.fit(evoked, preset="ccep", random_state=0)
+    with (
+        caplog.at_level(logging.WARNING, logger="evoparam"),
+        warnings.catch_warnings(record=True) as caught,
+    ):
+        warnings.simplefilter("always")
+        # an Evoked: the existence test warns that its null is weaker (no trials)
+        evoparam.fit(evoked, preset="ccep", random_state=0)
     logged = " ".join(r.getMessage() for r in caplog.records)
     # the package's warnings are UserWarning subclasses (NumPy's RuntimeWarnings are not)
     ours = [w for w in caught if issubclass(w.category, UserWarning)]

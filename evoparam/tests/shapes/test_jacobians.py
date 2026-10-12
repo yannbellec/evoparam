@@ -153,7 +153,10 @@ def test_basis_jacobian_matches_finite_differences(case):
     for row in range(20):
         for j in range(background.n_linear):
             errors = _column_errors(
-                lambda p: background.basis(TIMES, p)[j], d_basis[row, j], nonlinear[row], bounds
+                lambda p: background.basis(TIMES, p)[j],  # noqa: B023  (called within this iteration only)
+                d_basis[row, j],
+                nonlinear[row],
+                bounds,
             )
             assert max(errors, default=0.0) < RTOL
 

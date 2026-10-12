@@ -116,7 +116,9 @@ def test_req301_good_examples_type_check(tmp_path):
 @pytest.mark.parametrize("wrong", [p.name for p in WRONG])
 def test_req301_wrong_example_fails(wrong, tmp_path):
     code, out = _mypy([EXAMPLES / wrong], tmp_path, "--ignore-missing-imports")
-    assert code == 1 and f"{wrong}:" in out and "error:" in out, out
+    assert code == 1, out
+    assert f"{wrong}:" in out, out
+    assert "error:" in out, out
 
 
 def test_req301_the_user_shape_satisfies_the_protocol_at_run_time():

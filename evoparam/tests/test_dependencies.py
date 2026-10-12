@@ -381,7 +381,8 @@ def test_req292_missing_package_message(module, code, extra):
     assert result.returncode != 0
     assert "ImportError" in result.stderr, result.stderr[-2000:]
     match = re.search(r'pip install "evoparam\[(\w+)\]"', result.stderr)
-    assert match and match.group(1) == extra, result.stderr[-2000:]
+    assert match, result.stderr[-2000:]
+    assert match.group(1) == extra, result.stderr[-2000:]
 
 
 OPTIONAL = {
@@ -484,14 +485,13 @@ def _licence(dist):
     except metadata.PackageNotFoundError:
         return None
     short = meta.get("License") if len(meta.get("License") or "") <= 200 else None
-    text = " ".join(
+    return " ".join(
         filter(
             None,
             [meta.get("License-Expression"), short]
             + [c for c in meta.get_all("Classifier") or [] if c.startswith("License ::")],
         )
     )
-    return text
 
 
 def _resolved_tree(roots):

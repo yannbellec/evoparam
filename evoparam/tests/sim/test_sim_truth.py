@@ -70,7 +70,7 @@ def test_trial_rows_are_the_features_of_the_trial_curves(name, jitter):
     ts, truth = sim.GENERATORS[name](seed=4, **kwargs)
     table = truth.to_dataframe("trial")
     assert len(table) == int(truth.present.sum())
-    order = {i: c for i, c in enumerate(truth.components)}
+    order = dict(enumerate(truth.components))
     rows = table.to_dict("records")
     checked = 0
     for index, comp in order.items():
@@ -173,8 +173,8 @@ def test_container_round_trip(tmp_path, suffix):
         if not suffix:
             with open(f"{path}/manifest.json", encoding="utf-8") as fobj:
                 assert json.load(fobj)["object"] == "GroundTruth"
+    trials, _ = sim.simulate_erp(seed=0, n_trials=3)
     with pytest.raises(DataError, match="not a GroundTruth"):
-        trials, _ = sim.simulate_erp(seed=0, n_trials=3)
         sim.GroundTruth.load(trials.save(str(tmp_path / "trials")))
 
 

@@ -176,7 +176,7 @@ def test_req003_sign_rule_scan_finds_a_mutation(tmp_path):
         "            if c.amplitude > 0:\n"
         "                continue\n"
     )
-    global PACKAGE
+    global PACKAGE  # noqa: PLW0603  (the module path is swapped for the duration of the test)
     saved, PACKAGE = PACKAGE, tmp_path
     try:
         assert len(_sign_rules(bad)) == 1

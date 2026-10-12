@@ -256,10 +256,7 @@ def train_baseline(
     n_wanted = int(round(length * (rate if raw is not None else ts.sfreq)))
     for key in dict.fromkeys(keys):
         rows = np.flatnonzero(keys == key)
-        if event_times is not None:
-            lead = rows[np.argmin(event_times[rows])]
-        else:
-            lead = rows[0]
+        lead = rows[np.argmin(event_times[rows])] if event_times is not None else rows[0]
         if raw is not None:
             onset = event_times[lead]
             stop = int(round((onset - first_time) * rate))

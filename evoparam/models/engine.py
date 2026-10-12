@@ -744,12 +744,17 @@ def _optimise(struct, theta0, settings, f_scale, tol=1e-8):
     # (Structure.reduced); a robust loss acts on each residual and needs the residuals
     if omap is None:
         x0, lo, hi = theta0, lower, upper
-        fun = lambda theta: solved(theta)[0 if lean else 1]
+
+        def fun(theta):
+            return solved(theta)[0 if lean else 1]
+
         jac = jac_theta
     else:
         lo, hi = omap.lower, omap.upper
         x0 = np.clip(omap.to_phi(theta0), lo + 1e-9 * (hi - lo), hi - 1e-9 * (hi - lo))
-        fun = lambda phi: solved(omap.to_theta(phi))[0 if lean else 1]
+
+        def fun(phi):
+            return solved(omap.to_theta(phi))[0 if lean else 1]
 
         def jac(phi):
             return omap.jacobian(jac_theta(omap.to_theta(phi)), phi)
@@ -1227,9 +1232,12 @@ def _fit_waveform_core(
             level = float(np.median(y[base]))
     ordered = settings.latency_order == "parameterised"
     memo = {}
-    make = lambda shapes: _Structure(
-        list(shapes), background, tw, white, yw, prior, scale, edge, level, ordered, memo
-    )
+
+    def make(shapes):
+        return _Structure(
+            list(shapes), background, tw, white, yw, prior, scale, edge, level, ordered, memo
+        )
+
     f_scale = settings.f_scale
 
     # K = 0: background only (its time constants from a small grid)

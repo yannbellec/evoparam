@@ -432,7 +432,8 @@ def test_req116_jacobian_coverage_as_written(rho):
 
     lat, amp, runs = req116_coverage("jacobian", rho, PER_CONDITION)
     low, high = (0.90, 0.97) if rho == 0 else (0.85, 1.0)
-    assert low <= lat <= high and low <= amp <= high, (lat, amp, runs)
+    assert low <= lat <= high, (lat, amp, runs)
+    assert low <= amp <= high, (lat, amp, runs)
 
 
 def _req116_interval_cases():
@@ -459,7 +460,8 @@ def test_req116_bootstrap_profile_coverage_as_written(method, rho):
     """Bootstrap and profile intervals: 92-97 % under both noises (200 runs, spec §7.2)."""
 
     lat, amp, runs = req116_coverage(method, rho, 200)
-    assert 0.92 <= lat <= 0.97 and 0.92 <= amp <= 0.97, (lat, amp, runs)
+    assert 0.92 <= lat <= 0.97, (lat, amp, runs)
+    assert 0.92 <= amp <= 0.97, (lat, amp, runs)
 
 
 def test_req107_neff_as_written():
@@ -478,5 +480,6 @@ def test_req107_neff_as_written():
                 for i in range(PER_CONDITION)
             ]
         )
-    assert rates["neff"] <= 0.05 and rates["ar"] <= 0.05, rates
+    assert rates["neff"] <= 0.05, rates
+    assert rates["ar"] <= 0.05, rates
     assert rates["white"] >= 0.30, rates

@@ -42,7 +42,7 @@ def _label_fit(fit, windows, unassigned, polarity_rule="sign"):
         inside = [
             k
             for k, comp in enumerate(fit.components)
-            if start <= comp.latency <= end and (polarity == 0 or comp.polarity == polarity)
+            if start <= comp.latency <= end and polarity in (0, comp.polarity)
         ]
         inside.sort(key=lambda k: -abs(fit.components[k].amplitude))
         for rank, k in enumerate(inside):

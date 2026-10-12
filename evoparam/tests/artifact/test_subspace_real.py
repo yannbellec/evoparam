@@ -169,7 +169,10 @@ def sir_improvement(template, sfreq, window, seed=0, n_trials=30, **options):
         rng.uniform(0.9, 1.1, (n_trials, 1, 1)) * template[None]
     )
     names = [f"E{i}" for i in range(n_channels)]
-    make = lambda d: TrialSet(data=d, times=times, sfreq=sfreq, ch_names=names)
+
+    def make(d):
+        return TrialSet(data=d, times=times, sfreq=sfreq, ch_names=names)
+
     table = compare_methods(
         make(noisy),
         [{"method": "subspace", "window": window, **options}],

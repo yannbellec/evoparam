@@ -202,7 +202,7 @@ def _electrodes(_nwbfile, series, picks):
     return [names[i] for i in index], info.iloc[index].reset_index(drop=True), index
 
 
-def read_nwb(
+def read_nwb(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.1)
     path,
     *,
     electrical_series=None,
@@ -259,11 +259,16 @@ def read_nwb(
         if series.timestamps is not None:
             stamps = np.asarray(series.timestamps[:], float)
             sfreq = float(1.0 / np.median(np.diff(stamps)))
-            sample_of = lambda t: int(np.searchsorted(stamps, t))
+
+            def sample_of(t):
+                return int(np.searchsorted(stamps, t))
         else:
             sfreq = float(series.rate)
             start = float(series.starting_time or 0.0)
-            sample_of = lambda t: int(np.ceil(np.round((t - start) * sfreq, 6)))
+
+            def sample_of(t):
+                return int(np.ceil(np.round((t - start) * sfreq, 6)))
+
         first = int(np.ceil(np.round(tmin * sfreq, 6)))
         n_times = int(np.ceil(np.round(tmax * sfreq, 6))) - first
         times = (first + np.arange(n_times)) / sfreq
@@ -505,7 +510,7 @@ TRIAL_TABLE = [
 ]
 
 
-def write_nwb(
+def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.1)
     result,
     nwbfile_or_path,
     *,

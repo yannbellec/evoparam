@@ -51,7 +51,7 @@ def _check_window_vs_rate(ts, window, method):
         )
 
 
-def remove_artifact(
+def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.3)
     ts,
     *,
     method="template",
@@ -364,7 +364,8 @@ def remove_artifact(
 
 def _jsonable_settings(settings):
     out = {}
-    for key, value in settings.items():
+    for key, raw_value in settings.items():
+        value = raw_value
         if isinstance(value, np.ndarray):
             value = {"array_shape": list(value.shape), "array_sum": float(np.sum(value))}
         out[key] = value
@@ -419,8 +420,8 @@ def compare_methods(ts, methods, *, truth=None, window_eval=(0.008, 0.05)):
     pd = require("pandas", extra="data", caller="evoparam.artifact.compare_methods")
     check_trialset(ts)
     rows = []
-    for spec in methods:
-        spec = dict(spec)
+    for raw_spec in methods:
+        spec = dict(raw_spec)
         label = spec.pop("label", spec.get("method", "template"))
         begin = _time.perf_counter()
         with warnings.catch_warnings():

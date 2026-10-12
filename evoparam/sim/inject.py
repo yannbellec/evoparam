@@ -115,7 +115,8 @@ def inject(
     targets = _channel_indices(channels, ts_real.ch_names, "inject")
     specs = [as_spec(item, ERP_COMPONENTS) for item in components]
     sources = []
-    for spec in specs:
+    for raw_spec in specs:
+        spec = raw_spec
         if spec.channels is None:
             from dataclasses import replace
 

@@ -862,7 +862,7 @@ class ResponseModel(BaseEstimatorMixin):
         overrides.update({k: v for k, v in extra.items() if v is not None})
         return resolve_settings(self.preset, **overrides)
 
-    def fit_waveform(
+    def fit_waveform(  # noqa: PLR0913  (public API, signature fixed by spec §5.5.8)
         self,
         times,
         y,
@@ -1226,7 +1226,7 @@ def _from_mne(data):
     raise DataError(f"fit: cannot use an MNE {type(data).__name__}; epoch it first.")
 
 
-def fit(
+def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec §5.5.8)
     data,
     preset=None,
     *,

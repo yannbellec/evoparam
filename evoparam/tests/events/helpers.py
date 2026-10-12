@@ -42,8 +42,7 @@ def spatial_gains(n_channels, stim_pair, rng, floor=0.3):
     and never below ``floor`` (volume conduction reaches every contact)."""
 
     distance = np.min(np.abs(np.arange(n_channels)[:, None] - np.asarray(stim_pair)[None]), axis=1)
-    gains = np.maximum(floor, 1.0 / (1.0 + distance)) * rng.uniform(0.9, 1.1, n_channels)
-    return gains
+    return np.maximum(floor, 1.0 / (1.0 + distance)) * rng.uniform(0.9, 1.1, n_channels)
 
 
 def make_recording(

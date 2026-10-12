@@ -3,6 +3,7 @@
 
 import hashlib
 import os
+import pathlib
 
 import numpy as np
 import pytest
@@ -216,7 +217,7 @@ def test_errors(bids_root, tmp_path):
     # channels.tsv that does not match the data file
     root = make_bids(tmp_path / "bad_channels")
     path = os.path.join(root, "sub-01", "ieeg", "sub-01_task-spes_run-01_channels.tsv")
-    text = open(path, encoding="utf-8").read().replace("A03", "B07")
+    text = pathlib.Path(path).read_text(encoding="utf-8").replace("A03", "B07")
     with open(path, "w", encoding="utf-8") as file:
         file.write(text)
     with pytest.raises(DataError, match="does not match the data file"):

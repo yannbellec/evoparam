@@ -73,7 +73,8 @@ def test_tutorial_structure(name):
     source = _source(name)
     tree = ast.parse(source)
     docstring = ast.get_docstring(tree)
-    assert docstring and "=====" in docstring, name  # sphinx-gallery title
+    assert docstring, name
+    assert "=====" in docstring, name  # sphinx-gallery title
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
     called = {getattr(c.func, "attr", getattr(c.func, "id", None)) for c in calls}
     assert "methods_text" in called, name

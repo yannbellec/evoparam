@@ -349,7 +349,8 @@ def _string_columns(task):
     schema = load_schema(task)
     props = schema["$defs"]["output_row"]["properties"]
     out = set()
-    for name, prop in props.items():
+    for name, raw_prop in props.items():
+        prop = raw_prop
         if "$ref" in prop:
             prop = schema["$defs"][prop["$ref"].rsplit("/", 1)[1]]
         kinds = prop.get("type", [])

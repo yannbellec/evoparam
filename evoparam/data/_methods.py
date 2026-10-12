@@ -802,7 +802,7 @@ def _seed(provenance, settings, steps):
     return getattr(provenance, "random_state", None)
 
 
-def methods_text(obj, cite=True):
+def methods_text(obj, cite=True):  # noqa: C901, PLR0912  (public API, signature fixed by spec §4.3.4)
     """Methods paragraph of a result (or container) from its provenance and settings.
 
     Parameters

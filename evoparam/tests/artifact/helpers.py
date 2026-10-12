@@ -81,12 +81,15 @@ def make_overlay(
             }
         )
     names = [f"ch{i:02d}" for i in range(n_channels)]
-    make = lambda data: TrialSet(
-        data=data,
-        times=times,
-        sfreq=sfreq,
-        ch_names=names,
-        metadata=None if meta is None else meta.copy(),
-        event_times=np.arange(n_trials) * 5.0,
-    )
+
+    def make(data):
+        return TrialSet(
+            data=data,
+            times=times,
+            sfreq=sfreq,
+            ch_names=names,
+            metadata=None if meta is None else meta.copy(),
+            event_times=np.arange(n_trials) * 5.0,
+        )
+
     return make(noisy), make(clean)

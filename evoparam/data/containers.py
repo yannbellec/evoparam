@@ -689,8 +689,8 @@ class TrialSet(_ContainerMixin):
             raise DataError(f"average: unknown metadata column(s) {missing}.")
         subset = self.metadata.iloc[keep]
         out = []
-        for key, group in subset.groupby(columns, sort=True, dropna=False):
-            key = key if isinstance(key, tuple) else (key,)
+        for raw_key, group in subset.groupby(columns, sort=True, dropna=False):
+            key = raw_key if isinstance(raw_key, tuple) else (raw_key,)
             row = {column: [value] for column, value in zip(columns, key, strict=False)}
             out.append(self._average_trials(group.index.to_numpy(), row, settings, start, chunk))
         return out
@@ -904,9 +904,10 @@ class Evoked(_ContainerMixin):
             raise DataError(
                 f"masks: shape {self.masks.shape} differs from data {self.data.shape}."
             )
-        if self.metadata is not None:
-            if not _is_dataframe(self.metadata) or len(self.metadata) > 1:
-                raise DataError("metadata: must be a DataFrame with at most one row.")
+        if self.metadata is not None and (
+            not _is_dataframe(self.metadata) or len(self.metadata) > 1
+        ):
+            raise DataError("metadata: must be a DataFrame with at most one row.")
         if self.ch_info is not None:
             _check_table(self.ch_info, "ch_info", n_channels, CH_INFO_COLUMNS)
             if "name" in self.ch_info.columns and list(self.ch_info["name"]) != self.ch_names:

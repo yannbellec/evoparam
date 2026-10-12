@@ -102,7 +102,8 @@ def time_axis(sfreq, tmin, tmax):
 def jsonable_settings(settings):
     """Return the settings with specifications, arrays and containers replaced by plain values."""
     out = {}
-    for key, value in settings.items():
+    for key, raw_value in settings.items():
+        value = raw_value
         if hasattr(value, "to_dict") and not isinstance(value, TrialSet):
             value = value.to_dict()
         elif isinstance(value, TrialSet):
@@ -132,14 +133,13 @@ def table(columns, n_rows):
         pd = require("pandas", extra="data", caller="evoparam.sim")
     except ImportError:
         return None
-    frame = pd.DataFrame(
+    return pd.DataFrame(
         {
             key: (np.asarray(value) if not isinstance(value, list) else value)
             for key, value in columns.items()
         },
         index=pd.RangeIndex(n_rows),
     )
-    return frame
 
 
 ###################################################################################################
@@ -169,8 +169,9 @@ def requested_snr(snr, sources, ch_names):
         labels = {sources[k].label for k in primary}
         names = set(ch_names)
         with_component = {ch_names[sources[k].channel] for k in primary}
-        for key, value in snr.items():
-            key = str(key)
+        for raw_key, raw_value in snr.items():
+            value = raw_value
+            key = str(raw_key)
             if key in labels and key in names:
                 raise SettingsError(f"snr key '{key}' is both a component label and a channel.")
             if key in names:

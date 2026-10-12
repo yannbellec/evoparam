@@ -29,7 +29,7 @@ def results():
         artifact = remove_artifact(ts, method="interpolate", window=(-0.002, 0.008))
         try:
             basis = shared_shapes(ts, random_state=0)
-        except Exception:
+        except Exception:  # noqa: BLE001  (the fixture tolerates a failure of this optional step)
             basis = None
     return {
         "ts": ts,

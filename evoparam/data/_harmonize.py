@@ -314,10 +314,7 @@ def _parse_quantity(values, column, target, sidecar, report):
 
     if unitless:
         numbers = np.abs(out[unitless])
-        if small_unit is not None and np.all(numbers < threshold):
-            unit = small_unit
-        else:
-            unit = large_unit
+        unit = small_unit if small_unit is not None and np.all(numbers < threshold) else large_unit
         out[unitless] = out[unitless] * table[unit.lower()]
         if unit != target_unit or small_unit is not None:
             rule = (
@@ -381,7 +378,7 @@ def _polarity(value, parameters):
 ## Public functions
 
 
-def harmonize_stim_events(events, sidecar=None, *, mapping=None):
+def harmonize_stim_events(events, sidecar=None, *, mapping=None):  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.1)
     """Map stimulation columns of an events table to the standard metadata columns.
 
     Recognised source columns (first match wins, case-insensitive; spec §10.2):

@@ -59,7 +59,10 @@ def adjusted_rand_index(a, b):
     _, ib = np.unique(b, return_inverse=True)
     table = np.zeros((ia.max() + 1, ib.max() + 1))
     np.add.at(table, (ia, ib), 1)
-    comb = lambda x: x * (x - 1) / 2.0
+
+    def comb(x):
+        return x * (x - 1) / 2.0
+
     index = comb(table).sum()
     rows, cols = comb(table.sum(axis=1)).sum(), comb(table.sum(axis=0)).sum()
     total = comb(float(len(a)))
@@ -375,7 +378,7 @@ def _groups(ts, by, channel, stim_site, win):
 ## Main entry point
 
 
-def shared_shapes(
+def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.9)
     ts,
     *,
     by="stim_site",

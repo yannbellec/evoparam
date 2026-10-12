@@ -146,7 +146,7 @@ def _table(value, name):
     return value.reset_index(drop=True)
 
 
-def from_array(
+def from_array(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
     data,
     sfreq,
     *,
@@ -350,7 +350,7 @@ def _read_continuous(
     )
 
 
-def read(source, *, format=None, **kwargs):  # noqa: A002  (public keyword of the API)
+def read(source, *, format=None, **kwargs):  # noqa: A002, C901, PLR0911, PLR0912  (public API, signature fixed by spec §5.1; format: its keyword)
     """Read data from any supported source into a TrialSet.
 
     Dispatch on the type or the extension of ``source``:

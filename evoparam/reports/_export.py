@@ -61,7 +61,10 @@ def to_json(result, path=None, *, validate=None):
 
     with tempfile.TemporaryDirectory(prefix=".evoparam-json-") as work:
         folder = save_object(result, os.path.join(work, "result.evoparam"), table_format="csv")
-        read = lambda name: open(os.path.join(folder, name), encoding="utf-8").read()
+
+        def read(name):
+            return open(os.path.join(folder, name), encoding="utf-8").read()
+
         manifest = json.loads(read("manifest.json"))
         document = {
             "schema": manifest["schema"],
@@ -142,7 +145,11 @@ def validate_json(document):
             'Validating evoparam JSON needs jsonschema: pip install "evoparam[validate]".'
         ) from err
     if isinstance(document, (str, os.PathLike)):
-        text = open(document, encoding="utf-8").read() if os.path.exists(document) else document
+        if os.path.exists(document):
+            with open(document, encoding="utf-8") as fobj:
+                text = fobj.read()
+        else:
+            text = document
         document = json.loads(text)
     try:
         jsonschema.validate(document, schema())
@@ -162,9 +169,11 @@ def from_json(source):
     if isinstance(source, dict):
         document = source
     else:
-        text = (
-            open(source, encoding="utf-8").read() if os.path.exists(os.fspath(source)) else source
-        )
+        if os.path.exists(os.fspath(source)):
+            with open(source, encoding="utf-8") as fobj:
+                text = fobj.read()
+        else:
+            text = source
         document = json.loads(text)
     for key in ("schema", "object", "structure", "arrays", "tables"):
         if key not in document:
@@ -172,9 +181,10 @@ def from_json(source):
     with tempfile.TemporaryDirectory(prefix=".evoparam-json-") as work:
         folder = os.path.join(work, "result.evoparam")
         os.makedirs(os.path.join(folder, "tables"))
-        write = lambda name, text: open(os.path.join(folder, name), "w", encoding="utf-8").write(
-            text
-        )
+
+        def write(name, text):
+            return open(os.path.join(folder, name), "w", encoding="utf-8").write(text)
+
         write("structure.json", json.dumps(document["structure"]))
         write("provenance.json", json.dumps(document.get("provenance")))
         write("settings.json", dumps(document.get("settings") or {}))

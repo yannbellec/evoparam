@@ -215,9 +215,14 @@ def permutation_test(
         onsets[b], offsets[b] = _extent(tb, critical, statistic, threshold, polarity, times[win])
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        interval = lambda v: (
-            np.nanpercentile(v, [2.5, 97.5], axis=0).T if n_boot else np.full((n_ch, 2), np.nan)
-        )
+
+        def interval(v):
+            return (
+                np.nanpercentile(v, [2.5, 97.5], axis=0).T
+                if n_boot
+                else np.full((n_ch, 2), np.nan)
+            )
+
         ci, onset_ci, offset_ci = (interval(offsets - onsets), interval(onsets), interval(offsets))
 
     avg = data.mean(axis=0)
@@ -288,11 +293,14 @@ def shuffle_test(
     mu = avg[:, base].mean(axis=1, keepdims=True)
     sd = avg[:, base].std(axis=1, keepdims=True)
     z = (avg - mu) / np.where(sd > 0, sd, np.nan)
-    stat = lambda seg: (
-        np.nanmax(np.abs(seg), axis=-1)
-        if polarity == "both"
-        else np.nanmax(seg if polarity == "positive" else -seg, axis=-1)
-    )
+
+    def stat(seg):
+        return (
+            np.nanmax(np.abs(seg), axis=-1)
+            if polarity == "both"
+            else np.nanmax(seg if polarity == "positive" else -seg, axis=-1)
+        )
+
     observed = stat(z[:, win])
     n_win, zb = int(win.sum()), z[:, base]
     if zb.shape[1] < n_win:

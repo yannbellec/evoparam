@@ -32,7 +32,9 @@ def _overlay(seed):
     gains = rng.uniform(0.9, 1.1, (n_trials, 1, 1))
     noisy = clean + gains * (topo_art @ shapes)[None]
     names = [f"E{i}" for i in range(n_channels)]
-    make = lambda d: TrialSet(data=d, times=times, sfreq=sfreq, ch_names=names)
+
+    def make(d):
+        return TrialSet(data=d, times=times, sfreq=sfreq, ch_names=names)
 
     return make(noisy), make(clean)
 
