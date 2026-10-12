@@ -169,12 +169,56 @@ def check_bounds(name, lower, upper):
 
 
 def _interp_cross(grid, values, i, j, level):
-    """Time at which ``values`` crosses ``level`` between samples ``i`` and ``j``."""
+    """Time at which ``values`` crosses ``level`` between samples ``i`` and ``j``.
 
+    Both samples must be on the grid: a negative index would silently wrap to the
+    other end, and one past the end does not exist.
+    """
+
+    if not (0 <= i < grid.size and 0 <= j < grid.size):
+        raise IndexError(f"crossing between samples {i} and {j} of a grid of {grid.size}.")
     vi, vj = values[i], values[j]
     if vj == vi:
         return float(grid[i])
     return float(grid[i] + (level - vi) * (grid[j] - grid[i]) / (vj - vi))
+
+
+def _half_height_edges(grid, lobe, peak_time, height):
+    """Times at which ``lobe`` (the curve signed so that its extremum ``height`` at
+    ``peak_time`` is positive) crosses ``height / 2`` before and after the extremum.
+
+    A side whose crossing is not on the grid is NaN; both are NaN when the extremum is
+    off the grid, where the far side cannot be reached. When no grid sample next to the
+    extremum reaches half the height (a lobe narrower than the grid step), each crossing
+    is interpolated between the extremum itself and the grid sample next to it.
+    """
+
+    half = 0.5 * height
+    if not grid[0] <= peak_time <= grid[-1]:
+        return np.nan, np.nan
+    k = int(np.clip(np.searchsorted(grid, peak_time), 1, grid.size - 1))
+    k = k if lobe[k] >= lobe[k - 1] else k - 1
+    if not lobe[k] >= half:
+        i = min(int(np.searchsorted(grid, peak_time, side="right")) - 1, grid.size - 2)
+        left = _interp_points(grid[i], lobe[i], peak_time, height, half)
+        right = _interp_points(peak_time, height, grid[i + 1], lobe[i + 1], half)
+        return left, right
+    # lobe[k] >= half: the last sample below half before k and the first one after k
+    # each have a neighbour on the lobe, inside the grid
+    below = np.nonzero(lobe[:k] < half)[0]
+    left = _interp_cross(grid, lobe, below[-1], below[-1] + 1, half) if below.size else np.nan
+    below = np.nonzero(lobe[k + 1:] < half)[0]
+    right = _interp_cross(grid, lobe, k + below[0], k + below[0] + 1, half) \
+        if below.size else np.nan
+    return left, right
+
+
+def _interp_points(t0, v0, t1, v1, level):
+    """Time at which the line through ``(t0, v0)`` and ``(t1, v1)`` reaches ``level``."""
+
+    if v1 == v0:
+        return float(t0)
+    return float(t0 + (level - v0) * (t1 - t0) / (v1 - v0))
 
 
 def _trapezoid(y, x):
@@ -327,15 +371,7 @@ def compute_features(shape, times, params, amplitude=1.0, *, onset_fraction=ONSE
     height = abs(peak_value)
 
     # Full width at half the extremum, on the lobe that holds the extremum.
-    lobe = sign * curve
-    k = int(np.clip(np.searchsorted(grid, peak_time), 1, grid.size - 1))
-    k = k if lobe[k] >= lobe[k - 1] else k - 1
-    half = 0.5 * height
-    below = np.nonzero(lobe[:k + 1] < half)[0]
-    left = _interp_cross(grid, lobe, below[-1], below[-1] + 1, half) if below.size else np.nan
-    below = np.nonzero(lobe[k:] < half)[0]
-    right = _interp_cross(grid, lobe, k + below[0] - 1, k + below[0], half) \
-        if below.size else np.nan
+    left, right = _half_height_edges(grid, sign * curve, peak_time, height)
     fwhm = right - left
     if not np.isfinite(fwhm):
         warnings.append("fwhm_outside_grid")

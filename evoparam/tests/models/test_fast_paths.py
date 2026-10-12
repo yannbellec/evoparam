@@ -109,7 +109,7 @@ def test_gaussian_tails_left_out_are_exactly_zero(name):
         assert np.array_equal(np.signbit(single), np.signbit(batched))
 
 
-@pytest.mark.parametrize("name", ["gaussian", "skewed_gaussian", "exgaussian"])
+@pytest.mark.parametrize("name", ["gaussian", "skewed_gaussian", "exgaussian", "gamma"])
 def test_features_scale_with_the_amplitude(name):
 
     rng = np.random.default_rng(3)

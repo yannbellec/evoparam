@@ -277,6 +277,72 @@ def test_latency_outside_window_is_reported_not_dropped():
     assert np.isfinite(features.fwhm)
 
 
+def test_features_of_an_extremum_after_the_feature_grid():
+    """A gamma inside its default bounds can peak after the feature grid (here at 1.4 s,
+    the grid ends near 0.98 s): the half-height search read one sample past the grid
+    (IndexError). The width is not measurable there; the rest is reported."""
+
+    tw = np.linspace(0.009, 0.5, 1006)
+    shape = shapes.Gamma(min_fwhm=0.003, max_fwhm=0.25)
+    params = np.array([0.0, 15.0, 0.1])
+    lower, upper = shape.default_bounds(tw)
+    assert np.all((lower <= params) & (params <= upper))
+    features = shape.features(tw, params, 2.0, sfreq=2048.)
+    assert features.latency == pytest.approx(1.4, abs=1e-12)
+    assert np.isnan(features.fwhm) and np.isnan(features.offset)
+    assert {"fwhm_outside_grid", "offset_outside_grid",
+            "latency_outside_window"} <= set(features.warnings)
+    assert tw[-1] < features.onset < 1.4 and features.amplitude == pytest.approx(2.0)
+    # the same for a Gaussian placed after the grid (IndexError as well)
+    late = shapes.Gaussian().features(tw, [2.0, 0.05], sfreq=2048.)
+    assert np.isnan(late.fwhm) and "fwhm_outside_grid" in late.warnings
+
+
+def test_features_of_an_extremum_before_the_feature_grid():
+    """Before the grid, the right-hand crossing used sample -1, which wraps to the end of
+    the grid (FWHM -1.5e23 s here); the width is now NaN with its warning."""
+
+    tw = np.linspace(0.009, 0.5, 1006)
+    features = shapes.Gaussian().features(tw, [-1.0, 0.05], sfreq=2048.)
+    assert np.isnan(features.fwhm) and np.isnan(features.sharpness)
+    assert {"fwhm_outside_grid", "latency_outside_window"} <= set(features.warnings)
+
+
+@pytest.mark.parametrize("sigma", [1e-5, 5e-6])
+def test_fwhm_of_a_lobe_narrower_than_the_feature_grid(sigma):
+    """No grid sample next to the extremum reaches half its height: each crossing is
+    interpolated between the extremum and its neighbouring sample, so the width is within
+    one grid step of the truth (it was 5 times the truth, or 0.41 s)."""
+
+    tw = np.linspace(0.009, 0.5, 1006)
+    step = 1 / (10 * 2048.)
+    assert 2.3548200450309493 * sigma < step
+    features = shapes.Gaussian().features(tw, [0.20001, sigma], sfreq=2048.)
+    assert features.fwhm > 0
+    assert abs(features.fwhm - 2.3548200450309493 * sigma) < step
+    assert "fwhm_outside_grid" not in features.warnings
+
+
+@pytest.mark.parametrize("name", sorted(ALL))
+def test_features_on_the_whole_box_of_parameters(name):
+    """Every shape gives features (no exception) on parameters drawn over its default
+    bounds, corners included, in two windows; a width that is not NaN is positive and
+    NaN widths, onsets and offsets carry their warnings."""
+
+    shape = ALL[name]
+    rng = np.random.default_rng(31)
+    for tw, sfreq in ((np.linspace(0.009, 0.5, 1006), 2048.), (TIMES, SFREQ)):
+        lower, upper = shape.default_bounds(tw)
+        for i in range(120):
+            u = rng.random(shape.n_params) if i < 80 else rng.integers(0, 2, shape.n_params)
+            features = shape.features(tw, lower + (upper - lower) * u, -3.0, sfreq=sfreq)
+            assert features.fwhm > 0 or ("fwhm_outside_grid" in features.warnings
+                                         and np.isnan(features.fwhm))
+            for key in ("onset", "offset"):
+                assert np.isfinite(getattr(features, key)) or \
+                    f"{key}_outside_grid" in features.warnings
+
+
 def test_vectorised_shapes():
     rng = np.random.default_rng(8)
     for name, shape in ALL.items():
