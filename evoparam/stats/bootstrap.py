@@ -14,13 +14,16 @@ percentile interval.
 """
 
 import time as _time
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from typing import cast
 
 import numpy as np
 from scipy.stats import norm
 from scipy.stats import t as student_t
 
+from evoparam._typing import Any, ArrayLike, FloatArray, NDArray, RandomState
 from evoparam.data import Evoked, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
@@ -59,11 +62,11 @@ BOOTSTRAP_COLUMNS = {
 ## Intervals
 
 
-def _quantile_z(ci_level, expand_n):
+def _quantile_z(ci_level: Any, expand_n: Any) -> NDArray[Any]:
     """Lower and upper standard-normal quantiles of the interval, expanded for small samples."""
     alpha = (1 - ci_level) / 2
     if expand_n is None:
-        return norm.ppf([alpha, 1 - alpha])
+        return cast("NDArray[Any]", norm.ppf([alpha, 1 - alpha]))
     n = float(expand_n)
     if n < 2:
         raise SettingsError("expand_n must be at least 2.")
@@ -74,8 +77,14 @@ def _quantile_z(ci_level, expand_n):
 
 
 def bootstrap_interval(
-    estimate, boot, *, jackknife=None, ci_level=0.95, method="bca", expand_n=None
-):
+    estimate: float,
+    boot: ArrayLike,
+    *,
+    jackknife: ArrayLike | None = None,
+    ci_level: float = 0.95,
+    method: str = "bca",
+    expand_n: int | None = None,
+) -> dict[str, Any]:
     """Percentile or BCa interval of one statistic from its bootstrap values.
 
     Parameters
@@ -127,7 +136,7 @@ def bootstrap_interval(
     }
 
 
-def _sorted_quantile(sorted_boot, n_finite, levels):
+def _sorted_quantile(sorted_boot: Any, n_finite: Any, levels: Any) -> Any:
     """Return linear-interpolation quantiles (as numpy's default) of each column.
 
     The array is column-sorted and its first ``n_finite`` entries are finite; ``levels`` [n_levels,
@@ -142,7 +151,9 @@ def _sorted_quantile(sorted_boot, n_finite, levels):
     return a + frac * (b - a)
 
 
-def _intervals(estimate, boot, jack, ci_level, method, expand_n):
+def _intervals(
+    estimate: Any, boot: Any, jack: Any, ci_level: Any, method: Any, expand_n: Any
+) -> dict[str, Any]:
     """Percentile or BCa intervals of every column of ``boot`` [n_boot, k] at once."""
     if method not in METHODS:
         raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
@@ -204,7 +215,7 @@ def _intervals(estimate, boot, jack, ci_level, method, expand_n):
 ## Resampling
 
 
-def _strata(ts, by):
+def _strata(ts: Any, by: Any) -> Any:
     """Row indices of each stratum (one stratum when no ``by`` column is in the metadata)."""
     meta = ts.metadata
     columns = [c for c in (by or ()) if meta is not None and c in meta.columns]
@@ -214,13 +225,13 @@ def _strata(ts, by):
     return [np.flatnonzero(keys == key) for key in dict.fromkeys(keys)]
 
 
-def _indices(strata, n_boot, rng):
+def _indices(strata: Any, n_boot: Any, rng: np.random.Generator) -> NDArray[Any]:
     """Resampled trial indices [n_boot, n_trials], drawn within each stratum."""
     parts = [rows[rng.integers(0, len(rows), (n_boot, len(rows)))] for rows in strata]
     return np.concatenate(parts, axis=1)
 
 
-def _subset(ts, rows):
+def _subset(ts: Any, rows: Any) -> Any:
     """Return the trials ``rows`` of a TrialSet (same provenance: a resample is not a new step)."""
     meta = None if ts.metadata is None else ts.metadata.iloc[rows].reset_index(drop=True)
     return replace(
@@ -232,7 +243,7 @@ def _subset(ts, rows):
     )
 
 
-def _as_vector(value):
+def _as_vector(value: Any) -> tuple[list[str], NDArray[Any]]:
     """Statistic value -> (labels, values)."""
     if hasattr(value, "index") and hasattr(value, "to_numpy"):  # pandas Series
         return [str(k) for k in value.index], np.asarray(value.to_numpy(), float).ravel()
@@ -243,7 +254,9 @@ def _as_vector(value):
     return [str(i) for i in range(arr.size)], arr
 
 
-def _score_path(ts, func, strata, n_boot, rng, inside):
+def _score_path(
+    ts: Any, func: Any, strata: Any, n_boot: Any, rng: np.random.Generator, inside: Any
+) -> tuple[Any, FloatArray, FloatArray]:
     """Scores of the average of every resample, every channel.
 
     [n_boot, n_channels] (``func`` scores waveforms cropped to the samples ``inside`` the window).
@@ -257,7 +270,7 @@ def _score_path(ts, func, strata, n_boot, rng, inside):
     values = np.where(finite, flat, 0.0)
     count = finite.astype(float)
 
-    def average(weights):
+    def average(weights: Any) -> Any:
         num, den = weights @ values, weights @ count
         avg = np.divide(num, den, out=np.full(num.shape, np.nan), where=den > 0)
         return avg.reshape(len(weights), n_ch, n_t)
@@ -279,11 +292,13 @@ def _score_path(ts, func, strata, n_boot, rng, inside):
     return np.atleast_1d(estimate), boot, jack
 
 
-def _callable_path(ts, statistic, strata, n_boot, rng, n_jobs):
+def _callable_path(
+    ts: Any, statistic: Any, strata: Any, n_boot: Any, rng: np.random.Generator, n_jobs: Any
+) -> tuple[list[str], NDArray[Any], NDArray[Any], NDArray[Any]]:
     labels, estimate = _as_vector(statistic(ts))
     index = _indices(strata, n_boot, rng)
 
-    def one(rows):
+    def one(rows: Any) -> Any:
         lab, val = _as_vector(statistic(_subset(ts, rows)))
         if val.size != estimate.size:
             raise DataError(
@@ -308,19 +323,19 @@ def _callable_path(ts, statistic, strata, n_boot, rng, n_jobs):
 
 
 def bootstrap(  # noqa: PLR0913  (public API, signature fixed by spec §5.11)
-    ts,
-    statistic,
+    ts: "TrialSet",
+    statistic: Any,
     *,
-    n_boot=1000,
-    by=("stim_site",),
-    ci_level=0.95,
-    method="bca",
-    random_state=None,
-    n_jobs=1,
-    window=None,
-    expand=True,
-    **scorer_kw,
-):
+    n_boot: int = 1000,
+    by: Sequence[str] = ("stim_site",),
+    ci_level: float = 0.95,
+    method: str = "bca",
+    random_state: RandomState | None = None,
+    n_jobs: int = 1,
+    window: tuple[float, float] | None = None,
+    expand: bool = True,
+    **scorer_kw: Any,
+) -> Any:
     """Bootstrap interval of any statistic of the trials.
 
     Parameters

@@ -20,11 +20,13 @@ each row's pixels are then tested at the row's level.
 """
 
 import warnings
+from typing import cast
 
 import numpy as np
 from scipy import ndimage
 from scipy import stats as sstats
 
+from evoparam._typing import Any, BoolArray, FloatArray, NDArray
 from evoparam.errors import SettingsError
 
 __all__ = [
@@ -46,7 +48,7 @@ TFCE_E, TFCE_H, TFCE_DH = 0.5, 2.0, 0.2
 PERM_CHUNK = 64
 
 
-def t_map(d):
+def t_map(d: Any) -> tuple[Any, Any]:
     """One-sample ``t`` across trials (axis 0), NaN-aware. Returns (t, n)."""
     n = np.sum(np.isfinite(d), axis=0)
     filled = np.nan_to_num(d)
@@ -58,15 +60,15 @@ def t_map(d):
     return t, n
 
 
-def p_values(t, n):
+def p_values(t: Any, n: Any) -> NDArray[Any]:
     """Two-sided p-values of ``t`` with ``n - 1`` degrees of freedom."""
     with np.errstate(invalid="ignore"):
         p = 2 * sstats.t.sf(np.abs(t), np.maximum(n - 1, 1))
     p[~np.isfinite(t)] = np.nan
-    return p
+    return cast("NDArray[Any]", p)
 
 
-def fdr_significant(p, alpha):
+def fdr_significant(p: Any, alpha: Any) -> NDArray[Any]:
     """Benjamini-Hochberg: True where ``p`` is at or below the step-up threshold."""
     flat = p[np.isfinite(p)]
     out = np.zeros(p.shape, bool)
@@ -77,12 +79,12 @@ def fdr_significant(p, alpha):
     below = ranked <= alpha * np.arange(1, m + 1) / m
     if not below.any():
         return out
-    threshold = ranked[np.flatnonzero(below).max()]
+    threshold = ranked[np.max(np.flatnonzero(below))]
     out[np.isfinite(p)] = p[np.isfinite(p)] <= threshold
     return out
 
 
-def bh_adjusted(p):
+def bh_adjusted(p: Any) -> NDArray[Any]:
     """Benjamini-Hochberg adjusted p-values (NaN left out and kept).
 
     ``p <= q`` after adjustment is the step-up procedure at level ``q``; the smallest adjusted
@@ -103,7 +105,7 @@ def bh_adjusted(p):
     return out
 
 
-def within_map_p(p, method):
+def within_map_p(p: Any, method: Any) -> Any:
     """Return the pixel p-values adjusted within one map.
 
     So that ``p <= alpha`` is the map's test at level ``alpha``: Benjamini-Hochberg for ``fdr``,
@@ -117,7 +119,9 @@ def within_map_p(p, method):
     return np.asarray(p, float)
 
 
-def baseline_normal_map(power, baseline, window):
+def baseline_normal_map(
+    power: FloatArray, baseline: Any, window: Any
+) -> tuple[NDArray[Any], NDArray[Any]]:
     """Compute the published per-pixel test of [LIT-tf-4] (§2.4).
 
     The trial average of the power in dB (``10 log10``) is compared, at each frequency, with a
@@ -149,7 +153,7 @@ def baseline_normal_map(power, baseline, window):
 CHANNEL_CORRECTIONS = ("fdr_bh", "holm", "bonferroni", "none")
 
 
-def row_levels(row_p, alpha, method):
+def row_levels(row_p: Any, alpha: Any, method: Any) -> FloatArray:
     """Return the level at which each map row (channel x condition) is tested.
 
     From the rows' smallest adjusted pixel p-values (spec §5.10 method 4, "corrections across
@@ -194,12 +198,12 @@ def row_levels(row_p, alpha, method):
         return levels
     below = p[order] <= alpha * np.arange(1, m + 1) / m
     if below.any():
-        selected = int(np.flatnonzero(below).max()) + 1
+        selected = int(np.max(np.flatnonzero(below))) + 1
         levels[order[:selected]] = selected * alpha / m
     return levels
 
 
-def _flipped_t(signs, filled, sumsq, n):
+def _flipped_t(signs: Any, filled: Any, sumsq: Any, n: Any) -> Any:
     """``t`` maps of sign-flipped trials: signs (B, n_trials) -> (B, n_pixels)."""
     with np.errstate(divide="ignore", invalid="ignore"):
         mean = (signs @ filled) / n
@@ -207,7 +211,7 @@ def _flipped_t(signs, filled, sumsq, n):
         return mean / np.sqrt(var / n)
 
 
-def _cluster_masses(tmap, threshold):
+def _cluster_masses(tmap: Any, threshold: Any) -> tuple[list[Any], list[Any]]:
     """Masses and labels of the supra-threshold clusters of both signs."""
     masses, labels = [], []
     for sign in (1, -1):
@@ -226,7 +230,7 @@ _STACK = np.zeros((3, 3, 3), bool)
 _STACK[1] = ndimage.generate_binary_structure(2, 1)
 
 
-def _null_cluster_max(stack, threshold):
+def _null_cluster_max(stack: Any, threshold: Any) -> FloatArray:
     """Largest cluster mass of each map of a stack (B, F, T), both signs."""
     out = np.zeros(stack.shape[0])
     filled = np.nan_to_num(stack)
@@ -242,7 +246,7 @@ def _null_cluster_max(stack, threshold):
     return out
 
 
-def _tfce(stack, dh):
+def _tfce(stack: Any, dh: Any) -> Any:
     """TFCE score of each pixel of each map of a stack (B, F, T), signed (both tails)."""
     out = np.zeros(stack.shape)
     filled = np.nan_to_num(stack)
@@ -262,15 +266,15 @@ def _tfce(stack, dh):
 
 
 def test_map(
-    d,
-    window,
+    d: FloatArray,
+    window: BoolArray,
     *,
-    method="fdr",  # noqa: PT028  (not a pytest test: the statistical test of a map)
-    alpha=0.05,  # noqa: PT028  (not a pytest test: the statistical test of a map)
-    n_permutations=1000,  # noqa: PT028  (not a pytest test: the statistical test of a map)
-    rng=None,  # noqa: PT028  (not a pytest test: the statistical test of a map)
-    cluster_alpha=0.05,  # noqa: PT028  (not a pytest test: the statistical test of a map)
-):
+    method: str = "fdr",  # noqa: PT028  (not a pytest test: the statistical test of a map)
+    alpha: float = 0.05,  # noqa: PT028  (not a pytest test: the statistical test of a map)
+    n_permutations: int = 1000,  # noqa: PT028  (not a pytest test: the statistical test of a map)
+    rng: np.random.Generator | None = None,  # noqa: PT028  (not a pytest test: the statistical test of a map)
+    cluster_alpha: float = 0.05,  # noqa: PT028  (not a pytest test: the statistical test of a map)
+) -> tuple[FloatArray, BoolArray, FloatArray]:
     """Statistics of one map.
 
     Parameters
@@ -324,7 +328,17 @@ def test_map(
     return t, sig, p
 
 
-def _permutation(d, t, n, tested, method, alpha, n_permutations, rng, cluster_alpha):
+def _permutation(
+    d: Any,
+    t: Any,
+    n: Any,
+    tested: Any,
+    method: Any,
+    alpha: Any,
+    n_permutations: Any,
+    rng: np.random.Generator | None,
+    cluster_alpha: Any,
+) -> Any:
     rng = np.random.default_rng(rng)
     n_trials = d.shape[0]
     shape = t.shape

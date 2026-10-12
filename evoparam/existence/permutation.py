@@ -11,6 +11,7 @@ import warnings
 import numpy as np
 from scipy.stats import t as student_t
 
+from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import DataError
 from evoparam.errors import warn as _warn
 
@@ -34,7 +35,7 @@ TAIL_MIN_EXCEED = 10
 TAIL_QUANTILE = 0.9
 
 
-def tail_p_value(null, observed):
+def tail_p_value(null: Any, observed: Any) -> float:
     """Return the permutation p-value, with a generalised Pareto tail when needed.
 
     The tail is used when the observed value lies in the far tail of the null (Knijnenburg et al.
@@ -65,7 +66,7 @@ def tail_p_value(null, observed):
     return float(np.clip(tail, 1e-300, plain))
 
 
-def sign_flips(n_trials, n_permutations, rng):
+def sign_flips(n_trials: int, n_permutations: Any, rng: np.random.Generator) -> Any:
     """Random sign patterns (P x n), or every pattern when there are at most n_permutations."""
     if 2**n_trials <= n_permutations:
         grid = (np.arange(2**n_trials)[:, None] >> np.arange(n_trials)) & 1
@@ -73,10 +74,10 @@ def sign_flips(n_trials, n_permutations, rng):
     return rng.choice([-1.0, 1.0], size=(n_permutations, n_trials)), False
 
 
-def max_cluster_mass(t, threshold, polarity="both"):
+def max_cluster_mass(t: Any, threshold: Any, polarity: str = "both") -> Any:
     """Largest sum of |t| over a run of samples beyond ``threshold`` (same sign), per row."""
 
-    def runs(v):
+    def runs(v: Any) -> Any:
         csum = np.cumsum(v, axis=-1)
         reset = np.maximum.accumulate(np.where(v == 0, csum, 0.0), axis=-1)
         return np.max(csum - reset, axis=-1)
@@ -90,7 +91,7 @@ def max_cluster_mass(t, threshold, polarity="both"):
     return np.maximum(pos, neg)
 
 
-def _summary(t, statistic, threshold, polarity):
+def _summary(t: Any, statistic: Any, threshold: Any, polarity: Any) -> Any:
     if statistic == "cluster":
         return max_cluster_mass(t, threshold, polarity)
     if polarity == "positive":
@@ -100,7 +101,7 @@ def _summary(t, statistic, threshold, polarity):
     return np.max(np.abs(t), axis=-1)
 
 
-def _t_series(sum_x, sum_x2, n):
+def _t_series(sum_x: Any, sum_x2: Any, n: Any) -> Any:
     mean = sum_x / n
     var = np.clip((sum_x2 - n * mean**2) / (n - 1), 0, None)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -108,7 +109,9 @@ def _t_series(sum_x, sum_x2, n):
     return np.nan_to_num(t, nan=0.0, posinf=0.0, neginf=0.0)
 
 
-def _extent(t, critical, statistic, threshold, polarity, times):
+def _extent(
+    t: Any, critical: Any, statistic: Any, threshold: Any, polarity: Any, times: Any
+) -> tuple[NDArray[Any], NDArray[Any]]:
     """Onset and offset (s) of the significant samples or clusters of each channel."""
     n_ch = t.shape[0]
     onset, offset = np.full(n_ch, np.nan), np.full(n_ch, np.nan)
@@ -118,6 +121,7 @@ def _extent(t, critical, statistic, threshold, polarity, times):
             continue
         if statistic == "max_t":
             values = np.abs(t[c]) if polarity == "both" else signed[c]
+            hits: Any
             hits = np.flatnonzero(values > critical[c])
         else:
             hits = []
@@ -136,20 +140,20 @@ def _extent(t, critical, statistic, threshold, polarity, times):
 
 
 def permutation_test(
-    data,
-    times,
-    window,
-    baseline,
+    data: FloatArray,
+    times: FloatArray,
+    window: tuple[float, float],
+    baseline: tuple[float, float],
     *,
-    n_permutations=1000,
-    statistic="max_t",
-    cluster_threshold=None,
-    polarity="both",
-    alpha=0.05,
-    rng=None,
-    n_boot=200,
-    masks=None,
-):
+    n_permutations: int = 1000,
+    statistic: str = "max_t",
+    cluster_threshold: Any = None,
+    polarity: str = "both",
+    alpha: float = 0.05,
+    rng: np.random.Generator | None = None,
+    n_boot: int = 200,
+    masks: Any = None,
+) -> dict[str, Any]:
     """Sign-flip permutation test of every channel.
 
     Parameters
@@ -216,7 +220,7 @@ def permutation_test(
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
 
-        def interval(v):
+        def interval(v: Any) -> Any:
             return (
                 np.nanpercentile(v, [2.5, 97.5], axis=0).T
                 if n_boot
@@ -254,7 +258,7 @@ def permutation_test(
     }
 
 
-def null_band(level, polarity, n_times):
+def null_band(level: Any, polarity: Any, n_times: int) -> NDArray[Any]:
     """Return the null band [n_channels, n_times, 2] (low, high) of a statistic over time.
 
     From one level per channel: (-level, level) for a two-sided test, NaN on the side a one-sided
@@ -268,8 +272,16 @@ def null_band(level, polarity, n_times):
 
 
 def shuffle_test(
-    avg, times, window, baseline, *, n_permutations=1000, polarity="both", alpha=0.05, rng=None
-):
+    avg: Any,
+    times: Any,
+    window: Any,
+    baseline: Any,
+    *,
+    n_permutations: int = 1000,
+    polarity: str = "both",
+    alpha: float = 0.05,
+    rng: np.random.Generator | None = None,
+) -> dict[str, Any]:
     """Test for an average without trials.
 
     The largest |z| of the window against windows of the same length drawn from the baselines of
@@ -294,7 +306,7 @@ def shuffle_test(
     sd = avg[:, base].std(axis=1, keepdims=True)
     z = (avg - mu) / np.where(sd > 0, sd, np.nan)
 
-    def stat(seg):
+    def stat(seg: Any) -> Any:
         return (
             np.nanmax(np.abs(seg), axis=-1)
             if polarity == "both"

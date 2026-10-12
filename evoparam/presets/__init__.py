@@ -20,6 +20,7 @@ import copy
 import dataclasses
 import json
 from importlib import resources
+from typing import Any, cast
 
 from evoparam import _plugins
 from evoparam.errors import SettingsError
@@ -57,14 +58,14 @@ class Preset:
 
     name: str
     modality: str
-    species: tuple
-    epoch: tuple
-    baseline: tuple | None
-    artifact_window: tuple | None
+    species: tuple[str, ...]
+    epoch: tuple[float, ...]
+    baseline: tuple[float, ...] | None
+    artifact_window: tuple[float, ...] | None
     artifact_method: str | None
     reference: str | None
-    fit_window: tuple
-    shapes: tuple
+    fit_window: tuple[float, ...]
+    shapes: tuple[str, ...]
     background: str
     max_components: int
     min_fwhm: float
@@ -72,26 +73,26 @@ class Preset:
     polarity: str
     existence_method: str
     existence_alpha: float
-    component_labels: dict
+    component_labels: dict[str, tuple[float, ...]]
     trial_fit: bool
-    citation: tuple
+    citation: tuple[str, ...]
     version: str
     validation: str
-    label_polarity: dict = dataclasses.field(default_factory=dict)
+    label_polarity: dict[str, int] = dataclasses.field(default_factory=dict)
     trial_mode: str | None = None
     selection: str = "bic"
     delta: float = 10.0
     uncertainty: str = "jacobian"
-    choices: dict = dataclasses.field(default_factory=dict)
-    notes: dict = dataclasses.field(default_factory=dict)
-    fit_extras: dict = dataclasses.field(default_factory=dict)
+    choices: dict[str, str] = dataclasses.field(default_factory=dict)
+    notes: dict[str, str] = dataclasses.field(default_factory=dict)
+    fit_extras: dict[str, Any] = dataclasses.field(default_factory=dict)
     reference_sensitivity: bool = False
-    trial_covariates: tuple = ()
+    trial_covariates: tuple[str, ...] = ()
     train_baseline: float | None = None
     parent: str | None = None
-    overrides: dict = dataclasses.field(default_factory=dict)
+    overrides: dict[str, Any] = dataclasses.field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         for name in ("species", "shapes", "citation", "trial_covariates"):
             object.__setattr__(self, name, tuple(getattr(self, name)))
@@ -122,11 +123,11 @@ class Preset:
             )
 
     @property
-    def fields(self):
+    def fields(self) -> tuple[str, ...]:
         """Names of the fields of the preset."""
         return tuple(f.name for f in dataclasses.fields(self))
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Return the preset as a dict of plain values."""
         out = {}
         for f in dataclasses.fields(self):
@@ -139,7 +140,7 @@ class Preset:
         return out
 
 
-def _load_builtin():
+def _load_builtin() -> dict[str, "Preset"]:
     out = {}
     folder = resources.files("evoparam.presets")
     for entry in sorted(folder.iterdir(), key=lambda e: e.name):
@@ -149,7 +150,7 @@ def _load_builtin():
     return out
 
 
-def get(name):
+def get(name: "str | Preset") -> "Preset":
     """Return the preset ``name`` (a :class:`Preset` is returned as it is).
 
     Raises
@@ -161,10 +162,10 @@ def get(name):
         return name
     if name not in PRESETS:
         raise SettingsError(f"Unknown preset {name!r}; known: {sorted(PRESETS)}.")
-    return PRESETS[name]
+    return cast("Preset", PRESETS[name])
 
 
-def list():  # noqa: A001 (the name of the spec's API)
+def list() -> Any:  # noqa: A001 (the name of the spec's API)
     """Table of the presets: name, modality, species, citation keys, version, validation."""
     import pandas as pd
 
@@ -184,7 +185,7 @@ def list():  # noqa: A001 (the name of the spec's API)
     )
 
 
-def derive(base, **overrides):
+def derive(base: "str | Preset", **overrides: Any) -> "Preset":
     """Return a new frozen preset: ``base`` with ``overrides``.
 
     The parent is recorded and never changed.
@@ -210,7 +211,15 @@ def derive(base, **overrides):
     return Preset(**values)
 
 
-def targeted(base, label, window, polarity, *, margin=0.05, name=None):
+def targeted(
+    base: "str | Preset",
+    label: str,
+    window: tuple[float, float],
+    polarity: str,
+    *,
+    margin: float = 0.05,
+    name: str | None = None,
+) -> "Preset":
     """Return a preset that measures one expected component.
 
     One component of the given polarity, fitted in ``window`` widened by ``margin`` on each side,
@@ -255,7 +264,7 @@ def targeted(base, label, window, polarity, *, margin=0.05, name=None):
     )
 
 
-def register(preset, *, overwrite=False):
+def register(preset: "Preset", *, overwrite: bool = False) -> None:
     """Add a preset to the registry (a built-in name only with ``overwrite=True``)."""
     if not isinstance(preset, Preset):
         raise SettingsError("register expects a Preset (see derive or from_json).")
@@ -264,12 +273,12 @@ def register(preset, *, overwrite=False):
     PRESETS[preset.name] = preset
 
 
-def to_json(preset):
+def to_json(preset: "str | Preset") -> str:
     """JSON text of a preset (the format of the files of this folder)."""
     return json.dumps(get(preset).to_dict(), indent=2)
 
 
-def from_json(text):
+def from_json(text: str) -> "Preset":
     """Preset from JSON text."""
     values = json.loads(text)
     known = {f.name for f in dataclasses.fields(Preset)}
@@ -279,7 +288,7 @@ def from_json(text):
     return Preset(**values)
 
 
-def _yaml():
+def _yaml() -> Any:
     try:
         import yaml
     except ImportError as err:
@@ -290,17 +299,17 @@ def _yaml():
     return yaml
 
 
-def to_yaml(preset):
+def to_yaml(preset: "str | Preset") -> str:
     """YAML text of a preset (needs PyYAML)."""
-    return _yaml().safe_dump(get(preset).to_dict(), sort_keys=False)
+    return cast("str", _yaml().safe_dump(get(preset).to_dict(), sort_keys=False))
 
 
-def from_yaml(text):
+def from_yaml(text: str) -> "Preset":
     """Preset from YAML text (needs PyYAML)."""
     return Preset(**_yaml().safe_load(text))
 
 
-def fit_fields(preset):
+def fit_fields(preset: "str | Preset") -> dict[str, Any]:
     """Return the settings of the fitting engine that a preset fixes (``FitSettings`` names)."""
     p = get(preset)
     windows = {
@@ -325,7 +334,7 @@ def fit_fields(preset):
     return out
 
 
-def methods_note(preset):
+def methods_note(preset: "str | Preset") -> str:
     """Return the preset's part of a methods text.
 
     Name, version, parent and overrides, the validation status (spec REQ-279) and the preset's
@@ -348,7 +357,7 @@ def methods_note(preset):
     return text
 
 
-def _plugin_preset(name, obj, origin):
+def _plugin_preset(name: str, obj: object, origin: str) -> "Preset":
     """Check a preset of the entry-point group ``evoparam.presets`` (spec §10.8)."""
     if not isinstance(obj, Preset):
         raise SettingsError(

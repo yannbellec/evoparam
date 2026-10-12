@@ -7,8 +7,11 @@ on the method (US 2022/0338786 A1, Brown University) was pending when the specif
 was written; see the specification, section 13.
 """
 
+from typing import cast
+
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray, IntArray, NDArray
 from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = ["estimate_period", "period_lags", "period_filter"]
@@ -24,7 +27,7 @@ NEIGHBOUR_FRACTION = 0.002
 MIN_BIN_SAMPLES = 50
 
 
-def _periodic_mse(x, period, half):
+def _periodic_mse(x: Any, period: Any, half: Any) -> float:
     """Mean squared error of predicting each sample from its phase neighbours.
 
     Samples are sorted by phase ``(n mod period) / period``; each one is predicted by the
@@ -41,7 +44,9 @@ def _periodic_mse(x, period, half):
     return float(np.mean((values - pred) ** 2))
 
 
-def estimate_period(x, sfreq, f_guess, *, search=0.02, n_stages=3):
+def estimate_period(
+    x: ArrayLike, sfreq: float, f_guess: float, *, search: float = 0.02, n_stages: int = 3
+) -> float:
     """Estimate the period of a repeating artifact, in fractional samples.
 
     A grid search minimises the error of a fit that repeats with the period (each sample
@@ -65,7 +70,7 @@ def estimate_period(x, sfreq, f_guess, *, search=0.02, n_stages=3):
     period : float
         Period in samples (``sfreq / period`` is the stimulation frequency in Hz).
     """
-    x = np.asarray(x, dtype=float)
+    x = cast(FloatArray, np.asarray(x, dtype=float))
     if x.ndim != 1:
         raise SettingsError("estimate_period expects a 1d signal.")
     if not (sfreq > 0 and f_guess > 0 and 0 < search < 0.5):
@@ -92,7 +97,9 @@ def estimate_period(x, sfreq, f_guess, *, search=0.02, n_stages=3):
     return float(best)
 
 
-def period_lags(period, n_times, *, n_bins=None, n_skip=0, d_period=None):
+def period_lags(
+    period: Any, n_times: int, *, n_bins: Any = None, n_skip: int = 0, d_period: Any = None
+) -> tuple[NDArray[Any], int]:
     """Lags (in samples) whose phase matches the period.
 
     A lag ``L`` with ``n_skip < L <= n_bins`` is kept when ``L mod period`` is within
@@ -124,7 +131,7 @@ def period_lags(period, n_times, *, n_bins=None, n_skip=0, d_period=None):
     return lags, int(n_bins)
 
 
-def period_filter(data, lags, causal=False):
+def period_filter(data: ArrayLike, lags: IntArray, causal: bool = False) -> tuple[Any, Any]:
     """Subtract, from every sample, the mean of the samples at the matching lags.
 
     ``x_hat[t] = x[t] - mean({x[t - L], x[t + L] : L in lags, inside the series})``. This is
@@ -145,7 +152,7 @@ def period_filter(data, lags, causal=False):
 
     data = np.asarray(data, dtype=float)
     n_times = data.shape[-1]
-    reach = int(lags.max())
+    reach = int(np.max(lags))
     kernel = np.zeros(2 * reach + 1)
     kernel[reach + lags] = 1.0  # past samples x[t - L] (convolution flips)
     if not causal:

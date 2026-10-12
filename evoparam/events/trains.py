@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import EventError
 from evoparam.utils._optional import require
 
@@ -15,13 +16,19 @@ GAP_FACTOR = 3.0
 DEFAULT_MAX_GAP = 2.0
 
 
-def _times(events):
+def _times(events: Any) -> NDArray[Any]:
     if "onset_time" not in events.columns:
         raise EventError("The event table needs an 'onset_time' column.")
     return np.asarray(events["onset_time"], dtype=float)
 
 
-def group_trains(events, *, max_gap=None, expected_rate=None, site_column="stim_site_guess"):
+def group_trains(
+    events: Any,
+    *,
+    max_gap: float | None = None,
+    expected_rate: float | None = None,
+    site_column: str | None = "stim_site_guess",
+) -> Any:
     """Assign each pulse to a train.
 
     Pulses are sorted by time. A new train starts when the stimulation site changes
@@ -85,7 +92,9 @@ def group_trains(events, *, max_gap=None, expected_rate=None, site_column="stim_
     return out
 
 
-def trains(events, *, site_column="stim_site_guess", current_column="stim_current_mA"):
+def trains(
+    events: Any, *, site_column: str = "stim_site_guess", current_column: str = "stim_current_mA"
+) -> Any:
     """One row per train.
 
     Parameters
@@ -130,7 +139,7 @@ def trains(events, *, site_column="stim_site_guess", current_column="stim_curren
     return pd.DataFrame(rows, columns=columns)
 
 
-def events_to_metadata(events, *, site_column="stim_site_guess"):
+def events_to_metadata(events: Any, *, site_column: str = "stim_site_guess") -> Any:
     """Turn an event table into trial metadata (standard columns of the TrialSet).
 
     Parameters

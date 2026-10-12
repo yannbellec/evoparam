@@ -7,6 +7,7 @@ tools (fraction 0.5 or 0.3, area baseline zero or a fraction of the peak) are ex
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import SettingsError
 
 __all__ = ["classical_measures", "MEASURES"]
@@ -16,7 +17,7 @@ POLARITIES = ("negative", "positive", "absolute")
 AREAS = ("total", "positive", "negative", "rectified")
 
 
-def _signed(y, polarity):
+def _signed(y: Any, polarity: Any) -> Any:
     if polarity == "negative":
         return -y
     if polarity == "positive":
@@ -24,7 +25,7 @@ def _signed(y, polarity):
     return np.abs(y)
 
 
-def _local_peak(_t, y, polarity, n_neighbors):
+def _local_peak(_t: Any, y: Any, polarity: Any, n_neighbors: Any) -> tuple[Any, bool]:
     """ERPLAB-style local peak.
 
     Larger than ``n_neighbors`` samples on each side (and than their mean); falls back to the
@@ -66,7 +67,7 @@ def _local_peak(_t, y, polarity, n_neighbors):
     return best, local
 
 
-def _area(t, y, kind, baseline):
+def _area(t: Any, y: Any, kind: Any, baseline: Any) -> float:
     values = y - baseline
     if kind == "positive":
         values = np.clip(values, 0, None)
@@ -74,11 +75,11 @@ def _area(t, y, kind, baseline):
         values = np.clip(values, None, 0)
     elif kind == "rectified":
         values = np.abs(values)
-    integrate = getattr(np, "trapezoid", None) or np.trapz  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
+    integrate = getattr(np, "trapezoid", None) or np.trapz  # type: ignore[attr-defined, unused-ignore]  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
     return float(integrate(values, t))
 
 
-def _fractional_area_latency(t, y, fraction, kind, baseline):
+def _fractional_area_latency(t: Any, y: Any, fraction: Any, kind: Any, baseline: Any) -> float:
     values = y - baseline
     if kind == "positive":
         values = np.clip(values, 0, None)
@@ -96,7 +97,7 @@ def _fractional_area_latency(t, y, fraction, kind, baseline):
     return float(t[i - 1] + frac * (t[i] - t[i - 1]))
 
 
-def _fractional_peak_latency(t, y, peak, fraction, polarity):
+def _fractional_peak_latency(t: Any, y: Any, peak: Any, fraction: Any, polarity: Any) -> float:
     s = _signed(y, polarity)
     level = fraction * s[peak]
     below = np.flatnonzero(s[: peak + 1] < level)
@@ -109,7 +110,17 @@ def _fractional_peak_latency(t, y, peak, fraction, polarity):
     return float(t[j] + frac * (t[j + 1] - t[j]))
 
 
-def _scores(t, y, *, polarity, measures, fraction, area, area_baseline, n_neighbors):
+def _scores(
+    t: Any,
+    y: Any,
+    *,
+    polarity: Any,
+    measures: Any,
+    fraction: Any,
+    area: Any,
+    area_baseline: Any,
+    n_neighbors: Any,
+) -> tuple[dict[Any, Any], bool]:
     out = {}
     peak, local = _local_peak(t, y, polarity, n_neighbors)
     if area_baseline == "zero":
@@ -133,20 +144,20 @@ def _scores(t, y, *, polarity, measures, fraction, area, area_baseline, n_neighb
 
 
 def classical_measures(  # noqa: PLR0913  (public API, signature fixed by spec ยง5.5.8)
-    times,
-    y,
+    times: Any,
+    y: Any,
     *,
-    window,
-    polarity="negative",
-    measures=("peak", "mean", "area", "fractional_area_latency"),
-    fraction=0.5,
-    area="total",
-    area_baseline="zero",
-    n_neighbors=3,
-    trials=None,
-    n_bootstrap=1000,
-    random_state=None,
-):
+    window: Any,
+    polarity: str = "negative",
+    measures: Any = ("peak", "mean", "area", "fractional_area_latency"),
+    fraction: float = 0.5,
+    area: str = "total",
+    area_baseline: str = "zero",
+    n_neighbors: int = 3,
+    trials: Any = None,
+    n_bootstrap: int = 1000,
+    random_state: Any = None,
+) -> dict[Any, Any]:
     """Conventional scores of one waveform in a window, with their definitions.
 
     - ``peak_amplitude`` / ``peak_latency``: local peak (larger than ``n_neighbors``
@@ -214,6 +225,7 @@ def classical_measures(  # noqa: PLR0913  (public API, signature fixed by spec ย
         rng = np.random.default_rng(random_state)
         names = [k for k in scores if k not in ("definition", "mean_amplitude")]
         if names:
+            boots: dict[str, list[Any]]
             boots = {k: [] for k in names}
             # the window first, without copying the whole epochs at each draw; time is kept
             # along the contiguous axis, as in trials[pick][:, inside], so that the averages

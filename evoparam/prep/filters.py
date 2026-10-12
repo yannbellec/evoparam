@@ -5,6 +5,7 @@ import time as _time
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import SettingsError
 from evoparam.errors import warn as _warn
 
@@ -13,7 +14,7 @@ from ._common import check_trialset, new
 __all__ = ["highpass", "lowpass", "notch"]
 
 
-def _warn_masks(ts, name):
+def _warn_masks(ts: Any, name: Any) -> None:
     if ts.masks is not None and ts.masks.any():
         _warn(
             f"{name}: the data have masked (replaced or blanked) samples; filtering "
@@ -24,7 +25,7 @@ def _warn_masks(ts, name):
         )
 
 
-def _apply(ts, sos, name, settings, start):
+def _apply(ts: Any, sos: Any, name: Any, settings: Any, start: Any) -> Any:
     from scipy.signal import sosfiltfilt
 
     _warn_masks(ts, name)
@@ -32,7 +33,7 @@ def _apply(ts, sos, name, settings, start):
     return new(ts, f"evoparam.prep.{name}", settings, start, data=data)
 
 
-def highpass(ts, cutoff, order=4):
+def highpass(ts: Any, cutoff: Any, order: int = 4) -> Any:
     """Zero-phase Butterworth high-pass (``sosfiltfilt``)."""
     from scipy.signal import butter
 
@@ -44,7 +45,7 @@ def highpass(ts, cutoff, order=4):
     return _apply(ts, sos, "highpass", {"cutoff": cutoff, "order": order}, start)
 
 
-def lowpass(ts, cutoff, order=4):
+def lowpass(ts: Any, cutoff: Any, order: int = 4) -> Any:
     """Zero-phase Butterworth low-pass (``sosfiltfilt``)."""
     from scipy.signal import butter
 
@@ -56,7 +57,7 @@ def lowpass(ts, cutoff, order=4):
     return _apply(ts, sos, "lowpass", {"cutoff": cutoff, "order": order}, start)
 
 
-def notch(ts, freq=60.0, q=30.0, harmonics=3):
+def notch(ts: Any, freq: float = 60.0, q: float = 30.0, harmonics: int = 3) -> Any:
     """Zero-phase notch filters at ``freq`` and its harmonics below the Nyquist frequency."""
     from scipy.signal import iirnotch, tf2sos
 

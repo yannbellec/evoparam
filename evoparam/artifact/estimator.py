@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.utils._estimator import (
@@ -34,14 +35,14 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
 
     def __init__(
         self,
-        method="template",
+        method: str = "template",
         *,
-        window=(-0.002, 0.008),
-        sfreq=None,
-        tmin=None,
-        baseline=(-0.5, -0.05),
-        random_state=None,
-    ):
+        window: Any = (-0.002, 0.008),
+        sfreq: float | None = None,
+        tmin: float | None = None,
+        baseline: Any = (-0.5, -0.05),
+        random_state: Any = None,
+    ) -> None:
         self.method = method
         self.window = window
         self.sfreq = sfreq
@@ -49,7 +50,7 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         self.baseline = baseline
         self.random_state = random_state
 
-    def _trials(self, x, *, reset):
+    def _trials(self, x: Any, *, reset: Any) -> Any:
         """(TrialSet, shape of the array input or None for a TrialSet).
 
         An array is (n_trials, n_times) or (n_trials, n_channels, n_times), checked the
@@ -61,7 +62,7 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
             x = TrialSet.from_mne(x)  # mne.Epochs (the only MNE object accepted)
         if isinstance(x, TrialSet):
             if reset:
-                self.n_features_in_ = int(x.n_times)
+                self.n_features_in_: int = int(x.n_times)
             elif x.n_times != self.n_features_in_:
                 raise DataError(
                     f"X has {x.n_times} time points, but ArtifactRemover is "
@@ -84,16 +85,16 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         )
         return ts, shape
 
-    def fit(self, X, y=None):  # noqa: N803, ARG002  (scikit-learn API: X, y)
+    def fit(self, X: Any, y: Any = None) -> "ArtifactRemover":  # noqa: N803, ARG002  (scikit-learn API: X, y)
         """Nothing is learned from X but its time axis (``times_``, ``n_features_in_``).
 
         ``y`` is ignored.
         """
         trials, _ = self._trials(X, reset=True)
-        self.times_ = np.array(trials.times)
+        self.times_: NDArray[Any] = np.array(trials.times)
         return self
 
-    def transform(self, X):  # noqa: N803  (scikit-learn API: X)
+    def transform(self, X: Any) -> Any:  # noqa: N803  (scikit-learn API: X)
         """X without the artifact.
 
         When the artifact window does not fit inside the epoch (it needs 3 samples on each side) X
@@ -105,7 +106,7 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         trials, shape = self._trials(X, reset=False)
         times = np.asarray(trials.times, float)
         step = 1.0 / float(trials.sfreq)
-        window = tuple(float(v) for v in self.window)
+        window: Any = tuple(float(v) for v in self.window)
         if window[0] - 3 * step < times[0] or window[1] + 3 * step > times[-1]:
             _warn(
                 f"ArtifactRemover: the window {window} needs 3 samples on each side "

@@ -46,11 +46,13 @@ import hashlib
 import os
 import re
 import struct
+from typing import cast
 from urllib.parse import quote, unquote
 from xml.etree import ElementTree
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray, IntArray, NDArray, StrPath
 from evoparam.errors import DataError, ReaderError
 from evoparam.errors import warn as _warn
 from evoparam.io._fetch import RemoteFile, TransferLog, fetch_bytes, is_url
@@ -137,22 +139,24 @@ _WORKERS = 16
 
 _KOOPMAN32 = 0xEB31D82E
 _CRC_SPAN = 256
+_CRC: dict[Any, Any]
 _CRC = {}
 
 
-def _crc_tables():
+def _crc_tables() -> dict[Any, Any]:
     """Build the CRC tables.
 
     The byte table, the tables of a byte followed by k zero bytes, and the operator that appends
     ``_CRC_SPAN`` zero bytes to a CRC state (one table per state byte).
     """
     if not _CRC:
+        table: Any
         table = np.arange(256, dtype=np.uint64)
         for _ in range(8):
             table = np.where(table & 1, (table >> 1) ^ _KOOPMAN32, table >> 1)
         table = table.astype(np.uint32)
 
-        def zero_byte(state):
+        def zero_byte(state: Any) -> Any:
             return (state >> np.uint32(8)) ^ table[state & np.uint32(0xFF)]
 
         dist = np.empty((_CRC_SPAN, 256), dtype=np.uint32)
@@ -169,7 +173,7 @@ def _crc_tables():
     return _CRC
 
 
-def crc32_koopman(buf, starts, lengths):
+def crc32_koopman(buf: NDArray[np.uint8], starts: Any, lengths: Any) -> FloatArray:
     """CRCs of several byte ranges of a buffer, computed together (numpy).
 
     The CRC is linear: the contribution of each byte depends only on its value and on
@@ -222,7 +226,7 @@ def crc32_koopman(buf, starts, lengths):
     return state
 
 
-def _crc_bytes(content):
+def _crc_bytes(content: Any) -> int:
     buf = np.frombuffer(content, dtype=np.uint8)
     return int(crc32_koopman(buf, [0], [buf.size])[0])
 
@@ -231,14 +235,14 @@ def _crc_bytes(content):
 ## RED decoding
 
 
-def _red_round(values):
+def _red_round(values: Any) -> Any:
     """Meflib RED_round: half away from zero, clipped to the infinity codes."""
     out = np.where(values >= 0, values + 0.5, values - 0.5)
     out = np.clip(out, RED_NEGATIVE_INFINITY, RED_POSITIVE_INFINITY)
     return np.trunc(out).astype(np.int64)
 
 
-def red_decode(buf, starts, headers):
+def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[NDArray[Any], Any]:
     """Decode RED blocks of a buffer, all blocks at once.
 
     The range decoder of meflib is run one symbol per step for every block (blocks
@@ -362,11 +366,11 @@ def red_decode(buf, starts, headers):
 ## Files
 
 
-def _text(content, offset, nbytes):
+def _text(content: Any, offset: Any, nbytes: Any) -> Any:
     return content[offset : offset + nbytes].split(b"\0", 1)[0].decode("utf-8", "replace").strip()
 
 
-def _universal_header(content, where, kind, check_crc):
+def _universal_header(content: Any, where: Any, kind: Any, check_crc: Any) -> dict[str, Any]:
     """Fields of the universal header; checks type, version, byte order and CRCs."""
     if len(content) < UNIVERSAL_HEADER_BYTES:
         raise ReaderError(f"{where}: truncated MEF file ({len(content)} bytes).")
@@ -405,14 +409,14 @@ def _universal_header(content, where, kind, check_crc):
     }
 
 
-def _encrypted(where, what, level):
+def _encrypted(where: Any, what: Any, level: Any) -> "ReaderError":
     return ReaderError(
         f"{where}: {what} is encrypted (level {level}). evoparam reads unencrypted MEF 3.0 only; "
         "decrypt the session with the MEF library and its password first."
     )
 
 
-def parse_metadata(content, where, check_crc=True):
+def parse_metadata(content: Any, where: Any, check_crc: bool = True) -> dict[str, Any]:
     """Fields of a time-series metadata file (.tmet) used by the reader."""
     header = _universal_header(content, where, "tmet", check_crc)
     if len(content) < METADATA_BYTES:
@@ -440,7 +444,7 @@ def parse_metadata(content, where, check_crc=True):
     }
 
 
-def parse_index(content, where, check_crc=True):
+def parse_index(content: Any, where: Any, check_crc: bool = True) -> NDArray[Any]:
     """Block index of a .tidx file (structured array of INDEX_DTYPE)."""
     header = _universal_header(content, where, "tidx", check_crc)
     body = len(content) - UNIVERSAL_HEADER_BYTES
@@ -453,7 +457,7 @@ def parse_index(content, where, check_crc=True):
                 )
             )
         n_entries = header["n_entries"]
-    index = np.frombuffer(
+    index: NDArray[Any] = np.frombuffer(
         content, dtype=INDEX_DTYPE, count=n_entries, offset=UNIVERSAL_HEADER_BYTES
     ).copy()
     if np.any(index["flags"] & ENCRYPTION):
@@ -467,18 +471,18 @@ def parse_index(content, where, check_crc=True):
 ## Session layout
 
 
-def _natural_key(name):
+def _natural_key(name: Any) -> list[Any]:
     return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", name)]
 
 
-def _bids_channels_tsv(path):
+def _bids_channels_tsv(path: Any) -> Any:
     """Address of the BIDS channels.tsv next to a ``*_<datatype>.mefd`` session, or None."""
     stripped = path.rstrip("/")
     sibling = re.sub(r"_[A-Za-z]+\.mefd$", "_channels.tsv", stripped)
     return None if sibling == stripped else sibling
 
 
-def _names_from_tsv(content):
+def _names_from_tsv(content: Any) -> Any:
     lines = content.decode("utf-8", "replace").splitlines()
     if not lines:
         return None
@@ -489,7 +493,7 @@ def _names_from_tsv(content):
     return [line.split("\t")[col] for line in lines[1:] if line.strip()]
 
 
-def _s3_listing(url):
+def _s3_listing(url: Any) -> Any:
     """Return (listing address, key prefix) of an S3 folder address, or None."""
     match = re.match(r"^(https?://s3[.-]([a-z0-9-]+[.-])?amazonaws\.com)/([^/?#]+)/([^?#]+)$", url)
     if match:
@@ -500,7 +504,7 @@ def _s3_listing(url):
     return None
 
 
-def _list_remote(url, log):
+def _list_remote(url: Any, log: Any) -> Any:
     """Relative paths and sizes of the files of a remote folder (S3 listing), or None."""
     found = _s3_listing(url)
     if found is None:
@@ -532,8 +536,9 @@ def _list_remote(url, log):
     return files
 
 
-def _layout_from_paths(paths):
+def _layout_from_paths(paths: Any) -> dict[Any, list[Any]]:
     """{channel: [segment numbers]} from paths relative to the session folder."""
+    out: dict[Any, Any]
     out = {}
     for rel in paths:
         match = re.match(r"^([^/]+)\.timd/\1-(\d{6})\.segd/\1-\2\.tmet$", rel)
@@ -545,7 +550,7 @@ def _layout_from_paths(paths):
 class _Session:
     """Files of a MEF session, on disk or behind an http(s) address."""
 
-    def __init__(self, path, remote, log):
+    def __init__(self, path: Any, remote: Any, log: Any) -> None:
         path = os.fspath(path)
         if remote is None:
             remote = is_url(path)
@@ -559,16 +564,16 @@ class _Session:
         if not self.remote and not os.path.isdir(self.root):
             raise ReaderError(f"MEF session not found: {self.root}")
 
-    def rel(self, channel, segment, ext):
+    def rel(self, channel: Any, segment: Any, ext: Any) -> str:
         seg = f"{channel}-{segment:06d}"
         return f"{channel}.timd/{seg}.segd/{seg}.{ext}"
 
-    def location(self, rel):
+    def location(self, rel: Any) -> str:
         if self.remote:
-            return self.root + "/" + "/".join(quote(part) for part in rel.split("/"))
-        return os.path.join(self.root, *rel.split("/"))
+            return cast("str", self.root + "/" + "/".join(quote(part) for part in rel.split("/")))
+        return cast("str", os.path.join(self.root, *rel.split("/")))
 
-    def read(self, rel, optional=False, log=None):
+    def read(self, rel: Any, optional: bool = False, log: Any = None) -> Any:
         """Whole content of a (small) file, or None for a missing optional file."""
         if self.remote:
             return fetch_bytes(self.location(rel), optional=optional, log=log)
@@ -580,9 +585,10 @@ class _Session:
         with open(path, "rb") as file:
             return file.read()
 
-    def layout(self, hint=None):
+    def layout(self, hint: Any = None) -> dict[Any, Any]:
         """{channel: [segment numbers] or None (unknown, probe)} in reading order."""
         if not self.remote:
+            channels: Any
             channels = {}
             for entry in os.listdir(self.root):
                 folder = os.path.join(self.root, entry)
@@ -621,12 +627,16 @@ class _Session:
         return {name: channels[name] for name in order}
 
 
-def _channel_names(path, *, remote=None, hint=None, log=None):
+def _channel_names(
+    path: Any, *, remote: Any = None, hint: Any = None, log: Any = None
+) -> list[Any]:
     """Names of the time-series channels of a session (ordered by ``hint``, then naturally)."""
     return list(_Session(path, remote, log).layout(hint))
 
 
-def _read_channel(session, name, segments, check_crc):
+def _read_channel(
+    session: Any, name: Any, segments: Any, check_crc: Any
+) -> tuple[dict[str, Any], int]:
     """Metadata and block index of one channel; returns (channel dict, bytes transferred)."""
     log = TransferLog()
     parts, number = [], 0
@@ -659,6 +669,7 @@ def _read_channel(session, name, segments, check_crc):
             f"frequencies {sorted(sfreqs)}."
         )
     meta = parts[0][1]
+    blocks: Any  # the tables of the segments, then one structured array
     blocks, segs = [], []
     for pos, (number, seg_meta, index) in enumerate(parts):
         segs.append(
@@ -726,7 +737,7 @@ def _read_channel(session, name, segments, check_crc):
 _UNFLAGGED_GAP = 1.0
 
 
-def _positions(blocks, sfreq, t0):
+def _positions(blocks: Any, sfreq: float, t0: Any) -> NDArray[Any]:
     """Sample of each block on the session grid (sample 0 at time ``t0``, µs).
 
     Blocks follow their sample numbers within a run of contiguous blocks: the time stamps
@@ -758,7 +769,14 @@ def _positions(blocks, sfreq, t0):
     return pos
 
 
-def read_mef_header(path, *, channels=None, remote=None, check_crc=True, log=None):
+def read_mef_header(
+    path: StrPath,
+    *,
+    channels: list[str] | None = None,
+    remote: bool | None = None,
+    check_crc: bool = True,
+    log: "TransferLog | None" = None,
+) -> dict[str, Any]:
     """Read the metadata and block indices of a MEF 3.0 session.
 
     Parameters
@@ -798,7 +816,7 @@ def read_mef_header(path, *, channels=None, remote=None, check_crc=True, log=Non
     path = os.fspath(path)
     own_log = TransferLog()
     session = _Session(path, remote, own_log)
-    hint = None if channels is None else [str(name) for name in channels]
+    hint: Any = None if channels is None else [str(name) for name in channels]
     tsv = _bids_channels_tsv(session.root) if hint is None else None
     if tsv and session.remote:
         content = fetch_bytes(tsv, optional=True, log=own_log)
@@ -858,8 +876,9 @@ def read_mef_header(path, *, channels=None, remote=None, check_crc=True, log=Non
 ## Data
 
 
-def _runs_of(blocks, need):
+def _runs_of(blocks: Any, need: Any) -> list[Any]:
     """Contiguous byte runs of the needed blocks: list of (segment, offset, nbytes, [blocks])."""
+    runs: list[Any]
     runs = []
     for ind in np.flatnonzero(need):
         seg, off, nbytes = (
@@ -875,19 +894,20 @@ def _runs_of(blocks, need):
     return runs
 
 
-def _fetch_runs(session, rel, runs):
+def _fetch_runs(session: Any, rel: Any, runs: Any) -> tuple[list[Any], list[Any], Any]:
     """Read the bytes of the runs of one .tdat file.
 
     Returns (list of bytes, digest lines, network bytes).
     """
     out, lines = [], []
     if session.remote:
+        reader: Any
         reader = RemoteFile(session.location(rel), chunk_size=_CHUNK, max_chunks=1 << 16)
         read = reader.read
     else:
         reader = open(session.location(rel), "rb")  # noqa: SIM115  (closed in the finally block below, as the remote reader is)
 
-        def read(offset, nbytes):
+        def read(offset: Any, nbytes: Any) -> Any:
             reader.seek(offset)
             return reader.read(nbytes)
 
@@ -907,7 +927,7 @@ def _fetch_runs(session, rel, runs):
     return out, lines, reader.bytes_read if session.remote else 0
 
 
-def _convert(values, factor):
+def _convert(values: Any, factor: Any) -> Any:
     """int32 samples -> float64 in µV, with the NaN and infinity codes."""
     out = values.astype(np.float64) * factor
     out[values == RED_NAN] = np.nan
@@ -916,7 +936,15 @@ def _convert(values, factor):
     return out
 
 
-def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
+def _read_grid(
+    header: Any,
+    ch_index: Any,
+    starts: Any,
+    n_times: int,
+    *,
+    check_crc: bool = True,
+    log: Any = None,
+) -> tuple[NDArray[Any], dict[str, Any]]:
     """Windows ``[start, start + n_times)`` of the session grid.
 
     Constant blocks (equal extrema in the index, the censored parts of a recording for
@@ -937,10 +965,14 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
     out = np.full((starts.size, len(ch_index), n_times), np.nan)
 
     # Blocks that cover a window; data runs grouped per file
-    pieces = []  # (col, channel index, first sample, n, values or None, value)
+    pieces: list[Any] = []  # (col, channel index, first sample, n, values or None, value)
+    files: dict[Any, Any]
     files = {}
+    ch: Any
+    col: Any
     for col, ch in enumerate(ch_index):
         channel = header["channels"][ch]
+        pos: Any
         blocks, pos = channel["blocks"], channel["pos"]
         if len(blocks) == 0:
             continue
@@ -951,6 +983,7 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
                 & (pos[None, :] + blocks["n"][None, :] > starts[lo : lo + 64, None]),
                 axis=0,
             )
+        constant: Any
         constant = need & (blocks["maximum"] == blocks["minimum"]) & (blocks["maximum"] != RED_NAN)
         for ind in np.flatnonzero(constant):
             pieces.append(
@@ -971,6 +1004,7 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
         fetched = [_fetch_runs(session, rel, runs) for rel, runs in jobs]
 
     chunks, lines, network, cursor = [], [], 0, 0
+    block_starts: Any
     block_starts, info = [], []  # info: col, ch, block, n, bytes, constant
     for (_rel, runs), (contents, file_lines, nbytes) in zip(jobs, fetched, strict=False):
         lines += file_lines
@@ -1010,7 +1044,7 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
         rows = buf[block_starts[:, None] + np.arange(BLOCK_HEADER_BYTES)]
         headers = np.frombuffer(rows.tobytes(), dtype=BLOCK_DTYPE)
 
-        def fail(which, message):
+        def fail(which: Any, message: Any) -> None:
             col, ch, ind = info[int(which)][:3]
             raise ReaderError(
                 "{}: block {} of channel {} {}".format(
@@ -1038,8 +1072,10 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
                     "them anyway.",
                 )
         decode = np.flatnonzero(table[:, 2] == 0)
+        values: Any
         values, offsets = red_decode(buf, block_starts[decode], headers[decode])
         for slot, which in enumerate(decode):
+            n: Any
             col, ch, ind, n = info[which][:4]
             pieces.append(
                 (
@@ -1087,7 +1123,7 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
 ## Public readers
 
 
-def _pick_mef(header, picks):
+def _pick_mef(header: Any, picks: Any) -> tuple[list[Any], Any]:
     index = _pick(header["ch_names"], picks)
     rates = {header["channels"][ind]["sfreq"] for ind in index}
     if len(rates) != 1:
@@ -1098,7 +1134,7 @@ def _pick_mef(header, picks):
     return index, rates.pop()
 
 
-def _warn_units(header, ch_index):
+def _warn_units(header: Any, ch_index: Any) -> None:
     other = [header["ch_names"][ind] for ind in ch_index if not header["channels"][ind]["voltage"]]
     if other:
         _warn(
@@ -1110,7 +1146,7 @@ def _warn_units(header, ch_index):
         )
 
 
-def _grid_length(header, ch_index):
+def _grid_length(header: Any, ch_index: Any) -> int:
     length = 0
     for ind in ch_index:
         channel = header["channels"][ind]
@@ -1119,7 +1155,14 @@ def _grid_length(header, ch_index):
     return length
 
 
-def _read_with_source(path, tmin=None, tmax=None, picks=None, remote=None, check_crc=True):
+def _read_with_source(
+    path: Any,
+    tmin: float | None = None,
+    tmax: float | None = None,
+    picks: Any = None,
+    remote: Any = None,
+    check_crc: bool = True,
+) -> tuple[Any, Any, list[Any], Any, dict[str, Any]]:
     """read_mef, plus the record of what was read (path, sha256, bytes read, ...)."""
     log = TransferLog()
     names = None
@@ -1157,7 +1200,15 @@ def _read_with_source(path, tmin=None, tmax=None, picks=None, remote=None, check
     return data[0], sfreq, [header["ch_names"][ind] for ind in ch_index], first / sfreq, source
 
 
-def read_mef(path, *, tmin=None, tmax=None, picks=None, remote=None, check_crc=True):
+def read_mef(
+    path: StrPath,
+    *,
+    tmin: float | None = None,
+    tmax: float | None = None,
+    picks: Any = None,
+    remote: bool | None = None,
+    check_crc: bool = True,
+) -> tuple[Any, Any, list[Any], Any]:
     """Read a MEF 3.0 session, or a time window of it.
 
     Parameters

@@ -9,11 +9,13 @@ parameter array of shape ``(..., n_params)`` and return ``(..., n_times)``;
 their Jacobians have shape ``(..., n_times, n_params)``.
 """
 
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 
+from evoparam._typing import ArrayLike, FloatArray
 from evoparam.errors import DataError, SettingsError
 
 __all__ = [
@@ -44,24 +46,42 @@ FEATURE_OVERSAMPLING = 10
 class ComponentShape(Protocol):
     """Protocol of a component shape (spec §4.3.4, §5.5.1)."""
 
-    name: str
-    param_names: tuple
-    n_params: int
-    latency_param: str
+    # read-only members: a shape may give them as class variables or properties
+    @property
+    def name(self) -> str:
+        """Registry name of the shape."""
 
-    def evaluate(self, times, params):
+    @property
+    def param_names(self) -> tuple[str, ...]:
+        """Names of the non-linear parameters, in order."""
+
+    @property
+    def n_params(self) -> int:
+        """Number of non-linear parameters."""
+
+    @property
+    def latency_param(self) -> str:
+        """Name of the parameter closest to the latency."""
+
+    def evaluate(self, times: FloatArray, params: FloatArray) -> FloatArray:
         """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
 
-    def jacobian(self, times, params):
+    def jacobian(self, times: FloatArray, params: FloatArray) -> FloatArray:
         """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(
+        self, times: FloatArray, data_range: Any = None
+    ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
 
-    def initial_guess(self, times, waveform, peak_index):
+    def initial_guess(
+        self, times: FloatArray, waveform: FloatArray, peak_index: int
+    ) -> FloatArray:
         """Return the starting parameters for a candidate extremum of ``waveform``."""
 
-    def features(self, times, params, amplitude=1.0):
+    def features(
+        self, times: FloatArray, params: FloatArray, amplitude: float = 1.0
+    ) -> "ComponentFeatures":
         """Features of the component curve (:class:`ComponentFeatures`)."""
 
 
@@ -69,20 +89,31 @@ class ComponentShape(Protocol):
 class Background(Protocol):
     """Protocol of a background (spec §4.3.4, §5.5.2)."""
 
-    name: str
-    param_names: tuple
-    n_params: int
+    # read-only members: a background may give them as class variables or properties
+    @property
+    def name(self) -> str:
+        """Registry name of the background."""
 
-    def evaluate(self, times, params):
+    @property
+    def param_names(self) -> tuple[str, ...]:
+        """Names of the parameters, in order."""
+
+    @property
+    def n_params(self) -> int:
+        """Number of parameters."""
+
+    def evaluate(self, times: FloatArray, params: FloatArray) -> FloatArray:
         """Background, ``(..., n_params) -> (..., n_times)``."""
 
-    def jacobian(self, times, params):
+    def jacobian(self, times: FloatArray, params: FloatArray) -> FloatArray:
         """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(
+        self, times: FloatArray, data_range: Any = None
+    ) -> tuple[FloatArray, FloatArray]:
         """Lower and upper bounds of the parameters for a window."""
 
-    def initial_guess(self, times, waveform):
+    def initial_guess(self, times: FloatArray, waveform: FloatArray) -> FloatArray:
         """Return the starting parameters for a waveform."""
 
 
@@ -90,7 +121,7 @@ class Background(Protocol):
 ## Helpers
 
 
-def as_times(times):
+def as_times(times: ArrayLike) -> FloatArray:
     """Return ``times`` as a finite 1-D float64 array."""
     times = np.asarray(times, dtype=np.float64)
     if times.ndim == 0:
@@ -102,7 +133,7 @@ def as_times(times):
     return times
 
 
-def as_params(params, n_params, name):
+def as_params(params: ArrayLike | None, n_params: int, name: str) -> FloatArray:
     """Return ``params`` as a float64 array whose last axis has ``n_params`` entries."""
     params = np.asarray(params, dtype=np.float64)
     if params.ndim == 0 or params.shape[-1] != n_params:
@@ -110,7 +141,7 @@ def as_params(params, n_params, name):
     return params
 
 
-def window_info(times):
+def window_info(times: ArrayLike) -> tuple[float, float, float, float]:
     """Window start, end, length and sampling rate of a strictly increasing time axis."""
     times = as_times(times)
     if times.size < 2:
@@ -126,7 +157,9 @@ def window_info(times):
     )
 
 
-def check_waveform(times, waveform, peak_index=None):
+def check_waveform(
+    times: ArrayLike, waveform: ArrayLike, peak_index: int | None = None
+) -> tuple[FloatArray, FloatArray]:
     """Check that ``waveform`` matches ``times`` (and that ``peak_index`` is inside)."""
     times = as_times(times)
     waveform = np.asarray(waveform, dtype=np.float64)
@@ -137,7 +170,7 @@ def check_waveform(times, waveform, peak_index=None):
     return times, waveform
 
 
-def peak_fwhm(times, waveform, peak_index):
+def peak_fwhm(times: FloatArray, waveform: FloatArray, peak_index: int) -> float | None:
     """Full width at half maximum of ``|waveform|`` around ``peak_index``, or None.
 
     The width is measured on each side where the half maximum is reached inside
@@ -161,12 +194,16 @@ def peak_fwhm(times, waveform, peak_index):
     return 2.0 * float(np.mean(sides))
 
 
-def clip_to_bounds(guess, bounds):
+def clip_to_bounds(
+    guess: ArrayLike | Sequence[Any], bounds: tuple[ArrayLike, ArrayLike]
+) -> FloatArray:
     lower, upper = bounds
     return np.clip(np.asarray(guess, dtype=np.float64), lower, upper)
 
 
-def check_bounds(name, lower, upper):
+def check_bounds(
+    name: str, lower: ArrayLike | Sequence[Any], upper: ArrayLike | Sequence[Any]
+) -> tuple[FloatArray, FloatArray]:
     lower = np.asarray(lower, dtype=np.float64)
     upper = np.asarray(upper, dtype=np.float64)
     if not np.all(lower < upper):
@@ -177,7 +214,7 @@ def check_bounds(name, lower, upper):
     return lower, upper
 
 
-def _interp_cross(grid, values, i, j, level):
+def _interp_cross(grid: FloatArray, values: FloatArray, i: int, j: int, level: float) -> float:
     """Time at which ``values`` crosses ``level`` between samples ``i`` and ``j``.
 
     Both samples must be on the grid: a negative index would silently wrap to the
@@ -191,7 +228,9 @@ def _interp_cross(grid, values, i, j, level):
     return float(grid[i] + (level - vi) * (grid[j] - grid[i]) / (vj - vi))
 
 
-def _half_height_edges(grid, lobe, peak_time, height):
+def _half_height_edges(
+    grid: FloatArray, lobe: FloatArray, peak_time: float, height: float
+) -> tuple[float, float]:
     """Return the times at which ``lobe`` crosses ``height / 2`` before and after the extremum.
 
     ``lobe`` is the curve signed so that its extremum ``height`` at ``peak_time`` is positive.
@@ -222,15 +261,15 @@ def _half_height_edges(grid, lobe, peak_time, height):
     return left, right
 
 
-def _interp_points(t0, v0, t1, v1, level):
+def _interp_points(t0: float, v0: float, t1: float, v1: float, level: float) -> float:
     """Time at which the line through ``(t0, v0)`` and ``(t1, v1)`` reaches ``level``."""
     if v1 == v0:
         return float(t0)
     return float(t0 + (level - v0) * (t1 - t0) / (v1 - v0))
 
 
-def _trapezoid(y, x):
-    integrate = getattr(np, "trapezoid", None) or np.trapz  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
+def _trapezoid(y: FloatArray, x: FloatArray) -> float:
+    integrate = getattr(np, "trapezoid", None) or np.trapz  # type: ignore[attr-defined, unused-ignore]  # noqa: NPY201  (NumPy < 2.0 has no trapezoid)
     return float(integrate(y, x))
 
 
@@ -287,11 +326,11 @@ class ComponentFeatures:
     symmetry: float
     sharpness: float
     peak_time: float
-    peak_times: tuple = ()
+    peak_times: tuple[float, ...] = ()
     onset_fraction: float = ONSET_FRACTION
-    warnings: tuple = ()
+    warnings: tuple[str, ...] = ()
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Return the features as a plain dictionary."""
         out = asdict(self)
         out["peak_times"] = list(self.peak_times)
@@ -299,7 +338,9 @@ class ComponentFeatures:
         return out
 
 
-def feature_grid(times, sfreq=None, window=None):
+def feature_grid(
+    times: ArrayLike, sfreq: float | None = None, window: Sequence[float] | None = None
+) -> tuple[FloatArray, float, tuple[float, float]]:
     """Return a grid ten times finer than ``1/sfreq`` around the window.
 
     It covers the window and one window length on each side, so that a component cut by a window
@@ -316,10 +357,10 @@ def feature_grid(times, sfreq=None, window=None):
     span = end - start
     step = 1.0 / (FEATURE_OVERSAMPLING * sfreq)
     n_points = int(np.ceil(3.0 * span / step)) + 1
-    return (start - span) + step * np.arange(n_points), step, (start, end)
+    return (start - span) + step * np.arange(n_points, dtype=np.float64), step, (start, end)
 
 
-def _grid_extremum(grid, values):
+def _grid_extremum(grid: FloatArray, values: FloatArray) -> float:
     k = int(np.argmax(np.abs(values)))
     if 0 < k < grid.size - 1:
         num = values[k - 1] - values[k + 1]
@@ -330,8 +371,15 @@ def _grid_extremum(grid, values):
 
 
 def compute_features(
-    shape, times, params, amplitude=1.0, *, onset_fraction=ONSET_FRACTION, sfreq=None, window=None
-):
+    shape: ComponentShape,
+    times: ArrayLike,
+    params: ArrayLike,
+    amplitude: float = 1.0,
+    *,
+    onset_fraction: float = ONSET_FRACTION,
+    sfreq: float | None = None,
+    window: Sequence[float] | None = None,
+) -> ComponentFeatures:
     """Features of the component curve ``amplitude · shape(t; params)`` (spec §5.5.1).
 
     Every feature is measured on the component curve evaluated on a grid ten
@@ -418,9 +466,9 @@ def compute_features(
     onset_param = getattr(shape, "onset_param", None)
     start_time = params[shape.param_names.index(onset_param)] if onset_param else -np.inf
     if peak_time - 2 * step < start_time:
-        x = peak_time + step * np.arange(3)
+        x = peak_time + step * np.arange(3, dtype=np.float64)
     else:
-        x = peak_time + step * np.arange(-1, 2)
+        x = peak_time + step * np.arange(-1, 2, dtype=np.float64)
     v = shape.evaluate(x, params)
     curvature = (v[0] - 2.0 * v[1] + v[2]) / step**2
     sharpness = abs(curvature) / height * fwhm**2 if height > 0 else np.nan
@@ -472,34 +520,61 @@ class ShapeBase:
     ``latency`` and ``extremum``.
     """
 
-    onset_param = None
+    name: ClassVar[str]
+    onset_param: ClassVar[str | None] = None
+    if TYPE_CHECKING:  # defined by each shape (param_names: a property of Template)
+        latency_param: ClassVar[str]
+
+        @property
+        def param_names(self) -> tuple[str, ...]:
+            """Names of the parameters, in order."""
+
+        def evaluate(self, times: ArrayLike, params: ArrayLike) -> FloatArray:
+            """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
+            ...
+
+        def jacobian(self, times: ArrayLike, params: ArrayLike) -> FloatArray:
+            """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
+            ...
+
+        def default_bounds(
+            self, times: ArrayLike, data_range: Any = None
+        ) -> tuple[FloatArray, FloatArray]:
+            """Lower and upper bounds of the parameters for a window."""
+            ...
+
+        def initial_guess(
+            self, times: ArrayLike, waveform: ArrayLike, peak_index: int
+        ) -> FloatArray:
+            """Return the starting parameters for a candidate extremum of ``waveform``."""
+            ...
 
     @property
-    def n_params(self):
+    def n_params(self) -> int:
         return len(self.param_names)
 
     @property
-    def causal(self):
+    def causal(self) -> bool:
         return self.onset_param is not None
 
-    def _params(self, params):
+    def _params(self, params: ArrayLike) -> FloatArray:
         return as_params(params, self.n_params, self.name)
 
-    def _columns(self, params):
+    def _columns(self, params: ArrayLike) -> list[FloatArray]:
         """Parameters as columns of shape (..., 1), ready to broadcast against times."""
         params = self._params(params)
         return [params[..., i, None] for i in range(self.n_params)]
 
     def features(
         self,
-        times,
-        params,
-        amplitude=1.0,
+        times: ArrayLike,
+        params: ArrayLike,
+        amplitude: float = 1.0,
         *,
-        onset_fraction=ONSET_FRACTION,
-        sfreq=None,
-        window=None,
-    ):
+        onset_fraction: float = ONSET_FRACTION,
+        sfreq: float | None = None,
+        window: Sequence[float] | None = None,
+    ) -> ComponentFeatures:
         """Features of ``amplitude · s(t; params)``; see :func:`compute_features`."""
         return compute_features(
             self,

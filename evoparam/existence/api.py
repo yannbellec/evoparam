@@ -6,9 +6,11 @@ import itertools
 import logging
 import time as _time
 import warnings
+from collections.abc import Sequence
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.data import Evoked, Provenance, ResponseTest, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
@@ -41,7 +43,7 @@ METHODS = ("baseline_permutation", "projection", "model_comparison", "threshold"
 HUMAN_KAPPA = 0.60
 
 
-def _groups(ts, by):
+def _groups(ts: Any, by: Any) -> Any:
     meta = ts.metadata
     columns = [c for c in (by or ()) if meta is not None and c in meta.columns]
     if not columns:
@@ -50,7 +52,7 @@ def _groups(ts, by):
     return [(key, np.flatnonzero(keys.to_numpy() == key)) for key in dict.fromkeys(keys)]
 
 
-def _check_artifact(ts, window, allow):
+def _check_artifact(ts: Any, window: Any, allow: Any) -> None:
     if ts.masks is None or allow:
         return
     win = (ts.times >= window[0]) & (ts.times <= window[1])
@@ -61,7 +63,9 @@ def _check_artifact(ts, window, allow):
         )
 
 
-def _model_comparison(avg, times, window, baseline, n_permutations, rng):
+def _model_comparison(
+    avg: Any, times: Any, window: Any, baseline: Any, n_permutations: Any, rng: np.random.Generator
+) -> dict[str, NDArray[Any]]:
     from evoparam.models import ResponseModel
 
     if n_permutations > 200:
@@ -75,7 +79,7 @@ def _model_comparison(avg, times, window, baseline, n_permutations, rng):
     background = ResponseModel(
         fit_window=window, baseline=baseline, classical=False, max_components=0
     )
-    out = {
+    out: dict[str, NDArray[Any]] = {
         k: np.full(len(avg), np.nan)
         for k in ("statistic", "p_value", "onset", "offset", "duration", "snr_db")
     }
@@ -88,6 +92,7 @@ def _model_comparison(avg, times, window, baseline, n_permutations, rng):
         delta = steps[-1]["criterion"] - steps[0]["criterion"]
         null_fit = background.fit_waveform(times, y)
         sigma, rho = fit.diagnostics["sigma"], fit.diagnostics["rho"]
+        null: Any
         null = []
         for _ in range(n_permutations):
             e = rng.normal(0, 1, len(times))
@@ -114,30 +119,30 @@ def _model_comparison(avg, times, window, baseline, n_permutations, rng):
 
 
 def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.6)
-    ts,
+    ts: Any,
     *,
-    method="baseline_permutation",  # noqa: PT028  (public API test_response, not a pytest test)
-    window=(0.009, 0.5),  # noqa: PT028  (public API test_response, not a pytest test)
-    baseline=(-0.5, -0.05),  # noqa: PT028  (public API test_response, not a pytest test)
-    alpha=0.05,  # noqa: PT028  (public API test_response, not a pytest test)
-    correction="fdr_bh",  # noqa: PT028  (public API test_response, not a pytest test)
-    n_permutations=1000,  # noqa: PT028  (public API test_response, not a pytest test)
-    statistic="max_t",  # noqa: PT028  (public API test_response, not a pytest test)
-    cluster_threshold=None,  # noqa: PT028  (public API test_response, not a pytest test)
-    polarity="both",  # noqa: PT028  (public API test_response, not a pytest test)
-    rule=None,  # noqa: PT028  (public API test_response, not a pytest test)
-    rule_overrides=None,  # noqa: PT028  (public API test_response, not a pytest test)
-    picks=None,  # noqa: PT028  (public API test_response, not a pytest test)
-    by=("stim_site",),  # noqa: PT028  (public API test_response, not a pytest test)
-    return_null=False,  # noqa: PT028  (public API test_response, not a pytest test)
-    allow_artifact_overlap=False,  # noqa: PT028  (public API test_response, not a pytest test)
-    n_boot=200,  # noqa: PT028  (public API test_response, not a pytest test)
-    random_state=None,  # noqa: PT028  (public API test_response, not a pytest test)
-    n_jobs=1,  # noqa: PT028  (public API test_response, not a pytest test)
-    verbose=None,  # noqa: PT028  (public API test_response, not a pytest test)
-    projection_profile="published",  # noqa: PT028  (public API test_response, not a pytest test)
-    projection_pairs="disjoint",  # noqa: PT028  (public API test_response, not a pytest test)
-):
+    method: str = "baseline_permutation",  # noqa: PT028  (public API test_response, not a pytest test)
+    window: Any = (0.009, 0.5),  # noqa: PT028  (public API test_response, not a pytest test)
+    baseline: Any = (-0.5, -0.05),  # noqa: PT028  (public API test_response, not a pytest test)
+    alpha: float = 0.05,  # noqa: PT028  (public API test_response, not a pytest test)
+    correction: str = "fdr_bh",  # noqa: PT028  (public API test_response, not a pytest test)
+    n_permutations: int = 1000,  # noqa: PT028  (public API test_response, not a pytest test)
+    statistic: str = "max_t",  # noqa: PT028  (public API test_response, not a pytest test)
+    cluster_threshold: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
+    polarity: str = "both",  # noqa: PT028  (public API test_response, not a pytest test)
+    rule: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
+    rule_overrides: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
+    picks: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
+    by: Any = ("stim_site",),  # noqa: PT028  (public API test_response, not a pytest test)
+    return_null: bool = False,  # noqa: PT028  (public API test_response, not a pytest test)
+    allow_artifact_overlap: bool = False,  # noqa: PT028  (public API test_response, not a pytest test)
+    n_boot: int = 200,  # noqa: PT028  (public API test_response, not a pytest test)
+    random_state: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
+    n_jobs: int = 1,  # noqa: PT028  (public API test_response, not a pytest test)
+    verbose: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
+    projection_profile: str = "published",  # noqa: PT028  (public API test_response, not a pytest test)
+    projection_pairs: str = "disjoint",  # noqa: PT028  (public API test_response, not a pytest test)
+) -> "ResponseTest":
     """Test whether there is a response in the window, on each channel (and stimulation site).
 
     Methods
@@ -197,6 +202,8 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         spec = resolve_rule(rule if rule is not None else "custom", **(rule_overrides or {}))
         window, baseline = spec["window"], spec["baseline"]
 
+    evoked: Any  # an Evoked whenever trials_ts is None
+    base_obj: TrialSet | Evoked
     if isinstance(ts, Evoked):
         evoked, trials_ts = ts, None
     elif isinstance(ts, TrialSet):
@@ -272,7 +279,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
             )
         results.append(res)
 
-    def stack(key):
+    def stack(key: Any) -> Any:
         return (
             np.asarray(results[0][key], float)
             if len(results) == 1
@@ -360,21 +367,21 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     )
 
 
-def _interval(result, key):
+def _interval(result: Any, key: Any) -> Any:
     """Return the [n_channels, 2] interval ``key`` of one result, NaN when the method has none."""
     n = len(np.atleast_1d(result["p_value"]))
     return np.asarray(result.get(key, np.full((n, 2), np.nan)), float).tolist()
 
 
 def existence_detector(
-    ts,
+    ts: Any,
     *,
-    window=(0.009, 0.5),
-    by=("stim_site",),
-    allow_artifact_overlap=True,
-    random_state=0,
-    **kwargs,
-):
+    window: Any = (0.009, 0.5),
+    by: Any = ("stim_site",),
+    allow_artifact_overlap: bool = True,
+    random_state: int = 0,
+    **kwargs: Any,
+) -> Any:
     """Run the existence test as a detector for :func:`evoparam.prep.reference_sensitivity`.
 
     It is the default there (``detector="existence"``).
@@ -425,7 +432,7 @@ def existence_detector(
     return significant, latency, groups
 
 
-def response_duration(ts, *, method="baseline_permutation", **kwargs):
+def response_duration(ts: Any, *, method: str = "baseline_permutation", **kwargs: Any) -> Any:
     """Onset, offset and duration of the response of each channel, as a table.
 
     Each value with its interval (bootstrap over trials, NaN when the method gives none) and the
@@ -452,7 +459,7 @@ def response_duration(ts, *, method="baseline_permutation", **kwargs):
     return pd.DataFrame(columns)
 
 
-def list_rules():
+def list_rules() -> Any:
     """Return the registry of published rules, as a table."""
     pd = require("pandas", extra="data", caller="evoparam.existence.list_rules")
     rows = []
@@ -471,7 +478,7 @@ def list_rules():
     return pd.DataFrame(rows)
 
 
-def _kappa(a, b):
+def _kappa(a: Any, b: Any) -> float:
     a, b = np.asarray(a, bool), np.asarray(b, bool)
     po = np.mean(a == b)
     pe = a.mean() * b.mean() + (1 - a.mean()) * (1 - b.mean())
@@ -479,12 +486,12 @@ def _kappa(a, b):
 
 
 def compare_detectors(
-    ts,
-    rules=("baseline_permutation", "vanblooijs2023", "hays2021", "projection"),
+    ts: Any,
+    rules: Sequence[str] = ("baseline_permutation", "vanblooijs2023", "hays2021", "projection"),
     *,
-    rule_overrides=None,
-    **kwargs,
-):
+    rule_overrides: dict[str, Any] | None = None,
+    **kwargs: Any,
+) -> Any:
     """Decisions of several methods and rules on every channel, and their agreement.
 
     Parameters
@@ -532,7 +539,7 @@ def compare_detectors(
     return table
 
 
-def train_discordance(ts, test):
+def train_discordance(ts: Any, test: Any) -> Any:
     """Agreement of the decision across trains: ``d = 1 - 2 |P(significant) - 0.5|``.
 
     The test of ``test`` is re-run on the trials of each train
@@ -576,7 +583,7 @@ def train_discordance(ts, test):
     )
 
 
-def methods_text(test):
+def methods_text(test: Any) -> str:
     """Methods sentence for a ResponseTest (spec REQ-140)."""
     s = test.settings
     window = f"{s['window'][0] * 1000:g} to {s['window'][1] * 1000:g} ms"
@@ -609,8 +616,8 @@ class detectors:  # noqa: N801  (public namespace evoparam.existence.detectors)
     """The registry rules as functions: ``detectors.vanblooijs2023(ts, baseline=(-1, -0.1))``."""
 
 
-def _make_detector(name):
-    def detector(ts, **overrides):
+def _make_detector(name: Any) -> Any:
+    def detector(ts: Any, **overrides: Any) -> Any:
         return test_response(ts, method="threshold", rule=name, rule_overrides=overrides, by=())
 
     detector.__name__ = name
@@ -622,7 +629,14 @@ for _name in load_rules():
     setattr(detectors, _name, _make_detector(_name))
 
 
-def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
+def fit(
+    data: Any,
+    preset: Any = None,
+    *,
+    existence: Any = None,
+    existence_kwargs: Any = None,
+    **kwargs: Any,
+) -> Any:
     """Fit with :func:`evoparam.models.fit` and attach the existence test of every channel.
 
     The test is attached to each channel's fit (``ResponseFit.existence``; ``existence_p`` and
@@ -683,7 +697,12 @@ def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
     else:
         # a preset without a baseline (short epochs: ECAP, ERNA): the pre-stimulus samples
         baseline = (float(data.times[0]), min(0.0, window[0]))
-    test_kwargs = {"window": window, "baseline": baseline, "by": (), "random_state": seed}
+    test_kwargs: dict[str, Any] = {
+        "window": window,
+        "baseline": baseline,
+        "by": (),
+        "random_state": seed,
+    }
     if kwargs.get("picks") is not None:
         test_kwargs["picks"] = kwargs["picks"]
     test_kwargs.update(existence_kwargs or {})
@@ -705,7 +724,7 @@ def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
     return group
 
 
-def attach_test(group, test):
+def attach_test(group: Any, test: Any) -> Any:
     """Return the GroupFit with the existence test of each channel attached to its fit.
 
     The test is attached as ``ResponseFit.existence`` and recorded as a provenance step of the
@@ -748,7 +767,7 @@ def attach_test(group, test):
 _PER_CHANNEL_SETTINGS = ("channels", "duration_ci", "onset_ci", "offset_ci", "groups", "critical")
 
 
-def _log_methods(group, verbose):
+def _log_methods(group: Any, verbose: Any) -> None:
     """Log the methods paragraph at INFO (spec §5.13: printed when verbose is INFO)."""
     logger = logging.getLogger("evoparam")
     explicit = verbose in (True, "info", "INFO", logging.INFO)

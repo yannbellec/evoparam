@@ -17,14 +17,18 @@
    that the threshold missed.
 """
 
+from typing import cast
+
 import numpy as np
+
+from evoparam._typing import Any, FloatArray, NDArray
 
 from ._score import _CHUNK, MAD_TO_SD
 
 __all__ = []
 
 
-def spec_score(data, index):
+def spec_score(data: Any, index: Any) -> FloatArray:
     """Return the spectral score ``d[n] = median_c |x_c[n] - x_c[n - 1]|``.
 
     For n = 1 .. n_times - 1 (element n - 1), the median of all the picked channels (NaN changes
@@ -41,7 +45,7 @@ def spec_score(data, index):
     return score
 
 
-def spec_z(score):
+def spec_z(score: Any) -> Any:
     """Robust z-score of the specification (median and 1.4826 MAD; MAD 0 gives SD)."""
     center = np.median(score)
     spread = MAD_TO_SD * np.median(np.abs(score - center))
@@ -50,7 +54,9 @@ def spec_z(score):
     return (score - center) / spread
 
 
-def spec_threshold(score, z, sfreq, threshold_sd, min_samples, refine=True):
+def spec_threshold(
+    score: Any, z: Any, sfreq: float, threshold_sd: Any, min_samples: Any, refine: bool = True
+) -> tuple[NDArray[Any], NDArray[Any]]:
     """Detect with method 1: onsets (sample indices) and the largest z of each artifact.
 
     ``score[i]`` is ``d[i + 1]``. The first crossing after the refractory period is kept;
@@ -78,7 +84,7 @@ def spec_threshold(score, z, sfreq, threshold_sd, min_samples, refine=True):
     return np.array(onsets, dtype=int), np.array(strength)
 
 
-def spec_template(data, index, onsets, sfreq, n_template):
+def spec_template(data: Any, index: Any, onsets: Any, sfreq: float, n_template: Any) -> Any:
     """Mean of the first ``n_template`` snippets (-1 ms to +3 ms), unit norm per channel.
 
     Returns (template [n_picked, L], n_pre) or (None, n_pre) when no snippet fits.
@@ -98,7 +104,7 @@ def spec_template(data, index, onsets, sfreq, n_template):
     return template, n_pre
 
 
-def spec_rho(data, index, template):
+def spec_rho(data: Any, index: Any, template: Any) -> NDArray[Any]:
     """Normalised cross-correlation of the template with every window of the picked channels.
 
     ``rho[n]`` for windows starting at sample n (n_times - L + 1 values).
@@ -116,10 +122,13 @@ def spec_rho(data, index, template):
             numerator += fftconvolve(x, template[row][::-1], mode="valid")
         energy += fftconvolve(x * x, kernel, mode="valid")
     denominator = np.linalg.norm(template) * np.sqrt(np.maximum(energy, 0.0))
-    return np.divide(numerator, denominator, out=np.zeros_like(numerator), where=denominator > 0)
+    return cast(
+        "NDArray[Any]",
+        np.divide(numerator, denominator, out=np.zeros_like(numerator), where=denominator > 0),
+    )
 
 
-def spec_template_peaks(rho, rho_min, min_samples):
+def spec_template_peaks(rho: Any, rho_min: Any, min_samples: Any) -> NDArray[Any]:
     """Local maxima of ``rho`` above ``rho_min``, the larger kept within ``min_samples``."""
     if len(rho) < 3:
         return np.array([], dtype=int)
@@ -127,6 +136,7 @@ def spec_template_peaks(rho, rho_min, min_samples):
     peaks = np.flatnonzero(inner) + 1
     order = peaks[np.argsort(-rho[peaks], kind="stable")]
     kept = []
+    taken: Any
     taken = np.zeros(0, dtype=int)
     for peak in order:
         if len(taken) and np.min(np.abs(taken - peak)) < min_samples:

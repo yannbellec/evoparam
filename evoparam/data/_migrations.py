@@ -6,10 +6,15 @@ decoded ``structure.json`` dictionary and returns the migrated dictionary. It
 is empty while only schema major 1 exists.
 """
 
-MIGRATIONS = {}
+from collections.abc import Callable
+from typing import Any
+
+MIGRATIONS: dict[tuple[int, int], Callable[[dict[str, Any]], dict[str, Any]]] = {}
 
 
-def migrate(structure, from_major, to_major):
+def migrate(
+    structure: dict[str, Any], from_major: int, to_major: int
+) -> tuple[dict[str, Any], list[tuple[int, int]]]:
     """Apply the registered migrations one major version at a time.
 
     Returns the migrated structure and the list of ``(from, to)`` pairs applied.

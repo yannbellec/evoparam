@@ -26,16 +26,22 @@ import json
 import os
 import shutil
 import time
+from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 from evoparam.version import __version__
 
 from ._canon import clean, sha256_file
 from .suite import hidden_commitment, load_hidden_seeds, load_suite, make_inputs, simulate_cell
 from .tasks import write_input
+
+if TYPE_CHECKING:
+    from evoparam.benchmark.suite import Suite
 
 __all__ = ["prepare_deposit", "write_trials_nwb", "DEPOSIT_SCHEMA", "DEPOSIT_STATUS"]
 
@@ -46,11 +52,11 @@ DEPOSIT_STATUS = (
 )
 
 
-def _label(cell_id):
+def _label(cell_id: Any) -> Any:
     return "".join(ch for ch in cell_id if ch.isalnum())
 
 
-def write_trials_nwb(ts, path, *, identifier, description):
+def write_trials_nwb(ts: Any, path: Any, *, identifier: Any, description: Any) -> Any:
     """Write a TrialSet as an NWB file.
 
     The trials end to end in one ``ElectricalSeries`` (µV, conversion 1e-6) and a ``trials`` table
@@ -108,15 +114,15 @@ def write_trials_nwb(ts, path, *, identifier, description):
 
 
 def prepare_deposit(
-    suite="core",
-    out="deposit",
+    suite: "str | Suite" = "core",
+    out: str = "deposit",
     *,
-    formats=("bids", "nwb"),
-    tasks=None,
-    hidden_seeds=None,
-    overwrite=False,
-    log=None,
-):
+    formats: Any = ("bids", "nwb"),
+    tasks: Sequence[str] | None = None,
+    hidden_seeds: Any = None,
+    overwrite: bool = False,
+    log: Callable[..., Any] | None = None,
+) -> str:
     """Write the public split of a suite and its manifest into a local folder.
 
     Parameters
@@ -141,6 +147,7 @@ def prepare_deposit(
     log = log or (lambda _message: None)
     if not hasattr(suite, "cells"):
         suite = load_suite(suite)
+    suite = cast("Suite", suite)  # a Suite from here on
     unknown = [f for f in formats if f not in ("bids", "nwb")]
     if unknown:
         raise DataError(f"unknown formats {unknown}; use 'bids' and/or 'nwb'.")

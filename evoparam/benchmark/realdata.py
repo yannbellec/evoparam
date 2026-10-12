@@ -25,6 +25,7 @@ from importlib import resources
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 
 from .suite import ERPCORE
@@ -42,19 +43,20 @@ __all__ = [
 REALDATA_SCHEMA = "evoparam-benchmark-realdata/1"
 
 
-def list_indices():
+def list_indices() -> list[str]:
     """Names of the real-data indices shipped with the package."""
     folder = resources.files("evoparam.benchmark").joinpath("realdata")
     return sorted(p.name[:-5] for p in folder.iterdir() if p.name.endswith(".json"))
 
 
-def load_index(name):
+def load_index(name: Any) -> Any:
     """Return a real-data index by name."""
     if name not in list_indices():
         raise DataError(f"Unknown real-data index {name!r}; indices: {list_indices()}.")
     text = (
         resources.files("evoparam.benchmark")
-        .joinpath("realdata", f"{name}.json")
+        .joinpath("realdata")
+        .joinpath(f"{name}.json")
         .read_text("utf-8")
     )
     doc = json.loads(text)
@@ -63,7 +65,7 @@ def load_index(name):
     return doc
 
 
-def load_bids_trials(index, entry, *, cache_dir=None):
+def load_bids_trials(index: Any, entry: Any, *, cache_dir: Any = None) -> Any:
     """Return the trials of one entry of a BIDS index, split by stimulation site.
 
     Returns
@@ -118,7 +120,7 @@ def load_bids_trials(index, entry, *, cache_dir=None):
     return out
 
 
-def consensus_truth(ts, index):
+def consensus_truth(ts: Any, index: Any) -> dict[str, Any]:
     """T1 / T2 truth of real trials: the consensus of the index's published rules.
 
     Returns
@@ -169,7 +171,9 @@ def consensus_truth(ts, index):
     }
 
 
-def real_inputs(name, entry_index=0, *, task="T1", cache_dir=None):
+def real_inputs(
+    name: Any, entry_index: int = 0, *, task: str = "T1", cache_dir: Any = None
+) -> list["TaskInput"]:
     """Task inputs (with their truth) of one entry of a real-data index.
 
     T1 / T2: one input per stimulation site of the entry (stimulated contacts removed),
@@ -226,7 +230,7 @@ def real_inputs(name, entry_index=0, *, task="T1", cache_dir=None):
     raise DataError(f"no loader for task {task} of index {name}.")  # pragma: no cover
 
 
-def _erpcore_input(index, entry, _entry_index, suite):
+def _erpcore_input(index: Any, entry: Any, _entry_index: Any, suite: Any) -> "TaskInput":
     from evoparam.io import fetch_erpcore
     from evoparam.utils._optional import require
 

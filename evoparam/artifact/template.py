@@ -2,13 +2,18 @@
 """Artifact templates: group median, moving (local) median, and learned bases."""
 
 import warnings
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import ArtifactError, SettingsError
 from evoparam.errors import warn as _warn
 
 from ._common import GROUP_BY, check_trialset, groups, window_slice
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["estimate_artifact_template"]
 
@@ -20,7 +25,7 @@ MIN_PULSES = 3
 RESPONSE_CORRELATION_WARN = 0.5
 
 
-def _window_values(ts, inds, masks):
+def _window_values(ts: Any, inds: Any, masks: Any) -> Any:
     """Window samples, with masked (for example saturated) samples set to NaN."""
     values = ts.data[:, :, inds].copy()
     if masks is not None:
@@ -28,7 +33,7 @@ def _window_values(ts, inds, masks):
     return values
 
 
-def _nan_statistic(values, statistic, axis=0):
+def _nan_statistic(values: Any, statistic: Any, axis: int = 0) -> Any:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN columns
         out = (np.nanmedian if statistic == "median" else np.nanmean)(values, axis=axis)
@@ -36,8 +41,12 @@ def _nan_statistic(values, statistic, axis=0):
 
 
 def estimate_artifact_template(
-    ts, window=(-0.002, 0.008), *, group_by=GROUP_BY, statistic="median"
-):
+    ts: "TrialSet",
+    window: tuple[float, float] = (-0.002, 0.008),
+    *,
+    group_by: tuple[str, ...] = GROUP_BY,
+    statistic: str = "median",
+) -> dict[Any, NDArray[Any]]:
     """Artifact template of each group of pulses.
 
     ``T_g(t) = median_{k in g} x_k(t)`` on the window, per channel (median rather than
@@ -65,27 +74,27 @@ def estimate_artifact_template(
     return {key: _nan_statistic(values[rows], statistic) for key, rows in groups(ts, group_by)}
 
 
-def _neighbours(times, row, n):
+def _neighbours(times: Any, row: Any, n: Any) -> NDArray[Any]:
     """Return the indices (into ``times``) of the ``n`` pulses closest in time to ``row``.
 
     ``row`` itself is excluded.
     """
     order = np.argsort(np.abs(times - times[row]), kind="stable")
     order = order[order != row]
-    return order[:n]
+    return cast("NDArray[Any]", order[:n])
 
 
 def subtract_template(
-    ts,
-    inds,
+    ts: Any,
+    inds: Any,
     *,
-    template="global",
-    group_by=GROUP_BY,
-    n_neighbors=10,
-    scale=True,
-    fallback=False,
-    interpolate=None,
-):
+    template: str = "global",
+    group_by: Any = GROUP_BY,
+    n_neighbors: int = 10,
+    scale: bool = True,
+    fallback: bool = False,
+    interpolate: Any = None,
+) -> tuple[Any, dict[str, Any]]:
     """Template subtraction on the window ``inds``.
 
     Returns (data, info). ``info`` holds the template(s), the per-trial fit r²
@@ -194,8 +203,15 @@ def subtract_template(
 
 
 def subtract_learned(
-    ts, inds, *, group_by=GROUP_BY, n_components=None, ridge=1e-3, variance=0.95, max_components=8
-):
+    ts: Any,
+    inds: Any,
+    *,
+    group_by: Any = GROUP_BY,
+    n_components: Any = None,
+    ridge: float = 1e-3,
+    variance: float = 0.95,
+    max_components: int = 8,
+) -> tuple[Any, dict[str, Any]]:
     """Learned artifact basis per group.
 
     PCA (uncentred SVD) of the window waveforms of every pulse and channel of the group; each
@@ -220,7 +236,7 @@ def subtract_learned(
         _, sing, vt = np.linalg.svd(waves, full_matrices=False)
         if n_components is None:
             energy = np.cumsum(sing**2) / np.sum(sing**2)
-            k = int(min(np.searchsorted(energy, variance) + 1, max_components, len(sing)))
+            k = int(min(int(np.searchsorted(energy, variance)) + 1, max_components, len(sing)))
         else:
             k = int(min(n_components, len(sing)))
         basis = vt[:k]  # orthonormal rows

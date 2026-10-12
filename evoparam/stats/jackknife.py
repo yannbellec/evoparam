@@ -13,9 +13,11 @@ deviations from it are ``-(n - 1)`` times those of the ``J_i``.
 """
 
 import time as _time
+from collections.abc import Callable, Sequence
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data import Evoked, Provenance
 from evoparam.errors import DataError, SettingsError
 from evoparam.utils._optional import require
@@ -35,7 +37,7 @@ JACKKNIFE_COLUMNS = {
 }
 
 
-def jackknife_t(t, n):
+def jackknife_t(t: Any, n: Any) -> Any:
     """Corrected t statistic of jackknifed scores: ``t / (n - 1)``.
 
     Examples
@@ -48,7 +50,7 @@ def jackknife_t(t, n):
     return float(t) / (n - 1)
 
 
-def jackknife_f(f, n):
+def jackknife_f(f: Any, n: Any) -> Any:
     """Corrected F statistic of jackknifed scores: ``F / (n - 1)^2``.
 
     Examples
@@ -61,7 +63,7 @@ def jackknife_f(f, n):
     return float(f) / (n - 1) ** 2
 
 
-def _subject_label(evoked, position):
+def _subject_label(evoked: Any, position: Any) -> str:
     meta = evoked.metadata
     if meta is not None and "subject" in getattr(meta, "columns", ()) and len(meta):
         return str(meta["subject"].iloc[0])
@@ -69,14 +71,14 @@ def _subject_label(evoked, position):
 
 
 def jackknife_latency(
-    evokeds,
+    evokeds: Sequence["Evoked"],
     *,
-    scorer="fractional_area_latency",
-    retrieve=True,
-    picks=None,
-    window=None,
-    **scorer_kw,
-):
+    scorer: str | Callable[..., Any] = "fractional_area_latency",
+    retrieve: bool = True,
+    picks: Sequence[str] | None = None,
+    window: tuple[float, float] | None = None,
+    **scorer_kw: Any,
+) -> Any:
     """Score the leave-one-out grand averages of participants, and retrieve each one's score.
 
     Parameters
@@ -177,7 +179,7 @@ def jackknife_latency(
         name, unit = getattr(scorer, "__name__", "custom"), "score"
         picked = [names[i] for i in index]
 
-        def score(data):
+        def score(data: Any) -> Any:
             ev = Evoked(
                 data=data,
                 times=first.times,

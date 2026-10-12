@@ -6,14 +6,19 @@ Spec §5.9, methods 3 and 6.
 
 import re
 import warnings
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data import GroupFit
 from evoparam.data.results import COMPONENT_FEATURES
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.utils._optional import require
+
+if TYPE_CHECKING:
+    from evoparam.data.results import HierarchicalFit, ResponseTest
 
 __all__ = [
     "parameter_map",
@@ -52,11 +57,11 @@ PARAMETERS = COMPONENT_FEATURES + ("r2", "existence_p", "p_response", "shape_wei
 LONG_COLUMNS = ("stim_site", "channel", "parameter", "value")
 
 
-def _contacts(site):
+def _contacts(site: Any) -> set[Any]:
     return {part.strip() for part in re.split(r"[-–]", str(site)) if part.strip()}
 
 
-def _pick(fit, component):
+def _pick(fit: Any, component: Any) -> Any:
     """Index of the reported component: the largest absolute amplitude, a position, or a label."""
     comps = fit.components
     if not comps:
@@ -69,17 +74,19 @@ def _pick(fit, component):
     return int(component) if 0 <= int(component) < len(comps) else None
 
 
-def _ch_info(ch_info):
+def _ch_info(ch_info: Any) -> Any:
     if ch_info is None:
         return None
     return getattr(ch_info, "ch_info", ch_info)
 
 
-def _existence_lookup(existence):
+def _existence_lookup(existence: Any) -> tuple[dict[Any, Any], dict[Any, Any]]:
     """(channel, group) -> (p, significant) from a ResponseTest.
 
     (channel, site) -> P from a table ``p_response`` (hierarchical fits).
     """
+    probs: dict[Any, Any]
+    tests: dict[Any, Any]
     tests, probs = {}, {}
     if existence is None:
         return tests, probs
@@ -112,8 +119,9 @@ def _existence_lookup(existence):
     return tests, probs
 
 
-def _basis_lookup(basis):
+def _basis_lookup(basis: Any) -> dict[Any, Any]:
     """(site, channel) -> (shape_id, weight) from ShapeBasis objects with channel groups."""
+    out: dict[Any, Any]
     out = {}
     if basis is None:
         return out
@@ -126,15 +134,15 @@ def _basis_lookup(basis):
 
 
 def parameter_map(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.9)
-    group_fit,
+    group_fit: "GroupFit",
     *,
-    parameter="amplitude",
-    stim_site=None,
-    existence=None,
-    ch_info=None,
-    component=None,
-    basis=None,
-):
+    parameter: str = "amplitude",
+    stim_site: Any = None,
+    existence: "ResponseTest | HierarchicalFit | None" = None,
+    ch_info: Any = None,
+    component: Any = None,
+    basis: Any = None,
+) -> Any:
     """Per (stimulation site, channel) table of a component's parameters with coordinates.
 
     The stimulation site of a fit is its condition (``evoparam.fit(..., by="stim_site")``)
@@ -255,8 +263,13 @@ def parameter_map(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed
 
 
 def connectivity_matrix(
-    group_fit, parameter="amplitude", *, long=False, component=None, existence=None
-):
+    group_fit: Any,
+    parameter: str = "amplitude",
+    *,
+    long: bool = False,
+    component: Any = None,
+    existence: Any = None,
+) -> Any:
     """(stimulation site x channel) matrix of one parameter, wide or long.
 
     Wide: rows are the stimulation sites (index ``stim_site``), columns the channels, in
@@ -296,7 +309,7 @@ def connectivity_matrix(
     return wide
 
 
-def connectivity_to_long(wide, parameter=None):
+def connectivity_to_long(wide: Any, parameter: Any = None) -> Any:
     """Long form of a wide connectivity matrix (every cell, NaN included).
 
     >>> import pandas as pd
@@ -320,7 +333,7 @@ def connectivity_to_long(wide, parameter=None):
     return pd.DataFrame(rows, columns=list(LONG_COLUMNS))
 
 
-def connectivity_from_long(long_table):
+def connectivity_from_long(long_table: Any) -> Any:
     """Wide matrix from the long form (site order and channel order of first appearance)."""
     pd = require("pandas", extra="data", caller="evoparam.spatial.connectivity_from_long")
     missing = {"stim_site", "channel", "value"} - set(long_table.columns)
@@ -339,7 +352,7 @@ def connectivity_from_long(long_table):
     return wide
 
 
-def connectivity_array(wide):
+def connectivity_array(wide: Any) -> tuple[Any, list[str], list[str]]:
     """``(array [n_sites, n_channels], sites, channels)`` of a wide matrix.
 
     The layout of a directed (site -> channel) connectivity array for network tools
@@ -364,7 +377,7 @@ _STYLE = {
 MNI_SPACES = ("mni", "icbm", "fsaverage", "talairach")
 
 
-def _is_mni(table):
+def _is_mni(table: Any) -> bool:
     spaces = (
         {str(v).lower() for v in table["coord_space"].dropna()} - {"", "nan", "none"}
         if "coord_space" in table.columns
@@ -373,15 +386,21 @@ def _is_mni(table):
     return bool(spaces) and all(space.startswith(MNI_SPACES) for space in spaces)
 
 
-def _have_nilearn():
+def _have_nilearn() -> bool:
     import importlib.util
 
     return importlib.util.find_spec("nilearn") is not None
 
 
 def plot_parameter_map(
-    table, *, ax=None, projection=("x", "y"), backend="auto", stim_site=None, display_mode="ortho"
-):
+    table: Any,
+    *,
+    ax: Any = None,
+    projection: tuple[str, str] = ("x", "y"),
+    backend: str = "auto",
+    stim_site: str | None = None,
+    display_mode: str = "ortho",
+) -> Any:
     """Plot a glass-brain or electrode-grid figure of a :func:`parameter_map` table.
 
     Spec §5.9, method 3; needs the extra ``plot``. Responses are coloured by ``value``; the
@@ -455,12 +474,13 @@ def plot_parameter_map(
     return ax.figure
 
 
-def _glass_brain(table, display_mode):
+def _glass_brain(table: Any, display_mode: Any) -> Any:
     """Return the nilearn glass brain of a parameter-map table (responses coloured by value)."""
     plotting = require(
         "nilearn.plotting", extra="brain", caller="evoparam.spatial.plot_parameter_map"
     )
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
     xyz = ["x", "y", "z"]
     figure = plt.figure(figsize=(8, 3.2))
@@ -491,7 +511,7 @@ def _glass_brain(table, display_mode):
             display.add_markers(coords, marker_color=colour, marker_size=20)
     figure.legend(
         handles=[
-            plt.Line2D([], [], ls="", marker="o", color=c, label=m)
+            Line2D([], [], ls="", marker="o", color=c, label=m)
             for m, (_, c) in _STYLE.items()
             if (table["marker"] == m).any()
         ],

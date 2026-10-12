@@ -10,9 +10,12 @@ Gain convention: a real sinusoid of amplitude ``A`` at the kernel's frequency gi
 coefficient of modulus ``A`` (analytic kernels with a peak gain of 2 at that frequency).
 """
 
+from typing import cast
+
 import numpy as np
 from scipy.fft import fft, ifft, next_fast_len
 
+from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
 from evoparam.errors import SettingsError
 
 __all__ = [
@@ -32,17 +35,17 @@ TRANSFORMS = ("morse", "morlet", "multitaper", "stft")
 SUPPORT_ENERGY = 0.99
 
 
-def log_freqs(fmin, fmax, n):
+def log_freqs(fmin: Any, fmax: Any, n: Any) -> FloatArray:
     """``n`` frequencies on a log grid from ``fmin`` to ``fmax`` (Hz)."""
-    return np.geomspace(float(fmin), float(fmax), int(n))
+    return np.geomspace(float(fmin), float(fmax), int(n), dtype=np.float64)
 
 
-def morse_peak(gamma, beta):
+def morse_peak(gamma: Any, beta: Any) -> Any:
     """Peak (radian) frequency of the generalised Morse wavelet: ``(beta / gamma)**(1/gamma)``."""
     return (beta / gamma) ** (1.0 / gamma)
 
 
-def morse_spectrum(omega, gamma, beta):
+def morse_spectrum(omega: Any, gamma: Any, beta: Any) -> NDArray[Any]:
     """Generalised Morse wavelet in the frequency domain (Lilly and Olhede 2012).
 
     ``Psi(omega) = 2 * a * omega**beta * exp(-omega**gamma)`` for ``omega > 0`` and 0
@@ -56,7 +59,7 @@ def morse_spectrum(omega, gamma, beta):
     # log form avoids overflow of omega**beta for large beta
     log_a = (beta / gamma) * (1.0 + np.log(gamma) - np.log(beta))
     out[pos] = 2.0 * np.exp(log_a + beta * np.log(w) - w**gamma)
-    return out
+    return cast("NDArray[Any]", out)
 
 
 class Kernels:
@@ -67,7 +70,15 @@ class Kernels:
     kernel support lies inside the epoch) free of circular wrap-around.
     """
 
-    def __init__(self, groups, half_support, freqs, transform, n_tapers, params):
+    def __init__(
+        self,
+        groups: Any,
+        half_support: Any,
+        freqs: Any,
+        transform: Any,
+        n_tapers: Any,
+        params: Any,
+    ) -> None:
         self.groups = groups
         self.half_support = half_support
         self.freqs = freqs
@@ -75,7 +86,7 @@ class Kernels:
         self.n_tapers = n_tapers
         self.params = params
 
-    def spectrum(self, j):
+    def spectrum(self, j: Any) -> Any:
         """Spectra (n_tapers, n_fft) of frequency ``j`` on its grid."""
         for _, idx, spectra in self.groups:
             where = np.flatnonzero(np.asarray(idx) == j)
@@ -84,7 +95,7 @@ class Kernels:
         raise IndexError(j)
 
 
-def _half_support(kernel_time):
+def _half_support(kernel_time: Any) -> int:
     """Half-width (samples) around lag 0 holding SUPPORT_ENERGY of a centred kernel's energy.
 
     ``kernel_time`` is circular with lag 0 at index 0 (as returned by an inverse FFT).
@@ -101,28 +112,28 @@ def _half_support(kernel_time):
     return int(lags[order][min(idx, n - 1)])
 
 
-def _centred_spectrum(h, n_fft):
+def _centred_spectrum(h: Any, n_fft: Any) -> tuple[Any]:
     """Spectrum of a centred time-domain kernel on an ``n_fft`` grid."""
     m = len(h)
     buf = np.zeros(n_fft, complex)
     centre = m // 2
     buf[: m - centre] = h[centre:]
     buf[n_fft - centre :] = h[:centre]
-    return fft(buf)
+    return cast("tuple[Any]", fft(buf))
 
 
 def make_kernels(
-    transform,
-    freqs,
-    sfreq,
-    n_times,
+    transform: str,
+    freqs: ArrayLike,
+    sfreq: float,
+    n_times: int,
     *,
-    gamma=3.0,
-    p2=30.0,
-    n_cycles=7.0,
-    time_bandwidth=4.0,
-    stft_window=0.2,
-):
+    gamma: float = 3.0,
+    p2: float = 30.0,
+    n_cycles: float | ArrayLike = 7.0,
+    time_bandwidth: float = 4.0,
+    stft_window: float = 0.2,
+) -> "Kernels":
     """Kernels of one transform for a frequency grid.
 
     Parameters
@@ -147,19 +158,19 @@ def make_kernels(
         raise SettingsError(f"transform must be one of {TRANSFORMS}, not {transform!r}.")
     freqs = np.asarray(freqs, float)
     cycles = np.broadcast_to(np.asarray(n_cycles, float), freqs.shape)
-    params = {"transform": transform}
+    params: dict[str, Any] = {"transform": transform}
     if transform == "morse":
         beta = p2 / gamma
         peak = morse_peak(gamma, beta)
         params.update(gamma=float(gamma), beta=float(beta), p2=float(p2))
 
-        def spectrum(j, n_fft):
+        def spectrum(j: Any, n_fft: Any) -> Any:
             nu = np.fft.fftfreq(n_fft, 1.0 / sfreq)
             return morse_spectrum(nu * peak / freqs[j], gamma, beta)[None]
     elif transform == "morlet":
         params.update(n_cycles=cycles.tolist())
 
-        def spectrum(j, n_fft):
+        def spectrum(j: Any, n_fft: Any) -> Any:
             nu = np.fft.fftfreq(n_fft, 1.0 / sfreq)
             sigma_t = cycles[j] / (2 * np.pi * freqs[j])
             return np.where(
@@ -176,7 +187,7 @@ def make_kernels(
                 time_bandwidth=float(time_bandwidth), n_tapers=n_tapers, n_cycles=cycles.tolist()
             )
 
-            def time_kernels(j):
+            def time_kernels(j: Any) -> Any:
                 m = lengths[j]
                 tapers = np.atleast_2d(dpss(m, nw, n_tapers))
                 t = (np.arange(m) - m // 2) / sfreq
@@ -188,11 +199,11 @@ def make_kernels(
             win = hann(m, sym=True)
             params.update(stft_window=float(stft_window))
 
-            def time_kernels(j):
+            def time_kernels(j: Any) -> Any:
                 t = (np.arange(m) - m // 2) / sfreq
                 return (2.0 / win.sum() * win * np.exp(2j * np.pi * freqs[j] * t))[None]
 
-        def spectrum(j, n_fft):
+        def spectrum(j: Any, n_fft: Any) -> Any:
             return np.stack([_centred_spectrum(h, n_fft) for h in time_kernels(j)])
 
     # support on a generous grid, then each frequency on the shortest safe grid
@@ -208,7 +219,7 @@ def make_kernels(
     return Kernels(groups, half, freqs, transform, n_tapers, params)
 
 
-def apply_kernels(kernels, x, crop=None):
+def apply_kernels(kernels: Any, x: Any, crop: Any = None) -> NDArray[Any]:
     """Complex coefficients of signals ``x`` (..., n_times).
 
     (n_tapers, ..., n_freqs, n_out), on the samples ``crop`` (a slice; all samples by default).
@@ -226,7 +237,7 @@ def apply_kernels(kernels, x, crop=None):
     return out
 
 
-def morse_reference_modulus(freq_signal, freq_kernel, gamma, beta):
+def morse_reference_modulus(freq_signal: Any, freq_kernel: Any, gamma: Any, beta: Any) -> float:
     """Return the analytic modulus of the Morse coefficient of a unit cosine at ``freq_signal``.
 
     ``freq_signal`` in Hz, for the kernel centred at ``freq_kernel``: half the wavelet's gain at

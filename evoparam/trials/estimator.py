@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """``TrialFitter``: trial-by-trial parameters with the scikit-learn conventions (spec §10.4)."""
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.utils._estimator import (
     BaseEstimatorMixin,
@@ -10,6 +13,10 @@ from evoparam.utils._estimator import (
     check_is_fitted,
     validate_array,
 )
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
+    from evoparam.data.results import GroupFit
 
 __all__ = ["TrialFitter"]
 
@@ -36,15 +43,15 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
 
     def __init__(
         self,
-        preset=None,
+        preset: Any = None,
         *,
-        sfreq=None,
-        tmin=None,
-        fit_window=None,
-        max_components=None,
-        mode="shift_scale",
-        random_state=None,
-    ):
+        sfreq: float | None = None,
+        tmin: float | None = None,
+        fit_window: Any = None,
+        max_components: Any = None,
+        mode: str = "shift_scale",
+        random_state: Any = None,
+    ) -> None:
         self.preset = preset
         self.sfreq = sfreq
         self.tmin = tmin
@@ -53,7 +60,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         self.mode = mode
         self.random_state = random_state
 
-    def _trials(self, x, *, reset):
+    def _trials(self, x: Any, *, reset: Any) -> "TrialSet":
         """X as a TrialSet.
 
         An array is (n_trials, n_times) for one channel or (n_trials, n_channels, n_times), checked
@@ -66,7 +73,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         x = _from_mne(x)
         if isinstance(x, TrialSet):
             if reset:
-                self.n_features_in_ = int(x.n_times)
+                self.n_features_in_: int = int(x.n_times)
             elif x.n_times != self.n_features_in_:
                 raise DataError(
                     f"X has {x.n_times} time points, but TrialFitter is "
@@ -87,7 +94,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
             ch_names=[f"ch{i}" for i in range(data.shape[1])],
         )
 
-    def fit(self, X, y=None):  # noqa: N803, ARG002  (scikit-learn API: X, y)
+    def fit(self, X: Any, y: Any = None) -> "TrialFitter":  # noqa: N803, ARG002  (scikit-learn API: X, y)
         """Fit the trial average of each channel (``group_fit_``); ``y`` is ignored.
 
         Without ``fit_window`` and preset the window is the data range.
@@ -101,13 +108,13 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
             max_components=self.max_components,
             random_state=self.random_state,
         ).fit(trials)
-        self.group_fit_ = model.fit_
+        self.group_fit_: GroupFit = model.fit_
         found = [len(f.components) for f in self.group_fit_.fits]
-        self.n_components_ = int(self.max_components or max(found + [1]))
-        self.ch_names_ = list(trials.ch_names)
+        self.n_components_: int = int(self.max_components or max(found + [1]))
+        self.ch_names_: list[str] = list(trials.ch_names)
         return self
 
-    def transform(self, X):  # noqa: N803  (scikit-learn API: X)
+    def transform(self, X: Any) -> NDArray[Any]:  # noqa: N803  (scikit-learn API: X)
         """(n_trials, n_channels * n_components * 3).
 
         Shift, scale and latency of each component slot of each channel; NaN where a channel has
@@ -140,7 +147,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
                     out[int(row["trial"]), ch, k] = (row["shift"], row["scale"], row["latency"])
         return out.reshape(trials.n_trials, -1)
 
-    def get_feature_names_out(self, input_features=None):  # noqa: ARG002  (scikit-learn API)
+    def get_feature_names_out(self, input_features: Any = None) -> NDArray[Any]:  # noqa: ARG002  (scikit-learn API)
         """Return the names of the output features."""
         return np.array(
             [

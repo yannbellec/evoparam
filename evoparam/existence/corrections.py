@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import SettingsError
 
 __all__ = ["correct", "CORRECTIONS"]
@@ -10,7 +11,7 @@ __all__ = ["correct", "CORRECTIONS"]
 CORRECTIONS = ("fdr_bh", "holm", "bonferroni", "none")
 
 
-def correct(p, method="fdr_bh"):
+def correct(p: Any, method: str = "fdr_bh") -> Any:
     """Adjust p-values (NaN entries are left out and stay NaN).
 
     - ``fdr_bh``: Benjamini-Hochberg, ``p_(i) * m / i`` made monotone from the largest.

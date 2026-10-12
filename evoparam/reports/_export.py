@@ -8,6 +8,7 @@ import tempfile
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 
 __all__ = ["to_json", "from_json", "validate_json", "SCHEMA_FILE"]
@@ -15,7 +16,7 @@ __all__ = ["to_json", "from_json", "validate_json", "SCHEMA_FILE"]
 SCHEMA_FILE = "evoparam-result-1.json"
 
 
-def _encode_value(value):
+def _encode_value(value: Any) -> Any:
     if isinstance(value, (str, np.str_, bytes)):
         return str(value)
     if isinstance(value, (bool, np.bool_)):
@@ -30,7 +31,7 @@ def _encode_value(value):
     return value
 
 
-def _decode_values(values, dtype):
+def _decode_values(values: Any, dtype: Any) -> Any:
     if dtype.startswith(("float", "complex")):
         return np.array([float(v) for v in values], dtype=dtype)
     if dtype == "bool":
@@ -40,7 +41,7 @@ def _decode_values(values, dtype):
     return np.array(values, dtype=dtype)
 
 
-def to_json(result, path=None, *, validate=None):
+def to_json(result: Any, path: str | None = None, *, validate: bool | None = None) -> Any:
     """Return the full result as one JSON document (schema ``evoparam-result/1``).
 
     The document holds the files of the ``.evoparam`` container: ``structure`` (the fields),
@@ -62,7 +63,7 @@ def to_json(result, path=None, *, validate=None):
     with tempfile.TemporaryDirectory(prefix=".evoparam-json-") as work:
         folder = save_object(result, os.path.join(work, "result.evoparam"), table_format="csv")
 
-        def read(name):
+        def read(name: Any) -> Any:
             return open(os.path.join(folder, name), encoding="utf-8").read()
 
         manifest = json.loads(read("manifest.json"))
@@ -111,7 +112,7 @@ def to_json(result, path=None, *, validate=None):
     return os.fspath(path)
 
 
-def _have_jsonschema():
+def _have_jsonschema() -> bool:
     try:
         import jsonschema  # noqa: F401
     except ImportError:
@@ -119,16 +120,19 @@ def _have_jsonschema():
     return True
 
 
-def schema():
+def schema() -> Any:
     """Return the shipped JSON Schema (a dict)."""
     from importlib import resources
 
     return json.loads(
-        resources.files("evoparam.reports").joinpath("schema", SCHEMA_FILE).read_text("utf-8")
+        resources.files("evoparam.reports")
+        .joinpath("schema")
+        .joinpath(SCHEMA_FILE)
+        .read_text("utf-8")
     )
 
 
-def validate_json(document):
+def validate_json(document: Any) -> Any:
     """Validate a document (dict, JSON text or path) against the shipped schema.
 
     Raises
@@ -147,6 +151,7 @@ def validate_json(document):
     if isinstance(document, (str, os.PathLike)):
         if os.path.exists(document):
             with open(document, encoding="utf-8") as fobj:
+                text: Any
                 text = fobj.read()
         else:
             text = document
@@ -161,7 +166,7 @@ def validate_json(document):
     return True
 
 
-def from_json(source):
+def from_json(source: Any) -> Any:
     """Return the result of a document written by :func:`to_json` (dict, JSON text or path)."""
     from evoparam.data._jsonutil import dumps
     from evoparam.data.serialize import load_object
@@ -182,7 +187,7 @@ def from_json(source):
         folder = os.path.join(work, "result.evoparam")
         os.makedirs(os.path.join(folder, "tables"))
 
-        def write(name, text):
+        def write(name: Any, text: Any) -> Any:
             return open(os.path.join(folder, name), "w", encoding="utf-8").write(text)
 
         write("structure.json", json.dumps(document["structure"]))

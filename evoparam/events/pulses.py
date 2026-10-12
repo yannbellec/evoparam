@@ -5,6 +5,7 @@ import time as _time
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
 from evoparam.errors import DataError, EventError, SettingsError
 from evoparam.utils._optional import require
 
@@ -71,7 +72,7 @@ RECOVERY_FRACTION = 0.1
 GREY_FRACTION = 0.4
 
 
-def _group_crossings(cross, score, sfreq, merge_s=MERGE_WINDOW):
+def _group_crossings(cross: Any, score: Any, sfreq: float, merge_s: Any = MERGE_WINDOW) -> Any:
     """One candidate per artifact: the crossing group's largest peak.
 
     Crossings closer than ``merge_s`` seconds form a group. Returns (peak_index, peak_score,
@@ -94,7 +95,7 @@ def _group_crossings(cross, score, sfreq, merge_s=MERGE_WINDOW):
     return np.array(peaks, dtype=int), np.array(values), np.array(firsts, dtype=int)
 
 
-def _onsets_from_peaks(peaks, firsts, score, sfreq):
+def _onsets_from_peaks(peaks: Any, firsts: Any, score: Any, sfreq: float) -> NDArray[Any]:
     """First sample of each artifact.
 
     The onset is the earliest score value that reaches ONSET_FRACTION of the peak,
@@ -111,7 +112,7 @@ def _onsets_from_peaks(peaks, firsts, score, sfreq):
     return onsets
 
 
-def _suppress(positions, strength, min_samples):
+def _suppress(positions: Any, strength: Any, min_samples: Any) -> NDArray[Any]:
     """Keep a position unless a stronger one lies within ``min_samples``.
 
     Two passes, so that a position suppressed only by a suppressed neighbour comes back.
@@ -135,7 +136,9 @@ def _suppress(positions, strength, min_samples):
     return out
 
 
-def _cluster(stacks, rho_min, n_members):
+def _cluster(
+    stacks: Any, rho_min: Any, n_members: Any
+) -> tuple[NDArray[Any], NDArray[Any], FloatArray]:
     """Leader clustering of unit-norm snippets, tolerant to small onset shifts.
 
     ``stacks`` holds, for each candidate, its snippet at several shifts (middle row: no
@@ -149,6 +152,9 @@ def _cluster(stacks, rho_min, n_members):
     middle = stacks.shape[1] // 2
     labels = np.full(len(stacks), -1)
     best = np.zeros(len(stacks))
+    counts: list[Any]
+    sums: list[Any]
+    templates: list[Any]
     sums, counts, templates = [], [], []
     for row, stack in enumerate(stacks):
         if not np.any(stack[middle]):
@@ -170,7 +176,7 @@ def _cluster(stacks, rho_min, n_members):
     return labels, np.array(templates), best
 
 
-def _match(stacks, templates):
+def _match(stacks: Any, templates: Any) -> Any:
     """Best correlation over shifts and templates: (rho, template index) per candidate."""
     if len(stacks) == 0 or len(templates) == 0:
         return np.zeros(len(stacks)), np.zeros(len(stacks), dtype=int)
@@ -179,31 +185,31 @@ def _match(stacks, templates):
 
 
 def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
-    data,
-    sfreq,
+    data: FloatArray,
+    sfreq: float,
     *,
-    method="threshold+template",
-    threshold_sd=20.0,
-    min_interval=None,
-    expected_rate=None,
-    t0=0.0,
-    picks=None,
-    template=None,
-    rho_min=0.8,
-    n_template=5,
-    min_relative=0.25,
-    recovery_sd=None,
-    refine=True,
-    ch_names=None,
-    ch_info=None,
-    saturation=True,
-    vote=True,
-    score_channels=SCORE_CHANNELS,
-    procedure="evoparam",
-    return_scores=False,
-    site_method="evidence",
-    verbose=None,
-):
+    method: str = "threshold+template",
+    threshold_sd: float = 20.0,
+    min_interval: float | None = None,
+    expected_rate: float | None = None,
+    t0: float = 0.0,
+    picks: ArrayLike | None = None,
+    template: ArrayLike | None = None,
+    rho_min: float = 0.8,
+    n_template: int = 5,
+    min_relative: float = 0.25,
+    recovery_sd: float | None = None,
+    refine: bool = True,
+    ch_names: list[str] | None = None,
+    ch_info: Any = None,
+    saturation: bool = True,
+    vote: bool = True,
+    score_channels: int | None = SCORE_CHANNELS,
+    procedure: str = "evoparam",
+    return_scores: bool = False,
+    site_method: str = "evidence",
+    verbose: bool | None = None,
+) -> Any:
     """Find stimulation pulses from the artifact they leave in the signal.
 
     1. **Score.** ``d[n] = median_c |x_c[n + 1] - x_c[n]|`` over the picked channels
@@ -403,6 +409,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
             sizes = np.bincount(labels[eligible], minlength=len(clusters))
             repeated = eligible & (sizes[np.maximum(labels, 0)] >= 2)
             confirmed = strong | repeated
+            templates: Any
             templates = clusters.reshape(len(clusters), -1)
             if user is not None:
                 user_rho, _ = _match(stacks, user[np.newaxis])
@@ -477,6 +484,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
 
     # Template classes renumbered from 0 in order of first appearance (-1: no template)
     classes = np.full(len(labels), -1)
+    seen: dict[Any, Any]
     seen = {}
     for row, label in enumerate(labels):
         if label >= 0:
@@ -576,8 +584,17 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
 
 
 def _spec_candidates(
-    data, sfreq, index, method, threshold_sd, min_samples, refine, template, rho_min, n_template
-):
+    data: Any,
+    sfreq: float,
+    index: Any,
+    method: Any,
+    threshold_sd: Any,
+    min_samples: Any,
+    refine: Any,
+    template: Any,
+    rho_min: Any,
+    n_template: Any,
+) -> Any:
     """Methods 1 and 2 of the specification as written (``procedure="spec"``)."""
     score = _spec.spec_score(data, index)
     z = _spec.spec_z(score)
@@ -600,7 +617,7 @@ def _spec_candidates(
     scan = _spec.spec_rho(data, index, tpl)
     tolerance = max(1, int(round(0.0005 * sfreq)))
 
-    def rho_near(onset):
+    def rho_near(onset: Any) -> Any:
         lo, hi = max(0, onset - n_pre - tolerance), min(len(scan), onset - n_pre + tolerance + 1)
         return float(np.max(scan[lo:hi])) if hi > lo else 0.0
 
@@ -632,7 +649,9 @@ def _spec_candidates(
     return score, z, onsets, strength, detector, rho, labels
 
 
-def match_onsets(detected, reference, tolerance=0.01):
+def match_onsets(
+    detected: ArrayLike, reference: ArrayLike, tolerance: float = 0.01
+) -> dict[str, Any]:
     """Compare detected onsets to reference onsets.
 
     Each reference onset is matched to the nearest unused detection within
@@ -677,7 +696,7 @@ def match_onsets(detected, reference, tolerance=0.01):
     }
 
 
-def estimate_delay(detected, reference, tolerance=0.01):
+def estimate_delay(detected: Any, reference: Any, tolerance: float = 0.01) -> tuple[float, float]:
     """Constant delay between the artifact onsets and the event times of a system.
 
     The event time written by a stimulator or an acquisition system (the trigger) and
@@ -717,7 +736,14 @@ def estimate_delay(detected, reference, tolerance=0.01):
     return delay, float(np.median(np.abs(errors - delay)))
 
 
-def detect_events(source, *, sfreq=None, ch_names=None, t0=None, **kwargs):
+def detect_events(
+    source: Any,
+    *,
+    sfreq: float | None = None,
+    ch_names: list[str] | None = None,
+    t0: float | None = None,
+    **kwargs: Any,
+) -> Any:
     """Detect stimulation pulses in a continuous recording of any supported type.
 
     Parameters
@@ -748,8 +774,12 @@ def detect_events(source, *, sfreq=None, ch_names=None, t0=None, **kwargs):
     if isinstance(source, TrialSet):
         if source.n_trials != 1:
             raise DataError("detect_events needs continuous data: a TrialSet with one trial.")
+        data: Any
+        rate: Any
         data, rate = source.data[0], source.sfreq
+        names: Any
         names = list(source.ch_names) if ch_names is None else ch_names
+        first: Any
         first = float(source.times[0])
         kwargs.setdefault("ch_info", source.ch_info)
     elif (type(source).__module__ or "").split(".")[0] == "mne":

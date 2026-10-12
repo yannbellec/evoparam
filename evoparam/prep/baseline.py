@@ -3,13 +3,18 @@
 
 import time as _time
 import warnings
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 
 from ._common import check_trialset, masked_values, new, window_mask
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["baseline_correct", "train_baseline", "previous_pulse_gaps", "train_starts"]
 
@@ -20,7 +25,7 @@ SOURCES = ("own", "first_pulse")
 MIN_VALID_FRACTION = 0.5
 
 
-def previous_pulse_gaps(event_times):
+def previous_pulse_gaps(event_times: Any) -> NDArray[Any]:
     """Time from the previous pulse to each pulse (inf for the first one)."""
     times = np.asarray(event_times, dtype=float)
     order = np.argsort(times, kind="stable")
@@ -29,7 +34,7 @@ def previous_pulse_gaps(event_times):
     return gaps
 
 
-def train_starts(event_times, min_gap):
+def train_starts(event_times: Any, min_gap: Any) -> NDArray[Any]:
     """Return, for each pulse, the index of the first pulse of its train.
 
     Pulses closer than ``min_gap`` seconds belong to the same train.
@@ -45,7 +50,7 @@ def train_starts(event_times, min_gap):
     return first
 
 
-def _check_delayed(ts, baseline, delayed_margin, source):
+def _check_delayed(ts: Any, baseline: Any, delayed_margin: Any, source: Any) -> None:
     """Warn when a baseline starts inside the previous pulse's delayed-response window."""
     if ts.event_times is None or source == "first_pulse":
         return
@@ -77,14 +82,14 @@ def _check_delayed(ts, baseline, delayed_margin, source):
 
 
 def baseline_correct(
-    ts,
-    baseline=(-0.5, -0.05),
+    ts: "TrialSet",
+    baseline: tuple[float, float] = (-0.5, -0.05),
     *,
-    mode="mean",
-    check=True,
-    delayed_margin=1.0,
-    baseline_source="own",
-):
+    mode: str = "mean",
+    check: bool = True,
+    delayed_margin: float = 1.0,
+    baseline_source: str = "own",
+) -> "TrialSet":
     """Subtract each trial's and channel's baseline.
 
     ``x(t) - m`` with ``m`` the mean (or median) of the baseline window, or with a straight
@@ -157,22 +162,25 @@ def baseline_correct(
         trend = trend[first]
 
     data = ts.data - trend
-    return new(
-        ts,
-        "evoparam.prep.baseline_correct",
-        {
-            "baseline": list(baseline),
-            "mode": mode,
-            "check": check,
-            "delayed_margin": delayed_margin,
-            "baseline_source": baseline_source,
-        },
-        start,
-        data=data,
+    return cast(
+        "TrialSet",
+        new(
+            ts,
+            "evoparam.prep.baseline_correct",
+            {
+                "baseline": list(baseline),
+                "mode": mode,
+                "check": check,
+                "delayed_margin": delayed_margin,
+                "baseline_source": baseline_source,
+            },
+            start,
+            data=data,
+        ),
     )
 
 
-def _continuous(raw, sfreq, t0, ts):
+def _continuous(raw: Any, sfreq: float | None, t0: Any, ts: Any) -> Any:
     """Return (data [channels of ts, n_times], sfreq, t0) of a continuous recording.
 
     The recording is given as an array or as a TrialSet holding one continuous trial
@@ -200,8 +208,15 @@ def _continuous(raw, sfreq, t0, ts):
 
 
 def train_baseline(
-    ts, length=0.05, *, raw=None, sfreq=None, t0=0.0, train_column="train_id", mode="mean"
-):
+    ts: Any,
+    length: float = 0.05,
+    *,
+    raw: Any = None,
+    sfreq: float | None = None,
+    t0: float = 0.0,
+    train_column: str = "train_id",
+    mode: str = "mean",
+) -> Any:
     """Baseline per stimulation train.
 
     Per channel, the mean (or median) of the last ``length`` seconds before each train is
@@ -234,7 +249,7 @@ def train_baseline(
     if not length > 0:
         raise SettingsError("train_baseline: length must be positive.")
     meta = ts.metadata
-    event_times = None if ts.event_times is None else np.asarray(ts.event_times, float)
+    event_times: Any = None if ts.event_times is None else np.asarray(ts.event_times, float)
     if meta is not None and train_column in meta.columns:
         keys = meta[train_column].astype(str).to_numpy()
         rule = train_column

@@ -10,11 +10,13 @@ values) by bounded least squares.
 """
 
 import dataclasses
+from typing import cast
 
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.special import erfc
 
+from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.models.component_shapes import Gaussian, SkewedGaussian, skew_mode
 
 # the constants of the skewed Gaussian (evoparam.shapes.components)
@@ -36,22 +38,22 @@ MU_DOWN = 1 / 3
 class ChannelTemplate:
     """What a trial fit needs from the channel fit."""
 
-    shapes: list  # shape objects, one per component
-    params: list  # channel parameters of each component
-    loc_index: list  # index of the location parameter of each component
-    max_shift: np.ndarray  # per component (s)
-    background: object  # background object
-    bg_nonlinear: np.ndarray  # background time constants, fixed
-    tw: np.ndarray  # window times
+    shapes: list[Any]  # shape objects, one per component
+    params: list[Any]  # channel parameters of each component
+    loc_index: list[Any]  # index of the location parameter of each component
+    max_shift: NDArray[Any]  # per component (s)
+    background: Any  # background object
+    bg_nonlinear: NDArray[Any]  # background time constants, fixed
+    tw: NDArray[Any]  # window times
 
-    def basis(self):
+    def basis(self) -> Any:
         if not getattr(self.background, "n_linear", 0):
             return np.zeros((0, len(self.tw)))
         nl = self.bg_nonlinear if len(self.bg_nonlinear) else None
         return np.atleast_2d(self.background.basis(self.tw, nl))
 
 
-def _layout(template, mode, movable=None):
+def _layout(template: Any, mode: Any, movable: Any = None) -> Any:
     """Free parameters of each component: indices into its parameter vector.
 
     With ``movable`` (component indices), the other components keep their channel parameters (only
@@ -67,7 +69,9 @@ def _layout(template, mode, movable=None):
     ]
 
 
-def _bounds(template, _mode, layout):
+def _bounds(template: Any, _mode: Any, layout: Any) -> tuple[NDArray[Any], NDArray[Any]]:
+    hi: Any
+    lo: Any
     lo, hi = [], []
     for k, (shape, params, free) in enumerate(
         zip(template.shapes, template.params, layout, strict=False)
@@ -87,7 +91,7 @@ def _bounds(template, _mode, layout):
     return lo, hi
 
 
-def _unpack(template, layout, z):
+def _unpack(template: Any, layout: Any, z: Any) -> list[Any]:
     out, pos = [], 0
     for params, free in zip(template.params, layout, strict=False):
         p = np.array(params, float)
@@ -98,7 +102,7 @@ def _unpack(template, layout, z):
     return out
 
 
-def _value_and_loc_derivative(shape, t, params, loc, jac=True):
+def _value_and_loc_derivative(shape: Any, t: Any, params: Any, loc: Any, jac: bool = True) -> Any:
     """Return a shape and its derivative in its location parameter, at times ``t``.
 
     The Gaussian and the skewed Gaussian (the shapes of the presets) share one pass for both
@@ -113,6 +117,7 @@ def _value_and_loc_derivative(shape, t, params, loc, jac=True):
         return values, (values * z / sigma if jac else None)
     if kind is SkewedGaussian and loc == 0:
         xi, omega, alpha = float(params[0]), float(params[1]), float(params[2])
+        c: Any
         _, c, _ = skew_mode(alpha)
         c = float(c)
         z = (t - xi) / omega
@@ -129,7 +134,7 @@ def _value_and_loc_derivative(shape, t, params, loc, jac=True):
     return values, shape.jacobian(t, params)[:, loc]
 
 
-def _batched_lstsq(a, y, pad=None):
+def _batched_lstsq(a: Any, y: Any, pad: Any = None) -> tuple[FloatArray, Any]:
     """Least squares for a stack of small problems: ``a`` (n, T, m), ``y`` (n, T).
 
     Returns the coefficients (n, m) and a function that removes from a stack of columns
@@ -161,7 +166,7 @@ def _batched_lstsq(a, y, pad=None):
         rhs = np.matmul(at[good], y[good][..., None])[..., 0] / norms[good]
         beta[good] = np.linalg.solve(gram[good], rhs[..., None])[..., 0]
     bad = np.flatnonzero(~good)
-    q_bad = None
+    q_bad: Any = None
     if len(bad):
         b = a[bad] / norms[bad][:, None, :]
         q_bad, r = np.linalg.qr(b)
@@ -173,7 +178,7 @@ def _batched_lstsq(a, y, pad=None):
                 beta[i] = np.linalg.lstsq(b[row], y[i], rcond=None)[0]
     beta = beta / norms
 
-    def project_out(j, sel=None):
+    def project_out(j: Any, sel: Any = None) -> Any:
         """``j`` holds the columns of the problems ``sel`` (default: all), in that order."""
         sel = np.arange(n) if sel is None else np.asarray(sel)
         out = j.copy()
@@ -195,30 +200,39 @@ def _batched_lstsq(a, y, pad=None):
 
 
 def fit_trials_batch(
-    template, data, valid=None, tol=1e-8, support=None, movable=None, max_iter=100
-):
+    template: Any,
+    data: Any,
+    valid: Any = None,
+    tol: float = 1e-8,
+    support: Any = None,
+    movable: Any = None,
+    max_iter: int = 100,
+) -> list[dict[str, Any]]:
     """``shift_scale`` fit of every trial at once (rows of ``data``, window samples).
 
     The same model and bounds as :func:`fit_trial` in ``shift_scale`` mode, solved by a
     projected Levenberg-Marquardt iteration vectorised over trials (variable projection,
     Kaufman Jacobian). Returns one dict per trial, with the keys of :func:`fit_trial`.
     """
-    return fit_trials_multi(
-        [
-            {
-                "template": template,
-                "data": data,
-                "valid": valid,
-                "tol": tol,
-                "support": support,
-                "movable": movable,
-            }
-        ],
-        max_iter=max_iter,
-    )[0]
+    return cast(
+        "list[dict[str, Any]]",
+        fit_trials_multi(
+            [
+                {
+                    "template": template,
+                    "data": data,
+                    "valid": valid,
+                    "tol": tol,
+                    "support": support,
+                    "movable": movable,
+                }
+            ],
+            max_iter=max_iter,
+        )[0],
+    )
 
 
-def _fast_kind(shape, loc):
+def _fast_kind(shape: Any, loc: Any) -> Any:
     kind = type(shape)
     if kind is Gaussian and loc == 0:
         return "gauss"
@@ -227,7 +241,7 @@ def _fast_kind(shape, loc):
     return None
 
 
-def fit_trials_multi(problems, max_iter=100, max_rows=1024):
+def fit_trials_multi(problems: Any, max_iter: int = 100, max_rows: int = 1024) -> list[Any]:
     """:func:`fit_trials_batch` for several problems (channels, null segments) at once.
 
     ``problems``: dicts with ``template`` and ``data`` and optionally ``valid``, ``tol``,
@@ -236,11 +250,13 @@ def fit_trials_multi(problems, max_iter=100, max_rows=1024):
     own: the result of a trial does not depend on the others). Returns one list of dicts
     per problem.
     """
-    out = [None] * len(problems)
+    out: list[Any] = [None] * len(problems)
+    by_len: dict[Any, Any]
     by_len = {}
     for i, pr in enumerate(problems):
         by_len.setdefault(len(pr["template"].tw), []).append(i)
     for idx in by_len.values():
+        group: list[Any]
         group, rows = [], 0
         for i in idx:
             n_i = len(np.atleast_2d(problems[i]["data"]))
@@ -260,7 +276,7 @@ def fit_trials_multi(problems, max_iter=100, max_rows=1024):
     return out
 
 
-def _solve_multi(problems, max_iter):
+def _solve_multi(problems: Any, max_iter: Any) -> Any:
     """Fit the trials of ``problems`` (same window length) in one projected LM iteration.
 
     A projected Levenberg-Marquardt iteration. The columns that do not move (components held at
@@ -306,6 +322,10 @@ def _solve_multi(problems, max_iter):
     pad = np.ones((n, p), bool)  # parameter slots that are padding
     fcols = np.zeros((n, n_t, n_fix))  # columns that do not move (unweighted)
     # one entry per (trial, moving component)
+    pr_row: Any
+    pr_comp: Any
+    pr_prob: Any
+    pr_q: Any
     pr_row, pr_q, pr_prob, pr_comp = [], [], [], []
     start = 0
     for pi, f in enumerate(infos):
@@ -355,7 +375,9 @@ def _solve_multi(problems, max_iter):
         y_perp = wx - np.matmul(u_f, np.matmul(np.swapaxes(u_f, 1, 2), wx[..., None]))[..., 0]
     # the shapes of the presets are evaluated for all their (trial, component) entries at
     # once, with per-entry parameters; any other shape by (problem, component)
+    kinds: dict[str, Any]
     kinds = {"gauss": [], "skew": []}
+    generic: dict[Any, Any]
     generic = {}
     base_loc = np.zeros(len(pr_row))
     pars = np.zeros((len(pr_row), 4))  # gauss: mu, sigma; skew: xi, omega, alpha, c
@@ -377,15 +399,15 @@ def _solve_multi(problems, max_iter):
     kinds = {key: np.array(v, int) for key, v in kinds.items()}
     generic = {key: np.array(v, int) for key, v in generic.items()}
 
-    def moving(zr, rows, jac):
+    def moving(zr: Any, rows: Any, jac: Any) -> Any:
         """Return the moving columns (rows, T, p) at ``zr`` and their derivatives in the shift."""
         nr = len(rows)
         local = np.full(n, -1)
         local[rows] = np.arange(nr)
         ms = np.zeros((nr, n_t, p))
-        dm = np.zeros((nr, n_t, p)) if jac else None
+        dm: Any = np.zeros((nr, n_t, p)) if jac else None
 
-        def put(entries, values, deriv):
+        def put(entries: Any, values: Any, deriv: Any) -> None:
             lr = local[pr_row[entries]]
             ms[lr, :, pr_q[entries]] = values
             if jac:
@@ -431,7 +453,7 @@ def _solve_multi(problems, max_iter):
             put(e, values.reshape(len(e), n_t), None if d is None else d.reshape(len(e), n_t))
         return ms, dm
 
-    def project_fixed(x, rows):
+    def project_fixed(x: Any, rows: Any) -> Any:
         if shared:
             # one product for all trials: (T, f) against (T, rows x k)
             nr, _, k = x.shape
@@ -441,7 +463,7 @@ def _solve_multi(problems, max_iter):
         uf = u_f[rows]
         return x - np.matmul(uf, np.matmul(np.swapaxes(uf, 1, 2), x))
 
-    def evaluate(zr, rows, jac=True):
+    def evaluate(zr: Any, rows: Any, jac: bool = True) -> Any:
         ms, dm = moving(zr, rows, jac)
         a = ms if all_valid else ms * w[rows, :, None]
         a = project_fixed(a, rows) if n_fix else a
@@ -450,7 +472,7 @@ def _solve_multi(problems, max_iter):
         if not jac:
             return r, beta, ms, None
 
-        def jacobian(sel=None):
+        def jacobian(sel: Any = None) -> Any:
             """Return the projected Jacobian of the problems ``sel`` (default: all).
 
             Computed only for the steps that are kept.
@@ -610,8 +632,15 @@ def _solve_multi(problems, max_iter):
 
 
 def fit_trial(
-    template, x, mode="shift_scale", ridge=0.0, valid=None, tol=1e-8, support=None, movable=None
-):
+    template: Any,
+    x: Any,
+    mode: str = "shift_scale",
+    ridge: float = 0.0,
+    valid: Any = None,
+    tol: float = 1e-8,
+    support: Any = None,
+    movable: Any = None,
+) -> dict[str, Any]:
     """Fit one trial (window samples ``x``). Returns a dict of the per-trial numbers.
 
     ``support`` (bool over the window) restricts the r² to the samples around the components
@@ -629,25 +658,25 @@ def fit_trial(
     centre = z0.copy()
     scale = np.where(hi > lo, hi - lo, 1.0)
 
-    def design(z):
+    def design(z: Any) -> Any:
         params = _unpack(template, layout, z)
         cols = [s.evaluate(template.tw, p) for s, p in zip(template.shapes, params, strict=False)]
         return np.column_stack(cols + list(basis)), params
 
-    def solve(z):
+    def solve(z: Any) -> Any:
         m, params = design(z)
         a = m * w[:, None]
         beta, *_ = np.linalg.lstsq(a, x * w, rcond=None)
         return beta, m, params
 
-    def residual(z):
+    def residual(z: Any) -> Any:
         beta, m, _ = solve(z)
         r = (x - m @ beta) * w
         if ridge:
             r = np.r_[r, np.sqrt(ridge) * (z - centre) / scale * np.sqrt(len(x))]
         return r
 
-    def jac(z):
+    def jac(z: Any) -> Any:
         beta, m, params = solve(z)
         cols = []
         pos = 0

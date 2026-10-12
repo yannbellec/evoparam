@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Settings of the fitting engine: package defaults, fit presets and validation."""
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass, field, replace
 
 import evoparam.presets as _presets
+from evoparam._typing import Any
 from evoparam.errors import SettingsError
 
 __all__ = ["FitSettings", "FIT_PRESETS", "resolve_settings"]
@@ -29,7 +30,7 @@ CANDIDATE_SEARCHES = ("spec", "beam")
 class FitSettings:
     """Every setting of one fit (spec §5.5.8); the defaults are the package defaults."""
 
-    shapes: tuple = ("gaussian", "skewed_gaussian")
+    shapes: tuple[str, ...] = ("gaussian", "skewed_gaussian")
     background: str = "exponential"
     max_components: int = 6
     min_fwhm: float = 0.002
@@ -37,8 +38,8 @@ class FitSettings:
     min_amplitude: float = 0.0
     detection_threshold: float = 2.0
     polarity: str = "both"
-    fit_window: tuple | None = None
-    baseline: tuple | None = None
+    fit_window: tuple[float, float] | None = None
+    baseline: tuple[float, float] | None = None
     selection: str = "bic"
     delta: float = 10.0
     n_components: int | None = None
@@ -52,7 +53,7 @@ class FitSettings:
     n_bootstrap: int = 200
     ci_level: float = 0.95
     classical: bool = True
-    windows: dict | None = None
+    windows: dict[str, Any] | None = None
     max_masked_fraction: float = 0.5
     background_prior: float | None = 3.0
     amplitude_prior: float | None = 3.0
@@ -76,7 +77,7 @@ class FitSettings:
     # after the greedy path, refit a state holding a cancelling pair (opposite components
     # overlapping) or a nearly singular design from starts on the extrema of the data, and
     # keep it when it fits better; "always": for every state (slower; better on ERPs)
-    reseed: object = True
+    reseed: Any = True
     # noise scale and AR model of the whitening: "baseline" (spec §5.5.3 step 1),
     # "plusminus" (the trials averaged with alternating signs over the whole epoch, when the
     # fit has at least 10 trials) or "auto": plus-minus when the baseline holds fewer than
@@ -84,9 +85,9 @@ class FitSettings:
     noise_source: str = "auto"
     preset: str | None = None
     preset_note: str | None = None
-    random_state: object = None
+    random_state: Any = None
 
-    def validate(self):
+    def validate(self) -> "FitSettings":
         if isinstance(self.shapes, str):
             object.__setattr__(self, "shapes", (self.shapes,))
         object.__setattr__(self, "shapes", tuple(self.shapes))
@@ -133,32 +134,32 @@ class FitSettings:
                 object.__setattr__(self, name, value)
         return self
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
-class _FitPresets(Mapping):
+class _FitPresets(Mapping[str, dict[str, Any]]):
     """Fit fields of every preset (spec §6.1), read from evoparam.presets on access.
 
     One source of truth; plugin presets included, and loaded only when first needed.
     """
 
-    def __getitem__(self, name):
+    def __getitem__(self, name: str) -> dict[str, Any]:
         if name not in _presets.PRESETS:
             raise KeyError(name)
         return _presets.fit_fields(name)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(_presets.PRESETS)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(_presets.PRESETS)
 
 
 FIT_PRESETS = _FitPresets()
 
 
-def resolve_settings(preset=None, **overrides):
+def resolve_settings(preset: Any = None, **overrides: Any) -> "FitSettings":
     """Package defaults, then the preset's fit fields, then the explicit overrides.
 
     Overrides left at None do not replace the preset value.
@@ -198,5 +199,5 @@ def resolve_settings(preset=None, **overrides):
     return replace(base, **values).validate()
 
 
-def settings_field(**kwargs):
+def settings_field(**kwargs: Any) -> Any:
     return field(**kwargs)

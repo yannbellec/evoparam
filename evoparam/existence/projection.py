@@ -37,6 +37,7 @@ on one of two sets of pairs (``pairs``):
 import numpy as np
 from scipy.stats import ttest_1samp
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError, SettingsError
 
 __all__ = ["projection_test", "PROFILES", "PAIRS"]
@@ -45,7 +46,7 @@ PROFILES = ("published", "normalised")
 PAIRS = ("disjoint", "half")
 
 
-def _half_pairs(n):
+def _half_pairs(n: Any) -> tuple[NDArray[Any], NDArray[Any]]:
     """One ordered pair per unordered pair {k, l}.
 
     (k, l) when k + l is odd, else (l, k), so that each trial is the normalised one in about half
@@ -56,7 +57,14 @@ def _half_pairs(n):
     return np.where(swap, second, first), np.where(swap, first, second)
 
 
-def _one_channel(v, _times, _t0_index, rng, profile="published", pairs="disjoint"):
+def _one_channel(
+    v: Any,
+    _times: Any,
+    _t0_index: Any,
+    rng: np.random.Generator,
+    profile: str = "published",
+    pairs: str = "disjoint",
+) -> tuple[int, float, float, dict[str, Any]]:
     """v: trials x times (window from t0). Returns duration end index, statistic, p, extra."""
     n, n_t = v.shape
     # Cumulative Gram matrices over the prefix [t0, t]
@@ -94,15 +102,15 @@ def _one_channel(v, _times, _t0_index, rng, profile="published", pairs="disjoint
 
 
 def projection_test(
-    data,
-    times,
-    window,
-    baseline,  # noqa: ARG001  (signature shared by the existence tests; this one uses no baseline)
+    data: Any,
+    times: Any,
+    window: Any,
+    baseline: Any,  # noqa: ARG001  (signature shared by the existence tests; this one uses no baseline)
     *,
-    rng=None,
-    profile="published",
-    pairs="disjoint",
-):
+    rng: np.random.Generator | None = None,
+    profile: str = "published",
+    pairs: str = "disjoint",
+) -> dict[str, NDArray[Any]]:
     """Cross-projection test of every channel.
 
     ``profile`` chooses the reading of the response duration (module docstring):
@@ -128,7 +136,7 @@ def projection_test(
         raise DataError("The projection test needs at least 5 trials.")
     win = (times >= window[0]) & (times <= window[1])
     tw = times[win]
-    out = {
+    out: dict[str, Any] = {
         k: np.full(n_ch, np.nan)
         for k in ("statistic", "p_value", "onset", "offset", "duration", "snr_db")
     }

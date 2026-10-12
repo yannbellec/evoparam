@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.data import Provenance
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data._jsonutil import dumps, loads, to_jsonable
@@ -121,24 +122,24 @@ class GroundTruth(DeepEqualMixin):
     """
 
     generator: str
-    ch_names: list
-    times: np.ndarray
+    ch_names: list[str]
+    times: NDArray[Any]
     sfreq: float
     units: str
-    components: list
-    shift: np.ndarray
-    scale: np.ndarray
-    present: np.ndarray
-    conditions: list
-    noise: dict
-    artifact: dict | None
+    components: list[Any]
+    shift: NDArray[Any]
+    scale: NDArray[Any]
+    present: NDArray[Any]
+    conditions: list[Any]
+    noise: dict[str, Any]
+    artifact: dict[str, Any] | None
     seed: int
-    settings: dict = field(default_factory=dict)
-    signal: np.ndarray | None = None
-    artifact_data: np.ndarray | None = None
+    settings: dict[str, Any] = field(default_factory=dict)
+    signal: NDArray[Any] | None = None
+    artifact_data: NDArray[Any] | None = None
     provenance: Provenance = field(default_factory=Provenance)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.ch_names = [str(name) for name in self.ch_names]
         self.times = np.asarray(self.times, dtype=np.float64)
         self.sfreq = float(self.sfreq)
@@ -160,18 +161,18 @@ class GroundTruth(DeepEqualMixin):
                 setattr(self, name, np.asarray(value, dtype=np.float64))
 
     @property
-    def n_trials(self):
+    def n_trials(self) -> Any:
         return int(self.shift.shape[0])
 
     @property
-    def n_components(self):
+    def n_components(self) -> Any:
         return len(self.components)
 
-    def copy(self):
+    def copy(self) -> "GroundTruth":
         """Return a deep copy."""
         return copy.deepcopy(self)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<GroundTruth from {self.generator}: {self.n_trials} trials, "
             f"{len(self.ch_names)} channels, {self.n_components} components, "
@@ -181,7 +182,7 @@ class GroundTruth(DeepEqualMixin):
     ###############################################################################################
     ## Trial-level values
 
-    def trial_params(self, index):
+    def trial_params(self, index: Any) -> FloatArray:
         """Shape parameters of component ``index`` in every trial, shape (n_trials, n_params)."""
         comp = self.components[index]
         params = np.tile(np.asarray(comp["params"], dtype=np.float64), (self.n_trials, 1))
@@ -189,7 +190,7 @@ class GroundTruth(DeepEqualMixin):
         params[:, loc] += self.shift[:, index]
         return params
 
-    def waveform(self, index, trial=None):
+    def waveform(self, index: Any, trial: Any = None) -> Any:
         """Curve of component ``index`` (amplitude included) on ``times``.
 
         Returns shape (n_times,) for one ``trial``, else (n_trials, n_times).
@@ -206,9 +207,10 @@ class GroundTruth(DeepEqualMixin):
     ###############################################################################################
     ## Tables
 
-    def _component_order(self):
+    def _component_order(self) -> NDArray[Any]:
         """Position of each component among those of its channel, by nominal latency."""
         order = np.zeros(self.n_components, dtype=np.int64)
+        by_channel: dict[Any, Any]
         by_channel = {}
         for index, comp in enumerate(self.components):
             by_channel.setdefault(comp["channel"], []).append(index)
@@ -218,7 +220,7 @@ class GroundTruth(DeepEqualMixin):
                 order[index] = position
         return order
 
-    def _row(self, index, position, shift, scale):
+    def _row(self, index: Any, position: Any, shift: Any, scale: Any) -> dict[str, Any]:
         comp = self.components[index]
         feats = {
             key: np.nan if value is None else value for key, value in comp["features"].items()
@@ -255,7 +257,7 @@ class GroundTruth(DeepEqualMixin):
         )
         return row
 
-    def to_dataframe(self, level="component"):
+    def to_dataframe(self, level: str = "component") -> Any:
         """Tidy table of the components, in the column schema of ``GroupFit.to_dataframe()``.
 
         Parameters
@@ -289,6 +291,7 @@ class GroundTruth(DeepEqualMixin):
         order = self._component_order()
         conditions = np.asarray(self.conditions, dtype=object)
         rows = []
+        index: Any
         if level == "trial":
             for trial in range(self.n_trials):
                 for index in np.flatnonzero(self.present[trial]):
@@ -327,7 +330,7 @@ class GroundTruth(DeepEqualMixin):
     ###############################################################################################
     ## Serialisation
 
-    def to_dict(self, arrays=True):
+    def to_dict(self, arrays: bool = True) -> Any:
         """JSON-serialisable dictionary.
 
         ``arrays=False`` leaves out ``signal`` and ``artifact_data``.
@@ -357,7 +360,7 @@ class GroundTruth(DeepEqualMixin):
         return to_jsonable(out)
 
     @classmethod
-    def from_dict(cls, dct):
+    def from_dict(cls, dct: Any) -> "GroundTruth":
         """Rebuild from :meth:`to_dict` output."""
         dct = dict(dct)
         dct["provenance"] = Provenance.from_dict(dct["provenance"])
@@ -373,7 +376,7 @@ class GroundTruth(DeepEqualMixin):
                 dct[name] = np.asarray(dct[name], dtype=np.float64)
         return cls(**dct)
 
-    def save(self, path, overwrite=False, table_format="auto"):
+    def save(self, path: Any, overwrite: bool = False, table_format: Any = "auto") -> str:
         """Save to a ``.evoparam`` container (spec §4.3.5), arrays included.
 
         Returns
@@ -386,7 +389,7 @@ class GroundTruth(DeepEqualMixin):
         return save_object(self, path, overwrite=overwrite, table_format=table_format)
 
     @classmethod
-    def load(cls, path, verify=True):
+    def load(cls, path: Any, verify: bool = True) -> "GroundTruth":
         """Load a container written by :meth:`save` (also :func:`evoparam.load_object`)."""
         from evoparam.data.serialize import load_object
 
@@ -395,12 +398,12 @@ class GroundTruth(DeepEqualMixin):
             raise DataError(f"{path}: holds a {type(obj).__name__}, not a GroundTruth.")
         return obj
 
-    def to_json(self, arrays=False, **kwargs):
+    def to_json(self, arrays: bool = False, **kwargs: Any) -> str:
         """Strict JSON text (NaN written as null); arrays left out by default."""
         return dumps(self.to_dict(arrays=arrays), **kwargs)
 
     @classmethod
-    def from_json(cls, text):
+    def from_json(cls, text: Any) -> "GroundTruth":
         """Rebuild from :meth:`to_json` output."""
         return cls.from_dict(loads(text))
 

@@ -11,6 +11,7 @@ a time, and only the artifact atoms are subtracted.
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import SettingsError
 from evoparam.errors import warn as _warn
 
@@ -27,7 +28,7 @@ DECAY_RANGE = (0.0002, 0.05)  # s
 DECAY_START_STEP = 0.001  # spacing of their onsets (s)
 
 
-def warn_patent():
+def warn_patent() -> None:
     global _WARNED  # noqa: PLW0603  (once-only warning flag, reset by the tests)
     if not _WARNED:
         _warn(
@@ -41,8 +42,9 @@ def warn_patent():
         _WARNED = True
 
 
-def dictionary(rel, window_end, line_freq):
+def dictionary(rel: Any, window_end: Any, line_freq: Any) -> tuple[FloatArray, NDArray[Any]]:
     """Unit-norm atoms on the time axis ``rel`` (s from the pulse), with their kinds."""
+    atoms: Any
     atoms, kinds = [], []
     for h in range(1, N_HARMONICS + 1):
         for func in (np.sin, np.cos):
@@ -63,7 +65,15 @@ def dictionary(rel, window_end, line_freq):
     return atoms[keep] / norms[keep, None], np.array(kinds)[keep]
 
 
-def pursuit_clean(series, rel, window_end, *, line_freq=50.0, n_iter=20, tol=0.01):
+def pursuit_clean(
+    series: FloatArray,
+    rel: FloatArray,
+    window_end: float,
+    *,
+    line_freq: float = 50.0,
+    n_iter: int = 20,
+    tol: float = 0.01,
+) -> tuple[Any, FloatArray]:
     """Greedy decomposition of every series; the artifact atoms are subtracted.
 
     Parameters

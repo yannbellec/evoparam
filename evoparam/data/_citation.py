@@ -11,6 +11,7 @@ be identical to the one at the root of the repository; a test checks it.
 import os
 import re
 from importlib import resources
+from typing import Any, cast
 
 __all__ = ["read_citation", "citation_text", "citation_bibtex", "parse_cff"]
 
@@ -18,7 +19,7 @@ __all__ = ["read_citation", "citation_text", "citation_bibtex", "parse_cff"]
 _KEY = re.compile(r"^[A-Za-z0-9_.-]+:(\s|$)")
 
 
-def _scalar(text):
+def _scalar(text: str) -> str | None:
     text = text.strip()
     if not text:
         return None
@@ -30,7 +31,7 @@ def _scalar(text):
     return text
 
 
-def _lines(text):
+def _lines(text: str) -> list[tuple[int, str]]:
     out = []
     for raw in text.splitlines():
         stripped = raw.strip()
@@ -40,7 +41,7 @@ def _lines(text):
     return out
 
 
-def _parse_block(lines, start, indent):
+def _parse_block(lines: list[tuple[int, str]], start: int, indent: int) -> tuple[Any, int]:
     """Parse the block of ``lines`` that starts at ``start`` with indentation ``indent``."""
     if start >= len(lines):
         return None, start
@@ -63,6 +64,7 @@ def _parse_block(lines, start, indent):
                 i += 1
         return items, i
     mapping, i = {}, start
+    key: str | None
     while i < len(lines) and lines[i][0] == indent:
         key, _, rest = lines[i][1].partition(":")
         key = _scalar(key)
@@ -79,7 +81,7 @@ def _parse_block(lines, start, indent):
     return mapping, i
 
 
-def parse_cff(text):
+def parse_cff(text: str) -> Any:
     """Parse the YAML subset of a citation file into dictionaries, lists and strings."""
     lines = _lines(text)
     if not lines:
@@ -88,7 +90,7 @@ def parse_cff(text):
     return value
 
 
-def _cff_text():
+def _cff_text() -> str:
     try:
         return resources.files("evoparam").joinpath("CITATION.cff").read_text("utf-8")
     except (FileNotFoundError, OSError):
@@ -100,12 +102,12 @@ def _cff_text():
             return fobj.read()
 
 
-def read_citation():
+def read_citation() -> dict[str, Any]:
     """Return the parsed ``CITATION.cff`` of the package (a dictionary)."""
-    return parse_cff(_cff_text())
+    return cast("dict[str, Any]", parse_cff(_cff_text()))
 
 
-def _authors(cff):
+def _authors(cff: dict[str, Any]) -> list[tuple[str, str]]:
     names = []
     for author in cff.get("authors") or []:
         if not isinstance(author, dict):
@@ -118,7 +120,7 @@ def _authors(cff):
     return names
 
 
-def citation_text(cff=None):
+def citation_text(cff: dict[str, Any] | None = None) -> str:
     """One-line citation.
 
     Authors (family name and initials), title, version, then the DOI or else the repository.
@@ -148,7 +150,7 @@ def citation_text(cff=None):
     return text
 
 
-def _version_doi(cff):
+def _version_doi(cff: dict[str, Any]) -> str | None:
     """Return the DOI of this version.
 
     An ``identifiers`` entry of type ``doi`` whose description names the version (Zenodo's version
@@ -164,7 +166,7 @@ def _version_doi(cff):
     return None
 
 
-def _preferred(cff):
+def _preferred(cff: dict[str, Any]) -> str | None:
     """Return the ``preferred-citation`` (the paper), formatted on one line, or None."""
     paper = cff.get("preferred-citation")
     if not isinstance(paper, dict) or not paper.get("title"):
@@ -186,7 +188,7 @@ def _preferred(cff):
     return " ".join(p for p in parts if p)
 
 
-def citation_bibtex(cff=None):
+def citation_bibtex(cff: dict[str, Any] | None = None) -> str:
     """BibTeX entry (``@software``) built from the citation file."""
     cff = read_citation() if cff is None else cff
     names = _authors(cff)

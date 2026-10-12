@@ -5,9 +5,11 @@ import dataclasses
 import os
 import time as _time
 import warnings
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.data import Evoked, Provenance, TrialFit, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
@@ -22,6 +24,9 @@ from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 from ._model import ChannelTemplate, fit_trial, fit_trials_batch
+
+if TYPE_CHECKING:
+    from evoparam.shapes._base import ComponentShape
 
 __all__ = [
     "fit_trials",
@@ -67,17 +72,17 @@ class TrialFitSet:
     and ``settings``.
     """
 
-    fits: list
-    table: object
-    skipped_channels: list
-    settings: dict
+    fits: list[Any]
+    table: Any
+    skipped_channels: list[Any]
+    settings: dict[str, Any]
     provenance: Provenance = dataclasses.field(default_factory=Provenance)
 
-    def to_dataframe(self):
+    def to_dataframe(self) -> Any:
         """Return a copy of the tidy table of all the trial fits."""
         return self.table.copy()
 
-    def get(self, channel, condition=None):
+    def get(self, channel: Any, condition: Any = None) -> Any:
         """Return the trial fit of ``channel`` (and ``condition``)."""
         for fit in self.fits:
             if fit.channel == channel and (
@@ -86,7 +91,7 @@ class TrialFitSet:
                 return fit
         raise KeyError(f"No trial fit for channel {channel!r}.")
 
-    def save(self, path, overwrite=False):
+    def save(self, path: Any, overwrite: bool = False) -> Any:
         """Save to a folder: one ``.evoparam`` container per channel fit, and the table."""
         import json
 
@@ -115,7 +120,7 @@ class TrialFitSet:
         return path
 
     @classmethod
-    def load(cls, path):
+    def load(cls, path: Any) -> "TrialFitSet":
         """Load a set saved by :meth:`save`."""
         import json
 
@@ -149,19 +154,21 @@ class TrialFitSet:
 ## Helpers
 
 
-def _shape_for(comp, settings):
+def _shape_for(comp: Any, settings: Any) -> "ComponentShape":
     name = comp.shape
-    fields = {f.name for f in dataclasses.fields(type(get_shape(name)))}
+    fields = {f.name for f in dataclasses.fields(cast(Any, type(get_shape(name))))}
     kwargs = {k: settings[k] for k in ("min_fwhm", "max_fwhm") if k in fields and k in settings}
     return get_shape(name, **kwargs)
 
 
-def _amplitude_of(comp):
+def _amplitude_of(comp: Any) -> Any:
     ci = comp.ci or {}
     return 0.5 * (ci["A"][0] + ci["A"][1]) if "A" in ci else comp.amplitude
 
 
-def _template_for(fit, picks, times, max_shift, factor, moving=None):
+def _template_for(
+    fit: Any, picks: Any, times: Any, max_shift: Any, factor: Any, moving: Any = None
+) -> "ChannelTemplate":
     """Channel template restricted to the chosen components."""
     settings = fit.settings
     window = fit.window
@@ -202,7 +209,7 @@ def _template_for(fit, picks, times, max_shift, factor, moving=None):
     return ChannelTemplate(shapes, params, locs, np.maximum(shifts, 1e-6), background, nl, tw)
 
 
-def _template_mode(template, fit, average, times, picks):
+def _template_mode(template: Any, fit: Any, average: Any, times: Any, picks: Any) -> Any:
     """Replace each component by the channel average over its support (Woody template)."""
     tw = template.tw
     win = (times >= tw[0]) & (times <= tw[-1])
@@ -230,7 +237,15 @@ def _template_mode(template, fit, average, times, picks):
     return dataclasses.replace(template, shapes=shapes, params=params, loc_index=locs)
 
 
-def _fit_all(template, data, valid, mode, ridge, support=None, movable=None):
+def _fit_all(
+    template: Any,
+    data: Any,
+    valid: Any,
+    mode: Any,
+    ridge: Any,
+    support: Any = None,
+    movable: Any = None,
+) -> Any:
     if mode == "shift_scale" and not ridge:
         # every trial at once (the same model, a vectorised solver)
         return fit_trials_batch(template, data, valid=valid, support=support, movable=movable)
@@ -248,7 +263,7 @@ def _fit_all(template, data, valid, mode, ridge, support=None, movable=None):
     ]
 
 
-def _choose_ridge(template, data, valid, movable=None):
+def _choose_ridge(template: Any, data: Any, valid: Any, movable: Any = None) -> float:
     """Penalty chosen by split-sample prediction error: fit on even samples, score on odd."""
     even = np.zeros(data.shape[1], bool)
     even[::2] = True
@@ -272,7 +287,7 @@ def _choose_ridge(template, data, valid, movable=None):
     return best
 
 
-def _choose_ridge_loto(template, data, valid, movable=None):
+def _choose_ridge_loto(template: Any, data: Any, valid: Any, movable: Any = None) -> float:
     """Penalty chosen by leave-one-trial-out prediction error (spec §5.7).
 
     For each trial, the centre of the penalty is the channel model refitted to the average of the
@@ -314,17 +329,17 @@ def _choose_ridge_loto(template, data, valid, movable=None):
 
 
 def _null_jitter(
-    template,
-    fit,
-    trials,
-    times,
-    baseline,
-    picks,
-    support=None,
-    r2_min=0.0,
-    report=None,
-    repeats=NULL_REPEATS,
-):
+    template: Any,
+    fit: Any,
+    trials: Any,
+    times: Any,
+    baseline: Any,
+    picks: Any,
+    support: Any = None,
+    r2_min: float = 0.0,
+    report: Any = None,
+    repeats: Any = NULL_REPEATS,
+) -> Any:
     """Jitter found by the same procedure on noise only.
 
     The channel curve plus each trial's baseline segment (no response).
@@ -362,7 +377,9 @@ def _null_jitter(
     return np.nanstd(np.array(shifts), axis=0, ddof=1), int(np.ceil(len(shifts) / repeats))
 
 
-def _prestim(trials, times, band, window):
+def _prestim(
+    trials: Any, times: Any, band: Any, window: Any
+) -> tuple[FloatArray, NDArray[Any], FloatArray]:
     """Pre-stimulus phase (three estimators), its circular SD, and power, per trial."""
     from scipy.signal import butter, hilbert, lfilter, sosfiltfilt
 
@@ -405,7 +422,7 @@ def _prestim(trials, times, band, window):
     phases = np.column_stack([phase1, phase2, phase3])
     resultant = np.abs(np.mean(np.exp(1j * phases), axis=1))
     circ_sd = np.sqrt(-2 * np.log(np.clip(resultant, 1e-12, 1)))
-    phase = np.angle(np.mean(np.exp(1j * phases), axis=1))
+    phase: Any = np.angle(np.mean(np.exp(1j * phases), axis=1))  # per trial
     power = np.mean(np.abs(hilbert(sosfiltfilt(sos, seg, axis=-1), axis=-1)) ** 2, axis=-1)
     return phase, circ_sd, power
 
@@ -415,28 +432,28 @@ def _prestim(trials, times, band, window):
 
 
 def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.7)
-    ts,
-    group_fit=None,
+    ts: Any,
+    group_fit: Any = None,
     *,
-    mode="shift_scale",
-    components=None,
-    max_shift="auto",
-    stretch=False,
-    r2_min=0.2,
-    realign=False,
-    realign_on=None,
-    covariates=(),
-    prestim_band=(8.0, 13.0),
-    prestim_window=(-0.5, -0.01),
-    by=("stim_site",),
-    preset=None,
-    trial_model="anchored",
-    null_rule="segments",
-    ridge_cv="loto",
-    n_jobs=1,
-    random_state=None,
-    verbose=None,
-):
+    mode: str = "shift_scale",
+    components: Any = None,
+    max_shift: Any = "auto",
+    stretch: bool = False,
+    r2_min: float = 0.2,
+    realign: bool = False,
+    realign_on: Any = None,
+    covariates: Any = (),
+    prestim_band: Any = (8.0, 13.0),
+    prestim_window: Any = (-0.5, -0.01),
+    by: Any = ("stim_site",),
+    preset: Any = None,
+    trial_model: str = "anchored",
+    null_rule: str = "segments",
+    ridge_cv: str = "loto",
+    n_jobs: int = 1,
+    random_state: Any = None,
+    verbose: Any = None,
+) -> "TrialFitSet":
     """Latency, amplitude (and in the free modes, width) of each component in every trial.
 
     The channel fit (``group_fit``, or ``evoparam.models.fit`` of the trial average with
@@ -504,7 +521,7 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
     if group_fit is None:
         from evoparam.models import fit as fit_models
 
-        preset = preset or MODALITY_PRESETS.get(ts.modality)
+        preset = preset or (MODALITY_PRESETS.get(ts.modality) if ts.modality else None)
         if preset is None:
             raise SettingsError("Give group_fit, or preset= (the TrialSet has no modality).")
         group_fit = fit_models(
@@ -784,7 +801,8 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
     )
 
 
-def _realigned(times, trials, shifts, trusted, name, ts):
+def _realigned(times: Any, trials: Any, shifts: Any, trusted: Any, name: Any, ts: Any) -> "Evoked":
+    data: Any
     data = []
     for x, d in zip(trials[trusted], shifts[trusted], strict=False):
         data.append(np.interp(times, times - d, np.nan_to_num(x)))
@@ -804,7 +822,7 @@ def _realigned(times, trials, shifts, trusted, name, ts):
 ## Companions
 
 
-def jitter(trial_fit, component=0):
+def jitter(trial_fit: Any, component: int = 0) -> Any:
     """Return the jitter statistics of one component, per channel.
 
     ``jitter_sd`` (with a bootstrap interval over trusted trials), ``jitter_sd_null``,
@@ -856,7 +874,7 @@ def jitter(trial_fit, component=0):
     return pd.DataFrame(rows)
 
 
-def realign(ts, trial_fit, component=0):
+def realign(ts: Any, trial_fit: Any, component: int = 0) -> list[Any]:
     """Average the trusted trials, each shifted back by its latency shift of ``component``.
 
     The Woody-filter average; one Evoked per channel fit.
@@ -885,7 +903,7 @@ def realign(ts, trial_fit, component=0):
     return out
 
 
-def _trend(table):
+def _trend(table: Any) -> Any:
     """Amplitude scale against the position in the train, per channel, condition and component.
 
     ``a_i = a (1 + c i)`` by least squares over trusted trials. ``slope`` is ``c`` (relative change
@@ -926,7 +944,7 @@ def _trend(table):
     return pd.DataFrame(rows)
 
 
-def state_dependence(trial_fit, *, column="state", reference=None):
+def state_dependence(trial_fit: Any, *, column: str = "state", reference: Any = None) -> Any:
     """Return the amplitude and latency per behavioural or brain state.
 
     The state is ``metadata["state"]`` (sleep, wake, anaesthesia...); per channel and component, on
@@ -1013,11 +1031,11 @@ def state_dependence(trial_fit, *, column="state", reference=None):
     return pd.DataFrame(rows, columns=columns)
 
 
-def _hill(i, a_max, i50, h):
+def _hill(i: Any, a_max: Any, i50: Any, h: Any) -> Any:
     return a_max * i**h / (i50**h + i**h)
 
 
-def dose_response(trial_fit, *, x="stim_current_mA", model="auto"):
+def dose_response(trial_fit: Any, *, x: str = "stim_current_mA", model: Any = "auto") -> Any:
     """Amplitude against stimulation dose per channel and component.
 
     ``model="hill"``: ``a(I) = a_max I^h / (I50^h + I^h)``, ``h`` in [0.5, 6], with the
@@ -1063,7 +1081,13 @@ def dose_response(trial_fit, *, x="stim_current_mA", model="auto"):
     return pd.DataFrame(rows)
 
 
-def prestimulus_dependence(trial_fit, *, band=(8.0, 13.0), n_permutations=1000, random_state=None):
+def prestimulus_dependence(
+    trial_fit: Any,
+    *,
+    band: Any = (8.0, 13.0),
+    n_permutations: int = 1000,
+    random_state: Any = None,
+) -> Any:
     """Amplitude against pre-stimulus phase.
 
     ``a = c0 + c1 cos(phi - phi0)``, with a permutation test of ``c1`` (phases shuffled across
@@ -1079,7 +1103,7 @@ def prestimulus_dependence(trial_fit, *, band=(8.0, 13.0), n_permutations=1000, 
         phi = g["prestim_phase"].to_numpy(float)
         amp = g["scale"].to_numpy(float)
 
-        def harmonic(p):
+        def harmonic(p: Any) -> Any:
             design = np.column_stack([np.ones_like(p), np.cos(p), np.sin(p)])
             coef, *_ = np.linalg.lstsq(design, amp, rcond=None)  # noqa: B023  (called within this iteration only)
             return coef

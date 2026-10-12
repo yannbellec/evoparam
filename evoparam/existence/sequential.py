@@ -27,12 +27,13 @@ full information it gives the decision of :func:`sign_flip_test` with the same
 import numpy as np
 from scipy.stats import norm
 
+from evoparam._typing import Any, FloatArray, NDArray, RandomState
 from evoparam.errors import DataError, SettingsError
 
 __all__ = ["sign_flip_test", "SequentialSignFlip", "OnlineExistence", "alpha_spending"]
 
 
-def alpha_spending(t, alpha=0.05):
+def alpha_spending(t: Any, alpha: float = 0.05) -> NDArray[Any]:
     """Cumulative error spent at information fraction ``t`` (0 to 1).
 
     The Lan-DeMets form of the O'Brien-Fleming boundary, ``2 - 2 Phi(z_{1 - alpha/2} / sqrt(t))``
@@ -44,19 +45,19 @@ def alpha_spending(t, alpha=0.05):
     return np.where(t >= 1.0, alpha, np.minimum(out, alpha))
 
 
-def _check(alpha, n_permutations):
+def _check(alpha: Any, n_permutations: Any) -> None:
     if not 0 < alpha < 1:
         raise SettingsError("alpha must be in (0, 1).")
     if int(n_permutations) < 1:
         raise SettingsError("n_permutations must be at least 1.")
 
 
-def _signs(rng, n_permutations):
+def _signs(rng: np.random.Generator, n_permutations: Any) -> Any:
     """Signs of one pulse in each permutation (the same draws online and offline)."""
     return 2.0 * rng.integers(0, 2, size=n_permutations) - 1.0
 
 
-def _statistic(sums, sum_sq, n):
+def _statistic(sums: Any, sum_sq: Any, n: Any) -> NDArray[Any]:
     """One-sample t of each trajectory (rows) and channel (columns); -inf when undefined."""
     n = np.asarray(n, float)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -66,11 +67,17 @@ def _statistic(sums, sum_sq, n):
     return np.where(np.isnan(t) | (n < 2), -np.inf, t)
 
 
-def _allowed(alpha, size):
+def _allowed(alpha: Any, size: Any) -> Any:
     return np.floor(np.asarray(alpha) * size + 1e-9).astype(int)
 
 
-def sign_flip_test(values, *, alpha=0.05, n_permutations=1000, random_state=None):
+def sign_flip_test(
+    values: Any,
+    *,
+    alpha: float = 0.05,
+    n_permutations: int = 1000,
+    random_state: RandomState | None = None,
+) -> dict[str, Any]:
     """Sign-flip permutation test of per-pulse values, at a fixed sample size.
 
     Parameters
@@ -139,38 +146,45 @@ class SequentialSignFlip:
     """
 
     def __init__(
-        self, n_channels, *, alpha=0.05, max_n=100, n_permutations=1000, random_state=None
-    ):
+        self,
+        n_channels: int,
+        *,
+        alpha: float = 0.05,
+        max_n: int = 100,
+        n_permutations: int = 1000,
+        random_state: Any = None,
+    ) -> None:
         _check(alpha, n_permutations)
         if int(max_n) < 2:
             raise SettingsError("max_n must be at least 2.")
-        self.n_channels = int(n_channels)
-        self.alpha = float(alpha)
-        self.max_n = int(max_n)
-        self.n_permutations = int(n_permutations)
+        self.n_channels: int = int(n_channels)
+        self.alpha: float = float(alpha)
+        self.max_n: int = int(max_n)
+        self.n_permutations: int = int(n_permutations)
         self.random_state = random_state
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         """Forget every pulse and look."""
         n_traj = self.n_permutations + 1
         self._rng = np.random.default_rng(self.random_state)
         self._sums = np.zeros((n_traj, self.n_channels))
         self._sum_sq = np.zeros(self.n_channels)
-        self.n = np.zeros(self.n_channels, int)
+        self.n: Any = np.zeros(self.n_channels, int)
         self._alive = np.ones((n_traj, self.n_channels), bool)
         self._crossed = np.zeros(self.n_channels, int)
-        self.significant = np.zeros(self.n_channels, bool)
-        self.alpha_spent = np.zeros(self.n_channels)
-        self.n_looks = 0
+        self.significant: NDArray[Any] = np.zeros(self.n_channels, bool)
+        self.alpha_spent: FloatArray | NDArray[Any] = np.zeros(self.n_channels)
+        self.n_looks: int = 0
+        self._values: list[Any]
         self._values = []
 
     @property
-    def values(self):
+    def values(self) -> Any:
         """The values received so far, [n_pulses, n_channels]."""
         return np.array(self._values).reshape(-1, self.n_channels)
 
-    def update(self, values):
+    def update(self, values: Any) -> None:
         """Add one pulse: one value per channel (NaN: none for that channel)."""
         values = np.asarray(values, float).ravel()
         if values.size != self.n_channels:
@@ -184,14 +198,14 @@ class SequentialSignFlip:
         self.n += present
         self._values.append(values)
 
-    def statistics(self):
+    def statistics(self) -> tuple[NDArray[Any], NDArray[Any]]:
         """Statistic of the observed trajectory and fixed-sample p-value, per channel."""
         stat = _statistic(self._sums, self._sum_sq, self.n)
         count = (stat[1:] >= stat[0] - 1e-12).sum(axis=0)
         p = np.where(self.n >= 2, (1.0 + count) / (1.0 + self.n_permutations), np.nan)
         return stat, p
 
-    def look(self, final=False):
+    def look(self, final: bool = False) -> dict[str, Any]:
         """Apply the boundary at the current information fraction.
 
         Returns
@@ -249,20 +263,20 @@ class OnlineExistence:
 
     def __init__(
         self,
-        n_channels,
+        n_channels: int,
         *,
-        threshold_sd=3.0,
-        alpha=0.05,
-        max_n=100,
-        n_permutations=1000,
-        looks="pulse",
-        random_state=None,
-    ):
+        threshold_sd: float = 3.0,
+        alpha: float = 0.05,
+        max_n: int = 100,
+        n_permutations: int = 1000,
+        looks: str = "pulse",
+        random_state: Any = None,
+    ) -> None:
         if looks not in ("pulse", None):
             raise SettingsError("looks must be 'pulse' or None.")
-        self.threshold_sd = float(threshold_sd)
+        self.threshold_sd: float = float(threshold_sd)
         self.looks = looks
-        self.test = SequentialSignFlip(
+        self.test: SequentialSignFlip = SequentialSignFlip(
             n_channels,
             alpha=alpha,
             max_n=max_n,
@@ -271,16 +285,18 @@ class OnlineExistence:
         )
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset the running test to no trial."""
         n_ch = self.test.n_channels
         self.test.reset()
         self._count = np.zeros(n_ch)
         self._mean = np.zeros(n_ch)
         self._m2 = np.zeros(n_ch)
-        self.last = None
+        self.last: dict[str, Any] | None = None
 
-    def update(self, projection, baseline_projection):
+    def update(
+        self, projection: Any, baseline_projection: Any
+    ) -> tuple[NDArray[Any], NDArray[Any]]:
         """Add one pulse; returns ``(z, present)``, arrays [n_channels]."""
         projection = np.asarray(projection, float)
         base = np.asarray(baseline_projection, float)
@@ -298,7 +314,7 @@ class OnlineExistence:
             self.last = self.test.look()
         return z, np.nan_to_num(z, nan=-np.inf) > self.threshold_sd
 
-    def look(self, final=False):
+    def look(self, final: bool = False) -> dict[str, Any]:
         """Return a look of the running test (see :meth:`SequentialSignFlip.look`)."""
-        self.last = self.test.look(final=final)
-        return self.last
+        last = self.last = self.test.look(final=final)
+        return last

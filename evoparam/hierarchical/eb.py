@@ -25,11 +25,13 @@ Three pieces, each closed-form or one-dimensional:
 """
 
 import re
+from typing import cast
 
 import numpy as np
 from scipy import stats as sstats
 from scipy.optimize import minimize_scalar
 
+from evoparam._typing import Any, ArrayLike, FloatArray, IntArray, NDArray
 from evoparam.errors import SettingsError
 from evoparam.stats.variance import reml
 
@@ -48,11 +50,18 @@ EM_MAX_ITER = 1000
 PI_BOUNDS = (1e-4, 1 - 1e-4)
 
 
-def _normal_logpdf(y, mean, var):
+def _normal_logpdf(y: Any, mean: Any, var: Any) -> Any:
     return -0.5 * (np.log(2 * np.pi * var) + (y - mean) ** 2 / var)
 
 
-def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
+def mixture_em(
+    y: ArrayLike,
+    se: ArrayLike,
+    subject: IntArray,
+    polarity: int = 0,
+    tol: Any = EM_TOL,
+    max_iter: Any = EM_MAX_ITER,
+) -> dict[str, Any]:
     """Two-component mixture (no response / response) on channel amplitudes.
 
     Parameters
@@ -72,13 +81,14 @@ def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
     y = np.asarray(y, float)
     se2 = np.asarray(se, float) ** 2
     subject = np.asarray(subject, int)
-    n_sub = int(subject.max()) + 1
+    n_sub = int(np.max(subject)) + 1
     ok = np.isfinite(y) & np.isfinite(se2) & (se2 > 0)
     sign = polarity if polarity else (np.sign(np.median(y[ok])) or 1.0)
     z = sign * y / np.sqrt(se2)
     # initialise from the channels well beyond their noise
     strong = ok & (z > 3)
     start = np.median(y[strong]) if strong.sum() >= 2 else sign * 3 * np.sqrt(np.median(se2[ok]))
+    mu: Any
     mu = np.full(n_sub, float(start))
     tau = 0.3 * abs(start)
     pi = np.full(n_sub, max(min(np.mean(strong[ok]) if ok.any() else 0.3, 0.9), 0.05))
@@ -109,7 +119,7 @@ def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
         den = np.bincount(subject, weights=w, minlength=n_sub) + prior
         mu = np.where(den > 0, num / np.where(den > 0, den, 1.0), mu_group)
 
-        def objective(t):
+        def objective(t: Any) -> Any:
             v = t**2 + se2[ok]
             return -np.sum(r[ok] * _normal_logpdf(y[ok], mu[subject[ok]], v))  # noqa: B023  (called within this iteration only)
 
@@ -135,7 +145,13 @@ def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
     }
 
 
-def shrink(y, se, subject, channel, X=None):  # noqa: N803  (public keyword: the fixed-effect design X)
+def shrink(
+    y: Any,
+    se: Any,
+    subject: Any,
+    channel: Any,
+    X: Any = None,  # noqa: N803  (public keyword: the fixed-effect design X)
+) -> tuple[dict[str, Any], int]:
     """Shrunken channel and subject estimates of one parameter (REML, nested model).
 
     With one subject the subject level is dropped (the channels are the only level).
@@ -148,7 +164,7 @@ def shrink(y, se, subject, channel, X=None):  # noqa: N803  (public keyword: the
     return out, len(groups) - 1
 
 
-def jitter_components(latency, noise_sd, subject, channel):
+def jitter_components(latency: Any, noise_sd: Any, subject: Any, channel: Any) -> dict[str, Any]:
     """Trial-to-trial latency jitter beyond noise.
 
     REML residual SD, and the ex-Gaussian decomposition (``sigma``, ``tau``) from the second and
@@ -184,7 +200,15 @@ def jitter_components(latency, noise_sd, subject, channel):
     }
 
 
-def latency_standard_error(latency, wald_se, jitter_sd, n_trials, low, high, fallback=None):
+def latency_standard_error(
+    latency: Any,
+    wald_se: Any,
+    jitter_sd: Any,
+    n_trials: ArrayLike,
+    low: Any,
+    high: Any,
+    fallback: Any = None,
+) -> NDArray[Any]:
     """Return the standard error of channel latencies fitted on the average of ``n_trials`` trials.
 
     Two errors add up: the noise of the average (``wald_se``, from the fit) and the mean of
@@ -210,13 +234,13 @@ def latency_standard_error(latency, wald_se, jitter_sd, n_trials, low, high, fal
     if fallback is not None:
         fallback = np.asarray(fallback, float)
         out = np.where(np.isfinite(wald_se), out, fallback)
-    return out
+    return cast("NDArray[Any]", out)
 
 
 _FORMULA = re.compile(r"^\s*([A-Za-z_]\w*)\s*~\s*(.+?)\s*$")
 
 
-def parse_formula(formula):
+def parse_formula(formula: Any) -> tuple[Any, list[Any]]:
     """``"latency ~ age + state"`` -> ("latency", ["age", "state"]); ``~ 1`` -> no term."""
     match = _FORMULA.match(formula or "")
     if not match:
@@ -235,12 +259,13 @@ def parse_formula(formula):
     return parameter, terms
 
 
-def design_matrix(values, terms):
+def design_matrix(values: Any, terms: Any) -> tuple[FloatArray, list[str]]:
     """Design of subject covariates: intercept, numeric columns, treatment-coded factors.
 
     ``values``: list (one per observation) of dicts term -> value. Returns (X, names).
     """
-    columns, names = [np.ones(len(values))], ["Intercept"]
+    columns: list[NDArray[Any]] = [np.ones(len(values))]
+    names = ["Intercept"]
     for term in terms:
         raw = [v[term] for v in values]
         try:
@@ -255,7 +280,7 @@ def design_matrix(values, terms):
     return np.column_stack(columns), names
 
 
-def effects_table(out, names, level=0.95):
+def effects_table(out: Any, names: Any, level: float = 0.95) -> Any:
     """Return the fixed effects with standard errors, intervals and two-sided p-values (normal)."""
     import pandas as pd
 

@@ -15,10 +15,12 @@ import math
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, StrPath
+
 __all__ = ["canonical", "canonical_bytes", "sha256_bytes", "sha256_file", "array_sha256", "clean"]
 
 
-def clean(value):
+def clean(value: Any) -> Any:
     """Return a JSON-ready copy.
 
     Numpy scalars and arrays to Python, NaN and +/-inf to None, tuples to lists, dict keys to str.
@@ -39,24 +41,24 @@ def clean(value):
     return value
 
 
-def canonical(value):
+def canonical(value: Any) -> str:
     """Canonical JSON text of ``value`` (sorted keys, no spaces, NaN as null)."""
     return json.dumps(
         clean(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
     )
 
 
-def canonical_bytes(value):
+def canonical_bytes(value: Any) -> bytes:
     """UTF-8 bytes of :func:`canonical`."""
     return canonical(value).encode("utf-8")
 
 
-def sha256_bytes(data):
+def sha256_bytes(data: bytes) -> str:
     """Hex SHA-256 of bytes."""
     return hashlib.sha256(data).hexdigest()
 
 
-def sha256_file(path):
+def sha256_file(path: StrPath) -> str:
     """Hex SHA-256 of a file's bytes."""
     digest = hashlib.sha256()
     with open(path, "rb") as fobj:
@@ -65,7 +67,7 @@ def sha256_file(path):
     return digest.hexdigest()
 
 
-def array_sha256(array):
+def array_sha256(array: ArrayLike) -> str:
     """Hex SHA-256 of an array.
 
     Its shape (canonical JSON) then its float64 little-endian C-order bytes.

@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
 from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = []
@@ -14,7 +15,14 @@ N_TAUS = 16
 TAU_RATIO = 3.0
 
 
-def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05), part="full"):
+def fit_tail(
+    times: FloatArray,
+    data: ArrayLike,
+    start: int,
+    length: float,
+    tau_bounds: tuple[float, float] = (0.0005, 0.05),
+    part: str = "full",
+) -> tuple[Any, NDArray[Any], dict[str, Any]]:
     """Fit ``r(t) = c0 + c1 exp(-(t - b) / tau1) + c2 exp(-(t - b) / tau2)`` on the tail.
 
     The time constants are chosen on a log grid (``tau2 >= 3 tau1``) and the coefficients
@@ -60,7 +68,7 @@ def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05), part="full")
     shape = series.shape[:-1]
     flat = series.reshape(-1, len(inds))
 
-    taus = np.geomspace(lo, hi, N_TAUS)
+    taus: Any = np.geomspace(lo, hi, N_TAUS)  # tau1, tau2: grid values, then per-series arrays
     best_rss = np.full(len(flat), np.inf)
     best = np.zeros((len(flat), 5))
     for _i, tau1 in enumerate(taus):
@@ -76,7 +84,7 @@ def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05), part="full")
             ]
     tau1, tau2 = best[:, 0], best[:, 1]
 
-    def decay(r):
+    def decay(r: Any) -> Any:
         return best[:, 3:4] * np.exp(-r / tau1[:, None]) + best[:, 4:5] * np.exp(
             -r / tau2[:, None]
         )

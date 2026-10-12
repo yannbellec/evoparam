@@ -19,6 +19,8 @@ module (spec §4.2).
 """
 
 import math
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any, cast
 
 from evoparam.data._citation import citation_text, read_citation
 
@@ -99,7 +101,7 @@ _REFERENCES = {
 ## Formatting helpers
 
 
-def _num(value, digits=6):
+def _num(value: Any, digits: int = 6) -> str:
     """Return a setting printed without float noise: 0.0090000001 -> 0.009."""
     if value is None:
         return "none"
@@ -116,17 +118,17 @@ def _num(value, digits=6):
     return f"{round(value, digits):g}"
 
 
-def _ms(value):
+def _ms(value: float) -> str:
     return _num(float(value) * 1000.0, 4)
 
 
-def _window(value):
+def _window(value: Sequence[float] | None) -> str:
     if value is None:
         return "none"
     return f"{_ms(value[0])} to {_ms(value[1])} ms"
 
 
-def _setting(value):
+def _setting(value: object) -> str:
     if isinstance(value, (list, tuple)):
         return "(" + ", ".join(_setting(v) for v in value) + ")"
     if isinstance(value, dict):
@@ -138,22 +140,22 @@ def _setting(value):
     )
 
 
-def _polarity(value):
+def _polarity(value: object) -> str:
     return "both polarities" if value == "both" else f"{value} polarity only"
 
 
-def _join(items):
+def _join(items: Iterable[Any]) -> str:
     items = [str(item) for item in items]
     if len(items) <= 1:
         return "".join(items)
-    return ", ".join(items[:-1]) + " and " + items[-1]
+    return cast("str", ", ".join(items[:-1]) + " and " + items[-1])
 
 
 ###################################################################################################
 ## One sentence per step
 
 
-def _artifact(settings):
+def _artifact(settings: Any) -> str:
     method = settings.get("method", "?")
     name = _ARTIFACT_NAMES.get(method, f"the '{method}' method")
     if method == "none":
@@ -210,7 +212,7 @@ def _artifact(settings):
     return text
 
 
-def _paradigm(settings):
+def _paradigm(settings: Any) -> str:
     scheme = settings.get("scheme", "?")
     return (
         f"Stimulation artifacts were cancelled by paradigm subtraction (scheme "
@@ -218,7 +220,7 @@ def _paradigm(settings):
     )
 
 
-def _baseline(settings):
+def _baseline(settings: Any) -> str:
     mode = settings.get("mode", "mean")
     what = {"mean": "the mean", "median": "the median", "linear": "a straight line fitted to"}.get(
         mode, f"the {mode} of"
@@ -235,7 +237,7 @@ def _baseline(settings):
     )
 
 
-def _reference(settings):
+def _reference(settings: Any) -> str:
     scheme = settings.get("scheme", "?")
     used = settings.get("used") or scheme
     if scheme == "car_adaptive" and used == "car":
@@ -255,7 +257,7 @@ def _reference(settings):
     return text + "."
 
 
-def _reject(settings):
+def _reject(settings: Any) -> str:
     keys = sorted(k for k in settings if k not in ("capped_channels", "n_rejected", "rejected"))
     rules = ", ".join(
         f"{k} = {_setting(settings[k])}" for k in keys if not isinstance(settings[k], dict)
@@ -263,7 +265,7 @@ def _reject(settings):
     return f"Trials were flagged for rejection (evoparam.prep.reject_trials; {rules})."
 
 
-def _resample(settings):
+def _resample(settings: Any) -> str:
     rate = settings.get("sfreq") or settings.get("new_sfreq") or settings.get("target")
     return (
         f"Data were resampled to {_num(rate)} Hz."
@@ -272,14 +274,14 @@ def _resample(settings):
     )
 
 
-def _average(settings):
+def _average(settings: Any) -> str:
     method = settings.get("method")
     if method is None:
         method = "median" if settings.get("robust") else "mean"
     return f"Trials were averaged per channel ({method})."
 
 
-def _fit(settings):
+def _fit(settings: Any) -> str:
     preset_window = settings.get("fit_window")
     shapes = _join(str(s).replace("_", " ") for s in settings.get("shapes", []))
     background = str(settings.get("background", "?")).replace("_", " ")
@@ -388,7 +390,7 @@ def _fit(settings):
     return text
 
 
-def _existence(settings):
+def _existence(settings: Any) -> str:
     method = settings.get("method")
     window = _window(settings.get("window"))
     baseline = _window(settings.get("baseline"))
@@ -419,7 +421,7 @@ def _existence(settings):
     )
 
 
-def _trials(settings):
+def _trials(settings: Any) -> str:
     mode = settings.get("mode", "?")
     max_shift = settings.get("max_shift")
     shift = (
@@ -439,11 +441,11 @@ def _trials(settings):
     return text
 
 
-def _realign(_settings):
+def _realign(_settings: Any) -> str:
     return "Trials were realigned on the estimated single-trial latencies (Woody-style)."
 
 
-def _hierarchical(settings):
+def _hierarchical(settings: Any) -> str:
     engine = settings.get("engine", "eb")
     name = {
         "eb": "empirical Bayes (restricted maximum likelihood variance components)",
@@ -458,14 +460,14 @@ def _hierarchical(settings):
     )
 
 
-def _variance(_settings):
+def _variance(_settings: Any) -> str:
     return (
         "Variance components were estimated by restricted maximum likelihood with the "
         "known sampling variances of the estimates."
     )
 
 
-def _tf(settings):
+def _tf(settings: Any) -> str:
     tp = settings.get("transform_params") or {}
     transform = settings.get("transform", "?")
     if transform == "morse":
@@ -503,7 +505,7 @@ def _tf(settings):
     )
 
 
-def _shared_shapes(settings):
+def _shared_shapes(settings: Any) -> str:
     return (
         f"Response shapes shared across "
         f"{'stimulation sites' if settings.get('mode') == 'convergent' else 'channels'} "
@@ -512,7 +514,7 @@ def _shared_shapes(settings):
     )
 
 
-def _fit_shared(settings):
+def _fit_shared(settings: Any) -> str:
     shared = settings.get("shared") or []
     return (
         f"Component parameters were fitted jointly across channels with "
@@ -520,7 +522,7 @@ def _fit_shared(settings):
     )
 
 
-def _events(settings):
+def _events(settings: Any) -> str:
     method = settings.get("method", "threshold+template")
     text = (
         f"Stimulation pulses were detected from their artifact in the signal "
@@ -553,8 +555,8 @@ def _events(settings):
     return text
 
 
-def _filter(kind):
-    def sentence(settings):
+def _filter(kind: str) -> Callable[[dict[str, Any]], str]:
+    def sentence(settings: Any) -> str:
         if kind == "notch":
             freqs = settings.get("frequencies") or [settings.get("freq")]
             return (
@@ -571,14 +573,14 @@ def _filter(kind):
     return sentence
 
 
-def _apply_mask(_settings):
+def _apply_mask(_settings: Any) -> str:
     return (
         "Samples given by a user-supplied mask were excluded from every later step "
         "(evoparam.artifact.apply_mask)."
     )
 
 
-def _train_baseline(settings):
+def _train_baseline(settings: Any) -> str:
     source = {
         "continuous": " (from the continuous recording)",
         "epochs": " (from the epoch of the first pulse of the train)",
@@ -591,7 +593,7 @@ def _train_baseline(settings):
     )
 
 
-def _reference_sensitivity(settings):
+def _reference_sensitivity(settings: Any) -> str:
     schemes = list(settings.get("schemes") or [])
     names = {
         "bipolar": "bipolar",
@@ -611,7 +613,7 @@ def _reference_sensitivity(settings):
     )
 
 
-def _bootstrap(settings):
+def _bootstrap(settings: Any) -> str:
     by = settings.get("by") or []
     window = settings.get("window")
     method = {"bca": "bias-corrected and accelerated", "percentile": "percentile"}.get(
@@ -627,7 +629,7 @@ def _bootstrap(settings):
     )
 
 
-def _compare(settings):
+def _compare(settings: Any) -> str:
     conditions = settings.get("conditions") or []
     return (
         f"The {settings.get('parameter')} was compared between "
@@ -644,7 +646,7 @@ def _compare(settings):
     )
 
 
-def _reliability(settings):
+def _reliability(settings: Any) -> str:
     method = settings.get("method", "both")
     parts = []
     if method in ("both", "split_half"):
@@ -666,7 +668,7 @@ def _reliability(settings):
     )
 
 
-def _trials_needed(settings):
+def _trials_needed(settings: Any) -> str:
     scorer = str(settings.get("scorer"))
     what = (
         "the probability of detecting the response"
@@ -679,7 +681,7 @@ def _trials_needed(settings):
     )
 
 
-def _jackknife(settings):
+def _jackknife(settings: Any) -> str:
     return (
         f"Latencies were scored with the {str(settings.get('scorer')).replace('_', ' ')} "
         f"on the leave-one-out grand averages of the {settings.get('n_subjects')} "
@@ -693,7 +695,7 @@ def _jackknife(settings):
     )
 
 
-def _group_summary(settings):
+def _group_summary(settings: Any) -> str:
     by = settings.get("by")
     by = _join(by) if isinstance(by, (list, tuple)) else by
     return (
@@ -703,14 +705,14 @@ def _group_summary(settings):
     )
 
 
-def _apply(settings):
+def _apply(settings: Any) -> str:
     return (
         f"A user-supplied transform ({settings.get('func')}) was applied to the trials "
         f"(evoparam.data.TrialSet.apply, axis '{settings.get('axis')}')."
     )
 
 
-def _generic(function, settings):
+def _generic(function: str, settings: Any) -> str:
     scalars = [
         f"{key} = {_setting(value)}"
         for key, value in sorted(settings.items())
@@ -759,7 +761,7 @@ _TEMPLATES = {
 }
 
 
-def step_sentence(step):
+def step_sentence(step: dict[str, Any]) -> str | None:
     """Return the sentence of one provenance step, or None for a step that is not described."""
     function = step.get("function", "")
     if function.startswith(SILENT_PREFIXES):
@@ -773,17 +775,17 @@ def step_sentence(step):
 ## The paragraph
 
 
-def _fit_settings(steps, settings):
+def _fit_settings(steps: Sequence[dict[str, Any]], settings: Any) -> dict[str, Any]:
     """Return the settings of the last fit step (the result's own settings when it is a fit)."""
     if settings and "fit_window" in settings and "shapes" in settings:
-        return settings
+        return cast("dict[str, Any]", settings)
     for step in reversed(steps):
         if step.get("function") in _FIT_STEPS:
             return step.get("settings") or {}
     return {}
 
 
-def _overrides_sentence(fit_settings):
+def _overrides_sentence(fit_settings: dict[str, Any]) -> str:
     # the keys whose value differs from the preset (REQ-008); results written before
     # REQ-331 held them in ``_overrides``
     overrides = fit_settings.get("_changed_from_preset")
@@ -795,14 +797,14 @@ def _overrides_sentence(fit_settings):
     return f" Settings changed from the preset (times in s): {'; '.join(changed)}."
 
 
-def _seed(provenance, settings, steps):
+def _seed(provenance: object, settings: Any | None, steps: Sequence[dict[str, Any]]) -> Any:
     for source in (settings or {}, *(step.get("settings") or {} for step in reversed(steps))):
         if isinstance(source, dict) and source.get("random_state") is not None:
             return source["random_state"]
     return getattr(provenance, "random_state", None)
 
 
-def methods_text(obj, cite=True):  # noqa: C901, PLR0912  (public API, signature fixed by spec §4.3.4)
+def methods_text(obj: object, cite: bool = True) -> str:  # noqa: C901, PLR0912  (public API, signature fixed by spec §4.3.4)
     """Methods paragraph of a result (or container) from its provenance and settings.
 
     Parameters

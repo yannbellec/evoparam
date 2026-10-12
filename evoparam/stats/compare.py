@@ -14,10 +14,12 @@ would pass for a condition effect), so such a request raises SettingsError.
 
 import itertools
 import time as _time
+from collections.abc import Sequence
 
 import numpy as np
 from scipy.stats import norm
 
+from evoparam._typing import Any, NDArray, RandomState
 from evoparam.data import Provenance
 from evoparam.errors import DataError, SettingsError
 from evoparam.existence.corrections import CORRECTIONS, correct
@@ -75,7 +77,7 @@ COMPARE_COLUMNS = {
 ## Statistics
 
 
-def _paired_t(d):
+def _paired_t(d: Any) -> Any:
     """Paired t of each row of ``d`` [..., n] (0 when the differences have no spread)."""
     n = d.shape[-1]
     mean = d.mean(axis=-1)
@@ -83,7 +85,7 @@ def _paired_t(d):
     return np.divide(mean, sd / np.sqrt(n), out=np.zeros_like(mean), where=sd > 0)
 
 
-def _welch_t(a, b):
+def _welch_t(a: Any, b: Any) -> Any:
     """Welch t of each row pair of ``a`` [..., n_a] and ``b`` [..., n_b]."""
     va = a.var(axis=-1, ddof=1) / a.shape[-1]
     vb = b.var(axis=-1, ddof=1) / b.shape[-1]
@@ -92,7 +94,7 @@ def _welch_t(a, b):
     return np.divide(diff, se, out=np.zeros_like(diff), where=se > 0)
 
 
-def hedges_g(a, b=None, *, paired=False):
+def hedges_g(a: Any, b: Any = None, *, paired: bool = False) -> float:
     """Hedges' g: the standardised mean difference with the small-sample correction.
 
     Unpaired: ``(mean a - mean b) / pooled SD`` times ``J = 1 - 3 / (4 df - 1)``,
@@ -124,9 +126,12 @@ def hedges_g(a, b=None, *, paired=False):
     return float(g * (1 - 3 / (4 * df - 1)))
 
 
-def _paired_test(d, n_permutations, rng):
+def _paired_test(
+    d: Any, n_permutations: Any, rng: np.random.Generator
+) -> tuple[float, float, int, bool]:
     n = d.size
     observed = _paired_t(d)
+    signs: NDArray[Any]
     if 2**n <= n_permutations:
         grid = (np.arange(2**n)[:, None] >> np.arange(n)) & 1
         signs, exact = 1.0 - 2.0 * grid, True
@@ -138,7 +143,9 @@ def _paired_test(d, n_permutations, rng):
     return float(observed), float(p), len(null), exact
 
 
-def _unpaired_test(a, b, n_permutations, rng):
+def _unpaired_test(
+    a: Any, b: Any, n_permutations: Any, rng: np.random.Generator
+) -> tuple[float, float, int, bool]:
     n_a, n_b = a.size, b.size
     pooled = np.concatenate([a, b])
     observed = _welch_t(a, b)
@@ -159,13 +166,13 @@ def _unpaired_test(a, b, n_permutations, rng):
     return float(observed), float(p), len(null), exact
 
 
-def _percentile(boot, ci_level, n):
+def _percentile(boot: Any, ci_level: Any, n: Any) -> dict[str, float]:
     """Return the expanded percentile interval (see :func:`~evoparam.stats.bootstrap_interval`)."""
     low, high = np.quantile(boot, norm.cdf(_quantile_z(ci_level, n)))
     return {"low": float(low), "high": float(high)}
 
 
-def _n_choose(n, k):
+def _n_choose(n: Any, k: Any) -> int:
     from math import comb
 
     return comb(n, k)
@@ -175,7 +182,7 @@ def _n_choose(n, k):
 ## Public function
 
 
-def _is_time(table, parameter):
+def _is_time(table: Any, parameter: Any) -> Any:
     units = getattr(table, "attrs", {}).get("units", {})
     if parameter in units:
         return units[parameter] == "s"
@@ -183,20 +190,20 @@ def _is_time(table, parameter):
 
 
 def compare_conditions(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.11)
-    table,
+    table: Any,
     *,
-    parameter,
-    condition,
-    unit="subject",
-    paired=True,
-    n_permutations=5000,
-    correction="fdr_bh",
-    random_state=None,
-    by=None,
-    conditions=None,
-    ci_level=0.95,
-    n_boot=2000,
-):
+    parameter: str,
+    condition: str,
+    unit: str = "subject",
+    paired: bool = True,
+    n_permutations: int = 5000,
+    correction: str = "fdr_bh",
+    random_state: RandomState | None = None,
+    by: Sequence[str] | None = None,
+    conditions: Sequence[Any] | None = None,
+    ci_level: float = 0.95,
+    n_boot: int = 2000,
+) -> Any:
     """Contrast a parameter between conditions by permutation at the named unit level.
 
     Parameters

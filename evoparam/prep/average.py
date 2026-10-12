@@ -3,21 +3,34 @@
 
 import time as _time
 import warnings
+from collections.abc import Sequence
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data import Evoked
 from evoparam.errors import DataError, SettingsError
 
 from ._common import check_trialset, masked_values
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["average", "AVERAGE_METHODS"]
 
 AVERAGE_METHODS = ("mean", "trimmed", "median", "weighted")
 
 
-def average(ts, *, by=None, method="mean", trim=0.2, use_rejected=False):
+def average(
+    ts: "TrialSet",
+    *,
+    by: str | Sequence[str] | None = None,
+    method: str = "mean",
+    trim: float = 0.2,
+    use_rejected: bool = False,
+) -> Any:
     """Average the trials into an :class:`Evoked`.
 
     - ``"mean"`` / ``"trimmed"`` (20 % trimmed mean): :meth:`TrialSet.average`.
@@ -68,6 +81,7 @@ def average(ts, *, by=None, method="mean", trim=0.2, use_rejected=False):
             )
         return out
 
+    keep: Any
     keep = np.arange(work.n_trials)
     if work.metadata is not None and "rejected" in work.metadata.columns:
         keep = np.flatnonzero(~work.metadata["rejected"].to_numpy(dtype=bool))

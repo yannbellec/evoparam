@@ -40,13 +40,14 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError
 from evoparam.version import __version__
 
 __all__ = ["Baseline", "BASELINES", "RULES", "get_baseline", "baselines_for"]
 
 RULES = ("vanblooijs2023", "hays2021", "keller2014", "silverstein2020", "ftract", "prime2020")
-RULE_OVERRIDES = {
+RULE_OVERRIDES: dict[str, dict[str, Any]] = {
     "vanblooijs2023": {"baseline": (-1.0, -0.1)},
     "vanblooijs2023_code": {},
     "hays2021": {"baseline": (-0.5, -0.05)},
@@ -84,12 +85,12 @@ class Baseline:
     """
 
     name: str
-    tasks: tuple
-    func: object = field(repr=False, compare=False)
-    settings: dict = field(default_factory=dict, compare=False)
+    tasks: tuple[Any, ...]
+    func: Any = field(repr=False, compare=False)
+    settings: dict[str, Any] = field(default_factory=dict, compare=False)
     description: str = ""
 
-    def run(self, inputs):
+    def run(self, inputs: Any) -> dict[Any, Any]:
         """Return the outputs of the cell for the tasks of ``inputs`` this baseline answers."""
         wanted = {t: ti for t, ti in inputs.items() if t in self.tasks}
         if not wanted:
@@ -99,7 +100,7 @@ class Baseline:
             out = self.func(wanted, self.settings)
         return {t: out[t] for t in wanted}
 
-    def info(self):
+    def info(self) -> dict[str, Any]:
         """Return the ``method`` record of a result document."""
         settings = {k: (list(v) if isinstance(v, tuple) else v) for k, v in self.settings.items()}
         return {
@@ -116,7 +117,7 @@ class Baseline:
 ## Helpers
 
 
-def _preset(ti, settings=None):
+def _preset(ti: Any, settings: Any = None) -> Any:
     from evoparam import presets
 
     name = (settings or {}).get("preset") or ti.descriptor.get("hints", {}).get("preset")
@@ -125,7 +126,7 @@ def _preset(ti, settings=None):
     return presets.get(name)
 
 
-def _baseline_corrected(ts, preset):
+def _baseline_corrected(ts: Any, preset: Any) -> Any:
     from evoparam.prep import baseline_correct
 
     return (
@@ -135,14 +136,14 @@ def _baseline_corrected(ts, preset):
     )
 
 
-def _num(value):
+def _num(value: Any) -> Any:
     if value is None:
         return None
     value = float(value)
     return value if np.isfinite(value) else None
 
 
-def _peak_rows(ti, sig, latency, avg, base_mean):
+def _peak_rows(ti: Any, sig: Any, latency: Any, avg: Any, base_mean: Any) -> list[Any]:
     """T2 rows.
 
     The latency and baseline-relative value of the average at the peak, for the detected channels.
@@ -165,13 +166,13 @@ def _peak_rows(ti, sig, latency, avg, base_mean):
     return rows
 
 
-def _most_negative(times, avg, window):
+def _most_negative(times: Any, avg: Any, window: Any) -> Any:
     inside = (times >= window[0]) & (times <= window[1])
     t = times[inside]
     return t[np.argmin(avg[:, inside], axis=1)]
 
 
-def _t1_rows(ti, significant, p_value, score):
+def _t1_rows(ti: Any, significant: Any, p_value: Any, score: Any) -> list[dict[str, Any]]:
     return [
         {
             "site": ti.descriptor["site"],
@@ -188,7 +189,7 @@ def _t1_rows(ti, significant, p_value, score):
 ## T1 / T2: published rules, projection, evoparam
 
 
-def _rule(inputs, settings):
+def _rule(inputs: Any, settings: Any) -> dict[Any, Any]:
     from evoparam.existence import test_response
 
     ti = inputs.get("T1") or inputs.get("T2")
@@ -218,7 +219,7 @@ def _rule(inputs, settings):
     return out
 
 
-def _projection(inputs, settings):
+def _projection(inputs: Any, settings: Any) -> dict[Any, Any]:
     from evoparam.existence import test_response
 
     ti = inputs.get("T1") or inputs.get("T2")
@@ -248,7 +249,7 @@ def _projection(inputs, settings):
     return out
 
 
-def _evoparam_detection(inputs, settings):
+def _evoparam_detection(inputs: Any, settings: Any) -> dict[Any, Any]:
     from evoparam.existence import fit, test_response
 
     ti = inputs.get("T1") or inputs.get("T2")
@@ -310,7 +311,7 @@ def _evoparam_detection(inputs, settings):
 ## T3
 
 
-def _evoparam_t3(inputs, settings):
+def _evoparam_t3(inputs: Any, settings: Any) -> dict[str, list[Any]]:
     from evoparam.existence import fit
 
     ti = inputs["T3"]
@@ -347,7 +348,7 @@ def _evoparam_t3(inputs, settings):
 POLARITY = {1: "positive", -1: "negative", 0: "absolute"}
 
 
-def _local_peak(times, y, window, polarity):
+def _local_peak(times: Any, y: Any, window: Any, polarity: Any) -> Any:
     """Return (latency, amplitude) of the local peak in the window.
 
     None when there is no local peak (the simple-extremum fallback is not a component).
@@ -365,9 +366,10 @@ def _local_peak(times, y, window, polarity):
     return float(scores["peak_latency"]), float(scores["peak_amplitude"])
 
 
-def _classical_t3(inputs, settings):
+def _classical_t3(inputs: Any, settings: Any) -> dict[str, list[Any]]:
     ti = inputs["T3"]
     preset = _preset(ti, settings)
+    windows: dict[Any, Any]
     windows = {}
     for label, window in preset.component_labels.items():
         key = (tuple(window), preset.label_polarity.get(label, 0))
@@ -376,6 +378,7 @@ def _classical_t3(inputs, settings):
     rows = []
     for index, channel in enumerate(ti.descriptor["ch_names"]):
         y = ti.arrays["evoked"][index]
+        found: list[Any]
         found = []
         for (window, pol), _label in windows.items():
             peak = _local_peak(times, y, window, POLARITY[pol])
@@ -398,7 +401,7 @@ def _classical_t3(inputs, settings):
 ## T4
 
 
-def _evoparam_t4(inputs, settings):
+def _evoparam_t4(inputs: Any, settings: Any) -> dict[str, NDArray[Any]]:
     from evoparam.artifact import remove_artifact
     from evoparam.reports.pipeline import _artifact_baseline, artifact_steps
 
@@ -414,7 +417,7 @@ def _evoparam_t4(inputs, settings):
     return {"T4": np.asarray(ts.data, float)}
 
 
-def _interpolate_t4(inputs, _settings):
+def _interpolate_t4(inputs: Any, _settings: Any) -> dict[str, NDArray[Any]]:
     from evoparam.artifact import remove_artifact
 
     ti = inputs["T4"]
@@ -427,7 +430,7 @@ def _interpolate_t4(inputs, _settings):
     return {"T4": np.asarray(cleaned.data, float)}
 
 
-def _none_t4(inputs, _settings):
+def _none_t4(inputs: Any, _settings: Any) -> dict[str, NDArray[Any]]:
     return {"T4": np.array(inputs["T4"].arrays["data"], float)}
 
 
@@ -435,7 +438,7 @@ def _none_t4(inputs, _settings):
 ## T5
 
 
-def _target_component(sub, target):
+def _target_component(sub: Any, target: Any) -> Any:
     """Return the fitted component of a channel answering a target.
 
     The one with the target's label, else the largest one whose latency is in the target window.
@@ -450,7 +453,7 @@ def _target_component(sub, target):
     return inside.iloc[int(np.argmax(np.abs(inside["amplitude"].to_numpy(float))))]["component"]
 
 
-def _trials_t5(inputs, settings):
+def _trials_t5(inputs: Any, settings: Any) -> dict[str, list[Any]]:
     from evoparam.existence import fit
     from evoparam.trials import fit_trials
 
@@ -486,7 +489,7 @@ def _trials_t5(inputs, settings):
     return {"T5": rows}
 
 
-def _classical_t5(inputs, settings):
+def _classical_t5(inputs: Any, settings: Any) -> dict[str, list[Any]]:
     ti = inputs["T5"]
     preset = _preset(ti, settings)
     ts = _baseline_corrected(ti.to_trialset(), preset)
@@ -512,7 +515,7 @@ def _classical_t5(inputs, settings):
 ## T6
 
 
-def _classical_t6(inputs, settings):
+def _classical_t6(inputs: Any, settings: Any) -> dict[str, list[Any]]:
     from evoparam.models.classical import classical_measures
 
     from .suite import ERPCORE
@@ -548,7 +551,9 @@ def _classical_t6(inputs, settings):
     return {"T6": rows}
 
 
-def _area_latency(times, curve, window, polarity, fraction=0.5):
+def _area_latency(
+    times: Any, curve: Any, window: Any, polarity: Any, fraction: float = 0.5
+) -> Any:
     inside = (times >= window[0]) & (times <= window[1])
     t, y = times[inside], curve[inside]
     y = np.clip(y if polarity == "positive" else -y, 0, None)
@@ -558,7 +563,7 @@ def _area_latency(times, curve, window, polarity, fraction=0.5):
     return float(np.interp(fraction * area[-1], area, t))
 
 
-def _evoparam_t6(inputs, settings):
+def _evoparam_t6(inputs: Any, settings: Any) -> dict[str, list[Any]]:
     from evoparam.existence import fit
     from evoparam.models import evaluate_fit
 
@@ -610,7 +615,7 @@ def _evoparam_t6(inputs, settings):
 ## T7
 
 
-def _tf_t7(inputs, settings):
+def _tf_t7(inputs: Any, settings: Any) -> dict[str, list[Any]]:
     from evoparam.tf import tf_fit
 
     ti = inputs["T7"]
@@ -629,7 +634,7 @@ def _tf_t7(inputs, settings):
             by=(),
             random_state=0,
         )
-        zones = tf.zones if tf.zones is not None else []
+        zones: Any = tf.zones if tf.zones is not None else []
         for k, z in enumerate(zones.itertuples() if len(zones) else []):
             rows.append(
                 {
@@ -652,7 +657,7 @@ def _tf_t7(inputs, settings):
 ## Registry
 
 
-def _evoparam_preset(inputs, settings):
+def _evoparam_preset(inputs: Any, settings: Any) -> dict[Any, Any]:
     out = {}
     detection = {t: inputs[t] for t in ("T1", "T2") if t in inputs}
     if detection:
@@ -669,7 +674,7 @@ def _evoparam_preset(inputs, settings):
     return out
 
 
-def _classical(inputs, settings):
+def _classical(inputs: Any, settings: Any) -> dict[Any, Any]:
     out = {}
     for task, func in (("T3", _classical_t3), ("T5", _classical_t5), ("T6", _classical_t6)):
         if task in inputs:
@@ -677,7 +682,7 @@ def _classical(inputs, settings):
     return out
 
 
-def _make():
+def _make() -> dict[Any, Any]:
     out = {}
     for name in RULES + ("vanblooijs2023_code",):
         out[name] = Baseline(
@@ -744,13 +749,13 @@ def _make():
 BASELINES = _make()
 
 
-def get_baseline(name):
+def get_baseline(name: Any) -> Any:
     """Return a baseline by name."""
     if name not in BASELINES:
         raise DataError(f"Unknown baseline {name!r}; baselines: {sorted(BASELINES)}.")
     return BASELINES[name]
 
 
-def baselines_for(task):
+def baselines_for(task: Any) -> list[Any]:
     """Names of the baselines that answer ``task``."""
     return [name for name, b in BASELINES.items() if task in b.tasks]

@@ -25,6 +25,7 @@ import warnings
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data import GroupFit, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.models.references import SCHEMES, rereference
@@ -61,27 +62,27 @@ REFERENCE_CORR = 0.5
 N_SOURCE = 2
 
 
-def _contacts(site):
+def _contacts(site: Any) -> list[Any]:
     return [part.strip() for part in re.split(r"[-–]", str(site)) if part.strip()]
 
 
-def _shaft_number(name):
+def _shaft_number(name: Any) -> Any:
     match = re.match(r"^(.*?)(\d+)$", str(name))
     return (match.group(1), int(match.group(2))) if match else (str(name), None)
 
 
-def _corr(a, b):
+def _corr(a: Any, b: Any) -> float:
     sa, sb = np.std(a), np.std(b)
     if sa == 0 or sb == 0:
         return np.nan
     return float(np.mean((a - a.mean()) * (b - b.mean())) / (sa * sb))
 
 
-def _rms(a):
+def _rms(a: Any) -> float:
     return float(np.sqrt(np.mean(a**2)))
 
 
-def _counterpart(name, names, scheme):
+def _counterpart(name: Any, names: Any, scheme: Any) -> Any:
     """Name of the channel that carries ``name`` after re-referencing."""
     if scheme != "bipolar":
         return name if name in names else None
@@ -92,7 +93,18 @@ def _counterpart(name, names, scheme):
     return last[0] if last else None
 
 
-def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, info, pd):
+def _site_table(
+    ts: Any,
+    site: Any,
+    rows: Any,
+    fits: Any,
+    window: Any,
+    baseline: Any,
+    schemes: Any,
+    decay_model: Any,
+    info: Any,
+    pd: Any,
+) -> Any:
     sub = ts.select(trials=list(rows)) if rows is not None else ts
     names = list(sub.ch_names)
     win = (sub.times >= window[0]) & (sub.times <= window[1])
@@ -127,6 +139,7 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
         prefix, number = _shaft_number(n)
         position[n] = (groups.get(n, prefix), number)
     reversal = np.full(len(names), np.nan)
+    c: Any  # a position, then a numpy index
     for c, n in enumerate(names):
         if not evaluated[c] or position[n][1] is None:
             continue
@@ -264,14 +277,14 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
 
 
 def screen_volume_conduction(
-    ts,
-    group_fit=None,
+    ts: Any,
+    group_fit: Any = None,
     *,
-    reference_schemes=("bipolar", "car_adaptive"),
-    decay_model="published",
-    window=None,
-    baseline=None,
-):
+    reference_schemes: Any = ("bipolar", "car_adaptive"),
+    decay_model: str = "published",
+    window: Any = None,
+    baseline: Any = None,
+) -> Any:
     """Flag channels whose response may be volume-conducted rather than local.
 
     For every stimulation site of ``ts`` (``metadata["stim_site"]``; the whole TrialSet
@@ -310,7 +323,9 @@ def screen_volume_conduction(
     meta = ts.metadata
     if meta is not None and "stim_site" in meta.columns:
         sites = meta["stim_site"].astype(str).to_numpy()
-        groups = [(s, np.flatnonzero(sites == s)) for s in dict.fromkeys(sites)]
+        groups: list[tuple[str, Any]] = [
+            (s, np.flatnonzero(sites == s)) for s in dict.fromkeys(sites)
+        ]
     else:
         groups = [("", None)]
     rows = []

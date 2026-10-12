@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
 from evoparam.errors import DataError
 from evoparam.utils._optional import require
 
@@ -26,18 +27,18 @@ _SPREAD_STEP = 16
 
 
 def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
-    data,
-    sfreq,
+    data: FloatArray,
+    sfreq: float,
     *,
-    events=None,
-    rail=None,
-    min_run=3,
-    recovery=0.005,
-    search=0.05,
-    t0=0.0,
-    ch_names=None,
-    picks=None,
-):
+    events: Any = None,
+    rail: Any = None,
+    min_run: int = 3,
+    recovery: float = 0.005,
+    search: float = 0.05,
+    t0: float = 0.0,
+    ch_names: list[str] | None = None,
+    picks: ArrayLike | None = None,
+) -> tuple[NDArray[Any], Any]:
     """Find amplifier saturation, channel by channel and pulse by pulse.
 
     A channel is saturated over a run of samples when either:

@@ -11,4 +11,4 @@ No public name has been renamed or removed since the first public release (there
 none yet: no public step before the HIIE decision, RELEASING.md), so the registry is empty.
 """
 
-REGISTRY = {}
+REGISTRY: dict[str, tuple[str, str, str]] = {}

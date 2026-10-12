@@ -17,6 +17,7 @@ import sys
 import time
 import warnings
 
+from evoparam._typing import Any
 from evoparam.errors import DataError, EvoparamError, ReaderError, SettingsError
 from evoparam.version import __version__
 
@@ -39,24 +40,27 @@ RESEARCH_USE = (
 
 
 class _Outcome:
-    def __init__(self):
+    def __init__(self) -> None:
+        self.outputs: list[Any]
+        self.warnings: list[Any]
         self.outputs, self.warnings = [], []
         self.n_units = {"ok": 0, "no_response": 0, "failed": 0, "skipped": 0}
         self.code = 0
+        self.extra: Any  # set by the command (the document of a run, or None)
 
 
-def _log(args, message):
+def _log(args: Any, message: Any) -> None:
     if getattr(args, "verbose", "warning") in ("info", "debug") or not getattr(
         args, "json", False
     ):
         print(message, file=sys.stderr)
 
 
-def _entities(args):
+def _entities(args: Any) -> dict[str, Any]:
     return {"session": args.ses, "task": args.task, "run": args.run}
 
 
-def _datatype(root, subject, wanted):
+def _datatype(root: Any, subject: Any, wanted: Any) -> Any:
     if wanted:
         return wanted
     for datatype in ("ieeg", "eeg"):
@@ -75,7 +79,7 @@ def _datatype(root, subject, wanted):
 SINGLE_FILES = (".vhdr", ".edf", ".bdf", ".fif", ".fif.gz", ".nwb", ".npz")
 
 
-def _preset(args):
+def _preset(args: Any) -> Any:
     """Return the preset of --preset, else the one of the datatype (ieeg: ccep, eeg: erp)."""
     from evoparam import presets
 
@@ -93,18 +97,18 @@ def _preset(args):
     )
 
 
-def _is_single(path):
+def _is_single(path: Any) -> Any:
     return os.path.isfile(path) and path.lower().endswith(SINGLE_FILES)
 
 
-def _file_entities(path):
+def _file_entities(path: Any) -> dict[Any, Any]:
     """BIDS entities of a file name (sub, ses, task, run), for the derivative names."""
     import re
 
     return dict(re.findall(r"(sub|ses|task|run)-([a-zA-Z0-9]+)", os.path.basename(path)))
 
 
-def _events_for(path, args):
+def _events_for(path: Any, args: Any) -> tuple[Any, Any]:
     """Onsets (s) and metadata of a single recording.
 
     --events, else the BIDS events.tsv next to it, else the annotations of an EDF+ file.
@@ -145,7 +149,7 @@ def _events_for(path, args):
     return harmonized["onset"].to_numpy(float), harmonized
 
 
-def _read_single(path, args, epoch):
+def _read_single(path: Any, args: Any, epoch: Any) -> Any:
     """Return a TrialSet from one file.
 
     .nwb (its events), .fif (MNE epochs, or raw with its events), .npz (data [trials, channels,
@@ -208,7 +212,7 @@ def _read_single(path, args, epoch):
     return read(path, onsets=onsets, epoch=tuple(epoch), metadata=metadata)
 
 
-def _read(args, preset):
+def _read(args: Any, preset: Any) -> Any:
     from evoparam.io import read_bids
 
     epoch = tuple(args.epoch) if getattr(args, "epoch", None) else preset.epoch
@@ -232,7 +236,7 @@ def _read(args, preset):
     ), datatype
 
 
-def _target(args):
+def _target(args: Any) -> Any:
     """(bids_root for SourceDatasets, subject, entities) of the derivatives."""
     if _is_single(args.input):
         found = _file_entities(args.input)
@@ -246,7 +250,16 @@ def _target(args):
     return args.input, args.sub, _entities(args)
 
 
-def run_fit(ts, preset, *, random_state=None, n_jobs=1, existence=True, trials=None, log=None):
+def run_fit(
+    ts: Any,
+    preset: Any,
+    *,
+    random_state: Any = None,
+    n_jobs: int = 1,
+    existence: bool = True,
+    trials: Any = None,
+    log: Any = None,
+) -> tuple[Any, list[Any]]:
     """Run the chain of ``evoparam fit``.
 
     :func:`evoparam.reports.run_pipeline` (artifact and reference of the preset, baseline, fit,
@@ -268,13 +281,13 @@ def run_fit(ts, preset, *, random_state=None, n_jobs=1, existence=True, trials=N
     return result.results, []
 
 
-def _count(outcome, group):
+def _count(outcome: Any, group: Any) -> None:
     for fit in group.fits:
         outcome.n_units[fit.status] = outcome.n_units.get(fit.status, 0) + 1
         outcome.warnings += list(fit.warnings)
 
 
-def cmd_fit(args, outcome):
+def cmd_fit(args: Any, outcome: Any) -> None:
     import numpy as np
 
     from evoparam.data import GroupFit
@@ -320,7 +333,7 @@ def cmd_fit(args, outcome):
         outcome.code = EXIT_CODES["partial"]
 
 
-def cmd_test(args, outcome):
+def cmd_test(args: Any, outcome: Any) -> None:
     from evoparam.existence import test_response
     from evoparam.io import write_bids_derivatives
     from evoparam.prep import baseline_correct
@@ -350,7 +363,7 @@ def cmd_test(args, outcome):
     )
 
 
-def cmd_clean(args, outcome):
+def cmd_clean(args: Any, outcome: Any) -> None:
     from evoparam.artifact import remove_artifact
     from evoparam.data.serialize import save_object
     from evoparam.io import write_bids_derivatives
@@ -399,7 +412,7 @@ def cmd_clean(args, outcome):
     outcome.outputs.append(save_object(result.cleaned, container, overwrite=True))
 
 
-def _containers(path):
+def _containers(path: Any) -> list[Any]:
     if path.endswith(".evoparam") or path.endswith(".zip"):
         return [path]
     found = []
@@ -415,7 +428,7 @@ def _containers(path):
     return sorted(found)
 
 
-def cmd_report(args, outcome):
+def cmd_report(args: Any, outcome: Any) -> None:
     from evoparam import reports
     from evoparam.data.serialize import load_object
 
@@ -438,7 +451,7 @@ def cmd_report(args, outcome):
             outcome.outputs.append(base + ".md")
 
 
-def cmd_simulate(args, outcome):
+def cmd_simulate(args: Any, outcome: Any) -> None:
     from evoparam.sim import GENERATORS
     from evoparam.sim.bids import write_bids
 
@@ -460,7 +473,7 @@ def cmd_simulate(args, outcome):
     )
 
 
-def cmd_detect_events(args, outcome):
+def cmd_detect_events(args: Any, outcome: Any) -> None:
     import fnmatch
 
     from evoparam.events import detect_events
@@ -498,7 +511,7 @@ def cmd_detect_events(args, outcome):
     outcome.outputs += [args.out, sidecar]
 
 
-def cmd_reproduce(args, outcome):
+def cmd_reproduce(args: Any, outcome: Any) -> None:
     from evoparam.reports import reproduce
 
     report = reproduce(args.input, rtol=args.rtol)
@@ -511,7 +524,7 @@ def cmd_reproduce(args, outcome):
         ]
 
 
-def cmd_migrate(args, outcome):
+def cmd_migrate(args: Any, outcome: Any) -> None:
     from evoparam.data.serialize import load_object, save_object
     from evoparam.reports import migrate
 
@@ -523,12 +536,12 @@ def cmd_migrate(args, outcome):
     outcome.outputs.append(outcome.extra["path"])
 
 
-def cmd_info(args, outcome):
+def cmd_info(args: Any, outcome: Any) -> None:
     from importlib import metadata
 
     from evoparam import presets
 
-    extras = {}
+    extras: dict[str, str | None] = {}
     for name in (
         "pandas",
         "matplotlib",
@@ -559,7 +572,7 @@ def cmd_info(args, outcome):
         for name, origin in sorted(registry.plugins().items())
     ]
 
-    def installed(name):
+    def installed(name: Any) -> Any:
         try:
             return metadata.version(name)
         except metadata.PackageNotFoundError:
@@ -592,7 +605,7 @@ def cmd_info(args, outcome):
             print(f"{key}: {value}")
 
 
-def cmd_presets(args, outcome):
+def cmd_presets(args: Any, outcome: Any) -> None:
     from evoparam import presets
 
     if args.action == "list":
@@ -610,7 +623,7 @@ def cmd_presets(args, outcome):
             print(presets.methods_note(args.name))
 
 
-def cmd_cite(args, outcome):
+def cmd_cite(args: Any, outcome: Any) -> None:
     from evoparam.reports import citation
 
     text = citation(bibtex=args.bibtex)
@@ -619,7 +632,7 @@ def cmd_cite(args, outcome):
         print(text)
 
 
-def cmd_validate_bids(args, outcome):
+def cmd_validate_bids(args: Any, outcome: Any) -> None:
     from evoparam.io import format_stim_report, validate_stim_metadata
 
     table = validate_stim_metadata(args.input, subject=args.sub)
@@ -637,11 +650,11 @@ def cmd_validate_bids(args, outcome):
         raise ReaderError(f"{len(missing)} stimulation metadata field(s) missing (--strict).")
 
 
-def _csv(text):
+def _csv(text: Any) -> Any:
     return [t.strip() for t in text.split(",") if t.strip()] if text is not None else None
 
 
-def cmd_benchmark(args, outcome):
+def cmd_benchmark(args: Any, outcome: Any) -> None:
     """``evoparam benchmark run | score | leaderboard | prepare-deposit`` (spec §8)."""
     from evoparam import benchmark
 
@@ -759,7 +772,7 @@ def cmd_benchmark(args, outcome):
         }
 
 
-def _benchmark_parser(sub, common):
+def _benchmark_parser(sub: Any, common: Any) -> None:
     p = sub.add_parser(
         "benchmark", help="public benchmark: run, score, leaderboard, prepare-deposit (spec §8)"
     )
@@ -840,7 +853,7 @@ def _benchmark_parser(sub, common):
         parser.set_defaults(func=cmd_benchmark)
 
 
-def _parser():
+def _parser() -> Any:
     parser = argparse.ArgumentParser(
         prog="evoparam", description="Parameterise evoked neural responses."
     )
@@ -941,7 +954,7 @@ def _parser():
     return parser
 
 
-def _read_config(path):
+def _read_config(path: Any) -> Any:
     """Options of a JSON or TOML file (``.toml``: ``tomllib``, Python 3.11+, else ``tomli``).
 
     Top-level keys apply to every command; a table ``[evoparam]`` too, and a table named after the
@@ -949,7 +962,7 @@ def _read_config(path):
     """
     if path.lower().endswith(".toml"):
         try:
-            import tomllib
+            import tomllib  # type: ignore[import-not-found, unused-ignore]  # Python >= 3.11
         except ImportError:  # Python 3.10
             from evoparam.utils._optional import require
 
@@ -964,7 +977,7 @@ def _read_config(path):
     return config
 
 
-def _apply_config(_parser, args, argv):
+def _apply_config(_parser: Any, args: Any, argv: Any) -> Any:
     if not getattr(args, "config", None):
         return args
     config = _read_config(args.config)
@@ -980,7 +993,7 @@ def _apply_config(_parser, args, argv):
     return args
 
 
-def main(argv=None):
+def main(argv: Any = None) -> int:
     """Run the ``evoparam`` command line; returns the exit code."""
     argv = list(sys.argv[1:] if argv is None else argv)
     parser = _parser()

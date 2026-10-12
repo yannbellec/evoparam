@@ -7,6 +7,8 @@ treatment decisions.
 
 import typing as _typing
 
+from evoparam._typing import Any
+
 from . import artifact as artifact
 from . import errors as errors
 from . import events as events
@@ -97,7 +99,7 @@ def cite(*, bibtex: bool = False, file: "_typing.TextIO | None" = None) -> str:
     return text
 
 
-def __getattr__(name):
+def __getattr__(name: Any) -> Any:
     """Serve the deprecated public names (REQ-293).
 
     Served from ``evoparam/_deprecated.py`` with an

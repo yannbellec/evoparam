@@ -10,11 +10,16 @@ downloading it). ``write_nwb`` adds evoparam's tables to a processing module and
 
 import json
 import os
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import DataError, ReaderError, warn
 from evoparam.utils._optional import require
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["read_nwb", "write_nwb", "read_nwb_results", "nwb_events", "EVENT_SOURCES"]
 
@@ -29,7 +34,7 @@ NWB_MAPPING = {
 ICEPHYS_FRACTION = 0.1
 
 
-def _open(path):
+def _open(path: Any) -> Any:
     pynwb = require("pynwb", extra="nwb", caller="evoparam.io.read_nwb")
     path = os.fspath(path)
     if path.startswith(("http://", "https://")):
@@ -49,7 +54,7 @@ def _open(path):
     return io
 
 
-def _all_objects(nwbfile):
+def _all_objects(nwbfile: Any) -> list[Any]:
     """(path, object) of every data interface of the file."""
     out = []
     for name, obj in nwbfile.acquisition.items():
@@ -65,7 +70,7 @@ def _all_objects(nwbfile):
     return out
 
 
-def _series(nwbfile, name):
+def _series(nwbfile: Any, name: Any) -> Any:
     from pynwb.base import TimeSeries
 
     candidates = [
@@ -88,13 +93,13 @@ def _series(nwbfile, name):
     return electrical[0][1]
 
 
-def _table_frame(table):
+def _table_frame(table: Any) -> Any:
     frame = table.to_dataframe()
     keep = [c for c in frame.columns if frame[c].map(lambda v: np.isscalar(v) or v is None).all()]
     return frame[keep].reset_index(drop=False)
 
 
-def nwb_events(nwbfile, events=None):
+def nwb_events(nwbfile: Any, events: Any = None) -> Any:
     """(onsets in s, events table, source name) by the order of spec §10.3."""
     import pandas as pd
 
@@ -102,6 +107,7 @@ def nwb_events(nwbfile, events=None):
         column = "onset" if "onset" in events else "start_time"
         return events[column].to_numpy(float), events.reset_index(drop=True), "table"
     if events is not None and not isinstance(events, str):
+        onsets: Any
         onsets = np.asarray(events, float)
         return onsets, pd.DataFrame({"onset": onsets}), "array"
     # (1) ndx-events EventsTable
@@ -160,7 +166,7 @@ def nwb_events(nwbfile, events=None):
     )
 
 
-def _harmonise(frame):
+def _harmonise(frame: Any) -> tuple[Any, Any]:
     from ._harmonize import harmonize_stim_events
 
     sidecar = {c: {"Units": u} for c, u in NWB_UNITS.items() if c in frame}
@@ -173,7 +179,7 @@ def _harmonise(frame):
     return table, report
 
 
-def _electrodes(_nwbfile, series, picks):
+def _electrodes(_nwbfile: Any, series: Any, picks: Any) -> tuple[list[str], Any, list[int]]:
     import pandas as pd
 
     region = getattr(series, "electrodes", None)
@@ -203,17 +209,17 @@ def _electrodes(_nwbfile, series, picks):
 
 
 def read_nwb(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.1)
-    path,
+    path: str,
     *,
-    electrical_series=None,
-    events=None,
-    tmin=-0.1,
-    tmax=0.5,
-    picks=None,
-    stim_columns="auto",
-    select=None,
-    units="uV",
-):
+    electrical_series: str | None = None,
+    events: Any = None,
+    tmin: float = -0.1,
+    tmax: float = 0.5,
+    picks: Any = None,
+    stim_columns: Any = "auto",
+    select: str | None = None,
+    units: str = "uV",
+) -> "TrialSet":
     """Epochs of an NWB ``ElectricalSeries`` around events (spec §10.3, REQ-317).
 
     Parameters
@@ -260,13 +266,13 @@ def read_nwb(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature f
             stamps = np.asarray(series.timestamps[:], float)
             sfreq = float(1.0 / np.median(np.diff(stamps)))
 
-            def sample_of(t):
+            def sample_of(t: float) -> int:
                 return int(np.searchsorted(stamps, t))
         else:
             sfreq = float(series.rate)
             start = float(series.starting_time or 0.0)
 
-            def sample_of(t):
+            def sample_of(t: float) -> int:
                 return int(np.ceil(np.round((t - start) * sfreq, 6)))
 
         first = int(np.ceil(np.round(tmin * sfreq, 6)))
@@ -365,7 +371,7 @@ def read_nwb(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature f
         io.close()
 
 
-def _electrode_rows(nwbfile):
+def _electrode_rows(nwbfile: Any) -> Any:
     """Map each channel name to its row of ``/general/extracellular_ephys/electrodes``.
 
     With the naming of :func:`read_nwb` (``label`` column, else ``e<id>``).
@@ -381,7 +387,7 @@ def _electrode_rows(nwbfile):
     return {name: row for row, name in enumerate(names)}
 
 
-def _pack(result):
+def _pack(result: Any) -> str:
     """Return the result as the bytes of a zipped ``.evoparam`` container, base64 text."""
     import base64
     import tempfile
@@ -401,7 +407,7 @@ def _pack(result):
             return base64.b64encode(fobj.read()).decode("ascii")
 
 
-def _unpack(text, verify=True):
+def _unpack(text: Any, verify: bool = True) -> Any:
     import base64
     import tempfile
 
@@ -414,13 +420,13 @@ def _unpack(text, verify=True):
         return load_object(path, verify=verify)
 
 
-def _stim_site(trials, condition):
+def _stim_site(trials: Any, condition: Any) -> Any:
     from evoparam.io.derivatives import _stim_fields
 
     return _stim_fields(trials, condition, ())["stim_site"] or ""
 
 
-def _component_rows(group, test, trials, to_volt):
+def _component_rows(group: Any, test: Any, trials: Any, to_volt: Any) -> Any:
     present = {}
     if test is not None:
         names = test.settings.get("channels") or []
@@ -511,15 +517,15 @@ TRIAL_TABLE = [
 
 
 def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.1)
-    result,
-    nwbfile_or_path,
+    result: Any,
+    nwbfile_or_path: Any,
     *,
-    module="evoparam",
-    extension=False,
-    units="uV",
-    trials=None,
-    model=True,
-):
+    module: str = "evoparam",
+    extension: bool = False,
+    units: str = "uV",
+    trials: "TrialSet | None" = None,
+    model: bool = True,
+) -> Any:
     """Add a result's tables to ``processing/<module>`` of an NWB file (spec §10.3).
 
     Parameters
@@ -563,7 +569,7 @@ def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by 
         trials if trials is not None else next((r for r in items if isinstance(r, TrialSet)), None)
     )
     items = [r for r in items if not isinstance(r, TrialSet)]
-    ndx = None
+    ndx: Any = None
     if extension:
         # loaded before the file is opened: NWBHDF5IO copies the type map it starts with
         from evoparam.io import ndx_evoparam as ndx
@@ -595,7 +601,7 @@ def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by 
     mod = nwbfile.create_processing_module(module, json.dumps(description, allow_nan=False))
     electrodes = _electrode_rows(nwbfile)
 
-    def table(name, desc, columns, rows, kind):
+    def table(name: Any, desc: Any, columns: Any, rows: Any, kind: Any) -> Any:
         cls = DynamicTable if ndx is None else ndx.table_class(kind)
         tab = cls(name=name, description=desc)
         names = [r["channel"] for r in rows]
@@ -622,7 +628,7 @@ def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by 
             tab.add_row(**values)
         return tab
 
-    stored = []
+    stored: list[Any] = []
     for item in items:
         if isinstance(item, GroupFit):
             test = next((i for i in items if isinstance(i, ResponseTest)), None)
@@ -735,7 +741,9 @@ def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by 
     return nwbfile
 
 
-def _model_series(group, nwbfile, electrodes, to_volt, pynwb, dynamic_table_region):
+def _model_series(
+    group: Any, nwbfile: Any, electrodes: Any, to_volt: Any, pynwb: Any, dynamic_table_region: Any
+) -> Any:
     """``evoparam_model``.
 
     The fitted curves (fit window, zero elsewhere) of every channel x condition, in V, at the rate
@@ -785,7 +793,9 @@ def _model_series(group, nwbfile, electrodes, to_volt, pynwb, dynamic_table_regi
         )
 
 
-def read_nwb_results(path, *, module="evoparam", kind="components", verify=True):
+def read_nwb_results(
+    path: Any, *, module: str = "evoparam", kind: str = "components", verify: bool = True
+) -> Any:
     """Read back what :func:`write_nwb` wrote (REQ-318).
 
     Parameters
@@ -824,6 +834,7 @@ def read_nwb_results(path, *, module="evoparam", kind="components", verify=True)
                 "before 0.1 of the NWB round trip?)."
             )
         frame = mod["evoparam_results"].to_dataframe()
+        found: dict[str, list[Any]]
         found = {name: [] for name in kinds.values()}
         for kind_name, text in zip(frame["result_type"], frame["container"], strict=False):
             found.setdefault(kind_name, []).append(_unpack(text, verify=verify))

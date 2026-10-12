@@ -12,12 +12,17 @@ known null (mean zero) on channels without a response, which the fitted amplitud
 
 import warnings
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data import TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.models.component_shapes import get_shape
+
+if TYPE_CHECKING:
+    from evoparam.data.results import GroupFit
 
 __all__ = []
 
@@ -33,12 +38,12 @@ class SubjectData:
 
     name: str
     ts: TrialSet
-    group_fit: object
-    trial_fits: object = None
-    covariates: dict = field(default_factory=dict)
+    group_fit: Any
+    trial_fits: Any = None
+    covariates: dict[str, Any] = field(default_factory=dict)
 
 
-def split_subjects(ts, subject_column):
+def split_subjects(ts: Any, subject_column: Any) -> Any:
     """List of (name, TrialSet).
 
     One per element of a sequence, or one per value of the metadata column ``subject_column`` of a
@@ -76,7 +81,7 @@ def split_subjects(ts, subject_column):
     return out
 
 
-def subject_covariates(name, ts, columns):
+def subject_covariates(name: Any, ts: Any, columns: Any) -> dict[Any, Any]:
     """Values of subject-level covariates: constant metadata columns of the subject."""
     out = {}
     for column in columns:
@@ -95,7 +100,7 @@ def subject_covariates(name, ts, columns):
     return out
 
 
-def channel_fits(ts, preset, picks=None, n_jobs=1):
+def channel_fits(ts: Any, preset: Any, picks: Any = None, n_jobs: int = 1) -> "GroupFit":
     from evoparam.models import fit as fit_models
 
     with warnings.catch_warnings():
@@ -103,7 +108,9 @@ def channel_fits(ts, preset, picks=None, n_jobs=1):
         return fit_models(ts, preset, picks=picks, n_jobs=n_jobs)
 
 
-def trial_fits(ts, group_fit, label, max_shift, random_state=None):
+def trial_fits(
+    ts: Any, group_fit: Any, label: Any, max_shift: Any, random_state: Any = None
+) -> Any:
     from evoparam.trials import fit_trials
 
     with warnings.catch_warnings():
@@ -119,7 +126,7 @@ def trial_fits(ts, group_fit, label, max_shift, random_state=None):
         )
 
 
-def run_subjects(function, arguments, n_jobs):
+def run_subjects(function: Any, arguments: Any, n_jobs: Any) -> list[Any]:
     """Run ``function(*args)`` for each subject's arguments.
 
     In processes when ``n_jobs != 1`` (``-1``: one per core).
@@ -129,12 +136,12 @@ def run_subjects(function, arguments, n_jobs):
     import os
     from concurrent.futures import ProcessPoolExecutor
 
-    workers = os.cpu_count() if n_jobs is None or n_jobs < 0 else n_jobs
+    workers = (os.cpu_count() or 1) if n_jobs is None or n_jobs < 0 else n_jobs
     with ProcessPoolExecutor(max_workers=min(workers, len(arguments))) as pool:
         return list(pool.map(function, *zip(*arguments, strict=False)))
 
 
-def component_rows(group_fit, label):
+def component_rows(group_fit: Any, label: Any) -> dict[Any, Any]:
     """For each channel of a GroupFit: the component carrying ``label`` (or None)."""
     out = {}
     for name in group_fit.ch_names:
@@ -144,7 +151,7 @@ def component_rows(group_fit, label):
     return out
 
 
-def comp_window(fit, label):
+def comp_window(fit: Any, label: Any) -> tuple[float, float]:
     """Return the label window ``(low, high)`` (s) of a channel fit.
 
     The latency of a component carrying ``label`` lies in it (``(-inf, inf)`` when the fit has no
@@ -157,7 +164,7 @@ def comp_window(fit, label):
     return float(window[0]), float(window[1])
 
 
-def wald_se(comp, name):
+def wald_se(comp: Any, name: Any) -> float:
     """Return the standard error from a component's Wald interval (NaN when absent)."""
     ci = (comp.ci or {}).get(name)
     if ci is None or not np.all(np.isfinite(ci)):
@@ -165,7 +172,7 @@ def wald_se(comp, name):
     return float(ci[1] - ci[0]) / (2 * 1.959963984540054)
 
 
-def template(components):
+def template(components: Any) -> dict[str, Any]:
     """Shape name and median parameters of a list of components."""
     names = [c.shape for c in components]
     shape = max(set(names), key=names.count)
@@ -182,7 +189,7 @@ def template(components):
     }
 
 
-def template_amplitudes(ts, tmpl):
+def template_amplitudes(ts: Any, tmpl: Any) -> Any:
     """Per-trial amplitude of a fixed template on every channel: (n_trials, n_channels).
 
     Least squares of the samples within ``latency +/- 1.5 FWHM`` on the template (unit peak)

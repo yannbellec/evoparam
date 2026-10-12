@@ -18,9 +18,11 @@ import re
 import tempfile
 import zipfile
 from importlib import import_module
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray, StrPath
 from evoparam.data import TrialSet, load_object, save_object
 from evoparam.data._jsonutil import loads, to_jsonable
 from evoparam.data.provenance import capture_environment
@@ -28,6 +30,9 @@ from evoparam.data.serialize import SCHEMA
 from evoparam.errors import DataError, EvoparamError, EvoparamVersionError
 from evoparam.errors import warn as _warn
 from evoparam.version import __version__
+
+if TYPE_CHECKING:
+    from evoparam.data.results import GroupFit
 
 __all__ = ["ReproduceReport", "reproduce", "migrate"]
 
@@ -62,14 +67,14 @@ class ReproduceReport:
     path: str
     identical: bool
     max_rel_diff: float
-    steps: list
-    differences: list
-    environment_differences: dict
+    steps: list[Any]
+    differences: list[Any]
+    environment_differences: dict[str, Any]
     checksums_ok: bool
-    settings_differences: list = dataclasses.field(default_factory=list)
-    missing_plugins: dict = dataclasses.field(default_factory=dict)
+    settings_differences: list[Any] = dataclasses.field(default_factory=list)
+    missing_plugins: dict[str, Any] = dataclasses.field(default_factory=dict)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         out = dataclasses.asdict(self)
         out["max_rel_diff"] = None if not math.isfinite(self.max_rel_diff) else self.max_rel_diff
         return out
@@ -79,7 +84,7 @@ class ReproduceReport:
 ## Reading the container
 
 
-def _read_settings_json(path):
+def _read_settings_json(path: Any) -> Any:
     """``settings.json`` of a container (directory or zip), as written on disk."""
     if os.path.isdir(path):
         with open(os.path.join(path, "settings.json"), encoding="utf-8") as fobj:
@@ -88,7 +93,7 @@ def _read_settings_json(path):
         return loads(archive.read("settings.json").decode("utf-8"))
 
 
-def _resolve_path(path):
+def _resolve_path(path: Any) -> Any:
     path = os.fspath(path)
     if not os.path.exists(path) and os.path.exists(path + ".evoparam"):
         path += ".evoparam"
@@ -99,7 +104,7 @@ def _resolve_path(path):
 ## Replaying the steps
 
 
-def _callable(function):
+def _callable(function: Any) -> Any:
     """Return the public function (or container method name) of a dotted step name."""
     parts = function.split(".")
     for cut in range(len(parts) - 1, 1, -1):
@@ -107,6 +112,7 @@ def _callable(function):
             module = import_module(".".join(parts[:cut]))
         except ImportError:
             continue
+        obj: Any
         obj = module
         for name in parts[cut:]:
             obj = getattr(obj, name, None)
@@ -117,7 +123,7 @@ def _callable(function):
     return None
 
 
-def _accepted(func, settings):
+def _accepted(func: Any, settings: Any) -> dict[Any, Any]:
     """Return the settings that ``func`` accepts as keyword arguments."""
     params = inspect.signature(func).parameters
     if any(p.kind == p.VAR_KEYWORD for p in params.values()):
@@ -133,7 +139,7 @@ def _accepted(func, settings):
     return out
 
 
-def _check_preset(settings):
+def _check_preset(settings: Any) -> None:
     """EvoparamVersionError when the recorded preset version no longer exists."""
     from evoparam import presets
 
@@ -153,13 +159,13 @@ def _check_preset(settings):
         )
 
 
-def _fit_group(trials, settings):
+def _fit_group(trials: Any, settings: Any) -> "GroupFit":
     from evoparam.models import ResponseModel
     from evoparam.models._settings import FitSettings
 
     _check_preset(settings)
     names = set(FitSettings.__dataclass_fields__) - {"preset", "preset_note"}
-    kwargs = {
+    kwargs: dict[str, Any] = {
         k: (tuple(v) if isinstance(v, list) and k in ("fit_window", "baseline", "shapes") else v)
         for k, v in settings.items()
         if k in names
@@ -180,7 +186,7 @@ def _fit_group(trials, settings):
     return model.fit_group(trials)
 
 
-def _replay_source(step, source, data):
+def _replay_source(step: Any, source: Any, data: Any) -> Any:
     function = step["function"]
     settings = step.get("settings") or {}
     if data is not None:
@@ -208,7 +214,7 @@ def _replay_source(step, source, data):
     return None, "not_replayable", ("the source cannot be read again from the record; pass data=")
 
 
-def _replay(obj, final_settings, data):
+def _replay(obj: Any, final_settings: Any, data: Any) -> Any:
     """Re-run the steps of ``obj.provenance``; returns (new object, step records)."""
     steps = list(obj.provenance.steps)
     records = []
@@ -309,7 +315,7 @@ def _replay(obj, final_settings, data):
 ## Comparing
 
 
-def _rel(a, b):
+def _rel(a: Any, b: Any) -> tuple[float, NDArray[Any], NDArray[Any]]:
     a = np.asarray(a, float)
     b = np.asarray(b, float)
     both_nan = np.isnan(a) & np.isnan(b)
@@ -322,7 +328,7 @@ def _rel(a, b):
     return float(rel.max()) if rel.size else 0.0, diff, both_nan
 
 
-def _compare(new, old, path, rtol, atol, out):
+def _compare(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: Any) -> Any:
     """Append (path, relative difference or None) of every disagreement.
 
     Return the largest relative difference among the numbers compared.
@@ -426,7 +432,7 @@ def _compare(new, old, path, rtol, atol, out):
     return 0.0
 
 
-def _missing_plugins(recorded):
+def _missing_plugins(recorded: Any) -> dict[Any, Any]:
     """Plugins a result used that are not installed now, or not at the recorded version."""
     from importlib import metadata
 
@@ -464,7 +470,7 @@ def _missing_plugins(recorded):
     return out
 
 
-def _environment_differences(recorded):
+def _environment_differences(recorded: Any) -> dict[Any, Any]:
     current = capture_environment()
     out = {}
     for key in sorted(set(recorded) | set(current)):
@@ -483,7 +489,14 @@ def _environment_differences(recorded):
 ## Public functions
 
 
-def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=True):
+def reproduce(
+    result_path: StrPath,
+    *,
+    data: "TrialSet | None" = None,
+    rtol: float = 1e-9,
+    atol: float = 0.0,
+    check_environment: bool = True,
+) -> "ReproduceReport":
     """Regenerate a saved result from its provenance and compare it with the saved one.
 
     Parameters
@@ -588,7 +601,7 @@ def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=
     )
 
 
-def migrate(path):
+def migrate(path: Any) -> dict[str, Any]:
     """Rewrite a container in place under the current schema (``evoparam-result/<major>``).
 
     The migrations applied are recorded in its provenance (REQ-334).

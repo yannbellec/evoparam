@@ -10,10 +10,12 @@ and the benchmark (spec §8) use these functions.
 """
 
 import re
+from collections.abc import Sequence
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from evoparam._typing import Any
 from evoparam.data import GroupFit, ResponseFit
 from evoparam.errors import SettingsError
 from evoparam.utils._optional import require
@@ -78,7 +80,7 @@ _FORBIDDEN = 1e9
 ## Inputs
 
 
-def _tolerance(tolerance, fwhm):
+def _tolerance(tolerance: Any, fwhm: Any) -> Any:
     """Per-component tolerance (s) from "fwhm/k", "k*fwhm", a number or None."""
     fwhm = np.asarray(fwhm, dtype=float)
     if tolerance is None:
@@ -100,7 +102,9 @@ def _tolerance(tolerance, fwhm):
     return np.full(fwhm.shape, value)
 
 
-def _truth_table(truth, level, roles, window):
+def _truth_table(
+    truth: Any, level: Any, roles: Any, window: Any
+) -> tuple[Any, Any, list[tuple[Any, Any]], Any]:
     """Truth rows, the waveforms they define, and the sampling rate when known."""
     pd = require("pandas", extra="data", caller="evoparam.sim.match_components")
     sfreq, waveforms = None, None
@@ -146,7 +150,7 @@ def _truth_table(truth, level, roles, window):
     return pd, table, waveforms, sfreq
 
 
-def _component_rows(fit, channel, condition):
+def _component_rows(fit: Any, channel: Any, condition: Any) -> list[Any]:
     rows = []
     for position, comp in enumerate(fit.components):
         row = {
@@ -166,7 +170,9 @@ def _component_rows(fit, channel, condition):
     return rows
 
 
-def _fit_table(pd, fit, channel, condition, truth_waveforms):
+def _fit_table(
+    pd: Any, fit: Any, channel: Any, condition: Any, truth_waveforms: Any
+) -> tuple[Any, list[tuple[Any, Any]]]:
     """Fitted components (with interval columns when available) and the fitted waveforms."""
     if isinstance(fit, GroupFit):
         rows, waveforms = [], []
@@ -223,14 +229,14 @@ def _fit_table(pd, fit, channel, condition, truth_waveforms):
 ## Matching
 
 
-def _covered(row, name, true_value):
+def _covered(row: Any, name: Any, true_value: Any) -> float:
     low, high = row.get(f"{name}_ci_low"), row.get(f"{name}_ci_high")
     if low is None or high is None or not (np.isfinite(low) and np.isfinite(high)):
         return np.nan
     return float(low <= true_value <= high)
 
 
-def _pair(true_row, fit_row, key):
+def _pair(true_row: Any, fit_row: Any, key: Any) -> dict[str, Any]:
     out = {"channel": key[0], "condition": key[1]}
     if true_row is not None:
         out.update(
@@ -267,17 +273,17 @@ def _pair(true_row, fit_row, key):
 
 
 def match_components(
-    truth,
-    fit,
-    tolerance="fwhm/2",
+    truth: Any,
+    fit: Any,
+    tolerance: str | float | None = "fwhm/2",
     *,
-    level="component",
-    roles=None,
-    window=None,
-    match_polarity=False,
-    channel=None,
-    condition=None,
-):
+    level: str = "component",
+    roles: Any = None,
+    window: tuple[float, float] | None = None,
+    match_polarity: bool = False,
+    channel: str | None = None,
+    condition: str | None = None,
+) -> Any:
     """Match fitted components to true components, one waveform at a time.
 
     Parameters
@@ -344,7 +350,7 @@ def match_components(
     if trial_level and "trial" not in fit_table.columns:
         raise SettingsError("match_components: level='trial' needs a 'trial' column in the fits.")
 
-    def key_of(channel_name, cond):
+    def key_of(channel_name: Any, cond: Any) -> Any:
         return (channel_name, cond if by_condition else "")
 
     waveforms = list(
@@ -418,7 +424,7 @@ def match_components(
 ## Summary
 
 
-def _summary(group, waveforms, true_waveforms, sfreq):
+def _summary(group: Any, waveforms: Any, true_waveforms: Any, sfreq: float) -> dict[str, Any]:
     kinds = group["kind"].to_numpy()
     matched = group[kinds == "match"]
     n_matched = int(len(matched))
@@ -436,7 +442,7 @@ def _summary(group, waveforms, true_waveforms, sfreq):
         )
     )
 
-    def mean(values):
+    def mean(values: Any) -> Any:
         values = np.asarray(values, dtype=float)
         values = values[np.isfinite(values)]
         return float(np.mean(values)) if values.size else np.nan
@@ -466,16 +472,16 @@ def _summary(group, waveforms, true_waveforms, sfreq):
 
 
 def score_fits(
-    truth,
-    fits,
+    truth: Any,
+    fits: Any,
     *,
-    tolerance="fwhm/2",
-    by=None,
-    level="component",
-    roles=None,
-    window=None,
-    match_polarity=False,
-):
+    tolerance: str = "fwhm/2",
+    by: str | Sequence[str] | None = None,
+    level: str = "component",
+    roles: Any = None,
+    window: Any = None,
+    match_polarity: bool = False,
+) -> Any:
     """Recall, precision, F1, parameter errors and interval coverage of fits against the truth.
 
     Parameters

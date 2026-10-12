@@ -9,6 +9,7 @@ the two hard dependencies only.
 import importlib
 import re
 from importlib import metadata
+from types import ModuleType
 
 __all__ = ["require"]
 
@@ -16,7 +17,7 @@ __all__ = ["require"]
 _DISTRIBUTIONS = {"sklearn": "scikit-learn", "yaml": "PyYAML"}
 
 
-def _version_tuple(text):
+def _version_tuple(text: object) -> tuple[int, ...]:
     parts = []
     for piece in re.split(r"[.+-]", str(text)):
         match = re.match(r"\d+", piece)
@@ -26,7 +27,7 @@ def _version_tuple(text):
     return tuple(parts)
 
 
-def _installed_version(module, name):
+def _installed_version(module: ModuleType, name: str) -> str | None:
     version = getattr(module, "__version__", None)
     if version is None:
         try:
@@ -36,7 +37,9 @@ def _installed_version(module, name):
     return str(version)
 
 
-def require(module, *, extra, min_version=None, caller=None):
+def require(
+    module: str, *, extra: str, min_version: str | None = None, caller: str | None = None
+) -> ModuleType:
     """Import an optional dependency, or raise ImportError with the pip command to run.
 
     Parameters
@@ -69,7 +72,7 @@ def require(module, *, extra, min_version=None, caller=None):
     except ImportError as exc:
         raise ImportError(f"{who} needs the optional package '{module}'{floor}.\n{hint}") from exc
     if min_version is not None:
-        found = _installed_version(imported, module.split(".")[0])
+        found = _installed_version(imported, module.split(".", maxsplit=1)[0])
         if found is not None and _version_tuple(found) < _version_tuple(min_version):
             raise ImportError(
                 f"{who} needs the optional package '{module}'{floor}; "

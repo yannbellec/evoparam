@@ -29,6 +29,7 @@ the order of the data spread.
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import warn as _warn
 from evoparam.utils._optional import require
 
@@ -39,7 +40,7 @@ MIN_TAU_MS = 0.01
 DIVERGENCE_WARNING = 0.01
 
 
-def require_engine(engine):
+def require_engine(engine: Any) -> Any:
     """Import the engine's packages, or raise ImportError naming what to install."""
     if engine == "numpyro":
         require("jax", extra=EXTRAS[engine], caller="engine='numpyro'")
@@ -51,7 +52,9 @@ def require_engine(engine):
 ## Data
 
 
-def prepare(channel, trial, label, formula, covariates, subjects):
+def prepare(
+    channel: Any, trial: Any, label: Any, formula: Any, covariates: Any, subjects: Any
+) -> dict[str, Any]:
     """Arrays of one component for the samplers (scaled), and the scales."""
     from . import eb
 
@@ -135,7 +138,7 @@ def prepare(channel, trial, label, formula, covariates, subjects):
 ## numpyro
 
 
-def _exgauss_logpdf_jax(x, mu, sigma, tau):
+def _exgauss_logpdf_jax(x: Any, mu: Any, sigma: Any, tau: Any) -> Any:
     import jax.numpy as jnp
     from jax.scipy.stats import norm
 
@@ -147,7 +150,7 @@ def _exgauss_logpdf_jax(x, mu, sigma, tau):
     )
 
 
-def _numpyro_model(data, latency_dist):
+def _numpyro_model(data: Any, latency_dist: Any) -> None:
     import jax.numpy as jnp
     import numpyro
     import numpyro.distributions as dist
@@ -209,7 +212,7 @@ def _numpyro_model(data, latency_dist):
         numpyro.deterministic("responsibility", jnp.exp(l1 - total))
 
 
-EB_KEYS = {
+EB_KEYS: dict[tuple[str, str], tuple[str, float | None]] = {
     ("latency", "subject"): ("sd_latency_subject", 1e3),
     ("latency", "channel"): ("sd_latency_channel", 1e3),
     ("latency", "trial"): ("sd_jitter", 1e3),
@@ -218,7 +221,7 @@ EB_KEYS = {
 }
 
 
-def _init_values(data, eb_variance, label):
+def _init_values(data: Any, eb_variance: Any, label: Any) -> dict[str, Any]:
     """Return the starting point: the empirical-Bayes means and standard deviations."""
     out = {"mu_latency": data["prior"]["lat_centre"], "mu_amplitude": data["prior"]["amp_centre"]}
     if eb_variance is None or not len(eb_variance):
@@ -233,11 +236,20 @@ def _init_values(data, eb_variance, label):
     return out
 
 
-def _sample_numpyro(data, latency_dist, n_chains, n_warmup, n_draws, target_accept, seed, init):
+def _sample_numpyro(
+    data: Any,
+    latency_dist: Any,
+    n_chains: Any,
+    n_warmup: Any,
+    n_draws: Any,
+    target_accept: Any,
+    seed: Any,
+    init: Any,
+) -> tuple[dict[Any, NDArray[Any]], NDArray[Any], dict[Any, NDArray[Any]] | None]:
     import jax
     from numpyro.infer import MCMC, NUTS, init_to_value
 
-    jax.config.update("jax_enable_x64", True)
+    jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in jax
     kernel = NUTS(
         lambda: _numpyro_model(data, latency_dist),
         target_accept_prob=target_accept,
@@ -254,7 +266,7 @@ def _sample_numpyro(data, latency_dist, n_chains, n_warmup, n_draws, target_acce
     mcmc.run(jax.random.PRNGKey(int(seed)), extra_fields=("diverging",))
     samples = {k: np.asarray(v) for k, v in mcmc.get_samples(group_by_chain=True).items()}
     diverging = np.asarray(mcmc.get_extra_fields(group_by_chain=True)["diverging"])
-    loglik = None
+    loglik: dict[Any, NDArray[Any]] | None = None
     try:
         from numpyro.infer import log_likelihood
 
@@ -270,7 +282,16 @@ def _sample_numpyro(data, latency_dist, n_chains, n_warmup, n_draws, target_acce
 ## PyMC
 
 
-def _sample_pymc(data, latency_dist, n_chains, n_warmup, n_draws, target_accept, seed, init):
+def _sample_pymc(
+    data: Any,
+    latency_dist: Any,
+    n_chains: Any,
+    n_warmup: Any,
+    n_draws: Any,
+    target_accept: Any,
+    seed: Any,
+    init: Any,
+) -> tuple[dict[Any, NDArray[Any]], NDArray[Any], dict[Any, NDArray[Any]]]:
     import pymc as pm
     import pytensor.tensor as pt
 
@@ -281,10 +302,11 @@ def _sample_pymc(data, latency_dist, n_chains, n_warmup, n_draws, target_accept,
         s_ls = pm.HalfNormal("sd_latency_subject", p["lat_scale"])
         s_lc = pm.HalfNormal("sd_latency_channel", p["lat_scale"])
         n_x = data["X"].shape[1]
-        beta = pm.Normal("beta", 0, p["lat_scale"], shape=n_x) if n_x else pt.zeros(0)
+        beta = pm.Normal("beta", 0, p["lat_scale"], shape=n_x) if n_x else pt.zeros(0)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in PyTensor
         z = pm.Normal("z_subject", 0, 1, shape=n_s)
         lat_s = pm.Deterministic(
-            "latency_subject", mu_l + pt.dot(np.asarray(data["X"]), beta) + s_ls * z
+            "latency_subject",
+            mu_l + pt.dot(np.asarray(data["X"]), beta) + s_ls * z,  # type: ignore[no-untyped-call, unused-ignore]  # untyped in PyTensor
         )
         lat_c = pm.Normal(
             "latency_channel", lat_s[data["ch_subject"]], s_lc, shape=len(data["lat_hat"])
@@ -322,8 +344,8 @@ def _sample_pymc(data, latency_dist, n_chains, n_warmup, n_draws, target_accept,
             se = data["ex_se"]
             l1 = pt.log(pis) + pm.logp(pm.Normal.dist(m, pt.sqrt(t_e**2 + se**2)), data["ex_y"])
             l0 = pt.log1p(-pis) + pm.logp(pm.Normal.dist(0.0, se), data["ex_y"])
-            total = pt.logaddexp(l1, l0)
-            pm.Potential("existence", pt.sum(total))
+            total = pt.logaddexp(l1, l0)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in PyTensor
+            pm.Potential("existence", pt.sum(total))  # type: ignore[no-untyped-call, unused-ignore]  # untyped in PyTensor
             pm.Deterministic("responsibility", pt.exp(l1 - total))
         idata = pm.sample(
             draws=n_draws,
@@ -340,7 +362,7 @@ def _sample_pymc(data, latency_dist, n_chains, n_warmup, n_draws, target_accept,
     post = idata.posterior
     samples = {k: np.asarray(post[k]) for k in post.data_vars}
     diverging = np.asarray(idata.sample_stats["diverging"])
-    loglik = {
+    loglik: dict[Any, NDArray[Any]] = {
         k: np.asarray(idata.log_likelihood[k]).reshape(n_chains, n_draws, -1)
         for k in idata.log_likelihood.data_vars
     }
@@ -351,7 +373,7 @@ def _sample_pymc(data, latency_dist, n_chains, n_warmup, n_draws, target_accept,
 ## Summaries
 
 
-def _summary(draws):
+def _summary(draws: Any) -> tuple[Any, Any, NDArray[Any], NDArray[Any]]:
     """Mean, SD and 95 % interval over chains and draws (axis 0 and 1)."""
     flat = draws.reshape(-1, *draws.shape[2:])
     return (
@@ -362,7 +384,7 @@ def _summary(draws):
     )
 
 
-def _from_dict(az, groups):
+def _from_dict(az: Any, groups: Any) -> Any:
     """Build an ``InferenceData`` from ``{group: {variable: draws}}``.
 
     One dict of groups with arviz >= 1, one keyword per group with arviz 0.x (where a dict alone
@@ -373,13 +395,13 @@ def _from_dict(az, groups):
     return az.from_dict(**groups)
 
 
-def _diagnostics(samples, diverging):
+def _diagnostics(samples: Any, diverging: Any) -> dict[str, Any]:
     import arviz as az
 
     names = [k for k in samples if not k.startswith(("responsibility",))]
     data = _from_dict(az, {"posterior": {k: samples[k] for k in names}})
-    rhat = az.rhat(data)
-    ess = az.ess(data)
+    rhat = az.rhat(data)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in ArviZ
+    ess = az.ess(data)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in ArviZ
     worst_rhat = max(float(np.nanmax(np.asarray(rhat[k]))) for k in names)
     worst_ess = min(float(np.nanmin(np.asarray(ess[k]))) for k in names)
     per = {
@@ -398,7 +420,7 @@ def _diagnostics(samples, diverging):
     }
 
 
-def _ppc(samples, data):
+def _ppc(samples: Any, data: Any) -> float:
     """Posterior-predictive p-value of the spread of the channel latencies."""
     rng = np.random.default_rng(0)
     lat_c = samples["latency_channel"].reshape(-1, len(data["lat_hat"]))
@@ -408,19 +430,19 @@ def _ppc(samples, data):
 
 
 def sample(
-    engine,
-    level_tables,
-    settings,
+    engine: Any,
+    level_tables: Any,
+    settings: Any,
     *,
-    n_chains,
-    n_warmup,
-    n_draws,
-    target_accept,
-    random_state,
-    formula,
-    covariates,
-    eb_variance=None,
-):
+    n_chains: Any,
+    n_warmup: Any,
+    n_draws: Any,
+    target_accept: Any,
+    random_state: Any,
+    formula: Any,
+    covariates: Any,
+    eb_variance: Any = None,
+) -> dict[str, Any]:
     """Sample every component and return the posterior tables."""
     import pandas as pd
 
@@ -429,6 +451,7 @@ def sample(
     trial = level_tables["trial"]
     subjects = settings["subjects"]
     seed = 0 if random_state is None else int(random_state)
+    diag: dict[str, Any]
     var_rows, effect_rows, sub_rows, diag = [], [], [], {"bayes": {}}
     for label in settings["components"]:
         if not (channel["component"] == label).any():
@@ -463,7 +486,7 @@ def sample(
             for column in ("", "_se", "_ci_low", "_ci_high"):
                 channel.loc[rows, f"{name}{column}"] = np.nan
             for idx in channel.index[rows]:
-                key = (channel.at[idx, "subject"], channel.at[idx, "channel"])
+                key: Any = (channel.at[idx, "subject"], channel.at[idx, "channel"])
                 if key in index:
                     i = index[key]
                     channel.at[idx, name] = stats[0][i]
@@ -507,6 +530,9 @@ def sample(
         samples["sd_jitter_total"] = np.sqrt(
             samples["sd_jitter"] ** 2 + samples.get("tau_jitter", 0.0) ** 2
         )
+        level: Any
+        parameter: Any
+        scale: Any
         for key, parameter, level, scale in (
             ("sd_latency_subject", "latency", "subject", 1e-3),
             ("sd_latency_channel", "latency", "channel", 1e-3),
@@ -561,7 +587,7 @@ def sample(
     return out
 
 
-def loo_table(fits, var_name="lat_hat"):
+def loo_table(fits: Any, var_name: str = "lat_hat") -> Any:
     """PSIS-LOO of each fit on the channel latencies (``arviz.compare``), best first."""
     import arviz as az
     import pandas as pd

@@ -1,11 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """Quality score of each trial after artifact removal."""
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, BoolArray, FloatArray
 from evoparam.utils._optional import require
 
 from ._common import check_trialset, window_slice
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["artifact_quality"]
 
@@ -15,8 +21,14 @@ SATURATION_WINDOW = 0.020
 
 
 def artifact_quality(
-    ts, *, window, baseline=(-0.5, -0.05), template=None, saturation=None, fit_r2=None
-):
+    ts: "TrialSet",
+    *,
+    window: tuple[float, float],
+    baseline: tuple[float, float] = (-0.5, -0.05),
+    template: FloatArray | None = None,
+    saturation: BoolArray | None = None,
+    fit_r2: ArrayLike | None = None,
+) -> Any:
     """Quality of each trial, from 0 (unusable) to 1 (clean).
 
     ``q = 1 - clip(mean(p1, p2, p3, p4), 0, 1)`` with:

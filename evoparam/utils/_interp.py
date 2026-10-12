@@ -4,8 +4,11 @@
 Used by :mod:`evoparam.artifact` (method ``"interpolate"``).
 """
 
+from collections.abc import Sequence
+
 import numpy as np
 
+from evoparam._typing import ArrayLike, FloatArray, IntArray
 from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = ["window_indices", "interpolate_window", "INTERPOLATIONS"]
@@ -13,7 +16,7 @@ __all__ = ["window_indices", "interpolate_window", "INTERPOLATIONS"]
 INTERPOLATIONS = ("linear", "cubic", "pchip")
 
 
-def window_indices(times, window, buffer=0):
+def window_indices(times: ArrayLike, window: Sequence[float], buffer: int = 0) -> IntArray:
     """Return the indices of the samples inside ``window`` (inclusive), checked against the buffer.
 
     Raises
@@ -37,7 +40,14 @@ def window_indices(times, window, buffer=0):
     return inds
 
 
-def interpolate_window(times, data, window, buffer=3, kind="linear", anchor="mean"):
+def interpolate_window(
+    times: ArrayLike,
+    data: ArrayLike,
+    window: Sequence[float],
+    buffer: int = 3,
+    kind: str = "linear",
+    anchor: str = "mean",
+) -> tuple[FloatArray, IntArray]:
     """Replace ``window`` (time is the last axis of ``data``) by an interpolation.
 
     - ``linear``: a straight line between the anchors, one on each side, each the

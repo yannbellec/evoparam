@@ -15,6 +15,7 @@ segments (rank ``K_P``) before the regression. With few channels (24 rather than
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
 from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = []
@@ -22,22 +23,23 @@ __all__ = []
 MIN_CHANNELS, MIN_PULSES, MIN_TRIALS = 8, 4, 4
 
 
-def _top_scores(matrix, k):
+def _top_scores(matrix: Any, k: Any) -> NDArray[Any]:
     """Scores (n_rows x k) of the top-k principal components of the columns of ``matrix``."""
     centred = matrix - matrix.mean(axis=0, keepdims=True)
     u, s, _ = np.linalg.svd(centred, full_matrices=False)
     k = min(k, len(s))
-    return u[:, :k] * s[:k]
+    scores: NDArray[Any] = u[:, :k] * s[:k]
+    return scores
 
 
-def _regress_out(target, scores):
+def _regress_out(target: Any, scores: Any) -> Any:
     """Residual of ``target`` (n_rows,) after least squares on ``scores`` and an intercept."""
     design = np.c_[np.ones(len(target)), scores]
     coefs, *_ = np.linalg.lstsq(design, target, rcond=None)
     return target - design @ coefs
 
 
-def _denoise_scores(scores, blocks, rank):
+def _denoise_scores(scores: Any, blocks: Any, rank: Any) -> Any:
     """Low-rank approximation of each score series seen as (blocks x samples per block).
 
     The artifact repeats over pulses and trials, so each component's time course is
@@ -52,7 +54,9 @@ def _denoise_scores(scores, blocks, rank):
     return out
 
 
-def _leave_out_pass(matrix, k, exclude, blocks=None, denoise_rank=None):
+def _leave_out_pass(
+    matrix: Any, k: Any, exclude: Any, blocks: Any = None, denoise_rank: Any = None
+) -> Any:
     """For each column j, regress out the top-k PCs of the columns not in ``exclude(j)``.
 
     With ``blocks``, the PC scores are first denoised by a rank-``denoise_rank``
@@ -72,8 +76,15 @@ def _leave_out_pass(matrix, k, exclude, blocks=None, denoise_rank=None):
 
 
 def lowrank_clean(
-    data, sfreq, times, pulse_times, *, ranks=(4, 2, 4), post_window=0.03, neighbours=1
-):
+    data: NDArray[Any],
+    sfreq: float,
+    times: FloatArray,
+    pulse_times: ArrayLike,
+    *,
+    ranks: Any = (4, 2, 4),
+    post_window: float = 0.03,
+    neighbours: int = 1,
+) -> tuple[NDArray[Any], dict[str, Any]]:
     """Remove an artifact train by sequential low-rank regression.
 
     Parameters
@@ -126,6 +137,7 @@ def lowrank_clean(
     before = seg.copy()
 
     # 1. Across channels: (R P L) x C
+    mat: Any
     mat = seg.transpose(0, 2, 3, 1).reshape(-1, n_channels)
     mat = _leave_out_pass(
         mat,

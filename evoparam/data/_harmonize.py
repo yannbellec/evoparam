@@ -14,10 +14,13 @@ import copy
 import math
 import re
 import warnings
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
+from typing import cast
 
 import numpy as np
 
+from evoparam._typing import Any, BoolArray, FloatArray
 from evoparam.errors import DataError
 
 __all__ = [
@@ -154,14 +157,14 @@ class HarmonizationReport:
         The ``mapping`` argument, as given.
     """
 
-    mapping: dict = field(default_factory=dict)
-    units: dict = field(default_factory=dict)
-    warnings: list = field(default_factory=list)
-    missing: list = field(default_factory=list)
+    mapping: dict[str, Any] = field(default_factory=dict)
+    units: dict[str, Any] = field(default_factory=dict)
+    warnings: list[Any] = field(default_factory=list)
+    missing: list[Any] = field(default_factory=list)
     n_rows: int = 0
-    user_mapping: dict = field(default_factory=dict)
+    user_mapping: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serialisable dictionary."""
         return copy.deepcopy(asdict(self))
 
@@ -184,18 +187,18 @@ class ValidationReport:
         The distinct sites, sorted.
     """
 
-    missing: list = field(default_factory=list)
-    warnings: list = field(default_factory=list)
+    missing: list[Any] = field(default_factory=list)
+    warnings: list[Any] = field(default_factory=list)
     n_rows: int = 0
     n_sites: int = 0
-    sites: list = field(default_factory=list)
+    sites: list[Any] = field(default_factory=list)
 
     @property
-    def complete(self):
+    def complete(self) -> bool:
         """True when no standard field is missing."""
         return not self.missing
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serialisable dictionary."""
         return copy.deepcopy(asdict(self))
 
@@ -204,7 +207,7 @@ class ValidationReport:
 ## Helpers
 
 
-def _pandas(caller):
+def _pandas(caller: str) -> Any:
     try:
         import pandas
     except ImportError as err:
@@ -212,7 +215,7 @@ def _pandas(caller):
     return pandas
 
 
-def _is_missing(value):
+def _is_missing(value: Any) -> bool:
     if value is None or type(value).__name__ in ("NAType", "NaTType"):
         return True
     if isinstance(value, float) and math.isnan(value):
@@ -225,17 +228,18 @@ def _is_missing(value):
         return False
 
 
-def _find_column(columns, candidates):
+def _find_column(columns: Any, candidates: Sequence[str]) -> str | None:
+    lower: dict[Any, Any]
     lower = {}
     for column in columns:
         lower.setdefault(str(column).lower(), column)
     for candidate in candidates:
         if candidate.lower() in lower:
-            return lower[candidate.lower()]
+            return cast("str | None", lower[candidate.lower()])
     return None
 
 
-def _sidecar_unit(sidecar, column):
+def _sidecar_unit(sidecar: dict[str, Any] | None, column: str) -> str | None:
     """``Units`` of a column in the events.json sidecar (keys matched case-insensitively)."""
     for key, value in (sidecar or {}).items():
         if str(key).lower() == str(column).lower() and isinstance(value, dict):
@@ -245,13 +249,13 @@ def _sidecar_unit(sidecar, column):
     return None
 
 
-def _unit_factor(unit, table):
+def _unit_factor(unit: str | None, table: dict[str, float]) -> float | None:
     if unit is None:
         return None
     return table.get(unit.strip().lower().replace("μ", "µ"), table.get(unit.strip().lower()))
 
 
-def normalize_site(value):
+def normalize_site(value: object) -> str:
     """Contact pair in the form ``"A-B"``; separators ``-``, ``_``, ``,`` and spaces become ``-``.
 
     Missing values give ``"n/a"``.
@@ -262,7 +266,13 @@ def normalize_site(value):
     return "-".join(parts) if parts else "n/a"
 
 
-def _parse_quantity(values, column, target, sidecar, report):
+def _parse_quantity(
+    values: Any,
+    column: str,
+    target: str,
+    sidecar: dict[str, Any] | None,
+    report: "HarmonizationReport",
+) -> FloatArray:
     """Numbers in the target unit, from numbers or strings such as "4.0 mA" or "1ms"."""
     table, target_unit, small_unit, threshold, large_unit = _QUANTITIES[target]
     native = column.lower() == target.lower()
@@ -338,7 +348,7 @@ def _parse_quantity(values, column, target, sidecar, report):
     return out
 
 
-def _polarity_kind(text):
+def _polarity_kind(text: str) -> str | None:
     text = text.lower()
     if "alternat" in text:
         return "alternating"
@@ -349,7 +359,7 @@ def _polarity_kind(text):
     return None
 
 
-def _polarity_order(text):
+def _polarity_order(text: str) -> str | None:
     """'cathodic' or 'anodic' (the one stated first), or None."""
     text = text.lower()
     cathodic, anodic = text.find("cathod"), text.find("anod")
@@ -360,7 +370,7 @@ def _polarity_order(text):
     return None
 
 
-def _polarity(value, parameters):
+def _polarity(value: object, parameters: Any) -> str | None:
     """One of POLARITIES, or None when the value does not state the phase order."""
     text = str(value).strip()
     if text.lower() in POLARITIES:
@@ -378,7 +388,9 @@ def _polarity(value, parameters):
 ## Public functions
 
 
-def harmonize_stim_events(events, sidecar=None, *, mapping=None):  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.1)
+def harmonize_stim_events(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.1)
+    events: Any, sidecar: dict[str, Any] | None = None, *, mapping: dict[str, str] | None = None
+) -> tuple[Any, "HarmonizationReport"]:
     """Map stimulation columns of an events table to the standard metadata columns.
 
     Recognised source columns (first match wins, case-insensitive; spec §10.2):
@@ -440,7 +452,7 @@ def harmonize_stim_events(events, sidecar=None, *, mapping=None):  # noqa: C901,
     n_rows = len(out)
     report = HarmonizationReport(n_rows=n_rows, user_mapping=dict(mapping))
 
-    chosen = {}
+    chosen: dict[str, str | None] = {}
     for source, target in mapping.items():
         if target not in SOURCES:
             raise DataError(
@@ -547,7 +559,8 @@ def harmonize_stim_events(events, sidecar=None, *, mapping=None):  # noqa: C901,
     return out, report
 
 
-def _parse_count(values, column, report):
+def _parse_count(values: Any, column: str, report: "HarmonizationReport") -> list[Any]:
+    out: list[Any]
     out = []
     for value in values:
         if _is_missing(value):
@@ -572,7 +585,7 @@ def _parse_count(values, column, report):
     return out
 
 
-def _stimulation_rows(events):
+def _stimulation_rows(events: Any) -> BoolArray:
     """Rows that describe stimulations.
 
     The rows whose trial_type is 'electrical_stimulation', else containing 'stim', else every row.
@@ -587,7 +600,9 @@ def _stimulation_rows(events):
     return loose if loose.any() else np.ones(len(events), dtype=bool)
 
 
-def validate_stimulation_events(events, sidecar=None):
+def validate_stimulation_events(
+    events: Any, sidecar: dict[str, Any] | None = None
+) -> "ValidationReport":
     """Check which standard stimulation fields an events table provides.
 
     The table is harmonised first (:func:`harmonize_stim_events`) unless it already

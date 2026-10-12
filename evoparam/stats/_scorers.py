@@ -11,9 +11,13 @@ peak larger than ``n_neighbors`` samples on each side and than their means (simp
 extremum when there is none), trapezoidal areas.
 """
 
+from collections.abc import Callable
+from typing import cast
+
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
+from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
 from evoparam.errors import SettingsError
 from evoparam.models.classical import AREAS, POLARITIES
 
@@ -35,10 +39,10 @@ LINEAR_SCORES = ("mean_amplitude",)
 # Scores in seconds (the others are in the data unit, or data unit x s for the area).
 TIME_SCORES = ("peak_latency", "fractional_area_latency", "fractional_peak_latency")
 
-_TRAPEZOID = getattr(np, "trapezoid", None) or np.trapz  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
+_TRAPEZOID: Callable[..., Any] = getattr(np, "trapezoid", None) or np.trapz  # type: ignore[attr-defined, unused-ignore]  # noqa: NPY201  (fallback for NumPy < 2.0, which has no trapezoid)
 
 
-def _signed(y, polarity):
+def _signed(y: Any, polarity: Any) -> Any:
     if polarity == "negative":
         return -y
     if polarity == "positive":
@@ -46,7 +50,7 @@ def _signed(y, polarity):
     return np.abs(y)
 
 
-def _local_peak(s, n_neighbors):
+def _local_peak(s: Any, n_neighbors: Any) -> Any:
     """Index of the ERPLAB local peak of each row of ``s`` (the signed waveforms)."""
     n = s.shape[-1]
     if n < 2 * n_neighbors + 1:
@@ -65,11 +69,11 @@ def _local_peak(s, n_neighbors):
     return np.where(ok.any(axis=-1), best, np.argmax(s, axis=-1))
 
 
-def _take(values, index):
+def _take(values: Any, index: Any) -> NDArray[Any]:
     return np.take_along_axis(values, index[..., None], axis=-1)[..., 0]
 
 
-def _baseline(y, peak, area_baseline, fraction):
+def _baseline(y: Any, peak: Any, area_baseline: Any, fraction: Any) -> Any:
     if area_baseline == "zero":
         return np.zeros(y.shape[:-1])
     if area_baseline == "fraction_of_peak":
@@ -77,7 +81,7 @@ def _baseline(y, peak, area_baseline, fraction):
     raise SettingsError("area_baseline must be 'zero' or 'fraction_of_peak'.")
 
 
-def _area_values(y, base, area):
+def _area_values(y: Any, base: Any, area: Any) -> Any:
     values = y - base[..., None]
     if area == "positive":
         return np.clip(values, 0, None)
@@ -88,7 +92,7 @@ def _area_values(y, base, area):
     return values
 
 
-def _fractional_area_latency(t, y, base, area, fraction):
+def _fractional_area_latency(t: Any, y: Any, base: Any, area: Any, fraction: Any) -> NDArray[Any]:
     values = y - base[..., None]
     if area == "positive":
         values = np.clip(values, 0, None)
@@ -109,7 +113,7 @@ def _fractional_area_latency(t, y, base, area, fraction):
     return np.where(total > 0, out, np.nan)
 
 
-def _fractional_peak_latency(t, s, peak, fraction):
+def _fractional_peak_latency(t: Any, s: Any, peak: Any, fraction: Any) -> Any:
     level = fraction * _take(s, peak)
     index = np.arange(s.shape[-1])
     below = (s < level[..., None]) & (index <= peak[..., None])
@@ -125,17 +129,17 @@ def _fractional_peak_latency(t, s, peak, fraction):
 
 
 def score_waveforms(
-    times,
-    waveforms,
-    score,
+    times: ArrayLike,
+    waveforms: ArrayLike,
+    score: str,
     *,
-    window,
-    polarity="negative",
-    fraction=0.5,
-    area="total",
-    area_baseline="zero",
-    n_neighbors=3,
-):
+    window: tuple[float, float],
+    polarity: str = "negative",
+    fraction: float = 0.5,
+    area: str = "total",
+    area_baseline: str = "zero",
+    n_neighbors: int = 3,
+) -> FloatArray:
     """One classical score of every waveform of an array ``[..., n_times]``.
 
     Parameters
@@ -177,28 +181,28 @@ def score_waveforms(
         raise SettingsError(f"the window {tuple(window)} holds no sample of the time axis.")
     t, y = times[inside], y[..., inside]
     if score == "mean_amplitude":
-        return np.mean(y, axis=-1)
+        return cast("FloatArray", np.mean(y, axis=-1))
     s = _signed(y, polarity)
     peak = _local_peak(s, n_neighbors)
     if score == "peak_amplitude":
         return _take(y, peak)
     if score == "peak_latency":
-        return t[peak]
+        return cast("FloatArray", t[peak])
     base = _baseline(y, peak, area_baseline, fraction)
     if score == "area":
-        return _TRAPEZOID(_area_values(y, base, area), t, axis=-1)
+        return cast("FloatArray", _TRAPEZOID(_area_values(y, base, area), t, axis=-1))
     if score == "fractional_area_latency":
         return _fractional_area_latency(t, y, base, area, fraction)
-    return _fractional_peak_latency(t, s, peak, fraction)
+    return cast("FloatArray", _fractional_peak_latency(t, s, peak, fraction))
 
 
-def default_window(times):
+def default_window(times: Any) -> tuple[float, float]:
     """Return the post-stimulus part of the epoch, used when no window is given."""
     times = np.asarray(times, float)
     return (0.0, float(times[-1])) if times[-1] > 0 else (float(times[0]), float(times[-1]))
 
 
-def resolve_scorer(scorer, times, window=None, **scorer_kw):
+def resolve_scorer(scorer: Any, times: Any, window: Any = None, **scorer_kw: Any) -> Any:
     """Return a function ``waveforms [..., n_times] -> scores [...]``, its name and linearity.
 
     ``scorer`` is a name of :data:`SCORES` (scored with ``window`` and ``scorer_kw``) or a
@@ -212,14 +216,14 @@ def resolve_scorer(scorer, times, window=None, **scorer_kw):
         if scorer not in SCORES:
             raise SettingsError(f"scorer must be a callable or one of {SCORES}, not {scorer!r}.")
 
-        def func(waveforms):
+        def func(waveforms: Any) -> Any:
             return score_waveforms(times, waveforms, scorer, window=window, **scorer_kw)
 
         return func, scorer, scorer in LINEAR_SCORES, window
     if not callable(scorer):
         raise SettingsError("scorer must be a score name or a callable.")
 
-    def call(waveforms):
+    def call(waveforms: Any) -> Any:
         waveforms = np.asarray(waveforms, float)
         flat = waveforms.reshape(-1, waveforms.shape[-1])
         out = np.asarray(scorer(times, flat, **scorer_kw), float).reshape(-1)

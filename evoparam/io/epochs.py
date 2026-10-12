@@ -5,6 +5,7 @@ import time as _time
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, NDArray
 from evoparam.data import Provenance, TrialSet
 from evoparam.errors import DataError, EventError
 
@@ -14,7 +15,14 @@ __all__ = ["epoch", "epoch_data"]
 ###################################################################################################
 
 
-def epoch_data(data, sfreq, onsets, tmin, tmax, t0=0.0):
+def epoch_data(
+    data: ArrayLike,
+    sfreq: float,
+    onsets: ArrayLike,
+    tmin: float,
+    tmax: float,
+    t0: float | None = 0.0,
+) -> tuple[Any, NDArray[Any], Any]:
     """Cut epochs from continuous data, around event onsets.
 
     Parameters
@@ -54,7 +62,9 @@ def epoch_data(data, sfreq, onsets, tmin, tmax, t0=0.0):
     return times, epochs, kept
 
 
-def epoch_windows(onsets, sfreq, tmin, tmax, n_samples, t0=0.0):
+def epoch_windows(
+    onsets: Any, sfreq: float, tmin: float, tmax: float, n_samples: int, t0: float = 0.0
+) -> tuple[Any, Any, Any]:
     """Sample windows of the epochs ``[tmin, tmax)`` around onsets.
 
     The onset sample is the sample nearest each onset; the window holds the samples
@@ -84,7 +94,7 @@ def epoch_windows(onsets, sfreq, tmin, tmax, n_samples, t0=0.0):
     return np.arange(first, stop) / sfreq, starts, kept
 
 
-def overlap_flags(onsets, length):
+def overlap_flags(onsets: Any, length: Any) -> NDArray[Any]:
     """Return True for each event closer than ``length`` seconds to the previous event in time."""
     onsets = np.asarray(onsets, dtype=float)
     order = np.argsort(onsets, kind="stable")
@@ -94,7 +104,7 @@ def overlap_flags(onsets, length):
     return flags
 
 
-def _as_table(table, n_rows, name):
+def _as_table(table: Any, n_rows: Any, name: Any) -> Any:
     """DataFrame (RangeIndex) from a DataFrame or a dict of columns."""
     import pandas as pd
 
@@ -107,7 +117,7 @@ def _as_table(table, n_rows, name):
     return table.reset_index(drop=True)
 
 
-def _pandas():
+def _pandas() -> Any:
     try:
         import pandas
     except ImportError:
@@ -116,18 +126,18 @@ def _pandas():
 
 
 def epoch(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
-    data,
-    sfreq,
-    onsets,
-    tmin,
-    tmax,
+    data: ArrayLike,
+    sfreq: float,
+    onsets: Any,
+    tmin: float,
+    tmax: float,
     *,
-    t0=0.0,
-    ch_names=None,
-    units="uV",
-    metadata=None,
-    ch_info=None,
-):
+    t0: float = 0.0,
+    ch_names: list[str] | None = None,
+    units: str = "uV",
+    metadata: Any = None,
+    ch_info: Any = None,
+) -> "TrialSet":
     """Cut a continuous recording into a TrialSet of epochs around events.
 
     Parameters
@@ -243,6 +253,6 @@ def epoch(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
     )
 
 
-def _default_names(n_channels):
+def _default_names(n_channels: int) -> list[str]:
     width = max(3, len(str(n_channels)))
     return ["CH{:0{}d}".format(ind + 1, width) for ind in range(n_channels)]

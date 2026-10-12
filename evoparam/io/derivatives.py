@@ -28,13 +28,18 @@ the tables were not edited since.
 import json
 import math
 import os
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data._jsonutil import to_jsonable
 from evoparam.errors import DataError, ReaderError
 from evoparam.errors import warn as _warn
 from evoparam.version import __version__
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = [
     "write_bids_derivatives",
@@ -230,7 +235,7 @@ LONG_NAMES = {
 }
 
 
-def _long_name(name):
+def _long_name(name: Any) -> str:
     if name in LONG_NAMES:
         return LONG_NAMES[name]
     text = name.removeprefix("evoparam_").removeprefix("classical_").replace("_", " ")
@@ -244,10 +249,10 @@ def _long_name(name):
         ("stim", "stimulation"),
     ):
         text = " ".join(long if word == short else word for word in text.split())
-    return text[:1].upper() + text[1:]
+    return cast("str", text[:1].upper() + text[1:])
 
 
-def _cell(value):
+def _cell(value: Any) -> str:
     if value is None:
         return "n/a"
     if isinstance(value, (bool, np.bool_)):
@@ -260,14 +265,14 @@ def _cell(value):
     return "n/a" if text in ("", "nan", "None") else text.replace("\t", " ")
 
 
-def _write_tsv(path, columns, rows):
+def _write_tsv(path: Any, columns: Any, rows: Any) -> None:
     with open(path, "w", encoding="utf-8") as fobj:
         fobj.write("\t".join(columns) + "\n")
         for row in rows:
             fobj.write("\t".join(_cell(row.get(c)) for c in columns) + "\n")
 
 
-def _sidecar(columns, units, extra, header=None):
+def _sidecar(columns: Any, units: Any, extra: Any, header: Any = None) -> dict[Any, Any]:
     """BIDS tabular sidecar.
 
     ``LongName``, ``Description``, ``Units`` (``"n/a"`` for labels and dimensionless values,
@@ -290,12 +295,12 @@ def _sidecar(columns, units, extra, header=None):
     return out
 
 
-def _write_json(path, content):
+def _write_json(path: Any, content: Any) -> None:
     with open(path, "w", encoding="utf-8") as fobj:
         fobj.write(json.dumps(to_jsonable(content), indent=1, allow_nan=False))
 
 
-def _stem(subject, session, task, run):
+def _stem(subject: Any, session: Any, task: Any, run: Any) -> str:
     parts = [f"sub-{subject}"]
     if session:
         parts.append(f"ses-{session}")
@@ -306,19 +311,19 @@ def _stem(subject, session, task, run):
     return "_".join(parts)
 
 
-def _strip(value, prefix):
+def _strip(value: Any, prefix: Any) -> Any:
     if value is None:
         return None
     value = str(value)
     return value[len(prefix) :] if value.startswith(prefix) else value
 
 
-def _provenance(result):
+def _provenance(result: Any) -> Any:
     provenance = getattr(result, "provenance", None)
     return provenance.to_dict() if provenance is not None else None
 
 
-def _preset(settings):
+def _preset(settings: Any) -> Any:
     name = (settings or {}).get("preset")
     if not name:
         return None
@@ -330,7 +335,7 @@ def _preset(settings):
     return {"Name": name, "Version": version}
 
 
-def _metadata_rows(trials, label):
+def _metadata_rows(trials: Any, label: Any) -> Any:
     """Rows of the trial metadata averaged under the condition ``label``.
 
     Every row for an empty label, else the rows whose stim_site, condition or trial_type is the
@@ -357,7 +362,7 @@ def _metadata_rows(trials, label):
     return None
 
 
-def _single(rows, column):
+def _single(rows: Any, column: Any) -> Any:
     """Return the value of a column shared by every row, or None (absent, missing or mixed)."""
     if rows is None or column not in rows:
         return None
@@ -371,7 +376,7 @@ def _single(rows, column):
     return values[0]
 
 
-def _stim_fields(trials, label, columns):
+def _stim_fields(trials: Any, label: Any, columns: Any) -> dict[str, Any]:
     """stim_site, the evoparam_stim_* columns and the standard columns of a condition."""
     rows = _metadata_rows(trials, label)
     out = {"stim_site": _single(rows, "stim_site")}
@@ -381,7 +386,7 @@ def _stim_fields(trials, label, columns):
     return out
 
 
-def _classical(fit):
+def _classical(fit: Any) -> dict[Any, Any]:
     values = {}
     for key, value in (fit.classical or {}).items():
         if key in ("definition", "sme") or isinstance(value, dict):
@@ -390,7 +395,9 @@ def _classical(fit):
     return values
 
 
-def _response_rows(group, test=None, trials=None, extra_columns=()):
+def _response_rows(
+    group: Any, test: Any = None, trials: Any = None, extra_columns: Any = ()
+) -> list[Any]:
     present = {}
     if test is not None:
         names = test.settings.get("channels") or []
@@ -452,7 +459,7 @@ def _response_rows(group, test=None, trials=None, extra_columns=()):
     return rows
 
 
-def _response_columns(group, trials):
+def _response_columns(group: Any, trials: Any) -> dict[Any, Any]:
     """Header of responses.tsv.
 
     The base columns, the classical measures present in the fits, the evoparam_stim_* columns and
@@ -480,22 +487,22 @@ def _response_columns(group, trials):
 
 
 def write_bids_derivatives(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.1)
-    results,
-    bids_root=None,
+    results: Any,
+    bids_root: str | None = None,
     *,
-    subject,
-    session=None,
-    task=None,
-    run=None,
-    datatype=None,
-    out=None,
-    desc="evoparam",
-    pipeline_name="evoparam",
-    units="uV",
-    source_dataset=None,
-    trials=None,
-    overwrite=False,
-):
+    subject: str,
+    session: str | None = None,
+    task: str | None = None,
+    run: str | None = None,
+    datatype: str | None = None,
+    out: str | None = None,
+    desc: str = "evoparam",
+    pipeline_name: str = "evoparam",
+    units: str = "uV",
+    source_dataset: Any = None,
+    trials: "TrialSet | None" = None,
+    overwrite: bool = False,
+) -> list[str]:
     """Write results as BIDS derivatives (spec §10.2, REQ-315, REQ-316).
 
     Parameters
@@ -555,14 +562,14 @@ def write_bids_derivatives(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public AP
     stem = _stem(subject, session, task, run) + f"_desc-{desc}"
     written = []
 
-    def target(suffix):
+    def target(suffix: Any) -> Any:
         path = os.path.join(folder, f"{stem}_{suffix}")
         if os.path.exists(path) and not overwrite:
             raise DataError(f"{path} exists; pass overwrite=True.")
         written.append(path)
         return path
 
-    def container(obj, suffix):
+    def container(obj: Any, suffix: Any) -> Any:
         path = target(suffix)
         if os.path.isdir(path):
             import shutil
@@ -827,7 +834,7 @@ def write_bids_derivatives(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public AP
     ]
 
 
-def _source_datatype(trials, bids_root, subject):
+def _source_datatype(trials: Any, bids_root: Any, subject: Any) -> Any:
     """Datatype of the source run.
 
     The provenance of trials read by read_bids, else the folder of the subject in the raw dataset,
@@ -849,7 +856,7 @@ def _source_datatype(trials, bids_root, subject):
     return "ieeg"
 
 
-def _registry_source(bids_root):
+def _registry_source(bids_root: Any) -> Any:
     """Return the SourceDatasets entry from the dataset registry.
 
     Only when the raw folder is named after a registered dataset (ds004080, ...).
@@ -873,7 +880,7 @@ def _registry_source(bids_root):
     }
 
 
-def _derivative_folder(path):
+def _derivative_folder(path: Any) -> Any:
     """Return the evoparam derivative folder.
 
     ``path`` itself, or the newest ``<path>/derivatives/evoparam-*``.
@@ -895,14 +902,14 @@ def _derivative_folder(path):
     return os.path.join(folder, current if current in candidates else candidates[-1])
 
 
-def _read_tsv_rows(path):
+def _read_tsv_rows(path: Any) -> tuple[list[str], list[dict[str, str]]]:
     with open(path, encoding="utf-8") as fobj:
         lines = fobj.read().splitlines()
     header = lines[0].split("\t")
     return header, [dict(zip(header, line.split("\t"), strict=False)) for line in lines[1:]]
 
 
-def _check_table(path, expected_rows, columns):
+def _check_table(path: Any, expected_rows: Any, columns: Any) -> None:
     """Check that the cells of ``columns`` in the TSV are those the result gives.
 
     That is, the table was not edited after writing.
@@ -924,17 +931,17 @@ def _check_table(path, expected_rows, columns):
 
 
 def read_bids_derivatives(
-    path,
+    path: str,
     *,
-    subject,
-    session=None,
-    task=None,
-    run=None,
-    datatype=None,
-    desc="evoparam",
-    kind="responses",
-    verify=True,
-):
+    subject: str,
+    session: str | None = None,
+    task: str | None = None,
+    run: str | None = None,
+    datatype: str | None = None,
+    desc: str = "evoparam",
+    kind: str = "responses",
+    verify: bool = True,
+) -> Any:
     """Read back what :func:`write_bids_derivatives` wrote (REQ-315).
 
     Parameters
@@ -980,7 +987,7 @@ def read_bids_derivatives(
         raise ReaderError(f"No derivatives {stem}_* under {base}.")
     prefix = os.path.join(folder, stem + "_")
 
-    def responses():
+    def responses() -> Any:
         container = prefix + "responses.evoparam"
         if not os.path.exists(container):
             return None
@@ -994,11 +1001,11 @@ def read_bids_derivatives(
             _check_table(prefix + "responses.tsv", rows, columns)
         return group
 
-    def existence():
+    def existence() -> Any:
         container = prefix + "existence.evoparam"
         return load_object(container, verify=verify) if os.path.exists(container) else None
 
-    def trials():
+    def trials() -> Any:
         container = prefix + "trials.evoparamset"
         if not os.path.isdir(container):
             return None
@@ -1026,7 +1033,7 @@ def read_bids_derivatives(
             "provenance": decoder.decode(meta["provenance"]) if "provenance" in meta else None,
         }
 
-    def artifact():
+    def artifact() -> Any:
         paths = sorted(
             glob.glob(prefix + "artifact[0-9]*.evoparam"),
             key=lambda p: int(os.path.basename(p)[len(stem) + 9 : -9]),

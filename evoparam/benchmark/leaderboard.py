@@ -13,6 +13,8 @@ request with the result JSON and the code or container that produced it.
 import html
 import os
 
+from evoparam._typing import Any
+
 from .report import format_metric, load_results, metric_label
 from .scoring import HEADLINE
 from .tasks import TASKS
@@ -39,7 +41,7 @@ code { font-size: 0.9em; }
 """.strip()
 
 
-def leaderboard_html(docs):
+def leaderboard_html(docs: Any) -> str:
     """Return the page for a list of result documents."""
     esc = html.escape
     suites = sorted({(d["suite"]["name"], d["suite"]["version"]) for d in docs})
@@ -93,7 +95,7 @@ def leaderboard_html(docs):
     return "\n".join(out)
 
 
-def write_leaderboard(results_folder, path):
+def write_leaderboard(results_folder: Any, path: Any) -> Any:
     """Write the page of the results of a folder; returns the path."""
     text = leaderboard_html(load_results(results_folder))
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)

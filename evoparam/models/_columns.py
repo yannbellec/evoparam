@@ -10,10 +10,14 @@ same floating-point results), and the intermediate arrays are kept for the deriv
 Any other shape or background goes through its public methods.
 """
 
+from typing import cast
+
 import numpy as np
 from scipy.special import erfc
 
-from evoparam.shapes.backgrounds import ExponentialBackground
+from evoparam._typing import FloatArray
+from evoparam.shapes._base import ComponentShape
+from evoparam.shapes.backgrounds import BackgroundBase, ExponentialBackground
 from evoparam.shapes.components import Gaussian, SkewedGaussian, gaussian_factor, skew_mode
 
 __all__ = ["component", "component_derivatives", "background", "background_derivatives"]
@@ -22,7 +26,9 @@ _SQRT2 = np.sqrt(2.0)
 _SQRT_2_OVER_PI = np.sqrt(2.0 / np.pi)
 
 
-def component(shape, tw, params):
+def component(
+    shape: ComponentShape, tw: FloatArray, params: FloatArray
+) -> tuple[FloatArray, tuple[FloatArray, ...] | None]:
     """``shape.evaluate(tw, params)`` and what :func:`component_derivatives` needs."""
     kind = type(shape)
     if kind is Gaussian:
@@ -38,7 +44,9 @@ def component(shape, tw, params):
     return shape.evaluate(tw, params), None
 
 
-def component_derivatives(shape, tw, params, aux):
+def component_derivatives(
+    shape: ComponentShape, tw: FloatArray, params: FloatArray, aux: tuple[FloatArray, ...] | None
+) -> FloatArray:
     """``shape.jacobian(tw, params)`` (n x p) from the ``aux`` of :func:`component`."""
     kind = type(shape)
     if kind is Gaussian and aux is not None:
@@ -60,7 +68,9 @@ def component_derivatives(shape, tw, params, aux):
     return shape.jacobian(tw, params)
 
 
-def background(bg, tw, nonlinear, out):
+def background(
+    bg: BackgroundBase, tw: FloatArray, nonlinear: FloatArray, out: FloatArray
+) -> tuple[FloatArray, FloatArray] | None:
     """Write ``bg.basis(tw, nonlinear)`` (n_linear x n) into ``out``.
 
     Also returns what the derivatives need.
@@ -75,7 +85,13 @@ def background(bg, tw, nonlinear, out):
     return None
 
 
-def background_derivatives(bg, tw, nonlinear, coefs, aux):
+def background_derivatives(
+    bg: BackgroundBase,
+    tw: FloatArray,
+    nonlinear: FloatArray,
+    coefs: FloatArray,
+    aux: tuple[FloatArray, FloatArray] | None,
+) -> FloatArray:
     """``einsum("l,lnj->nj", coefs, bg.basis_jacobian(tw, nonlinear))``.
 
     The derivative of the background with the linear coefficients ``coefs`` (n x n_nonlinear).
@@ -84,6 +100,6 @@ def background_derivatives(bg, tw, nonlinear, coefs, aux):
         lag, decay = aux
         tau = nonlinear[0:1]
         d_decay = decay * lag / tau**2
-        return (coefs[1] * d_decay)[:, None]
+        return cast("FloatArray", (coefs[1] * d_decay)[:, None])
     dj = bg.basis_jacobian(tw, nonlinear)
-    return np.einsum("l,lnj->nj", coefs, dj)
+    return cast("FloatArray", np.einsum("l,lnj->nj", coefs, dj))

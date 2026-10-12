@@ -12,6 +12,7 @@ import os
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import SettingsError
 from evoparam.io import write_brainvision
 
@@ -20,7 +21,7 @@ __all__ = ["write_bids"]
 DATATYPES = {"spes": "ieeg", "lfp_ep": "ieeg", "erna": "ieeg", "ecap": "ieeg"}
 
 
-def _tsv(path, header, rows):
+def _tsv(path: Any, header: Any, rows: Any) -> None:
     with open(path, "w", encoding="utf-8") as fobj:
         fobj.write("\t".join(header) + "\n")
         for row in rows:
@@ -33,7 +34,9 @@ def _tsv(path, header, rows):
             )
 
 
-def write_bids(ts, truth, root, *, subject="01", task="sim", datatype=None):
+def write_bids(
+    ts: Any, truth: Any, root: Any, *, subject: str = "01", task: str = "sim", datatype: Any = None
+) -> str:
     """Write ``ts`` (TrialSet) and ``truth`` (GroundTruth or DataFrame) as BIDS.
 
     Returns the path of the ``.vhdr`` file.
@@ -59,7 +62,7 @@ def write_bids(ts, truth, root, *, subject="01", task="sim", datatype=None):
     meta = ts.metadata
     rows = []
     for k, onset in enumerate(onsets):
-        row = [
+        row: list[Any] = [
             repr(round(onset, 9)),
             "0.001",
             "electrical_stimulation" if datatype == "ieeg" else "stimulus",

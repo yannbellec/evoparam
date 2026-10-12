@@ -3,21 +3,26 @@
 
 import time as _time
 import warnings
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.utils._optional import require
 
 from ._common import check_trialset, masked_values, new, window_mask
 
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
+
 __all__ = ["reject_trials"]
 
 MAD_TO_SD = 1.4826
 
 
-def _robust_z(values):
+def _robust_z(values: Any) -> Any:
     """Robust z-score over trials (axis 0), per channel."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
@@ -28,18 +33,18 @@ def _robust_z(values):
 
 
 def reject_trials(  # noqa: PLR0913, PLR0915  (public API, signature fixed by spec §5.4)
-    ts,
+    ts: Any,
     *,
-    response_window=(0.01, 0.5),
-    baseline=(-0.5, -0.05),
-    ptp_z=5.0,
-    rms_z=5.0,
-    flat_threshold=1e-3,
-    quality_min=0.5,
-    max_masked_fraction=0.2,
-    max_fraction=0.3,
-    all_channels_fraction=0.5,
-):
+    response_window: Any = (0.01, 0.5),
+    baseline: Any = (-0.5, -0.05),
+    ptp_z: float = 5.0,
+    rms_z: float = 5.0,
+    flat_threshold: float = 1e-3,
+    quality_min: float = 0.5,
+    max_masked_fraction: float = 0.2,
+    max_fraction: float = 0.3,
+    all_channels_fraction: float = 0.5,
+) -> "TrialSet":
     """Flag bad trials; trials are never deleted.
 
     For each trial and channel, robust z-scores over trials (median and scaled MAD) of the
@@ -78,7 +83,7 @@ def reject_trials(  # noqa: PLR0913, PLR0915  (public API, signature fixed by sp
     reasons[:] = ""
     score = np.zeros((n_trials, n_channels))
 
-    def flag(cond, name, strength):
+    def flag(cond: Any, name: Any, strength: Any) -> None:
         nonlocal score
         cond = np.nan_to_num(cond, nan=0).astype(bool)
         for k, c in zip(*np.nonzero(cond), strict=False):
@@ -158,11 +163,14 @@ def reject_trials(  # noqa: PLR0913, PLR0915  (public API, signature fixed by sp
         "n_rejected": int(rejected.sum()),
         "capped_channels": capped,
     }
-    return new(
-        ts,
-        "evoparam.prep.reject_trials",
-        settings,
-        start,
-        metadata=meta,
-        masks=masks if masks.any() else None,
+    return cast(
+        "TrialSet",
+        new(
+            ts,
+            "evoparam.prep.reject_trials",
+            settings,
+            start,
+            metadata=meta,
+            masks=masks if masks.any() else None,
+        ),
     )

@@ -10,11 +10,16 @@ spec §4.1 principle 1, with the values of a preset: it is the Python twin of
 """
 
 import dataclasses
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
 import evoparam.presets as _presets
+from evoparam._typing import Any
 from evoparam.errors import SettingsError
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = [
     "PipelineResult",
@@ -36,15 +41,15 @@ class PipelineResult:
     :func:`evoparam.prep.reference_sensitivity`, for a preset that runs it: ``ccep_seeg``).
     """
 
-    trials: object
-    artifact: list
-    group: object
-    trial_fits: object = None
-    test: object = None
-    reference_report: object = None
+    trials: Any
+    artifact: list[Any]
+    group: Any
+    trial_fits: Any = None
+    test: Any = None
+    reference_report: Any = None
 
     @property
-    def results(self):
+    def results(self) -> Any:
         """The results to write as BIDS derivatives (spec §10.2).
 
         The group fit, the existence test, the trial fits and the artifact results.
@@ -57,7 +62,7 @@ class PipelineResult:
         return out + list(self.artifact)
 
 
-def _artifact_baseline(ts, preset, window):
+def _artifact_baseline(ts: Any, preset: Any, window: Any) -> Any:
     """Baseline of the artifact-quality score.
 
     The preset's baseline when the epoch holds it, else the part of the epoch before the artifact
@@ -72,7 +77,7 @@ def _artifact_baseline(ts, preset, window):
     return (float(times[0]), float(stop))
 
 
-def artifact_steps(preset):
+def artifact_steps(preset: Any) -> list[Any]:
     """Return the ``remove_artifact`` keyword sets of the preset's ``artifact_method``.
 
     ``"template+tail:joint"`` → one template step with ``tail="joint"``;
@@ -84,6 +89,7 @@ def artifact_steps(preset):
     if method in (None, "", "none"):
         return []
     window = tuple(p.artifact_window) if p.artifact_window is not None else None
+    steps: list[Any]
     steps = []
     for part in method.split("+"):
         if part.startswith("tail:"):
@@ -92,7 +98,7 @@ def artifact_steps(preset):
             steps[-1]["tail"] = part.split(":", 1)[1]
             continue
         name, _, option = part.partition(":")
-        kwargs = {"method": name}
+        kwargs: dict[str, Any] = {"method": name}
         if window is not None:
             kwargs["window"] = window
         if name == "paradigm":
@@ -107,7 +113,7 @@ def artifact_steps(preset):
     return steps
 
 
-def reference_scheme(preset):
+def reference_scheme(preset: Any) -> Any:
     """Return the ``rereference`` scheme of the preset, or None to keep the recording reference."""
     ref = _presets.get(preset).reference
     if ref in (None, "", "as_recorded", "as recorded", "monopolar"):
@@ -115,7 +121,7 @@ def reference_scheme(preset):
     return {"average": "car"}.get(ref, ref)
 
 
-def _test_window(ts, window):
+def _test_window(ts: Any, window: Any) -> Any:
     """Return the existence-test window.
 
     The fit window, starting after the last sample that the artifact removal replaced in every
@@ -134,21 +140,21 @@ def _test_window(ts, window):
 
 
 def run_pipeline(
-    trials,
-    preset,
+    trials: "TrialSet",
+    preset: Any,
     *,
-    artifact=True,
-    reference=True,
-    baseline=True,
-    existence=True,
-    trial_fits=None,
-    random_state=0,
-    existence_kwargs=None,
-    n_jobs=1,
-    reference_sensitivity=None,
-    continuous=None,
-    **overrides,
-):
+    artifact: bool = True,
+    reference: bool = True,
+    baseline: bool = True,
+    existence: bool = True,
+    trial_fits: bool | None = None,
+    random_state: int = 0,
+    existence_kwargs: dict[str, Any] | None = None,
+    n_jobs: int = 1,
+    reference_sensitivity: bool | None = None,
+    continuous: Any = None,
+    **overrides: Any,
+) -> "PipelineResult":
     """Run the preset's chain on a TrialSet.
 
     Parameters
@@ -216,10 +222,10 @@ def run_pipeline(
             )
     scheme = reference_scheme(p)
     if reference and scheme is not None:
-        extra = {"random_state": random_state} if scheme == "car_adaptive" else {}
+        extra: dict[str, Any] = {"random_state": random_state} if scheme == "car_adaptive" else {}
         ts = rereference(ts, scheme, **extra)
     if baseline and p.baseline is not None:
-        ts = baseline_correct(ts, tuple(p.baseline))
+        ts = baseline_correct(ts, cast("tuple[float, float]", tuple(p.baseline)))
     elif baseline and p.train_baseline is not None:
         # spec §6.1 (erna): the last 50 ms before each train
         raw = continuous
@@ -295,7 +301,7 @@ def run_pipeline(
 # average when the baseline holds fewer than 30 effective samples), so each stand-in has the
 # sampling of its real recording and resolves the same reference: it gives the words of the
 # real pipeline.
-REFERENCE_PIPELINES = {
+REFERENCE_PIPELINES: dict[str, dict[str, Any]] = {
     "erpcore_p3": {
         "preset": "erp",
         "data": "ERP CORE P3 (active visual oddball), channel Pz, all epochs of one "
@@ -344,7 +350,7 @@ REFERENCE_PIPELINES = {
 }
 
 
-def reference_input(name):
+def reference_input(name: Any) -> Any:
     """Return the stand-in TrialSet of a reference pipeline.
 
     The TrialSet is simulated; see REFERENCE_PIPELINES.
@@ -356,7 +362,7 @@ def reference_input(name):
     return ts
 
 
-def run_reference_pipeline(name, trials=None, *, random_state=0):
+def run_reference_pipeline(name: Any, trials: Any = None, *, random_state: int = 0) -> Any:
     """Run reference pipeline ``name`` on ``trials`` (default: its stand-in input)."""
     if name not in REFERENCE_PIPELINES:
         raise SettingsError(

@@ -53,11 +53,14 @@ Metrics (units: seconds for latencies, data units for amplitudes):
 
 import json
 import os
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.stats import rankdata
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 from evoparam.utils._optional import require
 from evoparam.version import __version__
@@ -65,6 +68,10 @@ from evoparam.version import __version__
 from ._canon import canonical_bytes, clean, sha256_bytes, sha256_file
 from .suite import ERPCORE, load_suite, make_inputs
 from .tasks import TASKS, BenchmarkValidationError, output_path, read_output, schema_id
+
+if TYPE_CHECKING:
+    from evoparam.benchmark.suite import Suite
+    from evoparam.benchmark.tasks import TaskInput
 
 __all__ = [
     "score",
@@ -108,17 +115,19 @@ HEADLINE = {
 T7_FREQ_TOL, T7_TIME_TOL = 0.10, 0.020
 
 
-def _mean(values):
+def _mean(values: Any) -> Any:
     values = np.asarray([v for v in values if v is not None], dtype=float)
     values = values[np.isfinite(values)]
     return float(np.mean(values)) if values.size else None
 
 
-def _ratio(a, b):
+def _ratio(a: Any, b: Any) -> Any:
     return float(a / b) if b else None
 
 
-def _rows_by(rows, keys, cell, allowed=None, what="channel"):
+def _rows_by(
+    rows: Any, keys: Any, cell: Any, allowed: Any = None, what: str = "channel"
+) -> dict[Any, Any]:
     out = {}
     for row in rows:
         key = tuple(row[k] for k in keys)
@@ -135,7 +144,7 @@ def _rows_by(rows, keys, cell, allowed=None, what="channel"):
     return out
 
 
-def auc_score(labels, scores):
+def auc_score(labels: Any, scores: Any) -> Any:
     """Area under the ROC curve (Mann-Whitney U, ties counted one half)."""
     labels = np.asarray(labels, bool)
     scores = np.asarray(scores, float)
@@ -150,7 +159,7 @@ def auc_score(labels, scores):
 ## T1, T2
 
 
-def _t1(items):
+def _t1(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
     rows_all = []
     for ti, rows in items:
         d = ti.descriptor
@@ -174,6 +183,7 @@ def _t1(items):
             rows_all.append((ti.cell, c in responders, row))
     if all(r.get("score") is not None for _, _, r in rows_all):
         source = "score"
+        values: Any
         values = [r["score"] for _, _, r in rows_all]
     elif all(r.get("p_value") is not None for _, _, r in rows_all):
         source = "p_value"
@@ -186,7 +196,7 @@ def _t1(items):
     values = np.asarray(values, float)
     cells = [c for c, _, _ in rows_all]
 
-    def counts(mask):
+    def counts(mask: Any) -> Any:
         lab, dec = labels[mask], decision[mask]
         tp, fp = int(np.sum(lab & dec)), int(np.sum(~lab & dec))
         fn, tn = int(np.sum(lab & ~dec)), int(np.sum(~lab & ~dec))
@@ -230,7 +240,7 @@ def _t1(items):
     return metrics, per_cell
 
 
-def _t2(items):
+def _t2(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
     pairs, per_cell = [], {}
     for ti, rows in items:
         d = ti.descriptor
@@ -249,14 +259,14 @@ def _t2(items):
     return _t2_metrics(pairs), per_cell
 
 
-def _covered(row, name, value):
+def _covered(row: Any, name: Any, value: Any) -> Any:
     low, high = row.get(f"{name}_ci_low"), row.get(f"{name}_ci_high")
     if low is None or high is None:
         return None
     return float(low <= value <= high)
 
 
-def _t2_metrics(pairs, short=False):
+def _t2_metrics(pairs: Any, short: bool = False) -> dict[str, Any]:
     reported = [(t, r) for t, r in pairs if r is not None and r.get("latency") is not None]
     lat = np.array([r["latency"] - t["latency"] for t, r in reported], float)
     with_amp = [(t, r) for t, r in reported if r.get("amplitude") is not None]
@@ -292,7 +302,7 @@ def _t2_metrics(pairs, short=False):
 ## T3
 
 
-def _t3(items):
+def _t3(items: Any) -> tuple[dict[str, float | None], dict[Any, Any]]:
     from evoparam.sim import score_fits
 
     pd = require("pandas", extra="data", caller="evoparam.benchmark.score")
@@ -371,7 +381,7 @@ def _t3(items):
     return {k: _num(table[k]) for k in keys}, per_cell
 
 
-def _num(value):
+def _num(value: Any) -> Any:
     value = float(value)
     return value if np.isfinite(value) else None
 
@@ -380,7 +390,7 @@ def _num(value):
 ## T4
 
 
-def _t4(items):
+def _t4(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
     sums = {"art": 0.0, "art_n": 0, "artifact": 0.0, "resp": 0.0, "resp_n": 0}
     shifts, per_cell = [], {}
     for ti, cleaned in items:
@@ -440,15 +450,15 @@ def _t4(items):
 ## T5
 
 
-def _pearson(a, b):
+def _pearson(a: Any, b: Any) -> Any:
     a, b = np.asarray(a, float), np.asarray(b, float)
     if a.size < 3 or np.std(a) == 0 or np.std(b) == 0:
         return None
     return float(np.corrcoef(a, b)[0, 1])
 
 
-def _t5(items):
-    acc = {
+def _t5(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
+    acc: dict[str, Any] = {
         "lat": [],
         "amp": [],
         "rel": [],
@@ -518,7 +528,7 @@ def _t5(items):
 ## T6
 
 
-def reference_scores(times, y, definition):
+def reference_scores(times: Any, y: Any, definition: Any) -> dict[str, float]:
     """Return the scores of a T6 definition on one waveform, from the reference implementation.
 
     The reference implementation is :func:`evoparam.models.classical.classical_measures`.
@@ -546,8 +556,8 @@ def reference_scores(times, y, definition):
     }
 
 
-def _t6(items):
-    acc = {
+def _t6(items: Any) -> tuple[dict[Any, Any], dict[Any, Any]]:
+    acc: dict[str, Any] = {
         m: {"def": [], "truth": [], "sme": [], "n": 0, "reported": 0} for m in ERPCORE["measures"]
     }
     per_cell = {}
@@ -600,7 +610,7 @@ def _t6(items):
 ## T7
 
 
-def _t7(items):
+def _t7(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
     n_bursts = recovered = null_channels = null_hits = 0
     freq_err, time_err, extra = [], [], []
     per_cell = {}
@@ -661,14 +671,22 @@ def _t7(items):
     return metrics, per_cell
 
 
-SCORERS = {"T1": _t1, "T2": _t2, "T3": _t3, "T4": _t4, "T5": _t5, "T6": _t6, "T7": _t7}
+SCORERS: dict[str, Callable[..., Any]] = {
+    "T1": _t1,
+    "T2": _t2,
+    "T3": _t3,
+    "T4": _t4,
+    "T5": _t5,
+    "T6": _t6,
+    "T7": _t7,
+}
 
 
 ###################################################################################################
 ## Results
 
 
-def _flatten(metrics, prefix=""):
+def _flatten(metrics: Any, prefix: str = "") -> dict[Any, Any]:
     out = {}
     for key, value in metrics.items():
         if isinstance(value, dict):
@@ -678,7 +696,16 @@ def _flatten(metrics, prefix=""):
     return out
 
 
-def score_outputs(task, inputs, outputs, *, suite, method=None, missing=(), output_hashes=None):
+def score_outputs(
+    task: str,
+    inputs: list["TaskInput"],
+    outputs: dict[str, Any],
+    *,
+    suite: "Suite",
+    method: dict[str, Any] | None = None,
+    missing: Sequence[str] = (),
+    output_hashes: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Score outputs already read and validated.
 
     Parameters
@@ -748,20 +775,20 @@ def score_outputs(task, inputs, outputs, *, suite, method=None, missing=(), outp
         "(keys sorted, no whitespace, UTF-8, NaN as null)",
         "digest": sha256_bytes(canonical_bytes(document)),
     }
-    return document
+    return cast("dict[str, Any]", document)
 
 
 def score(
-    task,
-    predictions,
-    suite="core",
+    task: str,
+    predictions: str,
+    suite: "str | Suite" = "core",
     *,
-    method=None,
-    hidden_seeds=None,
-    split="public",
-    allow_missing=False,
-    inputs=None,
-):
+    method: dict[str, Any] | None = None,
+    hidden_seeds: Any = None,
+    split: str = "public",
+    allow_missing: bool = False,
+    inputs: list["TaskInput"] | None = None,
+) -> dict[str, Any]:
     """Score a method's outputs for one task on a suite.
 
     Parameters
@@ -801,7 +828,8 @@ def score(
     if not hasattr(suite, "cells"):
         suite = load_suite(suite, hidden_seeds=hidden_seeds)
     elif hidden_seeds is not None:
-        suite = suite.with_hidden_seeds(hidden_seeds)
+        suite = cast("Suite", suite).with_hidden_seeds(hidden_seeds)
+    suite = cast("Suite", suite)  # a Suite from here on
     if inputs is None:
         inputs = [make_inputs(cell, tasks=[task])[task] for cell in suite.cells(task, split=split)]
     outputs, hashes, missing = {}, {}, []
@@ -819,7 +847,7 @@ def score(
     )
 
 
-def write_result(document, path):
+def write_result(document: Any, path: Any) -> Any:
     """Write a result document.
 
     Sorted keys, one-space indent, UTF-8, final new line (the bytes depend only on the document).
@@ -835,7 +863,7 @@ def write_result(document, path):
     return path
 
 
-def read_result(path):
+def read_result(path: Any) -> Any:
     """Read a result document and check its signature (raises DataError when it does not match)."""
     with open(path, encoding="utf-8") as fobj:
         document = json.load(fobj)
@@ -846,7 +874,7 @@ def read_result(path):
     return document
 
 
-def verify_result(document):
+def verify_result(document: Any) -> Any:
     """Return True when ``signature.digest`` is the SHA-256 of the document without it."""
     body = {k: v for k, v in document.items() if k != "signature"}
     return document.get("signature", {}).get("digest") == sha256_bytes(canonical_bytes(body))

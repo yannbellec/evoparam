@@ -24,13 +24,18 @@ import os
 import re
 from dataclasses import dataclass, field
 from importlib import resources
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 from evoparam.utils._optional import require
 
 from ._canon import array_sha256, canonical_bytes, sha256_bytes
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import Evoked, TrialSet
 
 __all__ = [
     "TASKS",
@@ -60,6 +65,7 @@ TASKS = {
 }
 TASK_IDS = tuple(TASKS)
 SCHEMA_VERSION = 1
+_CACHE: dict[Any, Any]
 _CACHE = {}
 
 
@@ -67,36 +73,37 @@ class BenchmarkValidationError(DataError):
     """A task file does not follow its schema; the message names the first violation."""
 
 
-def schema_id(task):
+def schema_id(task: Any) -> str:
     """``benchmark-task/<id>/1``."""
     _check_task(task)
     return f"benchmark-task/{task}/{SCHEMA_VERSION}"
 
 
-def _check_task(task):
+def _check_task(task: Any) -> None:
     if task not in TASKS:
         raise DataError(f"Unknown benchmark task {task!r}; the tasks are {list(TASKS)}.")
 
 
-def load_schema(task):
+def load_schema(task: Any) -> Any:
     """Return the JSON Schema of a task (a deep copy of ``schemas/<task>.json``)."""
     _check_task(task)
     if task not in _CACHE:
         text = (
             resources.files("evoparam.benchmark")
-            .joinpath("schemas", f"{task}.json")
+            .joinpath("schemas")
+            .joinpath(f"{task}.json")
             .read_text("utf-8")
         )
         _CACHE[task] = json.loads(text)
     return copy.deepcopy(_CACHE[task])
 
 
-def output_format(task):
+def output_format(task: Any) -> Any:
     """``"tsv"``, or ``"npz"`` for T4."""
     return load_schema(task)["x-output-format"]
 
 
-def output_columns(task):
+def output_columns(task: Any) -> tuple[list[Any], list[Any]]:
     """Return the (required, optional) output columns of a TSV task, in their fixed order."""
     columns = load_schema(task).get("x-columns")
     if columns is None:
@@ -104,12 +111,12 @@ def output_columns(task):
     return list(columns["required"]), list(columns["optional"])
 
 
-def output_path(folder, task, cell):
+def output_path(folder: Any, task: Any, cell: Any) -> str:
     """Where the output of ``cell`` is expected in a predictions folder."""
     return os.path.join(folder, f"{cell}.{output_format(task)}")
 
 
-def _validator(task, role):
+def _validator(task: Any, role: Any) -> Any:
     key = (task, role, "validator")
     if key not in _CACHE:
         jsonschema = require(
@@ -124,12 +131,12 @@ def _validator(task, role):
     return _CACHE[key]
 
 
-def _path_text(error):
+def _path_text(error: Any) -> str:
     parts = list(error.absolute_path)
     return "/".join(str(p) for p in parts) if parts else "(document)"
 
 
-def _first_error(validator, document):
+def _first_error(validator: Any, document: Any) -> Any:
     errors = list(validator.iter_errors(document))
     if not errors:
         return None
@@ -145,7 +152,7 @@ def _first_error(validator, document):
     )
 
 
-def validate(document, task, role, *, where=""):
+def validate(document: Any, task: Any, role: Any, *, where: str = "") -> None:
     """Validate ``document`` against one part of the task's schema.
 
     ``role`` names the part: ``"input"``, ``"output"`` or ``"output_row"``.
@@ -181,34 +188,34 @@ class TaskInput:
         The ground truth, kept in memory by the suite (never written with the input).
     """
 
-    descriptor: dict
-    arrays: dict
-    truth: object = field(default=None, repr=False)
+    descriptor: dict[str, Any]
+    arrays: dict[str, Any]
+    truth: Any = field(default=None, repr=False)
 
     @property
-    def task(self):
+    def task(self) -> Any:
         """Task of the input."""
         return self.descriptor["task"]
 
     @property
-    def cell(self):
+    def cell(self) -> Any:
         """Cell of the input."""
         return self.descriptor["cell"]
 
     @property
-    def times(self):
+    def times(self) -> Any:
         """Time axis (s)."""
         n_times = next(iter(self.arrays.values())).shape[-1]
         return self.descriptor["tmin"] + np.arange(n_times) / self.descriptor["sfreq"]
 
-    def sha256(self):
+    def sha256(self) -> str:
         """SHA-256 of the input.
 
         The canonical JSON of its descriptor, which holds the hashes of the arrays.
         """
         return sha256_bytes(canonical_bytes(self.descriptor))
 
-    def to_trialset(self):
+    def to_trialset(self) -> "TrialSet":
         """Return a :class:`~evoparam.data.TrialSet` of ``data``.
 
         It has ``stim_site`` metadata when the input has a site.
@@ -230,7 +237,7 @@ class TaskInput:
             modality=self.descriptor.get("modality"),
         )
 
-    def to_evoked(self):
+    def to_evoked(self) -> "Evoked":
         """Return an :class:`~evoparam.data.Evoked` of ``evoked`` (T3)."""
         from evoparam.data import Evoked
 
@@ -244,7 +251,7 @@ class TaskInput:
         )
 
 
-def make_descriptor(task, arrays, **fields):
+def make_descriptor(task: Any, arrays: Any, **fields: Any) -> dict[str, Any]:
     """Return a descriptor with the schema, role, task and array hashes filled in."""
     descriptor = {"schema": schema_id(task), "role": "input", "task": task}
     descriptor.update(fields)
@@ -256,23 +263,23 @@ def make_descriptor(task, arrays, **fields):
     return descriptor
 
 
-def write_input(task_input, folder):
+def write_input(task_input: Any, folder: Any) -> str:
     """Write ``<cell>.json`` and ``<cell>.npz`` into ``folder``; returns the JSON path."""
     descriptor = task_input.descriptor
     validate(descriptor, descriptor["task"], "input", where=descriptor["cell"])
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, f"{descriptor['cell']}.json")
-    np.savez(
-        os.path.join(folder, descriptor["data_file"]),
-        **{k: np.asarray(v, dtype=np.float64) for k, v in task_input.arrays.items()},
-    )
+    arrays: dict[str, Any] = {
+        k: np.asarray(v, dtype=np.float64) for k, v in task_input.arrays.items()
+    }
+    np.savez(os.path.join(folder, descriptor["data_file"]), **arrays)
     with open(path, "w", encoding="utf-8") as fobj:
         json.dump(descriptor, fobj, indent=1, sort_keys=True, ensure_ascii=False, allow_nan=False)
         fobj.write("\n")
     return path
 
 
-def read_input(path):
+def read_input(path: Any) -> "TaskInput":
     """Read and validate a task input (the ``.json`` descriptor; its ``.npz`` is next to it).
 
     Raises
@@ -309,7 +316,7 @@ def read_input(path):
 ## Outputs
 
 
-def _format(value):
+def _format(value: Any) -> str:
     if value is None:
         return "n/a"
     if isinstance(value, (bool, np.bool_)):
@@ -325,7 +332,7 @@ def _format(value):
     return text
 
 
-def write_output(task, value, path):
+def write_output(task: Any, value: Any, path: Any) -> Any:
     """Write a task output.
 
     Rows (list of dicts) as TSV with the task's columns, or the cleaned epochs (array) as ``.npz``
@@ -345,7 +352,7 @@ def write_output(task, value, path):
     return path
 
 
-def _string_columns(task):
+def _string_columns(task: Any) -> set[Any]:
     schema = load_schema(task)
     props = schema["$defs"]["output_row"]["properties"]
     out = set()
@@ -363,7 +370,7 @@ def _string_columns(task):
 _INT = re.compile(r"^[+-]?\d+$")
 
 
-def _parse(text, column, strings, where):
+def _parse(text: Any, column: Any, strings: Any, where: Any) -> Any:
     if text == "n/a":
         return None
     if column in strings:
@@ -382,7 +389,7 @@ def _parse(text, column, strings, where):
     return number
 
 
-def read_output(task, path):
+def read_output(task: Any, path: Any) -> Any:
     """Read and validate a task output.
 
     Returns
@@ -409,6 +416,7 @@ def read_output(task, path):
             names = list(archive.files)
             arrays = {name: archive[name] for name in names}
         data = arrays.get("data")
+        description: dict[str, Any]
         description = {"arrays": {}}
         if data is not None:
             description["arrays"]["data"] = {
@@ -431,6 +439,7 @@ def read_output(task, path):
     if not lines:
         raise BenchmarkValidationError(f"{path}: empty file (the header line is required).")
     header = [c.strip() for c in lines[0].rstrip("\r").split("\t")]
+    column: Any
     for column in header:
         if column not in required + optional:
             raise BenchmarkValidationError(

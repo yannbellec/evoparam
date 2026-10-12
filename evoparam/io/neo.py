@@ -2,16 +2,21 @@
 """Neo reader (spec §10.3, REQ-319; extra ``neo``)."""
 
 import os
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 from evoparam.utils._optional import require
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["read_neo"]
 
 
-def _block(source, io_class):
+def _block(source: Any, io_class: Any) -> Any:
     neo = require("neo", extra="neo", caller="evoparam.io.read_neo")
     if isinstance(source, neo.Block):
         return source
@@ -20,7 +25,7 @@ def _block(source, io_class):
     return reader.read_block()
 
 
-def _microvolts(signal):
+def _microvolts(signal: Any) -> Any:
     """Return the samples of an AnalogSignal rescaled to µV (dimensionless signals unchanged)."""
     quantities = require("quantities", extra="neo", caller="evoparam.io.read_neo")
     try:
@@ -29,7 +34,16 @@ def _microvolts(signal):
         return np.asarray(signal.magnitude, float), "au"
 
 
-def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5, io_class=None):
+def read_neo(
+    source: Any,
+    *,
+    segment: int | None = None,
+    signal: int | str = 0,
+    events: str | Literal[False] | None = None,
+    tmin: float = -0.1,
+    tmax: float = 0.5,
+    io_class: Any = None,
+) -> "TrialSet":
     """Epochs of a Neo ``AnalogSignal`` around events (spec §10.3).
 
     Parameters
@@ -60,6 +74,9 @@ def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5
     segments = list(enumerate(block.segments))
     if segment is not None:
         segments = [segments[segment]]
+    sfreq: Any
+    names: Any
+    units: Any
     epochs, rows, sfreq, names, units = [], [], None, None, None
     for run, seg in segments:
         signals = seg.analogsignals

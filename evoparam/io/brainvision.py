@@ -13,12 +13,17 @@ import os
 import re
 from configparser import ConfigParser
 from configparser import Error as ConfigError
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray
 from evoparam.errors import DataError, ReaderError
 from evoparam.errors import warn as _warn
 from evoparam.io._fetch import RemoteFile, fetch_bytes, is_url, sha256_file
+
+if TYPE_CHECKING:
+    from evoparam.io._fetch import TransferLog
 
 __all__ = [
     "read_brainvision",
@@ -37,14 +42,14 @@ _DTYPES = {"IEEE_FLOAT_32": "<f4", "INT_16": "<i2", "INT_32": "<i4"}
 _TO_UV = {"µV": 1.0, "μV": 1.0, "uV": 1.0, "mV": 1e3, "V": 1e6, "nV": 1e-3}
 
 
-def _decode(content):
+def _decode(content: Any) -> Any:
     try:
         return content.decode("utf-8")
     except UnicodeDecodeError:
         return content.decode("latin-1")
 
 
-def _read_text(path, log=None):
+def _read_text(path: Any, log: Any = None) -> Any:
     if is_url(path):
         return _decode(fetch_bytes(path, log=log))
     try:
@@ -54,12 +59,13 @@ def _read_text(path, log=None):
         raise ReaderError(f"Cannot read {path}: {exc}") from exc
 
 
-def _unique_names(names):
+def _unique_names(names: Any) -> list[Any]:
     """Suffix duplicated channel names with -1, -2, ..., with a warning."""
     counts = {name: names.count(name) for name in names}
     duplicated = sorted(name for name, count in counts.items() if count > 1)
     if not duplicated:
         return list(names)
+    seen: dict[Any, Any]
     seen, out = {}, []
     for name in names:
         if counts[name] > 1:
@@ -77,7 +83,7 @@ def _unique_names(names):
     return out
 
 
-def read_brainvision_header(vhdr, *, log=None):
+def read_brainvision_header(vhdr: str, *, log: "TransferLog | None" = None) -> dict[str, Any]:
     """Read the header of a BrainVision recording.
 
     Parameters
@@ -110,6 +116,7 @@ def read_brainvision_header(vhdr, *, log=None):
     if "[" not in text:
         raise ReaderError(f"{vhdr} is not a BrainVision header.")
     text = text[text.index("[") :]
+    parser: Any
     parser = ConfigParser(interpolation=None, strict=False)
     parser.optionxform = str
     try:
@@ -166,7 +173,7 @@ def read_brainvision_header(vhdr, *, log=None):
 class _LocalFile:
     """Local counterpart of RemoteFile: ``read(offset, nbytes)`` and ``size``."""
 
-    def __init__(self, path):
+    def __init__(self, path: Any) -> None:
         if not os.path.isfile(path):
             raise ReaderError(f"Data file not found: {path}")
         self.path = path
@@ -174,23 +181,30 @@ class _LocalFile:
         self.bytes_read = 0
         self._file = open(path, "rb")  # noqa: SIM115  (the reader owns the file; close() and __exit__ close it)
 
-    def read(self, offset, nbytes):
+    def read(self, offset: Any, nbytes: Any) -> bytes:
         self._file.seek(offset)
         out = self._file.read(nbytes)
         self.bytes_read += len(out)
         return out
 
-    def close(self):
+    def close(self) -> None:
         self._file.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "_LocalFile":
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.close()
 
 
-def _open_data(header, remote=None, *, chunk_size=1 << 20, cache_dir=None, log=None):
+def _open_data(
+    header: Any,
+    remote: Any = None,
+    *,
+    chunk_size: Any = 1 << 20,
+    cache_dir: Any = None,
+    log: Any = None,
+) -> Any:
     """Open the binary data file of a header, locally or through range requests."""
     path = header["data_file"]
     if remote is None:
@@ -204,18 +218,20 @@ def _open_data(header, remote=None, *, chunk_size=1 << 20, cache_dir=None, log=N
     return _LocalFile(path)
 
 
-def _n_samples(header, reader):
+def _n_samples(header: Any, reader: Any) -> Any:
     """Return the number of samples per channel, from the file size."""
     itemsize = np.dtype(header["dtype"]).itemsize
     from_size = reader.size // (header["n_channels"] * itemsize)
     return from_size if header["n_samples"] is None else min(header["n_samples"], from_size)
 
 
-def _scaling(header, ch_index):
+def _scaling(header: Any, ch_index: Any) -> Any:
     return header["resolutions"][ch_index] * header["to_uv"][ch_index]
 
 
-def _read_windows(reader, header, starts, n_times, ch_index, n_samples):
+def _read_windows(
+    reader: Any, header: Any, starts: Any, n_times: int, ch_index: Any, n_samples: int
+) -> FloatArray:
     """Read windows of ``n_times`` samples starting at ``starts``.
 
     Returns
@@ -259,7 +275,7 @@ def _read_windows(reader, header, starts, n_times, ch_index, n_samples):
     return out
 
 
-def _pick(ch_names, picks):
+def _pick(ch_names: Any, picks: Any) -> Any:
     """Return the indices of the picked channels, by name or index, in the given order."""
     if picks is None:
         return list(range(len(ch_names)))
@@ -281,7 +297,7 @@ def _pick(ch_names, picks):
     return out
 
 
-def _warn_units(header, ch_index):
+def _warn_units(header: Any, ch_index: Any) -> None:
     """Warn about converted and non-voltage channel units among the picked channels."""
     units = [header["units"][ind] for ind in ch_index]
     names = [header["ch_names"][ind] for ind in ch_index]
@@ -309,7 +325,16 @@ def _warn_units(header, ch_index):
         )
 
 
-def _segment(vhdr, header, first, stop, picks, remote, cache_dir=None, hash_file=False):
+def _segment(
+    vhdr: Any,
+    header: Any,
+    first: Any,
+    stop: Any,
+    picks: Any,
+    remote: Any,
+    cache_dir: Any = None,
+    hash_file: bool = False,
+) -> tuple[Any, Any, list[Any], int, dict[str, Any]]:
     """Read the samples ``first <= n < stop`` (clipped to the recording), in µV.
 
     Also returns the record of the bytes read (the SHA-256 of a local data file only when
@@ -342,12 +367,19 @@ def _segment(vhdr, header, first, stop, picks, remote, cache_dir=None, hash_file
     return data, header["sfreq"], [header["ch_names"][ind] for ind in ch_index], first, source
 
 
-def _sample(time, sfreq):
+def _sample(time: Any, sfreq: float) -> int:
     """First sample at or after ``time`` (s), robust to rounding of the product."""
     return int(np.ceil(np.round(time * sfreq, 6)))
 
 
-def read_brainvision(vhdr, *, tmin=None, tmax=None, picks=None, remote=None):
+def read_brainvision(
+    vhdr: str,
+    *,
+    tmin: float | None = None,
+    tmax: float | None = None,
+    picks: Any = None,
+    remote: bool | None = None,
+) -> tuple[Any, Any, list[Any], Any]:
     """Read a BrainVision recording, or a time window of it.
 
     Parameters
@@ -388,7 +420,14 @@ def read_brainvision(vhdr, *, tmin=None, tmax=None, picks=None, remote=None):
     return data, sfreq, ch_names, t0
 
 
-def _read_with_source(vhdr, tmin=None, tmax=None, picks=None, remote=None, hash_file=True):
+def _read_with_source(
+    vhdr: Any,
+    tmin: float | None = None,
+    tmax: float | None = None,
+    picks: Any = None,
+    remote: Any = None,
+    hash_file: bool = True,
+) -> tuple[Any, Any, list[Any], Any, dict[str, Any]]:
     """read_brainvision, plus the record of the bytes read (sha256, bytes_read, ranges)."""
     header = read_brainvision_header(vhdr)
     sfreq = header["sfreq"]
@@ -401,7 +440,9 @@ def _read_with_source(vhdr, tmin=None, tmax=None, picks=None, remote=None, hash_
     return data, sfreq, ch_names, first / sfreq, source
 
 
-def read_brainvision_segment(vhdr, tmin, tmax, picks=None):
+def read_brainvision_segment(
+    vhdr: str, tmin: float, tmax: float, picks: list[str] | None = None
+) -> tuple[Any, Any, list[Any], Any]:
     """Read a time segment of a BrainVision recording.
 
     Parameters
@@ -435,8 +476,15 @@ def read_brainvision_segment(vhdr, tmin, tmax, picks=None):
 
 
 def write_brainvision(
-    vhdr, data, sfreq, ch_names, *, markers=None, resolution=0.1, fmt="IEEE_FLOAT_32"
-):
+    vhdr: str,
+    data: ArrayLike,
+    sfreq: float,
+    ch_names: list[str],
+    *,
+    markers: Any = None,
+    resolution: float = 0.1,
+    fmt: str = "IEEE_FLOAT_32",
+) -> str:
     """Write a BrainVision recording (``.vhdr``, ``.vmrk``, ``.eeg``; multiplexed).
 
     Parameters

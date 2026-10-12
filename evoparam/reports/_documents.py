@@ -9,6 +9,7 @@ from collections import Counter
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data import GroupFit, ResponseFit, ResponseTest, TFFit
 from evoparam.version import __version__
 
@@ -22,7 +23,7 @@ RESEARCH_USE = (
 )
 
 
-def _fits(result):
+def _fits(result: Any) -> Any:
     if isinstance(result, GroupFit):
         return [
             (ch, cond, result.fits[int(pos)])
@@ -35,7 +36,7 @@ def _fits(result):
     return []
 
 
-def qc(result, *, trials=None, artifact=None, trial_fits=None):
+def qc(result: Any, *, trials: Any = None, artifact: Any = None, trial_fits: Any = None) -> Any:
     """Quality summary: the table a reviewer asks for.
 
     Rows ``(quantity, value)``: number of fits by status, warnings by type, ill-conditioned
@@ -45,7 +46,7 @@ def qc(result, *, trials=None, artifact=None, trial_fits=None):
     """
     import pandas as pd
 
-    rows = []
+    rows: list[Any] = []
     fits = _fits(result)
     if fits:
         statuses = Counter(f.status for _, _, f in fits)
@@ -80,7 +81,7 @@ def qc(result, *, trials=None, artifact=None, trial_fits=None):
     return pd.DataFrame(rows, columns=["quantity", "value"])
 
 
-def _summary_table(result):
+def _summary_table(result: Any) -> Any:
     import pandas as pd
 
     if isinstance(result, (GroupFit, ResponseFit)):
@@ -119,7 +120,7 @@ def _summary_table(result):
     return pd.DataFrame()
 
 
-def _figures(result, data=None, max_channels=24):
+def _figures(result: Any, data: Any = None, max_channels: int = 24) -> list[Any]:
     """(title, Figure) pairs for the report."""
     try:
         import matplotlib
@@ -149,7 +150,7 @@ def _figures(result, data=None, max_channels=24):
     return out
 
 
-def _png(fig):
+def _png(fig: Any) -> str:
     import matplotlib.pyplot as plt
 
     buffer = io.BytesIO()
@@ -158,7 +159,7 @@ def _png(fig):
     return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
-def markdown(result, *, data=None):
+def markdown(result: Any, *, data: Any = None) -> Any:
     """Markdown report: methods text, summary table, quality summary, provenance steps."""
     lines = [
         f"# evoparam report ({type(result).__name__})",
@@ -191,7 +192,7 @@ def markdown(result, *, data=None):
     return "\n".join(lines) + "\n"
 
 
-def _have_tabulate():
+def _have_tabulate() -> bool:
     try:
         import tabulate  # noqa: F401
     except ImportError:
@@ -199,7 +200,7 @@ def _have_tabulate():
     return True
 
 
-def html(result, path=None, *, data=None, max_channels=24):
+def html(result: Any, path: Any = None, *, data: Any = None, max_channels: int = 24) -> Any:
     """Write one self-contained HTML file (no network access needed: figures are inline PNG).
 
     Summary table, figures, quality summary, warnings, methods text and provenance.
@@ -256,7 +257,7 @@ def html(result, path=None, *, data=None, max_channels=24):
     return str(path)
 
 
-def _sites(values, column="stim_site"):
+def _sites(values: Any, column: str = "stim_site") -> Any:
     """Stimulation sites of a TrialSet (its metadata column), in order of appearance."""
     meta = getattr(values, "metadata", None)
     if meta is None or column not in meta.columns:
@@ -268,7 +269,9 @@ def _sites(values, column="stim_site"):
     ]
 
 
-def site_pages(result, data=None, *, site_column="stim_site"):
+def site_pages(
+    result: Any, data: Any = None, *, site_column: str = "stim_site"
+) -> list[tuple[Any, Any]]:
     """Return the pages of :func:`pdf`.
 
     ``(site, [(channel, condition, fit position), ...])`` per stimulation site of a GroupFit.
@@ -280,6 +283,7 @@ def site_pages(result, data=None, *, site_column="stim_site"):
     sites has one page for them all, named so (fit by site for one page per site).
     """
     known = _sites(data, site_column) if data is not None else []
+    pages: dict[Any, Any]
     pages = {}
     for channel, raw_cond, pos in result.index[["channel", "condition", "position"]].itertuples(
         index=False
@@ -297,7 +301,7 @@ def site_pages(result, data=None, *, site_column="stim_site"):
     return list(pages.items())
 
 
-def _site_data(data, site, site_column, single_condition):
+def _site_data(data: Any, site: Any, site_column: Any, single_condition: Any) -> Any:
     """Return the trials behind one page.
 
     The site's trials, or all of them when the fits used all trials (one condition); None when they
@@ -311,7 +315,14 @@ def _site_data(data, site, site_column, single_condition):
     return data if single_condition else None
 
 
-def pdf(result, path, *, data=None, max_channels=24, site_column="stim_site"):
+def pdf(
+    result: Any,
+    path: Any,
+    *,
+    data: Any = None,
+    max_channels: int = 24,
+    site_column: str = "stim_site",
+) -> str:
     """PDF report (needs matplotlib).
 
     A text page (methods, quality), then one page per stimulation site (spec §5.13), then the
@@ -370,7 +381,7 @@ def pdf(result, path, *, data=None, max_channels=24, site_column="stim_site"):
     return str(path)
 
 
-def _wrap(text, width):
+def _wrap(text: Any, width: Any) -> Any:
     import textwrap
 
     out = []

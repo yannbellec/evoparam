@@ -7,8 +7,11 @@ baseline covariance, the few spatial directions that carry most of the artifact-
 energy are found by SVD, and the data are projected away from them.
 """
 
+from typing import cast
+
 import numpy as np
 
+from evoparam._typing import Any, FloatArray
 from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = []
@@ -21,14 +24,21 @@ MAX_DIRECTIONS = 6
 NOISE_FACTOR = 2.0
 
 
-def _sqrtm(cov, inverse=False):
+def _sqrtm(cov: Any, inverse: bool = False) -> FloatArray:
     vals, vecs = np.linalg.eigh(cov)
     vals = np.clip(vals, vals.max() * 1e-12, None)
     power = -0.5 if inverse else 0.5
-    return (vecs * vals**power) @ vecs.T
+    return cast("FloatArray", (vecs * vals**power) @ vecs.T)
 
 
-def subspace_clean(data, window_inds, baseline_inds, *, n_components=None, extent="all"):
+def subspace_clean(
+    data: Any,
+    window_inds: Any,
+    baseline_inds: Any,
+    *,
+    n_components: Any = None,
+    extent: Any = "all",
+) -> tuple[Any, dict[str, Any]]:
     """Remove the artifact directions found in the window from every sample.
 
     ``X_w = S^{-1/2} (X - mu)`` with ``S`` the baseline covariance across channels and

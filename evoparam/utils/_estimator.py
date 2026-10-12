@@ -9,6 +9,8 @@ names), ``__repr__``, ``__sklearn_is_fitted__`` and, when scikit-learn is import
 
 import inspect
 import sys
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 __all__ = [
     "BaseEstimatorMixin",
@@ -17,6 +19,9 @@ __all__ = [
     "check_is_fitted",
     "validate_array",
 ]
+
+_E = TypeVar("_E", bound="BaseEstimatorMixin")
+_T = TypeVar("_T")
 
 
 class NotFittedError(ValueError, AttributeError):
@@ -29,10 +34,10 @@ class NotFittedError(ValueError, AttributeError):
     """
 
 
-_BOTH = {}
+_BOTH: dict[type, type[Exception]] = {}
 
 
-def _not_fitted_class():
+def _not_fitted_class() -> type[Exception]:
     module = sys.modules.get("sklearn.exceptions")
     base = getattr(module, "NotFittedError", None)
     if base is None or issubclass(NotFittedError, base):
@@ -46,7 +51,7 @@ def _not_fitted_class():
     return _BOTH[base]
 
 
-def check_is_fitted(estimator):
+def check_is_fitted(estimator: Any) -> None:
     if not estimator.__sklearn_is_fitted__():
         raise _not_fitted_class()(
             f"This {type(estimator).__name__} instance is not fitted yet; call fit first."
@@ -57,7 +62,7 @@ class BaseEstimatorMixin:
     """Parameters are the keyword arguments of ``__init__``, stored unchanged."""
 
     @classmethod
-    def _get_param_names(cls):
+    def _get_param_names(cls) -> list[str]:
         signature = inspect.signature(cls.__init__)
         return sorted(
             p.name
@@ -65,7 +70,7 @@ class BaseEstimatorMixin:
             if p.name != "self" and p.kind not in (p.VAR_KEYWORD, p.VAR_POSITIONAL)
         )
 
-    def get_params(self, deep=True):
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
         out = {}
         for name in self._get_param_names():
             value = getattr(self, name)
@@ -74,11 +79,11 @@ class BaseEstimatorMixin:
             out[name] = value
         return out
 
-    def set_params(self, **params):
+    def set_params(self: _E, **params: Any) -> _E:
         from evoparam.errors import SettingsError
 
         valid = self._get_param_names()
-        nested = {}
+        nested: dict[str, dict[str, Any]] = {}
         for key, value in params.items():
             name, _, sub = key.partition("__")
             if name not in valid:
@@ -93,10 +98,10 @@ class BaseEstimatorMixin:
             getattr(self, name).set_params(**values)
         return self
 
-    def __sklearn_is_fitted__(self):
+    def __sklearn_is_fitted__(self) -> bool:
         return any(k.endswith("_") and not k.startswith("_") for k in vars(self))
 
-    def __sklearn_tags__(self):
+    def __sklearn_tags__(self) -> Any:
         try:
             from sklearn.base import BaseEstimator
             from sklearn.utils import Tags, TargetTags  # noqa: F401
@@ -111,7 +116,7 @@ class BaseEstimatorMixin:
             tags.transformer_tags = TransformerTags()
         return tags
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         defaults = {
             p.name: p.default for p in inspect.signature(type(self).__init__).parameters.values()
         }
@@ -124,14 +129,19 @@ class BaseEstimatorMixin:
 
 
 class TransformerMixin:
-    def fit_transform(self, X, y=None, **fit_params):  # noqa: N803  (scikit-learn API: X)
+    if TYPE_CHECKING:  # provided by the estimator that mixes this class in
+        fit: Callable[..., Any]
+
+    def fit_transform(self, X: Any, y: Any = None, **fit_params: Any) -> Any:  # noqa: N803  (scikit-learn API: X)
         return self.fit(X, y, **fit_params).transform(X)
 
-    def set_output(self, *, transform=None):  # noqa: ARG002  (scikit-learn API)
+    def set_output(self: _T, *, transform: str | None = None) -> _T:  # noqa: ARG002  (scikit-learn API)
         return self
 
 
-def validate_array(estimator, x, *, reset, ndim=2, allow_nan=False):
+def validate_array(
+    estimator: Any, x: Any, *, reset: bool, ndim: int = 2, allow_nan: bool = False
+) -> Any:
     """Check an array input the way scikit-learn does (its messages when it is installed).
 
     Dense, real, finite, at least 2-D with at least 2 time points, and, after ``fit``, as many

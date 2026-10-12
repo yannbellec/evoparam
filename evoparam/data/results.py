@@ -9,10 +9,11 @@ Results are plain data: they hold numbers, tables, the resolved settings and a
 
 import copy
 from dataclasses import dataclass, field, fields, replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data.provenance import Provenance
 from evoparam.errors import DataError
@@ -115,20 +116,23 @@ COMPONENT_FEATURES = (
 class _ResultMixin(DeepEqualMixin):
     """copy, to_dict / from_dict and save / load for result dataclasses."""
 
-    def copy(self):
+    if TYPE_CHECKING:  # the result classes that use this mixin are dataclasses
+        __dataclass_fields__: ClassVar[dict[str, Any]]
+
+    def copy(self) -> Any:
         """Return a deep copy."""
         return copy.deepcopy(self)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Return the fields as a dictionary of deep copies."""
         return {fld.name: copy.deepcopy(getattr(self, fld.name)) for fld in fields(self)}
 
     @classmethod
-    def from_dict(cls, dct):
+    def from_dict(cls, dct: Any) -> Any:
         """Build from :meth:`to_dict` output."""
         return cls(**dct)
 
-    def methods_text(self):
+    def methods_text(self) -> str:
         """Methods paragraph built from ``provenance`` and ``settings`` only (REQ-338).
 
         See :func:`evoparam.reports.methods_text`.
@@ -137,14 +141,14 @@ class _ResultMixin(DeepEqualMixin):
 
         return methods_text(self)
 
-    def save(self, path, overwrite=False):
+    def save(self, path: Any, overwrite: bool = False) -> Any:
         """Save to a ``.evoparam`` container (directory, or zip when ``path`` ends in .zip)."""
         from evoparam.data.serialize import save_object
 
         return save_object(self, path, overwrite=overwrite)
 
     @classmethod
-    def load(cls, path, *, verify=True):
+    def load(cls, path: Any, *, verify: bool = True) -> Any:
         """Load from a ``.evoparam`` container and check its type."""
         from evoparam.data.serialize import load_object
 
@@ -154,7 +158,7 @@ class _ResultMixin(DeepEqualMixin):
         return obj
 
 
-def _as_float_array(value):
+def _as_float_array(value: Any) -> Any:
     return None if value is None else np.asarray(value, dtype=np.float64)
 
 
@@ -174,8 +178,8 @@ class Component(_ResultMixin):
     """
 
     shape: str
-    params: np.ndarray
-    param_names: tuple
+    params: NDArray[Any]
+    param_names: tuple[Any, ...]
     latency: float
     amplitude: float
     polarity: int
@@ -188,15 +192,15 @@ class Component(_ResultMixin):
     symmetry: float
     sharpness: float
     label: str | None = None
-    se: dict | None = None
-    ci: dict | None = None
-    posterior: dict | None = None
+    se: dict[str, Any] | None = None
+    ci: dict[str, Any] | None = None
+    posterior: dict[str, Any] | None = None
     # False when the component cannot be told apart from a neighbour: their amplitudes (or
     # latencies) correlate beyond 0.95, or two components of opposite sign overlap and
     # cancel (spec §5.5.3 step 6, risk S1): its numbers are not to be read alone
     resolvable: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         self.params = np.asarray(self.params, dtype=np.float64)
         self.resolvable = bool(self.resolvable)
@@ -235,7 +239,7 @@ class GoodnessOfFit(_ResultMixin):
     residual_lag1_autocorr: float
     baseline_sd: float
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         for fld in fields(self):
             value = getattr(self, fld.name)
@@ -251,26 +255,26 @@ class ResponseTest(_ResultMixin):
     """Output of the existence test: is there a response on each channel."""
 
     method: str
-    statistic: np.ndarray
-    p_value: np.ndarray
-    p_value_raw: np.ndarray
-    significant: np.ndarray
-    duration: np.ndarray
-    onset: np.ndarray
-    offset: np.ndarray
-    snr_db: np.ndarray
+    statistic: NDArray[Any]
+    p_value: NDArray[Any]
+    p_value_raw: NDArray[Any]
+    significant: NDArray[Any]
+    duration: NDArray[Any]
+    onset: NDArray[Any]
+    offset: NDArray[Any]
+    snr_db: NDArray[Any]
     rule: str | None
     alpha: float
     correction: str
     n_permutations: int
-    window: tuple
-    settings: dict
+    window: tuple[Any, ...]
+    settings: dict[str, Any]
     provenance: Provenance = field(default_factory=Provenance)
-    curve_times: np.ndarray | None = None
-    curve: np.ndarray | None = None
-    null_band: np.ndarray | None = None
+    curve_times: NDArray[Any] | None = None
+    curve: NDArray[Any] | None = None
+    null_band: NDArray[Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         for name in (
             "statistic",
@@ -323,23 +327,23 @@ class ResponseTest(_ResultMixin):
 class ResponseFit(_ResultMixin):
     """Result of fitting one waveform (one channel, one condition)."""
 
-    components: list
-    background: dict
+    components: list[Any]
+    background: dict[str, Any]
     gof: GoodnessOfFit | None
     status: str
     message: str
-    window: tuple
-    baseline: tuple
-    settings: dict
-    classical: dict = field(default_factory=dict)
-    model: np.ndarray | None = None
-    residual: np.ndarray | None = None
+    window: tuple[Any, ...]
+    baseline: tuple[Any, ...]
+    settings: dict[str, Any]
+    classical: dict[str, Any] = field(default_factory=dict)
+    model: NDArray[Any] | None = None
+    residual: NDArray[Any] | None = None
     existence: ResponseTest | None = None
-    warnings: list = field(default_factory=list)
+    warnings: list[Any] = field(default_factory=list)
     provenance: Provenance = field(default_factory=Provenance)
-    diagnostics: dict = field(default_factory=dict)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         if self.status not in FIT_STATUSES:
             raise DataError(
@@ -354,7 +358,7 @@ class ResponseFit(_ResultMixin):
         self.residual = _as_float_array(self.residual)
         self.warnings = list(self.warnings)
 
-    def to_dataframe(self, channel="", condition=""):
+    def to_dataframe(self, channel: str = "", condition: str = "") -> Any:
         """Tidy table, one row per component (one row with NaN features when there is none).
 
         Column units are in ``table.attrs["units"]`` (see :data:`COMPONENT_COLUMNS`).
@@ -416,14 +420,14 @@ class GroupFit(_ResultMixin):
     ``position`` (the position of the fit in ``fits``).
     """
 
-    fits: list
-    ch_names: list
-    conditions: list | None
-    index: object
-    settings: dict = field(default_factory=dict)
+    fits: list[Any]
+    ch_names: list[str]
+    conditions: list[Any] | None
+    index: Any
+    settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         self.fits = list(self.fits)
         self.ch_names = [str(name) for name in self.ch_names]
@@ -435,7 +439,14 @@ class GroupFit(_ResultMixin):
             )
 
     @classmethod
-    def from_fits(cls, fits, ch_names, conditions=None, settings=None, provenance=None):
+    def from_fits(
+        cls,
+        fits: Any,
+        ch_names: Any,
+        conditions: Any = None,
+        settings: Any = None,
+        provenance: Any = None,
+    ) -> "GroupFit":
         """Build the ``index`` table from parallel lists of fits, channels and conditions."""
         import pandas as pd
 
@@ -463,7 +474,7 @@ class GroupFit(_ResultMixin):
             provenance=provenance if provenance is not None else Provenance(),
         )
 
-    def get(self, channel, condition=None):
+    def get(self, channel: Any, condition: Any = None) -> Any:
         """Return the fit of one channel (and condition)."""
         rows = self.index[self.index["channel"] == channel]
         if condition is not None:
@@ -472,7 +483,7 @@ class GroupFit(_ResultMixin):
             raise KeyError(f"{len(rows)} fits match channel={channel!r}, condition={condition!r}.")
         return self.fits[int(rows["position"].iloc[0])]
 
-    def to_dataframe(self, level="component"):
+    def to_dataframe(self, level: str = "component") -> Any:
         """Tidy table: ``"component"`` (one row per component) or ``"fit"`` (one row per fit).
 
         Column units are in ``table.attrs["units"]``.
@@ -520,7 +531,7 @@ class GroupFit(_ResultMixin):
             f"GroupFit.to_dataframe: level must be 'component' or 'fit', got {level!r}."
         )
 
-    def to_annotations(self, *, what="components", orig_time=None):
+    def to_annotations(self, *, what: str = "components", orig_time: Any = None) -> Any:
         """``mne.Annotations`` of the components, for display on MNE plots.
 
         One per component, onset to offset, description ``"<label>|<channel>"`` (extra ``mne``).
@@ -542,7 +553,7 @@ class GroupFit(_ResultMixin):
             onsets, durations, descriptions, orig_time=orig_time, ch_names=channels
         )
 
-    def to_evoked_model(self, *, sfreq=None):
+    def to_evoked_model(self, *, sfreq: float | None = None) -> Any:
         """Return the fitted curves as an ``mne.EvokedArray`` (extra ``mne``).
 
         The curves cover the fit window and are zero elsewhere; the comment is
@@ -574,7 +585,7 @@ class GroupFit(_ResultMixin):
             data, info, tmin=float(times[0]), comment="evoparam model", verbose="error"
         )
 
-    def save(self, path, overwrite=False, light=False):
+    def save(self, path: Any, overwrite: bool = False, light: bool = False) -> Any:
         """Save to a ``.evoparam`` container; ``light=True`` drops fitted curves and residuals."""
         obj = self
         if light:
@@ -596,25 +607,25 @@ class TrialFit(_ResultMixin):
 
     channel: str
     template: ResponseFit
-    shift: np.ndarray
-    scale: np.ndarray
-    params: np.ndarray
-    latency: np.ndarray
-    amplitude: np.ndarray
-    fwhm: np.ndarray
-    gof: np.ndarray
-    converged: np.ndarray
-    jitter_sd: dict
-    jitter_sd_null: dict
-    amplitude_jitter_corrected: dict
-    trusted: np.ndarray
-    table: object
-    covariates: object = None
-    realigned: object = None
-    settings: dict = field(default_factory=dict)
+    shift: NDArray[Any]
+    scale: NDArray[Any]
+    params: NDArray[Any]
+    latency: NDArray[Any]
+    amplitude: NDArray[Any]
+    fwhm: NDArray[Any]
+    gof: NDArray[Any]
+    converged: NDArray[Any]
+    jitter_sd: dict[Any, Any]  # keyed by component index
+    jitter_sd_null: dict[Any, Any]
+    amplitude_jitter_corrected: dict[Any, Any]
+    trusted: NDArray[Any]
+    table: Any
+    covariates: Any = None
+    realigned: Any = None
+    settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         for name in ("shift", "scale", "params", "latency", "amplitude", "fwhm", "gof"):
             setattr(self, name, np.asarray(getattr(self, name), dtype=np.float64))
@@ -639,18 +650,18 @@ class TrialFit(_ResultMixin):
 class HierarchicalFit(_ResultMixin):
     """Trial → channel → subject model summary."""
 
-    levels: tuple
-    summary: object
-    level_tables: dict
-    p_response: object
-    variance_components: object
-    effects: object
+    levels: tuple[Any, ...]
+    summary: Any
+    level_tables: dict[str, Any]
+    p_response: Any
+    variance_components: Any
+    effects: Any
     engine: str
-    diagnostics: dict
-    settings: dict = field(default_factory=dict)
+    diagnostics: dict[str, Any]
+    settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         self.levels = tuple(self.levels)
         if self.engine not in ("eb", "numpyro", "pymc"):
@@ -658,12 +669,13 @@ class HierarchicalFit(_ResultMixin):
                 f"HierarchicalFit: engine must be 'eb', 'numpyro' or 'pymc', got {self.engine!r}."
             )
 
-    def _normal_draws(self, n_draws, random_state):
+    def _normal_draws(self, n_draws: Any, random_state: Any) -> dict[Any, Any]:
         """Draw from the normal approximation of the empirical-Bayes tables.
 
         The draws have the layout of ``diagnostics["draws"]`` (one chain).
         """
         rng = np.random.default_rng(random_state)
+        out: dict[Any, Any]
         out = {}
         tables = self.level_tables or {}
         for level, column in (("channel", "sites"), ("subject", "subjects")):
@@ -694,7 +706,7 @@ class HierarchicalFit(_ResultMixin):
                     ] * rng.standard_normal((1, n_draws, len(part)))
         return out
 
-    def to_arviz(self, *, n_draws=1000, random_state=None):
+    def to_arviz(self, *, n_draws: int = 1000, random_state: Any = None) -> Any:
         """Return the posterior as an ArviZ ``InferenceData`` (extra ``bayes``).
 
         With ArviZ 1.x, the ``DataTree`` that replaces it; for ``arviz`` summaries and plots.
@@ -765,22 +777,22 @@ class ArtifactResult(_ResultMixin):
 
     cleaned: "TrialSet"
     method: str
-    window: tuple
-    template: np.ndarray | None
-    quality: np.ndarray
-    quality_components: object
-    basis: np.ndarray | None = None
-    settings: dict = field(default_factory=dict)
+    window: tuple[Any, ...]
+    template: NDArray[Any] | None
+    quality: NDArray[Any]
+    quality_components: Any
+    basis: NDArray[Any] | None = None
+    settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         self.window = tuple(float(v) for v in self.window)
         self.template = _as_float_array(self.template)
         self.basis = _as_float_array(self.basis)
         self.quality = np.asarray(self.quality, dtype=np.float64)
 
-    def quality_summary(self):
+    def quality_summary(self) -> dict[str, Any]:
         """Summary of the per-trial quality scores.
 
         ``{"n_trials", "median", "p05"}`` (median and 5th percentile of the finite scores; None
@@ -799,18 +811,18 @@ class ArtifactResult(_ResultMixin):
 class ShapeBasis(_ResultMixin):
     """Shared response shapes across channels or stimulation sites."""
 
-    curves: np.ndarray
-    times: np.ndarray
-    weights: np.ndarray
-    r2: np.ndarray
-    assignment: object
-    stability: np.ndarray
+    curves: NDArray[Any]
+    times: NDArray[Any]
+    weights: NDArray[Any]
+    r2: NDArray[Any]
+    assignment: Any
+    stability: NDArray[Any]
     n_shapes: int
     method: str
-    settings: dict = field(default_factory=dict)
+    settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         for name in ("curves", "times", "weights", "r2", "stability"):
             setattr(self, name, np.asarray(getattr(self, name), dtype=np.float64))
@@ -826,18 +838,18 @@ class ShapeBasis(_ResultMixin):
 class TFFit(_ResultMixin):
     """Time-frequency maps, significance and data-driven zones."""
 
-    freqs: np.ndarray
-    times: np.ndarray
-    maps: dict
-    tmaps: np.ndarray
-    significant: np.ndarray
-    zones: object
-    zone_metrics: object
+    freqs: NDArray[Any]
+    times: NDArray[Any]
+    maps: dict[str, Any]
+    tmaps: NDArray[Any]
+    significant: NDArray[Any]
+    zones: Any
+    zone_metrics: Any
     method: str
-    settings: dict = field(default_factory=dict)
+    settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         self.freqs = np.asarray(self.freqs, dtype=np.float64)
         self.times = np.asarray(self.times, dtype=np.float64)
@@ -847,7 +859,7 @@ class TFFit(_ResultMixin):
         if self.significant.shape != self.tmaps.shape:
             raise DataError("TFFit: significant and tmaps must have the same shape.")
 
-    def to_mne(self, map="total", *, ch_type="misc"):  # noqa: A002  (public keyword of the API)
+    def to_mne(self, map: str = "total", *, ch_type: str = "misc") -> Any:  # noqa: A002  (public keyword of the API)
         """One map as ``mne.time_frequency.AverageTFR`` (extra ``mne``).
 
         Parameters
@@ -897,16 +909,16 @@ class TFFit(_ResultMixin):
             info, data, self.times, self.freqs, nave, comment=map, method=method
         )
 
-    def methods_text(self):
+    def methods_text(self) -> str:
         """Methods paragraph.
 
         Transform and its parameters, baseline window and mode, the statistic, alpha and the zone
         method (spec REQ-219).
         """
-        s = self.settings or {}
+        s: Any = self.settings or {}
         tp = s.get("transform_params") or {}
 
-        def _g(value):  # a value missing from the settings is named as such
+        def _g(value: Any) -> Any:  # a value missing from the settings is named as such
             return f"{value:g}" if isinstance(value, (int, float)) else "not recorded"
 
         transform = s.get("transform", "?")

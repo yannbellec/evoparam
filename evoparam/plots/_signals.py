@@ -15,10 +15,12 @@ never calls ``show()`` and uses the Okabe and Ito palette. The numbers they draw
 not the global state).
 """
 
+from collections.abc import Sequence
 from itertools import cycle
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray, RandomState
 from evoparam.errors import SettingsError
 from evoparam.stats import strip_jitter, waveform_band
 
@@ -27,7 +29,7 @@ from ._plots import PALETTE, _figure_ax
 __all__ = []
 
 
-def _style(ax, xlabel="Time (s)", ylabel="Amplitude"):
+def _style(ax: Any, xlabel: str = "Time (s)", ylabel: str = "Amplitude") -> None:
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(True, alpha=0.3)
@@ -35,7 +37,7 @@ def _style(ax, xlabel="Time (s)", ylabel="Amplitude"):
         ax.legend(loc="upper right")
 
 
-def _rows(values):
+def _rows(values: Any) -> Any:
     """List of 1-D rows from a 1-D array, a 2-D array or a list of 1-D arrays."""
     if isinstance(values, np.ndarray):
         return [values] if values.ndim == 1 else list(values)
@@ -43,8 +45,15 @@ def _rows(values):
 
 
 def plot_signals(
-    times, signals, *, colors=None, labels=None, ax=None, linewidth=2.0, ylabel="Amplitude"
-):
+    times: Any,
+    signals: Any,
+    *,
+    colors: str | Sequence[str] | None = None,
+    labels: str | Sequence[str] | None = None,
+    ax: Any = None,
+    linewidth: float = 2.0,
+    ylabel: str = "Amplitude",
+) -> Any:
     """Plot one or several waveforms.
 
     Parameters
@@ -72,19 +81,26 @@ def plot_signals(
         time_rows = _rows(times)
     if len(time_rows) != len(rows):
         raise SettingsError("times must be one array or one array per waveform.")
-    colors = cycle(
+    color_cycle = cycle(
         colors if isinstance(colors, (list, tuple)) else [colors] if colors else PALETTE
     )
-    labels = cycle(labels if isinstance(labels, (list, tuple)) else [labels])
-    for time, row, color, label in zip(time_rows, rows, colors, labels, strict=False):
+    label_cycle = cycle(labels if isinstance(labels, (list, tuple)) else [labels])
+    for time, row, color, label in zip(time_rows, rows, color_cycle, label_cycle, strict=False):
         ax.plot(time, row, color=color, label=label, linewidth=linewidth)
     _style(ax, ylabel=ylabel)
     return fig
 
 
 def plot_signals_shading(
-    times, signals, shades, *, shade_colors="#E69F00", add_center=False, ax=None, **kwargs
-):
+    times: Any,
+    signals: Any,
+    shades: Any,
+    *,
+    shade_colors: str | Sequence[str] = "#E69F00",
+    add_center: bool = False,
+    ax: Any = None,
+    **kwargs: Any,
+) -> Any:
     """Plot waveforms with one or several shaded time windows.
 
     Parameters
@@ -117,18 +133,18 @@ def plot_signals_shading(
 
 
 def plot_signals_yshade(
-    times,
-    signals,
+    times: FloatArray,
+    signals: FloatArray,
     *,
-    shade="std",
-    average="mean",
-    scale=1.0,
-    color=None,
-    label=None,
-    alpha=0.25,
-    ax=None,
-    ylabel="Amplitude",
-):
+    shade: str = "std",
+    average: str = "mean",
+    scale: float = 1.0,
+    color: str | None = None,
+    label: str | None = None,
+    alpha: float = 0.25,
+    ax: Any = None,
+    ylabel: str = "Amplitude",
+) -> Any:
     """Plot the average waveform with a shaded band above and below it.
 
     Parameters
@@ -160,7 +176,7 @@ def plot_signals_yshade(
     return fig
 
 
-def _alpha(n_points):
+def _alpha(n_points: Any) -> float:
     """Marker transparency that decreases with the number of points."""
     for limit, value in ((1000, 0.10), (500, 0.25), (100, 0.40)):
         if n_points > limit:
@@ -168,7 +184,15 @@ def _alpha(n_points):
     return 0.50
 
 
-def plot_scatter_1(data, label=None, title=None, *, x_val=0, ax=None, random_state=0):
+def plot_scatter_1(
+    data: ArrayLike,
+    label: str | None = None,
+    title: str | None = None,
+    *,
+    x_val: float = 0,
+    ax: Any = None,
+    random_state: RandomState = 0,
+) -> Any:
     """Strip plot of one set of values (horizontal jitter only for legibility).
 
     Parameters
@@ -192,7 +216,7 @@ def plot_scatter_1(data, label=None, title=None, *, x_val=0, ax=None, random_sta
     return _strip(data, positions, label, title, x_val, ax)
 
 
-def _strip(data, positions, label, title, x_val, ax):
+def _strip(data: Any, positions: Any, label: Any, title: Any, x_val: Any, ax: Any) -> Any:
     fig, ax = _figure_ax(ax, figsize=(3.0, 3.5))
     ax.scatter(positions, data, s=36, alpha=_alpha(data.size), color=PALETTE[0])
     if label:
@@ -204,7 +228,16 @@ def _strip(data, positions, label, title, x_val, ax):
     return fig
 
 
-def plot_scatter_2(data_0, label_0, data_1, label_1, title=None, *, ax=None, random_state=0):
+def plot_scatter_2(
+    data_0: Any,
+    label_0: Any,
+    data_1: Any,
+    label_1: Any,
+    title: Any = None,
+    *,
+    ax: Any = None,
+    random_state: int = 0,
+) -> Any:
     """Strip plots of two sets of values, each on its own vertical axis.
 
     Returns
@@ -227,7 +260,15 @@ def plot_scatter_2(data_0, label_0, data_1, label_1, title=None, *, ax=None, ran
     return fig
 
 
-def plot_hist(data, label, title=None, *, n_bins=25, x_lims=None, ax=None):
+def plot_hist(
+    data: Any,
+    label: Any,
+    title: Any = None,
+    *,
+    n_bins: int = 25,
+    x_lims: Any = None,
+    ax: Any = None,
+) -> Any:
     """Histogram of the finite values of ``data``.
 
     Returns

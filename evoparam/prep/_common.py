@@ -6,19 +6,20 @@ from dataclasses import replace
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data import TrialSet
 from evoparam.errors import DataError
 
 __all__ = []
 
 
-def check_trialset(ts):
+def check_trialset(ts: Any) -> "TrialSet":
     if not isinstance(ts, TrialSet):
         raise DataError(f"Expected a TrialSet, got {type(ts).__name__}.")
     return ts
 
 
-def window_mask(times, window, name="window"):
+def window_mask(times: Any, window: Any, name: str = "window") -> Any:
     """Boolean mask of the samples inside ``window`` (inclusive); DataError if empty."""
     inside = (times >= window[0]) & (times <= window[1])
     if not inside.any():
@@ -29,7 +30,7 @@ def window_mask(times, window, name="window"):
     return inside
 
 
-def masked_values(ts):
+def masked_values(ts: Any) -> Any:
     """Return the data with masked samples set to NaN (a copy)."""
     data = ts.data.copy()
     if ts.masks is not None:
@@ -37,7 +38,7 @@ def masked_values(ts):
     return data
 
 
-def new(ts, function, settings, start, **changes):
+def new(ts: Any, function: Any, settings: Any, start: Any, **changes: Any) -> Any:
     """Copy of ``ts`` with changes and one provenance step."""
     provenance = ts.provenance.with_step(
         function, settings, duration_s=_time.perf_counter() - start
@@ -47,7 +48,7 @@ def new(ts, function, settings, start, **changes):
     return replace(ts, provenance=provenance, **changes)
 
 
-def ch_table(ts):
+def ch_table(ts: Any) -> Any:
     """Return the channel table, or a minimal one built from the names."""
     import pandas as pd
 
@@ -56,8 +57,9 @@ def ch_table(ts):
     return pd.DataFrame({"name": list(ts.ch_names)})
 
 
-def stim_contacts(ts):
+def stim_contacts(ts: Any) -> list[set[Any]]:
     """Per trial, the set of stimulated contact names from ``metadata["stim_site"]``."""
+    out: list[set[Any]]
     out = [set() for _ in range(ts.n_trials)]
     if ts.metadata is None or "stim_site" not in ts.metadata.columns:
         return out
@@ -66,7 +68,7 @@ def stim_contacts(ts):
     return out
 
 
-def bad_channels(ts):
+def bad_channels(ts: Any) -> set[Any]:
     """Set of channel names marked bad in ``ch_info``."""
     if ts.ch_info is None or "bad" not in ts.ch_info.columns:
         return set()

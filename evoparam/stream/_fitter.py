@@ -12,9 +12,12 @@ import dataclasses
 import heapq
 import statistics
 import time
+from collections.abc import Callable
+from typing import cast
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray
 from evoparam.data import TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
@@ -60,7 +63,7 @@ class PulseEstimate:
     status: str
 
 
-def _quantile(values, q):
+def _quantile(values: Any, q: Any) -> Any:
     """Quantile of the compute times (linear interpolation between order statistics)."""
     if len(values) == 1:
         return values[0]
@@ -127,30 +130,30 @@ class StreamFitter:
 
     def __init__(
         self,
-        template,
+        template: Any,
         *,
-        sfreq,
-        ch_names,
-        window=None,
-        artifact_window=None,
-        detector="threshold",
-        detector_channel=None,
-        max_shift=0.005,
-        existence_threshold_sd=3.0,
-        buffer_seconds=5.0,
-        backend="numpy",
-        saturation=None,
-        existence_alpha=0.05,
-        existence_max_pulses=100,
-        existence_looks="pulse",
-        random_state=None,
-        mode="shift_scale",
-    ):
+        sfreq: float,
+        ch_names: Any,
+        window: Any = None,
+        artifact_window: Any = None,
+        detector: str | Callable[..., Any] = "threshold",
+        detector_channel: Any = None,
+        max_shift: float = 0.005,
+        existence_threshold_sd: float = 3.0,
+        buffer_seconds: float = 5.0,
+        backend: str = "numpy",
+        saturation: Any = None,
+        existence_alpha: float = 0.05,
+        existence_max_pulses: int = 100,
+        existence_looks: str = "pulse",
+        random_state: Any = None,
+        mode: str = "shift_scale",
+    ) -> None:
         if backend not in BACKENDS:
             raise SettingsError(f"backend must be one of {BACKENDS}, not {backend!r}.")
-        self.sfreq = float(sfreq)
-        self.ch_names = [str(name) for name in ch_names]
-        self.model = FixedShapeModel(
+        self.sfreq: float = float(sfreq)
+        self.ch_names: list[str] = [str(name) for name in ch_names]
+        self.model: FixedShapeModel = FixedShapeModel(
             template,
             sfreq=sfreq,
             ch_names=self.ch_names,
@@ -159,7 +162,7 @@ class StreamFitter:
             max_shift=max_shift,
             mode=mode,
         )
-        self.settings = {
+        self.settings: dict[Any, Any] = {
             "window": list(self.model.window),
             "max_shift": float(max_shift),
             "mode": mode,
@@ -179,8 +182,8 @@ class StreamFitter:
             "random_state": random_state,
             "intended_use": INTENDED_USE,
         }
-        self.saturation = None if saturation is None else float(saturation)
-        self.existence_stats = OnlineExistence(
+        self.saturation: float | None = None if saturation is None else float(saturation)
+        self.existence_stats: OnlineExistence = OnlineExistence(
             len(self.model.ch_names),
             threshold_sd=existence_threshold_sd,
             alpha=existence_alpha,
@@ -213,6 +216,7 @@ class StreamFitter:
         else:
             raise SettingsError(f"detector_channel: unknown channel {detector_channel!r}.")
         self._detector_picks = np.array([self.ch_names.index(name) for name in det_names])
+        self.detector: OnlinePulseDetector | Callable[..., Any]
         if detector == "threshold":
             self.detector = OnlinePulseDetector(self.sfreq, len(det_names))
         elif callable(detector):
@@ -224,21 +228,23 @@ class StreamFitter:
     ###############################################################################################
     ## State
 
-    def reset(self):
+    def reset(self) -> None:
         """Forget the stream: buffer, pending pulses, detector, existence test and timings."""
         self._buffer = np.zeros((len(self.ch_names), self._n_buffer))
         self._stamps = np.zeros(self._n_buffer)
         self._has_stamps = False
-        self.n_samples = 0
+        self.n_samples: int = 0
+        self._pending: list[Any]
         self._pending = []
+        self._compute_ms: list[Any]
         self._compute_ms = []
-        self.n_pulses = 0
+        self.n_pulses: int = 0
         if isinstance(self.detector, OnlinePulseDetector):
             self.detector.reset()
         self.existence_stats.reset()
 
     @property
-    def latency_stats(self):
+    def latency_stats(self) -> Any:
         """Compute time per pulse (ms).
 
         ``p50``, ``p95``, ``p99`` and ``max`` (``n_pulses`` pulses so far).
@@ -258,7 +264,7 @@ class StreamFitter:
             "max": values[-1],
         }
 
-    def existence(self, final=False):
+    def existence(self, final: bool = False) -> dict[str, Any]:
         """Return the running existence test, per channel (a look of the sequential test).
 
         ``final=True`` declares the end of the stream and spends what remains of the error
@@ -272,7 +278,7 @@ class StreamFitter:
     ###############################################################################################
     ## Input
 
-    def _time_of(self, sample):
+    def _time_of(self, sample: Any) -> Any:
         """Stream-clock time of a sample (its timestamp when the stream has them)."""
         if not self._has_stamps:
             return sample / self.sfreq
@@ -283,7 +289,7 @@ class StreamFitter:
         anchor = min(max(sample, oldest), newest)
         return float(self._stamps[anchor % self._n_buffer]) + (sample - anchor) / self.sfreq
 
-    def push_pulse(self, onset_time):
+    def push_pulse(self, onset_time: Any) -> None:
         """Register a pulse at ``onset_time`` (s, stream clock) from an external trigger."""
         if self._has_stamps and self.n_samples:
             oldest = max(0, self.n_samples - self._n_buffer)
@@ -296,7 +302,7 @@ class StreamFitter:
             sample = int(round(onset_time * self.sfreq))
         heapq.heappush(self._pending, (sample, float(onset_time)))
 
-    def push(self, samples, timestamps=None):
+    def push(self, samples: Any, timestamps: Any = None) -> list[Any]:
         """Add samples ``[n_samples, n_channels]`` (one sample may be 1-d).
 
         Returns the :class:`PulseEstimate` of every pulse whose window is complete.
@@ -321,7 +327,7 @@ class StreamFitter:
             out.extend(self._push_chunk(chunk, stamps))
         return out
 
-    def _push_chunk(self, chunk, stamps):
+    def _push_chunk(self, chunk: Any, stamps: Any) -> list[Any]:
         first = self.n_samples
         rows = np.arange(first, first + len(chunk)) % self._n_buffer
         self._buffer[:, rows] = chunk.T
@@ -344,7 +350,7 @@ class StreamFitter:
     ###############################################################################################
     ## Estimation
 
-    def _segment(self, first, length):
+    def _segment(self, first: Any, length: Any) -> FloatArray:
         """Return the samples ``first`` ... ``first + length - 1`` of the modelled channels."""
         start = first % self._n_buffer
         stop = start + length
@@ -354,9 +360,12 @@ class StreamFitter:
                 if self._all_picked
                 else self._buffer[self._picks, start:stop]
             )
-        return self._buffer[self._picks[:, None], np.arange(start, stop) % self._n_buffer]
+        return cast(
+            "FloatArray",
+            self._buffer[self._picks[:, None], np.arange(start, stop) % self._n_buffer],
+        )
 
-    def _estimate(self, onset, pulse_time):
+    def _estimate(self, onset: Any, pulse_time: Any) -> list[Any]:
         start = time.perf_counter()
         oldest = max(0, self.n_samples - self._n_buffer)
         if onset + self._window_rows[0] < oldest:
@@ -381,7 +390,7 @@ class StreamFitter:
         self.n_pulses += 1
         late = compute_ms > BUDGET_MS
         finite = res["finite"].tolist()
-        sat = saturated.tolist() if saturated is not None else [False] * len(finite)
+        sat: Any = saturated.tolist() if saturated is not None else [False] * len(finite)
         amp, lat = res["amplitude"].tolist(), res["latency"].tolist()
         scale, shift, r2 = res["scale"].tolist(), res["shift"].tolist(), res["r2"].tolist()
         z, present = z.tolist(), present.tolist()
@@ -412,7 +421,7 @@ class StreamFitter:
         return out
 
 
-def replay(trialset_or_raw, fitter, chunk_size=32):
+def replay(trialset_or_raw: Any, fitter: "StreamFitter", chunk_size: int = 32) -> list[Any]:
     """Push recorded data through ``fitter`` in chunks, as a stream would deliver it.
 
     Parameters
@@ -448,7 +457,9 @@ def replay(trialset_or_raw, fitter, chunk_size=32):
         data = ts.data[:, index]
         if ts.masks is not None:
             data = np.where(ts.masks[:, index], np.nan, data)
+        stream: Any
         stream = np.swapaxes(data, 1, 2).reshape(-1, len(index))
+        pulse_samples: Any
         pulse_samples = start + np.arange(ts.n_trials) * ts.n_times + zero
     else:
         raw = np.asarray(trialset_or_raw, float)

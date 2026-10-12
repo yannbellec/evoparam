@@ -14,17 +14,25 @@ centre + duration / 2] x [freq]``. The bursts are added to noise of
 
 import time as _time
 from dataclasses import replace
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray, RandomState
 from evoparam.errors import SettingsError
 
 from ._engine import assemble, seed_streams, time_axis
 
+if TYPE_CHECKING:
+    from evoparam.data import TrialSet
+    from evoparam.sim._truth import GroundTruth
+
 __all__ = ["simulate_bursts", "burst_waveform"]
 
 
-def burst_waveform(times, *, freq, centre, duration, amplitude, phase=0.0):
+def burst_waveform(
+    times: Any, *, freq: Any, centre: Any, duration: Any, amplitude: Any, phase: ArrayLike = 0.0
+) -> FloatArray:
     """One burst on ``times``: ``amplitude * hann(t) * cos(2 pi freq t + phase)``.
 
     ``phase`` may be an array of shape (n_trials,), the result then has shape
@@ -35,18 +43,21 @@ def burst_waveform(times, *, freq, centre, duration, amplitude, phase=0.0):
     envelope = np.where(
         np.abs(rel) <= duration / 2.0, 0.5 + 0.5 * np.cos(2.0 * np.pi * rel / float(duration)), 0.0
     )
-    phase = np.asarray(phase, float)
-    return (
-        float(amplitude) * envelope * np.cos(2.0 * np.pi * float(freq) * times + phase[..., None])
+    phases = np.asarray(phase, float)
+    return cast(
+        "FloatArray",
+        float(amplitude)
+        * envelope
+        * np.cos(2.0 * np.pi * float(freq) * times + phases[..., None]),
     )
 
 
-def _check_burst(burst, n_channels, ch_names, sfreq):
+def _check_burst(burst: Any, n_channels: int, ch_names: Any, sfreq: float) -> dict[str, Any]:
     keys = {"freq", "centre", "duration", "amplitude"}
     missing = keys - set(burst)
     if missing:
         raise SettingsError(f"simulate_bursts: burst {burst} lacks {sorted(missing)}.")
-    out = {key: float(burst[key]) for key in keys}
+    out: dict[str, Any] = {key: float(burst[key]) for key in keys}  # floats, and the channel
     if not 0 < out["freq"] < sfreq / 2:
         raise SettingsError(f"simulate_bursts: freq {out['freq']} Hz must be in (0, sfreq/2).")
     if not out["duration"] > 0:
@@ -63,19 +74,19 @@ def _check_burst(burst, n_channels, ch_names, sfreq):
 
 
 def simulate_bursts(
-    n_trials=30,
+    n_trials: int = 30,
     *,
-    n_channels=1,
-    sfreq=1000.0,
-    tmin=-0.6,
-    tmax=0.8,
-    bursts=(),
-    noise="ar1",
-    noise_sd=10.0,
-    noise_kw=None,
-    seed=None,
-    keep_arrays=True,
-):
+    n_channels: int = 1,
+    sfreq: float = 1000.0,
+    tmin: float = -0.6,
+    tmax: float = 0.8,
+    bursts: Any = (),
+    noise: str = "ar1",
+    noise_sd: float = 10.0,
+    noise_kw: dict[str, Any] | None = None,
+    seed: RandomState | None = None,
+    keep_arrays: bool = True,
+) -> tuple["TrialSet", "GroundTruth"]:
     """Simulate trials with induced oscillatory bursts (random phase per trial).
 
     Parameters

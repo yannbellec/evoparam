@@ -14,7 +14,7 @@ Array = npt.NDArray[np.float64]
 
 class Triangle:
     name: str = "triangle"
-    param_names: tuple = ("centre", "half_width")
+    param_names: tuple[str, ...] = ("centre", "half_width")
     n_params: int = 2
     latency_param: str = "centre"
     kind: ClassVar[str] = "component"

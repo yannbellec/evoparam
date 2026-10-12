@@ -21,6 +21,7 @@ method, at every sample.
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, BoolArray, FloatArray, IntArray, NDArray
 from evoparam.errors import SettingsError
 
 __all__ = []
@@ -33,16 +34,17 @@ TRUST_SD = 3.0
 CHUNK = 512
 
 
-def _poly_rows(n_window, order, positions):
+def _poly_rows(n_window: Any, order: Any, positions: Any) -> FloatArray:
     """Rows of the least-squares projection: fit on 0..n_window-1, evaluated at positions."""
     x = np.arange(n_window, dtype=float)
     x = (x - x.mean()) / max(x.std(), 1.0)
     design = np.vander(x, order + 1)
     evaluate = np.vander(x[positions], order + 1)
-    return evaluate @ np.linalg.pinv(design)
+    rows: FloatArray = evaluate @ np.linalg.pinv(design)
+    return rows
 
 
-def _local_weights(fit, window_inds, baseline_inds, railed, half):
+def _local_weights(fit: Any, window_inds: Any, baseline_inds: Any, railed: Any, half: Any) -> Any:
     """Weight of the subtraction at each sample (rows of ``fit``).
 
     1 from the window start to the end of the artifact, half-cosine ramps of ``half`` samples, 0
@@ -90,16 +92,16 @@ def _local_weights(fit, window_inds, baseline_inds, railed, half):
 
 
 def polynomial_clean(
-    data,
-    sfreq,
-    railed=None,
+    data: ArrayLike,
+    sfreq: float,
+    railed: BoolArray | None = None,
     *,
-    halfwidth=0.003,
-    order=3,
-    extent="global",
-    window_inds=None,
-    baseline_inds=None,
-):
+    halfwidth: float = 0.003,
+    order: int = 3,
+    extent: str = "global",
+    window_inds: IntArray | None = None,
+    baseline_inds: IntArray | None = None,
+) -> tuple[NDArray[Any], Any]:
     """Subtract a local polynomial fit from each series (time last).
 
     Parameters
@@ -161,7 +163,9 @@ def polynomial_clean(
     return cleaned.reshape(shape), masked.reshape(shape)
 
 
-def _depeg(flat, cleaned, masked, rails, half, n_window, order):
+def _depeg(
+    flat: Any, cleaned: Any, masked: Any, rails: Any, half: Any, n_window: Any, order: Any
+) -> None:
     """Zeros while railed, one-sided fits next to the rail, masked until trusted (in place)."""
     forward = _poly_rows(n_window, order, np.arange(half))  # fit on [t0, t0 + 2 tau]
     backward = _poly_rows(n_window, order, np.arange(half + 1, n_window))

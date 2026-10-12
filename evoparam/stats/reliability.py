@@ -22,9 +22,12 @@ scores; the root mean square over units is reported.
 
 import time as _time
 import warnings
+from collections.abc import Callable, Sequence
+from typing import cast
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, NDArray, RandomState
 from evoparam.data import Evoked, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
@@ -98,7 +101,7 @@ _POWER_SCORES = ("peak_latency", "fractional_area_latency")
 ## Formulas
 
 
-def spearman_brown(r, factor=2.0):
+def spearman_brown(r: Any, factor: float = 2.0) -> Any:
     """Reliability of a test ``factor`` times longer: ``k r / (1 + (k - 1) r)``.
 
     Examples
@@ -111,7 +114,7 @@ def spearman_brown(r, factor=2.0):
     return float(out) if out.ndim == 0 else out
 
 
-def dependability(var_unit, var_trial, n_trials):
+def dependability(var_unit: Any, var_trial: Any, n_trials: ArrayLike) -> Any:
     """Dependability ``Phi = var_unit / (var_unit + var_trial / n)`` of a mean over n trials.
 
     Examples
@@ -125,13 +128,13 @@ def dependability(var_unit, var_trial, n_trials):
     return float(out) if np.ndim(out) == 0 else out
 
 
-def _trials_for(target, var_unit, var_trial):
+def _trials_for(target: Any, var_unit: Any, var_trial: Any) -> float:
     if var_unit <= 0:
         return np.inf
     return float(np.ceil(target / (1 - target) * var_trial / var_unit - 1e-9))
 
 
-def _pearson(x, y):
+def _pearson(x: Any, y: Any) -> NDArray[Any]:
     """Correlation of the columns of x and y [n_units, k] (NaN rows left out per column)."""
     ok = np.isfinite(x) & np.isfinite(y)
     n = ok.sum(axis=0)
@@ -140,8 +143,11 @@ def _pearson(x, y):
     my = np.divide(ys.sum(axis=0), n, out=np.full(n.shape, np.nan), where=n > 0)
     dx, dy = np.where(ok, x - mx, 0.0), np.where(ok, y - my, 0.0)
     den = np.sqrt((dx**2).sum(axis=0) * (dy**2).sum(axis=0))
-    return np.divide(
-        (dx * dy).sum(axis=0), den, out=np.full(n.shape, np.nan), where=(den > 0) & (n >= 3)
+    return cast(
+        "NDArray[Any]",
+        np.divide(
+            (dx * dy).sum(axis=0), den, out=np.full(n.shape, np.nan), where=(den > 0) & (n >= 3)
+        ),
     )
 
 
@@ -149,14 +155,14 @@ def _pearson(x, y):
 ## Helpers
 
 
-def _check_trialset(ts, caller):
+def _check_trialset(ts: Any, caller: Any) -> None:
     if isinstance(ts, Evoked):
         raise DataError(f"{caller} needs single trials: give a TrialSet, not an Evoked.")
     if not isinstance(ts, TrialSet):
         raise DataError(f"{caller} expects a TrialSet.")
 
 
-def _trial_data(ts, index):
+def _trial_data(ts: Any, index: Any) -> tuple[NDArray[Any], Any]:
     """Trials of the picked channels with masked samples as NaN, and the kept trial rows."""
     keep = np.ones(ts.n_trials, bool)
     if ts.metadata is not None and "rejected" in ts.metadata.columns:
@@ -167,7 +173,7 @@ def _trial_data(ts, index):
     return data, keep
 
 
-def _scorer_on_window(scorer, times, window, scorer_kw):
+def _scorer_on_window(scorer: Any, times: Any, window: Any, scorer_kw: Any) -> Any:
     """Return the scorer of waveforms cropped to the window, or of whole waveforms.
 
     Cropped for a named score, whole for a callable; returns the scorer, its name, linearity, the
@@ -182,11 +188,13 @@ def _scorer_on_window(scorer, times, window, scorer_kw):
     return func, name, linear, window, np.ones(len(times), bool)
 
 
-def _nanmean(x, axis):
+def _nanmean(x: Any, axis: Any) -> NDArray[Any]:
     finite = np.isfinite(x)
     count = finite.sum(axis=axis)
     total = np.where(finite, x, 0.0).sum(axis=axis)
-    return np.divide(total, count, out=np.full(count.shape, np.nan), where=count > 0)
+    return cast(
+        "NDArray[Any]", np.divide(total, count, out=np.full(count.shape, np.nan), where=count > 0)
+    )
 
 
 ###################################################################################################
@@ -194,18 +202,18 @@ def _nanmean(x, axis):
 
 
 def reliability(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed by spec §5.11)
-    ts,
+    ts: "TrialSet",
     *,
-    scorer="mean_amplitude",
-    facets=("trial", "subject"),
-    method="both",
-    n_splits=1000,
-    target_phi=0.70,
-    random_state=None,
-    window=None,
-    picks=None,
-    **scorer_kw,
-):
+    scorer: str | Callable[..., Any] = "mean_amplitude",
+    facets: Sequence[str] = ("trial", "subject"),
+    method: str = "both",
+    n_splits: int = 1000,
+    target_phi: float = 0.70,
+    random_state: RandomState | None = None,
+    window: tuple[float, float] | None = None,
+    picks: Sequence[str] | None = None,
+    **scorer_kw: Any,
+) -> Any:
     """Split-half reliability, dependability and the trials needed for a target dependability.
 
     Parameters
@@ -310,14 +318,14 @@ def reliability(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed b
     for k, rows in enumerate(units):
         unit_of[rows] = k
 
-    def half_scores(selector):
+    def half_scores(selector: Any) -> Any:
         """Scores of the averages of a subset of each unit's trials -> (n_units, n_ch)."""
         if linear:
             return np.stack([_nanmean(trial_scores[rows[selector(rows)]], 0) for rows in units])
         avgs = np.stack([_nanmean(data[rows[selector(rows)]], 0) for rows in units])
         return func(avgs)
 
-    out = {
+    out: dict[str, NDArray[Any]] = {
         "split_half_odd_even": np.full(n_ch, np.nan),
         "split_half_random": np.full(n_ch, np.nan),
         "split_half_low": np.full(n_ch, np.nan),
@@ -390,7 +398,15 @@ def reliability(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed b
     return table
 
 
-def _random_splits(units, data, trial_scores, func, linear, n_splits, rng):
+def _random_splits(
+    units: Any,
+    data: Any,
+    trial_scores: Any,
+    func: Any,
+    linear: Any,
+    n_splits: Any,
+    rng: np.random.Generator,
+) -> dict[str, Any]:
     """Spearman-Brown corrected correlations of random halves: mean and 95 % range."""
     n_ch = trial_scores.shape[1]
     r_sb = np.full((n_splits, n_ch), np.nan)
@@ -433,7 +449,9 @@ def _random_splits(units, data, trial_scores, func, linear, n_splits, rng):
         }
 
 
-def _sme_rms(units, data, trial_scores, func, linear, rng):
+def _sme_rms(
+    units: Any, data: Any, trial_scores: Any, func: Any, linear: Any, rng: np.random.Generator
+) -> NDArray[Any]:
     """Root mean square over units of the standardised measurement error of their score."""
     n_ch = trial_scores.shape[1]
     sme = np.full((len(units), n_ch), np.nan)
@@ -464,14 +482,15 @@ def _sme_rms(units, data, trial_scores, func, linear, rng):
             sme[k] = np.nanstd(boot, axis=0, ddof=1)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        return np.sqrt(np.nanmean(sme**2, axis=0))
+        rms: NDArray[Any] = np.sqrt(np.nanmean(sme**2, axis=0))
+    return rms
 
 
 ###################################################################################################
 ## Trial-count planning
 
 
-def _extrapolate(sd, n_recorded, targets, law):
+def _extrapolate(sd: Any, n_recorded: Any, targets: Any, law: Any) -> Any:
     """SD at ``targets`` (> n_recorded) from the resampled SDs ``sd`` {count: (n_ch,)}.
 
     ``sqrt_n``: ``c / sqrt(n)``, ``c`` the mean of ``sd(m) * sqrt(m)`` over the counts
@@ -499,18 +518,18 @@ def _extrapolate(sd, n_recorded, targets, law):
 
 
 def trials_needed(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.11)
-    ts,
+    ts: "TrialSet",
     *,
-    scorer="existence",
-    steps=None,
-    n_resamples=200,
-    random_state=None,
-    window=None,
-    picks=None,
-    existence_kwargs=None,
-    extrapolation="auto",
-    **scorer_kw,
-):
+    scorer: str | Callable[..., Any] = "existence",
+    steps: Sequence[int] | None = None,
+    n_resamples: int = 200,
+    random_state: RandomState | None = None,
+    window: tuple[float, float] | None = None,
+    picks: Sequence[str] | None = None,
+    existence_kwargs: dict[str, Any] | None = None,
+    extrapolation: str = "auto",
+    **scorer_kw: Any,
+) -> Any:
     """How a score's precision, or the chance of detecting the response, grows with trials.
 
     Parameters
@@ -601,7 +620,12 @@ def trials_needed(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     records = []
     law, exponents = None, None
     if scorer == "existence":
-        kwargs = {"n_permutations": 200, "correction": "none", "n_boot": 0, "by": ()}
+        kwargs: dict[str, Any] = {
+            "n_permutations": 200,
+            "correction": "none",
+            "n_boot": 0,
+            "by": (),
+        }
         if window is not None:
             kwargs["window"] = window
         kwargs.update(existence_kwargs or {})

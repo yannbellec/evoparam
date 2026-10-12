@@ -21,10 +21,12 @@ import warnings
 
 import numpy as np
 
+from evoparam._typing import Any, StrPath
+from evoparam.data._harmonize import _is_missing, _stimulation_rows
 from evoparam.errors import ReaderError
 from evoparam.utils._optional import require
 
-from ._harmonize import STIM_FIELDS, _is_missing, _stimulation_rows, harmonize_stim_events
+from ._harmonize import STIM_FIELDS, harmonize_stim_events
 
 __all__ = ["validate_stim_metadata", "format_stim_report", "VALIDATOR_FIELDS", "STATUSES"]
 
@@ -60,7 +62,7 @@ _KNOWN_TYPES = {
 }
 
 
-def _events_files(root, subject):
+def _events_files(root: Any, subject: Any) -> list[Any]:
     subjects = (
         [f"sub-{subject.removeprefix('sub-')}"]
         if subject
@@ -79,7 +81,9 @@ def _events_files(root, subject):
     return sorted(set(files))
 
 
-def _field_status(name, values, n_rows, units, mapping, messages):
+def _field_status(
+    name: Any, values: Any, n_rows: Any, units: Any, mapping: Any, messages: Any
+) -> Any:
     """(status, message) of one stimulation field over the stimulation rows."""
     if name == "stim_polarity":
         filled = [not _is_missing(v) and v != "n/a" for v in values]
@@ -123,12 +127,12 @@ def _field_status(name, values, n_rows, units, mapping, messages):
     return "present", f"{name} from {column!r}" + (f" ({unit})" if unit else "")
 
 
-def _read_tsv(path):
+def _read_tsv(path: Any) -> Any:
     pd = require("pandas", extra="data", caller="evoparam.io.validate_stim_metadata")
     return pd.read_csv(path, sep="\t", na_values=["n/a"], keep_default_na=False)
 
 
-def _channel_rows(folder, stem_parts, recording, n_events):
+def _channel_rows(folder: Any, stem_parts: Any, recording: Any, n_events: Any) -> Any:
     """Statuses of reference, type and coordinates for one run."""
     stem = "_".join(
         f"{k}-{stem_parts[k]}" for k in ("sub", "ses", "task", "acq", "run") if stem_parts.get(k)
@@ -145,7 +149,7 @@ def _channel_rows(folder, stem_parts, recording, n_events):
         None,
     )
 
-    def column_values(table, column):
+    def column_values(table: Any, column: Any) -> Any:
         if table is None or column not in table.columns:
             return None
         return ["" if _is_missing(v) else str(v).strip() for v in table[column].tolist()]
@@ -263,11 +267,13 @@ def _channel_rows(folder, stem_parts, recording, n_events):
     return [(field, status, n_events, message) for field, status, message in rows]
 
 
-def _sidecars(root, folder, parts, datatype):
+def _sidecars(
+    root: Any, folder: Any, parts: Any, datatype: Any
+) -> tuple[dict[Any, Any], dict[Any, Any]]:
     """events.json by inheritance (dataset root, task, run) and the recording sidecar."""
     import json
 
-    def load(path):
+    def load(path: Any) -> Any:
         if not os.path.isfile(path):
             return {}
         with open(path, encoding="utf-8") as fobj:
@@ -295,7 +301,9 @@ def _sidecars(root, folder, parts, datatype):
     return sidecar, recording
 
 
-def validate_stim_metadata(bids_root, *, subject=None, strict=False):
+def validate_stim_metadata(
+    bids_root: StrPath, *, subject: str | None = None, strict: bool = False
+) -> Any:
     """Which stimulation metadata a local BIDS dataset states, run by run (REQ-314).
 
     Parameters
@@ -401,7 +409,7 @@ def validate_stim_metadata(bids_root, *, subject=None, strict=False):
     return table
 
 
-def format_stim_report(table):
+def format_stim_report(table: Any) -> Any:
     """Plain-text report of :func:`validate_stim_metadata`.
 
     One block per run, one line per field (``status  field  message``), and the counts of each

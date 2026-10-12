@@ -72,7 +72,9 @@ class ConvergenceWarning(UserWarning):
     """Trial fits or MCMC chains did not converge."""
 
 
-def warn(message, category=UserWarning, stacklevel=2):
+def warn(
+    message: str | Warning, category: type[Warning] = UserWarning, stacklevel: int = 2
+) -> None:
     """Issue a warning and log it on the ``evoparam`` logger at WARNING level.
 
     Every warning of the package goes through this function, so that it is also logged

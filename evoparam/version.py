@@ -29,6 +29,6 @@ ALGORITHM_VERSIONS = {
 }
 
 
-def algorithm_version(function):
+def algorithm_version(function: str) -> str:
     """Version string of the algorithm behind ``function`` (a dotted public name)."""
     return ALGORITHM_VERSIONS.get(function, DEFAULT_ALGORITHM_VERSION)

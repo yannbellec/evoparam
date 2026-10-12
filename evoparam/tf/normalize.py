@@ -5,6 +5,7 @@ import warnings
 
 import numpy as np
 
+from evoparam._typing import Any, BoolArray, FloatArray
 from evoparam.errors import SettingsError
 
 __all__ = ["BASELINE_MODES", "BASELINE_LEVELS", "apply_mode", "normalize"]
@@ -13,7 +14,7 @@ BASELINE_MODES = ("db", "percent", "zscore", "logratio", "ratio")
 BASELINE_LEVELS = ("evoked", "single_trial", "full_epoch")
 
 
-def apply_mode(power, ref, sd, mode):
+def apply_mode(power: Any, ref: Any, sd: Any, mode: Any) -> Any:
     """Normalised power for a reference level ``ref`` (and spread ``sd`` for ``zscore``)."""
     with np.errstate(divide="ignore", invalid="ignore"):
         ref = np.where(ref > 0, ref, np.nan)
@@ -31,19 +32,21 @@ def apply_mode(power, ref, sd, mode):
     raise SettingsError(f"baseline_mode must be one of {BASELINE_MODES}, not {mode!r}.")
 
 
-def _nanmean(a, axis):
+def _nanmean(a: Any, axis: Any) -> Any:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         return np.nanmean(a, axis=axis)
 
 
-def _nanstd(a, axis):
+def _nanstd(a: Any, axis: Any) -> Any:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         return np.nanstd(a, axis=axis, ddof=1)
 
 
-def normalize(power, ref_times, mode, level, trials=None):
+def normalize(
+    power: FloatArray, ref_times: BoolArray, mode: str, level: str, trials: Any = None
+) -> tuple[Any, Any, Any]:
     """Normalise per-trial power (n_trials, n_freqs, n_times).
 
     Parameters
@@ -116,7 +119,7 @@ def normalize(power, ref_times, mode, level, trials=None):
     return per_trial, reported, test
 
 
-def reference_level(average_power, ref_times, _mode):
+def reference_level(average_power: Any, ref_times: Any, _mode: Any) -> tuple[Any, Any]:
     """Return the reference (and spread) of a trial-average power map.
 
     For normalising other maps (the footprint) on the total's scale.

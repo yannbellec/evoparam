@@ -13,12 +13,14 @@ import hashlib
 import os
 import platform
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from importlib import metadata
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, StrPath
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data._jsonutil import dumps, loads, to_jsonable
 from evoparam.version import __version__, algorithm_version
@@ -47,7 +49,7 @@ OPTIONAL_PACKAGES = (
 )
 
 
-def fixed_clock():
+def fixed_clock() -> int | None:
     """Seconds since the epoch from ``SOURCE_DATE_EPOCH``, or None.
 
     ``SOURCE_DATE_EPOCH`` is the convention of reproducible builds. When it is set, every
@@ -64,14 +66,14 @@ def fixed_clock():
         return None
 
 
-def elapsed(start):
+def elapsed(start: float) -> float:
     """Seconds since ``start`` (a ``time.perf_counter()`` value); 0 with a fixed clock."""
     import time
 
     return 0.0 if fixed_clock() is not None else time.perf_counter() - start
 
 
-def _now_utc():
+def _now_utc() -> str:
     epoch = fixed_clock()
     when = (
         datetime.fromtimestamp(epoch, timezone.utc)
@@ -81,14 +83,14 @@ def _now_utc():
     return when.isoformat(timespec="milliseconds")
 
 
-def _package_version(name):
+def _package_version(name: str) -> str | None:
     try:
         return metadata.version(name)
     except metadata.PackageNotFoundError:
         return None
 
 
-def _cpu_name():
+def _cpu_name() -> str | None:
     name = platform.processor()
     if name:
         return name
@@ -102,7 +104,7 @@ def _cpu_name():
     return None
 
 
-def _git_commit():
+def _git_commit() -> str | None:
     """Commit of the package source tree when installed from a git checkout."""
     git_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), os.pardir, ".git"
@@ -126,7 +128,7 @@ def _git_commit():
     return None
 
 
-def _lock_path():
+def _lock_path() -> str:
     """Return the lock file of this Python minor version (REQ-309 c).
 
     ``ci/locks/pyX.Y.lock`` of the source tree, or of the folder named by ``EVOPARAM_LOCK_DIR``.
@@ -137,7 +139,7 @@ def _lock_path():
     return os.path.join(folder, "py{}.{}.lock".format(*sys.version_info[:2]))
 
 
-def lock_sha256(path=None):
+def lock_sha256(path: StrPath | None = None) -> str | None:
     """Return the SHA-256 of the lock file when the environment matches it (REQ-309 d).
 
     The installed packages must be exactly its pins for this interpreter (every applicable pin
@@ -177,7 +179,7 @@ def lock_sha256(path=None):
 
 
 @functools.lru_cache(maxsize=1)
-def _environment():
+def _environment() -> dict[str, Any]:
     return {
         "python": platform.python_version(),
         "platform": platform.platform(),
@@ -194,14 +196,14 @@ def _environment():
     }
 
 
-def capture_environment():
+def capture_environment() -> dict[str, Any]:
     """Return the software environment as a JSON-serialisable dictionary."""
     # the plugins a result used are added by the functions that use them (models, readers):
     # environment["plugins"] = {name: "dist==version"}, absent without plugins (spec §10.8)
     return copy.deepcopy(_environment())
 
 
-def compute_data_hash(data, times, ch_names):
+def compute_data_hash(data: ArrayLike, times: ArrayLike, ch_names: Sequence[str]) -> str:
     """SHA-256 of the data bytes, the time axis and the channel names.
 
     The data are hashed one slice of the first axis at a time, so a
@@ -245,13 +247,13 @@ class Provenance(DeepEqualMixin):
 
     package_version: str = __version__
     created: str = field(default_factory=_now_utc)
-    source: dict = field(default_factory=dict)
-    steps: list = field(default_factory=list)
-    environment: dict = field(default_factory=capture_environment)
+    source: dict[str, Any] = field(default_factory=dict)
+    steps: list[Any] = field(default_factory=list)
+    environment: dict[str, Any] = field(default_factory=capture_environment)
     random_state: int | None = None
     data_hash: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         self.source = to_jsonable(dict(self.source))
         self.steps = to_jsonable(list(self.steps))
@@ -259,11 +261,17 @@ class Provenance(DeepEqualMixin):
         if self.random_state is not None:
             self.random_state = int(self.random_state)
 
-    def copy(self):
+    def copy(self) -> "Provenance":
         """Return a deep copy."""
         return copy.deepcopy(self)
 
-    def with_step(self, function, settings=None, duration_s=None, **extra):
+    def with_step(
+        self,
+        function: str,
+        settings: dict[str, Any] | None = None,
+        duration_s: float | None = None,
+        **extra: Any,
+    ) -> "Provenance":
         """Return a copy with one more processing step.
 
         Parameters
@@ -298,7 +306,7 @@ class Provenance(DeepEqualMixin):
         new.steps.append(step)
         return new
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serialisable dictionary."""
         return {
             "package_version": self.package_version,
@@ -311,15 +319,15 @@ class Provenance(DeepEqualMixin):
         }
 
     @classmethod
-    def from_dict(cls, dct):
+    def from_dict(cls, dct: dict[str, Any]) -> "Provenance":
         """Rebuild from :meth:`to_dict` output."""
         return cls(**dct)
 
-    def to_json(self, **kwargs):
+    def to_json(self, **kwargs: Any) -> str:
         """Return strict JSON text (NaN written as null)."""
         return dumps(self.to_dict(), **kwargs)
 
     @classmethod
-    def from_json(cls, text):
+    def from_json(cls, text: str) -> "Provenance":
         """Rebuild from :meth:`to_json` output."""
         return cls.from_dict(loads(text))

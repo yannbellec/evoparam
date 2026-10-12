@@ -49,12 +49,14 @@ fit on a DataFrame and returns the per-unit values as tables.
 """
 
 import time as _time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 import numpy as np
 from scipy.linalg import cho_factor, cho_solve
 from scipy.optimize import minimize, minimize_scalar
 
+from evoparam._typing import Any, ArrayLike
 from evoparam.data import Provenance
 from evoparam.errors import DataError, SettingsError
 from evoparam.utils._optional import require
@@ -66,14 +68,14 @@ __all__ = ["variance_components", "VarianceResult", "reml"]
 ## Numerical core
 
 
-def _codes(groups):
+def _codes(groups: Any) -> tuple[list[Any], list[Any]]:
     """Nested integer codes.
 
     Unit ``k`` of level ``l`` is the combination of the labels of levels ``0..l``; returns the
     codes and the labels of each unit.
     """
     codes, labels = [], []
-    keys = None
+    keys: list[tuple[str, ...]] | None = None
     for raw_column in groups:
         column = [str(v) for v in raw_column]
         keys = (
@@ -91,7 +93,7 @@ def _codes(groups):
 class _Blocks:
     """The observations of each top-level unit with their random-effect design."""
 
-    def __init__(self, y, xmat, codes, se2):
+    def __init__(self, y: Any, xmat: Any, codes: Any, se2: Any) -> None:
         self.n, self.p = xmat.shape
         self.n_levels = len(codes)
         self.blocks = []
@@ -119,7 +121,7 @@ class _Blocks:
                 }
             )
 
-    def solve(self, sds, sd_res):
+    def solve(self, sds: Any, sd_res: Any) -> Any:
         """Accumulate X'V^-1 X, X'V^-1 y, y'V^-1 y and log|V| for the given SDs."""
         p = self.p
         xvx, xvy, yvy, logdet = np.zeros((p, p)), np.zeros(p), 0.0, 0.0
@@ -144,7 +146,7 @@ class _Blocks:
             cache.append((d, lam, zl, chol))
         return xvx, xvy, yvy, logdet, cache
 
-    def objective(self, sds, sd_res):
+    def objective(self, sds: Any, sd_res: Any) -> Any:
         """-2 x restricted log-likelihood (without the constant), and beta."""
         out = self.solve(sds, sd_res)
         if out is None:
@@ -159,7 +161,7 @@ class _Blocks:
         return logdet + 2 * np.sum(np.log(np.diag(chol[0]))) + quad, beta
 
 
-def _one_level_profile(y, code):
+def _one_level_profile(y: Any, code: Any) -> tuple[Any, Any]:
     """Closed-form REML of y_ij = mu + u_i + e_ij (one level, intercept, no se).
 
     Returns the variances (between units, residual) at the REML maximum.
@@ -171,14 +173,14 @@ def _one_level_profile(y, code):
     within = np.sum((y - ybar[code]) ** 2)
     n_obs = len(y)
 
-    def parts(gamma):
+    def parts(gamma: Any) -> Any:
         w = n_i / (1 + gamma * n_i)  # 1' H_i^-1 1 for each unit
         mu = np.sum(w * ybar) / np.sum(w)
         quad = within + np.sum(w * (ybar - mu) ** 2)  # r' H^-1 r
         logdet = np.sum(np.log1p(gamma * n_i))
         return mu, quad, logdet, np.sum(w)
 
-    def neg(gamma):
+    def neg(gamma: Any) -> Any:
         _, quad, logdet, sw = parts(gamma)
         return (n_obs - 1) * np.log(quad / (n_obs - 1)) + logdet + np.log(sw)
 
@@ -203,7 +205,16 @@ def _one_level_profile(y, code):
     return gamma * sigma2, sigma2
 
 
-def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):  # noqa: N803  (public keyword: the fixed-effect design X)
+def reml(
+    y: ArrayLike,
+    groups: Any,
+    *,
+    se: ArrayLike | None = None,
+    X: ArrayLike | None = None,  # noqa: N803  (public keyword: the fixed-effect design X)
+    residual: bool = True,
+    tol: float = 1e-9,
+    max_iter: int = 500,
+) -> dict[str, Any]:
     """Fit the nested random-intercept model by REML (arrays in, dictionary out).
 
     Parameters
@@ -275,7 +286,7 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500): 
     else:
         n_par = n_levels + int(residual)
 
-        def fun(theta):
+        def fun(theta: Any) -> Any:
             sds_, res_ = theta[:n_levels] * scale, (theta[n_levels] * scale if residual else 0.0)
             return blocks.objective(sds_, res_)[0]
 
@@ -286,7 +297,7 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500): 
             np.full(n_par, 1.0 / np.sqrt(n_par)),
             np.r_[np.full(n_levels, 0.1), [1.0] * int(residual)],
         ]
-        best = None
+        best: Any = None
         for x0 in starts:
             res = minimize(
                 fun,
@@ -392,15 +403,15 @@ class VarianceResult:
     provenance : Provenance
     """
 
-    table: object
-    fixed: object
-    random_effects: dict
+    table: Any
+    fixed: Any
+    random_effects: dict[str, Any]
     loglik: float
     converged: bool
-    settings: dict = field(default_factory=dict)
+    settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
 
-    def variance(self, level):
+    def variance(self, level: Any) -> float:
         """Variance of one level (or ``"residual"``)."""
         rows = self.table[self.table["level"] == level]
         if len(rows) != 1:
@@ -408,7 +419,15 @@ class VarianceResult:
         return float(rows["variance"].iloc[0])
 
 
-def variance_components(table, *, value, groups, se=None, fixed=None, residual=True):
+def variance_components(
+    table: Any,
+    *,
+    value: str,
+    groups: Sequence[str],
+    se: str | None = None,
+    fixed: Sequence[str] | None = None,
+    residual: bool = True,
+) -> "VarianceResult":
     """Variance at each level of a nested design, by REML.
 
     Parameters

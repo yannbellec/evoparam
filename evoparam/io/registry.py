@@ -11,8 +11,10 @@ quirks. A value that the sources do not state is ``null`` (None).
 import copy
 import functools
 import json
+from collections.abc import Sequence
 from importlib import resources
 
+from evoparam._typing import Any
 from evoparam.errors import ReaderError
 from evoparam.utils._optional import require
 
@@ -40,12 +42,12 @@ _COLUMNS = (
 
 
 @functools.lru_cache(maxsize=1)
-def _load_registry():
+def _load_registry() -> Any:
     text = resources.files("evoparam.io").joinpath("registry.json").read_text(encoding="utf-8")
     return json.loads(text)
 
 
-def _find(dataset_id):
+def _find(dataset_id: Any) -> Any:
     key = str(dataset_id).strip().lower()
     for entry in _load_registry()["datasets"]:
         if key == entry["id"].lower() or key in (alias.lower() for alias in entry["aliases"]):
@@ -53,7 +55,7 @@ def _find(dataset_id):
     return None
 
 
-def dataset_info(dataset_id):
+def dataset_info(dataset_id: str) -> dict[str, Any]:
     """Return the registry entry of one dataset.
 
     Parameters
@@ -84,7 +86,12 @@ def dataset_info(dataset_id):
     return copy.deepcopy(entry)
 
 
-def list_datasets(*, modality=None, species=None, max_size_gb=None):
+def list_datasets(
+    *,
+    modality: str | Sequence[str] | None = None,
+    species: str | Sequence[str] | None = None,
+    max_size_gb: float | None = None,
+) -> Any:
     """List the datasets of the registry.
 
     Parameters
@@ -107,7 +114,7 @@ def list_datasets(*, modality=None, species=None, max_size_gb=None):
     """
     pd = require("pandas", extra="data", caller="evoparam.io.list_datasets")
 
-    def as_set(value):
+    def as_set(value: Any) -> Any:
         if value is None:
             return None
         return {value} if isinstance(value, str) else set(value)
@@ -131,7 +138,7 @@ def list_datasets(*, modality=None, species=None, max_size_gb=None):
     return table
 
 
-def match_dataset(path):
+def match_dataset(path: Any) -> Any:
     """Registry entry whose identifier appears in a path or URL, or None."""
     text = str(path).lower().replace("\\", "/")
     for entry in _load_registry()["datasets"]:

@@ -2,9 +2,12 @@
 """Inject simulated components into real recordings (real-noise benchmark, spec §5.12)."""
 
 import time as _time
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any, RandomState
 from evoparam.data import TrialSet
 from evoparam.errors import DataError
 
@@ -13,10 +16,13 @@ from .components import ERP_COMPONENTS, as_spec
 from .generators import _channel_indices, _spec_sources
 from .noise import check_license
 
+if TYPE_CHECKING:
+    from evoparam.sim._truth import GroundTruth
+
 __all__ = ["inject"]
 
 
-def _segments(ts, record):
+def _segments(ts: Any, record: Any) -> list[Any]:
     """One record per trial of ``ts``: dataset, subject, run and sample offsets."""
     from .noise import _source_value
 
@@ -45,19 +51,19 @@ def _segments(ts, record):
 
 
 def inject(
-    ts_real,
-    components,
+    ts_real: "TrialSet",
+    components: Sequence[Any],
     *,
-    snr,
-    channels=None,
-    seed=None,
-    jitter_sd=0.0,
-    jitter="normal",
-    jitter_tau=None,
-    amplitude_cv=0.0,
-    dataset=None,
-    keep_arrays=True,
-):
+    snr: Any,
+    channels: Any = None,
+    seed: RandomState | None = None,
+    jitter_sd: float = 0.0,
+    jitter: str = "normal",
+    jitter_tau: Any = None,
+    amplitude_cv: float = 0.0,
+    dataset: str | None = None,
+    keep_arrays: bool = True,
+) -> tuple["TrialSet", "GroundTruth"]:
     """Add simulated components to real recordings, whose own signal becomes the noise.
 
     Parameters

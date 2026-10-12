@@ -14,9 +14,11 @@ import logging
 import os
 import time
 from collections import OrderedDict
+from typing import cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from evoparam._typing import Any
 from evoparam.errors import ReaderError
 from evoparam.errors import warn as _warn
 
@@ -43,19 +45,19 @@ _TRANSIENT_ERRORS = (URLError, TimeoutError, ConnectionError, http.client.HTTPEx
 _sleep = time.sleep
 
 
-def is_url(path):
+def is_url(path: Any) -> bool:
     """Return True when ``path`` is an http(s) address."""
     return isinstance(path, str) and path.startswith(("http://", "https://"))
 
 
-def data_folder():
+def data_folder() -> str:
     """Folder for downloads: ``EVOPARAM_DATA``, or ``~/.cache/evoparam``."""
     return os.environ.get("EVOPARAM_DATA") or os.path.join(
         os.path.expanduser("~"), ".cache", "evoparam"
     )
 
 
-def sha256_file(path, block=1 << 20):
+def sha256_file(path: Any, block: Any = 1 << 20) -> str:
     """SHA-256 of a local file, read block by block."""
     digest = hashlib.sha256()
     with open(path, "rb") as fobj:
@@ -64,7 +66,7 @@ def sha256_file(path, block=1 << 20):
     return digest.hexdigest()
 
 
-def _check_online(url):
+def _check_online(url: Any) -> None:
     if os.environ.get("EVOPARAM_OFFLINE") == "1":
         raise ReaderError(f"EVOPARAM_OFFLINE=1: not connecting to {url}.")
 
@@ -72,16 +74,17 @@ def _check_online(url):
 class TransferLog:
     """Running count of the bytes transferred, shared by the reads of one call."""
 
-    def __init__(self):
-        self.bytes_read = 0
+    def __init__(self) -> None:
+        self.bytes_read: int = 0
+        self.files: list[Any]
         self.files = []
 
-    def add(self, url, nbytes):
+    def add(self, url: Any, nbytes: Any) -> None:
         self.bytes_read += int(nbytes)
         self.files.append(url)
 
 
-def _spurious_not_found(exc):
+def _spurious_not_found(exc: Any) -> bool:
     """Return True for a 404 whose body is the S3 error ``NoSuchBucket``.
 
     S3 (or a proxy in front of it) intermittently answers so for a bucket that exists, and the same
@@ -96,7 +99,7 @@ def _spurious_not_found(exc):
     return b"<Code>NoSuchBucket</Code>" in body
 
 
-def _with_retries(url, attempt_once, retries=_N_RETRIES):
+def _with_retries(url: Any, attempt_once: Any, retries: Any = _N_RETRIES) -> Any:
     """Run ``attempt_once()`` and retry transient HTTP and network failures.
 
     A spurious S3 404 is retried up to SPURIOUS_RETRIES more times, after SPURIOUS_DELAY s, without
@@ -115,6 +118,7 @@ def _with_retries(url, attempt_once, retries=_N_RETRIES):
                 continue
             if exc.code not in TRANSIENT_STATUS or attempt == retries:
                 raise ReaderError(f"HTTP {exc.code} ({exc.reason}) for {url}.") from exc
+            error: Any
             error = exc
         except _TRANSIENT_ERRORS as exc:
             if attempt == retries:
@@ -126,7 +130,9 @@ def _with_retries(url, attempt_once, retries=_N_RETRIES):
         attempt += 1
 
 
-def fetch_bytes(url, *, optional=False, timeout=30.0, log=None):
+def fetch_bytes(
+    url: str, *, optional: bool = False, timeout: float = 30.0, log: "TransferLog | None" = None
+) -> Any:
     """Download a small file whole and return its content.
 
     Parameters
@@ -145,7 +151,7 @@ def fetch_bytes(url, *, optional=False, timeout=30.0, log=None):
     content : bytes or None
     """
 
-    def once():
+    def once() -> Any:
         logger.info("GET %s", url)
         with urlopen(Request(url), timeout=timeout) as response:
             return response.read()
@@ -162,7 +168,7 @@ def fetch_bytes(url, *, optional=False, timeout=30.0, log=None):
     return content
 
 
-def download(url, path, *, timeout=30.0, log=None):
+def download(url: Any, path: Any, *, timeout: float = 30.0, log: Any = None) -> str:
     """Download ``url`` to ``path`` (written to a temporary name, then renamed).
 
     Returns
@@ -173,7 +179,7 @@ def download(url, path, *, timeout=30.0, log=None):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     partial = path + ".part"
 
-    def once():
+    def once() -> Any:
         logger.info("GET %s", url)
         digest = hashlib.sha256()
         with urlopen(Request(url), timeout=timeout) as response, open(partial, "wb") as fobj:
@@ -191,7 +197,7 @@ def download(url, path, *, timeout=30.0, log=None):
     os.replace(partial, path)
     if log is not None:
         log.add(url, os.path.getsize(path))
-    return sha256
+    return cast("str", sha256)
 
 
 class RemoteFile:
@@ -233,51 +239,60 @@ class RemoteFile:
     """
 
     def __init__(
-        self, url, *, chunk_size=8 << 20, timeout=30.0, max_chunks=32, cache_dir=None, log=None
-    ):
+        self,
+        url: Any,
+        *,
+        chunk_size: Any = 8 << 20,
+        timeout: float = 30.0,
+        max_chunks: int = 32,
+        cache_dir: Any = None,
+        log: Any = None,
+    ) -> None:
         if not is_url(url):
             raise ReaderError(f"RemoteFile needs an http(s) address, got {url!r}.")
         if int(chunk_size) < 1 or int(max_chunks) < 1:
             raise ReaderError("RemoteFile: chunk_size and max_chunks must be positive.")
         self.url = url
-        self.chunk_size = int(chunk_size)
-        self.timeout = float(timeout)
-        self.max_chunks = int(max_chunks)
+        self.chunk_size: int = int(chunk_size)
+        self.timeout: float = float(timeout)
+        self.max_chunks: int = int(max_chunks)
         self.cache_dir = cache_dir
         self.log = log
-        self.bytes_read = 0
-        self.full_download = False
-        self._size = None
+        self.bytes_read: int = 0
+        self.full_download: bool = False
+        self._size: int | None = None
+        self._cache: OrderedDict[Any, Any]
         self._cache = OrderedDict()
+        self._digests: dict[Any, Any]
         self._digests = {}  # chunk index -> (start, stop, sha256 of the chunk)
-        self._local = None
-        self._local_sha256 = None
+        self._local: Any = None  # path of the full download, once made
+        self._local_sha256: str | None = None
 
     # Context manager
-    def __enter__(self):
+    def __enter__(self) -> "RemoteFile":
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         """Drop the cached chunks."""
         self._cache.clear()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<RemoteFile {self.url} | {self.bytes_read} bytes read>"
 
-    def _count(self, nbytes):
+    def _count(self, nbytes: Any) -> None:
         self.bytes_read += int(nbytes)
         if self.log is not None:
             self.log.add(self.url, nbytes)
 
     @property
-    def size(self):
+    def size(self) -> Any:
         """Size of the remote file in bytes (one HEAD request the first time)."""
         if self._size is None:
 
-            def once():
+            def once() -> Any:
                 logger.info("HEAD %s", self.url)
                 with urlopen(Request(self.url, method="HEAD"), timeout=self.timeout) as response:
                     return response.headers.get("Content-Length")
@@ -289,10 +304,11 @@ class RemoteFile:
         return self._size
 
     @property
-    def ranges(self):
+    def ranges(self) -> Any:
         """Byte ranges ``[start, stop)`` transferred so far, merged and sorted."""
         if self.full_download:
             return [[0, self._size]]
+        merged: list[Any]
         merged = []
         for start, stop, _ in sorted(self._digests.values()):
             if merged and merged[-1][1] == start:
@@ -301,7 +317,7 @@ class RemoteFile:
                 merged.append([start, stop])
         return merged
 
-    def sha256(self):
+    def sha256(self) -> Any:
         """SHA-256 of the bytes read.
 
         After a whole-file download this is the SHA-256 of the file. Otherwise it is
@@ -316,7 +332,7 @@ class RemoteFile:
         ]
         return hashlib.sha256("\n".join(lines).encode("ascii")).hexdigest()
 
-    def read(self, offset, nbytes):
+    def read(self, offset: Any, nbytes: Any) -> Any:
         """Return ``nbytes`` bytes from ``offset`` (fewer at the end of the file).
 
         Raises
@@ -357,19 +373,19 @@ class RemoteFile:
         start = offset - first * self.chunk_size
         return joined[start : start + (stop - offset)]
 
-    def _read_local(self, offset, nbytes):
+    def _read_local(self, offset: Any, nbytes: Any) -> Any:
         with open(self._local, "rb") as fobj:
             fobj.seek(offset)
             return fobj.read(nbytes)
 
-    def _fetch_chunks(self, first, last):
+    def _fetch_chunks(self, first: Any, last: Any) -> Any:
         start = first * self.chunk_size
         stop = (last + 1) * self.chunk_size
         if self._size is not None:
             stop = min(stop, self._size)
         request = Request(self.url, headers={"Range": f"bytes={start}-{stop - 1}"})
 
-        def once():
+        def once() -> Any:
             logger.info("GET %s bytes=%d-%d", self.url, start, stop - 1)
             with urlopen(request, timeout=self.timeout) as response:
                 if response.status == 200:
@@ -409,7 +425,7 @@ class RemoteFile:
                 self._cache.popitem(last=False)
         return out
 
-    def _check_content_range(self, header, start):
+    def _check_content_range(self, header: Any, start: Any) -> None:
         # Format: "bytes <first>-<last>/<total>"
         if not header or not header.startswith("bytes "):
             raise ReaderError(f"Range reply without a valid Content-Range from {self.url}.")
@@ -422,7 +438,7 @@ class RemoteFile:
         if total and total != "*":
             self._size = int(total)
 
-    def _download_whole(self, response):
+    def _download_whole(self, response: Any) -> None:
         folder = self.cache_dir or os.path.join(data_folder(), "remote")
         os.makedirs(folder, exist_ok=True)
         name = (
@@ -461,8 +477,9 @@ class RemoteFile:
         self._cache.clear()
 
 
-def _runs(indices):
+def _runs(indices: Any) -> list[Any]:
     """Split sorted integers into runs of consecutive values."""
+    runs: list[Any]
     runs = []
     for index in indices:
         if runs and index == runs[-1][-1] + 1:

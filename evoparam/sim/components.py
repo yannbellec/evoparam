@@ -14,6 +14,7 @@ from dataclasses import asdict, dataclass, field, replace
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray
 from evoparam.errors import SettingsError
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features, get_shape
 
@@ -38,7 +39,7 @@ ROLES = ("target", "overlap", "confound", "masker")
 # Per shape: the location parameter (moved by latency jitter), the width parameter
 # (scaled to reach the FWHM), dimensionless parameters with their defaults, and
 # parameters given as a multiple of the width parameter (keyword ``<name>_ratio``).
-SHAPE_FORMS = {
+SHAPE_FORMS: dict[str, dict[str, Any]] = {
     "gaussian": {"loc": "mu", "scale": "sigma", "fixed": {}, "ratios": {}},
     "skewed_gaussian": {"loc": "xi", "scale": "omega", "fixed": {"alpha": 2.0}, "ratios": {}},
     "exgaussian": {"loc": "mu", "scale": "sigma", "fixed": {}, "ratios": {"tau": 1.0}},
@@ -54,7 +55,9 @@ OSCILLATORY = ("damped_oscillation", "gabor")
 ## Latency and FWHM -> shape parameters
 
 
-def _form_settings(name, form):
+def _form_settings(
+    name: Any, form: Any
+) -> tuple[tuple[tuple[Any, Any], ...], tuple[tuple[Any, Any], ...]]:
     """Split ``form`` into the fixed and ratio parameters of a shape, with defaults."""
     spec = SHAPE_FORMS[name]
     fixed = dict(spec["fixed"])
@@ -72,7 +75,7 @@ def _form_settings(name, form):
     return tuple(sorted(fixed.items())), tuple(sorted(ratios.items()))
 
 
-def _assemble(name, loc, scale, fixed, ratios):
+def _assemble(name: Any, loc: Any, scale: Any, fixed: Any, ratios: Any) -> FloatArray:
     spec = SHAPE_FORMS[name]
     values = dict(fixed)
     values.update({key: ratio * scale for key, ratio in ratios})
@@ -83,13 +86,13 @@ def _assemble(name, loc, scale, fixed, ratios):
 
 
 @functools.lru_cache(maxsize=256)
-def _unit_form(name, fixed, ratios):
+def _unit_form(name: Any, fixed: Any, ratios: Any) -> Any:
     """Latency and FWHM of a shape with location 0 and width parameter 1.
 
     Both scale linearly with the width parameter and the latency moves with the
     location, so one evaluation per set of dimensionless parameters is enough.
     """
-    shape = get_shape(name)
+    shape: Any = get_shape(name)  # a built-in shape of SHAPE_FORMS, with latency()
     params = _assemble(name, 0.0, 1.0, fixed, ratios)
     if name == "gaussian":
         return 0.0, float(FWHM_PER_SIGMA)
@@ -102,7 +105,7 @@ def _unit_form(name, fixed, ratios):
     return float(shape.latency(params)), float(features.fwhm)
 
 
-def shape_params(shape, latency, fwhm=None, **form):
+def shape_params(shape: str, latency: float, fwhm: float | None = None, **form: Any) -> FloatArray:
     """Parameters of ``shape`` whose latency and FWHM are the requested values.
 
     Parameters
@@ -180,7 +183,7 @@ def shape_params(shape, latency, fwhm=None, **form):
 ## Specifications
 
 
-def _draw(value, rng):
+def _draw(value: Any, rng: np.random.Generator) -> Any:
     """Return a number, or a uniform draw in a ``(low, high)`` range."""
     if isinstance(value, (tuple, list, np.ndarray)):
         if len(value) != 2:
@@ -223,17 +226,17 @@ class ComponentSpec:
     """
 
     label: str
-    latency: object = 0.1
-    fwhm: object = 0.05
-    amplitude: object = 1.0
+    latency: Any = 0.1
+    fwhm: Any = 0.05
+    amplitude: Any = 1.0
     shape: str = "gaussian"
-    form: dict = field(default_factory=dict)
-    params: tuple | None = None
-    channels: tuple | None = None
-    weights: tuple | None = None
+    form: dict[str, Any] = field(default_factory=dict)
+    params: tuple[Any, ...] | None = None
+    channels: tuple[Any, ...] | None = None
+    weights: tuple[Any, ...] | None = None
     role: str = "target"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check and normalise the fields."""
         if not isinstance(self.label, str) or not self.label:
             raise SettingsError(
@@ -251,7 +254,7 @@ class ComponentSpec:
                 f"for {len(self.channels)} channels."
             )
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Plain dictionary of the specification (JSON-serialisable)."""
         out = asdict(self)
         for key in ("latency", "fwhm", "amplitude", "params", "channels", "weights"):
@@ -261,7 +264,7 @@ class ComponentSpec:
                 )
         return out
 
-    def resolve(self, rng):
+    def resolve(self, rng: np.random.Generator) -> Any:
         """Draw the ranges; return ``(params, amplitude)`` of the nominal component."""
         amplitude = _draw(self.amplitude, rng)
         if self.params is not None:
@@ -278,7 +281,7 @@ class ComponentSpec:
         return shape_params(self.shape, latency, fwhm, **self.form), amplitude
 
 
-def as_spec(obj, presets=None):
+def as_spec(obj: Any, presets: Any = None) -> Any:
     """Return a :class:`ComponentSpec` from a spec, a dict of its fields, or a preset name."""
     if isinstance(obj, ComponentSpec):
         return obj

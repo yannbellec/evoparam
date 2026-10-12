@@ -18,6 +18,7 @@ components) is computed once, so that a pulse costs a few matrix products.
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
 from evoparam.data import GroupFit, ResponseFit, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.models.component_shapes import get_background
@@ -34,7 +35,7 @@ INTERP_BUFFER = 3
 TAIL = 1e-16
 
 
-def _offset(t, sfreq, side):
+def _offset(t: Any, sfreq: float, side: Any) -> int:
     """Return the sample offset of the first sample at or after ``t`` (``side="start"``).
 
     Or of the last at or before it (``"stop"``), with the comparison of ``times >= t`` on
@@ -57,7 +58,7 @@ def _offset(t, sfreq, side):
 class _Channel:
     """The frozen template of one channel."""
 
-    def __init__(self, fit, tw):
+    def __init__(self, fit: Any, tw: Any) -> None:
         settings = fit.settings or {}
         self.shapes, self.params, self.locs, self.amps = [], [], [], []
         self.labels, self.latencies, self.amplitudes = [], [], []
@@ -71,7 +72,7 @@ class _Channel:
             self.latencies.append(float(comp.latency))
             self.amplitudes.append(float(comp.amplitude))
         bg = fit.background or {"name": "none"}
-        background = get_background(bg["name"])
+        background: Any = get_background(bg["name"])  # .basis: not in the protocol
         if getattr(background, "n_linear", 0):
             nl = np.array([bg[n] for n in getattr(background, "nonlinear_names", ())], float)
             self.basis = np.atleast_2d(background.basis(tw, nl if len(nl) else None))
@@ -86,7 +87,7 @@ class _Channel:
         )
         self.spans = [slice(None)] * len(self.shapes)
 
-    def curves(self, tw, shifts, component=None):
+    def curves(self, tw: Any, shifts: Any, component: Any = None) -> FloatArray:
         """Return the template (or one of its components) moved by each of ``shifts`` (s).
 
         Array [n_shifts, n_times].
@@ -101,7 +102,7 @@ class _Channel:
             out[:, span] += self.amps[k] * curve.reshape(len(shifts), -1)
         return out
 
-    def set_spans(self, tw, grid):
+    def set_spans(self, tw: Any, grid: Any) -> None:
         """Return the samples where each component matters at some shift of ``grid`` (see TAIL)."""
         for k in range(len(self.shapes)):
             self.spans[k] = slice(None)
@@ -110,7 +111,7 @@ class _Channel:
             if len(above):
                 self.spans[k] = slice(max(int(above[0]) - 2, 0), min(int(above[-1]) + 3, len(tw)))
 
-    def bounds(self, max_shift):
+    def bounds(self, max_shift: Any) -> NDArray[Any]:
         """Largest shift of each component moved on its own.
 
         ``max_shift``, at most half the distance to the nearest other component (as in
@@ -124,7 +125,7 @@ class _Channel:
         return out
 
 
-def _parabolic(profile, best):
+def _parabolic(profile: Any, best: Any) -> FloatArray:
     """Sub-sample offset of the maximum of ``profile`` [n, n_points] around ``best`` [n]."""
     n, n_points = profile.shape
     rows = np.arange(n)
@@ -141,7 +142,7 @@ def _parabolic(profile, best):
     return np.clip(frac, -0.5, 0.5)
 
 
-def _solve(gram, rhs):
+def _solve(gram: Any, rhs: Any) -> Any:
     """Batched least-squares coefficients of the normal equations ``gram @ x = rhs``."""
     try:
         return np.linalg.solve(gram, rhs[..., None])[..., 0]
@@ -201,15 +202,15 @@ class FixedShapeModel:
 
     def __init__(
         self,
-        template,
+        template: Any,
         *,
-        sfreq,
-        ch_names,
-        window=None,
-        artifact_window=None,
-        max_shift=0.005,
-        mode="shift_scale",
-    ):
+        sfreq: float,
+        ch_names: Any,
+        window: Any = None,
+        artifact_window: Any = None,
+        max_shift: float = 0.005,
+        mode: str = "shift_scale",
+    ) -> None:
         if not sfreq > 0:
             raise SettingsError("sfreq must be positive.")
         if not max_shift >= 0:
@@ -217,7 +218,7 @@ class FixedShapeModel:
         if mode not in self.MODES:
             raise SettingsError(f"mode must be one of {self.MODES}, got {mode!r}.")
         self.mode = mode
-        self.sfreq = float(sfreq)
+        self.sfreq: float = float(sfreq)
         names = [str(name) for name in ch_names]
         fits = self._channel_fits(template, names)
         if not fits:
@@ -235,12 +236,12 @@ class FixedShapeModel:
         if i1 - i0 < 3:
             raise SettingsError("window must hold at least 4 samples.")
         self.window = window
-        self.window_offsets = (i0, i1)
-        self.tw = np.arange(i0, i1 + 1) / self.sfreq
+        self.window_offsets: tuple[int, int] = (i0, i1)
+        self.tw: FloatArray = np.arange(i0, i1 + 1) / self.sfreq
         n_w = len(self.tw)
-        self.weights = np.ones(n_w)
+        self.weights: FloatArray = np.ones(n_w)
         start, stop, base_end = i0, i1, i0
-        self.artifact_window = None
+        self.artifact_window: None | tuple[float, float] = None
         if artifact_window is not None:
             a0 = _offset(artifact_window[0], sfreq, "start")
             a1 = _offset(artifact_window[1], sfreq, "stop")
@@ -251,17 +252,17 @@ class FixedShapeModel:
                 # The interpolation changes window samples: the data reach its anchors
                 self.artifact_window = (float(artifact_window[0]), float(artifact_window[1]))
                 start, stop = min(i0, a0 - INTERP_BUFFER), max(i1, a1 + INTERP_BUFFER)
-        self.segment_offsets = (start, stop)
+        self.segment_offsets: tuple[int, int] = (start, stop)
         self._segment_times = np.arange(start, stop + 1) / self.sfreq
         self._in_window = slice(i0 - start, i1 - start + 1)
         b0 = base_end - n_w
-        self.baseline_offsets = (b0, b0 + n_w - 1)
-        self.max_shift = float(max_shift)
-        self.n_grid = int(np.floor(self.max_shift * self.sfreq + 1e-9))
-        self.grid = np.arange(-self.n_grid, self.n_grid + 1) / self.sfreq
+        self.baseline_offsets: tuple[int, int] = (b0, b0 + n_w - 1)
+        self.max_shift: float = float(max_shift)
+        self.n_grid: int = int(np.floor(self.max_shift * self.sfreq + 1e-9))
+        self.grid: FloatArray = np.arange(-self.n_grid, self.n_grid + 1) / self.sfreq
 
-        self.picks = np.array([names.index(name) for name, _ in fits])
-        self.ch_names = [name for name, _ in fits]
+        self.picks: NDArray[Any] = np.array([names.index(name) for name, _ in fits])
+        self.ch_names: list[Any] = [name for name, _ in fits]
         self._channels = [_Channel(fit, self.tw) for _, fit in fits]
         spans = {}
         for ch in self._channels:
@@ -269,13 +270,13 @@ class FixedShapeModel:
                 ch.set_spans(self.tw, self.grid)
                 spans[ch.key] = ch.spans
             ch.spans = spans[ch.key]
-        self.labels = [ch.labels for ch in self._channels]
-        self.latencies = [ch.latencies for ch in self._channels]
-        self.amplitudes = [ch.amplitudes for ch in self._channels]
+        self.labels: list[Any] = [ch.labels for ch in self._channels]
+        self.latencies: list[Any] = [ch.latencies for ch in self._channels]
+        self.amplitudes: list[Any] = [ch.amplitudes for ch in self._channels]
         self._prepare()
 
     @staticmethod
-    def _channel_fits(template, names):
+    def _channel_fits(template: Any, names: Any) -> Any:
         if isinstance(template, ResponseFit):
             if template.status != "ok" or not template.components:
                 return []
@@ -297,7 +298,7 @@ class FixedShapeModel:
                 out.append((name, fit))
         return out
 
-    def _prepare(self):
+    def _prepare(self) -> None:
         """Shifted templates, bases and inverse normal matrices of every grid shift."""
         n_ch, n_w = len(self._channels), len(self.tw)
         n_b = max(ch.basis.shape[0] for ch in self._channels)
@@ -310,7 +311,7 @@ class FixedShapeModel:
         # channel's components, whose coefficient a unit diagonal term keeps at zero)
         q = 1 if self.mode == "common" or k_max == 1 else k_max
         self.n_columns = q
-        self.n_linear = q + n_b
+        self.n_linear: Any = q + n_b
         self._pad = np.zeros((n_ch, q))
         bound = np.full((n_ch, q), self.max_shift)
         for c, ch in enumerate(self._channels):
@@ -323,6 +324,7 @@ class FixedShapeModel:
         self._bound = bound
         steps = np.minimum(np.floor(bound * self.sfreq + 1e-9).astype(int), self.n_grid)
         self._allowed = np.abs(np.arange(len(self.grid)) - self.n_grid) <= steps[..., None]
+        groups: dict[Any, Any]
         groups, self._group_of = {}, np.empty(n_ch, int)
         for c, ch in enumerate(self._channels):
             self._group_of[c] = groups.setdefault(ch.key, len(groups))
@@ -372,7 +374,7 @@ class FixedShapeModel:
             self._lat0[c, : len(self.latencies[c])] = self.latencies[c]
             self._amp0[c, : len(self.amplitudes[c])] = self.amplitudes[c]
 
-    def _normal_inverse(self, weights, channels=None):
+    def _normal_inverse(self, weights: Any, channels: Any = None) -> FloatArray:
         """Return the inverse normal matrices [n_channels, n_shifts, m, m] of the common shifts.
 
         For per-channel weights.
@@ -394,7 +396,9 @@ class FixedShapeModel:
             out[i] = np.linalg.pinv(gram, hermitian=True)
         return out
 
-    def _pair_tables(self, weights, channels=None):
+    def _pair_tables(
+        self, weights: Any, channels: Any = None
+    ) -> tuple[FloatArray, FloatArray, FloatArray]:
         """Products of the shifted components, of every pair of shifts, for per-channel weights.
 
         ``[n, q, q, n_shifts, n_shifts]``, with the basis ``[n, q, n_shifts, n_b]`` and the basis
@@ -419,7 +423,7 @@ class FixedShapeModel:
             gram[i] = (b * w) @ b.T
         return pairs, cross, gram
 
-    def _basis_dot(self, x):
+    def _basis_dot(self, x: Any) -> Any:
         """Products of each channel's rows ``x`` [n_channels, ..., n_times] with its basis."""
         if self._shared:
             return x @ self._basis[0].T
@@ -427,7 +431,7 @@ class FixedShapeModel:
             return np.matmul(self._basis, x[:, :, None])[..., 0]
         return np.matmul(x, np.swapaxes(self._basis, 1, 2))
 
-    def _ascend(self, start, r, rb, tables):
+    def _ascend(self, start: Any, r: Any, rb: Any, tables: Any) -> tuple[Any, FloatArray]:
         """Per-component shifts by coordinate ascent on the grid from the common shift ``start``.
 
         Grid indices [n_channels, q] and the explained sum of squares of every grid shift of each
@@ -511,7 +515,9 @@ class FixedShapeModel:
     ###############################################################################################
     ## Fitting
 
-    def fit(self, window_data, baseline_data=None):
+    def fit(
+        self, window_data: ArrayLike, baseline_data: ArrayLike | None = None
+    ) -> dict[str, Any]:
         """Fit one pulse.
 
         Parameters
@@ -571,6 +577,7 @@ class FixedShapeModel:
         explained = np.einsum("cjm,cjm->cj", rhs, beta)
         best = np.argmax(explained, axis=1)
         if self._descent:
+            tables: Any
             tables = self._tables
             if not clean:
                 tables = tuple(t.copy() for t in tables)
@@ -667,7 +674,7 @@ class FixedShapeModel:
             "finite": all_finite,
         }
 
-    def fit_trialset(self, ts):
+    def fit_trialset(self, ts: Any) -> dict[str, NDArray[Any]]:
         """Fit every trial of a TrialSet (onset at t = 0, the sampling frequency of the model).
 
         Returns the dict of :meth:`fit` with a leading trial axis.

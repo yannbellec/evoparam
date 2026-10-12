@@ -10,7 +10,7 @@ instead of errors; integer data are converted to float.
 
 __all__ = ["EXPECTED", "FORBIDDEN", "expected_failed_checks"]
 
-EXPECTED = {}
+EXPECTED: dict[str, str] = {}
 
 # checks that must never be excused (REQ-321)
 FORBIDDEN = (
@@ -26,5 +26,5 @@ FORBIDDEN = (
 )
 
 
-def expected_failed_checks(estimator):  # noqa: ARG001  (scikit-learn API: callback signature)
+def expected_failed_checks(estimator: object) -> dict[str, str]:  # noqa: ARG001  (scikit-learn API: callback signature)
     return dict(EXPECTED)

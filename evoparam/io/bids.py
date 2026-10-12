@@ -16,9 +16,11 @@ import logging
 import os
 import re
 import time as _time
+from collections.abc import Iterator
 
 import numpy as np
 
+from evoparam._typing import Any, StrPath
 from evoparam.data import Provenance, TrialSet
 from evoparam.errors import DataError, EventError, ReaderError
 from evoparam.errors import warn as _warn
@@ -54,20 +56,20 @@ __all__ = [
     "format_stim_report",
 ]
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 ###################################################################################################
 ###################################################################################################
 
 
-def _read_bytes(path):
+def _read_bytes(path: Any) -> Any:
     if is_url(path):
         return fetch_bytes(path)
     with open(path, "rb") as file:
         return file.read()
 
 
-def read_bids_events(events_tsv):
+def read_bids_events(events_tsv: str) -> list[Any]:
     """Read a BIDS events.tsv file.
 
     Parameters
@@ -85,7 +87,9 @@ def read_bids_events(events_tsv):
 
     events = []
     for raw_row in csv.DictReader(lines, delimiter="\t"):
-        row = {key: (None if val == "n/a" else val) for key, val in raw_row.items()}
+        row: dict[str, Any] = {
+            key: (None if val == "n/a" else val) for key, val in raw_row.items()
+        }
         for key in ("onset", "duration"):
             if row.get(key) is not None:
                 row[key] = float(row[key])
@@ -95,8 +99,12 @@ def read_bids_events(events_tsv):
 
 
 def select_stimulation_events(
-    events, *, site=None, trial_type="electrical_stimulation", current=None
-):
+    events: Any,
+    *,
+    site: str | None = None,
+    trial_type: str | None = "electrical_stimulation",
+    current: float | None = None,
+) -> Any:
     """Select stimulation events, optionally for one stimulation site or current.
 
     Parameters
@@ -120,7 +128,7 @@ def select_stimulation_events(
         (a DataFrame keeps its index).
     """
 
-    def keep(get):
+    def keep(get: Any) -> Any:
         if trial_type is not None and get("trial_type") != trial_type:
             return False
         if site is not None:
@@ -173,31 +181,31 @@ _CH_TYPES = {
 _TO_MM = {"m": 1e3, "cm": 10.0, "mm": 1.0}
 
 
-def _strip(label, prefix):
+def _strip(label: Any, prefix: Any) -> Any:
     if label is None:
         return None
     label = str(label)
     return label[len(prefix) :] if label.startswith(prefix) else label
 
 
-def _stem(entities):
+def _stem(entities: Any) -> str:
     return "_".join(f"{key}-{entities[key]}" for key in _ORDER if entities.get(key))
 
 
 class _Tree:
     """Files of a BIDS dataset, on disk or behind an http(s) base address."""
 
-    def __init__(self, root, base, log):
+    def __init__(self, root: Any, base: Any, log: Any) -> None:
         self.root, self.base, self.log = root, base, log
 
     @property
-    def remote(self):
+    def remote(self) -> Any:
         return self.base is not None
 
-    def location(self, rel):
+    def location(self, rel: Any) -> Any:
         return self.base + rel if self.remote else os.path.join(self.root, *rel.split("/"))
 
-    def read(self, rel, optional=False):
+    def read(self, rel: Any, optional: bool = False) -> Any:
         """Content of a file (bytes), or None for a missing optional file."""
         if self.remote:
             return fetch_bytes(self.location(rel), optional=optional, log=self.log)
@@ -209,7 +217,7 @@ class _Tree:
         with open(path, "rb") as file:
             return file.read()
 
-    def json(self, rel):
+    def json(self, rel: Any) -> Any:
         content = self.read(rel, optional=True)
         if content is None:
             return None
@@ -219,7 +227,7 @@ class _Tree:
             raise ReaderError(f"{self.location(rel)} is not valid JSON: {exc}") from exc
 
 
-def _remote_base(root, remote):
+def _remote_base(root: Any, remote: Any) -> Any:
     root = str(root)
     if is_url(root):
         return root.rstrip("/") + "/"
@@ -234,7 +242,7 @@ def _remote_base(root, remote):
     )
 
 
-def _find_runs(tree, wanted, datatype):
+def _find_runs(tree: Any, wanted: Any, datatype: Any) -> Any:
     """Return the runs to read: list of (folder, entities, data file name)."""
     folder = (
         "sub-{}/".format(wanted["sub"])
@@ -296,12 +304,14 @@ def _find_runs(tree, wanted, datatype):
     return [by_stem[key] for key in sorted(by_stem)]
 
 
-def _read_table(content):
+def _read_table(content: Any) -> Any:
     pd = require("pandas", extra="data", caller="evoparam.io.read_bids")
     return pd.read_csv(_io.BytesIO(content), sep="\t", na_values=["n/a"], keep_default_na=False)
 
 
-def _events_sidecar(tree, folder, entities, datatype):
+def _events_sidecar(
+    tree: Any, folder: Any, entities: Any, datatype: Any
+) -> tuple[dict[Any, Any], Any]:
     """Return events.json by the inheritance principle (run level, then dataset root).
 
     It is completed with the ElectricalStimulationParameters field of the recording sidecar.
@@ -322,7 +332,7 @@ def _events_sidecar(tree, folder, entities, datatype):
     return sidecar, recording
 
 
-def _channel_table(tree, folder, entities, names, content=None):
+def _channel_table(tree: Any, folder: Any, entities: Any, names: Any, content: Any = None) -> Any:
     """Channel table (Table 4.2) from channels.tsv and electrodes.tsv, or None."""
     pd = require("pandas", extra="data", caller="evoparam.io.read_bids")
     if content is None:
@@ -341,7 +351,7 @@ def _channel_table(tree, folder, entities, names, content=None):
         )
     table = table.set_index(table["name"].astype(str)).loc[names].reset_index(drop=True)
 
-    def text(column, default=""):
+    def text(column: Any, default: str = "") -> Any:
         if column not in table.columns:
             return [default] * len(table)
         return ["" if isinstance(v, float) and np.isnan(v) else str(v) for v in table[column]]
@@ -360,7 +370,7 @@ def _channel_table(tree, folder, entities, names, content=None):
     return _add_coordinates(tree, folder, entities, out)
 
 
-def _reference(value):
+def _reference(value: Any) -> Any:
     value = value.strip()
     if not value or value.lower() == "n/a":
         return ""
@@ -371,7 +381,7 @@ def _reference(value):
     return "monopolar:" + value
 
 
-def _add_coordinates(tree, folder, entities, table):
+def _add_coordinates(tree: Any, folder: Any, entities: Any, table: Any) -> Any:
     """x, y, z (mm) and coord_space from electrodes.tsv and coordsystem.json, when present."""
     keys = {key: entities.get(key) for key in ("sub", "ses", "acq")}
     stem = _stem(keys)
@@ -404,7 +414,7 @@ def _add_coordinates(tree, folder, entities, table):
     return table
 
 
-def _pick_channels(names, picks, ch_info):
+def _pick_channels(names: Any, picks: Any, ch_info: Any) -> Any:
     """Return the indices of the picked channels: names, indices, or types ('ecog', ...)."""
     from evoparam.io.brainvision import _pick
 
@@ -425,7 +435,7 @@ def _pick_channels(names, picks, ch_info):
 
 
 @contextlib.contextmanager
-def _verbosity(verbose):
+def _verbosity(verbose: Any) -> Iterator[Any]:
     if verbose is None:
         yield
         return
@@ -445,7 +455,7 @@ def _verbosity(verbose):
 ## Events
 
 
-def _auto_rows(events, datatype, report):
+def _auto_rows(events: Any, datatype: Any, report: Any) -> Any:
     """Rows kept by events='auto': stimulations for iEEG, every row otherwise."""
     if datatype != "ieeg":
         return np.ones(len(events), dtype=bool)
@@ -456,7 +466,7 @@ def _auto_rows(events, datatype, report):
     return keep
 
 
-def _apply_select(events, select):
+def _apply_select(events: Any, select: Any) -> Any:
     if select is None:
         return events
     if isinstance(select, str):
@@ -484,7 +494,7 @@ def _apply_select(events, select):
     raise EventError("select must be a dict, a query string or None.")
 
 
-def _metadata(events, entities, overlaps, pd):
+def _metadata(events: Any, entities: Any, overlaps: Any, pd: Any) -> Any:
     """Return the standard metadata columns (Table 4.1) for the kept events."""
     table = events.reset_index(drop=True).copy()
     for column, key in (("subject", "sub"), ("session", "ses"), ("run", "run"), ("task", "task")):
@@ -511,7 +521,7 @@ def _metadata(events, entities, overlaps, pd):
 ## Reader
 
 
-def _auto_chunk(trial_bytes):
+def _auto_chunk(trial_bytes: Any) -> int:
     """Cache chunk for remote epochs: a power of two of at least one trial, 64 KiB to 8 MiB."""
     size = 1 << 16
     while size < trial_bytes and size < (8 << 20):
@@ -520,19 +530,19 @@ def _auto_chunk(trial_bytes):
 
 
 def _read_run(
-    tree,
-    folder,
-    entities,
-    data_name,
-    datatype,
-    epoch,
-    events,
-    select,
-    picks,
-    cache_dir,
-    pd,
-    stim_mapping=None,
-):
+    tree: Any,
+    folder: Any,
+    entities: Any,
+    data_name: Any,
+    datatype: Any,
+    epoch: Any,
+    events: Any,
+    select: Any,
+    picks: Any,
+    cache_dir: Any,
+    pd: Any,
+    stim_mapping: Any = None,
+) -> dict[str, Any]:
     stem = _stem(entities)
     tmin, tmax = epoch
     sidecar, recording = _events_sidecar(tree, folder, entities, datatype)
@@ -655,24 +665,24 @@ def _read_run(
 
 
 def _run_result(
-    data,
-    times,
-    sfreq,
-    names,
-    ch_index,
-    ch_info,
-    harmonized,
-    onsets,
-    kept,
-    entities,
-    epoch,
-    report,
-    recording,
-    source,
-    datatype,
-    pd,
-    masks=None,
-):
+    data: Any,
+    times: Any,
+    sfreq: float,
+    names: Any,
+    ch_index: Any,
+    ch_info: Any,
+    harmonized: Any,
+    onsets: Any,
+    kept: Any,
+    entities: Any,
+    epoch: Any,
+    report: Any,
+    recording: Any,
+    source: Any,
+    datatype: Any,
+    pd: Any,
+    masks: Any = None,
+) -> dict[str, Any]:
     """Return the part of one run: metadata of the kept events, channel table, provenance."""
     tmin, tmax = epoch
     kept_events = harmonized[kept]
@@ -705,20 +715,20 @@ def _run_result(
 
 
 def _read_mef_run(
-    tree,
-    folder,
-    entities,
-    data_name,
-    datatype,
-    harmonized,
-    onsets,
-    report,
-    epoch,
-    picks,
-    events_source,
-    recording,
-    pd,
-):
+    tree: Any,
+    folder: Any,
+    entities: Any,
+    data_name: Any,
+    datatype: Any,
+    harmonized: Any,
+    onsets: Any,
+    report: Any,
+    epoch: Any,
+    picks: Any,
+    events_source: Any,
+    recording: Any,
+    pd: Any,
+) -> dict[str, Any]:
     """Epochs of a MEF 3.0 session.
 
     The channels come from channels.tsv (or the session), then the metadata of the picked channels
@@ -784,8 +794,18 @@ def _read_mef_run(
 
 
 def _read_edf_run(
-    tree, folder, entities, data_name, harmonized, onsets, report, epoch, picks, events_source, pd
-):
+    tree: Any,
+    folder: Any,
+    entities: Any,
+    data_name: Any,
+    harmonized: Any,
+    onsets: Any,
+    report: Any,
+    epoch: Any,
+    picks: Any,
+    events_source: Any,
+    pd: Any,
+) -> dict[str, Any]:
     from evoparam.io.readers import read_edf
 
     if tree.remote:
@@ -816,7 +836,7 @@ def _read_edf_run(
     }
 
 
-def _dataset_record(root, base, tree):
+def _dataset_record(root: Any, base: Any, tree: Any) -> Any:
     """Dataset identifier and DOI: from the registry, else from dataset_description.json."""
     from evoparam.io.registry import match_dataset
 
@@ -830,23 +850,23 @@ def _dataset_record(root, base, tree):
 
 
 def read_bids(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
-    root,
-    subject,
+    root: StrPath,
+    subject: str,
     *,
-    session=None,
-    task=None,
-    run=None,
-    acquisition=None,
-    datatype="ieeg",
-    epoch=(-0.5, 1.0),
-    events="auto",
-    select=None,
-    picks=None,
-    remote=False,
-    cache_dir=None,
-    verbose=None,
-    stim_mapping=None,
-):
+    session: str | None = None,
+    task: str | None = None,
+    run: str | None = None,
+    acquisition: str | None = None,
+    datatype: str = "ieeg",
+    epoch: tuple[float, ...] = (-0.5, 1.0),
+    events: Any = "auto",
+    select: Any = None,
+    picks: Any = None,
+    remote: bool | str = False,
+    cache_dir: str | None = None,
+    verbose: Any = None,
+    stim_mapping: dict[str, Any] | None = None,
+) -> "TrialSet":
     """Read epochs around the events of a BIDS dataset, locally or remotely.
 
     Recordings in BrainVision (``.vhdr``), MEF 3.0 (``.mefd`` session folders: the Mayo

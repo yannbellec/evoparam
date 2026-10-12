@@ -38,6 +38,7 @@ from dataclasses import fields, is_dataclass
 
 import numpy as np
 
+from evoparam._typing import Any, StrPath
 from evoparam.data._jsonutil import dumps, loads
 from evoparam.errors import DataError, EvoparamVersionError
 from evoparam.version import __version__
@@ -54,10 +55,11 @@ _SCHEMA_RE = re.compile(r"^evoparam-result/(\d+)(?:\.(\d+))?$")
 
 # Result types defined outside evoparam.data (for example evoparam.sim.GroundTruth), added
 # by their module when it is imported; evoparam.data imports nothing from them (spec §4.2).
+_EXTRA_TYPES: dict[Any, Any]
 _EXTRA_TYPES = {}
 
 
-def register_type(cls):
+def register_type(cls: Any) -> Any:
     """Make a dataclass defined outside :mod:`evoparam.data` savable (spec §4.3.5).
 
     The class can then be saved in a ``.evoparam`` container. Its module calls this when it is
@@ -67,7 +69,7 @@ def register_type(cls):
     return cls
 
 
-def _registry():
+def _registry() -> dict[Any, Any]:
     from evoparam.data import containers, provenance, results
 
     classes = [containers.TrialSet, containers.Evoked, provenance.Provenance]
@@ -79,11 +81,11 @@ def _registry():
     return {**{cls.__name__: cls for cls in classes}, **_EXTRA_TYPES}
 
 
-def _is_dataframe(obj):
+def _is_dataframe(obj: Any) -> bool:
     return type(obj).__name__ == "DataFrame" and type(obj).__module__.startswith("pandas")
 
 
-def _sha256(path, block=1 << 20):
+def _sha256(path: Any, block: Any = 1 << 20) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as fobj:
         for chunk in iter(lambda: fobj.read(block), b""):
@@ -91,7 +93,7 @@ def _sha256(path, block=1 << 20):
     return digest.hexdigest()
 
 
-def _have_pyarrow():
+def _have_pyarrow() -> bool:
     try:
         import pyarrow  # noqa: F401
     except ImportError:
@@ -104,20 +106,22 @@ def _have_pyarrow():
 
 
 class _Encoder:
-    def __init__(self, top):
+    def __init__(self, top: Any) -> None:
         self.top = top
+        self.arrays: dict[Any, Any]
         self.arrays = {}
+        self.tables: dict[Any, Any]
         self.tables = {}
         self.main_array = None
 
-    def _key(self, path, used):
+    def _key(self, path: Any, used: Any) -> str:
         key = re.sub(r"[^A-Za-z0-9_.-]", "_", path) or "value"
         candidate, number = key, 1
         while candidate in used:
             candidate, number = f"{key}_{number}", number + 1
         return candidate
 
-    def encode(self, obj, path):
+    def encode(self, obj: Any, path: Any) -> Any:
         if obj is None or isinstance(obj, (str, bool)):
             return obj
         if isinstance(obj, np.bool_):
@@ -179,7 +183,7 @@ class _Encoder:
         raise DataError(f"{path}: values of type {type(obj).__name__} cannot be saved.")
 
 
-def _write_table(table, folder, key, table_format):
+def _write_table(table: Any, folder: Any, key: Any, table_format: Any) -> None:
     if not all(isinstance(column, str) for column in table.columns):
         raise DataError(f"table {key}: column names must be strings.")
     if table.columns.has_duplicates:
@@ -233,7 +237,7 @@ def _write_table(table, folder, key, table_format):
         fobj.write(dumps(sidecar, indent=1))
 
 
-def _missing(value):
+def _missing(value: Any) -> bool:
     return (
         value is None
         or (isinstance(value, float) and math.isnan(value))
@@ -241,7 +245,7 @@ def _missing(value):
     )
 
 
-def _missing_kind(value):
+def _missing_kind(value: Any) -> Any:
     if value is None:
         return "none"
     if type(value).__name__ == "NAType":
@@ -249,7 +253,7 @@ def _missing_kind(value):
     return "nan"
 
 
-def _write_tree(obj, folder, table_format):
+def _write_tree(obj: Any, folder: Any, table_format: Any) -> None:
     encoder = _Encoder(obj)
     structure = encoder.encode(obj, "")
     files = []
@@ -300,7 +304,9 @@ def _write_tree(obj, folder, table_format):
         fobj.write(dumps(manifest, indent=1))
 
 
-def save_object(obj, path, overwrite=False, table_format="auto"):
+def save_object(
+    obj: Any, path: StrPath, overwrite: bool = False, table_format: str = "auto"
+) -> str:
     """Save a container or result to a ``.evoparam`` directory or zip.
 
     Parameters
@@ -358,7 +364,7 @@ def save_object(obj, path, overwrite=False, table_format="auto"):
 ## Decoding
 
 
-def _read_table(folder, key, _n_hint=None):
+def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
     import pandas as pd
 
     with open(os.path.join(folder, f"{key}.json"), encoding="utf-8") as fobj:
@@ -386,7 +392,7 @@ def _read_table(folder, key, _n_hint=None):
     return table
 
 
-def _convert_column(values, dtype, column, key, missing="none"):
+def _convert_column(values: Any, dtype: Any, column: Any, key: Any, missing: str = "none") -> Any:
     import pandas as pd
 
     if dtype[:1] in "IU" and dtype[1:].startswith(("nt", "Int")) or dtype == "boolean":
@@ -411,13 +417,13 @@ def _convert_column(values, dtype, column, key, missing="none"):
 
 
 class _Decoder:
-    def __init__(self, folder, arrays, mmap):
+    def __init__(self, folder: Any, arrays: Any, mmap: Any) -> None:
         self.folder = folder
         self.arrays = arrays
         self.mmap = mmap
         self.registry = _registry()
 
-    def decode(self, node):
+    def decode(self, node: Any) -> Any:
         if isinstance(node, list):
             return [self.decode(item) for item in node]
         if not isinstance(node, dict):
@@ -451,7 +457,7 @@ class _Decoder:
         raise DataError(f"Unrecognised node in structure.json: {sorted(node)}.")
 
 
-def _read_manifest(folder):
+def _read_manifest(folder: Any) -> tuple[Any, int]:
     manifest_path = os.path.join(folder, "manifest.json")
     if not os.path.exists(manifest_path):
         raise DataError(f"{folder}: not an evoparam container (no manifest.json).")
@@ -472,7 +478,7 @@ def _read_manifest(folder):
     return manifest, major
 
 
-def _load_folder(folder, mmap, verify):
+def _load_folder(folder: Any, mmap: Any, verify: Any) -> Any:
     manifest, major = _read_manifest(folder)
     if verify:
         for name, digest in manifest["files"].items():
@@ -485,6 +491,7 @@ def _load_folder(folder, mmap, verify):
                 )
     with open(os.path.join(folder, "structure.json"), encoding="utf-8") as fobj:
         structure = loads(fobj.read())
+    applied: list[Any]
     applied = []
     if major < SCHEMA_MAJOR:
         from evoparam.data._migrations import migrate
@@ -508,7 +515,7 @@ def _load_folder(folder, mmap, verify):
     return obj
 
 
-def load_object(path, mmap=False, verify=True):
+def load_object(path: StrPath, mmap: bool = False, verify: bool = True) -> Any:
     """Load a container or result saved with :func:`save_object`.
 
     Parameters
@@ -541,7 +548,7 @@ def load_object(path, mmap=False, verify=True):
     raise DataError(f"{path}: not an evoparam container.")
 
 
-def _materialise(obj):
+def _materialise(obj: Any) -> Any:
     """Make sure no array still points into a temporary folder."""
     if is_dataclass(obj) and not isinstance(obj, type):
         for fld in fields(obj):

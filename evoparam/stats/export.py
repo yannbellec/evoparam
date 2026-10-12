@@ -14,9 +14,11 @@ import json
 import keyword
 import re
 import time as _time
+from collections.abc import Sequence
 
 import numpy as np
 
+from evoparam._typing import Any, RandomState
 from evoparam.data import GroupFit, HierarchicalFit, Provenance, ResponseFit, TFFit, TrialFit
 from evoparam.data.results import COMPONENT_COLUMNS, EXISTENCE_COLUMNS, FIT_STATUSES
 from evoparam.errors import DataError, SettingsError
@@ -152,7 +154,7 @@ _ID_ORDER = (
 ## Long format
 
 
-def _jsonable_cell(value):
+def _jsonable_cell(value: Any) -> Any:
     """Return the JSON text of a cell holding a list, dict, tuple, set or array."""
     if isinstance(value, np.ndarray):
         return json.dumps(value.tolist())
@@ -161,14 +163,14 @@ def _jsonable_cell(value):
     return value
 
 
-def _flatten(_pd, table):
+def _flatten(_pd: Any, table: Any) -> Any:
     for column in table.columns:
         if table[column].dtype == object:
             table[column] = table[column].map(_jsonable_cell)
     return table
 
 
-def _resolve_unit(unit, data_units):
+def _resolve_unit(unit: Any, data_units: Any) -> Any:
     if unit == "data":
         return data_units
     if unit == "data·s":
@@ -176,7 +178,7 @@ def _resolve_unit(unit, data_units):
     return unit
 
 
-def _from_group(pd, result):
+def _from_group(pd: Any, result: Any) -> tuple[Any, dict[str, str]]:
     rows = []
     for ch, cond, pos in result.index[["channel", "condition", "position"]].itertuples(
         index=False
@@ -235,7 +237,7 @@ def _from_group(pd, result):
     return pd.DataFrame(rows), dict(PARAMETERS)
 
 
-def _melt(pd, table, parameters, units):
+def _melt(pd: Any, table: Any, parameters: Any, units: Any) -> tuple[Any, dict[Any, Any]]:
     """Melt the given numeric columns into (parameter, value[, se, ci]) rows."""
     se_cols = {p: c for p in parameters for c in (f"{p}_se", f"se_{p}") if c in table.columns}
     lo_cols = {p: f"{p}_ci_low" for p in parameters if f"{p}_ci_low" in table.columns}
@@ -256,7 +258,7 @@ def _melt(pd, table, parameters, units):
     return pd.concat(parts, ignore_index=True), {p: units.get(p, "") for p in parameters}
 
 
-def _known_parameters(table):
+def _known_parameters(table: Any) -> list[Any]:
     known = {**PARAMETERS, **OTHER_PARAMETERS}
     return [
         c
@@ -265,14 +267,14 @@ def _known_parameters(table):
     ]
 
 
-def _from_table(pd, table):
+def _from_table(pd: Any, table: Any) -> tuple[Any, dict[Any, Any]]:
     """Return a trial table (one row per trial x component, with the metadata columns)."""
     params = _known_parameters(table)
     units = dict(getattr(table, "attrs", {}).get("units", {}))
     return _melt(pd, table, params, {**PARAMETERS, **OTHER_PARAMETERS, **units})
 
 
-def _from_trials(pd, result):
+def _from_trials(pd: Any, result: Any) -> tuple[Any, dict[Any, Any]]:
     table = result.table
     if table is not None and hasattr(table, "columns") and len(table):
         return _from_table(pd, table)
@@ -307,7 +309,7 @@ def _from_trials(pd, result):
     )
 
 
-def _from_hierarchical(_pd, result):
+def _from_hierarchical(_pd: Any, result: Any) -> tuple[Any, dict[Any, str]]:
     summary = result.summary.copy()
     rename = {
         "mean": "value",
@@ -326,13 +328,19 @@ def _from_hierarchical(_pd, result):
     return summary, units
 
 
-def _ordered(table):
+def _ordered(table: Any) -> Any:
     ids = [c for c in _ID_ORDER if c in table.columns]
     rest = [c for c in table.columns if c not in ids and c not in LONG_COLUMNS]
     return table[ids + rest + [c for c in LONG_COLUMNS if c in table.columns]]
 
 
-def to_long(result, *, wide=False, units=None, metadata=None):  # noqa: C901, PLR0912  (public API, signature fixed by spec §5.11)
+def to_long(  # noqa: C901, PLR0912  (public API, signature fixed by spec §5.11)
+    result: Any,
+    *,
+    wide: bool = False,
+    units: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> Any:
     """Tidy table of every parameter of a result, ready for mixed-effects modelling.
 
     Parameters
@@ -458,7 +466,7 @@ def to_long(result, *, wide=False, units=None, metadata=None):  # noqa: C901, PL
     return table
 
 
-def _widen(pd, table):
+def _widen(pd: Any, table: Any) -> Any:
     ids = [c for c in table.columns if c not in LONG_COLUMNS]
     key = table[ids].map(repr).agg("\x1f".join, axis=1) if ids else pd.Series([""] * len(table))
     order = list(dict.fromkeys(key))
@@ -482,7 +490,9 @@ def _widen(pd, table):
     return base
 
 
-def _column_units(table, data_units, source_units, _param_units):
+def _column_units(
+    table: Any, data_units: Any, source_units: Any, _param_units: Any
+) -> dict[Any, Any]:
     out = {}
     wide_units = table.attrs.get("param_units", {})
     for col in table.columns:
@@ -506,7 +516,7 @@ def _column_units(table, data_units, source_units, _param_units):
     return out
 
 
-def column_dictionary(table, *, units=None):
+def column_dictionary(table: Any, *, units: Any = None) -> dict[Any, Any]:
     """JSON sidecar describing every column of a table.
 
     ``Description``, ``Units`` (and ``Levels`` for ``status``), in the BIDS tabular-file
@@ -582,16 +592,24 @@ _R_RESERVED = {
 }
 
 
-def _r(name):
+def _r(name: Any) -> Any:
     return name if _R_NAME.match(name) and name not in _R_RESERVED else f"`{name}`"
 
 
-def _py(name):
+def _py(name: Any) -> Any:
     plain = _PY_NAME.match(name) and not keyword.iskeyword(name) and name not in ("C", "Q", "I")
     return name if plain else f'Q("{name}")'
 
 
-def mixed_formula(table, *, response, fixed, groups, engine="lme4", se=None):
+def mixed_formula(
+    table: Any,
+    *,
+    response: str,
+    fixed: Sequence[str],
+    groups: Sequence[str],
+    engine: str = "lme4",
+    se: str | None = None,
+) -> str:
     """Model formula of a linear mixed model with nested random intercepts.
 
     Parameters
@@ -656,7 +674,16 @@ def mixed_formula(table, *, response, fixed, groups, engine="lme4", se=None):
     return f"{lhs} ~ {rhs} + {' + '.join(random)}"
 
 
-def fit_mixed(table, formula, groups, *, nested=(), re_formula=None, reml=True, **fit_kw):
+def fit_mixed(
+    table: Any,
+    formula: str,
+    groups: str,
+    *,
+    nested: Sequence[str] = (),
+    re_formula: str | None = None,
+    reml: bool = True,
+    **fit_kw: Any,
+) -> Any:
     """Fit a linear mixed model with ``statsmodels`` (extra ``stats``).
 
     Parameters
@@ -697,7 +724,7 @@ def fit_mixed(table, formula, groups, *, nested=(), re_formula=None, reml=True, 
     return model.fit(reml=reml, **fit_kw)
 
 
-def _complete_rows(table, formula, columns, re_formula=None):
+def _complete_rows(table: Any, formula: Any, columns: Any, re_formula: Any = None) -> Any:
     """Return the rows of ``table`` with every variable of the model present.
 
     What ``missing="drop"`` of statsmodels does. statsmodels 0.15 drops them itself only for plain
@@ -721,8 +748,15 @@ _UNIT_KEYS = ("subject", "session", "run", "stim_site", "condition", "channel")
 
 
 def group_summary(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.11)
-    table, *, by, parameters=None, ch_info=None, n_boot=1000, ci_level=0.95, random_state=None
-):
+    table: Any,
+    *,
+    by: Sequence[str],
+    parameters: Sequence[str] | None = None,
+    ch_info: Any = None,
+    n_boot: int = 1000,
+    ci_level: float = 0.95,
+    random_state: RandomState | None = None,
+) -> Any:
     """Summary of each parameter per group, with the count of every fit status.
 
     Parameters

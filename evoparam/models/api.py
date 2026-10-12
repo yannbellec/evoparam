@@ -6,11 +6,13 @@ import inspect
 import logging
 import time as _time
 from concurrent.futures import ThreadPoolExecutor
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from scipy.stats import chi2, norm
 from scipy.stats import t as student_t
 
+from evoparam._typing import Any, NDArray
 from evoparam.data import (
     Component,
     Evoked,
@@ -32,8 +34,13 @@ from ._settings import FitSettings, resolve_settings
 from .classical import classical_measures
 from .labels import label_components
 
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
+    from evoparam.shapes._base import ComponentFeatures
+
 # diagnostics of the fitting API (spec §9.8: child logger named after the module)
-logger = logging.getLogger("evoparam.models")
+logger: logging.Logger = logging.getLogger("evoparam.models")
 
 __all__ = [
     "ResponseModel",
@@ -52,7 +59,9 @@ FEATURES_WITH_SE = ("latency", "amplitude", "fwhm", "onset", "offset", "area")
 ## Building the result
 
 
-def _features(shape, tw, params, amp, settings, sfreq):
+def _features(
+    shape: Any, tw: Any, params: Any, amp: Any, settings: Any, sfreq: float
+) -> "ComponentFeatures":
     return compute_features(
         shape,
         tw,
@@ -64,7 +73,7 @@ def _features(shape, tw, params, amp, settings, sfreq):
     )
 
 
-def _scaled_features(unit, amp):
+def _scaled_features(unit: Any, amp: Any) -> Any:
     """Return the features of ``amp * s(t)`` from those of ``s(t)``.
 
     ``unit`` holds the features measured with amplitude 1: only the amplitude, its sign and the
@@ -78,7 +87,9 @@ def _scaled_features(unit, amp):
     )
 
 
-def _feature_vector(shape, tw, params, amp, settings, sfreq, unit=None):
+def _feature_vector(
+    shape: Any, tw: Any, params: Any, amp: Any, settings: Any, sfreq: float, unit: Any = None
+) -> NDArray[Any]:
     f = (
         _features(shape, tw, params, amp, settings, sfreq)
         if unit is None
@@ -87,7 +98,7 @@ def _feature_vector(shape, tw, params, amp, settings, sfreq, unit=None):
     return np.array([getattr(f, name) for name in FEATURES_WITH_SE], float)
 
 
-def _diagnostics(core, _settings):
+def _diagnostics(core: Any, _settings: Any) -> dict[str, Any]:
     """Covariance of every parameter, conditioning and sloppy pairs (step 6)."""
     struct, theta, beta = core["struct"], core["theta"], core["beta"]
     jac = struct.full_jacobian(theta, beta)
@@ -129,7 +140,9 @@ def _diagnostics(core, _settings):
     }
 
 
-def _component_uncertainty(core, diag, k, settings, sfreq, z, unit=None):
+def _component_uncertainty(
+    core: Any, diag: Any, k: Any, settings: Any, sfreq: float, z: Any, unit: Any = None
+) -> tuple[dict[Any, Any], dict[Any, Any]]:
     """Return Wald intervals for the parameters and delta-method intervals for the features.
 
     ``unit``: the features of the component with amplitude 1, when already measured.
@@ -175,7 +188,7 @@ def _component_uncertainty(core, diag, k, settings, sfreq, z, unit=None):
     return se, ci
 
 
-def _gof(core, y_window, valid, _settings):
+def _gof(core: Any, y_window: Any, valid: Any, _settings: Any) -> "GoodnessOfFit":
     resid = core["residual"][valid]
     yv = y_window[valid]
     n = len(yv)
@@ -209,7 +222,7 @@ def _gof(core, y_window, valid, _settings):
     )
 
 
-def _bounds_warnings(core):
+def _bounds_warnings(core: Any) -> list[Any]:
     out = []
     struct = core["struct"]
     for k, shape in enumerate(core["shapes"]):
@@ -225,7 +238,7 @@ def _bounds_warnings(core):
     return out
 
 
-def _unresolvable(comps, diag, settings):
+def _unresolvable(comps: Any, diag: Any, settings: Any) -> list[Any]:
     """Return the indices of the components that cannot be told apart from a neighbour.
 
     Spec §5.5.3 step 6, risk S1: the amplitudes or latencies of two components correlate beyond
@@ -257,7 +270,7 @@ def _unresolvable(comps, diag, settings):
     return sorted(out)
 
 
-def _with_plugins(provenance, settings):
+def _with_plugins(provenance: Any, settings: Any) -> Any:
     """``provenance.environment["plugins"]``.
 
     The plugin shapes, background and preset the settings use, ``{name: "dist==version"}`` (spec
@@ -281,7 +294,17 @@ def _with_plugins(provenance, settings):
     return dataclasses.replace(provenance, environment=environment)
 
 
-def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_dict):
+def _build_fit(
+    core: Any,
+    times: Any,
+    y: Any,
+    settings: Any,
+    sfreq: float,
+    trials: Any,
+    mask: Any,
+    start: Any,
+    settings_dict: Any,
+) -> Any:
     window = settings.fit_window
     baseline = settings.baseline if settings.baseline is not None else (np.nan, np.nan)
     warns = list(core.get("warnings", []))
@@ -443,7 +466,9 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
     return fit
 
 
-def _bootstrap(fit, core, _times, trials, settings, sfreq, _z):
+def _bootstrap(
+    fit: Any, core: Any, _times: Any, trials: Any, settings: Any, sfreq: float, _z: Any
+) -> Any:
     """Resample trials, re-average, refit the same model from the full-data solution."""
     if trials is None:
         raise SettingsError(
@@ -455,6 +480,7 @@ def _bootstrap(fit, core, _times, trials, settings, sfreq, _z):
     wmask = core["window_mask"]
     trials = np.asarray(trials, float)
     n = len(trials)
+    draws: dict[int, list[Any]]
     draws = {k: [] for k in range(len(fit.components))}
     for _ in range(settings.n_bootstrap):
         avg = trials[rng.integers(0, n, n)].mean(axis=0)[wmask]
@@ -492,7 +518,7 @@ def _bootstrap(fit, core, _times, trials, settings, sfreq, _z):
     return dataclasses.replace(fit, components=comps, diagnostics=diag)
 
 
-def _profile_bounds(grid, stat, limit):
+def _profile_bounds(grid: Any, stat: Any, limit: Any) -> tuple[Any, Any]:
     """Return the ends of the profile interval.
 
     Where the statistic crosses ``limit``, linearly interpolated between the outermost grid value
@@ -511,7 +537,7 @@ def _profile_bounds(grid, stat, limit):
     return ends[0], ends[1]
 
 
-def _profile(fit, core, settings, _sfreq, n_grid=21):
+def _profile(fit: Any, core: Any, settings: Any, _sfreq: Any, n_grid: int = 21) -> Any:
     """Profile-likelihood intervals of the non-linear parameters."""
     struct = core["struct"]
     theta, beta = core["theta"], core["beta"]
@@ -548,7 +574,7 @@ def _profile(fit, core, settings, _sfreq, n_grid=21):
     return dataclasses.replace(fit, components=comps, warnings=list(fit.warnings) + flags)
 
 
-def _cv_selector(trials, times, settings):
+def _cv_selector(trials: Any, times: Any, settings: Any) -> Any:
     """Choose the number of components K by K-fold cross-validation over trials.
 
     The nested models are K = 0, 1, ... Each model is refitted on the average of the training
@@ -556,7 +582,7 @@ def _cv_selector(trials, times, settings):
     mean error is chosen.
     """
 
-    def select(path, make):
+    def select(path: Any, make: Any) -> Any:
         rng = np.random.default_rng(settings.random_state)
         n = len(trials)
         folds = np.array_split(rng.permutation(n), min(settings.n_folds, n))
@@ -588,7 +614,7 @@ def _cv_selector(trials, times, settings):
 class _FixedStructure(_engine._Structure):
     """A structure whose bounds are overridden (to hold one parameter fixed)."""
 
-    def __init__(self, base, lower, upper):
+    def __init__(self, base: Any, lower: Any, upper: Any) -> None:
         super().__init__(
             base.shapes,
             base.background,
@@ -602,7 +628,7 @@ class _FixedStructure(_engine._Structure):
         )
         self._lower, self._upper = lower, upper
 
-    def bounds(self):
+    def bounds(self) -> tuple[Any, Any]:
         return self._lower, self._upper
 
 
@@ -613,7 +639,7 @@ class _FixedStructure(_engine._Structure):
 _NOT_PRESET_FIELDS = ("preset", "preset_note", "random_state")
 
 
-def _changed_from_preset(settings):
+def _changed_from_preset(settings: Any) -> list[Any]:
     """Return the names of the fields whose value differs from the preset's.
 
     Without a preset, from the package defaults: the settings a methods text must state (REQ-008,
@@ -632,7 +658,7 @@ def _changed_from_preset(settings):
     return out
 
 
-def _draw_seed():
+def _draw_seed() -> int:
     """Return a seed drawn from the operating system, recorded in the settings (REQ-295).
 
     A fit made with ``random_state=None`` can be repeated from its settings (REQ-331).
@@ -640,7 +666,7 @@ def _draw_seed():
     return int(np.random.default_rng().integers(2**31 - 1))
 
 
-def preset_record(settings):
+def preset_record(settings: Any) -> Any:
     """``{"name", "version"}`` of the preset of resolved settings (REQ-331), or None."""
     import evoparam.presets as _presets
 
@@ -657,7 +683,7 @@ def preset_record(settings):
     return {"name": name, "version": version}
 
 
-def preset_name(value):
+def preset_name(value: Any) -> Any:
     """Name of a recorded preset.
 
     ``settings["preset"]`` is ``{"name", "version"}`` (REQ-331); results written before it hold the
@@ -668,7 +694,7 @@ def preset_name(value):
     return value
 
 
-def _settings_dict(settings, overrides=()):
+def _settings_dict(settings: Any, overrides: Any = ()) -> dict[str, Any]:
     """Return the ``settings`` record of a result (REQ-331).
 
     The full resolved settings, the preset as ``{"name", "version"}``, ``_overrides`` (the keys the
@@ -684,7 +710,7 @@ def _settings_dict(settings, overrides=()):
     return out
 
 
-def evaluate_fit(fit, times, *, components=None, background=True):
+def evaluate_fit(fit: Any, times: Any, *, components: Any = None, background: bool = True) -> Any:
     """Curve of a ResponseFit on any time grid (all components, or a subset).
 
     The background is evaluated with the time origin of the fit (``t_ref`` of
@@ -702,7 +728,7 @@ def evaluate_fit(fit, times, *, components=None, background=True):
         if components is None or k in components:
             total += _amplitude(fit, k) * get_shape(comp.shape).evaluate(times, comp.params)
     if background and fit.background:
-        bg = get_background(fit.background["name"])
+        bg: Any = get_background(fit.background["name"])  # basis: a built-in background
         t_ref = fit.background.get("t_ref")
         bg_times = times
         if (
@@ -710,7 +736,7 @@ def evaluate_fit(fit, times, *, components=None, background=True):
             and dataclasses.is_dataclass(bg)
             and "t_ref" in {f.name for f in dataclasses.fields(bg)}
         ):
-            bg = dataclasses.replace(bg, t_ref=float(t_ref))
+            bg = dataclasses.replace(cast("DataclassInstance", bg), t_ref=float(t_ref))
             bg_times = np.maximum(times, float(t_ref))
         lin = [fit.background[n] for n in getattr(bg, "linear_names", ())]
         nl = [fit.background[n] for n in getattr(bg, "nonlinear_names", ())]
@@ -720,7 +746,9 @@ def evaluate_fit(fit, times, *, components=None, background=True):
     return total
 
 
-def fitted_peak(fit, window, *, polarity="negative", step=1e-4):
+def fitted_peak(
+    fit: Any, window: Any, *, polarity: str = "negative", step: float = 1e-4
+) -> dict[str, float]:
     """Peak of the fitted waveform (background and components) inside a window.
 
     The deepest interior local minimum (``polarity="negative"``) or highest interior local
@@ -766,7 +794,7 @@ def fitted_peak(fit, window, *, polarity="negative", step=1e-4):
     return out
 
 
-def _amplitude(fit, k):
+def _amplitude(fit: Any, k: Any) -> Any:
     """Linear amplitude A of component k: the centre of its (symmetric) Wald interval."""
     comp = fit.components[k]
     ci = comp.ci or {}
@@ -784,62 +812,71 @@ class ResponseModel(BaseEstimatorMixin):
     no preset (see :class:`~evoparam.models.FitSettings`).
     """
 
+    if TYPE_CHECKING:
+        # set from the keywords by __init__ (scikit-learn convention)
+        preset: Any
+        sfreq: float | None
+        tmin: float | None
+        n_jobs: int
+        random_state: Any
+        _overrides_record: list[str]
+
     def __init__(
         self,
-        preset=None,
+        preset: Any = None,
         *,
-        shapes=None,
-        background=None,
-        max_components=None,
-        min_fwhm=None,
-        max_fwhm=None,
-        min_amplitude=None,
-        detection_threshold=None,
-        polarity=None,
-        fit_window=None,
-        baseline=None,
-        sfreq=None,
-        tmin=None,
-        selection=None,
-        delta=None,
-        n_components=None,
-        overlap_c=None,
-        loss=None,
-        f_scale=None,
-        max_iter=None,
-        n_starts=None,
-        onset_fraction=None,
-        uncertainty=None,
-        n_bootstrap=None,
-        ci_level=None,
-        classical=None,
-        windows=None,
-        noise_model=None,
-        background_prior=None,
-        amplitude_prior=None,
-        edge_extension=None,
-        background_tau_max=None,
-        max_masked_fraction=None,
-        n_folds=None,
-        reseed=None,
-        noise_source=None,
-        latency_order=None,
-        candidate_search=None,
-        reject_cancelling=None,
-        threshold_role=None,
-        n_jobs=1,
-        random_state=None,
-        verbose=None,
-    ):
+        shapes: Any = None,
+        background: Any = None,
+        max_components: Any = None,
+        min_fwhm: Any = None,
+        max_fwhm: Any = None,
+        min_amplitude: Any = None,
+        detection_threshold: Any = None,
+        polarity: Any = None,
+        fit_window: Any = None,
+        baseline: Any = None,
+        sfreq: float | None = None,
+        tmin: float | None = None,
+        selection: Any = None,
+        delta: Any = None,
+        n_components: Any = None,
+        overlap_c: Any = None,
+        loss: Any = None,
+        f_scale: Any = None,
+        max_iter: Any = None,
+        n_starts: Any = None,
+        onset_fraction: Any = None,
+        uncertainty: Any = None,
+        n_bootstrap: Any = None,
+        ci_level: Any = None,
+        classical: Any = None,
+        windows: Any = None,
+        noise_model: Any = None,
+        background_prior: Any = None,
+        amplitude_prior: Any = None,
+        edge_extension: Any = None,
+        background_tau_max: Any = None,
+        max_masked_fraction: Any = None,
+        n_folds: Any = None,
+        reseed: Any = None,
+        noise_source: Any = None,
+        latency_order: Any = None,
+        candidate_search: Any = None,
+        reject_cancelling: Any = None,
+        threshold_role: Any = None,
+        n_jobs: int = 1,
+        random_state: Any = None,
+        verbose: Any = None,
+    ) -> None:
         for name, value in locals().items():
             if name != "self":
                 setattr(self, name, value)
 
     @classmethod
-    def _param_names(cls):
+    def _param_names(cls) -> list[str]:
         return cls._get_param_names()
 
-    def _explicit(self, **extra):
+    def _explicit(self, **extra: Any) -> Any:
         """Keys of FitSettings that the user set (REQ-331 ``_overrides``), in field order."""
         recorded = getattr(self, "_overrides_record", None)
         if recorded is not None:
@@ -855,7 +892,7 @@ class ResponseModel(BaseEstimatorMixin):
             if k in given and k not in _NOT_PRESET_FIELDS
         ]
 
-    def settings(self, **extra):
+    def settings(self, **extra: Any) -> "FitSettings":
         """Return the resolved settings of the estimator, with ``extra`` overrides."""
         keys = set(FitSettings.__dataclass_fields__) - {"preset"}
         overrides = {k: getattr(self, k) for k in keys if hasattr(self, k)}
@@ -864,19 +901,19 @@ class ResponseModel(BaseEstimatorMixin):
 
     def fit_waveform(  # noqa: PLR0913  (public API, signature fixed by spec §5.5.8)
         self,
-        times,
-        y,
+        times: Any,
+        y: Any,
         *,
-        window=None,
-        baseline=None,
-        sem=None,
-        mask=None,
-        trials=None,
-        random_state=None,
-        noise_ref=None,
-        unit=None,
-        on_error="record",
-    ):
+        window: Any = None,
+        baseline: Any = None,
+        sem: Any = None,
+        mask: Any = None,
+        trials: Any = None,
+        random_state: Any = None,
+        noise_ref: Any = None,
+        unit: Any = None,
+        on_error: str = "record",
+    ) -> Any:
         """Fit one waveform; returns a :class:`ResponseFit` (never raises on a bad fit).
 
         ``random_state`` replaces the estimator's for this call. When both are None a seed
@@ -969,15 +1006,15 @@ class ResponseModel(BaseEstimatorMixin):
 
     def fit_group(
         self,
-        data,
+        data: Any,
         *,
-        window=None,
-        baseline=None,
-        picks=None,
-        n_jobs=None,
-        condition="",
-        on_error="record",
-    ):
+        window: Any = None,
+        baseline: Any = None,
+        picks: Any = None,
+        n_jobs: Any = None,
+        condition: str = "",
+        on_error: str = "record",
+    ) -> "GroupFit":
         """Fit every channel of an Evoked (or of the average of a TrialSet).
 
         A channel whose fit fails is kept with ``status="failed"`` and the exception in
@@ -1004,7 +1041,7 @@ class ResponseModel(BaseEstimatorMixin):
         # one seed for every channel, drawn when none is given and recorded (REQ-295)
         seed = _draw_seed() if self.random_state is None else None
 
-        def one(ch):
+        def one(ch: Any) -> Any:
             mask = None if evoked.masks is None else evoked.masks[ch]
             sem = None if evoked.sem is None else evoked.sem[ch]
             tr = None if trials is None else trials.data[:, ch]
@@ -1053,7 +1090,7 @@ class ResponseModel(BaseEstimatorMixin):
             provenance=provenance,
         )
 
-    def _as_container(self, x, *, reset):
+    def _as_container(self, x: Any, *, reset: Any) -> Any:
         """X as an Evoked or a TrialSet.
 
         An array is (n_waveforms, n_times) at ``sfreq`` from ``tmin``, checked the scikit-learn way
@@ -1062,7 +1099,7 @@ class ResponseModel(BaseEstimatorMixin):
         x = _from_mne(x)
         if isinstance(x, (TrialSet, Evoked)):
             if reset:
-                self.n_features_in_ = int(x.n_times)
+                self.n_features_in_: int = int(x.n_times)
             elif x.n_times != getattr(self, "n_features_in_", x.n_times):
                 raise DataError(
                     f"X has {x.n_times} time points, but {type(self).__name__} "
@@ -1078,7 +1115,7 @@ class ResponseModel(BaseEstimatorMixin):
             data=data, times=times, sfreq=self.sfreq, ch_names=[f"ch{i}" for i in range(len(data))]
         )
 
-    def _fit_container(self, x):
+    def _fit_container(self, x: Any) -> "GroupFit":
         """GroupFit of a container.
 
         Without a fit window (no ``fit_window``, no preset) the window is the data range; when that
@@ -1124,7 +1161,7 @@ class ResponseModel(BaseEstimatorMixin):
             provenance=evoked.provenance,
         )
 
-    def fit(self, X, y=None):  # noqa: N803, ARG002  (scikit-learn API: X, y)
+    def fit(self, X: Any, y: Any = None) -> "ResponseModel":  # noqa: N803, ARG002  (scikit-learn API: X, y)
         """Fit every channel.
 
         Learned: ``fit_`` (GroupFit), ``components_`` (table), ``times_``, ``n_features_in_``
@@ -1133,27 +1170,27 @@ class ResponseModel(BaseEstimatorMixin):
         n_times); ``y`` is ignored.
         """
         container = self._as_container(X, reset=True)
-        self.fit_ = self._fit_container(container)
-        self.components_ = self.fit_.to_dataframe()
-        self.times_ = np.array(container.times, float)
+        self.fit_: GroupFit = self._fit_container(container)
+        self.components_: Any = self.fit_.to_dataframe()
+        self.times_: NDArray[Any] = np.array(container.times, float)
         # the largest number of residual evaluations of one waveform (at least 1)
-        self.n_iter_ = max(
+        self.n_iter_: int = max(
             [1] + [int(f.diagnostics.get("n_evaluations") or 0) for f in self.fit_.fits]
         )
         return self
 
-    def _group(self, x):
+    def _group(self, x: Any) -> "GroupFit":
         """``fit_`` for X=None, else the fits of X with the same settings."""
         check_is_fitted(self)
         if x is None:
             return self.fit_
         return self._fit_container(self._as_container(x, reset=False))
 
-    def fit_transform(self, X, y=None):  # noqa: N803  (scikit-learn API: X)
+    def fit_transform(self, X: Any, y: Any = None) -> NDArray[Any]:  # noqa: N803  (scikit-learn API: X)
         """Fit X, then return its feature matrix (see :meth:`transform`)."""
         return self.fit(X, y).transform()
 
-    def predict(self, X=None):  # noqa: N803  (scikit-learn API: X)
+    def predict(self, X: Any = None) -> NDArray[Any]:  # noqa: N803  (scikit-learn API: X)
         """Fitted curves over the time axis, (n_waveforms, n_times).
 
         NaN outside the fit window and for a waveform without a model. X=None: the waveforms of
@@ -1170,7 +1207,7 @@ class ResponseModel(BaseEstimatorMixin):
                 out[i, inside[:n]] = fit.model[:n]
         return out
 
-    def transform(self, X=None):  # noqa: N803  (scikit-learn API: X)
+    def transform(self, X: Any = None) -> NDArray[Any]:  # noqa: N803  (scikit-learn API: X)
         """Feature matrix (n_waveforms, 3).
 
         Latency, amplitude and width of the largest component of each waveform (NaN without
@@ -1186,11 +1223,11 @@ class ResponseModel(BaseEstimatorMixin):
                 rows.append([np.nan] * 3)
         return np.array(rows, dtype=float).reshape(-1, 3)
 
-    def get_feature_names_out(self, input_features=None):  # noqa: ARG002  (scikit-learn API)
+    def get_feature_names_out(self, input_features: Any = None) -> NDArray[Any]:  # noqa: ARG002  (scikit-learn API)
         """Return the names of the output features."""
         return np.array(["latency", "amplitude", "fwhm"])
 
-    def score(self, X=None, y=None):  # noqa: N803, ARG002  (scikit-learn API: X, y)
+    def score(self, X: Any = None, y: Any = None) -> float:  # noqa: N803, ARG002  (scikit-learn API: X, y)
         """Mean r2 over the waveforms that were fitted (of ``fit``, or of X)."""
         values = [f.gof.r2 for f in self._group(X).fits if f.gof is not None]
         return float(np.nanmean(values)) if values else np.nan
@@ -1200,13 +1237,15 @@ class ResponseModel(BaseEstimatorMixin):
 ## Functions
 
 
-def fit_response(times, y, *, window, baseline, preset=None, **overrides):
+def fit_response(
+    times: Any, y: Any, *, window: Any, baseline: Any, preset: Any = None, **overrides: Any
+) -> Any:
     """Fit one waveform with a preset and overrides; returns a :class:`ResponseFit`."""
     model = ResponseModel(preset, fit_window=window, baseline=baseline, **overrides)
     return model.fit_waveform(times, y)
 
 
-def _from_mne(data):
+def _from_mne(data: Any) -> Any:
     """MNE Epochs, Evoked or a list of Evoked as evoparam containers (others unchanged)."""
     kind = type(data).__module__.split(".")[0]
     if (
@@ -1227,23 +1266,23 @@ def _from_mne(data):
 
 
 def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec §5.5.8)
-    data,
-    preset=None,
+    data: Any,
+    preset: Any = None,
     *,
-    window=None,
-    baseline=None,
-    times=None,
-    sfreq=None,
-    picks=None,
-    by=None,
-    average=True,
-    trials=False,
-    existence=False,
-    n_jobs=1,
-    random_state=None,
-    verbose=None,
-    **overrides,
-):
+    window: Any = None,
+    baseline: Any = None,
+    times: Any = None,
+    sfreq: float | None = None,
+    picks: Any = None,
+    by: Any = None,
+    average: bool = True,
+    trials: bool = False,
+    existence: bool = False,
+    n_jobs: int = 1,
+    random_state: Any = None,
+    verbose: Any = None,
+    **overrides: Any,
+) -> "GroupFit":
     """Fit evoked responses with a preset: the one-call entry point.
 
     ``evoparam.fit(trials, preset="ccep")`` averages the trials (by condition with ``by``),
@@ -1342,7 +1381,7 @@ def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec �
     return model.fit_group(data, picks=picks)
 
 
-def compare_models(fits):
+def compare_models(fits: Any) -> Any:
     """Criterion table across fits of the same waveform under different settings."""
     import pandas as pd
 
@@ -1365,11 +1404,11 @@ def compare_models(fits):
     return table
 
 
-def _article(word):
+def _article(word: Any) -> Any:
     return "an" if str(word)[:1].lower() in "aeiou" else "a"
 
 
-def _noise_phrase(settings):
+def _noise_phrase(settings: Any) -> str:
     noise = settings.get("noise_model", "ar")
     if noise == "neff":
         return (
@@ -1381,7 +1420,7 @@ def _noise_phrase(settings):
     return f"residuals whitened by an autoregressive model of the baseline noise ({noise})"
 
 
-def methods_text(fit):
+def methods_text(fit: Any) -> str:
     """Methods paragraph for a ResponseFit or GroupFit (spec REQ-123)."""
     settings = fit.settings
     shapes = ", ".join(settings.get("shapes", []))

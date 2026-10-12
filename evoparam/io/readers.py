@@ -13,6 +13,7 @@ from dataclasses import replace
 import numpy as np
 
 from evoparam import _plugins
+from evoparam._typing import Any, ArrayLike, NDArray
 from evoparam.data import Evoked, Provenance, TrialSet, load_object
 from evoparam.errors import DataError, ReaderError, SettingsError
 from evoparam.errors import warn as _warn
@@ -26,7 +27,7 @@ BUILTIN_FORMATS = ("array", "mne", "brainvision", "mef", "edf", "bids", "evopara
 BUILTIN_EXTENSIONS = (".vhdr", ".edf", ".bdf", ".nwb", ".mefd", ".evoparam", ".zip")
 
 
-def _plugin_reader(name, obj, origin):
+def _plugin_reader(name: Any, obj: Any, origin: Any) -> Any:
     """Check a reader of the entry-point group ``evoparam.readers`` (spec §10.8).
 
     ``callable(path, **kw) -> TrialSet`` with ``extensions = (".ext", ...)``.
@@ -71,7 +72,7 @@ def _plugin_reader(name, obj, origin):
 READERS = _plugins.LazyRegistry("evoparam.readers", {}, _plugin_reader, builtin=BUILTIN_FORMATS)
 
 
-def _plugin_for(path, fmt):
+def _plugin_for(path: str, fmt: str | None) -> tuple[str, Any] | None:
     """(name, reader) of the plugin reader for ``format`` or the extension of ``path``.
 
     None when no plugin claims it. Two plugins claiming one extension raise SettingsError.
@@ -97,7 +98,7 @@ def _plugin_for(path, fmt):
     return None
 
 
-def _read_plugin(name, reader, path, kwargs):
+def _read_plugin(name: Any, reader: Any, path: Any, kwargs: Any) -> "TrialSet":
     out = reader(path, **kwargs)
     if not isinstance(out, TrialSet):
         raise ReaderError(
@@ -130,12 +131,12 @@ _MNE_HEAD_FRAME = 4  # FIFFV_COORD_HEAD
 _EDF_TO_UV = {"uv": 1.0, "µv": 1.0, "μv": 1.0, "mv": 1e3, "v": 1e6, "nv": 1e-3}
 
 
-def _default_names(n_channels):
+def _default_names(n_channels: int) -> list[str]:
     width = max(3, len(str(n_channels)))
     return ["CH{:0{}d}".format(ind + 1, width) for ind in range(n_channels)]
 
 
-def _table(value, name):
+def _table(value: Any, name: Any) -> Any:
     if value is None:
         return None
     pd = require("pandas", extra="data", caller=f"evoparam.io.from_array ({name})")
@@ -147,17 +148,17 @@ def _table(value, name):
 
 
 def from_array(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
-    data,
-    sfreq,
+    data: ArrayLike,
+    sfreq: float,
     *,
-    times=None,
-    ch_names=None,
-    units="uV",
-    metadata=None,
-    ch_info=None,
-    species="human",
-    modality=None,
-):
+    times: ArrayLike | None = None,
+    ch_names: list[str] | None = None,
+    units: str = "uV",
+    metadata: Any = None,
+    ch_info: Any = None,
+    species: str = "human",
+    modality: str | None = None,
+) -> "TrialSet":
     """Build a TrialSet from an array.
 
     Parameters
@@ -237,7 +238,7 @@ def from_array(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
 ## Dispatch
 
 
-def _guess_format(path):
+def _guess_format(path: Any) -> Any:
     lower = path.lower().rstrip("/")
     if lower.endswith(".vhdr"):
         return "brainvision"
@@ -262,20 +263,20 @@ def _guess_format(path):
 
 
 def _read_continuous(
-    path,
-    fmt,
+    path: Any,
+    fmt: Any,
     *,
-    onsets=None,
-    epoch=(-0.5, 1.0),
-    tmin=None,
-    tmax=None,
-    picks=None,
-    remote=None,
-    metadata=None,
-    ch_info=None,
-    species="human",
-    modality=None,
-):
+    onsets: Any = None,
+    epoch: Any = (-0.5, 1.0),
+    tmin: float | None = None,
+    tmax: float | None = None,
+    picks: Any = None,
+    remote: Any = None,
+    metadata: Any = None,
+    ch_info: Any = None,
+    species: str = "human",
+    modality: Any = None,
+) -> "TrialSet":
     """Read a recording file: epochs around ``onsets``, or the recording as one trial."""
     from evoparam.io.brainvision import _read_with_source
     from evoparam.io.epochs import epoch as cut
@@ -319,7 +320,7 @@ def _read_continuous(
             kept=step["kept"],
             overlaps_previous=step["overlaps_previous"],
         )
-        changes = {}
+        changes: dict[str, Any] = {}
         if gaps.any():
             times, starts, kept = epoch_windows(
                 onsets, sfreq, epoch[0], epoch[1], data.shape[1], t0=t0
@@ -350,7 +351,7 @@ def _read_continuous(
     )
 
 
-def read(source, *, format=None, **kwargs):  # noqa: A002, C901, PLR0911, PLR0912  (public API, signature fixed by spec §5.1; format: its keyword)
+def read(source: Any, *, format: str | None = None, **kwargs: Any) -> "TrialSet":  # noqa: A002, C901, PLR0911, PLR0912  (public API, signature fixed by spec §5.1; format: its keyword)
     """Read data from any supported source into a TrialSet.
 
     Dispatch on the type or the extension of ``source``:
@@ -439,7 +440,7 @@ def read(source, *, format=None, **kwargs):  # noqa: A002, C901, PLR0911, PLR091
 ## MNE-Python
 
 
-def read_mne(obj, *, units="uV"):
+def read_mne(obj: Any, *, units: str = "uV") -> "TrialSet":
     """Convert an MNE-Python ``Epochs`` or ``Evoked`` object to a TrialSet (extra ``mne``).
 
     Voltages (EEG, ECoG, sEEG, DBS, EMG) are converted from V to ``units``; MEG
@@ -536,7 +537,9 @@ def read_mne(obj, *, units="uV"):
 ## EDF
 
 
-def read_edf(path, *, tmin=None, tmax=None, picks=None):
+def read_edf(
+    path: str, *, tmin: float | None = None, tmax: float | None = None, picks: Any = None
+) -> tuple[NDArray[Any], float, list[Any], float]:
     """Read an EDF, EDF+ or BDF recording, or a time window of it (extra ``edf``).
 
     Parameters
@@ -601,7 +604,7 @@ def read_edf(path, *, tmin=None, tmax=None, picks=None):
     return np.vstack(rows), sfreq, [names[ind] for ind in index], first / sfreq
 
 
-def read_events_edf(path):
+def read_events_edf(path: Any) -> list[dict[str, Any]]:
     """Annotations of an EDF+ file (extra ``edf``).
 
     Returns

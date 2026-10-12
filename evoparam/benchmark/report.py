@@ -8,6 +8,7 @@ every number in it is a metric of a result file, formatted by :func:`format_metr
 import glob
 import os
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 
 from .scoring import HEADLINE, read_result
@@ -47,13 +48,13 @@ LABELS = {
 }
 
 
-def metric_label(name):
+def metric_label(name: Any) -> Any:
     """Column title of a metric (unit in ms for latencies)."""
     label = LABELS.get(name, name.replace("_", " "))
     return f"{label} (ms)" if name in _MS else label
 
 
-def format_metric(name, value):
+def format_metric(name: Any, value: Any) -> str:
     """Return the text of a metric value.
 
     ``n/a`` for None, latencies in ms, 4 significant digits.
@@ -69,7 +70,7 @@ def format_metric(name, value):
     return f"{value:.4g}"
 
 
-def load_results(folder):
+def load_results(folder: Any) -> list[Any]:
     """Load every result document of a folder (``*.json``), signatures checked.
 
     The documents are sorted by task then method name and version.
@@ -83,13 +84,13 @@ def load_results(folder):
     )
 
 
-def _suites(docs):
+def _suites(docs: Any) -> list[tuple[Any, Any, Any]]:
     return sorted(
         {(d["suite"]["name"], d["suite"]["version"], d["suite"]["sha256"]) for d in docs}
     )
 
 
-def markdown(docs):
+def markdown(docs: Any) -> str:
     """Return the report text."""
     suites = _suites(docs)
     lines = ["# evoparam benchmark report", ""]
@@ -129,6 +130,7 @@ def markdown(docs):
             )
             lines.append("")
     lines += ["## Methods", ""]
+    seen: dict[Any, Any]
     seen = {}
     for d in docs:
         seen.setdefault((d["method"]["name"], str(d["method"].get("version", ""))), d["method"])
@@ -147,7 +149,7 @@ def markdown(docs):
     return "\n".join(lines)
 
 
-def write_report(results_folder, path):
+def write_report(results_folder: Any, path: Any) -> Any:
     """Write the Markdown report of the results of a folder; returns the path."""
     text = markdown(load_results(results_folder))
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)

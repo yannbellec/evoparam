@@ -11,9 +11,11 @@ trial-to-trial variability, sums everything and returns the
 
 import time as _time
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.data import Provenance, TrialSet
 from evoparam.errors import SettingsError
 from evoparam.shapes import compute_features, get_shape
@@ -46,15 +48,15 @@ class Source:
 
     label: str
     shape: str
-    params: np.ndarray
+    params: NDArray[Any]
     amplitude: float
     channel: int
     role: str = "target"
     event: int = 0
     rel: float = 1.0
-    gain: np.ndarray | None = None
-    present: np.ndarray | None = None
-    offset: np.ndarray | None = None
+    gain: NDArray[Any] | None = None
+    present: NDArray[Any] | None = None
+    offset: NDArray[Any] | None = None
     group: str | None = None
     parent: int | None = None
 
@@ -63,7 +65,7 @@ class Source:
 ## Seeds and settings
 
 
-def seed_streams(seed):
+def seed_streams(seed: Any) -> tuple[int, dict[str, np.random.Generator]]:
     """Seed actually used and one Generator per stream of :data:`STREAMS`.
 
     An int is used as is; ``None`` draws a seed from the operating system; a
@@ -73,7 +75,7 @@ def seed_streams(seed):
     if isinstance(seed, np.random.Generator):
         entropy = int(seed.integers(0, 2**63 - 1))
     elif seed is None:
-        entropy = int(np.random.SeedSequence().entropy)
+        entropy = int(cast(int, np.random.SeedSequence().entropy))  # an int when drawn
     elif isinstance(seed, (int, np.integer)) and not isinstance(seed, bool) and seed >= 0:
         entropy = int(seed)
     else:
@@ -86,7 +88,7 @@ def seed_streams(seed):
     }
 
 
-def time_axis(sfreq, tmin, tmax):
+def time_axis(sfreq: float, tmin: float, tmax: float) -> FloatArray:
     """Return the samples ``tmin <= t < tmax`` on the grid ``k / sfreq`` (0.0 is a sample)."""
     if not (np.isfinite(sfreq) and sfreq > 0):
         raise SettingsError(f"sfreq must be a positive number, got {sfreq}.")
@@ -99,7 +101,7 @@ def time_axis(sfreq, tmin, tmax):
     return np.arange(first, last) / float(sfreq)
 
 
-def jsonable_settings(settings):
+def jsonable_settings(settings: Any) -> dict[Any, Any]:
     """Return the settings with specifications, arrays and containers replaced by plain values."""
     out = {}
     for key, raw_value in settings.items():
@@ -125,7 +127,7 @@ def jsonable_settings(settings):
     return out
 
 
-def table(columns, n_rows):
+def table(columns: Any, n_rows: Any) -> Any:
     """Return a pandas DataFrame from a dict of columns, or None when pandas is missing."""
     if not columns:
         return None
@@ -146,14 +148,14 @@ def table(columns, n_rows):
 ## Amplitudes from signal-to-noise ratios
 
 
-def _check_snr_value(value, what):
+def _check_snr_value(value: Any, what: Any) -> float:
     value = float(value)
     if not (np.isfinite(value) and value > 0):
         raise SettingsError(f"snr for {what} must be a positive number, got {value}.")
-    return value
+    return cast("float", value)
 
 
-def requested_snr(snr, sources, ch_names):
+def requested_snr(snr: Any, sources: Any, ch_names: Any) -> list[float | None]:
     """Return the requested SNR of each source (None when the amplitude is given in data units).
 
     ``snr`` is None, a number (every component, times its relative spatial weight),
@@ -161,11 +163,12 @@ def requested_snr(snr, sources, ch_names):
     dict whose keys are labels or channel names. A channel key sets the SNR of every
     component on that channel and must name a channel that has one.
     """
-    out = [None] * len(sources)
+    out: list[float | None] = [None] * len(sources)
     primary = [k for k, src in enumerate(sources) if src.parent is None]
     if snr is None:
         return out
     if isinstance(snr, dict):
+        labels: Any
         labels = {sources[k].label for k in primary}
         names = set(ch_names)
         with_component = {ch_names[sources[k].channel] for k in primary}
@@ -217,16 +220,24 @@ def requested_snr(snr, sources, ch_names):
 ## Trial variability
 
 
-def _per_label(value, label, name):
+def _per_label(value: Any, label: Any, name: Any) -> float:
     if isinstance(value, dict):
         value = value.get(label, 0.0)
     value = float(value)
     if not (np.isfinite(value) and value >= 0):
         raise SettingsError(f"{name} must be >= 0, got {value} for '{label}'.")
-    return value
+    return cast("float", value)
 
 
-def trial_variability(sources, n_trials, rng, jitter_sd, jitter, jitter_tau, amplitude_cv):
+def trial_variability(
+    sources: Any,
+    n_trials: int,
+    rng: np.random.Generator,
+    jitter_sd: Any,
+    jitter: Any,
+    jitter_tau: Any,
+    amplitude_cv: Any,
+) -> tuple[FloatArray, FloatArray]:
     """Latency shift and amplitude factor of each source in each trial.
 
     A scalar ``jitter_sd`` moves every component of one event by the same shift in
@@ -272,7 +283,7 @@ def trial_variability(sources, n_trials, rng, jitter_sd, jitter, jitter_tau, amp
 ## Assembly
 
 
-def baseline_index(times):
+def baseline_index(times: Any) -> Any:
     """Return the samples before the onset (t < 0).
 
     Every sample when fewer than 2 precede it.
@@ -283,39 +294,39 @@ def baseline_index(times):
 
 def assemble(
     *,
-    generator,
-    settings,
-    seed,
-    rngs,
-    times,
-    sfreq,
-    ch_names,
-    sources,
-    n_trials,
-    noise="pink",
-    noise_sd=1.0,
-    noise_kw=None,
-    snr=None,
-    jitter_sd=0.0,
-    jitter="normal",
-    jitter_tau=None,
-    amplitude_cv=0.0,
-    artifact=None,
-    artifact_info=None,
-    rail=None,
-    metadata=None,
-    ch_info=None,
-    event_times=None,
-    conditions=None,
-    species="human",
-    modality=None,
-    units="uV",
-    keep_arrays=True,
-    noise_data=None,
-    noise_info=None,
-    base=None,
-    start=None,
-):
+    generator: Any,
+    settings: Any,
+    seed: Any,
+    rngs: Any,
+    times: Any,
+    sfreq: float,
+    ch_names: Any,
+    sources: Any,
+    n_trials: int,
+    noise: str = "pink",
+    noise_sd: float = 1.0,
+    noise_kw: Any = None,
+    snr: Any = None,
+    jitter_sd: float | dict[str, Any] = 0.0,
+    jitter: str = "normal",
+    jitter_tau: Any = None,
+    amplitude_cv: float | dict[str, Any] = 0.0,
+    artifact: Any = None,
+    artifact_info: Any = None,
+    rail: Any = None,
+    metadata: Any = None,
+    ch_info: Any = None,
+    event_times: Any = None,
+    conditions: Any = None,
+    species: str = "human",
+    modality: Any = None,
+    units: str = "uV",
+    keep_arrays: bool = True,
+    noise_data: Any = None,
+    noise_info: Any = None,
+    base: Any = None,
+    start: Any = None,
+) -> tuple[TrialSet, GroundTruth]:
     """Build the TrialSet and the GroundTruth of one simulation (see module docstring).
 
     ``noise_data`` / ``noise_info`` replace the noise model (used by ``inject``, whose
@@ -357,11 +368,12 @@ def assemble(
     # Amplitudes
     targets = requested_snr(snr, sources, ch_names)
     amplitude = np.zeros(len(sources))
-    record_snr = [None] * len(sources)
+    record_snr: list[float | None] = [None] * len(sources)
     for k, src in enumerate(sources):
         if src.parent is not None:
             continue
-        if targets[k] is None:
+        target = targets[k]
+        if target is None:
             amplitude[k] = float(src.amplitude)
             continue
         sd = baseline_sd[src.channel]
@@ -371,8 +383,8 @@ def assemble(
                 "baseline noise SD is zero (no noise)."
             )
         sign = -1.0 if src.amplitude < 0 else 1.0
-        amplitude[k] = sign * targets[k] * sd
-        record_snr[k] = targets[k]
+        amplitude[k] = sign * target * sd
+        record_snr[k] = target
     for k, src in enumerate(sources):
         if src.parent is not None:
             amplitude[k] = amplitude[src.parent] * float(src.amplitude)

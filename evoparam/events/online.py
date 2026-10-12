@@ -11,6 +11,7 @@ result does not depend on how the stream is cut into chunks.
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError, SettingsError
 
 from ._score import MAD_TO_SD, score_index
@@ -35,32 +36,41 @@ class OnlinePulseDetector:
         inside it are reported when it ends.
     """
 
-    def __init__(self, sfreq, n_channels, *, threshold_sd=20.0, min_interval=0.5, calibration=1.0):
+    def __init__(
+        self,
+        sfreq: float,
+        n_channels: int,
+        *,
+        threshold_sd: float = 20.0,
+        min_interval: float = 0.5,
+        calibration: float = 1.0,
+    ) -> None:
         if not sfreq > 0:
             raise SettingsError("sfreq must be positive.")
         if not threshold_sd > 0:
             raise SettingsError("threshold_sd must be positive.")
         if not min_interval > 0:
             raise SettingsError("min_interval must be positive.")
-        self.sfreq = float(sfreq)
-        self.n_channels = int(n_channels)
-        self.threshold_sd = float(threshold_sd)
-        self.min_samples = max(1, int(round(min_interval * self.sfreq)))
-        self.n_calibration = max(3, int(round(calibration * self.sfreq)))
+        self.sfreq: float = float(sfreq)
+        self.n_channels: int = int(n_channels)
+        self.threshold_sd: float = float(threshold_sd)
+        self.min_samples: int = max(1, int(round(min_interval * self.sfreq)))
+        self.n_calibration: int = max(3, int(round(calibration * self.sfreq)))
         self._index = score_index(np.arange(self.n_channels))
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         """Forget the stream (the calibration is redone)."""
-        self.threshold = None
-        self.center = 0.0
-        self.spread = 1.0
+        self.threshold: float | None = None
+        self.center: float = 0.0
+        self.spread: float = 1.0
         self._previous = None
+        self._pending: list[Any]
         self._pending = []
         self._next_allowed = 0
         self._n_seen = 0
 
-    def _score(self, samples):
+    def _score(self, samples: Any) -> NDArray[Any]:
         block = samples[:, self._index]
         if self._previous is None:
             diff = np.vstack([np.zeros((1, block.shape[1])), np.diff(block, axis=0)])
@@ -69,10 +79,11 @@ class OnlinePulseDetector:
         self._previous = block[-1:].copy()
         diff = np.nan_to_num(np.abs(diff), nan=0.0)
         if diff.shape[1] == 1:
-            return diff[:, 0]
+            first: NDArray[Any] = diff[:, 0]
+            return first
         return np.partition(diff, diff.shape[1] // 2, axis=1)[:, diff.shape[1] // 2]
 
-    def _calibrate(self, score):
+    def _calibrate(self, score: Any) -> None:
         self.center = float(np.median(score))
         spread = MAD_TO_SD * float(np.median(np.abs(score - self.center)))
         if not spread > 0:
@@ -80,7 +91,7 @@ class OnlinePulseDetector:
         self.spread = spread if spread > 0 else 1.0
         self.threshold = self.center + self.threshold_sd * self.spread
 
-    def _crossings(self, score, first):
+    def _crossings(self, score: Any, first: Any) -> list[Any]:
         out = []
         for i in np.flatnonzero(score > self.threshold):
             sample = first + int(i)
@@ -89,7 +100,7 @@ class OnlinePulseDetector:
                 self._next_allowed = sample + self.min_samples
         return out
 
-    def update(self, samples):
+    def update(self, samples: Any) -> list[Any]:
         """Add samples [n_samples, n_channels].
 
         Returns the onset samples (stream indices) of the pulses found.

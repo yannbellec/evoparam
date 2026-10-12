@@ -16,8 +16,11 @@ import json
 import os
 import time
 import traceback
+from collections.abc import Callable, Sequence
 from concurrent.futures import ProcessPoolExecutor
+from typing import TYPE_CHECKING, cast
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 
 from ._canon import clean
@@ -27,15 +30,18 @@ from .scoring import score, write_result
 from .suite import load_suite, make_inputs, simulate_cell
 from .tasks import output_path, write_input, write_output
 
+if TYPE_CHECKING:
+    from evoparam.benchmark.suite import Suite
+
 __all__ = ["run_suite", "result_name"]
 
 
-def result_name(method, task):
+def result_name(method: Any, task: Any) -> str:
     """File name of a result: ``<method>__<task>.json``."""
     return f"{method}__{task}.json"
 
 
-def _cell_job(args):
+def _cell_job(args: Any) -> tuple[Any, dict[Any, Any], list[Any]]:
     """Simulate one cell, write its inputs, run the baselines.
 
     Returns timings and failures (runs in a worker process when ``n_jobs > 1``).
@@ -77,18 +83,18 @@ def _cell_job(args):
 
 
 def run_suite(
-    suite="core",
-    out=".",
+    suite: "str | Suite" = "core",
+    out: str = ".",
     *,
-    tasks=None,
-    methods=None,
-    adapters=(),
-    hidden_seeds=None,
-    split="public",
-    n_jobs=1,
-    page=True,
-    log=None,
-):
+    tasks: Sequence[str] | None = None,
+    methods: Sequence[str] | None = None,
+    adapters: Any = (),
+    hidden_seeds: Any = None,
+    split: str = "public",
+    n_jobs: int = 1,
+    page: bool = True,
+    log: Callable[..., Any] | None = None,
+) -> dict[str, Any]:
     """Run baselines and adapters on a suite, score them and write the results.
 
     Parameters
@@ -128,7 +134,8 @@ def run_suite(
     if not hasattr(suite, "cells"):
         suite = load_suite(suite, hidden_seeds=hidden_seeds)
     elif hidden_seeds is not None:
-        suite = suite.with_hidden_seeds(hidden_seeds)
+        suite = cast("Suite", suite).with_hidden_seeds(hidden_seeds)
+    suite = cast("Suite", suite)  # a Suite from here on
     tasks = list(tasks) if tasks else suite.task_ids()
     for task in tasks:
         if task not in suite.tasks:
@@ -142,6 +149,7 @@ def run_suite(
     for adapter in adapters:
         adapter.check()  # a missing program stops the run before any work
     os.makedirs(out, exist_ok=True)
+    cells: dict[Any, Any]
     cells = {}
     for task in tasks:
         for cell in suite.cells(task, split=split):

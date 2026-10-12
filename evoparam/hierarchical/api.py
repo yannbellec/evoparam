@@ -12,9 +12,12 @@ channels that carry each component (§5.7), then combines them:
 """
 
 import time as _time
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data import HierarchicalFit
 from evoparam.errors import SettingsError
 from evoparam.version import __version__
@@ -33,6 +36,9 @@ from ._inputs import (
     trial_fits,
     wald_se,
 )
+
+if TYPE_CHECKING:
+    from evoparam.data.results import GroupFit
 
 __all__ = ["fit_hierarchical", "posterior_summary", "compare_hierarchical", "ENGINES", "LEVELS"]
 
@@ -84,7 +90,7 @@ CHANNEL_COLUMNS = {
 }
 
 
-def _preset_for(ts, preset):
+def _preset_for(ts: Any, preset: Any) -> Any:
     if preset is not None:
         return preset
     if ts.modality in MODALITY_PRESETS:
@@ -93,25 +99,25 @@ def _preset_for(ts, preset):
 
 
 def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.8)
-    ts,
+    ts: Any,
     *,
-    levels=LEVELS,
-    components=None,
-    engine="eb",
-    existence=True,
-    formula=None,
-    latency_dist="exgaussian",
-    n_chains=4,
-    n_warmup=1000,
-    n_draws=1000,
-    target_accept=0.9,
-    preset=None,
-    group_fits=None,
-    subject_column="subject",
-    random_state=None,
-    n_jobs=1,
-    verbose=None,
-):
+    levels: Any = LEVELS,
+    components: Sequence[str] | None = None,
+    engine: str = "eb",
+    existence: bool = True,
+    formula: str | None = None,
+    latency_dist: str = "exgaussian",
+    n_chains: int = 4,
+    n_warmup: int = 1000,
+    n_draws: int = 1000,
+    target_accept: float = 0.9,
+    preset: str | None = None,
+    group_fits: Sequence["GroupFit"] | None = None,
+    subject_column: str = "subject",
+    random_state: Any = None,
+    n_jobs: int = 1,
+    verbose: Any = None,
+) -> "HierarchicalFit":
     """Hierarchical estimates of evoked components: trial -> channel -> subject.
 
     Parameters
@@ -195,7 +201,7 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
         [],
         [],
     )
-    diagnostics = {"notes": notes, "em": {}, "reml": {}, "jitter": {}}
+    diagnostics: dict[str, Any] = {"notes": notes, "em": {}, "reml": {}, "jitter": {}}
     for label in labels:
         comps = [component_rows(gf, label) for gf in fits]
         pooled = [c for rows in comps for c in rows.values() if c is not None]
@@ -233,6 +239,7 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
                     if tf.channel == ch and len(trials_ch):
                         k = int(trials_ch["component"].iloc[0])
                         noise = float(tf.jitter_sd_null.get(k, np.nan))
+                row: Any
                 row = {
                     "subject": name,
                     "subject_index": si,
@@ -567,14 +574,14 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
     )
 
 
-def posterior_summary(fit, level="channel"):
+def posterior_summary(fit: Any, level: str = "channel") -> Any:
     """Return the table of one level (``trial``, ``channel``, ``subject`` or ``group``)."""
     if level not in fit.level_tables:
         raise SettingsError(f"level must be one of {sorted(fit.level_tables)}, not {level!r}.")
     return fit.level_tables[level]
 
 
-def compare_hierarchical(fits):
+def compare_hierarchical(fits: Any) -> Any:
     """Leave-one-out comparison (PSIS-LOO) of Bayesian fits: one row per fit, best first."""
     from .bayes import loo_table
 

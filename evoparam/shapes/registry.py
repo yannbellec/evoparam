@@ -9,10 +9,12 @@ after checking the protocol, the unit amplitude and the Jacobian numerically; a 
 """
 
 import dataclasses
+from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
 
 import numpy as np
 
 from evoparam import _plugins
+from evoparam._typing import Any, ArrayLike, FloatArray, RandomState
 from evoparam.errors import SettingsError
 from evoparam.shapes._base import FEATURE_OVERSAMPLING, Background, ComponentShape
 from evoparam.shapes.backgrounds import (
@@ -35,6 +37,9 @@ from evoparam.shapes.components import (
     Template,
 )
 
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
 __all__ = [
     "SHAPES",
     "BACKGROUNDS",
@@ -50,7 +55,10 @@ __all__ = [
 ]
 
 
-def _plugin_shape(name, obj, origin):
+_S = TypeVar("_S")
+
+
+def _plugin_shape(name: str, obj: Any, origin: str) -> Any:
     """Check a shape of the entry-point group ``evoparam.shapes`` (spec §10.8)."""
     if getattr(obj, "kind", None) == "background":
         return _plugins.SKIP
@@ -77,7 +85,7 @@ def _plugin_shape(name, obj, origin):
     return obj
 
 
-def _plugin_background(name, obj, origin):
+def _plugin_background(name: str, obj: Any, origin: str) -> Any:
     if getattr(obj, "kind", None) != "background":
         return _plugins.SKIP
     instance = obj() if isinstance(obj, type) else obj
@@ -126,7 +134,7 @@ BACKGROUNDS = _plugins.LazyRegistry(
 )
 
 # Reference axis of the registration checks: 300 ms at 1 kHz.
-CHECK_TIMES = np.arange(-0.05, 0.25, 1e-3)
+CHECK_TIMES = np.arange(-0.05, 0.25, 1e-3, dtype=np.float64)
 
 FEATURE_FIELDS = (
     "latency",
@@ -145,7 +153,7 @@ FEATURE_FIELDS = (
 METHODS = ("evaluate", "jacobian", "default_bounds", "initial_guess", "features")
 
 
-def _instance(entry, settings):
+def _instance(entry: Any, settings: dict[str, Any]) -> Any:
     if isinstance(entry, type):
         return entry(**settings)
     if settings:
@@ -153,46 +161,48 @@ def _instance(entry, settings):
             raise SettingsError(
                 f"shape '{entry.name}' was registered as an instance and takes no settings."
             )
-        return dataclasses.replace(entry, **settings)
+        return dataclasses.replace(cast("DataclassInstance", entry), **settings)
     return entry
 
 
-def get_shape(name, **settings):
+def get_shape(name: str, **settings: Any) -> ComponentShape:
     """Return the shape registered under ``name``, built with ``settings``."""
     if name not in SHAPES:
         raise SettingsError(f"unknown shape '{name}'; registered: {sorted(SHAPES)}.")
-    return _instance(SHAPES[name], settings)
+    return cast("ComponentShape", _instance(SHAPES[name], settings))
 
 
-def list_shapes():
+def list_shapes() -> list[str]:
     """Names of the registered component shapes (built-in and plugins), sorted."""
     return sorted(SHAPES)
 
 
-def list_backgrounds():
+def list_backgrounds() -> list[str]:
     """Names of the registered backgrounds (built-in and plugins), sorted."""
     return sorted(BACKGROUNDS)
 
 
-def get_background(name, **settings):
+def get_background(name: str, **settings: Any) -> Background:
     """Return the background registered under ``name``, built with ``settings``."""
     if name not in BACKGROUNDS:
         raise SettingsError(f"unknown background '{name}'; registered: {sorted(BACKGROUNDS)}.")
-    return _instance(BACKGROUNDS[name], settings)
+    return cast("Background", _instance(BACKGROUNDS[name], settings))
 
 
 ###################################################################################################
 ## Checks
 
 
-def _fail(name, check, detail):
+def _fail(name: object, check: str, detail: str) -> NoReturn:
     raise SettingsError(f"register_shape('{name}'): check '{check}' failed: {detail}")
 
 
-def _finite_difference(shape, times, params, index, step):
+def _finite_difference(
+    shape: ComponentShape, times: FloatArray, params: FloatArray, index: int, step: float
+) -> tuple[FloatArray, FloatArray, FloatArray]:
     """Central difference with Richardson extrapolation, and the two raw estimates."""
 
-    def central(h):
+    def central(h: float) -> FloatArray:
         delta = np.zeros(params.shape[-1])
         delta[index] = h
         return (shape.evaluate(times, params + delta) - shape.evaluate(times, params - delta)) / (
@@ -203,7 +213,13 @@ def _finite_difference(shape, times, params, index, step):
     return (4.0 * fine - coarse) / 3.0, coarse, fine
 
 
-def jacobian_error(shape, times, params, rel_step=1e-5, bounds=None):
+def jacobian_error(
+    shape: ComponentShape,
+    times: ArrayLike,
+    params: ArrayLike,
+    rel_step: float = 1e-5,
+    bounds: tuple[FloatArray, FloatArray] | None = None,
+) -> FloatArray:
     """Largest error of the analytic Jacobian against central finite differences.
 
     For each parameter set and each parameter, the error is
@@ -241,7 +257,14 @@ def jacobian_error(shape, times, params, rel_step=1e-5, bounds=None):
     return error
 
 
-def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
+def check_shape(
+    shape: ComponentShape,
+    times: ArrayLike | None = None,
+    *,
+    n_sets: int = 20,
+    rtol: float = 1e-6,
+    random_state: RandomState = 0,
+) -> None:
     """Run the registration checks on a shape instance.
 
     Checks, in order: ``protocol`` (attributes and methods of
@@ -373,7 +396,9 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
         _fail(name, "features", f"features lacks {missing}.")
 
 
-def register_shape(shape, *, overwrite=False, times=None, **check_settings):
+def register_shape(
+    shape: _S, *, overwrite: bool = False, times: ArrayLike | None = None, **check_settings: Any
+) -> _S:
     """Register a user shape after checking it (REQ-102).
 
     Parameters
@@ -419,7 +444,7 @@ def register_shape(shape, *, overwrite=False, times=None, **check_settings):
     return shape
 
 
-def unregister_shape(name):
+def unregister_shape(name: str) -> None:
     """Remove a user shape from ``SHAPES``; built-in shapes cannot be removed."""
     if name in BUILTIN_SHAPES:
         raise SettingsError(f"unregister_shape: '{name}' is a built-in shape.")

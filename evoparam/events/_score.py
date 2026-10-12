@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray
 from evoparam.errors import DataError
 
 __all__ = []
@@ -14,7 +15,7 @@ _CHUNK = 1 << 14
 MAD_TO_SD = 1.4826
 
 
-def as_continuous(data):
+def as_continuous(data: Any) -> Any:
     """Return ``data`` as a float 2d array [n_channels, n_times]."""
     data = np.asarray(data)
     if data.ndim == 1:
@@ -28,7 +29,7 @@ def as_continuous(data):
     return data
 
 
-def pick_index(n_channels, picks, ch_names=None):
+def pick_index(n_channels: int, picks: Any, ch_names: Any = None) -> Any:
     """Channel indices from ``picks`` (None, indices, bool mask or names)."""
     if picks is None:
         return np.arange(n_channels)
@@ -49,7 +50,7 @@ def pick_index(n_channels, picks, ch_names=None):
         index = np.array([names.index(name) for name in picks])
     if index.size == 0:
         raise DataError("picks: no channel selected.")
-    if index.min() < 0 or index.max() >= n_channels:
+    if np.min(index) < 0 or np.max(index) >= n_channels:
         raise DataError("picks: channel index out of range.")
     return index
 
@@ -60,7 +61,7 @@ def pick_index(n_channels, picks, ch_names=None):
 SCORE_CHANNELS = 16
 
 
-def score_index(index, n_score=SCORE_CHANNELS):
+def score_index(index: Any, n_score: Any = SCORE_CHANNELS) -> Any:
     """Evenly spaced subset of ``index`` used for the score."""
     if n_score is None or len(index) <= n_score:
         return np.asarray(index)
@@ -68,7 +69,7 @@ def score_index(index, n_score=SCORE_CHANNELS):
     return np.asarray(index)[keep]
 
 
-def difference_score(data, index):
+def difference_score(data: Any, index: Any) -> FloatArray:
     """Median across channels of the absolute sample-to-sample change.
 
     Element ``i`` measures the change from sample ``i`` to sample ``i + 1``, so the
@@ -92,7 +93,7 @@ def difference_score(data, index):
     return score
 
 
-def robust_z(values):
+def robust_z(values: Any) -> Any:
     """Values centred on their median and scaled by their MAD (as a standard deviation)."""
     center = np.median(values)
     spread = MAD_TO_SD * np.median(np.abs(values - center))
@@ -103,7 +104,7 @@ def robust_z(values):
     return (values - center) / spread
 
 
-def crossings(z, threshold):
+def crossings(z: Any, threshold: Any) -> Any:
     """Return the indices where ``z`` goes from at or below ``threshold`` to above it."""
     above = z > threshold
     index = np.flatnonzero(above[1:] & ~above[:-1]) + 1
@@ -112,7 +113,7 @@ def crossings(z, threshold):
     return index
 
 
-def far_from(positions, others, min_samples):
+def far_from(positions: Any, others: Any, min_samples: Any) -> Any:
     """Boolean mask: positions at least ``min_samples`` away from every sorted ``others``."""
     positions = np.asarray(positions)
     if len(others) == 0 or len(positions) == 0:
@@ -127,7 +128,7 @@ def far_from(positions, others, min_samples):
     return dist >= min_samples
 
 
-def snippet_lengths(sfreq):
+def snippet_lengths(sfreq: float) -> tuple[int, int, int]:
     """Return the snippet lengths and the largest matching shift.
 
     The samples before and after the onset used for artifact snippets (-1 ms to +3 ms), and the
@@ -140,7 +141,9 @@ def snippet_lengths(sfreq):
     )
 
 
-def shifted_snippets(data, index, onsets, n_pre, n_post, max_shift):
+def shifted_snippets(
+    data: Any, index: Any, onsets: Any, n_pre: Any, n_post: Any, max_shift: Any
+) -> FloatArray:
     """Snippets at every shift from ``-max_shift`` to ``+max_shift`` samples.
 
     Returns a 3d array [n_onsets, 2 * max_shift + 1, n_features]; the middle row of the
@@ -154,7 +157,7 @@ def shifted_snippets(data, index, onsets, n_pre, n_post, max_shift):
     return out
 
 
-def snippets(data, index, onsets, n_pre, n_post):
+def snippets(data: Any, index: Any, onsets: Any, n_pre: Any, n_post: Any) -> FloatArray:
     """Unit-norm artifact snippets: the first difference of each channel around each onset.
 
     Using the first difference removes the channel offsets, so the normalised

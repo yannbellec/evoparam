@@ -22,11 +22,13 @@ every seed.
 import copy
 import json
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from importlib import resources
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import DataError, SettingsError
 
 from ._canon import canonical_bytes, sha256_bytes
@@ -52,7 +54,7 @@ HIDDEN_SCHEMA = "evoparam-benchmark-hidden-seeds/1"
 GENERATOR_NAMES = ("simulate_ccep", "simulate_erp", "simulate_bursts")
 
 
-def _erpcore():
+def _erpcore() -> Any:
     text = resources.files("evoparam.benchmark").joinpath("erpcore.json").read_text("utf-8")
     return json.loads(text)
 
@@ -71,11 +73,11 @@ class Cell:
     split: str
     seed: int | None
     generator: str
-    settings: dict = field(hash=False, compare=False)
-    tasks: tuple = ()
+    settings: dict[str, Any] = field(hash=False, compare=False)
+    tasks: tuple[Any, ...] = ()
     kind: str = ""
 
-    def generator_settings(self):
+    def generator_settings(self) -> dict[Any, Any]:
         """Keyword arguments of the generator (shared settings, then the cell's), with the seed."""
         if self.seed is None:
             raise DataError(
@@ -94,14 +96,14 @@ class Suite:
     name: str
     version: str
     description: str
-    groups: dict
-    tasks: dict
-    hidden_split: dict
+    groups: dict[str, Any]
+    tasks: dict[str, Any]
+    hidden_split: dict[str, Any]
     sha256: str
     path: str = ""
-    hidden_seeds: dict | None = None
+    hidden_seeds: dict[str, Any] | None = None
 
-    def cells(self, task=None, split="public"):
+    def cells(self, task: Any = None, split: str = "public") -> list[Any]:
         """Return the cells feeding ``task`` (all tasks when None) of a split.
 
         The split is ``"public"``, ``"hidden"`` or ``"all"``. Hidden cells carry their seed only
@@ -139,11 +141,11 @@ class Suite:
                 )
         return out
 
-    def task_ids(self):
+    def task_ids(self) -> list[str]:
         """Return the tasks of the suite, in order."""
         return [t for t in TASKS if t in self.tasks]
 
-    def with_hidden_seeds(self, document):
+    def with_hidden_seeds(self, document: Any) -> "Suite":
         """Return a copy whose hidden cells carry their seeds.
 
         ``document`` (a dict or a path) is first checked against the commitment of the suite file.
@@ -169,13 +171,13 @@ class Suite:
         return out
 
 
-def list_suites():
+def list_suites() -> list[str]:
     """Names of the suites shipped with the package."""
     folder = resources.files("evoparam.benchmark").joinpath("suites")
     return sorted(p.name[:-5] for p in folder.iterdir() if p.name.endswith(".json"))
 
 
-def _check_suite(doc, where):
+def _check_suite(doc: Any, where: Any) -> None:
     if not isinstance(doc, dict) or doc.get("schema") != SUITE_SCHEMA:
         raise DataError(f"{where}: not a suite file (schema {SUITE_SCHEMA}).")
     ids = set()
@@ -201,7 +203,7 @@ def _check_suite(doc, where):
                 raise DataError(f"{where}: hidden cell {cell['id']} must not hold its seed.")
 
 
-def load_suite(name_or_path, hidden_seeds=None):
+def load_suite(name_or_path: str, hidden_seeds: Any = None) -> "Suite":
     """Load a suite: a shipped name (``"core"``, ``"full"``) or the path of a suite file.
 
     Parameters
@@ -224,7 +226,11 @@ def load_suite(name_or_path, hidden_seeds=None):
                 f"Unknown suite {name_or_path!r}; shipped suites: "
                 f"{list_suites()}, or the path of a suite file."
             )
-        res = resources.files("evoparam.benchmark").joinpath("suites", f"{name_or_path}.json")
+        res = (
+            resources.files("evoparam.benchmark")
+            .joinpath("suites")
+            .joinpath(f"{name_or_path}.json")
+        )
         raw = res.read_bytes()
         path = str(res)
     doc = json.loads(raw.decode("utf-8"))
@@ -244,7 +250,7 @@ def load_suite(name_or_path, hidden_seeds=None):
     return suite
 
 
-def load_hidden_seeds(document):
+def load_hidden_seeds(document: Any) -> Any:
     """Return the hidden seeds document from a dict or a path (checked for its schema)."""
     if not isinstance(document, dict):
         with open(document, encoding="utf-8") as fobj:
@@ -258,7 +264,7 @@ def load_hidden_seeds(document):
     return document
 
 
-def hidden_commitment(document):
+def hidden_commitment(document: Any) -> str:
     """SHA-256 of the canonical JSON of the hidden seeds document (the commitment)."""
     return sha256_bytes(canonical_bytes(load_hidden_seeds(document)))
 
@@ -267,7 +273,7 @@ def hidden_commitment(document):
 ## Simulation
 
 
-def simulate_cell(cell):
+def simulate_cell(cell: Any) -> Any:
     """(TrialSet, GroundTruth) of a cell, from its generator, settings and seed."""
     from evoparam import sim
 
@@ -275,13 +281,13 @@ def simulate_cell(cell):
     return generator(**cell.generator_settings())
 
 
-def _hints(cell, **extra):
+def _hints(cell: Any, **extra: Any) -> dict[Any, Any]:
     hints = dict(cell.settings.get("_", {}).get("hints", {}))
     hints.update(extra)
     return hints
 
 
-def _base_fields(cell, ts, _task):
+def _base_fields(cell: Any, ts: Any, _task: Any) -> dict[str, Any]:
     return {
         "suite": {"name": cell.suite, "version": cell.version},
         "cell": cell.id,
@@ -295,12 +301,14 @@ def _base_fields(cell, ts, _task):
     }
 
 
-def _truth_components(truth):
+def _truth_components(truth: Any) -> Any:
     table = truth.to_dataframe("component")
     return table[table["role"] == "target"] if "role" in table else table
 
 
-def make_inputs(cell, ts=None, truth=None, tasks=None):
+def make_inputs(
+    cell: "Cell", ts: Any = None, truth: Any = None, tasks: Sequence[str] | None = None
+) -> dict[Any, Any]:
     """Return the task inputs of a cell, with their truth attached (``TaskInput.truth``).
 
     Parameters

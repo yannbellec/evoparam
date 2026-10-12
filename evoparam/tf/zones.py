@@ -14,10 +14,12 @@ touching zones with no dip between them are merged.
 
 import json
 from importlib import resources
+from typing import cast
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import SettingsError
 
 __all__ = [
@@ -71,7 +73,9 @@ ZONE_COLUMNS = {
 }
 
 
-def nmf(x, rank, rng, n_iter=400, tol=1e-6):
+def nmf(
+    x: Any, rank: Any, rng: np.random.Generator, n_iter: int = 400, tol: float = 1e-6
+) -> tuple[Any, Any, Any]:
     """Non-negative factorisation ``x ~ w @ h`` (Frobenius, multiplicative updates).
 
     Returns (w (m, rank), h (rank, n), relative error).
@@ -81,6 +85,7 @@ def nmf(x, rank, rng, n_iter=400, tol=1e-6):
     w = rng.uniform(0.1, 1.0, (m, rank)) * scale
     h = rng.uniform(0.1, 1.0, (rank, n)) * scale
     norm = np.linalg.norm(x) + EPS
+    previous: Any
     previous = np.inf
     for it in range(n_iter):
         h *= (w.T @ x) / (w.T @ w @ h + EPS)
@@ -96,7 +101,9 @@ def nmf(x, rank, rng, n_iter=400, tol=1e-6):
     return w / peak, h * peak[:, None], err
 
 
-def cp_nonneg(x, rank, rng, n_iter=400, tol=1e-6):
+def cp_nonneg(
+    x: Any, rank: Any, rng: np.random.Generator, n_iter: int = 400, tol: float = 1e-6
+) -> tuple[list[Any], Any]:
     """Non-negative CP decomposition of a 3-way array ``x`` (I, J, K) by multiplicative updates.
 
     Returns ([a (I, r), b (J, r), c (K, r)], relative error).
@@ -106,6 +113,7 @@ def cp_nonneg(x, rank, rng, n_iter=400, tol=1e-6):
     factors = [rng.uniform(0.1, 1.0, (d, rank)) * scale for d in dims]
     norm = np.linalg.norm(x) + EPS
     unfold = [np.moveaxis(x, mode, 0).reshape(dims[mode], -1) for mode in range(3)]
+    previous: Any
     previous = np.inf
     for it in range(n_iter):
         for mode in range(3):
@@ -122,12 +130,12 @@ def cp_nonneg(x, rank, rng, n_iter=400, tol=1e-6):
     return factors, err
 
 
-def _parts(w, h):
+def _parts(w: Any, h: Any) -> NDArray[Any]:
     """Each zone's (frequency x time) part, flattened."""
     return np.stack([np.outer(w[:, k], h[k]).ravel() for k in range(w.shape[1])])
 
 
-def congruence(parts_a, parts_b):
+def congruence(parts_a: Any, parts_b: Any) -> float:
     """Mean Tucker congruence (cosine) of matched parts (Hungarian matching)."""
     na = parts_a / (np.linalg.norm(parts_a, axis=1, keepdims=True) + EPS)
     nb = parts_b / (np.linalg.norm(parts_b, axis=1, keepdims=True) + EPS)
@@ -136,7 +144,7 @@ def congruence(parts_a, parts_b):
     return float(sim[rows, cols].mean())
 
 
-def _best_nmf(x, rank, rng, restarts=3):
+def _best_nmf(x: Any, rank: Any, rng: np.random.Generator, restarts: int = 3) -> Any:
     best = None
     for _ in range(restarts):
         w, h, err = nmf(x, rank, rng)
@@ -145,7 +153,7 @@ def _best_nmf(x, rank, rng, restarts=3):
     return best
 
 
-def _cp_parts(tensor, rank, rng):
+def _cp_parts(tensor: Any, rank: Any, rng: np.random.Generator) -> NDArray[Any]:
     (a, b, _c), _ = cp_nonneg(tensor, rank, rng)
     return _parts(a, b.T)
 
@@ -153,13 +161,20 @@ def _cp_parts(tensor, rank, rng):
 CP_STABILITY = ("split_half", "rows", "restarts")
 
 
-def _cp_congruence(first, second, rank, rng):
+def _cp_congruence(first: Any, second: Any, rank: Any, rng: np.random.Generator) -> float:
     if not (np.any(first > 0) and np.any(second > 0)):
         return 0.0
     return congruence(_cp_parts(first, rank, rng), _cp_parts(second, rank, rng))
 
 
-def cp_split_values(tensor, halves, rank, rng, row_halves=None, split="trials"):
+def cp_split_values(
+    tensor: Any,
+    halves: Any,
+    rank: Any,
+    rng: np.random.Generator,
+    row_halves: Any = None,
+    split: str = "trials",
+) -> Any:
     """Split-half congruences of a rank-``rank`` CP (frequency x time x row).
 
     ``split="trials"`` (spec §5.10): the tensors of two halves of each row's trials,
@@ -186,15 +201,15 @@ def cp_split_values(tensor, halves, rank, rng, row_halves=None, split="trials"):
 
 
 def select_rank(
-    x,
-    halves,
-    max_zones,
-    rng,
-    method="nmf",
-    tensor=None,
-    cp_stability="split_half",
-    row_halves=None,
-):
+    x: Any,
+    halves: Any,
+    max_zones: Any,
+    rng: np.random.Generator,
+    method: str = "nmf",
+    tensor: Any = None,
+    cp_stability: str = "split_half",
+    row_halves: Any = None,
+) -> Any:
     """Rank and stability per rank.
 
     ``x`` (n_freqs, n_times) is the non-negative part of the group map; ``halves`` an
@@ -207,6 +222,7 @@ def select_rank(
     """
     if cp_stability not in CP_STABILITY:
         raise SettingsError(f"cp_stability must be one of {CP_STABILITY}, not {cp_stability!r}.")
+    stability: dict[Any, Any]
     stability = {}
     chosen, failures = 1, 0
     if not np.any(x > 0):
@@ -215,6 +231,7 @@ def select_rank(
         if method == "nmf":
             if np.count_nonzero(x) < rank:
                 break
+            values: Any
             values = []
             for split in halves:
                 if not (np.any(split[0] > 0) and np.any(split[1] > 0)):
@@ -251,12 +268,14 @@ def select_rank(
     return chosen, stability
 
 
-def decompose(x, rank, rng, method="nmf", tensor=None):
+def decompose(
+    x: Any, rank: Any, rng: np.random.Generator, method: str = "nmf", tensor: Any = None
+) -> Any:
     """Zone parts (rank, n_freqs, n_times) of a non-negative map, and row loadings for cp."""
     if method == "nmf":
         w, h, _ = _best_nmf(x, rank, rng)
         return np.stack([np.outer(w[:, k], h[k]) for k in range(rank)]), None
-    best = None
+    best: Any = None
     for _ in range(3):
         factors, err = cp_nonneg(tensor, rank, rng)
         if best is None or err < best[1]:
@@ -266,12 +285,13 @@ def decompose(x, rank, rng, method="nmf", tensor=None):
     return parts, c
 
 
-def zone_regions(parts_by_sign, group):
+def zone_regions(parts_by_sign: Any, group: Any) -> list[Any]:
     """Assign each significant pixel to the zone of its sign that explains most of it.
 
     ``parts_by_sign``: {+1: parts (r, F, T), -1: parts}. Returns a list of
     (sign, part, region bool (F, T)).
     """
+    out: list[Any]
     out = []
     for sign, parts in parts_by_sign.items():
         if parts is None or not len(parts):
@@ -289,7 +309,7 @@ def zone_regions(parts_by_sign, group):
     return out
 
 
-def _saddle(region_a, region_b, values):
+def _saddle(region_a: Any, region_b: Any, values: Any) -> float:
     """Highest pass between two regions.
 
     Max over neighbouring pixel pairs (one in each) of the lower of the two values; -inf when they
@@ -311,7 +331,7 @@ def _saddle(region_a, region_b, values):
     return best
 
 
-def _merge_without_dip(found, values):
+def _merge_without_dip(found: Any, values: Any) -> list[Any]:
     """Merge zones that touch without a dip between them.
 
     The pass between the two is at least half the smaller of their peaks (NMF splits one smooth
@@ -332,10 +352,10 @@ def _merge_without_dip(found, values):
                     break
             if merged:
                 break
-    return found
+    return cast("list[Any]", found)
 
 
-def zone_table(zones, group, freqs, times, stability):
+def zone_table(zones: Any, group: Any, freqs: Any, times: Any, stability: Any) -> Any:
     """Tidy zone table from (sign, part, region) triples and the signed group map."""
     import pandas as pd
 
@@ -378,8 +398,8 @@ def zone_table(zones, group, freqs, times, stability):
                 "peak_f": float(freqs[fi]),
                 "peak_value": float(group[fi, ti]),
                 "mean_value": float(np.nanmean(values)),
-                "onset": float(times[at_centre.min()]),
-                "offset": float(times[at_centre.max()]),
+                "onset": float(times[np.min(at_centre)]),
+                "offset": float(times[np.max(at_centre)]),
                 "area": float(region.sum() * dt * dlogf),
                 "energy_fraction": float(np.nansum(np.abs(group[region])) / total)
                 if total
@@ -398,7 +418,7 @@ def zone_table(zones, group, freqs, times, stability):
 ## Published fixed zones (compatibility layer)
 
 
-def load_zones():
+def load_zones() -> dict[Any, Any]:
     """Return the registry (``zones.json``).
 
     Name -> zone definition, with aliases (``alias_of``) and shared method blocks (``settings_of``:
@@ -419,13 +439,13 @@ def load_zones():
     return zones
 
 
-def _interval(values, bounds, closure):
+def _interval(values: Any, bounds: Any, closure: Any) -> Any:
     lo, hi = bounds
     upper = values < hi if closure == "[)" else values <= hi
     return (values >= lo) & upper
 
 
-def zone_mask(zone, freqs, times):
+def zone_mask(zone: Any, freqs: Any, times: Any) -> Any:
     """Return the pixels (n_freqs, n_times) of a registry zone, with its interval closures.
 
     ``intervals``: ``"[]"`` closed, the default, or ``"[)"`` half-open.
@@ -436,7 +456,9 @@ def zone_mask(zone, freqs, times):
     return in_f[:, None] & in_t[None, :]
 
 
-def volume_conduction_weight(distance_mm, d_min=10.0, d_max=20.0):
+def volume_conduction_weight(
+    distance_mm: Any, d_min: float = 10.0, d_max: float = 20.0
+) -> NDArray[Any]:
     """Weight of a stimulation-response pair against volume conduction ([LIT-tf-4], §2.5).
 
     0 within ``d_min`` mm of the stimulated pair, 1 beyond ``d_max`` mm, and
@@ -453,7 +475,7 @@ def volume_conduction_weight(distance_mm, d_min=10.0, d_max=20.0):
     return np.where(np.isfinite(d), w, np.nan)
 
 
-def list_published_zones():
+def list_published_zones() -> Any:
     """Table of the published zones, with their verification status and source."""
     import pandas as pd
 
@@ -480,7 +502,7 @@ def list_published_zones():
     return pd.DataFrame(rows)
 
 
-def resolve_published(name, allow_unverified=False):
+def resolve_published(name: Any, allow_unverified: bool = False) -> dict[Any, Any]:
     """Return the registry entry ``name``.
 
     Raises

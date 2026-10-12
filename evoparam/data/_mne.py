@@ -8,11 +8,19 @@ the coordinate frame), the metadata (``epochs.metadata`` plus the event names in
 ``condition``) and the event times. The ``mne`` package is imported lazily (extra ``mne``).
 """
 
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 
+if TYPE_CHECKING:
+    from evoparam.data.containers import Evoked, TrialSet
+
 __all__ = ["trialset_from_mne", "trialset_to_mne", "evoked_from_mne", "evoked_to_mne"]
+
 
 VOLTS = {
     "eeg": "eeg",
@@ -28,7 +36,7 @@ FACTORS = {"uV": 1e6, "mV": 1e3, "V": 1.0}
 HEAD_FRAME = 4  # mne.io.constants.FIFF.FIFFV_COORD_HEAD
 
 
-def _mne():
+def _mne() -> Any:
     try:
         import mne
     except ImportError as err:
@@ -38,7 +46,7 @@ def _mne():
     return mne
 
 
-def _channel_table(info, names):
+def _channel_table(info: Any, names: Sequence[str]) -> Any:
     import pandas as pd
 
     mne = _mne()
@@ -70,7 +78,15 @@ def _channel_table(info, names):
     )
 
 
-def trialset_from_mne(cls, epochs, *, picks=None, units="uV", metadata=True, stim_columns="auto"):
+def trialset_from_mne(
+    cls: "type[TrialSet]",
+    epochs: Any,
+    *,
+    picks: Any = None,
+    units: str = "uV",
+    metadata: bool = True,
+    stim_columns: Any = "auto",
+) -> "TrialSet":
     """``TrialSet`` from ``mne.Epochs`` (``TrialSet.from_mne``)."""
     import pandas as pd
 
@@ -125,7 +141,9 @@ def trialset_from_mne(cls, epochs, *, picks=None, units="uV", metadata=True, sti
     )
 
 
-def _harmonize_metadata(table, stim_columns, source):
+def _harmonize_metadata(
+    table: Any, stim_columns: Any, source: dict[str, Any]
+) -> tuple[Any, dict[str, Any]]:
     """Map the epochs' metadata to the standard stimulation columns (Table 4.1, REQ-313).
 
     ``"auto"`` maps the recognised columns, a dict is a ``{source: target}`` mapping.
@@ -160,7 +178,7 @@ def _harmonize_metadata(table, stim_columns, source):
     return out, source
 
 
-def _info(ch_names, sfreq, ch_info, ch_types):
+def _info(ch_names: Sequence[str], sfreq: float, ch_info: Any, ch_types: Any) -> Any:
     mne = _mne()
     if ch_types is None:
         ch_types = list(ch_info["type"]) if ch_info is not None and "type" in ch_info else "eeg"
@@ -183,7 +201,7 @@ def _info(ch_names, sfreq, ch_info, ch_types):
     return info
 
 
-def trialset_to_mne(ts, *, ch_types=None):
+def trialset_to_mne(ts: Any, *, ch_types: Any = None) -> Any:
     """``mne.EpochsArray`` from a ``TrialSet`` (``TrialSet.to_mne``)."""
     mne = _mne()
     factor = FACTORS.get(ts.units)
@@ -227,7 +245,9 @@ def trialset_to_mne(ts, *, ch_types=None):
     )
 
 
-def evoked_from_mne(cls, evoked, *, picks=None, units="uV"):
+def evoked_from_mne(
+    cls: "type[Evoked]", evoked: Any, *, picks: Any = None, units: str = "uV"
+) -> "Evoked":
     """``Evoked`` from ``mne.Evoked`` (``Evoked.from_mne``)."""
     from .provenance import Provenance
 
@@ -259,7 +279,7 @@ def evoked_from_mne(cls, evoked, *, picks=None, units="uV"):
     )
 
 
-def evoked_to_mne(ev, *, ch_types=None, comment=""):
+def evoked_to_mne(ev: Any, *, ch_types: Any = None, comment: str = "") -> Any:
     """``mne.EvokedArray`` from an ``Evoked`` (``Evoked.to_mne``)."""
     mne = _mne()
     factor = FACTORS.get(ev.units)

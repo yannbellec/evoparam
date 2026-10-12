@@ -3,15 +3,20 @@
 
 import time as _time
 import warnings
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray, IntArray, NDArray, RandomState
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.utils._names import contact_group, contact_number
 from evoparam.utils._optional import require
 
 from ._common import bad_channels, ch_table, check_trialset, masked_values, new, stim_contacts
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["rereference", "car_adaptive_select", "SCHEMES"]
 
@@ -28,7 +33,7 @@ MIN_ADAPTIVE_CHANNELS = 8
 ## Bipolar
 
 
-def bipolar_pairs(ts, groups="group"):
+def bipolar_pairs(ts: Any, groups: str = "group") -> tuple[list[Any], list[Any]]:
     """Consecutive contacts of each electrode: (anode, cathode) index pairs, and gaps.
 
     Groups come from ``ch_info[groups]`` (a column name), from a dict name -> group, or,
@@ -44,7 +49,7 @@ def bipolar_pairs(ts, groups="group"):
         group_of = [g if g else contact_group(n) for g, n in zip(group_of, names, strict=False)]
     else:
         group_of = [contact_group(name) for name in names]
-    numbers = [contact_number(name) for name in names]
+    numbers: list[Any] = [contact_number(name) for name in names]  # None without a number
 
     pairs, gaps = [], []
     for group in dict.fromkeys(group_of):
@@ -63,7 +68,7 @@ def bipolar_pairs(ts, groups="group"):
     return pairs, gaps
 
 
-def _bipolar(ts, groups):
+def _bipolar(ts: Any, groups: Any) -> tuple[Any, Any, list[str], Any, dict[str, Any]]:
     pd = require("pandas", extra="data", caller="evoparam.prep.rereference")
     pairs, gaps = bipolar_pairs(ts, groups)
     if gaps:
@@ -79,7 +84,10 @@ def _bipolar(ts, groups):
     old = ch_table(ts)
     rows = []
     for i, j in pairs:
-        row = {"name": f"{ts.ch_names[i]}-{ts.ch_names[j]}", "reference": "bipolar"}
+        row: dict[str, Any] = {
+            "name": f"{ts.ch_names[i]}-{ts.ch_names[j]}",
+            "reference": "bipolar",
+        }
         for col in old.columns:
             if col in ("name", "reference"):
                 continue
@@ -101,7 +109,7 @@ def _bipolar(ts, groups):
 ## Common averages
 
 
-def _excluded(ts, exclude):
+def _excluded(ts: Any, exclude: Any) -> NDArray[Any]:
     """Per trial, a boolean matrix [n_channels] of channels left out of a common average."""
     names = list(ts.ch_names)
     out = np.zeros((ts.n_trials, ts.n_channels), dtype=bool)
@@ -113,16 +121,16 @@ def _excluded(ts, exclude):
     return out
 
 
-def _common_average(ts, members):
+def _common_average(ts: Any, members: Any) -> FloatArray:
     """Mean over ``members`` (bool [n_trials, n_channels]) of the unmasked samples."""
     values = masked_values(ts)
     values[~np.broadcast_to(members[:, :, None], values.shape)] = np.nan
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        return np.nanmean(values, axis=1)
+        return cast("FloatArray", np.nanmean(values, axis=1))
 
 
-def _cross_trial_covariance(data, window):
+def _cross_trial_covariance(data: Any, window: Any) -> Any:
     """Mean covariance between pairs of different trials, per channel, in the window."""
     seg = data[:, :, window]
     seg = seg - seg.mean(axis=-1, keepdims=True)
@@ -134,7 +142,7 @@ def _cross_trial_covariance(data, window):
     return pairs / (n_trials * (n_trials - 1) * n_times)
 
 
-def _zeta_curve(average, order):
+def _zeta_curve(average: Any, order: Any) -> FloatArray:
     """zeta(n) for n = 2..N on one (trial-averaged) signal set, from its covariance.
 
     For the n least responsive channels U (``order[:n]``) and their average m, the
@@ -161,7 +169,7 @@ def _zeta_curve(average, order):
     return out
 
 
-def _line_notch(data, sfreq, line_freq):
+def _line_notch(data: Any, sfreq: float, line_freq: Any) -> Any:
     """Band-stop at the line frequency and its harmonics up to 180 Hz.
 
     4th order Butterworth, +/- 2 Hz, zero phase, as the published code does before ranking.
@@ -180,16 +188,16 @@ def _line_notch(data, sfreq, line_freq):
 
 
 def car_adaptive_select(
-    data,
-    times,
+    data: FloatArray,
+    times: FloatArray,
     *,
-    response_window=(0.01, 0.3),
-    n_boot=100,
-    random_state=None,
-    candidates=None,
-    sensitive=True,
-    line_freq=60.0,
-):
+    response_window: tuple[float, float] = (0.01, 0.3),
+    n_boot: int = 100,
+    random_state: RandomState | None = None,
+    candidates: IntArray | None = None,
+    sensitive: bool = True,
+    line_freq: float | None = 60.0,
+) -> dict[str, Any]:
     """Choose the channels of an adjusted common average (least anticorrelation).
 
     Re-implemented from the published method (Huang et al., 2024, J Neurosci Methods,
@@ -239,6 +247,7 @@ def car_adaptive_select(
     rng = np.random.default_rng(random_state)
     n_trials = clean.shape[0]
     boots = None
+    zeta: FloatArray
     if n_boot and n_trials >= 3:
         boots = np.empty((n_boot, len(ns)))
         for b in range(n_boot):
@@ -289,7 +298,7 @@ def car_adaptive_select(
 ## Laplacian
 
 
-def _laplacian(ts, radius):
+def _laplacian(ts: Any, radius: Any) -> tuple[Any, list[str], dict[str, Any]]:
     info = ts.ch_info
     if info is None or not {"x", "y", "z"} <= set(info.columns):
         raise DataError("laplacian needs channel coordinates (ch_info x, y, z).")
@@ -321,16 +330,16 @@ def _laplacian(ts, radius):
 
 
 def rereference(
-    ts,
-    scheme="bipolar",
+    ts: "TrialSet",
+    scheme: str = "bipolar",
     *,
-    exclude=None,
-    groups="group",
-    response_window=(0.01, 0.3),
-    n_boot=100,
-    radius=12.0,
-    random_state=None,
-):
+    exclude: list[str] | None = None,
+    groups: str | dict[str, Any] = "group",
+    response_window: Any = (0.01, 0.3),
+    n_boot: int = 100,
+    radius: float = 12.0,
+    random_state: Any = None,
+) -> "TrialSet":
     """Change the reference of every channel and record it in ``ch_info["reference"]``.
 
     - ``"monopolar"``: keep the recording reference.
@@ -379,7 +388,7 @@ def rereference(
         "random_state": random_state,
     }
     info = ch_table(ts)
-    changes = {}
+    changes: dict[str, Any] = {}
 
     if scheme == "monopolar":
         if "reference" not in info.columns:
@@ -438,4 +447,4 @@ def rereference(
         settings["used"] = used
 
     changes["ch_info"] = info.reset_index(drop=True)
-    return new(ts, "evoparam.prep.rereference", settings, start, **changes)
+    return cast("TrialSet", new(ts, "evoparam.prep.rereference", settings, start, **changes))

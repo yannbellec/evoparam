@@ -11,13 +11,14 @@ duration. The texts of the reference pipelines are frozen in
 ``evoparam/tests/reports/methods/`` (``tools/freeze_methods_text.py``).
 """
 
+from evoparam._typing import Any
 from evoparam.data._citation import citation_bibtex, citation_text, read_citation
 from evoparam.data._methods import methods_text as _methods_text
 
 __all__ = ["methods_text", "citation"]
 
 
-def _provenance(obj):
+def _provenance(obj: Any) -> Any:
     """Return the provenance of a result, or of a table that keeps it in ``attrs``.
 
     Tables of :mod:`evoparam.stats` (and the reference-sensitivity report) keep it in
@@ -43,7 +44,7 @@ class _Merged:
     The steps of the first, then the steps of the others that it does not hold.
     """
 
-    def __init__(self, parts):
+    def __init__(self, parts: Any) -> None:
         from evoparam.data import Provenance
 
         main = _provenance(parts[0]) or Provenance()
@@ -67,7 +68,7 @@ class _Merged:
         self.settings = settings if isinstance(settings, dict) else {}
 
 
-def methods_text(result, *, cite=True):
+def methods_text(result: Any, *, cite: bool = True) -> Any:
     """Methods paragraph of a result, of a :class:`PipelineResult` or of a list of results.
 
     One sentence per processing step recorded in the provenance (events, artifact,
@@ -99,7 +100,7 @@ def methods_text(result, *, cite=True):
     return _methods_text(result, cite=cite)
 
 
-def citation(bibtex=False):
+def citation(bibtex: bool = False) -> str:
     """Return the package citation, read from ``CITATION.cff`` (the single source, REQ-346).
 
     A BibTeX ``@software`` entry with ``bibtex=True``.

@@ -8,14 +8,20 @@ imported with :func:`evoparam.utils._optional.require` (spec §9.2); these helpe
 docs.
 """
 
+from collections.abc import Callable
 from functools import wraps
 from importlib import import_module
+from types import ModuleType
+from typing import Any, TypeVar, cast
+
+_F = TypeVar("_F", bound=Callable[..., Any])
+_C = TypeVar("_C", bound=type)
 
 ###################################################################################################
 ###################################################################################################
 
 
-def safe_import(*args):
+def safe_import(*args: str) -> ModuleType | bool:
     """Try to import a module, with a safety net for if the module is not available.
 
     Parameters
@@ -35,6 +41,7 @@ def safe_import(*args):
     - To import a whole module, pass a single string, ex: ('matplotlib').
     - To import a specific package, pass two strings, ex: ('.pyplot', 'matplotlib')
     """
+    mod: ModuleType | bool
     try:
         mod = import_module(*args)
     except ImportError:
@@ -53,7 +60,9 @@ def safe_import(*args):
     return mod
 
 
-def check_dependency(dep, name):
+def check_dependency(
+    dep: ModuleType | bool, name: str
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Check that an optional dependency is available (decorator).
 
     Parameters
@@ -74,9 +83,9 @@ def check_dependency(dep, name):
         If the requested dependency is not available.
     """
 
-    def wrap(func):
+    def wrap(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapped_func(*args, **kwargs):
+        def wrapped_func(*args: Any, **kwargs: Any) -> Any:
             if not dep:
                 raise ImportError(
                     "Optional evoparam dependency " + name + " is required for this functionality."
@@ -88,7 +97,7 @@ def check_dependency(dep, name):
     return wrap
 
 
-def docs_drop_param(docstring):
+def docs_drop_param(docstring: str) -> str:
     """Drop the first parameter description for a string representation of a docstring.
 
     Parameters
@@ -116,7 +125,7 @@ def docs_drop_param(docstring):
     return front + back
 
 
-def docs_append_to_section(docstring, section, add):
+def docs_append_to_section(docstring: str, section: str, add: str) -> str:
     """Append extra information to a specified section of a docstring.
 
     Parameters
@@ -142,7 +151,7 @@ def docs_append_to_section(docstring, section, add):
     )
 
 
-def copy_doc_func_to_method(source):
+def copy_doc_func_to_method(source: Callable[..., Any]) -> Callable[[_F], _F]:
     """Copy a function's docstring to a method, dropping the first parameter (decorator).
 
     Parameters
@@ -156,16 +165,16 @@ def copy_doc_func_to_method(source):
         The decorated function, with updated docs.
     """
 
-    def wrapper(func):
+    def wrapper(func: _F) -> _F:
 
-        func.__doc__ = docs_drop_param(source.__doc__)
+        func.__doc__ = docs_drop_param(cast(str, source.__doc__))
 
         return func
 
     return wrapper
 
 
-def copy_doc_class(source, section="Attributes", add=""):
+def copy_doc_class(source: type, section: str = "Attributes", add: str = "") -> Callable[[_C], _C]:
     """Copy a class docstring to another class, adding extra info (decorator).
 
     Parameters
@@ -183,9 +192,9 @@ def copy_doc_class(source, section="Attributes", add=""):
         The decorated class, with updated docs.
     """
 
-    def wrapper(func):
+    def wrapper(func: _C) -> _C:
 
-        func.__doc__ = docs_append_to_section(source.__doc__, section, add)
+        func.__doc__ = docs_append_to_section(cast(str, source.__doc__), section, add)
 
         return func
 

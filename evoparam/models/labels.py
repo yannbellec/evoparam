@@ -3,13 +3,19 @@
 
 import dataclasses
 import re
+from typing import TYPE_CHECKING
+
+from evoparam._typing import Any
+
+if TYPE_CHECKING:
+    from evoparam.data.results import GroupFit, ResponseFit
 
 __all__ = ["label_components", "sign_name", "POLARITY_RULES"]
 
 POLARITY_RULES = ("sign", "none")
 
 
-def sign_name(name, polarity):
+def sign_name(name: Any, polarity: Any) -> Any:
     """Return the name of a component in a window named by sign, ``"P1/N1"``.
 
     ``"P1"`` for a positive component and ``"N1"`` for a negative one (spec §6.1, rodent and
@@ -31,7 +37,7 @@ def sign_name(name, polarity):
     return parts[signs.index(1 if polarity > 0 else -1)]
 
 
-def _label_fit(fit, windows, unassigned, polarity_rule="sign"):
+def _label_fit(fit: Any, windows: Any, unassigned: Any, polarity_rule: str = "sign") -> Any:
     """Return the labels for one ResponseFit.
 
     ``windows``: name -> (start, end, polarity) with polarity -1, +1 or 0 (either).
@@ -63,7 +69,13 @@ def _label_fit(fit, windows, unassigned, polarity_rule="sign"):
     )
 
 
-def label_components(fit, windows, *, polarity_rule="sign", unassigned="C{k}"):
+def label_components(
+    fit: "ResponseFit | GroupFit",
+    windows: Any,
+    *,
+    polarity_rule: str = "sign",
+    unassigned: str = "C{k}",
+) -> Any:
     """Name the components of a ResponseFit or GroupFit.
 
     Parameters

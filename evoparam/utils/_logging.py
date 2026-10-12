@@ -14,7 +14,7 @@ import inspect
 import logging
 import os
 from collections.abc import Callable
-from typing import Any, Union
+from typing import Any, Literal, Union
 
 __all__ = ["verbose", "set_log_level", "set_log_file", "LEVELS"]
 
@@ -34,7 +34,7 @@ LEVELS = {
 }
 
 
-def _level(value):
+def _level(value: VerboseLevel) -> int | None:
     key = value.lower() if isinstance(value, str) else value
     if isinstance(key, int) and not isinstance(key, bool):
         return key
@@ -51,19 +51,19 @@ def _level(value):
 class _Verbose(contextlib.ContextDecorator):
     """Set the level of the ``evoparam`` logger for the duration of a block or a call."""
 
-    def __init__(self, level=None):
+    def __init__(self, level: VerboseLevel = None) -> None:
         self.value = level
         self.level = _level(level)
-        self._saved = []
+        self._saved: list[int] = []
 
-    def __enter__(self):
+    def __enter__(self) -> "_Verbose":
         logger = logging.getLogger(LOGGER)
         self._saved.append(logger.level)
         if self.level is not None:
             logger.setLevel(self.level)
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: object) -> Literal[False]:
         logging.getLogger(LOGGER).setLevel(self._saved.pop())
         return False
 
@@ -85,7 +85,7 @@ def verbose(level: VerboseLevel | Callable[..., Any] = None) -> Any:
         signature = inspect.signature(func)
 
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             bound = signature.bind_partial(*args, **kwargs)
             value = bound.arguments.get("verbose", kwargs.get("verbose"))
             with _Verbose(value):

@@ -15,9 +15,12 @@ averaged over trials (spec §5.12).
 """
 
 import time as _time
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray, NDArray, RandomState
 from evoparam.errors import SettingsError
 from evoparam.utils._optional import require
 
@@ -41,6 +44,10 @@ from .components import (
     as_spec,
 )
 
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
+    from evoparam.sim._truth import GroundTruth
+
 __all__ = [
     "simulate_erp",
     "simulate_ccep",
@@ -56,7 +63,7 @@ __all__ = [
 ## Helpers
 
 
-def _channel_indices(channels, ch_names, label):
+def _channel_indices(channels: Any, ch_names: Any, label: Any) -> Any:
     if channels is None:
         return list(range(len(ch_names)))
     lookup = {name: index for index, name in enumerate(ch_names)}
@@ -73,7 +80,9 @@ def _channel_indices(channels, ch_names, label):
     return out
 
 
-def _spec_sources(spec, rng, ch_names, event=0, **extra):
+def _spec_sources(
+    spec: Any, rng: np.random.Generator, ch_names: Any, event: int = 0, **extra: Any
+) -> list[Any]:
     """One Source per channel of a specification (drawn once, shared by its channels)."""
     params, amplitude = spec.resolve(rng)
     channels = _channel_indices(spec.channels, ch_names, spec.label)
@@ -107,11 +116,11 @@ def _spec_sources(spec, rng, ch_names, event=0, **extra):
     return out
 
 
-def _start():
+def _start() -> float:
     return _time.perf_counter()
 
 
-def _settings(local, drop=()):
+def _settings(local: Any, drop: Any = ()) -> dict[Any, Any]:
     return {
         key: value
         for key, value in local.items()
@@ -119,13 +128,15 @@ def _settings(local, drop=()):
     }
 
 
-def _check_count(name, value, minimum=1):
+def _check_count(name: Any, value: Any, minimum: int = 1) -> int:
     if not isinstance(value, (int, np.integer)) or isinstance(value, bool) or value < minimum:
         raise SettingsError(f"{name} must be an integer >= {minimum}, got {value!r}.")
     return int(value)
 
 
-def _ch_info(names, coords, groups, kind, stim=(), coord_space="simulated"):
+def _ch_info(
+    names: Any, coords: Any, groups: Any, kind: Any, stim: Any = (), coord_space: str = "simulated"
+) -> dict[str, Any]:
     n_channels = len(names)
     return {
         "name": list(names),
@@ -143,7 +154,15 @@ def _ch_info(names, coords, groups, kind, stim=(), coord_space="simulated"):
     }
 
 
-def _stim_metadata(n_trials, site, current, width, polarity, frequency=np.nan, n_pulses=1):
+def _stim_metadata(
+    n_trials: int,
+    site: Any,
+    current: Any,
+    width: Any,
+    polarity: Any,
+    frequency: Any = np.nan,
+    n_pulses: int = 1,
+) -> dict[str, Any]:
     return {
         "trial": np.arange(n_trials, dtype=np.int64),
         "condition": [""] * n_trials,
@@ -159,8 +178,12 @@ def _stim_metadata(n_trials, site, current, width, polarity, frequency=np.nan, n
     }
 
 
-def _overlap_offsets(overlap, n_trials, rng):
+def _overlap_offsets(
+    overlap: Any, n_trials: int, rng: np.random.Generator
+) -> tuple[NDArray[Any], NDArray[Any], float]:
     """SOA of the previous and next events per trial, and the amplitude ratio."""
+    soa: Any
+    draw: Callable[[], Any]
     if isinstance(overlap, dict):
         soa = overlap.get("soa")
         ratio = float(overlap.get("scale", 1.0))
@@ -184,26 +207,26 @@ def _overlap_offsets(overlap, n_trials, rng):
 
 
 def simulate_erp(
-    n_trials=60,
+    n_trials: int = 60,
     *,
-    n_channels=1,
-    sfreq=500.0,
-    tmin=-0.2,
-    tmax=0.8,
-    components=("P1", "N1", "P3"),
-    jitter_sd=0.0,
-    amplitude_cv=0.0,
-    noise="pink",
-    snr=5.0,
-    overlap=None,
-    seed=None,
-    jitter="normal",
-    jitter_tau=None,
-    noise_sd=10.0,
-    noise_kw=None,
-    ch_names=None,
-    keep_arrays=True,
-):
+    n_channels: int = 1,
+    sfreq: float = 500.0,
+    tmin: float = -0.2,
+    tmax: float = 0.8,
+    components: Sequence[Any] = ("P1", "N1", "P3"),
+    jitter_sd: float | dict[str, Any] = 0.0,
+    amplitude_cv: float | dict[str, Any] = 0.0,
+    noise: str = "pink",
+    snr: float | Sequence[Any] | dict[str, Any] | None = 5.0,
+    overlap: Any = None,
+    seed: RandomState | None = None,
+    jitter: str = "normal",
+    jitter_tau: Any = None,
+    noise_sd: float = 10.0,
+    noise_kw: dict[str, Any] | None = None,
+    ch_names: list[str] | None = None,
+    keep_arrays: bool = True,
+) -> tuple["TrialSet", "GroundTruth"]:
     """Simulate scalp event-related potentials with a known truth.
 
     Parameters
@@ -342,7 +365,7 @@ def simulate_erp(
 ## CCEP
 
 
-def _stim_pair(names, groups, coords, rng, layout):
+def _stim_pair(names: Any, groups: Any, coords: Any, rng: np.random.Generator, layout: Any) -> Any:
     """Two adjacent contacts of one shaft (sEEG) or one grid row."""
     pairs = []
     for i in range(len(names) - 1):
@@ -356,7 +379,7 @@ def _stim_pair(names, groups, coords, rng, layout):
     return pairs[int(rng.integers(len(pairs)))]
 
 
-def _ccep_spec(value, default, name):
+def _ccep_spec(value: Any, default: Any, name: Any) -> Any:
     if value is None:
         return default
     if isinstance(value, ComponentSpec):
@@ -368,7 +391,7 @@ def _ccep_spec(value, default, name):
     raise SettingsError(f"{name} must be None, a dict of ComponentSpec fields or a ComponentSpec.")
 
 
-def _train_layout(n_trials, train_structure, rng):
+def _train_layout(n_trials: int, train_structure: Any, rng: np.random.Generator) -> dict[str, Any]:
     """Event times, train columns and the adaptation gain of each pulse."""
     if train_structure is None:
         return {
@@ -403,24 +426,24 @@ def _train_layout(n_trials, train_structure, rng):
 
 
 def stimulation_artifact(
-    times,
-    sfreq,
-    coords,
+    times: Any,
+    sfreq: float,
+    coords: Any,
     *,
-    source,
-    sink=None,
-    current_mA,  # noqa: N803  (unit suffix of a public keyword)
-    pulse_width_us,
-    biphasic=True,
-    polarity=-1,
-    onset=0.0,
-    scale_uV_per_mA=25000.0,  # noqa: N803  (unit suffix of a public keyword)
-    tail_fraction=0.02,
-    tau1=0.0015,
-    tau2=0.015,
-    tail_weight=0.7,
-    radius=1.0,
-):
+    source: Any,
+    sink: Any = None,
+    current_mA: Any,  # noqa: N803  (unit suffix of a public keyword)
+    pulse_width_us: Any,
+    biphasic: bool = True,
+    polarity: int = -1,
+    onset: float = 0.0,
+    scale_uV_per_mA: float = 25000.0,  # noqa: N803  (unit suffix of a public keyword)
+    tail_fraction: float = 0.02,
+    tau1: float = 0.0015,
+    tau2: float = 0.015,
+    tail_weight: float = 0.7,
+    radius: float = 1.0,
+) -> FloatArray:
     """Artifact template of one pulse on every channel, shape (n_channels, n_times).
 
     ``scale_uV_per_mA × current × (r0/r+ − r0/r−)`` times the recorded pulse plus a
@@ -445,39 +468,39 @@ def stimulation_artifact(
 
 
 def simulate_ccep(
-    n_trials=10,
+    n_trials: int = 10,
     *,
-    n_channels=46,
-    sfreq=2048.0,
-    stim_current_mA=4.0,  # noqa: N803  (unit suffix of a public keyword)
-    pulse_width_us=200.0,
-    biphasic=True,
-    n1=None,
-    n2=None,
-    p_response=0.3,
-    delayed=False,
-    artifact=True,
-    saturation=False,
-    train_structure=None,
-    seed=None,
-    tmin=-0.5,
-    tmax=1.0,
-    layout="seeg",
-    p_n2=0.8,
-    p_delayed=0.5,
-    polarity="negative",
-    noise="pink",
-    noise_sd=20.0,
-    noise_kw=None,
-    snr=None,
-    jitter_sd=0.0,
-    amplitude_cv=0.0,
-    artifact_scale_uV_per_mA=100000.0,  # noqa: N803  (unit suffix of a public keyword)
-    artifact_cv=0.02,
-    tail_fraction=0.02,
-    tail_tau=(0.0015, 0.015),
-    keep_arrays=True,
-):
+    n_channels: int = 46,
+    sfreq: float = 2048.0,
+    stim_current_mA: float = 4.0,  # noqa: N803  (unit suffix of a public keyword)
+    pulse_width_us: float = 200.0,
+    biphasic: bool = True,
+    n1: Any = None,
+    n2: Any = None,
+    p_response: float = 0.3,
+    delayed: bool = False,
+    artifact: bool = True,
+    saturation: bool = False,
+    train_structure: Any = None,
+    seed: RandomState | None = None,
+    tmin: float = -0.5,
+    tmax: float = 1.0,
+    layout: str = "seeg",
+    p_n2: float = 0.8,
+    p_delayed: float = 0.5,
+    polarity: str = "negative",
+    noise: str = "pink",
+    noise_sd: float = 20.0,
+    noise_kw: Any = None,
+    snr: Any = None,
+    jitter_sd: float = 0.0,
+    amplitude_cv: float = 0.0,
+    artifact_scale_uV_per_mA: float = 100000.0,  # noqa: N803  (unit suffix of a public keyword)
+    artifact_cv: float = 0.02,
+    tail_fraction: float = 0.02,
+    tail_tau: Any = (0.0015, 0.015),
+    keep_arrays: bool = True,
+) -> tuple["TrialSet", "GroundTruth"]:
     """Simulate cortico-cortical evoked potentials of single-pulse stimulation.
 
     One stimulation site (two adjacent contacts) and ``n_channels`` recording
@@ -680,31 +703,31 @@ def simulate_ccep(
 
 
 def simulate_erna(
-    n_pulses=10,
+    n_pulses: int = 10,
     *,
-    n_trials=20,
-    sfreq=4096.0,
-    f=(200.0, 450.0),
-    tau=0.004,
-    pulse_rate=130.0,
-    artifact=True,
-    n_channels=4,
-    tmin=-0.02,
-    tmax=None,
-    onset_delay=0.001,
-    buildup=2.0,
-    amplitude=(-300.0, -100.0),
-    stim_current_mA=3.0,  # noqa: N803  (unit suffix of a public keyword)
-    pulse_width_us=60.0,
-    noise="pink",
-    noise_sd=5.0,
-    noise_kw=None,
-    snr=None,
-    jitter_sd=0.0,
-    amplitude_cv=0.0,
-    seed=None,
-    keep_arrays=True,
-):
+    n_trials: int = 20,
+    sfreq: float = 4096.0,
+    f: float | tuple[float, float] = (200.0, 450.0),
+    tau: float | tuple[float, float] = 0.004,
+    pulse_rate: float = 130.0,
+    artifact: bool = True,
+    n_channels: int = 4,
+    tmin: float = -0.02,
+    tmax: float | None = None,
+    onset_delay: float = 0.001,
+    buildup: float = 2.0,
+    amplitude: float | tuple[float, float] = (-300.0, -100.0),
+    stim_current_mA: float = 3.0,  # noqa: N803  (unit suffix of a public keyword)
+    pulse_width_us: float = 60.0,
+    noise: str = "pink",
+    noise_sd: float = 5.0,
+    noise_kw: Any = None,
+    snr: Any = None,
+    jitter_sd: float = 0.0,
+    amplitude_cv: float = 0.0,
+    seed: Any = None,
+    keep_arrays: bool = True,
+) -> tuple["TrialSet", "GroundTruth"]:
     """Simulate evoked resonant neural activity (ERNA) of deep brain stimulation.
 
     Each trial is a burst of ``n_pulses`` pulses at ``pulse_rate`` Hz on a DBS lead
@@ -774,10 +797,10 @@ def simulate_erna(
         raise SettingsError(f"simulate_erna: {freq} Hz is too fast for {sfreq} Hz sampling.")
     distance = dipole_gain(coords, coords[1], radius=2.0)
     build = 1.0 - np.exp(-(np.arange(n_pulses) + 1.0) / float(buildup))
-    build = build / build.max()
+    build = build / np.max(build)
     sources = []
     for channel in range(1, n_channels):
-        rel_space = distance[channel] / distance[1:].max()
+        rel_space = distance[channel] / np.max(distance[1:])
         for pulse in range(n_pulses):
             params = np.array([pulse / pulse_rate + onset_delay, decay, freq, -np.pi / 2])
             sources.append(
@@ -881,34 +904,34 @@ AUDITORY_COMPONENTS = {
 _TEP_SPREAD = {"N15": 0.25, "P30": 0.25, "N45": 0.35, "P60": 0.35, "N100": 0.6, "P180": 0.6}
 
 
-def _blob(coords, centre, spread, floor=0.05):
+def _blob(coords: Any, centre: Any, spread: Any, floor: float = 0.05) -> Any:
     weights = np.exp(-np.sum((coords[:, :2] - centre[:2]) ** 2, axis=1) / (2 * spread**2))
     weights[weights < floor] = 0.0
     return weights
 
 
 def simulate_tep(
-    n_trials=40,
+    n_trials: int = 40,
     *,
-    n_channels=32,
-    sfreq=5000.0,
-    tmin=-0.2,
-    tmax=0.4,
-    components=tuple(TEP_COMPONENTS),
-    stim_site="C3",
-    auditory=True,
-    pulse_artifact=True,
-    decay_artifact=True,
-    muscle_artifact=True,
-    noise="pink",
-    noise_sd=5.0,
-    noise_kw=None,
-    snr=None,
-    jitter_sd=0.0,
-    amplitude_cv=0.0,
-    seed=None,
-    keep_arrays=True,
-):
+    n_channels: int = 32,
+    sfreq: float = 5000.0,
+    tmin: float = -0.2,
+    tmax: float = 0.4,
+    components: Sequence[Any] = tuple(TEP_COMPONENTS),
+    stim_site: str = "C3",
+    auditory: bool = True,
+    pulse_artifact: bool = True,
+    decay_artifact: bool = True,
+    muscle_artifact: bool = True,
+    noise: str = "pink",
+    noise_sd: float = 5.0,
+    noise_kw: Any = None,
+    snr: Any = None,
+    jitter_sd: float = 0.0,
+    amplitude_cv: float = 0.0,
+    seed: Any = None,
+    keep_arrays: bool = True,
+) -> tuple["TrialSet", "GroundTruth"]:
     """Simulate TMS-evoked potentials with their artifacts and the auditory confound.
 
     Components N15, P30, N45, P60, N100 and P180 (latency ranges of
@@ -979,6 +1002,7 @@ def simulate_tep(
 
     distance = np.linalg.norm(coords[:, :2] - centre[:2], axis=1)
     near = np.exp(-(distance**2) / (2 * 0.25**2))
+    info: Any
     template_parts, info = {}, {"model": "tms", "stim_site": stim_site}
     if pulse_artifact:
         peak = float(art_rng.uniform(2000.0, 8000.0))
@@ -1063,7 +1087,7 @@ def simulate_tep(
 ###################################################################################################
 ## ECAP
 
-_ECAP_KINDS = {
+_ECAP_KINDS: dict[str, dict[str, Any]] = {
     # N1 latency at the nearest recording contact (s), N1 -> P2 delay (s), FWHMs (s),
     # contact spacing (mm), conduction velocity (mm/s, None: no propagation), space constant.
     "spinal": {
@@ -1089,33 +1113,33 @@ PARADIGMS = (None, "alternating", "forward_masking")
 
 
 def simulate_ecap(
-    n_trials=40,
+    n_trials: int = 40,
     *,
-    kind="spinal",
-    n_channels=8,
-    sfreq=30000.0,
-    tmin=-0.001,
-    tmax=0.003,
-    paradigm=None,
-    masker_probe_interval=0.0005,
-    masking=1.0,
-    stim_current_mA=1.0,  # noqa: N803  (unit suffix of a public keyword)
-    pulse_width_us=50.0,
-    artifact=True,
-    amplitude=((-200.0, -50.0), (40.0, 150.0)),
-    noise="white",
-    noise_sd=5.0,
-    noise_kw=None,
-    snr=None,
-    jitter_sd=0.0,
-    amplitude_cv=0.0,
-    artifact_scale_uV_per_mA=20000.0,  # noqa: N803  (unit suffix of a public keyword)
-    tail_fraction=0.05,
-    tail_tau=0.0002,
-    switch_artifact_uV=20.0,  # noqa: N803  (unit suffix of a public keyword)
-    seed=None,
-    keep_arrays=True,
-):
+    kind: str = "spinal",
+    n_channels: int = 8,
+    sfreq: float = 30000.0,
+    tmin: float = -0.001,
+    tmax: float = 0.003,
+    paradigm: str | None = None,
+    masker_probe_interval: float = 0.0005,
+    masking: float = 1.0,
+    stim_current_mA: float = 1.0,  # noqa: N803  (unit suffix of a public keyword)
+    pulse_width_us: float = 50.0,
+    artifact: bool = True,
+    amplitude: Any = ((-200.0, -50.0), (40.0, 150.0)),
+    noise: str = "white",
+    noise_sd: float = 5.0,
+    noise_kw: Any = None,
+    snr: Any = None,
+    jitter_sd: float = 0.0,
+    amplitude_cv: float = 0.0,
+    artifact_scale_uV_per_mA: float = 20000.0,  # noqa: N803  (unit suffix of a public keyword)
+    tail_fraction: float = 0.05,
+    tail_tau: float = 0.0002,
+    switch_artifact_uV: float = 20.0,  # noqa: N803  (unit suffix of a public keyword)
+    seed: Any = None,
+    keep_arrays: bool = True,
+) -> tuple["TrialSet", "GroundTruth"]:
     """Simulate evoked compound action potentials (spinal cord or cochlea).
 
     The response is an N1-P2 complex of two ``biexponential`` components (N1 at
@@ -1254,7 +1278,7 @@ def simulate_ecap(
     artifact_data, artifact_info = None, None
     if artifact:
 
-        def pulse(onset, polarity):
+        def pulse(onset: Any, polarity: Any) -> Any:
             return stimulation_artifact(
                 times,
                 sfreq,
@@ -1355,30 +1379,30 @@ ANIMAL_COMPONENTS = {
 
 
 def simulate_animal_ep(
-    n_trials=100,
+    n_trials: int = 100,
     *,
-    species="mouse",
-    stimulus="visual",
-    n_channels=32,
-    spacing_um=40.0,
-    sfreq=1250.0,
-    tmin=-0.2,
-    tmax=0.5,
-    components=None,
-    reversal_um=(300.0, 500.0),
-    reversal_width_um=100.0,
-    states=("awake", "nrem"),
-    state_gain=None,
-    artifact=None,
-    noise="pink",
-    noise_sd=30.0,
-    noise_kw=None,
-    snr=None,
-    jitter_sd=0.0,
-    amplitude_cv=0.0,
-    seed=None,
-    keep_arrays=True,
-):
+    species: str = "mouse",
+    stimulus: str = "visual",
+    n_channels: int = 32,
+    spacing_um: float = 40.0,
+    sfreq: float = 1250.0,
+    tmin: float = -0.2,
+    tmax: float = 0.5,
+    components: Sequence[Any] | None = None,
+    reversal_um: Any = (300.0, 500.0),
+    reversal_width_um: float = 100.0,
+    states: tuple[str, ...] = ("awake", "nrem"),
+    state_gain: dict[str, Any] | None = None,
+    artifact: Any = None,
+    noise: str = "pink",
+    noise_sd: float = 30.0,
+    noise_kw: Any = None,
+    snr: Any = None,
+    jitter_sd: float = 0.0,
+    amplitude_cv: float = 0.0,
+    seed: Any = None,
+    keep_arrays: bool = True,
+) -> tuple["TrialSet", "GroundTruth"]:
     """Simulate visual or electrically evoked LFP on a laminar probe.
 
     Each component has a depth profile ``tanh((z_rev - depth) / width)``: one
@@ -1517,7 +1541,7 @@ def simulate_animal_ep(
     return ts, truth
 
 
-GENERATORS = {
+GENERATORS: dict[str, Callable[..., Any]] = {
     "erp": simulate_erp,
     "ccep": simulate_ccep,
     "erna": simulate_erna,

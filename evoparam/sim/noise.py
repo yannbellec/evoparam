@@ -10,11 +10,13 @@ refused (spec §5.12, REQ-256).
 
 import re
 from fractions import Fraction
+from typing import Literal, cast, overload
 
 import numpy as np
 from scipy import fft as sp_fft
 from scipy import signal as sp_signal
 
+from evoparam._typing import Any, FloatArray, RandomState
 from evoparam.data import TrialSet
 from evoparam.data.containers import UNITS
 from evoparam.errors import SettingsError
@@ -38,7 +40,7 @@ ALLOWED_LICENSES = ("CC0", "CC-BY", "CC-BY-SA")
 _MAX_TRIES = 100
 
 
-def resolve_rng(seed):
+def resolve_rng(seed: Any) -> np.random.Generator:
     """Return a :class:`numpy.random.Generator` from an int, a Generator or None."""
     if isinstance(seed, np.random.Generator):
         return seed
@@ -47,7 +49,7 @@ def resolve_rng(seed):
     raise SettingsError(f"seed must be an int, a numpy Generator or None, got {seed!r}.")
 
 
-def parse_kind(kind):
+def parse_kind(kind: Any) -> Any:
     """Split ``"pink+line"`` into (broadband kind or None, with_line)."""
     if kind is None or kind == "none":
         return None, False
@@ -68,11 +70,11 @@ def parse_kind(kind):
 ## Synthetic noise
 
 
-def _white(rng, shape):
+def _white(rng: np.random.Generator, shape: Any) -> Any:
     return rng.standard_normal(shape)
 
 
-def _ar1(rng, shape, rho):
+def _ar1(rng: np.random.Generator, shape: Any, rho: Any) -> Any:
     """Stationary AR(1) with unit variance: ``x_t = rho x_(t-1) + sqrt(1 - rho²) e_t``."""
     if not -1.0 < rho < 1.0:
         raise SettingsError(f"ar1 noise: rho must be in (-1, 1), got {rho}.")
@@ -83,7 +85,7 @@ def _ar1(rng, shape, rho):
     return out
 
 
-def _powerlaw(rng, shape, sfreq, chi):
+def _powerlaw(rng: np.random.Generator, shape: Any, sfreq: float, chi: Any) -> Any:
     """Noise whose power falls as ``1/f^chi``, with unit variance.
 
     White noise is filtered in the frequency domain by ``|H(f)| = f^(-chi/2)``
@@ -109,7 +111,14 @@ def _powerlaw(rng, shape, sfreq, chi):
     return out / np.sqrt(variance)
 
 
-def _line(rng, shape, sfreq, line_freq, n_harmonics, amplitude):
+def _line(
+    rng: np.random.Generator,
+    shape: Any,
+    sfreq: float,
+    line_freq: Any,
+    n_harmonics: Any,
+    amplitude: Any,
+) -> Any:
     """Line noise: ``sum_h (amplitude / h) sin(2π h f t + φ_h)``, random phases."""
     if not (line_freq > 0 and n_harmonics >= 1):
         raise SettingsError("line noise: line_freq must be positive and line_harmonics >= 1.")
@@ -127,7 +136,7 @@ def _line(rng, shape, sfreq, line_freq, n_harmonics, amplitude):
 ## Licences and real noise
 
 
-def normalize_license(text):
+def normalize_license(text: Any) -> Any:
     """Canonical form of a Creative Commons licence name, or None.
 
     ``"CC0 1.0"`` → ``"CC0"``, ``"CC BY-SA 4.0"`` → ``"CC-BY-SA"``, ``"cc-by-4.0"`` →
@@ -135,6 +144,7 @@ def normalize_license(text):
     """
     if text is None:
         return None
+    words: Any
     words = re.sub(r"[_\-\s]+", " ", str(text).upper())
     words = re.sub(r"\b\d+(\.\d+)*\b", " ", words).split()
     if not words:
@@ -142,7 +152,7 @@ def normalize_license(text):
     return "-".join(words)
 
 
-def check_license(dataset):
+def check_license(dataset: str) -> dict[str, Any]:
     """Registry entry of ``dataset`` if its licence allows injection; else SettingsError.
 
     Parameters
@@ -186,7 +196,7 @@ def check_license(dataset):
     }
 
 
-def _source_value(source, trial, column, bids_key):
+def _source_value(source: Any, trial: Any, column: Any, bids_key: Any) -> Any:
     """Subject or run of one source trial: metadata column, else the BIDS entities."""
     meta = source.metadata
     if meta is not None and column in meta.columns:
@@ -198,7 +208,15 @@ def _source_value(source, trial, column, bids_key):
     return None if value in (None, "") else str(value)
 
 
-def _real(rng, shape, sfreq, source, window, dataset, units):
+def _real(
+    rng: np.random.Generator,
+    shape: Any,
+    sfreq: float,
+    source: Any,
+    window: Any,
+    dataset: Any,
+    units: Any,
+) -> tuple[Any, dict[str, Any]]:
     """Segments of the baselines of ``source``; returns (noise, info)."""
     if not isinstance(source, TrialSet):
         raise SettingsError("real noise needs source=<TrialSet of real recordings>.")
@@ -211,7 +229,12 @@ def _real(rng, shape, sfreq, source, window, dataset, units):
     record = check_license(dataset)
     if source.units != units and (UNITS.get(source.units) is None or UNITS.get(units) is None):
         raise SettingsError(f"real noise: cannot convert {source.units} to {units}.")
-    factor = 1.0 if source.units == units else UNITS[source.units] / UNITS[units]
+    # both known (checked above)
+    factor = (
+        1.0
+        if source.units == units
+        else cast(float, UNITS[source.units]) / cast(float, UNITS[units])
+    )
 
     tmin, tmax = (source.times[0], 0.0) if window is None else window
     tmin = source.times[0] if tmin is None else float(tmin)
@@ -225,6 +248,7 @@ def _real(rng, shape, sfreq, source, window, dataset, units):
         ratio = Fraction(sfreq / source.sfreq).limit_denominator(1000)
         values = sp_signal.resample_poly(values, ratio.numerator, ratio.denominator, axis=-1)
         if masks is not None:
+            index: Any
             index = np.floor(np.arange(values.shape[-1]) * source.sfreq / sfreq).astype(int)
             masks = masks[..., np.minimum(index, masks.shape[-1] - 1)]
         resampling = {
@@ -303,25 +327,91 @@ def _real(rng, shape, sfreq, source, window, dataset, units):
 ## Public function
 
 
+@overload
 def make_noise(
-    n_times,
-    sfreq,
-    kind="pink",
+    n_times: int,
+    sfreq: float,
+    kind: str = "pink",
     *,
-    size=(),
-    sd=None,
-    chi=1.0,
-    rho=0.5,
-    line_freq=50.0,
-    line_harmonics=3,
-    line_amplitude=None,
-    source=None,
-    window=None,
-    dataset=None,
-    units="uV",
-    seed=None,
-    return_info=False,
-):
+    size: tuple[int, ...] = (),
+    sd: float | None = None,
+    chi: float = 1.0,
+    rho: float = 0.5,
+    line_freq: float = 50.0,
+    line_harmonics: int = 3,
+    line_amplitude: float | None = None,
+    source: "TrialSet | None" = None,
+    window: tuple[float, float] | None = None,
+    dataset: str | None = None,
+    units: str = "uV",
+    seed: RandomState | None = None,
+    return_info: Literal[False] = False,
+) -> FloatArray: ...
+
+
+@overload
+def make_noise(
+    n_times: int,
+    sfreq: float,
+    kind: str = "pink",
+    *,
+    size: tuple[int, ...] = (),
+    sd: float | None = None,
+    chi: float = 1.0,
+    rho: float = 0.5,
+    line_freq: float = 50.0,
+    line_harmonics: int = 3,
+    line_amplitude: float | None = None,
+    source: "TrialSet | None" = None,
+    window: tuple[float, float] | None = None,
+    dataset: str | None = None,
+    units: str = "uV",
+    seed: RandomState | None = None,
+    return_info: Literal[True],
+) -> tuple[FloatArray, dict[str, Any]]: ...
+
+
+@overload
+def make_noise(
+    n_times: int,
+    sfreq: float,
+    kind: str = "pink",
+    *,
+    size: tuple[int, ...] = (),
+    sd: float | None = None,
+    chi: float = 1.0,
+    rho: float = 0.5,
+    line_freq: float = 50.0,
+    line_harmonics: int = 3,
+    line_amplitude: float | None = None,
+    source: "TrialSet | None" = None,
+    window: tuple[float, float] | None = None,
+    dataset: str | None = None,
+    units: str = "uV",
+    seed: RandomState | None = None,
+    return_info: bool = False,
+) -> FloatArray | tuple[FloatArray, dict[str, Any]]: ...
+
+
+def make_noise(
+    n_times: int,
+    sfreq: float,
+    kind: str = "pink",
+    *,
+    size: tuple[int, ...] = (),
+    sd: float | None = None,
+    chi: float = 1.0,
+    rho: float = 0.5,
+    line_freq: float = 50.0,
+    line_harmonics: int = 3,
+    line_amplitude: float | None = None,
+    source: "TrialSet | None" = None,
+    window: tuple[float, float] | None = None,
+    dataset: str | None = None,
+    units: str = "uV",
+    seed: RandomState | None = None,
+    return_info: bool = False,
+) -> FloatArray | tuple[FloatArray, dict[str, Any]]:
     """Generate noise of one of the models of spec §5.12.
 
     Parameters
@@ -408,7 +498,7 @@ def make_noise(
     if broadband is None and not with_line:
         raise SettingsError("make_noise: kind must name a noise model.")
     rng = resolve_rng(seed)
-    info = {"kind": str(kind), "sfreq": float(sfreq)}
+    info: dict[str, Any] = {"kind": str(kind), "sfreq": float(sfreq)}
     out = np.zeros(shape)
     level = 1.0 if sd is None else float(sd)
     if sd is not None and not (np.isfinite(level) and level >= 0):

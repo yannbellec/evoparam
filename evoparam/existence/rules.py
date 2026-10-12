@@ -7,6 +7,7 @@ from importlib import resources
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, IntArray, NDArray
 from evoparam.errors import SettingsError
 
 __all__ = ["load_rules", "resolve_rule", "apply_rule", "selective_maxima", "RULE_FIELDS"]
@@ -34,13 +35,13 @@ STATISTICS = (
 )
 
 
-def load_rules():
+def load_rules() -> Any:
     """Return the registry (``rules.json``), as a dict name -> rule."""
     text = resources.files("evoparam.existence").joinpath("rules.json").read_text("utf-8")
     return json.loads(text)["rules"]
 
 
-def resolve_rule(rule, **overrides):
+def resolve_rule(rule: Any, **overrides: Any) -> Any:
     """Return a complete rule: a registry name or a dict (``"custom"``), overrides applied.
 
     Raises
@@ -51,7 +52,7 @@ def resolve_rule(rule, **overrides):
     """
     registry = load_rules()
     if isinstance(rule, dict):
-        spec = {
+        spec: dict[str, Any] = {
             "statistic": "abs_peak_z",
             "polarity": "both",
             "min_duration": 0.0,
@@ -86,7 +87,7 @@ def resolve_rule(rule, **overrides):
     return spec
 
 
-def selective_maxima(x, sel):
+def selective_maxima(x: ArrayLike, sel: float) -> IntArray:
     """Local maxima that rise at least ``sel`` above the data around them.
 
     The noise-tolerant peak finder used by the published code of van Blooijs et al. 2023
@@ -151,7 +152,9 @@ def selective_maxima(x, sel):
     return np.array([idx[j] for j in found], int)
 
 
-def _local_negative_peak(z, times, spec, units, sd):
+def _local_negative_peak(
+    z: Any, times: Any, spec: Any, units: Any, sd: Any
+) -> tuple[NDArray[Any], NDArray[Any]]:
     """Return the published N1 peak (van Blooijs et al. 2023).
 
     The largest local minimum of the normalised average between the first sample after
@@ -196,7 +199,7 @@ def _local_negative_peak(z, times, spec, units, sd):
     return stat, peak
 
 
-def _bandpass(avg, sfreq, band):
+def _bandpass(avg: Any, sfreq: float, band: Any) -> Any:
     from scipy.signal import butter, sosfiltfilt
 
     high = min(band[1], 0.45 * sfreq)
@@ -204,7 +207,7 @@ def _bandpass(avg, sfreq, band):
     return sosfiltfilt(sos, avg, axis=-1)
 
 
-def apply_rule(avg, times, sfreq, spec, units="uV"):
+def apply_rule(avg: Any, times: Any, sfreq: float, spec: Any, units: str = "uV") -> dict[str, Any]:
     """Apply a complete rule to trial averages [n_channels, n_times].
 
     Returns dict of arrays [n_channels]: statistic (the rule's quantity, in units of k),

@@ -26,6 +26,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 
+from evoparam._typing import Any
 from evoparam.errors import DataError, EvoparamError
 
 from .tasks import TASKS, output_format, read_input, read_output
@@ -62,15 +63,15 @@ class Adapter:
     """
 
     name: str
-    command: list
-    tasks: tuple = ()
+    command: list[Any]
+    tasks: tuple[Any, ...] = ()
     version: str = ""
     citation: str = ""
     timeout: float = 3600.0
-    env: dict = field(default_factory=dict)
+    env: dict[str, Any] = field(default_factory=dict)
     here: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Check the command and the tasks."""
         if not self.command or not all(isinstance(c, str) for c in self.command):
             raise DataError(f"adapter {self.name!r}: command must be a list of strings.")
@@ -79,7 +80,7 @@ class Adapter:
         if unknown:
             raise DataError(f"adapter {self.name!r}: unknown tasks {unknown}.")
 
-    def _argv(self, input_path, output_path):
+    def _argv(self, input_path: Any, output_path: Any) -> list[Any]:
         values = {
             "python": sys.executable,
             "here": self.here,
@@ -91,7 +92,7 @@ class Adapter:
             argv += [input_path, output_path]
         return argv
 
-    def check(self):
+    def check(self) -> None:
         """Raise :class:`AdapterError` when the command's program cannot be found."""
         import shutil
 
@@ -102,7 +103,7 @@ class Adapter:
         ):
             raise AdapterError(f"adapter {self.name!r}: program {program!r} not found.")
 
-    def run(self, task_input_path, output_dir=None):
+    def run(self, task_input_path: str, output_dir: str | None = None) -> str:
         """Run the tool on one task input and return the path of its validated output.
 
         Parameters
@@ -154,7 +155,7 @@ class Adapter:
             ) from None
         except OSError as err:
             raise AdapterError(f"adapter {self.name!r}: cannot run {argv[0]} ({err}).") from None
-        self.last_duration = time.perf_counter() - start
+        self.last_duration: float = time.perf_counter() - start
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout or "").strip()[-2000:]
             raise AdapterError(
@@ -165,7 +166,7 @@ class Adapter:
         read_output(task, output_path)
         return output_path
 
-    def info(self):
+    def info(self) -> dict[str, Any]:
         """Return the ``method`` record of a result document."""
         return {
             "name": self.name,
@@ -177,7 +178,7 @@ class Adapter:
         }
 
 
-def load_adapter(path):
+def load_adapter(path: Any) -> "Adapter":
     """Return an :class:`Adapter` from a JSON specification file."""
     with open(path, encoding="utf-8") as fobj:
         spec = json.load(fobj)

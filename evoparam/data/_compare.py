@@ -9,21 +9,22 @@ each other. Dataclasses are compared field by field.
 
 import math
 from dataclasses import fields, is_dataclass
+from typing import Any, ClassVar
 
 import numpy as np
 
 
-def _is_dataframe(obj):
+def _is_dataframe(obj: object) -> bool:
     return type(obj).__name__ == "DataFrame" and type(obj).__module__.startswith("pandas")
 
 
-def _float_equal(a, b):
+def _float_equal(a: float, b: float) -> bool:
     if math.isnan(a) and math.isnan(b):
         return True
     return a == b
 
 
-def _array_equal(a, b):
+def _array_equal(a: Any, b: Any) -> bool:
     a = np.asarray(a)
     b = np.asarray(b)
     if a.shape != b.shape or a.dtype.kind != b.dtype.kind:
@@ -33,7 +34,7 @@ def _array_equal(a, b):
     return bool(np.array_equal(a, b))
 
 
-def _frame_equal(a, b):
+def _frame_equal(a: Any, b: Any) -> bool:
     if list(a.columns) != list(b.columns) or len(a) != len(b):
         return False
     if not deep_equal(list(a.index), list(b.index)):
@@ -54,7 +55,7 @@ def _frame_equal(a, b):
     return True
 
 
-def deep_equal(a, b):
+def deep_equal(a: object, b: object) -> bool:
     """Return True when ``a`` and ``b`` hold the same values (see module docstring)."""
     if a is b:
         return True
@@ -92,9 +93,9 @@ def deep_equal(a, b):
 class DeepEqualMixin:
     """Gives a dataclass a NaN-aware, array-aware ``__eq__``."""
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if type(self) is not type(other):
             return NotImplemented
         return deep_equal(self, other)
 
-    __hash__ = None
+    __hash__: ClassVar[None] = None  # type: ignore[assignment]  # unhashable: equality compares the contents

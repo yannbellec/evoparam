@@ -11,9 +11,12 @@ the part produced by the fitted evoked components (``evoked_footprint``), the re
 
 import time as _time
 import warnings
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.data import TFFit, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
@@ -42,6 +45,9 @@ from .zones import (
     zone_regions,
     zone_table,
 )
+
+if TYPE_CHECKING:
+    from evoparam.data.results import GroupFit
 
 __all__ = ["tf_fit", "tf_zones", "tf_compare", "list_published_zones", "methods_text"]
 
@@ -77,7 +83,7 @@ METRIC_COLUMNS = {
 }
 
 
-def _freq_grid(freqs, sfreq):
+def _freq_grid(freqs: Any, sfreq: float) -> Any:
     if isinstance(freqs, tuple) and len(freqs) == 3:
         grid = log_freqs(*freqs)
     else:
@@ -96,7 +102,7 @@ def _freq_grid(freqs, sfreq):
     return grid[keep]
 
 
-def _picks(ts, picks):
+def _picks(ts: Any, picks: Any) -> Any:
     if picks is None:
         return list(range(ts.n_channels))
     out = []
@@ -110,7 +116,7 @@ def _picks(ts, picks):
     return out
 
 
-def _labels(ts, by):
+def _labels(ts: Any, by: Any) -> Any:
     meta = ts.metadata
     columns = [c for c in (by or ()) if meta is not None and c in meta.columns]
     if columns:
@@ -118,7 +124,7 @@ def _labels(ts, by):
     return np.array([""] * ts.n_trials), columns
 
 
-def _invalid_pixels(masks, half_support, n_times, out_idx):
+def _invalid_pixels(masks: Any, half_support: Any, n_times: int, out_idx: Any) -> Any:
     """Return True where a pixel's kernel reaches an epoch edge or a masked sample.
 
     An epoch edge is the cone of influence; the artifact mask is widened by the kernel's temporal
@@ -141,7 +147,7 @@ def _invalid_pixels(masks, half_support, n_times, out_idx):
     return out
 
 
-def _footprint_curve(fit, times):
+def _footprint_curve(fit: Any, times: Any) -> Any:
     """Return the fitted model ŷ(t).
 
     Components everywhere, background inside the fit window with short cosine ramps at its edges.
@@ -160,13 +166,13 @@ def _footprint_curve(fit, times):
     return curve
 
 
-def _filled(x, masks):
+def _filled(x: Any, masks: Any) -> Any:
     """Return the samples with masked and missing values set to zero (their pixels are invalid)."""
     x = np.nan_to_num(np.asarray(x, float))
     return x if masks is None else np.where(masks, 0.0, x)
 
 
-def _channel_fit(group_fit, name, label):
+def _channel_fit(group_fit: Any, name: Any, label: Any) -> Any:
     if label:
         try:
             return group_fit.get(name, condition=label)
@@ -175,12 +181,14 @@ def _channel_fit(group_fit, name, label):
     return group_fit.get(name)
 
 
-def _power(kernels, x, out_idx):
+def _power(kernels: Any, x: Any, out_idx: Any) -> NDArray[Any]:
     """Complex coefficients on the output samples (n_tapers, ..., n_freqs, n_out)."""
     return apply_kernels(kernels, x, crop=slice(int(out_idx[0]), int(out_idx[-1]) + 1))
 
 
-def _row_power(ts, trial_idx, ch, kernels, out_idx):
+def _row_power(
+    ts: Any, trial_idx: Any, ch: Any, kernels: Any, out_idx: Any
+) -> tuple[NDArray[Any], NDArray[Any], NDArray[Any]]:
     """Return the trials of one row with masked samples zeroed, and their power.
 
     Also the power with invalid pixels NaN and the pixels with enough valid trials.
@@ -195,7 +203,16 @@ def _row_power(ts, trial_idx, ch, kernels, out_idx):
     return filled, np.where(enough[None], power, np.nan), enough
 
 
-def _row_test(stats, test, power, ref_times, tested, alpha, n_permutations, rng):
+def _row_test(
+    stats: Any,
+    test: Any,
+    power: Any,
+    ref_times: Any,
+    tested: Any,
+    alpha: Any,
+    n_permutations: Any,
+    rng: np.random.Generator,
+) -> tuple[NDArray[Any], NDArray[Any]]:
     """Return the T (or z) map and the pixel p-values of one row.
 
     See :func:`evoparam.tf.stats.test_map` and :func:`evoparam.tf.stats.baseline_normal_map`.
@@ -208,7 +225,7 @@ def _row_test(stats, test, power, ref_times, tested, alpha, n_permutations, rng)
     return t, p
 
 
-def _row_p(padj):
+def _row_p(padj: Any) -> NDArray[Any]:
     """Each row's p-value: its smallest adjusted pixel p-value (NaN when none is tested)."""
     flat = padj.reshape(padj.shape[0], -1)
     out = np.full(padj.shape[0], np.nan)
@@ -217,7 +234,7 @@ def _row_p(padj):
     return out
 
 
-def _region_stats(per_trial, test, tmap, reported, sig):
+def _region_stats(per_trial: Any, test: Any, tmap: Any, reported: Any, sig: Any) -> Any:
     """Return the zone metrics from one row's values on the zone's valid pixels.
 
     ``per_trial`` and ``test`` are (n_trials, n_cells), the others (n_cells,): signed mean,
@@ -252,7 +269,9 @@ def _region_stats(per_trial, test, tmap, reported, sig):
     )
 
 
-def _region_values(per_trial, test, sig, tmap, reported, region, valid):
+def _region_values(
+    per_trial: Any, test: Any, sig: Any, tmap: Any, reported: Any, region: Any, valid: Any
+) -> Any:
     """Zone metric of one map row on ``region & valid`` (see :func:`_region_stats`)."""
     cells = region & valid
     return _region_stats(
@@ -261,35 +280,35 @@ def _region_values(per_trial, test, sig, tmap, reported, region, valid):
 
 
 def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.10)
-    ts,
+    ts: "TrialSet",
     *,
-    transform="morse",
-    freqs=(2.0, 250.0, 40),
-    gamma=3.0,
-    p2=30.0,
-    n_cycles=7.0,
-    time_bandwidth=4.0,
-    stft_window=0.2,
-    window=(0.0, 1.0),
-    baseline=(-0.5, -0.1),
-    baseline_mode="db",
-    baseline_level="single_trial",
-    group_fit=None,
-    stats="fdr",
-    alpha=0.05,
-    n_permutations=1000,
-    channel_correction="fdr_bh",
-    zones="auto",
-    max_zones=8,
-    zone_method="nmf",
-    allow_unverified=False,
-    by_trial=False,
-    picks=None,
-    by=("stim_site",),
-    n_jobs=1,  # noqa: ARG001  (documented: accepted for the common signature, runs in one process)
-    random_state=None,
-    verbose=None,
-):
+    transform: str = "morse",
+    freqs: Any = (2.0, 250.0, 40),
+    gamma: float = 3.0,
+    p2: float = 30.0,
+    n_cycles: float = 7.0,
+    time_bandwidth: float = 4.0,
+    stft_window: float = 0.2,
+    window: tuple[float, float] = (0.0, 1.0),
+    baseline: tuple[float, float] = (-0.5, -0.1),
+    baseline_mode: str = "db",
+    baseline_level: str = "single_trial",
+    group_fit: "GroupFit | None" = None,
+    stats: str = "fdr",
+    alpha: float = 0.05,
+    n_permutations: int = 1000,
+    channel_correction: str = "fdr_bh",
+    zones: Any = "auto",
+    max_zones: int = 8,
+    zone_method: str = "nmf",
+    allow_unverified: bool = False,
+    by_trial: bool = False,
+    picks: Any = None,
+    by: Sequence[str] = ("stim_site",),
+    n_jobs: int = 1,  # noqa: ARG001  (documented: accepted for the common signature, runs in one process)
+    random_state: Any = None,
+    verbose: Any = None,
+) -> "TFFit":
     """Time-frequency maps, pixel statistics and zones of a TrialSet.
 
     Parameters
@@ -354,7 +373,7 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
     start_clock = _time.perf_counter()
     if not isinstance(ts, TrialSet):
         raise DataError("tf_fit expects a TrialSet.")
-    published = None
+    published: Any = None
     if isinstance(zones, str) and zones.startswith("published:"):
         published = resolve_published(zones.split(":", 1)[1], allow_unverified)
         pub = published.get("settings", {})
@@ -434,7 +453,7 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
     want_zones = zones == "auto"
 
     shape = (n_rows, len(grid), len(out_idx))
-    maps = {key: np.full(shape, np.nan) for key in ("total", "total_norm")}
+    maps: dict[str, Any] = {key: np.full(shape, np.nan) for key in ("total", "total_norm")}
     if group_fit is not None:
         for key in (
             "evoked_footprint",
@@ -447,7 +466,7 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
         ):
             maps[key] = np.full(shape, np.nan)
     tmaps = np.full(shape, np.nan)
-    halves = np.zeros((N_SPLITS, 2, len(grid), len(out_idx))) if want_zones else None
+    halves: Any = np.zeros((N_SPLITS, 2, len(grid), len(out_idx))) if want_zones else None
     rows, row_trials = [], []
     published_region = None
     if published is not None:
@@ -456,8 +475,8 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
     # pixel p-values adjusted within each row (the row's own test), then the rows'
     # levels from the correction across channels (§5.6), then the significant pixels
     padj = np.full(shape, np.nan)
-    padj_residual = np.full(shape, np.nan) if group_fit is not None else None
-    stash = []  # published zone: each row's values inside the zone
+    padj_residual: Any = np.full(shape, np.nan) if group_fit is not None else None
+    stash: list[Any] = []  # published zone: each row's values inside the zone
 
     r = -1
     for label in groups:
@@ -530,8 +549,8 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
 
     # split halves of the rows with significant pixels, kept per row (float32) inside the
     # box of the significant pixels for the CP rank (the NMF uses their mean, ``halves``)
-    union = significant.any(axis=0)
-    box = None
+    union: Any = significant.any(axis=0)
+    box: Any = None
     if want_zones and union.any():
         f_idx, t_idx = np.flatnonzero(union.any(axis=1)), np.flatnonzero(union.any(axis=0))
         box = (slice(f_idx[0], f_idx[-1] + 1), slice(t_idx[0], t_idx[-1] + 1))
@@ -560,8 +579,10 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
                 row_halves.append(own)
                 halves_rows.append(r)
             if published_region is not None:
-                cells, *inside = stash[r]
-                *values, trial_values = _region_stats(*inside, significant[r][cells])
+                cells, in_trials, in_test, in_t, in_reported = stash[r]
+                *values, trial_values = _region_stats(
+                    in_trials, in_test, in_t, in_reported, significant[r][cells]
+                )
                 metric_rows.append(
                     _metric_row(
                         0, published["name"], name, label, -1, *values, modality=ts.modality
@@ -643,6 +664,7 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
             metric_rows = _zone_metrics(
                 ts, result, regions, kernels, out_idx, ref_times, groups, labels, picks, by_trial
             )
+            p_by_zone: dict[Any, Any]
             p_by_zone = {}
             for row in metric_rows:
                 if row["trial"] < 0 and np.isfinite(row["p_value"]):
@@ -686,19 +708,20 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
 
 
 def _metric_row(
-    zone_id,
-    zone,
-    channel,
-    condition,
-    trial,
-    value,
-    t=np.nan,
-    p=np.nan,
-    frac=np.nan,
-    frac_up=np.nan,
-    frac_down=np.nan,
-    modality=None,
-):
+    zone_id: Any,
+    zone: Any,
+    channel: Any,
+    condition: Any,
+    trial: Any,
+    value: Any,
+    t: Any = np.nan,
+    p: Any = np.nan,
+    frac: Any = np.nan,
+    frac_up: Any = np.nan,
+    frac_down: Any = np.nan,
+    *,
+    modality: Any = None,
+) -> dict[str, Any]:
     return {
         "zone_id": zone_id,
         "zone": zone,
@@ -715,13 +738,20 @@ def _metric_row(
     }
 
 
-def _group_map(tf):
+def _group_map(tf: Any) -> FloatArray:
     """Signed group map: mean over rows of the significant normalised pixels."""
     signed = np.where(tf.significant, np.nan_to_num(tf.maps["total_norm"]), 0.0)
-    return signed.mean(axis=0)
+    group: FloatArray = signed.mean(axis=0)
+    return group
 
 
-def _zones_of(tf, method, max_zones, rng, cp_stability="split_half"):
+def _zones_of(
+    tf: Any,
+    method: Any,
+    max_zones: Any,
+    rng: np.random.Generator,
+    cp_stability: str = "split_half",
+) -> tuple[Any, list[Any]]:
     """Zone table and regions from a TFFit's group map and split halves."""
     rng = np.random.default_rng(rng)
     group = _group_map(tf)
@@ -761,7 +791,18 @@ def _zones_of(tf, method, max_zones, rng, cp_stability="split_half"):
     return table, [regions[i][2] for i in order]
 
 
-def _zone_metrics(ts, tf, regions, kernels, out_idx, ref_times, groups, labels, picks, by_trial):
+def _zone_metrics(
+    ts: Any,
+    tf: Any,
+    regions: Any,
+    kernels: Any,
+    out_idx: Any,
+    ref_times: Any,
+    groups: Any,
+    labels: Any,
+    picks: Any,
+    by_trial: Any,
+) -> list[Any]:
     s = tf.settings
     rows = []
     r = -1
@@ -796,7 +837,14 @@ def _zone_metrics(ts, tf, regions, kernels, out_idx, ref_times, groups, labels, 
     return rows
 
 
-def tf_zones(tf, *, method="nmf", max_zones=8, random_state=None, cp_stability="split_half"):
+def tf_zones(
+    tf: Any,
+    *,
+    method: str = "nmf",
+    max_zones: int = 8,
+    random_state: Any = None,
+    cp_stability: str = "split_half",
+) -> Any:
     """Data-driven zones of a TFFit (made with ``zones="auto"``), with another method or bound.
 
     Returns the zone table (without p-values, which need the trials).
@@ -814,7 +862,15 @@ def tf_zones(tf, *, method="nmf", max_zones=8, random_state=None, cp_stability="
     return table
 
 
-def tf_compare(tf_a, tf_b, *, stats="cluster", n_permutations=1000, alpha=0.05, random_state=None):  # noqa: C901  (public API, signature fixed by spec §5.10)
+def tf_compare(  # noqa: C901  (public API, signature fixed by spec §5.10)
+    tf_a: Any,
+    tf_b: Any,
+    *,
+    stats: str = "cluster",
+    n_permutations: int = 1000,
+    alpha: float = 0.05,
+    random_state: Any = None,
+) -> Any:
     """Contrast of two TFFits (conditions or modalities), with the map rows as units.
 
     Rows present in both (same channel and condition order) are paired (sign flips of the
@@ -840,7 +896,7 @@ def tf_compare(tf_a, tf_b, *, stats="cluster", n_permutations=1000, alpha=0.05, 
     paired = tf_a.settings.get("rows") == tf_b.settings.get("rows")
     rng = np.random.default_rng(random_state)
 
-    def statistic(xa, xb):
+    def statistic(xa: Any, xb: Any) -> Any:
         if paired:
             t, _ = t_map(xa - xb)
             return t
@@ -883,7 +939,7 @@ def tf_compare(tf_a, tf_b, *, stats="cluster", n_permutations=1000, alpha=0.05, 
         )
     threshold = sstats.t.ppf(1 - alpha / 2, df)
 
-    def clusters(tmap):
+    def clusters(tmap: Any) -> Any:
         out = []
         for sign in (1, -1):
             lab, n = ndimage.label(np.nan_to_num(sign * tmap) > threshold)
@@ -893,7 +949,7 @@ def tf_compare(tf_a, tf_b, *, stats="cluster", n_permutations=1000, alpha=0.05, 
         return out
 
     null = np.zeros(n_permutations)
-    both = np.concatenate([a, b]) if not paired else None
+    both: Any = np.concatenate([a, b]) if not paired else None
     for i in range(n_permutations):
         if paired:
             flips = rng.choice((-1.0, 1.0), a.shape[0])[:, None, None]
@@ -925,6 +981,6 @@ def tf_compare(tf_a, tf_b, *, stats="cluster", n_permutations=1000, alpha=0.05, 
     return table.sort_values("p_value", ignore_index=True)
 
 
-def methods_text(tf):
+def methods_text(tf: Any) -> Any:
     """Methods paragraph of a TFFit (spec REQ-219)."""
     return tf.methods_text()

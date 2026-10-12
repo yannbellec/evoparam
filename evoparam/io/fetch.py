@@ -2,7 +2,10 @@
 """Fetch files from OpenNeuro, the open archive of BIDS datasets."""
 
 import os
+from collections.abc import Iterator
+from typing import cast
 
+from evoparam._typing import Any
 from evoparam.errors import ReaderError
 from evoparam.io._fetch import RemoteFile, download, sha256_file
 
@@ -21,7 +24,7 @@ __all__ = [
 OPENNEURO_URL = "https://s3.amazonaws.com/openneuro.org/"
 
 
-def openneuro_url(dataset, path):
+def openneuro_url(dataset: str, path: str) -> str:
     """Return the direct address of a file in an OpenNeuro dataset.
 
     Parameters
@@ -39,7 +42,7 @@ def openneuro_url(dataset, path):
     return OPENNEURO_URL + dataset + "/" + path.lstrip("/")
 
 
-def _registry_files(dataset):
+def _registry_files(dataset: Any) -> Any:
     """``files`` (path -> SHA-256) of a dataset of the registry, or None."""
     from evoparam.io.registry import _load_registry
 
@@ -49,7 +52,7 @@ def _registry_files(dataset):
     return None
 
 
-def _registry_sha256(dataset, path):
+def _registry_sha256(dataset: Any, path: Any) -> Any:
     """SHA-256 recorded for this file in the dataset registry, if any."""
     from evoparam.io.registry import _load_registry
 
@@ -59,7 +62,9 @@ def _registry_sha256(dataset, path):
     return None
 
 
-def fetch_openneuro_file(dataset, path, folder="data", *, sha256=None):
+def fetch_openneuro_file(
+    dataset: str, path: str, folder: str = "data", *, sha256: str | None = None
+) -> str:
     """Download one file of an OpenNeuro dataset, if not already present.
 
     Parameters
@@ -90,7 +95,7 @@ def fetch_openneuro_file(dataset, path, folder="data", *, sha256=None):
     expected = sha256 or _registry_sha256(dataset, path)
 
     if os.path.isfile(local_path):
-        found = sha256_file(local_path) if expected else None
+        found: Any = sha256_file(local_path) if expected else None
     else:
         found = download(openneuro_url(dataset, path), local_path)
 
@@ -119,7 +124,7 @@ ERPCORE_NODES = {
 ERPCORE_SUFFIXES = ("_epoch_interp_ar.set", "_epoch_interp_ar.fdt")
 
 
-def _osf_pages(url):
+def _osf_pages(url: Any) -> Iterator[Any]:
     import json
 
     from evoparam.io._fetch import fetch_bytes
@@ -130,7 +135,7 @@ def _osf_pages(url):
         url = page["links"].get("next")
 
 
-def fetch_erpcore(component, participant=1, folder=None):
+def fetch_erpcore(component: str, participant: int = 1, folder: str | None = None) -> str:
     """Fetch the epoched data of one ERP CORE participant and component.
 
     EEGLAB ``.set`` and ``.fdt`` after the published pipeline: ICA, interpolation, artifact flags.
@@ -177,7 +182,7 @@ def fetch_erpcore(component, participant=1, folder=None):
         if key.startswith(prefix)
     }
 
-    def local(suffix):
+    def local(suffix: Any) -> Any:
         found = glob.glob(os.path.join(target, f"*{suffix}"))
         return found[0] if found else None
 
@@ -222,4 +227,4 @@ def fetch_erpcore(component, participant=1, folder=None):
                     f"{want}; the file was deleted."
                 )
         out.append(path)
-    return out[0]
+    return cast("str", out[0])

@@ -21,6 +21,7 @@ extension to PyPI and to the NDX catalog is a release step (RELEASING.md).
 import json
 import os
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 from evoparam.utils._optional import require
 
@@ -130,7 +131,7 @@ SETTINGS_FIELDS = (
 )
 
 
-def build_spec(folder=SPEC_DIR):
+def build_spec(folder: Any = SPEC_DIR) -> str:
     """Write the namespace and extension YAML files of ``ndx-evoparam`` to ``folder``."""
     spec = require("pynwb", extra="nwb", caller="evoparam.io.ndx_evoparam.build_spec").spec
     builder = spec.NWBNamespaceBuilder(
@@ -177,10 +178,11 @@ def build_spec(folder=SPEC_DIR):
     return os.path.join(folder, f"{NAMESPACE}.namespace.yaml")
 
 
+_LOADED: dict[Any, Any]
 _LOADED = {}
 
 
-def load():
+def load() -> dict[Any, Any]:
     """Load the namespace into pynwb (once) and return the generated classes."""
     if _LOADED:
         return _LOADED
@@ -194,7 +196,7 @@ def load():
     return _LOADED
 
 
-def table_class(kind):
+def table_class(kind: Any) -> Any:
     """Class of the table of ``kind``: components, existence or trials."""
     names = {
         "components": "EvokedResponseFitTable",
@@ -204,8 +206,11 @@ def table_class(kind):
     return load()[names[kind]]
 
 
-def settings_record(items, description, version, name="evoparam_settings"):
+def settings_record(
+    items: Any, description: Any, version: Any, name: str = "evoparam_settings"
+) -> Any:
     """``ResponseFitSettings`` of the results written to a file."""
+    settings: Any
     settings = (
         next(
             (

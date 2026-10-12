@@ -10,6 +10,7 @@ forwards every argument.
 
 import functools
 import importlib
+from typing import Any
 
 from evoparam.errors import warn
 
@@ -20,7 +21,7 @@ class EvoparamDeprecationWarning(DeprecationWarning):
     """A public name of evoparam is deprecated (a ``DeprecationWarning`` subclass)."""
 
 
-def version_tuple(text):
+def version_tuple(text: object) -> tuple[int, ...]:
     """(major, minor, patch) of a version string (pre-release and local parts dropped)."""
     import re
 
@@ -35,7 +36,7 @@ def version_tuple(text):
     return tuple(parts + [0] * (3 - len(parts)))
 
 
-def minor_gap(since, remove_in):
+def minor_gap(since: str, remove_in: str) -> int:
     """Return the number of minor versions between ``since`` and ``remove_in`` (same major)."""
     a, b = version_tuple(since), version_tuple(remove_in)
     if a[0] != b[0]:
@@ -43,7 +44,7 @@ def minor_gap(since, remove_in):
     return b[1] - a[1]
 
 
-def resolve(target):
+def resolve(target: str) -> Any:
     """Return the object named ``"package.module:attribute"`` or ``"package.module.attribute"``."""
     if ":" in target:
         module, _, attribute = target.partition(":")
@@ -55,14 +56,14 @@ def resolve(target):
     return obj
 
 
-def message(old, new, since, remove_in):
+def message(old: str, new: str, since: str, remove_in: str) -> str:
     return (
         f"{old} is deprecated since evoparam {since} and will be removed in evoparam "
         f"{remove_in}; use {new} instead."
     )
 
 
-def shim(old, new, since, remove_in):
+def shim(old: str, new: str, since: str, remove_in: str) -> Any:
     """Return a callable (or the object itself, for a non-callable) that warns and forwards."""
     target = resolve(new)
     text = message(old, new, since, remove_in)
@@ -71,9 +72,9 @@ def shim(old, new, since, remove_in):
         return target
 
     @functools.wraps(target)
-    def forward(*args, **kwargs):
+    def forward(*args: Any, **kwargs: Any) -> Any:
         warn(text, EvoparamDeprecationWarning, stacklevel=2)
         return target(*args, **kwargs)
 
-    forward.__deprecated__ = text
+    forward.__deprecated__ = text  # type: ignore[attr-defined]  # read by the tests and docs
     return forward

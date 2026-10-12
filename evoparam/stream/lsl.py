@@ -10,6 +10,7 @@ import time
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import DataError
 from evoparam.utils._optional import require
 from evoparam.version import __version__
@@ -41,12 +42,13 @@ FIELDS = (
 )
 
 
-def _pylsl(caller):
+def _pylsl(caller: Any) -> Any:
     return require("pylsl", extra="stream", min_version=PYLSL_FLOOR, caller=caller)
 
 
-def _channel_labels(info, n_channels):
+def _channel_labels(info: Any, n_channels: int) -> list[str]:
     """Channel labels from the ``desc/channels/channel/label`` entries of a stream."""
+    labels: list[Any]
     labels = []
     channel = info.desc().child("channels").child("channel")
     while not channel.empty() and len(labels) < n_channels:
@@ -79,7 +81,7 @@ class LSLInlet:
         Channel labels from the stream description (``ch0``, ``ch1``, ... when absent).
     """
 
-    def __init__(self, name=None, stype="EEG", *, max_buflen=360):
+    def __init__(self, name: Any = None, stype: str = "EEG", *, max_buflen: int = 360) -> None:
         timeout = RESOLVE_TIMEOUT
         pylsl = _pylsl("evoparam.stream.LSLInlet")
         prop, value = ("name", name) if name is not None else ("type", stype)
@@ -91,12 +93,12 @@ class LSLInlet:
         # Samples pushed from now on are received (an inlet otherwise subscribes on its
         # first pull)
         self._inlet.open_stream(timeout)
-        self.sfreq = float(info.nominal_srate())
-        self.n_channels = int(info.channel_count())
-        self.ch_names = _channel_labels(info, self.n_channels)
-        self.name = info.name()
+        self.sfreq: float = float(info.nominal_srate())
+        self.n_channels: int = int(info.channel_count())
+        self.ch_names: list[str] = _channel_labels(info, self.n_channels)
+        self.name: Any = info.name()
 
-    def pull(self, timeout=0.0, max_samples=1024):
+    def pull(self, timeout: float = 0.0, max_samples: int = 1024) -> Any:
         """Return the samples available now (waiting up to ``timeout`` s).
 
         ``(samples [n, n_channels], timestamps [n])``.
@@ -108,7 +110,15 @@ class LSLInlet:
             stamps, float
         )
 
-    def feed(self, fitter, *, duration=None, max_pulses=None, timeout=0.05, callback=None):
+    def feed(
+        self,
+        fitter: Any,
+        *,
+        duration: Any = None,
+        max_pulses: Any = None,
+        timeout: float = 0.05,
+        callback: Any = None,
+    ) -> list[Any]:
         """Pull samples and push them into ``fitter`` (with their LSL timestamps).
 
         Until ``duration`` seconds have passed or ``max_pulses`` pulses have been estimated.
@@ -133,7 +143,7 @@ class LSLInlet:
             if duration is not None and time.monotonic() - start >= duration:
                 return out
 
-    def close(self):
+    def close(self) -> None:
         """Close the stream."""
         self._inlet.close_stream()
 
@@ -157,11 +167,13 @@ class LSLOutlet:
     source_id : str
     """
 
-    def __init__(self, fitter, name="evoparam-pulses", source_id="evoparam-stream"):
+    def __init__(
+        self, fitter: Any, name: str = "evoparam-pulses", source_id: str = "evoparam-stream"
+    ) -> None:
         pylsl = _pylsl("evoparam.stream.LSLOutlet")
-        self.channels = list(fitter.model.ch_names)
-        self.components = [list(labels) for labels in fitter.model.labels]
-        self.metadata = {
+        self.channels: list[Any] = list(fitter.model.ch_names)
+        self.components: list[list[Any]] = [list(labels) for labels in fitter.model.labels]
+        self.metadata: dict[Any, Any] = {
             "intended_use": INTENDED_USE,
             "fields": list(FIELDS),
             "channels": self.channels,
@@ -186,7 +198,7 @@ class LSLOutlet:
         ]
         self._status = {status: i for i, status in enumerate(STATUSES)}
 
-    def row(self, estimate):
+    def row(self, estimate: Any) -> list[Any]:
         """Return the float values of one estimate, in the order of :data:`FIELDS`."""
         c = self._channel[estimate.channel]
         return [
@@ -204,11 +216,11 @@ class LSLOutlet:
             float(self._status[estimate.status]),
         ]
 
-    def push(self, estimates):
+    def push(self, estimates: Any) -> None:
         """Publish estimates (one LSL sample each, stamped with its pulse time)."""
         for estimate in estimates:
             self._outlet.push_sample(self.row(estimate), estimate.pulse_time)
 
-    def have_consumers(self):
+    def have_consumers(self) -> bool:
         """Return True when a consumer is connected to the outlet."""
         return bool(self._outlet.have_consumers())

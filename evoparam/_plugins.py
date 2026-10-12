@@ -22,7 +22,18 @@ may import it.
 """
 
 import os
+from collections.abc import (
+    Callable,
+    Collection,
+    Iterable,
+    Iterator,
+    Mapping,
+)
 from importlib import metadata
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from _collections_abc import dict_items, dict_keys, dict_values
 
 from evoparam.errors import SettingsError
 
@@ -31,16 +42,16 @@ __all__ = ["GROUPS", "LazyRegistry", "load_group", "loaded", "used", "enabled", 
 GROUPS = ("evoparam.shapes", "evoparam.presets", "evoparam.readers")
 
 # "group:name" -> "dist==version" of every plugin object handed out by a registry
-USED = {}
+USED: dict[str, str] = {}
 # group -> {name: "dist==version"} of the loaded plugins
-_LOADED = {}
+_LOADED: dict[str, dict[str, str]] = {}
 
 # returned by a registry's check for an object that belongs to another registry of the same
 # group (a background in the group evoparam.shapes)
 SKIP = object()
 
 
-def enabled():
+def enabled() -> bool:
     """Return False when ``EVOPARAM_DISABLE_PLUGINS`` is set to a true value."""
     return os.environ.get("EVOPARAM_DISABLE_PLUGINS", "").strip().lower() not in (
         "1",
@@ -50,18 +61,20 @@ def enabled():
     )
 
 
-def _entry_points(group):
+def _entry_points(group: str) -> list[metadata.EntryPoint]:
     return list(metadata.entry_points(group=group))
 
 
-def _origin(entry):
+def _origin(entry: metadata.EntryPoint) -> str:
     dist = getattr(entry, "dist", None)
     if dist is None:
         return f"unknown=={entry.value}"
     return f"{dist.metadata['Name']}=={dist.version}"
 
 
-def load_group(group, builtin, check):
+def load_group(
+    group: str, builtin: Collection[str], check: Callable[[str, Any, str], Any]
+) -> dict[str, tuple[Any, str]]:
     """``{name: (object, "dist==version")}`` of the plugins of ``group``.
 
     ``builtin`` holds the built-in names; ``check(name, obj, origin)`` validates an object
@@ -70,7 +83,7 @@ def load_group(group, builtin, check):
     """
     if group not in GROUPS:
         raise SettingsError(f"unknown plugin group {group!r}; groups: {GROUPS}.")
-    out = {}
+    out: dict[str, tuple[Any, str]] = {}
     if not enabled():
         _LOADED[group] = {}
         return out
@@ -99,17 +112,17 @@ def load_group(group, builtin, check):
     return {name: item for name, item in out.items() if item[0] is not SKIP}
 
 
-def loaded():
+def loaded() -> dict[str, dict[str, str]]:
     """``{group: {name: "dist==version"}}`` of the groups loaded so far."""
     return {group: dict(names) for group, names in _LOADED.items()}
 
 
-def used():
+def used() -> dict[str, str]:
     """``{"group:name": "dist==version"}`` of the plugin objects handed out so far."""
     return dict(USED)
 
 
-class LazyRegistry(dict):
+class LazyRegistry(dict[str, Any]):
     """A dict that adds the plugins of ``group`` on first access.
 
     ``check(name, obj, origin)`` validates each plugin object; the built-in names are the keys
@@ -117,17 +130,24 @@ class LazyRegistry(dict):
     (``register_shape``, ``presets.register``) are kept as they are.
     """
 
-    def __init__(self, group, items, check, *, builtin=()):
+    def __init__(
+        self,
+        group: str,
+        items: Mapping[str, Any],
+        check: Callable[[str, Any, str], Any],
+        *,
+        builtin: Iterable[str] = (),
+    ) -> None:
         super().__init__(items)
         self._group, self._check = group, check
         self._builtin = frozenset(items) | frozenset(builtin)
-        self._plugins = None
+        self._plugins: dict[str, str] | None = None
 
     @property
-    def builtin(self):
+    def builtin(self) -> frozenset[str]:
         return self._builtin
 
-    def _load(self):
+    def _load(self) -> None:
         if self._plugins is None:
             self._plugins = {}  # set first: a check may read the registry
             found = load_group(self._group, self._builtin, self._check)
@@ -135,23 +155,23 @@ class LazyRegistry(dict):
                 super().__setitem__(name, obj)
                 self._plugins[name] = origin
 
-    def plugins(self):
+    def plugins(self) -> dict[str, str]:
         """``{name: "dist==version"}`` of the plugins of this registry."""
         self._load()
-        return dict(self._plugins)
+        return dict(cast("dict[str, str]", self._plugins))
 
-    def reload(self):
+    def reload(self) -> None:
         """Forget the loaded plugins and load the entry points again (tests, new installs)."""
         for name in self._plugins or {}:
             super().pop(name, None)
         self._plugins = None
         self._load()
 
-    def _mark(self, key):
+    def _mark(self, key: str) -> None:
         if self._plugins and key in self._plugins:
             USED[f"{self._group}:{key}"] = self._plugins[key]
 
-    def _builtin_entry(self, key):
+    def _builtin_entry(self, key: object) -> bool:
         # a built-in name is answered without loading the plugins: a plugin module may use
         # the built-ins while it is being imported (a preset derived from "ccep")
         try:
@@ -159,14 +179,14 @@ class LazyRegistry(dict):
         except TypeError:  # unhashable key
             return False
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         if not self._builtin_entry(key):
             self._load()
         value = super().__getitem__(key)
         self._mark(key)
         return value
 
-    def get(self, key, default=None):
+    def get(self, key: str, default: Any = None) -> Any:
         if self._builtin_entry(key):
             return super().__getitem__(key)
         self._load()
@@ -174,32 +194,32 @@ class LazyRegistry(dict):
             return self[key]
         return default
 
-    def __contains__(self, key):
+    def __contains__(self, key: object) -> bool:
         if self._builtin_entry(key):
             return True
         self._load()
         return super().__contains__(key)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         self._load()
         return super().__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         self._load()
         return super().__len__()
 
-    def keys(self):
+    def keys(self) -> "dict_keys[str, Any]":
         self._load()
         return super().keys()
 
-    def values(self):
+    def values(self) -> "dict_values[str, Any]":
         self._load()
         return super().values()
 
-    def items(self):
+    def items(self) -> "dict_items[str, Any]":
         self._load()
         return super().items()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         self._load()
         return super().__repr__()

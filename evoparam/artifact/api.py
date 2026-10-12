@@ -3,9 +3,11 @@
 
 import time as _time
 import warnings
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.data import ArtifactResult
 from evoparam.errors import ArtifactError, SettingsError
 from evoparam.utils._interp import INTERPOLATIONS, interpolate_window
@@ -15,6 +17,9 @@ from ._common import GROUP_BY, base_masks, check_trialset, finish, window_slice
 from .paradigm import SCHEMES, paradigm_subtract
 from .period import estimate_period, period_filter, period_lags
 from .quality import artifact_quality
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["remove_artifact", "compare_methods", "METHODS"]
 
@@ -36,7 +41,7 @@ METHODS = (
 GLOBAL_METHODS = ("period_template", "lowrank", "subspace", "polynomial")
 
 
-def _check_window_vs_rate(ts, window, method):
+def _check_window_vs_rate(ts: Any, window: Any, method: Any) -> None:
     """Refuse a window longer than the interval between pulses of a train."""
     rate = None
     if ts.metadata is not None and "stim_frequency_hz" in ts.metadata.columns:
@@ -52,47 +57,47 @@ def _check_window_vs_rate(ts, window, method):
 
 
 def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.3)
-    ts,
+    ts: "TrialSet",
     *,
-    method="template",
-    window=(-0.002, 0.008),
-    buffer=3,
-    interpolation="linear",
-    template="global",
-    group_by=GROUP_BY,
-    n_neighbors=10,
-    scale=True,
-    fallback=False,
-    tail="none",
-    tail_length=0.05,
-    tau_bounds=(0.0005, 0.05),
-    tail_part="full",
-    period=None,
-    expected_rate=None,
-    n_bins=None,
-    n_skip=None,
-    d_period=None,
-    causal=False,
-    pulse_times=None,
-    ranks=(4, 2, 4),
-    post_window=0.03,
-    baseline=(-0.5, -0.05),
-    n_components=None,
-    subspace_extent="window",
-    ridge=1e-3,
-    poly_halfwidth=0.003,
-    poly_extent="local",
-    line_freq=50.0,
-    n_atoms=20,
-    pursuit_length=0.1,
-    scheme=None,
-    pairing="auto",
-    mask_subtracted=False,
-    quality=True,
-    inplace=False,
-    random_state=None,
-    verbose=None,
-):
+    method: str = "template",
+    window: tuple[float, float] = (-0.002, 0.008),
+    buffer: int = 3,
+    interpolation: str = "linear",
+    template: str = "global",
+    group_by: Any = GROUP_BY,
+    n_neighbors: int = 10,
+    scale: bool = True,
+    fallback: bool = False,
+    tail: str = "none",
+    tail_length: float = 0.05,
+    tau_bounds: Any = (0.0005, 0.05),
+    tail_part: str = "full",
+    period: Any = None,
+    expected_rate: Any = None,
+    n_bins: Any = None,
+    n_skip: Any = None,
+    d_period: Any = None,
+    causal: bool = False,
+    pulse_times: Any = None,
+    ranks: Any = (4, 2, 4),
+    post_window: float = 0.03,
+    baseline: Any = (-0.5, -0.05),
+    n_components: Any = None,
+    subspace_extent: str = "window",
+    ridge: float = 1e-3,
+    poly_halfwidth: float = 0.003,
+    poly_extent: str = "local",
+    line_freq: float = 50.0,
+    n_atoms: int = 20,
+    pursuit_length: float = 0.1,
+    scheme: Any = None,
+    pairing: Any = "auto",
+    mask_subtracted: bool = False,
+    quality: bool = True,
+    inplace: bool = False,
+    random_state: Any = None,
+    verbose: Any = None,
+) -> "ArtifactResult":
     """Remove the stimulation artifact, mark replaced samples and score each trial.
 
     Methods (spec §5.3; each implemented from the published equations):
@@ -198,7 +203,7 @@ def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sign
     saturation = ts.masks
     info = {"template": None, "basis": None, "fit_r2": None}
 
-    def interp(values):
+    def interp(values: Any) -> Any:
         out, _ = interpolate_window(ts.times, values, window, buffer, interpolation)
         return out
 
@@ -313,6 +318,7 @@ def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sign
             raise ArtifactError(f"method 'paradigm' needs scheme in {SCHEMES}.")
         out = paradigm_subtract(ts, scheme=scheme, pairing=pairing)
         data, masks, saturation = out.data, base_masks(out), out.masks
+        ts_out: Any
         ts_out = out
     if method != "paradigm":
         ts_out = None
@@ -362,7 +368,7 @@ def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sign
     )
 
 
-def _jsonable_settings(settings):
+def _jsonable_settings(settings: Any) -> dict[Any, Any]:
     out = {}
     for key, raw_value in settings.items():
         value = raw_value
@@ -372,7 +378,9 @@ def _jsonable_settings(settings):
     return out
 
 
-def _period(ts, period, expected_rate, n_bins, n_skip, d_period, causal):
+def _period(
+    ts: Any, period: Any, expected_rate: Any, n_bins: Any, n_skip: Any, d_period: Any, causal: Any
+) -> tuple[Any, dict[str, Any]]:
     if period is None and not expected_rate:
         raise ArtifactError("method 'period_template' needs period (s) or expected_rate (Hz).")
     n_trials, n_channels, n_times = ts.data.shape
@@ -393,7 +401,13 @@ def _period(ts, period, expected_rate, n_bins, n_skip, d_period, causal):
     return data, {"period_samples": periods, "n_bins": used_bins, "n_skip": skip}
 
 
-def compare_methods(ts, methods, *, truth=None, window_eval=(0.008, 0.05)):
+def compare_methods(
+    ts: "TrialSet",
+    methods: list[dict[str, Any]],
+    *,
+    truth: "TrialSet | None" = None,
+    window_eval: tuple[float, float] = (0.008, 0.05),
+) -> Any:
     """Run several artifact-removal settings and compare them.
 
     Parameters

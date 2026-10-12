@@ -4,24 +4,30 @@
 import itertools
 import time as _time
 import warnings
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import SettingsError
 from evoparam.utils._optional import require
 
 from ._common import check_trialset, masked_values
 from .reference import rereference
 
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
+
 __all__ = ["reference_sensitivity", "threshold_detector", "register_detector", "DETECTORS"]
 
 # Detectors by name. "existence" (the existence test of spec §5.6, the default) is registered
 # by the package root when evoparam is imported: the existence test is built on the fitting
 # engine, which itself uses this module, so prep cannot import it (spec §4.2).
-DETECTORS = {}
+DETECTORS: dict[str, Callable[..., Any]] = {}
 
 
-def register_detector(name, detector):
+def register_detector(name: Any, detector: Any) -> None:
     """Register a detector for :func:`reference_sensitivity` under ``name``.
 
     ``detector(ts, **test_kwargs)`` returns ``(detected, latency)`` (arrays [n_channels])
@@ -34,8 +40,13 @@ def register_detector(name, detector):
 
 
 def threshold_detector(
-    ts, *, window=(0.009, 0.1), baseline=(-0.5, -0.05), threshold=3.4, sd_floor_uv=50.0
-):
+    ts: Any,
+    *,
+    window: Any = (0.009, 0.1),
+    baseline: Any = (-0.5, -0.05),
+    threshold: float = 3.4,
+    sd_floor_uv: float = 50.0,
+) -> tuple[NDArray[Any], NDArray[Any]]:
     """Fixed-threshold response detector (``detector="threshold"``).
 
     The interim default of build step S6, replaced by the existence test.
@@ -67,19 +78,19 @@ def threshold_detector(
     return detected, latency
 
 
-def _key(name):
+def _key(name: Any) -> str:
     """Comparison key of a channel: a bipolar ``"A1-A2"`` is compared with contact A1."""
     return str(name).split("-")[0]
 
 
 def reference_sensitivity(
-    ts,
+    ts: "TrialSet",
     *,
-    schemes=("bipolar", "car", "car_adaptive"),
-    detector="existence",
-    test_kwargs=None,
-    reference_kwargs=None,
-):
+    schemes: tuple[str, ...] = ("bipolar", "car", "car_adaptive"),
+    detector: str | Callable[..., Any] = "existence",
+    test_kwargs: dict[str, Any] | None = None,
+    reference_kwargs: dict[str, Any] | None = None,
+) -> Any:
     """Compare the detections and latencies under several references, and their agreement.
 
     Each scheme is applied with :func:`rereference`, then the existence test of spec §5.6

@@ -24,9 +24,13 @@ The iterates agree with SciPy's: exactly with ``reduced=False``, to rounding wit
 
 import functools
 import math
+from collections.abc import Callable
+from typing import cast
 
 import numpy as np
 from scipy.linalg.lapack import dgeqrf, dgesdd, dgesdd_lwork, dormqr
+
+from evoparam._typing import ArrayLike, BoolArray, FloatArray, IntArray
 
 __all__ = ["least_squares_trf"]
 
@@ -34,8 +38,19 @@ EPS = np.finfo(float).eps
 
 
 def least_squares_trf(
-    fun, jac, x0, lb, ub, *, ftol=1e-8, xtol=1e-8, gtol=1e-8, max_nfev=None, reduced=True, m=None
-):
+    fun: Callable[[FloatArray], ArrayLike],
+    jac: Callable[[FloatArray], ArrayLike],
+    x0: ArrayLike,
+    lb: ArrayLike,
+    ub: ArrayLike,
+    *,
+    ftol: float = 1e-8,
+    xtol: float = 1e-8,
+    gtol: float = 1e-8,
+    max_nfev: int | None = None,
+    reduced: bool = True,
+    m: int | None = None,
+) -> tuple[FloatArray, float, int, int]:
     """Minimise ``0.5 * ||fun(x)||^2`` subject to ``lb <= x <= ub``.
 
     ``jac(x)`` is called only at a point where ``fun`` was just called (the engine keeps
@@ -142,11 +157,13 @@ def least_squares_trf(
     return x, cost, nfev, 0 if status is None else status
 
 
-def _norm(x):
+def _norm(x: FloatArray) -> float:
     return math.sqrt(np.dot(x, x))
 
 
-def _reduce(jac_mat, f, reduced):
+def _reduce(
+    jac_mat: FloatArray, f: FloatArray, reduced: bool
+) -> tuple[FloatArray, FloatArray, FloatArray]:
     """(R, Q^T f, J^T f) of ``J = Q R`` (economic), or (J, f, J^T f) unreduced."""
     m, n = jac_mat.shape
     if not reduced or m <= n:
@@ -159,14 +176,21 @@ def _reduce(jac_mat, f, reduced):
 
 
 @functools.lru_cache(maxsize=32)
-def _upper(n):
+def _upper(n: int) -> FloatArray:
     """Mask of the upper triangle of an n x n matrix (read only)."""
     mask = np.triu(np.ones((n, n)))
     mask.flags.writeable = False
     return mask
 
 
-def _cl_scaling(x, g, lb, ub, finite_lb, finite_ub):
+def _cl_scaling(
+    x: FloatArray,
+    g: FloatArray,
+    lb: FloatArray,
+    ub: FloatArray,
+    finite_lb: BoolArray,
+    finite_ub: BoolArray,
+) -> tuple[FloatArray, FloatArray]:
     """Coleman-Li scaling vector ``v`` and its derivative ``dv``."""
     upper = (g < 0) & finite_ub
     lower = (g > 0) & finite_lb
@@ -176,9 +200,9 @@ def _cl_scaling(x, g, lb, ub, finite_lb, finite_ub):
     return v, dv
 
 
-def _strictly_feasible(x, lb, ub, rstep):
+def _strictly_feasible(x: FloatArray, lb: FloatArray, ub: FloatArray, rstep: float) -> FloatArray:
     """``x`` moved inside the bounds by ``rstep`` (relative; ``0``: one ulp)."""
-    x_new = x.copy()
+    x_new: FloatArray = x.copy()
     if rstep == 0 and ((x > lb) & (x < ub)).all():
         return x_new  # no bound active: nothing moves
     active = _active(x, lb, ub, rstep)
@@ -194,7 +218,7 @@ def _strictly_feasible(x, lb, ub, rstep):
     return x_new
 
 
-def _active(x, lb, ub, rtol):
+def _active(x: FloatArray, lb: FloatArray, ub: FloatArray, rtol: float) -> IntArray:
     active = np.zeros_like(x, dtype=int)
     if rtol == 0:
         active[x <= lb] = -1
@@ -209,7 +233,17 @@ def _active(x, lb, ub, rtol):
     return active
 
 
-def _solve_trust_region(n, m, uf, s, v_mat, delta, alpha, rtol=0.01, max_iter=10):
+def _solve_trust_region(
+    n: int,
+    m: int,
+    uf: FloatArray,
+    s: FloatArray,
+    v_mat: FloatArray,
+    delta: float,
+    alpha: float,
+    rtol: float = 0.01,
+    max_iter: int = 10,
+) -> tuple[FloatArray, float]:
     """Trust-region subproblem from the SVD of the (scaled) Jacobian (Moré 1977).
 
     Returns the step and the Levenberg-Marquardt parameter.
@@ -221,7 +255,7 @@ def _solve_trust_region(n, m, uf, s, v_mat, delta, alpha, rtol=0.01, max_iter=10
         if _norm(p) <= delta:
             return p, 0.0
 
-    def phi_and_derivative(alpha):
+    def phi_and_derivative(alpha: float) -> tuple[float, float]:
         denom = s**2 + alpha
         p_norm = _norm(suf / denom)
         return p_norm - delta, -(suf**2 / denom**3).sum() / p_norm
@@ -250,7 +284,9 @@ def _solve_trust_region(n, m, uf, s, v_mat, delta, alpha, rtol=0.01, max_iter=10
     return p, alpha
 
 
-def _update_radius(delta, actual, predicted, step_norm, bound_hit):
+def _update_radius(
+    delta: float, actual: float, predicted: float, step_norm: float, bound_hit: bool
+) -> tuple[float, float]:
     if predicted > 0:
         ratio = actual / predicted
     elif predicted == actual == 0:
@@ -264,7 +300,15 @@ def _update_radius(delta, actual, predicted, step_norm, bound_hit):
     return delta, ratio
 
 
-def _termination(d_cost, cost, dx_norm, x_norm, ratio, ftol, xtol):
+def _termination(
+    d_cost: float,
+    cost: float,
+    dx_norm: float,
+    x_norm: float,
+    ratio: float,
+    ftol: float,
+    xtol: float,
+) -> int | None:
     ftol_ok = d_cost < ftol * cost and ratio > 0.25
     xtol_ok = dx_norm < xtol * (xtol + x_norm)
     if ftol_ok and xtol_ok:
@@ -276,7 +320,9 @@ def _termination(d_cost, cost, dx_norm, x_norm, ratio, ftol, xtol):
     return None
 
 
-def _quadratic_1d(jac, g, s, diag, s0=None):
+def _quadratic_1d(
+    jac: FloatArray, g: FloatArray, s: FloatArray, diag: FloatArray, s0: FloatArray | None = None
+) -> tuple[float, ...]:
     """Coefficients of ``0.5 (s0 + s t)^T (J^T J + diag) (s0 + s t) + g^T (s0 + s t)``."""
     v = jac.dot(s)
     a = np.dot(v, v)
@@ -293,7 +339,8 @@ def _quadratic_1d(jac, g, s, diag, s0=None):
     return a, b, c
 
 
-def _minimize_1d(a, b, lb, ub, c=0):
+def _minimize_1d(a: float, b: float, lb: float, ub: float, c: float = 0) -> tuple[float, float]:
+    t: list[float] | FloatArray
     t = [lb, ub]
     if a != 0:
         extremum = -0.5 * b / a
@@ -305,14 +352,16 @@ def _minimize_1d(a, b, lb, ub, c=0):
     return t[i], y[i]
 
 
-def _evaluate_quadratic(jac, g, s, diag):
+def _evaluate_quadratic(jac: FloatArray, g: FloatArray, s: FloatArray, diag: FloatArray) -> float:
     jac_s = jac.dot(s)
     q = np.dot(jac_s, jac_s)
     q += np.dot(s * diag, s)
-    return 0.5 * q + np.dot(s, g)
+    return cast("float", 0.5 * q + np.dot(s, g))
 
 
-def _step_to_bound(x, s, lb, ub):
+def _step_to_bound(
+    x: FloatArray, s: FloatArray, lb: FloatArray, ub: FloatArray
+) -> tuple[float, IntArray]:
     non_zero = np.nonzero(s)
     s_non_zero = s[non_zero]
     steps = np.empty_like(x)
@@ -321,11 +370,11 @@ def _step_to_bound(x, s, lb, ub):
         steps[non_zero] = np.maximum(
             (lb - x)[non_zero] / s_non_zero, (ub - x)[non_zero] / s_non_zero
         )
-    min_step = steps.min()
+    min_step = cast(float, np.min(steps))  # a float64 (x is float64)
     return min_step, np.equal(steps, min_step) * np.sign(s).astype(int)
 
 
-def _intersect_trust_region(x, s, delta):
+def _intersect_trust_region(x: FloatArray, s: FloatArray, delta: float) -> tuple[float, float]:
     a = np.dot(s, s)
     if a == 0:
         raise ValueError("`s` is zero.")
@@ -340,7 +389,19 @@ def _intersect_trust_region(x, s, delta):
     return (t1, t2) if t1 < t2 else (t2, t1)
 
 
-def _select_step(x, jac_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta):
+def _select_step(
+    x: FloatArray,
+    jac_h: FloatArray,
+    diag_h: FloatArray,
+    g_h: FloatArray,
+    p: FloatArray,
+    p_h: FloatArray,
+    d: FloatArray,
+    delta: float,
+    lb: FloatArray,
+    ub: FloatArray,
+    theta: float,
+) -> tuple[FloatArray, FloatArray, float]:
     """Return the best of three candidate steps.
 
     The trust-region step (made strictly interior), its reflection on the first bound it hits, and

@@ -8,7 +8,7 @@ __all__ = ["contact_group", "contact_number"]
 _PATTERN = re.compile(r"^(.*?)[\s_\-]*(\d+)$")
 
 
-def contact_group(name):
+def contact_group(name: object) -> str:
     """Electrode group guessed from a contact name: the name without its trailing number.
 
     For example ``"PT01"`` -> ``"PT"``, ``"LA'12"`` -> ``"LA'"``, ``"Grid_3"`` -> ``"Grid"``;
@@ -18,7 +18,7 @@ def contact_group(name):
     return match.group(1) if match and match.group(1) else str(name)
 
 
-def contact_number(name):
+def contact_number(name: object) -> int | None:
     """Trailing contact number of a name (``"PT01"`` -> 1), or None."""
     match = _PATTERN.match(str(name).strip())
     return int(match.group(2)) if match and match.group(1) else None

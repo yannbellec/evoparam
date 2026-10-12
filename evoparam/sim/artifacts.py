@@ -9,9 +9,12 @@ amplifier's anti-aliasing filter, followed by a double-exponential recovery tail
 Sub-sample pulses are resolved on a grid finer than the sampling period.
 """
 
+from typing import cast
+
 import numpy as np
 from scipy import signal as sp_signal
 
+from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import SettingsError
 
 __all__ = [
@@ -38,7 +41,9 @@ PULSE_SHAPES = ("biphasic", "monophasic")
 ## Layouts
 
 
-def seeg_layout(n_channels, contacts_per_shaft=12):
+def seeg_layout(
+    n_channels: int, contacts_per_shaft: int = 12
+) -> tuple[list[Any], NDArray[Any], list[Any]]:
     """Contacts on parallel sEEG shafts: names ``A01``…, coordinates (mm), shaft names."""
     names, coords, groups = [], [], []
     for index in range(n_channels):
@@ -50,7 +55,7 @@ def seeg_layout(n_channels, contacts_per_shaft=12):
     return names, np.asarray(coords, dtype=float), groups
 
 
-def grid_layout(n_channels, n_columns=8):
+def grid_layout(n_channels: int, n_columns: int = 8) -> tuple[list[Any], NDArray[Any], Any]:
     """Contacts of an ECoG grid (10 mm spacing): names ``G01``…, coordinates (mm)."""
     names, coords = [], []
     for index in range(n_channels):
@@ -60,7 +65,9 @@ def grid_layout(n_channels, n_columns=8):
     return names, np.asarray(coords, dtype=float), ["G"] * n_channels
 
 
-def line_layout(n_channels, spacing, prefix, depth=True):
+def line_layout(
+    n_channels: int, spacing: Any, prefix: Any, depth: bool = True
+) -> tuple[list[str], NDArray[Any], Any]:
     """Contacts on a line (laminar probe, DBS lead, cochlear or spinal array)."""
     names = [f"{prefix}{index:02d}" for index in range(n_channels)]
     position = spacing * np.arange(n_channels, dtype=float)
@@ -120,7 +127,7 @@ _SCALP_NAMES = (
 )
 
 
-def _scalp_xy(name):
+def _scalp_xy(name: Any) -> tuple[float, float]:
     letters = name.rstrip("0123456789z").upper()
     rest = name[len(letters) :]
     y = _SCALP_ROWS[letters]
@@ -134,7 +141,7 @@ def _scalp_xy(name):
     return (-x if number % 2 else x) / radius, y / radius
 
 
-def scalp_layout(n_channels):
+def scalp_layout(n_channels: int) -> tuple[list[Any], NDArray[Any], Any]:
     """Scalp EEG channels.
 
     10-20 names and positions on the unit disc (up to 32), then a Fibonacci spiral of ``E33``… for
@@ -159,7 +166,7 @@ def scalp_layout(n_channels):
 ## Potentials and waveforms
 
 
-def dipole_gain(coords, source, sink=None, radius=1.0):
+def dipole_gain(coords: Any, source: Any, sink: Any = None, radius: float = 1.0) -> FloatArray:
     """Potential of a current source (and sink) at each contact, ``r0/r+ − r0/r−``.
 
     Distances below ``radius`` (mm, about the contact size) are clamped to it, so
@@ -171,26 +178,26 @@ def dipole_gain(coords, source, sink=None, radius=1.0):
     if sink is not None:
         minus = np.maximum(np.linalg.norm(coords - np.asarray(sink, dtype=float), axis=1), radius)
         out = out - radius / minus
-    return out
+    return cast("FloatArray", out)
 
 
-def _box_samples(start, stop, grid, step):
+def _box_samples(start: Any, stop: Any, grid: Any, step: Any) -> Any:
     """Fraction of each fine bin [grid, grid + step) inside [start, stop)."""
     return np.clip((np.minimum(grid + step, stop) - np.maximum(grid, start)) / step, 0.0, 1.0)
 
 
 def pulse_shape(
-    times,
-    sfreq,
+    times: Any,
+    sfreq: float,
     *,
-    pulse_width_us,
-    kind="biphasic",
-    polarity=-1,
-    onset=0.0,
-    cutoff_fraction=0.25,
-    filter_order=4,
-    n_after=64,
-):
+    pulse_width_us: Any,
+    kind: str = "biphasic",
+    polarity: int = -1,
+    onset: float = 0.0,
+    cutoff_fraction: float = 0.25,
+    filter_order: int = 4,
+    n_after: int = 64,
+) -> FloatArray:
     """Return the recorded shape of a rectangular current pulse of unit height.
 
     The current (first phase of sign ``polarity`` lasting ``pulse_width_us``,
@@ -227,7 +234,16 @@ def pulse_shape(
     return out
 
 
-def tail_shape(times, sfreq, *, start, tau1, tau2, weight=0.7, cutoff_fraction=0.25):
+def tail_shape(
+    times: Any,
+    sfreq: float,
+    *,
+    start: Any,
+    tau1: Any,
+    tau2: Any,
+    weight: float = 0.7,
+    cutoff_fraction: float = 0.25,
+) -> NDArray[Any]:
     """Double-exponential recovery ``w e^(-u/tau1) + (1-w) e^(-u/tau2)`` from ``start``.
 
     It rises with the time constant of the anti-aliasing filter

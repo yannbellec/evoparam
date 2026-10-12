@@ -3,13 +3,18 @@
 
 import time as _time
 from dataclasses import replace
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.errors import ArtifactError, SettingsError
 from evoparam.utils._optional import require
 
 from ._common import check_trialset
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
 
 __all__ = ["paradigm_subtract", "SCHEMES"]
 
@@ -17,7 +22,7 @@ SCHEMES = ("alternating", "forward_masking")
 CONDITIONS = ("A", "B", "C", "D")
 
 
-def _polarity_sign(value):
+def _polarity_sign(value: Any) -> Any:
     """+1 for anodic(-first), -1 for cathodic(-first), 0 when unknown."""
     text = str(value).lower()
     if "cathod" in text or text in ("-1", "-1.0", "negative"):
@@ -27,7 +32,7 @@ def _polarity_sign(value):
     return 0
 
 
-def _site_groups(meta):
+def _site_groups(meta: Any) -> dict[Any, NDArray[Any]]:
     if meta is not None and "stim_site" in meta.columns:
         sites = meta["stim_site"].fillna("").astype(str).to_numpy()
     else:
@@ -35,7 +40,7 @@ def _site_groups(meta):
     return {site: np.flatnonzero(sites == site) for site in dict.fromkeys(sites)}
 
 
-def _pairs_alternating(meta, n_trials, pairing):
+def _pairs_alternating(meta: Any, n_trials: int, pairing: Any) -> tuple[list[Any], NDArray[Any]]:
     if meta is None or "stim_polarity" not in meta.columns:
         raise ArtifactError("scheme 'alternating' needs metadata['stim_polarity'].")
     signs = np.array([_polarity_sign(v) for v in meta["stim_polarity"]])
@@ -69,7 +74,7 @@ def _pairs_alternating(meta, n_trials, pairing):
     return pairs, np.flatnonzero(~used)
 
 
-def _sets_forward_masking(meta, pairing):
+def _sets_forward_masking(meta: Any, pairing: Any) -> tuple[list[Any], NDArray[Any]]:
     if meta is None or "paradigm_condition" not in meta.columns:
         raise ArtifactError(
             "scheme 'forward_masking' needs metadata['paradigm_condition'] "
@@ -94,7 +99,7 @@ def _sets_forward_masking(meta, pairing):
     return sets, np.flatnonzero(~used)
 
 
-def paradigm_subtract(ts, *, scheme, pairing="auto"):
+def paradigm_subtract(ts: Any, *, scheme: Any, pairing: Any = "auto") -> "TrialSet":
     """Cancel the artifact with the stimulation design.
 
     - ``"alternating"``: trials of opposite ``stim_polarity`` (cathodic and anodic) are
@@ -152,11 +157,14 @@ def paradigm_subtract(ts, *, scheme, pairing="auto"):
         duration_s=_time.perf_counter() - start,
     )
     provenance.data_hash = None
-    return replace(
-        ts,
-        data=data,
-        masks=masks,
-        metadata=new_meta,
-        event_times=event_times,
-        provenance=provenance,
+    return cast(
+        "TrialSet",
+        replace(
+            ts,
+            data=data,
+            masks=masks,
+            metadata=new_meta,
+            event_times=event_times,
+            provenance=provenance,
+        ),
     )

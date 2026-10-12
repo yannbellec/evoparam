@@ -36,13 +36,16 @@ import tempfile
 import threading
 import time
 import warnings
+from collections.abc import Callable, Sequence
 
 import numpy as np
+
+from evoparam._typing import Any
 
 __all__ = ["SUITES", "run_suite", "compare", "write_results", "results_path"]
 
 SCHEMA = "evoparam-perf/1"
-SUITES = {
+SUITES: dict[str, dict[str, dict[str, Any]]] = {
     "perf": {
         "P1": {"repeats": 20},
         "P2": {"n_channels": 100, "n_trials": 50, "n_jobs": 4},
@@ -75,7 +78,7 @@ SFREQ = 2048.0
 ## Measurement helpers
 
 
-def _rss():
+def _rss() -> int:
     try:
         with open("/proc/self/statm", encoding="ascii") as fobj:
             return int(fobj.read().split()[1]) * os.sysconf("SC_PAGE_SIZE")
@@ -89,32 +92,32 @@ def _rss():
 class _PeakRSS:
     """Peak resident set size above the level at entry, sampled every 50 ms."""
 
-    def __init__(self, interval=0.05):
+    def __init__(self, interval: float = 0.05) -> None:
         self.interval = interval
         self.start = self.peak = 0
         self._stop = threading.Event()
 
-    def __enter__(self):
+    def __enter__(self) -> "_PeakRSS":
         self.start = self.peak = _rss()
         self._thread = threading.Thread(target=self._sample, daemon=True)
         self._thread.start()
         return self
 
-    def _sample(self):
+    def _sample(self) -> None:
         while not self._stop.wait(self.interval):
             self.peak = max(self.peak, _rss())
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self._stop.set()
         self._thread.join()
         self.peak = max(self.peak, _rss())
 
     @property
-    def increase(self):
+    def increase(self) -> Any:
         return int(self.peak - self.start)
 
 
-def _timed(func, repeats, warmup=True):
+def _timed(func: Any, repeats: Any, warmup: bool = True) -> tuple[list[Any], int]:
     if warmup:
         func()
     durations = []
@@ -126,7 +129,7 @@ def _timed(func, repeats, warmup=True):
     return durations, rss.increase
 
 
-def _row(id_, workload, durations, peak, **extra):
+def _row(id_: Any, workload: Any, durations: Any, peak: Any, **extra: Any) -> dict[str, Any]:
     durations = np.asarray(durations, dtype=float)
     return {
         "id": id_,
@@ -140,7 +143,7 @@ def _row(id_, workload, durations, peak, **extra):
     }
 
 
-def environment():
+def environment() -> dict[str, Any]:
     """Machine and library versions of a run."""
     from evoparam.data.provenance import capture_environment
     from evoparam.version import __version__
@@ -181,7 +184,9 @@ def environment():
 ## Fixtures (evoparam.sim, random_state=0)
 
 
-def _ccep(n_trials, n_channels, tmin=-0.5, tmax=1.1, seed=0):
+def _ccep(
+    n_trials: int, n_channels: int, tmin: float = -0.5, tmax: float = 1.1, seed: int = 0
+) -> Any:
     from evoparam import sim
 
     trials, _ = sim.simulate_ccep(
@@ -204,7 +209,7 @@ def _ccep(n_trials, n_channels, tmin=-0.5, tmax=1.1, seed=0):
 ## The six workloads
 
 
-def p1(repeats=20):
+def p1(repeats: int = 20) -> dict[str, Any]:
     """One averaged waveform of 2 048 samples (1 s fit window), ccep preset."""
     from evoparam.models import ResponseModel
 
@@ -226,7 +231,7 @@ def p1(repeats=20):
     )
 
 
-def p2(n_channels=100, n_trials=50, n_jobs=4):
+def p2(n_channels: int = 100, n_trials: int = 50, n_jobs: int = 4) -> dict[str, Any]:
     """Trial-by-trial fits with the channel template as warm start."""
     from evoparam import existence  # not the package root (import graph, §4.2)
     from evoparam.trials import fit_trials
@@ -250,7 +255,7 @@ def p2(n_channels=100, n_trials=50, n_jobs=4):
     )
 
 
-def _p3_data(n_trials, n_channels, n_times, out=None):
+def _p3_data(n_trials: int, n_channels: int, n_times: int, out: Any = None) -> tuple[Any, Any]:
     """Deterministic trials: the simulated responses of 16 channels, tiled, plus noise."""
     base = _ccep(n_trials, 16, tmin=-1.0, tmax=-1.0 + (n_times + 1) / SFREQ)
     data = out if out is not None else np.empty((n_trials, n_channels, n_times))
@@ -263,7 +268,9 @@ def _p3_data(n_trials, n_channels, n_times, out=None):
     return data, base.times[:n_times]
 
 
-def p3(n_trials=500, n_channels=256, n_times=4096, mmap=True):
+def p3(
+    n_trials: int = 500, n_channels: int = 256, n_times: int = 4096, mmap: bool = True
+) -> list[Any]:
     """Peak memory of ``evoparam.fit`` on a large TrialSet, in memory and memory-mapped."""
     import inspect
 
@@ -307,7 +314,7 @@ def p3(n_trials=500, n_channels=256, n_times=4096, mmap=True):
     if mmap:
         with tempfile.TemporaryDirectory() as folder:
             path = os.path.join(folder, "p3.npy")
-            mapped = np.lib.format.open_memmap(
+            mapped = np.lib.format.open_memmap(  # type: ignore[no-untyped-call, unused-ignore]  # untyped in NumPy's stubs
                 path, mode="w+", dtype=np.float64, shape=(n_trials, n_channels, n_times)
             )
             _p3_data(n_trials, n_channels, n_times, out=mapped)
@@ -347,7 +354,7 @@ def p3(n_trials=500, n_channels=256, n_times=4096, mmap=True):
     return rows
 
 
-def p4():
+def p4() -> dict[str, Any]:
     """GPU against CPU: the GPU backends of §9.1 are not in this version."""
     return {
         "id": "P4",
@@ -364,7 +371,7 @@ def p4():
     }
 
 
-def p5(n_channels=256):
+def p5(n_channels: int = 256) -> dict[str, Any]:
     """``evoparam.reproduce`` of a saved GroupFit against the time of the original fit."""
     from evoparam import existence, reports  # not the package root (import graph, §4.2)
 
@@ -396,7 +403,7 @@ def p5(n_channels=256):
 _IMPORTTIME = re.compile(r"import time:\s+\d+\s+\|\s+(\d+)\s+\|\s+evoparam$")
 
 
-def p6(repeats=10):
+def p6(repeats: int = 10) -> dict[str, Any]:
     """Import time of the package (``python -X importtime``), median of ``repeats``."""
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -447,14 +454,27 @@ def p6(repeats=10):
     )
 
 
-WORKLOADS = {"P1": p1, "P2": p2, "P3": p3, "P4": p4, "P5": p5, "P6": p6}
+WORKLOADS: dict[str, Callable[..., Any]] = {
+    "P1": p1,
+    "P2": p2,
+    "P3": p3,
+    "P4": p4,
+    "P5": p5,
+    "P6": p6,
+}
 
 
 ###################################################################################################
 ## Suite, comparison, files
 
 
-def run_suite(suite="perf", *, only=None, repeat_runs=1, log=None):
+def run_suite(
+    suite: str = "perf",
+    *,
+    only: Sequence[str] | None = None,
+    repeat_runs: int = 1,
+    log: Callable[..., Any] | None = None,
+) -> dict[str, Any]:
     """Run the workloads of ``suite`` (``"perf"`` or ``"ci"``).
 
     Parameters
@@ -501,11 +521,11 @@ def run_suite(suite="perf", *, only=None, repeat_runs=1, log=None):
     }
 
 
-def _key(row):
+def _key(row: Any) -> Any:
     return row["id"] + ("/" + row["variant"] if row.get("variant") else "")
 
 
-def _median_of_runs(runs):
+def _median_of_runs(runs: Any) -> list[Any]:
     out = []
     for rows in zip(*runs, strict=True):
         row = dict(rows[0])
@@ -522,7 +542,7 @@ def _median_of_runs(runs):
     return out
 
 
-def _line(row):
+def _line(row: Any) -> str:
     if row.get("median_s") is None:
         return f"{_key(row)}: {row.get('status', 'not run')} ({row.get('note', '')})"
     met = {True: "met", False: "NOT met", None: "not checked at this size"}[row["target_met"]]
@@ -533,7 +553,14 @@ def _line(row):
     )
 
 
-def compare(document, baseline, *, time_tolerance=1.25, memory_tolerance=1.10, warn_above=1.10):
+def compare(
+    document: Any,
+    baseline: Any,
+    *,
+    time_tolerance: float = 1.25,
+    memory_tolerance: float = 1.10,
+    warn_above: float = 1.10,
+) -> tuple[list[Any], list[Any]]:
     """Compare a run with a baseline run of the same suite.
 
     Returns ``(failures, warnings)``: lists of messages naming the workload and the ratio. A
@@ -578,7 +605,7 @@ def compare(document, baseline, *, time_tolerance=1.25, memory_tolerance=1.10, w
     return failures, notes
 
 
-def results_path(document, folder):
+def results_path(document: Any, folder: Any) -> str:
     """``<folder>/<platform>-<python>-<commit>.json`` (spec §9.1).
 
     A run of the ``ci`` suite ends in ``-ci.json``.
@@ -590,7 +617,7 @@ def results_path(document, folder):
     return os.path.join(folder, name)
 
 
-def write_results(document, path):
+def write_results(document: Any, path: Any) -> Any:
     """Write a results document as JSON; returns the path."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fobj:
@@ -599,7 +626,7 @@ def write_results(document, path):
     return path
 
 
-def _jsonable(value):
+def _jsonable(value: Any) -> Any:
     if isinstance(value, np.generic):
         return value.item()
     raise TypeError(f"not JSON serialisable: {type(value).__name__}")

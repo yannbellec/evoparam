@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from evoparam._typing import Any, NDArray
 from evoparam.data import Evoked, GroupFit, ResponseFit, TrialSet
 from evoparam.errors import SettingsError
 from evoparam.utils._optional import require
@@ -14,7 +15,7 @@ PALETTE = ("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#F
 DATA_COLOR, MODEL_COLOR, BG_COLOR, RESID_COLOR = "#000000", "#0072B2", "#999999", "#E69F00"
 
 
-def _plt():
+def _plt() -> Any:
     mpl = require("matplotlib", extra="plot", caller="evoparam.plots")
     import matplotlib.pyplot as plt
 
@@ -22,7 +23,7 @@ def _plt():
     return plt
 
 
-def _figure_ax(ax, figsize=(6.0, 3.5)):
+def _figure_ax(ax: Any, figsize: Any = (6.0, 3.5)) -> Any:
     plt = _plt()
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize, layout="constrained")
@@ -30,7 +31,7 @@ def _figure_ax(ax, figsize=(6.0, 3.5)):
     return ax.figure, ax
 
 
-def _evoked(data, channel):
+def _evoked(data: Any, channel: Any) -> tuple[NDArray[Any], Any, Any]:
     """Return (times, waveform, mask) of one channel of an Evoked or TrialSet (its average)."""
     if isinstance(data, TrialSet):
         data = data.average()
@@ -41,22 +42,22 @@ def _evoked(data, channel):
     return data.times, data.data[index], mask
 
 
-def _window_times(fit):
+def _window_times(fit: Any) -> Any:
     n = len(fit.model) if fit.model is not None else 0
     return np.linspace(fit.window[0], fit.window[1], n) if n else np.zeros(0)
 
 
 def plot_fit(
-    fit,
-    data=None,
+    fit: "ResponseFit",
+    data: "Evoked | TrialSet | None" = None,
     *,
-    channel=None,
-    ax=None,
-    components=True,
-    background=True,
-    residual=True,
-    intervals=True,
-):
+    channel: Any = None,
+    ax: Any = None,
+    components: bool = True,
+    background: bool = True,
+    residual: bool = True,
+    intervals: bool = True,
+) -> Any:
     """Plot the data, model, components, background and residual of one :class:`ResponseFit`.
 
     Parameters
@@ -152,17 +153,17 @@ def plot_fit(
 
 
 def plot_group(
-    group_fit,
-    data=None,
+    group_fit: Any,
+    data: Any = None,
     *,
-    kind="grid",
-    ax=None,
-    axes=None,
-    max_channels=64,
-    coords=None,
-    parameter="amplitude",
-    component=0,
-):
+    kind: str = "grid",
+    ax: Any = None,
+    axes: Any = None,
+    max_channels: int = 64,
+    coords: Any = None,
+    parameter: str = "amplitude",
+    component: int = 0,
+) -> Any:
     """Every channel of a :class:`GroupFit`.
 
     ``kind="grid"``: one small panel per channel (data and model); ``"shaft"``: the channels
@@ -213,6 +214,7 @@ def plot_group(
         return fig
     if kind == "shaft":
         fig, ax = _figure_ax(ax, figsize=(6.0, 8.0))
+        groups: dict[Any, Any]
         groups = {}
         for name, fit in zip(names, fits, strict=False):
             groups.setdefault(contact_group(name), []).append((name, fit))
@@ -271,7 +273,9 @@ def plot_group(
     raise SettingsError("kind must be 'grid', 'shaft' or 'brain'.")
 
 
-def plot_trials(trial_fit, trials=None, *, channel=None, axes=None):
+def plot_trials(
+    trial_fit: Any, trials: Any = None, *, channel: Any = None, axes: Any = None
+) -> Any:
     """Trial-by-trial results.
 
     The trials sorted by latency (with ``trials``, a TrialSet) and the latency histogram, for one
@@ -323,7 +327,15 @@ def plot_trials(trial_fit, trials=None, *, channel=None, axes=None):
     return fig
 
 
-def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_channels=16):
+def plot_existence(
+    test: Any,
+    *,
+    ax: Any = None,
+    axes: Any = None,
+    channels: Any = None,
+    group: int = 0,
+    max_channels: int = 16,
+) -> Any:
     """Existence test: the statistic over time with its null band (spec §5.13).
 
     One panel per channel (``channels``: names to show; default the channels in their order,
@@ -341,7 +353,7 @@ def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_chan
         f"ch{i}" for i in range(np.shape(test.statistic)[0])
     ]
 
-    def per_channel(values):
+    def per_channel(values: Any) -> Any:
         values = np.asarray(values)
         return values[:, group] if values.ndim > 1 and np.ndim(test.statistic) > 1 else values
 
@@ -443,7 +455,13 @@ def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_chan
     return fig
 
 
-def plot_tf(tf, *, row=0, axes=None, maps=("total_norm", "footprint_norm", "residual_norm")):
+def plot_tf(
+    tf: Any,
+    *,
+    row: int = 0,
+    axes: Any = None,
+    maps: Any = ("total_norm", "footprint_norm", "residual_norm"),
+) -> Any:
     """Plot the time-frequency maps of one row of a :class:`TFFit`.
 
     The zones are outlined and the significant pixels contoured.
@@ -505,7 +523,7 @@ def plot_tf(tf, *, row=0, axes=None, maps=("total_norm", "footprint_norm", "resi
     return fig
 
 
-def plot_shapes(basis, *, ax=None):
+def plot_shapes(basis: Any, *, ax: Any = None) -> Any:
     """Plot the shared shapes of a :class:`ShapeBasis`."""
     fig, ax = _figure_ax(ax)
     for k, curve in enumerate(basis.curves):
@@ -522,7 +540,7 @@ def plot_shapes(basis, *, ax=None):
     return fig
 
 
-def plot_artifact(result, raw=None, *, channel=0, axes=None):
+def plot_artifact(result: Any, raw: Any = None, *, channel: int = 0, axes: Any = None) -> Any:
     """Artifact removal.
 
     Before (``raw``, a TrialSet) and after for one channel, the template, and the per-trial
@@ -570,7 +588,9 @@ def plot_artifact(result, raw=None, *, channel=0, axes=None):
     return fig
 
 
-def plot_compare(fits, data=None, *, channel=None, labels=None, ax=None):
+def plot_compare(
+    fits: Any, data: Any = None, *, channel: Any = None, labels: Any = None, ax: Any = None
+) -> Any:
     """Plot the models of several fits of the same waveform, over the data."""
     from evoparam.models import evaluate_fit
 
@@ -597,7 +617,7 @@ def plot_compare(fits, data=None, *, channel=None, labels=None, ax=None):
     return fig
 
 
-def plot_hierarchical(fit, *, axes=None):
+def plot_hierarchical(fit: Any, *, axes: Any = None) -> Any:
     """Plot a :class:`HierarchicalFit`.
 
     The probability of a response of every unit (histogram) and the variance components of each

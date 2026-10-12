@@ -2,9 +2,11 @@
 """Identify the stimulated contact pair from the stimulation artifact."""
 
 import re
+from typing import cast
 
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.utils._names import contact_group, contact_number
@@ -81,25 +83,31 @@ NON_NEURAL = re.compile(
 )
 
 
-def _robust_sd(values):
+def _robust_sd(values: Any) -> FloatArray:
     """Scaled MAD of each row (NaN-aware only when needed, as it is slower)."""
     median = np.nanmedian if np.isnan(values).any() else np.median
-    return MAD_TO_SD * median(np.abs(values - median(values, axis=1, keepdims=True)), axis=1)
+    return cast(
+        "FloatArray",
+        MAD_TO_SD * median(np.abs(values - median(values, axis=1, keepdims=True)), axis=1),
+    )
 
 
-def _first_sign(trace):
+def _first_sign(trace: Any) -> Any:
     """Sign of the first deflection: the first sample beyond half the largest one."""
     peak = np.nanmax(np.abs(trace))
+    beyond: Any
     beyond = np.flatnonzero(np.abs(trace) >= 0.5 * peak) if peak > 0 else []
     return np.sign(trace[beyond[0]]) if len(beyond) else 0.0
 
 
-def _silent_pair(names, group, raw_noise, floor, amplitude, size):
+def _silent_pair(
+    names: Any, group: Any, raw_noise: Any, floor: Any, amplitude: Any, size: Any
+) -> Any:
     """Positions of the one silent pair of adjacent contacts (comment above RAIL_WINDOW)."""
     quiet = np.flatnonzero((raw_noise > 0) & (raw_noise < NOISE_FLOOR * floor))
     if len(quiet) < 2:
         return None
-    number = [contact_number(names[k]) for k in range(len(names))]
+    number: list[Any] = [contact_number(names[k]) for k in range(len(names))]  # None: no number
     top = int(np.argmax(size))
     found = []
     for a in quiet:
@@ -124,20 +132,20 @@ def _silent_pair(names, group, raw_noise, floor, amplitude, size):
 
 
 def identify_stim_site(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
-    data,
-    sfreq,
-    events,
+    data: FloatArray,
+    sfreq: float,
+    events: Any,
     *,
-    ch_names,
-    ch_info=None,
-    window=0.001,
-    t0=0.0,  # noqa: ARG001  (documented: kept for symmetry with the other functions)
-    picks=None,
-    exclude=NON_NEURAL,
-    lead=LEAD_WINDOW,
-    hold=HOLD_WINDOW,
-    method="evidence",
-):
+    ch_names: list[str],
+    ch_info: Any = None,
+    window: float = 0.001,
+    t0: float = 0.0,  # noqa: ARG001  (documented: kept for symmetry with the other functions)
+    picks: ArrayLike | None = None,
+    exclude: Any = NON_NEURAL,
+    lead: float = LEAD_WINDOW,
+    hold: tuple[float, ...] = HOLD_WINDOW,
+    method: str = "evidence",
+) -> Any:
     """Guess the stimulated contact pair of each pulse from the artifact.
 
     ``method="spec"`` applies the rule of spec §5.2 method 5 as reviewed, to the letter:
@@ -371,7 +379,8 @@ def identify_stim_site(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, s
                 score = 1.0
 
             opposite = _first_sign(deviation[first]) * _first_sign(deviation[second]) < 0
-            same_group = group[index[first]] == group[index[second]]
+            groups_of = cast("list[Any]", group)  # set whenever method is not "spec"
+            same_group = groups_of[index[first]] == groups_of[index[second]]
 
             pair = sorted((index[first], index[second]))
             guesses[row] = f"{names[pair[0]]}-{names[pair[1]]}"
@@ -384,7 +393,7 @@ def identify_stim_site(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, s
     return out
 
 
-def _spec_site(data, index, onset, lag, half, group):
+def _spec_site(data: Any, index: Any, onset: Any, lag: Any, half: Any, group: Any) -> Any:
     """Spec §5.2 method 5 as reviewed, for one pulse: (pair, confidence, opposite)."""
     n_times = data.shape[1]
     if onset - lag < 0 or onset - half < 0 or onset + half + 1 > n_times:
@@ -404,11 +413,13 @@ def _spec_site(data, index, onset, lag, half, group):
     return sorted((index[first], index[second])), float(score), opposite
 
 
-def _contacts(site):
+def _contacts(site: Any) -> list[str]:
     return [part for part in str(site).split("-") if part] if site else []
 
 
-def vote_sites(events, *, site_column="stim_site_guess", max_gap=None):
+def vote_sites(
+    events: Any, *, site_column: str = "stim_site_guess", max_gap: float | None = None
+) -> Any:
     """Make the site guesses of consecutive pulses agree, by a vote per block.
 
     SPES protocols stimulate one pair for several pulses in a row. Pulses are split
@@ -452,8 +463,8 @@ def vote_sites(events, *, site_column="stim_site_guess", max_gap=None):
 
     voted, voted_conf = list(guesses), conf.copy()
     for b in np.unique(block):
-        rows = np.flatnonzero(block == b)
-        votes = {}
+        rows: Any = np.flatnonzero(block == b)
+        votes: dict[Any, Any] = {}
         for row in rows:
             for contact in _contacts(guesses[row]):
                 votes[contact] = votes.get(contact, 0.0) + max(conf[row], 1e-6)
@@ -466,7 +477,7 @@ def vote_sites(events, *, site_column="stim_site_guess", max_gap=None):
         if counts[forward] == counts[backward]:
             site = "-".join(sorted(top))
         else:
-            site = max(counts, key=counts.get)
+            site = max(counts, key=lambda name: counts[name])
         agree = np.mean([set(top) <= set(_contacts(guesses[row])) for row in rows])
         for row in rows:
             voted[row] = site

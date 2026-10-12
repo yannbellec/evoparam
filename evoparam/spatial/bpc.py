@@ -14,9 +14,11 @@ trials. Each trial is then ``V = alpha B_q + residual``.
 import itertools
 import re
 import time as _time
+from typing import cast
 
 import numpy as np
 
+from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.data import ShapeBasis, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
@@ -48,7 +50,7 @@ NMF_MAX_ITER = 1000
 ## Clustering tools
 
 
-def adjusted_rand_index(a, b):
+def adjusted_rand_index(a: Any, b: Any) -> float:
     """Return the adjusted Rand index of two labelings (1 = identical partitions).
 
     >>> adjusted_rand_index([0, 0, 1, 1], [1, 1, 0, 0])
@@ -57,10 +59,10 @@ def adjusted_rand_index(a, b):
     a, b = np.asarray(a), np.asarray(b)
     _, ia = np.unique(a, return_inverse=True)
     _, ib = np.unique(b, return_inverse=True)
-    table = np.zeros((ia.max() + 1, ib.max() + 1))
+    table = np.zeros((int(np.max(ia)) + 1, int(np.max(ib)) + 1))
     np.add.at(table, (ia, ib), 1)
 
-    def comb(x):
+    def comb(x: Any) -> Any:
         return x * (x - 1) / 2.0
 
     index = comb(table).sum()
@@ -73,7 +75,9 @@ def adjusted_rand_index(a, b):
     return float((index - expected) / (maximum - expected))
 
 
-def _nmf(x, q, rng, n_runs=1):
+def _nmf(
+    x: Any, q: Any, rng: np.random.Generator, n_runs: int = 1
+) -> tuple[Any, Any, NDArray[Any]]:
     """Factorise ``x ~ W H`` with W, H >= 0 and the rows of H of unit norm.
 
     For ``n_runs`` random starts at once (multiplicative updates; the norms of H are folded into W
@@ -110,7 +114,7 @@ def _nmf(x, q, rng, n_runs=1):
     return w, h, error
 
 
-def _assign(h):
+def _assign(h: Any) -> tuple[NDArray[Any], Any]:
     """Winner-take-all on the columns of H.
 
     A group whose largest loading is below half the equal-contribution loading 1/sqrt(n) belongs to
@@ -122,7 +126,7 @@ def _assign(h):
     return np.where(loading >= TOLERANCE / np.sqrt(n), best, -1), loading
 
 
-def _degeneracy(h):
+def _degeneracy(h: Any) -> float:
     if len(h) < 2:
         return 0.0
     unit = h / np.maximum(np.linalg.norm(h, axis=1, keepdims=True), 1e-300)
@@ -130,8 +134,9 @@ def _degeneracy(h):
     return float(np.max(overlap[np.triu_indices(len(h), 1)]))
 
 
-def _kmeans(x, q, rng, n_iter=100):
+def _kmeans(x: Any, q: Any, rng: np.random.Generator, n_iter: int = 100) -> Any:
     """k-means++ on the rows of x; returns labels."""
+    centres: Any
     centres = [x[rng.integers(len(x))]]
     for _ in range(1, q):
         d2 = np.min([np.sum((x - c) ** 2, axis=1) for c in centres], axis=0)
@@ -151,7 +156,7 @@ def _kmeans(x, q, rng, n_iter=100):
     return labels
 
 
-def _jaccard_stability(labels, others, q):
+def _jaccard_stability(labels: Any, others: Any, q: Any) -> FloatArray:
     """Return the stability of each cluster of ``labels``.
 
     Mean over the other runs of the best Jaccard index with one of their clusters.
@@ -172,7 +177,7 @@ def _jaccard_stability(labels, others, q):
     return out
 
 
-def _split_ratio(xi, labels, q):
+def _split_ratio(xi: Any, labels: Any, q: Any) -> float:
     """Return the largest ratio of the between-cluster to the within-cluster mean t-values.
 
     Over pairs of clusters, the mean t-value between them divided by the geometric mean of the mean
@@ -194,14 +199,18 @@ def _split_ratio(xi, labels, q):
     return float(ratio)
 
 
-def _cluster_nmf(xi, q, n_restarts, rng):
+def _cluster_nmf(
+    xi: Any, q: Any, n_restarts: Any, rng: np.random.Generator
+) -> tuple[NDArray[Any], list[NDArray[Any]], Any, float, float, Any]:
     ws, hs, errors = _nmf(xi, q, rng, n_restarts)
     labels = [_assign(h)[0] for h in hs]
     best = int(np.argmin(errors))
     return labels[best], labels, hs[best], float(errors[best]), _degeneracy(hs[best]), ws[best]
 
 
-def _cluster_kpca(xi, q, n_restarts, rng):
+def _cluster_kpca(
+    xi: Any, q: Any, n_restarts: Any, rng: np.random.Generator
+) -> tuple[Any, list[Any], FloatArray, float, float, None]:
     """Cluster with a kernel PCA (cosine kernel of the groups' t-value profiles) and k-means.
 
     The k-means runs in the first ``q`` components; groups without any positive t-value belong to
@@ -244,7 +253,7 @@ def _cluster_kpca(xi, q, n_restarts, rng):
 ## Projections
 
 
-def _t_matrix(trials, owner, n_groups):
+def _t_matrix(trials: Any, owner: Any, n_groups: Any) -> FloatArray:
     """t-value of the projections between every pair of groups (self-projections left out).
 
     ``P[k, l] = <V_k / ||V_k||, V_l>``: the projection of trial l into the unit-norm trial k.
@@ -268,7 +277,7 @@ def _t_matrix(trials, owner, n_groups):
     return xi
 
 
-def _cross_t(trials, owner, n_groups, others):
+def _cross_t(trials: Any, owner: Any, n_groups: Any, others: Any) -> FloatArray:
     """Return the t-value of the projections of the trials ``others`` [n, n_times].
 
     ``others`` is one group that does not define the bases; its trials are projected into the
@@ -285,7 +294,7 @@ def _cross_t(trials, owner, n_groups, others):
     return out
 
 
-def _basis_curve(trials):
+def _basis_curve(trials: Any) -> Any:
     """Return the first right singular vector of the trials.
 
     It is signed so that the mean projection is positive.
@@ -301,11 +310,11 @@ def _basis_curve(trials):
 ## Groups
 
 
-def _contacts(site):
+def _contacts(site: Any) -> list[Any]:
     return [part.strip() for part in re.split(r"[-–]", str(site)) if part.strip()]
 
 
-def _usable_trials(ts, rows, channel, win):
+def _usable_trials(ts: Any, rows: Any, channel: Any, win: Any) -> tuple[Any, Any]:
     """Trials of one channel in the window, without trials containing NaN or rejected."""
     data = ts.data[rows][:, channel][:, win]
     ok = np.isfinite(data).all(axis=1)
@@ -314,7 +323,9 @@ def _usable_trials(ts, rows, channel, win):
     return data[ok], rows[ok]
 
 
-def _groups(ts, by, channel, stim_site, win):
+def _groups(
+    ts: Any, by: Any, channel: Any, stim_site: Any, win: Any
+) -> tuple[list[Any], dict[str, Any]]:
     """(label, trials [n, n_times], trial indices) per group."""
     meta = ts.metadata
     rows_all = np.arange(ts.n_trials)
@@ -379,19 +390,19 @@ def _groups(ts, by, channel, stim_site, win):
 
 
 def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.9)
-    ts,
+    ts: "TrialSet",
     *,
-    by="stim_site",
-    channel=None,
-    stim_site=None,
-    window=(0.009, 0.5),
-    max_shapes=6,
-    method="nmf",
-    n_restarts=20,
-    stability_min=0.8,
-    random_state=None,
-    n_jobs=1,
-):
+    by: str = "stim_site",
+    channel: Any = None,
+    stim_site: str | None = None,
+    window: tuple[float, ...] = (0.009, 0.5),
+    max_shapes: int = 6,
+    method: str = "nmf",
+    n_restarts: int = 20,
+    stability_min: float = 0.8,
+    random_state: Any = None,
+    n_jobs: int = 1,
+) -> "ShapeBasis":
     """Find the few response shapes shared across stimulation sites (or channels).
 
     ``by="stim_site"``: the groups are the stimulation sites recorded on one ``channel``
@@ -477,8 +488,8 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     owner = np.concatenate([np.full(len(groups[i][1]), j) for j, i in enumerate(defining)])
     xi_raw = _t_matrix(trials, owner, len(defining))
     xi = np.clip(xi_raw, 0, None)
-    if xi.max() > 0:
-        xi = xi / xi.max()
+    if np.max(xi) > 0:
+        xi = xi / np.max(xi)
 
     cluster = _cluster_nmf if method == "nmf" else _cluster_kpca
     selection, chosen = [], None
@@ -507,7 +518,7 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         row["split_ratio"] < SPLIT_MAX and row["clusters_used"] == row["n_shapes"]
         for row in selection[1:]
     )
-    q, labels, h, stability, w_nmf = chosen
+    q, labels, h, stability, w_nmf = cast("tuple[Any, ...]", chosen)  # set when q == 1
     warns = []
     if q == 1 and unstable:
         _warn(
@@ -523,6 +534,7 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
             labels[:] = 0
 
     # Basis curves from the trials of each cluster's defining groups
+    curves: Any
     curves = []
     for k in range(q):
         members = [defining[j] for j in np.flatnonzero(labels == k)]
@@ -618,7 +630,7 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     )
 
 
-def convergent(ts, channel, **kwargs):
+def convergent(ts: Any, channel: Any, **kwargs: Any) -> Any:
     """Input repertoire of one channel.
 
     :func:`shared_shapes` with the stimulation sites as groups (many sites into one channel).
@@ -626,7 +638,7 @@ def convergent(ts, channel, **kwargs):
     return shared_shapes(ts, by="stim_site", channel=channel, **kwargs)
 
 
-def divergent(ts, stim_site, **kwargs):
+def divergent(ts: Any, stim_site: Any, **kwargs: Any) -> Any:
     """Output repertoire of one stimulation site.
 
     :func:`shared_shapes` with the channels as groups (one site into all channels).
@@ -634,7 +646,7 @@ def divergent(ts, stim_site, **kwargs):
     return shared_shapes(ts, by="channel", stim_site=stim_site, **kwargs)
 
 
-def as_template(basis, k, *, max_shift=None, stretch=False):
+def as_template(basis: Any, k: Any, *, max_shift: Any = None, stretch: bool = False) -> "Template":
     """Return basis curve ``k`` as a ``template`` component shape (spec §5.5.1).
 
     For the fitting engine and the trial fits; the ends are tapered to zero (10 % cosine taper) so

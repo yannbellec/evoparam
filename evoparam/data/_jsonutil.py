@@ -9,11 +9,12 @@ floats keep full float64 precision.
 
 import json
 import math
+from typing import Any, NoReturn
 
 import numpy as np
 
 
-def to_jsonable(obj):
+def to_jsonable(obj: object) -> Any:
     """Convert ``obj`` to plain JSON types; non-finite floats become None."""
     if obj is None or isinstance(obj, (str, bool)):
         return obj
@@ -33,15 +34,15 @@ def to_jsonable(obj):
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serialisable.")
 
 
-def dumps(obj, **kwargs):
+def dumps(obj: object, **kwargs: Any) -> str:
     """Strict ``json.dumps``: converts first, then refuses any NaN token."""
     return json.dumps(to_jsonable(obj), allow_nan=False, **kwargs)
 
 
-def _refuse_constant(name):
+def _refuse_constant(name: str) -> NoReturn:
     raise ValueError(f"Invalid JSON constant {name!r}.")
 
 
-def loads(text):
+def loads(text: str | bytes) -> Any:
     """Strict ``json.loads``: NaN, Infinity and -Infinity tokens are refused."""
     return json.loads(text, parse_constant=_refuse_constant)

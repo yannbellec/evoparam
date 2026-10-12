@@ -8,23 +8,29 @@ average of :func:`evoparam.plots.plot_signals_yshade` and the horizontal jitter 
 :func:`evoparam.plots.plot_scatter_1` come from these functions.
 """
 
+from collections.abc import Callable
+from typing import cast
+
 import numpy as np
 
+from evoparam._typing import Any, ArrayLike, FloatArray, RandomState
 from evoparam.errors import SettingsError
 
 __all__ = ["waveform_band", "strip_jitter", "AVERAGES", "SPREADS"]
 
 
-def _sem(values, axis=0):
+def _sem(values: Any, axis: int = 0) -> Any:
     values = np.asarray(values, dtype=float)
     return np.std(values, axis=axis, ddof=1) / np.sqrt(values.shape[axis])
 
 
-AVERAGES = {"mean": np.mean, "median": np.median}
-SPREADS = {"std": np.std, "sem": _sem}
+AVERAGES: dict[str, Callable[..., Any]] = {"mean": np.mean, "median": np.median}
+SPREADS: dict[str, Callable[..., Any]] = {"std": np.std, "sem": _sem}
 
 
-def waveform_band(signals, *, spread="std", average="mean", scale=1.0):
+def waveform_band(
+    signals: ArrayLike, *, spread: str = "std", average: str = "mean", scale: float = 1.0
+) -> tuple[Any, Any]:
     """Average waveform and half-width of the band drawn around it.
 
     Parameters
@@ -69,7 +75,9 @@ def waveform_band(signals, *, spread="std", average="mean", scale=1.0):
     return center, scale * half
 
 
-def strip_jitter(n_points, *, x=0.0, sd=0.025, random_state=0):
+def strip_jitter(
+    n_points: Any, *, x: float = 0.0, sd: float = 0.025, random_state: RandomState = 0
+) -> FloatArray:
     """Horizontal positions of a strip plot: ``x`` plus a normal jitter of SD ``sd``.
 
     The jitter comes from ``numpy.random.default_rng(random_state)`` (spec §9.4), never from
@@ -91,4 +99,4 @@ def strip_jitter(n_points, *, x=0.0, sd=0.025, random_state=0):
     ndarray
     """
     rng = np.random.default_rng(random_state)
-    return x + rng.normal(0.0, sd, n_points)
+    return cast("FloatArray", x + rng.normal(0.0, sd, n_points))

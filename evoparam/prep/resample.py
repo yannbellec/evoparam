@@ -3,17 +3,22 @@
 
 import time as _time
 from fractions import Fraction
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from evoparam._typing import Any
 from evoparam.errors import SettingsError
 
 from ._common import check_trialset, new
 
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
+
 __all__ = ["resample"]
 
 
-def resample(ts, sfreq):
+def resample(ts: Any, sfreq: float) -> "TrialSet":
     """Change the sampling frequency (polyphase filtering, anti-aliasing FIR).
 
     ``scipy.signal.resample_poly`` with the ratio ``sfreq / ts.sfreq`` as a fraction
@@ -50,13 +55,16 @@ def resample(ts, sfreq):
             np.round((times - ts.times[0]) * ts.sfreq).astype(int), 0, ts.n_times - 1
         )
         masks = ts.masks[:, :, nearest]
-    return new(
-        ts,
-        "evoparam.prep.resample",
-        {"sfreq": float(sfreq), "up": up, "down": down, "from_sfreq": ts.sfreq},
-        start,
-        data=data,
-        times=times,
-        sfreq=new_sfreq,
-        masks=masks,
+    return cast(
+        "TrialSet",
+        new(
+            ts,
+            "evoparam.prep.resample",
+            {"sfreq": float(sfreq), "up": up, "down": down, "from_sfreq": ts.sfreq},
+            start,
+            data=data,
+            times=times,
+            sfreq=new_sfreq,
+            masks=masks,
+        ),
     )
