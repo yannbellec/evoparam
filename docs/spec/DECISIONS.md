@@ -165,8 +165,14 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   (`engine.noise_stride`, `engine.StridedWhitener`). Whitening such a noise at the full rate
   amplifies the empty band by orders of magnitude: on ds004080 run 021448 upsampled from 512
   to 1024 Hz the `ccep` fit found an N1 on 54 of 100 channels instead of 14, and 12 with the
-  stride. A noise that fills its band takes the reviewed procedure, bit for bit
-  (CHANGELOG "Engine: noise that does not fill its band").
+  stride. The band must be all but empty (below 1e-4 of the octave under it), and the
+  samples kept are on the phase whose noise is highest at the top of its band
+  (`engine.noise_phase`: the recorded samples of an upsampled recording, wherever the epoch
+  starts). Steep low-passes well below the Nyquist frequency (order 4 at 30 or 40 Hz on
+  256 Hz ERP simulations, 300 Hz on 2048 Hz CCEP ones) are strided too, with as good or
+  better recall and fewer false positives (CHANGELOG table); gentle ones (order 2) are not.
+  A noise that fills its band takes the reviewed procedure, bit for bit (CHANGELOG "Engine:
+  noise that does not fill its band").
 - **`candidate_search` (step 4).** `"beam"` stays the default (more robust on CCEP-like
   simulations, better N1 kappa, about 9 times faster; CHANGELOG "Fitting engine as written");
   the reviewed search is `candidate_search="spec"`.

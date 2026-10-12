@@ -6,8 +6,9 @@ anti-alias or hardware low-pass well below it) gives an AR noise model with an a
 band, and a whitening that amplifies that band by orders of magnitude: on ds004080 run
 021448 (recorded at 512 Hz) upsampled to 1024 Hz the ``ccep`` fit found an N1 on 54 of 100
 channels instead of 14. The engine now detects the empty band (``engine.noise_stride``) and
-judges the fit on every k-th sample, whitened at that rate (``engine.StridedWhitener``);
-a noise that fills its band takes the previous path unchanged.
+judges the fit on every k-th sample, whitened at that rate (``engine.StridedWhitener``), on
+the phase that holds the recorded samples (``engine.noise_phase``); a noise that fills its
+band takes the previous path unchanged.
 """
 
 import numpy as np
@@ -38,10 +39,61 @@ def test_upsampled_noise_has_the_stride_of_its_upsampling(factor, rho):
         assert eng.noise_stride(z) == factor
 
 
+@pytest.mark.parametrize("sfreq, cutoff", [(256.0, 30.0), (256.0, 40.0), (1024.0, 30.0),
+                                           (1024.0, 40.0), (2048.0, 300.0), (2048.0, 500.0)])
+def test_a_gentle_low_pass_keeps_stride_one(sfreq, cutoff):
+    """A zero-phase Butterworth low-pass of order 2 (the gentler ERPLAB setting) leaves a
+    band that is low but not empty: the previous path. Its fits were never better strided
+    (CHANGELOG)."""
+
+    from scipy.signal import butter, sosfiltfilt
+
+    rng = np.random.default_rng(int(sfreq + cutoff))
+    sos = butter(2, cutoff, fs=sfreq, output="sos")
+    for _ in range(20):
+        z = sosfiltfilt(sos, rng.normal(size=int(sfreq) + 400))[200:-200]
+        assert eng.noise_stride(z) == 1
+
+
+@pytest.mark.parametrize("cutoff", [30.0, 40.0])
+def test_a_steep_low_pass_well_below_nyquist_is_strided(cutoff):
+    """Order 4 at 30 or 40 Hz on 256 Hz data (ERP CORE-like): the band above 64 Hz is all
+    but empty, and the fit is judged at the rate the noise occupies."""
+
+    from scipy.signal import butter, sosfiltfilt
+
+    rng = np.random.default_rng(int(cutoff))
+    sos = butter(4, cutoff, fs=256.0, output="sos")
+    for _ in range(20):
+        z = sosfiltfilt(sos, rng.normal(size=656))[200:-200]
+        assert eng.noise_stride(z) >= 2
+
+
 def test_a_short_noise_has_stride_one():
 
     z = resample_poly(noise(np.random.default_rng(0), 0.5, n=10), 2, 1)
     assert eng.noise_stride(z) == 1
+
+
+@pytest.mark.parametrize("factor", [2, 3, 4])
+@pytest.mark.parametrize("rho", [0.0, 0.9])
+def test_the_phase_is_the_one_that_holds_the_recorded_samples(factor, rho):
+    """An upsampled noise cropped by any number of samples, with a masked stretch: the
+    phase chosen is the one of the samples the recording kept."""
+
+    rng = np.random.default_rng(10 * factor + int(10 * rho))
+    for crop in range(2 * factor):
+        z = resample_poly(noise(rng, rho, n=300), factor, 1)[crop:]
+        keep = np.ones(len(z), bool)
+        keep[100:117] = False
+        index = np.flatnonzero(keep)
+        assert eng.noise_phase(z[keep], index, factor) == (-crop) % factor
+
+
+def test_a_short_noise_has_phase_zero():
+
+    z = resample_poly(noise(np.random.default_rng(0), 0.5, n=20), 2, 1)[1:]
+    assert eng.noise_phase(z, np.arange(len(z)), 2) == 0
 
 
 @pytest.mark.parametrize("exact", [True, False])

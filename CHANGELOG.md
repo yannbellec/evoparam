@@ -21,19 +21,26 @@ the fit spent narrow components, often in cancelling pairs of thousands of µV, 
 Fix (`models/engine.py`). `noise_stride` compares the median level of the Hann-tapered
 periodogram of the noise (the baseline, or the plus-minus reference) in the half-octave just
 above 1/k of the Nyquist frequency with the octave below it, for k = 4, 3, 2. When it is below
-`EMPTY_BAND` = 1e-3, the fit is judged on every k-th sample from the first of the epoch
-(`StridedWhitener`): the AR model is fitted to the baseline sampled at that rate, it whitens
+`EMPTY_BAND` = 1e-4 (a band all but empty), the fit is judged on every k-th sample
+(`StridedWhitener`): the AR model is fitted to the noise sampled at that rate, it whitens
 the residual at lags k, 2k, ..., and the other rows carry no evidence. `min_fwhm` is raised
-to two samples of that rate, as it already is for a recording at that rate. An upsampled
-recording keeps its own samples on that grid, so its fit is judged as at its recorded rate.
-The fit says so: the warning `band_limited_noise:k` and `diagnostics["noise_stride"]`. When
+to two samples of that rate, as it already is for a recording at that rate. The phase of
+those samples is the one whose noise has the highest level at the top of its band
+(`noise_phase`): an upsampled recording keeps its own samples on one phase, and the
+interpolated ones are attenuated near the old Nyquist frequency, so its fit is judged as at
+its recorded rate wherever the epoch starts. The fit says so: the warning
+`band_limited_noise:k`, `diagnostics["noise_stride"]` and `diagnostics["noise_phase"]`. When
 the noise fills its band (k = 1) the code path is the previous one, and the results are the
 same bit for bit.
 
-The threshold sits between the two groups. On the ds004080 baselines of the REQ-375 runs,
-at their recorded rates and decimated to 1024 and 512 Hz, the level ratio is -1.64 decades or
-more (615 channels x 3 rates, k = 2 to 4). On the upsampled run it is -5.40 decades or less
-(k = 2). No fit of the test suites or of the quality sets below has a stride other than 1.
+The threshold separates interpolation from the data the engine already fitted well. On the
+ds004080 baselines of the REQ-375 runs, at their recorded rates and decimated to 1024 and
+512 Hz, the level ratio is -1.7 decades or more (615 channels x 3 rates, k = 2 to 4), and
+-1.5 or more on unfiltered simulations. On the upsampled run it is -5.4 decades or less
+(k = 2). A first version used 1e-3: it also strided ERP simulations low-passed at 30 or
+40 Hz by an order-2 Butterworth at 1024 Hz (ratio -2.8 to -3.4), and made them worse
+(recall 0.950 to 0.875 at 30 Hz). No fit of the test suites or of the quality sets below
+has a stride other than 1.
 
 Results.
 
@@ -97,6 +104,64 @@ Tried and not kept, on the same run (N1 channels at 1024 Hz, 14 at 512 Hz):
   low-pass and the upsampling filter leave a dip at the new Nyquist frequency that the
   whitening amplifies again;
 - every other sample on the interpolated samples instead of the recorded ones: 43.
+
+Recordings low-passed well below their Nyquist frequency (ERP CORE: 256 Hz after a
+non-causal 0.1 to 30 Hz ERPLAB Butterworth; clinical CCEP pipelines) also trigger the stride.
+Measured on simulations low-passed by `sosfiltfilt` Butterworth filters of order 2 and 4
+(the squared response of a non-causal filter), fitted with `evoparam.fit(...,
+existence=False, random_state=0)`: `simulate_erp` with 60 trials and 4 channels, P1/N1/P3
+and N170/P3 on alternate seeds (`erp` preset), or the ERN alone (epoch -0.6 to 0.6 s,
+baseline -0.6 to -0.2 s, fit window -0.1 to 0.3 s), seeds 0 to 7 (32 fits); `simulate_ccep`
+with 10 channels at 2048 Hz, seeds 0 to 3 (seeds 0 to 15 at 300 Hz order 4). A component is
+found when one of the same sign lies within half its FWHM; latency and amplitude errors are
+over the components found.
+
+| data | low-pass | fits strided | recall | precision | false positives | mean abs latency error (ms) | mean abs amplitude error |
+|---|---|---|---|---|---|---|---|
+| ERP 256 Hz | 30 Hz, order 4 | 32/32 (k = 2, 3) | 0.850 -> 0.963 | 0.366 -> 0.811 | 118 -> 18 | 4.06 -> 1.73 | 0.198 -> 0.055 |
+| ERP 256 Hz | 40 Hz, order 4 | 32/32 (k = 2) | 0.925 -> 0.975 | 0.420 -> 0.907 | 102 -> 8 | 3.86 -> 1.12 | 0.185 -> 0.029 |
+| ERN 256 Hz | 30 Hz, order 4 | 32/32 | 1 -> 1 | 0.185 -> 0.744 | 141 -> 11 | 1.70 -> 0.58 | 0.061 -> 0.020 |
+| ERN 256 Hz | 40 Hz, order 4 | 32/32 | 1 -> 1 | 0.219 -> 0.914 | 114 -> 3 | 1.40 -> 0.49 | 0.068 -> 0.013 |
+| ERP 1024 Hz | 30 Hz, order 4 | 2/32 | 0.912 -> 0.912 | 0.380 -> 0.386 | 119 -> 116 | 4.51 -> 4.55 | 0.129 -> 0.131 |
+| ERP 1024 Hz | 40 Hz, order 4 | 21/32 | 0.838 -> 0.875 | 0.354 -> 0.422 | 122 -> 96 | 4.17 -> 3.44 | 0.173 -> 0.114 |
+| ERN 1024 Hz | 30 Hz, order 4 | 8/32 | 1 -> 1 | 0.167 -> 0.179 | 160 -> 147 | 1.61 -> 1.60 | 0.097 -> 0.066 |
+| ERN 1024 Hz | 40 Hz, order 4 | 31/32 | 1 -> 1 | 0.167 -> 0.248 | 160 -> 97 | 2.18 -> 1.27 | 0.082 -> 0.039 |
+| CCEP 2048 Hz | 300 Hz, order 4 | 160/160 (k = 2) | 0.988 -> 0.988 | 0.131 -> 0.188 | 550 -> 359 | 3.09 -> 1.92 | 0.142 -> 0.078 |
+| all | none; order 2 (30, 40, 300, 500 Hz); CCEP 500 Hz order 4 | 0 | unchanged | | | | |
+
+Per component, strided, at 256 Hz: P1, N1, N170, P3 and ERN are found as often or more often
+(P1 10/16 -> 14/16 at 30 Hz), with smaller latency and amplitude errors for each. At 1024 Hz
+and 40 Hz the N1 is found on 16/16 channels instead of 15/16, with a larger mean amplitude
+error (0.143 -> 0.180); the N170, P1 and P3 errors fall. On the CCEP the N1 errors fall
+(latency 0.28 -> 0.19 ms) and so do the N2 ones (6.4 -> 4.1 ms); target fits with a
+component above three times the largest true amplitude go from 3 to 0 of 46. Of the two
+strided ERP fits at 1024 Hz and 30 Hz, one loses three false positives and the other keeps
+its components, with the N170 amplitude at -45.4 instead of -43.1 µV (true -43.2).
+
+The `min_fwhm` raise (two samples at the strided rate: 15.6, 23.4 and 31.3 ms at 256 Hz for
+k = 2, 3, 4) does not clip these components: no strided ERP fit has a component at the
+raised floor (0 of 181), and an ERN fit 2 of 78. The raise acts only at 256 Hz here (at
+1024 and 2048 Hz two strided samples stay below the preset `min_fwhm`). Without it (measured
+with a first phase rule) the ERN fits were the same, and the ERP ones slightly worse: at
+30 Hz recall 0.963 instead of 0.975 and latency error 2.01 instead of 1.70 ms, at 40 Hz
+latency error 1.27 instead of 1.23 ms (with the first threshold, 1e-3: recall 0.950 instead
+of 0.975).
+A band empty above 1/k of the Nyquist frequency holds
+no component narrower than about two samples at that rate: such a shape has its power above
+the band edge, and the low-pass has removed it.
+
+The phase matters only where one is special. On ds004080 run 021448 upsampled to 1024 Hz
+and then cropped by one sample, a fixed phase used the interpolated samples (43 N1s); the
+chosen phase is the recorded samples on all 100 channels (margin 0.6 to 1.8 decades of
+level) and gives 10 N1s, 94 of 100 decisions equal to those at 512 Hz (5 N1s lost, 1
+added; uncropped: 12 N1s, 98 equal); the crop also moves the data one sample (about 1 ms)
+against their time stamps. On upsampled noise
+(`resample_poly`, k = 2 to 4, 300 samples or more per phase) it never missed in 720 trials;
+with 60 per phase it missed 1 in 80 at k = 2 and 1 in 4 at k = 4. An ideal (FFT)
+interpolation leaves no phase special and leaves no ringing on only some of them. On the
+low-passed simulations no phase is special either: at 256 Hz, 30 Hz and order 4, the
+precision is 0.727 with the first phase, 0.762 with the last and 0.744 with the one chosen
+(ERN), and 0.794, 0.811 and 0.811 (ERP); the choice only moves the fit within that spread.
 
 ### Layer 4, sampling rate (REQ-375, §7.4 (3)): no upsampling; still not met
 

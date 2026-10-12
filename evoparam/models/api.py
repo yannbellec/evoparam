@@ -296,6 +296,7 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
                                    "n_eff": core["n_eff"], "n_white": core["n_white"],
                                    "ar_order": core["ar_order"],
                                    "noise_stride": core.get("noise_stride", 1),
+                                   "noise_phase": core.get("noise_phase", 0),
                                    "criterion": core["kind"],
                                    "uncertainty_method": settings.uncertainty,
                                    "steps": core["steps"],

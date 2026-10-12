@@ -212,7 +212,7 @@ def _inverse_cholesky(acov):
 # A band above 1 / k of the Nyquist frequency is empty when the median periodogram level of
 # the half-octave above it is below EMPTY_BAND times that of the octave below it; strides
 # tried, largest first, and periodogram points needed in each band
-EMPTY_BAND = 1e-3
+EMPTY_BAND = 1e-4
 MAX_STRIDE = 4
 MIN_BAND_POINTS = 8
 
@@ -224,9 +224,13 @@ def noise_stride(z):
     The test compares the median level of the Hann-tapered periodogram of the detrended
     noise in ``(1/k, 1.5/k]`` and in ``(0.5/k, 1/k]`` (fractions of the Nyquist frequency).
     Medians make it robust to lines and to the image left near the Nyquist frequency by
-    an upsampling filter. On the ds004080 baselines the ratio is -1.6 decades or more at the
-    recorded rates and decimated to 1024 and 512 Hz, and -5.4 decades or less on the example
-    run (recorded at 512 Hz) upsampled to 1024 Hz (CHANGELOG): ``EMPTY_BAND`` lies between."""
+    an upsampling filter. ``EMPTY_BAND`` (-4 decades) asks for a band that is all but empty,
+    as interpolation leaves it (CHANGELOG): the ratio is -1.7 decades or more on the
+    ds004080 baselines at their recorded rates and decimated to 1024 and 512 Hz, -1.5 or
+    more on unfiltered simulations, -5.4 or less on the example run (recorded at 512 Hz)
+    upsampled to 1024 Hz. A zero-phase low-pass of order 4 at 30 or 40 Hz on 256 Hz data
+    gives -4.5 to -6.8 (strided, which improved those fits); one of order 2 stays above -4
+    at 256 and 1024 Hz (stride 1: the previous path)."""
 
     z = np.asarray(z, float)
     t = np.arange(len(z), dtype=float)
@@ -966,22 +970,64 @@ def _starts(shape, guess, n_starts, tw):
 _COUNTER = threading.local()
 
 
+def noise_phase(z, index, k):
+    """Phase (0 .. k - 1) of the samples ``index % k == phase`` that hold the noise ``z``
+    (sampled at ``index``) best: the one whose strided noise has the largest level at the top
+    of its band (median Hann-tapered periodogram of the detrended noise over its top 5 %,
+    and at least ``MIN_BAND_POINTS`` points). 0 when a phase has fewer than
+    ``4 * MIN_BAND_POINTS`` samples.
+
+    An upsampled recording keeps its own samples on one phase (a windowed-sinc interpolator
+    such as ``prep.resample`` passes them through). The others are interpolated, and the
+    transition band of a finite interpolation filter, centred on the old Nyquist frequency,
+    attenuates them there; on ds004080 run 021448 they also carry the filter's ringing next
+    to the stimulation artifact (fitting them gives an N1 on 43 channels, the recorded
+    samples 12; CHANGELOG). On that run upsampled to 1024 Hz and cropped by 0 or 1 sample,
+    it picks the recorded samples on all 100 channels, by 0.6 decades of level or more. On
+    upsampled noise (``resample_poly``, 300 samples or more per phase, k = 2 to 4) it never
+    missed; with 60 per phase it missed 1 in 80 at k = 2 and 1 in 4 at k = 4.
+
+    Limits. An ideal (FFT) interpolation leaves no phase special, and none is picked better
+    than by chance; it also leaves no ringing that only some phases carry. Neither is a
+    recording low-passed well below its Nyquist frequency: its phases differ by chance and so
+    do its fits (on low-passed simulations, fits on the phase picked are neither better nor
+    worse than on a fixed phase; CHANGELOG)."""
+
+    z = np.asarray(z, float)
+    index = np.asarray(index)
+    levels = []
+    for phase in range(k):
+        x = z[index % k == phase]
+        if len(x) < 4 * MIN_BAND_POINTS:
+            return 0
+        t = np.arange(len(x), dtype=float)
+        x = (x - np.polyval(np.polyfit(t, x, 1), t)) * np.hanning(len(x))
+        power = np.abs(np.fft.rfft(x)) ** 2
+        levels.append(np.median(power[-max(MIN_BAND_POINTS, len(power) // 20):]))
+    return int(np.argmax(levels))
+
+
 def _noise_stride(times, y, settings, mask, noise_ref):
-    """``noise_stride`` of the noise the AR model is fitted to (the plus-minus reference or
-    the baseline); 1 for the other noise models or without enough noise samples."""
+    """``(noise_stride, noise_phase)`` of the noise the AR model is fitted to (the
+    plus-minus reference or the baseline); ``(1, 0)`` for the other noise models or without
+    enough noise samples."""
 
     if settings.noise_model != "ar":
-        return 1
+        return 1, 0
     if noise_ref is not None:
         ref = np.asarray(noise_ref, float)
-        z = ref[np.isfinite(ref) & ~mask]
+        keep = np.isfinite(ref) & ~mask
+        z = ref[keep]
     elif settings.baseline is not None:
-        base = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask & \
+        keep = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask & \
             np.isfinite(y)
-        z = y[base]
+        z = y[keep]
     else:
-        return 1
-    return noise_stride(z) if len(z) >= MIN_BASELINE else 1
+        return 1, 0
+    stride = noise_stride(z) if len(z) >= MIN_BASELINE else 1
+    if stride == 1:
+        return 1, 0
+    return stride, noise_phase(z, np.flatnonzero(keep), stride)
 
 
 def fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select_k=None,
@@ -1012,13 +1058,14 @@ def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select
     if win is None:
         raise SettingsError("fit_window is required (no preset gives one).")
     out = {"warnings": [], "steps": [], "best_rejected_delta": np.nan}
-    stride = _noise_stride(times, y, settings, mask, noise_ref)
-    out["noise_stride"] = stride
+    stride, phase = _noise_stride(times, y, settings, mask, noise_ref)
+    out["noise_stride"], out["noise_phase"] = stride, phase
     if stride > 1:
         out["warnings"].append(f"band_limited_noise:{stride}")
     min_fwhm = settings.min_fwhm
     if sfreq / stride < 2.0 / min_fwhm:
-        # two samples at the rate the noise occupies (the recorded rate when stride is 1)
+        # two samples at the rate the noise occupies (the recorded rate when stride is 1):
+        # the narrowest shape that band carries, and the evidence lies on those samples only
         min_fwhm = 2.0 * stride / sfreq
         out["warnings"].append("min_fwhm_raised")
         settings = dataclasses.replace(settings, min_fwhm=min_fwhm,
@@ -1058,9 +1105,9 @@ def _fit_waveform_core(times, y, *, settings, sfreq, mask=None, sem=None, select
         scale = np.maximum(np.nan_to_num(s_, nan=sigma), 0.1 * sigma)
     a_coefs, innovation, acov = np.array([1.0]), 1.0, None
     # the noise of a band-limited recording is modelled at the rate it occupies: on every
-    # stride-th sample from the first of the epoch (an upsampled recording keeps its own
-    # samples there)
-    grid = np.arange(len(y)) % stride == 0
+    # stride-th sample, on the phase of the epoch that holds the noise best (noise_phase:
+    # an upsampled recording keeps its own samples there)
+    grid = np.arange(len(y)) % stride == phase
     if settings.noise_model == "ar" and noise_ref is not None:
         a_coefs, innovation, acov = ar_model(ref[good & grid] / sigma, return_acov=True)
     elif settings.noise_model == "ar" and settings.baseline is not None:
