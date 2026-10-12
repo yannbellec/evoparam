@@ -9,7 +9,7 @@ with Gaussian and skewed Gaussian components, and labels the N20 from its latenc
 
 Data: a simulated average (``evoparam`` has no public SEP dataset yet; the preset is
 validated on simulations, REQ-277).
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Simulate a median-nerve SEP
@@ -28,6 +28,7 @@ rng = np.random.default_rng(0)
 
 
 def bump(latency, fwhm):
+    """Return a Gaussian bump of the given latency and FWHM (s)."""
     return np.exp(-0.5 * ((times - latency) / (fwhm / 2.3548)) ** 2)
 
 

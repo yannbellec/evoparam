@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Summaries of a set of waveforms for display: the average with a spread band, and the
-positions of a strip plot.
+"""Summaries of a set of waveforms for display.
+
+The average with a spread band, and the positions of a strip plot.
 
 The plots of :mod:`evoparam.plots` compute no number of their own (REQ-349): the shaded
 average of :func:`evoparam.plots.plot_signals_yshade` and the horizontal jitter of

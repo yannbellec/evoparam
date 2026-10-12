@@ -90,8 +90,9 @@ class OnlinePulseDetector:
         return out
 
     def update(self, samples):
-        """Add samples [n_samples, n_channels]; returns the onset samples (stream indices)
-        of the pulses found.
+        """Add samples [n_samples, n_channels].
+
+        Returns the onset samples (stream indices) of the pulses found.
         """
         samples = np.asarray(samples, float)
         if samples.ndim != 2 or samples.shape[1] != self.n_channels:

@@ -99,8 +99,9 @@ def verbose(level: VerboseLevel | Callable[..., Any] = None) -> Any:
 
 
 def set_log_level(level: VerboseLevel) -> int:
-    """Set the level of the ``evoparam`` logger (``verbose`` values or a logging level);
-    returns the previous level.
+    """Set the level of the ``evoparam`` logger (``verbose`` values or a logging level).
+
+    Returns the previous level.
     """
     logger = logging.getLogger(LOGGER)
     previous = logger.level
@@ -115,8 +116,9 @@ def set_log_file(
     mode: str = "a",
     fmt: str = "%(asctime)s %(name)s %(levelname)s %(message)s",
 ) -> logging.FileHandler | None:
-    """Write the ``evoparam`` log to ``path`` (a ``FileHandler``); ``None`` removes the file
-    handler set by a previous call. Returns the handler (or None).
+    """Write the ``evoparam`` log to ``path`` (a ``FileHandler``).
+
+    ``None`` removes the file handler set by a previous call. Returns the handler (or None).
     """
     logger = logging.getLogger(LOGGER)
     for handler in list(logger.handlers):

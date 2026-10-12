@@ -63,7 +63,7 @@ def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05), part="full")
     taus = np.geomspace(lo, hi, N_TAUS)
     best_rss = np.full(len(flat), np.inf)
     best = np.zeros((len(flat), 5))
-    for i, tau1 in enumerate(taus):
+    for _i, tau1 in enumerate(taus):
         for tau2 in taus[taus >= TAU_RATIO * tau1]:
             design = np.c_[np.ones_like(rel), np.exp(-rel / tau1), np.exp(-rel / tau2)]
             pinv = np.linalg.pinv(design)

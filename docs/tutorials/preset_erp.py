@@ -18,7 +18,7 @@ by the published artifact detection are left out, as in the published analysis.
 How often the model finds the component, over the 40 participants, is measured by the
 layer-3 validation (``validation/erpcore.py``; ``validation/layer3/erpcore_parent.json``):
 read those numbers before trusting a single participant's fit.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Read one participant and component

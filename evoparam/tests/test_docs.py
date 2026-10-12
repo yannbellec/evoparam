@@ -103,7 +103,7 @@ def test_datasets_named_are_in_the_registry_with_checksums():
             for path, digest in registry[dataset]["files"].items():
                 assert re.fullmatch(r"[0-9a-f]{64}", digest), (dataset, path)
         # every file a tutorial fetches from OpenNeuro is in the registry
-        for stem, suffix in re.findall(
+        for _stem, suffix in re.findall(
             r'fetch_openneuro_file\(DATASET, (STEM) \+ "([^"]+)"', source
         ):
             dataset = re.search(r'DATASET = "(ds\d{6})"', source).group(1)

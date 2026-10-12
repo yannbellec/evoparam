@@ -127,8 +127,9 @@ def _git_commit():
 
 
 def _lock_path():
-    """The lock file of this Python minor version (REQ-309 c): ``ci/locks/pyX.Y.lock`` of
-    the source tree, or of the folder named by ``EVOPARAM_LOCK_DIR``.
+    """Return the lock file of this Python minor version (REQ-309 c).
+
+    ``ci/locks/pyX.Y.lock`` of the source tree, or of the folder named by ``EVOPARAM_LOCK_DIR``.
     """
     folder = os.environ.get("EVOPARAM_LOCK_DIR") or os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "ci", "locks"
@@ -137,8 +138,10 @@ def _lock_path():
 
 
 def lock_sha256(path=None):
-    """SHA-256 of the lock file when the installed packages are exactly its pins for this
-    interpreter (every applicable pin installed at its version), else None (REQ-309 d).
+    """Return the SHA-256 of the lock file when the environment matches it (REQ-309 d).
+
+    The installed packages must be exactly its pins for this interpreter (every applicable pin
+    installed at its version); else None.
     """
     path = path or _lock_path()
     if not os.path.isfile(path):
@@ -248,6 +251,7 @@ class Provenance(DeepEqualMixin):
     data_hash: str | None = None
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         self.source = to_jsonable(dict(self.source))
         self.steps = to_jsonable(list(self.steps))
         self.environment = to_jsonable(dict(self.environment))

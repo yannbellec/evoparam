@@ -35,8 +35,10 @@ TAIL = 1e-16
 
 
 def _offset(t, sfreq, side):
-    """Sample offset of the first sample at or after ``t`` (``side="start"``), or of the last
-    at or before it (``"stop"``), with the comparison of ``times >= t`` on ``k / sfreq``.
+    """Return the sample offset of the first sample at or after ``t`` (``side="start"``).
+
+    Or of the last at or before it (``"stop"``), with the comparison of ``times >= t`` on
+    ``k / sfreq``.
     """
     k = int(np.ceil(t * sfreq)) if side == "start" else int(np.floor(t * sfreq))
     if side == "start":
@@ -85,8 +87,9 @@ class _Channel:
         self.spans = [slice(None)] * len(self.shapes)
 
     def curves(self, tw, shifts, component=None):
-        """The template (or one of its components) moved by each of ``shifts`` (s): array
-        [n_shifts, n_times].
+        """Return the template (or one of its components) moved by each of ``shifts`` (s).
+
+        Array [n_shifts, n_times].
         """
         out = np.zeros((len(shifts), len(tw)))
         keep = range(len(self.shapes)) if component is None else [component]
@@ -99,7 +102,7 @@ class _Channel:
         return out
 
     def set_spans(self, tw, grid):
-        """Samples where each component matters at some shift of ``grid`` (see TAIL)."""
+        """Return the samples where each component matters at some shift of ``grid`` (see TAIL)."""
         for k in range(len(self.shapes)):
             self.spans[k] = slice(None)
             size = np.abs(self.curves(tw, grid, component=k)).max(axis=0)
@@ -108,8 +111,10 @@ class _Channel:
                 self.spans[k] = slice(max(int(above[0]) - 2, 0), min(int(above[-1]) + 3, len(tw)))
 
     def bounds(self, max_shift):
-        """Largest shift of each component moved on its own: ``max_shift``, at most half the
-        distance to the nearest other component (as in ``fit_trials``).
+        """Largest shift of each component moved on its own.
+
+        ``max_shift``, at most half the distance to the nearest other component (as in
+        ``fit_trials``).
         """
         out = np.full(len(self.shapes), float(max_shift))
         for k, lat in enumerate(self.latencies):
@@ -368,8 +373,9 @@ class FixedShapeModel:
             self._amp0[c, : len(self.amplitudes[c])] = self.amplitudes[c]
 
     def _normal_inverse(self, weights, channels=None):
-        """Inverse normal matrices [n_channels, n_shifts, m, m] of the common shifts, for
-        per-channel weights.
+        """Return the inverse normal matrices [n_channels, n_shifts, m, m] of the common shifts.
+
+        For per-channel weights.
         """
         channels = np.arange(len(self._channels)) if channels is None else channels
         q, diag = self.n_columns, np.arange(self.n_columns)
@@ -389,9 +395,10 @@ class FixedShapeModel:
         return out
 
     def _pair_tables(self, weights, channels=None):
-        """Products of the shifted components, of every pair of shifts, for per-channel
-        weights: ``[n, q, q, n_shifts, n_shifts]``, with the basis ``[n, q, n_shifts, n_b]``
-        and the basis Gram matrices ``[n, n_b, n_b]``.
+        """Products of the shifted components, of every pair of shifts, for per-channel weights.
+
+        ``[n, q, q, n_shifts, n_shifts]``, with the basis ``[n, q, n_shifts, n_b]`` and the basis
+        Gram matrices ``[n, n_b, n_b]``.
         """
         channels = np.arange(len(self._channels)) if channels is None else channels
         q, n_s = self.n_columns, len(self.grid)
@@ -421,9 +428,10 @@ class FixedShapeModel:
         return np.matmul(x, np.swapaxes(self._basis, 1, 2))
 
     def _ascend(self, start, r, rb, tables):
-        """Per-component shifts by coordinate ascent on the grid from the common shift
-        ``start``: grid indices [n_channels, q] and the explained sum of squares of every
-        grid shift of each component, the others at their final shift.
+        """Per-component shifts by coordinate ascent on the grid from the common shift ``start``.
+
+        Grid indices [n_channels, q] and the explained sum of squares of every grid shift of each
+        component, the others at their final shift.
 
         A step moves one component over the grid, the others fixed: the explained sum of
         squares is that of the other columns plus the gain of the moved one,

@@ -146,8 +146,12 @@ ERPCORE_SUFFIXES = ("_epoch_interp_ar.set", "_epoch_interp_ar.fdt")
 # SHA-256 of participant 1's files, recorded on 2026-10-08 (also checked against the hash
 # OSF publishes for every file)
 ERPCORE_P3_SHA256 = {
-    "1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.fdt": "f62f325b0c579481829afe6cb78ba3b742e7460f1383168385cff26e2ebda431",
-    "1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.set": "546dd1bedb039f2a5cc8db620c957d4d2db6623fe914198986c1b1b674e2a6e6",
+    "1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.fdt": (
+        "f62f325b0c579481829afe6cb78ba3b742e7460f1383168385cff26e2ebda431"
+    ),
+    "1_P3_shifted_ds_reref_ucbip_hpfilt_ica_corr_cbip_elist_bins_epoch_interp_ar.set": (
+        "546dd1bedb039f2a5cc8db620c957d4d2db6623fe914198986c1b1b674e2a6e6"
+    ),
 }
 
 

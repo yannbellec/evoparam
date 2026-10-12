@@ -10,11 +10,12 @@ POLARITY_RULES = ("sign", "none")
 
 
 def sign_name(name, polarity):
-    """The name of a component in a window named by sign, ``"P1/N1"``: ``"P1"`` for a
-    positive component and ``"N1"`` for a negative one (spec §6.1, rodent and primate
-    presets: "P1/N1 by depth": in a laminar recording the early field potential reverses
-    polarity with depth, so each contact names its component by its own sign). Other
-    names are returned unchanged.
+    """Return the name of a component in a window named by sign, ``"P1/N1"``.
+
+    ``"P1"`` for a positive component and ``"N1"`` for a negative one (spec §6.1, rodent and
+    primate presets: "P1/N1 by depth": in a laminar recording the early field potential reverses
+    polarity with depth, so each contact names its component by its own sign). Other names are
+    returned unchanged.
 
     >>> sign_name("P1/N1", -1), sign_name("P1/N1", 1), sign_name("N2", -1)
     ('N1', 'P1', 'N2')
@@ -31,8 +32,9 @@ def sign_name(name, polarity):
 
 
 def _label_fit(fit, windows, unassigned, polarity_rule="sign"):
-    """Labels for one ResponseFit; windows: name -> (start, end, polarity) with polarity
-    -1, +1 or 0 (either).
+    """Return the labels for one ResponseFit.
+
+    ``windows``: name -> (start, end, polarity) with polarity -1, +1 or 0 (either).
     """
     assigned = {}
     warnings = []

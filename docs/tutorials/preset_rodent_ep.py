@@ -8,9 +8,9 @@ middle layers whose polarity reverses at depth, then slower components. The ``ro
 preset fits 5 to 300 ms with gamma and skewed Gaussian shapes after a template artifact
 removal; the trials of each behavioural state are averaged separately.
 
-Data: simulated mouse recording, 16 contacts 40 µm apart, awake and NREM states
-(the Allen Visual Coding Neuropixels LFP (REQ-278, validation/layer3) is the real-data check of this preset).
-"""
+Data: simulated mouse recording, 16 contacts 40 µm apart, awake and NREM states (the Allen Visual
+Coding Neuropixels LFP (REQ-278, validation/layer3) is the real-data check of this preset).
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Simulate a laminar recording

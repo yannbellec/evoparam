@@ -66,7 +66,7 @@ class ComponentWindows(Mapping):
 
     @classmethod
     def from_preset(cls, name):
-        """The labelling windows of a preset (spec §6.1), for example ``"ccep"``."""
+        """Return the labelling windows of a preset (spec §6.1), for example ``"ccep"``."""
         from ._settings import FIT_PRESETS
 
         if name not in FIT_PRESETS:
@@ -74,18 +74,22 @@ class ComponentWindows(Mapping):
         return cls(FIT_PRESETS[name]["windows"] or {})
 
     def __getitem__(self, name):
+        """Return the window ``name``."""
         try:
             return self._windows[name]
         except KeyError:
             raise KeyError(f"no window named {name!r}; windows: {self.labels}") from None
 
     def __iter__(self):
+        """Iterate over the window names."""
         return iter(self._windows)
 
     def __len__(self):
+        """Return the number of windows."""
         return len(self._windows)
 
     def __repr__(self):
+        """Return a one-line summary."""
         inside = ", ".join(f"{k}: {v}" for k, v in self._windows.items())
         return f"ComponentWindows({{{inside}}})"
 
@@ -100,13 +104,13 @@ class ComponentWindows(Mapping):
         return list(self._windows.values())
 
     def add(self, name, definition):
-        """A copy with one more window."""
+        """Return a copy with one more window."""
         if name in self._windows:
             raise SettingsError(f"window {name!r} already exists.")
         return ComponentWindows({**self._windows, name: definition})
 
     def remove(self, name):
-        """A copy without the window ``name``."""
+        """Return a copy without the window ``name``."""
         self[name]
         return ComponentWindows({k: v for k, v in self._windows.items() if k != name})
 

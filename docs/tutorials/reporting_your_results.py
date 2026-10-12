@@ -14,7 +14,7 @@ artifact method and the montage. evoparam writes all of it from the result's pro
 - ``evoparam.reports.citation()``: how to cite evoparam (``CITATION.cff``).
 
 Data: simulated CCEPs through the ``ccep`` preset chain.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # A result

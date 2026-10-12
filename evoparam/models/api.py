@@ -65,9 +65,11 @@ def _features(shape, tw, params, amp, settings, sfreq):
 
 
 def _scaled_features(unit, amp):
-    """The features of ``amp * s(t)`` from those of ``s(t)`` (``unit``, measured with
-    amplitude 1): only the amplitude, its sign and the area depend on ``amp``, and
-    compute_features gives them as ``amp`` times the unit values (the same numbers).
+    """Return the features of ``amp * s(t)`` from those of ``s(t)``.
+
+    ``unit`` holds the features measured with amplitude 1: only the amplitude, its sign and the
+    area depend on ``amp``, and compute_features gives them as ``amp`` times the unit values (the
+    same numbers).
     """
     amp = float(amp)
     signed = amp * unit.amplitude
@@ -128,8 +130,9 @@ def _diagnostics(core, settings):
 
 
 def _component_uncertainty(core, diag, k, settings, sfreq, z, unit=None):
-    """Wald intervals for the parameters and delta-method intervals for the features
-    (``unit``: the features of the component with amplitude 1, when already measured).
+    """Return Wald intervals for the parameters and delta-method intervals for the features.
+
+    ``unit``: the features of the component with amplitude 1, when already measured.
     """
     struct, theta, beta = core["struct"], core["theta"], core["beta"]
     shape = core["shapes"][k]
@@ -223,10 +226,11 @@ def _bounds_warnings(core):
 
 
 def _unresolvable(comps, diag, settings):
-    """Indices of the components that cannot be told apart from a neighbour (spec §5.5.3
-    step 6, risk S1): the amplitudes or latencies of two components correlate beyond
-    ``CORR_LIMIT``, or two neighbours of opposite sign are closer than ``overlap_c`` times
-    their summed widths (a cancelling pair).
+    """Return the indices of the components that cannot be told apart from a neighbour.
+
+    Spec §5.5.3 step 6, risk S1: the amplitudes or latencies of two components correlate beyond
+    ``CORR_LIMIT``, or two neighbours of opposite sign are closer than ``overlap_c`` times their
+    summed widths (a cancelling pair).
     """
     out = set()
     latency = {}
@@ -254,8 +258,10 @@ def _unresolvable(comps, diag, settings):
 
 
 def _with_plugins(provenance, settings):
-    """``provenance.environment["plugins"]``: the plugin shapes, background and preset the
-    settings use, ``{name: "dist==version"}`` (spec §10.8); unchanged without plugins.
+    """``provenance.environment["plugins"]``.
+
+    The plugin shapes, background and preset the settings use, ``{name: "dist==version"}`` (spec
+    §10.8); unchanged without plugins.
     """
     from evoparam import presets
     from evoparam.shapes import BACKGROUNDS, SHAPES
@@ -487,9 +493,11 @@ def _bootstrap(fit, core, times, trials, settings, sfreq, z):
 
 
 def _profile_bounds(grid, stat, limit):
-    """Ends of the profile interval: where the statistic crosses ``limit``, linearly
-    interpolated between the outermost grid value inside and its neighbour outside (the
-    grid values themselves would shorten the interval by up to one grid step per side).
+    """Return the ends of the profile interval.
+
+    Where the statistic crosses ``limit``, linearly interpolated between the outermost grid value
+    inside and its neighbour outside (the grid values themselves would shorten the interval by up
+    to one grid step per side).
     """
     idx = np.flatnonzero(stat <= limit)
     first, last = idx[0], idx[-1]
@@ -541,9 +549,11 @@ def _profile(fit, core, settings, sfreq, n_grid=21):
 
 
 def _cv_selector(trials, times, settings):
-    """K-fold cross-validation over trials of the nested models K = 0, 1, ...: each model is
-    refitted on the average of the training trials and scored on the held-out average; the
-    smallest K within one standard error of the best mean error is chosen.
+    """Choose the number of components K by K-fold cross-validation over trials.
+
+    The nested models are K = 0, 1, ... Each model is refitted on the average of the training
+    trials and scored on the held-out average; the smallest K within one standard error of the best
+    mean error is chosen.
     """
 
     def select(path, make):
@@ -604,8 +614,10 @@ _NOT_PRESET_FIELDS = ("preset", "preset_note", "random_state")
 
 
 def _changed_from_preset(settings):
-    """Names of the fields whose value differs from the preset's (or, without a preset,
-    from the package defaults): the settings a methods text must state (REQ-008, REQ-340).
+    """Return the names of the fields whose value differs from the preset's.
+
+    Without a preset, from the package defaults: the settings a methods text must state (REQ-008,
+    REQ-340).
     """
     try:
         base = resolve_settings(settings.preset)
@@ -621,8 +633,9 @@ def _changed_from_preset(settings):
 
 
 def _draw_seed():
-    """A seed drawn from the operating system, recorded in the settings (REQ-295): a fit
-    made with ``random_state=None`` can be repeated from its settings (REQ-331).
+    """Return a seed drawn from the operating system, recorded in the settings (REQ-295).
+
+    A fit made with ``random_state=None`` can be repeated from its settings (REQ-331).
     """
     return int(np.random.default_rng().integers(2**31 - 1))
 
@@ -645,8 +658,10 @@ def preset_record(settings):
 
 
 def preset_name(value):
-    """Name of a recorded preset: ``settings["preset"]`` is ``{"name", "version"}``
-    (REQ-331); results written before it hold the name alone.
+    """Name of a recorded preset.
+
+    ``settings["preset"]`` is ``{"name", "version"}`` (REQ-331); results written before it hold the
+    name alone.
     """
     if isinstance(value, dict):
         return value.get("name")
@@ -654,10 +669,11 @@ def preset_name(value):
 
 
 def _settings_dict(settings, overrides=()):
-    """The ``settings`` record of a result (REQ-331): the full resolved settings, the preset
-    as ``{"name", "version"}``, ``_overrides`` (the keys the user set) and
-    ``_changed_from_preset`` (the keys whose value differs from the preset, stated by the
-    methods text).
+    """Return the ``settings`` record of a result (REQ-331).
+
+    The full resolved settings, the preset as ``{"name", "version"}``, ``_overrides`` (the keys the
+    user set) and ``_changed_from_preset`` (the keys whose value differs from the preset, stated by
+    the methods text).
     """
     out = dataclasses.asdict(settings)
     out["shapes"] = list(settings.shapes)
@@ -760,8 +776,9 @@ def _amplitude(fit, k):
 
 
 class ResponseModel(BaseEstimatorMixin):
-    """Estimator for evoked waveforms (spec §5.5.8): settings in ``__init__``, learned
-    attributes with a trailing underscore after :meth:`fit`.
+    """Estimator for evoked waveforms (spec §5.5.8).
+
+    Settings in ``__init__``, learned attributes with a trailing underscore after :meth:`fit`.
 
     Keywords left at None take the preset's value, or the package default when there is
     no preset (see :class:`~evoparam.models.FitSettings`).
@@ -839,6 +856,7 @@ class ResponseModel(BaseEstimatorMixin):
         ]
 
     def settings(self, **extra):
+        """Return the resolved settings of the estimator, with ``extra`` overrides."""
         keys = set(FitSettings.__dataclass_fields__) - {"preset"}
         overrides = {k: getattr(self, k) for k in keys if hasattr(self, k)}
         overrides.update({k: v for k, v in extra.items() if v is not None})
@@ -1036,9 +1054,10 @@ class ResponseModel(BaseEstimatorMixin):
         )
 
     def _as_container(self, X, *, reset):
-        """X as an Evoked or a TrialSet. An array is (n_waveforms, n_times) at ``sfreq``
-        from ``tmin``, checked the scikit-learn way (2-D, dense, real, finite; after ``fit``
-        as many time points as in ``fit``).
+        """X as an Evoked or a TrialSet.
+
+        An array is (n_waveforms, n_times) at ``sfreq`` from ``tmin``, checked the scikit-learn way
+        (2-D, dense, real, finite; after ``fit`` as many time points as in ``fit``).
         """
         X = _from_mne(X)
         if isinstance(X, (TrialSet, Evoked)):
@@ -1060,10 +1079,12 @@ class ResponseModel(BaseEstimatorMixin):
         )
 
     def _fit_container(self, X):
-        """GroupFit of a container. Without a fit window (no ``fit_window``, no preset) the
-        window is the data range; when that range cannot hold a component (shorter than
-        3 x min_fwhm, or fewer than 5 samples) every waveform is returned as skipped
-        rather than raising, so that short tabular inputs keep the estimator contract.
+        """GroupFit of a container.
+
+        Without a fit window (no ``fit_window``, no preset) the window is the data range; when that
+        range cannot hold a component (shorter than 3 x min_fwhm, or fewer than 5 samples) every
+        waveform is returned as skipped rather than raising, so that short tabular inputs keep the
+        estimator contract.
         """
         settings = self.settings()
         if settings.fit_window is not None:
@@ -1104,10 +1125,12 @@ class ResponseModel(BaseEstimatorMixin):
         )
 
     def fit(self, X, y=None):
-        """Fit every channel. Learned: ``fit_`` (GroupFit), ``components_`` (table),
-        ``times_``, ``n_features_in_`` (samples per waveform) and ``n_iter_`` (most residual
-        evaluations of one waveform's least-squares solves, at least 1). X: Evoked, TrialSet, MNE
-        object or array (n_waveforms, n_times); ``y`` is ignored.
+        """Fit every channel.
+
+        Learned: ``fit_`` (GroupFit), ``components_`` (table), ``times_``, ``n_features_in_``
+        (samples per waveform) and ``n_iter_`` (most residual evaluations of one waveform's
+        least-squares solves, at least 1). X: Evoked, TrialSet, MNE object or array (n_waveforms,
+        n_times); ``y`` is ignored.
         """
         X = self._as_container(X, reset=True)
         self.fit_ = self._fit_container(X)
@@ -1127,12 +1150,14 @@ class ResponseModel(BaseEstimatorMixin):
         return self._fit_container(self._as_container(X, reset=False))
 
     def fit_transform(self, X, y=None):
+        """Fit X, then return its feature matrix (see :meth:`transform`)."""
         return self.fit(X, y).transform()
 
     def predict(self, X=None):
-        """Fitted curves over the time axis, (n_waveforms, n_times); NaN outside the fit
-        window and for a waveform without a model. X=None: the waveforms of ``fit``; else
-        those of X fitted with the same settings.
+        """Fitted curves over the time axis, (n_waveforms, n_times).
+
+        NaN outside the fit window and for a waveform without a model. X=None: the waveforms of
+        ``fit``; else those of X fitted with the same settings.
         """
         group = self._group(X)
         out = np.full((len(group.fits), len(self.times_)), np.nan)
@@ -1146,9 +1171,11 @@ class ResponseModel(BaseEstimatorMixin):
         return out
 
     def transform(self, X=None):
-        """Feature matrix (n_waveforms, 3): latency, amplitude and width of the largest
-        component of each waveform (NaN without component). X=None: the waveforms of
-        ``fit``; else those of X fitted with the same settings.
+        """Feature matrix (n_waveforms, 3).
+
+        Latency, amplitude and width of the largest component of each waveform (NaN without
+        component). X=None: the waveforms of ``fit``; else those of X fitted with the same
+        settings.
         """
         rows = []
         for fit in self._group(X).fits:
@@ -1160,6 +1187,7 @@ class ResponseModel(BaseEstimatorMixin):
         return np.array(rows, dtype=float).reshape(-1, 3)
 
     def get_feature_names_out(self, input_features=None):
+        """Return the names of the output features."""
         return np.array(["latency", "amplitude", "fwhm"])
 
     def score(self, X=None, y=None):

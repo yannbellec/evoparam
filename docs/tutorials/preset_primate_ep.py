@@ -10,7 +10,7 @@ removal; the trials of each behavioural state are averaged separately.
 
 Data: simulated macaque recording, 16 contacts 40 µm apart, awake and NREM states
 (no public macaque dataset is in the registry yet; the preset is validated on simulations).
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Simulate a laminar recording

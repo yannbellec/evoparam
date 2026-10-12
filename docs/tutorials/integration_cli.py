@@ -11,7 +11,7 @@ tells what happened (0 success, 3 partial, 4 missing package, 5 input error, 6
 reproduction mismatch).
 
 This tutorial runs the commands with :mod:`subprocess`, as a shell script would.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # A simulated BIDS dataset
@@ -26,6 +26,7 @@ work = tempfile.mkdtemp(prefix="evoparam-cli-")
 
 
 def evoparam(*args):
+    """Run one ``evoparam`` command and print and return its JSON summary."""
     proc = subprocess.run(
         [sys.executable, "-m", "evoparam", *map(str, args), "--json"],
         capture_output=True,

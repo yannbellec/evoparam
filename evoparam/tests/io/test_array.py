@@ -148,7 +148,8 @@ def test_light_core_in_a_subprocess():
         assert trials.n_trials == 2
         assert trials.provenance.steps[-1]["overlaps_previous"] == [False, False]
         for func, args, extra in ((read_mne, (None,), "mne"), (read_edf, ("x.edf",), "edf"),
-                                  (read_bids, ("root", "01"), "data"), (list_datasets, (), "data")):
+                                  (read_bids, ("root", "01"), "data"),
+                                  (list_datasets, (), "data")):
             try:
                 func(*args)
             except ImportError as exc:

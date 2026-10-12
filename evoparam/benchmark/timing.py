@@ -579,8 +579,9 @@ def compare(document, baseline, *, time_tolerance=1.25, memory_tolerance=1.10, w
 
 
 def results_path(document, folder):
-    """``<folder>/<platform>-<python>-<commit>.json`` (spec §9.1); a run of the ``ci``
-    suite ends in ``-ci.json``.
+    """``<folder>/<platform>-<python>-<commit>.json`` (spec §9.1).
+
+    A run of the ``ci`` suite ends in ``-ci.json``.
     """
     env = document["environment"]
     commit = (env.get("git_commit") or "nocommit")[:12]
@@ -590,6 +591,7 @@ def results_path(document, folder):
 
 
 def write_results(document, path):
+    """Write a results document as JSON; returns the path."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fobj:
         json.dump(document, fobj, indent=1, allow_nan=False, default=_jsonable)

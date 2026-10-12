@@ -61,8 +61,10 @@ MODALITY_PRESETS = {
 
 @dataclasses.dataclass(eq=False)
 class TrialFitSet:
-    """Trial fits of every channel (and condition): ``fits`` (list of :class:`TrialFit`),
-    the tidy ``table`` of all of them, ``skipped_channels`` and ``settings``.
+    """Trial fits of every channel (and condition).
+
+    ``fits`` (list of :class:`TrialFit`), the tidy ``table`` of all of them, ``skipped_channels``
+    and ``settings``.
     """
 
     fits: list
@@ -72,9 +74,11 @@ class TrialFitSet:
     provenance: Provenance = dataclasses.field(default_factory=Provenance)
 
     def to_dataframe(self):
+        """Return a copy of the tidy table of all the trial fits."""
         return self.table.copy()
 
     def get(self, channel, condition=None):
+        """Return the trial fit of ``channel`` (and ``condition``)."""
         for fit in self.fits:
             if fit.channel == channel and (
                 condition is None or fit.settings.get("condition") == condition
@@ -112,6 +116,7 @@ class TrialFitSet:
 
     @classmethod
     def load(cls, path):
+        """Load a set saved by :meth:`save`."""
         import json
 
         pd = require("pandas", extra="data", caller="evoparam.trials.TrialFitSet.load")
@@ -268,12 +273,13 @@ def _choose_ridge(template, data, valid, movable=None):
 
 
 def _choose_ridge_loto(template, data, valid, movable=None):
-    """Penalty chosen by leave-one-trial-out prediction error (spec §5.7): for each trial,
-    the centre of the penalty is the channel model refitted to the average of the *other*
-    trials (``free`` fit of the channel components, warm-started at the channel values);
-    the trial is fitted with each penalty towards that centre and scored on its own samples
-    that the fit did not see (even samples to fit, odd to score: a penalised fit scored on
-    the samples it was fitted to always prefers no penalty).
+    """Penalty chosen by leave-one-trial-out prediction error (spec §5.7).
+
+    For each trial, the centre of the penalty is the channel model refitted to the average of the
+    *other* trials (``free`` fit of the channel components, warm-started at the channel values);
+    the trial is fitted with each penalty towards that centre and scored on its own samples that
+    the fit did not see (even samples to fit, odd to score: a penalised fit scored on the samples
+    it was fitted to always prefers no penalty).
     """
     n = len(data)
     if n < 3:
@@ -319,8 +325,9 @@ def _null_jitter(
     report=None,
     repeats=NULL_REPEATS,
 ):
-    """Jitter found by the same procedure on noise only: the channel curve plus each trial's
-    baseline segment (no response).
+    """Jitter found by the same procedure on noise only.
+
+    The channel curve plus each trial's baseline segment (no response).
     """
     tw = template.tw
     base = (times >= baseline[0]) & (times <= baseline[1])
@@ -798,10 +805,12 @@ def _realigned(times, trials, shifts, trusted, name, ts):
 
 
 def jitter(trial_fit, component=0):
-    """Per channel: ``jitter_sd`` (with a bootstrap interval over trusted trials),
-    ``jitter_sd_null``, ``jitter_sd_excess = sqrt(jitter_sd² - jitter_sd_null²)`` (the jitter
-    left once the part that noise alone produces is removed; the best estimate of the true
-    jitter at low SNR) and ``amplitude_jitter_corrected`` of one component (index or label).
+    """Return the jitter statistics of one component, per channel.
+
+    ``jitter_sd`` (with a bootstrap interval over trusted trials), ``jitter_sd_null``,
+    ``jitter_sd_excess = sqrt(jitter_sd² - jitter_sd_null²)`` (the jitter left once the part that
+    noise alone produces is removed; the best estimate of the true jitter at low SNR) and
+    ``amplitude_jitter_corrected`` of one component (index or label).
     """
     pd = require("pandas", extra="data", caller="evoparam.trials.jitter")
     rng = np.random.default_rng(0)
@@ -848,8 +857,9 @@ def jitter(trial_fit, component=0):
 
 
 def realign(ts, trial_fit, component=0):
-    """Average of the trusted trials, each shifted back by its latency shift of
-    ``component`` (the Woody-filter average); one Evoked per channel fit.
+    """Average the trusted trials, each shifted back by its latency shift of ``component``.
+
+    The Woody-filter average; one Evoked per channel fit.
     """
     out = []
     for fit in trial_fit.fits:
@@ -876,9 +886,10 @@ def realign(ts, trial_fit, component=0):
 
 
 def _trend(table):
-    """Amplitude scale against the position in the train, per channel, condition and
-    component: ``a_i = a (1 + c i)`` by least squares over trusted trials. ``slope`` is ``c``
-    (relative change per pulse), ``p_value`` the two-sided t test of the slope.
+    """Amplitude scale against the position in the train, per channel, condition and component.
+
+    ``a_i = a (1 + c i)`` by least squares over trusted trials. ``slope`` is ``c`` (relative change
+    per pulse), ``p_value`` the two-sided t test of the slope.
     """
     from scipy.stats import t as t_dist
 
@@ -916,8 +927,10 @@ def _trend(table):
 
 
 def state_dependence(trial_fit, *, column="state", reference=None):
-    """Amplitude and latency per behavioural or brain state (``metadata["state"]``: sleep,
-    wake, anaesthesia...), per channel and component, on the trusted trials.
+    """Return the amplitude and latency per behavioural or brain state.
+
+    The state is ``metadata["state"]`` (sleep, wake, anaesthesia...); per channel and component, on
+    the trusted trials.
 
     State changes the gain of evoked field potentials up to about three-fold (spec §6.2,
     rodent and primate presets), so the trial parameters are summarised per state level:
@@ -1051,9 +1064,10 @@ def dose_response(trial_fit, *, x="stim_current_mA", model="auto"):
 
 
 def prestimulus_dependence(trial_fit, *, band=(8.0, 13.0), n_permutations=1000, random_state=None):
-    """Amplitude against pre-stimulus phase: ``a = c0 + c1 cos(phi - phi0)``, with a
-    permutation test of ``c1`` (phases shuffled across trials). Needs ``covariates=("prestim",)``
-    in :func:`fit_trials`.
+    """Amplitude against pre-stimulus phase.
+
+    ``a = c0 + c1 cos(phi - phi0)``, with a permutation test of ``c1`` (phases shuffled across
+    trials). Needs ``covariates=("prestim",)`` in :func:`fit_trials`.
     """
     pd = require("pandas", extra="data", caller="evoparam.trials.prestimulus_dependence")
     table = trial_fit.table if isinstance(trial_fit, TrialFitSet) else trial_fit

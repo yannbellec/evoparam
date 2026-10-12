@@ -126,7 +126,8 @@ def trialset_from_mne(cls, epochs, *, picks=None, units="uV", metadata=True, sti
 
 
 def _harmonize_metadata(table, stim_columns, source):
-    """Standard stimulation columns (spec Table 4.1, REQ-313) from the metadata of the epochs:
+    """Map the epochs' metadata to the standard stimulation columns (Table 4.1, REQ-313).
+
     ``"auto"`` maps the recognised columns, a dict is a ``{source: target}`` mapping.
     """
     import warnings

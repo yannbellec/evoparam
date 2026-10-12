@@ -76,9 +76,7 @@ class Cell:
     kind: str = ""
 
     def generator_settings(self):
-        """Keyword arguments of the generator (shared settings, then the cell's), with
-        the seed.
-        """
+        """Keyword arguments of the generator (shared settings, then the cell's), with the seed."""
         if self.seed is None:
             raise DataError(
                 f"cell {self.id}: hidden cell without its seed (give the hidden seeds document)."
@@ -104,9 +102,10 @@ class Suite:
     hidden_seeds: dict | None = None
 
     def cells(self, task=None, split="public"):
-        """Cells feeding ``task`` (all tasks when None) of a split (``"public"``,
-        ``"hidden"`` or ``"all"``). Hidden cells carry their seed only when the hidden
-        seeds document was given (:meth:`with_hidden_seeds`).
+        """Return the cells feeding ``task`` (all tasks when None) of a split.
+
+        The split is ``"public"``, ``"hidden"`` or ``"all"``. Hidden cells carry their seed only
+        when the hidden seeds document was given (:meth:`with_hidden_seeds`).
         """
         out = []
         for gname, group in self.groups.items():
@@ -141,12 +140,13 @@ class Suite:
         return out
 
     def task_ids(self):
-        """The tasks of the suite, in order."""
+        """Return the tasks of the suite, in order."""
         return [t for t in TASKS if t in self.tasks]
 
     def with_hidden_seeds(self, document):
-        """A copy whose hidden cells carry their seeds, after checking ``document`` (a dict
-        or a path) against the commitment of the suite file.
+        """Return a copy whose hidden cells carry their seeds.
+
+        ``document`` (a dict or a path) is first checked against the commitment of the suite file.
 
         Raises
         ------
@@ -245,7 +245,7 @@ def load_suite(name_or_path, hidden_seeds=None):
 
 
 def load_hidden_seeds(document):
-    """The hidden seeds document from a dict or a path (checked for its schema)."""
+    """Return the hidden seeds document from a dict or a path (checked for its schema)."""
     if not isinstance(document, dict):
         with open(document, encoding="utf-8") as fobj:
             document = json.load(fobj)
@@ -301,7 +301,7 @@ def _truth_components(truth):
 
 
 def make_inputs(cell, ts=None, truth=None, tasks=None):
-    """The task inputs of a cell, with their truth attached (``TaskInput.truth``).
+    """Return the task inputs of a cell, with their truth attached (``TaskInput.truth``).
 
     Parameters
     ----------

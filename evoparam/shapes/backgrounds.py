@@ -61,18 +61,22 @@ class BackgroundBase:
 
     @property
     def param_names(self):
+        """Names of the parameters, the linear coefficients first."""
         return tuple(self.linear_names) + tuple(self.nonlinear_names)
 
     @property
     def n_params(self):
+        """Number of parameters."""
         return len(self.param_names)
 
     @property
     def n_linear(self):
+        """Number of linear parameters."""
         return len(self.linear_names)
 
     @property
     def n_nonlinear(self):
+        """Number of non-linear parameters."""
         return len(self.nonlinear_names)
 
     @property
@@ -90,7 +94,7 @@ class BackgroundBase:
         return as_params(nonlinear, self.n_nonlinear, self.name)
 
     def basis_jacobian(self, times, nonlinear=None):
-        """Derivatives of the basis, shape ``(..., n_linear, n_times, n_nonlinear)``."""
+        """Return the derivatives of the basis, shape ``(..., n_linear, n_times, n_nonlinear)``."""
         times = as_times(times)
         return np.zeros((self.n_linear, times.size, 0))
 
@@ -123,8 +127,10 @@ class BackgroundBase:
         return scale if scale > 0 else 1.0
 
     def default_bounds(self, times, data_range=None):
-        """Bounds: non-linear parameters as documented per background; linear
-        coefficients within ``±10 · data scale / max|B_j|`` on the window.
+        """Return the default bounds of the background parameters.
+
+        Non-linear parameters as documented per background; linear coefficients within
+        ``±10 · data scale / max|B_j|`` on the window.
         """
         times = as_times(times)
         nl_lower, nl_upper = self._nonlinear_bounds(times)
@@ -222,6 +228,7 @@ class ExponentialBackground(BackgroundBase):
     nonlinear_names: ClassVar[tuple] = ("tau",)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         if not self.tau_min > 0 or (self.tau_max is not None and self.tau_max <= self.tau_min):
             raise SettingsError(
                 f"{self.name}: need 0 < tau_min < tau_max, got {self.tau_min}, {self.tau_max}."
@@ -235,6 +242,7 @@ class ExponentialBackground(BackgroundBase):
         return np.stack([np.ones_like(decay), decay], axis=-2)
 
     def basis_jacobian(self, times, nonlinear):
+        """Return the derivatives of the basis, shape ``(..., n_linear, n_times, n_nonlinear)``."""
         times = as_times(times)
         tau = self._nonlinear(nonlinear)[..., 0, None]
         lag = times - self._t_ref(times)
@@ -269,6 +277,7 @@ class DoubleExponentialBackground(BackgroundBase):
     constraints: ClassVar[tuple] = ("tau2 >= 3 * tau1",)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         if not self.tau_min > 0 or (self.tau_max is not None and self.tau_max <= 3 * self.tau_min):
             raise SettingsError(
                 f"{self.name}: need 0 < 3 tau_min < tau_max, got {self.tau_min}, {self.tau_max}."
@@ -285,6 +294,7 @@ class DoubleExponentialBackground(BackgroundBase):
         return np.stack([np.ones_like(first), first, second], axis=-2)
 
     def basis_jacobian(self, times, nonlinear):
+        """Return the derivatives of the basis, shape ``(..., n_linear, n_times, n_nonlinear)``."""
         times = as_times(times)
         nonlinear = self._nonlinear(nonlinear)
         lag = times - self._t_ref(times)
@@ -348,6 +358,7 @@ class PSplineBackground(BackgroundBase):
     degree: ClassVar[int] = 3
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         start, end = map(float, self.window)
         if not (np.isfinite(start) and np.isfinite(end) and end > start):
             raise SettingsError(
@@ -373,10 +384,12 @@ class PSplineBackground(BackgroundBase):
 
     @property
     def n_basis(self):
+        """Number of B-spline basis functions."""
         return self.knots.size - self.degree - 1
 
     @property
     def linear_names(self):
+        """Names of the linear coefficients."""
         return tuple(f"c{j}" for j in range(self.n_basis))
 
     def basis(self, times, nonlinear=None):
@@ -445,6 +458,7 @@ class ArtifactBasisBackground(BackgroundBase):
     name: ClassVar[str] = "artifact_basis"
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         vectors = np.asarray(self.basis_vectors, dtype=np.float64)
         times = np.asarray(self.basis_times, dtype=np.float64)
         if (
@@ -469,6 +483,7 @@ class ArtifactBasisBackground(BackgroundBase):
 
     @property
     def linear_names(self):
+        """Names of the linear coefficients."""
         return tuple(f"c{j}" for j in range(self.basis_vectors.shape[0]))
 
     def basis(self, times, nonlinear=None):

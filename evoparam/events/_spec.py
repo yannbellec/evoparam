@@ -25,8 +25,10 @@ __all__ = []
 
 
 def spec_score(data, index):
-    """``d[n] = median_c |x_c[n] - x_c[n - 1]|`` for n = 1 .. n_times - 1 (element n - 1),
-    the median of all the picked channels (NaN changes count as zero).
+    """Return the spectral score ``d[n] = median_c |x_c[n] - x_c[n - 1]|``.
+
+    For n = 1 .. n_times - 1 (element n - 1), the median of all the picked channels (NaN changes
+    count as zero).
     """
     n_times = data.shape[1]
     index = np.asarray(index)
@@ -49,7 +51,7 @@ def spec_z(score):
 
 
 def spec_threshold(score, z, sfreq, threshold_sd, min_samples, refine=True):
-    """Method 1: onsets (sample indices) and the largest z of each artifact.
+    """Detect with method 1: onsets (sample indices) and the largest z of each artifact.
 
     ``score[i]`` is ``d[i + 1]``. The first crossing after the refractory period is kept;
     with ``refine`` the onset is the sample of the largest ``d`` within +/-2 ms of the
@@ -97,8 +99,9 @@ def spec_template(data, index, onsets, sfreq, n_template):
 
 
 def spec_rho(data, index, template):
-    """Normalised cross-correlation of the template with every window of the picked
-    channels: ``rho[n]`` for windows starting at sample n (n_times - L + 1 values).
+    """Normalised cross-correlation of the template with every window of the picked channels.
+
+    ``rho[n]`` for windows starting at sample n (n_times - L + 1 values).
     """
     from scipy.signal import fftconvolve
 

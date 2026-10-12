@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Classical scores of many waveforms at once, with the definitions of
-:func:`evoparam.models.classical_measures`.
+"""Classical scores of many waveforms at once.
+
+With the definitions of :func:`evoparam.models.classical_measures`.
 
 The statistics of this module score thousands of waveforms (bootstrap resamples,
 split halves, subsamples), so the scores are computed on arrays ``[..., n_times]``
@@ -192,13 +193,13 @@ def score_waveforms(
 
 
 def default_window(times):
-    """The post-stimulus part of the epoch, used when no window is given."""
+    """Return the post-stimulus part of the epoch, used when no window is given."""
     times = np.asarray(times, float)
     return (0.0, float(times[-1])) if times[-1] > 0 else (float(times[0]), float(times[-1]))
 
 
 def resolve_scorer(scorer, times, window=None, **scorer_kw):
-    """A function ``waveforms [..., n_times] -> scores [...]``, its name and whether it is linear.
+    """Return a function ``waveforms [..., n_times] -> scores [...]``, its name and linearity.
 
     ``scorer`` is a name of :data:`SCORES` (scored with ``window`` and ``scorer_kw``) or a
     callable ``scorer(times, waveforms) -> scores`` that takes an array

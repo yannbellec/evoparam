@@ -201,8 +201,9 @@ def _have_tabulate():
 
 
 def html(result, path=None, *, data=None, max_channels=24):
-    """One self-contained HTML file (no network access needed: figures are inline PNG):
-    summary table, figures, quality summary, warnings, methods text and provenance.
+    """Write one self-contained HTML file (no network access needed: figures are inline PNG).
+
+    Summary table, figures, quality summary, warnings, methods text and provenance.
     """
     table = _summary_table(result)
     quality = qc(result)
@@ -269,8 +270,9 @@ def _sites(values, column="stim_site"):
 
 
 def site_pages(result, data=None, *, site_column="stim_site"):
-    """The pages of :func:`pdf`: ``(site, [(channel, condition, fit position), ...])`` per
-    stimulation site of a GroupFit.
+    """Return the pages of :func:`pdf`.
+
+    ``(site, [(channel, condition, fit position), ...])`` per stimulation site of a GroupFit.
 
     The site of a fit is its condition when the GroupFit was fitted by stimulation site
     (``evoparam.fit(trials, by="stim_site")``, or ``by`` with more columns: the part of the
@@ -297,8 +299,10 @@ def site_pages(result, data=None, *, site_column="stim_site"):
 
 
 def _site_data(data, site, site_column, single_condition):
-    """The trials behind one page: the site's trials, or all of them when the fits used all
-    trials (one condition); None when they cannot be told apart.
+    """Return the trials behind one page.
+
+    The site's trials, or all of them when the fits used all trials (one condition); None when they
+    cannot be told apart.
     """
     if data is None:
         return None
@@ -309,8 +313,10 @@ def _site_data(data, site, site_column, single_condition):
 
 
 def pdf(result, path, *, data=None, max_channels=24, site_column="stim_site"):
-    """PDF report (needs matplotlib): a text page (methods, quality), then one page per
-    stimulation site (spec §5.13), then the per-channel figures.
+    """PDF report (needs matplotlib).
+
+    A text page (methods, quality), then one page per stimulation site (spec §5.13), then the
+    per-channel figures.
 
     A site page holds every channel of that site: the data (when ``data`` is given) and the
     model, for a :class:`GroupFit` (see :func:`site_pages` for how the site of a fit is

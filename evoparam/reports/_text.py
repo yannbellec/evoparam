@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Methods paragraphs from provenance (spec §5.13, report 1; REQ-338, REQ-340) and the
-package citation (REQ-346).
+"""Methods paragraphs from provenance and the package citation.
+
+Spec §5.13, report 1; REQ-338, REQ-340; the citation: REQ-346.
 
 The paragraph is built by :mod:`evoparam.data._methods` (so that ``ResponseFit``,
 ``GroupFit`` and the other results answer ``.methods_text()`` themselves) from
@@ -17,8 +18,10 @@ __all__ = ["methods_text", "citation"]
 
 
 def _provenance(obj):
-    """The provenance of a result, or of a table of :mod:`evoparam.stats` (or of the
-    reference-sensitivity report), which keeps it in ``attrs["provenance"]``.
+    """Return the provenance of a result, or of a table that keeps it in ``attrs``.
+
+    Tables of :mod:`evoparam.stats` (and the reference-sensitivity report) keep it in
+    ``attrs["provenance"]``.
     """
     from evoparam.data import Provenance
 
@@ -35,8 +38,9 @@ def _provenance(obj):
 
 
 class _Merged:
-    """Provenance-like view of several results: the steps of the first, then the steps of
-    the others that it does not hold.
+    """Provenance-like view of several results.
+
+    The steps of the first, then the steps of the others that it does not hold.
     """
 
     def __init__(self, parts):
@@ -96,8 +100,9 @@ def methods_text(result, *, cite=True):
 
 
 def citation(bibtex=False):
-    """The package citation, read from ``CITATION.cff`` (the single source, REQ-346); a
-    BibTeX ``@software`` entry with ``bibtex=True``.
+    """Return the package citation, read from ``CITATION.cff`` (the single source, REQ-346).
+
+    A BibTeX ``@software`` entry with ``bibtex=True``.
     """
     cff = read_citation()
     return citation_bibtex(cff) if bibtex else citation_text(cff)

@@ -40,7 +40,7 @@ code { font-size: 0.9em; }
 
 
 def leaderboard_html(docs):
-    """The page for a list of result documents."""
+    """Return the page for a list of result documents."""
     esc = html.escape
     suites = sorted({(d["suite"]["name"], d["suite"]["version"]) for d in docs})
     out = [

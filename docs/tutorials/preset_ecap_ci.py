@@ -9,7 +9,7 @@ removes the artifact with the forward-masking paradigm (A - B + C - D: probe alo
 masker and probe, masker alone, no pulse) and fits N1 and P2.
 
 Data: simulated cochlear implant recording, forward masking, 30 kHz.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Simulate forward-masking ECAPs

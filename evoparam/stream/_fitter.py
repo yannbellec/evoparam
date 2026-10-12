@@ -239,8 +239,9 @@ class StreamFitter:
 
     @property
     def latency_stats(self):
-        """Compute time per pulse (ms): ``p50``, ``p95``, ``p99`` and ``max`` (``n_pulses``
-        pulses so far).
+        """Compute time per pulse (ms).
+
+        ``p50``, ``p95``, ``p99`` and ``max`` (``n_pulses`` pulses so far).
         """
         values = sorted(self._compute_ms)
         if not values:
@@ -258,7 +259,7 @@ class StreamFitter:
         }
 
     def existence(self, final=False):
-        """Running existence test, per channel (a look of the sequential test).
+        """Return the running existence test, per channel (a look of the sequential test).
 
         ``final=True`` declares the end of the stream and spends what remains of the error
         rate. Returns a dict with ``channels`` and arrays ``significant``, ``statistic``,
@@ -344,7 +345,7 @@ class StreamFitter:
     ## Estimation
 
     def _segment(self, first, length):
-        """Samples ``first`` ... ``first + length - 1`` of the modelled channels."""
+        """Return the samples ``first`` ... ``first + length - 1`` of the modelled channels."""
         start = first % self._n_buffer
         stop = start + length
         if stop <= self._n_buffer:

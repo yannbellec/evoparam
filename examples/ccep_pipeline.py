@@ -16,7 +16,7 @@ whole recording:
             the latency, amplitude and uncertainty of the N1.
 
 Data: van Blooijs et al., OpenNeuro ds004080 (CC0). Only about 55 MB are read.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 import numpy as np
 

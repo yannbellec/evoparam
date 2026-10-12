@@ -15,7 +15,7 @@ looked at. With Lab Streaming Layer (extra ``stream``), the same fitter reads an
 
 Data: a simulated stream, one pulse per second, an N1 on half of the eight channels. The
 standalone script ``tutorials/92_online_mapping_with_lsl.py`` runs the same steps.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Imports
@@ -41,6 +41,7 @@ ARTIFACT = (-0.002, 0.008)  # artifact window, interpolated (s)
 
 
 def gauss(times, latency, fwhm):
+    """Return a Gaussian bump of the given latency and FWHM (s)."""
     return np.exp(-0.5 * ((times - latency) / (fwhm / 2.3548)) ** 2)
 
 

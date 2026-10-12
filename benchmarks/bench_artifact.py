@@ -33,6 +33,7 @@ CASES = [
 
 
 def make_data(n_trials=50, n_channels=128, duration=3.0, sfreq=2048.0, seed=0):
+    """Simulate the benchmark data."""
     rng = np.random.default_rng(seed)
     times = np.arange(int(-1.0 * sfreq), int((duration - 1.0) * sfreq)) / sfreq
     data = rng.normal(0, 5, (n_trials, n_channels, len(times)))
@@ -55,6 +56,7 @@ def make_data(n_trials=50, n_channels=128, duration=3.0, sfreq=2048.0, seed=0):
 
 
 def run(ts):
+    """Time every artifact-removal case on ``ts``; returns (label, method, s, limit) rows."""
     rows = []
     for method, kwargs in CASES:
         with warnings.catch_warnings():

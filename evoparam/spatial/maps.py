@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Parameter maps and the (stimulation site x channel) connectivity export (spec §5.9,
-methods 3 and 6).
+"""Parameter maps and the (stimulation site x channel) connectivity export.
+
+Spec §5.9, methods 3 and 6.
 """
 
 import re
@@ -56,9 +57,7 @@ def _contacts(site):
 
 
 def _pick(fit, component):
-    """Index of the reported component: the largest absolute amplitude, a position, or a
-    label.
-    """
+    """Index of the reported component: the largest absolute amplitude, a position, or a label."""
     comps = fit.components
     if not comps:
         return None
@@ -77,8 +76,9 @@ def _ch_info(ch_info):
 
 
 def _existence_lookup(existence):
-    """(channel, group) -> (p, significant) from a ResponseTest; (channel, site) -> P from a
-    table ``p_response`` (hierarchical fits).
+    """(channel, group) -> (p, significant) from a ResponseTest.
+
+    (channel, site) -> P from a table ``p_response`` (hierarchical fits).
     """
     tests, probs = {}, {}
     if existence is None:
@@ -340,9 +340,10 @@ def connectivity_from_long(long_table):
 
 
 def connectivity_array(wide):
-    """``(array [n_sites, n_channels], sites, channels)`` of a wide matrix: the layout of a
-    directed (site -> channel) connectivity array for network tools (mne-connectivity and
-    others).
+    """``(array [n_sites, n_channels], sites, channels)`` of a wide matrix.
+
+    The layout of a directed (site -> channel) connectivity array for network tools
+    (mne-connectivity and others).
     """
     return wide.to_numpy(float), [str(s) for s in wide.index], [str(c) for c in wide.columns]
 
@@ -381,9 +382,11 @@ def _have_nilearn():
 def plot_parameter_map(
     table, *, ax=None, projection=("x", "y"), backend="auto", stim_site=None, display_mode="ortho"
 ):
-    """Glass-brain or electrode-grid figure of a :func:`parameter_map` table (spec §5.9,
-    method 3; needs the extra ``plot``): responses coloured by ``value``, the stimulating
-    contacts, bad, masked, non-responding and failed channels drawn as distinct markers.
+    """Plot a glass-brain or electrode-grid figure of a :func:`parameter_map` table.
+
+    Spec §5.9, method 3; needs the extra ``plot``. Responses are coloured by ``value``; the
+    stimulating contacts, bad, masked, non-responding and failed channels are drawn as distinct
+    markers.
 
     Parameters
     ----------
@@ -453,7 +456,7 @@ def plot_parameter_map(
 
 
 def _glass_brain(table, display_mode):
-    """The nilearn glass brain of a parameter-map table (responses coloured by value)."""
+    """Return the nilearn glass brain of a parameter-map table (responses coloured by value)."""
     plotting = require(
         "nilearn.plotting", extra="brain", caller="evoparam.spatial.plot_parameter_map"
     )

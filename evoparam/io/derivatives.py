@@ -19,9 +19,10 @@ columns (``LongName``, ``Description``, ``Units``, ``Levels`` for categorical co
 columns carry the ``evoparam_`` prefix (REQ-316); the standard example columns
 ``electrical_stimulation_site``, ``_current`` and ``_type`` are copied unchanged.
 
-Next to each table, the result itself is saved as an ``.evoparam`` container (the trial fits
-as an ``.evoparamset`` folder of containers; both declared in ``.bidsignore``), so that :func:`read_bids_derivatives` gives back the exact objects
-(model curves included) and checks that the tables were not edited since.
+Next to each table, the result itself is saved as an ``.evoparam`` container (the trial fits as an
+``.evoparamset`` folder of containers; both declared in ``.bidsignore``), so that
+:func:`read_bids_derivatives` gives back the exact objects (model curves included) and checks that
+the tables were not edited since.
 """
 
 import json
@@ -267,8 +268,10 @@ def _write_tsv(path, columns, rows):
 
 
 def _sidecar(columns, units, extra, header=None):
-    """BIDS tabular sidecar: ``LongName``, ``Description``, ``Units`` (``"n/a"`` for labels
-    and dimensionless values, REQ-342) and ``Levels`` for the categorical columns.
+    """BIDS tabular sidecar.
+
+    ``LongName``, ``Description``, ``Units`` (``"n/a"`` for labels and dimensionless values,
+    REQ-342) and ``Levels`` for the categorical columns.
     """
     out = {}
     for name in header or columns:
@@ -328,9 +331,10 @@ def _preset(settings):
 
 
 def _metadata_rows(trials, label):
-    """Rows of the trial metadata averaged under the condition ``label``: every row for an
-    empty label, else the rows whose stim_site, condition or trial_type is the label, else
-    the rows matching the ``"a/b"`` values of a by-group; None when nothing matches.
+    """Rows of the trial metadata averaged under the condition ``label``.
+
+    Every row for an empty label, else the rows whose stim_site, condition or trial_type is the
+    label, else the rows matching the ``"a/b"`` values of a by-group; None when nothing matches.
     """
     meta = getattr(trials, "metadata", None)
     if meta is None or len(meta) == 0:
@@ -354,7 +358,7 @@ def _metadata_rows(trials, label):
 
 
 def _single(rows, column):
-    """The value of a column shared by every row, or None (absent, missing or mixed)."""
+    """Return the value of a column shared by every row, or None (absent, missing or mixed)."""
     if rows is None or column not in rows:
         return None
     values = [
@@ -449,8 +453,10 @@ def _response_rows(group, test=None, trials=None, extra_columns=()):
 
 
 def _response_columns(group, trials):
-    """Header of responses.tsv: the base columns, the classical measures present in the
-    fits, the evoparam_stim_* columns and the standard columns found in the source.
+    """Header of responses.tsv.
+
+    The base columns, the classical measures present in the fits, the evoparam_stim_* columns and
+    the standard columns found in the source.
     """
     classical = {}
     for fit in group.fits:
@@ -822,8 +828,10 @@ def write_bids_derivatives(
 
 
 def _source_datatype(trials, bids_root, subject):
-    """Datatype of the source run: the provenance of trials read by read_bids, else the
-    folder of the subject in the raw dataset, else ieeg.
+    """Datatype of the source run.
+
+    The provenance of trials read by read_bids, else the folder of the subject in the raw dataset,
+    else ieeg.
     """
     source = getattr(getattr(trials, "provenance", None), "source", None) or {}
     path = str(source.get("path") or "")
@@ -842,8 +850,9 @@ def _source_datatype(trials, bids_root, subject):
 
 
 def _registry_source(bids_root):
-    """SourceDatasets entry from the dataset registry, when the raw folder is named after a
-    registered dataset (ds004080, ...).
+    """Return the SourceDatasets entry from the dataset registry.
+
+    Only when the raw folder is named after a registered dataset (ds004080, ...).
     """
     from evoparam.io.registry import dataset_info
 
@@ -865,8 +874,9 @@ def _registry_source(bids_root):
 
 
 def _derivative_folder(path):
-    """The evoparam derivative folder: ``path`` itself, or the newest
-    ``<path>/derivatives/evoparam-*``.
+    """Return the evoparam derivative folder.
+
+    ``path`` itself, or the newest ``<path>/derivatives/evoparam-*``.
     """
     path = os.fspath(path)
     if os.path.isfile(os.path.join(path, "dataset_description.json")):
@@ -893,8 +903,9 @@ def _read_tsv_rows(path):
 
 
 def _check_table(path, expected_rows, columns):
-    """The cells of ``columns`` in the TSV are those the result gives (the table was not
-    edited after writing).
+    """Check that the cells of ``columns`` in the TSV are those the result gives.
+
+    That is, the table was not edited after writing.
     """
     _, rows = _read_tsv_rows(path)
     if len(rows) != len(expected_rows):

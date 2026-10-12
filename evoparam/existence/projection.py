@@ -46,8 +46,10 @@ PAIRS = ("disjoint", "half")
 
 
 def _half_pairs(n):
-    """One ordered pair per unordered pair {k, l}: (k, l) when k + l is odd, else (l, k), so
-    that each trial is the normalised one in about half of its pairs.
+    """One ordered pair per unordered pair {k, l}.
+
+    (k, l) when k + l is odd, else (l, k), so that each trial is the normalised one in about half
+    of its pairs.
     """
     first, second = np.triu_indices(n, 1)
     swap = (first + second) % 2 == 0

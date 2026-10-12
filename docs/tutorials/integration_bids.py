@@ -12,7 +12,7 @@ BIDS: read a deposit, check its stimulation metadata, write derivatives
 
 Data: OpenNeuro ds003708 (Mayo Clinic, CC0), subject 01, run 01; the run's tables are
 downloaded with checksums into a local skeleton of the dataset.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # A local skeleton of the run

@@ -8,7 +8,7 @@ not. The ``p300_bci`` preset fits 200 to 700 ms; trial-by-trial amplitudes of th
 serve as features for a classifier (see the scikit-learn tutorial).
 
 Data: simulated scalp EEG, targets (P3 present) and non-targets, 8 channels.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Simulate targets and non-targets

@@ -576,8 +576,9 @@ def _parse_count(values, column, report):
 
 
 def _stimulation_rows(events):
-    """Rows that describe stimulations: trial_type 'electrical_stimulation', else containing
-    'stim', else every row.
+    """Rows that describe stimulations.
+
+    The rows whose trial_type is 'electrical_stimulation', else containing 'stim', else every row.
     """
     if "trial_type" not in events.columns:
         return np.ones(len(events), dtype=bool)

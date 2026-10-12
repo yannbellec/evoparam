@@ -101,7 +101,7 @@ def _cff_text():
 
 
 def read_citation():
-    """The parsed ``CITATION.cff`` of the package (a dictionary)."""
+    """Return the parsed ``CITATION.cff`` of the package (a dictionary)."""
     return parse_cff(_cff_text())
 
 
@@ -119,8 +119,9 @@ def _authors(cff):
 
 
 def citation_text(cff=None):
-    """One-line citation: authors (family name and initials), title, version, then the DOI
-    or else the repository.
+    """One-line citation.
+
+    Authors (family name and initials), title, version, then the DOI or else the repository.
     """
     cff = read_citation() if cff is None else cff
     authors = ", ".join(
@@ -148,8 +149,10 @@ def citation_text(cff=None):
 
 
 def _version_doi(cff):
-    """The DOI of this version: an ``identifiers`` entry of type ``doi`` whose description
-    names the version (Zenodo's version DOI), when the citation file has one.
+    """Return the DOI of this version.
+
+    An ``identifiers`` entry of type ``doi`` whose description names the version (Zenodo's version
+    DOI), when the citation file has one.
     """
     for item in cff.get("identifiers") or []:
         if (
@@ -162,7 +165,7 @@ def _version_doi(cff):
 
 
 def _preferred(cff):
-    """The ``preferred-citation`` (the paper), formatted on one line, or None."""
+    """Return the ``preferred-citation`` (the paper), formatted on one line, or None."""
     paper = cff.get("preferred-citation")
     if not isinstance(paper, dict) or not paper.get("title"):
         return None

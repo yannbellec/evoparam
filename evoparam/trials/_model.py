@@ -52,9 +52,10 @@ class ChannelTemplate:
 
 
 def _layout(template, mode, movable=None):
-    """Free parameters of each component: indices into its parameter vector. With
-    ``movable`` (component indices), the other components keep their channel parameters
-    (only their amplitude is fitted).
+    """Free parameters of each component: indices into its parameter vector.
+
+    With ``movable`` (component indices), the other components keep their channel parameters (only
+    their amplitude is fitted).
     """
     if mode in ("free", "regularized"):
         return [
@@ -98,7 +99,7 @@ def _unpack(template, layout, z):
 
 
 def _value_and_loc_derivative(shape, t, params, loc, jac=True):
-    """A shape and its derivative in its location parameter, at times ``t``.
+    """Return a shape and its derivative in its location parameter, at times ``t``.
 
     The Gaussian and the skewed Gaussian (the shapes of the presets) share one pass for both
     (the same formulas as their ``evaluate`` and ``jacobian``); any other shape uses its
@@ -260,10 +261,11 @@ def fit_trials_multi(problems, max_iter=100, max_rows=1024):
 
 
 def _solve_multi(problems, max_iter):
-    """The trials of ``problems`` (same window length) in one projected Levenberg-Marquardt
-    iteration. The columns that do not move (components held at their channel latency, the
-    background's linear terms) are projected out once per trial (orthonormal basis from an
-    SVD); the iteration then works on the moving columns only.
+    """Fit the trials of ``problems`` (same window length) in one projected LM iteration.
+
+    A projected Levenberg-Marquardt iteration. The columns that do not move (components held at
+    their channel latency, the background's linear terms) are projected out once per trial
+    (orthonormal basis from an SVD); the iteration then works on the moving columns only.
     """
     infos = []
     n_t = len(problems[0]["template"].tw)
@@ -376,7 +378,7 @@ def _solve_multi(problems, max_iter):
     generic = {key: np.array(v, int) for key, v in generic.items()}
 
     def moving(zr, rows, jac):
-        """Moving columns (rows, T, p) at ``zr`` and their derivatives in the shift."""
+        """Return the moving columns (rows, T, p) at ``zr`` and their derivatives in the shift."""
         nr = len(rows)
         local = np.full(n, -1)
         local[rows] = np.arange(nr)
@@ -449,8 +451,9 @@ def _solve_multi(problems, max_iter):
             return r, beta, ms, None
 
         def jacobian(sel=None):
-            """Projected Jacobian of the problems ``sel`` (default: all): computed only for
-            the steps that are kept.
+            """Return the projected Jacobian of the problems ``sel`` (default: all).
+
+            Computed only for the steps that are kept.
             """
             sel = np.arange(len(rows)) if sel is None else np.asarray(sel)
             j = -beta[sel][:, None, :] * dm[sel]

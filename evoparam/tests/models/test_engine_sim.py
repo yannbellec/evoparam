@@ -70,7 +70,7 @@ def test_req104_detection_threshold_changes_no_decision():
 
     same = 0
     total = 0
-    for y, truth in _waveforms(20, seed=200):
+    for y, _truth in _waveforms(20, seed=200):
         counts = [
             len(model(detection_threshold=d).fit_waveform(TIMES, y).components)
             for d in (1.0, 2.0, 3.0)
@@ -310,8 +310,9 @@ def _req106_cases():
                 marks = pytest.mark.xfail(
                     strict=False,
                     reason=(
-                        f"REQ-106 not met for a {shape} truth fitted with the default pair: latency "
-                        f"MAE {measured[shape]} sample (> 0.5) on 100 waveforms: {cause[shape]} "
+                        f"REQ-106 not met for a {shape} truth fitted with the default pair: "
+                        f"latency MAE {measured[shape]} sample (> 0.5) on 100 waveforms: "
+                        f"{cause[shape]} "
                         "(CHANGELOG, 'Engine simulation requirements')"
                     ),
                 )

@@ -124,7 +124,8 @@ def _rows_by(rows, keys, cell, allowed=None, what="channel"):
         key = tuple(row[k] for k in keys)
         if allowed is not None and key not in allowed:
             raise BenchmarkValidationError(
-                f"cell {cell}: row {dict(zip(keys, key, strict=False))} is not a {what} of the input"
+                f"cell {cell}: row {dict(zip(keys, key, strict=False))} "
+                f"is not a {what} of the input"
             )
         if key in out:
             raise BenchmarkValidationError(
@@ -518,8 +519,9 @@ def _t5(items):
 
 
 def reference_scores(times, y, definition):
-    """The scores of a T6 definition on one waveform, computed with the reference
-    implementation (:func:`evoparam.models.classical.classical_measures`).
+    """Return the scores of a T6 definition on one waveform, from the reference implementation.
+
+    The reference implementation is :func:`evoparam.models.classical.classical_measures`.
 
     Returns dict measure -> value (s for latencies, data units otherwise).
     """
@@ -818,8 +820,9 @@ def score(
 
 
 def write_result(document, path):
-    """Write a result document: sorted keys, one-space indent, UTF-8, final new line (the
-    bytes depend only on the document).
+    """Write a result document.
+
+    Sorted keys, one-space indent, UTF-8, final new line (the bytes depend only on the document).
     """
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as fobj:
@@ -833,9 +836,7 @@ def write_result(document, path):
 
 
 def read_result(path):
-    """Read a result document and check its signature (raises DataError when it does not
-    match).
-    """
+    """Read a result document and check its signature (raises DataError when it does not match)."""
     with open(path, encoding="utf-8") as fobj:
         document = json.load(fobj)
     if document.get("schema") != RESULT_SCHEMA:
@@ -846,6 +847,6 @@ def read_result(path):
 
 
 def verify_result(document):
-    """True when ``signature.digest`` is the SHA-256 of the document without it."""
+    """Return True when ``signature.digest`` is the SHA-256 of the document without it."""
     body = {k: v for k, v in document.items() if k != "signature"}
     return document.get("signature", {}).get("digest") == sha256_bytes(canonical_bytes(body))

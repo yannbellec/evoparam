@@ -219,7 +219,7 @@ EB_KEYS = {
 
 
 def _init_values(data, eb_variance, label):
-    """Starting point: the empirical-Bayes means and standard deviations."""
+    """Return the starting point: the empirical-Bayes means and standard deviations."""
     out = {"mu_latency": data["prior"]["lat_centre"], "mu_amplitude": data["prior"]["amp_centre"]}
     if eb_variance is None or not len(eb_variance):
         return out
@@ -363,9 +363,10 @@ def _summary(draws):
 
 
 def _from_dict(az, groups):
-    """``InferenceData`` from ``{group: {variable: draws}}``: one dict of groups with
-    arviz >= 1, one keyword per group with arviz 0.x (where a dict alone would be read as
-    a single variable named after the group).
+    """Build an ``InferenceData`` from ``{group: {variable: draws}}``.
+
+    One dict of groups with arviz >= 1, one keyword per group with arviz 0.x (where a dict alone
+    would be read as a single variable named after the group).
     """
     if int(str(az.__version__).split(".")[0]) >= 1:
         return az.from_dict(groups)

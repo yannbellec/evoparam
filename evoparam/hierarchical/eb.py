@@ -149,9 +149,10 @@ def shrink(y, se, subject, channel, X=None):
 
 
 def jitter_components(latency, noise_sd, subject, channel):
-    """Trial-to-trial latency jitter beyond noise: REML residual SD, and the ex-Gaussian
-    decomposition (``sigma``, ``tau``) from the second and third moments of the centred
-    trial latencies.
+    """Trial-to-trial latency jitter beyond noise.
+
+    REML residual SD, and the ex-Gaussian decomposition (``sigma``, ``tau``) from the second and
+    third moments of the centred trial latencies.
     """
     latency = np.asarray(latency, float)
     noise_sd = np.asarray(noise_sd, float)
@@ -184,7 +185,7 @@ def jitter_components(latency, noise_sd, subject, channel):
 
 
 def latency_standard_error(latency, wald_se, jitter_sd, n_trials, low, high, fallback=None):
-    """Standard error of channel latencies fitted on the average of ``n_trials`` trials.
+    """Return the standard error of channel latencies fitted on the average of ``n_trials`` trials.
 
     Two errors add up: the noise of the average (``wald_se``, from the fit) and the mean of
     the trial-to-trial jitter (``jitter_sd`` beyond noise, divided by ``sqrt(n_trials)``).
@@ -255,7 +256,7 @@ def design_matrix(values, terms):
 
 
 def effects_table(out, names, level=0.95):
-    """Fixed effects with standard errors, intervals and two-sided p-values (normal)."""
+    """Return the fixed effects with standard errors, intervals and two-sided p-values (normal)."""
     import pandas as pd
 
     beta = np.asarray(out["beta"], float)

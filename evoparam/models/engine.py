@@ -91,8 +91,9 @@ def ar_model(z, return_acov=False):
 
 
 def _ar_autocovariance(phi, var):
-    """Autocovariances of lags 0 .. p of a stationary AR(p) model (Yule-Walker equations
-    solved for the autocovariances).
+    """Return the autocovariances of lags 0 .. p of a stationary AR(p) model.
+
+    The Yule-Walker equations are solved for the autocovariances.
     """
     p = len(phi)
     lhs = np.eye(p + 1)
@@ -165,9 +166,10 @@ class Whitener:
         return np.where(self.rows[:, None], u, 0.0)
 
     def into(self, x, out):
-        """``self(x)`` for a matrix ``x`` (n x k, time along the first axis), written into
-        ``out`` (which may be ``x``): the same operations, without the temporary arrays.
-        Masked rows are multiplied by 0 (``self`` selects 0 for them).
+        """Apply ``self(x)`` to a matrix ``x`` (n x k, time along the first axis), into ``out``.
+
+        ``out`` may be ``x``: the same operations, without the temporary arrays. Masked rows are
+        multiplied by 0 (``self`` selects 0 for them).
         """
         raw = x / self.scale[:, None]
         if len(self.a) > 1:
@@ -185,8 +187,10 @@ class Whitener:
 
 
 def _inverse_cholesky(acov):
-    """Inverse of the lower Cholesky factor of the Toeplitz matrix of ``acov`` (p <= 10),
-    by plain loops (no LAPACK call, see Whitener); None when it is not positive definite.
+    """Return the inverse of the lower Cholesky factor of the Toeplitz matrix of ``acov``.
+
+    For p <= 10, by plain loops (no LAPACK call, see Whitener); None when it is not positive
+    definite.
     """
     p = len(acov)
     cov = acov[np.abs(np.arange(p)[:, None] - np.arange(p)[None, :])]
@@ -217,8 +221,10 @@ MIN_BAND_POINTS = 8
 
 
 def noise_stride(z):
-    """Largest stride ``k`` (2 .. ``MAX_STRIDE``) such that the noise ``z`` has an empty band
-    just above ``1 / k`` of the Nyquist frequency; 1 when it fills its band.
+    """Return the largest stride ``k`` (2 .. ``MAX_STRIDE``) at which the noise band is empty.
+
+    The noise ``z`` has an empty band just above ``1 / k`` of the Nyquist frequency; 1 when it
+    fills its band.
 
     The test compares the median level of the Hann-tapered periodogram of the detrended
     noise in ``(1/k, 1.5/k]`` and in ``(0.5/k, 1/k]`` (fractions of the Nyquist frequency).
@@ -247,8 +253,9 @@ def noise_stride(z):
 
 
 class StridedWhitener(Whitener):
-    """Whitening of a noise that fills only the lowest ``1 / k`` of its band (``k`` =
-    ``stride``, from ``noise_stride``): an upsampled recording, or one whose anti-alias or
+    """Whitening of a noise that fills only the lowest ``1 / k`` of its band.
+
+    ``k`` is ``stride``, from ``noise_stride``: an upsampled recording, or one whose anti-alias or
     hardware low-pass is well below the Nyquist frequency.
 
     Only every k-th row carries evidence, the rows of the samples ``phase``, ``phase + k``,
@@ -317,10 +324,11 @@ MIN_PLUS_MINUS = 10
 
 
 def plus_minus(trials):
-    """Plus-minus reference (Schimmel 1967): the trials averaged with alternating signs
-    (+, -, +, ... in their order; an odd last trial is left out). It holds the noise of the
-    average over the whole epoch and none of the response. None with fewer than
-    ``MIN_PLUS_MINUS`` trials.
+    """Plus-minus reference (Schimmel 1967).
+
+    The trials averaged with alternating signs (+, -, +, ... in their order; an odd last trial is
+    left out). It holds the noise of the average over the whole epoch and none of the response.
+    None with fewer than ``MIN_PLUS_MINUS`` trials.
     """
     trials = np.asarray(trials, float)
     n = (len(trials) // 2) * 2
@@ -505,8 +513,9 @@ class _Structure:
         return beta, b - a @ beta, m, u
 
     def _target(self):
-        """Whitened data followed by the targets of the prior rows, and the prior rows
-        (None without them); computed once per structure.
+        """Return the whitened data followed by the targets of the prior rows, and the prior rows.
+
+        None without prior rows; computed once per structure.
         """
         if self._aug is None:
             n_cols = len(self.shapes) + self.n_lin_bg
@@ -522,9 +531,10 @@ class _Structure:
         return self._aug
 
     def reduced(self, theta):
-        """The projected residual of :meth:`solve` in the basis of the QR factorisation of
-        the whitened design, and what :meth:`reduced_jacobian` and :meth:`reduced_solution`
-        need.
+        """Return the projected residual of :meth:`solve` in the basis of the QR factorisation.
+
+        The QR factorisation of the whitened design, and what :meth:`reduced_jacobian` and
+        :meth:`reduced_solution` need.
 
         With ``A = Q R`` (the whitened design and the prior rows, Householder QR) the
         residual is ``(I - Q1 Q1^T) b = Q2 Q2^T b``, returned as ``z = Q2^T b``: the same
@@ -665,9 +675,10 @@ def _upper_mask(n):
 
 
 class _OrderedMap:
-    """Ordered parameterisation of the latencies (spec §5.5.3 step 5): the optimiser sees
-    ``u = mu_1`` and ``v_k = ln(mu_{k+1} - mu_k)``, so that the components stay in ascending
-    latency order inside every optimisation. Other parameters are unchanged.
+    """Ordered parameterisation of the latencies (spec §5.5.3 step 5).
+
+    The optimiser sees ``u = mu_1`` and ``v_k = ln(mu_{k+1} - mu_k)``, so that the components stay
+    in ascending latency order inside every optimisation. Other parameters are unchanged.
     """
 
     def __init__(self, chain, lower, upper):
@@ -875,9 +886,10 @@ def _param_latencies(struct, theta):
 
 
 def _cancelling_pair(struct, theta, beta, settings):
-    """True when two components of opposite signs overlap: their latencies are closer than
-    ``overlap_c * (sigma_a + sigma_b)``, the overlap of spec §5.5.3 step 5 (sigma = FWHM /
-    2.3548 of each fitted component).
+    """Return True when two components of opposite signs overlap.
+
+    Their latencies are closer than ``overlap_c * (sigma_a + sigma_b)``, the overlap of spec §5.5.3
+    step 5 (sigma = FWHM / 2.3548 of each fitted component).
 
     Such a pair is not identifiable: two large components of opposite signs at almost the
     same latency describe one deflection (or a biphasic complex) as their difference, with
@@ -904,9 +916,11 @@ def _cancelling_pair(struct, theta, beta, settings):
 
 
 def cancelling_pairs(latencies, sigmas, amplitudes, overlap_c):
-    """Index pairs ``(a, b)`` of components of opposite signs whose latencies are closer
-    than ``overlap_c * (sigma_a + sigma_b)`` (the identifiability rule of the engine, also
-    used by :func:`evoparam.spatial.fit_shared`). A zero amplitude has no sign.
+    """Return the index pairs ``(a, b)`` of the cancelling components.
+
+    Components of opposite signs whose latencies are closer than
+    ``overlap_c * (sigma_a + sigma_b)`` (the identifiability rule of the engine, also used by
+    :func:`evoparam.spatial.fit_shared`). A zero amplitude has no sign.
     """
     out = []
     for a in range(len(latencies)):
@@ -963,9 +977,10 @@ def _evaluate_state(struct_maker, shapes, theta0, settings, n_eff, f_scale, kind
 
 
 def _polish(state, make, settings, n_eff, f_scale, kind):
-    """Re-optimise a state from several starting values of the background's time
-    constants: a background fitted before a component existed may hold that component (a
-    slow exponential that mimics a broad N2), a local optimum the optimiser would keep.
+    """Re-optimise a state from several starting values of the background's time constants.
+
+    A background fitted before a component existed may hold that component (a slow exponential that
+    mimics a broad N2), a local optimum the optimiser would keep.
     """
     struct = make(state.shapes)
     if not struct.n_bg:
@@ -987,7 +1002,7 @@ def _latency_of(shape, params):
 
 
 def _starts(shape, guess, n_starts, tw):
-    """The guess and perturbations of its latency parameter by +/- a quarter width."""
+    """Return the guess and perturbations of its latency parameter by +/- a quarter width."""
     out = [np.asarray(guess, float)]
     if n_starts <= 1:
         return out
@@ -1011,11 +1026,12 @@ _COUNTER = threading.local()
 
 
 def noise_phase(z, index, k):
-    """Phase (0 .. k - 1) of the samples ``index % k == phase`` that hold the noise ``z``
-    (sampled at ``index``) best: the one whose strided noise has the largest level at the top
-    of its band (median Hann-tapered periodogram of the detrended noise over its top 5 %,
-    and at least ``MIN_BAND_POINTS`` points). 0 when a phase has fewer than
-    ``4 * MIN_BAND_POINTS`` samples.
+    """Return the phase (0 .. k - 1) of the strided samples that hold the noise ``z`` best.
+
+    The samples ``index % k == phase`` of the noise sampled at ``index``: the phase whose strided
+    noise has the largest level at the top of its band (median Hann-tapered periodogram of the
+    detrended noise over its top 5 %, and at least ``MIN_BAND_POINTS`` points). 0 when a phase has
+    fewer than ``4 * MIN_BAND_POINTS`` samples.
 
     An upsampled recording keeps its own samples on one phase (a windowed-sinc interpolator
     such as ``prep.resample`` passes them through). The others are interpolated, and the
@@ -1048,9 +1064,10 @@ def noise_phase(z, index, k):
 
 
 def _noise_stride(times, y, settings, mask, noise_ref):
-    """``(noise_stride, noise_phase)`` of the noise the AR model is fitted to (the
-    plus-minus reference or the baseline); ``(1, 0)`` for the other noise models or without
-    enough noise samples.
+    """Return ``(noise_stride, noise_phase)`` of the noise the AR model is fitted to.
+
+    That noise is the plus-minus reference or the baseline; ``(1, 0)`` for the other noise models
+    or without enough noise samples.
     """
     if settings.noise_model != "ar":
         return 1, 0
@@ -1421,8 +1438,10 @@ _WIDTH_PARAMS = ("sigma", "omega")
 
 
 def _spec_starts(shape, guess, n_starts, tw):
-    """Spec §5.5.3 step 4: the candidate itself and ``n_starts - 1`` perturbations, in this
-    order: latency ``-/+ sigma_0/2``, width ``x 0.5`` and ``x 2``.
+    """Return the starting values of spec §5.5.3 step 4.
+
+    The candidate itself and ``n_starts - 1`` perturbations, in this order: latency
+    ``-/+ sigma_0/2``, width ``x 0.5`` and ``x 2``.
     """
     guess = np.asarray(guess, float)
     names = shape.param_names
@@ -1443,10 +1462,11 @@ def _spec_starts(shape, guess, n_starts, tw):
 
 
 def _spec_step(current, picks, smooth, make, settings, n_eff, f_scale, kind, tw, forced):
-    """One step of the forward search of spec §5.5.3 step 4: the candidates in order of
-    ``|r|``, each fitted with every allowed shape from ``n_starts`` starts (all parameters
-    re-optimised), the best kept; the first that improves the criterion by ``delta`` is
-    accepted, otherwise the next is tried (at most ``2 * max_components``).
+    """One step of the forward search of spec §5.5.3 step 4.
+
+    The candidates in order of ``|r|``, each fitted with every allowed shape from ``n_starts``
+    starts (all parameters re-optimised), the best kept; the first that improves the criterion by
+    ``delta`` is accepted, otherwise the next is tried (at most ``2 * max_components``).
 
     Returns (accepted state or None, best rejected change of the criterion).
     """
@@ -1531,8 +1551,10 @@ RESEED_COND = 1e5
 
 
 def _suspicious(state, make, settings):
-    """A pair of neighbouring components of opposite sign closer than ``overlap_c`` times
-    their summed widths, or a nearly singular design (one amplitude cancelling another).
+    """Tell whether a state is suspicious.
+
+    A pair of neighbouring components of opposite sign closer than ``overlap_c`` times their summed
+    widths, or a nearly singular design (one amplitude cancelling another).
     """
     struct = make(state.shapes)
     info = []
@@ -1558,8 +1580,10 @@ def _suspicious(state, make, settings):
 def _reseed(
     state, base, make, settings, n_eff, f_scale, kind, tw, valid, sigma, sfreq, residual_of
 ):
-    """A better state with the same number of components, started on the extrema of the
-    data, or None. Tried only when ``state`` is suspicious (see :func:`_suspicious`).
+    """Return a better state with the same number of components, or None.
+
+    The state is started on the extrema of the data. Tried only when ``state`` is suspicious (see
+    :func:`_suspicious`).
     """
     import itertools
 
@@ -1594,9 +1618,11 @@ def _reseed(
 
 
 def _sort_state(state, make):
-    """Components in ascending latency. With the ordered parameterisation the order is that
-    of the latency parameters (part of the model); otherwise that of the features (sorted
-    after each step, the order carrying no meaning in the model).
+    """Components in ascending latency.
+
+    With the ordered parameterisation the order is that of the latency parameters (part of the
+    model); otherwise that of the features (sorted after each step, the order carrying no meaning
+    in the model).
     """
     struct = make(state.shapes)
     if struct.ordered:
@@ -1619,10 +1645,11 @@ def _sort_state(state, make):
 
 
 def _prune(state, make, settings, n_eff, f_scale, kind, out):
-    """Drop the components of a reseeded state that no longer lower the criterion by
-    ``delta`` (the acceptance rule of the forward search, §5.5.3 step 4): the state without
-    each component is refitted from the current values, and the best removal is applied
-    while its criterion is less than ``delta`` above the state's.
+    """Drop the components of a reseeded state that no longer lower the criterion by ``delta``.
+
+    This is the acceptance rule of the forward search, §5.5.3 step 4: the state without each
+    component is refitted from the current values, and the best removal is applied while its
+    criterion is less than ``delta`` above the state's.
     """
     while len(state.shapes) >= 2:
         struct = make(state.shapes)

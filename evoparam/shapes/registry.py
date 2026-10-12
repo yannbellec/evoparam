@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Registries of shapes and backgrounds, and the checks run on user shapes (spec §5.5.1).
 
-``SHAPES`` and ``BACKGROUNDS`` map a name to a class (or, for a user shape
-registered as an instance, to that instance); they add the shapes and backgrounds of the
-entry-point group ``evoparam.shapes`` on first access (plugins, spec §10.8). :func:`register_shape` adds a
-user shape after checking the protocol, the unit amplitude and the Jacobian
-numerically; a failed check raises :class:`SettingsError` naming the check.
+``SHAPES`` and ``BACKGROUNDS`` map a name to a class (or, for a user shape registered as an
+instance, to that instance); they add the shapes and backgrounds of the entry-point group
+``evoparam.shapes`` on first access (plugins, spec §10.8). :func:`register_shape` adds a user shape
+after checking the protocol, the unit amplitude and the Jacobian numerically; a failed check raises
+:class:`SettingsError` naming the check.
 """
 
 import dataclasses

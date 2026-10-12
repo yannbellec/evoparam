@@ -25,8 +25,10 @@ def _signed(y, polarity):
 
 
 def _local_peak(t, y, polarity, n_neighbors):
-    """ERPLAB-style local peak: larger than ``n_neighbors`` samples on each side (and than
-    their mean); falls back to the simple extremum when no sample qualifies.
+    """ERPLAB-style local peak.
+
+    Larger than ``n_neighbors`` samples on each side (and than their mean); falls back to the
+    simple extremum when no sample qualifies.
     """
     s = np.asarray(_signed(y, polarity), float)
     n = len(s)

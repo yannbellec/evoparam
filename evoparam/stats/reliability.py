@@ -168,8 +168,10 @@ def _trial_data(ts, index):
 
 
 def _scorer_on_window(scorer, times, window, scorer_kw):
-    """Scorer of waveforms cropped to the window (a named score), or of whole waveforms (a
-    callable); returns the scorer, its name, linearity, the window and the samples kept.
+    """Return the scorer of waveforms cropped to the window, or of whole waveforms.
+
+    Cropped for a named score, whole for a callable; returns the scorer, its name, linearity, the
+    window and the samples kept.
     """
     if isinstance(scorer, str):
         window = default_window(times) if window is None else window

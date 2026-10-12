@@ -181,7 +181,7 @@ def shape_params(shape, latency, fwhm=None, **form):
 
 
 def _draw(value, rng):
-    """A number, or a uniform draw in a ``(low, high)`` range."""
+    """Return a number, or a uniform draw in a ``(low, high)`` range."""
     if isinstance(value, (tuple, list, np.ndarray)):
         if len(value) != 2:
             raise SettingsError(f"a range must be (low, high), got {value!r}.")
@@ -234,6 +234,7 @@ class ComponentSpec:
     role: str = "target"
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         if not isinstance(self.label, str) or not self.label:
             raise SettingsError(
                 f"ComponentSpec: label must be a non-empty string, got {self.label!r}."
@@ -278,7 +279,7 @@ class ComponentSpec:
 
 
 def as_spec(obj, presets=None):
-    """A :class:`ComponentSpec` from a spec, a dict of its fields, or a preset name."""
+    """Return a :class:`ComponentSpec` from a spec, a dict of its fields, or a preset name."""
     if isinstance(obj, ComponentSpec):
         return obj
     if isinstance(obj, str):

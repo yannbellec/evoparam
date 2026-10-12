@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Regenerate a saved result from its provenance and compare (spec §9.12, REQ-333, REQ-334,
-REQ-335).
+"""Regenerate a saved result from its provenance and compare (spec §9.12).
+
+REQ-333, REQ-334, REQ-335.
 
 :func:`reproduce` reloads a ``.evoparam`` container, re-runs the recorded
 ``provenance.steps`` in order from the recorded source (or from ``data``), with the
@@ -99,7 +100,7 @@ def _resolve_path(path):
 
 
 def _callable(function):
-    """The public function (or container method name) of a dotted step name."""
+    """Return the public function (or container method name) of a dotted step name."""
     parts = function.split(".")
     for cut in range(len(parts) - 1, 1, -1):
         try:
@@ -117,7 +118,7 @@ def _callable(function):
 
 
 def _accepted(func, settings):
-    """The settings that ``func`` accepts as keyword arguments."""
+    """Return the settings that ``func`` accepts as keyword arguments."""
     params = inspect.signature(func).parameters
     if any(p.kind == p.VAR_KEYWORD for p in params.values()):
         return dict(settings)
@@ -321,8 +322,9 @@ def _rel(a, b):
 
 
 def _compare(new, old, path, rtol, atol, out):
-    """Append (path, relative difference or None) of every disagreement; return the largest
-    relative difference among the numbers compared.
+    """Append (path, relative difference or None) of every disagreement.
+
+    Return the largest relative difference among the numbers compared.
     """
     if dataclasses.is_dataclass(old) and not isinstance(old, type):
         if type(new) is not type(old):
@@ -586,8 +588,9 @@ def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=
 
 
 def migrate(path):
-    """Rewrite a container in place under the current schema (``evoparam-result/<major>``);
-    the migrations applied are recorded in its provenance (REQ-334).
+    """Rewrite a container in place under the current schema (``evoparam-result/<major>``).
+
+    The migrations applied are recorded in its provenance (REQ-334).
 
     Returns
     -------

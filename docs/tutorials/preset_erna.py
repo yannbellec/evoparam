@@ -10,7 +10,7 @@ artifact with a template of one pulse period, then fits one damped oscillation p
 
 Data: a simulated burst of 10 pulses on 4 DBS contacts (no public ERNA dataset exists; the
 preset is validated on simulations, REQ-276).
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Simulate ERNA bursts

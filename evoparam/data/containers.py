@@ -160,7 +160,10 @@ def _check_nan(data, masks):
 
 
 def _time_slice(times, sfreq, tmin, tmax):
-    """Samples with tmin <= t < tmax, as a slice (windows include tmin, exclude tmax)."""
+    """Return the samples with tmin <= t < tmax, as a slice.
+
+    Windows include tmin and exclude tmax.
+    """
     tol = 1e-3 / sfreq
     keep = np.ones(times.size, dtype=bool)
     if tmin is not None:
@@ -435,6 +438,7 @@ class TrialSet(_ContainerMixin):
     provenance: Provenance = field(default_factory=Provenance)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         if not (isinstance(self.data, np.ndarray) and self.data.dtype == np.float64):
             self.data = np.asarray(self.data, dtype=np.float64)
         self.times = np.asarray(self.times, dtype=np.float64)
@@ -480,9 +484,11 @@ class TrialSet(_ContainerMixin):
 
     @property
     def n_trials(self):
+        """Number of trials."""
         return int(self.data.shape[0])
 
     def __repr__(self):
+        """Return a one-line summary."""
         modality = f", {self.modality}" if self.modality else ""
         return (
             f"<TrialSet | {self.n_trials} trials × {self.n_channels} channels × "
@@ -574,9 +580,10 @@ class TrialSet(_ContainerMixin):
 
     @classmethod
     def from_mne(cls, epochs, *, picks=None, units="uV", metadata=True, stim_columns="auto"):
-        """TrialSet from ``mne.Epochs``: V -> ``units``, channel types, bad channels,
-        positions (mm), metadata with the event names in ``condition``, event times
-        (spec §10.1, extra ``mne``).
+        """TrialSet from ``mne.Epochs``.
+
+        V -> ``units``, channel types, bad channels, positions (mm), metadata with the event names
+        in ``condition``, event times (spec §10.1, extra ``mne``).
         """
         from ._mne import trialset_from_mne
 
@@ -591,8 +598,9 @@ class TrialSet(_ContainerMixin):
         return trialset_to_mne(self, ch_types=ch_types)
 
     def to_xarray(self):
-        """``xarray.DataArray`` of the data, dims ``("trial", "channel", "time")`` (extra
-        ``xarray``).
+        """Return an ``xarray.DataArray`` of the data (extra ``xarray``).
+
+        Its dims are ``("trial", "channel", "time")``.
 
         Coordinates: ``trial`` (0..n-1), ``channel`` (names), ``time`` (s); every metadata
         column of plain values is a coordinate along ``trial`` and every ``ch_info``
@@ -855,6 +863,7 @@ class Evoked(_ContainerMixin):
         return evoked_to_mne(self, ch_types=ch_types, comment=comment)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         if not (isinstance(self.data, np.ndarray) and self.data.dtype == np.float64):
             self.data = np.asarray(self.data, dtype=np.float64)
         self.times = np.asarray(self.times, dtype=np.float64)
@@ -906,6 +915,7 @@ class Evoked(_ContainerMixin):
         return self
 
     def __repr__(self):
+        """Return a one-line summary."""
         modality = f", {self.modality}" if self.modality else ""
         n_trials = (
             self.n_trials

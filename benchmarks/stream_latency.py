@@ -35,6 +35,7 @@ N2 = (30.0, 0.12, 0.05)
 
 
 def gauss(times, latency, fwhm):
+    """Return a Gaussian bump of the given latency and FWHM (s)."""
     return np.exp(-0.5 * ((times - latency) / (fwhm / 2.3548)) ** 2)
 
 
@@ -52,8 +53,10 @@ def template(seed=0, n_components=1):
 
 
 def stream_blocks(n_pulses, n_channels=N_CHANNELS, seed=1, n_components=1):
-    """One block of samples per pulse period: noise, artifact spike at the onset, response
-    (jittered, scaled) on the first half of the channels. Yields (block, onset sample).
+    """One block of samples per pulse period.
+
+    Noise, artifact spike at the onset, response (jittered, scaled) on the first half of the
+    channels. Yields (block, onset sample).
     """
     rng = np.random.default_rng(seed)
     n = int(PERIOD * SFREQ)

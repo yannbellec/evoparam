@@ -13,7 +13,7 @@ trial, which of two currents was used.
 Data: simulated CCEPs at 2 and 6 mA; the N1 is three times larger at 6 mA (an amplitude
 growing with the current, as the input-output curves of CCEPs do), with a 30 % trial-to-trial
 variability of the amplitude.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Two currents

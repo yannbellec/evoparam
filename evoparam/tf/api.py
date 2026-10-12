@@ -119,9 +119,10 @@ def _labels(ts, by):
 
 
 def _invalid_pixels(masks, half_support, n_times, out_idx):
-    """True where a pixel's kernel reaches an epoch edge (cone of influence) or a masked
-    sample (artifact mask widened by the kernel's temporal support at each frequency).
-    Shape (n_trials or 1, n_freqs, n_out).
+    """Return True where a pixel's kernel reaches an epoch edge or a masked sample.
+
+    An epoch edge is the cone of influence; the artifact mask is widened by the kernel's temporal
+    support at each frequency. Shape (n_trials or 1, n_freqs, n_out).
     """
     n_freqs = len(half_support)
     t = np.arange(n_times)[out_idx]
@@ -141,8 +142,9 @@ def _invalid_pixels(masks, half_support, n_times, out_idx):
 
 
 def _footprint_curve(fit, times):
-    """The fitted model ŷ(t): components everywhere, background inside the fit window with
-    short cosine ramps at its edges.
+    """Return the fitted model ŷ(t).
+
+    Components everywhere, background inside the fit window with short cosine ramps at its edges.
     """
     curve = evaluate_fit(fit, times, background=False)
     if fit.background:
@@ -159,7 +161,7 @@ def _footprint_curve(fit, times):
 
 
 def _filled(x, masks):
-    """Samples with masked and missing values set to zero (their pixels are invalid)."""
+    """Return the samples with masked and missing values set to zero (their pixels are invalid)."""
     x = np.nan_to_num(np.asarray(x, float))
     return x if masks is None else np.where(masks, 0.0, x)
 
@@ -179,8 +181,9 @@ def _power(kernels, x, out_idx):
 
 
 def _row_power(ts, trial_idx, ch, kernels, out_idx):
-    """Trials of one row with masked samples zeroed, their power (invalid pixels NaN) and
-    the pixels with enough valid trials.
+    """Return the trials of one row with masked samples zeroed, and their power.
+
+    Also the power with invalid pixels NaN and the pixels with enough valid trials.
     """
     masks = None if ts.masks is None else ts.masks[trial_idx, ch]
     invalid = _invalid_pixels(masks, kernels.half_support, ts.n_times, out_idx)
@@ -193,8 +196,9 @@ def _row_power(ts, trial_idx, ch, kernels, out_idx):
 
 
 def _row_test(stats, test, power, ref_times, tested, alpha, n_permutations, rng):
-    """T (or z) map and pixel p-values of one row (see :func:`evoparam.tf.stats.test_map`
-    and :func:`evoparam.tf.stats.baseline_normal_map`).
+    """Return the T (or z) map and the pixel p-values of one row.
+
+    See :func:`evoparam.tf.stats.test_map` and :func:`evoparam.tf.stats.baseline_normal_map`.
     """
     if stats == "baseline_normal":
         return baseline_normal_map(power, ref_times, tested)
@@ -214,9 +218,11 @@ def _row_p(padj):
 
 
 def _region_stats(per_trial, test, tmap, reported, sig):
-    """Zone metric from one row's values on the zone's valid pixels (``per_trial`` and
-    ``test`` (n_trials, n_cells), the others (n_cells,)): signed mean, trial-level t and p,
-    fractions of significant pixels (any sign, increases, decreases), per-trial values.
+    """Return the zone metrics from one row's values on the zone's valid pixels.
+
+    ``per_trial`` and ``test`` are (n_trials, n_cells), the others (n_cells,): signed mean,
+    trial-level t and p, fractions of significant pixels (any sign, increases, decreases),
+    per-trial values.
     """
     from scipy import stats as sstats
 
@@ -791,8 +797,9 @@ def _zone_metrics(ts, tf, regions, kernels, out_idx, ref_times, groups, labels, 
 
 
 def tf_zones(tf, *, method="nmf", max_zones=8, random_state=None, cp_stability="split_half"):
-    """Data-driven zones of a TFFit (made with ``zones="auto"``), with another method or
-    bound. Returns the zone table (without p-values, which need the trials).
+    """Data-driven zones of a TFFit (made with ``zones="auto"``), with another method or bound.
+
+    Returns the zone table (without p-values, which need the trials).
 
     ``cp_stability`` (``method="cp"``): the rank is chosen on split halves of each row's
     trials (``"split_half"``, spec §5.10; halves of the rows when the TFFit holds no trial

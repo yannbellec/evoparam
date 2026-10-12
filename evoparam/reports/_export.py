@@ -41,7 +41,7 @@ def _decode_values(values, dtype):
 
 
 def to_json(result, path=None, *, validate=None):
-    """The full result as one JSON document (schema ``evoparam-result/1``).
+    """Return the full result as one JSON document (schema ``evoparam-result/1``).
 
     The document holds the files of the ``.evoparam`` container: ``structure`` (the fields),
     ``arrays`` (dtype, shape and flat values; ``"nan"``, ``"inf"`` and ``"-inf"`` for the
@@ -117,7 +117,7 @@ def _have_jsonschema():
 
 
 def schema():
-    """The shipped JSON Schema (a dict)."""
+    """Return the shipped JSON Schema (a dict)."""
     from importlib import resources
 
     return json.loads(
@@ -155,7 +155,7 @@ def validate_json(document):
 
 
 def from_json(source):
-    """The result of a document written by :func:`to_json` (dict, JSON text or path)."""
+    """Return the result of a document written by :func:`to_json` (dict, JSON text or path)."""
     from evoparam.data._jsonutil import dumps
     from evoparam.data.serialize import load_object
 

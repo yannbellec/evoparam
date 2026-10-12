@@ -11,7 +11,7 @@ segments as runs.
 
 Data: a Neo block built in memory (two segments, a signal in mV, stimulus events), as a
 file reader of Neo would return it.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # A Neo block

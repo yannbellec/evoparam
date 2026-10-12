@@ -87,7 +87,7 @@ def seed_streams(seed):
 
 
 def time_axis(sfreq, tmin, tmax):
-    """Samples ``tmin <= t < tmax`` on the grid ``k / sfreq`` (0.0 is a sample)."""
+    """Return the samples ``tmin <= t < tmax`` on the grid ``k / sfreq`` (0.0 is a sample)."""
     if not (np.isfinite(sfreq) and sfreq > 0):
         raise SettingsError(f"sfreq must be a positive number, got {sfreq}.")
     first = int(np.ceil(tmin * sfreq - 1e-9))
@@ -100,7 +100,7 @@ def time_axis(sfreq, tmin, tmax):
 
 
 def jsonable_settings(settings):
-    """Settings with specifications, arrays and containers replaced by plain values."""
+    """Return the settings with specifications, arrays and containers replaced by plain values."""
     out = {}
     for key, value in settings.items():
         if hasattr(value, "to_dict") and not isinstance(value, TrialSet):
@@ -125,7 +125,7 @@ def jsonable_settings(settings):
 
 
 def table(columns, n_rows):
-    """A pandas DataFrame from a dict of columns, or None when pandas is missing."""
+    """Return a pandas DataFrame from a dict of columns, or None when pandas is missing."""
     if not columns:
         return None
     try:
@@ -154,7 +154,7 @@ def _check_snr_value(value, what):
 
 
 def requested_snr(snr, sources, ch_names):
-    """Requested SNR of each source (None when the amplitude is given in data units).
+    """Return the requested SNR of each source (None when the amplitude is given in data units).
 
     ``snr`` is None, a number (every component, times its relative spatial weight),
     a sequence (one value per component label, in order of first appearance) or a
@@ -272,7 +272,10 @@ def trial_variability(sources, n_trials, rng, jitter_sd, jitter, jitter_tau, amp
 
 
 def baseline_index(times):
-    """Samples before the onset (t < 0), or every sample when fewer than 2 precede it."""
+    """Return the samples before the onset (t < 0).
+
+    Every sample when fewer than 2 precede it.
+    """
     index = np.flatnonzero(times < -1e-12)
     return index if index.size >= 2 else np.arange(times.size)
 

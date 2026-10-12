@@ -15,8 +15,10 @@ __all__ = ["TrialFitter"]
 
 
 class TrialFitter(BaseEstimatorMixin, TransformerMixin):
-    """Learn each channel's template on the trial average (``fit``), then give every trial's
-    shift, scale and latency per component (``transform``).
+    """Learn each channel's template, then give every trial's shift, scale and latency.
+
+    The template is learned on the trial average (``fit``); ``transform`` gives the shift, scale
+    and latency per component.
 
     Parameters
     ----------
@@ -52,9 +54,11 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         self.random_state = random_state
 
     def _trials(self, X, *, reset):
-        """X as a TrialSet. An array is (n_trials, n_times) for one channel or (n_trials,
-        n_channels, n_times), checked the scikit-learn way (dense, real, finite; after
-        ``fit`` as many time points as in ``fit``).
+        """X as a TrialSet.
+
+        An array is (n_trials, n_times) for one channel or (n_trials, n_channels, n_times), checked
+        the scikit-learn way (dense, real, finite; after ``fit`` as many time points as in
+        ``fit``).
         """
         from evoparam.data import TrialSet
         from evoparam.models.api import _from_mne
@@ -84,8 +88,9 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         )
 
     def fit(self, X, y=None):
-        """Fit the trial average of each channel (``group_fit_``); ``y`` is ignored. Without
-        ``fit_window`` and preset the window is the data range.
+        """Fit the trial average of each channel (``group_fit_``); ``y`` is ignored.
+
+        Without ``fit_window`` and preset the window is the data range.
         """
         from evoparam.models import ResponseModel
 
@@ -103,8 +108,10 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         return self
 
     def transform(self, X):
-        """(n_trials, n_channels * n_components * 3): shift, scale and latency of each
-        component slot of each channel; NaN where a channel has fewer components.
+        """(n_trials, n_channels * n_components * 3).
+
+        Shift, scale and latency of each component slot of each channel; NaN where a channel has
+        fewer components.
         """
         from evoparam.trials import fit_trials
 
@@ -134,6 +141,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         return out.reshape(trials.n_trials, -1)
 
     def get_feature_names_out(self, input_features=None):
+        """Return the names of the output features."""
         return np.array(
             [
                 f"{ch}_c{k}_{name}"

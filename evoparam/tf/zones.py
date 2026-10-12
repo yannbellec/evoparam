@@ -1,16 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Time-frequency zones: data-driven parts of the significant map, and published fixed zones.
 
-Data-driven zones (spec §5.10, method 5): the positive and the negative parts of the
-significant group map are factorised separately, by non-negative matrix factorisation
-(``nmf``: frequency profile x time course, Lee and Seung 1999) or by a non-negative
-canonical-polyadic decomposition over (frequency x time x map row) (``cp``; Morup et al.
-2006). The rank is the largest one whose factors are reproduced (mean Tucker congruence
->= 0.8) across 20 split halves, up to ``max_zones`` (the search stops after two unstable
-ranks in a row): halves of the trials, of the group map (``nmf``) or of each map row
-(``cp``, which can also split the rows, the sample mode of its tensor, or compare restarts). Each significant
-pixel goes to the zone that explains most of it there; touching zones with no dip between
-them are merged.
+Data-driven zones (spec §5.10, method 5): the positive and the negative parts of the significant
+group map are factorised separately, by non-negative matrix factorisation (``nmf``: frequency
+profile x time course, Lee and Seung 1999) or by a non-negative canonical-polyadic decomposition
+over (frequency x time x map row) (``cp``; Morup et al. 2006). The rank is the largest one whose
+factors are reproduced (mean Tucker congruence >= 0.8) across 20 split halves, up to ``max_zones``
+(the search stops after two unstable ranks in a row): halves of the trials, of the group map
+(``nmf``) or of each map row (``cp``, which can also split the rows, the sample mode of its tensor,
+or compare restarts). Each significant pixel goes to the zone that explains most of it there;
+touching zones with no dip between them are merged.
 """
 
 import json
@@ -74,6 +73,7 @@ ZONE_COLUMNS = {
 
 def nmf(x, rank, rng, n_iter=400, tol=1e-6):
     """Non-negative factorisation ``x ~ w @ h`` (Frobenius, multiplicative updates).
+
     Returns (w (m, rank), h (rank, n), relative error).
     """
     m, n = x.shape
@@ -97,8 +97,9 @@ def nmf(x, rank, rng, n_iter=400, tol=1e-6):
 
 
 def cp_nonneg(x, rank, rng, n_iter=400, tol=1e-6):
-    """Non-negative CP decomposition of a 3-way array ``x`` (I, J, K) by multiplicative
-    updates. Returns ([a (I, r), b (J, r), c (K, r)], relative error).
+    """Non-negative CP decomposition of a 3-way array ``x`` (I, J, K) by multiplicative updates.
+
+    Returns ([a (I, r), b (J, r), c (K, r)], relative error).
     """
     dims = x.shape
     scale = (max(x.mean(), EPS) / rank) ** (1 / 3)
@@ -289,8 +290,10 @@ def zone_regions(parts_by_sign, group):
 
 
 def _saddle(region_a, region_b, values):
-    """Highest pass between two regions: max over neighbouring pixel pairs (one in each)
-    of the lower of the two values; -inf when they do not touch.
+    """Highest pass between two regions.
+
+    Max over neighbouring pixel pairs (one in each) of the lower of the two values; -inf when they
+    do not touch.
     """
     best = -np.inf
     for axis in (0, 1):
@@ -309,9 +312,10 @@ def _saddle(region_a, region_b, values):
 
 
 def _merge_without_dip(found, values):
-    """Merge zones that touch without a dip between them: the pass between the two is at
-    least half the smaller of their peaks (NMF splits one smooth blob into stable pieces
-    when the blob is not separable in time and frequency).
+    """Merge zones that touch without a dip between them.
+
+    The pass between the two is at least half the smaller of their peaks (NMF splits one smooth
+    blob into stable pieces when the blob is not separable in time and frequency).
     """
     found = list(found)
     merged = True
@@ -395,9 +399,11 @@ def zone_table(zones, group, freqs, times, stability):
 
 
 def load_zones():
-    """The registry (``zones.json``): name -> zone definition, with aliases (``alias_of``)
-    and shared method blocks (``settings_of``: source, reference, note, field status and
-    settings common to the zones of one publication) resolved.
+    """Return the registry (``zones.json``).
+
+    Name -> zone definition, with aliases (``alias_of``) and shared method blocks (``settings_of``:
+    source, reference, note, field status and settings common to the zones of one publication)
+    resolved.
     """
     text = resources.files("evoparam.tf").joinpath("zones.json").read_text("utf-8")
     raw = json.loads(text)
@@ -420,8 +426,9 @@ def _interval(values, bounds, closure):
 
 
 def zone_mask(zone, freqs, times):
-    """Pixels (n_freqs, n_times) of a registry zone, with its interval closures
-    (``intervals``: ``"[]"`` closed, the default, or ``"[)"`` half-open).
+    """Return the pixels (n_freqs, n_times) of a registry zone, with its interval closures.
+
+    ``intervals``: ``"[]"`` closed, the default, or ``"[)"`` half-open.
     """
     closure = zone.get("intervals") or {}
     in_f = _interval(np.asarray(freqs, float), zone["freq"], closure.get("freq", "[]"))
@@ -430,7 +437,8 @@ def zone_mask(zone, freqs, times):
 
 
 def volume_conduction_weight(distance_mm, d_min=10.0, d_max=20.0):
-    """Weight of a stimulation-response pair against volume conduction ([LIT-tf-4], §2.5):
+    """Weight of a stimulation-response pair against volume conduction ([LIT-tf-4], §2.5).
+
     0 within ``d_min`` mm of the stimulated pair, 1 beyond ``d_max`` mm, and
     ``(d^2 - d_min^2) / (d_max^2 - d_min^2)`` in between; multiplies a zone's significance
     fraction.
@@ -473,7 +481,7 @@ def list_published_zones():
 
 
 def resolve_published(name, allow_unverified=False):
-    """The registry entry ``name``.
+    """Return the registry entry ``name``.
 
     Raises
     ------

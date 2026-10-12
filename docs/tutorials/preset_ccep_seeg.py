@@ -16,7 +16,7 @@ Data: OpenNeuro ds004977 (Mayo Clinic, CC0), subject 1, run 01; tables checked a
 registry, the recording (4800 Hz) read by byte ranges. The deposit keeps the signal around
 one stimulation site per run (ROC11-ROC12 here) and writes zeros elsewhere: reading another
 site gives epochs of zeros, and ``read_bids`` warns.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Tables and the epochs of one site

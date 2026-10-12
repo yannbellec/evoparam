@@ -128,8 +128,10 @@ def bootstrap_interval(
 
 
 def _sorted_quantile(sorted_boot, n_finite, levels):
-    """Linear-interpolation quantiles (as numpy's default) of each column of a column-sorted
-    array whose first ``n_finite`` entries are finite; ``levels`` [n_levels, n_columns].
+    """Return linear-interpolation quantiles (as numpy's default) of each column.
+
+    The array is column-sorted and its first ``n_finite`` entries are finite; ``levels`` [n_levels,
+    n_columns].
     """
     pos = levels * (n_finite - 1)
     lo = np.clip(np.floor(pos).astype(np.int64), 0, None)
@@ -219,7 +221,7 @@ def _indices(strata, n_boot, rng):
 
 
 def _subset(ts, rows):
-    """The trials ``rows`` of a TrialSet (same provenance: a resample is not a new step)."""
+    """Return the trials ``rows`` of a TrialSet (same provenance: a resample is not a new step)."""
     meta = None if ts.metadata is None else ts.metadata.iloc[rows].reset_index(drop=True)
     return replace(
         ts,
@@ -242,8 +244,9 @@ def _as_vector(value):
 
 
 def _score_path(ts, func, strata, n_boot, rng, inside):
-    """Scores of the average of every resample, every channel: [n_boot, n_channels]
-    (``func`` scores waveforms cropped to the samples ``inside`` the window).
+    """Scores of the average of every resample, every channel.
+
+    [n_boot, n_channels] (``func`` scores waveforms cropped to the samples ``inside`` the window).
     """
     x = ts.data[:, :, inside]
     if ts.masks is not None:

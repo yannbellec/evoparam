@@ -9,7 +9,7 @@ artifact by alternating the pulse polarity (the neural response keeps its sign, 
 artifact flips) and fits a biexponential N1 and a Gaussian P2.
 
 Data: simulated epidural recording, 8 contacts, alternating biphasic pulses at 30 kHz.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Simulate alternating-polarity ECAPs

@@ -11,7 +11,7 @@ CORRECTIONS = ("fdr_bh", "holm", "bonferroni", "none")
 
 
 def correct(p, method="fdr_bh"):
-    """Adjusted p-values (NaN entries are left out and stay NaN).
+    """Adjust p-values (NaN entries are left out and stay NaN).
 
     - ``fdr_bh``: Benjamini-Hochberg, ``p_(i) * m / i`` made monotone from the largest.
     - ``holm``: Holm-Bonferroni step-down.

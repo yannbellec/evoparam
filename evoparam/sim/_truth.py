@@ -328,8 +328,9 @@ class GroundTruth(DeepEqualMixin):
     ## Serialisation
 
     def to_dict(self, arrays=True):
-        """JSON-serialisable dictionary; ``arrays=False`` leaves out ``signal`` and
-        ``artifact_data``.
+        """JSON-serialisable dictionary.
+
+        ``arrays=False`` leaves out ``signal`` and ``artifact_data``.
         """
         out = {
             "generator": self.generator,

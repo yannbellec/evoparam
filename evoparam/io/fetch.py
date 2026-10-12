@@ -97,7 +97,8 @@ def fetch_openneuro_file(dataset, path, folder="data", *, sha256=None):
     if expected and found.lower() != expected.lower():
         os.remove(local_path)
         raise ReaderError(
-            f"{local_path}: SHA-256 {found} does not match the expected {expected}; the file was deleted."
+            f"{local_path}: SHA-256 {found} does not match the expected {expected}; "
+            "the file was deleted."
         )
 
     return local_path
@@ -130,8 +131,9 @@ def _osf_pages(url):
 
 
 def fetch_erpcore(component, participant=1, folder=None):
-    """The epoched data of one ERP CORE participant and component (EEGLAB ``.set`` and
-    ``.fdt`` after the published pipeline: ICA, interpolation, artifact flags).
+    """Fetch the epoched data of one ERP CORE participant and component.
+
+    EEGLAB ``.set`` and ``.fdt`` after the published pipeline: ICA, interpolation, artifact flags.
 
     Files already present are checked, new ones downloaded from OSF; both against the
     SHA-256 of the dataset registry when it records them (``erp-core``,

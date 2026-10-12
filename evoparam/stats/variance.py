@@ -67,8 +67,10 @@ __all__ = ["variance_components", "VarianceResult", "reml"]
 
 
 def _codes(groups):
-    """Nested integer codes: unit ``k`` of level ``l`` is the combination of the labels of
-    levels ``0..l``; returns the codes and the labels of each unit.
+    """Nested integer codes.
+
+    Unit ``k`` of level ``l`` is the combination of the labels of levels ``0..l``; returns the
+    codes and the labels of each unit.
     """
     codes, labels = [], []
     keys = None

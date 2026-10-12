@@ -79,7 +79,7 @@ def _check_task(task):
 
 
 def load_schema(task):
-    """The JSON Schema of a task (a deep copy of ``schemas/<task>.json``)."""
+    """Return the JSON Schema of a task (a deep copy of ``schemas/<task>.json``)."""
     _check_task(task)
     if task not in _CACHE:
         text = (
@@ -97,7 +97,7 @@ def output_format(task):
 
 
 def output_columns(task):
-    """(required, optional) output columns of a TSV task, in their fixed order."""
+    """Return the (required, optional) output columns of a TSV task, in their fixed order."""
     columns = load_schema(task).get("x-columns")
     if columns is None:
         raise DataError(f"Task {task} has no table output (its output is an .npz file).")
@@ -146,8 +146,9 @@ def _first_error(validator, document):
 
 
 def validate(document, task, role, *, where=""):
-    """Validate ``document`` against the ``role`` part (``"input"``, ``"output"``,
-    ``"output_row"``) of the task's schema.
+    """Validate ``document`` against one part of the task's schema.
+
+    ``role`` names the part: ``"input"``, ``"output"`` or ``"output_row"``.
 
     Raises
     ------
@@ -186,10 +187,12 @@ class TaskInput:
 
     @property
     def task(self):
+        """Task of the input."""
         return self.descriptor["task"]
 
     @property
     def cell(self):
+        """Cell of the input."""
         return self.descriptor["cell"]
 
     @property
@@ -199,14 +202,16 @@ class TaskInput:
         return self.descriptor["tmin"] + np.arange(n_times) / self.descriptor["sfreq"]
 
     def sha256(self):
-        """SHA-256 of the input: the canonical JSON of its descriptor, which holds the
-        hashes of the arrays.
+        """SHA-256 of the input.
+
+        The canonical JSON of its descriptor, which holds the hashes of the arrays.
         """
         return sha256_bytes(canonical_bytes(self.descriptor))
 
     def to_trialset(self):
-        """A :class:`~evoparam.data.TrialSet` of ``data`` (with ``stim_site`` metadata when
-        the input has a site).
+        """Return a :class:`~evoparam.data.TrialSet` of ``data``.
+
+        It has ``stim_site`` metadata when the input has a site.
         """
         from evoparam.data import TrialSet
 
@@ -226,7 +231,7 @@ class TaskInput:
         )
 
     def to_evoked(self):
-        """An :class:`~evoparam.data.Evoked` of ``evoked`` (T3)."""
+        """Return an :class:`~evoparam.data.Evoked` of ``evoked`` (T3)."""
         from evoparam.data import Evoked
 
         return Evoked(
@@ -240,7 +245,7 @@ class TaskInput:
 
 
 def make_descriptor(task, arrays, **fields):
-    """A descriptor with the schema, role, task and array hashes filled in."""
+    """Return a descriptor with the schema, role, task and array hashes filled in."""
     descriptor = {"schema": schema_id(task), "role": "input", "task": task}
     descriptor.update(fields)
     descriptor["arrays"] = {
@@ -321,8 +326,10 @@ def _format(value):
 
 
 def write_output(task, value, path):
-    """Write a task output: rows (list of dicts) as TSV with the task's columns, or the
-    cleaned epochs (array) as ``.npz`` for T4. Returns the path.
+    """Write a task output.
+
+    Rows (list of dicts) as TSV with the task's columns, or the cleaned epochs (array) as ``.npz``
+    for T4. Returns the path.
     """
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     if output_format(task) == "npz":

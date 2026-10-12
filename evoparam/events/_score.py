@@ -104,7 +104,7 @@ def robust_z(values):
 
 
 def crossings(z, threshold):
-    """Indices where ``z`` goes from at or below ``threshold`` to above it."""
+    """Return the indices where ``z`` goes from at or below ``threshold`` to above it."""
     above = z > threshold
     index = np.flatnonzero(above[1:] & ~above[:-1]) + 1
     if above[0]:
@@ -128,8 +128,10 @@ def far_from(positions, others, min_samples):
 
 
 def snippet_lengths(sfreq):
-    """Samples before and after the onset used for artifact snippets (-1 ms to +3 ms),
-    and the largest shift tried when matching (0.5 ms, at least one sample).
+    """Return the snippet lengths and the largest matching shift.
+
+    The samples before and after the onset used for artifact snippets (-1 ms to +3 ms), and the
+    largest shift tried when matching (0.5 ms, at least one sample).
     """
     return (
         max(1, int(round(0.001 * sfreq))),

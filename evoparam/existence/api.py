@@ -138,7 +138,7 @@ def test_response(
     projection_profile="published",
     projection_pairs="disjoint",
 ):
-    """Is there a response in the window, on each channel (and stimulation site)?
+    """Test whether there is a response in the window, on each channel (and stimulation site).
 
     Methods
     -------
@@ -359,7 +359,7 @@ def test_response(
 
 
 def _interval(result, key):
-    """The [n_channels, 2] interval ``key`` of one result, NaN when the method has none."""
+    """Return the [n_channels, 2] interval ``key`` of one result, NaN when the method has none."""
     n = len(np.atleast_1d(result["p_value"]))
     return np.asarray(result.get(key, np.full((n, 2), np.nan)), float).tolist()
 
@@ -373,8 +373,9 @@ def existence_detector(
     random_state=0,
     **kwargs,
 ):
-    """The existence test as a detector for :func:`evoparam.prep.reference_sensitivity`
-    (its default, ``detector="existence"``).
+    """Run the existence test as a detector for :func:`evoparam.prep.reference_sensitivity`.
+
+    It is the default there (``detector="existence"``).
 
     Runs :func:`test_response` (default method, ``by`` stimulation site; masked samples are
     left out of the statistic, so a window touching the artifact mask is allowed) and
@@ -423,8 +424,9 @@ def existence_detector(
 
 
 def response_duration(ts, *, method="baseline_permutation", **kwargs):
-    """Onset, offset and duration of the response of each channel, as a table: each value
-    with its interval (bootstrap over trials, NaN when the method gives none) and the
+    """Onset, offset and duration of the response of each channel, as a table.
+
+    Each value with its interval (bootstrap over trials, NaN when the method gives none) and the
     decision with its p-value (REQ-006).
     """
     pd = require("pandas", extra="data", caller="evoparam.existence.response_duration")
@@ -449,7 +451,7 @@ def response_duration(ts, *, method="baseline_permutation", **kwargs):
 
 
 def list_rules():
-    """The registry of published rules, as a table."""
+    """Return the registry of published rules, as a table."""
     pd = require("pandas", extra="data", caller="evoparam.existence.list_rules")
     rows = []
     for name, spec in load_rules().items():
@@ -619,9 +621,10 @@ for _name in load_rules():
 
 
 def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
-    """:func:`evoparam.models.fit` and the existence test of every channel attached to its
-    fit (``ResponseFit.existence``; ``existence_p`` and ``existence_significant`` in
-    ``GroupFit.to_dataframe()``).
+    """Fit with :func:`evoparam.models.fit` and attach the existence test of every channel.
+
+    The test is attached to each channel's fit (``ResponseFit.existence``; ``existence_p`` and
+    ``existence_significant`` in ``GroupFit.to_dataframe()``).
 
     ``data``: a TrialSet, an Evoked, MNE Epochs or Evoked, or an array [n_channels, n_times]
     with ``times``. With no other argument the result has existence results, components,
@@ -701,9 +704,10 @@ def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
 
 
 def attach_test(group, test):
-    """The GroupFit with the existence test of each channel attached to its fit
-    (``ResponseFit.existence``) and the test recorded as a provenance step of the group and
-    of every fit.
+    """Return the GroupFit with the existence test of each channel attached to its fit.
+
+    The test is attached as ``ResponseFit.existence`` and recorded as a provenance step of the
+    group and of every fit.
     """
     channels = test.settings["channels"]
     step = {k: v for k, v in test.settings.items() if k not in _PER_CHANNEL_SETTINGS}

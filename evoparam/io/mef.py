@@ -141,8 +141,10 @@ _CRC = {}
 
 
 def _crc_tables():
-    """Byte table, tables of a byte followed by k zero bytes, and the operator that
-    appends ``_CRC_SPAN`` zero bytes to a CRC state (one table per state byte).
+    """Build the CRC tables.
+
+    The byte table, the tables of a byte followed by k zero bytes, and the operator that appends
+    ``_CRC_SPAN`` zero bytes to a CRC state (one table per state byte).
     """
     if not _CRC:
         table = np.arange(256, dtype=np.uint64)
@@ -488,7 +490,7 @@ def _names_from_tsv(content):
 
 
 def _s3_listing(url):
-    """(listing address, key prefix) of an S3 folder address, or None."""
+    """Return (listing address, key prefix) of an S3 folder address, or None."""
     match = re.match(r"^(https?://s3[.-]([a-z0-9-]+[.-])?amazonaws\.com)/([^/?#]+)/([^?#]+)$", url)
     if match:
         return f"{match.group(1)}/{match.group(3)}", unquote(match.group(4))
@@ -653,7 +655,8 @@ def _read_channel(session, name, segments, check_crc):
     sfreqs = {meta["sfreq"] for _, meta, _ in parts}
     if len(sfreqs) != 1:
         raise ReaderError(
-            f"{session.root}: the segments of channel {name} have different sampling frequencies {sorted(sfreqs)}."
+            f"{session.root}: the segments of channel {name} have different sampling "
+            f"frequencies {sorted(sfreqs)}."
         )
     meta = parts[0][1]
     blocks, segs = [], []
@@ -873,7 +876,10 @@ def _runs_of(blocks, need):
 
 
 def _fetch_runs(session, rel, runs):
-    """Bytes of the runs of one .tdat file; returns (list of bytes, digest lines, network bytes)."""
+    """Read the bytes of the runs of one .tdat file.
+
+    Returns (list of bytes, digest lines, network bytes).
+    """
     out, lines = [], []
     if session.remote:
         reader = RemoteFile(session.location(rel), chunk_size=_CHUNK, max_chunks=1 << 16)
@@ -891,7 +897,8 @@ def _fetch_runs(session, rel, runs):
             content = read(offset, nbytes)
             if len(content) != nbytes:
                 raise ReaderError(
-                    f"{session.location(rel)}: the file ends before byte {offset + nbytes} (truncated data file)."
+                    f"{session.location(rel)}: the file ends before byte {offset + nbytes} "
+                    "(truncated data file)."
                 )
             out.append(content)
             lines.append(f"{rel}:{offset}-{offset + nbytes}:{hashlib.sha256(content).hexdigest()}")

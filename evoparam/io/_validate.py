@@ -256,14 +256,10 @@ def _channel_rows(folder, stem_parts, recording, n_events):
                     )
                 )
             else:
-                rows.append(
-                    (
-                        "coordinates",
-                        "present",
-                        f"{n_ok} electrodes in {unit}, "
-                        f"{system.get('iEEGCoordinateSystem', system.get('EEGCoordinateSystem', 'unknown space'))}",
-                    )
+                space = system.get(
+                    "iEEGCoordinateSystem", system.get("EEGCoordinateSystem", "unknown space")
                 )
+                rows.append(("coordinates", "present", f"{n_ok} electrodes in {unit}, {space}"))
     return [(field, status, n_events, message) for field, status, message in rows]
 
 
@@ -406,8 +402,10 @@ def validate_stim_metadata(bids_root, *, subject=None, strict=False):
 
 
 def format_stim_report(table):
-    """Plain-text report of :func:`validate_stim_metadata`: one block per run, one line per
-    field (``status  field  message``), and the counts of each status.
+    """Plain-text report of :func:`validate_stim_metadata`.
+
+    One block per run, one line per field (``status  field  message``), and the counts of each
+    status.
     """
     lines = []
     for events_file, run in table.groupby("events_file", sort=True):

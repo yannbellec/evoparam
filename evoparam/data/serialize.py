@@ -58,8 +58,10 @@ _EXTRA_TYPES = {}
 
 
 def register_type(cls):
-    """Make a dataclass defined outside :mod:`evoparam.data` savable in a ``.evoparam``
-    container (spec §4.3.5). Its module calls this when it is imported.
+    """Make a dataclass defined outside :mod:`evoparam.data` savable (spec §4.3.5).
+
+    The class can then be saved in a ``.evoparam`` container. Its module calls this when it is
+    imported.
     """
     _EXTRA_TYPES[cls.__name__] = cls
     return cls

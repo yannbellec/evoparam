@@ -85,7 +85,7 @@ def epoch_windows(onsets, sfreq, tmin, tmax, n_samples, t0=0.0):
 
 
 def overlap_flags(onsets, length):
-    """True for each event closer than ``length`` seconds to the previous event in time."""
+    """Return True for each event closer than ``length`` seconds to the previous event in time."""
     onsets = np.asarray(onsets, dtype=float)
     order = np.argsort(onsets, kind="stable")
     flags = np.zeros(onsets.size, dtype=bool)

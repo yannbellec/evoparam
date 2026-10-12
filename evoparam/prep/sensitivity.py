@@ -36,8 +36,9 @@ def register_detector(name, detector):
 def threshold_detector(
     ts, *, window=(0.009, 0.1), baseline=(-0.5, -0.05), threshold=3.4, sd_floor_uv=50.0
 ):
-    """Fixed-threshold response detector (``detector="threshold"``; the interim default of
-    build step S6, replaced by the existence test).
+    """Fixed-threshold response detector (``detector="threshold"``).
+
+    The interim default of build step S6, replaced by the existence test.
 
     The rule of the Utrecht SPES studies and of ER-detect's default: on the trial average,
     a channel responds when its most negative value in ``window`` is below
@@ -79,7 +80,7 @@ def reference_sensitivity(
     test_kwargs=None,
     reference_kwargs=None,
 ):
-    """Detections and latencies under several references, and their agreement.
+    """Compare the detections and latencies under several references, and their agreement.
 
     Each scheme is applied with :func:`rereference`, then the existence test of spec §5.6
     is run (``detector="existence"``: :func:`evoparam.existence.existence_detector`, the

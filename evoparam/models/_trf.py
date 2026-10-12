@@ -210,8 +210,9 @@ def _active(x, lb, ub, rtol):
 
 
 def _solve_trust_region(n, m, uf, s, V, delta, alpha, rtol=0.01, max_iter=10):
-    """Trust-region subproblem from the SVD of the (scaled) Jacobian (Moré 1977); returns
-    the step and the Levenberg-Marquardt parameter.
+    """Trust-region subproblem from the SVD of the (scaled) Jacobian (Moré 1977).
+
+    Returns the step and the Levenberg-Marquardt parameter.
     """
     suf = s * uf
     if m >= n:
@@ -343,8 +344,10 @@ def _intersect_trust_region(x, s, delta):
 
 
 def _select_step(x, J_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta):
-    """The best of the trust-region step (made strictly interior), its reflection on the
-    first bound it hits, and the scaled anti-gradient.
+    """Return the best of three candidate steps.
+
+    The trust-region step (made strictly interior), its reflection on the first bound it hits, and
+    the scaled anti-gradient.
     """
     if ((x + p >= lb) & (x + p <= ub)).all():
         p_value = _evaluate_quadratic(J_h, g_h, p_h, diag_h)

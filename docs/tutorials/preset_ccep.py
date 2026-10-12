@@ -13,7 +13,7 @@ Data: OpenNeuro ds003708 (Mayo Clinic, CC0; Huang et al.), subject 01, run 01. T
 and channel tables are downloaded with :func:`evoparam.io.fetch_openneuro_file` and checked
 against the SHA-256 of the dataset registry; the MEF 3.0 recording (about 600 MB) is read
 by byte ranges, only around the pulses of one stimulation site.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # The run's tables, checked against the registry

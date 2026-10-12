@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Baseline-permutation test: is the window different from zero (the baseline level)?
+"""Baseline-permutation test: is the window different from zero (the baseline level).
 
 Sign flips of whole trials keep each trial's time course and the correlation between
 channels; under the null hypothesis (no evoked response, baseline subtracted) every trial is
@@ -35,8 +35,10 @@ TAIL_QUANTILE = 0.9
 
 
 def tail_p_value(null, observed):
-    """Permutation p-value, with a generalised Pareto tail when the observed value lies in
-    the far tail of the null (Knijnenburg et al. 2009, Bioinformatics).
+    """Return the permutation p-value, with a generalised Pareto tail when needed.
+
+    The tail is used when the observed value lies in the far tail of the null (Knijnenburg et al.
+    2009, Bioinformatics).
 
     With few trials there are few sign patterns (256 for 8 trials), so the smallest
     attainable p-value, 1/256, can never survive a correction across a hundred channels.
@@ -248,9 +250,10 @@ def permutation_test(
 
 
 def null_band(level, polarity, n_times):
-    """Band [n_channels, n_times, 2] (low, high) of a statistic over time from one level per
-    channel: (-level, level) for a two-sided test, NaN on the side a one-sided test does
-    not look at.
+    """Return the null band [n_channels, n_times, 2] (low, high) of a statistic over time.
+
+    From one level per channel: (-level, level) for a two-sided test, NaN on the side a one-sided
+    test does not look at.
     """
     level = np.asarray(level, float).reshape(-1)
     low = np.where(polarity in ("both", "negative"), -level, np.nan)
@@ -262,8 +265,10 @@ def null_band(level, polarity, n_times):
 def shuffle_test(
     avg, times, window, baseline, *, n_permutations=1000, polarity="both", alpha=0.05, rng=None
 ):
-    """Test for an average without trials: the largest |z| of the window against windows of
-    the same length drawn from the baselines of every channel (a weaker null).
+    """Test for an average without trials.
+
+    The largest |z| of the window against windows of the same length drawn from the baselines of
+    every channel (a weaker null).
     """
     rng = np.random.default_rng(rng)
     _warn(

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Existence: is there a response, and how long does it last? (spec §5.6)"""
+"""Existence: is there a response, and how long does it last (spec §5.6)."""
 
 from .api import (
     HUMAN_KAPPA,

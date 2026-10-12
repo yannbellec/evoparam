@@ -30,8 +30,9 @@ def previous_pulse_gaps(event_times):
 
 
 def train_starts(event_times, min_gap):
-    """For each pulse, the index of the first pulse of its train (pulses closer than
-    ``min_gap`` seconds belong to the same train).
+    """Return, for each pulse, the index of the first pulse of its train.
+
+    Pulses closer than ``min_gap`` seconds belong to the same train.
     """
     times = np.asarray(event_times, dtype=float)
     order = np.argsort(times, kind="stable")
@@ -172,9 +173,10 @@ def baseline_correct(
 
 
 def _continuous(raw, sfreq, t0, ts):
-    """(data [channels of ts, n_times], sfreq, t0) of a continuous recording given as an
-    array or as a TrialSet holding one continuous trial (``evoparam.io.read`` without
-    onsets).
+    """Return (data [channels of ts, n_times], sfreq, t0) of a continuous recording.
+
+    The recording is given as an array or as a TrialSet holding one continuous trial
+    (``evoparam.io.read`` without onsets).
     """
     from evoparam.data import TrialSet
 
@@ -200,9 +202,11 @@ def _continuous(raw, sfreq, t0, ts):
 def train_baseline(
     ts, length=0.05, *, raw=None, sfreq=None, t0=0.0, train_column="train_id", mode="mean"
 ):
-    """Baseline per stimulation train: per channel, the mean (or median) of the last
-    ``length`` seconds before each train is subtracted from every trial (pulse) of that
-    train (spec §6.1, preset ``erna``: "per train: last 50 ms before the train").
+    """Baseline per stimulation train.
+
+    Per channel, the mean (or median) of the last ``length`` seconds before each train is
+    subtracted from every trial (pulse) of that train (spec §6.1, preset ``erna``: "per train: last
+    50 ms before the train").
 
     Trains: ``metadata[train_column]`` when present (``evoparam.events.group_trains``);
     else, with ``event_times``, a pulse starts a train when no other pulse came in the

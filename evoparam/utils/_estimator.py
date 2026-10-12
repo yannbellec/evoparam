@@ -132,9 +132,10 @@ class TransformerMixin:
 
 
 def validate_array(estimator, X, *, reset, ndim=2, allow_nan=False):
-    """Check an array input the way scikit-learn does (its messages when it is installed):
-    dense, real, finite, at least 2-D with at least 2 time points, and, after ``fit``, as many features (last axis) as
-    seen in ``fit``. Sets ``n_features_in_`` when ``reset``.
+    """Check an array input the way scikit-learn does (its messages when it is installed).
+
+    Dense, real, finite, at least 2-D with at least 2 time points, and, after ``fit``, as many
+    features (last axis) as seen in ``fit``. Sets ``n_features_in_`` when ``reset``.
     """
     import numpy as np
 

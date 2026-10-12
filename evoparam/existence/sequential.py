@@ -33,9 +33,10 @@ __all__ = ["sign_flip_test", "SequentialSignFlip", "OnlineExistence", "alpha_spe
 
 
 def alpha_spending(t, alpha=0.05):
-    """Cumulative error spent at information fraction ``t`` (0 to 1): the Lan-DeMets form of
-    the O'Brien-Fleming boundary, ``2 - 2 Phi(z_{1 - alpha/2} / sqrt(t))`` (almost nothing
-    early, ``alpha`` at ``t = 1``).
+    """Cumulative error spent at information fraction ``t`` (0 to 1).
+
+    The Lan-DeMets form of the O'Brien-Fleming boundary, ``2 - 2 Phi(z_{1 - alpha/2} / sqrt(t))``
+    (almost nothing early, ``alpha`` at ``t = 1``).
     """
     t = np.clip(np.asarray(t, float), 0.0, 1.0)
     with np.errstate(divide="ignore"):
@@ -271,6 +272,7 @@ class OnlineExistence:
         self.reset()
 
     def reset(self):
+        """Reset the running test to no trial."""
         n_ch = self.test.n_channels
         self.test.reset()
         self._count = np.zeros(n_ch)
@@ -297,6 +299,6 @@ class OnlineExistence:
         return z, np.nan_to_num(z, nan=-np.inf) > self.threshold_sd
 
     def look(self, final=False):
-        """A look of the running test (see :meth:`SequentialSignFlip.look`)."""
+        """Return a look of the running test (see :meth:`SequentialSignFlip.look`)."""
         self.last = self.test.look(final=final)
         return self.last

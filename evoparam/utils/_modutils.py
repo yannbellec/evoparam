@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Modified from the upstream project and commit named in NOTICE (Apache-2.0); changes: moved from
 #   core/modutils.py into utils/ (spec §4.5); module docstring rewritten; functions unchanged
-"""Module utilities kept from the inherited code (spec §4.5: `core/modutils.py` is merged into
-`utils/` as is). Optional packages of the package itself are imported with
-:func:`evoparam.utils._optional.require` (spec §9.2); these helpers serve tests and docs.
+"""Module utilities kept from the inherited code (spec §4.5).
+
+`core/modutils.py` is merged into `utils/` as is. Optional packages of the package itself are
+imported with :func:`evoparam.utils._optional.require` (spec §9.2); these helpers serve tests and
+docs.
 """
 
 from functools import wraps
@@ -52,7 +54,7 @@ def safe_import(*args):
 
 
 def check_dependency(dep, name):
-    """Decorator that checks if an optional dependency is available.
+    """Check that an optional dependency is available (decorator).
 
     Parameters
     ----------
@@ -108,7 +110,7 @@ def docs_drop_param(docstring):
     ind = docstring.find(sep) + len(sep)
     front, back = docstring[:ind], docstring[ind:]
 
-    for loop in range(2):
+    for _loop in range(2):
         back = back[back.find("\n") + 1 :]
 
     return front + back
@@ -141,7 +143,7 @@ def docs_append_to_section(docstring, section, add):
 
 
 def copy_doc_func_to_method(source):
-    """Decorator that copies method docstring from function, dropping first parameter.
+    """Copy a function's docstring to a method, dropping the first parameter (decorator).
 
     Parameters
     ----------
@@ -164,7 +166,7 @@ def copy_doc_func_to_method(source):
 
 
 def copy_doc_class(source, section="Attributes", add=""):
-    """Decorator that copies method docstring from class, to another class, adding extra info.
+    """Copy a class docstring to another class, adding extra info (decorator).
 
     Parameters
     ----------

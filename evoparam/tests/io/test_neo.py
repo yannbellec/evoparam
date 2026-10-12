@@ -12,7 +12,7 @@ from evoparam.io import read_neo  # noqa: E402
 
 def _block():
     block = neo.Block()
-    for run in range(2):
+    for _run in range(2):
         seg = neo.Segment()
         data = np.zeros((2000, 3))
         data[520:540, 0] = 0.05  # 0.05 mV = 50 µV

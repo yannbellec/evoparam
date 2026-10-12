@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
+"""Package version and algorithm versions (spec §13.7, REQ-399)."""
+
 __version__ = "0.1.0.dev0"
 
 # Version of each algorithm (spec §13.7, REQ-399): recorded in every provenance step as

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Prep: the light preparation that changes evoked-response numbers (baseline, reference,
-trial rejection, resampling, averaging, filters); everything else is left to MNE-Python.
+"""Prep: the light preparation that changes evoked-response numbers.
+
+Baseline, reference, trial rejection, resampling, averaging, filters; everything else is left to
+MNE-Python.
 """
 
 from .average import AVERAGE_METHODS, average

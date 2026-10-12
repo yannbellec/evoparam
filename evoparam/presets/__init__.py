@@ -92,6 +92,7 @@ class Preset:
     overrides: dict = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         for name in ("species", "shapes", "citation", "trial_covariates"):
             object.__setattr__(self, name, tuple(getattr(self, name)))
         for name in ("epoch", "baseline", "artifact_window", "fit_window"):
@@ -122,9 +123,11 @@ class Preset:
 
     @property
     def fields(self):
+        """Names of the fields of the preset."""
         return tuple(f.name for f in dataclasses.fields(self))
 
     def to_dict(self):
+        """Return the preset as a dict of plain values."""
         out = {}
         for f in dataclasses.fields(self):
             value = getattr(self, f.name)
@@ -147,7 +150,7 @@ def _load_builtin():
 
 
 def get(name):
-    """The preset ``name`` (a :class:`Preset` is returned as it is).
+    """Return the preset ``name`` (a :class:`Preset` is returned as it is).
 
     Raises
     ------
@@ -182,8 +185,9 @@ def list():  # noqa: A001 (the name of the spec's API)
 
 
 def derive(base, **overrides):
-    """A new frozen preset: ``base`` with ``overrides``; the parent is recorded and never
-    changed.
+    """Return a new frozen preset: ``base`` with ``overrides``.
+
+    The parent is recorded and never changed.
 
     Raises
     ------
@@ -207,10 +211,11 @@ def derive(base, **overrides):
 
 
 def targeted(base, label, window, polarity, *, margin=0.05, name=None):
-    """A preset that measures one expected component: one component of the given polarity,
-    fitted in ``window`` widened by ``margin`` on each side, on a linear background
-    (``selection="fixed"``). Every waveform gets a value; whether the component is there is
-    the existence test's answer, not the model selection's.
+    """Return a preset that measures one expected component.
+
+    One component of the given polarity, fitted in ``window`` widened by ``margin`` on each side,
+    on a linear background (``selection="fixed"``). Every waveform gets a value; whether the
+    component is there is the existence test's answer, not the model selection's.
 
     On ERP CORE (40 participants, parent waves at the published channels, measurement
     window +/- 50 ms) the amplitudes measured so are as reliable as or more reliable than
@@ -296,7 +301,7 @@ def from_yaml(text):
 
 
 def fit_fields(preset):
-    """The settings of the fitting engine that a preset fixes (``FitSettings`` names)."""
+    """Return the settings of the fitting engine that a preset fixes (``FitSettings`` names)."""
     p = get(preset)
     windows = {
         label: (lo, hi, int(p.label_polarity.get(label, 0)))
@@ -321,9 +326,11 @@ def fit_fields(preset):
 
 
 def methods_note(preset):
-    """The preset's part of a methods text: name, version, parent and overrides, the
-    validation status (spec REQ-279) and the preset's caveat for the methods
-    (``notes["methods"]``, for example the sensory confound of ``tep``, REQ-275).
+    """Return the preset's part of a methods text.
+
+    Name, version, parent and overrides, the validation status (spec REQ-279) and the preset's
+    caveat for the methods (``notes["methods"]``, for example the sensory confound of ``tep``,
+    REQ-275).
     """
     p = get(preset)
     text = f"preset '{p.name}' v{p.version}"

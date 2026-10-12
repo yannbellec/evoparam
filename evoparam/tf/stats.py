@@ -83,9 +83,10 @@ def fdr_significant(p, alpha):
 
 
 def bh_adjusted(p):
-    """Benjamini-Hochberg adjusted p-values (NaN left out and kept): ``p <= q`` after
-    adjustment is the step-up procedure at level ``q``; the smallest adjusted value is the
-    Simes p-value of the whole map.
+    """Benjamini-Hochberg adjusted p-values (NaN left out and kept).
+
+    ``p <= q`` after adjustment is the step-up procedure at level ``q``; the smallest adjusted
+    value is the Simes p-value of the whole map.
     """
     p = np.asarray(p, float)
     out = np.full(p.shape, np.nan)
@@ -103,9 +104,11 @@ def bh_adjusted(p):
 
 
 def within_map_p(p, method):
-    """Pixel p-values adjusted within one map, so that ``p <= alpha`` is the map's test at
-    level ``alpha``: Benjamini-Hochberg for ``fdr``, the permutation family-wise values for
-    ``cluster`` and ``tfce``, none for ``none`` (all NaN: no pixel is ever significant).
+    """Return the pixel p-values adjusted within one map.
+
+    So that ``p <= alpha`` is the map's test at level ``alpha``: Benjamini-Hochberg for ``fdr``,
+    the permutation family-wise values for ``cluster`` and ``tfce``, none for ``none`` (all NaN: no
+    pixel is ever significant).
     """
     if method in ("fdr", "baseline_normal"):
         return bh_adjusted(p)
@@ -115,10 +118,11 @@ def within_map_p(p, method):
 
 
 def baseline_normal_map(power, baseline, window):
-    """The published per-pixel test of [LIT-tf-4] (§2.4): the trial average of the power in
-    dB (``10 log10``) is compared, at each frequency, with a normal distribution fitted to
-    that frequency's baseline pixels (mean and SD with divisor n - 1); two-sided p-values
-    of the pixels of ``window``.
+    """Compute the published per-pixel test of [LIT-tf-4] (§2.4).
+
+    The trial average of the power in dB (``10 log10``) is compared, at each frequency, with a
+    normal distribution fitted to that frequency's baseline pixels (mean and SD with divisor n -
+    1); two-sided p-values of the pixels of ``window``.
 
     Parameters
     ----------
@@ -146,8 +150,10 @@ CHANNEL_CORRECTIONS = ("fdr_bh", "holm", "bonferroni", "none")
 
 
 def row_levels(row_p, alpha, method):
-    """Level at which each map row (channel x condition) is tested, from the rows' smallest
-    adjusted pixel p-values (spec §5.10 method 4, "corrections across channels as in §5.6").
+    """Return the level at which each map row (channel x condition) is tested.
+
+    From the rows' smallest adjusted pixel p-values (spec §5.10 method 4, "corrections across
+    channels as in §5.6").
 
     - ``none``: ``alpha`` for every row.
     - ``bonferroni``: ``alpha / m``.

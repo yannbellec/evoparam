@@ -235,7 +235,7 @@ def _remote_base(root, remote):
 
 
 def _find_runs(tree, wanted, datatype):
-    """Runs to read: list of (folder, entities, data file name)."""
+    """Return the runs to read: list of (folder, entities, data file name)."""
     folder = (
         "sub-{}/".format(wanted["sub"])
         + ("ses-{}/".format(wanted["ses"]) if wanted.get("ses") else "")
@@ -284,7 +284,8 @@ def _find_runs(tree, wanted, datatype):
         runs.append((rel, entities, name))
     if not runs:
         raise ReaderError(
-            f"No {datatype} recording matches { ({k: v for k, v in wanted.items() if v}) } under {tree.root}."
+            f"No {datatype} recording matches "
+            f"{ ({k: v for k, v in wanted.items() if v}) } under {tree.root}."
         )
     # One data file per run: prefer BrainVision when several formats exist (then EDF, MEF).
     by_stem = {}
@@ -301,8 +302,9 @@ def _read_table(content):
 
 
 def _events_sidecar(tree, folder, entities, datatype):
-    """events.json by the inheritance principle (run level, then dataset root), with the
-    ElectricalStimulationParameters field of the recording sidecar.
+    """Return events.json by the inheritance principle (run level, then dataset root).
+
+    It is completed with the ElectricalStimulationParameters field of the recording sidecar.
     """
     stem = _stem(entities)
     sidecar = {}
@@ -404,7 +406,7 @@ def _add_coordinates(tree, folder, entities, table):
 
 
 def _pick_channels(names, picks, ch_info):
-    """Indices of the picked channels: names, indices, or channel types ('ecog', ...)."""
+    """Return the indices of the picked channels: names, indices, or types ('ecog', ...)."""
     from evoparam.io.brainvision import _pick
 
     if picks is None:
@@ -483,7 +485,7 @@ def _apply_select(events, select):
 
 
 def _metadata(events, entities, overlaps, pd):
-    """Standard metadata columns (Table 4.1) for the kept events."""
+    """Return the standard metadata columns (Table 4.1) for the kept events."""
     table = events.reset_index(drop=True).copy()
     for column, key in (("subject", "sub"), ("session", "ses"), ("run", "run"), ("task", "task")):
         table[column] = pd.Series([entities.get(key) or "n/a"] * len(table))
@@ -671,7 +673,7 @@ def _run_result(
     pd,
     masks=None,
 ):
-    """The part of one run: metadata of the kept events, channel table, provenance."""
+    """Return the part of one run: metadata of the kept events, channel table, provenance."""
     tmin, tmax = epoch
     kept_events = harmonized[kept]
     overlaps = overlap_flags(onsets[kept], tmax - tmin)
@@ -717,8 +719,10 @@ def _read_mef_run(
     recording,
     pd,
 ):
-    """Epochs of a MEF 3.0 session: the channels come from channels.tsv (or the session),
-    then the metadata of the picked channels and the blocks under the epochs are read.
+    """Epochs of a MEF 3.0 session.
+
+    The channels come from channels.tsv (or the session), then the metadata of the picked channels
+    and the blocks under the epochs are read.
     """
     from evoparam.io import mef
 
@@ -964,7 +968,7 @@ def read_bids(
         source = dict(part["source"])
     else:
         entities, part = parts[0]
-        for other_entities, other in parts[1:]:
+        for _other_entities, other in parts[1:]:
             if not np.isclose(other["sfreq"], part["sfreq"], rtol=1e-9):
                 raise DataError(
                     "Runs have different sampling frequencies ({} and {} Hz); read "
@@ -997,7 +1001,8 @@ def read_bids(
     flat = np.flatnonzero(np.all(np.nan_to_num(data) == 0, axis=(1, 2)))
     if flat.size:
         _warn(
-            f"{flat.size} of {data.shape[0]} epochs hold only zeros (data censored in the deposit, or a "
+            f"{flat.size} of {data.shape[0]} epochs hold only zeros "
+            "(data censored in the deposit, or a "
             f"stimulation site outside the published span?); trials {flat[:10].tolist()}.",
             UserWarning,
             stacklevel=2,

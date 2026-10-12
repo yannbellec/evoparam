@@ -162,8 +162,9 @@ def _zeta_curve(average, order):
 
 
 def _line_notch(data, sfreq, line_freq):
-    """Band-stop at the line frequency and its harmonics up to 180 Hz (4th order
-    Butterworth, +/- 2 Hz, zero phase), as the published code does before ranking.
+    """Band-stop at the line frequency and its harmonics up to 180 Hz.
+
+    4th order Butterworth, +/- 2 Hz, zero phase, as the published code does before ranking.
     """
     from scipy.signal import butter, filtfilt
 

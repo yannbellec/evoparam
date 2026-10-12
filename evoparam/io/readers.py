@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Build a TrialSet from arrays, files and objects of other packages.
 
-:func:`from_array` and :func:`read` need numpy only (pandas when tables are
-given); so do the BrainVision and MEF 3.0 readers. :func:`read_mne` needs the extra ``mne`` and :func:`read_edf` the extra
-``edf``; without them they raise an ImportError that names the extra.
+:func:`from_array` and :func:`read` need numpy only (pandas when tables are given); so do the
+BrainVision and MEF 3.0 readers. :func:`read_mne` needs the extra ``mne`` and :func:`read_edf` the
+extra ``edf``; without them they raise an ImportError that names the extra.
 """
 
 import os
@@ -27,7 +27,8 @@ BUILTIN_EXTENSIONS = (".vhdr", ".edf", ".bdf", ".nwb", ".mefd", ".evoparam", ".z
 
 
 def _plugin_reader(name, obj, origin):
-    """Check a reader of the entry-point group ``evoparam.readers`` (spec §10.8):
+    """Check a reader of the entry-point group ``evoparam.readers`` (spec §10.8).
+
     ``callable(path, **kw) -> TrialSet`` with ``extensions = (".ext", ...)``.
     """
     import inspect
@@ -71,7 +72,8 @@ READERS = _plugins.LazyRegistry("evoparam.readers", {}, _plugin_reader, builtin=
 
 
 def _plugin_for(path, format):
-    """(name, reader) of the plugin reader for ``format`` or the extension of ``path``;
+    """(name, reader) of the plugin reader for ``format`` or the extension of ``path``.
+
     None when no plugin claims it. Two plugins claiming one extension raise SettingsError.
     """
     if format is not None:
@@ -274,7 +276,7 @@ def _read_continuous(
     species="human",
     modality=None,
 ):
-    """A recording file: epochs around ``onsets``, or the recording as one trial."""
+    """Read a recording file: epochs around ``onsets``, or the recording as one trial."""
     from evoparam.io.brainvision import _read_with_source
     from evoparam.io.epochs import epoch as cut
     from evoparam.io.epochs import epoch_windows

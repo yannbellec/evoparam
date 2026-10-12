@@ -101,14 +101,13 @@ def jackknife_latency(
     Returns
     -------
     DataFrame
-        One row per participant and channel: ``subject`` (the ``subject`` metadata of each
-        Evoked, else its position), ``channel``, ``jackknife`` (``J_i``), ``retrieved``
-        (``o_i``; NaN without ``retrieve``), ``n_subjects``. ``attrs["summary"]`` (columns as lists) holds,
-        per channel, the score of the grand average, the mean of the ``J_i`` and the
-        jackknife standard error ``sqrt((n - 1) / n * sum((J_i - mean J)^2))``; ``attrs``
-        also holds ``units``, ``settings`` and ``provenance``. Run ordinary t tests or
-        ANOVAs on ``retrieved``, or apply :func:`jackknife_t` / :func:`jackknife_f` to
-        those run on ``jackknife``.
+        One row per participant and channel: ``subject`` (the ``subject`` metadata of each Evoked,
+        else its position), ``channel``, ``jackknife`` (``J_i``), ``retrieved`` (``o_i``; NaN
+        without ``retrieve``), ``n_subjects``. ``attrs["summary"]`` (columns as lists) holds, per
+        channel, the score of the grand average, the mean of the ``J_i`` and the jackknife standard
+        error ``sqrt((n - 1) / n * sum((J_i - mean J)^2))``; ``attrs`` also holds ``units``,
+        ``settings`` and ``provenance``. Run ordinary t tests or ANOVAs on ``retrieved``, or apply
+        :func:`jackknife_t` / :func:`jackknife_f` to those run on ``jackknife``.
 
     Raises
     ------

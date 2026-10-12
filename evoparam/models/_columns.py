@@ -61,8 +61,9 @@ def component_derivatives(shape, tw, params, aux):
 
 
 def background(bg, tw, nonlinear, out):
-    """``bg.basis(tw, nonlinear)`` (n_linear x n) written into ``out``, and what the
-    derivatives need.
+    """Write ``bg.basis(tw, nonlinear)`` (n_linear x n) into ``out``.
+
+    Also returns what the derivatives need.
     """
     if type(bg) is ExponentialBackground:
         lag = tw - bg._t_ref(tw)
@@ -75,8 +76,9 @@ def background(bg, tw, nonlinear, out):
 
 
 def background_derivatives(bg, tw, nonlinear, coefs, aux):
-    """``einsum("l,lnj->nj", coefs, bg.basis_jacobian(tw, nonlinear))``: the derivative of
-    the background with the linear coefficients ``coefs`` (n x n_nonlinear).
+    """``einsum("l,lnj->nj", coefs, bg.basis_jacobian(tw, nonlinear))``.
+
+    The derivative of the background with the linear coefficients ``coefs`` (n x n_nonlinear).
     """
     if type(bg) is ExponentialBackground and aux is not None:
         lag, decay = aux

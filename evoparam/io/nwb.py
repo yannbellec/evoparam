@@ -105,7 +105,7 @@ def nwb_events(nwbfile, events=None):
         onsets = np.asarray(events, float)
         return onsets, pd.DataFrame({"onset": onsets}), "array"
     # (1) ndx-events EventsTable
-    for path, obj in _all_objects(nwbfile):
+    for _path, obj in _all_objects(nwbfile):
         if type(obj).__name__ in ("EventsTable", "AnnotatedEventsTable", "Events") and (
             events is None or obj.name == events
         ):
@@ -131,7 +131,7 @@ def nwb_events(nwbfile, events=None):
         frame = _table_frame(intervals[name])
         return frame["start_time"].to_numpy(float), frame, "intervals"
     # (4) StimTable of ndx-electrical-stim
-    for path, obj in _all_objects(nwbfile):
+    for _path, obj in _all_objects(nwbfile):
         if type(obj).__name__ == "StimTable":
             frame = _table_frame(obj)
             return frame["start_time"].to_numpy(float), frame, "stim_table"
@@ -361,8 +361,9 @@ def read_nwb(
 
 
 def _electrode_rows(nwbfile):
-    """Channel name -> row of ``/general/extracellular_ephys/electrodes``, with the naming
-    of :func:`read_nwb` (``label`` column, else ``e<id>``).
+    """Map each channel name to its row of ``/general/extracellular_ephys/electrodes``.
+
+    With the naming of :func:`read_nwb` (``label`` column, else ``e<id>``).
     """
     table = getattr(nwbfile, "electrodes", None)
     if table is None or len(table) == 0:
@@ -376,7 +377,7 @@ def _electrode_rows(nwbfile):
 
 
 def _pack(result):
-    """The result as the bytes of a zipped ``.evoparam`` container, base64 text."""
+    """Return the result as the bytes of a zipped ``.evoparam`` container, base64 text."""
     import base64
     import tempfile
 
@@ -624,7 +625,7 @@ def write_nwb(
             columns = list(COMPONENT_TABLE)
             if ndx is not None:
                 params = []
-                for ch, cond, pos in item.index[["channel", "condition", "position"]].itertuples(
+                for _ch, _cond, pos in item.index[["channel", "condition", "position"]].itertuples(
                     index=False
                 ):
                     for comp in item.fits[int(pos)].components or [None]:
@@ -730,8 +731,10 @@ def write_nwb(
 
 
 def _model_series(group, nwbfile, electrodes, to_volt, pynwb, DynamicTableRegion):
-    """``evoparam_model``: the fitted curves (fit window, zero elsewhere) of every channel x
-    condition, in V, at the rate of the fits.
+    """``evoparam_model``.
+
+    The fitted curves (fit window, zero elsewhere) of every channel x condition, in V, at the rate
+    of the fits.
     """
     import warnings
 

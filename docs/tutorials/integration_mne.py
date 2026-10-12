@@ -10,7 +10,7 @@ curves as an ``Evoked`` and the components as ``Annotations``.
 
 Data: simulated CCEP epochs converted to ``mne.EpochsArray`` (the MNE ``sample`` example is
 in ``examples/mne/plot_fit_mne_sample.py``).
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # MNE epochs

@@ -153,7 +153,7 @@ _ID_ORDER = (
 
 
 def _jsonable_cell(value):
-    """A cell holding a list, dict, tuple, set or array becomes its JSON text."""
+    """Return the JSON text of a cell holding a list, dict, tuple, set or array."""
     if isinstance(value, np.ndarray):
         return json.dumps(value.tolist())
     if isinstance(value, (list, tuple, dict, set)):
@@ -236,7 +236,7 @@ def _from_group(pd, result):
 
 
 def _melt(pd, table, parameters, units):
-    """Generic: the given numeric columns become (parameter, value[, se, ci]) rows."""
+    """Melt the given numeric columns into (parameter, value[, se, ci]) rows."""
     se_cols = {p: c for p in parameters for c in (f"{p}_se", f"se_{p}") if c in table.columns}
     lo_cols = {p: f"{p}_ci_low" for p in parameters if f"{p}_ci_low" in table.columns}
     hi_cols = {p: f"{p}_ci_high" for p in parameters if f"{p}_ci_high" in table.columns}
@@ -266,7 +266,7 @@ def _known_parameters(table):
 
 
 def _from_table(pd, table):
-    """A trial table (one row per trial x component, with the metadata columns)."""
+    """Return a trial table (one row per trial x component, with the metadata columns)."""
     params = _known_parameters(table)
     units = dict(getattr(table, "attrs", {}).get("units", {}))
     return _melt(pd, table, params, {**PARAMETERS, **OTHER_PARAMETERS, **units})
@@ -507,8 +507,10 @@ def _column_units(table, data_units, source_units, param_units):
 
 
 def column_dictionary(table, *, units=None):
-    """JSON sidecar describing every column of a table: ``Description``, ``Units`` (and
-    ``Levels`` for ``status``), in the BIDS tabular-file convention.
+    """JSON sidecar describing every column of a table.
+
+    ``Description``, ``Units`` (and ``Levels`` for ``status``), in the BIDS tabular-file
+    convention.
 
     Columns the package does not know are described as copied from the input, with the
     unit recorded in ``table.attrs["units"]`` when there is one. ``Units`` is ``"n/a"``
@@ -696,9 +698,10 @@ def fit_mixed(table, formula, groups, *, nested=(), re_formula=None, reml=True, 
 
 
 def _complete_rows(table, formula, columns, re_formula=None):
-    """The rows of ``table`` with every variable of the model present (what
-    ``missing="drop"`` of statsmodels does). statsmodels 0.15 drops them itself only for
-    plain names: a quoted one (``Q("N1 latency")``, ``Q("stim site")``) is not found.
+    """Return the rows of ``table`` with every variable of the model present.
+
+    What ``missing="drop"`` of statsmodels does. statsmodels 0.15 drops them itself only for plain
+    names: a quoted one (``Q("N1 latency")``, ``Q("stim site")``) is not found.
     """
     import patsy  # a dependency of statsmodels
 

@@ -10,7 +10,7 @@ and their uncertainty. The fitted curves come back as an ``mne.Evoked`` and the 
 as ``mne.Annotations``, so MNE's own plots show them.
 
 Data: ``mne.datasets.sample`` (about 1.6 GB, downloaded by MNE on first use).
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # The averaged response

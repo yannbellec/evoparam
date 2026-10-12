@@ -63,7 +63,7 @@ def test_registry_has_the_eight_shapes_and_seven_backgrounds():
         "pspline",
         "artifact_basis",
     }
-    for name, shape in ALL.items():
+    for _name, shape in ALL.items():
         assert isinstance(shape, shapes.ComponentShape)
         assert shape.latency_param in shape.param_names
         assert shape.n_params == len(shape.param_names)

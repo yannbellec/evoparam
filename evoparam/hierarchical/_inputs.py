@@ -39,8 +39,10 @@ class SubjectData:
 
 
 def split_subjects(ts, subject_column):
-    """List of (name, TrialSet): one per element of a sequence, or one per value of the
-    metadata column ``subject_column`` of a single TrialSet.
+    """List of (name, TrialSet).
+
+    One per element of a sequence, or one per value of the metadata column ``subject_column`` of a
+    single TrialSet.
     """
     if isinstance(ts, TrialSet):
         meta = ts.metadata
@@ -118,8 +120,9 @@ def trial_fits(ts, group_fit, label, max_shift, random_state=None):
 
 
 def run_subjects(function, arguments, n_jobs):
-    """``function(*args)`` for each subject's arguments, in processes when ``n_jobs != 1``
-    (``-1``: one per core).
+    """Run ``function(*args)`` for each subject's arguments.
+
+    In processes when ``n_jobs != 1`` (``-1``: one per core).
     """
     if n_jobs == 1 or len(arguments) < 2:
         return [function(*args) for args in arguments]
@@ -142,8 +145,10 @@ def component_rows(group_fit, label):
 
 
 def comp_window(fit, label):
-    """The label window ``(low, high)`` (s) of a channel fit: the latency of a component
-    carrying ``label`` lies in it (``(-inf, inf)`` when the fit has no such window).
+    """Return the label window ``(low, high)`` (s) of a channel fit.
+
+    The latency of a component carrying ``label`` lies in it (``(-inf, inf)`` when the fit has no
+    such window).
     """
     windows = (getattr(fit, "settings", None) or {}).get("windows") or {}
     window = windows.get(label)
@@ -153,7 +158,7 @@ def comp_window(fit, label):
 
 
 def wald_se(comp, name):
-    """Standard error from a component's Wald interval (NaN when absent)."""
+    """Return the standard error from a component's Wald interval (NaN when absent)."""
     ci = (comp.ci or {}).get(name)
     if ci is None or not np.all(np.isfinite(ci)):
         return np.nan

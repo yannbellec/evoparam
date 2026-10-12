@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Checks of scikit-learn's ``check_estimator`` that the estimators are excused from
-(spec §10.4, REQ-321): ``{check name: reason}``, at most 15 entries.
+"""Checks of scikit-learn's ``check_estimator`` that the estimators are excused from.
+
+Spec §10.4, REQ-321: ``{check name: reason}``, at most 15 entries.
 
 None is needed: ``ResponseModel``, ``TrialFitter`` and ``ArtifactRemover`` pass every
 check. Short tabular inputs (fewer time points than a component needs) give skipped fits

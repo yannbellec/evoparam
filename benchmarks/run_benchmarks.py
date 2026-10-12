@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Run the performance workloads P1–P6 (spec §9.1, REQ-290) and compare them with a
-baseline (REQ-299).
+r"""Run the performance workloads P1–P6 (spec §9.1, REQ-290) against a baseline (REQ-299).
 
 A thin wrapper around :func:`evoparam.benchmark.timing.run_suite` (also reachable as
 ``evoparam benchmark run --suite perf``). The results go to
@@ -9,9 +8,9 @@ A thin wrapper around :func:`evoparam.benchmark.timing.run_suite` (also reachabl
 Usage::
 
     OMP_NUM_THREADS=1 python benchmarks/run_benchmarks.py --suite perf
-    python benchmarks/run_benchmarks.py --suite ci --compare benchmarks/baseline-ci.json \\
+    python benchmarks/run_benchmarks.py --suite ci --compare benchmarks/baseline-ci.json \
         --time-tolerance 1.25 --memory-tolerance 1.10 --warn-above 1.10
-    python benchmarks/run_benchmarks.py --suite ci --repeat-runs 3 \\
+    python benchmarks/run_benchmarks.py --suite ci --repeat-runs 3 \
         --write-baseline benchmarks/baseline-ci.json
 
 Exit code 1 when a comparison fails (a median time above ``--time-tolerance`` x its
@@ -31,6 +30,7 @@ from evoparam.benchmark import timing  # noqa: E402
 
 
 def main(argv=None):
+    """Run the benchmark suite from the command line."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--suite", default="perf", choices=sorted(timing.SUITES))
     parser.add_argument("--only", help="comma-separated workload ids (default: P1 to P6)")

@@ -8,7 +8,7 @@ artifact and muscle activity. The ``tep`` preset interpolates the pulse window, 
 out the decay and muscle subspace, re-references to the average and fits 12 to 300 ms.
 
 Data: simulated TMS-EEG over the left motor cortex (C3), 32 channels.
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # Simulate TMS-EEG

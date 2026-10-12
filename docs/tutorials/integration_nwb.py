@@ -12,7 +12,7 @@ and :func:`evoparam.io.read_nwb_results` reads them back exactly.
 
 Data: a simulated laminar recording written to NWB with pynwb (a DANDI asset is read the
 same way, by its https address).
-"""
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 # %%
 # An NWB file

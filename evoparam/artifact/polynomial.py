@@ -43,8 +43,10 @@ def _poly_rows(n_window, order, positions):
 
 
 def _local_weights(fit, window_inds, baseline_inds, railed, half):
-    """Weight of the subtraction at each sample (rows of ``fit``): 1 from the window start
-    to the end of the artifact, half-cosine ramps of ``half`` samples, 0 elsewhere.
+    """Weight of the subtraction at each sample (rows of ``fit``).
+
+    1 from the window start to the end of the artifact, half-cosine ramps of ``half`` samples, 0
+    elsewhere.
     """
     n_rows, n_times = fit.shape
     weights = np.zeros(fit.shape)

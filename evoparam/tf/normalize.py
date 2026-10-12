@@ -117,8 +117,9 @@ def normalize(power, ref_times, mode, level, trials=None):
 
 
 def reference_level(average_power, ref_times, mode):
-    """Reference (and spread) of a trial-average power map, for normalising other maps
-    (the footprint) on the total's scale.
+    """Return the reference (and spread) of a trial-average power map.
+
+    For normalising other maps (the footprint) on the total's scale.
     """
     ref = _nanmean(average_power[:, ref_times], -1)[:, None]
     sd = _nanstd(average_power[:, ref_times], -1)[:, None]

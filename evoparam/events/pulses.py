@@ -112,8 +112,9 @@ def _onsets_from_peaks(peaks, firsts, score, sfreq):
 
 
 def _suppress(positions, strength, min_samples):
-    """Keep a position unless a stronger one lies within ``min_samples`` (two passes, so a
-    position suppressed only by a suppressed neighbour comes back).
+    """Keep a position unless a stronger one lies within ``min_samples``.
+
+    Two passes, so that a position suppressed only by a suppressed neighbour comes back.
     """
     order = np.argsort(positions, kind="stable")
     pos, val = positions[order], strength[order]

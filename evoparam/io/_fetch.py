@@ -43,7 +43,7 @@ _sleep = time.sleep
 
 
 def is_url(path):
-    """True when ``path`` is an http(s) address."""
+    """Return True when ``path`` is an http(s) address."""
     return isinstance(path, str) and path.startswith(("http://", "https://"))
 
 
@@ -81,9 +81,10 @@ class TransferLog:
 
 
 def _spurious_not_found(exc):
-    """True for a 404 whose body is the S3 error ``NoSuchBucket``: S3 (or a proxy in front
-    of it) intermittently answers so for a bucket that exists, and the same request then
-    succeeds. A missing key (``NoSuchKey``) or any other 404 is not retried.
+    """Return True for a 404 whose body is the S3 error ``NoSuchBucket``.
+
+    S3 (or a proxy in front of it) intermittently answers so for a bucket that exists, and the same
+    request then succeeds. A missing key (``NoSuchKey``) or any other 404 is not retried.
     """
     if exc.code != 404:
         return False
@@ -95,9 +96,10 @@ def _spurious_not_found(exc):
 
 
 def _with_retries(url, attempt_once, retries=len(BACKOFF)):
-    """Run ``attempt_once()`` and retry transient HTTP and network failures (a spurious S3
-    404 up to SPURIOUS_RETRIES more times, after SPURIOUS_DELAY s, without using the
-    backoff).
+    """Run ``attempt_once()`` and retry transient HTTP and network failures.
+
+    A spurious S3 404 is retried up to SPURIOUS_RETRIES more times, after SPURIOUS_DELAY s, without
+    using the backoff.
     """
     _check_online(url)
     attempt = spurious = 0

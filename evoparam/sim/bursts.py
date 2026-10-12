@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Induced oscillatory bursts with a known truth, for the time-frequency task of the
-benchmark (spec §8.1, T7).
+"""Induced oscillatory bursts with a known truth (spec §8.1, T7).
+
+For the time-frequency task of the benchmark.
 
 An induced burst is an oscillation whose phase is random from trial to trial, so that it
 leaves no trace in the average and is seen only in the power of single trials (spec

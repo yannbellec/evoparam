@@ -49,7 +49,7 @@ NMF_MAX_ITER = 1000
 
 
 def adjusted_rand_index(a, b):
-    """Adjusted Rand index of two labelings (1 = identical partitions).
+    """Return the adjusted Rand index of two labelings (1 = identical partitions).
 
     >>> adjusted_rand_index([0, 0, 1, 1], [1, 1, 0, 0])
     1.0
@@ -71,10 +71,11 @@ def adjusted_rand_index(a, b):
 
 
 def _nmf(x, q, rng, n_runs=1):
-    """``x ~ W H`` with W, H >= 0 and the rows of H of unit norm, for ``n_runs`` random
-    starts at once (multiplicative updates; the norms of H are folded into W at each step,
-    as in the published description). Stops a run when its relative change of error is
-    below 1e-5. Returns W [runs, n, q], H [runs, q, m] and the errors [runs].
+    """Factorise ``x ~ W H`` with W, H >= 0 and the rows of H of unit norm.
+
+    For ``n_runs`` random starts at once (multiplicative updates; the norms of H are folded into W
+    at each step, as in the published description). Stops a run when its relative change of error
+    is below 1e-5. Returns W [runs, n, q], H [runs, q, m] and the errors [runs].
     """
     n, m = x.shape
     w = rng.uniform(0, 1, (n_runs, n, q))
@@ -107,8 +108,10 @@ def _nmf(x, q, rng, n_runs=1):
 
 
 def _assign(h):
-    """Winner-take-all on the columns of H; a group whose largest loading is below half the
-    equal-contribution loading 1/sqrt(n) belongs to no cluster (-1).
+    """Winner-take-all on the columns of H.
+
+    A group whose largest loading is below half the equal-contribution loading 1/sqrt(n) belongs to
+    no cluster (-1).
     """
     n = h.shape[1]
     best = np.argmax(h, axis=0)
@@ -146,8 +149,9 @@ def _kmeans(x, q, rng, n_iter=100):
 
 
 def _jaccard_stability(labels, others, q):
-    """Per cluster of ``labels``: mean over the other runs of the best Jaccard index with
-    one of their clusters.
+    """Return the stability of each cluster of ``labels``.
+
+    Mean over the other runs of the best Jaccard index with one of their clusters.
     """
     out = np.zeros(q)
     for k in range(q):
@@ -166,9 +170,11 @@ def _jaccard_stability(labels, others, q):
 
 
 def _split_ratio(xi, labels, q):
-    """Largest ratio, over pairs of clusters, of the mean t-value between them to the
-    geometric mean of the mean t-values within them: about 1 when one cluster has been
-    split in two, well below 1 for distinct shapes (even partly correlated ones).
+    """Return the largest ratio of the between-cluster to the within-cluster mean t-values.
+
+    Over pairs of clusters, the mean t-value between them divided by the geometric mean of the mean
+    t-values within them: about 1 when one cluster has been split in two, well below 1 for distinct
+    shapes (even partly correlated ones).
     """
     within = [
         xi[np.ix_(labels == k, labels == k)].mean() if np.any(labels == k) else 0.0
@@ -193,8 +199,10 @@ def _cluster_nmf(xi, q, n_restarts, rng):
 
 
 def _cluster_kpca(xi, q, n_restarts, rng):
-    """Kernel PCA with a cosine kernel of the groups' t-value profiles, then k-means in the
-    first ``q`` components; groups without any positive t-value belong to no cluster.
+    """Cluster with a kernel PCA (cosine kernel of the groups' t-value profiles) and k-means.
+
+    The k-means runs in the first ``q`` components; groups without any positive t-value belong to
+    no cluster.
     """
     profiles = 0.5 * (xi + xi.T)
     norms = np.linalg.norm(profiles, axis=1)
@@ -258,8 +266,10 @@ def _t_matrix(trials, owner, n_groups):
 
 
 def _cross_t(trials, owner, n_groups, others):
-    """t-value of the projections of the trials ``others`` [n, n_times] (one group that
-    does not define the bases) into the unit-norm trials of each defining group.
+    """Return the t-value of the projections of the trials ``others`` [n, n_times].
+
+    ``others`` is one group that does not define the bases; its trials are projected into the
+    unit-norm trials of each defining group.
     """
     norms = np.linalg.norm(trials, axis=1)
     unit = trials / np.maximum(norms, 1e-300)[:, None]
@@ -273,8 +283,9 @@ def _cross_t(trials, owner, n_groups, others):
 
 
 def _basis_curve(trials):
-    """First right singular vector of the trials, signed so that the mean projection is
-    positive.
+    """Return the first right singular vector of the trials.
+
+    It is signed so that the mean projection is positive.
     """
     _, _, vt = np.linalg.svd(trials, full_matrices=False)
     curve = vt[0]
@@ -605,23 +616,26 @@ def shared_shapes(
 
 
 def convergent(ts, channel, **kwargs):
-    """Input repertoire of one channel: :func:`shared_shapes` with the stimulation sites as
-    groups (many sites into one channel).
+    """Input repertoire of one channel.
+
+    :func:`shared_shapes` with the stimulation sites as groups (many sites into one channel).
     """
     return shared_shapes(ts, by="stim_site", channel=channel, **kwargs)
 
 
 def divergent(ts, stim_site, **kwargs):
-    """Output repertoire of one stimulation site: :func:`shared_shapes` with the channels as
-    groups (one site into all channels).
+    """Output repertoire of one stimulation site.
+
+    :func:`shared_shapes` with the channels as groups (one site into all channels).
     """
     return shared_shapes(ts, by="channel", stim_site=stim_site, **kwargs)
 
 
 def as_template(basis, k, *, max_shift=None, stretch=False):
-    """Basis curve ``k`` as a ``template`` component shape (spec §5.5.1) for the fitting
-    engine and the trial fits; the ends are tapered to zero (10 % cosine taper) so that the
-    template starts and ends at rest.
+    """Return basis curve ``k`` as a ``template`` component shape (spec §5.5.1).
+
+    For the fitting engine and the trial fits; the ends are tapered to zero (10 % cosine taper) so
+    that the template starts and ends at rest.
 
     (``ShapeBasis.as_template`` of the specification lives here: the data containers may not
     import the shapes, spec §4.2.)

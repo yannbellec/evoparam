@@ -30,7 +30,7 @@ def window_mask(times, window, name="window"):
 
 
 def masked_values(ts):
-    """Data with masked samples set to NaN (a copy)."""
+    """Return the data with masked samples set to NaN (a copy)."""
     data = ts.data.copy()
     if ts.masks is not None:
         data[ts.masks] = np.nan
@@ -48,7 +48,7 @@ def new(ts, function, settings, start, **changes):
 
 
 def ch_table(ts):
-    """The channel table, or a minimal one built from the names."""
+    """Return the channel table, or a minimal one built from the names."""
     import pandas as pd
 
     if ts.ch_info is not None:

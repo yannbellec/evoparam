@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Public benchmark: tasks, frozen suites, baselines, adapters, scoring and leaderboard
-(spec §8).
+"""Public benchmark: tasks, frozen suites, baselines, adapters, scoring and leaderboard (spec §8).
 
 Seven tasks (:data:`TASKS`: T1 response detection, T2 early component latency and
 amplitude, T3 component decomposition, T4 artifact removal, T5 single-trial estimation,

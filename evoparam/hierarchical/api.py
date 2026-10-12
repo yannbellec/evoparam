@@ -568,7 +568,7 @@ def fit_hierarchical(
 
 
 def posterior_summary(fit, level="channel"):
-    """The table of one level (``trial``, ``channel``, ``subject`` or ``group``)."""
+    """Return the table of one level (``trial``, ``channel``, ``subject`` or ``group``)."""
     if level not in fit.level_tables:
         raise SettingsError(f"level must be one of {sorted(fit.level_tables)}, not {level!r}.")
     return fit.level_tables[level]

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The preset pipeline (artifact → reference → baseline → fit → existence → trials) and the
-three reference pipelines whose methods text is frozen (spec §5.13, REQ-340).
+"""The preset pipeline and the three reference pipelines (spec §5.13, REQ-340).
+
+The preset pipeline runs artifact → reference → baseline → fit → existence → trials; the methods
+text of the three reference pipelines is frozen.
 
 :func:`run_pipeline` only calls the public functions of the other modules, in the order of
 spec §4.1 principle 1, with the values of a preset: it is the Python twin of
@@ -27,9 +29,10 @@ __all__ = [
 
 @dataclasses.dataclass
 class PipelineResult:
-    """What :func:`run_pipeline` produced: the cleaned trials, the artifact results (one per
-    artifact step), the channel fits with their existence tests, the trial fits, and the
-    reference-sensitivity report (the kappa table of
+    """What :func:`run_pipeline` produced.
+
+    The cleaned trials, the artifact results (one per artifact step), the channel fits with their
+    existence tests, the trial fits, and the reference-sensitivity report (the kappa table of
     :func:`evoparam.prep.reference_sensitivity`, for a preset that runs it: ``ccep_seeg``).
     """
 
@@ -42,8 +45,9 @@ class PipelineResult:
 
     @property
     def results(self):
-        """The results to write as BIDS derivatives (spec §10.2): the group fit, the
-        existence test, the trial fits and the artifact results.
+        """The results to write as BIDS derivatives (spec §10.2).
+
+        The group fit, the existence test, the trial fits and the artifact results.
         """
         out = [self.group]
         if self.test is not None:
@@ -54,9 +58,10 @@ class PipelineResult:
 
 
 def _artifact_baseline(ts, preset, window):
-    """Baseline of the artifact-quality score: the preset's baseline when the epoch holds
-    it, else the part of the epoch before the artifact window (the short epochs of the
-    ECAP presets have no sample in the default -0.5 to -0.05 s).
+    """Baseline of the artifact-quality score.
+
+    The preset's baseline when the epoch holds it, else the part of the epoch before the artifact
+    window (the short epochs of the ECAP presets have no sample in the default -0.5 to -0.05 s).
     """
     times = ts.times
     if preset.baseline is not None:
@@ -68,7 +73,7 @@ def _artifact_baseline(ts, preset, window):
 
 
 def artifact_steps(preset):
-    """The ``remove_artifact`` keyword sets that the preset's ``artifact_method`` stands for.
+    """Return the ``remove_artifact`` keyword sets of the preset's ``artifact_method``.
 
     ``"template+tail:joint"`` → one template step with ``tail="joint"``;
     ``"interpolate+subspace"`` → interpolation then subspace projection;
@@ -103,7 +108,7 @@ def artifact_steps(preset):
 
 
 def reference_scheme(preset):
-    """The ``rereference`` scheme of the preset, or None to keep the recording reference."""
+    """Return the ``rereference`` scheme of the preset, or None to keep the recording reference."""
     ref = _presets.get(preset).reference
     if ref in (None, "", "as_recorded", "as recorded", "monopolar"):
         return None
@@ -111,9 +116,11 @@ def reference_scheme(preset):
 
 
 def _test_window(ts, window):
-    """The existence-test window: the fit window, starting after the last sample that the
-    artifact removal replaced in every trial (the test refuses such samples; with the
-    interpolation buffer they can reach past the artifact window).
+    """Return the existence-test window.
+
+    The fit window, starting after the last sample that the artifact removal replaced in every
+    trial (the test refuses such samples; with the interpolation buffer they can reach past the
+    artifact window).
     """
     if ts.masks is None:
         return window
@@ -338,7 +345,10 @@ REFERENCE_PIPELINES = {
 
 
 def reference_input(name):
-    """The stand-in TrialSet of a reference pipeline (simulated; see REFERENCE_PIPELINES)."""
+    """Return the stand-in TrialSet of a reference pipeline.
+
+    The TrialSet is simulated; see REFERENCE_PIPELINES.
+    """
     from evoparam import sim
 
     spec = REFERENCE_PIPELINES[name]["stand_in"]

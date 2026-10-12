@@ -160,7 +160,7 @@ def _unpaired_test(a, b, n_permutations, rng):
 
 
 def _percentile(boot, ci_level, n):
-    """Expanded percentile interval (see :func:`~evoparam.stats.bootstrap_interval`)."""
+    """Return the expanded percentile interval (see :func:`~evoparam.stats.bootstrap_interval`)."""
     low, high = np.quantile(boot, norm.cdf(_quantile_z(ci_level, n)))
     return {"low": float(low), "high": float(high)}
 

@@ -19,8 +19,9 @@ __all__ = ["canonical", "canonical_bytes", "sha256_bytes", "sha256_file", "array
 
 
 def clean(value):
-    """A JSON-ready copy: numpy scalars and arrays to Python, NaN and +/-inf to None,
-    tuples to lists, dict keys to str.
+    """Return a JSON-ready copy.
+
+    Numpy scalars and arrays to Python, NaN and +/-inf to None, tuples to lists, dict keys to str.
     """
     if isinstance(value, dict):
         return {str(k): clean(v) for k, v in value.items()}
@@ -65,8 +66,9 @@ def sha256_file(path):
 
 
 def array_sha256(array):
-    """Hex SHA-256 of an array: its shape (canonical JSON) then its float64 little-endian
-    C-order bytes.
+    """Hex SHA-256 of an array.
+
+    Its shape (canonical JSON) then its float64 little-endian C-order bytes.
     """
     array = np.ascontiguousarray(np.asarray(array, dtype="<f8"))
     digest = hashlib.sha256(canonical_bytes(list(array.shape)))

@@ -2,13 +2,12 @@
 """rodent_ep on Allen Visual Coding Neuropixels LFP (REQ-278); runs only with
 EVOPARAM_NETWORK_TESTS=1.
 
-DANDI 000021 (Allen Institute, CC-BY 4.0): the LFP of one probe (1 250 Hz) is read remotely
-by byte ranges with ``read_nwb`` around the 150 full-field flashes of the session file;
-the epochs are cached in the evoparam data folder. Channels in visual cortex (``VIS*``)
-with a significant existence test must carry the labelled visual evoked complex
-(``P1`` or ``N1``, named by sign, or ``late``) in at least 90 % of cases. Measured on 2026-10-08: session
-739448407, probes 757968489, 757968491 and 757968495: 16/17, 17/17, 16/16; session
-732592105, probe 733744649: 20/20.
+DANDI 000021 (Allen Institute, CC-BY 4.0): the LFP of one probe (1 250 Hz) is read remotely by byte
+ranges with ``read_nwb`` around the 150 full-field flashes of the session file; the epochs are
+cached in the evoparam data folder. Channels in visual cortex (``VIS*``) with a significant
+existence test must carry the labelled visual evoked complex (``P1`` or ``N1``, named by sign, or
+``late``) in at least 90 % of cases. Measured on 2026-10-08: session 739448407, probes 757968489,
+757968491 and 757968495: 16/17, 17/17, 16/16; session 732592105, probe 733744649: 20/20.
 """
 
 import json

@@ -66,7 +66,10 @@ def estimate_artifact_template(
 
 
 def _neighbours(times, row, n):
-    """Indices (into ``times``) of the ``n`` pulses closest in time to ``row``, itself excluded."""
+    """Return the indices (into ``times``) of the ``n`` pulses closest in time to ``row``.
+
+    ``row`` itself is excluded.
+    """
     order = np.argsort(np.abs(times - times[row]), kind="stable")
     order = order[order != row]
     return order[:n]
@@ -193,9 +196,10 @@ def subtract_template(
 def subtract_learned(
     ts, inds, *, group_by=GROUP_BY, n_components=None, ridge=1e-3, variance=0.95, max_components=8
 ):
-    """Learned artifact basis per group: PCA (uncentred SVD) of the window waveforms of
-    every pulse and channel of the group; each window is ridge-regressed on the basis and
-    the fit is subtracted.
+    """Learned artifact basis per group.
+
+    PCA (uncentred SVD) of the window waveforms of every pulse and channel of the group; each
+    window is ridge-regressed on the basis and the fit is subtracted.
 
     Returns (data, info) with ``basis`` [n_basis_total, n_window] (the groups' bases
     stacked), ``basis_groups`` (group index of each basis row) and ``fit_r2``.

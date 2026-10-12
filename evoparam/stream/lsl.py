@@ -97,8 +97,9 @@ class LSLInlet:
         self.name = info.name()
 
     def pull(self, timeout=0.0, max_samples=1024):
-        """Samples available now (waiting up to ``timeout`` s): ``(samples [n, n_channels],
-        timestamps [n])``.
+        """Return the samples available now (waiting up to ``timeout`` s).
+
+        ``(samples [n, n_channels], timestamps [n])``.
         """
         chunk, stamps = self._inlet.pull_chunk(timeout=timeout, max_samples=max_samples)
         if not stamps:
@@ -108,8 +109,9 @@ class LSLInlet:
         )
 
     def feed(self, fitter, *, duration=None, max_pulses=None, timeout=0.05, callback=None):
-        """Pull samples and push them into ``fitter`` (with their LSL timestamps) until
-        ``duration`` seconds have passed or ``max_pulses`` pulses have been estimated.
+        """Pull samples and push them into ``fitter`` (with their LSL timestamps).
+
+        Until ``duration`` seconds have passed or ``max_pulses`` pulses have been estimated.
 
         ``callback(estimates)`` is called with the estimates of every chunk that has some.
         Returns every estimate.
@@ -132,6 +134,7 @@ class LSLInlet:
                 return out
 
     def close(self):
+        """Close the stream."""
         self._inlet.close_stream()
 
 
@@ -184,7 +187,7 @@ class LSLOutlet:
         self._status = {status: i for i, status in enumerate(STATUSES)}
 
     def row(self, estimate):
-        """The float values of one estimate, in the order of :data:`FIELDS`."""
+        """Return the float values of one estimate, in the order of :data:`FIELDS`."""
         c = self._channel[estimate.channel]
         return [
             estimate.pulse_time,
@@ -207,4 +210,5 @@ class LSLOutlet:
             self._outlet.push_sample(self.row(estimate), estimate.pulse_time)
 
     def have_consumers(self):
+        """Return True when a consumer is connected to the outlet."""
         return bool(self._outlet.have_consumers())

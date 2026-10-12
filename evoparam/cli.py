@@ -76,7 +76,7 @@ SINGLE_FILES = (".vhdr", ".edf", ".bdf", ".fif", ".fif.gz", ".nwb", ".npz")
 
 
 def _preset(args):
-    """The preset of --preset, else the one of the datatype (ieeg: ccep, eeg: erp)."""
+    """Return the preset of --preset, else the one of the datatype (ieeg: ccep, eeg: erp)."""
     from evoparam import presets
 
     if getattr(args, "preset", None):
@@ -106,8 +106,9 @@ def _file_entities(path):
 
 
 def _events_for(path, args):
-    """Onsets (s) and metadata of a single recording: --events, else the BIDS events.tsv
-    next to it, else the annotations of an EDF+ file.
+    """Onsets (s) and metadata of a single recording.
+
+    --events, else the BIDS events.tsv next to it, else the annotations of an EDF+ file.
     """
     import pandas as pd
 
@@ -146,10 +147,11 @@ def _events_for(path, args):
 
 
 def _read_single(path, args, epoch):
-    """A TrialSet from one file: .nwb (its events), .fif (MNE epochs, or raw with its
-    events), .npz (data [trials, channels, times], sfreq, tmin, optional ch_names), .vhdr /
-    .edf / .bdf (epochs around the events of --events, the BIDS events.tsv next to the file,
-    or the EDF+ annotations).
+    """Return a TrialSet from one file.
+
+    .nwb (its events), .fif (MNE epochs, or raw with its events), .npz (data [trials, channels,
+    times], sfreq, tmin, optional ch_names), .vhdr / .edf / .bdf (epochs around the events of
+    --events, the BIDS events.tsv next to the file, or the EDF+ annotations).
     """
     from evoparam.io import read, read_nwb
 
@@ -246,9 +248,10 @@ def _target(args):
 
 
 def run_fit(ts, preset, *, random_state=None, n_jobs=1, existence=True, trials=None, log=None):
-    """The chain of ``evoparam fit``: :func:`evoparam.reports.run_pipeline` (artifact and
-    reference of the preset, baseline, fit, existence test with the preset's method, trial
-    fits when the preset says so).
+    """Return the chain of ``evoparam fit``.
+
+    :func:`evoparam.reports.run_pipeline` (artifact and reference of the preset, baseline, fit,
+    existence test with the preset's method, trial fits when the preset says so).
 
     Returns ``(results, notes)``: the list of results for :func:`write_bids_derivatives`
     (GroupFit, ResponseTest, trial fits, ArtifactResult) and the steps skipped.
@@ -401,7 +404,7 @@ def _containers(path):
     if path.endswith(".evoparam") or path.endswith(".zip"):
         return [path]
     found = []
-    for folder, dirs, files in os.walk(path):
+    for folder, dirs, _files in os.walk(path):
         for d in list(dirs):
             if d.endswith(".evoparam") and os.path.isfile(
                 os.path.join(folder, d, "manifest.json")
@@ -941,8 +944,9 @@ def _parser():
 
 def _read_config(path):
     """Options of a JSON or TOML file (``.toml``: ``tomllib``, Python 3.11+, else ``tomli``).
-    Top-level keys apply to every command; a table ``[evoparam]`` too, and a table named
-    after the command (``[fit]``) only to it.
+
+    Top-level keys apply to every command; a table ``[evoparam]`` too, and a table named after the
+    command (``[fit]``) only to it.
     """
     if path.lower().endswith(".toml"):
         try:
@@ -978,6 +982,7 @@ def _apply_config(parser, args, argv):
 
 
 def main(argv=None):
+    """Run the ``evoparam`` command line; returns the exit code."""
     argv = list(sys.argv[1:] if argv is None else argv)
     parser = _parser()
     try:

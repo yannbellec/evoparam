@@ -49,7 +49,7 @@ def list_indices():
 
 
 def load_index(name):
-    """A real-data index by name."""
+    """Return a real-data index by name."""
     if name not in list_indices():
         raise DataError(f"Unknown real-data index {name!r}; indices: {list_indices()}.")
     text = (
@@ -64,7 +64,7 @@ def load_index(name):
 
 
 def load_bids_trials(index, entry, *, cache_dir=None):
-    """The trials of one entry of a BIDS index, split by stimulation site.
+    """Return the trials of one entry of a BIDS index, split by stimulation site.
 
     Returns
     -------

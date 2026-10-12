@@ -16,8 +16,9 @@ __all__ = ["ArtifactRemover"]
 
 
 class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
-    """``evoparam.artifact.remove_artifact`` as a transformer: the output has the type and
-    shape of X (a TrialSet keeps its masks of replaced samples).
+    """``evoparam.artifact.remove_artifact`` as a transformer.
+
+    The output has the type and shape of X (a TrialSet keeps its masks of replaced samples).
 
     Parameters
     ----------
@@ -49,9 +50,10 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         self.random_state = random_state
 
     def _trials(self, X, *, reset):
-        """(TrialSet, shape of the array input or None for a TrialSet). An array is
-        (n_trials, n_times) or (n_trials, n_channels, n_times), checked the scikit-learn way
-        (dense, real, finite; after ``fit`` as many time points as in ``fit``).
+        """(TrialSet, shape of the array input or None for a TrialSet).
+
+        An array is (n_trials, n_times) or (n_trials, n_channels, n_times), checked the
+        scikit-learn way (dense, real, finite; after ``fit`` as many time points as in ``fit``).
         """
         from evoparam.data import TrialSet
 
@@ -83,7 +85,8 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         return ts, shape
 
     def fit(self, X, y=None):
-        """Nothing is learned from X but its time axis (``times_``, ``n_features_in_``);
+        """Nothing is learned from X but its time axis (``times_``, ``n_features_in_``).
+
         ``y`` is ignored.
         """
         trials, _ = self._trials(X, reset=True)
@@ -91,8 +94,10 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         return self
 
     def transform(self, X):
-        """X without the artifact. When the artifact window does not fit inside the epoch
-        (it needs 3 samples on each side) X is returned unchanged with a warning.
+        """X without the artifact.
+
+        When the artifact window does not fit inside the epoch (it needs 3 samples on each side) X
+        is returned unchanged with a warning.
         """
         from evoparam.artifact import remove_artifact
 

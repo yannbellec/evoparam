@@ -24,7 +24,7 @@ def _block(source, io_class):
 
 
 def _microvolts(signal):
-    """Samples of an AnalogSignal rescaled to µV (dimensionless signals unchanged)."""
+    """Return the samples of an AnalogSignal rescaled to µV (dimensionless signals unchanged)."""
     quantities = require("quantities", extra="neo", caller="evoparam.io.read_neo")
     try:
         return np.asarray(signal.rescale(quantities.uV).magnitude, float), "uV"

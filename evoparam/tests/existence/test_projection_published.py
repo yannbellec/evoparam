@@ -41,8 +41,12 @@ SHA256 = {
     "Fig5_sampledata_3": "7de9ec155ff7439a04d4b73e3c604f502f460b0566d7ccad5ef0cb912a8c7470",
     "Fig5_sampledata_4": "199f4d1ead23b42adc9d1c57fe54b398d4ac13050f9ab56343855e84467cd9f8",
     "Fig5_sampledata_5": "a4bf1634c2b1de3628ebab9e0329f7db6a69677f221bd411e9da4cd6d8194142",
-    "Fig6_a_significant_example": "b25c3a84392f7b95af6b30047bb17c2ffa29989537d37751ad44895fcc30820c",
-    "Fig6_b_insignificant_example": "64e282715e47c39deb3352956574660c735c09e5030b5e750550a03dab3f2373",
+    "Fig6_a_significant_example": (
+        "b25c3a84392f7b95af6b30047bb17c2ffa29989537d37751ad44895fcc30820c"
+    ),
+    "Fig6_b_insignificant_example": (
+        "64e282715e47c39deb3352956574660c735c09e5030b5e750550a03dab3f2373"
+    ),
     "Fig6_c_earlycomponent": "0af6a8842da9a57e9e7bc8adbe516bede960e73526a44a1f32badb458bf3e7d8",
     "Fig6_e_20muV_offset": "8b01ab781ba00264e4b424bf0e26c13d2503c6352fdec9d361f5991ecd69e8fa",
     "Fig6_f_offset_corrected": "16f75d8f906f0acb5687d6f9c467ceb3e955b8cd9cae7361be39c7398542fdfc",

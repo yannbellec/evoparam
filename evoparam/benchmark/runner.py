@@ -36,8 +36,9 @@ def result_name(method, task):
 
 
 def _cell_job(args):
-    """Simulate one cell, write its inputs, run the baselines; returns timings and
-    failures (runs in a worker process when ``n_jobs > 1``).
+    """Simulate one cell, write its inputs, run the baselines.
+
+    Returns timings and failures (runs in a worker process when ``n_jobs > 1``).
     """
     cell, tasks, methods, out = args
     timings, failures = {}, []

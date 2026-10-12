@@ -7,34 +7,38 @@ treatment decisions.
 
 import typing as _typing
 
-from . import (
-    artifact,
-    errors,
-    events,
-    existence,
-    hierarchical,
-    io,
-    prep,
-    presets,
-    shapes,
-    spatial,
-    tf,
-    trials,
-)
-from .data import Evoked, Provenance, TrialSet, load_object
-from .events import detect_events
-from .existence import fit, test_response
-from .io import read
-from .models import ResponseModel
-from .reports import reproduce
-from .version import __version__
+from . import artifact as artifact
+from . import errors as errors
+from . import events as events
+from . import existence as existence
+from . import hierarchical as hierarchical
+from . import io as io
+from . import prep as prep
+from . import presets as presets
+from . import shapes as shapes
+from . import spatial as spatial
+from . import tf as tf
+from . import trials as trials
+from .data import Evoked as Evoked
+from .data import Provenance as Provenance
+from .data import TrialSet as TrialSet
+from .data import load_object as load_object
+from .events import detect_events as detect_events
+from .existence import fit as fit
+from .existence import test_response as test_response
+from .io import read as read
+from .models import ResponseModel as ResponseModel
+from .reports import reproduce as reproduce
+from .version import __version__ as __version__
 
 # The existence test is the default detector of prep.reference_sensitivity (spec §5.4, method
 # 3); prep sits below the existence test in the dependency table, so the package root
 # registers it.
 prep.register_detector("existence", existence.existence_detector)
 
-from .utils import set_log_file, set_log_level, verbose  # noqa: E402  (REQ-304)
+from .utils import set_log_file as set_log_file  # noqa: E402  (REQ-304)
+from .utils import set_log_level as set_log_level  # noqa: E402  (REQ-304)
+from .utils import verbose as verbose  # noqa: E402  (REQ-304)
 
 
 def selftest(*, tolerance: float = 0.001) -> float:
@@ -79,9 +83,10 @@ def selftest(*, tolerance: float = 0.001) -> float:
 
 
 def cite(*, bibtex: bool = False, file: "_typing.TextIO | None" = None) -> str:
-    """Print and return how to cite evoparam (REQ-391): the software citation of
-    ``CITATION.cff`` with the version, its DOIs when they exist and the preferred paper
-    citation when there is one. ``bibtex=True`` gives a BibTeX entry.
+    """Print and return how to cite evoparam (REQ-391).
+
+    The software citation of ``CITATION.cff`` with the version, its DOIs when they exist and the
+    preferred paper citation when there is one. ``bibtex=True`` gives a BibTeX entry.
     """
     import sys
 
@@ -93,7 +98,9 @@ def cite(*, bibtex: bool = False, file: "_typing.TextIO | None" = None) -> str:
 
 
 def __getattr__(name):
-    """Deprecated public names (REQ-293): served from ``evoparam/_deprecated.py`` with an
+    """Serve the deprecated public names (REQ-293).
+
+    Served from ``evoparam/_deprecated.py`` with an
     :class:`~evoparam.utils.EvoparamDeprecationWarning`.
     """
     from ._deprecated import REGISTRY

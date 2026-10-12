@@ -129,8 +129,9 @@ class _ResultMixin(DeepEqualMixin):
         return cls(**dct)
 
     def methods_text(self):
-        """Methods paragraph built from ``provenance`` and ``settings`` only (REQ-338);
-        see :func:`evoparam.reports.methods_text`.
+        """Methods paragraph built from ``provenance`` and ``settings`` only (REQ-338).
+
+        See :func:`evoparam.reports.methods_text`.
         """
         from evoparam.data._methods import methods_text
 
@@ -196,6 +197,7 @@ class Component(_ResultMixin):
     resolvable: bool = True
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         self.params = np.asarray(self.params, dtype=np.float64)
         self.resolvable = bool(self.resolvable)
         self.param_names = tuple(self.param_names)
@@ -234,6 +236,7 @@ class GoodnessOfFit(_ResultMixin):
     baseline_sd: float
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         for fld in fields(self):
             value = getattr(self, fld.name)
             setattr(
@@ -245,7 +248,7 @@ class GoodnessOfFit(_ResultMixin):
 
 @dataclass(eq=False)
 class ResponseTest(_ResultMixin):
-    """Output of the existence test: is there a response on each channel?"""
+    """Output of the existence test: is there a response on each channel."""
 
     method: str
     statistic: np.ndarray
@@ -268,6 +271,7 @@ class ResponseTest(_ResultMixin):
     null_band: np.ndarray | None = None
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         for name in (
             "statistic",
             "p_value",
@@ -336,6 +340,7 @@ class ResponseFit(_ResultMixin):
     diagnostics: dict = field(default_factory=dict)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         if self.status not in FIT_STATUSES:
             raise DataError(
                 f"ResponseFit: status must be one of {FIT_STATUSES}, got {self.status!r}."
@@ -419,6 +424,7 @@ class GroupFit(_ResultMixin):
     provenance: Provenance = field(default_factory=Provenance)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         self.fits = list(self.fits)
         self.ch_names = [str(name) for name in self.ch_names]
         if self.conditions is not None:
@@ -515,13 +521,14 @@ class GroupFit(_ResultMixin):
         )
 
     def to_annotations(self, *, what="components", orig_time=None):
-        """``mne.Annotations`` of the components, for display on MNE plots: one per
-        component, onset to offset, description ``"<label>|<channel>"`` (extra ``mne``).
+        """``mne.Annotations`` of the components, for display on MNE plots.
+
+        One per component, onset to offset, description ``"<label>|<channel>"`` (extra ``mne``).
         """
         import mne
 
         onsets, durations, descriptions, channels = [], [], [], []
-        for ch, cond, pos in self.index[["channel", "condition", "position"]].itertuples(
+        for ch, _cond, pos in self.index[["channel", "condition", "position"]].itertuples(
             index=False
         ):
             for k, comp in enumerate(self.fits[int(pos)].components):
@@ -536,8 +543,10 @@ class GroupFit(_ResultMixin):
         )
 
     def to_evoked_model(self, *, sfreq=None):
-        """The fitted curves (fit window, zero elsewhere) as an ``mne.EvokedArray`` whose
-        comment is ``"evoparam model"`` (extra ``mne``).
+        """Return the fitted curves as an ``mne.EvokedArray`` (extra ``mne``).
+
+        The curves cover the fit window and are zero elsewhere; the comment is
+        ``"evoparam model"``.
         """
         import mne
 
@@ -606,6 +615,7 @@ class TrialFit(_ResultMixin):
     provenance: Provenance = field(default_factory=Provenance)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         for name in ("shift", "scale", "params", "latency", "amplitude", "fwhm", "gof"):
             setattr(self, name, np.asarray(getattr(self, name), dtype=np.float64))
         self.converged = np.asarray(self.converged, dtype=bool)
@@ -641,6 +651,7 @@ class HierarchicalFit(_ResultMixin):
     provenance: Provenance = field(default_factory=Provenance)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         self.levels = tuple(self.levels)
         if self.engine not in ("eb", "numpyro", "pymc"):
             raise DataError(
@@ -648,8 +659,9 @@ class HierarchicalFit(_ResultMixin):
             )
 
     def _normal_draws(self, n_draws, random_state):
-        """Draws from the normal approximation of the empirical-Bayes tables, in the layout
-        of ``diagnostics["draws"]`` (one chain).
+        """Draw from the normal approximation of the empirical-Bayes tables.
+
+        The draws have the layout of ``diagnostics["draws"]`` (one chain).
         """
         rng = np.random.default_rng(random_state)
         out = {}
@@ -683,8 +695,9 @@ class HierarchicalFit(_ResultMixin):
         return out
 
     def to_arviz(self, *, n_draws=1000, random_state=None):
-        """The posterior as an ArviZ ``InferenceData`` (with ArviZ 1.x, the ``DataTree``
-        that replaces it), for ``arviz`` summaries and plots (extra ``bayes``).
+        """Return the posterior as an ArviZ ``InferenceData`` (extra ``bayes``).
+
+        With ArviZ 1.x, the ``DataTree`` that replaces it; for ``arviz`` summaries and plots.
 
         Variables, per component label ``<c>``: ``<c>_latency_channel`` and
         ``<c>_amplitude_channel`` (dim ``site``, one per subject and channel, in the order of
@@ -693,10 +706,9 @@ class HierarchicalFit(_ResultMixin):
 
         With a sampling engine (``numpyro``, ``pymc``) these are the posterior draws kept in
         ``diagnostics["draws"]`` (per label: arrays chain x draw x site or subject, with the
-        ``sites`` and ``subjects`` names). The empirical-Bayes engine (``eb``) has no draws:
-        they are drawn from its normal approximation (estimate and standard error of each row of the
-        level tables; ``n_draws``, ``random_state``), which the attribute ``approximation``
-        states.
+        ``sites`` and ``subjects`` names). The empirical-Bayes engine (``eb``) has no draws: they
+        are drawn from its normal approximation (estimate and standard error of each row of the
+        level tables; ``n_draws``, ``random_state``), which the attribute ``approximation`` states.
         """
         try:
             import arviz as az
@@ -762,14 +774,17 @@ class ArtifactResult(_ResultMixin):
     provenance: Provenance = field(default_factory=Provenance)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         self.window = tuple(float(v) for v in self.window)
         self.template = _as_float_array(self.template)
         self.basis = _as_float_array(self.basis)
         self.quality = np.asarray(self.quality, dtype=np.float64)
 
     def quality_summary(self):
-        """Summary of the per-trial quality scores: ``{"n_trials", "median", "p05"}``
-        (median and 5th percentile of the finite scores; None when there is none).
+        """Summary of the per-trial quality scores.
+
+        ``{"n_trials", "median", "p05"}`` (median and 5th percentile of the finite scores; None
+        when there is none).
         """
         quality = np.ravel(self.quality)
         finite = quality[np.isfinite(quality)]
@@ -796,6 +811,7 @@ class ShapeBasis(_ResultMixin):
     provenance: Provenance = field(default_factory=Provenance)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         for name in ("curves", "times", "weights", "r2", "stability"):
             setattr(self, name, np.asarray(getattr(self, name), dtype=np.float64))
         self.n_shapes = int(self.n_shapes)
@@ -822,6 +838,7 @@ class TFFit(_ResultMixin):
     provenance: Provenance = field(default_factory=Provenance)
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         self.freqs = np.asarray(self.freqs, dtype=np.float64)
         self.times = np.asarray(self.times, dtype=np.float64)
         self.tmaps = np.asarray(self.tmaps, dtype=np.float64)
@@ -881,8 +898,10 @@ class TFFit(_ResultMixin):
         )
 
     def methods_text(self):
-        """Methods paragraph: transform and its parameters, baseline window and mode, the
-        statistic, alpha and the zone method (spec REQ-219).
+        """Methods paragraph.
+
+        Transform and its parameters, baseline window and mode, the statistic, alpha and the zone
+        method (spec REQ-219).
         """
         s = self.settings or {}
         tp = s.get("transform_params") or {}

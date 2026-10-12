@@ -41,7 +41,7 @@ SKIP = object()
 
 
 def enabled():
-    """False when ``EVOPARAM_DISABLE_PLUGINS`` is set to a true value."""
+    """Return False when ``EVOPARAM_DISABLE_PLUGINS`` is set to a true value."""
     return os.environ.get("EVOPARAM_DISABLE_PLUGINS", "").strip().lower() not in (
         "1",
         "true",
@@ -113,8 +113,8 @@ def used():
 class LazyRegistry(dict):
     """A dict that adds the plugins of ``group`` on first access.
 
-    ``check(name, obj, origin)`` validates each plugin object; the built-in names are the
-    keys present when the registry is created, plus ``builtin``. Objects registered later by the user
+    ``check(name, obj, origin)`` validates each plugin object; the built-in names are the keys
+    present when the registry is created, plus ``builtin``. Objects registered later by the user
     (``register_shape``, ``presets.register``) are kept as they are.
     """
 

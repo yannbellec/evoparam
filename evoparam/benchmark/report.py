@@ -54,8 +54,9 @@ def metric_label(name):
 
 
 def format_metric(name, value):
-    """The text of a metric value: ``n/a`` for None, latencies in ms, 4 significant
-    digits.
+    """Return the text of a metric value.
+
+    ``n/a`` for None, latencies in ms, 4 significant digits.
     """
     if value is None:
         return "n/a"
@@ -69,8 +70,9 @@ def format_metric(name, value):
 
 
 def load_results(folder):
-    """Every result document of a folder (``*.json``), signatures checked, sorted by task
-    then method name and version.
+    """Load every result document of a folder (``*.json``), signatures checked.
+
+    The documents are sorted by task then method name and version.
     """
     paths = sorted(glob.glob(os.path.join(folder, "*.json")))
     if not paths:
@@ -88,7 +90,7 @@ def _suites(docs):
 
 
 def markdown(docs):
-    """The report text."""
+    """Return the report text."""
     suites = _suites(docs)
     lines = ["# evoparam benchmark report", ""]
     lines.append(

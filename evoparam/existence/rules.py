@@ -35,13 +35,13 @@ STATISTICS = (
 
 
 def load_rules():
-    """The registry (``rules.json``), as a dict name -> rule."""
+    """Return the registry (``rules.json``), as a dict name -> rule."""
     text = resources.files("evoparam.existence").joinpath("rules.json").read_text("utf-8")
     return json.loads(text)["rules"]
 
 
 def resolve_rule(rule, **overrides):
-    """A complete rule: a registry name or a dict (``"custom"``), with the overrides applied.
+    """Return a complete rule: a registry name or a dict (``"custom"``), overrides applied.
 
     Raises
     ------
@@ -152,10 +152,12 @@ def selective_maxima(x, sel):
 
 
 def _local_negative_peak(z, times, spec, units, sd):
-    """The published N1 peak (van Blooijs et al. 2023): the largest local minimum of the
-    normalised average between the first sample after ``window[0]`` (excluded as a peak
-    when ``exclude_first_sample``) and the first sample after ``window[1]``, the minima
-    being searched up to ``peak_search_end``. Returns (statistic, peak time) per channel.
+    """Return the published N1 peak (van Blooijs et al. 2023).
+
+    The largest local minimum of the normalised average between the first sample after
+    ``window[0]`` (excluded as a peak when ``exclude_first_sample``) and the first sample after
+    ``window[1]``, the minima being searched up to ``peak_search_end``. Returns (statistic, peak
+    time) per channel.
 
     As in the published code, the decision uses the magnitude of the chosen minimum and is
     refused only when every minimum is positive, or when the peak exceeds

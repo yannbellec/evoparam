@@ -205,7 +205,7 @@ def _open_data(header, remote=None, *, chunk_size=1 << 20, cache_dir=None, log=N
 
 
 def _n_samples(header, reader):
-    """Number of samples per channel, from the file size."""
+    """Return the number of samples per channel, from the file size."""
     itemsize = np.dtype(header["dtype"]).itemsize
     from_size = reader.size // (header["n_channels"] * itemsize)
     return from_size if header["n_samples"] is None else min(header["n_samples"], from_size)
@@ -260,7 +260,7 @@ def _read_windows(reader, header, starts, n_times, ch_index, n_samples):
 
 
 def _pick(ch_names, picks):
-    """Indices of the picked channels, by name or index, in the given order."""
+    """Return the indices of the picked channels, by name or index, in the given order."""
     if picks is None:
         return list(range(len(ch_names)))
     if isinstance(picks, (str, int, np.integer)):
@@ -310,8 +310,10 @@ def _warn_units(header, ch_index):
 
 
 def _segment(vhdr, header, first, stop, picks, remote, cache_dir=None, hash_file=False):
-    """Samples ``first <= n < stop`` (clipped to the recording), in µV, and the record of
-    the bytes read (the SHA-256 of a local data file only when ``hash_file``).
+    """Read the samples ``first <= n < stop`` (clipped to the recording), in µV.
+
+    Also returns the record of the bytes read (the SHA-256 of a local data file only when
+    ``hash_file``).
     """
     ch_index = _pick(header["ch_names"], picks)
     _warn_units(header, ch_index)
@@ -320,7 +322,8 @@ def _segment(vhdr, header, first, stop, picks, remote, cache_dir=None, hash_file
         first, stop = max(int(first), 0), min(int(stop), n_samples)
         if stop <= first:
             raise ReaderError(
-                f"{vhdr}: the requested time window is outside the recording ({n_samples} samples)."
+                f"{vhdr}: the requested time window is outside the recording "
+                f"({n_samples} samples)."
             )
         data = _read_windows(reader, header, [first], stop - first, ch_index, n_samples)[0]
         if isinstance(reader, RemoteFile):

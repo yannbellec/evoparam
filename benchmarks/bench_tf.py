@@ -16,6 +16,7 @@ from evoparam.tf import tf_fit
 
 
 def make_data(n_trials=50, n_channels=100, n_times=2048, sfreq=2048.0, seed=0):
+    """Simulate the benchmark data."""
     rng = np.random.default_rng(seed)
     times = (np.arange(n_times) - n_times // 2) / sfreq
     data = rng.normal(0, 10, (n_trials, n_channels, n_times))
@@ -28,6 +29,7 @@ def make_data(n_trials=50, n_channels=100, n_times=2048, sfreq=2048.0, seed=0):
 
 
 def run(transform="morse", stats="fdr", zones="auto"):
+    """Time one time-frequency fit; returns (seconds, TFFit)."""
     ts = make_data()
     start = time.perf_counter()
     with warnings.catch_warnings():

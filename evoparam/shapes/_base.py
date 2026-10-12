@@ -59,7 +59,7 @@ class ComponentShape(Protocol):
         """Lower and upper bounds of the parameters for a window."""
 
     def initial_guess(self, times, waveform, peak_index):
-        """Starting parameters for a candidate extremum of ``waveform``."""
+        """Return the starting parameters for a candidate extremum of ``waveform``."""
 
     def features(self, times, params, amplitude=1.0):
         """Features of the component curve (:class:`ComponentFeatures`)."""
@@ -83,7 +83,7 @@ class Background(Protocol):
         """Lower and upper bounds of the parameters for a window."""
 
     def initial_guess(self, times, waveform):
-        """Starting parameters for a waveform."""
+        """Return the starting parameters for a waveform."""
 
 
 ###################################################################################################
@@ -192,8 +192,9 @@ def _interp_cross(grid, values, i, j, level):
 
 
 def _half_height_edges(grid, lobe, peak_time, height):
-    """Times at which ``lobe`` (the curve signed so that its extremum ``height`` at
-    ``peak_time`` is positive) crosses ``height / 2`` before and after the extremum.
+    """Return the times at which ``lobe`` crosses ``height / 2`` before and after the extremum.
+
+    ``lobe`` is the curve signed so that its extremum ``height`` at ``peak_time`` is positive.
 
     A side whose crossing is not on the grid is NaN; both are NaN when the extremum is
     off the grid, where the far side cannot be reached. When no grid sample next to the
@@ -299,8 +300,10 @@ class ComponentFeatures:
 
 
 def feature_grid(times, sfreq=None, window=None):
-    """Grid ten times finer than ``1/sfreq`` covering the window and one window length
-    on each side, so that a component cut by a window edge is still measured whole.
+    """Return a grid ten times finer than ``1/sfreq`` around the window.
+
+    It covers the window and one window length on each side, so that a component cut by a window
+    edge is still measured whole.
     """
     times = as_times(times)
     if sfreq is None:

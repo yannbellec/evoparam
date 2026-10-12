@@ -138,8 +138,9 @@ class FitSettings:
 
 
 class _FitPresets(Mapping):
-    """Fit fields of every preset (spec §6.1), read from evoparam.presets on access (one
-    source of truth; plugin presets included, and loaded only when first needed).
+    """Fit fields of every preset (spec §6.1), read from evoparam.presets on access.
+
+    One source of truth; plugin presets included, and loaded only when first needed.
     """
 
     def __getitem__(self, name):

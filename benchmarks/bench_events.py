@@ -16,6 +16,7 @@ from evoparam.events import detect_pulses
 
 
 def make_data(n_channels=100, sfreq=2048.0, duration=600.0, interval=5.0, seed=0):
+    """Simulate the benchmark data."""
     rng = np.random.default_rng(seed)
     data = rng.normal(0, 10, (n_channels, int(duration * sfreq)))
     shape = np.array([900.0, 2000.0, 1400.0, -1000.0, -500.0, -150.0])

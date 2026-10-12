@@ -71,6 +71,7 @@ class Adapter:
     here: str = ""
 
     def __post_init__(self):
+        """Check the command and the tasks."""
         if not self.command or not all(isinstance(c, str) for c in self.command):
             raise DataError(f"adapter {self.name!r}: command must be a list of strings.")
         self.tasks = tuple(self.tasks)
@@ -165,7 +166,7 @@ class Adapter:
         return output_path
 
     def info(self):
-        """The ``method`` record of a result document."""
+        """Return the ``method`` record of a result document."""
         return {
             "name": self.name,
             "version": self.version,
@@ -177,7 +178,7 @@ class Adapter:
 
 
 def load_adapter(path):
-    """An :class:`Adapter` from a JSON specification file."""
+    """Return an :class:`Adapter` from a JSON specification file."""
     with open(path, encoding="utf-8") as fobj:
         spec = json.load(fobj)
     missing = [k for k in ("name", "command") if k not in spec]

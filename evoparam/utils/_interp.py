@@ -14,7 +14,7 @@ INTERPOLATIONS = ("linear", "cubic", "pchip")
 
 
 def window_indices(times, window, buffer=0):
-    """Indices of the samples inside ``window`` (inclusive), checked against the buffer.
+    """Return the indices of the samples inside ``window`` (inclusive), checked against the buffer.
 
     Raises
     ------

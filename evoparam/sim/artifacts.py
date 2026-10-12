@@ -135,9 +135,10 @@ def _scalp_xy(name):
 
 
 def scalp_layout(n_channels):
-    """Scalp EEG channels: 10-20 names and positions on the unit disc (up to 32), then a
-    Fibonacci spiral of ``E33``… for larger montages. Coordinates in units of the head
-    radius (z = 0).
+    """Scalp EEG channels.
+
+    10-20 names and positions on the unit disc (up to 32), then a Fibonacci spiral of ``E33``… for
+    larger montages. Coordinates in units of the head radius (z = 0).
     """
     names, coords = [], []
     for index in range(n_channels):
@@ -190,7 +191,7 @@ def pulse_shape(
     filter_order=4,
     n_after=64,
 ):
-    """Recorded shape of a rectangular current pulse of unit height.
+    """Return the recorded shape of a rectangular current pulse of unit height.
 
     The current (first phase of sign ``polarity`` lasting ``pulse_width_us``,
     then, for a biphasic pulse, the opposite phase) is integrated on a grid at

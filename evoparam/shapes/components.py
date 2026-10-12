@@ -81,9 +81,11 @@ SUPPORT_Z = 38.7
 
 
 def gaussian_factor(z, value):
-    """``value(z)``, a product with ``exp(-z^2/2)`` as a factor (or a narrower Gaussian),
-    computed only where ``|z| < SUPPORT_Z``: elsewhere it is exactly 0, which is returned
-    without evaluating the exponential and the other factors (the same array).
+    """Compute ``value(z)``, a product with ``exp(-z^2/2)`` as a factor, where it is not 0.
+
+    The factor may also be a narrower Gaussian. The product is computed only where
+    ``|z| < SUPPORT_Z``: elsewhere it is exactly 0, which is returned without evaluating the
+    exponential and the other factors (the same array).
     """
     outside = np.abs(z) >= SUPPORT_Z
     n_out = np.count_nonzero(outside)
@@ -174,8 +176,9 @@ class _OscillationShape(_WidthShape):
             )
 
     def _freq_guess(self, times, waveform, low, high):
-        """Frequency of the largest periodogram peak of the waveform within [low, high]
-        (zero-padded, Hann-tapered); the middle of the range when there is none.
+        """Return the frequency of the largest periodogram peak of the waveform in [low, high].
+
+        Zero-padded, Hann-tapered periodogram; the middle of the range when there is no peak.
         """
         times, waveform = np.asarray(times, float), np.asarray(waveform, float)
         if len(times) < 4 or not np.all(np.isfinite(waveform)):
@@ -219,6 +222,7 @@ class Gaussian(_WidthShape):
     latency_param: ClassVar[str] = "mu"
 
     def evaluate(self, times, params):
+        """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
         params = self._params(params)
         if params.ndim == 1:
             z = (as_times(times) - params[0]) / params[1]
@@ -227,17 +231,20 @@ class Gaussian(_WidthShape):
         return np.exp(-0.5 * ((as_times(times) - mu) / sigma) ** 2)
 
     def jacobian(self, times, params):
+        """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
         mu, sigma = self._columns(params)
         z = (as_times(times) - mu) / sigma
         s = np.exp(-0.5 * z**2)
         return _stack([s * z / sigma, s * z**2 / sigma])
 
     def latency(self, params):
+        """Return the latency (s) of the component, ``(..., n_params) -> (...)``."""
         return self._params(params)[..., 0]
 
     extremum = latency
 
     def default_bounds(self, times, data_range=None):
+        """Lower and upper bounds of the parameters for a window."""
         start, end, _, _, low, high = self._window(times)
         sigma_max = high / FWHM_PER_SIGMA
         return check_bounds(
@@ -247,6 +254,7 @@ class Gaussian(_WidthShape):
         )
 
     def initial_guess(self, times, waveform, peak_index):
+        """Return the starting parameters for a candidate extremum of ``waveform``."""
         mu, sigma = self._center_width(times, waveform, peak_index)
         return clip_to_bounds([mu, sigma], self.default_bounds(times))
 
@@ -378,6 +386,7 @@ class SkewedGaussian(_WidthShape):
     latency_param: ClassVar[str] = "xi"
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         super().__post_init__()
         if not (np.isfinite(self.alpha_max) and self.alpha_max > 0):
             raise SettingsError(f"{self.name}: alpha_max must be positive, got {self.alpha_max}.")
@@ -395,10 +404,12 @@ class SkewedGaussian(_WidthShape):
         return z, omega, alpha, c, dc, numerator
 
     def evaluate(self, times, params):
+        """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
         _, _, _, c, _, numerator = self._parts(times, params)
         return numerator / c
 
     def jacobian(self, times, params):
+        """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
         z, omega, alpha, c, dc, numerator = self._parts(times, params)
         gauss = _SQRT_2_OVER_PI * np.exp(-0.5 * z**2 * (1.0 + alpha**2))
         d_z = -z * numerator + alpha * gauss
@@ -408,6 +419,7 @@ class SkewedGaussian(_WidthShape):
         )
 
     def latency(self, params):
+        """Return the latency (s) of the component, ``(..., n_params) -> (...)``."""
         params = self._params(params)
         z_mode, _, _ = skew_mode(params[..., 2])
         return params[..., 0] + params[..., 1] * z_mode
@@ -415,6 +427,7 @@ class SkewedGaussian(_WidthShape):
     extremum = latency
 
     def default_bounds(self, times, data_range=None):
+        """Lower and upper bounds of the parameters for a window."""
         start, end, _, _, low, high = self._window(times)
         sigma_max = high / FWHM_PER_SIGMA
         return check_bounds(
@@ -424,6 +437,7 @@ class SkewedGaussian(_WidthShape):
         )
 
     def initial_guess(self, times, waveform, peak_index):
+        """Return the starting parameters for a candidate extremum of ``waveform``."""
         mu, sigma = self._center_width(times, waveform, peak_index)
         return clip_to_bounds([mu, sigma, 0.0], self.default_bounds(times))
 
@@ -484,10 +498,12 @@ class ExGaussian(_WidthShape):
         return z, sigma, tau, lam, z_mode, q, exgauss_core(z, lam)
 
     def evaluate(self, times, params):
+        """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
         *_, q, f = self._parts(times, params)
         return f / q
 
     def jacobian(self, times, params):
+        """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
         z, sigma, tau, lam, z_mode, q, f = self._parts(times, params)
         gauss = _SQRT_2_OVER_PI * np.exp(-0.5 * z**2)
         s = f / q
@@ -496,6 +512,7 @@ class ExGaussian(_WidthShape):
         return _stack([-d_z / sigma, -d_z * z / sigma + d_lam / tau, -d_lam * lam / tau])
 
     def latency(self, params):
+        """Return the latency (s) of the component, ``(..., n_params) -> (...)``."""
         params = self._params(params)
         z_mode, _ = exgauss_mode(params[..., 1] / params[..., 2])
         return params[..., 0] + params[..., 1] * z_mode
@@ -503,6 +520,7 @@ class ExGaussian(_WidthShape):
     extremum = latency
 
     def default_bounds(self, times, data_range=None):
+        """Lower and upper bounds of the parameters for a window."""
         start, end, _, sfreq, low, high = self._window(times)
         sigma_max = high / FWHM_PER_SIGMA
         return check_bounds(
@@ -512,6 +530,7 @@ class ExGaussian(_WidthShape):
         )
 
     def initial_guess(self, times, waveform, peak_index):
+        """Return the starting parameters for a candidate extremum of ``waveform``."""
         peak, sigma = self._center_width(times, waveform, peak_index)
         tau = sigma
         z_mode, _ = exgauss_mode(np.float64(1.0))
@@ -556,6 +575,7 @@ class Gamma(_WidthShape):
     onset_param: ClassVar[str] = "t0"
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         super().__post_init__()
         if not 1.0 < self.kappa_min < self.kappa_max:
             raise SettingsError(
@@ -574,19 +594,23 @@ class Gamma(_WidthShape):
         return u, a, theta, log_ratio, s
 
     def evaluate(self, times, params):
+        """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
         return self._parts(times, params)[-1]
 
     def jacobian(self, times, params):
+        """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
         u, a, theta, log_ratio, s = self._parts(times, params)
         return _stack([s * (1.0 / theta - a / u), s * log_ratio, s * (u / theta - a) / theta])
 
     def latency(self, params):
+        """Return the latency (s) of the component, ``(..., n_params) -> (...)``."""
         params = self._params(params)
         return params[..., 0] + (params[..., 1] - 1.0) * params[..., 2]
 
     extremum = latency
 
     def default_bounds(self, times, data_range=None):
+        """Lower and upper bounds of the parameters for a window."""
         start, end, _, _, low, high = self._window(times)
         theta_low = low / gamma_fwhm_factor(self.kappa_max)
         theta_high = high / gamma_fwhm_factor(self.kappa_min)
@@ -595,6 +619,7 @@ class Gamma(_WidthShape):
         )
 
     def initial_guess(self, times, waveform, peak_index):
+        """Return the starting parameters for a candidate extremum of ``waveform``."""
         peak, sigma = self._center_width(times, waveform, peak_index)
         kappa = 2.0
         theta = sigma * FWHM_PER_SIGMA / float(gamma_fwhm_factor(kappa))
@@ -608,7 +633,9 @@ class Gamma(_WidthShape):
 
 
 def biexp_peak(tau_rise, tau_decay):
-    """Peak delay ``u* = tau_r tau_d/(tau_d - tau_r) ln(tau_d/tau_r)`` and peak value
+    """Return the peak delay and the peak value of a biexponential.
+
+    Peak delay ``u* = tau_r tau_d/(tau_d - tau_r) ln(tau_d/tau_r)`` and peak value
     ``m = r^(r/(1-r)) (1 - r)``, ``r = tau_r/tau_d``.
     """
     ratio = tau_rise / tau_decay
@@ -646,10 +673,12 @@ class Biexponential(_WidthShape):
         return u, after, tau_r, tau_d, decay, rise, numerator, delay, peak
 
     def evaluate(self, times, params):
+        """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
         parts = self._parts(times, params)
         return parts[6] / parts[8]
 
     def jacobian(self, times, params):
+        """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
         u, after, tau_r, tau_d, decay, rise, numerator, delay, peak = self._parts(times, params)
         # Envelope theorem: the peak value moves with the partial derivatives at the peak.
         d_peak_r = -np.exp(-delay / tau_r) * delay / tau_r**2
@@ -666,18 +695,21 @@ class Biexponential(_WidthShape):
         )
 
     def latency(self, params):
+        """Return the latency (s) of the component, ``(..., n_params) -> (...)``."""
         params = self._params(params)
         return params[..., 0] + biexp_peak(params[..., 1], params[..., 2])[0]
 
     extremum = latency
 
     def default_bounds(self, times, data_range=None):
+        """Lower and upper bounds of the parameters for a window."""
         start, end, length, sfreq, _, high = self._window(times)
         return check_bounds(
             self.name, [start - high, 1.0 / sfreq, 1.5 / sfreq], [end, length / 1.5, length]
         )
 
     def initial_guess(self, times, waveform, peak_index):
+        """Return the starting parameters for a candidate extremum of ``waveform``."""
         peak, sigma = self._center_width(times, waveform, peak_index)
         tau_r, tau_d = sigma / 2.0, 2.0 * sigma
         delay, _ = biexp_peak(tau_r, tau_d)
@@ -689,8 +721,9 @@ class Biexponential(_WidthShape):
 
 
 def damped_peak(tau, freq, phase):
-    """Delay ``u`` (from ``t0``) and value ``m`` of the largest
-    ``|exp(-u/tau) cos(2π f u + phase)|``.
+    """Return the delay ``u`` (from ``t0``) and value ``m`` of the largest damped cosine.
+
+    The largest ``|exp(-u/tau) cos(2π f u + phase)|``.
 
     The envelope decreases, so the maximum is either at the onset (``|cos phase|``)
     or at the first stationary point ``u1 > 0``, where
@@ -734,11 +767,13 @@ class DampedOscillation(_OscillationShape):
         return u, tau, freq, phase, envelope, angle, raw
 
     def evaluate(self, times, params):
+        """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
         *_, tau, freq, phase = self._columns(params)
         raw = self._parts(times, params)[-1]
         return raw / damped_peak(tau, freq, phase)[1]
 
     def jacobian(self, times, params):
+        """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
         u, tau, freq, phase, envelope, angle, raw = self._parts(times, params)
         omega = _TWO_PI * freq
         sine = envelope * np.sin(angle)
@@ -759,14 +794,17 @@ class DampedOscillation(_OscillationShape):
         )
 
     def latency(self, params):
+        """Return the latency (s) of the component, ``(..., n_params) -> (...)``."""
         return self._params(params)[..., 0]
 
     def extremum(self, params):
+        """Return the time (s) of the largest extremum, ``(..., n_params) -> (...)``."""
         params = self._params(params)
         delay, _ = damped_peak(params[..., 1], params[..., 2], params[..., 3])
         return params[..., 0] + delay
 
     def default_bounds(self, times, data_range=None):
+        """Lower and upper bounds of the parameters for a window."""
         start, end, length, sfreq, _, high = self._window(times)
         f_low, f_high = self._freqs(length, sfreq)
         return check_bounds(
@@ -774,6 +812,7 @@ class DampedOscillation(_OscillationShape):
         )
 
     def initial_guess(self, times, waveform, peak_index):
+        """Return the starting parameters for a candidate extremum of ``waveform``."""
         # Frequency from the periodogram of the window (a fixed mid-range start left the
         # fit in a wrong local minimum at a few samples per cycle); onset a quarter period
         # before the candidate peak, phase -pi/2 so that the first extremum is at the peak.
@@ -790,8 +829,9 @@ class DampedOscillation(_OscillationShape):
 
 
 def gabor_peak(sigma, freq, phase, n_grid=257, n_newton=8):
-    """Offset ``u*`` (from ``t0``) and value ``m`` of the largest
-    ``|exp(-u²/(2 sigma²)) cos(2π f u + phase)|``.
+    """Return the offset ``u*`` (from ``t0``) and value ``m`` of the largest Gabor value.
+
+    The largest ``|exp(-u²/(2 sigma²)) cos(2π f u + phase)|``.
 
     The maximum lies within ``|u| <= 1/(4f)`` (a crest of the cosine is that
     close to the envelope centre), and in practice within ``8 sigma``; it is
@@ -847,10 +887,12 @@ class Gabor(_OscillationShape):
         return u, sigma, freq, phase, envelope, angle, envelope * np.cos(angle)
 
     def evaluate(self, times, params):
+        """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
         _, sigma, freq, phase, _, _, raw = self._parts(times, params)
         return raw / gabor_peak(sigma, freq, phase)[1]
 
     def jacobian(self, times, params):
+        """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
         u, sigma, freq, phase, envelope, angle, raw = self._parts(times, params)
         omega = _TWO_PI * freq
         sine = envelope * np.sin(angle)
@@ -876,14 +918,17 @@ class Gabor(_OscillationShape):
         )
 
     def latency(self, params):
+        """Return the latency (s) of the component, ``(..., n_params) -> (...)``."""
         return self._params(params)[..., 0]
 
     def extremum(self, params):
+        """Return the time (s) of the largest extremum, ``(..., n_params) -> (...)``."""
         params = self._params(params)
         offset, _ = gabor_peak(params[..., 1], params[..., 2], params[..., 3])
         return params[..., 0] + offset
 
     def default_bounds(self, times, data_range=None):
+        """Lower and upper bounds of the parameters for a window."""
         start, end, length, sfreq, low, high = self._window(times)
         f_low, f_high = self._freqs(length, sfreq)
         sigma_max = high / FWHM_PER_SIGMA
@@ -894,6 +939,7 @@ class Gabor(_OscillationShape):
         )
 
     def initial_guess(self, times, waveform, peak_index):
+        """Return the starting parameters for a candidate extremum of ``waveform``."""
         peak, sigma = self._center_width(times, waveform, peak_index)
         lower, upper = self.default_bounds(times)
         freq = self._freq_guess(times, waveform, lower[2], upper[2])
@@ -933,6 +979,7 @@ class Template(ShapeBase):
     latency_param: ClassVar[str] = "shift"
 
     def __post_init__(self):
+        """Check and normalise the fields."""
         times = np.asarray(self.template_times, dtype=np.float64)
         values = np.asarray(self.template_values, dtype=np.float64)
         if times.ndim != 1 or times.size < 4 or values.shape != times.shape:
@@ -971,6 +1018,7 @@ class Template(ShapeBase):
 
     @property
     def param_names(self):
+        """Names of the parameters."""
         return ("shift", "stretch") if self.stretch else ("shift",)
 
     @property
@@ -988,16 +1036,19 @@ class Template(ShapeBase):
         return v, stretch, inside, v_in
 
     def evaluate(self, times, params):
+        """Unit-amplitude shape, ``(..., n_params) -> (..., n_times)``."""
         _, _, inside, v_in = self._parts(times, params)
         return np.where(inside, self._spline(v_in), 0.0) / self._norm
 
     def jacobian(self, times, params):
+        """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
         v, stretch, inside, v_in = self._parts(times, params)
         slope = np.where(inside, self._slope(v_in), 0.0) / (stretch * self._norm)
         columns = [-slope, -slope * v] if self.stretch else [-slope]
         return _stack(columns)
 
     def latency(self, params):
+        """Return the latency (s) of the component, ``(..., n_params) -> (...)``."""
         params = self._params(params)
         stretch = params[..., 1] if self.stretch else 1.0
         return params[..., 0] + stretch * self._peak
@@ -1005,6 +1056,7 @@ class Template(ShapeBase):
     extremum = latency
 
     def default_bounds(self, times, data_range=None):
+        """Lower and upper bounds of the parameters for a window."""
         _, _, length, _ = window_info(times)
         max_shift = length / 4.0 if self.max_shift is None else float(self.max_shift)
         lower, upper = [-max_shift], [max_shift]
@@ -1014,6 +1066,7 @@ class Template(ShapeBase):
         return check_bounds(self.name, lower, upper)
 
     def initial_guess(self, times, waveform, peak_index):
+        """Return the starting parameters for a candidate extremum of ``waveform``."""
         times, _ = check_waveform(times, waveform, peak_index)
         guess = [times[int(peak_index)] - self._peak] + ([1.0] if self.stretch else [])
         return clip_to_bounds(guess, self.default_bounds(times))

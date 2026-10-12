@@ -23,7 +23,7 @@ def check_trialset(ts):
 
 
 def window_slice(ts, window, buffer=0):
-    """Indices of the samples of ``ts`` inside ``window`` (s, inclusive)."""
+    """Return the indices of the samples of ``ts`` inside ``window`` (s, inclusive)."""
     return window_indices(ts.times, window, buffer)
 
 
@@ -55,7 +55,7 @@ def base_masks(ts):
 
 
 def finish(ts, data, masks, function, settings, start, **changes):
-    """New TrialSet with cleaned data, masks and one provenance step."""
+    """Return a new TrialSet with cleaned data, masks and one provenance step."""
     masks = masks if masks is not None and masks.any() else None
     if masks is None and ts.masks is not None and ts.masks.any():
         masks = ts.masks.copy()

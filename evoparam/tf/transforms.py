@@ -209,8 +209,9 @@ def make_kernels(
 
 
 def apply_kernels(kernels, x, crop=None):
-    """Complex coefficients of signals ``x`` (..., n_times): (n_tapers, ..., n_freqs, n_out),
-    on the samples ``crop`` (a slice; all samples by default).
+    """Complex coefficients of signals ``x`` (..., n_times).
+
+    (n_tapers, ..., n_freqs, n_out), on the samples ``crop`` (a slice; all samples by default).
     """
     x = np.asarray(x, float)
     n = x.shape[-1]
@@ -226,8 +227,10 @@ def apply_kernels(kernels, x, crop=None):
 
 
 def morse_reference_modulus(freq_signal, freq_kernel, gamma, beta):
-    """Analytic modulus of the Morse coefficient of a unit cosine at ``freq_signal`` (Hz),
-    for the kernel centred at ``freq_kernel``: half the wavelet's gain at that frequency.
+    """Return the analytic modulus of the Morse coefficient of a unit cosine at ``freq_signal``.
+
+    ``freq_signal`` in Hz, for the kernel centred at ``freq_kernel``: half the wavelet's gain at
+    that frequency.
     """
     peak = morse_peak(gamma, beta)
     return 0.5 * float(

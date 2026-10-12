@@ -39,7 +39,7 @@ _MAX_TRIES = 100
 
 
 def resolve_rng(seed):
-    """A :class:`numpy.random.Generator` from an int, a Generator or None."""
+    """Return a :class:`numpy.random.Generator` from an int, a Generator or None."""
     if isinstance(seed, np.random.Generator):
         return seed
     if seed is None or isinstance(seed, (int, np.integer)):
