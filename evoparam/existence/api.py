@@ -98,7 +98,8 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
                   n_permutations=1000, statistic="max_t", cluster_threshold=None,
                   polarity="both", rule=None, rule_overrides=None, picks=None,
                   by=("stim_site",), return_null=False, allow_artifact_overlap=False,
-                  n_boot=200, random_state=None, n_jobs=1, verbose=None):
+                  n_boot=200, random_state=None, n_jobs=1, verbose=None,
+                  projection_profile="published", projection_pairs="disjoint"):
     """Is there a response in the window, on each channel (and stimulation site)?
 
     Methods:
@@ -112,6 +113,13 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
     - ``"projection"``: cross-projections between trials (canonical response
       parameterisation, re-implemented from the published description): the response
       duration and a one-sided t-test of the projections at its end.
+      ``projection_profile`` chooses the response duration: ``"published"`` (default, the
+      peak of the mean projection, as the paper defines it) or ``"normalised"`` (the peak
+      of the mean projection divided by the square root of the window length, §5.6 item 2
+      as reviewed; see ``docs/spec/DECISIONS.md``). ``projection_pairs`` chooses the
+      projections tested: ``"disjoint"`` (default, each trial in one pair, independent under
+      the null) or ``"half"`` (one per unordered pair, the paper's set, which reproduces its
+      decisions but rejects pure noise at 0.33 to 0.44 at ``alpha = 0.05``).
     - ``"model_comparison"``: change of BIC between the fitted model and the background-only
       model, with a parametric bootstrap under the background-only model.
     - ``"threshold"``: a published rule of the registry (``rule``: name or dict), to the
@@ -127,7 +135,7 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
         Arrays [n_channels] (or [n_channels, n_groups] when ``by`` splits the trials into
         several groups, the group names in ``settings["groups"]``). ``curve`` holds the
         statistic over time in the window (the pointwise t of the trials; the baseline z of
-        the average without trials or for a registry rule; the normalised projection profile
+        the average without trials or for a registry rule; the projection profile
         for ``"projection"``; None for ``"model_comparison"``) on ``curve_times``, and
         ``null_band`` the level it must cross: the family-wise critical value of the null
         maximum (``max_t``), the cluster-forming threshold (``cluster``), the rule's ``k``.
@@ -184,7 +192,8 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
         elif method == "projection":
             if trials_ts is None:
                 raise DataError("method 'projection' needs trials.")
-            res = projection_test(data, times, window, baseline, rng=rng)
+            res = projection_test(data, times, window, baseline, rng=rng,
+                                  profile=projection_profile, pairs=projection_pairs)
         elif method == "model_comparison":
             avg = evoked.data[index] if trials_ts is None else data.mean(axis=0)
             res = _model_comparison(avg, times, window, baseline, n_permutations, rng)
@@ -217,6 +226,9 @@ def test_response(ts, *, method="baseline_permutation", window=(0.009, 0.5),
                    for key in ("onset_ci", "offset_ci")},
                 "exact": bool(results[0].get("exact", False)),
                 "package_version": __version__}
+    if method == "projection":
+        settings["projection_profile"] = projection_profile
+        settings["projection_pairs"] = projection_pairs
     if spec is not None:
         settings["rule_spec"] = {k: (list(v) if isinstance(v, tuple) else v)
                                  for k, v in spec.items() if k != "verified"}
