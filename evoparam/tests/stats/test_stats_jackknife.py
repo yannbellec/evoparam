@@ -83,17 +83,52 @@ def test_req231_smulders_worked_example():
         assert f_retrieved[key] == pytest.approx(f_jack[key], rel=1e-9)
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-231, Kiesel et al. (2008) part: the worked "
-                   "example of the paper could not be read in the build environment (on "
-                   "2026-10-09 the network policy refused the author's page at the University "
-                   "of Freiburg, the publisher, doi.org, OpenAlex, PubMed Central and Europe "
-                   "PMC), so its printed values are not "
-                   "frozen here; the corrections it uses (t / (n - 1), F / (n - 1)^2) are "
-                   "tested on the Smulders example and on simulations")
+# Kiesel, Miller, Jolicoeur & Brisson (2008), read on 2026-10-12 from the authors' copy
+# (www.psychologie.uni-freiburg.de/Members/kiesel/Publications/
+# Kiesel_Miller_Jolicoeur_Brisson_2008_PP.pdf/at_download/file)
+# (pp. 250-264; the text of pp. 265-274 was not returned). It prints the corrections only
+# as Equation 1 (p. 252) and reports no t or F value: Tables 1-8 are Monte Carlo means,
+# SDs, power and Type I error rates over data sets A and B, whose participant data are
+# not published. Its one worked number is the linear interpolation of a criterion
+# crossing (p. 254): -.98 at 62.50 ms, -1.02 at 66.41 ms, criterion -1.0, "64.46 ms".
+KIESEL_INTERPOLATION = {"times_ms": (62.50, 66.41), "values": (-0.98, -1.02),
+                        "criterion": -1.0, "printed_ms": 64.46}
+
+
+@pytest.mark.xfail(strict=False, reason="REQ-231, Kiesel et al. (2008) part: no corrected "
+                   "statistic of the paper to reproduce. Read on 2026-10-12 (authors' copy, "
+                   "psychologie.uni-freiburg.de .../Kiesel_Miller_Jolicoeur_Brisson_2008_PP"
+                   ".pdf/at_download/file; the direct .pdf URL is refused by robots.txt): "
+                   "pp. 250-264 give t_c = t / (n - 1) and F_c = F / (n - 1)^2 as Equation 1 "
+                   "only, and no t or F value; Tables 1-8 are Monte Carlo summaries over "
+                   "unpublished data sets. pp. 265-274 could not be read (the text returned "
+                   "stops on p. 264; Wiley, ResearchGate and Semantic Scholar refused the "
+                   "fetch; doi.org, OpenAlex, Crossref, Unpaywall, Europe PMC, PubMed, CORE "
+                   "and the Wayback Machine answered HTTP 403 at the proxy). The corrections "
+                   "are tested on the Smulders (2010) example and on simulations; the "
+                   "paper's interpolation example (p. 254) is tested below")
 def test_req231_kiesel_worked_example():
 
-    printed = None            # the worked example of [LIT-erpmeas-2], to be transcribed
+    printed = None            # a corrected statistic printed in [LIT-erpmeas-2]: none found
     assert printed is not None
+
+
+def test_req231_kiesel_interpolation_example():
+    """The worked number of Kiesel et al. (2008, p. 254): the criterion crossing,
+    linearly interpolated between the printed samples, is 64.46 ms to the printed
+    precision (62.50 + (-1.0 + .98) / (-1.02 + .98) x 3.91 = 64.455). It is scored here
+    as the 50 % fractional peak latency of a waveform whose negative peak is -2.0."""
+
+    from evoparam.models import classical_measures
+
+    ex = KIESEL_INTERPOLATION
+    times = np.array([0.050, ex["times_ms"][0] / 1e3, ex["times_ms"][1] / 1e3, 0.070, 0.075])
+    y = np.array([0.0, *ex["values"], 2 * ex["criterion"], -1.0])
+    out = classical_measures(times, y, window=(0.05, 0.075), polarity="negative",
+                             measures=("fractional_peak_latency",), fraction=0.5, n_neighbors=1)
+    ms = 1e3 * out["fractional_peak_latency"]
+    assert ms == pytest.approx(64.455, abs=1e-9)
+    assert abs(ms - ex["printed_ms"]) <= 0.005 + 1e-9
 
 
 def test_req231_noise_free_retrieval():

@@ -2,6 +2,60 @@
 
 ## Unreleased
 
+### `compute_features`: half-height crossings at the ends of the feature grid; REQ-231 (Kiesel et al. 2008) read
+
+- **Fix: `compute_features` no longer raises an IndexError.** The FWHM search started from
+  the grid sample `k` next to the extremum and assumed it was at least half the height.
+  When it was not, the left crossing was interpolated between `k` and `k + 1`, and the
+  right one between `k - 1` and `k`. An extremum after the feature grid (which covers the
+  window and one window length on each side) clips `k` to the last sample, so `k + 1` is
+  one past the grid: the IndexError, seen on gamma components, whose default bounds allow
+  a peak at `t0 + (kappa - 1) theta` well after the window (here 180 of 1 200 gamma draws
+  over the default bounds in three windows; for example `t0 = 0`, `kappa = 15`,
+  `theta = 0.1` peaks at 1.4 s, the grid of the window 0.009-0.5 s ends at 0.99 s). Any
+  shape placed there raised it (a Gaussian at 2 s). Two silent cases came from the same
+  cause:
+  - an extremum before the grid used sample -1, which wraps to the end of the grid (a
+    Gaussian at -1 s had a FWHM of -1.5e23 s);
+  - a lobe narrower than the grid step (a tenth of a sample) has no sample above half its
+    height, and gave a FWHM 5.7 times the truth, or 0.41 s for a 12 microsecond one.
+  Now an extremum off the grid gives a NaN FWHM with `fwhm_outside_grid`, as a crossing
+  outside the grid already did, and a lobe narrower than the grid step is interpolated
+  between the extremum and its neighbouring samples (within one grid step of the truth).
+  `_interp_cross` refuses an index off the grid instead of wrapping. Onset and offset were
+  already guarded at both ends; they are unchanged.
+- **Outputs unchanged elsewhere.** `compute_features` was compared before and after, field
+  by field (NaN equal to NaN): on 9 600 parameter sets drawn over the default bounds of the
+  eight shapes (corners included) in three windows (2 048 Hz, 1 000 Hz, 500 Hz), and on
+  the truth tables of the six generators (seeds 0-2), every output is identical except the
+  180 gamma sets that raised before. Twenty-four fits with `("gamma",)` and
+  `("gamma", "biexponential")` on `simulate_erp` waveforms give identical components. No
+  algorithm version changes: `compute_features` has no provenance step of its own; the
+  fits that call it (`ResponseModel.fit_waveform` and `fit_group`, through the engine's
+  identifiability checks and the result tables) are already at 1.1 in this unreleased
+  cycle, and for the generators and `spatial.fit_shared` (at 1.0) the change needs an
+  extremum more than one window length outside the window or a lobe narrower than a
+  tenth of a sample, which none of the sets above produced.
+- Tests: `tests/shapes/test_shapes.py` (extremum after and before the grid, lobe narrower
+  than the grid step, every shape over its whole parameter box in two windows);
+  `tests/models/test_fast_paths.py::test_features_scale_with_the_amplitude` now includes
+  the gamma, which was left out only because of this error. The new tests fail on the
+  previous code (IndexError, FWHM -1.5e23 s, 0.41 s) and pass now.
+- **REQ-231, Kiesel et al. (2008): still an xfail, with a new reason.** The paper was read
+  on 2026-10-12 from the authors' copy at the University of Freiburg
+  (`.../Kiesel_Miller_Jolicoeur_Brisson_2008_PP.pdf/at_download/file`; the plain `.pdf`
+  URL is refused by robots.txt). Pages 250-264 give the corrections only as Equation 1
+  (p. 252) and report no t or F value: Tables 1-8 are Monte Carlo means, SDs, power and
+  Type I error rates over data sets A (22 participants) and B (16) whose data are not
+  published. So there is no corrected statistic of that paper to reproduce. Pages 265-274
+  could not be read: the text returned stops on p. 264, Wiley, ResearchGate and Semantic
+  Scholar refused the fetch, and doi.org, OpenAlex, Crossref, Unpaywall, Europe PMC,
+  PubMed, CORE, Google Scholar and the Wayback Machine answered HTTP 403 at the proxy. The
+  paper's one worked number, the interpolated criterion crossing of p. 254 (-.98 at
+  62.50 ms, -1.02 at 66.41 ms, criterion -1.0, 64.46 ms), is a new passing test
+  (`test_req231_kiesel_interpolation_example`, 64.455 ms). The corrections stay tested on
+  the Smulders (2010) example. Recorded in `docs/spec/DECISIONS.md` §4.
+
 ### Engine simulation requirements (REQ-105, REQ-106, REQ-111, REQ-116): causes measured, no engine change
 
 The four engine requirements on simulations that stay expected failures in

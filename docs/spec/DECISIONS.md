@@ -357,6 +357,20 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   the baseline SD puts the threshold at 170 µV, above every simulated N1 of `core`, so it
   detects nothing there. That is a property of the code as published, not a failure of
   the run.
+- **REQ-231, "the corrected statistics of the reference examples in [LIT-erpmeas-2]".**
+  Kiesel et al. (2008) was read on 2026-10-12 from the authors' copy at the University
+  of Freiburg (the URL of `LITERATURE.md` followed by `/at_download/file`), pages
+  250-264. It gives the corrections `t_c = t / (n - 1)` and `F_c = F / (n - 1)^2` only as
+  Equation 1 and reports no t or F value: its tables are Monte Carlo summaries over data
+  sets whose participant data are not published. Pages 265-274 could not be read from the
+  build environment. No corrected statistic of that paper has been found to reproduce, so
+  this part of REQ-231 is not marked met: it stays an expected failure
+  (`tests/stats/test_stats_jackknife.py::test_req231_kiesel_worked_example`) whose reason
+  lists what was read and what was refused, until a printed corrected statistic is found
+  on the pages not read or the owner rules on it. The criterion is not changed. The
+  corrections are checked on the worked example of [LIT-erpmeas-6] (Smulders 2010), and
+  the one worked number of [LIT-erpmeas-2] (the interpolated criterion crossing of p. 254,
+  64.46 ms) is checked by `test_req231_kiesel_interpolation_example`.
 
 ## 5. Requirements that cannot both be read literally
 
