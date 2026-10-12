@@ -80,7 +80,6 @@ _FORBIDDEN = 1e9
 
 def _tolerance(tolerance, fwhm):
     """Per-component tolerance (s) from "fwhm/k", "k*fwhm", a number or None."""
-
     fwhm = np.asarray(fwhm, dtype=float)
     if tolerance is None:
         return np.full(fwhm.shape, np.inf)
@@ -103,7 +102,6 @@ def _tolerance(tolerance, fwhm):
 
 def _truth_table(truth, level, roles, window):
     """Truth rows, the waveforms they define, and the sampling rate when known."""
-
     pd = require("pandas", extra="data", caller="evoparam.sim.match_components")
     sfreq, waveforms = None, None
     if isinstance(truth, GroundTruth):
@@ -170,7 +168,6 @@ def _component_rows(fit, channel, condition):
 
 def _fit_table(pd, fit, channel, condition, truth_waveforms):
     """Fitted components (with interval columns when available) and the fitted waveforms."""
-
     if isinstance(fit, GroupFit):
         rows, waveforms = [], []
         for ch, cond, pos in fit.index[["channel", "condition", "position"]].itertuples(
@@ -332,7 +329,6 @@ def match_components(
     >>> list(match_components(truth, fit)["kind"])
     ['match', 'false']
     """
-
     if level not in ("component", "trial"):
         raise SettingsError(f"level must be 'component' or 'trial', got {level!r}.")
     pd, true_table, truth_waveforms, sfreq = _truth_table(truth, level, roles, window)
@@ -497,7 +493,6 @@ def score_fits(
         ``false_per_waveform`` and ``false_rate_empty`` (false components per
         waveform without a true component, the false-component rate at K = 0).
     """
-
     table = match_components(
         truth,
         fits,

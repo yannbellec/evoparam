@@ -40,7 +40,6 @@ PULSE_SHAPES = ("biphasic", "monophasic")
 
 def seeg_layout(n_channels, contacts_per_shaft=12):
     """Contacts on parallel sEEG shafts: names ``A01``…, coordinates (mm), shaft names."""
-
     names, coords, groups = [], [], []
     for index in range(n_channels):
         shaft, contact = divmod(index, contacts_per_shaft)
@@ -53,7 +52,6 @@ def seeg_layout(n_channels, contacts_per_shaft=12):
 
 def grid_layout(n_channels, n_columns=8):
     """Contacts of an ECoG grid (10 mm spacing): names ``G01``…, coordinates (mm)."""
-
     names, coords = [], []
     for index in range(n_channels):
         row, column = divmod(index, n_columns)
@@ -64,7 +62,6 @@ def grid_layout(n_channels, n_columns=8):
 
 def line_layout(n_channels, spacing, prefix, depth=True):
     """Contacts on a line (laminar probe, DBS lead, cochlear or spinal array)."""
-
     names = [f"{prefix}{index:02d}" for index in range(n_channels)]
     position = spacing * np.arange(n_channels, dtype=float)
     coords = np.zeros((n_channels, 3))
@@ -140,8 +137,8 @@ def _scalp_xy(name):
 def scalp_layout(n_channels):
     """Scalp EEG channels: 10-20 names and positions on the unit disc (up to 32), then a
     Fibonacci spiral of ``E33``… for larger montages. Coordinates in units of the head
-    radius (z = 0)."""
-
+    radius (z = 0).
+    """
     names, coords = [], []
     for index in range(n_channels):
         if index < len(_SCALP_NAMES):
@@ -167,7 +164,6 @@ def dipole_gain(coords, source, sink=None, radius=1.0):
     Distances below ``radius`` (mm, about the contact size) are clamped to it, so
     the stimulating contacts get the largest values (±1).
     """
-
     coords = np.asarray(coords, dtype=float)
     plus = np.maximum(np.linalg.norm(coords - np.asarray(source, dtype=float), axis=1), radius)
     out = radius / plus
@@ -179,7 +175,6 @@ def dipole_gain(coords, source, sink=None, radius=1.0):
 
 def _box_samples(start, stop, grid, step):
     """Fraction of each fine bin [grid, grid + step) inside [start, stop)."""
-
     return np.clip((np.minimum(grid + step, stop) - np.maximum(grid, start)) / step, 0.0, 1.0)
 
 
@@ -207,7 +202,6 @@ def pulse_shape(
     -------
     ndarray, shape (n_times,)
     """
-
     if kind not in PULSE_SHAPES:
         raise SettingsError(f"pulse kind must be one of {PULSE_SHAPES}, got {kind!r}.")
     width = float(pulse_width_us) * 1e-6
@@ -238,7 +232,6 @@ def tail_shape(times, sfreq, *, start, tau1, tau2, weight=0.7, cutoff_fraction=0
     It rises with the time constant of the anti-aliasing filter
     (``1 / (2π cutoff)``), so it starts at 0 instead of with a step.
     """
-
     if not (tau1 > 0 and tau2 > 0 and 0 <= weight <= 1):
         raise SettingsError("tail: tau1 and tau2 must be positive and weight in [0, 1].")
     u = np.asarray(times, dtype=float) - start

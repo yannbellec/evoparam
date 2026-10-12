@@ -74,8 +74,8 @@ ZONE_COLUMNS = {
 
 def nmf(x, rank, rng, n_iter=400, tol=1e-6):
     """Non-negative factorisation ``x ~ w @ h`` (Frobenius, multiplicative updates).
-    Returns (w (m, rank), h (rank, n), relative error)."""
-
+    Returns (w (m, rank), h (rank, n), relative error).
+    """
     m, n = x.shape
     scale = np.sqrt(max(x.mean(), EPS) / rank)
     w = rng.uniform(0.1, 1.0, (m, rank)) * scale
@@ -98,8 +98,8 @@ def nmf(x, rank, rng, n_iter=400, tol=1e-6):
 
 def cp_nonneg(x, rank, rng, n_iter=400, tol=1e-6):
     """Non-negative CP decomposition of a 3-way array ``x`` (I, J, K) by multiplicative
-    updates. Returns ([a (I, r), b (J, r), c (K, r)], relative error)."""
-
+    updates. Returns ([a (I, r), b (J, r), c (K, r)], relative error).
+    """
     dims = x.shape
     scale = (max(x.mean(), EPS) / rank) ** (1 / 3)
     factors = [rng.uniform(0.1, 1.0, (d, rank)) * scale for d in dims]
@@ -123,13 +123,11 @@ def cp_nonneg(x, rank, rng, n_iter=400, tol=1e-6):
 
 def _parts(w, h):
     """Each zone's (frequency x time) part, flattened."""
-
     return np.stack([np.outer(w[:, k], h[k]).ravel() for k in range(w.shape[1])])
 
 
 def congruence(parts_a, parts_b):
     """Mean Tucker congruence (cosine) of matched parts (Hungarian matching)."""
-
     na = parts_a / (np.linalg.norm(parts_a, axis=1, keepdims=True) + EPS)
     nb = parts_b / (np.linalg.norm(parts_b, axis=1, keepdims=True) + EPS)
     sim = na @ nb.T
@@ -171,7 +169,6 @@ def cp_split_values(tensor, halves, rank, rng, row_halves=None, split="trials"):
     of PARAFAC models, Bro 1997); with fewer than two such rows, the trial halves of the
     group map (``halves``), each a one-row tensor; without them, None.
     """
-
     if split == "trials" and row_halves is not None:
         return [_cp_congruence(pair[0], pair[1], rank, rng) for pair in row_halves]
     active = np.flatnonzero(tensor.reshape(-1, tensor.shape[-1]).any(axis=0))
@@ -207,7 +204,6 @@ def select_rank(
     the first version, across random restarts of the whole tensor (``"restarts"``; also
     used when no split is possible).
     """
-
     if cp_stability not in CP_STABILITY:
         raise SettingsError(f"cp_stability must be one of {CP_STABILITY}, not {cp_stability!r}.")
     stability = {}
@@ -256,7 +252,6 @@ def select_rank(
 
 def decompose(x, rank, rng, method="nmf", tensor=None):
     """Zone parts (rank, n_freqs, n_times) of a non-negative map, and row loadings for cp."""
-
     if method == "nmf":
         w, h, _ = _best_nmf(x, rank, rng)
         return np.stack([np.outer(w[:, k], h[k]) for k in range(rank)]), None
@@ -276,7 +271,6 @@ def zone_regions(parts_by_sign, group):
     ``parts_by_sign``: {+1: parts (r, F, T), -1: parts}. Returns a list of
     (sign, part, region bool (F, T)).
     """
-
     out = []
     for sign, parts in parts_by_sign.items():
         if parts is None or not len(parts):
@@ -296,8 +290,8 @@ def zone_regions(parts_by_sign, group):
 
 def _saddle(region_a, region_b, values):
     """Highest pass between two regions: max over neighbouring pixel pairs (one in each)
-    of the lower of the two values; -inf when they do not touch."""
-
+    of the lower of the two values; -inf when they do not touch.
+    """
     best = -np.inf
     for axis in (0, 1):
         for shift in (1, -1):
@@ -317,8 +311,8 @@ def _saddle(region_a, region_b, values):
 def _merge_without_dip(found, values):
     """Merge zones that touch without a dip between them: the pass between the two is at
     least half the smaller of their peaks (NMF splits one smooth blob into stable pieces
-    when the blob is not separable in time and frequency)."""
-
+    when the blob is not separable in time and frequency).
+    """
     found = list(found)
     merged = True
     while merged and len(found) > 1:
@@ -339,7 +333,6 @@ def _merge_without_dip(found, values):
 
 def zone_table(zones, group, freqs, times, stability):
     """Tidy zone table from (sign, part, region) triples and the signed group map."""
-
     import pandas as pd
 
     rows = []
@@ -404,8 +397,8 @@ def zone_table(zones, group, freqs, times, stability):
 def load_zones():
     """The registry (``zones.json``): name -> zone definition, with aliases (``alias_of``)
     and shared method blocks (``settings_of``: source, reference, note, field status and
-    settings common to the zones of one publication) resolved."""
-
+    settings common to the zones of one publication) resolved.
+    """
     text = resources.files("evoparam.tf").joinpath("zones.json").read_text("utf-8")
     raw = json.loads(text)
     zones = {}
@@ -428,8 +421,8 @@ def _interval(values, bounds, closure):
 
 def zone_mask(zone, freqs, times):
     """Pixels (n_freqs, n_times) of a registry zone, with its interval closures
-    (``intervals``: ``"[]"`` closed, the default, or ``"[)"`` half-open)."""
-
+    (``intervals``: ``"[]"`` closed, the default, or ``"[)"`` half-open).
+    """
     closure = zone.get("intervals") or {}
     in_f = _interval(np.asarray(freqs, float), zone["freq"], closure.get("freq", "[]"))
     in_t = _interval(np.asarray(times, float), zone["time"], closure.get("time", "[]"))
@@ -447,7 +440,6 @@ def volume_conduction_weight(distance_mm, d_min=10.0, d_max=20.0):
     >>> float(volume_conduction_weight(15.0))
     0.4166666666666667
     """
-
     d = np.asarray(distance_mm, float)
     w = np.clip((d**2 - d_min**2) / (d_max**2 - d_min**2), 0.0, 1.0)
     return np.where(np.isfinite(d), w, np.nan)
@@ -455,7 +447,6 @@ def volume_conduction_weight(distance_mm, d_min=10.0, d_max=20.0):
 
 def list_published_zones():
     """Table of the published zones, with their verification status and source."""
-
     import pandas as pd
 
     rows = []
@@ -490,7 +481,6 @@ def resolve_published(name, allow_unverified=False):
         Unknown zone; an ``unverified`` zone without ``allow_unverified=True`` (naming the
         zone and its source); a zone whose bounds are not entered in the registry.
     """
-
     registry = load_zones()
     if name not in registry:
         raise SettingsError(f"Unknown published zone {name!r}; registered: {sorted(registry)}.")

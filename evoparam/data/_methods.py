@@ -101,7 +101,6 @@ _REFERENCES = {
 
 def _num(value, digits=6):
     """A setting printed without float noise: 0.0090000001 -> 0.009."""
-
     if value is None:
         return "none"
     if isinstance(value, bool):
@@ -762,7 +761,6 @@ _TEMPLATES = {
 
 def step_sentence(step):
     """The sentence of one provenance step, or None for a step that is not described."""
-
     function = step.get("function", "")
     if function.startswith(SILENT_PREFIXES):
         return None
@@ -777,7 +775,6 @@ def step_sentence(step):
 
 def _fit_settings(steps, settings):
     """Settings of the last fit step (the result's own settings when it is a fit)."""
-
     if settings and "fit_window" in settings and "shapes" in settings:
         return settings
     for step in reversed(steps):
@@ -823,7 +820,6 @@ def methods_text(obj, cite=True):
         the settings changed from the preset; the random seed and how to regenerate the
         result; the citations.
     """
-
     provenance = getattr(obj, "provenance", None)
     steps = list(getattr(provenance, "steps", None) or [])
     settings = getattr(obj, "settings", None) or {}

@@ -3,7 +3,8 @@
 
 import numpy as np
 
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.utils._estimator import (
     BaseEstimatorMixin,
     TransformerMixin,
@@ -50,8 +51,8 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
     def _trials(self, X, *, reset):
         """(TrialSet, shape of the array input or None for a TrialSet). An array is
         (n_trials, n_times) or (n_trials, n_channels, n_times), checked the scikit-learn way
-        (dense, real, finite; after ``fit`` as many time points as in ``fit``)."""
-
+        (dense, real, finite; after ``fit`` as many time points as in ``fit``).
+        """
         from evoparam.data import TrialSet
 
         if type(X).__module__.split(".")[0] == "mne":
@@ -83,16 +84,16 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
 
     def fit(self, X, y=None):
         """Nothing is learned from X but its time axis (``times_``, ``n_features_in_``);
-        ``y`` is ignored."""
-
+        ``y`` is ignored.
+        """
         trials, _ = self._trials(X, reset=True)
         self.times_ = np.array(trials.times)
         return self
 
     def transform(self, X):
         """X without the artifact. When the artifact window does not fit inside the epoch
-        (it needs 3 samples on each side) X is returned unchanged with a warning."""
-
+        (it needs 3 samples on each side) X is returned unchanged with a warning.
+        """
         from evoparam.artifact import remove_artifact
 
         check_is_fitted(self)

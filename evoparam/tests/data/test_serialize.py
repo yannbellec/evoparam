@@ -9,8 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from evoparam.data import TrialSet, GroupFit, load_object, save_object
-from evoparam.data import serialize
+from evoparam.data import GroupFit, TrialSet, load_object, save_object, serialize
 from evoparam.errors import DataError, EvoparamVersionError
 from evoparam.tests.data.factories import all_results, make_group_fit, make_trialset
 

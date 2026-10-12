@@ -32,14 +32,13 @@ __all__ = ["run_suite", "result_name"]
 
 def result_name(method, task):
     """File name of a result: ``<method>__<task>.json``."""
-
     return f"{method}__{task}.json"
 
 
 def _cell_job(args):
     """Simulate one cell, write its inputs, run the baselines; returns timings and
-    failures (runs in a worker process when ``n_jobs > 1``)."""
-
+    failures (runs in a worker process when ``n_jobs > 1``).
+    """
     cell, tasks, methods, out = args
     timings, failures = {}, []
     start = time.perf_counter()
@@ -120,7 +119,6 @@ def run_suite(
         The summary also written to ``summary.json``: tasks, methods, cells, duration (s)
         per step, failures and the result files.
     """
-
     from .leaderboard import write_leaderboard
     from .report import write_report
 

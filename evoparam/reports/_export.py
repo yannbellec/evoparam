@@ -57,7 +57,6 @@ def to_json(result, path=None, *, validate=None):
         Validate against the shipped JSON Schema (needs ``jsonschema``; default: when it is
         installed).
     """
-
     from evoparam.data.serialize import save_object
 
     with tempfile.TemporaryDirectory(prefix=".evoparam-json-") as work:
@@ -119,7 +118,6 @@ def _have_jsonschema():
 
 def schema():
     """The shipped JSON Schema (a dict)."""
-
     from importlib import resources
 
     return json.loads(
@@ -137,7 +135,6 @@ def validate_json(document):
     ImportError
         ``jsonschema`` is not installed (extra ``validate``).
     """
-
     try:
         import jsonschema
     except ImportError as err:
@@ -159,7 +156,6 @@ def validate_json(document):
 
 def from_json(source):
     """The result of a document written by :func:`to_json` (dict, JSON text or path)."""
-
     from evoparam.data._jsonutil import dumps
     from evoparam.data.serialize import load_object
 

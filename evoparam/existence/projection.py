@@ -47,8 +47,8 @@ PAIRS = ("disjoint", "half")
 
 def _half_pairs(n):
     """One ordered pair per unordered pair {k, l}: (k, l) when k + l is odd, else (l, k), so
-    that each trial is the normalised one in about half of its pairs."""
-
+    that each trial is the normalised one in about half of its pairs.
+    """
     first, second = np.triu_indices(n, 1)
     swap = (first + second) % 2 == 0
     return np.where(swap, second, first), np.where(swap, first, second)
@@ -56,7 +56,6 @@ def _half_pairs(n):
 
 def _one_channel(v, times, t0_index, rng, profile="published", pairs="disjoint"):
     """v: trials x times (window from t0). Returns duration end index, statistic, p, extra."""
-
     n, n_t = v.shape
     # Cumulative Gram matrices over the prefix [t0, t]
     outer = np.einsum("kt,lt->tkl", v, v)
@@ -113,7 +112,6 @@ def projection_test(
     whose peak is the response end), ``curve_times`` and ``null_band`` (NaN: no band over
     time for this method).
     """
-
     if profile not in PROFILES:
         raise SettingsError(f"profile must be one of {PROFILES}, not {profile!r}.")
     if pairs not in PAIRS:

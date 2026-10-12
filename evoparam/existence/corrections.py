@@ -18,7 +18,6 @@ def correct(p, method="fdr_bh"):
     - ``bonferroni``: ``p * m``.
     - ``none``: unchanged.
     """
-
     if method not in CORRECTIONS:
         raise SettingsError(f"correction must be one of {CORRECTIONS}, not {method!r}.")
     p = np.asarray(p, float)

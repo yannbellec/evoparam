@@ -39,7 +39,6 @@ def epoch_data(data, sfreq, onsets, tmin, tmax, t0=0.0):
     kept : 1d array of bool
         Which onsets gave an epoch; epochs that do not fit inside `data` are dropped.
     """
-
     data = np.asarray(data)
     first, last = int(np.round(tmin * sfreq)), int(np.round(tmax * sfreq))
     times = np.arange(first, last + 1) / sfreq
@@ -71,14 +70,11 @@ def epoch_windows(onsets, sfreq, tmin, tmax, n_samples, t0=0.0):
     kept : 1d array of bool
         Which windows lie inside the recording of ``n_samples`` samples.
     """
-
     if not tmax > tmin:
-        raise DataError("epoch: tmax ({}) must be greater than tmin ({}).".format(tmax, tmin))
+        raise DataError(f"epoch: tmax ({tmax}) must be greater than tmin ({tmin}).")
     first, stop = int(np.round(tmin * sfreq)), int(np.round(tmax * sfreq))
     if stop - first < 2:
-        raise DataError(
-            "epoch: the window ({}, {}) holds fewer than 2 samples.".format(tmin, tmax)
-        )
+        raise DataError(f"epoch: the window ({tmin}, {tmax}) holds fewer than 2 samples.")
     onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
     if onsets.ndim != 1 or not np.all(np.isfinite(onsets)):
         raise EventError("epoch: onsets must be a 1d array of finite times (s).")
@@ -90,7 +86,6 @@ def epoch_windows(onsets, sfreq, tmin, tmax, n_samples, t0=0.0):
 
 def overlap_flags(onsets, length):
     """True for each event closer than ``length`` seconds to the previous event in time."""
-
     onsets = np.asarray(onsets, dtype=float)
     order = np.argsort(onsets, kind="stable")
     flags = np.zeros(onsets.size, dtype=bool)
@@ -101,15 +96,14 @@ def overlap_flags(onsets, length):
 
 def _as_table(table, n_rows, name):
     """DataFrame (RangeIndex) from a DataFrame or a dict of columns."""
-
     import pandas as pd
 
     if isinstance(table, dict):
         table = pd.DataFrame(table)
     if not (type(table).__name__ == "DataFrame"):
-        raise DataError("{}: expected a pandas DataFrame or a dict of columns.".format(name))
+        raise DataError(f"{name}: expected a pandas DataFrame or a dict of columns.")
     if len(table) != n_rows:
-        raise DataError("{}: expected {} rows, got {}.".format(name, n_rows, len(table)))
+        raise DataError(f"{name}: expected {n_rows} rows, got {len(table)}.")
     return table.reset_index(drop=True)
 
 
@@ -179,7 +173,6 @@ def epoch(
     EventError
         No epoch fits inside the recording.
     """
-
     start = _time.perf_counter()
     prior = []
     if type(onsets).__name__ == "DataFrame":
@@ -196,15 +189,11 @@ def epoch(
     if data.ndim == 1:
         data = data[np.newaxis]
     if data.ndim != 2:
-        raise DataError(
-            "epoch: data must be 2d (n_channels, n_times), got shape {}.".format(data.shape)
-        )
+        raise DataError(f"epoch: data must be 2d (n_channels, n_times), got shape {data.shape}.")
     onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
     times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, data.shape[1], t0=t0)
     if not kept.any():
-        raise EventError(
-            "epoch: no epoch of ({}, {}) s fits inside the recording.".format(tmin, tmax)
-        )
+        raise EventError(f"epoch: no epoch of ({tmin}, {tmax}) s fits inside the recording.")
 
     index = starts[kept][:, None] + np.arange(times.size)[None, :]
     trials = np.moveaxis(data[:, index], 0, 1)

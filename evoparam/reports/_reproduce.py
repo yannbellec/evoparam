@@ -24,7 +24,8 @@ from evoparam.data import TrialSet, load_object, save_object
 from evoparam.data._jsonutil import loads, to_jsonable
 from evoparam.data.provenance import capture_environment
 from evoparam.data.serialize import SCHEMA
-from evoparam.errors import DataError, EvoparamError, EvoparamVersionError, warn as _warn
+from evoparam.errors import DataError, EvoparamError, EvoparamVersionError
+from evoparam.errors import warn as _warn
 from evoparam.version import __version__
 
 __all__ = ["ReproduceReport", "reproduce", "migrate"]
@@ -79,7 +80,6 @@ class ReproduceReport:
 
 def _read_settings_json(path):
     """``settings.json`` of a container (directory or zip), as written on disk."""
-
     if os.path.isdir(path):
         with open(os.path.join(path, "settings.json"), encoding="utf-8") as fobj:
             return loads(fobj.read())
@@ -100,7 +100,6 @@ def _resolve_path(path):
 
 def _callable(function):
     """The public function (or container method name) of a dotted step name."""
-
     parts = function.split(".")
     for cut in range(len(parts) - 1, 1, -1):
         try:
@@ -119,7 +118,6 @@ def _callable(function):
 
 def _accepted(func, settings):
     """The settings that ``func`` accepts as keyword arguments."""
-
     params = inspect.signature(func).parameters
     if any(p.kind == p.VAR_KEYWORD for p in params.values()):
         return dict(settings)
@@ -135,8 +133,7 @@ def _accepted(func, settings):
 
 def _check_preset(settings):
     """EvoparamVersionError when the recorded preset version no longer exists."""
-
-    import evoparam.presets as presets
+    from evoparam import presets
 
     note = settings.get("preset_note") or ""
     match = re.match(r"preset '([^']+)' v([^\s;(]+)", note)
@@ -211,7 +208,6 @@ def _replay_source(step, source, data):
 
 def _replay(obj, final_settings, data):
     """Re-run the steps of ``obj.provenance``; returns (new object, step records)."""
-
     steps = list(obj.provenance.steps)
     records = []
     state = None
@@ -326,8 +322,8 @@ def _rel(a, b):
 
 def _compare(new, old, path, rtol, atol, out):
     """Append (path, relative difference or None) of every disagreement; return the largest
-    relative difference among the numbers compared."""
-
+    relative difference among the numbers compared.
+    """
     if dataclasses.is_dataclass(old) and not isinstance(old, type):
         if type(new) is not type(old):
             out.append((path, None))
@@ -429,7 +425,6 @@ def _compare(new, old, path, rtol, atol, out):
 
 def _missing_plugins(recorded):
     """Plugins a result used that are not installed now, or not at the recorded version."""
-
     from importlib import metadata
 
     from evoparam import presets
@@ -511,7 +506,6 @@ def reproduce(result_path, *, data=None, rtol=1e-9, atol=0.0, check_environment=
         A recorded step used a preset version that no longer exists (the message names the
         plugin to install when the preset came from a plugin that is missing).
     """
-
     path = _resolve_path(result_path)
     try:
         saved = load_object(path, verify=True)
@@ -600,7 +594,6 @@ def migrate(path):
     dict
         ``{"path", "from_schema", "to_schema", "migrated"}``.
     """
-
     path = _resolve_path(path)
     if os.path.isdir(path):
         with open(os.path.join(path, "manifest.json"), encoding="utf-8") as fobj:

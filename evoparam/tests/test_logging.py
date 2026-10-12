@@ -65,10 +65,9 @@ def test_failed_channel_emits_one_warning_with_its_name(caplog, monkeypatch):
 
 
 def test_verbose_debug_gives_debug_records_from_models(caplog):
-    with caplog.at_level(logging.NOTSET):
-        with verbose("debug"):
-            assert logging.getLogger("evoparam").getEffectiveLevel() == logging.DEBUG
-            ResponseModel("ccep", max_components=1).fit_group(_evoked())
+    with caplog.at_level(logging.NOTSET), verbose("debug"):
+        assert logging.getLogger("evoparam").getEffectiveLevel() == logging.DEBUG
+        ResponseModel("ccep", max_components=1).fit_group(_evoked())
     assert any(
         r.levelno == logging.DEBUG and r.name.startswith("evoparam") for r in caplog.records
     )

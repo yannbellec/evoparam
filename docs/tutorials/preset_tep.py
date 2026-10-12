@@ -14,7 +14,6 @@ Data: simulated TMS-EEG over the left motor cortex (C3), 32 channels.
 # Simulate TMS-EEG
 # ----------------
 
-import evoparam
 from evoparam import presets, reports, sim
 
 ts, truth = sim.simulate_tep(n_trials=40, n_channels=32, stim_site="C3", seed=0)

@@ -5,7 +5,8 @@ import time as _time
 
 import numpy as np
 
-from evoparam.errors import SettingsError, warn as _warn
+from evoparam.errors import SettingsError
+from evoparam.errors import warn as _warn
 
 from ._common import check_trialset, new
 
@@ -33,7 +34,6 @@ def _apply(ts, sos, name, settings, start):
 
 def highpass(ts, cutoff, order=4):
     """Zero-phase Butterworth high-pass (``sosfiltfilt``)."""
-
     from scipy.signal import butter
 
     start = _time.perf_counter()
@@ -46,7 +46,6 @@ def highpass(ts, cutoff, order=4):
 
 def lowpass(ts, cutoff, order=4):
     """Zero-phase Butterworth low-pass (``sosfiltfilt``)."""
-
     from scipy.signal import butter
 
     start = _time.perf_counter()
@@ -59,7 +58,6 @@ def lowpass(ts, cutoff, order=4):
 
 def notch(ts, freq=60.0, q=30.0, harmonics=3):
     """Zero-phase notch filters at ``freq`` and its harmonics below the Nyquist frequency."""
-
     from scipy.signal import iirnotch, tf2sos
 
     start = _time.perf_counter()

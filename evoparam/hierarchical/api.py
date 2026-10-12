@@ -146,7 +146,6 @@ def fit_hierarchical(
         ``level_tables`` (``"trial"``, ``"channel"``, ``"subject"``, ``"group"``),
         ``p_response``, ``variance_components``, ``effects``, ``summary``, ``diagnostics``.
     """
-
     start = _time.perf_counter()
     if engine not in ENGINES:
         raise SettingsError(f"engine must be one of {ENGINES}, not {engine!r}.")
@@ -568,7 +567,6 @@ def fit_hierarchical(
 
 def posterior_summary(fit, level="channel"):
     """The table of one level (``trial``, ``channel``, ``subject`` or ``group``)."""
-
     if level not in fit.level_tables:
         raise SettingsError(f"level must be one of {sorted(fit.level_tables)}, not {level!r}.")
     return fit.level_tables[level]
@@ -576,7 +574,6 @@ def posterior_summary(fit, level="channel"):
 
 def compare_hierarchical(fits):
     """Leave-one-out comparison (PSIS-LOO) of Bayesian fits: one row per fit, best first."""
-
     from .bayes import loo_table
 
     if any(f.engine == "eb" for f in fits):

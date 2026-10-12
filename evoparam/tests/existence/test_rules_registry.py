@@ -28,13 +28,13 @@ COMPLETE = {
 def _evoked_at(spec, value):
     """A waveform whose rule statistic equals ``value`` exactly (baseline SD 1, mean 0)."""
 
-    base = (TIMES >= spec["baseline"][0]) & (TIMES <= spec["baseline"][1])
+    base = (spec["baseline"][0] <= TIMES) & (spec["baseline"][1] >= TIMES)
     y = np.zeros(len(TIMES))
     n = base.sum()
     y[np.flatnonzero(base)] = np.where(np.arange(n) % 2 == 0, 1.0, -1.0)
     y[base] -= y[base].mean()
     y[base] /= y[base].std()
-    win = np.flatnonzero((TIMES >= spec["window"][0]) & (TIMES <= spec["window"][1]))
+    win = np.flatnonzero((spec["window"][0] <= TIMES) & (spec["window"][1] >= TIMES))
     kind = spec["statistic"]
     if kind == "rms_z":
         y[win] = value

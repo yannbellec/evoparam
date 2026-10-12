@@ -92,7 +92,6 @@ class Background(Protocol):
 
 def as_times(times):
     """Return ``times`` as a finite 1-D float64 array."""
-
     times = np.asarray(times, dtype=np.float64)
     if times.ndim == 0:
         times = times.reshape(1)
@@ -105,7 +104,6 @@ def as_times(times):
 
 def as_params(params, n_params, name):
     """Return ``params`` as a float64 array whose last axis has ``n_params`` entries."""
-
     params = np.asarray(params, dtype=np.float64)
     if params.ndim == 0 or params.shape[-1] != n_params:
         raise DataError(f"{name}: params must have shape (..., {n_params}), got {params.shape}.")
@@ -114,7 +112,6 @@ def as_params(params, n_params, name):
 
 def window_info(times):
     """Window start, end, length and sampling rate of a strictly increasing time axis."""
-
     times = as_times(times)
     if times.size < 2:
         raise DataError("times: at least 2 samples are needed to define a window.")
@@ -131,7 +128,6 @@ def window_info(times):
 
 def check_waveform(times, waveform, peak_index=None):
     """Check that ``waveform`` matches ``times`` (and that ``peak_index`` is inside)."""
-
     times = as_times(times)
     waveform = np.asarray(waveform, dtype=np.float64)
     if waveform.shape != times.shape:
@@ -147,7 +143,6 @@ def peak_fwhm(times, waveform, peak_index):
     The width is measured on each side where the half maximum is reached inside
     the window; when only one side is reached the width is twice that side.
     """
-
     values = np.abs(waveform)
     half = 0.5 * values[peak_index]
     if not half > 0:
@@ -188,7 +183,6 @@ def _interp_cross(grid, values, i, j, level):
     Both samples must be on the grid: a negative index would silently wrap to the
     other end, and one past the end does not exist.
     """
-
     if not (0 <= i < grid.size and 0 <= j < grid.size):
         raise IndexError(f"crossing between samples {i} and {j} of a grid of {grid.size}.")
     vi, vj = values[i], values[j]
@@ -206,7 +200,6 @@ def _half_height_edges(grid, lobe, peak_time, height):
     extremum reaches half the height (a lobe narrower than the grid step), each crossing
     is interpolated between the extremum itself and the grid sample next to it.
     """
-
     half = 0.5 * height
     if not grid[0] <= peak_time <= grid[-1]:
         return np.nan, np.nan
@@ -230,14 +223,13 @@ def _half_height_edges(grid, lobe, peak_time, height):
 
 def _interp_points(t0, v0, t1, v1, level):
     """Time at which the line through ``(t0, v0)`` and ``(t1, v1)`` reaches ``level``."""
-
     if v1 == v0:
         return float(t0)
     return float(t0 + (level - v0) * (t1 - t0) / (v1 - v0))
 
 
 def _trapezoid(y, x):
-    integrate = getattr(np, "trapezoid", None) or getattr(np, "trapz")
+    integrate = getattr(np, "trapezoid", None) or np.trapz
     return float(integrate(y, x))
 
 
@@ -300,7 +292,6 @@ class ComponentFeatures:
 
     def to_dict(self):
         """Return the features as a plain dictionary."""
-
         out = asdict(self)
         out["peak_times"] = list(self.peak_times)
         out["warnings"] = list(self.warnings)
@@ -309,8 +300,8 @@ class ComponentFeatures:
 
 def feature_grid(times, sfreq=None, window=None):
     """Grid ten times finer than ``1/sfreq`` covering the window and one window length
-    on each side, so that a component cut by a window edge is still measured whole."""
-
+    on each side, so that a component cut by a window edge is still measured whole.
+    """
     times = as_times(times)
     if sfreq is None:
         sfreq = window_info(times)[3]
@@ -366,7 +357,6 @@ def compute_features(
     -------
     ComponentFeatures
     """
-
     params = np.asarray(params, dtype=np.float64)
     if params.shape != (shape.n_params,):
         raise DataError(
@@ -494,7 +484,6 @@ class ShapeBase:
 
     def _columns(self, params):
         """Parameters as columns of shape (..., 1), ready to broadcast against times."""
-
         params = self._params(params)
         return [params[..., i, None] for i in range(self.n_params)]
 
@@ -509,7 +498,6 @@ class ShapeBase:
         window=None,
     ):
         """Features of ``amplitude · s(t; params)``; see :func:`compute_features`."""
-
         return compute_features(
             self,
             times,

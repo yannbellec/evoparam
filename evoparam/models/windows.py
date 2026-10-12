@@ -67,7 +67,6 @@ class ComponentWindows(Mapping):
     @classmethod
     def from_preset(cls, name):
         """The labelling windows of a preset (spec §6.1), for example ``"ccep"``."""
-
         from ._settings import FIT_PRESETS
 
         if name not in FIT_PRESETS:
@@ -93,29 +92,24 @@ class ComponentWindows(Mapping):
     @property
     def labels(self):
         """Window names, in insertion order."""
-
         return list(self._windows)
 
     @property
     def definitions(self):
         """``(start, end, polarity)`` of every window, in the order of :attr:`labels`."""
-
         return list(self._windows.values())
 
     def add(self, name, definition):
         """A copy with one more window."""
-
         if name in self._windows:
             raise SettingsError(f"window {name!r} already exists.")
         return ComponentWindows({**self._windows, name: definition})
 
     def remove(self, name):
         """A copy without the window ``name``."""
-
         self[name]
         return ComponentWindows({k: v for k, v in self._windows.items() if k != name})
 
     def to_dict(self):
         """Plain dictionary ``name -> [start, end, polarity]`` (JSON-serialisable)."""
-
         return {k: list(v) for k, v in self._windows.items()}

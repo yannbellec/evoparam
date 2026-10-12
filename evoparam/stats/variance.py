@@ -68,8 +68,8 @@ __all__ = ["variance_components", "VarianceResult", "reml"]
 
 def _codes(groups):
     """Nested integer codes: unit ``k`` of level ``l`` is the combination of the labels of
-    levels ``0..l``; returns the codes and the labels of each unit."""
-
+    levels ``0..l``; returns the codes and the labels of each unit.
+    """
     codes, labels = [], []
     keys = None
     for column in groups:
@@ -119,7 +119,6 @@ class _Blocks:
 
     def solve(self, sds, sd_res):
         """Accumulate X'V^-1 X, X'V^-1 y, y'V^-1 y and log|V| for the given SDs."""
-
         p = self.p
         xvx, xvy, yvy, logdet = np.zeros((p, p)), np.zeros(p), 0.0, 0.0
         cache = []
@@ -145,7 +144,6 @@ class _Blocks:
 
     def objective(self, sds, sd_res):
         """-2 x restricted log-likelihood (without the constant), and beta."""
-
         out = self.solve(sds, sd_res)
         if out is None:
             return np.inf, None
@@ -164,7 +162,6 @@ def _one_level_profile(y, code):
 
     Returns the variances (between units, residual) at the REML maximum.
     """
-
     n_units = code.max() + 1
     n_i = np.bincount(code, minlength=n_units).astype(float)
     s_i = np.bincount(code, weights=y, minlength=n_units)
@@ -245,7 +242,6 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
     >>> len(out["unit_mean"][0]), bool(np.all(out["shrinkage"][0] > 0.9))
     (30, True)
     """
-
     y = np.asarray(y, float).ravel()
     n = y.size
     groups = [np.asarray(g).ravel() for g in groups]
@@ -404,7 +400,6 @@ class VarianceResult:
 
     def variance(self, level):
         """Variance of one level (or ``"residual"``)."""
-
         rows = self.table[self.table["level"] == level]
         if len(rows) != 1:
             raise KeyError(f"no level {level!r}; levels: {list(self.table['level'])}.")
@@ -448,7 +443,6 @@ def variance_components(table, *, value, groups, se=None, fixed=None, residual=T
     >>> list(vc.table["level"])
     ['subject', 'residual']
     """
-
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.variance_components")
     groups = [groups] if isinstance(groups, str) else list(groups)

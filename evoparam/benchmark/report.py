@@ -49,15 +49,14 @@ LABELS = {
 
 def metric_label(name):
     """Column title of a metric (unit in ms for latencies)."""
-
     label = LABELS.get(name, name.replace("_", " "))
     return f"{label} (ms)" if name in _MS else label
 
 
 def format_metric(name, value):
     """The text of a metric value: ``n/a`` for None, latencies in ms, 4 significant
-    digits."""
-
+    digits.
+    """
     if value is None:
         return "n/a"
     if isinstance(value, bool):
@@ -71,8 +70,8 @@ def format_metric(name, value):
 
 def load_results(folder):
     """Every result document of a folder (``*.json``), signatures checked, sorted by task
-    then method name and version."""
-
+    then method name and version.
+    """
     paths = sorted(glob.glob(os.path.join(folder, "*.json")))
     if not paths:
         raise DataError(f"{folder}: no result file (*.json).")
@@ -90,7 +89,6 @@ def _suites(docs):
 
 def markdown(docs):
     """The report text."""
-
     suites = _suites(docs)
     lines = ["# evoparam benchmark report", ""]
     lines.append(
@@ -149,7 +147,6 @@ def markdown(docs):
 
 def write_report(results_folder, path):
     """Write the Markdown report of the results of a folder; returns the path."""
-
     text = markdown(load_results(results_folder))
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as fobj:

@@ -3,10 +3,11 @@
 #   core/modutils.py into utils/ (spec §4.5); module docstring rewritten; functions unchanged
 """Module utilities kept from the inherited code (spec §4.5: `core/modutils.py` is merged into
 `utils/` as is). Optional packages of the package itself are imported with
-:func:`evoparam.utils._optional.require` (spec §9.2); these helpers serve tests and docs."""
+:func:`evoparam.utils._optional.require` (spec §9.2); these helpers serve tests and docs.
+"""
 
-from importlib import import_module
 from functools import wraps
+from importlib import import_module
 
 ###################################################################################################
 ###################################################################################################
@@ -32,7 +33,6 @@ def safe_import(*args):
     - To import a whole module, pass a single string, ex: ('matplotlib').
     - To import a specific package, pass two strings, ex: ('.pyplot', 'matplotlib')
     """
-
     try:
         mod = import_module(*args)
     except ImportError:
@@ -104,7 +104,6 @@ def docs_drop_param(docstring):
     This function assumes numpy docs standards.
     It also assumes the parameter description to be dropped is only 2 lines long.
     """
-
     sep = "----------\n"
     ind = docstring.find(sep) + len(sep)
     front, back = docstring[:ind], docstring[ind:]
@@ -136,7 +135,6 @@ def docs_append_to_section(docstring, section, add):
     -----
     This function assumes numpydoc documentation standard.
     """
-
     return "\n\n".join(
         [split + add if section in split else split for split in docstring.split("\n\n")]
     )

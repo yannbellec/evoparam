@@ -38,7 +38,6 @@ def write_bids(ts, truth, root, *, subject="01", task="sim", datatype=None):
 
     Returns the path of the ``.vhdr`` file.
     """
-
     datatype = datatype or DATATYPES.get(ts.modality or "", "eeg")
     if datatype not in ("ieeg", "eeg"):
         raise SettingsError("datatype must be 'ieeg' or 'eeg'.")

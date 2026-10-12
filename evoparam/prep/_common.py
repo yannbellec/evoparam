@@ -20,7 +20,6 @@ def check_trialset(ts):
 
 def window_mask(times, window, name="window"):
     """Boolean mask of the samples inside ``window`` (inclusive); DataError if empty."""
-
     inside = (times >= window[0]) & (times <= window[1])
     if not inside.any():
         raise DataError(
@@ -32,7 +31,6 @@ def window_mask(times, window, name="window"):
 
 def masked_values(ts):
     """Data with masked samples set to NaN (a copy)."""
-
     data = ts.data.copy()
     if ts.masks is not None:
         data[ts.masks] = np.nan
@@ -41,7 +39,6 @@ def masked_values(ts):
 
 def new(ts, function, settings, start, **changes):
     """Copy of ``ts`` with changes and one provenance step."""
-
     provenance = ts.provenance.with_step(
         function, settings, duration_s=_time.perf_counter() - start
     )
@@ -52,7 +49,6 @@ def new(ts, function, settings, start, **changes):
 
 def ch_table(ts):
     """The channel table, or a minimal one built from the names."""
-
     import pandas as pd
 
     if ts.ch_info is not None:
@@ -62,7 +58,6 @@ def ch_table(ts):
 
 def stim_contacts(ts):
     """Per trial, the set of stimulated contact names from ``metadata["stim_site"]``."""
-
     out = [set() for _ in range(ts.n_trials)]
     if ts.metadata is None or "stim_site" not in ts.metadata.columns:
         return out
@@ -73,7 +68,6 @@ def stim_contacts(ts):
 
 def bad_channels(ts):
     """Set of channel names marked bad in ``ch_info``."""
-
     if ts.ch_info is None or "bad" not in ts.ch_info.columns:
         return set()
     info = ts.ch_info

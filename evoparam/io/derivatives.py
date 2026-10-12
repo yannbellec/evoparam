@@ -31,7 +31,8 @@ import os
 import numpy as np
 
 from evoparam.data._jsonutil import to_jsonable
-from evoparam.errors import DataError, ReaderError, warn as _warn
+from evoparam.errors import DataError, ReaderError
+from evoparam.errors import warn as _warn
 from evoparam.version import __version__
 
 __all__ = [
@@ -267,8 +268,8 @@ def _write_tsv(path, columns, rows):
 
 def _sidecar(columns, units, extra, header=None):
     """BIDS tabular sidecar: ``LongName``, ``Description``, ``Units`` (``"n/a"`` for labels
-    and dimensionless values, REQ-342) and ``Levels`` for the categorical columns."""
-
+    and dimensionless values, REQ-342) and ``Levels`` for the categorical columns.
+    """
     out = {}
     for name in header or columns:
         description, unit = columns[name]
@@ -329,8 +330,8 @@ def _preset(settings):
 def _metadata_rows(trials, label):
     """Rows of the trial metadata averaged under the condition ``label``: every row for an
     empty label, else the rows whose stim_site, condition or trial_type is the label, else
-    the rows matching the ``"a/b"`` values of a by-group; None when nothing matches."""
-
+    the rows matching the ``"a/b"`` values of a by-group; None when nothing matches.
+    """
     meta = getattr(trials, "metadata", None)
     if meta is None or len(meta) == 0:
         return None
@@ -354,7 +355,6 @@ def _metadata_rows(trials, label):
 
 def _single(rows, column):
     """The value of a column shared by every row, or None (absent, missing or mixed)."""
-
     if rows is None or column not in rows:
         return None
     values = [
@@ -369,7 +369,6 @@ def _single(rows, column):
 
 def _stim_fields(trials, label, columns):
     """stim_site, the evoparam_stim_* columns and the standard columns of a condition."""
-
     rows = _metadata_rows(trials, label)
     out = {"stim_site": _single(rows, "stim_site")}
     for column in columns:
@@ -451,8 +450,8 @@ def _response_rows(group, test=None, trials=None, extra_columns=()):
 
 def _response_columns(group, trials):
     """Header of responses.tsv: the base columns, the classical measures present in the
-    fits, the evoparam_stim_* columns and the standard columns found in the source."""
-
+    fits, the evoparam_stim_* columns and the standard columns found in the source.
+    """
     classical = {}
     for fit in group.fits:
         for key in _classical(fit):
@@ -520,7 +519,6 @@ def write_bids_derivatives(
     list of str
         The files written.
     """
-
     from evoparam.data import ArtifactResult, GroupFit, ResponseTest, TrialSet
     from evoparam.data._methods import methods_text
 
@@ -825,8 +823,8 @@ def write_bids_derivatives(
 
 def _source_datatype(trials, bids_root, subject):
     """Datatype of the source run: the provenance of trials read by read_bids, else the
-    folder of the subject in the raw dataset, else ieeg."""
-
+    folder of the subject in the raw dataset, else ieeg.
+    """
     source = getattr(getattr(trials, "provenance", None), "source", None) or {}
     path = str(source.get("path") or "")
     for datatype in ("ieeg", "eeg", "meg"):
@@ -845,8 +843,8 @@ def _source_datatype(trials, bids_root, subject):
 
 def _registry_source(bids_root):
     """SourceDatasets entry from the dataset registry, when the raw folder is named after a
-    registered dataset (ds004080, ...)."""
-
+    registered dataset (ds004080, ...).
+    """
     from evoparam.io.registry import dataset_info
 
     name = os.path.basename(os.path.normpath(str(bids_root)))
@@ -868,8 +866,8 @@ def _registry_source(bids_root):
 
 def _derivative_folder(path):
     """The evoparam derivative folder: ``path`` itself, or the newest
-    ``<path>/derivatives/evoparam-*``."""
-
+    ``<path>/derivatives/evoparam-*``.
+    """
     path = os.fspath(path)
     if os.path.isfile(os.path.join(path, "dataset_description.json")):
         with open(os.path.join(path, "dataset_description.json"), encoding="utf-8") as fobj:
@@ -896,8 +894,8 @@ def _read_tsv_rows(path):
 
 def _check_table(path, expected_rows, columns):
     """The cells of ``columns`` in the TSV are those the result gives (the table was not
-    edited after writing)."""
-
+    edited after writing).
+    """
     _, rows = _read_tsv_rows(path)
     if len(rows) != len(expected_rows):
         raise DataError(
@@ -949,7 +947,6 @@ def read_bids_derivatives(
     -------
     The result(s), equal to those written (model curves and provenance included).
     """
-
     import glob
 
     from evoparam.data import load_object

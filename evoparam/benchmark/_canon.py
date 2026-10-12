@@ -20,8 +20,8 @@ __all__ = ["canonical", "canonical_bytes", "sha256_bytes", "sha256_file", "array
 
 def clean(value):
     """A JSON-ready copy: numpy scalars and arrays to Python, NaN and +/-inf to None,
-    tuples to lists, dict keys to str."""
-
+    tuples to lists, dict keys to str.
+    """
     if isinstance(value, dict):
         return {str(k): clean(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -40,7 +40,6 @@ def clean(value):
 
 def canonical(value):
     """Canonical JSON text of ``value`` (sorted keys, no spaces, NaN as null)."""
-
     return json.dumps(
         clean(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
     )
@@ -48,19 +47,16 @@ def canonical(value):
 
 def canonical_bytes(value):
     """UTF-8 bytes of :func:`canonical`."""
-
     return canonical(value).encode("utf-8")
 
 
 def sha256_bytes(data):
     """Hex SHA-256 of bytes."""
-
     return hashlib.sha256(data).hexdigest()
 
 
 def sha256_file(path):
     """Hex SHA-256 of a file's bytes."""
-
     digest = hashlib.sha256()
     with open(path, "rb") as fobj:
         for block in iter(lambda: fobj.read(1 << 20), b""):
@@ -70,8 +66,8 @@ def sha256_file(path):
 
 def array_sha256(array):
     """Hex SHA-256 of an array: its shape (canonical JSON) then its float64 little-endian
-    C-order bytes."""
-
+    C-order bytes.
+    """
     array = np.ascontiguousarray(np.asarray(array, dtype="<f8"))
     digest = hashlib.sha256(canonical_bytes(list(array.shape)))
     digest.update(array.tobytes(order="C"))

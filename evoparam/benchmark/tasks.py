@@ -69,7 +69,6 @@ class BenchmarkValidationError(DataError):
 
 def schema_id(task):
     """``benchmark-task/<id>/1``."""
-
     _check_task(task)
     return f"benchmark-task/{task}/{SCHEMA_VERSION}"
 
@@ -81,7 +80,6 @@ def _check_task(task):
 
 def load_schema(task):
     """The JSON Schema of a task (a deep copy of ``schemas/<task>.json``)."""
-
     _check_task(task)
     if task not in _CACHE:
         text = (
@@ -95,13 +93,11 @@ def load_schema(task):
 
 def output_format(task):
     """``"tsv"``, or ``"npz"`` for T4."""
-
     return load_schema(task)["x-output-format"]
 
 
 def output_columns(task):
     """(required, optional) output columns of a TSV task, in their fixed order."""
-
     columns = load_schema(task).get("x-columns")
     if columns is None:
         raise DataError(f"Task {task} has no table output (its output is an .npz file).")
@@ -110,7 +106,6 @@ def output_columns(task):
 
 def output_path(folder, task, cell):
     """Where the output of ``cell`` is expected in a predictions folder."""
-
     return os.path.join(folder, f"{cell}.{output_format(task)}")
 
 
@@ -159,7 +154,6 @@ def validate(document, task, role, *, where=""):
     BenchmarkValidationError
         Naming the place of the first violation, the violation and the schema id.
     """
-
     error = _first_error(_validator(task, role), document)
     if error is not None:
         place = f"{where}: " if where else ""
@@ -201,20 +195,19 @@ class TaskInput:
     @property
     def times(self):
         """Time axis (s)."""
-
         n_times = next(iter(self.arrays.values())).shape[-1]
         return self.descriptor["tmin"] + np.arange(n_times) / self.descriptor["sfreq"]
 
     def sha256(self):
         """SHA-256 of the input: the canonical JSON of its descriptor, which holds the
-        hashes of the arrays."""
-
+        hashes of the arrays.
+        """
         return sha256_bytes(canonical_bytes(self.descriptor))
 
     def to_trialset(self):
         """A :class:`~evoparam.data.TrialSet` of ``data`` (with ``stim_site`` metadata when
-        the input has a site)."""
-
+        the input has a site).
+        """
         from evoparam.data import TrialSet
 
         pd = require("pandas", extra="data", caller="evoparam.benchmark")
@@ -234,7 +227,6 @@ class TaskInput:
 
     def to_evoked(self):
         """An :class:`~evoparam.data.Evoked` of ``evoked`` (T3)."""
-
         from evoparam.data import Evoked
 
         return Evoked(
@@ -249,7 +241,6 @@ class TaskInput:
 
 def make_descriptor(task, arrays, **fields):
     """A descriptor with the schema, role, task and array hashes filled in."""
-
     descriptor = {"schema": schema_id(task), "role": "input", "task": task}
     descriptor.update(fields)
     descriptor["arrays"] = {
@@ -262,7 +253,6 @@ def make_descriptor(task, arrays, **fields):
 
 def write_input(task_input, folder):
     """Write ``<cell>.json`` and ``<cell>.npz`` into ``folder``; returns the JSON path."""
-
     descriptor = task_input.descriptor
     validate(descriptor, descriptor["task"], "input", where=descriptor["cell"])
     os.makedirs(folder, exist_ok=True)
@@ -286,7 +276,6 @@ def read_input(path):
         The descriptor does not follow its schema, or an array differs from its recorded
         shape or hash.
     """
-
     with open(path, encoding="utf-8") as fobj:
         try:
             descriptor = json.load(fobj)
@@ -333,8 +322,8 @@ def _format(value):
 
 def write_output(task, value, path):
     """Write a task output: rows (list of dicts) as TSV with the task's columns, or the
-    cleaned epochs (array) as ``.npz`` for T4. Returns the path."""
-
+    cleaned epochs (array) as ``.npz`` for T4. Returns the path.
+    """
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     if output_format(task) == "npz":
         np.savez(path, data=np.asarray(value, dtype=np.float64))
@@ -400,7 +389,6 @@ def read_output(task, path):
         The first violation: header (unknown, missing or misplaced column), a row with the
         wrong number of fields, or the first row and column that do not follow the schema.
     """
-
     _check_task(task)
     if not os.path.isfile(path):
         raise DataError(f"{path}: no such output file.")

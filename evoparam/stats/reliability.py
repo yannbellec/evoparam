@@ -26,7 +26,8 @@ import warnings
 import numpy as np
 
 from evoparam.data import Evoked, TrialSet
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.existence import test_response
 from evoparam.utils._optional import require
 
@@ -105,7 +106,6 @@ def spearman_brown(r, factor=2.0):
     >>> round(spearman_brown(0.6), 6)
     0.75
     """
-
     r = np.asarray(r, float)
     out = factor * r / (1 + (factor - 1) * r)
     return float(out) if out.ndim == 0 else out
@@ -119,7 +119,6 @@ def dependability(var_unit, var_trial, n_trials):
     >>> round(dependability(1.0, 10.0, 30), 3)
     0.75
     """
-
     n = np.asarray(n_trials, float)
     total = var_unit + var_trial / n
     out = np.divide(var_unit, total, out=np.full(np.shape(total), np.nan), where=total > 0)
@@ -134,7 +133,6 @@ def _trials_for(target, var_unit, var_trial):
 
 def _pearson(x, y):
     """Correlation of the columns of x and y [n_units, k] (NaN rows left out per column)."""
-
     ok = np.isfinite(x) & np.isfinite(y)
     n = ok.sum(axis=0)
     xs, ys = np.where(ok, x, 0.0), np.where(ok, y, 0.0)
@@ -160,7 +158,6 @@ def _check_trialset(ts, caller):
 
 def _trial_data(ts, index):
     """Trials of the picked channels with masked samples as NaN, and the kept trial rows."""
-
     keep = np.ones(ts.n_trials, bool)
     if ts.metadata is not None and "rejected" in ts.metadata.columns:
         keep &= ~ts.metadata["rejected"].fillna(False).astype(bool).to_numpy()
@@ -172,8 +169,8 @@ def _trial_data(ts, index):
 
 def _scorer_on_window(scorer, times, window, scorer_kw):
     """Scorer of waveforms cropped to the window (a named score), or of whole waveforms (a
-    callable); returns the scorer, its name, linearity, the window and the samples kept."""
-
+    callable); returns the scorer, its name, linearity, the window and the samples kept.
+    """
     if isinstance(scorer, str):
         window = default_window(times) if window is None else window
         inside = (times >= window[0]) & (times <= window[1])
@@ -270,7 +267,6 @@ def reliability(
     >>> out[["n_units", "n_trials_mean"]].values.tolist()
     [[20.0, 30.0]]
     """
-
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.reliability")
     _check_trialset(ts, "reliability")
@@ -314,7 +310,6 @@ def reliability(
 
     def half_scores(selector):
         """Scores of the averages of a subset of each unit's trials -> (n_units, n_ch)."""
-
         if linear:
             return np.stack([_nanmean(trial_scores[rows[selector(rows)]], 0) for rows in units])
         avgs = np.stack([_nanmean(data[rows[selector(rows)]], 0) for rows in units])
@@ -395,7 +390,6 @@ def reliability(
 
 def _random_splits(units, data, trial_scores, func, linear, n_splits, rng):
     """Spearman-Brown corrected correlations of random halves: mean and 95 % range."""
-
     n_ch = trial_scores.shape[1]
     r_sb = np.full((n_splits, n_ch), np.nan)
     for start in range(0, n_splits, _CHUNK):
@@ -439,7 +433,6 @@ def _random_splits(units, data, trial_scores, func, linear, n_splits, rng):
 
 def _sme_rms(units, data, trial_scores, func, linear, rng):
     """Root mean square over units of the standardised measurement error of their score."""
-
     n_ch = trial_scores.shape[1]
     sme = np.full((len(units), n_ch), np.nan)
     for k, rows in enumerate(units):
@@ -485,7 +478,6 @@ def _extrapolate(sd, n_recorded, targets, law):
     are multiplied by ``sqrt(N / (N - 1))`` (a bootstrap of N trials uses their variance
     with divisor N). Returns {target: (n_ch,)} and the exponent per channel.
     """
-
     N = n_recorded
     resampled = sorted(sd)
     correction = np.sqrt(N / max(N - 1, 1))
@@ -577,7 +569,6 @@ def trials_needed(
     >>> table[["n_trials", "extrapolated"]].values.tolist()
     [[5, False], [10, False], [20, False], [80, True]]
     """
-
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.trials_needed")
     _check_trialset(ts, "trials_needed")

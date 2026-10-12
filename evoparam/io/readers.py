@@ -12,9 +12,10 @@ from dataclasses import replace
 
 import numpy as np
 
-import evoparam._plugins as _plugins
+from evoparam import _plugins
 from evoparam.data import Evoked, Provenance, TrialSet, load_object
-from evoparam.errors import DataError, ReaderError, SettingsError, warn as _warn
+from evoparam.errors import DataError, ReaderError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.io._fetch import is_url, sha256_file
 from evoparam.utils._optional import require
 
@@ -27,8 +28,8 @@ BUILTIN_EXTENSIONS = (".vhdr", ".edf", ".bdf", ".nwb", ".mefd", ".evoparam", ".z
 
 def _plugin_reader(name, obj, origin):
     """Check a reader of the entry-point group ``evoparam.readers`` (spec §10.8):
-    ``callable(path, **kw) -> TrialSet`` with ``extensions = (".ext", ...)``."""
-
+    ``callable(path, **kw) -> TrialSet`` with ``extensions = (".ext", ...)``.
+    """
     import inspect
 
     if not callable(obj):
@@ -71,8 +72,8 @@ READERS = _plugins.LazyRegistry("evoparam.readers", {}, _plugin_reader, builtin=
 
 def _plugin_for(path, format):
     """(name, reader) of the plugin reader for ``format`` or the extension of ``path``;
-    None when no plugin claims it. Two plugins claiming one extension raise SettingsError."""
-
+    None when no plugin claims it. Two plugins claiming one extension raise SettingsError.
+    """
     if format is not None:
         return (format, READERS[format]) if format in READERS else None
     lower = path.lower().rstrip("/")
@@ -188,7 +189,6 @@ def from_array(
         If the shapes of ``data``, ``times``, ``ch_names`` or the tables do not match,
         or any other invariant of TrialSet fails.
     """
-
     start = _time.perf_counter()
     data = np.asarray(data)
     if data.dtype.kind not in "biuf":
@@ -275,9 +275,9 @@ def _read_continuous(
     modality=None,
 ):
     """A recording file: epochs around ``onsets``, or the recording as one trial."""
-
     from evoparam.io.brainvision import _read_with_source
-    from evoparam.io.epochs import epoch as cut, epoch_windows
+    from evoparam.io.epochs import epoch as cut
+    from evoparam.io.epochs import epoch_windows
 
     start = _time.perf_counter()
     if onsets is not None:
@@ -387,7 +387,6 @@ def read(source, *, format=None, **kwargs):
     ReaderError
         Unknown or unsupported format.
     """
-
     if isinstance(source, TrialSet):
         return source
     if isinstance(source, Evoked):
@@ -464,7 +463,6 @@ def read_mne(obj, *, units="uV"):
     DataError
         If the channels mix units (for example EEG with MEG, or gradiometers).
     """
-
     mne = require("mne", extra="mne", min_version="1.6", caller="evoparam.io.read_mne")
     pd = require("pandas", extra="data", caller="evoparam.io.read_mne")
     start = _time.perf_counter()
@@ -566,7 +564,6 @@ def read_edf(path, *, tmin=None, tmax=None, picks=None):
     DataError
         If the picked signals have different sampling frequencies.
     """
-
     from evoparam.io.brainvision import _pick, _sample
 
     edfio = require("edfio", extra="edf", min_version="0.4", caller="evoparam.io.read_edf")
@@ -611,7 +608,6 @@ def read_events_edf(path):
         One dict per annotation with keys 'onset' (s), 'duration' (s, None when not
         given) and 'description'.
     """
-
     edfio = require("edfio", extra="edf", min_version="0.4", caller="evoparam.io.read_events_edf")
     edf = edfio.read_edf(path)
     return [

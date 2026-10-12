@@ -69,7 +69,7 @@ def _overlay(onset, seed):
     return make_overlay(onset=onset, seed=seed, n_channels=N_CHANNELS, art_tau=0.001)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _truth_fit(onset, seed, fit_window):
     return _fit(_overlay(onset, seed)[1], fit_window)
 

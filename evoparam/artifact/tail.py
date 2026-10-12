@@ -46,7 +46,6 @@ def fit_tail(times, data, start, length, tau_bounds=(0.0005, 0.05), part="full")
     params : dict
         Arrays ``tau1``, ``tau2``, ``c0``, ``c1``, ``c2`` and ``rss`` (shape of the series).
     """
-
     lo, hi = tau_bounds
     if not 0 < lo < hi:
         raise SettingsError("tau_bounds must be (low, high) with 0 < low < high.")

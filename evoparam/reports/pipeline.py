@@ -30,7 +30,8 @@ class PipelineResult:
     """What :func:`run_pipeline` produced: the cleaned trials, the artifact results (one per
     artifact step), the channel fits with their existence tests, the trial fits, and the
     reference-sensitivity report (the kappa table of
-    :func:`evoparam.prep.reference_sensitivity`, for a preset that runs it: ``ccep_seeg``)."""
+    :func:`evoparam.prep.reference_sensitivity`, for a preset that runs it: ``ccep_seeg``).
+    """
 
     trials: object
     artifact: list
@@ -42,8 +43,8 @@ class PipelineResult:
     @property
     def results(self):
         """The results to write as BIDS derivatives (spec §10.2): the group fit, the
-        existence test, the trial fits and the artifact results."""
-
+        existence test, the trial fits and the artifact results.
+        """
         out = [self.group]
         if self.test is not None:
             out.append(self.test)
@@ -55,8 +56,8 @@ class PipelineResult:
 def _artifact_baseline(ts, preset, window):
     """Baseline of the artifact-quality score: the preset's baseline when the epoch holds
     it, else the part of the epoch before the artifact window (the short epochs of the
-    ECAP presets have no sample in the default -0.5 to -0.05 s)."""
-
+    ECAP presets have no sample in the default -0.5 to -0.05 s).
+    """
     times = ts.times
     if preset.baseline is not None:
         lo, hi = preset.baseline
@@ -73,7 +74,6 @@ def artifact_steps(preset):
     ``"interpolate+subspace"`` → interpolation then subspace projection;
     ``"paradigm:<scheme>"`` → paradigm subtraction with that scheme; ``None`` → none.
     """
-
     p = _presets.get(preset)
     method = p.artifact_method
     if method in (None, "", "none"):
@@ -104,7 +104,6 @@ def artifact_steps(preset):
 
 def reference_scheme(preset):
     """The ``rereference`` scheme of the preset, or None to keep the recording reference."""
-
     ref = _presets.get(preset).reference
     if ref in (None, "", "as_recorded", "as recorded", "monopolar"):
         return None
@@ -114,8 +113,8 @@ def reference_scheme(preset):
 def _test_window(ts, window):
     """The existence-test window: the fit window, starting after the last sample that the
     artifact removal replaced in every trial (the test refuses such samples; with the
-    interpolation buffer they can reach past the artifact window)."""
-
+    interpolation buffer they can reach past the artifact window).
+    """
     if ts.masks is None:
         return window
     inside = (ts.times >= window[0]) & (ts.times <= window[1])
@@ -176,14 +175,12 @@ def run_pipeline(
     -------
     PipelineResult
     """
-
     from evoparam.artifact import remove_artifact
     from evoparam.errors import DataError, warn
     from evoparam.existence import attach_test, test_response
     from evoparam.models import fit as fit_models
-    from evoparam.prep import baseline_correct, rereference
+    from evoparam.prep import baseline_correct, rereference, train_baseline
     from evoparam.prep import reference_sensitivity as sensitivity
-    from evoparam.prep import train_baseline
 
     p = _presets.get(preset)
     ts = trials
@@ -342,7 +339,6 @@ REFERENCE_PIPELINES = {
 
 def reference_input(name):
     """The stand-in TrialSet of a reference pipeline (simulated; see REFERENCE_PIPELINES)."""
-
     from evoparam import sim
 
     spec = REFERENCE_PIPELINES[name]["stand_in"]
@@ -352,7 +348,6 @@ def reference_input(name):
 
 def run_reference_pipeline(name, trials=None, *, random_state=0):
     """Run reference pipeline ``name`` on ``trials`` (default: its stand-in input)."""
-
     if name not in REFERENCE_PIPELINES:
         raise SettingsError(
             f"Unknown reference pipeline {name!r}; known: {sorted(REFERENCE_PIPELINES)}."

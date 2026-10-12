@@ -56,7 +56,6 @@ OSCILLATORY = ("damped_oscillation", "gabor")
 
 def _form_settings(name, form):
     """Split ``form`` into the fixed and ratio parameters of a shape, with defaults."""
-
     spec = SHAPE_FORMS[name]
     fixed = dict(spec["fixed"])
     ratios = dict(spec["ratios"])
@@ -90,7 +89,6 @@ def _unit_form(name, fixed, ratios):
     Both scale linearly with the width parameter and the latency moves with the
     location, so one evaluation per set of dimensionless parameters is enough.
     """
-
     shape = get_shape(name)
     params = _assemble(name, 0.0, 1.0, fixed, ratios)
     if name == "gaussian":
@@ -142,7 +140,6 @@ def shape_params(shape, latency, fwhm=None, **form):
     >>> [round(float(value), 6) for value in shape_params("gaussian", 0.1, 0.02)]
     [0.1, 0.008493]
     """
-
     latency = float(latency)
     if shape in OSCILLATORY:
         extra = set(form) - {"freq", "phase", "tau"}
@@ -185,7 +182,6 @@ def shape_params(shape, latency, fwhm=None, **form):
 
 def _draw(value, rng):
     """A number, or a uniform draw in a ``(low, high)`` range."""
-
     if isinstance(value, (tuple, list, np.ndarray)):
         if len(value) != 2:
             raise SettingsError(f"a range must be (low, high), got {value!r}.")
@@ -256,7 +252,6 @@ class ComponentSpec:
 
     def to_dict(self):
         """Plain dictionary of the specification (JSON-serialisable)."""
-
         out = asdict(self)
         for key in ("latency", "fwhm", "amplitude", "params", "channels", "weights"):
             if isinstance(out[key], (tuple, np.ndarray)):
@@ -267,7 +262,6 @@ class ComponentSpec:
 
     def resolve(self, rng):
         """Draw the ranges; return ``(params, amplitude)`` of the nominal component."""
-
         amplitude = _draw(self.amplitude, rng)
         if self.params is not None:
             shape = get_shape(self.shape)
@@ -285,7 +279,6 @@ class ComponentSpec:
 
 def as_spec(obj, presets=None):
     """A :class:`ComponentSpec` from a spec, a dict of its fields, or a preset name."""
-
     if isinstance(obj, ComponentSpec):
         return obj
     if isinstance(obj, str):

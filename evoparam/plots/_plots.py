@@ -32,7 +32,6 @@ def _figure_ax(ax, figsize=(6.0, 3.5)):
 
 def _evoked(data, channel):
     """(times, waveform, mask) of one channel of an Evoked or TrialSet (its average)."""
-
     if isinstance(data, TrialSet):
         data = data.average()
     if not isinstance(data, Evoked):
@@ -69,7 +68,6 @@ def plot_fit(
     intervals : bool
         Shade the latency interval of each component (its ``ci["latency"]``).
     """
-
     from evoparam.models import evaluate_fit
 
     if not isinstance(fit, ResponseFit):
@@ -172,7 +170,6 @@ def plot_group(
     channel ``coords`` (array n_channels x 2 or 3, or ``data.ch_info`` x, y) coloured by
     ``parameter`` of component ``component``.
     """
-
     from evoparam.models import evaluate_fit
     from evoparam.utils._names import contact_group
 
@@ -276,8 +273,8 @@ def plot_group(
 
 def plot_trials(trial_fit, trials=None, *, channel=None, axes=None):
     """Trial-by-trial results: the trials sorted by latency (with ``trials``, a TrialSet)
-    and the latency histogram, for one :class:`TrialFit` or a channel of a TrialFitSet."""
-
+    and the latency histogram, for one :class:`TrialFit` or a channel of a TrialFitSet.
+    """
     plt = _plt()
     fit = trial_fit
     if hasattr(trial_fit, "fits"):
@@ -338,7 +335,6 @@ def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_chan
     A test without a time course (``model_comparison``, or a result saved by an earlier
     version) is drawn as one bar per channel (the statistic; significant channels filled).
     """
-
     names_all = test.settings.get("channels") or [
         f"ch{i}" for i in range(np.shape(test.statistic)[0])
     ]
@@ -447,8 +443,8 @@ def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_chan
 
 def plot_tf(tf, *, row=0, axes=None, maps=("total_norm", "footprint_norm", "residual_norm")):
     """Time-frequency maps of one row of a :class:`TFFit`, with the zones outlined and the
-    significant pixels contoured."""
-
+    significant pixels contoured.
+    """
     plt = _plt()
     present = [m for m in maps if m in tf.maps]
     if axes is None:
@@ -508,7 +504,6 @@ def plot_tf(tf, *, row=0, axes=None, maps=("total_norm", "footprint_norm", "resi
 
 def plot_shapes(basis, *, ax=None):
     """The shared shapes of a :class:`ShapeBasis`."""
-
     fig, ax = _figure_ax(ax)
     for k, curve in enumerate(basis.curves):
         stability = basis.stability[k] if k < len(basis.stability) else np.nan
@@ -526,8 +521,8 @@ def plot_shapes(basis, *, ax=None):
 
 def plot_artifact(result, raw=None, *, channel=0, axes=None):
     """Artifact removal: before (``raw``, a TrialSet) and after for one channel, the
-    template, and the per-trial quality."""
-
+    template, and the per-trial quality.
+    """
     plt = _plt()
     cleaned = result.cleaned
     index = cleaned.ch_names.index(channel) if isinstance(channel, str) else int(channel)
@@ -572,7 +567,6 @@ def plot_artifact(result, raw=None, *, channel=0, axes=None):
 
 def plot_compare(fits, data=None, *, channel=None, labels=None, ax=None):
     """The models of several fits of the same waveform, over the data."""
-
     from evoparam.models import evaluate_fit
 
     fig, ax = _figure_ax(ax)
@@ -600,8 +594,8 @@ def plot_compare(fits, data=None, *, channel=None, labels=None, ax=None):
 
 def plot_hierarchical(fit, *, axes=None):
     """A :class:`HierarchicalFit`: the probability of a response of every unit (histogram)
-    and the variance components of each level."""
-
+    and the variance components of each level.
+    """
     from evoparam.data import HierarchicalFit
 
     if not isinstance(fit, HierarchicalFit):

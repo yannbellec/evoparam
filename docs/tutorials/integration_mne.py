@@ -16,13 +16,12 @@ in ``examples/mne/plot_fit_mne_sample.py``).
 # MNE epochs
 # ----------
 
+import mne
 import numpy as np
 
 import evoparam
 from evoparam import sim
 from evoparam.data import TrialSet
-
-import mne
 
 mne.set_log_level("ERROR")
 trials, _ = sim.simulate_ccep(n_trials=20, n_channels=6, seed=0, artifact=False)

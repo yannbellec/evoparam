@@ -40,7 +40,6 @@ def gauss(times, latency, fwhm):
 
 def template(seed=0, n_components=1):
     """Channel fit of the simulated response (ccep preset), from 40 trials."""
-
     rng = np.random.default_rng(seed)
     times = np.arange(-1024, 2048) / SFREQ
     data = rng.normal(0, 10, (40, 1, len(times)))
@@ -54,8 +53,8 @@ def template(seed=0, n_components=1):
 
 def stream_blocks(n_pulses, n_channels=N_CHANNELS, seed=1, n_components=1):
     """One block of samples per pulse period: noise, artifact spike at the onset, response
-    (jittered, scaled) on the first half of the channels. Yields (block, onset sample)."""
-
+    (jittered, scaled) on the first half of the channels. Yields (block, onset sample).
+    """
     rng = np.random.default_rng(seed)
     n = int(PERIOD * SFREQ)
     onset = int(0.45 * SFREQ)
@@ -80,7 +79,6 @@ def run(
     mode="shift_scale",
 ):
     """Replay ``n_pulses`` simulated pulses; returns the latency summary (ms) and the fitter."""
-
     fit = template(n_components=n_components) if fit is None else fit
     names = [f"c{i}" for i in range(n_channels)]
     fitter = StreamFitter(

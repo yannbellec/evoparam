@@ -134,7 +134,6 @@ def _rows_by(rows, keys, cell, allowed=None, what="channel"):
 
 def auc_score(labels, scores):
     """Area under the ROC curve (Mann-Whitney U, ties counted one half)."""
-
     labels = np.asarray(labels, bool)
     scores = np.asarray(scores, float)
     n_pos, n_neg = int(labels.sum()), int((~labels).sum())
@@ -522,7 +521,6 @@ def reference_scores(times, y, definition):
 
     Returns dict measure -> value (s for latencies, data units otherwise).
     """
-
     from evoparam.models.classical import classical_measures
 
     polarity = definition["polarity"]
@@ -699,7 +697,6 @@ def score_outputs(task, inputs, outputs, *, suite, method=None, missing=(), outp
     dict
         The signed result document.
     """
-
     present = [ti for ti in inputs if ti.cell in outputs]
     if not present:
         raise DataError(f"{task}: no output to score.")
@@ -795,7 +792,6 @@ def score(
     DataError
         A missing output (without ``allow_missing``).
     """
-
     if task not in TASKS:
         raise DataError(f"Unknown task {task!r}; tasks: {list(TASKS)}.")
     if not hasattr(suite, "cells"):
@@ -821,8 +817,8 @@ def score(
 
 def write_result(document, path):
     """Write a result document: sorted keys, one-space indent, UTF-8, final new line (the
-    bytes depend only on the document)."""
-
+    bytes depend only on the document).
+    """
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as fobj:
         fobj.write(
@@ -836,8 +832,8 @@ def write_result(document, path):
 
 def read_result(path):
     """Read a result document and check its signature (raises DataError when it does not
-    match)."""
-
+    match).
+    """
     with open(path, encoding="utf-8") as fobj:
         document = json.load(fobj)
     if document.get("schema") != RESULT_SCHEMA:
@@ -849,6 +845,5 @@ def read_result(path):
 
 def verify_result(document):
     """True when ``signature.digest`` is the SHA-256 of the document without it."""
-
     body = {k: v for k, v in document.items() if k != "signature"}
     return document.get("signature", {}).get("digest") == sha256_bytes(canonical_bytes(body))

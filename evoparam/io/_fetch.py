@@ -17,7 +17,8 @@ from collections import OrderedDict
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from evoparam.errors import ReaderError, warn as _warn
+from evoparam.errors import ReaderError
+from evoparam.errors import warn as _warn
 
 __all__ = [
     "RemoteFile",
@@ -43,13 +44,11 @@ _sleep = time.sleep
 
 def is_url(path):
     """True when ``path`` is an http(s) address."""
-
     return isinstance(path, str) and path.startswith(("http://", "https://"))
 
 
 def data_folder():
     """Folder for downloads: ``EVOPARAM_DATA``, or ``~/.cache/evoparam``."""
-
     return os.environ.get("EVOPARAM_DATA") or os.path.join(
         os.path.expanduser("~"), ".cache", "evoparam"
     )
@@ -57,7 +56,6 @@ def data_folder():
 
 def sha256_file(path, block=1 << 20):
     """SHA-256 of a local file, read block by block."""
-
     digest = hashlib.sha256()
     with open(path, "rb") as fobj:
         for part in iter(lambda: fobj.read(block), b""):
@@ -85,8 +83,8 @@ class TransferLog:
 def _spurious_not_found(exc):
     """True for a 404 whose body is the S3 error ``NoSuchBucket``: S3 (or a proxy in front
     of it) intermittently answers so for a bucket that exists, and the same request then
-    succeeds. A missing key (``NoSuchKey``) or any other 404 is not retried."""
-
+    succeeds. A missing key (``NoSuchKey``) or any other 404 is not retried.
+    """
     if exc.code != 404:
         return False
     try:
@@ -99,8 +97,8 @@ def _spurious_not_found(exc):
 def _with_retries(url, attempt_once, retries=len(BACKOFF)):
     """Run ``attempt_once()`` and retry transient HTTP and network failures (a spurious S3
     404 up to SPURIOUS_RETRIES more times, after SPURIOUS_DELAY s, without using the
-    backoff)."""
-
+    backoff).
+    """
     _check_online(url)
     attempt = spurious = 0
     while True:
@@ -169,7 +167,6 @@ def download(url, path, *, timeout=30.0, log=None):
     sha256 : str
         SHA-256 of the downloaded file.
     """
-
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     partial = path + ".part"
 
@@ -262,7 +259,6 @@ class RemoteFile:
 
     def close(self):
         """Drop the cached chunks."""
-
         self._cache.clear()
 
     def __repr__(self):
@@ -276,7 +272,6 @@ class RemoteFile:
     @property
     def size(self):
         """Size of the remote file in bytes (one HEAD request the first time)."""
-
         if self._size is None:
 
             def once():
@@ -293,7 +288,6 @@ class RemoteFile:
     @property
     def ranges(self):
         """Byte ranges ``[start, stop)`` transferred so far, merged and sorted."""
-
         if self.full_download:
             return [[0, self._size]]
         merged = []
@@ -312,7 +306,6 @@ class RemoteFile:
         per chunk, in increasing offset), so it depends only on which bytes were read,
         not on the order or grouping of the requests.
         """
-
         if self.full_download:
             return self._local_sha256
         lines = [
@@ -328,7 +321,6 @@ class RemoteFile:
         ReaderError
             If the server refuses the request or the connection fails after the retries.
         """
-
         offset, nbytes = int(offset), int(nbytes)
         if offset < 0 or nbytes < 0:
             raise ReaderError(f"RemoteFile.read: invalid range ({offset}, {nbytes}).")
@@ -468,7 +460,6 @@ class RemoteFile:
 
 def _runs(indices):
     """Split sorted integers into runs of consecutive values."""
-
     runs = []
     for index in indices:
         if runs and index == runs[-1][-1] + 1:

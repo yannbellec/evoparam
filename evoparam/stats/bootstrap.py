@@ -22,7 +22,8 @@ from scipy.stats import norm
 from scipy.stats import t as student_t
 
 from evoparam.data import Evoked, TrialSet
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.utils._optional import require
 
 from ._scorers import TIME_SCORES, default_window, resolve_scorer
@@ -60,7 +61,6 @@ BOOTSTRAP_COLUMNS = {
 
 def _quantile_z(ci_level, expand_n):
     """Lower and upper standard-normal quantiles of the interval, expanded for small samples."""
-
     alpha = (1 - ci_level) / 2
     if expand_n is None:
         return norm.ppf([alpha, 1 - alpha])
@@ -111,7 +111,6 @@ def bootstrap_interval(
     >>> bool(out["low"] < x.mean() < out["high"])
     True
     """
-
     jack = None if jackknife is None else np.asarray(jackknife, float).reshape(-1, 1)
     out = _intervals(
         np.atleast_1d(np.asarray(estimate, float)),
@@ -130,8 +129,8 @@ def bootstrap_interval(
 
 def _sorted_quantile(sorted_boot, n_finite, levels):
     """Linear-interpolation quantiles (as numpy's default) of each column of a column-sorted
-    array whose first ``n_finite`` entries are finite; ``levels`` [n_levels, n_columns]."""
-
+    array whose first ``n_finite`` entries are finite; ``levels`` [n_levels, n_columns].
+    """
     pos = levels * (n_finite - 1)
     lo = np.clip(np.floor(pos).astype(np.int64), 0, None)
     hi = np.minimum(lo + 1, np.maximum(n_finite - 1, 0))
@@ -143,7 +142,6 @@ def _sorted_quantile(sorted_boot, n_finite, levels):
 
 def _intervals(estimate, boot, jack, ci_level, method, expand_n):
     """Percentile or BCa intervals of every column of ``boot`` [n_boot, k] at once."""
-
     if method not in METHODS:
         raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
     if not 0 < ci_level < 1:
@@ -206,7 +204,6 @@ def _intervals(estimate, boot, jack, ci_level, method, expand_n):
 
 def _strata(ts, by):
     """Row indices of each stratum (one stratum when no ``by`` column is in the metadata)."""
-
     meta = ts.metadata
     columns = [c for c in (by or ()) if meta is not None and c in meta.columns]
     if not columns:
@@ -217,14 +214,12 @@ def _strata(ts, by):
 
 def _indices(strata, n_boot, rng):
     """Resampled trial indices [n_boot, n_trials], drawn within each stratum."""
-
     parts = [rows[rng.integers(0, len(rows), (n_boot, len(rows)))] for rows in strata]
     return np.concatenate(parts, axis=1)
 
 
 def _subset(ts, rows):
     """The trials ``rows`` of a TrialSet (same provenance: a resample is not a new step)."""
-
     meta = None if ts.metadata is None else ts.metadata.iloc[rows].reset_index(drop=True)
     return replace(
         ts,
@@ -237,7 +232,6 @@ def _subset(ts, rows):
 
 def _as_vector(value):
     """Statistic value -> (labels, values)."""
-
     if hasattr(value, "index") and hasattr(value, "to_numpy"):  # pandas Series
         return [str(k) for k in value.index], np.asarray(value.to_numpy(), float).ravel()
     arr = np.asarray(value, float)
@@ -249,8 +243,8 @@ def _as_vector(value):
 
 def _score_path(ts, func, strata, n_boot, rng, inside):
     """Scores of the average of every resample, every channel: [n_boot, n_channels]
-    (``func`` scores waveforms cropped to the samples ``inside`` the window)."""
-
+    (``func`` scores waveforms cropped to the samples ``inside`` the window).
+    """
     x = ts.data[:, :, inside]
     if ts.masks is not None:
         x = np.where(ts.masks[:, :, inside], np.nan, x)
@@ -378,7 +372,6 @@ def bootstrap(
     >>> table[["channel", "statistic", "method"]].values.tolist()
     [['Cz', 'mean_amplitude', 'bca']]
     """
-
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.bootstrap")
     if isinstance(ts, Evoked):

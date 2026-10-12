@@ -6,7 +6,8 @@ import warnings
 
 import numpy as np
 
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.utils._names import contact_group, contact_number
 from evoparam.utils._optional import require
 
@@ -35,7 +36,6 @@ def bipolar_pairs(ts, groups="group"):
     by their trailing number; a pair is formed only between consecutive existing numbers,
     and the missing numbers are reported as gaps.
     """
-
     names = list(ts.ch_names)
     if isinstance(groups, dict):
         group_of = [str(groups.get(name, contact_group(name))) for name in names]
@@ -103,7 +103,6 @@ def _bipolar(ts, groups):
 
 def _excluded(ts, exclude):
     """Per trial, a boolean matrix [n_channels] of channels left out of a common average."""
-
     names = list(ts.ch_names)
     out = np.zeros((ts.n_trials, ts.n_channels), dtype=bool)
     fixed = set(exclude or ()) | bad_channels(ts)
@@ -116,7 +115,6 @@ def _excluded(ts, exclude):
 
 def _common_average(ts, members):
     """Mean over ``members`` (bool [n_trials, n_channels]) of the unmasked samples."""
-
     values = masked_values(ts)
     values[~np.broadcast_to(members[:, :, None], values.shape)] = np.nan
     with warnings.catch_warnings():
@@ -126,7 +124,6 @@ def _common_average(ts, members):
 
 def _cross_trial_covariance(data, window):
     """Mean covariance between pairs of different trials, per channel, in the window."""
-
     seg = data[:, :, window]
     seg = seg - seg.mean(axis=-1, keepdims=True)
     n_trials, _, n_times = seg.shape
@@ -147,7 +144,6 @@ def _zeta_curve(average, order):
     of the ordered channels: cov(U_i, R_j) = C_ij - s_i and var(R_j) = C_jj - 2 s_j + v,
     where s_i = (1/n) sum_k C_ik and v = (1/n^2) sum_kl C_kl, so every n costs O(n^2).
     """
-
     seg = average[order]
     seg = seg - seg.mean(axis=1, keepdims=True)
     cov = seg @ seg.T / max(seg.shape[1] - 1, 1)
@@ -167,8 +163,8 @@ def _zeta_curve(average, order):
 
 def _line_notch(data, sfreq, line_freq):
     """Band-stop at the line frequency and its harmonics up to 180 Hz (4th order
-    Butterworth, +/- 2 Hz, zero phase), as the published code does before ranking."""
-
+    Butterworth, +/- 2 Hz, zero phase), as the published code does before ranking.
+    """
     from scipy.signal import butter, filtfilt
 
     if not line_freq:
@@ -228,7 +224,6 @@ def car_adaptive_select(
         ``zeta`` (array over n = 2..N), ``ci`` (95th percentile of the fall at n*, or None),
         ``responsiveness`` (per channel).
     """
-
     window = (times >= response_window[0]) & (times <= response_window[1])
     if not window.any():
         raise DataError("response_window contains no sample.")
@@ -368,7 +363,6 @@ def rereference(
         With the new data and ``ch_info["reference"]``; the provenance step records the
         scheme and, for ``"car_adaptive"``, ``n_star``, ``zeta`` and the channels used.
     """
-
     start = _time.perf_counter()
     check_trialset(ts)
     require("pandas", extra="data", caller="evoparam.prep.rereference")

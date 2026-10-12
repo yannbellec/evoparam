@@ -19,15 +19,15 @@
 
 import numpy as np
 
-from ._score import MAD_TO_SD, _CHUNK
+from ._score import _CHUNK, MAD_TO_SD
 
 __all__ = []
 
 
 def spec_score(data, index):
     """``d[n] = median_c |x_c[n] - x_c[n - 1]|`` for n = 1 .. n_times - 1 (element n - 1),
-    the median of all the picked channels (NaN changes count as zero)."""
-
+    the median of all the picked channels (NaN changes count as zero).
+    """
     n_times = data.shape[1]
     index = np.asarray(index)
     score = np.empty(n_times - 1)
@@ -41,7 +41,6 @@ def spec_score(data, index):
 
 def spec_z(score):
     """Robust z-score of the specification (median and 1.4826 MAD; MAD 0 gives SD)."""
-
     center = np.median(score)
     spread = MAD_TO_SD * np.median(np.abs(score - center))
     if not spread > 0:
@@ -56,7 +55,6 @@ def spec_threshold(score, z, sfreq, threshold_sd, min_samples, refine=True):
     with ``refine`` the onset is the sample of the largest ``d`` within +/-2 ms of the
     crossing, minus one (else the crossing sample itself).
     """
-
     above = np.flatnonzero(z > threshold_sd)
     onsets, strength = [], []
     last = -np.inf
@@ -83,7 +81,6 @@ def spec_template(data, index, onsets, sfreq, n_template):
 
     Returns (template [n_picked, L], n_pre) or (None, n_pre) when no snippet fits.
     """
-
     n_pre, n_post = max(1, int(round(0.001 * sfreq))), max(1, int(round(0.003 * sfreq)))
     n_times = data.shape[1]
     rows = [
@@ -101,8 +98,8 @@ def spec_template(data, index, onsets, sfreq, n_template):
 
 def spec_rho(data, index, template):
     """Normalised cross-correlation of the template with every window of the picked
-    channels: ``rho[n]`` for windows starting at sample n (n_times - L + 1 values)."""
-
+    channels: ``rho[n]`` for windows starting at sample n (n_times - L + 1 values).
+    """
     from scipy.signal import fftconvolve
 
     length = template.shape[1]
@@ -121,7 +118,6 @@ def spec_rho(data, index, template):
 
 def spec_template_peaks(rho, rho_min, min_samples):
     """Local maxima of ``rho`` above ``rho_min``, the larger kept within ``min_samples``."""
-
     if len(rho) < 3:
         return np.array([], dtype=int)
     inner = (rho[1:-1] > rho_min) & (rho[1:-1] >= rho[:-2]) & (rho[1:-1] > rho[2:])

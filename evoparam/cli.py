@@ -77,7 +77,6 @@ SINGLE_FILES = (".vhdr", ".edf", ".bdf", ".fif", ".fif.gz", ".nwb", ".npz")
 
 def _preset(args):
     """The preset of --preset, else the one of the datatype (ieeg: ccep, eeg: erp)."""
-
     from evoparam import presets
 
     if getattr(args, "preset", None):
@@ -100,7 +99,6 @@ def _is_single(path):
 
 def _file_entities(path):
     """BIDS entities of a file name (sub, ses, task, run), for the derivative names."""
-
     import re
 
     found = dict(re.findall(r"(sub|ses|task|run)-([a-zA-Z0-9]+)", os.path.basename(path)))
@@ -109,8 +107,8 @@ def _file_entities(path):
 
 def _events_for(path, args):
     """Onsets (s) and metadata of a single recording: --events, else the BIDS events.tsv
-    next to it, else the annotations of an EDF+ file."""
-
+    next to it, else the annotations of an EDF+ file.
+    """
     import pandas as pd
 
     from evoparam.data._harmonize import harmonize_stim_events
@@ -151,8 +149,8 @@ def _read_single(path, args, epoch):
     """A TrialSet from one file: .nwb (its events), .fif (MNE epochs, or raw with its
     events), .npz (data [trials, channels, times], sfreq, tmin, optional ch_names), .vhdr /
     .edf / .bdf (epochs around the events of --events, the BIDS events.tsv next to the file,
-    or the EDF+ annotations)."""
-
+    or the EDF+ annotations).
+    """
     from evoparam.io import read, read_nwb
 
     lower = path.lower()
@@ -235,7 +233,6 @@ def _read(args, preset):
 
 def _target(args):
     """(bids_root for SourceDatasets, subject, entities) of the derivatives."""
-
     if _is_single(args.input):
         found = _file_entities(args.input)
         subject = (args.sub or found.get("sub") or "01").removeprefix("sub-")
@@ -256,7 +253,6 @@ def run_fit(ts, preset, *, random_state=None, n_jobs=1, existence=True, trials=N
     Returns ``(results, notes)``: the list of results for :func:`write_bids_derivatives`
     (GroupFit, ResponseTest, trial fits, ArtifactResult) and the steps skipped.
     """
-
     from evoparam.reports import run_pipeline
 
     result = run_pipeline(
@@ -645,7 +641,6 @@ def _csv(text):
 
 def cmd_benchmark(args, outcome):
     """``evoparam benchmark run | score | leaderboard | prepare-deposit`` (spec §8)."""
-
     from evoparam import benchmark
 
     log = (lambda message: _log(args, message)) if args.verbose in ("info", "debug") else None
@@ -947,8 +942,8 @@ def _parser():
 def _read_config(path):
     """Options of a JSON or TOML file (``.toml``: ``tomllib``, Python 3.11+, else ``tomli``).
     Top-level keys apply to every command; a table ``[evoparam]`` too, and a table named
-    after the command (``[fit]``) only to it."""
-
+    after the command (``[fit]``) only to it.
+    """
     if path.lower().endswith(".toml"):
         try:
             import tomllib

@@ -124,8 +124,7 @@ def run_segments(dataset, stem, sites, span=SPAN):
     cache = os.path.join(data_folder(), "events-validation", dataset)
     os.makedirs(cache, exist_ok=True)
     paths = [
-        os.path.join(cache, "{}_{}_{:g}s.npz".format(os.path.basename(stem), site, span))
-        for site in sites
+        os.path.join(cache, f"{os.path.basename(stem)}_{site}_{span:g}s.npz") for site in sites
     ]
     if not all(os.path.exists(path) for path in paths):
         events = [

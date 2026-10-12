@@ -25,7 +25,8 @@ class NotFittedError(ValueError, AttributeError):
     When scikit-learn has been imported, the error raised is also an instance of
     scikit-learn's ``NotFittedError``. Code that catches scikit-learn's class has imported
     scikit-learn, so the check at raise time is enough, and ``import evoparam`` never imports
-    scikit-learn (light core, REQ-010)."""
+    scikit-learn (light core, REQ-010).
+    """
 
 
 _BOTH = {}
@@ -97,8 +98,8 @@ class BaseEstimatorMixin:
 
     def __sklearn_tags__(self):
         try:
-            from sklearn.utils import Tags, TargetTags  # noqa: F401
             from sklearn.base import BaseEstimator
+            from sklearn.utils import Tags, TargetTags  # noqa: F401
         except ImportError:  # pragma: no cover - only with scikit-learn
             return None
         from sklearn.utils import TransformerTags
@@ -133,8 +134,8 @@ class TransformerMixin:
 def validate_array(estimator, X, *, reset, ndim=2, allow_nan=False):
     """Check an array input the way scikit-learn does (its messages when it is installed):
     dense, real, finite, at least 2-D with at least 2 time points, and, after ``fit``, as many features (last axis) as
-    seen in ``fit``. Sets ``n_features_in_`` when ``reset``."""
-
+    seen in ``fit``. Sets ``n_features_in_`` when ``reset``.
+    """
     import numpy as np
 
     try:

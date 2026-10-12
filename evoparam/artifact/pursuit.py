@@ -11,7 +11,8 @@ a time, and only the artifact atoms are subtracted.
 
 import numpy as np
 
-from evoparam.errors import SettingsError, warn as _warn
+from evoparam.errors import SettingsError
+from evoparam.errors import warn as _warn
 
 __all__ = []
 
@@ -42,7 +43,6 @@ def warn_patent():
 
 def dictionary(rel, window_end, line_freq):
     """Unit-norm atoms on the time axis ``rel`` (s from the pulse), with their kinds."""
-
     atoms, kinds = [], []
     for h in range(1, N_HARMONICS + 1):
         for func in (np.sin, np.cos):
@@ -85,7 +85,6 @@ def pursuit_clean(series, rel, window_end, *, line_freq=50.0, n_iter=20, tol=0.0
     artifact : 2d array
         The subtracted artifact part.
     """
-
     if n_iter < 1:
         raise SettingsError("n_iter must be at least 1.")
     atoms, kinds = dictionary(rel, window_end, line_freq)

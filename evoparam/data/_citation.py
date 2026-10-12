@@ -42,7 +42,6 @@ def _lines(text):
 
 def _parse_block(lines, start, indent):
     """Parse the block of ``lines`` that starts at ``start`` with indentation ``indent``."""
-
     if start >= len(lines):
         return None, start
     if lines[start][1].startswith("- "):
@@ -82,7 +81,6 @@ def _parse_block(lines, start, indent):
 
 def parse_cff(text):
     """Parse the YAML subset of a citation file into dictionaries, lists and strings."""
-
     lines = _lines(text)
     if not lines:
         return {}
@@ -104,7 +102,6 @@ def _cff_text():
 
 def read_citation():
     """The parsed ``CITATION.cff`` of the package (a dictionary)."""
-
     return parse_cff(_cff_text())
 
 
@@ -123,8 +120,8 @@ def _authors(cff):
 
 def citation_text(cff=None):
     """One-line citation: authors (family name and initials), title, version, then the DOI
-    or else the repository."""
-
+    or else the repository.
+    """
     cff = read_citation() if cff is None else cff
     authors = ", ".join(
         " ".join([family] + ["".join(f"{n[0]}." for n in given.replace("-", " ").split())]).strip()
@@ -152,8 +149,8 @@ def citation_text(cff=None):
 
 def _version_doi(cff):
     """The DOI of this version: an ``identifiers`` entry of type ``doi`` whose description
-    names the version (Zenodo's version DOI), when the citation file has one."""
-
+    names the version (Zenodo's version DOI), when the citation file has one.
+    """
     for item in cff.get("identifiers") or []:
         if (
             isinstance(item, dict)
@@ -166,7 +163,6 @@ def _version_doi(cff):
 
 def _preferred(cff):
     """The ``preferred-citation`` (the paper), formatted on one line, or None."""
-
     paper = cff.get("preferred-citation")
     if not isinstance(paper, dict) or not paper.get("title"):
         return None
@@ -189,7 +185,6 @@ def _preferred(cff):
 
 def citation_bibtex(cff=None):
     """BibTeX entry (``@software``) built from the citation file."""
-
     cff = read_citation() if cff is None else cff
     names = _authors(cff)
     authors = " and ".join(f"{family}, {given}".rstrip(", ") for family, given in names)

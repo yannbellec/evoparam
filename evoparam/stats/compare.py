@@ -77,7 +77,6 @@ COMPARE_COLUMNS = {
 
 def _paired_t(d):
     """Paired t of each row of ``d`` [..., n] (0 when the differences have no spread)."""
-
     n = d.shape[-1]
     mean = d.mean(axis=-1)
     sd = d.std(axis=-1, ddof=1)
@@ -86,7 +85,6 @@ def _paired_t(d):
 
 def _welch_t(a, b):
     """Welch t of each row pair of ``a`` [..., n_a] and ``b`` [..., n_b]."""
-
     va = a.var(axis=-1, ddof=1) / a.shape[-1]
     vb = b.var(axis=-1, ddof=1) / b.shape[-1]
     diff = a.mean(axis=-1) - b.mean(axis=-1)
@@ -106,7 +104,6 @@ def hedges_g(a, b=None, *, paired=False):
     >>> round(hedges_g([2., 3., 4.], [1., 2., 3.]), 3)
     0.8
     """
-
     a = np.asarray(a, float)
     if paired or b is None:
         d = a if b is None else a - np.asarray(b, float)
@@ -164,7 +161,6 @@ def _unpaired_test(a, b, n_permutations, rng):
 
 def _percentile(boot, ci_level, n):
     """Expanded percentile interval (see :func:`~evoparam.stats.bootstrap_interval`)."""
-
     low, high = np.quantile(boot, norm.cdf(_quantile_z(ci_level, n)))
     return {"low": float(low), "high": float(high)}
 
@@ -264,7 +260,6 @@ def compare_conditions(
     >>> bool(out["p_value"].iloc[0] < 0.05), round(float(out["difference_ms"].iloc[0]))
     (True, 8)
     """
-
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.compare_conditions")
     if unit not in UNITS:

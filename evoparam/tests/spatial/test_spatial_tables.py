@@ -276,7 +276,7 @@ def test_parameter_map_electrode_grid_fallback(scene, monkeypatch):
     pytest.importorskip("matplotlib")
     import matplotlib.pyplot as plt
 
-    import evoparam.spatial.maps as maps
+    from evoparam.spatial import maps
 
     ts, group = scene
     table = _mni(parameter_map(group, ch_info=ts))

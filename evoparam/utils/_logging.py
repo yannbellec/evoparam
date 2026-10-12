@@ -13,7 +13,8 @@ import functools
 import inspect
 import logging
 import os
-from typing import Any, Callable, Union
+from collections.abc import Callable
+from typing import Any, Union
 
 __all__ = ["verbose", "set_log_level", "set_log_file", "LEVELS"]
 
@@ -70,7 +71,7 @@ class _Verbose(contextlib.ContextDecorator):
         return False
 
 
-def verbose(level: Union[VerboseLevel, Callable[..., Any]] = None) -> Any:
+def verbose(level: VerboseLevel | Callable[..., Any] = None) -> Any:
     """Context manager, decorator, or decorator factory mapping ``verbose`` to a level.
 
     - ``with verbose("debug"): ...`` sets the ``evoparam`` logger to DEBUG in the block;
@@ -82,7 +83,6 @@ def verbose(level: Union[VerboseLevel, Callable[..., Any]] = None) -> Any:
     ``"warning"`` → WARNING, ``"error"`` → ERROR, ``"progress"`` → INFO (plus progress bars
     when ``tqdm`` is installed).
     """
-
     if callable(level) and not isinstance(level, (str, bool)):
         func = level
         signature = inspect.signature(func)
@@ -100,8 +100,8 @@ def verbose(level: Union[VerboseLevel, Callable[..., Any]] = None) -> Any:
 
 def set_log_level(level: VerboseLevel) -> int:
     """Set the level of the ``evoparam`` logger (``verbose`` values or a logging level);
-    returns the previous level."""
-
+    returns the previous level.
+    """
     logger = logging.getLogger(LOGGER)
     previous = logger.level
     value = _level(level)
@@ -114,10 +114,10 @@ def set_log_file(
     *,
     mode: str = "a",
     fmt: str = "%(asctime)s %(name)s %(levelname)s %(message)s",
-) -> Union[logging.FileHandler, None]:
+) -> logging.FileHandler | None:
     """Write the ``evoparam`` log to ``path`` (a ``FileHandler``); ``None`` removes the file
-    handler set by a previous call. Returns the handler (or None)."""
-
+    handler set by a previous call. Returns the handler (or None).
+    """
     logger = logging.getLogger(LOGGER)
     for handler in list(logger.handlers):
         if getattr(handler, "_evoparam_log_file", False):

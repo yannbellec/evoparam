@@ -78,7 +78,6 @@ class BackgroundBase:
     @property
     def is_linear(self):
         """True when every parameter is linear."""
-
         return self.n_nonlinear == 0
 
     def _t_ref(self, times):
@@ -92,13 +91,11 @@ class BackgroundBase:
 
     def basis_jacobian(self, times, nonlinear=None):
         """Derivatives of the basis, shape ``(..., n_linear, n_times, n_nonlinear)``."""
-
         times = as_times(times)
         return np.zeros((self.n_linear, times.size, 0))
 
     def evaluate(self, times, params):
         """Background, ``(..., n_params) -> (..., n_times)``."""
-
         times = as_times(times)
         params = as_params(params, self.n_params, self.name)
         basis = self.basis(times, params[..., self.n_linear :])
@@ -106,7 +103,6 @@ class BackgroundBase:
 
     def jacobian(self, times, params):
         """Analytic derivatives, ``(..., n_params) -> (..., n_times, n_params)``."""
-
         times = as_times(times)
         params = as_params(params, self.n_params, self.name)
         lead = params.shape[:-1]
@@ -128,8 +124,8 @@ class BackgroundBase:
 
     def default_bounds(self, times, data_range=None):
         """Bounds: non-linear parameters as documented per background; linear
-        coefficients within ``±10 · data scale / max|B_j|`` on the window."""
-
+        coefficients within ``±10 · data scale / max|B_j|`` on the window.
+        """
         times = as_times(times)
         nl_lower, nl_upper = self._nonlinear_bounds(times)
         basis = self.basis(times, self._nonlinear_guess(times))
@@ -147,7 +143,6 @@ class BackgroundBase:
 
     def initial_guess(self, times, waveform):
         """Least-squares coefficients for the starting non-linear parameters."""
-
         times, waveform = check_waveform(times, waveform)
         nonlinear = self._nonlinear_guess(times)
         basis = self.basis(times, nonlinear)
@@ -173,7 +168,6 @@ class NoBackground(BackgroundBase):
 
     def basis(self, times, nonlinear=None):
         """Basis functions, shape ``(0, n_times)``."""
-
         return np.zeros((0, as_times(times).size))
 
 
@@ -186,7 +180,6 @@ class ConstantBackground(BackgroundBase):
 
     def basis(self, times, nonlinear=None):
         """Basis functions, shape ``(1, n_times)``."""
-
         return np.ones((1, as_times(times).size))
 
 
@@ -200,7 +193,6 @@ class LinearBackground(BackgroundBase):
 
     def basis(self, times, nonlinear=None):
         """Basis functions, shape ``(2, n_times)``."""
-
         times = as_times(times)
         return np.stack([np.ones_like(times), times - self._t_ref(times)])
 
@@ -237,7 +229,6 @@ class ExponentialBackground(BackgroundBase):
 
     def basis(self, times, nonlinear):
         """Basis functions, shape ``(..., 2, n_times)``."""
-
         times = as_times(times)
         tau = self._nonlinear(nonlinear)[..., 0, None]
         decay = np.exp(-(times - self._t_ref(times)) / tau)
@@ -285,7 +276,6 @@ class DoubleExponentialBackground(BackgroundBase):
 
     def basis(self, times, nonlinear):
         """Basis functions, shape ``(..., 3, n_times)``."""
-
         times = as_times(times)
         nonlinear = self._nonlinear(nonlinear)
         lag = times - self._t_ref(times)
@@ -391,7 +381,6 @@ class PSplineBackground(BackgroundBase):
 
     def basis(self, times, nonlinear=None):
         """Basis functions, shape ``(n_basis, n_times)``; zero outside the spline support."""
-
         times = as_times(times)
         spline = BSpline(self.knots, np.eye(self.n_basis), self.degree, extrapolate=False)
         values = spline(times)
@@ -399,7 +388,6 @@ class PSplineBackground(BackgroundBase):
 
     def penalty_matrix(self):
         """Second-difference penalty ``DᵀD``, shape ``(n_basis, n_basis)``."""
-
         diff = np.diff(np.eye(self.n_basis), 2, axis=0)
         return diff.T @ diff
 
@@ -415,7 +403,6 @@ class PSplineBackground(BackgroundBase):
         float
             The selected ``lam``.
         """
-
         times, values = check_waveform(times, values)
         if lambdas is None:
             lambdas = np.logspace(-6, 6, 49)
@@ -486,7 +473,6 @@ class ArtifactBasisBackground(BackgroundBase):
 
     def basis(self, times, nonlinear=None):
         """Basis functions, shape ``(n_basis, n_times)``."""
-
         times = as_times(times)
         return np.stack(
             [

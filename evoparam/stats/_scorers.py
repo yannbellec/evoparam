@@ -47,7 +47,6 @@ def _signed(y, polarity):
 
 def _local_peak(s, n_neighbors):
     """Index of the ERPLAB local peak of each row of ``s`` (the signed waveforms)."""
-
     n = s.shape[-1]
     if n < 2 * n_neighbors + 1:
         return np.argmax(s, axis=-1)
@@ -164,7 +163,6 @@ def score_waveforms(
     >>> round(float(score_waveforms(t, y, "peak_latency", window=(0.05, 0.15))), 3)
     0.1
     """
-
     if score not in SCORES:
         raise SettingsError(f"score must be one of {SCORES}, not {score!r}.")
     if polarity not in POLARITIES:
@@ -195,7 +193,6 @@ def score_waveforms(
 
 def default_window(times):
     """The post-stimulus part of the epoch, used when no window is given."""
-
     times = np.asarray(times, float)
     return (0.0, float(times[-1])) if times[-1] > 0 else (float(times[0]), float(times[-1]))
 
@@ -207,7 +204,6 @@ def resolve_scorer(scorer, times, window=None, **scorer_kw):
     callable ``scorer(times, waveforms) -> scores`` that takes an array
     ``[n_waveforms, n_times]`` and returns ``[n_waveforms]`` values.
     """
-
     if window is None:
         window = default_window(times)
     window = (float(window[0]), float(window[1]))

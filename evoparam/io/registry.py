@@ -77,7 +77,6 @@ def dataset_info(dataset_id):
     ReaderError
         If the dataset is not in the registry.
     """
-
     entry = _find(dataset_id)
     if entry is None:
         known = ", ".join(item["id"] for item in _load_registry()["datasets"])
@@ -106,7 +105,6 @@ def list_datasets(*, modality=None, species=None, max_size_gb=None):
         ``license``, ``events_status``, ``format``, ``loader`` and ``doi``.
         ``table.attrs["registry_version"]`` holds the registry version.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.io.list_datasets")
 
     def as_set(value):
@@ -135,7 +133,6 @@ def list_datasets(*, modality=None, species=None, max_size_gb=None):
 
 def match_dataset(path):
     """Registry entry whose identifier appears in a path or URL, or None."""
-
     text = str(path).lower().replace("\\", "/")
     for entry in _load_registry()["datasets"]:
         for name in [entry["id"]] + list(entry["aliases"]):

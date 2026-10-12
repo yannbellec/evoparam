@@ -4,7 +4,8 @@
 import numpy as np
 import pandas as pd
 
-from evoparam.existence import test_response as run_test, train_discordance
+from evoparam.existence import test_response as run_test
+from evoparam.existence import train_discordance
 
 from .helpers import gaussian, noise_trials, plateau, trialset
 

@@ -21,7 +21,6 @@ def window_indices(times, window, buffer=0):
     ArtifactError
         Empty window, or fewer than ``buffer`` samples on either side of it.
     """
-
     times = np.asarray(times)
     if window[1] < window[0]:
         raise ArtifactError(f"window {tuple(window)} ends before it starts.")
@@ -68,7 +67,6 @@ def interpolate_window(times, data, window, buffer=3, kind="linear", anchor="mea
     inds : 1d array
         Indices of the replaced samples.
     """
-
     if kind not in INTERPOLATIONS:
         raise SettingsError(f"interpolation must be one of {INTERPOLATIONS}, not {kind!r}.")
     if anchor not in ("mean", "median"):

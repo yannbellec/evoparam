@@ -10,11 +10,11 @@ pd = pytest.importorskip("pandas")
 
 from evoparam.errors import DataError
 from evoparam.io import (
-    harmonize_stim_events,
-    validate_stimulation_events,
-    select_stimulation_events,
     HarmonizationReport,
     ValidationReport,
+    harmonize_stim_events,
+    select_stimulation_events,
+    validate_stimulation_events,
 )
 
 ###################################################################################################

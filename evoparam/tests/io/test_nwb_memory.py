@@ -38,7 +38,7 @@ def _make(path):
     from datetime import datetime, timezone
 
     from hdmf.data_utils import GenericDataChunkIterator
-    from pynwb import NWBFile, NWBHDF5IO
+    from pynwb import NWBHDF5IO, NWBFile
     from pynwb.ecephys import ElectricalSeries
 
     class Synthetic(GenericDataChunkIterator):

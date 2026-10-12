@@ -75,7 +75,6 @@ def _channel_indices(channels, ch_names, label):
 
 def _spec_sources(spec, rng, ch_names, event=0, **extra):
     """One Source per channel of a specification (drawn once, shared by its channels)."""
-
     params, amplitude = spec.resolve(rng)
     channels = _channel_indices(spec.channels, ch_names, spec.label)
     weights = (
@@ -162,7 +161,6 @@ def _stim_metadata(n_trials, site, current, width, polarity, frequency=np.nan, n
 
 def _overlap_offsets(overlap, n_trials, rng):
     """SOA of the previous and next events per trial, and the amplitude ratio."""
-
     if isinstance(overlap, dict):
         soa = overlap.get("soa")
         ratio = float(overlap.get("scale", 1.0))
@@ -278,7 +276,6 @@ def simulate_erp(
     >>> ts.data.shape
     (20, 1, 500)
     """
-
     start = _start()
     settings = _settings(locals())
     n_trials = _check_count("n_trials", n_trials)
@@ -347,7 +344,6 @@ def simulate_erp(
 
 def _stim_pair(names, groups, coords, rng, layout):
     """Two adjacent contacts of one shaft (sEEG) or one grid row."""
-
     pairs = []
     for i in range(len(names) - 1):
         same = groups[i] == groups[i + 1]
@@ -374,7 +370,6 @@ def _ccep_spec(value, default, name):
 
 def _train_layout(n_trials, train_structure, rng):
     """Event times, train columns and the adaptation gain of each pulse."""
-
     if train_structure is None:
         return {
             "event_times": 5.0 * np.arange(n_trials),
@@ -431,7 +426,6 @@ def stimulation_artifact(
     ``scale_uV_per_mA × current × (r0/r+ − r0/r−)`` times the recorded pulse plus a
     recovery tail of relative size ``tail_fraction``.
     """
-
     gain = scale_uV_per_mA * float(current_mA) * dipole_gain(coords, source, sink, radius)
     width = float(pulse_width_us)
     shape = pulse_shape(
@@ -515,7 +509,9 @@ def simulate_ccep(
         As in :func:`simulate_erp`; None keeps the drawn amplitudes (µV).
     seed : int, numpy.random.Generator or None
         Random seed.
-    Other parameters
+
+    Other Parameters
+    ----------------
         See the description above and :func:`simulate_erp`.
 
     Returns
@@ -536,7 +532,6 @@ def simulate_ccep(
     >>> ts.data.shape, float(ts.metadata["stim_current_mA"].iloc[0])
     ((10, 12, 3072), 4.0)
     """
-
     start = _start()
     settings = _settings(locals())
     n_trials = _check_count("n_trials", n_trials)
@@ -735,7 +730,9 @@ def simulate_erna(
     amplitude : float or (float, float)
         Amplitude of the last pulse's response at the nearest contact (µV), when
         ``snr`` is None.
-    Other parameters
+
+    Other Parameters
+    ----------------
         As in :func:`simulate_ccep`.
 
     Returns
@@ -751,7 +748,6 @@ def simulate_erna(
     >>> sorted(set(truth.to_dataframe()["event"]))
     [0, 1, 2, 3, 4]
     """
-
     start = _start()
     settings = _settings(locals())
     n_pulses = _check_count("n_pulses", n_pulses)
@@ -931,7 +927,9 @@ def simulate_tep(
         Channel under the coil.
     auditory, pulse_artifact, decay_artifact, muscle_artifact : bool
         Include each confound.
-    Other parameters
+
+    Other Parameters
+    ----------------
         As in :func:`simulate_erp`.
 
     Returns
@@ -947,7 +945,6 @@ def simulate_tep(
     >>> "AEP_N100" in set(truth.to_dataframe()["label"])
     True
     """
-
     start = _start()
     settings = _settings(locals())
     n_trials = _check_count("n_trials", n_trials)
@@ -1145,7 +1142,9 @@ def simulate_ecap(
         Fraction of the probe response suppressed by the masker (1: complete).
     amplitude : ((float, float), (float, float))
         Ranges of the N1 and P2 amplitudes at the nearest contact (µV).
-    Other parameters
+
+    Other Parameters
+    ----------------
         As in :func:`simulate_ccep`.
 
     Returns
@@ -1161,7 +1160,6 @@ def simulate_ecap(
     >>> list(ts.metadata["stim_polarity"][:2])
     ['biphasic_cathodic_first', 'biphasic_anodic_first']
     """
-
     start = _start()
     settings = _settings(locals())
     n_trials = _check_count("n_trials", n_trials)
@@ -1405,7 +1403,9 @@ def simulate_animal_ep(
         States the trials are split between, in equal parts at random.
     state_gain : dict, optional
         Response gain per state.
-    Other parameters
+
+    Other Parameters
+    ----------------
         As in :func:`simulate_erp`.
 
     Returns
@@ -1420,7 +1420,6 @@ def simulate_animal_ep(
     >>> sorted(set(ts.metadata["state"]))
     ['awake', 'nrem']
     """
-
     start = _start()
     settings = _settings(locals())
     n_trials = _check_count("n_trials", n_trials)

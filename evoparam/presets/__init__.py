@@ -21,7 +21,7 @@ import dataclasses
 import json
 from importlib import resources
 
-import evoparam._plugins as _plugins
+from evoparam import _plugins
 from evoparam.errors import SettingsError
 
 __all__ = [
@@ -154,7 +154,6 @@ def get(name):
     SettingsError
         Unknown name; the message lists the presets.
     """
-
     if isinstance(name, Preset):
         return name
     if name not in PRESETS:
@@ -164,7 +163,6 @@ def get(name):
 
 def list():  # noqa: A001 (the name of the spec's API)
     """Table of the presets: name, modality, species, citation keys, version, validation."""
-
     import pandas as pd
 
     rows = [
@@ -192,7 +190,6 @@ def derive(base, **overrides):
     SettingsError
         An override that is not a preset field; the message lists the fields.
     """
-
     parent = get(base)
     known = {f.name for f in dataclasses.fields(Preset)} - {"parent", "overrides"}
     unknown = sorted(set(overrides) - known)
@@ -233,7 +230,6 @@ def targeted(base, label, window, polarity, *, margin=0.05, name=None):
     name : str, optional
         Default ``"<base>_<label>"``.
     """
-
     if polarity not in ("negative", "positive"):
         raise SettingsError("targeted: polarity must be 'negative' or 'positive'.")
     parent = get(base)
@@ -256,7 +252,6 @@ def targeted(base, label, window, polarity, *, margin=0.05, name=None):
 
 def register(preset, *, overwrite=False):
     """Add a preset to the registry (a built-in name only with ``overwrite=True``)."""
-
     if not isinstance(preset, Preset):
         raise SettingsError("register expects a Preset (see derive or from_json).")
     if preset.name in PRESETS and not overwrite:
@@ -266,13 +261,11 @@ def register(preset, *, overwrite=False):
 
 def to_json(preset):
     """JSON text of a preset (the format of the files of this folder)."""
-
     return json.dumps(get(preset).to_dict(), indent=2)
 
 
 def from_json(text):
     """Preset from JSON text."""
-
     values = json.loads(text)
     known = {f.name for f in dataclasses.fields(Preset)}
     unknown = sorted(set(values) - known)
@@ -294,19 +287,16 @@ def _yaml():
 
 def to_yaml(preset):
     """YAML text of a preset (needs PyYAML)."""
-
     return _yaml().safe_dump(get(preset).to_dict(), sort_keys=False)
 
 
 def from_yaml(text):
     """Preset from YAML text (needs PyYAML)."""
-
     return Preset(**_yaml().safe_load(text))
 
 
 def fit_fields(preset):
     """The settings of the fitting engine that a preset fixes (``FitSettings`` names)."""
-
     p = get(preset)
     windows = {
         label: (lo, hi, int(p.label_polarity.get(label, 0)))
@@ -333,8 +323,8 @@ def fit_fields(preset):
 def methods_note(preset):
     """The preset's part of a methods text: name, version, parent and overrides, the
     validation status (spec REQ-279) and the preset's caveat for the methods
-    (``notes["methods"]``, for example the sensory confound of ``tep``, REQ-275)."""
-
+    (``notes["methods"]``, for example the sensory confound of ``tep``, REQ-275).
+    """
     p = get(preset)
     text = f"preset '{p.name}' v{p.version}"
     if p.parent:
@@ -353,7 +343,6 @@ def methods_note(preset):
 
 def _plugin_preset(name, obj, origin):
     """Check a preset of the entry-point group ``evoparam.presets`` (spec §10.8)."""
-
     if not isinstance(obj, Preset):
         raise SettingsError(
             f"plugin preset {name!r} of {origin} is a {type(obj).__name__}, not a Preset."

@@ -18,7 +18,6 @@ This tutorial runs the commands with :mod:`subprocess`, as a shell script would.
 # ------------------------
 
 import json
-import os
 import subprocess
 import sys
 import tempfile

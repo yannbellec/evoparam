@@ -11,11 +11,13 @@ voltage unit is converted to µV.
 
 import os
 import re
-from configparser import ConfigParser, Error as ConfigError
+from configparser import ConfigParser
+from configparser import Error as ConfigError
 
 import numpy as np
 
-from evoparam.errors import DataError, ReaderError, warn as _warn
+from evoparam.errors import DataError, ReaderError
+from evoparam.errors import warn as _warn
 from evoparam.io._fetch import RemoteFile, fetch_bytes, is_url, sha256_file
 
 __all__ = [
@@ -49,12 +51,11 @@ def _read_text(path, log=None):
         with open(path, "rb") as file:
             return _decode(file.read())
     except OSError as exc:
-        raise ReaderError("Cannot read {}: {}".format(path, exc)) from exc
+        raise ReaderError(f"Cannot read {path}: {exc}") from exc
 
 
 def _unique_names(names):
     """Suffix duplicated channel names with -1, -2, ..., with a warning."""
-
     counts = {name: names.count(name) for name in names}
     duplicated = sorted(name for name, count in counts.items() if count > 1)
     if not duplicated:
@@ -63,7 +64,7 @@ def _unique_names(names):
     for name in names:
         if counts[name] > 1:
             seen[name] = seen.get(name, 0) + 1
-            out.append("{}-{}".format(name, seen[name]))
+            out.append(f"{name}-{seen[name]}")
         else:
             out.append(name)
     _warn(
@@ -103,12 +104,11 @@ def read_brainvision_header(vhdr, *, log=None):
         If the header cannot be read, or the data are not binary, or the binary
         format or orientation is not supported.
     """
-
     text = _read_text(vhdr, log=log)
 
     # The header is an INI file, with a first line that is not a section: drop it
     if "[" not in text:
-        raise ReaderError("{} is not a BrainVision header.".format(vhdr))
+        raise ReaderError(f"{vhdr} is not a BrainVision header.")
     text = text[text.index("[") :]
     parser = ConfigParser(interpolation=None, strict=False)
     parser.optionxform = str
@@ -117,26 +117,26 @@ def read_brainvision_header(vhdr, *, log=None):
         common = parser["Common Infos"]
         channels = parser["Channel Infos"]
     except (ConfigError, KeyError) as exc:
-        raise ReaderError("{}: malformed BrainVision header ({}).".format(vhdr, exc)) from exc
+        raise ReaderError(f"{vhdr}: malformed BrainVision header ({exc}).") from exc
 
     if common.get("DataFormat", "BINARY").upper() != "BINARY":
-        raise ReaderError("{}: only binary BrainVision data are supported.".format(vhdr))
+        raise ReaderError(f"{vhdr}: only binary BrainVision data are supported.")
     orientation = common.get("DataOrientation", "MULTIPLEXED").upper()
     if orientation not in ("MULTIPLEXED", "VECTORIZED"):
-        raise ReaderError("{}: data orientation {} is not supported.".format(vhdr, orientation))
+        raise ReaderError(f"{vhdr}: data orientation {orientation} is not supported.")
 
     n_channels = int(common["NumberOfChannels"])
     sfreq = 1e6 / float(common["SamplingInterval"])
     binary = parser["Binary Infos"] if parser.has_section("Binary Infos") else {}
     binary_format = binary.get("BinaryFormat", "INT_16").upper()
     if binary_format not in _DTYPES:
-        raise ReaderError("{}: binary format {} is not supported.".format(vhdr, binary_format))
+        raise ReaderError(f"{vhdr}: binary format {binary_format} is not supported.")
 
     ch_names, resolutions, units = [], [], []
     for ind in range(1, n_channels + 1):
-        key = "Ch{}".format(ind)
+        key = f"Ch{ind}"
         if key not in channels:
-            raise ReaderError("{}: channel {} is not described.".format(vhdr, key))
+            raise ReaderError(f"{vhdr}: channel {key} is not described.")
         fields = re.split(r"(?<!\\),", channels[key])
         ch_names.append(fields[0].replace("\\1", ","))
         resolutions.append(float(fields[2]) if len(fields) > 2 and fields[2].strip() else 1.0)
@@ -168,7 +168,7 @@ class _LocalFile:
 
     def __init__(self, path):
         if not os.path.isfile(path):
-            raise ReaderError("Data file not found: {}".format(path))
+            raise ReaderError(f"Data file not found: {path}")
         self.path = path
         self.size = os.path.getsize(path)
         self.bytes_read = 0
@@ -192,14 +192,13 @@ class _LocalFile:
 
 def _open_data(header, remote=None, *, chunk_size=1 << 20, cache_dir=None, log=None):
     """Open the binary data file of a header, locally or through range requests."""
-
     path = header["data_file"]
     if remote is None:
         remote = is_url(path)
     if remote and not is_url(path):
-        raise ReaderError("remote=True needs an http(s) address, got {}.".format(path))
+        raise ReaderError(f"remote=True needs an http(s) address, got {path}.")
     if not remote and is_url(path):
-        raise ReaderError("remote=False but {} is an http(s) address.".format(path))
+        raise ReaderError(f"remote=False but {path} is an http(s) address.")
     if remote:
         return RemoteFile(path, chunk_size=chunk_size, cache_dir=cache_dir, log=log)
     return _LocalFile(path)
@@ -207,7 +206,6 @@ def _open_data(header, remote=None, *, chunk_size=1 << 20, cache_dir=None, log=N
 
 def _n_samples(header, reader):
     """Number of samples per channel, from the file size."""
-
     itemsize = np.dtype(header["dtype"]).itemsize
     from_size = reader.size // (header["n_channels"] * itemsize)
     return from_size if header["n_samples"] is None else min(header["n_samples"], from_size)
@@ -225,7 +223,6 @@ def _read_windows(reader, header, starts, n_times, ch_index, n_samples):
     data : 3d array
         As [n_windows, n_selected_channels, n_times], in µV, float64.
     """
-
     dtype, n_channels = np.dtype(header["dtype"]), header["n_channels"]
     itemsize = dtype.itemsize
     starts = np.asarray(starts, dtype=np.int64)
@@ -264,7 +261,6 @@ def _read_windows(reader, header, starts, n_times, ch_index, n_samples):
 
 def _pick(ch_names, picks):
     """Indices of the picked channels, by name or index, in the given order."""
-
     if picks is None:
         return list(range(len(ch_names)))
     if isinstance(picks, (str, int, np.integer)):
@@ -274,12 +270,12 @@ def _pick(ch_names, picks):
     for pick in picks:
         if isinstance(pick, str):
             if pick not in lookup:
-                raise DataError("picks: unknown channel {!r}.".format(pick))
+                raise DataError(f"picks: unknown channel {pick!r}.")
             out.append(lookup[pick])
         elif isinstance(pick, (int, np.integer)) and -len(ch_names) <= pick < len(ch_names):
             out.append(int(pick) % len(ch_names))
         else:
-            raise DataError("picks: cannot select a channel with {!r}.".format(pick))
+            raise DataError(f"picks: cannot select a channel with {pick!r}.")
     if not out:
         raise DataError("picks: the selection is empty.")
     return out
@@ -287,7 +283,6 @@ def _pick(ch_names, picks):
 
 def _warn_units(header, ch_index):
     """Warn about converted and non-voltage channel units among the picked channels."""
-
     units = [header["units"][ind] for ind in ch_index]
     names = [header["ch_names"][ind] for ind in ch_index]
     converted = [
@@ -314,8 +309,8 @@ def _warn_units(header, ch_index):
 
 def _segment(vhdr, header, first, stop, picks, remote, cache_dir=None, hash_file=False):
     """Samples ``first <= n < stop`` (clipped to the recording), in µV, and the record of
-    the bytes read (the SHA-256 of a local data file only when ``hash_file``)."""
-
+    the bytes read (the SHA-256 of a local data file only when ``hash_file``).
+    """
     ch_index = _pick(header["ch_names"], picks)
     _warn_units(header, ch_index)
     with _open_data(header, remote, cache_dir=cache_dir) as reader:
@@ -323,9 +318,7 @@ def _segment(vhdr, header, first, stop, picks, remote, cache_dir=None, hash_file
         first, stop = max(int(first), 0), min(int(stop), n_samples)
         if stop <= first:
             raise ReaderError(
-                "{}: the requested time window is outside the recording ({} samples).".format(
-                    vhdr, n_samples
-                )
+                f"{vhdr}: the requested time window is outside the recording ({n_samples} samples)."
             )
         data = _read_windows(reader, header, [first], stop - first, ch_index, n_samples)[0]
         if isinstance(reader, RemoteFile):
@@ -346,7 +339,6 @@ def _segment(vhdr, header, first, stop, picks, remote, cache_dir=None, hash_file
 
 def _sample(time, sfreq):
     """First sample at or after ``time`` (s), robust to rounding of the product."""
-
     return int(np.ceil(np.round(time * sfreq, 6)))
 
 
@@ -384,7 +376,6 @@ def read_brainvision(vhdr, *, tmin=None, tmax=None, picks=None, remote=None):
     DataError
         Unknown channel in ``picks``.
     """
-
     data, sfreq, ch_names, t0, _ = _read_with_source(
         vhdr, tmin, tmax, picks, remote, hash_file=False
     )
@@ -394,7 +385,6 @@ def read_brainvision(vhdr, *, tmin=None, tmax=None, picks=None, remote=None):
 
 def _read_with_source(vhdr, tmin=None, tmax=None, picks=None, remote=None, hash_file=True):
     """read_brainvision, plus the record of the bytes read (sha256, bytes_read, ranges)."""
-
     header = read_brainvision_header(vhdr)
     sfreq = header["sfreq"]
     first = 0 if tmin is None else _sample(tmin, sfreq)
@@ -430,7 +420,6 @@ def read_brainvision_segment(vhdr, tmin, tmax, picks=None):
     t0 : float
         Time of the first returned sample, in seconds from the start of the recording.
     """
-
     header = read_brainvision_header(vhdr)
     sfreq = header["sfreq"]
     first = max(int(np.ceil(tmin * sfreq)), 0)
@@ -464,7 +453,6 @@ def write_brainvision(
     str
         The ``.vhdr`` path.
     """
-
     vhdr = str(vhdr)
     folder, name = os.path.split(vhdr)
     stem = name[:-5] if name.endswith(".vhdr") else name

@@ -13,18 +13,18 @@ This module never imports the fitting engine, so the truth cannot be shaped by
 the estimator (REQ-254).
 """
 
+from ._truth import TRUTH_COLUMNS, GroundTruth
+from .bursts import burst_waveform, simulate_bursts
 from .components import (
-    ComponentSpec,
-    ERP_COMPONENTS,
-    TEP_COMPONENTS,
+    CCEP_DELAYED,
     CCEP_N1,
     CCEP_N2,
-    CCEP_DELAYED,
+    ERP_COMPONENTS,
     ROLES,
+    TEP_COMPONENTS,
+    ComponentSpec,
     shape_params,
 )
-from .noise import ALLOWED_LICENSES, NOISE_KINDS, make_noise
-from ._truth import GroundTruth, TRUTH_COLUMNS
 from .generators import (
     GENERATORS,
     simulate_animal_ep,
@@ -35,7 +35,7 @@ from .generators import (
     simulate_tep,
 )
 from .inject import inject
-from .bursts import burst_waveform, simulate_bursts
+from .noise import ALLOWED_LICENSES, NOISE_KINDS, make_noise
 from .score import MATCH_COLUMNS, SCORE_COLUMNS, match_components, score_fits
 
 __all__ = [

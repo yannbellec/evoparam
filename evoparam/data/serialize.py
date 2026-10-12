@@ -38,9 +38,9 @@ from dataclasses import fields, is_dataclass
 
 import numpy as np
 
-from evoparam.version import __version__
-from evoparam.errors import DataError, EvoparamVersionError
 from evoparam.data._jsonutil import dumps, loads
+from evoparam.errors import DataError, EvoparamVersionError
+from evoparam.version import __version__
 
 __all__ = ["save_object", "load_object", "register_type", "SCHEMA", "SCHEMA_MAJOR", "SCHEMA_MINOR"]
 
@@ -59,8 +59,8 @@ _EXTRA_TYPES = {}
 
 def register_type(cls):
     """Make a dataclass defined outside :mod:`evoparam.data` savable in a ``.evoparam``
-    container (spec §4.3.5). Its module calls this when it is imported."""
-
+    container (spec §4.3.5). Its module calls this when it is imported.
+    """
     _EXTRA_TYPES[cls.__name__] = cls
     return cls
 
@@ -223,11 +223,10 @@ def _write_table(table, folder, key, table_format):
         sidecar["columns"][column] = spec
     if table_format == "parquet":
         out.to_parquet(os.path.join(folder, f"{key}.parquet"), index=False)
+    elif len(out.columns):
+        out.to_csv(os.path.join(folder, f"{key}.csv"), index=False, na_rep=MISSING)
     else:
-        if len(out.columns):
-            out.to_csv(os.path.join(folder, f"{key}.csv"), index=False, na_rep=MISSING)
-        else:
-            open(os.path.join(folder, f"{key}.csv"), "w", encoding="utf-8").close()
+        open(os.path.join(folder, f"{key}.csv"), "w", encoding="utf-8").close()
     with open(os.path.join(folder, f"{key}.json"), "w", encoding="utf-8") as fobj:
         fobj.write(dumps(sidecar, indent=1))
 
@@ -318,7 +317,6 @@ def save_object(obj, path, overwrite=False, table_format="auto"):
     str
         The path written.
     """
-
     if table_format == "auto":
         table_format = "parquet" if _have_pyarrow() else "csv"
     if table_format not in ("csv", "parquet"):
@@ -522,7 +520,6 @@ def load_object(path, mmap=False, verify=True):
         Check every file against the SHA-256 recorded in the manifest; a
         mismatch raises :class:`~evoparam.errors.DataError`.
     """
-
     path = os.fspath(path)
     if not os.path.exists(path) and os.path.exists(path + SUFFIX):
         path += SUFFIX
@@ -545,7 +542,6 @@ def load_object(path, mmap=False, verify=True):
 
 def _materialise(obj):
     """Make sure no array still points into a temporary folder."""
-
     if is_dataclass(obj) and not isinstance(obj, type):
         for fld in fields(obj):
             value = getattr(obj, fld.name)

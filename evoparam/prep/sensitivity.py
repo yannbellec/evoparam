@@ -28,7 +28,6 @@ def register_detector(name, detector):
     or ``(detected, latency, groups)`` with arrays [n_channels, n_groups] and the group
     names (for example one group per stimulation site).
     """
-
     if not callable(detector):
         raise SettingsError("detector must be callable.")
     DETECTORS[str(name)] = detector
@@ -50,7 +49,6 @@ def threshold_detector(
     detected : 1d bool array [n_channels]
     latency : 1d array [n_channels], seconds (NaN when not detected)
     """
-
     values = masked_values(ts)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
@@ -70,7 +68,6 @@ def threshold_detector(
 
 def _key(name):
     """Comparison key of a channel: a bipolar ``"A1-A2"`` is compared with contact A1."""
-
     return str(name).split("-")[0]
 
 
@@ -114,7 +111,6 @@ def reference_sensitivity(
         ``attrs["duration_s"]`` the run time, ``attrs["provenance"]`` the provenance of the
         trials with this step (for the methods text).
     """
-
     pd = require("pandas", extra="data", caller="evoparam.prep.reference_sensitivity")
     start = _time.perf_counter()
     check_trialset(ts)

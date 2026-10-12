@@ -31,7 +31,6 @@ def measure(data, sfreq, **kwargs):
 
     Memory tracing slows numpy down, so time and memory are measured in separate runs.
     """
-
     detect_pulses(data[:, : int(2 * sfreq)], sfreq, method="threshold")  # warm-up
     times = []
     for _ in range(3):

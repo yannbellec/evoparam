@@ -92,7 +92,6 @@ class Adapter:
 
     def check(self):
         """Raise :class:`AdapterError` when the command's program cannot be found."""
-
         import shutil
 
         program = self._argv("", "")[0]
@@ -125,7 +124,6 @@ class Adapter:
         BenchmarkValidationError
             The output does not follow the task's schema.
         """
-
         task_input = read_input(task_input_path)
         task = task_input.task
         if self.tasks and task not in self.tasks:
@@ -168,7 +166,6 @@ class Adapter:
 
     def info(self):
         """The ``method`` record of a result document."""
-
         return {
             "name": self.name,
             "version": self.version,
@@ -181,7 +178,6 @@ class Adapter:
 
 def load_adapter(path):
     """An :class:`Adapter` from a JSON specification file."""
-
     with open(path, encoding="utf-8") as fobj:
         spec = json.load(fobj)
     missing = [k for k in ("name", "command") if k not in spec]

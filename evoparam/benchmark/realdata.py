@@ -44,14 +44,12 @@ REALDATA_SCHEMA = "evoparam-benchmark-realdata/1"
 
 def list_indices():
     """Names of the real-data indices shipped with the package."""
-
     folder = resources.files("evoparam.benchmark").joinpath("realdata")
     return sorted(p.name[:-5] for p in folder.iterdir() if p.name.endswith(".json"))
 
 
 def load_index(name):
     """A real-data index by name."""
-
     if name not in list_indices():
         raise DataError(f"Unknown real-data index {name!r}; indices: {list_indices()}.")
     text = (
@@ -75,7 +73,6 @@ def load_bids_trials(index, entry, *, cache_dir=None):
         ``min_trials`` trials, the first ``max_sites`` in the order of the events), or one
         ``("", trials)`` pair when the events have no site.
     """
-
     from evoparam.io import read_bids
 
     if isinstance(index, str):
@@ -131,7 +128,6 @@ def consensus_truth(ts, index):
         amplitude of the ``vanblooijs2023`` peak on the responders) and the decisions of
         every rule (``decisions``).
     """
-
     from evoparam.existence import test_response
 
     from .baselines import RULE_OVERRIDES
@@ -185,7 +181,6 @@ def real_inputs(name, entry_index=0, *, task="T1", cache_dir=None):
     list of TaskInput
         ``split`` is ``"real"``; the suite field names the index.
     """
-
     index = load_index(name)
     if task not in index["tasks"]:
         raise DataError(f"index {name} does not serve task {task} ({index['tasks']}).")

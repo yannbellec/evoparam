@@ -16,12 +16,11 @@ Data: ``mne.datasets.sample`` (about 1.6 GB, downloaded by MNE on first use).
 # The averaged response
 # ---------------------
 
+import mne
 import numpy as np
 
 import evoparam
 from evoparam import presets
-
-import mne
 
 mne.set_log_level("ERROR")
 path = mne.datasets.sample.data_path() / "MEG" / "sample" / "sample_audvis-ave.fif"

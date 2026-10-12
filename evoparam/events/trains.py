@@ -50,7 +50,6 @@ def group_trains(events, *, max_gap=None, expected_rate=None, site_column="stim_
     events : pandas.DataFrame
         Copy sorted by time, with ``train_id`` and ``index_in_train`` (int64, from 0).
     """
-
     require("pandas", extra="data", caller="evoparam.events.group_trains")
     out = events.copy()
     explicit = max_gap is not None or bool(expected_rate)
@@ -103,7 +102,6 @@ def trains(events, *, site_column="stim_site_guess", current_column="stim_curren
         ``train_id``, ``site``, ``n_pulses``, ``onset`` (s, first pulse),
         ``mean_interval`` (s, NaN for a single pulse), ``current`` (mA, NaN if unknown).
     """
-
     pd = require("pandas", extra="data", caller="evoparam.events.trains")
     if "train_id" not in events.columns:
         raise EventError("The event table has no 'train_id' column; run group_trains first.")
@@ -149,7 +147,6 @@ def events_to_metadata(events, *, site_column="stim_site_guess"):
         (s), ``detector``, and ``stim_current_mA`` when the table has it. Pass it, with
         ``onset``, to :func:`evoparam.io.epoch`.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.events.events_to_metadata")
     n = len(events)
     meta = pd.DataFrame({"trial": np.arange(n, dtype="int64")})

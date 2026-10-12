@@ -7,26 +7,34 @@ treatment decisions.
 
 import typing as _typing
 
-from .version import __version__
-
-from . import errors
-from .data import TrialSet, Evoked, Provenance, load_object
-from . import shapes
-
-from .models import ResponseModel
+from . import (
+    artifact,
+    errors,
+    events,
+    existence,
+    hierarchical,
+    io,
+    prep,
+    presets,
+    shapes,
+    spatial,
+    tf,
+    trials,
+)
+from .data import Evoked, Provenance, TrialSet, load_object
+from .events import detect_events
 from .existence import fit, test_response
 from .io import read
-
-from . import io, events, artifact, prep, existence, trials, tf, spatial, hierarchical, presets
+from .models import ResponseModel
 from .reports import reproduce
-from .events import detect_events
+from .version import __version__
 
 # The existence test is the default detector of prep.reference_sensitivity (spec §5.4, method
 # 3); prep sits below the existence test in the dependency table, so the package root
 # registers it.
 prep.register_detector("existence", existence.existence_detector)
 
-from .utils import verbose, set_log_level, set_log_file  # noqa: E402  (REQ-304)
+from .utils import set_log_file, set_log_level, verbose  # noqa: E402  (REQ-304)
 
 
 def selftest(*, tolerance: float = 0.001) -> float:
@@ -47,10 +55,8 @@ def selftest(*, tolerance: float = 0.001) -> float:
     AssertionError
         When the N1 is not found or is further than ``tolerance`` from the truth.
     """
-
     import warnings
 
-    from .models import ResponseModel
     from .sim import simulate_ccep
 
     trials, truth = simulate_ccep(
@@ -75,8 +81,8 @@ def selftest(*, tolerance: float = 0.001) -> float:
 def cite(*, bibtex: bool = False, file: "_typing.TextIO | None" = None) -> str:
     """Print and return how to cite evoparam (REQ-391): the software citation of
     ``CITATION.cff`` with the version, its DOIs when they exist and the preferred paper
-    citation when there is one. ``bibtex=True`` gives a BibTeX entry."""
-
+    citation when there is one. ``bibtex=True`` gives a BibTeX entry.
+    """
     import sys
 
     from .reports import citation
@@ -88,8 +94,8 @@ def cite(*, bibtex: bool = False, file: "_typing.TextIO | None" = None) -> str:
 
 def __getattr__(name):
     """Deprecated public names (REQ-293): served from ``evoparam/_deprecated.py`` with an
-    :class:`~evoparam.utils.EvoparamDeprecationWarning`."""
-
+    :class:`~evoparam.utils.EvoparamDeprecationWarning`.
+    """
     from ._deprecated import REGISTRY
 
     if name in REGISTRY:

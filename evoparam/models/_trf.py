@@ -48,7 +48,6 @@ def least_squares_trf(
     a reduced orthonormal basis (fewer rows, the same inner products); it sets the rank
     threshold of the trust-region step as in SciPy. By default the rows of ``jac(x0)``.
     """
-
     x0 = np.atleast_1d(np.asarray(x0, dtype=float))
     lb = np.asarray(lb, dtype=float)
     ub = np.asarray(ub, dtype=float)
@@ -149,7 +148,6 @@ def _norm(x):
 
 def _reduce(J, f, reduced):
     """(R, Q^T f, J^T f) of ``J = Q R`` (economic), or (J, f, J^T f) unreduced."""
-
     m, n = J.shape
     if not reduced or m <= n:
         return J, f, J.T.dot(f)
@@ -163,7 +161,6 @@ def _reduce(J, f, reduced):
 @functools.lru_cache(maxsize=32)
 def _upper(n):
     """Mask of the upper triangle of an n x n matrix (read only)."""
-
     mask = np.triu(np.ones((n, n)))
     mask.flags.writeable = False
     return mask
@@ -171,7 +168,6 @@ def _upper(n):
 
 def _cl_scaling(x, g, lb, ub, finite_lb, finite_ub):
     """Coleman-Li scaling vector ``v`` and its derivative ``dv``."""
-
     upper = (g < 0) & finite_ub
     lower = (g > 0) & finite_lb
     with np.errstate(invalid="ignore"):  # inf - inf where a bound is infinite
@@ -182,7 +178,6 @@ def _cl_scaling(x, g, lb, ub, finite_lb, finite_ub):
 
 def _strictly_feasible(x, lb, ub, rstep):
     """``x`` moved inside the bounds by ``rstep`` (relative; ``0``: one ulp)."""
-
     x_new = x.copy()
     if rstep == 0 and ((x > lb) & (x < ub)).all():
         return x_new  # no bound active: nothing moves
@@ -216,8 +211,8 @@ def _active(x, lb, ub, rtol):
 
 def _solve_trust_region(n, m, uf, s, V, delta, alpha, rtol=0.01, max_iter=10):
     """Trust-region subproblem from the SVD of the (scaled) Jacobian (Moré 1977); returns
-    the step and the Levenberg-Marquardt parameter."""
-
+    the step and the Levenberg-Marquardt parameter.
+    """
     suf = s * uf
     if m >= n:
         full_rank = s[-1] > EPS * m * s[0]
@@ -285,7 +280,6 @@ def _termination(dF, F, dx_norm, x_norm, ratio, ftol, xtol):
 
 def _quadratic_1d(J, g, s, diag, s0=None):
     """Coefficients of ``0.5 (s0 + s t)^T (J^T J + diag) (s0 + s t) + g^T (s0 + s t)``."""
-
     v = J.dot(s)
     a = np.dot(v, v)
     a += np.dot(s * diag, s)
@@ -350,8 +344,8 @@ def _intersect_trust_region(x, s, delta):
 
 def _select_step(x, J_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta):
     """The best of the trust-region step (made strictly interior), its reflection on the
-    first bound it hits, and the scaled anti-gradient."""
-
+    first bound it hits, and the scaled anti-gradient.
+    """
     if ((x + p >= lb) & (x + p <= ub)).all():
         p_value = _evaluate_quadratic(J_h, g_h, p_h, diag_h)
         return p, p_h, -p_value

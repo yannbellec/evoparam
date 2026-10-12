@@ -16,9 +16,9 @@ from evoparam.tests.io.helpers import (
     CH_NAMES,
     SFREQ,
     STIM_ONSETS,
+    make_bids,
     signal,
     write_brainvision,
-    make_bids,
 )
 
 ###################################################################################################

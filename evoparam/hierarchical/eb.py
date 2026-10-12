@@ -69,7 +69,6 @@ def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
     dict with ``p_response`` (n,), ``pi``, ``mu`` (per subject), ``tau``, ``mu_group``,
     ``sd_group``, ``loglik``, ``n_iter``, ``converged``.
     """
-
     y = np.asarray(y, float)
     se2 = np.asarray(se, float) ** 2
     subject = np.asarray(subject, int)
@@ -143,7 +142,6 @@ def shrink(y, se, subject, channel, X=None):
     Returns the :func:`~evoparam.stats.variance.reml` dictionary and the index of the
     channel level in it.
     """
-
     subject = np.asarray(subject)
     groups = [subject, channel] if len(np.unique(subject)) > 1 else [channel]
     out = reml(y, groups, se=se, X=X, residual=False)
@@ -153,8 +151,8 @@ def shrink(y, se, subject, channel, X=None):
 def jitter_components(latency, noise_sd, subject, channel):
     """Trial-to-trial latency jitter beyond noise: REML residual SD, and the ex-Gaussian
     decomposition (``sigma``, ``tau``) from the second and third moments of the centred
-    trial latencies."""
-
+    trial latencies.
+    """
     latency = np.asarray(latency, float)
     noise_sd = np.asarray(noise_sd, float)
     ok = np.isfinite(latency) & np.isfinite(noise_sd) & (noise_sd > 0)
@@ -195,7 +193,6 @@ def latency_standard_error(latency, wald_se, jitter_sd, n_trials, low, high, fal
     SD when the window is wide). Where the Wald error is missing, ``fallback`` is used
     (NaN without it).
     """
-
     latency = np.asarray(latency, float)
     wald_se = np.asarray(wald_se, float)
     n_trials = np.asarray(n_trials, float)
@@ -220,7 +217,6 @@ _FORMULA = re.compile(r"^\s*([A-Za-z_]\w*)\s*~\s*(.+?)\s*$")
 
 def parse_formula(formula):
     """``"latency ~ age + state"`` -> ("latency", ["age", "state"]); ``~ 1`` -> no term."""
-
     match = _FORMULA.match(formula or "")
     if not match:
         raise SettingsError(f"formula must read 'parameter ~ term + term', not {formula!r}.")
@@ -243,7 +239,6 @@ def design_matrix(values, terms):
 
     ``values``: list (one per observation) of dicts term -> value. Returns (X, names).
     """
-
     columns, names = [np.ones(len(values))], ["Intercept"]
     for term in terms:
         raw = [v[term] for v in values]
@@ -261,7 +256,6 @@ def design_matrix(values, terms):
 
 def effects_table(out, names, level=0.95):
     """Fixed effects with standard errors, intervals and two-sided p-values (normal)."""
-
     import pandas as pd
 
     beta = np.asarray(out["beta"], float)

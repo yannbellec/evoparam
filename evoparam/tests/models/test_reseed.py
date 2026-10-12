@@ -10,7 +10,6 @@ import pytest
 from evoparam import fit, sim
 from evoparam.models import evaluate_fit
 
-
 # contacts where the greedy path ended in a cancelling pair (seed 0)
 REPAIRED = {"cochlear": (1, 3), "spinal": (2,)}
 

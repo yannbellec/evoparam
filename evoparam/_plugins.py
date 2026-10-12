@@ -42,7 +42,6 @@ SKIP = object()
 
 def enabled():
     """False when ``EVOPARAM_DISABLE_PLUGINS`` is set to a true value."""
-
     return os.environ.get("EVOPARAM_DISABLE_PLUGINS", "").strip().lower() not in (
         "1",
         "true",
@@ -69,7 +68,6 @@ def load_group(group, builtin, check):
     and returns what the registry stores (it raises SettingsError on a bad object), or
     :data:`SKIP` for an object of another registry of the group.
     """
-
     if group not in GROUPS:
         raise SettingsError(f"unknown plugin group {group!r}; groups: {GROUPS}.")
     out = {}
@@ -104,13 +102,11 @@ def load_group(group, builtin, check):
 
 def loaded():
     """``{group: {name: "dist==version"}}`` of the groups loaded so far."""
-
     return {group: dict(names) for group, names in _LOADED.items()}
 
 
 def used():
     """``{"group:name": "dist==version"}`` of the plugin objects handed out so far."""
-
     return dict(USED)
 
 
@@ -142,13 +138,11 @@ class LazyRegistry(dict):
 
     def plugins(self):
         """``{name: "dist==version"}`` of the plugins of this registry."""
-
         self._load()
         return dict(self._plugins)
 
     def reload(self):
         """Forget the loaded plugins and load the entry points again (tests, new installs)."""
-
         for name in self._plugins or {}:
             super().pop(name, None)
         self._plugins = None

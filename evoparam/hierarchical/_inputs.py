@@ -40,8 +40,8 @@ class SubjectData:
 
 def split_subjects(ts, subject_column):
     """List of (name, TrialSet): one per element of a sequence, or one per value of the
-    metadata column ``subject_column`` of a single TrialSet."""
-
+    metadata column ``subject_column`` of a single TrialSet.
+    """
     if isinstance(ts, TrialSet):
         meta = ts.metadata
         if meta is not None and subject_column in meta.columns:
@@ -76,7 +76,6 @@ def split_subjects(ts, subject_column):
 
 def subject_covariates(name, ts, columns):
     """Values of subject-level covariates: constant metadata columns of the subject."""
-
     out = {}
     for column in columns:
         meta = ts.metadata
@@ -120,8 +119,8 @@ def trial_fits(ts, group_fit, label, max_shift, random_state=None):
 
 def run_subjects(function, arguments, n_jobs):
     """``function(*args)`` for each subject's arguments, in processes when ``n_jobs != 1``
-    (``-1``: one per core)."""
-
+    (``-1``: one per core).
+    """
     if n_jobs == 1 or len(arguments) < 2:
         return [function(*args) for args in arguments]
     import os
@@ -134,7 +133,6 @@ def run_subjects(function, arguments, n_jobs):
 
 def component_rows(group_fit, label):
     """For each channel of a GroupFit: the component carrying ``label`` (or None)."""
-
     out = {}
     for name in group_fit.ch_names:
         fit = group_fit.get(name)
@@ -145,8 +143,8 @@ def component_rows(group_fit, label):
 
 def comp_window(fit, label):
     """The label window ``(low, high)`` (s) of a channel fit: the latency of a component
-    carrying ``label`` lies in it (``(-inf, inf)`` when the fit has no such window)."""
-
+    carrying ``label`` lies in it (``(-inf, inf)`` when the fit has no such window).
+    """
     windows = (getattr(fit, "settings", None) or {}).get("windows") or {}
     window = windows.get(label)
     if window is None or len(window) < 2:
@@ -156,7 +154,6 @@ def comp_window(fit, label):
 
 def wald_se(comp, name):
     """Standard error from a component's Wald interval (NaN when absent)."""
-
     ci = (comp.ci or {}).get(name)
     if ci is None or not np.all(np.isfinite(ci)):
         return np.nan
@@ -165,7 +162,6 @@ def wald_se(comp, name):
 
 def template(components):
     """Shape name and median parameters of a list of components."""
-
     names = [c.shape for c in components]
     shape = max(set(names), key=names.count)
     params = np.median(np.array([c.params for c in components if c.shape == shape]), axis=0)
@@ -187,7 +183,6 @@ def template_amplitudes(ts, tmpl):
     Least squares of the samples within ``latency +/- 1.5 FWHM`` on the template (unit peak)
     and an offset; masked samples are left out.
     """
-
     times = ts.times
     curve = get_shape(tmpl["shape"]).evaluate(times, tmpl["params"])
     peak = np.max(np.abs(curve))

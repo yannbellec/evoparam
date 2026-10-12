@@ -56,7 +56,6 @@ def _frame_equal(a, b):
 
 def deep_equal(a, b):
     """Return True when ``a`` and ``b`` hold the same values (see module docstring)."""
-
     if a is b:
         return True
     if a is None or b is None:

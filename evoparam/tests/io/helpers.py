@@ -56,15 +56,15 @@ def write_brainvision(
         "",
         "[Common Infos]",
         "Codepage=UTF-8",
-        "DataFile={}.eeg".format(stem),
-        "MarkerFile={}.vmrk".format(stem),
+        f"DataFile={stem}.eeg",
+        f"MarkerFile={stem}.vmrk",
         "DataFormat=BINARY",
-        "DataOrientation={}".format(orientation),
-        "NumberOfChannels={}".format(n_channels),
-        "SamplingInterval={}".format(1e6 / sfreq),
+        f"DataOrientation={orientation}",
+        f"NumberOfChannels={n_channels}",
+        f"SamplingInterval={1e6 / sfreq}",
         "",
         "[Binary Infos]",
-        "BinaryFormat={}".format(fmt),
+        f"BinaryFormat={fmt}",
         "",
         "[Channel Infos]",
     ]
@@ -424,9 +424,9 @@ def write_mef(
         values = np.where(np.isposinf(data[ch]), MEF_POS_INF, values)
         values = np.where(np.isneginf(data[ch]), MEF_NEG_INF, values)
         for seg, (seg_first, seg_stop) in enumerate(zip(seg_bounds[:-1], seg_bounds[1:])):
-            folder_seg = os.path.join(root, name + ".timd", "{}-{:06d}.segd".format(name, seg))
+            folder_seg = os.path.join(root, name + ".timd", f"{name}-{seg:06d}.segd")
             os.makedirs(folder_seg, exist_ok=True)
-            stem = os.path.join(folder_seg, "{}-{:06d}".format(name, seg))
+            stem = os.path.join(folder_seg, f"{name}-{seg:06d}")
             starts = [b for b in bounds if seg_first <= b < seg_stop]
             tdat, index = bytearray(), bytearray()
             for first, stop in zip(starts, starts[1:] + [seg_stop]):
@@ -573,18 +573,14 @@ def _handler(directory, stats, honour_range):
                     if rel.startswith(prefix):
                         keys.append((rel, os.path.getsize(os.path.join(folder, name))))
             items = "".join(
-                "<Contents><Key>{}</Key><Size>{}</Size></Contents>".format(escape(key), size)
+                f"<Contents><Key>{escape(key)}</Key><Size>{size}</Size></Contents>"
                 for key, size in sorted(keys)
             )
             body = (
-                (
-                    '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns='
-                    '"http://s3.amazonaws.com/doc/2006-03-01/"><Prefix>{}</Prefix><KeyCount>{}'
-                    "</KeyCount><IsTruncated>false</IsTruncated>{}</ListBucketResult>"
-                )
-                .format(escape(prefix), len(keys), items)
-                .encode("utf-8")
-            )
+                '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns='
+                f'"http://s3.amazonaws.com/doc/2006-03-01/"><Prefix>{escape(prefix)}</Prefix><KeyCount>{len(keys)}'
+                f"</KeyCount><IsTruncated>false</IsTruncated>{items}</ListBucketResult>"
+            ).encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -617,7 +613,7 @@ def _handler(directory, stats, honour_range):
                     file.seek(start)
                     body = file.read(stop - start + 1)
                 self.send_response(206)
-                self.send_header("Content-Range", "bytes {}-{}/{}".format(start, stop, size))
+                self.send_header("Content-Range", f"bytes {start}-{stop}/{size}")
                 status = 206
             else:
                 with open(path, "rb") as file:
@@ -649,7 +645,7 @@ def http_server(directory, honour_range=True, failures=0):
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield "http://127.0.0.1:{}/".format(server.server_address[1]), stats
+        yield f"http://127.0.0.1:{server.server_address[1]}/", stats
     finally:
         server.shutdown()
         server.server_close()

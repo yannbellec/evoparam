@@ -52,7 +52,6 @@ class OnlinePulseDetector:
 
     def reset(self):
         """Forget the stream (the calibration is redone)."""
-
         self.threshold = None
         self.center = 0.0
         self.spread = 1.0
@@ -92,8 +91,8 @@ class OnlinePulseDetector:
 
     def update(self, samples):
         """Add samples [n_samples, n_channels]; returns the onset samples (stream indices)
-        of the pulses found."""
-
+        of the pulses found.
+        """
         samples = np.asarray(samples, float)
         if samples.ndim != 2 or samples.shape[1] != self.n_channels:
             raise DataError(f"samples must be [n_samples, {self.n_channels}].")

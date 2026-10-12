@@ -15,7 +15,8 @@ import warnings
 import numpy as np
 
 from evoparam.data import TFFit, TrialSet
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.models import evaluate_fit
 from evoparam.version import __version__
 
@@ -120,8 +121,8 @@ def _labels(ts, by):
 def _invalid_pixels(masks, half_support, n_times, out_idx):
     """True where a pixel's kernel reaches an epoch edge (cone of influence) or a masked
     sample (artifact mask widened by the kernel's temporal support at each frequency).
-    Shape (n_trials or 1, n_freqs, n_out)."""
-
+    Shape (n_trials or 1, n_freqs, n_out).
+    """
     n_freqs = len(half_support)
     t = np.arange(n_times)[out_idx]
     if masks is None:
@@ -141,8 +142,8 @@ def _invalid_pixels(masks, half_support, n_times, out_idx):
 
 def _footprint_curve(fit, times):
     """The fitted model ŷ(t): components everywhere, background inside the fit window with
-    short cosine ramps at its edges."""
-
+    short cosine ramps at its edges.
+    """
     curve = evaluate_fit(fit, times, background=False)
     if fit.background:
         bg = evaluate_fit(fit, times) - curve
@@ -159,7 +160,6 @@ def _footprint_curve(fit, times):
 
 def _filled(x, masks):
     """Samples with masked and missing values set to zero (their pixels are invalid)."""
-
     x = np.nan_to_num(np.asarray(x, float))
     return x if masks is None else np.where(masks, 0.0, x)
 
@@ -175,14 +175,13 @@ def _channel_fit(group_fit, name, label):
 
 def _power(kernels, x, out_idx):
     """Complex coefficients on the output samples (n_tapers, ..., n_freqs, n_out)."""
-
     return apply_kernels(kernels, x, crop=slice(int(out_idx[0]), int(out_idx[-1]) + 1))
 
 
 def _row_power(ts, trial_idx, ch, kernels, out_idx):
     """Trials of one row with masked samples zeroed, their power (invalid pixels NaN) and
-    the pixels with enough valid trials."""
-
+    the pixels with enough valid trials.
+    """
     masks = None if ts.masks is None else ts.masks[trial_idx, ch]
     invalid = _invalid_pixels(masks, kernels.half_support, ts.n_times, out_idx)
     filled = _filled(ts.data[trial_idx, ch], masks)
@@ -194,9 +193,9 @@ def _row_power(ts, trial_idx, ch, kernels, out_idx):
 
 
 def _row_test(stats, test, power, ref_times, tested, alpha, n_permutations, rng):
-    """t (or z) map and pixel p-values of one row (see :func:`evoparam.tf.stats.test_map`
-    and :func:`evoparam.tf.stats.baseline_normal_map`)."""
-
+    """T (or z) map and pixel p-values of one row (see :func:`evoparam.tf.stats.test_map`
+    and :func:`evoparam.tf.stats.baseline_normal_map`).
+    """
     if stats == "baseline_normal":
         return baseline_normal_map(power, ref_times, tested)
     t, _, p = test_map(
@@ -207,7 +206,6 @@ def _row_test(stats, test, power, ref_times, tested, alpha, n_permutations, rng)
 
 def _row_p(padj):
     """Each row's p-value: its smallest adjusted pixel p-value (NaN when none is tested)."""
-
     flat = padj.reshape(padj.shape[0], -1)
     out = np.full(padj.shape[0], np.nan)
     tested = np.isfinite(flat).any(axis=1)
@@ -218,8 +216,8 @@ def _row_p(padj):
 def _region_stats(per_trial, test, tmap, reported, sig):
     """Zone metric from one row's values on the zone's valid pixels (``per_trial`` and
     ``test`` (n_trials, n_cells), the others (n_cells,)): signed mean, trial-level t and p,
-    fractions of significant pixels (any sign, increases, decreases), per-trial values."""
-
+    fractions of significant pixels (any sign, increases, decreases), per-trial values.
+    """
     from scipy import stats as sstats
 
     if not reported.size:
@@ -250,7 +248,6 @@ def _region_stats(per_trial, test, tmap, reported, sig):
 
 def _region_values(per_trial, test, sig, tmap, reported, region, valid):
     """Zone metric of one map row on ``region & valid`` (see :func:`_region_stats`)."""
-
     cells = region & valid
     return _region_stats(
         per_trial[:, cells], test[:, cells], tmap[cells], reported[cells], sig[cells]
@@ -348,7 +345,6 @@ def tf_fit(
         ``significant`` are those of the total. Every map has shape (n_rows, n_freqs,
         n_times); the rows are listed in ``settings["rows"]`` as (channel, condition).
     """
-
     start_clock = _time.perf_counter()
     if not isinstance(ts, TrialSet):
         raise DataError("tf_fit expects a TrialSet.")
@@ -715,14 +711,12 @@ def _metric_row(
 
 def _group_map(tf):
     """Signed group map: mean over rows of the significant normalised pixels."""
-
     signed = np.where(tf.significant, np.nan_to_num(tf.maps["total_norm"]), 0.0)
     return signed.mean(axis=0)
 
 
 def _zones_of(tf, method, max_zones, rng, cp_stability="split_half"):
     """Zone table and regions from a TFFit's group map and split halves."""
-
     rng = np.random.default_rng(rng)
     group = _group_map(tf)
     halves = tf.maps.get("zone_halves")
@@ -805,7 +799,6 @@ def tf_zones(tf, *, method="nmf", max_zones=8, random_state=None, cp_stability="
     halves), on halves of the rows (``"rows"``) or, as in the first version, across random
     restarts of the whole tensor (``"restarts"``).
     """
-
     if method not in ZONE_METHODS:
         raise SettingsError(f"method must be one of {ZONE_METHODS}, not {method!r}.")
     if method == "nmf" and "zone_halves" not in tf.maps:
@@ -822,9 +815,9 @@ def tf_compare(tf_a, tf_b, *, stats="cluster", n_permutations=1000, alpha=0.05, 
     (permutation of the group labels, Welch ``t``). Returns one row per cluster of pixels
     (``cluster``) or per significant pixel set (``fdr``): sign, bounds, mass, p-value.
     """
-
     import pandas as pd
-    from scipy import ndimage, stats as sstats
+    from scipy import ndimage
+    from scipy import stats as sstats
 
     if (
         tf_a.freqs.shape != tf_b.freqs.shape
@@ -927,5 +920,4 @@ def tf_compare(tf_a, tf_b, *, stats="cluster", n_permutations=1000, alpha=0.05, 
 
 def methods_text(tf):
     """Methods paragraph of a TFFit (spec REQ-219)."""
-
     return tf.methods_text()

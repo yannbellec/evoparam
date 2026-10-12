@@ -35,8 +35,8 @@ __all__ = ["sign_flip_test", "SequentialSignFlip", "OnlineExistence", "alpha_spe
 def alpha_spending(t, alpha=0.05):
     """Cumulative error spent at information fraction ``t`` (0 to 1): the Lan-DeMets form of
     the O'Brien-Fleming boundary, ``2 - 2 Phi(z_{1 - alpha/2} / sqrt(t))`` (almost nothing
-    early, ``alpha`` at ``t = 1``)."""
-
+    early, ``alpha`` at ``t = 1``).
+    """
     t = np.clip(np.asarray(t, float), 0.0, 1.0)
     with np.errstate(divide="ignore"):
         out = 2.0 - 2.0 * norm.cdf(norm.ppf(1 - alpha / 2) / np.sqrt(t))
@@ -52,13 +52,11 @@ def _check(alpha, n_permutations):
 
 def _signs(rng, n_permutations):
     """Signs of one pulse in each permutation (the same draws online and offline)."""
-
     return 2.0 * rng.integers(0, 2, size=n_permutations) - 1.0
 
 
 def _statistic(sums, sum_sq, n):
     """One-sample t of each trajectory (rows) and channel (columns); -inf when undefined."""
-
     n = np.asarray(n, float)
     with np.errstate(divide="ignore", invalid="ignore"):
         mean = sums / n
@@ -89,7 +87,6 @@ def sign_flip_test(values, *, alpha=0.05, n_permutations=1000, random_state=None
         (1 + n_permutations)``), ``significant`` (``p_value <= alpha``) and ``n`` (values
         used).
     """
-
     _check(alpha, n_permutations)
     values = np.asarray(values, float)
     if values.ndim == 1:
@@ -155,7 +152,6 @@ class SequentialSignFlip:
 
     def reset(self):
         """Forget every pulse and look."""
-
         n_traj = self.n_permutations + 1
         self._rng = np.random.default_rng(self.random_state)
         self._sums = np.zeros((n_traj, self.n_channels))
@@ -171,12 +167,10 @@ class SequentialSignFlip:
     @property
     def values(self):
         """The values received so far, [n_pulses, n_channels]."""
-
         return np.array(self._values).reshape(-1, self.n_channels)
 
     def update(self, values):
         """Add one pulse: one value per channel (NaN: none for that channel)."""
-
         values = np.asarray(values, float).ravel()
         if values.size != self.n_channels:
             raise DataError(f"update expects {self.n_channels} values, got {values.size}.")
@@ -191,7 +185,6 @@ class SequentialSignFlip:
 
     def statistics(self):
         """Statistic of the observed trajectory and fixed-sample p-value, per channel."""
-
         stat = _statistic(self._sums, self._sum_sq, self.n)
         count = (stat[1:] >= stat[0] - 1e-12).sum(axis=0)
         p = np.where(self.n >= 2, (1.0 + count) / (1.0 + self.n_permutations), np.nan)
@@ -207,7 +200,6 @@ class SequentialSignFlip:
             (fixed-sample permutation p-value, for information; not adjusted for the
             looks), ``alpha_spent`` and ``n``.
         """
-
         stat, p = self.statistics()
         n_traj = self.n_permutations + 1
         fraction = np.ones(self.n_channels) if final else np.minimum(self.n / self.max_n, 1.0)
@@ -288,7 +280,6 @@ class OnlineExistence:
 
     def update(self, projection, baseline_projection):
         """Add one pulse; returns ``(z, present)``, arrays [n_channels]."""
-
         projection = np.asarray(projection, float)
         base = np.asarray(baseline_projection, float)
         seen = np.isfinite(base)
@@ -307,6 +298,5 @@ class OnlineExistence:
 
     def look(self, final=False):
         """A look of the running test (see :meth:`SequentialSignFlip.look`)."""
-
         self.last = self.test.look(final=final)
         return self.last

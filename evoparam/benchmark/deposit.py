@@ -53,8 +53,8 @@ def _label(cell_id):
 def write_trials_nwb(ts, path, *, identifier, description):
     """Write a TrialSet as an NWB file: the trials end to end in one ``ElectricalSeries``
     (µV, conversion 1e-6) and a ``trials`` table with ``stim_onset`` at each trial's time
-    zero. Returns the path."""
-
+    zero. Returns the path.
+    """
     from evoparam.utils._optional import require
 
     pynwb = require("pynwb", extra="nwb", caller="evoparam.benchmark.write_trials_nwb")
@@ -137,7 +137,6 @@ def prepare_deposit(
     str
         Path of ``manifest.json``.
     """
-
     log = log or (lambda message: None)
     if not hasattr(suite, "cells"):
         suite = load_suite(suite)

@@ -19,7 +19,6 @@ def sign_name(name, polarity):
     >>> sign_name("P1/N1", -1), sign_name("P1/N1", 1), sign_name("N2", -1)
     ('N1', 'P1', 'N2')
     """
-
     parts = str(name).split("/")
     if len(parts) != 2 or polarity == 0:
         return name
@@ -33,8 +32,8 @@ def sign_name(name, polarity):
 
 def _label_fit(fit, windows, unassigned, polarity_rule="sign"):
     """Labels for one ResponseFit; windows: name -> (start, end, polarity) with polarity
-    -1, +1 or 0 (either)."""
-
+    -1, +1 or 0 (either).
+    """
     assigned = {}
     warnings = []
     for name, (start, end, polarity) in windows.items():
@@ -85,12 +84,10 @@ def label_components(fit, windows, *, polarity_rule="sign", unassigned="C{k}"):
     Same type as ``fit``. When two components fall in one window, the larger ``|A|`` gets the
     name and the other ``"<name>_b"`` with the warning ``"multiple_in_window:<name>"``.
     """
-
     from evoparam.data import GroupFit
+    from evoparam.errors import SettingsError
 
     from ._settings import FIT_PRESETS
-
-    from evoparam.errors import SettingsError
 
     if polarity_rule not in POLARITY_RULES:
         raise SettingsError(f"polarity_rule must be one of {POLARITY_RULES}.")

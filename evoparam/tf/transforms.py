@@ -34,13 +34,11 @@ SUPPORT_ENERGY = 0.99
 
 def log_freqs(fmin, fmax, n):
     """``n`` frequencies on a log grid from ``fmin`` to ``fmax`` (Hz)."""
-
     return np.geomspace(float(fmin), float(fmax), int(n))
 
 
 def morse_peak(gamma, beta):
     """Peak (radian) frequency of the generalised Morse wavelet: ``(beta / gamma)**(1/gamma)``."""
-
     return (beta / gamma) ** (1.0 / gamma)
 
 
@@ -51,7 +49,6 @@ def morse_spectrum(omega, gamma, beta):
     otherwise, with ``a = (e * gamma / beta)**(beta / gamma)`` so that the peak value is 2.
     ``omega`` is dimensionless (radians per unit scale).
     """
-
     omega = np.asarray(omega, float)
     out = np.zeros_like(omega)
     pos = omega > 0
@@ -80,7 +77,6 @@ class Kernels:
 
     def spectrum(self, j):
         """Spectra (n_tapers, n_fft) of frequency ``j`` on its grid."""
-
         for _, idx, spectra in self.groups:
             where = np.flatnonzero(np.asarray(idx) == j)
             if where.size:
@@ -93,7 +89,6 @@ def _half_support(kernel_time):
 
     ``kernel_time`` is circular with lag 0 at index 0 (as returned by an inverse FFT).
     """
-
     energy = np.abs(kernel_time) ** 2
     n = len(energy)
     lags = np.minimum(np.arange(n), n - np.arange(n))
@@ -108,7 +103,6 @@ def _half_support(kernel_time):
 
 def _centred_spectrum(h, n_fft):
     """Spectrum of a centred time-domain kernel on an ``n_fft`` grid."""
-
     m = len(h)
     buf = np.zeros(n_fft, complex)
     centre = m // 2
@@ -149,7 +143,6 @@ def make_kernels(
     stft_window : float
         STFT Hann window length (s).
     """
-
     if transform not in TRANSFORMS:
         raise SettingsError(f"transform must be one of {TRANSFORMS}, not {transform!r}.")
     freqs = np.asarray(freqs, float)
@@ -217,8 +210,8 @@ def make_kernels(
 
 def apply_kernels(kernels, x, crop=None):
     """Complex coefficients of signals ``x`` (..., n_times): (n_tapers, ..., n_freqs, n_out),
-    on the samples ``crop`` (a slice; all samples by default)."""
-
+    on the samples ``crop`` (a slice; all samples by default).
+    """
     x = np.asarray(x, float)
     n = x.shape[-1]
     crop = slice(0, n) if crop is None else crop
@@ -234,8 +227,8 @@ def apply_kernels(kernels, x, crop=None):
 
 def morse_reference_modulus(freq_signal, freq_kernel, gamma, beta):
     """Analytic modulus of the Morse coefficient of a unit cosine at ``freq_signal`` (Hz),
-    for the kernel centred at ``freq_kernel``: half the wavelet's gain at that frequency."""
-
+    for the kernel centred at ``freq_kernel``: half the wavelet's gain at that frequency.
+    """
     peak = morse_peak(gamma, beta)
     return 0.5 * float(
         morse_spectrum(np.array([freq_signal * peak / freq_kernel]), gamma, beta)[0]

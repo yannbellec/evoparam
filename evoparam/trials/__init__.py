@@ -12,7 +12,6 @@ from .api import (
     realign,
     state_dependence,
 )
-
 from .estimator import TrialFitter
 from .online import FixedShapeModel
 

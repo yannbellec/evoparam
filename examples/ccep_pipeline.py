@@ -20,17 +20,17 @@ Data: van Blooijs et al., OpenNeuro ds004080 (CC0). Only about 55 MB are read.
 
 import numpy as np
 
+import evoparam
+from evoparam.artifact import remove_artifact
+from evoparam.events import detect_pulses, match_onsets
 from evoparam.io import (
-    openneuro_url,
-    read_bids_events,
-    select_stimulation_events,
-    read_brainvision_segment,
     epoch_data,
     from_array,
+    openneuro_url,
+    read_bids_events,
+    read_brainvision_segment,
+    select_stimulation_events,
 )
-from evoparam.events import detect_pulses, match_onsets
-from evoparam.artifact import remove_artifact
-import evoparam
 from evoparam.prep import rereference
 
 ###################################################################################################
@@ -50,14 +50,12 @@ events = select_stimulation_events(
     read_bids_events(openneuro_url(DATASET, RUN + "_events.tsv")), site=SITE
 )
 onsets = np.array([event["onset"] for event in events])
-print("{} pulses on {} (events file)".format(len(onsets), SITE))
+print(f"{len(onsets)} pulses on {SITE} (events file)")
 
 data, sfreq, ch_names, t0 = read_brainvision_segment(
     openneuro_url(DATASET, RUN + "_ieeg.vhdr"), onsets[0] + EPOCH[0] - 1, onsets[-1] + EPOCH[1] + 1
 )
-print(
-    "Read {} channels x {:.1f} s at {:.0f} Hz".format(len(ch_names), data.shape[1] / sfreq, sfreq)
-)
+print(f"Read {len(ch_names)} channels x {data.shape[1] / sfreq:.1f} s at {sfreq:.0f} Hz")
 
 # Keep the grid channels, minus the two stimulated contacts (they carry the largest artifact)
 picks = [
@@ -99,9 +97,7 @@ trials = from_array(
 )
 cleaned = remove_artifact(trials, method="template", window=ARTIFACT, baseline=BASELINE)
 epochs = cleaned.cleaned.data
-print(
-    "Artifact removed (template); median trial quality {:.2f}".format(np.median(cleaned.quality))
-)
+print(f"Artifact removed (template); median trial quality {np.median(cleaned.quality):.2f}")
 
 ###################################################################################################
 # 4. models: re-reference (adjusted common average), then fit each channel's average with

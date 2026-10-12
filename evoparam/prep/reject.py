@@ -6,7 +6,8 @@ import warnings
 
 import numpy as np
 
-from evoparam.errors import SettingsError, warn as _warn
+from evoparam.errors import SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.utils._optional import require
 
 from ._common import check_trialset, masked_values, new, window_mask
@@ -18,7 +19,6 @@ MAD_TO_SD = 1.4826
 
 def _robust_z(values):
     """Robust z-score over trials (axis 0), per channel."""
-
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         center = np.nanmedian(values, axis=0, keepdims=True)
@@ -64,7 +64,6 @@ def reject_trials(
         Same trials, with ``metadata["rejected"]``, ``metadata["reject_reason"]``,
         ``metadata["n_flagged_channels"]`` and the masks of the flagged trial-channels.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.prep.reject_trials")
     start = _time.perf_counter()
     check_trialset(ts)

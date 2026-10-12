@@ -12,25 +12,25 @@
 - Dataset registry: :func:`list_datasets`, :func:`dataset_info`.
 """
 
+from ._harmonize import (
+    HarmonizationReport,
+    ValidationReport,
+    harmonize_stim_events,
+    validate_stimulation_events,
+)
+from ._validate import format_stim_report, validate_stim_metadata
+from .bids import read_bids, read_bids_events, select_stimulation_events
 from .brainvision import (
     read_brainvision,
     read_brainvision_header,
     read_brainvision_segment,
     write_brainvision,
 )
-from .bids import read_bids, read_bids_events, select_stimulation_events
-from ._validate import format_stim_report, validate_stim_metadata
-from ._harmonize import (
-    harmonize_stim_events,
-    HarmonizationReport,
-    validate_stimulation_events,
-    ValidationReport,
-)
+from .derivatives import read_bids_derivatives, write_bids_derivatives
 from .epochs import epoch, epoch_data
-from .mef import read_mef, read_mef_header
 from .fetch import OPENNEURO_URL, RemoteFile, fetch_erpcore, fetch_openneuro_file, openneuro_url
+from .mef import read_mef, read_mef_header
+from .neo import read_neo
+from .nwb import read_nwb, read_nwb_results, write_nwb
 from .readers import from_array, read, read_edf, read_events_edf, read_mne
 from .registry import dataset_info, list_datasets
-from .derivatives import read_bids_derivatives, write_bids_derivatives
-from .nwb import read_nwb, read_nwb_results, write_nwb
-from .neo import read_neo

@@ -95,7 +95,6 @@ def detect_saturation(
     DataError
         Invalid data, ``rail`` or ``min_run``.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.events.detect_saturation")
     data = as_continuous(data)
     n_channels, n_times = data.shape

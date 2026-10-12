@@ -15,7 +15,6 @@ import numpy as np
 
 def to_jsonable(obj):
     """Convert ``obj`` to plain JSON types; non-finite floats become None."""
-
     if obj is None or isinstance(obj, (str, bool)):
         return obj
     if isinstance(obj, np.bool_):
@@ -36,7 +35,6 @@ def to_jsonable(obj):
 
 def dumps(obj, **kwargs):
     """Strict ``json.dumps``: converts first, then refuses any NaN token."""
-
     return json.dumps(to_jsonable(obj), allow_nan=False, **kwargs)
 
 
@@ -46,5 +44,4 @@ def _refuse_constant(name):
 
 def loads(text):
     """Strict ``json.loads``: NaN, Infinity and -Infinity tokens are refused."""
-
     return json.loads(text, parse_constant=_refuse_constant)

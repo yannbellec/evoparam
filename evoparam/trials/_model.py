@@ -54,8 +54,8 @@ class ChannelTemplate:
 def _layout(template, mode, movable=None):
     """Free parameters of each component: indices into its parameter vector. With
     ``movable`` (component indices), the other components keep their channel parameters
-    (only their amplitude is fitted)."""
-
+    (only their amplitude is fitted).
+    """
     if mode in ("free", "regularized"):
         return [
             list(range(s.n_params)) if movable is None or k in movable else []
@@ -100,8 +100,8 @@ def _value_and_loc_derivative(shape, t, params, loc, jac=True):
 
     The Gaussian and the skewed Gaussian (the shapes of the presets) share one pass for both
     (the same formulas as their ``evaluate`` and ``jacobian``); any other shape uses its
-    ``evaluate`` and ``jacobian``."""
-
+    ``evaluate`` and ``jacobian``.
+    """
     kind = type(shape)
     if kind is Gaussian and loc == 0:
         mu, sigma = float(params[0]), float(params[1])
@@ -132,8 +132,8 @@ def _batched_lstsq(a, y, pad=None):
     Returns the coefficients (n, m) and a function that removes from a stack of columns
     (n, T, p) their projection on the columns of ``a`` (the Kaufman projection). Normal
     equations on unit-norm columns (Cholesky); a problem whose Gram matrix is not safely
-    positive definite is solved by QR, and a rank-deficient one by ``lstsq``."""
-
+    positive definite is solved by QR, and a rank-deficient one by ``lstsq``.
+    """
     n, _, m = a.shape
     at = np.swapaxes(a, 1, 2)
     # Gram matrix of the unit-norm columns, from the raw columns (no scaled copy of ``a``)
@@ -172,7 +172,6 @@ def _batched_lstsq(a, y, pad=None):
 
     def project_out(j, sel=None):
         """``j`` holds the columns of the problems ``sel`` (default: all), in that order."""
-
         sel = np.arange(n) if sel is None else np.asarray(sel)
         out = j.copy()
         g_sel = good[sel]
@@ -201,7 +200,6 @@ def fit_trials_batch(
     projected Levenberg-Marquardt iteration vectorised over trials (variable projection,
     Kaufman Jacobian). Returns one dict per trial, with the keys of :func:`fit_trial`.
     """
-
     return fit_trials_multi(
         [
             {
@@ -233,8 +231,8 @@ def fit_trials_multi(problems, max_iter=100, max_rows=1024):
     ``support`` and ``movable``. The trials of all problems with the same window length are
     solved together, by groups of at most ``max_rows`` trials (each trial's iteration is its
     own: the result of a trial does not depend on the others). Returns one list of dicts
-    per problem."""
-
+    per problem.
+    """
     out = [None] * len(problems)
     by_len = {}
     for i, pr in enumerate(problems):
@@ -259,8 +257,8 @@ def _solve_multi(problems, max_iter):
     """The trials of ``problems`` (same window length) in one projected Levenberg-Marquardt
     iteration. The columns that do not move (components held at their channel latency, the
     background's linear terms) are projected out once per trial (orthonormal basis from an
-    SVD); the iteration then works on the moving columns only."""
-
+    SVD); the iteration then works on the moving columns only.
+    """
     infos = []
     n_t = len(problems[0]["template"].tw)
     for pr in problems:
@@ -373,7 +371,6 @@ def _solve_multi(problems, max_iter):
 
     def moving(zr, rows, jac):
         """Moving columns (rows, T, p) at ``zr`` and their derivatives in the shift."""
-
         nr = len(rows)
         local = np.full(n, -1)
         local[rows] = np.arange(nr)
@@ -447,8 +444,8 @@ def _solve_multi(problems, max_iter):
 
         def jacobian(sel=None):
             """Projected Jacobian of the problems ``sel`` (default: all): computed only for
-            the steps that are kept."""
-
+            the steps that are kept.
+            """
             sel = np.arange(len(rows)) if sel is None else np.asarray(sel)
             j = -beta[sel][:, None, :] * dm[sel]
             if not all_valid:
@@ -607,7 +604,6 @@ def fit_trial(
     ``support`` (bool over the window) restricts the r² to the samples around the components
     of interest: over a long window, ongoing activity would dominate the total variance.
     """
-
     layout = _layout(template, mode, movable)
     lo, hi = _bounds(template, mode, layout)
     z0 = np.concatenate([[p[i] for i in free] for p, free in zip(template.params, layout)])

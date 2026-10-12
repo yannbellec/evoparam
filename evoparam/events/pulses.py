@@ -8,6 +8,7 @@ import numpy as np
 from evoparam.errors import DataError, EventError, SettingsError
 from evoparam.utils._optional import require
 
+from . import _spec
 from ._score import (
     SCORE_CHANNELS,
     as_continuous,
@@ -20,7 +21,6 @@ from ._score import (
     shifted_snippets,
     snippet_lengths,
 )
-from . import _spec
 from .saturation import detect_saturation
 from .site import identify_stim_site, vote_sites
 from .trains import group_trains
@@ -77,7 +77,6 @@ def _group_crossings(cross, score, sfreq, merge_s=MERGE_WINDOW):
     Crossings closer than ``merge_s`` seconds form a group. Returns (peak_index, peak_score,
     first_crossing) arrays, one entry per group.
     """
-
     if len(cross) == 0:
         return np.array([], dtype=int), np.array([]), np.array([], dtype=int)
     merge = max(1, int(round(merge_s * sfreq)))
@@ -103,7 +102,6 @@ def _onsets_from_peaks(peaks, firsts, score, sfreq):
     earlier, so that the rising edge of a long artifact is never missed). Score index i
     is the change from sample i to i + 1, so the artifact starts at sample i + 1.
     """
-
     back = max(1, int(round(ONSET_WINDOW * sfreq)))
     onsets = np.empty(len(peaks), dtype=int)
     for row, (peak, first) in enumerate(zip(peaks, firsts)):
@@ -115,8 +113,8 @@ def _onsets_from_peaks(peaks, firsts, score, sfreq):
 
 def _suppress(positions, strength, min_samples):
     """Keep a position unless a stronger one lies within ``min_samples`` (two passes, so a
-    position suppressed only by a suppressed neighbour comes back)."""
-
+    position suppressed only by a suppressed neighbour comes back).
+    """
     order = np.argsort(positions, kind="stable")
     pos, val = positions[order], strength[order]
     lo = np.searchsorted(pos, pos - min_samples + 1)
@@ -147,7 +145,6 @@ def _cluster(stacks, rho_min, n_members):
 
     Returns (labels, templates, best_rho).
     """
-
     middle = stacks.shape[1] // 2
     labels = np.full(len(stacks), -1)
     best = np.zeros(len(stacks))
@@ -174,7 +171,6 @@ def _cluster(stacks, rho_min, n_members):
 
 def _match(stacks, templates):
     """Best correlation over shifts and templates: (rho, template index) per candidate."""
-
     if len(stacks) == 0 or len(templates) == 0:
         return np.zeros(len(stacks)), np.zeros(len(stacks), dtype=int)
     rho = np.einsum("nsf,kf->nsk", stacks, templates).max(axis=1)
@@ -324,7 +320,6 @@ def detect_pulses(
     SettingsError
         Unknown method or invalid setting.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.events.detect_pulses")
     if method not in METHODS:
         raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
@@ -583,7 +578,6 @@ def _spec_candidates(
     data, sfreq, index, method, threshold_sd, min_samples, refine, template, rho_min, n_template
 ):
     """Methods 1 and 2 of the specification as written (``procedure="spec"``)."""
-
     score = _spec.spec_score(data, index)
     z = _spec.spec_z(score)
     onsets, strength = _spec.spec_threshold(score, z, sfreq, threshold_sd, min_samples, refine)
@@ -657,7 +651,6 @@ def match_onsets(detected, reference, tolerance=0.01):
         (1d array, detected minus reference time for each hit, s), ``recall`` and
         ``precision``.
     """
-
     detected, reference = (
         np.sort(np.asarray(detected, float)),
         np.sort(np.asarray(reference, float)),
@@ -708,7 +701,6 @@ def estimate_delay(detected, reference, tolerance=0.01):
     spread : float
         Median absolute deviation of the errors around the delay, in seconds.
     """
-
     if len(detected) and np.ndim(detected[0]) == 0:
         detected, reference = [detected], [reference]
     errors = np.concatenate(
@@ -746,7 +738,6 @@ def detect_events(source, *, sfreq=None, ch_names=None, t0=None, **kwargs):
     events : pandas.DataFrame
         The event table of :func:`detect_pulses`.
     """
-
     start = _time.perf_counter()
     from evoparam.data import TrialSet
 

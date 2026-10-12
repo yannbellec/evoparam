@@ -15,7 +15,6 @@ Data: simulated epidural recording, 8 contacts, alternating biphasic pulses at 3
 # Simulate alternating-polarity ECAPs
 # -----------------------------------
 
-import evoparam
 from evoparam import presets, reports, sim
 
 ts, truth = sim.simulate_ecap(40, kind="spinal", paradigm="alternating", seed=0)

@@ -72,7 +72,6 @@ def _channel_table(info, names):
 
 def trialset_from_mne(cls, epochs, *, picks=None, units="uV", metadata=True, stim_columns="auto"):
     """``TrialSet`` from ``mne.Epochs`` (``TrialSet.from_mne``)."""
-
     import pandas as pd
 
     from .provenance import Provenance
@@ -128,8 +127,8 @@ def trialset_from_mne(cls, epochs, *, picks=None, units="uV", metadata=True, sti
 
 def _harmonize_metadata(table, stim_columns, source):
     """Standard stimulation columns (spec Table 4.1, REQ-313) from the metadata of the epochs:
-    ``"auto"`` maps the recognised columns, a dict is a ``{source: target}`` mapping."""
-
+    ``"auto"`` maps the recognised columns, a dict is a ``{source: target}`` mapping.
+    """
     import warnings
 
     from ._harmonize import SOURCES, _find_column, harmonize_stim_events
@@ -185,7 +184,6 @@ def _info(ch_names, sfreq, ch_info, ch_types):
 
 def trialset_to_mne(ts, *, ch_types=None):
     """``mne.EpochsArray`` from a ``TrialSet`` (``TrialSet.to_mne``)."""
-
     mne = _mne()
     factor = FACTORS.get(ts.units)
     if factor is None:
@@ -230,7 +228,6 @@ def trialset_to_mne(ts, *, ch_types=None):
 
 def evoked_from_mne(cls, evoked, *, picks=None, units="uV"):
     """``Evoked`` from ``mne.Evoked`` (``Evoked.from_mne``)."""
-
     from .provenance import Provenance
 
     mne = _mne()
@@ -263,7 +260,6 @@ def evoked_from_mne(cls, evoked, *, picks=None, units="uV"):
 
 def evoked_to_mne(ev, *, ch_types=None, comment=""):
     """``mne.EvokedArray`` from an ``Evoked`` (``Evoked.to_mne``)."""
-
     mne = _mne()
     factor = FACTORS.get(ev.units)
     if factor is None:

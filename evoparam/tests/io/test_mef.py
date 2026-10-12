@@ -19,8 +19,8 @@ import pytest
 
 from evoparam.data import TrialSet
 from evoparam.errors import DataError, ReaderError
-from evoparam.io import read, read_bids, read_mef, read_mef_header
 from evoparam.io import mef as mef_module
+from evoparam.io import read, read_bids, read_mef, read_mef_header
 from evoparam.tests.io.helpers import (
     CH_NAMES,
     MEF_NAN,

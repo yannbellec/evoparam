@@ -17,8 +17,9 @@ import time as _time
 
 import numpy as np
 
-from evoparam.data import Provenance, ShapeBasis, TrialSet
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.data import ShapeBasis, TrialSet
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.models.component_shapes import Template
 from evoparam.utils._optional import require
 from evoparam.version import __version__
@@ -53,7 +54,6 @@ def adjusted_rand_index(a, b):
     >>> adjusted_rand_index([0, 0, 1, 1], [1, 1, 0, 0])
     1.0
     """
-
     a, b = np.asarray(a), np.asarray(b)
     _, ia = np.unique(a, return_inverse=True)
     _, ib = np.unique(b, return_inverse=True)
@@ -74,8 +74,8 @@ def _nmf(x, q, rng, n_runs=1):
     """``x ~ W H`` with W, H >= 0 and the rows of H of unit norm, for ``n_runs`` random
     starts at once (multiplicative updates; the norms of H are folded into W at each step,
     as in the published description). Stops a run when its relative change of error is
-    below 1e-5. Returns W [runs, n, q], H [runs, q, m] and the errors [runs]."""
-
+    below 1e-5. Returns W [runs, n, q], H [runs, q, m] and the errors [runs].
+    """
     n, m = x.shape
     w = rng.uniform(0, 1, (n_runs, n, q))
     h = rng.uniform(0, 1, (n_runs, q, m))
@@ -108,8 +108,8 @@ def _nmf(x, q, rng, n_runs=1):
 
 def _assign(h):
     """Winner-take-all on the columns of H; a group whose largest loading is below half the
-    equal-contribution loading 1/sqrt(n) belongs to no cluster (-1)."""
-
+    equal-contribution loading 1/sqrt(n) belongs to no cluster (-1).
+    """
     n = h.shape[1]
     best = np.argmax(h, axis=0)
     loading = h[best, np.arange(n)]
@@ -126,7 +126,6 @@ def _degeneracy(h):
 
 def _kmeans(x, q, rng, n_iter=100):
     """k-means++ on the rows of x; returns labels."""
-
     centres = [x[rng.integers(len(x))]]
     for _ in range(1, q):
         d2 = np.min([np.sum((x - c) ** 2, axis=1) for c in centres], axis=0)
@@ -148,8 +147,8 @@ def _kmeans(x, q, rng, n_iter=100):
 
 def _jaccard_stability(labels, others, q):
     """Per cluster of ``labels``: mean over the other runs of the best Jaccard index with
-    one of their clusters."""
-
+    one of their clusters.
+    """
     out = np.zeros(q)
     for k in range(q):
         mine = labels == k
@@ -169,8 +168,8 @@ def _jaccard_stability(labels, others, q):
 def _split_ratio(xi, labels, q):
     """Largest ratio, over pairs of clusters, of the mean t-value between them to the
     geometric mean of the mean t-values within them: about 1 when one cluster has been
-    split in two, well below 1 for distinct shapes (even partly correlated ones)."""
-
+    split in two, well below 1 for distinct shapes (even partly correlated ones).
+    """
     within = [
         xi[np.ix_(labels == k, labels == k)].mean() if np.any(labels == k) else 0.0
         for k in range(q)
@@ -195,8 +194,8 @@ def _cluster_nmf(xi, q, n_restarts, rng):
 
 def _cluster_kpca(xi, q, n_restarts, rng):
     """Kernel PCA with a cosine kernel of the groups' t-value profiles, then k-means in the
-    first ``q`` components; groups without any positive t-value belong to no cluster."""
-
+    first ``q`` components; groups without any positive t-value belong to no cluster.
+    """
     profiles = 0.5 * (xi + xi.T)
     norms = np.linalg.norm(profiles, axis=1)
     keep = norms > 1e-12
@@ -239,7 +238,6 @@ def _t_matrix(trials, owner, n_groups):
 
     ``P[k, l] = <V_k / ||V_k||, V_l>``: the projection of trial l into the unit-norm trial k.
     """
-
     norms = np.linalg.norm(trials, axis=1)
     unit = trials / np.maximum(norms, 1e-300)[:, None]
     proj = unit @ trials.T
@@ -261,8 +259,8 @@ def _t_matrix(trials, owner, n_groups):
 
 def _cross_t(trials, owner, n_groups, others):
     """t-value of the projections of the trials ``others`` [n, n_times] (one group that
-    does not define the bases) into the unit-norm trials of each defining group."""
-
+    does not define the bases) into the unit-norm trials of each defining group.
+    """
     norms = np.linalg.norm(trials, axis=1)
     unit = trials / np.maximum(norms, 1e-300)[:, None]
     proj = unit @ others.T
@@ -276,8 +274,8 @@ def _cross_t(trials, owner, n_groups, others):
 
 def _basis_curve(trials):
     """First right singular vector of the trials, signed so that the mean projection is
-    positive."""
-
+    positive.
+    """
     _, _, vt = np.linalg.svd(trials, full_matrices=False)
     curve = vt[0]
     if np.mean(trials @ curve) < 0:
@@ -295,7 +293,6 @@ def _contacts(site):
 
 def _usable_trials(ts, rows, channel, win):
     """Trials of one channel in the window, without trials containing NaN or rejected."""
-
     data = ts.data[rows][:, channel][:, win]
     ok = np.isfinite(data).all(axis=1)
     if ts.masks is not None:
@@ -305,7 +302,6 @@ def _usable_trials(ts, rows, channel, win):
 
 def _groups(ts, by, channel, stim_site, win):
     """(label, trials [n, n_times], trial indices) per group."""
-
     meta = ts.metadata
     rows_all = np.arange(ts.n_trials)
     if meta is not None and "rejected" in meta.columns:
@@ -439,7 +435,6 @@ def shared_shapes(
     DataError
         Fewer than 3 groups with at least 3 trials.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.spatial.shared_shapes")
     start = _time.perf_counter()
     if not isinstance(ts, TrialSet):
@@ -609,15 +604,15 @@ def shared_shapes(
 
 def convergent(ts, channel, **kwargs):
     """Input repertoire of one channel: :func:`shared_shapes` with the stimulation sites as
-    groups (many sites into one channel)."""
-
+    groups (many sites into one channel).
+    """
     return shared_shapes(ts, by="stim_site", channel=channel, **kwargs)
 
 
 def divergent(ts, stim_site, **kwargs):
     """Output repertoire of one stimulation site: :func:`shared_shapes` with the channels as
-    groups (one site into all channels)."""
-
+    groups (one site into all channels).
+    """
     return shared_shapes(ts, by="channel", stim_site=stim_site, **kwargs)
 
 
@@ -629,7 +624,6 @@ def as_template(basis, k, *, max_shift=None, stretch=False):
     (``ShapeBasis.as_template`` of the specification lives here: the data containers may not
     import the shapes, spec §4.2.)
     """
-
     if not 0 <= int(k) < basis.n_shapes:
         raise SettingsError(f"k must be in [0, {basis.n_shapes - 1}], got {k}.")
     curve = np.array(basis.curves[int(k)], float)

@@ -132,7 +132,6 @@ SETTINGS_FIELDS = (
 
 def build_spec(folder=SPEC_DIR):
     """Write the namespace and extension YAML files of ``ndx-evoparam`` to ``folder``."""
-
     spec = require("pynwb", extra="nwb", caller="evoparam.io.ndx_evoparam.build_spec").spec
     builder = spec.NWBNamespaceBuilder(
         doc="Parameters of evoked neural responses fitted by evoparam",
@@ -183,7 +182,6 @@ _LOADED = {}
 
 def load():
     """Load the namespace into pynwb (once) and return the generated classes."""
-
     if _LOADED:
         return _LOADED
     pynwb = require("pynwb", extra="nwb", caller="evoparam.io.ndx_evoparam")
@@ -198,7 +196,6 @@ def load():
 
 def table_class(kind):
     """Class of the table of ``kind``: components, existence or trials."""
-
     names = {
         "components": "EvokedResponseFitTable",
         "existence": "ResponseTestTable",
@@ -209,7 +206,6 @@ def table_class(kind):
 
 def settings_record(items, description, version, name="evoparam_settings"):
     """``ResponseFitSettings`` of the results written to a file."""
-
     settings = (
         next(
             (

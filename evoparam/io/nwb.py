@@ -51,7 +51,6 @@ def _open(path):
 
 def _all_objects(nwbfile):
     """(path, object) of every data interface of the file."""
-
     out = []
     for name, obj in nwbfile.acquisition.items():
         out.append((f"acquisition/{name}", obj))
@@ -97,7 +96,6 @@ def _table_frame(table):
 
 def nwb_events(nwbfile, events=None):
     """(onsets in s, events table, source name) by the order of spec §10.3."""
-
     import pandas as pd
 
     if isinstance(events, pd.DataFrame):
@@ -244,7 +242,6 @@ def read_nwb(
         Data in µV (the series' ``conversion`` and ``offset`` applied); events outside the
         recording are dropped.
     """
-
     from evoparam.data import Provenance, TrialSet
 
     io = _open(path)
@@ -365,8 +362,8 @@ def read_nwb(
 
 def _electrode_rows(nwbfile):
     """Channel name -> row of ``/general/extracellular_ephys/electrodes``, with the naming
-    of :func:`read_nwb` (``label`` column, else ``e<id>``)."""
-
+    of :func:`read_nwb` (``label`` column, else ``e<id>``).
+    """
     table = getattr(nwbfile, "electrodes", None)
     if table is None or len(table) == 0:
         return {}
@@ -380,7 +377,6 @@ def _electrode_rows(nwbfile):
 
 def _pack(result):
     """The result as the bytes of a zipped ``.evoparam`` container, base64 text."""
-
     import base64
     import tempfile
 
@@ -549,7 +545,6 @@ def write_nwb(
     result as a zipped ``.evoparam`` container, so that :func:`read_nwb_results` gives back
     the exact objects.
     """
-
     pynwb = require("pynwb", extra="nwb", caller="evoparam.io.write_nwb")
     from hdmf.common import DynamicTable, DynamicTableRegion
 
@@ -736,8 +731,8 @@ def write_nwb(
 
 def _model_series(group, nwbfile, electrodes, to_volt, pynwb, DynamicTableRegion):
     """``evoparam_model``: the fitted curves (fit window, zero elsewhere) of every channel x
-    condition, in V, at the rate of the fits."""
-
+    condition, in V, at the rate of the fits.
+    """
     import warnings
 
     channels = [str(c) for c in group.index["channel"]]
@@ -799,7 +794,6 @@ def read_nwb_results(path, *, module="evoparam", kind="components", verify=True)
     -------
     The result(s), equal to those written.
     """
-
     pynwb = require("pynwb", extra="nwb", caller="evoparam.io.read_nwb_results")
     kinds = {"components": "GroupFit", "existence": "ResponseTest", "trials": "TrialFit"}
     if kind not in tuple(kinds) + ("all",):

@@ -15,7 +15,6 @@ def migrate(structure, from_major, to_major):
     Returns the migrated structure and the list of ``(from, to)`` pairs applied.
     Raises ``KeyError`` when a step has no registered migration.
     """
-
     applied = []
     major = from_major
     while major < to_major:

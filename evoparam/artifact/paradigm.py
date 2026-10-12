@@ -19,7 +19,6 @@ CONDITIONS = ("A", "B", "C", "D")
 
 def _polarity_sign(value):
     """+1 for anodic(-first), -1 for cathodic(-first), 0 when unknown."""
-
     text = str(value).lower()
     if "cathod" in text or text in ("-1", "-1.0", "negative"):
         return -1
@@ -113,7 +112,6 @@ def paradigm_subtract(ts, *, scheme, pairing="auto"):
         One trial per pair or set, then the unpaired trials; ``metadata`` gains ``paired``
         (bool) and ``n_combined`` (int).
     """
-
     pd = require("pandas", extra="data", caller="evoparam.artifact.paradigm_subtract")
     start = _time.perf_counter()
     check_trialset(ts)

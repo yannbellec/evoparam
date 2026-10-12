@@ -5,7 +5,8 @@ import warnings
 
 import numpy as np
 
-from evoparam.errors import ArtifactError, SettingsError, warn as _warn
+from evoparam.errors import ArtifactError, SettingsError
+from evoparam.errors import warn as _warn
 
 from ._common import GROUP_BY, check_trialset, groups, window_slice
 
@@ -21,7 +22,6 @@ RESPONSE_CORRELATION_WARN = 0.5
 
 def _window_values(ts, inds, masks):
     """Window samples, with masked (for example saturated) samples set to NaN."""
-
     values = ts.data[:, :, inds].copy()
     if masks is not None:
         values[masks[:, :, inds]] = np.nan
@@ -57,7 +57,6 @@ def estimate_artifact_template(
     templates : dict
         Group key (tuple of values) -> array [n_channels, n_window_samples].
     """
-
     check_trialset(ts)
     if statistic not in ("median", "mean"):
         raise SettingsError("statistic must be 'median' or 'mean'.")
@@ -68,7 +67,6 @@ def estimate_artifact_template(
 
 def _neighbours(times, row, n):
     """Indices (into ``times``) of the ``n`` pulses closest in time to ``row``, itself excluded."""
-
     order = np.argsort(np.abs(times - times[row]), kind="stable")
     order = order[order != row]
     return order[:n]
@@ -91,7 +89,6 @@ def subtract_template(
     (``fit_r2``), the response correlation, and the trials that fell back to
     interpolation (``fallback_trials``).
     """
-
     data = ts.data.copy()
     values = _window_values(ts, inds, ts.masks)
     raw = ts.data[:, :, inds]
@@ -203,7 +200,6 @@ def subtract_learned(
     Returns (data, info) with ``basis`` [n_basis_total, n_window] (the groups' bases
     stacked), ``basis_groups`` (group index of each basis row) and ``fit_r2``.
     """
-
     if ridge < 0:
         raise SettingsError("ridge must be >= 0.")
     data = ts.data.copy()

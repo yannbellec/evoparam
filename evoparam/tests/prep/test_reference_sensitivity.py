@@ -13,8 +13,8 @@ import pandas as pd
 import pytest
 
 from evoparam.data import TrialSet
-from evoparam.io import epoch_data
 from evoparam.existence import existence_detector
+from evoparam.io import epoch_data
 from evoparam.prep import baseline_correct, reference_sensitivity, threshold_detector
 
 pytestmark = [

@@ -14,9 +14,9 @@ from dataclasses import dataclass, field, fields, replace
 
 import numpy as np
 
-from evoparam.errors import DataError
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data.provenance import Provenance, compute_data_hash
+from evoparam.errors import DataError
 
 __all__ = [
     "TrialSet",
@@ -151,7 +151,6 @@ def _check_common(obj):
 
 def _check_nan(data, masks):
     """NaN is allowed only where ``masks`` is True."""
-
     for index in range(data.shape[0]):
         bad = np.isnan(data[index])
         if masks is not None:
@@ -162,7 +161,6 @@ def _check_nan(data, masks):
 
 def _time_slice(times, sfreq, tmin, tmax):
     """Samples with tmin <= t < tmax, as a slice (windows include tmin, exclude tmax)."""
-
     tol = 1e-3 / sfreq
     keep = np.ones(times.size, dtype=bool)
     if tmin is not None:
@@ -213,7 +211,6 @@ def auto_chunk(n_trials, n_times, n_channels, max_memory_gb=None):
     (data, model, residual) stays below ``max_memory_gb``. The default budget is
     a quarter of the physical memory when the system reports it, otherwise 2 GB.
     """
-
     if max_memory_gb is None:
         try:
             physical = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
@@ -240,13 +237,11 @@ def _chunks(n_channels, chunk, n_trials, n_times):
 
 def _take0(values, index):
     """values[index[...], ...] along axis 0, with index shaped like values[0]."""
-
     return np.take_along_axis(values, index[np.newaxis], axis=0)[0]
 
 
 def _average_block(block, mask_block, robust):
     """Mean (or 20 % trimmed mean), standard error and count over axis 0."""
-
     block = np.array(block, dtype=float, copy=True)
     if mask_block is not None:
         block[mask_block] = np.nan
@@ -286,12 +281,10 @@ class _ContainerMixin(DeepEqualMixin):
 
     def copy(self):
         """Return a deep copy (arrays, tables and provenance are copied)."""
-
         return type(self).from_dict(self.to_dict())
 
     def to_dict(self):
         """Return the fields as a dictionary of copies."""
-
         out = {}
         for fld in fields(self):
             value = getattr(self, fld.name)
@@ -309,7 +302,6 @@ class _ContainerMixin(DeepEqualMixin):
     @classmethod
     def from_dict(cls, dct):
         """Build from :meth:`to_dict` output."""
-
         return cls(**dct)
 
     def _new(self, function, settings, start, data_changed=True, **changes):
@@ -326,7 +318,6 @@ class _ContainerMixin(DeepEqualMixin):
         The main ``data`` array is stored uncompressed in ``data.npy`` so that
         :meth:`load` can memory-map it.
         """
-
         from evoparam.data.serialize import save_object
 
         return save_object(self, path, overwrite=overwrite)
@@ -345,7 +336,6 @@ class _ContainerMixin(DeepEqualMixin):
         verify : bool
             Check the SHA-256 of every file against the manifest.
         """
-
         from evoparam.data.serialize import load_object
 
         obj = load_object(path, mmap=mmap, verify=verify)
@@ -371,7 +361,6 @@ class _ContainerMixin(DeepEqualMixin):
 
     def convert_units(self, units):
         """Return a copy in another voltage unit ("uV", "mV" or "V")."""
-
         start = _time.perf_counter()
         if units not in UNITS:
             raise DataError(f"units: '{units}' is not one of {sorted(UNITS)}.")
@@ -461,7 +450,6 @@ class TrialSet(_ContainerMixin):
 
     def validate(self):
         """Check every invariant; raise :class:`~evoparam.errors.DataError` naming the field."""
-
         if self.data.ndim != 3:
             raise DataError(
                 f"data: expected 3 dimensions (trials, channels, times), "
@@ -545,7 +533,6 @@ class TrialSet(_ContainerMixin):
             pandas ``DataFrame.query`` expression on ``metadata``; trials that do
             not match are dropped.
         """
-
         start = _time.perf_counter()
         t_index = self._trial_index(trials, query)
         c_index = _pick_index(self.ch_names, picks)
@@ -574,7 +561,6 @@ class TrialSet(_ContainerMixin):
 
     def crop(self, tmin=None, tmax=None):
         """Keep samples with ``tmin <= t < tmax`` (seconds)."""
-
         start = _time.perf_counter()
         s_slice = _time_slice(self.times, self.sfreq, tmin, tmax)
         changes = {
@@ -590,8 +576,8 @@ class TrialSet(_ContainerMixin):
     def from_mne(cls, epochs, *, picks=None, units="uV", metadata=True, stim_columns="auto"):
         """TrialSet from ``mne.Epochs``: V -> ``units``, channel types, bad channels,
         positions (mm), metadata with the event names in ``condition``, event times
-        (spec §10.1, extra ``mne``)."""
-
+        (spec §10.1, extra ``mne``).
+        """
         from ._mne import trialset_from_mne
 
         return trialset_from_mne(
@@ -600,7 +586,6 @@ class TrialSet(_ContainerMixin):
 
     def to_mne(self, *, ch_types=None):
         """``mne.EpochsArray`` holding the same data, channels, metadata and events."""
-
         from ._mne import trialset_to_mne
 
         return trialset_to_mne(self, ch_types=ch_types)
@@ -614,7 +599,6 @@ class TrialSet(_ContainerMixin):
         column along ``channel``; ``masks`` (when set) is the boolean coordinate ``mask``
         on all three dims. Attributes: ``sfreq``, ``units``, ``species``, ``modality``.
         """
-
         try:
             import xarray as xr
         except ImportError as err:
@@ -677,7 +661,6 @@ class TrialSet(_ContainerMixin):
         -------
         Evoked or list of Evoked
         """
-
         start = _time.perf_counter()
         keep = np.arange(self.n_trials)
         n_rejected = 0
@@ -766,7 +749,6 @@ class TrialSet(_ContainerMixin):
         chunk : int, "auto" or None
             Channels passed to ``func`` at once.
         """
-
         start = _time.perf_counter()
         if axis not in ("trials", "times"):
             raise DataError(f"apply: axis must be 'trials' or 'times', got {axis!r}.")
@@ -795,12 +777,10 @@ class TrialSet(_ContainerMixin):
 
     def as_trialset(self):
         """Return self (for functions that accept both containers)."""
-
         return self
 
     def as_evoked(self):
         """One-trial TrialSet → Evoked without SEM; several trials → :meth:`average`."""
-
         if self.n_trials > 1:
             return self.average()
         start = _time.perf_counter()
@@ -864,14 +844,12 @@ class Evoked(_ContainerMixin):
     @classmethod
     def from_mne(cls, evoked, *, picks=None, units="uV"):
         """Evoked from ``mne.Evoked`` (spec §10.1, extra ``mne``)."""
-
         from ._mne import evoked_from_mne
 
         return evoked_from_mne(cls, evoked, picks=picks, units=units)
 
     def to_mne(self, *, ch_types=None, comment=""):
         """``mne.EvokedArray`` holding the same data and channels."""
-
         from ._mne import evoked_to_mne
 
         return evoked_to_mne(self, ch_types=ch_types, comment=comment)
@@ -896,7 +874,6 @@ class Evoked(_ContainerMixin):
 
     def validate(self):
         """Check every invariant; raise :class:`~evoparam.errors.DataError` naming the field."""
-
         if self.data.ndim != 2:
             raise DataError(
                 f"data: expected 2 dimensions (channels, times), got shape {self.data.shape}."
@@ -943,7 +920,6 @@ class Evoked(_ContainerMixin):
 
     def select(self, picks=None, tmin=None, tmax=None):
         """Select channels (by name or index) and a time window (``tmin`` ≤ t < ``tmax``)."""
-
         start = _time.perf_counter()
         c_index = _pick_index(self.ch_names, picks)
         s_slice = _time_slice(self.times, self.sfreq, tmin, tmax)
@@ -965,17 +941,14 @@ class Evoked(_ContainerMixin):
 
     def crop(self, tmin=None, tmax=None):
         """Keep samples with ``tmin <= t < tmax`` (seconds)."""
-
         return self.select(tmin=tmin, tmax=tmax)
 
     def as_evoked(self):
         """Return self (for functions that accept both containers)."""
-
         return self
 
     def as_trialset(self):
         """Return a one-trial :class:`TrialSet` (the SEM is not carried over)."""
-
         start = _time.perf_counter()
         provenance = self.provenance.with_step(
             "evoparam.data.Evoked.as_trialset", {}, duration_s=_time.perf_counter() - start

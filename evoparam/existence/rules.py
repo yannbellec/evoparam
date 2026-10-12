@@ -36,7 +36,6 @@ STATISTICS = (
 
 def load_rules():
     """The registry (``rules.json``), as a dict name -> rule."""
-
     text = resources.files("evoparam.existence").joinpath("rules.json").read_text("utf-8")
     return json.loads(text)["rules"]
 
@@ -50,7 +49,6 @@ def resolve_rule(rule, **overrides):
         Unknown rule, or a field the paper does not state (``unspecified``) and the user did
         not supply; the message names the field, the paper and a hint.
     """
-
     registry = load_rules()
     if isinstance(rule, dict):
         spec = {
@@ -109,7 +107,6 @@ def selective_maxima(x, sel):
     index : 1d array of int
         Positions of the maxima in ``x``, in increasing order.
     """
-
     x = np.asarray(x, float)
     n = len(x)
     if n < 2:
@@ -162,8 +159,8 @@ def _local_negative_peak(z, times, spec, units, sd):
 
     As in the published code, the decision uses the magnitude of the chosen minimum and is
     refused only when every minimum is positive, or when the peak exceeds
-    ``saturation_uv`` (data in microvolts)."""
-
+    ``saturation_uv`` (data in microvolts).
+    """
     start = int(np.argmax(times > spec["window"][0]))
     end = (
         int(np.argmax(times > spec["window"][1]))
@@ -221,7 +218,6 @@ def apply_rule(avg, times, sfreq, spec, units="uV"):
     The SD is the population SD (the published code's ``std`` divides by ``n - 1``: a
     relative difference of ``1/(2n)``, 1e-4 for a 1.9 s baseline at 2 kHz).
     """
-
     avg = np.asarray(avg, float)
     if spec["statistic"] == "abs_peak_z_bandpass":
         avg = _bandpass(avg, sfreq, spec.get("band", (1.0, 45.0)))

@@ -15,7 +15,6 @@ Data: simulated cochlear implant recording, forward masking, 30 kHz.
 # Simulate forward-masking ECAPs
 # -------------------------------
 
-import evoparam
 from evoparam import presets, reports, sim
 
 ts, truth = sim.simulate_ecap(40, kind="cochlear", paradigm="forward_masking", seed=0)

@@ -36,13 +36,11 @@ def openneuro_url(dataset, path):
     -------
     url : str
     """
-
     return OPENNEURO_URL + dataset + "/" + path.lstrip("/")
 
 
 def _registry_files(dataset):
     """``files`` (path -> SHA-256) of a dataset of the registry, or None."""
-
     from evoparam.io.registry import _load_registry
 
     for entry in _load_registry()["datasets"]:
@@ -53,7 +51,6 @@ def _registry_files(dataset):
 
 def _registry_sha256(dataset, path):
     """SHA-256 recorded for this file in the dataset registry, if any."""
-
     from evoparam.io.registry import _load_registry
 
     for entry in _load_registry()["datasets"]:
@@ -89,7 +86,6 @@ def fetch_openneuro_file(dataset, path, folder="data", *, sha256=None):
         If the download fails, if ``EVOPARAM_OFFLINE=1`` and the file is not present,
         or if the file does not match the expected SHA-256.
     """
-
     local_path = os.path.join(folder, dataset, *path.lstrip("/").split("/"))
     expected = sha256 or _registry_sha256(dataset, path)
 
@@ -101,9 +97,7 @@ def fetch_openneuro_file(dataset, path, folder="data", *, sha256=None):
     if expected and found.lower() != expected.lower():
         os.remove(local_path)
         raise ReaderError(
-            "{}: SHA-256 {} does not match the expected {}; the file was deleted.".format(
-                local_path, found, expected
-            )
+            f"{local_path}: SHA-256 {found} does not match the expected {expected}; the file was deleted."
         )
 
     return local_path
@@ -163,7 +157,6 @@ def fetch_erpcore(component, participant=1, folder=None):
         Unknown component, download failure, offline without the files, or a checksum
         mismatch (the file is deleted).
     """
-
     from evoparam.errors import ReaderError
     from evoparam.io._fetch import _check_online
 

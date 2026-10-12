@@ -20,7 +20,8 @@ import time as _time
 import numpy as np
 
 from evoparam.data import Provenance, TrialSet
-from evoparam.errors import DataError, EventError, ReaderError, warn as _warn
+from evoparam.errors import DataError, EventError, ReaderError
+from evoparam.errors import warn as _warn
 from evoparam.io._fetch import TransferLog, fetch_bytes, is_url, sha256_file
 from evoparam.io._harmonize import (
     HarmonizationReport,
@@ -80,7 +81,6 @@ def read_bids_events(events_tsv):
         One dict per row, with column names as keys. 'onset' and 'duration' are converted
         to float; the BIDS value 'n/a' becomes None.
     """
-
     lines = _read_bytes(events_tsv).decode("utf-8").splitlines()
 
     events = []
@@ -181,7 +181,7 @@ def _strip(label, prefix):
 
 
 def _stem(entities):
-    return "_".join("{}-{}".format(key, entities[key]) for key in _ORDER if entities.get(key))
+    return "_".join(f"{key}-{entities[key]}" for key in _ORDER if entities.get(key))
 
 
 class _Tree:
@@ -199,14 +199,13 @@ class _Tree:
 
     def read(self, rel, optional=False):
         """Content of a file (bytes), or None for a missing optional file."""
-
         if self.remote:
             return fetch_bytes(self.location(rel), optional=optional, log=self.log)
         path = self.location(rel)
         if not os.path.isfile(path):
             if optional:
                 return None
-            raise ReaderError("BIDS file not found: {}".format(path))
+            raise ReaderError(f"BIDS file not found: {path}")
         with open(path, "rb") as file:
             return file.read()
 
@@ -217,7 +216,7 @@ class _Tree:
         try:
             return json.loads(content.decode("utf-8"))
         except (UnicodeDecodeError, ValueError) as exc:
-            raise ReaderError("{} is not valid JSON: {}".format(self.location(rel), exc)) from exc
+            raise ReaderError(f"{self.location(rel)} is not valid JSON: {exc}") from exc
 
 
 def _remote_base(root, remote):
@@ -231,15 +230,12 @@ def _remote_base(root, remote):
     if is_url(remote):
         return remote.rstrip("/") + "/" + root.strip("/") + "/"
     raise ReaderError(
-        "remote must be False, True, 'openneuro' or an http(s) base address, got {!r}.".format(
-            remote
-        )
+        f"remote must be False, True, 'openneuro' or an http(s) base address, got {remote!r}."
     )
 
 
 def _find_runs(tree, wanted, datatype):
     """Runs to read: list of (folder, entities, data file name)."""
-
     folder = (
         "sub-{}/".format(wanted["sub"])
         + ("ses-{}/".format(wanted["ses"]) if wanted.get("ses") else "")
@@ -253,9 +249,9 @@ def _find_runs(tree, wanted, datatype):
                 "a remote folder cannot be listed."
             )
         # BrainVision, else a MEF 3.0 session (the Mayo Clinic datasets)
-        name = "{}_{}.vhdr".format(_stem(wanted), datatype)
+        name = f"{_stem(wanted)}_{datatype}.vhdr"
         if tree.read(folder + name, optional=True) is None:
-            name = "{}_{}.mefd".format(_stem(wanted), datatype)
+            name = f"{_stem(wanted)}_{datatype}.mefd"
         return [(folder, dict(wanted), name)]
 
     pattern = os.path.join(
@@ -288,9 +284,7 @@ def _find_runs(tree, wanted, datatype):
         runs.append((rel, entities, name))
     if not runs:
         raise ReaderError(
-            "No {} recording matches {} under {}.".format(
-                datatype, {k: v for k, v in wanted.items() if v}, tree.root
-            )
+            f"No {datatype} recording matches { ({k: v for k, v in wanted.items() if v}) } under {tree.root}."
         )
     # One data file per run: prefer BrainVision when several formats exist (then EDF, MEF).
     by_stem = {}
@@ -308,8 +302,8 @@ def _read_table(content):
 
 def _events_sidecar(tree, folder, entities, datatype):
     """events.json by the inheritance principle (run level, then dataset root), with the
-    ElectricalStimulationParameters field of the recording sidecar."""
-
+    ElectricalStimulationParameters field of the recording sidecar.
+    """
     stem = _stem(entities)
     sidecar = {}
     for rel in (
@@ -320,7 +314,7 @@ def _events_sidecar(tree, folder, entities, datatype):
         content = tree.json(rel)
         if isinstance(content, dict):
             sidecar.update(content)
-    recording = tree.json(folder + stem + "_{}.json".format(datatype)) or {}
+    recording = tree.json(folder + stem + f"_{datatype}.json") or {}
     if "ElectricalStimulationParameters" in recording:
         sidecar["ElectricalStimulationParameters"] = recording["ElectricalStimulationParameters"]
     return sidecar, recording
@@ -328,7 +322,6 @@ def _events_sidecar(tree, folder, entities, datatype):
 
 def _channel_table(tree, folder, entities, names, content=None):
     """Channel table (Table 4.2) from channels.tsv and electrodes.tsv, or None."""
-
     pd = require("pandas", extra="data", caller="evoparam.io.read_bids")
     if content is None:
         content = tree.read(folder + _stem(entities) + "_channels.tsv", optional=True)
@@ -341,8 +334,8 @@ def _channel_table(tree, folder, entities, names, content=None):
     if set(listed) != set(names):
         extra, absent = sorted(set(listed) - set(names)), sorted(set(names) - set(listed))
         raise DataError(
-            "channels.tsv does not match the data file: only in channels.tsv: {}; "
-            "only in the data: {}.".format(extra[:10], absent[:10])
+            f"channels.tsv does not match the data file: only in channels.tsv: {extra[:10]}; "
+            f"only in the data: {absent[:10]}."
         )
     table = table.set_index(table["name"].astype(str)).loc[names].reset_index(drop=True)
 
@@ -379,7 +372,6 @@ def _reference(value):
 
 def _add_coordinates(tree, folder, entities, table):
     """x, y, z (mm) and coord_space from electrodes.tsv and coordsystem.json, when present."""
-
     keys = {key: entities.get(key) for key in ("sub", "ses", "acq")}
     stem = _stem(keys)
     content = tree.read(folder + stem + "_electrodes.tsv", optional=True)
@@ -411,7 +403,6 @@ def _add_coordinates(tree, folder, entities, table):
 
 def _pick_channels(names, picks, ch_info):
     """Indices of the picked channels: names, indices, or channel types ('ecog', ...)."""
-
     from evoparam.io.brainvision import _pick
 
     if picks is None:
@@ -453,7 +444,6 @@ def _verbosity(verbose):
 
 def _auto_rows(events, datatype, report):
     """Rows kept by events='auto': stimulations for iEEG, every row otherwise."""
-
     if datatype != "ieeg":
         return np.ones(len(events), dtype=bool)
     types = [str(value).strip().lower() for value in events.get("trial_type", [])]
@@ -472,7 +462,7 @@ def _apply_select(events, select):
         keep = np.ones(len(events), dtype=bool)
         for column, value in select.items():
             if column not in events.columns:
-                raise EventError("select: no column {!r} in the events table.".format(column))
+                raise EventError(f"select: no column {column!r} in the events table.")
             values = events[column]
             if column == "stim_site":
                 value = (
@@ -492,7 +482,6 @@ def _apply_select(events, select):
 
 def _metadata(events, entities, overlaps, pd):
     """Standard metadata columns (Table 4.1) for the kept events."""
-
     table = events.reset_index(drop=True).copy()
     for column, key in (("subject", "sub"), ("session", "ses"), ("run", "run"), ("task", "task")):
         table[column] = pd.Series([entities.get(key) or "n/a"] * len(table))
@@ -520,7 +509,6 @@ def _metadata(events, entities, overlaps, pd):
 
 def _auto_chunk(trial_bytes):
     """Cache chunk for remote epochs: a power of two of at least one trial, 64 KiB to 8 MiB."""
-
     size = 1 << 16
     while size < trial_bytes and size < (8 << 20):
         size <<= 1
@@ -569,7 +557,7 @@ def _read_run(
     harmonized = _apply_select(harmonized, select)
     harmonized = harmonized[np.isfinite(harmonized["onset"].to_numpy(dtype=float))]
     if len(harmonized) == 0:
-        raise EventError("No event of {} matches the selection.".format(stem))
+        raise EventError(f"No event of {stem} matches the selection.")
     onsets = harmonized["onset"].to_numpy(dtype=float)
 
     if data_name.endswith(".edf"):
@@ -623,8 +611,8 @@ def _read_run(
         times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, n_samples)
         if not kept.any():
             raise EventError(
-                "No epoch of ({}, {}) s around the selected events of {} fits "
-                "inside the recording.".format(tmin, tmax, stem)
+                f"No epoch of ({tmin}, {tmax}) s around the selected events of {stem} fits "
+                "inside the recording."
             )
         order = np.argsort(starts[kept], kind="stable")  # read in file order
         data = np.empty((int(kept.sum()), len(ch_index), times.size))
@@ -682,7 +670,6 @@ def _run_result(
     masks=None,
 ):
     """The part of one run: metadata of the kept events, channel table, provenance."""
-
     tmin, tmax = epoch
     kept_events = harmonized[kept]
     overlaps = overlap_flags(onsets[kept], tmax - tmin)
@@ -729,8 +716,8 @@ def _read_mef_run(
     pd,
 ):
     """Epochs of a MEF 3.0 session: the channels come from channels.tsv (or the session),
-    then the metadata of the picked channels and the blocks under the epochs are read."""
-
+    then the metadata of the picked channels and the blocks under the epochs are read.
+    """
     from evoparam.io import mef
 
     stem = _stem(entities)
@@ -746,8 +733,8 @@ def _read_mef_run(
     )
     if header["sfreq"] is None:
         raise DataError(
-            "{}: the picked channels have different sampling frequencies; pick "
-            "channels of one frequency.".format(location)
+            f"{location}: the picked channels have different sampling frequencies; pick "
+            "channels of one frequency."
         )
     columns = list(range(len(ch_index)))
     mef._warn_units(header, columns)
@@ -755,8 +742,8 @@ def _read_mef_run(
     times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, header["n_samples"])
     if not kept.any():
         raise EventError(
-            "No epoch of ({}, {}) s around the selected events of {} fits "
-            "inside the recording.".format(tmin, tmax, stem)
+            f"No epoch of ({tmin}, {tmax}) s around the selected events of {stem} fits "
+            "inside the recording."
         )
     data, record = mef._read_grid(header, columns, starts[kept], times.size, log=tree.log)
     nan = np.isnan(data)
@@ -802,7 +789,7 @@ def _read_edf_run(
     tmin, tmax = epoch
     times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, data.shape[1], t0=t0)
     if not kept.any():
-        raise EventError("No epoch of ({}, {}) s fits inside {}.".format(tmin, tmax, path))
+        raise EventError(f"No epoch of ({tmin}, {tmax}) s fits inside {path}.")
     index = starts[kept][:, None] + np.arange(times.size)[None, :]
     trials = np.moveaxis(data[:, index], 0, 1)
     overlaps = overlap_flags(onsets[kept], tmax - tmin)
@@ -825,7 +812,6 @@ def _read_edf_run(
 
 def _dataset_record(root, base, tree):
     """Dataset identifier and DOI: from the registry, else from dataset_description.json."""
-
     from evoparam.io.registry import match_dataset
 
     entry = match_dataset(base if base is not None else os.path.abspath(str(root)))
@@ -929,7 +915,6 @@ def read_bids(
         channels.tsv does not match the data file; runs with different channels or
         sampling frequencies.
     """
-
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.io.read_bids")
     tmin, tmax = float(epoch[0]), float(epoch[1])
@@ -946,7 +931,7 @@ def read_bids(
 
     with _verbosity(verbose):
         if not tree.remote and not os.path.isdir(tree.root):
-            raise ReaderError("BIDS root not found: {}".format(tree.root))
+            raise ReaderError(f"BIDS root not found: {tree.root}")
         parts = []
         for folder, entities, data_name in _find_runs(tree, wanted, datatype):
             parts.append(
@@ -1010,10 +995,8 @@ def read_bids(
     flat = np.flatnonzero(np.all(np.nan_to_num(data) == 0, axis=(1, 2)))
     if flat.size:
         _warn(
-            "{} of {} epochs hold only zeros (data censored in the deposit, or a "
-            "stimulation site outside the published span?); trials {}.".format(
-                flat.size, data.shape[0], flat[:10].tolist()
-            ),
+            f"{flat.size} of {data.shape[0]} epochs hold only zeros (data censored in the deposit, or a "
+            f"stimulation site outside the published span?); trials {flat[:10].tolist()}.",
             UserWarning,
             stacklevel=2,
         )

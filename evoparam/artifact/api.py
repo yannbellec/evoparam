@@ -38,7 +38,6 @@ GLOBAL_METHODS = ("period_template", "lowrank", "subspace", "polynomial")
 
 def _check_window_vs_rate(ts, window, method):
     """Refuse a window longer than the interval between pulses of a train."""
-
     rate = None
     if ts.metadata is not None and "stim_frequency_hz" in ts.metadata.columns:
         values = ts.metadata["stim_frequency_hz"].to_numpy(dtype=float)
@@ -159,7 +158,9 @@ def remove_artifact(
         Accepted for the uniform signature; the input is never modified.
     random_state, verbose
         Unused by the current methods (all deterministic); recorded in the settings.
-    Other parameters
+
+    Other Parameters
+    ----------------
         See the method descriptions above and spec §5.3.
 
     Returns
@@ -179,7 +180,6 @@ def remove_artifact(
     SettingsError
         Unknown method or invalid setting.
     """
-
     start = _time.perf_counter()
     check_trialset(ts)
     settings = {key: value for key, value in locals().items() if key not in ("ts", "start")}
@@ -416,7 +416,6 @@ def compare_methods(ts, methods, *, truth=None, window_eval=(0.008, 0.05)):
         ``runtime_s`` and, with ``truth``, ``rrmse``, ``sir_before_db``, ``sir_after_db``,
         ``sir_improvement_db``.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.artifact.compare_methods")
     check_trialset(ts)
     rows = []

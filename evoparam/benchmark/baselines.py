@@ -91,7 +91,6 @@ class Baseline:
 
     def run(self, inputs):
         """Outputs of the cell for the tasks of ``inputs`` that this baseline answers."""
-
         wanted = {t: ti for t, ti in inputs.items() if t in self.tasks}
         if not wanted:
             return {}
@@ -102,7 +101,6 @@ class Baseline:
 
     def info(self):
         """The ``method`` record of a result document."""
-
         settings = {k: (list(v) if isinstance(v, tuple) else v) for k, v in self.settings.items()}
         return {
             "name": self.name,
@@ -146,8 +144,8 @@ def _num(value):
 
 def _peak_rows(ti, sig, latency, avg, base_mean):
     """T2 rows: the latency and baseline-relative value of the average at the peak, for
-    the detected channels."""
-
+    the detected channels.
+    """
     times = ti.times
     rows = []
     for index, channel in enumerate(ti.descriptor["ch_names"]):
@@ -350,8 +348,8 @@ POLARITY = {1: "positive", -1: "negative", 0: "absolute"}
 
 def _local_peak(times, y, window, polarity):
     """(latency, amplitude) of the local peak in the window, or None when there is no
-    local peak (the simple-extremum fallback is not a component)."""
-
+    local peak (the simple-extremum fallback is not a component).
+    """
     from evoparam.models.classical import classical_measures
 
     window = (max(window[0], times[0]), min(window[1], times[-1]))
@@ -437,8 +435,8 @@ def _none_t4(inputs, settings):
 
 def _target_component(sub, target):
     """The fitted component of a channel answering a target: the one with the target's
-    label, else the largest one whose latency is in the target window."""
-
+    label, else the largest one whose latency is in the target window.
+    """
     lab = sub[sub["label"] == target["label"]]
     if len(lab):
         return lab.iloc[0]["component"]
@@ -745,7 +743,6 @@ BASELINES = _make()
 
 def get_baseline(name):
     """A baseline by name."""
-
     if name not in BASELINES:
         raise DataError(f"Unknown baseline {name!r}; baselines: {sorted(BASELINES)}.")
     return BASELINES[name]
@@ -753,5 +750,4 @@ def get_baseline(name):
 
 def baselines_for(task):
     """Names of the baselines that answer ``task``."""
-
     return [name for name, b in BASELINES.items() if task in b.tasks]

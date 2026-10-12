@@ -43,12 +43,12 @@ def hidden_seeds_path():
     return path
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def suite(name="core"):
     return load_suite(name)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def inputs(task, n=None):
     """The task inputs (with their truth) of the first ``n`` public cells of ``core``."""
 

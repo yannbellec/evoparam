@@ -24,7 +24,6 @@ _SQRT_2_OVER_PI = np.sqrt(2.0 / np.pi)
 
 def component(shape, tw, params):
     """``shape.evaluate(tw, params)`` and what :func:`component_derivatives` needs."""
-
     kind = type(shape)
     if kind is Gaussian:
         z = (tw - params[0]) / params[1]
@@ -41,7 +40,6 @@ def component(shape, tw, params):
 
 def component_derivatives(shape, tw, params, aux):
     """``shape.jacobian(tw, params)`` (n x p) from the ``aux`` of :func:`component`."""
-
     kind = type(shape)
     if kind is Gaussian and aux is not None:
         z, s = aux
@@ -64,8 +62,8 @@ def component_derivatives(shape, tw, params, aux):
 
 def background(bg, tw, nonlinear, out):
     """``bg.basis(tw, nonlinear)`` (n_linear x n) written into ``out``, and what the
-    derivatives need."""
-
+    derivatives need.
+    """
     if type(bg) is ExponentialBackground:
         lag = tw - bg._t_ref(tw)
         decay = np.exp(-lag / nonlinear[0:1])
@@ -78,8 +76,8 @@ def background(bg, tw, nonlinear, out):
 
 def background_derivatives(bg, tw, nonlinear, coefs, aux):
     """``einsum("l,lnj->nj", coefs, bg.basis_jacobian(tw, nonlinear))``: the derivative of
-    the background with the linear coefficients ``coefs`` (n x n_nonlinear)."""
-
+    the background with the linear coefficients ``coefs`` (n x n_nonlinear).
+    """
     if type(bg) is ExponentialBackground and aux is not None:
         lag, decay = aux
         tau = nonlinear[0:1]

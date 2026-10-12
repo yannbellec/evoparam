@@ -439,7 +439,7 @@ def test_sim_does_not_reach_the_fitter():
         return files
 
     start = sorted((PACKAGE / "sim").rglob("*.py"))
-    seen, queue, trail = set(start), list(start), {path: None for path in start}
+    seen, queue, trail = set(start), list(start), dict.fromkeys(start)
     while queue:
         path = queue.pop()
         for target in _imports(path):

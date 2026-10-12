@@ -90,6 +90,7 @@ def test_local_extent_keeps_the_response_after_the_artifact():
     (RRMSE 0.99 on 8-50 ms), the local extent keeps it (0.02) and the baseline (0 %)."""
 
     from evoparam.artifact import compare_methods
+
     from .helpers import make_overlay
 
     noisy, truth = make_overlay(n_channels=12, onset=0.02, seed=0)

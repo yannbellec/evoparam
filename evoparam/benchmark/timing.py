@@ -142,7 +142,6 @@ def _row(id_, workload, durations, peak, **extra):
 
 def environment():
     """Machine and library versions of a run."""
-
     from evoparam.data.provenance import capture_environment
     from evoparam.version import __version__
 
@@ -206,7 +205,6 @@ def _ccep(n_trials, n_channels, tmin=-0.5, tmax=1.1, seed=0):
 
 def p1(repeats=20):
     """One averaged waveform of 2 048 samples (1 s fit window), ccep preset."""
-
     from evoparam.models import ResponseModel
 
     trials = _ccep(10, 3)
@@ -229,7 +227,6 @@ def p1(repeats=20):
 
 def p2(n_channels=100, n_trials=50, n_jobs=4):
     """Trial-by-trial fits with the channel template as warm start."""
-
     from evoparam import existence  # not the package root (import graph, §4.2)
     from evoparam.trials import fit_trials
 
@@ -254,7 +251,6 @@ def p2(n_channels=100, n_trials=50, n_jobs=4):
 
 def _p3_data(n_trials, n_channels, n_times, out=None):
     """Deterministic trials: the simulated responses of 16 channels, tiled, plus noise."""
-
     base = _ccep(n_trials, 16, tmin=-1.0, tmax=-1.0 + (n_times + 1) / SFREQ)
     data = out if out is not None else np.empty((n_trials, n_channels, n_times))
     rng = np.random.default_rng(0)
@@ -268,7 +264,6 @@ def _p3_data(n_trials, n_channels, n_times, out=None):
 
 def p3(n_trials=500, n_channels=256, n_times=4096, mmap=True):
     """Peak memory of ``evoparam.fit`` on a large TrialSet, in memory and memory-mapped."""
-
     import inspect
 
     from evoparam import existence  # not the package root (import graph, §4.2)
@@ -353,7 +348,6 @@ def p3(n_trials=500, n_channels=256, n_times=4096, mmap=True):
 
 def p4():
     """GPU against CPU: the GPU backends of §9.1 are not in this version."""
-
     return {
         "id": "P4",
         "workload": "GPU backend against the CPU on P1 and P2",
@@ -371,7 +365,6 @@ def p4():
 
 def p5(n_channels=256):
     """``evoparam.reproduce`` of a saved GroupFit against the time of the original fit."""
-
     from evoparam import existence, reports  # not the package root (import graph, §4.2)
 
     trials = _ccep(10, n_channels)
@@ -404,7 +397,6 @@ _IMPORTTIME = re.compile(r"import time:\s+\d+\s+\|\s+(\d+)\s+\|\s+evoparam$")
 
 def p6(repeats=10):
     """Import time of the package (``python -X importtime``), median of ``repeats``."""
-
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [root, env.get("PYTHONPATH")]))
@@ -480,7 +472,6 @@ def run_suite(suite="perf", *, only=None, repeat_runs=1, log=None):
     dict
         ``{"schema", "suite", "environment", "results": [...]}``.
     """
-
     from evoparam.errors import SettingsError
 
     if suite not in SUITES:
@@ -549,7 +540,6 @@ def compare(document, baseline, *, time_tolerance=1.25, memory_tolerance=1.10, w
     ``time_tolerance`` warns; a peak memory above ``memory_tolerance`` x its baseline fails,
     and so does a P3 figure above its absolute bound.
     """
-
     base = {_key(r): r for r in baseline["results"]}
     failures, notes = [], []
     for row in document["results"]:
@@ -589,8 +579,8 @@ def compare(document, baseline, *, time_tolerance=1.25, memory_tolerance=1.10, w
 
 def results_path(document, folder):
     """``<folder>/<platform>-<python>-<commit>.json`` (spec §9.1); a run of the ``ci``
-    suite ends in ``-ci.json``."""
-
+    suite ends in ``-ci.json``.
+    """
     env = document["environment"]
     commit = (env.get("git_commit") or "nocommit")[:12]
     suffix = "" if document.get("suite", "perf") == "perf" else "-" + document["suite"]

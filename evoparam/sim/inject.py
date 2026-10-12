@@ -18,7 +18,6 @@ __all__ = ["inject"]
 
 def _segments(ts, record):
     """One record per trial of ``ts``: dataset, subject, run and sample offsets."""
-
     from .noise import _source_value
 
     segments = []
@@ -103,7 +102,6 @@ def inject(
     recorded with ``dataset = None``; a named dataset must be in the registry with an
     allowed licence. NaN samples (inside masks) are left untouched.
     """
-
     start = _time.perf_counter()
     settings = {key: value for key, value in locals().items() if key != "start"}
     if not isinstance(ts_real, TrialSet):

@@ -22,7 +22,8 @@ each row's pixels are then tested at the row's level.
 import warnings
 
 import numpy as np
-from scipy import ndimage, stats as sstats
+from scipy import ndimage
+from scipy import stats as sstats
 
 from evoparam.errors import SettingsError
 
@@ -47,7 +48,6 @@ PERM_CHUNK = 64
 
 def t_map(d):
     """One-sample ``t`` across trials (axis 0), NaN-aware. Returns (t, n)."""
-
     n = np.sum(np.isfinite(d), axis=0)
     filled = np.nan_to_num(d)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -60,7 +60,6 @@ def t_map(d):
 
 def p_values(t, n):
     """Two-sided p-values of ``t`` with ``n - 1`` degrees of freedom."""
-
     with np.errstate(invalid="ignore"):
         p = 2 * sstats.t.sf(np.abs(t), np.maximum(n - 1, 1))
     p[~np.isfinite(t)] = np.nan
@@ -69,7 +68,6 @@ def p_values(t, n):
 
 def fdr_significant(p, alpha):
     """Benjamini-Hochberg: True where ``p`` is at or below the step-up threshold."""
-
     flat = p[np.isfinite(p)]
     out = np.zeros(p.shape, bool)
     if flat.size == 0:
@@ -87,8 +85,8 @@ def fdr_significant(p, alpha):
 def bh_adjusted(p):
     """Benjamini-Hochberg adjusted p-values (NaN left out and kept): ``p <= q`` after
     adjustment is the step-up procedure at level ``q``; the smallest adjusted value is the
-    Simes p-value of the whole map."""
-
+    Simes p-value of the whole map.
+    """
     p = np.asarray(p, float)
     out = np.full(p.shape, np.nan)
     ok = np.isfinite(p)
@@ -107,8 +105,8 @@ def bh_adjusted(p):
 def within_map_p(p, method):
     """Pixel p-values adjusted within one map, so that ``p <= alpha`` is the map's test at
     level ``alpha``: Benjamini-Hochberg for ``fdr``, the permutation family-wise values for
-    ``cluster`` and ``tfce``, none for ``none`` (all NaN: no pixel is ever significant)."""
-
+    ``cluster`` and ``tfce``, none for ``none`` (all NaN: no pixel is ever significant).
+    """
     if method in ("fdr", "baseline_normal"):
         return bh_adjusted(p)
     if method == "none":
@@ -132,7 +130,6 @@ def baseline_normal_map(power, baseline, window):
     -------
     z, p : ndarrays (n_freqs, n_times), NaN outside ``window``.
     """
-
     with np.errstate(divide="ignore", invalid="ignore"), warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         db = np.nanmean(10 * np.log10(power), axis=0)
@@ -164,7 +161,6 @@ def row_levels(row_p, alpha, method):
     ``m`` is the number of rows with a p-value (rows with no tested pixel are left out, as
     in §5.6). Returns an array of levels (0 for a row that is not tested).
     """
-
     if method not in CHANNEL_CORRECTIONS:
         raise SettingsError(
             f"channel_correction must be one of {CHANNEL_CORRECTIONS}, not {method!r}."
@@ -199,7 +195,6 @@ def row_levels(row_p, alpha, method):
 
 def _flipped_t(signs, filled, sumsq, n):
     """``t`` maps of sign-flipped trials: signs (B, n_trials) -> (B, n_pixels)."""
-
     with np.errstate(divide="ignore", invalid="ignore"):
         mean = (signs @ filled) / n
         var = (sumsq - n * mean**2) / (n - 1)
@@ -208,7 +203,6 @@ def _flipped_t(signs, filled, sumsq, n):
 
 def _cluster_masses(tmap, threshold):
     """Masses and labels of the supra-threshold clusters of both signs."""
-
     masses, labels = [], []
     for sign in (1, -1):
         lab, n_lab = ndimage.label(np.nan_to_num(sign * tmap) > threshold)
@@ -228,7 +222,6 @@ _STACK[1] = ndimage.generate_binary_structure(2, 1)
 
 def _null_cluster_max(stack, threshold):
     """Largest cluster mass of each map of a stack (B, F, T), both signs."""
-
     out = np.zeros(stack.shape[0])
     filled = np.nan_to_num(stack)
     owner = np.repeat(np.arange(stack.shape[0]), stack[0].size)
@@ -245,7 +238,6 @@ def _null_cluster_max(stack, threshold):
 
 def _tfce(stack, dh):
     """TFCE score of each pixel of each map of a stack (B, F, T), signed (both tails)."""
-
     out = np.zeros(stack.shape)
     filled = np.nan_to_num(stack)
     for sign in (1, -1):
@@ -284,7 +276,6 @@ def test_map(
         Pixel p-values (uncorrected for ``fdr``; family-wise for ``tfce``; the cluster's
         p-value for ``cluster``).
     """
-
     if method not in STATS or method == "baseline_normal":
         raise SettingsError(
             f"stats must be one of {STATS} ('baseline_normal' through "

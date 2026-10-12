@@ -81,7 +81,6 @@ def _events_files(root, subject):
 
 def _field_status(name, values, n_rows, units, mapping, messages):
     """(status, message) of one stimulation field over the stimulation rows."""
-
     if name == "stim_polarity":
         filled = [not _is_missing(v) and v != "n/a" for v in values]
         unknown = sum(v == "unknown" for v in values)
@@ -131,7 +130,6 @@ def _read_tsv(path):
 
 def _channel_rows(folder, stem_parts, recording, n_events):
     """Statuses of reference, type and coordinates for one run."""
-
     stem = "_".join(
         f"{k}-{stem_parts[k]}" for k in ("sub", "ses", "task", "acq", "run") if stem_parts.get(k)
     )
@@ -271,7 +269,6 @@ def _channel_rows(folder, stem_parts, recording, n_events):
 
 def _sidecars(root, folder, parts, datatype):
     """events.json by inheritance (dataset root, task, run) and the recording sidecar."""
-
     import json
 
     def load(path):
@@ -324,7 +321,6 @@ def validate_stim_metadata(bids_root, *, subject=None, strict=False):
         ``type``, ``coordinates``), ``status`` (``present``, ``inferred``, ``missing``,
         ``inconsistent``), ``n_events`` (stimulation events of the run) and ``message``.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.io.validate_stim_metadata")
     root = os.fspath(bids_root)
     if not os.path.isdir(root):
@@ -411,8 +407,8 @@ def validate_stim_metadata(bids_root, *, subject=None, strict=False):
 
 def format_stim_report(table):
     """Plain-text report of :func:`validate_stim_metadata`: one block per run, one line per
-    field (``status  field  message``), and the counts of each status."""
-
+    field (``status  field  message``), and the counts of each status.
+    """
     lines = []
     for events_file, run in table.groupby("events_file", sort=True):
         lines.append(f"{events_file}  ({int(run['n_events'].iloc[0])} stimulation events)")

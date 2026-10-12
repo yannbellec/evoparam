@@ -156,9 +156,10 @@ def test_builtin_names_are_protected(clean_registry):
     with pytest.raises(SettingsError):
         shapes.unregister_shape("gaussian")
     assert shapes.SHAPES["gaussian"] is shapes.Gaussian
-    assert BUILTIN_SHAPES == frozenset(shapes.SHAPES) - {
-        name for name in shapes.SHAPES if name not in BUILTIN_SHAPES
-    }
+    assert (
+        frozenset(shapes.SHAPES) - {name for name in shapes.SHAPES if name not in BUILTIN_SHAPES}
+        == BUILTIN_SHAPES
+    )
 
 
 def test_wrong_bounds_and_output_shapes_are_rejected():

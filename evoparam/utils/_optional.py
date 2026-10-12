@@ -61,7 +61,6 @@ def require(module, *, extra, min_version=None, caller=None):
         If the package is missing or too old. The message names the package, the
         version floor and the command ``pip install "evoparam[<extra>]"``.
     """
-
     who = caller or "This function"
     floor = f" (>= {min_version})" if min_version else ""
     hint = f'Install it with:  pip install "evoparam[{extra}]"'

@@ -5,19 +5,18 @@ import numpy as np
 import pandas as pd
 
 from evoparam.data import (
-    TrialSet,
-    Evoked,
-    Provenance,
+    ArtifactResult,
     Component,
     GoodnessOfFit,
-    ResponseFit,
     GroupFit,
-    TrialFit,
     HierarchicalFit,
+    Provenance,
+    ResponseFit,
     ResponseTest,
-    ArtifactResult,
     ShapeBasis,
     TFFit,
+    TrialFit,
+    TrialSet,
 )
 
 SFREQ = 1000.0

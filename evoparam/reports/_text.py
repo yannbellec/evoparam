@@ -18,8 +18,8 @@ __all__ = ["methods_text", "citation"]
 
 def _provenance(obj):
     """The provenance of a result, or of a table of :mod:`evoparam.stats` (or of the
-    reference-sensitivity report), which keeps it in ``attrs["provenance"]``."""
-
+    reference-sensitivity report), which keeps it in ``attrs["provenance"]``.
+    """
     from evoparam.data import Provenance
 
     found = getattr(obj, "provenance", None)
@@ -36,7 +36,8 @@ def _provenance(obj):
 
 class _Merged:
     """Provenance-like view of several results: the steps of the first, then the steps of
-    the others that it does not hold."""
+    the others that it does not hold.
+    """
 
     def __init__(self, parts):
         from evoparam.data import Provenance
@@ -72,7 +73,6 @@ def methods_text(result, *, cite=True):
     :mod:`evoparam.stats` (and the reference-sensitivity report of a pipeline) carry their
     step in ``attrs["provenance"]`` and are accepted too.
     """
-
     if type(result).__name__ == "PipelineResult":
         parts = [
             p
@@ -97,7 +97,7 @@ def methods_text(result, *, cite=True):
 
 def citation(bibtex=False):
     """The package citation, read from ``CITATION.cff`` (the single source, REQ-346); a
-    BibTeX ``@software`` entry with ``bibtex=True``."""
-
+    BibTeX ``@software`` entry with ``bibtex=True``.
+    """
     cff = read_citation()
     return citation_bibtex(cff) if bibtex else citation_text(cff)

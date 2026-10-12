@@ -27,7 +27,6 @@ import os
 import numpy as np
 import pandas as pd
 
-import evoparam
 from evoparam import reports
 from evoparam.io import fetch_openneuro_file, read_bids
 from evoparam.prep import rereference

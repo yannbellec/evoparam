@@ -5,7 +5,8 @@ import re
 
 import numpy as np
 
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.utils._names import contact_group, contact_number
 from evoparam.utils._optional import require
 
@@ -82,14 +83,12 @@ NON_NEURAL = re.compile(
 
 def _robust_sd(values):
     """Scaled MAD of each row (NaN-aware only when needed, as it is slower)."""
-
     median = np.nanmedian if np.isnan(values).any() else np.median
     return MAD_TO_SD * median(np.abs(values - median(values, axis=1, keepdims=True)), axis=1)
 
 
 def _first_sign(trace):
     """Sign of the first deflection: the first sample beyond half the largest one."""
-
     peak = np.nanmax(np.abs(trace))
     beyond = np.flatnonzero(np.abs(trace) >= 0.5 * peak) if peak > 0 else []
     return np.sign(trace[beyond[0]]) if len(beyond) else 0.0
@@ -97,7 +96,6 @@ def _first_sign(trace):
 
 def _silent_pair(names, group, raw_noise, floor, amplitude, size):
     """Positions of the one silent pair of adjacent contacts (comment above RAIL_WINDOW)."""
-
     quiet = np.flatnonzero((raw_noise > 0) & (raw_noise < NOISE_FLOOR * floor))
     if len(quiet) < 2:
         return None
@@ -230,7 +228,6 @@ def identify_stim_site(
         Copy of ``events`` with ``stim_site_guess`` (str, "" when not identifiable),
         ``site_confidence`` (0-1) and ``polarity_check`` (bool) columns.
     """
-
     require("pandas", extra="data", caller="evoparam.events.identify_stim_site")
     if method not in SITE_METHODS:
         raise SettingsError(f"method must be one of {SITE_METHODS}, got {method!r}.")
@@ -389,7 +386,6 @@ def identify_stim_site(
 
 def _spec_site(data, index, onset, lag, half, group):
     """Spec §5.2 method 5 as reviewed, for one pulse: (pair, confidence, opposite)."""
-
     n_times = data.shape[1]
     if onset - lag < 0 or onset - half < 0 or onset + half + 1 > n_times:
         return None
@@ -440,7 +436,6 @@ def vote_sites(events, *, site_column="stim_site_guess", max_gap=None):
         block's pulses whose own guess contains both voted contacts (times the mean
         per-pulse confidence), and ``site_block`` (int64).
     """
-
     require("pandas", extra="data", caller="evoparam.events.vote_sites")
     out = events.sort_values("onset_time", kind="stable").copy()
     times = out["onset_time"].to_numpy(dtype=float)

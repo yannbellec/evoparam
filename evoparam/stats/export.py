@@ -154,7 +154,6 @@ _ID_ORDER = (
 
 def _jsonable_cell(value):
     """A cell holding a list, dict, tuple, set or array becomes its JSON text."""
-
     if isinstance(value, np.ndarray):
         return json.dumps(value.tolist())
     if isinstance(value, (list, tuple, dict, set)):
@@ -238,7 +237,6 @@ def _from_group(pd, result):
 
 def _melt(pd, table, parameters, units):
     """Generic: the given numeric columns become (parameter, value[, se, ci]) rows."""
-
     se_cols = {p: c for p in parameters for c in (f"{p}_se", f"se_{p}") if c in table.columns}
     lo_cols = {p: f"{p}_ci_low" for p in parameters if f"{p}_ci_low" in table.columns}
     hi_cols = {p: f"{p}_ci_high" for p in parameters if f"{p}_ci_high" in table.columns}
@@ -269,7 +267,6 @@ def _known_parameters(table):
 
 def _from_table(pd, table):
     """A trial table (one row per trial x component, with the metadata columns)."""
-
     params = _known_parameters(table)
     units = dict(getattr(table, "attrs", {}).get("units", {}))
     return _melt(pd, table, params, {**PARAMETERS, **OTHER_PARAMETERS, **units})
@@ -373,7 +370,6 @@ def to_long(result, *, wide=False, units=None, metadata=None):
     >>> sorted(set(long["parameter"]))[:3]
     ['amplitude', 'area', 'decay_time']
     """
-
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.to_long")
     data_units = units or "data"
@@ -524,7 +520,6 @@ def column_dictionary(table, *, units=None):
     >>> column_dictionary(pd.DataFrame({"channel": ["Cz"], "latency": [0.1]}))["latency"]
     {'Description': 'Time of the extremum of the component.', 'Units': 's'}
     """
-
     data_units = units or "data"
     recorded = dict(getattr(table, "attrs", {}).get("units", {}))
     wide_units = dict(getattr(table, "attrs", {}).get("param_units", {}))
@@ -631,7 +626,6 @@ def mixed_formula(table, *, response, fixed, groups, engine="lme4", se=None):
     ...               groups=["subject", "channel"])
     'value ~ condition + (1 | subject) + (1 | subject:channel)'
     """
-
     engines = ("lme4", "brms", "statsmodels")
     if engine not in engines:
         raise SettingsError(f"engine must be one of {engines}, not {engine!r}.")
@@ -683,7 +677,6 @@ def fit_mixed(table, formula, groups, *, nested=(), re_formula=None, reml=True, 
     -------
     statsmodels MixedLMResults
     """
-
     require("statsmodels", extra="stats", min_version="0.14", caller="evoparam.stats.fit_mixed")
     import statsmodels.formula.api as smf
 
@@ -705,8 +698,8 @@ def fit_mixed(table, formula, groups, *, nested=(), re_formula=None, reml=True, 
 def _complete_rows(table, formula, columns, re_formula=None):
     """The rows of ``table`` with every variable of the model present (what
     ``missing="drop"`` of statsmodels does). statsmodels 0.15 drops them itself only for
-    plain names: a quoted one (``Q("N1 latency")``, ``Q("stim site")``) is not found."""
-
+    plain names: a quoted one (``Q("N1 latency")``, ``Q("stim site")``) is not found.
+    """
     import patsy  # a dependency of statsmodels
 
     data = table.loc[table[columns].notna().all(axis=1)]
@@ -767,7 +760,6 @@ def group_summary(
     >>> out[["region", "n", "n_ok", "n_no_response", "n_channels"]].values.tolist()
     [['x', 2, 2, 0, 2], ['y', 0, 0, 1, 1]]
     """
-
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.group_summary")
     by = [by] if isinstance(by, str) else list(by)

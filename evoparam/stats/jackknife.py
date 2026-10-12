@@ -43,7 +43,6 @@ def jackknife_t(t, n):
     >>> jackknife_t(12.0, 13)
     1.0
     """
-
     if n < 2:
         raise SettingsError("n must be at least 2.")
     return float(t) / (n - 1)
@@ -57,7 +56,6 @@ def jackknife_f(f, n):
     >>> jackknife_f(144.0, 13)
     1.0
     """
-
     if n < 2:
         raise SettingsError("n must be at least 2.")
     return float(f) / (n - 1) ** 2
@@ -126,7 +124,6 @@ def jackknife_latency(
     >>> table.shape
     (6, 5)
     """
-
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.jackknife_latency")
     evokeds = list(evokeds)

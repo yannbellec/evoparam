@@ -36,8 +36,8 @@ TAIL = 1e-16
 
 def _offset(t, sfreq, side):
     """Sample offset of the first sample at or after ``t`` (``side="start"``), or of the last
-    at or before it (``"stop"``), with the comparison of ``times >= t`` on ``k / sfreq``."""
-
+    at or before it (``"stop"``), with the comparison of ``times >= t`` on ``k / sfreq``.
+    """
     k = int(np.ceil(t * sfreq)) if side == "start" else int(np.floor(t * sfreq))
     if side == "start":
         while (k - 1) / sfreq >= t:
@@ -86,8 +86,8 @@ class _Channel:
 
     def curves(self, tw, shifts, component=None):
         """The template (or one of its components) moved by each of ``shifts`` (s): array
-        [n_shifts, n_times]."""
-
+        [n_shifts, n_times].
+        """
         out = np.zeros((len(shifts), len(tw)))
         keep = range(len(self.shapes)) if component is None else [component]
         for k in keep:
@@ -100,7 +100,6 @@ class _Channel:
 
     def set_spans(self, tw, grid):
         """Samples where each component matters at some shift of ``grid`` (see TAIL)."""
-
         for k in range(len(self.shapes)):
             self.spans[k] = slice(None)
             size = np.abs(self.curves(tw, grid, component=k)).max(axis=0)
@@ -110,8 +109,8 @@ class _Channel:
 
     def bounds(self, max_shift):
         """Largest shift of each component moved on its own: ``max_shift``, at most half the
-        distance to the nearest other component (as in ``fit_trials``)."""
-
+        distance to the nearest other component (as in ``fit_trials``).
+        """
         out = np.full(len(self.shapes), float(max_shift))
         for k, lat in enumerate(self.latencies):
             gaps = [abs(lat - other) for j, other in enumerate(self.latencies) if j != k]
@@ -122,7 +121,6 @@ class _Channel:
 
 def _parabolic(profile, best):
     """Sub-sample offset of the maximum of ``profile`` [n, n_points] around ``best`` [n]."""
-
     n, n_points = profile.shape
     rows = np.arange(n)
     frac = np.zeros(n)
@@ -140,7 +138,6 @@ def _parabolic(profile, best):
 
 def _solve(gram, rhs):
     """Batched least-squares coefficients of the normal equations ``gram @ x = rhs``."""
-
     try:
         return np.linalg.solve(gram, rhs[..., None])[..., 0]
     except np.linalg.LinAlgError:
@@ -297,7 +294,6 @@ class FixedShapeModel:
 
     def _prepare(self):
         """Shifted templates, bases and inverse normal matrices of every grid shift."""
-
         n_ch, n_w = len(self._channels), len(self.tw)
         n_b = max(ch.basis.shape[0] for ch in self._channels)
         if any(ch.basis.shape[0] != n_b for ch in self._channels):
@@ -373,8 +369,8 @@ class FixedShapeModel:
 
     def _normal_inverse(self, weights, channels=None):
         """Inverse normal matrices [n_channels, n_shifts, m, m] of the common shifts, for
-        per-channel weights."""
-
+        per-channel weights.
+        """
         channels = np.arange(len(self._channels)) if channels is None else channels
         q, diag = self.n_columns, np.arange(self.n_columns)
         out = np.empty((len(channels), len(self.grid), self.n_linear, self.n_linear))
@@ -395,8 +391,8 @@ class FixedShapeModel:
     def _pair_tables(self, weights, channels=None):
         """Products of the shifted components, of every pair of shifts, for per-channel
         weights: ``[n, q, q, n_shifts, n_shifts]``, with the basis ``[n, q, n_shifts, n_b]``
-        and the basis Gram matrices ``[n, n_b, n_b]``."""
-
+        and the basis Gram matrices ``[n, n_b, n_b]``.
+        """
         channels = np.arange(len(self._channels)) if channels is None else channels
         q, n_s = self.n_columns, len(self.grid)
         n_b = self.n_linear - q
@@ -418,7 +414,6 @@ class FixedShapeModel:
 
     def _basis_dot(self, x):
         """Products of each channel's rows ``x`` [n_channels, ..., n_times] with its basis."""
-
         if self._shared:
             return x @ self._basis[0].T
         if x.ndim == 2:
@@ -436,7 +431,6 @@ class FixedShapeModel:
         and ``r_o`` the normal equations of the other columns and ``c`` their products with
         the moved one).
         """
-
         pairs, cross, bb = tables
         n_ch, q, n_s = r.shape
         n_b = self.n_linear - q
@@ -532,7 +526,6 @@ class FixedShapeModel:
             unit-norm unshifted template; NaN without ``baseline_data``) and ``finite`` (no
             left-out sample).
         """
-
         y = np.asarray(window_data, float)
         n_ch, n_w = len(self._channels), len(self.tw)
         q, n_s = self.n_columns, len(self.grid)
@@ -671,7 +664,6 @@ class FixedShapeModel:
 
         Returns the dict of :meth:`fit` with a leading trial axis.
         """
-
         if not isinstance(ts, TrialSet):
             raise DataError("fit_trialset expects a TrialSet.")
         if abs(ts.sfreq - self.sfreq) > 1e-9 * self.sfreq:

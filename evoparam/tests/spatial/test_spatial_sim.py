@@ -28,7 +28,6 @@ from .helpers import (
     SFREQ,
     SHAPES,
     TIMES,
-    gauss,
     independent_fits,
     multi_site,
     shared_channels,
@@ -44,7 +43,7 @@ def _matched_correlations(basis, shapes=SHAPES):
 
     from itertools import permutations
 
-    win = (TIMES >= basis.times[0] - 1e-9) & (TIMES <= basis.times[-1] + 1e-9)
+    win = (basis.times[0] - 1e-9 <= TIMES) & (basis.times[-1] + 1e-9 >= TIMES)
     corr = np.array(
         [[np.corrcoef(curve, shape[win])[0, 1] for shape in shapes] for curve in basis.curves]
     )

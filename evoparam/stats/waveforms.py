@@ -44,7 +44,6 @@ def waveform_band(signals, *, spread="std", average="mean", scale=1.0):
     -------
     center, half_width : 1-D arrays
     """
-
     signals = np.asarray(signals, dtype=float)
     if (isinstance(spread, str) or callable(spread)) and signals.ndim != 2:
         raise SettingsError("signals must be 2-D when the spread is not given as an array.")
@@ -90,6 +89,5 @@ def strip_jitter(n_points, *, x=0.0, sd=0.025, random_state=0):
     -------
     ndarray
     """
-
     rng = np.random.default_rng(random_state)
     return x + rng.normal(0.0, sd, n_points)

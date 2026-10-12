@@ -29,7 +29,6 @@ def burst_waveform(times, *, freq, centre, duration, amplitude, phase=0.0):
     ``phase`` may be an array of shape (n_trials,), the result then has shape
     (n_trials, n_times).
     """
-
     times = np.asarray(times, float)
     rel = times - float(centre)
     envelope = np.where(
@@ -120,7 +119,6 @@ def simulate_bursts(
     >>> ts.data.shape, truth.settings["bursts"][0]["freq"]
     ((10, 1, 1400), 80.0)
     """
-
     start = _time.perf_counter()
     settings = {
         "n_trials": n_trials,

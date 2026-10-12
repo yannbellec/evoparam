@@ -77,8 +77,8 @@ class Cell:
 
     def generator_settings(self):
         """Keyword arguments of the generator (shared settings, then the cell's), with
-        the seed."""
-
+        the seed.
+        """
         if self.seed is None:
             raise DataError(
                 f"cell {self.id}: hidden cell without its seed (give the hidden seeds document)."
@@ -106,8 +106,8 @@ class Suite:
     def cells(self, task=None, split="public"):
         """Cells feeding ``task`` (all tasks when None) of a split (``"public"``,
         ``"hidden"`` or ``"all"``). Hidden cells carry their seed only when the hidden
-        seeds document was given (:meth:`with_hidden_seeds`)."""
-
+        seeds document was given (:meth:`with_hidden_seeds`).
+        """
         out = []
         for gname, group in self.groups.items():
             if task is not None and task not in group["tasks"]:
@@ -142,7 +142,6 @@ class Suite:
 
     def task_ids(self):
         """The tasks of the suite, in order."""
-
         return [t for t in TASKS if t in self.tasks]
 
     def with_hidden_seeds(self, document):
@@ -154,7 +153,6 @@ class Suite:
         DataError
             The document's SHA-256 is not the commitment, or a hidden cell has no seed.
         """
-
         document = load_hidden_seeds(document)
         digest = hidden_commitment(document)
         if digest != self.hidden_split["commitment_sha256"]:
@@ -173,7 +171,6 @@ class Suite:
 
 def list_suites():
     """Names of the suites shipped with the package."""
-
     folder = resources.files("evoparam.benchmark").joinpath("suites")
     return sorted(p.name[:-5] for p in folder.iterdir() if p.name.endswith(".json"))
 
@@ -217,7 +214,6 @@ def load_suite(name_or_path, hidden_seeds=None):
     -------
     Suite
     """
-
     if os.path.isfile(str(name_or_path)):
         path = str(name_or_path)
         with open(path, "rb") as fobj:
@@ -250,7 +246,6 @@ def load_suite(name_or_path, hidden_seeds=None):
 
 def load_hidden_seeds(document):
     """The hidden seeds document from a dict or a path (checked for its schema)."""
-
     if not isinstance(document, dict):
         with open(document, encoding="utf-8") as fobj:
             document = json.load(fobj)
@@ -265,7 +260,6 @@ def load_hidden_seeds(document):
 
 def hidden_commitment(document):
     """SHA-256 of the canonical JSON of the hidden seeds document (the commitment)."""
-
     return sha256_bytes(canonical_bytes(load_hidden_seeds(document)))
 
 
@@ -275,7 +269,6 @@ def hidden_commitment(document):
 
 def simulate_cell(cell):
     """(TrialSet, GroundTruth) of a cell, from its generator, settings and seed."""
-
     from evoparam import sim
 
     generator = getattr(sim, cell.generator)
@@ -323,7 +316,6 @@ def make_inputs(cell, ts=None, truth=None, tasks=None):
     dict
         Task id -> :class:`~evoparam.benchmark.tasks.TaskInput`.
     """
-
     if ts is None:
         ts, truth = simulate_cell(cell)
     meta = cell.settings.get("_", {})

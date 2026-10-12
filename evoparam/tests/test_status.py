@@ -41,13 +41,15 @@ def _warn_calls(path):
             continue
         func = node.func
         if (
-            isinstance(func, ast.Attribute)
-            and func.attr == "warn"
-            and isinstance(func.value, ast.Name)
-            and func.value.id == "warnings"
+            (
+                isinstance(func, ast.Attribute)
+                and func.attr == "warn"
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "warnings"
+            )
+            or isinstance(func, ast.Name)
+            and func.id in from_warnings
         ):
-            lines.append(node.lineno)
-        elif isinstance(func, ast.Name) and func.id in from_warnings:
             lines.append(node.lineno)
     return lines
 

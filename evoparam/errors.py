@@ -79,7 +79,6 @@ def warn(message, category=UserWarning, stacklevel=2):
     (REQ-005): a pipeline run without a console still keeps its warnings in the log.
     ``stacklevel`` counts from the caller, as for :func:`warnings.warn`.
     """
-
     text = str(message)
     name = category.__name__ if isinstance(category, type) else type(message).__name__
     logging.getLogger("evoparam").warning("%s: %s", name, text)

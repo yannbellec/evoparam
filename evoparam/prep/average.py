@@ -45,7 +45,6 @@ def average(ts, *, by=None, method="mean", trim=0.2, use_rejected=False):
     -------
     Evoked or list of Evoked
     """
-
     start = _time.perf_counter()
     check_trialset(ts)
     if method not in AVERAGE_METHODS:

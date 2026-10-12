@@ -29,8 +29,8 @@ the order of the data spread.
 
 import numpy as np
 
-from evoparam.utils._optional import require
 from evoparam.errors import warn as _warn
+from evoparam.utils._optional import require
 
 __all__ = ["require_engine", "sample", "loo_table", "prepare"]
 
@@ -41,7 +41,6 @@ DIVERGENCE_WARNING = 0.01
 
 def require_engine(engine):
     """Import the engine's packages, or raise ImportError naming what to install."""
-
     if engine == "numpyro":
         require("jax", extra=EXTRAS[engine], caller="engine='numpyro'")
         return require("numpyro", extra=EXTRAS[engine], caller="engine='numpyro'")
@@ -54,7 +53,6 @@ def require_engine(engine):
 
 def prepare(channel, trial, label, formula, covariates, subjects):
     """Arrays of one component for the samplers (scaled), and the scales."""
-
     from . import eb
 
     ch = channel[channel["component"] == label].reset_index(drop=True)
@@ -219,7 +217,6 @@ EB_KEYS = {
 
 def _init_values(data, eb_variance, label):
     """Starting point: the empirical-Bayes means and standard deviations."""
-
     out = {"mu_latency": data["prior"]["lat_centre"], "mu_amplitude": data["prior"]["amp_centre"]}
     if eb_variance is None or not len(eb_variance):
         return out
@@ -353,7 +350,6 @@ def _sample_pymc(data, latency_dist, n_chains, n_warmup, n_draws, target_accept,
 
 def _summary(draws):
     """Mean, SD and 95 % interval over chains and draws (axis 0 and 1)."""
-
     flat = draws.reshape(-1, *draws.shape[2:])
     return (
         flat.mean(0),
@@ -366,8 +362,8 @@ def _summary(draws):
 def _from_dict(az, groups):
     """``InferenceData`` from ``{group: {variable: draws}}``: one dict of groups with
     arviz >= 1, one keyword per group with arviz 0.x (where a dict alone would be read as
-    a single variable named after the group)."""
-
+    a single variable named after the group).
+    """
     if int(str(az.__version__).split(".")[0]) >= 1:
         return az.from_dict(groups)
     return az.from_dict(**groups)
@@ -400,7 +396,6 @@ def _diagnostics(samples, diverging):
 
 def _ppc(samples, data):
     """Posterior-predictive p-value of the spread of the channel latencies."""
-
     rng = np.random.default_rng(0)
     lat_c = samples["latency_channel"].reshape(-1, len(data["lat_hat"]))
     rep = lat_c + rng.normal(size=lat_c.shape) * data["lat_se"]
@@ -423,7 +418,6 @@ def sample(
     eb_variance=None,
 ):
     """Sample every component and return the posterior tables."""
-
     import pandas as pd
 
     require_engine(engine)
@@ -565,7 +559,6 @@ def sample(
 
 def loo_table(fits, var_name="lat_hat"):
     """PSIS-LOO of each fit on the channel latencies (``arviz.compare``), best first."""
-
     import arviz as az
     import pandas as pd
 

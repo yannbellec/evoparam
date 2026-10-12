@@ -31,7 +31,6 @@ def _periodic_mse(x, period, half):
     mean of the ``half`` samples before and after it in phase order (circularly), itself
     excluded. A wrong period scatters the phases and raises the error.
     """
-
     n = len(x)
     phase = np.mod(np.arange(n), period) / period
     values = x[np.argsort(phase, kind="stable")]
@@ -66,7 +65,6 @@ def estimate_period(x, sfreq, f_guess, *, search=0.02, n_stages=3):
     period : float
         Period in samples (``sfreq / period`` is the stimulation frequency in Hz).
     """
-
     x = np.asarray(x, dtype=float)
     if x.ndim != 1:
         raise SettingsError("estimate_period expects a 1d signal.")
@@ -106,7 +104,6 @@ def period_lags(period, n_times, *, n_bins=None, n_skip=0, d_period=None):
     lags : 1d array of int
     n_bins : int
     """
-
     if d_period is None:
         d_period = 0.01 * period
     limit = n_times - 1 if n_bins is None else int(n_bins)
@@ -144,7 +141,6 @@ def period_filter(data, lags, causal=False):
     -------
     cleaned, estimate : arrays like ``data``
     """
-
     from scipy.signal import fftconvolve
 
     data = np.asarray(data, dtype=float)

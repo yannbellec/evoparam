@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Settings of the fitting engine: package defaults, fit presets and validation."""
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, replace
 
 import evoparam.presets as _presets
-from collections.abc import Mapping
 from evoparam.errors import SettingsError
 
 __all__ = ["FitSettings", "FIT_PRESETS", "resolve_settings"]
@@ -139,7 +139,8 @@ class FitSettings:
 
 class _FitPresets(Mapping):
     """Fit fields of every preset (spec §6.1), read from evoparam.presets on access (one
-    source of truth; plugin presets included, and loaded only when first needed)."""
+    source of truth; plugin presets included, and loaded only when first needed).
+    """
 
     def __getitem__(self, name):
         if name not in _presets.PRESETS:
@@ -161,7 +162,6 @@ def resolve_settings(preset=None, **overrides):
 
     Overrides left at None do not replace the preset value.
     """
-
     base = FitSettings()
     known = set(FitSettings.__dataclass_fields__)
     unknown = sorted(set(overrides) - known)

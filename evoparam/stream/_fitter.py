@@ -16,7 +16,8 @@ import time
 import numpy as np
 
 from evoparam.data import TrialSet
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.events import OnlinePulseDetector
 from evoparam.existence import OnlineExistence
 from evoparam.trials import FixedShapeModel
@@ -61,7 +62,6 @@ class PulseEstimate:
 
 def _quantile(values, q):
     """Quantile of the compute times (linear interpolation between order statistics)."""
-
     if len(values) == 1:
         return values[0]
     return statistics.quantiles(values, n=100, method="inclusive")[q - 1]
@@ -226,7 +226,6 @@ class StreamFitter:
 
     def reset(self):
         """Forget the stream: buffer, pending pulses, detector, existence test and timings."""
-
         self._buffer = np.zeros((len(self.ch_names), self._n_buffer))
         self._stamps = np.zeros(self._n_buffer)
         self._has_stamps = False
@@ -241,8 +240,8 @@ class StreamFitter:
     @property
     def latency_stats(self):
         """Compute time per pulse (ms): ``p50``, ``p95``, ``p99`` and ``max`` (``n_pulses``
-        pulses so far)."""
-
+        pulses so far).
+        """
         values = sorted(self._compute_ms)
         if not values:
             return {
@@ -265,7 +264,6 @@ class StreamFitter:
         rate. Returns a dict with ``channels`` and arrays ``significant``, ``statistic``,
         ``p_value`` (fixed-sample, for information), ``alpha_spent`` and ``n``.
         """
-
         out = dict(self.existence_stats.look(final=final))
         out["channels"] = list(self.model.ch_names)
         return out
@@ -275,7 +273,6 @@ class StreamFitter:
 
     def _time_of(self, sample):
         """Stream-clock time of a sample (its timestamp when the stream has them)."""
-
         if not self._has_stamps:
             return sample / self.sfreq
         newest = self.n_samples - 1
@@ -287,7 +284,6 @@ class StreamFitter:
 
     def push_pulse(self, onset_time):
         """Register a pulse at ``onset_time`` (s, stream clock) from an external trigger."""
-
         if self._has_stamps and self.n_samples:
             oldest = max(0, self.n_samples - self._n_buffer)
             stamps = self._stamps[np.arange(oldest, self.n_samples) % self._n_buffer]
@@ -304,7 +300,6 @@ class StreamFitter:
 
         Returns the :class:`PulseEstimate` of every pulse whose window is complete.
         """
-
         samples = np.asarray(samples, float)
         if samples.ndim == 1:
             samples = samples[None]
@@ -350,7 +345,6 @@ class StreamFitter:
 
     def _segment(self, first, length):
         """Samples ``first`` ... ``first + length - 1`` of the modelled channels."""
-
         start = first % self._n_buffer
         stop = start + length
         if stop <= self._n_buffer:
@@ -438,7 +432,6 @@ def replay(trialset_or_raw, fitter, chunk_size=32):
     -------
     list of PulseEstimate
     """
-
     if int(chunk_size) < 1:
         raise SettingsError("chunk_size must be at least 1.")
     start = fitter.n_samples

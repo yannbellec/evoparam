@@ -25,7 +25,6 @@ def _block(source, io_class):
 
 def _microvolts(signal):
     """Samples of an AnalogSignal rescaled to µV (dimensionless signals unchanged)."""
-
     quantities = require("quantities", extra="neo", caller="evoparam.io.read_neo")
     try:
         return np.asarray(signal.rescale(quantities.uV).magnitude, float), "uV"
@@ -56,7 +55,6 @@ def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5
     TrialSet
         Data in µV (units through ``quantities``).
     """
-
     import pandas as pd
 
     from evoparam.data import Provenance, TrialSet

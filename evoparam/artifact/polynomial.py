@@ -35,7 +35,6 @@ CHUNK = 512
 
 def _poly_rows(n_window, order, positions):
     """Rows of the least-squares projection: fit on 0..n_window-1, evaluated at positions."""
-
     x = np.arange(n_window, dtype=float)
     x = (x - x.mean()) / max(x.std(), 1.0)
     design = np.vander(x, order + 1)
@@ -45,8 +44,8 @@ def _poly_rows(n_window, order, positions):
 
 def _local_weights(fit, window_inds, baseline_inds, railed, half):
     """Weight of the subtraction at each sample (rows of ``fit``): 1 from the window start
-    to the end of the artifact, half-cosine ramps of ``half`` samples, 0 elsewhere."""
-
+    to the end of the artifact, half-cosine ramps of ``half`` samples, 0 elsewhere.
+    """
     n_rows, n_times = fit.shape
     weights = np.zeros(fit.shape)
     lo = int(window_inds[0])
@@ -126,7 +125,6 @@ def polynomial_clean(
     masked : bool array like ``data``
         Samples set to zero (railed) or not yet trusted after a rail.
     """
-
     from scipy.signal import savgol_filter
 
     half = int(round(halfwidth * sfreq))
@@ -163,7 +161,6 @@ def polynomial_clean(
 
 def _depeg(flat, cleaned, masked, rails, half, n_window, order):
     """Zeros while railed, one-sided fits next to the rail, masked until trusted (in place)."""
-
     forward = _poly_rows(n_window, order, np.arange(half))  # fit on [t0, t0 + 2 tau]
     backward = _poly_rows(n_window, order, np.arange(half + 1, n_window))
     trust = max(1, half // 2)

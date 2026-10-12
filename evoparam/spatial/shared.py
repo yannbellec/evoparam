@@ -28,7 +28,8 @@ from scipy.sparse import lil_matrix
 from scipy.stats import norm
 
 from evoparam.data import Component, Evoked, GoodnessOfFit, GroupFit, ResponseFit, TrialSet
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.models import ResponseModel
 from evoparam.models.component_shapes import (
     FWHM_PER_SIGMA,
@@ -75,7 +76,6 @@ def neighbours(ch_info, names, radius_mm=10.0):
     >>> neighbours(info, ["a", "b", "c"]).tolist()
     [[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
     """
-
     if ch_info is None or not {"name", "x", "y", "z"} <= set(ch_info.columns):
         return None
     table = ch_info.set_index(ch_info["name"].astype(str))
@@ -114,7 +114,8 @@ class _Channel:
 
 class _Layout:
     """Which parameter of which component is shared, local (per channel) or a latency
-    offset (per channel, within ±max_shift)."""
+    offset (per channel, within ±max_shift).
+    """
 
     def __init__(self, shapes, shared, free_latency):
         self.shapes = shapes
@@ -149,8 +150,8 @@ class _Layout:
 
     def params(self, base, z_shared, z_local):
         """Parameters of each component of one channel (``base`` and the ``z`` hold the
-        latency in place of the location parameter, see :func:`_to_latency`)."""
-
+        latency in place of the location parameter, see :func:`_to_latency`).
+        """
         params = [np.array(p, float) for p in base]
         for (k, i), value in zip(self.shared_idx, z_shared):
             params[k][i] = value
@@ -163,7 +164,6 @@ class _Layout:
 
     def restricted(self, keep, z_shared, z_locals):
         """The layout of the components ``keep`` and the matching parameter vectors."""
-
         layout = _Layout([self.shapes[k] for k in keep], self.shared, self.free_latency)
         z_shared = np.array(
             [v for (k, _), v in zip(self.shared_idx, z_shared) if k in keep], float
@@ -177,8 +177,8 @@ class _Layout:
 
 def _latency_shift(shape, params):
     """Reported latency minus the location parameter (it does not depend on the location:
-    the shapes are translation invariant); zero for a shape without ``latency``."""
-
+    the shapes are translation invariant); zero for a shape without ``latency``.
+    """
     lat = getattr(shape, "latency", None)
     if lat is None:
         return 0.0
@@ -189,7 +189,6 @@ def _latency_shift(shape, params):
 
 def _to_latency(shape, params):
     """Parameters with the location parameter replaced by the reported latency."""
-
     p = np.array(params, float)
     p[shape.param_names.index(shape.latency_param)] += _latency_shift(shape, p)
     return p
@@ -203,8 +202,8 @@ def _from_latency(shape, params):
 
 def _solve(channel, shapes, params, tw):
     """Amplitudes and background coefficients by weighted least squares; returns the
-    coefficients, the design [n_times, p] and the weighted residual."""
-
+    coefficients, the design [n_times, p] and the weighted residual.
+    """
     cols = [shape.evaluate(tw, p) for shape, p in zip(shapes, params)]
     design = np.column_stack(cols + list(channel.basis))
     a = design * channel.w[:, None]
@@ -214,7 +213,6 @@ def _solve(channel, shapes, params, tw):
 
 def _bounds(shapes, tw, index):
     """Bounds of the parameters ``index``; a latency is bounded to the fit window."""
-
     lo, hi = [], []
     for k, i in index:
         if shapes[k].param_names[i] == shapes[k].latency_param:
@@ -233,8 +231,8 @@ def _shared_latency(layout, z_shared, k):
 
 def _local_bounds(layout, tw, max_shift, z_shared):
     """Bounds of the per-channel parameters; a latency offset keeps the channel's latency
-    (shared latency plus offset) in the fit window."""
-
+    (shared latency plus offset) in the fit window.
+    """
     lo, hi = _bounds(layout.shapes, tw, layout.local_idx)
     off_lo, off_hi = [], []
     for k in layout.offset_k:
@@ -246,8 +244,8 @@ def _local_bounds(layout, tw, max_shift, z_shared):
 
 def _shared_bounds(layout, tw, z_locals):
     """Bounds of the shared parameters; a shared latency keeps every channel's latency
-    (with its offset) in the fit window."""
-
+    (with its offset) in the fit window.
+    """
     lo, hi = _bounds(layout.shapes, tw, layout.shared_idx)
     first = layout.n_local() - len(layout.offset_k)
     for j, k in enumerate(layout.offset_k):
@@ -307,7 +305,6 @@ def _local_step(
     z_start=None,
 ):
     """Per-channel parameters; with a penalty, the latency offsets of all channels jointly."""
-
     n_loc = layout.n_local()
     if n_loc == 0:
         return z_locals
@@ -404,8 +401,8 @@ def _alternate(channels, layout, base, z_shared, z_locals, tw, max_shift, laplac
 
 def _offset_curvature(channels, layout, base, z_shared, z_locals, tw, max_shift):
     """Curvature of each channel's weighted residual sum of squares in each latency offset
-    (Gauss-Newton, by central differences)."""
-
+    (Gauss-Newton, by central differences).
+    """
     n_off = len(layout.offset_k)
     first = layout.n_local() - n_off
     h = np.zeros((len(channels), n_off))
@@ -424,8 +421,8 @@ def _offset_curvature(channels, layout, base, z_shared, z_locals, tw, max_shift)
 
 def _smooth_offsets(delta_hat, h, weights, lam):
     """Minimiser of sum_c h_c (d_c - d̂_c)² + lam sum_{c~c'} w (d_c - d_c')², per
-    component (the quadratic approximation of the penalised problem)."""
-
+    component (the quadratic approximation of the penalised problem).
+    """
     lap = np.diag(weights.sum(axis=1)) - weights
     out = np.zeros_like(delta_hat)
     for j in range(delta_hat.shape[1]):
@@ -441,8 +438,8 @@ def _loco(channels, layout, base, z_shared, z_locals, tw, weights, max_shift):
     ``rho`` (1e-3 of the median curvature) is a weak pull towards the shared latency, so
     that without coupling (lambda = 0) the prediction is the shared latency itself. The
     left-out channel's data are then fitted with that offset (amplitudes and background
-    re-solved) and the weighted residual sums of squares are added over the channels."""
-
+    re-solved) and the weighted residual sums of squares are added over the channels.
+    """
     n_off = len(layout.offset_k)
     first = layout.n_local() - n_off
     delta_hat = np.array([z[first:] for z in z_locals])
@@ -472,8 +469,8 @@ def _loco(channels, layout, base, z_shared, z_locals, tw, weights, max_shift):
 def _choose_lambda(grid, errors):
     """The lambda of smallest held-out error, kept only when it improves on lambda = 0 by
     more than LAMBDA_MARGIN (relative): a penalty that does not clearly help is switched
-    off."""
-
+    off.
+    """
     best = int(np.argmin(errors))
     if errors[best] < (1 - LAMBDA_MARGIN) * errors[0]:
         return grid[best]
@@ -486,8 +483,8 @@ def _choose_lambda(grid, errors):
 
 def _cancelling(channels, layout, base, z_shared, z_locals, tw, settings, sfreq):
     """Counter of the component pairs that cancel (engine rule, ``cancelling_pairs``), by
-    number of channels on which they do."""
-
+    number of channels on which they do.
+    """
     found = Counter()
     for ch, z in zip(channels, z_locals):
         params = layout.params(base, z_shared, z)
@@ -679,7 +676,6 @@ def fit_shared(
         shared parameters, the modal K, the flagged channels, the per-channel offsets and
         the penalty grid with its held-out errors.
     """
-
     start = _time.perf_counter()
     if isinstance(ts, TrialSet):
         evoked = ts.average()
@@ -789,7 +785,7 @@ def fit_shared(
                 if ok
                 else 0.0
             )
-        z_locals.append(_clip(np.array(z, float), lo, hi) if len(z) else np.zeros(0))
+        z_locals.append(_clip(np.array(z, float), lo, hi) if z else np.zeros(0))
 
     z_shared, z_locals, cost, rounds = _alternate(
         chans, layout, base, z_shared, z_locals, tw, max_shift

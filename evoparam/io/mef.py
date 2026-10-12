@@ -46,12 +46,13 @@ import hashlib
 import os
 import re
 import struct
-import xml.etree.ElementTree as ElementTree
 from urllib.parse import quote, unquote
+from xml.etree import ElementTree
 
 import numpy as np
 
-from evoparam.errors import DataError, ReaderError, warn as _warn
+from evoparam.errors import DataError, ReaderError
+from evoparam.errors import warn as _warn
 from evoparam.io._fetch import RemoteFile, TransferLog, fetch_bytes, is_url
 from evoparam.io.brainvision import _pick, _sample
 
@@ -141,8 +142,8 @@ _CRC = {}
 
 def _crc_tables():
     """Byte table, tables of a byte followed by k zero bytes, and the operator that
-    appends ``_CRC_SPAN`` zero bytes to a CRC state (one table per state byte)."""
-
+    appends ``_CRC_SPAN`` zero bytes to a CRC state (one table per state byte).
+    """
     if not _CRC:
         table = np.arange(256, dtype=np.uint64)
         for _ in range(8):
@@ -184,7 +185,6 @@ def crc32_koopman(buf, starts, lengths):
     -------
     crc : 1d array of uint32
     """
-
     tables = _crc_tables()
     starts = np.asarray(starts, dtype=np.int64)
     lengths = np.asarray(lengths, dtype=np.int64)
@@ -230,8 +230,7 @@ def _crc_bytes(content):
 
 
 def _red_round(values):
-    """meflib RED_round: half away from zero, clipped to the infinity codes."""
-
+    """Meflib RED_round: half away from zero, clipped to the infinity codes."""
     out = np.where(values >= 0, values + 0.5, values - 0.5)
     out = np.clip(out, RED_NEGATIVE_INFINITY, RED_POSITIVE_INFINITY)
     return np.trunc(out).astype(np.int64)
@@ -262,7 +261,6 @@ def red_decode(buf, starts, headers):
     offsets : 1d array of int
         Index of the first sample of each block in ``values``.
     """
-
     n_blocks = len(starts)
     n_samples = headers["n_samples"].astype(np.int64)
     offsets = np.cumsum(n_samples) - n_samples
@@ -368,25 +366,22 @@ def _text(content, offset, nbytes):
 
 def _universal_header(content, where, kind, check_crc):
     """Fields of the universal header; checks type, version, byte order and CRCs."""
-
     if len(content) < UNIVERSAL_HEADER_BYTES:
-        raise ReaderError("{}: truncated MEF file ({} bytes).".format(where, len(content)))
+        raise ReaderError(f"{where}: truncated MEF file ({len(content)} bytes).")
     found = content[8:12].decode("ascii", "replace")
     if found != kind:
-        raise ReaderError("{}: not a MEF 3.0 {} file (type {!r}).".format(where, kind, found))
+        raise ReaderError(f"{where}: not a MEF 3.0 {kind} file (type {found!r}).")
     major, minor, order = content[13], content[14], content[15]
     if major != 3:
-        raise ReaderError(
-            "{}: MEF version {}.{}; only MEF 3 is supported.".format(where, major, minor)
-        )
+        raise ReaderError(f"{where}: MEF version {major}.{minor}; only MEF 3 is supported.")
     if order != 1:
-        raise ReaderError("{}: big-endian MEF files are not supported.".format(where))
+        raise ReaderError(f"{where}: big-endian MEF files are not supported.")
     header_crc, body_crc = struct.unpack_from("<II", content, 0)
     if check_crc:
         if header_crc and _crc_bytes(content[4:UNIVERSAL_HEADER_BYTES]) != header_crc:
             raise ReaderError(
-                "{}: the CRC of the universal header does not match (corrupted "
-                "file); check_crc=False reads it anyway.".format(where)
+                f"{where}: the CRC of the universal header does not match (corrupted "
+                "file); check_crc=False reads it anyway."
             )
         if (
             body_crc
@@ -394,8 +389,8 @@ def _universal_header(content, where, kind, check_crc):
             and _crc_bytes(content[UNIVERSAL_HEADER_BYTES:]) != body_crc
         ):
             raise ReaderError(
-                "{}: the CRC of the file body does not match (corrupted or "
-                "truncated file); check_crc=False reads it anyway.".format(where)
+                f"{where}: the CRC of the file body does not match (corrupted or "
+                "truncated file); check_crc=False reads it anyway."
             )
     start, end, n_entries, max_entry = struct.unpack_from("<qqqq", content, 16)
     return {
@@ -410,25 +405,22 @@ def _universal_header(content, where, kind, check_crc):
 
 def _encrypted(where, what, level):
     return ReaderError(
-        "{}: {} is encrypted (level {}). evoparam reads unencrypted MEF 3.0 only; "
-        "decrypt the session with the MEF library and its password first.".format(
-            where, what, level
-        )
+        f"{where}: {what} is encrypted (level {level}). evoparam reads unencrypted MEF 3.0 only; "
+        "decrypt the session with the MEF library and its password first."
     )
 
 
 def parse_metadata(content, where, check_crc=True):
     """Fields of a time-series metadata file (.tmet) used by the reader."""
-
     header = _universal_header(content, where, "tmet", check_crc)
     if len(content) < METADATA_BYTES:
-        raise ReaderError("{}: truncated metadata file ({} bytes).".format(where, len(content)))
+        raise ReaderError(f"{where}: truncated metadata file ({len(content)} bytes).")
     section_2, section_3 = struct.unpack_from("<bb", content, 1024)
     if section_2 > 0:
         raise _encrypted(where, "the metadata (section 2)", section_2)
     (sfreq,) = struct.unpack_from("<d", content, 8720)
     if not (np.isfinite(sfreq) and sfreq > 0):
-        raise ReaderError("{}: no valid sampling frequency ({}).".format(where, sfreq))
+        raise ReaderError(f"{where}: no valid sampling frequency ({sfreq}).")
     (factor,) = struct.unpack_from("<d", content, 8760)
     start_sample, n_samples, n_blocks = struct.unpack_from("<qqq", content, 8912)
     return {
@@ -448,7 +440,6 @@ def parse_metadata(content, where, check_crc=True):
 
 def parse_index(content, where, check_crc=True):
     """Block index of a .tidx file (structured array of INDEX_DTYPE)."""
-
     header = _universal_header(content, where, "tidx", check_crc)
     body = len(content) - UNIVERSAL_HEADER_BYTES
     n_entries = body // INDEX_DTYPE.itemsize
@@ -466,7 +457,7 @@ def parse_index(content, where, check_crc=True):
     if np.any(index["flags"] & ENCRYPTION):
         raise _encrypted(where, "the data (RED blocks)", 1 if np.any(index["flags"] & 2) else 2)
     if np.any(index["start_time"] == UUTC_NO_ENTRY) or np.any(index["file_offset"] < 0):
-        raise ReaderError("{}: index entries without start time or file offset.".format(where))
+        raise ReaderError(f"{where}: index entries without start time or file offset.")
     return index
 
 
@@ -480,7 +471,6 @@ def _natural_key(name):
 
 def _bids_channels_tsv(path):
     """Address of the BIDS channels.tsv next to a ``*_<datatype>.mefd`` session, or None."""
-
     stripped = path.rstrip("/")
     sibling = re.sub(r"_[A-Za-z]+\.mefd$", "_channels.tsv", stripped)
     return None if sibling == stripped else sibling
@@ -499,10 +489,9 @@ def _names_from_tsv(content):
 
 def _s3_listing(url):
     """(listing address, key prefix) of an S3 folder address, or None."""
-
     match = re.match(r"^(https?://s3[.-]([a-z0-9-]+[.-])?amazonaws\.com)/([^/?#]+)/([^?#]+)$", url)
     if match:
-        return "{}/{}".format(match.group(1), match.group(3)), unquote(match.group(4))
+        return f"{match.group(1)}/{match.group(3)}", unquote(match.group(4))
     match = re.match(r"^(https?://[^/]+\.s3[.-]([a-z0-9-]+[.-])?amazonaws\.com)/([^?#]+)$", url)
     if match:
         return match.group(1), unquote(match.group(3))
@@ -511,7 +500,6 @@ def _s3_listing(url):
 
 def _list_remote(url, log):
     """Relative paths and sizes of the files of a remote folder (S3 listing), or None."""
-
     found = _s3_listing(url)
     if found is None:
         return None
@@ -544,7 +532,6 @@ def _list_remote(url, log):
 
 def _layout_from_paths(paths):
     """{channel: [segment numbers]} from paths relative to the session folder."""
-
     out = {}
     for rel in paths:
         match = re.match(r"^([^/]+)\.timd/\1-(\d{6})\.segd/\1-\2\.tmet$", rel)
@@ -561,18 +548,18 @@ class _Session:
         if remote is None:
             remote = is_url(path)
         if remote and not is_url(path):
-            raise ReaderError("remote=True needs an http(s) address, got {}.".format(path))
+            raise ReaderError(f"remote=True needs an http(s) address, got {path}.")
         if not remote and is_url(path):
-            raise ReaderError("remote=False but {} is an http(s) address.".format(path))
+            raise ReaderError(f"remote=False but {path} is an http(s) address.")
         self.remote = bool(remote)
         self.root = path.rstrip("/") if self.remote else os.path.abspath(path)
         self.log = log
         if not self.remote and not os.path.isdir(self.root):
-            raise ReaderError("MEF session not found: {}".format(self.root))
+            raise ReaderError(f"MEF session not found: {self.root}")
 
     def rel(self, channel, segment, ext):
-        seg = "{}-{:06d}".format(channel, segment)
-        return "{}.timd/{}.segd/{}.{}".format(channel, seg, seg, ext)
+        seg = f"{channel}-{segment:06d}"
+        return f"{channel}.timd/{seg}.segd/{seg}.{ext}"
 
     def location(self, rel):
         if self.remote:
@@ -581,20 +568,18 @@ class _Session:
 
     def read(self, rel, optional=False, log=None):
         """Whole content of a (small) file, or None for a missing optional file."""
-
         if self.remote:
             return fetch_bytes(self.location(rel), optional=optional, log=log)
         path = self.location(rel)
         if not os.path.isfile(path):
             if optional:
                 return None
-            raise ReaderError("MEF file not found: {}".format(path))
+            raise ReaderError(f"MEF file not found: {path}")
         with open(path, "rb") as file:
             return file.read()
 
     def layout(self, hint=None):
         """{channel: [segment numbers] or None (unknown, probe)} in reading order."""
-
         if not self.remote:
             channels = {}
             for entry in os.listdir(self.root):
@@ -604,7 +589,7 @@ class _Session:
                 name = entry[:-5]
                 segs = []
                 for sub in os.listdir(folder):
-                    match = re.match(r"^{}-(\d{{6}})\.segd$".format(re.escape(name)), sub)
+                    match = re.match(rf"^{re.escape(name)}-(\d{{6}})\.segd$", sub)
                     if match and os.path.isdir(os.path.join(folder, sub)):
                         segs.append(int(match.group(1)))
                 channels[name] = sorted(segs)
@@ -620,14 +605,14 @@ class _Session:
                     names = _names_from_tsv(content) if content is not None else None
                 if names is None:
                     raise ReaderError(
-                        "{}: a remote folder cannot be listed and no BIDS "
+                        f"{self.root}: a remote folder cannot be listed and no BIDS "
                         "channels.tsv was found next to it; give the channel "
-                        "names (picks= with names).".format(self.root)
+                        "names (picks= with names)."
                     )
-                channels = {name: None for name in names}
+                channels = dict.fromkeys(names)
         if not channels:
             raise ReaderError(
-                "{}: no time-series channel (.timd folder) in the MEF session.".format(self.root)
+                f"{self.root}: no time-series channel (.timd folder) in the MEF session."
             )
         order = [name for name in (hint or []) if name in channels]
         order += sorted((name for name in channels if name not in set(order)), key=_natural_key)
@@ -636,13 +621,11 @@ class _Session:
 
 def _channel_names(path, *, remote=None, hint=None, log=None):
     """Names of the time-series channels of a session (ordered by ``hint``, then naturally)."""
-
     return list(_Session(path, remote, log).layout(hint))
 
 
 def _read_channel(session, name, segments, check_crc):
     """Metadata and block index of one channel; returns (channel dict, bytes transferred)."""
-
     log = TransferLog()
     parts, number = [], 0
     probe = segments is None
@@ -659,20 +642,18 @@ def _read_channel(session, name, segments, check_crc):
         rel_index = session.rel(name, number, "tidx")
         index_content = session.read(rel_index, log=log)
         index = parse_index(index_content, session.location(rel_index), check_crc)
-        digest.append("{}:{}".format(rel, hashlib.sha256(content).hexdigest()))
-        digest.append("{}:{}".format(rel_index, hashlib.sha256(index_content).hexdigest()))
+        digest.append(f"{rel}:{hashlib.sha256(content).hexdigest()}")
+        digest.append(f"{rel_index}:{hashlib.sha256(index_content).hexdigest()}")
         parts.append((number, meta, index))
         if probe:
             numbers = [number + 1]
     if not parts:
-        raise ReaderError("{}: channel {} has no segment.".format(session.root, name))
+        raise ReaderError(f"{session.root}: channel {name} has no segment.")
 
     sfreqs = {meta["sfreq"] for _, meta, _ in parts}
     if len(sfreqs) != 1:
         raise ReaderError(
-            "{}: the segments of channel {} have different sampling frequencies {}.".format(
-                session.root, name, sorted(sfreqs)
-            )
+            f"{session.root}: the segments of channel {name} have different sampling frequencies {sorted(sfreqs)}."
         )
     meta = parts[0][1]
     blocks, segs = [], []
@@ -716,9 +697,7 @@ def _read_channel(session, name, segments, check_crc):
     factor = meta["factor"]
     if not np.isfinite(factor) or factor == 0:
         _warn(
-            "MEF channel {}: no units conversion factor; the stored integers are used.".format(
-                name
-            ),
+            f"MEF channel {name}: no units conversion factor; the stored integers are used.",
             UserWarning,
             stacklevel=4,
         )
@@ -754,7 +733,6 @@ def _positions(blocks, sfreq, t0):
     jumps forward by more than 1 s; it is placed after the previous run by the time gap
     between them (the samples of the gap are NaN).
     """
-
     n = len(blocks)
     if n == 0:
         return np.zeros(0, dtype=np.int64)
@@ -814,7 +792,6 @@ def read_mef_header(path, *, channels=None, remote=None, check_crc=True, log=Non
     ReaderError
         Missing or corrupted files, unsupported or encrypted session, unknown channel.
     """
-
     path = os.fspath(path)
     own_log = TransferLog()
     session = _Session(path, remote, own_log)
@@ -880,7 +857,6 @@ def read_mef_header(path, *, channels=None, remote=None, check_crc=True, log=Non
 
 def _runs_of(blocks, need):
     """Contiguous byte runs of the needed blocks: list of (segment, offset, nbytes, [blocks])."""
-
     runs = []
     for ind in np.flatnonzero(need):
         seg, off, nbytes = (
@@ -898,7 +874,6 @@ def _runs_of(blocks, need):
 
 def _fetch_runs(session, rel, runs):
     """Bytes of the runs of one .tdat file; returns (list of bytes, digest lines, network bytes)."""
-
     out, lines = [], []
     if session.remote:
         reader = RemoteFile(session.location(rel), chunk_size=_CHUNK, max_chunks=1 << 16)
@@ -916,16 +891,10 @@ def _fetch_runs(session, rel, runs):
             content = read(offset, nbytes)
             if len(content) != nbytes:
                 raise ReaderError(
-                    "{}: the file ends before byte {} (truncated data file).".format(
-                        session.location(rel), offset + nbytes
-                    )
+                    f"{session.location(rel)}: the file ends before byte {offset + nbytes} (truncated data file)."
                 )
             out.append(content)
-            lines.append(
-                "{}:{}-{}:{}".format(
-                    rel, offset, offset + nbytes, hashlib.sha256(content).hexdigest()
-                )
-            )
+            lines.append(f"{rel}:{offset}-{offset + nbytes}:{hashlib.sha256(content).hexdigest()}")
     finally:
         reader.close()
     return out, lines, reader.bytes_read if session.remote else 0
@@ -933,7 +902,6 @@ def _fetch_runs(session, rel, runs):
 
 def _convert(values, factor):
     """int32 samples -> float64 in µV, with the NaN and infinity codes."""
-
     out = values.astype(np.float64) * factor
     out[values == RED_NAN] = np.nan
     out[values == RED_NEGATIVE_INFINITY] = -np.inf
@@ -955,7 +923,6 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
         ``sha256`` of the bytes read (metadata, index and data ranges), ``data_bytes_read``
         (bytes of data transferred over the network) and ``blocks_read``.
     """
-
     session = _Session(header["path"], header["remote"], None)
     starts = np.atleast_1d(np.asarray(starts, dtype=np.int64))
     n_times = int(n_times)
@@ -1060,8 +1027,8 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
             if wrong.size:
                 fail(
                     wrong[0],
-                    "has a wrong CRC ({} corrupted blocks); check_crc=False reads "
-                    "them anyway.".format(wrong.size),
+                    f"has a wrong CRC ({wrong.size} corrupted blocks); check_crc=False reads "
+                    "them anyway.",
                 )
         decode = np.flatnonzero(table[:, 2] == 0)
         values, offsets = red_decode(buf, block_starts[decode], headers[decode])
@@ -1118,8 +1085,8 @@ def _pick_mef(header, picks):
     rates = {header["channels"][ind]["sfreq"] for ind in index}
     if len(rates) != 1:
         raise DataError(
-            "read_mef: the picked channels have different sampling frequencies {}; "
-            "pick channels of one frequency.".format(sorted(rates))
+            f"read_mef: the picked channels have different sampling frequencies {sorted(rates)}; "
+            "pick channels of one frequency."
         )
     return index, rates.pop()
 
@@ -1147,7 +1114,6 @@ def _grid_length(header, ch_index):
 
 def _read_with_source(path, tmin=None, tmax=None, picks=None, remote=None, check_crc=True):
     """read_mef, plus the record of what was read (path, sha256, bytes read, ...)."""
-
     log = TransferLog()
     names = None
     if picks is not None:
@@ -1226,6 +1192,5 @@ def read_mef(path, *, tmin=None, tmax=None, picks=None, remote=None, check_crc=T
     --------
     ``data, sfreq, names, t0 = read_mef("sub-1_task-ccep_run-01_ieeg.mefd", tmin=10, tmax=20)``
     """
-
     data, sfreq, ch_names, t0, _ = _read_with_source(path, tmin, tmax, picks, remote, check_crc)
     return data, sfreq, ch_names, t0

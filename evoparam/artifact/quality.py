@@ -51,7 +51,6 @@ def artifact_quality(
         One row per trial: ``residual_ratio``, ``edge_discontinuity``,
         ``saturation_fraction``, ``template_fit_r2`` and ``quality``.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.artifact.artifact_quality")
     check_trialset(ts)
     times, data = ts.times, ts.data

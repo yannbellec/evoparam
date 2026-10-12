@@ -24,7 +24,6 @@ def check_trialset(ts):
 
 def window_slice(ts, window, buffer=0):
     """Indices of the samples of ``ts`` inside ``window`` (s, inclusive)."""
-
     return window_indices(ts.times, window, buffer)
 
 
@@ -39,7 +38,6 @@ def groups(ts, group_by):
     list of (key, indices)
         ``key`` is a tuple of the group values (empty when there is one group).
     """
-
     meta = ts.metadata
     columns = [col for col in (group_by or ()) if meta is not None and col in meta.columns]
     if not columns:
@@ -53,13 +51,11 @@ def groups(ts, group_by):
 
 def base_masks(ts):
     """Existing masks (for example saturation), or all False."""
-
     return np.zeros(ts.data.shape, dtype=bool) if ts.masks is None else ts.masks.copy()
 
 
 def finish(ts, data, masks, function, settings, start, **changes):
     """New TrialSet with cleaned data, masks and one provenance step."""
-
     masks = masks if masks is not None and masks.any() else None
     if masks is None and ts.masks is not None and ts.masks.any():
         masks = ts.masks.copy()
@@ -85,7 +81,6 @@ def apply_mask(ts, mask):
     TrialSet
         Same data; ``masks`` is the union of the old masks and ``mask``.
     """
-
     start = _time.perf_counter()
     check_trialset(ts)
     try:
@@ -107,7 +102,6 @@ def apply_mask(ts, mask):
 
 def baseline_rms(data, inds):
     """Root mean square per trial (over channels and samples) in a baseline window."""
-
     part = data[:, :, inds]
     center = np.nanmean(part, axis=-1, keepdims=True)
     return np.sqrt(np.nanmean((part - center) ** 2, axis=(1, 2)))

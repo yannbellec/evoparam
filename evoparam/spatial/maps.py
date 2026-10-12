@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Parameter maps and the (stimulation site x channel) connectivity export (spec §5.9,
-methods 3 and 6)."""
+methods 3 and 6).
+"""
 
 import re
 import warnings
@@ -9,7 +10,8 @@ import numpy as np
 
 from evoparam.data import GroupFit
 from evoparam.data.results import COMPONENT_FEATURES
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.utils._optional import require
 
 __all__ = [
@@ -55,8 +57,8 @@ def _contacts(site):
 
 def _pick(fit, component):
     """Index of the reported component: the largest absolute amplitude, a position, or a
-    label."""
-
+    label.
+    """
     comps = fit.components
     if not comps:
         return None
@@ -76,8 +78,8 @@ def _ch_info(ch_info):
 
 def _existence_lookup(existence):
     """(channel, group) -> (p, significant) from a ResponseTest; (channel, site) -> P from a
-    table ``p_response`` (hierarchical fits)."""
-
+    table ``p_response`` (hierarchical fits).
+    """
     tests, probs = {}, {}
     if existence is None:
         return tests, probs
@@ -112,7 +114,6 @@ def _existence_lookup(existence):
 
 def _basis_lookup(basis):
     """(site, channel) -> (shape_id, weight) from ShapeBasis objects with channel groups."""
-
     out = {}
     if basis is None:
         return out
@@ -162,7 +163,6 @@ def parameter_map(
     pandas.DataFrame
         Columns :data:`MAP_COLUMNS`; ``marker`` is one of :data:`MARKERS`.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.spatial.parameter_map")
     if not isinstance(group_fit, GroupFit):
         raise DataError("parameter_map expects a GroupFit.")
@@ -212,7 +212,7 @@ def parameter_map(
             "label": "",
             "shape": "",
         }
-        row.update({name: np.nan for name in COMPONENT_FEATURES})
+        row.update(dict.fromkeys(COMPONENT_FEATURES, np.nan))
         row["polarity"] = 0
         if k is not None:
             comp = fit.components[k]
@@ -273,7 +273,6 @@ def connectivity_matrix(
     >>> wide.shape
     (1, 1)
     """
-
     pd = require("pandas", extra="data", caller="evoparam.spatial.connectivity_matrix")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
@@ -306,7 +305,6 @@ def connectivity_to_long(wide, parameter=None):
     >>> connectivity_to_long(wide, "amplitude")["value"].tolist()
     [1.0, 2.0]
     """
-
     pd = require("pandas", extra="data", caller="evoparam.spatial.connectivity_to_long")
     parameter = parameter or wide.attrs.get("parameter", "")
     rows = [
@@ -324,7 +322,6 @@ def connectivity_to_long(wide, parameter=None):
 
 def connectivity_from_long(long_table):
     """Wide matrix from the long form (site order and channel order of first appearance)."""
-
     pd = require("pandas", extra="data", caller="evoparam.spatial.connectivity_from_long")
     missing = {"stim_site", "channel", "value"} - set(long_table.columns)
     if missing:
@@ -345,8 +342,8 @@ def connectivity_from_long(long_table):
 def connectivity_array(wide):
     """``(array [n_sites, n_channels], sites, channels)`` of a wide matrix: the layout of a
     directed (site -> channel) connectivity array for network tools (mne-connectivity and
-    others)."""
-
+    others).
+    """
     return wide.to_numpy(float), [str(s) for s in wide.index], [str(c) for c in wide.columns]
 
 
@@ -414,7 +411,6 @@ def plot_parameter_map(
     -------
     matplotlib.figure.Figure
     """
-
     plt = require("matplotlib.pyplot", extra="plot", caller="evoparam.spatial.plot_parameter_map")
     if backend not in ("auto", "nilearn", "matplotlib"):
         raise SettingsError("backend must be 'auto', 'nilearn' or 'matplotlib'.")
@@ -458,7 +454,6 @@ def plot_parameter_map(
 
 def _glass_brain(table, display_mode):
     """The nilearn glass brain of a parameter-map table (responses coloured by value)."""
-
     plotting = require(
         "nilearn.plotting", extra="brain", caller="evoparam.spatial.plot_parameter_map"
     )

@@ -83,7 +83,6 @@ def _rms(a):
 
 def _counterpart(name, names, scheme):
     """Name of the channel that carries ``name`` after re-referencing."""
-
     if scheme != "bipolar":
         return name if name in names else None
     first = [n for n in names if n.split("-")[0] == name]
@@ -290,7 +289,6 @@ def screen_volume_conduction(
         ``volume_conduction_risk`` is ``"low"``, ``"medium"`` or ``"high"`` (empty for the
         channels not evaluated).
     """
-
     pd = require("pandas", extra="data", caller="evoparam.spatial.screen_volume_conduction")
     start = _time.perf_counter()
     if not isinstance(ts, TrialSet):

@@ -47,7 +47,6 @@ def _pylsl(caller):
 
 def _channel_labels(info, n_channels):
     """Channel labels from the ``desc/channels/channel/label`` entries of a stream."""
-
     labels = []
     channel = info.desc().child("channels").child("channel")
     while not channel.empty() and len(labels) < n_channels:
@@ -99,8 +98,8 @@ class LSLInlet:
 
     def pull(self, timeout=0.0, max_samples=1024):
         """Samples available now (waiting up to ``timeout`` s): ``(samples [n, n_channels],
-        timestamps [n])``."""
-
+        timestamps [n])``.
+        """
         chunk, stamps = self._inlet.pull_chunk(timeout=timeout, max_samples=max_samples)
         if not stamps:
             return np.zeros((0, self.n_channels)), np.zeros(0)
@@ -115,7 +114,6 @@ class LSLInlet:
         ``callback(estimates)`` is called with the estimates of every chunk that has some.
         Returns every estimate.
         """
-
         if duration is None and max_pulses is None:
             raise DataError("feed needs duration or max_pulses (it would never return).")
         out, start, pulses = [], time.monotonic(), 0
@@ -187,7 +185,6 @@ class LSLOutlet:
 
     def row(self, estimate):
         """The float values of one estimate, in the order of :data:`FIELDS`."""
-
         c = self._channel[estimate.channel]
         return [
             estimate.pulse_time,
@@ -206,7 +203,6 @@ class LSLOutlet:
 
     def push(self, estimates):
         """Publish estimates (one LSL sample each, stamped with its pulse time)."""
-
         for estimate in estimates:
             self._outlet.push_sample(self.row(estimate), estimate.pulse_time)
 

@@ -18,8 +18,8 @@ from evoparam.shapes import backgrounds as bg
 from evoparam.tests.shapes.helpers import (
     TIMES,
     make_template,
-    sample_params,
     sample_background_params,
+    sample_params,
 )
 
 N_SETS = 100

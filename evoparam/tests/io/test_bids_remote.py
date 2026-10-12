@@ -64,7 +64,7 @@ def test_remote_read_matches_local_read(bids_root):
     for start, stop in source["ranges"]:
         for lo in range(start, stop, chunk):
             hi = min(lo + chunk, stop)
-            lines.append("{}-{}:{}".format(lo, hi, hashlib.sha256(content[lo:hi]).hexdigest()))
+            lines.append(f"{lo}-{hi}:{hashlib.sha256(content[lo:hi]).hexdigest()}")
     assert source["sha256"] == hashlib.sha256("\n".join(lines).encode("ascii")).hexdigest()
 
 

@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """Data containers, results, provenance and the ``.evoparam`` container format."""
 
+from .containers import Evoked, TrialSet
 from .provenance import Provenance, capture_environment, compute_data_hash
-from .containers import TrialSet, Evoked
 from .results import (
+    ArtifactResult,
     Component,
     GoodnessOfFit,
-    ResponseFit,
     GroupFit,
-    TrialFit,
     HierarchicalFit,
+    ResponseFit,
     ResponseTest,
-    ArtifactResult,
     ShapeBasis,
     TFFit,
+    TrialFit,
 )
-from .serialize import save_object, load_object
+from .serialize import load_object, save_object

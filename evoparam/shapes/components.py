@@ -62,7 +62,6 @@ def _bisect(past_root, low, high):
 
     Stops when every interval is down to a few ulps of ``max(|x|, 1)``.
     """
-
     low, high = np.broadcast_arrays(
         np.asarray(low, dtype=np.float64), np.asarray(high, dtype=np.float64)
     )
@@ -84,8 +83,8 @@ SUPPORT_Z = 38.7
 def gaussian_factor(z, value):
     """``value(z)``, a product with ``exp(-z^2/2)`` as a factor (or a narrower Gaussian),
     computed only where ``|z| < SUPPORT_Z``: elsewhere it is exactly 0, which is returned
-    without evaluating the exponential and the other factors (the same array)."""
-
+    without evaluating the exponential and the other factors (the same array).
+    """
     outside = np.abs(z) >= SUPPORT_Z
     n_out = np.count_nonzero(outside)
     if 4 * n_out < z.size:
@@ -129,7 +128,6 @@ class _WidthShape(ShapeBase):
 
     def _window(self, times):
         """Window start, end, length, sfreq, min_fwhm and max_fwhm."""
-
         start, end, length, sfreq = window_info(times)
         low = 2.0 / sfreq if self.min_fwhm is None else float(self.min_fwhm)
         high = length / 2.0 if self.max_fwhm is None else float(self.max_fwhm)
@@ -142,7 +140,6 @@ class _WidthShape(ShapeBase):
 
     def _center_width(self, times, waveform, peak_index):
         """Candidate centre and Gaussian-equivalent sigma (spec §5.5.3, step 3)."""
-
         times, waveform = check_waveform(times, waveform, peak_index)
         _, _, _, _, low, high = self._window(times)
         fwhm = peak_fwhm(times, waveform, int(peak_index))
@@ -178,8 +175,8 @@ class _OscillationShape(_WidthShape):
 
     def _freq_guess(self, times, waveform, low, high):
         """Frequency of the largest periodogram peak of the waveform within [low, high]
-        (zero-padded, Hann-tapered); the middle of the range when there is none."""
-
+        (zero-padded, Hann-tapered); the middle of the range when there is none.
+        """
         times, waveform = np.asarray(times, float), np.asarray(waveform, float)
         if len(times) < 4 or not np.all(np.isfinite(waveform)):
             return 0.5 * (low + high)
@@ -265,7 +262,6 @@ def _skew_root(a):
     current bracket, falling back to bisection otherwise; converges to a few ulps in about
     six iterations instead of the ~50 of plain bisection.
     """
-
     a = np.asarray(a, dtype=np.float64)
     if a.size == 1:
         # one skewness (the usual case inside a fit): the same iteration on Python floats,
@@ -293,7 +289,6 @@ def _skew_root(a):
 
 def _skew_root_scalar(a):
     """:func:`_skew_root` for one value of ``a``."""
-
     if not math.isfinite(a):
         return float(_skew_root(np.array([a]))[0])
     low, high = 0.0, 2.0
@@ -330,7 +325,6 @@ def skew_mode(alpha):
     ``[0, 2]`` for ``|alpha|`` and mirrored for negative ``alpha``. By the
     envelope theorem ``dc/dalpha = √(2/π) z* exp(-z*²(1 + alpha²)/2)``.
     """
-
     alpha = np.asarray(alpha, dtype=np.float64)
     if alpha.size == 1:
         # one skewness (the usual case inside a fit): the same operations on scalars, which
@@ -445,7 +439,6 @@ def exgauss_core(z, lam):
     and ``lam = sigma/tau``. For ``x = (lam - z)/√2 >= 0`` it is computed as
     ``exp(-z²/2) erfcx(x)``.
     """
-
     x = (lam - z) / _SQRT2
     right = x >= 0
     scaled = np.exp(-0.5 * z**2) * erfcx(np.where(right, x, 0.0))
@@ -459,7 +452,6 @@ def exgauss_mode(lam):
     At the mode ``erfcx(x*) = √(2/π)/lam`` with ``x* = (lam - z*)/√2``; ``erfcx``
     is decreasing, so ``x*`` is found by bisection. ``dQ/dlam = -z* Q``.
     """
-
     lam = np.asarray(lam, dtype=np.float64)
     target = _SQRT_2_OVER_PI / lam
     # erfcx(x) < 1/(x √π) for x > 0 and erfcx(x) > exp(x²) for x < 0 bracket the root.
@@ -539,7 +531,6 @@ def gamma_fwhm_factor(kappa):
     ``y exp(-y) = exp(-1) 2^(-1/a)``, i.e. ``y = -W(-exp(-1) 2^(-1/a))`` on the
     two real branches.
     """
-
     a = np.asarray(kappa, dtype=np.float64) - 1.0
     arg = -np.exp(-1.0) * 2.0 ** (-1.0 / a)
     return a * (lambertw(arg, 0).real - lambertw(arg, -1).real)
@@ -618,8 +609,8 @@ class Gamma(_WidthShape):
 
 def biexp_peak(tau_rise, tau_decay):
     """Peak delay ``u* = tau_r tau_d/(tau_d - tau_r) ln(tau_d/tau_r)`` and peak value
-    ``m = r^(r/(1-r)) (1 - r)``, ``r = tau_r/tau_d``."""
-
+    ``m = r^(r/(1-r)) (1 - r)``, ``r = tau_r/tau_d``.
+    """
     ratio = tau_rise / tau_decay
     delay = tau_rise * tau_decay / (tau_decay - tau_rise) * np.log(tau_decay / tau_rise)
     value = np.exp(ratio / (1.0 - ratio) * np.log(ratio)) * (1.0 - ratio)
@@ -705,7 +696,6 @@ def damped_peak(tau, freq, phase):
     or at the first stationary point ``u1 > 0``, where
     ``tan(2π f u1 + phase) = -1/(2π f tau)``.
     """
-
     omega = _TWO_PI * freq
     psi = -np.arctan(1.0 / (omega * tau))
     n = np.ceil((phase - psi) / np.pi)
@@ -805,7 +795,6 @@ def gabor_peak(sigma, freq, phase, n_grid=257, n_newton=8):
     close to the envelope centre), and in practice within ``8 sigma``; it is
     located on a grid and refined by Newton steps on the derivative.
     """
-
     sigma, freq, phase = np.broadcast_arrays(
         *(np.asarray(x, dtype=np.float64) for x in (sigma, freq, phase))
     )
@@ -983,7 +972,6 @@ class Template(ShapeBase):
     @property
     def norm(self):
         """``max |T|`` of the interpolated template."""
-
         return self._norm
 
     def _parts(self, times, params):

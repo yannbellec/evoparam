@@ -20,17 +20,15 @@ def write_brainvision(folder, data, sfreq, ch_names, resolution=0.5):
         "DataFile=test.eeg",
         "DataFormat=BINARY",
         "DataOrientation=MULTIPLEXED",
-        "NumberOfChannels={}".format(len(ch_names)),
-        "SamplingInterval={}".format(1e6 / sfreq),
+        f"NumberOfChannels={len(ch_names)}",
+        f"SamplingInterval={1e6 / sfreq}",
         "",
         "[Binary Infos]",
         "BinaryFormat=IEEE_FLOAT_32",
         "",
         "[Channel Infos]",
     ]
-    lines += [
-        "Ch{}={},,{},µV".format(ind + 1, name, resolution) for ind, name in enumerate(ch_names)
-    ]
+    lines += [f"Ch{ind + 1}={name},,{resolution},µV" for ind, name in enumerate(ch_names)]
     (folder / "test.vhdr").write_text("\n".join(lines) + "\n", encoding="utf-8")
     (data.T / resolution).astype("<f4").tofile(folder / "test.eeg")
 

@@ -50,7 +50,6 @@ def subspace_clean(data, window_inds, baseline_inds, *, n_components=None, exten
         ``n_directions``, ``directions`` (whitened space, channels x k) and
         ``window_energy_removed``.
     """
-
     n_trials, n_channels, _ = data.shape
     if n_channels < 2:
         raise ArtifactError("method 'subspace' needs at least 2 channels.")

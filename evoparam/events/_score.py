@@ -16,7 +16,6 @@ MAD_TO_SD = 1.4826
 
 def as_continuous(data):
     """Return ``data`` as a float 2d array [n_channels, n_times]."""
-
     data = np.asarray(data)
     if data.ndim == 1:
         data = data[np.newaxis]
@@ -31,7 +30,6 @@ def as_continuous(data):
 
 def pick_index(n_channels, picks, ch_names=None):
     """Channel indices from ``picks`` (None, indices, bool mask or names)."""
-
     if picks is None:
         return np.arange(n_channels)
     picks = np.atleast_1d(np.asarray(picks))
@@ -64,7 +62,6 @@ SCORE_CHANNELS = 16
 
 def score_index(index, n_score=SCORE_CHANNELS):
     """Evenly spaced subset of ``index`` used for the score."""
-
     if n_score is None or len(index) <= n_score:
         return np.asarray(index)
     keep = np.unique(np.linspace(0, len(index) - 1, n_score).round().astype(int))
@@ -80,7 +77,6 @@ def difference_score(data, index):
     contribute a change of zero. With an even number of channels the upper of the two
     middle values is used (one partition instead of a full median).
     """
-
     n_times = data.shape[1]
     index = np.asarray(index)
     middle = len(index) // 2
@@ -98,7 +94,6 @@ def difference_score(data, index):
 
 def robust_z(values):
     """Values centred on their median and scaled by their MAD (as a standard deviation)."""
-
     center = np.median(values)
     spread = MAD_TO_SD * np.median(np.abs(values - center))
     if not spread > 0:
@@ -110,7 +105,6 @@ def robust_z(values):
 
 def crossings(z, threshold):
     """Indices where ``z`` goes from at or below ``threshold`` to above it."""
-
     above = z > threshold
     index = np.flatnonzero(above[1:] & ~above[:-1]) + 1
     if above[0]:
@@ -120,7 +114,6 @@ def crossings(z, threshold):
 
 def far_from(positions, others, min_samples):
     """Boolean mask: positions at least ``min_samples`` away from every sorted ``others``."""
-
     positions = np.asarray(positions)
     if len(others) == 0 or len(positions) == 0:
         return np.ones(len(positions), dtype=bool)
@@ -136,8 +129,8 @@ def far_from(positions, others, min_samples):
 
 def snippet_lengths(sfreq):
     """Samples before and after the onset used for artifact snippets (-1 ms to +3 ms),
-    and the largest shift tried when matching (0.5 ms, at least one sample)."""
-
+    and the largest shift tried when matching (0.5 ms, at least one sample).
+    """
     return (
         max(1, int(round(0.001 * sfreq))),
         max(3, int(round(0.003 * sfreq))),
@@ -151,7 +144,6 @@ def shifted_snippets(data, index, onsets, n_pre, n_post, max_shift):
     Returns a 3d array [n_onsets, 2 * max_shift + 1, n_features]; the middle row of the
     second axis is the unshifted snippet.
     """
-
     onsets = np.asarray(onsets, dtype=int)
     shifts = np.arange(-max_shift, max_shift + 1)
     out = np.zeros((len(onsets), len(shifts), len(index) * (n_pre + n_post)))
@@ -171,7 +163,6 @@ def snippets(data, index, onsets, n_pre, n_post):
     -------
     features : 2d array, [n_onsets, len(index) * (n_pre + n_post)]
     """
-
     n_times = data.shape[1]
     width = n_pre + n_post
     features = np.zeros((len(onsets), len(index) * width))

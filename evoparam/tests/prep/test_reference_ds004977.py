@@ -54,7 +54,7 @@ def load_trials(subject, run, site):
 
     cache = os.path.join(data_folder(), "reference-validation", "ds004977")
     os.makedirs(cache, exist_ok=True)
-    path = os.path.join(cache, "sub-{}_run-{}_{}.npz".format(subject, run, site))
+    path = os.path.join(cache, f"sub-{subject}_run-{run}_{site}.npz")
     if not os.path.exists(path):
         trials = read_bids(
             "ds004977",

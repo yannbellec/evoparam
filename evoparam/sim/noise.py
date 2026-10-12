@@ -40,7 +40,6 @@ _MAX_TRIES = 100
 
 def resolve_rng(seed):
     """A :class:`numpy.random.Generator` from an int, a Generator or None."""
-
     if isinstance(seed, np.random.Generator):
         return seed
     if seed is None or isinstance(seed, (int, np.integer)):
@@ -50,7 +49,6 @@ def resolve_rng(seed):
 
 def parse_kind(kind):
     """Split ``"pink+line"`` into (broadband kind or None, with_line)."""
-
     if kind is None or kind == "none":
         return None, False
     parts = [part.strip() for part in str(kind).split("+")]
@@ -76,7 +74,6 @@ def _white(rng, shape):
 
 def _ar1(rng, shape, rho):
     """Stationary AR(1) with unit variance: ``x_t = rho x_(t-1) + sqrt(1 - rho²) e_t``."""
-
     if not -1.0 < rho < 1.0:
         raise SettingsError(f"ar1 noise: rho must be in (-1, 1), got {rho}.")
     innovations = rng.standard_normal(shape)
@@ -93,7 +90,6 @@ def _powerlaw(rng, shape, sfreq, chi):
     (zero at DC) over a segment twice as long as requested, of which the first
     half is kept, so that the segment is not periodic.
     """
-
     if not (np.isfinite(chi) and chi >= 0):
         raise SettingsError(f"pink noise: chi must be a number >= 0, got {chi}.")
     n_times = shape[-1]
@@ -115,7 +111,6 @@ def _powerlaw(rng, shape, sfreq, chi):
 
 def _line(rng, shape, sfreq, line_freq, n_harmonics, amplitude):
     """Line noise: ``sum_h (amplitude / h) sin(2π h f t + φ_h)``, random phases."""
-
     if not (line_freq > 0 and n_harmonics >= 1):
         raise SettingsError("line noise: line_freq must be positive and line_harmonics >= 1.")
     t = np.arange(shape[-1]) / sfreq
@@ -138,7 +133,6 @@ def normalize_license(text):
     ``"CC0 1.0"`` → ``"CC0"``, ``"CC BY-SA 4.0"`` → ``"CC-BY-SA"``, ``"cc-by-4.0"`` →
     ``"CC-BY"``. Version numbers are dropped.
     """
-
     if text is None:
         return None
     words = re.sub(r"[_\-\s]+", " ", str(text).upper())
@@ -167,7 +161,6 @@ def check_license(dataset):
         The dataset is not in the registry, or its licence is unknown or not one
         of :data:`ALLOWED_LICENSES`.
     """
-
     from evoparam.errors import ReaderError
     from evoparam.io.registry import dataset_info
 
@@ -195,7 +188,6 @@ def check_license(dataset):
 
 def _source_value(source, trial, column, bids_key):
     """Subject or run of one source trial: metadata column, else the BIDS entities."""
-
     meta = source.metadata
     if meta is not None and column in meta.columns:
         value = meta[column].iloc[trial]
@@ -208,7 +200,6 @@ def _source_value(source, trial, column, bids_key):
 
 def _real(rng, shape, sfreq, source, window, dataset, units):
     """Segments of the baselines of ``source``; returns (noise, info)."""
-
     if not isinstance(source, TrialSet):
         raise SettingsError("real noise needs source=<TrialSet of real recordings>.")
     dataset = dataset or source.provenance.source.get("dataset")
@@ -407,7 +398,6 @@ def make_noise(
     >>> noise.shape
     (2, 3, 1000)
     """
-
     n_times = int(n_times)
     if n_times < 2:
         raise SettingsError(f"n_times must be at least 2, got {n_times}.")

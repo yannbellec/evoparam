@@ -11,12 +11,20 @@ import numpy as np
 from scipy.stats import chi2, norm
 from scipy.stats import t as student_t
 
-from evoparam.data import Component, Evoked, GoodnessOfFit, GroupFit, Provenance, ResponseFit
-from evoparam.data import TrialSet
+from evoparam.data import (
+    Component,
+    Evoked,
+    GoodnessOfFit,
+    GroupFit,
+    Provenance,
+    ResponseFit,
+    TrialSet,
+)
 from evoparam.data.provenance import elapsed
-from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, validate_array
-from evoparam.errors import DataError, FitError, SettingsError, warn as _warn
+from evoparam.errors import DataError, FitError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features
+from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, validate_array
 from evoparam.version import __version__
 
 from . import engine as _engine
@@ -59,8 +67,8 @@ def _features(shape, tw, params, amp, settings, sfreq):
 def _scaled_features(unit, amp):
     """The features of ``amp * s(t)`` from those of ``s(t)`` (``unit``, measured with
     amplitude 1): only the amplitude, its sign and the area depend on ``amp``, and
-    compute_features gives them as ``amp`` times the unit values (the same numbers)."""
-
+    compute_features gives them as ``amp`` times the unit values (the same numbers).
+    """
     amp = float(amp)
     signed = amp * unit.amplitude
     return dataclasses.replace(
@@ -79,7 +87,6 @@ def _feature_vector(shape, tw, params, amp, settings, sfreq, unit=None):
 
 def _diagnostics(core, settings):
     """Covariance of every parameter, conditioning and sloppy pairs (step 6)."""
-
     struct, theta, beta = core["struct"], core["theta"], core["beta"]
     jac = struct.full_jacobian(theta, beta)
     p = jac.shape[1]
@@ -122,8 +129,8 @@ def _diagnostics(core, settings):
 
 def _component_uncertainty(core, diag, k, settings, sfreq, z, unit=None):
     """Wald intervals for the parameters and delta-method intervals for the features
-    (``unit``: the features of the component with amplitude 1, when already measured)."""
-
+    (``unit``: the features of the component with amplitude 1, when already measured).
+    """
     struct, theta, beta = core["struct"], core["theta"], core["beta"]
     shape = core["shapes"][k]
     sl = slice(struct.offsets[k], struct.offsets[k + 1])
@@ -219,8 +226,8 @@ def _unresolvable(comps, diag, settings):
     """Indices of the components that cannot be told apart from a neighbour (spec §5.5.3
     step 6, risk S1): the amplitudes or latencies of two components correlate beyond
     ``CORR_LIMIT``, or two neighbours of opposite sign are closer than ``overlap_c`` times
-    their summed widths (a cancelling pair)."""
-
+    their summed widths (a cancelling pair).
+    """
     out = set()
     latency = {}
     for k, comp in enumerate(comps):
@@ -248,11 +255,10 @@ def _unresolvable(comps, diag, settings):
 
 def _with_plugins(provenance, settings):
     """``provenance.environment["plugins"]``: the plugin shapes, background and preset the
-    settings use, ``{name: "dist==version"}`` (spec §10.8); unchanged without plugins."""
-
+    settings use, ``{name: "dist==version"}`` (spec §10.8); unchanged without plugins.
+    """
+    from evoparam import presets
     from evoparam.shapes import BACKGROUNDS, SHAPES
-
-    import evoparam.presets as presets
 
     used = {}
     for registry, names in (
@@ -427,7 +433,6 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
 
 def _bootstrap(fit, core, times, trials, settings, sfreq, z):
     """Resample trials, re-average, refit the same model from the full-data solution."""
-
     if trials is None:
         raise SettingsError(
             "uncertainty='bootstrap' needs the trials (fit a TrialSet, or "
@@ -478,8 +483,8 @@ def _bootstrap(fit, core, times, trials, settings, sfreq, z):
 def _profile_bounds(grid, stat, limit):
     """Ends of the profile interval: where the statistic crosses ``limit``, linearly
     interpolated between the outermost grid value inside and its neighbour outside (the
-    grid values themselves would shorten the interval by up to one grid step per side)."""
-
+    grid values themselves would shorten the interval by up to one grid step per side).
+    """
     idx = np.flatnonzero(stat <= limit)
     first, last = idx[0], idx[-1]
     ends = []
@@ -494,7 +499,6 @@ def _profile_bounds(grid, stat, limit):
 
 def _profile(fit, core, settings, sfreq, n_grid=21):
     """Profile-likelihood intervals of the non-linear parameters."""
-
     struct = core["struct"]
     theta, beta = core["theta"], core["beta"]
     lower, upper = struct.bounds()
@@ -533,7 +537,8 @@ def _profile(fit, core, settings, sfreq, n_grid=21):
 def _cv_selector(trials, times, settings):
     """K-fold cross-validation over trials of the nested models K = 0, 1, ...: each model is
     refitted on the average of the training trials and scored on the held-out average; the
-    smallest K within one standard error of the best mean error is chosen."""
+    smallest K within one standard error of the best mean error is chosen.
+    """
 
     def select(path, make):
         rng = np.random.default_rng(settings.random_state)
@@ -594,8 +599,8 @@ _NOT_PRESET_FIELDS = ("preset", "preset_note", "random_state")
 
 def _changed_from_preset(settings):
     """Names of the fields whose value differs from the preset's (or, without a preset,
-    from the package defaults): the settings a methods text must state (REQ-008, REQ-340)."""
-
+    from the package defaults): the settings a methods text must state (REQ-008, REQ-340).
+    """
     try:
         base = resolve_settings(settings.preset)
     except SettingsError:
@@ -611,14 +616,13 @@ def _changed_from_preset(settings):
 
 def _draw_seed():
     """A seed drawn from the operating system, recorded in the settings (REQ-295): a fit
-    made with ``random_state=None`` can be repeated from its settings (REQ-331)."""
-
+    made with ``random_state=None`` can be repeated from its settings (REQ-331).
+    """
     return int(np.random.default_rng().integers(2**31 - 1))
 
 
 def preset_record(settings):
     """``{"name", "version"}`` of the preset of resolved settings (REQ-331), or None."""
-
     import evoparam.presets as _presets
 
     name = settings.preset
@@ -636,8 +640,8 @@ def preset_record(settings):
 
 def preset_name(value):
     """Name of a recorded preset: ``settings["preset"]`` is ``{"name", "version"}``
-    (REQ-331); results written before it hold the name alone."""
-
+    (REQ-331); results written before it hold the name alone.
+    """
     if isinstance(value, dict):
         return value.get("name")
     return value
@@ -647,8 +651,8 @@ def _settings_dict(settings, overrides=()):
     """The ``settings`` record of a result (REQ-331): the full resolved settings, the preset
     as ``{"name", "version"}``, ``_overrides`` (the keys the user set) and
     ``_changed_from_preset`` (the keys whose value differs from the preset, stated by the
-    methods text)."""
-
+    methods text).
+    """
     out = dataclasses.asdict(settings)
     out["shapes"] = list(settings.shapes)
     out["preset"] = preset_record(settings)
@@ -668,7 +672,6 @@ def evaluate_fit(fit, times, *, components=None, background=True):
     was not fitted, the background keeps its value there (a recovery tail extrapolated
     backwards grows without bound).
     """
-
     from evoparam.shapes import get_background, get_shape
 
     times = np.asarray(times, float)
@@ -719,7 +722,6 @@ def fitted_peak(fit, window, *, polarity="negative", step=1e-4):
     dict
         ``latency`` (s) and ``amplitude`` (data unit), NaN when there is no such peak.
     """
-
     if polarity not in ("negative", "positive"):
         raise SettingsError("polarity must be 'negative' or 'positive'.")
     out = {"latency": np.nan, "amplitude": np.nan}
@@ -744,7 +746,6 @@ def fitted_peak(fit, window, *, polarity="negative", step=1e-4):
 
 def _amplitude(fit, k):
     """Linear amplitude A of component k: the centre of its (symmetric) Wald interval."""
-
     comp = fit.components[k]
     ci = comp.ci or {}
     if "A" in ci:
@@ -817,7 +818,6 @@ class ResponseModel(BaseEstimatorMixin):
 
     def _explicit(self, **extra):
         """Keys of FitSettings that the user set (REQ-331 ``_overrides``), in field order."""
-
         recorded = getattr(self, "_overrides_record", None)
         if recorded is not None:
             return list(recorded)
@@ -862,8 +862,8 @@ class ResponseModel(BaseEstimatorMixin):
         with ``status="failed"`` and the exception in ``message``, and logs exactly one
         WARNING naming ``unit`` (the channel, when called by :meth:`fit_group`);
         ``on_error="raise"`` raises :class:`~evoparam.errors.FitError` instead. Data and
-        settings errors always propagate."""
-
+        settings errors always propagate.
+        """
         start = _time.perf_counter()
         if random_state is None and self.random_state is None:
             random_state = _draw_seed()
@@ -959,8 +959,8 @@ class ResponseModel(BaseEstimatorMixin):
         A channel whose fit fails is kept with ``status="failed"`` and the exception in
         ``message``, with one WARNING record naming the channel (``on_error="record"``, the
         default); ``on_error="raise"`` raises the first :class:`~evoparam.errors.FitError`
-        (REQ-307)."""
-
+        (REQ-307).
+        """
         start = _time.perf_counter()
         trials = None
         if isinstance(data, TrialSet):
@@ -1032,8 +1032,8 @@ class ResponseModel(BaseEstimatorMixin):
     def _as_container(self, X, *, reset):
         """X as an Evoked or a TrialSet. An array is (n_waveforms, n_times) at ``sfreq``
         from ``tmin``, checked the scikit-learn way (2-D, dense, real, finite; after ``fit``
-        as many time points as in ``fit``)."""
-
+        as many time points as in ``fit``).
+        """
         X = _from_mne(X)
         if isinstance(X, (TrialSet, Evoked)):
             if reset:
@@ -1057,8 +1057,8 @@ class ResponseModel(BaseEstimatorMixin):
         """GroupFit of a container. Without a fit window (no ``fit_window``, no preset) the
         window is the data range; when that range cannot hold a component (shorter than
         3 x min_fwhm, or fewer than 5 samples) every waveform is returned as skipped
-        rather than raising, so that short tabular inputs keep the estimator contract."""
-
+        rather than raising, so that short tabular inputs keep the estimator contract.
+        """
         settings = self.settings()
         if settings.fit_window is not None:
             return self.fit_group(X)
@@ -1101,8 +1101,8 @@ class ResponseModel(BaseEstimatorMixin):
         """Fit every channel. Learned: ``fit_`` (GroupFit), ``components_`` (table),
         ``times_``, ``n_features_in_`` (samples per waveform) and ``n_iter_`` (most residual
         evaluations of one waveform's least-squares solves, at least 1). X: Evoked, TrialSet, MNE
-        object or array (n_waveforms, n_times); ``y`` is ignored."""
-
+        object or array (n_waveforms, n_times); ``y`` is ignored.
+        """
         X = self._as_container(X, reset=True)
         self.fit_ = self._fit_container(X)
         self.components_ = self.fit_.to_dataframe()
@@ -1115,7 +1115,6 @@ class ResponseModel(BaseEstimatorMixin):
 
     def _group(self, X):
         """``fit_`` for X=None, else the fits of X with the same settings."""
-
         check_is_fitted(self)
         if X is None:
             return self.fit_
@@ -1127,8 +1126,8 @@ class ResponseModel(BaseEstimatorMixin):
     def predict(self, X=None):
         """Fitted curves over the time axis, (n_waveforms, n_times); NaN outside the fit
         window and for a waveform without a model. X=None: the waveforms of ``fit``; else
-        those of X fitted with the same settings."""
-
+        those of X fitted with the same settings.
+        """
         group = self._group(X)
         out = np.full((len(group.fits), len(self.times_)), np.nan)
         for i, fit in enumerate(group.fits):
@@ -1143,8 +1142,8 @@ class ResponseModel(BaseEstimatorMixin):
     def transform(self, X=None):
         """Feature matrix (n_waveforms, 3): latency, amplitude and width of the largest
         component of each waveform (NaN without component). X=None: the waveforms of
-        ``fit``; else those of X fitted with the same settings."""
-
+        ``fit``; else those of X fitted with the same settings.
+        """
         rows = []
         for fit in self._group(X).fits:
             if fit.components:
@@ -1159,7 +1158,6 @@ class ResponseModel(BaseEstimatorMixin):
 
     def score(self, X=None, y=None):
         """Mean r2 over the waveforms that were fitted (of ``fit``, or of X)."""
-
         values = [f.gof.r2 for f in self._group(X).fits if f.gof is not None]
         return float(np.nanmean(values)) if values else np.nan
 
@@ -1170,14 +1168,12 @@ class ResponseModel(BaseEstimatorMixin):
 
 def fit_response(times, y, *, window, baseline, preset=None, **overrides):
     """Fit one waveform with a preset and overrides; returns a :class:`ResponseFit`."""
-
     model = ResponseModel(preset, fit_window=window, baseline=baseline, **overrides)
     return model.fit_waveform(times, y)
 
 
 def _from_mne(data):
     """MNE Epochs, Evoked or a list of Evoked as evoparam containers (others unchanged)."""
-
     kind = type(data).__module__.split(".")[0]
     if (
         isinstance(data, (list, tuple))
@@ -1225,7 +1221,6 @@ def fit(
     ``trials=True`` (trial-by-trial fits, build step S10) and ``existence=True`` (the
     existence test, build step S8) are not available yet and raise SettingsError.
     """
-
     if trials:
         raise SettingsError("trials=True needs the trial-by-trial models (build step S10).")
     if existence:
@@ -1315,7 +1310,6 @@ def fit(
 
 def compare_models(fits):
     """Criterion table across fits of the same waveform under different settings."""
-
     import pandas as pd
 
     rows = []
@@ -1355,7 +1349,6 @@ def _noise_phrase(settings):
 
 def methods_text(fit):
     """Methods paragraph for a ResponseFit or GroupFit (spec REQ-123)."""
-
     settings = fit.settings
     shapes = ", ".join(settings.get("shapes", []))
     preset = preset_name(settings.get("preset"))

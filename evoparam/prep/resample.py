@@ -25,7 +25,6 @@ def resample(ts, sfreq):
     -------
     TrialSet
     """
-
     from scipy.signal import resample_poly
 
     start = _time.perf_counter()

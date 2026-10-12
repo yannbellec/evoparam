@@ -152,7 +152,7 @@ def test_req294_every_step_has_the_seven_keys(tmp_path):
     out = _chain(tmp_path)
     for name in ("clean", "group", "test", "single"):
         for step in out[name].provenance.steps:
-            assert SEVEN <= set(step), (name, step["function"], SEVEN - set(step))
+            assert set(step) >= SEVEN, (name, step["function"], SEVEN - set(step))
             json.dumps(step, allow_nan=False)
     assert out["group"].provenance.steps[-2]["preset"]["name"] == "ccep"
     assert out["single"].provenance.steps[-1]["random_state"] == 0

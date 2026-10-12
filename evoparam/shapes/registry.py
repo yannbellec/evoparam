@@ -12,7 +12,7 @@ import dataclasses
 
 import numpy as np
 
-import evoparam._plugins as _plugins
+from evoparam import _plugins
 from evoparam.errors import SettingsError
 from evoparam.shapes._base import FEATURE_OVERSAMPLING, Background, ComponentShape
 from evoparam.shapes.backgrounds import (
@@ -52,7 +52,6 @@ __all__ = [
 
 def _plugin_shape(name, obj, origin):
     """Check a shape of the entry-point group ``evoparam.shapes`` (spec §10.8)."""
-
     if getattr(obj, "kind", None) == "background":
         return _plugins.SKIP
     instance = obj
@@ -160,7 +159,6 @@ def _instance(entry, settings):
 
 def get_shape(name, **settings):
     """Return the shape registered under ``name``, built with ``settings``."""
-
     if name not in SHAPES:
         raise SettingsError(f"unknown shape '{name}'; registered: {sorted(SHAPES)}.")
     return _instance(SHAPES[name], settings)
@@ -168,19 +166,16 @@ def get_shape(name, **settings):
 
 def list_shapes():
     """Names of the registered component shapes (built-in and plugins), sorted."""
-
     return sorted(SHAPES)
 
 
 def list_backgrounds():
     """Names of the registered backgrounds (built-in and plugins), sorted."""
-
     return sorted(BACKGROUNDS)
 
 
 def get_background(name, **settings):
     """Return the background registered under ``name``, built with ``settings``."""
-
     if name not in BACKGROUNDS:
         raise SettingsError(f"unknown background '{name}'; registered: {sorted(BACKGROUNDS)}.")
     return _instance(BACKGROUNDS[name], settings)
@@ -225,7 +220,6 @@ def jacobian_error(shape, times, params, rel_step=1e-5, bounds=None):
     error : 2d array, shape (n_sets, n_params)
         NaN where a column was left out.
     """
-
     times = np.asarray(times, dtype=np.float64)
     params = np.atleast_2d(np.asarray(params, dtype=np.float64))
     analytic = shape.jacobian(times, params)
@@ -263,7 +257,6 @@ def check_shape(shape, times=None, *, n_sets=20, rtol=1e-6, random_state=0):
     SettingsError
         Naming the first failing check.
     """
-
     name = getattr(shape, "name", None)
     if not isinstance(name, str) or not name:
         _fail(name, "protocol", "'name' must be a non-empty string.")
@@ -406,7 +399,6 @@ def register_shape(shape, *, overwrite=False, times=None, **check_settings):
     SettingsError
         When a check fails; the message names the check.
     """
-
     if isinstance(shape, type):
         try:
             instance = shape()
@@ -429,7 +421,6 @@ def register_shape(shape, *, overwrite=False, times=None, **check_settings):
 
 def unregister_shape(name):
     """Remove a user shape from ``SHAPES``; built-in shapes cannot be removed."""
-
     if name in BUILTIN_SHAPES:
         raise SettingsError(f"unregister_shape: '{name}' is a built-in shape.")
     if name not in SHAPES:

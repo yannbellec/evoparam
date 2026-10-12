@@ -19,9 +19,9 @@ from importlib import metadata
 
 import numpy as np
 
-from evoparam.version import __version__, algorithm_version
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data._jsonutil import dumps, loads, to_jsonable
+from evoparam.version import __version__, algorithm_version
 
 # Optional packages whose versions are recorded when installed (None when absent).
 OPTIONAL_PACKAGES = (
@@ -55,7 +55,6 @@ def fixed_clock():
     the same inputs and seed write byte-identical files (REQ-345). Without it, the real
     clock is used.
     """
-
     value = os.environ.get("SOURCE_DATE_EPOCH", "").strip()
     if not value:
         return None
@@ -67,7 +66,6 @@ def fixed_clock():
 
 def elapsed(start):
     """Seconds since ``start`` (a ``time.perf_counter()`` value); 0 with a fixed clock."""
-
     import time
 
     return 0.0 if fixed_clock() is not None else time.perf_counter() - start
@@ -106,7 +104,6 @@ def _cpu_name():
 
 def _git_commit():
     """Commit of the package source tree when installed from a git checkout."""
-
     git_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), os.pardir, ".git"
     )
@@ -131,8 +128,8 @@ def _git_commit():
 
 def _lock_path():
     """The lock file of this Python minor version (REQ-309 c): ``ci/locks/pyX.Y.lock`` of
-    the source tree, or of the folder named by ``EVOPARAM_LOCK_DIR``."""
-
+    the source tree, or of the folder named by ``EVOPARAM_LOCK_DIR``.
+    """
     folder = os.environ.get("EVOPARAM_LOCK_DIR") or os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "ci", "locks"
     )
@@ -141,8 +138,8 @@ def _lock_path():
 
 def lock_sha256(path=None):
     """SHA-256 of the lock file when the installed packages are exactly its pins for this
-    interpreter (every applicable pin installed at its version), else None (REQ-309 d)."""
-
+    interpreter (every applicable pin installed at its version), else None (REQ-309 d).
+    """
     path = path or _lock_path()
     if not os.path.isfile(path):
         return None
@@ -195,7 +192,6 @@ def _environment():
 
 def capture_environment():
     """Return the software environment as a JSON-serialisable dictionary."""
-
     # the plugins a result used are added by the functions that use them (models, readers):
     # environment["plugins"] = {name: "dist==version"}, absent without plugins (spec §10.8)
     return copy.deepcopy(_environment())
@@ -207,7 +203,6 @@ def compute_data_hash(data, times, ch_names):
     The data are hashed one slice of the first axis at a time, so a
     memory-mapped array is never copied whole into memory.
     """
-
     digest = hashlib.sha256()
     data = np.asarray(data)
     if data.ndim == 0 or data.shape[0] == 0:
@@ -261,7 +256,6 @@ class Provenance(DeepEqualMixin):
 
     def copy(self):
         """Return a deep copy."""
-
         return copy.deepcopy(self)
 
     def with_step(self, function, settings=None, duration_s=None, **extra):
@@ -279,7 +273,6 @@ class Provenance(DeepEqualMixin):
         **extra
             Additional keys stored in the step (for example ``preset``).
         """
-
         if duration_s is not None and fixed_clock() is not None:
             duration_s = 0.0
         settings = settings or {}
@@ -302,7 +295,6 @@ class Provenance(DeepEqualMixin):
 
     def to_dict(self):
         """Return a JSON-serialisable dictionary."""
-
         return {
             "package_version": self.package_version,
             "created": self.created,
@@ -316,16 +308,13 @@ class Provenance(DeepEqualMixin):
     @classmethod
     def from_dict(cls, dct):
         """Rebuild from :meth:`to_dict` output."""
-
         return cls(**dct)
 
     def to_json(self, **kwargs):
         """Return strict JSON text (NaN written as null)."""
-
         return dumps(self.to_dict(), **kwargs)
 
     @classmethod
     def from_json(cls, text):
         """Rebuild from :meth:`to_json` output."""
-
         return cls.from_dict(loads(text))

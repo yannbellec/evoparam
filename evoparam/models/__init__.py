@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Models: the fitting engine for evoked waveforms (spec §5.5)."""
 
+from evoparam.shapes import list_backgrounds, list_shapes, register_shape
+
 from ._settings import FIT_PRESETS, FitSettings, resolve_settings
 from .api import (
     ResponseModel,
@@ -14,7 +16,6 @@ from .api import (
 from .classical import classical_measures
 from .labels import label_components
 from .windows import ComponentWindows
-from evoparam.shapes import list_backgrounds, list_shapes, register_shape
 
 __all__ = [
     "ResponseModel",

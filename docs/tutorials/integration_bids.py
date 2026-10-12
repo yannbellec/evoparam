@@ -21,8 +21,6 @@ downloaded with checksums into a local skeleton of the dataset.
 import os
 import tempfile
 
-import numpy as np
-
 from evoparam import reports
 from evoparam.io import (
     fetch_openneuro_file,

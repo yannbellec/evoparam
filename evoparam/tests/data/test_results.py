@@ -14,7 +14,7 @@ from evoparam.data.results import (
     INTERVAL_COLUMNS,
 )
 from evoparam.errors import DataError
-from evoparam.tests.data.factories import make_group_fit, make_response_fit, make_component
+from evoparam.tests.data.factories import make_component, make_group_fit, make_response_fit
 
 
 def test_components_sorted_by_latency():

@@ -6,9 +6,9 @@ import os
 
 import pytest
 
-import evoparam.io.fetch as fetch
 from evoparam.errors import ReaderError
-from evoparam.io.fetch import openneuro_url, fetch_openneuro_file
+from evoparam.io import fetch
+from evoparam.io.fetch import fetch_openneuro_file, openneuro_url
 from evoparam.tests.io.helpers import http_server
 
 ###################################################################################################

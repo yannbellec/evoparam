@@ -6,7 +6,8 @@ import warnings
 
 import numpy as np
 
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 
 from ._common import check_trialset, masked_values, new, window_mask
 
@@ -21,7 +22,6 @@ MIN_VALID_FRACTION = 0.5
 
 def previous_pulse_gaps(event_times):
     """Time from the previous pulse to each pulse (inf for the first one)."""
-
     times = np.asarray(event_times, dtype=float)
     order = np.argsort(times, kind="stable")
     gaps = np.full(len(times), np.inf)
@@ -31,8 +31,8 @@ def previous_pulse_gaps(event_times):
 
 def train_starts(event_times, min_gap):
     """For each pulse, the index of the first pulse of its train (pulses closer than
-    ``min_gap`` seconds belong to the same train)."""
-
+    ``min_gap`` seconds belong to the same train).
+    """
     times = np.asarray(event_times, dtype=float)
     order = np.argsort(times, kind="stable")
     first = np.empty(len(times), dtype=int)
@@ -46,7 +46,6 @@ def train_starts(event_times, min_gap):
 
 def _check_delayed(ts, baseline, delayed_margin, source):
     """Warn when a baseline starts inside the previous pulse's delayed-response window."""
-
     if ts.event_times is None or source == "first_pulse":
         return
     gaps = previous_pulse_gaps(ts.event_times)
@@ -113,7 +112,6 @@ def baseline_correct(
     -------
     TrialSet
     """
-
     start = _time.perf_counter()
     check_trialset(ts)
     if mode not in MODES:
@@ -176,8 +174,8 @@ def baseline_correct(
 def _continuous(raw, sfreq, t0, ts):
     """(data [channels of ts, n_times], sfreq, t0) of a continuous recording given as an
     array or as a TrialSet holding one continuous trial (``evoparam.io.read`` without
-    onsets)."""
-
+    onsets).
+    """
     from evoparam.data import TrialSet
 
     if isinstance(raw, TrialSet):
@@ -225,7 +223,6 @@ def train_baseline(
         onset closer than ``length`` to the start of ``raw``), or fewer than half of them
         are unmasked.
     """
-
     start = _time.perf_counter()
     check_trialset(ts)
     if mode not in ("mean", "median"):

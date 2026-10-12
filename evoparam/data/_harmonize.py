@@ -163,7 +163,6 @@ class HarmonizationReport:
 
     def to_dict(self):
         """Return a JSON-serialisable dictionary."""
-
         return copy.deepcopy(asdict(self))
 
 
@@ -194,12 +193,10 @@ class ValidationReport:
     @property
     def complete(self):
         """True when no standard field is missing."""
-
         return not self.missing
 
     def to_dict(self):
         """Return a JSON-serialisable dictionary."""
-
         return copy.deepcopy(asdict(self))
 
 
@@ -240,7 +237,6 @@ def _find_column(columns, candidates):
 
 def _sidecar_unit(sidecar, column):
     """``Units`` of a column in the events.json sidecar (keys matched case-insensitively)."""
-
     for key, value in (sidecar or {}).items():
         if str(key).lower() == str(column).lower() and isinstance(value, dict):
             for sub, unit in value.items():
@@ -260,7 +256,6 @@ def normalize_site(value):
 
     Missing values give ``"n/a"``.
     """
-
     if _is_missing(value):
         return "n/a"
     parts = [part for part in re.split(r"[-_,\s]+", str(value).strip()) if part]
@@ -269,7 +264,6 @@ def normalize_site(value):
 
 def _parse_quantity(values, column, target, sidecar, report):
     """Numbers in the target unit, from numbers or strings such as "4.0 mA" or "1ms"."""
-
     table, target_unit, small_unit, threshold, large_unit = _QUANTITIES[target]
     native = column.lower() == target.lower()
     side_unit = None if native else _sidecar_unit(sidecar, column)
@@ -360,7 +354,6 @@ def _polarity_kind(text):
 
 def _polarity_order(text):
     """'cathodic' or 'anodic' (the one stated first), or None."""
-
     text = text.lower()
     cathodic, anodic = text.find("cathod"), text.find("anod")
     if cathodic >= 0 and (anodic < 0 or cathodic < anodic):
@@ -372,7 +365,6 @@ def _polarity_order(text):
 
 def _polarity(value, parameters):
     """One of POLARITIES, or None when the value does not state the phase order."""
-
     text = str(value).strip()
     if text.lower() in POLARITIES:
         return text.lower()
@@ -442,7 +434,6 @@ def harmonize_stim_events(events, sidecar=None, *, mapping=None):
     DataError
         If ``events`` is not a DataFrame, or ``mapping`` names an unknown column or target.
     """
-
     pd = _pandas("evoparam.io.harmonize_stim_events")
     if not isinstance(events, pd.DataFrame):
         raise DataError("harmonize_stim_events: events must be a pandas DataFrame.")
@@ -581,8 +572,8 @@ def _parse_count(values, column, report):
 
 def _stimulation_rows(events):
     """Rows that describe stimulations: trial_type 'electrical_stimulation', else containing
-    'stim', else every row."""
-
+    'stim', else every row.
+    """
     if "trial_type" not in events.columns:
         return np.ones(len(events), dtype=bool)
     types = [str(value).strip().lower() for value in events["trial_type"].tolist()]
@@ -613,7 +604,6 @@ def validate_stimulation_events(events, sidecar=None):
         stimulation row; ``warnings`` lists partially filled fields and the
         harmonisation warnings; ``sites`` the distinct stimulation sites.
     """
-
     pd = _pandas("evoparam.io.validate_stimulation_events")
     if not isinstance(events, pd.DataFrame):
         raise DataError("validate_stimulation_events: events must be a pandas DataFrame.")

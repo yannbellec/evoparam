@@ -37,7 +37,6 @@ def _style(ax, xlabel="Time (s)", ylabel="Amplitude"):
 
 def _rows(values):
     """List of 1-D rows from a 1-D array, a 2-D array or a list of 1-D arrays."""
-
     if isinstance(values, np.ndarray):
         return [values] if values.ndim == 1 else list(values)
     return [np.asarray(row) for row in values]
@@ -65,7 +64,6 @@ def plot_signals(
     -------
     matplotlib.figure.Figure
     """
-
     fig, ax = _figure_ax(ax)
     rows = _rows(signals)
     if isinstance(times, np.ndarray) and times.ndim == 1:
@@ -106,7 +104,6 @@ def plot_signals_shading(
     -------
     matplotlib.figure.Figure
     """
-
     fig, ax = _figure_ax(ax)
     plot_signals(times, signals, ax=ax, **kwargs)
     shades = [shades] if np.ndim(shades) == 1 else list(shades)
@@ -154,7 +151,6 @@ def plot_signals_yshade(
     -------
     matplotlib.figure.Figure
     """
-
     mean, half = waveform_band(signals, spread=shade, average=average, scale=scale)
     color = color or PALETTE[0]
     fig, ax = _figure_ax(ax)
@@ -166,7 +162,6 @@ def plot_signals_yshade(
 
 def _alpha(n_points):
     """Marker transparency that decreases with the number of points."""
-
     for limit, value in ((1000, 0.10), (500, 0.25), (100, 0.40)):
         if n_points > limit:
             return value
@@ -192,7 +187,6 @@ def plot_scatter_1(data, label=None, title=None, *, x_val=0, ax=None, random_sta
     -------
     matplotlib.figure.Figure
     """
-
     data = np.asarray(data, dtype=float)
     positions = strip_jitter(data.shape, x=x_val, random_state=random_state)
     return _strip(data, positions, label, title, x_val, ax)
@@ -217,7 +211,6 @@ def plot_scatter_2(data_0, label_0, data_1, label_1, title=None, *, ax=None, ran
     -------
     matplotlib.figure.Figure
     """
-
     data_0 = np.asarray(data_0, dtype=float)
     data_1 = np.asarray(data_1, dtype=float)
     # one stream for both strips (the second continues the first), as with one Generator
@@ -241,7 +234,6 @@ def plot_hist(data, label, title=None, *, n_bins=25, x_lims=None, ax=None):
     -------
     matplotlib.figure.Figure
     """
-
     data = np.asarray(data, dtype=float)
     fig, ax = _figure_ax(ax)
     ax.hist(data[np.isfinite(data)], n_bins, range=x_lims, alpha=0.8, color=PALETTE[0])

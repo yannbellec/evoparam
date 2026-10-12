@@ -43,7 +43,6 @@ def qc(result, *, trials=None, artifact=None, trial_fits=None):
     quality of ``artifact`` (ArtifactResult: median, minimum, trials below 0.5) and the
     untrusted trials of ``trial_fits`` (TrialFitSet).
     """
-
     import pandas as pd
 
     rows = []
@@ -123,7 +122,6 @@ def _summary_table(result):
 
 def _figures(result, data=None, max_channels=24):
     """(title, Figure) pairs for the report."""
-
     try:
         import matplotlib
 
@@ -163,7 +161,6 @@ def _png(fig):
 
 def markdown(result, *, data=None):
     """Markdown report: methods text, summary table, quality summary, provenance steps."""
-
     lines = [
         f"# evoparam report ({type(result).__name__})",
         "",
@@ -205,8 +202,8 @@ def _have_tabulate():
 
 def html(result, path=None, *, data=None, max_channels=24):
     """One self-contained HTML file (no network access needed: figures are inline PNG):
-    summary table, figures, quality summary, warnings, methods text and provenance."""
-
+    summary table, figures, quality summary, warnings, methods text and provenance.
+    """
     table = _summary_table(result)
     quality = qc(result)
     warnings = sorted({w for _, _, f in _fits(result) for w in f.warnings})
@@ -261,7 +258,6 @@ def html(result, path=None, *, data=None, max_channels=24):
 
 def _sites(values, column="stim_site"):
     """Stimulation sites of a TrialSet (its metadata column), in order of appearance."""
-
     meta = getattr(values, "metadata", None)
     if meta is None or column not in meta.columns:
         return []
@@ -282,7 +278,6 @@ def site_pages(result, data=None, *, site_column="stim_site"):
     ``data`` holding one site, that site. A GroupFit that pooled the trials of several
     sites has one page for them all, named so (fit by site for one page per site).
     """
-
     known = _sites(data, site_column) if data is not None else []
     pages = {}
     for channel, cond, pos in result.index[["channel", "condition", "position"]].itertuples(
@@ -303,8 +298,8 @@ def site_pages(result, data=None, *, site_column="stim_site"):
 
 def _site_data(data, site, site_column, single_condition):
     """The trials behind one page: the site's trials, or all of them when the fits used all
-    trials (one condition); None when they cannot be told apart."""
-
+    trials (one condition); None when they cannot be told apart.
+    """
     if data is None:
         return None
     if site in _sites(data, site_column) and hasattr(data, "select"):
@@ -322,7 +317,6 @@ def pdf(result, path, *, data=None, max_channels=24, site_column="stim_site"):
     found); the statistic over time with its null band for a :class:`ResponseTest` split
     by site (``by=("stim_site",)``, the default of ``test_response``).
     """
-
     import matplotlib
 
     matplotlib.use("Agg", force=False)

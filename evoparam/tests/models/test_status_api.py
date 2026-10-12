@@ -88,7 +88,7 @@ def test_neff_noise_model_is_available():
     y = gauss(0.2, -8, 0.04) + noise(rng, 0.9)
     spec = model(noise_model="neff").fit_waveform(TIMES, y)
     rho = spec.diagnostics["rho"]
-    n = int(np.sum((TIMES >= WINDOW[0]) & (TIMES <= WINDOW[1])))
+    n = int(np.sum((WINDOW[0] <= TIMES) & (WINDOW[1] >= TIMES)))
     assert spec.diagnostics["n_white"] == pytest.approx(n * (1 - rho) / (1 + rho))
     assert spec.gof.n_eff == pytest.approx(n * (1 - rho) / (1 + rho))
     assert "n_eff correction" in methods_text(spec)

@@ -115,7 +115,7 @@ def test_ds004977_shared_fit_in_window_without_cancelling_pairs(free_latency):
 
     ts = load_trials("1", "01", "ROC11-ROC12")
     ts = ts.select(picks=[n for n in ts.ch_names if n.startswith("ROC")])
-    bipolar = rereference(ts, "bipolar", groups={n: "ROC" for n in ts.ch_names})
+    bipolar = rereference(ts, "bipolar", groups=dict.fromkeys(ts.ch_names, "ROC"))
     bipolar = baseline_correct(bipolar, (-0.2, -0.02), check=False)
     average = bipolar.average()
     # the channels that are not the stimulated pair and not censored (zeros)

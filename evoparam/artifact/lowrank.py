@@ -24,7 +24,6 @@ MIN_CHANNELS, MIN_PULSES, MIN_TRIALS = 8, 4, 4
 
 def _top_scores(matrix, k):
     """Scores (n_rows x k) of the top-k principal components of the columns of ``matrix``."""
-
     centred = matrix - matrix.mean(axis=0, keepdims=True)
     u, s, _ = np.linalg.svd(centred, full_matrices=False)
     k = min(k, len(s))
@@ -33,7 +32,6 @@ def _top_scores(matrix, k):
 
 def _regress_out(target, scores):
     """Residual of ``target`` (n_rows,) after least squares on ``scores`` and an intercept."""
-
     design = np.c_[np.ones(len(target)), scores]
     coefs, *_ = np.linalg.lstsq(design, target, rcond=None)
     return target - design @ coefs
@@ -45,7 +43,6 @@ def _denoise_scores(scores, blocks, rank):
     The artifact repeats over pulses and trials, so each component's time course is
     low-rank once cut into pulse segments; the noise is not, and is largely removed.
     """
-
     out = np.empty_like(scores)
     for k in range(scores.shape[1]):
         mat = scores[:, k].reshape(blocks, -1)
@@ -61,7 +58,6 @@ def _leave_out_pass(matrix, k, exclude, blocks=None, denoise_rank=None):
     With ``blocks``, the PC scores are first denoised by a rank-``denoise_rank``
     approximation across the blocks (pulse segments).
     """
-
     out = matrix.copy()
     n_cols = matrix.shape[1]
     for j in range(n_cols):
@@ -102,7 +98,6 @@ def lowrank_clean(
         ``segment_inds`` (samples of the pulse train), ``post_inds`` and
         ``removed_fraction`` (fraction of the train-window variance removed).
     """
-
     k_c, k_p, k_r = (int(k) for k in ranks)
     if min(k_c, k_p, k_r) < 0:
         raise SettingsError("ranks must be non-negative.")

@@ -11,7 +11,8 @@ import warnings
 import numpy as np
 from scipy.stats import t as student_t
 
-from evoparam.errors import DataError, warn as _warn
+from evoparam.errors import DataError
+from evoparam.errors import warn as _warn
 
 __all__ = [
     "sign_flips",
@@ -43,7 +44,6 @@ def tail_p_value(null, observed):
     distribution is fitted to the exceedances of the null over its 90th percentile and
     gives the tail probability; otherwise the usual ``(1 + count) / (1 + n)`` is returned.
     """
-
     from scipy.stats import genpareto
 
     null = np.asarray(null, float)
@@ -65,7 +65,6 @@ def tail_p_value(null, observed):
 
 def sign_flips(n_trials, n_permutations, rng):
     """Random sign patterns (P x n), or every pattern when there are at most n_permutations."""
-
     if 2**n_trials <= n_permutations:
         grid = (np.arange(2**n_trials)[:, None] >> np.arange(n_trials)) & 1
         return 1.0 - 2.0 * grid, True
@@ -109,7 +108,6 @@ def _t_series(sum_x, sum_x2, n):
 
 def _extent(t, critical, statistic, threshold, polarity, times):
     """Onset and offset (s) of the significant samples or clusters of each channel."""
-
     n_ch = t.shape[0]
     onset, offset = np.full(n_ch, np.nan), np.full(n_ch, np.nan)
     signed = t if polarity != "negative" else -t
@@ -168,7 +166,6 @@ def permutation_test(
     duration_ci, onset_ci and offset_ci (n_channels x 2, percentile intervals of the same
     bootstrap over trials), critical, and ``exact`` (all sign patterns enumerated).
     """
-
     rng = np.random.default_rng(rng)
     n, n_ch, _ = data.shape
     if n < MIN_TRIALS:
@@ -251,8 +248,8 @@ def permutation_test(
 def null_band(level, polarity, n_times):
     """Band [n_channels, n_times, 2] (low, high) of a statistic over time from one level per
     channel: (-level, level) for a two-sided test, NaN on the side a one-sided test does
-    not look at."""
-
+    not look at.
+    """
     level = np.asarray(level, float).reshape(-1)
     low = np.where(polarity in ("both", "negative"), -level, np.nan)
     high = np.where(polarity in ("both", "positive"), level, np.nan)
@@ -264,8 +261,8 @@ def shuffle_test(
     avg, times, window, baseline, *, n_permutations=1000, polarity="both", alpha=0.05, rng=None
 ):
     """Test for an average without trials: the largest |z| of the window against windows of
-    the same length drawn from the baselines of every channel (a weaker null)."""
-
+    the same length drawn from the baselines of every channel (a weaker null).
+    """
     rng = np.random.default_rng(rng)
     _warn(
         "No trials: the null distribution comes from baseline windows of the "

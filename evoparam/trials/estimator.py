@@ -54,8 +54,8 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
     def _trials(self, X, *, reset):
         """X as a TrialSet. An array is (n_trials, n_times) for one channel or (n_trials,
         n_channels, n_times), checked the scikit-learn way (dense, real, finite; after
-        ``fit`` as many time points as in ``fit``)."""
-
+        ``fit`` as many time points as in ``fit``).
+        """
         from evoparam.data import TrialSet
         from evoparam.models.api import _from_mne
 
@@ -85,8 +85,8 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
 
     def fit(self, X, y=None):
         """Fit the trial average of each channel (``group_fit_``); ``y`` is ignored. Without
-        ``fit_window`` and preset the window is the data range."""
-
+        ``fit_window`` and preset the window is the data range.
+        """
         from evoparam.models import ResponseModel
 
         trials = self._trials(X, reset=True)
@@ -104,8 +104,8 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
 
     def transform(self, X):
         """(n_trials, n_channels * n_components * 3): shift, scale and latency of each
-        component slot of each channel; NaN where a channel has fewer components."""
-
+        component slot of each channel; NaN where a channel has fewer components.
+        """
         from evoparam.trials import fit_trials
 
         check_is_fitted(self)

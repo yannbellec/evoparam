@@ -27,6 +27,7 @@ read those numbers before trusting a single participant's fit.
 import re
 import warnings
 
+import mne
 import numpy as np
 import pandas as pd
 from scipy.io import loadmat
@@ -36,8 +37,6 @@ from evoparam import presets
 from evoparam.data import Evoked
 from evoparam.io import fetch_erpcore
 from evoparam.models import classical_measures
-
-import mne
 
 mne.set_log_level("ERROR")
 
@@ -52,7 +51,6 @@ DESIGNS = {
 
 def averages(component):
     """Averages of the two conditions at the component's channel (µV), flagged epochs out."""
-
     channel, plus, minus, _, _ = DESIGNS[component]
     path = fetch_erpcore(component, participant=1)
     epochs = mne.read_epochs_eeglab(path)

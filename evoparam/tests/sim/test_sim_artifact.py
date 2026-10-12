@@ -6,6 +6,7 @@ import pytest
 
 from evoparam import sim
 from evoparam.artifact import paradigm_subtract, remove_artifact
+from evoparam.errors import SettingsError
 from evoparam.sim.artifacts import (
     dipole_gain,
     grid_layout,
@@ -15,7 +16,6 @@ from evoparam.sim.artifacts import (
     seeg_layout,
     tail_shape,
 )
-from evoparam.errors import SettingsError
 
 pytest.importorskip("pandas")
 

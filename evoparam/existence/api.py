@@ -10,7 +10,8 @@ import warnings
 import numpy as np
 
 from evoparam.data import Evoked, Provenance, ResponseTest, TrialSet
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.utils._optional import require
 from evoparam.version import __version__
 
@@ -139,8 +140,8 @@ def test_response(
 ):
     """Is there a response in the window, on each channel (and stimulation site)?
 
-    Methods:
-
+    Methods
+    -------
     - ``"baseline_permutation"`` (default): pointwise ``t`` of the trials, summarised by the
       largest ``|t|`` over the window (``statistic="max_t"``) or the largest cluster mass
       (``"cluster"``); null distribution from random sign flips of whole trials (all
@@ -177,7 +178,6 @@ def test_response(
         ``null_band`` the level it must cross: the family-wise critical value of the null
         maximum (``max_t``), the cluster-forming threshold (``cluster``), the rule's ``k``.
     """
-
     start = _time.perf_counter()
     if method not in METHODS:
         raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
@@ -360,7 +360,6 @@ def test_response(
 
 def _interval(result, key):
     """The [n_channels, 2] interval ``key`` of one result, NaN when the method has none."""
-
     n = len(np.atleast_1d(result["p_value"]))
     return np.asarray(result.get(key, np.full((n, 2), np.nan)), float).tolist()
 
@@ -390,7 +389,6 @@ def existence_detector(
     groups : list of str
         Group names (``[""]`` without grouping).
     """
-
     test = test_response(
         ts,
         window=window,
@@ -427,8 +425,8 @@ def existence_detector(
 def response_duration(ts, *, method="baseline_permutation", **kwargs):
     """Onset, offset and duration of the response of each channel, as a table: each value
     with its interval (bootstrap over trials, NaN when the method gives none) and the
-    decision with its p-value (REQ-006)."""
-
+    decision with its p-value (REQ-006).
+    """
     pd = require("pandas", extra="data", caller="evoparam.existence.response_duration")
     test = test_response(ts, method=method, **kwargs)
     columns = {"channel": test.settings["channels"]}
@@ -452,7 +450,6 @@ def response_duration(ts, *, method="baseline_permutation", **kwargs):
 
 def list_rules():
     """The registry of published rules, as a table."""
-
     pd = require("pandas", extra="data", caller="evoparam.existence.list_rules")
     rows = []
     for name, spec in load_rules().items():
@@ -503,7 +500,6 @@ def compare_detectors(
         pairwise Cohen's kappa table and ``attrs["caption"]`` quotes the human inter-rater
         agreement (0.60) as the reference.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.existence.compare_detectors")
     decisions = {}
     for name in rules:
@@ -538,7 +534,6 @@ def train_discordance(ts, test):
     The test of ``test`` is re-run on the trials of each train
     (``metadata["train_id"]``). ``d`` is 0 when all trains agree and 1 when half do.
     """
-
     pd = require("pandas", extra="data", caller="evoparam.existence.train_discordance")
     if ts.metadata is None or "train_id" not in ts.metadata.columns:
         raise DataError("train_discordance needs metadata['train_id'] (events.group_trains).")
@@ -579,7 +574,6 @@ def train_discordance(ts, test):
 
 def methods_text(test):
     """Methods sentence for a ResponseTest (spec REQ-140)."""
-
     s = test.settings
     window = f"{s['window'][0] * 1000:g} to {s['window'][1] * 1000:g} ms"
     baseline = f"{s['baseline'][0] * 1000:g} to {s['baseline'][1] * 1000:g} ms"
@@ -641,7 +635,6 @@ def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
     before -0.5 s, else the pre-stimulus samples. The seed of the test is ``random_state``,
     or the seed drawn and recorded by the fit (REQ-331).
     """
-
     from evoparam.models import fit as fit_models
     from evoparam.models.api import _from_mne
 
@@ -710,8 +703,8 @@ def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
 def attach_test(group, test):
     """The GroupFit with the existence test of each channel attached to its fit
     (``ResponseFit.existence``) and the test recorded as a provenance step of the group and
-    of every fit."""
-
+    of every fit.
+    """
     channels = test.settings["channels"]
     step = {k: v for k, v in test.settings.items() if k not in _PER_CHANNEL_SETTINGS}
     fits = []
@@ -751,7 +744,6 @@ _PER_CHANNEL_SETTINGS = ("channels", "duration_ci", "onset_ci", "offset_ci", "gr
 
 def _log_methods(group, verbose):
     """Log the methods paragraph at INFO (spec §5.13: printed when verbose is INFO)."""
-
     logger = logging.getLogger("evoparam")
     explicit = verbose in (True, "info", "INFO", logging.INFO)
     if not explicit and (verbose is not None or not logger.isEnabledFor(logging.INFO)):

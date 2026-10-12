@@ -79,7 +79,7 @@ def test_req015_stream_outputs():
             "evoparam.stream (§10.6) is built on branch s18-en-ligne; its outputs "
             "must carry the statement once it is merged."
         )
-    import evoparam.stream as stream
+    from evoparam import stream
 
     text = " ".join(str(getattr(stream, name, "")) for name in ("RESEARCH_USE", "__doc__"))
     assert carries_statement(text)

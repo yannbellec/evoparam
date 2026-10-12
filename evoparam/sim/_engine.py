@@ -70,7 +70,6 @@ def seed_streams(seed):
     Generator gives a seed drawn from it. The returned seed regenerates the same
     simulation.
     """
-
     if isinstance(seed, np.random.Generator):
         entropy = int(seed.integers(0, 2**63 - 1))
     elif seed is None:
@@ -87,7 +86,6 @@ def seed_streams(seed):
 
 def time_axis(sfreq, tmin, tmax):
     """Samples ``tmin <= t < tmax`` on the grid ``k / sfreq`` (0.0 is a sample)."""
-
     if not (np.isfinite(sfreq) and sfreq > 0):
         raise SettingsError(f"sfreq must be a positive number, got {sfreq}.")
     first = int(np.ceil(tmin * sfreq - 1e-9))
@@ -101,7 +99,6 @@ def time_axis(sfreq, tmin, tmax):
 
 def jsonable_settings(settings):
     """Settings with specifications, arrays and containers replaced by plain values."""
-
     out = {}
     for key, value in settings.items():
         if hasattr(value, "to_dict") and not isinstance(value, TrialSet):
@@ -127,7 +124,6 @@ def jsonable_settings(settings):
 
 def table(columns, n_rows):
     """A pandas DataFrame from a dict of columns, or None when pandas is missing."""
-
     if not columns:
         return None
     try:
@@ -163,7 +159,6 @@ def requested_snr(snr, sources, ch_names):
     dict whose keys are labels or channel names. A channel key sets the SNR of every
     component on that channel and must name a channel that has one.
     """
-
     out = [None] * len(sources)
     primary = [k for k, src in enumerate(sources) if src.parent is None]
     if snr is None:
@@ -237,7 +232,6 @@ def trial_variability(sources, n_trials, rng, jitter_sd, jitter, jitter_tau, amp
     coefficient of variation ``amplitude_cv`` (scalar or per label), one per label.
     Both are shared across channels.
     """
-
     if jitter not in JITTER_DISTRIBUTIONS:
         raise SettingsError(f"jitter must be one of {JITTER_DISTRIBUTIONS}, got {jitter!r}.")
     shifts, factors = {}, {}
@@ -276,7 +270,6 @@ def trial_variability(sources, n_trials, rng, jitter_sd, jitter, jitter_tau, amp
 
 def baseline_index(times):
     """Samples before the onset (t < 0), or every sample when fewer than 2 precede it."""
-
     index = np.flatnonzero(times < -1e-12)
     return index if index.size >= 2 else np.arange(times.size)
 
@@ -322,7 +315,6 @@ def assemble(
     noise is the real data); ``base`` is then the TrialSet whose metadata, masks and
     provenance are kept.
     """
-
     start = _time.perf_counter() if start is None else start
     n_channels, n_times = len(ch_names), times.size
     shape = (n_trials, n_channels, n_times)

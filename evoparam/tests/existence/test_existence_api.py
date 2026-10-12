@@ -111,7 +111,7 @@ def test_statistic_over_time_and_null_band():
 
     data = _responsive()
     test = run_test(trialset(data), n_permutations=200, n_boot=0, by=(), random_state=0)
-    inside = (TIMES >= test.window[0]) & (TIMES <= test.window[1])
+    inside = (test.window[0] <= TIMES) & (test.window[1] >= TIMES)
     assert test.curve.shape == (4, inside.sum()) and test.null_band.shape == (4, inside.sum(), 2)
     assert np.allclose(test.curve_times, TIMES[inside])
     # max_t: the pointwise t of the trials; the band is +/- the critical value of the null

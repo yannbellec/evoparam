@@ -26,8 +26,8 @@ def _signed(y, polarity):
 
 def _local_peak(t, y, polarity, n_neighbors):
     """ERPLAB-style local peak: larger than ``n_neighbors`` samples on each side (and than
-    their mean); falls back to the simple extremum when no sample qualifies."""
-
+    their mean); falls back to the simple extremum when no sample qualifies.
+    """
     s = np.asarray(_signed(y, polarity), float)
     n = len(s)
     best = None
@@ -168,7 +168,6 @@ def classical_measures(
         Score name -> value, plus ``"definition"`` (dict score -> text) and, with
         ``trials``, ``"sme"`` (dict score -> value).
     """
-
     for value, allowed, name in ((polarity, POLARITIES, "polarity"), (area, AREAS, "area")):
         if value not in allowed:
             raise SettingsError(f"{name} must be one of {allowed}.")

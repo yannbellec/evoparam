@@ -41,7 +41,6 @@ code { font-size: 0.9em; }
 
 def leaderboard_html(docs):
     """The page for a list of result documents."""
-
     esc = html.escape
     suites = sorted({(d["suite"]["name"], d["suite"]["version"]) for d in docs})
     out = [
@@ -96,7 +95,6 @@ def leaderboard_html(docs):
 
 def write_leaderboard(results_folder, path):
     """Write the page of the results of a folder; returns the path."""
-
     text = leaderboard_html(load_results(results_folder))
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as fobj:

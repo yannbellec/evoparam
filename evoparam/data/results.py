@@ -9,14 +9,13 @@ Results are plain data: they hold numbers, tables, the resolved settings and a
 
 import copy
 from dataclasses import dataclass, field, fields, replace
-
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from evoparam.errors import DataError
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data.provenance import Provenance
+from evoparam.errors import DataError
 
 if TYPE_CHECKING:  # annotations only (containers imports this module)
     from evoparam.data.containers import TrialSet
@@ -118,31 +117,27 @@ class _ResultMixin(DeepEqualMixin):
 
     def copy(self):
         """Return a deep copy."""
-
         return copy.deepcopy(self)
 
     def to_dict(self):
         """Return the fields as a dictionary of deep copies."""
-
         return {fld.name: copy.deepcopy(getattr(self, fld.name)) for fld in fields(self)}
 
     @classmethod
     def from_dict(cls, dct):
         """Build from :meth:`to_dict` output."""
-
         return cls(**dct)
 
     def methods_text(self):
         """Methods paragraph built from ``provenance`` and ``settings`` only (REQ-338);
-        see :func:`evoparam.reports.methods_text`."""
-
+        see :func:`evoparam.reports.methods_text`.
+        """
         from evoparam.data._methods import methods_text
 
         return methods_text(self)
 
     def save(self, path, overwrite=False):
         """Save to a ``.evoparam`` container (directory, or zip when ``path`` ends in .zip)."""
-
         from evoparam.data.serialize import save_object
 
         return save_object(self, path, overwrite=overwrite)
@@ -150,7 +145,6 @@ class _ResultMixin(DeepEqualMixin):
     @classmethod
     def load(cls, path, *, verify=True):
         """Load from a ``.evoparam`` container and check its type."""
-
         from evoparam.data.serialize import load_object
 
         obj = load_object(path, verify=verify)
@@ -360,7 +354,6 @@ class ResponseFit(_ResultMixin):
 
         Column units are in ``table.attrs["units"]`` (see :data:`COMPONENT_COLUMNS`).
         """
-
         import pandas as pd
 
         rows = []
@@ -387,10 +380,10 @@ class ResponseFit(_ResultMixin):
                     "component": -1,
                     "label": "",
                     "shape": "",
-                    **{name: np.nan for name in COMPONENT_FEATURES},
+                    **dict.fromkeys(COMPONENT_FEATURES, np.nan),
                     "resolvable": pd.NA,
                     "status": self.status,
-                    **{name: np.nan for name in INTERVAL_COLUMNS},
+                    **dict.fromkeys(INTERVAL_COLUMNS, np.nan),
                 }
             )
             rows[0]["polarity"] = 0
@@ -438,7 +431,6 @@ class GroupFit(_ResultMixin):
     @classmethod
     def from_fits(cls, fits, ch_names, conditions=None, settings=None, provenance=None):
         """Build the ``index`` table from parallel lists of fits, channels and conditions."""
-
         import pandas as pd
 
         if len(fits) != len(ch_names) or (conditions is not None and len(conditions) != len(fits)):
@@ -467,7 +459,6 @@ class GroupFit(_ResultMixin):
 
     def get(self, channel, condition=None):
         """Return the fit of one channel (and condition)."""
-
         rows = self.index[self.index["channel"] == channel]
         if condition is not None:
             rows = rows[rows["condition"] == str(condition)]
@@ -480,7 +471,6 @@ class GroupFit(_ResultMixin):
 
         Column units are in ``table.attrs["units"]``.
         """
-
         import pandas as pd
 
         if level == "component":
@@ -526,8 +516,8 @@ class GroupFit(_ResultMixin):
 
     def to_annotations(self, *, what="components", orig_time=None):
         """``mne.Annotations`` of the components, for display on MNE plots: one per
-        component, onset to offset, description ``"<label>|<channel>"`` (extra ``mne``)."""
-
+        component, onset to offset, description ``"<label>|<channel>"`` (extra ``mne``).
+        """
         import mne
 
         onsets, durations, descriptions, channels = [], [], [], []
@@ -547,8 +537,8 @@ class GroupFit(_ResultMixin):
 
     def to_evoked_model(self, *, sfreq=None):
         """The fitted curves (fit window, zero elsewhere) as an ``mne.EvokedArray`` whose
-        comment is ``"evoparam model"`` (extra ``mne``)."""
-
+        comment is ``"evoparam model"`` (extra ``mne``).
+        """
         import mne
 
         fits = [self.fits[int(p)] for p in self.index["position"]]
@@ -577,7 +567,6 @@ class GroupFit(_ResultMixin):
 
     def save(self, path, overwrite=False, light=False):
         """Save to a ``.evoparam`` container; ``light=True`` drops fitted curves and residuals."""
-
         obj = self
         if light:
             obj = replace(
@@ -660,8 +649,8 @@ class HierarchicalFit(_ResultMixin):
 
     def _normal_draws(self, n_draws, random_state):
         """Draws from the normal approximation of the empirical-Bayes tables, in the layout
-        of ``diagnostics["draws"]`` (one chain)."""
-
+        of ``diagnostics["draws"]`` (one chain).
+        """
         rng = np.random.default_rng(random_state)
         out = {}
         tables = self.level_tables or {}
@@ -707,7 +696,6 @@ class HierarchicalFit(_ResultMixin):
         level tables; ``n_draws``, ``random_state``), which the attribute ``approximation``
         states.
         """
-
         try:
             import arviz as az
         except ImportError as err:
@@ -779,8 +767,8 @@ class ArtifactResult(_ResultMixin):
 
     def quality_summary(self):
         """Summary of the per-trial quality scores: ``{"n_trials", "median", "p05"}``
-        (median and 5th percentile of the finite scores; None when there is none)."""
-
+        (median and 5th percentile of the finite scores; None when there is none).
+        """
         quality = np.ravel(self.quality)
         finite = quality[np.isfinite(quality)]
         return {
@@ -858,7 +846,6 @@ class TFFit(_ResultMixin):
             when the fit was split by condition), ``nave`` the smallest number of trials
             of a row, ``comment`` the map name and ``method`` the transform.
         """
-
         try:
             import mne
         except ImportError as err:
@@ -893,8 +880,8 @@ class TFFit(_ResultMixin):
 
     def methods_text(self):
         """Methods paragraph: transform and its parameters, baseline window and mode, the
-        statistic, alpha and the zone method (spec REQ-219)."""
-
+        statistic, alpha and the zone method (spec REQ-219).
+        """
         s = self.settings or {}
         tp = s.get("transform_params") or {}
 

@@ -15,8 +15,7 @@ import shutil
 import numpy as np
 import pytest
 
-from evoparam.data import Provenance, load_object, save_object
-from evoparam.data import _migrations
+from evoparam.data import Provenance, _migrations, load_object, save_object
 from evoparam.data.serialize import SCHEMA, SCHEMA_MAJOR
 from evoparam.errors import EvoparamVersionError
 from evoparam.reports import migrate

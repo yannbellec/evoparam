@@ -13,7 +13,6 @@ no other argument required.
 
 import warnings
 
-import numpy as np
 import pytest
 
 import evoparam

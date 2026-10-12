@@ -10,6 +10,7 @@ forwards every argument.
 
 import functools
 import importlib
+
 from evoparam.errors import warn
 
 __all__ = ["EvoparamDeprecationWarning", "shim", "resolve", "minor_gap", "version_tuple"]
@@ -21,7 +22,6 @@ class EvoparamDeprecationWarning(DeprecationWarning):
 
 def version_tuple(text):
     """(major, minor, patch) of a version string (pre-release and local parts dropped)."""
-
     import re
 
     parts = []
@@ -37,7 +37,6 @@ def version_tuple(text):
 
 def minor_gap(since, remove_in):
     """Number of minor versions between ``since`` and ``remove_in`` (same major)."""
-
     a, b = version_tuple(since), version_tuple(remove_in)
     if a[0] != b[0]:
         return (b[0] - a[0]) * 1000 + b[1] - a[1]
@@ -46,7 +45,6 @@ def minor_gap(since, remove_in):
 
 def resolve(target):
     """The object named ``"package.module:attribute"`` or ``"package.module.attribute"``."""
-
     if ":" in target:
         module, _, attribute = target.partition(":")
     else:
@@ -66,7 +64,6 @@ def message(old, new, since, remove_in):
 
 def shim(old, new, since, remove_in):
     """A callable (or the object itself, for a non-callable) that warns and forwards."""
-
     target = resolve(new)
     text = message(old, new, since, remove_in)
     if not callable(target):

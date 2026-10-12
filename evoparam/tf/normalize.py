@@ -15,7 +15,6 @@ BASELINE_LEVELS = ("evoked", "single_trial", "full_epoch")
 
 def apply_mode(power, ref, sd, mode):
     """Normalised power for a reference level ``ref`` (and spread ``sd`` for ``zscore``)."""
-
     with np.errstate(divide="ignore", invalid="ignore"):
         ref = np.where(ref > 0, ref, np.nan)
         if mode == "db":
@@ -82,7 +81,6 @@ def normalize(power, ref_times, mode, level, trials=None):
         null data. The test is therefore the same whatever ``mode`` and ``level``; only the
         reported map changes.
     """
-
     if mode not in BASELINE_MODES:
         raise SettingsError(f"baseline_mode must be one of {BASELINE_MODES}, not {mode!r}.")
     if level not in BASELINE_LEVELS:
@@ -120,8 +118,8 @@ def normalize(power, ref_times, mode, level, trials=None):
 
 def reference_level(average_power, ref_times, mode):
     """Reference (and spread) of a trial-average power map, for normalising other maps
-    (the footprint) on the total's scale."""
-
+    (the footprint) on the total's scale.
+    """
     ref = _nanmean(average_power[:, ref_times], -1)[:, None]
     sd = _nanstd(average_power[:, ref_times], -1)[:, None]
     return ref, sd

@@ -209,7 +209,7 @@ def test_req323_partial_and_interrupted(fitted, monkeypatch, capsys):
 
     import dataclasses
 
-    import evoparam.cli as cli
+    from evoparam import cli
 
     _, out = fitted
     dataset = out.parent

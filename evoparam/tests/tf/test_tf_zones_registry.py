@@ -44,7 +44,7 @@ def test_req217_unverified_zone_needs_allow_unverified():
 
 def test_zone_without_bounds_is_refused_even_when_allowed(monkeypatch):
 
-    import evoparam.tf.zones as zones
+    from evoparam.tf import zones
 
     registry = load_zones()
     registry["empty"] = {"time": None, "freq": None, "verified": False, "source": "nowhere"}

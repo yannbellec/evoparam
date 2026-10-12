@@ -9,7 +9,8 @@ import warnings
 import numpy as np
 
 from evoparam.data import Evoked, Provenance, TrialFit, TrialSet
-from evoparam.errors import DataError, SettingsError, warn as _warn
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
 from evoparam.models.component_shapes import (
     FWHM_PER_SIGMA,
     Template,
@@ -61,7 +62,8 @@ MODALITY_PRESETS = {
 @dataclasses.dataclass(eq=False)
 class TrialFitSet:
     """Trial fits of every channel (and condition): ``fits`` (list of :class:`TrialFit`),
-    the tidy ``table`` of all of them, ``skipped_channels`` and ``settings``."""
+    the tidy ``table`` of all of them, ``skipped_channels`` and ``settings``.
+    """
 
     fits: list
     table: object
@@ -82,7 +84,6 @@ class TrialFitSet:
 
     def save(self, path, overwrite=False):
         """Save to a folder: one ``.evoparam`` container per channel fit, and the table."""
-
         import json
 
         if os.path.exists(path) and not overwrite and os.listdir(path):
@@ -157,7 +158,6 @@ def _amplitude_of(comp):
 
 def _template_for(fit, picks, times, max_shift, factor, moving=None):
     """Channel template restricted to the chosen components."""
-
     settings = fit.settings
     window = fit.window
     tw = times[(times >= window[0]) & (times <= window[1])]
@@ -199,7 +199,6 @@ def _template_for(fit, picks, times, max_shift, factor, moving=None):
 
 def _template_mode(template, fit, average, times, picks):
     """Replace each component by the channel average over its support (Woody template)."""
-
     tw = template.tw
     win = (times >= tw[0]) & (times <= tw[-1])
     y = average[win]
@@ -246,7 +245,6 @@ def _fit_all(template, data, valid, mode, ridge, support=None, movable=None):
 
 def _choose_ridge(template, data, valid, movable=None):
     """Penalty chosen by split-sample prediction error: fit on even samples, score on odd."""
-
     even = np.zeros(data.shape[1], bool)
     even[::2] = True
     best, best_err = 0.0, np.inf
@@ -275,8 +273,8 @@ def _choose_ridge_loto(template, data, valid, movable=None):
     trials (``free`` fit of the channel components, warm-started at the channel values);
     the trial is fitted with each penalty towards that centre and scored on its own samples
     that the fit did not see (even samples to fit, odd to score: a penalised fit scored on
-    the samples it was fitted to always prefers no penalty)."""
-
+    the samples it was fitted to always prefers no penalty).
+    """
     n = len(data)
     if n < 3:
         return _choose_ridge(template, data, valid, movable)
@@ -322,8 +320,8 @@ def _null_jitter(
     repeats=NULL_REPEATS,
 ):
     """Jitter found by the same procedure on noise only: the channel curve plus each trial's
-    baseline segment (no response)."""
-
+    baseline segment (no response).
+    """
     tw = template.tw
     base = (times >= baseline[0]) & (times <= baseline[1])
     n_win = len(tw)
@@ -359,7 +357,6 @@ def _null_jitter(
 
 def _prestim(trials, times, band, window):
     """Pre-stimulus phase (three estimators), its circular SD, and power, per trial."""
-
     from scipy.signal import butter, hilbert, lfilter, sosfiltfilt
 
     inside = (times >= window[0]) & (times <= window[1])
@@ -481,7 +478,6 @@ def fit_trials(
     -------
     TrialFitSet
     """
-
     pd = require("pandas", extra="data", caller="evoparam.trials.fit_trials")
     start = _time.perf_counter()
     if not isinstance(ts, TrialSet):
@@ -805,8 +801,8 @@ def jitter(trial_fit, component=0):
     """Per channel: ``jitter_sd`` (with a bootstrap interval over trusted trials),
     ``jitter_sd_null``, ``jitter_sd_excess = sqrt(jitter_sd² - jitter_sd_null²)`` (the jitter
     left once the part that noise alone produces is removed; the best estimate of the true
-    jitter at low SNR) and ``amplitude_jitter_corrected`` of one component (index or label)."""
-
+    jitter at low SNR) and ``amplitude_jitter_corrected`` of one component (index or label).
+    """
     pd = require("pandas", extra="data", caller="evoparam.trials.jitter")
     rng = np.random.default_rng(0)
     rows = []
@@ -853,8 +849,8 @@ def jitter(trial_fit, component=0):
 
 def realign(ts, trial_fit, component=0):
     """Average of the trusted trials, each shifted back by its latency shift of
-    ``component`` (the Woody-filter average); one Evoked per channel fit."""
-
+    ``component`` (the Woody-filter average); one Evoked per channel fit.
+    """
     out = []
     for fit in trial_fit.fits:
         picks = fit.settings["picks"]
@@ -882,8 +878,8 @@ def realign(ts, trial_fit, component=0):
 def _trend(table):
     """Amplitude scale against the position in the train, per channel, condition and
     component: ``a_i = a (1 + c i)`` by least squares over trusted trials. ``slope`` is ``c``
-    (relative change per pulse), ``p_value`` the two-sided t test of the slope."""
-
+    (relative change per pulse), ``p_value`` the two-sided t test of the slope.
+    """
     from scipy.stats import t as t_dist
 
     pd = require("pandas", extra="data", caller="evoparam.trials")
@@ -935,7 +931,6 @@ def state_dependence(trial_fit, *, column="state", reference=None):
     SettingsError
         The trial table has no ``column``.
     """
-
     from scipy.stats import kruskal
 
     pd = require("pandas", extra="data", caller="evoparam.trials.state_dependence")
@@ -1016,7 +1011,6 @@ def dose_response(trial_fit, *, x="stim_current_mA", model="auto"):
     threshold current ``I_thr = I50 (0.1/0.9)^(1/h)``; ``"linear"``: a straight line;
     ``"auto"``: Hill with four currents or more, else linear.
     """
-
     from scipy.optimize import curve_fit
 
     pd = require("pandas", extra="data", caller="evoparam.trials.dose_response")
@@ -1059,8 +1053,8 @@ def dose_response(trial_fit, *, x="stim_current_mA", model="auto"):
 def prestimulus_dependence(trial_fit, *, band=(8.0, 13.0), n_permutations=1000, random_state=None):
     """Amplitude against pre-stimulus phase: ``a = c0 + c1 cos(phi - phi0)``, with a
     permutation test of ``c1`` (phases shuffled across trials). Needs ``covariates=("prestim",)``
-    in :func:`fit_trials`."""
-
+    in :func:`fit_trials`.
+    """
     pd = require("pandas", extra="data", caller="evoparam.trials.prestimulus_dependence")
     table = trial_fit.table if isinstance(trial_fit, TrialFitSet) else trial_fit
     if "prestim_phase" not in table.columns:
