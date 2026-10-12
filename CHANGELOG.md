@@ -2,6 +2,106 @@
 
 ## Unreleased
 
+### Engine simulation requirements (REQ-105, REQ-106, REQ-111, REQ-116): causes measured, no engine change
+
+The four engine requirements on simulations that stay expected failures in
+`tests/models/test_engine_sim.py` were examined. Causes and candidate changes were measured
+on seeds other than the tests' (REQ-105 60 500 + ..., REQ-106 60 600 + ..., REQ-111
+90 000 + ..., white-noise windows 80 000 + ...), then reported on the tests' own seeds, whose
+values do not change. No engine change is kept: the only change that improved a REQ
+measure did not reach the REQ and lowered the ds004080 N1 results (REQ-106 below). The
+algorithm versions, the reference fixture, the frozen methods texts and the speed are
+unchanged.
+
+- **REQ-105: recall 0.885 (K = 1 0.82, K = 2 0.855, K = 3 0.927), precision 1.00.** Every
+  missed component is at SNR 3: found 6 of 45 at a FWHM of 3 samples and 27 of 30 at 6
+  samples, all the others at every SNR and width (the test's first 60 waveforms per K;
+  0.16 and 0.77 on other seeds). K = 1 is lowest because the test steps the SNR and the
+  width with the same index over two lists of four levels: every K = 1 waveform at SNR 3
+  has a width of 3 samples, at K = 2 and 3 only its first component. The misses are the
+  acceptance criterion's, not the candidate search's: each missed component, refitted from
+  its true latency and width onto the final model, changes BIC by -8 to +9 (47 misses on
+  other seeds), never by the -10 of `delta`. A Gaussian of FWHM 3 samples at SNR 3 carries
+  a chi-square of about 20 (z about 4.5); BIC plus `delta` asks about 29 (3 ln n = 19 for
+  its three parameters, n about 580 whitened samples, plus 10). The bar trades directly
+  against REQ-112 (no component in >= 95 % of pure-noise windows):
+
+  | `delta` | recall (other seeds, 360 components) | precision | white-noise windows with a component (200) |
+  |---|---|---|---|
+  | 10 (default) | 0.875 | 1.00 | 0 % |
+  | 0 | 0.947 | 0.99 | 3.0 % |
+  | -2 | 0.956 | 0.99 | 5.5 % |
+
+  No `delta` meets REQ-105 and REQ-112 together on white noise alone (coloured noise and
+  the ds004080 baselines, 97.5 % silent at `delta` 10, leave less room): the precision of
+  1.00 is the margin REQ-112 needs on noise. `delta` stays 10 (§5.5.4). Not met
+  (DECISIONS §5.3).
+- **REQ-106 with the default pair: latency MAE 0.52 (skewed Gaussian), 0.76 (gamma), 0.60
+  (biexponential) sample.** Without noise (least squares at 1 kHz, mean |mode error| over
+  the widths 3, 6, 12 and 25 samples):
+
+  | truth | Gaussian fitted | skewed Gaussian fitted |
+  |---|---|---|
+  | skewed Gaussian (alpha 2) | 0.71 | 0.00 |
+  | ex-Gaussian (tau = sigma) | 0.46 | 0.10 |
+  | gamma (kappa 3) | 1.69 | 0.47 (1.01 at 25 samples) |
+  | biexponential (decay / rise 4) | 2.97 | 0.54 (1.20 at 25 samples) |
+
+  Gamma and biexponential truths are outside the pair, and the latency of §5.5.1 is the
+  mode of the fitted component: the best skewed Gaussian is 0.47 and 0.54 sample off
+  before any noise, which only adds to it. For skewed truths the pair holds the right
+  shape, but the criterion keeps the Gaussian in 72 of 100 fits (other seeds): the
+  asymmetry does not pay its ln n at SNR 5 to 20, and the Gaussian's centre lies 0.19 to
+  1.55 samples after the mode. Measured and not kept: refining every allowed shape of the
+  candidate being accepted (its quick fit again at the refinement tolerance, and the
+  perturbed starts), instead of only the shape chosen on the single-start, loose-tolerance
+  quick fits (§5.5.3 step 4: "the best kept"). On other seeds the MAE falls (skewed
+  0.494 to 0.457, ex-Gaussian 0.413 to 0.384, gamma 0.798 to 0.779, biexponential 0.647
+  to 0.613, Gaussian unchanged); on the test's seeds it stays above 0.5 (0.505, 0.750,
+  0.599); and the N1 decision on ds004080 drops: development runs kappa 0.40 / 0.39 to
+  0.37 / 0.34 (registry row / code; code recall 0.81 to 0.69), REQ runs 0.458 / 0.398 to
+  0.426 / 0.369 (recall 0.460 / 0.882 to 0.416 / 0.765), 10 fewer N1s, with 2 to 24 % more
+  residual evaluations (ds004080 fits 1.26 times longer). A cheaper form (both shapes
+  refitted at the refinement tolerance, perturbed starts for the better one only): skewed
+  0.479 on other seeds, REQ runs 0.441 / 0.371 (code recall 0.794). Not met
+  (DECISIONS §5.4).
+- **REQ-111 at 0.5 FWHM: one component in 100 of 100 runs, never `merged`.** Two equal
+  Gaussians of FWHM 40 ms 20 ms apart differ from the best single Gaussian by a chi-square
+  of 1.4 at SNR 10 (25.7 at 0.75 FWHM, 148.5 at 1 FWHM): the data do not hold the pair, and
+  no step accepts it. Step 5 merges after an accepted step, as the engine does; its overlap
+  rule does not even call the true pair overlapping (20 ms is more than 0.5 (sigma_1 +
+  sigma_2) = 17 ms). Extending the merge-and-compare to the candidates a step rejects was
+  measured (100 runs per design, `shapes=("gaussian",)`, other seeds; share of
+  one-component results with `merged`):
+
+  | design | the best rejected candidate | any rejected candidate | any, overlap on FWHM instead of sigma |
+  |---|---|---|---|
+  | two Gaussians, 0.5 FWHM apart, -10 each | 7 % | 49 % | 99 % |
+  | one Gaussian, FWHM 40 ms, -10 | 3 % | 51 % | 95 % |
+  | one Gaussian, FWHM 40 ms, -8 | 3 % | 46 % | |
+  | one Gaussian as wide as the pair's sum (47.5 ms, -17) | 4 % | 63 % | |
+  | one Gaussian, FWHM 10 ms, +6 | 1 % | 33 % | 91 % |
+  | one Gaussian, FWHM 120 ms, +6 | 7 % | 77 % | 100 % |
+  | two Gaussians, 1 FWHM apart (two components in 100 %) | 0 % | 0 % | |
+
+  Every reading sets the warning as often, or more often, on single components as on the
+  pair: it would say nothing about a pair the data cannot show, so none is kept. Not met
+  (DECISIONS §5.5); the REQ's other clause holds (no two-component fit, none unflagged).
+- **REQ-116, profile intervals under white noise: amplitude 0.975 (195 of 200), latency
+  0.935.** The same design on 1 000 runs (the test's 200 and the next 800): amplitude
+  0.945, latency 0.942 (binomial SE 0.007); runs 201 to 1 000 alone 0.9375 and 0.9437.
+  The amplitude interval of `uncertainty="profile"` is the Wald interval of the linear
+  amplitude (§5.5.5 profiles the non-linear parameters), the Jacobian method's, 0.96 on
+  the test's 100 runs. 195 of 200 when the coverage is 0.945 has a probability of 3.4 %:
+  a high draw, not an error of the profile threshold, the degrees of freedom or the noise
+  scale. Nothing changed; it stays an expected failure on the test's seeds.
+
+Tests: the reasons of the four expected failures now give these causes and values. Run:
+`tests/models` (with `test_engine_sim.py`, `test_reseed.py`, `test_cancelling_pairs.py`,
+`test_trf.py`, `test_fast_paths.py`, `test_band_limited_noise.py`,
+`test_evaluate_fit.py`), `test_determinism.py`, `tools/gen_soup.py --check`,
+`tools/freeze_methods_text.py --check`.
+
 ### N1 latency agreement (REQ-114, REQ-273): why the rule's peak is missed; fitted background on any time grid
 
 REQ-114 asks the model latency within 2 ms of the published rule's peak on 90 % of the

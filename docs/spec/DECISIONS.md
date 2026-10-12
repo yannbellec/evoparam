@@ -389,6 +389,54 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   and `amplitude_prior` 1 (development 0.40 to 0.42 and 0.39 to 0.40; REQ runs 0.46 to 0.44
   and 0.40 to 0.32, code recall 0.88 to 0.76). Neither is used.
 
+### 5.3 REQ-105 (recall >= 0.95 from SNR 3) — REQ-112 (>= 95 % of pure-noise windows silent)
+
+- REQ-105 asks a recall of 0.95 down to SNR 3 and a FWHM of 3 samples; REQ-112 asks no
+  component in >= 95 % of pure-noise windows at the default `delta`. A Gaussian of FWHM 3
+  samples at SNR 3 carries a chi-square of about 20; BIC with `delta` 10 asks about 29.
+  On seeds other than the test's, the missed components (all at SNR 3) change BIC by -8 to
+  +9 when refitted from their true values: the criterion decides, not the search. Recall
+  and white-noise false components: `delta` 10: 0.875 and 0 %; 0: 0.947 and 3 %; -2: 0.956
+  and 5.5 %. No `delta` meets both on white noise alone; coloured noise and the ds004080
+  baselines leave less room.
+- Resolution: REQ-112 wins (it is the calibration §5.5.4 gives for `delta`), `delta`
+  stays 10 and REQ-105 stays an expected failure with its measured values. The test's
+  design steps SNR and width together, so every K = 1 waveform at SNR 3 has a FWHM of 3
+  samples (hence the lowest recall at K = 1); the test is kept as written. CHANGELOG,
+  "Engine simulation requirements".
+
+### 5.4 REQ-106 with the default pair — the latency of §5.5.1 and the pair of REQ-106
+
+- REQ-106 asks a latency MAE <= 0.5 sample for gamma and biexponential truths fitted with
+  the default `("gaussian", "skewed_gaussian")` pair; §5.5.1 defines the latency as the
+  mode of the fitted component. Without noise, the best skewed Gaussian puts the mode 0.47
+  (gamma, kappa 3) and 0.54 (biexponential, decay / rise 4) sample from the truth's, on
+  average over the widths 3 to 25 samples; noise only adds to it (measured 0.76 and 0.60).
+  For skewed-Gaussian truths the criterion keeps the Gaussian in most fits (the asymmetry
+  does not pay its BIC penalty at SNR 5 to 20), whose centre is 0.19 to 1.55 samples from
+  the mode (measured 0.52).
+- Resolution: the latency definition and the pair stay as specified; the three cases stay
+  expected failures. Refining every allowed shape before keeping the best (§5.5.3 step 4)
+  lowers the MAE on other seeds but not to 0.5 on the test's (0.505, 0.750, 0.599) and
+  lowers the ds004080 N1 kappa on the development runs (0.40 / 0.39 to 0.37 / 0.34) and the
+  REQ runs (0.458 / 0.398 to 0.426 / 0.369): not used.
+
+### 5.5 REQ-111 at 0.5 FWHM — §5.5.3 steps 4 and 5
+
+- REQ-111 asks one component flagged `merged:<k>,<k+1>` for two equal Gaussians 0.5 FWHM
+  apart at SNR 10. The warning comes from the merge-and-compare of step 5, which runs after
+  a step has accepted a component. The pair differs from one Gaussian by a chi-square of
+  1.4, far below what step 4 asks for a second component, so no step adds it; and step 5's
+  overlap rule, `|mu_2 - mu_1| < overlap_c (sigma_1 + sigma_2)` with `overlap_c` 0.5, is
+  not met by the true pair (20 ms against 17 ms).
+- Resolution: steps 4 and 5 are kept as written (merge after an accepted step; the engine
+  sets `merged:<k>,<k+1>` there). Merging the candidates a step rejects was measured and
+  is not used: with the best rejected candidate the warning appears on 7 % of the pairs
+  and 1 to 7 % of single Gaussians; with any rejected candidate on 49 % and 33 to 77 %;
+  reading the overlap on FWHM instead of sigma, on 99 % and 91 to 100 %. A warning set as
+  often on single components would not say that two were merged. REQ-111 at 0.5 FWHM stays
+  an expected failure; its other clause (no unflagged pair) holds.
+
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
 Each point below is a reading needed to apply a requirement of S20 literally, or a place
