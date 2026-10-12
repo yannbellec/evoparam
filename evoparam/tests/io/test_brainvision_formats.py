@@ -2,6 +2,7 @@
 """BrainVision formats: INT_16 / IEEE_FLOAT_32, multiplexed / vectorized, units, picks."""
 
 import pathlib
+from typing import Any
 
 import numpy as np
 import pytest
@@ -17,14 +18,14 @@ SFREQ = 250.0
 NAMES = ["C1", "C2", "C3"]
 
 
-def small_signal(n_times=1000):
+def small_signal(n_times: Any = 1000) -> Any:
     # Integers below 2**14 so that INT_16 with resolution 0.5 is exact
     return (np.arange(3)[:, None] * 1000 + np.arange(n_times)[None, :] % 997).astype(float)
 
 
 @pytest.mark.parametrize("fmt", ["INT_16", "IEEE_FLOAT_32", "INT_32"])
 @pytest.mark.parametrize("orientation", ["MULTIPLEXED", "VECTORIZED"])
-def test_formats_and_orientations(tmp_path, fmt, orientation):
+def test_formats_and_orientations(tmp_path: Any, fmt: Any, orientation: Any) -> None:
 
     data = small_signal()
     vhdr = write_brainvision(
@@ -54,7 +55,7 @@ def test_formats_and_orientations(tmp_path, fmt, orientation):
     assert np.array_equal(out, data[[2, 0], 250:500])
 
 
-def test_per_channel_resolution_and_units(tmp_path):
+def test_per_channel_resolution_and_units(tmp_path: Any) -> None:
 
     data = small_signal()
     vhdr = write_brainvision(
@@ -76,7 +77,7 @@ def test_per_channel_resolution_and_units(tmp_path):
     assert list(header["to_uv"]) == [1.0, 1e3, 1e6]
 
 
-def test_non_voltage_unit_and_greek_mu(tmp_path):
+def test_non_voltage_unit_and_greek_mu(tmp_path: Any) -> None:
 
     data = small_signal(100)
     vhdr = write_brainvision(tmp_path, "rec", data, SFREQ, NAMES, units=["μV", "µV", "Adim."])
@@ -85,7 +86,7 @@ def test_non_voltage_unit_and_greek_mu(tmp_path):
     assert np.allclose(out, data)
 
 
-def test_duplicated_names_get_a_suffix(tmp_path):
+def test_duplicated_names_get_a_suffix(tmp_path: Any) -> None:
 
     vhdr = write_brainvision(tmp_path, "rec", small_signal(100), SFREQ, ["X", "Y", "X"])
     with pytest.warns(UserWarning, match="Duplicated channel names"):
@@ -93,7 +94,7 @@ def test_duplicated_names_get_a_suffix(tmp_path):
     assert header["ch_names"] == ["X-1", "Y", "X-2"]
 
 
-def test_segment_keeps_inherited_semantics(tmp_path):
+def test_segment_keeps_inherited_semantics(tmp_path: Any) -> None:
 
     data = small_signal()
     vhdr = write_brainvision(tmp_path, "rec", data, SFREQ, NAMES)
@@ -103,7 +104,7 @@ def test_segment_keeps_inherited_semantics(tmp_path):
     assert np.array_equal(out, data[:, 250:501])
 
 
-def test_errors(tmp_path):
+def test_errors(tmp_path: Any) -> None:
 
     vhdr = write_brainvision(tmp_path, "rec", small_signal(100), SFREQ, NAMES)
     with pytest.raises(DataError, match="unknown channel"):
@@ -128,7 +129,7 @@ def test_errors(tmp_path):
         read_brainvision_header(str(tmp_path / "uint8.vhdr"))
 
 
-def test_latin1_header(tmp_path):
+def test_latin1_header(tmp_path: Any) -> None:
 
     vhdr = write_brainvision(tmp_path, "rec", small_signal(100), SFREQ, NAMES)
     text = pathlib.Path(vhdr).read_text(encoding="utf-8")

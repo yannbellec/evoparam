@@ -11,7 +11,7 @@ from .helpers import add_pulse, make_noise, make_recording, spatial_gains
 ###################################################################################################
 
 
-def test_expected_rate_sets_min_interval_for_trains():
+def test_expected_rate_sets_min_interval_for_trains() -> None:
 
     # 50 Hz train: the default 0.5 s refractory period would merge the pulses
     sfreq = 2048.0
@@ -24,7 +24,7 @@ def test_expected_rate_sets_min_interval_for_trains():
     assert (events["interval_flag"] == "").all()
 
 
-def test_interval_flags():
+def test_interval_flags() -> None:
 
     sfreq = 2048.0
     rng = np.random.default_rng(22)

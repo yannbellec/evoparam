@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Whitening and projection away from the artifact subspace (REQ-064)."""
 
+from typing import Any
+
 import numpy as np
 
 from evoparam.artifact import compare_methods
@@ -12,7 +14,7 @@ from .helpers import artifact_shape, response, times_axis
 ###################################################################################################
 
 
-def _overlay(seed):
+def _overlay(seed: Any) -> Any:
     rng = np.random.default_rng(seed)
     sfreq, n_trials, n_channels = 2048.0, 30, 32
     times = times_axis(sfreq)
@@ -39,7 +41,7 @@ def _overlay(seed):
     return make(noisy), make(clean)
 
 
-def _gain(seed, **options):
+def _gain(seed: Any, **options: Any) -> Any:
     noisy, clean = _overlay(seed)
     table = compare_methods(
         noisy,
@@ -50,7 +52,7 @@ def _gain(seed, **options):
     return table["sir_improvement_db"].iloc[0]
 
 
-def test_req064_signal_to_interference_improvement():
+def test_req064_signal_to_interference_improvement() -> None:
 
     # the default (directions above the whitened noise level, window projected): 42.7 to
     # 43.7 dB on seeds 4 to 13; the specification's version 14.9 to 33.1 dB (5 of 10 above

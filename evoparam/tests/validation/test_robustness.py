@@ -16,6 +16,7 @@ import json
 import math
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -30,7 +31,7 @@ ANALYSES = ("montage", "preset", "sampling", "trials", "platform")
 HIIE = "waits for the owner's HIIE decision (nothing public before it)"
 
 
-def _module(path, name):
+def _module(path: Any, name: Any) -> Any:
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -38,23 +39,23 @@ def _module(path, name):
 
 
 @pytest.fixture(scope="module")
-def gate():
+def gate() -> Any:
     return _module(ROOT / "tools" / "layer3_gate.py", "layer3_gate")
 
 
 @pytest.fixture(scope="module")
-def robustness():
+def robustness() -> Any:
     return _module(ROOT / "validation" / "robustness.py", "robustness")
 
 
 @pytest.fixture(scope="module")
-def report():
+def report() -> Any:
     path = LAYER4 / "report.json"
     assert path.exists(), f"run python validation/robustness.py (no {path})"
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _workflow(name):
+def _workflow(name: Any) -> Any:
     yaml = pytest.importorskip("yaml")
     return yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8"))
 
@@ -63,7 +64,7 @@ def _workflow(name):
 ## REQ-375
 
 
-def test_req375_the_five_analyses_are_defined(robustness):
+def test_req375_the_five_analyses_are_defined(robustness: Any) -> None:
     """REQ-375: the script runs exactly the five analyses of §7.4."""
 
     assert robustness.ANALYSES == ANALYSES
@@ -76,7 +77,7 @@ def test_req375_the_five_analyses_are_defined(robustness):
     assert robustness.PRESET_LATENCY_MS == 2.0
 
 
-def test_req375_preset_perturbation(robustness):
+def test_req375_preset_perturbation(robustness: Any) -> None:
     """§7.4 (2): a choice field is perturbed by +-50 %; intervals at both ends; integers
     rounded and at least 1; flags are left alone."""
 
@@ -88,7 +89,7 @@ def test_req375_preset_perturbation(robustness):
     assert robustness.perturb({"N1": [0.01, 0.05]}, 0.5) == {"N1": [0.005, 0.025]}
 
 
-def test_req375_sampling_decimates_and_never_upsamples(robustness):
+def test_req375_sampling_decimates_and_never_upsamples(robustness: Any) -> None:
     """§7.4 (3): runs are decimated; a run recorded at or below the rate is kept as is."""
 
     assert robustness.decimates(2048.0002097152214, 1024.0)
@@ -98,7 +99,7 @@ def test_req375_sampling_decimates_and_never_upsamples(robustness):
     assert not robustness.decimates(1024.0001048576107, 1024.0)
 
 
-def test_req375_release_pipeline_runs_the_analyses_and_keeps_them():
+def test_req375_release_pipeline_runs_the_analyses_and_keeps_them() -> None:
     """REQ-375: the release workflow runs the five analyses and keeps their report with the
     release records."""
 
@@ -110,7 +111,7 @@ def test_req375_release_pipeline_runs_the_analyses_and_keeps_them():
     assert "validation/layer4/" in kept
 
 
-def test_req375_report_holds_the_five_analyses(report):
+def test_req375_report_holds_the_five_analyses(report: Any) -> None:
     """REQ-375: the report of this version holds the five analyses, each with results."""
 
     assert report["version"] == __version__
@@ -131,7 +132,7 @@ def test_req375_report_holds_the_five_analyses(report):
         assert heading in text
 
 
-def test_req375_montage_covers_ds004080_and_ds004977(report):
+def test_req375_montage_covers_ds004080_and_ds004977(report: Any) -> None:
     """§7.4 (1): every ds004080 and ds004977 result is recomputed under the three
     references."""
 
@@ -142,7 +143,7 @@ def test_req375_montage_covers_ds004080_and_ds004977(report):
         assert report["montage"]["summary"][pair]["n"] == n_cases
 
 
-def _sampling_reason():
+def _sampling_reason() -> Any:
     path = LAYER4 / "report.json"
     if not path.exists():
         return "no layer-4 report"
@@ -155,7 +156,7 @@ def _sampling_reason():
     )
 
 
-def _sampling_met():
+def _sampling_met() -> Any:
     path = LAYER4 / "report.json"
     if not path.exists():
         return False
@@ -166,7 +167,7 @@ def _sampling_met():
 @pytest.mark.xfail(
     not _sampling_met(), strict=True, reason="§7.4 (3) not met: " + _sampling_reason()
 )
-def test_req375_sampling_recall_within_5_points_at_1024_hz(report):
+def test_req375_sampling_recall_within_5_points_at_1024_hz(report: Any) -> None:
     """§7.4 (3): N1 recall stays within 5 percentage points of the native rate at 1024 Hz
     (both readings of the published rule)."""
 
@@ -174,7 +175,7 @@ def test_req375_sampling_recall_within_5_points_at_1024_hz(report):
         assert v["drop_points_1024"] <= 5.0
 
 
-def test_req375_preset_sensitivities_are_listed_in_the_preset_docs(report):
+def test_req375_preset_sensitivities_are_listed_in_the_preset_docs(report: Any) -> None:
     """§7.4 (2): every sensitivity found is listed in the preset documentation."""
 
     page = (ROOT / "docs" / "preset_sensitivity.md").read_text(encoding="utf-8")
@@ -192,7 +193,7 @@ def test_req375_preset_sensitivities_are_listed_in_the_preset_docs(report):
     assert "preset_sensitivity" in (ROOT / "docs" / "presets.md").read_text(encoding="utf-8")
 
 
-def test_req375_trial_count_reports_changed_decisions(report):
+def test_req375_trial_count_reports_changed_decisions(report: Any) -> None:
     """§7.4 (4): the change of existence decisions is reported per trial count."""
 
     for row in report["trials"]["summary"]:
@@ -200,7 +201,7 @@ def test_req375_trial_count_reports_changed_decisions(report):
         assert 0.0 <= row["changed_mean"] <= 1.0
 
 
-def test_req375_platform_this_machine(report):
+def test_req375_platform_this_machine(report: Any) -> None:
     """§7.4 (5): the deterministic fixture fit equals the reference within 1e-9 here."""
 
     assert report["platform"]["rtol"] == 1e-9
@@ -213,7 +214,7 @@ def test_req375_platform_this_machine(report):
     "matrix (.github/workflows/ci.yml), which cannot run on this machine; "
     "only Linux x86-64 measured",
 )
-def test_req375_platform_macos_and_windows(report):
+def test_req375_platform_macos_and_windows(report: Any) -> None:
     """§7.4 (5): identical results on Linux, macOS and Windows."""
 
     seen = {report["platform"]["platform"].split("-")[0]}
@@ -221,7 +222,7 @@ def test_req375_platform_macos_and_windows(report):
 
 
 @pytest.mark.xfail(strict=True, reason=HIIE)
-def test_req375_report_attached_to_the_release_notes():
+def test_req375_report_attached_to_the_release_notes() -> None:
     """REQ-375: the report is attached to the release notes of every minor version (no
     release exists before the owner's HIIE decision)."""
 
@@ -235,20 +236,20 @@ def test_req375_report_attached_to_the_release_notes():
 ## REQ-376
 
 
-def test_req376_tolerances_are_the_preregistered_ones(gate):
+def test_req376_tolerances_are_the_preregistered_ones(gate: Any) -> None:
     """REQ-376: kappa -0.05, latency +1 ms median, recall -3 points."""
 
     assert gate.tolerances() == {"kappa": 0.05, "latency": 1.0, "recall": 0.03}
 
 
-def _docs():
+def _docs() -> Any:
     return {
         name: json.loads((LAYER3 / name).read_text(encoding="utf-8"))
         for name in ("n1_ds004080.json", "erpcore_difference.json", "erpcore_parent.json")
     }
 
 
-def test_req376_committed_files_have_the_metrics(gate):
+def test_req376_committed_files_have_the_metrics(gate: Any) -> None:
     """REQ-376: the gate reads the N1 metrics of ds004080 (two readings) and the ERP CORE
     components; every value is finite."""
 
@@ -275,7 +276,9 @@ def test_req376_committed_files_have_the_metrics(gate):
         ("recall", +0.2, False),
     ],
 )
-def test_req376_regression_beyond_tolerance_blocks(gate, field, delta, blocks):
+def test_req376_regression_beyond_tolerance_blocks(
+    gate: Any, field: Any, delta: Any, blocks: Any
+) -> None:
     """REQ-376: a change beyond its tolerance blocks the release; within it does not."""
 
     base = _docs()
@@ -287,7 +290,7 @@ def test_req376_regression_beyond_tolerance_blocks(gate, field, delta, blocks):
         assert result["blocking"] == [f"n1_ds004080/paper/{field}"]
 
 
-def test_req376_erpcore_latency_regression_blocks(gate):
+def test_req376_erpcore_latency_regression_blocks(gate: Any) -> None:
     base = _docs()
     now = copy.deepcopy(base)
     row = now["erpcore_parent.json"]["summary"][0]
@@ -296,14 +299,14 @@ def test_req376_erpcore_latency_regression_blocks(gate):
     assert result["release_blocked"]
 
 
-def test_req376_missing_metric_blocks(gate):
+def test_req376_missing_metric_blocks(gate: Any) -> None:
     base = _docs()
     now = copy.deepcopy(base)
     del now["n1_ds004080.json"]["metrics"]["code"]
     assert gate.gate(base, now, "## Unreleased\n")["release_blocked"]
 
 
-def test_req376_changelog_explanation_unblocks(gate):
+def test_req376_changelog_explanation_unblocks(gate: Any) -> None:
     """REQ-376: unless the changelog explains it (in ## Unreleased)."""
 
     base = _docs()
@@ -325,7 +328,7 @@ def test_req376_changelog_explanation_unblocks(gate):
     assert gate.gate(base, now, old)["release_blocked"]
 
 
-def test_req376_gate_passes_on_the_committed_files(tmp_path):
+def test_req376_gate_passes_on_the_committed_files(tmp_path: Any) -> None:
     """REQ-376: the gate script against the committed layer-3 files (no release tag yet:
     the baseline is the files themselves) exits 0."""
 
@@ -348,7 +351,7 @@ def test_req376_gate_passes_on_the_committed_files(tmp_path):
     assert not out["blocking"]
 
 
-def test_req376_release_workflow_runs_the_gate():
+def test_req376_release_workflow_runs_the_gate() -> None:
     workflow = _workflow("release.yml")
     runs = " ".join(
         s.get("run", "") for job in workflow["jobs"].values() for s in job.get("steps", [])
@@ -357,7 +360,7 @@ def test_req376_release_workflow_runs_the_gate():
     assert "layer3_gate" in (ROOT / "RELEASING.md").read_text(encoding="utf-8")
 
 
-def test_req376_n1_file_matches_this_version():
+def test_req376_n1_file_matches_this_version() -> None:
     doc = json.loads((LAYER3 / "n1_ds004080.json").read_text(encoding="utf-8"))
     assert doc["version"] == evoparam.__version__
     assert set(doc["metrics"]) == {"paper", "code"}

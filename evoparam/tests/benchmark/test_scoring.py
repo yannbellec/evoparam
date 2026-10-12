@@ -12,6 +12,7 @@ import os
 import pathlib
 import subprocess
 import sys
+from typing import Any
 
 import numpy as np
 import pytest
@@ -37,7 +38,7 @@ from .helpers import ROOT, inputs, perfect_t1, perfect_t2, suite
 pytest.importorskip("jsonschema")
 
 
-def _predict(tmp_path, task, method="vanblooijs2023", n=None):
+def _predict(tmp_path: Any, task: Any, method: Any = "vanblooijs2023", n: Any = None) -> Any:
     """Write a baseline's outputs for the public cells of ``core``; returns the folder."""
 
     folder = tmp_path / method / task
@@ -48,7 +49,7 @@ def _predict(tmp_path, task, method="vanblooijs2023", n=None):
     return folder
 
 
-def _cli_score(folder, out, task="T1"):
+def _cli_score(folder: Any, out: Any, task: Any = "T1") -> Any:
     env = dict(os.environ, PYTHONPATH=str(ROOT) + os.pathsep + os.environ.get("PYTHONPATH", ""))
     proc = subprocess.run(
         [
@@ -81,7 +82,7 @@ def _cli_score(folder, out, task="T1"):
     return out.read_bytes()
 
 
-def test_req352_signed_json_is_byte_identical_across_two_runs(tmp_path):
+def test_req352_signed_json_is_byte_identical_across_two_runs(tmp_path: Any) -> None:
     folder = _predict(tmp_path, "T1")
     first = _cli_score(folder, tmp_path / "first.json")
     second = _cli_score(folder, tmp_path / "second.json")
@@ -91,7 +92,7 @@ def test_req352_signed_json_is_byte_identical_across_two_runs(tmp_path):
     assert str(tmp_path) not in first.decode("utf-8")  # no machine path in the result
 
 
-def test_req352_in_process_scoring_matches_the_command_line(tmp_path):
+def test_req352_in_process_scoring_matches_the_command_line(tmp_path: Any) -> None:
     folder = _predict(tmp_path, "T1")
     cli = _cli_score(folder, tmp_path / "cli.json")
     method = {
@@ -107,7 +108,7 @@ def test_req352_in_process_scoring_matches_the_command_line(tmp_path):
         assert fobj.read() == cli
 
 
-def test_req352_result_document_is_signed_and_complete(tmp_path):
+def test_req352_result_document_is_signed_and_complete(tmp_path: Any) -> None:
     folder = _predict(tmp_path, "T2")
     document = score("T2", str(folder), "core", method=get_baseline("vanblooijs2023").info())
     assert document["schema"] == RESULT_SCHEMA
@@ -129,7 +130,7 @@ def test_req352_result_document_is_signed_and_complete(tmp_path):
     assert read_result(path) == json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
 
 
-def test_req352_a_changed_number_breaks_the_signature(tmp_path):
+def test_req352_a_changed_number_breaks_the_signature(tmp_path: Any) -> None:
     folder = _predict(tmp_path, "T1", n=2)
     document = score("T1", str(folder), "core", inputs=list(inputs("T1", 2)))
     path = write_result(document, str(tmp_path / "r.json"))
@@ -143,7 +144,7 @@ def test_req352_a_changed_number_breaks_the_signature(tmp_path):
         read_result(path)
 
 
-def test_req352_a_changed_output_changes_the_result(tmp_path):
+def test_req352_a_changed_output_changes_the_result(tmp_path: Any) -> None:
     folder = _predict(tmp_path, "T1", n=2)
     ins = list(inputs("T1", 2))
     before = score("T1", str(folder), "core", inputs=ins)
@@ -160,7 +161,7 @@ def test_req352_a_changed_output_changes_the_result(tmp_path):
 
 
 @pytest.mark.parametrize("task", list(TASKS))
-def test_req352_scoring_is_deterministic_for_every_task(task):
+def test_req352_scoring_is_deterministic_for_every_task(task: Any) -> None:
     """Same inputs and outputs, scored twice: the same document (metrics within rtol 1e-9
     and the same signature)."""
 
@@ -195,7 +196,7 @@ def test_req352_scoring_is_deterministic_for_every_task(task):
             np.testing.assert_allclose(b["metrics"][key], value, rtol=1e-9)
 
 
-def test_req352_perfect_answers_score_perfectly():
+def test_req352_perfect_answers_score_perfectly() -> None:
     t1 = list(inputs("T1"))
     t2 = list(inputs("T2"))
     r1 = score_outputs("T1", t1, {ti.cell: perfect_t1(ti) for ti in t1}, suite=suite("core"))
@@ -213,7 +214,7 @@ def test_req352_perfect_answers_score_perfectly():
     np.testing.assert_allclose(shifted["metrics"]["latency_bias"], 0.002, rtol=1e-9)
 
 
-def test_req352_t4_no_removal_and_exact_removal():
+def test_req352_t4_no_removal_and_exact_removal() -> None:
     ti = inputs("T4", 1)[0]
     none = score_outputs("T4", [ti], {ti.cell: ti.arrays["data"]}, suite=suite("core"))
     exact = score_outputs("T4", [ti], {ti.cell: ti.truth["clean"]}, suite=suite("core"))
@@ -221,14 +222,14 @@ def test_req352_t4_no_removal_and_exact_removal():
     assert exact["metrics"]["artifact_residual_rms"] == pytest.approx(0.0, abs=1e-12)
 
 
-def test_req352_auc_is_the_mann_whitney_statistic():
+def test_req352_auc_is_the_mann_whitney_statistic() -> None:
     assert auc_score([1, 1, 0, 0], [0.9, 0.8, 0.1, 0.2]) == 1.0
     assert auc_score([1, 1, 0, 0], [0.1, 0.2, 0.9, 0.8]) == 0.0
     assert auc_score([1, 0], [0.5, 0.5]) == 0.5
     np.testing.assert_allclose(auc_score([1, 0, 1, 0, 1], [3, 1, 2, 2, 1]), 4 / 6, rtol=1e-9)
 
 
-def test_req352_missing_output_is_an_error_unless_allowed(tmp_path):
+def test_req352_missing_output_is_an_error_unless_allowed(tmp_path: Any) -> None:
     folder = _predict(tmp_path, "T1", n=2)
     ins = list(inputs("T1", 3))
     with pytest.raises(DataError, match="no output for cell"):

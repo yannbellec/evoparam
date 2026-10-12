@@ -16,6 +16,7 @@ import importlib.util
 import math
 import os
 import pathlib
+from typing import Any
 
 import numpy as np
 import pytest
@@ -29,11 +30,11 @@ TOL = 1e-9
 ## Independent reference (definitions only)
 
 
-def _ref_signed(v, polarity):
+def _ref_signed(v: Any, polarity: Any) -> Any:
     return -v if polarity == "negative" else (abs(v) if polarity == "absolute" else v)
 
 
-def ref_local_peak(_t, y, polarity, n):
+def ref_local_peak(_t: Any, y: Any, polarity: Any, n: Any) -> Any:
     """Index of the largest sample that exceeds each of its n neighbours on both sides and
     the mean of the neighbours on each side; the simple extremum when none does."""
 
@@ -49,7 +50,7 @@ def ref_local_peak(_t, y, polarity, n):
     return best
 
 
-def ref_area(t, y, kind, base):
+def ref_area(t: Any, y: Any, kind: Any, base: Any) -> Any:
     total = 0.0
     for i in range(len(t) - 1):
         a, b = y[i] - base, y[i + 1] - base
@@ -63,7 +64,7 @@ def ref_area(t, y, kind, base):
     return total
 
 
-def ref_fractional_area_latency(t, y, fraction, kind, base):
+def ref_fractional_area_latency(t: Any, y: Any, fraction: Any, kind: Any, base: Any) -> Any:
     def mag(v):
         v = v - base
         if kind == "positive":
@@ -84,7 +85,7 @@ def ref_fractional_area_latency(t, y, fraction, kind, base):
     return t[-1]
 
 
-def ref_fractional_peak_latency(t, y, peak, fraction, polarity):
+def ref_fractional_peak_latency(t: Any, y: Any, peak: Any, fraction: Any, polarity: Any) -> Any:
     s = [_ref_signed(v, polarity) for v in y]
     level = fraction * s[peak]
     for j in range(peak, -1, -1):
@@ -97,8 +98,15 @@ def ref_fractional_peak_latency(t, y, peak, fraction, polarity):
 
 
 def reference(
-    times, y, window, polarity, fraction=0.5, area="total", area_baseline="zero", n_neighbors=3
-):
+    times: Any,
+    y: Any,
+    window: Any,
+    polarity: Any,
+    fraction: Any = 0.5,
+    area: Any = "total",
+    area_baseline: Any = "zero",
+    n_neighbors: Any = 3,
+) -> Any:
     idx = [i for i, v in enumerate(times) if window[0] <= v <= window[1]]
     t = [float(times[i]) for i in idx]
     w = [float(y[i]) for i in idx]
@@ -123,7 +131,7 @@ VARIANTS = [
 ]
 
 
-def _compare(times, average, window, polarity):
+def _compare(times: Any, average: Any, window: Any, polarity: Any) -> None:
     for variant in VARIANTS:
         got = classical_measures(
             times, average, window=window, polarity=polarity, measures=MEASURES, **variant
@@ -150,8 +158,8 @@ def _compare(times, average, window, polarity):
     [("N170", (0.110, 0.150), "negative"), ("P3", (0.300, 0.600), "positive")],
 )
 def test_req117_classical_measures_match_independent_definitions(
-    component, channel_window, polarity
-):
+    component: Any, channel_window: Any, polarity: Any
+) -> None:
     """40 simulated participants' averages (60 trials, pink noise), the ERP CORE
     measurement window of the component; every measure and the four area variants."""
 
@@ -181,7 +189,7 @@ SCRIPT = pathlib.Path(__file__).parents[3] / "validation" / "erpcore.py"
     reason="set EVOPARAM_ERPCORE to the local ERP CORE copy",
 )
 @pytest.mark.parametrize("component", ["N170", "P3"])
-def test_req117_on_erp_core_averages(component):
+def test_req117_on_erp_core_averages(component: Any) -> None:
     """REQ-117 as written: the 40 ERP CORE participants' difference waves of N170 and P3 on
     the published channel, in the published measurement window."""
 

@@ -10,6 +10,7 @@ import hashlib
 import importlib.util
 import json
 import math
+from typing import Any
 
 import pytest
 
@@ -19,7 +20,7 @@ LAYER3 = ROOT / "validation" / "layer3"
 NOT_RESULTS = {"tolerances.json", "comparisons.json"}
 
 
-def _module(path, name):
+def _module(path: Any, name: Any) -> Any:
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -27,16 +28,16 @@ def _module(path, name):
 
 
 @pytest.fixture(scope="module")
-def report():
+def report() -> Any:
     return _module(ROOT / "validation" / "layer3_report.py", "layer3_report")
 
 
 @pytest.fixture(scope="module")
-def records():
+def records() -> Any:
     return json.loads((LAYER3 / "comparisons.json").read_text(encoding="utf-8"))
 
 
-def test_req374_every_layer3_file_has_comparison_records(records):
+def test_req374_every_layer3_file_has_comparison_records(records: Any) -> None:
     """REQ-374: each layer-3 result file is a source of the records, and gives at least one
     record."""
 
@@ -48,7 +49,9 @@ def test_req374_every_layer3_file_has_comparison_records(records):
         assert any(r["id"].startswith(prefix) for r in records["comparisons"]), name
 
 
-def test_req374_records_give_both_numbers_the_difference_and_its_interval(records, report):
+def test_req374_records_give_both_numbers_the_difference_and_its_interval(
+    records: Any, report: Any
+) -> None:
     """REQ-374: the comparator's number, evoparam's number, the difference (evoparam minus
     comparator) with its interval, the data (dataset id and DOI) and the comparator
     definition (registry rule id, or the definition written out) in every record."""
@@ -73,14 +76,14 @@ def test_req374_records_give_both_numbers_the_difference_and_its_interval(record
             assert definition["id"], r["id"]
 
 
-def test_req374_records_are_those_of_the_result_files(report):
+def test_req374_records_are_those_of_the_result_files(report: Any) -> None:
     """REQ-374: the committed records are the ones the result files give (regenerated with
     ``python validation/layer3_report.py``)."""
 
     assert (LAYER3 / "comparisons.json").read_text(encoding="utf-8") == report.render()
 
 
-def test_req374_n1_difference_is_the_difference_of_the_fractions(records):
+def test_req374_n1_difference_is_the_difference_of_the_fractions(records: Any) -> None:
     """REQ-374: on ds004080 the fractions are those of the counts of n1_ds004080.json."""
 
     n1 = json.loads((LAYER3 / "n1_ds004080.json").read_text(encoding="utf-8"))
@@ -93,7 +96,7 @@ def test_req374_n1_difference_is_the_difference_of_the_fractions(records):
         assert r["data"]["version"] == "1.2.4"
 
 
-def test_req374_erpcore_records_the_files_it_reads(tmp_path, monkeypatch):
+def test_req374_erpcore_records_the_files_it_reads(tmp_path: Any, monkeypatch: Any) -> None:
     """REQ-374: the ERP CORE run records the SHA-256 of every file it reads (the OSF deposit
     has no version number)."""
 
@@ -118,7 +121,7 @@ def test_req374_erpcore_records_the_files_it_reads(tmp_path, monkeypatch):
     "not recorded). validation/erpcore.py and validation/carla_ds004977.py "
     "record them from now on; they need a rerun with the data and MATLAB",
 )
-def test_req374_exact_versions_of_data_and_comparator(records):
+def test_req374_exact_versions_of_data_and_comparator(records: Any) -> None:
     """REQ-374: every record names the exact version of its data (a version number, or the
     SHA-256 of the files read) and of its comparator definition."""
 

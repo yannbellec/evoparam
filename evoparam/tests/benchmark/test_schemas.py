@@ -5,6 +5,7 @@ violation."""
 
 import json
 import shutil
+from typing import Any
 
 import numpy as np
 import pytest
@@ -30,7 +31,7 @@ jsonschema = pytest.importorskip("jsonschema")
 
 
 @pytest.mark.parametrize("task", list(TASKS))
-def test_req351_schemas_are_versioned_and_valid(task):
+def test_req351_schemas_are_versioned_and_valid(task: Any) -> None:
     schema = load_schema(task)
     assert schema_id(task) == f"benchmark-task/{task}/1"
     assert schema["$id"] == schema_id(task)
@@ -48,7 +49,7 @@ def test_req351_schemas_are_versioned_and_valid(task):
 
 
 @pytest.mark.parametrize("task", list(TASKS))
-def test_req351_inputs_validate_and_round_trip(task, tmp_path):
+def test_req351_inputs_validate_and_round_trip(task: Any, tmp_path: Any) -> None:
     ti = inputs(task, 1)[0]
     path = write_input(ti, tmp_path)
     back = read_input(path)
@@ -58,7 +59,7 @@ def test_req351_inputs_validate_and_round_trip(task, tmp_path):
     assert back.sha256() == ti.sha256()
 
 
-def _broken_input(tmp_path, change):
+def _broken_input(tmp_path: Any, change: Any) -> Any:
     ti = inputs("T1", 1)[0]
     path = write_input(ti, tmp_path)
     with open(path, encoding="utf-8") as fobj:
@@ -82,7 +83,9 @@ def _broken_input(tmp_path, change):
         (lambda d: d.update(split="secret"), "split: 'secret' is not one of"),
     ],
 )
-def test_req351_invalid_input_names_the_first_violation(tmp_path, change, message):
+def test_req351_invalid_input_names_the_first_violation(
+    tmp_path: Any, change: Any, message: Any
+) -> None:
     path = _broken_input(tmp_path, change)
     with pytest.raises(BenchmarkValidationError) as info:
         read_input(path)
@@ -92,7 +95,7 @@ def test_req351_invalid_input_names_the_first_violation(tmp_path, change, messag
     assert "benchmark-task/T1/1" in text
 
 
-def test_req351_input_arrays_are_checked_against_their_hash(tmp_path):
+def test_req351_input_arrays_are_checked_against_their_hash(tmp_path: Any) -> None:
     ti = inputs("T1", 1)[0]
     path = write_input(ti, tmp_path)
     npz = tmp_path / ti.descriptor["data_file"]
@@ -103,7 +106,7 @@ def test_req351_input_arrays_are_checked_against_their_hash(tmp_path):
         read_input(path)
 
 
-def test_req351_first_violation_is_stable():
+def test_req351_first_violation_is_stable() -> None:
     """Several violations: the first in document order is reported, every time."""
 
     ti = inputs("T1", 1)[0]
@@ -117,7 +120,7 @@ def test_req351_first_violation_is_stable():
     assert messages.pop().startswith("x: sfreq: 'fast' is not of type 'number'")
 
 
-def _write(path, text):
+def _write(path: Any, text: Any) -> Any:
     path.write_text(text, encoding="utf-8")
     return path
 
@@ -148,7 +151,9 @@ def _write(path, text):
         ("", "empty file"),
     ],
 )
-def test_req351_invalid_tsv_names_the_first_violation(tmp_path, text, message):
+def test_req351_invalid_tsv_names_the_first_violation(
+    tmp_path: Any, text: Any, message: Any
+) -> None:
     path = _write(tmp_path / "cell.tsv", text)
     with pytest.raises(BenchmarkValidationError) as info:
         read_output("T1", str(path))
@@ -156,7 +161,7 @@ def test_req351_invalid_tsv_names_the_first_violation(tmp_path, text, message):
     assert message in str(info.value)
 
 
-def test_req351_valid_tsv_is_typed():
+def test_req351_valid_tsv_is_typed() -> None:
     rows = [
         {"site": "A1-A2", "channel": "A3", "responsive": 1, "p_value": 0.01, "score": 2.5},
         {"site": "A1-A2", "channel": "A4", "responsive": 0, "p_value": None},
@@ -211,7 +216,9 @@ def test_req351_valid_tsv_is_typed():
         ),
     ],
 )
-def test_req351_each_task_checks_its_rows(tmp_path, task, header, row, message):
+def test_req351_each_task_checks_its_rows(
+    tmp_path: Any, task: Any, header: Any, row: Any, message: Any
+) -> None:
     path = _write(tmp_path / "cell.tsv", f"{header}\n{row}\n")
     with pytest.raises(BenchmarkValidationError) as info:
         read_output(task, str(path))
@@ -229,7 +236,7 @@ def test_req351_each_task_checks_its_rows(tmp_path, task, header, row, message):
         ("empty", "arrays: 'data' is a required property"),
     ],
 )
-def test_req351_t4_output_is_validated(tmp_path, data, message):
+def test_req351_t4_output_is_validated(tmp_path: Any, data: Any, message: Any) -> None:
     path = tmp_path / "cell.npz"
     if data is None:
         np.savez(path, cleaned=np.zeros((1, 1, 1)))
@@ -242,7 +249,7 @@ def test_req351_t4_output_is_validated(tmp_path, data, message):
     assert message in str(info.value)
 
 
-def test_req351_scoring_rejects_an_invalid_output(tmp_path):
+def test_req351_scoring_rejects_an_invalid_output(tmp_path: Any) -> None:
     """One invalid file among valid ones: scoring stops and names that file and its first
     violation."""
 
@@ -264,7 +271,7 @@ def test_req351_scoring_rejects_an_invalid_output(tmp_path):
     shutil.rmtree(folder)
 
 
-def test_req351_scoring_rejects_rows_for_unknown_channels(tmp_path):
+def test_req351_scoring_rejects_rows_for_unknown_channels(tmp_path: Any) -> None:
     ti = inputs("T1", 1)[0]
     rows = perfect_t1(ti) + [
         {"site": ti.descriptor["site"], "channel": "Z99", "responsive": 1, "p_value": 0.01}
@@ -274,7 +281,7 @@ def test_req351_scoring_rejects_rows_for_unknown_channels(tmp_path):
         score("T1", str(tmp_path), suite("core"), inputs=[ti])
 
 
-def test_req351_baseline_outputs_validate(tmp_path):
+def test_req351_baseline_outputs_validate(tmp_path: Any) -> None:
     """The outputs written by a baseline follow the schema (read back without error)."""
 
     ti = inputs("T1", 1)[0]

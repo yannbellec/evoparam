@@ -13,6 +13,7 @@ import pathlib
 import re
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -30,7 +31,7 @@ PUBLISHING = re.compile(
 )
 
 
-def gate():
+def gate() -> Any:
     text = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
     block = text.split("<!-- release-gate -->")[1].split("<!-- end-release-gate -->")[0]
     items = dict(re.findall(r"^- ([^:]+): (.+)$", block, re.MULTILINE))
@@ -38,11 +39,11 @@ def gate():
     return items
 
 
-def _decided():
+def _decided() -> Any:
     return gate()["HIIE decision"].startswith("on record")
 
 
-def test_req019_the_gate_is_readable():
+def test_req019_the_gate_is_readable() -> None:
     items = gate()
     if _decided():
         assert re.search(r"on record, \d{4}-\d{2}-\d{2}, \S+", items["HIIE decision"])
@@ -51,7 +52,7 @@ def test_req019_the_gate_is_readable():
         assert items["HIIE decision"] == "not on record"
 
 
-def test_req019_no_upload_before_the_decision():
+def test_req019_no_upload_before_the_decision() -> None:
     if _decided():
         pytest.skip("the HIIE decision is on record (RELEASING.md): public steps are allowed")
     try:
@@ -72,7 +73,7 @@ def test_req019_no_upload_before_the_decision():
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="make is not a Windows tool")
-def test_req019_make_publish_stops_before_the_decision():
+def test_req019_make_publish_stops_before_the_decision() -> None:
     if _decided():
         pytest.skip("the HIIE decision is on record (RELEASING.md)")
     result = subprocess.run(
@@ -87,7 +88,7 @@ def test_req019_make_publish_stops_before_the_decision():
     assert "HIIE decision" in result.stdout + result.stderr
 
 
-def test_req017_n1_tests_run_in_every_build():
+def test_req017_n1_tests_run_in_every_build() -> None:
     workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
     triggers = workflow.split("\njobs:")[0]
     assert "push:" in triggers
@@ -105,7 +106,7 @@ def test_req017_n1_tests_run_in_every_build():
     assert re.search(r"def test_req114_", engine)
 
 
-def test_req018_every_addressed_gap_is_traced():
+def test_req018_every_addressed_gap_is_traced() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools" / "check_traceability.py")],
         capture_output=True,
@@ -117,7 +118,7 @@ def test_req018_every_addressed_gap_is_traced():
     assert "49 gaps marked Addressed" in result.stdout
 
 
-def test_req018_the_check_finds_a_broken_mapping(tmp_path):
+def test_req018_the_check_finds_a_broken_mapping(tmp_path: Any) -> None:
     spec = tmp_path / "docs" / "spec"
     spec.mkdir(parents=True)
     (spec / "GAPS.md").write_text(
@@ -143,12 +144,12 @@ def test_req018_the_check_finds_a_broken_mapping(tmp_path):
 ## REQ-398: the release workflow refuses to publish without the recorded decision
 
 
-def _workflow(name):
+def _workflow(name: Any) -> Any:
     yaml = pytest.importorskip("yaml")
     return yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8"))
 
 
-def test_req398_release_workflow_starts_with_the_gate():
+def test_req398_release_workflow_starts_with_the_gate() -> None:
     jobs = _workflow("release.yml")["jobs"]
     steps = " ".join(str(s.get("run", "")) for s in jobs["gate"]["steps"])
     assert "tools/release_gate.py" in steps
@@ -159,7 +160,7 @@ def test_req398_release_workflow_starts_with_the_gate():
             assert "gate" in needs, f"job {name} does not wait for the gate"
 
 
-def test_req398_the_gate_refuses_now():
+def test_req398_the_gate_refuses_now() -> None:
     if _decided():
         pytest.skip("the HIIE decision is on record (RELEASING.md)")
     result = subprocess.run(
@@ -174,7 +175,7 @@ def test_req398_the_gate_refuses_now():
     assert "RELEASING.md" in result.stdout
 
 
-def test_req398_the_gate_passes_with_a_recorded_decision(tmp_path):
+def test_req398_the_gate_passes_with_a_recorded_decision(tmp_path: Any) -> None:
     governance = (ROOT / "GOVERNANCE.md").read_text(encoding="utf-8")
     governance = governance.replace(
         "- Invention disclosure: not filed",
@@ -203,7 +204,7 @@ def test_req398_the_gate_passes_with_a_recorded_decision(tmp_path):
     assert result.returncode == 0, result.stdout
 
 
-def test_req398_no_repository_secret_in_any_workflow():
+def test_req398_no_repository_secret_in_any_workflow() -> None:
     """REQ-300 (d): no workflow uses a repository secret (trusted publishing needs none)."""
 
     hits = [
@@ -215,7 +216,7 @@ def test_req398_no_repository_secret_in_any_workflow():
     assert not hits, hits
 
 
-def test_req398_the_upload_job_waits_outside_the_workflows():
+def test_req398_the_upload_job_waits_outside_the_workflows() -> None:
     """The trusted-publishing job is kept in ci/ until the decision (RELEASING.md step 9)."""
 
     job = (ROOT / "ci" / "release-publish-job.yml").read_text(encoding="utf-8")
@@ -234,7 +235,7 @@ def test_req398_the_upload_job_waits_outside_the_workflows():
     "written decision are not on record; waits for the owner's HIIE decision "
     "(nothing public before it)",
 )
-def test_req398_decision_on_record():
+def test_req398_decision_on_record() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools" / "release_gate.py")],
         capture_output=True,

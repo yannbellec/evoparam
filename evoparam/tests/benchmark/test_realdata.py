@@ -5,6 +5,8 @@ The indices are checked offline; the loaders read public data and run only with
 EVOPARAM_NETWORK_TESTS=1.
 """
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -19,7 +21,7 @@ from .helpers import NETWORK, ROOT
 pytest.importorskip("jsonschema")
 
 
-def test_indices_name_registered_datasets():
+def test_indices_name_registered_datasets() -> None:
     assert list_indices() == ["ds002094", "ds003708", "ds004080", "ds004977", "erpcore"]
     for name in list_indices():
         index = load_index(name)
@@ -34,14 +36,14 @@ def test_indices_name_registered_datasets():
             assert index["entries"]
 
 
-def test_indices_hold_no_data():
+def test_indices_hold_no_data() -> None:
     folder = ROOT / "evoparam" / "benchmark" / "realdata"
     files = sorted(p.name for p in folder.iterdir() if p.is_file())
     assert all(f.endswith(".json") for f in files)
     assert sum((folder / f).stat().st_size for f in files) < 200_000
 
 
-def test_ds004080_entries_follow_the_fixed_selection():
+def test_ds004080_entries_follow_the_fixed_selection() -> None:
     index = load_index("ds004080")
     lines = [
         line.split("\t")
@@ -63,7 +65,7 @@ def test_ds004080_entries_follow_the_fixed_selection():
     }
 
 
-def test_erpcore_index_uses_the_reference_definitions():
+def test_erpcore_index_uses_the_reference_definitions() -> None:
     index = load_index("erpcore")
     assert index["tasks"] == ["T6"]
     assert {e["component"] for e in index["entries"]} == set(ERPCORE["components"])
@@ -71,21 +73,21 @@ def test_erpcore_index_uses_the_reference_definitions():
     assert "referenced only" in index["redistribution"]
 
 
-def test_unknown_index_and_task():
+def test_unknown_index_and_task() -> None:
     with pytest.raises(DataError, match="Unknown real-data index"):
         load_index("ds999999")
     with pytest.raises(DataError, match="does not serve task T6"):
         real_inputs("ds004080", 0, task="T6")
 
 
-def _network(func):
+def _network(func: Any) -> Any:
     for mark in reversed(NETWORK):
         func = mark(func)
     return func
 
 
 @_network
-def test_bids_loader_reads_one_entry(tmp_path):
+def test_bids_loader_reads_one_entry(tmp_path: Any) -> None:
     out = real_inputs("ds004080", 0, task="T1", cache_dir=str(tmp_path))
     assert out
     for ti in out:
@@ -99,7 +101,7 @@ def test_bids_loader_reads_one_entry(tmp_path):
 
 
 @_network
-def test_erpcore_loader_reads_one_entry():
+def test_erpcore_loader_reads_one_entry() -> None:
     pytest.importorskip("mne")
     ti = real_inputs("erpcore", 0, task="T6")[0]
     entry = load_index("erpcore")["entries"][0]

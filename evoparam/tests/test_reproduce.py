@@ -8,6 +8,7 @@ recorded), saved, and regenerated; the regenerated result must equal the saved o
 
 import os
 import warnings
+from typing import Any
 
 import pytest
 
@@ -19,12 +20,12 @@ pytest.importorskip("pandas")
 
 
 @pytest.fixture(scope="module")
-def trials():
+def trials() -> Any:
     ts, _ = sim.simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=4)
     return ts
 
 
-def _group(ts):
+def _group(ts: Any) -> Any:
     return evoparam.fit(ts, preset="ccep")
 
 
@@ -40,14 +41,14 @@ BUILDERS = {
 }
 
 
-def _regenerate(obj, path, ts):
+def _regenerate(obj: Any, path: Any, ts: Any) -> Any:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return evoparam.reproduce(save_object(obj, path), data=ts, rtol=1e-9)
 
 
 @pytest.mark.parametrize("kind", sorted(BUILDERS))
-def test_req007_result_is_regenerated(kind, trials, tmp_path):
+def test_req007_result_is_regenerated(kind: Any, trials: Any, tmp_path: Any) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         obj = BUILDERS[kind](trials)
@@ -64,7 +65,7 @@ def test_req007_result_is_regenerated(kind, trials, tmp_path):
     "no step), and TrialFitSet is saved as a folder of TrialFit containers, not "
     "as one .evoparam result; evoparam/trials is outside this change.",
 )
-def test_req007_trial_fits_are_regenerated(trials, tmp_path):
+def test_req007_trial_fits_are_regenerated(trials: Any, tmp_path: Any) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         fits = evoparam.trials.fit_trials(trials, _group(trials))
@@ -82,7 +83,7 @@ def test_req007_trial_fits_are_regenerated(trials, tmp_path):
     "channel, 8 frequencies: 'freqs', 'maps.total' and 'maps.total_norm' "
     "differ; settings random_state None). evoparam/tf is outside this change.",
 )
-def test_req007_time_frequency_fit_is_regenerated(trials, tmp_path):
+def test_req007_time_frequency_fit_is_regenerated(trials: Any, tmp_path: Any) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         tf = evoparam.tf.tf_fit(

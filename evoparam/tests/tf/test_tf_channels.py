@@ -3,6 +3,7 @@
 §5.6", whose default is fdr_bh)."""
 
 import inspect
+from typing import Any
 
 import numpy as np
 import pytest
@@ -15,7 +16,7 @@ from evoparam.tf.stats import bh_adjusted, fdr_significant, row_levels
 FREQS = (4, 250, 20)
 
 
-def test_default_is_fdr_bh_and_every_correction_of_5_6_is_offered():
+def test_default_is_fdr_bh_and_every_correction_of_5_6_is_offered() -> None:
 
     assert inspect.signature(tf_fit).parameters["channel_correction"].default == "fdr_bh"
     ts = trialset(ar1(np.random.default_rng(0), (10, 2, len(TIMES))))
@@ -27,7 +28,7 @@ def test_default_is_fdr_bh_and_every_correction_of_5_6_is_offered():
         tf_fit(ts, freqs=(4, 250, 6), zones="none", channel_correction="sidak")
 
 
-def test_row_levels():
+def test_row_levels() -> None:
 
     p = np.array([0.001, 0.02, 0.035, 0.3, np.nan])
     assert np.allclose(row_levels(p, 0.05, "none"), [0.05] * 4 + [0])
@@ -39,7 +40,7 @@ def test_row_levels():
     assert np.allclose(row_levels([0.2, 0.3], 0.05, "fdr_bh"), [0, 0])
 
 
-def test_bh_adjusted_matches_the_step_up_procedure():
+def test_bh_adjusted_matches_the_step_up_procedure() -> None:
 
     rng = np.random.default_rng(1)
     p = np.concatenate([rng.uniform(0, 1, 300), rng.uniform(0, 1e-3, 20), [np.nan]])
@@ -47,7 +48,7 @@ def test_bh_adjusted_matches_the_step_up_procedure():
         assert np.array_equal(bh_adjusted(p) <= q, fdr_significant(p, q))
 
 
-def test_bonferroni_is_alpha_over_rows_on_each_row():
+def test_bonferroni_is_alpha_over_rows_on_each_row() -> None:
     """Bonferroni keeps the rule of the first version: Benjamini-Hochberg over the pixels of
     each row at alpha / n_rows."""
 
@@ -61,7 +62,7 @@ def test_bonferroni_is_alpha_over_rows_on_each_row():
     assert np.allclose(tf.settings["row_alpha"], 0.05 / 3)
 
 
-def _null_family_error(method, runs=30, n_channels=8):
+def _null_family_error(method: Any, runs: Any = 30, n_channels: Any = 8) -> Any:
     hits = 0
     for seed in range(runs):
         rng = np.random.default_rng(3000 + seed)
@@ -71,7 +72,7 @@ def _null_family_error(method, runs=30, n_channels=8):
     return hits / runs
 
 
-def test_fdr_bh_across_channels_controls_errors_on_null_channels():
+def test_fdr_bh_across_channels_controls_errors_on_null_channels() -> None:
     """Under the complete null every selected channel is a false discovery: the
     false-discovery rate over channels is the family-wise error, at most alpha (0.05 plus
     the sampling error of 30 runs); without correction it grows with the channels."""
@@ -81,7 +82,7 @@ def test_fdr_bh_across_channels_controls_errors_on_null_channels():
     assert uncorrected >= corrected
 
 
-def test_fdr_bh_keeps_a_responsive_channel_among_null_ones():
+def test_fdr_bh_keeps_a_responsive_channel_among_null_ones() -> None:
 
     rng = np.random.default_rng(4)
     data = ar1(rng, (30, 8, len(TIMES)))
@@ -98,7 +99,7 @@ def test_fdr_bh_keeps_a_responsive_channel_among_null_ones():
     assert "Benjamini and Bogomolov" in tf.methods_text()
 
 
-def test_one_row_is_tested_at_alpha():
+def test_one_row_is_tested_at_alpha() -> None:
 
     rng = np.random.default_rng(5)
     data = ar1(rng, (30, 1, len(TIMES))) + burst(rng, 30, amp=12.0)[:, None]

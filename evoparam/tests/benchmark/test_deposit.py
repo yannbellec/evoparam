@@ -15,6 +15,7 @@ import copy
 import hashlib
 import json
 import os
+from typing import Any
 
 import numpy as np
 import pytest
@@ -37,7 +38,7 @@ DEPOSIT_REASON = "deposit not made: waits for the owner's HIIE decision (nothing
 
 
 @pytest.fixture(scope="module")
-def deposit(tmp_path_factory):
+def deposit(tmp_path_factory: Any) -> Any:
     pytest.importorskip("pynwb")
     pytest.importorskip("jsonschema")
     out = tmp_path_factory.mktemp("deposit") / "core"
@@ -46,7 +47,7 @@ def deposit(tmp_path_factory):
         return out, json.load(fobj)
 
 
-def test_req355_manifest_has_generator_version_and_public_seeds(deposit):
+def test_req355_manifest_has_generator_version_and_public_seeds(deposit: Any) -> None:
     out, manifest = deposit
     core = suite("core")
     assert manifest["schema"] == DEPOSIT_SCHEMA
@@ -70,7 +71,7 @@ def test_req355_manifest_has_generator_version_and_public_seeds(deposit):
     assert "not deposited" in manifest["status"]
 
 
-def test_req355_files_and_hashes(deposit):
+def test_req355_files_and_hashes(deposit: Any) -> None:
     out, manifest = deposit
     assert (out / "suite-core.json").read_bytes() == (
         ROOT / "evoparam" / "benchmark" / "suites" / "core.json"
@@ -85,7 +86,7 @@ def test_req355_files_and_hashes(deposit):
     assert (out / "bids" / "dataset_description.json").is_file()
 
 
-def test_req355_nwb_holds_the_simulated_trials(deposit):
+def test_req355_nwb_holds_the_simulated_trials(deposit: Any) -> None:
     from evoparam.io import read_nwb
 
     out, manifest = deposit
@@ -102,7 +103,7 @@ def test_req355_nwb_holds_the_simulated_trials(deposit):
     assert list(back.ch_names) == list(ts.ch_names)
 
 
-def test_req356_hidden_split_is_committed_not_written(deposit):
+def test_req356_hidden_split_is_committed_not_written(deposit: Any) -> None:
     out, manifest = deposit
     core = suite("core")
     hidden = manifest["hidden_split"]
@@ -116,7 +117,7 @@ def test_req356_hidden_split_is_committed_not_written(deposit):
             assert ("seed" in cell) == (cell["split"] == "public")
 
 
-def test_req356_commitment_is_the_same_for_both_suites():
+def test_req356_commitment_is_the_same_for_both_suites() -> None:
     core, full = suite("core"), load_suite("full")
     assert core.hidden_split["commitment_sha256"] == full.hidden_split["commitment_sha256"]
     assert len(core.hidden_split["commitment_sha256"]) == 64
@@ -124,7 +125,7 @@ def test_req356_commitment_is_the_same_for_both_suites():
     assert all(c.seed is None for c in full.cells(split="hidden"))
 
 
-def _fake_document(core, full):
+def _fake_document(core: Any, full: Any) -> Any:
     return {
         "schema": HIDDEN_SCHEMA,
         "nonce": "00" * 32,
@@ -135,7 +136,7 @@ def _fake_document(core, full):
     }
 
 
-def test_req356_a_different_seeds_document_is_refused(tmp_path):
+def test_req356_a_different_seeds_document_is_refused(tmp_path: Any) -> None:
     core, full = suite("core"), load_suite("full")
     document = _fake_document(core, full)
     assert hidden_commitment(document) != core.hidden_split["commitment_sha256"]
@@ -147,7 +148,7 @@ def test_req356_a_different_seeds_document_is_refused(tmp_path):
         simulate_cell(core.cells(split="hidden")[0])
 
 
-def test_req356_commitment_is_the_hash_of_the_canonical_document():
+def test_req356_commitment_is_the_hash_of_the_canonical_document() -> None:
     core, full = suite("core"), load_suite("full")
     document = _fake_document(core, full)
     canonical = json.dumps(
@@ -164,7 +165,7 @@ def test_req356_commitment_is_the_hash_of_the_canonical_document():
         load_hidden_seeds({"schema": "something-else", "seeds": {}})
 
 
-def test_req356_the_kept_seeds_match_the_commitment(tmp_path):
+def test_req356_the_kept_seeds_match_the_commitment(tmp_path: Any) -> None:
     """With the hidden seeds document (kept outside the repository): it matches the
     commitment of both suites and gives every hidden cell its seed."""
 
@@ -189,7 +190,7 @@ def test_req356_the_kept_seeds_match_the_commitment(tmp_path):
 
 
 @pytest.mark.xfail(strict=True, reason=DEPOSIT_REASON)
-def test_req355_suites_deposited_with_a_doi(deposit):
+def test_req355_suites_deposited_with_a_doi(deposit: Any) -> None:
     """REQ-355: the deposit (NWB/BIDS files with a DOI) is made before the benchmark paper
     is submitted. Measured: the prepared manifest has ``doi: null``; no deposit exists."""
 
@@ -198,7 +199,7 @@ def test_req355_suites_deposited_with_a_doi(deposit):
 
 
 @pytest.mark.xfail(strict=True, reason=DEPOSIT_REASON)
-def test_req356_commitment_published_at_deposit_time():
+def test_req356_commitment_published_at_deposit_time() -> None:
     """REQ-356: the commitment is published with the deposit (its DOI recorded with the
     suites). Measured: no deposit, so the commitment is published nowhere."""
 

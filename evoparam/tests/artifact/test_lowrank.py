@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Sequential low-rank regression (REQ-063)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -14,12 +16,18 @@ from evoparam.errors import ArtifactError
 SFREQ = 10000.0
 
 
-def spike(sfreq):
+def spike(sfreq: Any) -> Any:
     t = np.arange(int(0.0015 * sfreq)) / sfreq
     return -60 * np.sin(np.pi * t / t[-1]) ** 2 * np.cos(2 * np.pi * t / t[-1] * 0.8)
 
 
-def make_train(n_channels=24, n_pulses=20, n_trials=10, interval=0.01, seed=0):
+def make_train(
+    n_channels: Any = 24,
+    n_pulses: Any = 20,
+    n_trials: Any = 10,
+    interval: Any = 0.01,
+    seed: Any = 0,
+) -> Any:
     """An artifact train shared (low-rank) across channels, pulses and trials, and evoked
     spikes on 6 channels at jittered latencies (not locked to the pulses)."""
 
@@ -60,7 +68,7 @@ def make_train(n_channels=24, n_pulses=20, n_trials=10, interval=0.01, seed=0):
     return make(noisy), make(clean), spikes, silent, np.arange(n_pulses) * interval
 
 
-def test_req063_spikes_kept_and_silent_channels_clean():
+def test_req063_spikes_kept_and_silent_channels_clean() -> None:
 
     noisy, truth, spikes, silent, pulse_times = make_train()
     result = remove_artifact(
@@ -86,7 +94,7 @@ def test_req063_spikes_kept_and_silent_channels_clean():
     assert 0 < result.settings["_info"]["removed_fraction"] <= 1
 
 
-def test_lowrank_requirements():
+def test_lowrank_requirements() -> None:
 
     noisy, _, _, _, pulse_times = make_train(n_channels=8, n_trials=4, n_pulses=4)
     with pytest.raises(ArtifactError, match="channels"):

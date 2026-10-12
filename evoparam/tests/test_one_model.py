@@ -12,6 +12,7 @@ no other argument required.
 """
 
 import warnings
+from typing import Any
 
 import pytest
 
@@ -67,18 +68,18 @@ MODALITIES = {
 }
 
 
-def test_every_preset_has_a_simulated_modality():
+def test_every_preset_has_a_simulated_modality() -> None:
     assert set(MODALITIES) == set(presets.PRESETS)
 
 
-def _one_waveform(name):
+def _one_waveform(name: Any) -> Any:
     trials, truth = MODALITIES[name]()
     best = max(truth.components, key=lambda c: abs(c["amplitude"]))["channel"]
     return trials.select(picks=[best])
 
 
 @pytest.fixture(scope="module")
-def results():
+def results() -> Any:
     out = {}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -87,7 +88,7 @@ def results():
     return out
 
 
-def test_req001_same_types_for_every_preset(results):
+def test_req001_same_types_for_every_preset(results: Any) -> None:
     for name, group in results.items():
         assert type(group) is GroupFit, name
         for fit_ in group.fits:
@@ -98,7 +99,7 @@ def test_req001_same_types_for_every_preset(results):
         assert group.fits[0].status == "ok", (name, group.fits[0].message)
 
 
-def test_req001_same_columns_for_every_preset(results):
+def test_req001_same_columns_for_every_preset(results: Any) -> None:
     columns = {name: list(group.to_dataframe().columns) for name, group in results.items()}
     reference = columns["ccep"]
     for name, names in columns.items():
@@ -110,7 +111,7 @@ def test_req001_same_columns_for_every_preset(results):
         assert names == fit_columns["ccep"], name
 
 
-def test_req001_only_the_preset_differs(results):
+def test_req001_only_the_preset_differs(results: Any) -> None:
     for name, group in results.items():
         assert group.settings["preset"]["name"] == name
 
@@ -119,12 +120,12 @@ def test_req001_only_the_preset_differs(results):
 
 
 @pytest.fixture(scope="module")
-def trials():
+def trials() -> Any:
     ts, _ = sim.simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=4)
     return ts
 
 
-def _bids(trials, tmp_path_factory):
+def _bids(trials: Any, tmp_path_factory: Any) -> Any:
     from evoparam.sim.bids import write_bids
 
     _, truth = sim.simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=4)
@@ -133,7 +134,7 @@ def _bids(trials, tmp_path_factory):
     return evoparam.read(str(root), subject="01", task="ccep")
 
 
-def _inputs(kind, trials, tmp_path_factory):
+def _inputs(kind: Any, trials: Any, tmp_path_factory: Any) -> Any:
     if kind == "TrialSet":
         return trials
     if kind == "numpy":
@@ -146,7 +147,7 @@ def _inputs(kind, trials, tmp_path_factory):
 
 
 @pytest.mark.parametrize("kind", ["mne.Epochs", "mne.Evoked", "TrialSet", "BIDS", "numpy"])
-def test_req002_one_call(kind, trials, tmp_path_factory):
+def test_req002_one_call(kind: Any, trials: Any, tmp_path_factory: Any) -> None:
     data = _inputs(kind, trials, tmp_path_factory)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

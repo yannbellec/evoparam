@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import warnings
+from typing import Any
 
 import pytest
 
@@ -18,7 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
 
 
 @pytest.fixture(scope="module")
-def saved(ccep_run, tmp_path_factory):
+def saved(ccep_run: Any, tmp_path_factory: Any) -> Any:
     """The group fit of the chain simulate -> remove_artifact -> rereference ->
     baseline_correct -> fit -> test_response, saved as a container."""
 
@@ -26,13 +27,13 @@ def saved(ccep_run, tmp_path_factory):
     return ccep_run.group.save(str(folder / "group"))
 
 
-def _copy(path, tmp_path):
+def _copy(path: Any, tmp_path: Any) -> Any:
     target = tmp_path / os.path.basename(path)
     shutil.copytree(path, target)
     return str(target)
 
 
-def _edit_settings(path, **changes):
+def _edit_settings(path: Any, **changes: Any) -> None:
     file = os.path.join(path, "settings.json")
     with open(file, encoding="utf-8") as fobj:
         settings = json.load(fobj)
@@ -41,7 +42,7 @@ def _edit_settings(path, **changes):
         json.dump(settings, fobj)
 
 
-def test_req333_reproduce_is_identical(saved):
+def test_req333_reproduce_is_identical(saved: Any) -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
@@ -58,7 +59,7 @@ def test_req333_reproduce_is_identical(saved):
     assert evoparam.reproduce is reports.reproduce
 
 
-def test_req333_changed_setting_is_detected_and_named(saved, tmp_path):
+def test_req333_changed_setting_is_detected_and_named(saved: Any, tmp_path: Any) -> None:
 
     path = _copy(saved, tmp_path)
     _edit_settings(path, max_components=1)
@@ -74,7 +75,7 @@ def test_req333_changed_setting_is_detected_and_named(saved, tmp_path):
     assert report.differences
 
 
-def test_req333_removed_preset_version_raises(saved, tmp_path):
+def test_req333_removed_preset_version_raises(saved: Any, tmp_path: Any) -> None:
 
     path = _copy(saved, tmp_path)
     _edit_settings(path, preset_note="preset 'ccep' v0.1; validation: none")
@@ -82,7 +83,7 @@ def test_req333_removed_preset_version_raises(saved, tmp_path):
         reports.reproduce(path)
 
 
-def test_req333_environment_differences_are_reported(saved, monkeypatch):
+def test_req333_environment_differences_are_reported(saved: Any, monkeypatch: Any) -> None:
     """A result made under another numpy: reproduce warns, names the difference, and
     still regenerates the numbers."""
 
@@ -97,7 +98,7 @@ def test_req333_environment_differences_are_reported(saved, monkeypatch):
     assert report.identical
 
 
-def test_req333_cli_returns_the_same_report(saved):
+def test_req333_cli_returns_the_same_report(saved: Any) -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)

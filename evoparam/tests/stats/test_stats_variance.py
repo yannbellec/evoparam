@@ -2,6 +2,8 @@
 """REML variance components of nested random intercepts (dependability, and the hierarchical
 models of §5.8 that build on them)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -13,7 +15,7 @@ from evoparam.stats import reml, variance_components
 ###################################################################################################
 
 
-def _dense(y, z_list, variances, residual, se2, xmat):
+def _dense(y: Any, z_list: Any, variances: Any, residual: Any, se2: Any, xmat: Any) -> Any:
     """Independent dense computation: V, beta, BLUPs and prediction-error variances."""
 
     n = len(y)
@@ -41,11 +43,11 @@ def _dense(y, z_list, variances, residual, se2, xmat):
     return beta, blup, pev, loglik
 
 
-def _indicators(codes):
+def _indicators(codes: Any) -> Any:
     return (codes[:, None] == np.unique(codes)[None, :]).astype(float)
 
 
-def test_one_level_matches_dense_computation():
+def test_one_level_matches_dense_computation() -> None:
 
     rng = np.random.default_rng(0)
     sizes = rng.integers(3, 25, 18)
@@ -73,7 +75,7 @@ def test_one_level_matches_dense_computation():
             )
 
 
-def test_nested_levels_and_known_sampling_variances():
+def test_nested_levels_and_known_sampling_variances() -> None:
     """Channels within subjects, observations with known standard errors (the two-level
     meta-analytic model of the empirical-Bayes hierarchical engine)."""
 
@@ -102,7 +104,7 @@ def test_nested_levels_and_known_sampling_variances():
     assert out["loglik"] == pytest.approx(loglik, rel=1e-9)
 
 
-def test_table_interface_with_fixed_effects():
+def test_table_interface_with_fixed_effects() -> None:
 
     rng = np.random.default_rng(2)
     subject = np.repeat([f"s{i}" for i in range(30)], 20)
@@ -143,7 +145,7 @@ def test_table_interface_with_fixed_effects():
         variance_components(df, value="latency", groups=["subject"])
 
 
-def test_boundary_and_errors():
+def test_boundary_and_errors() -> None:
 
     rng = np.random.default_rng(3)
     subject = np.repeat(np.arange(20), 10)
@@ -158,7 +160,7 @@ def test_boundary_and_errors():
         reml(y, [subject[:-1]])
 
 
-def test_shrunken_unit_estimates_match_henderson_equations():
+def test_shrunken_unit_estimates_match_henderson_equations() -> None:
     """The shrunken subject and channel estimates and their standard errors (the closed-form
     outputs of the empirical-Bayes hierarchical engine) against the inverse of Henderson's
     mixed-model equations, with a subject covariate, known se and a residual variance."""
@@ -219,7 +221,7 @@ def test_shrunken_unit_estimates_match_henderson_equations():
     assert np.allclose(np.concatenate(out["shrinkage"]), 1 - cond / gmat, atol=1e-8)
 
 
-def test_one_level_shrinkage_is_the_empirical_bayes_weight():
+def test_one_level_shrinkage_is_the_empirical_bayes_weight() -> None:
     """One level with known se: the shrunken estimate is mu + B (y - mu) with
     B = tau^2 / (tau^2 + se^2), and the shrinkage factor is B."""
 

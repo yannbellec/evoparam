@@ -15,6 +15,7 @@ import pathlib
 import re
 import sys
 from importlib import metadata
+from typing import Any
 
 import pytest
 
@@ -30,24 +31,24 @@ pytestmark = [
 ]
 
 
-def _tool(name):
+def _tool(name: Any) -> Any:
     spec = importlib.util.spec_from_file_location(name, ROOT / "tools" / f"{name}.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def _soup():
+def _soup() -> Any:
     return json.loads((ROOT / "soup.json").read_text(encoding="utf-8"))
 
 
-def test_req399_soup_and_third_party_are_up_to_date():
+def test_req399_soup_and_third_party_are_up_to_date() -> None:
     if sys.version_info < (3, 11):
         pytest.importorskip("tomli")  # the generator reads pyproject.toml
     assert _tool("gen_soup").main(["--check"]) == 0, "run python tools/gen_soup.py"
 
 
-def test_req399_soup_fields():
+def test_req399_soup_fields() -> None:
     soup = _soup()
     assert soup["schema"] == "evoparam-soup/1"
     names = {row["package"] for row in soup["packages"]}
@@ -73,7 +74,7 @@ def test_req399_soup_fields():
     assert {"optimize.least_squares"} <= set(core["scipy"]["functions_used"])
 
 
-def _family(text):
+def _family(text: Any) -> Any:
     text = text.lower()
     out = set()
     for family, words in (
@@ -88,7 +89,7 @@ def _family(text):
     return out
 
 
-def test_req399_licences_agree_with_the_installed_metadata():
+def test_req399_licences_agree_with_the_installed_metadata() -> None:
     checked = 0
     for row in _soup()["packages"]:
         try:
@@ -112,7 +113,7 @@ def test_req399_licences_agree_with_the_installed_metadata():
     assert checked >= 5
 
 
-def _third_party_imports():
+def _third_party_imports() -> Any:
     # tomllib is standard from Python 3.11 (the package falls back to tomli on 3.10)
     stdlib = set(sys.stdlib_module_names) | {"tomllib"}
     found = set()
@@ -134,14 +135,14 @@ def _third_party_imports():
     return {n for n in found if n not in stdlib and n != "evoparam" and not n.startswith("_")}
 
 
-def test_req399_every_third_party_import_is_in_the_inventory():
+def test_req399_every_third_party_import_is_in_the_inventory() -> None:
     inventoried = {row["import_name"].split(".")[0] for row in _soup()["packages"]}
     # ``ndx_evoparam`` is evoparam's own NWB extension (evoparam/io/ndx_evoparam)
     missing = sorted(_third_party_imports() - inventoried - {"ndx_evoparam"})
     assert missing == []
 
 
-def test_req399_algorithm_version_in_every_step():
+def test_req399_algorithm_version_in_every_step() -> None:
     from evoparam import sim
     from evoparam.version import ALGORITHM_VERSIONS
 
@@ -152,7 +153,7 @@ def test_req399_algorithm_version_in_every_step():
     assert steps[-1]["algorithm_version"] == ALGORITHM_VERSIONS["evoparam.sim.simulate_ccep"]
 
 
-def test_req399_traceability_generator():
+def test_req399_traceability_generator() -> None:
     tool = _tool("gen_traceability")
     report = tool.report()
     assert report["n_requirements"] >= 220
@@ -168,11 +169,11 @@ def test_req399_traceability_generator():
 UNTESTED = []
 
 
-def test_req399_no_untested_requirement():
+def test_req399_no_untested_requirement() -> None:
     assert _tool("gen_traceability").report()["untested"] == []
 
 
-def test_req399_the_untested_list_is_the_measured_one():
+def test_req399_the_untested_list_is_the_measured_one() -> None:
     """Keeps the list above honest: the untested requirements are exactly those."""
 
     assert _tool("gen_traceability").report()["untested"] == UNTESTED

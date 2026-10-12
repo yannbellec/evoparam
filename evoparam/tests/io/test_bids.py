@@ -1,13 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for evoparam.io.bids."""
 
+from typing import Any
+
 from evoparam.io.bids import read_bids_events, select_stimulation_events
 
 ###################################################################################################
 ###################################################################################################
 
 
-def test_read_and_select_events(tmp_path):
+def test_read_and_select_events(tmp_path: Any) -> None:
 
     text = (
         "onset\tduration\ttrial_type\telectrical_stimulation_site\n"

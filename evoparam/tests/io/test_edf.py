@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """read_edf; runs only when edfio is installed (extra "edf")."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -12,7 +14,7 @@ edfio = pytest.importorskip("edfio")
 ###################################################################################################
 
 
-def test_read_edf(tmp_path):
+def test_read_edf(tmp_path: Any) -> None:
 
     sfreq, n_times = 256, 256 * 4
     values = np.vstack(

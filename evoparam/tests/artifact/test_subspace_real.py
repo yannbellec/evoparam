@@ -35,6 +35,7 @@ Measured (both versions on the same overlays, CHANGELOG "REQ-064"):
 
 import os
 import re
+from typing import Any
 
 import numpy as np
 import pytest
@@ -82,7 +83,7 @@ SPAN = 20.0
 ###################################################################################################
 
 
-def _tms_segment(subject):
+def _tms_segment(subject: Any) -> Any:
     """20 s of ds002094 task tmseeg1 from 1 s before the first pulse (cached)."""
 
     from evoparam.io import openneuro_url, read_bids_events, read_brainvision_segment
@@ -118,7 +119,7 @@ def _tms_segment(subject):
     )
 
 
-def _pulse_artifacts(data, sfreq, t0, onsets, window):
+def _pulse_artifacts(data: Any, sfreq: Any, t0: Any, onsets: Any, window: Any) -> Any:
     """Per pulse: the signal on ``window`` minus its level from -30 to -10 ms."""
 
     lo, hi = int(round(window[0] * sfreq)), int(round(window[1] * sfreq))
@@ -131,12 +132,12 @@ def _pulse_artifacts(data, sfreq, t0, onsets, window):
     return np.array(out)
 
 
-def tms_template(subject):
+def tms_template(subject: Any) -> Any:
     data, sfreq, names, t0, onsets = _tms_segment(subject)
     return np.median(_pulse_artifacts(data, sfreq, t0, onsets, TMS_WINDOW), axis=0), sfreq
 
 
-def spes_template(stem, n_channels=32):
+def spes_template(stem: Any, n_channels: Any = 32) -> Any:
     from evoparam.tests.events.test_ds004080_events import _segment
 
     data, sfreq, names, t0, onsets, _ = _segment(stem)
@@ -152,7 +153,9 @@ def spes_template(stem, n_channels=32):
     return np.median(arts[:, pick], axis=0), sfreq
 
 
-def sir_improvement(template, sfreq, window, seed=0, n_trials=30, **options):
+def sir_improvement(
+    template: Any, sfreq: Any, window: Any, seed: Any = 0, n_trials: Any = 30, **options: Any
+) -> Any:
     """Overlay the template on synthetic EEG and return the SIR improvement of subspace
     (``options``: keyword arguments of ``remove_artifact``)."""
 
@@ -185,19 +188,19 @@ def sir_improvement(template, sfreq, window, seed=0, n_trials=30, **options):
 SPEC_VERSION = {"n_components": "energy", "subspace_extent": "all"}
 
 
-def _spes_runs():
+def _spes_runs() -> Any:
     from evoparam.tests.events.test_ds004080_events import RUNS, _segment
 
     return [stem for stem in RUNS if abs(_segment(stem)[1] - 2048.0) <= 1]
 
 
-def test_req064_real_tms_templates():
+def test_req064_real_tms_templates() -> None:
 
     gains = [sir_improvement(*tms_template(subject), TMS_WINDOW) for subject in TMS_SUBJECTS]
     assert min(gains) >= 30, np.round(gains, 1)
 
 
-def test_req064_real_spes_templates():
+def test_req064_real_spes_templates() -> None:
 
     runs = _spes_runs()
     assert len(runs) == 23
@@ -212,7 +215,7 @@ def test_req064_real_spes_templates():
     "projected) on real TMS templates: median 1.6 dB "
     "(0.2 to 4.1), not 30 dB (module docstring)",
 )
-def test_req064_real_tms_templates_specification_version():
+def test_req064_real_tms_templates_specification_version() -> None:
 
     gains = [
         sir_improvement(*tms_template(subject), TMS_WINDOW, **SPEC_VERSION)
@@ -227,7 +230,7 @@ def test_req064_real_tms_templates_specification_version():
     "(ds004080, 23 runs at 2048 Hz): median 9.3 dB (5.0 to "
     "18.4), not 30 dB (module docstring)",
 )
-def test_req064_real_spes_templates_specification_version():
+def test_req064_real_spes_templates_specification_version() -> None:
 
     gains = [
         sir_improvement(*spes_template(stem), SPES_WINDOW, **SPEC_VERSION) for stem in _spes_runs()

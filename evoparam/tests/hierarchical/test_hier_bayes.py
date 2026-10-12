@@ -5,6 +5,7 @@ is part of the regular suite."""
 
 import os
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -17,12 +18,12 @@ slow = pytest.mark.skipif(not SLOW, reason="set EVOPARAM_SLOW_TESTS=1 for the NU
 ENGINES = ["numpyro", "pymc"]
 
 
-def _engine_available(engine):
+def _engine_available(engine: Any) -> None:
     pytest.importorskip("jax" if engine == "numpyro" else "pytensor")
     pytest.importorskip(engine)
 
 
-def reference_dataset(seed=7):
+def reference_dataset(seed: Any = 7) -> Any:
     """The simulated reference dataset: 10 subjects x 20 channels x 10 trials, half
     responding, per-trial SNR 2, 2 ms jitter."""
 
@@ -32,7 +33,7 @@ def reference_dataset(seed=7):
 
 
 @pytest.mark.parametrize("engine", ENGINES)
-def test_short_run_of_each_engine(engine):
+def test_short_run_of_each_engine(engine: Any) -> None:
 
     _engine_available(engine)
     sets, truth = simulate_group(
@@ -60,7 +61,7 @@ def test_short_run_of_each_engine(engine):
     assert "age" in set(fit.effects["term"])
 
 
-def test_compare_needs_bayesian_fits():
+def test_compare_needs_bayesian_fits() -> None:
 
     from evoparam.errors import SettingsError
 
@@ -71,7 +72,7 @@ def test_compare_needs_bayesian_fits():
         compare_hierarchical([fit_hierarchical(sets, components=["N1"])])
 
 
-def test_loo_comparison_of_two_latency_models():
+def test_loo_comparison_of_two_latency_models() -> None:
 
     _engine_available("numpyro")
     sets, _ = simulate_group(
@@ -95,7 +96,7 @@ def test_loo_comparison_of_two_latency_models():
 
 
 @pytest.fixture(scope="module")
-def reference_fits():
+def reference_fits() -> Any:
     sets, truth = reference_dataset()
     out = {}
     for engine in ENGINES:
@@ -108,7 +109,7 @@ def reference_fits():
 
 @slow
 @pytest.mark.parametrize("engine", ENGINES)
-def test_req173_nuts_diagnostics(reference_fits, engine):
+def test_req173_nuts_diagnostics(reference_fits: Any, engine: Any) -> None:
 
     fits, _ = reference_fits
     d = fits[engine].diagnostics["bayes"]["N1"]
@@ -118,7 +119,7 @@ def test_req173_nuts_diagnostics(reference_fits, engine):
 
 
 @slow
-def test_req174_engines_agree(reference_fits):
+def test_req174_engines_agree(reference_fits: Any) -> None:
 
     fits, _ = reference_fits
     a, b = fits["numpyro"], fits["pymc"]
@@ -138,7 +139,7 @@ def test_req174_engines_agree(reference_fits):
     assert np.all((sa["latency"] - sb["latency"]).abs() <= sa["latency_se"])
 
 
-def _truth_sds(truth):
+def _truth_sds(truth: Any) -> Any:
     resp = truth[truth["respond"]]
     within = resp["latency"] - resp.groupby("subject")["latency"].transform("mean")
     n_sub = resp["subject"].nunique()
@@ -149,7 +150,7 @@ def _truth_sds(truth):
 
 
 @slow
-def test_req172_variance_components_in_the_posterior_interval():
+def test_req172_variance_components_in_the_posterior_interval() -> None:
 
     _engine_available("numpyro")
     covered = []
@@ -166,7 +167,7 @@ def test_req172_variance_components_in_the_posterior_interval():
 
 @slow
 @pytest.mark.parametrize("engine", ENGINES)
-def test_req176_nuts_time_per_subject(engine):
+def test_req176_nuts_time_per_subject(engine: Any) -> None:
 
     _engine_available(engine)
     sets, _ = simulate_group(

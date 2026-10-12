@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+from typing import Any
 
 import pytest
 
@@ -55,7 +56,7 @@ with open(output_path, "w") as out:
 
 
 @pytest.fixture
-def fake(tmp_path):
+def fake(tmp_path: Any) -> Any:
     tool = tmp_path / "tool" / "fake_detector.py"
     tool.parent.mkdir()
     tool.write_text(FAKE_TOOL, encoding="utf-8")
@@ -64,7 +65,7 @@ def fake(tmp_path):
     return tool, path, ti
 
 
-def _adapter(tool, **kw):
+def _adapter(tool: Any, **kw: Any) -> Any:
     return Adapter(
         name="fake",
         command=["{python}", str(tool)],
@@ -75,7 +76,7 @@ def _adapter(tool, **kw):
     )
 
 
-def test_req354_adapter_runs_the_tool_in_a_separate_process(fake, tmp_path):
+def test_req354_adapter_runs_the_tool_in_a_separate_process(fake: Any, tmp_path: Any) -> None:
     tool, path, ti = fake
     output = _adapter(tool).run(path, str(tmp_path / "out"))
     assert output == str(tmp_path / "out" / f"{ti.cell}.tsv")
@@ -87,7 +88,7 @@ def test_req354_adapter_runs_the_tool_in_a_separate_process(fake, tmp_path):
     assert "fake_detector" not in sys.modules  # nothing of the tool was imported
 
 
-def test_req354_placeholders_and_appended_paths(fake, tmp_path):
+def test_req354_placeholders_and_appended_paths(fake: Any, tmp_path: Any) -> None:
     tool, path, _ = fake
     explicit = Adapter(
         name="fake",
@@ -111,19 +112,21 @@ def test_req354_placeholders_and_appended_paths(fake, tmp_path):
         ),
     ],
 )
-def test_req354_failures_are_reported(fake, tmp_path, mode, error, message):
+def test_req354_failures_are_reported(
+    fake: Any, tmp_path: Any, mode: Any, error: Any, message: Any
+) -> None:
     tool, path, _ = fake
     with pytest.raises(error, match=message):
         _adapter(tool, env={"FAKE_MODE": mode}).run(path, str(tmp_path / "out"))
 
 
-def test_req354_time_out(fake, tmp_path):
+def test_req354_time_out(fake: Any, tmp_path: Any) -> None:
     tool, path, _ = fake
     with pytest.raises(AdapterError, match="did not finish within 1.0 s"):
         _adapter(tool, env={"FAKE_MODE": "sleep"}, timeout=1.0).run(path, str(tmp_path / "o"))
 
 
-def test_req354_task_and_program_checks(fake):
+def test_req354_task_and_program_checks(fake: Any) -> None:
     tool, path, _ = fake
     with pytest.raises(DataError, match="does not answer task T1"):
         Adapter(name="t7", command=["{python}", str(tool)], tasks=("T7",)).run(path)
@@ -134,7 +137,7 @@ def test_req354_task_and_program_checks(fake):
     _adapter(tool).check()
 
 
-def test_req354_run_suite_scores_an_adapter(fake, tmp_path):
+def test_req354_run_suite_scores_an_adapter(fake: Any, tmp_path: Any) -> None:
     tool, _, _ = fake
     spec = tmp_path / "tool" / "fake.json"
     spec.write_text(
@@ -162,7 +165,7 @@ def test_req354_run_suite_scores_an_adapter(fake, tmp_path):
     assert "fake" in (tmp_path / "run" / "leaderboard.html").read_text(encoding="utf-8")
 
 
-def test_req354_shipped_adapter_specifications():
+def test_req354_shipped_adapter_specifications() -> None:
     for name, tasks in (("erdetect", ["T1", "T2"]), ("crp", ["T1", "T2"])):
         adapter = load_adapter(str(ADAPTERS / f"{name}.json"))
         assert list(adapter.tasks) == tasks
@@ -173,7 +176,7 @@ def test_req354_shipped_adapter_specifications():
         assert script.startswith(str(ADAPTERS))
 
 
-def test_req354_erdetect_adapter_with_a_stand_in_detector(tmp_path):
+def test_req354_erdetect_adapter_with_a_stand_in_detector(tmp_path: Any) -> None:
     """The ER-detect adapter's reading of the input and writing of the output, with a
     stand-in for the tool's detection function (the tool itself is not installed here)."""
 
@@ -208,7 +211,7 @@ def test_req354_erdetect_adapter_with_a_stand_in_detector(tmp_path):
     assert "standin_detector" not in sys.modules
 
 
-def test_req354_erdetect_adapter_without_the_tool(tmp_path):
+def test_req354_erdetect_adapter_without_the_tool(tmp_path: Any) -> None:
     adapter = load_adapter(str(ADAPTERS / "erdetect.json"))
     adapter.env = {"ERDETECT_FUNCTION": "no_such_module_here:detect"}
     path = write_input(inputs("T1", 1)[0], str(tmp_path / "inputs"))
@@ -224,7 +227,7 @@ SPDX_GPL = "SPDX-License-Identifier: GPL-3.0-or-later"  # of the adapters outsid
 GNU_GPL = "GNU General Public License"  # the adapters' licence, outside the package
 
 
-def test_req354_gpl_adapters_live_outside_the_package():
+def test_req354_gpl_adapters_live_outside_the_package() -> None:
     licence = (ADAPTERS / "LICENSE").read_text(encoding="utf-8")
     assert GNU_GPL in licence
     assert SPDX_GPL in licence
@@ -250,7 +253,7 @@ def test_req354_gpl_adapters_live_outside_the_package():
     assert not (ADAPTERS / "__init__.py").exists()
 
 
-def test_req354_package_has_no_gpl_notice_and_imports_no_adapter():
+def test_req354_package_has_no_gpl_notice_and_imports_no_adapter() -> None:
     adapter_modules = {p.stem for p in ADAPTERS.glob("*.py")} | {"adapters", "erdetect"}
     hits = []
     for path in sorted((ROOT / "evoparam").rglob("*")):
@@ -281,7 +284,7 @@ def test_req354_package_has_no_gpl_notice_and_imports_no_adapter():
     assert not hits, hits
 
 
-def test_req354_licence_scan_finds_a_mutation():
+def test_req354_licence_scan_finds_a_mutation() -> None:
     text = "# SPDX-License-Identifier: GPL-3.0-only\nimport numpy\n"  # not imported: a probe
     assert [
         m.group(0) for m in GPL_TEXT.finditer(text) if not _mentions_isolation(text, m.start())

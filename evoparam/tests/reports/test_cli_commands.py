@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -25,7 +26,7 @@ EPOCH = "1767225600"  # 2026-01-01T00:00:00Z
 SIM = ["--modality", "ccep", "--n-trials", "8", "--n-channels", "3", "--random-state", "3"]
 
 
-def run(*args, code=0):
+def run(*args: Any, code: Any = 0) -> Any:
     """``python -m evoparam <args> --json``: the parsed summary (exit code checked)."""
 
     env = dict(
@@ -49,7 +50,7 @@ def run(*args, code=0):
     return summary
 
 
-def run_text(*args):
+def run_text(*args: Any) -> Any:
     env = dict(
         os.environ,
         PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
@@ -68,7 +69,7 @@ def run_text(*args):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def fixed_clock():
+def fixed_clock() -> Any:
     """The same fixed clock for the command line (inherited environment) and the API."""
 
     with pytest.MonkeyPatch.context() as patch:
@@ -76,7 +77,7 @@ def fixed_clock():
         yield
 
 
-def _files(root):
+def _files(root: Any) -> Any:
     out = {}
     for folder, _, names in os.walk(root):
         for name in names:
@@ -85,7 +86,7 @@ def _files(root):
     return out
 
 
-def assert_same_tree(cli_root, api_root, only=None):
+def assert_same_tree(cli_root: Any, api_root: Any, only: Any = None) -> None:
     cli, api = _files(cli_root), _files(api_root)
     if only:
         cli = {k: v for k, v in cli.items() if k.endswith(only)}
@@ -98,13 +99,13 @@ def assert_same_tree(cli_root, api_root, only=None):
 
 
 @pytest.fixture(scope="module")
-def bids(tmp_path_factory):
+def bids(tmp_path_factory: Any) -> Any:
     root = tmp_path_factory.mktemp("cmd") / "bids"
     run("simulate", *SIM, "--out", root)
     return root
 
 
-def _trials(bids, preset="ccep"):
+def _trials(bids: Any, preset: Any = "ccep") -> Any:
     from evoparam.io import read_bids
 
     return read_bids(
@@ -112,7 +113,7 @@ def _trials(bids, preset="ccep"):
     )
 
 
-def test_req345_simulate(bids, tmp_path):
+def test_req345_simulate(bids: Any, tmp_path: Any) -> None:
 
     from evoparam.sim import GENERATORS
     from evoparam.sim.bids import write_bids
@@ -122,7 +123,7 @@ def test_req345_simulate(bids, tmp_path):
     assert_same_tree(bids, tmp_path / "bids")
 
 
-def test_req345_test(bids, tmp_path):
+def test_req345_test(bids: Any, tmp_path: Any) -> None:
 
     from evoparam.existence import test_response
     from evoparam.io import write_bids_derivatives
@@ -165,7 +166,7 @@ def test_req345_test(bids, tmp_path):
     )
 
 
-def test_req345_clean(bids, tmp_path):
+def test_req345_clean(bids: Any, tmp_path: Any) -> None:
 
     from evoparam.artifact import remove_artifact
     from evoparam.data import load_object
@@ -201,7 +202,7 @@ def test_req345_clean(bids, tmp_path):
     assert load_object(cleaned).data.tobytes() == result.cleaned.data.tobytes()
 
 
-def test_req345_detect_events(bids, tmp_path):
+def test_req345_detect_events(bids: Any, tmp_path: Any) -> None:
 
     import pandas as pd
 
@@ -223,7 +224,7 @@ def test_req345_detect_events(bids, tmp_path):
     assert sidecar["onset"]["Units"] == "s"
 
 
-def test_req345_report_json_and_migrate(bids, tmp_path):
+def test_req345_report_json_and_migrate(bids: Any, tmp_path: Any) -> None:
 
     from evoparam.data import load_object
 
@@ -252,7 +253,7 @@ def test_req345_report_json_and_migrate(bids, tmp_path):
     assert load_object(str(copy)) == group
 
 
-def test_req345_information_commands():
+def test_req345_information_commands() -> None:
 
     info = run("info")
     assert info["result"]["evoparam"] == __version__
@@ -269,7 +270,7 @@ def test_req345_information_commands():
     assert "research use" in stdout.lower()
 
 
-def test_req346_cite_prints_citation_cff():
+def test_req346_cite_prints_citation_cff() -> None:
 
     code, stdout = run_text("cite")
     assert code == 0
@@ -280,7 +281,7 @@ def test_req346_cite_prints_citation_cff():
     assert run("cite")["result"]["citation"] == reports.citation()
 
 
-def test_methods_text_is_logged_at_info_level(bids, tmp_path):
+def test_methods_text_is_logged_at_info_level(bids: Any, tmp_path: Any) -> None:
     """Spec §5.13: the methods paragraph ends a fit when verbose is INFO."""
 
     env = dict(

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Helpers shared by the tests of evoparam.sim."""
 
+from typing import Any
+
 import numpy as np
 
 from evoparam.data import Provenance, TrialSet
@@ -17,7 +19,7 @@ SMALL = {
 }
 
 
-def measured_noise_sd(ts, truth):
+def measured_noise_sd(ts: Any, truth: Any) -> Any:
     """Per-trial SD of the noise on the baseline (t < 0), averaged over trials, per channel.
 
     The noise is recovered from the data: data minus the noise-free signal and the
@@ -31,7 +33,7 @@ def measured_noise_sd(ts, truth):
     return np.std(noise[:, :, base], axis=-1).mean(axis=0)
 
 
-def measured_snr(ts, truth, index):
+def measured_snr(ts: Any, truth: Any, index: Any) -> Any:
     """(measured, requested) SNR of component ``index``, averaged over the trials holding it.
 
     The peak is measured on the component's curve on a grid 20 times finer than the
@@ -50,15 +52,15 @@ def measured_snr(ts, truth, index):
 
 
 def real_baselines(
-    n_trials=8,
-    n_channels=3,
-    sfreq=500.0,
-    tmin=-2.0,
-    tmax=0.5,
-    seed=0,
-    dataset="ds004080",
-    units="uV",
-):
+    n_trials: Any = 8,
+    n_channels: Any = 3,
+    sfreq: Any = 500.0,
+    tmin: Any = -2.0,
+    tmax: Any = 0.5,
+    seed: Any = 0,
+    dataset: Any = "ds004080",
+    units: Any = "uV",
+) -> Any:
     """A TrialSet that looks like epochs read from a registry dataset.
 
     The signal is synthetic (no network in the tests); the provenance names the dataset
@@ -97,8 +99,14 @@ def real_baselines(
 
 
 def fits_from_truth(
-    truth, *, latency_error=0.0, amplitude_factor=1.0, ci_halfwidth=None, extra=None, drop=()
-):
+    truth: Any,
+    *,
+    latency_error: Any = 0.0,
+    amplitude_factor: Any = 1.0,
+    ci_halfwidth: Any = None,
+    extra: Any = None,
+    drop: Any = (),
+) -> Any:
     """A GroupFit whose components are the true ones (component level), optionally moved.
 
     ``extra`` maps (channel, condition) to the latencies of false components;

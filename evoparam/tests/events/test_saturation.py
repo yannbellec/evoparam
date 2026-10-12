@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Amplifier saturation (REQ-043)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -15,7 +17,7 @@ from .helpers import make_noise, make_recording
 RAIL = 50.0
 
 
-def clipped_recording(lengths, sfreq=2048.0, seed=0):
+def clipped_recording(lengths: Any, sfreq: Any = 2048.0, seed: Any = 0) -> Any:
     """Noise with clipping runs of the given lengths at +/-RAIL, on rotating channels."""
 
     rng = np.random.default_rng(seed)
@@ -30,12 +32,12 @@ def clipped_recording(lengths, sfreq=2048.0, seed=0):
     return data, runs
 
 
-def found(table, ch, start, sfreq):
+def found(table: Any, ch: Any, start: Any, sfreq: Any) -> Any:
     rows = table[table["channel"] == str(ch)]
     return bool(np.any(np.abs(rows["start_time"].to_numpy() - start / sfreq) < 1.5 / sfreq))
 
 
-def test_req043_detection_rates():
+def test_req043_detection_rates() -> None:
 
     sfreq = 2048.0
     lengths = [3, 4, 5, 8, 12] * 20 + [2] * 100
@@ -48,7 +50,7 @@ def test_req043_detection_rates():
     assert np.mean([found(table, ch, start, sfreq) for ch, start, _ in short_runs]) >= 0.95
 
 
-def test_req043_false_positives_on_clean_data():
+def test_req043_false_positives_on_clean_data() -> None:
 
     # 10 minutes of clean data, including quantised (integer-coded) noise
     sfreq = 2048.0
@@ -59,7 +61,7 @@ def test_req043_false_positives_on_clean_data():
         assert len(table) <= 1
 
 
-def test_mask_window_includes_recovery():
+def test_mask_window_includes_recovery() -> None:
 
     sfreq = 2048.0
     data, runs = clipped_recording([5], sfreq)
@@ -73,7 +75,7 @@ def test_mask_window_includes_recovery():
     assert table["n_samples"].iloc[0] == length
 
 
-def test_known_rail_flags_single_samples():
+def test_known_rail_flags_single_samples() -> None:
 
     sfreq = 2048.0
     data = make_noise(2, 5.0, sfreq, dtype=np.float64)
@@ -85,7 +87,7 @@ def test_known_rail_flags_single_samples():
     assert len(table) == 0
 
 
-def test_stuck_code_flat_run():
+def test_stuck_code_flat_run() -> None:
 
     sfreq = 2048.0
     data = make_noise(2, 5.0, sfreq, dtype=np.float64)
@@ -95,7 +97,7 @@ def test_stuck_code_flat_run():
     assert (table["kind"] == "flat").any()
 
 
-def test_per_pulse_search_and_event_link():
+def test_per_pulse_search_and_event_link() -> None:
 
     sfreq = 2048.0
     data, onsets, _ = make_recording(n_channels=8, duration=6.0, seed=31)
@@ -114,7 +116,7 @@ def test_per_pulse_search_and_event_link():
     assert events.loc[2, "n_saturated_channels"] == 1
 
 
-def test_invalid_input():
+def test_invalid_input() -> None:
 
     with pytest.raises(DataError):
         detect_saturation(np.zeros((2, 100)), 1000.0, min_run=1)

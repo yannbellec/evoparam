@@ -2,6 +2,7 @@
 """Presets on simulations: ERNA (REQ-276) and SEP (REQ-277)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 
@@ -12,7 +13,7 @@ from evoparam.shapes import get_shape
 DAMPED = get_shape("damped_oscillation")
 
 
-def _erna_case(seed):
+def _erna_case(seed: Any) -> Any:
     """Per-pulse epochs of the last five pulses of simulated bursts (amplitude at least 95 %
     of its final value), channel at SNR 3; ERNA onset 2 ms after each pulse."""
 
@@ -48,7 +49,7 @@ def _erna_case(seed):
     return comp.params[2] - last["param_freq"], first_peak * 1e3
 
 
-def test_req276_erna_frequency_and_first_peak():
+def test_req276_erna_frequency_and_first_peak() -> None:
 
     errors = np.array([_erna_case(seed) for seed in range(20)])
     ok = (np.abs(errors[:, 0]) <= 5) & (np.abs(errors[:, 1]) <= 0.1)
@@ -59,11 +60,11 @@ SEP_SFREQ = 5000.0
 SEP_TIMES = np.arange(-0.05, 0.1, 1 / SEP_SFREQ)
 
 
-def _gauss(latency, fwhm):
+def _gauss(latency: Any, fwhm: Any) -> Any:
     return np.exp(-0.5 * ((SEP_TIMES - latency) / (fwhm / 2.3548)) ** 2)
 
 
-def _sep_case(seed, snr=5.0, phi=0.0):
+def _sep_case(seed: Any, snr: Any = 5.0, phi: Any = 0.0) -> Any:
     """Median-nerve SEP average: N20 (FWHM 4 ms), P25, N33; noise SD = N20 peak / snr."""
 
     rng = np.random.default_rng(seed)
@@ -87,13 +88,13 @@ def _sep_case(seed, snr=5.0, phi=0.0):
     return (n20[0].latency - latency) * 1e3 if n20 else np.nan
 
 
-def test_req277_sep_n20_latency():
+def test_req277_sep_n20_latency() -> None:
 
     errors = np.array([_sep_case(seed) for seed in range(20)])
     assert np.mean(np.abs(errors) <= 0.5) >= 0.9
 
 
-def test_sep_with_coloured_noise_is_a_documented_limit():
+def test_sep_with_coloured_noise_is_a_documented_limit() -> None:
     """AR(1) noise at the same SNR: N20 within 0.5 ms in 16 of 20 runs at rho 0.5 (and 8 of
     20 at rho 0.8; CHANGELOG, step S15)."""
 

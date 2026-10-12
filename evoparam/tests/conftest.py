@@ -3,11 +3,12 @@
 
 import importlib.util
 import socket
+from typing import Any
 
 import pytest
 
 
-def pytest_configure():
+def pytest_configure() -> None:
     if importlib.util.find_spec("matplotlib") is not None:
         import matplotlib
 
@@ -18,7 +19,7 @@ class _NetworkRefusedError(OSError):
     pass
 
 
-def _refuse(*_args, **_kwargs):
+def _refuse(*_args: Any, **_kwargs: Any) -> None:
     raise _NetworkRefusedError(
         "network access refused: tests of the core suite run with a socket "
         "guard (REQ-306); mark the test 'network' to connect"
@@ -26,7 +27,7 @@ def _refuse(*_args, **_kwargs):
 
 
 @pytest.fixture(autouse=True)
-def _socket_guard(request, monkeypatch):
+def _socket_guard(request: Any, monkeypatch: Any) -> Any:
     """REQ-306: every test of the ``core`` marker set runs with a socket guard; only tests
     marked ``network`` may connect. Local (AF_UNIX) sockets are left alone."""
 

@@ -2,6 +2,7 @@
 """GroundTruth: REQ-255 (same schema as GroupFit) and REQ-256 (real noise record and licences)."""
 
 import copy
+from typing import Any
 
 import numpy as np
 import pytest
@@ -19,13 +20,13 @@ pd = pytest.importorskip("pandas")
 ## REQ-255: shared columns and units
 
 
-def _kind(series):
+def _kind(series: Any) -> Any:
     kind = series.dtype.kind
     return {"i": "int", "u": "int", "f": "float", "b": "bool"}.get(kind, "object")
 
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
-def test_truth_and_groupfit_share_columns_and_units(name):
+def test_truth_and_groupfit_share_columns_and_units(name: Any) -> None:
     _, truth = sim.GENERATORS[name](seed=8, **SMALL[name])
     fit_table = fits_from_truth(truth).to_dataframe()
     for level in ("component", "trial"):
@@ -45,7 +46,7 @@ def test_truth_and_groupfit_share_columns_and_units(name):
                 assert table.attrs["units"][column] in ("s", "", "Hz", "rad")
 
 
-def test_perfect_fit_table_equals_truth_table():
+def test_perfect_fit_table_equals_truth_table() -> None:
     """A fit made of the true components gives the truth's values in every shared column."""
 
     _, truth = sim.simulate_ccep(seed=2, **SMALL["ccep"])
@@ -63,7 +64,7 @@ def test_perfect_fit_table_equals_truth_table():
 
 
 @pytest.mark.parametrize(("name", "jitter"), [("erp", 0.004), ("ccep", 0.004), ("ecap", 0.0001)])
-def test_trial_rows_are_the_features_of_the_trial_curves(name, jitter):
+def test_trial_rows_are_the_features_of_the_trial_curves(name: Any, jitter: Any) -> None:
     """Features of a trial are those of its curve (components inside the epoch)."""
 
     kwargs = dict(SMALL[name], jitter_sd=jitter, amplitude_cv=0.2)
@@ -102,7 +103,7 @@ def test_trial_rows_are_the_features_of_the_trial_curves(name, jitter):
     assert checked > 0
 
 
-def test_signal_is_the_sum_of_the_waveforms():
+def test_signal_is_the_sum_of_the_waveforms() -> None:
     ts, truth = sim.simulate_erp(
         seed=6, n_trials=8, n_channels=2, jitter_sd=0.01, amplitude_cv=0.3, overlap=0.4
     )
@@ -115,7 +116,7 @@ def test_signal_is_the_sum_of_the_waveforms():
     assert {"soa_previous", "soa_next"} <= set(ts.metadata.columns)
 
 
-def test_component_level_averages_the_trials():
+def test_component_level_averages_the_trials() -> None:
     _, truth = sim.simulate_erp(
         seed=6, n_trials=30, jitter_sd=0.005, amplitude_cv=0.2, components=["P3"]
     )
@@ -129,7 +130,7 @@ def test_component_level_averages_the_trials():
     assert abs(np.log(truth.scale).std() - 0.2) < 0.1
 
 
-def test_conditions_split_the_component_level():
+def test_conditions_split_the_component_level() -> None:
     _, truth = sim.simulate_animal_ep(seed=1, **SMALL["animal"])
     table = truth.to_dataframe()
     assert set(table["condition"]) == {"awake", "nrem"}
@@ -139,7 +140,7 @@ def test_conditions_split_the_component_level():
     np.testing.assert_allclose(nrem, 2.0 * awake)
 
 
-def test_json_round_trip():
+def test_json_round_trip() -> None:
     _, truth = sim.simulate_tep(seed=3, **SMALL["tep"])
     expected = copy.deepcopy(truth)
     expected.signal, expected.artifact_data = None, None
@@ -154,7 +155,7 @@ def test_json_round_trip():
 
 
 @pytest.mark.parametrize("suffix", ["", ".zip"])
-def test_container_round_trip(tmp_path, suffix):
+def test_container_round_trip(tmp_path: Any, suffix: Any) -> None:
     """Spec §4.3.5: the ground truth is saved like every result, as a ``.evoparam``
     container (manifest, arrays in npz, provenance and settings), and loads back equal,
     arrays included, with GroundTruth.load and with evoparam.load_object."""
@@ -178,7 +179,7 @@ def test_container_round_trip(tmp_path, suffix):
         sim.GroundTruth.load(trials.save(str(tmp_path / "trials")))
 
 
-def test_truth_validation_and_repr():
+def test_truth_validation_and_repr() -> None:
     _, truth = sim.simulate_erp(seed=0, n_trials=3)
     assert "3 trials" in repr(truth)
     assert "seed 0" in repr(truth)
@@ -193,7 +194,7 @@ def test_truth_validation_and_repr():
     assert len(empty.to_dataframe()) == 0
 
 
-def test_keep_arrays_false():
+def test_keep_arrays_false() -> None:
     ts, truth = sim.simulate_erp(seed=0, n_trials=3, keep_arrays=False)
     assert truth.signal is None
     assert truth.artifact_data is None
@@ -205,7 +206,7 @@ def test_keep_arrays_false():
 ## REQ-256: real noise records and licences
 
 
-def test_real_noise_records_every_segment():
+def test_real_noise_records_every_segment() -> None:
     real = real_baselines(n_trials=6, n_channels=3, sfreq=500.0, tmin=-2.0)
     ts, truth = sim.simulate_erp(
         seed=2, n_trials=5, n_channels=3, noise="real", noise_kw={"source": real}, snr=3.0
@@ -251,7 +252,7 @@ def test_real_noise_records_every_segment():
     assert json_record["segments"][0]["subject"] == "ccepAgeUMCU01"
 
 
-def test_real_noise_resampling_is_recorded():
+def test_real_noise_resampling_is_recorded() -> None:
     real = real_baselines(n_trials=4, n_channels=2, sfreq=1000.0, tmin=-2.0)
     ts, truth = sim.simulate_erp(
         seed=2,
@@ -270,7 +271,7 @@ def test_real_noise_resampling_is_recorded():
     assert stop - start == 2 * ts.n_times  # in source samples
 
 
-def test_real_noise_unit_conversion():
+def test_real_noise_unit_conversion() -> None:
     real = real_baselines(n_trials=4, n_channels=2, units="V")
     noise, info = sim.make_noise(
         400, 500.0, "real", size=(2, 2), source=real, units="uV", seed=0, return_info=True
@@ -283,7 +284,7 @@ def test_real_noise_unit_conversion():
 
 
 @pytest.mark.parametrize("dataset", ["localize-mi"])
-def test_registry_datasets_without_an_allowed_licence_are_refused(dataset):
+def test_registry_datasets_without_an_allowed_licence_are_refused(dataset: Any) -> None:
     real = real_baselines(dataset=dataset)
     with pytest.raises(SettingsError, match="licence"):
         sim.simulate_erp(seed=0, n_trials=3, n_channels=3, noise="real", noise_kw={"source": real})
@@ -291,7 +292,7 @@ def test_registry_datasets_without_an_allowed_licence_are_refused(dataset):
         sim.inject(real, ["N1"], snr=2.0, seed=0)
 
 
-def test_unknown_or_unnamed_dataset_is_refused_for_real_noise():
+def test_unknown_or_unnamed_dataset_is_refused_for_real_noise() -> None:
     with pytest.raises(SettingsError, match="not in the registry"):
         sim.make_noise(400, 500.0, "real", size=(1, 3), source=real_baselines(dataset="ds999999"))
     with pytest.raises(SettingsError, match="does not name"):
@@ -321,7 +322,7 @@ def test_unknown_or_unnamed_dataset_is_refused_for_real_noise():
         ("CC0 1.0", True),
     ],
 )
-def test_licence_rule(monkeypatch, licence, allowed):
+def test_licence_rule(monkeypatch: Any, licence: Any, allowed: Any) -> None:
     from evoparam.io import registry
 
     original = registry.dataset_info
@@ -341,7 +342,7 @@ def test_licence_rule(monkeypatch, licence, allowed):
             sim.inject(real, ["N1"], snr=2.0, seed=0)
 
 
-def test_normalize_license():
+def test_normalize_license() -> None:
     assert sim.noise.normalize_license("CC0 1.0") == "CC0"
     assert sim.noise.normalize_license("cc-by-4.0") == "CC-BY"
     assert sim.noise.normalize_license("CC BY-SA 4.0") == "CC-BY-SA"
@@ -351,7 +352,7 @@ def test_normalize_license():
     assert sim.ALLOWED_LICENSES == ("CC0", "CC-BY", "CC-BY-SA")
 
 
-def test_inject_records_and_adds_components():
+def test_inject_records_and_adds_components() -> None:
     real = real_baselines(n_trials=6, n_channels=3)
     ts, truth = sim.inject(real, ["N1", {"label": "P3", "channels": ("R01",)}], snr=4.0, seed=1)
     np.testing.assert_allclose(ts.data - truth.signal, real.data)

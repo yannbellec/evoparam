@@ -13,6 +13,7 @@ only. The real-data test runs with EVOPARAM_NETWORK_TESTS=1.
 
 import os
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -24,7 +25,7 @@ from evoparam.spatial import fit_shared
 from .helpers import BASELINE, shared_channels
 
 
-def _outside(group):
+def _outside(group: Any) -> Any:
     lo, hi = group.fits[0].window
     return [
         (name, c.latency)
@@ -34,7 +35,7 @@ def _outside(group):
     ]
 
 
-def _pairs(group, overlap_c=0.5):
+def _pairs(group: Any, overlap_c: Any = 0.5) -> Any:
     out = []
     for name, f in zip(group.settings["fit_shared"]["channels"], group.fits, strict=False):
         comps = f.components
@@ -50,7 +51,7 @@ def _pairs(group, overlap_c=0.5):
 
 @pytest.mark.parametrize("seed", range(4))
 @pytest.mark.parametrize("free_latency", [False, True])
-def test_latencies_stay_in_the_fit_window(seed, free_latency):
+def test_latencies_stay_in_the_fit_window(seed: Any, free_latency: Any) -> None:
     """A response cut by the window start (true latency 11 ms, FWHM 30 ms, window from
     9 ms): the per-channel fits may put it before the window (edge components, REQ-110),
     the shared fit keeps the latency of every channel in the window."""
@@ -65,7 +66,7 @@ def test_latencies_stay_in_the_fit_window(seed, free_latency):
     assert not _outside(group)
 
 
-def _ecap(seed):
+def _ecap(seed: Any) -> Any:
     from evoparam.sim import simulate_ecap
 
     ts, _ = simulate_ecap(40, kind="cochlear", artifact=False, seed=seed, tmax=0.0035)
@@ -82,7 +83,7 @@ def _ecap(seed):
 
 
 @pytest.mark.parametrize("seed", [0, 3])
-def test_no_cancelling_pair_in_the_shared_fit(seed):
+def test_no_cancelling_pair_in_the_shared_fit(seed: Any) -> None:
 
     evoked, channels, independent = _ecap(seed)
     with warnings.catch_warnings():
@@ -109,7 +110,7 @@ def test_no_cancelling_pair_in_the_shared_fit(seed):
     reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
 )
 @pytest.mark.parametrize("free_latency", [False, True])
-def test_ds004977_shared_fit_in_window_without_cancelling_pairs(free_latency):
+def test_ds004977_shared_fit_in_window_without_cancelling_pairs(free_latency: Any) -> None:
 
     from evoparam.prep import baseline_correct, rereference
     from evoparam.tests.prep.test_reference_ds004977 import load_trials

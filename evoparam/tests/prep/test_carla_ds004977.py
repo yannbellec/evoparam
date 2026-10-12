@@ -22,7 +22,7 @@ pytestmark = [
 ]
 
 
-def test_req372_left_out_channels_agree_with_the_authors_code():
+def test_req372_left_out_channels_agree_with_the_authors_code() -> None:
 
     from evoparam.prep.reference import car_adaptive_select
     from evoparam.tests.prep.test_reference_ds004977 import load_trials

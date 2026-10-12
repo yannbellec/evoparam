@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Local cubic fit with recovery after saturation (REQ-065)."""
 
+from typing import Any
+
 import numpy as np
 from scipy.signal import savgol_filter
 
@@ -13,7 +15,7 @@ from evoparam.data import TrialSet
 SFREQ = 25000.0
 
 
-def _railed_recording():
+def _railed_recording() -> Any:
     """MEA-like recording at 25 kHz: spikes, and a 600 mV pulse that rails the amplifier."""
 
     rng = np.random.default_rng(5)
@@ -40,7 +42,7 @@ def _railed_recording():
     return ts, truth, i0, rail_end
 
 
-def test_req065_recovery_within_2_ms_and_zeros_while_railed():
+def test_req065_recovery_within_2_ms_and_zeros_while_railed() -> None:
     """The published method (the fit subtracted at every sample)."""
 
     ts, truth, i0, rail_end = _railed_recording()
@@ -62,7 +64,7 @@ def test_req065_recovery_within_2_ms_and_zeros_while_railed():
     assert np.sqrt(np.mean(error**2)) <= 0.5 * np.std(truth[..., :i0])
 
 
-def test_req065_local_extent_zeros_while_railed_and_keeps_more_of_the_signal():
+def test_req065_local_extent_zeros_while_railed_and_keeps_more_of_the_signal() -> None:
     """The default extent: zeros while railed, the published output inside the artifact,
     and closer to the true signal from 2 ms after the pulse (9.3 against 9.7 uV RMS: the
     published filter also removes the slow part of the spikes everywhere)."""
@@ -88,7 +90,7 @@ def test_req065_local_extent_zeros_while_railed_and_keeps_more_of_the_signal():
     assert rms(local.data) < rms(published.data)
 
 
-def test_local_extent_keeps_the_response_after_the_artifact():
+def test_local_extent_keeps_the_response_after_the_artifact() -> None:
     """Overlay at 2048 Hz, response onset 20 ms: the published filter removes the response
     (RRMSE 0.99 on 8-50 ms), the local extent keeps it (0.02) and the baseline (0 %)."""
 
@@ -109,7 +111,7 @@ def test_local_extent_keeps_the_response_after_the_artifact():
     assert table.loc["global", "rrmse"] > 0.9
 
 
-def test_polynomial_without_rails_is_a_filter():
+def test_polynomial_without_rails_is_a_filter() -> None:
 
     rng = np.random.default_rng(6)
     times = np.arange(-1000, 1000) / SFREQ

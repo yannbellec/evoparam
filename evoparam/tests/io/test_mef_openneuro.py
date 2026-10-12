@@ -12,6 +12,7 @@ check the reader itself. Runs only with EVOPARAM_NETWORK_TESTS=1.
 import csv
 import io
 import os
+from typing import Any
 
 import numpy as np
 import pytest
@@ -33,14 +34,14 @@ DS004977 = ("ds004977", "sub-1/ses-ieeg01/ieeg/sub-1_ses-ieeg01_task-ccep_run-01
 ###################################################################################################
 
 
-def _table(dataset, stem, suffix):
+def _table(dataset: Any, stem: Any, suffix: Any) -> Any:
     from evoparam.io._fetch import fetch_bytes
 
     text = fetch_bytes(openneuro_url(dataset, stem + suffix)).decode("utf-8")
     return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
 
 
-def _stim_onsets(dataset, stem):
+def _stim_onsets(dataset: Any, stem: Any) -> Any:
     rows = _table(dataset, stem, "_events.tsv")
     stim = [row for row in rows if row["trial_type"] == "electrical_stimulation"]
     return (
@@ -49,7 +50,7 @@ def _stim_onsets(dataset, stem):
     )
 
 
-def test_ds003708_header_matches_channels_tsv():
+def test_ds003708_header_matches_channels_tsv() -> None:
 
     dataset, stem = DS003708
     header = read_mef_header(openneuro_url(dataset, stem + "_ieeg.mefd"))
@@ -61,7 +62,7 @@ def test_ds003708_header_matches_channels_tsv():
     assert not header["section_3_encrypted"]
 
 
-def test_ds003708_window_matches_events_tsv():
+def test_ds003708_window_matches_events_tsv() -> None:
 
     from evoparam.events import detect_pulses, match_onsets
 
@@ -91,7 +92,7 @@ def test_ds003708_window_matches_events_tsv():
     assert np.median(np.abs(match["errors"])) <= 1.0 / trials.sfreq + 1e-6
 
 
-def test_ds004977_header_units_and_censoring():
+def test_ds004977_header_units_and_censoring() -> None:
 
     dataset, stem = DS004977
     url = openneuro_url(dataset, stem + "_ieeg.mefd")

@@ -4,6 +4,7 @@
 import importlib
 import json
 from importlib import resources
+from typing import Any
 
 import pytest
 
@@ -56,12 +57,12 @@ KEYS = {
 }
 
 
-def registry():
+def registry() -> Any:
     text = resources.files("evoparam.io").joinpath("registry.json").read_text(encoding="utf-8")
     return json.loads(text)
 
 
-def test_registry_file_is_versioned_and_complete():
+def test_registry_file_is_versioned_and_complete() -> None:
 
     content = registry()
     assert content["schema"] == "evoparam-registry/1"
@@ -78,7 +79,7 @@ def test_registry_file_is_versioned_and_complete():
         assert entry["references"], entry["id"]
 
 
-def test_every_loader_entry_point_resolves():
+def test_every_loader_entry_point_resolves() -> None:
 
     for entry in registry()["datasets"]:
         if entry["loader"] is None:
@@ -87,7 +88,7 @@ def test_every_loader_entry_point_resolves():
         assert callable(getattr(importlib.import_module(module), name)), entry["loader"]
 
 
-def test_dataset_info():
+def test_dataset_info() -> None:
 
     info = dataset_info("DS004080")
     assert info["sfreq"] == 2048.0
@@ -110,7 +111,7 @@ def test_dataset_info():
         dataset_info("ds999999")
 
 
-def test_list_datasets():
+def test_list_datasets() -> None:
 
     pytest.importorskip("pandas")
     table = list_datasets()
@@ -129,7 +130,7 @@ def test_list_datasets():
     assert len(list_datasets(max_size_gb=1)) == 0
 
 
-def test_match_dataset():
+def test_match_dataset() -> None:
 
     assert match_dataset("https://s3.amazonaws.com/openneuro.org/ds004080/")["id"] == "ds004080"
     assert match_dataset("/data/ds003708")["id"] == "ds003708"

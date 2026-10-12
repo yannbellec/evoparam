@@ -2,6 +2,7 @@
 """Template subtraction (REQ-061)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -17,7 +18,7 @@ from .helpers import make_overlay
 WINDOW = (-0.002, 0.008)
 
 
-def residual_db(noisy, truth, cleaned, window=WINDOW):
+def residual_db(noisy: Any, truth: Any, cleaned: Any, window: Any = WINDOW) -> Any:
     inside = (noisy.times >= window[0]) & (noisy.times <= window[1])
     before = np.sum((noisy.data - truth.data)[..., inside] ** 2)
     after = np.sum((cleaned.data - truth.data)[..., inside] ** 2)
@@ -25,7 +26,7 @@ def residual_db(noisy, truth, cleaned, window=WINDOW):
 
 
 @pytest.mark.parametrize("template", ["global", "local"])
-def test_req061_template_reduces_window_residual_by_20_db(template):
+def test_req061_template_reduces_window_residual_by_20_db(template: Any) -> None:
 
     # Template SNR >= 10: 20 trials, artifact thousands of uV, noise 5 uV
     noisy, truth = make_overlay(onset=0.012, n_trials=20)
@@ -34,7 +35,7 @@ def test_req061_template_reduces_window_residual_by_20_db(template):
 
 
 @pytest.mark.parametrize("onset", [0.008, 0.012, 0.020])
-def test_req061_responses_after_the_window_are_untouched(onset):
+def test_req061_responses_after_the_window_are_untouched(onset: Any) -> None:
 
     # Artifact without a tail: it ends inside the window, so after the window the cleaned
     # data must equal the truth plus noise, and the response must not move
@@ -51,7 +52,7 @@ def test_req061_responses_after_the_window_are_untouched(onset):
     assert np.all(np.abs(lat_clean - lat_truth) <= 0.0005)
 
 
-def test_scaling_follows_per_trial_amplitude():
+def test_scaling_follows_per_trial_amplitude() -> None:
 
     noisy, truth = make_overlay(jitter=0.3, seed=3)
     scaled = remove_artifact(noisy, method="template", window=WINDOW, scale=True)
@@ -59,7 +60,7 @@ def test_scaling_follows_per_trial_amplitude():
     assert residual_db(noisy, truth, scaled.cleaned) > residual_db(noisy, truth, fixed.cleaned)
 
 
-def test_user_template_and_estimate():
+def test_user_template_and_estimate() -> None:
 
     noisy, truth = make_overlay()
     templates = estimate_artifact_template(noisy, WINDOW)
@@ -71,7 +72,7 @@ def test_user_template_and_estimate():
         remove_artifact(noisy, method="template", window=WINDOW, template=np.zeros((2, 2)))
 
 
-def test_small_groups_raise_or_fall_back():
+def test_small_groups_raise_or_fall_back() -> None:
 
     noisy, truth = make_overlay(n_trials=10)
     noisy.metadata.loc[:1, "stim_site"] = "C3-C4"  # a group of 2 pulses
@@ -84,7 +85,7 @@ def test_small_groups_raise_or_fall_back():
     assert not result.cleaned.masks[2:].any()
 
 
-def test_response_inside_window_warns():
+def test_response_inside_window_warns() -> None:
 
     # The response starts inside the window: the template contains it
     noisy, _ = make_overlay(
@@ -94,7 +95,7 @@ def test_response_inside_window_warns():
         remove_artifact(noisy, method="template", window=(-0.002, 0.004))
 
 
-def test_window_longer_than_train_interval_is_refused():
+def test_window_longer_than_train_interval_is_refused() -> None:
 
     noisy, _ = make_overlay()
     noisy.metadata["stim_frequency_hz"] = 130.0
@@ -102,7 +103,7 @@ def test_window_longer_than_train_interval_is_refused():
         remove_artifact(noisy, method="template", window=(-0.002, 0.008))
 
 
-def test_saturated_pulses_left_out_of_template():
+def test_saturated_pulses_left_out_of_template() -> None:
 
     from evoparam.artifact import apply_mask
 

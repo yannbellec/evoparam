@@ -9,7 +9,7 @@ from evoparam.errors import SettingsError
 from evoparam.stats import strip_jitter, waveform_band
 
 
-def test_waveform_band_mean_std_sem_median():
+def test_waveform_band_mean_std_sem_median() -> None:
     rng = np.random.default_rng(1)
     x = rng.normal(size=(12, 30))
     center, half = waveform_band(x)
@@ -27,7 +27,7 @@ def test_waveform_band_mean_std_sem_median():
         waveform_band(x, spread="iqr")
 
 
-def test_strip_jitter_is_seeded_and_continues_a_generator():
+def test_strip_jitter_is_seeded_and_continues_a_generator() -> None:
     a = strip_jitter(20, x=1.0, random_state=3)
     assert np.array_equal(a, strip_jitter(20, x=1.0, random_state=3))
     assert np.allclose(a, 1.0 + np.random.default_rng(3).normal(0.0, 0.025, 20))

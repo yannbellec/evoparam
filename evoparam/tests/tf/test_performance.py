@@ -14,7 +14,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_req218_100_channels_50_trials_2048_samples_40_freqs():
+def test_req218_100_channels_50_trials_2048_samples_40_freqs() -> None:
 
     sys.path.insert(0, str(pathlib.Path(__file__).parents[3] / "benchmarks"))
     from bench_tf import run

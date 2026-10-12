@@ -18,6 +18,7 @@ Wilcoxon signed-rank test over channels, p < 0.01).
 """
 
 import os
+from typing import Any
 
 import numpy as np
 import pytest
@@ -44,7 +45,7 @@ WINDOW = (0.01, 0.3)
 ###################################################################################################
 
 
-def load_trials(subject, run, site):
+def load_trials(subject: Any, run: Any, site: Any) -> Any:
     """Epochs of the 12 pulses of ``site`` (cached), as a TrialSet."""
 
     pd = pytest.importorskip("pandas")
@@ -88,7 +89,7 @@ def load_trials(subject, run, site):
     )
 
 
-def cross_channel_r2(trials, keep):
+def cross_channel_r2(trials: Any, keep: Any) -> Any:
     """Mean squared correlation of each kept channel's trial average with the others."""
 
     window = (trials.times >= WINDOW[0]) & (trials.times <= WINDOW[1])
@@ -98,7 +99,7 @@ def cross_channel_r2(trials, keep):
     return np.nanmean(r2, axis=1)
 
 
-def compare(trials):
+def compare(trials: Any) -> Any:
     """Cross-channel R² after ``car`` and after ``car_adaptive``, the kept channels and
     the size of the adjusted average."""
 
@@ -116,11 +117,11 @@ def compare(trials):
 
 
 @pytest.fixture(scope="module")
-def comparisons():
+def comparisons() -> Any:
     return [compare(load_trials(*run)) for run in RUNS]
 
 
-def test_reads_the_uncensored_epochs():
+def test_reads_the_uncensored_epochs() -> None:
 
     trials = load_trials(*RUNS[0])
     assert trials.sfreq == 4800.0
@@ -131,7 +132,7 @@ def test_reads_the_uncensored_epochs():
     assert (trials.data.std(axis=-1) > 0).all(axis=0).mean() > 0.95
 
 
-def test_req081_car_adaptive_lowers_cross_channel_r2(comparisons):
+def test_req081_car_adaptive_lowers_cross_channel_r2(comparisons: Any) -> None:
 
     from scipy.stats import wilcoxon
 

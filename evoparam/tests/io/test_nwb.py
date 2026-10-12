@@ -2,6 +2,7 @@
 """NWB reader and writer (REQ-317, REQ-318)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -16,7 +17,7 @@ DURATION = 30.0
 ONSETS = np.arange(2.0, 28.0, 2.0)
 
 
-def _signal():
+def _signal() -> Any:
     rng = np.random.default_rng(0)
     n = int(DURATION * SFREQ)
     data = rng.normal(0, 1e-6, (n, N_CH))
@@ -26,7 +27,7 @@ def _signal():
     return data
 
 
-def _nwbfile(source):
+def _nwbfile(source: Any) -> Any:
     from datetime import datetime, timezone
 
     from pynwb import NWBFile
@@ -117,7 +118,7 @@ def _nwbfile(source):
 _STIM_TABLE = {}
 
 
-def _stim_table_class():
+def _stim_table_class() -> Any:
     """``StimTable`` of ndx-electrical-stim (dormant, not on PyPI): the same type, declared
     with the NWB extension builder in a folder of the test session and loaded into pynwb."""
 
@@ -161,7 +162,7 @@ def _stim_table_class():
     return _STIM_TABLE["cls"]
 
 
-def _write(tmp_path, source):
+def _write(tmp_path: Any, source: Any) -> Any:
     path = tmp_path / f"{source}.nwb"
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -174,7 +175,7 @@ def _write(tmp_path, source):
 @pytest.mark.parametrize(
     "source", ["events_table", "trials", "intervals", "stim_table", "icephys"]
 )
-def test_req317_event_sources(tmp_path, source):
+def test_req317_event_sources(tmp_path: Any, source: Any) -> None:
 
     path = _write(tmp_path, source)
     ts = read_nwb(str(path), tmin=-0.1, tmax=0.2)
@@ -188,7 +189,7 @@ def test_req317_event_sources(tmp_path, source):
     assert list(ts.ch_info["location"][:2]) == ["VISp", "VISp"]
 
 
-def test_req317_stimulation_units(tmp_path):
+def test_req317_stimulation_units(tmp_path: Any) -> None:
 
     ts = read_nwb(str(_write(tmp_path, "events_table")), tmin=-0.1, tmax=0.2)
     assert np.allclose(ts.metadata["stim_current_mA"], 6.0)
@@ -199,7 +200,7 @@ def test_req317_stimulation_units(tmp_path):
     assert set(stim.metadata["stim_site"]) == {"e0-e1"}
 
 
-def test_req317_equal_to_the_trialset_built_in_memory(tmp_path):
+def test_req317_equal_to_the_trialset_built_in_memory(tmp_path: Any) -> None:
 
     from evoparam.io import epoch
 
@@ -214,7 +215,7 @@ def test_req317_equal_to_the_trialset_built_in_memory(tmp_path):
     np.testing.assert_allclose(ts.data, memory.data, rtol=1e-12, atol=1e-9)
 
 
-def test_events_given_as_a_table_and_select(tmp_path):
+def test_events_given_as_a_table_and_select(tmp_path: Any) -> None:
 
     import pandas as pd
 
@@ -229,7 +230,7 @@ def test_events_given_as_a_table_and_select(tmp_path):
     assert set(ts.metadata["kind"]) == {"a"}
 
 
-def _results(path):
+def _results(path: Any) -> Any:
     from evoparam.existence import test_response
     from evoparam.models import fit
     from evoparam.trials import fit_trials
@@ -243,7 +244,7 @@ def _results(path):
     return ts, group, test, trial_fits
 
 
-def _inspect(path):
+def _inspect(path: Any) -> Any:
     inspector = pytest.importorskip("nwbinspector")
     messages = list(inspector.inspect_nwbfile(nwbfile_path=str(path)))
     # messages about what evoparam wrote (the test file itself has no subject)
@@ -256,7 +257,7 @@ def _inspect(path):
 
 
 @pytest.mark.parametrize("extension", [False, True])
-def test_req318_write_and_inspect(tmp_path, extension):
+def test_req318_write_and_inspect(tmp_path: Any, extension: Any) -> None:
 
     path = _write(tmp_path, "trials")
     ts, group, test, trial_fits = _results(path)
@@ -329,7 +330,7 @@ def test_req318_write_and_inspect(tmp_path, extension):
 
 
 @pytest.mark.parametrize("extension", [False, True])
-def test_req024_write_nwb_rereads_and_passes_pynwb_validate(tmp_path, extension):
+def test_req024_write_nwb_rereads_and_passes_pynwb_validate(tmp_path: Any, extension: Any) -> None:
     """REQ-024: the output of ``write_nwb`` re-reads with pynwb and passes
     ``pynwb.validate`` (against the namespaces cached in the file, with the evoparam
     extension or without it)."""
@@ -350,7 +351,7 @@ def test_req024_write_nwb_rereads_and_passes_pynwb_validate(tmp_path, extension)
     assert list(errors) == []
 
 
-def test_req318_read_back_equal_results(tmp_path):
+def test_req318_read_back_equal_results(tmp_path: Any) -> None:
 
     path = _write(tmp_path, "trials")
     ts, group, test, trial_fits = _results(path)
@@ -364,7 +365,7 @@ def test_req318_read_back_equal_results(tmp_path):
     assert everything["components"].provenance == group.provenance
 
 
-def test_req318_edited_table_is_detected(tmp_path):
+def test_req318_edited_table_is_detected(tmp_path: Any) -> None:
 
     from evoparam.errors import DataError
 
@@ -385,7 +386,7 @@ def test_req318_edited_table_is_detected(tmp_path):
     assert read_nwb_results(str(path), verify=False) == group
 
 
-def test_ndx_spec_files_are_current(tmp_path):
+def test_ndx_spec_files_are_current(tmp_path: Any) -> None:
 
     from evoparam.io import ndx_evoparam
 
@@ -399,7 +400,7 @@ def test_ndx_spec_files_are_current(tmp_path):
     assert built.endswith("ndx-evoparam.namespace.yaml")
 
 
-def test_events_in_a_gap_of_the_timestamps_are_dropped(tmp_path):
+def test_events_in_a_gap_of_the_timestamps_are_dropped(tmp_path: Any) -> None:
 
     from datetime import datetime, timezone
 

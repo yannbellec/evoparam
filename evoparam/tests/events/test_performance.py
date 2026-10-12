@@ -16,7 +16,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_req045_runtime_and_memory():
+def test_req045_runtime_and_memory() -> None:
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "benchmarks"))
     from bench_events import make_data, measure

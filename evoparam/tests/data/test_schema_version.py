@@ -11,6 +11,7 @@ import dataclasses
 import json
 import os
 import shutil
+from typing import Any
 
 import numpy as np
 import pytest
@@ -25,7 +26,7 @@ FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "containers")
 FROZEN = {1: {"groupfit": "groupfit-1.evoparam", "trialset": "trialset-1.evoparam"}}
 
 
-def _provenance():
+def _provenance() -> Any:
     return Provenance(
         package_version="0.1.0.dev0",
         created="2026-01-01T00:00:00+00:00",
@@ -37,7 +38,7 @@ def _provenance():
     )
 
 
-def expected(kind):
+def expected(kind: Any) -> Any:
     """The object frozen in the container of ``kind``, with a fixed provenance."""
 
     if kind == "trialset":
@@ -54,7 +55,7 @@ def expected(kind):
 
 @pytest.mark.parametrize("major", sorted(FROZEN))
 @pytest.mark.parametrize("kind", ["groupfit", "trialset"])
-def test_req334_frozen_containers_load_and_equal(major, kind):
+def test_req334_frozen_containers_load_and_equal(major: Any, kind: Any) -> None:
 
     path = os.path.join(FOLDER, FROZEN[major][kind])
     with open(os.path.join(path, "manifest.json"), encoding="utf-8") as fobj:
@@ -70,14 +71,14 @@ def test_req334_frozen_containers_load_and_equal(major, kind):
     assert obj.provenance == reference.provenance
 
 
-def test_req334_every_released_major_is_frozen():
+def test_req334_every_released_major_is_frozen() -> None:
 
     assert SCHEMA_MAJOR in FROZEN
     for major in FROZEN:
         assert major == SCHEMA_MAJOR or (major, major + 1) in _migrations.MIGRATIONS
 
 
-def test_req334_newer_major_raises(tmp_path):
+def test_req334_newer_major_raises(tmp_path: Any) -> None:
 
     path = shutil.copytree(os.path.join(FOLDER, FROZEN[1]["trialset"]), tmp_path / "t.evoparam")
     manifest = os.path.join(path, "manifest.json")
@@ -90,7 +91,7 @@ def test_req334_newer_major_raises(tmp_path):
         load_object(path)
 
 
-def test_req334_older_major_is_migrated_and_recorded(tmp_path, monkeypatch):
+def test_req334_older_major_is_migrated_and_recorded(tmp_path: Any, monkeypatch: Any) -> None:
 
     path = str(
         shutil.copytree(os.path.join(FOLDER, FROZEN[1]["groupfit"]), tmp_path / "old.evoparam")
@@ -128,7 +129,7 @@ def test_req334_older_major_is_migrated_and_recorded(tmp_path, monkeypatch):
     assert sorted(os.listdir(tmp_path)) == ["old.evoparam"]  # no temporary file left
 
 
-def _freeze():
+def _freeze() -> None:
     """Write the frozen containers of the current major (run once per released major)."""
 
     os.makedirs(FOLDER, exist_ok=True)

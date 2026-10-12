@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+from typing import Any
 
 import numpy as np
 import pytest
@@ -45,7 +46,7 @@ NAMES = ["A10", "A2", "B1"]  # natural order on reading: A2, A10, B1
 ORDER = [1, 0, 2]
 
 
-def make_signal(n_times=6000, seed=0):
+def make_signal(n_times: Any = 6000, seed: Any = 0) -> Any:
     """Random walks (µV) with large jumps (keysamples), a constant run and a NaN sample."""
 
     rng = np.random.default_rng(seed)
@@ -56,7 +57,7 @@ def make_signal(n_times=6000, seed=0):
     return data
 
 
-def stored(data, factor=0.1):
+def stored(data: Any, factor: Any = 0.1) -> Any:
     """Values after the round trip: round(x / factor) * factor, NaN kept."""
 
     out = mef_round(np.nan_to_num(data) / factor) * factor
@@ -64,12 +65,12 @@ def stored(data, factor=0.1):
 
 
 @pytest.fixture
-def session(tmp_path):
+def session(tmp_path: Any) -> Any:
     data = make_signal()
     return write_mef(tmp_path, "sub-01_task-spes_run-01_ieeg", data, SFREQ, NAMES), data
 
 
-def test_crc_matches_the_bytewise_crc():
+def test_crc_matches_the_bytewise_crc() -> None:
 
     rng = np.random.default_rng(1)
     buf = rng.integers(0, 256, 20000, dtype=np.uint8)
@@ -84,7 +85,7 @@ def test_crc_matches_the_bytewise_crc():
     assert mef_module._crc_tables()["table"][128] == 0xEB31D82E
 
 
-def test_red_blocks_round_trip():
+def test_red_blocks_round_trip() -> None:
 
     rng = np.random.default_rng(2)
     cases = [
@@ -108,7 +109,7 @@ def test_red_blocks_round_trip():
     assert np.array_equal(crc, headers["crc"])
 
 
-def test_read_whole_session(session):
+def test_read_whole_session(session: Any) -> None:
 
     root, data = session
     header = read_mef_header(root)
@@ -133,7 +134,7 @@ def test_read_whole_session(session):
     assert np.isnan(out).sum() == 1
 
 
-def test_window_and_picks(session):
+def test_window_and_picks(session: Any) -> None:
 
     root, data = session
     expected = stored(data)
@@ -153,7 +154,7 @@ def test_window_and_picks(session):
         read_mef(root, tmin=6.0, tmax=7.0)
 
 
-def test_segments_give_the_same_data(tmp_path):
+def test_segments_give_the_same_data(tmp_path: Any) -> None:
 
     data = make_signal()
     one = write_mef(tmp_path, "one", data, SFREQ, NAMES, block_samples=700)
@@ -170,7 +171,7 @@ def test_segments_give_the_same_data(tmp_path):
     np.testing.assert_array_equal(c, a[:, 1400:4300])
 
 
-def test_gaps_are_nan(tmp_path):
+def test_gaps_are_nan(tmp_path: Any) -> None:
     """A gap is placed by the block start times: flagged discontinuities, or unflagged
     jumps of more than 1 s (shorter unflagged jumps are time-stamp jitter)."""
 
@@ -210,7 +211,7 @@ def test_gaps_are_nan(tmp_path):
     np.testing.assert_allclose(epochs.data[0], out[:, 1800:2300], atol=1e-12)
 
 
-def test_lossy_blocks(tmp_path):
+def test_lossy_blocks(tmp_path: Any) -> None:
     """Scale factor and detrending, restored as meflib's RED_unscale and RED_retrend."""
 
     data = make_signal()[:2]
@@ -245,7 +246,7 @@ def test_lossy_blocks(tmp_path):
     assert 0 < np.max(np.abs(out - data)) < 0.25  # lossy, within 2 steps
 
 
-def test_nan_and_infinity_codes(tmp_path):
+def test_nan_and_infinity_codes(tmp_path: Any) -> None:
 
     data = np.zeros((1, 1000))
     data[0, 10] = np.nan
@@ -261,7 +262,7 @@ def test_nan_and_infinity_codes(tmp_path):
     assert np.isnan(out).sum() == 501
 
 
-def test_units_conversion(tmp_path):
+def test_units_conversion(tmp_path: Any) -> None:
 
     data = make_signal()[:1]
     root = write_mef(tmp_path, "mv", data, SFREQ, ["X"], units="millivolts", factor=1e-4)
@@ -275,7 +276,7 @@ def test_units_conversion(tmp_path):
     np.testing.assert_allclose(np.nan_to_num(out[0]), mef_round(np.nan_to_num(data[0])))
 
 
-def test_encrypted_sessions_raise(tmp_path):
+def test_encrypted_sessions_raise(tmp_path: Any) -> None:
 
     data = make_signal()[:1]
     root = write_mef(tmp_path, "metadata", data, SFREQ, ["X"], encrypt="metadata")
@@ -286,7 +287,7 @@ def test_encrypted_sessions_raise(tmp_path):
         read_mef(root)
 
 
-def test_crc_errors(session):
+def test_crc_errors(session: Any) -> None:
 
     root, data = session
     reference, *_ = read_mef(root)
@@ -306,7 +307,7 @@ def test_crc_errors(session):
         read_mef(root, picks=["B1"])
 
 
-def test_bad_files(tmp_path, session):
+def test_bad_files(tmp_path: Any, session: Any) -> None:
 
     root, _ = session
     with pytest.raises(ReaderError, match="not found"):
@@ -325,7 +326,7 @@ def test_bad_files(tmp_path, session):
         read_mef(root)
 
 
-def test_constant_blocks_are_not_decoded(tmp_path):
+def test_constant_blocks_are_not_decoded(tmp_path: Any) -> None:
     """Censored data (zeros, as in ds004977) are filled from the index extrema."""
 
     data = make_signal()
@@ -343,7 +344,7 @@ def test_constant_blocks_are_not_decoded(tmp_path):
     np.testing.assert_allclose(out, stored(data)[ORDER], atol=1e-9)
 
 
-def test_remote_matches_local(tmp_path):
+def test_remote_matches_local(tmp_path: Any) -> None:
 
     data = make_signal(20000)
     root = write_mef(tmp_path, "sub-01_run-01_ieeg", data, SFREQ, NAMES, block_samples=1000)
@@ -381,7 +382,7 @@ def test_remote_matches_local(tmp_path):
     np.testing.assert_allclose(out, stored(data)[[1], :1000], atol=1e-9)
 
 
-def test_remote_s3_listing(tmp_path, monkeypatch):
+def test_remote_s3_listing(tmp_path: Any, monkeypatch: Any) -> None:
     """With the S3 listing (OpenNeuro), names and segments come from one request."""
 
     data = make_signal()
@@ -401,7 +402,7 @@ def test_remote_s3_listing(tmp_path, monkeypatch):
     )
 
 
-def test_read_dispatch(session):
+def test_read_dispatch(session: Any) -> None:
 
     root, data = session
     trials = read(root, tmin=1.0, tmax=2.0)
@@ -425,7 +426,7 @@ def test_read_dispatch(session):
     assert same.provenance.source == copy.deepcopy(trials.provenance.source)
 
 
-def test_light_core_mef_in_a_subprocess(tmp_path):
+def test_light_core_mef_in_a_subprocess(tmp_path: Any) -> None:
     """REQ-025: the MEF reader needs numpy only."""
 
     code = textwrap.dedent("""
@@ -458,7 +459,7 @@ def test_light_core_mef_in_a_subprocess(tmp_path):
 ## BIDS
 
 
-def test_read_bids_mef_matches_brainvision(bids_root, tmp_path):
+def test_read_bids_mef_matches_brainvision(bids_root: Any, tmp_path: Any) -> None:
     """The mini BIDS dataset with MEF recordings reads as the BrainVision one."""
 
     pd = pytest.importorskip("pandas")
@@ -490,7 +491,7 @@ def test_read_bids_mef_matches_brainvision(bids_root, tmp_path):
     assert any(r[1].endswith("_ieeg.vhdr") and r[3] == 404 for r in requests)
 
 
-def test_read_bids_mef_gap_is_masked(tmp_path):
+def test_read_bids_mef_gap_is_masked(tmp_path: Any) -> None:
 
     pytest.importorskip("pandas")
     root = make_mef_bids(tmp_path / "mef")

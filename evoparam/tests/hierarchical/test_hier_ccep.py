@@ -5,6 +5,7 @@ EVOPARAM_NETWORK_TESTS=1."""
 import dataclasses
 import io
 import os
+from typing import Any
 
 import pytest
 
@@ -19,7 +20,7 @@ pytestmark = [
 PARTICIPANTS = "https://s3.amazonaws.com/openneuro.org/ds004080/participants.tsv"
 
 
-def _ages():
+def _ages() -> Any:
     import pandas as pd
 
     from evoparam.io._fetch import fetch_bytes
@@ -28,7 +29,7 @@ def _ages():
     return dict(zip(table["participant_id"], table["age"], strict=False))
 
 
-def _subjects():
+def _subjects() -> Any:
     """One run per subject of the cached validation runs (the first one), one site."""
 
     from evoparam.tests.events.test_ds004080_events import RUNS
@@ -48,13 +49,13 @@ def _subjects():
 
 
 @pytest.fixture(scope="module")
-def age_fit():
+def age_fit() -> Any:
     from evoparam.hierarchical import fit_hierarchical
 
     return fit_hierarchical(_subjects(), components=["N1"], formula="latency ~ age", n_jobs=-1)
 
 
-def test_req178_n1_latency_decreases_with_age(age_fit):
+def test_req178_n1_latency_decreases_with_age(age_fit: Any) -> None:
 
     effects = age_fit.effects
     row = effects[effects["term"] == "age"].iloc[0]

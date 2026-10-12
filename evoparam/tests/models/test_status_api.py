@@ -2,6 +2,8 @@
 """Status semantics, reproducibility, tidy output, methods text and the API (REQ-118 to
 REQ-120, REQ-123)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -25,7 +27,7 @@ from .helpers import BASELINE, SFREQ, TIMES, WINDOW, gauss, model, noise
 ###################################################################################################
 
 
-def _trials(n=12, seed=0, channels=3):
+def _trials(n: Any = 12, seed: Any = 0, channels: Any = 3) -> Any:
     rng = np.random.default_rng(seed)
     sig = gauss(0.025, -100, 0.012) + gauss(0.15, -50, 0.08)
     data = sig[None, None] + rng.normal(0, 10, (n, channels, len(TIMES)))
@@ -35,7 +37,7 @@ def _trials(n=12, seed=0, channels=3):
     )
 
 
-def test_req118_status_semantics():
+def test_req118_status_semantics() -> None:
 
     rng = np.random.default_rng(0)
     none = model().fit_waveform(TIMES, noise(rng))
@@ -54,7 +56,7 @@ def test_req118_status_semantics():
         assert np.isfinite(comp.latency)
 
 
-def test_req119_req120_reproducible_tidy_and_saved(tmp_path):
+def test_req119_req120_reproducible_tidy_and_saved(tmp_path: Any) -> None:
 
     ts = _trials()
     a = fit(ts, "ccep", random_state=0)
@@ -71,7 +73,7 @@ def test_req119_req120_reproducible_tidy_and_saved(tmp_path):
     assert a.get("c2").status == "no_response"
 
 
-def test_req119_reproducible_with_parallel_jobs():
+def test_req119_reproducible_with_parallel_jobs() -> None:
     """REQ-119 with n_jobs > 1: two runs with the same random_state give byte-identical
     to_dataframe() output, and the same output as n_jobs=1."""
 
@@ -82,7 +84,7 @@ def test_req119_reproducible_with_parallel_jobs():
     assert all(t.equals(tables[0]) for t in tables)
 
 
-def test_neff_noise_model_is_available():
+def test_neff_noise_model_is_available() -> None:
     """F64: the noise model of spec §5.5.3 step 1 (residuals over sigma_n, the AR(1)
     effective count n_eff in the criterion and the covariance) is selectable and named in the
     methods text."""
@@ -99,7 +101,7 @@ def test_neff_noise_model_is_available():
         model(noise_model="nope").fit_waveform(TIMES, y)
 
 
-def test_req123_methods_text():
+def test_req123_methods_text() -> None:
 
     fit_ = fit_response(
         TIMES,
@@ -115,7 +117,7 @@ def test_req123_methods_text():
     assert "constant background" in text
 
 
-def test_top_level_fit_inputs_and_errors():
+def test_top_level_fit_inputs_and_errors() -> None:
 
     ts = _trials()
     from evoparam.existence import fit as fit_with_existence
@@ -144,7 +146,7 @@ def test_top_level_fit_inputs_and_errors():
         ResponseModel(fit_window=(0.5, 2.0)).fit_waveform(TIMES, noise(np.random.default_rng(0)))
 
 
-def test_estimator_contract_and_compare():
+def test_estimator_contract_and_compare() -> None:
 
     m = ResponseModel("ccep", max_components=4)
     assert m.get_params()["max_components"] == 4
@@ -164,7 +166,7 @@ def test_estimator_contract_and_compare():
     assert list(table["delta_bic"]).count(0.0) == 1
 
 
-def test_uncertainty_levels():
+def test_uncertainty_levels() -> None:
 
     ts = _trials(n=20)
     m = ResponseModel("ccep", uncertainty="bootstrap", n_bootstrap=30, random_state=0)
@@ -179,7 +181,7 @@ def test_uncertainty_levels():
         model(uncertainty="posterior").fit_waveform(TIMES, y)
 
 
-def test_classical_measures_and_labels():
+def test_classical_measures_and_labels() -> None:
 
     rng = np.random.default_rng(4)
     trials = gauss(0.1, -8, 0.04)[None] + rng.normal(0, 2, (30, len(TIMES)))

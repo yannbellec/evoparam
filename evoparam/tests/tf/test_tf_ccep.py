@@ -3,6 +3,7 @@
 
 import os
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -18,7 +19,7 @@ pytestmark = [
 ZONE = "published:brinyark2026_delayed_high_gamma"
 
 
-def _relations():
+def _relations() -> Any:
     from scipy.stats import spearmanr
 
     from evoparam.tests.existence.test_existence_ccep import RUNS, _trials
@@ -42,11 +43,11 @@ def _relations():
 
 
 @pytest.fixture(scope="module")
-def relations():
+def relations() -> Any:
     return _relations()
 
 
-def test_req216_published_zone_follows_the_n1(relations):
+def test_req216_published_zone_follows_the_n1(relations: Any) -> None:
     """The published summary statistic (the share of significant increases in the zone)
     rises with the N1 amplitude across recording sites in at least half of the subjects;
     the sign is positive."""
@@ -57,7 +58,7 @@ def test_req216_published_zone_follows_the_n1(relations):
     assert np.median(rho) > 0
 
 
-def test_mean_zone_power_relation_is_weaker(relations):
+def test_mean_zone_power_relation_is_weaker(relations: Any) -> None:
     """Documented: the mean normalised power over the whole zone relates to the N1 in fewer
     subjects (seven or eight trials per site: the mean dB over a large zone is noisy)."""
 

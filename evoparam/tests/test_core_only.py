@@ -14,6 +14,7 @@ import json
 import subprocess
 import sys
 import textwrap
+from typing import Any
 
 import pytest
 
@@ -188,7 +189,7 @@ NEEDS_PANDAS = {
 }
 
 
-def run_chain():
+def run_chain() -> Any:
     result = subprocess.run(
         [sys.executable, "-c", HOOK + CHAIN],
         capture_output=True,
@@ -200,7 +201,7 @@ def run_chain():
     return json.loads(result.stdout.strip().splitlines()[-1])
 
 
-def test_req010_core_chain_with_numpy_and_scipy_only():
+def test_req010_core_chain_with_numpy_and_scipy_only() -> None:
     steps = run_chain()
     assert set(steps) == set(STEPS)
     failing = {name: error for name, error in steps.items() if error != "ok"}
@@ -213,7 +214,7 @@ def test_req010_core_chain_with_numpy_and_scipy_only():
         )
 
 
-def test_req010_the_hook_hides_optional_packages():
+def test_req010_the_hook_hides_optional_packages() -> None:
     code = HOOK + textwrap.dedent("""
         for name in ("pandas", "mne", "matplotlib", "sklearn"):
             try:
@@ -229,7 +230,7 @@ def test_req010_the_hook_hides_optional_packages():
     assert result.returncode == 0, result.stderr + result.stdout
 
 
-def test_req291_selftest():
+def test_req291_selftest() -> None:
     """REQ-291: ``evoparam.selftest()`` fits the bundled synthetic CCEP and recovers the N1
     latency within 1 ms; in the NumPy-and-SciPy-only subprocess too (step ``selftest`` of
     the chain above, which must be "ok")."""

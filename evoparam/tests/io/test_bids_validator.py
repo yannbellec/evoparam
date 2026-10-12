@@ -3,6 +3,7 @@
 
 import json
 import os
+from typing import Any
 
 import pytest
 
@@ -16,19 +17,19 @@ from .helpers import make_bids
 pd = pytest.importorskip("pandas")
 
 
-def _tsv(path, header, rows):
+def _tsv(path: Any, header: Any, rows: Any) -> None:
     with open(path, "w", encoding="utf-8") as fobj:
         fobj.write("\t".join(header) + "\n")
         for row in rows:
             fobj.write("\t".join(str(v) for v in row) + "\n")
 
 
-def _json(path, content):
+def _json(path: Any, content: Any) -> None:
     with open(path, "w", encoding="utf-8") as fobj:
         json.dump(content, fobj)
 
 
-def _fixtures(root):
+def _fixtures(root: Any) -> Any:
     """Three subjects shaped like the deposits of REQ-313.
 
     sub-utrecht (ds004080): currents in A and pulse widths in s without Units, polarity
@@ -126,16 +127,16 @@ def _fixtures(root):
 
 
 @pytest.fixture(scope="module")
-def fixtures(tmp_path_factory):
+def fixtures(tmp_path_factory: Any) -> Any:
     return _fixtures(str(tmp_path_factory.mktemp("validator") / "bids"))
 
 
-def _status(table, subject):
+def _status(table: Any, subject: Any) -> Any:
     run = table[table["subject"] == subject]
     return dict(zip(run["field"], run["status"], strict=False))
 
 
-def test_statuses_on_the_three_fixtures(fixtures):
+def test_statuses_on_the_three_fixtures(fixtures: Any) -> None:
 
     table = validate_stim_metadata(fixtures)
     assert from_bids is validate_stim_metadata
@@ -196,7 +197,7 @@ def test_statuses_on_the_three_fixtures(fixtures):
     } == {"missing"}
 
 
-def test_text_report_lists_the_missing_pulse_width(fixtures):
+def test_text_report_lists_the_missing_pulse_width(fixtures: Any) -> None:
 
     text = format_stim_report(validate_stim_metadata(fixtures, subject="minimal"))
     lines = text.splitlines()
@@ -205,7 +206,7 @@ def test_text_report_lists_the_missing_pulse_width(fixtures):
     assert lines[-1] == "summary: 0 present, 0 inferred, 10 missing, 0 inconsistent"
 
 
-def test_partial_and_unreadable_values_are_inconsistent(tmp_path):
+def test_partial_and_unreadable_values_are_inconsistent(tmp_path: Any) -> None:
 
     root = _fixtures(str(tmp_path / "bids"))
     path = os.path.join(
@@ -235,7 +236,7 @@ def test_partial_and_unreadable_values_are_inconsistent(tmp_path):
     assert "unparsable" in message
 
 
-def test_strict_raises_on_missing_fields(fixtures):
+def test_strict_raises_on_missing_fields(fixtures: Any) -> None:
 
     with pytest.raises(ReaderError, match="stim_pulse_width_us"):
         validate_stim_metadata(fixtures, subject="minimal", strict=True)
@@ -245,7 +246,7 @@ def test_strict_raises_on_missing_fields(fixtures):
         validate_stim_metadata(os.path.join(fixtures, "absent"))
 
 
-def test_mini_dataset_of_the_reader_tests(tmp_path):
+def test_mini_dataset_of_the_reader_tests(tmp_path: Any) -> None:
 
     root = make_bids(str(tmp_path / "mini"))
     table = validate_stim_metadata(root)
@@ -257,7 +258,7 @@ def test_mini_dataset_of_the_reader_tests(tmp_path):
     assert _status(table, "02")["coordinates"] == "missing"
 
 
-def test_cli_prints_the_report_and_exits_5_with_strict(fixtures, capsys):
+def test_cli_prints_the_report_and_exits_5_with_strict(fixtures: Any, capsys: Any) -> None:
 
     assert main(["validate-bids", fixtures]) == 0
     out = capsys.readouterr().out

@@ -10,6 +10,7 @@ the owner's decision.
 import pathlib
 import re
 import subprocess
+from typing import Any
 
 import pytest
 
@@ -24,17 +25,17 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _cff():
+def _cff() -> Any:
     return parse_cff((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
 
 
-def _release_version(version):
+def _release_version(version: Any) -> Any:
     """``0.1.0.dev0`` -> ``0.1.0`` (the version being prepared); a final version is itself."""
 
     return re.match(r"\d+(\.\d+)*", version).group(0)
 
 
-def test_cff_parses_the_same_with_pyyaml():
+def test_cff_parses_the_same_with_pyyaml() -> None:
     yaml = pytest.importorskip("yaml")
     data = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
     ours = _cff()
@@ -44,7 +45,7 @@ def test_cff_parses_the_same_with_pyyaml():
     assert data["cff-version"] == "1.2.0"
 
 
-def test_req308_version_matches_the_package():
+def test_req308_version_matches_the_package() -> None:
     """``version`` is ``evoparam.__version__`` on a release; on a development build
     (``X.Y.Z.devN``) it is the version being prepared (DECISIONS.md, REQ-308)."""
 
@@ -54,7 +55,7 @@ def test_req308_version_matches_the_package():
         assert version == evoparam.__version__
 
 
-def test_req308_date_released_is_the_tag_date():
+def test_req308_date_released_is_the_tag_date() -> None:
     tag = subprocess.run(
         ["git", "describe", "--exact-match", "--tags", "HEAD"],
         cwd=ROOT,
@@ -76,22 +77,22 @@ def test_req308_date_released_is_the_tag_date():
     assert str(cff["date-released"]) == date
 
 
-def test_req308_first_author():
+def test_req308_first_author() -> None:
     assert _cff()["authors"][0]["family-names"] == "Bellec"
 
 
-def test_package_copy_is_the_root_file():
+def test_package_copy_is_the_root_file() -> None:
     assert (ROOT / "evoparam" / "CITATION.cff").read_text("utf-8") == (
         ROOT / "CITATION.cff"
     ).read_text("utf-8")
 
 
 @pytest.mark.xfail(strict=True, reason=f"REQ-308/REQ-391: the Zenodo concept DOI {HIIE}")
-def test_req308_doi_is_a_zenodo_doi():
+def test_req308_doi_is_a_zenodo_doi() -> None:
     assert str(_cff().get("doi", "")).startswith("10.5281/zenodo.")
 
 
-def test_req308_releasing_has_the_steps():
+def test_req308_releasing_has_the_steps() -> None:
     text = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
     section = text.split("## Making a release", 1)[1].split("\n## ", 1)[0]
     for step in (
@@ -110,13 +111,13 @@ def test_req308_releasing_has_the_steps():
         assert step.lower() in section.lower(), step
 
 
-def test_req391_cite_names_the_version(capsys):
+def test_req391_cite_names_the_version(capsys: Any) -> None:
     text = evoparam.cite()
     assert f"version {_cff()['version']}" in text
     assert text in capsys.readouterr().out
 
 
-def test_req391_both_dois_and_the_paper_when_they_exist():
+def test_req391_both_dois_and_the_paper_when_they_exist() -> None:
     """With a concept DOI, a version DOI and a preferred citation in the file, the
     citation (``cite()``, ``evoparam cite``, the methods text) names all three."""
 
@@ -147,12 +148,12 @@ def test_req391_both_dois_and_the_paper_when_they_exist():
 
 
 @pytest.mark.xfail(strict=True, reason=f"REQ-391: the version DOI of each release {HIIE}")
-def test_req391_cite_contains_the_version_doi():
+def test_req391_cite_contains_the_version_doi() -> None:
     assert re.search(r"10\.5281/zenodo\.\d+", evoparam.cite())
 
 
 @pytest.mark.xfail(
     strict=True, reason=f"REQ-391: the preferred paper citation needs a paper, which {HIIE}"
 )
-def test_req391_preferred_citation():
+def test_req391_preferred_citation() -> None:
     assert "preferred-citation" in _cff()

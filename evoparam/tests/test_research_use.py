@@ -8,6 +8,7 @@ import importlib.util
 import io
 import pathlib
 import re
+from typing import Any
 
 import pytest
 
@@ -16,17 +17,17 @@ import evoparam
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 
 
-def carries_statement(text):
+def carries_statement(text: Any) -> Any:
     text = re.sub(r"\s+", " ", text).lower()
     return "research use only" in text and "not a medical device" in text
 
 
-def test_req015_documentation():
+def test_req015_documentation() -> None:
     assert carries_statement((ROOT / "README.rst").read_text(encoding="utf-8"))
     assert carries_statement(evoparam.__doc__)
 
 
-def test_req015_cli_version():
+def test_req015_cli_version() -> None:
     from evoparam.cli import main
 
     out = io.StringIO()
@@ -38,14 +39,14 @@ def test_req015_cli_version():
 
 
 @pytest.fixture(scope="module")
-def group():
+def group() -> Any:
     from evoparam import sim
 
     trials, _ = sim.simulate_ccep(n_trials=8, n_channels=3, seed=2)
     return evoparam.fit(trials, preset="ccep", random_state=0)
 
 
-def test_req015_html_and_markdown_reports(group, tmp_path):
+def test_req015_html_and_markdown_reports(group: Any, tmp_path: Any) -> None:
     pytest.importorskip("pandas")
     from evoparam import reports
 
@@ -54,7 +55,7 @@ def test_req015_html_and_markdown_reports(group, tmp_path):
     assert carries_statement(reports.markdown(group))
 
 
-def test_req015_pdf_report(group, tmp_path):
+def test_req015_pdf_report(group: Any, tmp_path: Any) -> None:
     pytest.importorskip("pandas")
     matplotlib = pytest.importorskip("matplotlib")
     from evoparam import reports
@@ -73,7 +74,7 @@ def test_req015_pdf_report(group, tmp_path):
     )
 
 
-def test_req015_stream_outputs():
+def test_req015_stream_outputs() -> None:
     if importlib.util.find_spec("evoparam.stream") is None:
         pytest.xfail(
             "evoparam.stream (§10.6) is built on branch s18-en-ligne; its outputs "

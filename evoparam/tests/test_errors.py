@@ -11,6 +11,7 @@ import ast
 import logging
 import pathlib
 import re
+from typing import Any
 
 import numpy as np
 import pytest
@@ -24,7 +25,7 @@ PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
 
 
 @pytest.fixture
-def evoked():
+def evoked() -> Any:
     from evoparam.data import Evoked
 
     rng = np.random.default_rng(1)
@@ -34,7 +35,7 @@ def evoked():
 
 
 @pytest.fixture
-def inject(monkeypatch, evoked):
+def inject(monkeypatch: Any, evoked: Any) -> None:
     """The fit of channel C3 raises (an exception from inside the optimiser path)."""
 
     original = _engine.fit_waveform_core
@@ -48,7 +49,7 @@ def inject(monkeypatch, evoked):
 
 
 @pytest.mark.usefixtures("inject")
-def test_failed_unit_is_recorded(evoked, caplog):
+def test_failed_unit_is_recorded(evoked: Any, caplog: Any) -> None:
     with caplog.at_level(logging.WARNING, logger="evoparam"):
         group = ResponseModel("ccep", max_components=2).fit_group(evoked)
     status = [f.status for f in group.fits]
@@ -66,27 +67,27 @@ def test_failed_unit_is_recorded(evoked, caplog):
 
 
 @pytest.mark.usefixtures("inject")
-def test_on_error_raise_propagates(evoked):
+def test_on_error_raise_propagates(evoked: Any) -> None:
     with pytest.raises(FitError, match="C3"):
         ResponseModel("ccep", max_components=2).fit_group(evoked, on_error="raise")
     with pytest.raises(SettingsError):
         ResponseModel("ccep").fit_group(evoked, on_error="ignore")
 
 
-def test_data_and_settings_errors_propagate(evoked):
+def test_data_and_settings_errors_propagate(evoked: Any) -> None:
     with pytest.raises(DataError):
         ResponseModel("ccep").fit_waveform(evoked.times, evoked.data[0][:-1])
     with pytest.raises(SettingsError):
         ResponseModel(max_components=2).fit_waveform(evoked.times, evoked.data[0])
 
 
-def _sources():
+def _sources() -> Any:
     for path in sorted(PACKAGE.rglob("*.py")):
         if "tests" not in path.relative_to(PACKAGE).parts:
             yield path, path.read_text(encoding="utf-8")
 
 
-def test_no_bare_except_and_no_swallowed_exception():
+def test_no_bare_except_and_no_swallowed_exception() -> None:
     hits = []
     for path, text in _sources():
         for node in ast.walk(ast.parse(text)):
@@ -102,7 +103,7 @@ def test_no_bare_except_and_no_swallowed_exception():
     assert not hits, hits
 
 
-def test_errstate_never_ignores_everything():
+def test_errstate_never_ignores_everything() -> None:
     hits = [
         f"{path.name}:{n}"
         for path, text in _sources()
@@ -112,7 +113,7 @@ def test_errstate_never_ignores_everything():
     assert not hits, hits
 
 
-def _errstate_lines():
+def _errstate_lines() -> Any:
     return [
         f"{path.relative_to(PACKAGE)}:{n}"
         for path, text in _sources()
@@ -129,7 +130,7 @@ def _errstate_lines():
     "documented NaN/inf result (measured 2026-10-11, S20); none uses "
     "all='ignore' (test_errstate_never_ignores_everything)",
 )
-def test_errstate_at_most_three_lines_in_the_engine():
+def test_errstate_at_most_three_lines_in_the_engine() -> None:
     lines = _errstate_lines()
     assert len(lines) <= 3, f"{len(lines)} lines"
     assert all(line.startswith("models/_engine.py") for line in lines), f"{len(lines)} lines"
@@ -141,7 +142,7 @@ def test_errstate_at_most_three_lines_in_the_engine():
     "ResponseModel.fit_group (and fit_waveform); fit_trials, test_response and "
     "remove_artifact do not take on_error yet (S20)",
 )
-def test_on_error_on_every_unit_function():
+def test_on_error_on_every_unit_function() -> None:
     import inspect
 
     from evoparam.artifact import remove_artifact

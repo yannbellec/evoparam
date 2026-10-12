@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Interpolation (method 1, inherited from the skeleton's clean.interpolate)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -14,7 +16,7 @@ from .helpers import make_overlay
 ###################################################################################################
 
 
-def test_interpolate_window_line():
+def test_interpolate_window_line() -> None:
 
     times = np.arange(-100, 101) / 1000.0
     line = 2 * times + 1
@@ -28,7 +30,7 @@ def test_interpolate_window_line():
     assert np.allclose(interpolate_window(times, data[0, 0], (-0.002, 0.010))[0], line)
 
 
-def test_interpolate_window_errors():
+def test_interpolate_window_errors() -> None:
 
     times = np.arange(10) / 1000.0
     with pytest.raises(ArtifactError):
@@ -42,7 +44,7 @@ def test_interpolate_window_errors():
 
 
 @pytest.mark.parametrize("kind", ["linear", "cubic", "pchip"])
-def test_remove_artifact_interpolate(kind):
+def test_remove_artifact_interpolate(kind: Any) -> None:
 
     noisy, truth = make_overlay(onset=0.02)
     result = remove_artifact(noisy, method="interpolate", interpolation=kind)
@@ -56,7 +58,7 @@ def test_remove_artifact_interpolate(kind):
     )
 
 
-def test_window_outside_epoch():
+def test_window_outside_epoch() -> None:
 
     noisy, _ = make_overlay()
     with pytest.raises(ArtifactError):

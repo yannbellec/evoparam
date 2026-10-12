@@ -9,6 +9,7 @@ OpenNeuro dataset runs only when EVOPARAM_NETWORK_TESTS=1.
 import hashlib
 import os
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -27,7 +28,7 @@ DATA_FILE = "sub-01/ieeg/sub-01_task-spes_run-01_ieeg.eeg"
 
 
 @pytest.fixture
-def delays(monkeypatch):
+def delays(monkeypatch: Any) -> Any:
     """Record the backoff delays instead of sleeping."""
 
     recorded = []
@@ -35,7 +36,7 @@ def delays(monkeypatch):
     return recorded
 
 
-def test_remote_read_matches_local_read(bids_root):
+def test_remote_read_matches_local_read(bids_root: Any) -> None:
 
     local = read_bids(bids_root, "01", task="spes", run="01")
     os.path.getsize(os.path.join(bids_root, *DATA_FILE.split("/")))
@@ -69,7 +70,7 @@ def test_remote_read_matches_local_read(bids_root):
     assert source["sha256"] == hashlib.sha256("\n".join(lines).encode("ascii")).hexdigest()
 
 
-def test_remote_read_transfers_only_the_epochs(bids_root):
+def test_remote_read_transfers_only_the_epochs(bids_root: Any) -> None:
 
     size = os.path.getsize(os.path.join(bids_root, *DATA_FILE.split("/")))
     with http_server(bids_root) as (base, stats):
@@ -88,7 +89,7 @@ def test_remote_read_transfers_only_the_epochs(bids_root):
     assert source["bytes_read"] < size / 2
 
 
-def test_remote_with_base_address_and_session(bids_root):
+def test_remote_with_base_address_and_session(bids_root: Any) -> None:
 
     parent, name = os.path.split(bids_root)
     with http_server(parent) as (base, _):
@@ -97,7 +98,7 @@ def test_remote_with_base_address_and_session(bids_root):
     assert set(trials.metadata["stim_polarity"]) == {"biphasic_cathodic_first"}
 
 
-def test_server_ignoring_range_falls_back_to_full_download(bids_root, tmp_path):
+def test_server_ignoring_range_falls_back_to_full_download(bids_root: Any, tmp_path: Any) -> None:
 
     local = read_bids(bids_root, "01", task="spes", run="01")
     size = os.path.getsize(os.path.join(bids_root, *DATA_FILE.split("/")))
@@ -118,7 +119,7 @@ def test_server_ignoring_range_falls_back_to_full_download(bids_root, tmp_path):
     assert sum(1 for r in stats.requests if r[1].endswith(".eeg") and r[0] == "GET") == 1
 
 
-def test_retries_with_backoff(bids_root, delays):
+def test_retries_with_backoff(bids_root: Any, delays: Any) -> None:
 
     with http_server(bids_root, failures=2) as (base, _):
         data, _, _, _ = read_brainvision(
@@ -128,7 +129,7 @@ def test_retries_with_backoff(bids_root, delays):
     assert delays == [2.0, 4.0]
 
 
-def test_gives_up_after_four_retries(bids_root, delays):
+def test_gives_up_after_four_retries(bids_root: Any, delays: Any) -> None:
 
     with (
         http_server(bids_root, failures=100) as (base, stats),
@@ -139,7 +140,7 @@ def test_gives_up_after_four_retries(bids_root, delays):
     assert len(stats.requests) == 5
 
 
-def test_missing_file_and_offline_mode(bids_root, delays, monkeypatch):
+def test_missing_file_and_offline_mode(bids_root: Any, delays: Any, monkeypatch: Any) -> None:
 
     with http_server(bids_root) as (base, stats):
         with pytest.raises(ReaderError, match="HTTP 404"):
@@ -155,7 +156,7 @@ def test_missing_file_and_offline_mode(bids_root, delays, monkeypatch):
         assert len(stats.requests) == n_requests
 
 
-def test_remote_file_chunk_cache(tmp_path):
+def test_remote_file_chunk_cache(tmp_path: Any) -> None:
 
     content = bytes(range(256)) * 400  # 102 400 bytes
     (tmp_path / "blob.bin").write_bytes(content)
@@ -190,7 +191,7 @@ def test_remote_file_chunk_cache(tmp_path):
     os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
     reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro over the internet",
 )
-def test_openneuro_ds004080_ten_trials():
+def test_openneuro_ds004080_ten_trials() -> None:
     """REQ-021: ten trials (−0.5, 1.0) s of ds004080 sub-ccepAgeUMCU01 run-021448, < 60 MB."""
 
     start = time.perf_counter()

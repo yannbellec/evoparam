@@ -12,6 +12,7 @@ extra ``mne`` (EEGLAB reader) and runs only with EVOPARAM_NETWORK_TESTS=1.
 
 import glob
 import os
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -43,7 +44,7 @@ WINDOW = (0.110, 0.150)
 ###################################################################################################
 
 
-def _load():
+def _load() -> Any:
     mne = pytest.importorskip("mne")
     files = sorted(glob.glob(os.path.join(ROOT, "**", "*N170*epoch*.set"), recursive=True))
     assert len(files) >= 10, f"found {len(files)} epoched N170 files under {ROOT}"
@@ -65,7 +66,7 @@ def _load():
     )
 
 
-def test_req233_erpcore_n170():
+def test_req233_erpcore_n170() -> None:
 
     ts = _load()
     out = reliability(ts, window=WINDOW, n_splits=1000, random_state=0).iloc[0]

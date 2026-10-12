@@ -16,7 +16,7 @@ from .helpers import ccep, epochs
 ###################################################################################################
 
 
-def test_req083_flags_corrupted_trials_without_deleting():
+def test_req083_flags_corrupted_trials_without_deleting() -> None:
 
     rng = np.random.default_rng(3)
     ts = epochs(n_trials=200, seed=4)
@@ -39,7 +39,7 @@ def test_req083_flags_corrupted_trials_without_deleting():
     assert out.select(query="not rejected").n_trials == 200 - rejected.sum()
 
 
-def test_quality_threshold_and_cap():
+def test_quality_threshold_and_cap() -> None:
 
     meta = pd.DataFrame({"quality": [0.9] * 18 + [0.2, 0.3]})
     ts = epochs(n_trials=20, metadata=meta)

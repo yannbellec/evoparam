@@ -15,7 +15,7 @@ from .helpers import make_overlay
 ###################################################################################################
 
 
-def test_tail_subtraction_removes_slow_recovery():
+def test_tail_subtraction_removes_slow_recovery() -> None:
 
     noisy, truth = make_overlay(onset=0.03, art_tail=600.0, art_tau=0.006, n_channels=4)
     plain = remove_artifact(noisy, method="interpolate")
@@ -30,7 +30,7 @@ def test_tail_subtraction_removes_slow_recovery():
     assert taus.shape == noisy.data.shape[:2]
 
 
-def test_tail_joint_leaves_tail_for_the_model():
+def test_tail_joint_leaves_tail_for_the_model() -> None:
 
     noisy, _ = make_overlay()
     joint = remove_artifact(noisy, method="tail", tail="joint")
@@ -40,7 +40,7 @@ def test_tail_joint_leaves_tail_for_the_model():
         remove_artifact(noisy, method="tail", tail="other")
 
 
-def test_matching_pursuit_removes_decaying_artifact():
+def test_matching_pursuit_removes_decaying_artifact() -> None:
 
     noisy, truth = make_overlay(
         onset=0.03, art_amplitude=0.0, art_tail=800.0, art_tau=0.004, n_channels=4
@@ -56,7 +56,7 @@ def test_matching_pursuit_removes_decaying_artifact():
     assert after < 0.1 * before
 
 
-def test_compare_methods_with_truth():
+def test_compare_methods_with_truth() -> None:
 
     noisy, truth = make_overlay()
     with warnings.catch_warnings():
@@ -71,7 +71,7 @@ def test_compare_methods_with_truth():
     assert "rrmse" not in without.columns
 
 
-def test_unknown_method():
+def test_unknown_method() -> None:
 
     noisy, _ = make_overlay()
     with pytest.raises(SettingsError):

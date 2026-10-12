@@ -2,6 +2,7 @@
 """REQ-321: the scikit-learn ``check_estimator`` subset."""
 
 import warnings
+from typing import Any
 
 import pytest
 
@@ -19,7 +20,7 @@ ESTIMATORS = [
 ]
 
 
-def test_expected_list_is_short_and_allowed():
+def test_expected_list_is_short_and_allowed() -> None:
 
     assert len(EXPECTED) <= 15
     assert not set(EXPECTED) & set(FORBIDDEN)
@@ -27,7 +28,7 @@ def test_expected_list_is_short_and_allowed():
 
 
 @sklearn_checks.parametrize_with_checks(ESTIMATORS, expected_failed_checks=expected_failed_checks)
-def test_sklearn_compatible(estimator, check):
+def test_sklearn_compatible(estimator: Any, check: Any) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         check(estimator)

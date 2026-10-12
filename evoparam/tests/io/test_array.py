@@ -4,6 +4,7 @@
 import subprocess
 import sys
 import textwrap
+from typing import Any
 
 import numpy as np
 import pytest
@@ -17,7 +18,7 @@ from evoparam.tests.io.helpers import write_brainvision
 ###################################################################################################
 
 
-def test_from_array_shapes():
+def test_from_array_shapes() -> None:
 
     rng = np.random.default_rng(0)
     one = from_array(rng.normal(size=(3, 50)), 100.0)
@@ -50,7 +51,7 @@ def test_from_array_shapes():
     assert from_array(np.ones((2, 5), dtype=int), 10.0).data.dtype == np.float64
 
 
-def test_from_array_tables():
+def test_from_array_tables() -> None:
 
     pd = pytest.importorskip("pandas")
     data = np.zeros((3, 2, 10))
@@ -65,7 +66,7 @@ def test_from_array_tables():
     assert trials.average(by="condition")[0].n_trials == 2
 
 
-def test_from_array_errors():
+def test_from_array_errors() -> None:
 
     with pytest.raises(DataError, match="dimensions"):
         from_array(np.zeros(10), 100.0)
@@ -86,7 +87,7 @@ def test_from_array_errors():
         from_array(np.zeros((3, 2, 10)), 100.0, metadata={"condition": ["a", "b"]})
 
 
-def test_read_dispatch(tmp_path):
+def test_read_dispatch(tmp_path: Any) -> None:
 
     data = np.arange(2 * 3 * 20, dtype=float).reshape(2, 3, 20)
     trials = read(data, sfreq=100.0)
@@ -130,7 +131,7 @@ def test_read_dispatch(tmp_path):
         read(object())
 
 
-def test_light_core_in_a_subprocess():
+def test_light_core_in_a_subprocess() -> None:
     """REQ-025: without pandas and the reader extras, from_array works and the readers raise
     ImportError naming the extra."""
 

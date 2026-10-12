@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """REQ-253: simulated stimulation artifacts and their removal (link of §5.3 and §5.12)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -22,7 +24,7 @@ pytest.importorskip("pandas")
 WINDOW = (-0.002, 0.008)
 
 
-def _ratio(ts, cleaned, valid=None):
+def _ratio(ts: Any, cleaned: Any, valid: Any = None) -> Any:
     """Residual RMS in the artifact window relative to the RMS before removal."""
 
     win = (ts.times >= WINDOW[0]) & (ts.times <= WINDOW[1])
@@ -37,7 +39,7 @@ def _ratio(ts, cleaned, valid=None):
 
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
-def test_template_removal_leaves_at_most_ten_percent(seed):
+def test_template_removal_leaves_at_most_ten_percent(seed: Any) -> None:
     """Default simulate_ccep: residual RMS in the window <= 10 % of the RMS before removal,
     pooled over trials and channels (and also on the non-stimulated contacts alone)."""
 
@@ -55,7 +57,7 @@ def test_template_removal_leaves_at_most_ten_percent(seed):
     assert np.sqrt(np.mean(left**2) / np.mean(ts.data[..., win] ** 2)) <= 0.10
 
 
-def test_template_removal_with_saturation():
+def test_template_removal_with_saturation() -> None:
     """Clipped samples are masked by the simulator and left out of the ratio."""
 
     ts, truth = sim.simulate_ccep(seed=0, saturation=True)
@@ -67,7 +69,7 @@ def test_template_removal_with_saturation():
     assert _ratio(ts, res.cleaned, valid=~ts.masks) <= 0.10
 
 
-def test_saturation_value_in_microvolts():
+def test_saturation_value_in_microvolts() -> None:
     ts, truth = sim.simulate_ccep(seed=3, saturation=500.0, n_trials=4, n_channels=10, tmax=0.2)
     assert truth.artifact["rail"] == 500.0
     assert np.max(np.abs(ts.data)) <= 500.0
@@ -78,7 +80,7 @@ def test_saturation_value_in_microvolts():
 ## Artifact model
 
 
-def test_ccep_artifact_geometry():
+def test_ccep_artifact_geometry() -> None:
     """The artifact is largest at the stimulating contacts, has opposite signs there and
     decays with the distance to the site."""
 
@@ -106,7 +108,7 @@ def test_ccep_artifact_geometry():
     assert not np.any(truth.artifact_data[..., ts.times < -0.001])
 
 
-def test_ccep_artifact_off_and_scaling():
+def test_ccep_artifact_off_and_scaling() -> None:
     ts, truth = sim.simulate_ccep(
         seed=6, artifact=False, noise="none", n_trials=2, n_channels=8, tmax=0.2
     )
@@ -118,7 +120,7 @@ def test_ccep_artifact_off_and_scaling():
     np.testing.assert_allclose(four.artifact_data, 4.0 * one.artifact_data, rtol=1e-12)
 
 
-def test_layouts_and_waveforms():
+def test_layouts_and_waveforms() -> None:
     names, coords, groups = seeg_layout(30)
     assert names[0] == "A01"
     assert len(set(groups)) == 3
@@ -163,7 +165,7 @@ def test_layouts_and_waveforms():
 ## Paradigm-based cancellation (ECAP)
 
 
-def test_ecap_alternating_cancels_the_artifact():
+def test_ecap_alternating_cancels_the_artifact() -> None:
     ts, truth = sim.simulate_ecap(8, paradigm="alternating", noise="none", seed=0)
     assert set(ts.metadata["stim_polarity"]) == {
         "biphasic_cathodic_first",
@@ -176,7 +178,7 @@ def test_ecap_alternating_cancels_the_artifact():
     np.testing.assert_allclose(res.cleaned.data, out.data)
 
 
-def test_ecap_forward_masking_recovers_the_probe():
+def test_ecap_forward_masking_recovers_the_probe() -> None:
     """A − B + (C − D) cancels the probe and masker artifacts, the switching artifact and
     the masker response, leaving the probe response."""
 
@@ -192,7 +194,7 @@ def test_ecap_forward_masking_recovers_the_probe():
     assert truth.artifact["switch_artifact_uV"] == 20.0
 
 
-def test_ecap_kinds_and_errors():
+def test_ecap_kinds_and_errors() -> None:
     ts, truth = sim.simulate_ecap(4, kind="cochlear", seed=0, noise="none", artifact=False)
     assert ts.modality == "ecap"
     latencies = [c["features"]["latency"] for c in truth.components if c["label"] == "N1"]
@@ -207,7 +209,7 @@ def test_ecap_kinds_and_errors():
 ## TEP and ERNA artifacts
 
 
-def test_tep_artifact_parts():
+def test_tep_artifact_parts() -> None:
     ts, truth = sim.simulate_tep(seed=0, n_trials=4, n_channels=8, sfreq=2000.0, noise="none")
     info = truth.artifact
     assert info["model"] == "tms"
@@ -234,7 +236,7 @@ def test_tep_artifact_parts():
     assert roles["N100"] == "target"
 
 
-def test_erna_artifact_is_a_pulse_train():
+def test_erna_artifact_is_a_pulse_train() -> None:
     ts, truth = sim.simulate_erna(n_pulses=4, n_trials=3, noise="none", seed=0)
     assert truth.artifact["n_pulses"] == 4
     stim = ts.ch_names.index(truth.artifact["stim_contact"])

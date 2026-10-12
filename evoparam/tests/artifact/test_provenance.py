@@ -2,6 +2,7 @@
 """Settings and provenance re-create the result (REQ-069)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -26,7 +27,7 @@ CASES = [
 
 
 @pytest.mark.parametrize(("method", "kwargs"), CASES)
-def test_req069_settings_recreate_the_result(method, kwargs):
+def test_req069_settings_recreate_the_result(method: Any, kwargs: Any) -> None:
 
     noisy, _ = make_overlay(n_channels=12)
     with warnings.catch_warnings():
@@ -47,7 +48,7 @@ def test_req069_settings_recreate_the_result(method, kwargs):
         assert result.cleaned.masks.shape == noisy.data.shape
 
 
-def test_result_saves_and_loads(tmp_path):
+def test_result_saves_and_loads(tmp_path: Any) -> None:
 
     noisy, _ = make_overlay()
     result = remove_artifact(noisy, method="template")

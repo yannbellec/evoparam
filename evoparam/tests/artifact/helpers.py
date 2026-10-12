@@ -2,6 +2,8 @@
 """Overlay benchmark for the artifact tests: artifact-free epochs with known responses,
 plus an artifact of known shape (spec §5.3 acceptance criteria)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -11,11 +13,11 @@ from evoparam.data import TrialSet
 ###################################################################################################
 
 
-def times_axis(sfreq, tmin=-0.5, tmax=0.5):
+def times_axis(sfreq: Any, tmin: Any = -0.5, tmax: Any = 0.5) -> Any:
     return np.arange(int(round(tmin * sfreq)), int(round(tmax * sfreq))) / sfreq
 
 
-def response(times, onset=0.012, amplitude=-80.0, width=0.004):
+def response(times: Any, onset: Any = 0.012, amplitude: Any = -80.0, width: Any = 0.004) -> Any:
     """A negative component that starts at ``onset`` (gamma-like rise, smooth decay)."""
 
     rel = np.clip(times - onset, 0, None)
@@ -23,7 +25,9 @@ def response(times, onset=0.012, amplitude=-80.0, width=0.004):
     return amplitude * shape / shape.max()
 
 
-def artifact_shape(times, sfreq, amplitude=3000.0, tail=500.0, tau=0.002):
+def artifact_shape(
+    times: Any, sfreq: Any, amplitude: Any = 3000.0, tail: Any = 500.0, tau: Any = 0.002
+) -> Any:
     """Sharp biphasic pulse at t = 0 and an exponential recovery tail."""
 
     art = np.zeros_like(times)
@@ -38,21 +42,21 @@ def artifact_shape(times, sfreq, amplitude=3000.0, tail=500.0, tau=0.002):
 
 
 def make_overlay(
-    sfreq=2048.0,
-    n_trials=20,
-    n_channels=8,
-    onset=0.012,
-    amplitude=-80.0,
-    width=0.004,
-    noise=5.0,
-    art_amplitude=3000.0,
-    art_tail=500.0,
-    art_tau=0.002,
-    jitter=0.1,
-    channel_jitter=True,
-    seed=0,
-    metadata=True,
-):
+    sfreq: Any = 2048.0,
+    n_trials: Any = 20,
+    n_channels: Any = 8,
+    onset: Any = 0.012,
+    amplitude: Any = -80.0,
+    width: Any = 0.004,
+    noise: Any = 5.0,
+    art_amplitude: Any = 3000.0,
+    art_tail: Any = 500.0,
+    art_tau: Any = 0.002,
+    jitter: Any = 0.1,
+    channel_jitter: Any = True,
+    seed: Any = 0,
+    metadata: Any = True,
+) -> Any:
     """Return (with_artifact, truth) TrialSets that differ only by the artifact.
 
     With ``channel_jitter`` the artifact size varies independently per trial and channel;

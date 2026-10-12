@@ -10,7 +10,7 @@ from evoparam.errors import SettingsError
 BURST = {"freq": 80.0, "centre": 0.25, "duration": 0.1, "amplitude": 20.0, "channel": "c1"}
 
 
-def test_bursts_truth_and_determinism():
+def test_bursts_truth_and_determinism() -> None:
     ts, truth = sim.simulate_bursts(20, n_channels=2, bursts=[BURST], seed=3)
     again, _ = sim.simulate_bursts(20, n_channels=2, bursts=[BURST], seed=3)
     np.testing.assert_allclose(ts.data, again.data, rtol=1e-9, atol=0)
@@ -26,7 +26,7 @@ def test_bursts_truth_and_determinism():
     assert not np.any(truth.signal[:, 0])  # channel c0 has no burst
 
 
-def test_bursts_are_induced_not_evoked():
+def test_bursts_are_induced_not_evoked() -> None:
     """The random phase leaves (almost) nothing in the average, all of it in the power."""
 
     ts, truth = sim.simulate_bursts(200, bursts=[dict(BURST, channel=0)], noise_sd=0.0, seed=1)
@@ -40,7 +40,7 @@ def test_bursts_are_induced_not_evoked():
     assert not np.any(truth.signal[:, 0, np.abs(times - 0.25) > 0.05 + 1e-9])
 
 
-def test_bursts_waveform_and_checks():
+def test_bursts_waveform_and_checks() -> None:
     times = np.arange(0.0, 0.5, 0.001)
     one = sim.burst_waveform(times, freq=10.0, centre=0.25, duration=0.2, amplitude=2.0)
     assert one.shape == (500,)

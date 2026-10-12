@@ -8,6 +8,7 @@ number of waveforms and the tolerances of spec §5.5.10): 1 000 waveforms per co
 """
 
 import os
+from typing import Any
 
 import numpy as np
 import pytest
@@ -38,14 +39,14 @@ slow = pytest.mark.skipif(not SLOW, reason="set EVOPARAM_SLOW_TESTS=1 (spec §7.
 ###################################################################################################
 
 
-def _waveforms(n, seed=0, **kwargs):
+def _waveforms(n: Any, seed: Any = 0, **kwargs: Any) -> Any:
     for i in range(n):
         rng = np.random.default_rng(seed + i)
         truth = random_components(rng, **kwargs)
         yield sum(gauss(*c) for c in truth) + noise(rng), truth
 
 
-def test_req105_recall_and_precision():
+def test_req105_recall_and_precision() -> None:
 
     tp = fn = fp = 0
     for y, truth in _waveforms(60):
@@ -55,7 +56,7 @@ def test_req105_recall_and_precision():
     assert tp / (tp + fp) >= 0.95
 
 
-def test_req106_accuracy_at_high_snr():
+def test_req106_accuracy_at_high_snr() -> None:
 
     lat, amp = [], []
     for y, truth in _waveforms(40, seed=100, snr=(10, 15)):
@@ -66,7 +67,7 @@ def test_req106_accuracy_at_high_snr():
     assert abs(np.median(amp) - 1) <= 0.05
 
 
-def test_req104_detection_threshold_changes_no_decision():
+def test_req104_detection_threshold_changes_no_decision() -> None:
 
     same = 0
     total = 0
@@ -81,7 +82,7 @@ def test_req104_detection_threshold_changes_no_decision():
 
 
 @pytest.mark.parametrize("rho", [0.0, 0.5, 0.9])
-def test_req107_req112_no_component_in_pure_noise(rho):
+def test_req107_req112_no_component_in_pure_noise(rho: Any) -> None:
 
     rate = np.mean(
         [
@@ -93,7 +94,7 @@ def test_req107_req112_no_component_in_pure_noise(rho):
     assert rate >= 0.95
 
 
-def test_req107_whitening_is_what_controls_false_components():
+def test_req107_whitening_is_what_controls_false_components() -> None:
 
     accepted = [
         model(noise_model="white").fit_waveform(TIMES, noise(np.random.default_rng(i), 0.9)).status
@@ -103,7 +104,7 @@ def test_req107_whitening_is_what_controls_false_components():
     assert np.mean(accepted) >= 0.3
 
 
-def test_req110_edge_components():
+def test_req110_edge_components() -> None:
 
     hits = 0
     for seed in range(20):
@@ -115,7 +116,7 @@ def test_req110_edge_components():
     assert hits / 20 >= 0.95
 
 
-def test_req111_resolution_and_req121_conditioning():
+def test_req111_resolution_and_req121_conditioning() -> None:
 
     two = 0
     for seed in range(10):
@@ -141,7 +142,7 @@ def test_req111_resolution_and_req121_conditioning():
     assert flagged == 10
 
 
-def test_req116_coverage_of_jacobian_intervals():
+def test_req116_coverage_of_jacobian_intervals() -> None:
 
     inside_lat = inside_amp = n = 0
     for seed in range(60):
@@ -158,7 +159,7 @@ def test_req116_coverage_of_jacobian_intervals():
     assert 0.85 <= inside_amp / n <= 1.0
 
 
-def test_req122_fixed_and_cross_validated_selection():
+def test_req122_fixed_and_cross_validated_selection() -> None:
 
     rng = np.random.default_rng(7)
     y = gauss(0.2, -8, 0.04) + noise(rng)
@@ -178,13 +179,13 @@ def test_req122_fixed_and_cross_validated_selection():
 ## As written (spec §5.5.10)
 
 
-def _engine(**kwargs):
+def _engine(**kwargs: Any) -> Any:
     """The engine with its package defaults (shapes, background, selection) on WINDOW."""
 
     return ResponseModel(fit_window=WINDOW, baseline=BASELINE, **kwargs)
 
 
-def suite_waveform(i):
+def suite_waveform(i: Any) -> Any:
     """Waveform ``i`` of the simulation suite of spec §5.12 used by REQ-104: one
     ``simulate_erp`` trial with 0 to 3 components of the generator's ERP presets, an SNR of
     3, 5 or 10 and white, pink or AR(1) noise."""
@@ -207,7 +208,7 @@ def suite_waveform(i):
     return ts.times, ts.data[0, 0]
 
 
-def test_req104_detection_threshold_as_written():
+def test_req104_detection_threshold_as_written() -> None:
     """Acceptance decisions (the accepted components) agree for detection_threshold 1, 2 and
     3 on >= 99 % of the suite's waveforms; the disagreements are listed."""
 
@@ -227,7 +228,7 @@ def test_req104_detection_threshold_as_written():
     assert same / PER_CONDITION >= 0.99, differences
 
 
-def req105_counts(n=PER_CONDITION, **settings):
+def req105_counts(n: Any = PER_CONDITION, **settings: Any) -> Any:
     """(true positives, false negatives, false positives) per K of the REQ-105 design."""
 
     out = {}
@@ -256,7 +257,7 @@ def req105_counts(n=PER_CONDITION, **settings):
     "(REQ-112: <= 5 %); delta 0 gives 0.947 and 3 % (CHANGELOG, 'Engine "
     "simulation requirements')",
 )
-def test_req105_recall_and_precision_as_written():
+def test_req105_recall_and_precision_as_written() -> None:
     """simulate_erp waveforms with K = 1, 2, 3 components, SNR 3 to 20 and FWHM 3 to 25
     samples (the levels of spec §7.2 from SNR 3 and 3 samples on): recall and precision
     >= 0.95 (match: |latency error| <= FWHM / 2, same sign)."""
@@ -267,7 +268,7 @@ def test_req105_recall_and_precision_as_written():
     assert tp / (tp + fp) >= 0.95, counts
 
 
-def req106_errors(truth_shape, fitted, n=PER_CONDITION, **settings):
+def req106_errors(truth_shape: Any, fitted: Any, n: Any = PER_CONDITION, **settings: Any) -> Any:
     """Latency errors (samples) and amplitude ratios of one REQ-106 condition."""
 
     shapes = (truth_shape,) if fitted == "own" else None
@@ -291,7 +292,7 @@ def req106_errors(truth_shape, fitted, n=PER_CONDITION, **settings):
     return np.array(lat), np.array(amp), missed
 
 
-def _req106_cases():
+def _req106_cases() -> Any:
     measured = {"skewed_gaussian": 0.52, "gamma": 0.76, "biexponential": 0.60}
     cause = {
         "skewed_gaussian": "the criterion fits most skewed truths (alpha 2) with the "
@@ -320,7 +321,7 @@ def _req106_cases():
 
 
 @pytest.mark.parametrize(("truth_shape", "fitted"), list(_req106_cases()))
-def test_req106_accuracy_as_written(truth_shape, fitted):
+def test_req106_accuracy_as_written(truth_shape: Any, fitted: Any) -> None:
     """SNR >= 5 (5, 10, 20), widths 3 to 25 samples: latency MAE <= 0.5 sample and the
     median amplitude ratio within 5 % of 1, fitted with the truth's shape and with the
     default pair."""
@@ -330,7 +331,7 @@ def test_req106_accuracy_as_written(truth_shape, fitted):
     assert abs(np.median(amp) - 1) <= 0.05, (np.median(amp), missed)
 
 
-def req110_fits(n=PER_CONDITION, **settings):
+def req110_fits(n: Any = PER_CONDITION, **settings: Any) -> Any:
     """Fits of edge components: true latency in [t0 - FWHM/2, t0 + FWHM], SNR 8."""
 
     out = []
@@ -343,7 +344,7 @@ def req110_fits(n=PER_CONDITION, **settings):
     return out
 
 
-def test_req110_latency_outside_window_iff_before_t0():
+def test_req110_latency_outside_window_iff_before_t0() -> None:
     """REQ-110, second part: the warning "latency_outside_window" is set on a component when
     and only when its fitted latency is < t0 (and, first part, components truly in
     [t0, t0 + FWHM] are recalled at >= 0.95 with SNR >= 5)."""
@@ -361,7 +362,7 @@ def test_req110_latency_outside_window_iff_before_t0():
     assert hits / inside >= 0.95
 
 
-def req111_runs(separation, n=PER_CONDITION, **settings):
+def req111_runs(separation: Any, n: Any = PER_CONDITION, **settings: Any) -> Any:
     out = []
     for i in range(n):
         rng = np.random.default_rng(10_800 + int(separation * 100) + i)
@@ -370,7 +371,7 @@ def req111_runs(separation, n=PER_CONDITION, **settings):
     return out
 
 
-def test_req111_one_fwhm_as_written():
+def test_req111_one_fwhm_as_written() -> None:
     """Two equal Gaussians 1.0 FWHM apart at SNR 10: two components in >= 90 % of runs."""
 
     fits = req111_runs(1.0)
@@ -388,7 +389,7 @@ def test_req111_one_fwhm_as_written():
     "rejected candidates too sets the warning on 49 % of such pairs and on 33 "
     "to 77 % of single Gaussians (CHANGELOG, 'Engine simulation requirements')",
 )
-def test_req111_half_fwhm_as_written():
+def test_req111_half_fwhm_as_written() -> None:
     """0.5 FWHM apart: one component with the warning "merged:<k>,<k+1>" in >= 90 % of runs,
     and never two components that are not flagged ill-conditioned (|corr| <= 0.95)."""
 
@@ -403,7 +404,7 @@ def test_req111_half_fwhm_as_written():
     )
 
 
-def req116_coverage(method, rho, n, **settings):
+def req116_coverage(method: Any, rho: Any, n: Any, **settings: Any) -> Any:
     """Fraction of runs whose interval covers the true latency and amplitude: one Gaussian
     (latency 0.2 s, FWHM 40 ms) at SNR 8 of the average; 20 trials for bootstrap."""
 
@@ -427,7 +428,7 @@ def req116_coverage(method, rho, n, **settings):
 
 
 @pytest.mark.parametrize("rho", [0.0, 0.9])
-def test_req116_jacobian_coverage_as_written(rho):
+def test_req116_jacobian_coverage_as_written(rho: Any) -> None:
     """Jacobian intervals: 90-97 % under white noise, >= 85 % under AR(1) rho = 0.9."""
 
     lat, amp, runs = req116_coverage("jacobian", rho, PER_CONDITION)
@@ -436,7 +437,7 @@ def test_req116_jacobian_coverage_as_written(rho):
     assert low <= amp <= high, (lat, amp, runs)
 
 
-def _req116_interval_cases():
+def _req116_interval_cases() -> Any:
     for method in ("bootstrap", "profile"):
         for rho in (0.0, 0.9):
             marks = []
@@ -456,7 +457,7 @@ def _req116_interval_cases():
 
 @slow
 @pytest.mark.parametrize(("method", "rho"), list(_req116_interval_cases()))
-def test_req116_bootstrap_profile_coverage_as_written(method, rho):
+def test_req116_bootstrap_profile_coverage_as_written(method: Any, rho: Any) -> None:
     """Bootstrap and profile intervals: 92-97 % under both noises (200 runs, spec §7.2)."""
 
     lat, amp, runs = req116_coverage(method, rho, 200)
@@ -464,7 +465,7 @@ def test_req116_bootstrap_profile_coverage_as_written(method, rho):
     assert 0.92 <= amp <= 0.97, (lat, amp, runs)
 
 
-def test_req107_neff_as_written():
+def test_req107_neff_as_written() -> None:
     """AR(1) rho = 0.9 noise windows: false components in <= 5 % with the n_eff correction of
     spec §5.5.3 (noise_model="neff") and with the default AR whitening, >= 30 % when n_eff is
     replaced by n (noise_model="white")."""

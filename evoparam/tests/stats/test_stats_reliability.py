@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Reliability (REQ-233, simulation part) and trial-count planning (REQ-234)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -25,7 +27,7 @@ from .helpers import N1, independent_dependability, independent_split_half, subj
 
 
 @pytest.mark.parametrize("unbalanced", [False, True])
-def test_req233_against_independent_formulas(unbalanced):
+def test_req233_against_independent_formulas(unbalanced: Any) -> None:
 
     ts = subjects_trialset(30, 40, sd_subject=1.0, sd_trial=8.0, seed=3, unbalanced=unbalanced)
     window = (0.0, 0.3)
@@ -48,7 +50,7 @@ def test_req233_against_independent_formulas(unbalanced):
     assert row["n_units"] == 30
 
 
-def test_req233_peak_score_and_sme():
+def test_req233_peak_score_and_sme() -> None:
     """A non-linear score: half averages are scored, not averaged scores."""
 
     parts, subjects = [], []
@@ -92,7 +94,7 @@ def test_req233_peak_score_and_sme():
     assert np.isnan(mean["split_half_odd_even"].iloc[0])
 
 
-def test_reliability_errors_and_facets():
+def test_reliability_errors_and_facets() -> None:
 
     ts = subjects_trialset(5, 1, sd_subject=1.0, sd_trial=1.0, seed=0)
     with pytest.raises(DataError, match="2 or more"):
@@ -115,7 +117,7 @@ def test_reliability_errors_and_facets():
     assert spearman_brown(0.5) == pytest.approx(2 / 3)
 
 
-def _req234(score, n_channels=60, extrapolation="auto"):
+def _req234(score: Any, n_channels: Any = 60, extrapolation: Any = "auto") -> Any:
     """Predicted SD at 80 trials from the first 20 trials of each of n_channels simulated
     channels, divided by the SD over 300 independent 80-trial sets."""
 
@@ -152,7 +154,7 @@ def _req234(score, n_channels=60, extrapolation="auto"):
 
 
 @pytest.mark.parametrize("score", ["mean_amplitude", "peak_amplitude"])
-def test_req234_sd_at_80_trials(score):
+def test_req234_sd_at_80_trials(score: Any) -> None:
     """The median prediction is within 15 %. A single channel's prediction carries the
     sampling error of an SD estimated from 20 trials (about 16 %), so about two thirds of
     the channels fall within 15 %."""
@@ -185,7 +187,7 @@ def test_req234_sd_at_80_trials(score):
         "area",
     ],
 )
-def test_req234_latency_scores(score):
+def test_req234_latency_scores(score: Any) -> None:
     """Every parameter, latencies included (the REQ says "the parameter SD"), with the
     default extrapolation."""
 
@@ -193,7 +195,7 @@ def test_req234_latency_scores(score):
     assert abs(np.median(ratios) - 1) <= 0.15, np.median(ratios)
 
 
-def test_req234_spec_law_stays_available_and_power_law_is_better_for_latencies():
+def test_req234_spec_law_stays_available_and_power_law_is_better_for_latencies() -> None:
     """The 1/sqrt(n) law of the spec is extrapolation='sqrt_n'; for the peak latency the
     power law of 'auto' is closer to the true SD (0.94 against 0.70 at seed 41; 0.84 to
     1.18 against 0.55 to 0.76 on the development seeds)."""
@@ -217,7 +219,7 @@ def test_req234_spec_law_stays_available_and_power_law_is_better_for_latencies()
         trials_needed(ts, scorer="peak_latency", extrapolation="linear", **kw)
 
 
-def test_trials_needed_existence():
+def test_trials_needed_existence() -> None:
 
     ts, _ = simulate_erp(
         30,

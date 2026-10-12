@@ -15,6 +15,7 @@
 import ast
 import pathlib
 import re
+from typing import Any
 
 import pytest
 
@@ -68,7 +69,7 @@ DISTRIBUTIONS = {
 }
 
 
-def _toml():
+def _toml() -> Any:
     try:
         import tomllib
     except ImportError:  # Python 3.10
@@ -77,15 +78,15 @@ def _toml():
         return tomllib.load(f)
 
 
-def _name(requirement):
+def _name(requirement: Any) -> Any:
     return re.split(r"[<>=!~\[; ]", requirement, maxsplit=1)[0].strip().lower()
 
 
-def _extras():
+def _extras() -> Any:
     return _toml()["project"]["optional-dependencies"]
 
 
-def _imports(path):
+def _imports(path: Any) -> Any:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -103,7 +104,7 @@ def _imports(path):
             yield node.args[0].value
 
 
-def test_no_gpl_imports():
+def test_no_gpl_imports() -> None:
     hits = []
     for path in sorted(PACKAGE.rglob("*.py")):
         for name in _imports(path):
@@ -119,7 +120,7 @@ def test_no_gpl_imports():
     assert not hits, hits
 
 
-def test_no_gpl_imports_finds_a_mutation(tmp_path):
+def test_no_gpl_imports_finds_a_mutation(tmp_path: Any) -> None:
     bad = tmp_path / "bad.py"
     bad.write_text("def f():\n    import ieegprep\n    return require('erdetect', extra='x')\n")
     assert [n for n in _imports(bad) if n in DENY] == ["ieegprep", "erdetect"]
@@ -132,7 +133,7 @@ GPL_TEXT = re.compile(
 )
 
 
-def test_licence_scan():
+def test_licence_scan() -> None:
     assert "Apache License" in (ROOT / "LICENSE").read_text(encoding="utf-8")
     assert _toml()["project"]["license"] == "Apache-2.0"
     notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
@@ -159,7 +160,7 @@ def test_licence_scan():
     assert not hits, hits
 
 
-def _mentions_isolation(text, start):
+def _mentions_isolation(text: Any, start: Any) -> Any:
     """A sentence that says a GPL tool is NOT used (REQ-309, the comparator scripts run as
     separate processes) is not a licence notice."""
 
@@ -174,7 +175,7 @@ def _mentions_isolation(text, start):
     )
 
 
-def test_all_is_the_union_of_the_extras():
+def test_all_is_the_union_of_the_extras() -> None:
     extras = _extras()
     union = set()
     for name, requirements in extras.items():
@@ -205,7 +206,7 @@ def test_all_is_the_union_of_the_extras():
     }
 
 
-def _skipped_imports():
+def _skipped_imports() -> Any:
     names = set()
     pattern = re.compile(
         r"importorskip\(\s*[\"']([\w.]+)[\"']|find_spec\(\s*[\"']([\w.]+)"
@@ -219,7 +220,7 @@ def _skipped_imports():
     return names
 
 
-def test_f4_nothing_skips_for_a_package_outside_the_extras():
+def test_f4_nothing_skips_for_a_package_outside_the_extras() -> None:
     extras = _extras()
     in_all = {_name(r) for r in extras["all"]}
     in_bayes = {_name(r) for r in extras["bayes"]}
@@ -231,7 +232,7 @@ def test_f4_nothing_skips_for_a_package_outside_the_extras():
     assert not missing, missing
 
 
-def test_f4_the_runner_installs_all_and_bayes():
+def test_f4_the_runner_installs_all_and_bayes() -> None:
     text = (ROOT / "tools" / "run_all_tests.py").read_text(encoding="utf-8")
     assert re.search(r"default=\"all,bayes\"", text)
 
@@ -242,16 +243,16 @@ def test_f4_the_runner_installs_all_and_bayes():
 SPEC = ROOT / "docs" / "spec" / "SPEC.md"
 
 
-def _floor(requirement):
+def _floor(requirement: Any) -> Any:
     match = re.search(r">=\s*([\w.]+)", requirement)
     return match.group(1) if match else None
 
 
-def _vt(text):
+def _vt(text: Any) -> Any:
     return tuple(int(p) for p in re.findall(r"\d+", text)[:3])
 
 
-def _spec_extras():
+def _spec_extras() -> Any:
     """{extra: {distribution: floor}} read from the extras table of SPEC.md §9.2."""
 
     text = SPEC.read_text(encoding="utf-8").split("### 9.2 Dependency policy")[1]
@@ -270,7 +271,7 @@ def _spec_extras():
 
 
 @pytest.mark.skipif(not SPEC.is_file(), reason="docs/spec not in this checkout")
-def test_req292_extras_file_is_the_spec_table():
+def test_req292_extras_file_is_the_spec_table() -> None:
     """``evoparam/_extras.py`` holds the table of §9.2 (names and floors)."""
 
     from evoparam import _extras as table
@@ -280,7 +281,7 @@ def test_req292_extras_file_is_the_spec_table():
     assert ours == spec
 
 
-def test_req292_pyproject_matches_the_extras_table():
+def test_req292_pyproject_matches_the_extras_table() -> None:
     """(i) every extra of the table is in pyproject.toml with its packages at (at least)
     their floors; every other package is a documented addition (``table.ADDITIONS``)."""
 
@@ -317,7 +318,7 @@ def test_req292_pyproject_matches_the_extras_table():
     assert not problems, problems
 
 
-def test_req292_every_optional_package_in_exactly_one_extra():
+def test_req292_every_optional_package_in_exactly_one_extra() -> None:
     """Every dependency other than numpy and scipy is declared in exactly one extra (the
     unions ``all`` and ``cli`` and the tool chains ``docs`` and ``tests`` aside; ``jax`` is in
     ``bayes`` and ``gpu`` as the table of §9.2 itself declares)."""
@@ -362,7 +363,7 @@ ENTRY_POINTS = [
 @pytest.mark.parametrize(
     ("module", "code", "extra"), ENTRY_POINTS, ids=[e[0] for e in ENTRY_POINTS]
 )
-def test_req292_missing_package_message(module, code, extra):
+def test_req292_missing_package_message(module: Any, code: Any, extra: Any) -> None:
     """(iii) with the package hidden (``sys.modules[name] = None``) the entry point raises
     ImportError whose message holds ``pip install "evoparam[<extra>]"``."""
 
@@ -421,7 +422,7 @@ OPTIONAL = {
 }
 
 
-def _imports_outside_require():
+def _imports_outside_require() -> Any:
     """Import statements of an optional package inside a function that does not call
     ``require`` for that package first (the package is then not imported through
     ``utils.require``)."""
@@ -466,7 +467,7 @@ def _imports_outside_require():
     "messages of the public entry points name the extra "
     "(test_req292_missing_package_message)",
 )
-def test_req292_optional_packages_only_through_require():
+def test_req292_optional_packages_only_through_require() -> None:
     found = _imports_outside_require()
     assert not found, f"{len(found)}: {found[:10]}"
 
@@ -477,7 +478,7 @@ def test_req292_optional_packages_only_through_require():
 COPYLEFT = re.compile(r"\b(A|L)?GPL|GNU (Lesser |Affero )?General Public", re.IGNORECASE)
 
 
-def _licence(dist):
+def _licence(dist: Any) -> Any:
     from importlib import metadata
 
     try:
@@ -494,7 +495,7 @@ def _licence(dist):
     )
 
 
-def _resolved_tree(roots):
+def _resolved_tree(roots: Any) -> Any:
     """Installed distributions reachable from ``roots`` through their requirements."""
 
     from importlib import metadata
@@ -528,7 +529,7 @@ COPYLEFT_ALLOWED = {
 }
 
 
-def test_req395_no_copyleft_package_in_the_installed_extras():
+def test_req395_no_copyleft_package_in_the_installed_extras() -> None:
     """The licence of every installed distribution reachable from the extras (except
     ``docs`` and ``tests``, the tool chains) is not GPL, LGPL or AGPL. Distributions that
     are not installed here are checked by the CI licence scan of every extras set."""
@@ -554,7 +555,7 @@ def test_req395_no_copyleft_package_in_the_installed_extras():
     "frozendict (LGPL-3.0) and num2words (LGPL) (measured 2026-10-11 on the installed tree); "
     "evoparam does not import, vendor or declare it (DECISIONS.md)",
 )
-def test_req395_resolved_tree_has_no_copyleft_package_at_all():
+def test_req395_resolved_tree_has_no_copyleft_package_at_all() -> None:
     roots = {
         _name(r)
         for extra, reqs in _extras().items()
@@ -567,14 +568,14 @@ def test_req395_resolved_tree_has_no_copyleft_package_at_all():
     assert not hits, hits
 
 
-def test_req395_the_scan_finds_a_copyleft_licence():
+def test_req395_the_scan_finds_a_copyleft_licence() -> None:
     assert COPYLEFT.search("License :: OSI Approved :: GNU General Public License v3 (GPLv3)")
     assert COPYLEFT.search("LGPL-2.1-or-later")
     assert not COPYLEFT.search("Apache-2.0")
     assert not COPYLEFT.search("BSD-3-Clause")
 
 
-def test_req309_version_floors():
+def test_req309_version_floors() -> None:
     """Spec §9.2: ``python>=3.10``, ``numpy>=1.24,<3``, ``scipy>=1.10`` (S20: the
     pyproject declared ``numpy`` and ``scipy>=1.8``, inherited)."""
 

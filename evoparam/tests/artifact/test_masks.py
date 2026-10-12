@@ -2,6 +2,7 @@
 """Masks and locality of every method (REQ-060)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -30,14 +31,14 @@ GLOBAL = [
 ]
 
 
-def _run(ts, method, kwargs):
+def _run(ts: Any, method: Any, kwargs: Any) -> Any:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         return remove_artifact(ts, method=method, window=WINDOW, **kwargs)
 
 
 @pytest.mark.parametrize(("method", "kwargs"), LOCAL)
-def test_local_methods_change_only_the_window(method, kwargs):
+def test_local_methods_change_only_the_window(method: Any, kwargs: Any) -> None:
 
     noisy, _ = make_overlay()
     result = _run(noisy, method, kwargs)
@@ -56,7 +57,7 @@ def test_local_methods_change_only_the_window(method, kwargs):
         assert not replaced.any()
 
 
-def test_tail_changes_window_and_tail_only():
+def test_tail_changes_window_and_tail_only() -> None:
 
     noisy, _ = make_overlay()
     result = _run(noisy, "tail", {"tail": "subtract", "tail_length": 0.03})
@@ -69,7 +70,9 @@ def test_tail_changes_window_and_tail_only():
 
 
 @pytest.mark.parametrize(("method", "kwargs"), GLOBAL)
-def test_global_methods_change_baseline_level_by_two_percent_at_most(method, kwargs):
+def test_global_methods_change_baseline_level_by_two_percent_at_most(
+    method: Any, kwargs: Any
+) -> None:
     """Methods that act on every sample may change the baseline's RMS level by <= 2 %."""
 
     if method == "subspace":
@@ -100,7 +103,7 @@ def test_global_methods_change_baseline_level_by_two_percent_at_most(method, kwa
     "2048 Hz (18 % at 1 kHz, 4.0 % at 4800 Hz, 0.75 % at "
     "25 kHz); the default poly_extent='local' meets 2 %",
 )
-def test_req060_polynomial_global_extent_as_published():
+def test_req060_polynomial_global_extent_as_published() -> None:
 
     noisy, _ = make_overlay(n_channels=12)
     result = _run(noisy, "polynomial", {"poly_extent": "global"})
@@ -114,7 +117,7 @@ def test_req060_polynomial_global_extent_as_published():
     assert abs(after / before - 1) <= 0.02
 
 
-def test_existing_saturation_masks_are_kept():
+def test_existing_saturation_masks_are_kept() -> None:
 
     from evoparam.artifact import apply_mask
 

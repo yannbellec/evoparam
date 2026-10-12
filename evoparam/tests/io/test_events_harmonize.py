@@ -2,6 +2,7 @@
 """Harmonisation of stimulation events and the validator report (REQ-022)."""
 
 import io
+from typing import Any
 
 import numpy as np
 import pytest
@@ -21,7 +22,7 @@ pd = pytest.importorskip("pandas")
 ###################################################################################################
 
 
-def table(text):
+def table(text: Any) -> Any:
     return pd.read_csv(io.StringIO(text), sep="\t", na_values=["n/a"], keep_default_na=False)
 
 
@@ -40,18 +41,18 @@ UTRECHT = table(
 class _NoWarning:
     """Context manager failing on any warning (harmonisation reports, it does not warn)."""
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         import warnings
 
         self._catch = warnings.catch_warnings()
         self._catch.__enter__()
         warnings.simplefilter("error")
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self._catch.__exit__(*exc)
 
 
-def test_utrecht_columns():
+def test_utrecht_columns() -> None:
 
     with _NoWarning():
         out, report = harmonize_stim_events(UTRECHT)
@@ -94,7 +95,7 @@ def test_utrecht_columns():
     assert report.n_rows == 4
 
 
-def test_sidecar_units_and_unit_strings():
+def test_sidecar_units_and_unit_strings() -> None:
 
     events = pd.DataFrame(
         {
@@ -141,7 +142,7 @@ def test_sidecar_units_and_unit_strings():
     assert report.units == {"stim_current_mA": "sidecar:uA", "stim_pulse_width_us": "sidecar:ms"}
 
 
-def test_unknown_units_and_unparsable_values():
+def test_unknown_units_and_unparsable_values() -> None:
 
     events = pd.DataFrame(
         {"onset": [1.0, 2.0], "current": ["4 furlongs", "high"], "trial_type": ["stim", "stim"]}
@@ -158,7 +159,7 @@ def test_unknown_units_and_unparsable_values():
     assert any("parsecs" in line for line in report.warnings)
 
 
-def test_pair_pattern_in_trial_type():
+def test_pair_pattern_in_trial_type() -> None:
 
     events = pd.DataFrame({"onset": [1.0, 2.0, 3.0], "trial_type": ["PT01-PT02", "rest", "C3-C4"]})
     out, report = harmonize_stim_events(events)
@@ -168,7 +169,7 @@ def test_pair_pattern_in_trial_type():
     assert list(out["condition"]) == ["PT01-PT02", "rest", "C3-C4"]
 
 
-def test_electrodes_involved_onset_only_for_stimulation_rows():
+def test_electrodes_involved_onset_only_for_stimulation_rows() -> None:
 
     events = pd.DataFrame(
         {
@@ -181,7 +182,7 @@ def test_electrodes_involved_onset_only_for_stimulation_rows():
     assert list(out["stim_site"]) == ["n/a", "C1;C2"]
 
 
-def test_polarity_vocabulary():
+def test_polarity_vocabulary() -> None:
 
     events = pd.DataFrame(
         {
@@ -213,7 +214,7 @@ def test_polarity_vocabulary():
     assert list(out["stim_polarity"]) == ["monophasic_anodic"]
 
 
-def test_user_mapping_overrides_the_table():
+def test_user_mapping_overrides_the_table() -> None:
 
     events = pd.DataFrame(
         {
@@ -236,7 +237,7 @@ def test_user_mapping_overrides_the_table():
         harmonize_stim_events(events, mapping={"nope": "stim_current_mA"})
 
 
-def test_harmonising_twice_keeps_values():
+def test_harmonising_twice_keeps_values() -> None:
 
     once, _ = harmonize_stim_events(UTRECHT)
     standard = once.drop(columns=[c for c in UTRECHT.columns if c not in ("onset", "trial_type")])
@@ -245,7 +246,7 @@ def test_harmonising_twice_keeps_values():
     assert report.units["stim_current_mA"] == "native"
 
 
-def test_validator_reports_missing_fields():
+def test_validator_reports_missing_fields() -> None:
 
     # Only trial_type: everything is missing, nothing raises
     minimal = pd.DataFrame(
@@ -287,7 +288,7 @@ def test_validator_reports_missing_fields():
     assert report.to_dict()["n_sites"] == 2
 
 
-def test_select_stimulation_events_on_tables():
+def test_select_stimulation_events_on_tables() -> None:
 
     out, _ = harmonize_stim_events(UTRECHT)
     assert list(select_stimulation_events(out).index) == [1, 2, 3]

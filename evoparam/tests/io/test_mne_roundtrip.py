@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """read_mne (REQ-020); runs only when MNE-Python is installed (extra "mne")."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -14,7 +16,7 @@ pd = pytest.importorskip("pandas")
 ###################################################################################################
 
 
-def make_epochs():
+def make_epochs() -> Any:
     rng = np.random.default_rng(0)
     info = mne.create_info(["E1", "E2", "E3"], 1000.0, ch_types=["ecog", "ecog", "seeg"])
     data = rng.normal(0, 1e-5, (4, 3, 300))  # volts
@@ -26,7 +28,7 @@ def make_epochs():
     return epochs, data
 
 
-def test_epochs_to_trialset():
+def test_epochs_to_trialset() -> None:
 
     epochs, data = make_epochs()
     trials = read_mne(epochs)
@@ -43,7 +45,7 @@ def test_epochs_to_trialset():
     assert read(epochs).n_trials == 4
 
 
-def test_evoked_and_mixed_units():
+def test_evoked_and_mixed_units() -> None:
 
     epochs, data = make_epochs()
     evoked = epochs.average()

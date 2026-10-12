@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Condition contrasts by permutation (REQ-232)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -15,11 +17,11 @@ N_SIM = 4000
 ###################################################################################################
 
 
-def _rate(table):
+def _rate(table: Any) -> Any:
     return float(np.mean(table["p_value_raw"] <= 0.05))
 
 
-def test_req232_type_one_error_trial_level():
+def test_req232_type_one_error_trial_level() -> None:
     """Trials of one channel, two conditions assigned at random (unpaired)."""
 
     ts, _ = simulate_erp(
@@ -58,7 +60,7 @@ def test_req232_type_one_error_trial_level():
     assert 0.04 <= _rate(out) <= 0.06, _rate(out)
 
 
-def test_req232_type_one_error_channel_level():
+def test_req232_type_one_error_channel_level() -> None:
     """Channel latencies (CCEP N1) in two conditions with no true difference (paired)."""
 
     rng = np.random.default_rng(3)
@@ -88,7 +90,7 @@ def test_req232_type_one_error_channel_level():
 
 
 @pytest.mark.parametrize("paired", [True, False])
-def test_req232_type_one_error_subject_level(paired):
+def test_req232_type_one_error_subject_level(paired: Any) -> None:
     """Subject means (several trials each) compared within subjects (paired) or between
     two groups of subjects (unpaired), skewed (log-normal) values."""
 
@@ -130,7 +132,7 @@ def test_req232_type_one_error_subject_level(paired):
     assert set(out["n_a"]) == {n_sub if paired else n_sub // 2}
 
 
-def test_req232_refuses_trials_across_subjects():
+def test_req232_refuses_trials_across_subjects() -> None:
 
     rng = np.random.default_rng(0)
     table = pd.DataFrame(
@@ -168,7 +170,7 @@ def test_req232_refuses_trials_across_subjects():
         compare_conditions(ccep, parameter="latency", condition="condition", unit="channel")
 
 
-def test_effect_detected_with_effect_sizes():
+def test_effect_detected_with_effect_sizes() -> None:
 
     rng = np.random.default_rng(1)
     base = rng.normal(0.025, 0.004, 12)
@@ -194,7 +196,7 @@ def test_effect_detected_with_effect_sizes():
     assert out.attrs["units"]["difference"] == "s"
 
 
-def test_status_rows_are_excluded_and_counted():
+def test_status_rows_are_excluded_and_counted() -> None:
 
     rng = np.random.default_rng(2)
     table = pd.DataFrame(
@@ -214,7 +216,7 @@ def test_status_rows_are_excluded_and_counted():
     assert out["n_a"].iloc[0] == 7  # s1 (missing b), s8, s9 dropped
 
 
-def test_several_conditions_and_errors():
+def test_several_conditions_and_errors() -> None:
 
     rng = np.random.default_rng(4)
     table = pd.DataFrame(

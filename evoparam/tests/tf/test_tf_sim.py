@@ -2,6 +2,7 @@
 """Time-frequency simulations with known truth (REQ-212 to REQ-215)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -16,7 +17,7 @@ FREQS = (4, 250, 40)
 BURST_AMP = np.sqrt(0.2 * 100 * 16 / 3)
 
 
-def test_req212_footprint_removes_the_sharp_n1_confound():
+def test_req212_footprint_removes_the_sharp_n1_confound() -> None:
     """A sharp N1 (FWHM 8 ms) puts significant power in high gamma in the total map; the
     residual (trials minus the fitted N1) has none."""
 
@@ -35,7 +36,7 @@ def test_req212_footprint_removes_the_sharp_n1_confound():
     assert residual / runs <= 0.05
 
 
-def test_req213_zone_recovery_of_induced_gamma_bursts():
+def test_req213_zone_recovery_of_induced_gamma_bursts() -> None:
 
     runs, recovered = 20, 0
     for seed in range(runs):
@@ -52,7 +53,7 @@ def test_req213_zone_recovery_of_induced_gamma_bursts():
     assert recovered / runs >= 0.9
 
 
-def _recovery(amp, runs=20):
+def _recovery(amp: Any, runs: Any = 20) -> Any:
     recovered = 0
     for seed in range(runs):
         rng = np.random.default_rng(seed)
@@ -76,12 +77,12 @@ def _recovery(amp, runs=20):
     "(target 18 of 20); with the reading adopted (20 % of the signal power) in "
     "20 of 20 (test_req213_zone_recovery_of_induced_gamma_bursts)",
 )
-def test_req213_strict_reading_twenty_percent_of_local_power():
+def test_req213_strict_reading_twenty_percent_of_local_power() -> None:
 
     assert _recovery(1.32) >= 0.9
 
 
-def test_narrow_band_twenty_percent_is_below_pixel_resolution():
+def test_narrow_band_twenty_percent_is_below_pixel_resolution() -> None:
     """Documented limit: +20 % of the local 80 Hz power (0.8 dB) with 30 trials gives a
     pixel t of about 0.8; pixel tests cannot find it (REQ-213 is met with the burst adding
     20 % of the signal power)."""
@@ -101,7 +102,7 @@ def test_narrow_band_twenty_percent_is_below_pixel_resolution():
     assert found / runs <= 0.1
 
 
-def _null_rate(stats, runs, n_permutations=200):
+def _null_rate(stats: Any, runs: Any, n_permutations: Any = 200) -> Any:
     hits = 0
     for seed in range(runs):
         rng = np.random.default_rng(1000 + seed)
@@ -118,21 +119,21 @@ def _null_rate(stats, runs, n_permutations=200):
     return hits / runs
 
 
-def test_req214_fdr_type_one_error():
+def test_req214_fdr_type_one_error() -> None:
     # Under the complete null the false-discovery rate is the family-wise error, which
     # bounds the pixel-wise error from above.
     assert _null_rate("fdr", 200) <= 0.06
 
 
-def test_req214_cluster_family_wise_error():
+def test_req214_cluster_family_wise_error() -> None:
     assert _null_rate("cluster", 100) <= 0.06
 
 
-def test_req214_tfce_family_wise_error():
+def test_req214_tfce_family_wise_error() -> None:
     assert _null_rate("tfce", 40, n_permutations=100) <= 0.06
 
 
-def test_req215_single_trial_normalisation_resists_a_noisy_trial():
+def test_req215_single_trial_normalisation_resists_a_noisy_trial() -> None:
 
     ratios = []
     region = None

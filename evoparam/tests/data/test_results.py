@@ -17,12 +17,12 @@ from evoparam.errors import DataError
 from evoparam.tests.data.factories import make_component, make_group_fit, make_response_fit
 
 
-def test_components_sorted_by_latency():
+def test_components_sorted_by_latency() -> None:
     fit = make_response_fit()
     assert [c.label for c in fit.components] == ["N1", "N2"]
 
 
-def test_status_rules():
+def test_status_rules() -> None:
     with pytest.raises(DataError, match="status"):
         ResponseFit(
             components=[],
@@ -47,7 +47,7 @@ def test_status_rules():
         )
 
 
-def test_component_checks():
+def test_component_checks() -> None:
     comp = make_component()
     with pytest.raises(DataError, match="polarity"):
         type(comp)(**{**comp.to_dict(), "polarity": 0})
@@ -56,7 +56,7 @@ def test_component_checks():
         type(comp)(**{**comp.to_dict(), "params": np.zeros(2)})
 
 
-def test_group_tables_are_tidy_with_units():
+def test_group_tables_are_tidy_with_units() -> None:
     group = make_group_fit()
     components = group.to_dataframe("component")
     # The component columns, then the existence test of each channel (spec §5.6)
@@ -73,7 +73,7 @@ def test_group_tables_are_tidy_with_units():
         group.to_dataframe("trial")
 
 
-def test_group_get():
+def test_group_get() -> None:
     group = make_group_fit()
     assert group.get("CH01").status == "no_response"
     assert group.get("CH00", condition="3mA") is group.fits[0]
@@ -83,7 +83,7 @@ def test_group_get():
         GroupFit.from_fits([make_response_fit()], ["A", "B"])
 
 
-def test_equality_is_nan_aware():
+def test_equality_is_nan_aware() -> None:
     first = make_response_fit()
     # A deep copy, not a second factory call: nested objects carry their own creation
     # time, which can differ by a millisecond between two calls.

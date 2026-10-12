@@ -5,6 +5,7 @@ EVOPARAM_NETWORK_TESTS=1 (uses the segments cached by the events validation)."""
 import os
 import re
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -35,7 +36,7 @@ RUNS = [
 BASELINE = (-1.0, -0.1)
 
 
-def _trials(run):
+def _trials(run: Any) -> Any:
     from evoparam.tests.events.test_ds004080_events import _segment
 
     data, sfreq, names, t0, onsets, sites = _segment(run)
@@ -64,7 +65,7 @@ def _trials(run):
     return baseline_correct(ts, BASELINE, check=False)
 
 
-def _kappa_with(rule, **extra):
+def _kappa_with(rule: Any, **extra: Any) -> Any:
     assert len({r.split("/")[0] for r in RUNS}) >= 5
     a_all, b_all = [], []
     for run in RUNS:
@@ -105,14 +106,14 @@ def _kappa_with(rule, **extra):
     "0.399 with the published code (CHANGELOG, 'N1 case as written')",
 )
 @pytest.mark.parametrize("rule", ["vanblooijs2023", "vanblooijs2023_code"])
-def test_req135_permutation_agrees_with_vanblooijs2023(rule):
+def test_req135_permutation_agrees_with_vanblooijs2023(rule: Any) -> None:
     """REQ-135: the default method agrees with vanblooijs2023 with kappa >= 0.7, under the
     two readings of the rule."""
 
     assert _kappa_with(rule) >= 0.7
 
 
-def test_req135_regression_with_the_code_floor():
+def test_req135_regression_with_the_code_floor() -> None:
     """Not the REQ (an intermediate reading, kept as a regression floor): the registry row
     with the published code's 50 uV SD floor."""
 

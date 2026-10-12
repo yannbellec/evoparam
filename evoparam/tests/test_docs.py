@@ -17,6 +17,7 @@ import re
 import runpy
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -42,7 +43,7 @@ pytestmark = [
 ]
 
 
-def _names():
+def _names() -> Any:
     return (
         [f"preset_{name}" for name in sorted(presets.PRESETS.builtin)]
         + [f"integration_{name}" for name in INTEGRATIONS]
@@ -50,25 +51,25 @@ def _names():
     )
 
 
-def _source(name):
+def _source(name: Any) -> Any:
     with open(os.path.join(TUTORIALS, f"{name}.py"), encoding="utf-8") as fobj:
         return fobj.read()
 
 
-def test_every_tutorial_exists():
+def test_every_tutorial_exists() -> None:
 
     missing = [n for n in _names() if not os.path.isfile(os.path.join(TUTORIALS, f"{n}.py"))]
     assert missing == [n for n in LATER if not _stream_exists()]
 
 
-def _stream_exists():
+def _stream_exists() -> Any:
     import importlib.util
 
     return importlib.util.find_spec("evoparam.stream") is not None
 
 
 @pytest.mark.parametrize("name", [n for n in _names() if n not in LATER])
-def test_tutorial_structure(name):
+def test_tutorial_structure(name: Any) -> None:
 
     source = _source(name)
     tree = ast.parse(source)
@@ -84,7 +85,7 @@ def test_tutorial_structure(name):
     assert not re.search(r"\b(urllib|requests|httpx|wget|curl)\b", source), name
 
 
-def test_datasets_named_are_in_the_registry_with_checksums():
+def test_datasets_named_are_in_the_registry_with_checksums() -> None:
 
     with open(os.path.join(ROOT, "evoparam", "io", "registry.json"), encoding="utf-8") as f:
         registry = {d["id"]: d for d in json.load(f)["datasets"]}
@@ -114,7 +115,7 @@ def test_datasets_named_are_in_the_registry_with_checksums():
 
 @pytest.mark.skipif(not SLOW, reason="EVOPARAM_SLOW_TESTS=1 runs the tutorials")
 @pytest.mark.parametrize("name", [n for n in _names() if n not in LATER])
-def test_tutorial_runs(name, tmp_path):
+def test_tutorial_runs(name: Any, tmp_path: Any) -> None:
 
     if name in NETWORK and not ONLINE:
         pytest.skip("reads public data: EVOPARAM_NETWORK_TESTS=1")
@@ -137,7 +138,7 @@ def test_tutorial_runs(name, tmp_path):
     assert "were analysed with evoparam" in proc.stdout, name
 
 
-def test_req325_streaming_tutorial_states_intended_use():
+def test_req325_streaming_tutorial_states_intended_use() -> None:
 
     with open(STREAM_TUTORIAL, encoding="utf-8") as fobj:
         text = fobj.read()
@@ -145,7 +146,7 @@ def test_req325_streaming_tutorial_states_intended_use():
     assert "not validated for clinical" in text
 
 
-def test_streaming_tutorial_runs(capsys):
+def test_streaming_tutorial_runs(capsys: Any) -> None:
 
     runpy.run_path(STREAM_TUTORIAL, run_name="__main__")
     out = capsys.readouterr().out
@@ -160,7 +161,7 @@ def test_streaming_tutorial_runs(capsys):
 DOCS = os.path.join(ROOT, "docs")
 
 
-def _tool(name):
+def _tool(name: Any) -> Any:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(name, os.path.join(ROOT, "tools", f"{name}.py"))
@@ -169,12 +170,12 @@ def _tool(name):
     return module
 
 
-def _page(name):
+def _page(name: Any) -> Any:
     with open(os.path.join(DOCS, name), encoding="utf-8") as fobj:
         return fobj.read()
 
 
-def test_req303_pages_are_in_the_toctree():
+def test_req303_pages_are_in_the_toctree() -> None:
     index = _page("index.rst")
     for page in (
         "getting_started",
@@ -193,7 +194,7 @@ def test_req303_pages_are_in_the_toctree():
             assert any(os.path.isfile(os.path.join(DOCS, page + ext)) for ext in (".rst", ".md"))
 
 
-def test_req303_getting_started():
+def test_req303_getting_started() -> None:
     text = _page("getting_started.rst")
     for item in (
         "pip install evoparam",
@@ -212,7 +213,7 @@ def test_req303_getting_started():
     assert len([line for line in example.splitlines() if line.strip()]) <= 10
 
 
-def test_req303_reporting_page():
+def test_req303_reporting_page() -> None:
     text = _page("reporting.rst")
     for item in (
         "settings",
@@ -242,7 +243,7 @@ FAQ = (
 )
 
 
-def test_req303_faq_has_the_seven_questions():
+def test_req303_faq_has_the_seven_questions() -> None:
     text = _page("faq.rst")
     headings = re.findall(r"^(.+)\n-{3,}$", text, flags=re.MULTILINE)
     assert [h for h in headings if h in FAQ] == list(FAQ)
@@ -253,7 +254,7 @@ def test_req303_faq_has_the_seven_questions():
         assert f"``{name}``" in text.split("Why is polarity", 1)[0], name
 
 
-def test_req303_every_public_symbol_in_the_api_index():
+def test_req303_every_public_symbol_in_the_api_index() -> None:
     tool = _tool("gen_api_index")
     index = _page("api.rst")
     sections = dict(
@@ -272,7 +273,7 @@ def test_req303_every_public_symbol_in_the_api_index():
     assert tool.main(["--check"]) == 0, "docs/api.rst is out of date"
 
 
-def test_req303_glossary_holds_every_term_of_section_4():
+def test_req303_glossary_holds_every_term_of_section_4() -> None:
     tool = _tool("gen_glossary")
     text = _page("glossary.rst")
     terms = set(re.findall(r"^   (\S.*)$", text, flags=re.MULTILINE))
@@ -299,7 +300,7 @@ def test_req303_glossary_holds_every_term_of_section_4():
     assert tool.main(["--check"]) == 0, "docs/glossary.rst is out of date"
 
 
-def test_req303_datasets_page_generated_from_the_registry():
+def test_req303_datasets_page_generated_from_the_registry() -> None:
     tool = _tool("gen_registry_doc")
     with open(os.path.join(ROOT, "evoparam", "io", "registry.json"), encoding="utf-8") as fobj:
         registry = json.load(fobj)
@@ -313,7 +314,7 @@ def test_req303_datasets_page_generated_from_the_registry():
     assert tool.main(["--check"]) == 0, "docs/datasets.rst is out of date"
 
 
-def _cited_keys():
+def _cited_keys() -> Any:
     keys = set()
     for folder, _, files in os.walk(DOCS):
         if os.path.relpath(folder, DOCS).split(os.sep)[0] in ("spec", "_build"):
@@ -325,7 +326,7 @@ def _cited_keys():
     return keys
 
 
-def test_req302_every_cited_literature_key_is_in_references_bib():
+def test_req302_every_cited_literature_key_is_in_references_bib() -> None:
     bib = set(
         re.findall(r"^@misc\{(LIT-[a-z]+-\d+),", _page("references.bib"), flags=re.MULTILINE)
     )

@@ -3,6 +3,7 @@
 from the baseline: the cases were found with it)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -15,7 +16,7 @@ REPAIRED = {"cochlear": (1, 3), "spinal": (2,)}
 
 
 @pytest.mark.parametrize("kind", ["cochlear", "spinal"])
-def test_ecap_components_are_found_not_a_cancelling_pair(kind):
+def test_ecap_components_are_found_not_a_cancelling_pair(kind: Any) -> None:
 
     preset = "ecap_ci" if kind == "cochlear" else "ecap"
     ts, truth = sim.simulate_ecap(40, kind=kind, paradigm=None, artifact=False, seed=0)
@@ -48,7 +49,7 @@ def test_ecap_components_are_found_not_a_cancelling_pair(kind):
     assert better == len(REPAIRED[kind])  # each was repaired by reseeding
 
 
-def test_a_cancelling_pair_is_flagged_unresolvable():
+def test_a_cancelling_pair_is_flagged_unresolvable() -> None:
     """Without reseeding the greedy path leaves a cancelling pair on contact E01 of the
     simulated cochlear ECAP: both components are flagged, in the table too. (The pair is
     reproduced with free latencies, ``latency_order="sorted"``: the ordered

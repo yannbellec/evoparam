@@ -9,7 +9,7 @@ from evoparam.events import estimate_delay, match_onsets
 ###################################################################################################
 
 
-def test_match_onsets():
+def test_match_onsets() -> None:
 
     results = match_onsets([1.0, 2.001, 5.0], [1.0, 2.0, 3.0], tolerance=0.01)
     assert results["hits"] == 2
@@ -20,7 +20,7 @@ def test_match_onsets():
     assert np.isclose(results["precision"], 2 / 3)
 
 
-def test_match_onsets_empty():
+def test_match_onsets_empty() -> None:
 
     results = match_onsets([], [1.0, 2.0])
     assert results["hits"] == 0
@@ -28,7 +28,7 @@ def test_match_onsets_empty():
     assert np.isnan(results["precision"])
 
 
-def test_estimate_delay_over_recordings():
+def test_estimate_delay_over_recordings() -> None:
 
     rng = np.random.default_rng(0)
     refs = [np.arange(1, 20, 5.0), np.arange(3, 40, 5.0)]

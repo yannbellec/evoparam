@@ -23,6 +23,7 @@ the fitter finds it on 7 of 12); a component lost after cleaning counts as an in
 
 import functools
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -40,7 +41,7 @@ SEEDS = (0, 1, 2)
 N_CHANNELS = 4
 
 
-def _main_component(fit):
+def _main_component(fit: Any) -> Any:
     """Latency and amplitude of the largest negative component (NaN without one)."""
 
     negative = [c for c in fit.components if c.polarity < 0]
@@ -50,7 +51,7 @@ def _main_component(fit):
     return comp.latency, comp.amplitude
 
 
-def _fit(ts, fit_window):
+def _fit(ts: Any, fit_window: Any) -> Any:
     model = ResponseModel(fit_window=fit_window, baseline=(-0.5, -0.05))
     avg = ts.average()
     return np.array(
@@ -65,16 +66,16 @@ def _fit(ts, fit_window):
     )
 
 
-def _overlay(onset, seed):
+def _overlay(onset: Any, seed: Any) -> Any:
     return make_overlay(onset=onset, seed=seed, n_channels=N_CHANNELS, art_tau=0.001)
 
 
 @functools.cache
-def _truth_fit(onset, seed, fit_window):
+def _truth_fit(onset: Any, seed: Any, fit_window: Any) -> Any:
     return _fit(_overlay(onset, seed)[1], fit_window)
 
 
-def _errors(onset, fit_window, **kwargs):
+def _errors(onset: Any, fit_window: Any, **kwargs: Any) -> Any:
     """Latency errors (ms) and relative amplitude errors over channels and seeds."""
 
     lat, amp = [], []
@@ -98,7 +99,7 @@ def _errors(onset, fit_window, **kwargs):
     ids=["template", "template-local", "learned"],
 )
 @pytest.mark.parametrize("onset", [0.008, 0.012, 0.020])
-def test_req061_fitted_components_after_cleaning(onset, kwargs):
+def test_req061_fitted_components_after_cleaning(onset: Any, kwargs: Any) -> None:
 
     lat, amp = _errors(onset, (WINDOW[1], 0.1), **kwargs)
     assert np.median(lat) <= 0.5
@@ -111,7 +112,7 @@ def test_req061_fitted_components_after_cleaning(onset, kwargs):
     "(10 ms) gives a median amplitude error of 15 %, not "
     ">= 20 % (6 to 9 ms: 42 % or more; module docstring)",
 )
-def test_req061_blanking_amplitude_bias_near_window_end():
+def test_req061_blanking_amplitude_bias_near_window_end() -> None:
 
     for onset in (0.006, 0.007, 0.008, 0.009, 0.010):
         _, amp = _errors(onset, (WINDOW[0], 0.1), method="interpolate")

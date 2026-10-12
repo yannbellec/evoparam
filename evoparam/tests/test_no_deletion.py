@@ -13,6 +13,7 @@ default. A mutation sample checks that the scan finds each forbidden form.
 import ast
 import pathlib
 import re
+from typing import Any
 
 import pytest
 
@@ -28,15 +29,15 @@ THRESHOLDS = re.compile(r"thresh|min_|max_|limit|cutoff|cut_off|floor|tol", re.I
 ALLOWED = {"settings.min_amplitude"}  # §5.5.10: user option, 0 = no restriction
 
 
-def _text(node):
+def _text(node: Any) -> Any:
     return ast.unparse(node)
 
 
-def _names(node):
+def _names(node: Any) -> Any:
     return {_text(n) for n in ast.walk(node) if isinstance(n, (ast.Name, ast.Attribute))}
 
 
-def _size_threshold_compare(test):
+def _size_threshold_compare(test: Any) -> Any:
     for node in ast.walk(test):
         if isinstance(node, ast.Compare) and any(
             isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)) for op in node.ops
@@ -54,7 +55,7 @@ def _size_threshold_compare(test):
     return False
 
 
-def _drops(body):
+def _drops(body: Any) -> Any:
     """The statements remove or skip something: continue, del, .remove(), .pop()."""
 
     for stmt in body:
@@ -71,7 +72,7 @@ def _drops(body):
     return False
 
 
-def scan(source, name="<source>"):
+def scan(source: Any, name: Any = "<source>") -> Any:
     """Forbidden forms in ``source``, as 'name:line: form'."""
 
     hits = []
@@ -105,7 +106,7 @@ def scan(source, name="<source>"):
     return hits
 
 
-def test_req004_models_have_no_deletion_heuristic():
+def test_req004_models_have_no_deletion_heuristic() -> None:
     hits = []
     files = sorted(MODELS.rglob("*.py"))
     assert len(files) >= 5
@@ -114,7 +115,7 @@ def test_req004_models_have_no_deletion_heuristic():
     assert not hits, "\n".join(hits)
 
 
-def test_req004_min_amplitude_is_off_by_default():
+def test_req004_min_amplitude_is_off_by_default() -> None:
     # the only size rule of the engine is the user's min_amplitude (§5.5.10): 0 = none
     assert FitSettings().min_amplitude == 0.0
     engine = (MODELS / "engine.py").read_text(encoding="utf-8")
@@ -144,11 +145,11 @@ MUTATIONS = {
 
 
 @pytest.mark.parametrize("form", sorted(MUTATIONS))
-def test_req004_scan_finds_each_forbidden_form(form):
+def test_req004_scan_finds_each_forbidden_form(form: Any) -> None:
     assert scan(MUTATIONS[form], form)
 
 
-def test_req004_scan_finds_a_mutation_of_the_engine():
+def test_req004_scan_finds_a_mutation_of_the_engine() -> None:
     engine = (MODELS / "engine.py").read_text(encoding="utf-8")
     # the allowed user option replaced by a threshold of the engine: the scan must see it
     mutated = engine.replace("settings.min_amplitude", "settings.detection_threshold")

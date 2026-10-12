@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import re
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,7 @@ import pytest
 from evoparam import reports
 
 
-def test_methods_text_follows_the_processing_steps(results):
+def test_methods_text_follows_the_processing_steps(results: Any) -> None:
 
     from evoparam.artifact import remove_artifact
     from evoparam.models import fit
@@ -40,13 +41,13 @@ def test_methods_text_follows_the_processing_steps(results):
     assert reports.methods_text(group) == text
 
 
-def test_methods_text_of_other_results(results):
+def test_methods_text_of_other_results(results: Any) -> None:
 
     assert "presence of a response" in reports.methods_text(results["test"])
     assert "Time-frequency power" in reports.methods_text(results["tf"])
 
 
-def test_req341_json_round_trip_and_schema(results, tmp_path):
+def test_req341_json_round_trip_and_schema(results: Any, tmp_path: Any) -> None:
 
     group = results["group"]
     path = reports.to_json(group, tmp_path / "group.json", validate=True)
@@ -63,7 +64,7 @@ def test_req341_json_round_trip_and_schema(results, tmp_path):
     np.testing.assert_array_equal(tf_back.significant, results["tf"].significant)
 
 
-def test_invalid_json_is_named():
+def test_invalid_json_is_named() -> None:
 
     from evoparam.errors import DataError
 
@@ -82,7 +83,7 @@ def test_invalid_json_is_named():
         )
 
 
-def test_quality_summary(results):
+def test_quality_summary(results: Any) -> None:
 
     table = reports.qc(
         results["group"],
@@ -100,7 +101,7 @@ def test_quality_summary(results):
     assert any(q.startswith("fits: ") for q in quantities)
 
 
-def test_req343_html_is_self_contained(results, tmp_path):
+def test_req343_html_is_self_contained(results: Any, tmp_path: Any) -> None:
 
     path = reports.html(results["group"], tmp_path / "report.html", data=results["ts"])
     text = pathlib.Path(path).read_text(encoding="utf-8")
@@ -110,7 +111,7 @@ def test_req343_html_is_self_contained(results, tmp_path):
     assert "Methods" in text
 
 
-def test_req343_html_size_for_100_channels(tmp_path):
+def test_req343_html_size_for_100_channels(tmp_path: Any) -> None:
 
     import warnings
 
@@ -125,7 +126,7 @@ def test_req343_html_size_for_100_channels(tmp_path):
     assert (tmp_path / "big.html").stat().st_size <= 20e6
 
 
-def test_markdown_and_pdf(results, tmp_path):
+def test_markdown_and_pdf(results: Any, tmp_path: Any) -> None:
 
     text = reports.markdown(results["group"])
     assert text.startswith("# evoparam report")
@@ -134,13 +135,13 @@ def test_markdown_and_pdf(results, tmp_path):
     assert pathlib.Path(path).read_bytes()[:4] == b"%PDF"
 
 
-def _pages(path):
+def _pages(path: Any) -> Any:
     import re
 
     return len(re.findall(rb"/Type\s*/Page\b", pathlib.Path(path).read_bytes()))
 
 
-def test_pdf_has_one_page_per_stimulation_site(tmp_path):
+def test_pdf_has_one_page_per_stimulation_site(tmp_path: Any) -> None:
     """Spec §5.13: report.pdf has one page per stimulation site (after the text page)."""
 
     import dataclasses
@@ -174,7 +175,7 @@ def test_pdf_has_one_page_per_stimulation_site(tmp_path):
         assert [site for site, _ in reports._documents.site_pages(group, one)] == ["A01-A02"]
 
 
-def test_req346_citation_from_citation_cff():
+def test_req346_citation_from_citation_cff() -> None:
 
     assert reports.citation().startswith("Bellec Y.")
     bib = reports.citation(bibtex=True)
@@ -182,7 +183,7 @@ def test_req346_citation_from_citation_cff():
     assert "version = {" in bib
 
 
-def test_methods_text_roundtrip(ccep_run, tmp_path):
+def test_methods_text_roundtrip(ccep_run: Any, tmp_path: Any) -> None:
     """REQ-338: the paragraph comes from provenance and settings only, so the saved result
     gives the same one, with the version, preset, fit window, artifact method, existence
     method and the reproducibility sentence."""
@@ -204,7 +205,7 @@ def test_methods_text_roundtrip(ccep_run, tmp_path):
     assert "evoparam.reproduce" in text
 
 
-def test_methods_text_reads_only_provenance_and_settings(ccep_run):
+def test_methods_text_reads_only_provenance_and_settings(ccep_run: Any) -> None:
 
     group = ccep_run.group
 
@@ -215,7 +216,7 @@ def test_methods_text_reads_only_provenance_and_settings(ccep_run):
     assert reports.methods_text(Record()) == group.methods_text()
 
 
-def test_pipeline_methods_text_merges_every_result(ccep_run):
+def test_pipeline_methods_text_merges_every_result(ccep_run: Any) -> None:
 
     text = reports.methods_text(ccep_run)
     assert "Single-trial parameters were estimated" in text  # trial fits
@@ -224,7 +225,7 @@ def test_pipeline_methods_text_merges_every_result(ccep_run):
     assert "Software:" not in reports.methods_text(ccep_run, cite=False)
 
 
-def test_methods_text_without_seed_says_so(ccep_run):
+def test_methods_text_without_seed_says_so(ccep_run: Any) -> None:
 
     from evoparam.data import Provenance
 
@@ -245,7 +246,7 @@ def test_methods_text_without_seed_says_so(ccep_run):
     assert "Random draws used the seed" not in text
 
 
-def test_req346_citation_single_source():
+def test_req346_citation_single_source() -> None:
     """evoparam/CITATION.cff (the packaged copy) is the root CITATION.cff, byte for byte."""
 
     from evoparam.data._citation import parse_cff, read_citation
@@ -265,7 +266,7 @@ def test_req346_citation_single_source():
     assert all(author["family-names"] in text for author in cff["authors"])
 
 
-def _recorded_steps():
+def _recorded_steps() -> Any:
     """Every function name the package records as a provenance step."""
 
     import pathlib
@@ -285,7 +286,7 @@ def _recorded_steps():
     return names | {"evoparam.prep.highpass", "evoparam.prep.lowpass", "evoparam.prep.notch"}
 
 
-def test_methods_text_has_a_template_for_every_recorded_step():
+def test_methods_text_has_a_template_for_every_recorded_step() -> None:
     """Spec §5.13: one paragraph per processing step (events, artifact, preparation, fit,
     existence, trials, hierarchical, tf, stats); a step without a template would only be
     named, so every recorded step has one, or brings data in without changing a number."""
@@ -303,7 +304,7 @@ def test_methods_text_has_a_template_for_every_recorded_step():
     assert not missing, missing
 
 
-def test_methods_text_events_and_stats_paragraphs(results):
+def test_methods_text_events_and_stats_paragraphs(results: Any) -> None:
 
     from evoparam import stats
     from evoparam.data._methods import step_sentence

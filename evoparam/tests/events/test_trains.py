@@ -2,6 +2,7 @@
 """Train grouping and metadata (REQ-044)."""
 
 import os
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -14,7 +15,7 @@ from evoparam.events import events_to_metadata, group_trains, trains
 ###################################################################################################
 
 
-def test_req044_synthetic_design_exactly():
+def test_req044_synthetic_design_exactly() -> None:
     """1 Hz x 30 pulses x 20 sites, 4 s between sites."""
 
     onsets, sites = [], []
@@ -41,7 +42,7 @@ def test_req044_synthetic_design_exactly():
     assert summary["site"].tolist() == sorted(set(sites))
 
 
-def test_site_change_splits_even_without_gap():
+def test_site_change_splits_even_without_gap() -> None:
 
     events = pd.DataFrame(
         {"onset_time": np.arange(10) * 5.0, "stim_site_guess": ["A-B"] * 5 + ["C-D"] * 5}
@@ -50,13 +51,13 @@ def test_site_change_splits_even_without_gap():
     assert group_trains(events, site_column=None)["train_id"].nunique() == 1
 
 
-def test_trains_needs_train_id():
+def test_trains_needs_train_id() -> None:
 
     with pytest.raises(EventError):
         trains(pd.DataFrame({"onset_time": [0.0]}))
 
 
-def test_events_to_metadata():
+def test_events_to_metadata() -> None:
 
     events = group_trains(
         pd.DataFrame(
@@ -104,7 +105,7 @@ network = pytest.mark.skipif(
 )
 
 
-def _mayo_events(stem):
+def _mayo_events(stem: Any) -> Any:
     """Stimulation events of one Mayo run (events.tsv, cached in the evoparam data folder)."""
 
     from evoparam.io import openneuro_url
@@ -127,7 +128,7 @@ def _mayo_events(stem):
     )
 
 
-def _mayo_trains(stem):
+def _mayo_trains(stem: Any) -> Any:
     events = _mayo_events(stem)
     grouped = group_trains(events)
     return events, grouped, trains(grouped)
@@ -136,7 +137,7 @@ def _mayo_trains(stem):
 @pytest.mark.network
 @network
 @pytest.mark.parametrize("stem", [s for s in MAYO_EVENTS if s != MAYO_LONG])
-def test_req044_mayo_protocol(stem):
+def test_req044_mayo_protocol(stem: Any) -> None:
     """Mayo SPES, every run of the four datasets: about 0.2 Hz, 10-12 pulses per site.
 
     The Mayo protocol sometimes pauses inside a site (tens of seconds); the site, not
@@ -166,7 +167,7 @@ def test_req044_mayo_protocol(stem):
     "site counting all its blocks), above the protocol's "
     "10-12; group_trains reproduces its blocks exactly",
 )
-def test_req044_mayo_protocol_ds004696_sub07():
+def test_req044_mayo_protocol_ds004696_sub07() -> None:
 
     events, grouped, summary = _mayo_trains(MAYO_LONG)
     sites = grouped["stim_site_guess"].to_numpy()
@@ -178,7 +179,7 @@ def test_req044_mayo_protocol_ds004696_sub07():
 
 @pytest.mark.network
 @network
-def test_req044_mayo_protocol_all_runs_together():
+def test_req044_mayo_protocol_all_runs_together() -> None:
     """The protocol over all the trains of the 20 runs: median 10-12 pulses, about 0.2 Hz."""
 
     counts, intervals = [], []

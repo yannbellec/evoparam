@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Synthetic waveforms with known components for the engine tests."""
 
+from typing import Any
+
 import numpy as np
 from scipy.signal import lfilter
 
@@ -15,18 +17,18 @@ WINDOW = (0.02, 0.6)
 BASELINE = (-0.5, -0.02)
 
 
-def noise(rng, rho=0.0, sd=1.0, n=None):
+def noise(rng: Any, rho: Any = 0.0, sd: Any = 1.0, n: Any = None) -> Any:
     e = rng.normal(0, 1, len(TIMES) if n is None else n)
     x = lfilter([1], [1, -rho], e) if rho else e
     return sd * x / np.std(x)
 
 
-def gauss(latency, amplitude, fwhm, times=TIMES):
+def gauss(latency: Any, amplitude: Any, fwhm: Any, times: Any = TIMES) -> Any:
     sigma = fwhm / 2.3548
     return amplitude * np.exp(-0.5 * ((times - latency) / sigma) ** 2)
 
 
-def model(**kwargs):
+def model(**kwargs: Any) -> Any:
     settings = {
         "fit_window": WINDOW,
         "baseline": BASELINE,
@@ -39,7 +41,9 @@ def model(**kwargs):
     return ResponseModel(**settings)
 
 
-def random_components(rng, k_max=3, snr=(5, 10), width=(0.02, 0.08)):
+def random_components(
+    rng: Any, k_max: Any = 3, snr: Any = (5, 10), width: Any = (0.02, 0.08)
+) -> Any:
     k = int(rng.integers(1, k_max + 1))
     while True:
         lats = np.sort(rng.uniform(0.06, 0.5, k))
@@ -48,7 +52,7 @@ def random_components(rng, k_max=3, snr=(5, 10), width=(0.02, 0.08)):
     return [(lat, rng.choice([-1, 1]) * rng.uniform(*snr), rng.uniform(*width)) for lat in lats]
 
 
-def match(fit, truth):
+def match(fit: Any, truth: Any) -> Any:
     """(true positives, false negatives, false positives, latency errors, amplitude ratios)."""
 
     used, tp, fn, lat, amp = set(), 0, 0, [], []
@@ -82,16 +86,16 @@ TRUTH_SHAPES = ("gaussian", "skewed_gaussian", "exgaussian", "gamma", "biexponen
 
 
 def erp_waveform(
-    seed,
-    n_components,
-    snr,
-    widths,
-    shape="gaussian",
-    sfreq=SFREQ,
-    span=(0.06, 0.55),
-    noise="white",
-    noise_kw=None,
-):
+    seed: Any,
+    n_components: Any,
+    snr: Any,
+    widths: Any,
+    shape: Any = "gaussian",
+    sfreq: Any = SFREQ,
+    span: Any = (0.06, 0.55),
+    noise: Any = "white",
+    noise_kw: Any = None,
+) -> Any:
     """One waveform of ``evoparam.sim.simulate_erp`` (a single trial, so that the SNR of the
     waveform is the requested one) on TIMES, with ``n_components`` components of the given
     widths (samples) and random signs, latencies drawn in ``span`` at least three widths
@@ -133,7 +137,7 @@ def erp_waveform(
     return ts.times, ts.data[0, 0], rows
 
 
-def same_decisions(a, b):
+def same_decisions(a: Any, b: Any) -> Any:
     """Two fits accept the same components: as many, of the same signs, at latencies within
     half the larger width."""
 

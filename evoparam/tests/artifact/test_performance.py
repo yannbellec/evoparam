@@ -12,7 +12,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_req068_runtime():
+def test_req068_runtime() -> None:
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "benchmarks"))
     from bench_artifact import make_data, run

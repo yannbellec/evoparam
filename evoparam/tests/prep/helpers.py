@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Synthetic epochs for the preparation tests."""
 
+from typing import Any
+
 import numpy as np
 
 from evoparam.data import TrialSet
@@ -10,17 +12,17 @@ from evoparam.data import TrialSet
 
 
 def epochs(
-    n_trials=20,
-    names=None,
-    sfreq=1000.0,
-    tmin=-0.5,
-    tmax=1.0,
-    noise=5.0,
-    seed=0,
-    event_times=None,
-    metadata=None,
-    ch_info=None,
-):
+    n_trials: Any = 20,
+    names: Any = None,
+    sfreq: Any = 1000.0,
+    tmin: Any = -0.5,
+    tmax: Any = 1.0,
+    noise: Any = 5.0,
+    seed: Any = 0,
+    event_times: Any = None,
+    metadata: Any = None,
+    ch_info: Any = None,
+) -> Any:
     rng = np.random.default_rng(seed)
     names = names or [f"A{i}" for i in range(1, 9)]
     times = np.arange(int(round(tmin * sfreq)), int(round(tmax * sfreq))) / sfreq
@@ -36,11 +38,13 @@ def epochs(
     )
 
 
-def ccep(times, latency=0.025, amplitude=-100.0, width=0.008):
+def ccep(times: Any, latency: Any = 0.025, amplitude: Any = -100.0, width: Any = 0.008) -> Any:
     return amplitude * np.exp(-0.5 * ((times - latency) / width) ** 2)
 
 
-def sim_carla(fraction, seed, n_channels=50, n_trials=12, sfreq=1000.0):
+def sim_carla(
+    fraction: Any, seed: Any, n_channels: Any = 50, n_trials: Any = 12, sfreq: Any = 1000.0
+) -> Any:
     """Simulation of the adjusted-common-average paper: 50 channels, 12 trials, a fraction
     of responsive channels with random CCEP shapes (N1 and N2, either polarity)."""
 

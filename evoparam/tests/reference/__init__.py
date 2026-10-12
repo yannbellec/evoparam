@@ -17,6 +17,7 @@ import json
 import os
 import platform
 import warnings
+from typing import Any
 
 import numpy as np
 
@@ -24,7 +25,7 @@ PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fit_fixture_cce
 RTOL = 1e-9
 
 
-def fixture_values():
+def fixture_values() -> Any:
     """{name: float} of the fixture fit (component parameters, gof, background)."""
 
     from evoparam.models import fit
@@ -54,7 +55,7 @@ def fixture_values():
     return out
 
 
-def compare_fixture(path=PATH, rtol=RTOL):
+def compare_fixture(path: Any = PATH, rtol: Any = RTOL) -> Any:
     """Fresh fixture fit against the reference file: match, largest relative difference,
     keys that differ."""
 
@@ -91,7 +92,7 @@ def compare_fixture(path=PATH, rtol=RTOL):
     }
 
 
-def write(path=PATH):
+def write(path: Any = PATH) -> None:
     from evoparam.version import ALGORITHM_VERSIONS, __version__
 
     values = fixture_values()

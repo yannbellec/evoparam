@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Synthetic continuous recordings with known stimulation pulses, for the events tests."""
 
+from typing import Any
+
 import numpy as np
 
 ###################################################################################################
@@ -11,8 +13,15 @@ PULSE_SHAPE = np.array([0.45, 1.0, 0.7, -0.5, -0.25, -0.08])
 
 
 def make_noise(
-    n_channels, duration, sfreq, sd=1.0, line_hz=None, line_amp=0.0, seed=0, dtype=np.float32
-):
+    n_channels: Any,
+    duration: Any,
+    sfreq: Any,
+    sd: Any = 1.0,
+    line_hz: Any = None,
+    line_amp: Any = 0.0,
+    seed: Any = 0,
+    dtype: Any = np.float32,
+) -> Any:
     """Gaussian background noise, with an optional line-noise sinusoid on every channel."""
 
     rng = np.random.default_rng(seed)
@@ -27,7 +36,14 @@ def make_noise(
     return data
 
 
-def add_pulse(data, onset_sample, amplitude, gains, polarity=1.0, shape=PULSE_SHAPE):
+def add_pulse(
+    data: Any,
+    onset_sample: Any,
+    amplitude: Any,
+    gains: Any,
+    polarity: Any = 1.0,
+    shape: Any = PULSE_SHAPE,
+) -> None:
     """Add one artifact: ``amplitude * gains[c] * polarity * shape`` from ``onset_sample``."""
 
     stop = min(data.shape[1], onset_sample + len(shape))
@@ -37,7 +53,7 @@ def add_pulse(data, onset_sample, amplitude, gains, polarity=1.0, shape=PULSE_SH
     )
 
 
-def spatial_gains(n_channels, stim_pair, rng, floor=0.3):
+def spatial_gains(n_channels: Any, stim_pair: Any, rng: Any, floor: Any = 0.3) -> Any:
     """Artifact gain per channel: 1 on the stimulated pair, decaying with index distance,
     and never below ``floor`` (volume conduction reaches every contact)."""
 
@@ -46,18 +62,18 @@ def spatial_gains(n_channels, stim_pair, rng, floor=0.3):
 
 
 def make_recording(
-    n_channels=16,
-    sfreq=2048.0,
-    duration=20.0,
-    interval=1.0,
-    first=0.5,
-    amplitude=(200.0, 400.0),
-    line_hz=None,
-    line_amp=0.0,
-    n_transients=0,
-    transient_sd=5.0,
-    seed=0,
-):
+    n_channels: Any = 16,
+    sfreq: Any = 2048.0,
+    duration: Any = 20.0,
+    interval: Any = 1.0,
+    first: Any = 0.5,
+    amplitude: Any = (200.0, 400.0),
+    line_hz: Any = None,
+    line_amp: Any = 0.0,
+    n_transients: Any = 0,
+    transient_sd: Any = 5.0,
+    seed: Any = 0,
+) -> Any:
     """Noise plus regularly spaced pulses (and optional movement transients).
 
     Returns

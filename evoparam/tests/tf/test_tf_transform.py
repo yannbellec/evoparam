@@ -2,6 +2,7 @@
 """Transforms and the exact footprint / residual decomposition (REQ-210, REQ-211)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -19,7 +20,7 @@ from evoparam.tf.transforms import (
 )
 
 
-def test_req210_morse_matches_the_analytic_modulus():
+def test_req210_morse_matches_the_analytic_modulus() -> None:
     """A cosine gives, far from the edges, half the wavelet's gain at its frequency."""
 
     n = 4096
@@ -36,7 +37,7 @@ def test_req210_morse_matches_the_analytic_modulus():
             assert abs(got - expected) <= 1e-6 * max(expected, 1e-3), (f_sig, freqs[j])
 
 
-def test_morse_peak_and_normalisation():
+def test_morse_peak_and_normalisation() -> None:
 
     beta, gamma = 10.0, 3.0
     peak = morse_peak(gamma, beta)
@@ -48,7 +49,7 @@ def test_morse_peak_and_normalisation():
     assert np.all(morse_spectrum(-omega, gamma, beta) == 0)
 
 
-def test_morse_chirp_ridge_follows_the_instantaneous_frequency():
+def test_morse_chirp_ridge_follows_the_instantaneous_frequency() -> None:
 
     n = 4096
     t = np.arange(n) / SFREQ
@@ -65,7 +66,7 @@ def test_morse_chirp_ridge_follows_the_instantaneous_frequency():
 
 
 @pytest.mark.parametrize("transform", TRANSFORMS)
-def test_every_transform_has_unit_gain_at_its_frequency(transform):
+def test_every_transform_has_unit_gain_at_its_frequency(transform: Any) -> None:
 
     n = 2048
     t = np.arange(n) / SFREQ
@@ -78,7 +79,7 @@ def test_every_transform_has_unit_gain_at_its_frequency(transform):
         assert 0.3 * 9 <= power.mean() <= 9 * 1.001
 
 
-def test_req210_cone_of_influence_is_masked():
+def test_req210_cone_of_influence_is_masked() -> None:
 
     rng = np.random.default_rng(0)
     ts = trialset(ar1(rng, (12, len(TIMES))))
@@ -97,7 +98,7 @@ def test_req210_cone_of_influence_is_masked():
         assert np.all(np.isfinite(tf.maps["total"][0, j, ~edge]))
 
 
-def _fitted(seed=0, n=20):
+def _fitted(seed: Any = 0, n: Any = 20) -> Any:
     rng = np.random.default_rng(seed)
     ts = trialset(ar1(rng, (n, len(TIMES))) + n1()[None])
     with warnings.catch_warnings():
@@ -106,7 +107,7 @@ def _fitted(seed=0, n=20):
 
 
 @pytest.mark.parametrize("transform", TRANSFORMS)
-def test_req211_decomposition_is_exact(transform):
+def test_req211_decomposition_is_exact(transform: Any) -> None:
 
     ts, group = _fitted()
     tf = tf_fit(
@@ -120,7 +121,7 @@ def test_req211_decomposition_is_exact(transform):
     assert np.max(np.abs(parts[ok] - total[ok]) / np.maximum(np.abs(total[ok]), 1e-300)) <= 1e-9
 
 
-def test_power_maps_and_baseline_normalised_maps_are_both_given():
+def test_power_maps_and_baseline_normalised_maps_are_both_given() -> None:
     """Owner decision D12: the exact identity holds for power (REQ-211), the maps of §4.3.4
     are baseline-normalised; both are in TFFit.maps, the normalised ones on the total's
     baseline (evoked level, dB: 10 log10 of the map over the total's baseline mean)."""
@@ -157,7 +158,7 @@ def test_power_maps_and_baseline_normalised_maps_are_both_given():
     assert np.allclose(tf.maps["footprint_norm"][0][fp], expected[fp], rtol=1e-9)
 
 
-def test_masked_samples_never_reach_valid_pixels():
+def test_masked_samples_never_reach_valid_pixels() -> None:
 
     rng = np.random.default_rng(1)
     data = ar1(rng, (15, len(TIMES)))

@@ -4,6 +4,7 @@
 import os
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -15,7 +16,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_req329_checklist_has_the_three_items():
+def test_req329_checklist_has_the_three_items() -> None:
 
     with open(os.path.join(ROOT, "RELEASING.md"), encoding="utf-8") as fobj:
         text = fobj.read()
@@ -27,7 +28,7 @@ def test_req329_checklist_has_the_three_items():
         assert target in text, target
 
 
-def test_req312_inherited_code_is_found(tmp_path):
+def test_req312_inherited_code_is_found(tmp_path: Any) -> None:
 
     inherited = tmp_path / "inherited"
     inherited.mkdir()
@@ -62,7 +63,7 @@ def test_req312_inherited_code_is_found(tmp_path):
     assert "module.py" in bad.stdout
 
 
-def test_req312_new_modules_hold_no_inherited_code():
+def test_req312_new_modules_hold_no_inherited_code() -> None:
     """Modules written for build step S17 against the inherited ERPparam (needs the checkout:
     EVOPARAM_INHERITED=<path to ERPparam at the NOTICE commit>)."""
 

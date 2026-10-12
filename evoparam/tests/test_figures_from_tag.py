@@ -8,6 +8,7 @@ import json
 import pathlib
 import re
 import subprocess
+from typing import Any
 
 import pytest
 
@@ -19,14 +20,14 @@ TOOL = ROOT / "tools" / "make_figures.py"
 pytestmark = pytest.mark.skipif(not TOOL.exists(), reason="needs the source tree")
 
 
-def _tool():
+def _tool() -> Any:
     spec = importlib.util.spec_from_file_location("make_figures", TOOL)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def test_req393_one_command_makes_the_figures():
+def test_req393_one_command_makes_the_figures() -> None:
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert re.search(r"^figures:\n\t@python tools/make_figures\.py$", makefile, re.MULTILINE)
     manifest = json.loads((ROOT / "figures" / "manifest.json").read_text(encoding="utf-8"))
@@ -35,7 +36,7 @@ def test_req393_one_command_makes_the_figures():
         assert (ROOT / "figures" / name).is_file(), name
 
 
-def test_req393_figures_reproduce_their_hashes(tmp_path):
+def test_req393_figures_reproduce_their_hashes(tmp_path: Any) -> None:
     """Every figure regenerated from this tree has the SHA-256 of the manifest (same
     matplotlib version: SVG output is byte-identical only within one version)."""
 
@@ -49,7 +50,7 @@ def test_req393_figures_reproduce_their_hashes(tmp_path):
     assert made["figures"] == recorded["figures"]
 
 
-def _tags():
+def _tags() -> Any:
     done = subprocess.run(
         ["git", "-C", str(ROOT), "tag", "--list", "v*"],
         capture_output=True,
@@ -65,7 +66,7 @@ def _tags():
     "preprint names, and the preprint itself, wait for the owner's HIIE "
     "decision (nothing public before it)",
 )
-def test_req393_make_figures_on_the_release_tag():
+def test_req393_make_figures_on_the_release_tag() -> None:
     tags = _tags()
     assert tags, "no release tag"
     manifest = subprocess.run(

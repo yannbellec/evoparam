@@ -11,6 +11,7 @@ a public function of spec §5.1–§5.12 (for ``evoparam.stream``: the estimator
 
 import ast
 import os
+from typing import Any
 
 import pytest
 
@@ -82,7 +83,7 @@ ANALYSIS = (
 ALLOWED_PRIVATE = {"evoparam.models._settings"}
 
 
-def _files():
+def _files() -> Any:
     for layer in LAYERS:
         path = os.path.join(PACKAGE, layer)
         if path.endswith(".py"):
@@ -94,7 +95,7 @@ def _files():
                     yield os.path.join(folder, name)
 
 
-def _numpy_attribute(node):
+def _numpy_attribute(node: Any) -> Any:
     """The attribute name of ``np.<name>`` / ``numpy.<name>``, else None."""
 
     if (
@@ -106,7 +107,7 @@ def _numpy_attribute(node):
     return None
 
 
-def _violations(path):
+def _violations(path: Any) -> Any:
     with open(path, encoding="utf-8") as fobj:
         tree = ast.parse(fobj.read(), path)
     found = []
@@ -146,7 +147,7 @@ def _violations(path):
 @pytest.mark.parametrize(
     "path", list(_files()), ids=lambda p: os.path.relpath(p, PACKAGE).replace(os.sep, "/")
 )
-def test_req349_no_numerical_code(path):
+def test_req349_no_numerical_code(path: Any) -> None:
 
     found = _violations(path)
     assert found == [], (
@@ -156,7 +157,7 @@ def test_req349_no_numerical_code(path):
     )
 
 
-def test_req349_scanner_detects_numerical_code(tmp_path):
+def test_req349_scanner_detects_numerical_code(tmp_path: Any) -> None:
 
     sample = tmp_path / "sample.py"
     sample.write_text(

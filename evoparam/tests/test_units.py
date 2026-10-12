@@ -17,7 +17,7 @@ from evoparam.errors import DataError
 TIME_COLUMNS = ("latency", "fwhm", "onset", "offset", "rise_time", "decay_time")
 
 
-def test_req009_containers_have_times_in_seconds_and_an_explicit_unit():
+def test_req009_containers_have_times_in_seconds_and_an_explicit_unit() -> None:
     trials, _ = sim.simulate_ccep(n_trials=4, n_channels=3, seed=0)
     assert trials.units in UNITS
     assert trials.units != ""
@@ -45,14 +45,14 @@ def test_req009_containers_have_times_in_seconds_and_an_explicit_unit():
         )
 
 
-def test_req009_result_tables_give_times_in_seconds():
+def test_req009_result_tables_give_times_in_seconds() -> None:
     for name in TIME_COLUMNS:
         assert COMPONENT_COLUMNS[name] == "s", name
     for name in ("latency", "fwhm", "onset", "offset"):
         assert INTERVAL_COLUMNS[f"{name}_ci_low"] == "s"
 
 
-def test_req009_unit_conversion_is_explicit():
+def test_req009_unit_conversion_is_explicit() -> None:
     trials, _ = sim.simulate_ccep(n_trials=4, n_channels=3, seed=0)
     mv = trials.convert_units("mV")
     assert mv.units == "mV"
@@ -69,7 +69,7 @@ def test_req009_unit_conversion_is_explicit():
     " == 'data' for a TrialSet in uV). evoparam/models and data/results are "
     "being changed by other builders; reported.",
 )
-def test_req009_result_amplitudes_have_an_explicit_unit():
+def test_req009_result_amplitudes_have_an_explicit_unit() -> None:
     pytest.importorskip("pandas")
     trials, _ = sim.simulate_erp(n_trials=10, seed=0)
     with warnings.catch_warnings():
@@ -78,7 +78,7 @@ def test_req009_result_amplitudes_have_an_explicit_unit():
     assert table.attrs["units"]["amplitude"] == trials.units
 
 
-def test_req009_mixing_units_raises():
+def test_req009_mixing_units_raises() -> None:
     mne = pytest.importorskip("mne")
     pytest.importorskip("pandas")
     info = mne.create_info(["EEG1", "MAG1"], 1000.0, ["eeg", "mag"])

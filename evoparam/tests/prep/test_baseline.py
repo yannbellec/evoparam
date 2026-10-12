@@ -16,7 +16,7 @@ from .helpers import epochs
 ###################################################################################################
 
 
-def test_mean_median_linear():
+def test_mean_median_linear() -> None:
 
     ts = epochs()
     base = (ts.times >= -0.5) & (ts.times <= -0.05)
@@ -35,7 +35,7 @@ def test_mean_median_linear():
         baseline_correct(ts, mode="mode")
 
 
-def test_req080_one_hertz_design_warns_and_suggests():
+def test_req080_one_hertz_design_warns_and_suggests() -> None:
 
     ts = epochs(n_trials=30, event_times=np.arange(30) * 1.0)
     with pytest.warns(UserWarning, match="Suggested: baseline_source='first_pulse'") as rec:
@@ -50,14 +50,14 @@ def test_req080_one_hertz_design_warns_and_suggests():
     assert np.allclose(out.data[5], ts.data[5] - first_level[:, None])
 
 
-def test_req080_suggests_shorter_baseline_when_possible():
+def test_req080_suggests_shorter_baseline_when_possible() -> None:
 
     ts = epochs(n_trials=10, event_times=np.arange(10) * 1.3)
     with pytest.warns(UserWarning, match=r"Suggested: baseline=\(-0.300, -0.050\)"):
         baseline_correct(ts, baseline=(-0.5, -0.05))
 
 
-def test_req080_no_warning_at_0_2_hz():
+def test_req080_no_warning_at_0_2_hz() -> None:
 
     ts = epochs(n_trials=10, event_times=np.arange(10) * 5.0)
     with warnings.catch_warnings():
@@ -65,7 +65,7 @@ def test_req080_no_warning_at_0_2_hz():
         baseline_correct(ts, baseline=(-0.5, -0.05))
 
 
-def test_masked_baseline_is_respected():
+def test_masked_baseline_is_respected() -> None:
 
     ts = epochs(n_trials=2)
     base = np.flatnonzero((ts.times >= -0.5) & (ts.times <= -0.05))

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Power (REQ-131), duration (REQ-132), projection duration, discordance (REQ-139)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -13,7 +15,9 @@ from .helpers import gaussian, noise_trials, plateau, trialset
 ###################################################################################################
 
 
-def _power(signal, statistic, n_sets=100, n_trials=10, seed=0):
+def _power(
+    signal: Any, statistic: Any, n_sets: Any = 100, n_trials: Any = 10, seed: Any = 0
+) -> Any:
     rng = np.random.default_rng(seed)
     data = noise_trials(rng, n_trials, n_sets) + signal[None, None]
     test = run_test(
@@ -28,7 +32,7 @@ def _power(signal, statistic, n_sets=100, n_trials=10, seed=0):
     return np.mean(test.significant)
 
 
-def test_req131_power_transient_and_sustained():
+def test_req131_power_transient_and_sustained() -> None:
 
     transient = 2.0 * gaussian(0.03, 0.010)
     assert _power(transient, "max_t") >= 0.9
@@ -39,7 +43,7 @@ def test_req131_power_transient_and_sustained():
     assert _power(sustained, "max_t", seed=1) < 0.7
 
 
-def test_req132_duration_and_onset():
+def test_req132_duration_and_onset() -> None:
 
     rng = np.random.default_rng(4)
     data = noise_trials(rng, 20, 50) + 3.0 * plateau(0.05, 0.15)[None, None]
@@ -50,7 +54,7 @@ def test_req132_duration_and_onset():
     assert np.all(ci[:, 0] <= ci[:, 1])
 
 
-def test_projection_duration_and_significance():
+def test_projection_duration_and_significance() -> None:
 
     rng = np.random.default_rng(5)
     data = noise_trials(rng, 20, 10) + 3.0 * plateau(0.009, 0.12)[None, None]
@@ -61,7 +65,7 @@ def test_projection_duration_and_significance():
     assert np.median(np.abs(test.offset[:5] - 0.12)) <= 0.01
 
 
-def test_req139_train_discordance():
+def test_req139_train_discordance() -> None:
 
     rng = np.random.default_rng(6)
     n_trains, per = 6, 10

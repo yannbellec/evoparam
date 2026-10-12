@@ -4,6 +4,7 @@
 
 import copy
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -38,7 +39,7 @@ from .helpers import (
 ###################################################################################################
 
 
-def _matched_correlations(basis, shapes=SHAPES):
+def _matched_correlations(basis: Any, shapes: Any = SHAPES) -> Any:
     """Best correlation of each true shape with a recovered curve (one curve per shape)."""
 
     from itertools import permutations
@@ -55,7 +56,7 @@ def _matched_correlations(basis, shapes=SHAPES):
 
 
 @pytest.mark.parametrize("method", ["nmf", "kpca"])
-def test_req190_recovers_three_shapes(method):
+def test_req190_recovers_three_shapes(method: Any) -> None:
 
     found, correlations, agreement = [], [], []
     for seed in range(10):
@@ -72,7 +73,7 @@ def test_req190_recovers_three_shapes(method):
 
 
 @pytest.mark.parametrize("method", ["nmf", "kpca"])
-def test_weights_are_the_clustering_loadings(method):
+def test_weights_are_the_clustering_loadings(method: Any) -> None:
     """Spec §4.3.4 and §5.9 (audit F56): ``weights`` (group x shape) are the non-negative
     loadings of the clustering, which assign each group to its shape; the group-level
     weight alpha_m of method 1 (mean projection on the shape) is ``assignment["weight"]``."""
@@ -113,7 +114,7 @@ def test_weights_are_the_clustering_loadings(method):
     assert np.isclose(table["weight"].iloc[0], alpha)
 
 
-def test_shape_basis_contents_and_round_trip(tmp_path):
+def test_shape_basis_contents_and_round_trip(tmp_path: Any) -> None:
 
     ts, which = multi_site(3)
     basis = convergent(ts, "R01", random_state=0)
@@ -141,7 +142,7 @@ def test_shape_basis_contents_and_round_trip(tmp_path):
     assert copy.deepcopy(basis) == basis
 
 
-def test_same_result_with_the_same_seed():
+def test_same_result_with_the_same_seed() -> None:
 
     ts, _ = multi_site(4)
     a = shared_shapes(ts, random_state=11)
@@ -150,7 +151,7 @@ def test_same_result_with_the_same_seed():
     assert np.allclose(a.curves, b.curves, atol=1e-10)
 
 
-def test_divergent_groups_channels():
+def test_divergent_groups_channels() -> None:
 
     # One site into 12 channels: two shapes, six channels each, plus the stimulated contacts
     rng = np.random.default_rng(0)
@@ -177,7 +178,7 @@ def test_divergent_groups_channels():
     assert basis.settings["stim_site"] == "C12-C99"
 
 
-def test_small_groups_are_projected_not_used():
+def test_small_groups_are_projected_not_used() -> None:
 
     ts, which = multi_site(5)
     keep = np.ones(ts.n_trials, bool)
@@ -194,7 +195,7 @@ def test_small_groups_are_projected_not_used():
     assert row["shape_id"] == same.mode()[0]
 
 
-def test_recording_contact_sites_are_left_out():
+def test_recording_contact_sites_are_left_out() -> None:
 
     ts, _ = multi_site(6)
     sites = ts.metadata["stim_site"].replace({"S01-T01": "R01-T01"})
@@ -209,7 +210,7 @@ def test_recording_contact_sites_are_left_out():
     assert "R01-T01" not in list(basis.assignment["group"])
 
 
-def test_edge_cases():
+def test_edge_cases() -> None:
 
     ts, _ = multi_site(0, n_sites=2)
     with pytest.raises(DataError):
@@ -230,7 +231,7 @@ def test_edge_cases():
         shared_shapes(two)  # channel needed
 
 
-def test_unstable_basis_returns_one_shape_with_a_warning():
+def test_unstable_basis_returns_one_shape_with_a_warning() -> None:
 
     # Every site has its own random waveform: no shared structure beyond chance
     rng = np.random.default_rng(1)
@@ -259,7 +260,7 @@ def test_unstable_basis_returns_one_shape_with_a_warning():
         )
 
 
-def test_as_template_returns_a_template_shape():
+def test_as_template_returns_a_template_shape() -> None:
 
     ts, _ = multi_site(2)
     basis = shared_shapes(ts, random_state=0)
@@ -278,13 +279,13 @@ def test_as_template_returns_a_template_shape():
 ## Shared-parameter fits
 
 
-def _closest_latency(fit, latency):
+def _closest_latency(fit: Any, latency: Any) -> Any:
     if fit.status != "ok" or not fit.components:
         return np.nan
     return min(fit.components, key=lambda c: abs(c.latency - latency)).latency
 
 
-def test_req191_shared_fit_reduces_latency_rmse():
+def test_req191_shared_fit_reduces_latency_rmse() -> None:
 
     ratios = []
     for seed in range(3):
@@ -302,7 +303,7 @@ def test_req191_shared_fit_reduces_latency_rmse():
     assert max(ratios) <= 0.7
 
 
-def test_fit_shared_result_and_flags():
+def test_fit_shared_result_and_flags() -> None:
 
     draw, clean, _ = shared_channels(0, n=10, snr=6.0)
     evoked = draw()
@@ -332,7 +333,7 @@ def test_fit_shared_result_and_flags():
     assert any(w.startswith("k_mismatch") for w in group.get(evoked.ch_names[3]).warnings)
 
 
-def test_free_latency_recovers_offsets():
+def test_free_latency_recovers_offsets() -> None:
 
     offsets = np.tile(np.linspace(-0.003, 0.003, 10), 1)
     draw, _, _ = shared_channels(2, n=10, snr=8.0, offsets=offsets)
@@ -345,7 +346,7 @@ def test_free_latency_recovers_offsets():
     assert np.ptp(fwhm) < 1e-6  # width still shared
 
 
-def test_req192_penalty_never_hurts_held_out_prediction():
+def test_req192_penalty_never_hurts_held_out_prediction() -> None:
 
     win = (TIMES >= 0.009) & (TIMES <= 0.5)
     rng = np.random.default_rng(0)
@@ -379,7 +380,7 @@ def test_req192_penalty_never_hurts_held_out_prediction():
         assert err(chosen) <= 1.01 * err(off)
 
 
-def test_smooth_needs_free_latency_and_neighbours():
+def test_smooth_needs_free_latency_and_neighbours() -> None:
 
     draw, _, info = shared_channels(0, n=10, snr=6.0)
     evoked = draw()
@@ -402,7 +403,7 @@ def test_smooth_needs_free_latency_and_neighbours():
 ## Volume conduction
 
 
-def test_req193_volume_conduction_screen():
+def test_req193_volume_conduction_screen() -> None:
 
     high, low = [], []
     for seed in range(5):
@@ -417,7 +418,7 @@ def test_req193_volume_conduction_screen():
     assert np.mean(low) >= 0.9
 
 
-def test_volume_screen_columns_and_markers():
+def test_volume_screen_columns_and_markers() -> None:
 
     ts, volume, local = volume_scene(0)
     group = ResponseModel("ccep", baseline=BASELINE).fit_group(

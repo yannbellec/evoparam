@@ -4,6 +4,7 @@
 import hashlib
 import os
 import pathlib
+from typing import Any
 
 import numpy as np
 import pytest
@@ -26,7 +27,9 @@ pd = pytest.importorskip("pandas")
 ###################################################################################################
 
 
-def expected_epochs(onsets, channels=(0, 1, 2), tmin=-0.5, tmax=1.0):
+def expected_epochs(
+    onsets: Any, channels: Any = (0, 1, 2), tmin: Any = -0.5, tmax: Any = 1.0
+) -> Any:
     full = signal(3, 60000)
     offsets = np.arange(int(round(tmin * SFREQ)), int(round(tmax * SFREQ)))
     return np.stack(
@@ -34,7 +37,7 @@ def expected_epochs(onsets, channels=(0, 1, 2), tmin=-0.5, tmax=1.0):
     )
 
 
-def test_read_bids_local(bids_root):
+def test_read_bids_local(bids_root: Any) -> None:
 
     trials = read_bids(bids_root, "sub-01", task="spes", run="01")
     assert isinstance(trials, TrialSet)
@@ -80,7 +83,7 @@ def test_read_bids_local(bids_root):
     assert info["stim_contact"].tolist() == [True, True, True]
 
 
-def test_provenance_source(bids_root):
+def test_provenance_source(bids_root: Any) -> None:
 
     trials = read_bids(bids_root, "01", task="spes")
     source = trials.provenance.source
@@ -104,7 +107,7 @@ def test_provenance_source(bids_root):
     assert again.provenance.data_hash == trials.provenance.data_hash is not None
 
 
-def test_select_picks_and_epoch(bids_root):
+def test_select_picks_and_epoch(bids_root: Any) -> None:
 
     trials = read_bids(
         bids_root,
@@ -126,7 +129,7 @@ def test_select_picks_and_epoch(bids_root):
     assert by_type.ch_names == CH_NAMES
 
 
-def test_second_subject_with_session_and_unit_strings(bids_root):
+def test_second_subject_with_session_and_unit_strings(bids_root: Any) -> None:
 
     trials = read_bids(bids_root, "sub-02", session="1", task="spes", run="01")
     meta = trials.metadata
@@ -140,7 +143,7 @@ def test_second_subject_with_session_and_unit_strings(bids_root):
     assert read_bids(bids_root, "02", task="spes").n_trials == trials.n_trials
 
 
-def test_events_argument(bids_root, tmp_path):
+def test_events_argument(bids_root: Any, tmp_path: Any) -> None:
 
     events = pd.DataFrame({"onset": [5.0, 20.0], "trial_type": ["x", "y"]})
     trials = read_bids(bids_root, "01", task="spes", events=events)
@@ -155,7 +158,7 @@ def test_events_argument(bids_root, tmp_path):
     assert trials.metadata["stim_site"][0] == "A01-A02"
 
 
-def test_save_load_round_trip(bids_root, tmp_path):
+def test_save_load_round_trip(bids_root: Any, tmp_path: Any) -> None:
 
     trials = read_bids(bids_root, "01", task="spes")
     trials.save(str(tmp_path / "trials.evoparam"))
@@ -168,13 +171,13 @@ def test_save_load_round_trip(bids_root, tmp_path):
     assert read(str(tmp_path / "trials.evoparam")).n_trials == trials.n_trials
 
 
-def test_read_dispatch_on_bids_folder(bids_root):
+def test_read_dispatch_on_bids_folder(bids_root: Any) -> None:
 
     trials = read(bids_root, subject="01", task="spes")
     assert trials.n_trials == 15
 
 
-def test_several_runs_are_concatenated(tmp_path):
+def test_several_runs_are_concatenated(tmp_path: Any) -> None:
 
     root = make_bids(tmp_path / "two_runs")
     folder = os.path.join(root, "sub-01", "ieeg")
@@ -201,7 +204,7 @@ def test_several_runs_are_concatenated(tmp_path):
         read_bids(root, "01", task="spes")
 
 
-def test_errors(bids_root, tmp_path):
+def test_errors(bids_root: Any, tmp_path: Any) -> None:
 
     with pytest.raises(ReaderError, match="not found"):
         read_bids(tmp_path / "nowhere", "01")

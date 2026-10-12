@@ -14,6 +14,7 @@ import ast
 import pathlib
 import re
 import socket
+from typing import Any
 
 import pytest
 
@@ -39,7 +40,7 @@ NETWORK = {
 }
 
 
-def test_core_tests_run_with_the_socket_guard():
+def test_core_tests_run_with_the_socket_guard() -> None:
     with pytest.raises(OSError, match="REQ-306"):
         socket.create_connection(("127.0.0.1", 9), timeout=0.1)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -50,7 +51,7 @@ def test_core_tests_run_with_the_socket_guard():
         sock.close()
 
 
-def _imports(path):
+def _imports(path: Any) -> Any:
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.Import):
             yield from (a.name for a in node.names)
@@ -59,7 +60,7 @@ def _imports(path):
             yield from (f"{node.module}.{a.name}" for a in node.names)
 
 
-def test_only_the_fetch_helpers_import_network_modules():
+def test_only_the_fetch_helpers_import_network_modules() -> None:
     hits = []
     for path in sorted(PACKAGE.rglob("*.py")):
         rel = path.relative_to(PACKAGE).as_posix()
@@ -71,7 +72,7 @@ def test_only_the_fetch_helpers_import_network_modules():
     assert not hits, hits
 
 
-def test_np_load_never_allows_pickle():
+def test_np_load_never_allows_pickle() -> None:
     hits = []
     for path in sorted(PACKAGE.rglob("*.py")):
         rel = path.relative_to(PACKAGE).as_posix()
@@ -91,7 +92,7 @@ def test_np_load_never_allows_pickle():
     assert not hits, hits
 
 
-def test_no_telemetry_or_update_check():
+def test_no_telemetry_or_update_check() -> None:
     pattern = re.compile(
         r"telemetry|analytics|update[_ ]check|check_for_update|pypi\.org/pypi", re.IGNORECASE
     )
@@ -104,7 +105,7 @@ def test_no_telemetry_or_update_check():
     assert not hits, hits
 
 
-def _grep_as_written():
+def _grep_as_written() -> Any:
     """``grep -rn "pickle\\|urllib\\|requests\\|httpx" evoparam/`` outside the fetch helpers
     and the ``allow_pickle=False`` lines."""
 
@@ -129,5 +130,5 @@ def _grep_as_written():
     "(URL text only); 7 lines in 2 modules measured on "
     "2026-10-11 (S20). The import-level check above holds",
 )
-def test_grep_as_written():
+def test_grep_as_written() -> None:
     assert not _grep_as_written(), _grep_as_written()

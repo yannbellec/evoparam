@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for the backgrounds (spec §5.5.2; REQ-100 for the equations)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -13,7 +15,7 @@ from evoparam.tests.shapes.helpers import TIMES, sample_background_params
 WINDOW = (float(TIMES[0]), float(TIMES[-1]))
 
 
-def test_linear_and_exponential_equations():
+def test_linear_and_exponential_equations() -> None:
     t = TIMES
     t0 = t[0]
     np.testing.assert_array_equal(bg.NoBackground().evaluate(t, np.zeros(0)), np.zeros(t.size))
@@ -38,7 +40,7 @@ def test_linear_and_exponential_equations():
     )
 
 
-def test_long_double_exponential():
+def test_long_double_exponential() -> None:
     params = sample_background_params(
         bg.DoubleExponentialBackground(), TIMES, 20, np.random.default_rng(1), data_range=(-20, 20)
     )
@@ -51,7 +53,7 @@ def test_long_double_exponential():
         assert np.all(np.abs(got - expected) <= 1e-12 * np.abs(expected) + 1e-12)
 
 
-def test_parameter_names_and_linearity():
+def test_parameter_names_and_linearity() -> None:
     assert bg.ExponentialBackground().param_names == ("c0", "c1", "tau")
     assert bg.DoubleExponentialBackground().nonlinear_names == ("tau1", "tau2")
     assert bg.ConstantBackground().is_linear
@@ -65,7 +67,7 @@ def test_parameter_names_and_linearity():
         assert isinstance(background, shapes.Background)
 
 
-def test_vectorised_backgrounds():
+def test_vectorised_backgrounds() -> None:
     rng = np.random.default_rng(2)
     for background in (
         bg.LinearBackground(),
@@ -83,7 +85,7 @@ def test_vectorised_backgrounds():
         np.testing.assert_allclose(jac[0, 1], background.jacobian(TIMES, params[0, 1]), rtol=1e-14)
 
 
-def test_pspline_knot_rule():
+def test_pspline_knot_rule() -> None:
     with pytest.raises(SettingsError, match="knot spacing"):
         bg.PSplineBackground(WINDOW, max_fwhm=0.03, knot_spacing=0.05)
     with pytest.raises(SettingsError):
@@ -98,7 +100,7 @@ def test_pspline_knot_rule():
         bg.PSplineBackground((0.1, 0.0), max_fwhm=0.03)
 
 
-def test_pspline_basis():
+def test_pspline_basis() -> None:
     spline = bg.PSplineBackground(WINDOW, max_fwhm=0.03)
     basis = spline.basis(TIMES)
     assert basis.shape == (spline.n_basis, TIMES.size)
@@ -117,7 +119,7 @@ def test_pspline_basis():
     np.testing.assert_allclose(penalty @ np.arange(spline.n_basis), 0.0, atol=1e-12)
 
 
-def test_pspline_basis_mpmath():
+def test_pspline_basis_mpmath() -> None:
     """REQ-100 for the P-spline: Cox-de Boor recursion in mpmath at 1e-10."""
 
     mpmath = pytest.importorskip("mpmath")
@@ -133,7 +135,7 @@ def test_pspline_basis_mpmath():
             assert abs(basis[j, i] - expected) <= 1e-10 * abs(expected) + 1e-15
 
 
-def test_pspline_cannot_absorb_a_narrow_component():
+def test_pspline_cannot_absorb_a_narrow_component() -> None:
     # A component of width max_fwhm is mostly left in the residual of the spline fit.
     spline = bg.PSplineBackground(WINDOW, max_fwhm=0.03)
     component = shapes.Gaussian().evaluate(TIMES, [0.15, 0.03 / 2.3548200450309493])
@@ -142,7 +144,7 @@ def test_pspline_cannot_absorb_a_narrow_component():
     assert np.max(np.abs(component - fitted)) > 0.25
 
 
-def test_pspline_select_lambda():
+def test_pspline_select_lambda() -> None:
     rng = np.random.default_rng(0)
     times = np.arange(-0.5, 0.0, 1 / 1000)
     slow = 3.0 * np.sin(2 * np.pi * 1.5 * times)
@@ -155,7 +157,7 @@ def test_pspline_select_lambda():
         bg.PSplineBackground(WINDOW, max_fwhm=0.02, lam=-1.0)
 
 
-def test_artifact_basis():
+def test_artifact_basis() -> None:
     basis_times = TIMES[:50]
     vectors = np.vstack([np.exp(-np.arange(50) / 10.0), np.cos(np.arange(50) / 4.0)])
     background = bg.ArtifactBasisBackground(vectors, basis_times)
@@ -177,7 +179,7 @@ def test_artifact_basis():
     ],
     ids=lambda b: b.name,
 )
-def test_initial_guess_and_bounds(background):
+def test_initial_guess_and_bounds(background: Any) -> None:
     lower, upper = background.default_bounds(TIMES, data_range=(-30.0, 60.0))
     assert np.all(np.isfinite(lower))
     assert np.all(lower < upper)
@@ -188,7 +190,7 @@ def test_initial_guess_and_bounds(background):
     np.testing.assert_allclose(guess[: background.n_linear], coefs, rtol=1e-8, atol=1e-8)
 
 
-def test_invalid_settings():
+def test_invalid_settings() -> None:
     with pytest.raises(SettingsError):
         bg.ExponentialBackground(tau_min=0.0)
     with pytest.raises(SettingsError):

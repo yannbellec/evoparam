@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for TrialSet and Evoked (spec §4.3.1, §4.3.2)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -11,7 +13,7 @@ from evoparam.errors import DataError
 from evoparam.tests.data.factories import SFREQ, make_trialset
 
 
-def test_construction_and_repr():
+def test_construction_and_repr() -> None:
     trials = make_trialset()
     assert (trials.n_trials, trials.n_channels, trials.n_times) == (6, 3, 400)
     assert trials.data.dtype == np.float64
@@ -38,7 +40,7 @@ def test_construction_and_repr():
         ({"ch_info": pd.DataFrame({"name": ["X", "Y", "Z"]})}, "ch_info"),
     ],
 )
-def test_invariants(change, field):
+def test_invariants(change: Any, field: Any) -> None:
     base = make_trialset(with_tables=False)
     kwargs = {
         "data": base.data,
@@ -51,12 +53,12 @@ def test_invariants(change, field):
         TrialSet(**kwargs)
 
 
-def test_data_error_is_value_error():
+def test_data_error_is_value_error() -> None:
     with pytest.raises(ValueError):  # noqa: PT011  (the test checks that DataError is a ValueError)
         TrialSet(np.zeros((1, 1, 1)), np.zeros(1), 1.0, ["A"])
 
 
-def test_nan_allowed_only_in_masks():
+def test_nan_allowed_only_in_masks() -> None:
     trials = make_trialset(with_masks=True)
     assert np.isnan(trials.data).any()
     data = trials.data.copy()
@@ -65,7 +67,7 @@ def test_nan_allowed_only_in_masks():
         TrialSet(data, trials.times, trials.sfreq, trials.ch_names, masks=trials.masks)
 
 
-def test_select_and_crop_window_convention():
+def test_select_and_crop_window_convention() -> None:
     trials = make_trialset()
     sub = trials.select(trials=[4, 1], picks=["CH02", 0], tmin=0.0, tmax=0.1)
     assert sub.ch_names == ["CH02", "CH00"]
@@ -82,7 +84,7 @@ def test_select_and_crop_window_convention():
     assert cropped.n_trials == trials.n_trials
 
 
-def test_select_query_and_errors():
+def test_select_query_and_errors() -> None:
     trials = make_trialset()
     high = trials.select(query="condition == 'high'")
     assert set(high.metadata["condition"]) == {"high"}
@@ -94,7 +96,7 @@ def test_select_query_and_errors():
         trials.select(tmin=0.2995)
 
 
-def test_original_unchanged():
+def test_original_unchanged() -> None:
     trials = make_trialset()
     before = trials.copy()
     trials.select(trials=[0], picks=[0]).average()
@@ -102,7 +104,7 @@ def test_original_unchanged():
     assert trials == before
 
 
-def test_average_mean_and_sem():
+def test_average_mean_and_sem() -> None:
     trials = make_trialset()
     evoked = trials.average()
     assert isinstance(evoked, Evoked)
@@ -114,7 +116,7 @@ def test_average_mean_and_sem():
     assert evoked.masks is None
 
 
-def test_average_excludes_rejected_and_groups():
+def test_average_excludes_rejected_and_groups() -> None:
     trials = make_trialset()
     trials.metadata.loc[0, "rejected"] = True
     evoked = trials.average()
@@ -125,7 +127,7 @@ def test_average_excludes_rejected_and_groups():
     assert [g.n_trials for g in groups] == [3, 2]
 
 
-def test_average_with_masks():
+def test_average_with_masks() -> None:
     trials = make_trialset(with_masks=True)
     masks = trials.masks.copy()
     masks[1:, :, 98:106] = False
@@ -142,7 +144,7 @@ def test_average_with_masks():
     assert np.isnan(full.data[:, 98:106]).all()
 
 
-def test_average_robust_matches_scipy():
+def test_average_robust_matches_scipy() -> None:
     from scipy.stats import trim_mean
 
     trials = make_trialset(n_trials=11)
@@ -151,7 +153,7 @@ def test_average_robust_matches_scipy():
     assert np.all(np.isfinite(evoked.sem))
 
 
-def test_chunk_does_not_change_result():
+def test_chunk_does_not_change_result() -> None:
     trials = make_trialset(n_channels=5)
     reference = trials.average(robust=True)
     for chunk in (1, 2, "auto"):
@@ -162,12 +164,12 @@ def test_chunk_does_not_change_result():
         trials.average(chunk=0)
 
 
-def test_auto_chunk_rule():
+def test_auto_chunk_rule() -> None:
     assert auto_chunk(500, 4096, 256, max_memory_gb=1.0) == int(1024**3 // (500 * 4096 * 24))
     assert auto_chunk(1, 10, 3, max_memory_gb=100) == 3
 
 
-def test_apply_times_axis_and_provenance():
+def test_apply_times_axis_and_provenance() -> None:
     trials = make_trialset()
     detrended = trials.apply(lambda x: x - x.mean(axis=-1, keepdims=True), axis="times")
     np.testing.assert_allclose(detrended.data.mean(axis=-1), 0.0, atol=1e-12)
@@ -176,7 +178,7 @@ def test_apply_times_axis_and_provenance():
         trials.apply(lambda x: x[:, :1])
 
 
-def test_convert_units():
+def test_convert_units() -> None:
     trials = make_trialset()
     millivolts = trials.convert_units("mV")
     np.testing.assert_allclose(millivolts.data, trials.data * 1e-3)
@@ -189,7 +191,7 @@ def test_convert_units():
         ).convert_units("uV")
 
 
-def test_as_evoked_and_as_trialset():
+def test_as_evoked_and_as_trialset() -> None:
     trials = make_trialset(with_tables=False)
     one = trials.select(trials=[2])
     evoked = one.as_evoked()
@@ -200,7 +202,7 @@ def test_as_evoked_and_as_trialset():
     assert trials.as_evoked().n_trials == 6
 
 
-def test_evoked_validation_and_select():
+def test_evoked_validation_and_select() -> None:
     evoked = make_trialset().average()
     with pytest.raises(DataError, match="n_trials"):
         Evoked(evoked.data, evoked.times, evoked.sfreq, evoked.ch_names, n_trials=0)
@@ -214,7 +216,7 @@ def test_evoked_validation_and_select():
     assert sub.n_times == 50
 
 
-def test_equality_and_copy():
+def test_equality_and_copy() -> None:
     trials = make_trialset()
     clone = trials.copy()
     assert clone == trials

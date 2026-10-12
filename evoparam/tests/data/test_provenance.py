@@ -5,6 +5,7 @@ Spec §4.3.3; REQ-294 steps, REQ-335 environment keys, REQ-337 data hash.
 """
 
 import json
+from typing import Any
 
 import numpy as np
 
@@ -28,7 +29,7 @@ ENVIRONMENT_KEYS = {
 }
 
 
-def test_defaults_and_json_round_trip():
+def test_defaults_and_json_round_trip() -> None:
     prov = Provenance(random_state=7)
     assert prov.package_version == __version__
     assert prov.created.endswith("+00:00")
@@ -37,7 +38,7 @@ def test_defaults_and_json_round_trip():
     json.loads(prov.to_json(), parse_constant=lambda name: (_ for _ in ()).throw(ValueError(name)))
 
 
-def test_with_step_copies_and_converts():
+def test_with_step_copies_and_converts() -> None:
     prov = Provenance()
     new = prov.with_step(
         "evoparam.x.f",
@@ -53,7 +54,7 @@ def test_with_step_copies_and_converts():
     assert step["preset"] == {"name": "ccep", "version": "1"}
 
 
-def test_environment_keys():
+def test_environment_keys() -> None:
     env = capture_environment()
     assert set(env) == ENVIRONMENT_KEYS
     assert "pandas" in env["optional"]
@@ -61,7 +62,7 @@ def test_environment_keys():
     assert capture_environment()["python"] != "changed"
 
 
-def test_data_hash_changes_with_one_sample():
+def test_data_hash_changes_with_one_sample() -> None:
     trials = make_trialset(with_tables=False)
     reference = compute_data_hash(trials.data, trials.times, trials.ch_names)
     assert reference == trials.provenance.data_hash
@@ -72,7 +73,7 @@ def test_data_hash_changes_with_one_sample():
     assert compute_data_hash(np.array(trials.data), trials.times, trials.ch_names) == reference
 
 
-def test_every_method_appends_one_step():
+def test_every_method_appends_one_step() -> None:
     trials = make_trialset()
     n_steps = len(trials.provenance.steps)
     for derived in (
@@ -86,7 +87,7 @@ def test_every_method_appends_one_step():
         json.dumps(derived.provenance.to_dict(), allow_nan=False)
 
 
-def test_fixed_clock_makes_records_reproducible(monkeypatch):
+def test_fixed_clock_makes_records_reproducible(monkeypatch: Any) -> None:
     """REQ-345: with SOURCE_DATE_EPOCH the creation time is that instant and durations are
     recorded as 0, so two runs write the same bytes; without it the real clock is used."""
 
@@ -111,7 +112,7 @@ def test_fixed_clock_makes_records_reproducible(monkeypatch):
 SEVEN = {"function", "settings", "version", "preset", "random_state", "duration_s", "n_jobs"}
 
 
-def _chain(tmp_path):
+def _chain(tmp_path: Any) -> Any:
     import warnings
 
     import evoparam
@@ -143,7 +144,7 @@ def _chain(tmp_path):
     }
 
 
-def test_req294_every_step_has_the_seven_keys(tmp_path):
+def test_req294_every_step_has_the_seven_keys(tmp_path: Any) -> None:
     """REQ-294: each step of every result of the chain read -> detect_events ->
     remove_artifact -> fit -> test_response -> fit_trials has the seven keys and is valid
     JSON; a GroupFit saved and loaded has an equal Provenance."""
@@ -165,7 +166,7 @@ def test_req294_every_step_has_the_seven_keys(tmp_path):
     assert load_object(str(path)).provenance == out["group"].provenance
 
 
-def test_req294_six_steps_in_order(tmp_path):
+def test_req294_six_steps_in_order(tmp_path: Any) -> None:
     """REQ-294 as written: the final result of the chain holds the six steps in order."""
 
     import pytest
@@ -191,7 +192,7 @@ def test_req294_six_steps_in_order(tmp_path):
         )
 
 
-def test_req309_lock_hash(tmp_path):
+def test_req309_lock_hash(tmp_path: Any) -> None:
     """REQ-309 (d): ``lock_sha256`` is the SHA-256 of the lock when every applicable pin is
     installed at its version, else None; the environment records it."""
 

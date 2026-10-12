@@ -12,6 +12,7 @@ entry.
 import pathlib
 import re
 import warnings
+from typing import Any
 
 import pytest
 
@@ -25,7 +26,7 @@ pytestmark = pytest.mark.core
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 
 
-def _check_entry(old, new, since, remove_in):
+def _check_entry(old: Any, new: Any, since: Any, remove_in: Any) -> None:
     assert minor_gap(since, remove_in) == 2, (old, since, remove_in)
     assert version_tuple(evoparam.__version__) < version_tuple(remove_in), (
         f"{old}: the shim must be removed in {remove_in} (this is {evoparam.__version__})"
@@ -46,19 +47,19 @@ def _check_entry(old, new, since, remove_in):
 
 
 @pytest.mark.parametrize("old", sorted(_deprecated.REGISTRY) or [None])
-def test_req293_every_registered_shim(old):
+def test_req293_every_registered_shim(old: Any) -> None:
     if old is None:
         pytest.skip("no deprecated public name yet (no public release, RELEASING.md)")
     new, since, remove_in = _deprecated.REGISTRY[old]
     _check_entry(f"{old}", new, since, remove_in)
 
 
-def test_req293_warning_category():
+def test_req293_warning_category() -> None:
     assert issubclass(EvoparamDeprecationWarning, DeprecationWarning)
     assert evoparam.utils.EvoparamDeprecationWarning is EvoparamDeprecationWarning
 
 
-def test_req293_the_mechanism_with_a_temporary_entry(monkeypatch):
+def test_req293_the_mechanism_with_a_temporary_entry(monkeypatch: Any) -> None:
     """A temporary shim ``evoparam.old_mean`` -> ``numpy:mean``: warning with both names and
     the version of removal, all arguments forwarded, the two-minor-version rule."""
 
@@ -75,7 +76,7 @@ def test_req293_the_mechanism_with_a_temporary_entry(monkeypatch):
     _check_entry("old_mean", "numpy:mean", "0.2.0", "0.4.0")
 
 
-def test_req293_the_rules_fail_on_a_bad_entry(monkeypatch):
+def test_req293_the_rules_fail_on_a_bad_entry(monkeypatch: Any) -> None:
     monkeypatch.setitem(_deprecated.REGISTRY, "old_mean", ("numpy:mean", "0.2.0", "0.3.0"))
     with pytest.raises(AssertionError):
         _check_entry("old_mean", "numpy:mean", "0.2.0", "0.3.0")  # one minor version only
@@ -84,12 +85,12 @@ def test_req293_the_rules_fail_on_a_bad_entry(monkeypatch):
         _check_entry("old_mean", "numpy:mean", "0.0.0", "0.1.0")  # removal version reached
 
 
-def test_req293_unknown_name_still_raises_attribute_error():
+def test_req293_unknown_name_still_raises_attribute_error() -> None:
     with pytest.raises(AttributeError):
         evoparam.no_such_name  # noqa: B018
 
 
-def test_req394_name_paired_with_the_phrase():
+def test_req394_name_paired_with_the_phrase() -> None:
     """REQ-394: README and the docs home pair the name with "evoked response
     parameterization"."""
 
@@ -100,7 +101,7 @@ def test_req394_name_paired_with_the_phrase():
         ), path
 
 
-def test_req394_name_is_frozen_in_the_metadata():
+def test_req394_name_is_frozen_in_the_metadata() -> None:
     """The distribution, the import name, the console script and the citation all use the
     one name ``evoparam`` (the frozen name of §11.1 rule 2)."""
 
@@ -118,7 +119,7 @@ def test_req394_name_is_frozen_in_the_metadata():
     "release, which waits for the owner's HIIE decision (nothing public "
     "before it)",
 )
-def test_req394_frozen_at_the_first_public_release():
+def test_req394_frozen_at_the_first_public_release() -> None:
     text = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
     gate = text.split("<!-- release-gate -->")[1].split("<!-- end-release-gate -->")[0]
     assert "- HIIE decision: on record" in gate

@@ -14,6 +14,7 @@ amplitude at their channel latency).
 import os
 import time
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -22,7 +23,7 @@ import pytest
 NETWORK = os.environ.get("EVOPARAM_NETWORK_TESTS") == "1"
 
 
-def network(test):
+def network(test: Any) -> Any:
     test = pytest.mark.skipif(
         not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro"
     )(test)
@@ -41,7 +42,7 @@ PAIRS_156 = [
 ]
 
 
-def _prepared(subject, run, site):
+def _prepared(subject: Any, run: Any, site: Any) -> Any:
     """The pair's trials through the ccep preset pipeline, and evoparam.fit of them."""
 
     import evoparam
@@ -61,7 +62,7 @@ def _prepared(subject, run, site):
     return ts, group
 
 
-def _n1_channels(group):
+def _n1_channels(group: Any) -> Any:
     """Channels whose fit has an N1, and the subset with a significant existence test."""
 
     names = list(group.index["channel"])
@@ -79,7 +80,7 @@ def _n1_channels(group):
 
 
 @pytest.fixture(scope="module")
-def results():
+def results() -> Any:
     from evoparam.trials import fit_trials
 
     out = []
@@ -107,7 +108,7 @@ def results():
 
 
 @network
-def test_req156_trusted_fraction(results):
+def test_req156_trusted_fraction(results: Any) -> None:
 
     fractions = [
         f.trusted.mean() for r in results for f in r["fits"] if f.channel in r["significant"]
@@ -117,7 +118,7 @@ def test_req156_trusted_fraction(results):
 
 
 @network
-def test_req156_speed(results):
+def test_req156_speed(results: Any) -> None:
     """fit_trials on all N1 channels of each subject (10 trials per site) in <= 2 s."""
 
     assert len({r["subject"] for r in results if r["fits"]}) >= 5
@@ -128,7 +129,7 @@ def test_req156_speed(results):
 ## REQ-158: amplitude slope across a train
 
 
-def _trend_table(ts, group):
+def _trend_table(ts: Any, group: Any) -> Any:
     from evoparam.trials import fit_trials
 
     with warnings.catch_warnings():
@@ -137,7 +138,7 @@ def _trend_table(ts, group):
     return pd.DataFrame(tf.settings["covariate_tables"]["trend"])
 
 
-def _sign_agreement(table, alpha=0.05):
+def _sign_agreement(table: Any, alpha: Any = 0.05) -> Any:
     """Among the sites (channel x stimulation pair) whose slope is significant, the fraction
     whose amplitude declines across the train."""
 
@@ -147,7 +148,7 @@ def _sign_agreement(table, alpha=0.05):
     ) else np.nan
 
 
-def test_req158_direction_on_simulated_1hz_trains():
+def test_req158_direction_on_simulated_1hz_trains() -> None:
     """The index_in_train effect (relative amplitude slope per pulse, t test) recovers a
     declining N1 across simulated 1 Hz trains of 30 single pulses (gain 1 - 0.01 x index, the
     adaptation of simulate_ccep) with sign agreement >= 80 % of the significant sites."""
@@ -195,6 +196,6 @@ def test_req158_direction_on_simulated_1hz_trains():
         "Owner decision needed; see CHANGELOG (trials, F17)."
     ),
 )
-def test_req158_as_written():
+def test_req158_as_written() -> None:
 
     raise AssertionError("no 1 Hz reference dataset with an N1 in spec 7")

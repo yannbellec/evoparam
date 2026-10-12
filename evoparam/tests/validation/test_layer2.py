@@ -4,6 +4,7 @@
 import importlib.util
 import json
 import pathlib
+from typing import Any
 
 import pytest
 
@@ -14,14 +15,14 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _runner():
+def _runner() -> Any:
     spec = importlib.util.spec_from_file_location("layer2", RUNNER)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def test_weekly_design_covers_every_factor_level():
+def test_weekly_design_covers_every_factor_level() -> None:
 
     layer2 = _runner()
     cells = layer2.cells("weekly")
@@ -31,7 +32,7 @@ def test_weekly_design_covers_every_factor_level():
             assert set(levels) <= seen, (modality, factor)
 
 
-def test_smoke_run_writes_the_report(tmp_path):
+def test_smoke_run_writes_the_report(tmp_path: Any) -> None:
 
     layer2 = _runner()
     report = layer2.main(

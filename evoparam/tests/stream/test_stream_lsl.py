@@ -8,6 +8,7 @@ Skipped when pylsl or the liblsl library is missing (extra ``stream``).
 import json
 import threading
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -33,7 +34,7 @@ N_CHANNELS = 4
 N_PULSES = 10
 
 
-def _signal(seed=0):
+def _signal(seed: Any = 0) -> Any:
     """12 s of 4 channels, a pulse (artifact spike and N1) every second from 1.5 s."""
 
     rng = np.random.default_rng(seed)
@@ -47,7 +48,7 @@ def _signal(seed=0):
     return data, onsets.astype(int)
 
 
-def test_req325_inlet_fitter_and_outlet_metadata():
+def test_req325_inlet_fitter_and_outlet_metadata() -> None:
 
     data, _ = _signal()
     info = pylsl.StreamInfo(

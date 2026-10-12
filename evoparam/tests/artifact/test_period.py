@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Period-based reconstruction for high-frequency trains (REQ-062)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 from scipy.stats import ranksums
@@ -15,14 +17,14 @@ from evoparam.errors import ArtifactError, SettingsError
 SFREQ, FREQ = 1000.0, 130.2  # a real DBS frequency is not a round number
 
 
-def train(n, period, rng, amplitude=300.0):
+def train(n: Any, period: Any, rng: Any, amplitude: Any = 300.0) -> Any:
     """A repeating artifact: a decaying biphasic shape every ``period`` samples."""
 
     phase = np.mod(np.arange(n) + rng.uniform(0, period), period)
     return amplitude * np.exp(-phase / 1.2) * np.sin(2 * np.pi * phase / period * 2)
 
 
-def test_req062_fractional_period_precision():
+def test_req062_fractional_period_precision() -> None:
 
     rng = np.random.default_rng(0)
     period = SFREQ / FREQ
@@ -41,7 +43,7 @@ def test_req062_fractional_period_precision():
     assert abs(np.mean(estimates) - period) <= 1e-3
 
 
-def test_req062_residual_like_prestimulation_noise():
+def test_req062_residual_like_prestimulation_noise() -> None:
 
     rng = np.random.default_rng(1)
     n_pre, n_stim = int(5 * SFREQ), int(20 * SFREQ)
@@ -71,7 +73,7 @@ def test_req062_residual_like_prestimulation_noise():
     assert np.std(error) < 1.1 * np.std(pre)
 
 
-def test_causal_variant_uses_past_only():
+def test_causal_variant_uses_past_only() -> None:
 
     rng = np.random.default_rng(2)
     n = int(8 * SFREQ)
@@ -103,7 +105,7 @@ def test_causal_variant_uses_past_only():
     assert np.allclose(moved.cleaned.data[..., :5000], result.cleaned.data[..., :5000])
 
 
-def test_period_errors():
+def test_period_errors() -> None:
 
     with pytest.raises(ArtifactError, match="not resolvable"):
         estimate_period(np.zeros(1000), 250.0, 130.0)

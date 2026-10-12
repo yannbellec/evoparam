@@ -7,6 +7,7 @@ import json
 import pathlib
 import re
 import warnings
+from typing import Any
 
 import pytest
 
@@ -19,7 +20,7 @@ DOC = pathlib.Path(evoparam.__file__).parent.parent / "docs" / "reference" / "ta
 UNITS = {"(none)": "", "data unit": "data", "data unit × s": "data·s"}
 
 
-def documented(anchor):
+def documented(anchor: Any) -> Any:
     """{column: unit} of the list-table that follows ``.. _<anchor>:``."""
 
     if not DOC.is_file():
@@ -30,14 +31,14 @@ def documented(anchor):
 
 
 @pytest.fixture(scope="module")
-def group():
+def group() -> Any:
     trials, _ = sim.simulate_ccep(n_trials=8, n_channels=3, sfreq=1024.0, seed=5)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         return evoparam.fit(trials, preset="ccep", existence=True, random_state=0)
 
 
-def test_component_columns_are_the_documented_list(group, tmp_path):
+def test_component_columns_are_the_documented_list(group: Any, tmp_path: Any) -> None:
 
     doc = documented("table-component")
     table = group.to_dataframe("component")
@@ -54,7 +55,7 @@ def test_component_columns_are_the_documented_list(group, tmp_path):
         assert all("unit" in entry for entry in columns.values()), sidecar.name
 
 
-def test_fit_columns_are_the_documented_list(group):
+def test_fit_columns_are_the_documented_list(group: Any) -> None:
 
     doc = documented("table-fit")
     table = group.to_dataframe("fit")
@@ -62,7 +63,7 @@ def test_fit_columns_are_the_documented_list(group):
     assert table.attrs["units"] == doc
 
 
-def test_one_row_per_channel_condition_component(group):
+def test_one_row_per_channel_condition_component(group: Any) -> None:
 
     table = group.to_dataframe("component")
     keys = table[["channel", "condition", "component"]]

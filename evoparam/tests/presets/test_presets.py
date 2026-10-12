@@ -6,6 +6,7 @@ import dataclasses
 import pathlib
 import re
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -46,17 +47,17 @@ REFERENCE = {
 }
 
 
-def _number(text):
+def _number(text: Any) -> Any:
     return float(text.replace("−", "-"))
 
 
-def _tuples(cell):
+def _tuples(cell: Any) -> Any:
     return [
         (_number(a), _number(b)) for a, b in re.findall(r"\(([−\-\d.]+),\s*([−\-\d.]+)\)", cell)
     ]
 
 
-def _table():
+def _table() -> Any:
     lines = SPEC.read_text("utf-8").split("\n")
     start = next(i for i, line in enumerate(lines) if line.startswith("### 6.1"))
     rows = [line for line in lines[start : start + 40] if line.startswith("| ")]
@@ -76,7 +77,7 @@ def _table():
     return out
 
 
-def _expected(_name, row):
+def _expected(_name: Any, row: Any) -> Any:
     def window(cell):
         return (_tuples(cell) or [None])[0]
 
@@ -108,7 +109,7 @@ def _expected(_name, row):
 
 
 @needs_docs
-def test_req270_every_preset_matches_the_table():
+def test_req270_every_preset_matches_the_table() -> None:
 
     table = _table()
     assert set(table) == set(presets.PRESETS)
@@ -129,14 +130,14 @@ def test_req270_every_preset_matches_the_table():
                 assert got == value, (name, field, got, value)
 
 
-def dataclass_frozen(p):
+def dataclass_frozen(p: Any) -> Any:
     with pytest.raises(dataclasses.FrozenInstanceError):
         p.name = "other"
     return True
 
 
 @needs_docs
-def test_req271_citations_resolve_and_choices_are_explained():
+def test_req271_citations_resolve_and_choices_are_explained() -> None:
     """REQ-271, and REQ-014 of §3.1 (presets cite their sources), which is REQ-271."""
 
     keys = set(
@@ -151,7 +152,7 @@ def test_req271_citations_resolve_and_choices_are_explained():
             assert reason.strip(), (p.name, field)
 
 
-def test_derive_and_registry():
+def test_derive_and_registry() -> None:
 
     parent = presets.get("ccep")
     before = parent.to_dict()
@@ -175,7 +176,7 @@ def test_derive_and_registry():
     assert presets.from_json(presets.to_json("tep")) == presets.get("tep")
 
 
-def _waveform():
+def _waveform() -> Any:
     from evoparam.data import Evoked
 
     sfreq = 2048.0
@@ -189,7 +190,7 @@ def _waveform():
     return Evoked(data=y[None], times=times, sfreq=sfreq, ch_names=["c0"])
 
 
-def test_req272_fit_with_overrides_equals_fit_with_derived_preset():
+def test_req272_fit_with_overrides_equals_fit_with_derived_preset() -> None:
 
     from evoparam.models import fit
 
@@ -205,7 +206,7 @@ def test_req272_fit_with_overrides_equals_fit_with_derived_preset():
         assert ca.amplitude == cb.amplitude
 
 
-def test_req279_simulation_only_presets_say_so_in_the_methods_text():
+def test_req279_simulation_only_presets_say_so_in_the_methods_text() -> None:
 
     from evoparam.models import methods_text, resolve_settings
 
@@ -221,7 +222,7 @@ def test_req279_simulation_only_presets_say_so_in_the_methods_text():
 
 
 @needs_docs
-def test_req280_presets_page_is_generated():
+def test_req280_presets_page_is_generated() -> None:
 
     import importlib.util
 
@@ -232,7 +233,7 @@ def test_req280_presets_page_is_generated():
     assert page == module.render(), "run python tools/gen_presets_doc.py"
 
 
-def test_fit_presets_view_follows_the_files():
+def test_fit_presets_view_follows_the_files() -> None:
 
     from evoparam.models import FIT_PRESETS
 
@@ -245,7 +246,7 @@ def test_fit_presets_view_follows_the_files():
 ## Preset behaviours of spec §6.2 (audit F58), applied by the preset pipeline
 
 
-def test_f58_preset_fields():
+def test_f58_preset_fields() -> None:
 
     assert presets.get("ccep_seeg").reference_sensitivity
     assert not any(
@@ -260,7 +261,7 @@ def test_f58_preset_fields():
         presets.derive("erna", train_baseline=-1.0)
 
 
-def test_f58_ccep_seeg_attaches_the_reference_sensitivity_report():
+def test_f58_ccep_seeg_attaches_the_reference_sensitivity_report() -> None:
     """§6.2: for ccep_seeg, reference_sensitivity (§5.4) is run by default and its kappa
     report attached."""
 
@@ -299,7 +300,7 @@ def test_f58_ccep_seeg_attaches_the_reference_sensitivity_report():
     )
 
 
-def test_f58_rodent_state_is_a_default_trial_covariate():
+def test_f58_rodent_state_is_a_default_trial_covariate() -> None:
     """§6.2: metadata["state"] is a default covariate in the trial table (rodent_ep and
     primate_ep)."""
 
@@ -330,7 +331,9 @@ def test_f58_rodent_state_is_a_default_trial_covariate():
     assert result.trial_fits.settings["covariates"] == []
 
 
-def _pulse_trials(sfreq=4096.0, tmin=-0.002, tmax=0.008, levels=(5.0, -3.0, 8.0)):
+def _pulse_trials(
+    sfreq: Any = 4096.0, tmin: Any = -0.002, tmax: Any = 0.008, levels: Any = (5.0, -3.0, 8.0)
+) -> Any:
     """Per-pulse epochs of three 130 Hz trains of 10 pulses, 1 s apart, in a recording whose
     DC level differs before each train (and stays during it), with noise from each train's
     onset on; returns the epochs, the recording and the epochs of the noise alone."""
@@ -359,7 +362,7 @@ def _pulse_trials(sfreq=4096.0, tmin=-0.002, tmax=0.008, levels=(5.0, -3.0, 8.0)
     return dataclasses.replace(ts, metadata=meta), raw, expected
 
 
-def test_f58_erna_baseline_per_train():
+def test_f58_erna_baseline_per_train() -> None:
     """§6.1/§6.2: erna's baseline is per train, the last 50 ms before the train."""
 
     from evoparam import reports
@@ -408,7 +411,7 @@ def test_f58_erna_baseline_per_train():
         )
 
 
-def test_f58_rodent_p1_n1_named_by_sign_at_each_depth():
+def test_f58_rodent_p1_n1_named_by_sign_at_each_depth() -> None:
     """§6.1: rodent_ep and primate_ep label "P1/N1 by depth": the early field potential
     reverses with depth, so each contact names its component by its own sign."""
 

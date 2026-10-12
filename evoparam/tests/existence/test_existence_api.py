@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """API, groups, text (REQ-140), integration with evoparam.fit, edge cases."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -17,14 +19,14 @@ from .helpers import TIMES, gaussian, noise_trials, trialset
 ###################################################################################################
 
 
-def _responsive(seed=0, n=20, channels=4):
+def _responsive(seed: Any = 0, n: Any = 20, channels: Any = 4) -> Any:
     rng = np.random.default_rng(seed)
     data = noise_trials(rng, n, channels)
     data[:, 0] += 3 * gaussian(0.03, 0.01)
     return data
 
 
-def test_groups_by_site_and_methods_text():
+def test_groups_by_site_and_methods_text() -> None:
 
     data = _responsive()
     meta = pd.DataFrame({"stim_site": ["A-B"] * 10 + ["C-D"] * 10})
@@ -39,7 +41,7 @@ def test_groups_by_site_and_methods_text():
     assert table["significant"].tolist() == [True, False, False, False]
 
 
-def test_evoked_without_trials_warns():
+def test_evoked_without_trials_warns() -> None:
 
     ts = trialset(_responsive())
     with pytest.warns(UserWarning, match="weaker"):
@@ -47,7 +49,7 @@ def test_evoked_without_trials_warns():
     assert test.significant[0]
 
 
-def test_edge_cases():
+def test_edge_cases() -> None:
 
     with pytest.raises(DataError, match="at least 5"):
         run_test(trialset(_responsive(n=4)), by=())
@@ -68,7 +70,7 @@ def test_edge_cases():
         run_test(ts, method="magic")
 
 
-def test_exact_enumeration_with_few_trials():
+def test_exact_enumeration_with_few_trials() -> None:
 
     test = run_test(
         trialset(_responsive(n=6)), n_permutations=1000, n_boot=0, by=(), random_state=0
@@ -76,7 +78,7 @@ def test_exact_enumeration_with_few_trials():
     assert test.settings["exact"]
 
 
-def test_compare_detectors_caption():
+def test_compare_detectors_caption() -> None:
 
     table = compare_detectors(
         trialset(_responsive()),
@@ -88,7 +90,7 @@ def test_compare_detectors_caption():
     assert table.attrs["kappa"].shape == (3, 3)
 
 
-def test_fit_with_existence():
+def test_fit_with_existence() -> None:
 
     from evoparam.data import TrialSet
 
@@ -107,7 +109,7 @@ def test_fit_with_existence():
     assert not group.get("b").existence.significant[0]
 
 
-def test_statistic_over_time_and_null_band():
+def test_statistic_over_time_and_null_band() -> None:
     """Spec §5.13 (plot_existence): the test keeps its statistic over time and the band it
     must leave, consistent with the decision, the onset and the offset."""
 

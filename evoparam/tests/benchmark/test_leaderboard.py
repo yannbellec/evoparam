@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+from typing import Any
 
 import numpy as np
 import pytest
@@ -25,14 +26,14 @@ from evoparam.errors import DataError
 from .helpers import DOCS, RESULTS, ROOT
 
 
-def test_req357_committed_page_and_report_come_from_the_results(tmp_path):
+def test_req357_committed_page_and_report_come_from_the_results(tmp_path: Any) -> None:
     page = write_leaderboard(str(RESULTS), str(tmp_path / "leaderboard.html"))
     report = write_report(str(RESULTS), str(tmp_path / "report.md"))
     assert pathlib.Path(page).read_bytes() == (DOCS / "leaderboard.html").read_bytes()
     assert pathlib.Path(report).read_bytes() == (DOCS / "report-core.md").read_bytes()
 
 
-def test_req357_the_script_checks_the_committed_files():
+def test_req357_the_script_checks_the_committed_files() -> None:
     proc = subprocess.run(
         [sys.executable, str(ROOT / "tools" / "benchmark_leaderboard.py"), "--check"],
         capture_output=True,
@@ -43,7 +44,7 @@ def test_req357_the_script_checks_the_committed_files():
     assert "leaderboard: ok" in proc.stdout
 
 
-def test_req357_the_script_finds_a_stale_page(tmp_path):
+def test_req357_the_script_finds_a_stale_page(tmp_path: Any) -> None:
     page = tmp_path / "leaderboard.html"
     page.write_text(
         (DOCS / "leaderboard.html").read_text(encoding="utf-8").replace("<td>0.", "<td>1.", 1),
@@ -67,7 +68,7 @@ def test_req357_the_script_finds_a_stale_page(tmp_path):
     assert "not up to date" in proc.stdout
 
 
-def test_req357_a_hand_edited_result_is_refused(tmp_path):
+def test_req357_a_hand_edited_result_is_refused(tmp_path: Any) -> None:
     folder = tmp_path / "results"
     shutil.copytree(RESULTS, folder)
     path = folder / "vanblooijs2023__T1.json"
@@ -79,7 +80,7 @@ def test_req357_a_hand_edited_result_is_refused(tmp_path):
     assert not (tmp_path / "page.html").exists()
 
 
-def test_req357_page_depends_only_on_the_results(tmp_path):
+def test_req357_page_depends_only_on_the_results(tmp_path: Any) -> None:
     """The same result files, in another folder, copied in another order: the same bytes;
     one result fewer: that row is gone."""
 
@@ -95,7 +96,7 @@ def test_req357_page_depends_only_on_the_results(tmp_path):
     assert "keller2014" not in t1
 
 
-def test_req357_every_number_on_the_page_comes_from_a_result():
+def test_req357_every_number_on_the_page_comes_from_a_result() -> None:
     docs = load_results(str(RESULTS))
     text = (DOCS / "leaderboard.html").read_text(encoding="utf-8")
     allowed = set()
@@ -111,7 +112,7 @@ def test_req357_every_number_on_the_page_comes_from_a_result():
     assert "http" not in text.split("</head>")[0].replace("http-equiv", "")
 
 
-def test_req353_report_holds_rules_and_projection_t1_t2():
+def test_req353_report_holds_rules_and_projection_t1_t2() -> None:
     """REQ-353 (also): the six published rules and the cross-projection test are in the
     first report, for T1 and T2 on the simulated core suite."""
 
@@ -135,7 +136,7 @@ def test_req353_report_holds_rules_and_projection_t1_t2():
 HIIE = "waits for the owner's HIIE decision (nothing public before it)"
 
 
-def test_req392_submission_format_is_documented():
+def test_req392_submission_format_is_documented() -> None:
     """REQ-392: the leaderboard accepts outside submissions in a documented format."""
 
     text = (DOCS / "SUBMITTING.md").read_text(encoding="utf-8")
@@ -153,7 +154,7 @@ def test_req392_submission_format_is_documented():
         assert needed in text, needed
 
 
-def test_req392_submission_ci_checks_the_results():
+def test_req392_submission_ci_checks_the_results() -> None:
     """REQ-392: the CI job ``benchmark-results`` checks every submitted result."""
 
     yaml = pytest.importorskip("yaml")
@@ -165,7 +166,7 @@ def test_req392_submission_ci_checks_the_results():
     assert "tools/benchmark_leaderboard.py --check" in commands
 
 
-def test_req392_an_entry_is_reproduced_by_one_command(tmp_path):
+def test_req392_an_entry_is_reproduced_by_one_command(tmp_path: Any) -> None:
     """REQ-392: ``evoparam benchmark run --task <t> --method <m>`` reproduces a published
     entry: exactly (same hashes and signature) when the simulated inputs are the same bytes,
     and within the cross-platform tolerance of REQ-295 (1e-9 relative on every metric) when
@@ -209,7 +210,7 @@ def test_req392_an_entry_is_reproduced_by_one_command(tmp_path):
 
 
 @pytest.mark.xfail(strict=True, reason=HIIE)
-def test_req392_benchmark_is_public_and_archived():
+def test_req392_benchmark_is_public_and_archived() -> None:
     """REQ-392: tasks, metrics, simulated sets and labels are versioned and archived in a
     public archive, and the leaderboard is public. Nothing is deposited or published before
     the owner's HIIE decision (REQ-019, REQ-398): no archive DOI is recorded."""

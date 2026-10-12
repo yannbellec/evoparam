@@ -11,6 +11,7 @@ up to one sample before the first fitted one) moved by up to 0.7 ms (one channel
 """
 
 import warnings
+from typing import Any
 
 import numpy as np
 
@@ -19,7 +20,7 @@ from evoparam.models import ResponseModel, evaluate_fit, fitted_peak
 SFREQ = 2048.0
 
 
-def _tail_fit():
+def _tail_fit() -> Any:
     rng = np.random.default_rng(3)
     times = np.arange(-0.5, 0.3, 1 / SFREQ)
     t = np.clip(times, 0, None)
@@ -37,7 +38,7 @@ def _tail_fit():
     return times, y, fit
 
 
-def test_background_time_origin_is_recorded():
+def test_background_time_origin_is_recorded() -> None:
 
     times, _, fit = _tail_fit()
     assert fit.status == "ok"
@@ -46,7 +47,7 @@ def test_background_time_origin_is_recorded():
     assert fit.background["t_ref"] == first
 
 
-def test_evaluate_fit_is_the_fitted_model_on_any_grid():
+def test_evaluate_fit_is_the_fitted_model_on_any_grid() -> None:
 
     times, y, fit = _tail_fit()
     w = (times >= fit.window[0]) & (times <= fit.window[1])
@@ -63,7 +64,7 @@ def test_evaluate_fit_is_the_fitted_model_on_any_grid():
     assert np.allclose(bg[times < times[w][0]], bg[w][0])
 
 
-def test_fitted_peak_is_the_trough_of_the_fitted_model():
+def test_fitted_peak_is_the_trough_of_the_fitted_model() -> None:
 
     times, _, fit = _tail_fit()
     peak = fitted_peak(fit, (0.009, 0.05))
@@ -73,7 +74,7 @@ def test_fitted_peak_is_the_trough_of_the_fitted_model():
     assert abs(peak["latency"] - times[w][j]) <= 1 / SFREQ
 
 
-def test_evaluate_fit_on_a_shared_fit():
+def test_evaluate_fit_on_a_shared_fit() -> None:
     """fit_shared kept the background's coefficients only (no time constant, no time
     origin): evaluate_fit failed on its channels (KeyError 'tau')."""
 

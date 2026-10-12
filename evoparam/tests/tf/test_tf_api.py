@@ -2,6 +2,7 @@
 """tf_fit options, edge cases, conditions, zone methods, comparisons and round trips."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -13,14 +14,16 @@ from evoparam.tests.tf.helpers import SFREQ, TIMES, ar1, burst, n1, trialset
 from evoparam.tf import tf_compare, tf_fit, tf_zones
 
 
-def _burst_set(seed=0, n=30, amp=10.0, channels=1, freq=80.0):
+def _burst_set(
+    seed: Any = 0, n: Any = 30, amp: Any = 10.0, channels: Any = 1, freq: Any = 80.0
+) -> Any:
     rng = np.random.default_rng(seed)
     data = ar1(rng, (n, channels, len(TIMES)))
     data[:, 0] += burst(rng, n, freq=freq, amp=amp)
     return trialset(data)
 
 
-def test_frequencies_above_sfreq_over_2_5_are_dropped():
+def test_frequencies_above_sfreq_over_2_5_are_dropped() -> None:
 
     ts = _burst_set()
     with pytest.warns(UserWarning, match="dropped"):
@@ -28,13 +31,13 @@ def test_frequencies_above_sfreq_over_2_5_are_dropped():
     assert np.all(tf.freqs <= SFREQ / 2.5)
 
 
-def test_full_epoch_zscore_is_undefined():
+def test_full_epoch_zscore_is_undefined() -> None:
 
     with pytest.raises(SettingsError, match="full_epoch"):
         tf_fit(_burst_set(), baseline_level="full_epoch", baseline_mode="zscore")
 
 
-def test_group_fit_on_another_channel_set_is_refused():
+def test_group_fit_on_another_channel_set_is_refused() -> None:
 
     ts = _burst_set(channels=2)
     with warnings.catch_warnings():
@@ -44,7 +47,7 @@ def test_group_fit_on_another_channel_set_is_refused():
         tf_fit(ts, group_fit=group)
 
 
-def test_cluster_with_few_trials_warns():
+def test_cluster_with_few_trials_warns() -> None:
 
     with pytest.warns(UserWarning, match="few distinct patterns"):
         tf_fit(_burst_set(n=8), stats="cluster", n_permutations=50, zones="none")
@@ -52,7 +55,7 @@ def test_cluster_with_few_trials_warns():
 
 @pytest.mark.parametrize("mode", ["db", "percent", "zscore", "logratio", "ratio"])
 @pytest.mark.parametrize("level", ["single_trial", "evoked", "full_epoch"])
-def test_every_normalisation_finds_the_burst(mode, level):
+def test_every_normalisation_finds_the_burst(mode: Any, level: Any) -> None:
 
     if level == "full_epoch" and mode == "zscore":
         pytest.skip("undefined")
@@ -74,7 +77,7 @@ def test_every_normalisation_finds_the_burst(mode, level):
     assert np.nanmean(tf.maps["total_norm"][0][box]) > centre
 
 
-def test_conditions_are_rows_and_zone_metrics_join_trials():
+def test_conditions_are_rows_and_zone_metrics_join_trials() -> None:
 
     rng = np.random.default_rng(5)
     data = ar1(rng, (40, 2, len(TIMES)))
@@ -94,7 +97,7 @@ def test_conditions_are_rows_and_zone_metrics_join_trials():
     assert tf.zones["p_value"].iloc[0] < 0.05
 
 
-def test_two_separate_bursts_give_two_zones_and_cp_agrees():
+def test_two_separate_bursts_give_two_zones_and_cp_agrees() -> None:
 
     rng = np.random.default_rng(2)
     n = 30
@@ -114,7 +117,7 @@ def test_two_separate_bursts_give_two_zones_and_cp_agrees():
     assert sorted(np.round(np.log2(cp_pos["freq_centroid"].iloc[:2] / 20.0))) == [0.0, 2.0]
 
 
-def test_null_data_gives_no_zones():
+def test_null_data_gives_no_zones() -> None:
 
     ts = trialset(ar1(np.random.default_rng(11), (30, len(TIMES))))
     tf = tf_fit(ts, freqs=(4, 250, 30), random_state=0)
@@ -122,7 +125,7 @@ def test_null_data_gives_no_zones():
     assert len(tf.zone_metrics) == 0
 
 
-def test_footprint_maps_and_residual_of_a_sharp_n1():
+def test_footprint_maps_and_residual_of_a_sharp_n1() -> None:
 
     rng = np.random.default_rng(4)
     ts = trialset(ar1(rng, (30, len(TIMES))) + n1()[None])
@@ -136,7 +139,7 @@ def test_footprint_maps_and_residual_of_a_sharp_n1():
     assert np.nanmax(np.abs(tf.maps["residual_t"][0][high])) < 6
 
 
-def test_compare_two_conditions():
+def test_compare_two_conditions() -> None:
 
     a = tf_fit(_burst_set(seed=1, channels=4, amp=12.0), zones="none", freqs=(4, 250, 20))
     rng = np.random.default_rng(9)
@@ -156,7 +159,7 @@ def test_compare_two_conditions():
         tf_compare(a, tf_fit(_burst_set(), zones="none", freqs=(4, 250, 10)))
 
 
-def test_tffit_round_trip(tmp_path):
+def test_tffit_round_trip(tmp_path: Any) -> None:
 
     from evoparam.data.serialize import load_object, save_object
 
@@ -171,7 +174,7 @@ def test_tffit_round_trip(tmp_path):
     )
 
 
-def test_zone_metrics_export_to_the_long_format():
+def test_zone_metrics_export_to_the_long_format() -> None:
 
     from evoparam.stats import to_long
 
@@ -183,13 +186,13 @@ def test_zone_metrics_export_to_the_long_format():
     assert len(values) == 31 * len(tf.zones)
 
 
-def _blob(freq_index, time_index, shape=(16, 60)):
+def _blob(freq_index: Any, time_index: Any, shape: Any = (16, 60)) -> Any:
     f = np.exp(-0.5 * ((np.arange(shape[0]) - freq_index) / 1.5) ** 2)
     t = np.exp(-0.5 * ((np.arange(shape[1]) - time_index) / 4.0) ** 2)
     return np.outer(f, t)
 
 
-def test_cp_rank_is_chosen_on_split_halves():
+def test_cp_rank_is_chosen_on_split_halves() -> None:
     """Spec §5.10 method 5: the CP rank by split-half stability, on halves of each row's
     trials (default) or of the rows (channels x conditions, the sample mode of the
     tensor). Two parts present in eight rows with

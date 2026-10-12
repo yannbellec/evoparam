@@ -5,6 +5,7 @@ the truth, and the environment switches."""
 import functools
 import os
 import pathlib
+from typing import Any
 
 import pytest
 
@@ -33,7 +34,7 @@ NETWORK = [
 ]
 
 
-def hidden_seeds_path():
+def hidden_seeds_path() -> Any:
     """The hidden seeds document, kept outside the repository: its path is given by
     ``EVOPARAM_BENCHMARK_HIDDEN_SEEDS`` (the tests that need it skip without it)."""
 
@@ -44,19 +45,19 @@ def hidden_seeds_path():
 
 
 @functools.cache
-def suite(name="core"):
+def suite(name: Any = "core") -> Any:
     return load_suite(name)
 
 
 @functools.cache
-def inputs(task, n=None):
+def inputs(task: Any, n: Any = None) -> Any:
     """The task inputs (with their truth) of the first ``n`` public cells of ``core``."""
 
     cells = suite("core").cells(task, split="public")[:n]
     return tuple(make_inputs(cell, tasks=[task])[task] for cell in cells)
 
 
-def perfect_t1(ti, p_value=1e-6):
+def perfect_t1(ti: Any, p_value: Any = 1e-6) -> Any:
     """T1 rows that give the true decision for every scored channel."""
 
     truth = ti.truth
@@ -73,7 +74,7 @@ def perfect_t1(ti, p_value=1e-6):
     ]
 
 
-def perfect_t2(ti, shift=0.0):
+def perfect_t2(ti: Any, shift: Any = 0.0) -> Any:
     """T2 rows with the true N1 of every true responder (latency shifted by ``shift``)."""
 
     return [

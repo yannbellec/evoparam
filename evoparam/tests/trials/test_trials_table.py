@@ -2,6 +2,7 @@
 """Trial table, modes, persistence and edge cases (REQ-157)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -16,7 +17,7 @@ from .helpers import channel_fit, gauss, simulate
 ###################################################################################################
 
 
-def test_req157_table_shape_flags_and_round_trip(tmp_path):
+def test_req157_table_shape_flags_and_round_trip(tmp_path: Any) -> None:
 
     meta = pd.DataFrame({"stim_site": ["A-B"] * 30, "index_in_train": np.arange(30)})
     ts, _, _ = simulate(n=30, channels=3, metadata=meta, seed=1)
@@ -40,7 +41,7 @@ def test_req157_table_shape_flags_and_round_trip(tmp_path):
 
 
 @pytest.mark.parametrize("mode", ["free", "template", "regularized"])
-def test_other_modes_run(mode):
+def test_other_modes_run(mode: Any) -> None:
 
     ts, shifts, _ = simulate(n=20, jitter=0.003, seed=2)
     with warnings.catch_warnings():
@@ -52,7 +53,7 @@ def test_other_modes_run(mode):
     assert np.corrcoef(fit.shift[:, 0], shifts)[0, 1] >= (0.35 if mode == "template" else 0.5)
 
 
-def test_realign_and_errors():
+def test_realign_and_errors() -> None:
 
     ts, _, _ = simulate(n=40, jitter=0.006, cv=0.0, fwhm=0.03, noise=3.0, seed=3)
     with warnings.catch_warnings():
@@ -75,7 +76,7 @@ def test_realign_and_errors():
         )
 
 
-def test_options_are_checked_and_recorded():
+def test_options_are_checked_and_recorded() -> None:
 
     ts, _, _ = simulate(n=20, jitter=0.003, seed=4)
     with warnings.catch_warnings():
@@ -91,7 +92,7 @@ def test_options_are_checked_and_recorded():
     assert np.isfinite(tf.fits[0].jitter_sd_null[0])
 
 
-def test_selected_trial_model_keeps_only_the_chosen_components():
+def test_selected_trial_model_keeps_only_the_chosen_components() -> None:
 
     ts, shifts, _ = simulate(n=30, jitter=0.003, seed=5)
     ts.data[:, 0] += 15 * gauss(0.2, 0.06)[None]  # a second, later component
@@ -111,7 +112,7 @@ def test_selected_trial_model_keeps_only_the_chosen_components():
 
 
 @pytest.mark.parametrize("anchored", [False, True])
-def test_vectorised_solver_matches_trial_by_trial_solver(anchored):
+def test_vectorised_solver_matches_trial_by_trial_solver(anchored: Any) -> None:
     """The shift_scale solver vectorised over trials reaches the minimum that the bounded
     least-squares solver of one trial reaches (same model, same bounds), with every
     component moving or with the first one only (trial_model="anchored")."""

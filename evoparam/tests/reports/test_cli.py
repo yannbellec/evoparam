@@ -7,13 +7,14 @@ import os
 import pathlib
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
 from evoparam.cli import main
 
 
-def _run(*args, cwd=None):
+def _run(*args: Any, cwd: Any = None) -> Any:
     return subprocess.run(
         [sys.executable, "-m", "evoparam", *args],
         capture_output=True,
@@ -24,7 +25,7 @@ def _run(*args, cwd=None):
 
 
 @pytest.fixture(scope="module")
-def dataset(tmp_path_factory):
+def dataset(tmp_path_factory: Any) -> Any:
     root = tmp_path_factory.mktemp("cli")
     proc = _run(
         "simulate",
@@ -45,7 +46,7 @@ def dataset(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def fitted(dataset):
+def fitted(dataset: Any) -> Any:
     out = dataset / "deriv"
     proc = _run(
         "fit",
@@ -63,7 +64,7 @@ def fitted(dataset):
     return proc, out
 
 
-def test_req345_fit_writes_the_derivatives(fitted):
+def test_req345_fit_writes_the_derivatives(fitted: Any) -> None:
 
     proc, out = fitted
     assert proc.returncode == 0, proc.stderr
@@ -88,7 +89,7 @@ def test_req345_fit_writes_the_derivatives(fitted):
     )
 
 
-def test_req345_cli_equals_python(fitted, dataset, tmp_path):
+def test_req345_cli_equals_python(fitted: Any, dataset: Any, tmp_path: Any) -> None:
 
     from evoparam import presets
     from evoparam.cli import run_fit
@@ -116,7 +117,7 @@ def test_req345_cli_equals_python(fitted, dataset, tmp_path):
             ), path
 
 
-def test_report_reproduce_migrate(fitted, tmp_path):
+def test_report_reproduce_migrate(fitted: Any, tmp_path: Any) -> None:
 
     _, out = fitted
     for fmt in ("html", "md", "pdf"):
@@ -131,7 +132,7 @@ def test_report_reproduce_migrate(fitted, tmp_path):
     assert proc.returncode == 0, proc.stderr
 
 
-def test_small_commands(capsys):
+def test_small_commands(capsys: Any) -> None:
 
     assert main(["--version"]) == 0
     assert "research use" in capsys.readouterr().out
@@ -144,7 +145,7 @@ def test_small_commands(capsys):
     assert json.loads(capsys.readouterr().out.splitlines()[-1])["result"]["evoparam"]
 
 
-def test_req323_exit_codes(fitted, tmp_path, monkeypatch, capsys):
+def test_req323_exit_codes(fitted: Any, tmp_path: Any, monkeypatch: Any, capsys: Any) -> None:
 
     _, out = fitted
     assert main(["fit"]) == 2  # usage
@@ -210,7 +211,7 @@ def test_req323_exit_codes(fitted, tmp_path, monkeypatch, capsys):
     assert main(["reproduce", str(copy)]) == 6
 
 
-def test_req323_partial_and_interrupted(fitted, monkeypatch, capsys):
+def test_req323_partial_and_interrupted(fitted: Any, monkeypatch: Any, capsys: Any) -> None:
     """Exit 3 with a channel whose fit failed, 130 when interrupted."""
 
     import dataclasses
@@ -273,7 +274,9 @@ def test_req323_partial_and_interrupted(fitted, monkeypatch, capsys):
     assert summary["status"] == "interrupted"
 
 
-def test_req322_single_file_default_preset_and_toml(dataset, tmp_path, capsys):
+def test_req322_single_file_default_preset_and_toml(
+    dataset: Any, tmp_path: Any, capsys: Any
+) -> None:
     """fit on one recording (its BIDS events.tsv next to it), no --preset (ccep for iEEG),
     options from a TOML file with a table for the command."""
 
@@ -318,7 +321,9 @@ def test_req322_single_file_default_preset_and_toml(dataset, tmp_path, capsys):
     )
 
 
-def test_req322_clean_writes_epochs_and_info_backends(dataset, tmp_path, capsys):
+def test_req322_clean_writes_epochs_and_info_backends(
+    dataset: Any, tmp_path: Any, capsys: Any
+) -> None:
 
     code = main(
         [
@@ -369,7 +374,7 @@ def test_req322_clean_writes_epochs_and_info_backends(dataset, tmp_path, capsys)
     )
 
 
-def test_req322_fit_on_a_fif_file(tmp_path, capsys):
+def test_req322_fit_on_a_fif_file(tmp_path: Any, capsys: Any) -> None:
 
     mne = pytest.importorskip("mne")
     from evoparam import sim

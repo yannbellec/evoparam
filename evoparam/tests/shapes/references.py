@@ -12,6 +12,7 @@ closed forms or the vectorised code of ``evoparam.shapes``.
 
 import math
 from types import SimpleNamespace
+from typing import Any
 
 MATH = SimpleNamespace(
     mpf=float,
@@ -27,7 +28,7 @@ MATH = SimpleNamespace(
 )
 
 
-def mp_backend(mpmath, dps=40):
+def mp_backend(mpmath: Any, dps: Any = 40) -> Any:
     """Backend on mpmath with ``dps`` decimal digits."""
 
     mpmath.mp.dps = dps
@@ -46,7 +47,7 @@ def mp_backend(mpmath, dps=40):
     )
 
 
-def _bisect(bk, positive_left, low, high):
+def _bisect(bk: Any, positive_left: Any, low: Any, high: Any) -> Any:
     """Root of a function that is positive left of the root on ``[low, high]``."""
 
     for _ in range(bk.bisections):
@@ -58,7 +59,7 @@ def _bisect(bk, positive_left, low, high):
     return (low + high) / 2
 
 
-def _max_abs(bk, curve, slope, low, high, n_scan):
+def _max_abs(bk: Any, curve: Any, slope: Any, low: Any, high: Any, n_scan: Any) -> Any:
     """Largest ``|curve|`` on ``[low, high]``: scan, then bisection on the slope."""
 
     step = (high - low) / n_scan
@@ -73,11 +74,11 @@ def _max_abs(bk, curve, slope, low, high, n_scan):
     return max(candidates)
 
 
-def gaussian(bk, mu, sigma):
+def gaussian(bk: Any, mu: Any, sigma: Any) -> Any:
     return lambda t: bk.exp(-(((t - mu) / sigma) ** 2) / 2)
 
 
-def skewed_gaussian(bk, xi, omega, alpha):
+def skewed_gaussian(bk: Any, xi: Any, omega: Any, alpha: Any) -> Any:
     def numerator(z):
         return bk.exp(-(z**2) / 2) * (1 + bk.erf(alpha * z / bk.sqrt(2)))
 
@@ -91,7 +92,7 @@ def skewed_gaussian(bk, xi, omega, alpha):
     return lambda t: numerator((t - xi) / omega) / norm
 
 
-def exgaussian(bk, mu, sigma, tau):
+def exgaussian(bk: Any, mu: Any, sigma: Any, tau: Any) -> Any:
     def h(x):
         return (
             (1 / (2 * tau))
@@ -109,7 +110,7 @@ def exgaussian(bk, mu, sigma, tau):
     return lambda t: h(t) / norm
 
 
-def gamma(bk, t0, kappa, theta):
+def gamma(bk: Any, t0: Any, kappa: Any, theta: Any) -> Any:
     def curve(t):
         if t <= t0:
             return bk.mpf(0)
@@ -120,7 +121,7 @@ def gamma(bk, t0, kappa, theta):
     return curve
 
 
-def biexponential(bk, t0, tau_rise, tau_decay):
+def biexponential(bk: Any, t0: Any, tau_rise: Any, tau_decay: Any) -> Any:
     def numerator(u):
         return bk.exp(-u / tau_decay) - bk.exp(-u / tau_rise)
 
@@ -131,7 +132,7 @@ def biexponential(bk, t0, tau_rise, tau_decay):
     return lambda t: numerator(t - t0) / norm if t > t0 else bk.mpf(0)
 
 
-def damped_oscillation(bk, t0, tau, freq, phase):
+def damped_oscillation(bk: Any, t0: Any, tau: Any, freq: Any, phase: Any) -> Any:
     omega = 2 * bk.pi * freq
 
     def curve(u):
@@ -146,7 +147,7 @@ def damped_oscillation(bk, t0, tau, freq, phase):
     return lambda t: curve(t - t0) / norm if t >= t0 else bk.mpf(0)
 
 
-def gabor(bk, t0, sigma, freq, phase):
+def gabor(bk: Any, t0: Any, sigma: Any, freq: Any, phase: Any) -> Any:
     omega = 2 * bk.pi * freq
 
     def curve(u):
@@ -163,7 +164,7 @@ def gabor(bk, t0, sigma, freq, phase):
     return lambda t: curve(t - t0) / norm
 
 
-def bspline(bk, knots, j, degree, t):
+def bspline(bk: Any, knots: Any, j: Any, degree: Any, t: Any) -> Any:
     """B-spline ``B_j`` of the given degree (Cox-de Boor recursion), right-open intervals."""
 
     if degree == 0:
@@ -188,7 +189,7 @@ SHAPES = {
 }
 
 
-def reference_curve(bk, name, times, params):
+def reference_curve(bk: Any, name: Any, times: Any, params: Any) -> Any:
     """Reference values of shape ``name`` at ``times`` (floats), returned as floats."""
 
     curve = SHAPES[name](bk, *[bk.mpf(float(p)) for p in params])

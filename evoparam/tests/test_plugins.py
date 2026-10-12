@@ -10,6 +10,7 @@ The dummy distribution of ``tests/plugins/evoparam_dummy`` is made visible to
 import os
 import shutil
 import sys
+from typing import Any
 
 import numpy as np
 import pytest
@@ -32,7 +33,12 @@ dummy = evoparam_dummy:read_dummy
 """
 
 
-def _install(site, name="evoparam_dummy", version="0.1.0", entry_points=ENTRY_POINTS):
+def _install(
+    site: Any,
+    name: Any = "evoparam_dummy",
+    version: Any = "0.1.0",
+    entry_points: Any = ENTRY_POINTS,
+) -> None:
     info = os.path.join(site, f"{name}-{version}.dist-info")
     os.makedirs(info, exist_ok=True)
     with open(os.path.join(info, "METADATA"), "w", encoding="utf-8") as fobj:
@@ -41,13 +47,13 @@ def _install(site, name="evoparam_dummy", version="0.1.0", entry_points=ENTRY_PO
         fobj.write(entry_points)
 
 
-def _reload():
+def _reload() -> None:
     for registry in (SHAPES, BACKGROUNDS, presets.PRESETS, READERS):
         registry.reload()
 
 
 @pytest.fixture
-def site(tmp_path, monkeypatch):
+def site(tmp_path: Any, monkeypatch: Any) -> Any:
     """A site folder on sys.path with the dummy package; registries reloaded after."""
 
     folder = tmp_path / "site"
@@ -62,14 +68,14 @@ def site(tmp_path, monkeypatch):
     _plugins.USED.clear()
 
 
-def test_without_plugins_the_registries_hold_the_builtins():
+def test_without_plugins_the_registries_hold_the_builtins() -> None:
 
     assert "lorentzian" not in SHAPES.builtin
     assert set(SHAPES.builtin) >= {"gaussian", "gamma"}
     assert "ccep" in presets.PRESETS.builtin
 
 
-def test_dummy_shape_preset_and_reader(site, tmp_path):
+def test_dummy_shape_preset_and_reader(site: Any, tmp_path: Any) -> None:
 
     _install(site)
     _reload()
@@ -118,7 +124,7 @@ def test_dummy_shape_preset_and_reader(site, tmp_path):
     assert trials.provenance.environment["plugins"]["dummy"] == origin
 
 
-def test_cli_info_lists_the_plugins(site, capsys):
+def test_cli_info_lists_the_plugins(site: Any, capsys: Any) -> None:
 
     import json
 
@@ -137,7 +143,7 @@ def test_cli_info_lists_the_plugins(site, capsys):
     assert "dummy_lorentz" in summary["result"]["presets"]
 
 
-def test_name_collisions_raise(site):
+def test_name_collisions_raise(site: Any) -> None:
 
     # with a built-in
     _install(site, entry_points="[evoparam.shapes]\ngaussian = evoparam_dummy:Lorentzian\n")
@@ -164,7 +170,7 @@ def test_name_collisions_raise(site):
         presets.PRESETS.reload()
 
 
-def test_bad_objects_are_refused(site):
+def test_bad_objects_are_refused(site: Any) -> None:
 
     _install(site, entry_points="[evoparam.presets]\nnot_a_preset = evoparam_dummy:read_dummy\n")
     with pytest.raises(SettingsError, match="not a Preset"):
@@ -177,7 +183,7 @@ def test_bad_objects_are_refused(site):
         SHAPES.reload()
 
 
-def test_plugins_can_be_disabled(site, monkeypatch):
+def test_plugins_can_be_disabled(site: Any, monkeypatch: Any) -> None:
 
     _install(site)
     monkeypatch.setenv("EVOPARAM_DISABLE_PLUGINS", "1")
@@ -188,7 +194,7 @@ def test_plugins_can_be_disabled(site, monkeypatch):
         presets.get("dummy_lorentz")
 
 
-def test_reproduce_reports_a_missing_plugin(site, tmp_path):
+def test_reproduce_reports_a_missing_plugin(site: Any, tmp_path: Any) -> None:
 
     import warnings
 

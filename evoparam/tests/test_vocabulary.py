@@ -12,6 +12,7 @@ import importlib
 import pathlib
 import pkgutil
 import re
+from typing import Any
 
 import pytest
 
@@ -39,7 +40,7 @@ TEXT_SUFFIXES = {
 }
 
 
-def prohibited_words():
+def prohibited_words() -> Any:
     """The first column of the table between the markers of CONTRIBUTING.md."""
 
     text = GUIDE.read_text(encoding="utf-8")
@@ -54,12 +55,12 @@ def prohibited_words():
 WORDS = prohibited_words()
 
 
-def pattern(word):
+def pattern(word: Any) -> Any:
     flags = 0 if word in CASE_SENSITIVE else re.IGNORECASE
     return re.compile(r"(?<![A-Za-z0-9_])" + re.escape(word) + r"(?![A-Za-z0-9_])", flags)
 
 
-def scanned_files():
+def scanned_files() -> Any:
     files = [ROOT / "README.rst", ROOT / "CITATION.cff", ROOT / "pyproject.toml"]
     for folder in ("evoparam", "docs", "examples", "tools", "benchmarks", "validation"):
         for path in sorted((ROOT / folder).rglob("*")):
@@ -75,7 +76,7 @@ def scanned_files():
     return [path for path in files if path.exists()]
 
 
-def test_the_style_guide_lists_the_words():
+def test_the_style_guide_lists_the_words() -> None:
     assert len(WORDS) >= 15
     for word in (
         "ERPparam",
@@ -90,7 +91,7 @@ def test_the_style_guide_lists_the_words():
         assert word in WORDS
 
 
-def test_req012_package_and_documentation():
+def test_req012_package_and_documentation() -> None:
     hits = []
     patterns = [(word, pattern(word)) for word in WORDS]
     for path in scanned_files():
@@ -107,7 +108,7 @@ def test_req012_package_and_documentation():
     assert not hits, "\n".join(hits)
 
 
-def test_req012_contributing_outside_the_list():
+def test_req012_contributing_outside_the_list() -> None:
     text = GUIDE.read_text(encoding="utf-8")
     outside = (
         text.split("<!-- prohibited-words -->")[0] + text.split("<!-- end-prohibited-words -->")[1]
@@ -116,7 +117,7 @@ def test_req012_contributing_outside_the_list():
     assert not hits
 
 
-def _public_modules():
+def _public_modules() -> Any:
     names = ["evoparam"]
     for info in pkgutil.walk_packages(evoparam.__path__, "evoparam."):
         parts = info.name.split(".")
@@ -126,7 +127,7 @@ def _public_modules():
     return names
 
 
-def test_req012_public_names():
+def test_req012_public_names() -> None:
     hits = []
     patterns = [(word, pattern(word)) for word in WORDS if " " not in word]
     for name in _public_modules():
@@ -146,7 +147,7 @@ def test_req012_public_names():
     assert not hits, hits
 
 
-def _parameters(obj):
+def _parameters(obj: Any) -> Any:
     import inspect
 
     if not callable(obj):

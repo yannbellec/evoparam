@@ -10,7 +10,7 @@ from evoparam import fit, presets, sim
 from evoparam.errors import SettingsError
 
 
-def test_targeted_measures_the_component_on_every_channel():
+def test_targeted_measures_the_component_on_every_channel() -> None:
 
     p3 = presets.targeted("erp", "P3", (0.3, 0.6), "positive")
     assert p3.name == "erp_P3"

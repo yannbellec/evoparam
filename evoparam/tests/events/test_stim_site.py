@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Stimulated-site identification (REQ-042, synthetic part)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -15,7 +17,9 @@ from .helpers import add_pulse, make_noise
 NAMES = [f"A{i:02d}" for i in range(1, 9)] + [f"B{i:02d}" for i in range(1, 9)] + ["MKR1+"]
 
 
-def bipolar_recording(pair, n_pulses=10, sfreq=2048.0, seed=0, marker=True):
+def bipolar_recording(
+    pair: Any, n_pulses: Any = 10, sfreq: Any = 2048.0, seed: Any = 0, marker: Any = True
+) -> Any:
     """Artifact of opposite sign on the two contacts of ``pair``, weaker copies elsewhere."""
 
     rng = np.random.default_rng(seed)
@@ -32,11 +36,11 @@ def bipolar_recording(pair, n_pulses=10, sfreq=2048.0, seed=0, marker=True):
     return data, onsets
 
 
-def table(onsets):
+def table(onsets: Any) -> Any:
     return pd.DataFrame({"onset_sample": onsets, "onset_time": onsets / 2048.0})
 
 
-def test_identifies_pair_with_confidence():
+def test_identifies_pair_with_confidence() -> None:
 
     data, onsets = bipolar_recording((2, 3))
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES)
@@ -45,7 +49,7 @@ def test_identifies_pair_with_confidence():
     assert (located["site_confidence"] > 0.5).all()
 
 
-def test_shaft_check_halves_confidence():
+def test_shaft_check_halves_confidence() -> None:
 
     data, onsets = bipolar_recording((7, 8))  # A08 and B01: different electrodes
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES)
@@ -57,7 +61,7 @@ def test_shaft_check_halves_confidence():
     assert (located["site_confidence"] > 0.5).all()
 
 
-def test_channel_types_exclude_non_neural():
+def test_channel_types_exclude_non_neural() -> None:
 
     data, onsets = bipolar_recording((2, 3))
     info = pd.DataFrame({"name": NAMES, "type": ["seeg"] * 16 + ["trig"]})
@@ -68,7 +72,7 @@ def test_channel_types_exclude_non_neural():
     assert located["stim_site_guess"].str.contains("MKR1+", regex=False).all()
 
 
-def test_unrecorded_contacts_give_low_confidence():
+def test_unrecorded_contacts_give_low_confidence() -> None:
 
     # The stimulating contacts are not in the recording: every channel sees the same copy
     rng = np.random.default_rng(3)
@@ -80,7 +84,7 @@ def test_unrecorded_contacts_give_low_confidence():
     assert (located["site_confidence"] < 0.5).all()
 
 
-def test_high_frequency_train_warns():
+def test_high_frequency_train_warns() -> None:
 
     data = make_noise(4, 1.0, 2048.0, dtype=np.float64)
     onsets = np.arange(100, 2000, 8)
@@ -89,7 +93,7 @@ def test_high_frequency_train_warns():
     assert (located["stim_site_guess"] == "").all()
 
 
-def test_vote_corrects_isolated_wrong_partner():
+def test_vote_corrects_isolated_wrong_partner() -> None:
 
     events = pd.DataFrame(
         {
@@ -115,15 +119,15 @@ def test_vote_corrects_isolated_wrong_partner():
 
 
 def held_recording(
-    pair=(2, 3),
-    step=300.0,
-    hold=True,
-    lead=True,
-    rail_neighbour=None,
-    n_pulses=6,
-    sfreq=2048.0,
-    seed=0,
-):
+    pair: Any = (2, 3),
+    step: Any = 300.0,
+    hold: Any = True,
+    lead: Any = True,
+    rail_neighbour: Any = None,
+    n_pulses: Any = 6,
+    sfreq: Any = 2048.0,
+    seed: Any = 0,
+) -> Any:
     """Common-reference artifact on every contact, and a stimulating pair that the
     amplifier holds and/or that moves before the common artifact (as on ds004080).
 
@@ -154,7 +158,7 @@ def held_recording(
     return data, onsets
 
 
-def test_held_and_leading_contacts_win_over_larger_artifacts():
+def test_held_and_leading_contacts_win_over_larger_artifacts() -> None:
 
     data, onsets = held_recording(rail_neighbour=4)
     names = NAMES[:16]
@@ -171,7 +175,7 @@ def test_held_and_leading_contacts_win_over_larger_artifacts():
 
 
 @pytest.mark.parametrize(("hold", "lead"), [(True, False), (False, True)])
-def test_held_or_leading_contacts_alone(hold, lead):
+def test_held_or_leading_contacts_alone(hold: Any, lead: Any) -> None:
 
     data, onsets = held_recording(hold=hold, lead=lead)
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES[:16])
@@ -185,7 +189,7 @@ def test_held_or_leading_contacts_alone(hold, lead):
     assert not (plain["stim_site_guess"] == "A03-A04").any()
 
 
-def test_saturated_neighbour_and_dead_channel_are_not_chosen():
+def test_saturated_neighbour_and_dead_channel_are_not_chosen() -> None:
 
     # Without lead, the pair (held) and the saturated neighbour (held) tie on evidence;
     # the neighbour's larger artifact wins, but at low confidence.
@@ -196,7 +200,7 @@ def test_saturated_neighbour_and_dead_channel_are_not_chosen():
     assert (located["site_confidence"] < 0.5).all()
 
 
-def test_detect_pulses_fills_site_columns():
+def test_detect_pulses_fills_site_columns() -> None:
 
     data, onsets = bipolar_recording((10, 11))
     events = detect_pulses(data, 2048.0, ch_names=NAMES)
@@ -204,7 +208,7 @@ def test_detect_pulses_fills_site_columns():
     assert "stim_site_pulse" in events.columns
 
 
-def test_contact_group():
+def test_contact_group() -> None:
 
     assert contact_group("PT01") == "PT"
     assert contact_group("LA'12") == "LA'"
@@ -212,7 +216,7 @@ def test_contact_group():
     assert contact_group("Cz") == "Cz"
 
 
-def _reviewed_rule(data, onset, sfreq, index, group=None):
+def _reviewed_rule(data: Any, onset: Any, sfreq: Any, index: Any, group: Any = None) -> Any:
     """Spec §5.2 method 5 as reviewed, written out independently: a_c, ranking, margin."""
 
     ref = data[index, onset - int(round(0.002 * sfreq))]
@@ -233,7 +237,7 @@ def _reviewed_rule(data, onset, sfreq, index, group=None):
 
 
 @pytest.mark.parametrize("pair", [(2, 3), (7, 8)])
-def test_reviewed_spec_rule_is_available(pair):
+def test_reviewed_spec_rule_is_available(pair: Any) -> None:
     """F60: method="spec" is the rule of the reviewed spec (§5.2 method 5): reference at
     -2 ms, |t| <= 1 ms, confidence (a_1 - a_3) / a_1, halved by the polarity check and,
     with ch_info.group only, by the shaft check."""
@@ -259,7 +263,7 @@ def test_reviewed_spec_rule_is_available(pair):
     assert len(events) == len(onsets)
 
 
-def test_unknown_site_method_raises():
+def test_unknown_site_method_raises() -> None:
 
     from evoparam.errors import SettingsError
 
@@ -268,7 +272,7 @@ def test_unknown_site_method_raises():
         identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES, method="other")
 
 
-def test_pair_at_the_amplifier_range_wins_over_quiet_channels(monkeypatch):
+def test_pair_at_the_amplifier_range_wins_over_quiet_channels(monkeypatch: Any) -> None:
 
     # Mayo recordings: the stimulating pair reaches the amplifier's range (clipped), while
     # two very quiet contacts have the largest artifact relative to their noise.
@@ -293,7 +297,7 @@ def test_pair_at_the_amplifier_range_wins_over_quiet_channels(monkeypatch):
     assert (plain["stim_site_guess"] == "B01-B02").all()
 
 
-def test_silent_pair_switched_to_the_stimulator():
+def test_silent_pair_switched_to_the_stimulator() -> None:
 
     # ds004977: the stimulating contacts are disconnected from the amplifier (almost no
     # noise, no artifact); the largest artifact is on the contacts next to them.

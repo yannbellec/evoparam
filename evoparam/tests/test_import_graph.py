@@ -18,6 +18,7 @@ import pathlib
 import re
 import sys
 from collections import defaultdict
+from typing import Any
 
 import pytest
 
@@ -155,7 +156,7 @@ OPTIONAL_IMPORTS = {
 HARD = {"numpy", "scipy", "evoparam", "__future__"}
 
 
-def _module_name(path):
+def _module_name(path: Any) -> Any:
     rel = path.relative_to(PACKAGE).with_suffix("")
     parts = list(rel.parts)
     if parts[-1] == "__init__":
@@ -163,7 +164,7 @@ def _module_name(path):
     return ["evoparam"] + parts
 
 
-def _imports(path, source=None):
+def _imports(path: Any, source: Any = None) -> Any:
     """Dotted names imported by a file; ``from a import b`` yields ``a.b`` so that a
     submodule imported from its package is seen."""
 
@@ -184,7 +185,7 @@ def _imports(path, source=None):
                 yield ".".join(module + [alias.name])
 
 
-def _target(dotted):
+def _target(dotted: Any) -> Any:
     """Top-level module of the package that a dotted import reaches (``__init__`` for the
     package root itself), or None outside the package."""
 
@@ -196,16 +197,16 @@ def _target(dotted):
     return "__init__"
 
 
-def _source(path):
+def _source(path: Any) -> Any:
     rel = path.relative_to(PACKAGE)
     return rel.parts[0][:-3] if len(rel.parts) == 1 else rel.parts[0]
 
 
-def _files():
+def _files() -> Any:
     return [p for p in sorted(PACKAGE.rglob("*.py")) if p.relative_to(PACKAGE).parts[0] != "tests"]
 
 
-def _edges(sources=None):
+def _edges(sources: Any = None) -> Any:
     """{(source module, file): {(target module, dotted import)}}; ``sources`` maps a file to
     replacement text (used by the mutation check)."""
 
@@ -220,7 +221,7 @@ def _edges(sources=None):
     return edges
 
 
-def _violations(edges):
+def _violations(edges: Any) -> Any:
     out = []
     for (source, rel_path), targets in edges.items():
         if source not in RULES:
@@ -249,7 +250,7 @@ def _violations(edges):
     return sorted(out)
 
 
-def _cycle(edges):
+def _cycle(edges: Any) -> Any:
     graph = defaultdict(set)
     for (source, _), targets in edges.items():
         for dest, _ in targets:
@@ -278,25 +279,25 @@ def _cycle(edges):
     return None
 
 
-def test_every_module_is_in_the_table():
+def test_every_module_is_in_the_table() -> None:
     assert set(MODULES) | {"__init__"} <= set(RULES), sorted(set(MODULES) - set(RULES))
 
 
-def test_edges_follow_spec_table():
+def test_edges_follow_spec_table() -> None:
     """(i) no edge outside the resolved table of §4.2, no module exempt."""
 
     violations = _violations(_edges())
     assert not violations, "imports not allowed by spec §4.2:\n" + "\n".join(violations)
 
 
-def test_no_cycles():
+def test_no_cycles() -> None:
     """(ii) the module graph has no cycle."""
 
     cycle = _cycle(_edges())
     assert cycle is None, "import cycle: " + " -> ".join(cycle)
 
 
-def _top_level_imports(tree):
+def _top_level_imports(tree: Any) -> Any:
     """Imports executed when the module is imported: module and class bodies, including
     ``try``/``if`` blocks, except ``if TYPE_CHECKING:``; function bodies are skipped."""
 
@@ -323,7 +324,7 @@ def _top_level_imports(tree):
     yield from walk(tree.body)
 
 
-def _optional_top_level(sources=None):
+def _optional_top_level(sources: Any = None) -> Any:
     sources = sources or {}
     stdlib = set(sys.stdlib_module_names)
     found = []
@@ -336,14 +337,14 @@ def _optional_top_level(sources=None):
     return found
 
 
-def test_no_top_level_import_of_optional_packages():
+def test_no_top_level_import_of_optional_packages() -> None:
     """(iii) optional packages are imported inside functions only (REQ-296, REQ-292)."""
 
     found = _optional_top_level()
     assert not found, "top-level imports of optional packages:\n" + "\n".join(found)
 
 
-def test_mutation_forbidden_import_is_detected():
+def test_mutation_forbidden_import_is_detected() -> None:
     """REQ-296 mutation check: ``import evoparam.models`` added to shapes/__init__.py, or
     ``from evoparam import models`` (the form the earlier test missed), makes the test fail;
     so do a cycle and a top-level ``import pandas``."""
@@ -370,7 +371,7 @@ def test_mutation_forbidden_import_is_detected():
     assert any("import pandas" in f for f in _optional_top_level({init: guarded}))
 
 
-def test_light_core_import_pulls_no_optional_package():
+def test_light_core_import_pulls_no_optional_package() -> None:
     """REQ-010 / F66: ``import evoparam`` loads no optional package and nothing of the
     inherited code (removed, spec §4.5 and §12 rule 1)."""
 
@@ -396,7 +397,7 @@ def test_light_core_import_pulls_no_optional_package():
         assert not hasattr(evoparam, name), name
 
 
-def test_resolved_table_matches_decisions():
+def test_resolved_table_matches_decisions() -> None:
     """docs/spec/DECISIONS.md lists the same resolved table (D3/D4/D5)."""
 
     if not DECISIONS.is_file():
@@ -420,7 +421,7 @@ def test_resolved_table_matches_decisions():
         assert table.get(name) == allowed, (name, table.get(name), allowed)
 
 
-def test_sim_does_not_reach_the_fitter():
+def test_sim_does_not_reach_the_fitter() -> None:
     """REQ-254: nothing that evoparam.sim imports, directly or through other modules, is a
     fitting engine, so the ground truth cannot depend on the estimator."""
 
@@ -466,7 +467,7 @@ def test_sim_does_not_reach_the_fitter():
     assert "data" in modules
 
 
-def test_stats_is_below_hierarchical():
+def test_stats_is_below_hierarchical() -> None:
     """Spec §4.2: hierarchical imports stats (variance components), never the reverse, and
     stats does not reach the trial-level module."""
 
@@ -481,7 +482,7 @@ def test_stats_is_below_hierarchical():
             assert source in {"hierarchical", "__init__"} | TOP, source
 
 
-def test_spatial_reaches_shapes_and_prep_through_models():
+def test_spatial_reaches_shapes_and_prep_through_models() -> None:
     """evoparam.spatial imports data, models and utils only (spec §4.2)."""
 
     dests = {

@@ -15,6 +15,7 @@ import os
 import pickle
 import re
 import warnings
+from typing import Any
 
 import pytest
 
@@ -30,14 +31,14 @@ SESSION, PROBE = "739448407", "757968489"
 API = "https://api.dandiarchive.org/api"
 
 
-def _s3(asset):
+def _s3(asset: Any) -> Any:
     from evoparam.io._fetch import fetch_bytes
 
     meta = json.loads(fetch_bytes(f"{API}/assets/{asset}/"))
     return [u for u in meta["contentUrl"] if "s3" in u][0]
 
 
-def _trials():
+def _trials() -> Any:
     import h5py
     import pandas as pd
     import remfile
@@ -72,7 +73,7 @@ def _trials():
     return trials
 
 
-def test_req278_visual_evoked_complex_on_visual_cortex():
+def test_req278_visual_evoked_complex_on_visual_cortex() -> None:
 
     from evoparam.existence import test_response
     from evoparam.models import fit

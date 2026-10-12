@@ -6,6 +6,7 @@ import importlib
 import os
 import sys
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -17,12 +18,12 @@ from evoparam.tests.hierarchical.helpers import auc, merged, reliability_slope, 
 SLOW = os.environ.get("EVOPARAM_SLOW_TESTS") == "1"
 
 
-def _fit(sets, **kwargs):
+def _fit(sets: Any, **kwargs: Any) -> Any:
     return fit_hierarchical(sets, components=["N1"], n_jobs=-1, **kwargs)
 
 
 @pytest.fixture(scope="module")
-def reference():
+def reference() -> Any:
     """20 subjects x 50 channels x 20 trials, 30 % responding (spec REQ-170)."""
 
     sets, truth = simulate_group(
@@ -33,7 +34,7 @@ def reference():
     return fit, truth, time.perf_counter() - start
 
 
-def test_req170_p_response_discriminates_and_is_calibrated(reference):
+def test_req170_p_response_discriminates_and_is_calibrated(reference: Any) -> None:
 
     fit, truth, _ = reference
     m = merged(fit, truth)
@@ -42,7 +43,7 @@ def test_req170_p_response_discriminates_and_is_calibrated(reference):
     assert 0.8 <= reliability_slope(m["p_response"], m["respond"]) <= 1.2
 
 
-def test_level_tables_and_summary(reference):
+def test_level_tables_and_summary(reference: Any) -> None:
 
     fit, truth, _ = reference
     assert set(fit.level_tables) == {"trial", "channel", "subject", "group"}
@@ -66,7 +67,7 @@ def test_level_tables_and_summary(reference):
         posterior_summary(fit, "nope")
 
 
-def _rmse_pair(seed, snr):
+def _rmse_pair(seed: Any, snr: Any) -> Any:
     sets, truth = simulate_group(
         n_subjects=4, n_channels=20, n_trials=20, p_respond=0.6, snr=snr, seed=seed
     )
@@ -78,7 +79,7 @@ def _rmse_pair(seed, snr):
 
 
 @pytest.fixture(scope="module")
-def rmse_pairs():
+def rmse_pairs() -> Any:
     runs = 20 if SLOW else 6
     return np.array([_rmse_pair(100 + s, 1.5) for s in range(runs)])
 
@@ -91,13 +92,13 @@ def rmse_pairs():
     "wins on 86 % of them (DECISIONS 5.6); wording pending, see CHANGELOG",
     strict=False,
 )
-def test_req171_shrunken_latencies_beat_the_channel_fits(rmse_pairs):
+def test_req171_shrunken_latencies_beat_the_channel_fits(rmse_pairs: Any) -> None:
 
     raw, eb = rmse_pairs.T
     assert np.mean(eb < raw) >= 0.9
 
 
-def test_req171_shrunken_latencies_are_better_on_average(rmse_pairs):
+def test_req171_shrunken_latencies_are_better_on_average(rmse_pairs: Any) -> None:
     """Proposed wording of REQ-171 (written after the measures above): over the datasets,
     the RMSE of the EB latencies is below that of the channel fits."""
 
@@ -105,7 +106,7 @@ def test_req171_shrunken_latencies_are_better_on_average(rmse_pairs):
     assert np.sqrt(np.mean(eb**2)) < np.sqrt(np.mean(raw**2))
 
 
-def _variance_case(seed):
+def _variance_case(seed: Any) -> Any:
     sets, truth = simulate_group(
         n_subjects=6, n_channels=30, n_trials=20, p_respond=0.5, snr=3.0, seed=seed, jitter=0.003
     )
@@ -122,7 +123,7 @@ def _variance_case(seed):
     return sd_amp / true_amp, sd_jit / 0.003
 
 
-def test_req172_variance_components_by_eb():
+def test_req172_variance_components_by_eb() -> None:
 
     runs = 20 if SLOW else 5
     ratios = np.array([_variance_case(200 + s) for s in range(runs)])
@@ -130,7 +131,7 @@ def test_req172_variance_components_by_eb():
     assert within.mean() >= 0.9
 
 
-def _age_case(seed):
+def _age_case(seed: Any) -> Any:
     sets, truth = simulate_group(
         n_subjects=20,
         n_channels=10,
@@ -145,14 +146,14 @@ def _age_case(seed):
     return row["ci_low"] <= 0.0002 <= row["ci_high"], row
 
 
-def test_req175_formula_effect_is_covered():
+def test_req175_formula_effect_is_covered() -> None:
 
     runs = 20 if SLOW else 5
     covered = [_age_case(300 + s)[0] for s in range(runs)]
     assert np.mean(covered) >= 0.9 if SLOW else np.mean(covered) >= 0.8
 
 
-def test_formula_errors():
+def test_formula_errors() -> None:
 
     sets, _ = simulate_group(n_subjects=2, n_channels=4, n_trials=6, seed=1)
     with pytest.raises(SettingsError, match="'handedness'"):
@@ -161,7 +162,7 @@ def test_formula_errors():
         fit_hierarchical(sets, formula="power ~ age")
 
 
-def test_req176_eb_model_time_per_subject(reference):
+def test_req176_eb_model_time_per_subject(reference: Any) -> None:
 
     fit, _, _ = reference
     # the model itself (given the channel and trial fits) takes a small part of the time
@@ -173,13 +174,13 @@ def test_req176_eb_model_time_per_subject(reference):
     reason="set EVOPARAM_PERF_TESTS=1 to time the whole fit (the shared CI "
     "runners are about twice as slow as the reference machine)",
 )
-def test_req176_eb_time_per_subject(reference):
+def test_req176_eb_time_per_subject(reference: Any) -> None:
 
     _, _, duration = reference
     assert duration / 20 <= 10
 
 
-def test_req177_no_new_dependency_for_eb(monkeypatch):
+def test_req177_no_new_dependency_for_eb(monkeypatch: Any) -> None:
 
     for name in ("numpyro", "pymc", "jax"):
         monkeypatch.setitem(sys.modules, name, None)
@@ -191,7 +192,7 @@ def test_req177_no_new_dependency_for_eb(monkeypatch):
     importlib.reload(importlib.import_module("evoparam.hierarchical"))
 
 
-def test_one_subject_drops_the_subject_level():
+def test_one_subject_drops_the_subject_level() -> None:
 
     sets, truth = simulate_group(
         n_subjects=1, n_channels=20, n_trials=15, p_respond=0.6, snr=2.0, seed=4
@@ -202,7 +203,7 @@ def test_one_subject_drops_the_subject_level():
     assert "subject" not in set(fit.variance_components["level"])
 
 
-def test_channel_with_few_trusted_trials_is_prior_dominated():
+def test_channel_with_few_trusted_trials_is_prior_dominated() -> None:
 
     sets, truth = simulate_group(
         n_subjects=3, n_channels=10, n_trials=20, p_respond=1.0, snr=3.0, seed=5
@@ -223,7 +224,7 @@ def test_channel_with_few_trusted_trials_is_prior_dominated():
         assert row["latency_shrinkage"] == 0.0
 
 
-def test_single_trialset_with_subject_column():
+def test_single_trialset_with_subject_column() -> None:
 
     import pandas as pd
 
@@ -244,7 +245,7 @@ def test_single_trialset_with_subject_column():
     assert fit.settings["subjects"] == ["sub00", "sub01"]
 
 
-def test_round_trip(tmp_path):
+def test_round_trip(tmp_path: Any) -> None:
 
     from evoparam.data.serialize import load_object, save_object
 
@@ -258,7 +259,7 @@ def test_round_trip(tmp_path):
     np.testing.assert_allclose(back.effects["estimate"], fit.effects["estimate"])
 
 
-def test_latency_standard_error_adds_jitter_and_truncates_to_the_window():
+def test_latency_standard_error_adds_jitter_and_truncates_to_the_window() -> None:
 
     from evoparam.hierarchical.eb import latency_standard_error
 

@@ -2,6 +2,8 @@
 """The lean trust-region reflective optimiser of the engine (models/_trf.py) takes the steps of
 scipy.optimize.least_squares(method="trf", x_scale="jac"): the same iterates, to rounding."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 from scipy.optimize import least_squares
@@ -12,7 +14,7 @@ from evoparam.models._trf import least_squares_trf
 ###################################################################################################
 
 
-def _problem(seed):
+def _problem(seed: Any) -> Any:
     """Two Gaussians and an exponential tail on 400 samples, bounded parameters."""
 
     rng = np.random.default_rng(seed)
@@ -50,7 +52,7 @@ def _problem(seed):
 
 @pytest.mark.parametrize("seed", range(6))
 @pytest.mark.parametrize("tol", [1e-8, 1e-4])
-def test_same_iterates_as_scipy(seed, tol):
+def test_same_iterates_as_scipy(seed: Any, tol: Any) -> None:
 
     fun, jac, x0, lower, upper = _problem(seed)
     ref = least_squares(
@@ -84,7 +86,7 @@ def test_same_iterates_as_scipy(seed, tol):
         assert np.isclose(cost, ref.cost, rtol=1e-12)
 
 
-def test_errors_as_scipy():
+def test_errors_as_scipy() -> None:
 
     fun, jac, x0, lower, upper = _problem(0)
     with pytest.raises(ValueError, match="outside of provided bounds"):

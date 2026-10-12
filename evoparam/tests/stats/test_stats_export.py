@@ -4,6 +4,7 @@
 import importlib.util
 import json
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -23,7 +24,7 @@ HAS_STATSMODELS = importlib.util.find_spec("statsmodels") is not None
 ###################################################################################################
 
 
-def _group_fit():
+def _group_fit() -> Any:
     """Fits of a simulated recording, plus a failed and a skipped channel."""
 
     comps = [
@@ -73,11 +74,11 @@ def _group_fit():
     return GroupFit.from_fits(fits, names, settings=fit.settings, provenance=fit.provenance)
 
 
-def _scalar(value):
+def _scalar(value: Any) -> Any:
     return not isinstance(value, (list, tuple, dict, set, np.ndarray, pd.DataFrame, pd.Series))
 
 
-def test_req235_long_table():
+def test_req235_long_table() -> None:
 
     group = _group_fit()
     long = to_long(group, units="uV", metadata={"subject": "01"})
@@ -116,7 +117,7 @@ def test_req235_long_table():
     assert long.attrs["provenance"]["steps"][-1]["function"] == "evoparam.stats.to_long"
 
 
-def test_req235_wide_table_and_other_results():
+def test_req235_wide_table_and_other_results() -> None:
 
     group = _group_fit()
     wide = to_long(group, wide=True, units="uV")
@@ -183,7 +184,7 @@ def test_req235_wide_table_and_other_results():
         to_long(42)
 
 
-def test_column_dictionary_unknown_columns():
+def test_column_dictionary_unknown_columns() -> None:
 
     table = pd.DataFrame({"channel": ["A"], "my_score": [1.0]})
     table.attrs["units"] = {"my_score": "uV"}
@@ -236,7 +237,7 @@ FORMULA_CASES = [
 ]
 
 
-def _formula_table():
+def _formula_table() -> Any:
     rng = np.random.default_rng(0)
     n = 240
     subject = np.repeat([f"s{i}" for i in range(12)], 20)
@@ -263,7 +264,7 @@ def _formula_table():
 
 
 @pytest.mark.parametrize(("case", "expected"), FORMULA_CASES)
-def test_req236_frozen_templates(case, expected):
+def test_req236_frozen_templates(case: Any, expected: Any) -> None:
 
     table = _formula_table()
     for engine, text in expected.items():
@@ -278,7 +279,7 @@ def test_req236_frozen_templates(case, expected):
     "package statsmodels (extra 'stats') is not installed",
 )
 @pytest.mark.parametrize(("case", "expected"), FORMULA_CASES)
-def test_req236_statsmodels_parses(case, expected):  # noqa: ARG001  (shared parametrization; this test checks parsing only)
+def test_req236_statsmodels_parses(case: Any, expected: Any) -> None:  # noqa: ARG001  (shared parametrization; this test checks parsing only)
 
     import statsmodels.formula.api as smf
 
@@ -293,13 +294,13 @@ def test_req236_statsmodels_parses(case, expected):  # noqa: ARG001  (shared par
 
 
 @pytest.mark.skipif(HAS_STATSMODELS, reason="statsmodels is installed")
-def test_fit_mixed_names_the_extra():
+def test_fit_mixed_names_the_extra() -> None:
 
     with pytest.raises(ImportError, match=r"evoparam\[stats\]"):
         fit_mixed(_formula_table(), "value ~ 1", "subject")
 
 
-def test_formula_errors():
+def test_formula_errors() -> None:
 
     table = _formula_table()
     with pytest.raises(SettingsError, match="missing"):
@@ -310,7 +311,7 @@ def test_formula_errors():
         mixed_formula(table, response="value", fixed=[], groups=["subject"], engine="nlme")
 
 
-def test_req237_status_counts():
+def test_req237_status_counts() -> None:
 
     group = _group_fit()
     table = group.to_dataframe()

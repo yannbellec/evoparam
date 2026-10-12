@@ -9,6 +9,7 @@ and ``func(data, **settings)`` gives the same result again.
 import dataclasses
 import json
 import warnings
+from typing import Any
 
 import pytest
 
@@ -18,7 +19,7 @@ from evoparam.errors import EvoparamVersionError
 
 
 @pytest.fixture(scope="module")
-def fitted():
+def fitted() -> Any:
     with pytest.MonkeyPatch.context() as patch:
         # a fixed clock, so that the two provenance records can be compared whole
         patch.setenv("SOURCE_DATE_EPOCH", "1767225600")
@@ -33,7 +34,7 @@ def fitted():
     return trials, group, again
 
 
-def _without_overrides(group):
+def _without_overrides(group: Any) -> Any:
     """The GroupFit with every ``_overrides`` entry removed (settings of the group, of each
     fit and of the provenance steps): the keys typed by the user differ between the two
     calls by construction (one key, then all of them); everything else must be equal."""
@@ -57,7 +58,7 @@ def _without_overrides(group):
     )
 
 
-def test_settings_log(fitted):
+def test_settings_log(fitted: Any) -> None:
 
     trials, group, again = fitted
     settings = group.settings
@@ -81,7 +82,7 @@ def test_settings_log(fitted):
     assert again.to_dataframe("component").equals(group.to_dataframe("component"))
 
 
-def test_overrides_name_only_what_the_user_set(fitted):
+def test_overrides_name_only_what_the_user_set(fitted: Any) -> None:
 
     trials, group, _ = fitted
     with warnings.catch_warnings():
@@ -95,7 +96,7 @@ def test_overrides_name_only_what_the_user_set(fitted):
     assert two.settings["_changed_from_preset"] == ["max_components", "n_starts"]
 
 
-def test_recorded_preset_version_is_checked(fitted):
+def test_recorded_preset_version_is_checked(fitted: Any) -> None:
 
     trials, group, _ = fitted
     settings = {k: v for k, v in group.settings.items() if not k.startswith("_")}

@@ -12,6 +12,7 @@ such a pair is not identifiable.
 """
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -27,7 +28,7 @@ CASES = [
 ]
 
 
-def _case(kind, preset, channel, seed, **settings):
+def _case(kind: Any, preset: Any, channel: Any, seed: Any, **settings: Any) -> Any:
     from evoparam.sim import simulate_ecap
 
     ts, truth = simulate_ecap(40, kind=kind, artifact=False, seed=seed, tmax=0.0035)
@@ -39,7 +40,7 @@ def _case(kind, preset, channel, seed, **settings):
     return result, table.drop_duplicates("component")
 
 
-def _cancelling(result, overlap_c=0.5):
+def _cancelling(result: Any, overlap_c: Any = 0.5) -> Any:
     comps = result.components
     for i, a in enumerate(comps):
         for b in comps[i + 1 :]:
@@ -50,7 +51,7 @@ def _cancelling(result, overlap_c=0.5):
 
 
 @pytest.mark.parametrize(("kind", "preset", "channel", "seed"), CASES)
-def test_no_cancelling_pair_on_clean_ecap(kind, preset, channel, seed):
+def test_no_cancelling_pair_on_clean_ecap(kind: Any, preset: Any, channel: Any, seed: Any) -> None:
     """No overlapping opposite-sign pair, and no amplitude inflated beyond 1.5 times the
     largest true amplitude of the channel."""
 
@@ -61,7 +62,7 @@ def test_no_cancelling_pair_on_clean_ecap(kind, preset, channel, seed):
     assert all(abs(c.amplitude) <= 1.5 * largest for c in result.components)
 
 
-def test_the_defect_is_reproduced_without_the_rule():
+def test_the_defect_is_reproduced_without_the_rule() -> None:
     """With the rule off (``reject_cancelling=False``), no reseeding (``reseed=False``, the
     engine's default repair, which the ``ecap_ci`` preset runs on every fit) and origin/main's
     free latencies (``latency_order="sorted"``) the defect of the first case comes back: the

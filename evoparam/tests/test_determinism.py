@@ -6,6 +6,7 @@ saved files under a fixed clock."""
 import hashlib
 import os
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -19,11 +20,11 @@ pytest.importorskip("pandas")
 
 
 @pytest.fixture(autouse=True)
-def fixed_clock(monkeypatch):
+def fixed_clock(monkeypatch: Any) -> None:
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1767225600")
 
 
-def _trials():
+def _trials() -> Any:
     trials, _ = sim.simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=4)
     return trials
 
@@ -48,7 +49,7 @@ CHAIN = {
 }
 
 
-def _digest(obj, folder):
+def _digest(obj: Any, folder: Any) -> Any:
     if hasattr(obj, "to_csv"):  # a table
         return hashlib.sha256(obj.to_csv(index=False).encode()).hexdigest()
     path = save_object(obj, os.path.join(folder, "obj.evoparam"))
@@ -61,7 +62,7 @@ def _digest(obj, folder):
 
 
 @pytest.mark.parametrize("step", sorted(CHAIN))
-def test_req013_identical_outputs(step, tmp_path):
+def test_req013_identical_outputs(step: Any, tmp_path: Any) -> None:
     ts = _trials()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -72,7 +73,7 @@ def test_req013_identical_outputs(step, tmp_path):
     assert _digest(first, str(tmp_path / "a")) == _digest(second, str(tmp_path / "b"))
 
 
-def test_req013_parallel_fit_equals_serial():
+def test_req013_parallel_fit_equals_serial() -> None:
     ts = _trials()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -81,7 +82,7 @@ def test_req013_parallel_fit_equals_serial():
     assert serial.equals(parallel)
 
 
-def test_req013_different_seeds_differ_where_randomness_is_used():
+def test_req013_different_seeds_differ_where_randomness_is_used() -> None:
     ts = _trials()
     kwargs = {"window": (0.009, 0.5), "baseline": (-0.5, -0.05), "by": (), "n_permutations": 200}
     a = evoparam.test_response(ts, random_state=0, **kwargs)
@@ -95,7 +96,7 @@ def test_req013_different_seeds_differ_where_randomness_is_used():
 ## REQ-295 (ii) and (iii), REQ-399 (algorithm versions)
 
 
-def test_req295_fixture_matches_the_reference_values():
+def test_req295_fixture_matches_the_reference_values() -> None:
     """(ii) the fit of the bundled fixture equals the reference values of
     ``tests/reference/fit_fixture_ccep.json`` within rtol 1e-9 (the CI matrix runs this on
     Linux, macOS and Windows). REQ-399: when the values change, the algorithm versions
@@ -116,7 +117,7 @@ def test_req295_fixture_matches_the_reference_values():
     assert out["max_rel_diff"] <= 1e-9
 
 
-def test_req295_no_legacy_global_random_state():
+def test_req295_no_legacy_global_random_state() -> None:
     """(iii) no ``np.random.seed``, ``np.random.rand`` or ``np.random.randn`` in the package
     (every random draw comes from ``numpy.random.default_rng(random_state)``)."""
 

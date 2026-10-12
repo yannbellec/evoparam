@@ -16,7 +16,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_req138_100_channels_50_trials_1000_permutations():
+def test_req138_100_channels_50_trials_1000_permutations() -> None:
 
     rng = np.random.default_rng(0)
     times = np.arange(-0.5, 0.524, 1 / 1000.0)[:1024]

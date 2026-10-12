@@ -2,6 +2,7 @@
 """Single-trial estimation on simulations (REQ-150 to REQ-155)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -17,14 +18,14 @@ from .helpers import SFREQ, TIMES, channel_fit, gauss, simulate
 ###################################################################################################
 
 
-def _run(ts, **kwargs):
+def _run(ts: Any, **kwargs: Any) -> Any:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return fit_trials(ts, channel_fit(ts), **kwargs)
 
 
 @pytest.mark.parametrize("sd", [0.002, 0.005])
-def test_req150_latency_amplitude_and_jitter(sd):
+def test_req150_latency_amplitude_and_jitter(sd: Any) -> None:
     """REQ-150 at the level reached: per-trial SNR 3, medians over six runs, the excess jitter
     (``jitter_sd_excess``). The REQ as written (SNR 2, every run, ``jitter_sd``) is
     ``test_req150_as_written``."""
@@ -55,7 +56,7 @@ AS_WRITTEN_150 = (
 
 @pytest.mark.xfail(strict=True, reason=AS_WRITTEN_150)
 @pytest.mark.parametrize("sd", [0.001, 0.002, 0.005])
-def test_req150_as_written(sd):
+def test_req150_as_written(sd: Any) -> None:
 
     for seed in range(6):
         ts, shifts, scales = simulate(
@@ -71,7 +72,7 @@ def test_req150_as_written(sd):
         assert abs(ratio - 1) <= 0.2
 
 
-def _cramer_rao(fwhm, snr=2.0, n_win=491):
+def _cramer_rao(fwhm: Any, snr: Any = 2.0, n_win: Any = 491) -> Any:
     """Cramer-Rao SDs of the latency (samples) and of the relative amplitude of a Gaussian of
     unit amplitude at ``snr`` (peak over the SD of white noise), with a per-trial constant
     and slope (the linear background of the trial model), on ``n_win`` samples."""
@@ -84,7 +85,7 @@ def _cramer_rao(fwhm, snr=2.0, n_win=491):
     return np.sqrt(cov[1, 1]), np.sqrt(cov[0, 0]) / snr
 
 
-def test_req150_cramer_rao_bound():
+def test_req150_cramer_rao_bound() -> None:
     """Evidence for the xfail above: even an efficient unbiased estimator (Gaussian errors,
     MAE = sqrt(2/pi) SD) cannot meet both limits of REQ-150 at SNR 2 for any width. The
     latency SD grows as sqrt(width) and the amplitude SD falls as 1/sqrt(width); their
@@ -102,7 +103,7 @@ def test_req150_cramer_rao_bound():
     assert np.argmin(worst) == pytest.approx((11.35 - 2.0) / 0.05, abs=2)
 
 
-def test_req151_no_invented_jitter_and_realign_refused():
+def test_req151_no_invented_jitter_and_realign_refused() -> None:
 
     ratios, refused = [], 0
     for seed in range(20):
@@ -120,7 +121,7 @@ def test_req151_no_invented_jitter_and_realign_refused():
     assert refused / 20 >= 0.95
 
 
-def _req151_runs(seeds, n_trials, null_rule):
+def _req151_runs(seeds: Any, n_trials: Any, null_rule: Any) -> Any:
     ratios, refused = [], 0
     for seed in seeds:
         ts, _, _ = simulate(n=n_trials, jitter=0.0, cv=0.0, seed=seed)
@@ -140,7 +141,7 @@ def _req151_runs(seeds, n_trials, null_rule):
     "1.25 jitter_sd_null in a few runs (seed 104: ratio 0.768; 7 of 200 runs "
     "below 0.8, smallest 0.756). See CHANGELOG (trials, F37).",
 )
-def test_req151_as_written_40_trials():
+def test_req151_as_written_40_trials() -> None:
 
     ratios, refused = _req151_runs(range(100, 120), 40, "segments")
     assert np.all(ratios >= 0.8)
@@ -148,7 +149,7 @@ def test_req151_as_written_40_trials():
 
 
 @pytest.mark.parametrize("null_rule", ["segments", "spec"])
-def test_req151_as_written(null_rule):
+def test_req151_as_written(null_rule: Any) -> None:
     """REQ-151 as written, in every run (20 runs), with 200 trials per run, where the SD of
     the shifts of one run is known to about 5 %; under both null rules (the default five
     baseline segments per trial with the F-quantile refusal, and the spec's one segment with
@@ -159,7 +160,7 @@ def test_req151_as_written(null_rule):
     assert refused >= 0.95
 
 
-def test_req152_jitter_corrected_amplitude():
+def test_req152_jitter_corrected_amplitude() -> None:
 
     ts, shifts, _ = simulate(n=100, jitter=0.006, cv=0.0, noise=3.0, fwhm=0.03, seed=7)
     tf = _run(ts, max_shift=0.02, r2_min=0.0)
@@ -170,7 +171,7 @@ def test_req152_jitter_corrected_amplitude():
 @pytest.mark.parametrize(
     ("ridge_cv", "trial_model"), [("loto", "all"), ("split", "all"), ("loto", "selected")]
 )
-def test_req153_regularized_beats_free_at_low_snr(ridge_cv, trial_model):
+def test_req153_regularized_beats_free_at_low_snr(ridge_cv: Any, trial_model: Any) -> None:
     """REQ-153 with the default penalty choice (leave-one-trial-out, the spec's) and split
     samples, and with the spec's trial model (selected components only)."""
 
@@ -194,7 +195,7 @@ def test_req153_regularized_beats_free_at_low_snr(ridge_cv, trial_model):
     assert better / 10 >= 0.9
 
 
-def test_req154_dose_response_hill():
+def test_req154_dose_response_hill() -> None:
 
     rng = np.random.default_rng(8)
     currents = np.repeat([1.0, 2.0, 3.0, 5.0, 8.0], 10)
@@ -215,7 +216,7 @@ def test_req154_dose_response_hill():
         dose_response(tf.table.assign(stim_current_mA=1.0))
 
 
-def _phase_trials(modulation, seed, n=100):
+def _phase_trials(modulation: Any, seed: Any, n: Any = 100) -> Any:
     rng = np.random.default_rng(seed)
     phases = rng.uniform(-np.pi, np.pi, n)
     data = rng.normal(0, 1.0, (n, 1, len(TIMES)))
@@ -228,7 +229,7 @@ def _phase_trials(modulation, seed, n=100):
     return TrialSet(data=data, times=TIMES, sfreq=SFREQ, ch_names=["c0"])
 
 
-def _phase_block(seed, n_runs, n=100):
+def _phase_block(seed: Any, n_runs: Any, n: Any = 100) -> Any:
     """``n_runs`` independent runs of ``_phase_trials(0.0, ...)`` as the channels of one
     TrialSet (each channel its own phases and noise), so that one fit_trials call scores
     them all."""
@@ -244,7 +245,7 @@ def _phase_block(seed, n_runs, n=100):
     return TrialSet(data=data, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(n_runs)])
 
 
-def test_req155_type_one_error():
+def test_req155_type_one_error() -> None:
     """REQ-155 type-I error <= 0.06 at alpha 0.05 as written, on 1000 runs of 100 trials with
     no phase dependence (the binomial SD of the rate is then 0.007, so 0.06 is 1.4 SD above
     the nominal 0.05). Every run uses the channel model of one pilot run of the same design
@@ -264,7 +265,7 @@ def test_req155_type_one_error():
     assert np.mean(hits) <= 0.06
 
 
-def test_req155_power():
+def test_req155_power() -> None:
     """REQ-155 power >= 0.8 for a 30 % modulation with 100 trials (the type-I part is
     test_req155_type_one_error)."""
 

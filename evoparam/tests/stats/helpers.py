@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Simulated data for the statistics tests."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize_scalar
@@ -14,7 +16,7 @@ N1 = {"label": "N1", "latency": 0.1, "fwhm": 0.04, "amplitude": -5.0}
 WINDOW = (0.092, 0.108)
 
 
-def nominal_mean(truth, times, window, index=0):
+def nominal_mean(truth: Any, times: Any, window: Any, index: Any = 0) -> Any:
     """Mean over the window of the nominal component (amplitude factor of mean 1)."""
 
     comp = truth.components[index]
@@ -25,7 +27,7 @@ def nominal_mean(truth, times, window, index=0):
     return float(curve[inside].mean())
 
 
-def replicates(n_trials, n_replicates, seed, **kwargs):
+def replicates(n_trials: Any, n_replicates: Any, seed: Any, **kwargs: Any) -> Any:
     """``n_replicates`` independent simulations of ``n_trials`` trials of one channel, as
     the channels of one TrialSet (cropped around the N1), and the true window mean."""
 
@@ -52,8 +54,15 @@ def replicates(n_trials, n_replicates, seed, **kwargs):
 
 
 def subjects_trialset(
-    n_subjects, n_trials, *, sd_subject, sd_trial, seed, n_times=41, unbalanced=False
-):
+    n_subjects: Any,
+    n_trials: Any,
+    *,
+    sd_subject: Any,
+    sd_trial: Any,
+    seed: Any,
+    n_times: Any = 41,
+    unbalanced: Any = False,
+) -> Any:
     """Trials of several subjects: a constant per-subject level plus white noise, one channel.
 
     With ``unbalanced``, subject k keeps ``n_trials - (k % 4) * 5`` trials.
@@ -69,7 +78,7 @@ def subjects_trialset(
     return TrialSet(data=data, times=times, sfreq=100.0, ch_names=["Cz"], metadata=meta)
 
 
-def independent_split_half(ts, score):
+def independent_split_half(ts: Any, score: Any) -> Any:
     """Odd/even split half from the published formulas, one subject at a time."""
 
     odd, even = [], []
@@ -82,7 +91,7 @@ def independent_split_half(ts, score):
     return 2 * r / (1 + r)
 
 
-def independent_dependability(ts, window):
+def independent_dependability(ts: Any, window: Any) -> Any:
     """Dependability from variance components estimated independently: the ANOVA
     estimator for a balanced design (equal to REML when it is positive), else a dense REML
     maximised over the variance ratio (the unbalanced ANOVA estimator above 3000 trials)."""

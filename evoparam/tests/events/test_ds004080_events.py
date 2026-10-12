@@ -8,6 +8,7 @@ only the first run downloads them (about 2 GB). Runs only with EVOPARAM_NETWORK_
 """
 
 import os
+from typing import Any
 
 import numpy as np
 import pytest
@@ -55,7 +56,7 @@ SPAN = 40.0
 ###################################################################################################
 
 
-def _segment(stem):
+def _segment(stem: Any) -> Any:
     """40 s of one run (cached), its reference onsets and sites."""
 
     from evoparam.io import openneuro_url, read_bids_events, read_brainvision_segment
@@ -95,7 +96,7 @@ def _segment(stem):
 
 
 @pytest.fixture(scope="module")
-def results():
+def results() -> Any:
     out = []
     for stem in RUNS:
         data, sfreq, names, t0, onsets, sites = _segment(stem)
@@ -104,7 +105,7 @@ def results():
     return out
 
 
-def test_req040_recall_precision_and_onset(results):
+def test_req040_recall_precision_and_onset(results: Any) -> None:
 
     assert len({stem.split("/")[0] for stem, *_ in results}) >= 5
     hits = misses = false_alarms = 0
@@ -135,7 +136,7 @@ def test_req040_recall_precision_and_onset(results):
         assert np.median(np.abs(errors)) <= 1.0 / sfreq + 1e-6, stem
 
 
-def _site_agreement(results):
+def _site_agreement(results: Any) -> Any:
     agree, confident = [], []
     for _, _, events, onsets, sites in results:
         times = events["onset_time"].to_numpy()
@@ -152,21 +153,21 @@ def _site_agreement(results):
     return np.mean(agree), np.mean(confident), len(confident) / len(agree)
 
 
-def test_req042_confidence_is_calibrated(results):
+def test_req042_confidence_is_calibrated(results: Any) -> None:
 
     _, accuracy, fraction = _site_agreement(results)
     assert accuracy >= 0.98
     assert fraction >= 0.4
 
 
-def test_req042_site_agreement(results):
+def test_req042_site_agreement(results: Any) -> None:
 
     agreement, _, _ = _site_agreement(results)
     assert agreement >= 0.95
 
 
 @pytest.fixture(scope="module")
-def spec_results():
+def spec_results() -> Any:
     """The specification's methods 1 and 2 as written (procedure="spec")."""
 
     out = []
@@ -181,7 +182,7 @@ def spec_results():
     return out
 
 
-def test_spec_procedure_is_less_accurate_than_the_default(results, spec_results):
+def test_spec_procedure_is_less_accurate_than_the_default(results: Any, spec_results: Any) -> None:
     """Q3 of the audit: the specification's detector as written against the default, on the
     same 25 runs. Measured: recall 0.445 and precision 1.000 (threshold only: 0.930 and
     0.765), onset error about 1 sample after the delay; the default: 0.995 and 0.990, 0.01

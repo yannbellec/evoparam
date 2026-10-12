@@ -19,7 +19,7 @@ pytestmark = [
 ]
 
 
-def test_req397_trademark_file_states_the_policy():
+def test_req397_trademark_file_states_the_policy() -> None:
     text = TRADEMARK.read_text(encoding="utf-8")
     for heading in (
         "Who owns the name",
@@ -39,12 +39,12 @@ def test_req397_trademark_file_states_the_policy():
     assert "NOTICE" in forks
 
 
-def test_req397_linked_from_the_readme():
+def test_req397_linked_from_the_readme() -> None:
     readme = (ROOT / "README.rst").read_text(encoding="utf-8")
     assert "`TRADEMARK.md <TRADEMARK.md>`_" in readme
 
 
-def test_req397_reviewed_at_each_major_release():
+def test_req397_reviewed_at_each_major_release() -> None:
     assert re.search(
         r"major release.*TRADEMARK\.md.*reviewed",
         (ROOT / "RELEASING.md").read_text(encoding="utf-8"),
@@ -56,7 +56,7 @@ def test_req397_reviewed_at_each_major_release():
     reason="REQ-397: the owner of the name is set by the HIIE "
     "decision; waits for the owner's HIIE decision (nothing public before it)",
 )
-def test_req397_owner_named_from_the_recorded_decision():
+def test_req397_owner_named_from_the_recorded_decision() -> None:
     text = TRADEMARK.read_text(encoding="utf-8")
     owner = text.split("## Who owns the name", 1)[1].split("## ", 1)[0]
     assert re.search(r"(?m)^The name is owned by \S", owner)

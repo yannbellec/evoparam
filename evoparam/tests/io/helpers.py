@@ -8,6 +8,7 @@ import json
 import os
 import re
 import threading
+from typing import Any
 from urllib.parse import parse_qs, unquote, urlsplit
 from xml.sax.saxutils import escape
 
@@ -27,23 +28,23 @@ ARTEFACT_ONSETS = [50.0, 52.0, 54.0, 56.0]
 SITES = ["A01-A02", "A02-A03"]
 
 
-def signal(n_channels, n_samples):
+def signal(n_channels: Any, n_samples: Any) -> Any:
     """Known samples (µV): channel c at sample n is c * 1e5 + n."""
 
     return np.arange(n_channels)[:, None] * 1e5 + np.arange(n_samples)[None, :]
 
 
 def write_brainvision(
-    folder,
-    stem,
-    data,
-    sfreq,
-    ch_names,
-    fmt="IEEE_FLOAT_32",
-    orientation="MULTIPLEXED",
-    resolutions=None,
-    units=None,
-):
+    folder: Any,
+    stem: Any,
+    data: Any,
+    sfreq: Any,
+    ch_names: Any,
+    fmt: Any = "IEEE_FLOAT_32",
+    orientation: Any = "MULTIPLEXED",
+    resolutions: Any = None,
+    units: Any = None,
+) -> Any:
     """Write a BrainVision recording (data in µV, [n_channels, n_times]); return the .vhdr path."""
 
     folder = str(folder)
@@ -88,14 +89,14 @@ def write_brainvision(
     return os.path.join(folder, stem + ".vhdr")
 
 
-def _tsv(path, header, rows):
+def _tsv(path: Any, header: Any, rows: Any) -> None:
     with open(path, "w", encoding="utf-8") as file:
         file.write("\t".join(header) + "\n")
         for row in rows:
             file.write("\t".join(str(value) for value in row) + "\n")
 
 
-def make_bids(root):
+def make_bids(root: Any) -> Any:
     """Mini BIDS-iEEG dataset: 2 subjects, 3 channels, 20 events per run.
 
     sub-01 (no session): current in A with Units in the root events.json, pulse width
@@ -216,7 +217,7 @@ MEF_POS_INF = (1 << 31) - 1
 _MEF_UNITS = {"microvolts": 1.0, "uV": 1.0, "millivolts": 1e3, "mV": 1e3, "volts": 1e6}
 
 
-def _mef_crc_table():
+def _mef_crc_table() -> Any:
     table = []
     for byte in range(256):
         crc = byte
@@ -229,7 +230,7 @@ def _mef_crc_table():
 _MEF_CRC_TABLE = _mef_crc_table()
 
 
-def mef_crc(data):
+def mef_crc(data: Any) -> Any:
     """CRC of meflib (Koopman polynomial, start 0xFFFFFFFF), byte by byte."""
 
     crc = 0xFFFFFFFF
@@ -238,7 +239,7 @@ def mef_crc(data):
     return crc
 
 
-def mef_round(values):
+def mef_round(values: Any) -> Any:
     """meflib RED_round: half away from zero, clipped to the infinity codes."""
 
     values = np.asarray(values, dtype=float)
@@ -247,8 +248,14 @@ def mef_round(values):
 
 
 def red_encode(
-    samples, start_time, *, discontinuity=False, scale_factor=1.0, detrend=False, encrypted=False
-):
+    samples: Any,
+    start_time: Any,
+    *,
+    discontinuity: Any = False,
+    scale_factor: Any = 1.0,
+    detrend: Any = False,
+    encrypted: Any = False,
+) -> Any:
     """One RED block (bytes, 8-byte aligned) of integer samples, as meflib's RED_encode_exec."""
 
     import struct
@@ -349,7 +356,18 @@ def red_encode(
     return bytes(block)
 
 
-def _universal_header(kind, body, *, start, end, n_entries, max_entry, segment, channel, session):
+def _universal_header(
+    kind: Any,
+    body: Any,
+    *,
+    start: Any,
+    end: Any,
+    n_entries: Any,
+    max_entry: Any,
+    segment: Any,
+    channel: Any,
+    session: Any,
+) -> Any:
     import struct
 
     head = bytearray(1024)
@@ -366,23 +384,23 @@ def _universal_header(kind, body, *, start, end, n_entries, max_entry, segment, 
 
 
 def write_mef(
-    folder,
-    session,
-    data,
-    sfreq,
-    ch_names,
+    folder: Any,
+    session: Any,
+    data: Any,
+    sfreq: Any,
+    ch_names: Any,
     *,
-    factor=0.1,
-    units="microvolts",
-    block_samples=500,
-    start_time=1_600_000_000_000_000,
-    segment_starts=(),
-    gaps=None,
-    flag_gaps=True,
-    scale_factor=1.0,
-    detrend=False,
-    encrypt=None,
-):
+    factor: Any = 0.1,
+    units: Any = "microvolts",
+    block_samples: Any = 500,
+    start_time: Any = 1_600_000_000_000_000,
+    segment_starts: Any = (),
+    gaps: Any = None,
+    flag_gaps: Any = True,
+    scale_factor: Any = 1.0,
+    detrend: Any = False,
+    encrypt: Any = None,
+) -> Any:
     """Write a MEF 3.0 session ``<folder>/<session>.mefd``; return its path.
 
     Parameters
@@ -484,7 +502,7 @@ def write_mef(
     return root
 
 
-def corrupt_byte(path, offset):
+def corrupt_byte(path: Any, offset: Any) -> None:
     """Flip the bits of one byte of a file."""
 
     with open(path, "r+b") as file:
@@ -494,7 +512,7 @@ def corrupt_byte(path, offset):
         file.write(bytes([value ^ 0xFF]))
 
 
-def make_mef_bids(root):
+def make_mef_bids(root: Any) -> Any:
     """The mini BIDS dataset of :func:`make_bids`, with MEF 3.0 recordings instead of
     BrainVision (same signal, events and sidecars)."""
 
@@ -517,7 +535,7 @@ def make_mef_bids(root):
     return root
 
 
-def glob_files(root, suffix):
+def glob_files(root: Any, suffix: Any) -> Any:
     out = []
     for folder, _, names in os.walk(str(root)):
         out += [os.path.join(folder, name) for name in names if name.endswith(suffix)]
@@ -529,13 +547,13 @@ def glob_files(root, suffix):
 
 
 class _Stats:
-    def __init__(self):
+    def __init__(self) -> None:
         self.requests = []  # (method, path, range header or None, status)
         self.bytes_sent = 0
         self.failures_left = 0
 
 
-def _handler(directory, stats, honour_range):
+def _handler(directory: Any, stats: Any, honour_range: Any) -> Any:
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -636,7 +654,7 @@ def _handler(directory, stats, honour_range):
 
 
 @contextlib.contextmanager
-def http_server(directory, honour_range=True, failures=0):
+def http_server(directory: Any, honour_range: Any = True, failures: Any = 0) -> Any:
     """Serve ``directory`` on 127.0.0.1; yield (base URL, stats).
 
     With ``honour_range=False`` the server ignores Range headers and answers 200 with the

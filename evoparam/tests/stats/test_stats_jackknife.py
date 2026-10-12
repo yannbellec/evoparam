@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Jackknife scoring over participants (REQ-231)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -34,7 +36,7 @@ SMULDERS_F = {"age": 9.2, "sleep": 9.8, "interaction": 4.9}
 CONDITIONS = ["none", "mild", "heavy"]
 
 
-def _constant_evokeds(rows, group):
+def _constant_evokeds(rows: Any, group: Any) -> Any:
     """One Evoked per participant whose 'mean amplitude' on each channel is a latency."""
 
     times = np.array([0.0, 0.001])
@@ -50,7 +52,7 @@ def _constant_evokeds(rows, group):
     ]
 
 
-def _mixed_anova(y, group):
+def _mixed_anova(y: Any, group: Any) -> Any:
     """F of a one-between (group) x one-within (columns) design, equal group sizes."""
 
     levels = np.unique(group)
@@ -73,7 +75,7 @@ def _mixed_anova(y, group):
     }
 
 
-def test_req231_smulders_worked_example():
+def test_req231_smulders_worked_example() -> None:
 
     jack, retrieved, group = [], [], []
     for name, rows in SMULDERS_LATENCIES.items():
@@ -127,13 +129,13 @@ KIESEL_INTERPOLATION = {
     "are tested on the Smulders (2010) example and on simulations; the "
     "paper's interpolation example (p. 254) is tested below",
 )
-def test_req231_kiesel_worked_example():
+def test_req231_kiesel_worked_example() -> None:
 
     printed = None  # a corrected statistic printed in [LIT-erpmeas-2]: none found
     assert printed is not None
 
 
-def test_req231_kiesel_interpolation_example():
+def test_req231_kiesel_interpolation_example() -> None:
     """The worked number of Kiesel et al. (2008, p. 254): the criterion crossing,
     linearly interpolated between the printed samples, is 64.46 ms to the printed
     precision (62.50 + (-1.0 + .98) / (-1.02 + .98) x 3.91 = 64.455). It is scored here
@@ -158,7 +160,7 @@ def test_req231_kiesel_interpolation_example():
     assert abs(ms - ex["printed_ms"]) <= 0.005 + 1e-9
 
 
-def test_req231_noise_free_retrieval():
+def test_req231_noise_free_retrieval() -> None:
     """Retrieved latencies equal the participants' own on noise-free averages (1e-9 s)."""
 
     shifts = np.linspace(-0.012, 0.015, 9)
@@ -204,7 +206,7 @@ def test_req231_noise_free_retrieval():
     assert 1e-6 < error.max() < 3e-3
 
 
-def test_corrected_statistics_on_retrieved_scores():
+def test_corrected_statistics_on_retrieved_scores() -> None:
     """t on the retrieved scores equals the corrected jackknife t, and SE matches."""
 
     rng = np.random.default_rng(3)
@@ -239,7 +241,7 @@ def test_corrected_statistics_on_retrieved_scores():
     assert ja.attrs["provenance"]["steps"][-1]["function"] == "evoparam.stats.jackknife_latency"
 
 
-def test_edge_cases():
+def test_edge_cases() -> None:
 
     ts, _ = simulate_erp(5, components=["N1"], snr=3.0, noise="white", seed=0)
     ev = ts.average()

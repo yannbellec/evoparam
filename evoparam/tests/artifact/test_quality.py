@@ -2,6 +2,7 @@
 """Quality score (REQ-066)."""
 
 from dataclasses import replace
+from typing import Any
 
 import numpy as np
 
@@ -13,14 +14,14 @@ from .helpers import artifact_shape, make_overlay
 ###################################################################################################
 
 
-def auc(scores_good, scores_bad):
+def auc(scores_good: Any, scores_bad: Any) -> Any:
     """Probability that a clean trial scores higher than a corrupted one."""
 
     good, bad = np.asarray(scores_good)[:, None], np.asarray(scores_bad)[None]
     return float(np.mean((good > bad) + 0.5 * (good == bad)))
 
 
-def test_req066_quality_separates_corrupted_trials():
+def test_req066_quality_separates_corrupted_trials() -> None:
 
     noisy, truth = make_overlay(n_trials=100, n_channels=8, onset=0.02, seed=8)
     data = noisy.data.copy()
@@ -60,7 +61,7 @@ def test_req066_quality_separates_corrupted_trials():
     ]
 
 
-def test_quality_range_and_components():
+def test_quality_range_and_components() -> None:
 
     noisy, _ = make_overlay()
     table = artifact_quality(noisy, window=(-0.002, 0.008))

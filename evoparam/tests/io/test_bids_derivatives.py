@@ -15,6 +15,7 @@ import shlex
 import shutil
 import subprocess
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -29,7 +30,7 @@ TSV_SUFFIXES = ("_responses.tsv", "_existence.tsv", "_trials.tsv")
 
 
 @pytest.fixture(scope="module")
-def written(tmp_path_factory):
+def written(tmp_path_factory: Any) -> Any:
     """A simulated BIDS-iEEG dataset, the ccep pipeline run on it, and its derivatives."""
 
     root = tmp_path_factory.mktemp("bidsderiv") / "bids"
@@ -53,13 +54,13 @@ def written(tmp_path_factory):
     }
 
 
-def _json(files, suffix):
+def _json(files: Any, suffix: Any) -> Any:
     path = next(f for f in files if f.endswith(suffix))
     with open(path, encoding="utf-8") as fobj:
         return json.load(fobj)
 
 
-def test_provenance_sidecar(written):
+def test_provenance_sidecar(written: Any) -> None:
     """REQ-336: the sidecars and dataset_description GeneratedBy hold the provenance."""
 
     group = written["result"].group
@@ -82,7 +83,7 @@ def test_provenance_sidecar(written):
     assert Provenance.from_dict(artifact["Provenance"]) == last.provenance
 
 
-def test_nwb_provenance(written):
+def test_nwb_provenance(written: Any) -> None:
     """REQ-336: the NWB processing module holds the settings and provenance of each result."""
 
     pynwb = pytest.importorskip("pynwb")
@@ -105,7 +106,7 @@ def test_nwb_provenance(written):
     assert description["settings"][0]["max_components"] == group.settings["max_components"]
 
 
-def test_req342_every_column_has_a_description_and_unit(written):
+def test_req342_every_column_has_a_description_and_unit(written: Any) -> None:
 
     for suffix in TSV_SUFFIXES:
         path = next(f for f in written["files"] if f.endswith(suffix))
@@ -123,7 +124,7 @@ def test_req342_every_column_has_a_description_and_unit(written):
     assert responses["symmetry"]["Units"] == "n/a"
 
 
-def test_artifact_record(written):
+def test_artifact_record(written: Any) -> None:
 
     record = _json(written["files"], "_artifact.json")
     artifact = written["result"].artifact[-1]
@@ -133,7 +134,7 @@ def test_artifact_record(written):
     assert record["PackageVersion"] == __version__
 
 
-def test_two_artifact_steps_make_one_record(tmp_path):
+def test_two_artifact_steps_make_one_record(tmp_path: Any) -> None:
     """The tep preset chains interpolation and subspace projection: one artifact.json
     with every step."""
 
@@ -150,7 +151,7 @@ def test_two_artifact_steps_make_one_record(tmp_path):
     assert [step["Method"] for step in record["Steps"]] == ["interpolate", "subspace"]
 
 
-def test_simulated_dataset_round_trip(written):
+def test_simulated_dataset_round_trip(written: Any) -> None:
     """write_bids then read_bids returns the simulated epochs (float32 precision)."""
 
     trials, read = written["trials"], written["read"]
@@ -162,7 +163,7 @@ def test_simulated_dataset_round_trip(written):
     assert np.nanmax(np.abs(part - trials.data)) <= 1e-6 * scale
 
 
-def _validator():
+def _validator() -> Any:
     command = os.environ.get("EVOPARAM_BIDS_VALIDATOR")
     if command:
         return shlex.split(command)
@@ -177,7 +178,7 @@ def _validator():
     _validator() is None, reason="bids-validator not installed (set EVOPARAM_BIDS_VALIDATOR)"
 )
 @pytest.mark.parametrize("which", ["raw", "derivatives"])
-def test_req342_bids_validator(written, which):
+def test_req342_bids_validator(written: Any, which: Any) -> None:
     """REQ-024 and REQ-342: the output of ``write_bids_derivatives`` passes the BIDS
     validator in derivative mode (the simulated raw data in raw mode), when the validator
     is installed."""
@@ -212,7 +213,7 @@ REFERENCE_VALIDATOR = ["npx", "--yes", "bids-validator@2", "--datasetTypes", "de
     os.environ.get("EVOPARAM_NETWORK_TESTS") != "1" or not shutil.which("npx"),
     reason="needs npx and EVOPARAM_NETWORK_TESTS=1 (npx fetches the validator)",
 )
-def test_req315_reference_validator_as_written(written):
+def test_req315_reference_validator_as_written(written: Any) -> None:
     """REQ-315 as written: ``npx bids-validator@2 --datasetTypes derivative`` reports no
     error on the derivatives.
 
@@ -243,7 +244,7 @@ def test_req315_reference_validator_as_written(written):
     assert errors == []
 
 
-def test_req315_tree_columns_and_generated_by(written):
+def test_req315_tree_columns_and_generated_by(written: Any) -> None:
 
     out = written["out"]
     description = _json(written["files"], "dataset_description.json")
@@ -278,7 +279,7 @@ def test_req315_tree_columns_and_generated_by(written):
     assert sidecar["evoparam_stim_current_mA"]["Units"] == "mA"
 
 
-def test_req316_stimulation_columns(written):
+def test_req316_stimulation_columns(written: Any) -> None:
     """Prefixed columns hold the harmonised stimulation of the run; the standard example
     columns are copied unchanged; every written column outside the BIDS column registry
     carries the evoparam_ prefix or is an evoparam table column defined in the sidecar."""
@@ -311,7 +312,7 @@ def test_req316_stimulation_columns(written):
         assert sidecar[column]["Description"], column
 
 
-def test_req315_bidsschematools_validation(written):
+def test_req315_bidsschematools_validation(written: Any) -> None:
     """The Python schema validator: every file of the raw dataset and every derivative file
     that BIDS defines matches a schema rule; the evoparam tables are declared in
     .bidsignore (no BIDS suffix exists for them, spec §10.2)."""
@@ -343,7 +344,7 @@ def test_req315_bidsschematools_validation(written):
     assert [os.path.basename(p) for p in derived["path_tracking"]] in ([], ["descriptions.tsv"])
 
 
-def test_req315_read_back_equal_results(written):
+def test_req315_read_back_equal_results(written: Any) -> None:
 
     result = written["result"]
     root = written["root"]
@@ -366,7 +367,7 @@ def test_req315_read_back_equal_results(written):
     assert fits.table.equals(result.trial_fits.table)
 
 
-def test_req315_edited_table_is_detected(written, tmp_path):
+def test_req315_edited_table_is_detected(written: Any, tmp_path: Any) -> None:
 
     from evoparam.errors import DataError
 
@@ -385,7 +386,7 @@ def test_req315_edited_table_is_detected(written, tmp_path):
         read_bids_derivatives(str(copy), subject="01", task="spes")
 
 
-def test_req316_docs_page_lists_the_columns():
+def test_req316_docs_page_lists_the_columns() -> None:
 
     import evoparam
 

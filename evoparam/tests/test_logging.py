@@ -10,6 +10,7 @@ the global switches; no ``print`` outside the command line.
 import ast
 import logging
 import pathlib
+from typing import Any
 
 import numpy as np
 import pytest
@@ -22,7 +23,7 @@ from evoparam.utils import set_log_file, set_log_level, verbose
 PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
 
 
-def _evoked():
+def _evoked() -> Any:
     from evoparam.data import Evoked
 
     rng = np.random.default_rng(0)
@@ -32,7 +33,7 @@ def _evoked():
     return Evoked(data=data, times=times, sfreq=512.0, ch_names=["A1", "A2", "A3"])
 
 
-def test_package_logger_has_a_null_handler_only():
+def test_package_logger_has_a_null_handler_only() -> None:
     handlers = logging.getLogger("evoparam").handlers
     assert any(isinstance(h, logging.NullHandler) for h in handlers)
     assert not [
@@ -42,7 +43,7 @@ def test_package_logger_has_a_null_handler_only():
     ]
 
 
-def test_failed_channel_emits_one_warning_with_its_name(caplog, monkeypatch):
+def test_failed_channel_emits_one_warning_with_its_name(caplog: Any, monkeypatch: Any) -> None:
     evoked = _evoked()
     original = _engine.fit_waveform_core
 
@@ -64,7 +65,7 @@ def test_failed_channel_emits_one_warning_with_its_name(caplog, monkeypatch):
     assert [f.status for f in group.fits].count("failed") == 1
 
 
-def test_verbose_debug_gives_debug_records_from_models(caplog):
+def test_verbose_debug_gives_debug_records_from_models(caplog: Any) -> None:
     with caplog.at_level(logging.NOTSET), verbose("debug"):
         assert logging.getLogger("evoparam").getEffectiveLevel() == logging.DEBUG
         ResponseModel("ccep", max_components=1).fit_group(_evoked())
@@ -84,7 +85,7 @@ def test_verbose_debug_gives_debug_records_from_models(caplog):
         ("progress", logging.INFO),
     ],
 )
-def test_verbose_mapping(value, level):
+def test_verbose_mapping(value: Any, level: Any) -> None:
     logger = logging.getLogger("evoparam")
     before = logger.level
     with verbose(value):
@@ -94,7 +95,7 @@ def test_verbose_mapping(value, level):
         assert logger.level == before
 
 
-def test_verbose_decorator_reads_the_argument():
+def test_verbose_decorator_reads_the_argument() -> None:
     seen = []
 
     @verbose
@@ -106,7 +107,7 @@ def test_verbose_decorator_reads_the_argument():
     assert seen == [logging.DEBUG]
 
 
-def test_global_switches(tmp_path):
+def test_global_switches(tmp_path: Any) -> None:
     previous = set_log_level("warning")
     try:
         assert logging.getLogger("evoparam").level == logging.WARNING
@@ -121,7 +122,7 @@ def test_global_switches(tmp_path):
     assert evoparam.set_log_file is set_log_file
 
 
-def _prints():
+def _prints() -> Any:
     hits = []
     for path in sorted(PACKAGE.rglob("*.py")):
         rel = path.relative_to(PACKAGE)
@@ -133,7 +134,7 @@ def _prints():
     return hits
 
 
-def test_no_print_outside_the_cli():
+def test_no_print_outside_the_cli() -> None:
     """``print`` is used by the command line only (``cli.py`` and the ``__main__`` scripts,
     which are command lines too); ``evoparam.cite()`` prints the citation by design and
     nothing else does."""
@@ -141,7 +142,7 @@ def test_no_print_outside_the_cli():
     assert _prints() == ["__init__.py:" + str(_cite_print_line())]
 
 
-def _cite_print_line():
+def _cite_print_line() -> Any:
     tree = ast.parse((PACKAGE / "__init__.py").read_text(encoding="utf-8"))
     cite = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "cite")
     return next(

@@ -13,6 +13,7 @@ import pathlib
 import re
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -26,28 +27,28 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 pytestmark = pytest.mark.skipif(not WORKFLOWS.is_dir(), reason="needs the source tree")
 
 
-def _load(name):
+def _load(name: Any) -> Any:
     return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
 
 
-def _on(doc):
+def _on(doc: Any) -> Any:
     return doc.get("on", doc.get(True))  # YAML 1.1 reads the key `on` as True
 
 
-def _runs(job):
+def _runs(job: Any) -> Any:
     return "\n".join(
         str(step.get("run", "")) + " " + str(step.get("uses", "")) for step in job.get("steps", [])
     )
 
 
 @pytest.mark.parametrize("name", sorted(p.name for p in WORKFLOWS.glob("*.yml")))
-def test_every_workflow_parses(name):
+def test_every_workflow_parses(name: Any) -> None:
     doc = _load(name)
     assert doc.get("jobs")
     assert _on(doc)
 
 
-def test_req297_ci_jobs_and_triggers():
+def test_req297_ci_jobs_and_triggers() -> None:
     doc = _load("ci.yml")
     on = _on(doc)
     assert "pull_request" in on
@@ -77,7 +78,7 @@ def test_req297_ci_jobs_and_triggers():
     assert jobs["docs"]["uses"] == "./.github/workflows/docs.yml"
 
 
-def test_req297_tests_matrix_lock_and_timeouts():
+def test_req297_tests_matrix_lock_and_timeouts() -> None:
     job = _load("ci.yml")["jobs"]["tests"]
     matrix = job["strategy"]["matrix"]
     assert matrix["python"] == ["3.10", "3.11", "3.12", "3.13"]
@@ -93,7 +94,7 @@ def test_req297_tests_matrix_lock_and_timeouts():
         assert (ROOT / "ci" / "locks" / f"py{version}.lock").is_file()
 
 
-def test_req297_core_only_and_lowest_floors():
+def test_req297_core_only_and_lowest_floors() -> None:
     jobs = _load("ci.yml")["jobs"]
     core = _runs(jobs["core-only"])
     assert "pip install ." in core
@@ -104,7 +105,7 @@ def test_req297_core_only_and_lowest_floors():
     assert '"scipy==1.10.*"' in floors
 
 
-def test_req297_build_job():
+def test_req297_build_job() -> None:
     runs = _runs(_load("ci.yml")["jobs"]["build"])
     for command in (
         "python -m build",
@@ -116,7 +117,7 @@ def test_req297_build_job():
         assert command in runs, command
 
 
-def test_req298_coverage_gates():
+def test_req298_coverage_gates() -> None:
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert re.search(r"\[tool\.coverage\.report\][^\[]*fail_under = 90", text)
     job = _load("ci.yml")["jobs"]["tests"]
@@ -140,7 +141,7 @@ def test_req298_coverage_gates():
     os.environ.get("EVOPARAM_SLOW_TESTS") != "1",
     reason="runs the shapes tests under coverage; set EVOPARAM_SLOW_TESTS=1",
 )
-def test_req298_shapes_coverage_is_100_percent(tmp_path):
+def test_req298_shapes_coverage_is_100_percent(tmp_path: Any) -> None:
     pytest.importorskip("coverage")
     env = dict(
         os.environ,
@@ -176,7 +177,7 @@ def test_req298_shapes_coverage_is_100_percent(tmp_path):
     assert report.returncode == 0, report.stdout[-1500:]
 
 
-def test_req299_perf_workflow():
+def test_req299_perf_workflow() -> None:
     doc = _load("perf.yml")
     on = _on(doc)
     paths = on["pull_request"]["paths"]
@@ -202,7 +203,7 @@ def test_req299_perf_workflow():
     assert "--repeat-runs 3" in _runs(update)
 
 
-def test_req300_nightly_smoke_and_secrets():
+def test_req300_nightly_smoke_and_secrets() -> None:
     nightly = _load("nightly.yml")
     assert "schedule" in _on(nightly)
     runs = _runs(nightly["jobs"]["pre-release"])
@@ -223,7 +224,7 @@ def test_req300_nightly_smoke_and_secrets():
     assert not hits
 
 
-def test_req309_monthly_lock_refresh():
+def test_req309_monthly_lock_refresh() -> None:
     runs = _runs(_load("nightly.yml")["jobs"]["refresh-locks"])
     assert "uv pip compile pyproject.toml" in runs
     assert "--generate-hashes" in runs
@@ -233,7 +234,7 @@ def test_req309_monthly_lock_refresh():
     assert re.search(r"^numpy==", lock, re.MULTILINE)
 
 
-def test_req302_docs_workflow():
+def test_req302_docs_workflow() -> None:
     job = _load("docs.yml")["jobs"]["build"]
     runs = _runs(job)
     assert "sphinx-build -W --keep-going -b html" in runs
@@ -261,7 +262,7 @@ def test_req302_docs_workflow():
     "installed in this step); the published latest/stable switcher waits for "
     "the owner's HIIE decision",
 )
-def test_req302_docs_build_with_warnings_as_errors(tmp_path):
+def test_req302_docs_build_with_warnings_as_errors(tmp_path: Any) -> None:
     import subprocess
     import sys
 
@@ -285,7 +286,7 @@ def test_req302_docs_build_with_warnings_as_errors(tmp_path):
     assert result.returncode == 0, result.stderr[-2000:]
 
 
-def test_req305_precommit_and_pr_template():
+def test_req305_precommit_and_pr_template() -> None:
     config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
     hooks = {h["id"] for repo in config["repos"] for h in repo["hooks"]}
     assert {
@@ -308,7 +309,7 @@ def test_req305_precommit_and_pr_template():
         assert item in template, item
 
 
-def test_req305_ruff_configuration():
+def test_req305_ruff_configuration() -> None:
     try:
         import tomllib
     except ImportError:  # Python 3.10
@@ -345,7 +346,7 @@ def test_req305_ruff_configuration():
     assert lint["pylint"]["max-statements"] == 60
 
 
-def _ruff(*args):
+def _ruff(*args: Any) -> Any:
     import shutil
     import subprocess
 
@@ -367,12 +368,12 @@ def _ruff(*args):
     "ARG001/ARG002 13 and BLE001 6 (real issues, CHANGELOG); 852 in the tests (PLR2004 "
     "831); 1 in benchmarks (PLR2004). Measured with ruff 0.16.10 and 0.16.8 on 2026-10-12",
 )
-def test_req305_ruff_check_passes():
+def test_req305_ruff_check_passes() -> None:
     result = _ruff("check", "evoparam", "benchmarks", "docs/tutorials", "examples")
     assert result.returncode == 0, result.stdout[-1500:]
 
 
-def test_req305_ruff_format_passes():
+def test_req305_ruff_format_passes() -> None:
     result = _ruff("format", "--check", "evoparam", "benchmarks", "docs/tutorials", "examples")
     assert result.returncode == 0, result.stdout[-1500:]
 
@@ -382,7 +383,7 @@ def test_req305_ruff_format_passes():
     reason="REQ-305 'interrogate -v evoparam reports >= 95 %' is "
     "not met: 63.0 % (interrogate 1.7.0, 2026-10-11, S20)",
 )
-def test_req305_docstring_coverage():
+def test_req305_docstring_coverage() -> None:
     import shutil
     import subprocess
     import sys
@@ -410,14 +411,14 @@ def test_req305_docstring_coverage():
     "guesses in models/engine); the 8 that record or re-raise carry a justified noqa "
     "(measured 2026-10-12)",
 )
-def test_req307_ruff_blind_except_rules():
+def test_req307_ruff_blind_except_rules() -> None:
     result = _ruff(
         "check", "--select", "E722,S110,BLE001", "evoparam", "--exclude", "evoparam/tests"
     )
     assert result.returncode == 0, result.stdout[-1500:]
 
 
-def test_req375_release_pipeline_runs_the_robustness_layer():
+def test_req375_release_pipeline_runs_the_robustness_layer() -> None:
     jobs = _load("release.yml")["jobs"]
     runs = _runs(jobs["validation"])
     assert "validation/robustness.py" in runs

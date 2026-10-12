@@ -9,6 +9,7 @@ mpmath.
 """
 
 import math
+from typing import Any
 
 import numpy as np
 import pytest
@@ -43,7 +44,7 @@ MODERATE = {
 }
 
 
-def test_registry_has_the_eight_shapes_and_seven_backgrounds():
+def test_registry_has_the_eight_shapes_and_seven_backgrounds() -> None:
     assert set(shapes.SHAPES) == {
         "gaussian",
         "skewed_gaussian",
@@ -70,7 +71,7 @@ def test_registry_has_the_eight_shapes_and_seven_backgrounds():
 
 
 @pytest.mark.parametrize("name", sorted(MODERATE))
-def test_values_match_float_references(name):
+def test_values_match_float_references(name: Any) -> None:
     shape = ANALYTIC[name]
     for params in MODERATE[name]:
         expected = np.array(references.reference_curve(references.MATH, name, TIMES, params))
@@ -78,7 +79,7 @@ def test_values_match_float_references(name):
 
 
 @pytest.mark.parametrize("name", sorted(ANALYTIC))
-def test_values_match_mpmath_references(name):
+def test_values_match_mpmath_references(name: Any) -> None:
     """REQ-100: values on a reference grid at 1e-10 relative error against mpmath."""
 
     mpmath = pytest.importorskip("mpmath")
@@ -96,7 +97,7 @@ def test_values_match_mpmath_references(name):
         )
 
 
-def test_closed_forms_in_long_double():
+def test_closed_forms_in_long_double() -> None:
     rng = np.random.default_rng(11)
     t = TIMES.astype(np.longdouble)
     for name in ("gaussian", "gamma", "biexponential"):
@@ -121,7 +122,7 @@ def test_closed_forms_in_long_double():
             ), name
 
 
-def test_template_equation():
+def test_template_equation() -> None:
     shape = make_template()
     nodes, values = shape.template_times, shape.template_values
     # The interpolant goes through the samples; the norm is the maximum of |T|.
@@ -139,7 +140,7 @@ def test_template_equation():
 
 
 @pytest.mark.parametrize("name", sorted(ALL))
-def test_unit_amplitude(name):
+def test_unit_amplitude(name: Any) -> None:
     shape = ALL[name]
     params = sample_params(shape, TIMES, 100, np.random.default_rng(3))
     peak = shape.extremum(params)
@@ -153,7 +154,7 @@ def test_unit_amplitude(name):
 
 
 @pytest.mark.parametrize("name", sorted(ALL))
-def test_extremum_is_a_stationary_point(name):
+def test_extremum_is_a_stationary_point(name: Any) -> None:
     # Every shape is a function of t minus its latency parameter, so ds/dt = -ds/d(latency).
     shape = ALL[name]
     params = sample_params(shape, TIMES, 50, np.random.default_rng(4))
@@ -168,7 +169,7 @@ def test_extremum_is_a_stationary_point(name):
         assert abs(slope) <= 1e-7 * scale
 
 
-def test_latency_formulas():
+def test_latency_formulas() -> None:
     gaussian = shapes.Gaussian()
     params = sample_params(gaussian, TIMES, 20, np.random.default_rng(0))
     np.testing.assert_array_equal(gaussian.latency(params), params[:, 0])
@@ -201,7 +202,7 @@ def test_latency_formulas():
     ] == pytest.approx(-1.0, abs=1e-12)
 
 
-def test_skewed_gaussian_reduces_to_gaussian_and_skews():
+def test_skewed_gaussian_reduces_to_gaussian_and_skews() -> None:
     skewed, gaussian = shapes.SkewedGaussian(), shapes.Gaussian()
     np.testing.assert_allclose(
         skewed.evaluate(TIMES, [0.1, 0.02, 0.0]), gaussian.evaluate(TIMES, [0.1, 0.02]), rtol=1e-15
@@ -213,7 +214,7 @@ def test_skewed_gaussian_reduces_to_gaussian_and_skews():
     assert right.latency > 0.1 > left.latency
 
 
-def test_exgaussian_mode_and_limits():
+def test_exgaussian_mode_and_limits() -> None:
     shape = shapes.ExGaussian()
     # Short tau: the shape tends to the Gaussian, the mode to mu.
     np.testing.assert_allclose(
@@ -226,7 +227,7 @@ def test_exgaussian_mode_and_limits():
     assert features.latency > 0.1
 
 
-def test_gaussian_features_closed_forms():
+def test_gaussian_features_closed_forms() -> None:
     mu, sigma, amplitude = 0.1, 0.012, -7.5
     features = shapes.Gaussian().features(TIMES, [mu, sigma], amplitude)
     half_width = sigma * math.sqrt(2 * math.log(10))
@@ -247,7 +248,7 @@ def test_gaussian_features_closed_forms():
     assert set(features.to_dict()) >= {"latency", "fwhm", "onset", "offset", "area"}
 
 
-def test_onset_fraction_and_sampling_rate():
+def test_onset_fraction_and_sampling_rate() -> None:
     shape = shapes.Gaussian()
     sigma = 0.01
     features = shape.features(TIMES, [0.1, sigma], onset_fraction=0.5)
@@ -258,7 +259,7 @@ def test_onset_fraction_and_sampling_rate():
         shape.features(TIMES, [0.1, sigma], onset_fraction=1.5)
 
 
-def test_gamma_features_closed_forms():
+def test_gamma_features_closed_forms() -> None:
     t0, kappa, theta = 0.01, 4.0, 0.008
     features = shapes.Gamma().features(TIMES, [t0, kappa, theta], 3.0)
     a = kappa - 1
@@ -275,7 +276,7 @@ def test_gamma_features_closed_forms():
     assert features.symmetry > 0
 
 
-def test_biexponential_features():
+def test_biexponential_features() -> None:
     features = shapes.Biexponential().features(TIMES, [0.0, 0.002, 0.02])
     delay = 0.002 * 0.02 / 0.018 * math.log(10)
     assert features.latency == pytest.approx(delay, rel=1e-14)
@@ -283,7 +284,7 @@ def test_biexponential_features():
     assert features.rise_time < features.decay_time
 
 
-def test_damped_oscillation_features():
+def test_damped_oscillation_features() -> None:
     t0, tau, freq = 0.02, 0.03, 300.0
     shape = shapes.DampedOscillation()
     features = shape.features(TIMES, [t0, tau, freq, 0.0], 2.0)
@@ -299,7 +300,7 @@ def test_damped_oscillation_features():
     assert abs(shifted.amplitude) == pytest.approx(1.0, abs=1e-12)
 
 
-def test_gabor_features():
+def test_gabor_features() -> None:
     shape = shapes.Gabor()
     features = shape.features(TIMES, [0.1, 0.01, 50.0, 0.0])
     assert features.latency == 0.1
@@ -309,14 +310,14 @@ def test_gabor_features():
     assert flipped.polarity == -1
 
 
-def test_latency_outside_window_is_reported_not_dropped():
+def test_latency_outside_window_is_reported_not_dropped() -> None:
     features = shapes.Gaussian().features(TIMES, [TIMES[0] - 0.004, 0.003], 5.0)
     assert features.latency == TIMES[0] - 0.004
     assert "latency_outside_window" in features.warnings
     assert np.isfinite(features.fwhm)
 
 
-def test_features_of_an_extremum_after_the_feature_grid():
+def test_features_of_an_extremum_after_the_feature_grid() -> None:
     """A gamma inside its default bounds can peak after the feature grid (here at 1.4 s,
     the grid ends near 0.98 s): the half-height search read one sample past the grid
     (IndexError). The width is not measurable there; the rest is reported."""
@@ -341,7 +342,7 @@ def test_features_of_an_extremum_after_the_feature_grid():
     assert "fwhm_outside_grid" in late.warnings
 
 
-def test_features_of_an_extremum_before_the_feature_grid():
+def test_features_of_an_extremum_before_the_feature_grid() -> None:
     """Before the grid, the right-hand crossing used sample -1, which wraps to the end of
     the grid (FWHM -1.5e23 s here); the width is now NaN with its warning."""
 
@@ -353,7 +354,7 @@ def test_features_of_an_extremum_before_the_feature_grid():
 
 
 @pytest.mark.parametrize("sigma", [1e-5, 5e-6])
-def test_fwhm_of_a_lobe_narrower_than_the_feature_grid(sigma):
+def test_fwhm_of_a_lobe_narrower_than_the_feature_grid(sigma: Any) -> None:
     """No grid sample next to the extremum reaches half its height: each crossing is
     interpolated between the extremum and its neighbouring sample, so the width is within
     one grid step of the truth (it was 5 times the truth, or 0.41 s)."""
@@ -368,7 +369,7 @@ def test_fwhm_of_a_lobe_narrower_than_the_feature_grid(sigma):
 
 
 @pytest.mark.parametrize("name", sorted(ALL))
-def test_features_on_the_whole_box_of_parameters(name):
+def test_features_on_the_whole_box_of_parameters(name: Any) -> None:
     """Every shape gives features (no exception) on parameters drawn over its default
     bounds, corners included, in two windows; a width that is not NaN is positive and
     NaN widths, onsets and offsets carry their warnings."""
@@ -390,7 +391,7 @@ def test_features_on_the_whole_box_of_parameters(name):
                 )
 
 
-def test_vectorised_shapes():
+def test_vectorised_shapes() -> None:
     rng = np.random.default_rng(8)
     for name, shape in ALL.items():
         params = sample_params(shape, TIMES, 6, rng).reshape(2, 3, shape.n_params)
@@ -407,7 +408,7 @@ def test_vectorised_shapes():
         assert shape.latency(params).shape == (2, 3)
 
 
-def test_default_bounds_follow_the_settings():
+def test_default_bounds_follow_the_settings() -> None:
     lower, upper = shapes.Gaussian(min_fwhm=0.004, max_fwhm=0.05).default_bounds(TIMES)
     np.testing.assert_allclose([lower[1], upper[1]], np.array([0.004, 0.05]) / 2.3548200450309493)
     assert lower[0] == pytest.approx(TIMES[0] - upper[1] / 2)
@@ -432,12 +433,12 @@ def test_default_bounds_follow_the_settings():
         lambda: shapes.Template(np.arange(10.0), np.zeros(10)),
     ],
 )
-def test_invalid_settings(make):
+def test_invalid_settings(make: Any) -> None:
     with pytest.raises((SettingsError, DataError)):
         make()
 
 
-def test_invalid_params_and_times():
+def test_invalid_params_and_times() -> None:
     shape = shapes.Gaussian()
     with pytest.raises(DataError):
         shape.evaluate(TIMES, [0.1, 0.01, 1.0])
@@ -450,7 +451,7 @@ def test_invalid_params_and_times():
 
 
 @pytest.mark.parametrize("name", sorted(ALL))
-def test_initial_guess_inside_bounds(name):
+def test_initial_guess_inside_bounds(name: Any) -> None:
     shape = ALL[name]
     waveform = -4.0 * shapes.Gaussian().evaluate(TIMES, [0.08, 0.01])
     peak = int(np.argmax(np.abs(waveform)))
@@ -461,7 +462,7 @@ def test_initial_guess_inside_bounds(name):
     assert np.all(guess <= upper)
 
 
-def test_initial_guess_recovers_a_gaussian():
+def test_initial_guess_recovers_a_gaussian() -> None:
     shape = shapes.Gaussian()
     waveform = 3.0 * shape.evaluate(TIMES, [0.0805, 0.01])
     guess = shape.initial_guess(TIMES, waveform, int(np.argmax(waveform)))

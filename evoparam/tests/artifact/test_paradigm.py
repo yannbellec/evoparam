@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Paradigm-based cancellation (REQ-067)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -15,7 +17,7 @@ from .helpers import artifact_shape, response, times_axis
 ###################################################################################################
 
 
-def alternating(n_pairs=10, extra=0, seed=0):
+def alternating(n_pairs: Any = 10, extra: Any = 0, seed: Any = 0) -> Any:
     rng = np.random.default_rng(seed)
     sfreq = 2048.0
     times = times_axis(sfreq)
@@ -36,7 +38,7 @@ def alternating(n_pairs=10, extra=0, seed=0):
     return ts, resp, art
 
 
-def test_req067_alternating_polarity_cancels():
+def test_req067_alternating_polarity_cancels() -> None:
 
     ts, resp, art = alternating()
     out = paradigm_subtract(ts, scheme="alternating")
@@ -49,7 +51,7 @@ def test_req067_alternating_polarity_cancels():
     assert residual <= 0.01
 
 
-def test_alternating_with_imperfect_inversion_and_unpaired_trials():
+def test_alternating_with_imperfect_inversion_and_unpaired_trials() -> None:
 
     ts, resp, art = alternating(extra=1)
     data = ts.data.copy()
@@ -63,7 +65,7 @@ def test_alternating_with_imperfect_inversion_and_unpaired_trials():
     assert out.metadata["paired"].tolist()[-1] is False or not out.metadata["paired"].iloc[-1]
 
 
-def test_explicit_pair_ids():
+def test_explicit_pair_ids() -> None:
 
     ts, resp, _ = alternating(n_pairs=3)
     meta = ts.metadata.copy()
@@ -80,7 +82,7 @@ def test_explicit_pair_ids():
     assert out.n_trials == 3
 
 
-def test_req067_forward_masking_identity():
+def test_req067_forward_masking_identity() -> None:
 
     rng = np.random.default_rng(1)
     times = times_axis(1000.0)
@@ -95,7 +97,7 @@ def test_req067_forward_masking_identity():
     assert np.allclose(out.data, expected[None], atol=1e-12)
 
 
-def test_paradigm_errors():
+def test_paradigm_errors() -> None:
 
     ts, _, _ = alternating()
     with pytest.raises(ArtifactError):

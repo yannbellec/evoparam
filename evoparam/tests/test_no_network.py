@@ -21,6 +21,7 @@ import pathlib
 import subprocess
 import sys
 import textwrap
+from typing import Any
 
 import pytest
 
@@ -54,7 +55,7 @@ ALLOWED = {
 }  # read_nwb of an http(s) address only
 
 
-def _network_imports(path):
+def _network_imports(path: Any) -> Any:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     found = set()
     for node in ast.walk(tree):
@@ -77,7 +78,7 @@ def _network_imports(path):
     return found
 
 
-def test_req016_only_the_fetch_helpers_import_network_modules():
+def test_req016_only_the_fetch_helpers_import_network_modules() -> None:
     hits = {}
     for path in sorted(PACKAGE.rglob("*.py")):
         rel = path.relative_to(PACKAGE.parent).as_posix()
@@ -89,7 +90,7 @@ def test_req016_only_the_fetch_helpers_import_network_modules():
     assert not hits, hits
 
 
-def test_req016_remote_reads_are_opt_in():
+def test_req016_remote_reads_are_opt_in() -> None:
     import inspect
 
     from evoparam.io import read_bids
@@ -177,7 +178,7 @@ SCRIPT = textwrap.dedent("""
 """)
 
 
-def test_req016_no_network_without_remote_options(tmp_path):
+def test_req016_no_network_without_remote_options(tmp_path: Any) -> None:
     pytest.importorskip("pandas")
     env = dict(
         os.environ, PYTHONWARNINGS="ignore", MPLBACKEND="Agg", EVOPARAM_DATA=str(tmp_path / "data")
@@ -199,7 +200,7 @@ def test_req016_no_network_without_remote_options(tmp_path):
     assert all(code == 0 for code in report["codes"].values()), report["codes"]
 
 
-def test_req016_the_guard_records_an_attempt():
+def test_req016_the_guard_records_an_attempt() -> None:
     code = GUARD + textwrap.dedent("""
         from evoparam.io._fetch import fetch_bytes
         try:

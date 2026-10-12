@@ -10,6 +10,8 @@ onset of a causal shape, the edges of a template) are left out there, where
 the finite difference itself is wrong.
 """
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -54,12 +56,12 @@ BACKGROUND_CASES = {
 }
 
 
-def _steps(params, bounds):
+def _steps(params: Any, bounds: Any) -> Any:
     width = bounds[1] - bounds[0]
     return REL_STEP * np.maximum(np.abs(params), 1e-3 * width)
 
 
-def _richardson(func, params, index, step):
+def _richardson(func: Any, params: Any, index: Any, step: Any) -> Any:
     def central(h):
         delta = np.zeros(params.size)
         delta[index] = h
@@ -68,7 +70,7 @@ def _richardson(func, params, index, step):
     return (4.0 * central(step / 2.0) - central(step)) / 3.0
 
 
-def _kinks(shape, params, steps):
+def _kinks(shape: Any, params: Any, steps: Any) -> Any:
     """Times at which the curve is not smooth, with the half-width to leave out."""
 
     if isinstance(shape, shapes.Template):
@@ -86,7 +88,7 @@ def _kinks(shape, params, steps):
     return []
 
 
-def _column_errors(func, analytic, params, bounds, kinks=()):
+def _column_errors(func: Any, analytic: Any, params: Any, bounds: Any, kinks: Any = ()) -> Any:
     steps = _steps(params, bounds)
     keep = np.ones(TIMES.size, bool)
     for time, half_width in kinks:
@@ -104,7 +106,7 @@ def _column_errors(func, analytic, params, bounds, kinks=()):
 
 
 @pytest.mark.parametrize("case", sorted(SHAPE_CASES))
-def test_shape_jacobian_matches_finite_differences(case):
+def test_shape_jacobian_matches_finite_differences(case: Any) -> None:
     shape = SHAPE_CASES[case]
     bounds = shape.default_bounds(TIMES)
     params = sample_params(shape, TIMES, N_SETS, np.random.default_rng(101))
@@ -124,7 +126,7 @@ def test_shape_jacobian_matches_finite_differences(case):
 
 
 @pytest.mark.parametrize("case", sorted(BACKGROUND_CASES))
-def test_background_jacobian_matches_finite_differences(case):
+def test_background_jacobian_matches_finite_differences(case: Any) -> None:
     background = BACKGROUND_CASES[case]
     bounds = background.default_bounds(TIMES, data_range=(-50.0, 80.0))
     params = sample_background_params(
@@ -142,7 +144,7 @@ def test_background_jacobian_matches_finite_differences(case):
 
 
 @pytest.mark.parametrize("case", ["exponential", "double_exponential"])
-def test_basis_jacobian_matches_finite_differences(case):
+def test_basis_jacobian_matches_finite_differences(case: Any) -> None:
     background = BACKGROUND_CASES[case]
     lower, upper = background.default_bounds(TIMES)
     params = sample_background_params(background, TIMES, 20, np.random.default_rng(3))
@@ -161,7 +163,7 @@ def test_basis_jacobian_matches_finite_differences(case):
             assert max(errors, default=0.0) < RTOL
 
 
-def test_registry_check_agrees_on_builtin_shapes():
+def test_registry_check_agrees_on_builtin_shapes() -> None:
     from evoparam.shapes.registry import jacobian_error
 
     for case, shape in SHAPE_CASES.items():

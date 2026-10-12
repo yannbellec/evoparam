@@ -2,6 +2,7 @@
 """MNE round trip and fitting MNE objects (REQ-310, REQ-311)."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -12,7 +13,7 @@ mne = pytest.importorskip("mne")
 from evoparam.data import Evoked, TrialSet  # noqa: E402
 
 
-def _epochs():
+def _epochs() -> Any:
     info = mne.create_info(["E1", "G1", "S1", "D1"], 1000.0, ["eeg", "ecog", "seeg", "dbs"])
     with info._unlock():
         for i, ch in enumerate(info["chs"]):
@@ -36,7 +37,7 @@ def _epochs():
     )
 
 
-def test_req310_round_trip():
+def test_req310_round_trip() -> None:
 
     e = _epochs()
     ts = TrialSet.from_mne(e)
@@ -72,7 +73,7 @@ def test_req310_round_trip():
     np.testing.assert_allclose(again.data, ev.data, rtol=1e-12)
 
 
-def test_req310_stim_columns_mapping():
+def test_req310_stim_columns_mapping() -> None:
 
     e = _epochs()
     e.metadata = pd.DataFrame({"amp": ["4 mA", "4 mA", "2 mA"] * 2, "pair": ["PT01-PT02"] * 6})
@@ -82,7 +83,7 @@ def test_req310_stim_columns_mapping():
     assert list(ts.to_mne().metadata.columns) == ["amp", "pair"]
 
 
-def test_req311_fit_dispatch():
+def test_req311_fit_dispatch() -> None:
 
     import evoparam
 

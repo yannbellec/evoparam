@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Shared fixtures of the shape tests: time axis, template and parameter samplers."""
 
+from typing import Any
+
 import numpy as np
 
 from evoparam import shapes
@@ -10,7 +12,7 @@ SFREQ = 2000.0
 TIMES = -0.02 + np.arange(640) / SFREQ
 
 
-def make_template(stretch=False):
+def make_template(stretch: Any = False) -> Any:
     """Biphasic template at rest at both ends (sampled at 1 kHz over 200 ms)."""
 
     t = np.arange(201) / 1000.0
@@ -21,7 +23,7 @@ def make_template(stretch=False):
     return shapes.Template(t, values, stretch=stretch)
 
 
-def sample_params(shape, times, n_sets, rng):
+def sample_params(shape: Any, times: Any, n_sets: Any, rng: Any) -> Any:
     """Uniform parameter sets inside the default bounds, with the shape's constraints."""
 
     lower, upper = shape.default_bounds(times)
@@ -33,7 +35,9 @@ def sample_params(shape, times, n_sets, rng):
     return params
 
 
-def sample_background_params(background, times, n_sets, rng, data_range=None):
+def sample_background_params(
+    background: Any, times: Any, n_sets: Any, rng: Any, data_range: Any = None
+) -> Any:
     """Uniform parameter sets inside the default bounds, with tau2 >= 3 tau1."""
 
     lower, upper = background.default_bounds(times, data_range)

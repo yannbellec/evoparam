@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Methods text (REQ-219)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -38,7 +40,9 @@ from evoparam.tf import methods_text, tf_fit
         ("stft", "none", "none", ["short-time Fourier", "0.2 s"]),
     ],
 )
-def test_req219_methods_text_names_every_choice(transform, stats, zones, words):
+def test_req219_methods_text_names_every_choice(
+    transform: Any, stats: Any, zones: Any, words: Any
+) -> None:
 
     ts = trialset(ar1(np.random.default_rng(0), (12, len(TIMES))))
     tf = tf_fit(

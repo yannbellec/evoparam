@@ -2,6 +2,7 @@
 """Resampling (REQ-085), averaging and filters."""
 
 from dataclasses import replace
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -18,7 +19,7 @@ from .helpers import ccep, epochs
 
 
 @pytest.mark.parametrize("new_sfreq", [500.0, 512.0, 2048.0])
-def test_req085_latency_and_event_times(new_sfreq):
+def test_req085_latency_and_event_times(new_sfreq: Any) -> None:
 
     ts = epochs(n_trials=3, sfreq=2000.0, noise=0.0, event_times=np.array([1.5, 3.25, 7.125]))
     data = ts.data + ccep(ts.times, latency=0.0237, width=0.006)[None, None]
@@ -31,7 +32,7 @@ def test_req085_latency_and_event_times(new_sfreq):
     assert np.min(np.abs(out.times)) < 1e-9  # t = 0 stays on the grid
 
 
-def test_resample_carries_masks():
+def test_resample_carries_masks() -> None:
 
     ts = epochs(n_trials=1, sfreq=1000.0)
     mask = np.zeros(ts.data.shape, dtype=bool)
@@ -42,7 +43,7 @@ def test_resample_carries_masks():
         resample(ts, 0)
 
 
-def test_average_methods():
+def test_average_methods() -> None:
 
     meta = pd.DataFrame(
         {
@@ -72,7 +73,7 @@ def test_average_methods():
         average(replace(ts, metadata=None), method="weighted")
 
 
-def test_filters():
+def test_filters() -> None:
 
     ts = epochs(n_trials=2, sfreq=1000.0, noise=0.0)
     t = ts.times

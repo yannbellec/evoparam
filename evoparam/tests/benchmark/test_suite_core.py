@@ -16,6 +16,7 @@ import pathlib
 import subprocess
 import sys
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -52,7 +53,7 @@ PUBLISHED_RULES = (
 )
 
 
-def test_req350_core_covers_t1_to_t7():
+def test_req350_core_covers_t1_to_t7() -> None:
     core = suite("core")
     assert list_suites() == ["core", "full"]
     assert core.task_ids() == list(TASKS)
@@ -71,7 +72,7 @@ def test_req350_core_covers_t1_to_t7():
     assert not {c.seed for c in full.cells(split="public")} & set(seeds)
 
 
-def test_req350_suite_files_are_what_the_builder_writes():
+def test_req350_suite_files_are_what_the_builder_writes() -> None:
     """The frozen files are those of ``tools/benchmark_suites.py`` (the commitment aside,
     which needs the hidden seeds document)."""
 
@@ -90,7 +91,7 @@ def test_req350_suite_files_are_what_the_builder_writes():
 
 
 @pytest.mark.parametrize("task", list(TASKS))
-def test_req350_cells_are_generated_on_the_fly_and_deterministic(task):
+def test_req350_cells_are_generated_on_the_fly_and_deterministic(task: Any) -> None:
     cell = suite("core").cells(task)[0]
     a, truth_a = simulate_cell(cell)
     b, _ = simulate_cell(cell)
@@ -102,7 +103,7 @@ def test_req350_cells_are_generated_on_the_fly_and_deterministic(task):
     assert ti.truth is not None
 
 
-def test_req350_every_baseline_answers_its_tasks(tmp_path):
+def test_req350_every_baseline_answers_its_tasks(tmp_path: Any) -> None:
     """Each baseline on one cell of each task it answers: its output validates. The slow
     ones (evoparam-preset on T1/T2/T7, tf-cluster) run in the slow test below."""
 
@@ -123,7 +124,7 @@ def test_req350_every_baseline_answers_its_tasks(tmp_path):
             assert read_output(task, path) is not None, (name, task)
 
 
-def test_req353_rules_and_projection_are_baselines():
+def test_req353_rules_and_projection_are_baselines() -> None:
     assert tuple(RULES) == PUBLISHED_RULES
     for name in PUBLISHED_RULES + ("projection",):
         baseline = get_baseline(name)
@@ -132,7 +133,7 @@ def test_req353_rules_and_projection_are_baselines():
     assert {"classical", "template", "evoparam-preset"} <= set(BASELINES)
 
 
-def test_req353_committed_results_on_core():
+def test_req353_committed_results_on_core() -> None:
     docs = {(d["method"]["name"], d["task"]): d for d in load_results(str(RESULTS))}
     core = suite("core")
     for name in PUBLISHED_RULES + ("projection",):
@@ -148,7 +149,7 @@ def test_req353_committed_results_on_core():
         read_result(str(path))  # signatures hold
 
 
-def test_req350_committed_run_covers_t1_to_t7_within_the_limit():
+def test_req350_committed_run_covers_t1_to_t7_within_the_limit() -> None:
     run = json.loads((DOCS / "run-core.json").read_text(encoding="utf-8"))
     assert run["suite"]["name"] == "core"
     assert run["tasks"] == list(TASKS)
@@ -158,7 +159,7 @@ def test_req350_committed_run_covers_t1_to_t7_within_the_limit():
 
 
 @PERF
-def test_req350_core_run_completes_within_30_minutes(tmp_path):
+def test_req350_core_run_completes_within_30_minutes(tmp_path: Any) -> None:
     env = dict(os.environ, PYTHONPATH=str(ROOT) + os.pathsep + os.environ.get("PYTHONPATH", ""))
     start = time.perf_counter()
     proc = subprocess.run(
@@ -191,7 +192,7 @@ def test_req350_core_run_completes_within_30_minutes(tmp_path):
 
 
 @SLOW
-def test_req353_rerun_reproduces_the_committed_results(tmp_path):
+def test_req353_rerun_reproduces_the_committed_results(tmp_path: Any) -> None:
     """The baselines of T1 and T2 run again on core give the committed metrics (rtol
     1e-9, the cross-platform tolerance of REQ-295) and, when the simulated inputs are the
     same bytes as the committed ones (same platform), the same output hashes (REQ-352)."""

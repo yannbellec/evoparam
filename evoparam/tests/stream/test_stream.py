@@ -13,6 +13,7 @@ import os
 import pathlib
 import sys
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -44,7 +45,7 @@ FIELDS = (
 
 
 @pytest.fixture(scope="module")
-def pulses():
+def pulses() -> Any:
     """200 simulated pulses on two channels, their channel fits and the offline trial fits."""
 
     ts = simulate(n_trials=200, n_channels=2, seed=0)
@@ -57,7 +58,7 @@ def pulses():
 
 
 @pytest.fixture(scope="module")
-def mixed():
+def mixed() -> Any:
     """60 pulses on 8 channels, a response on the first 4, one channel template for all."""
 
     ts = simulate(n_trials=60, n_channels=8, responsive=range(4), seed=5)
@@ -65,12 +66,12 @@ def mixed():
     return ts, template
 
 
-def _fitter(template, ts, **kwargs):
+def _fitter(template: Any, ts: Any, **kwargs: Any) -> Any:
     kwargs.setdefault("detector", no_pulses)
     return StreamFitter(template, sfreq=ts.sfreq, ch_names=ts.ch_names, **kwargs)
 
 
-def _table(estimates, channel):
+def _table(estimates: Any, channel: Any) -> Any:
     rows = [e for e in estimates if e.channel == channel]
     return {field: np.array([getattr(e, field) for e in rows]) for field in FIELDS}
 
@@ -79,7 +80,7 @@ def _table(estimates, channel):
 ## REQ-324 / REQ-347: agreement with fit_trials(mode="shift_scale")
 
 
-def test_req347_agreement_with_fit_trials(pulses):
+def test_req347_agreement_with_fit_trials(pulses: Any) -> None:
 
     ts, group, offline = pulses
     fitter = _fitter(group, ts, existence_max_pulses=ts.n_trials)
@@ -98,7 +99,7 @@ def test_req347_agreement_with_fit_trials(pulses):
 
 
 @pytest.fixture(scope="module", params=["common jitter", "independent jitter"])
-def two_components(request):
+def two_components(request: Any) -> Any:
     """200 pulses with two components (N1 -40 uV at 30 ms, N2 +30 uV at 120 ms, jitter SD
     1.5 ms, the same for both or drawn for each, amplitude CV 20 %), the channel fit and
     the offline trial fits."""
@@ -119,7 +120,7 @@ def two_components(request):
     return ts, group, offline
 
 
-def _two_component_agreement(two_components, **kwargs):
+def _two_component_agreement(two_components: Any, **kwargs: Any) -> Any:
     ts, group, offline = two_components
     estimates = replay(ts, _fitter(group, ts, existence_max_pulses=200, **kwargs), chunk_size=32)
     amplitude = np.array([e.amplitude for e in estimates]).reshape(200, 2)
@@ -130,7 +131,7 @@ def _two_component_agreement(two_components, **kwargs):
     )
 
 
-def test_req347_agreement_two_components(two_components):
+def test_req347_agreement_two_components(two_components: Any) -> None:
     """The default mode (a shift and a scale per component) on a two-component template."""
 
     rel, lag = _two_component_agreement(two_components)
@@ -149,14 +150,14 @@ def test_req347_agreement_two_components(two_components):
         "8.8 samples (common), 117 % and 12.7 samples (independent)."
     ),
 )
-def test_req347_agreement_two_components_common_mode(two_components):
+def test_req347_agreement_two_components_common_mode(two_components: Any) -> None:
 
     rel, lag = _two_component_agreement(two_components, mode="common")
     assert rel <= 0.01, rel
     assert lag <= 1.0, lag
 
 
-def test_modes_agree_for_a_single_component(pulses):
+def test_modes_agree_for_a_single_component(pulses: Any) -> None:
 
     ts, group, _ = pulses
     runs = [
@@ -171,7 +172,7 @@ def test_modes_agree_for_a_single_component(pulses):
     assert runs[0] == runs[1] == runs[2]
 
 
-def test_req347_chunk_sizes_give_identical_estimates(pulses):
+def test_req347_chunk_sizes_give_identical_estimates(pulses: Any) -> None:
 
     ts, group, _ = pulses
     runs = []
@@ -191,7 +192,7 @@ def test_req347_chunk_sizes_give_identical_estimates(pulses):
             )
 
 
-def test_req347_running_existence_matches_offline_sign_flip(mixed):
+def test_req347_running_existence_matches_offline_sign_flip(mixed: Any) -> None:
 
     ts, template = mixed
     fitter = _fitter(
@@ -212,7 +213,7 @@ def test_req347_running_existence_matches_offline_sign_flip(mixed):
     assert not online["significant"][4:].any()
 
 
-def test_running_existence_detects_responses_with_looks_after_every_pulse(mixed):
+def test_running_existence_detects_responses_with_looks_after_every_pulse(mixed: Any) -> None:
 
     ts, template = mixed
     fitter = _fitter(template, ts, existence_max_pulses=ts.n_trials, random_state=0)
@@ -235,7 +236,7 @@ def test_running_existence_detects_responses_with_looks_after_every_pulse(mixed)
 ## REQ-348: false-positive rate of the sequential test over 50 looks
 
 
-def test_req348_sequential_fpr_on_null_values():
+def test_req348_sequential_fpr_on_null_values() -> None:
 
     rng = np.random.default_rng(1)
     hits = naive = total = 0
@@ -255,7 +256,7 @@ def test_req348_sequential_fpr_on_null_values():
     assert naive / total > 0.15
 
 
-def test_req348_sequential_fpr_on_null_streams(mixed):
+def test_req348_sequential_fpr_on_null_streams(mixed: Any) -> None:
 
     _, template = mixed
     names = [f"c{i}" for i in range(64)]
@@ -284,7 +285,7 @@ def test_req348_sequential_fpr_on_null_streams(mixed):
     assert hits / total <= 0.05 + 0.01, hits / total
 
 
-def test_alpha_spending_and_single_look():
+def test_alpha_spending_and_single_look() -> None:
 
     t = np.linspace(0.02, 1, 50)
     spent = alpha_spending(t, 0.05)
@@ -307,7 +308,7 @@ def test_alpha_spending_and_single_look():
 ## REQ-324 / REQ-347: latency
 
 
-def test_latency_stats():
+def test_latency_stats() -> None:
 
     sys.path.insert(0, str(BENCHMARKS))
     from stream_latency import run
@@ -326,7 +327,7 @@ def test_latency_stats():
     reason="set EVOPARAM_PERF_TESTS=1 to time the online mode",
 )
 @pytest.mark.parametrize("n_components", [1, 2])
-def test_req347_latency_budget(n_components):
+def test_req347_latency_budget(n_components: Any) -> None:
     """The default mode, with one component and with two (a shift and a scale each)."""
 
     sys.path.insert(0, str(BENCHMARKS))
@@ -343,7 +344,7 @@ def test_req347_latency_budget(n_components):
 ## Detector, triggers, statuses, errors
 
 
-def _continuous(n_pulses=6, seed=0):
+def _continuous(n_pulses: Any = 6, seed: Any = 0) -> Any:
     rng = np.random.default_rng(seed)
     n = int(SFREQ)
     data = rng.normal(0, 10, (4, n_pulses * n + n))
@@ -353,7 +354,7 @@ def _continuous(n_pulses=6, seed=0):
     return data, onsets
 
 
-def test_online_detector_matches_offline_threshold_and_ignores_chunks():
+def test_online_detector_matches_offline_threshold_and_ignores_chunks() -> None:
 
     data, onsets = _continuous()
     offline = detect_pulses(
@@ -368,7 +369,7 @@ def test_online_detector_matches_offline_threshold_and_ignores_chunks():
         assert found == list(onsets), chunk
 
 
-def test_threshold_detector_in_the_fitter(mixed):
+def test_threshold_detector_in_the_fitter(mixed: Any) -> None:
 
     _, template = mixed
     data, onsets = _continuous(n_pulses=4)
@@ -384,7 +385,7 @@ def test_threshold_detector_in_the_fitter(mixed):
     assert np.allclose(times, onsets / SFREQ)
 
 
-def test_push_pulse_and_timestamps(mixed):
+def test_push_pulse_and_timestamps(mixed: Any) -> None:
 
     ts, template = mixed
     fitter = _fitter(template, ts)
@@ -404,7 +405,7 @@ def test_push_pulse_and_timestamps(mixed):
     assert math.isnan(fitter.latency_stats["p99"])
 
 
-def test_statuses(mixed):
+def test_statuses(mixed: Any) -> None:
 
     ts, template = mixed
     data = ts.data[:3].copy()
@@ -423,7 +424,7 @@ def test_statuses(mixed):
     assert np.isfinite([e.amplitude for e in out]).all()
 
 
-def test_artifact_window_is_interpolated(mixed):
+def test_artifact_window_is_interpolated(mixed: Any) -> None:
 
     ts, template = mixed
     clean = ts.data[:20].copy()
@@ -446,7 +447,7 @@ def test_artifact_window_is_interpolated(mixed):
     assert np.allclose(results[0], results[1], rtol=1e-9, atol=1e-9)
 
 
-def test_errors(mixed):
+def test_errors(mixed: Any) -> None:
 
     ts, template = mixed
     with pytest.raises(SettingsError):
@@ -472,7 +473,7 @@ def test_errors(mixed):
 ## REQ-325 / REQ-015: intended use
 
 
-def test_intended_use_statements(capsys):
+def test_intended_use_statements(capsys: Any) -> None:
 
     assert INTENDED_USE == "research only; not a medical device"
     assert "not a medical device" in evoparam.stream.__doc__
@@ -486,7 +487,7 @@ def test_intended_use_statements(capsys):
     assert fitter.settings["intended_use"] == INTENDED_USE
 
 
-def test_simulation_helpers_are_consistent():
+def test_simulation_helpers_are_consistent() -> None:
 
     # the epochs have a sample at t = 0 and the response where the template expects it
     assert TIMES[1024] == 0.0

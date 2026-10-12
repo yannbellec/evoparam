@@ -4,6 +4,8 @@ the QR-reduced residual and Jacobian of the variable projection, the fused desig
 the Gaussian factors left out where they are exactly zero, and the features scaled from
 the unit-amplitude ones."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -17,7 +19,9 @@ from .helpers import TIMES, gauss, noise
 ###################################################################################################
 
 
-def _struct(background="exponential", ar=True, prior=True, ordered=True):
+def _struct(
+    background: Any = "exponential", ar: Any = True, prior: Any = True, ordered: Any = True
+) -> Any:
     rng = np.random.default_rng(0)
     tw = TIMES[(TIMES >= 0.02) & (TIMES <= 0.6)]
     y = gauss(0.1, -5, 0.03, tw) + gauss(0.3, 3, 0.06, tw) + 0.4 + noise(rng, 0.8, n=len(tw))
@@ -49,7 +53,9 @@ def _struct(background="exponential", ar=True, prior=True, ordered=True):
 
 @pytest.mark.parametrize("background", ["exponential", "constant", "linear"])
 @pytest.mark.parametrize(("ar", "prior"), [(True, True), (False, False), (True, False)])
-def test_reduced_residual_and_jacobian_match_the_svd_route(background, ar, prior):
+def test_reduced_residual_and_jacobian_match_the_svd_route(
+    background: Any, ar: Any, prior: Any
+) -> None:
 
     struct, theta = _struct(background, ar, prior)
     beta, rw, _, q = struct.solve(theta)
@@ -67,7 +73,7 @@ def test_reduced_residual_and_jacobian_match_the_svd_route(background, ar, prior
     assert np.allclose(rw2, rw, rtol=1e-9, atol=1e-9)
 
 
-def test_a_rank_deficient_design_takes_the_svd_route():
+def test_a_rank_deficient_design_takes_the_svd_route() -> None:
 
     base, _ = _struct()
     # two identical Gaussians: two equal columns
@@ -86,7 +92,7 @@ def test_a_rank_deficient_design_takes_the_svd_route():
 
 
 @pytest.mark.parametrize("name", ["gaussian", "skewed_gaussian", "exgaussian", "gamma"])
-def test_fused_columns_are_the_shapes_values(name):
+def test_fused_columns_are_the_shapes_values(name: Any) -> None:
 
     rng = np.random.default_rng(1)
     shape = get_shape(name)
@@ -101,7 +107,7 @@ def test_fused_columns_are_the_shapes_values(name):
         )
 
 
-def test_exponential_background_columns():
+def test_exponential_background_columns() -> None:
 
     bg = get_background("exponential")
     tw = np.linspace(0.01, 0.5, 900)
@@ -116,7 +122,7 @@ def test_exponential_background_columns():
 
 
 @pytest.mark.parametrize("name", ["gaussian", "skewed_gaussian"])
-def test_gaussian_tails_left_out_are_exactly_zero(name):
+def test_gaussian_tails_left_out_are_exactly_zero(name: Any) -> None:
     """Single parameter vectors skip the samples where exp(-z^2/2) underflows; the values
     are those of the batched evaluation, which computes every sample."""
 
@@ -136,7 +142,7 @@ def test_gaussian_tails_left_out_are_exactly_zero(name):
 
 
 @pytest.mark.parametrize("name", ["gaussian", "skewed_gaussian", "exgaussian", "gamma"])
-def test_features_scale_with_the_amplitude(name):
+def test_features_scale_with_the_amplitude(name: Any) -> None:
 
     rng = np.random.default_rng(3)
     shape = get_shape(name, min_fwhm=0.003, max_fwhm=0.25)

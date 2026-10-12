@@ -2,6 +2,7 @@
 """REQ-327: community files, their policies and links (source tree only)."""
 
 import os
+from typing import Any
 
 import pytest
 
@@ -16,12 +17,12 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _read(*parts):
+def _read(*parts: Any) -> Any:
     with open(os.path.join(ROOT, *parts), encoding="utf-8") as fobj:
         return fobj.read()
 
 
-def test_files_exist_and_are_linked():
+def test_files_exist_and_are_linked() -> None:
 
     for name in FILES:
         assert os.path.isfile(os.path.join(ROOT, name)), name
@@ -31,7 +32,7 @@ def test_files_exist_and_are_linked():
     assert os.path.isfile(os.path.join(ROOT, "docs", "contributing", "add_shape.rst"))
 
 
-def test_policies():
+def test_policies() -> None:
 
     contributing = _read("CONTRIBUTING.md")
     assert "Developer Certificate of Origin" in contributing
@@ -45,7 +46,7 @@ def test_policies():
     assert "Contributor Covenant, version 2.1" in _read("CODE_OF_CONDUCT.md")
 
 
-def test_issue_templates():
+def test_issue_templates() -> None:
 
     folder = os.path.join(ROOT, ".github", "ISSUE_TEMPLATE")
     assert sorted(os.listdir(folder)) == sorted(TEMPLATES)

@@ -8,6 +8,7 @@ on 100 channels x 2 048 samples with ``n_jobs=1`` completes in <= 10 s.
 
 import os
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -24,7 +25,7 @@ SFREQ = 2048.0
 TIMES = (np.arange(2048) - 1022) / SFREQ  # 2 048 samples, to 0.5005 s
 
 
-def _waveform(rng):
+def _waveform(rng: Any) -> Any:
     return (
         -100 * np.exp(-0.5 * ((TIMES - 0.025) / 0.006) ** 2)
         - 60 * np.exp(-0.5 * ((TIMES - 0.15) / 0.04) ** 2)
@@ -38,7 +39,7 @@ def _waveform(rng):
     "with ccep v1.1, 0.52 to 0.55 s before (one thread; pure NumPy/SciPy; "
     "CHANGELOG, 'Engine speed (REQ-115, REQ-290 P1)')",
 )
-def test_req115_one_waveform_under_50_ms():
+def test_req115_one_waveform_under_50_ms() -> None:
 
     rng = np.random.default_rng(0)
     durations = []
@@ -56,7 +57,7 @@ def test_req115_one_waveform_under_50_ms():
     "with ccep v1.1, 45 to 48 s before (one thread; CHANGELOG, 'Engine speed "
     "(REQ-115, REQ-290 P1)')",
 )
-def test_req115_fit_group_100_channels_under_10_s():
+def test_req115_fit_group_100_channels_under_10_s() -> None:
 
     rng = np.random.default_rng(1)
     data = np.array(

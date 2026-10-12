@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Published zones registry (REQ-217) and the compatibility layer."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -24,7 +26,7 @@ BANDS = {
 INTERVALS = {"N1": (0.015, 0.05), "N2": (0.05, 0.5)}
 
 
-def test_registry_lists_every_zone_with_status_and_source():
+def test_registry_lists_every_zone_with_status_and_source() -> None:
 
     table = list_published_zones()
     assert set(table["name"]) == set(load_zones())
@@ -33,7 +35,7 @@ def test_registry_lists_every_zone_with_status_and_source():
     assert all(table["source"].str.len() > 0)
 
 
-def test_req217_unverified_zone_needs_allow_unverified():
+def test_req217_unverified_zone_needs_allow_unverified() -> None:
 
     ts = trialset(ar1(np.random.default_rng(0), (10, len(TIMES))))
     with pytest.raises(SettingsError, match=UNVERIFIED) as err:
@@ -42,7 +44,7 @@ def test_req217_unverified_zone_needs_allow_unverified():
     assert "allow_unverified=True" in str(err.value)
 
 
-def test_zone_without_bounds_is_refused_even_when_allowed(monkeypatch):
+def test_zone_without_bounds_is_refused_even_when_allowed(monkeypatch: Any) -> None:
 
     from evoparam.tf import zones
 
@@ -53,7 +55,7 @@ def test_zone_without_bounds_is_refused_even_when_allowed(monkeypatch):
         resolve_published("empty", allow_unverified=True)
 
 
-def test_the_eleven_published_zones_have_the_article_bounds():
+def test_the_eleven_published_zones_have_the_article_bounds() -> None:
 
     registry = load_zones()
     for band, freq in BANDS.items():
@@ -77,7 +79,7 @@ def test_the_eleven_published_zones_have_the_article_bounds():
     assert table.loc["brinyark2026_GhN1", "intervals"] == "[)x[]"
 
 
-def test_ghn2_is_the_verified_delayed_high_gamma_zone():
+def test_ghn2_is_the_verified_delayed_high_gamma_zone() -> None:
 
     alias = resolve_published("brinyark2026_GhN2")
     zone = resolve_published(VERIFIED)
@@ -88,7 +90,7 @@ def test_ghn2_is_the_verified_delayed_high_gamma_zone():
     assert np.array_equal(zone_mask(alias, freqs, times), zone_mask(zone, freqs, times))
 
 
-def test_band_and_interval_zones_tile_the_whole_response():
+def test_band_and_interval_zones_tile_the_whole_response() -> None:
     """Half-open convention: 50 ms belongs to N2 and each band edge to the higher band, so
     every pixel of the whole response lies in exactly one of the ten zones."""
 
@@ -110,7 +112,7 @@ def test_band_and_interval_zones_tile_the_whole_response():
     assert not zone_mask(registry["brinyark2026_TN2"], freqs, times)[eight, 100]
 
 
-def test_article_zone_uses_the_published_statistic_and_significance_fraction():
+def test_article_zone_uses_the_published_statistic_and_significance_fraction() -> None:
 
     rng = np.random.default_rng(7)
     ts = trialset(
@@ -142,7 +144,7 @@ def test_article_zone_uses_the_published_statistic_and_significance_fraction():
     assert "baseline of its frequency" in tf.methods_text()
 
 
-def test_baseline_normal_map_against_an_independent_computation():
+def test_baseline_normal_map_against_an_independent_computation() -> None:
 
     rng = np.random.default_rng(8)
     power = rng.gamma(2.0, 1.0, (12, 3, 50))
@@ -163,19 +165,19 @@ def test_baseline_normal_map_against_an_independent_computation():
     assert np.isnan(z[:, :25]).all()
 
 
-def test_volume_conduction_weights():
+def test_volume_conduction_weights() -> None:
 
     w = volume_conduction_weight([5.0, 10.0, 15.0, 20.0, 30.0])
     assert np.allclose(w, [0.0, 0.0, (225 - 100) / 300, 1.0, 1.0])
 
 
-def test_unknown_zone_is_refused():
+def test_unknown_zone_is_refused() -> None:
 
     with pytest.raises(SettingsError, match="Unknown published zone"):
         resolve_published("nope")
 
 
-def test_published_zone_sets_the_source_settings_and_measures_the_zone():
+def test_published_zone_sets_the_source_settings_and_measures_the_zone() -> None:
 
     rng = np.random.default_rng(3)
     ts = trialset(ar1(rng, (30, len(TIMES))) + burst(rng, 30, freq=100.0, centre=0.2, amp=10.0))

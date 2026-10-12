@@ -18,6 +18,7 @@ only the blocks under the epochs), and cached in the evoparam data folder (float
 """
 
 import os
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -45,7 +46,7 @@ REGIONS = {
 ###################################################################################################
 
 
-def load_ds003708(channel=CHANNEL):
+def load_ds003708(channel: Any = CHANNEL) -> Any:
     """Epochs of one channel for every pulse marked good (cached), as a TrialSet."""
 
     from evoparam.data import TrialSet
@@ -96,7 +97,7 @@ def load_ds003708(channel=CHANNEL):
     )
 
 
-def _electrodes():
+def _electrodes() -> Any:
     from evoparam.io import openneuro_url
     from evoparam.io._fetch import data_folder
 
@@ -115,7 +116,7 @@ def _electrodes():
     return pd.read_csv(cache, sep="\t", na_values=["n/a"])
 
 
-def reference_regions():
+def reference_regions() -> Any:
     """Site -> region (STG, ITG, fusiform) when both contacts share one of the labels."""
 
     labels = dict(zip(_electrodes()["name"], _electrodes()["Destrieux_label_text"], strict=False))
@@ -127,7 +128,7 @@ def reference_regions():
     return out
 
 
-def agreement(assignment, regions):
+def agreement(assignment: Any, regions: Any) -> Any:
     """Fraction of the scored sites whose basis is the one matched to their region (each
     region matched to the basis that holds most of its sites; sites without a basis count
     as disagreements)."""
@@ -156,13 +157,13 @@ def agreement(assignment, regions):
 
 
 @pytest.fixture(scope="module")
-def basis():
+def basis() -> Any:
     from evoparam.spatial import shared_shapes
 
     return shared_shapes(load_ds003708(), channel=CHANNEL, window=WINDOW, random_state=0)
 
 
-def test_reads_the_example_channel():
+def test_reads_the_example_channel() -> None:
 
     ts = load_ds003708()
     assert ts.sfreq == 2048.0
@@ -172,7 +173,7 @@ def test_reads_the_example_channel():
     assert np.isfinite(ts.data).all()
 
 
-def test_req194_number_of_bases(basis):
+def test_req194_number_of_bases(basis: Any) -> None:
 
     # Three basis profile curves for the example channel in the paper (the same with
     # random_state 0 to 4)
@@ -187,7 +188,7 @@ def test_req194_number_of_bases(basis):
     "from the Destrieux labels, 4 of the 7 scored sites agree (0.57); see the "
     "CHANGELOG, step S12.",
 )
-def test_req194_assignment_agrees_with_the_figure(basis):
+def test_req194_assignment_agrees_with_the_figure(basis: Any) -> None:
 
     score, n_scored = agreement(basis.assignment, reference_regions())
     assert n_scored >= 10

@@ -17,6 +17,7 @@ per condition) the evidence for a component of about twice the noise SD is weak.
 import importlib.util
 import os
 import pathlib
+from typing import Any
 
 import pytest
 
@@ -29,7 +30,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture(scope="module")
-def table():
+def table() -> Any:
     pytest.importorskip("mne")
     spec = importlib.util.spec_from_file_location("erpcore", SCRIPT)
     module = importlib.util.module_from_spec(spec)
@@ -37,7 +38,7 @@ def table():
     return module.summary(module.run())
 
 
-def test_req274_lateralized_readiness_potential(table):
+def test_req274_lateralized_readiness_potential(table: Any) -> None:
 
     assert table.loc["LRP", "n"] == 40
     assert table.loc["LRP", "within_10ms"] >= 0.9
@@ -49,6 +50,6 @@ def test_req274_lateralized_readiness_potential(table):
     "ERN on single-participant waves (see the module docstring and CHANGELOG)",
 )
 @pytest.mark.parametrize("component", ["ERN", "N170", "N400", "MMN", "N2pc", "P3"])
-def test_req274_other_components(table, component):
+def test_req274_other_components(table: Any, component: Any) -> None:
 
     assert table.loc[component, "within_10ms"] >= 0.9

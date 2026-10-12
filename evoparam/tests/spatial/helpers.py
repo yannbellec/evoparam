@@ -2,6 +2,7 @@
 """Simulated multi-site and multi-channel data with known shapes, latencies and sources."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,7 @@ TIMES = np.arange(-0.3, 0.6, 1 / SFREQ)
 BASELINE = (-0.3, -0.01)
 
 
-def gauss(latency, fwhm, times=TIMES):
+def gauss(latency: Any, fwhm: Any, times: Any = TIMES) -> Any:
     return np.exp(-0.5 * ((times - latency) / (fwhm / 2.3548)) ** 2)
 
 
@@ -27,7 +28,14 @@ SHAPES = (
 )
 
 
-def multi_site(seed, n_sites=20, n_trials=10, noise=30.0, amp=(40.0, 120.0), shapes=SHAPES):
+def multi_site(
+    seed: Any,
+    n_sites: Any = 20,
+    n_trials: Any = 10,
+    noise: Any = 30.0,
+    amp: Any = (40.0, 120.0),
+    shapes: Any = SHAPES,
+) -> Any:
     """One recording channel, ``n_sites`` stimulation sites, each driving one of ``shapes``
     (about equal numbers) with its own amplitude; per-trial amplitude CV 0.2, white noise."""
 
@@ -52,7 +60,14 @@ def multi_site(seed, n_sites=20, n_trials=10, noise=30.0, amp=(40.0, 120.0), sha
     return ts, which
 
 
-def shared_channels(seed, n=30, snr=2.0, latency=0.03, fwhm=0.02, offsets=None):
+def shared_channels(
+    seed: Any,
+    n: Any = 30,
+    snr: Any = 2.0,
+    latency: Any = 0.03,
+    fwhm: Any = 0.02,
+    offsets: Any = None,
+) -> Any:
     """``n`` channels with one Gaussian component of the same width and latency (plus
     ``offsets``), amplitudes 25 to 75 in absolute value with random signs, and white noise
     of SD |amplitude| / snr per channel; contacts on sEEG shafts of 10."""
@@ -74,13 +89,19 @@ def shared_channels(seed, n=30, snr=2.0, latency=0.03, fwhm=0.02, offsets=None):
     return draw, clean, info
 
 
-def independent_fits(evoked, preset="ccep"):
+def independent_fits(evoked: Any, preset: Any = "ccep") -> Any:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return ResponseModel(preset, baseline=BASELINE).fit_group(evoked)
 
 
-def volume_scene(seed, n_trials=10, noise=10.0, source_amp=1000.0, min_level=5.0):
+def volume_scene(
+    seed: Any,
+    n_trials: Any = 10,
+    noise: Any = 10.0,
+    source_amp: Any = 1000.0,
+    min_level: Any = 5.0,
+) -> Any:
     """sEEG scene with one stimulation site (A04-A05) whose response spreads passively,
     amplitude ``source_amp (3.5 mm / r)²`` with the same sign and shape everywhere, and two
     local dipolar sources (opposite polarities on two adjacent contacts, a third of the

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """REQ-102: the shape registry and the checks of ``register_shape``."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -19,32 +21,32 @@ class Lorentzian:
     n_params = 2
     latency_param = "center"
 
-    def evaluate(self, times, params):
+    def evaluate(self, times: Any, params: Any) -> Any:
         params = np.asarray(params, dtype=float)
         z = (np.asarray(times) - params[..., 0, None]) / params[..., 1, None]
         return 1.0 / (1.0 + z**2)
 
-    def jacobian(self, times, params):
+    def jacobian(self, times: Any, params: Any) -> Any:
         params = np.asarray(params, dtype=float)
         width = params[..., 1, None]
         z = (np.asarray(times) - params[..., 0, None]) / width
         s = 1.0 / (1.0 + z**2)
         return np.stack([2 * z * s**2 / width, 2 * z**2 * s**2 / width], axis=-1)
 
-    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def default_bounds(self, times: Any, data_range: Any = None) -> Any:  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return np.array([times[0], 0.002]), np.array([times[-1], 0.05])
 
-    def initial_guess(self, times, waveform, peak_index):  # noqa: ARG002  (shape protocol: signature shared by every shape)
+    def initial_guess(self, times: Any, waveform: Any, peak_index: Any) -> Any:  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return np.array([times[peak_index], 0.01])
 
-    def features(self, times, params, amplitude=1.0):
+    def features(self, times: Any, params: Any, amplitude: Any = 1.0) -> Any:
         return compute_features(self, times, params, amplitude)
 
 
 class WrongJacobian(Lorentzian):
     name = "lorentzian_wrong_jacobian"
 
-    def jacobian(self, times, params):
+    def jacobian(self, times: Any, params: Any) -> Any:
         jac = super().jacobian(times, params)
         jac[..., 1] *= 0.5  # forgotten factor 2
         return jac
@@ -53,10 +55,10 @@ class WrongJacobian(Lorentzian):
 class NotNormalised(Lorentzian):
     name = "lorentzian_half"
 
-    def evaluate(self, times, params):
+    def evaluate(self, times: Any, params: Any) -> Any:
         return 0.5 * super().evaluate(times, params)
 
-    def jacobian(self, times, params):
+    def jacobian(self, times: Any, params: Any) -> Any:
         return 0.5 * super().jacobian(times, params)
 
 
@@ -68,19 +70,19 @@ class MissingMethod(Lorentzian):
 class NeedsArguments(Lorentzian):
     name = "lorentzian_args"
 
-    def __init__(self, scale):
+    def __init__(self, scale: Any) -> None:
         self.scale = scale
 
 
 @pytest.fixture
-def clean_registry():
+def clean_registry() -> Any:
     before = dict(shapes.SHAPES)
     yield
     shapes.SHAPES.clear()
     shapes.SHAPES.update(before)
 
 
-def test_get_shape_and_background():
+def test_get_shape_and_background() -> None:
     shape = shapes.get_shape("gaussian", min_fwhm=0.004)
     assert isinstance(shape, shapes.Gaussian)
     assert shape.min_fwhm == 0.004
@@ -106,13 +108,13 @@ def test_get_shape_and_background():
     ],
     ids=lambda s: s.name,
 )
-def test_builtin_shapes_pass_the_checks(shape):
+def test_builtin_shapes_pass_the_checks(shape: Any) -> None:
     check_shape(shape)
     check_shape(shape, TIMES)
 
 
 @pytest.mark.usefixtures("clean_registry")
-def test_register_a_user_shape():
+def test_register_a_user_shape() -> None:
     assert shapes.register_shape(Lorentzian) is Lorentzian
     assert isinstance(shapes.get_shape("lorentzian"), Lorentzian)
     instance = Lorentzian()
@@ -127,7 +129,7 @@ def test_register_a_user_shape():
 
 
 @pytest.mark.usefixtures("clean_registry")
-def test_register_as_decorator():
+def test_register_as_decorator() -> None:
     @shapes.register_shape
     class Decorated(Lorentzian):
         name = "decorated"
@@ -145,14 +147,14 @@ def test_register_as_decorator():
     ],
 )
 @pytest.mark.usefixtures("clean_registry")
-def test_register_rejects_a_faulty_shape(cls, check):
+def test_register_rejects_a_faulty_shape(cls: Any, check: Any) -> None:
     with pytest.raises(SettingsError, match=f"check '{check}' failed"):
         shapes.register_shape(cls)
     assert cls.name not in shapes.SHAPES
 
 
 @pytest.mark.usefixtures("clean_registry")
-def test_builtin_names_are_protected():
+def test_builtin_names_are_protected() -> None:
     class Impostor(Lorentzian):
         name = "gaussian"
 
@@ -167,7 +169,7 @@ def test_builtin_names_are_protected():
     )
 
 
-def test_wrong_bounds_and_output_shapes_are_rejected():
+def test_wrong_bounds_and_output_shapes_are_rejected() -> None:
     class BadBounds(Lorentzian):
         name = "bad_bounds"
 

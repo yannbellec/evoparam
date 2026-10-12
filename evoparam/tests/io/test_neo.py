@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Neo reader (REQ-319)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -10,7 +12,7 @@ pq = pytest.importorskip("quantities")
 from evoparam.io import read_neo  # noqa: E402
 
 
-def _block():
+def _block() -> Any:
     block = neo.Block()
     for _run in range(2):
         seg = neo.Segment()
@@ -31,7 +33,7 @@ def _block():
     return block
 
 
-def test_req319_block_with_two_segments():
+def test_req319_block_with_two_segments() -> None:
 
     ts = read_neo(_block(), tmin=-0.1, tmax=0.2)
     assert ts.data.shape == (6, 3, 300)

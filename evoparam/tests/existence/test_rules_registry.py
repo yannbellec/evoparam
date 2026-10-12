@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The registry of published rules (REQ-133, REQ-137)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -25,7 +27,7 @@ COMPLETE = {
 }
 
 
-def _evoked_at(spec, value):
+def _evoked_at(spec: Any, value: Any) -> Any:
     """A waveform whose rule statistic equals ``value`` exactly (baseline SD 1, mean 0)."""
 
     base = (spec["baseline"][0] <= TIMES) & (spec["baseline"][1] >= TIMES)
@@ -46,7 +48,7 @@ def _evoked_at(spec, value):
 
 
 @pytest.mark.parametrize("name", [n for n in COMPLETE if n != "ftract"])
-def test_req133_decision_flips_at_threshold(name):
+def test_req133_decision_flips_at_threshold(name: Any) -> None:
 
     spec = resolve_rule(name, **COMPLETE[name])
     for delta, expected in ((1e-6, True), (-1e-6, False)):
@@ -55,7 +57,7 @@ def test_req133_decision_flips_at_threshold(name):
         assert bool(test.significant[0]) is expected, (name, delta)
 
 
-def test_req137_unspecified_fields_raise():
+def test_req137_unspecified_fields_raise() -> None:
 
     with pytest.raises(SettingsError, match=r"van Blooijs.*\['baseline'\]"):
         resolve_rule("vanblooijs2023")
@@ -67,7 +69,7 @@ def test_req137_unspecified_fields_raise():
     assert set(table["name"]) == set(COMPLETE)
 
 
-def test_detectors_namespace_and_custom_rule():
+def test_detectors_namespace_and_custom_rule() -> None:
 
     evoked = _evoked_at(resolve_rule("keller2014"), 10.0)
     assert detectors.keller2014(evoked).significant[0]
@@ -80,14 +82,14 @@ def test_detectors_namespace_and_custom_rule():
     assert run_test(evoked, method="threshold", rule=custom).significant[0]
 
 
-def _uv(y):
+def _uv(y: Any) -> Any:
     y = np.atleast_2d(y)
     return Evoked(
         data=y, times=TIMES, sfreq=SFREQ, ch_names=[f"c{i}" for i in range(len(y))], units="uV"
     )
 
 
-def test_selective_maxima_matches_the_definition():
+def test_selective_maxima_matches_the_definition() -> None:
 
     from evoparam.existence.rules import selective_maxima
 
@@ -100,7 +102,7 @@ def test_selective_maxima_matches_the_definition():
     assert selective_maxima(np.arange(5.0), 10.0).tolist() == []
 
 
-def test_vanblooijs2023_default_is_the_registry_row():
+def test_vanblooijs2023_default_is_the_registry_row() -> None:
     """F65: the default rule is the row of spec §5.6 as written (no SD floor, the window's
     most negative sample); the published code's fields belong to 'vanblooijs2023_code'."""
 
@@ -119,7 +121,7 @@ def test_vanblooijs2023_default_is_the_registry_row():
     assert code["peak_search_end"] == 0.5
 
 
-def test_vanblooijs2023_published_code_reading():
+def test_vanblooijs2023_published_code_reading() -> None:
     """'vanblooijs2023_code' reads the N1 as the published code does (mnl_ccepAge): a
     monotone tail through the window start or a drift through its end is not a peak; a
     trough is; the 50 uV SD floor leaves out a small trough that the registry row keeps."""

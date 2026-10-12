@@ -19,6 +19,7 @@ EVOPARAM_NETWORK_TESTS=1.
 import csv
 import io
 import os
+from typing import Any
 
 import numpy as np
 import pytest
@@ -102,7 +103,7 @@ SPAN = 20.0
 ###################################################################################################
 
 
-def _table(dataset, rel):
+def _table(dataset: Any, rel: Any) -> Any:
     from evoparam.io import openneuro_url
     from evoparam.io._fetch import fetch_bytes
 
@@ -110,7 +111,7 @@ def _table(dataset, rel):
     return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
 
 
-def run_segments(dataset, stem, sites, span=SPAN):
+def run_segments(dataset: Any, stem: Any, sites: Any, span: Any = SPAN) -> Any:
     """Segments of ``span`` s from 1 s before the first pulse of each site (cached).
 
     Returns a list of dicts: data (µV), sfreq, names, t0, onsets and sites of the
@@ -177,7 +178,7 @@ def run_segments(dataset, stem, sites, span=SPAN):
     return out
 
 
-def channel_table(segment):
+def channel_table(segment: Any) -> Any:
     """Channel table from channels.tsv: types (sEEG, ECoG, EEG, ...) and bad channels."""
 
     pd = pytest.importorskip("pandas")
@@ -191,7 +192,7 @@ def channel_table(segment):
     )
 
 
-def detect(seg, **kwargs):
+def detect(seg: Any, **kwargs: Any) -> Any:
     """detect_pulses with the default settings; no pulse found gives an empty table."""
 
     from evoparam.errors import EventError
@@ -205,7 +206,7 @@ def detect(seg, **kwargs):
         return pd.DataFrame({"onset_time": [], "stim_site_guess": [], "site_confidence": []})
 
 
-def uncensored(seg, half_width=0.1):
+def uncensored(seg: Any, half_width: Any = 0.1) -> Any:
     """Reference pulses whose data are not zeros on every channel within 100 ms (ds004977
     is censored with zeros by its authors)."""
 
@@ -218,7 +219,7 @@ def uncensored(seg, half_width=0.1):
 
 
 @pytest.fixture(scope="module")
-def results():
+def results() -> Any:
     out = []
     for dataset, stem, sites in RUNS:
         for seg in run_segments(dataset, stem, sites):
@@ -229,11 +230,11 @@ def results():
     return out
 
 
-def subset(results, *, mayo_2048):
+def subset(results: Any, *, mayo_2048: Any) -> Any:
     return [res for res in results if (res[0] != "ds004977") == mayo_2048]
 
 
-def match_all(results):
+def match_all(results: Any) -> Any:
     hits = misses = false_alarms = 0
     errors = []
     for _, _, _, events, onsets, _ in results:
@@ -244,7 +245,7 @@ def match_all(results):
     return hits, misses, false_alarms, np.array(errors)
 
 
-def site_agreement(results, column="stim_site_guess"):
+def site_agreement(results: Any, column: Any = "stim_site_guess") -> Any:
     agree, confident = [], []
     for _, _, _, events, onsets, sites in results:
         # No vote (and no per-pulse column) when a single pulse was detected
@@ -270,7 +271,7 @@ def site_agreement(results, column="stim_site_guess"):
     )
 
 
-def test_mayo_onsets_match_events_tsv(results):
+def test_mayo_onsets_match_events_tsv(results: Any) -> None:
     """The reader puts the pulses where events.tsv says (2048 Hz runs): every pulse is
     found, within one sample (the onsets of events.tsv are sample numbers / sfreq)."""
 
@@ -289,7 +290,7 @@ def test_mayo_onsets_match_events_tsv(results):
     "35-45 mV pulses, in ds004457 sub-2 and ds004696 "
     "sub-07); REQ-040 is specified on ds004080 only",
 )
-def test_mayo_precision(results):
+def test_mayo_precision(results: Any) -> None:
 
     hits, _, false_alarms, _ = match_all(subset(results, mayo_2048=True))
     assert hits / (hits + false_alarms) >= 0.99
@@ -302,13 +303,13 @@ def test_mayo_precision(results):
     "recall 0.50); with sEEG picks and threshold_sd=7 all 20 "
     "are found, 2.1 ms after the events.tsv onsets",
 )
-def test_ds004977_pulses_found_with_defaults(results):
+def test_ds004977_pulses_found_with_defaults(results: Any) -> None:
 
     hits, misses, _, _ = match_all(subset(results, mayo_2048=False))
     assert hits / (hits + misses) >= 0.99
 
 
-def test_req042_mayo_site_agreement(results):
+def test_req042_mayo_site_agreement(results: Any) -> None:
     """Agreement with events.tsv on every detected pulse of the Mayo sets (measured: 0.99,
     160 of 162 pulses; 0.99 on the 2048 Hz runs, 1.0 on ds004977). The stimulating contacts
     reach the amplifier's range (34.8 mV) in ds003708, ds004457 and ds004696, and are silent
@@ -324,7 +325,7 @@ def test_req042_mayo_site_agreement(results):
     assert site_agreement(subset(results, mayo_2048=False))[0] >= 0.95
 
 
-def test_req042_mayo_confidence_is_calibrated(results):
+def test_req042_mayo_confidence_is_calibrated(results: Any) -> None:
     """Measured: accuracy 1.0 for site_confidence >= 0.5, on 41 % of the pulses."""
 
     _, accuracy, fraction, _ = site_agreement(results)

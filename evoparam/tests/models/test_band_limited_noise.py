@@ -11,6 +11,8 @@ the phase that holds the recorded samples (``engine.noise_phase``); a noise that
 band takes the previous path unchanged.
 """
 
+from typing import Any
+
 import numpy as np
 import pytest
 from scipy.signal import resample_poly
@@ -22,7 +24,7 @@ from .helpers import noise
 
 @pytest.mark.parametrize("rho", [0.0, 0.5, 0.9, 0.99])
 @pytest.mark.parametrize("n", [100, 400, 1000])
-def test_a_noise_that_fills_its_band_has_stride_one(rho, n):
+def test_a_noise_that_fills_its_band_has_stride_one(rho: Any, n: Any) -> None:
 
     rng = np.random.default_rng(int(rho * 100) + n)
     for _ in range(20):
@@ -31,7 +33,7 @@ def test_a_noise_that_fills_its_band_has_stride_one(rho, n):
 
 @pytest.mark.parametrize("factor", [2, 3, 4])
 @pytest.mark.parametrize("rho", [0.0, 0.9, 0.99])
-def test_upsampled_noise_has_the_stride_of_its_upsampling(factor, rho):
+def test_upsampled_noise_has_the_stride_of_its_upsampling(factor: Any, rho: Any) -> None:
 
     rng = np.random.default_rng(factor)
     for _ in range(10):
@@ -50,7 +52,7 @@ def test_upsampled_noise_has_the_stride_of_its_upsampling(factor, rho):
         (2048.0, 500.0),
     ],
 )
-def test_a_gentle_low_pass_keeps_stride_one(sfreq, cutoff):
+def test_a_gentle_low_pass_keeps_stride_one(sfreq: Any, cutoff: Any) -> None:
     """A zero-phase Butterworth low-pass of order 2 (the gentler ERPLAB setting) leaves a
     band that is low but not empty: the previous path. Its fits were never better strided
     (CHANGELOG)."""
@@ -65,7 +67,7 @@ def test_a_gentle_low_pass_keeps_stride_one(sfreq, cutoff):
 
 
 @pytest.mark.parametrize("cutoff", [30.0, 40.0])
-def test_a_steep_low_pass_well_below_nyquist_is_strided(cutoff):
+def test_a_steep_low_pass_well_below_nyquist_is_strided(cutoff: Any) -> None:
     """Order 4 at 30 or 40 Hz on 256 Hz data (ERP CORE-like): the band above 64 Hz is all
     but empty, and the fit is judged at the rate the noise occupies."""
 
@@ -78,7 +80,7 @@ def test_a_steep_low_pass_well_below_nyquist_is_strided(cutoff):
         assert eng.noise_stride(z) >= 2
 
 
-def test_a_short_noise_has_stride_one():
+def test_a_short_noise_has_stride_one() -> None:
 
     z = resample_poly(noise(np.random.default_rng(0), 0.5, n=10), 2, 1)
     assert eng.noise_stride(z) == 1
@@ -86,7 +88,7 @@ def test_a_short_noise_has_stride_one():
 
 @pytest.mark.parametrize("factor", [2, 3, 4])
 @pytest.mark.parametrize("rho", [0.0, 0.9])
-def test_the_phase_is_the_one_that_holds_the_recorded_samples(factor, rho):
+def test_the_phase_is_the_one_that_holds_the_recorded_samples(factor: Any, rho: Any) -> None:
     """An upsampled noise cropped by any number of samples, with a masked stretch: the
     phase chosen is the one of the samples the recording kept."""
 
@@ -99,7 +101,7 @@ def test_the_phase_is_the_one_that_holds_the_recorded_samples(factor, rho):
         assert eng.noise_phase(z[keep], index, factor) == (-crop) % factor
 
 
-def test_a_short_noise_has_phase_zero():
+def test_a_short_noise_has_phase_zero() -> None:
 
     z = resample_poly(noise(np.random.default_rng(0), 0.5, n=20), 2, 1)[1:]
     assert eng.noise_phase(z, np.arange(len(z)), 2) == 0
@@ -107,7 +109,7 @@ def test_a_short_noise_has_phase_zero():
 
 @pytest.mark.parametrize("exact", [True, False])
 @pytest.mark.parametrize("phase", [0, 1])
-def test_the_strided_whitening_is_the_whitening_at_the_lower_rate(exact, phase):
+def test_the_strided_whitening_is_the_whitening_at_the_lower_rate(exact: Any, phase: Any) -> None:
     """On the kept rows, the strided whitening of a full-rate residual equals the ordinary
     whitening of its every other sample; the other rows are zero."""
 
@@ -134,14 +136,14 @@ def test_the_strided_whitening_is_the_whitening_at_the_lower_rate(exact, phase):
         assert np.sum(full[strided.skip :] ** 2) == pytest.approx(innovations)
 
 
-def _n1(group):
+def _n1(group: Any) -> Any:
     return [
         any(0.009 <= c.latency <= 0.05 and c.amplitude < 0 for c in f.components)
         for f in group.fits
     ], sum(len(f.components) for f in group.fits)
 
 
-def test_an_upsampled_ccep_is_fitted_as_at_its_recorded_rate(monkeypatch):
+def test_an_upsampled_ccep_is_fitted_as_at_its_recorded_rate(monkeypatch: Any) -> None:
     """A simulated CCEP recorded at 512 Hz and upsampled to 1024 Hz: the fit is judged on
     every other sample and finds what it finds at 512 Hz; without the stride the defect
     comes back (2.75 times as many components on this case)."""

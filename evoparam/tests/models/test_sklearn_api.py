@@ -2,6 +2,7 @@
 """The scikit-learn contract of ResponseModel, TrialFitter and ArtifactRemover (REQ-320)."""
 
 import pickle
+from typing import Any
 
 import numpy as np
 import pytest
@@ -14,7 +15,7 @@ from evoparam.utils._estimator import NotFittedError
 SFREQ = 1000.0
 
 
-def _array(seed=0, n=20, channels=2):
+def _array(seed: Any = 0, n: Any = 20, channels: Any = 2) -> Any:
     rng = np.random.default_rng(seed)
     times = np.arange(-0.1, 0.4, 1 / SFREQ)
     data = rng.normal(0, 2, (n, channels, times.size))
@@ -22,7 +23,7 @@ def _array(seed=0, n=20, channels=2):
     return data
 
 
-def _estimators():
+def _estimators() -> Any:
     return [
         ResponseModel(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39), max_components=3),
         TrialFitter(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39), random_state=0),
@@ -30,12 +31,12 @@ def _estimators():
     ]
 
 
-def _input(est, data):
+def _input(est: Any, data: Any) -> Any:
     return data.mean(axis=0) if isinstance(est, ResponseModel) else data
 
 
 @pytest.mark.parametrize("est", _estimators(), ids=lambda e: type(e).__name__)
-def test_req320_contract(est):
+def test_req320_contract(est: Any) -> None:
 
     data = _array()
     params = est.get_params()
@@ -58,7 +59,7 @@ def test_req320_contract(est):
     assert not fresh.__sklearn_is_fitted__()
 
 
-def test_same_random_state_same_fit():
+def test_same_random_state_same_fit() -> None:
 
     data = _array()
     a = TrialFitter(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39), random_state=0).fit(data)
@@ -70,7 +71,7 @@ def test_same_random_state_same_fit():
     assert np.nanmax(np.abs(features[:, 2] - 0.08)) < 0.01  # channel 0 latency ~ 80 ms
 
 
-def test_pipeline_and_nested_parameters():
+def test_pipeline_and_nested_parameters() -> None:
 
     sklearn = pytest.importorskip("sklearn")
     from sklearn.base import clone

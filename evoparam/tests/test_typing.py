@@ -4,9 +4,9 @@
 The distribution ships ``evoparam/py.typed``; ``mypy`` checks one example per public entry
 point (``typing_examples/*.py``, a user shape class that satisfies ``ComponentShape``
 without inheriting included) and must reject the deliberately wrong examples
-(``typing_examples/wrong_*.py``). The strict criteria (``mypy --strict evoparam``, the
-examples under ``--strict``, ``pyright --verifytypes`` >= 95 % known symbols) are measured
-and kept as strict expected failures with the measured values.
+(``typing_examples/wrong_*.py``). The examples pass under ``--strict`` and
+``pyright --verifytypes`` reports >= 95 % known symbols; ``mypy --strict evoparam`` is not
+met yet and stays a strict expected failure with its measured value.
 """
 
 import json
@@ -15,6 +15,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -30,7 +31,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _mypy(files, tmp_path, *flags, config=None):
+def _mypy(files: Any, tmp_path: Any, *flags: Any, config: Any = None) -> Any:
     pytest.importorskip("mypy")
     if config is None:
         config = tmp_path / "mypy.ini"
@@ -62,7 +63,7 @@ def _mypy(files, tmp_path, *flags, config=None):
     return done.returncode, done.stdout + done.stderr
 
 
-def test_req301_py_typed_is_shipped():
+def test_req301_py_typed_is_shipped() -> None:
     assert (ROOT / "evoparam" / "py.typed").is_file()
     try:
         import tomllib
@@ -78,7 +79,7 @@ def test_req301_py_typed_is_shipped():
         assert "evoparam" not in " ".join(override["module"])
 
 
-def test_req301_examples_cover_the_entry_points():
+def test_req301_examples_cover_the_entry_points() -> None:
     text = "\n".join(p.read_text(encoding="utf-8") for p in GOOD)
     for entry in (
         "evoparam.fit",
@@ -102,7 +103,7 @@ def test_req301_examples_cover_the_entry_points():
     assert "class Triangle:" in user_shape  # no base class: structural typing
 
 
-def test_req301_good_examples_type_check(tmp_path):
+def test_req301_good_examples_type_check(tmp_path: Any) -> None:
     code, out = _mypy(
         GOOD,
         tmp_path,
@@ -114,14 +115,14 @@ def test_req301_good_examples_type_check(tmp_path):
 
 
 @pytest.mark.parametrize("wrong", [p.name for p in WRONG])
-def test_req301_wrong_example_fails(wrong, tmp_path):
+def test_req301_wrong_example_fails(wrong: Any, tmp_path: Any) -> None:
     code, out = _mypy([EXAMPLES / wrong], tmp_path, "--ignore-missing-imports")
     assert code == 1, out
     assert f"{wrong}:" in out, out
     assert "error:" in out, out
 
 
-def test_req301_the_user_shape_satisfies_the_protocol_at_run_time():
+def test_req301_the_user_shape_satisfies_the_protocol_at_run_time() -> None:
     import importlib.util
 
     from evoparam.shapes import ComponentShape
@@ -132,29 +133,26 @@ def test_req301_the_user_shape_satisfies_the_protocol_at_run_time():
     assert isinstance(module.Triangle(), ComponentShape)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-301: the good examples do not pass mypy --strict "
-    "(S20, mypy 2.4.0): most public functions are not annotated, so every "
-    "call is 'Call to untyped function ... in typed context' [no-untyped-call]",
-)
-def test_req301_good_examples_pass_under_strict(tmp_path):
+def test_req301_good_examples_pass_under_strict(tmp_path: Any) -> None:
     code, out = _mypy(GOOD, tmp_path, "--strict", "--ignore-missing-imports")
     assert code == 0, out
 
 
 @pytest.mark.xfail(
     strict=True,
-    reason="REQ-301: mypy --strict evoparam reports 5209 errors in "
-    "142 of 163 modules (S20, 2026-10-11, mypy 2.4.0: 2798 no-untyped-call, "
-    "1656 no-untyped-def, 263 attr-defined, 127 type-arg, ...); annotating the "
-    "package is a step of its own",
+    reason="REQ-301: mypy --strict evoparam reports 47 errors (5345 before the "
+    "qualite-statique branch), all [import-untyped]: scipy (45 imports), yaml and "
+    "tabulate are core or test dependencies without stubs in the lock files, and the "
+    "spec allows ignore_missing_imports for optional packages only (mypy 2.4.0, "
+    "2026-10-12, Python 3.10 to 3.13 environments of the locks); with scipy-stubs "
+    "1.15.3.0, types-PyYAML and types-tabulate installed 22 errors remain, from the "
+    "stubs (lapack wrappers, least_squares, ndimage.label) and patsy",
 )
 @pytest.mark.skipif(
     os.environ.get("EVOPARAM_SLOW_TESTS") != "1",
     reason="about two minutes; set EVOPARAM_SLOW_TESTS=1",
 )
-def test_req301_mypy_strict_on_the_package(tmp_path):
+def test_req301_mypy_strict_on_the_package(tmp_path: Any) -> None:
     code, out = _mypy(
         [ROOT / "evoparam"],
         tmp_path,
@@ -166,13 +164,7 @@ def test_req301_mypy_strict_on_the_package(tmp_path):
     assert code == 0, out[-2000:]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-301: pyright 1.1.414 --verifytypes evoparam "
-    "--ignoreexternal: 34.8 % of the exported symbols have a known type (1324 "
-    "known, 123 ambiguous, 2361 unknown; S20, 2026-10-11) against >= 95 %",
-)
-def test_req301_pyright_verifytypes_known_share():
+def test_req301_pyright_verifytypes_known_share() -> None:
     pyright = shutil.which("pyright") or os.path.expanduser("~/.local/bin/pyright")
     if not os.path.exists(pyright):
         pytest.skip("pyright is not installed")

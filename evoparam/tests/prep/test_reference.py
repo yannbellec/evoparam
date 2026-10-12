@@ -16,7 +16,7 @@ from .helpers import epochs, sim_carla
 NAMES = ["LA1", "LA2", "LA3", "LA5", "LA6", "RB1", "RB2", "RB3"]
 
 
-def test_req082_bipolar_matches_mne():
+def test_req082_bipolar_matches_mne() -> None:
 
     mne = pytest.importorskip("mne")
     ts = epochs(names=NAMES, n_trials=3)
@@ -35,7 +35,7 @@ def test_req082_bipolar_matches_mne():
     assert np.allclose(ref.get_data() * 1e6, bip.data)
 
 
-def test_bipolar_uses_groups_and_masks():
+def test_bipolar_uses_groups_and_masks() -> None:
 
     ts = epochs(names=["x1", "x2", "y1", "y2"], n_trials=2)
     groups = {"x1": "shaft", "x2": "shaft", "y1": "other", "y2": "other"}
@@ -45,7 +45,7 @@ def test_bipolar_uses_groups_and_masks():
         rereference(epochs(names=["a", "b"]), "bipolar")
 
 
-def test_car_excludes_stimulated_and_bad_channels():
+def test_car_excludes_stimulated_and_bad_channels() -> None:
 
     meta = pd.DataFrame({"stim_site": ["A1-A2"] * 4})
     info = pd.DataFrame({"name": [f"A{i}" for i in range(1, 9)], "bad": [False] * 7 + [True]})
@@ -61,7 +61,7 @@ def test_car_excludes_stimulated_and_bad_channels():
 LEVELS = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.84, 0.9)
 
 
-def test_req081_car_adaptive_simulation():
+def test_req081_car_adaptive_simulation() -> None:
     """50 channels, 12 trials, 0 to 90 % responsive channels, 10 simulations per level, the
     default bootstrap (100): median false negatives 0 up to 84 % responsive channels and
     median false positives <= 2.5 at every level (the published value itself, without the
@@ -81,7 +81,7 @@ def test_req081_car_adaptive_simulation():
         assert np.median(fp) <= 2.5, fraction
 
 
-def test_car_adaptive_records_choice_and_falls_back():
+def test_car_adaptive_records_choice_and_falls_back() -> None:
 
     ts, responsive = sim_carla(0.3, 1)
     out = rereference(ts, "car_adaptive", n_boot=20, random_state=0)
@@ -95,7 +95,7 @@ def test_car_adaptive_records_choice_and_falls_back():
     assert out.provenance.steps[-1]["settings"]["used"] == "car"
 
 
-def test_laplacian_and_monopolar():
+def test_laplacian_and_monopolar() -> None:
 
     info = pd.DataFrame(
         {
@@ -120,7 +120,7 @@ def test_laplacian_and_monopolar():
         rereference(ts, "average")
 
 
-def test_reference_sensitivity_runs_the_existence_test():
+def test_reference_sensitivity_runs_the_existence_test() -> None:
     """Spec §5.4, method 3: the existence test (§5.6) under each scheme, by default."""
 
     from dataclasses import replace

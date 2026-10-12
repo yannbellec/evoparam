@@ -4,6 +4,7 @@
 import hashlib
 import os
 import pathlib
+from typing import Any
 
 import pytest
 
@@ -16,13 +17,13 @@ from evoparam.tests.io.helpers import http_server
 ###################################################################################################
 
 
-def test_openneuro_url():
+def test_openneuro_url() -> None:
 
     url = openneuro_url("ds004080", "/sub-01/ses-1/ieeg/file.tsv")
     assert url == "https://s3.amazonaws.com/openneuro.org/ds004080/sub-01/ses-1/ieeg/file.tsv"
 
 
-def test_fetch_openneuro_file_with_sha256(tmp_path, monkeypatch):
+def test_fetch_openneuro_file_with_sha256(tmp_path: Any, monkeypatch: Any) -> None:
 
     served = tmp_path / "served" / "dsTEST" / "sub-01"
     served.mkdir(parents=True)
@@ -58,14 +59,14 @@ def test_fetch_openneuro_file_with_sha256(tmp_path, monkeypatch):
         assert not os.path.exists(os.path.join(folder, "dsTEST", "sub-01", "missing.tsv.part"))
 
 
-def test_offline_mode(tmp_path, monkeypatch):
+def test_offline_mode(tmp_path: Any, monkeypatch: Any) -> None:
 
     monkeypatch.setenv("EVOPARAM_OFFLINE", "1")
     with pytest.raises(ReaderError, match="EVOPARAM_OFFLINE"):
         fetch_openneuro_file("ds004080", "dataset_description.json", str(tmp_path))
 
 
-def test_spurious_s3_not_found_is_retried(monkeypatch):
+def test_spurious_s3_not_found_is_retried(monkeypatch: Any) -> None:
 
     import io
     from urllib.error import HTTPError

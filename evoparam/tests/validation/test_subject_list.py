@@ -4,6 +4,7 @@
 import importlib.util
 import json
 import pathlib
+from typing import Any
 
 import pytest
 
@@ -13,14 +14,14 @@ LIST = ROOT / "validation" / "ds004080_subjects.txt"
 pytestmark = pytest.mark.skipif(not TOOL.exists(), reason="repository files not in this checkout")
 
 
-def _tool():
+def _tool() -> Any:
     spec = importlib.util.spec_from_file_location("ds004080_subjects", TOOL)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def _fake(n_trials, sfreq):
+def _fake(n_trials: Any, sfreq: Any) -> Any:
     """A listing of subjects and a fetch that serves their sidecars and events."""
 
     listing, files = {}, {}
@@ -39,7 +40,7 @@ def _fake(n_trials, sfreq):
     return listing, fetch
 
 
-def test_rule_selects_by_trials_and_rate():
+def test_rule_selects_by_trials_and_rate() -> None:
 
     tool = _tool()
     listing, fetch = _fake([12, 9, 10, 20], [2048.0, 2048.0, 2048.0, 512.0])
@@ -51,7 +52,7 @@ def test_rule_selects_by_trials_and_rate():
     assert len(sha) == 64
 
 
-def test_example_is_added_to_five_others():
+def test_example_is_added_to_five_others() -> None:
     """D14: the example subject is not one of the N first qualifying subjects; it is added
     after them, with its own first qualifying run."""
 
@@ -64,7 +65,7 @@ def test_example_is_added_to_five_others():
     assert chosen[-1][1] == "sub-01_ses-1_task-SPES_run-1"
 
 
-def test_list_is_committed_with_version_and_checksum():
+def test_list_is_committed_with_version_and_checksum() -> None:
 
     lines = LIST.read_text("utf-8").splitlines()
     assert lines[0].startswith("# ds004080 v1.2.4; participants.tsv sha256 ")

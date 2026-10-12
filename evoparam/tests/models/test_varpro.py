@@ -12,7 +12,7 @@ from .helpers import TIMES, gauss, model, noise
 ###################################################################################################
 
 
-def test_req103_linear_solution_is_weighted_least_squares():
+def test_req103_linear_solution_is_weighted_least_squares() -> None:
 
     rng = np.random.default_rng(0)
     tw = TIMES[(TIMES >= 0) & (TIMES <= 0.5)]
@@ -30,7 +30,7 @@ def test_req103_linear_solution_is_weighted_least_squares():
     assert np.allclose(beta, expected, rtol=1e-10, atol=1e-12)
 
 
-def test_req103_masked_samples_have_no_influence():
+def test_req103_masked_samples_have_no_influence() -> None:
 
     rng = np.random.default_rng(1)
     y = gauss(0.2, -8, 0.04) + noise(rng)
@@ -44,7 +44,7 @@ def test_req103_masked_samples_have_no_influence():
     assert np.isclose(a.components[0].amplitude, b.components[0].amplitude, rtol=1e-9)
 
 
-def test_req109_dc_invariance():
+def test_req109_dc_invariance() -> None:
 
     rng = np.random.default_rng(2)
     y = gauss(0.15, -7, 0.03) + gauss(0.35, 4, 0.08) + noise(rng)
@@ -56,7 +56,7 @@ def test_req109_dc_invariance():
             assert np.isclose(getattr(ca, name), getattr(cb, name), rtol=1e-6, atol=1e-9), name
 
 
-def test_req108_component_inside_a_masked_gap():
+def test_req108_component_inside_a_masked_gap() -> None:
 
     hits = 0
     for seed in range(20):

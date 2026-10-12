@@ -2,12 +2,13 @@
 """Results of every type, made once for the report and plot tests."""
 
 import warnings
+from typing import Any
 
 import pytest
 
 
 @pytest.fixture(scope="session")
-def results():
+def results() -> Any:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -44,7 +45,7 @@ def results():
 
 
 @pytest.fixture(scope="session")
-def erp_run():
+def erp_run() -> Any:
     """The ERP CORE P3 reference pipeline on its stand-in input (1 channel, about 1 s)."""
 
     from evoparam import reports
@@ -53,7 +54,7 @@ def erp_run():
 
 
 @pytest.fixture(scope="session")
-def ccep_run():
+def ccep_run() -> Any:
     """A small CCEP pipeline: artifact removal, reference, baseline, fit, existence test and
     trial fits on 3 simulated channels."""
 

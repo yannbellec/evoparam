@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import textwrap
+from typing import Any
 
 import numpy as np
 import pytest
@@ -27,14 +28,14 @@ CHUNK = 65536
 LIMIT_GB = 0.25
 
 
-def _path():
+def _path() -> Any:
     root = os.environ.get("EVOPARAM_DATA", os.path.expanduser("~/.cache/evoparam"))
     folder = os.path.join(root, "nwb-memory")
     os.makedirs(folder, exist_ok=True)
     return os.path.join(folder, "synthetic_1gb_seed0.nwb")
 
 
-def _make(path):
+def _make(path: Any) -> None:
     from datetime import datetime, timezone
 
     from hdmf.data_utils import GenericDataChunkIterator
@@ -101,7 +102,7 @@ SCRIPT = textwrap.dedent("""
 
 
 @pytest.mark.skipif(not SLOW, reason="EVOPARAM_SLOW_TESTS=1 (1 GB file)")
-def test_req317_peak_memory_reading_10_percent_of_1gb():
+def test_req317_peak_memory_reading_10_percent_of_1gb() -> None:
 
     path = _path()
     if not os.path.exists(path):

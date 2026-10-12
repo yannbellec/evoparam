@@ -5,6 +5,7 @@ the citations (REQ-340, REQ-390)."""
 
 import re
 import warnings
+from typing import Any
 
 import pytest
 
@@ -16,7 +17,7 @@ pytest.importorskip("pandas")
 
 
 @pytest.fixture(scope="module")
-def results():
+def results() -> Any:
     trials, _ = sim.simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=4)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -45,7 +46,7 @@ CHOICES = {
 
 
 @pytest.mark.parametrize("kind", sorted(CHOICES))
-def test_req008_methods_paragraph(kind, results):
+def test_req008_methods_paragraph(kind: Any, results: Any) -> None:
     text = methods_text(results[kind])
     # the package version
     assert re.search(r"evoparam \(version " + re.escape(evoparam.__version__) + r"\)", text)
@@ -59,14 +60,14 @@ def test_req008_methods_paragraph(kind, results):
 
 
 @pytest.mark.parametrize("kind", ["GroupFit", "ResponseFit"])
-def test_req008_preset_and_changed_settings(kind, results):
+def test_req008_preset_and_changed_settings(kind: Any, results: Any) -> None:
     text = methods_text(results[kind])
     assert "preset 'ccep'" in text
     assert "Settings changed from the preset" in text
     assert "max_components = 2" in text
 
 
-def test_req008_no_changed_settings_sentence_without_changes():
+def test_req008_no_changed_settings_sentence_without_changes() -> None:
     trials, _ = sim.simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=4)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -81,7 +82,9 @@ def test_req008_no_changed_settings_sentence_without_changes():
 
 
 @pytest.mark.parametrize("kind", sorted(CHOICES))
-def test_req390_methods_text_stored_in_saved_result(kind, results, tmp_path):
+def test_req390_methods_text_stored_in_saved_result(
+    kind: Any, results: Any, tmp_path: Any
+) -> None:
     import json
     import os
 
@@ -99,7 +102,7 @@ def test_req390_methods_text_stored_in_saved_result(kind, results, tmp_path):
     assert load_object(path).methods_text() + "\n" == stored  # byte-identical round trip
 
 
-def test_req390_methods_text_in_nwb_and_bids_derivatives(results, tmp_path):
+def test_req390_methods_text_in_nwb_and_bids_derivatives(results: Any, tmp_path: Any) -> None:
     import json
 
     group = results["GroupFit"]
@@ -134,5 +137,5 @@ def test_req390_methods_text_in_nwb_and_bids_derivatives(results, tmp_path):
     "methods paragraph waits for the owner's HIIE decision (nothing public "
     "before it); CITATION.cff has no doi until then (REQ-019)",
 )
-def test_req390_methods_text_names_the_versioned_doi(results):
+def test_req390_methods_text_names_the_versioned_doi(results: Any) -> None:
     assert re.search(r"10\.5281/zenodo\.\d+", results["GroupFit"].methods_text())

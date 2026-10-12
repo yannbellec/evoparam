@@ -11,6 +11,7 @@ import pathlib
 import re
 import subprocess
 import tarfile
+from typing import Any
 
 import pytest
 
@@ -26,7 +27,7 @@ pytestmark = [
 ]
 
 
-def _tool(name):
+def _tool(name: Any) -> Any:
     spec = importlib.util.spec_from_file_location(name, ROOT / "tools" / f"{name}.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -34,7 +35,7 @@ def _tool(name):
 
 
 @pytest.mark.usefixtures("capsys")
-def test_req396_every_python_file_has_the_spdx_header():
+def test_req396_every_python_file_has_the_spdx_header() -> None:
     tool = _tool("add_spdx_headers")
     files = tool.source_files()
     assert len(files) > 400
@@ -43,7 +44,7 @@ def test_req396_every_python_file_has_the_spdx_header():
     assert tool.main(["--check"]) == 0
 
 
-def test_req396_check_fails_on_a_file_without_the_header(tmp_path):
+def test_req396_check_fails_on_a_file_without_the_header(tmp_path: Any) -> None:
     tool = _tool("add_spdx_headers")
     (tmp_path / "pkg").mkdir()
     bare = tmp_path / "pkg" / "bare.py"
@@ -61,7 +62,7 @@ def test_req396_check_fails_on_a_file_without_the_header(tmp_path):
     ]
 
 
-def test_req396_inherited_files_carry_the_modification_notice():
+def test_req396_inherited_files_carry_the_modification_notice() -> None:
     tool = _tool("add_spdx_headers")
     assert tool.INHERITED
     for rel, changes in tool.INHERITED.items():
@@ -77,7 +78,7 @@ def test_req396_inherited_files_carry_the_modification_notice():
     assert "Apache License, Version 2.0" in notice
 
 
-def test_req396_files_derived_from_third_party_code_name_it_in_notice():
+def test_req396_files_derived_from_third_party_code_name_it_in_notice() -> None:
     tool = _tool("add_spdx_headers")
     notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
     for rel, licence in tool.DERIVED.items():
@@ -87,7 +88,7 @@ def test_req396_files_derived_from_third_party_code_name_it_in_notice():
     assert "Redistribution and use in source and binary forms" in notice
 
 
-def _inherited_export(tmp_path):
+def _inherited_export(tmp_path: Any) -> Any:
     archive = tmp_path / "first.tar"
     done = subprocess.run(
         ["git", "-C", str(ROOT), "archive", "-o", str(archive), FIRST_COMMIT],
@@ -102,7 +103,7 @@ def _inherited_export(tmp_path):
     return tmp_path / "first"
 
 
-def test_req396_every_file_with_inherited_code_is_marked(tmp_path):
+def test_req396_every_file_with_inherited_code_is_marked(tmp_path: Any) -> None:
     """CI fails on an inherited file without the notice: every file that shares a window of
     8 normalised lines with the first commit (the inherited copy) is in INHERITED."""
 
@@ -123,7 +124,7 @@ def test_req396_every_file_with_inherited_code_is_marked(tmp_path):
     assert sorted(files - set(_tool("add_spdx_headers").INHERITED)) == []
 
 
-def _implemented_from_a_paper():
+def _implemented_from_a_paper() -> Any:
     out = []
     for path in sorted((ROOT / "evoparam").rglob("*.py")):
         if "tests" in path.parts or path.name == "__init__.py":  # packages only summarise
@@ -134,7 +135,7 @@ def _implemented_from_a_paper():
     return out
 
 
-def test_req396_reimplemented_lists_every_algorithm_written_from_a_paper():
+def test_req396_reimplemented_lists_every_algorithm_written_from_a_paper() -> None:
     text = (ROOT / "REIMPLEMENTED.md").read_text(encoding="utf-8")
     assert "No code was copied" in text
     modules = _implemented_from_a_paper()
@@ -160,7 +161,7 @@ def test_req396_reimplemented_lists_every_algorithm_written_from_a_paper():
         assert f"{{{key}," in bib, key
 
 
-def test_req396_third_party_and_notice_exist():
+def test_req396_third_party_and_notice_exist() -> None:
     for name in ("NOTICE", "THIRD_PARTY.md", "REIMPLEMENTED.md", "LICENSE"):
         assert (ROOT / name).is_file(), name
     third = (ROOT / "THIRD_PARTY.md").read_text(encoding="utf-8")

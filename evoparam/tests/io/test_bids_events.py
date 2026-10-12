@@ -10,6 +10,7 @@ OpenNeuro) and a minimal file with only ``trial_type``.
 import io
 import os
 import shutil
+from typing import Any
 
 import numpy as np
 import pytest
@@ -21,7 +22,7 @@ from .helpers import make_bids
 pd = pytest.importorskip("pandas")
 
 
-def _table(text):
+def _table(text: Any) -> Any:
     return pd.read_csv(io.StringIO(text), sep="\t", na_values=["n/a"], keep_default_na=False)
 
 
@@ -66,7 +67,7 @@ MINIMAL = _table(
 )
 
 
-def test_utrecht_shape():
+def test_utrecht_shape() -> None:
 
     out, report = harmonize_stim_events(UTRECHT)
     stim = out[out["trial_type"] == "electrical_stimulation"]
@@ -84,7 +85,7 @@ def test_utrecht_shape():
 
 
 @pytest.mark.parametrize("table", [MAYO_DS003708, MAYO_DS004977], ids=["ds003708", "ds004977"])
-def test_mayo_shape(table):
+def test_mayo_shape(table: Any) -> None:
 
     out, report = harmonize_stim_events(table)
     assert set(out["stim_site"]) == {table["electrical_stimulation_site"][0]}
@@ -97,14 +98,14 @@ def test_mayo_shape(table):
     assert "electrical_stimulation_site_num" in out.columns
 
 
-def test_mayo_phase_order_from_the_sidecar():
+def test_mayo_phase_order_from_the_sidecar() -> None:
 
     sidecar = {"ElectricalStimulationParameters": "biphasic pulses, cathodic phase first"}
     out, _ = harmonize_stim_events(MAYO_DS004977, sidecar)
     assert set(out["stim_polarity"]) == {"biphasic_cathodic_first"}
 
 
-def test_minimal_shape():
+def test_minimal_shape() -> None:
 
     out, report = harmonize_stim_events(MINIMAL)
     assert list(out["stim_site"]) == ["n/a", "n/a"]
@@ -113,7 +114,7 @@ def test_minimal_shape():
     assert list(out["condition"]) == ["electrical_stimulation"] * 2
 
 
-def test_user_mapping_overrides_the_default():
+def test_user_mapping_overrides_the_default() -> None:
 
     table = UTRECHT.assign(my_ma=[np.nan, 2.5, 3.5])
     out, report = harmonize_stim_events(
@@ -125,7 +126,7 @@ def test_user_mapping_overrides_the_default():
     assert report.user_mapping == {"my_ma": "stim_current_mA"}
 
 
-def test_read_bids_harmonises_every_events_file(tmp_path):
+def test_read_bids_harmonises_every_events_file(tmp_path: Any) -> None:
 
     root = make_bids(str(tmp_path / "bids"))
     ts = read_bids(root, "01", task="spes")

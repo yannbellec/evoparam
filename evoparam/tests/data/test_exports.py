@@ -2,6 +2,8 @@
 """Specified exports and listings: TrialSet.to_xarray (spec §4.3.1), TFFit.to_mne (§5.10),
 HierarchicalFit.to_arviz (§5.8), list_shapes and list_backgrounds (§5.5.8)."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -13,7 +15,7 @@ from evoparam.errors import DataError
 ###################################################################################################
 
 
-def _trialset():
+def _trialset() -> Any:
     rng = np.random.default_rng(0)
     times = np.arange(-50, 150) / 1000.0
     data = rng.normal(0, 1, (4, 3, len(times)))
@@ -34,7 +36,7 @@ def _trialset():
     )
 
 
-def test_list_shapes_and_backgrounds():
+def test_list_shapes_and_backgrounds() -> None:
 
     from evoparam.models import list_backgrounds, list_shapes
     from evoparam.shapes import BACKGROUNDS, SHAPES
@@ -47,7 +49,7 @@ def test_list_shapes_and_backgrounds():
     assert all(isinstance(name, str) for name in shapes + backgrounds)
 
 
-def test_trialset_to_xarray():
+def test_trialset_to_xarray() -> None:
 
     xr = pytest.importorskip("xarray")
     ts = _trialset()
@@ -67,7 +69,7 @@ def test_trialset_to_xarray():
     assert np.array_equal(arr.sel(channel="b").values, ts.data[:, 1])
 
 
-def test_trialset_to_xarray_without_xarray(monkeypatch):
+def test_trialset_to_xarray_without_xarray(monkeypatch: Any) -> None:
 
     import builtins
 
@@ -83,7 +85,7 @@ def test_trialset_to_xarray_without_xarray(monkeypatch):
         _trialset().to_xarray()
 
 
-def test_tffit_to_mne():
+def test_tffit_to_mne() -> None:
 
     mne = pytest.importorskip("mne")
     from evoparam.tests.tf.helpers import TIMES, ar1, burst, trialset
@@ -106,7 +108,7 @@ def test_tffit_to_mne():
         tf.to_mne("nothing")
 
 
-def test_hierarchical_to_arviz_eb():
+def test_hierarchical_to_arviz_eb() -> None:
 
     az = pytest.importorskip("arviz")
     from evoparam.hierarchical import fit_hierarchical
@@ -139,7 +141,7 @@ def test_hierarchical_to_arviz_eb():
     assert az.summary(data) is not None
 
 
-def test_hierarchical_to_arviz_uses_stored_draws():
+def test_hierarchical_to_arviz_uses_stored_draws() -> None:
 
     pytest.importorskip("arviz")
     from evoparam.data import HierarchicalFit

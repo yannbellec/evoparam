@@ -4,6 +4,7 @@
 import copy
 import json
 import pathlib
+from typing import Any
 
 import numpy as np
 import pytest
@@ -15,7 +16,7 @@ from evoparam.tests.sim._helpers import SMALL, real_baselines
 REFERENCE = pathlib.Path(__file__).with_name("reference_sim.json")
 
 
-def _same(first, second):
+def _same(first: Any, second: Any) -> None:
     """Byte-identical data, masks and truth."""
 
     ts_a, truth_a = first
@@ -36,7 +37,7 @@ def _same(first, second):
 
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
-def test_same_int_seed_same_bytes(name):
+def test_same_int_seed_same_bytes(name: Any) -> None:
     gen = sim.GENERATORS[name]
     first = gen(seed=11, **SMALL[name])
     second = gen(seed=11, **SMALL[name])
@@ -47,7 +48,7 @@ def test_same_int_seed_same_bytes(name):
 
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
-def test_different_seeds_differ(name):
+def test_different_seeds_differ(name: Any) -> None:
     gen = sim.GENERATORS[name]
     ts_a, _ = gen(seed=1, **SMALL[name])
     ts_b, _ = gen(seed=2, **SMALL[name])
@@ -55,7 +56,7 @@ def test_different_seeds_differ(name):
 
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
-def test_recorded_seed_regenerates(name):
+def test_recorded_seed_regenerates(name: Any) -> None:
     """seed=None and a Generator record the seed actually used, which regenerates the data."""
 
     gen = sim.GENERATORS[name]
@@ -67,7 +68,7 @@ def test_recorded_seed_regenerates(name):
     _same(from_generator, gen(seed=np.random.default_rng(5), **SMALL[name]))
 
 
-def test_noise_model_does_not_change_components():
+def test_noise_model_does_not_change_components() -> None:
     """Independent random streams: the components drawn do not depend on the noise model."""
 
     _, white = sim.simulate_ccep(seed=4, noise="white", **SMALL["ccep"])
@@ -77,7 +78,7 @@ def test_noise_model_does_not_change_components():
     assert white.settings["responders"] == pink.settings["responders"]
 
 
-def test_make_noise_and_inject_are_deterministic():
+def test_make_noise_and_inject_are_deterministic() -> None:
     for kind in ("white", "ar1", "pink", "line", "pink+line"):
         a = sim.make_noise(300, 250.0, kind, size=(2, 3), seed=9)
         b = sim.make_noise(300, 250.0, kind, size=(2, 3), seed=9)
@@ -92,14 +93,14 @@ def test_make_noise_and_inject_are_deterministic():
     assert noise_a.tobytes() == noise_b.tobytes()
 
 
-def test_truth_compares_equal_to_its_copy():
+def test_truth_compares_equal_to_its_copy() -> None:
     _, truth = sim.simulate_erp(seed=0, **SMALL["erp"])
     assert truth == copy.deepcopy(truth)
     assert truth == truth.copy()
 
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
-def test_reference_fingerprints(name):
+def test_reference_fingerprints(name: Any) -> None:
     """Values committed from a reference run (seed 2024): the same on every platform of the
     CI within 1e-9 relative (REQ-295). Bytes are not compared with the committed run: they
     differ in the last bits between CPUs and platforms (SIMD paths, libm), even with the same
@@ -124,7 +125,7 @@ def test_reference_fingerprints(name):
     )
 
 
-def test_bad_seed():
+def test_bad_seed() -> None:
     for seed in (-1, 1.5, "1", True):
         with pytest.raises(SettingsError):
             sim.simulate_erp(seed=seed, n_trials=2)

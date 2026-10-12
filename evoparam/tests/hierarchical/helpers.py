@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Three-level simulations (trial -> channel -> subject) with a known truth."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -12,7 +14,7 @@ NOISE_SD = 10.0
 PHI = 0.6
 
 
-def ar1(rng, shape, phi=PHI, sd=NOISE_SD):
+def ar1(rng: Any, shape: Any, phi: Any = PHI, sd: Any = NOISE_SD) -> Any:
     e = rng.normal(0, sd * np.sqrt(1 - phi**2), shape)
     out = np.empty(shape)
     out[..., 0] = rng.normal(0, sd, shape[:-1])
@@ -21,27 +23,27 @@ def ar1(rng, shape, phi=PHI, sd=NOISE_SD):
     return out
 
 
-def gauss(latency, fwhm, times=TIMES):
+def gauss(latency: Any, fwhm: Any, times: Any = TIMES) -> Any:
     return np.exp(-0.5 * ((times[None] - np.asarray(latency)[:, None]) / (fwhm / 2.3548)) ** 2)
 
 
 def simulate_group(
-    n_subjects=20,
-    n_channels=50,
-    n_trials=20,
-    p_respond=0.3,
-    snr=2.0,
-    amp_sd=0.3,
-    subject_amp_sd=0.15,
-    latency=0.03,
-    latency_sd_channel=0.004,
-    latency_sd_subject=0.003,
-    jitter=0.002,
-    fwhm=0.02,
-    age_slope=0.0,
-    n2=0.0,
-    seed=0,
-):
+    n_subjects: Any = 20,
+    n_channels: Any = 50,
+    n_trials: Any = 20,
+    p_respond: Any = 0.3,
+    snr: Any = 2.0,
+    amp_sd: Any = 0.3,
+    subject_amp_sd: Any = 0.15,
+    latency: Any = 0.03,
+    latency_sd_channel: Any = 0.004,
+    latency_sd_subject: Any = 0.003,
+    jitter: Any = 0.002,
+    fwhm: Any = 0.02,
+    age_slope: Any = 0.0,
+    n2: Any = 0.0,
+    seed: Any = 0,
+) -> Any:
     """List of TrialSets (one per subject) and the truth table (one row per channel).
 
     Amplitudes are negative (an N1): subject mean ``-snr * NOISE_SD * (1 + subject
@@ -89,7 +91,7 @@ def simulate_group(
     return sets, pd.DataFrame(truth)
 
 
-def auc(score, label):
+def auc(score: Any, label: Any) -> Any:
     """Area under the ROC curve (ties counted half)."""
 
     from scipy.stats import rankdata
@@ -100,7 +102,7 @@ def auc(score, label):
     return (ranks[label].sum() - n1 * (n1 + 1) / 2) / (n1 * n0)
 
 
-def reliability_slope(prob, label, n_bins=10):
+def reliability_slope(prob: Any, label: Any, n_bins: Any = 10) -> Any:
     """Slope of the reliability diagram: observed frequency on mean predicted probability
     per bin, weighted by the bin counts."""
 
@@ -119,6 +121,6 @@ def reliability_slope(prob, label, n_bins=10):
     return float(coef[1])
 
 
-def merged(fit, truth):
+def merged(fit: Any, truth: Any) -> Any:
     table = fit.level_tables["channel"]
     return table.merge(truth, on=["subject", "channel"], suffixes=("", "_true"))

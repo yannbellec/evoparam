@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Scorers: Hungarian matching of fitted to true components, and their summary."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -11,7 +13,9 @@ from evoparam.tests.sim._helpers import SMALL, fits_from_truth
 pd = pytest.importorskip("pandas")
 
 
-def _truth_table(latencies, fwhm=0.02, channel="c", amplitude=-5.0):
+def _truth_table(
+    latencies: Any, fwhm: Any = 0.02, channel: Any = "c", amplitude: Any = -5.0
+) -> Any:
     return pd.DataFrame(
         {
             "channel": [channel] * len(latencies),
@@ -22,7 +26,7 @@ def _truth_table(latencies, fwhm=0.02, channel="c", amplitude=-5.0):
     )
 
 
-def _fit_table(latencies, channel="c", amplitude=-5.0, **columns):
+def _fit_table(latencies: Any, channel: Any = "c", amplitude: Any = -5.0, **columns: Any) -> Any:
     table = pd.DataFrame(
         {
             "channel": [channel] * len(latencies),
@@ -39,7 +43,7 @@ def _fit_table(latencies, channel="c", amplitude=-5.0, **columns):
 
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
-def test_perfect_fit_scores_one(name):
+def test_perfect_fit_scores_one(name: Any) -> None:
     _, truth = sim.GENERATORS[name](seed=5, **SMALL[name])
     fits = fits_from_truth(truth)
     score = sim.score_fits(truth, fits).iloc[0]
@@ -53,7 +57,7 @@ def test_perfect_fit_scores_one(name):
     assert list(sim.score_fits(truth, fits).columns) == list(sim.SCORE_COLUMNS)
 
 
-def test_errors_and_coverage():
+def test_errors_and_coverage() -> None:
     _, truth = sim.simulate_ccep(seed=3, **SMALL["ccep"])
     fits = fits_from_truth(truth, latency_error=0.001, amplitude_factor=1.1, ci_halfwidth=0.002)
     table = sim.match_components(truth, fits)
@@ -72,7 +76,7 @@ def test_errors_and_coverage():
     assert sim.score_fits(truth, narrow).iloc[0]["coverage_latency"] == 0.0
 
 
-def test_tolerance_misses_and_false_components():
+def test_tolerance_misses_and_false_components() -> None:
     truth = _truth_table([0.1])
     for latency, kinds in ((0.109, ["match"]), (0.111, ["miss", "false"])):
         out = sim.match_components(truth, _fit_table([latency]))
@@ -91,7 +95,7 @@ def test_tolerance_misses_and_false_components():
         sim.match_components(truth, _fit_table([0.1]), tolerance=-1.0)
 
 
-def test_hungarian_assignment_is_optimal():
+def test_hungarian_assignment_is_optimal() -> None:
     """Greedy matching would pair 0.100 with 0.105 and leave 0.110 without a partner; the
     optimal assignment (total |Δ| 0.017) pairs 0.100 with 0.088 and 0.110 with 0.105."""
 
@@ -103,7 +107,7 @@ def test_hungarian_assignment_is_optimal():
     np.testing.assert_allclose(matched["latency_fit"], [0.088, 0.105])
 
 
-def test_polarity_and_roles():
+def test_polarity_and_roles() -> None:
     truth = _truth_table([0.1, 0.3])
     truth["role"] = ["target", "confound"]
     fit = _fit_table([0.1], amplitude=5.0)
@@ -116,7 +120,7 @@ def test_polarity_and_roles():
     assert sorted(out["kind"]) == ["false", "miss"]
 
 
-def test_false_rate_on_empty_waveforms():
+def test_false_rate_on_empty_waveforms() -> None:
     _, truth = sim.simulate_ccep(seed=3, **SMALL["ccep"])
     silent = [name for name in truth.ch_names if name not in truth.settings["responders"]]
     assert len(silent) >= 2
@@ -133,7 +137,7 @@ def test_false_rate_on_empty_waveforms():
     assert row["false_rate_empty"] == 2.0
 
 
-def test_missed_components_lower_recall():
+def test_missed_components_lower_recall() -> None:
     _, truth = sim.simulate_erp(seed=1, n_trials=6, n_channels=2, components=["N1", "P3"])
     fits = fits_from_truth(truth, drop=[(truth.ch_names[0], "P3")])
     score = sim.score_fits(truth, fits).iloc[0]
@@ -145,7 +149,7 @@ def test_missed_components_lower_recall():
     assert by_label.loc["N1", "recall"] == 1.0
 
 
-def test_conditions():
+def test_conditions() -> None:
     _, truth = sim.simulate_animal_ep(seed=1, **SMALL["animal"])
     fits = fits_from_truth(truth)
     assert fits.conditions == ["awake", "nrem"]
@@ -164,7 +168,7 @@ def test_conditions():
     assert (out["kind"] == "match").sum() >= 1
 
 
-def test_response_fit_and_dataframe_inputs():
+def test_response_fit_and_dataframe_inputs() -> None:
     _, truth = sim.simulate_erp(seed=1, n_trials=6, components=["N1", "P3"])
     fits = fits_from_truth(truth)
     single = fits.fits[0]
@@ -197,7 +201,7 @@ def test_response_fit_and_dataframe_inputs():
     assert list(out["kind"]) == ["miss", "miss"]
 
 
-def test_trial_level_matching():
+def test_trial_level_matching() -> None:
     _, truth = sim.simulate_erp(seed=2, n_trials=4, components=["P3"], jitter_sd=0.02)
     trials = truth.to_dataframe("trial")
     fit = trials[

@@ -4,6 +4,7 @@
 import json
 import os
 import zipfile
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -17,7 +18,7 @@ RESULTS = all_results()
 FORMATS = ["csv"] + (["parquet"] if serialize._have_pyarrow() else [])
 
 
-def _strict_load(path):
+def _strict_load(path: Any) -> Any:
     def refuse(name):
         raise ValueError(name)
 
@@ -27,7 +28,7 @@ def _strict_load(path):
 
 @pytest.mark.parametrize("table_format", FORMATS)
 @pytest.mark.parametrize("name", sorted(RESULTS))
-def test_round_trip_every_type(tmp_path, name, table_format):
+def test_round_trip_every_type(tmp_path: Any, name: Any, table_format: Any) -> None:
     obj = RESULTS[name]
     path = save_object(obj, tmp_path / name, table_format=table_format)
     loaded = load_object(path)
@@ -35,14 +36,14 @@ def test_round_trip_every_type(tmp_path, name, table_format):
     assert loaded == obj
 
 
-def test_round_trip_zip(tmp_path):
+def test_round_trip_zip(tmp_path: Any) -> None:
     obj = make_group_fit()
     path = save_object(obj, tmp_path / "group.zip")
     assert zipfile.is_zipfile(path)
     assert load_object(path) == obj
 
 
-def test_trialset_data_exact_and_mmap(tmp_path):
+def test_trialset_data_exact_and_mmap(tmp_path: Any) -> None:
     trials = make_trialset(with_masks=True)
     path = trials.save(tmp_path / "trials")
     assert path.endswith(".evoparam")
@@ -54,7 +55,7 @@ def test_trialset_data_exact_and_mmap(tmp_path):
     pd.testing.assert_frame_equal(loaded.metadata, trials.metadata)
 
 
-def test_manifest_keys(tmp_path):
+def test_manifest_keys(tmp_path: Any) -> None:
     path = save_object(make_group_fit(), tmp_path / "g")
     manifest = _strict_load(os.path.join(path, "manifest.json"))
     assert set(manifest) == {
@@ -71,7 +72,7 @@ def test_manifest_keys(tmp_path):
         assert name in manifest["files"]
 
 
-def test_checksum_detects_one_changed_byte(tmp_path):
+def test_checksum_detects_one_changed_byte(tmp_path: Any) -> None:
     path = save_object(make_group_fit(), tmp_path / "g")
     target = os.path.join(path, "data.npz")
     with open(target, "r+b") as fobj:
@@ -83,7 +84,7 @@ def test_checksum_detects_one_changed_byte(tmp_path):
         load_object(path)
 
 
-def test_json_valid_with_nan_and_inf(tmp_path):
+def test_json_valid_with_nan_and_inf(tmp_path: Any) -> None:
     fit = make_group_fit()
     fit.settings["nan_value"] = float("nan")
     fit.settings["inf_value"] = float("inf")
@@ -100,7 +101,7 @@ def test_json_valid_with_nan_and_inf(tmp_path):
     assert np.isinf(loaded.settings["inf_value"])
 
 
-def test_table_sidecar_units(tmp_path):
+def test_table_sidecar_units(tmp_path: Any) -> None:
     table = make_group_fit().to_dataframe("component")
     obj = make_trialset()
     obj.metadata.attrs["units"] = {"stim_current_mA": "mA"}
@@ -111,7 +112,7 @@ def test_table_sidecar_units(tmp_path):
     assert set(table.attrs["units"]) == set(table.columns)
 
 
-def test_newer_major_raises(tmp_path):
+def test_newer_major_raises(tmp_path: Any) -> None:
     path = save_object(make_trialset(), tmp_path / "t")
     manifest_path = os.path.join(path, "manifest.json")
     manifest = _strict_load(manifest_path)
@@ -122,7 +123,7 @@ def test_newer_major_raises(tmp_path):
         load_object(path)
 
 
-def test_older_major_without_migration_raises(tmp_path):
+def test_older_major_without_migration_raises(tmp_path: Any) -> None:
     path = save_object(make_trialset(), tmp_path / "t")
     manifest_path = os.path.join(path, "manifest.json")
     manifest = _strict_load(manifest_path)
@@ -133,7 +134,7 @@ def test_older_major_without_migration_raises(tmp_path):
         load_object(path)
 
 
-def test_no_overwrite_by_default(tmp_path):
+def test_no_overwrite_by_default(tmp_path: Any) -> None:
     path = save_object(make_trialset(), tmp_path / "t")
     with pytest.raises(FileExistsError):
         save_object(make_trialset(), path)
@@ -142,7 +143,7 @@ def test_no_overwrite_by_default(tmp_path):
     assert load_object(path) == replacement
 
 
-def test_light_save_drops_curves(tmp_path):
+def test_light_save_drops_curves(tmp_path: Any) -> None:
     fit = make_group_fit()
     path = fit.save(tmp_path / "g", light=True)
     loaded = GroupFit.load(path)
@@ -150,18 +151,18 @@ def test_light_save_drops_curves(tmp_path):
     assert loaded.fits[0].components == fit.fits[0].components
 
 
-def test_load_checks_type(tmp_path):
+def test_load_checks_type(tmp_path: Any) -> None:
     path = save_object(make_group_fit(), tmp_path / "g")
     with pytest.raises(DataError, match="not a TrialSet"):
         TrialSet.load(path)
 
 
-def test_non_container_raises(tmp_path):
+def test_non_container_raises(tmp_path: Any) -> None:
     with pytest.raises(DataError):
         load_object(tmp_path)
 
 
-def test_object_arrays_refused(tmp_path):
+def test_object_arrays_refused(tmp_path: Any) -> None:
     fit = make_group_fit()
     fit.settings["bad"] = np.array([object()], dtype=object)
     with pytest.raises(DataError, match="dtype"):

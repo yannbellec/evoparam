@@ -48,7 +48,7 @@ SFREQ, TMIN = 8000.0, -0.25  # the authors' load_bids (fx_bids.py)
     "validation/layer3/localize_mi_responses.json cannot be built from "
     "published values",
 )
-def test_req373_scalp_responses_reported_by_the_authors():
+def test_req373_scalp_responses_reported_by_the_authors() -> None:
     """REQ-373: the comparator (per session: stimulated pair, intensity, the authors'
     report of a scalp response, sham or not) exists."""
 
@@ -67,7 +67,7 @@ def test_req373_scalp_responses_reported_by_the_authors():
     "github.com/iTCf/mikulan_et_al_2020), shorter than the existence window; "
     "an unexpected pass means the deposit holds longer epochs",
 )
-def test_req373_deposit_holds_the_scalp_response_window():
+def test_req373_deposit_holds_the_scalp_response_window() -> None:
     """REQ-373: the shared epochs reach the end of the default existence window of
     ``test_response``, so that a scalp response after the stimulation artifact can be
     tested (read from the header of the first epochs file of sub-01)."""

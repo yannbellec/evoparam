@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Small, deterministic containers and results for the data-model tests."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -22,7 +24,13 @@ from evoparam.data import (
 SFREQ = 1000.0
 
 
-def make_trialset(n_trials=6, n_channels=3, seed=0, with_tables=True, with_masks=False):
+def make_trialset(
+    n_trials: Any = 6,
+    n_channels: Any = 3,
+    seed: Any = 0,
+    with_tables: Any = True,
+    with_masks: Any = False,
+) -> Any:
     rng = np.random.default_rng(seed)
     times = np.arange(-100, 300) / SFREQ
     data = rng.normal(0.0, 5.0, (n_trials, n_channels, times.size))
@@ -67,7 +75,7 @@ def make_trialset(n_trials=6, n_channels=3, seed=0, with_tables=True, with_masks
     )
 
 
-def make_component(latency=0.025, label="N1"):
+def make_component(latency: Any = 0.025, label: Any = "N1") -> Any:
     return Component(
         shape="gaussian",
         params=np.array([latency, -40.0, 0.004]),
@@ -89,7 +97,7 @@ def make_component(latency=0.025, label="N1"):
     )
 
 
-def make_gof():
+def make_gof() -> Any:
     return GoodnessOfFit(
         r2=0.91,
         adj_r2=0.9,
@@ -107,7 +115,7 @@ def make_gof():
     )
 
 
-def make_response_test(_n_channels=3):
+def make_response_test(_n_channels: Any = 3) -> Any:
     return ResponseTest(
         method="baseline_permutation",
         statistic=np.array([5.0, 0.4, 3.1]),
@@ -127,7 +135,7 @@ def make_response_test(_n_channels=3):
     )
 
 
-def make_response_fit(status="ok", with_curves=True):
+def make_response_fit(status: Any = "ok", with_curves: Any = True) -> Any:
     components = (
         [make_component(0.180, "N2"), make_component(0.025, "N1")] if status == "ok" else []
     )
@@ -158,7 +166,7 @@ def make_response_fit(status="ok", with_curves=True):
     )
 
 
-def make_group_fit():
+def make_group_fit() -> Any:
     fits = [make_response_fit(), make_response_fit("no_response"), make_response_fit()]
     return GroupFit.from_fits(
         fits,
@@ -168,7 +176,7 @@ def make_group_fit():
     )
 
 
-def make_trial_fit():
+def make_trial_fit() -> Any:
     n_trials, n_comp = 5, 2
     table = pd.DataFrame(
         {
@@ -198,7 +206,7 @@ def make_trial_fit():
     )
 
 
-def make_hierarchical_fit():
+def make_hierarchical_fit() -> Any:
     summary = pd.DataFrame(
         {
             "level": ["channel"],
@@ -225,7 +233,7 @@ def make_hierarchical_fit():
     )
 
 
-def make_artifact_result():
+def make_artifact_result() -> Any:
     cleaned = make_trialset(with_masks=True)
     return ArtifactResult(
         cleaned=cleaned,
@@ -238,7 +246,7 @@ def make_artifact_result():
     )
 
 
-def make_shape_basis():
+def make_shape_basis() -> Any:
     times = np.arange(-10, 290) / SFREQ
     curves = np.vstack([np.exp(-0.5 * ((times - c) / 0.01) ** 2) for c in (0.03, 0.15)])
     return ShapeBasis(
@@ -260,7 +268,7 @@ def make_shape_basis():
     )
 
 
-def make_tf_fit():
+def make_tf_fit() -> Any:
     shape = (3, 4, 5)
     zones = pd.DataFrame(
         {
@@ -289,7 +297,7 @@ def make_tf_fit():
     )
 
 
-def all_results():
+def all_results() -> Any:
     """One instance of every savable type."""
 
     trials = make_trialset()

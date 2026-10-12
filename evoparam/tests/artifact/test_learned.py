@@ -12,7 +12,7 @@ from .test_template import WINDOW, residual_db
 ###################################################################################################
 
 
-def test_req061_learned_reduces_window_residual_by_20_db():
+def test_req061_learned_reduces_window_residual_by_20_db() -> None:
 
     noisy, truth = make_overlay(onset=0.012)
     result = remove_artifact(noisy, method="learned", window=WINDOW)
@@ -24,7 +24,7 @@ def test_req061_learned_reduces_window_residual_by_20_db():
     assert np.allclose(result.basis @ result.basis.T, np.eye(result.basis.shape[0]), atol=1e-8)
 
 
-def test_learned_fixed_number_of_components():
+def test_learned_fixed_number_of_components() -> None:
 
     noisy, _ = make_overlay()
     result = remove_artifact(noisy, method="learned", window=WINDOW, n_components=2)

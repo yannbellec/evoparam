@@ -11,7 +11,7 @@ from .helpers import add_pulse, make_noise, make_recording, spatial_gains
 ###################################################################################################
 
 
-def test_req041_synthetic_pulses_line_noise_and_transients():
+def test_req041_synthetic_pulses_line_noise_and_transients() -> None:
     """100 channels, 2048 Hz, 200 pulses (artifact >= 10x baseline SD on the median
     channel), 50 Hz line noise, 20 movement transients of 5x SD."""
 
@@ -41,7 +41,7 @@ def test_req041_synthetic_pulses_line_noise_and_transients():
         assert np.all(np.abs(detected - start) > 0.03 * sfreq)
 
 
-def test_sharp_transients_far_weaker_than_pulses_are_rejected():
+def test_sharp_transients_far_weaker_than_pulses_are_rejected() -> None:
 
     # Electrode pops: one-sample steps of 40 SD on most channels. They cross the threshold
     # but are an order of magnitude weaker than the pulses, as on ds004080 (pulses reach
@@ -69,7 +69,7 @@ def test_sharp_transients_far_weaker_than_pulses_are_rejected():
     assert results["false_alarms"] == 0
 
 
-def test_weak_pulses_are_recovered_by_template():
+def test_weak_pulses_are_recovered_by_template() -> None:
 
     # Same site, two currents: the weak pulses are under the strength gate but match
     sfreq = 2048.0
@@ -91,7 +91,7 @@ def test_weak_pulses_are_recovered_by_template():
     assert (recovered == "template").all()
 
 
-def test_grey_zone_pulses_confirmed_by_repetition():
+def test_grey_zone_pulses_confirmed_by_repetition() -> None:
 
     # Pulses at an eighth of the strong ones' size: under the gate, but they repeat
     sfreq = 2048.0
@@ -108,7 +108,7 @@ def test_grey_zone_pulses_confirmed_by_repetition():
     assert set(grey) <= set(events["onset_sample"])
 
 
-def test_alternating_polarity_forms_two_classes():
+def test_alternating_polarity_forms_two_classes() -> None:
 
     sfreq = 2048.0
     rng = np.random.default_rng(15)
@@ -126,7 +126,7 @@ def test_alternating_polarity_forms_two_classes():
     assert classes[0] != classes[1]
 
 
-def test_template_method_with_user_template():
+def test_template_method_with_user_template() -> None:
 
     sfreq = 2048.0
     data, onsets, _ = make_recording(n_channels=8, duration=10.0, seed=17)

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for evoparam.io.brainvision."""
 
+from typing import Any
+
 import numpy as np
 
 from evoparam.io.brainvision import read_brainvision_header, read_brainvision_segment
@@ -9,7 +11,9 @@ from evoparam.io.brainvision import read_brainvision_header, read_brainvision_se
 ###################################################################################################
 
 
-def write_brainvision(folder, data, sfreq, ch_names, resolution=0.5):
+def write_brainvision(
+    folder: Any, data: Any, sfreq: Any, ch_names: Any, resolution: Any = 0.5
+) -> Any:
     """Write a small multiplexed float32 BrainVision recording, and return the .vhdr path."""
 
     lines = [
@@ -35,7 +39,7 @@ def write_brainvision(folder, data, sfreq, ch_names, resolution=0.5):
     return str(folder / "test.vhdr")
 
 
-def test_read_brainvision(tmp_path):
+def test_read_brainvision(tmp_path: Any) -> None:
 
     sfreq, ch_names = 100.0, ["A1", "A2", "A3"]
     data = np.arange(3 * 500, dtype=float).reshape(3, 500)

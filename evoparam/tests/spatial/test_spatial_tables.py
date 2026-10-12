@@ -9,6 +9,7 @@ EVOPARAM_NETWORK_TESTS=1.
 import copy
 import os
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -37,7 +38,7 @@ from .helpers import BASELINE, SFREQ, TIMES, gauss
 SITES = ("A01-A02", "A03-A04", "B01-B02")
 
 
-def _scene(seed=0, n_trials=8):
+def _scene(seed: Any = 0, n_trials: Any = 8) -> Any:
     """Three sites into eight contacts on two shafts (4 mm apart); every site drives the
     contacts of its own shaft (an N1 whose latency grows with distance), not the others."""
 
@@ -81,7 +82,7 @@ def _scene(seed=0, n_trials=8):
 
 
 @pytest.fixture(scope="module")
-def scene():
+def scene() -> Any:
     ts = _scene()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -89,7 +90,7 @@ def scene():
     return ts, group
 
 
-def _largest(table):
+def _largest(table: Any) -> Any:
     """Per (channel, condition): the component of largest |amplitude| from to_dataframe."""
 
     table = table.assign(abs_amp=table["amplitude"].abs())
@@ -101,7 +102,7 @@ def _largest(table):
     }
 
 
-def test_req195_connectivity_round_trip_and_cells(scene):
+def test_req195_connectivity_round_trip_and_cells(scene: Any) -> None:
 
     _, group = scene
     for parameter in ("amplitude", "latency", "fwhm"):
@@ -132,7 +133,7 @@ def test_req195_connectivity_round_trip_and_cells(scene):
         assert np.array_equal(np.isnan(array), wide.isna().to_numpy())
 
 
-def test_parameter_map_columns_markers_and_coordinates(scene):
+def test_parameter_map_columns_markers_and_coordinates(scene: Any) -> None:
 
     ts, group = scene
     table = parameter_map(group, ch_info=ts)
@@ -163,7 +164,7 @@ def test_parameter_map_columns_markers_and_coordinates(scene):
         parameter_map(ts)
 
 
-def test_parameter_map_without_coordinates_warns(scene):
+def test_parameter_map_without_coordinates_warns(scene: Any) -> None:
 
     _, group = scene
     with pytest.warns(UserWarning, match="no channel coordinates"):
@@ -171,7 +172,7 @@ def test_parameter_map_without_coordinates_warns(scene):
     assert table["x"].isna().all()
 
 
-def test_parameter_map_with_existence_and_shapes(scene):
+def test_parameter_map_with_existence_and_shapes(scene: Any) -> None:
 
     ts, group = scene
     test = run_test(
@@ -198,7 +199,7 @@ def test_parameter_map_with_existence_and_shapes(scene):
     assert rows.loc[("A03-A04", "A03"), "shape_id"] == -1
 
 
-def shared_shapes_stub():
+def shared_shapes_stub() -> Any:
     from evoparam.data import ShapeBasis
 
     assignment = pd.DataFrame(
@@ -225,7 +226,7 @@ def shared_shapes_stub():
     )
 
 
-def test_plot_parameter_map(scene):
+def test_plot_parameter_map(scene: Any) -> None:
 
     pytest.importorskip("matplotlib")
     ts, group = scene
@@ -236,7 +237,7 @@ def test_plot_parameter_map(scene):
     plt.close(figure)
 
 
-def _mni(table, space="MNI152NLin2009aSym"):
+def _mni(table: Any, space: Any = "MNI152NLin2009aSym") -> Any:
     """The table with its coordinates moved into a plausible MNI range (left temporal)."""
 
     out = table.copy()
@@ -246,7 +247,7 @@ def _mni(table, space="MNI152NLin2009aSym"):
     return out
 
 
-def test_parameter_map_glass_brain_with_nilearn(scene):
+def test_parameter_map_glass_brain_with_nilearn(scene: Any) -> None:
     """Spec §5.9 method 3: a glass-brain figure, the nilearn plotting backend used when
     installed (MNI-like coordinates), the stimulation contacts, bad and masked channels as
     distinct markers."""
@@ -273,7 +274,7 @@ def test_parameter_map_glass_brain_with_nilearn(scene):
         plot_parameter_map(parameter_map(group, ch_info=ts), backend="nilearn")
 
 
-def test_parameter_map_electrode_grid_fallback(scene, monkeypatch):
+def test_parameter_map_electrode_grid_fallback(scene: Any, monkeypatch: Any) -> None:
     """Without nilearn (or in subject space) the electrode-grid figure is drawn."""
 
     pytest.importorskip("matplotlib")
@@ -307,7 +308,7 @@ SITES_4080 = ["PT01-PT02", "PT03-PT02", "PT03-PT04", "PT05-PT04", "PT05-PT06", "
 EPOCH = (-0.6, 0.6)
 
 
-def load_ds004080():
+def load_ds004080() -> Any:
     """Epochs of six sites of one run (cached), with ch_info from the BIDS tables."""
 
     from evoparam.io import read_bids
@@ -352,7 +353,7 @@ def load_ds004080():
     )
 
 
-def _electrodes():
+def _electrodes() -> Any:
     from evoparam.io import openneuro_url
     from evoparam.io._fetch import data_folder
 
@@ -380,7 +381,7 @@ def _electrodes():
 
 @pytest.mark.network
 @network
-def test_req196_parameter_map_on_ds004080():
+def test_req196_parameter_map_on_ds004080() -> None:
 
     from evoparam.artifact import remove_artifact
     from evoparam.prep import baseline_correct

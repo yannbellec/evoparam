@@ -7,6 +7,7 @@ runs only with EVOPARAM_NETWORK_TESTS=1.
 
 import os
 import re
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -28,7 +29,7 @@ pytestmark = [
 RUN = "sub-ccepAgeUMCU01/ses-1/ieeg/sub-ccepAgeUMCU01_ses-1_task-SPESclin_run-021448"
 
 
-def _epochs():
+def _epochs() -> Any:
     from evoparam.tests.events.test_ds004080_events import _segment
 
     data, sfreq, names, t0, onsets, sites = _segment(RUN)
@@ -50,7 +51,7 @@ def _epochs():
     return baseline_correct(ts, check=False)
 
 
-def test_req084_three_schemes_under_two_minutes():
+def test_req084_three_schemes_under_two_minutes() -> None:
     """With the default detector, the existence test of spec §5.6 (method 3)."""
 
     ts = _epochs()
@@ -69,7 +70,7 @@ def test_req084_three_schemes_under_two_minutes():
     assert {"bipolar", "car", "car_adaptive"} <= set(channels.columns.get_level_values(0))
 
 
-def test_existence_detector_finds_responses():
+def test_existence_detector_finds_responses() -> None:
 
     detected, latency, groups = existence_detector(_epochs())
     assert groups == ["PT01-PT02"]
@@ -79,7 +80,7 @@ def test_existence_detector_finds_responses():
     assert np.all(np.isnan(latency[~detected]))
 
 
-def test_threshold_detector_finds_responses():
+def test_threshold_detector_finds_responses() -> None:
 
     detected, latency = threshold_detector(_epochs())
     assert detected.any()

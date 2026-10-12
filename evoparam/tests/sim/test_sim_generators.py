@@ -5,6 +5,7 @@ import json
 import subprocess
 import sys
 import textwrap
+from typing import Any
 
 import numpy as np
 import pytest
@@ -33,7 +34,7 @@ MODALITIES = {
 
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
-def test_containers_and_provenance(name):
+def test_containers_and_provenance(name: Any) -> None:
     gen = sim.GENERATORS[name]
     ts, truth = gen(seed=7, **SMALL[name])
     ts.validate()
@@ -65,7 +66,7 @@ def test_containers_and_provenance(name):
 
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
-def test_truth_features_are_the_nominal_curves(name):
+def test_truth_features_are_the_nominal_curves(name: Any) -> None:
     _, truth = sim.GENERATORS[name](seed=7, **SMALL[name])
     for comp in truth.components[:6]:
         shape = get_shape(comp["shape"])
@@ -80,7 +81,7 @@ def test_truth_features_are_the_nominal_curves(name):
 
 
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
-def test_noise_level_is_noise_sd(name):
+def test_noise_level_is_noise_sd(name: Any) -> None:
     """With snr=None the amplitudes are in µV and the noise SD is noise_sd."""
 
     ts, truth = sim.GENERATORS[name](seed=3, snr=None, noise="white", noise_sd=4.0, **SMALL[name])
@@ -92,7 +93,7 @@ def test_noise_level_is_noise_sd(name):
     assert all(comp["snr"] is None for comp in truth.components)
 
 
-def test_bad_counts():
+def test_bad_counts() -> None:
     for gen, key in (
         (sim.simulate_erp, "n_trials"),
         (sim.simulate_ccep, "n_trials"),
@@ -111,7 +112,7 @@ def test_bad_counts():
 
 
 @pytest.mark.parametrize("shape", sorted(SHAPE_FORMS))
-def test_shape_params_reach_latency_and_fwhm(shape):
+def test_shape_params_reach_latency_and_fwhm(shape: Any) -> None:
     params = sim.shape_params(shape, 0.2, 0.04)
     times = np.arange(-0.5, 1.5, 0.001)
     feats = compute_features(get_shape(shape), times, params, 1.0, sfreq=1000.0).to_dict()
@@ -119,14 +120,14 @@ def test_shape_params_reach_latency_and_fwhm(shape):
     assert abs(feats["fwhm"] - 0.04) < 1e-5
 
 
-def test_shape_params_errors():
+def test_shape_params_errors() -> None:
     with pytest.raises(SettingsError):
         sim.shape_params("gaussian", 0.1, -0.01)
     with pytest.raises(SettingsError):
         sim.shape_params("no_such_shape", 0.1, 0.02)
 
 
-def test_component_spec():
+def test_component_spec() -> None:
     spec = sim.ComponentSpec("X", latency=(0.1, 0.2), fwhm=0.03, amplitude=(-3.0, -1.0))
     rng = np.random.default_rng(0)
     for _ in range(20):
@@ -153,7 +154,7 @@ def test_component_spec():
         sim.ComponentSpec("X", shape="gaussian", params=(0.1,)).resolve(rng)
 
 
-def test_presets():
+def test_presets() -> None:
     assert set(sim.ERP_COMPONENTS) == {"P1", "N1", "N170", "MMN", "N400", "P3", "ERN"}
     assert list(sim.TEP_COMPONENTS) == ["N15", "P30", "N45", "P60", "N100", "P180"]
     assert sim.CCEP_N1.latency == (0.015, 0.040)
@@ -168,7 +169,7 @@ def test_presets():
 ## ERP
 
 
-def test_erp_components_and_overrides():
+def test_erp_components_and_overrides() -> None:
     ts, truth = sim.simulate_erp(
         seed=1,
         n_trials=5,
@@ -203,13 +204,13 @@ def test_erp_components_and_overrides():
         sim.simulate_erp(seed=1, n_trials=3, components=[{"label": "P3", "channels": ("O9",)}])
 
 
-def test_erp_noise_only():
+def test_erp_noise_only() -> None:
     ts, truth = sim.simulate_erp(seed=1, n_trials=4, components=[], snr=None)
     assert truth.n_components == 0
     assert not np.any(truth.signal)
 
 
-def test_erp_jitter_distributions():
+def test_erp_jitter_distributions() -> None:
     _, normal = sim.simulate_erp(
         seed=2, n_trials=400, components=["P3"], jitter_sd=0.02, noise="none", snr=None
     )
@@ -234,7 +235,7 @@ def test_erp_jitter_distributions():
         sim.simulate_erp(seed=2, n_trials=4, jitter="uniform", jitter_sd=0.01)
 
 
-def test_erp_jitter_per_component():
+def test_erp_jitter_per_component() -> None:
     _, shared = sim.simulate_erp(seed=2, n_trials=50, components=["N1", "P3"], jitter_sd=0.01)
     np.testing.assert_array_equal(shared.shift[:, 0], shared.shift[:, 1])
     _, separate = sim.simulate_erp(
@@ -243,7 +244,7 @@ def test_erp_jitter_per_component():
     assert separate.shift[:, 0].std() < separate.shift[:, 1].std()
 
 
-def test_erp_overlap():
+def test_erp_overlap() -> None:
     ts, truth = sim.simulate_erp(
         seed=4, n_trials=10, components=["P3"], overlap={"soa": (0.3, 0.5), "scale": 0.5}, snr=None
     )
@@ -262,7 +263,7 @@ def test_erp_overlap():
 ## CCEP
 
 
-def test_ccep_design():
+def test_ccep_design() -> None:
     ts, truth = sim.simulate_ccep(
         seed=9, n_trials=4, n_channels=20, p_response=1.0, delayed=True, p_delayed=1.0, tmax=1.2
     )
@@ -288,7 +289,7 @@ def test_ccep_design():
     assert all(c["amplitude"] > 0 for c in positive.components)
 
 
-def test_ccep_grid_and_errors():
+def test_ccep_grid_and_errors() -> None:
     ts, _ = sim.simulate_ccep(seed=0, n_trials=2, n_channels=16, layout="grid", tmax=0.2)
     assert ts.ch_names[0] == "G01"
     assert set(ts.ch_info["type"]) == {"ecog"}
@@ -304,7 +305,7 @@ def test_ccep_grid_and_errors():
         sim.simulate_ccep(seed=0, n1=3.0)
 
 
-def test_ccep_overrides():
+def test_ccep_overrides() -> None:
     _, truth = sim.simulate_ccep(
         seed=1,
         n_trials=2,
@@ -320,7 +321,7 @@ def test_ccep_overrides():
         assert np.isclose(comp["amplitude"], -100.0)
 
 
-def test_ccep_trains():
+def test_ccep_trains() -> None:
     ts, truth = sim.simulate_ccep(
         20,
         seed=0,
@@ -346,7 +347,7 @@ def test_ccep_trains():
 ## ERNA, TEP, ECAP, animal
 
 
-def test_erna_pulses():
+def test_erna_pulses() -> None:
     ts, truth = sim.simulate_erna(n_pulses=5, n_trials=2, seed=0, noise="none", artifact=False)
     assert ts.modality == "erna"
     events = sorted({c["event"] for c in truth.components})
@@ -365,7 +366,7 @@ def test_erna_pulses():
         sim.simulate_erna(n_pulses=2, pulse_rate=0.0)
 
 
-def test_tep_components_and_site():
+def test_tep_components_and_site() -> None:
     ts, truth = sim.simulate_tep(
         seed=0,
         n_trials=3,
@@ -386,7 +387,7 @@ def test_tep_components_and_site():
         sim.simulate_tep(seed=0, n_trials=2, n_channels=4, stim_site="O2")
 
 
-def test_ecap_masking_and_paradigms():
+def test_ecap_masking_and_paradigms() -> None:
     ts, truth = sim.simulate_ecap(8, seed=0, paradigm="forward_masking", masking=1.0, noise="none")
     probe = [i for i, c in enumerate(truth.components) if c["role"] == "target"]
     # Full masking: no probe response in condition B (masker + probe).
@@ -407,7 +408,7 @@ def test_ecap_masking_and_paradigms():
         sim.simulate_ecap(8, seed=0, masking=2.0)
 
 
-def test_animal_depth_reversal_and_states():
+def test_animal_depth_reversal_and_states() -> None:
     ts, truth = sim.simulate_animal_ep(
         seed=2, n_trials=6, n_channels=24, spacing_um=40.0, noise="none", reversal_um=400.0
     )
@@ -442,7 +443,7 @@ def test_animal_depth_reversal_and_states():
 ## Light core
 
 
-def test_generators_without_pandas_in_a_subprocess():
+def test_generators_without_pandas_in_a_subprocess() -> None:
     """Optional dependencies stay optional: the simulators run without pandas (metadata and
     ch_info are then None) and the tables raise ImportError naming the extra."""
 

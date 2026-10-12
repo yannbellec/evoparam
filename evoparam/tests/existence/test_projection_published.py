@@ -27,6 +27,7 @@ it, which the strict expected failure below states.
 import os
 import pathlib
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -79,7 +80,7 @@ needs_network = pytest.mark.skipif(
 )
 
 
-def _trials(name, drop=()):
+def _trials(name: Any, drop: Any = ()) -> Any:
     """The trials of one example file (downloaded once, checked by SHA-256)."""
 
     from scipy.io import loadmat
@@ -105,7 +106,7 @@ def _trials(name, drop=()):
     )
 
 
-def _projection(ts, window=WINDOW, **kwargs):
+def _projection(ts: Any, window: Any = WINDOW, **kwargs: Any) -> Any:
     from evoparam.existence import test_response
 
     with warnings.catch_warnings():
@@ -127,7 +128,9 @@ def _projection(ts, window=WINDOW, **kwargs):
 @pytest.mark.network
 @needs_network
 @pytest.mark.parametrize(("name", "drop", "published"), DURATIONS)
-def test_req134_published_durations_of_the_example_data(name, drop, published):
+def test_req134_published_durations_of_the_example_data(
+    name: Any, drop: Any, published: Any
+) -> None:
     """REQ-134: the response duration of ``method="projection"`` is within 5 ms of the
     duration published for the paper's example data."""
 
@@ -137,7 +140,7 @@ def test_req134_published_durations_of_the_example_data(name, drop, published):
 
 @pytest.mark.network
 @needs_network
-def test_req134_published_significance_of_the_example_data():
+def test_req134_published_significance_of_the_example_data() -> None:
     """REQ-134: the significance decisions of ``method="projection"`` with the paper's set of
     projections (``projection_pairs="half"``) are those published for the paper's example
     channel pairs on at least 95 % of them. The default set (``"disjoint"``, each trial in
@@ -161,7 +164,7 @@ def test_req134_published_significance_of_the_example_data():
     "on 0.8 to 1.0 of the 10 example pairs depending on the random pairing, "
     "mean 0.89 over seeds 0 to 9, below 0.95",
 )
-def test_req134_published_significance_with_the_default_pairs():
+def test_req134_published_significance_with_the_default_pairs() -> None:
     """REQ-134 read with the defaults: the mean agreement over ten random pairings is at least
     95 %."""
 
@@ -193,7 +196,7 @@ def test_req134_published_significance_with_the_default_pairs():
     assert np.mean(agreement) >= 0.95, agreement
 
 
-def test_req134_reviewed_profile_is_kept_as_an_option():
+def test_req134_reviewed_profile_is_kept_as_an_option() -> None:
     """REQ-134: the reading of §5.6 item 2 as reviewed (the mean projection divided by the
     square root of the window length) stays available, and the default is the published
     reading. On a polyphasic response (a large early peak at 25 ms, then a smaller
@@ -215,7 +218,7 @@ def test_req134_reviewed_profile_is_kept_as_an_option():
     assert np.all(reviewed.significant)
 
 
-def test_req134_pairs_of_the_paper_are_anticonservative():
+def test_req134_pairs_of_the_paper_are_anticonservative() -> None:
     """REQ-134: on pure white noise (10 trials, 200 channels) the paper's set of projections
     rejects far more often than alpha = 0.05 (0.43 measured), the default set (each trial in
     one pair) much less (0.145, above alpha by the choice of the response end at the peak of
@@ -241,7 +244,7 @@ def test_req134_pairs_of_the_paper_are_anticonservative():
     "and its derivatives, checked 2026-10-11); the paper's published values "
     "are on its own example files, tested above",
 )
-def test_req134_ds003708_published_values():
+def test_req134_ds003708_published_values() -> None:
     """REQ-134 on ds003708: needs the published per-channel-pair values as a comparator
     file, ``validation/layer3/crp_ds003708.json``."""
 

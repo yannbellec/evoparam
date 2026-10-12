@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Every plot function runs headless on its result type and returns a Figure (REQ-344)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -10,25 +12,25 @@ from evoparam import plots  # noqa: E402
 from evoparam.data import ShapeBasis  # noqa: E402
 
 
-def _is_figure(fig):
+def _is_figure(fig: Any) -> Any:
     from matplotlib.figure import Figure
 
     return isinstance(fig, Figure)
 
 
-def test_plot_fit_with_and_without_data(results):
+def test_plot_fit_with_and_without_data(results: Any) -> None:
 
     assert _is_figure(plots.plot_fit(results["fit"]))
     assert _is_figure(plots.plot_fit(results["fit"], results["ts"], channel="c0"))
 
 
 @pytest.mark.parametrize("kind", ["grid", "shaft"])
-def test_plot_group(results, kind):
+def test_plot_group(results: Any, kind: Any) -> None:
 
     assert _is_figure(plots.plot_group(results["group"], results["ts"], kind=kind))
 
 
-def test_plot_group_brain_needs_coordinates(results):
+def test_plot_group_brain_needs_coordinates(results: Any) -> None:
 
     from evoparam.errors import SettingsError
 
@@ -38,7 +40,7 @@ def test_plot_group_brain_needs_coordinates(results):
     assert _is_figure(plots.plot_group(results["group"], kind="brain", coords=coords))
 
 
-def test_plot_trials_existence_tf_artifact_compare(results):
+def test_plot_trials_existence_tf_artifact_compare(results: Any) -> None:
 
     assert _is_figure(plots.plot_trials(results["trials"], results["ts"], channel="c0"))
     assert _is_figure(plots.plot_trials(results["trials"]))
@@ -50,7 +52,7 @@ def test_plot_trials_existence_tf_artifact_compare(results):
     )
 
 
-def test_plot_shapes(results):
+def test_plot_shapes(results: Any) -> None:
 
     basis = results["basis"] or ShapeBasis(
         curves=np.ones((1, 10)),
@@ -65,7 +67,7 @@ def test_plot_shapes(results):
     assert _is_figure(plots.plot_shapes(basis))
 
 
-def test_axes_are_reused(results):
+def test_axes_are_reused(results: Any) -> None:
 
     import matplotlib.pyplot as plt
 
@@ -74,7 +76,7 @@ def test_axes_are_reused(results):
     plt.close("all")
 
 
-def test_req344_every_result_type_has_a_figure(results):
+def test_req344_every_result_type_has_a_figure(results: Any) -> None:
     """One figure per result type of spec §4.3 (the fitted ones above, the others from the
     data-model factories), under the Agg backend."""
 
@@ -103,7 +105,7 @@ def test_req344_every_result_type_has_a_figure(results):
     plt.close("all")
 
 
-def test_plot_existence_shows_the_statistic_over_time_with_its_null_band(results):
+def test_plot_existence_shows_the_statistic_over_time_with_its_null_band(results: Any) -> None:
     """Spec §5.13: plot_existence(test) draws the statistic over time with the null band."""
 
     import dataclasses

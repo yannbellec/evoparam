@@ -6,6 +6,7 @@ sign-flipped data returns mirrored results (latencies equal, amplitudes negated)
 import ast
 import pathlib
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -37,7 +38,7 @@ NEGATED = (
 )
 
 
-def flip(trials):
+def flip(trials: Any) -> Any:
     return TrialSet(
         data=-trials.data,
         times=trials.times,
@@ -54,7 +55,7 @@ CASES = {
 
 
 @pytest.fixture(scope="module", params=sorted(CASES))
-def pair(request):
+def pair(request: Any) -> Any:
     trials, _ = CASES[request.param]()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -63,13 +64,13 @@ def pair(request):
     return trials, a, b
 
 
-def _close(x, y):
+def _close(x: Any, y: Any) -> Any:
     x, y = np.asarray(x, float), np.asarray(y, float)
     both = np.isnan(x) & np.isnan(y)
     return np.all(both | (np.abs(x - y) <= TOL))
 
 
-def test_req003_fit_of_flipped_data_is_mirrored(pair):
+def test_req003_fit_of_flipped_data_is_mirrored(pair: Any) -> None:
     _, a, b = pair
     ta, tb = a.to_dataframe(), b.to_dataframe()
     assert len(ta) == len(tb)
@@ -83,7 +84,7 @@ def test_req003_fit_of_flipped_data_is_mirrored(pair):
     assert list(ta["existence_significant"]) == list(tb["existence_significant"])
 
 
-def test_req003_trial_fits_of_flipped_data_are_mirrored(pair):
+def test_req003_trial_fits_of_flipped_data_are_mirrored(pair: Any) -> None:
     trials, a, b = pair
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -98,7 +99,7 @@ def test_req003_trial_fits_of_flipped_data_are_mirrored(pair):
     assert list(ta["trusted"]) == list(tb["trusted"])
 
 
-def test_req003_existence_test_of_flipped_data():
+def test_req003_existence_test_of_flipped_data() -> None:
     trials, _ = CASES["ccep"]()
     kwargs = {"window": (0.009, 0.5), "baseline": (-0.5, -0.05), "by": (), "random_state": 0}
     a = evoparam.test_response(trials, **kwargs)
@@ -108,7 +109,7 @@ def test_req003_existence_test_of_flipped_data():
     assert np.array_equal(a.significant, b.significant)
 
 
-def _sign_rules(path):
+def _sign_rules(path: Any) -> Any:
     """``if`` statements that drop something (continue, remove, pop) on a comparison of a sign
     (amplitude, beta, sign, polarity of a component) with zero, outside a test of the
     user's ``polarity`` setting."""
@@ -156,7 +157,7 @@ def _sign_rules(path):
     return hits
 
 
-def test_req003_no_sign_rule_without_polarity():
+def test_req003_no_sign_rule_without_polarity() -> None:
     hits = []
     for folder in ("models", "existence", "trials"):
         for path in sorted((PACKAGE / folder).rglob("*.py")):
@@ -164,7 +165,7 @@ def test_req003_no_sign_rule_without_polarity():
     assert not hits, hits
 
 
-def test_req003_sign_rule_scan_finds_a_mutation(tmp_path):
+def test_req003_sign_rule_scan_finds_a_mutation(tmp_path: Any) -> None:
     bad = tmp_path / "bad.py"
     bad.write_text(
         "def f(cands, polarity):\n"

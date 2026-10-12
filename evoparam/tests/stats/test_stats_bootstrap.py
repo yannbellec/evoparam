@@ -2,6 +2,7 @@
 """Bootstrap intervals (REQ-230), the vectorised scores and the bootstrap interface."""
 
 import copy
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -22,7 +23,7 @@ from .helpers import N1, WINDOW, replicates
 
 @pytest.mark.parametrize("method", ["bca", "percentile"])
 @pytest.mark.parametrize("distribution", ["normal", "lognormal"])
-def test_req230_coverage(method, distribution):
+def test_req230_coverage(method: Any, distribution: Any) -> None:
     """93-97 % coverage of 95 % intervals of a mean amplitude over 30 trials.
 
     Normal: white noise around a fixed component. Log-normal: the trial amplitude factor
@@ -57,7 +58,7 @@ def test_req230_coverage(method, distribution):
     assert ((plain["ci_low"] <= true) & (true <= plain["ci_high"])).mean() < covered.mean()
 
 
-def test_scores_match_classical_measures():
+def test_scores_match_classical_measures() -> None:
 
     rng = np.random.default_rng(0)
     times = np.linspace(-0.05, 0.3, 176)
@@ -90,7 +91,7 @@ def test_scores_match_classical_measures():
                         ), (score, polarity, area, base, k)
 
 
-def test_callable_and_named_score_agree():
+def test_callable_and_named_score_agree() -> None:
 
     ts, _ = simulate_erp(25, n_channels=2, components=[N1], snr=2.0, noise="white", seed=3)
 
@@ -114,7 +115,7 @@ def test_callable_and_named_score_agree():
     assert named.attrs["units"]["estimate"] == "s"
 
 
-def test_bca_matches_scipy():
+def test_bca_matches_scipy() -> None:
     """Same BCa definition as scipy.stats.bootstrap (independent implementation)."""
 
     rng = np.random.default_rng(7)
@@ -132,7 +133,7 @@ def test_bca_matches_scipy():
     assert ours["acceleration"].iloc[0] > 0  # right-skewed: positive acceleration
 
 
-def test_strata_keep_their_size():
+def test_strata_keep_their_size() -> None:
 
     ts, _ = simulate_erp(24, components=[N1], snr=2.0, noise="white", seed=2)
     meta = ts.metadata.copy()
@@ -154,7 +155,7 @@ def test_strata_keep_their_size():
     assert table.attrs["settings"]["n_strata"] == 1
 
 
-def test_bca_falls_back_with_few_values():
+def test_bca_falls_back_with_few_values() -> None:
 
     ts, _ = simulate_erp(6, components=[N1], snr=1.0, noise="white", sfreq=100.0, seed=4)
     with pytest.warns(UserWarning, match="fell back to the percentile"):
@@ -163,7 +164,7 @@ def test_bca_falls_back_with_few_values():
     assert table["ci_low"].iloc[0] <= table["ci_high"].iloc[0]
 
 
-def test_interval_details_and_errors():
+def test_interval_details_and_errors() -> None:
 
     out = bootstrap_interval(1.0, [1.0] * 50, method="bca")
     assert out["method"] == "percentile"

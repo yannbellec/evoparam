@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Calibration under the null (REQ-130) and corrections (REQ-136)."""
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -15,7 +17,7 @@ from .helpers import noise_trials, trialset
 
 @pytest.mark.parametrize("rho", [0.0, 0.9])
 @pytest.mark.parametrize("statistic", ["max_t", "cluster"])
-def test_req130_type_one_error(rho, statistic):
+def test_req130_type_one_error(rho: Any, statistic: Any) -> None:
 
     rng = np.random.default_rng(1 if rho else 2)
     ts = trialset(noise_trials(rng, 20, 2000, rho))
@@ -37,7 +39,7 @@ def test_req130_type_one_error(rho, statistic):
         assert 0.8 * alpha - 2 * se <= rate <= 1.2 * alpha + 2 * se, (alpha, rate)
 
 
-def test_req136_corrections():
+def test_req136_corrections() -> None:
 
     rng = np.random.default_rng(3)
     fdr, fwe = [], []

@@ -19,6 +19,7 @@ import io
 import os
 import re
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -41,7 +42,7 @@ pytestmark = [
 RUN = "sub-ccepAgeUMCU01/ses-1/ieeg/sub-ccepAgeUMCU01_ses-1_task-SPESclin_run-021448"
 
 
-def _contacts(names, site=""):
+def _contacts(names: Any, site: Any = "") -> Any:
     return [
         i
         for i, n in enumerate(names)
@@ -51,7 +52,7 @@ def _contacts(names, site=""):
     ]
 
 
-def _average(run):
+def _average(run: Any) -> Any:
     from evoparam.tests.events.test_ds004080_events import _segment
 
     data, sfreq, names, t0, onsets, sites = _segment(run)
@@ -75,7 +76,7 @@ def _average(run):
     return baseline_correct(ts, (-0.5, -0.02), check=False).average()
 
 
-def _agreement():
+def _agreement() -> Any:
     evoked = _average(RUN)
     times, avg = evoked.times, evoked.data
     base = (times >= -0.5) & (times <= -0.02)
@@ -108,7 +109,7 @@ OPENNEURO = "https://s3.amazonaws.com/openneuro.org/ds004080"
 EXAMPLE = ("ccepAgeUMCU01", "021448")
 
 
-def _first_pair(subject, stem, min_trials=10):
+def _first_pair(subject: Any, stem: Any, min_trials: Any = 10) -> Any:
     """The first stimulation pair of a run, in event order, with at least ``min_trials``
     trials (the rule of the subject list); the events file is cached."""
 
@@ -129,7 +130,7 @@ def _first_pair(subject, stem, min_trials=10):
     return next(s for s in dict.fromkeys(sites) if counts[s] >= min_trials)
 
 
-def req371_pairs():
+def req371_pairs() -> Any:
     """(subject, run, pair) of the REQ-371 list (validation/ds004080_subjects.txt): each
     subject's first qualifying run and its first pair of >= 10 trials."""
 
@@ -141,7 +142,7 @@ def req371_pairs():
     ]
 
 
-def _pair_trials(subject, run, site):
+def _pair_trials(subject: Any, run: Any, site: Any) -> Any:
     """Every trial of one pair (both polarities), -2 to 3 s, the good non-stimulated ECoG
     channels of channels.tsv (the published channel selection), raw monopolar data."""
 
@@ -197,7 +198,7 @@ def _pair_trials(subject, run, site):
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
 
 
-def _rule_average(ts):
+def _rule_average(ts: Any) -> Any:
     """mnl_ccepAge: median of (-1, -0.1) s removed from each trial, mean, median of (-2, -0.1)
     s removed from the average."""
 
@@ -207,7 +208,7 @@ def _rule_average(ts):
     return avg - np.median(avg[:, (t > -2) & (t < -0.1)], axis=1, keepdims=True)
 
 
-def _published_rule(ts, reading):
+def _published_rule(ts: Any, reading: Any) -> Any:
     """The average of :func:`_rule_average`; the registry rule of the reading with its SD over
     (-2, -0.1) s. The code labels the onset sample t = 1/sfreq; latencies are returned on our
     axis."""
@@ -223,7 +224,7 @@ def _published_rule(ts, reading):
     return out["significant"], out["onset"] - 1.0 / ts.sfreq, floor
 
 
-def _rule_peak_is_n1_trough(ts, rule_lat, window=(0.009, 0.05)):
+def _rule_peak_is_n1_trough(ts: Any, rule_lat: Any, window: Any = (0.009, 0.05)) -> Any:
     """Per channel: the rule's peak is an N1 trough of the average it reads, i.e. the
     deepest negative interior local minimum of :func:`_rule_average` in 9-50 ms (within one
     sample). Not so: the first samples of the window on the recovery tail, a slow
@@ -243,7 +244,7 @@ def _rule_peak_is_n1_trough(ts, rule_lat, window=(0.009, 0.05)):
     return np.array(out, bool)
 
 
-def _model_fits(ts):
+def _model_fits(ts: Any) -> Any:
     """The ccep preset pipeline (artifact "template+tail:joint": template subtraction, the
     tail left to the exponential background of the fit; adjusted common average; baseline;
     average; fit)."""
@@ -259,7 +260,7 @@ def _model_fits(ts):
     return ResponseModel("ccep").fit_group(evoked).fits
 
 
-def _model_n1(fits):
+def _model_n1(fits: Any) -> Any:
     """The preset's N1 (REQ-113 to the letter): a negative component with latency in 9-50 ms
     (the preset labels the largest |A| there N1; its latency is the model latency of
     REQ-114). Also the trough of the fitted curve in 9-50 ms (``fitted_peak``, K3)."""
@@ -277,14 +278,14 @@ def _model_n1(fits):
     return np.array(det), np.array(lat), np.array(trough), np.array(trough_amp)
 
 
-def _kappa(a, b):
+def _kappa(a: Any, b: Any) -> Any:
     po = np.mean(a == b)
     pe = a.mean() * b.mean() + (1 - a.mean()) * (1 - b.mean())
     return (po - pe) / (1 - pe) if pe < 1 else 1.0
 
 
 @pytest.fixture(scope="module")
-def agreement():
+def agreement() -> Any:
     """Per run (the example, then the REQ-371 runs) and reading: the rule's decision and
     latency, the model's decision and latencies, the channel names."""
 
@@ -309,7 +310,7 @@ def agreement():
     return out
 
 
-def _scores(r, mask=None, decision="model", latency="lat"):
+def _scores(r: Any, mask: Any = None, decision: Any = "model", latency: Any = "lat") -> Any:
     mask = np.ones(len(r["rule"]), bool) if mask is None else mask
     rule, model = r["rule"][mask], r[decision][mask]
     both = rule & model
@@ -322,7 +323,7 @@ def _scores(r, mask=None, decision="model", latency="lat"):
     }
 
 
-def _runs(agreement, reading, example=False):
+def _runs(agreement: Any, reading: Any, example: Any = False) -> Any:
     return [
         v
         for (s, r, rd), v in agreement.items()
@@ -344,7 +345,7 @@ AS_WRITTEN = (
 
 @pytest.mark.xfail(strict=False, reason=AS_WRITTEN)
 @pytest.mark.parametrize("reading", list(READINGS))
-def test_req113_as_written(agreement, reading):
+def test_req113_as_written(agreement: Any, reading: Any) -> None:
     """REQ-113: the preset's N1 on every channel where the rule finds one minus at most one,
     and kappa >= 0.8 on the 46 non-stimulated PT contacts of the example run; reproduced
     (at most one channel missed, kappa >= 0.8) on at least five subjects of the REQ-371
@@ -377,7 +378,7 @@ CEILING = (
 )
 
 
-def _close(agreement, reading, latency, n1_trough=False):
+def _close(agreement: Any, reading: Any, latency: Any, n1_trough: Any = False) -> Any:
     runs = _runs(agreement, reading, example=True) + _runs(agreement, reading)
     close = []
     for r in runs:
@@ -394,7 +395,7 @@ def _close(agreement, reading, latency, n1_trough=False):
     "example; " + CEILING,
 )
 @pytest.mark.parametrize("reading", list(READINGS))
-def test_req114_as_written(agreement, reading):
+def test_req114_as_written(agreement: Any, reading: Any) -> None:
     """REQ-114: on the channels where both find an N1, the model latency (the N1
     component's) within 2 ms of the rule's peak on >= 90 %, over all runs."""
 
@@ -410,7 +411,7 @@ def test_req114_as_written(agreement, reading):
     "80 % (code, 24 of 30); " + CEILING,
 )
 @pytest.mark.parametrize("reading", list(READINGS))
-def test_req114_trough_latency(agreement, reading):
+def test_req114_trough_latency(agreement: Any, reading: Any) -> None:
     """REQ-114 with the model latency read as the trough of the fitted curve (K3), on the
     channels where the preset's N1 and the rule agree, over all runs."""
 
@@ -419,7 +420,7 @@ def test_req114_trough_latency(agreement, reading):
     assert np.mean(close) >= 0.9, (np.mean(close), close.size)
 
 
-def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement):
+def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any) -> None:
     """Not a REQ (a regression floor for the latency of REQ-114): on the channels where both
     find an N1 and the rule's peak is an N1 trough of its average
     (:func:`_rule_peak_is_n1_trough`), the trough of the fitted curve is within 2 ms of the
@@ -437,7 +438,7 @@ def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement):
 
 
 @pytest.mark.xfail(strict=False, reason="REQ-273 needs REQ-113 and REQ-114, not met")
-def test_req273_ccep_meets_req113_and_req114(agreement):
+def test_req273_ccep_meets_req113_and_req114(agreement: Any) -> None:
     """REQ-273: the ccep preset meets REQ-113 and REQ-114 on ds004080 (both readings)."""
 
     for reading in READINGS:
@@ -445,7 +446,7 @@ def test_req273_ccep_meets_req113_and_req114(agreement):
         test_req114_as_written(agreement, reading)
 
 
-def test_n1_trough_with_the_code_floor_regression(agreement):
+def test_n1_trough_with_the_code_floor_regression(agreement: Any) -> None:
     """Not a REQ (the earlier proposed wording, kept as a regression floor): the trough of
     the fitted curve judged by the code's own amplitude criterion, against the code's
     reading: at most one missed channel on the example, pooled kappa >= 0.8 over the
@@ -462,7 +463,7 @@ def test_n1_trough_with_the_code_floor_regression(agreement):
     assert all(_scores(r, decision="trough_floor")["kappa"] >= HUMAN_KAPPA for r in others)
 
 
-def test_req113_engine_finds_n1_on_the_example_run():
+def test_req113_engine_finds_n1_on_the_example_run() -> None:
     """Floor for the regression: the inherited engine found 2 N1s on this run."""
 
     rule, model, kappa, _ = _agreement()
@@ -470,7 +471,7 @@ def test_req113_engine_finds_n1_on_the_example_run():
     assert kappa >= 0.3
 
 
-def test_req112_real_baselines_mostly_silent():
+def test_req112_real_baselines_mostly_silent() -> None:
 
     from evoparam.tests.events.test_ds004080_events import _segment
 

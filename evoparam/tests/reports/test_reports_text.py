@@ -15,6 +15,7 @@ import os
 import re
 import warnings
 from importlib import resources
+from typing import Any
 
 import numpy as np
 import pytest
@@ -24,16 +25,16 @@ from evoparam import __version__, reports
 FOLDER = resources.files("evoparam.tests.reports").joinpath("methods")
 
 
-def _frozen(name):
+def _frozen(name: Any) -> Any:
     return FOLDER.joinpath(name + ".txt").read_text("utf-8").replace("{version}", __version__)
 
 
-def _text(result):
+def _text(result: Any) -> Any:
     return reports.methods_text(result) + "\n"
 
 
 @pytest.mark.parametrize("name", sorted(reports.REFERENCE_PIPELINES))
-def test_req340_reference_pipelines_match_frozen_text(name):
+def test_req340_reference_pipelines_match_frozen_text(name: Any) -> None:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
@@ -54,7 +55,7 @@ def test_req340_reference_pipelines_match_frozen_text(name):
         )
 
 
-def test_req340_frozen_text_has_no_run_specific_content():
+def test_req340_frozen_text_has_no_run_specific_content() -> None:
 
     for name in reports.REFERENCE_PIPELINES:
         raw = FOLDER.joinpath(name + ".txt").read_text("utf-8")
@@ -69,7 +70,7 @@ def test_req340_frozen_text_has_no_run_specific_content():
         assert raw.count("\n") == 1
 
 
-def test_req340_every_changed_setting_is_in_the_text(erp_run):
+def test_req340_every_changed_setting_is_in_the_text(erp_run: Any) -> None:
 
     trials = reports.reference_input("erpcore_p3")
     changed = {
@@ -90,7 +91,7 @@ def test_req340_every_changed_setting_is_in_the_text(erp_run):
     assert set(result.group.settings["_overrides"]) == set(changed)
 
 
-def test_req340_seed_sentence_follows_the_seed():
+def test_req340_seed_sentence_follows_the_seed() -> None:
 
     trials = reports.reference_input("erpcore_p3")
     text = reports.methods_text(reports.run_pipeline(trials, "erp", random_state=11))
@@ -102,7 +103,7 @@ def test_req340_seed_sentence_follows_the_seed():
     os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
     reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro ds004080",
 )
-def test_req340_ds004080_real_recording_gives_the_frozen_text():
+def test_req340_ds004080_real_recording_gives_the_frozen_text() -> None:
     """sub-ccepAgeUMCU01 run-021448, site PT01-PT02 (120 channels, 8 pulses; ~3 min)."""
 
     import pandas as pd
@@ -155,7 +156,7 @@ ERPCORE_P3_SHA256 = {
 }
 
 
-def _osf_pages(url):
+def _osf_pages(url: Any) -> Any:
     import json
 
     from evoparam.io._fetch import fetch_bytes
@@ -166,7 +167,7 @@ def _osf_pages(url):
         url = page["links"].get("next")
 
 
-def fetch_erpcore_p3(participant=1):
+def fetch_erpcore_p3(participant: Any = 1) -> Any:
     """Path of the epoched ``.set`` of one ERP CORE P3 participant, downloaded from OSF
     into ``$EVOPARAM_ERPCORE/P3/<participant>/`` when it is not there, and checked
     against the recorded and the published SHA-256."""
@@ -216,7 +217,7 @@ def fetch_erpcore_p3(participant=1):
     os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
     reason="set EVOPARAM_NETWORK_TESTS=1 to read ERP CORE from OSF",
 )
-def test_req340_erpcore_p3_real_recording_gives_the_frozen_text():
+def test_req340_erpcore_p3_real_recording_gives_the_frozen_text() -> None:
     """ERP CORE P3 (active visual oddball), participant 1, channel Pz, all epochs (rare and
     frequent) after the published pipeline, in µV: the data the frozen text describes."""
 

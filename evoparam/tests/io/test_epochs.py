@@ -12,7 +12,7 @@ from evoparam.io.epochs import epoch, epoch_data
 ###################################################################################################
 
 
-def test_epoch_data():
+def test_epoch_data() -> None:
 
     sfreq = 100.0
     data = np.vstack([np.arange(1000), -np.arange(1000)]).astype(float)
@@ -30,7 +30,7 @@ def test_epoch_data():
     assert epochs[0, 10] == 100
 
 
-def test_epoch_returns_a_trialset():
+def test_epoch_returns_a_trialset() -> None:
 
     sfreq = 100.0
     data = np.vstack([np.arange(1000), -np.arange(1000)]).astype(float)
@@ -57,7 +57,7 @@ def test_epoch_returns_a_trialset():
     assert trials.metadata["overlaps_previous"].tolist() == [False, True, False]
 
 
-def test_epoch_with_metadata_and_clock():
+def test_epoch_with_metadata_and_clock() -> None:
 
     pd = pytest.importorskip("pandas")
     data = np.arange(500, dtype=float)
@@ -75,7 +75,7 @@ def test_epoch_with_metadata_and_clock():
         epoch(data, 100.0, [10.5], -0.05, 0.05, t0=10.0, metadata=metadata)
 
 
-def test_epoch_errors():
+def test_epoch_errors() -> None:
 
     data = np.zeros((2, 100))
     with pytest.raises(EventError, match="fits inside"):

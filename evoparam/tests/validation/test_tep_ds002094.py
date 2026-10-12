@@ -73,6 +73,7 @@ The methods text check (REQ-275, second part) needs no data and always runs.
 import dataclasses
 import os
 import warnings
+from typing import Any
 
 import numpy as np
 import pytest
@@ -124,7 +125,7 @@ CHUNK = 100
 ###################################################################################################
 
 
-def _cache_dir():
+def _cache_dir() -> Any:
     from evoparam.io._fetch import data_folder
 
     folder = os.path.join(data_folder(), "tep-validation", DATASET)
@@ -132,7 +133,7 @@ def _cache_dir():
     return folder
 
 
-def _pulses(root, subject):
+def _pulses(root: Any, subject: Any) -> Any:
     """Kept pulses: (task, events.tsv row) in recording order."""
 
     from evoparam.io import read_bids_events
@@ -156,7 +157,7 @@ def _pulses(root, subject):
     return kept
 
 
-def _download(subject, folder):
+def _download(subject: Any, folder: Any) -> Any:
     from evoparam.io import fetch_openneuro_file
 
     files = ["dataset_description.json"]
@@ -176,7 +177,7 @@ def _download(subject, folder):
     return [fetch_openneuro_file(DATASET, f, folder=folder) for f in files]
 
 
-def load_epochs(subject):
+def load_epochs(subject: Any) -> Any:
     """Steps 1-2 of the method (cached): epochs after interpolation, at 1 000 Hz."""
 
     pd = pytest.importorskip("pandas")
@@ -240,7 +241,7 @@ def load_epochs(subject):
     )
 
 
-def _preset_stages(ts):
+def _preset_stages(ts: Any) -> Any:
     """Steps 3-5: subspace stage, average reference, baseline, mean over trials."""
 
     from evoparam.artifact import remove_artifact
@@ -261,7 +262,7 @@ def _preset_stages(ts):
     return ts.average()
 
 
-def fastica(x, *, seed=0, max_iter=1000, tol=1e-4):
+def fastica(x: Any, *, seed: Any = 0, max_iter: Any = 1000, tol: Any = 1e-4) -> Any:
     """Symmetric FastICA with the tanh non-linearity (Hyvarinen 1999), the algorithm of the
     published TMS-EEG pipelines; ``x``: channels x samples. Returns unmixing (k x channels)
     and mixing (channels x k) matrices for the mean-removed data."""
@@ -290,11 +291,11 @@ def fastica(x, *, seed=0, max_iter=1000, tol=1e-4):
     return unmixing, np.linalg.pinv(unmixing)
 
 
-def _z(column):
+def _z(column: Any) -> Any:
     return (column - column.mean()) / column.std()
 
 
-def ica_round(ts, *, second):
+def ica_round(ts: Any, *, second: Any) -> Any:
     """One ICA round of the published TESA pipeline (Rogasch et al. 2017, its default
     automatic thresholds), fitted on the unmasked samples of every trial; the components
     classified as artifacts are removed from every sample. Returns the TrialSet and the
@@ -337,7 +338,7 @@ def ica_round(ts, *, second):
     return dataclasses.replace(ts, data=data), counts
 
 
-def _ica_stages(ts):
+def _ica_stages(ts: Any) -> Any:
     """Variant B, steps 2a-2d: demean, ICA round 1, 1-100 Hz band-pass and 60 Hz notch, ICA
     round 2."""
 
@@ -354,7 +355,7 @@ def _ica_stages(ts):
     return ts, {"round1": first, "round2": second}
 
 
-def average(subject, variant="A"):
+def average(subject: Any, variant: Any = "A") -> Any:
     """Average of one subject after variant A (preset chain) or B (A plus the published ICA
     cleaning), cached with the epochs."""
 
@@ -391,7 +392,7 @@ def average(subject, variant="A"):
     ), str(saved["info"])
 
 
-def judge(evoked, channels=None):
+def judge(evoked: Any, channels: Any = None) -> Any:
     """Steps 6-8 on one subject: channel, fit, and whether N45 and N100 are labelled."""
 
     from evoparam.models import ResponseModel
@@ -422,7 +423,7 @@ def judge(evoked, channels=None):
     }
 
 
-def evaluate(subjects=SUBJECTS):
+def evaluate(subjects: Any = SUBJECTS) -> Any:
     """Per subject and variant: the judged fit on the 17 inner channels and on all 30."""
 
     out = {}
@@ -437,7 +438,7 @@ def evaluate(subjects=SUBJECTS):
     return out
 
 
-def rates(results, which):
+def rates(results: Any, which: Any) -> Any:
     """Fractions of subjects with N45, with N100 and with both."""
 
     n = len(results)
@@ -448,7 +449,7 @@ def rates(results, which):
 
 
 @pytest.fixture(scope="module")
-def results():
+def results() -> Any:
     return evaluate()
 
 
@@ -456,7 +457,7 @@ def results():
 ###################################################################################################
 
 
-def test_req275_methods_text_names_the_sensory_confound():
+def test_req275_methods_text_names_the_sensory_confound() -> None:
 
     from evoparam.models import methods_text, resolve_settings
 
@@ -500,7 +501,7 @@ needs_data = [
 ]
 
 
-def _network(test):
+def _network(test: Any) -> Any:
     for mark in reversed(needs_data):
         test = mark(test)
     return test
@@ -519,7 +520,7 @@ def _network(test):
     "labels on 1 of these 10, on 7 of the other 10; on the 17 inner channels 12 "
     "of 20. See CHANGELOG, REQ-275 'Preset tep 1.1', and step S15 part 3.",
 )
-def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results):
+def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results: Any) -> None:
 
     n45, n100, both = rates(results, "B_all")
     assert both >= 0.8
@@ -536,7 +537,7 @@ def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results):
     "7 / 11 / 5, 7 / 14 / 5; the preset chain gives 9 / 12 / 8 at 7044dc1 too, "
     "before the strided whitening (CHANGELOG).",
 )
-def test_req275_level_reached_with_the_preset_chain(results):
+def test_req275_level_reached_with_the_preset_chain(results: Any) -> None:
     """Floor of the level reached (the counts measured in S15, raised where preset tep 1.1
     reached more): a regression guard, not the criterion of REQ-275."""
 
@@ -556,7 +557,7 @@ def test_req275_level_reached_with_the_preset_chain(results):
     assert round(both * n) >= 12
 
 
-def test_fastica_recovers_mixed_sources():
+def test_fastica_recovers_mixed_sources() -> None:
 
     rng = np.random.default_rng(1)
     t = np.arange(20000) / 1000.0
