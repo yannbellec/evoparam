@@ -52,7 +52,12 @@ results) and on the test's 20 seeds, which were not used for any choice.
   Wald error alone 78 %, a dispersion factor estimated by REML 62-70 %, trial-bootstrap
   errors of the fit worse calibrated and 50 s per dataset).
 - Kept green: `tests/hierarchical/test_hier_eb.py` (REQ-170, REQ-172 EB, REQ-175, the
-  proposed wording of REQ-171), SLOW_PLACEHOLDER
+  proposed wording of REQ-171; also with `EVOPARAM_SLOW_TESTS=1`), the NUTS reference runs
+  of `tests/hierarchical/test_hier_bayes.py` with `EVOPARAM_SLOW_TESTS=1` (REQ-172 with
+  numpyro, REQ-173, REQ-174, REQ-176: the Bayesian engines read the same standard error),
+  `tests/hierarchical/test_hier_ccep.py` with `EVOPARAM_NETWORK_TESTS=1` (REQ-178, age
+  effect on the N1 latency of ds004080), `tests/stats`, `tests/trials`, `tests/reports`,
+  `test_exports`, `test_docs`, `test_determinism`. SOUP inventory regenerated (`scipy.stats.truncnorm.std`).
 
 REQ-234 (`trials_needed` predicts the SD at 80 trials from 20 within 15 %), fractional
 area latency: no change, the cause measured further. Development cells: seeds 7-11, pink,
