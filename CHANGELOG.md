@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Third network run on the Mac (S20 merged): benchmark across platforms (REQ-353, REQ-392)
+
+- Run on macOS arm64, the committed `core` results (made on Linux) are not reproduced byte
+  for byte: the simulated inputs already differ in their last bits (another libm), so every
+  input and output hash differs. REQ-352 asks byte identity "from the same inputs", which
+  holds on one machine; across platforms REQ-295 asks 1e-9 relative.
+- The six threshold rules and the cross-projection test agree to 1e-9 on every metric. The
+  `evoparam-preset` T2 fits do not: amplitude bias 0.26521 against 0.26509 (4.8e-4
+  relative, a mean of signed errors), amplitude MAE 4e-5, latency 4e-6. At the commit that
+  made the committed results (be8d26c) the Mac gives 7e-5 on the amplitude bias, so this is
+  the platform (optimiser paths through different BLAS/LAPACK), not the later engine
+  changes.
+- The tests now compare hashes when the inputs are the same bytes, and metrics at 1e-9 in
+  every case. `test_req392_an_entry_is_reproduced_by_one_command` (vanblooijs2023 T1) passes
+  on the Mac. `test_req353_rerun_reproduces_the_committed_results` reports the metrics that
+  miss 1e-9 on another platform as an expected failure with the measured numbers; the
+  tolerance is not loosened. Open: REQ-295 across platforms for the fitting engine on many
+  waveforms (the fixture test of REQ-295 passes).
+
 ### Layer 4, sampling rate (REQ-375, §7.4 (3)): no upsampling; still not met
 
 §7.4 (3) decimates ds004080 to 1024 and 512 Hz. `validation/robustness.py` also

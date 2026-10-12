@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 
+import numpy as np
 import pytest
 
 from evoparam.benchmark import leaderboard_html, load_results, write_leaderboard, write_report
@@ -130,7 +131,10 @@ def test_req392_submission_ci_checks_the_results():
 
 def test_req392_an_entry_is_reproduced_by_one_command(tmp_path):
     """REQ-392: ``evoparam benchmark run --task <t> --method <m>`` reproduces a published
-    entry (here exactly: same metrics, hashes and signature)."""
+    entry: exactly (same hashes and signature) when the simulated inputs are the same bytes,
+    and within the cross-platform tolerance of REQ-295 (1e-9 relative on every metric) when
+    the platform's libm gave inputs that differ in their last bits (macOS arm64 against the
+    Linux machine that made the published results)."""
 
     proc = subprocess.run([sys.executable, "-m", "evoparam", "benchmark", "run", "--suite",
                            "core", "--task", "T1", "--method", "vanblooijs2023", "--out",
@@ -141,8 +145,13 @@ def test_req392_an_entry_is_reproduced_by_one_command(tmp_path):
                        .read_text(encoding="utf-8"))
     published = json.loads((RESULTS / "vanblooijs2023__T1.json").read_text(encoding="utf-8"))
     assert again["headline"] == published["headline"]
-    assert again["inputs_sha256"] == published["inputs_sha256"]
-    assert again["signature"] == published["signature"]
+    if again["inputs_sha256"] == published["inputs_sha256"]:
+        assert again["signature"] == published["signature"]
+    for key, value in published["metrics"].items():
+        if isinstance(value, float):
+            np.testing.assert_allclose(again["metrics"][key], value, rtol=1e-9, err_msg=key)
+        else:
+            assert again["metrics"][key] == value, key
 
 
 @pytest.mark.xfail(strict=True, reason=HIIE)
