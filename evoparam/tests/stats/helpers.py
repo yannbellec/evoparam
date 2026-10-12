@@ -97,11 +97,11 @@ def independent_dependability(ts, window):
         # large unbalanced sets (real data): the ANOVA estimator of unbalanced one-way
         # designs (Searle, Casella and McCulloch 1992, n0 = (N - sum n_i^2 / N) / (k - 1)),
         # close to REML when the design is near balance
-        k, N = len(groups), len(y)
+        k, n_obs = len(groups), len(y)
         means = np.array([g.mean() for g in groups])
-        msw = sum(((g - g.mean()) ** 2).sum() for g in groups) / (N - k)
+        msw = sum(((g - g.mean()) ** 2).sum() for g in groups) / (n_obs - k)
         msb = (sizes * (means - y.mean()) ** 2).sum() / (k - 1)
-        n0 = (N - (sizes**2).sum() / N) / (k - 1)
+        n0 = (n_obs - (sizes**2).sum() / n_obs) / (k - 1)
         var_u, var_e = (msb - msw) / n0, msw
     elif np.all(sizes == sizes[0]):
         n, k = sizes[0], len(groups)
@@ -110,26 +110,26 @@ def independent_dependability(ts, window):
         msb = n * ((means - y.mean()) ** 2).sum() / (k - 1)
         var_u, var_e = (msb - msw) / n, msw
     else:
-        Z = (subjects[:, None] == np.array(labels)[None, :]).astype(float)
-        X = np.ones((len(y), 1))
+        zmat = (subjects[:, None] == np.array(labels)[None, :]).astype(float)
+        xmat = np.ones((len(y), 1))
 
         def neg(log_ratio):
-            H = np.eye(len(y)) + np.exp(log_ratio) * Z @ Z.T
-            Hi = np.linalg.inv(H)
-            beta = np.linalg.solve(X.T @ Hi @ X, X.T @ Hi @ y)
-            r = y - X @ beta
-            s2 = r @ Hi @ r / (len(y) - 1)
+            hmat = np.eye(len(y)) + np.exp(log_ratio) * zmat @ zmat.T
+            hmat_inv = np.linalg.inv(hmat)
+            beta = np.linalg.solve(xmat.T @ hmat_inv @ xmat, xmat.T @ hmat_inv @ y)
+            r = y - xmat @ beta
+            s2 = r @ hmat_inv @ r / (len(y) - 1)
             return (
                 (len(y) - 1) * np.log(s2)
-                + np.linalg.slogdet(H)[1]
-                + np.linalg.slogdet(X.T @ Hi @ X)[1]
+                + np.linalg.slogdet(hmat)[1]
+                + np.linalg.slogdet(xmat.T @ hmat_inv @ xmat)[1]
             )
 
         best = minimize_scalar(neg, bounds=(-10, 5), method="bounded", options={"xatol": 1e-10})
-        H = np.eye(len(y)) + np.exp(best.x) * Z @ Z.T
-        Hi = np.linalg.inv(H)
-        beta = (X.T @ Hi @ y) / (X.T @ Hi @ X)
-        r = y - X @ beta.ravel()
-        var_e = r @ Hi @ r / (len(y) - 1)
+        hmat = np.eye(len(y)) + np.exp(best.x) * zmat @ zmat.T
+        hmat_inv = np.linalg.inv(hmat)
+        beta = (xmat.T @ hmat_inv @ y) / (xmat.T @ hmat_inv @ xmat)
+        r = y - xmat @ beta.ravel()
+        var_e = r @ hmat_inv @ r / (len(y) - 1)
         var_u = np.exp(best.x) * var_e
     return var_u / (var_u + var_e / sizes.mean()), var_u, var_e

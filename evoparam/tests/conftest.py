@@ -2,26 +2,24 @@
 """Configuration file for pytest."""
 
 import importlib.util
+import socket
+
+import pytest
 
 
-def pytest_configure(config):
+def pytest_configure():
     if importlib.util.find_spec("matplotlib") is not None:
         import matplotlib
 
         matplotlib.use("agg")
 
 
-import socket
-
-import pytest
-
-
-class _NetworkRefused(OSError):
+class _NetworkRefusedError(OSError):
     pass
 
 
-def _refuse(*args, **kwargs):
-    raise _NetworkRefused(
+def _refuse(*_args, **_kwargs):
+    raise _NetworkRefusedError(
         "network access refused: tests of the core suite run with a socket "
         "guard (REQ-306); mark the test 'network' to connect"
     )
@@ -43,9 +41,9 @@ def _socket_guard(request, monkeypatch):
     def connect(self, address):
         if getattr(socket, "AF_UNIX", None) is not None and self.family == socket.AF_UNIX:
             return original(self, address)
-        _refuse()
+        return _refuse()
 
     monkeypatch.setattr(socket.socket, "connect", connect)
-    monkeypatch.setattr(socket.socket, "connect_ex", lambda self, address: _refuse())
+    monkeypatch.setattr(socket.socket, "connect_ex", lambda _self, _address: _refuse())
     monkeypatch.setattr(socket, "create_connection", _refuse)
     yield

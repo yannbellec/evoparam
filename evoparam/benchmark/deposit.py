@@ -138,7 +138,7 @@ def prepare_deposit(
     str
         Path of ``manifest.json``.
     """
-    log = log or (lambda message: None)
+    log = log or (lambda _message: None)
     if not hasattr(suite, "cells"):
         suite = load_suite(suite)
     unknown = [f for f in formats if f not in ("bids", "nwb")]

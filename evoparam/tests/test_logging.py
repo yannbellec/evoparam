@@ -98,7 +98,7 @@ def test_verbose_decorator_reads_the_argument():
     seen = []
 
     @verbose
-    def func(x, verbose=None):
+    def func(x, verbose=None):  # noqa: ARG001  (read by the @verbose decorator)
         seen.append(logging.getLogger("evoparam").level)
         return x
 

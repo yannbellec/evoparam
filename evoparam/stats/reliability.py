@@ -480,10 +480,10 @@ def _extrapolate(sd, n_recorded, targets, law):
     are multiplied by ``sqrt(N / (N - 1))`` (a bootstrap of N trials uses their variance
     with divisor N). Returns {target: (n_ch,)} and the exponent per channel.
     """
-    N = n_recorded
+    n_total = n_recorded
     resampled = sorted(sd)
-    correction = np.sqrt(N / max(N - 1, 1))
-    fit = [m for m in resampled if m >= N / 4]
+    correction = np.sqrt(n_total / max(n_total - 1, 1))
+    fit = [m for m in resampled if m >= n_total / 4]
     if law == "power" and len(fit) >= 2:
         logm = np.log(np.asarray(fit, float))
         dm = logm - logm.mean()
@@ -493,7 +493,7 @@ def _extrapolate(sd, n_recorded, targets, law):
             slope = np.clip((dm @ (logsd - logsd.mean(axis=0))) / (dm @ dm), *_POWER_EXPONENT)
             level = np.mean(logsd - slope[None] * logm[:, None], axis=0)
             return ({n: np.exp(level + slope * np.log(n)) * correction for n in targets}, slope)
-    base = [m for m in resampled if m >= N / 2] or resampled
+    base = [m for m in resampled if m >= n_total / 2] or resampled
     c = np.mean([sd[m] * np.sqrt(m) for m in base], axis=0) * correction
     return {n: c / np.sqrt(n) for n in targets}, np.full(np.shape(c), -0.5)
 
@@ -583,13 +583,13 @@ def trials_needed(
     )
     data, keep = _trial_data(ts, index)
     rows_kept = np.flatnonzero(keep)
-    N = rows_kept.size
-    if N < 2:
+    n_total = rows_kept.size
+    if n_total < 2:
         raise DataError("trials_needed needs at least 2 trials.")
     if steps is None:
-        steps = list(range(5, N + 1, 5))
-        if not steps or steps[-1] != N:
-            steps.append(N)
+        steps = list(range(5, n_total + 1, 5))
+        if not steps or steps[-1] != n_total:
+            steps.append(n_total)
     steps = sorted({int(s) for s in steps})
     if steps[0] < 1:
         raise SettingsError("steps must be positive trial counts.")
@@ -607,16 +607,16 @@ def trials_needed(
         kwargs.update(existence_kwargs or {})
         picked = [names[i] for i in index]
         for n in steps:
-            if n > N:
+            if n > n_total:
                 _warn(
-                    f"trials_needed: {n} trials exceed the {N} recorded; the "
+                    f"trials_needed: {n} trials exceed the {n_total} recorded; the "
                     "detection probability is not extrapolated.",
                     UserWarning,
                     stacklevel=2,
                 )
                 continue
             hits = np.zeros(len(index))
-            draws = 1 if n == N else n_resamples
+            draws = 1 if n == n_total else n_resamples
             for _ in range(draws):
                 rows = np.sort(rng.choice(rows_kept, n, replace=False))
                 sub = ts.select(trials=rows.tolist(), picks=picked)
@@ -638,13 +638,13 @@ def trials_needed(
     else:
         func, name, linear, window, inside = _scorer_on_window(scorer, ts.times, window, scorer_kw)
         x = data[rows_kept][..., inside]
-        flat = x.reshape(N, -1)
+        flat = x.reshape(n_total, -1)
         fin = np.isfinite(flat)
         xv, xc = np.where(fin, flat, 0.0), fin.astype(float)
         sd = {}
-        for n in [s for s in steps if s <= N]:
-            weights = np.zeros((n_resamples, N))
-            pick = rng.integers(0, N, (n_resamples, n))
+        for n in [s for s in steps if s <= n_total]:
+            weights = np.zeros((n_resamples, n_total))
+            pick = rng.integers(0, n_total, (n_resamples, n))
             np.add.at(weights, (np.repeat(np.arange(n_resamples), n), pick.ravel()), 1.0)
             num, den = weights @ xv, weights @ xc
             avg = np.divide(num, den, out=np.full(num.shape, np.nan), where=den > 0)
@@ -655,7 +655,7 @@ def trials_needed(
         law = extrapolation
         if law == "auto":
             law = "power" if isinstance(scorer, str) and name in _POWER_SCORES else "sqrt_n"
-        beyond, exponents = _extrapolate(sd, N, [s for s in steps if s > N], law)
+        beyond, exponents = _extrapolate(sd, n_total, [s for s in steps if s > n_total], law)
         for n in steps:
             values = sd[n] if n in sd else beyond[n]
             for k, i in enumerate(index):
@@ -666,8 +666,8 @@ def trials_needed(
                         "n_trials": n,
                         "sd": float(values[k]),
                         "p_significant": np.nan,
-                        "extrapolated": n > N,
-                        "n_resamples": n_resamples if n <= N else 0,
+                        "extrapolated": n > n_total,
+                        "n_resamples": n_resamples if n <= n_total else 0,
                     }
                 )
         unit = "s" if name in TIME_SCORES else ("data·s" if name == "area" else ts.units)
@@ -684,7 +684,7 @@ def trials_needed(
         "scorer": name,
         "steps": steps,
         "n_resamples": n_resamples,
-        "n_recorded": int(N),
+        "n_recorded": int(n_total),
         "window": None if window is None else list(window),
         "extrapolation": law,
         "existence_kwargs": {

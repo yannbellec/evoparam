@@ -20,7 +20,7 @@ __all__ = ["verbose", "set_log_level", "set_log_file", "LEVELS"]
 
 LOGGER = "evoparam"
 # the values ``verbose`` accepts (a logging level as an int is also accepted)
-VerboseLevel = Union[None, bool, int, str]
+VerboseLevel = None | bool | int | str
 # verbose value -> logging level (None: inherit, the logger keeps its level)
 LEVELS = {
     None: None,

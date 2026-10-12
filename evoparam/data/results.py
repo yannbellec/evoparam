@@ -847,7 +847,7 @@ class TFFit(_ResultMixin):
         if self.significant.shape != self.tmaps.shape:
             raise DataError("TFFit: significant and tmaps must have the same shape.")
 
-    def to_mne(self, map="total", *, ch_type="misc"):
+    def to_mne(self, map="total", *, ch_type="misc"):  # noqa: A002  (public keyword of the API)
         """One map as ``mne.time_frequency.AverageTFR`` (extra ``mne``).
 
         Parameters

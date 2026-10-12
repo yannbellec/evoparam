@@ -64,7 +64,7 @@ def _trials():
         )
     url = _s3(ids[PROBE])
     with h5py.File(remfile.File(url), "r") as probe:
-        name = [k for k in probe["acquisition"].keys() if k.endswith("_lfp_data")][0]
+        name = [k for k in probe["acquisition"] if k.endswith("_lfp_data")][0]
     trials = read_nwb(url, electrical_series=name, events=flashes, tmin=-0.1, tmax=0.5)
     os.makedirs(os.path.dirname(cache), exist_ok=True)
     with open(cache, "wb") as fobj:

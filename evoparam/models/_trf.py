@@ -57,18 +57,18 @@ def least_squares_trf(
         raise ValueError("Initial guess is outside of provided bounds")
     x = _strictly_feasible(x0, lb, ub, 1e-10)
     f = np.atleast_1d(fun(x))
-    J = np.atleast_2d(jac(x))
+    jac_x = np.atleast_2d(jac(x))
     if not np.all(np.isfinite(f)):
         raise ValueError("Residuals are not finite in the initial point.")
-    m = J.shape[0] if m is None else int(m)
-    n = J.shape[1]
+    m = jac_x.shape[0] if m is None else int(m)
+    n = jac_x.shape[1]
     if max_nfev is None:
         max_nfev = n * 100
     nfev = 1
     cost = 0.5 * np.dot(f, f)
     finite_lb, finite_ub = np.isfinite(lb), np.isfinite(ub)
 
-    jr, jf, g = _reduce(J, f, reduced)
+    jr, jf, g = _reduce(jac_x, f, reduced)
     scale_inv = (jr**2).sum(axis=0) ** 0.5
     scale_inv[scale_inv == 0] = 1
     scale = 1 / scale_inv
@@ -104,13 +104,13 @@ def least_squares_trf(
         u, s, vt, info = dgesdd(augmented, compute_uv=1, full_matrices=0, lwork=lwork)
         if info > 0:
             raise np.linalg.LinAlgError("SVD did not converge")
-        V = vt.T
+        v_mat = vt.T
         uf = u.T.dot(f_augmented)
         theta = max(0.995, 1 - g_norm)
 
         actual_reduction = -1
         while actual_reduction <= 0 and nfev < max_nfev:
-            p_h, alpha = _solve_trust_region(n, m, uf, s, V, delta, alpha)
+            p_h, alpha = _solve_trust_region(n, m, uf, s, v_mat, delta, alpha)
             p = d * p_h
             step, step_h, predicted = _select_step(
                 x, j_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta
@@ -135,8 +135,8 @@ def least_squares_trf(
 
         if actual_reduction > 0:
             x, f, cost = x_new, f_new, cost_new
-            J = np.atleast_2d(jac(x))
-            jr, jf, g = _reduce(J, f, reduced)
+            jac_x = np.atleast_2d(jac(x))
+            jr, jf, g = _reduce(jac_x, f, reduced)
             scale_inv = np.maximum((jr**2).sum(axis=0) ** 0.5, scale_inv)
             scale = 1 / scale_inv
     return x, cost, nfev, 0 if status is None else status
@@ -146,12 +146,12 @@ def _norm(x):
     return math.sqrt(np.dot(x, x))
 
 
-def _reduce(J, f, reduced):
+def _reduce(jac_mat, f, reduced):
     """(R, Q^T f, J^T f) of ``J = Q R`` (economic), or (J, f, J^T f) unreduced."""
-    m, n = J.shape
+    m, n = jac_mat.shape
     if not reduced or m <= n:
-        return J, f, J.T.dot(f)
-    qr, tau, _, _ = dgeqrf(J)
+        return jac_mat, f, jac_mat.T.dot(f)
+    qr, tau, _, _ = dgeqrf(jac_mat)
     qtf, _, _ = dormqr("L", "T", qr, tau, f[:, None], 64)
     r = qr[:n] * _upper(n)
     qtf = qtf[:n, 0]
@@ -209,7 +209,7 @@ def _active(x, lb, ub, rtol):
     return active
 
 
-def _solve_trust_region(n, m, uf, s, V, delta, alpha, rtol=0.01, max_iter=10):
+def _solve_trust_region(n, m, uf, s, v_mat, delta, alpha, rtol=0.01, max_iter=10):
     """Trust-region subproblem from the SVD of the (scaled) Jacobian (Moré 1977).
 
     Returns the step and the Levenberg-Marquardt parameter.
@@ -220,7 +220,7 @@ def _solve_trust_region(n, m, uf, s, V, delta, alpha, rtol=0.01, max_iter=10):
     else:
         full_rank = False
     if full_rank:
-        p = -V.dot(uf / s)
+        p = -v_mat.dot(uf / s)
         if _norm(p) <= delta:
             return p, 0.0
 
@@ -248,7 +248,7 @@ def _solve_trust_region(n, m, uf, s, V, delta, alpha, rtol=0.01, max_iter=10):
         alpha -= (phi + delta) * ratio / delta
         if np.abs(phi) < rtol * delta:
             break
-    p = -V.dot(suf / (s**2 + alpha))
+    p = -v_mat.dot(suf / (s**2 + alpha))
     p *= delta / _norm(p)
     return p, alpha
 
@@ -267,8 +267,8 @@ def _update_radius(delta, actual, predicted, step_norm, bound_hit):
     return delta, ratio
 
 
-def _termination(dF, F, dx_norm, x_norm, ratio, ftol, xtol):
-    ftol_ok = dF < ftol * F and ratio > 0.25
+def _termination(d_cost, cost, dx_norm, x_norm, ratio, ftol, xtol):
+    ftol_ok = d_cost < ftol * cost and ratio > 0.25
     xtol_ok = dx_norm < xtol * (xtol + x_norm)
     if ftol_ok and xtol_ok:
         return 4
@@ -279,16 +279,16 @@ def _termination(dF, F, dx_norm, x_norm, ratio, ftol, xtol):
     return None
 
 
-def _quadratic_1d(J, g, s, diag, s0=None):
+def _quadratic_1d(jac, g, s, diag, s0=None):
     """Coefficients of ``0.5 (s0 + s t)^T (J^T J + diag) (s0 + s t) + g^T (s0 + s t)``."""
-    v = J.dot(s)
+    v = jac.dot(s)
     a = np.dot(v, v)
     a += np.dot(s * diag, s)
     a *= 0.5
     b = np.dot(g, s)
     if s0 is None:
         return a, b
-    u = J.dot(s0)
+    u = jac.dot(s0)
     b += np.dot(u, v)
     c = 0.5 * np.dot(u, u) + np.dot(g, s0)
     b += np.dot(s0 * diag, s)
@@ -308,9 +308,9 @@ def _minimize_1d(a, b, lb, ub, c=0):
     return t[i], y[i]
 
 
-def _evaluate_quadratic(J, g, s, diag):
-    Js = J.dot(s)
-    q = np.dot(Js, Js)
+def _evaluate_quadratic(jac, g, s, diag):
+    jac_s = jac.dot(s)
+    q = np.dot(jac_s, jac_s)
     q += np.dot(s * diag, s)
     return 0.5 * q + np.dot(s, g)
 
@@ -343,14 +343,14 @@ def _intersect_trust_region(x, s, delta):
     return (t1, t2) if t1 < t2 else (t2, t1)
 
 
-def _select_step(x, J_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta):
+def _select_step(x, jac_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta):
     """Return the best of three candidate steps.
 
     The trust-region step (made strictly interior), its reflection on the first bound it hits, and
     the scaled anti-gradient.
     """
     if ((x + p >= lb) & (x + p <= ub)).all():
-        p_value = _evaluate_quadratic(J_h, g_h, p_h, diag_h)
+        p_value = _evaluate_quadratic(jac_h, g_h, p_h, diag_h)
         return p, p_h, -p_value
 
     p_stride, hits = _step_to_bound(x, p, lb, ub)
@@ -370,7 +370,7 @@ def _select_step(x, J_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta):
         r_stride_l = 0
         r_stride_u = -1
     if r_stride_l <= r_stride_u:
-        a, b, c = _quadratic_1d(J_h, g_h, r_h, diag_h, s0=p_h)
+        a, b, c = _quadratic_1d(jac_h, g_h, r_h, diag_h, s0=p_h)
         r_stride, r_value = _minimize_1d(a, b, r_stride_l, r_stride_u, c=c)
         r_h *= r_stride
         r_h += p_h
@@ -380,14 +380,14 @@ def _select_step(x, J_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta):
 
     p *= theta
     p_h *= theta
-    p_value = _evaluate_quadratic(J_h, g_h, p_h, diag_h)
+    p_value = _evaluate_quadratic(jac_h, g_h, p_h, diag_h)
 
     ag_h = -g_h
     ag = d * ag_h
     to_tr = delta / _norm(ag_h)
     to_bound, _ = _step_to_bound(x, ag, lb, ub)
     ag_stride = theta * to_bound if to_bound < to_tr else to_tr
-    a, b = _quadratic_1d(J_h, g_h, ag_h, diag_h)
+    a, b = _quadratic_1d(jac_h, g_h, ag_h, diag_h)
     ag_stride, ag_value = _minimize_1d(a, b, 0, ag_stride)
     ag_h *= ag_stride
     ag *= ag_stride

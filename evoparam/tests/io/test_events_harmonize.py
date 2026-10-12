@@ -6,8 +6,6 @@ import io
 import numpy as np
 import pytest
 
-pd = pytest.importorskip("pandas")
-
 from evoparam.errors import DataError
 from evoparam.io import (
     HarmonizationReport,
@@ -16,6 +14,8 @@ from evoparam.io import (
     select_stimulation_events,
     validate_stimulation_events,
 )
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################
@@ -37,7 +37,7 @@ UTRECHT = table(
 )
 
 
-class _no_warning:
+class _NoWarning:
     """Context manager failing on any warning (harmonisation reports, it does not warn)."""
 
     def __enter__(self):
@@ -53,7 +53,7 @@ class _no_warning:
 
 def test_utrecht_columns():
 
-    with _no_warning():
+    with _NoWarning():
         out, report = harmonize_stim_events(UTRECHT)
     stim = out[out["trial_type"] == "electrical_stimulation"]
 

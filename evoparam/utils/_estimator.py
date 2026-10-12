@@ -124,14 +124,14 @@ class BaseEstimatorMixin:
 
 
 class TransformerMixin:
-    def fit_transform(self, X, y=None, **fit_params):
+    def fit_transform(self, X, y=None, **fit_params):  # noqa: N803  (scikit-learn API: X)
         return self.fit(X, y, **fit_params).transform(X)
 
-    def set_output(self, *, transform=None):
+    def set_output(self, *, transform=None):  # noqa: ARG002  (scikit-learn API)
         return self
 
 
-def validate_array(estimator, X, *, reset, ndim=2, allow_nan=False):
+def validate_array(estimator, x, *, reset, ndim=2, allow_nan=False):
     """Check an array input the way scikit-learn does (its messages when it is installed).
 
     Dense, real, finite, at least 2-D with at least 2 time points, and, after ``fit``, as many
@@ -144,8 +144,8 @@ def validate_array(estimator, X, *, reset, ndim=2, allow_nan=False):
     except ImportError:
         check_array = None
     if check_array is not None:
-        X = check_array(
-            X,
+        x = check_array(
+            x,
             accept_sparse=False,
             ensure_all_finite=not allow_nan,
             ensure_2d=True,
@@ -153,17 +153,17 @@ def validate_array(estimator, X, *, reset, ndim=2, allow_nan=False):
             dtype="numeric",
         )
     else:
-        if hasattr(X, "toarray"):
+        if hasattr(x, "toarray"):
             raise TypeError("A sparse matrix was passed, but dense data is required.")
-        X = np.asarray(X)
-        if np.iscomplexobj(X):
+        x = np.asarray(x)
+        if np.iscomplexobj(x):
             raise ValueError("Complex data not supported.")
-        X = X.astype(float)
-        if X.ndim < 2:
+        x = x.astype(float)
+        if x.ndim < 2:
             raise ValueError("Expected 2D array, got 1D array instead. Reshape your data.")
-        if not allow_nan and not np.all(np.isfinite(X)):
+        if not allow_nan and not np.all(np.isfinite(x)):
             raise ValueError("Input contains NaN or infinity.")
-    n_features = int(X.shape[-1])
+    n_features = int(x.shape[-1])
     if not reset and n_features != getattr(estimator, "n_features_in_", n_features):
         raise ValueError(
             f"X has {n_features} features, but {type(estimator).__name__} is "
@@ -171,11 +171,11 @@ def validate_array(estimator, X, *, reset, ndim=2, allow_nan=False):
         )
     if n_features < 2:
         raise ValueError(
-            f"Found array with {n_features} feature(s) (shape={X.shape}) while a "
+            f"Found array with {n_features} feature(s) (shape={x.shape}) while a "
             f"minimum of 2 is required (time points)."
         )
     if reset:
         estimator.n_features_in_ = n_features
-    if X.ndim > ndim:
-        raise ValueError(f"Expected at most {ndim}-D input, got {X.ndim}-D.")
-    return X
+    if x.ndim > ndim:
+        raise ValueError(f"Expected at most {ndim}-D input, got {x.ndim}-D.")
+    return x

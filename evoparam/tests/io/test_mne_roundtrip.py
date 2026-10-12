@@ -4,11 +4,11 @@
 import numpy as np
 import pytest
 
-mne = pytest.importorskip("mne")
-pd = pytest.importorskip("pandas")
-
 from evoparam.errors import DataError
 from evoparam.io import read, read_mne
+
+mne = pytest.importorskip("mne")
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

@@ -131,7 +131,7 @@ def identify_stim_site(
     ch_names,
     ch_info=None,
     window=0.001,
-    t0=0.0,
+    t0=0.0,  # noqa: ARG001  (documented: kept for symmetry with the other functions)
     picks=None,
     exclude=NON_NEURAL,
     lead=LEAD_WINDOW,

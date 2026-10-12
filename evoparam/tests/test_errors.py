@@ -47,7 +47,8 @@ def inject(monkeypatch, evoked):
     monkeypatch.setattr(_engine, "fit_waveform_core", failing)
 
 
-def test_failed_unit_is_recorded(evoked, inject, caplog):
+@pytest.mark.usefixtures("inject")
+def test_failed_unit_is_recorded(evoked, caplog):
     with caplog.at_level(logging.WARNING, logger="evoparam"):
         group = ResponseModel("ccep", max_components=2).fit_group(evoked)
     status = [f.status for f in group.fits]
@@ -64,7 +65,8 @@ def test_failed_unit_is_recorded(evoked, inject, caplog):
     assert "C3" in warned[0].getMessage()
 
 
-def test_on_error_raise_propagates(evoked, inject):
+@pytest.mark.usefixtures("inject")
+def test_on_error_raise_propagates(evoked):
     with pytest.raises(FitError, match="C3"):
         ResponseModel("ccep", max_components=2).fit_group(evoked, on_error="raise")
     with pytest.raises(SettingsError):

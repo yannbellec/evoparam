@@ -93,7 +93,7 @@ class BackgroundBase:
             return np.zeros(0)
         return as_params(nonlinear, self.n_nonlinear, self.name)
 
-    def basis_jacobian(self, times, nonlinear=None):
+    def basis_jacobian(self, times, nonlinear=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Return the derivatives of the basis, shape ``(..., n_linear, n_times, n_nonlinear)``."""
         times = as_times(times)
         return np.zeros((self.n_linear, times.size, 0))
@@ -141,10 +141,10 @@ class BackgroundBase:
             self.name, np.concatenate([-bound, nl_lower]), np.concatenate([bound, nl_upper])
         )
 
-    def _nonlinear_bounds(self, times):
+    def _nonlinear_bounds(self, times):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return np.zeros(0), np.zeros(0)
 
-    def _nonlinear_guess(self, times):
+    def _nonlinear_guess(self, times):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return np.zeros(0)
 
     def initial_guess(self, times, waveform):
@@ -172,7 +172,7 @@ class NoBackground(BackgroundBase):
 
     name: ClassVar[str] = "none"
 
-    def basis(self, times, nonlinear=None):
+    def basis(self, times, nonlinear=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Basis functions, shape ``(0, n_times)``."""
         return np.zeros((0, as_times(times).size))
 
@@ -184,7 +184,7 @@ class ConstantBackground(BackgroundBase):
     name: ClassVar[str] = "constant"
     linear_names: ClassVar[tuple] = ("c0",)
 
-    def basis(self, times, nonlinear=None):
+    def basis(self, times, nonlinear=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Basis functions, shape ``(1, n_times)``."""
         return np.ones((1, as_times(times).size))
 
@@ -197,7 +197,7 @@ class LinearBackground(BackgroundBase):
     name: ClassVar[str] = "linear"
     linear_names: ClassVar[tuple] = ("c0", "c1")
 
-    def basis(self, times, nonlinear=None):
+    def basis(self, times, nonlinear=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Basis functions, shape ``(2, n_times)``."""
         times = as_times(times)
         return np.stack([np.ones_like(times), times - self._t_ref(times)])
@@ -392,7 +392,7 @@ class PSplineBackground(BackgroundBase):
         """Names of the linear coefficients."""
         return tuple(f"c{j}" for j in range(self.n_basis))
 
-    def basis(self, times, nonlinear=None):
+    def basis(self, times, nonlinear=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Basis functions, shape ``(n_basis, n_times)``; zero outside the spline support."""
         times = as_times(times)
         spline = BSpline(self.knots, np.eye(self.n_basis), self.degree, extrapolate=False)
@@ -486,7 +486,7 @@ class ArtifactBasisBackground(BackgroundBase):
         """Names of the linear coefficients."""
         return tuple(f"c{j}" for j in range(self.basis_vectors.shape[0]))
 
-    def basis(self, times, nonlinear=None):
+    def basis(self, times, nonlinear=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Basis functions, shape ``(n_basis, n_times)``."""
         times = as_times(times)
         return np.stack(

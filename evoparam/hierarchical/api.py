@@ -346,16 +346,16 @@ def fit_hierarchical(
                 notes.append(f"component {label!r}, {p}: fewer than 2 channels; not shrunk.")
                 continue
             part = frame[use]
-            X, names = None, ["Intercept"]
+            design, names = None, ["Intercept"]
             if parameter == p and terms:
-                X, names = eb.design_matrix([covariates[n] for n in part["subject"]], terms)
+                design, names = eb.design_matrix([covariates[n] for n in part["subject"]], terms)
             try:
                 out, lev = eb.shrink(
                     part[f"{p}_raw"].to_numpy(),
                     part[f"{p}_raw_se"].to_numpy(),
                     part["subject"].to_numpy(),
                     part["channel"].to_numpy(),
-                    X=X,
+                    X=design,
                 )
             except Exception as err:  # numerical failure: report, keep the raw values
                 notes.append(f"component {label!r}, {p}: REML failed ({err}).")

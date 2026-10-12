@@ -226,7 +226,7 @@ def real_inputs(name, entry_index=0, *, task="T1", cache_dir=None):
     raise DataError(f"no loader for task {task} of index {name}.")  # pragma: no cover
 
 
-def _erpcore_input(index, entry, entry_index, suite):
+def _erpcore_input(index, entry, _entry_index, suite):
     from evoparam.io import fetch_erpcore
     from evoparam.utils._optional import require
 

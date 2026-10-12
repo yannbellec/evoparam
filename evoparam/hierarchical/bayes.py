@@ -83,16 +83,16 @@ def prepare(channel, trial, label, formula, covariates, subjects):
     tr = trial[trial["label"] == label] if len(trial) else trial
     rows = (
         [
-            (lookup.get((s, c)), l)
-            for s, c, l in zip(tr["subject"], tr["channel"], tr["latency"], strict=False)
+            (lookup.get((s, c)), lat)
+            for s, c, lat in zip(tr["subject"], tr["channel"], tr["latency"], strict=False)
         ]
         if len(tr)
         else []
     )
-    rows = [(i, l) for i, l in rows if i is not None and np.isfinite(l)]
+    rows = [(i, lat) for i, lat in rows if i is not None and np.isfinite(lat)]
     noise = fitted["latency_noise_sd"].to_numpy() * 1e3
     data["trial_channel"] = np.array([i for i, _ in rows], int)
-    data["trial_lat"] = np.array([l for _, l in rows], float) * 1e3
+    data["trial_lat"] = np.array([lat for _, lat in rows], float) * 1e3
     data["trial_noise"] = (
         np.nan_to_num(noise[data["trial_channel"]], nan=np.nanmedian(noise))
         if rows
@@ -108,8 +108,8 @@ def prepare(channel, trial, label, formula, covariates, subjects):
     data["ex_se"] = exist["existence_amplitude_se"].to_numpy() / amp_scale
     parameter, terms = formula
     if parameter == "latency" and terms:
-        X, names = eb.design_matrix([covariates[s] for s in sub_names], terms)
-        data["X"], data["X_names"] = X[:, 1:], names[1:]
+        design, names = eb.design_matrix([covariates[s] for s in sub_names], terms)
+        data["X"], data["X_names"] = design[:, 1:], names[1:]
     else:
         data["X"], data["X_names"] = np.zeros((len(sub_names), 0)), []
     data["keys"] = keys
@@ -453,12 +453,12 @@ def sample(
                 stacklevel=3,
             )
         diag["bayes"][label] = d
-        A = data["amp_scale"]
+        amp_scale = data["amp_scale"]
         # channel posteriors
         rows = channel["component"] == label
         index = {k: i for i, k in enumerate(data["keys"])}
         lat = _summary(samples["latency_channel"] / 1e3)
-        amp = _summary(samples["amplitude_channel"] * A)
+        amp = _summary(samples["amplitude_channel"] * amp_scale)
         for name, stats in (("latency", lat), ("amplitude", amp)):
             for column in ("", "_se", "_ci_low", "_ci_high"):
                 channel.loc[rows, f"{name}{column}"] = np.nan
@@ -481,12 +481,12 @@ def sample(
             "sites": [f"{a}/{b}" for a, b in data["keys"]],
             "subjects": list(subjects),
             "latency_channel": np.asarray(samples["latency_channel"]) / 1e3,
-            "amplitude_channel": np.asarray(samples["amplitude_channel"]) * A,
+            "amplitude_channel": np.asarray(samples["amplitude_channel"]) * amp_scale,
             "latency_subject": np.asarray(samples["latency_subject"]) / 1e3,
-            "amplitude_subject": np.asarray(samples["amplitude_subject"]) * A,
+            "amplitude_subject": np.asarray(samples["amplitude_subject"]) * amp_scale,
         }
         sl = _summary(samples["latency_subject"] / 1e3)
-        sa = _summary(samples["amplitude_subject"] * A)
+        sa = _summary(samples["amplitude_subject"] * amp_scale)
         for i, name in enumerate(subjects):
             sub_rows.append(
                 {
@@ -513,9 +513,9 @@ def sample(
             ("sd_jitter_total", "latency", "trial", 1e-3),
             ("sd_jitter", "latency", "trial (ex-Gaussian sigma)", 1e-3),
             ("tau_jitter", "latency", "trial (ex-Gaussian tau)", 1e-3),
-            ("sd_amplitude_subject", "amplitude", "subject", A),
-            ("sd_amplitude_channel", "amplitude", "channel", A),
-            ("sd_existence_channel", "amplitude", "channel (existence mixture)", A),
+            ("sd_amplitude_subject", "amplitude", "subject", amp_scale),
+            ("sd_amplitude_channel", "amplitude", "channel", amp_scale),
+            ("sd_existence_channel", "amplitude", "channel (existence mixture)", amp_scale),
         ):
             if key in samples:
                 m, s, lo, hi = _summary(samples[key] * scale)

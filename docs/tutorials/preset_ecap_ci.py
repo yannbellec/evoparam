@@ -55,10 +55,10 @@ print(scores[["recall", "precision", "latency_mae", "amplitude_rel_mae"]].round(
 # Figure
 # ------
 
-import matplotlib
+import matplotlib  # noqa: E402  (sphinx-gallery section)
 
 matplotlib.use("Agg")
-from evoparam import plots
+from evoparam import plots  # noqa: E402  (sphinx-gallery section)
 
 fig = plots.plot_fit(result.group.fits[0], result.trials.average())
 

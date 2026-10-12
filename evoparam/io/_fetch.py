@@ -33,6 +33,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 BACKOFF = (2.0, 4.0, 8.0, 16.0)
+_N_RETRIES = len(BACKOFF)
 TRANSIENT_STATUS = (408, 429, 500, 502, 503, 504)
 SPURIOUS_RETRIES = 10
 SPURIOUS_DELAY = 0.5
@@ -95,7 +96,7 @@ def _spurious_not_found(exc):
     return b"<Code>NoSuchBucket</Code>" in body
 
 
-def _with_retries(url, attempt_once, retries=len(BACKOFF)):
+def _with_retries(url, attempt_once, retries=_N_RETRIES):
     """Run ``attempt_once()`` and retry transient HTTP and network failures.
 
     A spurious S3 404 is retried up to SPURIOUS_RETRIES more times, after SPURIOUS_DELAY s, without

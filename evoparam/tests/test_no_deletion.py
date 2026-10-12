@@ -118,7 +118,8 @@ def test_req004_min_amplitude_is_off_by_default():
     # the only size rule of the engine is the user's min_amplitude (§5.5.10): 0 = none
     assert FitSettings().min_amplitude == 0.0
     engine = (MODELS / "engine.py").read_text(encoding="utf-8")
-    assert "if settings.min_amplitude and" in engine
+    # the gate is the truthiness of min_amplitude, whatever the line layout (ruff format)
+    assert re.search(r"if\s*\(?\s*settings\.min_amplitude\s+and\b", engine)
 
 
 MUTATIONS = {

@@ -57,7 +57,7 @@ model = group.to_evoked_model()  # fitted curves, comment "evoparam model"
 annotations = group.to_annotations()  # one annotation per component: "<label>|<channel>"
 print(model.comment, len(annotations), annotations.description[:3])
 
-import matplotlib
+import matplotlib  # noqa: E402  (sphinx-gallery section)
 
 matplotlib.use("Agg")
 fig = model.plot(show=False)

@@ -31,10 +31,10 @@ class Lorentzian:
         s = 1.0 / (1.0 + z**2)
         return np.stack([2 * z * s**2 / width, 2 * z**2 * s**2 / width], axis=-1)
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return np.array([times[0], 0.002]), np.array([times[-1], 0.05])
 
-    def initial_guess(self, times, waveform, peak_index):
+    def initial_guess(self, times, waveform, peak_index):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return np.array([times[peak_index], 0.01])
 
     def features(self, times, params, amplitude=1.0):
@@ -111,7 +111,8 @@ def test_builtin_shapes_pass_the_checks(shape):
     check_shape(shape, TIMES)
 
 
-def test_register_a_user_shape(clean_registry):
+@pytest.mark.usefixtures("clean_registry")
+def test_register_a_user_shape():
     assert shapes.register_shape(Lorentzian) is Lorentzian
     assert isinstance(shapes.get_shape("lorentzian"), Lorentzian)
     instance = Lorentzian()
@@ -125,7 +126,8 @@ def test_register_a_user_shape(clean_registry):
     assert "lorentzian" not in shapes.SHAPES
 
 
-def test_register_as_decorator(clean_registry):
+@pytest.mark.usefixtures("clean_registry")
+def test_register_as_decorator():
     @shapes.register_shape
     class Decorated(Lorentzian):
         name = "decorated"
@@ -142,13 +144,15 @@ def test_register_as_decorator(clean_registry):
         (NeedsArguments, "instantiate"),
     ],
 )
-def test_register_rejects_a_faulty_shape(clean_registry, cls, check):
+@pytest.mark.usefixtures("clean_registry")
+def test_register_rejects_a_faulty_shape(cls, check):
     with pytest.raises(SettingsError, match=f"check '{check}' failed"):
         shapes.register_shape(cls)
     assert cls.name not in shapes.SHAPES
 
 
-def test_builtin_names_are_protected(clean_registry):
+@pytest.mark.usefixtures("clean_registry")
+def test_builtin_names_are_protected():
     class Impostor(Lorentzian):
         name = "gaussian"
 
@@ -167,7 +171,7 @@ def test_wrong_bounds_and_output_shapes_are_rejected():
     class BadBounds(Lorentzian):
         name = "bad_bounds"
 
-        def default_bounds(self, times, data_range=None):
+        def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
             return np.array([0.1, 0.05]), np.array([0.0, 0.01])
 
     class BadShape(Lorentzian):

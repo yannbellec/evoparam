@@ -130,8 +130,8 @@ print(table[["component", "contrast_uV"]].round(2).to_string(index=False))
 # Over the 40 participants
 # ------------------------
 
-import json
-import os
+import json  # noqa: E402  (sphinx-gallery section)
+import os  # noqa: E402  (sphinx-gallery section)
 
 summary = os.path.join(
     os.path.dirname(os.path.abspath(evoparam.__file__)),

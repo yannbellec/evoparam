@@ -57,10 +57,10 @@ print("simulated:\n", simulated.round(4).to_string(index=False))
 # Figures
 # -------
 
-import matplotlib
+import matplotlib  # noqa: E402  (sphinx-gallery section)
 
 matplotlib.use("Agg")
-from evoparam import plots
+from evoparam import plots  # noqa: E402  (sphinx-gallery section)
 
 fig = plots.plot_artifact(result.artifact[-1], ts)
 fig = plots.plot_existence(result.test)

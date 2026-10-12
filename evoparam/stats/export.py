@@ -161,7 +161,7 @@ def _jsonable_cell(value):
     return value
 
 
-def _flatten(pd, table):
+def _flatten(_pd, table):
     for column in table.columns:
         if table[column].dtype == object:
             table[column] = table[column].map(_jsonable_cell)
@@ -307,7 +307,7 @@ def _from_trials(pd, result):
     )
 
 
-def _from_hierarchical(pd, result):
+def _from_hierarchical(_pd, result):
     summary = result.summary.copy()
     rename = {
         "mean": "value",
@@ -482,7 +482,7 @@ def _widen(pd, table):
     return base
 
 
-def _column_units(table, data_units, source_units, param_units):
+def _column_units(table, data_units, source_units, _param_units):
     out = {}
     wide_units = table.attrs.get("param_units", {})
     for col in table.columns:

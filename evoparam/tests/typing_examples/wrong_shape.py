@@ -11,7 +11,7 @@ class Broken:
     n_params: str = "one"
     latency_param: str = "a"
 
-    def evaluate(self, times: object, params: object) -> object:
+    def evaluate(self, times: object, params: object) -> object:  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return times
 
 

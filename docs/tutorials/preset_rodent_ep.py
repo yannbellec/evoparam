@@ -51,10 +51,10 @@ print("".join("+" if s > 0 else "-" if s < 0 else "." for s in signs))
 # Figure
 # ------
 
-import matplotlib
+import matplotlib  # noqa: E402  (sphinx-gallery section)
 
 matplotlib.use("Agg")
-from evoparam import plots
+from evoparam import plots  # noqa: E402  (sphinx-gallery section)
 
 fig = plots.plot_group(group, kind="grid", max_channels=8)
 

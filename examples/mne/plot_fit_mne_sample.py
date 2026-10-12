@@ -69,10 +69,10 @@ model = group.to_evoked_model()
 annotations = group.to_annotations()
 print(model.comment, "-", len(annotations), "components as annotations")
 
-import matplotlib
+import matplotlib  # noqa: E402  (sphinx-gallery section)
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402  (sphinx-gallery section)
 
 best = int(np.argmax([fit.gof.r2 if fit.gof else 0 for fit in group.fits]))
 channel = group.index["channel"].iloc[best]

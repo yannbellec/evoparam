@@ -50,10 +50,10 @@ print("channels with a P3, per condition:", p3.groupby("condition")["channel"].n
 # Figure
 # ------
 
-import matplotlib
+import matplotlib  # noqa: E402  (sphinx-gallery section)
 
 matplotlib.use("Agg")
-from evoparam import plots
+from evoparam import plots  # noqa: E402  (sphinx-gallery section)
 
 target = [
     group.fits[int(p)]

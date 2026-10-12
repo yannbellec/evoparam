@@ -28,12 +28,12 @@ from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, valid
 from evoparam.version import __version__
 
 from . import engine as _engine
-
-# diagnostics of the fitting API (spec §9.8: child logger named after the module)
-logger = logging.getLogger("evoparam.models")
 from ._settings import FitSettings, resolve_settings
 from .classical import classical_measures
 from .labels import label_components
+
+# diagnostics of the fitting API (spec §9.8: child logger named after the module)
+logger = logging.getLogger("evoparam.models")
 
 __all__ = [
     "ResponseModel",
@@ -87,7 +87,7 @@ def _feature_vector(shape, tw, params, amp, settings, sfreq, unit=None):
     return np.array([getattr(f, name) for name in FEATURES_WITH_SE], float)
 
 
-def _diagnostics(core, settings):
+def _diagnostics(core, _settings):
     """Covariance of every parameter, conditioning and sloppy pairs (step 6)."""
     struct, theta, beta = core["struct"], core["theta"], core["beta"]
     jac = struct.full_jacobian(theta, beta)
@@ -175,7 +175,7 @@ def _component_uncertainty(core, diag, k, settings, sfreq, z, unit=None):
     return se, ci
 
 
-def _gof(core, y_window, valid, settings):
+def _gof(core, y_window, valid, _settings):
     resid = core["residual"][valid]
     yv = y_window[valid]
     n = len(yv)
@@ -443,7 +443,7 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
     return fit
 
 
-def _bootstrap(fit, core, times, trials, settings, sfreq, z):
+def _bootstrap(fit, core, _times, trials, settings, sfreq, _z):
     """Resample trials, re-average, refit the same model from the full-data solution."""
     if trials is None:
         raise SettingsError(
@@ -511,7 +511,7 @@ def _profile_bounds(grid, stat, limit):
     return ends[0], ends[1]
 
 
-def _profile(fit, core, settings, sfreq, n_grid=21):
+def _profile(fit, core, settings, _sfreq, n_grid=21):
     """Profile-likelihood intervals of the non-linear parameters."""
     struct = core["struct"]
     theta, beta = core["theta"], core["beta"]
@@ -1053,23 +1053,23 @@ class ResponseModel(BaseEstimatorMixin):
             provenance=provenance,
         )
 
-    def _as_container(self, X, *, reset):
+    def _as_container(self, x, *, reset):
         """X as an Evoked or a TrialSet.
 
         An array is (n_waveforms, n_times) at ``sfreq`` from ``tmin``, checked the scikit-learn way
         (2-D, dense, real, finite; after ``fit`` as many time points as in ``fit``).
         """
-        X = _from_mne(X)
-        if isinstance(X, (TrialSet, Evoked)):
+        x = _from_mne(x)
+        if isinstance(x, (TrialSet, Evoked)):
             if reset:
-                self.n_features_in_ = int(X.n_times)
-            elif X.n_times != getattr(self, "n_features_in_", X.n_times):
+                self.n_features_in_ = int(x.n_times)
+            elif x.n_times != getattr(self, "n_features_in_", x.n_times):
                 raise DataError(
-                    f"X has {X.n_times} time points, but {type(self).__name__} "
+                    f"X has {x.n_times} time points, but {type(self).__name__} "
                     f"is expecting {self.n_features_in_}."
                 )
-            return X
-        data = validate_array(self, X, reset=reset)
+            return x
+        data = validate_array(self, x, reset=reset)
         if self.sfreq is None:
             raise SettingsError("sfreq is required when X is an array.")
         tmin = 0.0 if self.tmin is None else self.tmin
@@ -1078,7 +1078,7 @@ class ResponseModel(BaseEstimatorMixin):
             data=data, times=times, sfreq=self.sfreq, ch_names=[f"ch{i}" for i in range(len(data))]
         )
 
-    def _fit_container(self, X):
+    def _fit_container(self, x):
         """GroupFit of a container.
 
         Without a fit window (no ``fit_window``, no preset) the window is the data range; when that
@@ -1088,15 +1088,15 @@ class ResponseModel(BaseEstimatorMixin):
         """
         settings = self.settings()
         if settings.fit_window is not None:
-            return self.fit_group(X)
-        times = np.asarray(X.times, float)
+            return self.fit_group(x)
+        times = np.asarray(x.times, float)
         window = (float(times[0]), float(times[-1]))
-        sfreq = float(X.sfreq)
+        sfreq = float(x.sfreq)
         min_fwhm = max(settings.min_fwhm, 2.0 / sfreq)
         if window[1] - window[0] >= 3 * min_fwhm and len(times) >= 5:
-            return self.fit_group(X, window=window)
+            return self.fit_group(x, window=window)
         settings = self.settings(fit_window=window)
-        evoked = X.average() if isinstance(X, TrialSet) else X
+        evoked = x.average() if isinstance(x, TrialSet) else x
         message = (
             f"skipped: the data range {window} is shorter than 3 x min_fwhm "
             f"({3 * min_fwhm:.4f} s) or has fewer than 5 samples"
@@ -1124,7 +1124,7 @@ class ResponseModel(BaseEstimatorMixin):
             provenance=evoked.provenance,
         )
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None):  # noqa: N803, ARG002  (scikit-learn API: X, y)
         """Fit every channel.
 
         Learned: ``fit_`` (GroupFit), ``components_`` (table), ``times_``, ``n_features_in_``
@@ -1132,28 +1132,28 @@ class ResponseModel(BaseEstimatorMixin):
         least-squares solves, at least 1). X: Evoked, TrialSet, MNE object or array (n_waveforms,
         n_times); ``y`` is ignored.
         """
-        X = self._as_container(X, reset=True)
-        self.fit_ = self._fit_container(X)
+        container = self._as_container(X, reset=True)
+        self.fit_ = self._fit_container(container)
         self.components_ = self.fit_.to_dataframe()
-        self.times_ = np.array(X.times, float)
+        self.times_ = np.array(container.times, float)
         # the largest number of residual evaluations of one waveform (at least 1)
         self.n_iter_ = max(
             [1] + [int(f.diagnostics.get("n_evaluations") or 0) for f in self.fit_.fits]
         )
         return self
 
-    def _group(self, X):
+    def _group(self, x):
         """``fit_`` for X=None, else the fits of X with the same settings."""
         check_is_fitted(self)
-        if X is None:
+        if x is None:
             return self.fit_
-        return self._fit_container(self._as_container(X, reset=False))
+        return self._fit_container(self._as_container(x, reset=False))
 
-    def fit_transform(self, X, y=None):
+    def fit_transform(self, X, y=None):  # noqa: N803  (scikit-learn API: X)
         """Fit X, then return its feature matrix (see :meth:`transform`)."""
         return self.fit(X, y).transform()
 
-    def predict(self, X=None):
+    def predict(self, X=None):  # noqa: N803  (scikit-learn API: X)
         """Fitted curves over the time axis, (n_waveforms, n_times).
 
         NaN outside the fit window and for a waveform without a model. X=None: the waveforms of
@@ -1170,7 +1170,7 @@ class ResponseModel(BaseEstimatorMixin):
                 out[i, inside[:n]] = fit.model[:n]
         return out
 
-    def transform(self, X=None):
+    def transform(self, X=None):  # noqa: N803  (scikit-learn API: X)
         """Feature matrix (n_waveforms, 3).
 
         Latency, amplitude and width of the largest component of each waveform (NaN without
@@ -1186,11 +1186,11 @@ class ResponseModel(BaseEstimatorMixin):
                 rows.append([np.nan] * 3)
         return np.array(rows, dtype=float).reshape(-1, 3)
 
-    def get_feature_names_out(self, input_features=None):
+    def get_feature_names_out(self, input_features=None):  # noqa: ARG002  (scikit-learn API)
         """Return the names of the output features."""
         return np.array(["latency", "amplitude", "fwhm"])
 
-    def score(self, X=None, y=None):
+    def score(self, X=None, y=None):  # noqa: N803, ARG002  (scikit-learn API: X, y)
         """Mean r2 over the waveforms that were fitted (of ``fit``, or of X)."""
         values = [f.gof.r2 for f in self._group(X).fits if f.gof is not None]
         return float(np.nanmean(values)) if values else np.nan

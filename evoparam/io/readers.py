@@ -71,13 +71,13 @@ def _plugin_reader(name, obj, origin):
 READERS = _plugins.LazyRegistry("evoparam.readers", {}, _plugin_reader, builtin=BUILTIN_FORMATS)
 
 
-def _plugin_for(path, format):
+def _plugin_for(path, fmt):
     """(name, reader) of the plugin reader for ``format`` or the extension of ``path``.
 
     None when no plugin claims it. Two plugins claiming one extension raise SettingsError.
     """
-    if format is not None:
-        return (format, READERS[format]) if format in READERS else None
+    if fmt is not None:
+        return (fmt, READERS[fmt]) if fmt in READERS else None
     lower = path.lower().rstrip("/")
     claims = [
         (name, reader)
@@ -350,7 +350,7 @@ def _read_continuous(
     )
 
 
-def read(source, *, format=None, **kwargs):
+def read(source, *, format=None, **kwargs):  # noqa: A002  (public keyword of the API)
     """Read data from any supported source into a TrialSet.
 
     Dispatch on the type or the extension of ``source``:

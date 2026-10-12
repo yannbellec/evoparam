@@ -409,12 +409,12 @@ def stimulation_artifact(
     *,
     source,
     sink=None,
-    current_mA,
+    current_mA,  # noqa: N803  (unit suffix of a public keyword)
     pulse_width_us,
     biphasic=True,
     polarity=-1,
     onset=0.0,
-    scale_uV_per_mA=25000.0,
+    scale_uV_per_mA=25000.0,  # noqa: N803  (unit suffix of a public keyword)
     tail_fraction=0.02,
     tau1=0.0015,
     tau2=0.015,
@@ -449,7 +449,7 @@ def simulate_ccep(
     *,
     n_channels=46,
     sfreq=2048.0,
-    stim_current_mA=4.0,
+    stim_current_mA=4.0,  # noqa: N803  (unit suffix of a public keyword)
     pulse_width_us=200.0,
     biphasic=True,
     n1=None,
@@ -472,7 +472,7 @@ def simulate_ccep(
     snr=None,
     jitter_sd=0.0,
     amplitude_cv=0.0,
-    artifact_scale_uV_per_mA=100000.0,
+    artifact_scale_uV_per_mA=100000.0,  # noqa: N803  (unit suffix of a public keyword)
     artifact_cv=0.02,
     tail_fraction=0.02,
     tail_tau=(0.0015, 0.015),
@@ -694,7 +694,7 @@ def simulate_erna(
     onset_delay=0.001,
     buildup=2.0,
     amplitude=(-300.0, -100.0),
-    stim_current_mA=3.0,
+    stim_current_mA=3.0,  # noqa: N803  (unit suffix of a public keyword)
     pulse_width_us=60.0,
     noise="pink",
     noise_sd=5.0,
@@ -1098,7 +1098,7 @@ def simulate_ecap(
     paradigm=None,
     masker_probe_interval=0.0005,
     masking=1.0,
-    stim_current_mA=1.0,
+    stim_current_mA=1.0,  # noqa: N803  (unit suffix of a public keyword)
     pulse_width_us=50.0,
     artifact=True,
     amplitude=((-200.0, -50.0), (40.0, 150.0)),
@@ -1108,10 +1108,10 @@ def simulate_ecap(
     snr=None,
     jitter_sd=0.0,
     amplitude_cv=0.0,
-    artifact_scale_uV_per_mA=20000.0,
+    artifact_scale_uV_per_mA=20000.0,  # noqa: N803  (unit suffix of a public keyword)
     tail_fraction=0.05,
     tail_tau=0.0002,
-    switch_artifact_uV=20.0,
+    switch_artifact_uV=20.0,  # noqa: N803  (unit suffix of a public keyword)
     seed=None,
     keep_arrays=True,
 ):

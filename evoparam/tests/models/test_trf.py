@@ -91,5 +91,5 @@ def test_errors_as_scipy():
         least_squares_trf(fun, jac, upper + 1, lower, upper)
     with pytest.raises(ValueError, match="not finite"):
         least_squares_trf(
-            lambda p: np.full(3, np.nan), lambda p: np.ones((3, 5)), x0, lower, upper
+            lambda _p: np.full(3, np.nan), lambda _p: np.ones((3, 5)), x0, lower, upper
         )

@@ -13,28 +13,30 @@ from evoparam.stats import reml, variance_components
 ###################################################################################################
 
 
-def _dense(y, Z_list, variances, residual, se2, X):
+def _dense(y, z_list, variances, residual, se2, xmat):
     """Independent dense computation: V, beta, BLUPs and prediction-error variances."""
 
     n = len(y)
-    G = np.diag(
-        np.concatenate([np.full(Z.shape[1], v) for Z, v in zip(Z_list, variances, strict=False)])
+    gmat = np.diag(
+        np.concatenate(
+            [np.full(zmat.shape[1], v) for zmat, v in zip(z_list, variances, strict=False)]
+        )
     )
-    Z = np.hstack(Z_list)
-    V = Z @ G @ Z.T + np.diag(residual + se2)
-    Vi = np.linalg.inv(V)
-    C = np.linalg.inv(X.T @ Vi @ X)
-    beta = C @ X.T @ Vi @ y
-    P = Vi - Vi @ X @ C @ X.T @ Vi
-    blup = G @ Z.T @ Vi @ (y - X @ beta)
-    pev = np.diag(G - G @ Z.T @ P @ Z @ G)
-    sign, logdet = np.linalg.slogdet(V)
-    r = y - X @ beta
+    zmat = np.hstack(z_list)
+    vmat = zmat @ gmat @ zmat.T + np.diag(residual + se2)
+    vmat_inv = np.linalg.inv(vmat)
+    cmat = np.linalg.inv(xmat.T @ vmat_inv @ xmat)
+    beta = cmat @ xmat.T @ vmat_inv @ y
+    pmat = vmat_inv - vmat_inv @ xmat @ cmat @ xmat.T @ vmat_inv
+    blup = gmat @ zmat.T @ vmat_inv @ (y - xmat @ beta)
+    pev = np.diag(gmat - gmat @ zmat.T @ pmat @ zmat @ gmat)
+    sign, logdet = np.linalg.slogdet(vmat)
+    r = y - xmat @ beta
     loglik = -0.5 * (
         logdet
-        + np.linalg.slogdet(X.T @ Vi @ X)[1]
-        + r @ Vi @ r
-        + (n - X.shape[1]) * np.log(2 * np.pi)
+        + np.linalg.slogdet(xmat.T @ vmat_inv @ xmat)[1]
+        + r @ vmat_inv @ r
+        + (n - xmat.shape[1]) * np.log(2 * np.pi)
     )
     return beta, blup, pev, loglik
 
@@ -53,9 +55,9 @@ def test_one_level_matches_dense_computation():
     general = reml(y, [subject], se=np.zeros(y.size))  # numerical optimisation
     assert general["variances"][0] == pytest.approx(fast["variances"][0], rel=1e-4)
     assert general["residual"] == pytest.approx(fast["residual"], rel=1e-4)
-    X = np.ones((y.size, 1))
+    xmat = np.ones((y.size, 1))
     beta, blup, pev, loglik = _dense(
-        y, [_indicators(subject)], fast["variances"], fast["residual"], np.zeros(y.size), X
+        y, [_indicators(subject)], fast["variances"], fast["residual"], np.zeros(y.size), xmat
     )
     assert fast["beta"][0] == pytest.approx(beta[0], rel=1e-9)
     assert np.allclose(fast["blup"][0], blup, atol=1e-9)
@@ -66,7 +68,9 @@ def test_one_level_matches_dense_computation():
         for which in (0, 1):
             v = list(fast["variances"]) + [fast["residual"]]
             v[which] *= factor
-            assert _dense(y, [_indicators(subject)], v[:1], v[1], np.zeros(y.size), X)[3] < loglik
+            assert (
+                _dense(y, [_indicators(subject)], v[:1], v[1], np.zeros(y.size), xmat)[3] < loglik
+            )
 
 
 def test_nested_levels_and_known_sampling_variances():
@@ -90,8 +94,8 @@ def test_nested_levels_and_known_sampling_variances():
     assert out["residual"] == 0.0
     assert out["converged"]
     assert len(out["labels"][1]) == n_sub * n_ch
-    Z = [_indicators(subject), _indicators(subject * 1000 + channel)]
-    beta, blup, pev, loglik = _dense(y, Z, out["variances"], 0.0, se**2, np.ones((y.size, 1)))
+    zmats = [_indicators(subject), _indicators(subject * 1000 + channel)]
+    beta, blup, pev, loglik = _dense(y, zmats, out["variances"], 0.0, se**2, np.ones((y.size, 1)))
     assert out["beta"][0] == pytest.approx(beta[0], rel=1e-8)
     assert np.allclose(np.concatenate(out["blup"]), blup, atol=1e-7)
     assert np.allclose(np.concatenate(out["blup_se"]), np.sqrt(pev), atol=1e-7)
@@ -165,51 +169,54 @@ def test_shrunken_unit_estimates_match_henderson_equations():
     pair = np.repeat(np.arange(n_sub * n_ch), sizes)
     subject, channel = pair // n_ch, pair % n_ch
     age = rng.uniform(5, 30, n_sub)
-    X = np.column_stack([np.ones(pair.size), age[subject]])
+    xmat = np.column_stack([np.ones(pair.size), age[subject]])
     se = rng.uniform(0.5, 1.5, pair.size)
     y = (
-        X @ [20.0, -0.3]
+        xmat @ [20.0, -0.3]
         + 1.5 * rng.normal(size=n_sub)[subject]
         + 1.0 * rng.normal(size=n_sub * n_ch)[pair]
         + 0.7 * rng.normal(size=pair.size)
         + se * rng.normal(size=pair.size)
     )
-    out = reml(y, [subject, channel], se=se, X=X)
+    out = reml(y, [subject, channel], se=se, X=xmat)
     assert all(v > 0 for v in out["variances"])
     assert out["residual"] > 0
 
-    Zs, Zc = _indicators(subject), _indicators(pair)
-    Z = np.hstack([Zs, Zc])
-    G = np.r_[np.full(n_sub, out["variances"][0]), np.full(n_sub * n_ch, out["variances"][1])]
-    Rinv = 1.0 / (out["residual"] + se**2)
+    zs, zc = _indicators(subject), _indicators(pair)
+    zmat = np.hstack([zs, zc])
+    gmat = np.r_[np.full(n_sub, out["variances"][0]), np.full(n_sub * n_ch, out["variances"][1])]
+    r_inv = 1.0 / (out["residual"] + se**2)
     mme = np.block(
         [
-            [X.T @ (X * Rinv[:, None]), X.T @ (Z * Rinv[:, None])],
-            [Z.T @ (X * Rinv[:, None]), Z.T @ (Z * Rinv[:, None]) + np.diag(1 / G)],
+            [xmat.T @ (xmat * r_inv[:, None]), xmat.T @ (zmat * r_inv[:, None])],
+            [
+                zmat.T @ (xmat * r_inv[:, None]),
+                zmat.T @ (zmat * r_inv[:, None]) + np.diag(1 / gmat),
+            ],
         ]
     )
-    C = np.linalg.inv(mme)
-    sol = C @ np.r_[X.T @ (y * Rinv), Z.T @ (y * Rinv)]
+    cmat = np.linalg.inv(mme)
+    sol = cmat @ np.r_[xmat.T @ (y * r_inv), zmat.T @ (y * r_inv)]
     assert np.allclose(sol[:2], out["beta"], rtol=1e-8)
     assert np.allclose(sol[2:], np.concatenate(out["blup"]), atol=1e-8)
 
     # subject s: mean design row of its observations, plus u_s
-    L_sub = np.hstack(
-        [Zs.T @ X / Zs.sum(0)[:, None], np.eye(n_sub), np.zeros((n_sub, n_sub * n_ch))]
+    l_sub = np.hstack(
+        [zs.T @ xmat / zs.sum(0)[:, None], np.eye(n_sub), np.zeros((n_sub, n_sub * n_ch))]
     )
     # channel c of subject s: mean design row, plus u_s and v_sc
-    L_ch = np.hstack(
-        [Zc.T @ X / Zc.sum(0)[:, None], (Zc.T @ Zs > 0).astype(float), np.eye(n_sub * n_ch)]
+    l_ch = np.hstack(
+        [zc.T @ xmat / zc.sum(0)[:, None], (zc.T @ zs > 0).astype(float), np.eye(n_sub * n_ch)]
     )
-    for level, L in enumerate((L_sub, L_ch)):
-        assert np.allclose(out["unit_mean"][level], L @ sol, atol=1e-8)
-        se_dense = np.sqrt(np.einsum("ij,jk,ik->i", L, C, L))
+    for level, lmat in enumerate((l_sub, l_ch)):
+        assert np.allclose(out["unit_mean"][level], lmat @ sol, atol=1e-8)
+        se_dense = np.sqrt(np.einsum("ij,jk,ik->i", lmat, cmat, lmat))
         assert np.allclose(out["unit_mean_se"][level], se_dense, atol=1e-8)
         assert out["n_obs"][level].sum() == y.size
     # shrinkage: 1 - Var(u | y, beta) / sigma^2, the conditional part of Henderson's inverse
-    Zr = Z * np.sqrt(Rinv)[:, None]
-    cond = np.diag(np.linalg.inv(Zr.T @ Zr + np.diag(1 / G)))
-    assert np.allclose(np.concatenate(out["shrinkage"]), 1 - cond / G, atol=1e-8)
+    zr = zmat * np.sqrt(r_inv)[:, None]
+    cond = np.diag(np.linalg.inv(zr.T @ zr + np.diag(1 / gmat)))
+    assert np.allclose(np.concatenate(out["shrinkage"]), 1 - cond / gmat, atol=1e-8)
 
 
 def test_one_level_shrinkage_is_the_empirical_bayes_weight():
@@ -221,12 +228,14 @@ def test_one_level_shrinkage_is_the_empirical_bayes_weight():
     y = 4.0 + 2.0 * rng.normal(size=50) + se * rng.normal(size=50)
     out = reml(y, [np.arange(50)], se=se, residual=False)
     tau2 = out["variances"][0]
-    B = tau2 / (tau2 + se**2)
+    shrink_b = tau2 / (tau2 + se**2)
     mu = out["beta"][0]
-    assert np.allclose(out["shrinkage"][0], B, atol=1e-10)
-    assert np.allclose(out["unit_mean"][0], mu + B * (y - mu), atol=1e-10)
+    assert np.allclose(out["shrinkage"][0], shrink_b, atol=1e-10)
+    assert np.allclose(out["unit_mean"][0], mu + shrink_b * (y - mu), atol=1e-10)
     # the classical EB standard error: sqrt(tau^2 (1 - B) + (1 - B)^2 Var(mu_hat))
     var_mu = 1.0 / np.sum(1.0 / (tau2 + se**2))
     assert np.allclose(
-        out["unit_mean_se"][0], np.sqrt(tau2 * (1 - B) + (1 - B) ** 2 * var_mu), atol=1e-10
+        out["unit_mean_se"][0],
+        np.sqrt(tau2 * (1 - shrink_b) + (1 - shrink_b) ** 2 * var_mu),
+        atol=1e-10,
     )

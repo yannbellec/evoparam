@@ -123,7 +123,7 @@ def test_req354_time_out(fake, tmp_path):
         _adapter(tool, env={"FAKE_MODE": "sleep"}, timeout=1.0).run(path, str(tmp_path / "o"))
 
 
-def test_req354_task_and_program_checks(fake, tmp_path):
+def test_req354_task_and_program_checks(fake):
     tool, path, _ = fake
     with pytest.raises(DataError, match="does not answer task T1"):
         Adapter(name="t7", command=["{python}", str(tool)], tasks=("T7",)).run(path)
@@ -281,7 +281,7 @@ def test_req354_package_has_no_gpl_notice_and_imports_no_adapter():
     assert not hits, hits
 
 
-def test_req354_licence_scan_finds_a_mutation(tmp_path):
+def test_req354_licence_scan_finds_a_mutation():
     text = "# SPDX-License-Identifier: GPL-3.0-only\nimport numpy\n"  # not imported: a probe
     assert [
         m.group(0) for m in GPL_TEXT.finditer(text) if not _mentions_isolation(text, m.start())

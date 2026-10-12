@@ -5,12 +5,12 @@ import warnings
 
 import pytest
 
-sklearn_checks = pytest.importorskip("sklearn.utils.estimator_checks")
-
 from evoparam.artifact import ArtifactRemover
 from evoparam.models import ResponseModel
 from evoparam.trials import TrialFitter
 from evoparam.utils._sklearn_checks import EXPECTED, FORBIDDEN, expected_failed_checks
+
+sklearn_checks = pytest.importorskip("sklearn.utils.estimator_checks")
 
 ESTIMATORS = [
     ResponseModel(sfreq=1000.0, tmin=0.0),

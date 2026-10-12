@@ -89,10 +89,10 @@ print(existence.round(4).to_string(index=False))
 # Figures
 # -------
 
-import matplotlib
+import matplotlib  # noqa: E402  (sphinx-gallery section)
 
 matplotlib.use("Agg")
-from evoparam import plots
+from evoparam import plots  # noqa: E402  (sphinx-gallery section)
 
 fig = plots.plot_group(result.group, result.trials.average(), max_channels=16)
 fig = plots.plot_existence(result.test)

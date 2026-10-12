@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from evoparam.io.brainvision import *
+from evoparam.io.brainvision import read_brainvision_header, read_brainvision_segment
 
 ###################################################################################################
 ###################################################################################################

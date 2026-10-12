@@ -166,7 +166,7 @@ def test_container_round_trip(tmp_path, suffix):
     for name in ("tep", "ccep"):
         _, truth = sim.GENERATORS[name](seed=3, **SMALL[name])
         path = truth.save(str(tmp_path / f"truth_{name}{suffix}"))
-        assert path.endswith(".evoparam" + suffix if not suffix else suffix)
+        assert path.endswith(suffix if suffix else ".evoparam" + suffix)
         again = sim.GroundTruth.load(path)
         assert again == truth
         assert load_object(path) == truth
@@ -326,7 +326,7 @@ def test_licence_rule(monkeypatch, licence, allowed):
 
     original = registry.dataset_info
 
-    def patched(dataset_id):
+    def patched(_dataset_id):
         entry = original("ds004080")
         entry["license"] = licence
         return entry

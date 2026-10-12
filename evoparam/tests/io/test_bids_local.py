@@ -7,8 +7,6 @@ import os
 import numpy as np
 import pytest
 
-pd = pytest.importorskip("pandas")
-
 from evoparam.data import TrialSet
 from evoparam.errors import DataError, EventError, ReaderError
 from evoparam.io import read, read_bids
@@ -20,6 +18,8 @@ from evoparam.tests.io.helpers import (
     signal,
     write_brainvision,
 )
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

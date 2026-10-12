@@ -286,7 +286,7 @@ def tf_fit(
     by_trial=False,
     picks=None,
     by=("stim_site",),
-    n_jobs=1,
+    n_jobs=1,  # noqa: ARG001  (documented: accepted for the common signature, runs in one process)
     random_state=None,
     verbose=None,
 ):

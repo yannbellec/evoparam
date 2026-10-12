@@ -116,7 +116,7 @@ def normalize(power, ref_times, mode, level, trials=None):
     return per_trial, reported, test
 
 
-def reference_level(average_power, ref_times, mode):
+def reference_level(average_power, ref_times, _mode):
     """Return the reference (and spread) of a trial-average power map.
 
     For normalising other maps (the footprint) on the total's scale.

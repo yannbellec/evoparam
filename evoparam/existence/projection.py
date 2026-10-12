@@ -56,7 +56,7 @@ def _half_pairs(n):
     return np.where(swap, second, first), np.where(swap, first, second)
 
 
-def _one_channel(v, times, t0_index, rng, profile="published", pairs="disjoint"):
+def _one_channel(v, _times, _t0_index, rng, profile="published", pairs="disjoint"):
     """v: trials x times (window from t0). Returns duration end index, statistic, p, extra."""
     n, n_t = v.shape
     # Cumulative Gram matrices over the prefix [t0, t]
@@ -97,7 +97,14 @@ def _one_channel(v, times, t0_index, rng, profile="published", pairs="disjoint")
 
 
 def projection_test(
-    data, times, window, baseline, *, rng=None, profile="published", pairs="disjoint"
+    data,
+    times,
+    window,
+    baseline,  # noqa: ARG001  (signature shared by the existence tests; this one uses no baseline)
+    *,
+    rng=None,
+    profile="published",
+    pairs="disjoint",
 ):
     """Cross-projection test of every channel.
 

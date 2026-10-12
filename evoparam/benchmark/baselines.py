@@ -414,7 +414,7 @@ def _evoparam_t4(inputs, settings):
     return {"T4": np.asarray(ts.data, float)}
 
 
-def _interpolate_t4(inputs, settings):
+def _interpolate_t4(inputs, _settings):
     from evoparam.artifact import remove_artifact
 
     ti = inputs["T4"]
@@ -427,7 +427,7 @@ def _interpolate_t4(inputs, settings):
     return {"T4": np.asarray(cleaned.data, float)}
 
 
-def _none_t4(inputs, settings):
+def _none_t4(inputs, _settings):
     return {"T4": np.array(inputs["T4"].arrays["data"], float)}
 
 

@@ -151,7 +151,9 @@ def lock_sha256(path=None):
     try:
         from packaging.markers import Marker
     except ImportError:  # markers cannot be evaluated: no claim
-        Marker = None
+        marker_cls = None
+    else:
+        marker_cls = Marker
     from importlib import metadata
 
     for line in raw.decode("utf-8").splitlines():
@@ -161,9 +163,9 @@ def lock_sha256(path=None):
         pin, _, marker = line.partition(";")
         name, _, version = pin.partition("==")
         if marker.strip():
-            if Marker is None:
+            if marker_cls is None:
                 return None
-            if not Marker(marker.strip()).evaluate():
+            if not marker_cls(marker.strip()).evaluate():
                 continue
         try:
             installed = metadata.version(name.split("[")[0].strip())

@@ -4,9 +4,9 @@
 import numpy as np
 import pytest
 
-edfio = pytest.importorskip("edfio")
-
 from evoparam.io import read_edf
+
+edfio = pytest.importorskip("edfio")
 
 ###################################################################################################
 ###################################################################################################

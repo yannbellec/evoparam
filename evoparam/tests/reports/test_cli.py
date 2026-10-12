@@ -251,7 +251,7 @@ def test_req323_partial_and_interrupted(fitted, monkeypatch, capsys):
     assert summary["status"] == "partial"
     assert summary["n_units"]["failed"] >= 1
 
-    def interrupted(*args, **kwargs):
+    def interrupted(*_args, **_kwargs):
         raise KeyboardInterrupt
 
     monkeypatch.setattr(cli, "run_fit", interrupted)

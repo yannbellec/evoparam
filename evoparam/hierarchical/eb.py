@@ -135,7 +135,7 @@ def mixture_em(y, se, subject, polarity=0, tol=EM_TOL, max_iter=EM_MAX_ITER):
     }
 
 
-def shrink(y, se, subject, channel, X=None):
+def shrink(y, se, subject, channel, X=None):  # noqa: N803  (public keyword: the fixed-effect design X)
     """Shrunken channel and subject estimates of one parameter (REML, nested model).
 
     With one subject the subject level is dropped (the channels are the only level).

@@ -81,8 +81,8 @@ def _nwbfile(source):
             table.add_row(start_time=float(t), stop_time=float(t) + 0.25, color=1.0)
         nwb.add_time_intervals(table)
     elif source == "stim_table":
-        StimTable = _stim_table_class()
-        table = StimTable(name="stimulation", description="biphasic pulses")
+        stim_table_cls = _stim_table_class()
+        table = stim_table_cls(name="stimulation", description="biphasic pulses")
         for t in ONSETS:
             table.add_row(
                 start_time=float(t),

@@ -107,7 +107,7 @@ def make_gof():
     )
 
 
-def make_response_test(n_channels=3):
+def make_response_test(_n_channels=3):
     return ResponseTest(
         method="baseline_permutation",
         statistic=np.array([5.0, 0.4, 3.1]),

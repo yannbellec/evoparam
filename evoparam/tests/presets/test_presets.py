@@ -2,6 +2,7 @@
 """Presets: the table of spec §6.1, citations, derive and the generated page (REQ-270 to
 REQ-272, REQ-279, REQ-280)."""
 
+import dataclasses
 import pathlib
 import re
 import warnings
@@ -57,8 +58,8 @@ def _tuples(cell):
 
 def _table():
     lines = SPEC.read_text("utf-8").split("\n")
-    start = next(i for i, l in enumerate(lines) if l.startswith("### 6.1"))
-    rows = [l for l in lines[start : start + 40] if l.startswith("| ")]
+    start = next(i for i, line in enumerate(lines) if line.startswith("### 6.1"))
+    rows = [line for line in lines[start : start + 40] if line.startswith("| ")]
     names = [c.split()[0].strip("`") for c in rows[0].strip("|").split("|")[1:]]
     out = {n: {} for n in names}
     for row in rows[1:]:
@@ -75,7 +76,7 @@ def _table():
     return out
 
 
-def _expected(name, row):
+def _expected(_name, row):
     window = lambda cell: (_tuples(cell) or [None])[0]
     labels = {}
     for label, lo, hi in re.findall(
@@ -127,7 +128,7 @@ def test_req270_every_preset_matches_the_table():
 
 
 def dataclass_frozen(p):
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         p.name = "other"
     return True
 

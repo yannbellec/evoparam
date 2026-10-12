@@ -85,7 +85,7 @@ print(
 # -------------------------------
 # CARLA keeps out of the average the contacts whose responses correlate across trials.
 
-from evoparam.prep import car_adaptive_select
+from evoparam.prep import car_adaptive_select  # noqa: E402  (sphinx-gallery section)
 
 selection = car_adaptive_select(trials.data, trials.times, random_state=0)
 members = [trials.ch_names[i] for i in selection["members"]]
@@ -97,7 +97,7 @@ carla = rereference(trials, "car_adaptive", random_state=0)
 # Shapes shared along the shaft
 # -----------------------------
 
-from evoparam.spatial import fit_shared
+from evoparam.spatial import fit_shared  # noqa: E402  (sphinx-gallery section)
 
 shared = fit_shared(result.trials, channels=[str(c) for c in responding], preset="ccep_seeg")
 print(

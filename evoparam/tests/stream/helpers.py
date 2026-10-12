@@ -13,7 +13,7 @@ TIMES = np.arange(-1024, 2048) / SFREQ  # -0.5 to 1 s, a sample at t = 0
 N1 = (-40.0, 0.03, 0.02)  # amplitude (uV), latency (s), FWHM (s)
 
 
-def no_pulses(samples, first):
+def no_pulses(_samples, _first):
     """A detector that finds nothing: the pulses come from push_pulse."""
 
     return []

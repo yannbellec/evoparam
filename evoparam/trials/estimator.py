@@ -53,7 +53,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         self.mode = mode
         self.random_state = random_state
 
-    def _trials(self, X, *, reset):
+    def _trials(self, x, *, reset):
         """X as a TrialSet.
 
         An array is (n_trials, n_times) for one channel or (n_trials, n_channels, n_times), checked
@@ -63,17 +63,17 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         from evoparam.data import TrialSet
         from evoparam.models.api import _from_mne
 
-        X = _from_mne(X)
-        if isinstance(X, TrialSet):
+        x = _from_mne(x)
+        if isinstance(x, TrialSet):
             if reset:
-                self.n_features_in_ = int(X.n_times)
-            elif X.n_times != self.n_features_in_:
+                self.n_features_in_ = int(x.n_times)
+            elif x.n_times != self.n_features_in_:
                 raise DataError(
-                    f"X has {X.n_times} time points, but TrialFitter is "
+                    f"X has {x.n_times} time points, but TrialFitter is "
                     f"expecting {self.n_features_in_}."
                 )
-            return X
-        data = validate_array(self, X, reset=reset, ndim=3)
+            return x
+        data = validate_array(self, x, reset=reset, ndim=3)
         if data.ndim == 2:
             data = data[:, None, :]
         if self.sfreq is None:
@@ -87,7 +87,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
             ch_names=[f"ch{i}" for i in range(data.shape[1])],
         )
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None):  # noqa: N803, ARG002  (scikit-learn API: X, y)
         """Fit the trial average of each channel (``group_fit_``); ``y`` is ignored.
 
         Without ``fit_window`` and preset the window is the data range.
@@ -107,7 +107,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         self.ch_names_ = list(trials.ch_names)
         return self
 
-    def transform(self, X):
+    def transform(self, X):  # noqa: N803  (scikit-learn API: X)
         """(n_trials, n_channels * n_components * 3).
 
         Shift, scale and latency of each component slot of each channel; NaN where a channel has
@@ -140,7 +140,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
                     out[int(row["trial"]), ch, k] = (row["shift"], row["scale"], row["latency"])
         return out.reshape(trials.n_trials, -1)
 
-    def get_feature_names_out(self, input_features=None):
+    def get_feature_names_out(self, input_features=None):  # noqa: ARG002  (scikit-learn API)
         """Return the names of the output features."""
         return np.array(
             [

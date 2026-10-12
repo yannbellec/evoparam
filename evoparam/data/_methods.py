@@ -439,7 +439,7 @@ def _trials(settings):
     return text
 
 
-def _realign(settings):
+def _realign(_settings):
     return "Trials were realigned on the estimated single-trial latencies (Woody-style)."
 
 
@@ -458,7 +458,7 @@ def _hierarchical(settings):
     )
 
 
-def _variance(settings):
+def _variance(_settings):
     return (
         "Variance components were estimated by restricted maximum likelihood with the "
         "known sampling variances of the estimates."
@@ -571,7 +571,7 @@ def _filter(kind):
     return sentence
 
 
-def _apply_mask(settings):
+def _apply_mask(_settings):
     return (
         "Samples given by a user-supplied mask were excluded from every later step "
         "(evoparam.artifact.apply_mask)."

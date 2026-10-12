@@ -67,7 +67,7 @@ def _layout(template, mode, movable=None):
     ]
 
 
-def _bounds(template, mode, layout):
+def _bounds(template, _mode, layout):
     lo, hi = [], []
     for k, (shape, params, free) in enumerate(
         zip(template.shapes, template.params, layout, strict=False)

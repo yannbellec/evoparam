@@ -13,12 +13,12 @@ import time
 import numpy as np
 import pytest
 
-pd = pytest.importorskip("pandas")
-
 import evoparam.io._fetch as fetch_module
 from evoparam.errors import ReaderError
 from evoparam.io import RemoteFile, read_bids, read_brainvision
 from evoparam.tests.io.helpers import http_server
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################
@@ -38,7 +38,7 @@ def delays(monkeypatch):
 def test_remote_read_matches_local_read(bids_root):
 
     local = read_bids(bids_root, "01", task="spes", run="01")
-    size = os.path.getsize(os.path.join(bids_root, *DATA_FILE.split("/")))
+    os.path.getsize(os.path.join(bids_root, *DATA_FILE.split("/")))
     with http_server(bids_root) as (base, stats):
         remote = read_bids(base, "01", task="spes", run="01", remote=True)
 

@@ -33,7 +33,8 @@ def _tool(name):
     return module
 
 
-def test_req396_every_python_file_has_the_spdx_header(capsys):
+@pytest.mark.usefixtures("capsys")
+def test_req396_every_python_file_has_the_spdx_header():
     tool = _tool("add_spdx_headers")
     files = tool.source_files()
     assert len(files) > 400

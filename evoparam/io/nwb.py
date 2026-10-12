@@ -173,7 +173,7 @@ def _harmonise(frame):
     return table, report
 
 
-def _electrodes(nwbfile, series, picks):
+def _electrodes(_nwbfile, series, picks):
     import pandas as pd
 
     region = getattr(series, "electrodes", None)
@@ -730,7 +730,7 @@ def write_nwb(
     return nwbfile
 
 
-def _model_series(group, nwbfile, electrodes, to_volt, pynwb, DynamicTableRegion):
+def _model_series(group, nwbfile, electrodes, to_volt, pynwb, dynamic_table_region):
     """``evoparam_model``.
 
     The fitted curves (fit window, zero elsewhere) of every channel x condition, in V, at the rate
@@ -757,7 +757,7 @@ def _model_series(group, nwbfile, electrodes, to_volt, pynwb, DynamicTableRegion
             grid = np.linspace(fit.window[0], fit.window[1], len(fit.model))
             inside = (times >= fit.window[0] - 1e-12) & (times <= fit.window[1] + 1e-12)
             data[inside, i] = np.interp(times[inside], grid, fit.model) * to_volt
-    region = DynamicTableRegion(
+    region = dynamic_table_region(
         name="electrodes",
         data=[electrodes[c] for c in channels],
         description="channel of each column (one column per channel x condition)",
@@ -799,7 +799,7 @@ def read_nwb_results(path, *, module="evoparam", kind="components", verify=True)
     -------
     The result(s), equal to those written.
     """
-    pynwb = require("pynwb", extra="nwb", caller="evoparam.io.read_nwb_results")
+    require("pynwb", extra="nwb", caller="evoparam.io.read_nwb_results")
     kinds = {"components": "GroupFit", "existence": "ResponseTest", "trials": "TrialFit"}
     if kind not in tuple(kinds) + ("all",):
         raise DataError(f"kind must be one of {tuple(kinds) + ('all',)}.")

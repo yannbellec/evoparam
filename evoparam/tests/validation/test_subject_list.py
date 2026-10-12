@@ -68,7 +68,7 @@ def test_list_is_committed_with_version_and_checksum():
 
     lines = LIST.read_text("utf-8").splitlines()
     assert lines[0].startswith("# ds004080 v1.2.4; participants.tsv sha256 ")
-    subjects = [l.split("\t")[0] for l in lines if not l.startswith("#")]
+    subjects = [row.split("\t")[0] for row in lines if not row.startswith("#")]
     assert len(subjects) == 6
     assert len(set(subjects)) == 6
     assert subjects[-1] == "sub-ccepAgeUMCU01"

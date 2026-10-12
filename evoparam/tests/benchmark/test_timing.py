@@ -129,7 +129,7 @@ def test_req299_script_exit_code_and_annotations(tmp_path, monkeypatch, capsys):
     baseline = _doc(p1=0.05, p2=3.0)
     (tmp_path / "baseline.json").write_text(json.dumps(baseline), encoding="utf-8")
     slow = _doc(p1=0.10, p2=3.6)
-    monkeypatch.setattr(script.timing, "run_suite", lambda *a, **k: copy.deepcopy(slow))
+    monkeypatch.setattr(script.timing, "run_suite", lambda *_a, **_k: copy.deepcopy(slow))
     code = script.main(
         [
             "--suite",

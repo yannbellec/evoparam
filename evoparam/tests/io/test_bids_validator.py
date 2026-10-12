@@ -6,14 +6,14 @@ import os
 
 import pytest
 
-pd = pytest.importorskip("pandas")
-
 from evoparam.cli import main
 from evoparam.errors import ReaderError
 from evoparam.io import format_stim_report, validate_stim_metadata
 from evoparam.io.bids import validate_stim_metadata as from_bids
 
 from .helpers import make_bids
+
+pd = pytest.importorskip("pandas")
 
 
 def _tsv(path, header, rows):

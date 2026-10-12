@@ -388,7 +388,7 @@ def test_remote_s3_listing(tmp_path, monkeypatch):
     write_mef(tmp_path, "ses", data, SFREQ, NAMES, segment_starts=[3000])
     local, *_ = read_mef(tmp_path / "ses.mefd")
     with http_server(tmp_path) as (base, stats):
-        monkeypatch.setattr(mef_module, "_s3_listing", lambda url: (base.rstrip("/"), "ses.mefd"))
+        monkeypatch.setattr(mef_module, "_s3_listing", lambda _url: (base.rstrip("/"), "ses.mefd"))
         remote, _, names, _ = read_mef(base + "ses.mefd")
         requests = list(stats.requests)
     np.testing.assert_array_equal(remote, local)

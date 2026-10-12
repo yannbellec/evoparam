@@ -61,10 +61,10 @@ print(
 # Figure
 # ------
 
-import matplotlib
+import matplotlib  # noqa: E402  (sphinx-gallery section)
 
 matplotlib.use("Agg")
-from evoparam import plots
+from evoparam import plots  # noqa: E402  (sphinx-gallery section)
 
 fig = plots.plot_fit(group.fits[0], evoked)
 

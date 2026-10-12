@@ -281,7 +281,7 @@ def _hints(cell, **extra):
     return hints
 
 
-def _base_fields(cell, ts, task):
+def _base_fields(cell, ts, _task):
     return {
         "suite": {"name": cell.suite, "version": cell.version},
         "cell": cell.id,

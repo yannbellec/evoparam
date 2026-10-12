@@ -56,11 +56,11 @@ print(X.shape)
 # A pipeline
 # ----------
 
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_val_score
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer  # noqa: E402  (sphinx-gallery section)
+from sklearn.linear_model import LogisticRegression  # noqa: E402  (sphinx-gallery section)
+from sklearn.model_selection import cross_val_score  # noqa: E402  (sphinx-gallery section)
+from sklearn.pipeline import make_pipeline  # noqa: E402  (sphinx-gallery section)
+from sklearn.preprocessing import StandardScaler  # noqa: E402  (sphinx-gallery section)
 
 pipe = make_pipeline(
     ArtifactRemover("template", sfreq=sfreq, tmin=tmin, window=(-0.002, 0.008)),

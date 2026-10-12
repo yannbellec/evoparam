@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for evoparam.io.bids."""
 
-from evoparam.io.bids import *
+from evoparam.io.bids import read_bids_events, select_stimulation_events
 
 ###################################################################################################
 ###################################################################################################

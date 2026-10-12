@@ -102,7 +102,7 @@ def subtract_template(
     after = inds[-1] + 1 + np.arange(n_window)
     after = after[after < ts.n_times]
 
-    if isinstance(template, np.ndarray) or isinstance(template, (list, tuple)):
+    if isinstance(template, (np.ndarray, list, tuple)):
         user = np.asarray(template, dtype=float)
         if user.ndim == 1:
             user = np.broadcast_to(user, (n_channels, n_window))

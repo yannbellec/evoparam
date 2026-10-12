@@ -59,8 +59,8 @@ def test_req106_accuracy_at_high_snr():
 
     lat, amp = [], []
     for y, truth in _waveforms(40, seed=100, snr=(10, 15)):
-        _, _, _, l, a = match(model(shapes=("gaussian",)).fit_waveform(TIMES, y), truth)
-        lat += l
+        _, _, _, lat_err, a = match(model(shapes=("gaussian",)).fit_waveform(TIMES, y), truth)
+        lat += lat_err
         amp += a
     assert np.mean(np.abs(lat)) * 1000 <= 0.5  # samples at 1 kHz
     assert abs(np.median(amp) - 1) <= 0.05
@@ -284,9 +284,9 @@ def req106_errors(truth_shape, fitted, n=PER_CONDITION, **settings):
             span=(0.1, 0.5),
         )
         fit = _engine(shapes=shapes, **settings).fit_waveform(times, y)
-        _, b, _, l, a = match(fit, truth)
+        _, b, _, lat_err, a = match(fit, truth)
         missed += b
-        lat += [abs(v) * 1000 for v in l]  # samples at 1 kHz
+        lat += [abs(v) * 1000 for v in lat_err]  # samples at 1 kHz
         amp += a
     return np.array(lat), np.array(amp), missed
 

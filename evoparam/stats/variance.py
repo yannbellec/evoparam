@@ -91,8 +91,8 @@ def _codes(groups):
 class _Blocks:
     """The observations of each top-level unit with their random-effect design."""
 
-    def __init__(self, y, X, codes, se2):
-        self.n, self.p = X.shape
+    def __init__(self, y, xmat, codes, se2):
+        self.n, self.p = xmat.shape
         self.n_levels = len(codes)
         self.blocks = []
         top = codes[0]
@@ -106,13 +106,13 @@ class _Blocks:
                     columns.append(local == unit)
                     level_of.append(level)
                     unit_of.append(unit)
-            Z = np.column_stack(columns).astype(float)
+            zmat = np.column_stack(columns).astype(float)
             self.blocks.append(
                 {
                     "rows": rows,
                     "y": y[rows],
-                    "X": X[rows],
-                    "Z": Z,
+                    "X": xmat[rows],
+                    "Z": zmat,
                     "se2": se2[rows],
                     "level": np.array(level_of),
                     "unit": np.array(unit_of),
@@ -131,15 +131,15 @@ class _Blocks:
             lam = sds[blk["level"]]
             zl = blk["Z"] * lam
             dz = zl / d[:, None]
-            A = zl.T @ dz + np.eye(len(lam))
-            chol = cho_factor(A, lower=True)
+            amat = zl.T @ dz + np.eye(len(lam))
+            chol = cho_factor(amat, lower=True)
             logdet += np.sum(np.log(d)) + 2 * np.sum(np.log(np.diag(chol[0])))
-            X, y = blk["X"], blk["y"]
-            dx, dy = X / d[:, None], y / d
+            xmat, y = blk["X"], blk["y"]
+            dx, dy = xmat / d[:, None], y / d
             zdx, zdy = zl.T @ dx, zl.T @ dy
             ax, ay = cho_solve(chol, zdx), cho_solve(chol, zdy)
-            xvx += X.T @ dx - zdx.T @ ax
-            xvy += X.T @ dy - zdx.T @ ay
+            xvx += xmat.T @ dx - zdx.T @ ax
+            xvy += xmat.T @ dy - zdx.T @ ay
             yvy += y @ dy - zdy @ ay
             cache.append((d, lam, zl, chol))
         return xvx, xvy, yvy, logdet, cache
@@ -169,7 +169,7 @@ def _one_level_profile(y, code):
     s_i = np.bincount(code, weights=y, minlength=n_units)
     ybar = s_i / n_i
     within = np.sum((y - ybar[code]) ** 2)
-    N = len(y)
+    n_obs = len(y)
 
     def parts(gamma):
         w = n_i / (1 + gamma * n_i)  # 1' H_i^-1 1 for each unit
@@ -180,7 +180,7 @@ def _one_level_profile(y, code):
 
     def neg(gamma):
         _, quad, logdet, sw = parts(gamma)
-        return (N - 1) * np.log(quad / (N - 1)) + logdet + np.log(sw)
+        return (n_obs - 1) * np.log(quad / (n_obs - 1)) + logdet + np.log(sw)
 
     if within <= 0:
         raise DataError("variance_components: no variation within units.")
@@ -199,11 +199,11 @@ def _one_level_profile(y, code):
     if neg(0.0) <= value:
         gamma = 0.0
     _, quad, _, _ = parts(gamma)
-    sigma2 = quad / (N - 1)
+    sigma2 = quad / (n_obs - 1)
     return gamma * sigma2, sigma2
 
 
-def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
+def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):  # noqa: N803  (public keyword: the fixed-effect design X)
     """Fit the nested random-intercept model by REML (arrays in, dictionary out).
 
     Parameters
@@ -258,14 +258,14 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
         raise DataError("reml: se must be finite, one value per observation.")
     if se is None and not residual:
         raise SettingsError("reml: without se the residual variance must be estimated.")
-    X = np.ones((n, 1)) if X is None else np.asarray(X, float).reshape(n, -1)
-    p = X.shape[1]
+    xmat = np.ones((n, 1)) if X is None else np.asarray(X, float).reshape(n, -1)
+    p = xmat.shape[1]
     if n <= p:
         raise DataError(f"reml: {n} observations for {p} fixed effects.")
     codes, labels = _codes(groups)
     n_levels = len(codes)
-    blocks = _Blocks(y, X, codes, se2)
-    intercept_only = p == 1 and np.allclose(X, 1.0)
+    blocks = _Blocks(y, xmat, codes, se2)
+    intercept_only = p == 1 and np.allclose(xmat, 1.0)
 
     scale = float(np.std(y)) or 1.0
     n_iter, converged = 0, True
@@ -312,25 +312,25 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
         [np.zeros(len(lab)) for lab in labels] for _ in range(6)
     )
     for blk, (d, lam, zl, chol) in zip(blocks.blocks, cache, strict=False):
-        Xb, Zb = blk["X"], blk["Z"]
-        r = blk["y"] - Xb @ beta
+        xb, zb = blk["X"], blk["Z"]
+        r = blk["y"] - xb @ beta
         est = lam * cho_solve(chol, zl.T @ (r / d))
         # prediction errors (Henderson): Var(u - u_hat) = L A^-1 L + H C H' and
         # Cov(beta_hat - beta, u_hat - u) = -C H', with H = G Z' V^-1 X = L A^-1 L Z' D^-1 X
         cond = lam[:, None] * cho_solve(chol, np.eye(len(lam))) * lam[None, :]
-        H = lam[:, None] * cho_solve(chol, zl.T @ (Xb / d[:, None]))
-        M = cond + H @ beta_cov @ H.T
+        hmat = lam[:, None] * cho_solve(chol, zl.T @ (xb / d[:, None]))
+        mmat = cond + hmat @ beta_cov @ hmat.T
         # unit means: x_bar' beta + the effects on the path from the top level to the unit
-        counts = Zb.sum(axis=0)
-        xbar = (Zb.T @ Xb) / counts[:, None]
-        path = ((Zb.T @ Zb) > 0) & (blk["level"][None, :] <= blk["level"][:, None])
+        counts = zb.sum(axis=0)
+        xbar = (zb.T @ xb) / counts[:, None]
+        path = ((zb.T @ zb) > 0) & (blk["level"][None, :] <= blk["level"][:, None])
         path = path.astype(float)
         mean = xbar @ beta + path @ est
         xc = xbar @ beta_cov
         mean_var = (
             np.sum(xc * xbar, axis=1)
-            + np.sum((path @ M) * path, axis=1)
-            - 2 * np.sum((xc @ H.T) * path, axis=1)
+            + np.sum((path @ mmat) * path, axis=1)
+            - 2 * np.sum((xc @ hmat.T) * path, axis=1)
         )
         var_u = lam**2
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -339,7 +339,7 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
             sel = blk["level"] == level
             units = blk["unit"][sel]
             blup[level][units] = est[sel]
-            blup_se[level][units] = np.sqrt(np.clip(np.diag(M)[sel], 0, None))
+            blup_se[level][units] = np.sqrt(np.clip(np.diag(mmat)[sel], 0, None))
             unit_mean[level][units] = mean[sel]
             unit_mean_se[level][units] = np.sqrt(np.clip(mean_var[sel], 0, None))
             shrinkage[level][units] = np.clip(weight[sel], 0.0, 1.0)
@@ -458,7 +458,7 @@ def variance_components(table, *, value, groups, se=None, fixed=None, residual=T
         keep &= np.isfinite(pd.to_numeric(table[se], errors="coerce").to_numpy(float))
     data = table.loc[keep]
     design = pd.get_dummies(data[fixed], drop_first=True, dtype=float) if fixed else None
-    X = (
+    xmat = (
         np.ones((len(data), 1))
         if design is None
         else np.column_stack([np.ones(len(data)), design.to_numpy(float)])
@@ -468,7 +468,7 @@ def variance_components(table, *, value, groups, se=None, fixed=None, residual=T
         data[value].to_numpy(float),
         [data[g].to_numpy() for g in groups],
         se=None if se is None else data[se].to_numpy(float),
-        X=X,
+        X=xmat,
         residual=residual,
     )
     rows = [

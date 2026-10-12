@@ -14,11 +14,11 @@ import shutil
 import numpy as np
 import pytest
 
-pd = pytest.importorskip("pandas")
-
 from evoparam.io import harmonize_stim_events, read_bids
 
 from .helpers import make_bids
+
+pd = pytest.importorskip("pandas")
 
 
 def _table(text):

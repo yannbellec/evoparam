@@ -603,7 +603,7 @@ def methods_text(test):
     )
 
 
-class detectors:
+class detectors:  # noqa: N801  (public namespace evoparam.existence.detectors)
     """The registry rules as functions: ``detectors.vanblooijs2023(ts, baseline=(-1, -0.1))``."""
 
 

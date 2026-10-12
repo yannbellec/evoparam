@@ -33,7 +33,7 @@ def _ref_signed(v, polarity):
     return -v if polarity == "negative" else (abs(v) if polarity == "absolute" else v)
 
 
-def ref_local_peak(t, y, polarity, n):
+def ref_local_peak(_t, y, polarity, n):
     """Index of the largest sample that exceeds each of its n neighbours on both sides and
     the mean of the neighbours on each side; the simple extremum when none does."""
 

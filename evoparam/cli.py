@@ -248,7 +248,7 @@ def _target(args):
 
 
 def run_fit(ts, preset, *, random_state=None, n_jobs=1, existence=True, trials=None, log=None):
-    """Return the chain of ``evoparam fit``.
+    """Run the chain of ``evoparam fit``.
 
     :func:`evoparam.reports.run_pipeline` (artifact and reference of the preset, baseline, fit,
     existence test with the preset's method, trial fits when the preset says so).
@@ -965,7 +965,7 @@ def _read_config(path):
     return config
 
 
-def _apply_config(parser, args, argv):
+def _apply_config(_parser, args, argv):
     if not getattr(args, "config", None):
         return args
     config = _read_config(args.config)

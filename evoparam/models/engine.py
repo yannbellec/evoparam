@@ -586,7 +586,7 @@ class _Structure:
         beta, rw, _, q = self.solve(theta)
         return rw, ("svd", beta, q, rw)
 
-    def reduced_solution(self, theta, ctx):
+    def reduced_solution(self, _theta, ctx):
         """(beta, residual_w) of :meth:`solve` from the ``ctx`` of :meth:`reduced`."""
         if ctx[0] == "svd":
             return ctx[1], ctx[3]
@@ -816,7 +816,7 @@ def _smooth(values, sfreq, sigma_s):
     return np.convolve(padded, kernel, mode="valid")
 
 
-def candidates(tw, residual, valid, sigma, sfreq, settings):
+def candidates(_tw, residual, valid, sigma, sfreq, settings):
     """Extrema of the smoothed, standardised residual (edges included), strongest first."""
     r = np.where(valid, residual, 0.0)
     rs = _smooth(r, sfreq, settings.min_fwhm / FWHM_PER_SIGMA / 2) / sigma
@@ -1237,7 +1237,7 @@ def _fit_waveform_core(
     lo, hi = base_struct.bounds()
     best = None
     grids = (
-        [np.geomspace(max(l, 1e-6), h, 5) for l, h in zip(lo, hi, strict=False)]
+        [np.geomspace(max(low, 1e-6), h, 5) for low, h in zip(lo, hi, strict=False)]
         if base_struct.n_theta
         else [[]]
     )

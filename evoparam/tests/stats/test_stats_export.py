@@ -278,7 +278,7 @@ def test_req236_frozen_templates(case, expected):
     "package statsmodels (extra 'stats') is not installed",
 )
 @pytest.mark.parametrize(("case", "expected"), FORMULA_CASES)
-def test_req236_statsmodels_parses(case, expected):
+def test_req236_statsmodels_parses(case, expected):  # noqa: ARG001  (shared parametrization; this test checks parsing only)
 
     import statsmodels.formula.api as smf
 

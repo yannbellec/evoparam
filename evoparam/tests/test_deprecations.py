@@ -38,7 +38,7 @@ def _check_entry(old, new, since, remove_in):
             try:
                 shim()
             except TypeError:
-                warnings.warn(shim.__deprecated__, EvoparamDeprecationWarning)
+                warnings.warn(shim.__deprecated__, EvoparamDeprecationWarning, stacklevel=1)
     text = str(record[0].message)
     assert old in text
     assert new in text

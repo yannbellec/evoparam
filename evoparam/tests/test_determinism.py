@@ -29,7 +29,9 @@ def _trials():
 
 
 CHAIN = {
-    "simulate": lambda ts: sim.simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=4)[0],
+    "simulate": lambda _ts: sim.simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=4)[
+        0
+    ],
     "fit": lambda ts: evoparam.fit(ts, preset="ccep", random_state=0),
     "test_response": lambda ts: evoparam.test_response(
         ts, window=(0.009, 0.5), baseline=(-0.5, -0.05), by=(), random_state=0

@@ -112,6 +112,6 @@ print("identical:", result["identical"])
 # Methods paragraph
 # -----------------
 
-from evoparam import load_object, reports
+from evoparam import load_object, reports  # noqa: E402  (sphinx-gallery section)
 
 print(reports.methods_text(load_object(container)))

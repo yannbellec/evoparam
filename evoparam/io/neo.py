@@ -92,11 +92,11 @@ def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5
                 else next(e for e in seg.events if e.name == events)
             )
             times = np.asarray(event.times.rescale("s").magnitude, float)
-            labels = [str(l) for l in event.labels] if len(event.labels) else [""] * len(times)
+            labels = [str(lab) for lab in event.labels] if len(event.labels) else [""] * len(times)
         elif seg.epochs:
             epoch = seg.epochs[0]
             times = np.asarray(epoch.times.rescale("s").magnitude, float)
-            labels = [str(l) for l in epoch.labels] if len(epoch.labels) else [""] * len(times)
+            labels = [str(lab) for lab in epoch.labels] if len(epoch.labels) else [""] * len(times)
         else:
             raise DataError(f"Segment {run} has no Event or Epoch.")
         first = int(np.ceil(np.round(tmin * rate, 6)))

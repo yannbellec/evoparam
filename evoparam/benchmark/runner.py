@@ -123,7 +123,7 @@ def run_suite(
     from .leaderboard import write_leaderboard
     from .report import write_report
 
-    log = log or (lambda message: None)
+    log = log or (lambda _message: None)
     start = time.perf_counter()
     if not hasattr(suite, "cells"):
         suite = load_suite(suite, hidden_seeds=hidden_seeds)

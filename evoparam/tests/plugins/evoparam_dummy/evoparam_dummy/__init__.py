@@ -51,11 +51,11 @@ class Lorentzian:
         high = (times[-1] - times[0]) / 2.0 if self.max_fwhm is None else float(self.max_fwhm)
         return times, low, high
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         times, low, high = self._widths(times)
         return (np.array([times[0], low / 2.0]), np.array([times[-1], high / 2.0]))
 
-    def initial_guess(self, times, waveform, peak_index):
+    def initial_guess(self, times, waveform, peak_index):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         lower, upper = self.default_bounds(times)
         times = np.asarray(times, float)
         guess = np.array([times[int(peak_index)], 0.5 * (lower[1] + upper[1]) / 4.0])

@@ -30,13 +30,13 @@ class Triangle:
         d_half = np.where(inside, np.abs(times - centre) / half**2, 0.0)
         return np.stack([d_centre, d_half], axis=-1)
 
-    def default_bounds(self, times: Array, data_range: Any = None) -> tuple[Array, Array]:
+    def default_bounds(self, times: Array, data_range: Any = None) -> tuple[Array, Array]:  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return (np.array([times[0], 1e-3]), np.array([times[-1], 0.2]))
 
-    def initial_guess(self, times: Array, waveform: Array, peak_index: int) -> Array:
+    def initial_guess(self, times: Array, waveform: Array, peak_index: int) -> Array:  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return np.array([times[peak_index], 0.01])
 
-    def features(self, times: Array, params: Array, amplitude: float = 1.0) -> Any:
+    def features(self, times: Array, params: Array, amplitude: float = 1.0) -> Any:  # noqa: ARG002  (shape protocol: signature shared by every shape)
         return None
 
 

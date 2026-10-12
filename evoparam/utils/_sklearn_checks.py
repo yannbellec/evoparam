@@ -26,5 +26,5 @@ FORBIDDEN = (
 )
 
 
-def expected_failed_checks(estimator):
+def expected_failed_checks(estimator):  # noqa: ARG001  (scikit-learn API: callback signature)
     return dict(EXPECTED)

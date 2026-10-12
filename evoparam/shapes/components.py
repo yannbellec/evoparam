@@ -243,7 +243,7 @@ class Gaussian(_WidthShape):
 
     extremum = latency
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Lower and upper bounds of the parameters for a window."""
         start, end, _, _, low, high = self._window(times)
         sigma_max = high / FWHM_PER_SIGMA
@@ -426,7 +426,7 @@ class SkewedGaussian(_WidthShape):
 
     extremum = latency
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Lower and upper bounds of the parameters for a window."""
         start, end, _, _, low, high = self._window(times)
         sigma_max = high / FWHM_PER_SIGMA
@@ -519,7 +519,7 @@ class ExGaussian(_WidthShape):
 
     extremum = latency
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Lower and upper bounds of the parameters for a window."""
         start, end, _, sfreq, low, high = self._window(times)
         sigma_max = high / FWHM_PER_SIGMA
@@ -609,7 +609,7 @@ class Gamma(_WidthShape):
 
     extremum = latency
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Lower and upper bounds of the parameters for a window."""
         start, end, _, _, low, high = self._window(times)
         theta_low = low / gamma_fwhm_factor(self.kappa_max)
@@ -701,7 +701,7 @@ class Biexponential(_WidthShape):
 
     extremum = latency
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Lower and upper bounds of the parameters for a window."""
         start, end, length, sfreq, _, high = self._window(times)
         return check_bounds(
@@ -803,7 +803,7 @@ class DampedOscillation(_OscillationShape):
         delay, _ = damped_peak(params[..., 1], params[..., 2], params[..., 3])
         return params[..., 0] + delay
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Lower and upper bounds of the parameters for a window."""
         start, end, length, sfreq, _, high = self._window(times)
         f_low, f_high = self._freqs(length, sfreq)
@@ -927,7 +927,7 @@ class Gabor(_OscillationShape):
         offset, _ = gabor_peak(params[..., 1], params[..., 2], params[..., 3])
         return params[..., 0] + offset
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Lower and upper bounds of the parameters for a window."""
         start, end, length, sfreq, low, high = self._window(times)
         f_low, f_high = self._freqs(length, sfreq)
@@ -1055,7 +1055,7 @@ class Template(ShapeBase):
 
     extremum = latency
 
-    def default_bounds(self, times, data_range=None):
+    def default_bounds(self, times, data_range=None):  # noqa: ARG002  (shape protocol: signature shared by every shape)
         """Lower and upper bounds of the parameters for a window."""
         _, _, length, _ = window_info(times)
         max_shift = length / 4.0 if self.max_shift is None else float(self.max_shift)

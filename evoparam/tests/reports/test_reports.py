@@ -120,7 +120,7 @@ def test_req343_html_size_for_100_channels(tmp_path):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = fit(ts, "ccep", n_jobs=2)
-    path = reports.html(group, tmp_path / "big.html", data=ts, max_channels=100)
+    reports.html(group, tmp_path / "big.html", data=ts, max_channels=100)
     assert (tmp_path / "big.html").stat().st_size <= 20e6
 
 

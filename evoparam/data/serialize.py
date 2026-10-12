@@ -359,7 +359,7 @@ def save_object(obj, path, overwrite=False, table_format="auto"):
 ## Decoding
 
 
-def _read_table(folder, key, n_hint=None):
+def _read_table(folder, key, _n_hint=None):
     import pandas as pd
 
     with open(os.path.join(folder, f"{key}.json"), encoding="utf-8") as fobj:
