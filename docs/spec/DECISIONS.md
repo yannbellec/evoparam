@@ -248,6 +248,12 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   0.99 → 0.91, 0.40 false components per waveform), which a constant background cannot
   follow, and for opposite components 0.3-0.5 FWHM apart; better with latency jitter and
   three components.
+- **Strided whitening** (engine, not the preset). The ICA variant is low-passed at 100 Hz
+  (1 000 Hz data), so its noise is strided (k = 3 on 19 of 20 fits): with 1.0 this lowers
+  the subjects with both labels from 8 to 5 (all channels), with 1.1 it raises them from 6
+  to 8. Without it the whitening gain is about 2e5 and the fits fill up to
+  `max_components`. The filter cannot be told from the low-passed data on which the stride
+  was validated, so the engine rule is kept and 1.1 was chosen with it (`CHANGELOG.md`).
 
 ## 4. Readings needed to apply the spec
 

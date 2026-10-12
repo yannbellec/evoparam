@@ -9,7 +9,8 @@ REQ-275 asks for labelled N45 and N100 on the channel of maximal response for 80
 whitening) the counts were lower than the ones recorded above: N45 / N100 / both, out of 20,
 preset chain on the 17 inner channels 9 / 12 / 8, with ICA on all 30 channels (the
 criterion) 7 / 11 / 5, with ICA on the 17 inner channels 7 / 14 / 5, preset chain on all
-channels 5 / 7 / 3.
+channels 5 / 7 / 3. The share of the strided whitening in this is measured below ("Strided
+whitening on variant B").
 
 Method. Changes were chosen on 8 development subjects: sub-283 (already used for variant A
 in S15) and 7 drawn with `numpy.random.default_rng(275)` from the 19 others (sub-739, 749,
@@ -130,6 +131,61 @@ Not adopted:
 - **Another channel rule** (GMFP, the channel under the coil, the inner channels for
   variant B): the spec names the channel of maximal response; the readings are reported,
   not substituted.
+
+Strided whitening on variant B (measured; the engine is not changed). The merge of the
+strided whitening (e552ba7, entry "Engine: noise that does not fill its band" below) acts on
+variant B only:
+
+- **Strides.** Variant A never strides (0 of 20 fits on each reading, preset 1.0 and 1.1:
+  the level ratio of the baseline, above 1/k of the Nyquist frequency over the octave
+  below, is never under -1.3 decades). Variant B strides on 20 of 20 fits on both readings
+  with both presets: all 30 channels k = 3 on 19 fits (phase 2 on 10, 1 on 7, 0 on 2) and
+  k = 2 on 1; inner channels k = 3 on 18 (phase 1 on 8, 2 on 6, 0 on 4) and k = 2 on 2.
+  So the fit is judged at 333 Hz with `min_fwhm` raised from 4 to 6 ms (19 and 18 fits), or
+  at 500 Hz with no raise; never k = 4. Over the 600 channel baselines of variant B the
+  ratio is -3.20 decades at k = 4 (median; never under -4), -4.35 at k = 3 (541 under -4)
+  and -5.80 at k = 2 (600 under -4): the 1-100 Hz order-4 non-causal band-pass of the
+  ICA cleaning empties the band above 167 Hz.
+- **Attribution.** Commit 7044dc1 (main before the strided whitening) with preset 1.0 gives
+  the same 80 fits as 3b222bb with the stride disabled (`EMPTY_BAND = 0`, set in the
+  evaluation script only): same channels, labels, latencies and amplitudes. The shortfall of
+  variant A against S15 (inner channels 11 / 13 / 9 then, 9 / 12 / 8 now) is already there
+  at 7044dc1 and is not due to the strided whitening. On variant B, N45 / N100 / both,
+  development / held-out / total:
+
+| Reading | 1.0 without stride (= 7044dc1) | 1.0 with stride (3b222bb) | 1.1 without stride | 1.1 with stride (kept) |
+|---|---|---|---|---|
+| B, all 30 channels | 4/7/4 · 4/8/4 · 8/15/8 | 3/7/3 · 4/4/2 · 7/11/5 | 5/7/5 · 3/6/1 · 8/13/6 | 6/7/6 · 4/4/2 · 10/11/8 |
+| B, 17 inner channels | 5/8/5 · 2/10/1 · 7/18/6 | 3/7/3 · 4/7/2 · 7/14/5 | 4/8/4 · 5/9/5 · 9/17/9 | 6/7/6 · 6/10/6 · 12/17/12 |
+
+  Variant A is the same with and without the stride (1.0: 9/12/8 and 5/7/3; 1.1: 9/15/8
+  and 6/9/4). The stride lowers preset 1.0 on variant B (both labels 8 → 5 and 6 → 5) and
+  raises preset 1.1 (6 → 8 and 9 → 12).
+- **Why the stride stays.** At 1 000 Hz the AR whitening of the variant-B baselines has a
+  largest power gain of 232 655 (median of 600; 2 655 to 266 418), against 583 at the stride
+  (7 on variant A; 1 956 on the upsampled ds004080 run the stride was made for). Without the
+  stride the fits fill up: preset 1.0 reaches `max_components` = 8 on 19 of 20 fits (all
+  channels) and 18 of 20 (inner), 157 and 156 components of which 50 and 57 are not
+  resolvable, against 1 and 1 fits at 8 with the stride (83 and 94 components, 29 and 30 not
+  resolvable); preset 1.1 on 14 and 13 fits (148 and 145 components) against 1 and 3 (96 and
+  103). The extra labels of 1.0 without the stride come from these saturated fits. The
+  `min_fwhm` raise is not the cause: preset 1.0 with the stride and no raise gives 7 / 11 /
+  5 (all channels) and 6 / 13 / 4 (inner), and no fit has a component of 6 ms or narrower
+  with or without the raise.
+- **No engine rule to tell this filter from upsampling.** Variant B is low-passed at 0.2 of
+  its Nyquist frequency by an order-4 non-causal Butterworth: the case of the ERP CORE data
+  (30 Hz at 256 Hz, 0.23) that the strided-whitening entry measured as a gain. The shape of
+  the gap does not separate them either. The slope below the edge (median level of the
+  upper half of the octave under 1/k of the Nyquist frequency over its lower half, at the
+  chosen k) is -2.28 decades on the variant-B baselines (median; -3.66 to -1.58), -3.54 to
+  -1.04 on the 230 strided baselines of the low-passed simulations of that entry, and -1.20
+  to -0.01 on the upsampled run (interpolation leaves the octave below flat). A rule that
+  strides only when this slope is above -1.4 would keep the upsampled run strided (100 of
+  100 channels) and variant B at the full rate, but would also take the stride from 222 of
+  the 230 low-passed simulation baselines, whose fits it improved (ERP at 256 Hz, 30 Hz:
+  precision 0.366 → 0.811). The engine is not changed.
+- **Choice of 1.1.** The development table above was measured with the stride (the engine
+  at 3b222bb), so the choice stands; so do the layer-2 costs, measured with the same engine.
 
 Changed files: `evoparam/presets/tep.json` (version 1.1, background `constant`, `fit_extras`
 `reject_cancelling`, notes and validation text), `docs/presets.md` (regenerated,

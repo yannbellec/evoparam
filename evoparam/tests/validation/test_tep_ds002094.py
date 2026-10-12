@@ -411,6 +411,9 @@ def test_req275_methods_text_names_the_sensory_confound():
 #   A, all 30 channels:    5 /  7 / 3               4/4/2 + 2/5/2 = 6 / 9 / 4
 #   B, all 30 channels:    7 / 11 / 5               6/7/6 + 4/4/2 = 10 / 11 / 8  <- criterion
 #   B, 17 inner channels:  7 / 14 / 5               6/7/6 + 6/10/6 = 12 / 17 / 12
+# Variant A never strides the noise; variant B always does (k = 3, or 2; the 100 Hz low-pass).
+# Without the stride (= commit 7044dc1 for 1.0): B all 8 / 15 / 8 (1.0) and 8 / 13 / 6 (1.1),
+# B inner 7 / 18 / 6 and 9 / 17 / 9, from fits that reach max_components (CHANGELOG).
 needs_data = [pytest.mark.network,
               pytest.mark.skipif(not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read "
                                  "OpenNeuro")]
@@ -444,7 +447,8 @@ def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results):
                    "preset chain 9 / 15 / 8 (floor 11 / 15 / 9; N100 met); with ICA on all 30 "
                    "channels 10 / 11 / 8 and on the 17 inner channels 12 / 17 / 12 (floors "
                    "raised to these levels) are met. Preset tep 1.0 at 3b222bb: 9 / 12 / 8, "
-                   "7 / 11 / 5, 7 / 14 / 5 (CHANGELOG).")
+                   "7 / 11 / 5, 7 / 14 / 5; the preset chain gives 9 / 12 / 8 at 7044dc1 too, "
+                   "before the strided whitening (CHANGELOG).")
 def test_req275_level_reached_with_the_preset_chain(results):
     """Floor of the level reached (the counts measured in S15, raised where preset tep 1.1
     reached more): a regression guard, not the criterion of REQ-275."""
