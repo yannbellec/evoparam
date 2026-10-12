@@ -21,8 +21,10 @@ def test_from_array_shapes():
 
     rng = np.random.default_rng(0)
     one = from_array(rng.normal(size=(3, 50)), 100.0)
-    assert one.data.shape == (1, 3, 50) and one.ch_names == ["CH001", "CH002", "CH003"]
-    assert np.allclose(one.times, np.arange(50) / 100.0) and one.units == "uV"
+    assert one.data.shape == (1, 3, 50)
+    assert one.ch_names == ["CH001", "CH002", "CH003"]
+    assert np.allclose(one.times, np.arange(50) / 100.0)
+    assert one.units == "uV"
     one.validate()
 
     data = rng.normal(size=(4, 2, 30)).astype(np.float32)
@@ -35,8 +37,11 @@ def test_from_array_shapes():
         species="mouse",
         modality="lfp_ep",
     )
-    assert trials.data.dtype == np.float64 and np.allclose(trials.data, data)
-    assert trials.times[10] == 0.0 and trials.units == "mV" and trials.species == "mouse"
+    assert trials.data.dtype == np.float64
+    assert np.allclose(trials.data, data)
+    assert trials.times[10] == 0.0
+    assert trials.units == "mV"
+    assert trials.species == "mouse"
     assert trials.provenance.source["reader"] == "evoparam.io.from_array"
     assert trials.provenance.steps[-1]["function"] == "evoparam.io.from_array"
     assert trials.provenance.data_hash is not None
@@ -97,21 +102,25 @@ def test_read_dispatch(tmp_path):
     continuous = np.arange(3)[:, None] * 1000.0 + np.arange(2000)[None, :]
     vhdr = write_brainvision(tmp_path, "rec", continuous, 100.0, ["C1", "C2", "C3"])
     whole = read(vhdr)
-    assert whole.data.shape == (1, 3, 2000) and whole.times[0] == 0.0
+    assert whole.data.shape == (1, 3, 2000)
+    assert whole.times[0] == 0.0
     assert whole.provenance.source["sha256"] is not None
     part = read(vhdr, tmin=2.0, tmax=3.0, picks=["C2"])
-    assert part.data.shape == (1, 1, 100) and part.times[0] == 2.0
+    assert part.data.shape == (1, 1, 100)
+    assert part.times[0] == 2.0
     assert np.array_equal(part.data[0, 0], continuous[1, 200:300])
 
     epochs = read(vhdr, onsets=[1.0, 5.0, 19.9], epoch=(-0.1, 0.2))
-    assert epochs.n_trials == 2 and epochs.provenance.steps[-1]["kept"] == [True, True, False]
+    assert epochs.n_trials == 2
+    assert epochs.provenance.steps[-1]["kept"] == [True, True, False]
     assert np.array_equal(epochs.data[1, 0], continuous[0, 490:520])
 
     # Saved container
     path = str(tmp_path / "trials.evoparam")
     trials.save(path)
     loaded = read(path)
-    assert isinstance(loaded, TrialSet) and np.array_equal(loaded.data, data)
+    assert isinstance(loaded, TrialSet)
+    assert np.array_equal(loaded.data, data)
 
     with pytest.raises(ReaderError, match="format"):
         read(str(tmp_path / "unknown.xyz"))
@@ -149,7 +158,7 @@ def test_light_core_in_a_subprocess():
         print("ok")
     """)
     result = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True, timeout=300
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=300, check=False
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip().endswith("ok")

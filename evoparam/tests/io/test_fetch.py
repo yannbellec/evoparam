@@ -82,7 +82,8 @@ def test_spurious_s3_not_found_is_retried(monkeypatch):
             raise answer
         return answer
 
-    assert fetch_module._with_retries("u", once) == b"data" and delays == [0.5]
+    assert fetch_module._with_retries("u", once) == b"data"
+    assert delays == [0.5]
     # A missing key is not retried
     missing = b'<?xml version="1.0"?><Error><Code>NoSuchKey</Code></Error>'
 

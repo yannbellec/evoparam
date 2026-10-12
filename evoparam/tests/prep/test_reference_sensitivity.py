@@ -58,7 +58,7 @@ def test_req084_three_schemes_under_two_minutes():
     assert table.attrs["detector"] == "existence_detector"
     assert table.attrs["duration_s"] < 120
     assert len(table) == 3
-    assert set(zip(table["scheme_a"], table["scheme_b"])) == {
+    assert set(zip(table["scheme_a"], table["scheme_b"], strict=False)) == {
         ("bipolar", "car"),
         ("bipolar", "car_adaptive"),
         ("car", "car_adaptive"),
@@ -73,7 +73,8 @@ def test_existence_detector_finds_responses():
 
     detected, latency, groups = existence_detector(_epochs())
     assert groups == ["PT01-PT02"]
-    assert detected.any() and not detected.all()
+    assert detected.any()
+    assert not detected.all()
     assert np.all((latency[detected] >= 0.009) & (latency[detected] <= 0.5))
     assert np.all(np.isnan(latency[~detected]))
 

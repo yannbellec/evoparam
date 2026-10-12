@@ -17,7 +17,9 @@ def _dense(y, Z_list, variances, residual, se2, X):
     """Independent dense computation: V, beta, BLUPs and prediction-error variances."""
 
     n = len(y)
-    G = np.diag(np.concatenate([np.full(Z.shape[1], v) for Z, v in zip(Z_list, variances)]))
+    G = np.diag(
+        np.concatenate([np.full(Z.shape[1], v) for Z, v in zip(Z_list, variances, strict=False)])
+    )
     Z = np.hstack(Z_list)
     V = Z @ G @ Z.T + np.diag(residual + se2)
     Vi = np.linalg.inv(V)
@@ -85,7 +87,8 @@ def test_nested_levels_and_known_sampling_variances():
     out = reml(y, [subject, channel], se=se, residual=False)
     assert np.sqrt(out["variances"][0]) == pytest.approx(2.0, rel=0.2)
     assert np.sqrt(out["variances"][1]) == pytest.approx(1.0, rel=0.2)
-    assert out["residual"] == 0.0 and out["converged"]
+    assert out["residual"] == 0.0
+    assert out["converged"]
     assert len(out["labels"][1]) == n_sub * n_ch
     Z = [_indicators(subject), _indicators(subject * 1000 + channel)]
     beta, blup, pev, loglik = _dense(y, Z, out["variances"], 0.0, se**2, np.ones((y.size, 1)))
@@ -100,7 +103,7 @@ def test_table_interface_with_fixed_effects():
     rng = np.random.default_rng(2)
     subject = np.repeat([f"s{i}" for i in range(30)], 20)
     condition = np.tile(["a", "b"], 300)
-    level = dict(zip(np.unique(subject), 3 * rng.normal(size=30)))
+    level = dict(zip(np.unique(subject), 3 * rng.normal(size=30), strict=False))
     y = (
         np.array([level[s] for s in subject])
         + np.where(condition == "b", 2.0, 0.0)
@@ -115,7 +118,8 @@ def test_table_interface_with_fixed_effects():
     b = vc.fixed.set_index("term").loc["condition_b"]
     assert b["estimate"] == pytest.approx(2.0, abs=3 * b["se"])
     effects = vc.random_effects["subject"]
-    assert len(effects) == 30 and (effects["se"] > 0).all()
+    assert len(effects) == 30
+    assert (effects["se"] > 0).all()
     assert list(effects.columns) == [
         "subject",
         "n_obs",
@@ -125,7 +129,8 @@ def test_table_interface_with_fixed_effects():
         "shrunken_se",
         "shrinkage",
     ]
-    assert effects["n_obs"].sum() == 599 and effects["shrinkage"].between(0, 1).all()
+    assert effects["n_obs"].sum() == 599
+    assert effects["shrinkage"].between(0, 1).all()
     assert vc.settings["n_excluded"] == 1
     assert vc.provenance.steps[-1]["function"] == "evoparam.stats.variance_components"
     with pytest.raises(KeyError):
@@ -170,7 +175,8 @@ def test_shrunken_unit_estimates_match_henderson_equations():
         + se * rng.normal(size=pair.size)
     )
     out = reml(y, [subject, channel], se=se, X=X)
-    assert all(v > 0 for v in out["variances"]) and out["residual"] > 0
+    assert all(v > 0 for v in out["variances"])
+    assert out["residual"] > 0
 
     Zs, Zc = _indicators(subject), _indicators(pair)
     Z = np.hstack([Zs, Zc])

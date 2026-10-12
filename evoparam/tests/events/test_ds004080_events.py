@@ -139,7 +139,7 @@ def _site_agreement(results):
     agree, confident = [], []
     for _, _, events, onsets, sites in results:
         times = events["onset_time"].to_numpy()
-        for onset, site in zip(onsets, sites):
+        for onset, site in zip(onsets, sites, strict=False):
             k = int(np.argmin(np.abs(times - onset)))
             if abs(times[k] - onset) > 0.01:
                 continue

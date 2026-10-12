@@ -754,7 +754,9 @@ class DampedOscillation(_OscillationShape):
             -sign * e_peak * np.sin(peak_angle) * _TWO_PI * delay,
             -sign * e_peak * np.sin(peak_angle),
         ]
-        return _stack([d / peak - raw * dp / peak**2 for d, dp in zip(d_raw, d_peak)])
+        return _stack(
+            [d / peak - raw * dp / peak**2 for d, dp in zip(d_raw, d_peak, strict=False)]
+        )
 
     def latency(self, params):
         return self._params(params)[..., 0]
@@ -869,7 +871,9 @@ class Gabor(_OscillationShape):
             -sign * e_peak * np.sin(peak_angle) * _TWO_PI * offset,
             -sign * e_peak * np.sin(peak_angle),
         ]
-        return _stack([d / peak - raw * dp / peak**2 for d, dp in zip(d_raw, d_peak)])
+        return _stack(
+            [d / peak - raw * dp / peak**2 for d, dp in zip(d_raw, d_peak, strict=False)]
+        )
 
     def latency(self, params):
         return self._params(params)[..., 0]

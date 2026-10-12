@@ -144,7 +144,7 @@ def select_stimulation_events(
     columns = set(events.columns)
     rows = [
         index
-        for index, row in zip(events.index, events.to_dict("records"))
+        for index, row in zip(events.index, events.to_dict("records"), strict=False)
         if keep(lambda key, row=row: row.get(key) if key in columns else None)
     ]
     return events.loc[rows]
@@ -392,7 +392,9 @@ def _add_coordinates(tree, folder, entities, table):
         return table
     lookup = {
         str(name): row
-        for name, row in zip(electrodes["name"], electrodes[["x", "y", "z"]].to_numpy(float))
+        for name, row in zip(
+            electrodes["name"], electrodes[["x", "y", "z"]].to_numpy(float), strict=False
+        )
     }
     coords = np.array([lookup.get(name, (np.nan,) * 3) for name in table["name"]], dtype=float)
     for axis, column in enumerate("xyz"):
@@ -685,19 +687,19 @@ def _run_result(
         "harmonization": report.to_dict(),
         "ElectricalStimulation": recording.get("ElectricalStimulation"),
     }
-    return dict(
-        data=data,
-        times=times,
-        sfreq=sfreq,
-        ch_names=ch_names,
-        metadata=metadata,
-        ch_info=ch_info,
-        event_times=onsets[kept],
-        source=source,
-        info=info,
-        masks=masks,
-        stimulation=bool(datatype == "ieeg" and (metadata["stim_site"] != "n/a").any()),
-    )
+    return {
+        "data": data,
+        "times": times,
+        "sfreq": sfreq,
+        "ch_names": ch_names,
+        "metadata": metadata,
+        "ch_info": ch_info,
+        "event_times": onsets[kept],
+        "source": source,
+        "info": info,
+        "masks": masks,
+        "stimulation": bool(datatype == "ieeg" and (metadata["stim_site"] != "n/a").any()),
+    }
 
 
 def _read_mef_run(
@@ -796,18 +798,18 @@ def _read_edf_run(
     metadata = _metadata(harmonized[kept], entities, overlaps, pd)
     source = {"path": path, "format": "edf", "sha256": sha256_file(path), "events": events_source}
     info = {"kept": kept.tolist(), "harmonization": report.to_dict()}
-    return dict(
-        data=trials,
-        times=times,
-        sfreq=sfreq,
-        ch_names=names,
-        metadata=metadata,
-        ch_info=None,
-        event_times=onsets[kept],
-        source=source,
-        info=info,
-        stimulation=bool((metadata["stim_site"] != "n/a").any()),
-    )
+    return {
+        "data": trials,
+        "times": times,
+        "sfreq": sfreq,
+        "ch_names": names,
+        "metadata": metadata,
+        "ch_info": None,
+        "event_times": onsets[kept],
+        "source": source,
+        "info": info,
+        "stimulation": bool((metadata["stim_site"] != "n/a").any()),
+    }
 
 
 def _dataset_record(root, base, tree):

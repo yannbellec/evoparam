@@ -68,7 +68,9 @@ def _layout(template, mode, movable=None):
 
 def _bounds(template, mode, layout):
     lo, hi = [], []
-    for k, (shape, params, free) in enumerate(zip(template.shapes, template.params, layout)):
+    for k, (shape, params, free) in enumerate(
+        zip(template.shapes, template.params, layout, strict=False)
+    ):
         s_lo, s_hi = shape.default_bounds(template.tw)
         for i in free:
             if i == template.loc_index[k]:
@@ -86,7 +88,7 @@ def _bounds(template, mode, layout):
 
 def _unpack(template, layout, z):
     out, pos = [], 0
-    for params, free in zip(template.params, layout):
+    for params, free in zip(template.params, layout, strict=False):
         p = np.array(params, float)
         for i in free:
             p[i] = z[pos]
@@ -242,13 +244,17 @@ def fit_trials_multi(problems, max_iter=100, max_rows=1024):
         for i in idx:
             n_i = len(np.atleast_2d(problems[i]["data"]))
             if group and rows + n_i > max_rows:
-                for j, res in zip(group, _solve_multi([problems[j] for j in group], max_iter)):
+                for j, res in zip(
+                    group, _solve_multi([problems[j] for j in group], max_iter), strict=False
+                ):
                     out[j] = res
                 group, rows = [], 0
             group.append(i)
             rows += n_i
         if group:
-            for j, res in zip(group, _solve_multi([problems[j] for j in group], max_iter)):
+            for j, res in zip(
+                group, _solve_multi([problems[j] for j in group], max_iter), strict=False
+            ):
                 out[j] = res
     return out
 
@@ -574,7 +580,11 @@ def _solve_multi(problems, max_iter):
                 pk[:, free[0]] = z[rows, moving_k.index(k)]
             params_k.append(pk)
         shifts = np.stack(
-            [pk[:, li] - c[li] for pk, c, li in zip(params_k, tpl.params, tpl.loc_index)], axis=1
+            [
+                pk[:, li] - c[li]
+                for pk, c, li in zip(params_k, tpl.params, tpl.loc_index, strict=False)
+            ],
+            axis=1,
         )
         results.append(
             [
@@ -606,7 +616,9 @@ def fit_trial(
     """
     layout = _layout(template, mode, movable)
     lo, hi = _bounds(template, mode, layout)
-    z0 = np.concatenate([[p[i] for i in free] for p, free in zip(template.params, layout)])
+    z0 = np.concatenate(
+        [[p[i] for i in free] for p, free in zip(template.params, layout, strict=False)]
+    )
     z0 = np.clip(z0, lo, hi)
     basis = template.basis()
     valid = np.ones(len(x), bool) if valid is None else valid
@@ -616,7 +628,7 @@ def fit_trial(
 
     def design(z):
         params = _unpack(template, layout, z)
-        cols = [s.evaluate(template.tw, p) for s, p in zip(template.shapes, params)]
+        cols = [s.evaluate(template.tw, p) for s, p in zip(template.shapes, params, strict=False)]
         return np.column_stack(cols + list(basis)), params
 
     def solve(z):
@@ -636,7 +648,7 @@ def fit_trial(
         beta, m, params = solve(z)
         cols = []
         pos = 0
-        for k, (shape, p, free) in enumerate(zip(template.shapes, params, layout)):
+        for k, (shape, p, free) in enumerate(zip(template.shapes, params, layout, strict=False)):
             jk = shape.jacobian(template.tw, p)
             for i in free:
                 cols.append(-beta[k] * jk[:, i] * w)
@@ -678,7 +690,7 @@ def fit_trial(
     owner = np.array([k for k, free in enumerate(layout) for _ in free], dtype=int)
     at_bound_k = np.array([bool(np.any(hit[owner == k])) for k in range(len(layout))])
     shifts = np.array(
-        [p[i] - c[i] for p, c, i in zip(params, template.params, template.loc_index)]
+        [p[i] - c[i] for p, c, i in zip(params, template.params, template.loc_index, strict=False)]
     )
     return {
         "params": params,

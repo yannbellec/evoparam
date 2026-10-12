@@ -59,7 +59,8 @@ def test_utrecht_columns():
 
     # Every stimulation row has site, current and pulse width (REQ-022)
     assert (stim["stim_site"] != "n/a").all()
-    assert stim["stim_current_mA"].notna().all() and stim["stim_pulse_width_us"].notna().all()
+    assert stim["stim_current_mA"].notna().all()
+    assert stim["stim_pulse_width_us"].notna().all()
     assert list(stim["stim_current_mA"]) == pytest.approx([8.0, 8.0, 4.0])
     assert list(stim["stim_pulse_width_us"]) == pytest.approx([1000.0] * 3)
     assert list(stim["stim_frequency_hz"]) == pytest.approx([0.2] * 3)
@@ -80,13 +81,17 @@ def test_utrecht_columns():
     assert list(stim["evoparam_stim_type_raw"]) == ["monophasic"] * 3
 
     # Artefact row: missing values, condition copied from trial_type, originals kept
-    assert out.loc[0, "stim_site"] == "n/a" and np.isnan(out.loc[0, "stim_current_mA"])
+    assert out.loc[0, "stim_site"] == "n/a"
+    assert np.isnan(out.loc[0, "stim_current_mA"])
     assert list(out["condition"]) == list(out["trial_type"])
-    assert "electrical_stimulation_site" in out.columns and "notes" in out.columns
+    assert "electrical_stimulation_site" in out.columns
+    assert "notes" in out.columns
     assert report.mapping["stim_site"] == "electrical_stimulation_site"
-    assert report.mapping["stim_n_pulses"] is None and "stim_n_pulses" in report.missing
+    assert report.mapping["stim_n_pulses"] is None
+    assert "stim_n_pulses" in report.missing
     assert out.attrs["units"]["stim_current_mA"] == "mA"
-    assert isinstance(report, HarmonizationReport) and report.n_rows == 4
+    assert isinstance(report, HarmonizationReport)
+    assert report.n_rows == 4
 
 
 def test_sidecar_units_and_unit_strings():
@@ -111,7 +116,8 @@ def test_sidecar_units_and_unit_strings():
     assert np.allclose(
         out["stim_frequency_hz"], [0.2, np.nan, 1.0, 1000.0, np.nan], equal_nan=True
     )
-    assert out["stim_n_pulses"].tolist()[:2] == [1, 1] and out["stim_n_pulses"].isna()[2]
+    assert out["stim_n_pulses"].tolist()[:2] == [1, 1]
+    assert out["stim_n_pulses"].isna()[2]
     assert report.units["stim_current_mA"] == "inline"
     assert not any(line.startswith("unit_inferred: stim_current") for line in report.warnings)
 
@@ -259,11 +265,14 @@ def test_validator_reports_missing_fields():
         "stim_frequency_hz",
         "stim_n_pulses",
     ]
-    assert report.n_rows == 2 and report.n_sites == 0 and not report.complete
+    assert report.n_rows == 2
+    assert report.n_sites == 0
+    assert not report.complete
 
     # Utrecht shape: the artefact row is not checked; polarity and pulse count are missing
     report = validate_stimulation_events(UTRECHT)
-    assert report.n_rows == 3 and report.sites == ["PT01-PT02", "PT03-PT02"]
+    assert report.n_rows == 3
+    assert report.sites == ["PT01-PT02", "PT03-PT02"]
     assert report.missing == ["stim_polarity", "stim_n_pulses"]
     assert any(line.startswith("unit_inferred") for line in report.warnings)
 

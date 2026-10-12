@@ -97,16 +97,20 @@ def test_req235_long_table():
     assert all(entry["Description"] and entry["Units"] for entry in sidecar.values())
     json.loads(json.dumps(sidecar))
     assert set(sidecar["status"]["Levels"]) == {"ok", "no_response", "failed", "skipped"}
-    units = dict(zip(long["parameter"], long["unit"]))
-    assert units["latency"] == "s" and units["amplitude"] == "uV" and units["area"] == "uV·s"
+    units = dict(zip(long["parameter"], long["unit"], strict=False))
+    assert units["latency"] == "s"
+    assert units["amplitude"] == "uV"
+    assert units["area"] == "uV·s"
     ok = long[(long["status"] == "ok") & (long["parameter"] == "latency")]
     assert (ok["se"] > 0).all()
     assert np.allclose(ok["weight"], 1 / ok["se"] ** 2)
     # channels without a component keep their rows, with their status, and no value
     for channel, status in (("X1", "failed"), ("X2", "skipped")):
         rows = long[long["channel"] == channel]
-        assert len(rows) == 10 and set(rows["status"]) == {status}
-        assert rows["value"].isna().all() and set(rows["component"]) == {-1}
+        assert len(rows) == 10
+        assert set(rows["status"]) == {status}
+        assert rows["value"].isna().all()
+        assert set(rows["component"]) == {-1}
     n_comp = sum(max(len(f.components), 1) for f in group.fits)
     assert len(long) == 10 * n_comp
     assert long.attrs["provenance"]["steps"][-1]["function"] == "evoparam.stats.to_long"
@@ -172,7 +176,8 @@ def test_req235_wide_table_and_other_results():
         diagnostics={},
     )
     long = to_long(hier)
-    assert long["value"].tolist() == [0.1, 0.11] and long["unit"].tolist() == ["s", "s"]
+    assert long["value"].tolist() == [0.1, 0.11]
+    assert long["unit"].tolist() == ["s", "s"]
     assert np.allclose(long["weight"], [1 / 0.002**2, 1 / 0.004**2])
     with pytest.raises(DataError):
         to_long(42)
@@ -257,7 +262,7 @@ def _formula_table():
     )
 
 
-@pytest.mark.parametrize("case, expected", FORMULA_CASES)
+@pytest.mark.parametrize(("case", "expected"), FORMULA_CASES)
 def test_req236_frozen_templates(case, expected):
 
     table = _formula_table()
@@ -272,7 +277,7 @@ def test_req236_frozen_templates(case, expected):
     reason="REQ-236 statsmodels part: the optional "
     "package statsmodels (extra 'stats') is not installed",
 )
-@pytest.mark.parametrize("case, expected", FORMULA_CASES)
+@pytest.mark.parametrize(("case", "expected"), FORMULA_CASES)
 def test_req236_statsmodels_parses(case, expected):
 
     import statsmodels.formula.api as smf
@@ -328,7 +333,8 @@ def test_req237_status_counts():
         assert first[f"n_{status}"] == statuses.count(status)
     lat = out[out["parameter"] == "latency"].iloc[0]
     ok_lat = table.loc[table["status"] == "ok", "latency"].dropna()
-    assert lat["n"] == len(ok_lat) and lat["mean"] == pytest.approx(ok_lat.mean())
+    assert lat["n"] == len(ok_lat)
+    assert lat["mean"] == pytest.approx(ok_lat.mean())
     assert lat["ci_low"] <= lat["mean"] <= lat["ci_high"]
     # the long format gives the same counts
     long = to_long(group, units="uV")

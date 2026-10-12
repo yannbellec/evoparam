@@ -51,7 +51,7 @@ def test_req109_dc_invariance():
     a = model().fit_waveform(TIMES, y)
     b = model().fit_waveform(TIMES, y + 1234.5)
     assert len(a.components) == len(b.components) > 0
-    for ca, cb in zip(a.components, b.components):
+    for ca, cb in zip(a.components, b.components, strict=False):
         for name in ("latency", "amplitude", "fwhm", "onset", "offset"):
             assert np.isclose(getattr(ca, name), getattr(cb, name), rtol=1e-6, atol=1e-9), name
 

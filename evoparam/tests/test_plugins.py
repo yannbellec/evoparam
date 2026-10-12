@@ -96,12 +96,14 @@ def test_dummy_shape_preset_and_reader(site, tmp_path):
     assert result.status == "ok"
     comp = max(result.components, key=lambda c: abs(c.amplitude))
     assert comp.shape == "lorentzian"
-    assert abs(comp.latency - 0.12) < 0.003 and abs(comp.fwhm - 0.030) < 0.005
+    assert abs(comp.latency - 0.12) < 0.003
+    assert abs(comp.fwhm - 0.030) < 0.005
     assert result.provenance.environment["plugins"]["lorentzian"] == origin
 
     # the preset resolves
     preset = presets.get("dummy_lorentz")
-    assert preset.shapes == ("lorentzian",) and preset.parent == "ccep"
+    assert preset.shapes == ("lorentzian",)
+    assert preset.parent == "ccep"
 
     # the reader opens a file
     data = rng.normal(size=(5, 2, 300))
@@ -109,7 +111,8 @@ def test_dummy_shape_preset_and_reader(site, tmp_path):
     with open(path, "wb") as fobj:
         np.savez(fobj, data=data, sfreq=1000.0, tmin=-0.1)
     trials = read(str(path))
-    assert trials.data.shape == (5, 2, 300) and trials.ch_names == ["D1", "D2"]
+    assert trials.data.shape == (5, 2, 300)
+    assert trials.ch_names == ["D1", "D2"]
     assert trials.provenance.source["plugin"] == {"dummy": origin}
     assert read(str(path), format="dummy", picks=["D2"]).ch_names == ["D2"]
     assert trials.provenance.environment["plugins"]["dummy"] == origin
@@ -179,7 +182,8 @@ def test_plugins_can_be_disabled(site, monkeypatch):
     _install(site)
     monkeypatch.setenv("EVOPARAM_DISABLE_PLUGINS", "1")
     _reload()
-    assert SHAPES.plugins() == {} and "lorentzian" not in SHAPES
+    assert SHAPES.plugins() == {}
+    assert "lorentzian" not in SHAPES
     with pytest.raises(SettingsError):
         presets.get("dummy_lorentz")
 

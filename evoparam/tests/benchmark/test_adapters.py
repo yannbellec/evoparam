@@ -100,7 +100,7 @@ def test_req354_placeholders_and_appended_paths(fake, tmp_path):
 
 
 @pytest.mark.parametrize(
-    "mode, error, message",
+    ("mode", "error", "message"),
     [
         ("fail", AdapterError, "exit code 3 on .*fake tool: cannot read the recording"),
         ("silent", AdapterError, "no output written"),
@@ -166,9 +166,11 @@ def test_req354_shipped_adapter_specifications():
     for name, tasks in (("erdetect", ["T1", "T2"]), ("crp", ["T1", "T2"])):
         adapter = load_adapter(str(ADAPTERS / f"{name}.json"))
         assert list(adapter.tasks) == tasks
-        assert adapter.citation and "GPL" in adapter.citation
+        assert adapter.citation
+        assert "GPL" in adapter.citation
         script = adapter._argv("i", "o")[1]
-        assert os.path.isfile(script) and script.startswith(str(ADAPTERS))
+        assert os.path.isfile(script)
+        assert script.startswith(str(ADAPTERS))
 
 
 def test_req354_erdetect_adapter_with_a_stand_in_detector(tmp_path):
@@ -201,7 +203,8 @@ def test_req354_erdetect_adapter_with_a_stand_in_detector(tmp_path):
             assert len(rows) == len(ti.descriptor["ch_names"]) - 2
             assert {r["responsive"] for r in rows} == {0, 1}
         else:
-            assert rows and all(0.009 <= r["latency"] <= 0.1 for r in rows)
+            assert rows
+            assert all(0.009 <= r["latency"] <= 0.1 for r in rows)
     assert "standin_detector" not in sys.modules
 
 

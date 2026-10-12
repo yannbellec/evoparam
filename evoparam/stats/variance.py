@@ -77,7 +77,7 @@ def _codes(groups):
         keys = (
             [(k,) for k in column]
             if keys is None
-            else [prev + (k,) for prev, k in zip(keys, column)]
+            else [prev + (k,) for prev, k in zip(keys, column, strict=False)]
         )
         unique = list(dict.fromkeys(keys))
         lookup = {key: i for i, key in enumerate(unique)}
@@ -309,7 +309,7 @@ def reml(y, groups, *, se=None, X=None, residual=True, tol=1e-9, max_iter=500):
     blup, blup_se, unit_mean, unit_mean_se, shrinkage, n_obs = (
         [np.zeros(len(lab)) for lab in labels] for _ in range(6)
     )
-    for blk, (d, lam, zl, chol) in zip(blocks.blocks, cache):
+    for blk, (d, lam, zl, chol) in zip(blocks.blocks, cache, strict=False):
         Xb, Zb = blk["X"], blk["Z"]
         r = blk["y"] - Xb @ beta
         est = lam * cho_solve(chol, zl.T @ (r / d))
@@ -471,7 +471,7 @@ def variance_components(table, *, value, groups, se=None, fixed=None, residual=T
     )
     rows = [
         {"level": g, "variance": v, "n_units": len(lab)}
-        for g, v, lab in zip(groups, out["variances"], out["labels"])
+        for g, v, lab in zip(groups, out["variances"], out["labels"], strict=False)
     ]
     rows.append({"level": "residual", "variance": out["residual"], "n_units": len(data)})
     if se is not None:
@@ -491,7 +491,7 @@ def variance_components(table, *, value, groups, se=None, fixed=None, residual=T
         {"term": names, "estimate": out["beta"], "se": np.sqrt(np.diag(out["beta_cov"]))}
     )
     effects = {}
-    for level, (g, lab) in enumerate(zip(groups, out["labels"])):
+    for level, (g, lab) in enumerate(zip(groups, out["labels"], strict=False)):
         frame = pd.DataFrame(list(lab), columns=groups[: level + 1])
         frame["n_obs"] = out["n_obs"][level]
         frame["estimate"] = out["blup"][level]

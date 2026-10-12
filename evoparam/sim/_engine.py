@@ -81,7 +81,9 @@ def seed_streams(seed):
             f"seed must be a non-negative int, a numpy Generator or None, got {seed!r}."
         )
     children = np.random.SeedSequence(entropy).spawn(len(STREAMS))
-    return entropy, {name: np.random.default_rng(child) for name, child in zip(STREAMS, children)}
+    return entropy, {
+        name: np.random.default_rng(child) for name, child in zip(STREAMS, children, strict=False)
+    }
 
 
 def time_axis(sfreq, tmin, tmax):
@@ -198,7 +200,8 @@ def requested_snr(snr, sources, ch_names):
                 f"snr: {len(snr)} values for the {len(labels)} components {labels}."
             )
         values = {
-            label: _check_snr_value(v, f"component '{label}'") for label, v in zip(labels, snr)
+            label: _check_snr_value(v, f"component '{label}'")
+            for label, v in zip(labels, snr, strict=False)
         }
         for k in primary:
             out[k] = values[sources[k].label] * sources[k].rel

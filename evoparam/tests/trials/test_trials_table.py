@@ -129,9 +129,10 @@ def test_vectorised_solver_matches_trial_by_trial_solver(anchored):
     x = ts.data[:, 0][:, window]
     movable = [0] if anchored else None
     batch = fit_trials_batch(template, x, movable=movable)
-    for xi, b in zip(x, batch):
+    for xi, b in zip(x, batch, strict=False):
         one = fit_trial(template, xi, movable=movable)
-        assert b["converged"] and one["converged"]
+        assert b["converged"]
+        assert one["converged"]
         cost_b, cost_one = np.sum((xi - b["fitted"]) ** 2), np.sum((xi - one["fitted"]) ** 2)
         assert cost_b <= cost_one * (1 + 1e-6)
         assert np.allclose(b["shift"], one["shift"], atol=2e-5)

@@ -65,7 +65,8 @@ def test_req350_core_covers_t1_to_t7():
     assert len(set(seeds)) == len(seeds) == 48
     full = suite("full")
     assert full.task_ids() == list(TASKS)
-    assert len(full.cells(split="public")) == 240 and len(full.cells(split="hidden")) == 60
+    assert len(full.cells(split="public")) == 240
+    assert len(full.cells(split="hidden")) == 60
     assert not {c.seed for c in full.cells(split="public")} & set(seeds)
 
 
@@ -136,7 +137,8 @@ def test_req353_committed_results_on_core():
     for name in PUBLISHED_RULES + ("projection",):
         for task in ("T1", "T2"):
             d = docs[(name, task)]
-            assert d["suite"]["name"] == "core" and d["suite"]["sha256"] == core.sha256
+            assert d["suite"]["name"] == "core"
+            assert d["suite"]["sha256"] == core.sha256
             assert d["missing_cells"] == []
             assert len(d["cells"]) == len(core.cells(task, split="public"))
     for task in TASKS:
@@ -147,7 +149,8 @@ def test_req353_committed_results_on_core():
 
 def test_req350_committed_run_covers_t1_to_t7_within_the_limit():
     run = json.loads((DOCS / "run-core.json").read_text(encoding="utf-8"))
-    assert run["suite"]["name"] == "core" and run["tasks"] == list(TASKS)
+    assert run["suite"]["name"] == "core"
+    assert run["tasks"] == list(TASKS)
     assert run["failures"] == []
     assert run["n_cells"] == 48
     assert run["duration_s"]["total"] <= LIMIT_S
@@ -178,7 +181,8 @@ def test_req350_core_run_completes_within_30_minutes(tmp_path):
     duration = time.perf_counter() - start
     assert proc.returncode == 0, proc.stderr[-3000:]
     summary = json.loads((tmp_path / "run" / "summary.json").read_text(encoding="utf-8"))
-    assert summary["tasks"] == list(TASKS) and summary["failures"] == []
+    assert summary["tasks"] == list(TASKS)
+    assert summary["failures"] == []
     assert {
         json.loads(open(p, encoding="utf-8").read())["task"] for p in summary["results"]
     } == set(TASKS)

@@ -419,7 +419,7 @@ def _component_rows(group, test, trials, to_volt):
     if test is not None:
         names = test.settings.get("channels") or []
         conditions = test.settings.get("conditions") or [""] * len(names)
-        for name, cond, sig in zip(names, conditions, np.ravel(test.significant)):
+        for name, cond, sig in zip(names, conditions, np.ravel(test.significant), strict=False):
             present[(name, cond)] = "true" if sig else "false"
     nan = float("nan")
     rows = []
@@ -629,7 +629,7 @@ def write_nwb(
                 ):
                     for comp in item.fits[int(pos)].components or [None]:
                         params.append(comp)
-                for row, comp in zip(rows, params):
+                for row, comp in zip(rows, params, strict=False):
                     row["param_names"] = list(comp.param_names) if comp else []
                     row["params"] = [float(v) for v in comp.params] if comp else []
                 columns += [
@@ -669,7 +669,7 @@ def write_nwb(
                     "duration": float(item.duration[i]),
                     "snr_db": float(item.snr_db[i]),
                 }
-                for i, (n, c) in enumerate(zip(names, conditions))
+                for i, (n, c) in enumerate(zip(names, conditions, strict=False))
             ]
             mod.add(
                 table(
@@ -771,7 +771,9 @@ def _model_series(group, nwbfile, electrodes, to_volt, pynwb, DynamicTableRegion
             starting_time=float(times[0]),
             conversion=1.0,
             description="evoparam fitted curves in V, time relative to the stimulus; columns: "
-            + ", ".join(f"{c}|{d}" if d else c for c, d in zip(channels, conditions)),
+            + ", ".join(
+                f"{c}|{d}" if d else c for c, d in zip(channels, conditions, strict=False)
+            ),
         )
 
 
@@ -815,7 +817,7 @@ def read_nwb_results(path, *, module="evoparam", kind="components", verify=True)
             )
         frame = mod["evoparam_results"].to_dataframe()
         found = {name: [] for name in kinds.values()}
-        for kind_name, text in zip(frame["result_type"], frame["container"]):
+        for kind_name, text in zip(frame["result_type"], frame["container"], strict=False):
             found.setdefault(kind_name, []).append(_unpack(text, verify=verify))
         if verify and found["GroupFit"] and "evoparam_components" in mod.data_interfaces:
             group = found["GroupFit"][0]

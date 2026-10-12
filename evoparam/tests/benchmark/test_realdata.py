@@ -26,8 +26,10 @@ def test_indices_name_registered_datasets():
         assert index["schema"] == REALDATA_SCHEMA
         info = dataset_info(index["dataset"])
         assert info["id"] in (index["dataset"], name) or index["dataset"] in info["aliases"]
-        assert index["licence"] and index["redistribution"]
-        assert index["tasks"] and set(index["tasks"]) <= set(TASKS)
+        assert index["licence"]
+        assert index["redistribution"]
+        assert index["tasks"]
+        assert set(index["tasks"]) <= set(TASKS)
         if name != "ds002094":
             assert index["entries"]
 

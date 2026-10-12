@@ -29,8 +29,10 @@ def test_methods_text_follows_the_processing_steps(results):
         < text.index("baseline-corrected")
         < text.index("each waveform was modelled")
     )
-    assert "method 'interpolate'" in text and "-2 to 8 ms" in text
-    assert "preset 'ccep' v1.1" in text and "4 to 250 ms" in text
+    assert "method 'interpolate'" in text
+    assert "-2 to 8 ms" in text
+    assert "preset 'ccep' v1.1" in text
+    assert "4 to 250 ms" in text
     assert "Settings changed from the preset (times in s): min_fwhm = 0.004" in text
     assert reports.citation() in text
     # deterministic, and the same from the saved result
@@ -103,7 +105,8 @@ def test_req343_html_is_self_contained(results, tmp_path):
     text = open(path, encoding="utf-8").read()
     assert "data:image/png;base64," in text
     assert not re.search(r"(src|href)=['\"]https?://", text)
-    assert "For research use only" in text and "Methods" in text
+    assert "For research use only" in text
+    assert "Methods" in text
 
 
 def test_req343_html_size_for_100_channels(tmp_path):
@@ -124,7 +127,8 @@ def test_req343_html_size_for_100_channels(tmp_path):
 def test_markdown_and_pdf(results, tmp_path):
 
     text = reports.markdown(results["group"])
-    assert text.startswith("# evoparam report") and "## Methods" in text
+    assert text.startswith("# evoparam report")
+    assert "## Methods" in text
     path = reports.pdf(results["group"], tmp_path / "report.pdf", data=results["ts"])
     assert open(path, "rb").read(4) == b"%PDF"
 
@@ -173,7 +177,8 @@ def test_req346_citation_from_citation_cff():
 
     assert reports.citation().startswith("Bellec Y.")
     bib = reports.citation(bibtex=True)
-    assert bib.startswith("@software{bellec_evoparam,") and "version = {" in bib
+    assert bib.startswith("@software{bellec_evoparam,")
+    assert "version = {" in bib
 
 
 def test_methods_text_roundtrip(ccep_run, tmp_path):
@@ -235,7 +240,8 @@ def test_methods_text_without_seed_says_so(ccep_run):
         settings = {k: v for k, v in group.settings.items() if k != "random_state"}
 
     text = reports.methods_text(Record())
-    assert "No random seed was set" in text and "Random draws used the seed" not in text
+    assert "No random seed was set" in text
+    assert "Random draws used the seed" not in text
 
 
 def test_req346_citation_single_source():
@@ -253,7 +259,8 @@ def test_req346_citation_single_source():
     with open(os.path.join(os.path.dirname(package), "CITATION.cff"), encoding="utf-8") as f:
         assert parse_cff(f.read()) == cff
     text = reports.citation()
-    assert cff["title"] in text and f"version {cff['version']}" in text
+    assert cff["title"] in text
+    assert f"version {cff['version']}" in text
     assert all(author["family-names"] in text for author in cff["authors"])
 
 
@@ -318,7 +325,8 @@ def test_methods_text_events_and_stats_paragraphs(results):
     ]
     text = reports.methods_text(trials)
     assert "Stimulation pulses were detected from their artifact" in text
-    assert "exceeded 20" in text and "expected rate of 0.5 Hz" in text
+    assert "exceeded 20" in text
+    assert "expected rate of 0.5 Hz" in text
     assert "grouped into trains" in text
     # stats: a table of evoparam.stats carries its step
     table = stats.bootstrap(

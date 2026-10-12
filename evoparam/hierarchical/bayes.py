@@ -78,11 +78,14 @@ def prepare(channel, trial, label, formula, covariates, subjects):
         "amp_hat": fitted["amplitude_raw"].to_numpy() / amp_scale,
         "amp_se": fitted["amplitude_raw_se"].to_numpy() / amp_scale,
     }
-    keys = list(zip(fitted["subject"], fitted["channel"]))
+    keys = list(zip(fitted["subject"], fitted["channel"], strict=False))
     lookup = {k: i for i, k in enumerate(keys)}
     tr = trial[trial["label"] == label] if len(trial) else trial
     rows = (
-        [(lookup.get((s, c)), l) for s, c, l in zip(tr["subject"], tr["channel"], tr["latency"])]
+        [
+            (lookup.get((s, c)), l)
+            for s, c, l in zip(tr["subject"], tr["channel"], tr["latency"], strict=False)
+        ]
         if len(tr)
         else []
     )
@@ -110,7 +113,7 @@ def prepare(channel, trial, label, formula, covariates, subjects):
     else:
         data["X"], data["X_names"] = np.zeros((len(sub_names), 0)), []
     data["keys"] = keys
-    data["exist_keys"] = list(zip(exist["subject"], exist["channel"]))
+    data["exist_keys"] = list(zip(exist["subject"], exist["channel"], strict=False))
     data["subjects"] = sub_names
     data["amp_scale"] = amp_scale
     lat_sd = float(np.std(data["lat_hat"])) or 1.0

@@ -36,7 +36,7 @@ def _run(ts, method, kwargs):
         return remove_artifact(ts, method=method, window=WINDOW, **kwargs)
 
 
-@pytest.mark.parametrize("method, kwargs", LOCAL)
+@pytest.mark.parametrize(("method", "kwargs"), LOCAL)
 def test_local_methods_change_only_the_window(method, kwargs):
 
     noisy, _ = make_overlay()
@@ -68,7 +68,7 @@ def test_tail_changes_window_and_tail_only():
     assert np.array_equal(result.cleaned.masks, np.broadcast_to(inside, changed.shape))
 
 
-@pytest.mark.parametrize("method, kwargs", GLOBAL)
+@pytest.mark.parametrize(("method", "kwargs"), GLOBAL)
 def test_global_methods_change_baseline_level_by_two_percent_at_most(method, kwargs):
     """Methods that act on every sample may change the baseline's RMS level by <= 2 %."""
 

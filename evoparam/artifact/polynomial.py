@@ -169,7 +169,9 @@ def _depeg(flat, cleaned, masked, rails, half, n_window, order):
         x = flat[row]
         noise = 1.4826 * np.median(np.abs(cleaned[row] - np.median(cleaned[row])))
         edges = np.diff(np.r_[0, rails[row].astype(np.int8), 0])
-        for first, last in zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)):
+        for first, last in zip(
+            np.flatnonzero(edges == 1), np.flatnonzero(edges == -1), strict=False
+        ):
             cleaned[row, first:last] = 0.0
             masked[row, first:last] = True
             # Depegging: one-sided fits next to the rail

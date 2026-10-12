@@ -472,14 +472,19 @@ def harmonize_stim_events(events, sidecar=None, *, mapping=None):
                 if trial_type is None
                 else [not _is_missing(t) and "stim" in str(t).lower() for t in trial_type]
             )
-            values = [value if keep else None for value, keep in zip(values, is_stim)]
+            values = [
+                value if keep else None for value, keep in zip(values, is_stim, strict=False)
+            ]
         sites = [normalize_site(value) for value in values]
     else:
         sites = ["n/a"] * n_rows
         if trial_type is not None:
             pairs = [not _is_missing(t) and bool(_PAIR.match(str(t).strip())) for t in trial_type]
             if any(pairs):
-                sites = [str(t).strip() if pair else "n/a" for t, pair in zip(trial_type, pairs)]
+                sites = [
+                    str(t).strip() if pair else "n/a"
+                    for t, pair in zip(trial_type, pairs, strict=False)
+                ]
                 report.mapping["stim_site"] = "trial_type"
                 report.missing.remove("stim_site")
                 report.warnings.append(

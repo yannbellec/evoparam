@@ -128,7 +128,7 @@ def run_subjects(function, arguments, n_jobs):
 
     workers = os.cpu_count() if n_jobs is None or n_jobs < 0 else n_jobs
     with ProcessPoolExecutor(max_workers=min(workers, len(arguments))) as pool:
-        return list(pool.map(function, *zip(*arguments)))
+        return list(pool.map(function, *zip(*arguments, strict=False)))
 
 
 def component_rows(group_fit, label):

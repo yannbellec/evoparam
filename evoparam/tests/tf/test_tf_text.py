@@ -9,7 +9,7 @@ from evoparam.tf import methods_text, tf_fit
 
 
 @pytest.mark.parametrize(
-    "transform,stats,zones,words",
+    ("transform", "stats", "zones", "words"),
     [
         (
             "morse",

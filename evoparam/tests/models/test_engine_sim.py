@@ -318,7 +318,7 @@ def _req106_cases():
             yield pytest.param(shape, fitted, marks=marks)
 
 
-@pytest.mark.parametrize("truth_shape, fitted", list(_req106_cases()))
+@pytest.mark.parametrize(("truth_shape", "fitted"), list(_req106_cases()))
 def test_req106_accuracy_as_written(truth_shape, fitted):
     """SNR >= 5 (5, 10, 20), widths 3 to 25 samples: latency MAE <= 0.5 sample and the
     median amplitude ratio within 5 % of 1, fitted with the truth's shape and with the
@@ -453,7 +453,7 @@ def _req116_interval_cases():
 
 
 @slow
-@pytest.mark.parametrize("method, rho", list(_req116_interval_cases()))
+@pytest.mark.parametrize(("method", "rho"), list(_req116_interval_cases()))
 def test_req116_bootstrap_profile_coverage_as_written(method, rho):
     """Bootstrap and profile intervals: 92-97 % under both noises (200 runs, spec §7.2)."""
 

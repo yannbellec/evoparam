@@ -121,7 +121,8 @@ def test_alternating_polarity_forms_two_classes():
     events = detect_pulses(data, sfreq)
     assert (events["onset_sample"].to_numpy() == onsets).all()
     classes = events["template_class"].to_numpy()
-    assert len(set(classes[::2])) == 1 and len(set(classes[1::2])) == 1
+    assert len(set(classes[::2])) == 1
+    assert len(set(classes[1::2])) == 1
     assert classes[0] != classes[1]
 
 

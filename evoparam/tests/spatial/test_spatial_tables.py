@@ -109,7 +109,8 @@ def test_req195_connectivity_round_trip_and_cells(scene):
         assert list(wide.index) == list(SITES)
         assert list(wide.columns) == group.ch_names
         long = connectivity_matrix(group, parameter, long=True)
-        assert len(long) == wide.size and set(long["parameter"]) == {parameter}
+        assert len(long) == wide.size
+        assert set(long["parameter"]) == {parameter}
         # wide -> long -> wide, and long -> wide
         back = connectivity_from_long(connectivity_to_long(wide, parameter))
         pd.testing.assert_frame_equal(back, wide, check_exact=False, rtol=1e-12)
@@ -144,7 +145,8 @@ def test_parameter_map_columns_markers_and_coordinates(scene):
     assert rows.loc[("A01-A02", "B04"), "marker"] == "bad"
     # A responsive contact: an N1 near 20 ms, coordinates from ch_info
     a04 = rows.loc[("A01-A02", "A04")]
-    assert a04["marker"] == "response" and a04["amplitude"] < -40
+    assert a04["marker"] == "response"
+    assert a04["amplitude"] < -40
     assert abs(a04["latency"] - 0.0225) < 0.004
     assert (a04["x"], a04["z"], a04["coord_space"]) == (0.0, -16.0, "ACPC")
     assert (table["value"] == table["amplitude"]).sum() == table["amplitude"].notna().sum()
@@ -152,7 +154,8 @@ def test_parameter_map_columns_markers_and_coordinates(scene):
     assert table.loc[ok, "amplitude"].notna().all()
     # One site, another parameter
     one = parameter_map(group, parameter="latency", stim_site="B01-B02", ch_info=ts)
-    assert set(one["stim_site"]) == {"B01-B02"} and len(one) == ts.n_channels
+    assert set(one["stim_site"]) == {"B01-B02"}
+    assert len(one) == ts.n_channels
     assert np.allclose(one["value"], one["latency"], equal_nan=True)
     with pytest.raises(SettingsError):
         parameter_map(group, parameter="colour")
@@ -299,7 +302,7 @@ network = pytest.mark.skipif(
     os.environ.get("EVOPARAM_NETWORK_TESTS") != "1",
     reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro",
 )
-RUN = dict(subject="ccepAgeUMCU01", session="1", task="SPESclin", run="021448")
+RUN = {"subject": "ccepAgeUMCU01", "session": "1", "task": "SPESclin", "run": "021448"}
 SITES_4080 = ["PT01-PT02", "PT03-PT02", "PT03-PT04", "PT05-PT04", "PT05-PT06", "PT07-PT06"]
 EPOCH = (-0.6, 0.6)
 
@@ -414,5 +417,11 @@ def test_req196_parameter_map_on_ds004080():
     ok = table["status"] == "ok"
     assert ok.sum() >= 100
     assert table.loc[ok, "amplitude"].notna().all()
-    stim = table[[ch in site.split("-") for ch, site in zip(table["channel"], table["stim_site"])]]
-    assert (stim["marker"] == "stim_contact").all() and len(stim) == 2 * len(sites)
+    stim = table[
+        [
+            ch in site.split("-")
+            for ch, site in zip(table["channel"], table["stim_site"], strict=False)
+        ]
+    ]
+    assert (stim["marker"] == "stim_contact").all()
+    assert len(stim) == 2 * len(sites)

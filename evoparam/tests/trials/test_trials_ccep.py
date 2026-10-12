@@ -67,12 +67,12 @@ def _n1_channels(group):
     names = list(group.index["channel"])
     n1 = [
         n
-        for n, f in zip(names, group.fits)
+        for n, f in zip(names, group.fits, strict=False)
         if f.status == "ok" and any(c.label == "N1" for c in f.components)
     ]
     significant = {
         n
-        for n, f in zip(names, group.fits)
+        for n, f in zip(names, group.fits, strict=False)
         if f.existence is not None and bool(np.all(f.existence.significant))
     }
     return n1, significant
@@ -95,7 +95,13 @@ def results():
             duration = time.perf_counter() - start
         assert sorted(f.channel for f in tf.fits) == sorted(n1)
         out.append(
-            dict(subject=subject, duration=duration, fits=tf.fits, n1=n1, significant=significant)
+            {
+                "subject": subject,
+                "duration": duration,
+                "fits": tf.fits,
+                "n1": n1,
+                "significant": significant,
+            }
         )
     return out
 

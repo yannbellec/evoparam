@@ -54,9 +54,11 @@ def test_long_double_exponential():
 def test_parameter_names_and_linearity():
     assert bg.ExponentialBackground().param_names == ("c0", "c1", "tau")
     assert bg.DoubleExponentialBackground().nonlinear_names == ("tau1", "tau2")
-    assert bg.ConstantBackground().is_linear and not bg.ExponentialBackground().is_linear
+    assert bg.ConstantBackground().is_linear
+    assert not bg.ExponentialBackground().is_linear
     spline = bg.PSplineBackground(WINDOW, max_fwhm=0.03)
-    assert spline.is_linear and spline.n_params == spline.n_basis
+    assert spline.is_linear
+    assert spline.n_params == spline.n_basis
     for name, cls in shapes.BACKGROUNDS.items():
         assert cls.name == name
     for background in (bg.NoBackground(), bg.ExponentialBackground(), spline):
@@ -90,7 +92,8 @@ def test_pspline_knot_rule():
         spline = bg.PSplineBackground(WINDOW, max_fwhm=max_fwhm, knot_spacing=spacing)
         assert spline.spacing >= 2 * max_fwhm
         np.testing.assert_allclose(np.diff(spline.knots), spline.spacing)
-        assert spline.knots[3] == WINDOW[0] and spline.knots[-4] >= WINDOW[1]
+        assert spline.knots[3] == WINDOW[0]
+        assert spline.knots[-4] >= WINDOW[1]
     with pytest.raises(SettingsError):
         bg.PSplineBackground((0.1, 0.0), max_fwhm=0.03)
 
@@ -176,7 +179,8 @@ def test_artifact_basis():
 )
 def test_initial_guess_and_bounds(background):
     lower, upper = background.default_bounds(TIMES, data_range=(-30.0, 60.0))
-    assert np.all(np.isfinite(lower)) and np.all(lower < upper)
+    assert np.all(np.isfinite(lower))
+    assert np.all(lower < upper)
     nonlinear = background._nonlinear_guess(TIMES)
     coefs = np.array([5.0, -12.0, 3.0][: background.n_linear])
     waveform = background.evaluate(TIMES, np.concatenate([coefs, nonlinear]))

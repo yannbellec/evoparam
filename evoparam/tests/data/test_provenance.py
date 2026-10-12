@@ -44,7 +44,8 @@ def test_with_step_copies_and_converts():
     )
     assert prov.steps == []
     step = new.steps[-1]
-    assert step["function"] == "evoparam.x.f" and step["version"] == __version__
+    assert step["function"] == "evoparam.x.f"
+    assert step["version"] == __version__
     assert step["settings"] == {"window": [0.0, 0.1], "level": None}
     assert step["preset"] == {"name": "ccep", "version": "1"}
 

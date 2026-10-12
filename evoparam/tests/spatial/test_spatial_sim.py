@@ -89,9 +89,12 @@ def test_weights_are_the_clustering_loadings(method):
     basis = convergent(ts, "R01", method=method, random_state=0)
     table = basis.assignment
     w = basis.weights
-    assert w.shape == (20, 3) and np.isfinite(w).all() and (w >= 0).all()
+    assert w.shape == (20, 3)
+    assert np.isfinite(w).all()
+    assert (w >= 0).all()
     used = table["used"].to_numpy(bool)
-    assert not used[-1] and used[:-1].all()
+    assert not used[-1]
+    assert used[:-1].all()
     ids = table["shape_id"].to_numpy()
     assert (np.argmax(w[used], axis=1) == ids[used]).all()
     assert np.allclose(table["nmf_loading"], w[np.arange(20), ids])
@@ -101,7 +104,8 @@ def test_weights_are_the_clustering_loadings(method):
         # the projected group's loadings put it with the sites of its true shape
         assert np.argmax(w[-1]) == ids[-1]
     else:
-        assert set(np.unique(w)) <= {0.0, 1.0} and (w.sum(axis=1) == 1).all()
+        assert set(np.unique(w)) <= {0.0, 1.0}
+        assert (w.sum(axis=1) == 1).all()
     # alpha_m: the mean projection of the group's trials on its shape, data units
     v = ts.data[np.asarray(ts.metadata["stim_site"] == "S00-T00"), 0]
     win = (ts.times >= basis.times[0] - 1e-9) & (ts.times <= basis.times[-1] + 1e-9)
@@ -116,14 +120,19 @@ def test_shape_basis_contents_and_round_trip(tmp_path):
     assert isinstance(basis, ShapeBasis)
     assert basis.curves.shape == (3, basis.times.size)
     assert np.allclose(np.linalg.norm(basis.curves, axis=1), 1.0)
-    assert basis.weights.shape == (20, 3) and basis.r2.shape == (20,)
-    assert basis.stability.shape == (3,) and (basis.stability >= 0.8).all()
+    assert basis.weights.shape == (20, 3)
+    assert basis.r2.shape == (20,)
+    assert basis.stability.shape == (3,)
+    assert (basis.stability >= 0.8).all()
     table = basis.assignment
     assert list(table["group"]) == list(dict.fromkeys(ts.metadata["stim_site"]))
-    assert (table["shape_id"] >= 0).all() and (table["r2"] > 0).all()
+    assert (table["shape_id"] >= 0).all()
+    assert (table["r2"] > 0).all()
     assert table["r2"].median() > 0.3
-    assert (table["weight"] > 0).all() and table["used"].all()
-    assert basis.settings["by"] == "stim_site" and basis.settings["channel"] == "R01"
+    assert (table["weight"] > 0).all()
+    assert table["used"].all()
+    assert basis.settings["by"] == "stim_site"
+    assert basis.settings["channel"] == "R01"
     assert basis.provenance.steps[-1]["function"] == "evoparam.spatial.shared_shapes"
     path = basis.save(tmp_path / "basis.evoparam")
     loaded = ShapeBasis.load(path)
@@ -161,7 +170,8 @@ def test_divergent_groups_channels():
     basis = divergent(ts, "C12-C99", random_state=0)
     assert basis.n_shapes == 2
     groups = list(basis.assignment["group"])
-    assert "C12" not in groups and "C13" not in groups  # stimulated and bad
+    assert "C12" not in groups
+    assert "C13" not in groups
     ids = basis.assignment["shape_id"].to_numpy()
     assert adjusted_rand_index(ids, np.arange(12) % 2) == 1.0
     assert basis.settings["stim_site"] == "C12-C99"
@@ -175,7 +185,8 @@ def test_small_groups_are_projected_not_used():
     small = ts.select(trials=np.flatnonzero(keep))
     basis = shared_shapes(small, random_state=0)
     row = basis.assignment.set_index("group").loc["S00-T00"]
-    assert not row["used"] and row["n_trials"] == 2
+    assert not row["used"]
+    assert row["n_trials"] == 2
     assert "S00-T00" not in basis.settings["defining_groups"]
     # Projected on the shape that explains it best: the one of its own true shape
     others = basis.assignment[basis.assignment["used"]]
@@ -253,10 +264,12 @@ def test_as_template_returns_a_template_shape():
     ts, _ = multi_site(2)
     basis = shared_shapes(ts, random_state=0)
     shape = as_template(basis, 0, max_shift=0.01)
-    assert shape.name == "template" and shape.param_names == ("shift",)
+    assert shape.name == "template"
+    assert shape.param_names == ("shift",)
     values = shape.evaluate(basis.times, np.array([0.0]))
     assert np.max(np.abs(values)) == pytest.approx(1.0, abs=0.02)
-    assert abs(values[0]) < 1e-12 and abs(values[-1]) < 1e-12
+    assert abs(values[0]) < 1e-12
+    assert abs(values[-1]) < 1e-12
     with pytest.raises(SettingsError):
         as_template(basis, 5)
 
@@ -282,7 +295,8 @@ def test_req191_shared_fit_reduces_latency_rmse():
         ind = np.array([_closest_latency(f, 0.03) - 0.03 for f in independent.fits])
         sha = np.array([_closest_latency(f, 0.03) - 0.03 for f in shared.fits])
         ok = np.isfinite(ind)  # channels with an independent estimate
-        assert ok.sum() >= 5 and np.isfinite(sha).all()
+        assert ok.sum() >= 5
+        assert np.isfinite(sha).all()
         ratios.append(np.sqrt(np.mean(sha[ok] ** 2)) / np.sqrt(np.mean(ind[ok] ** 2)))
     # RMSE reduced by >= 30 % in every run (0.01 to 0.37 at the time of writing)
     assert max(ratios) <= 0.7
@@ -294,17 +308,21 @@ def test_fit_shared_result_and_flags():
     evoked = draw()
     group = fit_shared(evoked, preset="ccep", baseline=BASELINE)
     info = group.settings["fit_shared"]
-    assert info["modal_k"] == 1 and info["shapes"] in (["gaussian"], ["skewed_gaussian"])
-    assert len(group.fits) == 10 and all(f.status == "ok" for f in group.fits)
+    assert info["modal_k"] == 1
+    assert info["shapes"] in (["gaussian"], ["skewed_gaussian"])
+    assert len(group.fits) == 10
+    assert all(f.status == "ok" for f in group.fits)
     latencies = [f.components[0].latency for f in group.fits]
     assert np.ptp(latencies) < 1e-6  # one shared latency
     assert abs(latencies[0] - 0.03) < 0.002
-    for f, truth in zip(group.fits, clean):
+    for f, truth in zip(group.fits, clean, strict=False):
         amp = f.components[0].amplitude
         assert abs(amp - truth[np.argmax(np.abs(truth))]) < 0.2 * abs(amp) + 5
-        assert f.gof.r2 > 0.3 and f.model.shape == f.residual.shape
+        assert f.gof.r2 > 0.3
+        assert f.model.shape == f.residual.shape
     table = group.to_dataframe()
-    assert len(table) == 10 and table["amplitude"].notna().all()
+    assert len(table) == 10
+    assert table["amplitude"].notna().all()
     assert group.provenance.steps[-1]["function"] == "evoparam.spatial.fit_shared"
     # A channel without response is fitted with the modal K and flagged
     evoked.data[3] = np.random.default_rng(1).normal(0, 5, evoked.data.shape[1])
@@ -340,16 +358,21 @@ def test_req192_penalty_never_hurts_held_out_prediction():
         draw, _, _ = shared_channels(seed, snr=3.0, offsets=offsets)
         train, test = draw(), draw()
         independent = independent_fits(train)
-        kw = dict(
-            preset="ccep", baseline=BASELINE, group_fit=independent, free_latency=True, smooth=True
-        )
+        kw = {
+            "preset": "ccep",
+            "baseline": BASELINE,
+            "group_fit": independent,
+            "free_latency": True,
+            "smooth": True,
+        }
         chosen = fit_shared(train, **kw)
         off = fit_shared(train, smooth_lambda=0.0, **kw)
         err = lambda g: sum(
             np.sum((test.data[i, win] - f.model) ** 2) for i, f in enumerate(g.fits)
         )
         smooth = chosen.settings["fit_shared"]["smooth"]
-        assert smooth["grid"][0] == 0.0 and len(smooth["loco_error"]) == len(smooth["grid"])
+        assert smooth["grid"][0] == 0.0
+        assert len(smooth["loco_error"]) == len(smooth["grid"])
         assert min(smooth["loco_error"]) <= smooth["loco_error"][0]
         # Held-out error (fresh noise) with the chosen lambda <= 1.01 x the one of lambda = 0
         assert err(chosen) <= 1.01 * err(off)
@@ -369,7 +392,9 @@ def test_smooth_needs_free_latency_and_neighbours():
     assert group.settings["fit_shared"]["smooth"]["lambda"] == 0.0
     weights = neighbours(info, list(info["name"]), radius_mm=10.0)
     # Contacts 3.5 mm apart on a shaft: two neighbours on each side, none across shafts
-    assert weights.sum(axis=1).max() == 4 and weights[0, 1] == 1 and weights[0, 3] == 0
+    assert weights.sum(axis=1).max() == 4
+    assert weights[0, 1] == 1
+    assert weights[0, 3] == 0
 
 
 ###################################################################################################
@@ -385,7 +410,8 @@ def test_req193_volume_conduction_screen():
         table = table.set_index("channel")
         high += list(table.loc[volume, "volume_conduction_risk"] == "high")
         low += list(table.loc[local, "volume_conduction_risk"] == "low")
-    assert len(high) >= 50 and len(low) == 20
+    assert len(high) >= 50
+    assert len(low) == 20
     assert np.mean(high) >= 0.9
     assert np.mean(low) >= 0.9
 
@@ -399,8 +425,10 @@ def test_volume_screen_columns_and_markers():
     table = screen_volume_conduction(ts, group, decay_model="none")
     assert set(table["volume_conduction_risk"]) <= {"", "low", "medium", "high"}
     rows = table.set_index("channel")
-    assert not rows.loc["A04", "evaluated"] and rows.loc["A04", "volume_conduction_risk"] == ""
-    assert rows.loc[volume[0], "response"] and not rows.loc["F10", "response"]
+    assert not rows.loc["A04", "evaluated"]
+    assert rows.loc["A04", "volume_conduction_risk"] == ""
+    assert rows.loc[volume[0], "response"]
+    assert not rows.loc["F10", "response"]
     assert rows.loc[local[0], "reversal"]
     assert rows.loc[volume[0], "screens"].count(",") + 1 == rows.loc[volume[0], "n_screens"]
     with pytest.raises(SettingsError):

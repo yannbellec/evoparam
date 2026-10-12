@@ -165,7 +165,7 @@ def jitter_components(latency, noise_sd, subject, channel):
     out = reml(latency, groups, se=noise_sd, residual=True)
     sd = float(np.sqrt(out["residual"]))
     # third central moment within channels (noise adds nothing to it)
-    keys = [f"{a}/{b}" for a, b in zip(subject, channel)]
+    keys = [f"{a}/{b}" for a, b in zip(subject, channel, strict=False)]
     centred = np.empty_like(latency)
     for key in dict.fromkeys(keys):
         rows = np.array([k == key for k in keys])

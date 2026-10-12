@@ -13,7 +13,9 @@ from evoparam.errors import SettingsError
 def test_targeted_measures_the_component_on_every_channel():
 
     p3 = presets.targeted("erp", "P3", (0.3, 0.6), "positive")
-    assert p3.name == "erp_P3" and p3.parent == "erp" and p3.selection == "fixed"
+    assert p3.name == "erp_P3"
+    assert p3.parent == "erp"
+    assert p3.selection == "fixed"
     assert p3.fit_window == pytest.approx((0.25, 0.65))
     ts, truth = sim.simulate_erp(60, n_channels=4, components=("P1", "N1", "P3"), seed=0, snr=1)
     with warnings.catch_warnings():
@@ -22,7 +24,8 @@ def test_targeted_measures_the_component_on_every_channel():
     for result in group.fits:
         assert len(result.components) == 1
         comp = result.components[0]
-        assert comp.label == "P3" and comp.amplitude > 0
+        assert comp.label == "P3"
+        assert comp.amplitude > 0
     true = truth.to_dataframe()
     latency = float(true[true["label"] == "P3"]["latency"].median())
     fitted = np.median([f.components[0].latency for f in group.fits])

@@ -57,6 +57,7 @@ def _mypy(files, tmp_path, *flags, config=None):
         cwd=str(ROOT),
         env=env,
         timeout=600,
+        check=False,
     )
     return done.returncode, done.stdout + done.stderr
 
@@ -188,6 +189,7 @@ def test_req301_pyright_verifytypes_known_share():
         cwd=str(ROOT),
         timeout=900,
         env=dict(os.environ, PYTHONPATH=str(ROOT)),
+        check=False,
     )
     score = json.loads(done.stdout)["typeCompleteness"]["completenessScore"]
     assert score >= 0.95, score

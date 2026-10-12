@@ -342,7 +342,7 @@ def _permutation(d, t, n, tested, method, alpha, n_permutations, rng, cluster_al
         masses, labels = _cluster_masses(t, threshold)
         p = np.full(shape, np.nan)
         sig = np.zeros(shape, bool)
-        for mass, lab in zip(masses, labels):
+        for mass, lab in zip(masses, labels, strict=False):
             for k, m in enumerate(mass, start=1):
                 pk = (1 + np.sum(null >= m)) / (1 + n_permutations)
                 region = lab == k

@@ -40,7 +40,7 @@ def test_upsampled_noise_has_the_stride_of_its_upsampling(factor, rho):
 
 
 @pytest.mark.parametrize(
-    "sfreq, cutoff",
+    ("sfreq", "cutoff"),
     [
         (256.0, 30.0),
         (256.0, 40.0),

@@ -63,13 +63,14 @@ def test_req299_p1_twice_slower_fails_naming_workload_and_ratio():
     message naming the workload and the ratio."""
 
     failures, notes = timing.compare(_doc(p1=0.10), _doc(p1=0.05))
-    assert len(failures) == 1 and not notes
+    assert len(failures) == 1
+    assert not notes
     assert failures[0].startswith("P1 (one waveform)")
     assert "2.00 x the baseline" in failures[0]
 
 
 @pytest.mark.parametrize(
-    "ratio, failed, warned", [(1.05, False, False), (1.20, False, True), (1.30, True, False)]
+    ("ratio", "failed", "warned"), [(1.05, False, False), (1.20, False, True), (1.30, True, False)]
 )
 def test_req299_tolerance_and_warning_band(ratio, failed, warned):
     """REQ-299 / §9.1: fail above 1.25x, warn (no failure) between 1.10x and 1.25x."""
@@ -83,7 +84,8 @@ def test_req299_memory_tolerance_and_p3_bound():
     """REQ-299: 10 % tolerance on peak memory; a P3 figure above its bound fails."""
 
     failures, _ = timing.compare(_doc(p2_rss=230 * 2**20), _doc(p2_rss=200 * 2**20))
-    assert failures and "peak memory 1.15 x" in failures[0]
+    assert failures
+    assert "peak memory 1.15 x" in failures[0]
     failures, _ = timing.compare(_doc(p2_rss=215 * 2**20), _doc(p2_rss=200 * 2**20))
     assert not failures
     run = _doc()
@@ -157,8 +159,10 @@ def test_req290_results_file_fields(tmp_path):
     p6 = rows[1]
     for field in FIELDS:
         assert field in p6
-    assert p6["n_repeats"] == 5 and p6["median_s"] > 0
-    assert p6["environment"]["python"] and p6["environment"]["numpy"]
+    assert p6["n_repeats"] == 5
+    assert p6["median_s"] > 0
+    assert p6["environment"]["python"]
+    assert p6["environment"]["numpy"]
 
 
 def test_req290_cli_runs_the_perf_suite(tmp_path):
@@ -188,14 +192,16 @@ def test_req290_cli_runs_the_perf_suite(tmp_path):
     files = glob.glob(str(tmp_path / "*-ci.json"))
     assert len(files) == 1
     rows = json.loads(pathlib.Path(files[0]).read_text(encoding="utf-8"))["results"]
-    assert rows[0]["id"] == "P4" and rows[0]["status"] == "not_available"
+    assert rows[0]["id"] == "P4"
+    assert rows[0]["status"] == "not_available"
 
 
 def test_req299_baseline_is_committed():
     """REQ-299: the CI baseline is committed as ``benchmarks/baseline-ci.json``."""
 
     baseline = json.loads((BENCH / "baseline-ci.json").read_text(encoding="utf-8"))
-    assert baseline["suite"] == "ci" and baseline["repeat_runs"] == 3
+    assert baseline["suite"] == "ci"
+    assert baseline["repeat_runs"] == 3
     assert {r["id"] for r in baseline["results"]} >= {"P1", "P2", "P3", "P5", "P6"}
 
 

@@ -184,10 +184,10 @@ def test_req347_chunk_sizes_give_identical_estimates(pulses):
     for other in runs[1:]:
         # bit for bit (NaN compared as equal: the first pulse has no baseline yet)
         assert len(other) == len(runs[0])
-        for a, b in zip(runs[0], other):
+        for a, b in zip(runs[0], other, strict=False):
             assert all(
                 x == y or (isinstance(x, float) and math.isnan(x) and math.isnan(y))
-                for x, y in zip(a, b)
+                for x, y in zip(a, b, strict=False)
             )
 
 
@@ -208,7 +208,8 @@ def test_req347_running_existence_matches_offline_sign_flip(mixed):
     assert np.array_equal(online["significant"], offline["significant"])
     assert np.allclose(online["p_value"], offline["p_value"])
     # the decisions are not trivial: responses found, silent channels not
-    assert online["significant"][:4].all() and not online["significant"][4:].any()
+    assert online["significant"][:4].all()
+    assert not online["significant"][4:].any()
 
 
 def test_running_existence_detects_responses_with_looks_after_every_pulse(mixed):
@@ -276,7 +277,8 @@ def test_req348_sequential_fpr_on_null_streams(mixed):
             fitter.push(rng.normal(0, 10, (n, 64)))
         fitter.push(rng.normal(0, 10, (n, 64)))
         result = fitter.existence()
-        assert fitter.existence_stats.test.n_looks >= 50 and fitter.n_pulses == 50
+        assert fitter.existence_stats.test.n_looks >= 50
+        assert fitter.n_pulses == 50
         hits += result["significant"].sum()
         total += 64
     assert hits / total <= 0.05 + 0.01, hits / total
@@ -286,7 +288,9 @@ def test_alpha_spending_and_single_look():
 
     t = np.linspace(0.02, 1, 50)
     spent = alpha_spending(t, 0.05)
-    assert np.all(np.diff(spent) >= 0) and spent[-1] == 0.05 and spent[0] < 1e-6
+    assert np.all(np.diff(spent) >= 0)
+    assert spent[-1] == 0.05
+    assert spent[0] < 1e-6
     # one look at full information is the fixed-sample test
     rng = np.random.default_rng(0)
     values = rng.normal(0.3, 1, (25, 40))
@@ -312,7 +316,8 @@ def test_latency_stats():
     stats = fitter.latency_stats
     assert set(stats) == {"p50", "p95", "p99", "max"}
     assert 0 < stats["p50"] <= stats["p95"] <= stats["p99"] <= stats["max"]
-    assert summary["pulses_estimated"] == 12 and summary["estimates"] == 12 * 64
+    assert summary["pulses_estimated"] == 12
+    assert summary["estimates"] == 12 * 64
     assert fitter.n_pulses == 12
 
 
@@ -394,7 +399,8 @@ def test_push_pulse_and_timestamps(mixed):
     with pytest.raises(dataclasses.FrozenInstanceError):
         out[0].amplitude = 0.0
     fitter.reset()
-    assert fitter.n_samples == 0 and fitter.n_pulses == 0
+    assert fitter.n_samples == 0
+    assert fitter.n_pulses == 0
     assert math.isnan(fitter.latency_stats["p99"])
 
 
@@ -410,7 +416,8 @@ def test_statuses(mixed):
         fitter.push_pulse((k * ts.n_times + 1024) / SFREQ)
     out = fitter.push(stream)
     status = {(round(e.pulse_time * SFREQ) // ts.n_times, e.channel): e.status for e in out}
-    assert status[(1, "c2")] == "artifact" and status[(2, "c5")] == "saturated"
+    assert status[(1, "c2")] == "artifact"
+    assert status[(2, "c5")] == "saturated"
     assert set(status.values()) <= set(STATUSES)
     assert sum(s == "ok" for s in status.values()) >= len(status) - 3
     assert np.isfinite([e.amplitude for e in out]).all()

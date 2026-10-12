@@ -242,7 +242,7 @@ def _unresolvable(comps, diag, settings):
         if (na == "A" and nb == "A") or (na == latency.get(ka) and nb == latency.get(kb)):
             out |= {ka, kb}
     order = sorted(range(len(comps)), key=lambda k: comps[k].latency)
-    for i, j in zip(order, order[1:]):
+    for i, j in zip(order, order[1:], strict=False):
         a, b = comps[i], comps[j]
         if (
             np.sign(a.amplitude) != np.sign(b.amplitude)
@@ -360,9 +360,15 @@ def _build_fit(core, times, y, settings, sfreq, trials, mask, start, settings_di
     bg = struct.background
     n_lin = getattr(bg, "n_linear", 0)
     bg_values = dict(
-        zip(getattr(bg, "linear_names", ()), core["beta"][len(comps) : len(comps) + n_lin])
+        zip(
+            getattr(bg, "linear_names", ()),
+            core["beta"][len(comps) : len(comps) + n_lin],
+            strict=False,
+        )
     )
-    bg_values.update(zip(getattr(bg, "nonlinear_names", ()), struct.bg_params(core["theta"])))
+    bg_values.update(
+        zip(getattr(bg, "nonlinear_names", ()), struct.bg_params(core["theta"]), strict=False)
+    )
     background = {"name": bg.name, **{k: float(v) for k, v in bg_values.items()}}
     if hasattr(bg, "t_ref"):
         # the time origin of the background's basis (the first sample of the fit window

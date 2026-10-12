@@ -144,7 +144,8 @@ def test_power_maps_and_baseline_normalised_maps_are_both_given():
         "footprint_norm",
         "residual_norm",
     ):
-        assert key in tf.maps and tf.maps[key].shape == tf.maps["total"].shape
+        assert key in tf.maps
+        assert tf.maps[key].shape == tf.maps["total"].shape
     base = (tf.times >= -0.5) & (tf.times <= -0.1)
     ref = np.nanmean(tf.maps["total"][0][:, base], axis=1)[:, None]
     ok = np.isfinite(tf.maps["total_norm"][0])

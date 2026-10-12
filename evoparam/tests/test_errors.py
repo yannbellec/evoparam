@@ -52,14 +52,16 @@ def test_failed_unit_is_recorded(evoked, inject, caplog):
         group = ResponseModel("ccep", max_components=2).fit_group(evoked)
     status = [f.status for f in group.fits]
     assert status[2] == "failed"
-    assert group.fits[2].message and "singular Jacobian" in group.fits[2].message
+    assert group.fits[2].message
+    assert "singular Jacobian" in group.fits[2].message
     assert all(s != "failed" for i, s in enumerate(status) if i != 2)
     warned = [
         r
         for r in caplog.records
         if r.levelno == logging.WARNING and "singular Jacobian" in r.getMessage()
     ]
-    assert len(warned) == 1 and "C3" in warned[0].getMessage()
+    assert len(warned) == 1
+    assert "C3" in warned[0].getMessage()
 
 
 def test_on_error_raise_propagates(evoked, inject):

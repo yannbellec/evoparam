@@ -49,7 +49,7 @@ def _frame_equal(a, b):
         if ca.dtype.kind in "fc":
             if not np.array_equal(va.astype(float), vb.astype(float)):
                 return False
-        elif not all(deep_equal(x, y) for x, y in zip(va, vb)):
+        elif not all(deep_equal(x, y) for x, y in zip(va, vb, strict=False)):
             return False
     return True
 
@@ -72,7 +72,9 @@ def deep_equal(a, b):
         return a.keys() == b.keys() and all(deep_equal(a[k], b[k]) for k in a)
     if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         return (
-            type(a) is type(b) and len(a) == len(b) and all(deep_equal(x, y) for x, y in zip(a, b))
+            type(a) is type(b)
+            and len(a) == len(b)
+            and all(deep_equal(x, y) for x, y in zip(a, b, strict=False))
         )
     if isinstance(a, (bool, np.bool_)) or isinstance(b, (bool, np.bool_)):
         return (

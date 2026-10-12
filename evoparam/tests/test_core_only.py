@@ -190,7 +190,11 @@ NEEDS_PANDAS = {
 
 def run_chain():
     result = subprocess.run(
-        [sys.executable, "-c", HOOK + CHAIN], capture_output=True, text=True, timeout=900
+        [sys.executable, "-c", HOOK + CHAIN],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
     )
     assert result.returncode == 0, result.stderr[-3000:]
     return json.loads(result.stdout.strip().splitlines()[-1])
@@ -220,7 +224,7 @@ def test_req010_the_hook_hides_optional_packages():
         print("ok")
     """)
     result = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True, timeout=120
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=120, check=False
     )
     assert result.returncode == 0, result.stderr + result.stdout
 

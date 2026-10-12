@@ -81,7 +81,7 @@ def reject_trials(
     def flag(cond, name, strength):
         nonlocal score
         cond = np.nan_to_num(cond, nan=0).astype(bool)
-        for k, c in zip(*np.nonzero(cond)):
+        for k, c in zip(*np.nonzero(cond), strict=False):
             reasons[k, c] = name if not reasons[k, c] else reasons[k, c] + "+" + name
         score = np.where(cond, np.maximum(score, strength), score)
 

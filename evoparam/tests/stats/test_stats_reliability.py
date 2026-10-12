@@ -109,7 +109,8 @@ def test_reliability_errors_and_facets():
         data=ts.data, times=ts.times, sfreq=ts.sfreq, ch_names=ts.ch_names, metadata=meta
     )
     out = reliability(trains, facets=("trial", "train_id"), n_splits=50, random_state=0)
-    assert out["facet"].iloc[0] == "train_id" and out["n_units"].iloc[0] == 6
+    assert out["facet"].iloc[0] == "train_id"
+    assert out["n_units"].iloc[0] == 6
     assert out.attrs["provenance"]["steps"][-1]["function"] == "evoparam.stats.reliability"
     assert spearman_brown(0.5) == pytest.approx(2 / 3)
 
@@ -203,7 +204,7 @@ def test_req234_spec_law_stays_available_and_power_law_is_better_for_latencies()
     ts, _ = simulate_erp(
         20, components=[N1], snr=1.0, noise="pink", sfreq=250.0, tmin=-0.2, tmax=0.3, seed=0
     )
-    kw = dict(window=(0.06, 0.14), steps=[5, 10, 20, 80], n_resamples=100, random_state=0)
+    kw = {"window": (0.06, 0.14), "steps": [5, 10, 20, 80], "n_resamples": 100, "random_state": 0}
     a = trials_needed(ts, scorer="mean_amplitude", **kw)
     b = trials_needed(ts, scorer="mean_amplitude", extrapolation="sqrt_n", **kw)
     assert a["sd"].tolist() == b["sd"].tolist()
@@ -238,9 +239,11 @@ def test_trials_needed_existence():
     )
     responsive = table[table["channel"] == "Cz"]["p_significant"].to_numpy()
     silent = table[table["channel"] == "Pz"]["p_significant"].to_numpy()
-    assert responsive[-1] == 1.0 and responsive[0] < responsive[-1]
+    assert responsive[-1] == 1.0
+    assert responsive[0] < responsive[-1]
     assert silent.max() <= 0.3
-    assert table["sd"].isna().all() and table["n_resamples"].tolist()[-1] == 1
+    assert table["sd"].isna().all()
+    assert table["n_resamples"].tolist()[-1] == 1
     with pytest.warns(UserWarning, match="not extrapolated"):
         trials_needed(
             ts,

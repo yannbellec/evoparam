@@ -346,7 +346,9 @@ def _groups(ts, by, channel, stim_site, win):
         info = ts.ch_info
         bad = set()
         if info is not None and "bad" in info.columns:
-            bad = {n for n, b in zip(info["name"].astype(str), info["bad"]) if bool(b)}
+            bad = {
+                n for n, b in zip(info["name"].astype(str), info["bad"], strict=False) if bool(b)
+            }
         out = []
         for ch, name in enumerate(names):
             if name in excluded or name in bad:

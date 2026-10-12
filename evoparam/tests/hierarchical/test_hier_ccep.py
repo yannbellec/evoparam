@@ -25,7 +25,7 @@ def _ages():
     from evoparam.io._fetch import fetch_bytes
 
     table = pd.read_csv(io.BytesIO(fetch_bytes(PARTICIPANTS)), sep="\t")
-    return dict(zip(table["participant_id"], table["age"]))
+    return dict(zip(table["participant_id"], table["age"], strict=False))
 
 
 def _subjects():

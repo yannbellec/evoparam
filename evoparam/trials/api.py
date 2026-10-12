@@ -204,7 +204,7 @@ def _template_mode(template, fit, average, times, picks):
     y = average[win]
     curves = [
         s.evaluate(tw, p) * _amplitude_of(fit.components[k])
-        for s, p, k in zip(template.shapes, template.params, picks)
+        for s, p, k in zip(template.shapes, template.params, picks, strict=False)
     ]
     total = np.sum(curves, axis=0)
     shapes, params, locs = [], [], []
@@ -327,7 +327,7 @@ def _null_jitter(
     n_win = len(tw)
     model = sum(
         s.evaluate(tw, p) * _amplitude_of(fit.components[k])
-        for s, p, k in zip(template.shapes, template.params, picks)
+        for s, p, k in zip(template.shapes, template.params, picks, strict=False)
     )
     segments = []
     for x in trials:
@@ -779,7 +779,7 @@ def fit_trials(
 
 def _realigned(times, trials, shifts, trusted, name, ts):
     data = []
-    for x, d in zip(trials[trusted], shifts[trusted]):
+    for x, d in zip(trials[trusted], shifts[trusted], strict=False):
         data.append(np.interp(times, times - d, np.nan_to_num(x)))
     data = np.array(data)
     return Evoked(

@@ -74,7 +74,7 @@ def test_verbose_debug_gives_debug_records_from_models(caplog):
 
 
 @pytest.mark.parametrize(
-    "value,level",
+    ("value", "level"),
     [
         (True, logging.INFO),
         ("info", logging.INFO),
@@ -117,7 +117,8 @@ def test_global_switches(tmp_path):
         assert "written to the file" in path.read_text(encoding="utf-8")
     finally:
         logging.getLogger("evoparam").setLevel(previous)
-    assert evoparam.set_log_level is set_log_level and evoparam.set_log_file is set_log_file
+    assert evoparam.set_log_level is set_log_level
+    assert evoparam.set_log_file is set_log_file
 
 
 def _prints():

@@ -822,7 +822,7 @@ def group_summary(
             else:
                 values = pd.to_numeric(ok[p], errors="coerce").to_numpy(float)
             values = values[np.isfinite(values)]
-            row = dict(zip(by, key))
+            row = dict(zip(by, key, strict=False))
             row.update(parameter=p, n=int(values.size))
             if values.size:
                 q1, med, q3 = np.percentile(values, [25, 50, 75])

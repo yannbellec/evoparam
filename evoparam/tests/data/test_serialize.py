@@ -93,9 +93,11 @@ def test_json_valid_with_nan_and_inf(tmp_path):
             if name.endswith(".json"):
                 _strict_load(os.path.join(root, name))
     settings = _strict_load(os.path.join(path, "settings.json"))
-    assert settings["nan_value"] is None and settings["inf_value"] is None
+    assert settings["nan_value"] is None
+    assert settings["inf_value"] is None
     loaded = load_object(path)
-    assert np.isnan(loaded.settings["nan_value"]) and np.isinf(loaded.settings["inf_value"])
+    assert np.isnan(loaded.settings["nan_value"])
+    assert np.isinf(loaded.settings["inf_value"])
 
 
 def test_table_sidecar_units(tmp_path):

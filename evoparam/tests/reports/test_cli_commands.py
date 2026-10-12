@@ -40,10 +40,12 @@ def run(*args, code=0):
         env=env,
         cwd=ROOT,
         timeout=900,
+        check=False,
     )
     assert proc.returncode == code, (args, proc.stdout[-2000:], proc.stderr[-2000:])
     summary = json.loads(proc.stdout.splitlines()[-1])
-    assert summary["exit_code"] == code and summary["version"] == __version__
+    assert summary["exit_code"] == code
+    assert summary["version"] == __version__
     return summary
 
 
@@ -60,6 +62,7 @@ def run_text(*args):
         env=env,
         cwd=ROOT,
         timeout=300,
+        check=False,
     )
     return proc.returncode, proc.stdout
 
@@ -216,7 +219,8 @@ def test_req345_detect_events(bids, tmp_path):
     assert summary["n_units"]["ok"] == len(events) == 8
     assert table["onset"].tolist() == pytest.approx(events["onset_time"].tolist(), abs=0)
     sidecar = json.loads((tmp_path / "events.json").read_text())
-    assert set(sidecar) == set(table.columns) and sidecar["onset"]["Units"] == "s"
+    assert set(sidecar) == set(table.columns)
+    assert sidecar["onset"]["Units"] == "s"
 
 
 def test_req345_report_json_and_migrate(bids, tmp_path):
@@ -260,15 +264,19 @@ def test_req345_information_commands():
     # the repository is not a BIDS dataset: input error (REQ-314, tests/io/test_bids_validator.py)
     assert run("validate-bids", ROOT, code=5)["status"] == "error"
     code, stdout = run_text("--version")
-    assert code == 0 and __version__ in stdout and "research use" in stdout.lower()
+    assert code == 0
+    assert __version__ in stdout
+    assert "research use" in stdout.lower()
 
 
 def test_req346_cite_prints_citation_cff():
 
     code, stdout = run_text("cite")
-    assert code == 0 and stdout.strip() == reports.citation()
+    assert code == 0
+    assert stdout.strip() == reports.citation()
     code, stdout = run_text("cite", "--bibtex")
-    assert code == 0 and stdout.strip() == reports.citation(bibtex=True).strip()
+    assert code == 0
+    assert stdout.strip() == reports.citation(bibtex=True).strip()
     assert run("cite")["result"]["citation"] == reports.citation()
 
 
@@ -303,6 +311,7 @@ def test_methods_text_is_logged_at_info_level(bids, tmp_path):
         env=env,
         cwd=ROOT,
         timeout=900,
+        check=False,
     )
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert "Evoked responses were analysed with evoparam" in proc.stderr

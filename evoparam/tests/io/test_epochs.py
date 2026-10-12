@@ -21,11 +21,13 @@ def test_epoch_data():
     assert np.allclose(times, np.arange(-10, 21) / sfreq)
     assert epochs.shape == (2, 2, 31)
     assert list(kept) == [True, True, False]
-    assert epochs[0, 0, 10] == 100 and epochs[1, 1, 10] == -500
+    assert epochs[0, 0, 10] == 100
+    assert epochs[1, 1, 10] == -500
 
     # With an offset clock, and 1d data
     times, epochs, kept = epoch_data(data[0], sfreq, [11.0], -0.1, 0.2, t0=10.0)
-    assert epochs.shape == (1, 31) and epochs[0, 10] == 100
+    assert epochs.shape == (1, 31)
+    assert epochs[0, 10] == 100
 
 
 def test_epoch_returns_a_trialset():
@@ -38,9 +40,11 @@ def test_epoch_returns_a_trialset():
     trials.validate()
 
     # Window [-0.1, 0.2): 30 samples, onset sample at t = 0
-    assert trials.n_trials == 3 and trials.n_times == 30
+    assert trials.n_trials == 3
+    assert trials.n_times == 30
     assert np.allclose(trials.times, np.arange(-10, 20) / sfreq)
-    assert trials.data[0, 0, 10] == 100 and trials.data[2, 1, 10] == -500  # 5.004 s → sample 500
+    assert trials.data[0, 0, 10] == 100
+    assert trials.data[2, 1, 10] == -500
     assert np.allclose(trials.event_times, [1.0, 1.2, 5.004])
 
     step = trials.provenance.steps[-1]
@@ -61,9 +65,11 @@ def test_epoch_with_metadata_and_clock():
     trials = epoch(
         data, 100.0, [10.5, 12.0, 14.99], -0.05, 0.05, t0=10.0, metadata=metadata, units="mV"
     )
-    assert trials.ch_names == ["CH001"] and trials.units == "mV"
+    assert trials.ch_names == ["CH001"]
+    assert trials.units == "mV"
     assert list(trials.metadata["condition"]) == ["a", "b"]
-    assert trials.data[0, 0, 5] == 50 and trials.data[1, 0, 5] == 200
+    assert trials.data[0, 0, 5] == 50
+    assert trials.data[1, 0, 5] == 200
 
     with pytest.raises(DataError, match="rows"):
         epoch(data, 100.0, [10.5], -0.05, 0.05, t0=10.0, metadata=metadata)

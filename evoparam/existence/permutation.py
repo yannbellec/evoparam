@@ -122,7 +122,9 @@ def _extent(t, critical, statistic, threshold, polarity, times):
             for sign in (1, -1) if polarity == "both" else (1,):
                 v = np.where(sign * signed[c] > threshold, sign * signed[c], 0.0)
                 edges = np.diff(np.r_[0, (v > 0).astype(int), 0])
-                for a, b in zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)):
+                for a, b in zip(
+                    np.flatnonzero(edges == 1), np.flatnonzero(edges == -1), strict=False
+                ):
                     if v[a:b].sum() > critical[c]:
                         hits.extend(range(a, b))
             hits = np.array(sorted(hits))

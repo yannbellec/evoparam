@@ -88,7 +88,8 @@ def test_equality_is_nan_aware():
     # A deep copy, not a second factory call: nested objects carry their own creation
     # time, which can differ by a millisecond between two calls.
     second = copy.deepcopy(first)
-    assert second is not first and second.existence is not first.existence
+    assert second is not first
+    assert second.existence is not first.existence
     assert first == second
     other = make_response_fit()
     other.components[0].latency += 1e-6

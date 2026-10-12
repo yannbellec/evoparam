@@ -81,7 +81,7 @@ def test_req013_parallel_fit_equals_serial():
 
 def test_req013_different_seeds_differ_where_randomness_is_used():
     ts = _trials()
-    kwargs = dict(window=(0.009, 0.5), baseline=(-0.5, -0.05), by=(), n_permutations=200)
+    kwargs = {"window": (0.009, 0.5), "baseline": (-0.5, -0.05), "by": (), "n_permutations": 200}
     a = evoparam.test_response(ts, random_state=0, **kwargs)
     b = evoparam.test_response(ts, random_state=1, **kwargs)
     assert not np.array_equal(

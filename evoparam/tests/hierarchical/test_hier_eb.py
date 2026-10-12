@@ -58,7 +58,8 @@ def test_level_tables_and_summary(reference):
     ):
         assert column in channel.columns
     subject = posterior_summary(fit, "subject")
-    assert len(subject) == 20 and subject["latency"].notna().all()
+    assert len(subject) == 20
+    assert subject["latency"].notna().all()
     assert set(fit.variance_components["level"]) >= {"subject", "channel", "trial"}
     assert fit.engine == "eb"
     with pytest.raises(SettingsError):
@@ -275,6 +276,8 @@ def test_latency_standard_error_adds_jitter_and_truncates_to_the_window():
     # a narrow error is the noise and the mean jitter in quadrature (window far away)
     assert out[0] == pytest.approx(np.hypot(0.001, 0.002 / 4), rel=1e-6)
     # a wide one is the SD of the normal truncated to the label window
-    assert out[1] < 0.015 and out[1] < (0.05 - 0.009) / np.sqrt(12) * 1.01
+    assert out[1] < 0.015
+    assert out[1] < (0.05 - 0.009) / np.sqrt(12) * 1.01
     # no Wald error: the fallback; no trial: the Wald error alone
-    assert out[2] == 0.0007 and out[3] == pytest.approx(0.001)
+    assert out[2] == 0.0007
+    assert out[3] == pytest.approx(0.001)

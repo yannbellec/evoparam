@@ -58,7 +58,8 @@ def test_req325_inlet_fitter_and_outlet_metadata():
         channels.append_child("channel").append_child_value("label", f"c{i}")
     outlet = pylsl.StreamOutlet(info)
     inlet = LSLInlet(name="evoparam-test-signal")
-    assert inlet.sfreq == SFREQ and inlet.ch_names == [f"c{i}" for i in range(N_CHANNELS)]
+    assert inlet.sfreq == SFREQ
+    assert inlet.ch_names == [f"c{i}" for i in range(N_CHANNELS)]
 
     template = channel_fits(simulate(n_trials=40, n_channels=1, seed=6)).fits[0]
     fitter = StreamFitter(
@@ -98,7 +99,8 @@ def test_req325_inlet_fitter_and_outlet_metadata():
     desc = reader.info(5.0).desc()
     assert desc.child_value("intended_use") == INTENDED_USE
     meta = json.loads(desc.child_value("evoparam"))
-    assert meta["intended_use"] == INTENDED_USE and meta["fields"] == list(FIELDS)
+    assert meta["intended_use"] == INTENDED_USE
+    assert meta["fields"] == list(FIELDS)
     reader.open_stream(5.0)
     time.sleep(0.5)
     out.push(estimates)

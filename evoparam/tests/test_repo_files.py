@@ -34,12 +34,14 @@ def test_files_exist_and_are_linked():
 def test_policies():
 
     contributing = _read("CONTRIBUTING.md")
-    assert "Developer Certificate of Origin" in contributing and "Signed-off-by" in contributing
+    assert "Developer Certificate of Origin" in contributing
+    assert "Signed-off-by" in contributing
     for topic in ("evoparam.shapes", "evoparam.presets", "evoparam.readers", "dataset"):
         assert topic in contributing
     governance = _read("GOVERNANCE.md")
     assert "steering group of three" in governance
-    assert "lazy consensus" in governance and "7-day" in governance
+    assert "lazy consensus" in governance
+    assert "7-day" in governance
     assert "Contributor Covenant, version 2.1" in _read("CODE_OF_CONDUCT.md")
 
 
@@ -49,5 +51,6 @@ def test_issue_templates():
     assert sorted(os.listdir(folder)) == sorted(TEMPLATES)
     assert "evoparam info" in _read(".github", "ISSUE_TEMPLATE", "bug.yml")
     preset = _read(".github", "ISSUE_TEMPLATE", "new_preset.yml")
-    assert "Literature keys" in preset and "Test dataset" in preset
+    assert "Literature keys" in preset
+    assert "Test dataset" in preset
     assert "discussions" in _read(".github", "ISSUE_TEMPLATE", "config.yml")

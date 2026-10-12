@@ -146,7 +146,8 @@ def test_req399_algorithm_version_in_every_step():
 
     trials, _ = sim.simulate_ccep(n_trials=4, n_channels=3, seed=0, artifact=False, p_response=1.0)
     steps = trials.provenance.steps
-    assert steps and all(re.fullmatch(r"\d+\.\d+", s["algorithm_version"]) for s in steps)
+    assert steps
+    assert all(re.fullmatch(r"\d+\.\d+", s["algorithm_version"]) for s in steps)
     assert steps[-1]["algorithm_version"] == ALGORITHM_VERSIONS["evoparam.sim.simulate_ccep"]
 
 

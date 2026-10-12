@@ -50,7 +50,7 @@ print(
 # the stimulated shaft (ROC) and a neighbouring one (RB)
 shaft = [
     n
-    for n, t in zip(channels["name"], channels["type"])
+    for n, t in zip(channels["name"], channels["type"], strict=False)
     if t == "SEEG" and n.rstrip("0123456789") in ("ROC", "RB") and n not in site.split("-")
 ]
 trials = read_bids(

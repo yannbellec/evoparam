@@ -40,7 +40,8 @@ def test_list_shapes_and_backgrounds():
     from evoparam.shapes import BACKGROUNDS, SHAPES
 
     shapes, backgrounds = list_shapes(), list_backgrounds()
-    assert shapes == sorted(SHAPES) and backgrounds == sorted(BACKGROUNDS)
+    assert shapes == sorted(SHAPES)
+    assert backgrounds == sorted(BACKGROUNDS)
     assert {"gaussian", "skewed_gaussian", "exgaussian", "gamma", "template"} <= set(shapes)
     assert {"none", "constant", "linear", "exponential", "pspline"} <= set(backgrounds)
     assert all(isinstance(name, str) for name in shapes + backgrounds)
@@ -60,7 +61,8 @@ def test_trialset_to_xarray():
     assert arr["stim_current_mA"].values.tolist() == [4.0, 4.0, 6.0, 6.0]
     assert arr["bad"].dims == ("channel",)
     assert np.array_equal(arr["mask"].values, ts.masks)
-    assert arr.attrs["sfreq"] == 1000.0 and arr.attrs["units"] == ts.units
+    assert arr.attrs["sfreq"] == 1000.0
+    assert arr.attrs["units"] == ts.units
     # Selection by label works as in xarray
     assert np.array_equal(arr.sel(channel="b").values, ts.data[:, 1])
 
@@ -94,7 +96,8 @@ def test_tffit_to_mne():
     out = tf.to_mne()
     assert isinstance(out, mne.time_frequency.AverageTFR)
     assert np.allclose(out.data, tf.maps["total"], equal_nan=True)
-    assert np.allclose(out.freqs, tf.freqs) and np.allclose(out.times, tf.times)
+    assert np.allclose(out.freqs, tf.freqs)
+    assert np.allclose(out.times, tf.times)
     assert out.ch_names == [row[0] for row in tf.settings["rows"]]
     assert out.nave == min(tf.settings["n_trials"])
     norm = tf.to_mne("total_norm")
@@ -127,7 +130,9 @@ def test_hierarchical_to_arviz_eb():
         atol=4 * channel["latency_se"].to_numpy(dtype=float)[finite].max() / np.sqrt(4000) + 1e-12,
     )
     sites = np.asarray(posterior["site_N1"]).tolist()
-    assert sites == [f"{a}/{b}" for a, b in zip(channel["subject"], channel["channel"])]
+    assert sites == [
+        f"{a}/{b}" for a, b in zip(channel["subject"], channel["channel"], strict=False)
+    ]
     assert "N1_amplitude_subject" in posterior
     assert "normal" in data.attrs["approximation"]
     # ArviZ summaries work on it

@@ -30,6 +30,7 @@ def evoparam(*args):
         [sys.executable, "-m", "evoparam", *map(str, args), "--json"],
         capture_output=True,
         text=True,
+        check=False,
     )
     summary = json.loads(proc.stdout.splitlines()[-1])
     print(

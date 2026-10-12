@@ -16,9 +16,11 @@ def test_bursts_truth_and_determinism():
     np.testing.assert_allclose(ts.data, again.data, rtol=1e-9, atol=0)
     record = truth.settings["bursts"][0]
     assert record["channel"] == "c1"
-    assert record["t_start"] == pytest.approx(0.2) and record["t_end"] == pytest.approx(0.3)
+    assert record["t_start"] == pytest.approx(0.2)
+    assert record["t_end"] == pytest.approx(0.3)
     assert len(truth.settings["phases"][0]) == 20
-    assert ts.data.shape == (20, 2, 1400) and ts.units == "uV"
+    assert ts.data.shape == (20, 2, 1400)
+    assert ts.units == "uV"
     null, _ = sim.simulate_bursts(20, n_channels=2, seed=3)  # same noise, no burst
     np.testing.assert_allclose(ts.data - truth.signal, null.data, rtol=1e-9, atol=1e-9)
     assert not np.any(truth.signal[:, 0])  # channel c0 has no burst
@@ -41,7 +43,8 @@ def test_bursts_are_induced_not_evoked():
 def test_bursts_waveform_and_checks():
     times = np.arange(0.0, 0.5, 0.001)
     one = sim.burst_waveform(times, freq=10.0, centre=0.25, duration=0.2, amplitude=2.0)
-    assert one.shape == (500,) and one[250] == pytest.approx(2.0 * np.cos(2 * np.pi * 2.5))
+    assert one.shape == (500,)
+    assert one[250] == pytest.approx(2.0 * np.cos(2 * np.pi * 2.5))
     many = sim.burst_waveform(
         times, freq=10.0, centre=0.25, duration=0.2, amplitude=2.0, phase=np.zeros(3)
     )
@@ -53,4 +56,5 @@ def test_bursts_waveform_and_checks():
     with pytest.raises(SettingsError, match="unknown channel"):
         sim.simulate_bursts(2, bursts=[dict(BURST, channel="x")])
     null, truth = sim.simulate_bursts(5, seed=0)
-    assert truth.settings["bursts"] == [] and null.data.shape == (5, 1, 1400)
+    assert truth.settings["bursts"] == []
+    assert null.data.shape == (5, 1, 1400)

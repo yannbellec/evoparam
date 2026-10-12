@@ -25,7 +25,7 @@ CASES = [
 ]
 
 
-@pytest.mark.parametrize("method, kwargs", CASES)
+@pytest.mark.parametrize(("method", "kwargs"), CASES)
 def test_req069_settings_recreate_the_result(method, kwargs):
 
     noisy, _ = make_overlay(n_channels=12)

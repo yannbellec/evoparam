@@ -39,7 +39,8 @@ def test_req320_contract(est):
 
     data = _array()
     params = est.get_params()
-    assert est.set_params(**params) is est and est.get_params() == params
+    assert est.set_params(**params) is est
+    assert est.get_params() == params
     assert not est.__sklearn_is_fitted__()
     with pytest.raises(NotFittedError):
         est.transform(_input(est, data))

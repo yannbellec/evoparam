@@ -14,7 +14,11 @@ from evoparam.cli import main
 
 def _run(*args, cwd=None):
     proc = subprocess.run(
-        [sys.executable, "-m", "evoparam", *args], capture_output=True, text=True, cwd=cwd
+        [sys.executable, "-m", "evoparam", *args],
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+        check=False,
     )
     return proc
 
@@ -64,7 +68,8 @@ def test_req345_fit_writes_the_derivatives(fitted):
     proc, out = fitted
     assert proc.returncode == 0, proc.stderr
     summary = json.loads(proc.stdout)
-    assert summary["command"] == "fit" and summary["exit_code"] == 0
+    assert summary["command"] == "fit"
+    assert summary["exit_code"] == 0
     names = {os.path.basename(p) for p in summary["outputs"]}
     for suffix in (
         "responses.tsv",
@@ -174,7 +179,8 @@ def test_req323_exit_codes(fitted, tmp_path, monkeypatch, capsys):
         == 1
     )
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert summary["exit_code"] == 1 and summary["status"] == "error"
+    assert summary["exit_code"] == 1
+    assert summary["status"] == "error"
     assert main(["benchmark", "--json"]) == 2  # usage: no action
     capsys.readouterr()
     bad = tmp_path / "bad.evoparam"
@@ -241,7 +247,9 @@ def test_req323_partial_and_interrupted(fitted, monkeypatch, capsys):
         ]
     )
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert code == 3 and summary["status"] == "partial" and summary["n_units"]["failed"] >= 1
+    assert code == 3
+    assert summary["status"] == "partial"
+    assert summary["n_units"]["failed"] >= 1
 
     def interrupted(*args, **kwargs):
         raise KeyboardInterrupt
@@ -261,7 +269,8 @@ def test_req323_partial_and_interrupted(fitted, monkeypatch, capsys):
         ]
     )
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert code == 130 and summary["status"] == "interrupted"
+    assert code == 130
+    assert summary["status"] == "interrupted"
 
 
 def test_req322_single_file_default_preset_and_toml(dataset, tmp_path, capsys):
@@ -332,7 +341,8 @@ def test_req322_clean_writes_epochs_and_info_backends(dataset, tmp_path, capsys)
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert code == 0, summary
     epochs = [p for p in summary["outputs"] if p.endswith(("_epo.fif", "_epo.npz"))]
-    assert len(epochs) == 1 and os.path.isfile(epochs[0])
+    assert len(epochs) == 1
+    assert os.path.isfile(epochs[0])
     assert any(p.endswith("_artifact.json") for p in summary["outputs"])
     assert main(["info", "--json"]) == 0
     info = json.loads(capsys.readouterr().out.splitlines()[-1])["result"]

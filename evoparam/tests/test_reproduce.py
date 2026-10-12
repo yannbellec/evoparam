@@ -53,7 +53,8 @@ def test_req007_result_is_regenerated(kind, trials, tmp_path):
         obj = BUILDERS[kind](trials)
     report = _regenerate(obj, str(tmp_path / f"{kind}.evoparam"), trials)
     assert report.identical, report.differences[:5]
-    assert report.steps and all(s["status"] in ("replayed", "skipped") for s in report.steps)
+    assert report.steps
+    assert all(s["status"] in ("replayed", "skipped") for s in report.steps)
 
 
 @pytest.mark.xfail(

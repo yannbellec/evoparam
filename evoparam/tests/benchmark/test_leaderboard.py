@@ -101,14 +101,13 @@ def test_req357_every_number_on_the_page_comes_from_a_result():
     for d in docs:
         allowed |= {format_metric(h, d["headline"].get(h)) for h in HEADLINE[d["task"]]}
     cells = re.findall(r"<td>([^<]*)</td>", text)
-    assert cells and set(cells) <= allowed
+    assert cells
+    assert set(cells) <= allowed
     for d in docs:
         assert d["signature"]["digest"][:12] in text
-    assert (
-        "<script" not in text
-        and "src=" not in text
-        and "http" not in text.split("</head>")[0].replace("http-equiv", "")
-    )
+    assert "<script" not in text
+    assert "src=" not in text
+    assert "http" not in text.split("</head>")[0].replace("http-equiv", "")
 
 
 def test_req353_report_holds_rules_and_projection_t1_t2():

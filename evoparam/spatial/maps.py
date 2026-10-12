@@ -189,9 +189,9 @@ def parameter_map(
     if info is not None and "name" in info.columns:
         names = info["name"].astype(str)
         if "bad" in info.columns:
-            bad = {n for n, v in zip(names, info["bad"]) if bool(v)}
+            bad = {n for n, v in zip(names, info["bad"], strict=False) if bool(v)}
         if "stim_contact" in info.columns:
-            stim_flag = {n for n, v in zip(names, info["stim_contact"]) if bool(v)}
+            stim_flag = {n for n, v in zip(names, info["stim_contact"], strict=False) if bool(v)}
     tests, probs = _existence_lookup(existence)
     shapes = _basis_lookup(basis)
 

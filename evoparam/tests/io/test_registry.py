@@ -64,7 +64,8 @@ def registry():
 def test_registry_file_is_versioned_and_complete():
 
     content = registry()
-    assert content["schema"] == "evoparam-registry/1" and content["version"]
+    assert content["schema"] == "evoparam-registry/1"
+    assert content["version"]
     ids = [entry["id"] for entry in content["datasets"]]
     assert len(ids) == len(set(ids))
     assert set(SEEDED) <= set(ids)
@@ -89,11 +90,16 @@ def test_every_loader_entry_point_resolves():
 def test_dataset_info():
 
     info = dataset_info("DS004080")
-    assert info["sfreq"] == 2048.0 and info["n_subjects"] == 74 and info["size_gb"] == 269.0
-    assert info["license"] == "CC0" and info["events_status"] == "present"
+    assert info["sfreq"] == 2048.0
+    assert info["n_subjects"] == 74
+    assert info["size_gb"] == 269.0
+    assert info["license"] == "CC0"
+    assert info["events_status"] == "present"
     assert info["doi"] == "10.18112/openneuro.ds004080.v1.2.4"
     tep = dataset_info("ds002094")  # read from its files (REQ-275)
-    assert tep["license"] == "CC0" and tep["sfreq"] == 5000.0 and tep["n_subjects"] == 20
+    assert tep["license"] == "CC0"
+    assert tep["sfreq"] == 5000.0
+    assert tep["n_subjects"] == 20
     assert dataset_info("erpcore")["id"] == "erp-core"
 
     # A copy: changing it does not change the registry
@@ -114,7 +120,8 @@ def test_list_datasets():
     assert table.attrs["registry_version"] == registry()["version"]
 
     spes = list_datasets(modality="spes", species="human")
-    assert "ds004080" in set(spes["id"]) and set(spes["modality"]) == {"spes"}
+    assert "ds004080" in set(spes["id"])
+    assert set(spes["modality"]) == {"spes"}
     assert set(list_datasets(modality=["erp", "tep"])["modality"]) == {"erp", "tep"}
     small = list_datasets(max_size_gb=300)
     assert list(small["id"]) == ["ds004080", "ds002094"]  # the datasets with a stated size

@@ -143,7 +143,7 @@ def held_recording(
     gains[-1] = 0.0
     for onset in onsets:
         add_pulse(data, onset, 600.0, gains)
-        for contact, sign in zip(pair, (1.0, -1.0)):
+        for contact, sign in zip(pair, (1.0, -1.0), strict=False):
             start = onset - early if lead else onset
             if hold:
                 data[contact, start : start + duration] = data[contact, start - 1] + sign * step
@@ -170,7 +170,7 @@ def test_held_and_leading_contacts_win_over_larger_artifacts():
     assert (events["stim_site_pulse"] == "A03-A04").all()
 
 
-@pytest.mark.parametrize("hold, lead", [(True, False), (False, True)])
+@pytest.mark.parametrize(("hold", "lead"), [(True, False), (False, True)])
 def test_held_or_leading_contacts_alone(hold, lead):
 
     data, onsets = held_recording(hold=hold, lead=lead)

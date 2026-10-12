@@ -41,4 +41,5 @@ def test_req319_block_with_two_segments():
     assert list(ts.metadata["condition"]) == ["left", "right", "left"] * 2
     assert list(ts.metadata["run"]) == ["0", "0", "0", "1", "1", "1"]
     one = read_neo(_block(), segment=1, events="stim", tmin=-0.1, tmax=0.2)
-    assert one.n_trials == 3 and set(one.metadata["run"]) == {"1"}
+    assert one.n_trials == 3
+    assert set(one.metadata["run"]) == {"1"}

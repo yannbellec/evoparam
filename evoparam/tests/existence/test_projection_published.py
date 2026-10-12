@@ -122,7 +122,7 @@ def _projection(ts, window=WINDOW, **kwargs):
 
 @pytest.mark.network
 @needs_network
-@pytest.mark.parametrize("name, drop, published", DURATIONS)
+@pytest.mark.parametrize(("name", "drop", "published"), DURATIONS)
 def test_req134_published_durations_of_the_example_data(name, drop, published):
     """REQ-134: the response duration of ``method="projection"`` is within 5 ms of the
     duration published for the paper's example data."""
@@ -207,7 +207,8 @@ def test_req134_reviewed_profile_is_kept_as_an_option():
     assert reviewed.settings["projection_profile"] == "normalised"
     assert np.all(np.abs(published.offset - 0.2) <= 0.005)
     assert np.all(reviewed.offset < 0.04)
-    assert np.all(published.significant) and np.all(reviewed.significant)
+    assert np.all(published.significant)
+    assert np.all(reviewed.significant)
 
 
 def test_req134_pairs_of_the_paper_are_anticonservative():

@@ -562,7 +562,7 @@ def tf_fit(
                     )
                 )
                 if by_trial:
-                    for i, v in zip(trial_idx, trial_values):
+                    for i, v in zip(trial_idx, trial_values, strict=False):
                         metric_rows.append(
                             _metric_row(
                                 0, published["name"], name, label, int(i), v, modality=ts.modality
@@ -781,7 +781,7 @@ def _zone_metrics(ts, tf, regions, kernels, out_idx, ref_times, groups, labels, 
                     _metric_row(z, f"zone{z}", name, label, -1, *values, modality=ts.modality)
                 )
                 if by_trial:
-                    for i, v in zip(trial_idx, trial_values):
+                    for i, v in zip(trial_idx, trial_values, strict=False):
                         rows.append(
                             _metric_row(
                                 z, f"zone{z}", name, label, int(i), v, modality=ts.modality

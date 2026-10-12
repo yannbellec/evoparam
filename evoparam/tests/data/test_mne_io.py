@@ -40,7 +40,8 @@ def test_req310_round_trip():
 
     e = _epochs()
     ts = TrialSet.from_mne(e)
-    assert ts.units == "uV" and np.allclose(ts.data, e.get_data() * 1e6)
+    assert ts.units == "uV"
+    assert np.allclose(ts.data, e.get_data() * 1e6)
     assert list(ts.metadata["condition"]) == ["a", "b"] * 3
     assert list(ts.ch_info["type"]) == ["eeg", "ecog", "seeg", "dbs"]
     assert list(ts.ch_info["bad"]) == [False, True, False, False]
@@ -100,7 +101,7 @@ def test_req311_fit_dispatch():
             ).to_dataframe(),
         )
         evokeds = [e[c].average() for c in ("a", "b")]
-        for ev, name in zip(evokeds, ("a", "b")):
+        for ev, name in zip(evokeds, ("a", "b"), strict=False):
             ev.comment = name
         grouped = evoparam.fit(evokeds, "erp", fit_window=(0.05, 0.29))
     assert set(grouped.index["condition"]) == {"a", "b"}
@@ -108,4 +109,5 @@ def test_req311_fit_dispatch():
     assert isinstance(annotations, mne.Annotations)
     assert all("|" in d for d in annotations.description)
     model = direct.to_evoked_model()
-    assert isinstance(model, mne.EvokedArray) and model.comment == "evoparam model"
+    assert isinstance(model, mne.EvokedArray)
+    assert model.comment == "evoparam model"

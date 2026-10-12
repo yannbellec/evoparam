@@ -68,7 +68,7 @@ def test_req065_local_extent_zeros_while_railed_and_keeps_more_of_the_signal():
     published filter also removes the slow part of the spikes everywhere)."""
 
     ts, truth, i0, rail_end = _railed_recording()
-    kwargs = dict(method="polynomial", window=(0.0, 0.001), quality=False)
+    kwargs = {"method": "polynomial", "window": (0.0, 0.001), "quality": False}
     local = remove_artifact(ts, **kwargs).cleaned
     published = remove_artifact(ts, poly_extent="global", **kwargs).cleaned
     assert np.all(local.data[..., i0:rail_end] == 0.0)

@@ -147,8 +147,8 @@ def consensus_truth(ts, index):
         if rule == "vanblooijs2023":
             peaks = (np.asarray(result.onset, float), result.settings["rule_spec"])
     votes = np.sum([decisions[r] for r in spec["rules"]], axis=0)
-    responders = [c for c, v in zip(ts.ch_names, votes) if v >= spec["min_agree"]]
-    excluded = [c for c, v in zip(ts.ch_names, votes) if 0 < v < spec["min_agree"]]
+    responders = [c for c, v in zip(ts.ch_names, votes, strict=False) if v >= spec["min_agree"]]
+    excluded = [c for c, v in zip(ts.ch_names, votes, strict=False) if 0 < v < spec["min_agree"]]
     n1 = {}
     if peaks is not None:
         latency, rule_spec = peaks

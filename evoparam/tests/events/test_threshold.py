@@ -157,7 +157,8 @@ def test_spec_procedure_template_pass_recovers_and_rejects():
     assert match_onsets(both["onset_time"], truth, 0.002)["recall"] == 1.0
     assert match_onsets(both["onset_time"], truth, 0.002)["false_alarms"] == 0
     alone = match_onsets(threshold_only["onset_time"], truth, 0.002)
-    assert alone["hits"] == len(onsets) and alone["false_alarms"] == 1
+    assert alone["hits"] == len(onsets)
+    assert alone["false_alarms"] == 1
     assert (both["detector"] == "template").sum() >= 1
 
 

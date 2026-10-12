@@ -59,7 +59,8 @@ def test_template_removal_with_saturation():
     """Clipped samples are masked by the simulator and left out of the ratio."""
 
     ts, truth = sim.simulate_ccep(seed=0, saturation=True)
-    assert ts.masks is not None and ts.masks.any()
+    assert ts.masks is not None
+    assert ts.masks.any()
     assert truth.artifact["n_clipped_samples"] == int(ts.masks.sum())
     assert np.max(np.abs(ts.data)) <= truth.artifact["rail"] + 1e-9
     res = remove_artifact(ts, method="template", window=WINDOW)
@@ -109,7 +110,8 @@ def test_ccep_artifact_off_and_scaling():
     ts, truth = sim.simulate_ccep(
         seed=6, artifact=False, noise="none", n_trials=2, n_channels=8, tmax=0.2
     )
-    assert truth.artifact is None and truth.artifact_data is None
+    assert truth.artifact is None
+    assert truth.artifact_data is None
     np.testing.assert_allclose(ts.data, truth.signal)
     _, one = sim.simulate_ccep(seed=6, stim_current_mA=1.0, n_trials=2, n_channels=8, tmax=0.2)
     _, four = sim.simulate_ccep(seed=6, stim_current_mA=4.0, n_trials=2, n_channels=8, tmax=0.2)
@@ -118,31 +120,39 @@ def test_ccep_artifact_off_and_scaling():
 
 def test_layouts_and_waveforms():
     names, coords, groups = seeg_layout(30)
-    assert names[0] == "A01" and len(set(groups)) == 3 and coords.shape == (30, 3)
+    assert names[0] == "A01"
+    assert len(set(groups)) == 3
+    assert coords.shape == (30, 3)
     assert np.isclose(np.linalg.norm(coords[1] - coords[0]), 3.5)
     names, coords, _ = grid_layout(16)
-    assert names[0] == "G01" and np.isclose(np.linalg.norm(coords[1] - coords[0]), 10.0)
+    assert names[0] == "G01"
+    assert np.isclose(np.linalg.norm(coords[1] - coords[0]), 10.0)
     names, coords, _ = line_layout(4, 0.04, "L")
     assert names == ["L00", "L01", "L02", "L03"]
     names, coords, _ = scalp_layout(40)
-    assert names[:3] == ["Cz", "Pz", "Fz"] and len(set(names)) == 40
+    assert names[:3] == ["Cz", "Pz", "Fz"]
+    assert len(set(names)) == 40
     assert np.all(np.linalg.norm(coords[:, :2], axis=1) <= 1.0 + 1e-9)
 
     contacts = np.array([[0, 0, 0], [3.5, 0, 0], [50, 0, 0]])
     gain = dipole_gain(contacts, contacts[0], contacts[1])
-    assert np.isclose(gain[0], 1 - 1 / 3.5) and np.isclose(gain[1], -gain[0])
+    assert np.isclose(gain[0], 1 - 1 / 3.5)
+    assert np.isclose(gain[1], -gain[0])
     assert abs(gain[2]) < 0.01 * gain[0]
 
     sfreq = 2048.0
     times = np.arange(-100, 400) / sfreq
     mono = pulse_shape(times, sfreq, pulse_width_us=200.0, kind="monophasic", polarity=-1)
     bi = pulse_shape(times, sfreq, pulse_width_us=200.0, kind="biphasic", polarity=-1)
-    assert np.all(mono[times < -0.003] == 0) and np.all(bi[times < -0.003] == 0)
+    assert np.all(mono[times < -0.003] == 0)
+    assert np.all(bi[times < -0.003] == 0)
     # The anti-aliasing filter passes DC: a monophasic pulse integrates to its charge.
     assert np.isclose(mono.sum() / sfreq, -200e-6, rtol=0.02)
     assert abs(bi.sum()) / sfreq < 0.02 * 200e-6  # charge-balanced
     tail = tail_shape(times, sfreq, start=0.0, tau1=0.002, tau2=0.02)
-    assert tail[0] == 0 and np.all(tail >= 0) and tail.max() <= 1.0
+    assert tail[0] == 0
+    assert np.all(tail >= 0)
+    assert tail.max() <= 1.0
     with pytest.raises(SettingsError):
         pulse_shape(times, sfreq, pulse_width_us=200.0, kind="square")
     with pytest.raises(SettingsError):
@@ -200,9 +210,11 @@ def test_ecap_kinds_and_errors():
 def test_tep_artifact_parts():
     ts, truth = sim.simulate_tep(seed=0, n_trials=4, n_channels=8, sfreq=2000.0, noise="none")
     info = truth.artifact
-    assert info["model"] == "tms" and info["stim_site"] == "C3"
+    assert info["model"] == "tms"
+    assert info["stim_site"] == "C3"
     for part in ("pulse", "decay", "muscle"):
-        assert part in info and "trial_cv" in info[part]
+        assert part in info
+        assert "trial_cv" in info[part]
     c3 = ts.ch_names.index("C3")
     peak = np.max(np.abs(truth.artifact_data[0]), axis=-1)
     assert np.argmax(peak) == c3
@@ -215,9 +227,11 @@ def test_tep_artifact_parts():
         decay_artifact=False,
         muscle_artifact=False,
     )
-    assert none.artifact is None and none.artifact_data is None
+    assert none.artifact is None
+    assert none.artifact_data is None
     roles = {c["label"]: c["role"] for c in truth.components}
-    assert roles["AEP_N100"] == "confound" and roles["N100"] == "target"
+    assert roles["AEP_N100"] == "confound"
+    assert roles["N100"] == "target"
 
 
 def test_erna_artifact_is_a_pulse_train():

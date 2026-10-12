@@ -70,7 +70,7 @@ def write_brainvision(
     ]
     lines += [
         "Ch{}={},,{},{}".format(ind + 1, name.replace(",", "\\1"), res, unit)
-        for ind, (name, res, unit) in enumerate(zip(ch_names, resolutions, units))
+        for ind, (name, res, unit) in enumerate(zip(ch_names, resolutions, units, strict=False))
     ]
     with open(os.path.join(folder, stem + ".vhdr"), "w", encoding="utf-8") as file:
         file.write("\n".join(lines) + "\n")
@@ -270,7 +270,7 @@ def red_encode(
     # Differences: the first sample as 4 bytes, then a byte per difference, or the
     # keysample flag -128 and 4 bytes when the difference exceeds +-127
     diffs = bytearray(struct.pack("<i", int(x[0])))
-    for prev, cur in zip(x[:-1].tolist(), x[1:].tolist()):
+    for prev, cur in zip(x[:-1].tolist(), x[1:].tolist(), strict=False):
         step = cur - prev
         if -127 <= step <= 127:
             diffs.append(step & 0xFF)
@@ -423,13 +423,15 @@ def write_mef(
         values = np.where(np.isnan(data[ch]), MEF_NAN, values)
         values = np.where(np.isposinf(data[ch]), MEF_POS_INF, values)
         values = np.where(np.isneginf(data[ch]), MEF_NEG_INF, values)
-        for seg, (seg_first, seg_stop) in enumerate(zip(seg_bounds[:-1], seg_bounds[1:])):
+        for seg, (seg_first, seg_stop) in enumerate(
+            zip(seg_bounds[:-1], seg_bounds[1:], strict=False)
+        ):
             folder_seg = os.path.join(root, name + ".timd", f"{name}-{seg:06d}.segd")
             os.makedirs(folder_seg, exist_ok=True)
             stem = os.path.join(folder_seg, f"{name}-{seg:06d}")
             starts = [b for b in bounds if seg_first <= b < seg_stop]
             tdat, index = bytearray(), bytearray()
-            for first, stop in zip(starts, starts[1:] + [seg_stop]):
+            for first, stop in zip(starts, starts[1:] + [seg_stop], strict=False):
                 block = red_encode(
                     values[first:stop],
                     times[first],
@@ -452,9 +454,13 @@ def write_mef(
                 )
                 tdat += block
             end = int(times[seg_stop - 1] + 1e6 / sfreq)
-            common = dict(
-                start=int(times[seg_first]), end=end, segment=seg, channel=name, session=session
-            )
+            common = {
+                "start": int(times[seg_first]),
+                "end": end,
+                "segment": seg,
+                "channel": name,
+                "session": session,
+            }
             n_blocks = len(starts)
             with open(stem + ".tdat", "wb") as file:
                 file.write(

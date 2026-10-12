@@ -346,7 +346,7 @@ def _metadata_rows(trials, label):
     for start in range(len(meta.columns) - len(parts) + 1):
         columns = list(meta.columns[start : start + len(parts)])
         mask = np.ones(len(meta), bool)
-        for column, value in zip(columns, parts):
+        for column, value in zip(columns, parts, strict=False):
             mask &= meta[column].astype(str).to_numpy() == value
         if mask.any():
             return meta[mask]
@@ -391,7 +391,7 @@ def _response_rows(group, test=None, trials=None, extra_columns=()):
     if test is not None:
         names = test.settings.get("channels") or []
         conditions = test.settings.get("conditions") or [""] * len(names)
-        for name, cond, sig in zip(names, conditions, np.ravel(test.significant)):
+        for name, cond, sig in zip(names, conditions, np.ravel(test.significant), strict=False):
             present[(name, cond)] = bool(sig)
     rows = []
     stim = {}
@@ -596,7 +596,7 @@ def write_bids_derivatives(
         names = test.settings.get("channels") or [f"ch{i}" for i in range(len(test.statistic))]
         conditions = test.settings.get("conditions") or [""] * len(names)
         rows = []
-        for i, (name, cond) in enumerate(zip(names, conditions)):
+        for i, (name, cond) in enumerate(zip(names, conditions, strict=False)):
             rows.append(
                 {
                     "channel": name,
@@ -679,7 +679,7 @@ def write_bids_derivatives(
             times = artifact.cleaned.times
             for trial, channel in np.ndindex(*masks.shape[:2]):
                 edges = np.flatnonzero(np.diff(np.r_[0, masks[trial, channel].astype(int), 0]))
-                for start, stop in zip(edges[::2], edges[1::2]):
+                for start, stop in zip(edges[::2], edges[1::2], strict=False):
                     replaced.append(
                         {
                             "trial": int(trial),
@@ -889,7 +889,7 @@ def _read_tsv_rows(path):
     with open(path, encoding="utf-8") as fobj:
         lines = fobj.read().splitlines()
     header = lines[0].split("\t")
-    return header, [dict(zip(header, line.split("\t"))) for line in lines[1:]]
+    return header, [dict(zip(header, line.split("\t"), strict=False)) for line in lines[1:]]
 
 
 def _check_table(path, expected_rows, columns):
@@ -902,7 +902,7 @@ def _check_table(path, expected_rows, columns):
             f"{path}: {len(rows)} rows, the saved result gives "
             f"{len(expected_rows)}; the table was edited."
         )
-    for i, (row, expected) in enumerate(zip(rows, expected_rows)):
+    for i, (row, expected) in enumerate(zip(rows, expected_rows, strict=False)):
         for column in columns:
             if column in row and row[column] != _cell(expected.get(column)):
                 raise DataError(

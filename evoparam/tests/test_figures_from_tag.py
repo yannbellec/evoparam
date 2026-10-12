@@ -51,7 +51,10 @@ def test_req393_figures_reproduce_their_hashes(tmp_path):
 
 def _tags():
     done = subprocess.run(
-        ["git", "-C", str(ROOT), "tag", "--list", "v*"], capture_output=True, text=True
+        ["git", "-C", str(ROOT), "tag", "--list", "v*"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     return done.stdout.split()
 
@@ -69,5 +72,6 @@ def test_req393_make_figures_on_the_release_tag():
         ["git", "-C", str(ROOT), "show", f"{tags[-1]}:figures/manifest.json"],
         capture_output=True,
         text=True,
+        check=False,
     )
     assert manifest.returncode == 0

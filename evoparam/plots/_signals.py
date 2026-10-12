@@ -76,7 +76,7 @@ def plot_signals(
         colors if isinstance(colors, (list, tuple)) else [colors] if colors else PALETTE
     )
     labels = cycle(labels if isinstance(labels, (list, tuple)) else [labels])
-    for time, row, color, label in zip(time_rows, rows, colors, labels):
+    for time, row, color, label in zip(time_rows, rows, colors, labels, strict=False):
         ax.plot(time, row, color=color, label=label, linewidth=linewidth)
     _style(ax, ylabel=ylabel)
     return fig
@@ -108,7 +108,7 @@ def plot_signals_shading(
     plot_signals(times, signals, ax=ax, **kwargs)
     shades = [shades] if np.ndim(shades) == 1 else list(shades)
     colors = cycle(shade_colors if isinstance(shade_colors, (list, tuple)) else [shade_colors])
-    for (start, end), color in zip(shades, colors):
+    for (start, end), color in zip(shades, colors, strict=False):
         ax.axvspan(start, end, color=color, alpha=0.2, lw=0)
         if add_center:
             ax.axvline((start + end) / 2.0, color=color, lw=1.0)

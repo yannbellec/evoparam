@@ -118,7 +118,7 @@ def _electrodes():
 def reference_regions():
     """Site -> region (STG, ITG, fusiform) when both contacts share one of the labels."""
 
-    labels = dict(zip(_electrodes()["name"], _electrodes()["Destrieux_label_text"]))
+    labels = dict(zip(_electrodes()["name"], _electrodes()["Destrieux_label_text"], strict=False))
     out = {}
     for site in load_ds003708().metadata["stim_site"].unique():
         a, b = site.split("-")
@@ -165,7 +165,8 @@ def basis():
 def test_reads_the_example_channel():
 
     ts = load_ds003708()
-    assert ts.sfreq == 2048.0 and ts.n_channels == 1
+    assert ts.sfreq == 2048.0
+    assert ts.n_channels == 1
     assert ts.metadata["stim_site"].nunique() == 48
     assert 400 <= ts.n_trials <= 495
     assert np.isfinite(ts.data).all()

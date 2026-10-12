@@ -558,7 +558,7 @@ class GroupFit(_ResultMixin):
                 data[i, inside] = np.interp(times[inside], grid, f.model)
         names = [
             f"{c}|{d}" if d else str(c)
-            for c, d in zip(self.index["channel"], self.index["condition"])
+            for c, d in zip(self.index["channel"], self.index["condition"], strict=False)
         ]
         info = mne.create_info(names, float(rate), "misc")
         return mne.EvokedArray(
@@ -662,7 +662,9 @@ class HierarchicalFit(_ResultMixin):
                 part = table[table["component"] == label]
                 block = out.setdefault(str(label), {})
                 if level == "channel":
-                    block[column] = [f"{a}/{b}" for a, b in zip(part["subject"], part["channel"])]
+                    block[column] = [
+                        f"{a}/{b}" for a, b in zip(part["subject"], part["channel"], strict=False)
+                    ]
                 else:
                     block[column] = [str(v) for v in part["subject"]]
                 for parameter in ("latency", "amplitude"):

@@ -13,12 +13,14 @@ def test_waveform_band_mean_std_sem_median():
     rng = np.random.default_rng(1)
     x = rng.normal(size=(12, 30))
     center, half = waveform_band(x)
-    assert np.allclose(center, x.mean(axis=0)) and np.allclose(half, x.std(axis=0))
+    assert np.allclose(center, x.mean(axis=0))
+    assert np.allclose(half, x.std(axis=0))
     center, half = waveform_band(x, spread="sem", average="median", scale=2.0)
     assert np.allclose(center, np.median(x, axis=0))
     assert np.allclose(half, 2.0 * x.std(axis=0, ddof=1) / np.sqrt(12))
     center, half = waveform_band(x[0], spread=np.ones(30))
-    assert np.array_equal(center, x[0]) and np.array_equal(half, np.ones(30))
+    assert np.array_equal(center, x[0])
+    assert np.array_equal(half, np.ones(30))
     with pytest.raises(SettingsError):
         waveform_band(x[0])
     with pytest.raises(SettingsError):

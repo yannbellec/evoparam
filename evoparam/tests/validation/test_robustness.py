@@ -72,7 +72,8 @@ def test_req375_the_five_analyses_are_defined(robustness):
     assert robustness.TRIAL_COUNTS == (5, 7, 10)
     assert robustness.PRESET_FACTORS == (0.5, 1.5)
     assert robustness.SAMPLING_RECALL_POINTS == 5.0
-    assert robustness.PRESET_RECALL_REL == 0.10 and robustness.PRESET_LATENCY_MS == 2.0
+    assert robustness.PRESET_RECALL_REL == 0.10
+    assert robustness.PRESET_LATENCY_MS == 2.0
 
 
 def test_req375_preset_perturbation(robustness):
@@ -81,7 +82,8 @@ def test_req375_preset_perturbation(robustness):
 
     assert robustness.perturb(0.2, 0.5) == pytest.approx(0.1)
     assert robustness.perturb([0.009, 0.1], 1.5) == pytest.approx([0.0135, 0.15])
-    assert robustness.perturb(3, 0.5) == 2 and robustness.perturb(1, 0.5) == 1
+    assert robustness.perturb(3, 0.5) == 2
+    assert robustness.perturb(1, 0.5) == 1
     assert robustness.perturb(True, 0.5) is True
     assert robustness.perturb({"N1": [0.01, 0.05]}, 0.5) == {"N1": [0.005, 0.025]}
 
@@ -133,7 +135,8 @@ def test_req375_montage_covers_ds004080_and_ds004977(report):
     """§7.4 (1): every ds004080 and ds004977 result is recomputed under the three
     references."""
 
-    assert report["data"]["ds004080"] and report["data"]["ds004977"]
+    assert report["data"]["ds004080"]
+    assert report["data"]["ds004977"]
     n_cases = len(report["data"]["ds004080"]) + len(report["data"]["ds004977"])
     for pair in ("bipolar-car", "bipolar-car_adaptive", "car-car_adaptive"):
         assert report["montage"]["summary"][pair]["n"] == n_cases
@@ -193,7 +196,8 @@ def test_req375_trial_count_reports_changed_decisions(report):
     """§7.4 (4): the change of existence decisions is reported per trial count."""
 
     for row in report["trials"]["summary"]:
-        assert row["draws"] > 0 and 0.0 <= row["changed_mean"] <= 1.0
+        assert row["draws"] > 0
+        assert 0.0 <= row["changed_mean"] <= 1.0
 
 
 def test_req375_platform_this_machine(report):
@@ -222,7 +226,7 @@ def test_req375_report_attached_to_the_release_notes():
     release exists before the owner's HIIE decision)."""
 
     tags = subprocess.run(
-        ["git", "tag", "--list", "v*"], capture_output=True, text=True, cwd=ROOT
+        ["git", "tag", "--list", "v*"], capture_output=True, text=True, cwd=ROOT, check=False
     ).stdout.split()
     assert tags, "no release tag"
 
@@ -260,7 +264,7 @@ def test_req376_committed_files_have_the_metrics(gate):
 
 
 @pytest.mark.parametrize(
-    "field, delta, blocks",
+    ("field", "delta", "blocks"),
     [
         ("kappa", -0.051, True),
         ("kappa", -0.049, False),
@@ -340,7 +344,8 @@ def test_req376_gate_passes_on_the_committed_files(tmp_path):
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     out = json.loads((tmp_path / "gate.json").read_text(encoding="utf-8"))
-    assert out["n_metrics"] > 0 and not out["blocking"]
+    assert out["n_metrics"] > 0
+    assert not out["blocking"]
 
 
 def test_req376_release_workflow_runs_the_gate():

@@ -80,7 +80,7 @@ class _Channel:
             self.support |= (tw >= comp.onset - comp.fwhm) & (tw <= comp.offset + comp.fwhm)
         self.key = tuple(
             (type(s).__name__, repr(s), p.tobytes(), a)
-            for s, p, a in zip(self.shapes, self.params, self.amps)
+            for s, p, a in zip(self.shapes, self.params, self.amps, strict=False)
         )
         self.spans = [slice(None)] * len(self.shapes)
 
@@ -567,7 +567,7 @@ class FixedShapeModel:
             if not clean:
                 tables = tuple(t.copy() for t in tables)
                 fresh = self._pair_tables(weights[bad], bad)
-                for full, part in zip(tables, fresh):
+                for full, part in zip(tables, fresh, strict=False):
                     full[bad] = part
             best_k, profile = self._ascend(best, r, rb, tables)
             frac = _parabolic(profile.reshape(n_ch * q, n_s), best_k.reshape(-1))

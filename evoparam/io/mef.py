@@ -965,10 +965,10 @@ def _read_grid(header, ch_index, starts, n_times, *, check_crc=True, log=None):
 
     chunks, lines, network, cursor = [], [], 0, 0
     block_starts, info = [], []  # info: col, ch, block, n, bytes, constant
-    for (rel, runs), (contents, file_lines, nbytes) in zip(jobs, fetched):
+    for (rel, runs), (contents, file_lines, nbytes) in zip(jobs, fetched, strict=False):
         lines += file_lines
         network += nbytes
-        for (_, offset, _, members, col, ch), content in zip(runs, contents):
+        for (_, offset, _, members, col, ch), content in zip(runs, contents, strict=False):
             blocks = header["channels"][ch]["blocks"]
             for ind in members:
                 block_starts.append(cursor + int(blocks["offset"][ind]) - offset)

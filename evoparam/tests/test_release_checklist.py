@@ -48,14 +48,18 @@ def test_req312_inherited_code_is_found(tmp_path):
         [sys.executable, tool, str(fresh), "--inherited", str(inherited)],
         capture_output=True,
         text=True,
+        check=False,
     )
-    assert ok.returncode == 0 and "no inherited code" in ok.stdout
+    assert ok.returncode == 0
+    assert "no inherited code" in ok.stdout
     bad = subprocess.run(
         [sys.executable, tool, str(copied), "--inherited", str(inherited)],
         capture_output=True,
         text=True,
+        check=False,
     )
-    assert bad.returncode == 1 and "module.py" in bad.stdout
+    assert bad.returncode == 1
+    assert "module.py" in bad.stdout
 
 
 def test_req312_new_modules_hold_no_inherited_code():

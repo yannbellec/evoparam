@@ -43,7 +43,9 @@ def test_req340_reference_pipelines_match_frozen_text(name):
     if text != frozen:
         # Name the first differing sentence, so that a failure is easy to read.
         new, old = text.split(". "), frozen.split(". ")
-        first = next(i for i, (a, b) in enumerate(zip(new + [""], old + [""])) if a != b)
+        first = next(
+            i for i, (a, b) in enumerate(zip(new + [""], old + [""], strict=False)) if a != b
+        )
         pytest.fail(
             f"{name}: methods text differs from methods/{name}.txt at sentence "
             f"{first}:\n  frozen: {old[first] if first < len(old) else ''}\n"
@@ -57,10 +59,13 @@ def test_req340_frozen_text_has_no_run_specific_content():
     for name in reports.REFERENCE_PIPELINES:
         raw = FOLDER.joinpath(name + ".txt").read_text("utf-8")
         # The version appears only as a placeholder (the citation names the cited release).
-        assert "{version}" in raw and __version__ not in raw.split("Software:")[0]
+        assert "{version}" in raw
+        assert __version__ not in raw.split("Software:")[0]
         assert not re.search(r"\d{4}-\d{2}-\d{2}", raw)  # no date
         assert not re.search(r"\d+\.\d{5,}", raw)  # no long float
-        assert "duration" not in raw and "/home/" not in raw and "/tmp/" not in raw
+        assert "duration" not in raw
+        assert "/home/" not in raw
+        assert "/tmp/" not in raw
         assert raw.count("\n") == 1
 
 
@@ -220,7 +225,8 @@ def test_req340_erpcore_p3_real_recording_gives_the_frozen_text():
         ch_names=["Pz"],
         metadata=pd.DataFrame({"event": [inverse[c] for c in epochs.events[:, 2]]}),
     )
-    assert trials.n_trials > 100 and trials.times[0] < 0
+    assert trials.n_trials > 100
+    assert trials.times[0] < 0
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         result = reports.run_reference_pipeline("erpcore_p3", trials)

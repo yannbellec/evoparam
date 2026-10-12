@@ -88,7 +88,7 @@ def _spec_sources(spec, rng, ch_names, event=0, **extra):
     if not peak > 0:
         raise SettingsError(f"component '{spec.label}': every weight is zero.")
     out = []
-    for channel, weight in zip(channels, weights):
+    for channel, weight in zip(channels, weights, strict=False):
         if weight == 0:
             continue
         out.append(
@@ -1015,7 +1015,7 @@ def simulate_tep(
         info["muscle"] = {
             "amplitude_uV": amp,
             "shape": "gabor",
-            "params": dict(zip(("t0", "sigma", "freq", "phase"), params.tolist())),
+            "params": dict(zip(("t0", "sigma", "freq", "phase"), params.tolist(), strict=False)),
         }
     artifact_data = None
     if template_parts:

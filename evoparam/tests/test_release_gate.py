@@ -76,7 +76,12 @@ def test_req019_make_publish_stops_before_the_decision():
     if _decided():
         pytest.skip("the HIIE decision is on record (RELEASING.md)")
     result = subprocess.run(
-        ["make", "-s", "publish"], cwd=ROOT, capture_output=True, text=True, timeout=60
+        ["make", "-s", "publish"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
     )
     assert result.returncode != 0
     assert "HIIE decision" in result.stdout + result.stderr
@@ -85,7 +90,8 @@ def test_req019_make_publish_stops_before_the_decision():
 def test_req017_n1_tests_run_in_every_build():
     workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
     triggers = workflow.split("\njobs:")[0]
-    assert "push:" in triggers and "pull_request:" in triggers
+    assert "push:" in triggers
+    assert "pull_request:" in triggers
     build = workflow.split("\n  build:")[1].split("\n  docs:")[0]
     assert "\n    if:" not in build.split("steps:")[0]  # the job runs on every trigger
     step = build.split("REQ-113 and REQ-114 in every build (REQ-017)")[1].split("- name:")[0]
@@ -95,7 +101,8 @@ def test_req017_n1_tests_run_in_every_build():
     engine = (ROOT / "evoparam" / "tests" / "models" / "test_engine_ccep.py").read_text(
         encoding="utf-8"
     )
-    assert re.search(r"def test_req113_", engine) and re.search(r"def test_req114_", engine)
+    assert re.search(r"def test_req113_", engine)
+    assert re.search(r"def test_req114_", engine)
 
 
 def test_req018_every_addressed_gap_is_traced():
@@ -104,6 +111,7 @@ def test_req018_every_addressed_gap_is_traced():
         capture_output=True,
         text=True,
         timeout=120,
+        check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "49 gaps marked Addressed" in result.stdout
@@ -125,6 +133,7 @@ def test_req018_the_check_finds_a_broken_mapping(tmp_path):
         capture_output=True,
         text=True,
         timeout=120,
+        check=False,
     )
     assert result.returncode == 1
     assert "GAP-03: no test file" in result.stdout
@@ -158,9 +167,11 @@ def test_req398_the_gate_refuses_now():
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     assert result.returncode == 1
-    assert "GOVERNANCE.md" in result.stdout and "RELEASING.md" in result.stdout
+    assert "GOVERNANCE.md" in result.stdout
+    assert "RELEASING.md" in result.stdout
 
 
 def test_req398_the_gate_passes_with_a_recorded_decision(tmp_path):
@@ -187,6 +198,7 @@ def test_req398_the_gate_passes_with_a_recorded_decision(tmp_path):
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     assert result.returncode == 0, result.stdout
 
@@ -207,7 +219,8 @@ def test_req398_the_upload_job_waits_outside_the_workflows():
     """The trusted-publishing job is kept in ci/ until the decision (RELEASING.md step 9)."""
 
     job = (ROOT / "ci" / "release-publish-job.yml").read_text(encoding="utf-8")
-    assert "pypa/gh-action-pypi-publish" in job and "id-token: write" in job
+    assert "pypa/gh-action-pypi-publish" in job
+    assert "id-token: write" in job
     assert "step 9" in (ROOT / "RELEASING.md").read_text(
         encoding="utf-8"
     ).lower() or "ci/release-publish-job.yml" in (ROOT / "RELEASING.md").read_text(
@@ -227,5 +240,6 @@ def test_req398_decision_on_record():
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     assert result.returncode == 0

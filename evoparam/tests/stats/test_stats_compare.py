@@ -183,8 +183,10 @@ def test_effect_detected_with_effect_sizes():
         table, parameter="latency", condition="condition", unit="channel", random_state=0
     )
     row = out.iloc[0]
-    assert row["exact"] and row["n_permutations"] == 2**12
-    assert row["p_value"] < 0.01 and row["difference_ms"] == pytest.approx(4, abs=1)
+    assert row["exact"]
+    assert row["n_permutations"] == 2**12
+    assert row["p_value"] < 0.01
+    assert row["difference_ms"] == pytest.approx(4, abs=1)
     assert row["ci_low_ms"] < row["difference_ms"] < row["ci_high_ms"]
     d = table["latency"].to_numpy()[0::2] - table["latency"].to_numpy()[1::2]
     assert row["hedges_g"] == pytest.approx(d.mean() / d.std(ddof=1) * (1 - 3 / (4 * 11 - 1)))
@@ -207,7 +209,8 @@ def test_status_rows_are_excluded_and_counted():
     out = compare_conditions(
         table, parameter="latency", condition="condition", n_permutations=500, random_state=0
     )
-    assert out["n_excluded"].iloc[0] == 2 and out["n_missing"].iloc[0] == 1
+    assert out["n_excluded"].iloc[0] == 2
+    assert out["n_missing"].iloc[0] == 1
     assert out["n_a"].iloc[0] == 7  # s1 (missing b), s8, s9 dropped
 
 
@@ -229,7 +232,7 @@ def test_several_conditions_and_errors():
         random_state=0,
         correction="holm",
     )
-    assert list(zip(out["condition_a"], out["condition_b"])) == [
+    assert list(zip(out["condition_a"], out["condition_b"], strict=False)) == [
         ("1", "2"),
         ("1", "3"),
         ("2", "3"),

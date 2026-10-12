@@ -248,7 +248,10 @@ class GroundTruth(DeepEqualMixin):
         params = np.asarray(comp["params"], dtype=np.float64).copy()
         params[comp["param_names"].index(comp["loc_param"])] += shift
         row.update(
-            {f"param_{name}": float(value) for name, value in zip(comp["param_names"], params)}
+            {
+                f"param_{name}": float(value)
+                for name, value in zip(comp["param_names"], params, strict=False)
+            }
         )
         return row
 

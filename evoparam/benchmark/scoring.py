@@ -124,10 +124,12 @@ def _rows_by(rows, keys, cell, allowed=None, what="channel"):
         key = tuple(row[k] for k in keys)
         if allowed is not None and key not in allowed:
             raise BenchmarkValidationError(
-                f"cell {cell}: row {dict(zip(keys, key))} is not a {what} of the input"
+                f"cell {cell}: row {dict(zip(keys, key, strict=False))} is not a {what} of the input"
             )
         if key in out:
-            raise BenchmarkValidationError(f"cell {cell}: two rows for {dict(zip(keys, key))}")
+            raise BenchmarkValidationError(
+                f"cell {cell}: two rows for {dict(zip(keys, key, strict=False))}"
+            )
         out[key] = row
     return out
 
@@ -632,7 +634,7 @@ def _t7(items):
                         for b in bursts
                     ]
                 )
-                for i, j in zip(*linear_sum_assignment(cost)):
+                for i, j in zip(*linear_sum_assignment(cost), strict=False):
                     b, z = bursts[i], positive[j]
                     f_err = abs(z["freq_centroid"] / b["freq"] - 1.0)
                     t_err = abs(z["time_centroid"] - b["centre"])

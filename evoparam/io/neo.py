@@ -101,7 +101,7 @@ def read_neo(source, *, segment=None, signal=0, events=None, tmin=-0.1, tmax=0.5
             raise DataError(f"Segment {run} has no Event or Epoch.")
         first = int(np.ceil(np.round(tmin * rate, 6)))
         n_times = int(np.ceil(np.round(tmax * rate, 6))) - first
-        for t, label in zip(times, labels):
+        for t, label in zip(times, labels, strict=False):
             i0 = int(np.ceil(np.round((t - start) * rate, 6))) + first
             if i0 < 0 or i0 + n_times > values.shape[0]:
                 continue

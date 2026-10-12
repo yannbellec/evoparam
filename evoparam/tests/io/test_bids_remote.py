@@ -49,7 +49,8 @@ def test_remote_read_matches_local_read(bids_root):
     # Only byte ranges of the data file were transferred, and they are recorded
     source = remote.provenance.source
     data_requests = [r for r in stats.requests if r[1].endswith(".eeg") and r[0] == "GET"]
-    assert data_requests and all(r[2] is not None and r[3] == 206 for r in data_requests)
+    assert data_requests
+    assert all(r[2] is not None and r[3] == 206 for r in data_requests)
     assert source["bytes_read"] == stats.bytes_sent
     assert source["path"] == base + DATA_FILE
     assert source["full_download"] is False
@@ -107,7 +108,8 @@ def test_server_ignoring_range_falls_back_to_full_download(bids_root, tmp_path):
             )
     assert np.array_equal(remote.data, local.data)
     source = remote.provenance.source
-    assert source["full_download"] is True and source["ranges"] == [[0, size]]
+    assert source["full_download"] is True
+    assert source["ranges"] == [[0, size]]
     assert source["sha256"] == local.provenance.source["sha256"]  # whole-file hash
     assert len(os.listdir(tmp_path / "cache")) == 1
     # The whole file was fetched once
@@ -120,7 +122,8 @@ def test_retries_with_backoff(bids_root, delays):
         data, _, _, _ = read_brainvision(
             base + "sub-01/ieeg/sub-01_task-spes_run-01_ieeg.vhdr", tmin=1.0, tmax=1.1
         )
-    assert data.shape == (3, 100) and delays == [2.0, 4.0]
+    assert data.shape == (3, 100)
+    assert delays == [2.0, 4.0]
 
 
 def test_gives_up_after_four_retries(bids_root, delays):
@@ -128,7 +131,8 @@ def test_gives_up_after_four_retries(bids_root, delays):
     with http_server(bids_root, failures=100) as (base, stats):
         with pytest.raises(ReaderError, match="HTTP 503"):
             read_bids(base, "01", task="spes", run="01", remote=True)
-    assert delays == [2.0, 4.0, 8.0, 16.0] and len(stats.requests) == 5
+    assert delays == [2.0, 4.0, 8.0, 16.0]
+    assert len(stats.requests) == 5
 
 
 def test_missing_file_and_offline_mode(bids_root, delays, monkeypatch):
@@ -213,4 +217,5 @@ def test_openneuro_ds004080_ten_trials():
     assert source["doi"] == "10.18112/openneuro.ds004080.v1.2.4"
     assert set(trials.metadata["stim_site"]) == {"PT01-PT02"}
     assert np.allclose(trials.metadata["stim_current_mA"], 7.0)
-    assert trials.times[0] == -0.5 and trials.times[-1] < 1.0
+    assert trials.times[0] == -0.5
+    assert trials.times[-1] < 1.0

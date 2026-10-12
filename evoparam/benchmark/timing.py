@@ -156,6 +156,7 @@ def environment():
                     text=True,
                     cwd=os.path.dirname(os.path.abspath(__file__)),
                     timeout=10,
+                    check=False,
                 ).stdout.strip()
                 or None
             )

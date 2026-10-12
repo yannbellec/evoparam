@@ -210,13 +210,15 @@ def fit_hierarchical(
             trial_fits,
             [
                 (s, gf, label, JITTER_RANGE * group_tmpl["fwhm"], random_state)
-                for (_, s), gf in zip(subjects, fits)
+                for (_, s), gf in zip(subjects, fits, strict=False)
             ],
             n_jobs,
         )
         clock["trial_fits"] += _time.perf_counter() - t1
         rows = []
-        for si, ((name, s), gf, crow, tset) in enumerate(zip(subjects, fits, comps, trial_sets)):
+        for si, ((name, s), gf, crow, tset) in enumerate(
+            zip(subjects, fits, comps, trial_sets, strict=False)
+        ):
             own = [c for c in crow.values() if c is not None]
             tmpl = template(own) if len(own) >= MIN_TEMPLATE_CHANNELS else group_tmpl
             amps = template_amplitudes(s, tmpl) if existence else None
@@ -282,7 +284,7 @@ def fit_hierarchical(
         if trial_part:
             tt = pd.concat(trial_part, ignore_index=True)
             noise = frame.set_index(["subject", "channel"])["latency_noise_sd"]
-            sd = noise.reindex(list(zip(tt["subject"], tt["channel"]))).to_numpy()
+            sd = noise.reindex(list(zip(tt["subject"], tt["channel"], strict=False))).to_numpy()
             jit = eb.jitter_components(
                 tt["latency"].to_numpy(), sd, tt["subject"].to_numpy(), tt["channel"].to_numpy()
             )
@@ -311,8 +313,8 @@ def fit_hierarchical(
             diagnostics["em"][label] = {
                 k: em[k] for k in ("n_iter", "converged", "loglik", "tau", "mu_group", "sd_group")
             }
-            pi = dict(zip(range(len(subjects)), em["pi"]))
-            mu = dict(zip(range(len(subjects)), em["mu"]))
+            pi = dict(zip(range(len(subjects)), em["pi"], strict=False))
+            mu = dict(zip(range(len(subjects)), em["mu"], strict=False))
             var_rows.append(
                 {
                     "component": label,
@@ -397,7 +399,7 @@ def fit_hierarchical(
                     }
                 )
                 for (sname,), m, se in zip(
-                    out["labels"][0], out["unit_mean"][0], out["unit_mean_se"][0]
+                    out["labels"][0], out["unit_mean"][0], out["unit_mean_se"][0], strict=False
                 ):
                     subject_est[(sname, p)] = (float(m), float(se))
                 # a subject without usable channels: its prediction is the group value

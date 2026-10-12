@@ -49,7 +49,7 @@ def _cancelling(result, overlap_c=0.5):
     return False
 
 
-@pytest.mark.parametrize("kind, preset, channel, seed", CASES)
+@pytest.mark.parametrize(("kind", "preset", "channel", "seed"), CASES)
 def test_no_cancelling_pair_on_clean_ecap(kind, preset, channel, seed):
     """No overlapping opposite-sign pair, and no amplitude inflated beyond 1.5 times the
     largest true amplitude of the channel."""

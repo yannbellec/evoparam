@@ -111,7 +111,8 @@ def test_plot_existence_shows_the_statistic_over_time_with_its_null_band(results
     from matplotlib.collections import PolyCollection
 
     test = results["test"]
-    assert test.curve is not None and test.null_band is not None
+    assert test.curve is not None
+    assert test.null_band is not None
     fig = plots.plot_existence(test)
     panels = [a for a in fig.axes if a.lines]
     channels = test.settings["channels"]
@@ -127,7 +128,8 @@ def test_plot_existence_shows_the_statistic_over_time_with_its_null_band(results
     import matplotlib.pyplot as plt
 
     _, ax = plt.subplots()
-    assert plots.plot_existence(test, ax=ax) is ax.figure and len(ax.lines) >= len(channels)
+    assert plots.plot_existence(test, ax=ax) is ax.figure
+    assert len(ax.lines) >= len(channels)
     old = dataclasses.replace(test, curve=None, null_band=None, curve_times=None)
     fig = plots.plot_existence(old)
     assert len(fig.axes[0].patches) == len(channels)

@@ -62,7 +62,8 @@ def test_req008_methods_paragraph(kind, results):
 def test_req008_preset_and_changed_settings(kind, results):
     text = methods_text(results[kind])
     assert "preset 'ccep'" in text
-    assert "Settings changed from the preset" in text and "max_components = 2" in text
+    assert "Settings changed from the preset" in text
+    assert "max_components = 2" in text
 
 
 def test_req008_no_changed_settings_sentence_without_changes():
@@ -70,7 +71,8 @@ def test_req008_no_changed_settings_sentence_without_changes():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         text = methods_text(evoparam.fit(trials, preset="ccep", random_state=0))
-    assert "preset 'ccep'" in text and "Settings changed from the preset" not in text
+    assert "preset 'ccep'" in text
+    assert "Settings changed from the preset" not in text
 
 
 # ---------------------------------------------------------------------------------------

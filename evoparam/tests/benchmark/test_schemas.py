@@ -43,7 +43,8 @@ def test_req351_schemas_are_versioned_and_valid(task):
     assert output_format(task) == ("npz" if task == "T4" else "tsv")
     if task != "T4":
         required, optional = output_columns(task)
-        assert required and set(required) <= set(schema["$defs"]["output_row"]["required"])
+        assert required
+        assert set(required) <= set(schema["$defs"]["output_row"]["required"])
 
 
 @pytest.mark.parametrize("task", list(TASKS))
@@ -69,7 +70,7 @@ def _broken_input(tmp_path, change):
 
 
 @pytest.mark.parametrize(
-    "change, message",
+    ("change", "message"),
     [
         (lambda d: d.pop("sfreq"), "(document): 'sfreq' is a required property"),
         (lambda d: d.update(sfreq=-1), "sfreq: -1 is less than or equal to the minimum of 0"),
@@ -122,7 +123,7 @@ def _write(path, text):
 
 
 @pytest.mark.parametrize(
-    "text, message",
+    ("text", "message"),
     [
         ("site\tchannel\tresponsive\n", "header: missing required column 'p_value'"),
         ("site\tchannel\tresponsive\tp_value\tcolour\n", "header: unknown column 'colour'"),
@@ -170,7 +171,7 @@ def test_req351_valid_tsv_is_typed():
 
 
 @pytest.mark.parametrize(
-    "task, header, row, message",
+    ("task", "header", "row", "message"),
     [
         (
             "T2",
@@ -220,7 +221,7 @@ def test_req351_each_task_checks_its_rows(tmp_path, task, header, row, message):
 
 
 @pytest.mark.parametrize(
-    "data, message",
+    ("data", "message"),
     [
         (np.zeros((2, 3, 4, 5)), "arrays/data/shape: [2, 3, 4, 5] is too long"),
         (np.array([[[np.nan]]]), "arrays/data/finite: True was expected"),

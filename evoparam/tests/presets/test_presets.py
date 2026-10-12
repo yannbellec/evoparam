@@ -63,7 +63,7 @@ def _table():
     out = {n: {} for n in names}
     for row in rows[1:]:
         cells = [c.strip() for c in row.strip("|").split("|")]
-        for name, cell in zip(names, cells[1:]):
+        for name, cell in zip(names, cells[1:], strict=False):
             out[name][cells[0]] = cell
     # "as rodent", "as `ccep`": copy the referenced column
     for name, values in out.items():
@@ -153,8 +153,10 @@ def test_derive_and_registry():
     before = parent.to_dict()
     child = presets.derive("ccep", fit_window=(0.012, 0.5), name="ccep_late")
     assert parent.to_dict() == before
-    assert child.parent == "ccep" and child.overrides["fit_window"] == (0.012, 0.5)
-    assert child.fit_window == (0.012, 0.5) and parent.fit_window == (0.009, 0.5)
+    assert child.parent == "ccep"
+    assert child.overrides["fit_window"] == (0.012, 0.5)
+    assert child.fit_window == (0.012, 0.5)
+    assert parent.fit_window == (0.009, 0.5)
     with pytest.raises(SettingsError, match="Unknown preset field"):
         presets.derive("ccep", fit_windw=(0.0, 1.0))
     with pytest.raises(SettingsError, match="known"):
@@ -193,9 +195,10 @@ def test_req272_fit_with_overrides_equals_fit_with_derived_preset():
         a = fit(ev, "ccep", fit_window=(0.012, 0.5)).fits[0]
         b = fit(ev, presets.derive("ccep", fit_window=(0.012, 0.5))).fits[0]
     assert len(a.components) == len(b.components) >= 1
-    for ca, cb in zip(a.components, b.components):
+    for ca, cb in zip(a.components, b.components, strict=False):
         assert ca.label == cb.label
-        assert np.allclose(ca.params, cb.params) and ca.amplitude == cb.amplitude
+        assert np.allclose(ca.params, cb.params)
+        assert ca.amplitude == cb.amplitude
 
 
 def test_req279_simulation_only_presets_say_so_in_the_methods_text():
@@ -246,7 +249,8 @@ def test_f58_preset_fields():
     )
     assert presets.get("rodent_ep").trial_covariates == ("state",)
     assert presets.get("primate_ep").trial_covariates == ("state",)
-    assert presets.get("erna").train_baseline == 0.05 and presets.get("erna").baseline is None
+    assert presets.get("erna").train_baseline == 0.05
+    assert presets.get("erna").baseline is None
     assert presets.from_json(presets.to_json("erna")) == presets.get("erna")
     with pytest.raises(SettingsError, match="train_baseline"):
         presets.derive("erna", train_baseline=-1.0)
@@ -276,8 +280,10 @@ def test_f58_ccep_seeg_attaches_the_reference_sensitivity_report():
         ("bipolar", "car_adaptive"),
         ("car", "car_adaptive"),
     ]
-    assert report["kappa"].notna().any() and "channels" in report.attrs
-    assert plain.reference_report is None and ccep.reference_report is None
+    assert report["kappa"].notna().any()
+    assert "channels" in report.attrs
+    assert plain.reference_report is None
+    assert ccep.reference_report is None
     text = reports.methods_text(result)
     assert "dependence of the detections on the reference" in text
     assert "dependence of the detections" not in reports.methods_text(ccep)
@@ -309,7 +315,8 @@ def test_f58_rodent_state_is_a_default_trial_covariate():
     assert set(table["state"]) == {"awake", "nrem"}
     gains = np.asarray(table["gain"], float)
     ref = np.asarray(table["state"]) == np.asarray(table["reference"])
-    assert np.allclose(gains[ref], 1.0) and np.isfinite(table["p_amplitude"]).all()
+    assert np.allclose(gains[ref], 1.0)
+    assert np.isfinite(table["p_amplitude"]).all()
     assert "state" in fits.table.columns
     assert "Trial covariates: state." in reports.methods_text(result)
     # without the column: a warning, and the trial fits run without the covariate
@@ -360,7 +367,8 @@ def test_f58_erna_baseline_per_train():
     assert np.allclose(out.data, expected)  # each train's level removed from its pulses
     step = out.provenance.steps[-1]
     assert step["function"] == "evoparam.prep.train_baseline"
-    assert step["settings"]["source"] == "continuous" and step["settings"]["n_trains"] == 3
+    assert step["settings"]["source"] == "continuous"
+    assert step["settings"]["n_trains"] == 3
     # without train_id: trains from the gaps between pulses (no pulse in the 50 ms before)
     import dataclasses
 
@@ -405,7 +413,8 @@ def test_f58_rodent_p1_n1_named_by_sign_at_each_depth():
     from evoparam.models.labels import sign_name
 
     assert (sign_name("P1/N1", 1), sign_name("P1/N1", -1)) == ("P1", "N1")
-    assert sign_name("N1/P1", 1) == "P1" and sign_name("N2", 1) == "N2"
+    assert sign_name("N1/P1", 1) == "P1"
+    assert sign_name("N2", 1) == "N2"
     assert sign_name("a/b", 1) == "a/b"
     sfreq = 1250.0
     times = np.arange(-0.1, 0.5, 1 / sfreq)

@@ -237,12 +237,12 @@ def run_pipeline(
     if existence:
         # as evoparam.existence.fit(existence=True), keeping the test for the derivatives
         settings = group.settings
-        kwargs = dict(
-            window=tuple(settings["fit_window"]),
-            baseline=tuple(settings["baseline"]) if settings.get("baseline") else (-0.5, -0.05),
-            by=(),
-            random_state=random_state,
-        )
+        kwargs = {
+            "window": tuple(settings["fit_window"]),
+            "baseline": tuple(settings["baseline"]) if settings.get("baseline") else (-0.5, -0.05),
+            "by": (),
+            "random_state": random_state,
+        }
         kwargs.update(test_kwargs)
         test = test_response(ts, **kwargs)
         group = attach_test(group, test)

@@ -57,7 +57,7 @@ from evoparam import plots
 
 target = [
     group.fits[int(p)]
-    for c, p in zip(group.index["condition"], group.index["position"])
+    for c, p in zip(group.index["condition"], group.index["position"], strict=False)
     if c == "target"
 ]
 fig = plots.plot_fit(

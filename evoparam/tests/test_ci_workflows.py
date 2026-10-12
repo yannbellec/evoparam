@@ -43,13 +43,15 @@ def _runs(job):
 @pytest.mark.parametrize("name", sorted(p.name for p in WORKFLOWS.glob("*.yml")))
 def test_every_workflow_parses(name):
     doc = _load(name)
-    assert doc.get("jobs") and _on(doc)
+    assert doc.get("jobs")
+    assert _on(doc)
 
 
 def test_req297_ci_jobs_and_triggers():
     doc = _load("ci.yml")
     on = _on(doc)
-    assert "pull_request" in on and on["push"]["branches"] == ["main"]
+    assert "pull_request" in on
+    assert on["push"]["branches"] == ["main"]
     jobs = doc["jobs"]
     for job in (
         "lint",
@@ -84,7 +86,9 @@ def test_req297_tests_matrix_lock_and_timeouts():
     assert job["timeout-minutes"] == 25
     runs = _runs(job)
     assert "--require-hashes -r ci/locks/py${{ matrix.python }}.lock" in runs
-    assert '".[all]"' in runs and "--timeout=120" in runs and "--cov=evoparam" in runs
+    assert '".[all]"' in runs
+    assert "--timeout=120" in runs
+    assert "--cov=evoparam" in runs
     for version in matrix["python"]:
         assert (ROOT / "ci" / "locks" / f"py{version}.lock").is_file()
 
@@ -92,9 +96,12 @@ def test_req297_tests_matrix_lock_and_timeouts():
 def test_req297_core_only_and_lowest_floors():
     jobs = _load("ci.yml")["jobs"]
     core = _runs(jobs["core-only"])
-    assert "pip install ." in core and "evoparam.selftest()" in core and "-m core" in core
+    assert "pip install ." in core
+    assert "evoparam.selftest()" in core
+    assert "-m core" in core
     floors = _runs(jobs["lowest-floors"])
-    assert '"numpy==1.24.*"' in floors and '"scipy==1.10.*"' in floors
+    assert '"numpy==1.24.*"' in floors
+    assert '"scipy==1.10.*"' in floors
 
 
 def test_req297_build_job():
@@ -164,6 +171,7 @@ def test_req298_shapes_coverage_is_100_percent(tmp_path):
         env=env,
         capture_output=True,
         text=True,
+        check=False,
     )
     assert report.returncode == 0, report.stdout[-1500:]
 
@@ -182,13 +190,16 @@ def test_req299_perf_workflow():
         assert folder in paths
     assert "schedule" in on
     job = doc["jobs"]["perf"]
-    assert job["runs-on"] == "ubuntu-22.04" and job["env"]["OMP_NUM_THREADS"] == "1"
+    assert job["runs-on"] == "ubuntu-22.04"
+    assert job["env"]["OMP_NUM_THREADS"] == "1"
     runs = _runs(job)
     assert "benchmarks/run_benchmarks.py --suite ci" in runs
-    assert "benchmarks/baseline-ci.json" in runs and "--time-tolerance 1.25" in runs
+    assert "benchmarks/baseline-ci.json" in runs
+    assert "--time-tolerance 1.25" in runs
     assert "--memory-tolerance 1.10" in runs
     update = doc["jobs"]["baseline-update"]
-    assert "perf-baseline-update" in update["if"] and "--repeat-runs 3" in _runs(update)
+    assert "perf-baseline-update" in update["if"]
+    assert "--repeat-runs 3" in _runs(update)
 
 
 def test_req300_nightly_smoke_and_secrets():
@@ -199,22 +210,27 @@ def test_req300_nightly_smoke_and_secrets():
         "--pre --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels"
         "/simple numpy scipy" in runs
     )
-    assert "mne-python@main" in runs and "upstream-breakage" in runs
+    assert "mne-python@main" in runs
+    assert "upstream-breakage" in runs
     smoke = _load("smoke.yml")
     assert {"release", "schedule"} <= set(_on(smoke))
     runs = _runs(smoke["jobs"]["smoke"])
-    assert "python -m venv" in runs and "pip install" in runs
-    assert "evoparam.selftest()" in runs and "evoparam fit --help" in runs
+    assert "python -m venv" in runs
+    assert "pip install" in runs
+    assert "evoparam.selftest()" in runs
+    assert "evoparam fit --help" in runs
     hits = [p.name for p in WORKFLOWS.glob("*.yml") if "secrets." in p.read_text("utf-8")]
     assert not hits
 
 
 def test_req309_monthly_lock_refresh():
     runs = _runs(_load("nightly.yml")["jobs"]["refresh-locks"])
-    assert "uv pip compile pyproject.toml" in runs and "--generate-hashes" in runs
+    assert "uv pip compile pyproject.toml" in runs
+    assert "--generate-hashes" in runs
     assert "gh pr create" in runs
     lock = (ROOT / "ci" / "locks" / "py3.12.lock").read_text(encoding="utf-8")
-    assert "--hash=sha256:" in lock and re.search(r"^numpy==", lock, re.MULTILINE)
+    assert "--hash=sha256:" in lock
+    assert re.search(r"^numpy==", lock, re.MULTILINE)
 
 
 def test_req302_docs_workflow():
@@ -232,7 +248,8 @@ def test_req302_docs_workflow():
         "pydata_sphinx_theme",
     ):
         assert ext in conf, ext
-    assert "run_stale_examples" in conf and "references.bib" in conf
+    assert "run_stale_examples" in conf
+    assert "references.bib" in conf
     assert (ROOT / "docs" / "references.bib").is_file()
 
 
@@ -263,6 +280,7 @@ def test_req302_docs_build_with_warnings_as_errors(tmp_path):
         capture_output=True,
         text=True,
         timeout=1200,
+        check=False,
     )
     assert result.returncode == 0, result.stderr[-2000:]
 
@@ -323,7 +341,8 @@ def test_req305_ruff_configuration():
         assert code in lint["select"], code
     assert lint["pydocstyle"]["convention"] == "numpy"
     assert lint["mccabe"]["max-complexity"] == 12
-    assert lint["pylint"]["max-args"] == 8 and lint["pylint"]["max-statements"] == 60
+    assert lint["pylint"]["max-args"] == 8
+    assert lint["pylint"]["max-statements"] == 60
 
 
 def _ruff(*args):
@@ -333,7 +352,9 @@ def _ruff(*args):
     exe = shutil.which("ruff")
     if exe is None:
         pytest.skip("ruff is not installed")
-    return subprocess.run([exe, *args], cwd=ROOT, capture_output=True, text=True, timeout=300)
+    return subprocess.run(
+        [exe, *args], cwd=ROOT, capture_output=True, text=True, timeout=300, check=False
+    )
 
 
 @pytest.mark.xfail(
@@ -373,6 +394,7 @@ def test_req305_docstring_coverage():
         capture_output=True,
         text=True,
         timeout=300,
+        check=False,
     )
     assert result.returncode == 0, result.stdout[-500:]
 
@@ -393,7 +415,8 @@ def test_req307_ruff_blind_except_rules():
 def test_req375_release_pipeline_runs_the_robustness_layer():
     jobs = _load("release.yml")["jobs"]
     runs = _runs(jobs["validation"])
-    assert "validation/robustness.py" in runs and "tools/layer3_gate.py" in runs
+    assert "validation/robustness.py" in runs
+    assert "tools/layer3_gate.py" in runs
     assert any(
         "validation/layer4/" in str(s.get("with", {}).get("path", ""))
         for s in jobs["validation"]["steps"]

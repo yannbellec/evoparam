@@ -39,13 +39,15 @@ def test_containers_and_provenance(name):
     ts.validate()
     assert ts.units == "uV" == truth.units
     assert ts.modality == MODALITIES[name]
-    assert ts.ch_names == truth.ch_names and ts.sfreq == truth.sfreq
+    assert ts.ch_names == truth.ch_names
+    assert ts.sfreq == truth.sfreq
     np.testing.assert_array_equal(ts.times, truth.times)
     # Time axis on the grid k / sfreq, tmax excluded.
     np.testing.assert_allclose(ts.times * ts.sfreq, np.round(ts.times * ts.sfreq), atol=1e-6)
     assert ts.times[0] < 0 < ts.times[-1]
     assert truth.signal.shape == ts.data.shape
-    assert truth.n_trials == ts.n_trials and truth.n_components > 0
+    assert truth.n_trials == ts.n_trials
+    assert truth.n_components > 0
     assert len(truth.conditions) == ts.n_trials
     assert list(ts.metadata["trial"]) == list(range(ts.n_trials))
     assert list(ts.metadata["condition"]) == truth.conditions
@@ -132,7 +134,8 @@ def test_component_spec():
         feats = compute_features(
             get_shape("gaussian"), np.arange(0, 0.5, 0.001), params, amplitude, sfreq=1000.0
         ).to_dict()
-        assert 0.1 <= feats["latency"] <= 0.2 and -3.0 <= amplitude <= -1.0
+        assert 0.1 <= feats["latency"] <= 0.2
+        assert -3.0 <= amplitude <= -1.0
     json.dumps(spec.to_dict())
     with pytest.raises(SettingsError):
         sim.ComponentSpec("")
@@ -144,7 +147,8 @@ def test_component_spec():
         sim.ComponentSpec("X", latency=(0.2, 0.1)).resolve(rng)
     explicit = sim.ComponentSpec("X", shape="gaussian", params=(0.1, 0.01), amplitude=2.0)
     params, amplitude = explicit.resolve(rng)
-    assert list(params) == [0.1, 0.01] and amplitude == 2.0
+    assert list(params) == [0.1, 0.01]
+    assert amplitude == 2.0
     with pytest.raises(SettingsError):
         sim.ComponentSpec("X", shape="gaussian", params=(0.1,)).resolve(rng)
 
@@ -152,8 +156,10 @@ def test_component_spec():
 def test_presets():
     assert set(sim.ERP_COMPONENTS) == {"P1", "N1", "N170", "MMN", "N400", "P3", "ERN"}
     assert list(sim.TEP_COMPONENTS) == ["N15", "P30", "N45", "P60", "N100", "P180"]
-    assert sim.CCEP_N1.latency == (0.015, 0.040) and sim.CCEP_N1.fwhm == (0.005, 0.015)
-    assert sim.CCEP_N2.latency == (0.080, 0.250) and sim.CCEP_N2.fwhm == (0.040, 0.150)
+    assert sim.CCEP_N1.latency == (0.015, 0.040)
+    assert sim.CCEP_N1.fwhm == (0.005, 0.015)
+    assert sim.CCEP_N2.latency == (0.080, 0.250)
+    assert sim.CCEP_N2.fwhm == (0.040, 0.150)
     assert sim.CCEP_DELAYED.latency == (0.100, 1.000)
     assert sim.ROLES == ("target", "overlap", "confound", "masker")
 
@@ -185,7 +191,8 @@ def test_erp_components_and_overrides():
         assert np.isclose(comp["features"]["latency"], 0.35)
         assert np.isclose(comp["features"]["fwhm"], 0.2, rtol=1e-4)
     p1 = [c for c in truth.components if c["label"] == "P1"]
-    assert len(p1) == 4 and all(0.08 <= c["features"]["latency"] <= 0.13 for c in p1)
+    assert len(p1) == 4
+    assert all(0.08 <= c["features"]["latency"] <= 0.13 for c in p1)
     ts, truth = sim.simulate_erp(seed=1, n_trials=3, n_channels=2, ch_names=["a", "b"])
     assert ts.ch_names == ["a", "b"]
     with pytest.raises(SettingsError):
@@ -198,7 +205,8 @@ def test_erp_components_and_overrides():
 
 def test_erp_noise_only():
     ts, truth = sim.simulate_erp(seed=1, n_trials=4, components=[], snr=None)
-    assert truth.n_components == 0 and not np.any(truth.signal)
+    assert truth.n_components == 0
+    assert not np.any(truth.signal)
 
 
 def test_erp_jitter_distributions():
@@ -206,7 +214,8 @@ def test_erp_jitter_distributions():
         seed=2, n_trials=400, components=["P3"], jitter_sd=0.02, noise="none", snr=None
     )
     shift = normal.shift[:, 0]
-    assert abs(shift.std() - 0.02) < 0.003 and abs(shift.mean()) < 0.004
+    assert abs(shift.std() - 0.02) < 0.003
+    assert abs(shift.mean()) < 0.004
     _, exg = sim.simulate_erp(
         seed=2,
         n_trials=400,
@@ -281,7 +290,8 @@ def test_ccep_design():
 
 def test_ccep_grid_and_errors():
     ts, _ = sim.simulate_ccep(seed=0, n_trials=2, n_channels=16, layout="grid", tmax=0.2)
-    assert ts.ch_names[0] == "G01" and set(ts.ch_info["type"]) == {"ecog"}
+    assert ts.ch_names[0] == "G01"
+    assert set(ts.ch_info["type"]) == {"ecog"}
     with pytest.raises(SettingsError):
         sim.simulate_ccep(seed=0, layout="strip")
     with pytest.raises(SettingsError):
@@ -342,7 +352,8 @@ def test_erna_pulses():
     events = sorted({c["event"] for c in truth.components})
     assert events == list(range(5))
     freq = {c["params"][2] for c in truth.components}
-    assert len(freq) == 1 and 200.0 <= freq.pop() <= 450.0
+    assert len(freq) == 1
+    assert 200.0 <= freq.pop() <= 450.0
     first = [c for c in truth.components if c["channel"] == ts.ch_names[1]]
     amplitudes = [abs(c["amplitude"]) for c in sorted(first, key=lambda c: c["event"])]
     assert all(np.diff(amplitudes) > 0)  # build-up over the train
@@ -400,7 +411,8 @@ def test_animal_depth_reversal_and_states():
     ts, truth = sim.simulate_animal_ep(
         seed=2, n_trials=6, n_channels=24, spacing_um=40.0, noise="none", reversal_um=400.0
     )
-    assert ts.species == "mouse" and set(ts.metadata["state"]) == {"awake", "nrem"}
+    assert ts.species == "mouse"
+    assert set(ts.metadata["state"]) == {"awake", "nrem"}
     first = truth.components[0]["label"]
     amps = [c["amplitude"] for c in truth.components if c["label"] == first]
     assert np.sign(amps[0]) == -np.sign(amps[-1])  # polarity reverses with depth
@@ -416,7 +428,8 @@ def test_animal_depth_reversal_and_states():
     ts, truth = sim.simulate_animal_ep(
         seed=2, n_trials=4, n_channels=4, stimulus="electrical", noise="none"
     )
-    assert truth.artifact is not None and truth.artifact_data.any()
+    assert truth.artifact is not None
+    assert truth.artifact_data.any()
     with pytest.raises(SettingsError):
         sim.simulate_animal_ep(seed=2, stimulus="auditory")
     with pytest.raises(SettingsError):
@@ -456,7 +469,7 @@ def test_generators_without_pandas_in_a_subprocess():
         print("ok")
     """)
     result = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True, timeout=300
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=300, check=False
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip().endswith("ok")

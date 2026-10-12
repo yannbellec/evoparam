@@ -136,7 +136,8 @@ def test_reference_sensitivity_runs_the_existence_test():
     assert table.attrs["detector"] == "existence_detector"
     channels = table.attrs["channels"]
     detected, latency, groups = existence_detector(ts, n_permutations=200)
-    assert groups == ["S48-S49"] and np.ndim(detected) == 1  # one site: one column
+    assert groups == ["S48-S49"]
+    assert np.ndim(detected) == 1
     assert channels["monopolar"]["detected"].reindex(ts.ch_names).tolist() == list(detected)
     # Responsive channels are found under the original reference
     found = {int(key[1:3]) for key in channels.index[channels["monopolar"]["detected"]]}

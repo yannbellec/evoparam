@@ -541,20 +541,20 @@ def train_discordance(ts, test):
     decisions = []
     for _, rows in ts.metadata.groupby("train_id").indices.items():
         sub = ts.select(trials=list(rows))
-        kwargs = dict(
-            method=s["method"],
-            window=tuple(s["window"]),
-            baseline=tuple(s["baseline"]),
-            alpha=s["alpha"],
-            correction="none",
-            n_permutations=s["n_permutations"],
-            statistic=s["statistic"],
-            polarity=s["polarity"],
-            by=(),
-            picks=s["channels"],
-            random_state=s["random_state"],
-            n_boot=0,
-        )
+        kwargs = {
+            "method": s["method"],
+            "window": tuple(s["window"]),
+            "baseline": tuple(s["baseline"]),
+            "alpha": s["alpha"],
+            "correction": "none",
+            "n_permutations": s["n_permutations"],
+            "statistic": s["statistic"],
+            "polarity": s["polarity"],
+            "by": (),
+            "picks": s["channels"],
+            "random_state": s["random_state"],
+            "n_boot": 0,
+        }
         if s["method"] == "threshold":
             kwargs.update(
                 rule=test.rule,
@@ -678,7 +678,7 @@ def fit(data, preset=None, *, existence=None, existence_kwargs=None, **kwargs):
     else:
         # a preset without a baseline (short epochs: ECAP, ERNA): the pre-stimulus samples
         baseline = (float(data.times[0]), min(0.0, window[0]))
-    test_kwargs = dict(window=window, baseline=baseline, by=(), random_state=seed)
+    test_kwargs = {"window": window, "baseline": baseline, "by": (), "random_state": seed}
     if kwargs.get("picks") is not None:
         test_kwargs["picks"] = kwargs["picks"]
     test_kwargs.update(existence_kwargs or {})
@@ -708,7 +708,7 @@ def attach_test(group, test):
     channels = test.settings["channels"]
     step = {k: v for k, v in test.settings.items() if k not in _PER_CHANNEL_SETTINGS}
     fits = []
-    for fit_, ch in zip(group.fits, group.index["channel"]):
+    for fit_, ch in zip(group.fits, group.index["channel"], strict=False):
         i = channels.index(ch)
         one = dataclasses.replace(
             test,

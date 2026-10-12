@@ -286,9 +286,11 @@ def _warn_units(header, ch_index):
     units = [header["units"][ind] for ind in ch_index]
     names = [header["ch_names"][ind] for ind in ch_index]
     converted = [
-        name for name, unit in zip(names, units) if unit in _TO_UV and _TO_UV[unit] != 1.0
+        name
+        for name, unit in zip(names, units, strict=False)
+        if unit in _TO_UV and _TO_UV[unit] != 1.0
     ]
-    other = [name for name, unit in zip(names, units) if unit not in _TO_UV]
+    other = [name for name, unit in zip(names, units, strict=False) if unit not in _TO_UV]
     if converted:
         _warn(
             "Channels in another voltage unit were converted to µV: {}.".format(

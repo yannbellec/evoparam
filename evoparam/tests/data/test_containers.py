@@ -20,27 +20,32 @@ def test_construction_and_repr():
 
 
 @pytest.mark.parametrize(
-    "change, field",
+    ("change", "field"),
     [
-        (dict(data=np.zeros((3, 400))), "data"),
-        (dict(times=np.arange(399) / SFREQ), "times"),
-        (dict(times=np.arange(400)[::-1] / SFREQ), "times"),
-        (dict(sfreq=999.0), "sfreq"),
-        (dict(ch_names=["A", "A", "B"]), "ch_names"),
-        (dict(ch_names=["A", "B"]), "ch_names"),
-        (dict(units="microvolt"), "units"),
-        (dict(modality="fmri"), "modality"),
-        (dict(species="Human"), "species"),
-        (dict(masks=np.zeros((6, 3, 10), bool)), "masks"),
-        (dict(event_times=np.zeros(4)), "event_times"),
-        (dict(metadata=pd.DataFrame({"trial": range(5)})), "metadata"),
-        (dict(metadata=pd.DataFrame({"stim_current_mA": ["1"] * 6})), "stim_current_mA"),
-        (dict(ch_info=pd.DataFrame({"name": ["X", "Y", "Z"]})), "ch_info"),
+        ({"data": np.zeros((3, 400))}, "data"),
+        ({"times": np.arange(399) / SFREQ}, "times"),
+        ({"times": np.arange(400)[::-1] / SFREQ}, "times"),
+        ({"sfreq": 999.0}, "sfreq"),
+        ({"ch_names": ["A", "A", "B"]}, "ch_names"),
+        ({"ch_names": ["A", "B"]}, "ch_names"),
+        ({"units": "microvolt"}, "units"),
+        ({"modality": "fmri"}, "modality"),
+        ({"species": "Human"}, "species"),
+        ({"masks": np.zeros((6, 3, 10), bool)}, "masks"),
+        ({"event_times": np.zeros(4)}, "event_times"),
+        ({"metadata": pd.DataFrame({"trial": range(5)})}, "metadata"),
+        ({"metadata": pd.DataFrame({"stim_current_mA": ["1"] * 6})}, "stim_current_mA"),
+        ({"ch_info": pd.DataFrame({"name": ["X", "Y", "Z"]})}, "ch_info"),
     ],
 )
 def test_invariants(change, field):
     base = make_trialset(with_tables=False)
-    kwargs = dict(data=base.data, times=base.times, sfreq=base.sfreq, ch_names=base.ch_names)
+    kwargs = {
+        "data": base.data,
+        "times": base.times,
+        "sfreq": base.sfreq,
+        "ch_names": base.ch_names,
+    }
     kwargs.update(change)
     with pytest.raises(DataError, match=field):
         TrialSet(**kwargs)
@@ -64,7 +69,8 @@ def test_select_and_crop_window_convention():
     trials = make_trialset()
     sub = trials.select(trials=[4, 1], picks=["CH02", 0], tmin=0.0, tmax=0.1)
     assert sub.ch_names == ["CH02", "CH00"]
-    assert sub.times[0] == pytest.approx(0.0) and sub.times[-1] == pytest.approx(0.099)
+    assert sub.times[0] == pytest.approx(0.0)
+    assert sub.times[-1] == pytest.approx(0.099)
     assert sub.n_times == 100
     np.testing.assert_array_equal(sub.data[0, 0], trials.data[4, 2, 100:200])
     assert list(sub.metadata["trial"]) == [4, 1]
@@ -72,7 +78,8 @@ def test_select_and_crop_window_convention():
     assert sub.provenance.steps[-1]["function"] == "evoparam.data.TrialSet.select"
     assert sub.provenance.data_hash != trials.provenance.data_hash
     cropped = trials.crop(-0.05, 0.05)
-    assert cropped.n_times == 100 and cropped.n_trials == trials.n_trials
+    assert cropped.n_times == 100
+    assert cropped.n_trials == trials.n_trials
 
 
 def test_select_query_and_errors():
@@ -103,7 +110,8 @@ def test_average_mean_and_sem():
     np.testing.assert_allclose(
         evoked.sem, trials.data.std(axis=0, ddof=1) / np.sqrt(6), rtol=1e-12
     )
-    assert evoked.n_trials == 6 and evoked.masks is None
+    assert evoked.n_trials == 6
+    assert evoked.masks is None
 
 
 def test_average_excludes_rejected_and_groups():
@@ -129,7 +137,8 @@ def test_average_with_masks():
     evoked = partial.average()
     np.testing.assert_allclose(evoked.data[:, 98:106], 1.0)
     full = trials.average()
-    assert full.masks is not None and full.masks[:, 98:106].all()
+    assert full.masks is not None
+    assert full.masks[:, 98:106].all()
     assert np.isnan(full.data[:, 98:106]).all()
 
 
@@ -201,12 +210,14 @@ def test_evoked_validation_and_select():
         evoked.data, evoked.times, evoked.sfreq, evoked.ch_names, n_trials=np.array([5, 6, 4])
     )
     sub = per_channel.select(picks=["CH02"], tmin=0.0, tmax=0.05)
-    assert list(sub.n_trials) == [4] and sub.n_times == 50
+    assert list(sub.n_trials) == [4]
+    assert sub.n_times == 50
 
 
 def test_equality_and_copy():
     trials = make_trialset()
     clone = trials.copy()
-    assert clone == trials and clone is not trials
+    assert clone == trials
+    assert clone is not trials
     clone.data[0, 0, 0] += 1.0
     assert clone != trials

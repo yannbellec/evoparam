@@ -156,7 +156,7 @@ def detect_saturation(
                 continue
             edges = np.diff(np.pad(values.astype(np.int8), ((0, 0), (1, 1))), axis=1)
             starts, stops = np.nonzero(edges == 1), np.nonzero(edges == -1)
-            for row, first, last in zip(starts[0], starts[1], stops[1]):
+            for row, first, last in zip(starts[0], starts[1], stops[1], strict=False):
                 if last - first < min_len:
                     continue
                 a_, b_ = positions[row, first], positions[row, last - 1] + 1

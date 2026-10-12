@@ -82,7 +82,8 @@ def clean_registry():
 
 def test_get_shape_and_background():
     shape = shapes.get_shape("gaussian", min_fwhm=0.004)
-    assert isinstance(shape, shapes.Gaussian) and shape.min_fwhm == 0.004
+    assert isinstance(shape, shapes.Gaussian)
+    assert shape.min_fwhm == 0.004
     assert isinstance(shapes.get_background("exponential"), shapes.ExponentialBackground)
     with pytest.raises(SettingsError, match="unknown shape"):
         shapes.get_shape("triangle")
@@ -133,7 +134,7 @@ def test_register_as_decorator(clean_registry):
 
 
 @pytest.mark.parametrize(
-    "cls, check",
+    ("cls", "check"),
     [
         (WrongJacobian, "jacobian"),
         (NotNormalised, "unit_amplitude"),

@@ -60,7 +60,8 @@ def test_req374_records_give_both_numbers_the_difference_and_its_interval(record
         assert all(isinstance(v, float) and math.isfinite(v) for v in values), r["id"]
         lo, hi = r["difference_ci"]
         assert lo <= r["difference"] <= hi, r["id"]
-        assert r["interval"] and r["n"] > 0
+        assert r["interval"]
+        assert r["n"] > 0
         assert r["data"]["dataset"] and r["data"]["doi"], r["id"]
         definition = r["comparator_definition"]
         if "registry_rule" in definition:

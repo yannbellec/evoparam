@@ -24,7 +24,7 @@ def _fake(n_trials, sfreq):
     """A listing of subjects and a fetch that serves their sidecars and events."""
 
     listing, files = {}, {}
-    for i, (count, rate) in enumerate(zip(n_trials, sfreq), start=1):
+    for i, (count, rate) in enumerate(zip(n_trials, sfreq, strict=False), start=1):
         stem = f"sub-{i:02d}/ses-1/ieeg/sub-{i:02d}_ses-1_task-SPES_run-1"
         listing[stem + "_events.tsv"] = 1
         listing[stem + "_ieeg.json"] = 1
@@ -69,7 +69,8 @@ def test_list_is_committed_with_version_and_checksum():
     lines = LIST.read_text("utf-8").splitlines()
     assert lines[0].startswith("# ds004080 v1.2.4; participants.tsv sha256 ")
     subjects = [l.split("\t")[0] for l in lines if not l.startswith("#")]
-    assert len(subjects) == 6 and len(set(subjects)) == 6
+    assert len(subjects) == 6
+    assert len(set(subjects)) == 6
     assert subjects[-1] == "sub-ccepAgeUMCU01"
     assert all(
         line.split("\t")[1].startswith(line.split("\t")[0] + "_")

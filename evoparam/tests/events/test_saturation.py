@@ -22,7 +22,7 @@ def clipped_recording(lengths, sfreq=2048.0, seed=0):
     data = make_noise(8, 60.0, sfreq, seed=seed + 1, dtype=np.float64)
     starts = np.round(np.linspace(1.0, 59.0, len(lengths)) * sfreq).astype(int)
     runs = []
-    for ind, (start, length) in enumerate(zip(starts, lengths)):
+    for ind, (start, length) in enumerate(zip(starts, lengths, strict=False)):
         ch = ind % 8
         sign = 1.0 if rng.random() < 0.5 else -1.0
         data[ch, start : start + length] = sign * RAIL
@@ -79,7 +79,8 @@ def test_known_rail_flags_single_samples():
     data = make_noise(2, 5.0, sfreq, dtype=np.float64)
     data[0, 1000] = 100.0
     _, table = detect_saturation(data, sfreq, rail=100.0)
-    assert len(table) == 1 and table["n_samples"].iloc[0] == 1
+    assert len(table) == 1
+    assert table["n_samples"].iloc[0] == 1
     _, table = detect_saturation(data, sfreq)  # estimated rail needs 2 samples
     assert len(table) == 0
 
@@ -105,7 +106,8 @@ def test_per_pulse_search_and_event_link():
     events = detect_pulses(data, sfreq, saturation=False)
     mask, table = detect_saturation(data, sfreq, events=events, rail=rail)
     assert set(table["event_index"]) == {2}
-    assert mask[3].any() and not mask[[0, 1, 2, 4, 5, 6, 7]].any()
+    assert mask[3].any()
+    assert not mask[[0, 1, 2, 4, 5, 6, 7]].any()
 
     events = detect_pulses(data, sfreq)
     assert events["saturated"].tolist() == [i == 2 for i in range(len(events))]

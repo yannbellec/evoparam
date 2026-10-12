@@ -116,10 +116,10 @@ def reference(
 
 MEASURES = ("peak", "mean", "area", "fractional_area_latency", "fractional_peak_latency")
 VARIANTS = [
-    dict(area="total", area_baseline="zero", fraction=0.5),
-    dict(area="positive", area_baseline="zero", fraction=0.5),
-    dict(area="negative", area_baseline="fraction_of_peak", fraction=0.3),
-    dict(area="rectified", area_baseline="zero", fraction=0.5),
+    {"area": "total", "area_baseline": "zero", "fraction": 0.5},
+    {"area": "positive", "area_baseline": "zero", "fraction": 0.5},
+    {"area": "negative", "area_baseline": "fraction_of_peak", "fraction": 0.3},
+    {"area": "rectified", "area_baseline": "zero", "fraction": 0.5},
 ]
 
 
@@ -146,7 +146,7 @@ def _compare(times, average, window, polarity):
 
 
 @pytest.mark.parametrize(
-    "component, channel_window, polarity",
+    ("component", "channel_window", "polarity"),
     [("N170", (0.110, 0.150), "negative"), ("P3", (0.300, 0.600), "positive")],
 )
 def test_req117_classical_measures_match_independent_definitions(
@@ -200,4 +200,5 @@ def test_req117_on_erp_core_averages(component):
             continue  # no difference wave (as in the published analysis)
         _compare(np.asarray(times), np.asarray(wave), design["window"], polarity)
         compared += 1
-    assert loaded == 40 and compared > 0
+    assert loaded == 40
+    assert compared > 0

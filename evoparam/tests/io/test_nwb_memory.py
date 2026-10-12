@@ -112,6 +112,7 @@ def test_req317_peak_memory_reading_10_percent_of_1gb():
         capture_output=True,
         text=True,
         timeout=1800,
+        check=False,
     )
     assert proc.returncode == 0, proc.stderr[-2000:]
     import json

@@ -105,13 +105,18 @@ def test_vanblooijs2023_default_is_the_registry_row():
     most negative sample); the published code's fields belong to 'vanblooijs2023_code'."""
 
     paper = resolve_rule("vanblooijs2023", baseline=(-0.5, -0.05))
-    assert paper["sd_floor_uv"] is None and paper["peak"] == "extremum"
-    assert not paper.get("exclude_first_sample") and not paper.get("saturation_uv")
+    assert paper["sd_floor_uv"] is None
+    assert paper["peak"] == "extremum"
+    assert not paper.get("exclude_first_sample")
+    assert not paper.get("saturation_uv")
     assert (paper["k"], paper["window"], paper["polarity"]) == (3.4, (0.009, 0.1), "negative")
     code = resolve_rule("vanblooijs2023_code")
-    assert code["baseline"] == (-2.0, -0.1) and code["sd_floor_uv"] == 50.0
-    assert code["peak"] == "local" and code["exclude_first_sample"]
-    assert code["saturation_uv"] == 3000.0 and code["peak_search_end"] == 0.5
+    assert code["baseline"] == (-2.0, -0.1)
+    assert code["sd_floor_uv"] == 50.0
+    assert code["peak"] == "local"
+    assert code["exclude_first_sample"]
+    assert code["saturation_uv"] == 3000.0
+    assert code["peak_search_end"] == 0.5
 
 
 def test_vanblooijs2023_published_code_reading():

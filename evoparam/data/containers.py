@@ -683,7 +683,7 @@ class TrialSet(_ContainerMixin):
         out = []
         for key, group in subset.groupby(columns, sort=True, dropna=False):
             key = key if isinstance(key, tuple) else (key,)
-            row = {column: [value] for column, value in zip(columns, key)}
+            row = {column: [value] for column, value in zip(columns, key, strict=False)}
             out.append(self._average_trials(group.index.to_numpy(), row, settings, start, chunk))
         return out
 

@@ -174,7 +174,8 @@ def test_req356_the_kept_seeds_match_the_commitment(tmp_path):
     for name in ("core", "full"):
         loaded = load_suite(name, hidden_seeds=path)
         hidden = loaded.cells(split="hidden")
-        assert hidden and all(isinstance(c.seed, int) for c in hidden)
+        assert hidden
+        assert all(isinstance(c.seed, int) for c in hidden)
         assert hidden_commitment(document) == loaded.hidden_split["commitment_sha256"]
     manifest_path = prepare_deposit(
         "core", str(tmp_path / "d"), tasks=["T6"], formats=(), hidden_seeds=path
@@ -202,4 +203,5 @@ def test_req356_commitment_published_at_deposit_time():
     suites). Measured: no deposit, so the commitment is published nowhere."""
 
     deposit = suite("core").hidden_split.get("deposit_doi")
-    assert deposit is not None and os.environ.get("EVOPARAM_DEPOSIT_DOI") == deposit
+    assert deposit is not None
+    assert os.environ.get("EVOPARAM_DEPOSIT_DOI") == deposit

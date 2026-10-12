@@ -47,7 +47,9 @@ def test_read_brainvision(tmp_path):
     assert header["ch_names"] == ch_names
 
     out, out_sfreq, out_names, t0 = read_brainvision_segment(vhdr, 1.0, 2.0)
-    assert out_sfreq == sfreq and out_names == ch_names and t0 == 1.0
+    assert out_sfreq == sfreq
+    assert out_names == ch_names
+    assert t0 == 1.0
     assert np.allclose(out, data[:, 100:201])
 
     out, _, out_names, _ = read_brainvision_segment(vhdr, 0, 0.5, picks=["A3", "A1"])

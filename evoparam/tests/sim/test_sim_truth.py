@@ -62,7 +62,7 @@ def test_perfect_fit_table_equals_truth_table():
 ## Exactness of the truth
 
 
-@pytest.mark.parametrize("name, jitter", [("erp", 0.004), ("ccep", 0.004), ("ecap", 0.0001)])
+@pytest.mark.parametrize(("name", "jitter"), [("erp", 0.004), ("ccep", 0.004), ("ecap", 0.0001)])
 def test_trial_rows_are_the_features_of_the_trial_curves(name, jitter):
     """Features of a trial are those of its curve (components inside the epoch)."""
 
@@ -180,7 +180,8 @@ def test_container_round_trip(tmp_path, suffix):
 
 def test_truth_validation_and_repr():
     _, truth = sim.simulate_erp(seed=0, n_trials=3)
-    assert "3 trials" in repr(truth) and "seed 0" in repr(truth)
+    assert "3 trials" in repr(truth)
+    assert "seed 0" in repr(truth)
     bad = truth.to_dict(arrays=False)
     bad["shift"] = [[0.0]]
     with pytest.raises(DataError):
@@ -188,12 +189,14 @@ def test_truth_validation_and_repr():
     with pytest.raises(DataError):
         truth.to_dataframe("channel")
     empty = sim.simulate_erp(seed=0, n_trials=3, components=[], snr=None)[1]
-    assert empty.n_components == 0 and len(empty.to_dataframe()) == 0
+    assert empty.n_components == 0
+    assert len(empty.to_dataframe()) == 0
 
 
 def test_keep_arrays_false():
     ts, truth = sim.simulate_erp(seed=0, n_trials=3, keep_arrays=False)
-    assert truth.signal is None and truth.artifact_data is None
+    assert truth.signal is None
+    assert truth.artifact_data is None
     ts_full, truth_full = sim.simulate_erp(seed=0, n_trials=3)
     assert ts.data.tobytes() == ts_full.data.tobytes()
 
@@ -226,8 +229,10 @@ def test_real_noise_records_every_segment():
             "source_channels",
         ):
             assert segment[key] is not None, key
-        assert segment["dataset"] == "ds004080" and segment["version"] == "1.2.4"
-        assert segment["subject"] == "ccepAgeUMCU01" and segment["run"] == "021448"
+        assert segment["dataset"] == "ds004080"
+        assert segment["version"] == "1.2.4"
+        assert segment["subject"] == "ccepAgeUMCU01"
+        assert segment["run"] == "021448"
         start, stop = segment["epoch_samples"]
         assert stop - start == ts.n_times
         epoch_start = int(
@@ -258,7 +263,8 @@ def test_real_noise_resampling_is_recorded():
         snr=3.0,
     )
     resampling = truth.noise["resampling"]
-    assert resampling["from_sfreq"] == 1000.0 and resampling["to_sfreq"] == 500.0
+    assert resampling["from_sfreq"] == 1000.0
+    assert resampling["to_sfreq"] == 500.0
     assert (resampling["up"], resampling["down"]) == (1, 2)
     start, stop = truth.noise["segments"][0]["epoch_samples"]
     assert stop - start == 2 * ts.n_times  # in source samples
@@ -304,7 +310,7 @@ def test_unknown_or_unnamed_dataset_is_refused_for_real_noise():
 
 
 @pytest.mark.parametrize(
-    "licence, allowed",
+    ("licence", "allowed"),
     [
         ("CC-BY-NC-4.0", False),
         ("CC BY-NC-SA 4.0", False),
@@ -358,7 +364,9 @@ def test_inject_records_and_adds_components():
         int(round(10.0 * 500 - 2.0 * 500)) + real.n_times,
     ]
     labels = [(c["label"], c["channel"]) for c in truth.components]
-    assert ("P3", "R01") in labels and ("N1", "R00") in labels and ("N1", "R02") in labels
+    assert ("P3", "R01") in labels
+    assert ("N1", "R00") in labels
+    assert ("N1", "R02") in labels
     for index, comp in enumerate(truth.components):
         sd = np.std(
             real.data[:, truth.ch_names.index(comp["channel"]), real.times < 0], axis=-1

@@ -40,7 +40,9 @@ def _check_entry(old, new, since, remove_in):
             except TypeError:
                 warnings.warn(shim.__deprecated__, EvoparamDeprecationWarning)
     text = str(record[0].message)
-    assert old in text and new in text and remove_in in text
+    assert old in text
+    assert new in text
+    assert remove_in in text
 
 
 @pytest.mark.parametrize("old", sorted(_deprecated.REGISTRY) or [None])
@@ -67,7 +69,9 @@ def test_req293_the_mechanism_with_a_temporary_entry(monkeypatch):
         value = evoparam.old_mean(np.array([[1.0, 3.0], [5.0, 7.0]]), axis=1, keepdims=True)
     assert value.tolist() == [[2.0], [6.0]]
     text = str(record[0].message)
-    assert "evoparam.old_mean" in text and "numpy:mean" in text and "0.4.0" in text
+    assert "evoparam.old_mean" in text
+    assert "numpy:mean" in text
+    assert "0.4.0" in text
     _check_entry("old_mean", "numpy:mean", "0.2.0", "0.4.0")
 
 

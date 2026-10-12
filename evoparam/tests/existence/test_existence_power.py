@@ -56,7 +56,8 @@ def test_projection_duration_and_significance():
     data = noise_trials(rng, 20, 10) + 3.0 * plateau(0.009, 0.12)[None, None]
     data[:, 5:] = noise_trials(rng, 20, 5)
     test = run_test(trialset(data), method="projection", by=(), random_state=0)
-    assert np.all(test.significant[:5]) and np.sum(test.significant[5:]) <= 1
+    assert np.all(test.significant[:5])
+    assert np.sum(test.significant[5:]) <= 1
     assert np.median(np.abs(test.offset[:5] - 0.12)) <= 0.01
 
 

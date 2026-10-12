@@ -34,7 +34,7 @@ def test_ecap_components_are_found_not_a_cancelling_pair(kind):
         true = table[table["channel"] == ts.ch_names[ch]].sort_values("latency")
         comps = sorted(fitted.components, key=lambda c: c.latency)
         assert len(comps) == len(true)
-        for comp, (_, row) in zip(comps, true.iterrows()):
+        for comp, (_, row) in zip(comps, true.iterrows(), strict=False):
             assert np.sign(comp.amplitude) == np.sign(row["amplitude"])
             assert abs(comp.latency - row["latency"]) < 0.5 * row["fwhm"]
         w = (average.times >= fitted.window[0]) & (average.times <= fitted.window[1])

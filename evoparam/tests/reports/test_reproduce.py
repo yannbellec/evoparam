@@ -48,7 +48,8 @@ def test_req333_reproduce_is_identical(saved):
         report = reports.reproduce(saved, rtol=1e-9)
     assert report.identical, report.differences[:5]
     assert report.max_rel_diff == 0.0 or report.max_rel_diff <= 1e-9
-    assert report.checksums_ok and report.settings_differences == []
+    assert report.checksums_ok
+    assert report.settings_differences == []
     functions = [step["function"] for step in report.steps]
     assert functions[0] == "evoparam.sim.simulate_ccep"
     assert "evoparam.models.ResponseModel.fit_group" in functions
@@ -92,7 +93,8 @@ def test_req333_environment_differences_are_reported(saved, monkeypatch):
     with pytest.warns(UserWarning, match="environment differs"):
         report = reports.reproduce(saved)
     assert "numpy" in report.environment_differences
-    assert report.checksums_ok and report.identical
+    assert report.checksums_ok
+    assert report.identical
 
 
 def test_req333_cli_returns_the_same_report(saved):
@@ -112,8 +114,10 @@ def test_req333_cli_returns_the_same_report(saved):
         env=env,
         cwd=ROOT,
         timeout=600,
+        check=False,
     )
     assert out.returncode == 0, out.stderr
     summary = json.loads(out.stdout)
-    assert summary["command"] == "reproduce" and summary["exit_code"] == 0
+    assert summary["command"] == "reproduce"
+    assert summary["exit_code"] == 0
     assert summary["result"] == json.loads(json.dumps(report))

@@ -136,7 +136,8 @@ def test_licence_scan():
     assert "Apache License" in (ROOT / "LICENSE").read_text(encoding="utf-8")
     assert _toml()["project"]["license"] == "Apache-2.0"
     notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
-    assert "ERPparam" in notice and "Apache" in notice
+    assert "ERPparam" in notice
+    assert "Apache" in notice
     hits = []
     for path in sorted(PACKAGE.rglob("*")):
         rel = path.relative_to(ROOT).as_posix()
@@ -358,7 +359,9 @@ ENTRY_POINTS = [
 ]
 
 
-@pytest.mark.parametrize("module,code,extra", ENTRY_POINTS, ids=[e[0] for e in ENTRY_POINTS])
+@pytest.mark.parametrize(
+    ("module", "code", "extra"), ENTRY_POINTS, ids=[e[0] for e in ENTRY_POINTS]
+)
 def test_req292_missing_package_message(module, code, extra):
     """(iii) with the package hidden (``sys.modules[name] = None``) the entry point raises
     ImportError whose message holds ``pip install "evoparam[<extra>]"``."""
@@ -368,7 +371,12 @@ def test_req292_missing_package_message(module, code, extra):
 
     script = f"import sys\nsys.modules[{module!r}] = None\n{code}\n"
     result = subprocess.run(
-        [sys.executable, "-c", script], capture_output=True, text=True, timeout=120, cwd=ROOT
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=ROOT,
+        check=False,
     )
     assert result.returncode != 0
     assert "ImportError" in result.stderr, result.stderr[-2000:]
@@ -562,7 +570,8 @@ def test_req395_resolved_tree_has_no_copyleft_package_at_all():
 def test_req395_the_scan_finds_a_copyleft_licence():
     assert COPYLEFT.search("License :: OSI Approved :: GNU General Public License v3 (GPLv3)")
     assert COPYLEFT.search("LGPL-2.1-or-later")
-    assert not COPYLEFT.search("Apache-2.0") and not COPYLEFT.search("BSD-3-Clause")
+    assert not COPYLEFT.search("Apache-2.0")
+    assert not COPYLEFT.search("BSD-3-Clause")
 
 
 def test_req309_version_floors():

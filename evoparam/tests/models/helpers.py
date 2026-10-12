@@ -27,14 +27,14 @@ def gauss(latency, amplitude, fwhm, times=TIMES):
 
 
 def model(**kwargs):
-    settings = dict(
-        fit_window=WINDOW,
-        baseline=BASELINE,
-        shapes=("gaussian", "skewed_gaussian"),
-        background="constant",
-        min_fwhm=0.008,
-        max_fwhm=0.3,
-    )
+    settings = {
+        "fit_window": WINDOW,
+        "baseline": BASELINE,
+        "shapes": ("gaussian", "skewed_gaussian"),
+        "background": "constant",
+        "min_fwhm": 0.008,
+        "max_fwhm": 0.3,
+    }
     settings.update(kwargs)
     return ResponseModel(**settings)
 
@@ -104,16 +104,16 @@ def erp_waveform(
     for _ in range(1000):
         lats = np.sort(rng.uniform(*span, n_components))
         gaps = [3 * max(fwhm[i], fwhm[i + 1]) for i in range(n_components - 1)]
-        if all(b - a >= g for a, b, g in zip(lats[:-1], lats[1:], gaps)):
+        if all(b - a >= g for a, b, g in zip(lats[:-1], lats[1:], gaps, strict=False)):
             break
     comps = [
-        dict(
-            label=f"C{j}",
-            shape=shape,
-            latency=float(lats[j]),
-            fwhm=fwhm[j],
-            amplitude=float(rng.choice([-1.0, 1.0])),
-        )
+        {
+            "label": f"C{j}",
+            "shape": shape,
+            "latency": float(lats[j]),
+            "fwhm": fwhm[j],
+            "amplitude": float(rng.choice([-1.0, 1.0])),
+        }
         for j in range(n_components)
     ]
     ts, truth = simulate_erp(
@@ -142,6 +142,7 @@ def same_decisions(a, b):
     for x, y in zip(
         sorted(a.components, key=lambda c: c.latency),
         sorted(b.components, key=lambda c: c.latency),
+        strict=False,
     ):
         if x.polarity != y.polarity or abs(x.latency - y.latency) > max(x.fwhm, y.fwhm) / 2:
             return False

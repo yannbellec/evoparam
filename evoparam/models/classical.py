@@ -177,14 +177,14 @@ def classical_measures(
     times = np.asarray(times, float)
     inside = (times >= window[0]) & (times <= window[1])
     t, w = times[inside], np.asarray(y, float)[inside]
-    kwargs = dict(
-        polarity=polarity,
-        measures=measures,
-        fraction=fraction,
-        area=area,
-        area_baseline=area_baseline,
-        n_neighbors=n_neighbors,
-    )
+    kwargs = {
+        "polarity": polarity,
+        "measures": measures,
+        "fraction": fraction,
+        "area": area,
+        "area_baseline": area_baseline,
+        "n_neighbors": n_neighbors,
+    }
     scores, local = _scores(t, w, **kwargs)
     win = f"window=[{window[0]:g}, {window[1]:g}]"
     peak_def = f"local_peak(n_neighbors={n_neighbors}), polarity={polarity}, {win}" + (

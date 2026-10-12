@@ -294,18 +294,18 @@ def agreement():
         det, lat, trough, trough_amp = _model_n1(_model_fits(ts))
         for reading in READINGS:
             rule, rule_lat, floor = _published_rule(ts, reading)
-            out[(subject, run, reading)] = dict(
-                rule=rule,
-                rule_lat=rule_lat,
-                model=det,
-                lat=lat,
-                trough=trough,
-                n1_trough=_rule_peak_is_n1_trough(ts, rule_lat),
+            out[(subject, run, reading)] = {
+                "rule": rule,
+                "rule_lat": rule_lat,
+                "model": det,
+                "lat": lat,
+                "trough": trough,
+                "n1_trough": _rule_peak_is_n1_trough(ts, rule_lat),
                 # the decision of the earlier proposed wording (not the REQ): the trough of
                 # the fitted curve at least as deep as the code's amplitude criterion
-                trough_floor=np.isfinite(trough) & (-np.nan_to_num(trough_amp) >= floor),
-                names=ts.ch_names,
-            )
+                "trough_floor": np.isfinite(trough) & (-np.nan_to_num(trough_amp) >= floor),
+                "names": ts.ch_names,
+            }
     return out
 
 
@@ -314,12 +314,12 @@ def _scores(r, mask=None, decision="model", latency="lat"):
     rule, model = r["rule"][mask], r[decision][mask]
     both = rule & model
     close = np.abs(r[latency][mask][both] - r["rule_lat"][mask][both]) <= 0.002
-    return dict(
-        kappa=_kappa(rule, model),
-        missed=int(np.sum(rule & ~model)),
-        close=close,
-        n_both=int(both.sum()),
-    )
+    return {
+        "kappa": _kappa(rule, model),
+        "missed": int(np.sum(rule & ~model)),
+        "close": close,
+        "n_both": int(both.sum()),
+    }
 
 
 def _runs(agreement, reading, example=False):

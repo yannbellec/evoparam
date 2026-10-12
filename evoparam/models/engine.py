@@ -1220,7 +1220,9 @@ def _fit_waveform_core(
     lo, hi = base_struct.bounds()
     best = None
     grids = (
-        [np.geomspace(max(l, 1e-6), h, 5) for l, h in zip(lo, hi)] if base_struct.n_theta else [[]]
+        [np.geomspace(max(l, 1e-6), h, 5) for l, h in zip(lo, hi, strict=False)]
+        if base_struct.n_theta
+        else [[]]
     )
     for theta0 in (
         (np.array(g) for g in np.array(np.meshgrid(*grids)).reshape(len(grids), -1).T)
@@ -1540,7 +1542,7 @@ def _suspicious(state, make, settings):
             shape, struct.tw, params, state.beta[k], sfreq=1 / np.median(np.diff(struct.tw))
         )
         info.append((feats.latency, (feats.fwhm or 0) / FWHM_PER_SIGMA, np.sign(state.beta[k])))
-    for (la, sa, pa), (lb, sb, pb) in zip(info, info[1:]):
+    for (la, sa, pa), (lb, sb, pb) in zip(info, info[1:], strict=False):
         if pa != pb and abs(lb - la) < settings.overlap_c * (sa + sb):
             return True
     if len(state.shapes) >= 2:

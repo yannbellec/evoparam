@@ -41,8 +41,11 @@ def test_read_bids_local(bids_root):
 
     # 16 stimulation events, the last one too close to the end of the recording
     kept_onsets = STIM_ONSETS[:-1]
-    assert trials.n_trials == 15 and trials.ch_names == CH_NAMES
-    assert trials.sfreq == SFREQ and trials.units == "uV" and trials.modality == "spes"
+    assert trials.n_trials == 15
+    assert trials.ch_names == CH_NAMES
+    assert trials.sfreq == SFREQ
+    assert trials.units == "uV"
+    assert trials.modality == "spes"
     assert np.allclose(trials.times[[0, -1]], [-0.5, 0.999])
     assert np.array_equal(trials.data, expected_epochs(kept_onsets))
     assert np.allclose(trials.event_times, kept_onsets)
@@ -55,19 +58,24 @@ def test_read_bids_local(bids_root):
     assert np.allclose(meta["stim_current_mA"], 4.0)
     assert np.allclose(meta["stim_pulse_width_us"], 200.0)
     assert set(meta["stim_polarity"]) == {"monophasic_cathodic"}  # from the ieeg.json text
-    assert list(meta["subject"].unique()) == ["01"] and list(meta["run"].unique()) == ["01"]
-    assert list(meta["session"].unique()) == ["n/a"] and list(meta["task"].unique()) == ["spes"]
+    assert list(meta["subject"].unique()) == ["01"]
+    assert list(meta["run"].unique()) == ["01"]
+    assert list(meta["session"].unique()) == ["n/a"]
+    assert list(meta["task"].unique()) == ["spes"]
     assert meta["trial"].dtype == np.int64
-    assert "electrical_stimulation_site" in meta.columns and "condition" in meta.columns
+    assert "electrical_stimulation_site" in meta.columns
+    assert "condition" in meta.columns
     assert meta["overlaps_previous"].tolist() == [False] * 14 + [True]  # 41.8 s after 41 s
     assert meta.attrs["units"]["stim_current_mA"] == "mA"
 
     # Channel table from channels.tsv and electrodes.tsv (cm → mm)
     info = trials.ch_info
-    assert list(info["name"]) == CH_NAMES and set(info["type"]) == {"ecog"}
+    assert list(info["name"]) == CH_NAMES
+    assert set(info["type"]) == {"ecog"}
     assert info["bad"].tolist() == [False, False, True]
     assert info["reference"].tolist() == ["monopolar:G2"] * 3
-    assert np.allclose(info["x"], [0.0, 10.0, 20.0]) and set(info["coord_space"]) == {"ACPC"}
+    assert np.allclose(info["x"], [0.0, 10.0, 20.0])
+    assert set(info["coord_space"]) == {"ACPC"}
     assert info["stim_contact"].tolist() == [True, True, True]
 
 
@@ -78,10 +86,12 @@ def test_provenance_source(bids_root):
     data_file = os.path.join(bids_root, "sub-01", "ieeg", "sub-01_task-spes_run-01_ieeg.eeg")
     with open(data_file, "rb") as file:
         assert source["sha256"] == hashlib.sha256(file.read()).hexdigest()
-    assert source["path"] == data_file and source["format"] == "brainvision"
+    assert source["path"] == data_file
+    assert source["format"] == "brainvision"
     assert source["reader"] == "evoparam.io.read_bids"
     assert source["doi"] == "10.0000/mini"
-    assert source["bids"]["subject"] == "01" and source["bytes_read"] == 0
+    assert source["bids"]["subject"] == "01"
+    assert source["bytes_read"] == 0
     step = trials.provenance.steps[-1]
     assert step["function"] == "evoparam.io.read_bids"
     assert step["settings"]["epoch"] == [-0.5, 1.0]
@@ -104,7 +114,8 @@ def test_select_picks_and_epoch(bids_root):
         epoch=(-0.1, 0.2),
     )
     onsets = STIM_ONSETS[1:14:2]  # A02-A03; 59.9 s is dropped
-    assert trials.n_trials == len(onsets) and trials.ch_names == ["A03", "A01"]
+    assert trials.n_trials == len(onsets)
+    assert trials.ch_names == ["A03", "A01"]
     assert np.array_equal(trials.data, expected_epochs(onsets, (2, 0), -0.1, 0.2))
     assert list(trials.ch_info["name"]) == ["A03", "A01"]
 
@@ -132,13 +143,15 @@ def test_events_argument(bids_root, tmp_path):
 
     events = pd.DataFrame({"onset": [5.0, 20.0], "trial_type": ["x", "y"]})
     trials = read_bids(bids_root, "01", task="spes", events=events)
-    assert trials.n_trials == 2 and list(trials.metadata["condition"]) == ["x", "y"]
+    assert trials.n_trials == 2
+    assert list(trials.metadata["condition"]) == ["x", "y"]
     assert trials.modality is None
 
     path = tmp_path / "other_events.tsv"
     path.write_text("onset\tduration\ttrial_type\n10.0\t0\tA01-A02\n", encoding="utf-8")
     trials = read_bids(bids_root, "01", task="spes", events=str(path))
-    assert trials.n_trials == 1 and trials.metadata["stim_site"][0] == "A01-A02"
+    assert trials.n_trials == 1
+    assert trials.metadata["stim_site"][0] == "A01-A02"
 
 
 def test_save_load_round_trip(bids_root, tmp_path):

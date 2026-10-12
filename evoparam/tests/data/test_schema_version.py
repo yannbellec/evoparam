@@ -122,7 +122,8 @@ def test_req334_older_major_is_migrated_and_recorded(tmp_path, monkeypatch):
     with open(manifest, encoding="utf-8") as fobj:
         assert json.load(fobj)["schema"] == SCHEMA
     again = load_object(path)  # verified checksums, current schema
-    assert again == obj and again.provenance.steps[-1]["function"] == "evoparam.data.migrate"
+    assert again == obj
+    assert again.provenance.steps[-1]["function"] == "evoparam.data.migrate"
     assert migrate(path)["migrated"] is False
     assert sorted(os.listdir(tmp_path)) == ["old.evoparam"]  # no temporary file left
 

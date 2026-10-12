@@ -124,7 +124,8 @@ def test_reads_the_uncensored_epochs():
 
     trials = load_trials(*RUNS[0])
     assert trials.sfreq == 4800.0
-    assert trials.data.shape[0] == 12 and trials.data.shape[1] > 200
+    assert trials.data.shape[0] == 12
+    assert trials.data.shape[1] > 200
     assert np.isfinite(trials.data).all()
     # Uncensored: the channels are not constant
     assert (trials.data.std(axis=-1) > 0).all(axis=0).mean() > 0.95
@@ -140,5 +141,5 @@ def test_req081_car_adaptive_lowers_cross_channel_r2(comparisons):
     adaptive = np.concatenate([c[1] for c in comparisons])
     assert np.median(adaptive) < np.median(car)
     assert wilcoxon(adaptive, car, alternative="less").pvalue < 0.01
-    for run, (car, adaptive, _, n_star) in zip(RUNS, comparisons):
+    for run, (car, adaptive, _, n_star) in zip(RUNS, comparisons, strict=False):
         assert wilcoxon(adaptive, car, alternative="less").pvalue < 0.01, (run, n_star)

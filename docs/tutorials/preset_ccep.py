@@ -45,7 +45,7 @@ print(stim["electrical_stimulation_site"].value_counts().head())
 site = "LTG1-LTG2"
 grid = [
     n
-    for n, t in zip(channels["name"], channels["type"])
+    for n, t in zip(channels["name"], channels["type"], strict=False)
     if t == "ECOG" and n.startswith("LTG") and n not in site.split("-")
 ][:16]
 trials = read_bids(

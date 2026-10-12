@@ -22,15 +22,15 @@ from evoparam.data.results import FIT_STATUSES
 
 pytest.importorskip("pandas")
 
-NO_ARTIFACT = dict(pulse_artifact=False, decay_artifact=False, muscle_artifact=False)
+NO_ARTIFACT = {"pulse_artifact": False, "decay_artifact": False, "muscle_artifact": False}
 
 # Median-nerve SEP (N20, P25, N33; as in the REQ-277 case of test_presets_sim): the P1, N1
 # and P3 of the ERP defaults lie after the 10-60 ms window of the sep preset, where a fit
 # rightly finds no response.
 SEP_COMPONENTS = (
-    dict(label="N20", latency=0.020, fwhm=0.004, amplitude=-1.0),
-    dict(label="P25", latency=0.025, fwhm=0.006, amplitude=0.8),
-    dict(label="N33", latency=0.033, fwhm=0.008, amplitude=-0.6),
+    {"label": "N20", "latency": 0.020, "fwhm": 0.004, "amplitude": -1.0},
+    {"label": "P25", "latency": 0.025, "fwhm": 0.006, "amplitude": 0.8},
+    {"label": "N33", "latency": 0.033, "fwhm": 0.008, "amplitude": -0.6},
 )
 
 # One simulated waveform per modality (§5.12 generators): the epoch covers the preset's
@@ -163,8 +163,11 @@ def test_req002_one_call(kind, trials, tmp_path_factory):
     ok = table[table["status"] == "ok"]
     assert len(ok) >= 1
     for name in ("latency", "amplitude", "fwhm"):
-        assert ok[f"{name}_ci_low"].notna().all() and ok[f"{name}_ci_high"].notna().all()
+        assert ok[f"{name}_ci_low"].notna().all()
+        assert ok[f"{name}_ci_high"].notna().all()
     # the methods paragraph
     text = group.methods_text()
-    assert "evoparam" in text and "ccep" in text and len(text) > 200
+    assert "evoparam" in text
+    assert "ccep" in text
+    assert len(text) > 200
     assert "presence of a response" in text

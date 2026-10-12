@@ -41,7 +41,7 @@ def bipolar_pairs(ts, groups="group"):
         group_of = [str(groups.get(name, contact_group(name))) for name in names]
     elif groups is not None and ts.ch_info is not None and groups in ts.ch_info.columns:
         group_of = ts.ch_info[groups].fillna("").astype(str).tolist()
-        group_of = [g if g else contact_group(n) for g, n in zip(group_of, names)]
+        group_of = [g if g else contact_group(n) for g, n in zip(group_of, names, strict=False)]
     else:
         group_of = [contact_group(name) for name in names]
     numbers = [contact_number(name) for name in names]
@@ -50,7 +50,7 @@ def bipolar_pairs(ts, groups="group"):
     for group in dict.fromkeys(group_of):
         members = [i for i, g in enumerate(group_of) if g == group and numbers[i] is not None]
         members.sort(key=lambda i: numbers[i])
-        for a, b in zip(members[:-1], members[1:]):
+        for a, b in zip(members[:-1], members[1:], strict=False):
             if numbers[b] == numbers[a] + 1:
                 pairs.append((a, b))
             else:

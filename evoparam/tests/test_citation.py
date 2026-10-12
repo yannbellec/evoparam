@@ -60,6 +60,7 @@ def test_req308_date_released_is_the_tag_date():
         cwd=ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
     cff = _cff()
     if tag.returncode != 0:
@@ -70,6 +71,7 @@ def test_req308_date_released_is_the_tag_date():
         cwd=ROOT,
         capture_output=True,
         text=True,
+        check=False,
     ).stdout.strip()
     assert str(cff["date-released"]) == date
 
@@ -140,7 +142,8 @@ def test_req391_both_dois_and_the_paper_when_they_exist():
     text = citation_text(cff)
     assert "https://doi.org/10.5281/zenodo.1001" in text
     assert "https://doi.org/10.5281/zenodo.1000" in text
-    assert "Evoked response parameterization" in text and "10.1000/xyz" in text
+    assert "Evoked response parameterization" in text
+    assert "10.1000/xyz" in text
 
 
 @pytest.mark.xfail(strict=True, reason=f"REQ-391: the version DOI of each release {HIIE}")

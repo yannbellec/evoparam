@@ -101,7 +101,9 @@ for est in estimates[-N_CHANNELS:]:
 # channels, about one run in five has one such channel.
 
 result = fitter.existence()
-for name, significant, n in zip(result["channels"], result["significant"], result["n"]):
+for name, significant, n in zip(
+    result["channels"], result["significant"], result["n"], strict=False
+):
     print(f"{name}: {'response' if significant else 'no response'} after {n} pulses")
 print("compute time per pulse (ms):", {k: round(v, 2) for k, v in fitter.latency_stats.items()})
 

@@ -383,7 +383,7 @@ def _compare(new, old, path, rtol, atol, out):
             out.append((path, None))
             return math.inf
         worst = 0.0
-        for i, (a, b) in enumerate(zip(new, old)):
+        for i, (a, b) in enumerate(zip(new, old, strict=False)):
             worst = max(worst, _compare(a, b, f"{path}[{i}]", rtol, atol, out))
         return worst
     numeric_old = isinstance(

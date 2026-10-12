@@ -36,7 +36,7 @@ def test_interval_flags():
         add_pulse(data, onset, 300.0, gains)
 
     events = detect_pulses(data, sfreq, expected_rate=1.0, min_interval=0.2)
-    flags = dict(zip(np.round(events["onset_time"], 1), events["interval_flag"]))
+    flags = dict(zip(np.round(events["onset_time"], 1), events["interval_flag"], strict=False))
     assert flags[6.5] == "long"
     assert flags[7.8] == "short"
     assert flags[1.5] == ""

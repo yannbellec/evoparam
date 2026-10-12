@@ -28,11 +28,15 @@ def test_req397_trademark_file_states_the_policy():
         "Plugins, extensions and products",
     ):
         assert f"## {heading}" in text, heading
-    assert "HIIE" in text and "GOVERNANCE.md" in text
-    assert "Section 6" in text and "Apache License, Version 2.0" in text
-    assert "for evoparam" in text and "built on evoparam" in text
+    assert "HIIE" in text
+    assert "GOVERNANCE.md" in text
+    assert "Section 6" in text
+    assert "Apache License, Version 2.0" in text
+    assert "for evoparam" in text
+    assert "built on evoparam" in text
     forks = text.split("## Forks", 1)[1].split("## ", 1)[0]
-    assert "different name" in forks and "NOTICE" in forks
+    assert "different name" in forks
+    assert "NOTICE" in forks
 
 
 def test_req397_linked_from_the_readme():

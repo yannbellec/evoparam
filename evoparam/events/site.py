@@ -239,7 +239,7 @@ def identify_stim_site(
     index = pick_index(n_channels, picks, names)
 
     if ch_info is not None and "type" in ch_info.columns:
-        types = dict(zip(ch_info["name"], ch_info["type"].astype(str).str.lower()))
+        types = dict(zip(ch_info["name"], ch_info["type"].astype(str).str.lower(), strict=False))
         index = np.array([ind for ind in index if types.get(names[ind], "") in NEURAL_TYPES])
     elif exclude is not None:
         index = np.array([ind for ind in index if not exclude.match(names[ind])])
@@ -247,7 +247,7 @@ def identify_stim_site(
         bad = set(ch_info.loc[ch_info["bad"].astype(bool), "name"])
         index = np.array([ind for ind in index if names[ind] not in bad])
     if ch_info is not None and "group" in ch_info.columns:
-        groups = dict(zip(ch_info["name"], ch_info["group"].astype(str)))
+        groups = dict(zip(ch_info["name"], ch_info["group"].astype(str), strict=False))
         group = [groups.get(name, contact_group(name)) for name in names]
     elif method == "spec":
         # the reviewed rule checks the shaft only "when ch_info.group is available"

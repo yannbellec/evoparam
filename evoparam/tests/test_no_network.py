@@ -190,6 +190,7 @@ def test_req016_no_network_without_remote_options(tmp_path):
         timeout=1200,
         env=env,
         cwd=str(tmp_path),
+        check=False,
     )
     assert result.returncode == 0, result.stderr[-3000:]
     report = json.loads(result.stdout.strip().splitlines()[-1])
@@ -213,5 +214,6 @@ def test_req016_the_guard_records_an_attempt():
         text=True,
         timeout=120,
         env=dict(os.environ, EVOPARAM_OFFLINE=""),
+        check=False,
     )
     assert int(result.stdout.strip().splitlines()[-1]) >= 1, result.stderr[-2000:]

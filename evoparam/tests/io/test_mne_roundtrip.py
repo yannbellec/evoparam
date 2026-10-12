@@ -31,9 +31,11 @@ def test_epochs_to_trialset():
     epochs, data = make_epochs()
     trials = read_mne(epochs)
     trials.validate()
-    assert trials.units == "uV" and trials.ch_names == ["E1", "E2", "E3"]
+    assert trials.units == "uV"
+    assert trials.ch_names == ["E1", "E2", "E3"]
     assert np.allclose(trials.data, data * 1e6, rtol=1e-12, atol=0)
-    assert np.allclose(trials.times, epochs.times) and trials.sfreq == 1000.0
+    assert np.allclose(trials.times, epochs.times)
+    assert trials.sfreq == 1000.0
     assert list(trials.metadata["condition"]) == ["a", "b", "a", "b"]
     assert list(trials.ch_info["type"]) == ["ecog", "ecog", "seeg"]
     assert np.allclose(trials.event_times, [1.0, 3.0, 5.0, 7.0])

@@ -78,7 +78,7 @@ def plot_fit(
         ax.plot(times * 1e3, y, color=DATA_COLOR, lw=0.8, label="data")
         if mask is not None and mask.any():
             edges = np.flatnonzero(np.diff(np.r_[0, mask.astype(int), 0]))
-            for start, stop in zip(edges[::2], edges[1::2]):
+            for start, stop in zip(edges[::2], edges[1::2], strict=False):
                 ax.axvspan(
                     times[start] * 1e3,
                     times[stop - 1] * 1e3,
@@ -194,7 +194,7 @@ def plot_group(
         else:
             fig = np.ravel(axes)[0].figure
         flat = np.ravel(axes)
-        for a, name, fit in zip(flat, names, fits):
+        for a, name, fit in zip(flat, names, fits, strict=False):
             if data is not None:
                 times, y, _ = _evoked(data, name)
                 a.plot(times * 1e3, y, color=DATA_COLOR, lw=0.5)
@@ -214,7 +214,7 @@ def plot_group(
     if kind == "shaft":
         fig, ax = _figure_ax(ax, figsize=(6.0, 8.0))
         groups = {}
-        for name, fit in zip(names, fits):
+        for name, fit in zip(names, fits, strict=False):
             groups.setdefault(contact_group(name), []).append((name, fit))
         offset = 0.0
         ticks, labels = [], []
@@ -391,7 +391,7 @@ def plot_existence(test, *, ax=None, axes=None, channels=None, group=0, max_chan
         for a in panels[len(index) :]:
             a.axis("off")
     single = ax is not None
-    for n, (a, i) in enumerate(zip(panels, index)):
+    for n, (a, i) in enumerate(zip(panels, index, strict=False)):
         colour = PALETTE[n % len(PALETTE)] if single else (PALETTE[0] if sig[i] else "#777777")
         if band is not None:
             low = np.nan_to_num(band[i, :, 0], nan=-np.inf)
@@ -458,7 +458,7 @@ def plot_tf(tf, *, row=0, axes=None, maps=("total_norm", "footprint_norm", "resi
     from matplotlib.patches import Rectangle
 
     extent = [tf.times[0] * 1e3, tf.times[-1] * 1e3, 0, len(tf.freqs)]
-    for a, name in zip(axes, present):
+    for a, name in zip(axes, present, strict=False):
         image = tf.maps[name][row]
         limit = float(np.nanmax(np.abs(image))) if np.isfinite(image).any() else 1.0
         shown = a.imshow(

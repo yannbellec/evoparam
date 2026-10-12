@@ -59,17 +59,20 @@ def test_the_eleven_published_zones_have_the_article_bounds():
     for band, freq in BANDS.items():
         for interval, time in INTERVALS.items():
             zone = registry[f"brinyark2026_{band}{interval}"]
-            assert zone["freq"] == list(freq) and zone["time"] == list(time)
+            assert zone["freq"] == list(freq)
+            assert zone["time"] == list(time)
             assert "10.1016/j.clinph.2026.2111855" in zone["source"]
     whole = registry["brinyark2026_WR"]
-    assert whole["freq"] == [4.0, 250.0] and whole["time"] == [0.015, 0.5]
+    assert whole["freq"] == [4.0, 250.0]
+    assert whole["time"] == [0.015, 0.5]
     # the ten other zones are unverified (spec §5.10: confirmed by the user before use)
     others = [
         n
         for n in registry
         if n.startswith("brinyark2026_") and registry[n].get("alias_of") is None and n != VERIFIED
     ]
-    assert len(others) == 10 and not any(registry[n]["verified"] for n in others)
+    assert len(others) == 10
+    assert not any(registry[n]["verified"] for n in others)
     table = list_published_zones().set_index("name")
     assert table.loc["brinyark2026_GhN1", "intervals"] == "[)x[]"
 
@@ -124,9 +127,12 @@ def test_article_zone_uses_the_published_statistic_and_significance_fraction():
         random_state=0,
     )
     s = tf.settings
-    assert s["stats"] == "baseline_normal" and s["baseline"] == [-0.45, -0.15]
-    assert s["channel_correction"] == "none" and s["window"][0] == 0.015
-    assert s["transform"] == "morse" and s["transform_params"]["beta"] == 10.0
+    assert s["stats"] == "baseline_normal"
+    assert s["baseline"] == [-0.45, -0.15]
+    assert s["channel_correction"] == "none"
+    assert s["window"][0] == 0.015
+    assert s["transform"] == "morse"
+    assert s["transform_params"]["beta"] == 10.0
     region = zone_mask(resolve_published("brinyark2026_GhN1", True), tf.freqs, tf.times)
     cells = region & np.isfinite(tf.maps["total_norm"][0])
     row = tf.zone_metrics.iloc[0]
@@ -182,7 +188,9 @@ def test_published_zone_sets_the_source_settings_and_measures_the_zone():
     assert tf.settings["baseline"] == [-0.5, -0.1]
     assert tf.settings["published_zone"]["name"] == VERIFIED
     row = tf.zone_metrics[tf.zone_metrics["trial"] < 0].iloc[0]
-    assert row["value"] > 0 and row["t"] > 3 and row["p_value"] < 0.01
+    assert row["value"] > 0
+    assert row["t"] > 3
+    assert row["p_value"] < 0.01
     assert 0 < row["fraction_increase"] <= row["fraction_significant"] <= 1
     per_trial = tf.zone_metrics[tf.zone_metrics["trial"] >= 0]
     assert sorted(per_trial["trial"]) == list(range(30))

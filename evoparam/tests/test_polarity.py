@@ -72,7 +72,8 @@ def _close(x, y):
 def test_req003_fit_of_flipped_data_is_mirrored(pair):
     _, a, b = pair
     ta, tb = a.to_dataframe(), b.to_dataframe()
-    assert len(ta) == len(tb) and (ta["status"] == "ok").any()
+    assert len(ta) == len(tb)
+    assert (ta["status"] == "ok").any()
     assert list(ta["status"]) == list(tb["status"])
     assert list(ta["component"]) == list(tb["component"])
     for column in SAME:
@@ -99,7 +100,7 @@ def test_req003_trial_fits_of_flipped_data_are_mirrored(pair):
 
 def test_req003_existence_test_of_flipped_data():
     trials, _ = CASES["ccep"]()
-    kwargs = dict(window=(0.009, 0.5), baseline=(-0.5, -0.05), by=(), random_state=0)
+    kwargs = {"window": (0.009, 0.5), "baseline": (-0.5, -0.05), "by": (), "random_state": 0}
     a = evoparam.test_response(trials, **kwargs)
     b = evoparam.test_response(flip(trials), **kwargs)
     for name in ("statistic", "p_value", "onset", "offset", "duration"):

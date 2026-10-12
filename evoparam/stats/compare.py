@@ -313,7 +313,7 @@ def compare_conditions(
             counts = use.groupby("_group")[level].nunique()
             if (counts > 1).any():
                 key = group_keys[int(counts.index[np.argmax(counts.to_numpy() > 1)])]
-                where = f" in group {dict(zip(by, key))}" if by else ""
+                where = f" in group {dict(zip(by, key, strict=False))}" if by else ""
                 raise SettingsError(
                     f"unit='{unit}' but several {level}s{where}: {unit}s of different "
                     f"{level}s are not exchangeable. Compare at unit='{level}', or add "
@@ -336,7 +336,7 @@ def compare_conditions(
         idx = order[bounds[gi] : bounds[gi + 1]]
         units_g, cond_g, value_g = cell_unit[idx], cell_cond[idx], cell_value[idx]
         for cond_a, cond_b in itertools.combinations(labels, 2):
-            row = dict(zip(by, key))
+            row = dict(zip(by, key, strict=False))
             row.update(
                 parameter=parameter,
                 condition_a=cond_a,

@@ -166,7 +166,7 @@ def _info(ch_names, sfreq, ch_info, ch_types):
     info = mne.create_info(list(ch_names), float(sfreq), ch_types)
     if ch_info is not None:
         if "bad" in ch_info:
-            info["bads"] = [n for n, b in zip(ch_names, ch_info["bad"]) if bool(b)]
+            info["bads"] = [n for n, b in zip(ch_names, ch_info["bad"], strict=False) if bool(b)]
         if {"x", "y", "z"} <= set(ch_info.columns):
             frame = (
                 HEAD_FRAME

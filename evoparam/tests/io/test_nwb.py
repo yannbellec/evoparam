@@ -207,7 +207,8 @@ def test_req317_equal_to_the_trialset_built_in_memory(tmp_path):
     memory = epoch(
         _signal().T * 1e6, SFREQ, ONSETS, -0.1, 0.2, ch_names=[f"e{i}" for i in range(N_CH)]
     )
-    assert ts.ch_names == memory.ch_names and ts.units == memory.units == "uV"
+    assert ts.ch_names == memory.ch_names
+    assert ts.units == memory.units == "uV"
     np.testing.assert_allclose(ts.times, memory.times, atol=1e-12)
     np.testing.assert_allclose(ts.event_times, memory.event_times, atol=1e-12)
     np.testing.assert_allclose(ts.data, memory.data, rtol=1e-12, atol=1e-9)
@@ -223,7 +224,8 @@ def test_events_given_as_a_table_and_select(tmp_path):
     ts = read_nwb(
         str(path), events=table, select="kind == 'a'", tmin=-0.05, tmax=0.1, picks=["e0", "e1"]
     )
-    assert ts.n_trials == kinds.count("a") and ts.ch_names == ["e0", "e1"]
+    assert ts.n_trials == kinds.count("a")
+    assert ts.ch_names == ["e0", "e1"]
     assert set(ts.metadata["kind"]) == {"a"}
 
 
@@ -321,7 +323,8 @@ def test_req318_write_and_inspect(tmp_path, extension):
             assert list(components["param_names"][0]) == list(first.param_names)
             assert np.allclose(components["params"][0], first.params)
             record = nwb.lab_meta_data["evoparam_settings"]
-            assert record.preset_name == "rodent_ep" and record.package_version
+            assert record.preset_name == "rodent_ep"
+            assert record.package_version
     assert _inspect(path) == []
 
 

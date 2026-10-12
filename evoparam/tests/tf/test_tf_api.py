@@ -106,7 +106,8 @@ def test_two_separate_bursts_give_two_zones_and_cp_agrees():
     pos = tf.zones[tf.zones["sign"] > 0]
     assert len(pos) >= 2
     centroids = sorted(pos["freq_centroid"].iloc[:2])
-    assert abs(np.log2(centroids[0] / 20.0)) < 0.3 and abs(np.log2(centroids[1] / 80.0)) < 0.3
+    assert abs(np.log2(centroids[0] / 20.0)) < 0.3
+    assert abs(np.log2(centroids[1] / 80.0)) < 0.3
     cp = tf_zones(tf, method="cp", random_state=0)
     cp_pos = cp[cp["sign"] > 0]
     assert len(cp_pos) >= 2
@@ -205,16 +206,19 @@ def test_cp_rank_is_chosen_on_split_halves():
     rank, stability = select_rank(
         group, None, 4, np.random.default_rng(1), method="cp", tensor=tensor
     )
-    assert rank == 2 and stability[2] >= 0.8
+    assert rank == 2
+    assert stability[2] >= 0.8
     values = cp_split_values(tensor, None, 2, np.random.default_rng(2))
-    assert len(values) == 20 and np.mean(values) >= 0.8
+    assert len(values) == 20
+    assert np.mean(values) >= 0.8
     # trial halves of every row (the default when the TFFit holds them)
     noisy = [tensor * rng.uniform(0.8, 1.2, tensor.shape) for _ in range(40)]
     row_halves = np.stack(noisy).reshape(20, 2, *tensor.shape)
     rank_t, stability_t = select_rank(
         group, None, 4, np.random.default_rng(1), method="cp", tensor=tensor, row_halves=row_halves
     )
-    assert rank_t == 2 and stability_t[2] >= 0.8
+    assert rank_t == 2
+    assert stability_t[2] >= 0.8
     rank_r, _ = select_rank(
         group,
         None,

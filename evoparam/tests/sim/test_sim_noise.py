@@ -148,10 +148,13 @@ def test_snr_with_real_noise():
 def test_snr_forms():
     ts, truth = sim.simulate_erp(seed=1, n_trials=10, components=["N1", "P3"], snr=[2.0, 6.0])
     table = truth.to_dataframe()
-    assert dict(zip(table["label"], table["snr"])) == pytest.approx({"N1": 2.0, "P3": 6.0})
+    assert dict(zip(table["label"], table["snr"], strict=False)) == pytest.approx(
+        {"N1": 2.0, "P3": 6.0}
+    )
     _, truth = sim.simulate_erp(seed=1, n_trials=10, components=["N1", "P3"], snr={"P3": 3.0})
     snrs = {c["label"]: c["snr"] for c in truth.components}
-    assert snrs["P3"] == 3.0 and snrs["N1"] is None
+    assert snrs["P3"] == 3.0
+    assert snrs["N1"] is None
     _, truth = sim.simulate_erp(
         seed=1,
         n_trials=10,

@@ -132,7 +132,7 @@ def volume_scene(seed, n_trials=10, noise=10.0, source_amp=1000.0, min_level=5.0
     level = gain * source_amp * np.max(np.abs(source)) / (noise / np.sqrt(n_trials))
     volume = [
         n
-        for n, lv in zip(names, level)
+        for n, lv in zip(names, level, strict=False)
         if lv >= min_level
         and n not in site
         and n not in local

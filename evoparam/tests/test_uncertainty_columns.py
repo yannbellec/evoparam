@@ -67,7 +67,8 @@ def _durations(data):
 def test_req006_existence_table_with_trials():
     trials, _ = sim.simulate_ccep(n_trials=10, n_channels=4, seed=3)
     frame = _durations(trials)
-    assert frame["p_value"].notna().all() and frame["significant"].notna().all()
+    assert frame["p_value"].notna().all()
+    assert frame["significant"].notna().all()
     responding = frame[frame["significant"].astype(bool)]
     assert len(responding) >= 1
     for name in ("onset", "offset", "duration"):

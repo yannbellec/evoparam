@@ -168,7 +168,7 @@ def test_req152_jitter_corrected_amplitude():
 
 
 @pytest.mark.parametrize(
-    "ridge_cv, trial_model", [("loto", "all"), ("split", "all"), ("loto", "selected")]
+    ("ridge_cv", "trial_model"), [("loto", "all"), ("split", "all"), ("loto", "selected")]
 )
 def test_req153_regularized_beats_free_at_low_snr(ridge_cv, trial_model):
     """REQ-153 with the default penalty choice (leave-one-trial-out, the spec's) and split

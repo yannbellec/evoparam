@@ -145,7 +145,7 @@ def run_segments(dataset, stem, sites, span=SPAN):
         lookup = {row["name"]: row for row in channels}
         types = np.array([lookup.get(name, {}).get("type", "") for name in header["ch_names"]])
         status = np.array([lookup.get(name, {}).get("status", "") for name in header["ch_names"]])
-        for path, start, segment in zip(paths, starts, data):
+        for path, start, segment in zip(paths, starts, data, strict=False):
             t0 = start / sfreq
             keep = (onsets >= t0) & (onsets <= t0 + span)
             np.savez_compressed(
@@ -250,7 +250,7 @@ def site_agreement(results, column="stim_site_guess"):
         # No vote (and no per-pulse column) when a single pulse was detected
         name = column if column in events.columns else "stim_site_guess"
         times = events["onset_time"].to_numpy()
-        for onset, site in zip(onsets, sites):
+        for onset, site in zip(onsets, sites, strict=False):
             if times.size == 0:
                 continue
             k = int(np.argmin(np.abs(times - onset)))

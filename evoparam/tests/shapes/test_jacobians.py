@@ -76,7 +76,10 @@ def _kinks(shape, params, steps):
         stretch = params[1] if shape.stretch else 1.0
         edges = shape.template_times[[0, -1]]
         moves = [steps[0] + (steps[1] * abs(edge) if shape.stretch else 0.0) for edge in edges]
-        return [(params[0] + stretch * edge, 100.0 * move) for edge, move in zip(edges, moves)]
+        return [
+            (params[0] + stretch * edge, 100.0 * move)
+            for edge, move in zip(edges, moves, strict=False)
+        ]
     if shape.causal:
         index = shape.param_names.index(shape.onset_param)
         return [(params[index], 100.0 * steps[index])]

@@ -142,7 +142,7 @@ def _truth_table(truth, level, roles, window):
     table["condition"] = table["condition"].fillna("").astype(str)
     table["channel"] = table["channel"].astype(str)
     if waveforms is None:
-        waveforms = list(dict.fromkeys(zip(table["channel"], table["condition"])))
+        waveforms = list(dict.fromkeys(zip(table["channel"], table["condition"], strict=False)))
     return pd, table, waveforms, sfreq
 
 
@@ -194,7 +194,7 @@ def _fit_table(pd, fit, channel, condition, truth_waveforms):
             table["condition"] = ""
         table["condition"] = table["condition"].fillna("").astype(str)
         table["channel"] = table["channel"].astype(str)
-        waveforms = list(dict.fromkeys(zip(table["channel"], table["condition"])))
+        waveforms = list(dict.fromkeys(zip(table["channel"], table["condition"], strict=False)))
     else:
         raise SettingsError(
             f"fit must be a GroupFit, a ResponseFit or a DataFrame, got {type(fit).__name__}."
@@ -352,10 +352,16 @@ def match_components(
     )
     group_cols = ["channel", "condition"] + (["trial"] if trial_level else [])
     true_table = true_table.assign(
-        condition=[key_of(c, d)[1] for c, d in zip(true_table["channel"], true_table["condition"])]
+        condition=[
+            key_of(c, d)[1]
+            for c, d in zip(true_table["channel"], true_table["condition"], strict=False)
+        ]
     )
     fit_table = fit_table.assign(
-        condition=[key_of(c, d)[1] for c, d in zip(fit_table["channel"], fit_table["condition"])]
+        condition=[
+            key_of(c, d)[1]
+            for c, d in zip(fit_table["channel"], fit_table["condition"], strict=False)
+        ]
     )
     true_groups = (
         dict(tuple(true_table.groupby(group_cols, sort=False))) if len(true_table) else {}
@@ -380,7 +386,7 @@ def match_components(
                     == np.sign(f_rows["amplitude"].to_numpy(dtype=float))[None, :]
                 )
             cost = np.where(allowed, diff, _FORBIDDEN)
-            for i, j in zip(*linear_sum_assignment(cost)):
+            for i, j in zip(*linear_sum_assignment(cost), strict=False):
                 if allowed[i, j]:
                     matched_t.add(i)
                     matched_f.add(j)
@@ -403,7 +409,7 @@ def match_components(
     table.attrs["waveforms"] = waveforms
     table.attrs["sfreq"] = sfreq
     table.attrs["true_waveforms"] = sorted(
-        {(c, d) for c, d in zip(true_table["channel"], true_table["condition"])}
+        {(c, d) for c, d in zip(true_table["channel"], true_table["condition"], strict=False)}
     )
     return table
 
@@ -424,7 +430,7 @@ def _summary(group, waveforms, true_waveforms, sfreq):
         np.sum(
             [
                 (c, d) in empty
-                for c, d, k in zip(group["channel"], group["condition"], kinds)
+                for c, d, k in zip(group["channel"], group["condition"], kinds, strict=False)
                 if k == "false"
             ]
         )
@@ -517,7 +523,7 @@ def score_fits(
             subset = waveforms
             if by == ["channel"]:
                 subset = [w for w in waveforms if w[0] == key[0]]
-            row = dict(zip(by, key))
+            row = dict(zip(by, key, strict=False))
             row.update(_summary(group, subset, true_waveforms, sfreq))
             rows.append(row)
         out = pd.DataFrame(rows, columns=by + list(SCORE_COLUMNS))

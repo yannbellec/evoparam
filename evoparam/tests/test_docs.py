@@ -130,6 +130,7 @@ def test_tutorial_runs(name, tmp_path):
         cwd=str(tmp_path),
         env=env,
         timeout=1800,
+        check=False,
     )
     assert proc.returncode == 0, proc.stderr[-3000:]
     assert "were analysed with evoparam" in proc.stdout, name
@@ -147,7 +148,8 @@ def test_streaming_tutorial_runs(capsys):
 
     runpy.run_path(STREAM_TUTORIAL, run_name="__main__")
     out = capsys.readouterr().out
-    assert "c0: response" in out and "c7: no response" in out
+    assert "c0: response" in out
+    assert "c7: no response" in out
 
 
 # ---------------------------------------------------------------------------------------
@@ -244,7 +246,8 @@ def test_req303_faq_has_the_seven_questions():
     headings = re.findall(r"^(.+)\n-{3,}$", text, flags=re.MULTILINE)
     assert [h for h in headings if h in FAQ] == list(FAQ)
     medical = text.split("Is this a medical device?", 1)[1]
-    assert "Section 13" in medical and "research use only" in medical
+    assert "Section 13" in medical
+    assert "research use only" in medical
     for name in presets.PRESETS.builtin:  # the preset question covers them all
         assert f"``{name}``" in text.split("Why is polarity", 1)[0], name
 

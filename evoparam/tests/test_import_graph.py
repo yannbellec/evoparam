@@ -461,7 +461,9 @@ def test_sim_does_not_reach_the_fitter():
 
     assert not reached, "evoparam.sim reaches a fitter:\n" + "\n".join(map(chain, reached))
     modules = {path.relative_to(PACKAGE).parts[0] for path in seen}
-    assert "sim" in modules and "shapes" in modules and "data" in modules
+    assert "sim" in modules
+    assert "shapes" in modules
+    assert "data" in modules
 
 
 def test_stats_is_below_hierarchical():
@@ -488,5 +490,6 @@ def test_spatial_reaches_shapes_and_prep_through_models():
         if source == "spatial"
         for dest, _ in targets
     }
-    assert dests and dests - LEAVES <= RULES["spatial"]
+    assert dests
+    assert dests - LEAVES <= RULES["spatial"]
     assert {"data", "models"} <= dests

@@ -28,7 +28,7 @@ def _outside(group):
     lo, hi = group.fits[0].window
     return [
         (name, c.latency)
-        for name, f in zip(group.settings["fit_shared"]["channels"], group.fits)
+        for name, f in zip(group.settings["fit_shared"]["channels"], group.fits, strict=False)
         for c in f.components
         if not lo <= c.latency <= hi
     ]
@@ -36,7 +36,7 @@ def _outside(group):
 
 def _pairs(group, overlap_c=0.5):
     out = []
-    for name, f in zip(group.settings["fit_shared"]["channels"], group.fits):
+    for name, f in zip(group.settings["fit_shared"]["channels"], group.fits, strict=False):
         comps = f.components
         for i, a in enumerate(comps):
             for b in comps[i + 1 :]:
@@ -98,7 +98,8 @@ def test_no_cancelling_pair_in_the_shared_fit(seed):
     assert _pairs(reproduced)  # the defect without the rule
     assert not _pairs(group)
     dropped = group.settings["fit_shared"]["dropped"]
-    assert dropped and all(d["reason"] == "cancelling_pair" for d in dropped)
+    assert dropped
+    assert all(d["reason"] == "cancelling_pair" for d in dropped)
     assert not _outside(group)
 
 

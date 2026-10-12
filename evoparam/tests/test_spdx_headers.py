@@ -72,7 +72,8 @@ def test_req396_inherited_files_carry_the_modification_notice():
         ), rel
         assert changes.split()[0] in " ".join(lines[1:6]), rel
     notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
-    assert re.search(r"commit [0-9a-f]{40}", notice) and "Apache License, Version 2.0" in notice
+    assert re.search(r"commit [0-9a-f]{40}", notice)
+    assert "Apache License, Version 2.0" in notice
 
 
 def test_req396_files_derived_from_third_party_code_name_it_in_notice():
@@ -91,6 +92,7 @@ def _inherited_export(tmp_path):
         ["git", "-C", str(ROOT), "archive", "-o", str(archive), FIRST_COMMIT],
         capture_output=True,
         text=True,
+        check=False,
     )
     if done.returncode != 0:
         pytest.skip(f"needs the git history ({done.stderr.strip()[:80]})")
@@ -145,10 +147,12 @@ def test_req396_reimplemented_lists_every_algorithm_written_from_a_paper():
     for row in table_rows:  # paper and patent column filled
         cells = [c.strip() for c in row.strip("|").split("|")]
         assert len(cells) == 4 and all(cells), row
-    assert "US 2022/0338786 A1" in text and "US 2023/0240618 A1" in text
+    assert "US 2022/0338786 A1" in text
+    assert "US 2023/0240618 A1" in text
     period = next(r for r in table_rows if "artifact/period.py" in r)
     pursuit = next(r for r in table_rows if "artifact/pursuit.py" in r)
-    assert "US 2022/0338786 A1" in period and "US 2023/0240618 A1" in pursuit
+    assert "US 2022/0338786 A1" in period
+    assert "US 2023/0240618 A1" in pursuit
     bib = (ROOT / "docs" / "references.bib").read_text(encoding="utf-8")
     for key in set(re.findall(r"LIT-[a-z]+-\d+", text)):
         assert f"{{{key}," in bib, key

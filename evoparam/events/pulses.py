@@ -104,7 +104,7 @@ def _onsets_from_peaks(peaks, firsts, score, sfreq):
     """
     back = max(1, int(round(ONSET_WINDOW * sfreq)))
     onsets = np.empty(len(peaks), dtype=int)
-    for row, (peak, first) in enumerate(zip(peaks, firsts)):
+    for row, (peak, first) in enumerate(zip(peaks, firsts, strict=False)):
         lo = max(0, min(peak - back, first - 1))
         above = np.flatnonzero(score[lo : peak + 1] >= ONSET_FRACTION * score[peak])
         onsets[row] = lo + above[0] + 1
@@ -704,7 +704,10 @@ def estimate_delay(detected, reference, tolerance=0.01):
     if len(detected) and np.ndim(detected[0]) == 0:
         detected, reference = [detected], [reference]
     errors = np.concatenate(
-        [match_onsets(det, ref, tolerance)["errors"] for det, ref in zip(detected, reference)]
+        [
+            match_onsets(det, ref, tolerance)["errors"]
+            for det, ref in zip(detected, reference, strict=False)
+        ]
         or [np.array([])]
     )
     if len(errors) == 0:

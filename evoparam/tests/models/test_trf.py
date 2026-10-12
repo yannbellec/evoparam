@@ -78,7 +78,8 @@ def test_same_iterates_as_scipy(seed, tol):
             max_nfev=2000,
             reduced=reduced,
         )
-        assert nfev == ref.nfev and status == ref.status
+        assert nfev == ref.nfev
+        assert status == ref.status
         assert np.allclose(x, ref.x, rtol=1e-10, atol=0)
         assert np.isclose(cost, ref.cost, rtol=1e-12)
 

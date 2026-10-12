@@ -132,7 +132,7 @@ def fixtures(tmp_path_factory):
 
 def _status(table, subject):
     run = table[table["subject"] == subject]
-    return dict(zip(run["field"], run["status"]))
+    return dict(zip(run["field"], run["status"], strict=False))
 
 
 def test_statuses_on_the_three_fixtures(fixtures):
@@ -169,10 +169,13 @@ def test_statuses_on_the_three_fixtures(fixtures):
     assert set(table.loc[table["subject"] == "utrecht", "n_events"]) == {4}
 
     mayo = _status(table, "mayo")
-    assert mayo["stim_current_mA"] == "present" and mayo["stim_pulse_width_us"] == "present"
-    assert mayo["stim_site"] == "present" and mayo["stim_polarity"] == "missing"
+    assert mayo["stim_current_mA"] == "present"
+    assert mayo["stim_pulse_width_us"] == "present"
+    assert mayo["stim_site"] == "present"
+    assert mayo["stim_polarity"] == "missing"
     assert mayo["ElectricalStimulation"] == "inconsistent"
-    assert mayo["reference"] == "present" and mayo["type"] == "present"
+    assert mayo["reference"] == "present"
+    assert mayo["type"] == "present"
     assert mayo["coordinates"] == "present"
 
     minimal = _status(table, "minimal")
@@ -224,10 +227,12 @@ def test_partial_and_unreadable_values_are_inconsistent(tmp_path):
         ],
     )
     mayo = validate_stim_metadata(root, subject="sub-mayo")
-    status = dict(zip(mayo["field"], mayo["status"]))
-    assert status["stim_site"] == "inconsistent" and status["stim_current_mA"] == "inconsistent"
+    status = dict(zip(mayo["field"], mayo["status"], strict=False))
+    assert status["stim_site"] == "inconsistent"
+    assert status["stim_current_mA"] == "inconsistent"
     message = mayo.set_index("field").loc["stim_current_mA", "message"]
-    assert "1 of 2" in message and "unparsable" in message
+    assert "1 of 2" in message
+    assert "unparsable" in message
 
 
 def test_strict_raises_on_missing_fields(fixtures):
@@ -247,7 +252,8 @@ def test_mini_dataset_of_the_reader_tests(tmp_path):
     sub01 = _status(table, "01")
     assert sub01["stim_current_mA"] == "present"  # Units A in the root events.json
     assert sub01["stim_pulse_width_us"] == "inferred"  # 0.0002 without units
-    assert sub01["coordinates"] == "present" and sub01["reference"] == "present"
+    assert sub01["coordinates"] == "present"
+    assert sub01["reference"] == "present"
     assert _status(table, "02")["coordinates"] == "missing"
 
 
@@ -255,12 +261,12 @@ def test_cli_prints_the_report_and_exits_5_with_strict(fixtures, capsys):
 
     assert main(["validate-bids", fixtures]) == 0
     out = capsys.readouterr().out
-    assert "missing      stim_pulse_width_us" in out and out.strip().splitlines()[-1].startswith(
-        "summary:"
-    )
+    assert "missing      stim_pulse_width_us" in out
+    assert out.strip().splitlines()[-1].startswith("summary:")
     assert main(["validate-bids", fixtures, "--sub", "mayo", "--strict"]) == 5
     capsys.readouterr()
     assert main(["validate-bids", fixtures, "--json"]) == 0
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert summary["status"] == "ok" and len(summary["result"]["fields"]) == 30
+    assert summary["status"] == "ok"
+    assert len(summary["result"]["fields"]) == 30
     assert summary["result"]["counts"]["missing"] >= 10

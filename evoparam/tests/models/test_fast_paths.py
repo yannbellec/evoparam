@@ -48,21 +48,23 @@ def _struct(background="exponential", ar=True, prior=True, ordered=True):
 
 
 @pytest.mark.parametrize("background", ["exponential", "constant", "linear"])
-@pytest.mark.parametrize("ar, prior", [(True, True), (False, False), (True, False)])
+@pytest.mark.parametrize(("ar", "prior"), [(True, True), (False, False), (True, False)])
 def test_reduced_residual_and_jacobian_match_the_svd_route(background, ar, prior):
 
     struct, theta = _struct(background, ar, prior)
     beta, rw, _, q = struct.solve(theta)
     jac = struct.kaufman_jacobian(theta, beta, q)
     z, ctx = struct.reduced(theta)
-    assert ctx[0] == "qr" and len(z) == len(rw) - len(beta)
+    assert ctx[0] == "qr"
+    assert len(z) == len(rw) - len(beta)
     assert np.isclose(z @ z, rw @ rw, rtol=1e-10)
     jr = struct.reduced_jacobian(theta, ctx)
     # the same inner products: those are all the optimiser uses
     assert np.allclose(jr.T @ jr, jac.T @ jac, rtol=1e-9, atol=1e-9 * np.abs(jac.T @ jac).max())
     assert np.allclose(jr.T @ z, jac.T @ rw, rtol=1e-8, atol=1e-9 * np.abs(jac.T @ rw).max())
     beta2, rw2 = struct.reduced_solution(theta, ctx)
-    assert np.allclose(beta2, beta, rtol=1e-9) and np.allclose(rw2, rw, rtol=1e-9, atol=1e-9)
+    assert np.allclose(beta2, beta, rtol=1e-9)
+    assert np.allclose(rw2, rw, rtol=1e-9, atol=1e-9)
 
 
 def test_a_rank_deficient_design_takes_the_svd_route():
@@ -146,5 +148,5 @@ def test_features_scale_with_the_amplitude(name):
         for amp in (rng.normal(0, 50), -3.0, 1e-3):
             direct = compute_features(shape, tw, p, amp, sfreq=2048.0, window=(tw[0], tw[-1]))
             scaled = api._scaled_features(unit, amp)
-            for a, b in zip(direct.to_dict().values(), scaled.to_dict().values()):
+            for a, b in zip(direct.to_dict().values(), scaled.to_dict().values(), strict=False):
                 assert a == b or (np.isnan(a) and np.isnan(b))

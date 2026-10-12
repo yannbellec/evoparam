@@ -143,9 +143,11 @@ def test_unit_amplitude(name):
     shape = ALL[name]
     params = sample_params(shape, TIMES, 100, np.random.default_rng(3))
     peak = shape.extremum(params)
-    values = np.array([shape.evaluate(np.array([t]), p)[0] for t, p in zip(peak, params)])
+    values = np.array(
+        [shape.evaluate(np.array([t]), p)[0] for t, p in zip(peak, params, strict=False)]
+    )
     np.testing.assert_allclose(np.abs(values), 1.0, rtol=0, atol=1e-12)
-    for row, center in zip(params, peak):
+    for row, center in zip(params, peak, strict=False):
         fine = center + np.linspace(-0.05, 0.05, 20001)
         assert np.max(np.abs(shape.evaluate(fine, row))) <= 1.0 + 1e-12
 
@@ -206,7 +208,8 @@ def test_skewed_gaussian_reduces_to_gaussian_and_skews():
     )
     right = skewed.features(TIMES, [0.1, 0.02, 4.0])
     left = skewed.features(TIMES, [0.1, 0.02, -4.0])
-    assert right.symmetry > 0.1 and left.symmetry == pytest.approx(-right.symmetry, abs=1e-6)
+    assert right.symmetry > 0.1
+    assert left.symmetry == pytest.approx(-right.symmetry, abs=1e-6)
     assert right.latency > 0.1 > left.latency
 
 
@@ -219,15 +222,18 @@ def test_exgaussian_mode_and_limits():
         atol=1e-6,
     )
     features = shape.features(TIMES, [0.1, 0.01, 0.03])
-    assert features.symmetry > 0.2 and features.latency > 0.1
+    assert features.symmetry > 0.2
+    assert features.latency > 0.1
 
 
 def test_gaussian_features_closed_forms():
     mu, sigma, amplitude = 0.1, 0.012, -7.5
     features = shapes.Gaussian().features(TIMES, [mu, sigma], amplitude)
     half_width = sigma * math.sqrt(2 * math.log(10))
-    assert features.latency == mu and features.peak_time == mu
-    assert features.amplitude == amplitude and features.polarity == -1
+    assert features.latency == mu
+    assert features.peak_time == mu
+    assert features.amplitude == amplitude
+    assert features.polarity == -1
     assert features.fwhm == pytest.approx(2.3548200450309493 * sigma, rel=1e-5)
     assert features.onset == pytest.approx(mu - half_width, abs=1e-7)
     assert features.offset == pytest.approx(mu + half_width, abs=1e-7)
@@ -265,7 +271,8 @@ def test_gamma_features_closed_forms():
     assert features.fwhm == pytest.approx(width, rel=1e-5)
     assert float(gamma_fwhm_factor(kappa)) * theta == pytest.approx(width, rel=1e-12)
     assert features.amplitude == pytest.approx(3.0, rel=1e-12)
-    assert features.onset > t0 and features.symmetry > 0
+    assert features.onset > t0
+    assert features.symmetry > 0
 
 
 def test_biexponential_features():
@@ -280,22 +287,26 @@ def test_damped_oscillation_features():
     t0, tau, freq = 0.02, 0.03, 300.0
     shape = shapes.DampedOscillation()
     features = shape.features(TIMES, [t0, tau, freq, 0.0], 2.0)
-    assert features.latency == t0 and features.peak_time == t0
+    assert features.latency == t0
+    assert features.peak_time == t0
     assert features.amplitude == pytest.approx(2.0, abs=1e-12)
     # Successive extrema are half a period apart.
     np.testing.assert_allclose(np.diff(features.peak_times[1:]), 1 / (2 * freq), atol=2e-6)
     # Phase pi/2: the onset is a zero crossing, the extremum comes later.
     shifted = shape.features(TIMES, [t0, tau, freq, np.pi / 2])
-    assert shifted.latency == t0 and shifted.peak_time > t0
+    assert shifted.latency == t0
+    assert shifted.peak_time > t0
     assert abs(shifted.amplitude) == pytest.approx(1.0, abs=1e-12)
 
 
 def test_gabor_features():
     shape = shapes.Gabor()
     features = shape.features(TIMES, [0.1, 0.01, 50.0, 0.0])
-    assert features.latency == 0.1 and features.peak_time == pytest.approx(0.1, abs=1e-12)
+    assert features.latency == 0.1
+    assert features.peak_time == pytest.approx(0.1, abs=1e-12)
     flipped = shape.features(TIMES, [0.1, 0.01, 50.0, np.pi], 2.0)
-    assert flipped.amplitude == pytest.approx(-2.0, abs=1e-12) and flipped.polarity == -1
+    assert flipped.amplitude == pytest.approx(-2.0, abs=1e-12)
+    assert flipped.polarity == -1
 
 
 def test_latency_outside_window_is_reported_not_dropped():
@@ -317,14 +328,17 @@ def test_features_of_an_extremum_after_the_feature_grid():
     assert np.all((lower <= params) & (params <= upper))
     features = shape.features(tw, params, 2.0, sfreq=2048.0)
     assert features.latency == pytest.approx(1.4, abs=1e-12)
-    assert np.isnan(features.fwhm) and np.isnan(features.offset)
+    assert np.isnan(features.fwhm)
+    assert np.isnan(features.offset)
     assert {"fwhm_outside_grid", "offset_outside_grid", "latency_outside_window"} <= set(
         features.warnings
     )
-    assert tw[-1] < features.onset < 1.4 and features.amplitude == pytest.approx(2.0)
+    assert tw[-1] < features.onset < 1.4
+    assert features.amplitude == pytest.approx(2.0)
     # the same for a Gaussian placed after the grid (IndexError as well)
     late = shapes.Gaussian().features(tw, [2.0, 0.05], sfreq=2048.0)
-    assert np.isnan(late.fwhm) and "fwhm_outside_grid" in late.warnings
+    assert np.isnan(late.fwhm)
+    assert "fwhm_outside_grid" in late.warnings
 
 
 def test_features_of_an_extremum_before_the_feature_grid():
@@ -333,7 +347,8 @@ def test_features_of_an_extremum_before_the_feature_grid():
 
     tw = np.linspace(0.009, 0.5, 1006)
     features = shapes.Gaussian().features(tw, [-1.0, 0.05], sfreq=2048.0)
-    assert np.isnan(features.fwhm) and np.isnan(features.sharpness)
+    assert np.isnan(features.fwhm)
+    assert np.isnan(features.sharpness)
     assert {"fwhm_outside_grid", "latency_outside_window"} <= set(features.warnings)
 
 
@@ -397,11 +412,13 @@ def test_default_bounds_follow_the_settings():
     np.testing.assert_allclose([lower[1], upper[1]], np.array([0.004, 0.05]) / 2.3548200450309493)
     assert lower[0] == pytest.approx(TIMES[0] - upper[1] / 2)
     lower, upper = shapes.DampedOscillation(freq_min=200, freq_max=450).default_bounds(TIMES)
-    assert (lower[2], upper[2]) == (200, 450) and (lower[3], upper[3]) == (-np.pi, np.pi)
+    assert (lower[2], upper[2]) == (200, 450)
+    assert (lower[3], upper[3]) == (-np.pi, np.pi)
     lower, upper = shapes.Gamma(min_fwhm=0.004, max_fwhm=0.05).default_bounds(TIMES)
     assert 0.004 / gamma_fwhm_factor(20) == pytest.approx(lower[2])
     lower, upper = make_template(stretch=True).default_bounds(TIMES)
-    assert list(lower[1:]) == [0.8] and list(upper[1:]) == [1.25]
+    assert list(lower[1:]) == [0.8]
+    assert list(upper[1:]) == [1.25]
 
 
 @pytest.mark.parametrize(
@@ -440,7 +457,8 @@ def test_initial_guess_inside_bounds(name):
     guess = shape.initial_guess(TIMES, waveform, peak)
     lower, upper = shape.default_bounds(TIMES)
     assert guess.shape == (shape.n_params,)
-    assert np.all(guess >= lower) and np.all(guess <= upper)
+    assert np.all(guess >= lower)
+    assert np.all(guess <= upper)
 
 
 def test_initial_guess_recovers_a_gaussian():

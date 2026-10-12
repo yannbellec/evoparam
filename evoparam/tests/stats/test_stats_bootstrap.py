@@ -31,9 +31,9 @@ def test_req230_coverage(method, distribution):
     """
 
     kwargs = (
-        dict(noise="white", snr=1.0)
+        {"noise": "white", "snr": 1.0}
         if distribution == "normal"
-        else dict(noise="white", snr=None, noise_sd=0.5, amplitude_cv=0.5)
+        else {"noise": "white", "snr": None, "noise_sd": 0.5, "amplitude_cv": 0.5}
     )
     ts, true = replicates(30, 10000, seed=31 if distribution == "normal" else 32, **kwargs)
     table = bootstrap(
@@ -74,13 +74,13 @@ def test_scores_match_classical_measures():
     for polarity in ("negative", "positive", "absolute"):
         for area in ("total", "positive", "negative", "rectified"):
             for base in ("zero", "fraction_of_peak"):
-                kw = dict(
-                    window=(0.02, 0.25),
-                    polarity=polarity,
-                    area=area,
-                    area_baseline=base,
-                    fraction=0.3,
-                )
+                kw = {
+                    "window": (0.02, 0.25),
+                    "polarity": polarity,
+                    "area": area,
+                    "area_baseline": base,
+                    "fraction": 0.3,
+                }
                 for score in SCORES:
                     got = score_waveforms(times, waves, score, **kw)
                     for k, y in enumerate(waves):
@@ -166,7 +166,8 @@ def test_bca_falls_back_with_few_values():
 def test_interval_details_and_errors():
 
     out = bootstrap_interval(1.0, [1.0] * 50, method="bca")
-    assert out["method"] == "percentile" and "distinct" in out["reason"]
+    assert out["method"] == "percentile"
+    assert "distinct" in out["reason"]
     out = bootstrap_interval(np.nan, np.arange(50.0), method="percentile")
     assert np.isnan(out["low"])
     with pytest.raises(SettingsError):

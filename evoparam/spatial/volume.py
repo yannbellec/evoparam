@@ -113,13 +113,15 @@ def _site_table(ts, site, rows, fits, window, baseline, schemes, decay_model, in
     stim = set(_contacts(site))
     bad = set()
     if info is not None and "bad" in info.columns:
-        bad = {str(n) for n, b in zip(info["name"], info["bad"]) if bool(b)}
+        bad = {str(n) for n, b in zip(info["name"], info["bad"], strict=False) if bool(b)}
     evaluated = np.array([n not in stim and n not in bad for n in names])
 
     # Screen 1: polarity reversal with an adjacent contact of the same shaft
     groups = {}
     if info is not None and "group" in info.columns:
-        groups = {str(n): str(g) for n, g in zip(info["name"], info["group"]) if str(g)}
+        groups = {
+            str(n): str(g) for n, g in zip(info["name"], info["group"], strict=False) if str(g)
+        }
     position = {}
     for n in names:
         prefix, number = _shaft_number(n)

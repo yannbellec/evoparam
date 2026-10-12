@@ -70,11 +70,14 @@ def test_ds003708_window_matches_events_tsv():
     tmin = float(np.sort(onsets)[1]) - 1.0  # the first pulse is isolated
     trials = read(openneuro_url(dataset, stem + "_ieeg.mefd"), tmin=tmin, tmax=tmin + 20.0)
     source = trials.provenance.source
-    assert source["format"] == "mef" and source["remote"]
-    assert trials.sfreq == 2048.0 and trials.data.shape[1:] == (89, 40960)
+    assert source["format"] == "mef"
+    assert source["remote"]
+    assert trials.sfreq == 2048.0
+    assert trials.data.shape[1:] == (89, 40960)
     assert np.isfinite(trials.data).all()
     # Only the blocks under the window are transferred
-    assert source["data_bytes_read"] < 10e6 and source["bytes_read"] < 40e6
+    assert source["data_bytes_read"] < 10e6
+    assert source["bytes_read"] < 40e6
 
     t0 = trials.times[0]
     assert abs(t0 - tmin) < 1.0 / trials.sfreq
@@ -82,7 +85,8 @@ def test_ds003708_window_matches_events_tsv():
     inside = onsets[(onsets >= t0) & (onsets < t0 + 20.0)]
     match = match_onsets(events["onset_time"], inside, tolerance=0.01)
     assert len(inside) >= 3
-    assert match["hits"] == len(inside) and match["false_alarms"] == 0
+    assert match["hits"] == len(inside)
+    assert match["false_alarms"] == 0
     # events.tsv onsets are sample numbers divided by the sampling frequency
     assert np.median(np.abs(match["errors"])) <= 1.0 / trials.sfreq + 1e-6
 
@@ -97,14 +101,18 @@ def test_ds004977_header_units_and_censoring():
     assert header["ch_names"] == [row["name"] for row in rows]
     assert len(header["ch_names"]) == 273
     lfp = header["channels"][header["ch_names"].index("ROC13")]
-    assert lfp["units"].strip().lower() == "microvolts" and lfp["factor"] == 0.001
+    assert lfp["units"].strip().lower() == "microvolts"
+    assert lfp["factor"] == 0.001
 
     onsets, sites = _stim_onsets(dataset, stem)
     first = float(onsets[[site == "ROC11-ROC12" for site in sites]].min())
     picks = ["ROC13", "RA8", "RA1", "RT2"]
     data, sfreq, names, t0 = read_mef(url, tmin=first - 0.5, tmax=first + 0.5, picks=picks)
-    assert names == picks and sfreq == 4800.0 and data.shape == (4, 4800)
-    assert np.isfinite(data).all() and (data.std(axis=1) > 10).all()
+    assert names == picks
+    assert sfreq == 4800.0
+    assert data.shape == (4, 4800)
+    assert np.isfinite(data).all()
+    assert (data.std(axis=1) > 10).all()
     # The stimulation artifact (tens of mV near the site) starts at the events.tsv onset
     jump = int(np.argmax(np.abs(np.diff(data[0])))) + 1
     assert abs(t0 + jump / sfreq - first) < 0.003
@@ -112,4 +120,5 @@ def test_ds004977_header_units_and_censoring():
 
     # Outside the uncensored span the recording is zeros
     censored, *_ = read_mef(url, tmin=100.0, tmax=105.0, picks=picks)
-    assert censored.shape == (4, 24000) and (censored == 0).all()
+    assert censored.shape == (4, 24000)
+    assert (censored == 0).all()

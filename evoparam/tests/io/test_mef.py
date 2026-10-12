@@ -76,7 +76,7 @@ def test_crc_matches_the_bytewise_crc():
     starts = rng.integers(0, 10000, 40)
     lengths = np.concatenate([[4, 5, 255, 256, 257, 511, 512, 513], rng.integers(4, 9000, 32)])
     got = mef_module.crc32_koopman(buf, starts, lengths)
-    expected = [mef_crc(buf[s : s + n].tobytes()) for s, n in zip(starts, lengths)]
+    expected = [mef_crc(buf[s : s + n].tobytes()) for s, n in zip(starts, lengths, strict=False)]
     assert got.tolist() == expected
     # Table entries of meflib (CRC_KOOPMAN32_KEY)
     assert mef_crc(b"\x00") != mef_crc(b"\x01")
@@ -102,7 +102,7 @@ def test_red_blocks_round_trip():
     headers = np.frombuffer(rows.tobytes(), dtype=mef_module.BLOCK_DTYPE)
     assert all(len(block) % 8 == 0 for block in blocks)
     values, offsets = mef_module.red_decode(buf, starts, headers)
-    for case, offset in zip(cases, offsets):
+    for case, offset in zip(cases, offsets, strict=False):
         assert np.array_equal(values[offset : offset + case.size], case)
     crc = mef_module.crc32_koopman(buf, starts + 4, headers["block_bytes"].astype(int) - 4)
     assert np.array_equal(crc, headers["crc"])
@@ -113,18 +113,24 @@ def test_read_whole_session(session):
     root, data = session
     header = read_mef_header(root)
     assert header["ch_names"] == [NAMES[i] for i in ORDER]
-    assert header["sfreq"] == SFREQ and header["n_samples"] == data.shape[1]
+    assert header["sfreq"] == SFREQ
+    assert header["n_samples"] == data.shape[1]
     assert header["start_time"] == 1_600_000_000_000_000
     assert header["session"] == "sub-01_task-spes_run-01_ieeg"
     channel = header["channels"][0]
-    assert channel["units"] == "microvolts" and channel["factor"] == 0.1
-    assert channel["to_uv"] == 1.0 and len(channel["blocks"]) == 12
+    assert channel["units"] == "microvolts"
+    assert channel["factor"] == 0.1
+    assert channel["to_uv"] == 1.0
+    assert len(channel["blocks"]) == 12
 
     out, sfreq, names, t0 = read_mef(root)
-    assert sfreq == SFREQ and t0 == 0.0 and names == header["ch_names"]
+    assert sfreq == SFREQ
+    assert t0 == 0.0
+    assert names == header["ch_names"]
     expected = stored(data)[ORDER]
     np.testing.assert_allclose(out, expected, rtol=0, atol=1e-9)
-    assert np.isnan(out[1, 4321]) and np.isnan(out).sum() == 1
+    assert np.isnan(out[1, 4321])
+    assert np.isnan(out).sum() == 1
 
 
 def test_window_and_picks(session):
@@ -132,10 +138,12 @@ def test_window_and_picks(session):
     root, data = session
     expected = stored(data)
     out, sfreq, names, t0 = read_mef(root, tmin=1.2345, tmax=2.5, picks=["B1", "A10"])
-    assert names == ["B1", "A10"] and t0 == pytest.approx(1.235)
+    assert names == ["B1", "A10"]
+    assert t0 == pytest.approx(1.235)
     np.testing.assert_allclose(out, expected[[2, 0], 1235:2500], atol=1e-9)
     out, _, names, _ = read_mef(root, tmin=5.9, picks=[0, -1])
-    assert names == ["A2", "B1"] and out.shape == (2, 100)
+    assert names == ["A2", "B1"]
+    assert out.shape == (2, 100)
     np.testing.assert_allclose(out, expected[[1, 2], 5900:], atol=1e-9)
     with pytest.raises(ReaderError, match="no channel"):
         read_mef(root, picks=["C1"])
@@ -182,18 +190,22 @@ def test_gaps_are_nan(tmp_path):
     )
     other, *_ = read_mef(unflagged)
     assert other.shape == (3, 7500)
-    assert np.isnan(other[:, 2000:3500]).all() and np.isnan(other).sum() == 3 * 1500 + 1
+    assert np.isnan(other[:, 2000:3500]).all()
+    assert np.isnan(other).sum() == 3 * 1500 + 1
     np.testing.assert_allclose(other[:, 3500:], expected[:, 2000:], atol=1e-9)
 
     # read() marks the gap in masks, for the continuous recording and for epochs
     trials = read(root)
-    assert isinstance(trials, TrialSet) and trials.masks is not None
+    assert isinstance(trials, TrialSet)
+    assert trials.masks is not None
     assert np.array_equal(trials.masks[0], np.isnan(out))
     epochs = read(root, onsets=[2.0, 3.1], epoch=(-0.2, 0.3))
     assert epochs.data.shape == (2, 3, 500)
     # The second epoch, from grid sample 2900 to 3400, holds the gap (3000 to 3250)
-    assert not epochs.masks[0].any() and epochs.masks[1, :, 100:350].all()
-    assert not epochs.masks[1, :, :100].any() and not epochs.masks[1, :, 350:].any()
+    assert not epochs.masks[0].any()
+    assert epochs.masks[1, :, 100:350].all()
+    assert not epochs.masks[1, :, :100].any()
+    assert not epochs.masks[1, :, 350:].any()
     assert np.isnan(epochs.data[1, :, 100:350]).all()
     np.testing.assert_allclose(epochs.data[0], out[:, 1800:2300], atol=1e-12)
 
@@ -242,8 +254,11 @@ def test_nan_and_infinity_codes(tmp_path):
     data[0, 500:] = np.nan  # a whole NaN block
     root = write_mef(tmp_path, "codes", data, SFREQ, ["X"], block_samples=500)
     out, *_ = read_mef(root)
-    assert np.isnan(out[0, 10]) and out[0, 20] == np.inf and out[0, 30] == -np.inf
-    assert np.isnan(out[0, 500:]).all() and np.isnan(out).sum() == 501
+    assert np.isnan(out[0, 10])
+    assert out[0, 20] == np.inf
+    assert out[0, 30] == -np.inf
+    assert np.isnan(out[0, 500:]).all()
+    assert np.isnan(out).sum() == 501
 
 
 def test_units_conversion(tmp_path):
@@ -322,7 +337,8 @@ def test_constant_blocks_are_not_decoded(tmp_path):
     # not read at all without CRC checks
     _, _, _, _, checked = mef_module._read_with_source(root)
     _, _, _, _, unchecked = mef_module._read_with_source(root, check_crc=False)
-    assert checked["blocks_read"] == 36 and unchecked["blocks_read"] == 36 - 3 * 8
+    assert checked["blocks_read"] == 36
+    assert unchecked["blocks_read"] == 36 - 3 * 8
     out, *_ = read_mef(root, check_crc=False)
     np.testing.assert_allclose(out, stored(data)[ORDER], atol=1e-9)
 
@@ -341,9 +357,13 @@ def test_remote_matches_local(tmp_path):
         data_requests = [r for r in stats.requests if r[1].endswith(".tdat")]
         sent = stats.bytes_sent
     np.testing.assert_array_equal(remote, local)
-    assert rnames == names and rt0 == t0 and rsource["sha256"] == source["sha256"]
-    assert rsource["remote"] is True and rsource["bytes_read"] == sent
-    assert data_requests and all(r[2] is not None and r[3] == 206 for r in data_requests)
+    assert rnames == names
+    assert rt0 == t0
+    assert rsource["sha256"] == source["sha256"]
+    assert rsource["remote"] is True
+    assert rsource["bytes_read"] == sent
+    assert data_requests
+    assert all(r[2] is not None and r[3] == 206 for r in data_requests)
     sizes = sum(
         os.path.getsize(os.path.join(dirpath, f))
         for dirpath, _, files in os.walk(root)
@@ -385,12 +405,16 @@ def test_read_dispatch(session):
 
     root, data = session
     trials = read(root, tmin=1.0, tmax=2.0)
-    assert isinstance(trials, TrialSet) and trials.units == "uV" and trials.masks is None
+    assert isinstance(trials, TrialSet)
+    assert trials.units == "uV"
+    assert trials.masks is None
     np.testing.assert_allclose(trials.data[0], stored(data)[ORDER][:, 1000:2000], atol=1e-9)
     np.testing.assert_allclose(trials.times, 1.0 + np.arange(1000) / SFREQ)
     source = trials.provenance.source
-    assert source["format"] == "mef" and source["reader"] == "evoparam.io.read"
-    assert source["units"] == ["microvolts"] and source["units_conversion_factor"] == [0.1]
+    assert source["format"] == "mef"
+    assert source["reader"] == "evoparam.io.read"
+    assert source["units"] == ["microvolts"]
+    assert source["units_conversion_factor"] == [0.1]
     assert trials.provenance.steps[-1]["settings"]["format"] == "mef"
     epochs = read(root, onsets=[1.0, 2.5], epoch=(-0.1, 0.2), picks=["B1"])
     np.testing.assert_allclose(
@@ -420,7 +444,11 @@ def test_light_core_mef_in_a_subprocess(tmp_path):
         print("ok")
     """)
     result = subprocess.run(
-        [sys.executable, "-c", code, str(tmp_path)], capture_output=True, text=True, timeout=300
+        [sys.executable, "-c", code, str(tmp_path)],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip().endswith("ok")
@@ -441,9 +469,11 @@ def test_read_bids_mef_matches_brainvision(bids_root, tmp_path):
         np.testing.assert_array_equal(trials.data, reference.data)
         pd.testing.assert_frame_equal(trials.metadata, reference.metadata)
         pd.testing.assert_frame_equal(trials.ch_info, reference.ch_info)
-        assert trials.masks is None and trials.modality == "spes"
+        assert trials.masks is None
+        assert trials.modality == "spes"
         source = trials.provenance.source
-        assert source["format"] == "mef" and source["path"].endswith("_ieeg.mefd")
+        assert source["format"] == "mef"
+        assert source["path"].endswith("_ieeg.mefd")
         assert source["reader"] == "evoparam.io.read_bids"
 
     # Remotely, with the channel names of channels.tsv: only the picked channels are read
@@ -482,6 +512,7 @@ def test_read_bids_mef_gap_is_masked(tmp_path):
     # The epoch of the onset at 5.0 s holds the gap, from 5.2 to 5.3 s
     row = int(np.flatnonzero(np.isclose(trials.event_times, 5.0))[0])
     gap = (trials.times >= 0.2 - 1e-9) & (trials.times < 0.3 - 1e-9)
-    assert trials.masks[row][:, gap].all() and not trials.masks[row][:, ~gap].any()
+    assert trials.masks[row][:, gap].all()
+    assert not trials.masks[row][:, ~gap].any()
     assert trials.masks.sum() == gap.sum() * 3
     assert np.isnan(trials.data[trials.masks]).all()

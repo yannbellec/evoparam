@@ -48,7 +48,7 @@ def fixture_values():
         for j, comp in enumerate(fit_.components):
             for k in ("latency", "amplitude", "fwhm", "area", "onset", "offset"):
                 out[f"{prefix}/c{j}/{k}"] = float(getattr(comp, k))
-            for k, value in zip(comp.param_names, comp.params):
+            for k, value in zip(comp.param_names, comp.params, strict=False):
                 out[f"{prefix}/c{j}/param/{k}"] = float(value)
         out[f"{prefix}/n_components"] = float(len(fit_.components))
     return out

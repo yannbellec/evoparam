@@ -420,7 +420,7 @@ def bootstrap(
     )
     fallbacks = [
         f"{c or lab}: {why}"
-        for c, lab, why, used in zip(channels, labels, ci["reason"], ci["method"])
+        for c, lab, why, used in zip(channels, labels, ci["reason"], ci["method"], strict=False)
         if why and method == "bca" and used == "percentile"
     ]
     if fallbacks:

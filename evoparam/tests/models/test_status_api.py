@@ -39,16 +39,19 @@ def test_req118_status_semantics():
 
     rng = np.random.default_rng(0)
     none = model().fit_waveform(TIMES, noise(rng))
-    assert none.status == "no_response" and "best rejected" in none.message
+    assert none.status == "no_response"
+    assert "best rejected" in none.message
     assert "best_rejected_delta" in none.diagnostics
     flat = model().fit_waveform(TIMES, np.zeros(len(TIMES)))
-    assert flat.status == "skipped" and flat.message == "flat"
+    assert flat.status == "skipped"
+    assert flat.message == "flat"
     masked = model().fit_waveform(TIMES, noise(rng), mask=TIMES > 0)
     assert masked.status == "skipped"
     ok = model().fit_waveform(TIMES, gauss(0.2, -8, 0.04) + noise(rng))
     assert ok.status == "ok"
     for comp in ok.components:
-        assert np.all(np.isfinite(comp.params)) and np.isfinite(comp.latency)
+        assert np.all(np.isfinite(comp.params))
+        assert np.isfinite(comp.latency)
 
 
 def test_req119_req120_reproducible_tidy_and_saved(tmp_path):
@@ -107,7 +110,9 @@ def test_req123_methods_text():
     )
     text = methods_text(fit_)
     assert text.startswith("Evoked responses were parameterized with evoparam")
-    assert "preset 'erp'" in text and "BIC" in text and "constant background" in text
+    assert "preset 'erp'" in text
+    assert "BIC" in text
+    assert "constant background" in text
 
 
 def test_top_level_fit_inputs_and_errors():
@@ -148,7 +153,8 @@ def test_estimator_contract_and_compare():
     trials = _trials()
     m.fit(trials)
     # scikit-learn semantics (spec §10.4): samples are the channels, features the time points
-    assert m.n_features_in_ == trials.n_times and m.transform().shape == (3, 3)
+    assert m.n_features_in_ == trials.n_times
+    assert m.transform().shape == (3, 3)
     assert np.isfinite(m.score())
     rng = np.random.default_rng(2)
     y = gauss(0.2, -8, 0.04) + noise(rng)

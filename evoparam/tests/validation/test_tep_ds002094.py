@@ -461,8 +461,10 @@ def test_req275_methods_text_names_the_sensory_confound():
     from evoparam.models import methods_text, resolve_settings
 
     note = resolve_settings("tep").preset_note
-    assert "coil click" in note and "scalp sensation" in note
-    assert "auditory" in note and "somatosensory" in note
+    assert "coil click" in note
+    assert "scalp sensation" in note
+    assert "auditory" in note
+    assert "somatosensory" in note
     times = np.arange(-0.2, 0.4, 0.001)
     y = -5 * np.exp(-0.5 * ((times - 0.1) / 0.02) ** 2)
     from evoparam.models import fit_response
@@ -471,7 +473,8 @@ def test_req275_methods_text_names_the_sensory_confound():
         warnings.simplefilter("ignore")
         fit = fit_response(times, y, window=(0.012, 0.3), baseline=(-0.2, 0.0), preset="tep")
     text = methods_text(fit)
-    assert "coil click" in text and "somatosensory" in text
+    assert "coil click" in text
+    assert "somatosensory" in text
     # Other presets carry no TMS note.
     assert "coil click" not in resolve_settings("ccep").preset_note
 
@@ -540,11 +543,17 @@ def test_req275_level_reached_with_the_preset_chain(results):
     n = len(results)
     assert n == 20
     n45, n100, both = rates(results, "A_inner")
-    assert round(n45 * n) >= 11 and round(n100 * n) >= 15 and round(both * n) >= 9
+    assert round(n45 * n) >= 11
+    assert round(n100 * n) >= 15
+    assert round(both * n) >= 9
     n45, n100, both = rates(results, "B_all")
-    assert round(n45 * n) >= 10 and round(n100 * n) >= 11 and round(both * n) >= 8
+    assert round(n45 * n) >= 10
+    assert round(n100 * n) >= 11
+    assert round(both * n) >= 8
     n45, n100, both = rates(results, "B_inner")
-    assert round(n45 * n) >= 12 and round(n100 * n) >= 17 and round(both * n) >= 12
+    assert round(n45 * n) >= 12
+    assert round(n100 * n) >= 17
+    assert round(both * n) >= 12
 
 
 def test_fastica_recovers_mixed_sources():
@@ -556,7 +565,8 @@ def test_fastica_recovers_mixed_sources():
     )
     mixing = rng.standard_normal((5, 3))
     unmixing, estimated = fastica(mixing @ sources)
-    assert unmixing.shape == (3, 5) and estimated.shape == (5, 3)
+    assert unmixing.shape == (3, 5)
+    assert estimated.shape == (5, 3)
     recovered = unmixing @ (mixing @ sources)
     corr = np.abs(np.corrcoef(np.vstack([sources, recovered]))[:3, 3:])
     assert np.all(corr.max(axis=1) > 0.99)

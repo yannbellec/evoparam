@@ -23,7 +23,8 @@ def test_match_onsets():
 def test_match_onsets_empty():
 
     results = match_onsets([], [1.0, 2.0])
-    assert results["hits"] == 0 and results["misses"] == 2
+    assert results["hits"] == 0
+    assert results["misses"] == 2
     assert np.isnan(results["precision"])
 
 

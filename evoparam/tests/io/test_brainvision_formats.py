@@ -40,12 +40,15 @@ def test_formats_and_orientations(tmp_path, fmt, orientation):
     assert header["dtype"] == {"INT_16": "<i2", "IEEE_FLOAT_32": "<f4", "INT_32": "<i4"}[fmt]
 
     out, sfreq, names, t0 = read_brainvision(vhdr)
-    assert sfreq == SFREQ and names == NAMES and t0 == 0
+    assert sfreq == SFREQ
+    assert names == NAMES
+    assert t0 == 0
     assert np.array_equal(out, data)
 
     # Window [1.0, 2.0) s: samples 250 to 499
     out, _, names, t0 = read_brainvision(vhdr, tmin=1.0, tmax=2.0, picks=["C3", "C1"])
-    assert names == ["C3", "C1"] and t0 == 1.0
+    assert names == ["C3", "C1"]
+    assert t0 == 1.0
     assert np.array_equal(out, data[[2, 0], 250:500])
 
 
@@ -93,7 +96,8 @@ def test_segment_keeps_inherited_semantics(tmp_path):
     data = small_signal()
     vhdr = write_brainvision(tmp_path, "rec", data, SFREQ, NAMES)
     out, _, _, t0 = read_brainvision_segment(vhdr, 1.0, 2.0)
-    assert t0 == 1.0 and out.shape == (3, 251)  # both ends included
+    assert t0 == 1.0
+    assert out.shape == (3, 251)
     assert np.array_equal(out, data[:, 250:501])
 
 

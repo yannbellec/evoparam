@@ -80,10 +80,11 @@ def test_req278_visual_evoked_complex_on_visual_cortex():
     from evoparam.prep import baseline_correct
 
     trials = _trials()
-    assert trials.n_trials == 150 and abs(trials.sfreq - 1250) < 1
+    assert trials.n_trials == 150
+    assert abs(trials.sfreq - 1250) < 1
     visual = [
         n
-        for n, loc in zip(trials.ch_names, trials.ch_info["location"])
+        for n, loc in zip(trials.ch_names, trials.ch_info["location"], strict=False)
         if str(loc).startswith("VIS")
     ]
     sub = baseline_correct(trials.select(picks=visual), (-0.1, -0.005), check=False)
@@ -97,7 +98,9 @@ def test_req278_visual_evoked_complex_on_visual_cortex():
             random_state=0,
             by=(),
         )
-        significant = [n for n, s in zip(test.settings["channels"], test.significant) if s]
+        significant = [
+            n for n, s in zip(test.settings["channels"], test.significant, strict=False) if s
+        ]
         group = fit(sub, "rodent_ep", picks=significant)
     labelled = [
         any(c.label in ("P1", "N1", "late") for c in group.get(ch).components)

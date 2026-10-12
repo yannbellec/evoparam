@@ -449,7 +449,7 @@ def read_output(task, path):
             raise BenchmarkValidationError(
                 f"{where}: {len(fields)} fields for {len(header)} columns"
             )
-        row = {c: _parse(v, c, strings, where) for c, v in zip(header, fields)}
+        row = {c: _parse(v, c, strings, where) for c, v in zip(header, fields, strict=False)}
         error = _first_error(_validator(task, "output_row"), row)
         if error is not None:
             column = next(iter(error.absolute_path), None)
