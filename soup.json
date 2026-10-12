@@ -573,6 +573,7 @@
     "percentile",
     "pi",
     "polyfit",
+    "polyval",
     "prod",
     "ptp",
     "put_along_axis",

@@ -101,6 +101,167 @@ extension) re-reads with pynwb 4.2.0 and `pynwb.validate` reports no error. The
 through Deno 2.2.15) with no error in derivative mode, and the simulated raw data in raw
 mode; that test runs when the validator is installed.
 
+### Engine: noise that does not fill its band is modelled at the rate it occupies
+
+The `ccep` fit of ds004080 sub-ccepAgeUMCU01 run 021448 (recorded at 512 Hz) found an N1 on
+54 of 100 channels once the run was upsampled to 1024 Hz, against 14 at 512 Hz (entry
+below). The same happens with any recording whose noise stops well below the Nyquist
+frequency: upsampled data, or an anti-alias or hardware low-pass well below it.
+
+Cause, measured on that run. The AR model of the baseline (order up to 10) sees a band with
+almost no power. The largest power gain of its whitening filter is 1 956 (median over the
+100 channels; 183 to 2 496), against 32 (4 to 73) at 512 Hz. In the
+fit window the upsampled data are not empty there: the upsampling filter rings next to the
+stimulation artifact, and only the interpolated samples carry that ringing (fitting the
+recorded samples alone gives 12 N1s, the interpolated ones 43). On four channels, 53 to 92 %
+of the whitened residual of the background-only model lay in the upper half of the band, and
+the fit spent narrow components, often in cancelling pairs of thousands of µV, on it.
+
+Fix (`models/engine.py`). `noise_stride` compares the median level of the Hann-tapered
+periodogram of the noise (the baseline, or the plus-minus reference) in the half-octave just
+above 1/k of the Nyquist frequency with the octave below it, for k = 4, 3, 2. When it is below
+`EMPTY_BAND` = 1e-4 (a band all but empty), the fit is judged on every k-th sample
+(`StridedWhitener`): the AR model is fitted to the noise sampled at that rate, it whitens
+the residual at lags k, 2k, ..., and the other rows carry no evidence. `min_fwhm` is raised
+to two samples of that rate, as it already is for a recording at that rate. The phase of
+those samples is the one whose noise has the highest level at the top of its band
+(`noise_phase`): an upsampled recording keeps its own samples on one phase, and the
+interpolated ones are attenuated near the old Nyquist frequency, so its fit is judged as at
+its recorded rate wherever the epoch starts. The fit says so: the warning
+`band_limited_noise:k`, `diagnostics["noise_stride"]` and `diagnostics["noise_phase"]`. When
+the noise fills its band (k = 1) the code path is the previous one, and the results are the
+same bit for bit.
+
+The threshold separates interpolation from the data the engine already fitted well. On the
+ds004080 baselines of the REQ-375 runs, at their recorded rates and decimated to 1024 and
+512 Hz, the level ratio is -1.7 decades or more (615 channels x 3 rates, k = 2 to 4), and
+-1.5 or more on unfiltered simulations. On the upsampled run it is -5.4 decades or less
+(k = 2). A first version used 1e-3: it also strided ERP simulations low-passed at 30 or
+40 Hz by an order-2 Butterworth at 1024 Hz (ratio -2.8 to -3.4), and made them worse
+(recall 0.950 to 0.875 at 30 Hz). No fit of the test suites or of the quality sets below
+has a stride other than 1.
+
+Results.
+
+| | 512 Hz (recorded) | 1024 Hz before | 1024 Hz after |
+|---|---|---|---|
+| channels with an N1 (of 100) | 14 | 54 | 12 |
+| decisions equal to 512 Hz | - | 56 | 98 (2 N1s lost, none added) |
+| components per channel (mean) | 1.15 | 2.59 | 1.14 |
+| channels with a component above 1 000 µV before 30 ms | 1 | 22 | 2 |
+| rule channels found, paper reading (32) / code reading (4) | 13 / 4 | 22 / 3 | 11 / 4 |
+| `fit_group` time, 100 channels | 30 s | 429 s | 43 s |
+
+If the sampling analysis still upsampled this run (it no longer does, entry below), the pooled
+1024 Hz reading would be: paper recall 0.466 (75/161) before and 0.398 (64/161) after, kappa
+0.383 and 0.422, n_model 125 and 83; code recall 0.765 (26/34) and 0.794 (27/34), kappa 0.263
+and 0.416.
+
+On simulations (`simulate_ccep`, 512 Hz, with artifact, upsampled with `prep.resample`;
+seeds 0 to 3, 12, 8, 8 and 8 channels) the total number of components went from 11, 12, 13
+and 11 at 512 Hz to 28, 33, 32 and 28 at 1024 Hz before and 10, 12, 7 and 11 after. The N1
+decisions agree with 512 Hz on 12/12, 8/8, 7/8 and 8/8 channels after (11/12, 8/8, 7/8 and
+7/8 before). `tests/models/test_band_limited_noise.py` checks the detection (noise that fills
+its band, upsampled by 2, 3 and 4), that the strided whitening equals the whitening at the
+lower rate bit for bit, and the seed-1 case (components 12 at 512 Hz, 12 after, 33 without
+the stride).
+
+Unchanged, checked:
+
+- Quality sets of the engine (`fit_waveform`/`fit` on the REQ-104 to REQ-111 and REQ-116
+  designs, ECAP and CCEP simulations, three ds004080 runs): 2 182 fits, all identical bit for
+  bit (components, residual, warnings, number of evaluations). REQ-105 recall stays 0.8167,
+  0.8583 and 0.9222 for K = 1, 2 and 3 with precision 1.
+- Layer 3, `validation/layer3/n1_ds004080.json`: the 615 native decisions and latencies are
+  identical (paper kappa 0.458, recall 0.460; code kappa 0.398, recall 0.882).
+- REQ-375 sampling analysis, recomputed (19.4 min, 1 process): every decision and latency at
+  the recorded rate, 1024 Hz and 512 Hz equals the report, which was not rewritten. Paper
+  reading: recall 0.460, 0.410 and 0.460, kappa 0.458, 0.434 and 0.404 (recorded, 1024, 512);
+  code reading: recall 0.882, 0.794 and 0.824, kappa 0.398, 0.407 and 0.315. The 1024 Hz drop
+  stays +4.97 points (paper, met) and +8.82 points (code, not met; strict expected failure).
+- The reference fixture (`tests/reference/fit_fixture_ccep.json`) is unchanged: the fixture
+  fit is the same (largest relative difference 4.2e-12, as before this change).
+
+Algorithm versions (REQ-399): `fit_group`, `fit_waveform`, `test_response` (its
+`model_comparison` method fits) and `fit_trials` (it fits when no group fit is given) go to
+1.1, since their output changes for band-limited noise. `soup.json` and `THIRD_PARTY.md` were
+regenerated by `tools/gen_soup.py`: `numpy.polyval` is new, and 11 names used by the REQ-115
+solver work were missing (numpy `copy`, `equal`, `multiply`, `nextafter`, `take`; SciPy
+`linalg.lapack.dgeqrf`, `dgesdd`, `dgesdd_lwork`, `dormqr`, `dtrtri`, `dtrtrs`), which made
+`test_req399_soup_and_third_party_are_up_to_date` fail.
+
+Tried and not kept, on the same run (N1 channels at 1024 Hz, 14 at 512 Hz):
+
+- a limit on the whitening gain (white noise added to the AR model, diagonal loading, then
+  the AR refitted at the same order): 42, 48 and 55 for a power gain limit of 1 000, 316
+  and 100. The band still holds the ringing, and an AR of order 10 refitted to the loaded
+  autocovariances distorts the occupied band;
+- the same with the samples counted by their Satterthwaite number of degrees of freedom: at a
+  limit of 100 the count fell to 2 to 64 % of the samples, and N1s found at 512 Hz were lost
+  (channel 3);
+- every other sample after a triangular low-pass (which cancels the ringing): 43, because the
+  low-pass and the upsampling filter leave a dip at the new Nyquist frequency that the
+  whitening amplifies again;
+- every other sample on the interpolated samples instead of the recorded ones: 43.
+
+Recordings low-passed well below their Nyquist frequency (ERP CORE: 256 Hz after a
+non-causal 0.1 to 30 Hz ERPLAB Butterworth; clinical CCEP pipelines) also trigger the stride.
+Measured on simulations low-passed by `sosfiltfilt` Butterworth filters of order 2 and 4
+(the squared response of a non-causal filter), fitted with `evoparam.fit(...,
+existence=False, random_state=0)`: `simulate_erp` with 60 trials and 4 channels, P1/N1/P3
+and N170/P3 on alternate seeds (`erp` preset), or the ERN alone (epoch -0.6 to 0.6 s,
+baseline -0.6 to -0.2 s, fit window -0.1 to 0.3 s), seeds 0 to 7 (32 fits); `simulate_ccep`
+with 10 channels at 2048 Hz, seeds 0 to 3 (seeds 0 to 15 at 300 Hz order 4). A component is
+found when one of the same sign lies within half its FWHM; latency and amplitude errors are
+over the components found.
+
+| data | low-pass | fits strided | recall | precision | false positives | mean abs latency error (ms) | mean abs amplitude error |
+|---|---|---|---|---|---|---|---|
+| ERP 256 Hz | 30 Hz, order 4 | 32/32 (k = 2, 3) | 0.850 -> 0.963 | 0.366 -> 0.811 | 118 -> 18 | 4.06 -> 1.73 | 0.198 -> 0.055 |
+| ERP 256 Hz | 40 Hz, order 4 | 32/32 (k = 2) | 0.925 -> 0.975 | 0.420 -> 0.907 | 102 -> 8 | 3.86 -> 1.12 | 0.185 -> 0.029 |
+| ERN 256 Hz | 30 Hz, order 4 | 32/32 | 1 -> 1 | 0.185 -> 0.744 | 141 -> 11 | 1.70 -> 0.58 | 0.061 -> 0.020 |
+| ERN 256 Hz | 40 Hz, order 4 | 32/32 | 1 -> 1 | 0.219 -> 0.914 | 114 -> 3 | 1.40 -> 0.49 | 0.068 -> 0.013 |
+| ERP 1024 Hz | 30 Hz, order 4 | 2/32 | 0.912 -> 0.912 | 0.380 -> 0.386 | 119 -> 116 | 4.51 -> 4.55 | 0.129 -> 0.131 |
+| ERP 1024 Hz | 40 Hz, order 4 | 21/32 | 0.838 -> 0.875 | 0.354 -> 0.422 | 122 -> 96 | 4.17 -> 3.44 | 0.173 -> 0.114 |
+| ERN 1024 Hz | 30 Hz, order 4 | 8/32 | 1 -> 1 | 0.167 -> 0.179 | 160 -> 147 | 1.61 -> 1.60 | 0.097 -> 0.066 |
+| ERN 1024 Hz | 40 Hz, order 4 | 31/32 | 1 -> 1 | 0.167 -> 0.248 | 160 -> 97 | 2.18 -> 1.27 | 0.082 -> 0.039 |
+| CCEP 2048 Hz | 300 Hz, order 4 | 160/160 (k = 2) | 0.988 -> 0.988 | 0.131 -> 0.188 | 550 -> 359 | 3.09 -> 1.92 | 0.142 -> 0.078 |
+| all | none; order 2 (30, 40, 300, 500 Hz); CCEP 500 Hz order 4 | 0 | unchanged | | | | |
+
+Per component, strided, at 256 Hz: P1, N1, N170, P3 and ERN are found as often or more often
+(P1 10/16 -> 14/16 at 30 Hz), with smaller latency and amplitude errors for each. At 1024 Hz
+and 40 Hz the N1 is found on 16/16 channels instead of 15/16, with a larger mean amplitude
+error (0.143 -> 0.180); the N170, P1 and P3 errors fall. On the CCEP the N1 errors fall
+(latency 0.28 -> 0.19 ms) and so do the N2 ones (6.4 -> 4.1 ms); target fits with a
+component above three times the largest true amplitude go from 3 to 0 of 46. Of the two
+strided ERP fits at 1024 Hz and 30 Hz, one loses three false positives and the other keeps
+its components, with the N170 amplitude at -45.4 instead of -43.1 µV (true -43.2).
+
+The `min_fwhm` raise (two samples at the strided rate: 15.6, 23.4 and 31.3 ms at 256 Hz for
+k = 2, 3, 4) does not clip these components: no strided ERP fit has a component at the
+raised floor (0 of 181), and an ERN fit 2 of 78. The raise acts only at 256 Hz here (at
+1024 and 2048 Hz two strided samples stay below the preset `min_fwhm`). Without it (measured
+with a first phase rule) the ERN fits were the same, and the ERP ones slightly worse: at
+30 Hz recall 0.963 instead of 0.975 and latency error 2.01 instead of 1.70 ms, at 40 Hz
+latency error 1.27 instead of 1.23 ms (with the first threshold, 1e-3: recall 0.950 instead
+of 0.975).
+A band empty above 1/k of the Nyquist frequency holds
+no component narrower than about two samples at that rate: such a shape has its power above
+the band edge, and the low-pass has removed it.
+
+The phase matters only where one is special. On ds004080 run 021448 upsampled to 1024 Hz
+and then cropped by one sample, a fixed phase used the interpolated samples (43 N1s); the
+chosen phase is the recorded samples on all 100 channels (margin 0.6 to 1.8 decades of
+level) and gives 10 N1s, 94 of 100 decisions equal to those at 512 Hz (5 N1s lost, 1
+added; uncropped: 12 N1s, 98 equal); the crop also moves the data one sample (about 1 ms)
+against their time stamps. On upsampled noise
+(`resample_poly`, k = 2 to 4, 300 samples or more per phase) it never missed in 720 trials;
+with 60 per phase it missed 1 in 80 at k = 2 and 1 in 4 at k = 4. An ideal (FFT)
+interpolation leaves no phase special and leaves no ringing on only some of them. On the
+low-passed simulations no phase is special either: at 256 Hz, 30 Hz and order 4, the
+precision is 0.727 with the first phase, 0.762 with the last and 0.744 with the one chosen
+(ERN), and 0.794, 0.811 and 0.811 (ERP); the choice only moves the fit within that spread.
+
 ### Layer 4, sampling rate (REQ-375, §7.4 (3)): no upsampling; still not met
 
 §7.4 (3) decimates ds004080 to 1024 and 512 Hz. `validation/robustness.py` also
