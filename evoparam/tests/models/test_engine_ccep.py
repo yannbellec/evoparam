@@ -159,22 +159,47 @@ def _pair_trials(subject, run, site):
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
 
 
-def _published_rule(ts, reading):
+def _rule_average(ts):
     """mnl_ccepAge: median of (-1, -0.1) s removed from each trial, mean, median of (-2, -0.1)
-    s removed from the average; the registry rule of the reading with its SD over (-2, -0.1)
-    s. The code labels the onset sample t = 1/sfreq; latencies are returned on our axis."""
-
-    from evoparam.existence.rules import apply_rule, resolve_rule
+    s removed from the average."""
 
     t = ts.times
     x = ts.data - np.median(ts.data[..., (t > -1) & (t < -0.1)], axis=-1, keepdims=True)
     avg = x.mean(axis=0)
+    return avg - np.median(avg[:, (t > -2) & (t < -0.1)], axis=1, keepdims=True)
+
+
+def _published_rule(ts, reading):
+    """The average of :func:`_rule_average`; the registry rule of the reading with its SD over
+    (-2, -0.1) s. The code labels the onset sample t = 1/sfreq; latencies are returned on our
+    axis."""
+
+    from evoparam.existence.rules import apply_rule, resolve_rule
+
+    t = ts.times
+    avg = _rule_average(ts)
     base = (t > -2) & (t < -0.1)
-    avg = avg - np.median(avg[:, base], axis=1, keepdims=True)
     spec = resolve_rule(READINGS[reading], baseline=(-2.0, -0.1))
     out = apply_rule(avg, t + 1.0 / ts.sfreq, ts.sfreq, spec, "uV")
     floor = 3.4 * np.maximum(avg[:, base].std(axis=1), 50.0)
     return out["significant"], out["onset"] - 1.0 / ts.sfreq, floor
+
+
+def _rule_peak_is_n1_trough(ts, rule_lat, window=(0.009, 0.05)):
+    """Per channel: the rule's peak is an N1 trough of the average it reads, i.e. the
+    deepest negative interior local minimum of :func:`_rule_average` in 9-50 ms (within one
+    sample). Not so: the first samples of the window on the recovery tail, a slow
+    deflection at 50-100 ms, a positive-valued minimum."""
+
+    t = ts.times
+    m = (t >= window[0]) & (t <= window[1])
+    out = []
+    for y, lat in zip(_rule_average(ts)[:, m], rule_lat, strict=True):
+        inner = np.flatnonzero((y[1:-1] <= y[:-2]) & (y[1:-1] < y[2:])) + 1
+        inner = inner[y[inner] < 0]
+        out.append(bool(inner.size) and np.isfinite(lat) and
+                   abs(t[m][inner[np.argmin(y[inner])]] - lat) <= 1.0 / ts.sfreq + 1e-9)
+    return np.array(out, bool)
 
 
 def _model_fits(ts):
@@ -229,6 +254,7 @@ def agreement():
             rule, rule_lat, floor = _published_rule(ts, reading)
             out[(subject, run, reading)] = dict(
                 rule=rule, rule_lat=rule_lat, model=det, lat=lat, trough=trough,
+                n1_trough=_rule_peak_is_n1_trough(ts, rule_lat),
                 # the decision of the earlier proposed wording (not the REQ): the trough of
                 # the fitted curve at least as deep as the code's amplitude criterion
                 trough_floor=np.isfinite(trough) & (-np.nan_to_num(trough_amp) >= floor),
@@ -279,33 +305,71 @@ def test_req113_as_written(agreement, reading):
     assert sum(ok) >= 5, [round(_scores(o)["kappa"], 2) for o in others]
 
 
+# Why REQ-114 is out of reach (CHANGELOG, "N1 latency agreement"): on the REQ runs the
+# rule's peak is an N1 trough of the average it reads (the deepest interior local minimum
+# in 9-50 ms) on 39 of the 74 channels where the registry row and the preset both find an
+# N1 (53 %) and on 24 of 30 with the code (80 %). The others are the first samples of the
+# window on the recovery tail, where the average has no trough (registry row 18,
+# code 3), slow deflections peaking at 52-100 ms (16 and 2) and one more each (the deepest
+# sample just after 50 ms; a positive-valued minimum). A latency in 9-50 ms within 2 ms of
+# every peak would reach 58 of 74 and 28 of 30, but only by naming an N1 where the data
+# have no trough.
+CEILING = ("the rule's peak is an N1 trough of its average on 53 % (registry row) and 80 % "
+           "(code) of these channels; elsewhere it is the window start on the recovery tail "
+           "(no trough there) or a deflection at 52-100 ms, after the N1 window")
+
+
+def _close(agreement, reading, latency, n1_trough=False):
+    runs = _runs(agreement, reading, example=True) + _runs(agreement, reading)
+    close = []
+    for r in runs:
+        mask = r["n1_trough"] if n1_trough else None
+        close.append(_scores(r, mask, latency=latency)["close"])
+    return np.concatenate(close)
+
+
 @pytest.mark.xfail(strict=False, reason="REQ-114 as written (latency of the N1 component) is "
-                   "not met: within 2 ms on 24 % (registry row) and 37 % (code) of the "
-                   "channels where both find an N1 on the REQ-371 runs and the example "
-                   "(ccep v1.1; CHANGELOG, 'Defaults settled by measurement')")
+                   "not met: within 2 ms on 24 % (registry row, 18 of 74) and 37 % (code, 11 "
+                   "of 30) of the channels where both find an N1 on the REQ-371 runs and the "
+                   "example; " + CEILING)
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_as_written(agreement, reading):
     """REQ-114: on the channels where both find an N1, the model latency (the N1
     component's) within 2 ms of the rule's peak on >= 90 %, over all runs."""
 
-    runs = _runs(agreement, reading, example=True) + _runs(agreement, reading)
-    close = np.concatenate([_scores(r)["close"] for r in runs])
+    close = _close(agreement, reading, "lat")
     assert close.size >= 10
-    assert np.mean(close) >= 0.9
+    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
 
 
 @pytest.mark.xfail(strict=False, reason="REQ-114 with the latency read as the trough of the "
-                   "fitted curve (K3) is not met over all runs: 41 % (registry row), 82 % "
-                   "(code) (CHANGELOG, 'N1 case as written')")
+                   "fitted curve (K3) is not met over all runs: 42 % (registry row, 31 of 74), "
+                   "80 % (code, 24 of 30); " + CEILING)
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_trough_latency(agreement, reading):
     """REQ-114 with the model latency read as the trough of the fitted curve (K3), on the
     channels where the preset's N1 and the rule agree, over all runs."""
 
-    runs = _runs(agreement, reading, example=True) + _runs(agreement, reading)
-    close = np.concatenate([_scores(r, latency="trough")["close"] for r in runs])
+    close = _close(agreement, reading, "trough")
     assert close.size >= 10
-    assert np.mean(close) >= 0.9
+    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+
+
+def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement):
+    """Not a REQ (a regression floor for the latency of REQ-114): on the channels where both
+    find an N1 and the rule's peak is an N1 trough of its average
+    (:func:`_rule_peak_is_n1_trough`), the trough of the fitted curve is within 2 ms of the
+    rule's peak on >= 90 % with the code's reading (24 of 24 on the REQ runs; the N1
+    component's own latency 11 of 24: the N1 is fitted by overlapping components and the
+    largest |A|, which names it, is often a broad one). With the registry row 31 of 39
+    (component 18 of 39): the rule reads the monopolar average, the preset the adjusted
+    common average, which moves shallow troughs (sub-ccepAgeUMCU03: the registry row's peak
+    is at 32.7 ms on 35 of the 70 channels, a common-mode deflection the common average
+    removes)."""
+
+    close = _close(agreement, "code", "trough", n1_trough=True)
+    assert close.size >= 10
+    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
 
 
 @pytest.mark.xfail(strict=False, reason="REQ-273 needs REQ-113 and REQ-114, not met")

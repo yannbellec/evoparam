@@ -16,6 +16,11 @@ ALGORITHM_VERSIONS = {
     "evoparam.prep.rereference": "1.0",
     "evoparam.events.detect_events": "1.0",
     "evoparam.sim.simulate_ccep": "1.0",
+    # 1.1: the fitted background is evaluated from the fit's own time origin (the first
+    # sample of the fit window) on any time grid, not from the grid's first time
+    "evoparam.models.evaluate_fit": "1.1",
+    "evoparam.models.fitted_peak": "1.1",
+    "evoparam.tf.tf_fit": "1.1",
 }
 
 
