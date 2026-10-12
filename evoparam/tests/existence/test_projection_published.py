@@ -125,6 +125,32 @@ def test_req134_published_significance_of_the_example_data():
     assert np.mean(agree) >= 0.95, [d for d, a in zip(DECISIONS, agree, strict=True) if not a]
 
 
+@pytest.mark.network
+@needs_network
+@pytest.mark.xfail(strict=True, reason="REQ-134 with the default set of projections "
+                   "(projection_pairs='disjoint'): the decisions agree with the published ones "
+                   "on 0.8 to 1.0 of the 10 example pairs depending on the random pairing, "
+                   "mean 0.89 over seeds 0 to 9, below 0.95")
+def test_req134_published_significance_with_the_default_pairs():
+    """REQ-134 read with the defaults: the mean agreement over ten random pairings is at least
+    95 %."""
+
+    from evoparam.existence import test_response
+
+    trials = {name: _trials(name) for name, _ in DECISIONS}
+    agreement = []
+    for seed in range(10):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            agree = [bool(test_response(trials[name], method="projection", window=WINDOW,
+                                        baseline=(float(trials[name].times[0]), 0.0), by=(),
+                                        correction="none", alpha=0.05, random_state=seed,
+                                        allow_artifact_overlap=True).significant[0])
+                     == published for name, published in DECISIONS]
+        agreement.append(np.mean(agree))
+    assert np.mean(agreement) >= 0.95, agreement
+
+
 def test_req134_reviewed_profile_is_kept_as_an_option():
     """REQ-134: the reading of §5.6 item 2 as reviewed (the mean projection divided by the
     square root of the window length) stays available, and the default is the published
