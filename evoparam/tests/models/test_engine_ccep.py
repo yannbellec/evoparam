@@ -198,6 +198,12 @@ def _pair_trials(subject: Any, run: Any, site: Any) -> Any:
 # first sample excluded, saturation at 3000 uV).
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
 
+# Owner decision (D8 revised, docs/spec/DECISIONS.md §5.8): the requirements are judged on
+# the spec's registry row ("paper"); the published code's reading ("code") is measured and
+# reported by the same tests but does not gate (no decision can satisfy both: the exact
+# joint bound of test_d8_req113_cannot_hold_under_both_readings).
+GATING = "paper"
+
 
 def _rule_average(ts: Any) -> Any:
     """mnl_ccepAge: median of (-1, -0.1) s removed from each trial, mean, median of (-2, -0.1)
@@ -398,6 +404,8 @@ def _runs(agreement: Any, reading: Any, example: Any = False) -> Any:
 
 
 AS_WRITTEN = (
+    "REQ-113 is judged on the registry row (D8 revised, DECISIONS §5.8); the code's "
+    "reading is reported. "
     "REQ-113 as written is not met under either reading of the published rule "
     "(ccep v1.1: kappa on the 46 PT contacts 0.46 with the registry row, 0.19 with "
     "the code; pooled over the REQ-371 runs 0.46 and 0.40; CHANGELOG, 'N1 case as "
@@ -460,7 +468,8 @@ def _close(agreement: Any, reading: Any, latency: Any, n1_trough: Any = False) -
 
 @pytest.mark.xfail(
     strict=False,
-    reason="REQ-114 as written (latency of the N1 component) is "
+    reason="REQ-114 is judged on the registry row (D8 revised, DECISIONS §5.8). "
+    "REQ-114 as written (latency of the N1 component) is "
     "not met: within 2 ms on 24 % (registry row, 18 of 74) and 37 % (code, 11 "
     "of 30) of the channels where both find an N1 on the REQ-371 runs and the "
     "example; " + RULE_PEAKS + "; read as the rule's peak on the fitted curve, 84 % and "
@@ -575,7 +584,9 @@ def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any
 
 @pytest.mark.xfail(
     strict=False,
-    reason="REQ-273 needs REQ-113 and REQ-114 as written: REQ-113 is not met under either "
+    reason="REQ-273 (judged on the registry row, D8 revised; the code's reading is also "
+    "checked here and reported) needs REQ-113 and REQ-114 as written: REQ-113 is not met "
+    "under either "
     "reading (and no decision can meet it under both, D8); REQ-114 is met under both "
     "readings only with the model latency read as the rule's peak on the fitted curve in "
     "the rule's reference (91 % and 90.0 %), not with the N1 component's latency",

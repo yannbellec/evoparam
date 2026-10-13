@@ -25,7 +25,7 @@ Measured values come from `CHANGELOG.md`, which holds the full record.
 | D5 | Other rows of §4.2 against features required elsewhere | The features win. The edges are `models → presets` (§6.3), `stats → existence` (§5.11), `sim → io` (REQ-256), `shapes`/`presets`/`io`/`data` → `_plugins` (REQ-328), and `hierarchical`/`sim` → `utils.require` only (§9.2, REQ-292). The table is in section 2. |
 | D6 | REQ-274 names MMN, N2pc, LRP and ERN, but the `erp` preset has no windows for them | Add MMN, N2pc, LRP and ERN windows to the `erp` preset, using published windows with citations. |
 | D7 | Merge-and-compare (§5.5.3 step 5) against `selection="fixed"` returning exactly K components (REQ-122) | Merges are not tried in `fixed` and `cv` mode. |
-| D8 | "The published rule" for N1: the paper's text (extremum) or the published code (local minimum)? | The N1 REQs must pass under both readings, and both results are reported. |
+| D8 | "The published rule" for N1: the paper's text (extremum) or the published code (local minimum)? | The N1 REQs must pass under both readings, and both results are reported. Revised on 2026-10-13 after the exact joint bound (§5.8): the requirements are judged on the spec's registry row; the published code's reading stays measured and reported but does not gate. |
 | D9 | REQ-040 onset error against `events.tsv`, whose triggers precede the artifact by a constant 0.97 ms | Onsets are physical onsets (the start of the artifact). The constant trigger delay is estimated on held-out runs, and this is documented. |
 | D10 | REQ-372: the responsive channels of the published analysis exist only as figures | The authors' code, run on the data, is the comparator. |
 | D11 | REQ-213: "20 % power increase" is ambiguous | The strict reading is tested too. If it cannot be reached, it is an xfail with the measured value. |
@@ -656,7 +656,7 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   (MPL-2.0 is file-level weak copyleft, not GPL, LGPL or AGPL). The PR template carries
   the checklist item.
 
-### 5.8 D8 (both readings of the published N1 rule) — REQ-113 and REQ-135
+### 5.8 D8 (both readings of the published N1 rule) — REQ-113, REQ-114, REQ-135, REQ-273
 
 - D8 asks REQ-113 (kappa >= 0.8 for the preset's N1 decision) and REQ-135 (kappa >= 0.7 for
   the default existence method) under both readings of the published rule: the registry
@@ -673,13 +673,23 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   detector can meet either requirement on the spec's data. This is a property of the two
   comparators, not of the model. The tests `test_d8_req113_cannot_hold_under_both_readings`
   and `test_req135_cannot_hold_under_both_readings` keep it measured.
-- Resolution pending an owner decision. The requirements stay expected failures under each
-  reading, and both values are reported. Per reading:
+- Owner decision (2026-10-13, revising D8 for the N1 requirements). The reading the
+  requirements are judged on is the one the spec itself defines: its §5.6 registry row
+  (`|x| > 3.4·SD_baseline`, a negative peak, 9–100 ms; rule `vanblooijs2023`). REQ-113,
+  REQ-114, REQ-135 and REQ-273 pass or fail on that reading. The published code's reading
+  (`vanblooijs2023_code`) is still measured and reported by its own parametrised tests,
+  which stay expected failures where it is not met, but it no longer gates. The reason is
+  the joint bound above: no decision can reach kappa 0.8 against both readings on the PT
+  contacts (0.295) or on 5 of the 6 REQ-371 runs (at most 0.783), nor 0.7 for REQ-135
+  (0.592). The two readings disagree with each other (kappa 0.06 and 0.31).
+- Values under each reading at this decision:
   - REQ-113: 0.46 / 0.19 on the PT contacts, 0.46 / 0.40 pooled. No measured variant
     exceeds 0.51 / 0.56.
   - REQ-135: 0.586 / 0.496 with the default method. With the rule's per-channel decision
     (`correction="none"`), the registry row is met on the held-out runs (0.807) and the
     code reading falls to 0.321. The `ccep` preset keeps FDR across channels (§6).
+  - REQ-114, read as the rule's peak on the fitted curve in the rule's reference: 91 % /
+    90.0 % (§5.2).
 - REQ-135's subjects. Spec §7.3 lists REQ-135 among the criteria on "ds004080, ≥ 5
   subjects chosen by the rule below". The test therefore uses the REQ-371 list, with every
   trial of each run's first pair of at least 10 trials, as REQ-113 does. The five
