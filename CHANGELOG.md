@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### ERP CORE: the paradigm's component, measured by a targeted `erp` preset (REQ-274)
+
+- `validation/erpcore.py` fits each difference wave with `presets.targeted("erp", ...)`:
+  three components of the component's polarity in the published measurement window widened
+  by 25 ms, no background (the waves are baseline-corrected); the component of the paradigm
+  is the sum of its labelled parts (`P3`, `P3_b`, ...), and its latency the 50 % area
+  latency of that sum in the published window. Before, the `erp` preset with BIC selection
+  found no component in many single-participant waves, and a single targeted component on a
+  linear background put broad components (P3, N400) 8 to 16 ms early.
+- Within 10 ms of the 50 % area latency of the same average (before -> now): ERN 85 -> 95 %,
+  LRP 90 -> 95 %, MMN 37.5 -> 100 %, N170 47.5 -> 95 %, N2pc 36 -> 92 % (36 of 39), N400
+  57.5 -> 95 %, P3 30 -> 90 %. The six expected failures of REQ-274 are gone. Variants
+  measured on the same 40 participants (so development measures): one component on a linear
+  background (P3 17.5 %, N400 35 %), one with no background (P3 57.5 %), two components
+  (P3 87.5 %), four (P3 82.5 %), three on a constant background (P3 37.5 %).
+- With a fixed number of components every wave gets a value: whether the component is there
+  is the existence test's answer (spec §1, principle 2). The P3 meets 90 % with no margin.
+- `presets.targeted` gains `n_components` (default 1) and `background` (default `"linear"`);
+  its defaults and their measurements are unchanged.
+
 ### §7.4 (5): one platform record per machine; macOS arm64 measured
 
 - `validation/robustness.py --analyses platform` now writes the fixture comparison of the
