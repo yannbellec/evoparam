@@ -8,7 +8,6 @@ jobs, matrices and commands the requirements name are checked. Branch protection
 checks) is a repository setting that cannot be read from the files.
 """
 
-import importlib.util
 import os
 import pathlib
 import re
@@ -277,10 +276,10 @@ def test_req302_docs_workflow() -> None:
 
 
 @pytest.mark.skipif(
-    os.environ.get("EVOPARAM_SLOW_TESTS") != "1" or importlib.util.find_spec("sphinx") is None,
-    reason="REQ-302: builds the whole site (several minutes, runs the gallery); needs "
-    "EVOPARAM_SLOW_TESTS=1 and the docs extra (pip install evoparam[docs]); the MNE "
-    "example downloads the MNE sample dataset",
+    os.environ.get("EVOPARAM_DOCS_TESTS") != "1",
+    reason="REQ-302: builds the whole site (several minutes, runs the gallery); set "
+    "EVOPARAM_DOCS_TESTS=1 with the docs extra installed (pip install evoparam[docs], as "
+    "in the docs CI job); the MNE example downloads the MNE sample dataset",
 )
 def test_req302_docs_build_with_warnings_as_errors(tmp_path: Any) -> None:
     import subprocess
