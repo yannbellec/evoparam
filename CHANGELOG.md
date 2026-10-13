@@ -68,8 +68,12 @@ methods texts, the API index and `soup.json` checks pass as before.
   out `plots`, `cli`, `stream` and `benchmark`, so the 80 % gate of the outer layers had no
   data, and the 90 % gate counted only part of the package. Now every module is measured;
   `coverage report` gates the core packages of REQ-298 (`[tool.coverage.report]
-  include`) and the outer-layer gate also counts the remote I/O modules. Expected failure
-  removed.
+  include`) and the outer-layer gate also counts the remote I/O modules. New tests of
+  modules that had none: the signal figures of `evoparam.plots`, `ComponentWindows`, the
+  inherited module utilities, deep equality, the environment record, the worker side of
+  `n_jobs` and `fetch_erpcore` against a local copy of the OSF API. Fast suite, Python
+  3.13: core 90.5 % (lines and branches), shapes 100 %, outer layers 82.0 %. Expected
+  failure removed.
 - **REQ-006** (an interval for every reported value): the existence test of an Evoked
   (no trials) gives intervals of the onset, offset and duration from a baseline
   bootstrap (`n_boot` resamples; DECISIONS §4); its p-values and decisions are unchanged.

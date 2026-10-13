@@ -725,9 +725,21 @@ expected failure whose reason gives the measured value; no criterion was weakene
 - **P6 in a full environment.** P6 is measured with every extra installed. No optional
   module is loaded by `import evoparam` (`optional_modules_loaded` is empty in the results),
   so the time is that of the core.
-- **Shapes coverage (REQ-298).** The 100 % line-and-branch target for `evoparam.shapes` is
-  measured with the tests of `evoparam/tests/shapes` alone: 90 %, with `registry.py` at
-  70 %. The whole suite cannot run here. The CI job measures it with the whole suite.
+- **Coverage (REQ-298).** The gates count lines and branches together (`branch = true`),
+  which the 100 % target of `evoparam.shapes` needs; the 90 % and 80 % gates therefore ask
+  more than the line coverage that REQ-298 names. Every module is measured
+  (`[tool.coverage.run] omit` holds the tests only); before, it also left out `plots`,
+  `cli`, `stream` and `benchmark`, so the 80 % gate had no data. "Core packages" is the
+  list of REQ-298 plus the top-level modules they use (`errors`, `_extras`, `_plugins`,
+  ...), in `[tool.coverage.report] include`. "io local readers" are the readers of local
+  files (`readers`, `bids`, `brainvision`, `mef`, `nwb`, `neo`, `epochs`, ...);
+  `brainvision` and `mef` also read remote files and count with the core (the stricter
+  gate). "Remote I/O" is `io/_fetch.py`, `io/fetch.py` and `io/registry.py`, gated with
+  the outer layers. The shapes target is reached by the tests of `evoparam/tests/shapes`
+  alone (as `test_req298_shapes_coverage_is_100_percent` measures), without any
+  `pragma: no cover`. Measured on the fast suite (no slow, perf or network tests, as the
+  CI job), Python 3.13, 2026-10-13: core 90.5 % (lines and branches; lines alone 93.3 %),
+  shapes 100 %, outer layers 82.0 %.
 - **SOUP inventory roles (REQ-396).** `soup.json` lists every third-party package that the
   source imports or the extras declare. Packages imported only through another package's
   API (`packaging`, `tabulate`, `patsy`, `pytensor`) have the role `transitive`. These
