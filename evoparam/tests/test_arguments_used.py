@@ -259,6 +259,29 @@ def test_parallel_map_order_errors_warnings_and_records(caplog: Any) -> None:
         assert sum(f"unit {x} warns" in m for m in messages) == 1  # one WARNING per unit
 
 
+def _warn_above(x: int) -> int:
+    from evoparam.errors import warn
+
+    warn("located above the unit", UserWarning, stacklevel=3)
+    return x
+
+
+def _run_units(n_jobs: int) -> list[int]:
+    return parallel_map(_warn_above, [1, 2], n_jobs)
+
+
+@pytest.mark.parametrize("n_jobs", [1, 2])
+def test_parallel_map_warning_location(n_jobs: int) -> None:
+    """A warning pointing past the unit is located as in the serial loop, from processes too."""
+    if n_jobs > 1:
+        pytest.importorskip("joblib")
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        line = sys._getframe().f_lineno + 1
+        _run_units(n_jobs)
+    assert {(w.filename, w.lineno) for w in caught} == {(__file__, line)}
+
+
 ###################################################################################################
 ## n_jobs: identical results
 

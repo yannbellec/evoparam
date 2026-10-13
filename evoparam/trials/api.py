@@ -205,7 +205,7 @@ def _template_for(
                 f"max_shift of component {picks[i]} clipped to half the distance to "
                 "its neighbour.",
                 UserWarning,
-                stacklevel=3,
+                stacklevel=4,  # _fit_channel, fit_trials, then its caller (as before the move)
             )
             shifts[i] = 0.5 * min(gaps)
     bg = fit.background or {"name": "none"}

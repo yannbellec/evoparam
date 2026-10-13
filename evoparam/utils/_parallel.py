@@ -7,16 +7,21 @@ in the order of the serial loop and hands them to the units, so that the result 
 depend on ``n_jobs``. In worker processes the warnings and the ``evoparam`` log records of
 each unit are collected and issued again in the calling process, in the order of the
 units, so that a unit's WARNING record (REQ-307) and its warnings reach the caller as in a
-serial run.
+serial run, at the same lines. In the thread pool the warnings are issued by the threads
+themselves: one that points past its unit points into the pool.
 """
 
 import logging
 import os
+import sys
 import warnings
 from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, TypeVar
 
+from evoparam.errors import _frame_above, _warn_at
+
+from . import _rungs
 from ._logging import LOGGER, progress
 
 __all__ = ["n_workers", "parallel_map"]
@@ -57,7 +62,13 @@ class _Collect(logging.Handler):
 def _captured(
     function: Callable[[Any], Any], item: Any, level: int, parent: int
 ) -> tuple[Any, list[tuple[Any, ...]], list[logging.LogRecord]]:
-    """Run one unit; in a worker process, also return its warnings and log records."""
+    """Run one unit; in a worker process, also return its warnings and log records.
+
+    The unit runs below the rungs of :mod:`evoparam.utils._rungs`: a warning located above
+    the unit (``stacklevel`` reaching past the unit function) carries how many frames above
+    the unit it points to, so that the calling process locates it as many frames above the
+    caller of :func:`parallel_map`.
+    """
     if os.getpid() == parent:  # a thread backend chosen by the caller: nothing to carry
         return function(item), [], []
     logger = logging.getLogger(LOGGER)
@@ -67,18 +78,33 @@ def _captured(
     try:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            result = function(item)
+            result = _rungs.climb(function, item)
     finally:
         logger.removeHandler(handler)
-    issued = [(w.message, w.category, w.filename, w.lineno) for w in caught]
+    issued = [
+        (
+            w.message,
+            w.category,
+            w.filename,
+            w.lineno,
+            _rungs.LEVELS.get(w.lineno, 0) if w.filename == _rungs.FILE else 0,
+        )
+        for w in caught
+    ]
     return result, issued, handler.records
 
 
 def _replay(issued: Sequence[tuple[Any, ...]], records: Sequence[logging.LogRecord]) -> None:
     for record in records:
         logging.getLogger(record.name).handle(record)
-    for message, category, filename, lineno in issued:
-        warnings.warn_explicit(message, category, filename, lineno)
+    here = sys._getframe()
+    for message, category, filename, lineno, steps in issued:
+        # steps frames above the caller of parallel_map (the frames of this module skipped)
+        frame = _frame_above(here, steps) if steps else None
+        if frame is not None:
+            _warn_at(message, category, frame)
+        else:
+            warnings.warn_explicit(message, category, filename, lineno)
 
 
 def parallel_map(
