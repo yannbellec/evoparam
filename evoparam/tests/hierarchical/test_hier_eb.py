@@ -15,6 +15,30 @@ from evoparam.errors import SettingsError
 from evoparam.hierarchical import fit_hierarchical, posterior_summary
 from evoparam.tests.hierarchical.helpers import auc, merged, reliability_slope, simulate_group
 
+# The reference group of REQ-170: 20 subjects x 50 channels, so 1000 channel rows.
+N_SUBJECTS = 20
+N_CHANNEL_ROWS = 1000
+# REQ-170: p_response discriminates (AUC) and is calibrated (reliability slope in range).
+MIN_AUC = 0.95
+MIN_SLOPE = 0.8
+MAX_SLOPE = 1.2
+# Fewest runs in which the shrunken estimate wins, or the truth is covered (REQ-171, 172, 175).
+MIN_WIN_FRACTION = 0.9
+# Largest relative error of a variance component (REQ-172).
+MAX_RATIO_ERROR = 0.2
+# Simulated effect of age on the latency (s per year), and the coverage required in the
+# short (5-run) version of the test.
+AGE_SLOPE = 0.0002
+MIN_SHORT_COVERAGE = 0.8
+# REQ-176: the model step per subject (s), and the whole fit per subject (s).
+MAX_MODEL_SECONDS = 0.5
+MAX_FIT_SECONDS = 10
+# Fewest channels with a latency when one subject is fitted.
+MIN_CHANNELS = 5
+# The Wald errors and fallback of the latency standard-error test (s).
+WIDE_WALD = 0.015
+FALLBACK_SE = 0.0007
+
 SLOW = os.environ.get("EVOPARAM_SLOW_TESTS") == "1"
 
 
@@ -27,7 +51,7 @@ def reference() -> Any:
     """20 subjects x 50 channels x 20 trials, 30 % responding (spec REQ-170)."""
 
     sets, truth = simulate_group(
-        n_subjects=20, n_channels=50, n_trials=20, p_respond=0.3, snr=0.7, seed=0
+        n_subjects=N_SUBJECTS, n_channels=50, n_trials=20, p_respond=0.3, snr=0.7, seed=0
     )
     start = time.perf_counter()
     fit = _fit(sets)
@@ -38,9 +62,9 @@ def test_req170_p_response_discriminates_and_is_calibrated(reference: Any) -> No
 
     fit, truth, _ = reference
     m = merged(fit, truth)
-    assert len(m) == 1000
-    assert auc(m["p_response"], m["respond"]) >= 0.95
-    assert 0.8 <= reliability_slope(m["p_response"], m["respond"]) <= 1.2
+    assert len(m) == N_CHANNEL_ROWS
+    assert auc(m["p_response"], m["respond"]) >= MIN_AUC
+    assert MIN_SLOPE <= reliability_slope(m["p_response"], m["respond"]) <= MAX_SLOPE
 
 
 def test_level_tables_and_summary(reference: Any) -> None:
@@ -59,7 +83,7 @@ def test_level_tables_and_summary(reference: Any) -> None:
     ):
         assert column in channel.columns
     subject = posterior_summary(fit, "subject")
-    assert len(subject) == 20
+    assert len(subject) == N_SUBJECTS
     assert subject["latency"].notna().all()
     assert set(fit.variance_components["level"]) >= {"subject", "channel", "trial"}
     assert fit.engine == "eb"
@@ -95,7 +119,7 @@ def rmse_pairs() -> Any:
 def test_req171_shrunken_latencies_beat_the_channel_fits(rmse_pairs: Any) -> None:
 
     raw, eb = rmse_pairs.T
-    assert np.mean(eb < raw) >= 0.9
+    assert np.mean(eb < raw) >= MIN_WIN_FRACTION
 
 
 def test_req171_shrunken_latencies_are_better_on_average(rmse_pairs: Any) -> None:
@@ -127,8 +151,8 @@ def test_req172_variance_components_by_eb() -> None:
 
     runs = 20 if SLOW else 5
     ratios = np.array([_variance_case(200 + s) for s in range(runs)])
-    within = np.all(np.abs(ratios - 1) <= 0.2, axis=1)
-    assert within.mean() >= 0.9
+    within = np.all(np.abs(ratios - 1) <= MAX_RATIO_ERROR, axis=1)
+    assert within.mean() >= MIN_WIN_FRACTION
 
 
 def _age_case(seed: Any) -> Any:
@@ -139,18 +163,18 @@ def _age_case(seed: Any) -> Any:
         p_respond=0.6,
         snr=2.0,
         seed=seed,
-        age_slope=0.0002,
+        age_slope=AGE_SLOPE,
     )
     fit = _fit(sets, formula="latency ~ age")
     row = fit.effects[fit.effects["term"] == "age"].iloc[0]
-    return row["ci_low"] <= 0.0002 <= row["ci_high"], row
+    return row["ci_low"] <= AGE_SLOPE <= row["ci_high"], row
 
 
 def test_req175_formula_effect_is_covered() -> None:
 
     runs = 20 if SLOW else 5
     covered = [_age_case(300 + s)[0] for s in range(runs)]
-    assert np.mean(covered) >= 0.9 if SLOW else np.mean(covered) >= 0.8
+    assert np.mean(covered) >= MIN_WIN_FRACTION if SLOW else np.mean(covered) >= MIN_SHORT_COVERAGE
 
 
 def test_formula_errors() -> None:
@@ -166,7 +190,7 @@ def test_req176_eb_model_time_per_subject(reference: Any) -> None:
 
     fit, _, _ = reference
     # the model itself (given the channel and trial fits) takes a small part of the time
-    assert fit.diagnostics["timing_s"]["model"] / 20 <= 0.5
+    assert fit.diagnostics["timing_s"]["model"] / N_SUBJECTS <= MAX_MODEL_SECONDS
 
 
 @pytest.mark.skipif(
@@ -177,7 +201,7 @@ def test_req176_eb_model_time_per_subject(reference: Any) -> None:
 def test_req176_eb_time_per_subject(reference: Any) -> None:
 
     _, _, duration = reference
-    assert duration / 20 <= 10
+    assert duration / N_SUBJECTS <= MAX_FIT_SECONDS
 
 
 def test_req177_no_new_dependency_for_eb(monkeypatch: Any) -> None:
@@ -199,7 +223,7 @@ def test_one_subject_drops_the_subject_level() -> None:
     )
     fit = fit_hierarchical(sets[0], components=["N1"])
     assert any("subject level is dropped" in n for n in fit.diagnostics["notes"])
-    assert fit.level_tables["channel"]["latency"].notna().sum() >= 5
+    assert fit.level_tables["channel"]["latency"].notna().sum() >= MIN_CHANNELS
     assert "subject" not in set(fit.variance_components["level"])
 
 
@@ -264,7 +288,7 @@ def test_latency_standard_error_adds_jitter_and_truncates_to_the_window() -> Non
     from evoparam.hierarchical.eb import latency_standard_error
 
     lat = np.array([0.030, 0.030, 0.030, 0.030])
-    wald = np.array([0.001, 0.015, np.nan, 0.001])
+    wald = np.array([0.001, WIDE_WALD, np.nan, 0.001])
     out = latency_standard_error(
         lat,
         wald,
@@ -272,13 +296,13 @@ def test_latency_standard_error_adds_jitter_and_truncates_to_the_window() -> Non
         np.array([16, 16, 16, 0]),
         0.009,
         0.05,
-        fallback=np.array([9.0, 9.0, 0.0007, 9.0]),
+        fallback=np.array([9.0, 9.0, FALLBACK_SE, 9.0]),
     )
     # a narrow error is the noise and the mean jitter in quadrature (window far away)
     assert out[0] == pytest.approx(np.hypot(0.001, 0.002 / 4), rel=1e-6)
     # a wide one is the SD of the normal truncated to the label window
-    assert out[1] < 0.015
+    assert out[1] < WIDE_WALD
     assert out[1] < (0.05 - 0.009) / np.sqrt(12) * 1.01
     # no Wald error: the fallback; no trial: the Wald error alone
-    assert out[2] == 0.0007
+    assert out[2] == FALLBACK_SE
     assert out[3] == pytest.approx(0.001)

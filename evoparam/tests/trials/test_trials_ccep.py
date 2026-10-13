@@ -21,6 +21,18 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
+# Trials per stimulation site in ds004080 (REQ-156).
+N_TRIALS_PER_SITE = 10
+# Fewest subjects with trial fits, and the median trusted fraction required (REQ-156).
+MIN_SUBJECTS = 5
+MIN_TRUSTED_FRACTION = 0.8
+# Longest fit_trials time per subject (s, REQ-156).
+MAX_SECONDS = 2.0
+# REQ-158 on simulated trains: fewest channels counted, and the fraction whose amplitude
+# slope has the simulated sign.
+MIN_COUNTED = 10
+MIN_AGREEMENT = 0.8
+
 NETWORK = os.environ.get("EVOPARAM_NETWORK_TESTS") == "1"
 
 
@@ -87,7 +99,7 @@ def results() -> Any:
     out = []
     for subject, run, site in PAIRS_156:
         ts, group = _prepared(subject, run, site)
-        assert ts.n_trials == 10
+        assert ts.n_trials == N_TRIALS_PER_SITE
         n1, significant = _n1_channels(group)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -114,16 +126,16 @@ def test_req156_trusted_fraction(results: Any) -> None:
     fractions = [
         f.trusted.mean() for r in results for f in r["fits"] if f.channel in r["significant"]
     ]
-    assert len({r["subject"] for r in results if r["fits"]}) >= 5
-    assert np.median(fractions) >= 0.8
+    assert len({r["subject"] for r in results if r["fits"]}) >= MIN_SUBJECTS
+    assert np.median(fractions) >= MIN_TRUSTED_FRACTION
 
 
 @network
 def test_req156_speed(results: Any) -> None:
     """fit_trials on all N1 channels of each subject (10 trials per site) in <= 2 s."""
 
-    assert len({r["subject"] for r in results if r["fits"]}) >= 5
-    assert max(r["duration"] for r in results) <= 2.0
+    assert len({r["subject"] for r in results if r["fits"]}) >= MIN_SUBJECTS
+    assert max(r["duration"] for r in results) <= MAX_SECONDS
 
 
 ###################################################################################################
@@ -179,8 +191,8 @@ def test_req158_direction_on_simulated_1hz_trains() -> None:
         n, fraction = _sign_agreement(table)
         counts += n
         agree += [fraction] * n
-    assert counts >= 10
-    assert np.mean(agree) >= 0.8
+    assert counts >= MIN_COUNTED
+    assert np.mean(agree) >= MIN_AGREEMENT
 
 
 @pytest.mark.xfail(

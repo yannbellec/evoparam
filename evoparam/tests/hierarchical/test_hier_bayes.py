@@ -13,6 +13,21 @@ import pytest
 from evoparam.hierarchical import compare_hierarchical, fit_hierarchical
 from evoparam.tests.hierarchical.helpers import simulate_group
 
+# Fewest channels with a posterior latency interval in the short run (3 subjects x 8
+# channels, 80 % responding).
+MIN_CHANNELS_WITH_CI = 5
+# Latency models compared by LOO: ex-Gaussian and normal.
+N_MODELS = 2
+# NUTS diagnostics of REQ-173: largest R-hat, smallest effective sample size, largest
+# fraction of divergent transitions.
+MAX_R_HAT = 1.01
+MIN_ESS = 400
+MAX_DIVERGENT_FRACTION = 0.01
+# Fewest variance components whose posterior interval holds the truth (REQ-172).
+MIN_COVERAGE = 0.9
+# Longest NUTS time per subject (s, REQ-176).
+MAX_SECONDS_PER_SUBJECT = 300
+
 SLOW = os.environ.get("EVOPARAM_SLOW_TESTS") == "1"
 slow = pytest.mark.skipif(not SLOW, reason="set EVOPARAM_SLOW_TESTS=1 for the NUTS reference runs")
 ENGINES = ["numpyro", "pymc"]
@@ -54,7 +69,7 @@ def test_short_run_of_each_engine(engine: Any) -> None:
     assert {"r_hat_max", "ess_min", "divergences", "ppc_p_latency_spread"} <= set(d)
     ch = fit.level_tables["channel"]
     used = ch["latency_ci_low"].notna()
-    assert used.sum() >= 5
+    assert used.sum() >= MIN_CHANNELS_WITH_CI
     assert np.all(ch.loc[used, "latency_ci_low"] <= ch.loc[used, "latency_ci_high"])
     assert ch["p_response"].between(0, 1).all()
     assert set(fit.variance_components["method"]) == {f"NUTS ({engine})"}
@@ -92,7 +107,7 @@ def test_loo_comparison_of_two_latency_models() -> None:
         for dist in ("exgaussian", "normal")
     ]
     table = compare_hierarchical(fits)
-    assert len(table) == 2
+    assert len(table) == N_MODELS
 
 
 @pytest.fixture(scope="module")
@@ -113,9 +128,9 @@ def test_req173_nuts_diagnostics(reference_fits: Any, engine: Any) -> None:
 
     fits, _ = reference_fits
     d = fits[engine].diagnostics["bayes"]["N1"]
-    assert d["r_hat_max"] <= 1.01
-    assert d["ess_min"] >= 400
-    assert d["divergent_fraction"] < 0.01
+    assert d["r_hat_max"] <= MAX_R_HAT
+    assert d["ess_min"] >= MIN_ESS
+    assert d["divergent_fraction"] < MAX_DIVERGENT_FRACTION
 
 
 @slow
@@ -162,7 +177,7 @@ def test_req172_variance_components_in_the_posterior_interval() -> None:
         vc = fit.variance_components.set_index(["parameter", "level"])
         for key, value in _truth_sds(truth).items():
             covered.append(vc.loc[key, "ci_low"] <= value <= vc.loc[key, "ci_high"])
-    assert np.mean(covered) >= 0.9
+    assert np.mean(covered) >= MIN_COVERAGE
 
 
 @slow
@@ -177,4 +192,4 @@ def test_req176_nuts_time_per_subject(engine: Any) -> None:
     fit = fit_hierarchical(sets, components=["N1", "N2"], engine=engine, n_jobs=-1, random_state=0)
     per_subject = (time.perf_counter() - start) / 3
     assert set(fit.diagnostics["bayes"]) == {"N1", "N2"}
-    assert per_subject <= 300
+    assert per_subject <= MAX_SECONDS_PER_SUBJECT

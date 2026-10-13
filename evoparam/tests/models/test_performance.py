@@ -22,6 +22,11 @@ import pytest
 from evoparam.data import Evoked
 from evoparam.models import ResponseModel, fit_response
 
+# Median time (s) of one fit, channels of REQ-115 and its time limit (s).
+MAX_FIT_SECONDS = 0.05
+N_CHANNELS = 100
+MAX_GROUP_SECONDS = 10.0
+
 pytestmark = pytest.mark.skipif(
     os.environ.get("EVOPARAM_PERF_TESTS") != "1",
     reason="set EVOPARAM_PERF_TESTS=1 to time the engine",
@@ -63,7 +68,7 @@ def test_req115_one_waveform_under_50_ms() -> None:
             start = time.perf_counter()
             fit(y)
             durations.append(time.perf_counter() - start)
-    assert np.median(durations) <= 0.05, np.median(durations)
+    assert np.median(durations) <= MAX_FIT_SECONDS, np.median(durations)
 
 
 @pytest.mark.xfail(
@@ -83,5 +88,5 @@ def test_req115_fit_group_100_channels_under_10_s() -> None:
     start = time.perf_counter()
     group = model.fit_group(evoked)
     elapsed = time.perf_counter() - start
-    assert len(group.fits) == 100
-    assert elapsed <= 10.0, elapsed
+    assert len(group.fits) == N_CHANNELS
+    assert elapsed <= MAX_GROUP_SECONDS, elapsed

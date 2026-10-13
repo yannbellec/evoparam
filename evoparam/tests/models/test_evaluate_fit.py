@@ -17,6 +17,9 @@ import numpy as np
 
 from evoparam.models import ResponseModel, evaluate_fit, fitted_peak
 
+# End (s) of the early window compared.
+EARLY_END = 0.05
+
 SFREQ = 2048.0
 
 
@@ -69,7 +72,7 @@ def test_fitted_peak_is_the_trough_of_the_fitted_model() -> None:
     times, _, fit = _tail_fit()
     peak = fitted_peak(fit, (0.009, 0.05))
     assert abs(peak["latency"] - 0.021) <= 1 / SFREQ
-    w = (times >= fit.window[0]) & (times <= 0.05)
+    w = (times >= fit.window[0]) & (times <= EARLY_END)
     j = np.argmin(fit.model[: w.sum()])
     assert abs(peak["latency"] - times[w][j]) <= 1 / SFREQ
 

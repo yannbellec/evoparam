@@ -15,6 +15,10 @@ from evoparam.shapes import compute_features, get_background, get_shape
 
 from .helpers import TIMES, gauss, noise
 
+# Fit window (s) of the fast-path tests.
+WINDOW_START = 0.02
+WINDOW_END = 0.6
+
 ###################################################################################################
 ###################################################################################################
 
@@ -23,7 +27,7 @@ def _struct(
     background: Any = "exponential", ar: Any = True, prior: Any = True, ordered: Any = True
 ) -> Any:
     rng = np.random.default_rng(0)
-    tw = TIMES[(TIMES >= 0.02) & (TIMES <= 0.6)]
+    tw = TIMES[(TIMES >= WINDOW_START) & (TIMES <= WINDOW_END)]
     y = gauss(0.1, -5, 0.03, tw) + gauss(0.3, 3, 0.06, tw) + 0.4 + noise(rng, 0.8, n=len(tw))
     shapes = [get_shape("skewed_gaussian"), get_shape("gaussian"), get_shape("exgaussian")]
     a, innovation, acov = (

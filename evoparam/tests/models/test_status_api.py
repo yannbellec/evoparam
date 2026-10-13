@@ -24,6 +24,16 @@ from .helpers import BASELINE, SFREQ, TIMES, WINDOW, gauss, model, noise
 
 pd = pytest.importorskip("pandas")
 
+# Channels of the array fit, and the max_components values set.
+N_CHANNELS = 3
+MAX_COMPONENTS = 4
+OTHER_MAX_COMPONENTS = 3
+# Peak tolerance (s), the measurement window (s), and the fractional-area tolerance (s).
+PEAK_TOLERANCE = 0.01
+WINDOW_START = 0.05
+WINDOW_END = 0.15
+AREA_TOLERANCE = 1e-3
+
 ###################################################################################################
 ###################################################################################################
 
@@ -134,7 +144,7 @@ def test_top_level_fit_inputs_and_errors() -> None:
     grouped = fit(by, "ccep", by="condition")
     assert set(grouped.index["condition"]) == {"a", "b"}
     arr = fit(ts.data.mean(0), "ccep", times=TIMES)
-    assert len(arr.fits) == 3
+    assert len(arr.fits) == N_CHANNELS
     with pytest.raises(SettingsError):
         fit(ts, "ccep", trials=True)
     with pytest.raises(SettingsError):
@@ -150,9 +160,9 @@ def test_top_level_fit_inputs_and_errors() -> None:
 def test_estimator_contract_and_compare() -> None:
 
     m = ResponseModel("ccep", max_components=4)
-    assert m.get_params()["max_components"] == 4
+    assert m.get_params()["max_components"] == MAX_COMPONENTS
     m.set_params(max_components=3)
-    assert m.get_params()["max_components"] == 3
+    assert m.get_params()["max_components"] == OTHER_MAX_COMPONENTS
     trials = _trials()
     m.fit(trials)
     # scikit-learn semantics (spec §10.4): samples are the channels, features the time points
@@ -190,8 +200,8 @@ def test_classical_measures_and_labels() -> None:
     scores = classical_measures(
         TIMES, y, window=(0.05, 0.15), trials=trials, n_bootstrap=100, random_state=0
     )
-    assert abs(scores["peak_latency"] - 0.1) <= 0.01
-    inside = (TIMES >= 0.05) & (TIMES <= 0.15)
+    assert abs(scores["peak_latency"] - 0.1) <= PEAK_TOLERANCE
+    inside = (TIMES >= WINDOW_START) & (TIMES <= WINDOW_END)
     assert np.isclose(
         scores["sme"]["mean_amplitude"], np.std(trials[:, inside].mean(1), ddof=1) / np.sqrt(30)
     )
@@ -204,7 +214,7 @@ def test_classical_measures_and_labels() -> None:
             )["fractional_area_latency"]
             - 0.1
         )
-        < 1e-3
+        < AREA_TOLERANCE
     )
     fit_ = model().fit_waveform(
         TIMES, gauss(0.025, -8, 0.012) + gauss(0.15, -6, 0.08) + noise(rng)
