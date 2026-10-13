@@ -43,6 +43,7 @@ __all__ = [
 
 FIT_STATUSES = ("ok", "no_response", "failed", "skipped")
 UNIT_STATUSES = ("ok", "failed")
+_TF_MAP_NDIM = 3  # channels x freqs x times
 
 
 def _unit_status(status: Any, message: Any, shape: tuple[int, ...], owner: str) -> Any:
@@ -198,6 +199,7 @@ class _ResultMixin(DeepEqualMixin):
 
 
 def _as_float_array(value: Any) -> Any:
+    """Return ``value`` as a float64 array (None stays None)."""
     return None if value is None else np.asarray(value, dtype=np.float64)
 
 
@@ -986,7 +988,7 @@ class TFFit(_ResultMixin):
         if map not in self.maps:
             raise DataError(f"TFFit.to_mne: unknown map {map!r}; available: {sorted(self.maps)}.")
         data = np.asarray(self.maps[map], dtype=np.float64)
-        if data.ndim != 3 or data.shape[1:] != (self.freqs.size, self.times.size):
+        if data.ndim != _TF_MAP_NDIM or data.shape[1:] != (self.freqs.size, self.times.size):
             raise DataError(f"TFFit.to_mne: map {map!r} is not channels x freqs x times.")
         rows = self.settings.get("rows") or [[str(i), ""] for i in range(data.shape[0])]
         names = [f"{row[0]}|{row[1]}" if len(row) > 1 and row[1] else str(row[0]) for row in rows]
@@ -1019,6 +1021,7 @@ class TFFit(_ResultMixin):
         tp = s.get("transform_params") or {}
 
         def _g(value: Any) -> Any:  # a value missing from the settings is named as such
+            """Return a number as text, or "not recorded"."""
             return f"{value:g}" if isinstance(value, (int, float)) else "not recorded"
 
         transform = s.get("transform", "?")

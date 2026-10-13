@@ -17,13 +17,15 @@ __all__ = ["read_citation", "citation_text", "citation_bibtex", "parse_cff"]
 
 
 _KEY = re.compile(r"^[A-Za-z0-9_.-]+:(\s|$)")
+_QUOTED_MIN = 2  # an opening and a closing quote
 
 
 def _scalar(text: str) -> str | None:
+    """Return a YAML scalar without its quotes or trailing comment (None when empty)."""
     text = text.strip()
     if not text:
         return None
-    if text[0] in "\"'" and text[-1] == text[0] and len(text) >= 2:
+    if text[0] in "\"'" and text[-1] == text[0] and len(text) >= _QUOTED_MIN:
         inner = text[1:-1]
         return inner.replace("''", "'") if text[0] == "'" else inner.replace('\\"', '"')
     if " #" in text:
@@ -32,6 +34,7 @@ def _scalar(text: str) -> str | None:
 
 
 def _lines(text: str) -> list[tuple[int, str]]:
+    """Return the indentation and text of each line that is not blank, a comment or ``---``."""
     out = []
     for raw in text.splitlines():
         stripped = raw.strip()
@@ -91,6 +94,7 @@ def parse_cff(text: str) -> Any:
 
 
 def _cff_text() -> str:
+    """Return the text of CITATION.cff (installed with the package, else in the source tree)."""
     try:
         return resources.files("evoparam").joinpath("CITATION.cff").read_text("utf-8")
     except (FileNotFoundError, OSError):
@@ -108,6 +112,7 @@ def read_citation() -> dict[str, Any]:
 
 
 def _authors(cff: dict[str, Any]) -> list[tuple[str, str]]:
+    """Return the (family name, given names) of each author of the citation file."""
     names = []
     for author in cff.get("authors") or []:
         if not isinstance(author, dict):

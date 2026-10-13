@@ -16,6 +16,17 @@ import numpy as np
 
 def to_jsonable(obj: object) -> Any:
     """Convert ``obj`` to plain JSON types; non-finite floats become None."""
+    if isinstance(obj, np.ndarray):
+        return to_jsonable(obj.tolist())
+    if isinstance(obj, dict):
+        return {str(key): to_jsonable(value) for key, value in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [to_jsonable(value) for value in obj]
+    return _scalar(obj)
+
+
+def _scalar(obj: object) -> Any:
+    """Convert a scalar to a plain JSON value; non-finite floats become None."""
     if obj is None or isinstance(obj, (str, bool)):
         return obj
     if isinstance(obj, np.bool_):
@@ -25,12 +36,6 @@ def to_jsonable(obj: object) -> Any:
     if isinstance(obj, (float, np.floating)):
         value = float(obj)
         return value if math.isfinite(value) else None
-    if isinstance(obj, np.ndarray):
-        return to_jsonable(obj.tolist())
-    if isinstance(obj, dict):
-        return {str(key): to_jsonable(value) for key, value in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [to_jsonable(value) for value in obj]
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serialisable.")
 
 
@@ -40,6 +45,7 @@ def dumps(obj: object, **kwargs: Any) -> str:
 
 
 def _refuse_constant(name: str) -> NoReturn:
+    """Refuse the NaN and infinity tokens that strict JSON does not have."""
     raise ValueError(f"Invalid JSON constant {name!r}.")
 
 

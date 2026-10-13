@@ -74,6 +74,7 @@ def elapsed(start: float) -> float:
 
 
 def _now_utc() -> str:
+    """Return the current time, or the fixed clock of the tests, in ISO 8601 UTC."""
     epoch = fixed_clock()
     when = (
         datetime.fromtimestamp(epoch, timezone.utc)
@@ -84,6 +85,7 @@ def _now_utc() -> str:
 
 
 def _package_version(name: str) -> str | None:
+    """Return the installed version of a distribution, or None."""
     try:
         return metadata.version(name)
     except metadata.PackageNotFoundError:
@@ -91,6 +93,7 @@ def _package_version(name: str) -> str | None:
 
 
 def _cpu_name() -> str | None:
+    """Return the processor name (platform, else /proc/cpuinfo), or None."""
     name = platform.processor()
     if name:
         return name
@@ -180,6 +183,7 @@ def lock_sha256(path: StrPath | None = None) -> str | None:
 
 @functools.lru_cache(maxsize=1)
 def _environment() -> dict[str, Any]:
+    """Return the environment record of the provenance (versions, platform, backend)."""
     return {
         "python": platform.python_version(),
         "platform": platform.platform(),
