@@ -9,14 +9,19 @@ switches.
 """
 
 import contextlib
+import contextvars
 import functools
 import inspect
 import logging
 import os
-from collections.abc import Callable
-from typing import Any, Literal, Union
+from collections.abc import Callable, Iterable, Iterator
+from typing import Any, Literal, ParamSpec, TypeVar, Union, overload
 
-__all__ = ["verbose", "set_log_level", "set_log_file", "LEVELS"]
+__all__ = ["verbose", "set_log_level", "set_log_file", "progress", "LEVELS"]
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+_T = TypeVar("_T")
 
 LOGGER = "evoparam"
 # the values ``verbose`` accepts (a logging level as an int is also accepted)
@@ -32,6 +37,11 @@ LEVELS = {
     "error": logging.ERROR,
     "progress": logging.INFO,
 }
+
+# True while a call runs with ``verbose="progress"``: :func:`progress` then shows a bar
+_PROGRESS: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "evoparam_progress", default=False
+)
 
 
 def _level(value: VerboseLevel) -> int | None:
@@ -55,17 +65,33 @@ class _Verbose(contextlib.ContextDecorator):
         self.value = level
         self.level = _level(level)
         self._saved: list[int] = []
+        self._tokens: list[contextvars.Token[bool] | None] = []
 
     def __enter__(self) -> "_Verbose":
         logger = logging.getLogger(LOGGER)
         self._saved.append(logger.level)
         if self.level is not None:
             logger.setLevel(self.level)
+        # progress bars: on with "progress", off with another explicit level, inherited
+        # with None/False
+        bars = isinstance(self.value, str) and self.value.lower() == "progress"
+        self._tokens.append(_PROGRESS.set(bars) if self.level is not None else None)
         return self
 
     def __exit__(self, *exc: object) -> Literal[False]:
         logging.getLogger(LOGGER).setLevel(self._saved.pop())
+        token = self._tokens.pop()
+        if token is not None:
+            _PROGRESS.reset(token)
         return False
+
+
+@overload
+def verbose(level: Callable[_P, _R]) -> Callable[_P, _R]: ...
+
+
+@overload
+def verbose(level: VerboseLevel = None) -> _Verbose: ...
 
 
 def verbose(level: VerboseLevel | Callable[..., Any] = None) -> Any:
@@ -93,6 +119,24 @@ def verbose(level: VerboseLevel | Callable[..., Any] = None) -> Any:
 
         return wrapper
     return _Verbose(level)
+
+
+def progress(
+    iterable: Iterable[_T], *, total: int | None = None, desc: str | None = None
+) -> Iterator[_T]:
+    """Iterate over ``iterable``, with a ``tqdm`` bar under ``verbose="progress"``.
+
+    Without ``verbose="progress"`` (or without ``tqdm``, extra ``progress``) the items are
+    returned as they are: the bar never changes a result. The bar is written to stderr.
+    """
+    if not _PROGRESS.get():
+        return iter(iterable)
+    try:
+        from tqdm import tqdm
+    except ImportError:
+        return iter(iterable)
+    bar: Iterable[_T] = tqdm(iterable, total=total, desc=desc, leave=False)
+    return iter(bar)
 
 
 def set_log_level(level: VerboseLevel) -> int:

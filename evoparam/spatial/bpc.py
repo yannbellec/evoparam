@@ -24,6 +24,7 @@ from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.models.component_shapes import Template
 from evoparam.utils._optional import require
+from evoparam.utils._parallel import parallel_map
 from evoparam.version import __version__
 
 __all__ = [
@@ -75,18 +76,31 @@ def adjusted_rand_index(a: Any, b: Any) -> float:
     return float((index - expected) / (maximum - expected))
 
 
+def _nmf_starts(
+    shape: tuple[int, int], q: int, rng: np.random.Generator, n_runs: int
+) -> tuple[NDArray[Any], NDArray[Any]]:
+    """Random starts ``(W, H)`` of the NMF: uniform on [0, 1), W first."""
+    n, m = shape
+    w = rng.uniform(0, 1, (n_runs, n, q))
+    h = rng.uniform(0, 1, (n_runs, q, m))
+    return w, h
+
+
 def _nmf(
-    x: Any, q: Any, rng: np.random.Generator, n_runs: int = 1
+    x: Any, q: Any, rng: np.random.Generator | None, n_runs: int = 1, init: Any = None
 ) -> tuple[Any, Any, NDArray[Any]]:
     """Factorise ``x ~ W H`` with W, H >= 0 and the rows of H of unit norm.
 
     For ``n_runs`` random starts at once (multiplicative updates; the norms of H are folded into W
     at each step, as in the published description). Stops a run when its relative change of error
     is below 1e-5. Returns W [runs, n, q], H [runs, q, m] and the errors [runs].
+    ``init``: the starts ``(W, H)`` (drawn from ``rng`` when None, :func:`_nmf_starts`).
     """
     n, m = x.shape
-    w = rng.uniform(0, 1, (n_runs, n, q))
-    h = rng.uniform(0, 1, (n_runs, q, m))
+    if init is None:
+        w, h = _nmf_starts(x.shape, q, np.random.default_rng(rng), n_runs)
+    else:
+        w, h = (np.array(a, dtype=float) for a in init)
     eps = 1e-12
     previous = np.full(n_runs, np.inf)
     active = np.ones(n_runs, bool)
@@ -200,9 +214,9 @@ def _split_ratio(xi: Any, labels: Any, q: Any) -> float:
 
 
 def _cluster_nmf(
-    xi: Any, q: Any, n_restarts: Any, rng: np.random.Generator
+    xi: Any, q: Any, n_restarts: Any, rng: np.random.Generator | None, init: Any = None
 ) -> tuple[NDArray[Any], list[NDArray[Any]], Any, float, float, Any]:
-    ws, hs, errors = _nmf(xi, q, rng, n_restarts)
+    ws, hs, errors = _nmf(xi, q, rng, n_restarts, init=init)
     labels = [_assign(h)[0] for h in hs]
     best = int(np.argmin(errors))
     return labels[best], labels, hs[best], float(errors[best]), _degeneracy(hs[best]), ws[best]
@@ -385,6 +399,40 @@ def _groups(
     raise SettingsError(f"by must be 'stim_site' or 'channel', not {by!r}.")
 
 
+def _assess(
+    xi: Any, q: int, stability_min: float, clustered: tuple[Any, ...]
+) -> tuple[dict[str, Any], tuple[Any, ...] | None]:
+    """Return the selection row of ``q`` shapes and the candidate basis.
+
+    The candidate is None when the row is neither accepted nor ``q = 1``.
+    """
+    labels, runs, h, err, overlap, w = clustered
+    pairs = list(itertools.combinations(range(len(runs)), 2))
+    ari = float(np.mean([adjusted_rand_index(runs[a], runs[b]) for a, b in pairs]))
+    used = len(set(labels[labels >= 0]))
+    split = _split_ratio(xi, labels, q)
+    ok = split < SPLIT_MAX and ari >= stability_min and used == q
+    row = {
+        "n_shapes": q,
+        "error": err,
+        "split_ratio": split,
+        "h_overlap": overlap,
+        "stability": ari,
+        "clusters_used": used,
+        "accepted": bool(ok),
+    }
+    candidate = None
+    if ok or q == 1:
+        candidate = (q, labels, h, _jaccard_stability(labels, runs, q), w)
+    return row, candidate
+
+
+def _select_nmf(unit: tuple[Any, ...]) -> tuple[dict[str, Any], tuple[Any, ...] | None]:
+    """Cluster with ``q`` shapes from given NMF starts and assess it (one unit of n_jobs)."""
+    xi, q, n_restarts, stability_min, init = unit
+    return _assess(xi, q, stability_min, _cluster_nmf(xi, q, n_restarts, None, init=init))
+
+
 ###################################################################################################
 ## Main entry point
 
@@ -442,8 +490,13 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     window : tuple of float
         ``(t0, tau)`` in s.
     max_shapes, method, n_restarts, stability_min, random_state
-        See above. ``n_jobs`` is accepted for the API; the restarts are fast and run in
-        one thread.
+        See above.
+    n_jobs : int
+        With ``method="nmf"``, the numbers of shapes ``q`` are clustered in parallel
+        (``joblib`` processes when the extra ``parallel`` is installed, else threads); the
+        random starts are drawn before, in the order of the serial loop, so the result
+        does not depend on ``n_jobs``. With ``"kpca"`` the k-means++ draws depend on the
+        data and the restarts run in the calling process.
 
     Returns
     -------
@@ -491,29 +544,26 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     if np.max(xi) > 0:
         xi = xi / np.max(xi)
 
-    cluster = _cluster_nmf if method == "nmf" else _cluster_kpca
-    selection, chosen = [], None
-    for q in range(1, min(max_shapes, len(defining) - 1) + 1):
-        labels, runs, h, err, overlap, w = cluster(xi, q, n_restarts, rng)
-        pairs = list(itertools.combinations(range(len(runs)), 2))
-        ari = float(np.mean([adjusted_rand_index(runs[a], runs[b]) for a, b in pairs]))
-        used = len(set(labels[labels >= 0]))
-        split = _split_ratio(xi, labels, q)
-        ok = split < SPLIT_MAX and ari >= stability_min and used == q
-        selection.append(
-            {
-                "n_shapes": q,
-                "error": err,
-                "split_ratio": split,
-                "h_overlap": overlap,
-                "stability": ari,
-                "clusters_used": used,
-                "accepted": bool(ok),
-            }
-        )
-        if ok or q == 1:
-            stab = _jaccard_stability(labels, runs, q)
-            chosen = (q, labels, h, stab, w) if ok or chosen is None else chosen
+    qs = list(range(1, min(max_shapes, len(defining) - 1) + 1))
+    if method == "nmf":
+        # the random starts of every number of shapes, drawn in the order of the serial
+        # loop, so that the selection does not depend on n_jobs (one unit per q)
+        units = [
+            (xi, q, n_restarts, stability_min, _nmf_starts(xi.shape, q, rng, n_restarts))
+            for q in qs
+        ]
+        outcomes = parallel_map(_select_nmf, units, n_jobs, desc="shared_shapes")
+    else:
+        # k-means++ draws depend on the data: the restarts run in this process
+        outcomes = [
+            _assess(xi, q, stability_min, _cluster_kpca(xi, q, n_restarts, rng)) for q in qs
+        ]
+    selection: list[dict[str, Any]] = []
+    chosen = None
+    for q, (row, candidate) in zip(qs, outcomes, strict=True):
+        selection.append(row)
+        if row["accepted"] or q == 1:
+            chosen = candidate if row["accepted"] or chosen is None else chosen
     unstable = all(not row["accepted"] for row in selection[1:]) and any(
         row["split_ratio"] < SPLIT_MAX and row["clusters_used"] == row["n_shapes"]
         for row in selection[1:]

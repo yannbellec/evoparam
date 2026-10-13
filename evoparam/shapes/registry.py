@@ -85,6 +85,37 @@ def _plugin_shape(name: str, obj: Any, origin: str) -> Any:
     return obj
 
 
+# Members of a background that the fit uses beyond the Background protocol: the fit solves
+# the linear coefficients by variable projection, from the basis functions
+FIT_MEMBERS = ("linear_names", "nonlinear_names", "n_linear", "n_nonlinear", "basis")
+
+
+def check_background(background: Any) -> None:
+    """Raise SettingsError when ``background`` lacks a member the fit needs.
+
+    A background that satisfies the :class:`Background` protocol only (``evaluate``,
+    ``jacobian``, bounds, guess) cannot be fitted: the fit also needs ``linear_names``,
+    ``nonlinear_names``, ``n_linear``, ``n_nonlinear``, ``basis(times, nonlinear)``
+    (``n_linear x n_times``) and, with non-linear parameters, ``basis_jacobian(times,
+    nonlinear)``. :class:`evoparam.shapes.backgrounds.BackgroundBase` supplies all of them
+    but ``basis`` (and ``basis_jacobian``) from those two.
+    """
+    missing = [m for m in FIT_MEMBERS if not hasattr(background, m)]
+    if getattr(background, "n_nonlinear", 0) and not callable(
+        getattr(background, "basis_jacobian", None)
+    ):
+        missing.append("basis_jacobian")
+    if missing:
+        raise SettingsError(
+            f"background {getattr(background, 'name', background)!r} lacks "
+            f"{', '.join(missing)}, which the fit needs beyond the Background protocol "
+            "(the linear coefficients come from basis(times, nonlinear), the derivatives of "
+            "the non-linear parameters from basis_jacobian(times, nonlinear)); derive it "
+            "from evoparam.shapes.backgrounds.BackgroundBase and define basis (and "
+            "basis_jacobian when it has non-linear parameters)."
+        )
+
+
 def _plugin_background(name: str, obj: Any, origin: str) -> Any:
     if getattr(obj, "kind", None) != "background":
         return _plugins.SKIP
@@ -94,6 +125,10 @@ def _plugin_background(name: str, obj: Any, origin: str) -> Any:
             f"plugin background {name!r} of {origin} does not satisfy "
             f"Background (or its name attribute differs)."
         )
+    try:
+        check_background(instance)
+    except SettingsError as err:
+        raise SettingsError(f"plugin background {name!r} of {origin}: {err}") from err
     return obj
 
 

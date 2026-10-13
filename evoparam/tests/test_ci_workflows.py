@@ -361,12 +361,13 @@ def _ruff(*args: Any) -> Any:
 @pytest.mark.xfail(
     strict=True,
     reason="REQ-305 'ruff check evoparam tests benchmarks "
-    "docs/tutorials examples exits 0' is not met: 1246 findings (4644 before the "
-    "qualite-statique branch). 393 in the package outside its tests: PLR2004 204, "
-    "complexity and argument counts 170 (C901 41, PLR0912 39, PLR0913 44, PLR0915 18, "
-    "PLR0917 18, PLR0911 10, on functions whose signature the spec does not fix), "
-    "ARG001/ARG002 13 and BLE001 6 (real issues, CHANGELOG); 852 in the tests (PLR2004 "
-    "831); 1 in benchmarks (PLR2004). Measured with ruff 0.16.10 and 0.16.8 on 2026-10-12",
+    "docs/tutorials examples exits 0' is not met: 1226 findings (4644 before the "
+    "qualite-statique branch, 1246 before reglages-ignores). 373 in the package outside "
+    "its tests: PLR2004 203, complexity and argument counts 170 (C901 41, PLR0912 39, "
+    "PLR0913 44, PLR0915 18, PLR0917 18, PLR0911 10, on functions whose signature the "
+    "spec does not fix); 852 in the tests (PLR2004 831); 1 in benchmarks (PLR2004). "
+    "ARG001/ARG002 and BLE001: 0 (reglages-ignores). Measured with ruff 0.16.10 and "
+    "0.16.8 on 2026-10-13",
 )
 def test_req305_ruff_check_passes() -> None:
     result = _ruff("check", "evoparam", "benchmarks", "docs/tutorials", "examples")
@@ -402,16 +403,10 @@ def test_req305_docstring_coverage() -> None:
     assert result.returncode == 0, result.stdout[-500:]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-305 / REQ-307: ruff E722, S110 and BLE001 report 6 findings in "
-    "the package (14 before the qualite-statique branch), all BLE001: 'except "
-    "Exception' that fall back without recording the error (existence/permutation "
-    "tail fit, hierarchical/api REML, hierarchical/bayes log-likelihood, three initial "
-    "guesses in models/engine); the 8 that record or re-raise carry a justified noqa "
-    "(measured 2026-10-12)",
-)
 def test_req307_ruff_blind_except_rules() -> None:
+    """E722, S110 and BLE001 report nothing in the package (14 findings before the
+    qualite-statique branch, 6 before reglages-ignores: every ``except Exception`` names
+    its exception classes, or records or re-raises the error with a justified noqa)."""
     result = _ruff(
         "check", "--select", "E722,S110,BLE001", "evoparam", "--exclude", "evoparam/tests"
     )

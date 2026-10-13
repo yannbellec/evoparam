@@ -183,6 +183,42 @@ def test_bad_objects_are_refused(site: Any) -> None:
         SHAPES.reload()
 
 
+PROTOCOL_ONLY_BACKGROUND = '''
+import numpy as np
+
+
+class Offset:
+    """A background with the Background protocol only (no basis)."""
+
+    kind = "background"
+    name = "offset_only"
+    param_names = ("c0",)
+    n_params = 1
+
+    def evaluate(self, times, params):
+        return np.broadcast_to(params[..., :1], params.shape[:-1] + (len(times),))
+
+    def jacobian(self, times, params):
+        return np.ones(params.shape[:-1] + (len(times), 1))
+
+    def default_bounds(self, times, data_range=None):
+        return np.array([-1.0]), np.array([1.0])
+
+    def initial_guess(self, times, waveform):
+        return np.zeros(1)
+'''
+
+
+def test_background_without_basis_is_refused_at_registration(site: Any) -> None:
+    """The fit needs basis (and basis_jacobian): a clear error when the plugin loads."""
+
+    with open(os.path.join(site, "evoparam_other.py"), "w", encoding="utf-8") as fobj:
+        fobj.write(PROTOCOL_ONLY_BACKGROUND)
+    _install(site, entry_points="[evoparam.shapes]\noffset_only = evoparam_other:Offset\n")
+    with pytest.raises(SettingsError, match="offset_only.*lacks.*basis.*BackgroundBase"):
+        BACKGROUNDS.reload()
+
+
 def test_plugins_can_be_disabled(site: Any, monkeypatch: Any) -> None:
 
     _install(site)

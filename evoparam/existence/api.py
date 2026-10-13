@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Is there a response? test_response and its companions (spec §5.6)."""
 
+import copy
 import dataclasses
 import itertools
 import logging
@@ -14,7 +15,9 @@ from evoparam._typing import Any, NDArray
 from evoparam.data import Evoked, Provenance, ResponseTest, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
+from evoparam.utils._logging import verbose
 from evoparam.utils._optional import require
+from evoparam.utils._parallel import parallel_map
 from evoparam.version import __version__
 
 from .corrections import CORRECTIONS, correct
@@ -36,6 +39,8 @@ __all__ = [
     "METHODS",
     "HUMAN_KAPPA",
 ]
+
+logger = logging.getLogger(__name__)
 
 METHODS = ("baseline_permutation", "projection", "model_comparison", "threshold")
 
@@ -63,11 +68,68 @@ def _check_artifact(ts: Any, window: Any, allow: Any) -> None:
         )
 
 
-def _model_comparison(
-    avg: Any, times: Any, window: Any, baseline: Any, n_permutations: Any, rng: np.random.Generator
-) -> dict[str, NDArray[Any]]:
+def _comparison_fits(unit: tuple[Any, ...]) -> dict[str, Any] | None:
+    """Fit the model and the background-only model to one channel (model_comparison unit)."""
     from evoparam.models import ResponseModel
 
+    times, y, window, baseline = unit
+    model = ResponseModel(fit_window=window, baseline=baseline, classical=False)
+    background = ResponseModel(
+        fit_window=window, baseline=baseline, classical=False, max_components=0
+    )
+    fit = model.fit_waveform(times, y)
+    if fit.gof is None:
+        return None
+    steps = fit.diagnostics["steps"]
+    null_fit = background.fit_waveform(times, y)
+    return {
+        "delta": steps[-1]["criterion"] - steps[0]["criterion"],
+        "null_model": null_fit.model,
+        "sigma": fit.diagnostics["sigma"],
+        "rho": fit.diagnostics["rho"],
+        "onset": min(comp.onset for comp in fit.components) if fit.components else None,
+        "offset": max(comp.offset for comp in fit.components) if fit.components else None,
+    }
+
+
+def _comparison_null(unit: tuple[Any, ...]) -> NDArray[Any]:
+    """Return the parametric-bootstrap null of one channel (second model_comparison unit).
+
+    The noise is drawn from a copy of the generator taken when the serial loop reached
+    this channel, so the null does not depend on n_jobs.
+    """
+    from evoparam.models import ResponseModel
+
+    times, y, window, baseline, first, n_permutations, rng = unit
+    model = ResponseModel(fit_window=window, baseline=baseline, classical=False)
+    win = (times >= window[0]) & (times <= window[1])
+    sigma, rho = first["sigma"], first["rho"]
+    null = []
+    for _ in range(n_permutations):
+        e = rng.normal(0, 1, len(times))
+        noise = np.empty_like(e)
+        noise[0] = e[0]
+        for i in range(1, len(e)):
+            noise[i] = rho * noise[i - 1] + np.sqrt(1 - rho**2) * e[i]
+        synthetic = y.copy()
+        synthetic[win] = first["null_model"] + sigma * noise[win]
+        synthetic[~win] = sigma * noise[~win]
+        f = model.fit_waveform(times, synthetic)
+        if f.gof is not None:
+            s = f.diagnostics["steps"]
+            null.append(s[-1]["criterion"] - s[0]["criterion"])
+    return np.array(null)
+
+
+def _model_comparison(
+    avg: Any,
+    times: Any,
+    window: Any,
+    baseline: Any,
+    n_permutations: Any,
+    rng: np.random.Generator,
+    n_jobs: int | None = 1,
+) -> dict[str, NDArray[Any]]:
     if n_permutations > 200:
         _warn(
             "model_comparison refits the model for every bootstrap sample; "
@@ -75,49 +137,50 @@ def _model_comparison(
             UserWarning,
             stacklevel=3,
         )
-    model = ResponseModel(fit_window=window, baseline=baseline, classical=False)
-    background = ResponseModel(
-        fit_window=window, baseline=baseline, classical=False, max_components=0
-    )
     out: dict[str, NDArray[Any]] = {
         k: np.full(len(avg), np.nan)
         for k in ("statistic", "p_value", "onset", "offset", "duration", "snr_db")
     }
-    win = (times >= window[0]) & (times <= window[1])
-    for c, y in enumerate(avg):
-        fit = model.fit_waveform(times, y)
-        if fit.gof is None:
+    firsts = parallel_map(
+        _comparison_fits,
+        [(times, y, window, baseline) for y in avg],
+        n_jobs,
+        desc="test_response",
+    )
+    # a copy of the generator when the serial loop reaches each fitted channel; the
+    # draws of the channel are then skipped here (made again in its unit)
+    units = []
+    for c, first in enumerate(firsts):
+        if first is None:
             continue
-        steps = fit.diagnostics["steps"]
-        delta = steps[-1]["criterion"] - steps[0]["criterion"]
-        null_fit = background.fit_waveform(times, y)
-        sigma, rho = fit.diagnostics["sigma"], fit.diagnostics["rho"]
-        null: Any
-        null = []
+        units.append(
+            (
+                times,
+                avg[c],
+                window,
+                baseline,
+                first,
+                n_permutations,
+                copy.deepcopy(rng),
+            )
+        )
         for _ in range(n_permutations):
-            e = rng.normal(0, 1, len(times))
-            noise = np.empty_like(e)
-            noise[0] = e[0]
-            for i in range(1, len(e)):
-                noise[i] = rho * noise[i - 1] + np.sqrt(1 - rho**2) * e[i]
-            synthetic = y.copy()
-            synthetic[win] = null_fit.model + sigma * noise[win]
-            synthetic[~win] = sigma * noise[~win]
-            f = model.fit_waveform(times, synthetic)
-            if f.gof is not None:
-                s = f.diagnostics["steps"]
-                null.append(s[-1]["criterion"] - s[0]["criterion"])
-        null = np.array(null)
+            rng.normal(0, 1, len(times))
+    nulls = parallel_map(_comparison_null, units, n_jobs, desc="test_response")
+    fitted = [(c, first) for c, first in enumerate(firsts) if first is not None]
+    for (c, first), null in zip(fitted, nulls, strict=True):
+        delta = first["delta"]
         out["statistic"][c] = delta
         out["p_value"][c] = (1 + np.sum(null <= delta)) / (1 + len(null))
-        if fit.components:
-            out["onset"][c] = min(comp.onset for comp in fit.components)
-            out["offset"][c] = max(comp.offset for comp in fit.components)
+        if first["onset"] is not None:
+            out["onset"][c] = first["onset"]
+            out["offset"][c] = first["offset"]
             out["duration"][c] = out["offset"][c] - out["onset"][c]
     out["duration_ci"] = np.full((len(avg), 2), np.nan)
     return out
 
 
+@verbose
 def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.6)
     ts: Any,
     *,
@@ -139,7 +202,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     n_boot: int = 200,  # noqa: PT028  (public API test_response, not a pytest test)
     random_state: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
     n_jobs: int = 1,  # noqa: PT028  (public API test_response, not a pytest test)
-    verbose: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
+    verbose: Any = None,  # noqa: ARG001, PT028  (read by @verbose; public API, not a pytest test)
     projection_profile: str = "published",  # noqa: PT028  (public API test_response, not a pytest test)
     projection_pairs: str = "disjoint",  # noqa: PT028  (public API test_response, not a pytest test)
 ) -> "ResponseTest":
@@ -182,6 +245,15 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         for ``"projection"``; None for ``"model_comparison"``) on ``curve_times``, and
         ``null_band`` the level it must cross: the family-wise critical value of the null
         maximum (``max_t``), the cluster-forming threshold (``cluster``), the rule's ``k``.
+
+    Notes
+    -----
+    ``n_jobs`` runs the channels in parallel (``joblib`` processes when the extra
+    ``parallel`` is installed, else threads): the p-values and the bootstrap of the
+    permutation tests, the channels of ``"projection"`` and ``"model_comparison"``. Every
+    random number is drawn in the order of the serial run, so the result does not depend
+    on ``n_jobs``. ``verbose`` sets the level of the ``evoparam`` logger for the call (the
+    summary of the test at INFO; ``"progress"`` adds a progress bar, extra ``progress``).
     """
     start = _time.perf_counter()
     if method not in METHODS:
@@ -237,6 +309,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
                     polarity=polarity,
                     alpha=alpha,
                     rng=rng,
+                    n_jobs=n_jobs,
                 )
             else:
                 res = permutation_test(
@@ -252,6 +325,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
                     rng=rng,
                     n_boot=n_boot,
                     masks=masks,
+                    n_jobs=n_jobs,
                 )
         elif method == "projection":
             if trials_ts is None:
@@ -264,10 +338,13 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
                 rng=rng,
                 profile=projection_profile,
                 pairs=projection_pairs,
+                n_jobs=n_jobs,
             )
         elif method == "model_comparison":
             avg = evoked.data[index] if trials_ts is None else data.mean(axis=0)
-            res = _model_comparison(avg, times, window, baseline, n_permutations, rng)
+            res = _model_comparison(
+                avg, times, window, baseline, n_permutations, rng, n_jobs=n_jobs
+            )
         else:
             avg = evoked.data[index] if trials_ts is None else np.nanmean(data, axis=0)
             res = apply_rule(avg, times, base_obj.sfreq, spec, base_obj.units)
@@ -338,6 +415,15 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         "evoparam.existence.test_response",
         {k: v for k, v in settings.items() if k not in _PER_CHANNEL_SETTINGS},
         duration_s=_time.perf_counter() - start,
+    )
+    logger.info(
+        "test_response (%s): %d channel(s) x %d group(s), %d significant at alpha=%g, %.2f s",
+        method,
+        len(index),
+        len(groups),
+        int(np.sum(significant)),
+        alpha,
+        _time.perf_counter() - start,
     )
     curve_times = curve = band = None
     if all(r.get("curve") is not None for r in results):
@@ -629,6 +715,7 @@ for _name in load_rules():
     setattr(detectors, _name, _make_detector(_name))
 
 
+@verbose
 def fit(
     data: Any,
     preset: Any = None,
@@ -653,6 +740,10 @@ def fit(
     the fit window; its baseline is the fit's, else (-0.5, -0.05) s when the data start
     before -0.5 s, else the pre-stimulus samples. The seed of the test is ``random_state``,
     or the seed drawn and recorded by the fit (REQ-331).
+
+    ``verbose`` (in ``kwargs``) sets the level of the ``evoparam`` logger for the whole call,
+    the fit and the test (spec §9.8); at INFO the methods paragraph is logged at the end.
+    ``n_jobs`` (in ``kwargs``) is used by the fit and by the test.
     """
     from evoparam.models import fit as fit_models
     from evoparam.models.api import _from_mne
@@ -703,8 +794,8 @@ def fit(
         "by": (),
         "random_state": seed,
     }
-    if kwargs.get("picks") is not None:
-        test_kwargs["picks"] = kwargs["picks"]
+    # the channels and the workers of the fit
+    test_kwargs.update({k: kwargs[k] for k in ("picks", "n_jobs") if kwargs.get(k) is not None})
     test_kwargs.update(existence_kwargs or {})
     try:
         test = test_response(data, **test_kwargs)

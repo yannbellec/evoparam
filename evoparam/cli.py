@@ -12,6 +12,7 @@ Exit codes: 0 success; 1 runtime error; 2 usage error; 3 partial success (a chan
 
 import argparse
 import json
+import logging
 import os
 import sys
 import time
@@ -54,6 +55,13 @@ def _log(args: Any, message: Any) -> None:
         args, "json", False
     ):
         print(message, file=sys.stderr)
+
+
+def _verbose_log(args: Any) -> Any:
+    """Return the ``log`` callable of ``--verbose info|debug`` (lines to stderr), else None."""
+    if getattr(args, "verbose", "warning") not in ("info", "debug"):
+        return None
+    return lambda message: _log(args, message)
 
 
 def _entities(args: Any) -> dict[str, Any]:
@@ -250,6 +258,18 @@ def _target(args: Any) -> Any:
     return args.input, args.sub, _entities(args)
 
 
+class _Forward(logging.Handler):
+    """Hand each record of the ``evoparam`` logger to a callable, as one line."""
+
+    def __init__(self, write: Any) -> None:
+        super().__init__(logging.NOTSET)
+        self.write = write
+        self.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.write(self.format(record))
+
+
 def run_fit(
     ts: Any,
     preset: Any,
@@ -267,17 +287,37 @@ def run_fit(
 
     Returns ``(results, notes)``: the list of results for :func:`write_bids_derivatives`
     (GroupFit, ResponseTest, trial fits, ArtifactResult) and the steps skipped.
+
+    ``log``: a callable that receives one line per record of the ``evoparam`` logger during
+    the run (``"LEVEL name: message"``), at the logger's level, INFO at least (the
+    progress of each step: the fits, the existence test, the trial fits); None, nothing.
     """
     from evoparam.reports import run_pipeline
 
-    result = run_pipeline(
-        ts,
-        preset,
-        random_state=random_state,
-        n_jobs=n_jobs,
-        existence=existence,
-        trial_fits=trials,
-    )
+    def run() -> Any:
+        return run_pipeline(
+            ts,
+            preset,
+            random_state=random_state,
+            n_jobs=n_jobs,
+            existence=existence,
+            trial_fits=trials,
+        )
+
+    if log is None:
+        return run().results, []
+    from evoparam.utils import verbose
+
+    logger = logging.getLogger("evoparam")
+    handler = _Forward(log)
+    logger.addHandler(handler)
+    try:
+        # INFO at least, so that the steps reach ``log``; a lower level set by the caller
+        # (DEBUG) is kept
+        with verbose("info" if logger.getEffectiveLevel() > logging.INFO else None):
+            result = run()
+    finally:
+        logger.removeHandler(handler)
     return result.results, []
 
 
@@ -293,16 +333,21 @@ def cmd_fit(args: Any, outcome: Any) -> None:
     from evoparam.data import GroupFit
     from evoparam.io import write_bids_derivatives
     from evoparam.reports import methods_text
+    from evoparam.utils import verbose
 
     preset = _preset(args)
     ts, datatype = _read(args, preset)
-    results, notes = run_fit(
-        ts,
-        preset,
-        random_state=args.random_state,
-        n_jobs=args.n_jobs,
-        existence=not args.no_existence,
-    )
+    log = _verbose_log(args)
+    # --verbose debug: the DEBUG records of the run reach the log too
+    with verbose("debug" if log is not None and args.verbose == "debug" else None):
+        results, notes = run_fit(
+            ts,
+            preset,
+            random_state=args.random_state,
+            n_jobs=args.n_jobs,
+            existence=not args.no_existence,
+            log=log,
+        )
     outcome.warnings += notes
     group = next(r for r in results if isinstance(r, GroupFit))
     _count(outcome, group)

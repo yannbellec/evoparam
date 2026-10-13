@@ -39,6 +39,7 @@ from scipy.stats import ttest_1samp
 
 from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError, SettingsError
+from evoparam.utils._parallel import parallel_map
 
 __all__ = ["projection_test", "PROFILES", "PAIRS"]
 
@@ -61,11 +62,16 @@ def _one_channel(
     v: Any,
     _times: Any,
     _t0_index: Any,
-    rng: np.random.Generator,
+    rng: np.random.Generator | None,
     profile: str = "published",
     pairs: str = "disjoint",
+    order: Any = None,
 ) -> tuple[int, float, float, dict[str, Any]]:
-    """v: trials x times (window from t0). Returns duration end index, statistic, p, extra."""
+    """v: trials x times (window from t0). Returns duration end index, statistic, p, extra.
+
+    ``order``: the permutation of the trials that forms the disjoint pairs (drawn from
+    ``rng`` when None).
+    """
     n, n_t = v.shape
     # Cumulative Gram matrices over the prefix [t0, t]
     outer = np.einsum("kt,lt->tkl", v, v)
@@ -80,7 +86,8 @@ def _one_channel(
     if pairs == "half":
         rows, cols = _half_pairs(n)
     else:
-        order = rng.permutation(n)
+        if order is None:
+            order = np.random.default_rng(rng).permutation(n)
         rows, cols = order[0 : n - 1 : 2], order[1:n:2]
     values = proj[end, rows, cols]
     stat, p = ttest_1samp(values, 0.0, alternative="greater")
@@ -101,6 +108,12 @@ def _one_channel(
     )
 
 
+def _channel_unit(unit: tuple[Any, ...]) -> tuple[int, float, float, dict[str, Any]]:
+    """Test one channel (one unit of n_jobs)."""
+    v, tw, profile, pairs, order = unit
+    return _one_channel(v, tw, 0, None, profile, pairs, order=order)
+
+
 def projection_test(
     data: Any,
     times: Any,
@@ -110,6 +123,7 @@ def projection_test(
     rng: np.random.Generator | None = None,
     profile: str = "published",
     pairs: str = "disjoint",
+    n_jobs: int | None = 1,
 ) -> dict[str, NDArray[Any]]:
     """Cross-projection test of every channel.
 
@@ -118,6 +132,8 @@ def projection_test(
     (the peak of the mean projection divided by the square root of the window length).
     ``pairs`` chooses the projections tested at the response end: ``"disjoint"`` (each
     trial in one pair, default) or ``"half"`` (one per unordered pair, as in the paper).
+    ``n_jobs``: workers, one channel per unit (the pairs are drawn before, in channel order,
+    so the result does not depend on ``n_jobs``).
 
     Returns a dict of arrays [n_channels]: statistic (one-sample t of the projections at the
     response end), p_value (one-sided), onset (window start), offset (response end tau_R),
@@ -141,9 +157,12 @@ def projection_test(
         for k in ("statistic", "p_value", "onset", "offset", "duration", "snr_db")
     }
     extra = []
-    for c in range(n_ch):
-        v = np.nan_to_num(data[:, c, win])
-        end, stat, p, info = _one_channel(v, tw, 0, rng, profile, pairs)
+    # the random pairs of every channel, drawn in channel order (independent of n_jobs)
+    orders = [None if pairs == "half" else rng.permutation(n) for _ in range(n_ch)]
+    units = [(np.nan_to_num(data[:, c, win]), tw, profile, pairs, orders[c]) for c in range(n_ch)]
+    for c, (end, stat, p, info) in enumerate(
+        parallel_map(_channel_unit, units, n_jobs, desc="test_response")
+    ):
         out["statistic"][c], out["p_value"][c] = stat, p
         out["onset"][c], out["offset"][c] = tw[0], tw[end]
         out["duration"][c] = tw[end] - tw[0]

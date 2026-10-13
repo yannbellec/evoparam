@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Find stimulation pulses in the raw signal: robust threshold, then template confirmation."""
 
+import logging
 import time as _time
 
 import numpy as np
 
 from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
 from evoparam.errors import DataError, EventError, SettingsError
+from evoparam.utils._logging import verbose
 from evoparam.utils._optional import require
 
 from . import _spec
@@ -25,6 +27,8 @@ from ._score import (
 from .saturation import detect_saturation
 from .site import identify_stim_site, vote_sites
 from .trains import group_trains
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["detect_pulses", "match_onsets", "estimate_delay", "detect_events", "EVENT_COLUMNS"]
 
@@ -184,6 +188,7 @@ def _match(stacks: Any, templates: Any) -> Any:
     return rho.max(axis=1), rho.argmax(axis=1)
 
 
+@verbose
 def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
     data: FloatArray,
     sfreq: float,
@@ -208,7 +213,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     procedure: str = "evoparam",
     return_scores: bool = False,
     site_method: str = "evidence",
-    verbose: bool | None = None,
+    verbose: bool | str | None = None,  # noqa: ARG001  (read by the @verbose decorator)
 ) -> Any:
     """Find stimulation pulses from the artifact they leave in the signal.
 
@@ -307,8 +312,10 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         accurate than the default (CHANGELOG).
     return_scores : bool, default: False
         Also return the z-score and the per-event correlation.
-    verbose : bool, optional
-        Unused; kept for a uniform signature (the logger ``evoparam`` reports progress).
+    verbose : bool, str or None
+        Level of the ``evoparam`` logger for the call (spec §9.8): None or False inherit,
+        True or ``"info"`` give one INFO record with the number of pulses found,
+        ``"debug"`` also the threshold and the score of the detection.
 
     Returns
     -------
@@ -328,6 +335,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         Unknown method or invalid setting.
     """
     pd = require("pandas", extra="data", caller="evoparam.events.detect_pulses")
+    clock = _time.perf_counter()
     if method not in METHODS:
         raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
     if not threshold_sd > 0:
@@ -577,6 +585,21 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         Provenance(source={"reader": "evoparam.events.detect_pulses"})
         .with_step("evoparam.events.detect_pulses", settings, n_events=int(len(events)))
         .to_dict()
+    )
+    if logger.isEnabledFor(logging.DEBUG):
+        finite = np.asarray(z, float)[np.isfinite(z)]
+        logger.debug(
+            "detect_pulses: largest z-score %.1f, threshold %.1f SD, %d channel(s)",
+            float(finite.max()) if finite.size else float("nan"),
+            float(threshold_sd),
+            n_channels,
+        )
+    logger.info(
+        "detect_pulses (%s): %d pulse(s) in %.1f s of signal, %.2f s",
+        method,
+        len(events),
+        n_times / sfreq,
+        _time.perf_counter() - clock,
     )
     if return_scores:
         return events, z, events["rho"].to_numpy()

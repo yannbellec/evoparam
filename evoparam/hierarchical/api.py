@@ -11,6 +11,7 @@ channels that carry each component (§5.7), then combines them:
   :mod:`evoparam.hierarchical.bayes`.
 """
 
+import logging
 import time as _time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
@@ -19,7 +20,9 @@ import numpy as np
 
 from evoparam._typing import Any
 from evoparam.data import HierarchicalFit
-from evoparam.errors import SettingsError
+from evoparam.errors import DataError, SettingsError
+from evoparam.errors import warn as _warn
+from evoparam.utils._logging import progress, verbose
 from evoparam.version import __version__
 
 from . import eb
@@ -36,6 +39,8 @@ from ._inputs import (
     trial_fits,
     wald_se,
 )
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from evoparam.data.results import GroupFit
@@ -98,6 +103,7 @@ def _preset_for(ts: Any, preset: Any) -> Any:
     raise SettingsError("Give preset= (the TrialSet has no modality).")
 
 
+@verbose
 def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.8)
     ts: Any,
     *,
@@ -116,7 +122,7 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
     subject_column: str = "subject",
     random_state: Any = None,
     n_jobs: int = 1,
-    verbose: Any = None,
+    verbose: Any = None,  # noqa: ARG001  (read by the @verbose decorator)
 ) -> "HierarchicalFit":
     """Hierarchical estimates of evoked components: trial -> channel -> subject.
 
@@ -142,7 +148,12 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
     preset : str, optional
         Fitting preset of the channel fits (default from the modality).
     n_jobs : int
-        Subjects fitted in parallel processes (``-1``: one per core).
+        Subjects fitted in parallel (``-1``: one per core): ``joblib`` processes when the
+        extra ``parallel`` is installed, else threads; the result does not depend on it.
+    verbose : bool, str or None
+        Level of the ``evoparam`` logger for the call (spec §9.8): one INFO record at the
+        end, the channel fits' records at DEBUG; ``"progress"`` adds a progress bar over
+        the components (extra ``progress``).
     group_fits : sequence of GroupFit, optional
         Channel fits already made, one per subject in the same order.
 
@@ -202,7 +213,7 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
         [],
     )
     diagnostics: dict[str, Any] = {"notes": notes, "em": {}, "reml": {}, "jitter": {}}
-    for label in labels:
+    for label in progress(labels, total=len(labels), desc="fit_hierarchical"):
         comps = [component_rows(gf, label) for gf in fits]
         pooled = [c for rows in comps for c in rows.values() if c is not None]
         if not pooled:
@@ -364,8 +375,12 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
                     part["channel"].to_numpy(),
                     X=design,
                 )
-            except Exception as err:  # numerical failure: report, keep the raw values
-                notes.append(f"component {label!r}, {p}: REML failed ({err}).")
+            except (DataError, ArithmeticError, ValueError, np.linalg.LinAlgError) as err:
+                # a numerical failure of this parameter (singular design, too few channels
+                # for the covariates): recorded and warned (REQ-307), the raw values kept
+                message = f"component {label!r}, {p}: REML failed ({type(err).__name__}: {err})."
+                notes.append(message)
+                _warn(f"fit_hierarchical: {message} The raw values are kept.", UserWarning)
                 continue
             diagnostics["reml"][f"{label}/{p}"] = {
                 "converged": bool(out["converged"]),
@@ -555,6 +570,13 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
         settings.update(
             n_chains=n_chains, n_warmup=n_warmup, n_draws=n_draws, target_accept=target_accept
         )
+    logger.info(
+        "fit_hierarchical (%s): %d subject(s), component(s) %s, %.2f s",
+        engine,
+        len(subjects),
+        ", ".join(map(str, labels)),
+        _time.perf_counter() - start,
+    )
     provenance = subjects[0][1].provenance.with_step(
         "evoparam.hierarchical.fit_hierarchical",
         dict(settings.items()),

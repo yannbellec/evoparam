@@ -273,7 +273,14 @@ def _sample_numpyro(
         flat = mcmc.get_samples()
         ll = log_likelihood(lambda: _numpyro_model(data, latency_dist), flat)
         loglik = {k: np.asarray(v).reshape(n_chains, n_draws, -1) for k, v in ll.items()}
-    except Exception:  # log-likelihood is only needed for LOO
+    except (ImportError, RuntimeError, ValueError, TypeError, ArithmeticError) as err:
+        # the log-likelihood is only needed for LOO (compare_hierarchical): the fit is
+        # returned without it, with a warning that names the error (REQ-307)
+        _warn(
+            f"fit_hierarchical (numpyro): the pointwise log-likelihood could not be computed "
+            f"({type(err).__name__}: {err}); LOO is not available for this fit.",
+            UserWarning,
+        )
         loglik = None
     return samples, diverging, loglik
 

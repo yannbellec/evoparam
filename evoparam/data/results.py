@@ -16,7 +16,7 @@ import numpy as np
 from evoparam._typing import Any, NDArray
 from evoparam.data._compare import DeepEqualMixin
 from evoparam.data.provenance import Provenance
-from evoparam.errors import DataError
+from evoparam.errors import DataError, SettingsError
 
 if TYPE_CHECKING:  # annotations only (containers imports this module)
     from evoparam.data.containers import TrialSet
@@ -535,7 +535,15 @@ class GroupFit(_ResultMixin):
         """``mne.Annotations`` of the components, for display on MNE plots.
 
         One per component, onset to offset, description ``"<label>|<channel>"`` (extra ``mne``).
+        ``what`` names what is annotated: ``"components"``, the only kind the specification
+        defines (§10.1: annotations exist so that components can be displayed on MNE
+        plots); another value raises :class:`~evoparam.errors.SettingsError`.
         """
+        if what != "components":
+            raise SettingsError(
+                f"GroupFit.to_annotations: what must be 'components' (one annotation per "
+                f"component), not {what!r}."
+            )
         import mne
 
         onsets, durations, descriptions, channels = [], [], [], []

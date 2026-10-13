@@ -5,6 +5,7 @@ import dataclasses
 import inspect
 import logging
 import time as _time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, cast
 
@@ -27,6 +28,7 @@ from evoparam.errors import DataError, FitError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features
 from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, validate_array
+from evoparam.utils._logging import progress, verbose
 from evoparam.version import __version__
 
 from . import engine as _engine
@@ -1061,9 +1063,18 @@ class ResponseModel(BaseEstimatorMixin):
         jobs = self.n_jobs if n_jobs is None else n_jobs
         if jobs and jobs != 1:
             with ThreadPoolExecutor(max_workers=None if jobs < 0 else jobs) as pool:
-                fits = list(pool.map(one, index))
+                fits = list(progress(pool.map(one, index), total=len(index), desc="fit"))
         else:
-            fits = [one(ch) for ch in index]
+            fits = [one(ch) for ch in progress(index, total=len(index), desc="fit")]
+        logger.info(
+            "fit of %d channel(s)%s: %s, %.2f s",
+            len(fits),
+            f" ({condition})" if condition else "",
+            ", ".join(
+                f"{n} {status}" for status, n in sorted(Counter(f.status for f in fits).items())
+            ),
+            _time.perf_counter() - start,
+        )
         resolved = self.settings(fit_window=window, baseline=baseline, random_state=seed)
         settings = _settings_dict(resolved, self._explicit(fit_window=window, baseline=baseline))
         # the noise reference the fits used (the plus-minus average needs the trials)
@@ -1265,6 +1276,7 @@ def _from_mne(data: Any) -> Any:
     raise DataError(f"fit: cannot use an MNE {type(data).__name__}; epoch it first.")
 
 
+@verbose
 def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec ยง5.5.8)
     data: Any,
     preset: Any = None,
@@ -1280,7 +1292,7 @@ def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec ย
     existence: bool = False,
     n_jobs: int = 1,
     random_state: Any = None,
-    verbose: Any = None,
+    verbose: Any = None,  # noqa: ARG001  (read by the @verbose decorator)
     **overrides: Any,
 ) -> "GroupFit":
     """Fit evoked responses with a preset: the one-call entry point.
@@ -1293,6 +1305,11 @@ def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec ย
 
     ``trials=True`` (trial-by-trial fits, build step S10) and ``existence=True`` (the
     existence test, build step S8) are not available yet and raise SettingsError.
+
+    ``verbose`` sets the level of the ``evoparam`` logger for the call (spec ยง9.8): None or
+    False inherit, True or ``"info"`` give one INFO record per fitted group, ``"debug"`` one
+    DEBUG record per channel, ``"progress"`` adds a progress bar over the channels (extra
+    ``progress``).
     """
     if trials:
         raise SettingsError("trials=True needs the trial-by-trial models (build step S10).")

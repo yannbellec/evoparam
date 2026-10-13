@@ -25,7 +25,7 @@ from scipy.linalg.lapack import dtrtrs as _dtrtrs
 from scipy.optimize import least_squares
 
 from evoparam._typing import Any, FloatArray, NDArray
-from evoparam.errors import SettingsError
+from evoparam.errors import DataError, SettingsError
 from evoparam.models import _columns
 from evoparam.models._trf import least_squares_trf
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features, get_background, get_shape
@@ -49,6 +49,22 @@ _OPTIMISER = "trf"
 
 # Qualifying candidates compared before one is accepted at each step.
 CANDIDATE_BEAM = 3
+
+# What a shape's initial_guess raises when it cannot start at a candidate extremum (bounds
+# that do not fit the window, an extremum at the edge, a non-finite width): that shape is
+# not tried there, with a DEBUG record (REQ-307: never without a trace). Any other
+# exception is a programming error and propagates (to the channel's status "failed").
+GUESS_ERRORS = (SettingsError, DataError, ValueError, ArithmeticError, IndexError)
+
+
+def _guess_failed(shape: Any, tw: Any, peaks: Any, err: BaseException) -> None:
+    logger.debug(
+        "shape %s cannot start at %s s (%s: %s); not tried there.",
+        getattr(shape, "name", type(shape).__name__),
+        ", ".join(f"{float(tw[int(p)]):.4f}" for p in peaks if 0 <= int(p) < len(tw)),
+        type(err).__name__,
+        err,
+    )
 
 
 ###################################################################################################
@@ -1257,9 +1273,13 @@ def _fit_waveform_core(
         n_white = n_eff
     out.update(n_eff=n_eff, n_white=n_white, ar_order=len(a_coefs) - 1)
     kind = "aicc" if settings.selection == "aicc" else "bic"
-    bg_fields = {
-        f.name for f in dataclasses.fields(cast(Any, type(get_background(settings.background))))
-    }
+    bg_class = type(get_background(settings.background))
+    # the settings a background takes (a plugin background need not be a dataclass)
+    bg_fields: set[str] = (
+        {f.name for f in dataclasses.fields(cast(Any, bg_class))}
+        if dataclasses.is_dataclass(bg_class)
+        else set()
+    )
     bg_kwargs = {}
     if settings.background_tau_max is not None and "tau_max" in bg_fields:
         # Recovery tails decay within tens of ms; a slower "tail" would only imitate an
@@ -1349,7 +1369,8 @@ def _fit_waveform_core(
                 try:
                     guess: Any
                     guess = shape.initial_guess(tw, smooth, peak)
-                except Exception:  # a shape that cannot start here
+                except GUESS_ERRORS as err:  # a shape that cannot start here
+                    _guess_failed(shape, tw, (peak,), err)
                     continue
                 theta0 = np.r_[
                     current.theta[: make(current.shapes).offsets[-1]],
@@ -1553,7 +1574,8 @@ def _spec_step(
             shape = _shape(name, settings)
             try:
                 guess = shape.initial_guess(tw, smooth, peak)
-            except Exception:  # a shape that cannot start here
+            except GUESS_ERRORS as err:  # a shape that cannot start here
+                _guess_failed(shape, tw, (peak,), err)
                 continue
             for start in _spec_starts(shape, guess, settings.n_starts, tw):
                 state, _ = _evaluate_state(
@@ -1690,7 +1712,8 @@ def _reseed(
             shape = _shape(name, settings)
             try:
                 guesses = [shape.initial_guess(tw, smooth, p) for p in chosen]
-            except Exception:  # a shape that cannot start at one of the extrema
+            except GUESS_ERRORS as err:  # a shape that cannot start at one of the extrema
+                _guess_failed(shape, tw, chosen, err)
                 continue
             theta0 = np.concatenate(guesses + [bg])
             cand, _ = _evaluate_state(

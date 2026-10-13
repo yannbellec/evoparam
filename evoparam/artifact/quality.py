@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from evoparam._typing import Any, ArrayLike, BoolArray, FloatArray
+from evoparam.errors import SettingsError
 from evoparam.utils._optional import require
 
 from ._common import check_trialset, window_slice
@@ -18,6 +19,22 @@ __all__ = ["artifact_quality"]
 # Windows of the penalties, in seconds after the end of the artifact window.
 RESIDUAL_WINDOW = 0.010
 SATURATION_WINDOW = 0.020
+
+
+def _template_r2(cleaned: FloatArray, template: ArrayLike) -> FloatArray:
+    """Return the r2 of the template fit of each trial from the cleaned window and the template."""
+    try:
+        fitted = np.broadcast_to(np.asarray(template, dtype=float), cleaned.shape)
+    except ValueError as err:
+        raise SettingsError(
+            f"artifact_quality: template must broadcast to the window of the trials "
+            f"{cleaned.shape} (trials, channels, samples), got {np.shape(template)}."
+        ) from err
+    raw = cleaned + fitted
+    total = np.nansum((raw - np.nanmean(raw, axis=-1, keepdims=True)) ** 2, axis=(1, 2))
+    residual = np.nansum(cleaned**2, axis=(1, 2))
+    r2: FloatArray = 1 - np.divide(residual, total, out=np.zeros(len(total)), where=total > 0)
+    return np.clip(r2, 0.0, 1.0)
 
 
 def artifact_quality(
@@ -51,7 +68,14 @@ def artifact_quality(
     baseline : (float, float)
         Baseline window, in seconds.
     template : array, optional
-        Unused except to mark that a template was used when ``fit_r2`` is None.
+        The artifact estimate that was subtracted on the window ``[a, b]``: shape
+        ``(n_trials, n_channels, n_window)``, or one that broadcasts to it
+        (``(n_channels, n_window)`` or ``(n_window,)``, the ``template`` of
+        :func:`~evoparam.artifact.remove_artifact` with ``scale=False``; with ``scale=True``
+        pass the scaled template of each trial). When ``fit_r2`` is None, the r2 of the
+        template fit is computed from it, as ``remove_artifact`` does:
+        ``r2 = 1 - sum(x_clean**2) / sum((x_raw - mean(x_raw))**2)`` over the window, with
+        ``x_raw = x_clean + template``, clipped to [0, 1]. Ignored when ``fit_r2`` is given.
     saturation : bool array like ``ts.data``, optional
         Saturated samples (default: ``ts.masks``).
     fit_r2 : 1d array, optional
@@ -101,7 +125,12 @@ def artifact_quality(
         np.zeros(ts.n_trials) if sat is None else np.asarray(sat)[:, :, sat_inds].mean(axis=(1, 2))
     )
 
-    r2 = np.full(ts.n_trials, np.nan) if fit_r2 is None else np.asarray(fit_r2, dtype=float)
+    if fit_r2 is not None:
+        r2 = np.asarray(fit_r2, dtype=float)
+    elif template is not None:
+        r2 = _template_r2(data[:, :, win], template)
+    else:
+        r2 = np.full(ts.n_trials, np.nan)
     p4 = np.where(np.isnan(r2), 0.0, 1.0 - np.clip(r2, 0, 1))
 
     quality = 1.0 - np.clip(np.mean([p1, p2, p3, p4], axis=0), 0.0, 1.0)

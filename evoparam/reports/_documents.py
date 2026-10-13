@@ -10,7 +10,8 @@ from collections import Counter
 import numpy as np
 
 from evoparam._typing import Any
-from evoparam.data import GroupFit, ResponseFit, ResponseTest, TFFit
+from evoparam.data import Evoked, GroupFit, ResponseFit, ResponseTest, TFFit, TrialSet
+from evoparam.errors import SettingsError
 from evoparam.version import __version__
 
 from ._text import methods_text
@@ -160,7 +161,13 @@ def _png(fig: Any) -> str:
 
 
 def markdown(result: Any, *, data: Any = None) -> Any:
-    """Markdown report: methods text, summary table, quality summary, provenance steps."""
+    """Markdown report: methods text, summary table, quality summary, provenance steps.
+
+    ``data``: the TrialSet (or Evoked) the result was computed from, optional. The quality
+    summary then also gives the masked fraction of its samples (:func:`qc` with
+    ``trials``), as a reviewer asks for (spec §5.13). Markdown has no figures, so nothing
+    else uses it; another type raises :class:`~evoparam.errors.SettingsError`.
+    """
     lines = [
         f"# evoparam report ({type(result).__name__})",
         "",
@@ -180,7 +187,12 @@ def markdown(result: Any, *, data: Any = None) -> Any:
         "## Quality",
         "",
     ]
-    quality = qc(result)
+    if data is not None and not isinstance(data, (TrialSet, Evoked)):
+        raise SettingsError(
+            "markdown: data must be the TrialSet or Evoked of the result, not a "
+            f"{type(data).__name__}."
+        )
+    quality = qc(result, trials=data)
     lines += [
         quality.to_markdown(index=False) if _have_tabulate() else quality.to_string(),
         "",

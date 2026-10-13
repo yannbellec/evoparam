@@ -9,6 +9,7 @@ the part produced by the fitted evoked components (``evoked_footprint``), the re
 (``residual``) and their cross term, exactly.
 """
 
+import logging
 import time as _time
 import warnings
 from collections.abc import Sequence
@@ -21,6 +22,7 @@ from evoparam.data import TFFit, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.models import evaluate_fit
+from evoparam.utils._logging import progress, verbose
 from evoparam.version import __version__
 
 from .normalize import BASELINE_LEVELS, BASELINE_MODES, apply_mode, normalize, reference_level
@@ -48,6 +50,8 @@ from .zones import (
 
 if TYPE_CHECKING:
     from evoparam.data.results import GroupFit
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["tf_fit", "tf_zones", "tf_compare", "list_published_zones", "methods_text"]
 
@@ -279,6 +283,7 @@ def _region_values(
     )
 
 
+@verbose
 def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.10)
     ts: "TrialSet",
     *,
@@ -307,7 +312,7 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
     by: Sequence[str] = ("stim_site",),
     n_jobs: int = 1,  # noqa: ARG001  (documented: accepted for the common signature, runs in one process)
     random_state: Any = None,
-    verbose: Any = None,
+    verbose: Any = None,  # noqa: ARG001  (read by the @verbose decorator)
 ) -> "TFFit":
     """Time-frequency maps, pixel statistics and zones of a TrialSet.
 
@@ -356,9 +361,12 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
         Zone metric per trial as well (rows with ``trial >= 0``).
     by : sequence of str
         Metadata columns that split the trials into conditions.
-    n_jobs, verbose
+    n_jobs
         Accepted for the common signature of the package; the computation runs in one
         process (100 channels x 50 trials x 2 048 samples x 40 frequencies take under 60 s).
+    verbose : bool, str or None
+        Level of the ``evoparam`` logger for the call (spec §9.8): one INFO record at the
+        end; ``"progress"`` adds a progress bar over the conditions (extra ``progress``).
 
     Returns
     -------
@@ -479,7 +487,7 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
     stash: list[Any] = []  # published zone: each row's values inside the zone
 
     r = -1
-    for label in groups:
+    for label in progress(groups, total=len(groups), desc="tf_fit"):
         trial_idx = np.flatnonzero(labels == label)
         for ch in picks:
             r += 1
@@ -703,6 +711,12 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
             if k not in ("rows", "freqs", "row_p_value", "row_alpha")
         },
         duration_s=_time.perf_counter() - start_clock,
+    )
+    logger.info(
+        "tf_fit: %d row(s) (channel x condition), %d zone(s), %.2f s",
+        n_rows,
+        len(result.zones),
+        _time.perf_counter() - start_clock,
     )
     return result
 

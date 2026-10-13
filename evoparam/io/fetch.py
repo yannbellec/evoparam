@@ -7,7 +7,7 @@ from typing import cast
 
 from evoparam._typing import Any
 from evoparam.errors import ReaderError
-from evoparam.io._fetch import RemoteFile, download, sha256_file
+from evoparam.io._fetch import RemoteFile, data_folder, download, sha256_file
 
 __all__ = [
     "OPENNEURO_URL",
@@ -63,7 +63,11 @@ def _registry_sha256(dataset: Any, path: Any) -> Any:
 
 
 def fetch_openneuro_file(
-    dataset: str, path: str, folder: str = "data", *, sha256: str | None = None
+    dataset: str,
+    path: str,
+    folder: "str | os.PathLike[str] | None" = "data",
+    *,
+    sha256: str | None = None,
 ) -> str:
     """Download one file of an OpenNeuro dataset, if not already present.
 
@@ -73,8 +77,9 @@ def fetch_openneuro_file(
         Dataset identifier, for example 'ds004080'.
     path : str
         Path of the file inside the dataset.
-    folder : str, optional, default: 'data'
-        Local folder; the dataset structure is kept below it.
+    folder : str, path or None, default: 'data'
+        Local folder; the dataset structure is kept below it. None: the evoparam data
+        folder (``$EVOPARAM_DATA``, else ``~/.cache/evoparam``), as the other fetchers.
     sha256 : str, optional
         Expected SHA-256 of the file. When not given, the value recorded in the
         dataset registry for this file is used, if there is one. A file that does
@@ -91,6 +96,8 @@ def fetch_openneuro_file(
         If the download fails, if ``EVOPARAM_OFFLINE=1`` and the file is not present,
         or if the file does not match the expected SHA-256.
     """
+    if folder is None:
+        folder = data_folder()
     local_path = os.path.join(folder, dataset, *path.lstrip("/").split("/"))
     expected = sha256 or _registry_sha256(dataset, path)
 

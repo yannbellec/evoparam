@@ -6,6 +6,7 @@ channels; under the null hypothesis (no evoked response, baseline subtracted) ev
 as likely with either sign.
 """
 
+import logging
 import warnings
 
 import numpy as np
@@ -14,6 +15,9 @@ from scipy.stats import t as student_t
 from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import DataError
 from evoparam.errors import warn as _warn
+from evoparam.utils._parallel import n_workers, parallel_map
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "sign_flips",
@@ -46,6 +50,8 @@ def tail_p_value(null: Any, observed: Any) -> float:
     When fewer than 10 null values reach the observed one, a generalised Pareto
     distribution is fitted to the exceedances of the null over its 90th percentile and
     gives the tail probability; otherwise the usual ``(1 + count) / (1 + n)`` is returned.
+    When the Pareto fit fails, the usual value is returned and a DEBUG record of the
+    ``evoparam.existence.permutation`` logger names the error.
     """
     from scipy.stats import genpareto
 
@@ -60,7 +66,16 @@ def tail_p_value(null: Any, observed: Any) -> float:
         return plain
     try:
         shape, _, scale = genpareto.fit(excess, floc=0.0)
-    except Exception:  # the fit did not converge: keep the plain estimate
+    except (RuntimeError, ValueError, ArithmeticError) as err:
+        # the fit did not converge (scipy's FitError is a RuntimeError): the plain
+        # estimate is kept, and the failure is logged (REQ-307: never without a trace)
+        logger.debug(
+            "tail_p_value: the generalised Pareto fit failed (%s: %s); the plain "
+            "permutation p-value %.4g is kept.",
+            type(err).__name__,
+            err,
+            plain,
+        )
         return plain
     tail = np.mean(null > u) * genpareto.sf(observed - u, shape, loc=0.0, scale=scale)
     return float(np.clip(tail, 1e-300, plain))
@@ -139,6 +154,19 @@ def _extent(
     return onset, offset
 
 
+def _channel_block(block: tuple[Any, ...]) -> tuple[FloatArray, FloatArray, FloatArray]:
+    """p-values and bootstrap onsets and offsets of a block of channels (one unit of n_jobs)."""
+    x, usable, null, observed, critical, picks, statistic, threshold, polarity, tw, n = block
+    p = np.array([tail_p_value(null[:, c], observed[c]) for c in range(len(observed))])
+    onsets = np.full((len(picks), len(observed)), np.nan)
+    offsets = np.full((len(picks), len(observed)), np.nan)
+    for b, pick in enumerate(picks):
+        xb = x[pick]
+        tb = _t_series(xb.sum(axis=0), (xb**2).sum(axis=0), n) * usable
+        onsets[b], offsets[b] = _extent(tb, critical, statistic, threshold, polarity, tw)
+    return p, onsets, offsets
+
+
 def permutation_test(
     data: FloatArray,
     times: FloatArray,
@@ -153,6 +181,7 @@ def permutation_test(
     rng: np.random.Generator | None = None,
     n_boot: int = 200,
     masks: Any = None,
+    n_jobs: int | None = 1,
 ) -> dict[str, Any]:
     """Sign-flip permutation test of every channel.
 
@@ -167,6 +196,9 @@ def permutation_test(
         time). ``cluster``: the largest cluster mass of |t| beyond ``cluster_threshold``
         (default the two-sided 97.5 % quantile of Student's t with n - 1 dof): more
         powerful for sustained responses.
+    n_jobs : int
+        Workers for the p-values and the bootstrap, per block of channels (the random
+        numbers are drawn before, so the result does not depend on ``n_jobs``).
 
     Returns
     -------
@@ -205,18 +237,33 @@ def permutation_test(
         sums = (chunk @ flat).reshape(len(chunk), n_ch, -1)
         t_null = _t_series(sums, sum_x2[None], n) * usable[None]
         null[start : start + len(chunk)] = _summary(t_null, statistic, threshold, polarity)
-    p = np.array([tail_p_value(null[:, c], observed[c]) for c in range(n_ch)])
     critical = np.quantile(null, 1 - alpha, axis=0)
     onset, offset = _extent(t_obs, critical, statistic, threshold, polarity, times[win])
 
     # Duration interval: bootstrap over trials with the same critical value (the same
-    # resamples give the intervals of the onset and the offset, REQ-006)
+    # resamples give the intervals of the onset and the offset, REQ-006). The resamples
+    # are drawn here, in the order of the serial loop, so that the result does not depend
+    # on n_jobs; the p-values and the bootstrap run per block of channels.
+    picks = [rng.integers(0, n, n) for _ in range(n_boot)]
+    common = (picks, statistic, threshold, polarity, times[win], n)
+    workers = n_workers(n_jobs, n_ch)
+    columns: list[Any]
+    if workers == 1:
+        blocks = [(x, usable, null, observed, critical, *common)]
+        columns = [slice(None)]
+    else:
+        columns = list(np.array_split(np.arange(n_ch), workers))
+        blocks = [
+            (x[:, c], usable[c], null[:, c], observed[c], critical[c], *common) for c in columns
+        ]
+    p = np.empty(n_ch)
     onsets, offsets = np.full((n_boot, n_ch), np.nan), np.full((n_boot, n_ch), np.nan)
-    for b in range(n_boot):
-        pick = rng.integers(0, n, n)
-        xb = x[pick]
-        tb = _t_series(xb.sum(axis=0), (xb**2).sum(axis=0), n) * usable
-        onsets[b], offsets[b] = _extent(tb, critical, statistic, threshold, polarity, times[win])
+    for c, (p_c, on_c, off_c) in zip(
+        columns,
+        parallel_map(_channel_block, blocks, workers, desc="test_response"),
+        strict=True,
+    ):
+        p[c], onsets[:, c], offsets[:, c] = p_c, on_c, off_c
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
 
@@ -271,7 +318,13 @@ def null_band(level: Any, polarity: Any, n_times: int) -> NDArray[Any]:
     return np.repeat(band, n_times, axis=1)
 
 
-def shuffle_test(
+def _p_values(block: tuple[FloatArray, FloatArray]) -> FloatArray:
+    """p-values of a block of observed values against one null (one unit of n_jobs)."""
+    null, observed = block
+    return np.array([tail_p_value(null, value) for value in observed], dtype=float)
+
+
+def shuffle_test(  # noqa: PLR0913  (signature shared by the existence tests, with n_jobs)
     avg: Any,
     times: Any,
     window: Any,
@@ -281,11 +334,13 @@ def shuffle_test(
     polarity: str = "both",
     alpha: float = 0.05,
     rng: np.random.Generator | None = None,
+    n_jobs: int | None = 1,
 ) -> dict[str, Any]:
     """Test for an average without trials.
 
     The largest |z| of the window against windows of the same length drawn from the baselines of
-    every channel (a weaker null).
+    every channel (a weaker null). ``n_jobs``: workers for the p-values, per block of
+    channels.
     """
     rng = np.random.default_rng(rng)
     _warn(
@@ -327,7 +382,9 @@ def shuffle_test(
         start = rng.integers(0, zb.shape[1])
         idx = (start + np.arange(n_win)) % zb.shape[1]
         null[i] = stat(zb[ch, idx][None])[0]
-    p = np.array([tail_p_value(null, value) for value in observed])
+    workers = n_workers(n_jobs, len(observed))
+    blocks = [(null, part) for part in np.array_split(observed, workers)]
+    p = np.concatenate(parallel_map(_p_values, blocks, workers, desc="test_response"))
     critical = np.quantile(null, 1 - alpha)
     onset, offset = np.full(len(z), np.nan), np.full(len(z), np.nan)
     for c in range(len(z)):

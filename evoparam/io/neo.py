@@ -55,9 +55,10 @@ def read_neo(
         index as text).
     signal : int or str
         AnalogSignal of each segment, by index or name.
-    events : str, optional
+    events : str, False or None
         Name of the ``Event`` whose times are the onsets (labels become ``condition``);
-        default the first Event, else the starts of the first ``Epoch``.
+        None (default): the first Event, else the starts of the first ``Epoch``; False:
+        the Events are not used, the onsets are the starts of the first ``Epoch``.
     tmin, tmax : float
         Epoch window (s).
 
