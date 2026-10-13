@@ -19,6 +19,38 @@ from evoparam.tests.sim._helpers import SMALL
 
 pd = pytest.importorskip("pandas")
 
+# Seed recorded in the provenance.
+SEED = 7
+# Relative tolerance of the noise SD, and the tolerances of the shape features (s).
+SD_TOLERANCE = 0.05
+LATENCY_TOLERANCE = 1e-6
+FWHM_TOLERANCE = 1e-5
+# Latency range (s) and amplitude range of the component spec, and the explicit amplitude.
+LATENCY_MIN = 0.1
+LATENCY_MAX = 0.2
+AMPLITUDE_MIN = -3.0
+EXPLICIT_AMPLITUDE = 2.0
+# P1 components (one per channel) and their latency range (s).
+N_P1 = 4
+P1_MIN = 0.08
+P1_MAX = 0.13
+# Jitter checks: SD and mean tolerances (s), ex-Gaussian mean tolerance and skewness.
+JITTER_SD_TOLERANCE = 0.003
+JITTER_MEAN_TOLERANCE = 0.004
+EXGAUSS_MEAN_TOLERANCE = 0.006
+MIN_SKEW = 0.5
+# Range (s) of the stimulus onset asynchrony.
+SOA_MIN = 0.3
+SOA_MAX = 0.5
+# Responders among 20 contacts (two are stimulated), and the stimulated contacts.
+N_RESPONDERS = 18
+N_STIM_CONTACTS = 2
+# Period (s) of the train at 0.5 Hz, the ERNA frequency range (Hz), and its pulses.
+TRAIN_PERIOD = 2.0
+ERNA_FMIN = 200.0
+ERNA_FMAX = 450.0
+N_ERNA_PULSES = 5
+
 MODALITIES = {
     "erp": "erp",
     "ccep": "spes",
@@ -59,7 +91,7 @@ def test_containers_and_provenance(name: Any) -> None:
     step = ts.provenance.steps[-1]
     assert step["function"] == truth.generator
     json.loads(dumps(step["settings"]))  # settings are strict JSON
-    assert step["settings"]["seed"] == 7
+    assert step["settings"]["seed"] == SEED
     for key, value in SMALL[name].items():
         assert truth.settings[key] == value
     assert np.isfinite(ts.data).all()
@@ -88,7 +120,7 @@ def test_noise_level_is_noise_sd(name: Any) -> None:
     noise = ts.data - truth.signal
     if truth.artifact_data is not None:
         noise = noise - truth.artifact_data
-    assert abs(noise.std() / 4.0 - 1) < 0.05
+    assert abs(noise.std() / 4.0 - 1) < SD_TOLERANCE
     assert np.allclose(truth.noise["baseline_sd"], 4.0, rtol=0.15)
     assert all(comp["snr"] is None for comp in truth.components)
 
@@ -116,8 +148,8 @@ def test_shape_params_reach_latency_and_fwhm(shape: Any) -> None:
     params = sim.shape_params(shape, 0.2, 0.04)
     times = np.arange(-0.5, 1.5, 0.001)
     feats = compute_features(get_shape(shape), times, params, 1.0, sfreq=1000.0).to_dict()
-    assert abs(feats["latency"] - 0.2) < 1e-6
-    assert abs(feats["fwhm"] - 0.04) < 1e-5
+    assert abs(feats["latency"] - 0.2) < LATENCY_TOLERANCE
+    assert abs(feats["fwhm"] - 0.04) < FWHM_TOLERANCE
 
 
 def test_shape_params_errors() -> None:
@@ -135,8 +167,8 @@ def test_component_spec() -> None:
         feats = compute_features(
             get_shape("gaussian"), np.arange(0, 0.5, 0.001), params, amplitude, sfreq=1000.0
         ).to_dict()
-        assert 0.1 <= feats["latency"] <= 0.2
-        assert -3.0 <= amplitude <= -1.0
+        assert LATENCY_MIN <= feats["latency"] <= LATENCY_MAX
+        assert AMPLITUDE_MIN <= amplitude <= -1.0
     json.dumps(spec.to_dict())
     with pytest.raises(SettingsError):
         sim.ComponentSpec("")
@@ -149,7 +181,7 @@ def test_component_spec() -> None:
     explicit = sim.ComponentSpec("X", shape="gaussian", params=(0.1, 0.01), amplitude=2.0)
     params, amplitude = explicit.resolve(rng)
     assert list(params) == [0.1, 0.01]
-    assert amplitude == 2.0
+    assert amplitude == EXPLICIT_AMPLITUDE
     with pytest.raises(SettingsError):
         sim.ComponentSpec("X", shape="gaussian", params=(0.1,)).resolve(rng)
 
@@ -192,8 +224,8 @@ def test_erp_components_and_overrides() -> None:
         assert np.isclose(comp["features"]["latency"], 0.35)
         assert np.isclose(comp["features"]["fwhm"], 0.2, rtol=1e-4)
     p1 = [c for c in truth.components if c["label"] == "P1"]
-    assert len(p1) == 4
-    assert all(0.08 <= c["features"]["latency"] <= 0.13 for c in p1)
+    assert len(p1) == N_P1
+    assert all(P1_MIN <= c["features"]["latency"] <= P1_MAX for c in p1)
     ts, truth = sim.simulate_erp(seed=1, n_trials=3, n_channels=2, ch_names=["a", "b"])
     assert ts.ch_names == ["a", "b"]
     with pytest.raises(SettingsError):
@@ -215,8 +247,8 @@ def test_erp_jitter_distributions() -> None:
         seed=2, n_trials=400, components=["P3"], jitter_sd=0.02, noise="none", snr=None
     )
     shift = normal.shift[:, 0]
-    assert abs(shift.std() - 0.02) < 0.003
-    assert abs(shift.mean()) < 0.004
+    assert abs(shift.std() - 0.02) < JITTER_SD_TOLERANCE
+    assert abs(shift.mean()) < JITTER_MEAN_TOLERANCE
     _, exg = sim.simulate_erp(
         seed=2,
         n_trials=400,
@@ -228,9 +260,9 @@ def test_erp_jitter_distributions() -> None:
         snr=None,
     )
     shift = exg.shift[:, 0]
-    assert abs(shift.mean() - 0.03) < 0.006
+    assert abs(shift.mean() - 0.03) < EXGAUSS_MEAN_TOLERANCE
     skew = np.mean((shift - shift.mean()) ** 3) / shift.std() ** 3
-    assert skew > 0.5
+    assert skew > MIN_SKEW
     with pytest.raises(SettingsError):
         sim.simulate_erp(seed=2, n_trials=4, jitter="uniform", jitter_sd=0.01)
 
@@ -249,7 +281,7 @@ def test_erp_overlap() -> None:
         seed=4, n_trials=10, components=["P3"], overlap={"soa": (0.3, 0.5), "scale": 0.5}, snr=None
     )
     soa_prev = ts.metadata["soa_previous"].to_numpy()
-    assert np.all((soa_prev >= 0.3) & (soa_prev <= 0.5))
+    assert np.all((soa_prev >= SOA_MIN) & (soa_prev <= SOA_MAX))
     roles = {(c["role"], c["event"]) for c in truth.components}
     assert roles == {("target", 0), ("overlap", -1), ("overlap", 1)}
     main, previous = truth.components[0], truth.components[1]
@@ -270,7 +302,7 @@ def test_ccep_design() -> None:
     stim = truth.artifact["stim_contacts"]
     responders = truth.settings["responders"]
     assert not set(stim) & set(responders)
-    assert len(responders) == 18
+    assert len(responders) == N_RESPONDERS
     labels = {c["label"] for c in truth.components}
     assert labels in ({"N1", "N2", "delayed"}, {"N1", "delayed"})
     for comp in truth.components:
@@ -280,7 +312,7 @@ def test_ccep_design() -> None:
             assert comp["amplitude"] < 0
     assert ts.metadata["stim_site"].iloc[0] == "-".join(stim)
     assert np.isclose(ts.metadata["stim_charge_uC"].iloc[0], 4.0 * 200 * 1e-3)
-    assert ts.ch_info["stim_contact"].sum() == 2
+    assert ts.ch_info["stim_contact"].sum() == N_STIM_CONTACTS
     _, none = sim.simulate_ccep(seed=9, n_trials=2, n_channels=8, p_response=0.0, tmax=0.2)
     assert none.n_components == 0
     _, positive = sim.simulate_ccep(
@@ -335,7 +367,7 @@ def test_ccep_trains() -> None:
     assert list(meta["train_id"][[0, 9, 10]]) == [0, 0, 1]
     assert np.isclose(meta["stim_frequency_hz"].iloc[0], 0.5)
     np.testing.assert_allclose(np.diff(ts.event_times[:10]), 2.0)
-    assert ts.event_times[10] - ts.event_times[9] > 2.0
+    assert ts.event_times[10] - ts.event_times[9] > TRAIN_PERIOD
     index = 0
     expected = 1.0 - 0.03 * np.tile(np.arange(10), 2)
     np.testing.assert_allclose(truth.scale[:, index], expected)
@@ -348,18 +380,20 @@ def test_ccep_trains() -> None:
 
 
 def test_erna_pulses() -> None:
-    ts, truth = sim.simulate_erna(n_pulses=5, n_trials=2, seed=0, noise="none", artifact=False)
+    ts, truth = sim.simulate_erna(
+        n_pulses=N_ERNA_PULSES, n_trials=2, seed=0, noise="none", artifact=False
+    )
     assert ts.modality == "erna"
     events = sorted({c["event"] for c in truth.components})
     assert events == list(range(5))
     freq = {c["params"][2] for c in truth.components}
     assert len(freq) == 1
-    assert 200.0 <= freq.pop() <= 450.0
+    assert ERNA_FMIN <= freq.pop() <= ERNA_FMAX
     first = [c for c in truth.components if c["channel"] == ts.ch_names[1]]
     amplitudes = [abs(c["amplitude"]) for c in sorted(first, key=lambda c: c["event"])]
     assert all(np.diff(amplitudes) > 0)  # build-up over the train
     assert truth.components[0]["shape"] == "damped_oscillation"
-    assert ts.metadata["stim_n_pulses"].iloc[0] == 5
+    assert ts.metadata["stim_n_pulses"].iloc[0] == N_ERNA_PULSES
     with pytest.raises(SettingsError, match="4096"):
         sim.simulate_erna(n_pulses=2, sfreq=2048.0)
     with pytest.raises(SettingsError):

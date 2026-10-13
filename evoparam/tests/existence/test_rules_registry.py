@@ -13,6 +13,12 @@ from evoparam.existence import test_response as run_test
 
 from .helpers import SFREQ, TIMES
 
+# Settings of the vanblooijs2023_code reading: SD floor and saturation (uV), and the end
+# (s) of the peak search.
+SD_FLOOR_UV = 50.0
+SATURATION_UV = 3000.0
+PEAK_SEARCH_END = 0.5
+
 ###################################################################################################
 ###################################################################################################
 
@@ -114,11 +120,11 @@ def test_vanblooijs2023_default_is_the_registry_row() -> None:
     assert (paper["k"], paper["window"], paper["polarity"]) == (3.4, (0.009, 0.1), "negative")
     code = resolve_rule("vanblooijs2023_code")
     assert code["baseline"] == (-2.0, -0.1)
-    assert code["sd_floor_uv"] == 50.0
+    assert code["sd_floor_uv"] == SD_FLOOR_UV
     assert code["peak"] == "local"
     assert code["exclude_first_sample"]
-    assert code["saturation_uv"] == 3000.0
-    assert code["peak_search_end"] == 0.5
+    assert code["saturation_uv"] == SATURATION_UV
+    assert code["peak_search_end"] == PEAK_SEARCH_END
 
 
 def test_vanblooijs2023_published_code_reading() -> None:

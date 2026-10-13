@@ -12,6 +12,19 @@ from evoparam.tests.sim._helpers import SMALL, fits_from_truth
 
 pd = pytest.importorskip("pandas")
 
+# Errors of fits read from the truth (exact).
+EXACT = 1e-12
+# Matched pairs, silent channels, false components added, and their rate per silent channel.
+N_MATCHED = 2
+MIN_SILENT = 2
+N_FALSE = 2
+FALSE_RATE = 2.0
+# Recall with one of four components missed, and of the P3 alone.
+RECALL = 0.75
+P3_RECALL = 0.5
+# Trials matched when the trial labels are right.
+N_TRIALS = 4
+
 
 def _truth_table(
     latencies: Any, fwhm: Any = 0.02, channel: Any = "c", amplitude: Any = -5.0
@@ -51,8 +64,8 @@ def test_perfect_fit_scores_one(name: Any) -> None:
     assert score["precision"] == 1.0
     assert score["f1"] == 1.0
     assert score["n_matched"] == score["n_true"] == truth.to_dataframe().shape[0]
-    assert score["latency_mae"] < 1e-12
-    assert score["amplitude_rel_mae"] < 1e-12
+    assert score["latency_mae"] < EXACT
+    assert score["amplitude_rel_mae"] < EXACT
     assert score["n_false"] == 0
     assert list(sim.score_fits(truth, fits).columns) == list(sim.SCORE_COLUMNS)
 
@@ -103,7 +116,7 @@ def test_hungarian_assignment_is_optimal() -> None:
     fit = _fit_table([0.105, 0.088])
     out = sim.match_components(truth, fit, tolerance=0.015)
     matched = out[out["kind"] == "match"].sort_values("latency_true")
-    assert len(matched) == 2
+    assert len(matched) == N_MATCHED
     np.testing.assert_allclose(matched["latency_fit"], [0.088, 0.105])
 
 
@@ -123,29 +136,29 @@ def test_polarity_and_roles() -> None:
 def test_false_rate_on_empty_waveforms() -> None:
     _, truth = sim.simulate_ccep(seed=3, **SMALL["ccep"])
     silent = [name for name in truth.ch_names if name not in truth.settings["responders"]]
-    assert len(silent) >= 2
+    assert len(silent) >= MIN_SILENT
     fits = fits_from_truth(truth, extra={(silent[0], ""): [0.05, 0.2]})
     score = sim.score_fits(truth, fits).iloc[0]
-    assert score["n_false"] == 2
+    assert score["n_false"] == N_FALSE
     assert score["recall"] == 1.0
     assert np.isclose(score["false_rate_empty"], 2 / len(silent))
     assert np.isclose(score["false_per_waveform"], 2 / len(truth.ch_names))
     assert np.isclose(score["precision"], score["n_matched"] / (score["n_matched"] + 2))
     by_channel = sim.score_fits(truth, fits, by="channel")
     row = by_channel[by_channel["channel"] == silent[0]].iloc[0]
-    assert row["n_false"] == 2
-    assert row["false_rate_empty"] == 2.0
+    assert row["n_false"] == N_FALSE
+    assert row["false_rate_empty"] == FALSE_RATE
 
 
 def test_missed_components_lower_recall() -> None:
     _, truth = sim.simulate_erp(seed=1, n_trials=6, n_channels=2, components=["N1", "P3"])
     fits = fits_from_truth(truth, drop=[(truth.ch_names[0], "P3")])
     score = sim.score_fits(truth, fits).iloc[0]
-    assert score["recall"] == 0.75
+    assert score["recall"] == RECALL
     assert score["precision"] == 1.0
     assert np.isclose(score["f1"], 2 * 3 / (4 + 3))
     by_label = sim.score_fits(truth, fits, by="label").set_index("label")
-    assert by_label.loc["P3", "recall"] == 0.5
+    assert by_label.loc["P3", "recall"] == P3_RECALL
     assert by_label.loc["N1", "recall"] == 1.0
 
 
@@ -213,6 +226,6 @@ def test_trial_level_matching() -> None:
     np.testing.assert_allclose(out["latency_error"], 0.0, atol=1e-12)
     swapped = fit.assign(trial=fit["trial"].to_numpy()[::-1])
     out = sim.match_components(truth, swapped, level="trial", tolerance=1e-4)
-    assert (out["kind"] == "match").sum() < 4
+    assert (out["kind"] == "match").sum() < N_TRIALS
     with pytest.raises(SettingsError, match="trial"):
         sim.match_components(truth, fit.drop(columns="trial"), level="trial")

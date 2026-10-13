@@ -11,6 +11,11 @@ from .helpers import epochs, sim_carla
 
 pd = pytest.importorskip("pandas")
 
+# Responsive fraction up to which no responsive channel may be chosen, and the median
+# of the false positives allowed.
+MAX_FRACTION = 0.84
+MAX_FALSE_POSITIVES = 2.5
+
 ###################################################################################################
 ###################################################################################################
 
@@ -77,9 +82,9 @@ def test_req081_car_adaptive_simulation() -> None:
             members = set(chosen["members"].tolist())
             fn.append(len(members & responsive))
             fp.append(len(set(range(50)) - responsive - members))
-        if fraction <= 0.84:
+        if fraction <= MAX_FRACTION:
             assert np.median(fn) == 0, fraction
-        assert np.median(fp) <= 2.5, fraction
+        assert np.median(fp) <= MAX_FALSE_POSITIVES, fraction
 
 
 def test_car_adaptive_records_choice_and_falls_back() -> None:

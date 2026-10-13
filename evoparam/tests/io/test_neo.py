@@ -9,7 +9,12 @@ import pytest
 neo = pytest.importorskip("neo")
 pq = pytest.importorskip("quantities")
 
-from evoparam.io import read_neo  # noqa: E402
+from evoparam.io import read_neo  # noqa: E402  (after pytest.importorskip)
+
+# Window (s) inside the simulated response, and trials of one segment.
+RESPONSE_START = 0.021
+RESPONSE_END = 0.038
+N_SEGMENT_TRIALS = 3
 
 
 def _block() -> Any:
@@ -38,10 +43,10 @@ def test_req319_block_with_two_segments() -> None:
     ts = read_neo(_block(), tmin=-0.1, tmax=0.2)
     assert ts.data.shape == (6, 3, 300)
     assert ts.ch_names == ["a", "b", "c"]
-    window = (ts.times >= 0.021) & (ts.times <= 0.038)
+    window = (ts.times >= RESPONSE_START) & (ts.times <= RESPONSE_END)
     assert np.allclose(ts.data[0, 0, window], 50.0)  # mV -> µV, x 1000
     assert list(ts.metadata["condition"]) == ["left", "right", "left"] * 2
     assert list(ts.metadata["run"]) == ["0", "0", "0", "1", "1", "1"]
     one = read_neo(_block(), segment=1, events="stim", tmin=-0.1, tmax=0.2)
-    assert one.n_trials == 3
+    assert one.n_trials == N_SEGMENT_TRIALS
     assert set(one.metadata["run"]) == {"1"}

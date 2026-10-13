@@ -21,6 +21,9 @@ import pytest
 
 import evoparam
 
+# Completeness of the types required (REQ-301).
+MIN_SCORE = 0.95
+
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 EXAMPLES = pathlib.Path(__file__).resolve().parent / "typing_examples"
 GOOD = sorted(p for p in EXAMPLES.glob("*.py") if not p.name.startswith("wrong_"))
@@ -194,4 +197,4 @@ def test_req301_pyright_verifytypes_known_share() -> None:
         check=False,
     )
     score = json.loads(done.stdout)["typeCompleteness"]["completenessScore"]
-    assert score >= 0.95, score
+    assert score >= MIN_SCORE, score

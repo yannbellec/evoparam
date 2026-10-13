@@ -12,6 +12,16 @@ from evoparam.utils._interp import interpolate_window
 
 from .helpers import make_overlay
 
+# Window (s) interpolated over, the samples it holds with the buffer, and the value
+# written inside it.
+WINDOW_START = -0.002
+WINDOW_END = 0.010
+N_REPLACED = 13
+INSIDE = 1e6
+# Default window (s) of remove_artifact.
+DEFAULT_START = -0.002
+DEFAULT_END = 0.008
+
 ###################################################################################################
 ###################################################################################################
 
@@ -21,13 +31,15 @@ def test_interpolate_window_line() -> None:
     times = np.arange(-100, 101) / 1000.0
     line = 2 * times + 1
     data = np.tile(line, (3, 2, 1))
-    data[..., (times >= -0.002) & (times <= 0.010)] = 1e6
+    data[..., (times >= WINDOW_START) & (times <= WINDOW_END)] = INSIDE
     for kind in ("linear", "cubic", "pchip"):
-        cleaned, inds = interpolate_window(times, data, (-0.002, 0.010), buffer=3, kind=kind)
+        cleaned, inds = interpolate_window(
+            times, data, (WINDOW_START, WINDOW_END), buffer=3, kind=kind
+        )
         assert np.allclose(cleaned, np.tile(line, (3, 2, 1)))
-        assert len(inds) == 13
-    assert data.max() == 1e6  # input unchanged
-    assert np.allclose(interpolate_window(times, data[0, 0], (-0.002, 0.010))[0], line)
+        assert len(inds) == N_REPLACED
+    assert data.max() == INSIDE  # input unchanged
+    assert np.allclose(interpolate_window(times, data[0, 0], (WINDOW_START, WINDOW_END))[0], line)
 
 
 def test_interpolate_window_errors() -> None:
@@ -48,7 +60,7 @@ def test_remove_artifact_interpolate(kind: Any) -> None:
 
     noisy, truth = make_overlay(onset=0.02)
     result = remove_artifact(noisy, method="interpolate", interpolation=kind)
-    inds = np.flatnonzero((noisy.times >= -0.002) & (noisy.times <= 0.008))
+    inds = np.flatnonzero((noisy.times >= DEFAULT_START) & (noisy.times <= DEFAULT_END))
     assert result.cleaned.masks[:, :, inds].all()
     assert result.method == "interpolate"
     assert result.window == (-0.002, 0.008)

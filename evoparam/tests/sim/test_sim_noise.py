@@ -11,6 +11,24 @@ from evoparam import sim
 from evoparam.errors import SettingsError
 from evoparam.tests.sim._helpers import SMALL, measured_noise_sd, measured_snr, real_baselines
 
+# Band (Hz) of the spectral slope, and the slope tolerance.
+FMIN = 2
+FMAX = 100
+SLOPE_TOLERANCE = 0.1
+# Tolerances of the noise SD (white and pink, AR(1)) and of the lag-1 autocorrelation.
+SD_TOLERANCE = 0.05
+AR1_SD_TOLERANCE = 0.1
+LAG1_TOLERANCE = 0.02
+WHITE_LAG1 = 0.03
+# Tolerance (uV) of the line amplitude.
+LINE_TOLERANCE = 0.01
+# Segments of real noise drawn and their length (samples).
+N_SEGMENTS = 5
+N_SAMPLES = 400
+# Relative tolerance of the measured SNR, and the SNR given for P3.
+SNR_TOLERANCE = 0.05
+P3_SNR = 3.0
+
 ###################################################################################################
 ## REQ-251: noise models
 
@@ -22,10 +40,10 @@ def test_pink_spectral_exponent(chi: Any) -> None:
     sfreq = 1000.0
     noise = sim.make_noise(4000, sfreq, "pink", chi=chi, size=100, seed=1)
     freqs, power = signal.welch(noise, fs=sfreq, nperseg=1000, axis=-1)
-    keep = (freqs >= 2) & (freqs <= 100)
+    keep = (freqs >= FMIN) & (freqs <= FMAX)
     slope = np.polyfit(np.log10(freqs[keep]), np.log10(power.mean(axis=0)[keep]), 1)[0]
-    assert abs(-slope - chi) <= 0.1, (chi, -slope)
-    assert abs(noise.std() - 1.0) < 0.05
+    assert abs(-slope - chi) <= SLOPE_TOLERANCE, (chi, -slope)
+    assert abs(noise.std() - 1.0) < SD_TOLERANCE
 
 
 @pytest.mark.parametrize("rho", [0.0, 0.5, 0.9, -0.5])
@@ -33,16 +51,16 @@ def test_ar1_lag1_autocorrelation(rho: Any) -> None:
     noise = sim.make_noise(2000, 500.0, "ar1", rho=rho, size=100, sd=2.0, seed=2)
     centred = noise - noise.mean(axis=-1, keepdims=True)
     lag1 = np.sum(centred[:, 1:] * centred[:, :-1], axis=-1) / np.sum(centred**2, axis=-1)
-    assert abs(lag1.mean() - rho) <= 0.02, (rho, lag1.mean())
-    assert abs(noise.std() - 2.0) < 0.1
+    assert abs(lag1.mean() - rho) <= LAG1_TOLERANCE, (rho, lag1.mean())
+    assert abs(noise.std() - 2.0) < AR1_SD_TOLERANCE
 
 
 def test_white_and_line() -> None:
     white = sim.make_noise(5000, 1000.0, "white", size=(4,), sd=3.0, seed=0)
     assert white.shape == (4, 5000)
-    assert abs(white.std() - 3.0) < 0.05
+    assert abs(white.std() - 3.0) < SD_TOLERANCE
     lag1 = np.mean(white[:, 1:] * white[:, :-1]) / white.var()
-    assert abs(lag1) < 0.03
+    assert abs(lag1) < WHITE_LAG1
 
     noise, info = sim.make_noise(
         2000,
@@ -61,7 +79,7 @@ def test_white_and_line() -> None:
         assert power[near].max() > 100 * np.median(power)
     assert info["line"] == {"freq": 60.0, "harmonics": 3, "amplitude": 5.0}
     line_only = sim.make_noise(1000, 1000.0, "line", line_amplitude=2.0, line_harmonics=1, seed=1)
-    assert abs(np.max(np.abs(line_only)) - 2.0) < 0.01
+    assert abs(np.max(np.abs(line_only)) - 2.0) < LINE_TOLERANCE
 
 
 def test_harmonics_above_nyquist_are_left_out() -> None:
@@ -97,11 +115,11 @@ def test_real_noise_segments_come_from_the_source() -> None:
         400, 500.0, "real", size=(5, 3), source=real, seed=4, return_info=True
     )
     assert noise.shape == (5, 3, 400)
-    assert len(info["segments"]) == 5
+    assert len(info["segments"]) == N_SEGMENTS
     for index, segment in enumerate(info["segments"]):
         start, stop = segment["epoch_samples"]
         piece = real.data[segment["source_trial"], :, start:stop]
-        assert stop - start == 400
+        assert stop - start == N_SAMPLES
         assert real.times[stop - 1] < 0  # pre-stimulus window by default
         np.testing.assert_allclose(
             noise[index], piece - piece.mean(axis=-1, keepdims=True), atol=1e-10
@@ -121,7 +139,7 @@ def test_measured_snr_equals_requested(name: Any, snr: Any) -> None:
         if comp["snr"] is None or not truth.present[:, index].any():
             continue
         measured, requested = measured_snr(ts, truth, index)
-        assert abs(measured / requested - 1) <= 0.05, (comp["label"], measured, requested)
+        assert abs(measured / requested - 1) <= SNR_TOLERANCE, (comp["label"], measured, requested)
         checked += 1
     assert checked > 0
 
@@ -133,7 +151,7 @@ def test_snr_with_variability_and_every_noise_model() -> None:
         )
         for index in range(truth.n_components):
             measured, requested = measured_snr(ts, truth, index)
-            assert abs(measured / requested - 1) <= 0.05
+            assert abs(measured / requested - 1) <= SNR_TOLERANCE
 
 
 def test_snr_with_real_noise() -> None:
@@ -144,7 +162,7 @@ def test_snr_with_real_noise() -> None:
     assert truth.noise["kind"] == "real"
     for index in range(truth.n_components):
         measured, requested = measured_snr(ts, truth, index)
-        assert abs(measured / requested - 1) <= 0.05
+        assert abs(measured / requested - 1) <= SNR_TOLERANCE
 
 
 def test_snr_forms() -> None:
@@ -155,7 +173,7 @@ def test_snr_forms() -> None:
     )
     _, truth = sim.simulate_erp(seed=1, n_trials=10, components=["N1", "P3"], snr={"P3": 3.0})
     snrs = {c["label"]: c["snr"] for c in truth.components}
-    assert snrs["P3"] == 3.0
+    assert snrs["P3"] == P3_SNR
     assert snrs["N1"] is None
     _, truth = sim.simulate_erp(
         seed=1,
@@ -177,7 +195,7 @@ def test_snr_forms() -> None:
     assert truth.components[1]["amplitude"] < 0 < truth.components[0]["amplitude"]
     for index in range(2):
         measured, requested = measured_snr(ts, truth, index)
-        assert abs(measured / requested - 1) <= 0.05
+        assert abs(measured / requested - 1) <= SNR_TOLERANCE
 
 
 def test_snr_for_a_channel_without_component_raises() -> None:

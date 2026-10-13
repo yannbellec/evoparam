@@ -21,6 +21,10 @@ from evoparam.errors import DataError, FitError, SettingsError
 from evoparam.models import ResponseModel
 from evoparam.models import engine as _engine
 
+# Channel whose fit fails, and the most lines with numpy.errstate.
+FAILED_CHANNEL = 2
+MAX_ERRSTATE_LINES = 3
+
 PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
 
 
@@ -53,10 +57,10 @@ def test_failed_unit_is_recorded(evoked: Any, caplog: Any) -> None:
     with caplog.at_level(logging.WARNING, logger="evoparam"):
         group = ResponseModel("ccep", max_components=2).fit_group(evoked)
     status = [f.status for f in group.fits]
-    assert status[2] == "failed"
-    assert group.fits[2].message
-    assert "singular Jacobian" in group.fits[2].message
-    assert all(s != "failed" for i, s in enumerate(status) if i != 2)
+    assert status[FAILED_CHANNEL] == "failed"
+    assert group.fits[FAILED_CHANNEL].message
+    assert "singular Jacobian" in group.fits[FAILED_CHANNEL].message
+    assert all(s != "failed" for i, s in enumerate(status) if i != FAILED_CHANNEL)
     warned = [
         r
         for r in caplog.records
@@ -135,7 +139,7 @@ def _errstate_lines() -> Any:
 
 def test_errstate_at_most_three_lines_in_the_engine() -> None:
     lines = _errstate_lines()
-    assert len(lines) <= 3, f"{len(lines)} lines"
+    assert len(lines) <= MAX_ERRSTATE_LINES, f"{len(lines)} lines"
     assert all(line.startswith("models/_engine.py") for line in lines), f"{len(lines)} lines"
 
 

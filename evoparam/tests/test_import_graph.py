@@ -26,6 +26,9 @@ import pytest
 
 import evoparam
 
+# Cells of a row of the import table (module, imports).
+MIN_CELLS = 2
+
 pytestmark = pytest.mark.core
 
 PACKAGE = pathlib.Path(evoparam.__file__).parent
@@ -516,7 +519,7 @@ def test_resolved_table_matches_decisions() -> None:
     table = {}
     for row in section.splitlines():
         cells = [c.strip() for c in row.strip().strip("|").split("|")]
-        if len(cells) < 2 or not cells[0].startswith("`"):
+        if len(cells) < MIN_CELLS or not cells[0].startswith("`"):
             continue
         names = re.findall(r"`([^`]+)`", cells[0])
         allowed = set(re.findall(r"`([^`]+)`", cells[1]))

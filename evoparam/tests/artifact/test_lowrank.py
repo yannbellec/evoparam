@@ -10,6 +10,12 @@ from evoparam.artifact import remove_artifact
 from evoparam.data import TrialSet
 from evoparam.errors import ArtifactError
 
+# Probability of a spike after each pulse, the correlation of the recovered spikes, and
+# the relative RMS change on the silent channels.
+SPIKE_PROBABILITY = 0.5
+MIN_CORRELATION = 0.95
+MAX_RMS_CHANGE = 0.10
+
 ###################################################################################################
 ###################################################################################################
 
@@ -49,7 +55,7 @@ def make_train(
     for trial in range(n_trials):
         for pulse in range(n_pulses):
             for ch in active:
-                if rng.random() < 0.5:
+                if rng.random() < SPIKE_PROBABILITY:
                     at = i0 + pulse * step + int(rng.uniform(0.002, 0.008) * SFREQ)
                     clean[trial, ch, at : at + len(wave)] += wave
                     spikes.append((trial, ch, at))
@@ -83,14 +89,14 @@ def test_req063_spikes_kept_and_silent_channels_clean() -> None:
     length = len(spike(SFREQ))
     got = np.mean([cleaned[t, c, a : a + length] for t, c, a in spikes], axis=0)
     ref = np.mean([truth.data[t, c, a : a + length] for t, c, a in spikes], axis=0)
-    assert np.corrcoef(got, ref)[0, 1] >= 0.95
+    assert np.corrcoef(got, ref)[0, 1] >= MIN_CORRELATION
 
     train = (noisy.times >= 0) & (noisy.times < pulse_times[-1] + 0.01)
     pre = noisy.times < 0
     for ch in silent:
         during = np.sqrt(np.mean(cleaned[:, ch][:, train] ** 2))
         before = np.sqrt(np.mean(cleaned[:, ch][:, pre] ** 2))
-        assert abs(during / before - 1) <= 0.10
+        assert abs(during / before - 1) <= MAX_RMS_CHANGE
     assert 0 < result.settings["_info"]["removed_fraction"] <= 1
 
 

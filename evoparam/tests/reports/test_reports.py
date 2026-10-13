@@ -16,6 +16,10 @@ from evoparam import reports
 
 pd = pytest.importorskip("pandas")
 
+# Largest size (bytes) of the big HTML report, and channels per site page.
+MAX_HTML_BYTES = 20e6
+PER_PAGE = 4
+
 
 def test_methods_text_follows_the_processing_steps(results: Any) -> None:
 
@@ -124,7 +128,7 @@ def test_req343_html_size_for_100_channels(tmp_path: Any) -> None:
         warnings.simplefilter("ignore")
         group = fit(ts, "ccep", n_jobs=2)
     reports.html(group, tmp_path / "big.html", data=ts, max_channels=100)
-    assert (tmp_path / "big.html").stat().st_size <= 20e6
+    assert (tmp_path / "big.html").stat().st_size <= MAX_HTML_BYTES
 
 
 def test_markdown_and_pdf(results: Any, tmp_path: Any) -> None:
@@ -162,7 +166,7 @@ def test_pdf_has_one_page_per_stimulation_site(tmp_path: Any) -> None:
         group = fit(ts, "ccep", by="stim_site")
         pages = reports._documents.site_pages(group, ts)
         assert [site for site, _ in pages] == sites
-        assert all(len(members) == 4 for _, members in pages)
+        assert all(len(members) == PER_PAGE for _, members in pages)
         path = reports.pdf(group, tmp_path / "sites.pdf", data=ts, max_channels=0)
         assert _pages(path) == 1 + len(sites)
         # a test split by site (the default of test_response): one page per site too

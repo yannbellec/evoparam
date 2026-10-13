@@ -19,6 +19,23 @@ from evoparam.tf.transforms import (
     morse_spectrum,
 )
 
+# Longest kernel half-support (samples) compared with the reference.
+MAX_HALF_SUPPORT = 1000
+# Tolerance of the Morse peak frequency, the peak value 2 and its tolerance.
+PEAK_TOLERANCE = 1e-3
+MORSE_PEAK = 2.0
+EXACT = 1e-12
+# Largest log2 distance of the ridge from the instantaneous frequency.
+MAX_RIDGE_ERROR = 0.1
+# Largest relative error of the decomposition into footprint, residual and cross terms.
+MAX_DECOMPOSITION_ERROR = 1e-9
+# Baseline (s) of the maps, the masked artifact (s), and the bound of valid pixels.
+BASELINE_START = -0.5
+BASELINE_END = -0.1
+ARTIFACT_START = -0.002
+ARTIFACT_END = 0.008
+MAX_VALID = 1e4
+
 
 def test_req210_morse_matches_the_analytic_modulus() -> None:
     """A cosine gives, far from the edges, half the wavelet's gain at its frequency."""
@@ -30,7 +47,7 @@ def test_req210_morse_matches_the_analytic_modulus() -> None:
     for f_sig in (10.0, 37.5, 80.0, 150.0):
         coef = apply_kernels(kernels, np.cos(2 * np.pi * f_sig * t))[0]
         for j in range(0, 40, 3):
-            if kernels.half_support[j] > 1000:
+            if kernels.half_support[j] > MAX_HALF_SUPPORT:
                 continue
             expected = morse_reference_modulus(f_sig, freqs[j], 3.0, 10.0)
             got = np.abs(coef[j, n // 2])
@@ -43,9 +60,9 @@ def test_morse_peak_and_normalisation() -> None:
     peak = morse_peak(gamma, beta)
     omega = np.linspace(0.01, 4, 4001)
     psi = morse_spectrum(omega, gamma, beta)
-    assert abs(omega[np.argmax(psi)] - peak) < 1e-3
-    assert abs(morse_spectrum(np.array([peak]), gamma, beta)[0] - 2.0) < 1e-12
-    assert psi.max() <= 2.0
+    assert abs(omega[np.argmax(psi)] - peak) < PEAK_TOLERANCE
+    assert abs(morse_spectrum(np.array([peak]), gamma, beta)[0] - 2.0) < EXACT
+    assert psi.max() <= MORSE_PEAK
     assert np.all(morse_spectrum(-omega, gamma, beta) == 0)
 
 
@@ -62,7 +79,7 @@ def test_morse_chirp_ridge_follows_the_instantaneous_frequency() -> None:
     for k in range(800, 3300, 250):
         ridge = freqs[np.argmax(power[:, k])]
         inst = f0 + rate * t[k]
-        assert abs(np.log2(ridge / inst)) < 0.1
+        assert abs(np.log2(ridge / inst)) < MAX_RIDGE_ERROR
 
 
 @pytest.mark.parametrize("transform", TRANSFORMS)
@@ -118,7 +135,10 @@ def test_req211_decomposition_is_exact(transform: Any) -> None:
     ok = np.isfinite(total)
     assert ok.any()
     assert np.all(np.isfinite(parts[ok]))
-    assert np.max(np.abs(parts[ok] - total[ok]) / np.maximum(np.abs(total[ok]), 1e-300)) <= 1e-9
+    assert (
+        np.max(np.abs(parts[ok] - total[ok]) / np.maximum(np.abs(total[ok]), 1e-300))
+        <= MAX_DECOMPOSITION_ERROR
+    )
 
 
 def test_power_maps_and_baseline_normalised_maps_are_both_given() -> None:
@@ -147,7 +167,7 @@ def test_power_maps_and_baseline_normalised_maps_are_both_given() -> None:
     ):
         assert key in tf.maps
         assert tf.maps[key].shape == tf.maps["total"].shape
-    base = (tf.times >= -0.5) & (tf.times <= -0.1)
+    base = (tf.times >= BASELINE_START) & (tf.times <= BASELINE_END)
     ref = np.nanmean(tf.maps["total"][0][:, base], axis=1)[:, None]
     ok = np.isfinite(tf.maps["total_norm"][0])
     assert ok.any()
@@ -163,15 +183,15 @@ def test_masked_samples_never_reach_valid_pixels() -> None:
     rng = np.random.default_rng(1)
     data = ar1(rng, (15, len(TIMES)))
     masks = np.zeros((15, 1, len(TIMES)), bool)
-    artifact = (TIMES >= -0.002) & (TIMES <= 0.008)
+    artifact = (TIMES >= ARTIFACT_START) & (TIMES <= ARTIFACT_END)
     masks[:, 0, artifact] = True
     data[:, artifact] = 1e6
     ts = trialset(data, masks=masks)
     tf = tf_fit(ts, freqs=(4, 250, 20), zones="none", stats="none")
     half = np.array(tf.settings["half_support_s"])
     for j in range(len(tf.freqs)):
-        near = (tf.times >= -0.002 - half[j]) & (tf.times <= 0.008 + half[j])
+        near = (tf.times >= ARTIFACT_START - half[j]) & (tf.times <= ARTIFACT_END + half[j])
         assert np.all(np.isnan(tf.maps["total"][0, j, near]))
         far = np.isfinite(tf.maps["total"][0, j])
         # the 1e6 artifact does not leak into the valid pixels
-        assert np.all(tf.maps["total"][0, j, far] < 1e4)
+        assert np.all(tf.maps["total"][0, j, far] < MAX_VALID)

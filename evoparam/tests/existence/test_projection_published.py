@@ -32,6 +32,15 @@ from typing import Any
 import numpy as np
 import pytest
 
+# Tolerance (s) of a published duration, and the agreement with the published decisions.
+DURATION_TOLERANCE = 0.005
+MIN_AGREEMENT = 0.95
+# End (s) of the reviewed profile's response, and the rejection rates under the null of
+# the paper's pairs and of the default.
+REVIEWED_END = 0.04
+MIN_HALF_REJECTION = 0.3
+MAX_DISJOINT_REJECTION = 0.2
+
 ROOT = pathlib.Path(__file__).parents[3]
 COMMIT = "f6efb4efc6ad6f421603974130a8e09ff2d3e7bd"
 URL = "https://raw.githubusercontent.com/kaijmiller/crp_scripts/{}/sampledata/{}.mat"
@@ -135,7 +144,7 @@ def test_req134_published_durations_of_the_example_data(
     duration published for the paper's example data."""
 
     test = _projection(_trials(name, drop))
-    assert abs(test.offset[0] - published) <= 0.005, (name, drop, test.offset[0])
+    assert abs(test.offset[0] - published) <= DURATION_TOLERANCE, (name, drop, test.offset[0])
 
 
 @pytest.mark.network
@@ -152,7 +161,9 @@ def test_req134_published_significance_of_the_example_data() -> None:
         bool(_projection(_trials(name), projection_pairs="half").significant[0]) == published
         for name, published in DECISIONS
     ]
-    assert np.mean(agree) >= 0.95, [d for d, a in zip(DECISIONS, agree, strict=True) if not a]
+    assert np.mean(agree) >= MIN_AGREEMENT, [
+        d for d, a in zip(DECISIONS, agree, strict=True) if not a
+    ]
 
 
 @pytest.mark.network
@@ -193,7 +204,7 @@ def test_req134_published_significance_with_the_default_pairs() -> None:
                 for name, published in DECISIONS
             ]
         agreement.append(np.mean(agree))
-    assert np.mean(agreement) >= 0.95, agreement
+    assert np.mean(agreement) >= MIN_AGREEMENT, agreement
 
 
 def test_req134_reviewed_profile_is_kept_as_an_option() -> None:
@@ -212,8 +223,8 @@ def test_req134_reviewed_profile_is_kept_as_an_option() -> None:
     reviewed = _projection(trialset(data), window=(0.015, 0.5), projection_profile="normalised")
     assert published.settings["projection_profile"] == "published"
     assert reviewed.settings["projection_profile"] == "normalised"
-    assert np.all(np.abs(published.offset - 0.2) <= 0.005)
-    assert np.all(reviewed.offset < 0.04)
+    assert np.all(np.abs(published.offset - 0.2) <= DURATION_TOLERANCE)
+    assert np.all(reviewed.offset < REVIEWED_END)
     assert np.all(published.significant)
     assert np.all(reviewed.significant)
 
@@ -230,8 +241,8 @@ def test_req134_pairs_of_the_paper_are_anticonservative() -> None:
     half = _projection(trialset(data), window=(0.009, 0.5), projection_pairs="half")
     disjoint = _projection(trialset(data), window=(0.009, 0.5))
     assert disjoint.settings["projection_pairs"] == "disjoint"
-    assert np.mean(half.significant) > 0.3
-    assert np.mean(disjoint.significant) < 0.2
+    assert np.mean(half.significant) > MIN_HALF_REJECTION
+    assert np.mean(disjoint.significant) < MAX_DISJOINT_REJECTION
 
 
 @pytest.mark.xfail(

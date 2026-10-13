@@ -5,6 +5,12 @@ import numpy as np
 
 from evoparam.events import estimate_delay, match_onsets
 
+# Hits of the first match, and misses with no detection.
+N_HITS = 2
+N_MISSES = 2
+# Tolerance (s) of the estimated delay and of its spread.
+DELAY_TOLERANCE = 5e-5
+
 ###################################################################################################
 ###################################################################################################
 
@@ -12,7 +18,7 @@ from evoparam.events import estimate_delay, match_onsets
 def test_match_onsets() -> None:
 
     results = match_onsets([1.0, 2.001, 5.0], [1.0, 2.0, 3.0], tolerance=0.01)
-    assert results["hits"] == 2
+    assert results["hits"] == N_HITS
     assert results["misses"] == 1
     assert results["false_alarms"] == 1
     assert np.allclose(results["errors"], [0, 0.001])
@@ -24,7 +30,7 @@ def test_match_onsets_empty() -> None:
 
     results = match_onsets([], [1.0, 2.0])
     assert results["hits"] == 0
-    assert results["misses"] == 2
+    assert results["misses"] == N_MISSES
     assert np.isnan(results["precision"])
 
 
@@ -34,6 +40,6 @@ def test_estimate_delay_over_recordings() -> None:
     refs = [np.arange(1, 20, 5.0), np.arange(3, 40, 5.0)]
     dets = [ref + 0.001 + rng.normal(0, 1e-5, len(ref)) for ref in refs]
     delay, spread = estimate_delay(dets, refs)
-    assert abs(delay - 0.001) < 5e-5
-    assert spread < 5e-5
+    assert abs(delay - 0.001) < DELAY_TOLERANCE
+    assert spread < DELAY_TOLERANCE
     assert np.isnan(estimate_delay([5.0], [1.0])[0])

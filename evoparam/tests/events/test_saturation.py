@@ -11,6 +11,15 @@ from evoparam.events import detect_pulses, detect_saturation
 
 from .helpers import make_noise, make_recording
 
+# Probability of a positive clipped run; shortest run always found (samples), the short
+# run, and the fraction of short runs found (REQ-043).
+POSITIVE = 0.5
+LONG_RUN = 3
+SHORT_RUN = 2
+MIN_SHORT_FOUND = 0.95
+# Event clipped in the saturation test.
+SATURATED_EVENT = 2
+
 ###################################################################################################
 ###################################################################################################
 
@@ -26,7 +35,7 @@ def clipped_recording(lengths: Any, sfreq: Any = 2048.0, seed: Any = 0) -> Any:
     runs = []
     for ind, (start, length) in enumerate(zip(starts, lengths, strict=False)):
         ch = ind % 8
-        sign = 1.0 if rng.random() < 0.5 else -1.0
+        sign = 1.0 if rng.random() < POSITIVE else -1.0
         data[ch, start : start + length] = sign * RAIL
         runs.append((ch, start, length))
     return data, runs
@@ -44,10 +53,12 @@ def test_req043_detection_rates() -> None:
     data, runs = clipped_recording(lengths, sfreq)
     _, table = detect_saturation(data, sfreq)
 
-    long_runs = [run for run in runs if run[2] >= 3]
-    short_runs = [run for run in runs if run[2] == 2]
+    long_runs = [run for run in runs if run[2] >= LONG_RUN]
+    short_runs = [run for run in runs if run[2] == SHORT_RUN]
     assert all(found(table, ch, start, sfreq) for ch, start, _ in long_runs)
-    assert np.mean([found(table, ch, start, sfreq) for ch, start, _ in short_runs]) >= 0.95
+    assert (
+        np.mean([found(table, ch, start, sfreq) for ch, start, _ in short_runs]) >= MIN_SHORT_FOUND
+    )
 
 
 def test_req043_false_positives_on_clean_data() -> None:
@@ -112,7 +123,7 @@ def test_per_pulse_search_and_event_link() -> None:
     assert not mask[[0, 1, 2, 4, 5, 6, 7]].any()
 
     events = detect_pulses(data, sfreq)
-    assert events["saturated"].tolist() == [i == 2 for i in range(len(events))]
+    assert events["saturated"].tolist() == [i == SATURATED_EVENT for i in range(len(events))]
     assert events.loc[2, "n_saturated_channels"] == 1
 
 

@@ -14,6 +14,11 @@ from evoparam.stats import jackknife_f, jackknife_latency, jackknife_t, score_wa
 
 pd = pytest.importorskip("pandas")
 
+# Range of the retrieval error (s), and the t of the 10 ms delay.
+MIN_ERROR = 1e-6
+MAX_ERROR = 3e-3
+MIN_T = 2
+
 ###################################################################################################
 ###################################################################################################
 
@@ -204,7 +209,7 @@ def test_req231_noise_free_retrieval() -> None:
         for ev in evokeds
     ]
     error = np.abs(table["retrieved"].to_numpy() - np.array(own))
-    assert 1e-6 < error.max() < 3e-3
+    assert MIN_ERROR < error.max() < MAX_ERROR
 
 
 def test_corrected_statistics_on_retrieved_scores() -> None:
@@ -237,7 +242,7 @@ def test_corrected_statistics_on_retrieved_scores() -> None:
     assert summary["jackknife_se"].iloc[0] == pytest.approx(
         np.sqrt(11 / 12 * np.sum((j - j.mean()) ** 2))
     )
-    assert t_retrieved > 2  # the 10 ms delay is detected
+    assert t_retrieved > MIN_T  # the 10 ms delay is detected
     assert ja.attrs["units"]["retrieved"] == "s"
     assert ja.attrs["provenance"]["steps"][-1]["function"] == "evoparam.stats.jackknife_latency"
 

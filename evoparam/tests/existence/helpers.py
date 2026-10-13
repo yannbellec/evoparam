@@ -8,6 +8,10 @@ from scipy.signal import lfilter
 
 from evoparam.data import TrialSet
 
+# Baseline window (s) of the simulated trials.
+BASELINE_START = -0.5
+BASELINE_END = -0.05
+
 SFREQ = 1000.0
 TIMES = np.arange(-0.5, 0.6, 1 / SFREQ)
 
@@ -15,7 +19,9 @@ TIMES = np.arange(-0.5, 0.6, 1 / SFREQ)
 def noise_trials(rng: Any, n_trials: Any, n_channels: Any, rho: Any = 0.0, sd: Any = 1.0) -> Any:
     e = rng.normal(0, 1, (n_trials, n_channels, len(TIMES)))
     x = lfilter([1], [1, -rho], e, axis=-1) if rho else e
-    x = x - x[..., (TIMES >= -0.5) & (TIMES <= -0.05)].mean(axis=-1, keepdims=True)
+    x = x - x[..., (TIMES >= BASELINE_START) & (TIMES <= BASELINE_END)].mean(
+        axis=-1, keepdims=True
+    )
     return sd * x / np.std(x)
 
 

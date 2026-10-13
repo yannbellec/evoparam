@@ -20,6 +20,9 @@ import pytest
 import evoparam
 from evoparam.models import FitSettings
 
+# Fewest modules of evoparam.models.
+MIN_FILES = 5
+
 pytestmark = pytest.mark.core
 
 MODELS = pathlib.Path(evoparam.__file__).resolve().parent / "models"
@@ -109,7 +112,7 @@ def scan(source: Any, name: Any = "<source>") -> Any:
 def test_req004_models_have_no_deletion_heuristic() -> None:
     hits = []
     files = sorted(MODELS.rglob("*.py"))
-    assert len(files) >= 5
+    assert len(files) >= MIN_FILES
     for path in files:
         hits += scan(path.read_text(encoding="utf-8"), path.relative_to(MODELS.parent).as_posix())
     assert not hits, "\n".join(hits)

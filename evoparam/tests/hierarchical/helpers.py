@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Three-level simulations (trial -> channel -> subject) with a known truth."""
 
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -29,23 +30,28 @@ def gauss(latency: Any, fwhm: Any, times: Any = TIMES) -> Any:
     return np.exp(-0.5 * ((times[None] - np.asarray(latency)[:, None]) / (fwhm / 2.3548)) ** 2)
 
 
-def simulate_group(
-    n_subjects: Any = 20,
-    n_channels: Any = 50,
-    n_trials: Any = 20,
-    p_respond: Any = 0.3,
-    snr: Any = 2.0,
-    amp_sd: Any = 0.3,
-    subject_amp_sd: Any = 0.15,
-    latency: Any = 0.03,
-    latency_sd_channel: Any = 0.004,
-    latency_sd_subject: Any = 0.003,
-    jitter: Any = 0.002,
-    fwhm: Any = 0.02,
-    age_slope: Any = 0.0,
-    n2: Any = 0.0,
-    seed: Any = 0,
-) -> Any:
+@dataclass(frozen=True)
+class GroupDesign:
+    """The keywords of :func:`simulate_group`: the simulated design and the seed."""
+
+    n_subjects: Any = 20
+    n_channels: Any = 50
+    n_trials: Any = 20
+    p_respond: Any = 0.3
+    snr: Any = 2.0
+    amp_sd: Any = 0.3
+    subject_amp_sd: Any = 0.15
+    latency: Any = 0.03
+    latency_sd_channel: Any = 0.004
+    latency_sd_subject: Any = 0.003
+    jitter: Any = 0.002
+    fwhm: Any = 0.02
+    age_slope: Any = 0.0
+    n2: Any = 0.0
+    seed: Any = 0
+
+
+def simulate_group(**keywords: Any) -> Any:
     """List of TrialSets (one per subject) and the truth table (one row per channel).
 
     Amplitudes are negative (an N1): subject mean ``-snr * NOISE_SD * (1 + subject
@@ -53,31 +59,42 @@ def simulate_group(
     ``latency`` (plus ``age_slope`` s/year x age) with channel and subject SDs; per-trial
     latency jitter SD ``jitter``. ``n2 > 0`` adds, on the responding channels, a positive
     N2 at 150 ms (FWHM 60 ms) of ``n2`` times the N1 amplitude, with the same trial jitter.
+
+    Keywords: the fields of :class:`GroupDesign`.
     """
 
-    rng = np.random.default_rng(seed)
+    design = GroupDesign(**keywords)
+    rng = np.random.default_rng(design.seed)
     sets, truth = [], []
-    ages = rng.uniform(5, 50, n_subjects)
-    for s in range(n_subjects):
-        base_amp = -snr * NOISE_SD * (1 + subject_amp_sd * rng.normal())
-        base_lat = latency + age_slope * (ages[s] - 25) + latency_sd_subject * rng.normal()
-        respond = rng.random(n_channels) < p_respond
-        amps = np.where(respond, base_amp * (1 + amp_sd * rng.normal(size=n_channels)), 0.0)
-        lats = base_lat + latency_sd_channel * rng.normal(size=n_channels)
-        data = ar1(rng, (n_trials, n_channels, len(TIMES)))
+    ages = rng.uniform(5, 50, design.n_subjects)
+    for s in range(design.n_subjects):
+        base_amp = -design.snr * NOISE_SD * (1 + design.subject_amp_sd * rng.normal())
+        base_lat = (
+            design.latency
+            + design.age_slope * (ages[s] - 25)
+            + design.latency_sd_subject * rng.normal()
+        )
+        respond = rng.random(design.n_channels) < design.p_respond
+        amps = np.where(
+            respond, base_amp * (1 + design.amp_sd * rng.normal(size=design.n_channels)), 0.0
+        )
+        lats = base_lat + design.latency_sd_channel * rng.normal(size=design.n_channels)
+        data = ar1(rng, (design.n_trials, design.n_channels, len(TIMES)))
         for c in np.flatnonzero(respond):
-            shifts = jitter * rng.normal(size=n_trials)
-            data[:, c] += amps[c] * gauss(lats[c] + shifts, fwhm)
-            if n2:
-                data[:, c] -= n2 * amps[c] * gauss(0.15 + 3 * (lats[c] - base_lat) + shifts, 0.06)
-        names = [f"s{s}c{c}" for c in range(n_channels)]
-        meta = pd.DataFrame({"subject": [f"sub{s:02d}"] * n_trials, "age": ages[s]})
+            shifts = design.jitter * rng.normal(size=design.n_trials)
+            data[:, c] += amps[c] * gauss(lats[c] + shifts, design.fwhm)
+            if design.n2:
+                data[:, c] -= (
+                    design.n2 * amps[c] * gauss(0.15 + 3 * (lats[c] - base_lat) + shifts, 0.06)
+                )
+        names = [f"s{s}c{c}" for c in range(design.n_channels)]
+        meta = pd.DataFrame({"subject": [f"sub{s:02d}"] * design.n_trials, "age": ages[s]})
         sets.append(
             TrialSet(
                 data=data, times=TIMES, sfreq=SFREQ, ch_names=names, metadata=meta, modality="spes"
             )
         )
-        for c in range(n_channels):
+        for c in range(design.n_channels):
             truth.append(
                 {
                     "subject": f"sub{s:02d}",

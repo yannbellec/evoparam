@@ -13,6 +13,14 @@ from evoparam.tests.tf.helpers import TIMES, ar1, burst, trialset
 from evoparam.tf import tf_fit
 from evoparam.tf.stats import bh_adjusted, fdr_significant, row_levels
 
+# Channels of the correction test, the error bound over 30 runs, the most channels
+# selected, the responsive channel, and alpha.
+N_CHANNELS = 2
+MAX_FAMILY_ERROR = 0.1
+MAX_SELECTED = 2
+RESPONSIVE = 2
+ALPHA = 0.05
+
 FREQS = (4, 250, 20)
 
 
@@ -23,7 +31,7 @@ def test_default_is_fdr_bh_and_every_correction_of_5_6_is_offered() -> None:
     for method in ("fdr_bh", "holm", "bonferroni", "none"):
         tf = tf_fit(ts, freqs=(4, 250, 6), zones="none", channel_correction=method)
         assert tf.settings["channel_correction"] == method
-        assert len(tf.settings["row_alpha"]) == 2
+        assert len(tf.settings["row_alpha"]) == N_CHANNELS
     with pytest.raises(SettingsError, match="channel_correction"):
         tf_fit(ts, freqs=(4, 250, 6), zones="none", channel_correction="sidak")
 
@@ -78,7 +86,7 @@ def test_fdr_bh_across_channels_controls_errors_on_null_channels() -> None:
     the sampling error of 30 runs); without correction it grows with the channels."""
 
     corrected, uncorrected = _null_family_error("fdr_bh"), _null_family_error("none")
-    assert corrected <= 0.1, corrected
+    assert corrected <= MAX_FAMILY_ERROR, corrected
     assert uncorrected >= corrected
 
 
@@ -90,9 +98,9 @@ def test_fdr_bh_keeps_a_responsive_channel_among_null_ones() -> None:
     tf = tf_fit(trialset(data), freqs=FREQS, zones="none", random_state=0)
     responsive = tf.significant.reshape(8, -1).any(axis=1)
     assert responsive[2]
-    assert responsive.sum() <= 2
+    assert responsive.sum() <= MAX_SELECTED
     p = np.array(tf.settings["row_p_value"], float)
-    assert np.nanargmin(p) == 2
+    assert np.nanargmin(p) == RESPONSIVE
     # the pixels of the selected row are those of Benjamini-Hochberg at its level
     level = tf.settings["row_alpha"][2]
     assert level == pytest.approx(responsive.sum() * 0.05 / 8)
@@ -106,6 +114,6 @@ def test_one_row_is_tested_at_alpha() -> None:
     ts = trialset(data)
     tf = tf_fit(ts, freqs=FREQS, zones="none", random_state=0)
     assert np.isfinite(tf.settings["row_p_value"][0])
-    assert tf.settings["row_p_value"][0] <= 0.05
+    assert tf.settings["row_p_value"][0] <= ALPHA
     # one row: fdr_bh across channels is Benjamini-Hochberg over the row's pixels at alpha
     assert tf.settings["row_alpha"] == [0.05]

@@ -16,6 +16,9 @@ import evoparam.stats
 from evoparam import sim
 from evoparam.data import save_object
 
+# Relative tolerance of a rerun.
+RTOL = 1e-9
+
 pytest.importorskip("pandas")
 
 
@@ -114,7 +117,7 @@ def test_req295_fixture_matches_the_reference_values() -> None:
             "algorithm version bumped: regenerate the reference with "
             "python -m evoparam.tests.reference and record the change in CHANGELOG"
         )
-    assert out["max_rel_diff"] <= 1e-9
+    assert out["max_rel_diff"] <= RTOL
 
 
 def test_req295_no_legacy_global_random_state() -> None:

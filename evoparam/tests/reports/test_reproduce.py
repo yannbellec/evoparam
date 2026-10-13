@@ -15,6 +15,9 @@ import evoparam
 from evoparam import reports
 from evoparam.errors import EvoparamVersionError
 
+# Relative tolerance of a reproduced result.
+RTOL = 1e-9
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
 
 
@@ -48,7 +51,7 @@ def test_req333_reproduce_is_identical(saved: Any) -> None:
         warnings.simplefilter("ignore", UserWarning)
         report = reports.reproduce(saved, rtol=1e-9)
     assert report.identical, report.differences[:5]
-    assert report.max_rel_diff == 0.0 or report.max_rel_diff <= 1e-9
+    assert report.max_rel_diff == 0.0 or report.max_rel_diff <= RTOL
     assert report.checksums_ok
     assert report.settings_differences == []
     functions = [step["function"] for step in report.steps]

@@ -23,6 +23,13 @@ from evoparam.tests.io.helpers import (
 
 pd = pytest.importorskip("pandas")
 
+# Trials of one run of the fixture (16 stimulations, the last too close to the end), of
+# the events given as a table, and of two runs.
+N_TRIALS = 15
+N_GIVEN_EVENTS = 2
+N_TWO_RUNS = 30
+N_RUNS = 2
+
 ###################################################################################################
 ###################################################################################################
 
@@ -45,7 +52,7 @@ def test_read_bids_local(bids_root: Any) -> None:
 
     # 16 stimulation events, the last one too close to the end of the recording
     kept_onsets = STIM_ONSETS[:-1]
-    assert trials.n_trials == 15
+    assert trials.n_trials == N_TRIALS
     assert trials.ch_names == CH_NAMES
     assert trials.sfreq == SFREQ
     assert trials.units == "uV"
@@ -147,7 +154,7 @@ def test_events_argument(bids_root: Any, tmp_path: Any) -> None:
 
     events = pd.DataFrame({"onset": [5.0, 20.0], "trial_type": ["x", "y"]})
     trials = read_bids(bids_root, "01", task="spes", events=events)
-    assert trials.n_trials == 2
+    assert trials.n_trials == N_GIVEN_EVENTS
     assert list(trials.metadata["condition"]) == ["x", "y"]
     assert trials.modality is None
 
@@ -174,7 +181,7 @@ def test_save_load_round_trip(bids_root: Any, tmp_path: Any) -> None:
 def test_read_dispatch_on_bids_folder(bids_root: Any) -> None:
 
     trials = read(bids_root, subject="01", task="spes")
-    assert trials.n_trials == 15
+    assert trials.n_trials == N_TRIALS
 
 
 def test_several_runs_are_concatenated(tmp_path: Any) -> None:
@@ -191,9 +198,9 @@ def test_several_runs_are_concatenated(tmp_path: Any) -> None:
         with open(dst, "wb") as file:
             file.write(content)
     trials = read_bids(root, "01", task="spes")
-    assert trials.n_trials == 30
+    assert trials.n_trials == N_TWO_RUNS
     assert list(trials.metadata["run"].unique()) == ["01", "02"]
-    assert len(trials.provenance.source["runs"]) == 2
+    assert len(trials.provenance.source["runs"]) == N_RUNS
 
     # A run with other channels cannot be concatenated
     write_brainvision(

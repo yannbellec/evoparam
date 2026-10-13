@@ -12,6 +12,16 @@ from evoparam.events import events_to_metadata, group_trains, trains
 
 pd = pytest.importorskip("pandas")
 
+# Sites and pulses per site of the simulated protocol (1 Hz, 4 s between sites).
+N_SITES = 20
+N_PER_SITE = 30
+LAST_INDEX = 29
+# Mayo protocol: 10-12 pulses per site, 2.5 to 6 s between pulses (about 0.2 Hz).
+MIN_PULSES = 10
+MAX_PULSES = 12
+MIN_INTERVAL = 2.5
+MAX_INTERVAL = 6.0
+
 ###################################################################################################
 ###################################################################################################
 
@@ -21,8 +31,8 @@ def test_req044_synthetic_design_exactly() -> None:
 
     onsets, sites = [], []
     t = 0.0
-    for site in range(20):
-        for _ in range(30):
+    for site in range(N_SITES):
+        for _ in range(N_PER_SITE):
             onsets.append(t)
             sites.append(f"S{site:02d}-S{site:02d}b")
             t += 1.0
@@ -31,14 +41,14 @@ def test_req044_synthetic_design_exactly() -> None:
 
     for kwargs in ({"expected_rate": 1.0}, {}, {"site_column": None}):
         grouped = group_trains(events.sample(frac=1, random_state=0), **kwargs)
-        assert grouped["train_id"].nunique() == 20
-        assert (grouped.groupby("train_id").size() == 30).all()
-        assert grouped["index_in_train"].max() == 29
+        assert grouped["train_id"].nunique() == N_SITES
+        assert (grouped.groupby("train_id").size() == N_PER_SITE).all()
+        assert grouped["index_in_train"].max() == LAST_INDEX
         assert (np.diff(grouped["onset_time"]) > 0).all()
 
     summary = trains(group_trains(events))
-    assert len(summary) == 20
-    assert (summary["n_pulses"] == 30).all()
+    assert len(summary) == N_SITES
+    assert (summary["n_pulses"] == N_PER_SITE).all()
     assert np.allclose(summary["mean_interval"], 1.0)
     assert summary["site"].tolist() == sorted(set(sites))
 
@@ -155,8 +165,8 @@ def test_req044_mayo_protocol(stem: Any) -> None:
     assert (grouped["train_id"].to_numpy() == blocks).all()
     assert len(grouped) == len(events)
     # About 0.2 Hz and 10-12 pulses per site
-    assert 10 <= summary["n_pulses"].median() <= 12
-    assert 2.5 <= summary["mean_interval"].median() <= 6.0
+    assert MIN_PULSES <= summary["n_pulses"].median() <= MAX_PULSES
+    assert MIN_INTERVAL <= summary["mean_interval"].median() <= MAX_INTERVAL
 
 
 @pytest.mark.network
@@ -174,8 +184,8 @@ def test_req044_mayo_protocol_ds004696_sub07() -> None:
     sites = grouped["stim_site_guess"].to_numpy()
     blocks = np.r_[0, np.cumsum(sites[1:] != sites[:-1])]
     assert (grouped["train_id"].to_numpy() == blocks).all()
-    assert 2.5 <= summary["mean_interval"].median() <= 6.0
-    assert 10 <= summary["n_pulses"].median() <= 12
+    assert MIN_INTERVAL <= summary["mean_interval"].median() <= MAX_INTERVAL
+    assert MIN_PULSES <= summary["n_pulses"].median() <= MAX_PULSES
 
 
 @pytest.mark.network
@@ -188,5 +198,5 @@ def test_req044_mayo_protocol_all_runs_together() -> None:
         _, _, summary = _mayo_trains(stem)
         counts += summary["n_pulses"].tolist()
         intervals += summary["mean_interval"].dropna().tolist()
-    assert 10 <= np.median(counts) <= 12
-    assert 2.5 <= np.median(intervals) <= 6.0
+    assert MIN_PULSES <= np.median(counts) <= MAX_PULSES
+    assert MIN_INTERVAL <= np.median(intervals) <= MAX_INTERVAL

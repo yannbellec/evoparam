@@ -21,6 +21,12 @@ import pytest
 
 import evoparam
 
+# Longest License field read as a licence name (longer ones hold the licence text), the
+# fewest packages checked, and the fewest requirements.
+MAX_LICENSE_NAME = 200
+MIN_CHECKED = 5
+MIN_REQUIREMENTS = 220
+
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 
 pytestmark = [
@@ -101,7 +107,9 @@ def test_req399_licences_agree_with_the_installed_metadata() -> None:
                 None,
                 [
                     meta.get("License-Expression"),
-                    meta.get("License") if len(meta.get("License") or "") <= 200 else None,
+                    meta.get("License")
+                    if len(meta.get("License") or "") <= MAX_LICENSE_NAME
+                    else None,
                     *[c for c in meta.get_all("Classifier") or [] if c.startswith("License")],
                 ],
             )
@@ -110,7 +118,7 @@ def test_req399_licences_agree_with_the_installed_metadata() -> None:
             continue  # the metadata names no licence
         assert _family(row["licence"]) & _family(declared), (row["package"], declared)
         checked += 1
-    assert checked >= 5
+    assert checked >= MIN_CHECKED
 
 
 def _third_party_imports() -> Any:
@@ -156,7 +164,7 @@ def test_req399_algorithm_version_in_every_step() -> None:
 def test_req399_traceability_generator() -> None:
     tool = _tool("gen_traceability")
     report = tool.report()
-    assert report["n_requirements"] >= 220
+    assert report["n_requirements"] >= MIN_REQUIREMENTS
     reqs = {row["req"] for row in report["requirements"]}
     assert {"REQ-290", "REQ-375", "REQ-376", "REQ-399"} <= reqs
     row = next(r for r in report["requirements"] if r["req"] == "REQ-399")

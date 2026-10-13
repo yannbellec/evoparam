@@ -27,6 +27,9 @@ import pytest
 
 import evoparam
 
+# Fewest modules imported.
+MIN_MODULES = 60
+
 pytestmark = pytest.mark.core
 
 PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
@@ -196,7 +199,7 @@ def test_req016_no_network_without_remote_options(tmp_path: Any) -> None:
     assert result.returncode == 0, result.stderr[-3000:]
     report = json.loads(result.stdout.strip().splitlines()[-1])
     assert report["attempts"] == []
-    assert report["n_modules"] >= 60
+    assert report["n_modules"] >= MIN_MODULES
     assert all(code == 0 for code in report["codes"].values()), report["codes"]
 
 

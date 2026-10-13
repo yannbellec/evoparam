@@ -11,6 +11,25 @@ from evoparam.models import fit as fit_models
 from evoparam.tests.tf.helpers import TIMES, ar1, burst, n1, trialset
 from evoparam.tf import tf_fit
 
+# High band (Hz) of the evoked energy; fraction of it in the footprint and in the residual.
+HIGH_FMIN = 50
+HIGH_FMAX = 250
+MIN_FOOTPRINT = 0.8
+MAX_RESIDUAL = 0.05
+# Relative frequency and time (s) tolerances of a recovered burst, and the recovery rate.
+FREQ_TOLERANCE = 0.1
+TIME_TOLERANCE = 0.02
+MIN_RECOVERED = 0.9
+# Box (Hz, s) of the narrow-band burst, and the largest fraction of runs that find it.
+BURST_FMIN = 65
+BURST_FMAX = 100
+BURST_TMIN = 0.2
+BURST_TMAX = 0.3
+MAX_FOUND = 0.1
+# Largest error rate under the null (REQ-214), and the median ratio of REQ-215.
+MAX_ERROR_RATE = 0.06
+MAX_RATIO = 0.5
+
 FREQS = (4, 250, 40)
 # A burst adding 20 % to the signal power (variance) over its 100 ms: with AR(1) noise of
 # standard deviation 10 and a Hann envelope (mean square 3/8), amplitude**2 * 3 / 16 = 20.
@@ -29,11 +48,11 @@ def test_req212_footprint_removes_the_sharp_n1_confound() -> None:
             warnings.simplefilter("ignore")
             group = fit_models(ts, "ccep")
         tf = tf_fit(ts, freqs=FREQS, group_fit=group, zones="none", random_state=seed)
-        high = (tf.freqs >= 50) & (tf.freqs <= 250)
+        high = (tf.freqs >= HIGH_FMIN) & (tf.freqs <= HIGH_FMAX)
         total += bool(tf.significant[0][high].any())
         residual += bool(tf.maps["residual_significant"][0][high].astype(bool).any())
-    assert total / runs >= 0.8
-    assert residual / runs <= 0.05
+    assert total / runs >= MIN_FOOTPRINT
+    assert residual / runs <= MAX_RESIDUAL
 
 
 def test_req213_zone_recovery_of_induced_gamma_bursts() -> None:
@@ -47,10 +66,10 @@ def test_req213_zone_recovery_of_induced_gamma_bursts() -> None:
         if len(zones):
             best = zones.iloc[0]
             recovered += (
-                abs(best["freq_centroid"] / 80.0 - 1) <= 0.1
-                and abs(best["time_centroid"] - 0.25) <= 0.02
+                abs(best["freq_centroid"] / 80.0 - 1) <= FREQ_TOLERANCE
+                and abs(best["time_centroid"] - 0.25) <= TIME_TOLERANCE
             )
-    assert recovered / runs >= 0.9
+    assert recovered / runs >= MIN_RECOVERED
 
 
 def _recovery(amp: Any, runs: Any = 20) -> Any:
@@ -63,8 +82,8 @@ def _recovery(amp: Any, runs: Any = 20) -> Any:
         if len(zones):
             best = zones.iloc[0]
             recovered += (
-                abs(best["freq_centroid"] / 80.0 - 1) <= 0.1
-                and abs(best["time_centroid"] - 0.25) <= 0.02
+                abs(best["freq_centroid"] / 80.0 - 1) <= FREQ_TOLERANCE
+                and abs(best["time_centroid"] - 0.25) <= TIME_TOLERANCE
             )
     return recovered / runs
 
@@ -79,7 +98,7 @@ def _recovery(amp: Any, runs: Any = 20) -> Any:
 )
 def test_req213_strict_reading_twenty_percent_of_local_power() -> None:
 
-    assert _recovery(1.32) >= 0.9
+    assert _recovery(1.32) >= MIN_RECOVERED
 
 
 def test_narrow_band_twenty_percent_is_below_pixel_resolution() -> None:
@@ -93,13 +112,13 @@ def test_narrow_band_twenty_percent_is_below_pixel_resolution() -> None:
         ts = trialset(ar1(rng, (30, len(TIMES))) + burst(rng, 30, amp=1.32))
         tf = tf_fit(ts, freqs=FREQS, zones="none", random_state=seed)
         burst_box = (
-            (tf.freqs[:, None] >= 65)
-            & (tf.freqs[:, None] <= 100)
-            & (tf.times[None] >= 0.2)
-            & (tf.times[None] <= 0.3)
+            (tf.freqs[:, None] >= BURST_FMIN)
+            & (tf.freqs[:, None] <= BURST_FMAX)
+            & (tf.times[None] >= BURST_TMIN)
+            & (tf.times[None] <= BURST_TMAX)
         )
         found += bool(tf.significant[0][burst_box].any())
-    assert found / runs <= 0.1
+    assert found / runs <= MAX_FOUND
 
 
 def _null_rate(stats: Any, runs: Any, n_permutations: Any = 200) -> Any:
@@ -122,15 +141,15 @@ def _null_rate(stats: Any, runs: Any, n_permutations: Any = 200) -> Any:
 def test_req214_fdr_type_one_error() -> None:
     # Under the complete null the false-discovery rate is the family-wise error, which
     # bounds the pixel-wise error from above.
-    assert _null_rate("fdr", 200) <= 0.06
+    assert _null_rate("fdr", 200) <= MAX_ERROR_RATE
 
 
 def test_req214_cluster_family_wise_error() -> None:
-    assert _null_rate("cluster", 100) <= 0.06
+    assert _null_rate("cluster", 100) <= MAX_ERROR_RATE
 
 
 def test_req214_tfce_family_wise_error() -> None:
-    assert _null_rate("tfce", 40, n_permutations=100) <= 0.06
+    assert _null_rate("tfce", 40, n_permutations=100) <= MAX_ERROR_RATE
 
 
 def test_req215_single_trial_normalisation_resists_a_noisy_trial() -> None:
@@ -151,12 +170,12 @@ def test_req215_single_trial_normalisation_resists_a_noisy_trial() -> None:
                 )
                 if region is None:
                     region = (
-                        (tf.freqs[:, None] >= 65)
-                        & (tf.freqs[:, None] <= 100)
-                        & (tf.times[None] >= 0.2)
-                        & (tf.times[None] <= 0.3)
+                        (tf.freqs[:, None] >= BURST_FMIN)
+                        & (tf.freqs[:, None] <= BURST_FMAX)
+                        & (tf.times[None] >= BURST_TMIN)
+                        & (tf.times[None] <= BURST_TMAX)
                     )
                 values.append(np.nanmean(tf.maps["total_norm"][0][region]))
             change[level] = abs(values[1] - values[0])
         ratios.append(change["single_trial"] / change["evoked"])
-    assert np.median(ratios) <= 0.5
+    assert np.median(ratios) <= MAX_RATIO

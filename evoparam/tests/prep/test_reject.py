@@ -13,6 +13,13 @@ from .helpers import ccep, epochs
 
 pd = pytest.importorskip("pandas")
 
+# Response window (s), trials simulated, and the rejection rates required.
+RESPONSE_START = 0.01
+RESPONSE_END = 0.5
+N_TRIALS = 200
+MIN_REJECTED = 0.95
+MAX_FALSE_REJECTED = 0.02
+
 ###################################################################################################
 ###################################################################################################
 
@@ -27,15 +34,15 @@ def test_req083_flags_corrupted_trials_without_deleting() -> None:
     data[big] *= 10  # 10x the baseline amplitude
     data[flat] = 0.0  # flat
     mask = np.zeros(data.shape, dtype=bool)
-    resp = np.flatnonzero((ts.times >= 0.01) & (ts.times <= 0.5))
+    resp = np.flatnonzero((ts.times >= RESPONSE_START) & (ts.times <= RESPONSE_END))
     mask[np.ix_(masked, np.arange(ts.n_channels), resp[: int(0.3 * len(resp))])] = True
     out = reject_trials(apply_mask(replace(ts, data=data), mask))
 
-    assert out.n_trials == 200
+    assert out.n_trials == N_TRIALS
     rejected = out.metadata["rejected"].to_numpy()
-    assert rejected[corrupted].mean() >= 0.95
+    assert rejected[corrupted].mean() >= MIN_REJECTED
     clean = np.setdiff1d(np.arange(200), corrupted)
-    assert rejected[clean].mean() <= 0.02
+    assert rejected[clean].mean() <= MAX_FALSE_REJECTED
     assert set(out.metadata.loc[flat, "reject_reason"]) == {"flat"}
     assert out.select(query="not rejected").n_trials == 200 - rejected.sum()
 

@@ -12,6 +12,12 @@ from evoparam.shapes import backgrounds as bg
 from evoparam.tests.shapes import references
 from evoparam.tests.shapes.helpers import TIMES, sample_background_params
 
+# Smallest error of a P-spline on a component narrower than its max_fwhm, and the range of
+# the selected penalty.
+MIN_MISFIT = 0.25
+MIN_LAMBDA = 1e-6
+MAX_LAMBDA = 1e6
+
 WINDOW = (float(TIMES[0]), float(TIMES[-1]))
 
 
@@ -141,7 +147,7 @@ def test_pspline_cannot_absorb_a_narrow_component() -> None:
     component = shapes.Gaussian().evaluate(TIMES, [0.15, 0.03 / 2.3548200450309493])
     design = spline.basis(TIMES).T
     fitted = design @ np.linalg.lstsq(design, component, rcond=None)[0]
-    assert np.max(np.abs(component - fitted)) > 0.25
+    assert np.max(np.abs(component - fitted)) > MIN_MISFIT
 
 
 def test_pspline_select_lambda() -> None:
@@ -150,7 +156,7 @@ def test_pspline_select_lambda() -> None:
     slow = 3.0 * np.sin(2 * np.pi * 1.5 * times)
     spline = bg.PSplineBackground(WINDOW, max_fwhm=0.02)
     lam = spline.select_lambda(times, slow + rng.normal(0, 1.0, times.size))
-    assert 1e-6 <= lam <= 1e6
+    assert MIN_LAMBDA <= lam <= MAX_LAMBDA
     rough = spline.select_lambda(times, rng.normal(0, 1.0, times.size))
     assert rough >= lam
     with pytest.raises(SettingsError):

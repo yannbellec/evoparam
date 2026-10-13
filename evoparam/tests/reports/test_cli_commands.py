@@ -21,6 +21,10 @@ import pytest
 import evoparam
 from evoparam import __version__, presets, reports
 
+# Events detected in the recording, and the exit code of a usage error.
+N_EVENTS = 8
+EXIT_USAGE = 2
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
 EPOCH = "1767225600"  # 2026-01-01T00:00:00Z
 SIM = ["--modality", "ccep", "--n-trials", "8", "--n-channels", "3", "--random-state", "3"]
@@ -217,7 +221,7 @@ def test_req345_detect_events(bids: Any, tmp_path: Any) -> None:
     table = pd.read_csv(out, sep="\t")
     assert list(table.columns[:2]) == ["onset", "duration"]
     assert list(table.columns[2:]) == list(events.columns)
-    assert summary["n_units"]["ok"] == len(events) == 8
+    assert summary["n_units"]["ok"] == len(events) == N_EVENTS
     assert table["onset"].tolist() == pytest.approx(events["onset_time"].tolist(), abs=0)
     sidecar = json.loads((tmp_path / "events.json").read_text())
     assert set(sidecar) == set(table.columns)
@@ -261,7 +265,7 @@ def test_req345_information_commands() -> None:
     assert {row["name"] for row in listing["result"]["presets"]} == set(presets.PRESETS)
     shown = run("presets", "show", "ccep")
     assert shown["result"]["preset"]["name"] == "ccep"
-    assert run_text("benchmark")[0] == 2  # an action is required
+    assert run_text("benchmark")[0] == EXIT_USAGE  # an action is required
     # the repository is not a BIDS dataset: input error (REQ-314, tests/io/test_bids_validator.py)
     assert run("validate-bids", ROOT, code=5)["status"] == "error"
     code, stdout = run_text("--version")

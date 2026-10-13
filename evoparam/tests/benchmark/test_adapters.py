@@ -26,6 +26,10 @@ from evoparam.tests.test_dependencies import GPL_TEXT, _mentions_isolation
 
 from .helpers import ADAPTERS, ROOT, inputs
 
+# Latency range (s) of the stand-in detector's responses.
+LATENCY_MIN = 0.009
+LATENCY_MAX = 0.1
+
 pytest.importorskip("jsonschema")
 
 FAKE_TOOL = """
@@ -207,7 +211,7 @@ def test_req354_erdetect_adapter_with_a_stand_in_detector(tmp_path: Any) -> None
             assert {r["responsive"] for r in rows} == {0, 1}
         else:
             assert rows
-            assert all(0.009 <= r["latency"] <= 0.1 for r in rows)
+            assert all(LATENCY_MIN <= r["latency"] <= LATENCY_MAX for r in rows)
     assert "standin_detector" not in sys.modules
 
 

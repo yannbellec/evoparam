@@ -8,8 +8,8 @@ import pytest
 
 pytest.importorskip("matplotlib")
 
-from evoparam import plots  # noqa: E402
-from evoparam.data import ShapeBasis  # noqa: E402
+from evoparam import plots  # noqa: E402  (after pytest.importorskip)
+from evoparam.data import ShapeBasis  # noqa: E402  (after pytest.importorskip)
 
 
 def _is_figure(fig: Any) -> Any:

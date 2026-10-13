@@ -20,6 +20,10 @@ from evoparam.errors import EvoparamVersionError, SettingsError
 from evoparam.io.readers import READERS, read
 from evoparam.shapes import BACKGROUNDS, SHAPES
 
+# Tolerances (s) of the plug-in component's latency and FWHM.
+LATENCY_TOLERANCE = 0.003
+FWHM_TOLERANCE = 0.005
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 DUMMY = os.path.join(HERE, "plugins", "evoparam_dummy")
 ENTRY_POINTS = """[evoparam.shapes]
@@ -102,8 +106,8 @@ def test_dummy_shape_preset_and_reader(site: Any, tmp_path: Any) -> None:
     assert result.status == "ok"
     comp = max(result.components, key=lambda c: abs(c.amplitude))
     assert comp.shape == "lorentzian"
-    assert abs(comp.latency - 0.12) < 0.003
-    assert abs(comp.fwhm - 0.030) < 0.005
+    assert abs(comp.latency - 0.12) < LATENCY_TOLERANCE
+    assert abs(comp.fwhm - 0.030) < FWHM_TOLERANCE
     assert result.provenance.environment["plugins"]["lorentzian"] == origin
 
     # the preset resolves

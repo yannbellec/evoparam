@@ -18,6 +18,11 @@ from .helpers import N1, WINDOW, replicates
 
 pd = pytest.importorskip("pandas")
 
+# Coverage range of a 95 % interval over the replicates, and the resamples recorded.
+MIN_COVERAGE = 0.93
+MAX_COVERAGE = 0.97
+N_BOOT = 20
+
 ###################################################################################################
 ###################################################################################################
 
@@ -42,7 +47,7 @@ def test_req230_coverage(method: Any, distribution: Any) -> None:
         ts, "mean_amplitude", window=WINDOW, n_boot=1000, method=method, by=(), random_state=5
     )
     covered = (table["ci_low"] <= true) & (true <= table["ci_high"])
-    assert 0.93 <= covered.mean() <= 0.97, covered.mean()
+    assert MIN_COVERAGE <= covered.mean() <= MAX_COVERAGE, covered.mean()
     assert set(table["method"]) == {method}
     # the textbook interval (no small-sample expansion) is narrower
     plain = bootstrap(
@@ -186,5 +191,5 @@ def test_interval_details_and_errors() -> None:
     assert ts == before  # input unchanged
     steps = table.attrs["provenance"]["steps"]
     assert steps[-1]["function"] == "evoparam.stats.bootstrap"
-    assert steps[-1]["settings"]["n_boot"] == 20
+    assert steps[-1]["settings"]["n_boot"] == N_BOOT
     assert isinstance(table, pd.DataFrame)

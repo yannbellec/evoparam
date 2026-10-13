@@ -15,6 +15,9 @@ from typing import Any
 
 import pytest
 
+# Depth of evoparam.<subpackage>.<module>.
+MODULE_DEPTH = 2
+
 PACKAGE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LAYERS = ("reports", "plots", "cli.py", "stream")
 
@@ -125,7 +128,7 @@ def _violations(path: Any) -> Any:
                 found.append((node.lineno, f"from {module} import ..."))
             if (
                 parts[0] == "evoparam"
-                and len(parts) > 2
+                and len(parts) > MODULE_DEPTH
                 and parts[1] in ANALYSIS
                 and parts[2].startswith("_")
                 and module not in ALLOWED_PRIVATE
