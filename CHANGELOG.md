@@ -2,6 +2,136 @@
 
 ## Unreleased
 
+### N1 case: the two readings of the published rule (REQ-113, REQ-114, REQ-135, REQ-273)
+
+Work on the N1 requirements under both readings of the published rule (owner decision D8),
+on the example run and the six REQ-371 runs (D14). Choices were measured on the five
+development runs (UMCU07, 19, 28, 40, 49: every trial of the pair the earlier work cached)
+and are reported on the REQ runs, which were not used to choose anything. No default of the
+package changed: every candidate that helped one reading made the other, or another
+requirement, worse (below). Package results are unchanged, so no algorithm version moves
+and the reference fixture is not regenerated. Only tests and documents change.
+
+- **The readings were checked against the published code.** The analysis scripts of
+  van Blooijs et al. 2023 (mnl_ccepAge, branch master: `scripts/ccep01_averageCCEPsAndDetectN1s.m`,
+  `functions/ccep_averageConditions.m`, `ccep_detect_n1peak_ECoG.m`, `ccep_peakfinder.m`)
+  were read again. `vanblooijs2023_code` follows them: per-trial median over (-1, -0.1) s,
+  mean, median over (-2, -0.1) s, SD floor 50 uV, local minima with a selectivity of 20 uV
+  from the first sample after 9 ms to the first after 500 ms, first sample excluded, the
+  largest kept up to 100 ms, refused above 3000 uV or when every minimum is positive. The
+  time axis of the code is one sample late (the test shifts it back). The published
+  pipeline does not re-reference: the rule reads the recording reference, the `ccep` preset
+  the adjusted common average.
+- **D8 cannot hold for REQ-113 and REQ-135, whatever the detector.** For any decision of the
+  channels, the smaller of its kappas with the two readings has an upper bound. Kappa
+  depends only on how many channels the decision marks in each of the four cells of the
+  readings' table, so every combination was searched (exact; checked against a brute force
+  over all decisions of 12 channels). The two readings agree with each other at kappa 0.06
+  on the 46 PT contacts of the example (19 and 1 N1s) and 0.31 pooled over the REQ-371
+  runs (125 and 28).
+
+  | data | bound of min(kappa paper, kappa code) | asked |
+  |---|---|---|
+  | REQ-113, example run, 46 PT contacts | 0.295 | 0.8 |
+  | REQ-113, REQ-371 runs UMCU02 / 03 / 04 / 05 / 06 / 01 | 0.656 / 0.343 / 0.323 / 0.783 / 0.681 / 0.563 | 0.8 on 5 of 6 |
+  | REQ-135, REQ-371 runs pooled (rules on the test's trials) | 0.592 (0.600 on the published averages) | 0.7 |
+  | REQ-135, development runs pooled | 0.698 | 0.7 |
+  | REQ-135, the segments the earlier test used | 0.6996 | 0.7 |
+
+  New tests (not REQs, measured facts): `test_d8_req113_cannot_hold_under_both_readings`
+  and `test_req135_cannot_hold_under_both_readings`, with the exact search
+  `joint_kappa_bound`. An owner decision is needed (DECISIONS §5.8).
+- **REQ-135 as written runs on the REQ-371 subjects.** Spec §7.3 names the subjects of
+  REQ-135: the ones chosen by the rule of REQ-371. The test used the example subject and the
+  five development subjects (40 s segments, 7 or 8 trials). It now uses the six REQ-371
+  subjects with every trial of the pair (as REQ-113). The method and the two rules see the
+  same trials (template artifact removal, baseline -1 to -0.1 s). The registry row gets the
+  ER-detect baseline the registry names. The code keeps its own baseline (-2 to -0.1 s;
+  the segments were too short for it). The regression floor of the code's SD floor stays
+  on the segments.
+
+  | existence method, kappa with registry row / code | REQ-371 runs | development runs |
+  |---|---|---|
+  | default (max_t, fdr_bh, alpha 0.05, 9-100 ms, negative) | **0.586 / 0.496** | 0.600 / 0.597 |
+  | `statistic="cluster"` | 0.352 / 0.567 | 0.534 / 0.622 |
+  | `correction="none"` (the rule's per-channel decision) | **0.807** / 0.321 | 0.808 / 0.499 |
+  | `correction="holm"` | 0.128 / 0.497 | 0.327 / 0.465 |
+  | `alpha=0.01` | 0.139 / 0.587 | 0.420 / 0.524 |
+  | `polarity="both"` | 0.349 / 0.220 | 0.139 / 0.053 |
+  | default, on the preset's input (adjusted common average, its baseline) | 0.623 / 0.384 | 0.703 / 0.524 |
+  | `correction="none"`, preset's input | 0.642 / 0.262 | 0.686 / 0.395 |
+
+  Before (segments): 0.687 / 0.399. With `correction="none"` the registry row is met on the
+  held-out runs (0.807; chosen on principle: the rule decides each channel alone, and no
+  value was tuned). The code reading then falls from 0.496 to 0.321. Spec §6 also asks
+  for FDR across channels in every preset. So the preset keeps `fdr_bh`, and the setting
+  is kept as a regression test (`test_req135_per_channel_decision_registry_row_regression`).
+  REQ-135 stays an xfail under both readings.
+- **REQ-114: the rule's peak read on the fitted curve.** A new reading of "the model
+  latency": each reading's own peak operator applied to the curve of the ccep fit (its
+  components and background) instead of the noisy average. The baseline (SD, level) is the
+  rule's average. So a window-start peak on the recovery tail, or a late deflection of
+  50-100 ms, is compared with the model's curve at the same place.
+
+  | REQ-114 reading of the model latency, REQ runs (example + REQ-371), registry row / code | within 2 ms |
+  |---|---|
+  | the N1 component (as written) | 24 % (18/74) / 37 % (11/30) |
+  | trough of the fitted curve in 9-50 ms (K3) | 42 % (31/74) / 80 % (24/30) |
+  | trough of the fitted curve in 9-100 ms | 45 % / 80 % |
+  | trough of the components without background | 31 % / 53 % |
+  | negative component nearest the trough; earliest negative component | 34 % / 63 %; 23 % / 30 % |
+  | the rule's operator on the components without background | 50 % / 50 % |
+  | **the rule's operator on the fitted curve** | **84 % (62/74) / 90.0 % (27/30)** |
+  | the same, background extrapolated one sample before the fit window | 81 % / 83 % |
+
+  On the development runs the new reading gives 66 % (23/35) and 86 % (18/21). Each miss
+  was classified: the rule's peak absent from the preset's own input average (the
+  reference: 10 and 3 on the REQ runs, 8 and 0 on the development runs), a tie within
+  noise (the average differs by less than 2 SD of its baseline between the two
+  latencies: 2 and 0; 4 and 3), or a misfit (0 everywhere). The rule's own peak is not
+  much more reproducible: re-measured on 200 bootstrap resamples of its trials, it stays
+  within 2 ms of itself in 90 % / 91 % of resamples on the REQ runs (median channel 99 % /
+  100 %) and 87 % / 93 % on the development runs. New test
+  `test_req114_rule_peak_on_the_fitted_curve` (xfail; with the code it passes, at the
+  threshold).
+- **Model and pipeline variants** (every trial of the pair; REQ-113 kappa pooled over the
+  REQ-371 runs, REQ-114 with the new reading; registry row / code):
+
+  | variant | REQ-113 kappa, REQ runs (development) | REQ-114 new reading, REQ runs (development) |
+  |---|---|---|
+  | ccep 1.1 (adjusted common average) | 0.463 / 0.401 (0.399 / 0.387) | 84 % / 90 % (66 % / 86 %) |
+  | recording reference (no re-referencing, as the published pipeline) | 0.421 / 0.428 (0.471 / 0.512) | 88 % / 88 % (91 % / 95 %) |
+  | recording reference, `delta` 6 | 0.436 / 0.423 (0.464 / 0.504) | 87 % / 86 % (91 % / 95 %) |
+  | plain common average | 0.443 / 0.382 (0.405 / 0.378) | 76 % / 89 % (70 % / 79 %) |
+  | `delta` 6 | 0.480 / 0.371 (0.412 / 0.381) | 85 % / 90 % (64 % / 86 %) |
+  | `max_components` 8 | 0.452 / 0.401 (0.399 / 0.387) | 82 % / 87 % (60 % / 81 %) |
+  | fit window to 0.3 s | 0.513 / 0.373 (0.356 / 0.381) | 82 % / 93 % (76 % / 86 %) |
+  | background `double_exponential` | 0.475 / 0.324 (0.338 / 0.460) | 85 % / 88 % (68 % / 89 %) |
+  | N1 counted only where the preset's existence test is significant (9-500 ms, both signs) | 0.442 / 0.562 (0.431 / 0.443) | 86 % / 90 % |
+  | the same, test over 9-100 ms, negative | 0.469 / 0.560 (0.514 / 0.549) | 86 % / 89 % |
+  | the same, `correction="none"` | 0.494 / 0.528 (0.540 / 0.598) | 88 % / 90 % |
+
+  The recording reference is the only change that removes the reference misses of
+  REQ-114. It reaches 90 % on the development runs under both readings, but not on the
+  REQ runs (88 % / 88 %). Its REQ-113 kappa falls with the registry row (0.463 to 0.421;
+  example PT contacts 0.46 to 0.24). It also gives up the adjusted common average that
+  spec §6 asks for (common-mode deflections, such as sub-ccepAgeUMCU03's at 32.7 ms on
+  35 of 70 channels, would count as N1s). Not adopted. No variant brings REQ-113 near 0.8
+  under either reading.
+- Results: REQ-113 not met (0.46 / 0.19 on the PT contacts, 0.46 / 0.40 pooled;
+  unchanged). REQ-114 not met as written (24 % / 37 %; unchanged); with the rule's peak
+  read on the fitted curve, 84 % / 90.0 %. REQ-135 not met (0.586 / 0.496 on the REQ-371
+  runs; before, on other subjects, 0.687 / 0.399). REQ-273 not met. Tests run:
+  `tests/models/test_engine_ccep.py` and `tests/existence/test_existence_ccep.py` with
+  `EVOPARAM_NETWORK_TESTS=1`, `tests/test_presets.py`, the reference fixture test.
+- To try next: an owner decision on D8 for REQ-113 and REQ-135 (one reading per
+  requirement, or the published code alone as the authors' validated detector). Under the
+  registry row: `correction="none"` for the `ccep` existence test (REQ-135 0.807). For
+  REQ-114: a reference that keeps the published pipeline's monopolar channels for the
+  comparison while the preset keeps the adjusted common average for its results, for
+  example a `ccep` reading of the N1 on the recording reference reported next to the
+  re-referenced fit.
+
 ### Engine speed, part 2 (REQ-115): met with the compiled fit of the `fast` extra
 
 REQ-115 is met when numba is installed (extra `fast`, §9.2). The two tests of

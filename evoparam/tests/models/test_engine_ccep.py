@@ -383,10 +383,15 @@ AS_WRITTEN = (
     "(ccep v1.1: kappa on the 46 PT contacts 0.46 with the registry row, 0.19 with "
     "the code; pooled over the REQ-371 runs 0.46 and 0.40; CHANGELOG, 'N1 case as "
     "written' and 'Defaults settled by measurement'): "
-    "no decision reaches 0.8 under both (bound 0.30 on the PT contacts); the code's "
+    "no decision reaches 0.8 under both (exact bound 0.295 on the PT contacts, 0.323 to "
+    "0.783 per REQ-371 run: test_d8_req113_cannot_hold_under_both_readings); the code's "
     "170 uV floor "
     "leaves out small N1s the preset finds; the paper's extremum also counts "
-    "drifts at 70-100 ms; the two readings agree with each other at kappa 0.35"
+    "drifts at 70-100 ms; the two readings agree with each other at kappa 0.35. "
+    "Per reading, the variants measured on 2026-10-13 (recording reference, delta 6, "
+    "max_components 8, fit window to 0.3 s, double exponential background, plain common "
+    "average, the N1 gated by the existence test) reach at most 0.51 (registry row) and "
+    "0.56 (code) pooled (CHANGELOG, 'N1 case: the two readings')"
 )
 
 
@@ -409,7 +414,7 @@ def test_req113_as_written(agreement: Any, reading: Any) -> None:
     assert sum(ok) >= 5, [round(_scores(o)["kappa"], 2) for o in others]
 
 
-# Why REQ-114 is out of reach (CHANGELOG, "N1 latency agreement"): on the REQ runs the
+# Why REQ-114 is not met (CHANGELOG, "N1 latency agreement"): on the REQ runs the
 # rule's peak is an N1 trough of the average it reads (the deepest interior local minimum
 # in 9-50 ms) on 39 of the 74 channels where the registry row and the preset both find an
 # N1 (53 %) and on 24 of 30 with the code (80 %). The others are the first samples of the
@@ -418,7 +423,7 @@ def test_req113_as_written(agreement: Any, reading: Any) -> None:
 # sample just after 50 ms; a positive-valued minimum). A latency in 9-50 ms within 2 ms of
 # every peak would reach 58 of 74 and 28 of 30, but only by naming an N1 where the data
 # have no trough.
-CEILING = (
+RULE_PEAKS = (
     "the rule's peak is an N1 trough of its average on 53 % (registry row) and 80 % "
     "(code) of these channels; elsewhere it is the window start on the recovery tail "
     "(no trough there) or a deflection at 52-100 ms, after the N1 window"
@@ -439,7 +444,8 @@ def _close(agreement: Any, reading: Any, latency: Any, n1_trough: Any = False) -
     reason="REQ-114 as written (latency of the N1 component) is "
     "not met: within 2 ms on 24 % (registry row, 18 of 74) and 37 % (code, 11 "
     "of 30) of the channels where both find an N1 on the REQ-371 runs and the "
-    "example; " + CEILING,
+    "example; " + RULE_PEAKS + "; read as the rule's peak on the fitted curve, 84 % and "
+    "90.0 % (test_req114_rule_peak_on_the_fitted_curve)",
 )
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_as_written(agreement: Any, reading: Any) -> None:
@@ -455,7 +461,7 @@ def test_req114_as_written(agreement: Any, reading: Any) -> None:
     strict=False,
     reason="REQ-114 with the latency read as the trough of the "
     "fitted curve (K3) is not met over all runs: 42 % (registry row, 31 of 74), "
-    "80 % (code, 24 of 30); " + CEILING,
+    "80 % (code, 24 of 30); " + RULE_PEAKS,
 )
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_trough_latency(agreement: Any, reading: Any) -> None:

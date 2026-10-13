@@ -520,6 +520,17 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   and `amplitude_prior` 1 (development 0.40 to 0.42 and 0.39 to 0.40; REQ runs 0.46 to 0.44
   and 0.40 to 0.32, code recall 0.88 to 0.76). Neither is used.
 
+- A third reading (2026-10-13): the rule's own peak operator applied to the fitted curve
+  (components and background) instead of the noisy average, so that both sides measure
+  the same quantity. On the REQ runs: 84 % (62 of 74, registry row) and 90.0 % (27 of 30,
+  code). On the development runs: 66 % and 86 %. Every miss is either a peak the
+  preset's own input does not have (the reference: 10 and 3) or a tie within noise
+  (2 and 0). None is a misfit of the model. Fitting the recording reference (as the
+  published pipeline reads it) removes the reference misses. It gives 91 % / 95 % on the
+  development runs but 88 % / 88 % on the REQ runs, and lowers REQ-113 under the registry
+  row, so it is not adopted (CHANGELOG, "N1 case: the two readings"). The test is
+  `test_req114_rule_peak_on_the_fitted_curve` (xfail). The criterion is unchanged.
+
 ### 5.3 REQ-105 (recall >= 0.95 from SNR 3) — REQ-112 (>= 95 % of pure-noise windows silent)
 
 - REQ-105 asks a recall of 0.95 down to SNR 3 and a FWHM of 3 samples; REQ-112 asks no
@@ -635,6 +646,35 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   `soup.json` licence is Apache-2.0, BSD-2-Clause, BSD-3-Clause, MIT, PSF-2.0 or MPL-2.0
   (MPL-2.0 is file-level weak copyleft, not GPL, LGPL or AGPL). The PR template carries
   the checklist item.
+
+### 5.8 D8 (both readings of the published N1 rule) — REQ-113 and REQ-135
+
+- D8 asks REQ-113 (kappa >= 0.8 for the preset's N1 decision) and REQ-135 (kappa >= 0.7 for
+  the default existence method) under both readings of the published rule: the registry
+  row (the paper's text) and the published code. Each requirement has one decision, and
+  it must agree with both readings. The two readings disagree with each other: kappa 0.06
+  on the 46 PT contacts of the example run, 0.31 over the six REQ-371 runs.
+- For any decision of the channels, the smaller of its two kappas is bounded. Kappa
+  depends only on how many channels the decision marks in each cell of the readings'
+  2 x 2 table, so the bound is found by searching every combination (exact;
+  `joint_kappa_bound` in `tests/models/test_engine_ccep.py`). REQ-113: 0.295 on the PT
+  contacts (0.8 asked), and on the REQ-371 runs 0.656, 0.343, 0.323, 0.783, 0.681 and
+  0.563 (0.8 asked on 5 of 6). REQ-135: 0.592 pooled over the REQ-371 runs (0.7 asked),
+  0.698 on the development runs, 0.6996 on the segments the earlier test used. Under D8 no
+  detector can meet either requirement on the spec's data. This is a property of the two
+  comparators, not of the model. The tests `test_d8_req113_cannot_hold_under_both_readings`
+  and `test_req135_cannot_hold_under_both_readings` keep it measured.
+- Resolution pending an owner decision. The requirements stay expected failures under each
+  reading, and both values are reported. Per reading:
+  - REQ-113: 0.46 / 0.19 on the PT contacts, 0.46 / 0.40 pooled. No measured variant
+    exceeds 0.51 / 0.56.
+  - REQ-135: 0.586 / 0.496 with the default method. With the rule's per-channel decision
+    (`correction="none"`), the registry row is met on the held-out runs (0.807) and the
+    code reading falls to 0.321. The `ccep` preset keeps FDR across channels (§6).
+- REQ-135's subjects. Spec §7.3 lists REQ-135 among the criteria on "ds004080, ≥ 5
+  subjects chosen by the rule below". The test therefore uses the REQ-371 list, with every
+  trial of each run's first pair of at least 10 trials, as REQ-113 does. The five
+  development subjects are used to choose settings.
 
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
