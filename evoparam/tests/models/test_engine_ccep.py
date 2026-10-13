@@ -296,7 +296,7 @@ def _published_rule(ts: Any, reading: Any) -> Any:
 
     t = ts.times
     avg = _rule_average(ts)
-    base = (t > -2) & (t < -0.1)
+    base = (t > AVERAGE_BASELINE_START) & (t < RULE_BASELINE_END)
     baseline, shift = _frame(ts, reading)
     spec = _rule_spec(reading)
     out = apply_rule(avg, t + shift, ts.sfreq, spec, "uV")
@@ -619,8 +619,8 @@ def test_req114_rule_peak_on_the_fitted_curve(agreement: Any, reading: Any) -> N
     deflections of 50-100 ms the rule counts are compared with the model's curve there."""
 
     close = _close(agreement, reading, "curve_peak")
-    assert close.size >= 10
-    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
 @pytest.mark.parametrize(
@@ -656,8 +656,8 @@ def test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference(
     84 % (27 of 32) and 95 % (20 of 21) on the development runs."""
 
     close = _close(agreement, reading, "curve_peak_recording")
-    assert close.size >= 10
-    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
 def test_req114_extremum_reading_in_the_rules_reference(agreement: Any) -> None:
@@ -668,8 +668,8 @@ def test_req114_extremum_reading_in_the_rules_reference(agreement: Any) -> None:
     fitted curve's slope as well."""
 
     close = _close(agreement, "extremum", "curve_peak_recording")
-    assert close.size >= 10
-    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
 @pytest.mark.xfail(
@@ -698,13 +698,13 @@ def test_d8_req113_cannot_hold_under_both_readings(agreement: Any) -> None:
     paper = _runs(agreement, "paper", example=True)[0]
     code = _runs(agreement, "code", example=True)[0]
     grid = np.array([n.startswith("PT") for n in paper["names"]])
-    assert joint_kappa_bound(paper["rule"][grid], code["rule"][grid]) < 0.8
+    assert joint_kappa_bound(paper["rule"][grid], code["rule"][grid]) < MIN_KAPPA
     bounds = [
         joint_kappa_bound(p["rule"], c["rule"])
         for p, c in zip(_runs(agreement, "paper"), _runs(agreement, "code"), strict=True)
     ]
-    assert len(bounds) == 6
-    assert sum(b >= 0.8 for b in bounds) < 5, bounds
+    assert len(bounds) == N_OTHER_RUNS
+    assert sum(b >= MIN_KAPPA for b in bounds) < MIN_REPRODUCED, bounds
 
 
 def test_req113_registry_row_counts_channels_without_an_n1_trough(agreement: Any) -> None:
@@ -722,8 +722,8 @@ def test_req113_registry_row_counts_channels_without_an_n1_trough(agreement: Any
     grid = np.array([n.startswith("PT") for n in example["names"]])
     assert int(np.sum(example["rule"] & example["no_n1_trough"] & grid)) > 1
     counts = [int(np.sum(r["rule"] & r["no_n1_trough"])) for r in _runs(agreement, "paper")]
-    assert len(counts) == 6
-    assert sum(c <= 1 for c in counts) < 5, counts
+    assert len(counts) == N_OTHER_RUNS
+    assert sum(c <= 1 for c in counts) < MIN_REPRODUCED, counts
 
 
 def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any) -> None:

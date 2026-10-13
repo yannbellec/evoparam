@@ -231,17 +231,22 @@ def render(spec_text):
     out += _glossary("Modules", modules(parts["4.2"]))
     out += _glossary("Containers, protocols and results", class_terms)
     out += _glossary("Fields", field_terms)
-    out += _glossary("Trial metadata columns (Table 4.1)",
-                     table_columns(parts["4.3"], "(Table 4.1)"))
-    out += _glossary("Channel table columns (Table 4.2)",
-                     [(f"ch_info.{n}", t) for n, t in table_columns(parts["4.3"], "(Table 4.2)")])
+    out += _glossary(
+        "Trial metadata columns (Table 4.1)", table_columns(parts["4.3"], "(Table 4.1)")
+    )
+    out += _glossary(
+        "Channel table columns (Table 4.2)",
+        [(f"ch_info.{n}", t) for n, t in table_columns(parts["4.3"], "(Table 4.2)")],
+    )
     # a renamed name that is already a term above (GroupFit, Component.params) gets its own
     # entry, so that the glossary has one description per term (Sphinx warns otherwise)
-    defined = {t for t, _ in principles(parts["4.1"]) + modules(parts["4.2"]) + class_terms
-               + field_terms}
-    out += _glossary("Names that replace inherited ones",
-                     [(f"{t} (renamed)" if t in defined else t, d)
-                      for t, d in renames(parts["4.4"])])
+    defined = {
+        t for t, _ in principles(parts["4.1"]) + modules(parts["4.2"]) + class_terms + field_terms
+    }
+    out += _glossary(
+        "Names that replace inherited ones",
+        [(f"{t} (renamed)" if t in defined else t, d) for t, d in renames(parts["4.4"])],
+    )
     out += _glossary("Errors and warnings", errors(parts["4.6"]))
     while out[-1] == "":
         out.pop()

@@ -31,13 +31,13 @@ The significance comes from one of three sets of projections (``pairs``):
   the published decision on the 10 example channels of the paper (REQ-134). The statistic
   is the peak of the profile.
 - ``"disjoint"``: a one-sided one-sample t-test of projections at ``tau_R``, each trial in
-  one pair only (``K // 2`` pairs, drawn at random),
-  so that the projections tested are independent under the null hypothesis. On pure noise
+  one pair only (``K // 2`` pairs, drawn at random), so that the projections tested are
+  independent under the null hypothesis. On pure noise
   (white or AR(1) 0.9, 10 or 20 trials) the rejection rate at alpha = 0.05 is 0.07 to 0.13,
   above alpha only by the choice of ``tau_R`` at the peak of the profile.
-- ``"half"``: the same t-test on one projection per unordered pair of trials (one half of the ``K(K-1)``
-  cross-projections, the two projections of a pair never both, each trial the normalised
-  one in about half of its pairs), the set of the paper. It reproduces the paper's
+- ``"half"``: the same t-test on one projection per unordered pair of trials (one half of
+  the ``K(K-1)`` cross-projections, the two projections of a pair never both, each trial
+  the normalised one in about half of its pairs), the set of the paper. It reproduces the paper's
   significance decisions (REQ-134), but its ``K(K-1)/2`` values share trials and are not
   independent: on the same pure noise it rejects at 0.33 to 0.44 at alpha = 0.05 (0.24 to
   0.35 with the ``"normalised"`` profile).
@@ -74,9 +74,10 @@ def _half_pairs(n: Any) -> tuple[NDArray[Any], NDArray[Any]]:
 
 
 def _sign_patterns(n: int, rng: np.random.Generator) -> NDArray[Any] | None:
-    """Random sign patterns (``MAX_FLIPS`` x n, the first all +1), or None when every
-    pattern is enumerated."""
+    """Return random sign patterns (``MAX_FLIPS`` x n, the first all +1).
 
+    None when every pattern is enumerated.
+    """
     if 2**n <= MAX_FLIPS:
         return None
     patterns = rng.choice([-1.0, 1.0], size=(MAX_FLIPS, n))
@@ -85,8 +86,7 @@ def _sign_patterns(n: int, rng: np.random.Generator) -> NDArray[Any] | None:
 
 
 def _signflip_p(proj: Any, off: Any, observed: float, profile: str, patterns: Any) -> float:
-    """p-value of the peak of the mean-projection profile against its sign-flip null."""
-
+    """Return the p-value of the peak of the mean-projection profile against its sign-flip null."""
     n_t, n, _ = proj.shape
     if patterns is None:
         grid = (np.arange(2**n)[:, None] >> np.arange(n)) & 1
@@ -187,9 +187,10 @@ def projection_test(
     so the result does not depend on ``n_jobs``).
 
     Returns a dict of arrays [n_channels]: statistic (the profile peak with ``"signflip"``,
-    else the one-sample t of the projections at the response end), p_value (one-sided), onset (window start), offset (response end tau_R),
-    duration, snr_db (of the canonical-shape scalings), plus ``extra`` (per channel: profile,
-    canonical shape, alphas, R², SNR), and ``curve`` [n_channels, n_times] (the profile
+    else the one-sample t of the projections at the response end), p_value (one-sided),
+    onset (window start), offset (response end tau_R), duration, snr_db (of the
+    canonical-shape scalings), plus ``extra`` (per channel: profile, canonical shape, alphas,
+    R², SNR), and ``curve`` [n_channels, n_times] (the profile
     whose peak is the response end), ``curve_times`` and ``null_band`` (NaN: no band over
     time for this method).
     """

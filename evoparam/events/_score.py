@@ -188,10 +188,12 @@ def snippets(data: Any, index: Any, onsets: Any, n_pre: Any, n_post: Any) -> Flo
 
 
 def quantile_score(data: Any, index: Any, quantile: float = 0.9) -> FloatArray:
-    """``quantile`` across the non-flat channels of ``index`` of the absolute
-    sample-to-sample change (chunked like :func:`difference_score`). A channel whose
-    samples never change (a censored or disconnected channel) is left out."""
+    """Return a quantile of the absolute sample-to-sample change across channels.
 
+    The ``quantile`` is taken across the non-flat channels of ``index`` (chunked like
+    :func:`difference_score`). A channel whose samples never change (a censored or
+    disconnected channel) is left out.
+    """
     n_times = data.shape[1]
     index = np.asarray(index)
     moving = [i for i in index if np.any(np.diff(data[i]) != 0)]

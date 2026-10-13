@@ -1234,12 +1234,12 @@ def _shape(name: Any, settings: Any) -> "ComponentShape":
     # dataclass) from the same settings every time: the forward search asks for it once per
     # candidate and shape, and gets the one already built
     entry = SHAPES.get(name) if name in SHAPES else None
-    frozen = (
-        isinstance(entry, type)
-        and dataclasses.is_dataclass(entry)
-        and getattr(entry, "__dataclass_params__", None) is not None
-        and entry.__dataclass_params__.frozen
+    params = (
+        getattr(entry, "__dataclass_params__", None)
+        if isinstance(entry, type) and dataclasses.is_dataclass(entry)
+        else None
     )
+    frozen = params is not None and params.frozen
     key = (name, entry, values) if frozen else None
     if key is not None:
         known = _SHAPES_BUILT.get(key)
@@ -1255,7 +1255,7 @@ def _shape(name: Any, settings: Any) -> "ComponentShape":
     return shape
 
 
-_SHAPES_BUILT: dict[Any, Any] = {}
+_SHAPES_BUILT: dict[Any, "ComponentShape"] = {}
 _SHAPES_BUILT_MAX = 256  # the cache is emptied when it holds this many shapes
 
 
@@ -2122,7 +2122,9 @@ def _spec_candidate(current: Any, peak: Any, smooth: Any, search: _Search) -> An
             _guess_failed(shape, tw, (peak,), err)
             continue
         for start in _spec_starts(shape, guess, settings.n_starts, tw):
-            state, _ = search.evaluate(current.shapes + [shape], np.concatenate((head, start, tail)))
+            state, _ = search.evaluate(
+                current.shapes + [shape], np.concatenate((head, start, tail))
+            )
             if state is not None and (best is None or state.fit_crit < best.fit_crit):
                 best = state
     return best

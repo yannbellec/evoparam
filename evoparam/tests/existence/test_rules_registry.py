@@ -18,6 +18,8 @@ from .helpers import SFREQ, TIMES
 SD_FLOOR_UV = 50.0
 SATURATION_UV = 3000.0
 PEAK_SEARCH_END = 0.5
+# Start (s) of the window of vanblooijs2023.
+WINDOW_START = 0.009
 
 ###################################################################################################
 ###################################################################################################
@@ -223,7 +225,7 @@ def test_vanblooijs2023_strict_peak_reading() -> None:
     # before the window
     edge = np.zeros((1, len(TIMES)))
     edge[0, :] = noise[0]
-    first = int(np.argmax(TIMES >= 0.009))
+    first = int(np.argmax(TIMES >= WINDOW_START))
     edge[0, first] = -500.0
     hit = apply_rule(edge, TIMES, SFREQ, spec, "uV")
     assert hit["significant"][0]
