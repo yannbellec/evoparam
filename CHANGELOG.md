@@ -2,6 +2,126 @@
 
 ## Unreleased
 
+### N1 case: the comparator trail (REQ-113 met on 2026-10-08, not met since)
+
+On 2026-10-08 (73788a2) REQ-113 was recorded as met: on run-021448 the rule found 4 N1s
+and the model 4, kappa 1.00 on the 46 PT contacts, 0.91 pooled over the REQ-371 runs.
+Today the registry row finds 20 on the PT contacts and kappa is 0.24. The rule's code
+(`evoparam/existence/rules.py`) has not changed since then (format and typing only), and
+the data path (every trial of the pair, read the same way) has not changed either.
+What changed is which comparator and which model decision the test uses.
+
+- Commit by commit (example run: rule N1s on all 100 channels / on the 46 PT contacts;
+  kappa on the PT contacts; kappa pooled over the REQ-371 runs, five subjects before
+  361135c and six from it on, owner decision D14):
+
+  | commit | comparator (the rule) | model decision | rule N1s | kappa PT | pooled |
+  |---|---|---|---|---|---|
+  | 911c750 (S7) | the extremum of 9-100 ms below 3.4 x max(SD of (-0.5, -0.02) s, 50 uV), read on the preset's own average (template removal, adjusted common average), 8 trials, 120 contacts | N1 component | 8 (4 at the window start, 9.8 ms; the rest near 100 ms) | - | - |
+  | 135d387 | the published code (mnl_ccepAge): monopolar average of every trial, 50 uV SD floor, local minimum, SD over (-2, -0.1) s, the code's time axis (one sample later) | the fitted trough in 9-50 ms deeper than 3.4 x max(SD, 50 uV) of the rule's own average | 4 / 1 | 0.66 | 0.87 |
+  | 73788a2 | unchanged | unchanged (engine: selection criterion on the innovation rows; PT03 no longer a model N1) | 4 / 1 | 1.00 | 0.91 |
+  | 361135c (F65, F1) | the registry row of §5.6 (no floor, extremum); the code's reading becomes `vanblooijs2023_code`; still the code's baseline and time axis | the preset's own: a negative component in 9-50 ms | 32 / 19 | 0.51 | 0.45 |
+  | 636a266 | unchanged | unchanged (`ccep` 1.1, `threshold_role="select"`) | 32 / 19 | 0.46 | 0.46 |
+  | this change | the registry row on the data's time axis with the registry's baseline (-1, -0.1) s | unchanged | 36 / 20 | 0.24 | 0.44 |
+
+- The two changes of 361135c, one at a time, with today's fits (kappa on the PT
+  contacts / pooled over the REQ-371 runs / pooled over the development runs):
+
+  | comparator | the 2026-10-08 decision (fitted trough judged by the code's floor) | the preset's N1 (REQ-113) |
+  |---|---|---|
+  | code's reading (the 2026-10-08 comparator) | 1.00 / 0.907 / 0.780 (5 of 6 runs pass) | 0.19 / 0.401 / 0.387 |
+  | registry row, code's baseline and time axis | 0.06 / 0.284 / 0.590 | 0.46 / 0.463 / 0.399 |
+  | registry row, data's time axis | 0.09 / 0.292 / 0.614 | 0.38 / 0.451 / 0.380 |
+  | registry row, baseline (-1, -0.1) s | 0.04 / 0.287 / 0.541 | 0.35 / 0.455 / 0.378 |
+  | registry row, both (this change) | 0.06 / 0.294 / 0.561 | 0.24 / 0.443 / 0.377 |
+
+  On 135d387 the S7 engine's N1 component scored 0.17 on the PT contacts against the
+  code's reading; the method of 135d387 and 73788a2 was chosen on development subjects
+  that included the example run itself (CHANGELOG of 135d387). The 2026-10-08 result is reproduced exactly with today's fits (1.00 and 0.907), so
+  the engine changes after it did not cause the drop. Each change of 361135c alone
+  removes it: 1.00 becomes 0.19 with the preset's N1 decision, and 0.06 with the
+  registry row.
+- Judged against the spec text:
+  - The 50 uV SD floor and the local minimum (with the 20 uV selectivity, the first
+    sample excluded, and the 3000 uV saturation) belong to the published code. The
+    §5.6 row reads `|x| > 3.4·SD_baseline` with a negative peak, ≥ 1 sample, 9–100 ms.
+    It has no floor (3.4 x 50 uV = 170 uV is the smallest N1 the code accepts) and no
+    peak selectivity. F65 made the registry rule faithful to that text.
+  - REQ-113 asks that "the default `ccep` preset (§6) detects an N1 (negative component
+    with latency in 9–50 ms)". The 2026-10-08 decision was something else: the trough
+    of the fitted curve, kept when it was deeper than the rule's own amplitude criterion
+    computed on the rule's own average. The detection borrowed the comparator's
+    threshold and its input. F1 made the decision the preset's own.
+  - The earlier 1.00 also rested on one channel: the code finds 1 N1 on the 46 PT
+    contacts, so a single disagreement gives 0.66 (as on 135d387). The 1.00 was
+    therefore not REQ-113 as written. It is kept as the regression test
+    `test_n1_trough_with_the_code_floor_regression` (1.00 and 0.91), whose docstring now
+    says so.
+  - Two details of the code stayed on the registry row after F65 and are restored here:
+    - The baseline. The row leaves it unspecified, and the registry names the ER-detect
+      default (-1, -0.1) s. REQ-135's test and the benchmark already used it, while
+      REQ-113's test used the code's (-2, -0.1) s.
+    - The time axis. The code labels the stimulation sample t = 1/sfreq, so its 9 ms is
+      one sample earlier on the data's axis: 7.8 ms instead of 9.8 ms on the 512 Hz
+      example run, inside the template's (-2, 8) ms window.
+
+    The registry row is now read on the data's own axis with the registry's baseline,
+    and the code's reading keeps its own baseline and axis (`FRAMES` in
+    `tests/models/test_engine_ccep.py` and in `validation/robustness.py`). This change
+    follows the spec text, not the results, and it lowers the agreement (0.46 to 0.24
+    on the PT contacts).
+- Re-measured with the registry row in its own frame. The code's reading is unchanged,
+  and the REQ-135 test already read the row this way.
+  - REQ-113: 0.24 on the PT contacts (20 rule N1s, 8 model), 0.44 pooled over the REQ-371
+    runs, 0.38 pooled over the development runs.
+    - Per REQ-371 run: 0.44, 0.58, 0.25, 0.33, 0.47, 0.31.
+    - Variants (pooled REQ runs / development runs):
+
+      | variant | REQ runs | development runs |
+      |---|---|---|
+      | constant background | 0.492 | 0.383 |
+      | linear background | 0.473 | 0.372 |
+      | recording reference with a constant background | 0.491 | 0.413 |
+      | fit window to 0.3 s | 0.482 | 0.353 |
+      | `delta` 6 | 0.460 | 0.389 |
+      | N1 gated by the existence test over 9-100 ms (FDR / none) | 0.484 / 0.497 | 0.510 / 0.534 |
+
+      The gated variant without correction is the best on the development runs, and it
+      gives 0.497 on the REQ runs.
+  - Channels the row detects with no N1 trough in its average:
+    - example run: 16 of the 20 PT detections (3 at the window's first sample, 9.8 ms;
+      13 at 94-100 ms);
+    - REQ-371 runs: 0, 1, 5, 2, 6, 12;
+    - development runs: 9, 7, 0, 8, 2.
+  - Trough oracle: kappa 0.056 on the example's PT contacts, 0.715 pooled over the REQ
+    runs, 0.674 over the development runs.
+  - The exact joint bound (D8): 0.274 on the PT contacts (it was 0.295), 0.323 to 0.783
+    per REQ-371 run, 0.607 pooled.
+  - REQ-114 (registry row / code; REQ runs, then development runs):
+
+    | reading of REQ-114 | REQ runs | development runs |
+    |---|---|---|
+    | as written (N1 component) | 26 % (18 of 69) / 37 % | - |
+    | N1 named by its trough | 28 % / 40 % | 31 % / 38 % |
+    | fitted trough | 45 % / 80 % | - |
+    | rule's peak on the fitted curve | 86 % / 90.0 % | - |
+    | the same in the rule's reference | 93 % (64 of 69) / 90.0 % (met, both; margin one channel each) | 89 % / 95 % |
+
+  - REQ-135: unchanged (0.586 / 0.496). REQ-273: not met (it needs REQ-113).
+- Layer 3 and layer 4 rescored with the new comparator. Nothing was fitted again: the
+  model's decisions are those of the 2026-10-11 run. A new option, `python
+  validation/robustness.py --rescore-rules`, recomputes only the rule's decisions and
+  the summaries that depend on them.
+  - `validation/layer3/n1_ds004080.json`, registry row: kappa 0.458 to 0.410, recall
+    0.460 to 0.429, n_both 74 to 69. The code's values are unchanged.
+  - Sampling (§7.4 (3)), registry row: drop 4.97 points (still met). Code reading: 8.82
+    (not met, unchanged).
+  - `validation/layer3/comparisons.json` and `figures/fig_n1_ds004080.svg` were
+    regenerated with their tools; `layer3_report.py` now records each reading's own
+    baseline.
+- Package defaults: none changed. No algorithm version was bumped and the reference
+  fixture is unchanged.
+
 ### N1 case: the two readings of the published rule (REQ-113, REQ-114, REQ-135, REQ-273)
 
 Work on the N1 requirements under both readings of the published rule (owner decision D8),

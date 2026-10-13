@@ -18,8 +18,8 @@
    "evoparam_value": 0.162602,
    "difference": -0.099187,
    "difference_ci": [
-    -0.133333,
-    -0.066667
+    -0.134959,
+    -0.065041
    ],
    "interval": "95 % percentile bootstrap over the 615 channels, paired, 2000 resamples, seed 0",
    "n": 615,
@@ -43,11 +43,11 @@
     "registry": "evoparam/existence/rules.json",
     "overrides": {
      "baseline": [
-      -2.0,
+      -1.0,
       -0.1
      ]
     },
-    "version": "9574505e91a34efda182aeaa6929ebf3231d0d644eea577260f008516d8a2b81"
+    "version": "035ced5a45bac6e0c9186f9bf7486726022c5f1cf306732cc25c4c9baed86b3a"
    }
   },
   {
@@ -55,15 +55,15 @@
    "quantity": "N1 latency, median over the channels where both find one",
    "unit": "ms",
    "comparator": "published N1 rule, registry 'vanblooijs2023' (paper reading)",
-   "comparator_value": 27.587888,
-   "evoparam_value": 28.889974,
-   "difference": -0.570299,
+   "comparator_value": 30.761716,
+   "evoparam_value": 28.485266,
+   "difference": -0.663034,
    "difference_ci": [
-    -3.008961,
-    0.628662
+    -3.801271,
+    0.147079
    ],
-   "interval": "95 % percentile bootstrap over the 74 channels, paired, 2000 resamples, seed 0",
-   "n": 74,
+   "interval": "95 % percentile bootstrap over the 69 channels, paired, 2000 resamples, seed 0",
+   "n": 69,
    "data": {
     "dataset": "ds004080",
     "version": "1.2.4",
@@ -84,11 +84,11 @@
     "registry": "evoparam/existence/rules.json",
     "overrides": {
      "baseline": [
-      -2.0,
+      -1.0,
       -0.1
      ]
     },
-    "version": "9574505e91a34efda182aeaa6929ebf3231d0d644eea577260f008516d8a2b81"
+    "version": "035ced5a45bac6e0c9186f9bf7486726022c5f1cf306732cc25c4c9baed86b3a"
    }
   },
   {
