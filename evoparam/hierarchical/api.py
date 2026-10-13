@@ -88,6 +88,7 @@ def _verbose(function: Callable[..., Any]) -> Callable[..., Any]:
 
     @functools.wraps(function)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
+        """Call ``function`` with the logger level of ``verbose``."""
         with _verbose_level(kwargs.get("verbose")):
             return function(*args, **kwargs)
 
@@ -102,6 +103,9 @@ __all__ = ["fit_hierarchical", "posterior_summary", "compare_hierarchical", "ENG
 ENGINES = ("eb", "numpyro", "pymc")
 LEVELS = ("trial", "channel", "subject")
 MIN_TRUSTED = 3
+
+# Fewest channels with a value from which a parameter is shrunk.
+MIN_SHRINK_CHANNELS = 2
 # Channel statistics taken from the trusted trial estimates (shift-and-scale trial fits)
 # rather than from the fit of the average: the amplitude, because latency jitter flattens
 # the average (the channel SD of the amplitude came out 11 % low). The latency stays the
@@ -148,6 +152,7 @@ CHANNEL_COLUMNS = {
 
 
 def _preset_for(ts: Any, preset: Any) -> Any:
+    """Return ``preset``, else the preset of the modality of ``ts``."""
     if preset is not None:
         return preset
     if ts.modality in MODALITY_PRESETS:
@@ -411,7 +416,7 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
             frame[p] = np.nan
             frame[f"{p}_se"] = np.nan
             frame[f"{p}_shrinkage"] = np.nan
-            if use.sum() < 2:
+            if use.sum() < MIN_SHRINK_CHANNELS:
                 notes.append(f"component {label!r}, {p}: fewer than 2 channels; not shrunk.")
                 continue
             part = frame[use]
@@ -598,17 +603,13 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
         "package_version": __version__,
     }
     if engine != "eb":
-        from .bayes import sample
+        from .bayes import NutsSettings, sample
 
         result = sample(
             engine,
             level_tables,
             settings,
-            n_chains=n_chains,
-            n_warmup=n_warmup,
-            n_draws=n_draws,
-            target_accept=target_accept,
-            random_state=random_state,
+            nuts=NutsSettings(n_chains, n_warmup, n_draws, target_accept, random_state),
             formula=(parameter, terms),
             covariates=covariates,
             eb_variance=variance,

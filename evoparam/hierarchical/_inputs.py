@@ -31,6 +31,12 @@ TEMPLATE_HALF_WIDTH = 1.5
 # Fewer channels with the component than this in a subject: the group template is used.
 MIN_TEMPLATE_CHANNELS = 3
 
+# Fewest subjects worth running in processes; the two bounds of a window; fewest unmasked
+# samples for the least-squares projection of a trial on the template.
+_MIN_PARALLEL = 2
+_WINDOW_BOUNDS = 2
+_MIN_PROJECTION_SAMPLES = 3
+
 
 @dataclass
 class SubjectData:
@@ -101,6 +107,7 @@ def subject_covariates(name: Any, ts: Any, columns: Any) -> dict[Any, Any]:
 
 
 def channel_fits(ts: Any, preset: Any, picks: Any = None, n_jobs: int = 1) -> "GroupFit":
+    """Fit ``ts`` with ``preset`` channel by channel (the model fits of the first stage)."""
     from evoparam.models import fit as fit_models
 
     with warnings.catch_warnings():
@@ -111,6 +118,7 @@ def channel_fits(ts: Any, preset: Any, picks: Any = None, n_jobs: int = 1) -> "G
 def trial_fits(
     ts: Any, group_fit: Any, label: Any, max_shift: Any, random_state: Any = None
 ) -> Any:
+    """Fit the trials of component ``label`` from the channel fits ``group_fit``."""
     from evoparam.trials import fit_trials
 
     with warnings.catch_warnings():
@@ -131,7 +139,7 @@ def run_subjects(function: Any, arguments: Any, n_jobs: Any) -> list[Any]:
 
     In processes when ``n_jobs != 1`` (``-1``: one per core).
     """
-    if n_jobs == 1 or len(arguments) < 2:
+    if n_jobs == 1 or len(arguments) < _MIN_PARALLEL:
         return [function(*args) for args in arguments]
     import os
     from concurrent.futures import ProcessPoolExecutor
@@ -159,7 +167,7 @@ def comp_window(fit: Any, label: Any) -> tuple[float, float]:
     """
     windows = (getattr(fit, "settings", None) or {}).get("windows") or {}
     window = windows.get(label)
-    if window is None or len(window) < 2:
+    if window is None or len(window) < _WINDOW_BOUNDS:
         return -np.inf, np.inf
     return float(window[0]), float(window[1])
 
@@ -213,7 +221,7 @@ def template_amplitudes(ts: Any, tmpl: Any) -> Any:
     for i in range(ts.n_trials):
         for c in range(ts.n_channels):
             ok = ~masks[i, c] & np.isfinite(x[i, c])
-            if ok.sum() >= 3:
+            if ok.sum() >= _MIN_PROJECTION_SAMPLES:
                 coef, *_ = np.linalg.lstsq(design[ok], x[i, c, ok], rcond=None)
                 out[i, c] = coef[0]
     return out
