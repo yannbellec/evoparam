@@ -4,6 +4,8 @@
 from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass, field, replace
 
+import numpy as np
+
 import evoparam.presets as _presets
 from evoparam._typing import Any
 from evoparam.errors import SettingsError
@@ -14,6 +16,10 @@ SELECTIONS = ("bic", "aicc", "cv", "fixed")
 LOSSES = ("linear", "soft_l1", "huber", "cauchy")
 UNCERTAINTIES = ("jacobian", "profile", "bootstrap", "posterior")
 POLARITIES = ("both", "negative", "positive")
+SHAPE_CHOICES = ("bic", "aic")
+# the fall of the criterion a component needs when delta is None and the acceptance cannot
+# be calibrated (a noise model other than "ar", a selection other than "bic"): spec §5.5.4
+FIXED_DELTA = 10.0
 # "ar": residuals whitened by an AR model of the baseline (default, measured better: K1);
 # "neff": spec §5.5.3 step 1 (residuals over sigma_n, n_eff = n (1 - rho) / (1 + rho));
 # "white": residuals over sigma_n with the raw sample count n
@@ -41,7 +47,19 @@ class FitSettings:
     fit_window: tuple[float, float] | None = None
     baseline: tuple[float, float] | None = None
     selection: str = "bic"
-    delta: float = 10.0
+    # None (default): the fall of BIC a component needs is calibrated on each fit's noise
+    # model at the false-response rate ``alpha`` (models/_calibration.py; noise_model "ar"
+    # and selection "bic"; otherwise FIXED_DELTA); a number: that fixed fall (spec §5.5.4,
+    # delta = 10, which every preset sets). Measured: CHANGELOG, "Calibrated acceptance"
+    delta: float | None = None
+    alpha: float = 0.03
+    # how the allowed shapes of a component are compared: "bic" (on the quick fits of the
+    # forward search, spec §5.5.3 step 4; every preset), "aic" (default: every component
+    # of the final model refitted with every allowed shape, the lowest AIC kept)
+    shape_choice: str = "aic"
+    # flag a component that a pair of overlapping components would explain as well
+    # ("merged:k,k+1", REQ-111; engine._resolution_warnings); every preset sets False
+    resolution_check: bool = True
     n_components: int | None = None
     overlap_c: float = 0.5
     loss: str = "linear"
@@ -117,6 +135,14 @@ class FitSettings:
             raise SettingsError("threshold_role must be 'select' or 'order'.")
         if self.candidate_search not in CANDIDATE_SEARCHES:
             raise SettingsError(f"candidate_search must be one of {CANDIDATE_SEARCHES}.")
+        if self.shape_choice not in SHAPE_CHOICES:
+            raise SettingsError(f"shape_choice must be one of {SHAPE_CHOICES}.")
+        if self.delta is not None:
+            if not np.isfinite(float(self.delta)):
+                raise SettingsError("delta must be a finite number or None (calibrated).")
+            object.__setattr__(self, "delta", float(self.delta))
+        if not 0 < self.alpha < 1:
+            raise SettingsError("alpha must be in (0, 1).")
         if self.noise_model not in NOISE_MODELS:
             raise SettingsError(f"noise_model must be one of {NOISE_MODELS}.")
         if self.selection == "fixed" and self.n_components is None:

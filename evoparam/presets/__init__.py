@@ -340,6 +340,10 @@ def fit_fields(preset: "str | Preset") -> dict[str, Any]:
         "polarity": p.polarity,
         "selection": p.selection,
         "delta": p.delta,
+        # the presets compare shapes on the quick fits of the forward search (spec §5.5.3
+        # step 4), as when they were validated
+        "shape_choice": "bic",
+        "resolution_check": False,
         "uncertainty": p.uncertainty,
         "windows": windows,
     }

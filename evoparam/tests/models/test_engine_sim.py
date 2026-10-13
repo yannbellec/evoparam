@@ -244,23 +244,12 @@ def req105_counts(n: Any = PER_CONDITION, **settings: Any) -> Any:
     return out
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="REQ-105 recall not met: 0.885 (531 of 600 components; "
-    "K = 1: 0.82, K = 2: 0.855, K = 3: 0.927), precision 1.00, 100 waveforms "
-    "per K. Every miss is at SNR 3 (FWHM 3 samples: 6 of 45 found, 6 samples: "
-    "27 of 30 in the first 60 per K); K = 1 is lowest because the design gives "
-    "every K = 1 waveform at SNR 3 a width of 3 samples. The criterion drops "
-    "them, not the search: refitted from the true component they change BIC by "
-    "-8 to +9, never the -10 of delta. Recall 0.95 needs delta about -2 (0.956 "
-    "on other seeds), where 5.5 % of white-noise windows get a component "
-    "(REQ-112: <= 5 %); delta 0 gives 0.947 and 3 % (CHANGELOG, 'Engine "
-    "simulation requirements')",
-)
 def test_req105_recall_and_precision_as_written() -> None:
     """simulate_erp waveforms with K = 1, 2, 3 components, SNR 3 to 20 and FWHM 3 to 25
     samples (the levels of spec §7.2 from SNR 3 and 3 samples on): recall and precision
-    >= 0.95 (match: |latency error| <= FWHM / 2, same sign)."""
+    >= 0.95 (match: |latency error| <= FWHM / 2, same sign). Met with the calibrated
+    acceptance (``delta=None``): recall 0.950, precision 0.988 on 100 waveforms per K;
+    0.9555 and 0.983 on 1 000 (CHANGELOG, "Calibrated acceptance")."""
 
     counts = req105_counts()
     tp, fn, fp = (sum(v[j] for v in counts.values()) for j in range(3))
@@ -293,28 +282,27 @@ def req106_errors(truth_shape: Any, fitted: Any, n: Any = PER_CONDITION, **setti
 
 
 def _req106_cases() -> Any:
-    measured = {"skewed_gaussian": 0.52, "gamma": 0.76, "biexponential": 0.60}
+    measured = {"gamma": 0.71, "biexponential": 0.61}
     cause = {
-        "skewed_gaussian": "the criterion fits most skewed truths (alpha 2) with the "
-        "Gaussian (72 of 100 on other seeds), whose centre lies 0.19 to "
-        "1.55 samples after the mode without noise (widths 3 to 25)",
         "gamma": "the best skewed Gaussian puts the mode 0.47 sample from the truth's "
-        "on average over the widths without noise (1.0 at 25 samples)",
+        "on average over the widths without noise (1.0 at 25 samples); 0.72 on 1 000 "
+        "waveforms",
         "biexponential": "the best skewed Gaussian puts the mode 0.54 sample from the "
-        "truth's on average over the widths without noise (1.2 at 25 "
-        "samples)",
+        "truth's on average over the widths without noise (1.2 at 25 samples); 0.64 on "
+        "1 000 waveforms",
     }
     for shape in TRUTH_SHAPES:
         for fitted in ("own", "default"):
-            marks = []
+            marks: Any = []
             if fitted == "default" and shape in measured:
                 marks = pytest.mark.xfail(
                     strict=False,
                     reason=(
                         f"REQ-106 not met for a {shape} truth fitted with the default pair: "
                         f"latency MAE {measured[shape]} sample (> 0.5) on 100 waveforms: "
-                        f"{cause[shape]} "
-                        "(CHANGELOG, 'Engine simulation requirements')"
+                        f"{cause[shape]}. Tried: the final shape choice by AIC (default), "
+                        "a refit of the peak region, a peak parabola (CHANGELOG, "
+                        "'Calibrated acceptance')"
                     ),
                 )
             yield pytest.param(shape, fitted, marks=marks)
@@ -380,14 +368,14 @@ def test_req111_one_fwhm_as_written() -> None:
 
 @pytest.mark.xfail(
     strict=False,
-    reason="REQ-111 (0.5 FWHM) not met: one component in 100 of 100 "
-    "runs, never with a merged:<k>,<k+1> warning: the second component is never "
-    "accepted (criterion), so the merge-and-compare of spec §5.5.3 step 5, which "
-    "sets the warning, never runs. The pair differs from one Gaussian by a "
-    "chi-square of 1.4 at SNR 10, and its true separation (20 ms) is not an "
-    "overlap by step 5's rule (< 0.5 (sigma_1 + sigma_2) = 17 ms). Merging the "
-    "rejected candidates too sets the warning on 49 % of such pairs and on 33 "
-    "to 77 % of single Gaussians (CHANGELOG, 'Engine simulation requirements')",
+    reason="REQ-111 (0.5 FWHM) not met on its second clause: one component with "
+    "merged:<k>,<k+1> in 97 of 100 runs (the resolution check; 0.943 on 1 000), but "
+    "2 of 100 runs (35 of 1 000) return two components without ill_conditioned: the "
+    "pair as one component plus a false component of about 1.7 noise SD elsewhere in "
+    "the window. The calibrated acceptance admits such a component in about 3 % of "
+    "noise windows (alpha 0.03), which REQ-105 needs (recall 0.95 from SNR 3); "
+    "'never' in 100 runs needs a false-component rate near 0, which REQ-105 cannot "
+    "have (DECISIONS §5.5; CHANGELOG, 'Calibrated acceptance')",
 )
 def test_req111_half_fwhm_as_written() -> None:
     """0.5 FWHM apart: one component with the warning "merged:<k>,<k+1>" in >= 90 % of runs,
@@ -440,7 +428,7 @@ def test_req116_jacobian_coverage_as_written(rho: Any) -> None:
 def _req116_interval_cases() -> Any:
     for method in ("bootstrap", "profile"):
         for rho in (0.0, 0.9):
-            marks = []
+            marks: Any = []
             if (method, rho) == ("profile", 0.0):
                 marks = pytest.mark.xfail(
                     strict=False,

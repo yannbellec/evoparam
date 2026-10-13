@@ -2,6 +2,160 @@
 
 ## Unreleased
 
+### Calibrated acceptance (REQ-105, REQ-106, REQ-111, REQ-112): new package defaults
+
+Three settings of the engine, defaults without a preset (DECISIONS §3 "Calibrated
+acceptance, final shape choice, resolution check", §5.3 to §5.5). Every preset sets the
+reviewed procedure (`delta=10`, `shape_choice="bic"`, `resolution_check=False`, through
+`presets.fit_fields`); with those settings the engine gives the previous fits value for
+value (123 fits compared with the previous commit: the package defaults with these three
+settings on 40 REQ-105 and 20 REQ-111 waveforms, and the `erp`, `ccep` and `tep` presets
+on 21 waveforms of the REQ-104 suite; the reference fixture within 2.4e-12). Choices were
+made on development seeds (REQ-105 300 000 + ..., noise windows 500 000 + ..., REQ-106
+400 600 + ..., REQ-111 700 000 + ...); the tests' seeds were measured once, at the end.
+
+- **`delta=None` (default; was 10), `alpha=0.03`: the acceptance calibrated on each fit's
+  noise model** (`models/_calibration.py`). A component is accepted when its deviance
+  exceeds the level pure noise exceeds with probability `alpha`: the expected Euler
+  characteristic of the whitened scan field over latency and log width (Adler 1981;
+  Worsley 1994; Siegmund and Worsley 1995), its Lipschitz-Killing curvatures computed from
+  the fit's whitened Gaussian templates (background projected out), over the widths any
+  allowed shape can reach (a skewed Gaussian at its largest asymmetry is about half as
+  wide as `min_fwhm`), widened for the sampling error of the AR spectrum estimated on the
+  baseline (asymptotic covariance of the coefficients through the log spectrum, weighted
+  by the component's spectrum). `ResponseFit.diagnostics["acceptance"]` records the rule,
+  the scan level and the fall of BIC it means; `methods_text()` names it. `delta=10` is
+  the reviewed rule; with `noise_model` other than `"ar"` or `selection` other than
+  `"bic"` the fixed 10 applies.
+
+  Why not a fixed `delta` (engine package defaults before the final shape choice, 1 000
+  noise windows each; recall on 200 development waveforms per K of the REQ-105 design):
+
+  | `delta` | white | AR(1) 0.5 | AR(1) 0.9 | REQ-105 recall |
+  |---|---|---|---|---|
+  | 4 | | | 0.9 % | |
+  | 3 | | | 1.5 % | |
+  | 2 | | 1.5 % | 2.3 % | 0.942 |
+  | 1 | | 2.4 % | 4.0 % | |
+  | 0 | 1.9 % | 3.2 % | 5.7 % | 0.954 |
+  | -1 | 2.7 % | | | 0.961 |
+  | -2 | 4.7 % | | | 0.964 |
+
+  `delta` 0 reaches the recall on these seeds but leaves 5.7 % of rho = 0.9 windows with a
+  component (REQ-112: at most 5 %). The same rate needs a `delta` about 3 larger on
+  rho = 0.9 noise than on white noise (the low-frequency spectrum of an AR model fitted on
+  the baseline is uncertain by about 40 %, sd of log S(0) 0.38). An oracle matched filter that knows the width finds 73 % of
+  the FWHM-3, SNR-3 components at 5 % false alarms (66 % at 2.5 %): the engine is near
+  that limit, and REQ-105 is reached because every other level is found.
+
+  `alpha` (development seeds, 1 000 waveforms per K): 0.025 recall 0.9523, 0.035 0.956
+  (both before the final shape choice below), 0.02 with it 0.946, **0.03 with it 0.9542**
+  (precision 0.985). Noise windows with a component at 0.03 (2 000 each, development
+  seeds):
+
+  | settings | white | AR(1) 0.5 | AR(1) 0.9 |
+  |---|---|---|---|
+  | the tests' `model()` (REQ-107, REQ-112) | 1.9 % | 1.6 % | 2.2 % |
+  | engine package defaults | 2.7 % | 3.6 % | 2.55 % |
+  | `delta` 10 (before) | 0 to 0.5 % | 0 to 0.5 % | 0 to 0.5 % |
+
+  Before the width floor of the scan was added, the `model()` settings (`min_fwhm` 8 ms)
+  had 17 of 59 false components as skewed Gaussians 4 to 8 ms wide, narrower than the scan
+  covered.
+
+- **`shape_choice="aic"` (new; presets `"bic"`)**: each component of the final model at
+  least 8 samples wide at half maximum is refitted with every allowed shape (asymmetry
+  started at 0 and +/- 2) and the lowest AIC is kept. Measured and not kept: the AIC in the
+  quick shape choice of the search (REQ-105 recall falls: the skewed candidate then needs
+  ln n more to be accepted; REQ-106 MAE skewed 0.521, gamma 0.789, biexponential 0.647 on
+  400 development waveforms), and the refinement of every component whatever its width
+  (REQ-106 skewed 0.438, gamma 0.705, biexponential 0.570; REQ-105 recall 0.9547 to
+  0.9517, narrow components change shape and latency; from 8 samples: 0.9542).
+
+- **`resolution_check=True` (new; presets `False`)**: a component that a pair of equal
+  Gaussians `overlap_c` (sigma_1 + sigma_2) apart, with this component as its best single
+  Gaussian, would explain as well (deviance between the pair and its best single fit, in
+  the fit's whitened metric with the other components projected out, below the deviance a
+  new component needs) is flagged `merged:k,k+1`. On single Gaussians (development seeds,
+  FWHM 10 and 40 ms, SNR 5 to 80) the flag was set in every run; at SNR 200 it is not: it
+  says what the data cannot exclude.
+
+Results (test seeds: the tests' designs, 100 and 1 000 per condition; development seeds
+1 000):
+
+| REQ | before (test, 100) | after (test, 100) | after (test, 1 000) | after (development, 1 000) | met |
+|---|---|---|---|---|---|
+| 105 recall / precision | 0.885 / 1.00 | 0.950 / 0.988 | 0.9555 / 0.983 | 0.9542 / 0.985 | yes |
+| 111, 1.0 FWHM: two components | 100 % | 99 % | 97.6 % | 96.4 % | yes |
+| 111, 0.5 FWHM: one with `merged` | 0 % | 97 % | 94.3 % | 95.2 % | yes |
+| 111, 0.5 FWHM: two without `ill_conditioned` | 0 | 2 | 35 | 42 | no |
+| 112, `model()` noise windows silent (40 per rho) | 40 / 40 / 40 | 39 / 40 / 40 | | 98.1 / 98.4 / 97.8 % (2 000) | yes |
+| 107, rho 0.9: with a component (`neff` / `ar` / `white`, 100) | 0 / 0 / 100 | 0 / 0 / 100 | | | yes |
+
+REQ-106, latency MAE in samples (amplitude bias within 2.6 % everywhere), truth fitted with
+its own shape / with the default pair:
+
+| truth | before (test, 100) | after (test, 100) | after (test, 1 000) | after (development, 1 000) |
+|---|---|---|---|---|
+| Gaussian | 0.222 / 0.222 | 0.213 / 0.256 | 0.209 / 0.252 | 0.200 / 0.249 |
+| skewed Gaussian | 0.370 / **0.521** | 0.370 / 0.460 | 0.387 / 0.442 | 0.386 / 0.447 |
+| ex-Gaussian | 0.299 / 0.420 | 0.299 / 0.372 | 0.283 / 0.383 | 0.281 / 0.386 |
+| gamma | 0.323 / **0.763** | 0.323 / **0.706** | 0.346 / **0.715** | 0.368 / **0.744** |
+| biexponential | 0.252 / **0.603** | 0.253 / **0.613** | 0.307 / **0.641** | 0.302 / **0.638** |
+
+The skewed truth is met; gamma and biexponential are not (the pair cannot place the mode
+of these shapes: 0.47 and 0.54 sample off without noise, 1.0 and 1.2 at 25 samples;
+DECISIONS §5.4). Measured for them and not kept (development seeds, 200 waveforms per
+truth, MAE of the default pair for Gaussian / skewed / ex-Gaussian / gamma /
+biexponential truths):
+
+| latency read from | Gaussian | skewed | ex-Gaussian | gamma | biexponential |
+|---|---|---|---|---|---|
+| the fitted component (kept) | 0.255 | 0.468 | 0.387 | 0.754 | 0.624 |
+| the fitted shape shifted onto the samples above 0.5 of its peak | 0.287 | 0.444 | 0.357 | 0.744 | 0.699 |
+| the same above 0.25 | 0.259 | 0.457 | 0.381 | 0.764 | 0.656 |
+| the shape refitted on the samples above 0.5 of its peak | 0.272 | 0.494 | 0.419 | 0.658 | 0.623 |
+| the same above 0.3 | 0.275 | 0.483 | 0.374 | 0.613 | 0.616 |
+| a parabola through the samples above 0.6 of the peak | 0.319 | 0.525 | 0.400 | 0.711 | 1.163 |
+
+With the skewed Gaussian as the only shape (400 development waveforms) gamma is 0.678
+and biexponential 0.572: no choice between the two shapes of the pair reaches 0.5.
+
+REQ-111 at 0.5 FWHM: the second clause ("never two components" unless ill-conditioned)
+fails because the calibrated acceptance admits a false component elsewhere in the window
+in about 3 % of runs (the two of the test's 100: the pair as one component plus a
+component of about 1.7 noise SD at 0.17 s or 0.315 s), the rate REQ-105 needs. With
+`delta=10` and the resolution check both clauses hold on the test's seeds (one component
+with `merged` in 100 of 100, no two-component fit; two components at 1.0 FWHM in 100 of
+100), and REQ-105 falls back to 0.885.
+
+Elsewhere:
+
+- Presets (`erp`, `ccep`, `tep`, the ECAP and other presets through `fit_fields`), the
+  benchmark (presets), `fit_trials` (presets) and the reference fixture (`ccep`):
+  unchanged, value for value. Frozen methods texts: unchanged
+  (`tools/freeze_methods_text.py --check`).
+- ds004080 pre-stimulus windows (REQ-112 on real baselines; the test uses `ccep`): `ccep`
+  97.5 % silent on the test's 80 windows (unchanged), 93.0 % on 920 windows of 23
+  development runs. The package defaults, which no CCEP analysis uses: 96.3 % to 93.8 %
+  (test runs), 90.1 % to 87.3 % (development runs); the windows with components hold 2.7
+  components each at `delta` 10 already (slow activity of the recording, not white noise).
+- `existence.test_response(method="model_comparison")` (package defaults, parametric
+  bootstrap with 49 samples, 40 channels of 20 trials, Gaussian of FWHM 40 ms at 0.15 s):
+  noise channels significant 0 of 40 before and after (white and AR(1) 0.5); amplitude
+  0.15: 0 and 0; 0.25: 42.5 % to 47.5 %; 0.35: 90 % to 92.5 %; 0.5 and 1.0: 100 %.
+- Algorithm versions: `ResponseModel.fit_waveform` and `fit_group` 1.2,
+  `existence.test_response` 1.2; reference fixture regenerated (versions; values within
+  2.4e-12).
+- `test_status_api.py::test_req118_status_semantics` checks the `no_response` status with
+  `delta=10`: its noise draw is one of the 3 % that get a component under the calibrated
+  default.
+
+Tests: `tests/models` (with `test_engine_sim.py`, the new `test_calibration.py`),
+`test_determinism.py`, `test_methods_text.py`, `tests/presets`, `tests/existence`,
+`tests/trials`; `test_engine_ccep.py::test_req112_real_baselines_mostly_silent` and
+`test_req113_engine_finds_n1_on_the_example_run` from the cached runs.
+
 ### REQ-064 on real templates: the specification's version as a measured comparison
 
 - REQ-064 (subspace >= 30 dB on synthetic EEG with real artifact templates) is met by the

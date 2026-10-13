@@ -10,10 +10,13 @@ __version__ = "0.1.0.dev0"
 # default version.
 DEFAULT_ALGORITHM_VERSION = "1.0"
 ALGORITHM_VERSIONS = {
-    "evoparam.models.ResponseModel.fit_group": "1.1",
-    "evoparam.models.ResponseModel.fit_waveform": "1.1",
+    # 1.2: package defaults (no preset): calibrated acceptance (delta None, alpha 0.03),
+    # final shape choice by AIC and the resolution check; the presets are unchanged
+    "evoparam.models.ResponseModel.fit_group": "1.2",
+    "evoparam.models.ResponseModel.fit_waveform": "1.2",
     "evoparam.artifact.remove_artifact": "1.0",
-    "evoparam.existence.test_response": "1.1",
+    # 1.2: method="model_comparison" fits with the engine's package defaults (above)
+    "evoparam.existence.test_response": "1.2",
     "evoparam.trials.fit_trials": "1.1",
     "evoparam.prep.rereference": "1.0",
     "evoparam.events.detect_events": "1.0",
