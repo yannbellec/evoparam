@@ -23,6 +23,9 @@ import pytest
 
 from evoparam.models import classical_measures
 
+# Participants of each ERP CORE component.
+N_PARTICIPANTS = 40
+
 TOL = 1e-9
 
 
@@ -208,5 +211,5 @@ def test_req117_on_erp_core_averages(component: Any) -> None:
             continue  # no difference wave (as in the published analysis)
         _compare(np.asarray(times), np.asarray(wave), design["window"], polarity)
         compared += 1
-    assert loaded == 40
+    assert loaded == N_PARTICIPANTS
     assert compared > 0

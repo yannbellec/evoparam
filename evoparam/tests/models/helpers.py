@@ -8,6 +8,9 @@ from scipy.signal import lfilter
 
 from evoparam.models import ResponseModel
 
+# Smallest latency gap (s) between two simulated components.
+MIN_COMPONENT_GAP = 0.08
+
 ###################################################################################################
 ###################################################################################################
 
@@ -47,7 +50,7 @@ def random_components(
     k = int(rng.integers(1, k_max + 1))
     while True:
         lats = np.sort(rng.uniform(0.06, 0.5, k))
-        if k == 1 or np.min(np.diff(lats)) >= 0.08:
+        if k == 1 or np.min(np.diff(lats)) >= MIN_COMPONENT_GAP:
             break
     return [(lat, rng.choice([-1, 1]) * rng.uniform(*snr), rng.uniform(*width)) for lat in lats]
 

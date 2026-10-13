@@ -13,6 +13,16 @@ from evoparam.tests.data.factories import SFREQ, make_trialset
 
 pd = pytest.importorskip("pandas")
 
+# Samples in the 0.1 s windows of select and crop (the factory samples at 1000 Hz), and in
+# the 0.05 s window of the per-channel Evoked.
+WINDOW_SAMPLES = 100
+HALF_WINDOW_SAMPLES = 50
+# Trials of make_trialset, and those left when one is rejected.
+N_TRIALS = 6
+N_KEPT = 5
+# Units of a tiny job: auto_chunk puts them all in one chunk.
+N_UNITS = 3
+
 
 def test_construction_and_repr() -> None:
     trials = make_trialset()
@@ -74,14 +84,14 @@ def test_select_and_crop_window_convention() -> None:
     assert sub.ch_names == ["CH02", "CH00"]
     assert sub.times[0] == pytest.approx(0.0)
     assert sub.times[-1] == pytest.approx(0.099)
-    assert sub.n_times == 100
+    assert sub.n_times == WINDOW_SAMPLES
     np.testing.assert_array_equal(sub.data[0, 0], trials.data[4, 2, 100:200])
     assert list(sub.metadata["trial"]) == [4, 1]
     assert list(sub.ch_info["name"]) == ["CH02", "CH00"]
     assert sub.provenance.steps[-1]["function"] == "evoparam.data.TrialSet.select"
     assert sub.provenance.data_hash != trials.provenance.data_hash
     cropped = trials.crop(-0.05, 0.05)
-    assert cropped.n_times == 100
+    assert cropped.n_times == WINDOW_SAMPLES
     assert cropped.n_trials == trials.n_trials
 
 
@@ -113,7 +123,7 @@ def test_average_mean_and_sem() -> None:
     np.testing.assert_allclose(
         evoked.sem, trials.data.std(axis=0, ddof=1) / np.sqrt(6), rtol=1e-12
     )
-    assert evoked.n_trials == 6
+    assert evoked.n_trials == N_TRIALS
     assert evoked.masks is None
 
 
@@ -121,7 +131,7 @@ def test_average_excludes_rejected_and_groups() -> None:
     trials = make_trialset()
     trials.metadata.loc[0, "rejected"] = True
     evoked = trials.average()
-    assert evoked.n_trials == 5
+    assert evoked.n_trials == N_KEPT
     np.testing.assert_allclose(evoked.data, trials.data[1:].mean(axis=0), rtol=1e-12)
     groups = trials.average(by="condition")
     assert [g.metadata["condition"][0] for g in groups] == ["high", "low"]
@@ -167,7 +177,7 @@ def test_chunk_does_not_change_result() -> None:
 
 def test_auto_chunk_rule() -> None:
     assert auto_chunk(500, 4096, 256, max_memory_gb=1.0) == int(1024**3 // (500 * 4096 * 24))
-    assert auto_chunk(1, 10, 3, max_memory_gb=100) == 3
+    assert auto_chunk(1, 10, N_UNITS, max_memory_gb=100) == N_UNITS
 
 
 def test_apply_times_axis_and_provenance() -> None:
@@ -200,7 +210,7 @@ def test_as_evoked_and_as_trialset() -> None:
     back = evoked.as_trialset()
     assert back.n_trials == 1
     np.testing.assert_array_equal(back.data[0], trials.data[2])
-    assert trials.as_evoked().n_trials == 6
+    assert trials.as_evoked().n_trials == N_TRIALS
 
 
 def test_evoked_validation_and_select() -> None:
@@ -214,7 +224,7 @@ def test_evoked_validation_and_select() -> None:
     )
     sub = per_channel.select(picks=["CH02"], tmin=0.0, tmax=0.05)
     assert list(sub.n_trials) == [4]
-    assert sub.n_times == 50
+    assert sub.n_times == HALF_WINDOW_SAMPLES
 
 
 def test_equality_and_copy() -> None:

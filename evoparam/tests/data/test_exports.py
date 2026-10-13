@@ -12,6 +12,10 @@ from evoparam.errors import DataError
 
 pd = pytest.importorskip("pandas")
 
+# Sampling frequency of the exported TrialSet (Hz).
+SFREQ = 1000.0
+
+
 ###################################################################################################
 ###################################################################################################
 
@@ -29,7 +33,7 @@ def _trialset() -> Any:
     return TrialSet(
         data=data,
         times=times,
-        sfreq=1000.0,
+        sfreq=SFREQ,
         ch_names=["a", "b", "c"],
         metadata=meta,
         ch_info=info,
@@ -64,7 +68,7 @@ def test_trialset_to_xarray() -> None:
     assert arr["stim_current_mA"].values.tolist() == [4.0, 4.0, 6.0, 6.0]
     assert arr["bad"].dims == ("channel",)
     assert np.array_equal(arr["mask"].values, ts.masks)
-    assert arr.attrs["sfreq"] == 1000.0
+    assert arr.attrs["sfreq"] == SFREQ
     assert arr.attrs["units"] == ts.units
     # Selection by label works as in xarray
     assert np.array_equal(arr.sel(channel="b").values, ts.data[:, 1])

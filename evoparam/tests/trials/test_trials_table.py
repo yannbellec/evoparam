@@ -14,6 +14,13 @@ from .helpers import channel_fit, gauss, simulate
 
 pd = pytest.importorskip("pandas")
 
+# Fraction of converged trial fits required in every mode.
+MIN_CONVERGED = 0.9
+# Components of the channel fit (the response and the added later one).
+N_COMPONENTS = 2
+# Correlation of the fitted and simulated shifts required of both trial models.
+MIN_SHIFT_CORRELATION = 0.5
+
 ###################################################################################################
 ###################################################################################################
 
@@ -49,7 +56,7 @@ def test_other_modes_run(mode: Any) -> None:
         warnings.simplefilter("ignore")
         tf = fit_trials(ts, channel_fit(ts), mode=mode, r2_min=0.0)
     fit = tf.fits[0]
-    assert fit.converged.mean() >= 0.9
+    assert fit.converged.mean() >= MIN_CONVERGED
     # the template mode uses the jitter-blurred channel average as template: less precise
     assert np.corrcoef(fit.shift[:, 0], shifts)[0, 1] >= (0.35 if mode == "template" else 0.5)
 
@@ -101,7 +108,7 @@ def test_selected_trial_model_keeps_only_the_chosen_components() -> None:
         warnings.simplefilter("ignore")
         group = channel_fit(ts)
         comps = group.fits[0].components
-        assert len(comps) >= 2
+        assert len(comps) >= N_COMPONENTS
         first = int(np.argmin([abs(c.latency - 0.08) for c in comps]))
         full = fit_trials(ts, group, components=[first], r2_min=0.0)
         only = fit_trials(ts, group, components=[first], r2_min=0.0, trial_model="selected")
@@ -109,7 +116,7 @@ def test_selected_trial_model_keeps_only_the_chosen_components() -> None:
     assert full.fits[0].shift.shape == only.fits[0].shift.shape == (30, 1)
     assert not np.allclose(full.fits[0].shift, only.fits[0].shift)
     for fit in (full, only):
-        assert np.corrcoef(fit.fits[0].shift[:, 0], shifts)[0, 1] >= 0.5
+        assert np.corrcoef(fit.fits[0].shift[:, 0], shifts)[0, 1] >= MIN_SHIFT_CORRELATION
 
 
 @pytest.mark.parametrize("anchored", [False, True])

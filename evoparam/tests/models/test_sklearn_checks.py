@@ -13,6 +13,9 @@ from evoparam.utils._sklearn_checks import EXPECTED, FORBIDDEN, expected_failed_
 
 sklearn_checks = pytest.importorskip("sklearn.utils.estimator_checks")
 
+# Most scikit-learn checks expected to fail.
+MAX_EXPECTED_FAILURES = 15
+
 ESTIMATORS = [
     ResponseModel(sfreq=1000.0, tmin=0.0),
     TrialFitter(sfreq=1000.0, tmin=0.0),
@@ -22,7 +25,7 @@ ESTIMATORS = [
 
 def test_expected_list_is_short_and_allowed() -> None:
 
-    assert len(EXPECTED) <= 15
+    assert len(EXPECTED) <= MAX_EXPECTED_FAILURES
     assert not set(EXPECTED) & set(FORBIDDEN)
     assert all(isinstance(reason, str) and reason for reason in EXPECTED.values())
 
