@@ -54,6 +54,7 @@ INHERITED = {
 # NOTICE); its SPDX header names both licences
 DERIVED = {
     "evoparam/models/_trf.py": "BSD-3-Clause",       # SciPy's trust-region reflective solver
+    "evoparam/models/_fast.py": "BSD-3-Clause",      # the same solver; Cephes' erfc (SciPy)
 }
 
 
