@@ -151,7 +151,8 @@ def n1_comparisons(n1, layer4):
             if check[key] != stored[key]:
                 raise ValueError(f"n1_ds004080.json {reading} {key}: {stored[key]} in the file, "
                                  f"{check[key]} from the layer-4 report")
-        definition = rule_definition(rule_id, baseline=list(robustness.FRAMES[reading][0]))
+        definition = rule_definition(rule_id, baseline=list(robustness.FRAMES[reading][0]),
+                                     **robustness.FRAMES[reading][2])
         name = f"published N1 rule, registry '{rule_id}' ({reading} reading)"
         out.append(_paired_rate(f"n1_ds004080/{reading}/n1_fraction",
                                 "fraction of channels with an N1", name, model, rule,

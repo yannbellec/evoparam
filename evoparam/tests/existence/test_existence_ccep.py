@@ -118,8 +118,11 @@ def _prepared(ts: Any) -> Any:
 def req371_decisions() -> Any:
     """Per REQ-371 run: the default method's decision over 9-100 ms (negative: N1
     presence), with its default correction across channels (fdr_bh) and with none; the
-    registry row (its unspecified baseline given as -1 to -0.1 s, the ER-detect default
-    the registry names) and the published code (its own baseline, -2 to -0.1 s)."""
+    registry row read as written, a negative peak (``peak="strict"``: the deepest strict
+    local minimum of the window; its unspecified baseline given as -1 to -0.1 s, the
+    ER-detect default the registry names), the same row read as the window's most negative
+    sample (the registry's default ``peak="extremum"``, measured) and the published code
+    (its own baseline, -2 to -0.1 s)."""
 
     from evoparam.tests.models.test_engine_ccep import _pair_trials, req371_pairs
 
@@ -143,6 +146,13 @@ def req371_decisions() -> Any:
             ts,
             method="threshold",
             rule="vanblooijs2023",
+            rule_overrides={"baseline": BASELINE, "peak": "strict"},
+            by=(),
+        ).significant
+        row["vanblooijs2023_extremum"] = run_test(
+            ts,
+            method="threshold",
+            rule="vanblooijs2023",
             rule_overrides={"baseline": BASELINE},
             by=(),
         ).significant
@@ -162,21 +172,22 @@ def _pooled(rows: Any, method: Any, rule: Any) -> Any:
     return _kappa(a, b)
 
 
-# Measured on the REQ-371 runs (six subjects, 515 channels, 10 trials each): kappa 0.586
-# with the registry row, 0.496 with the published code (per run 0.27 to 0.72 and 0.13 to
-# 0.75). On the development segments (below, RUNS) the same test gave 0.687 and 0.399.
+# Measured on the REQ-371 runs (six subjects, 515 channels, 10 trials each): kappa 0.495
+# with the registry row read as a negative peak, 0.586 read as the window's most negative
+# sample, 0.496 with the published code. On the development runs 0.533, 0.600 and 0.597.
 @pytest.mark.xfail(
     strict=False,
-    reason="REQ-135 is judged on the registry row (D8 revised, DECISIONS §5.8); the "
-    "code's reading is reported. REQ-135 is not met under either reading of the "
-    "published rule: on the REQ-371 runs kappa 0.586 with the registry row, 0.496 with the "
+    reason="REQ-135 is judged on the registry row read as written, a negative peak (D8 "
+    "revised, DECISIONS §5.8); the code's reading is reported. REQ-135 is not met under "
+    "either reading of the published rule: on the REQ-371 runs kappa 0.495 with the "
+    "registry row (0.586 read as the window's most negative sample), 0.496 with the "
     "published code; under both readings at once no decision can reach 0.7 "
-    "(test_req135_cannot_hold_under_both_readings: at most 0.592). With the per-channel "
-    "decision of the rule (correction='none') the registry row reaches 0.807 and the code "
-    "falls to 0.321. With FDR kept, the best principled variant chosen on the development "
-    "runs (the ccep preset's own chain before the test: 0.703 there, 0.711 with a 2 s "
-    "baseline) gives 0.623 on the REQ-371 runs: FDR drops the weak responses the rule "
-    "keeps (CHANGELOG, 'N1 case: the two readings')",
+    "(test_req135_cannot_hold_under_both_readings: at most 0.640). With the per-channel "
+    "decision of the rule (correction='none') the registry row reaches 0.710 (0.807 with "
+    "the extremum) and the code falls to 0.321. With FDR kept, the ccep preset's own "
+    "chain before the test (chosen on the development runs with the extremum reading) "
+    "gives 0.548 (0.623): FDR drops the weak responses the rule keeps (CHANGELOG, 'N1 "
+    "case: the two readings', 'The comparator trail')",
 )
 @pytest.mark.parametrize("rule", ["vanblooijs2023", "vanblooijs2023_code"])
 def test_req135_permutation_agrees_with_vanblooijs2023(req371_decisions: Any, rule: Any) -> None:
@@ -189,10 +200,10 @@ def test_req135_permutation_agrees_with_vanblooijs2023(req371_decisions: Any, ru
 
 def test_req135_cannot_hold_under_both_readings(req371_decisions: Any) -> None:
     """Not a REQ (owner decision D8, measured): for every possible decision of the 515
-    channels, the smaller of its kappas with the two readings is at most 0.592 (exact
-    search, :func:`joint_kappa_bound`): REQ-135 cannot hold under both readings at once on
-    the REQ-371 runs, whatever the method. The two readings agree with each other at
-    kappa 0.31 there (125 and 28 N1s)."""
+    channels, the smaller of its kappas with the two readings is at most 0.640 (exact
+    search, :func:`joint_kappa_bound`; 0.592 with the extremum reading): REQ-135 cannot
+    hold under both readings at once on the REQ-371 runs, whatever the method. The two
+    readings agree with each other at kappa 0.36 there."""
 
     from evoparam.tests.models.test_engine_ccep import joint_kappa_bound
 
@@ -205,9 +216,9 @@ def test_req135_per_channel_decision_registry_row_regression(req371_decisions: A
     """Not the REQ as written (the ccep preset keeps the spec's FDR across channels, §6):
     the default method with the rule's own per-channel decision (correction='none', each
     channel tested at alpha over 9-100 ms, as the rule decides each channel alone) agrees
-    with the registry row with kappa 0.807 on the REQ-371 runs and 0.808 on the five
-    development runs (a principled choice, no value tuned); with the code it falls to
-    0.321."""
+    with the registry row (a negative peak) with kappa 0.710 on the REQ-371 runs and
+    0.756 on the five development runs (a principled choice, no value tuned; 0.807 and
+    0.808 with the extremum reading); with the code it falls to 0.321."""
 
     assert _pooled(req371_decisions, "none", "vanblooijs2023") >= 0.7
 
