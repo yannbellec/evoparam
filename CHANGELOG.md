@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### REQ-298: evoparam.shapes covered at 100 %
+
+- `evoparam/tests/shapes/test_grid_helpers.py` covers the last five lines and four branches
+  of `evoparam.shapes._base`: the window cache when it is full, the fine feature grid, and
+  the search on that grid without building it, checked against `np.searchsorted` on 2 005
+  values (on the grid points, one ulp off them, outside, infinite and NaN) for both sides.
+  Shapes coverage 99 % -> 100 % (lines and branches); the slow test of REQ-298 passes.
+
 ### Cross-projection test: sign-flip null of the profile peak (REQ-134)
 
 - `test_response(method="projection")` has a third set of projections,
