@@ -126,11 +126,12 @@ def test_req231_kiesel_worked_example() -> None:
 
     rng = np.random.default_rng(2008)
     rows = 0.1 + rng.normal(0, 0.01, (12, 3)) + np.array([0.0, 0.004, 0.009])
-    table = jackknife_latency(_constant_evokeds(rows, "p"), scorer="mean_amplitude",
-                              window=(0.0, 0.001))
+    table = jackknife_latency(
+        _constant_evokeds(rows, "p"), scorer="mean_amplitude", window=(0.0, 0.001)
+    )
     wide = table.pivot(index="subject", columns="channel")
     jack, own = wide["jackknife"][CONDITIONS].to_numpy(), wide["retrieved"][CONDITIONS].to_numpy()
-    order = [int(name[1:]) for name in wide.index]   # pivot sorts the subject names
+    order = [int(name[1:]) for name in wide.index]  # pivot sorts the subject names
     assert np.allclose(own, rows[order], rtol=0, atol=1e-12)
     n = len(rows)
     t_jack = sps.ttest_rel(jack[:, 2], jack[:, 0]).statistic
