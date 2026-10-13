@@ -371,6 +371,27 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   corrections are checked on the worked example of [LIT-erpmeas-6] (Smulders 2010), and
   the one worked number of [LIT-erpmeas-2] (the interpolated criterion crossing of p. 254,
   64.46 ms) is checked by `test_req231_kiesel_interpolation_example`.
+- **REQ-115 and REQ-295, the compiled fit of the `fast` extra.** With numba installed
+  (§9.2, extra `fast`), the engine fits the structures made of Gaussian and
+  skewed-Gaussian components, with an exponential background or one without non-linear
+  parameter, in compiled code (`evoparam/models/_fast.py`). It is the same algorithm as
+  the NumPy path, step by step, but not the same rounding: its exponential and error
+  function are written so that the loops vectorise (within one ulp of NumPy's, and Cephes'
+  erfc, which SciPy uses), a component is 0 beyond 12 widths from its centre (below 1e-31
+  of its peak; on the side where a skewed Gaussian decays faster, beyond 12 / sqrt(1 +
+  alpha^2) widths, where `erfc(u) <= exp(-u^2)` gives the same bound), the compiler fuses
+  products and sums (FMA) and vectorises inner products, and the SVD of each trust-region
+  step comes from the one-sided Jacobi method instead of LAPACK. Any other structure, a
+  design that is not clearly of full rank, and a machine without numba take the NumPy
+  path, which stays the reference. REQ-295 is read with the extra as part of the platform,
+  as the GPU backends of P4 are: the two paths agree within the solver tolerance (1e-6
+  relative on parameters and features, `tests/models/test_fast_kernel.py`), and the reference fixture within 1e-9 with either path
+  (2.4e-12 and 3.5e-12 measured), so `tests/test_determinism.py` holds with and without
+  numba. As with any change of rounding (CHANGELOG, "Engine speed"), a few ill-conditioned
+  fits of real data with many components end on another optimum: 12 of 360 ds004080 fits,
+  with no status or shape changed, one number of components changed (UMCU19 el088, 5 to 6,
+  with a lower criterion; a channel that already moved under 1e-15 perturbations of the
+  data), and the N1 agreement of REQ-114 equal or higher.
 
 ## 5. Requirements that cannot both be read literally
 
@@ -626,7 +647,7 @@ expected failure whose reason gives the measured value; no criterion was weakene
   source imports or the extras declare. Packages imported only through another package's
   API (`packaging`, `tabulate`, `patsy`, `pytensor`) have the role `transitive`. These
   declared extras are not imported by the source: `bidsschematools`, `formulaic`, `joblib`,
-  `mne-bids`, `ndx-events`, `numba`, `nwbinspector`, `pybids`, `tqdm`. They are kept,
+  `mne-bids`, `ndx-events`, `nwbinspector`, `pybids`, `tqdm`. They are kept,
   because §9.2 names them; the inventory marks them `optional`.
 - **Public steps (REQ-308 run, REQ-391 archive, REQ-392, REQ-393, REQ-394, REQ-398).**
   Everything that can be prepared locally is in the repository. The steps that publish

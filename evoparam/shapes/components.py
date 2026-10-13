@@ -249,6 +249,15 @@ class Gaussian(_WidthShape):
 
     extremum = latency
 
+    def support(self, params: ArrayLike, level: float) -> tuple[float, float]:
+        """Return an interval of times outside which ``|s(t)| < level`` (``0 < level < 1``).
+
+        ``exp(-z^2/2) < level`` beyond ``|z| = sqrt(-2 ln level)``; half a width of margin.
+        """
+        params = self._params(params)
+        reach = (math.sqrt(-2.0 * math.log(level)) + 0.5) * float(params[1])
+        return float(params[0]) - reach, float(params[0]) + reach
+
     def default_bounds(
         self,
         times: ArrayLike,
@@ -436,6 +445,17 @@ class SkewedGaussian(_WidthShape):
         return params[..., 0] + params[..., 1] * z_mode
 
     extremum = latency
+
+    def support(self, params: ArrayLike, level: float) -> tuple[float, float]:
+        """Return an interval of times outside which ``|s(t)| < level`` (``0 < level < 1``).
+
+        The numerator is at most ``2 exp(-z^2/2)`` and ``c(alpha) >= 1`` (its value at
+        ``z = 0``), so that ``s < level`` beyond ``|z| = sqrt(2 ln(2 / level))``; half a
+        scale of margin.
+        """
+        params = self._params(params)
+        reach = (math.sqrt(2.0 * math.log(2.0 / level)) + 0.5) * float(params[1])
+        return float(params[0]) - reach, float(params[0]) + reach
 
     def default_bounds(
         self,

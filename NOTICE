@@ -40,6 +40,13 @@ Changes: only the bounded, dense, linear-loss path with x_scale="jac" and the
 exact trust-region solver is kept, and the Jacobian can be reduced by a QR
 factorisation once per evaluation (the file header lists the changes).
 
+evoparam/models/_fast.py is derived from the same solver, through
+evoparam/models/_trf.py, rewritten as loops that numba compiles. It also holds
+the coefficients of the rational approximations of erfc of the Cephes Math
+Library (ndtr.c; Copyright 1984, 1987, 1988, 1992, 2000 by Stephen L.
+Moshier), as SciPy distributes them (scipy/special) under the same BSD
+3-Clause License, with the permission of their author.
+
   Copyright (c) 2001-2002 Enthought, Inc. 2003, SciPy Developers.
   All rights reserved.
 
