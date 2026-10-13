@@ -76,6 +76,7 @@ class ReproduceReport:
     missing_plugins: dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the report as a JSON-ready dict (an infinite difference as None)."""
         out = dataclasses.asdict(self)
         out["max_rel_diff"] = None if not math.isfinite(self.max_rel_diff) else self.max_rel_diff
         return out
@@ -95,6 +96,7 @@ def _read_settings_json(path: Any) -> Any:
 
 
 def _resolve_path(path: Any) -> Any:
+    """Return the container path (``.evoparam`` appended when only that exists)."""
     path = os.fspath(path)
     if not os.path.exists(path) and os.path.exists(path + ".evoparam"):
         path += ".evoparam"
@@ -161,6 +163,7 @@ def _check_preset(settings: Any) -> None:
 
 
 def _fit_group(trials: Any, settings: Any) -> "GroupFit":
+    """Fit ``trials`` again with the recorded group-fit settings."""
     from evoparam.models import ResponseModel
     from evoparam.models._settings import FitSettings
 
@@ -276,7 +279,21 @@ def _replay_chain(
     return _fit_trials(obj, trials or state, group, step)
 
 
+def _replay_bids(settings: Any, source: Any) -> Any:
+    """Read the recorded BIDS source again: (TrialSet or None, status, message)."""
+    from evoparam.io import read_bids
+
+    root = (source or {}).get("root")
+    if not root:
+        return None, "not_replayable", "the source has no BIDS root"
+    kwargs = _accepted(read_bids, {k: v for k, v in settings.items() if k != "subject"})
+    if kwargs.get("events") == "DataFrame":
+        return None, "not_replayable", "the events were given as a DataFrame"
+    return read_bids(root, settings["subject"], **kwargs), "replayed", ""
+
+
 def _replay_source(step: Any, source: Any, data: Any) -> Any:
+    """Return the data of the first step: (TrialSet or None, status, message)."""
     function = step["function"]
     settings = step.get("settings") or {}
     if data is not None:
@@ -286,15 +303,7 @@ def _replay_source(step: Any, source: Any, data: Any) -> Any:
         ts, _ = func(**_accepted(func, settings))
         return ts, "replayed", ""
     if function == "evoparam.io.read_bids":
-        from evoparam.io import read_bids
-
-        root = (source or {}).get("root")
-        if not root:
-            return None, "not_replayable", "the source has no BIDS root"
-        kwargs = _accepted(read_bids, {k: v for k, v in settings.items() if k != "subject"})
-        if kwargs.get("events") == "DataFrame":
-            return None, "not_replayable", "the events were given as a DataFrame"
-        return read_bids(root, settings["subject"], **kwargs), "replayed", ""
+        return _replay_bids(settings, source)
     path = (source or {}).get("path")
     if function == "evoparam.io.read" and path and "onsets" not in settings:
         from evoparam.io import read
@@ -304,14 +313,27 @@ def _replay_source(step: Any, source: Any, data: Any) -> Any:
     return None, "not_replayable", ("the source cannot be read again from the record; pass data=")
 
 
+@dataclasses.dataclass
+class _Replay:
+    """The state of a replay: the saved object, its steps and what the steps produced.
+
+    ``state`` is the current output; ``trials`` the trials averaged inside the group fit;
+    ``group`` the group fit; ``chain`` the continuous TrialSet that events were detected in.
+    """
+
+    obj: Any
+    steps: list[Any]
+    state: Any = None
+    trials: Any = None
+    group: Any = None
+    chain: dict[str, Any] = dataclasses.field(default_factory=dict)
+
+
 def _replay(obj: Any, final_settings: Any, data: Any) -> Any:
     """Re-run the steps of ``obj.provenance``; returns (new object, step records)."""
     steps = list(obj.provenance.steps)
     records = []
-    state = None
-    trials_before_average = None
-    group = None
-    chain: dict[str, Any] = {}  # the continuous TrialSet that events were detected in
+    run = _Replay(obj, steps)
     for i, step in enumerate(steps):
         function = step["function"]
         settings = dict(step.get("settings") or {})
@@ -321,72 +343,19 @@ def _replay(obj: Any, final_settings: Any, data: Any) -> Any:
         if function == _FIT_STEP and last and final_settings is not None:
             settings = dict(final_settings)
         try:
-            if state is None:
-                state, status, message = _replay_source(step, obj.provenance.source, data)
+            if run.state is None:
+                run.state, status, message = _replay_source(step, obj.provenance.source, data)
                 records.append({"function": function, "status": status, "message": message})
-                if state is None:
+                if run.state is None:
                     return None, records
                 if data is not None and not function.startswith(("evoparam.io.", "evoparam.sim.")):
                     # the caller's data stand for the source; this step is replayed below
                     records[-1]["status"] = "skipped"
                 else:
                     continue
-            if function == "evoparam.data.TrialSet.average":
-                if i + 1 < len(steps) and steps[i + 1]["function"] == _FIT_STEP:
-                    trials_before_average = state
-                    records.append(
-                        {
-                            "function": function,
-                            "status": "replayed",
-                            "message": "inside the group fit",
-                        }
-                    )
-                    continue
-                state = state.average(**_accepted(state.average, settings))
-            elif function == _FIT_STEP:
-                trials_before_average = trials_before_average or state
-                group = _fit_group(
-                    trials_before_average
-                    if isinstance(trials_before_average, TrialSet)
-                    else state,
-                    settings,
-                )
-                state = group
-            elif function == _TEST_STEP and group is not None:
-                state = group = _replay_test(settings, trials_before_average, group)
-            elif function in _CHAIN:
-                state = _replay_chain(
-                    obj,
-                    step,
-                    state,
-                    chain,
-                    trials=trials_before_average,
-                    group=group,
-                    final_settings=final_settings if last else None,
-                )
-            elif function.startswith("evoparam.data."):
-                method = getattr(state, function.rsplit(".", 1)[1])
-                state = method(**_accepted(method, settings))
-            else:
-                func = _callable(function)
-                if func is None:
-                    records.append(
-                        {
-                            "function": function,
-                            "status": "not_replayable",
-                            "message": "unknown function",
-                        }
-                    )
-                    return None, records
-                out = func(state, **_accepted(func, settings))
-                # the result itself when it is the saved object (an ArtifactResult), else
-                # the cleaned data that the next step works on
-                state = (
-                    out
-                    if i == len(steps) - 1 and type(out) is type(obj)
-                    else getattr(out, "cleaned", out)
-                )
-            records.append({"function": function, "status": "replayed", "message": ""})
+            records.append(_replay_step(run, i, settings, final_settings if last else None))
+            if records[-1]["status"] == "not_replayable":
+                return None, records
         except EvoparamVersionError:
             raise
         except Exception as exc:  # noqa: BLE001  (reported with status failed, never hidden)
@@ -398,7 +367,59 @@ def _replay(obj: Any, final_settings: Any, data: Any) -> Any:
                 }
             )
             return None, records
-    return state, records
+    return run.state, records
+
+
+def _replay_step(run: _Replay, i: int, settings: Any, final_settings: Any) -> dict[str, Any]:
+    """Re-run step ``i`` (after the source) on ``run.state``; return the step record.
+
+    ``final_settings`` (the settings of ``settings.json``) is given for the result's own step.
+    """
+    steps = run.steps
+    function = steps[i]["function"]
+    if function == "evoparam.data.TrialSet.average":
+        if i + 1 < len(steps) and steps[i + 1]["function"] == _FIT_STEP:
+            run.trials = run.state
+            return {"function": function, "status": "replayed", "message": "inside the group fit"}
+        run.state = run.state.average(**_accepted(run.state.average, settings))
+    elif function == _FIT_STEP:
+        run.trials = run.trials or run.state
+        run.group = _fit_group(
+            run.trials if isinstance(run.trials, TrialSet) else run.state, settings
+        )
+        run.state = run.group
+    elif function == _TEST_STEP and run.group is not None:
+        run.state = run.group = _replay_test(settings, run.trials, run.group)
+    elif function in _CHAIN:
+        run.state = _replay_chain(
+            run.obj,
+            steps[i],
+            run.state,
+            run.chain,
+            trials=run.trials,
+            group=run.group,
+            final_settings=final_settings,
+        )
+    elif function.startswith("evoparam.data."):
+        method = getattr(run.state, function.rsplit(".", 1)[1])
+        run.state = method(**_accepted(method, settings))
+    else:
+        func = _callable(function)
+        if func is None:
+            return {
+                "function": function,
+                "status": "not_replayable",
+                "message": "unknown function",
+            }
+        out = func(run.state, **_accepted(func, settings))
+        # the result itself when it is the saved object (an ArtifactResult), else
+        # the cleaned data that the next step works on
+        run.state = (
+            out
+            if i == len(steps) - 1 and type(out) is type(run.obj)
+            else getattr(out, "cleaned", out)
+        )
+    return {"function": function, "status": "replayed", "message": ""}
 
 
 ###################################################################################################
@@ -414,6 +435,7 @@ def _difference(a: NDArray[Any], b: NDArray[Any]) -> NDArray[Any]:
 
 
 def _rel(a: Any, b: Any) -> tuple[float, NDArray[Any], NDArray[Any]]:
+    """Return the largest relative difference, the absolute differences and the both-NaN mask."""
     a = np.asarray(a, float)
     b = np.asarray(b, float)
     both_nan = np.isnan(a) & np.isnan(b)
@@ -430,103 +452,135 @@ def _compare(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: Any) -> A
 
     Return the largest relative difference among the numbers compared.
     """
-    if dataclasses.is_dataclass(old) and not isinstance(old, type):
-        if type(new) is not type(old):
-            out.append((path, None))
-            return math.inf
-        worst = 0.0
-        for fld in dataclasses.fields(old):
-            if fld.name in _VOLATILE:
-                continue
-            worst = max(
-                worst,
-                _compare(
-                    getattr(new, fld.name),
-                    getattr(old, fld.name),
-                    f"{path}.{fld.name}" if path else fld.name,
-                    rtol,
-                    atol,
-                    out,
-                ),
-            )
-        return worst
-    if type(old).__name__ == "DataFrame":
-        if (
-            type(new).__name__ != "DataFrame"
-            or list(new.columns) != list(old.columns)
-            or len(new) != len(old)
-        ):
-            out.append((path, None))
-            return math.inf
-        worst = 0.0
-        for column in old.columns:
-            worst = max(
-                worst,
-                _compare(
-                    new[column].to_numpy(),
-                    old[column].to_numpy(),
-                    f"{path}[{column}]",
-                    rtol,
-                    atol,
-                    out,
-                ),
-            )
-        return worst
-    if isinstance(old, dict):
-        if not isinstance(new, dict) or set(new) != set(old):
-            out.append((path, None))
-            return math.inf
-        worst = 0.0
-        for key in old:
-            if key in _VOLATILE:
-                continue
-            worst = max(worst, _compare(new[key], old[key], f"{path}.{key}", rtol, atol, out))
-        return worst
-    if isinstance(old, (list, tuple)) and not (
-        old and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in old)
-    ):
-        if not isinstance(new, (list, tuple)) or len(new) != len(old):
-            out.append((path, None))
-            return math.inf
-        worst = 0.0
-        for i, (a, b) in enumerate(zip(new, old, strict=False)):
-            worst = max(worst, _compare(a, b, f"{path}[{i}]", rtol, atol, out))
-        return worst
-    numeric_old = isinstance(
-        old, (float, int, np.number, np.ndarray, list, tuple)
-    ) and not isinstance(old, bool)
-    if numeric_old:
-        try:
-            a = np.asarray(new)
-            b = np.asarray(old)
-        except Exception:  # noqa: BLE001 (reported as a difference)
-            out.append((path, None))
-            return math.inf
-        if a.shape != b.shape:
-            out.append((path, None))
-            return math.inf
-        if b.dtype.kind in "fiucb" and a.dtype.kind in "fiucb":
-            rel, diff, both_nan = _rel(a, b)
-            ok = np.all(
-                both_nan
-                | (
-                    diff
-                    <= atol + rtol * np.maximum(np.abs(a.astype(float)), np.abs(b.astype(float)))
-                )
-            )
-            if not ok:
-                out.append((path, rel))
-            return rel
-        if not np.array_equal(a, b):
-            out.append((path, None))
-            return math.inf
-        return 0.0
+    for applies, compare in _COMPARERS:
+        if applies(old):
+            return compare(new, old, path, rtol, atol, out)
     if new != old and not (
         isinstance(old, float) and isinstance(new, float) and math.isnan(old) and math.isnan(new)
     ):
-        out.append((path, None))
-        return math.inf
+        return _mismatch(out, path)
     return 0.0
+
+
+def _mismatch(out: Any, path: Any) -> float:
+    """Record a difference that has no relative size (type, shape, keys or value)."""
+    out.append((path, None))
+    return math.inf
+
+
+def _compare_dataclass(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: Any) -> Any:
+    """Compare two dataclass instances field by field (volatile fields left out)."""
+    if type(new) is not type(old):
+        return _mismatch(out, path)
+    worst = 0.0
+    for fld in dataclasses.fields(old):
+        if fld.name in _VOLATILE:
+            continue
+        worst = max(
+            worst,
+            _compare(
+                getattr(new, fld.name),
+                getattr(old, fld.name),
+                f"{path}.{fld.name}" if path else fld.name,
+                rtol,
+                atol,
+                out,
+            ),
+        )
+    return worst
+
+
+def _compare_frame(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: Any) -> Any:
+    """Compare two DataFrames column by column (same columns and length needed)."""
+    if (
+        type(new).__name__ != "DataFrame"
+        or list(new.columns) != list(old.columns)
+        or len(new) != len(old)
+    ):
+        return _mismatch(out, path)
+    worst = 0.0
+    for column in old.columns:
+        worst = max(
+            worst,
+            _compare(
+                new[column].to_numpy(),
+                old[column].to_numpy(),
+                f"{path}[{column}]",
+                rtol,
+                atol,
+                out,
+            ),
+        )
+    return worst
+
+
+def _compare_dict(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: Any) -> Any:
+    """Compare two dicts key by key (same keys needed; volatile keys left out)."""
+    if not isinstance(new, dict) or set(new) != set(old):
+        return _mismatch(out, path)
+    worst = 0.0
+    for key in old:
+        if key in _VOLATILE:
+            continue
+        worst = max(worst, _compare(new[key], old[key], f"{path}.{key}", rtol, atol, out))
+    return worst
+
+
+def _compare_sequence(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: Any) -> Any:
+    """Compare two lists or tuples (not of numbers only) item by item."""
+    if not isinstance(new, (list, tuple)) or len(new) != len(old):
+        return _mismatch(out, path)
+    worst = 0.0
+    for i, (a, b) in enumerate(zip(new, old, strict=False)):
+        worst = max(worst, _compare(a, b, f"{path}[{i}]", rtol, atol, out))
+    return worst
+
+
+def _compare_numbers(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: Any) -> Any:
+    """Compare numbers or arrays within the tolerances; other arrays must be equal."""
+    try:
+        a = np.asarray(new)
+        b = np.asarray(old)
+    except Exception:  # noqa: BLE001 (reported as a difference)
+        return _mismatch(out, path)
+    if a.shape != b.shape:
+        return _mismatch(out, path)
+    if b.dtype.kind in "fiucb" and a.dtype.kind in "fiucb":
+        rel, diff, both_nan = _rel(a, b)
+        ok = np.all(
+            both_nan
+            | (diff <= atol + rtol * np.maximum(np.abs(a.astype(float)), np.abs(b.astype(float))))
+        )
+        if not ok:
+            out.append((path, rel))
+        return rel
+    if not np.array_equal(a, b):
+        return _mismatch(out, path)
+    return 0.0
+
+
+# (applies to the saved value, comparison), tried in order by :func:`_compare`.
+_COMPARERS: tuple[tuple[Any, Any], ...] = (
+    (lambda old: dataclasses.is_dataclass(old) and not isinstance(old, type), _compare_dataclass),
+    (lambda old: type(old).__name__ == "DataFrame", _compare_frame),
+    (lambda old: isinstance(old, dict), _compare_dict),
+    (
+        lambda old: (
+            isinstance(old, (list, tuple))
+            and not (
+                old and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in old)
+            )
+        ),
+        _compare_sequence,
+    ),
+    (
+        lambda old: (
+            isinstance(old, (float, int, np.number, np.ndarray, list, tuple))
+            and not isinstance(old, bool)
+        ),
+        _compare_numbers,
+    ),
+)
 
 
 def _missing_plugins(recorded: Any) -> dict[Any, Any]:
@@ -568,6 +622,7 @@ def _missing_plugins(recorded: Any) -> dict[Any, Any]:
 
 
 def _environment_differences(recorded: Any) -> dict[Any, Any]:
+    """Return {key: [recorded, current]} of the environment entries that differ."""
     current = capture_environment()
     out = {}
     for key in sorted(set(recorded) | set(current)):
@@ -584,6 +639,62 @@ def _environment_differences(recorded: Any) -> dict[Any, Any]:
 
 ###################################################################################################
 ## Public functions
+
+
+def _settings_on_disk(path: Any, saved: Any) -> tuple[Any, list[Any]]:
+    """Return the settings of ``settings.json`` (None without one) and the keys that differ.
+
+    The differing keys are those whose value differs from the result's recorded settings.
+    """
+    final_settings = None
+    settings_differences = []
+    try:
+        on_disk = _read_settings_json(path)
+    except (OSError, KeyError, ValueError):
+        on_disk = None
+    if isinstance(on_disk, dict) and isinstance(getattr(saved, "settings", None), dict):
+        final_settings = on_disk
+        settings_differences = sorted(
+            key
+            for key in set(on_disk) | set(saved.settings)
+            if key != "package_version"
+            and on_disk.get(key) != to_jsonable(saved.settings.get(key))
+        )
+    return final_settings, settings_differences
+
+
+def _environment_report(saved: Any) -> dict[Any, Any]:
+    """Differences between the recorded and current environments, with a warning if any."""
+    env_diff = _environment_differences(saved.provenance.environment or {})
+    if saved.provenance.package_version != __version__:
+        env_diff["package_version"] = [saved.provenance.package_version, __version__]
+    if env_diff:
+        _warn(
+            "evoparam.reproduce: the software environment differs from the "
+            f"recorded one ({', '.join(sorted(env_diff))}).",
+            UserWarning,
+            stacklevel=3,
+        )
+    return env_diff
+
+
+def _name_settings_step(records: Any, saved: Any, settings_differences: Any) -> None:
+    """Name the differing ``settings.json`` keys in the record of the step that uses them.
+
+    That is the group fit for a GroupFit (its existence test follows it), else the step
+    that made the result (the last one).
+    """
+    named = (
+        _FIT_STEP
+        if any(record["function"] == _FIT_STEP for record in records)
+        and type(saved).__name__ == "GroupFit"
+        else records[-1]["function"]
+    )
+    for record in records:
+        if record["function"] == named:
+            record["message"] = "settings.json differs from the recorded settings: " + ", ".join(
+                settings_differences
+            )
 
 
 def reproduce(
@@ -628,32 +739,8 @@ def reproduce(
             raise
         saved = load_object(path, verify=False)
         checksums_ok = False
-    final_settings = None
-    settings_differences = []
-    try:
-        on_disk = _read_settings_json(path)
-    except (OSError, KeyError, ValueError):
-        on_disk = None
-    if isinstance(on_disk, dict) and isinstance(getattr(saved, "settings", None), dict):
-        final_settings = on_disk
-        settings_differences = sorted(
-            key
-            for key in set(on_disk) | set(saved.settings)
-            if key != "package_version"
-            and on_disk.get(key) != to_jsonable(saved.settings.get(key))
-        )
-    env_diff = {}
-    if check_environment:
-        env_diff = _environment_differences(saved.provenance.environment or {})
-        if saved.provenance.package_version != __version__:
-            env_diff["package_version"] = [saved.provenance.package_version, __version__]
-        if env_diff:
-            _warn(
-                "evoparam.reproduce: the software environment differs from the "
-                f"recorded one ({', '.join(sorted(env_diff))}).",
-                UserWarning,
-                stacklevel=2,
-            )
+    final_settings, settings_differences = _settings_on_disk(path, saved)
+    env_diff = _environment_report(saved) if check_environment else {}
     missing_plugins = _missing_plugins((saved.provenance.environment or {}).get("plugins"))
     if missing_plugins:
         _warn(
@@ -672,20 +759,7 @@ def reproduce(
             f"{err} " + "; ".join(item["message"] for item in missing_plugins.values())
         ) from err
     if settings_differences and records:
-        # the step whose settings the file holds: the group fit's for a GroupFit (its
-        # existence test follows it), else the step that made the result (the last one)
-        named = (
-            _FIT_STEP
-            if any(record["function"] == _FIT_STEP for record in records)
-            and type(saved).__name__ == "GroupFit"
-            else records[-1]["function"]
-        )
-        for record in records:
-            if record["function"] == named:
-                record["message"] = (
-                    "settings.json differs from the recorded settings: "
-                    + ", ".join(settings_differences)
-                )
+        _name_settings_step(records, saved, settings_differences)
     differences = []
     if new is None:
         worst = math.inf

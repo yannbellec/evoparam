@@ -18,6 +18,7 @@ SCHEMA_FILE = "evoparam-result-1.json"
 
 
 def _encode_value(value: Any) -> Any:
+    """Return a JSON value for a scalar (NaN and infinities as strings)."""
     if isinstance(value, (str, np.str_, bytes)):
         return str(value)
     if isinstance(value, (bool, np.bool_)):
@@ -33,6 +34,7 @@ def _encode_value(value: Any) -> Any:
 
 
 def _decode_values(values: Any, dtype: Any) -> Any:
+    """Return the array of ``dtype`` written by :func:`_encode_value`."""
     if dtype.startswith(("float", "complex")):
         return np.array([float(v) for v in values], dtype=dtype)
     if dtype == "bool":
@@ -65,6 +67,7 @@ def to_json(result: Any, path: str | None = None, *, validate: bool | None = Non
         folder = save_object(result, os.path.join(work, "result.evoparam"), table_format="csv")
 
         def read(name: Any) -> Any:
+            """Return the text of file ``name`` of the container."""
             return open(os.path.join(folder, name), encoding="utf-8").read()
 
         manifest = json.loads(read("manifest.json"))
@@ -114,6 +117,7 @@ def to_json(result: Any, path: str | None = None, *, validate: bool | None = Non
 
 
 def _have_jsonschema() -> bool:
+    """Return whether ``jsonschema`` is installed."""
     try:
         require("jsonschema", extra="validate", caller="evoparam.reports._export._have_jsonschema")
         import jsonschema  # noqa: F401
@@ -191,6 +195,7 @@ def from_json(source: Any) -> Any:
         os.makedirs(os.path.join(folder, "tables"))
 
         def write(name: Any, text: Any) -> Any:
+            """Write ``text`` to file ``name`` of the container."""
             return open(os.path.join(folder, name), "w", encoding="utf-8").write(text)
 
         write("structure.json", json.dumps(document["structure"]))
