@@ -283,14 +283,9 @@ def test_mayo_onsets_match_events_tsv(results: Any) -> None:
     assert np.median(np.abs(errors)) <= 1 / 2048 + 1e-6  # rounding of the onsets
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="precision 0.84 on the Mayo 2048 Hz runs (152 hits, "
-    "29 false alarms: small transients, 0.1-3 mV against "
-    "35-45 mV pulses, in ds004457 sub-2 and ds004696 "
-    "sub-07); REQ-040 is specified on ds004080 only",
-)
 def test_mayo_precision(results: Any) -> None:
+    """Measured: 152 hits, 0 false alarms (precision 1.0; 0.84 before the size gate: 29
+    electrode pops of 0.1 to 3 mV on single channels, against 35-45 mV pulses)."""
 
     hits, _, false_alarms, _ = match_all(subset(results, mayo_2048=True))
     assert hits / (hits + false_alarms) >= 0.99
