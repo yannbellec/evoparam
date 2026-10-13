@@ -27,7 +27,7 @@ from scipy.optimize import least_squares
 from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.models import _columns, _fast
-from evoparam.models._trf import least_squares_trf
+from evoparam.models._trf import TrfOptions, least_squares_trf
 from evoparam.shapes import (
     FWHM_PER_SIGMA,
     ExponentialBackground,
@@ -62,6 +62,21 @@ _FAST = "auto"
 # Qualifying candidates compared before one is accepted at each step.
 CANDIDATE_BEAM = 3
 
+# Two components make a pair (an ordering chain, cancelling or overlapping neighbours).
+_PAIR = 2
+# The fewest baseline samples a lag-1 autocorrelation is estimated from.
+_MIN_RHO_SAMPLES = 3
+# Above this estimate of the condition number the QR route gives way to the SVD solve.
+_QR_COND_LIMIT = 1e11
+# A smoothing kernel narrower than half a sample leaves the residual as it is.
+_MIN_SMOOTH_SAMPLES = 0.5
+# A fit window spans at least this many ``min_fwhm``.
+MIN_WINDOW_FWHMS = 3
+# The fewest valid samples of a fit window.
+MIN_VALID_SAMPLES = 5
+# Floor of the standard errors given by the caller, relative to the noise scale.
+_SEM_FLOOR = 0.1
+
 # What a shape's initial_guess raises when it cannot start at a candidate extremum (bounds
 # that do not fit the window, an extremum at the edge, a non-finite width): that shape is
 # not tried there, with a DEBUG record (REQ-307: never without a trace). Any other
@@ -70,6 +85,7 @@ GUESS_ERRORS = (SettingsError, DataError, ValueError, ArithmeticError, IndexErro
 
 
 def _guess_failed(shape: Any, tw: Any, peaks: Any, err: BaseException) -> None:
+    """Log at DEBUG level that ``shape`` cannot start at the ``peaks`` (REQ-307)."""
     logger.debug(
         "shape %s cannot start at %s s (%s: %s); not tried there.",
         getattr(shape, "name", type(shape).__name__),
@@ -171,6 +187,7 @@ class Whitener:
     """
 
     def __init__(self, scale: Any, a: Any, innovation: Any, valid: Any, acov: Any = None) -> None:
+        """Set the rows that carry evidence and the start rows of the exact likelihood."""
         self.scale: NDArray[Any] = np.asarray(scale, float)
         self.a: NDArray[Any] = np.asarray(a, float)
         self.innovation: float = float(innovation)
@@ -193,6 +210,7 @@ class Whitener:
         self.n: int = int(ok.sum())
 
     def __call__(self, x: Any) -> NDArray[Any]:
+        """Return the whitened ``x`` (a vector, or a matrix with time along the first axis)."""
         x = np.asarray(x, float)
         raw = x / (self.scale if x.ndim == 1 else self.scale[:, None])
         u = raw
@@ -331,6 +349,7 @@ class StridedWhitener(Whitener):
         phase: int = 0,
         acov: Any = None,
     ) -> None:
+        """Keep the rows ``phase, phase + stride, ...`` that carry evidence and the start rows."""
         self.scale: NDArray[Any] = np.asarray(scale, float)
         self.a: NDArray[Any] = np.asarray(a, float)
         self.innovation: float = float(innovation)
@@ -361,6 +380,7 @@ class StridedWhitener(Whitener):
         self.n: int = int(ok.sum())
 
     def __call__(self, x: Any) -> NDArray[Any]:
+        """Return the whitened ``x`` on the kept rows, 0 elsewhere."""
         x = np.asarray(x, float)
         raw = x / (self.scale if x.ndim == 1 else self.scale[:, None])
         u = self.a[0] * raw
@@ -376,6 +396,7 @@ class StridedWhitener(Whitener):
         return np.where(self.rows[:, None], u, 0.0)
 
     def into(self, x: Any, out: Any) -> Any:
+        """Apply ``self(x)`` into ``out``; returns ``out``."""
         out[...] = self(x)
         return out
 
@@ -416,7 +437,7 @@ def use_plus_minus(settings: Any, times: Any, y: Any, mask: Any = None) -> bool:
         base &= ~np.asarray(mask, bool)
     yb = np.asarray(y, float)[base]
     yb = yb[np.isfinite(yb)]
-    if yb.size < 3:
+    if yb.size < _MIN_RHO_SAMPLES:
         return True
     rho = float(np.corrcoef(yb[1:], yb[:-1])[0, 1]) if np.std(yb) > 0 else 0.0
     rho = min(max(rho, 0.0), 0.999)
@@ -480,6 +501,7 @@ class _Structure:
     memo: dict[Any, Any] | None = dataclasses.field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        """Set the parameter layout and the caches of the structure."""
         self.sizes = [s.n_params for s in self.shapes]
         self.offsets = np.r_[0, np.cumsum(self.sizes)].astype(int)
         self.n_bg = getattr(self.background, "n_nonlinear", 0)
@@ -506,6 +528,7 @@ class _Structure:
         )
 
     def bounds(self) -> Any:
+        """Return the bounds of the non-linear parameters (memoised over the fit)."""
         if self.memo is None:
             return self._bounds()
         known = self._own.get("bounds")
@@ -524,7 +547,7 @@ class _Structure:
             lower, upper = self.bounds()
             span = upper - lower
             chain = getattr(self, "chain", [])
-            omap = _OrderedMap(chain, lower, upper) if len(chain) >= 2 else None
+            omap = _OrderedMap(chain, lower, upper) if len(chain) >= _PAIR else None
             known = (lower, upper, lower + 1e-9 * span, upper - 1e-9 * span, omap)
             if omap is not None:
                 width = omap.upper - omap.lower
@@ -534,6 +557,7 @@ class _Structure:
         return known
 
     def _bounds(self) -> Any:
+        """Return the bounds of the components' and the background's parameters."""
         lows, highs = [], []
         for shape in self.shapes:
             # the bounds of a shape on this window, the same in every structure of the fit
@@ -554,6 +578,7 @@ class _Structure:
         return np.concatenate(lows).astype(float), np.concatenate(highs).astype(float)
 
     def _shape_bounds(self, shape: Any) -> tuple[NDArray[Any], NDArray[Any]]:
+        """Return the bounds of a shape on this window, the latency within ``edge`` of it."""
         lo, hi = (np.array(v, float) for v in shape.default_bounds(self.tw))
         if self.edge is not None and shape.latency_param in shape.param_names:
             # A component may be cut by the window edge, but is not centred far outside
@@ -566,12 +591,15 @@ class _Structure:
         return lo, hi
 
     def comp_params(self, theta: Any, k: Any) -> Any:
+        """Return the parameters of component ``k`` in ``theta``."""
         return theta[self.offsets[k] : self.offsets[k + 1]]
 
     def bg_params(self, theta: Any) -> Any:
+        """Return the non-linear parameters of the background in ``theta``."""
         return theta[self.offsets[-1] :]
 
     def design(self, theta: Any) -> Any:
+        """Return the unwhitened design matrix (one column per linear coefficient)."""
         cols = [s.evaluate(self.tw, self.comp_params(theta, k)) for k, s in enumerate(self.shapes)]
         if self.n_lin_bg:
             basis = self.background.basis(self.tw, self.bg_params(theta) if self.n_bg else None)
@@ -673,7 +701,7 @@ class _Structure:
             info
             or info_inv
             or not np.isfinite(inverse).all()
-            or not np.sqrt((upper**2).sum() * (inverse**2).sum()) < 1e11
+            or not np.sqrt((upper**2).sum() * (inverse**2).sum()) < _QR_COND_LIMIT
         ):
             return self._full(theta)
         qtb, _, _ = _dormqr("L", "T", qr, tau, b[:, None], 64)
@@ -682,6 +710,7 @@ class _Structure:
         return qtb[c:], ("qr", qr, tau, beta, a, aux)
 
     def _full(self, theta: Any) -> tuple[Any, tuple[str, NDArray[Any], NDArray[Any], Any]]:
+        """Return the residual and the context of :meth:`solve` (the SVD route)."""
         beta, rw, _, q = self.solve(theta)
         return rw, ("svd", beta, q, rw)
 
@@ -732,6 +761,7 @@ class _Structure:
         return np.diag(diag)[keep]
 
     def prior_rows_mask(self, n_cols: Any) -> NDArray[Any]:
+        """Return the diagonal mask of the columns that carry a prior row."""
         diag = np.full(n_cols, bool(self.scale))
         if self.prior_col is not None:
             diag[self.prior_col] = True
@@ -781,6 +811,7 @@ class _OrderedMap:
     """
 
     def __init__(self, chain: Any, lower: Any, upper: Any) -> None:
+        """Set the bounds of the log gaps between consecutive latencies of ``chain``."""
         self.idx = np.asarray(chain, int)
         lat_lo, lat_hi = lower[self.idx], upper[self.idx]
         span = float(np.max(lat_hi) - np.min(lat_lo))
@@ -790,12 +821,14 @@ class _OrderedMap:
         self.upper[self.idx[1:]] = np.log(max(span, 2 * self.gap))
 
     def to_phi(self, theta: Any) -> NDArray[Any]:
+        """Return the parameters with the latencies after the first as log gaps."""
         phi = np.array(theta, float)
         lat = phi[self.idx]
         phi[self.idx[1:]] = np.log(np.maximum(np.diff(lat), self.gap))
         return phi
 
     def to_theta(self, phi: Any) -> NDArray[Any]:
+        """Return the parameters with the log gaps turned back into latencies."""
         theta = np.array(phi, float)
         offsets = np.empty(len(self.idx))
         offsets[0] = 0.0
@@ -813,6 +846,50 @@ class _OrderedMap:
         return out
 
 
+class _Objective:
+    """Residual and Jacobian of the projected problem, with the last solve cached.
+
+    ``lean``: the residual in the basis of the QR factorisation (``_Structure.reduced``) for the
+    lean optimiser; otherwise the whitened residual (a robust loss acts on each residual).
+    ``omap``: the ordered parameterisation, or None.
+    """
+
+    def __init__(self, struct: Any, lean: bool, omap: Any) -> None:
+        """Keep the structure, the kind of residual and the ordered map."""
+        self.struct = struct
+        self.lean = lean
+        self.omap = omap
+        self._cache: dict[Any, Any] = {}
+
+    def solved(self, theta: Any) -> Any:
+        """Return the linear solve at ``theta`` (cached for the last ``theta``)."""
+        key = theta.tobytes()
+        if key not in self._cache:
+            self._cache.clear()
+            self._cache[key] = (
+                self.struct.reduced(theta) if self.lean else self.struct.solve(theta)
+            )
+        return self._cache[key]
+
+    def jac_theta(self, theta: Any) -> Any:
+        """Return the Jacobian of the residual with respect to ``theta``."""
+        if self.lean:
+            return self.struct.reduced_jacobian(theta, self.solved(theta)[1])
+        beta, _, _, q = self.solved(theta)
+        return self.struct.kaufman_jacobian(theta, beta, q)
+
+    def fun(self, x: Any) -> Any:
+        """Return the residual at the optimiser's variables ``x``."""
+        theta = x if self.omap is None else self.omap.to_theta(x)
+        return self.solved(theta)[0 if self.lean else 1]
+
+    def jac(self, x: Any) -> Any:
+        """Return the Jacobian at the optimiser's variables ``x``."""
+        if self.omap is None:
+            return self.jac_theta(x)
+        return self.omap.jacobian(self.jac_theta(self.omap.to_theta(x)), x)
+
+
 def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float = 1e-8) -> Any:
     """Bounded least squares on the projected residual; returns (theta, beta, rw, ok, msg)."""
     if struct.n_theta == 0:
@@ -822,94 +899,68 @@ def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float 
     lower, upper, omap = limits[0], limits[1], limits[4]
     # np.clip, without its overhead
     theta0 = np.minimum(np.maximum(theta0, limits[2]), limits[3])
-    cache: dict[Any, Any]
-    cache = {}
     lean = settings.loss == "linear" and _OPTIMISER != "scipy"
-
-    def solved(theta: Any) -> Any:
-        key = theta.tobytes()
-        if key not in cache:
-            cache.clear()
-            cache[key] = struct.reduced(theta) if lean else struct.solve(theta)
-        return cache[key]
-
-    def jac_theta(theta: Any) -> Any:
-        if lean:
-            return struct.reduced_jacobian(theta, solved(theta)[1])
-        beta, _, _, q = solved(theta)
-        return struct.kaufman_jacobian(theta, beta, q)
-
-    # the lean optimiser works on the residual in the basis of the QR factorisation
-    # (Structure.reduced); a robust loss acts on each residual and needs the residuals
-    fun: Callable[[Any], Any]
-    jac: Callable[[Any], Any]
+    objective = _Objective(struct, lean, omap)
     if omap is None:
         x0, lo, hi = theta0, lower, upper
-
-        def fun(theta: Any) -> Any:
-            return solved(theta)[0 if lean else 1]
-
-        jac = jac_theta
     else:
         lo, hi = omap.lower, omap.upper
         x0 = np.minimum(np.maximum(omap.to_phi(theta0), limits[5]), limits[6])
-
-        def fun(phi: Any) -> Any:
-            return solved(omap.to_theta(phi))[0 if lean else 1]
-
-        def jac(phi: Any) -> Any:
-            return omap.jacobian(jac_theta(omap.to_theta(phi)), phi)
-
     if lean and _OPTIMISER == "trf":
         done = _optimise_compiled(struct, x0, lo, hi, omap, settings, tol)
         if done is not None:
             return (theta0 if done[0] is None else done[0], *done[1:])
     try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
-            if lean:
-                # the same algorithm as least_squares(method="trf"), lighter (models/_trf.py)
-                xr, _, nfev, _ = least_squares_trf(
-                    fun,
-                    jac,
-                    x0,
-                    lo,
-                    hi,
-                    ftol=tol,
-                    xtol=tol,
-                    gtol=tol,
-                    max_nfev=settings.max_iter,
-                    reduced=_OPTIMISER != "trf-full",
-                    m=len(struct._target()[0]),
-                    final_jacobian=False,
-                )
-            else:
-                res = least_squares(
-                    fun,
-                    x0,
-                    jac=jac,
-                    bounds=(lo, hi),
-                    method="trf",
-                    loss=settings.loss,
-                    f_scale=f_scale or 1.0,
-                    max_nfev=settings.max_iter,
-                    x_scale="jac",
-                    ftol=tol,
-                    xtol=tol,
-                    gtol=tol,
-                )
-                xr, nfev = res.x, res.nfev
-        _COUNTER.n = getattr(_COUNTER, "n", 0) + int(nfev)
+        xr = _least_squares(objective, x0, (lo, hi), settings, f_scale, tol)
     except (ValueError, np.linalg.LinAlgError) as exc:
         return theta0, None, None, False, f"{type(exc).__name__}: {exc}"
     x = xr if omap is None else omap.to_theta(xr)
     if lean:
-        beta, rw = struct.reduced_solution(x, solved(x)[1])
+        beta, rw = struct.reduced_solution(x, objective.solved(x)[1])
     else:
         beta, rw, _, _ = struct.solve(x)
     if not (np.all(np.isfinite(x)) and np.all(np.isfinite(beta))):
         return x, None, None, False, "non-finite parameters"
     return x, beta, rw, True, ""
+
+
+def _least_squares(
+    objective: _Objective, x0: Any, bounds: Any, settings: Any, f_scale: Any, tol: float
+) -> Any:
+    """Run the optimiser of ``_OPTIMISER`` from ``x0``; returns the solution."""
+    lo, hi = bounds
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        if objective.lean:
+            # the same algorithm as least_squares(method="trf"), lighter (models/_trf.py)
+            options = TrfOptions(
+                ftol=tol,
+                xtol=tol,
+                gtol=tol,
+                max_nfev=settings.max_iter,
+                reduced=_OPTIMISER != "trf-full",
+                m=len(objective.struct._target()[0]),
+                final_jacobian=False,
+            )
+            xr, _, nfev, _ = least_squares_trf(objective.fun, objective.jac, x0, lo, hi, options)
+        else:
+            res = least_squares(
+                objective.fun,
+                x0,
+                jac=objective.jac,
+                bounds=(lo, hi),
+                method="trf",
+                loss=settings.loss,
+                f_scale=f_scale or 1.0,
+                max_nfev=settings.max_iter,
+                x_scale="jac",
+                ftol=tol,
+                xtol=tol,
+                gtol=tol,
+            )
+            xr, nfev = res.x, res.nfev
+    _COUNTER.n = getattr(_COUNTER, "n", 0) + int(nfev)
+    return xr
 
 
 def _compiled_args(struct: Any) -> tuple[Any, ...] | None:
@@ -928,6 +979,7 @@ def _compiled_args(struct: Any) -> tuple[Any, ...] | None:
 
 
 def _compiled_spec(struct: Any) -> tuple[Any, ...] | None:
+    """Return the arguments of :func:`_fast.optimise` for a structure, or None (uncached)."""
     kinds = []
     for shape in struct.shapes:
         if type(shape) is Gaussian:
@@ -956,23 +1008,16 @@ def _compiled_spec(struct: Any) -> tuple[Any, ...] | None:
     if len(target) != len(struct.tw) + len(prior_cols):
         return None
     tw, bg_kind, lag, fixed, inv_scale, a, post, stride, start, start_rows = shared
-    return (
+    model = (
         tw,
         np.asarray(kinds, dtype=np.int64),
         np.asarray(struct.offsets, dtype=np.int64),
         bg_kind,
         lag,
         fixed,
-        inv_scale,
-        a,
-        post,
-        stride,
-        start,
-        start_rows,
-        prior_cols,
-        np.ascontiguousarray(diag[prior_cols]),
-        target,
     )
+    whitening = (inv_scale, a, post, stride, start, start_rows)
+    return model, whitening, (prior_cols, np.ascontiguousarray(diag[prior_cols]), target)
 
 
 def _compiled_shared(struct: Any) -> Any:
@@ -1025,27 +1070,25 @@ def _optimise_compiled(
     struct: Any, x0: Any, lo: Any, hi: Any, omap: Any, settings: Any, tol: float
 ) -> Any:
     """:func:`_optimise` by the compiled kernel; None when it does not apply."""
-    if _FAST == "off":
-        return None
-    kernel = _fast.kernel()
-    if kernel is None:
-        return None
-    spec = _compiled_args(struct)
-    if spec is None:
+    kernel = _fast.kernel() if _FAST != "off" else None
+    spec = _compiled_args(struct) if kernel is not None else None
+    if kernel is None or spec is None:
         return None
     chain = np.asarray(omap.idx if omap is not None else [], dtype=np.int64)
-    status, theta, nfev, beta, rw = kernel(
+    start = (
         np.ascontiguousarray(x0, dtype=float),
         np.ascontiguousarray(lo, dtype=float),
         np.ascontiguousarray(hi, dtype=float),
-        chain,
-        *spec,
-        float(tol),
-        int(settings.max_iter),
     )
+    status, theta, nfev, beta, rw = kernel(start, chain, spec, float(tol), int(settings.max_iter))
     if status == _fast.FALLBACK:
         return None  # the SVD route of the NumPy path
     _COUNTER.n = getattr(_COUNTER, "n", 0) + int(nfev)
+    return _compiled_outcome(status, theta, beta, rw)
+
+
+def _compiled_outcome(status: Any, theta: Any, beta: Any, rw: Any) -> Any:
+    """Return ``(theta, beta, rw, ok, msg)`` from the status of the compiled kernel."""
     if status == _fast.VALUE_ERROR:
         return None, None, None, False, "ValueError: infeasible start or step"
     if status == _fast.LINALG_ERROR:
@@ -1060,8 +1103,9 @@ def _optimise_compiled(
 
 
 def _smooth(values: Any, sfreq: float, sigma_s: Any) -> Any:
+    """Return ``values`` smoothed by a Gaussian kernel of ``sigma_s`` seconds."""
     width = sigma_s * sfreq
-    if width < 0.5:
+    if width < _MIN_SMOOTH_SAMPLES:
         return values
     half = int(np.ceil(4 * width))
     kernel = np.exp(-0.5 * (np.arange(-half, half + 1) / width) ** 2)
@@ -1105,6 +1149,8 @@ def candidates(
 
 @dataclasses.dataclass
 class _State:
+    """One fit: shapes, parameters, amplitudes, whitened residual and criteria."""
+
     shapes: list[Any]
     theta: NDArray[Any]
     beta: NDArray[Any]
@@ -1114,6 +1160,7 @@ class _State:
 
 
 def _shape(name: Any, settings: Any) -> "ComponentShape":
+    """Return the shape ``name`` with the width and frequency limits of ``settings``."""
     fields = {f.name for f in dataclasses.fields(cast(Any, type(get_shape(name))))}
     kwargs = {
         k: v
@@ -1155,7 +1202,7 @@ def _cancelling_pair(struct: Any, theta: Any, beta: Any, settings: Any) -> bool:
     search goes on with the other starts and candidates.
     """
     k_max = len(struct.shapes)
-    if k_max < 2:
+    if k_max < _PAIR:
         return False
     amps = beta[:k_max]
     if np.all(amps >= 0) or np.all(amps <= 0):
@@ -1191,6 +1238,7 @@ def cancelling_pairs(latencies: Any, sigmas: Any, amplitudes: Any, overlap_c: An
 def _reorder(
     struct_maker: Any, shapes: Any, theta: Any, order: Any
 ) -> tuple[list[Any], NDArray[Any]]:
+    """Return the shapes and parameters in the order ``order``."""
     struct = struct_maker(shapes)
     shapes = [shapes[i] for i in order]
     theta = (
@@ -1211,9 +1259,14 @@ def _evaluate_state(
     kind: Any,
     tol: float = 1e-8,
 ) -> Any:
+    """Fit ``shapes`` from ``theta0``; returns ``(state or None, message)``.
+
+    None with the message when the optimiser fails or the fit holds a cancelling pair (with
+    ``reject_cancelling``).
+    """
     # n_eff is the number of whitened (independent) samples used by the criterion
     struct = struct_maker(shapes)
-    if struct.ordered and len(shapes) >= 2:
+    if struct.ordered and len(shapes) >= _PAIR:
         # the start must respect the order of the parameterisation
         order = np.argsort(_param_latencies(struct, theta0), kind="stable")
         if np.any(order != np.arange(len(order))):
@@ -1243,13 +1296,13 @@ def _evaluate_state(
     return _State(list(shapes), theta, beta, rw, crit, fit_crit), ""
 
 
-def _polish(state: Any, make: Any, settings: Any, n_eff: Any, f_scale: Any, kind: Any) -> Any:
+def _polish(state: Any, search: "_Search") -> Any:
     """Re-optimise a state from several starting values of the background's time constants.
 
     A background fitted before a component existed may hold that component (a slow exponential that
     mimics a broad N2), a local optimum the optimiser would keep.
     """
-    struct = make(state.shapes)
+    struct = search.make(state.shapes)
     if not struct.n_bg:
         return state
     lo, hi = struct.bounds()
@@ -1257,13 +1310,14 @@ def _polish(state: Any, make: Any, settings: Any, n_eff: Any, f_scale: Any, kind
     best = state
     for value in np.geomspace(np.maximum(lo, 1e-6), hi, 4):
         theta0 = np.r_[state.theta[: struct.offsets[-1]], value]
-        cand, _ = _evaluate_state(make, state.shapes, theta0, settings, n_eff, f_scale, kind)
+        cand, _ = search.evaluate(state.shapes, theta0)
         if cand is not None and cand.fit_crit < best.fit_crit:
             best = cand
     return best
 
 
 def _latency_of(shape: Any, params: Any) -> float:
+    """Return the latency of a shape with parameters ``params``."""
     lat = getattr(shape, "latency", None)
     return float(lat(params)) if lat is not None else float(params[0])
 
@@ -1402,15 +1456,160 @@ def _fit_waveform_core(
     select_k: Any = None,
     noise_ref: Any = None,
 ) -> Any:
-
+    """Fit one waveform (see :func:`fit_waveform_core`), without the evaluation count."""
     times = np.asarray(times, float)
     y = np.asarray(y, float)
     mask = np.zeros(len(y), bool) if mask is None else np.asarray(mask, bool).copy()
     mask |= ~np.isfinite(y)
-    win = settings.fit_window
-    if win is None:
+    if settings.fit_window is None:
         raise SettingsError("fit_window is required (no preset gives one).")
     out: dict[str, Any] = {"warnings": [], "steps": [], "best_rejected_delta": np.nan}
+    settings, band = _noise_band(times, y, settings, sfreq, mask, noise_ref, out)
+    win = settings.fit_window
+    if win[1] - win[0] < MIN_WINDOW_FWHMS * settings.min_fwhm:
+        raise SettingsError(f"fit_window {win} is shorter than 3 x min_fwhm.")
+    window = _Window.of(times, y, mask, win)
+    out["window_mask"] = window.wmask
+    sigma, rho = _noise_scale(window, settings, noise_ref, out)
+    if (
+        window.valid.mean() < 1 - settings.max_masked_fraction
+        or window.valid.sum() < MIN_VALID_SAMPLES
+    ):
+        out.update(status="skipped", message="masked: too few valid samples in the window")
+        return out
+    if not sigma > 0:
+        out.update(status="skipped", message="flat")
+        return out
+    white = _whitener(window, settings, _Noise(sigma, sem, noise_ref, band))
+    n_valid = int(window.valid.sum())
+    n_eff = n_valid * (1 - rho) / (1 + rho)
+    n_white: float = white.n
+    if settings.noise_model == "neff":
+        # spec §5.5.3 step 1 to the letter: residuals scaled by sigma_n, not whitened, and
+        # the AR(1) effective count n_eff = n_W (1 - rho) / (1 + rho) in every criterion
+        # and in the covariance
+        n_white = n_eff
+    out.update(n_eff=n_eff, n_white=n_white, ar_order=white.p)
+    search = _Search(
+        make=_structure_maker(window, white, settings, sigma),
+        settings=settings,
+        n_eff=n_white,
+        f_scale=settings.f_scale,
+        kind="aicc" if settings.selection == "aicc" else "bic",
+        window=window,
+        sigma=sigma,
+        sfreq=sfreq,
+    )
+    current = _background_only(search)
+    if current is None:
+        out.update(status="failed", message="the background-only model could not be fitted")
+        logger.warning("fit failed: %s", out["message"])
+        return out
+    out["steps"].append({"K": 0, "criterion": current.crit})
+    out["path"] = [current]
+    forced = settings.selection in ("fixed", "cv")
+    current, best_rejected = _forward_search(current, search, forced, out)
+    if current.shapes and not forced and settings.reseed:
+        current = _reseed_step(current, search, out)
+    out["best_rejected_delta"] = float(best_rejected) if np.isfinite(best_rejected) else np.nan
+    out["make"] = search.make
+    if settings.selection == "cv" and select_k is not None:
+        current = out["path"][min(select_k(out["path"], search.make), len(out["path"]) - 1)]
+    return _finish(out, current, search, y[window.wmask])
+
+
+@dataclasses.dataclass(frozen=True)
+class _Band:
+    """The rate the noise occupies: every ``stride``-th sample, on the samples of ``phase``."""
+
+    stride: int
+    phase: int
+
+
+@dataclasses.dataclass(frozen=True)
+class _Window:
+    """The epoch, its mask and the samples of the fit window."""
+
+    times: NDArray[Any]
+    y: NDArray[Any]
+    mask: NDArray[Any]
+    wmask: NDArray[Any]
+    tw: NDArray[Any]
+    yw: NDArray[Any]
+    valid: NDArray[Any]
+
+    @classmethod
+    def of(cls, times: Any, y: Any, mask: Any, win: Any) -> "_Window":
+        """Cut the fit window ``win`` out of the epoch; masked samples are set to 0."""
+        wmask = (times >= win[0]) & (times <= win[1])
+        return cls(
+            times=times,
+            y=y,
+            mask=mask,
+            wmask=wmask,
+            tw=times[wmask],
+            yw=np.where(mask[wmask], 0.0, y[wmask]),
+            valid=~mask[wmask],
+        )
+
+    def baseline(self, settings: Any) -> Any:
+        """Unmasked samples of the epoch inside the baseline of ``settings``."""
+        return (
+            (self.times >= settings.baseline[0])
+            & (self.times <= settings.baseline[1])
+            & ~self.mask
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class _Noise:
+    """The noise scale, the standard errors given by the caller and the noise reference."""
+
+    sigma: float
+    sem: Any
+    noise_ref: Any
+    band: _Band
+
+
+@dataclasses.dataclass
+class _Search:
+    """What every step of the forward search shares: structures, criterion and window."""
+
+    make: Callable[[Any], Any]
+    settings: Any
+    n_eff: float
+    f_scale: Any
+    kind: str
+    window: _Window
+    sigma: float
+    sfreq: float
+
+    @property
+    def tw(self) -> NDArray[Any]:
+        """Times of the fit window."""
+        return self.window.tw
+
+    def evaluate(self, shapes: Any, theta0: Any, tol: float = 1e-8) -> Any:
+        """Fit ``shapes`` from ``theta0``: :func:`_evaluate_state` with the shared settings."""
+        return _evaluate_state(
+            self.make, shapes, theta0, self.settings, self.n_eff, self.f_scale, self.kind, tol
+        )
+
+    def residual_of(self, state: Any) -> Any:
+        """Residual of ``state`` on the (masked) samples of the fit window."""
+        return self.window.yw - self.make(state.shapes).design(state.theta) @ state.beta
+
+    def candidates(self, state: Any, settings: Any) -> tuple[list[Any], Any]:
+        """Candidate extrema of the residual of ``state`` (see :func:`candidates`)."""
+        return candidates(
+            self.tw, self.residual_of(state), self.window.valid, self.sigma, self.sfreq, settings
+        )
+
+
+def _noise_band(
+    times: Any, y: Any, settings: Any, sfreq: float, mask: Any, noise_ref: Any, out: Any
+) -> tuple[Any, _Band]:
+    """Return the settings (``min_fwhm`` raised to what the noise band carries) and the band."""
     stride, phase = _noise_stride(times, y, settings, mask, noise_ref)
     out["noise_stride"], out["noise_phase"] = stride, phase
     if stride > 1:
@@ -1424,69 +1623,72 @@ def _fit_waveform_core(
         settings = dataclasses.replace(
             settings, min_fwhm=min_fwhm, max_fwhm=max(settings.max_fwhm, 2 * min_fwhm)
         )
-    if win[1] - win[0] < 3 * settings.min_fwhm:
-        raise SettingsError(f"fit_window {win} is shorter than 3 x min_fwhm.")
-    wmask = (times >= win[0]) & (times <= win[1])
-    out["window_mask"] = wmask
-    tw = times[wmask]
-    yw = np.where(mask[wmask], 0.0, y[wmask])
-    valid = ~mask[wmask]
+    return settings, _Band(stride, phase)
 
+
+def _noise_scale(window: _Window, settings: Any, noise_ref: Any, out: Any) -> tuple[Any, Any]:
+    """Return the noise scale ``sigma`` and lag-1 autocorrelation ``rho``."""
     out["noise_reference"] = "plusminus" if noise_ref is not None else "baseline"
     if noise_ref is not None:
         # the plus-minus reference: the noise of the average over the whole epoch (trials of
         # alternating sign averaged), longer than any baseline
         ref = np.asarray(noise_ref, float)
-        good = np.isfinite(ref) & ~mask
-        sigma = 1.4826 * float(np.median(np.abs(ref[good] - np.median(ref[good]))))
+        good = np.isfinite(ref) & ~window.mask
+        sigma = MAD_TO_SD * float(np.median(np.abs(ref[good] - np.median(ref[good]))))
         rho = float(np.corrcoef(ref[good][1:], ref[good][:-1])[0, 1])
         warn = None
     else:
-        sigma, rho, warn = noise_model(times, y, settings.baseline, wmask, mask)
+        sigma, rho, warn = noise_model(
+            window.times, window.y, settings.baseline, window.wmask, window.mask
+        )
     if warn:
         out["warnings"].append(warn)
     out.update(sigma=sigma, rho=rho)
-    if valid.mean() < 1 - settings.max_masked_fraction or valid.sum() < 5:
-        out.update(status="skipped", message="masked: too few valid samples in the window")
-        return out
-    if not sigma > 0:
-        out.update(status="skipped", message="flat")
-        return out
+    return sigma, rho
 
-    scale: Any = np.full(len(tw), sigma)
-    if sem is not None:
-        s_ = np.asarray(sem, float)[wmask]
-        scale = np.maximum(np.nan_to_num(s_, nan=sigma), 0.1 * sigma)
-    a_coefs, innovation, acov = np.array([1.0]), 1.0, None
+
+def _ar_coefficients(window: _Window, settings: Any, noise: _Noise, grid: Any) -> Any:
+    """AR model ``(a, innovation, acov)`` of the noise on the samples of ``grid``."""
+    if settings.noise_model == "ar" and noise.noise_ref is not None:
+        ref = np.asarray(noise.noise_ref, float)
+        good = np.isfinite(ref) & ~window.mask
+        return ar_model(ref[good & grid] / noise.sigma, return_acov=True)
+    if settings.noise_model == "ar" and settings.baseline is not None:
+        base = window.baseline(settings)
+        if base.sum() >= MIN_BASELINE:
+            return ar_model(window.y[base & grid] / noise.sigma, return_acov=True)
+    return np.array([1.0]), 1.0, None
+
+
+def _whitener(window: _Window, settings: Any, noise: _Noise) -> Whitener:
+    """Return the whitening of the fit window by the noise model of ``settings``."""
+    sigma, band = noise.sigma, noise.band
+    scale: Any = np.full(len(window.tw), sigma)
+    if noise.sem is not None:
+        s_ = np.asarray(noise.sem, float)[window.wmask]
+        scale = np.maximum(np.nan_to_num(s_, nan=sigma), _SEM_FLOOR * sigma)
     # the noise of a band-limited recording is modelled at the rate it occupies: on every
     # stride-th sample, on the phase of the epoch that holds the noise best (noise_phase:
     # an upsampled recording keeps its own samples there)
-    grid = np.arange(len(y)) % stride == phase
-    if settings.noise_model == "ar" and noise_ref is not None:
-        a_coefs, innovation, acov = ar_model(ref[good & grid] / sigma, return_acov=True)
-    elif settings.noise_model == "ar" and settings.baseline is not None:
-        base = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask
-        if base.sum() >= MIN_BASELINE:
-            a_coefs, innovation, acov = ar_model(y[base & grid] / sigma, return_acov=True)
-    if sem is not None:
+    grid = np.arange(len(window.y)) % band.stride == band.phase
+    a_coefs, innovation, acov = _ar_coefficients(window, settings, noise, grid)
+    if noise.sem is not None:
         innovation = 1.0 if len(a_coefs) == 1 else innovation
-    white: Whitener
-    if stride > 1:
-        white = StridedWhitener(
-            scale, a_coefs, innovation, valid, stride, phase=int(np.argmax(grid[wmask])), acov=acov
+    if band.stride > 1:
+        return StridedWhitener(
+            scale,
+            a_coefs,
+            innovation,
+            window.valid,
+            band.stride,
+            phase=int(np.argmax(grid[window.wmask])),
+            acov=acov,
         )
-    else:
-        white = Whitener(scale, a_coefs, innovation, valid, acov=acov)
-    n_valid = int(valid.sum())
-    n_eff = n_valid * (1 - rho) / (1 + rho)
-    n_white: float = white.n
-    if settings.noise_model == "neff":
-        # spec §5.5.3 step 1 to the letter: residuals scaled by sigma_n, not whitened, and
-        # the AR(1) effective count n_eff = n_W (1 - rho) / (1 + rho) in every criterion
-        # and in the covariance
-        n_white = n_eff
-    out.update(n_eff=n_eff, n_white=n_white, ar_order=len(a_coefs) - 1)
-    kind = "aicc" if settings.selection == "aicc" else "bic"
+    return Whitener(scale, a_coefs, innovation, window.valid, acov=acov)
+
+
+def _background(settings: Any) -> Any:
+    """Return the background of ``settings``, with ``background_tau_max`` when it takes one."""
     bg_class = type(get_background(settings.background))
     # the settings a background takes (a plugin background need not be a dataclass)
     bg_fields: set[str] = (
@@ -1499,7 +1701,15 @@ def _fit_waveform_core(
         # Recovery tails decay within tens of ms; a slower "tail" would only imitate an
         # offset or a broad component
         bg_kwargs["tau_max"] = settings.background_tau_max
-    background = get_background(settings.background, **bg_kwargs)
+    return get_background(settings.background, **bg_kwargs)
+
+
+def _structure_maker(
+    window: _Window, white: Whitener, settings: Any, sigma: float
+) -> Callable[[Any], Any]:
+    """Return ``make(shapes)``: the structure of a sequence of shapes on this fit window."""
+    background = _background(settings)
+    tw, yw, valid = window.tw, window.yw, window.valid
     prior = (
         settings.background_prior * sigma
         if settings.background_prior and settings.baseline is not None
@@ -1512,15 +1722,16 @@ def _fit_waveform_core(
     )
     level = 0.0
     if settings.baseline is not None:
-        base = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask
+        base = window.baseline(settings)
         if base.any():
-            level = float(np.median(y[base]))
+            level = float(np.median(window.y[base]))
     ordered = settings.latency_order == "parameterised"
     memo: dict[Any, Any]
     memo = {}
     structures: dict[tuple[Any, ...], _Structure] = {}
 
     def make(shapes: Any) -> Any:
+        """Return the structure of ``shapes`` (one per sequence of shapes)."""
         # one structure per sequence of shapes and fit (it caches its whitened target)
         key = tuple(shapes)
         struct = structures.get(key)
@@ -1530,10 +1741,12 @@ def _fit_waveform_core(
             )
         return struct
 
-    f_scale = settings.f_scale
+    return make
 
-    # K = 0: background only (its time constants from a small grid)
-    base_struct = make([])
+
+def _background_only(search: _Search) -> Any:
+    """K = 0: the background alone, its time constants started from a small grid."""
+    base_struct = search.make([])
     lo, hi = base_struct.bounds()
     best = None
     grids: list[Any] = (
@@ -1547,184 +1760,171 @@ def _fit_waveform_core(
         else [np.zeros(0)]
     ):
         state: Any
-        state, _ = _evaluate_state(make, [], theta0, settings, n_white, f_scale, kind)
+        state, _ = search.evaluate([], theta0)
         if state is not None and (best is None or state.fit_crit < best.fit_crit):
             best = state
-    if best is None:
-        out.update(status="failed", message="the background-only model could not be fitted")
-        logger.warning("fit failed: %s", out["message"])
-        return out
-    current = best
-    out["steps"].append({"K": 0, "criterion": current.crit})
-    out["path"] = [current]
+    return best
 
-    def residual_of(state: Any) -> Any:
-        return yw - make(state.shapes).design(state.theta) @ state.beta
 
+def _forward_search(current: Any, search: _Search, forced: bool, out: Any) -> tuple[Any, Any]:
+    """Add components one at a time (spec §5.5.3 step 4); returns the state and best rejection."""
+    settings = search.settings
     target = settings.n_components if settings.selection == "fixed" else settings.max_components
-    forced = settings.selection in ("fixed", "cv")
     best_rejected = np.inf
     # At most a few rounds per component: merges may undo an addition
     for _round in range(3 * max(target, 1) + 3):
         if len(current.shapes) >= target:
             break
-        cand_settings = (
-            dataclasses.replace(settings, detection_threshold=0.0) if forced else settings
-        )
-        picks, smooth = candidates(tw, residual_of(current), valid, sigma, sfreq, cand_settings)
-        accepted = None
-        ranked: list[tuple[Any, ComponentShape | None, Any]] = []
-        if settings.candidate_search == "spec":
-            accepted, rejected = _spec_step(
-                current, picks, smooth, make, settings, n_white, f_scale, kind, tw, forced
-            )
-            best_rejected = min(best_rejected, rejected)
-            picks = []  # the beam search below has nothing to do
-        for peak in picks[: 2 * max(settings.max_components, 1)]:
-            # Quick evaluation: every shape from its initial guess, loose tolerance
-            quick = None
-            for name in settings.shapes:
-                shape: Any
-                shape = _shape(name, settings)
-                try:
-                    guess: Any
-                    guess = shape.initial_guess(tw, smooth, peak)
-                except GUESS_ERRORS as err:  # a shape that cannot start here
-                    _guess_failed(shape, tw, (peak,), err)
-                    continue
-                theta0 = np.r_[
-                    current.theta[: make(current.shapes).offsets[-1]],
-                    guess,
-                    current.theta[make(current.shapes).offsets[-1] :],
-                ]
-                state, _ = _evaluate_state(
-                    make,
-                    current.shapes + [shape],
-                    theta0,
-                    settings,
-                    n_white,
-                    f_scale,
-                    kind,
-                    tol=1e-4,
-                )
-                if state is not None and (quick is None or state.fit_crit < quick[0].fit_crit):
-                    quick = (state, shape, guess)
-            if quick is None:
-                continue
-            gain = quick[0].crit - current.crit
-            if forced or gain <= -settings.delta:
-                ranked.append(quick)
-                # Compare the first CANDIDATE_BEAM qualifying candidates: the strongest
-                # residual extremum is not always the right next component (two neighbours
-                # of one sign leave a residual whose largest extremum lies between them,
-                # with the opposite sign)
-                if len(ranked) >= CANDIDATE_BEAM:
-                    break
-            else:
-                best_rejected = min(best_rejected, gain)
-        # Split proposals: one component replaced by two narrower neighbours of the same sign
-        # (a single broad component often fits two close peaks first)
-        splits = (
-            []
-            if settings.candidate_search == "spec"
-            else _split_proposals(current, make, settings, n_white, f_scale, kind)
-        )
-        for split in splits:
-            if forced or split.crit - current.crit <= -settings.delta:
-                ranked.append((split, None, None))
-        for state, shape, guess in sorted(ranked, key=lambda item: item[0].fit_crit):
-            if shape is None:  # a split: already optimised
-                best = _polish(state, make, settings, n_white, f_scale, kind)
-                gain = best.crit - current.crit
-                if forced or gain <= -settings.delta:
-                    accepted = best
-                    break
-                best_rejected = min(best_rejected, gain)
-                continue
-            # Refine the best qualifying candidate: perturbed starts and background starts
-            best = state
-            for start in _starts(shape, guess, settings.n_starts, tw)[1:]:
-                theta0 = np.r_[
-                    current.theta[: make(current.shapes).offsets[-1]],
-                    start,
-                    current.theta[make(current.shapes).offsets[-1] :],
-                ]
-                cand, _ = _evaluate_state(
-                    make,
-                    current.shapes + [shape],
-                    theta0,
-                    settings,
-                    n_white,
-                    f_scale,
-                    kind,
-                    tol=1e-5,
-                )
-                if cand is not None and cand.fit_crit < best.fit_crit:
-                    best = cand
-            best = _polish(best, make, settings, n_white, f_scale, kind)
-            gain = best.crit - current.crit
-            # min_amplitude (§5.5.10, 0 = no limit): the only size rule, a user option
-            if (
-                settings.min_amplitude
-                and np.min(np.abs(best.beta[: len(best.shapes)])) < settings.min_amplitude
-            ):
-                best_rejected = min(best_rejected, gain)
-                continue
-            if forced or gain <= -settings.delta:
-                accepted = best
-                break
-            best_rejected = min(best_rejected, gain)
+        accepted, rejected = _search_round(current, search, forced)
+        best_rejected = min(best_rejected, rejected)
         if accepted is None:
             if settings.selection == "fixed":
                 out["warnings"].append("fewer_candidates_than_n_components")
             break
-        current = _sort_state(accepted, make)
+        current = _sort_state(accepted, search.make)
         if not forced:
             # With a forced number of components (fixed, cv) merging would undo the addition
-            current = _merge_pass(current, make, settings, n_white, f_scale, kind, out)
+            current = _merge_pass(current, search, out)
         out["steps"].append({"K": len(current.shapes), "criterion": current.crit})
         out["path"].append(current)
+    return current, best_rejected
 
-    if current.shapes and not forced and settings.reseed:
-        reseeded = _reseed(
-            current,
-            out["path"][0],
-            make,
-            settings,
-            n_white,
-            f_scale,
-            kind,
-            tw,
-            valid,
-            sigma,
-            sfreq,
-            residual_of,
-        )
-        if reseeded is not None:
-            out["warnings"].append("reseeded")
-            current = _merge_pass(reseeded, make, settings, n_white, f_scale, kind, out)
-            # the greedy path needed its components to build the pair; after the refit,
-            # each must still earn its place by the rule of the forward search
-            current = _prune(current, make, settings, n_white, f_scale, kind, out)
-            out["path"][-1] = current
-            out["steps"][-1] = {"K": len(current.shapes), "criterion": current.crit}
 
-    out["best_rejected_delta"] = float(best_rejected) if np.isfinite(best_rejected) else np.nan
-    out["make"] = make
-    if settings.selection == "cv" and select_k is not None:
-        current = out["path"][min(select_k(out["path"], make), len(out["path"]) - 1)]
-    struct = make(current.shapes)
+def _search_round(current: Any, search: _Search, forced: bool) -> tuple[Any, Any]:
+    """One step of the search: (accepted state or None, best rejected change of the criterion)."""
+    settings = search.settings
+    cand_settings = dataclasses.replace(settings, detection_threshold=0.0) if forced else settings
+    picks, smooth = search.candidates(current, cand_settings)
+    if settings.candidate_search == "spec":
+        return _spec_step(current, picks, smooth, search, forced)
+    ranked, rejected = _quick_candidates(current, picks, smooth, search, forced)
+    # Split proposals: one component replaced by two narrower neighbours of the same sign
+    # (a single broad component often fits two close peaks first)
+    for split in _split_proposals(current, search):
+        if forced or split.crit - current.crit <= -settings.delta:
+            ranked.append((split, None, None))
+    accepted, refused = _accept_ranked(current, ranked, search, forced)
+    return accepted, min(rejected, refused)
+
+
+def _with_component(current: Any, search: _Search, params: Any) -> Any:
+    """Return the parameters of ``current`` with a component of parameters ``params`` appended."""
+    split = search.make(current.shapes).offsets[-1]
+    return np.r_[current.theta[:split], params, current.theta[split:]]
+
+
+def _quick_candidates(
+    current: Any, picks: Any, smooth: Any, search: _Search, forced: bool
+) -> "tuple[list[tuple[Any, ComponentShape | None, Any]], Any]":
+    """Rank the candidates by a quick fit: the first ``CANDIDATE_BEAM`` that qualify."""
+    settings = search.settings
+    rejected = np.inf
+    ranked: list[tuple[Any, ComponentShape | None, Any]] = []
+    for peak in picks[: 2 * max(settings.max_components, 1)]:
+        quick = _quick_fit(current, peak, smooth, search)
+        if quick is None:
+            continue
+        gain = quick[0].crit - current.crit
+        if forced or gain <= -settings.delta:
+            ranked.append(quick)
+            # Compare the first CANDIDATE_BEAM qualifying candidates: the strongest
+            # residual extremum is not always the right next component (two neighbours
+            # of one sign leave a residual whose largest extremum lies between them,
+            # with the opposite sign)
+            if len(ranked) >= CANDIDATE_BEAM:
+                break
+        else:
+            rejected = min(rejected, gain)
+    return ranked, rejected
+
+
+def _quick_fit(current: Any, peak: Any, smooth: Any, search: _Search) -> Any:
+    """Every shape at ``peak`` from its initial guess, loose tolerance: the best, or None."""
+    tw = search.tw
+    quick = None
+    for name in search.settings.shapes:
+        shape: Any
+        shape = _shape(name, search.settings)
+        try:
+            guess: Any
+            guess = shape.initial_guess(tw, smooth, peak)
+        except GUESS_ERRORS as err:  # a shape that cannot start here
+            _guess_failed(shape, tw, (peak,), err)
+            continue
+        theta0 = _with_component(current, search, guess)
+        state, _ = search.evaluate(current.shapes + [shape], theta0, tol=1e-4)
+        if state is not None and (quick is None or state.fit_crit < quick[0].fit_crit):
+            quick = (state, shape, guess)
+    return quick
+
+
+def _accept_ranked(current: Any, ranked: Any, search: _Search, forced: bool) -> tuple[Any, Any]:
+    """Refine the ranked candidates in turn; the first that still qualifies is accepted."""
+    settings = search.settings
+    rejected = np.inf
+    for state, shape, guess in sorted(ranked, key=lambda item: item[0].fit_crit):
+        if shape is None:  # a split: already optimised
+            best = _polish(state, search)
+            gain = best.crit - current.crit
+            if forced or gain <= -settings.delta:
+                return best, rejected
+            rejected = min(rejected, gain)
+            continue
+        best = _polish(_refine(current, state, shape, guess, search), search)
+        gain = best.crit - current.crit
+        # min_amplitude (§5.5.10, 0 = no limit): the only size rule, a user option
+        if (
+            settings.min_amplitude
+            and np.min(np.abs(best.beta[: len(best.shapes)])) < settings.min_amplitude
+        ):
+            rejected = min(rejected, gain)
+            continue
+        if forced or gain <= -settings.delta:
+            return best, rejected
+        rejected = min(rejected, gain)
+    return None, rejected
+
+
+def _refine(current: Any, state: Any, shape: Any, guess: Any, search: _Search) -> Any:
+    """Refit a qualifying candidate from perturbed starts; the best fit."""
+    best = state
+    for start in _starts(shape, guess, search.settings.n_starts, search.tw)[1:]:
+        theta0 = _with_component(current, search, start)
+        cand, _ = search.evaluate(current.shapes + [shape], theta0, tol=1e-5)
+        if cand is not None and cand.fit_crit < best.fit_crit:
+            best = cand
+    return best
+
+
+def _reseed_step(current: Any, search: _Search, out: Any) -> Any:
+    """Refit a suspicious final state from the extrema of the data (see :func:`_reseed`)."""
+    reseeded = _reseed(current, out["path"][0], search)
+    if reseeded is None:
+        return current
+    out["warnings"].append("reseeded")
+    current = _merge_pass(reseeded, search, out)
+    # the greedy path needed its components to build the pair; after the refit,
+    # each must still earn its place by the rule of the forward search
+    current = _prune(current, search, out)
+    out["path"][-1] = current
+    out["steps"][-1] = {"K": len(current.shapes), "criterion": current.crit}
+    return current
+
+
+def _finish(out: Any, current: Any, search: _Search, y_window: Any) -> Any:
+    """Record the selected state, its model and residual, and the status."""
+    struct = search.make(current.shapes)
     out.update(
         struct=struct,
         shapes=current.shapes,
         theta=current.theta,
         beta=current.beta,
         crit=current.crit,
-        kind=kind,
+        kind=search.kind,
     )
     model_w = struct.design(current.theta) @ current.beta
     out["model"] = model_w
-    out["residual"] = y[wmask] - model_w
+    out["residual"] = y_window - model_w
     if current.shapes:
         out.update(status="ok", message="")
     else:
@@ -1766,17 +1966,8 @@ def _spec_starts(shape: Any, guess: Any, n_starts: Any, tw: Any) -> list[NDArray
 
 
 def _spec_step(
-    current: Any,
-    picks: Any,
-    smooth: Any,
-    make: Any,
-    settings: Any,
-    n_eff: Any,
-    f_scale: Any,
-    kind: Any,
-    tw: Any,
-    forced: Any,
-) -> Any:
+    current: Any, picks: Any, smooth: Any, search: _Search, forced: Any
+) -> tuple[Any, Any]:
     """One step of the forward search of spec §5.5.3 step 4.
 
     The candidates in order of ``|r|``, each fitted with every allowed shape from ``n_starts``
@@ -1785,30 +1976,10 @@ def _spec_step(
 
     Returns (accepted state or None, best rejected change of the criterion).
     """
+    settings = search.settings
     rejected = np.inf
-    base = make(current.shapes)
-    head, tail = current.theta[: base.offsets[-1]], current.theta[base.offsets[-1] :]
     for peak in picks[: 2 * max(settings.max_components, 1)]:
-        best = None
-        for name in settings.shapes:
-            shape = _shape(name, settings)
-            try:
-                guess = shape.initial_guess(tw, smooth, peak)
-            except GUESS_ERRORS as err:  # a shape that cannot start here
-                _guess_failed(shape, tw, (peak,), err)
-                continue
-            for start in _spec_starts(shape, guess, settings.n_starts, tw):
-                state, _ = _evaluate_state(
-                    make,
-                    current.shapes + [shape],
-                    np.r_[head, start, tail],
-                    settings,
-                    n_eff,
-                    f_scale,
-                    kind,
-                )
-                if state is not None and (best is None or state.fit_crit < best.fit_crit):
-                    best = state
+        best = _spec_candidate(current, peak, smooth, search)
         if best is None:
             continue
         gain = best.crit - current.crit
@@ -1824,11 +1995,30 @@ def _spec_step(
     return None, rejected
 
 
-def _split_proposals(
-    state: Any, make: Any, settings: Any, n_eff: Any, f_scale: Any, kind: Any, n_split: int = 2
-) -> list[Any]:
+def _spec_candidate(current: Any, peak: Any, smooth: Any, search: _Search) -> Any:
+    """Fit a component at ``peak``: every shape, every start of spec §5.5.3 step 4; the best."""
+    settings, tw = search.settings, search.tw
+    base = search.make(current.shapes)
+    head, tail = current.theta[: base.offsets[-1]], current.theta[base.offsets[-1] :]
+    best = None
+    for name in settings.shapes:
+        shape = _shape(name, settings)
+        try:
+            guess = shape.initial_guess(tw, smooth, peak)
+        except GUESS_ERRORS as err:  # a shape that cannot start here
+            _guess_failed(shape, tw, (peak,), err)
+            continue
+        for start in _spec_starts(shape, guess, settings.n_starts, tw):
+            state, _ = search.evaluate(current.shapes + [shape], np.r_[head, start, tail])
+            if state is not None and (best is None or state.fit_crit < best.fit_crit):
+                best = state
+    return best
+
+
+def _split_proposals(state: Any, search: _Search, n_split: int = 2) -> list[Any]:
     """Each of the largest components replaced by two of its shape at +/- one width."""
     out = []
+    make = search.make
     struct = make(state.shapes)
     order = np.argsort(-np.abs(state.beta[: len(state.shapes)]))[:n_split]
     for k in order:
@@ -1853,7 +2043,7 @@ def _split_proposals(
             + [struct.comp_params(state.theta, m) for m in range(k + 1, len(state.shapes))]
             + [struct.bg_params(state.theta)]
         )
-        cand, _ = _evaluate_state(make, shapes, theta0, settings, n_eff, f_scale, kind, tol=1e-5)
+        cand, _ = search.evaluate(shapes, theta0, tol=1e-5)
         if cand is not None:
             out.append(_sort_state(cand, make))
     return out
@@ -1885,7 +2075,7 @@ def _suspicious(state: Any, make: Any, settings: Any) -> bool:
     for (la, sa, pa), (lb, sb, pb) in zip(info, info[1:], strict=False):
         if pa != pb and abs(lb - la) < settings.overlap_c * (sa + sb):
             return True
-    if len(state.shapes) >= 2:
+    if len(state.shapes) >= _PAIR:
         design = struct.design(state.theta)[:, : len(state.shapes)]
         norms = np.linalg.norm(design, axis=0)
         if np.all(norms > 0):
@@ -1895,20 +2085,7 @@ def _suspicious(state: Any, make: Any, settings: Any) -> bool:
     return False
 
 
-def _reseed(
-    state: Any,
-    base: Any,
-    make: Any,
-    settings: Any,
-    n_eff: Any,
-    f_scale: Any,
-    kind: Any,
-    tw: Any,
-    valid: Any,
-    sigma: Any,
-    sfreq: float,
-    residual_of: Any,
-) -> Any:
+def _reseed(state: Any, base: Any, search: _Search) -> Any:
     """Return a better state with the same number of components, or None.
 
     The state is started on the extrema of the data. Tried only when ``state`` is suspicious (see
@@ -1916,11 +2093,12 @@ def _reseed(
     """
     import itertools
 
+    settings, make, tw = search.settings, search.make, search.tw
     if settings.reseed != "always" and not _suspicious(state, make, settings):
         return None
     k = len(state.shapes)
     loose = dataclasses.replace(settings, detection_threshold=0.0)
-    picks, smooth = candidates(tw, residual_of(base), valid, sigma, sfreq, loose)
+    picks, smooth = search.candidates(base, loose)
     picks = sorted(picks[: max(RESEED_EXTREMA, k)])
     if len(picks) < k:
         return None
@@ -1936,14 +2114,12 @@ def _reseed(
                 _guess_failed(shape, tw, chosen, err)
                 continue
             theta0 = np.concatenate(guesses + [bg])
-            cand, _ = _evaluate_state(
-                make, [shape] * k, theta0, settings, n_eff, f_scale, kind, tol=1e-5
-            )
+            cand, _ = search.evaluate([shape] * k, theta0, tol=1e-5)
             if cand is not None and (best is None or cand.fit_crit < best.fit_crit):
                 best = cand
     if best is None:
         return None
-    best = _polish(_sort_state(best, make), make, settings, n_eff, f_scale, kind)
+    best = _polish(_sort_state(best, make), search)
     return best if best.fit_crit < state.fit_crit and best.crit <= state.crit else None
 
 
@@ -1975,17 +2151,15 @@ def _sort_state(state: Any, make: Any) -> Any:
     return _State(shapes, theta, beta, state.rw, state.crit, state.fit_crit)
 
 
-def _prune(
-    state: Any, make: Any, settings: Any, n_eff: Any, f_scale: Any, kind: Any, out: Any
-) -> Any:
+def _prune(state: Any, search: _Search, out: Any) -> Any:
     """Drop the components of a reseeded state that no longer lower the criterion by ``delta``.
 
     This is the acceptance rule of the forward search, §5.5.3 step 4: the state without each
     component is refitted from the current values, and the best removal is applied while its
     criterion is less than ``delta`` above the state's.
     """
-    while len(state.shapes) >= 2:
-        struct = make(state.shapes)
+    while len(state.shapes) >= _PAIR:
+        struct = search.make(state.shapes)
         best = None
         for k in range(len(state.shapes)):
             shapes = [s for i, s in enumerate(state.shapes) if i != k]
@@ -1993,57 +2167,60 @@ def _prune(
                 [struct.comp_params(state.theta, i) for i in range(len(state.shapes)) if i != k]
                 + [struct.bg_params(state.theta)]
             )
-            cand, _ = _evaluate_state(make, shapes, theta0, settings, n_eff, f_scale, kind)
+            cand, _ = search.evaluate(shapes, theta0)
             if cand is not None and (best is None or cand.crit < best[0].crit):
                 best = (cand, k)
-        if best is None or not best[0].crit - state.crit < settings.delta:
+        if best is None or not best[0].crit - state.crit < search.settings.delta:
             break
         out["warnings"].append(f"pruned:{best[1]}")
-        state = _sort_state(best[0], make)
+        state = _sort_state(best[0], search.make)
     return state
 
 
-def _merge_pass(
-    state: Any, make: Any, settings: Any, n_eff: Any, f_scale: Any, kind: Any, out: Any
-) -> Any:
+def _merge_pass(state: Any, search: _Search, out: Any) -> Any:
     """Replace two overlapping neighbours by one when the merged model is better."""
     changed = True
-    while changed and len(state.shapes) >= 2:
-        changed = False
-        struct = make(state.shapes)
-        info = []
-        for k, shape in enumerate(state.shapes):
-            params = struct.comp_params(state.theta, k)
-            feats = compute_features(
-                shape, struct.tw, params, state.beta[k], sfreq=1 / np.median(np.diff(struct.tw))
-            )
-            info.append((feats.latency, (feats.fwhm or 0) / FWHM_PER_SIGMA, abs(state.beta[k])))
-        for k in range(len(state.shapes) - 1):
-            (la, sa, aa), (lb, sb, ab) = info[k], info[k + 1]
-            if not abs(lb - la) < settings.overlap_c * (sa + sb):
-                continue
-            keep = k if aa >= ab else k + 1
-            shapes = [s for i, s in enumerate(state.shapes) if i not in (k, k + 1)]
-            shapes.insert(k, state.shapes[keep])
-            params = struct.comp_params(state.theta, keep).copy()
-            shape = state.shapes[keep]
-            if shape.latency_param in shape.param_names:
-                idx = shape.param_names.index(shape.latency_param)
-                params[idx] += (la * aa + lb * ab) / (aa + ab) - _latency_of(shape, params)
-            theta0 = np.concatenate(
-                [struct.comp_params(state.theta, i) for i in range(len(state.shapes)) if i < k]
-                + [params]
-                + [
-                    struct.comp_params(state.theta, i)
-                    for i in range(len(state.shapes))
-                    if i > k + 1
-                ]
-                + [struct.bg_params(state.theta)]
-            )
-            merged, _ = _evaluate_state(make, shapes, theta0, settings, n_eff, f_scale, kind)
-            if merged is not None and merged.crit <= state.crit:
-                out["warnings"].append(f"merged:{k},{k + 1}")
-                state = _sort_state(merged, make)
-                changed = True
-                break
+    while changed and len(state.shapes) >= _PAIR:
+        merged = _merge_once(state, search)
+        changed = merged is not None
+        if merged is not None:
+            out["warnings"].append(f"merged:{merged[1]},{merged[1] + 1}")
+            state = _sort_state(merged[0], search.make)
     return state
+
+
+def _merge_once(state: Any, search: _Search) -> Any:
+    """Find the first merge of two overlapping neighbours that does not raise the criterion.
+
+    Returns ``(merged state, index of the first of the pair)`` or None.
+    """
+    struct = search.make(state.shapes)
+    info = []
+    for k, shape in enumerate(state.shapes):
+        params = struct.comp_params(state.theta, k)
+        feats = compute_features(
+            shape, struct.tw, params, state.beta[k], sfreq=1 / np.median(np.diff(struct.tw))
+        )
+        info.append((feats.latency, (feats.fwhm or 0) / FWHM_PER_SIGMA, abs(state.beta[k])))
+    for k in range(len(state.shapes) - 1):
+        (la, sa, aa), (lb, sb, ab) = info[k], info[k + 1]
+        if not abs(lb - la) < search.settings.overlap_c * (sa + sb):
+            continue
+        keep = k if aa >= ab else k + 1
+        shapes = [s for i, s in enumerate(state.shapes) if i not in (k, k + 1)]
+        shapes.insert(k, state.shapes[keep])
+        params = struct.comp_params(state.theta, keep).copy()
+        shape = state.shapes[keep]
+        if shape.latency_param in shape.param_names:
+            idx = shape.param_names.index(shape.latency_param)
+            params[idx] += (la * aa + lb * ab) / (aa + ab) - _latency_of(shape, params)
+        theta0 = np.concatenate(
+            [struct.comp_params(state.theta, i) for i in range(len(state.shapes)) if i < k]
+            + [params]
+            + [struct.comp_params(state.theta, i) for i in range(len(state.shapes)) if i > k + 1]
+            + [struct.bg_params(state.theta)]
+        )
+        merged, _ = search.evaluate(shapes, theta0)
+        if merged is not None and merged.crit <= state.crit:
+            return merged, k
+    return None

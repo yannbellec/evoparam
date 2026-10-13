@@ -18,6 +18,7 @@ AREAS = ("total", "positive", "negative", "rectified")
 
 
 def _signed(y: Any, polarity: Any) -> Any:
+    """Return ``y`` oriented so that the peak of ``polarity`` is a maximum."""
     if polarity == "negative":
         return -y
     if polarity == "positive":
@@ -68,6 +69,7 @@ def _local_peak(_t: Any, y: Any, polarity: Any, n_neighbors: Any) -> tuple[Any, 
 
 
 def _area(t: Any, y: Any, kind: Any, baseline: Any) -> float:
+    """Return the area of ``y - baseline`` of the given kind (positive, negative, ...)."""
     values = y - baseline
     if kind == "positive":
         values = np.clip(values, 0, None)
@@ -80,6 +82,7 @@ def _area(t: Any, y: Any, kind: Any, baseline: Any) -> float:
 
 
 def _fractional_area_latency(t: Any, y: Any, fraction: Any, kind: Any, baseline: Any) -> float:
+    """Return the time at which the area reaches ``fraction`` of its total."""
     values = y - baseline
     if kind == "positive":
         values = np.clip(values, 0, None)
@@ -98,6 +101,7 @@ def _fractional_area_latency(t: Any, y: Any, fraction: Any, kind: Any, baseline:
 
 
 def _fractional_peak_latency(t: Any, y: Any, peak: Any, fraction: Any, polarity: Any) -> float:
+    """Return the last time before the peak at which ``y`` is below ``fraction`` of it."""
     s = _signed(y, polarity)
     level = fraction * s[peak]
     below = np.flatnonzero(s[: peak + 1] < level)
@@ -121,6 +125,7 @@ def _scores(
     area_baseline: Any,
     n_neighbors: Any,
 ) -> tuple[dict[Any, Any], bool]:
+    """Return the classical measures of ``y`` and whether its peak is a local one."""
     out = {}
     peak, local = _local_peak(t, y, polarity, n_neighbors)
     if area_baseline == "zero":
@@ -143,7 +148,7 @@ def _scores(
     return out, local
 
 
-def classical_measures(  # noqa: PLR0913  (public API, signature fixed by spec §5.5.8)
+def classical_measures(  # noqa: PLR0913  (spec §5.5.8 fixes 12 parameters; DECISIONS.md §7.2)
     times: Any,
     y: Any,
     *,

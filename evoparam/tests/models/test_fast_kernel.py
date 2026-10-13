@@ -176,7 +176,7 @@ def test_rank_deficient_design_takes_the_numpy_path(monkeypatch: Any) -> None:
     spec = eng._compiled_args(struct)
     assert spec is not None
     lower, upper = struct.bounds()
-    status = kernel(theta0, lower, upper, np.zeros(0, np.int64), *spec, 1e-8, 100)[0]
+    status = kernel((theta0, lower, upper), np.zeros(0, np.int64), spec, 1e-8, 100)[0]
     assert status == _fast.FALLBACK
     reference, compiled = _both_paths(monkeypatch, struct, theta0, 1e-8)
     for a, b in zip(reference, compiled, strict=True):

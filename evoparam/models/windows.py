@@ -18,15 +18,19 @@ from .labels import label_components
 __all__ = ["ComponentWindows", "label_components"]
 
 _POLARITIES = {-1, 0, 1}
+# a window is (start, end) or (start, end, polarity)
+_SPAN_ONLY = 2
+_SPAN_AND_POLARITY = 3
 
 
 def _check(name: Any, definition: Any) -> tuple[float, float, int]:
+    """Return a window as ``(start, end, polarity)`` or raise SettingsError."""
     if not isinstance(name, str) or not name:
         raise SettingsError(f"window name must be a non-empty string, got {name!r}.")
-    if len(definition) == 2:
+    if len(definition) == _SPAN_ONLY:
         start, end = definition
         polarity = 0
-    elif len(definition) == 3:
+    elif len(definition) == _SPAN_AND_POLARITY:
         start, end, polarity = definition
     else:
         raise SettingsError(
@@ -61,6 +65,7 @@ class ComponentWindows(Mapping[str, tuple[float, float, int]]):
     """
 
     def __init__(self, windows: Any = None) -> None:
+        """Check and keep the windows, ``{name: (start, end[, polarity])}``."""
         self._windows = {}
         for name, definition in dict(windows or {}).items():
             self._windows[name] = _check(name, definition)

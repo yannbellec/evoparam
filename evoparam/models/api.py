@@ -58,6 +58,15 @@ __all__ = [
 
 FEATURES_WITH_SE = ("latency", "amplitude", "fwhm", "onset", "offset", "area")
 
+# The lag-1 autocorrelation of the residual is reported from more than this many samples.
+_MIN_LAG_SAMPLES = 3
+# The expanded percentile interval of a bootstrap needs two trials or more (t_{n-1}).
+_MIN_TRIALS_T = 2
+# The fewest finite bootstrap draws a standard error and an interval are computed from.
+_MIN_BOOTSTRAP_DRAWS = 10
+# A curve needs three points for an interior extremum.
+_MIN_EXTREMUM_POINTS = 3
+
 
 ###################################################################################################
 ## Building the result
@@ -66,6 +75,7 @@ FEATURES_WITH_SE = ("latency", "amplitude", "fwhm", "onset", "offset", "area")
 def _features(
     shape: Any, tw: Any, params: Any, amp: Any, settings: Any, sfreq: float
 ) -> "ComponentFeatures":
+    """Return the features of one component of amplitude ``amp`` on the fit window."""
     return compute_features(
         shape,
         tw,
@@ -94,6 +104,7 @@ def _scaled_features(unit: Any, amp: Any) -> Any:
 def _feature_vector(
     shape: Any, tw: Any, params: Any, amp: Any, settings: Any, sfreq: float, unit: Any = None
 ) -> NDArray[Any]:
+    """Return the features with a standard error as a vector (``FEATURES_WITH_SE`` order)."""
     f = (
         _features(shape, tw, params, amp, settings, sfreq)
         if unit is None
@@ -192,6 +203,7 @@ def _component_uncertainty(
 
 
 def _gof(core: Any, y_window: Any, valid: Any, _settings: Any) -> "GoodnessOfFit":
+    """Return the goodness of fit of the engine's output on the valid samples of the window."""
     resid = core["residual"][valid]
     yv = y_window[valid]
     n = len(yv)
@@ -204,7 +216,9 @@ def _gof(core: Any, y_window: Any, valid: Any, _settings: Any) -> "GoodnessOfFit
     rss_w = float(np.sum(rw**2))
     n_eff = core["n_white"]
     lag = (
-        float(np.corrcoef(resid[1:], resid[:-1])[0, 1]) if n > 3 and np.std(resid) > 0 else np.nan
+        float(np.corrcoef(resid[1:], resid[:-1])[0, 1])
+        if n > _MIN_LAG_SAMPLES and np.std(resid) > 0
+        else np.nan
     )
     rmse = float(np.sqrt(rss / n))
     span = float(yv.max() - yv.min()) if n else np.nan
@@ -226,6 +240,7 @@ def _gof(core: Any, y_window: Any, valid: Any, _settings: Any) -> "GoodnessOfFit
 
 
 def _bounds_warnings(core: Any) -> list[Any]:
+    """Return a warning for each parameter within ``BOUND_TOL`` of its bounds."""
     out = []
     struct = core["struct"]
     for k, shape in enumerate(core["shapes"]):
@@ -297,17 +312,20 @@ def _with_plugins(provenance: Any, settings: Any) -> Any:
     return dataclasses.replace(provenance, environment=environment)
 
 
-def _build_fit(
-    core: Any,
-    times: Any,
-    y: Any,
-    settings: Any,
-    sfreq: float,
-    trials: Any,
-    mask: Any,
-    start: Any,
-    settings_dict: Any,
-) -> Any:
+@dataclasses.dataclass(frozen=True)
+class _Waveform:
+    """A waveform being fitted: time axis, values, sampling rate, its trials and mask."""
+
+    times: Any
+    y: Any
+    sfreq: float
+    trials: Any = None
+    mask: Any = None
+
+
+def _build_fit(core: Any, wave: _Waveform, settings: Any, settings_dict: Any, start: Any) -> Any:
+    """Build the :class:`ResponseFit` of the engine's output ``core``."""
+    times, y, sfreq, trials, mask = wave.times, wave.y, wave.sfreq, wave.trials, wave.mask
     window = settings.fit_window
     baseline = settings.baseline if settings.baseline is not None else (np.nan, np.nan)
     warns = list(core.get("warnings", []))
@@ -502,17 +520,17 @@ def _bootstrap(
     # expanded percentile interval (Hesterberg 2015): the plain percentile interval of an
     # average of n trials is too narrow by sqrt((n - 1) / n) and uses z instead of t_{n-1}
     tail = 100 * (1 - settings.ci_level) / 2
-    if n >= 2:
+    if n >= _MIN_TRIALS_T:
         q = np.sqrt(n / (n - 1)) * student_t.ppf(0.5 + settings.ci_level / 2, n - 1)
         tail = 100 * norm.cdf(-q)
     comps = []
     for k, comp in enumerate(fit.components):
         values = np.array(draws[k])
         se, ci = dict(comp.se), dict(comp.ci)
-        if len(values) >= 10:
+        if len(values) >= _MIN_BOOTSTRAP_DRAWS:
             for j, name in enumerate(FEATURES_WITH_SE):
                 col = values[:, j][np.isfinite(values[:, j])]
-                if len(col) < 10:
+                if len(col) < _MIN_BOOTSTRAP_DRAWS:
                     continue
                 se[name] = float(np.std(col, ddof=1))
                 ci[name] = tuple(np.percentile(col, [tail, 100 - tail]))
@@ -586,6 +604,7 @@ def _cv_selector(trials: Any, times: Any, settings: Any) -> Any:
     """
 
     def select(path: Any, make: Any) -> Any:
+        """Return the index on the path that predicts held-out trials best."""
         rng = np.random.default_rng(settings.random_state)
         n = len(trials)
         folds = np.array_split(rng.permutation(n), min(settings.n_folds, n))
@@ -618,6 +637,7 @@ class _FixedStructure(_engine._Structure):
     """A structure whose bounds are overridden (to hold one parameter fixed)."""
 
     def __init__(self, base: Any, lower: Any, upper: Any) -> None:
+        """Copy ``base`` with the bounds ``lower`` and ``upper`` in place of its own."""
         super().__init__(
             base.shapes,
             base.background,
@@ -632,6 +652,7 @@ class _FixedStructure(_engine._Structure):
         self._lower, self._upper = lower, upper
 
     def bounds(self) -> tuple[Any, Any]:
+        """Return the fixed bounds."""
         return self._lower, self._upper
 
 
@@ -785,7 +806,7 @@ def fitted_peak(
     # trough at the window's start
     start = max(window[0], fit.background.get("t_ref", window[0]))
     grid = np.arange(start, window[1] + step / 2, step)
-    if len(grid) < 3:
+    if len(grid) < _MIN_EXTREMUM_POINTS:
         return out
     curve = evaluate_fit(fit, grid)
     s = -curve if polarity == "negative" else curve
@@ -824,7 +845,7 @@ class ResponseModel(BaseEstimatorMixin):
         random_state: Any
         _overrides_record: list[str]
 
-    def __init__(
+    def __init__(  # noqa: PLR0913  (spec §5.5.8 fixes 30 parameters; DECISIONS.md §7.2)
         self,
         preset: Any = None,
         *,
@@ -871,12 +892,14 @@ class ResponseModel(BaseEstimatorMixin):
         random_state: Any = None,
         verbose: Any = None,
     ) -> None:
+        """Keep every keyword as an attribute (scikit-learn contract: no validation here)."""
         for name, value in locals().items():
             if name != "self":
                 setattr(self, name, value)
 
     @classmethod
     def _param_names(cls) -> list[str]:
+        """Return the names of the constructor's parameters."""
         return cls._get_param_names()
 
     def _explicit(self, **extra: Any) -> Any:
@@ -902,7 +925,7 @@ class ResponseModel(BaseEstimatorMixin):
         overrides.update({k: v for k, v in extra.items() if v is not None})
         return resolve_settings(self.preset, **overrides)
 
-    def fit_waveform(  # noqa: PLR0913  (public API, signature fixed by spec §5.5.8)
+    def fit_waveform(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
         self,
         times: Any,
         y: Any,
@@ -989,14 +1012,10 @@ class ResponseModel(BaseEstimatorMixin):
             _engine.logger.warning("fit failed on %s: %s", unit or "the waveform", core["message"])
         fit = _build_fit(
             core,
-            times,
-            y,
+            _Waveform(times, y, sfreq, trials, mask),
             settings,
-            sfreq,
-            trials,
-            mask,
-            start,
             _settings_dict(settings, self._explicit(fit_window=window, baseline=baseline)),
+            start,
         )
         logger.debug(
             "fit of %s: status %s, %d components, %.3f s",
@@ -1045,6 +1064,7 @@ class ResponseModel(BaseEstimatorMixin):
         seed = _draw_seed() if self.random_state is None else None
 
         def one(ch: Any) -> Any:
+            """Fit channel ``ch``."""
             mask = None if evoked.masks is None else evoked.masks[ch]
             sem = None if evoked.sem is None else evoked.sem[ch]
             tr = None if trials is None else trials.data[:, ch]
@@ -1144,7 +1164,10 @@ class ResponseModel(BaseEstimatorMixin):
         window = (float(times[0]), float(times[-1]))
         sfreq = float(x.sfreq)
         min_fwhm = max(settings.min_fwhm, 2.0 / sfreq)
-        if window[1] - window[0] >= 3 * min_fwhm and len(times) >= 5:
+        if (
+            window[1] - window[0] >= _engine.MIN_WINDOW_FWHMS * min_fwhm
+            and len(times) >= _engine.MIN_VALID_SAMPLES
+        ):
             return self.fit_group(x, window=window)
         settings = self.settings(fit_window=window)
         evoked = x.average() if isinstance(x, TrialSet) else x
@@ -1156,14 +1179,10 @@ class ResponseModel(BaseEstimatorMixin):
         fits = [
             _build_fit(
                 {"status": "skipped", "message": message, "warnings": []},
-                times,
-                np.asarray(row, float),
+                _Waveform(times, np.asarray(row, float), sfreq),
                 settings,
-                sfreq,
-                None,
-                None,
-                _time.perf_counter(),
                 _settings_dict(settings, explicit),
+                _time.perf_counter(),
             )
             for row in evoked.data
         ]
@@ -1283,7 +1302,7 @@ def _from_mne(data: Any) -> Any:
 
 
 @verbose
-def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec §5.5.8)
+def fit(  # noqa: PLR0913  (spec §5.5.8 fixes 14 parameters; DECISIONS.md §7.2)
     data: Any,
     preset: Any = None,
     *,
@@ -1326,6 +1345,54 @@ def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec �
         )
     if not average:
         raise SettingsError("average=False: fit trials one by one with trials=True (S10).")
+    model = _model_for_fit(
+        preset, window, baseline, n_jobs=n_jobs, random_state=random_state, overrides=overrides
+    )
+    data = _from_mne(data)
+    if isinstance(data, list):
+        # MNE Evoked objects, one condition each (their comment is the condition label)
+        groups = [
+            (evoked.provenance.source.get("comment") or str(k), evoked)
+            for k, evoked in enumerate(data)
+        ]
+        return _fit_conditions(model, groups, picks)
+    if isinstance(data, np.ndarray):
+        if times is None:
+            raise SettingsError("times is required when data is an array.")
+        data = np.atleast_2d(data)
+        rate = sfreq or 1.0 / np.median(np.diff(times))
+        data = Evoked(
+            data=data, times=times, sfreq=rate, ch_names=[f"ch{i}" for i in range(len(data))]
+        )
+    elif not isinstance(data, (TrialSet, Evoked)):
+        raise DataError(
+            f"fit: cannot use a {type(data).__name__}; convert it first with "
+            "evoparam.io.read (MNE objects, files)."
+        )
+    if by is not None:
+        if not isinstance(data, TrialSet):
+            raise SettingsError("by= needs a TrialSet.")
+        columns = [by] if isinstance(by, str) else list(by)
+        groups = [
+            (
+                "/".join(map(str, key if isinstance(key, tuple) else (key,))),
+                data.select(trials=list(rows)),
+            )
+            for key, rows in data.metadata.groupby(columns, sort=True).indices.items()
+        ]
+        return _fit_conditions(model, groups, picks)
+    return model.fit_group(data, picks=picks)
+
+
+def _model_for_fit(
+    preset: Any, window: Any, baseline: Any, *, n_jobs: int, random_state: Any, overrides: Any
+) -> "ResponseModel":
+    """Build the model of :func:`fit` from the preset, window, baseline and overrides.
+
+    ``overrides`` may be the settings of a result (REQ-331): the version that recorded them
+    is checked (a warning when it is not this one) and the settings the constructor does not
+    take are set on the model.
+    """
     recorded_version = overrides.pop("package_version", None)
     # what the fits used (noise_source="auto" decides it again from the data): recorded, not
     # a setting, so that ``fit(data, **result.settings)`` takes it back (REQ-331)
@@ -1337,7 +1404,7 @@ def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec �
             f"{recorded_version}; this is {__version__}."
         )
         _engine.logger.warning(message)
-        _warn(message, UserWarning, stacklevel=2)
+        _warn(message, UserWarning, stacklevel=3)
     if "fit_window" in overrides:
         # the name of the preset field (spec §6.3) and of FitSettings, for ``window``
         given = overrides.pop("fit_window")
@@ -1361,47 +1428,20 @@ def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec �
     )
     for key, value in extra.items():
         setattr(model, key, value)
-    data = _from_mne(data)
-    if isinstance(data, list):
-        # MNE Evoked objects, one condition each (their comment is the condition label)
-        fits, chans, conds = [], [], []
-        for k, evoked in enumerate(data):
-            label = evoked.provenance.source.get("comment") or str(k)
-            group = model.fit_group(evoked, picks=picks, condition=label)
-            fits += group.fits
-            chans += list(group.index["channel"])
-            conds += [label] * len(group.fits)
-        return GroupFit.from_fits(
-            fits, chans, conds, settings=_settings_dict(model.settings(), model._explicit())
-        )
-    if isinstance(data, np.ndarray):
-        if times is None:
-            raise SettingsError("times is required when data is an array.")
-        data = np.atleast_2d(data)
-        rate = sfreq or 1.0 / np.median(np.diff(times))
-        data = Evoked(
-            data=data, times=times, sfreq=rate, ch_names=[f"ch{i}" for i in range(len(data))]
-        )
-    elif not isinstance(data, (TrialSet, Evoked)):
-        raise DataError(
-            f"fit: cannot use a {type(data).__name__}; convert it first with "
-            "evoparam.io.read (MNE objects, files)."
-        )
-    if by is not None:
-        if not isinstance(data, TrialSet):
-            raise SettingsError("by= needs a TrialSet.")
-        columns = [by] if isinstance(by, str) else list(by)
-        fits, chans, conds = [], [], []
-        for key, rows in data.metadata.groupby(columns, sort=True).indices.items():
-            label = "/".join(map(str, key if isinstance(key, tuple) else (key,)))
-            group = model.fit_group(data.select(trials=list(rows)), picks=picks, condition=label)
-            fits += group.fits
-            chans += list(group.index["channel"])
-            conds += [label] * len(group.fits)
-        return GroupFit.from_fits(
-            fits, chans, conds, settings=_settings_dict(model.settings(), model._explicit())
-        )
-    return model.fit_group(data, picks=picks)
+    return model
+
+
+def _fit_conditions(model: "ResponseModel", groups: Any, picks: Any) -> "GroupFit":
+    """Fit each ``(label, data)`` of ``groups``; one GroupFit with the label as condition."""
+    fits, chans, conds = [], [], []
+    for label, data in groups:
+        group = model.fit_group(data, picks=picks, condition=label)
+        fits += group.fits
+        chans += list(group.index["channel"])
+        conds += [label] * len(group.fits)
+    return GroupFit.from_fits(
+        fits, chans, conds, settings=_settings_dict(model.settings(), model._explicit())
+    )
 
 
 def compare_models(fits: Any) -> Any:
@@ -1429,10 +1469,12 @@ def compare_models(fits: Any) -> Any:
 
 
 def _article(word: Any) -> Any:
+    """Return the indefinite article of ``word``."""
     return "an" if str(word)[:1].lower() in "aeiou" else "a"
 
 
 def _noise_phrase(settings: Any) -> str:
+    """Return the methods-text phrase of the noise model of ``settings``."""
     noise = settings.get("noise_model", "ar")
     if noise == "neff":
         return (

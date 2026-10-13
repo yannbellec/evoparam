@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 __all__ = ["label_components", "sign_name", "POLARITY_RULES"]
 
 POLARITY_RULES = ("sign", "none")
+# a window named by sign holds two names, "P1/N1"
+_PAIR = 2
 
 
 def sign_name(name: Any, polarity: Any) -> Any:
@@ -27,7 +29,7 @@ def sign_name(name: Any, polarity: Any) -> Any:
     ('N1', 'P1', 'N2')
     """
     parts = str(name).split("/")
-    if len(parts) != 2 or polarity == 0:
+    if len(parts) != _PAIR or polarity == 0:
         return name
     signs = [{"P": 1, "N": -1}.get(part[:1]) for part in parts]
     if sorted(s for s in signs if s is not None) != [-1, 1] or not all(

@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy.optimize import least_squares
 
-from evoparam.models._trf import least_squares_trf
+from evoparam.models._trf import TrfOptions, least_squares_trf
 
 ###################################################################################################
 ###################################################################################################
@@ -68,18 +68,8 @@ def test_same_iterates_as_scipy(seed: Any, tol: Any) -> None:
         max_nfev=2000,
     )
     for reduced in (False, True):
-        x, cost, nfev, status = least_squares_trf(
-            fun,
-            jac,
-            x0,
-            lower,
-            upper,
-            ftol=tol,
-            xtol=tol,
-            gtol=tol,
-            max_nfev=2000,
-            reduced=reduced,
-        )
+        options = TrfOptions(ftol=tol, xtol=tol, gtol=tol, max_nfev=2000, reduced=reduced)
+        x, cost, nfev, status = least_squares_trf(fun, jac, x0, lower, upper, options)
         assert nfev == ref.nfev
         assert status == ref.status
         assert np.allclose(x, ref.x, rtol=1e-10, atol=0)
