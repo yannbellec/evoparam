@@ -944,3 +944,10 @@ expected failure whose reason gives the measured value; no criterion was weakene
   Equation 1 on jackknifed scores (the corrected t and F equal those of the retrieved
   individual scores to 1e-9); the Smulders (2010) part reproduces the printed F values.
 
+- **REQ-044, Mayo protocol (2026-10-13).** "Reproduces the train structure of the Mayo
+  protocol (≈ 0.2 Hz, 10–12 pulses per site)": over all the runs of the four Mayo
+  datasets the median is 10–12 (tested); one run, ds004696 sub-07, has 13 per site in its
+  own events.tsv (378 pulses on 27 sites). For that run the structure reproduced is the
+  run's (blocks, pulse counts, 0.2 Hz), not the protocol's range, which the data do not
+  follow.
+
