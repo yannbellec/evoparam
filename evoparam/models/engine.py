@@ -12,6 +12,7 @@ rule.
 import dataclasses
 import functools
 import logging
+import math
 import threading
 import warnings
 from collections.abc import Callable
@@ -30,6 +31,7 @@ from evoparam.models import _columns, _fast
 from evoparam.models._trf import least_squares_trf
 from evoparam.shapes import (
     FWHM_PER_SIGMA,
+    SHAPES,
     ExponentialBackground,
     Gaussian,
     SkewedGaussian,
@@ -61,6 +63,12 @@ _FAST = "auto"
 
 # Qualifying candidates compared before one is accepted at each step.
 CANDIDATE_BEAM = 3
+# Residual extrema tried (strongest first) before the search of a further component stops
+# when none of them improves the criterion by delta (the weaker ones are not tried). The
+# first qualifying extremum of a step was at most the sixth on the layer-2 development
+# cells; the step that adds nothing (the last one of every fit) tried up to
+# 2 x max_components extrema.
+CANDIDATE_SCAN = 6
 
 # What a shape's initial_guess raises when it cannot start at a candidate extremum (bounds
 # that do not fit the window, an extremum at the edge, a non-finite width): that shape is
@@ -546,7 +554,14 @@ class _Structure:
             lows.append(known[0])
             highs.append(known[1])
         if self.n_bg:
-            lo, hi = self.background.default_bounds(self.tw)
+            # the same for every structure of the fit (one background, one window)
+            known = self.memo.get("background_bounds") if self.memo is not None else None
+            if known is None or known[0] is not self.tw or known[1] != self.background:
+                lo, hi = self.background.default_bounds(self.tw)
+                known = (self.tw, self.background, lo, hi)
+                if self.memo is not None:
+                    self.memo["background_bounds"] = known
+            lo, hi = known[2], known[3]
             lows.append(np.asarray(lo)[self.n_lin_bg :])
             highs.append(np.asarray(hi)[self.n_lin_bg :])
         if not lows:
@@ -822,9 +837,14 @@ def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float 
     lower, upper, omap = limits[0], limits[1], limits[4]
     # np.clip, without its overhead
     theta0 = np.minimum(np.maximum(theta0, limits[2]), limits[3])
+    lean = settings.loss == "linear" and _OPTIMISER != "scipy"
+    if lean and _OPTIMISER == "trf":
+        # the compiled fit first: it needs none of the closures below
+        done = _optimise_compiled_from(struct, theta0, limits, settings, tol)
+        if done is not None:
+            return (theta0 if done[0] is None else done[0], *done[1:])
     cache: dict[Any, Any]
     cache = {}
-    lean = settings.loss == "linear" and _OPTIMISER != "scipy"
 
     def solved(theta: Any) -> Any:
         key = theta.tobytes()
@@ -860,10 +880,6 @@ def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float 
         def jac(phi: Any) -> Any:
             return omap.jacobian(jac_theta(omap.to_theta(phi)), phi)
 
-    if lean and _OPTIMISER == "trf":
-        done = _optimise_compiled(struct, x0, lo, hi, omap, settings, tol)
-        if done is not None:
-            return (theta0 if done[0] is None else done[0], *done[1:])
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
@@ -1033,7 +1049,7 @@ def _optimise_compiled(
     spec = _compiled_args(struct)
     if spec is None:
         return None
-    chain = np.asarray(omap.idx if omap is not None else [], dtype=np.int64)
+    chain = _NO_CHAIN if omap is None else np.asarray(omap.idx, dtype=np.int64)
     status, theta, nfev, beta, rw = kernel(
         np.ascontiguousarray(x0, dtype=float),
         np.ascontiguousarray(lo, dtype=float),
@@ -1050,9 +1066,32 @@ def _optimise_compiled(
         return None, None, None, False, "ValueError: infeasible start or step"
     if status == _fast.LINALG_ERROR:
         return None, None, None, False, "LinAlgError: SVD did not converge"
-    if not (np.all(np.isfinite(theta)) and np.all(np.isfinite(beta))):
+    if not (_all_finite(theta) and _all_finite(beta)):
         return theta, None, None, False, "non-finite parameters"
     return theta, beta, rw, True, ""
+
+
+def _optimise_compiled_from(
+    struct: Any, theta0: Any, limits: Any, settings: Any, tol: float
+) -> Any:
+    """``_optimise_compiled`` from ``theta0`` (clipped), in the coordinates of the fit."""
+    omap = limits[4]
+    if omap is None:
+        return _optimise_compiled(struct, theta0, limits[0], limits[1], None, settings, tol)
+    phi0 = np.minimum(np.maximum(omap.to_phi(theta0), limits[5]), limits[6])
+    return _optimise_compiled(struct, phi0, omap.lower, omap.upper, omap, settings, tol)
+
+
+_NO_CHAIN = np.zeros(0, dtype=np.int64)
+
+
+def _all_finite(x: Any) -> bool:
+    """Return ``np.all(np.isfinite(x))``.
+
+    A finite sum is enough (NaN and infinities propagate); the entries are checked one by one
+    only when the sum is not finite (also on an overflow).
+    """
+    return math.isfinite(x.sum()) or bool(np.isfinite(x).all())
 
 
 ###################################################################################################
@@ -1070,6 +1109,9 @@ def _smooth(values: Any, sfreq: float, sigma_s: Any) -> Any:
     return np.convolve(padded, kernel, mode="valid")
 
 
+_FEW_SAMPLES = 3  # candidates selects on Python lists below this many samples
+
+
 def candidates(
     _tw: Any, residual: Any, valid: Any, sigma: Any, sfreq: float, settings: Any
 ) -> tuple[list[Any], Any]:
@@ -1085,17 +1127,33 @@ def candidates(
         picks.append(0)
     if mag[-1] >= mag[-edge - 1 :].max():
         picks.append(n - 1)
-    picks = [p for p in dict.fromkeys(picks) if valid[p]]
-    if settings.polarity == "negative":
-        picks = [p for p in picks if rs[p] < 0]
-    elif settings.polarity == "positive":
-        picks = [p for p in picks if rs[p] > 0]
-    picks.sort(key=lambda p: -mag[p])
-    above = [p for p in picks if mag[p] >= settings.detection_threshold]
+    if n < _FEW_SAMPLES or not np.isfinite(mag).all():
+        picks = [p for p in dict.fromkeys(picks) if valid[p]]
+        if settings.polarity == "negative":
+            picks = [p for p in picks if rs[p] < 0]
+        elif settings.polarity == "positive":
+            picks = [p for p in picks if rs[p] > 0]
+        picks.sort(key=lambda p: -mag[p])
+    elif picks:
+        # the same selection and stable order with arrays (inner extrema lie in 1 .. n - 2,
+        # so the edges add no duplicate); the picks keep their types
+        index = np.asarray(picks, dtype=np.int64)
+        keep = np.asarray(valid, bool)[index]
+        if settings.polarity == "negative":
+            keep &= rs[index] < 0
+        elif settings.polarity == "positive":
+            keep &= rs[index] > 0
+        chosen = np.flatnonzero(keep)
+        order = chosen[np.argsort(-mag[index[chosen]], kind="stable")]
+        picks = [picks[i] for i in order]
+    threshold = settings.detection_threshold
+    levels = mag[np.asarray(picks, dtype=np.int64)] if picks else np.zeros(0)
+    above = [p for p, ok in zip(picks, (levels >= threshold).tolist(), strict=True) if ok]
     if settings.threshold_role == "order":
         # the threshold orders the candidates (those above it first) but does not remove
         # any: acceptance is decided by the criterion alone (REQ-104)
-        return above + [p for p in picks if mag[p] < settings.detection_threshold], rs * sigma
+        below = [p for p, ok in zip(picks, (levels < threshold).tolist(), strict=True) if ok]
+        return above + below, rs * sigma
     return above, rs * sigma
 
 
@@ -1114,18 +1172,39 @@ class _State:
 
 
 def _shape(name: Any, settings: Any) -> "ComponentShape":
+    values = (
+        ("min_fwhm", settings.min_fwhm),
+        ("max_fwhm", settings.max_fwhm),
+        ("freq_min", settings.freq_min),
+        ("freq_max", settings.freq_max),
+    )
+    # a shape class registered under the name builds an immutable shape (a frozen
+    # dataclass) from the same settings every time: the forward search asks for it once per
+    # candidate and shape, and gets the one already built
+    entry = SHAPES.get(name) if name in SHAPES else None
+    frozen = (
+        isinstance(entry, type)
+        and dataclasses.is_dataclass(entry)
+        and getattr(entry, "__dataclass_params__", None) is not None
+        and entry.__dataclass_params__.frozen
+    )
+    key = (name, entry, values) if frozen else None
+    if key is not None:
+        known = _SHAPES_BUILT.get(key)
+        if known is not None:
+            return known
     fields = {f.name for f in dataclasses.fields(cast(Any, type(get_shape(name))))}
-    kwargs = {
-        k: v
-        for k, v in (
-            ("min_fwhm", settings.min_fwhm),
-            ("max_fwhm", settings.max_fwhm),
-            ("freq_min", settings.freq_min),
-            ("freq_max", settings.freq_max),
-        )
-        if k in fields and v is not None
-    }
-    return get_shape(name, **kwargs)
+    kwargs = {k: v for k, v in values if k in fields and v is not None}
+    shape = get_shape(name, **kwargs)
+    if key is not None:
+        if len(_SHAPES_BUILT) >= _SHAPES_BUILT_MAX:
+            _SHAPES_BUILT.clear()
+        _SHAPES_BUILT[key] = shape
+    return shape
+
+
+_SHAPES_BUILT: dict[Any, Any] = {}
+_SHAPES_BUILT_MAX = 256  # the cache is emptied when it holds this many shapes
 
 
 def _param_latencies(struct: Any, theta: Any) -> FloatArray:
@@ -1160,15 +1239,40 @@ def _cancelling_pair(struct: Any, theta: Any, beta: Any, settings: Any) -> bool:
     amps = beta[:k_max]
     if np.all(amps >= 0) or np.all(amps <= 0):
         return False
-    sfreq = 1.0 / np.median(np.diff(struct.tw))
     lat, sig = [], []
-    for k, shape in enumerate(struct.shapes):
-        feats = compute_features(
-            shape, struct.tw, struct.comp_params(theta, k), amps[k], sfreq=sfreq
-        )
+    for k in range(k_max):
+        feats = _component_features(struct, theta, k, amps[k])
         lat.append(feats.latency)
         sig.append(feats.fwhm / FWHM_PER_SIGMA if np.isfinite(feats.fwhm) else 0.0)
     return bool(cancelling_pairs(lat, sig, amps, settings.overlap_c))
+
+
+def _component_features(struct: Any, theta: Any, k: int, amplitude: Any) -> Any:
+    """``compute_features`` of component ``k`` with its amplitude, at the window's sampling rate.
+
+    The same component is measured several times during a fit (the cancelling-pair test, the
+    merge pass, the reseeding test): the features are kept in the memo of the fit, by shape,
+    parameters and amplitude, for the time axis they were measured on.
+    """
+    shape = struct.shapes[k]
+    params = struct.comp_params(theta, k)
+    memo = struct.memo
+    known: dict[Any, Any] | None = None
+    if memo is not None:
+        entry = memo.get("features")
+        if entry is None or entry[0] is not struct.tw:
+            entry = memo["features"] = (struct.tw, {}, 1.0 / np.median(np.diff(struct.tw)))
+        known, sfreq = entry[1], entry[2]
+        key = (shape, params.tobytes(), float(amplitude))
+        feats = known.get(key)
+        if feats is not None:
+            return feats
+    else:
+        sfreq = 1.0 / np.median(np.diff(struct.tw))
+    feats = compute_features(shape, struct.tw, params, amplitude, sfreq=sfreq)
+    if known is not None:
+        known[key] = feats
+    return feats
 
 
 def cancelling_pairs(latencies: Any, sigmas: Any, amplitudes: Any, overlap_c: Any) -> list[Any]:
@@ -1256,7 +1360,7 @@ def _polish(state: Any, make: Any, settings: Any, n_eff: Any, f_scale: Any, kind
     lo, hi = lo[struct.offsets[-1] :], hi[struct.offsets[-1] :]
     best = state
     for value in np.geomspace(np.maximum(lo, 1e-6), hi, 4):
-        theta0 = np.r_[state.theta[: struct.offsets[-1]], value]
+        theta0 = np.concatenate((state.theta[: struct.offsets[-1]], value))
         cand, _ = _evaluate_state(make, state.shapes, theta0, settings, n_eff, f_scale, kind)
         if cand is not None and cand.fit_crit < best.fit_crit:
             best = cand
@@ -1580,7 +1684,11 @@ def _fit_waveform_core(
             )
             best_rejected = min(best_rejected, rejected)
             picks = []  # the beam search below has nothing to do
-        for peak in picks[: 2 * max(settings.max_components, 1)]:
+        for scanned, peak in enumerate(picks[: 2 * max(settings.max_components, 1)]):
+            if not ranked and scanned >= CANDIDATE_SCAN:
+                # none of the strongest residual extrema improves the criterion: the
+                # weaker ones are not tried
+                break
             # Quick evaluation: every shape from its initial guess, loose tolerance
             quick = None
             for name in settings.shapes:
@@ -1592,11 +1700,10 @@ def _fit_waveform_core(
                 except GUESS_ERRORS as err:  # a shape that cannot start here
                     _guess_failed(shape, tw, (peak,), err)
                     continue
-                theta0 = np.r_[
-                    current.theta[: make(current.shapes).offsets[-1]],
-                    guess,
-                    current.theta[make(current.shapes).offsets[-1] :],
-                ]
+                cut = make(current.shapes).offsets[-1]
+                theta0 = np.concatenate(
+                    (current.theta[:cut], np.atleast_1d(guess), current.theta[cut:])
+                )
                 state, _ = _evaluate_state(
                     make,
                     current.shapes + [shape],
@@ -1644,11 +1751,8 @@ def _fit_waveform_core(
             # Refine the best qualifying candidate: perturbed starts and background starts
             best = state
             for start in _starts(shape, guess, settings.n_starts, tw)[1:]:
-                theta0 = np.r_[
-                    current.theta[: make(current.shapes).offsets[-1]],
-                    start,
-                    current.theta[make(current.shapes).offsets[-1] :],
-                ]
+                cut = make(current.shapes).offsets[-1]
+                theta0 = np.concatenate((current.theta[:cut], start, current.theta[cut:]))
                 cand, _ = _evaluate_state(
                     make,
                     current.shapes + [shape],
@@ -1801,7 +1905,7 @@ def _spec_step(
                 state, _ = _evaluate_state(
                     make,
                     current.shapes + [shape],
-                    np.r_[head, start, tail],
+                    np.concatenate((head, start, tail)),
                     settings,
                     n_eff,
                     f_scale,
@@ -1876,11 +1980,8 @@ def _suspicious(state: Any, make: Any, settings: Any) -> bool:
     """
     struct = make(state.shapes)
     info = []
-    for k, shape in enumerate(state.shapes):
-        params = struct.comp_params(state.theta, k)
-        feats = compute_features(
-            shape, struct.tw, params, state.beta[k], sfreq=1 / np.median(np.diff(struct.tw))
-        )
+    for k in range(len(state.shapes)):
+        feats = _component_features(struct, state.theta, k, state.beta[k])
         info.append((feats.latency, (feats.fwhm or 0) / FWHM_PER_SIGMA, np.sign(state.beta[k])))
     for (la, sa, pa), (lb, sb, pb) in zip(info, info[1:], strict=False):
         if pa != pb and abs(lb - la) < settings.overlap_c * (sa + sb):
@@ -1971,7 +2072,7 @@ def _sort_state(state: Any, make: Any) -> Any:
         if state.shapes
         else state.theta
     )
-    beta = np.r_[state.beta[order], state.beta[len(state.shapes) :]]
+    beta = np.concatenate((state.beta[order], state.beta[len(state.shapes) :]))
     return _State(shapes, theta, beta, state.rw, state.crit, state.fit_crit)
 
 
@@ -2012,11 +2113,8 @@ def _merge_pass(
         changed = False
         struct = make(state.shapes)
         info = []
-        for k, shape in enumerate(state.shapes):
-            params = struct.comp_params(state.theta, k)
-            feats = compute_features(
-                shape, struct.tw, params, state.beta[k], sfreq=1 / np.median(np.diff(struct.tw))
-            )
+        for k in range(len(state.shapes)):
+            feats = _component_features(struct, state.theta, k, state.beta[k])
             info.append((feats.latency, (feats.fwhm or 0) / FWHM_PER_SIGMA, abs(state.beta[k])))
         for k in range(len(state.shapes) - 1):
             (la, sa, aa), (lb, sb, ab) = info[k], info[k + 1]

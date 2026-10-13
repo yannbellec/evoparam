@@ -2,6 +2,174 @@
 
 ## Unreleased
 
+### Engine speed, part 3 (REQ-290 P1): same results to the bit, P1 still not met
+
+REQ-290 P1 (one averaged waveform, 2 048 samples, `ccep`, `max_components=6`, 3 starts) is
+about a fifth faster with the `fast` extra and still above its 50 ms target. Every result is
+the same to the last bit, so no algorithm version changes.
+
+Why P1 costs about twice the REQ-115 waveform: it fits a 1 s window (2 047 samples, against
+1 006 for the 0.009-0.5 s window of REQ-115), so every evaluation costs twice as much, and its
+waveform needs about 500 evaluations (70 compiled fits per call: three starts and the
+forward search, which also tries a fourth component and rejects it). At f626c68 a fit spent
+about 60 ms in the compiled kernel (Householder QR of the 2 050-row whitened design,
+whitening, `exp`) and about 30 ms in Python around it; P1 does use the compiled fit for
+every call.
+
+Timings: same machine, `OMP_NUM_THREADS=1`, previous code (f626c68) and new code; the load
+average was 5 to 9 on the 4 cores (other jobs). The two `run_benchmarks.py --suite perf`
+runs were taken one after the other, not interleaved:
+
+| workload | f626c68 | new code |
+|---|---|---|
+| P1 workload, core 3 (`taskset -c 3`), warm-up + 30 fits, three interleaved rounds: median (p10-p90) | 99.0, 105.2, 95.5 ms (p10-p90 93-108, 96-132, 92-109) | 90.3, 81.4, 81.5 ms (p10-p90 82-112, 77-91, 78-87) |
+| compiled kernel alone: the 70 calls of one P1 fit replayed, median of 30 | 59.79 ms | 48.49 ms |
+| `run_benchmarks.py --suite perf`: P1 median (p90) of 20 | 99.8 ms (109.1) | 81.5 ms (85.6) |
+| the same run: P2 (one run) | 53.8 s | 32.7 s |
+| P2 again, two interleaved rounds | 40.1, 42.8 s | 39.1, 35.0 s |
+| the same run: P5, reproduce / original fit | 77.0 s / 65.2 s (1.18x) | 75.5 s / 60.0 s (1.26x) |
+| the same run: P6, median of 10 | 0.937 s | 0.940 s |
+
+What changed:
+
+- `models/_fast.py`: the AR whitening adds its lags by groups of four in one pass over the
+  samples, each term added in the same order as before; the finiteness checks of the QR
+  input and of the residuals are one vectorised sum each. Kernel time per P1 fit: see the
+  table.
+- `models/engine.py`: the compiled fit starts before the closures of the NumPy path are
+  built; shapes built from the same settings and the default bounds of the background are
+  reused; `compute_features` of a component is computed once per fit for the
+  cancelling-pair, suspicious-component and merge checks; the selection of the candidate
+  extrema is vectorised (the same order, ties included); `np.r_` replaced by
+  `np.concatenate`.
+- `models/api.py`: the whitened residual sum of squares is computed once for the
+  diagnostics and the goodness of fit. `shapes/_base.py`: `window_info` recognises the time
+  axis of the previous call without hashing it.
+
+Results, previous code against new code: the 70 kernel calls of one P1 fit replayed give
+the same outputs to the bit; a battery of 112 fits (P1 on three channels, the five REQ-115
+waveforms, `models.fit` on simulated `ccep`, `ccep_seeg`, `erp`, `tep`, `ecap` and
+`rodent_ep` with seeds 0 to 3) gives every number identical; the new whitening matches the
+previous one to the bit, signs of zeros included, on 435 cases (5 to 2 047 samples, AR
+orders 0 to 12, strides 1 to 4, with and without start rows); the reference fixture test
+(`test_determinism.py`) and the methods texts are unchanged. `ALGORITHM_VERSIONS` is
+unchanged.
+
+`benchmarks/results/linux-3.13.16-1f2ea055f5f5.json` replaces the run of bddedc9 (which
+predates the compiled fit); `benchmarks/README.md` and the strict expected failures of
+`tests/benchmark/test_timing.py` give its values. P2 and P5 stay met, P6 stays above
+300 ms (the import of `scipy.stats`). P1 cannot reach 50 ms with the same rounding: the
+kernel is bound by the floating-point work of the QR and the whitening (about 200 MFlop per
+fit). Reaching it needs fewer evaluations (for example a cheaper rejection of the fourth
+component of the forward search) or a blocked QR, both of which change the results within
+rounding and need a new algorithm version and fixture.
+
+### Engine speed, part 4 (REQ-290 P1): the search of a further component stops sooner
+
+The forward search tried up to 2 x `max_components` residual extrema (12 for P1) before
+concluding that no further component improves the criterion, and every fit ends with such a
+step. It now stops after the six strongest extrema when none of them improves the criterion
+by `delta` (`engine.CANDIDATE_SCAN = 6`); a step in which an extremum qualifies still scans
+until its beam of three is full, as before. On the layer-2 development cells the first
+qualifying extremum of a step was the strongest in 546 of the 559 steps that added a
+component and never beyond the sixth. Results change for a few fits, so the algorithm
+versions of `ResponseModel.fit_waveform`, `fit_group`, `existence.test_response`,
+`trials.fit_trials` and `hierarchical.fit_hierarchical` are now 1.2 and that of
+`spatial.fit_shared` 1.1; the reference fixture was regenerated (`python -m
+evoparam.tests.reference`; its values move by at most 2.4e-12 relative, within the 1e-9 of
+its test, as before this change). Engine functions touched: `_fit_waveform_core` (the loop
+over the extrema) and the new constant `CANDIDATE_SCAN`.
+
+P1 (core 3, `OMP_NUM_THREADS=1`, warm-up + 30 fits, three interleaved rounds, load average 9
+to 13 on the 4 cores from other jobs): 84.6, 87.0, 87.8 ms (p10-p90 80-97, 78-109, 79-103)
+before, 78.7, 68.5, 70.5 ms (p10-p90 72-88, 67-93, 69-76) after; the same three components.
+One P1 fit makes 58 compiled fits and 472 evaluations instead of 70 and 513. P1 stays above
+50 ms.
+
+Quality, before (up to 2 x `max_components` extrema) → after (6), the same code otherwise.
+Layer 2: the weekly cells of `validation/layer2.py`, 2 replicates per cell, development
+seeds (`1000 j + r`) and test seeds (500 000 + `1000 j + r`), scored by `sim.score_fits`;
+engine tests: the 60 waveforms of `tests/models/helpers.py` (`random_components`, the
+REQ-104 to REQ-112 generator) on seeds 0-59 and 500 000-500 059; ds004080: the seven runs of
+layer 3, `ccep` pipeline of `validation/robustness.py`, both readings of the published N1
+rule:
+
+| seeds | cells | fits | recall | precision | F1 | latency MAE | fits that differ |
+|---|---|---|---|---|---|---|---|
+| development (0+) | erp layer 2 | 100 | 0.745 | 0.942 → 0.967 | 0.832 → 0.841 | 0.918 → 0.927 samples | 1 |
+| development (0+) | ccep layer 2 | 100 | 0.699 | 0.926 | 0.797 | 1.326 samples | 0 |
+| development (0+) | tep layer 2 | 52 | 0.970 | 0.990 | 0.980 | 1.082 samples | 0 |
+| development (0+) | ecap layer 2 | 52 | 0.680 | 0.861 | 0.760 | 1.047 samples | 0 |
+| development (0+) | animal layer 2 | 52 | 0.840 | 0.903 | 0.870 | 0.968 samples | 0 |
+| development (0+) | erna layer 2 | 52 | 0.517 | 0.912 | 0.660 | 1.873 samples | 0 |
+| development (0+) | engine tests (REQ-104-112 waveforms) | 60 | 1.000 | 1.000 | 1.000 | 0.552 ms | 0 |
+| test (500000+) | erp layer 2 | 100 | 0.745 | 0.980 | 0.846 | 0.912 samples | 0 |
+| test (500000+) | ccep layer 2 | 100 | 0.740 | 0.960 | 0.836 | 1.123 samples | 0 |
+| test (500000+) | tep layer 2 | 52 | 0.960 | 0.970 → 0.990 | 0.965 → 0.975 | 1.330 samples | 2 |
+| test (500000+) | ecap layer 2 | 52 | 0.680 | 0.861 | 0.760 | 1.372 samples | 0 |
+| test (500000+) | animal layer 2 | 52 | 0.850 | 0.924 | 0.885 | 1.077 samples | 0 |
+| test (500000+) | erna layer 2 | 52 | 0.617 | 0.902 | 0.733 | 1.754 samples | 0 |
+| test (500000+) | engine tests (REQ-104-112 waveforms) | 60 | 1.000 | 1.000 | 1.000 | 0.526 ms | 0 |
+
+| ds004080, 7 runs, 615 channels | reading | kappa | recall | median abs. latency difference | within 2 ms | N1 (model) | fits that differ |
+|---|---|---|---|---|---|---|---|
+| before → after | paper | 0.386 | 0.438 | 3.57 ms | 0.386 → 0.404 | 99 | 32 |
+| before → after | code | 0.402 | 0.882 | 3.47 ms | 0.367 → 0.400 | 99 | 32 |
+
+Rejected after measurement (DECISIONS.md, step 4): three extrema (recall drops on the
+`ecap`, `animal` and `erna` cells, for example `ecap` 0.680 → 0.640 on the development
+seeds) and polishing the background once at the end instead of after every accepted
+component (N1 kappa 0.386 → 0.347 on ds004080, paper reading).
+
+### REQ-290 P3: `evoparam.fit` in memory below twice the data at the CI size, same results to the bit
+
+At the `ci` size (50 trials x 64 channels x 4 096 samples, float64, 105 MB) the in-memory
+peak of `evoparam.fit` was 3.3 times the data, against a bound of 2. Three copies of the
+trials are gone:
+
+- `TrialSet.average` (`data/containers.py`, `_average_trials`) averages blocks of channels of
+  at most 16 MB instead of the selected trials of every channel at once.
+- `existence.test_response` (`existence/api.py`) makes one copy of the trials it tests instead
+  of two, laid out in memory as the previous double indexing left them (channel by channel),
+  so that every sum adds the same numbers in the same order; for the baseline permutation test
+  the copy holds only the samples from the start of the baseline to the end of the window.
+- `existence/permutation.py`: the sign-flip sums of the null distribution go into one buffer
+  reused by every chunk of flips, the t-series and their summaries are computed by blocks of
+  channels, and the window is copied once (the masked copy only when there are masks). The
+  repeated temporaries of about 31 MB had made glibc raise its mmap threshold, so that they
+  stayed on the heap and the resident set grew.
+
+Peak RSS increase, `run_benchmarks.py --suite ci` (medians of 3 runs before, 3 after):
+
+| variant | before (`linux-3.13.16-bddedc9aa35f-ci.json`) | after (`linux-3.13.16-148319226b70-ci.json`) | bound |
+|---|---|---|---|
+| in memory | +331 MiB (3.31x the data) | +130 MiB (1.30x the data) | 200 MiB |
+| memory-mapped | +331 MiB (3.31x the data) | +130 MiB (1.30x the data) | 537 MiB |
+
+Results: 263 of 263 outputs are the same bytes before and after (averages of a plain, a
+masked and a rejected-trials set, mean and robust, three chunk settings: 36; `test_response`
+with five settings on the three sets: 195; the `evoparam.fit` table at 30 x 24 x 4 096: 32).
+The full size (500 x 256 x 4 096, 4.19 GB) was not run: the memory-mapped variant needs the
+4.19 GB file on a disk with about 5 GB free, and the in-memory one needs the data and its
+peak in the machine's 15 GB next to the other jobs.
+
+### REQ-290 records on the reference machine
+
+`benchmarks/results/linux-3.13.16-148319226b70.json` and
+`linux-3.13.16-148319226b70-ci.json` replace the files of 1f2ea05 and bddedc9;
+`baseline-ci.json` is kept (its time medians were taken at a lower load than these `ci`
+runs, load average 18, and would only loosen the comparison); `benchmarks/README.md` and the
+expected failures of `tests/benchmark/test_timing.py` are regenerated from them. P6 on
+Linux: median 0.121 s over 10 runs (target 0.300 s), so its expected failure is removed; so
+is that of P3 in memory (1.30x). P1: median 80.4 ms over 20 runs (p90 99.6 ms), still above
+50 ms; P2 56.8 s (load average 7.3); P5 1.27x its fit.
+
+P2 runs four workers on the four cores that other jobs share: two earlier `perf` runs of
+1483192 gave 71.0 s at load average 16.0; 81.0 s at load average 8.1, above its 60 s; the
+run recorded was started when the load average fell below 5.5. Its work is unchanged: P2 at
+8 channels with one job on core 3, 1f2ea05 against 1483192 interleaved, 2.68, 2.85, 2.98 s
+against 2.60, 2.70, 2.93 s.
+
 ### REQ-068 timing: the first-use imports are no longer timed
 
 - With the package root imported on first use (REQ-290 P6), the first artifact method of
@@ -4892,7 +5060,6 @@ REQ-020) move to build step S17 (spec §10), with the rest of the NWB and BIDS-d
 - `evoparam.errors`: the error hierarchy of spec §4.6. The inherited error classes now derive
   from `EvoparamError`.
 - Test of the import graph against the dependency table of spec §4.2.
-
 
 First skeleton of evoparam, derived from ERPparam (see NOTICE).
 
