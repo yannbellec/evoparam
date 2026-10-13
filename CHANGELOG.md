@@ -2,6 +2,85 @@
 
 ## Unreleased
 
+### Engine speed, part 2 (REQ-115): met with the compiled fit of the `fast` extra
+
+REQ-115 is met when numba is installed (extra `fast`, §9.2). The two tests of
+`models/test_performance.py` pass with `EVOPARAM_PERF_TESTS=1`; their xfails now apply only
+without numba, where the engine takes the NumPy path, which is unchanged in speed. The
+one-waveform test now measures as §9.1 measures P1: one warm-up call, then 20 repetitions
+(the first fit of a process loads the compiled code, about 0.7 s, and with five calls that
+one call moved the median). The criteria are unchanged. REQ-290 P1 is still not met.
+
+Timings: same machine, `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1`, previous code
+(7048c1d) and new code run interleaved. The load average was 8 to 12 on the 4 cores
+(other jobs), which inflates wall times more than CPU times:
+
+| workload | before | after |
+|---|---|---|
+| one waveform (REQ-115 workload), median of 10 fits, three interleaved rounds: wall | 331, 421, 378 ms | 45, 35, 58 ms |
+| the same, CPU time | 245, 317, 287 ms | 35, 35, 42 ms |
+| REQ-115 test (20 fits after a warm-up), 7 runs | (xfail) | passes 7 of 7 |
+| `fit_group`, 100 channels x 2 048 samples, `n_jobs=1`: wall (CPU) | 32.6 s (26.3 s) | 6.4 s (5.0 s), 4.7 s (4.3 s) |
+| REQ-290 P1 (`benchmark.timing.p1`, median of 20), two interleaved rounds | 0.655 s, 0.638 s | 0.105 s, 0.099 s |
+| ds004080 UMCU01 / UMCU07 / UMCU19, 120 channels each, `existence=False` | 40.3 / 118.0 / 225.8 s | 16.0 / 38.6 / 59.9 s |
+
+The ds004080 times of the new code were taken at a load of 10 to 12, those of the previous
+code at a lower load; at a load of about 7 an intermediate version took 9.1 / 27.7 /
+46.6 s. P1 stays above its 50 ms target: its waveform needs about 500 evaluations, and
+`benchmarks/results` and the strict xfail of `test_timing.py` still give the committed run.
+
+What changed:
+
+- `models/_fast.py` (new) fits one model structure in numba-compiled code: the same
+  trust-region reflective solver as `models/_trf.py` (derived from SciPy, header
+  `Apache-2.0 AND BSD-3-Clause`, recorded in `NOTICE`) on the same reduced residual.
+  - It covers Gaussian and skewed-Gaussian components with an exponential background or a
+    background without non-linear parameter (none, constant, linear), white, AR and
+    strided whitening, with or without prior rows. Design columns, derivatives, whitening, Householder QR and the
+    trust-region steps run without a Python call.
+  - Any other structure, a robust loss, a design that is not finite or not clearly of full
+    rank (the NumPy path's SVD route), and a machine without numba take the NumPy path,
+    which stays the reference (`tests/models/test_fast_kernel.py` checks each case).
+  - numba is imported by `_fast.kernel()` through `utils.require` the first time a fit
+    needs it (REQ-292); `soup.json` and `THIRD_PARTY.md` now list it as imported.
+  - Not the same rounding as the NumPy path: a vectorised `exp` (within one ulp) and
+    Cephes' `erfc` (the approximations SciPy uses); components taken as 0 beyond 12 widths
+    (below 1e-31 of the peak; less on the fast-decaying side of a skewed Gaussian, with the
+    same bound); unblocked Householder QR; a one-sided Jacobi SVD for the trust-region
+    step; fused multiply-adds and vectorised inner products; no final Jacobian, which SciPy
+    computes and does not use. `docs/spec/DECISIONS.md` (§4) records the reading of
+    REQ-295.
+- The NumPy path: the AR orders of `ar_model` come from one QR of the lagged matrix
+  instead of one least-squares solve per order (same solutions within 1e-9,
+  `test_fast_paths.py`); bounds and start limits are cached per structure and per shape;
+  `compute_features` builds only the part of its grid where the component is above a
+  quarter of the onset level (bitwise equal on 15 000 cases); `as_times` checks finiteness
+  with one sum.
+- Fix: the whitened target cached for a fit was reused by the copies of a structure with
+  other data (bootstrap, cross-validated selection) during this work; it is now kept with
+  the data it belongs to (`test_copies_with_other_data_whiten_their_own`).
+
+Quality, previous code against new code (`_FAST` auto, the default):
+
+- Reference fixture: within 1e-9 with both paths (largest relative difference 2.4e-12
+  compiled, 3.5e-12 NumPy path); `ALGORITHM_VERSIONS` unchanged.
+- Simulations (REQ-104 to REQ-111, REQ-116, `ecap`, simulated `ccep`): every metric
+  identical; largest per-fit difference 2.0e-10 s in latency and 1.3e-8 relative in
+  amplitude; no status, number of components, shape or label changed.
+- ds004080 N1 (REQ-114, 615 channels): kappa 0.4584 to 0.4620 (paper rule) and 0.3981 to
+  0.4019 (code rule), recall unchanged (0.4596 and 0.8824).
+- ds004080, three subjects, 360 fits: no status or shape changed; 348 within 1e-6 s and
+  1e-5 relative; 11 differ at the solver tolerance (residual sum of squares within 5e-5
+  relative, except UMCU19 PT10: +1.4 %, criterion -1826.58 to -1825.49); UMCU19 el088 goes
+  from 5 to 6 components with a lower criterion (4380.30 to 4289.56), a channel that
+  already moved under 1e-15 perturbations of the data ("Engine speed" below).
+
+This supersedes "Tried and not adopted: numba" of "Engine speed (REQ-115, REQ-290 P1)"
+below. A whitening kernel alone saved a few percent; compiling the whole fit removes the
+Python cost of every evaluation, which is where the time was. The objection that the
+compiled path cannot match NumPy to the last bit stands: it is met by reading REQ-295 with
+the extra as part of the platform, and by the agreement above.
+
 ### Commands that aborted or hung at exit after their work (exit status -6)
 
 An `evoparam` command that reads a container with parquet tables (`report`,
