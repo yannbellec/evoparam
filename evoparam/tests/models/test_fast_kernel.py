@@ -127,7 +127,8 @@ def test_compiled_optimum_is_the_numpy_one(
     assert eng._compiled_args(struct) is not None
     for tol in (1e-8, 1e-4):
         reference, compiled = _both_paths(monkeypatch, struct, _start(struct), tol)
-        assert reference[3] and compiled[3]
+        assert reference[3]
+        assert compiled[3]
         # the same optimum: within the solver tolerance where the iterations converge
         # tightly, and on the same path at the loose tolerance
         rtol = 1e-6 if tol < 1e-6 else 1e-3
@@ -213,4 +214,5 @@ def test_without_numba_the_fit_is_the_numpy_fit(monkeypatch: Any) -> None:
     assert [c.shape for c in without.components] == [c.shape for c in reference.components]
     for new, old in zip(without.components, reference.components, strict=True):
         np.testing.assert_array_equal(new.params, old.params)
-        assert new.latency == old.latency and new.amplitude == old.amplitude
+        assert new.latency == old.latency
+        assert new.amplitude == old.amplitude

@@ -370,7 +370,10 @@ def feature_grid(
 def _grid_spec(
     times: ArrayLike, sfreq: float | None, window: Sequence[float] | None
 ) -> tuple[float, float, int, tuple[float, float]]:
-    """``feature_grid`` without the grid: point ``i`` is ``origin + step * i``, ``i < n_points``."""
+    """``feature_grid`` without the grid.
+
+    Point ``i`` is ``origin + step * i``, for ``i < n_points``.
+    """
     times = as_times(times)
     if sfreq is None:
         sfreq = window_info(times)[3]

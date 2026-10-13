@@ -409,8 +409,10 @@
    "licence": "BSD-2-Clause",
    "licence_checked": "project repository",
    "anomaly_url": "https://github.com/numba/numba/issues",
-   "imported_by_source": false,
-   "functions_used": []
+   "imported_by_source": true,
+   "functions_used": [
+    "njit"
+   ]
   },
   {
    "package": "numpy",
