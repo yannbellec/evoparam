@@ -176,6 +176,19 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
 - **`candidate_search` (step 4).** `"beam"` stays the default (more robust on CCEP-like
   simulations, better N1 kappa, about 9 times faster; CHANGELOG "Fitting engine as written");
   the reviewed search is `candidate_search="spec"`.
+- **Extrema tried before the search stops (step 4, REQ-290 P1; 2026-10-13).** The beam
+  search tried up to 2 × `max_components` residual extrema at every step, so the last step
+  of every fit, which adds nothing, cost up to 24 quick fits (a third of P1's evaluations).
+  It now stops after the six strongest extrema when none of them improves the criterion by
+  `delta` (`engine.CANDIDATE_SCAN`; a step with a qualifying extremum still scans until its
+  beam is full). Six because the first qualifying extremum of a step was at most the sixth
+  on the layer-2 development cells (the first in 546 of the 559 steps that added one). Measured on both seed
+  sets of the layer-2 grid, the REQ-104–112 engine waveforms and the seven ds004080 runs
+  of layer 3: recall, F1 on the engine waveforms and the N1 kappa unchanged, precision equal
+  or higher, 3 of 936 simulated fits and 32 of 615 channels differ (CHANGELOG "Engine
+  speed, part 4"). Three extrema were measured too and rejected: recall drops on `ecap`,
+  `animal` and `erna` cells. So was polishing the background once at the end instead of
+  after each accepted component (N1 kappa 0.386 → 0.347).
 - **`latency_order` (step 5).** The reviewed ordered parameterisation
   (`"parameterised"`) stays the default; `"sorted"` is an option. On the ECAP simulations
   neither is better on both kinds and both seed sets.
@@ -897,8 +910,10 @@ expected failure whose reason gives the measured value; no criterion was weakene
   untested requirements, or the reason of an expected failure, cannot mark them as tested.
 - **P3 chunked fit (REQ-290).** §9.1 P3 reads "chunked", but `evoparam.fit` has no `chunk`
   argument. P3 is measured on the plain call and on the memory-mapped set. The full size
-  (500 × 256 × 4 096 float64, 4.19 GB) was not run on the 15 GB reference machine: the
-  in-memory peak measured at the CI size, 3.3× the data, would exceed its RAM.
+  (500 × 256 × 4 096 float64, 4.19 GB) was not run: the memory-mapped variant needs the
+  4.19 GB file on a disk that has about 5 GB free, and the in-memory one needs the data
+  and its peak (1.5× the data at the CI size since 2026-10-13, 3.3× before) in the 15 GB
+  of RAM next to the other jobs of the machine.
 - **P6 in a full environment.** P6 is measured with every extra installed. No optional
   module is loaded by `import evoparam` (`optional_modules_loaded` is empty in the results),
   so the time is that of the core.

@@ -63,6 +63,12 @@ _FAST = "auto"
 
 # Qualifying candidates compared before one is accepted at each step.
 CANDIDATE_BEAM = 3
+# Residual extrema tried (strongest first) before the search of a further component stops
+# when none of them improves the criterion by delta (the weaker ones are not tried). The
+# first qualifying extremum of a step was at most the sixth on the layer-2 development
+# cells; the step that adds nothing (the last one of every fit) tried up to
+# 2 x max_components extrema.
+CANDIDATE_SCAN = 6
 
 # What a shape's initial_guess raises when it cannot start at a candidate extremum (bounds
 # that do not fit the window, an extremum at the edge, a non-finite width): that shape is
@@ -1678,7 +1684,11 @@ def _fit_waveform_core(
             )
             best_rejected = min(best_rejected, rejected)
             picks = []  # the beam search below has nothing to do
-        for peak in picks[: 2 * max(settings.max_components, 1)]:
+        for scanned, peak in enumerate(picks[: 2 * max(settings.max_components, 1)]):
+            if not ranked and scanned >= CANDIDATE_SCAN:
+                # none of the strongest residual extrema improves the criterion: the
+                # weaker ones are not tried
+                break
             # Quick evaluation: every shape from its initial guess, loose tolerance
             quick = None
             for name in settings.shapes:

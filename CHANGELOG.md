@@ -64,6 +64,63 @@ fit). Reaching it needs fewer evaluations (for example a cheaper rejection of th
 component of the forward search) or a blocked QR, both of which change the results within
 rounding and need a new algorithm version and fixture.
 
+### Engine speed, part 4 (REQ-290 P1): the search of a further component stops sooner
+
+The forward search tried up to 2 x `max_components` residual extrema (12 for P1) before
+concluding that no further component improves the criterion, and every fit ends with such a
+step. It now stops after the six strongest extrema when none of them improves the criterion
+by `delta` (`engine.CANDIDATE_SCAN = 6`); a step in which an extremum qualifies still scans
+until its beam of three is full, as before. On the layer-2 development cells the first
+qualifying extremum of a step was the strongest in 546 of the 559 steps that added a
+component and never beyond the sixth. Results change for a few fits, so the algorithm
+versions of `ResponseModel.fit_waveform`, `fit_group`, `existence.test_response`,
+`trials.fit_trials` and `hierarchical.fit_hierarchical` are now 1.2 and that of
+`spatial.fit_shared` 1.1; the reference fixture was regenerated (`python -m
+evoparam.tests.reference`; its values move by at most 2.4e-12 relative, within the 1e-9 of
+its test, as before this change). Engine functions touched: `_fit_waveform_core` (the loop
+over the extrema) and the new constant `CANDIDATE_SCAN`.
+
+P1 (core 3, `OMP_NUM_THREADS=1`, warm-up + 30 fits, three interleaved rounds, load average 9
+to 13 on the 4 cores from other jobs): 84.6, 87.0, 87.8 ms (p10-p90 80-97, 78-109, 79-103)
+before, 78.7, 68.5, 70.5 ms (p10-p90 72-88, 67-93, 69-76) after; the same three components.
+One P1 fit makes 58 compiled fits and 472 evaluations instead of 70 and 513. P1 stays above
+50 ms.
+
+Quality, before (up to 2 x `max_components` extrema) → after (6), the same code otherwise.
+Layer 2: the weekly cells of `validation/layer2.py`, 2 replicates per cell, development
+seeds (`1000 j + r`) and test seeds (500 000 + `1000 j + r`), scored by `sim.score_fits`;
+engine tests: the 60 waveforms of `tests/models/helpers.py` (`random_components`, the
+REQ-104 to REQ-112 generator) on seeds 0-59 and 500 000-500 059; ds004080: the seven runs of
+layer 3, `ccep` pipeline of `validation/robustness.py`, both readings of the published N1
+rule:
+
+| seeds | cells | fits | recall | precision | F1 | latency MAE | fits that differ |
+|---|---|---|---|---|---|---|---|
+| development (0+) | erp layer 2 | 100 | 0.745 | 0.942 → 0.967 | 0.832 → 0.841 | 0.918 → 0.927 samples | 1 |
+| development (0+) | ccep layer 2 | 100 | 0.699 | 0.926 | 0.797 | 1.326 samples | 0 |
+| development (0+) | tep layer 2 | 52 | 0.970 | 0.990 | 0.980 | 1.082 samples | 0 |
+| development (0+) | ecap layer 2 | 52 | 0.680 | 0.861 | 0.760 | 1.047 samples | 0 |
+| development (0+) | animal layer 2 | 52 | 0.840 | 0.903 | 0.870 | 0.968 samples | 0 |
+| development (0+) | erna layer 2 | 52 | 0.517 | 0.912 | 0.660 | 1.873 samples | 0 |
+| development (0+) | engine tests (REQ-104-112 waveforms) | 60 | 1.000 | 1.000 | 1.000 | 0.552 ms | 0 |
+| test (500000+) | erp layer 2 | 100 | 0.745 | 0.980 | 0.846 | 0.912 samples | 0 |
+| test (500000+) | ccep layer 2 | 100 | 0.740 | 0.960 | 0.836 | 1.123 samples | 0 |
+| test (500000+) | tep layer 2 | 52 | 0.960 | 0.970 → 0.990 | 0.965 → 0.975 | 1.330 samples | 2 |
+| test (500000+) | ecap layer 2 | 52 | 0.680 | 0.861 | 0.760 | 1.372 samples | 0 |
+| test (500000+) | animal layer 2 | 52 | 0.850 | 0.924 | 0.885 | 1.077 samples | 0 |
+| test (500000+) | erna layer 2 | 52 | 0.617 | 0.902 | 0.733 | 1.754 samples | 0 |
+| test (500000+) | engine tests (REQ-104-112 waveforms) | 60 | 1.000 | 1.000 | 1.000 | 0.526 ms | 0 |
+
+| ds004080, 7 runs, 615 channels | reading | kappa | recall | median abs. latency difference | within 2 ms | N1 (model) | fits that differ |
+|---|---|---|---|---|---|---|---|
+| before → after | paper | 0.386 | 0.438 | 3.57 ms | 0.386 → 0.404 | 99 | 32 |
+| before → after | code | 0.402 | 0.882 | 3.47 ms | 0.367 → 0.400 | 99 | 32 |
+
+Rejected after measurement (DECISIONS.md, step 4): three extrema (recall drops on the
+`ecap`, `animal` and `erna` cells, for example `ecap` 0.680 → 0.640 on the development
+seeds) and polishing the background once at the end instead of after every accepted
+component (N1 kappa 0.386 → 0.347 on ds004080, paper reading).
+
 ### REQ-290 P6: `import evoparam` in 0.13 s
 
 - The package root imported every subpackage, and with them scipy.stats (0.53 s): 0.96 s
