@@ -21,6 +21,15 @@ from evoparam.shapes.components import gamma_fwhm_factor
 from evoparam.tests.shapes import references
 from evoparam.tests.shapes.helpers import SFREQ, TIMES, make_template, sample_params
 
+# Latency (s) of the shapes evaluated, the asymmetry of a skewed one, and the latency (s)
+# outside the window of the last test.
+LATENCY = 0.1
+MIN_SKEW = 0.1
+EXGAUSS_SKEW = 0.2
+OUTSIDE_LATENCY = 1.4
+# Random parameter draws (the others at the bounds).
+N_RANDOM = 80
+
 ANALYTIC = {
     "gaussian": shapes.Gaussian(),
     "skewed_gaussian": shapes.SkewedGaussian(),
@@ -209,9 +218,9 @@ def test_skewed_gaussian_reduces_to_gaussian_and_skews() -> None:
     )
     right = skewed.features(TIMES, [0.1, 0.02, 4.0])
     left = skewed.features(TIMES, [0.1, 0.02, -4.0])
-    assert right.symmetry > 0.1
+    assert right.symmetry > MIN_SKEW
     assert left.symmetry == pytest.approx(-right.symmetry, abs=1e-6)
-    assert right.latency > 0.1 > left.latency
+    assert right.latency > LATENCY > left.latency
 
 
 def test_exgaussian_mode_and_limits() -> None:
@@ -223,8 +232,8 @@ def test_exgaussian_mode_and_limits() -> None:
         atol=1e-6,
     )
     features = shape.features(TIMES, [0.1, 0.01, 0.03])
-    assert features.symmetry > 0.2
-    assert features.latency > 0.1
+    assert features.symmetry > EXGAUSS_SKEW
+    assert features.latency > LATENCY
 
 
 def test_gaussian_features_closed_forms() -> None:
@@ -303,7 +312,7 @@ def test_damped_oscillation_features() -> None:
 def test_gabor_features() -> None:
     shape = shapes.Gabor()
     features = shape.features(TIMES, [0.1, 0.01, 50.0, 0.0])
-    assert features.latency == 0.1
+    assert features.latency == LATENCY
     assert features.peak_time == pytest.approx(0.1, abs=1e-12)
     flipped = shape.features(TIMES, [0.1, 0.01, 50.0, np.pi], 2.0)
     assert flipped.amplitude == pytest.approx(-2.0, abs=1e-12)
@@ -334,7 +343,7 @@ def test_features_of_an_extremum_after_the_feature_grid() -> None:
     assert {"fwhm_outside_grid", "offset_outside_grid", "latency_outside_window"} <= set(
         features.warnings
     )
-    assert tw[-1] < features.onset < 1.4
+    assert tw[-1] < features.onset < OUTSIDE_LATENCY
     assert features.amplitude == pytest.approx(2.0)
     # the same for a Gaussian placed after the grid (IndexError as well)
     late = shapes.Gaussian().features(tw, [2.0, 0.05], sfreq=2048.0)
@@ -379,7 +388,7 @@ def test_features_on_the_whole_box_of_parameters(name: Any) -> None:
     for tw, sfreq in ((np.linspace(0.009, 0.5, 1006), 2048.0), (TIMES, SFREQ)):
         lower, upper = shape.default_bounds(tw)
         for i in range(120):
-            u = rng.random(shape.n_params) if i < 80 else rng.integers(0, 2, shape.n_params)
+            u = rng.random(shape.n_params) if i < N_RANDOM else rng.integers(0, 2, shape.n_params)
             features = shape.features(tw, lower + (upper - lower) * u, -3.0, sfreq=sfreq)
             assert features.fwhm > 0 or (
                 "fwhm_outside_grid" in features.warnings and np.isnan(features.fwhm)

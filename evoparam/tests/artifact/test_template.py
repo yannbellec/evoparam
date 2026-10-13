@@ -12,6 +12,10 @@ from evoparam.errors import ArtifactError, SettingsError
 
 from .helpers import make_overlay
 
+# Residual reduction (dB) required (REQ-061), and the latency tolerance (s) of the response.
+MIN_REDUCTION_DB = 20
+LATENCY_TOLERANCE = 0.0005
+
 ###################################################################################################
 ###################################################################################################
 
@@ -31,7 +35,7 @@ def test_req061_template_reduces_window_residual_by_20_db(template: Any) -> None
     # Template SNR >= 10: 20 trials, artifact thousands of uV, noise 5 uV
     noisy, truth = make_overlay(onset=0.012, n_trials=20)
     result = remove_artifact(noisy, method="template", template=template, window=WINDOW)
-    assert residual_db(noisy, truth, result.cleaned) >= 20
+    assert residual_db(noisy, truth, result.cleaned) >= MIN_REDUCTION_DB
 
 
 @pytest.mark.parametrize("onset", [0.008, 0.012, 0.020])
@@ -49,7 +53,7 @@ def test_req061_responses_after_the_window_are_untouched(onset: Any) -> None:
     win = (noisy.times > onset) & (noisy.times < onset + 0.04)
     lat_clean = noisy.times[win][np.argmin(mean_clean[:, win], axis=1)]
     lat_truth = noisy.times[win][np.argmin(mean_truth[:, win], axis=1)]
-    assert np.all(np.abs(lat_clean - lat_truth) <= 0.0005)
+    assert np.all(np.abs(lat_clean - lat_truth) <= LATENCY_TOLERANCE)
 
 
 def test_scaling_follows_per_trial_amplitude() -> None:
@@ -67,7 +71,7 @@ def test_user_template_and_estimate() -> None:
     assert list(templates) == [("C1-C2", 4.0, "biphasic_cathodic_first")]
     tpl = templates[("C1-C2", 4.0, "biphasic_cathodic_first")]
     result = remove_artifact(noisy, method="template", window=WINDOW, template=tpl)
-    assert residual_db(noisy, truth, result.cleaned) >= 20
+    assert residual_db(noisy, truth, result.cleaned) >= MIN_REDUCTION_DB
     with pytest.raises(SettingsError):
         remove_artifact(noisy, method="template", window=WINDOW, template=np.zeros((2, 2)))
 
@@ -122,4 +126,4 @@ def test_saturated_pulses_left_out_of_template() -> None:
     clean_rows = slice(1, None)
     before = np.sum((noisy.data - truth.data)[clean_rows][..., inside] ** 2)
     after = np.sum((result.cleaned.data - truth.data)[clean_rows][..., inside] ** 2)
-    assert 10 * np.log10(before / after) >= 20
+    assert 10 * np.log10(before / after) >= MIN_REDUCTION_DB

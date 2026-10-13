@@ -24,6 +24,10 @@ from evoparam.utils._optional import require
 
 from ._scorers import TIME_SCORES, default_window, resolve_scorer
 
+# Fewest participants for the jackknife corrections
+_MIN_N = 2
+
+
 __all__ = ["jackknife_latency", "jackknife_t", "jackknife_f", "JACKKNIFE_COLUMNS"]
 
 MIN_SUBJECTS = 3
@@ -45,7 +49,7 @@ def jackknife_t(t: Any, n: Any) -> Any:
     >>> jackknife_t(12.0, 13)
     1.0
     """
-    if n < 2:
+    if n < _MIN_N:
         raise SettingsError("n must be at least 2.")
     return float(t) / (n - 1)
 
@@ -58,12 +62,13 @@ def jackknife_f(f: Any, n: Any) -> Any:
     >>> jackknife_f(144.0, 13)
     1.0
     """
-    if n < 2:
+    if n < _MIN_N:
         raise SettingsError("n must be at least 2.")
     return float(f) / (n - 1) ** 2
 
 
 def _subject_label(evoked: Any, position: Any) -> str:
+    """Return the subject of ``evoked`` from its metadata, else its position."""
     meta = evoked.metadata
     if meta is not None and "subject" in getattr(meta, "columns", ()) and len(meta):
         return str(meta["subject"].iloc[0])
@@ -180,6 +185,7 @@ def jackknife_latency(
         picked = [names[i] for i in index]
 
         def score(data: Any) -> Any:
+            """Return the callable's score of each picked channel of an average."""
             ev = Evoked(
                 data=data,
                 times=first.times,

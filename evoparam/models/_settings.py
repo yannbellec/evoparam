@@ -17,8 +17,11 @@ LOSSES = ("linear", "soft_l1", "huber", "cauchy")
 UNCERTAINTIES = ("jacobian", "profile", "bootstrap", "posterior")
 POLARITIES = ("both", "negative", "positive")
 SHAPE_CHOICES = ("bic", "aic")
-# the fall of the criterion a component needs when delta is None and the acceptance cannot
-# be calibrated (a noise model other than "ar", a selection other than "bic"): spec §5.5.4
+# ``delta`` value of the calibrated acceptance (the package default; a preset or a user
+# asks for it with delta="calibrated")
+CALIBRATED = "calibrated"
+# the fall of the criterion a component needs when the acceptance is calibrated but cannot
+# be (a noise model other than "ar", a selection other than "bic"): spec §5.5.4
 FIXED_DELTA = 10.0
 # "ar": residuals whitened by an AR model of the baseline (default, measured better: K1);
 # "neff": spec §5.5.3 step 1 (residuals over sigma_n, n_eff = n (1 - rho) / (1 + rho));
@@ -47,11 +50,12 @@ class FitSettings:
     fit_window: tuple[float, float] | None = None
     baseline: tuple[float, float] | None = None
     selection: str = "bic"
-    # None (default): the fall of BIC a component needs is calibrated on each fit's noise
-    # model at the false-response rate ``alpha`` (models/_calibration.py; noise_model "ar"
-    # and selection "bic"; otherwise FIXED_DELTA); a number: that fixed fall (spec §5.5.4,
-    # delta = 10, which every preset sets). Measured: CHANGELOG, "Calibrated acceptance"
-    delta: float | None = None
+    # "calibrated" (default): the fall of BIC a component needs is calibrated on each fit's
+    # noise model at the false-response rate ``alpha`` (models/_calibration.py; noise_model
+    # "ar" and selection "bic"; otherwise FIXED_DELTA); a number: that fixed fall (spec
+    # §5.5.4, delta = 10, which every preset sets). Measured: CHANGELOG, "Calibrated
+    # acceptance"
+    delta: float | str = CALIBRATED
     alpha: float = 0.03
     # how the allowed shapes of a component are compared: "bic" (on the quick fits of the
     # forward search, spec §5.5.3 step 4; every preset), "aic" (default: every component
@@ -106,6 +110,10 @@ class FitSettings:
     random_state: Any = None
 
     def validate(self) -> "FitSettings":
+        """Normalise the collections and check every field; returns ``self``.
+
+        Raises :class:`~evoparam.errors.SettingsError` naming the first invalid field.
+        """
         if isinstance(self.shapes, str):
             object.__setattr__(self, "shapes", (self.shapes,))
         object.__setattr__(self, "shapes", tuple(self.shapes))
@@ -115,42 +123,27 @@ class FitSettings:
             object.__setattr__(self, "windows", {k: tuple(v) for k, v in self.windows.items()})
         if not self.shapes:
             raise SettingsError("shapes: at least one shape is needed.")
-        if self.selection not in SELECTIONS:
-            raise SettingsError(f"selection must be one of {SELECTIONS}.")
-        if self.loss not in LOSSES:
-            raise SettingsError(f"loss must be one of {LOSSES}.")
-        if self.uncertainty not in UNCERTAINTIES:
-            raise SettingsError(f"uncertainty must be one of {UNCERTAINTIES}.")
-        if self.polarity not in POLARITIES:
-            raise SettingsError(f"polarity must be one of {POLARITIES}.")
+        for name, allowed in (
+            ("selection", SELECTIONS),
+            ("loss", LOSSES),
+            ("uncertainty", UNCERTAINTIES),
+            ("polarity", POLARITIES),
+        ):
+            self._check_choice(name, allowed)
         if not 0 < self.min_fwhm < self.max_fwhm:
             raise SettingsError(
                 f"need 0 < min_fwhm ({self.min_fwhm}) < max_fwhm ({self.max_fwhm})."
             )
         if self.max_components < 0:
             raise SettingsError("max_components must be >= 0.")
-        if self.latency_order not in LATENCY_ORDERS:
-            raise SettingsError(f"latency_order must be one of {LATENCY_ORDERS}.")
+        self._check_choice("latency_order", LATENCY_ORDERS)
         if self.threshold_role not in ("select", "order"):
             raise SettingsError("threshold_role must be 'select' or 'order'.")
-        if self.candidate_search not in CANDIDATE_SEARCHES:
-            raise SettingsError(f"candidate_search must be one of {CANDIDATE_SEARCHES}.")
-        if self.shape_choice not in SHAPE_CHOICES:
-            raise SettingsError(f"shape_choice must be one of {SHAPE_CHOICES}.")
-        if self.delta is not None:
-            if not np.isfinite(float(self.delta)):
-                raise SettingsError("delta must be a finite number or None (calibrated).")
-            object.__setattr__(self, "delta", float(self.delta))
-        if not 0 < self.alpha < 1:
-            raise SettingsError("alpha must be in (0, 1).")
-        if self.noise_model not in NOISE_MODELS:
-            raise SettingsError(f"noise_model must be one of {NOISE_MODELS}.")
-        if self.selection == "fixed" and self.n_components is None:
-            raise SettingsError("selection='fixed' needs n_components.")
-        if self.n_starts < 1 or self.max_iter < 1:
-            raise SettingsError("n_starts and max_iter must be >= 1.")
-        if not 0 < self.ci_level < 1:
-            raise SettingsError("ci_level must be in (0, 1).")
+        self._check_choice("candidate_search", CANDIDATE_SEARCHES)
+        self._check_choice("noise_model", NOISE_MODELS)
+        self._check_choice("shape_choice", SHAPE_CHOICES)
+        self._check_acceptance()
+        self._check_counts()
         for name in ("fit_window", "baseline"):
             value = getattr(self, name)
             if value is not None:
@@ -160,7 +153,39 @@ class FitSettings:
                 object.__setattr__(self, name, value)
         return self
 
+    def _check_choice(self, name: str, allowed: Any) -> None:
+        """Raise SettingsError when the field ``name`` is not one of ``allowed``."""
+        if getattr(self, name) not in allowed:
+            raise SettingsError(f"{name} must be one of {allowed}.")
+
+    def _check_acceptance(self) -> None:
+        """Check ``delta`` (a finite number, or ``"calibrated"``) and ``alpha``.
+
+        ``delta=None`` given to the dataclass reads as ``"calibrated"`` (the package
+        default); in :class:`~evoparam.models.ResponseModel` None means "not given".
+        """
+        if self.delta is None or (isinstance(self.delta, str) and self.delta == CALIBRATED):
+            object.__setattr__(self, "delta", CALIBRATED)
+        elif isinstance(self.delta, str):
+            raise SettingsError(f"delta must be a finite number or {CALIBRATED!r}.")
+        else:
+            if not np.isfinite(float(self.delta)):
+                raise SettingsError(f"delta must be a finite number or {CALIBRATED!r}.")
+            object.__setattr__(self, "delta", float(self.delta))
+        if not 0 < self.alpha < 1:
+            raise SettingsError("alpha must be in (0, 1).")
+
+    def _check_counts(self) -> None:
+        """Check ``n_components`` (fixed selection), ``n_starts``, ``max_iter``, ``ci_level``."""
+        if self.selection == "fixed" and self.n_components is None:
+            raise SettingsError("selection='fixed' needs n_components.")
+        if self.n_starts < 1 or self.max_iter < 1:
+            raise SettingsError("n_starts and max_iter must be >= 1.")
+        if not 0 < self.ci_level < 1:
+            raise SettingsError("ci_level must be in (0, 1).")
+
     def to_dict(self) -> dict[str, Any]:
+        """Return the settings as a dictionary (``dataclasses.asdict``)."""
         return asdict(self)
 
 
@@ -171,14 +196,17 @@ class _FitPresets(Mapping[str, dict[str, Any]]):
     """
 
     def __getitem__(self, name: str) -> dict[str, Any]:
+        """Return the fit fields of the preset ``name``."""
         if name not in _presets.PRESETS:
             raise KeyError(name)
         return _presets.fit_fields(name)
 
     def __iter__(self) -> Iterator[str]:
+        """Iterate over the names of the presets."""
         return iter(_presets.PRESETS)
 
     def __len__(self) -> int:
+        """Return the number of presets."""
         return len(_presets.PRESETS)
 
 
@@ -226,4 +254,5 @@ def resolve_settings(preset: Any = None, **overrides: Any) -> "FitSettings":
 
 
 def settings_field(**kwargs: Any) -> Any:
+    """Return a dataclass field (``dataclasses.field``) of the settings."""
     return field(**kwargs)

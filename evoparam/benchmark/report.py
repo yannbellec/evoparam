@@ -85,6 +85,7 @@ def load_results(folder: Any) -> list[Any]:
 
 
 def _suites(docs: Any) -> list[tuple[Any, Any, Any]]:
+    """Return the (name, version, sha256) of the suites of the result documents."""
     return sorted(
         {(d["suite"]["name"], d["suite"]["version"], d["suite"]["sha256"]) for d in docs}
     )

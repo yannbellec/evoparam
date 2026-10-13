@@ -25,6 +25,15 @@ from evoparam.version import __version__
 
 from ..benchmark.helpers import ROOT
 
+# Thresholds of spec §7.4: recall points (sampling), relative recall and latency (ms) of a
+# preset perturbation.
+SAMPLING_RECALL_POINTS = 5.0
+PRESET_RECALL_REL = 0.10
+PRESET_LATENCY_MS = 2.0
+# 3 x 0.5 rounded, and the relative tolerance of the platform comparison.
+HALVED = 2
+PLATFORM_RTOL = 1e-9
+
 LAYER3 = ROOT / "validation" / "layer3"
 LAYER4 = ROOT / "validation" / "layer4" / __version__
 ANALYSES = ("montage", "preset", "sampling", "trials", "platform")
@@ -72,9 +81,9 @@ def test_req375_the_five_analyses_are_defined(robustness: Any) -> None:
     assert robustness.RATES == (1024.0, 512.0)
     assert robustness.TRIAL_COUNTS == (5, 7, 10)
     assert robustness.PRESET_FACTORS == (0.5, 1.5)
-    assert robustness.SAMPLING_RECALL_POINTS == 5.0
-    assert robustness.PRESET_RECALL_REL == 0.10
-    assert robustness.PRESET_LATENCY_MS == 2.0
+    assert robustness.SAMPLING_RECALL_POINTS == SAMPLING_RECALL_POINTS
+    assert robustness.PRESET_RECALL_REL == PRESET_RECALL_REL
+    assert robustness.PRESET_LATENCY_MS == PRESET_LATENCY_MS
 
 
 def test_req375_preset_perturbation(robustness: Any) -> None:
@@ -83,7 +92,7 @@ def test_req375_preset_perturbation(robustness: Any) -> None:
 
     assert robustness.perturb(0.2, 0.5) == pytest.approx(0.1)
     assert robustness.perturb([0.009, 0.1], 1.5) == pytest.approx([0.0135, 0.15])
-    assert robustness.perturb(3, 0.5) == 2
+    assert robustness.perturb(3, 0.5) == HALVED
     assert robustness.perturb(1, 0.5) == 1
     assert robustness.perturb(True, 0.5) is True
     assert robustness.perturb({"N1": [0.01, 0.05]}, 0.5) == {"N1": [0.005, 0.025]}
@@ -172,7 +181,7 @@ def test_req375_sampling_recall_within_5_points_at_1024_hz(report: Any) -> None:
     (both readings of the published rule)."""
 
     for v in report["sampling"]["verdict"].values():
-        assert v["drop_points_1024"] <= 5.0
+        assert v["drop_points_1024"] <= SAMPLING_RECALL_POINTS
 
 
 def test_req375_preset_sensitivities_are_listed_in_the_preset_docs(report: Any) -> None:
@@ -204,7 +213,7 @@ def test_req375_trial_count_reports_changed_decisions(report: Any) -> None:
 def test_req375_platform_this_machine(report: Any) -> None:
     """§7.4 (5): the deterministic fixture fit equals the reference within 1e-9 here."""
 
-    assert report["platform"]["rtol"] == 1e-9
+    assert report["platform"]["rtol"] == PLATFORM_RTOL
     assert report["platform"]["match"] is True
 
 
@@ -214,7 +223,7 @@ def test_req375_platform_macos_and_windows(report: Any) -> None:
     machine), each within the 1e-9 of REQ-295."""
 
     records = report.get("platforms", [report["platform"]])
-    assert all(r["match"] and r["rtol"] == 1e-9 for r in records), [
+    assert all(r["match"] and r["rtol"] == PLATFORM_RTOL for r in records), [
         (r["platform"], r["max_rel_diff"]) for r in records if not r["match"]
     ]
     seen = {r["platform"].split("-")[0] for r in records}

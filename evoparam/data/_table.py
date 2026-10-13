@@ -131,10 +131,12 @@ class Column(np.ndarray[Any, Any]):  # a NumPy array subclass
 
 
 def _scalar(values: Any) -> bool:
+    """Return whether ``values`` is one value rather than a column."""
     return np.ndim(values) == 0 and not isinstance(values, (list, tuple))
 
 
 def _as_column(values: Any, n_rows: int | None) -> NDArray[Any]:
+    """Return ``values`` as a 1-D column (a scalar repeated over ``n_rows``)."""
     if _scalar(values):
         if n_rows is None:
             raise ValueError("a scalar column needs the number of rows")
@@ -156,9 +158,11 @@ class _ILoc:
     """Row selection by position: ``table.iloc[rows]`` (an int gives the row as a dict)."""
 
     def __init__(self, table: "Table") -> None:
+        """Index the rows of ``table`` by position."""
         self._table = table
 
     def __getitem__(self, rows: Any) -> Any:
+        """Return one row as a dict, or the rows selected as a :class:`Table`."""
         if isinstance(rows, (int, np.integer)):
             return {name: values[int(rows)] for name, values in self._table._data.items()}
         return self._table._take(rows)
@@ -183,6 +187,7 @@ class Table:
     """
 
     def __init__(self, data: Any = None, columns: Sequence[str] | None = None) -> None:
+        """Build a table from a dict of columns, a list of row dicts or another table."""
         self._data: dict[str, NDArray[Any]] = {}
         self.attrs: dict[str, Any] = {}
         if data is None:
@@ -263,6 +268,7 @@ class Table:
         return _ILoc(self)
 
     def _take(self, rows: Any) -> "Table":
+        """Return the rows selected by position, with the same attrs."""
         index = np.arange(len(self))[np.asarray(rows) if not isinstance(rows, slice) else rows]
         out = Table({name: values[index] for name, values in self._data.items()})
         out.attrs = dict(self.attrs)

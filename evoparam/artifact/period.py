@@ -16,6 +16,12 @@ from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = ["estimate_period", "period_lags", "period_filter"]
 
+# Largest search half-width, as a fraction of the guessed period.
+_MAX_SEARCH = 0.5
+
+# Shortest period, in samples, that can be estimated (two samples per cycle).
+_MIN_PERIOD_SAMPLES = 2
+
 # Candidates per stage of the period search.
 N_CANDIDATES = 401
 
@@ -73,10 +79,10 @@ def estimate_period(
     x = cast(FloatArray, np.asarray(x, dtype=float))
     if x.ndim != 1:
         raise SettingsError("estimate_period expects a 1d signal.")
-    if not (sfreq > 0 and f_guess > 0 and 0 < search < 0.5):
+    if not (sfreq > 0 and f_guess > 0 and 0 < search < _MAX_SEARCH):
         raise SettingsError("sfreq and f_guess must be positive, search in (0, 0.5).")
     guess = sfreq / f_guess
-    if guess < 2:
+    if guess < _MIN_PERIOD_SAMPLES:
         raise ArtifactError(
             f"A {f_guess} Hz train is not resolvable at {sfreq} Hz "
             "(fewer than 2 samples per period)."

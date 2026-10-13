@@ -12,6 +12,9 @@ from evoparam.shapes import compute_features
 from evoparam.shapes.registry import BUILTIN_SHAPES, check_shape
 from evoparam.tests.shapes.helpers import TIMES, make_template
 
+# Smallest FWHM (s) of the shape.
+MIN_FWHM = 0.004
+
 
 class Lorentzian:
     """User shape written against the protocol only: ``s = 1/(1 + ((t - c)/w)²)``."""
@@ -85,7 +88,7 @@ def clean_registry() -> Any:
 def test_get_shape_and_background() -> None:
     shape = shapes.get_shape("gaussian", min_fwhm=0.004)
     assert isinstance(shape, shapes.Gaussian)
-    assert shape.min_fwhm == 0.004
+    assert shape.min_fwhm == MIN_FWHM
     assert isinstance(shapes.get_background("exponential"), shapes.ExponentialBackground)
     with pytest.raises(SettingsError, match="unknown shape"):
         shapes.get_shape("triangle")

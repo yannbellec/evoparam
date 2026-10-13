@@ -17,6 +17,9 @@ import evoparam
 from evoparam import presets, sim
 from evoparam.errors import EvoparamVersionError
 
+# min_fwhm (s) of the settings logged.
+MIN_FWHM = 0.003
+
 
 @pytest.fixture(scope="module")
 def fitted() -> Any:
@@ -62,7 +65,7 @@ def test_settings_log(fitted: Any) -> None:
 
     trials, group, again = fitted
     settings = group.settings
-    assert settings["min_fwhm"] == 0.003
+    assert settings["min_fwhm"] == MIN_FWHM
     assert settings["_overrides"] == ["min_fwhm"]
     assert settings["preset"] == {"name": "ccep", "version": presets.get("ccep").version}
     fit_step = next(

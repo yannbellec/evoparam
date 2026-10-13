@@ -176,6 +176,19 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
 - **`candidate_search` (step 4).** `"beam"` stays the default (more robust on CCEP-like
   simulations, better N1 kappa, about 9 times faster; CHANGELOG "Fitting engine as written");
   the reviewed search is `candidate_search="spec"`.
+- **Extrema tried before the search stops (step 4, REQ-290 P1; 2026-10-13).** The beam
+  search tried up to 2 × `max_components` residual extrema at every step, so the last step
+  of every fit, which adds nothing, cost up to 24 quick fits (a third of P1's evaluations).
+  It now stops after the six strongest extrema when none of them improves the criterion by
+  `delta` (`engine.CANDIDATE_SCAN`; a step with a qualifying extremum still scans until its
+  beam is full). Six because the first qualifying extremum of a step was at most the sixth
+  on the layer-2 development cells (the first in 546 of the 559 steps that added one). Measured on both seed
+  sets of the layer-2 grid, the REQ-104–112 engine waveforms and the seven ds004080 runs
+  of layer 3: recall, F1 on the engine waveforms and the N1 kappa unchanged, precision equal
+  or higher, 3 of 936 simulated fits and 32 of 615 channels differ (CHANGELOG "Engine
+  speed, part 4"). Three extrema were measured too and rejected: recall drops on `ecap`,
+  `animal` and `erna` cells. So was polishing the background once at the end instead of
+  after each accepted component (N1 kappa 0.386 → 0.347).
 - **`latency_order` (step 5).** The reviewed ordered parameterisation
   (`"parameterised"`) stays the default; `"sorted"` is an option. On the ECAP simulations
   neither is better on both kinds and both seed sets.
@@ -966,8 +979,10 @@ expected failure whose reason gives the measured value; no criterion was weakene
   untested requirements, or the reason of an expected failure, cannot mark them as tested.
 - **P3 chunked fit (REQ-290).** §9.1 P3 reads "chunked", but `evoparam.fit` has no `chunk`
   argument. P3 is measured on the plain call and on the memory-mapped set. The full size
-  (500 × 256 × 4 096 float64, 4.19 GB) was not run on the 15 GB reference machine: the
-  in-memory peak measured at the CI size, 3.3× the data, would exceed its RAM.
+  (500 × 256 × 4 096 float64, 4.19 GB) was not run: the memory-mapped variant needs the
+  4.19 GB file on a disk that has about 5 GB free, and the in-memory one needs the data
+  and its peak (1.5× the data at the CI size since 2026-10-13, 3.3× before) in the 15 GB
+  of RAM next to the other jobs of the machine.
 - **P6 in a full environment.** P6 is measured with every extra installed. No optional
   module is loaded by `import evoparam` (`optional_modules_loaded` is empty in the results),
   so the time is that of the core.
@@ -1020,3 +1035,281 @@ expected failure whose reason gives the measured value; no criterion was weakene
   run's (blocks, pulse counts, 0.2 Hz), not the protocol's range, which the data do not
   follow.
 
+- **REQ-134, significance of the cross-projection test (2026-10-13).** §5.6 item 2 tests
+  "the projection magnitudes of one half of the non-overlapping pairs" with a one-sample
+  t-test. Read as the paper's set (one projection per unordered pair) it reproduces the
+  published decisions but rejects pure noise at 0.33 to 0.44 for alpha = 0.05 (the values
+  share trials); read as disjoint pairs it is nearly valid (0.145) but its decisions depend
+  on the random pairing (0.89 agreement on average). The default is a sign-flip
+  permutation test of the same projections (the null of trials of random sign, the peak of
+  the profile recomputed for every pattern): published decisions 10 of 10 and a rejection
+  rate of 0.05 on noise, measurably better than both readings; the two t-tests stay
+  available (`projection_pairs`).
+
+## 7. Static quality rules applied as written (REQ-305, REQ-301)
+
+REQ-305 and REQ-301 are met as written. All the rule sets stay selected. The thresholds
+are unchanged (line length 99, complexity 12, 8 arguments, 60 statements), and no package
+file is excluded. The commands, on branch `qualite-zero`, against 833968f:
+
+| tool | before | after |
+|---|---|---|
+| `ruff check evoparam benchmarks docs/tutorials examples` | 1 264 findings | 0 |
+| `ruff format --check` (same paths) | clean (440 files) | clean (441 files after the merge) |
+| `interrogate -v evoparam` | 68.3 % | 97.1 % |
+| `mypy --strict evoparam` | 1 error (patsy) | 0 (172 files) |
+| `pyright --verifytypes evoparam --ignoreexternal` | 96.2 % | 96.8 % |
+
+The 1 264 findings before were:
+
+| rule | package | tests | other paths |
+|---|---|---|---|
+| PLR2004 (magic values) | 211 | 834 | 1 |
+| PLR0913 (more than 8 arguments) | 51 | 9 | 0 |
+| C901 (complexity above 12) | 46 | 3 | 0 |
+| PLR0912 (too many branches) | 44 | 1 | 0 |
+| PLR0917 (more than 8 positional arguments) | 25 | 7 | 0 |
+| PLR0915 (more than 60 statements) | 19 | 1 | 0 |
+| PLR0911 (too many returns) | 12 | 0 | 0 |
+
+A top-level `tests/` folder does not exist: the tests live in `evoparam/tests`, which
+`ruff check evoparam` covers (see §6, `grep errstate`). The changes below leave the
+behaviour the same, except for the signatures listed at the end of §7.2. Each refactored
+function was compared with 833968f on reference cases: results, written files, and the
+category, message and source file of each warning. Each magic-value change was checked
+by comparing syntax trees, with the new constants replaced by their values. The test
+files of each module were run.
+
+### 7.1 Magic values (PLR2004)
+
+Each compared literal is now a named module constant with a comment: what the value
+is, and the requirement or quantity it comes from. Constants are private (`_NAME`) in
+the package and plain (`NAME`) in the tests. After inlining the constants, the syntax
+trees of the changed files equal those of 833968f. A value used by several modules
+stays in each module, so that each module reads on its own.
+
+### 7.2 Signatures with more than 8 parameters (PLR0913): the spec vs REQ-305
+
+REQ-305 caps functions at 8 arguments. Yet §5 gives many public signatures more than 8
+parameters, and the build added keyword-only options to some of them. A public signature
+cannot change without changing the API, so these functions keep one per-line
+`# noqa: PLR0913`. Each noqa names the spec section and the counts. Every private function
+above the cap was refactored instead. Its parameters are grouped in a private dataclass
+or NamedTuple, or it was split in two. The PLR0913 noqa went from 24 to 42. The 60
+findings before are now 0: 19 public signatures gained a noqa, and the other 41 functions
+were refactored (private functions, internal helpers and test helpers). The same
+refactoring removed the noqa of `existence.permutation.permutation_test`.
+
+Public signatures fixed by the spec. Counts exclude `self`, `*args` and `**kwargs`. "Added"
+lists the keywords beyond the spec signature:
+
+| function | spec | spec count | actual | added |
+|---|---|---|---|---|
+| `artifact.remove_artifact` | §5.3 | 28 | 40 | 12 method options |
+| `events.detect_pulses` | §5.2 | 14 | 23 | `min_relative`, `recovery_sd`, `ch_names`, `ch_info`, `saturation`, `vote`, `score_channels`, `procedure`, `site_method` |
+| `events.detect_saturation` | §5.2 | 7 | 10 | `t0`, `ch_names`, `picks` |
+| `events.identify_stim_site` | §5.2 | 7 | 12 | `picks`, `exclude`, `lead`, `hold`, `method` |
+| `existence.test_response` | §5.6 | 17 | 23 | `rule_overrides`, `allow_artifact_overlap`, `n_boot`, `projection_profile`, `projection_pairs`, `on_error` |
+| `hierarchical.fit_hierarchical` | §5.8 | 14 | 17 | `preset`, `group_fits`, `subject_column` |
+| `io.read_bids` | §5.1 | 14 | 15 | `stim_mapping` (§10.2) |
+| `io.write_bids_derivatives` | §5.1 | 11 | 14 | `units`, `source_dataset`, `trials` |
+| `io.epoch` | §5.1 | 10 | 10 | |
+| `io.read_nwb` | §5.1 | 7 | 9 | `select`, `units` |
+| `io.from_array` | §5.1 | 9 | 9 | |
+| `models.ResponseModel.__init__` | §5.5.8 | 30 | 43 | 13 engine settings (`noise_model` … `threshold_role`) |
+| `models.ResponseModel.fit_waveform` | §5.5.8 | 7 | 11 | `random_state`, `noise_ref`, `unit`, `on_error` |
+| `models.fit` | §5.5.8 | 14 | 14 | |
+| `models.classical_measures` | §5.5.8 | 12 | 12 | |
+| `prep.reject_trials` | §5.4 | 9 | 10 | `all_channels_fraction` |
+| `sim.simulate_erp` | §5.12 item 1 | 12 | 18 | `jitter`, `jitter_tau`, `noise_sd`, `noise_kw`, `ch_names`, `keep_arrays` |
+| `sim.simulate_ccep` | §5.12 item 2 | 14 | 31 | 17 options (time span, layout, response probabilities, noise, variability, artifact shape) |
+| `spatial.shared_shapes` | §5.9 | 11 | 11 | |
+| `spatial.fit_shared` | §5.9 | 8 | 11 | `smooth_lambda`, `group_fit`, `reject_cancelling` |
+| `stats.bootstrap` | §5.11 | 8 | 10 | `window`, `expand` |
+| `stats.compare_conditions` | §5.11 | 8 | 12 | `by`, `conditions`, `ci_level`, `n_boot` |
+| `stats.reliability` | §5.11 | 7 | 9 | `window`, `picks` |
+| `stats.trials_needed` | §5.11 | 5 | 9 | `window`, `picks`, `existence_kwargs`, `extrapolation` |
+| `stream.StreamFitter.__init__` | §10.6 | 11 | 17 | `saturation`, `existence_alpha`, `existence_max_pulses`, `existence_looks`, `random_state`, `mode` |
+| `tf.tf_fit` | §5.10 | 25 | 27 | `stft_window`, `channel_correction` |
+| `trials.fit_trials` | §5.7 | 16 | 21 | `preset`, `trial_model`, `null_rule`, `ridge_cv`, `on_error` |
+
+In nine rows the spec signature itself has 8 parameters or fewer. Only the added keywords
+put the function above the cap (`detect_saturation`, `identify_stim_site`, `read_nwb`,
+`fit_waveform`, `fit_shared`, `bootstrap`, `reliability`, `trials_needed`, and
+`reject_trials` by one). Moving those keywords into an options object would change a
+released keyword API, so they are kept and listed here.
+
+Public functions that the spec does not give a signature for. Some it names only, such as
+the generators of §5.12, line "`sim.gen.simulate_erp`". These have keyword-only options
+and the noqa reason "public API outside the spec signatures":
+`benchmark.run_suite` (10), `io.read_bids_derivatives` (9), `plots.plot_group` (9),
+`plots.plot_signals_yshade` (10), `reports.run_pipeline` (12), `sim.simulate_bursts` (11),
+`sim.simulate_erna` (23), `sim.simulate_tep` (19), `sim.simulate_ecap` (25),
+`sim.simulate_animal_ep` (22), `sim.inject` (11), `sim.make_noise` (16),
+`sim.match_components` (9), `stats.score_waveforms` (9), `tf.make_kernels` (9).
+
+Some functions with more than 8 parameters are listed in the `__all__` of their module.
+Their subpackage does not re-export them, and neither the spec nor the documentation names
+them; they serve the package internally. They now take their settings grouped:
+
+- `existence.permutation.permutation_test` and `shuffle_test` take
+  `options=PermutationOptions(...)` (permutations, statistic, cluster threshold,
+  polarity, alpha, bootstrap draws, jobs).
+- `hierarchical.bayes.sample` takes `nuts=NutsSettings(...)` (chains, warm-up, draws,
+  target acceptance, seed).
+- `sim.artifacts.pulse_shape` takes `amplifier=AntiAliasFilter(cutoff_fraction, order)` in
+  place of `cutoff_fraction` and `filter_order`.
+- `sim.generators.stimulation_artifact` takes a `StimulusPulse` and a `RecoveryTail`.
+- In private modules: `sim._engine.assemble` takes `Design`, `NoiseSpec`, `Variability`
+  and `Recording`; `models._trf.least_squares_trf` takes `TrfOptions`;
+  `models._fast.optimise` takes grouped tuples.
+
+The default values are the same, so the public entry points that call these functions
+(`test_response`, `fit_hierarchical`, the generators) give the same results; §7 explains
+how that was checked. One more change can be seen. The private
+`io.readers._read_continuous` now reads the TrialSet labels (`metadata`, `ch_info`,
+`species`, `modality`) into a private `_Labels` dataclass. If `read()` gets an unknown
+keyword for a BrainVision, EDF or MEF file, it still raises `TypeError`, but the message
+now names `_Labels.__init__()` instead of `_read_continuous()`.
+
+### 7.3 PLR0917 (too many positional arguments)
+
+PLR0917 belongs to the `PL` set that REQ-305 selects, so it stays on. Before, it fired 32
+times: on 25 private functions of the package (the compiled kernels of `models._fast`,
+the BIDS run readers, `spatial.shared`, ...) and on 7 test helpers. It never fired on a
+public signature, because the spec makes the options keyword-only. Every finding was
+refactored, not ignored:
+
+- the numba kernels take grouped tuples (model, whitening, priors, work spaces);
+- the other private functions take a NamedTuple or dataclass, or keyword-only parameters;
+- the test helpers take a frozen dataclass of their defaults (§7.5).
+
+### 7.4 PT028 in two package modules
+
+PT028 (a pytest test function with default arguments) fired 27 times on
+`existence.test_response` (§5.6) and `tf.stats.test_map`. Both are statistical tests
+whose names the API fixes, not pytest tests, so the rule does not apply to them. Before,
+there were 27 per-line noqa. Now two `per-file-ignores` entries (`PT028` only) in
+`pyproject.toml` say so with the reason. Every other rule stays on in these files. This is
+the only per-file rule exemption added.
+
+### 7.5 Complexity, branches, statements and returns
+
+Before, C901, PLR0912, PLR0915 and PLR0911 had 72 noqa and 126 open findings. Now they
+have 0 noqa and 0 findings. Each long function was split into named private helpers,
+with the order of operations and of random draws unchanged. A warning moved into a helper
+gets a `stacklevel` one higher per level, so it still points at the user's call; the
+reference cases compare the source file of each warning.
+
+The test helpers that built simulated data from many keywords now take
+`**keywords: Any`, read into a frozen dataclass of the same defaults. These are
+`GroupDesign` (hierarchical), `OverlayDesign` (artifact), `RecordingDesign` (events),
+`EpochsDesign` (prep), `TrialsDesign` (trials), `WaveformOptions` (models), and
+`BrainVisionLayout` and `MefOptions` (io). Calls are unchanged, and each helper returns
+the same arrays and files as before.
+
+### 7.6 Other noqa kept, each with its reason
+
+Each remaining `# noqa` names its reason on the line. There are 197, against 231 before.
+Besides PLR0913 (§7.2), they cover:
+
+- `ARG001`/`ARG002`: arguments of a fixed interface (the shape protocol, scikit-learn's
+  `X, y`), or arguments read by the `@verbose` decorator.
+- `N803`: `X` in the scikit-learn API (§10.4).
+- `BLE001`: user code or optional steps whose failure is reported, never hidden.
+- `E402`: sphinx-gallery sections, `pytest.importorskip`, the `sys.path` insert of
+  `benchmarks/run_benchmarks.py`.
+- `D205`/`D400`: sphinx-gallery titles in the tutorials and examples.
+- `F401`: availability checks (`mne`, `tabulate`, `jsonschema`, scikit-learn ≥ 1.6).
+- `A001`/`A002`: `presets.list` and `read(format=...)`, named by the spec, and the
+  public keyword `map` of `to_mne`.
+- `NPY201`: the `trapz` fallback for NumPy < 2.0.
+- A few single cases, each explained on its line.
+
+Two `E731` lambdas of `sim.generators._overlap_offsets` were removed (direct returns, same
+draws).
+
+### 7.7 Docstrings, typing and pre-commit
+
+- `interrogate` (97.1 %) measures the package as `[tool.interrogate]` configured it
+  before this work, with `evoparam/tests` excluded. Ruff's `D` rules are likewise ignored
+  for `evoparam/tests/**`. Both settings predate this work, and the spec places the tests
+  outside the package (`tests/`). They were kept, and the D rules apply to every other
+  file. With the tests counted, interrogate would report 66.8 %.
+- `mypy --strict`: `patsy` (extra `stats`) and `pytensor` (extra `bayes`) joined the
+  `ignore_missing_imports` override. Both are optional packages without type information.
+  No core module is listed.
+- `.pre-commit-config.yaml` pins ruff, mypy and interrogate to the versions of the CI lock
+  files. The mypy hook checks the whole package with the locked stubs. `end-of-file-fixer`
+  leaves out the byte-exact format-1 containers (each checked by its sha256) and the
+  generated validation reports.
+
+### 7.8 `pre-commit run --all-files` and the CI lint job
+
+REQ-305 asks for two more checks:
+
+- `pre-commit run --all-files` must pass. It runs the ruff hooks on every file of the
+  repository.
+- The `lint` job of `ci.yml` runs `ruff check` on `validation` and `tools` as well.
+
+So these checks cover more than the REQ-305 paths. Before, they failed on 275 findings in
+`tools/`, `validation/`, `tutorials/` and `docs/conf.py`, and 24 of those files needed
+reformatting. These files were fixed the same way as the package, with nothing excluded:
+
+- docstrings were added or rewritten;
+- named constants replace magic values;
+- the layer-3 report rows take grouped values;
+- `strict=True` is set on `zip` where the inputs come from one source;
+- each remaining noqa has its reason.
+
+The generated files they write are unchanged: `--check` passes for `gen_soup`,
+`gen_glossary`, `gen_registry_doc`, `gen_references_bib`, `gen_api_index`,
+`freeze_methods_text` and `validation/layer3_report.py`, and `check_traceability`,
+`add_spdx_headers --check` and `layer3_gate` give the same results. The `--help` text of
+`benchmark_suites` and `gen_soup` now shows the new one-line summary of the module.
+
+The ruff-format hook also formats the Python blocks of Markdown files. It would reformat
+`docs/spec/SPEC.md`, which is never edited. `SPEC.md` is therefore in ruff's
+`extend-exclude` (`pyproject.toml`), and no other file is excluded. With this, `pre-commit
+run --all-files` passes every hook, and leaves the tree unchanged: ruff, ruff-format, mypy,
+interrogate, check-yaml and end-of-file-fixer. nbstripout has no notebook to check.
+
+### 7.9 Merge of integration-2 (4f2c44d)
+
+integration-2 moved on after 833968f (lazy package root, compiled kernel, P1 and P3 work
+in the engine, the existence test and the containers, pulse detection, ERP CORE). Where
+it changed a function that §7 had split, its change was carried into the split version:
+
+- `events.detect_pulses`: the fallback to the 90th percentile score and the size gate are
+  in `_evoparam_candidates` and `_strength_gate`. The deflection size is measured by
+  `artifact_size`, which `_event_table` also uses.
+- `existence.test_response`: the single copy of the tested trials (`_select`, `_span`) is
+  in `_Tester.run`.
+- `models._fast`: the lag groups of the whitening are split into `_lag_groups` and
+  `_lags`. The reassociated `_finite` replaces the per-entry test of §7, so
+  `_all_finite` is gone.
+- `models.engine`: the changes are carried into the helpers of §7. These are the compiled
+  fit before the objective, the memo of the background bounds, the shapes and the
+  features, the array selection of `candidates` (`_select_list`, `_select_array`) and
+  `CANDIDATE_SCAN`.
+
+The tests and validation scripts are integration-2's. Their results equal integration-2's
+to the bit:
+
+- 128 reference cases match, including the compiled and NumPy fits.
+- 68 cases of pulse detection and existence tests match; these cover the 90th-percentile
+  fallback, the size gate and every pairing of the projection test.
+- The fixture matches (largest difference 0).
+- `freeze_methods_text`, `gen_api_index` and `gen_soup` pass `--check`.
+
+The merged tree had 67 new ruff findings (PLR2004 31, docstrings 25, E501 3, C901 2, PT018
+2, I001 2, SIM105 1, S110 1), 5 unformatted files and 2 mypy errors, all in code from
+integration-2. They were fixed in the same way as in the rest of §7:
+
+- Each magic value is now a named constant, or uses an existing one.
+- The two composite assertions of `test_subspace_real` are split in two.
+- `validation/robustness.py` `main` and `markdown` are split into named helpers.
+- The warm-up of `bench_artifact` uses `contextlib.suppress`.
+- The frozen-dataclass test of `engine._shape` reads `__dataclass_params__` once.
+
+One noqa was added: the E402 of the detector registration at the package root.

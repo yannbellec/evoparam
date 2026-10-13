@@ -27,6 +27,9 @@ from evoparam.trials import FixedShapeModel
 
 __all__ = ["StreamFitter", "PulseEstimate", "replay", "INTENDED_USE", "STATUSES"]
 
+# Dimensions of a block of samples [n_samples, n_channels] and of a raw recording.
+_MATRIX_NDIM = 2
+
 INTENDED_USE = "research only; not a medical device"
 STATUSES = ("ok", "artifact", "late", "saturated")
 BACKENDS = ("numpy",)
@@ -128,7 +131,7 @@ class StreamFitter:
     medical device).
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913  (spec §10.6 fixes 11 parameters, plus saturation, existence_alpha, existence_max_pulses, existence_looks, random_state and mode; DECISIONS.md §7.2)
         self,
         template: Any,
         *,
@@ -149,6 +152,7 @@ class StreamFitter:
         random_state: Any = None,
         mode: str = "shift_scale",
     ) -> None:
+        """Freeze the template and allocate the buffers (see the class docstring)."""
         if backend not in BACKENDS:
             raise SettingsError(f"backend must be one of {BACKENDS}, not {backend!r}.")
         self.sfreq: float = float(sfreq)
@@ -310,7 +314,7 @@ class StreamFitter:
         samples = np.asarray(samples, float)
         if samples.ndim == 1:
             samples = samples[None]
-        if samples.ndim != 2 or samples.shape[1] != len(self.ch_names):
+        if samples.ndim != _MATRIX_NDIM or samples.shape[1] != len(self.ch_names):
             raise DataError(
                 f"samples must be [n_samples, {len(self.ch_names)}], got {list(samples.shape)}."
             )
@@ -328,6 +332,7 @@ class StreamFitter:
         return out
 
     def _push_chunk(self, chunk: Any, stamps: Any) -> list[Any]:
+        """Store a chunk in the ring buffer; return the estimates of the windows it completes."""
         first = self.n_samples
         rows = np.arange(first, first + len(chunk)) % self._n_buffer
         self._buffer[:, rows] = chunk.T
@@ -366,6 +371,7 @@ class StreamFitter:
         )
 
     def _estimate(self, onset: Any, pulse_time: Any) -> list[Any]:
+        """Return the estimates of the pulse at sample ``onset``, one per channel."""
         start = time.perf_counter()
         oldest = max(0, self.n_samples - self._n_buffer)
         if onset + self._window_rows[0] < oldest:
@@ -463,7 +469,7 @@ def replay(trialset_or_raw: Any, fitter: "StreamFitter", chunk_size: int = 32) -
         pulse_samples = start + np.arange(ts.n_trials) * ts.n_times + zero
     else:
         raw = np.asarray(trialset_or_raw, float)
-        if raw.ndim != 2 or raw.shape[0] != len(fitter.ch_names):
+        if raw.ndim != _MATRIX_NDIM or raw.shape[0] != len(fitter.ch_names):
             raise DataError(f"A raw array must be [{len(fitter.ch_names)}, n_times].")
         stream = raw.T
         pulse_samples = []

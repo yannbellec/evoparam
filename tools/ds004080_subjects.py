@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Write validation/ds004080_subjects.txt: the ds004080 subjects of the layer-3 validation,
-chosen by the rule of spec §7.3 before any result is seen (REQ-371).
+"""Write validation/ds004080_subjects.txt, the ds004080 subjects of the layer-3 validation.
+
+They are chosen by the rule of spec §7.3 before any result is seen (REQ-371).
 
 Rule: the first five subjects in alphabetical order of BIDS subject label that have at least
 one run with >= 10 trials per stimulation pair at 2 048 Hz, plus sub-ccepAgeUMCU01 (the
@@ -25,17 +26,20 @@ EXAMPLE = "sub-ccepAgeUMCU01"
 N_SUBJECTS = 5
 MIN_TRIALS = 10
 SFREQ = 2048.0
+# Largest difference (Hz) from SFREQ of a run kept.
+SFREQ_TOLERANCE = 1e-3
 
 
 def _runs(listing, subject):
-    return sorted(path[:-len("_events.tsv")] for path in listing
-                  if path.startswith(subject + "/") and "/ieeg/" in path
-                  and path.endswith("_events.tsv"))
+    return sorted(
+        path[: -len("_events.tsv")]
+        for path in listing
+        if path.startswith(subject + "/") and "/ieeg/" in path and path.endswith("_events.tsv")
+    )
 
 
 def qualifies(listing, subject, fetch):
-    """(True, run) for the first run of the subject meeting the rule, else (False, None)."""
-
+    """Return (True, run) for the first run of the subject meeting the rule, else (False, None)."""
     import pandas as pd
 
     for stem in _runs(listing, subject):
@@ -43,7 +47,7 @@ def qualifies(listing, subject, fetch):
         if sidecar not in listing:
             continue
         info = json.loads(fetch(f"{ROOT}/{sidecar}"))
-        if abs(float(info.get("SamplingFrequency", 0)) - SFREQ) > 1e-3:
+        if abs(float(info.get("SamplingFrequency", 0)) - SFREQ) > SFREQ_TOLERANCE:
             continue
         events = pd.read_csv(io.BytesIO(fetch(f"{ROOT}/{stem}_events.tsv")), sep="\t")
         stim = events[events["trial_type"].astype(str).str.contains("stimulation")]
@@ -56,10 +60,11 @@ def qualifies(listing, subject, fetch):
 
 
 def select(fetch=None, listing=None):
+    """Return the qualifying (subject, run) pairs and the sha256 of participants.tsv."""
     from evoparam.io._fetch import fetch_bytes
     from evoparam.io.mef import _list_remote
 
-    fetch = fetch or (lambda url: fetch_bytes(url))
+    fetch = fetch or fetch_bytes
     listing = listing if listing is not None else _list_remote(ROOT, None)
     subjects = sorted({path.split("/")[0] for path in listing if path.startswith("sub-")})
     chosen = []
@@ -78,12 +83,15 @@ def select(fetch=None, listing=None):
 
 
 def main(path="validation/ds004080_subjects.txt"):
+    """Write the subject list to ``path`` and return the (subject, run) pairs."""
     chosen, sha = select()
-    lines = [f"# ds004080 v{VERSION}; participants.tsv sha256 {sha}",
-             f"# rule: first {N_SUBJECTS} subjects (alphabetical) with a run of >= {MIN_TRIALS} "
-             f"trials per stimulation pair at {SFREQ:g} Hz other than {EXAMPLE}, plus {EXAMPLE} "
-             "(spec §7.3; six subjects, owner decision D14)",
-             "# subject\tfirst qualifying run"]
+    lines = [
+        f"# ds004080 v{VERSION}; participants.tsv sha256 {sha}",
+        f"# rule: first {N_SUBJECTS} subjects (alphabetical) with a run of >= {MIN_TRIALS} "
+        f"trials per stimulation pair at {SFREQ:g} Hz other than {EXAMPLE}, plus {EXAMPLE} "
+        "(spec §7.3; six subjects, owner decision D14)",
+        "# subject\tfirst qualifying run",
+    ]
     lines += [f"{subject}\t{run}" for subject, run in chosen]
     pathlib.Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
     return chosen

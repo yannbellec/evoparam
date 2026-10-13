@@ -16,10 +16,15 @@ import numpy as np
 from evoparam._typing import Any, ArrayLike, FloatArray, RandomState
 from evoparam.errors import SettingsError
 
+# Waveforms of a band: [n_trials, n_times]
+_WAVEFORMS_NDIM = 2
+
+
 __all__ = ["waveform_band", "strip_jitter", "AVERAGES", "SPREADS"]
 
 
 def _sem(values: Any, axis: int = 0) -> Any:
+    """Return the standard error of the mean along ``axis``."""
     values = np.asarray(values, dtype=float)
     return np.std(values, axis=axis, ddof=1) / np.sqrt(values.shape[axis])
 
@@ -52,13 +57,13 @@ def waveform_band(
     center, half_width : 1-D arrays
     """
     signals = np.asarray(signals, dtype=float)
-    if (isinstance(spread, str) or callable(spread)) and signals.ndim != 2:
+    if (isinstance(spread, str) or callable(spread)) and signals.ndim != _WAVEFORMS_NDIM:
         raise SettingsError("signals must be 2-D when the spread is not given as an array.")
     if isinstance(average, str) and average not in AVERAGES:
         raise SettingsError(f"average must be one of {tuple(AVERAGES)} or a function.")
     if isinstance(spread, str) and spread not in SPREADS:
         raise SettingsError(f"spread must be one of {tuple(SPREADS)}, an array or a function.")
-    if signals.ndim == 2:
+    if signals.ndim == _WAVEFORMS_NDIM:
         center = (
             AVERAGES[average](signals, axis=0)
             if isinstance(average, str)

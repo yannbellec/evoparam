@@ -32,8 +32,16 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPDX = "# SPDX-License-Identifier: Apache-2.0"
-EXCLUDED = ("adapters", "build", "dist", ".git", "docs/_build", "docs/auto_tutorials",
-            "docs/auto_examples", "docs/generated")
+EXCLUDED = (
+    "adapters",
+    "build",
+    "dist",
+    ".git",
+    "docs/_build",
+    "docs/auto_tutorials",
+    "docs/auto_examples",
+    "docs/generated",
+)
 UPSTREAM = "the upstream project and commit named in NOTICE"
 # file → changes made to the inherited code (S20: tools/check_no_inherited_code.py --inherited
 # <export of the first commit> finds evoparam/utils/_modutils.py with 8-line windows; with
@@ -41,39 +49,44 @@ UPSTREAM = "the upstream project and commit named in NOTICE"
 # equations of evoparam/shapes/components.py come from the inherited shape functions)
 INHERITED = {
     "evoparam/utils/_modutils.py": "moved from core/modutils.py into utils/ (spec §4.5); "
-                                   "module docstring rewritten; functions unchanged",
+    "module docstring rewritten; functions unchanged",
     "evoparam/plots/_signals.py": "signal and summary figures of plts/signals.py and "
-                                  "plts/templates.py rewritten: each returns the Figure, "
-                                  "accepts ax=, never calls show(), uses the Okabe and Ito "
-                                  "palette and draws numbers computed by evoparam.stats",
+    "plts/templates.py rewritten: each returns the Figure, "
+    "accepts ax=, never calls show(), uses the Okabe and Ito "
+    "palette and draws numbers computed by evoparam.stats",
     "evoparam/shapes/components.py": "Gaussian and skewed-Gaussian equations of core/funcs.py "
-                                     "rewritten with unit amplitude, vectorised over parameter "
-                                     "sets, with analytic Jacobians; the other shapes are new",
+    "rewritten with unit amplitude, vectorised over parameter "
+    "sets, with analytic Jacobians; the other shapes are new",
 }
 # file → licence of the third-party code it derives from (named, with its licence text, in
 # NOTICE); its SPDX header names both licences
 DERIVED = {
-    "evoparam/models/_trf.py": "BSD-3-Clause",       # SciPy's trust-region reflective solver
-    "evoparam/models/_fast.py": "BSD-3-Clause",      # the same solver; Cephes' erfc (SciPy)
+    "evoparam/models/_trf.py": "BSD-3-Clause",  # SciPy's trust-region reflective solver
+    "evoparam/models/_fast.py": "BSD-3-Clause",  # the same solver; Cephes' erfc (SciPy)
 }
 
 
 def spdx(rel):
-    """The SPDX header line of the file ``rel`` (relative to the repository root)."""
-
+    """Return the SPDX header line of the file ``rel`` (relative to the repository root)."""
     return f"{SPDX} AND {DERIVED[rel]}" if rel in DERIVED else SPDX
 
 
 def notice(changes):
-    """The modification notice, wrapped at 99 characters (continuation lines ``#   ``)."""
-
+    """Return the modification notice, wrapped at 99 characters (continuation ``#   ``)."""
     import textwrap
 
-    return "\n".join(textwrap.wrap(f"Modified from {UPSTREAM} (Apache-2.0); changes: {changes}",
-                                   width=99, initial_indent="# ", subsequent_indent="#   "))
+    return "\n".join(
+        textwrap.wrap(
+            f"Modified from {UPSTREAM} (Apache-2.0); changes: {changes}",
+            width=99,
+            initial_indent="# ",
+            subsequent_indent="#   ",
+        )
+    )
 
 
 def source_files(root=ROOT):
+    """Return the Python files of ``root`` that carry the header (EXCLUDED and caches left out)."""
     out = []
     for path in sorted(root.rglob("*.py")):
         rel = path.relative_to(root).as_posix()
@@ -87,28 +100,26 @@ def source_files(root=ROOT):
 
 def _header(lines):
     """Index of the first line after a ``#!`` line."""
-
     return 1 if lines and lines[0].startswith("#!") else 0
 
 
 def problems(path, root=ROOT):
-    """What the header of ``path`` lacks (empty when it is right)."""
-
+    """Return what the header of ``path`` lacks (empty when it is right)."""
     rel = path.relative_to(root).as_posix()
     lines = path.read_text(encoding="utf-8").splitlines()
     start = _header(lines)
     found = []
     if len(lines) <= start or lines[start] != spdx(rel):
         found.append("no SPDX header on its first line")
-    if rel in INHERITED:
-        if len(lines) <= start + 1 or not lines[start + 1].startswith("# Modified from "):
-            found.append("inherited file without the modification notice")
+    if rel in INHERITED and (
+        len(lines) <= start + 1 or not lines[start + 1].startswith("# Modified from ")
+    ):
+        found.append("inherited file without the modification notice")
     return found
 
 
 def add(path, root=ROOT):
     """Add the missing header lines to ``path``; True when the file changed."""
-
     rel = path.relative_to(root).as_posix()
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines(keepends=True)
@@ -117,8 +128,9 @@ def add(path, root=ROOT):
     if len(lines) <= start or lines[start].rstrip("\n") != spdx(rel):
         lines.insert(start, spdx(rel) + "\n")
         changed = True
-    if rel in INHERITED and not (len(lines) > start + 1
-                                 and lines[start + 1].startswith("# Modified from ")):
+    if rel in INHERITED and not (
+        len(lines) > start + 1 and lines[start + 1].startswith("# Modified from ")
+    ):
         lines.insert(start + 1, notice(INHERITED[rel]) + "\n")
         changed = True
     if changed:
@@ -127,9 +139,13 @@ def add(path, root=ROOT):
 
 
 def main(argv=None):
+    """Add the missing headers, or with ``--check`` list the files without one."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--check", action="store_true",
-                        help="list the files without the header and fail if there is one")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="list the files without the header and fail if there is one",
+    )
     args = parser.parse_args(argv)
     files = source_files()
     if args.check:

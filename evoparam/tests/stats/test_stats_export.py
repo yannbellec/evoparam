@@ -19,6 +19,9 @@ from .helpers import N1
 
 pd = pytest.importorskip("pandas")
 
+# Rows of the table exported.
+N_ROWS = 10
+
 HAS_STATSMODELS = importlib.util.find_spec("statsmodels") is not None
 
 ###################################################################################################
@@ -109,7 +112,7 @@ def test_req235_long_table() -> None:
     # channels without a component keep their rows, with their status, and no value
     for channel, status in (("X1", "failed"), ("X2", "skipped")):
         rows = long[long["channel"] == channel]
-        assert len(rows) == 10
+        assert len(rows) == N_ROWS
         assert set(rows["status"]) == {status}
         assert rows["value"].isna().all()
         assert set(rows["component"]) == {-1}

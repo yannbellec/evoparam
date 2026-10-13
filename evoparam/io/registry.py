@@ -43,11 +43,13 @@ _COLUMNS = (
 
 @functools.lru_cache(maxsize=1)
 def _load_registry() -> Any:
+    """Return the content of the bundled registry.json."""
     text = resources.files("evoparam.io").joinpath("registry.json").read_text(encoding="utf-8")
     return json.loads(text)
 
 
 def _find(dataset_id: Any) -> Any:
+    """Return the registry entry of a dataset identifier or alias (None when unknown)."""
     key = str(dataset_id).strip().lower()
     for entry in _load_registry()["datasets"]:
         if key == entry["id"].lower() or key in (alias.lower() for alias in entry["aliases"]):
@@ -115,6 +117,7 @@ def list_datasets(
     pd = require("pandas", extra="data", caller="evoparam.io.list_datasets")
 
     def as_set(value: Any) -> Any:
+        """Return a filter value as a set (None stays None)."""
         if value is None:
             return None
         return {value} if isinstance(value, str) else set(value)

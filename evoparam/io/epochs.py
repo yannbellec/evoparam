@@ -10,6 +10,12 @@ from evoparam.data import Provenance, TrialSet
 from evoparam.errors import DataError, EventError
 from evoparam.utils._optional import require
 
+# Continuous data: (n_channels, n_times)
+_CONTINUOUS_NDIM = 2
+# Fewest samples in an epoch window
+_MIN_WINDOW_SAMPLES = 2
+
+
 __all__ = ["epoch", "epoch_data"]
 
 ###################################################################################################
@@ -57,7 +63,7 @@ def epoch_data(
 
     inds = centers[kept][:, None] + np.arange(first, last + 1)[None, :]
     epochs = data[..., inds]
-    if data.ndim == 2:
+    if data.ndim == _CONTINUOUS_NDIM:
         epochs = np.moveaxis(epochs, 0, 1)
 
     return times, epochs, kept
@@ -84,7 +90,7 @@ def epoch_windows(
     if not tmax > tmin:
         raise DataError(f"epoch: tmax ({tmax}) must be greater than tmin ({tmin}).")
     first, stop = int(np.round(tmin * sfreq)), int(np.round(tmax * sfreq))
-    if stop - first < 2:
+    if stop - first < _MIN_WINDOW_SAMPLES:
         raise DataError(f"epoch: the window ({tmin}, {tmax}) holds fewer than 2 samples.")
     onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
     if onsets.ndim != 1 or not np.all(np.isfinite(onsets)):
@@ -120,6 +126,7 @@ def _as_table(table: Any, n_rows: Any, name: Any) -> Any:
 
 
 def _pandas() -> Any:
+    """Return the pandas module, or None when it is not installed."""
     try:
         require("pandas", extra="data", caller="evoparam.io.epochs._pandas")
         import pandas
@@ -128,7 +135,7 @@ def _pandas() -> Any:
     return pandas
 
 
-def epoch(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
+def epoch(  # noqa: PLR0913  (spec §5.1 fixes 10 parameters; DECISIONS.md §7.2)
     data: ArrayLike,
     sfreq: float,
     onsets: Any,
@@ -207,7 +214,7 @@ def epoch(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
     data = np.asarray(data, dtype=np.float64)
     if data.ndim == 1:
         data = data[np.newaxis]
-    if data.ndim != 2:
+    if data.ndim != _CONTINUOUS_NDIM:
         raise DataError(f"epoch: data must be 2d (n_channels, n_times), got shape {data.shape}.")
     onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
     times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, data.shape[1], t0=t0)
@@ -268,5 +275,6 @@ def epoch(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
 
 
 def _default_names(n_channels: int) -> list[str]:
+    """Return the default channel names CH001, CH002, ..."""
     width = max(3, len(str(n_channels)))
     return ["CH{:0{}d}".format(ind + 1, width) for ind in range(n_channels)]

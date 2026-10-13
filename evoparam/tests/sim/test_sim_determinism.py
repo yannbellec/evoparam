@@ -13,6 +13,9 @@ from evoparam import sim
 from evoparam.errors import SettingsError
 from evoparam.tests.sim._helpers import SMALL, real_baselines
 
+# Seed of the determinism test.
+SEED = 11
+
 REFERENCE = pathlib.Path(__file__).with_name("reference_sim.json")
 
 
@@ -39,11 +42,11 @@ def _same(first: Any, second: Any) -> None:
 @pytest.mark.parametrize("name", sorted(sim.GENERATORS))
 def test_same_int_seed_same_bytes(name: Any) -> None:
     gen = sim.GENERATORS[name]
-    first = gen(seed=11, **SMALL[name])
-    second = gen(seed=11, **SMALL[name])
+    first = gen(seed=SEED, **SMALL[name])
+    second = gen(seed=SEED, **SMALL[name])
     _same(first, second)
-    assert first[1].seed == 11
-    assert first[0].provenance.random_state == 11
+    assert first[1].seed == SEED
+    assert first[0].provenance.random_state == SEED
     assert first[0].provenance.steps[-1]["function"] == f"evoparam.sim.{gen.__name__}"
 
 

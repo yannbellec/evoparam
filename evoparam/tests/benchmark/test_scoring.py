@@ -35,6 +35,10 @@ from evoparam.version import __version__
 
 from .helpers import ROOT, inputs, perfect_t1, perfect_t2, suite
 
+# Hex digits of a SHA-256, and the AUC of tied scores.
+SHA256_HEX = 64
+CHANCE = 0.5
+
 pytest.importorskip("jsonschema")
 
 
@@ -120,9 +124,10 @@ def test_req352_result_document_is_signed_and_complete(tmp_path: Any) -> None:
     cells = suite("core").cells("T2", split="public")
     assert [c["cell"] for c in document["cells"]] == [c.id for c in cells]
     assert all(
-        len(c["input_sha256"]) == 64 and len(c["output_sha256"]) == 64 for c in document["cells"]
+        len(c["input_sha256"]) == SHA256_HEX and len(c["output_sha256"]) == SHA256_HEX
+        for c in document["cells"]
     )
-    assert len(document["inputs_sha256"]) == len(document["outputs_sha256"]) == 64
+    assert len(document["inputs_sha256"]) == len(document["outputs_sha256"]) == SHA256_HEX
     assert set(HEADLINE["T2"]) <= set(document["headline"])
     assert "created" not in json.dumps(document)
     assert verify_result(document)
@@ -225,7 +230,7 @@ def test_req352_t4_no_removal_and_exact_removal() -> None:
 def test_req352_auc_is_the_mann_whitney_statistic() -> None:
     assert auc_score([1, 1, 0, 0], [0.9, 0.8, 0.1, 0.2]) == 1.0
     assert auc_score([1, 1, 0, 0], [0.1, 0.2, 0.9, 0.8]) == 0.0
-    assert auc_score([1, 0], [0.5, 0.5]) == 0.5
+    assert auc_score([1, 0], [0.5, 0.5]) == CHANCE
     np.testing.assert_allclose(auc_score([1, 0, 1, 0, 1], [3, 1, 2, 2, 1]), 4 / 6, rtol=1e-9)
 
 

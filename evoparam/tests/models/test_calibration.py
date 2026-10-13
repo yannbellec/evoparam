@@ -9,15 +9,22 @@ import numpy as np
 import pytest
 from scipy.stats import chi2
 
+from evoparam import presets
+from evoparam.errors import SettingsError
 from evoparam.models import ResponseModel
 from evoparam.models._calibration import Calibration, scan_level
-from evoparam.models._settings import FIXED_DELTA, resolve_settings
+from evoparam.models._settings import CALIBRATED, FIXED_DELTA, FitSettings, resolve_settings
 from evoparam.models.engine import Whitener, ar_model
 
 from .helpers import BASELINE, TIMES, WINDOW, gauss, model, noise
 
 ###################################################################################################
 ###################################################################################################
+
+ALPHA = 0.03  # the package default
+FIXED = 10.0  # spec §5.5.4, every preset
+C0 = 18.0  # a scan level
+LATENCY_TOL = 0.002  # s
 
 
 def test_scan_level_without_search_is_the_chi_square_quantile() -> None:
@@ -29,10 +36,10 @@ def test_scan_level_without_search_is_the_chi_square_quantile() -> None:
 
 
 def test_inflation_for_an_uncertain_spectrum() -> None:
-    assert Calibration.inflate(18.0, 0.0) == 18.0
+    assert Calibration.inflate(C0, 0.0) == C0
     # small variance: c0 + c0^2 v / 4
-    assert Calibration.inflate(18.0, 1e-4) == pytest.approx(18.0 + 18.0**2 * 1e-4 / 4, rel=1e-3)
-    assert Calibration.inflate(18.0, 0.1) > Calibration.inflate(18.0, 0.05) > 18.0
+    assert Calibration.inflate(C0, 1e-4) == pytest.approx(C0 + C0**2 * 1e-4 / 4, rel=1e-3)
+    assert Calibration.inflate(C0, 0.1) > Calibration.inflate(C0, 0.05) > C0
 
 
 def _calibration(rho: Any, seed: int = 0) -> Calibration:
@@ -46,7 +53,7 @@ def _calibration(rho: Any, seed: int = 0) -> Calibration:
     white = Whitener(np.full(len(tw), sigma), a, innovation, np.ones(len(tw), bool), acov=acov)
     ones = white(np.ones((len(tw), 1)))
     return Calibration(
-        0.03, white, tw, ones, 0.002, 0.3, white.n, a, innovation, acov, int(base.sum())
+        ALPHA, white, tw, ones, 0.002, 0.3, white.n, a, innovation, acov, int(base.sum())
     )
 
 
@@ -83,16 +90,17 @@ def test_coloured_noise_needs_more_evidence() -> None:
     assert spread[0.9][2] > 3 * abs(spread[0.0][2])
 
 
-def test_delta_none_is_calibrated_and_a_number_is_the_fixed_rule() -> None:
+def test_calibrated_by_default_and_a_number_is_the_fixed_rule() -> None:
     y = gauss(0.2, -8, 0.04) + noise(np.random.default_rng(1))
     fit = model().fit_waveform(TIMES, y)
+    assert fit.settings["delta"] == CALIBRATED
     acc = fit.diagnostics["acceptance"]
     assert acc["rule"] == "calibrated"
-    assert acc["alpha"] == 0.03
+    assert acc["alpha"] == ALPHA
     assert np.isfinite(acc["scan_level"])
     assert np.isfinite(acc["delta"])
     fixed = model(delta=10).fit_waveform(TIMES, y)
-    assert fixed.diagnostics["acceptance"] == {"rule": "fixed", "delta": 10.0}
+    assert fixed.diagnostics["acceptance"] == {"rule": "fixed", "delta": FIXED}
     # not calibrated without the whitened likelihood: the fixed 10 of spec §5.5.4
     assert model(noise_model="neff").fit_waveform(TIMES, y).diagnostics["acceptance"] == {
         "rule": "fixed",
@@ -105,24 +113,55 @@ def test_delta_none_is_calibrated_and_a_number_is_the_fixed_rule() -> None:
 def test_presets_keep_the_rule_they_were_validated_with() -> None:
     for name in ("ccep", "erp", "tep", "ecap"):
         s = resolve_settings(name)
-        assert s.delta == 10.0
+        assert s.delta == FIXED
         assert s.shape_choice == "bic"
         assert not s.resolution_check
     s = resolve_settings(None)
-    assert s.delta is None
+    assert s.delta == CALIBRATED
     assert s.shape_choice == "aic"
     assert s.resolution_check
+    # None given to the dataclass reads as the default (as recorded before version 1.3)
+    legacy = FitSettings(delta=None)
+    legacy.validate()
+    assert legacy.delta == CALIBRATED
+
+
+def test_a_preset_can_ask_for_the_calibrated_acceptance() -> None:
+    """``delta="calibrated"`` overrides a preset's fixed 10: the fit records the sentinel,
+    reports the calibrated rule, and differs from the preset's own fit only by the
+    acceptance; ``delta=None`` keeps the preset's value (keywords left at None)."""
+
+    times, y = TIMES, gauss(0.2, -4, 0.02) + noise(np.random.default_rng(3))
+    window = {"fit_window": WINDOW, "baseline": BASELINE}
+    own = ResponseModel("erp", **window).fit_waveform(times, y)
+    assert own.diagnostics["acceptance"] == {"rule": "fixed", "delta": FIXED}
+    assert ResponseModel("erp", delta=None, **window).settings().delta == FIXED
+    cal = ResponseModel("erp", delta=CALIBRATED, **window)
+    assert cal.settings().delta == CALIBRATED
+    assert cal.settings().shape_choice == "bic"  # the preset's other settings stay
+    fit = cal.fit_waveform(times, y)
+    assert fit.settings["delta"] == CALIBRATED
+    assert fit.diagnostics["acceptance"]["rule"] == "calibrated"
+    assert fit.diagnostics["acceptance"]["delta"] < FIXED
+    assert "calibrated on each waveform's noise model" in fit.methods_text()
+    # a preset of its own may set it too
+    derived = presets.derive("erp", name="erp_calibrated", delta=CALIBRATED)
+    assert presets.from_json(presets.to_json(derived)).delta == CALIBRATED
+    again = ResponseModel(derived, **window).fit_waveform(times, y)
+    assert again.diagnostics["acceptance"] == fit.diagnostics["acceptance"]
+    with pytest.raises(SettingsError):
+        presets.derive("erp", delta="adaptive")
 
 
 def test_settings_validation() -> None:
-    from evoparam.errors import SettingsError
-
     with pytest.raises(SettingsError):
         ResponseModel(fit_window=WINDOW, shape_choice="bayes").settings()
     with pytest.raises(SettingsError):
         ResponseModel(fit_window=WINDOW, alpha=1.5).settings()
     with pytest.raises(SettingsError):
         ResponseModel(fit_window=WINDOW, delta=float("nan")).settings()
+    with pytest.raises(SettingsError):
+        ResponseModel(fit_window=WINDOW, delta="adaptive").settings()
 
 
 def test_resolution_check_flags_an_unresolvable_pair_only() -> None:
@@ -137,7 +176,7 @@ def test_resolution_check_flags_an_unresolvable_pair_only() -> None:
     assert "merged:0,1" in fit.warnings
     apart = gauss(0.2, -10, 0.04) + gauss(0.24, -10, 0.04) + noise(rng)
     fit = model(shapes=("gaussian",)).fit_waveform(TIMES, apart)
-    assert len(fit.components) == 2
+    assert len(fit.components) == 2  # noqa: PLR2004  (the two Gaussians)
     assert not any(w.startswith("merged:") for w in fit.warnings)
     strong = gauss(0.3, 200, 0.02) + noise(rng)
     fit = model(shapes=("gaussian",)).fit_waveform(TIMES, strong)
@@ -160,4 +199,4 @@ def test_final_shape_choice_finds_the_asymmetry() -> None:
     assert [c.shape for c in fit.components] == ["skewed_gaussian"]
     fine = np.arange(0.2, 0.3, 1e-6)
     truth = float(fine[np.argmax(shape.evaluate(fine, params))])  # the mode
-    assert abs(fit.components[0].latency - truth) < 0.002
+    assert abs(fit.components[0].latency - truth) < LATENCY_TOL

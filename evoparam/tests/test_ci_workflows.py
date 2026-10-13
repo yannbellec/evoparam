@@ -8,7 +8,6 @@ jobs, matrices and commands the requirements name are checked. Branch protection
 checks) is a repository setting that cannot be read from the files.
 """
 
-import importlib.util
 import os
 import pathlib
 import re
@@ -21,6 +20,15 @@ import pytest
 import evoparam
 
 yaml = pytest.importorskip("yaml")
+
+# Time limits (min) of the test and documentation jobs.
+TEST_TIMEOUT = 25
+DOCS_TIMEOUT = 20
+# Thresholds of REQ-305: line length, complexity, arguments and statements.
+LINE_LENGTH = 99
+MAX_COMPLEXITY = 12
+MAX_ARGS = 8
+MAX_STATEMENTS = 60
 
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -85,7 +93,7 @@ def test_req297_tests_matrix_lock_and_timeouts() -> None:
     assert matrix["python"] == ["3.10", "3.11", "3.12", "3.13"]
     assert matrix["os"] == ["ubuntu-latest", "macos-latest", "windows-latest"]
     assert job["name"] == "tests (${{ matrix.python }}, ${{ matrix.os }})"
-    assert job["timeout-minutes"] == 25
+    assert job["timeout-minutes"] == TEST_TIMEOUT
     runs = _runs(job)
     assert "--require-hashes -r ci/locks/py${{ matrix.python }}.lock" in runs
     assert '".[all]"' in runs
@@ -261,7 +269,7 @@ def test_req302_docs_workflow() -> None:
     runs = _runs(job)
     assert "sphinx-build -W --keep-going -b html" in runs
     assert "sphinx-build -b linkcheck" in runs
-    assert job["timeout-minutes"] <= 20
+    assert job["timeout-minutes"] <= DOCS_TIMEOUT
     conf = (ROOT / "docs" / "conf.py").read_text(encoding="utf-8")
     for ext in (
         "numpydoc",
@@ -277,10 +285,10 @@ def test_req302_docs_workflow() -> None:
 
 
 @pytest.mark.skipif(
-    os.environ.get("EVOPARAM_SLOW_TESTS") != "1" or importlib.util.find_spec("sphinx") is None,
-    reason="REQ-302: builds the whole site (several minutes, runs the gallery); needs "
-    "EVOPARAM_SLOW_TESTS=1 and the docs extra (pip install evoparam[docs]); the MNE "
-    "example downloads the MNE sample dataset",
+    os.environ.get("EVOPARAM_DOCS_TESTS") != "1",
+    reason="REQ-302: builds the whole site (several minutes, runs the gallery); set "
+    "EVOPARAM_DOCS_TESTS=1 with the docs extra installed (pip install evoparam[docs], as "
+    "in the docs CI job); the MNE example downloads the MNE sample dataset",
 )
 def test_req302_docs_build_with_warnings_as_errors(tmp_path: Any) -> None:
     import subprocess
@@ -336,7 +344,7 @@ def test_req305_ruff_configuration() -> None:
         tomllib = pytest.importorskip("tomli")
     with open(ROOT / "pyproject.toml", "rb") as fobj:
         ruff = tomllib.load(fobj)["tool"]["ruff"]
-    assert ruff["line-length"] == 99
+    assert ruff["line-length"] == LINE_LENGTH
     lint = ruff["lint"]
     for code in (
         "E",
@@ -361,9 +369,9 @@ def test_req305_ruff_configuration() -> None:
     ):
         assert code in lint["select"], code
     assert lint["pydocstyle"]["convention"] == "numpy"
-    assert lint["mccabe"]["max-complexity"] == 12
-    assert lint["pylint"]["max-args"] == 8
-    assert lint["pylint"]["max-statements"] == 60
+    assert lint["mccabe"]["max-complexity"] == MAX_COMPLEXITY
+    assert lint["pylint"]["max-args"] == MAX_ARGS
+    assert lint["pylint"]["max-statements"] == MAX_STATEMENTS
 
 
 def _ruff(*args: Any) -> Any:
@@ -378,17 +386,6 @@ def _ruff(*args: Any) -> Any:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-305 'ruff check evoparam tests benchmarks "
-    "docs/tutorials examples exits 0' is not met: 1227 findings (4644 before the "
-    "qualite-statique branch, 1246 before reglages-ignores). 374 in the package outside "
-    "its tests: PLR2004 204, complexity and argument counts 170 (C901 41, PLR0912 39, "
-    "PLR0913 44, PLR0915 18, PLR0917 18, PLR0911 10, on functions whose signature the "
-    "spec does not fix); 852 in the tests (PLR2004 831); 1 in benchmarks (PLR2004). "
-    "ARG001/ARG002 and BLE001: 0 (reglages-ignores). Measured with ruff 0.16.10 and "
-    "0.16.8 on 2026-10-13",
-)
 def test_req305_ruff_check_passes() -> None:
     result = _ruff("check", "evoparam", "benchmarks", "docs/tutorials", "examples")
     assert result.returncode == 0, result.stdout[-1500:]
@@ -399,11 +396,6 @@ def test_req305_ruff_format_passes() -> None:
     assert result.returncode == 0, result.stdout[-1500:]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-305 'interrogate -v evoparam reports >= 95 %' is "
-    "not met: 63.0 % (interrogate 1.7.0, 2026-10-11, S20)",
-)
 def test_req305_docstring_coverage() -> None:
     import shutil
     import subprocess

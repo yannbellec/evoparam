@@ -14,15 +14,19 @@ _CHUNK = 1 << 14
 # Scale factor from the median absolute deviation to the standard deviation of a Gaussian.
 MAD_TO_SD = 1.4826
 
+# Continuous data is a matrix [n_channels, n_times] of at least three samples.
+_MATRIX_NDIM = 2
+_MIN_SAMPLES = 3
+
 
 def as_continuous(data: Any) -> Any:
     """Return ``data`` as a float 2d array [n_channels, n_times]."""
     data = np.asarray(data)
     if data.ndim == 1:
         data = data[np.newaxis]
-    if data.ndim != 2:
+    if data.ndim != _MATRIX_NDIM:
         raise DataError("data must be continuous, as [n_times] or [n_channels, n_times].")
-    if data.shape[1] < 3:
+    if data.shape[1] < _MIN_SAMPLES:
         raise DataError("data must have at least 3 samples.")
     if not np.issubdtype(data.dtype, np.floating):
         data = data.astype(float)
@@ -184,10 +188,12 @@ def snippets(data: Any, index: Any, onsets: Any, n_pre: Any, n_post: Any) -> Flo
 
 
 def quantile_score(data: Any, index: Any, quantile: float = 0.9) -> FloatArray:
-    """``quantile`` across the non-flat channels of ``index`` of the absolute
-    sample-to-sample change (chunked like :func:`difference_score`). A channel whose
-    samples never change (a censored or disconnected channel) is left out."""
+    """Return a quantile of the absolute sample-to-sample change across channels.
 
+    The ``quantile`` is taken across the non-flat channels of ``index`` (chunked like
+    :func:`difference_score`). A channel whose samples never change (a censored or
+    disconnected channel) is left out.
+    """
     n_times = data.shape[1]
     index = np.asarray(index)
     moving = [i for i in index if np.any(np.diff(data[i]) != 0)]

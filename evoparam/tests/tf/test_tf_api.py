@@ -14,6 +14,28 @@ from evoparam.tf import tf_compare, tf_fit, tf_zones
 
 pd = pytest.importorskip("pandas")
 
+# Box (Hz, s) of the simulated gamma burst, and the fraction of it found significant.
+BURST_FMIN = 65
+BURST_FMAX = 100
+BURST_TMIN = 0.2
+BURST_TMAX = 0.3
+MIN_SIGNIFICANT = 0.3
+# Rows (channel x condition) of the conditions test, the t of the zone, and the alpha.
+N_ROWS = 4
+MIN_T = 3
+ALPHA = 0.05
+# Zones (two bursts), and the largest log2 error of their frequency centroids.
+N_BURSTS = 2
+MAX_LOG2_ERROR = 0.3
+# Lowest frequency (Hz) of the footprint check; bounds of the footprint and residual t.
+HIGH_FREQ = 50
+MIN_FOOTPRINT = 3
+MAX_RESIDUAL_T = 6
+# Rank of two blobs, the stability required, and the split values (20 trial halves).
+TRUE_RANK = 2
+MIN_STABILITY = 0.8
+N_SPLITS = 20
+
 
 def _burst_set(
     seed: Any = 0, n: Any = 30, amp: Any = 10.0, channels: Any = 1, freq: Any = 80.0
@@ -68,12 +90,12 @@ def test_every_normalisation_finds_the_burst(mode: Any, level: Any) -> None:
         freqs=(4, 250, 30),
     )
     box = (
-        (tf.freqs[:, None] >= 65)
-        & (tf.freqs[:, None] <= 100)
-        & (tf.times[None] >= 0.2)
-        & (tf.times[None] <= 0.3)
+        (tf.freqs[:, None] >= BURST_FMIN)
+        & (tf.freqs[:, None] <= BURST_FMAX)
+        & (tf.times[None] >= BURST_TMIN)
+        & (tf.times[None] <= BURST_TMAX)
     )
-    assert tf.significant[0][box].mean() > 0.3
+    assert tf.significant[0][box].mean() > MIN_SIGNIFICANT
     centre = 1.0 if mode == "ratio" else 0.0
     assert np.nanmean(tf.maps["total_norm"][0][box]) > centre
 
@@ -87,15 +109,15 @@ def test_conditions_are_rows_and_zone_metrics_join_trials() -> None:
     ts = trialset(data, metadata=meta)
     tf = tf_fit(ts, by_trial=True, freqs=(4, 250, 30), random_state=0)
     assert tf.settings["rows"] == [["c0", "A"], ["c1", "A"], ["c0", "B"], ["c1", "B"]]
-    assert tf.tmaps.shape[0] == 4
+    assert tf.tmaps.shape[0] == N_ROWS
     assert len(tf.zones) >= 1
     m = tf.zone_metrics
     zone0 = m[(m["zone_id"] == 0) & (m["trial"] < 0)].set_index(["channel", "condition"])
-    assert zone0.loc[("c0", "A"), "t"] > 3
+    assert zone0.loc[("c0", "A"), "t"] > MIN_T
     assert zone0.loc[("c0", "A"), "value"] > zone0.loc[("c0", "B"), "value"]
     trials = m[(m["zone_id"] == 0) & (m["trial"] >= 0) & (m["channel"] == "c0")]
     assert sorted(trials["trial"]) == list(range(40))
-    assert tf.zones["p_value"].iloc[0] < 0.05
+    assert tf.zones["p_value"].iloc[0] < ALPHA
 
 
 def test_two_separate_bursts_give_two_zones_and_cp_agrees() -> None:
@@ -108,13 +130,13 @@ def test_two_separate_bursts_give_two_zones_and_cp_agrees() -> None:
         data[:, c] += burst(rng, n, freq=20.0, centre=0.45, duration=0.2, amp=12.0)
     tf = tf_fit(trialset(data), freqs=(4, 250, 40), random_state=0)
     pos = tf.zones[tf.zones["sign"] > 0]
-    assert len(pos) >= 2
+    assert len(pos) >= N_BURSTS
     centroids = sorted(pos["freq_centroid"].iloc[:2])
-    assert abs(np.log2(centroids[0] / 20.0)) < 0.3
-    assert abs(np.log2(centroids[1] / 80.0)) < 0.3
+    assert abs(np.log2(centroids[0] / 20.0)) < MAX_LOG2_ERROR
+    assert abs(np.log2(centroids[1] / 80.0)) < MAX_LOG2_ERROR
     cp = tf_zones(tf, method="cp", random_state=0)
     cp_pos = cp[cp["sign"] > 0]
-    assert len(cp_pos) >= 2
+    assert len(cp_pos) >= N_BURSTS
     assert sorted(np.round(np.log2(cp_pos["freq_centroid"].iloc[:2] / 20.0))) == [0.0, 2.0]
 
 
@@ -134,10 +156,10 @@ def test_footprint_maps_and_residual_of_a_sharp_n1() -> None:
         warnings.simplefilter("ignore")
         group = fit_models(ts, "ccep")
     tf = tf_fit(ts, group_fit=group, freqs=(4, 250, 30), zones="none", random_state=0)
-    high = tf.freqs >= 50
+    high = tf.freqs >= HIGH_FREQ
     at_n1 = np.argmin(np.abs(tf.times - 0.025))
-    assert np.nanmax(tf.maps["footprint_norm"][0][high, at_n1]) > 3
-    assert np.nanmax(np.abs(tf.maps["residual_t"][0][high])) < 6
+    assert np.nanmax(tf.maps["footprint_norm"][0][high, at_n1]) > MIN_FOOTPRINT
+    assert np.nanmax(np.abs(tf.maps["residual_t"][0][high])) < MAX_RESIDUAL_T
 
 
 def test_compare_two_conditions() -> None:
@@ -210,19 +232,19 @@ def test_cp_rank_is_chosen_on_split_halves() -> None:
     rank, stability = select_rank(
         group, None, 4, np.random.default_rng(1), method="cp", tensor=tensor
     )
-    assert rank == 2
-    assert stability[2] >= 0.8
+    assert rank == TRUE_RANK
+    assert stability[2] >= MIN_STABILITY
     values = cp_split_values(tensor, None, 2, np.random.default_rng(2))
-    assert len(values) == 20
-    assert np.mean(values) >= 0.8
+    assert len(values) == N_SPLITS
+    assert np.mean(values) >= MIN_STABILITY
     # trial halves of every row (the default when the TFFit holds them)
     noisy = [tensor * rng.uniform(0.8, 1.2, tensor.shape) for _ in range(40)]
     row_halves = np.stack(noisy).reshape(20, 2, *tensor.shape)
     rank_t, stability_t = select_rank(
         group, None, 4, np.random.default_rng(1), method="cp", tensor=tensor, row_halves=row_halves
     )
-    assert rank_t == 2
-    assert stability_t[2] >= 0.8
+    assert rank_t == TRUE_RANK
+    assert stability_t[2] >= MIN_STABILITY
     rank_r, _ = select_rank(
         group,
         None,
@@ -238,6 +260,6 @@ def test_cp_rank_is_chosen_on_split_halves() -> None:
     single[..., 0] = a + b
     assert cp_split_values(single, None, 2, rng) is None
     halves = np.stack([np.stack([a + b, a + b])] * 20)
-    assert np.mean(cp_split_values(single, halves, 2, rng)) >= 0.8
+    assert np.mean(cp_split_values(single, halves, 2, rng)) >= MIN_STABILITY
     with pytest.raises(SettingsError, match="cp_stability"):
         select_rank(group, None, 4, rng, method="cp", tensor=tensor, cp_stability="both")

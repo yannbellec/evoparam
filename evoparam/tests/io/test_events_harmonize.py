@@ -18,6 +18,15 @@ from evoparam.io import (
 
 pd = pytest.importorskip("pandas")
 
+# Rows of the tables harmonised, the current (mA) mapped, and the sites.
+N_ROWS = 4
+CURRENT_MA = 2.5
+N_PARTIAL_ROWS = 2
+N_UTRECHT_ROWS = 3
+N_SITES = 2
+N_ALL_EVENTS = 4
+N_SITE_EVENTS = 2
+
 ###################################################################################################
 ###################################################################################################
 
@@ -92,7 +101,7 @@ def test_utrecht_columns() -> None:
     assert "stim_n_pulses" in report.missing
     assert out.attrs["units"]["stim_current_mA"] == "mA"
     assert isinstance(report, HarmonizationReport)
-    assert report.n_rows == 4
+    assert report.n_rows == N_ROWS
 
 
 def test_sidecar_units_and_unit_strings() -> None:
@@ -227,7 +236,7 @@ def test_user_mapping_overrides_the_table() -> None:
     out, report = harmonize_stim_events(
         events, {"my_ma": {"Units": "mA"}}, mapping={"my_ma": "stim_current_mA"}
     )
-    assert out.loc[0, "stim_current_mA"] == 2.5
+    assert out.loc[0, "stim_current_mA"] == CURRENT_MA
     assert report.mapping["stim_current_mA"] == "my_ma"
     assert report.user_mapping == {"my_ma": "stim_current_mA"}
 
@@ -266,13 +275,13 @@ def test_validator_reports_missing_fields() -> None:
         "stim_frequency_hz",
         "stim_n_pulses",
     ]
-    assert report.n_rows == 2
+    assert report.n_rows == N_PARTIAL_ROWS
     assert report.n_sites == 0
     assert not report.complete
 
     # Utrecht shape: the artefact row is not checked; polarity and pulse count are missing
     report = validate_stimulation_events(UTRECHT)
-    assert report.n_rows == 3
+    assert report.n_rows == N_UTRECHT_ROWS
     assert report.sites == ["PT01-PT02", "PT03-PT02"]
     assert report.missing == ["stim_polarity", "stim_n_pulses"]
     assert any(line.startswith("unit_inferred") for line in report.warnings)
@@ -285,7 +294,7 @@ def test_validator_reports_missing_fields() -> None:
         line.startswith("partial: stim_current_mA is missing in 1 of 3")
         for line in report.warnings
     )
-    assert report.to_dict()["n_sites"] == 2
+    assert report.to_dict()["n_sites"] == N_SITES
 
 
 def test_select_stimulation_events_on_tables() -> None:
@@ -294,8 +303,8 @@ def test_select_stimulation_events_on_tables() -> None:
     assert list(select_stimulation_events(out).index) == [1, 2, 3]
     assert list(select_stimulation_events(out, site="PT03_PT02").index) == [3]
     assert list(select_stimulation_events(out, current=8.0).index) == [1, 2]
-    assert len(select_stimulation_events(out, trial_type=None)) == 4
+    assert len(select_stimulation_events(out, trial_type=None)) == N_ALL_EVENTS
 
     # Inherited list form
     events = out.to_dict("records")
-    assert len(select_stimulation_events(events, site="PT01-PT02")) == 2
+    assert len(select_stimulation_events(events, site="PT01-PT02")) == N_SITE_EVENTS

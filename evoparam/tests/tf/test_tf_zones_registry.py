@@ -12,6 +12,18 @@ from evoparam.tf import list_published_zones, tf_fit
 from evoparam.tf.stats import baseline_normal_map
 from evoparam.tf.zones import load_zones, resolve_published, volume_conduction_weight, zone_mask
 
+# Unverified zones of the article, a time (s) and a frequency (Hz) of the grid checked.
+N_UNVERIFIED = 10
+AT_50_MS = 0.05
+EIGHT_HZ = 8.0
+# Settings of the article zone: window start (s), Morse beta, and the significant fraction.
+WINDOW_START = 0.015
+MORSE_BETA = 10.0
+MIN_FRACTION = 0.2
+# t and p-value of the verified zone.
+MIN_T = 3
+MAX_P = 0.01
+
 VERIFIED = "brinyark2026_delayed_high_gamma"
 UNVERIFIED = "brinyark2026_TN1"
 # The eleven zones of Brinyark et al. 2026 ([LIT-tf-4], §2.4 and Fig. 2): five bands x N1
@@ -73,7 +85,7 @@ def test_the_eleven_published_zones_have_the_article_bounds() -> None:
         for n in registry
         if n.startswith("brinyark2026_") and registry[n].get("alias_of") is None and n != VERIFIED
     ]
-    assert len(others) == 10
+    assert len(others) == N_UNVERIFIED
     assert not any(registry[n]["verified"] for n in others)
     table = list_published_zones().set_index("name")
     assert table.loc["brinyark2026_GhN1", "intervals"] == "[)x[]"
@@ -104,10 +116,10 @@ def test_band_and_interval_zones_tile_the_whole_response() -> None:
     )
     whole = zone_mask(registry["brinyark2026_WR"], freqs, times)
     assert np.array_equal(count, whole.astype(int))
-    at_50ms = np.flatnonzero(times == 0.05)[0]
+    at_50ms = np.flatnonzero(times == AT_50_MS)[0]
     assert zone_mask(registry["brinyark2026_GhN2"], freqs, times)[-1, at_50ms]
     assert not zone_mask(registry["brinyark2026_GhN1"], freqs, times)[-1, at_50ms]
-    eight = np.flatnonzero(freqs == 8.0)[0]
+    eight = np.flatnonzero(freqs == EIGHT_HZ)[0]
     assert zone_mask(registry["brinyark2026_AN2"], freqs, times)[eight, 100]
     assert not zone_mask(registry["brinyark2026_TN2"], freqs, times)[eight, 100]
 
@@ -132,15 +144,15 @@ def test_article_zone_uses_the_published_statistic_and_significance_fraction() -
     assert s["stats"] == "baseline_normal"
     assert s["baseline"] == [-0.45, -0.15]
     assert s["channel_correction"] == "none"
-    assert s["window"][0] == 0.015
+    assert s["window"][0] == WINDOW_START
     assert s["transform"] == "morse"
-    assert s["transform_params"]["beta"] == 10.0
+    assert s["transform_params"]["beta"] == MORSE_BETA
     region = zone_mask(resolve_published("brinyark2026_GhN1", True), tf.freqs, tf.times)
     cells = region & np.isfinite(tf.maps["total_norm"][0])
     row = tf.zone_metrics.iloc[0]
     # significance fraction: significant pixels / pixels of the zone (Fig. 2C)
     assert row["fraction_significant"] == pytest.approx(tf.significant[0][cells].mean())
-    assert row["fraction_significant"] > 0.2
+    assert row["fraction_significant"] > MIN_FRACTION
     assert "baseline of its frequency" in tf.methods_text()
 
 
@@ -186,13 +198,13 @@ def test_published_zone_sets_the_source_settings_and_measures_the_zone() -> None
     )
     assert tf.method == "published"
     assert tf.settings["transform"] == "morse"
-    assert tf.settings["transform_params"]["beta"] == 10.0
+    assert tf.settings["transform_params"]["beta"] == MORSE_BETA
     assert tf.settings["baseline"] == [-0.5, -0.1]
     assert tf.settings["published_zone"]["name"] == VERIFIED
     row = tf.zone_metrics[tf.zone_metrics["trial"] < 0].iloc[0]
     assert row["value"] > 0
-    assert row["t"] > 3
-    assert row["p_value"] < 0.01
+    assert row["t"] > MIN_T
+    assert row["p_value"] < MAX_P
     assert 0 < row["fraction_increase"] <= row["fraction_significant"] <= 1
     per_trial = tf.zone_metrics[tf.zone_metrics["trial"] >= 0]
     assert sorted(per_trial["trial"]) == list(range(30))

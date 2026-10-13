@@ -26,6 +26,10 @@ from evoparam.utils._optional import require
 
 from .bootstrap import bootstrap_interval
 
+# Trial arrays of a TrialFit: [n_trials, n_components]
+_TRIAL_ARRAY_NDIM = 2
+
+
 __all__ = [
     "to_long",
     "column_dictionary",
@@ -164,6 +168,7 @@ def _jsonable_cell(value: Any) -> Any:
 
 
 def _flatten(_pd: Any, table: Any) -> Any:
+    """Return ``table`` with its list and dictionary cells written as JSON text."""
     for column in table.columns:
         if table[column].dtype == object:
             table[column] = table[column].map(_jsonable_cell)
@@ -171,6 +176,7 @@ def _flatten(_pd: Any, table: Any) -> Any:
 
 
 def _resolve_unit(unit: Any, data_units: Any) -> Any:
+    """Return ``unit`` with "data" replaced by the amplitude unit of the data."""
     if unit == "data":
         return data_units
     if unit == "data·s":
@@ -179,6 +185,7 @@ def _resolve_unit(unit: Any, data_units: Any) -> Any:
 
 
 def _from_group(pd: Any, result: Any) -> tuple[Any, dict[str, str]]:
+    """Return the long table of a GroupFit and the unit of each parameter."""
     rows = []
     for ch, cond, pos in result.index[["channel", "condition", "position"]].itertuples(
         index=False
@@ -259,6 +266,7 @@ def _melt(pd: Any, table: Any, parameters: Any, units: Any) -> tuple[Any, dict[A
 
 
 def _known_parameters(table: Any) -> list[Any]:
+    """Return the numeric columns of ``table`` that are known parameters."""
     known = {**PARAMETERS, **OTHER_PARAMETERS}
     return [
         c
@@ -275,13 +283,16 @@ def _from_table(pd: Any, table: Any) -> tuple[Any, dict[Any, Any]]:
 
 
 def _from_trials(pd: Any, result: Any) -> tuple[Any, dict[Any, Any]]:
+    """Return the long table of a TrialFit and the unit of each parameter."""
     table = result.table
     if table is not None and hasattr(table, "columns") and len(table):
         return _from_table(pd, table)
     # no table: one row per trial and component from the arrays
     labels = [c.label or str(k) for k, c in enumerate(result.template.components)]
     n_trials, n_comp = (
-        result.latency.shape[:2] if result.latency.ndim == 2 else (result.latency.shape[0], 0)
+        result.latency.shape[:2]
+        if result.latency.ndim == _TRIAL_ARRAY_NDIM
+        else (result.latency.shape[0], 0)
     )
     rows = []
     for i in range(n_trials):
@@ -310,6 +321,7 @@ def _from_trials(pd: Any, result: Any) -> tuple[Any, dict[Any, Any]]:
 
 
 def _from_hierarchical(_pd: Any, result: Any) -> tuple[Any, dict[Any, str]]:
+    """Return the long table of a HierarchicalFit summary and the unit of each parameter."""
     summary = result.summary.copy()
     rename = {
         "mean": "value",
@@ -329,12 +341,13 @@ def _from_hierarchical(_pd: Any, result: Any) -> tuple[Any, dict[Any, str]]:
 
 
 def _ordered(table: Any) -> Any:
+    """Return ``table`` with the identifying columns first and the long columns last."""
     ids = [c for c in _ID_ORDER if c in table.columns]
     rest = [c for c in table.columns if c not in ids and c not in LONG_COLUMNS]
     return table[ids + rest + [c for c in LONG_COLUMNS if c in table.columns]]
 
 
-def to_long(  # noqa: C901, PLR0912  (public API, signature fixed by spec §5.11)
+def to_long(
     result: Any,
     *,
     wide: bool = False,
@@ -381,54 +394,7 @@ def to_long(  # noqa: C901, PLR0912  (public API, signature fixed by spec §5.11
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.to_long")
     data_units = units or "data"
-    if isinstance(result, ResponseFit):
-        result = GroupFit.from_fits([result], [""])
-    if isinstance(result, GroupFit):
-        table, param_units = _from_group(pd, result)
-        kind = "GroupFit"
-    elif isinstance(result, TrialFit):
-        table, param_units = _from_trials(pd, result)
-        kind = "TrialFit"
-    elif isinstance(result, HierarchicalFit):
-        table, param_units = _from_hierarchical(pd, result)
-        kind = "HierarchicalFit"
-    elif isinstance(result, TFFit):
-        zm = result.zone_metrics
-        params = [
-            c
-            for c in zm.columns
-            if np.issubdtype(np.asarray(zm[c]).dtype, np.number)
-            and c not in ("zone_id", "trial", "component")
-        ]
-        table, param_units = _melt(pd, zm, params, dict(getattr(zm, "attrs", {}).get("units", {})))
-        kind = "TFFit"
-    elif hasattr(result, "fits") and hasattr(getattr(result, "table", None), "columns"):
-        # evoparam.trials.TrialFitSet (not imported: stats sits beside trials, §4.2)
-        table, param_units = _from_table(pd, result.table)
-        kind = "TrialFitSet"
-    elif hasattr(result, "columns"):
-        if {"parameter", "value"} <= set(result.columns):
-            table = result.copy()
-            for col in ("se", "ci_low", "ci_high"):
-                if col not in table.columns:
-                    table[col] = np.nan
-            known = {
-                **PARAMETERS,
-                **OTHER_PARAMETERS,
-                **dict(getattr(result, "attrs", {}).get("units", {})),
-            }
-            param_units = {p: known.get(p, "") for p in table["parameter"].unique()}
-        else:
-            params = _known_parameters(result)
-            known = {
-                **PARAMETERS,
-                **OTHER_PARAMETERS,
-                **dict(getattr(result, "attrs", {}).get("units", {})),
-            }
-            table, param_units = _melt(pd, result, params, known)
-        kind = "DataFrame"
-    else:
-        raise DataError(f"to_long: cannot export a {type(result).__name__}.")
+    table, param_units, kind = _long_table(pd, result)
 
     for key, value in (metadata or {}).items():
         table[key] = value
@@ -466,7 +432,56 @@ def to_long(  # noqa: C901, PLR0912  (public API, signature fixed by spec §5.11
     return table
 
 
+def _long_table(pd: Any, result: Any) -> tuple[Any, dict[Any, Any], str]:
+    """Return the long table of ``result``, the unit of each parameter and the kind of result."""
+    if isinstance(result, ResponseFit):
+        result = GroupFit.from_fits([result], [""])
+    if isinstance(result, GroupFit):
+        return (*_from_group(pd, result), "GroupFit")
+    if isinstance(result, TrialFit):
+        return (*_from_trials(pd, result), "TrialFit")
+    if isinstance(result, HierarchicalFit):
+        return (*_from_hierarchical(pd, result), "HierarchicalFit")
+    if isinstance(result, TFFit):
+        return (*_from_tf(pd, result), "TFFit")
+    if hasattr(result, "fits") and hasattr(getattr(result, "table", None), "columns"):
+        # evoparam.trials.TrialFitSet (not imported: stats sits beside trials, §4.2)
+        return (*_from_table(pd, result.table), "TrialFitSet")
+    if hasattr(result, "columns"):
+        return (*_from_frame(pd, result), "DataFrame")
+    raise DataError(f"to_long: cannot export a {type(result).__name__}.")
+
+
+def _from_tf(pd: Any, result: Any) -> tuple[Any, dict[Any, Any]]:
+    """Return the long table of the numeric zone metrics of a TFFit."""
+    zm = result.zone_metrics
+    params = [
+        c
+        for c in zm.columns
+        if np.issubdtype(np.asarray(zm[c]).dtype, np.number)
+        and c not in ("zone_id", "trial", "component")
+    ]
+    return _melt(pd, zm, params, dict(getattr(zm, "attrs", {}).get("units", {})))
+
+
+def _from_frame(pd: Any, result: Any) -> tuple[Any, dict[Any, Any]]:
+    """Return the long table of a DataFrame: already long (``parameter``, ``value``) or not."""
+    known = {
+        **PARAMETERS,
+        **OTHER_PARAMETERS,
+        **dict(getattr(result, "attrs", {}).get("units", {})),
+    }
+    if {"parameter", "value"} <= set(result.columns):
+        table = result.copy()
+        for col in ("se", "ci_low", "ci_high"):
+            if col not in table.columns:
+                table[col] = np.nan
+        return table, {p: known.get(p, "") for p in table["parameter"].unique()}
+    return _melt(pd, result, _known_parameters(result), known)
+
+
 def _widen(pd: Any, table: Any) -> Any:
+    """Return the wide table: one column per parameter, with its SE and weight."""
     ids = [c for c in table.columns if c not in LONG_COLUMNS]
     key = table[ids].map(repr).agg("\x1f".join, axis=1) if ids else pd.Series([""] * len(table))
     order = list(dict.fromkeys(key))
@@ -493,6 +508,7 @@ def _widen(pd: Any, table: Any) -> Any:
 def _column_units(
     table: Any, data_units: Any, source_units: Any, _param_units: Any
 ) -> dict[Any, Any]:
+    """Return the unit of every column of the exported table."""
     out = {}
     wide_units = table.attrs.get("param_units", {})
     for col in table.columns:
@@ -593,10 +609,12 @@ _R_RESERVED = {
 
 
 def _r(name: Any) -> Any:
+    """Return ``name`` as an R formula term (quoted with backticks when needed)."""
     return name if _R_NAME.match(name) and name not in _R_RESERVED else f"`{name}`"
 
 
 def _py(name: Any) -> Any:
+    """Return ``name`` as a statsmodels formula term (quoted with ``Q()`` when needed)."""
     plain = _PY_NAME.match(name) and not keyword.iskeyword(name) and name not in ("C", "Q", "I")
     return name if plain else f'Q("{name}")'
 
@@ -747,7 +765,7 @@ def _complete_rows(table: Any, formula: Any, columns: Any, re_formula: Any = Non
 _UNIT_KEYS = ("subject", "session", "run", "stim_site", "condition", "channel")
 
 
-def group_summary(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.11)
+def group_summary(
     table: Any,
     *,
     by: Sequence[str],
@@ -800,36 +818,8 @@ def group_summary(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.group_summary")
     by = [by] if isinstance(by, str) else list(by)
-    data = table.copy()
-    absent = [c for c in by if c not in data.columns]
-    if absent and ch_info is not None:
-        info = ch_info.rename(columns={"name": "channel"})
-        join = [c for c in absent if c in info.columns]
-        if "channel" in data.columns and join:
-            data = data.merge(info[["channel"] + join], on="channel", how="left")
-    absent = [c for c in by if c not in data.columns]
-    if absent:
-        raise SettingsError(
-            f"group_summary: missing columns {absent} (give ch_info for "
-            "channel columns such as 'region')."
-        )
-    if "status" not in data.columns:
-        data["status"] = "ok"
-    unknown = set(data["status"].astype(str)) - set(FIT_STATUSES)
-    if unknown:
-        raise DataError(f"group_summary: unknown status values {sorted(unknown)}.")
-    long = {"parameter", "value"} <= set(data.columns)
-    if long:
-        params = list(dict.fromkeys(data["parameter"])) if parameters is None else list(parameters)
-    else:
-        params = (
-            [p for p in PARAMETERS if p in data.columns]
-            if parameters is None
-            else list(parameters)
-        )
-        missing = [p for p in params if p not in data.columns]
-        if missing:
-            raise SettingsError(f"group_summary: missing parameter columns {missing}.")
+    data = _summary_data(table, by, ch_info)
+    long, params = _summary_parameters(data, parameters)
     rng = np.random.default_rng(random_state)
     unit_cols = [c for c in _UNIT_KEYS if c in data.columns]
     if not unit_cols:
@@ -861,35 +851,7 @@ def group_summary(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed
             values = values[np.isfinite(values)]
             row = dict(zip(by, key, strict=False))
             row.update(parameter=p, n=int(values.size))
-            if values.size:
-                q1, med, q3 = np.percentile(values, [25, 50, 75])
-                row.update(
-                    mean=float(values.mean()),
-                    median=float(med),
-                    sd=float(values.std(ddof=1)) if values.size > 1 else np.nan,
-                    iqr=float(q3 - q1),
-                )
-                if values.size > 1:
-                    boot = values[rng.integers(0, values.size, (n_boot, values.size))].mean(axis=1)
-                    ci = bootstrap_interval(
-                        values.mean(),
-                        boot,
-                        method="percentile",
-                        ci_level=ci_level,
-                        expand_n=values.size,
-                    )
-                    row.update(ci_low=ci["low"], ci_high=ci["high"])
-                else:
-                    row.update(ci_low=np.nan, ci_high=np.nan)
-            else:
-                row.update(
-                    mean=np.nan,
-                    median=np.nan,
-                    sd=np.nan,
-                    iqr=np.nan,
-                    ci_low=np.nan,
-                    ci_high=np.nan,
-                )
+            row.update(_summary_statistics(values, rng, n_boot, ci_level))
             row.update(counts, n_channels=int(len(units)))
             rows.append(row)
     columns = by + [
@@ -926,4 +888,77 @@ def group_summary(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed
         )
         .to_dict()
     )
+    return out
+
+
+def _summary_data(table: Any, by: Any, ch_info: Any) -> Any:
+    """Return a copy of ``table`` with the ``by`` columns of ``ch_info`` and a valid status."""
+    data = table.copy()
+    absent = [c for c in by if c not in data.columns]
+    if absent and ch_info is not None:
+        info = ch_info.rename(columns={"name": "channel"})
+        join = [c for c in absent if c in info.columns]
+        if "channel" in data.columns and join:
+            data = data.merge(info[["channel"] + join], on="channel", how="left")
+    absent = [c for c in by if c not in data.columns]
+    if absent:
+        raise SettingsError(
+            f"group_summary: missing columns {absent} (give ch_info for "
+            "channel columns such as 'region')."
+        )
+    if "status" not in data.columns:
+        data["status"] = "ok"
+    unknown = set(data["status"].astype(str)) - set(FIT_STATUSES)
+    if unknown:
+        raise DataError(f"group_summary: unknown status values {sorted(unknown)}.")
+    return data
+
+
+def _summary_parameters(data: Any, parameters: Any) -> tuple[bool, list[Any]]:
+    """Return whether ``data`` is a long table, and the parameters to summarise."""
+    long = {"parameter", "value"} <= set(data.columns)
+    if long:
+        params = list(dict.fromkeys(data["parameter"])) if parameters is None else list(parameters)
+    else:
+        params = (
+            [p for p in PARAMETERS if p in data.columns]
+            if parameters is None
+            else list(parameters)
+        )
+        missing = [p for p in params if p not in data.columns]
+        if missing:
+            raise SettingsError(f"group_summary: missing parameter columns {missing}.")
+    return long, params
+
+
+def _summary_statistics(values: Any, rng: Any, n_boot: int, ci_level: float) -> dict[str, float]:
+    """Return the mean, median, SD, IQR and bootstrap interval of the mean of ``values``."""
+    if not values.size:
+        return {
+            "mean": np.nan,
+            "median": np.nan,
+            "sd": np.nan,
+            "iqr": np.nan,
+            "ci_low": np.nan,
+            "ci_high": np.nan,
+        }
+    q1, med, q3 = np.percentile(values, [25, 50, 75])
+    out = {
+        "mean": float(values.mean()),
+        "median": float(med),
+        "sd": float(values.std(ddof=1)) if values.size > 1 else np.nan,
+        "iqr": float(q3 - q1),
+    }
+    if values.size > 1:
+        boot = values[rng.integers(0, values.size, (n_boot, values.size))].mean(axis=1)
+        ci = bootstrap_interval(
+            values.mean(),
+            boot,
+            method="percentile",
+            ci_level=ci_level,
+            expand_n=values.size,
+        )
+        out.update(ci_low=ci["low"], ci_high=ci["high"])
+    else:
+        out.update(ci_low=np.nan, ci_high=np.nan)
     return out

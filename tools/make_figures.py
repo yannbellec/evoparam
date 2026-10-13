@@ -42,8 +42,14 @@ def _matplotlib():
     import matplotlib
 
     matplotlib.use("Agg")
-    matplotlib.rcParams.update({"svg.hashsalt": "evoparam", "svg.fonttype": "path",
-                                "font.family": "DejaVu Sans", "figure.dpi": 100})
+    matplotlib.rcParams.update(
+        {
+            "svg.hashsalt": "evoparam",
+            "svg.fonttype": "path",
+            "font.family": "DejaVu Sans",
+            "figure.dpi": 100,
+        }
+    )
     import matplotlib.pyplot as plt
 
     return matplotlib, plt
@@ -57,12 +63,14 @@ def _save(fig, path):
 
 
 def fig_ccep_fit(path):
+    """Draw the CCEP fit figure to ``path``."""
     _, plt = _matplotlib()
     import evoparam
     from evoparam import sim
 
-    trials, _ = sim.simulate_ccep(n_trials=20, n_channels=3, seed=0, artifact=False,
-                                  p_response=1.0, layout="grid")
+    trials, _ = sim.simulate_ccep(
+        n_trials=20, n_channels=3, seed=0, artifact=False, p_response=1.0, layout="grid"
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         group = evoparam.fit(trials, preset="ccep", random_state=0, existence=False)
@@ -73,7 +81,7 @@ def fig_ccep_fit(path):
     if fit.model is not None:
         # the model is defined on the fit window
         start = int(np.searchsorted(trials.times, fit.window[0] - 1e-9))
-        times = trials.times[start:start + len(fit.model)]
+        times = trials.times[start : start + len(fit.model)]
         ax.plot(times * 1000, fit.model, color="#0072B2", lw=1.5, label="model")
     for comp in fit.components:
         ax.axvline(comp.latency * 1000, color="#D55E00", lw=0.8, ls="--")
@@ -87,6 +95,7 @@ def fig_ccep_fit(path):
 
 
 def fig_n1_ds004080(path):
+    """Draw the figure of the N1 agreement on ds004080 to ``path``."""
     _, plt = _matplotlib()
     doc = json.loads((LAYER3 / "n1_ds004080.json").read_text(encoding="utf-8"))
     readings = sorted(doc["metrics"])
@@ -95,25 +104,35 @@ def fig_n1_ds004080(path):
     width = 0.8 / len(readings)
     for k, reading in enumerate(readings):
         values = [doc["metrics"][reading][n] for n in names]
-        ax.bar([i + k * width for i in range(len(names))], values, width,
-               label=f"published rule, {reading} reading")
+        ax.bar(
+            [i + k * width for i in range(len(names))],
+            values,
+            width,
+            label=f"published rule, {reading} reading",
+        )
     ax.set_xticks([i + width * (len(readings) - 1) / 2 for i in range(len(names))])
     ax.set_xticklabels(["Cohen's kappa", "recall", "latency within 2 ms"])
     ax.set_ylim(0, 1)
     ax.legend(frameon=False, fontsize=8)
-    ax.set_title(f"N1 on ds004080 ({len(doc['runs'])} runs), evoparam {doc['version']}",
-                 fontsize=10)
+    ax.set_title(
+        f"N1 on ds004080 ({len(doc['runs'])} runs), evoparam {doc['version']}", fontsize=10
+    )
     _save(fig, path)
 
 
 def fig_erpcore(path):
+    """Draw the figure of the ERP CORE latency agreement to ``path``."""
     _, plt = _matplotlib()
     fig, ax = plt.subplots(figsize=(6, 3.5))
     for k, name in enumerate(("erpcore_parent", "erpcore_difference")):
         doc = json.loads((LAYER3 / f"{name}.json").read_text(encoding="utf-8"))
         rows = doc["summary"]
-        ax.bar([i + k * 0.4 for i in range(len(rows))], [r["within_10ms"] for r in rows], 0.4,
-               label=name.split("_")[1] + " waves")
+        ax.bar(
+            [i + k * 0.4 for i in range(len(rows))],
+            [r["within_10ms"] for r in rows],
+            0.4,
+            label=name.split("_")[1] + " waves",
+        )
         ax.set_xticks([i + 0.2 for i in range(len(rows))])
         ax.set_xticklabels([r["component"] for r in rows], fontsize=8)
     ax.set_ylim(0, 1)
@@ -123,15 +142,20 @@ def fig_erpcore(path):
     _save(fig, path)
 
 
-FIGURES = {"fig_ccep_fit.svg": fig_ccep_fit, "fig_n1_ds004080.svg": fig_n1_ds004080,
-           "fig_erpcore.svg": fig_erpcore}
+FIGURES = {
+    "fig_ccep_fit.svg": fig_ccep_fit,
+    "fig_n1_ds004080.svg": fig_n1_ds004080,
+    "fig_erpcore.svg": fig_erpcore,
+}
 
 
 def sha256(path):
+    """Return the SHA-256 of the file ``path``."""
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
 def make(out):
+    """Draw every figure into ``out`` and return the manifest."""
     out = pathlib.Path(out)
     out.mkdir(parents=True, exist_ok=True)
     matplotlib, _ = _matplotlib()
@@ -139,16 +163,23 @@ def make(out):
 
     for name, draw in FIGURES.items():
         draw(out / name)
-    return {"schema": "evoparam-figures/1", "evoparam": __version__,
-            "matplotlib": matplotlib.__version__,
-            "figures": {name: sha256(out / name) for name in FIGURES}}
+    return {
+        "schema": "evoparam-figures/1",
+        "evoparam": __version__,
+        "matplotlib": matplotlib.__version__,
+        "figures": {name: sha256(out / name) for name in FIGURES},
+    }
 
 
 def main(argv=None):
+    """Draw the figures, or with ``--check`` compare them with the manifest."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--out", default=str(OUT))
-    parser.add_argument("--check", action="store_true",
-                        help="regenerate in a temporary folder and compare with the manifest")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="regenerate in a temporary folder and compare with the manifest",
+    )
     args = parser.parse_args(argv)
     manifest_path = pathlib.Path(args.out) / "manifest.json"
     if args.check:
@@ -156,8 +187,10 @@ def main(argv=None):
         with tempfile.TemporaryDirectory() as folder:
             now = make(folder)
         if now["matplotlib"] != recorded["matplotlib"]:
-            print(f"matplotlib {now['matplotlib']} here, {recorded['matplotlib']} in the "
-                  "manifest: hashes are comparable only with the same version")
+            print(
+                f"matplotlib {now['matplotlib']} here, {recorded['matplotlib']} in the "
+                "manifest: hashes are comparable only with the same version"
+            )
         bad = [n for n in FIGURES if now["figures"][n] != recorded["figures"].get(n)]
         for name in bad:
             print(f"{name}: sha256 {now['figures'][name]} != {recorded['figures'].get(name)}")

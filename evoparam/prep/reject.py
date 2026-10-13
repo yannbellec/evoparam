@@ -32,7 +32,93 @@ def _robust_z(values: Any) -> Any:
     return (values - center) / spread
 
 
-def reject_trials(  # noqa: PLR0913, PLR0915  (public API, signature fixed by spec §5.4)
+def _flag_trials(
+    ts: Any,
+    values: Any,
+    resp: Any,
+    base: Any,
+    *,
+    ptp_z: float,
+    rms_z: float,
+    flat_threshold: float,
+    max_masked_fraction: float,
+) -> tuple[Any, Any]:
+    """Flag the trial-channels of :func:`reject_trials`.
+
+    Return the reasons (``"ptp"``, ``"rms"``, ``"flat"``, ``"masked"``, joined by ``"+"``;
+    ``""`` when not flagged) and the strength of the strongest flag, both
+    [n_trials, n_channels].
+    """
+    n_trials, n_channels, _ = values.shape
+    reasons = np.zeros((n_trials, n_channels), dtype=object)
+    reasons[:] = ""
+    score = np.zeros((n_trials, n_channels))
+
+    def flag(cond: Any, name: Any, strength: Any) -> None:
+        nonlocal score
+        cond = np.nan_to_num(cond, nan=0).astype(bool)
+        for k, c in zip(*np.nonzero(cond), strict=False):
+            reasons[k, c] = name if not reasons[k, c] else reasons[k, c] + "+" + name
+        score = np.where(cond, np.maximum(score, strength), score)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        for window in (resp, base):
+            seg = values[:, :, window]
+            ptp = np.nanmax(seg, axis=-1) - np.nanmin(seg, axis=-1)
+            rms = np.sqrt(np.nanmean((seg - np.nanmean(seg, -1, keepdims=True)) ** 2, axis=-1))
+            z_ptp, z_rms = _robust_z(ptp), _robust_z(rms)
+            flag(z_ptp > ptp_z, "ptp", np.nan_to_num(z_ptp))
+            flag(z_rms > rms_z, "rms", np.nan_to_num(z_rms))
+        seg = values[:, :, resp | base]
+        mad = MAD_TO_SD * np.nanmedian(np.abs(seg - np.nanmedian(seg, -1, keepdims=True)), -1)
+        flag(mad < flat_threshold, "flat", np.inf)
+    if ts.masks is not None:
+        masked = ts.masks[:, :, resp].mean(axis=-1)
+        flag(masked > max_masked_fraction, "masked", np.inf)
+    return reasons, score
+
+
+def _cap_per_channel(ts: Any, reasons: Any, score: Any, max_fraction: float) -> list[Any]:
+    """Cap the share of flagged trials per channel at ``max_fraction`` (in place).
+
+    Above the cap, only the most extreme trials (highest ``score``) stay flagged; return
+    the names of the capped channels, with a warning.
+    """
+    n_trials, n_channels = reasons.shape
+    capped = []
+    limit = int(np.floor(max_fraction * n_trials))
+    for c in range(n_channels):
+        rows = np.flatnonzero(reasons[:, c] != "")
+        if len(rows) > limit:
+            capped.append(ts.ch_names[c])
+            keep = rows[np.argsort(-score[rows, c], kind="stable")[:limit]]
+            drop = np.setdiff1d(rows, keep)
+            reasons[drop, c] = ""
+    if capped:
+        # stacklevel 3: the caller of reject_trials
+        _warn(
+            f"reject_trials: more than {max_fraction:.0%} of the trials are flagged on "
+            f"{capped}; the channel, not the trials, is probably the problem (only "
+            "the most extreme trials are flagged).",
+            UserWarning,
+            stacklevel=3,
+        )
+    return capped
+
+
+def _reason_text(reasons: Any, low_quality: Any, rejected: Any) -> list[str]:
+    """Return the ``reject_reason`` of each trial: its reasons joined by ``"+"``, or ``""``."""
+    reason_text = []
+    for k in range(len(rejected)):
+        parts = sorted({part for r in reasons[k] if r for part in r.split("+")})
+        if low_quality[k]:
+            parts.append("quality")
+        reason_text.append("+".join(parts) if rejected[k] else "")
+    return reason_text
+
+
+def reject_trials(  # noqa: PLR0913  (spec §5.4 fixes 9 parameters, plus all_channels_fraction; DECISIONS.md §7.2)
     ts: Any,
     *,
     response_window: Any = (0.01, 0.5),
@@ -77,53 +163,18 @@ def reject_trials(  # noqa: PLR0913, PLR0915  (public API, signature fixed by sp
     resp = window_mask(ts.times, response_window, "response_window")
     base = window_mask(ts.times, baseline, "baseline")
     values = masked_values(ts)
-    n_trials, n_channels, _ = values.shape
-
-    reasons = np.zeros((n_trials, n_channels), dtype=object)
-    reasons[:] = ""
-    score = np.zeros((n_trials, n_channels))
-
-    def flag(cond: Any, name: Any, strength: Any) -> None:
-        nonlocal score
-        cond = np.nan_to_num(cond, nan=0).astype(bool)
-        for k, c in zip(*np.nonzero(cond), strict=False):
-            reasons[k, c] = name if not reasons[k, c] else reasons[k, c] + "+" + name
-        score = np.where(cond, np.maximum(score, strength), score)
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)
-        for window in (resp, base):
-            seg = values[:, :, window]
-            ptp = np.nanmax(seg, axis=-1) - np.nanmin(seg, axis=-1)
-            rms = np.sqrt(np.nanmean((seg - np.nanmean(seg, -1, keepdims=True)) ** 2, axis=-1))
-            z_ptp, z_rms = _robust_z(ptp), _robust_z(rms)
-            flag(z_ptp > ptp_z, "ptp", np.nan_to_num(z_ptp))
-            flag(z_rms > rms_z, "rms", np.nan_to_num(z_rms))
-        seg = values[:, :, resp | base]
-        mad = MAD_TO_SD * np.nanmedian(np.abs(seg - np.nanmedian(seg, -1, keepdims=True)), -1)
-        flag(mad < flat_threshold, "flat", np.inf)
-    if ts.masks is not None:
-        masked = ts.masks[:, :, resp].mean(axis=-1)
-        flag(masked > max_masked_fraction, "masked", np.inf)
-
-    # Cap the share of flagged trials per channel
-    capped = []
-    limit = int(np.floor(max_fraction * n_trials))
-    for c in range(n_channels):
-        rows = np.flatnonzero(reasons[:, c] != "")
-        if len(rows) > limit:
-            capped.append(ts.ch_names[c])
-            keep = rows[np.argsort(-score[rows, c], kind="stable")[:limit]]
-            drop = np.setdiff1d(rows, keep)
-            reasons[drop, c] = ""
-    if capped:
-        _warn(
-            f"reject_trials: more than {max_fraction:.0%} of the trials are flagged on "
-            f"{capped}; the channel, not the trials, is probably the problem (only "
-            "the most extreme trials are flagged).",
-            UserWarning,
-            stacklevel=2,
-        )
+    n_trials = values.shape[0]
+    reasons, score = _flag_trials(
+        ts,
+        values,
+        resp,
+        base,
+        ptp_z=ptp_z,
+        rms_z=rms_z,
+        flat_threshold=flat_threshold,
+        max_masked_fraction=max_masked_fraction,
+    )
+    capped = _cap_per_channel(ts, reasons, score, max_fraction)
 
     flagged = reasons != ""
     meta = ts.metadata.copy() if ts.metadata is not None else pd.DataFrame(index=range(n_trials))
@@ -132,12 +183,7 @@ def reject_trials(  # noqa: PLR0913, PLR0915  (public API, signature fixed by sp
         low_quality = meta["quality"].to_numpy(dtype=float) < quality_min
     share = flagged.mean(axis=1)
     rejected = low_quality | (share >= all_channels_fraction)
-    reason_text = []
-    for k in range(n_trials):
-        parts = sorted({part for r in reasons[k] if r for part in r.split("+")})
-        if low_quality[k]:
-            parts.append("quality")
-        reason_text.append("+".join(parts) if rejected[k] else "")
+    reason_text = _reason_text(reasons, low_quality, rejected)
     previous = (
         meta["rejected"].to_numpy(dtype=bool)
         if "rejected" in meta.columns

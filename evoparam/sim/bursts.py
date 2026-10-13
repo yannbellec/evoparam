@@ -21,7 +21,7 @@ import numpy as np
 from evoparam._typing import Any, ArrayLike, FloatArray, RandomState
 from evoparam.errors import SettingsError
 
-from ._engine import assemble, seed_streams, time_axis
+from ._engine import Design, NoiseSpec, Recording, assemble, seed_streams, time_axis
 
 if TYPE_CHECKING:
     from evoparam.data import TrialSet
@@ -53,6 +53,7 @@ def burst_waveform(
 
 
 def _check_burst(burst: Any, n_channels: int, ch_names: Any, sfreq: float) -> dict[str, Any]:
+    """Return a burst specification as floats with its channel index, or raise SettingsError."""
     keys = {"freq", "centre", "duration", "amplitude"}
     missing = keys - set(burst)
     if missing:
@@ -73,7 +74,7 @@ def _check_burst(burst: Any, n_channels: int, ch_names: Any, sfreq: float) -> di
     return out
 
 
-def simulate_bursts(
+def simulate_bursts(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     n_trials: int = 30,
     *,
     n_channels: int = 1,
@@ -156,22 +157,24 @@ def simulate_bursts(
     if noise == "ar1":
         kw.setdefault("rho", 0.9)
     ts, truth = assemble(
-        generator="evoparam.sim.simulate_bursts",
-        settings=settings,
-        seed=entropy,
-        rngs=rngs,
-        times=times,
-        sfreq=sfreq,
-        ch_names=names,
-        sources=[],
-        n_trials=n_trials,
-        noise=noise,
-        noise_sd=noise_sd,
-        noise_kw=kw,
-        metadata={"trial": np.arange(n_trials, dtype=np.int64), "condition": [""] * n_trials},
-        modality="erp",
-        keep_arrays=keep_arrays,
-        start=start,
+        Design(
+            generator="evoparam.sim.simulate_bursts",
+            settings=settings,
+            seed=entropy,
+            rngs=rngs,
+            times=times,
+            sfreq=sfreq,
+            ch_names=names,
+            sources=[],
+            n_trials=n_trials,
+            start=start,
+        ),
+        NoiseSpec(noise=noise, noise_sd=noise_sd, noise_kw=kw),
+        recording=Recording(
+            metadata={"trial": np.arange(n_trials, dtype=np.int64), "condition": [""] * n_trials},
+            modality="erp",
+            keep_arrays=keep_arrays,
+        ),
     )
     signal = np.zeros(ts.data.shape)
     phases, records = [], []

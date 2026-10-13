@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Amplifier saturation: find the samples where a channel is stuck at its rail."""
 
+import dataclasses
+
 import numpy as np
 
 from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
@@ -26,7 +28,7 @@ RAIL_MIN_SD = 8.0
 _SPREAD_STEP = 16
 
 
-def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
+def detect_saturation(  # noqa: PLR0913  (spec §5.2 fixes 7 parameters, plus t0, ch_names and picks; DECISIONS.md §7.2)
     data: FloatArray,
     sfreq: float,
     *,
@@ -98,14 +100,61 @@ def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, si
     """
     data = as_continuous(data)
     n_channels, n_times = data.shape
-    if min_run < 2:
+    if min_run < _MIN_RAIL_RUN:
         raise DataError("min_run must be at least 2.")
     names = list(ch_names) if ch_names is not None else [str(ind) for ind in range(n_channels)]
     if len(names) != n_channels:
         raise DataError("ch_names must have one name per channel.")
     index = pick_index(n_channels, picks, names)
+    positions, valid = _examined(events, search, sfreq, n_times)
+    known = rail is not None
+    rails = (
+        np.broadcast_to(np.abs(np.asarray(rail, dtype=float)), (n_channels,)) if known else None
+    )
+    scan = _Scan(
+        positions=positions,
+        names=names,
+        sfreq=sfreq,
+        t0=t0,
+        extra=int(round(recovery * sfreq)),
+        min_run=min_run,
+        known=known,
+        per_event=events is not None,
+    )
+    mask = np.zeros((n_channels, n_times), dtype=bool)
+    rows = []
+    for ch in index:
+        trace = data[ch]
+        segment = trace[positions].astype(float)
+        segment[~valid] = np.nan
+        level = rails[ch] if rails is not None else _estimated_rail(trace, segment)
+        if level is None or not 0 < level < np.inf:
+            continue
+        rows += _channel_runs(ch, segment, level, scan, mask)
+    return mask, _run_table(rows)
 
-    # Samples examined: windows around the pulses (one row per pulse), or the recording
+
+# Runs at the rail count from 2 samples when the rail is estimated (and flat runs from 2).
+_MIN_RAIL_RUN = 2
+_MAD_TO_SD = 1.4826
+
+
+@dataclasses.dataclass(frozen=True)
+class _Scan:
+    """What the channels of one saturation scan share."""
+
+    positions: NDArray[Any]
+    names: list[str]
+    sfreq: float
+    t0: float
+    extra: int
+    min_run: int
+    known: bool
+    per_event: bool
+
+
+def _examined(events: Any, search: float, sfreq: float, n_times: int) -> tuple[Any, Any]:
+    """Return the samples examined (one row per pulse, or the recording) and their validity."""
     if events is not None:
         onsets = np.asarray(events["onset_sample"], dtype=int)
         half = int(round(search * sfreq))
@@ -113,68 +162,74 @@ def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, si
     else:
         positions = np.arange(n_times)[None]
     valid = (positions >= 0) & (positions < n_times)
-    positions = np.clip(positions, 0, n_times - 1)
+    return np.clip(positions, 0, n_times - 1), valid
 
-    known = rail is not None
-    if known:
-        rails = np.broadcast_to(np.abs(np.asarray(rail, dtype=float)), (n_channels,))
 
-    extra = int(round(recovery * sfreq))
-    mask = np.zeros((n_channels, n_times), dtype=bool)
+def _estimated_rail(trace: Any, segment: Any) -> Any:
+    """Return the rail of a channel from its examined samples, or None when it has none."""
+    level = RAIL_FRACTION * np.nanmax(np.abs(segment))
+    # The spread is estimated on every 16th sample of the recording: accurate to
+    # about 1 % with tens of thousands of samples, and 16 times faster
+    sample = trace[::_SPREAD_STEP]
+    sample = sample[~np.isnan(sample)]
+    center = np.median(sample) if len(sample) else 0.0
+    spread = _MAD_TO_SD * np.median(np.abs(sample - center)) if len(sample) else 0.0
+    # A channel whose largest value is not an outlier has no estimable rail
+    if level - abs(center) < RAIL_MIN_SD * spread:
+        return None
+    return level
+
+
+def _channel_runs(ch: int, segment: Any, level: Any, scan: _Scan, mask: Any) -> list[Any]:
+    """Return the saturated runs of channel ``ch`` and mark them in ``mask``."""
+    railed = np.abs(segment) >= level
+    # a zero difference of two samples (equal and finite: inf - inf is not computed)
+    flat = (segment[:, 1:] == segment[:, :-1]) & np.isfinite(segment[:, 1:])
+    flat = np.c_[np.zeros((len(segment), 1), bool), flat]
+    flat &= np.abs(np.nan_to_num(segment)) >= FLAT_MIN_FRACTION * level
+    # A flat run of k equal samples has k - 1 zero differences: grow it by one sample.
+    flat |= np.c_[flat[:, 1:], np.zeros((len(segment), 1), bool)]
     rows = []
-    for ch in index:
-        trace = data[ch]
-        segment = trace[positions].astype(float)
-        segment[~valid] = np.nan
-        if known:
-            level = rails[ch]
-        else:
-            level = RAIL_FRACTION * np.nanmax(np.abs(segment))
-            # The spread is estimated on every 16th sample of the recording: accurate to
-            # about 1 % with tens of thousands of samples, and 16 times faster
-            sample = trace[::_SPREAD_STEP]
-            sample = sample[~np.isnan(sample)]
-            center = np.median(sample) if len(sample) else 0.0
-            spread = 1.4826 * np.median(np.abs(sample - center)) if len(sample) else 0.0
-            # A channel whose largest value is not an outlier has no estimable rail
-            if level - abs(center) < RAIL_MIN_SD * spread:
-                continue
-        if not 0 < level < np.inf:
-            continue
-        railed = np.abs(segment) >= level
-        # a zero difference of two samples (equal and finite: inf - inf is not computed)
-        flat = (segment[:, 1:] == segment[:, :-1]) & np.isfinite(segment[:, 1:])
-        flat = np.c_[np.zeros((len(segment), 1), bool), flat]
-        flat &= np.abs(np.nan_to_num(segment)) >= FLAT_MIN_FRACTION * level
-        # A flat run of k equal samples has k - 1 zero differences: grow it by one sample.
-        flat |= np.c_[flat[:, 1:], np.zeros((len(segment), 1), bool)]
-        for kind, values, min_len in (
-            ("rail", railed, 1 if known else 2),
-            ("flat", flat, min_run),
-        ):
-            if not values.any():
-                continue
-            edges = np.diff(np.pad(values.astype(np.int8), ((0, 0), (1, 1))), axis=1)
-            starts, stops = np.nonzero(edges == 1), np.nonzero(edges == -1)
-            for row, first, last in zip(starts[0], starts[1], stops[1], strict=False):
-                if last - first < min_len:
-                    continue
-                a_, b_ = positions[row, first], positions[row, last - 1] + 1
-                if mask[ch, a_:b_].all():
-                    continue
-                end = min(n_times, b_ + extra)
-                mask[ch, a_:end] = True
-                rows.append(
-                    {
-                        "channel": names[ch],
-                        "start_time": t0 + a_ / sfreq,
-                        "end_time": t0 + end / sfreq,
-                        "n_samples": int(b_ - a_),
-                        "event_index": int(row) if events is not None else -1,
-                        "kind": kind,
-                    }
-                )
+    for kind, values, min_len in (
+        ("rail", railed, 1 if scan.known else _MIN_RAIL_RUN),
+        ("flat", flat, scan.min_run),
+    ):
+        if values.any():
+            rows += _runs(ch, kind, (values, min_len), scan, mask)
+    return rows
 
+
+def _runs(ch: int, kind: str, runs: Any, scan: _Scan, mask: Any) -> list[Any]:
+    """Return the runs of ``runs = (values, min_len)`` not yet masked, and mask them."""
+    values, min_len = runs
+    n_times = mask.shape[1]
+    positions, sfreq, t0 = scan.positions, scan.sfreq, scan.t0
+    edges = np.diff(np.pad(values.astype(np.int8), ((0, 0), (1, 1))), axis=1)
+    starts, stops = np.nonzero(edges == 1), np.nonzero(edges == -1)
+    rows = []
+    for row, first, last in zip(starts[0], starts[1], stops[1], strict=False):
+        if last - first < min_len:
+            continue
+        a_, b_ = positions[row, first], positions[row, last - 1] + 1
+        if mask[ch, a_:b_].all():
+            continue
+        end = min(n_times, b_ + scan.extra)
+        mask[ch, a_:end] = True
+        rows.append(
+            {
+                "channel": scan.names[ch],
+                "start_time": t0 + a_ / sfreq,
+                "end_time": t0 + end / sfreq,
+                "n_samples": int(b_ - a_),
+                "event_index": int(row) if scan.per_event else -1,
+                "kind": kind,
+            }
+        )
+    return rows
+
+
+def _run_table(rows: list[Any]) -> Any:
+    """Return the table of the runs, sorted by start time and channel, duplicates dropped."""
     # sorted by start time and channel, the first of the runs with the same channel and
     # start kept (a table without pandas, REQ-010: the same rows and dtypes)
     rows.sort(key=lambda run: (run["start_time"], run["channel"]))
@@ -193,7 +248,6 @@ def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, si
         "event_index": "int64",
         "kind": object,
     }
-    table = new_table(
+    return new_table(
         {name: np.array([run[name] for run in kept], dtype=kind) for name, kind in dtypes.items()}
     )
-    return mask, table

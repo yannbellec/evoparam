@@ -12,20 +12,20 @@
   "numpy": "2.5.3",
   "scipy": "1.18.1",
   "omp_num_threads": "1",
-  "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+  "git_commit": "148319226b7012c304b5847a6452a0a3ce757334",
   "load_average": [
-   9.6669921875,
-   10.052734375,
-   9.55859375
+   7.34228515625,
+   7.9404296875,
+   9.9921875
   ]
  },
  "results": [
   {
    "id": "P1",
    "workload": "1 waveform, 2048 samples, max_components=6, ccep, 3 starts",
-   "median_s": 1.299527595001564,
-   "p90_s": 1.4170320707009523,
-   "peak_rss_bytes": 3129344,
+   "median_s": 0.08037102146772668,
+   "p90_s": 0.09963109839009121,
+   "peak_rss_bytes": 454656,
    "n_repeats": 20,
    "target": "median < 0.050 s",
    "target_met": false,
@@ -39,20 +39,20 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "148319226b7012c304b5847a6452a0a3ce757334",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     7.34228515625,
+     7.9404296875,
+     9.9921875
     ]
    }
   },
   {
    "id": "P2",
    "workload": "fit_trials, 100 channels x 50 trials, n_jobs=4",
-   "median_s": 53.725344528997084,
-   "p90_s": 53.725344528997084,
-   "peak_rss_bytes": 263639040,
+   "median_s": 56.75362982501974,
+   "p90_s": 56.75362982501974,
+   "peak_rss_bytes": 150405120,
    "n_repeats": 1,
    "target": "< 60 s on 4 cores",
    "n_fits": 5000,
@@ -67,11 +67,11 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "148319226b7012c304b5847a6452a0a3ce757334",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     7.34228515625,
+     7.9404296875,
+     9.9921875
     ]
    }
   },
@@ -96,24 +96,24 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "148319226b7012c304b5847a6452a0a3ce757334",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     7.34228515625,
+     7.9404296875,
+     9.9921875
     ]
    }
   },
   {
    "id": "P5",
    "workload": "evoparam.reproduce of a saved GroupFit of 256 channels",
-   "median_s": 266.5244764569943,
-   "p90_s": 266.5244764569943,
-   "peak_rss_bytes": 1014157312,
+   "median_s": 61.473843137035146,
+   "p90_s": 61.473843137035146,
+   "peak_rss_bytes": 265310208,
    "n_repeats": 1,
    "target": "< 1.5 x the original fit",
-   "original_s": 270.6748818060005,
-   "ratio": 0.984666455485955,
+   "original_s": 48.58991507202154,
+   "ratio": 1.2651564228074206,
    "identical": true,
    "target_met": true,
    "environment": {
@@ -126,25 +126,25 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "148319226b7012c304b5847a6452a0a3ce757334",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     7.34228515625,
+     7.9404296875,
+     9.9921875
     ]
    }
   },
   {
    "id": "P6",
    "workload": "python -X importtime -c 'import evoparam' (cumulative time of evoparam)",
-   "median_s": 0.9086405,
-   "p90_s": 0.9608234,
+   "median_s": 0.12089649999999999,
+   "p90_s": 0.1587109,
    "peak_rss_bytes": 0,
    "n_repeats": 10,
    "target": "median < 0.300 s",
-   "process_wall_median_s": 1.09449959199992,
+   "process_wall_median_s": 0.1814243155240547,
    "optional_modules_loaded": [],
-   "target_met": false,
+   "target_met": true,
    "environment": {
     "evoparam": "0.1.0.dev0",
     "python": "3.13.16",
@@ -155,11 +155,11 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "148319226b7012c304b5847a6452a0a3ce757334",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     7.34228515625,
+     7.9404296875,
+     9.9921875
     ]
    }
   }

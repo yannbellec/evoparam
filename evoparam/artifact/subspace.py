@@ -16,6 +16,9 @@ from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = []
 
+# Fewest channels for a spatial subspace.
+_MIN_CHANNELS = 2
+
 # Energy of the artifact window removed when the number of directions is automatic.
 ENERGY = 0.95
 MAX_DIRECTIONS = 6
@@ -25,6 +28,7 @@ NOISE_FACTOR = 2.0
 
 
 def _sqrtm(cov: Any, inverse: bool = False) -> FloatArray:
+    """Matrix square root (or inverse square root) of a symmetric covariance."""
     vals, vecs = np.linalg.eigh(cov)
     vals = np.clip(vals, vals.max() * 1e-12, None)
     power = -0.5 if inverse else 0.5
@@ -61,7 +65,7 @@ def subspace_clean(
         ``window_energy_removed``.
     """
     n_trials, n_channels, _ = data.shape
-    if n_channels < 2:
+    if n_channels < _MIN_CHANNELS:
         raise ArtifactError("method 'subspace' needs at least 2 channels.")
     if len(baseline_inds) < n_channels + 1:
         raise ArtifactError(

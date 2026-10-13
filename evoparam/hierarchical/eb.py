@@ -45,6 +45,13 @@ __all__ = [
     "design_matrix",
 ]
 
+# Channels beyond this many noise SDs start the iterations, if at least _MIN_STRONG of them.
+_STRONG_Z = 3
+_MIN_STRONG = 2
+
+# Fewest trial latencies from which the trial-to-trial jitter is estimated.
+_MIN_JITTER_TRIALS = 5
+
 PARAMETERS = ("latency", "amplitude", "fwhm")
 EM_TOL = 1e-9
 EM_MAX_ITER = 1000
@@ -52,6 +59,7 @@ PI_BOUNDS = (1e-4, 1 - 1e-4)
 
 
 def _normal_logpdf(y: Any, mean: Any, var: Any) -> Any:
+    """Log-density of a normal distribution of variance ``var``."""
     return -0.5 * (np.log(2 * np.pi * var) + (y - mean) ** 2 / var)
 
 
@@ -87,8 +95,12 @@ def mixture_em(
     sign = polarity if polarity else (np.sign(np.median(y[ok])) or 1.0)
     z = sign * y / np.sqrt(se2)
     # initialise from the channels well beyond their noise
-    strong = ok & (z > 3)
-    start = np.median(y[strong]) if strong.sum() >= 2 else sign * 3 * np.sqrt(np.median(se2[ok]))
+    strong = ok & (z > _STRONG_Z)
+    start = (
+        np.median(y[strong])
+        if strong.sum() >= _MIN_STRONG
+        else sign * _STRONG_Z * np.sqrt(np.median(se2[ok]))
+    )
     mu: Any
     mu = np.full(n_sub, float(start))
     tau = 0.3 * abs(start)
@@ -120,9 +132,10 @@ def mixture_em(
         den = np.bincount(subject, weights=w, minlength=n_sub) + prior
         mu = np.where(den > 0, num / np.where(den > 0, den, 1.0), mu_group)
 
-        def objective(t: Any) -> Any:
+        def objective(t: Any, r: Any = r, mu: Any = mu) -> Any:
+            """Negative weighted log-likelihood of the response SD ``t`` (around ``mu``)."""
             v = t**2 + se2[ok]
-            return -np.sum(r[ok] * _normal_logpdf(y[ok], mu[subject[ok]], v))  # noqa: B023  (called within this iteration only)
+            return -np.sum(r[ok] * _normal_logpdf(y[ok], mu[subject[ok]], v))
 
         bound = 10 * np.nanmax(np.abs(y[ok])) + 1e-12
         tau = float(
@@ -176,7 +189,7 @@ def jitter_components(latency: Any, noise_sd: Any, subject: Any, channel: Any) -
     ok = np.isfinite(latency) & np.isfinite(noise_sd) & (noise_sd > 0)
     latency, noise_sd = latency[ok], noise_sd[ok]
     subject, channel = np.asarray(subject)[ok], np.asarray(channel)[ok]
-    if latency.size < 5:
+    if latency.size < _MIN_JITTER_TRIALS:
         return {"sd": np.nan, "sigma": np.nan, "tau": np.nan, "n_trials": int(latency.size)}
     single = len(np.unique(subject)) == 1
     groups = [channel] if single else [subject, channel]

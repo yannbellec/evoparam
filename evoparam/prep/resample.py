@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 
 __all__ = ["resample"]
 
+# Distance (in samples) under which time zero is taken to fall on a sample of the new grid.
+_ON_GRID = 1e-6
+
 
 def resample(ts: Any, sfreq: float) -> "TrialSet":
     """Change the sampling frequency (polyphase filtering, anti-aliasing FIR).
@@ -46,7 +49,7 @@ def resample(ts: Any, sfreq: float) -> "TrialSet":
     offset = round(-first * new_sfreq)
     times = (
         (np.arange(n_new) - offset) / new_sfreq
-        if abs(-first * new_sfreq - offset) < 1e-6
+        if abs(-first * new_sfreq - offset) < _ON_GRID
         else first + np.arange(n_new) / new_sfreq
     )
     masks = None

@@ -1,18 +1,28 @@
 # pre-commit hooks (spec §9.9, REQ-305). Install with `pre-commit install`; run on every file
-# with `pre-commit run --all-files`.
+# with `pre-commit run --all-files`. The versions of ruff, mypy, interrogate and the type
+# stubs are those of the CI lock files (ci/locks/), so that the hooks and the CI jobs report
+# the same findings.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.17.0
     hooks:
       - id: ruff
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
+    rev: v2.4.0
     hooks:
       - id: mypy
         args: [--strict]
+        # the whole package, as the CI job runs it (files = ["evoparam"] in pyproject.toml)
+        pass_filenames: false
         files: ^evoparam/
         exclude: ^evoparam/tests/
+        additional_dependencies:
+          - numpy==2.5.4
+          - packaging==26.3
+          - scipy-stubs==1.18.1.1
+          - types-PyYAML==6.0.12.20260906
+          - types-tabulate==0.10.0.20261006
   - repo: https://github.com/econchick/interrogate
     rev: 1.7.0
     hooks:
@@ -24,6 +34,10 @@ repos:
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
+        # byte-exact files written by the package or by the validation scripts: the
+        # format-1 containers are checked against the sha256 of each file in their manifest,
+        # and the validation reports are regenerated as written
+        exclude: ^(evoparam/tests/data/containers/|validation/layer[0-9]/)
   - repo: https://github.com/kynan/nbstripout
     rev: 0.7.1
     hooks:

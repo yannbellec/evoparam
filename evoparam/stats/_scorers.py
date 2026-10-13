@@ -43,6 +43,7 @@ _TRAPEZOID: Callable[..., Any] = getattr(np, "trapezoid", None) or np.trapz  # t
 
 
 def _signed(y: Any, polarity: Any) -> Any:
+    """Return ``y`` turned so that the component of ``polarity`` is a maximum."""
     if polarity == "negative":
         return -y
     if polarity == "positive":
@@ -70,10 +71,12 @@ def _local_peak(s: Any, n_neighbors: Any) -> Any:
 
 
 def _take(values: Any, index: Any) -> NDArray[Any]:
+    """Return ``values[..., index]`` for one index per waveform."""
     return np.take_along_axis(values, index[..., None], axis=-1)[..., 0]
 
 
 def _baseline(y: Any, peak: Any, area_baseline: Any, fraction: Any) -> Any:
+    """Return the level that the area of each waveform is measured from."""
     if area_baseline == "zero":
         return np.zeros(y.shape[:-1])
     if area_baseline == "fraction_of_peak":
@@ -82,6 +85,7 @@ def _baseline(y: Any, peak: Any, area_baseline: Any, fraction: Any) -> Any:
 
 
 def _area_values(y: Any, base: Any, area: Any) -> Any:
+    """Return the waveforms above their baseline, kept as ``area`` says."""
     values = y - base[..., None]
     if area == "positive":
         return np.clip(values, 0, None)
@@ -93,6 +97,7 @@ def _area_values(y: Any, base: Any, area: Any) -> Any:
 
 
 def _fractional_area_latency(t: Any, y: Any, base: Any, area: Any, fraction: Any) -> NDArray[Any]:
+    """Return the time at which the area reaches ``fraction`` of the total."""
     values = y - base[..., None]
     if area == "positive":
         values = np.clip(values, 0, None)
@@ -114,6 +119,7 @@ def _fractional_area_latency(t: Any, y: Any, base: Any, area: Any, fraction: Any
 
 
 def _fractional_peak_latency(t: Any, s: Any, peak: Any, fraction: Any) -> Any:
+    """Return the last time before the peak at which ``s`` is below ``fraction`` of it."""
     level = fraction * _take(s, peak)
     index = np.arange(s.shape[-1])
     below = (s < level[..., None]) & (index <= peak[..., None])
@@ -128,7 +134,7 @@ def _fractional_peak_latency(t: Any, s: Any, peak: Any, fraction: Any) -> Any:
     return np.where(has, out, t[0])
 
 
-def score_waveforms(
+def score_waveforms(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     times: ArrayLike,
     waveforms: ArrayLike,
     score: str,
@@ -217,6 +223,7 @@ def resolve_scorer(scorer: Any, times: Any, window: Any = None, **scorer_kw: Any
             raise SettingsError(f"scorer must be a callable or one of {SCORES}, not {scorer!r}.")
 
         def func(waveforms: Any) -> Any:
+            """Return the named score of every waveform in the window."""
             return score_waveforms(times, waveforms, scorer, window=window, **scorer_kw)
 
         return func, scorer, scorer in LINEAR_SCORES, window
@@ -224,6 +231,7 @@ def resolve_scorer(scorer: Any, times: Any, window: Any = None, **scorer_kw: Any
         raise SettingsError("scorer must be a score name or a callable.")
 
     def call(waveforms: Any) -> Any:
+        """Return the callable's score of every waveform (rows of the last axis)."""
         waveforms = np.asarray(waveforms, float)
         flat = waveforms.reshape(-1, waveforms.shape[-1])
         out = np.asarray(scorer(times, flat, **scorer_kw), float).reshape(-1)

@@ -38,6 +38,12 @@ UNITS: dict[str, float | None] = {"uV": 1e-6, "mV": 1e-3, "V": 1.0, "fT": None, 
 
 MODALITIES = ("spes", "erp", "tep", "erna", "sep", "ecap", "vep", "baep", "mep", "lfp_ep")
 
+_MIN_SAMPLES = 2  # a time axis or a window has a sampling step
+_SFREQ_RTOL = 1e-6  # largest relative mismatch between sfreq and the time axis
+_MIN_SEM_COUNT = 2  # values needed for a standard error
+_TRIALSET_NDIM = 3  # trials x channels x times
+_EVOKED_NDIM = 2  # channels x times
+
 # Standard metadata columns (spec Table 4.1) and the dtype kind they must have.
 # Kinds: "i" integer, "f" float, "b" bool, "s" string.
 METADATA_COLUMNS = {
@@ -87,6 +93,7 @@ _C = TypeVar("_C", bound="_ContainerMixin")
 
 
 def _is_dataframe(obj: object) -> bool:
+    """Return whether ``obj`` is a pandas DataFrame (without importing pandas)."""
     return type(obj).__name__ == "DataFrame" and type(obj).__module__.startswith("pandas")
 
 
@@ -99,6 +106,7 @@ def _as_frame(table: Any) -> Any:
 
 
 def _dtype_kind(series: Any) -> str:
+    """Return the kind of a column: "i", "f", "b", "s" or the numpy kind."""
     kind = series.dtype.kind
     if kind in "iu":
         return "i"
@@ -112,6 +120,7 @@ def _dtype_kind(series: Any) -> str:
 
 
 def _check_table(table: Any, name: str, n_rows: int, columns: dict[str, str]) -> None:
+    """Raise DataError when a metadata or channel table has the wrong type, length or kinds."""
     if not is_table(table):
         raise DataError(
             f"{name}: expected a pandas DataFrame (a Table without pandas), "
@@ -135,7 +144,8 @@ def _check_table(table: Any, name: str, n_rows: int, columns: dict[str, str]) ->
 
 
 def _check_axis(times: FloatArray, sfreq: float, n_times: int) -> None:
-    if times.ndim != 1 or times.size < 2:
+    """Raise DataError when the time axis is not 1-D, regular and matched to sfreq."""
+    if times.ndim != 1 or times.size < _MIN_SAMPLES:
         raise DataError("times: must be a 1-D array with at least 2 samples.")
     if times.size != n_times:
         raise DataError(f"times: {times.size} samples but data has {n_times} on its last axis.")
@@ -144,11 +154,12 @@ def _check_axis(times: FloatArray, sfreq: float, n_times: int) -> None:
     if not (np.isfinite(sfreq) and sfreq > 0):
         raise DataError(f"sfreq: must be a positive number, got {sfreq}.")
     implied = 1.0 / np.median(np.diff(times))
-    if abs(implied - sfreq) / sfreq >= 1e-6:
+    if abs(implied - sfreq) / sfreq >= _SFREQ_RTOL:
         raise DataError(f"sfreq: {sfreq} Hz does not match the time axis ({implied:.6f} Hz).")
 
 
 def _check_names(ch_names: list[str], n_channels: int) -> None:
+    """Raise DataError when the channel names are not one non-empty string per channel."""
     if len(ch_names) != n_channels:
         raise DataError(f"ch_names: {len(ch_names)} names for {n_channels} channels.")
     if any(not isinstance(name, str) or not name for name in ch_names):
@@ -159,6 +170,7 @@ def _check_names(ch_names: list[str], n_channels: int) -> None:
 
 
 def _check_common(obj: "TrialSet | Evoked") -> None:
+    """Raise DataError when the units, modality or other shared fields are not valid."""
     if obj.units not in UNITS:
         raise DataError(f"units: '{obj.units}' is not one of {sorted(UNITS)}.")
     if obj.modality is not None and obj.modality not in MODALITIES:
@@ -191,12 +203,13 @@ def _time_slice(times: FloatArray, sfreq: float, tmin: float | None, tmax: float
     if tmax is not None:
         keep &= times < tmax - tol
     index = np.flatnonzero(keep)
-    if index.size < 2:
+    if index.size < _MIN_SAMPLES:
         raise DataError(f"Time window [{tmin}, {tmax}) keeps fewer than 2 samples.")
     return slice(int(index[0]), int(index[-1]) + 1)
 
 
 def _pick_index(ch_names: Sequence[str], picks: Picks) -> IntArray:
+    """Return the indices of the channels selected by ``picks`` (names or positions)."""
     n_channels = len(ch_names)
     if picks is None:
         return np.arange(n_channels)
@@ -249,6 +262,7 @@ def auto_chunk(
 
 
 def _chunks(n_channels: int, chunk: int | str | None, n_trials: int, n_times: int) -> list[slice]:
+    """Return the channel slices processed at once (all, ``chunk`` of them, or automatic)."""
     if chunk is None:
         size = n_channels
     elif chunk == "auto":
@@ -258,6 +272,24 @@ def _chunks(n_channels: int, chunk: int | str | None, n_trials: int, n_times: in
     else:
         raise DataError(f"chunk: expected a positive integer, 'auto' or None, got {chunk!r}.")
     return [slice(start, min(start + size, n_channels)) for start in range(0, n_channels, size)]
+
+
+# Bytes of trials averaged at once: _average_block holds a copy of its block and a few
+# temporaries of the same size, so the channels of a chunk are averaged by blocks of at most
+# this size (every value is computed per channel and time point, so the result does not
+# depend on the blocks).
+_AVERAGE_BLOCK_BYTES = 16 * 2**20
+
+
+def _blocks(parts: list[slice], n_trials: int, n_times: int) -> list[slice]:
+    """Split the channel ranges ``parts`` into ranges of at most ``_AVERAGE_BLOCK_BYTES``."""
+    per_channel = max(1, n_trials) * max(1, n_times) * 8
+    size = max(1, _AVERAGE_BLOCK_BYTES // per_channel)
+    return [
+        slice(start, min(start + size, part.stop))
+        for part in parts
+        for start in range(part.start, part.stop, size)
+    ]
 
 
 def _take0(values: NDArray[Any], index: IntArray) -> NDArray[Any]:
@@ -277,7 +309,7 @@ def _average_block(
     # quotients are computed on the other points only, so that no 0 / 0 is computed
     mean = np.full(count.shape, np.nan)
     sem = np.full(count.shape, np.nan)
-    two = count >= 2
+    two = count >= _MIN_SEM_COUNT
     if not robust:
         np.divide(np.nansum(block, axis=0), count, out=mean, where=count > 0)
         np.divide(_spread(block), np.sqrt(count), out=sem, where=two)
@@ -360,6 +392,7 @@ class _ContainerMixin(DeepEqualMixin):
         data_changed: bool = True,
         **changes: Any,
     ) -> _C:
+        """Return a copy with ``changes`` and a provenance step for ``function``."""
         provenance = self.provenance.with_step(
             function, settings, duration_s=_time.perf_counter() - start
         )
@@ -400,18 +433,22 @@ class _ContainerMixin(DeepEqualMixin):
 
     @property
     def n_channels(self) -> int:
+        """Number of channels."""
         return len(self.ch_names)
 
     @property
     def n_times(self) -> int:
+        """Number of samples."""
         return int(self.times.size)
 
     @property
     def tmin(self) -> float:
+        """First time (s)."""
         return float(self.times[0])
 
     @property
     def tmax(self) -> float:
+        """Last time (s)."""
         return float(self.times[-1])
 
     def convert_units(self: _C, units: str) -> _C:
@@ -507,7 +544,7 @@ class TrialSet(_ContainerMixin):
 
     def validate(self) -> "TrialSet":
         """Check every invariant; raise :class:`~evoparam.errors.DataError` naming the field."""
-        if self.data.ndim != 3:
+        if self.data.ndim != _TRIALSET_NDIM:
             raise DataError(
                 f"data: expected 3 dimensions (trials, channels, times), "
                 f"got shape {self.data.shape}."
@@ -550,6 +587,7 @@ class TrialSet(_ContainerMixin):
         )
 
     def _trial_index(self, trials: Any, query: str | None) -> IntArray:
+        """Return the indices of the trials selected by ``trials`` and ``query``."""
         n_trials = self.n_trials
         if trials is None:
             index: Any
@@ -789,17 +827,18 @@ class TrialSet(_ContainerMixin):
         start: float,
         chunk: int | str | None,
     ) -> "Evoked":
+        """Return the average of the trials ``index``, channel chunk by chunk."""
         n_times = self.n_times
         mean = np.empty((self.n_channels, n_times))
         sem = np.empty((self.n_channels, n_times))
         count = np.empty((self.n_channels, n_times), dtype=int)
-        for part in _chunks(self.n_channels, chunk, index.size, n_times):
-            block = (
-                self.data[index][:, part] if index.size != self.n_trials else self.data[:, part]
-            )
+        parts = _blocks(_chunks(self.n_channels, chunk, index.size, n_times), index.size, n_times)
+        for part in parts:
+            # the trials of the block only (data[index][:, part] would copy every channel)
+            block = self.data[index, part] if index.size != self.n_trials else self.data[:, part]
             mask_block = None
             if self.masks is not None:
-                mask_block = self.masks[index][:, part]
+                mask_block = self.masks[index, part]
             mean[part], sem[part], count[part] = _average_block(
                 block, mask_block, settings["robust"]
             )
@@ -985,7 +1024,7 @@ class Evoked(_ContainerMixin):
 
     def validate(self) -> "Evoked":
         """Check every invariant; raise :class:`~evoparam.errors.DataError` naming the field."""
-        if self.data.ndim != 2:
+        if self.data.ndim != _EVOKED_NDIM:
             raise DataError(
                 f"data: expected 2 dimensions (channels, times), got shape {self.data.shape}."
             )

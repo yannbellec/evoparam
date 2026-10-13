@@ -55,6 +55,7 @@ GENERATOR_NAMES = ("simulate_ccep", "simulate_erp", "simulate_bursts")
 
 
 def _erpcore() -> Any:
+    """Return the ERP CORE definitions shipped with the package."""
     text = resources.files("evoparam.benchmark").joinpath("erpcore.json").read_text("utf-8")
     return json.loads(text)
 
@@ -178,6 +179,7 @@ def list_suites() -> list[str]:
 
 
 def _check_suite(doc: Any, where: Any) -> None:
+    """Raise DataError when a suite document does not follow the suite schema."""
     if not isinstance(doc, dict) or doc.get("schema") != SUITE_SCHEMA:
         raise DataError(f"{where}: not a suite file (schema {SUITE_SCHEMA}).")
     ids = set()
@@ -282,12 +284,14 @@ def simulate_cell(cell: Any) -> Any:
 
 
 def _hints(cell: Any, **extra: Any) -> dict[Any, Any]:
+    """Return the hints of a cell, updated with ``extra``."""
     hints = dict(cell.settings.get("_", {}).get("hints", {}))
     hints.update(extra)
     return hints
 
 
 def _base_fields(cell: Any, ts: Any, _task: Any) -> dict[str, Any]:
+    """Return the descriptor fields every task input has (suite, cell, sampling, channels)."""
     return {
         "suite": {"name": cell.suite, "version": cell.version},
         "cell": cell.id,
@@ -302,6 +306,7 @@ def _base_fields(cell: Any, ts: Any, _task: Any) -> dict[str, Any]:
 
 
 def _truth_components(truth: Any) -> Any:
+    """Return the target components of the truth (every component without roles)."""
     table = truth.to_dataframe("component")
     return table[table["role"] == "target"] if "role" in table else table
 

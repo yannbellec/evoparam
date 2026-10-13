@@ -32,7 +32,6 @@ WINDOW = 8
 
 def origin(notice=NOTICE):
     """(repository URL, commit) of the first origin listed in NOTICE."""
-
     with open(notice, encoding="utf-8") as fobj:
         text = fobj.read().split("Origin", 1)[1]
     url = re.search(r"https://\S+", text).group(0)
@@ -41,11 +40,10 @@ def origin(notice=NOTICE):
 
 
 def normalise(text):
-    """The non-blank lines of a source, whitespace normalised, with their line numbers."""
-
+    """Return the non-blank lines of a source, whitespace normalised, with their numbers."""
     out = []
-    for number, line in enumerate(text.splitlines(), start=1):
-        line = re.sub(r"[ \t]+", " ", line.strip())
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = re.sub(r"[ \t]+", " ", raw.strip())
         if line:
             out.append((number, line))
     return out
@@ -53,15 +51,15 @@ def normalise(text):
 
 def windows(lines, size=WINDOW):
     """{digest of the window: first line number} of every window of ``size`` lines."""
-
     out = {}
     for i in range(len(lines) - size + 1):
-        chunk = "\n".join(line for _, line in lines[i:i + size])
+        chunk = "\n".join(line for _, line in lines[i : i + size])
         out.setdefault(hashlib.sha256(chunk.encode("utf-8")).hexdigest(), lines[i][0])
     return out
 
 
 def python_files(paths):
+    """Yield the Python files of ``paths`` (folders walked, hidden folders skipped)."""
     for path in paths:
         if os.path.isdir(path):
             for folder, dirs, names in os.walk(path):
@@ -75,7 +73,6 @@ def python_files(paths):
 
 def inherited_index(folder, size=WINDOW):
     """{digest: (file, line)} of every window of the inherited Python files."""
-
     index = {}
     for path in python_files([folder]):
         with open(path, encoding="utf-8", errors="replace") as fobj:
@@ -86,7 +83,6 @@ def inherited_index(folder, size=WINDOW):
 
 def fetch_inherited(target):
     """Clone the NOTICE origin at the NOTICE commit (once)."""
-
     upstream, commit = origin()
     if not os.path.isdir(os.path.join(target, ".git")):
         os.makedirs(os.path.dirname(target), exist_ok=True)
@@ -97,7 +93,6 @@ def fetch_inherited(target):
 
 def check(sources, inherited, size=WINDOW):
     """List of (source file, line, inherited file, line) of the matching windows."""
-
     index = inherited_index(inherited, size)
     found = []
     for path in python_files(sources):
@@ -109,17 +104,21 @@ def check(sources, inherited, size=WINDOW):
 
 
 def main(argv=None):
+    """Print every window of lines identical to the inherited code; exit 1 if any."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("sources", nargs="+")
     parser.add_argument("--inherited", help="checkout of the inherited code")
     parser.add_argument("--window", type=int, default=WINDOW)
     args = parser.parse_args(argv)
     inherited = args.inherited or fetch_inherited(
-        os.path.expanduser(os.path.join("~", ".cache", "evoparam", "inherited", "upstream")))
+        os.path.expanduser(os.path.join("~", ".cache", "evoparam", "inherited", "upstream"))
+    )
     matches = check(args.sources, inherited, args.window)
     for path, line, origin, origin_line in matches:
-        print(f"{path}:{line}: {args.window} lines identical to {origin}:{origin_line} "
-              f"(inherited, Apache-2.0)")
+        print(
+            f"{path}:{line}: {args.window} lines identical to {origin}:{origin_line} "
+            f"(inherited, Apache-2.0)"
+        )
     if matches:
         print(f"{len(matches)} window(s) reuse inherited code; write that code new.")
         return 1

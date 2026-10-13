@@ -207,6 +207,21 @@ def _continuous(raw: Any, sfreq: float | None, t0: Any, ts: Any) -> Any:
     return data, float(sfreq), float(t0)
 
 
+def _train_keys(ts: Any, event_times: Any, train_column: str, length: float) -> tuple[Any, str]:
+    """Return the train of each trial (as text) and the rule that found the trains.
+
+    The rule is ``train_column`` (the metadata column), ``"gap"`` (from the event times)
+    or ``"trial"`` (one train per trial); see :func:`train_baseline`.
+    """
+    meta = ts.metadata
+    if meta is not None and train_column in meta.columns:
+        return meta[train_column].astype(str).to_numpy(), train_column
+    if event_times is not None:
+        first = train_starts(event_times, length)
+        return first.astype(str), "gap"
+    return np.arange(ts.n_trials).astype(str), "trial"
+
+
 def train_baseline(
     ts: Any,
     length: float = 0.05,
@@ -248,18 +263,8 @@ def train_baseline(
         raise SettingsError("train_baseline: mode must be 'mean' or 'median'.")
     if not length > 0:
         raise SettingsError("train_baseline: length must be positive.")
-    meta = ts.metadata
     event_times: Any = None if ts.event_times is None else np.asarray(ts.event_times, float)
-    if meta is not None and train_column in meta.columns:
-        keys = meta[train_column].astype(str).to_numpy()
-        rule = train_column
-    elif event_times is not None:
-        first = train_starts(event_times, length)
-        keys = first.astype(str)
-        rule = "gap"
-    else:
-        keys = np.arange(ts.n_trials).astype(str)
-        rule = "trial"
+    keys, rule = _train_keys(ts, event_times, train_column, length)
     stat = np.nanmean if mode == "mean" else np.nanmedian
     levels = np.empty((ts.n_trials, ts.n_channels))
     source = "continuous" if raw is not None else "epochs"

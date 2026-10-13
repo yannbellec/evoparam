@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Generate the SOUP inventory ``soup.json`` and ``THIRD_PARTY.md`` (spec §13.7, REQ-396,
-REQ-399).
+"""Generate the SOUP inventory ``soup.json`` and ``THIRD_PARTY.md`` (spec §13.7).
+
+Requirements REQ-396 and REQ-399.
 
 SOUP (software of unknown provenance, IEC 62304) is every third-party package evoparam runs
 with. For each package declared in ``pyproject.toml`` (the hard dependencies, every optional
@@ -222,8 +223,7 @@ def _pyproject():
 
 
 def _name(requirement):
-    name = re.match(r"[A-Za-z0-9_.\-]+", requirement).group(0).lower()
-    return name
+    return re.match(r"[A-Za-z0-9_.\-]+", requirement).group(0).lower()
 
 
 def _specifier(requirement):
@@ -235,7 +235,6 @@ def _specifier(requirement):
 
 def declared():
     """{package: {"extras": [...], "ranges": {...}, "role": ...}} from pyproject.toml."""
-
     project = _pyproject()
     out = {}
 
@@ -260,19 +259,24 @@ def declared():
             note(requirement, extra)
     for name, via in TRANSITIVE.items():
         out.setdefault(name, {"extras": [], "ranges": set(), "markers": set()})["via"] = via
-    for name, row in out.items():
-        if row.get("via"):
-            row["role"] = "transitive"
-        elif row.get("core"):
-            row["role"] = "core"
-        elif any(e not in TOOLING for e in row["extras"]):
-            row["role"] = "optional"
-        else:
-            row["role"] = "tooling"
+    for row in out.values():
+        row["role"] = _role(row)
     return out
 
 
+def _role(row):
+    """Return the role of a declared package: transitive, core, optional or tooling."""
+    if row.get("via"):
+        return "transitive"
+    if row.get("core"):
+        return "core"
+    if any(e not in TOOLING for e in row["extras"]):
+        return "optional"
+    return "tooling"
+
+
 def locked_versions(lock=LOCK):
+    """Return {package: version} pinned by the lock file ``lock``."""
     text = lock.read_text(encoding="utf-8") if lock.exists() else ""
     return {
         m.group(1).lower(): m.group(2)
@@ -301,8 +305,7 @@ class _Uses(ast.NodeVisitor):
 
     @staticmethod
     def _required(call):
-        """The package of a ``require("<package>", ...)`` call, else None."""
-
+        """Return the package of a ``require("<package>", ...)`` call, else None."""
         if (
             isinstance(call, ast.Call)
             and getattr(call.func, "id", getattr(call.func, "attr", None)) == "require"
@@ -361,9 +364,10 @@ class _Uses(ast.NodeVisitor):
 
 
 def functions_used(import_names):
-    """{import name: (sorted names used, imported at all)} over the package's modules (tests
-    excluded)."""
+    """Return {import name: (sorted names used, imported at all)} over the package.
 
+    The modules of the tests are left out.
+    """
     uses = {name: set() for name in import_names}
     imported = set()
     tops = {name.split(".")[0]: name for name in import_names}
@@ -385,6 +389,7 @@ def functions_used(import_names):
 
 
 def inventory():
+    """Return the SOUP inventory: one record per declared package."""
     rows = declared()
     unknown = sorted(set(rows) - set(PACKAGES))
     if unknown:
@@ -430,6 +435,7 @@ def _used(row):
 
 
 def third_party_md(soup):
+    """Return the text of THIRD_PARTY.md for the inventory ``soup``."""
     lines = [
         "# Third-party packages",
         "",
@@ -468,11 +474,13 @@ def third_party_md(soup):
 
 
 def render():
+    """Return the texts of soup.json and THIRD_PARTY.md."""
     soup = inventory()
     return json.dumps(soup, indent=1, ensure_ascii=False) + "\n", third_party_md(soup)
 
 
 def main(argv=None):
+    """Write soup.json and THIRD_PARTY.md, or with ``--check`` fail when out of date."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(
         "--check", action="store_true", help="fail when soup.json or THIRD_PARTY.md is out of date"

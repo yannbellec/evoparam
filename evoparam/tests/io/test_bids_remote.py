@@ -21,6 +21,17 @@ from evoparam.tests.io.helpers import http_server
 
 pd = pytest.importorskip("pandas")
 
+# HTTP status of a byte-range answer.
+PARTIAL_CONTENT = 206
+# Trials of one run of the fixture, requests made with four retries, and trials of the
+# ds004080 site read remotely.
+N_TRIALS = 15
+N_REQUESTS = 5
+N_REMOTE_TRIALS = 10
+# Most bytes transferred for the ds004080 read, and the start (s) of its epochs.
+MAX_BYTES = 60e6
+EPOCH_START = -0.5
+
 ###################################################################################################
 ###################################################################################################
 
@@ -51,7 +62,7 @@ def test_remote_read_matches_local_read(bids_root: Any) -> None:
     source = remote.provenance.source
     data_requests = [r for r in stats.requests if r[1].endswith(".eeg") and r[0] == "GET"]
     assert data_requests
-    assert all(r[2] is not None and r[3] == 206 for r in data_requests)
+    assert all(r[2] is not None and r[3] == PARTIAL_CONTENT for r in data_requests)
     assert source["bytes_read"] == stats.bytes_sent
     assert source["path"] == base + DATA_FILE
     assert source["full_download"] is False
@@ -94,7 +105,7 @@ def test_remote_with_base_address_and_session(bids_root: Any) -> None:
     parent, name = os.path.split(bids_root)
     with http_server(parent) as (base, _):
         trials = read_bids(name, "sub-02", session="1", task="spes", run="01", remote=base)
-    assert trials.n_trials == 15
+    assert trials.n_trials == N_TRIALS
     assert set(trials.metadata["stim_polarity"]) == {"biphasic_cathodic_first"}
 
 
@@ -137,7 +148,7 @@ def test_gives_up_after_four_retries(bids_root: Any, delays: Any) -> None:
     ):
         read_bids(base, "01", task="spes", run="01", remote=True)
     assert delays == [2.0, 4.0, 8.0, 16.0]
-    assert len(stats.requests) == 5
+    assert len(stats.requests) == N_REQUESTS
 
 
 def test_missing_file_and_offline_mode(bids_root: Any, delays: Any, monkeypatch: Any) -> None:
@@ -217,10 +228,10 @@ def test_openneuro_ds004080_ten_trials() -> None:
             elapsed,
         )
     )
-    assert trials.n_trials == 10
-    assert source["bytes_read"] < 60e6
+    assert trials.n_trials == N_REMOTE_TRIALS
+    assert source["bytes_read"] < MAX_BYTES
     assert source["doi"] == "10.18112/openneuro.ds004080.v1.2.4"
     assert set(trials.metadata["stim_site"]) == {"PT01-PT02"}
     assert np.allclose(trials.metadata["stim_current_mA"], 7.0)
-    assert trials.times[0] == -0.5
+    assert trials.times[0] == EPOCH_START
     assert trials.times[-1] < 1.0

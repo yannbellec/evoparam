@@ -15,6 +15,17 @@ from .helpers import ccep, epochs
 
 pd = pytest.importorskip("pandas")
 
+# Window (s) of the resampled peak, and the tolerance of t = 0.
+PEAK_START = 0.005
+PEAK_END = 0.05
+ON_GRID = 1e-9
+# Masked samples after halving the rate, conditions, and trials kept.
+N_MASKED = 5
+N_CONDITIONS = 2
+N_KEPT = 9
+# Largest error of a filtered sine.
+MAX_FILTER_ERROR = 0.1
+
 ###################################################################################################
 ###################################################################################################
 
@@ -27,10 +38,10 @@ def test_req085_latency_and_event_times(new_sfreq: Any) -> None:
     out = resample(replace(ts, data=data), new_sfreq)
     assert out.sfreq == pytest.approx(new_sfreq)
     assert np.array_equal(out.event_times, ts.event_times)
-    win = (out.times > 0.005) & (out.times < 0.05)
+    win = (out.times > PEAK_START) & (out.times < PEAK_END)
     latency = out.times[win][np.argmin(out.data[0, 0, win])]
     assert abs(latency - 0.0237) <= 1 / (2 * new_sfreq) + 1e-12
-    assert np.min(np.abs(out.times)) < 1e-9  # t = 0 stays on the grid
+    assert np.min(np.abs(out.times)) < ON_GRID  # t = 0 stays on the grid
 
 
 def test_resample_carries_masks() -> None:
@@ -39,7 +50,7 @@ def test_resample_carries_masks() -> None:
     mask = np.zeros(ts.data.shape, dtype=bool)
     mask[..., 500:510] = True
     out = resample(apply_mask(ts, mask), 500.0)
-    assert out.masks[0, 0].sum() == 5
+    assert out.masks[0, 0].sum() == N_MASKED
     with pytest.raises(SettingsError):
         resample(ts, 0)
 
@@ -65,9 +76,9 @@ def test_average_methods() -> None:
     assert average(ts, method="trimmed").data.shape == (8, ts.n_times)
     assert np.allclose(average(ts, use_rejected=True).data, ts.data.mean(axis=0))
     groups = average(ts, by="condition", method="median")
-    assert len(groups) == 2
+    assert len(groups) == N_CONDITIONS
     median = average(ts, method="median")
-    assert np.all(median.n_trials == 9)
+    assert np.all(median.n_trials == N_KEPT)
     with pytest.raises(SettingsError):
         average(ts, method="mode")
     with pytest.raises(DataError):
@@ -86,14 +97,14 @@ def test_filters() -> None:
         np.abs(
             hp.data[0, 0, mid] - np.sin(2 * np.pi * 60 * t[mid]) - np.sin(2 * np.pi * 200 * t[mid])
         ).max()
-        < 0.1
+        < MAX_FILTER_ERROR
     )
     lp = lowpass(ts, 100.0)
     assert (
         np.abs(
             lp.data[0, 0, mid] - np.sin(2 * np.pi * 2 * t[mid]) - np.sin(2 * np.pi * 60 * t[mid])
         ).max()
-        < 0.1
+        < MAX_FILTER_ERROR
     )
     nt = notch(ts, 60.0, harmonics=3)
     assert nt.provenance.steps[-1]["settings"]["frequencies"] == [60.0, 120.0, 180.0]
@@ -101,7 +112,7 @@ def test_filters() -> None:
         np.abs(
             nt.data[0, 0, mid] - np.sin(2 * np.pi * 2 * t[mid]) - np.sin(2 * np.pi * 200 * t[mid])
         ).max()
-        < 0.1
+        < MAX_FILTER_ERROR
     )
     mask = np.zeros(ts.data.shape, dtype=bool)
     mask[..., 500] = True

@@ -26,7 +26,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from evoparam.benchmark import timing  # noqa: E402
+from evoparam.benchmark import timing  # noqa: E402  (after the sys.path insert above)
 
 
 def main(argv=None):

@@ -10,6 +10,11 @@ import numpy as np
 from evoparam._typing import Any, ArrayLike, IntArray, NDArray
 from evoparam.errors import SettingsError
 
+# selective_maxima: fewest samples, and the case of the two end points only
+_MIN_POINTS = 2
+_ENDS_ONLY = 2
+
+
 __all__ = ["load_rules", "resolve_rule", "apply_rule", "selective_maxima", "RULE_FIELDS"]
 
 RULE_FIELDS = (
@@ -110,7 +115,7 @@ def selective_maxima(x: ArrayLike, sel: float) -> IntArray:
     """
     x = np.asarray(x, float)
     n = len(x)
-    if n < 2:
+    if n < _MIN_POINTS:
         return np.zeros(0, int)
     slope = np.diff(x)
     slope[slope == 0] = -np.finfo(float).eps
@@ -118,7 +123,7 @@ def selective_maxima(x: ArrayLike, sel: float) -> IntArray:
     idx = [0] + turns.tolist() + [n - 1]
     val = [x[i] for i in idx]
     floor = min(val)
-    if len(val) <= 2:
+    if len(val) <= _ENDS_ONLY:
         best = int(np.argmax(val))
         return np.array([idx[best]] if val[best] > floor + sel else [], int)
     # the end points were added without checking that the extrema still alternate
@@ -220,6 +225,7 @@ def _strict_negative_peak(z: Any, times: Any, win: Any) -> tuple[NDArray[Any], N
 
 
 def _bandpass(avg: Any, sfreq: float, band: Any) -> Any:
+    """Return the zero-phase band-pass filtered average (4th-order Butterworth)."""
     from scipy.signal import butter, sosfiltfilt
 
     high = min(band[1], 0.45 * sfreq)

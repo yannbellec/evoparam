@@ -12,6 +12,7 @@ inside a contrast: trials of different subjects are not exchangeable (a subject 
 would pass for a condition effect), so such a request raises SettingsError.
 """
 
+import dataclasses
 import itertools
 import time as _time
 from collections.abc import Sequence
@@ -30,6 +31,10 @@ from .bootstrap import _quantile_z
 __all__ = ["compare_conditions", "hedges_g", "UNITS", "COMPARE_COLUMNS"]
 
 UNITS = ("trial", "channel", "subject")
+
+# Fewest condition labels, and units per condition, for a contrast
+_MIN_CONDITIONS = 2
+_MIN_UNITS = 2
 
 # Levels that contain each unit: a contrast must stay inside one of each.
 _ABOVE = {"trial": ("channel", "subject"), "channel": ("subject",), "subject": ()}
@@ -129,6 +134,7 @@ def hedges_g(a: Any, b: Any = None, *, paired: bool = False) -> float:
 def _paired_test(
     d: Any, n_permutations: Any, rng: np.random.Generator
 ) -> tuple[float, float, int, bool]:
+    """Return the paired t, its permutation p-value, the permutations used and exactness."""
     n = d.size
     observed = _paired_t(d)
     signs: NDArray[Any]
@@ -146,6 +152,7 @@ def _paired_test(
 def _unpaired_test(
     a: Any, b: Any, n_permutations: Any, rng: np.random.Generator
 ) -> tuple[float, float, int, bool]:
+    """Return the Welch t, its permutation p-value, the permutations used and exactness."""
     n_a, n_b = a.size, b.size
     pooled = np.concatenate([a, b])
     observed = _welch_t(a, b)
@@ -173,6 +180,7 @@ def _percentile(boot: Any, ci_level: Any, n: Any) -> dict[str, float]:
 
 
 def _n_choose(n: Any, k: Any) -> int:
+    """Return the number of ways to choose ``k`` of ``n``."""
     from math import comb
 
     return comb(n, k)
@@ -183,13 +191,14 @@ def _n_choose(n: Any, k: Any) -> int:
 
 
 def _is_time(table: Any, parameter: Any) -> Any:
+    """Return True when ``parameter`` is measured in seconds."""
     units = getattr(table, "attrs", {}).get("units", {})
     if parameter in units:
         return units[parameter] == "s"
     return parameter in _TIME_NAMES or parameter.endswith("_latency")
 
 
-def compare_conditions(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.11)
+def compare_conditions(  # noqa: PLR0913  (spec §5.11 fixes 8 parameters, plus by, conditions, ci_level and n_boot; DECISIONS.md §7.2)
     table: Any,
     *,
     parameter: str,
@@ -269,79 +278,25 @@ def compare_conditions(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, s
     """
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.compare_conditions")
-    if unit not in UNITS:
-        raise SettingsError(f"unit must be one of {UNITS}, not {unit!r}.")
-    if correction not in CORRECTIONS:
-        raise SettingsError(f"correction must be one of {CORRECTIONS}.")
-    by = [] if by is None else ([by] if isinstance(by, str) else list(by))
-    needed = [parameter, condition] + by + ([unit] if unit != "trial" else [])
-    missing = [c for c in needed if c not in table.columns]
-    if missing:
-        raise SettingsError(f"compare_conditions: missing columns {missing}.")
-    if unit in by:
-        raise SettingsError("the unit column cannot also be in by.")
+    by = _check_contrast(table, parameter, condition, unit, correction, by)
     rng = np.random.default_rng(random_state)
     is_time = _is_time(table, parameter)
-
-    data = table.copy()
-    excluded = np.zeros(len(data), bool)
-    if "status" in data.columns:
-        excluded = (data["status"].astype(str) != "ok").to_numpy()
-    values = pd.to_numeric(data[parameter], errors="coerce").to_numpy(float)
-    missing_rows = ~excluded & ~np.isfinite(values)
-    data["_value"] = values
-    data["_excluded"] = excluded
-    data["_missing"] = missing_rows
-    if unit == "trial" and "trial" not in data.columns:
-        data["trial"] = np.arange(len(data))
-    data["_cond"] = data[condition].astype(str)
-    labels = [
-        str(c) for c in (conditions if conditions is not None else dict.fromkeys(data["_cond"]))
-    ]
-    if len(labels) < 2:
+    data, labels = _marked_rows(pd, table, parameter, condition, unit, conditions)
+    if len(labels) < _MIN_CONDITIONS:
         raise DataError(f"compare_conditions: column '{condition}' has fewer than 2 conditions.")
-
-    if by:
-        group_code, group_keys = pd.MultiIndex.from_frame(data[by].astype(object)).factorize()
-        group_keys = [tuple(k) for k in group_keys]
-    else:
-        group_code, group_keys = np.zeros(len(data), np.int64), [()]
-    n_groups = len(group_keys)
-    data["_group"] = group_code
-    n_excluded = np.bincount(
-        group_code, weights=data["_excluded"].to_numpy(float), minlength=n_groups
-    ).astype(int)
-    n_missing = np.bincount(
-        group_code, weights=data["_missing"].to_numpy(float), minlength=n_groups
-    ).astype(int)
-    use = data[~data["_excluded"] & ~data["_missing"]]
-    for level in _ABOVE[unit]:
-        if level in use.columns and level not in by:
-            counts = use.groupby("_group")[level].nunique()
-            if (counts > 1).any():
-                key = group_keys[int(counts.index[np.argmax(counts.to_numpy() > 1)])]
-                where = f" in group {dict(zip(by, key, strict=False))}" if by else ""
-                raise SettingsError(
-                    f"unit='{unit}' but several {level}s{where}: {unit}s of different "
-                    f"{level}s are not exchangeable. Compare at unit='{level}', or add "
-                    f"'{level}' to by to test each {level} separately."
-                )
-    # one value per group x unit x condition, then each group as plain arrays
-    cells = (
-        use.groupby(["_group", unit, "_cond"], sort=False, dropna=False)["_value"]
-        .mean()
-        .reset_index()
+    group_keys, n_excluded, n_missing, use = _contrast_groups(pd, data, by)
+    _check_exchangeable(use, unit, by, group_keys)
+    test = _ContrastTest(
+        paired=bool(paired),
+        n_permutations=int(n_permutations),
+        n_boot=n_boot,
+        ci_level=ci_level,
+        rng=rng,
     )
-    cell_group = cells["_group"].to_numpy()
-    cell_unit = pd.factorize(cells[unit])[0]
-    cell_cond = cells["_cond"].to_numpy()
-    cell_value = cells["_value"].to_numpy(float)
-    order = np.argsort(cell_group, kind="stable")
-    bounds = np.searchsorted(cell_group[order], np.arange(n_groups + 1))
     rows = []
-    for gi, key in enumerate(group_keys):
-        idx = order[bounds[gi] : bounds[gi + 1]]
-        units_g, cond_g, value_g = cell_unit[idx], cell_cond[idx], cell_value[idx]
+    for gi, (key, cells) in enumerate(
+        zip(group_keys, _group_cells(pd, use, unit, len(group_keys)), strict=True)
+    ):
         for cond_a, cond_b in itertools.combinations(labels, 2):
             row = dict(zip(by, key, strict=False))
             row.update(
@@ -353,64 +308,14 @@ def compare_conditions(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, s
                 n_excluded=int(n_excluded[gi]),
                 n_missing=int(n_missing[gi]),
             )
-            in_a, in_b = cond_g == cond_a, cond_g == cond_b
-            ua, va, ub, vb = units_g[in_a], value_g[in_a], units_g[in_b], value_g[in_b]
-            if paired:
-                _, ia, ib = np.intersect1d(ua, ub, return_indices=True)
-                a, b = va[ia], vb[ib]
-            else:
-                shared = np.intersect1d(ua, ub)
-                if shared.size:
-                    raise SettingsError(
-                        f"paired=False but {shared.size} {unit}s are observed in both "
-                        f"'{cond_a}' and '{cond_b}'; use paired=True."
-                    )
-                a, b = va, vb
+            a, b = _contrast_values(cells, cond_a, cond_b, paired, unit)
             row.update(
                 n_a=int(a.size),
                 n_b=int(b.size),
                 mean_a=float(a.mean()) if a.size else np.nan,
                 mean_b=float(b.mean()) if b.size else np.nan,
             )
-            enough = a.size >= 2 if paired else (a.size >= 2 and b.size >= 2)
-            if not enough:
-                row.update(
-                    difference=row["mean_a"] - row["mean_b"],
-                    ci_low=np.nan,
-                    ci_high=np.nan,
-                    statistic=np.nan,
-                    p_value_raw=np.nan,
-                    hedges_g=np.nan,
-                    n_permutations=0,
-                    exact=False,
-                )
-                rows.append(row)
-                continue
-            if paired:
-                d = a - b
-                stat, p, n_perm, exact = _paired_test(d, int(n_permutations), rng)
-                boot = d[rng.integers(0, d.size, (n_boot, d.size))].mean(axis=1)
-                ci = _percentile(boot, ci_level, d.size)
-                g = hedges_g(d, paired=True)
-                diff = float(d.mean())
-            else:
-                stat, p, n_perm, exact = _unpaired_test(a, b, int(n_permutations), rng)
-                boot = a[rng.integers(0, a.size, (n_boot, a.size))].mean(axis=1) - b[
-                    rng.integers(0, b.size, (n_boot, b.size))
-                ].mean(axis=1)
-                diff = float(a.mean() - b.mean())
-                ci = _percentile(boot, ci_level, min(a.size, b.size))
-                g = hedges_g(a, b)
-            row.update(
-                difference=diff,
-                ci_low=ci["low"],
-                ci_high=ci["high"],
-                statistic=stat,
-                p_value_raw=p,
-                hedges_g=g,
-                n_permutations=int(n_perm),
-                exact=bool(exact),
-            )
+            row.update(_contrast(a, b, test, row["mean_a"] - row["mean_b"]))
             rows.append(row)
 
     out = pd.DataFrame(rows, columns=by + list(COMPARE_COLUMNS))
@@ -447,3 +352,177 @@ def compare_conditions(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, s
         .to_dict()
     )
     return out
+
+
+def _check_contrast(
+    table: Any, parameter: Any, condition: Any, unit: Any, correction: Any, by: Any
+) -> list[Any]:
+    """Check the settings of :func:`compare_conditions` and return ``by`` as a list."""
+    if unit not in UNITS:
+        raise SettingsError(f"unit must be one of {UNITS}, not {unit!r}.")
+    if correction not in CORRECTIONS:
+        raise SettingsError(f"correction must be one of {CORRECTIONS}.")
+    columns: list[Any] = [] if by is None else ([by] if isinstance(by, str) else list(by))
+    needed = [parameter, condition] + columns + ([unit] if unit != "trial" else [])
+    missing = [c for c in needed if c not in table.columns]
+    if missing:
+        raise SettingsError(f"compare_conditions: missing columns {missing}.")
+    if unit in columns:
+        raise SettingsError("the unit column cannot also be in by.")
+    return columns
+
+
+def _marked_rows(
+    pd: Any, table: Any, parameter: Any, condition: Any, unit: Any, conditions: Any
+) -> tuple[Any, list[str]]:
+    """Return a copy of ``table`` with the value, exclusion and condition of every row.
+
+    And the condition labels to compare, in order.
+    """
+    data = table.copy()
+    excluded = np.zeros(len(data), bool)
+    if "status" in data.columns:
+        excluded = (data["status"].astype(str) != "ok").to_numpy()
+    values = pd.to_numeric(data[parameter], errors="coerce").to_numpy(float)
+    missing_rows = ~excluded & ~np.isfinite(values)
+    data["_value"] = values
+    data["_excluded"] = excluded
+    data["_missing"] = missing_rows
+    if unit == "trial" and "trial" not in data.columns:
+        data["trial"] = np.arange(len(data))
+    data["_cond"] = data[condition].astype(str)
+    labels = [
+        str(c) for c in (conditions if conditions is not None else dict.fromkeys(data["_cond"]))
+    ]
+    return data, labels
+
+
+def _contrast_groups(pd: Any, data: Any, by: Any) -> tuple[list[Any], Any, Any, Any]:
+    """Return the ``by`` group keys, their excluded and missing counts, and the rows used."""
+    if by:
+        group_code, group_keys = pd.MultiIndex.from_frame(data[by].astype(object)).factorize()
+        group_keys = [tuple(k) for k in group_keys]
+    else:
+        group_code, group_keys = np.zeros(len(data), np.int64), [()]
+    n_groups = len(group_keys)
+    data["_group"] = group_code
+    n_excluded = np.bincount(
+        group_code, weights=data["_excluded"].to_numpy(float), minlength=n_groups
+    ).astype(int)
+    n_missing = np.bincount(
+        group_code, weights=data["_missing"].to_numpy(float), minlength=n_groups
+    ).astype(int)
+    use = data[~data["_excluded"] & ~data["_missing"]]
+    return group_keys, n_excluded, n_missing, use
+
+
+def _check_exchangeable(use: Any, unit: Any, by: Any, group_keys: Any) -> None:
+    """Raise when a level above ``unit`` varies inside a contrast (units not exchangeable)."""
+    for level in _ABOVE[unit]:
+        if level in use.columns and level not in by:
+            counts = use.groupby("_group")[level].nunique()
+            if (counts > 1).any():
+                key = group_keys[int(counts.index[np.argmax(counts.to_numpy() > 1)])]
+                where = f" in group {dict(zip(by, key, strict=False))}" if by else ""
+                raise SettingsError(
+                    f"unit='{unit}' but several {level}s{where}: {unit}s of different "
+                    f"{level}s are not exchangeable. Compare at unit='{level}', or add "
+                    f"'{level}' to by to test each {level} separately."
+                )
+
+
+def _group_cells(pd: Any, use: Any, unit: Any, n_groups: int) -> list[tuple[Any, Any, Any]]:
+    """Return, per group, the unit, condition and mean value of each unit x condition cell."""
+    cells = (
+        use.groupby(["_group", unit, "_cond"], sort=False, dropna=False)["_value"]
+        .mean()
+        .reset_index()
+    )
+    cell_group = cells["_group"].to_numpy()
+    cell_unit = pd.factorize(cells[unit])[0]
+    cell_cond = cells["_cond"].to_numpy()
+    cell_value = cells["_value"].to_numpy(float)
+    order = np.argsort(cell_group, kind="stable")
+    bounds = np.searchsorted(cell_group[order], np.arange(n_groups + 1))
+    out = []
+    for gi in range(n_groups):
+        idx = order[bounds[gi] : bounds[gi + 1]]
+        out.append((cell_unit[idx], cell_cond[idx], cell_value[idx]))
+    return out
+
+
+def _contrast_values(
+    cells: Any, cond_a: Any, cond_b: Any, paired: Any, unit: Any
+) -> tuple[Any, Any]:
+    """Return the unit values of the two conditions (paired: the units seen in both, in order)."""
+    units_g, cond_g, value_g = cells
+    in_a, in_b = cond_g == cond_a, cond_g == cond_b
+    ua, va, ub, vb = units_g[in_a], value_g[in_a], units_g[in_b], value_g[in_b]
+    if paired:
+        _, ia, ib = np.intersect1d(ua, ub, return_indices=True)
+        return va[ia], vb[ib]
+    shared = np.intersect1d(ua, ub)
+    if shared.size:
+        raise SettingsError(
+            f"paired=False but {shared.size} {unit}s are observed in both "
+            f"'{cond_a}' and '{cond_b}'; use paired=True."
+        )
+    return va, vb
+
+
+@dataclasses.dataclass
+class _ContrastTest:
+    """The test of every contrast of one :func:`compare_conditions` call."""
+
+    paired: bool
+    n_permutations: int
+    n_boot: int
+    ci_level: float
+    rng: Any
+
+
+def _contrast(a: Any, b: Any, test: _ContrastTest, difference: float) -> dict[str, Any]:
+    """Return the difference, interval, statistic, p-value and effect size of one contrast.
+
+    ``difference`` (of the means) is reported alone when there are too few units.
+    """
+    rng, n_boot = test.rng, test.n_boot
+    enough = (
+        a.size >= _MIN_UNITS if test.paired else (a.size >= _MIN_UNITS and b.size >= _MIN_UNITS)
+    )
+    if not enough:
+        return {
+            "difference": difference,
+            "ci_low": np.nan,
+            "ci_high": np.nan,
+            "statistic": np.nan,
+            "p_value_raw": np.nan,
+            "hedges_g": np.nan,
+            "n_permutations": 0,
+            "exact": False,
+        }
+    if test.paired:
+        d = a - b
+        stat, p, n_perm, exact = _paired_test(d, test.n_permutations, rng)
+        boot = d[rng.integers(0, d.size, (n_boot, d.size))].mean(axis=1)
+        ci = _percentile(boot, test.ci_level, d.size)
+        g = hedges_g(d, paired=True)
+        diff = float(d.mean())
+    else:
+        stat, p, n_perm, exact = _unpaired_test(a, b, test.n_permutations, rng)
+        boot = a[rng.integers(0, a.size, (n_boot, a.size))].mean(axis=1) - b[
+            rng.integers(0, b.size, (n_boot, b.size))
+        ].mean(axis=1)
+        diff = float(a.mean() - b.mean())
+        ci = _percentile(boot, test.ci_level, min(a.size, b.size))
+        g = hedges_g(a, b)
+    return {
+        "difference": diff,
+        "ci_low": ci["low"],
+        "ci_high": ci["high"],
+        "statistic": stat,
+        "p_value_raw": p,
+        "hedges_g": g,
+        "n_permutations": int(n_perm),
+        "exact": bool(exact),
+    }

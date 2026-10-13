@@ -85,5 +85,6 @@ code: recall drop at 1024 Hz +8.82 points (criterion <= 5.0): NOT met.
 | platform | Python | NumPy | within rtol of the reference | largest relative difference |
 |---|---|---|---|---|
 | Linux-6.18.44-fc-v114-x86_64-with-glibc2.39 | 3.13.16 | 2.5.3 | yes (1e-09) | 0 |
-| macOS-26.4.1-arm64-arm-64bit-Mach-O | 3.14.7 | 2.5.3 | yes (1e-09) | 1.3e-12 |
+| Windows-11-10.0.26200-SP0 | 3.12.2 | 2.5.4 | yes (1e-09) | 3.15e-12 |
+| macOS-26.4.1-arm64-arm-64bit-Mach-O | 3.14.7 | 2.5.3 | yes (1e-09) | 2.15e-12 |
 

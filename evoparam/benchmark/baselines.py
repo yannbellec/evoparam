@@ -118,6 +118,7 @@ class Baseline:
 
 
 def _preset(ti: Any, settings: Any = None) -> Any:
+    """Return the preset named by ``settings`` or, else, by the input's hints."""
     from evoparam import presets
 
     name = (settings or {}).get("preset") or ti.descriptor.get("hints", {}).get("preset")
@@ -127,6 +128,7 @@ def _preset(ti: Any, settings: Any = None) -> Any:
 
 
 def _baseline_corrected(ts: Any, preset: Any) -> Any:
+    """Return the trials baseline-corrected with the preset's baseline (if it has one)."""
     from evoparam.prep import baseline_correct
 
     return (
@@ -137,6 +139,7 @@ def _baseline_corrected(ts: Any, preset: Any) -> Any:
 
 
 def _num(value: Any) -> Any:
+    """Return a finite float, or None."""
     if value is None:
         return None
     value = float(value)
@@ -167,12 +170,14 @@ def _peak_rows(ti: Any, sig: Any, latency: Any, avg: Any, base_mean: Any) -> lis
 
 
 def _most_negative(times: Any, avg: Any, window: Any) -> Any:
+    """Return the time of each channel's most negative average sample in ``window``."""
     inside = (times >= window[0]) & (times <= window[1])
     t = times[inside]
     return t[np.argmin(avg[:, inside], axis=1)]
 
 
 def _t1_rows(ti: Any, significant: Any, p_value: Any, score: Any) -> list[dict[str, Any]]:
+    """Return the T1 rows: one per channel, responsive or not, with its p-value and score."""
     return [
         {
             "site": ti.descriptor["site"],
@@ -190,6 +195,7 @@ def _t1_rows(ti: Any, significant: Any, p_value: Any, score: Any) -> list[dict[s
 
 
 def _rule(inputs: Any, settings: Any) -> dict[Any, Any]:
+    """Run a published threshold rule (T1 and T2)."""
     from evoparam.existence import test_response
 
     ti = inputs.get("T1") or inputs.get("T2")
@@ -220,6 +226,7 @@ def _rule(inputs: Any, settings: Any) -> dict[Any, Any]:
 
 
 def _projection(inputs: Any, settings: Any) -> dict[Any, Any]:
+    """Run the cross-projection response test (T1 and T2)."""
     from evoparam.existence import test_response
 
     ti = inputs.get("T1") or inputs.get("T2")
@@ -250,6 +257,7 @@ def _projection(inputs: Any, settings: Any) -> dict[Any, Any]:
 
 
 def _evoparam_detection(inputs: Any, settings: Any) -> dict[Any, Any]:
+    """Run the evoparam response test and fit with the input's preset (T1 and T2)."""
     from evoparam.existence import fit, test_response
 
     ti = inputs.get("T1") or inputs.get("T2")
@@ -312,6 +320,7 @@ def _evoparam_detection(inputs: Any, settings: Any) -> dict[Any, Any]:
 
 
 def _evoparam_t3(inputs: Any, settings: Any) -> dict[str, list[Any]]:
+    """Return the evoparam component parameters of the T3 averages."""
     from evoparam.existence import fit
 
     ti = inputs["T3"]
@@ -367,6 +376,7 @@ def _local_peak(times: Any, y: Any, window: Any, polarity: Any) -> Any:
 
 
 def _classical_t3(inputs: Any, settings: Any) -> dict[str, list[Any]]:
+    """Return the classical peak measures of the T3 averages in the preset's windows."""
     ti = inputs["T3"]
     preset = _preset(ti, settings)
     windows: dict[Any, Any]
@@ -402,6 +412,7 @@ def _classical_t3(inputs: Any, settings: Any) -> dict[str, list[Any]]:
 
 
 def _evoparam_t4(inputs: Any, settings: Any) -> dict[str, NDArray[Any]]:
+    """Return the trials cleaned by the preset's artifact removal (T4)."""
     from evoparam.artifact import remove_artifact
     from evoparam.reports.pipeline import _artifact_baseline, artifact_steps
 
@@ -418,6 +429,7 @@ def _evoparam_t4(inputs: Any, settings: Any) -> dict[str, NDArray[Any]]:
 
 
 def _interpolate_t4(inputs: Any, _settings: Any) -> dict[str, NDArray[Any]]:
+    """Return the trials cleaned by interpolation across the artifact window (T4)."""
     from evoparam.artifact import remove_artifact
 
     ti = inputs["T4"]
@@ -431,6 +443,7 @@ def _interpolate_t4(inputs: Any, _settings: Any) -> dict[str, NDArray[Any]]:
 
 
 def _none_t4(inputs: Any, _settings: Any) -> dict[str, NDArray[Any]]:
+    """Return the T4 trials unchanged (the reference of no removal)."""
     return {"T4": np.array(inputs["T4"].arrays["data"], float)}
 
 
@@ -454,6 +467,7 @@ def _target_component(sub: Any, target: Any) -> Any:
 
 
 def _trials_t5(inputs: Any, settings: Any) -> dict[str, list[Any]]:
+    """Return the single-trial latencies and amplitudes of the evoparam trial fits (T5)."""
     from evoparam.existence import fit
     from evoparam.trials import fit_trials
 
@@ -490,6 +504,7 @@ def _trials_t5(inputs: Any, settings: Any) -> dict[str, list[Any]]:
 
 
 def _classical_t5(inputs: Any, settings: Any) -> dict[str, list[Any]]:
+    """Return the single-trial classical peak measures of the T5 targets."""
     ti = inputs["T5"]
     preset = _preset(ti, settings)
     ts = _baseline_corrected(ti.to_trialset(), preset)
@@ -516,6 +531,7 @@ def _classical_t5(inputs: Any, settings: Any) -> dict[str, list[Any]]:
 
 
 def _classical_t6(inputs: Any, settings: Any) -> dict[str, list[Any]]:
+    """Return the classical measures of the T6 components (ERP CORE windows)."""
     from evoparam.models.classical import classical_measures
 
     from .suite import ERPCORE
@@ -554,6 +570,7 @@ def _classical_t6(inputs: Any, settings: Any) -> dict[str, list[Any]]:
 def _area_latency(
     times: Any, curve: Any, window: Any, polarity: Any, fraction: float = 0.5
 ) -> Any:
+    """Return the time where the area of ``curve`` in ``window`` reaches ``fraction``."""
     inside = (times >= window[0]) & (times <= window[1])
     t, y = times[inside], curve[inside]
     y = np.clip(y if polarity == "positive" else -y, 0, None)
@@ -564,6 +581,7 @@ def _area_latency(
 
 
 def _evoparam_t6(inputs: Any, settings: Any) -> dict[str, list[Any]]:
+    """Return the evoparam measures of the T6 components."""
     from evoparam.existence import fit
     from evoparam.models import evaluate_fit
 
@@ -616,6 +634,7 @@ def _evoparam_t6(inputs: Any, settings: Any) -> dict[str, list[Any]]:
 
 
 def _tf_t7(inputs: Any, settings: Any) -> dict[str, list[Any]]:
+    """Return the time-frequency zones of the T7 trials."""
     from evoparam.tf import tf_fit
 
     ti = inputs["T7"]
@@ -658,6 +677,7 @@ def _tf_t7(inputs: Any, settings: Any) -> dict[str, list[Any]]:
 
 
 def _evoparam_preset(inputs: Any, settings: Any) -> dict[Any, Any]:
+    """Run evoparam with the defaults of the input's preset on every task given."""
     out = {}
     detection = {t: inputs[t] for t in ("T1", "T2") if t in inputs}
     if detection:
@@ -675,6 +695,7 @@ def _evoparam_preset(inputs: Any, settings: Any) -> dict[Any, Any]:
 
 
 def _classical(inputs: Any, settings: Any) -> dict[Any, Any]:
+    """Run the classical measures on the T3, T5 and T6 inputs given."""
     out = {}
     for task, func in (("T3", _classical_t3), ("T5", _classical_t5), ("T6", _classical_t6)):
         if task in inputs:
@@ -683,6 +704,7 @@ def _classical(inputs: Any, settings: Any) -> dict[Any, Any]:
 
 
 def _make() -> dict[Any, Any]:
+    """Return the registry of baselines by name."""
     out = {}
     for name in RULES + ("vanblooijs2023_code",):
         out[name] = Baseline(

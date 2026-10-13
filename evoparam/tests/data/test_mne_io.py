@@ -9,7 +9,7 @@ import pytest
 
 mne = pytest.importorskip("mne")
 
-from evoparam.data import Evoked, TrialSet  # noqa: E402
+from evoparam.data import Evoked, TrialSet  # noqa: E402  (after pytest.importorskip)
 
 pd = pytest.importorskip("pandas")
 

@@ -8,6 +8,9 @@ import sys
 
 import pytest
 
+# Longest time (s) of the time-frequency benchmark.
+MAX_SECONDS = 60
+
 pytestmark = pytest.mark.skipif(
     os.environ.get("EVOPARAM_PERF_TESTS") != "1",
     reason="set EVOPARAM_PERF_TESTS=1 to time the transform",
@@ -21,4 +24,4 @@ def test_req218_100_channels_50_trials_2048_samples_40_freqs() -> None:
 
     duration, tf = run("morse", "fdr")
     assert len(tf.zones) >= 1
-    assert duration <= 60
+    assert duration <= MAX_SECONDS

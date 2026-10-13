@@ -29,6 +29,11 @@ MIN_CA_FRACTION = 0.1
 # Fewest channels for the adjusted common average (below: plain common average).
 MIN_ADAPTIVE_CHANNELS = 8
 
+# Fewest trials for the noise of the plus-minus average (else the power of the one
+# trial), and for the bootstrap of the selection.
+_MIN_PLUS_MINUS_TRIALS = 2
+_MIN_BOOT_TRIALS = 3
+
 
 ###################################################################################################
 ## Bipolar
@@ -136,7 +141,7 @@ def _cross_trial_covariance(data: Any, window: Any) -> Any:
     seg = data[:, :, window]
     seg = seg - seg.mean(axis=-1, keepdims=True)
     n_trials, _, n_times = seg.shape
-    if n_trials < 2:
+    if n_trials < _MIN_PLUS_MINUS_TRIALS:
         return np.mean(seg[0] ** 2, axis=-1)
     total = seg.sum(axis=0)
     pairs = np.sum(total**2, axis=-1) - np.sum(seg**2, axis=(0, 2))
@@ -248,7 +253,7 @@ def car_adaptive_select(
     n_trials = clean.shape[0]
     boots = None
     zeta: FloatArray
-    if n_boot and n_trials >= 3:
+    if n_boot and n_trials >= _MIN_BOOT_TRIALS:
         boots = np.empty((n_boot, len(ns)))
         for b in range(n_boot):
             pick = rng.integers(0, n_trials, n_trials)

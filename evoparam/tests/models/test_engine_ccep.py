@@ -34,6 +34,33 @@ from evoparam.prep import baseline_correct, rereference
 
 pd = pytest.importorskip("pandas")
 
+# Baseline (s) of the averages, and the N1 window of the detection rule.
+BASELINE_START = -0.5
+BASELINE_END = -0.02
+N1_START = 0.009
+RULE_END = 0.1
+# N1 latency window end (s) of the CCEP preset.
+N1_END = 0.05
+# Largest latency difference (s) counted as agreeing with the rule (REQ-114).
+LATENCY_TOLERANCE = 0.002
+# mnl_ccepAge baselines (s): per trial (-1, -0.1), on the average (-2, -0.1).
+AVERAGE_BASELINE_START = -2
+RULE_BASELINE_END = -0.1
+# Non-stimulated PT contacts of the example run, the kappa required (REQ-113), the other
+# subjects of the REQ-371 list, and how many of them must reproduce it.
+N_PT_CONTACTS = 46
+MIN_KAPPA = 0.8
+N_OTHER_RUNS = 6
+MIN_REPRODUCED = 5
+# Fewest channels where both find an N1, and the fraction within the tolerance (REQ-114).
+MIN_BOTH = 10
+MIN_CLOSE = 0.9
+# Floor of the regression on the example run: N1s found and kappa.
+MIN_N1_FOUND = 8
+MIN_REGRESSION_KAPPA = 0.3
+# Fraction of real baselines with no response (REQ-112).
+MIN_SILENT = 0.95
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -82,15 +109,15 @@ def _average(run: Any) -> Any:
 def _agreement() -> Any:
     evoked = _average(RUN)
     times, avg = evoked.times, evoked.data
-    base = (times >= -0.5) & (times <= -0.02)
-    win = (times >= 0.009) & (times <= 0.1)
+    base = (times >= BASELINE_START) & (times <= BASELINE_END)
+    win = (times >= N1_START) & (times <= RULE_END)
     sd = np.maximum(avg[:, base].std(axis=1), 50.0)
     rule = avg[:, win].min(axis=1) < -3.4 * sd
     rule_latency = times[win][avg[:, win].argmin(axis=1)]
     group = ResponseModel("ccep").fit_group(evoked)
     model, latency = [], []
     for fit in group.fits:
-        n1 = [c for c in fit.components if 0.009 <= c.latency <= 0.05 and c.amplitude < 0]
+        n1 = [c for c in fit.components if N1_START <= c.latency <= N1_END and c.amplitude < 0]
         model.append(bool(n1))
         latency.append(min(n1, key=lambda c: c.latency).latency if n1 else np.nan)
     model, latency = np.array(model), np.array(latency)
@@ -98,7 +125,11 @@ def _agreement() -> Any:
     pe = rule.mean() * model.mean() + (1 - rule.mean()) * (1 - model.mean())
     kappa = (po - pe) / (1 - pe)
     both = rule & model
-    close = np.mean(np.abs(latency[both] - rule_latency[both]) <= 0.002) if both.any() else np.nan
+    close = (
+        np.mean(np.abs(latency[both] - rule_latency[both]) <= LATENCY_TOLERANCE)
+        if both.any()
+        else np.nan
+    )
     return rule, model, kappa, close
 
 
@@ -247,9 +278,13 @@ def _rule_average(ts: Any) -> Any:
     s removed from the average."""
 
     t = ts.times
-    x = ts.data - np.median(ts.data[..., (t > -1) & (t < -0.1)], axis=-1, keepdims=True)
+    x = ts.data - np.median(
+        ts.data[..., (t > -1) & (t < RULE_BASELINE_END)], axis=-1, keepdims=True
+    )
     avg = x.mean(axis=0)
-    return avg - np.median(avg[:, (t > -2) & (t < -0.1)], axis=1, keepdims=True)
+    return avg - np.median(
+        avg[:, (t > AVERAGE_BASELINE_START) & (t < RULE_BASELINE_END)], axis=1, keepdims=True
+    )
 
 
 def _published_rule(ts: Any, reading: Any) -> Any:
@@ -261,7 +296,7 @@ def _published_rule(ts: Any, reading: Any) -> Any:
 
     t = ts.times
     avg = _rule_average(ts)
-    base = (t > -2) & (t < -0.1)
+    base = (t > AVERAGE_BASELINE_START) & (t < RULE_BASELINE_END)
     baseline, shift = _frame(ts, reading)
     spec = _rule_spec(reading)
     out = apply_rule(avg, t + shift, ts.sfreq, spec, "uV")
@@ -341,7 +376,7 @@ def _model_n1(fits: Any) -> Any:
 
     det, lat, trough, trough_amp = [], [], [], []
     for fit in fits:
-        n1 = [c for c in fit.components if 0.009 <= c.latency <= 0.05 and c.amplitude < 0]
+        n1 = [c for c in fit.components if N1_START <= c.latency <= N1_END and c.amplitude < 0]
         det.append(bool(n1))
         lat.append(max(n1, key=lambda c: abs(c.amplitude)).latency if n1 else np.nan)
         peak = fitted_peak(fit, (0.009, 0.05))
@@ -443,7 +478,7 @@ def _scores(r: Any, mask: Any = None, decision: Any = "model", latency: Any = "l
     mask = np.ones(len(r["rule"]), bool) if mask is None else mask
     rule, model = r["rule"][mask], r[decision][mask]
     both = rule & model
-    close = np.abs(r[latency][mask][both] - r["rule_lat"][mask][both]) <= 0.002
+    close = np.abs(r[latency][mask][both] - r["rule_lat"][mask][both]) <= LATENCY_TOLERANCE
     return {
         "kappa": _kappa(rule, model),
         "missed": int(np.sum(rule & ~model)),
@@ -498,13 +533,13 @@ def test_req113_as_written(agreement: Any, reading: Any) -> None:
 
     r = _runs(agreement, reading, example=True)[0]
     grid = np.array([n.startswith("PT") for n in r["names"]])
-    assert grid.sum() == 46
+    assert grid.sum() == N_PT_CONTACTS
     assert _scores(r)["missed"] <= 1
-    assert _scores(r, grid)["kappa"] >= 0.8
+    assert _scores(r, grid)["kappa"] >= MIN_KAPPA
     others = _runs(agreement, reading)
-    assert len(others) == 6
-    ok = [_scores(o)["missed"] <= 1 and _scores(o)["kappa"] >= 0.8 for o in others]
-    assert sum(ok) >= 5, [round(_scores(o)["kappa"], 2) for o in others]
+    assert len(others) == N_OTHER_RUNS
+    ok = [_scores(o)["missed"] <= 1 and _scores(o)["kappa"] >= MIN_KAPPA for o in others]
+    assert sum(ok) >= MIN_REPRODUCED, [round(_scores(o)["kappa"], 2) for o in others]
 
 
 # Why REQ-114 is not met (CHANGELOG, "N1 latency agreement"): on the REQ runs the
@@ -548,8 +583,8 @@ def test_req114_as_written(agreement: Any, reading: Any) -> None:
     component's) within 2 ms of the rule's peak on >= 90 %, over all runs."""
 
     close = _close(agreement, reading, "lat")
-    assert close.size >= 10
-    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
 @pytest.mark.xfail(
@@ -564,8 +599,8 @@ def test_req114_trough_latency(agreement: Any, reading: Any) -> None:
     channels where the preset's N1 and the rule agree, over all runs."""
 
     close = _close(agreement, reading, "trough")
-    assert close.size >= 10
-    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
 @pytest.mark.xfail(
@@ -584,8 +619,8 @@ def test_req114_rule_peak_on_the_fitted_curve(agreement: Any, reading: Any) -> N
     deflections of 50-100 ms the rule counts are compared with the model's curve there."""
 
     close = _close(agreement, reading, "curve_peak")
-    assert close.size >= 10
-    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
 @pytest.mark.parametrize(
@@ -621,8 +656,8 @@ def test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference(
     84 % (27 of 32) and 95 % (20 of 21) on the development runs."""
 
     close = _close(agreement, reading, "curve_peak_recording")
-    assert close.size >= 10
-    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
 def test_req114_extremum_reading_in_the_rules_reference(agreement: Any) -> None:
@@ -633,8 +668,8 @@ def test_req114_extremum_reading_in_the_rules_reference(agreement: Any) -> None:
     fitted curve's slope as well."""
 
     close = _close(agreement, "extremum", "curve_peak_recording")
-    assert close.size >= 10
-    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
 @pytest.mark.xfail(
@@ -663,13 +698,13 @@ def test_d8_req113_cannot_hold_under_both_readings(agreement: Any) -> None:
     paper = _runs(agreement, "paper", example=True)[0]
     code = _runs(agreement, "code", example=True)[0]
     grid = np.array([n.startswith("PT") for n in paper["names"]])
-    assert joint_kappa_bound(paper["rule"][grid], code["rule"][grid]) < 0.8
+    assert joint_kappa_bound(paper["rule"][grid], code["rule"][grid]) < MIN_KAPPA
     bounds = [
         joint_kappa_bound(p["rule"], c["rule"])
         for p, c in zip(_runs(agreement, "paper"), _runs(agreement, "code"), strict=True)
     ]
-    assert len(bounds) == 6
-    assert sum(b >= 0.8 for b in bounds) < 5, bounds
+    assert len(bounds) == N_OTHER_RUNS
+    assert sum(b >= MIN_KAPPA for b in bounds) < MIN_REPRODUCED, bounds
 
 
 def test_req113_registry_row_counts_channels_without_an_n1_trough(agreement: Any) -> None:
@@ -687,8 +722,8 @@ def test_req113_registry_row_counts_channels_without_an_n1_trough(agreement: Any
     grid = np.array([n.startswith("PT") for n in example["names"]])
     assert int(np.sum(example["rule"] & example["no_n1_trough"] & grid)) > 1
     counts = [int(np.sum(r["rule"] & r["no_n1_trough"])) for r in _runs(agreement, "paper")]
-    assert len(counts) == 6
-    assert sum(c <= 1 for c in counts) < 5, counts
+    assert len(counts) == N_OTHER_RUNS
+    assert sum(c <= 1 for c in counts) < MIN_REPRODUCED, counts
 
 
 def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any) -> None:
@@ -704,8 +739,8 @@ def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any
     removes)."""
 
     close = _close(agreement, "code", "trough", n1_trough=True)
-    assert close.size >= 10
-    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
 @pytest.mark.xfail(
@@ -745,7 +780,7 @@ def test_n1_trough_with_the_code_floor_regression(agreement: Any) -> None:
     others = _runs(agreement, "code")
     rule = np.concatenate([r["rule"] for r in others])
     model = np.concatenate([r["trough_floor"] for r in others])
-    assert _kappa(rule, model) >= 0.8
+    assert _kappa(rule, model) >= MIN_KAPPA
     assert all(_scores(r, decision="trough_floor")["kappa"] >= HUMAN_KAPPA for r in others)
 
 
@@ -753,8 +788,8 @@ def test_req113_engine_finds_n1_on_the_example_run() -> None:
     """Floor for the regression: the inherited engine found 2 N1s on this run."""
 
     rule, model, kappa, _ = _agreement()
-    assert model.sum() >= 8
-    assert kappa >= 0.3
+    assert model.sum() >= MIN_N1_FOUND
+    assert kappa >= MIN_REGRESSION_KAPPA
 
 
 def test_req112_real_baselines_mostly_silent() -> None:
@@ -771,4 +806,4 @@ def test_req112_real_baselines_mostly_silent() -> None:
         times, epochs, _ = epoch_data(data[keep], sfreq, onsets, -2.0, 0.0, t0=t0)
         model = ResponseModel("ccep", fit_window=(-0.49, -0.01), baseline=(-2.0, -0.5))
         statuses += [model.fit_waveform(times, ch).status for ch in epochs.mean(axis=0)]
-    assert np.mean([s == "no_response" for s in statuses]) >= 0.95
+    assert np.mean([s == "no_response" for s in statuses]) >= MIN_SILENT

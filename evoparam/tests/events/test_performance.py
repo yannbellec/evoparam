@@ -10,6 +10,9 @@ import sys
 
 import pytest
 
+# Pulses of the benchmark recording.
+N_PULSES = 120
+
 pytestmark = pytest.mark.skipif(
     os.environ.get("EVOPARAM_PERF_TESTS") != "1",
     reason="set EVOPARAM_PERF_TESTS=1 to time detect_pulses",
@@ -25,6 +28,6 @@ def test_req045_runtime_and_memory() -> None:
     names = [f"C{i:03d}" for i in range(data.shape[0])]
     for kwargs in ({}, {"ch_names": names}):
         elapsed, peak, events = measure(data, sfreq, **kwargs)
-        assert len(events) == 120
+        assert len(events) == N_PULSES
         assert elapsed <= 1.0
         assert peak <= 2 * data.nbytes

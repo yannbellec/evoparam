@@ -156,6 +156,285 @@ Tests: `tests/models` (with `test_engine_sim.py`, the new `test_calibration.py`)
 `tests/trials`; `test_engine_ccep.py::test_req112_real_baselines_mostly_silent` and
 `test_req113_engine_finds_n1_on_the_example_run` from the cached runs.
 
+### Static quality rules met as written (REQ-305, REQ-301)
+
+All the selected rule sets stay on, and every threshold is unchanged (line length 99,
+complexity 12, 8 arguments, 60 statements). No package file is excluded. Behaviour is the
+same: each refactored function was compared with 833968f on reference cases (results,
+written files, warnings), and each magic-value change by its syntax tree. The test files
+of every changed module were run. Details and readings: `docs/spec/DECISIONS.md` §7.
+
+| tool | before (833968f) | after |
+|---|---|---|
+| `ruff check evoparam benchmarks docs/tutorials examples` | 1 264 findings | 0 |
+| `ruff format --check` | clean | clean (441 files) |
+| `interrogate -v evoparam` | 68.3 % | 97.1 % |
+| `mypy --strict evoparam` | 1 error | 0 |
+| `pyright --verifytypes evoparam` | 96.2 % | 96.8 % |
+| `# noqa` comments (same paths) | 231 | 197, each with its reason |
+
+Ruff findings before, by rule:
+
+- PLR2004: 1 046 (package 211, tests 834, benchmarks 1). Each value is now a named,
+  commented constant.
+- C901, PLR0912, PLR0915, PLR0911: 126 findings and 72 noqa. Now 0 and 0: the long
+  functions are split into named private helpers.
+- PLR0913: 60. The public signatures that the spec fixes, or that are public outside
+  it, keep a per-line noqa naming the spec section and the counts (42, against 24
+  before); every other function was refactored.
+- PLR0917: 32, all on private functions and test helpers. All were refactored, and the
+  rule stays on.
+
+Other changes:
+
+- PT028: the 27 per-line noqa on `existence.test_response` and `tf.stats.test_map` are
+  replaced by a `per-file-ignores` entry for each of the two modules. These are
+  statistical tests, not pytest tests.
+- mypy: `patsy` and `pytensor` (optional) join `ignore_missing_imports`.
+- `tests/test_ci_workflows.py`: the strict expected failures of
+  `test_req305_ruff_check_passes` and `test_req305_docstring_coverage` are removed,
+  because both checks now pass.
+- pre-commit: the hooks are pinned to the lock-file versions. `pre-commit run --all-files`
+  now passes. Its ruff hooks, and the CI lint job, also cover `tools/`, `validation/` and
+  `tutorials/`. These had 275 findings and 24 unformatted files; both are now 0, and the
+  generated files are unchanged. `docs/spec/SPEC.md` is in ruff's `extend-exclude`, so
+  that the Markdown formatting of the hook leaves the reviewed specification as is.
+- Exported helpers outside the spec now take their settings grouped:
+  `permutation_test` and `shuffle_test` (`PermutationOptions`), `bayes.sample`
+  (`NutsSettings`), `sim.artifacts.pulse_shape` (`AntiAliasFilter`) and
+  `stimulation_artifact` (`StimulusPulse`, `RecoveryTail`); see DECISIONS.md §7.2.
+- Merge of integration-2 (4f2c44d). Its changes are carried into the split functions,
+  and the results equal integration-2's to the bit. The 67 new ruff findings, 5
+  unformatted files and 2 mypy errors of the merged code are fixed (DECISIONS.md §7.9).
+
+### Engine speed, part 3 (REQ-290 P1): same results to the bit, P1 still not met
+
+REQ-290 P1 (one averaged waveform, 2 048 samples, `ccep`, `max_components=6`, 3 starts) is
+about a fifth faster with the `fast` extra and still above its 50 ms target. Every result is
+the same to the last bit, so no algorithm version changes.
+
+Why P1 costs about twice the REQ-115 waveform: it fits a 1 s window (2 047 samples, against
+1 006 for the 0.009-0.5 s window of REQ-115), so every evaluation costs twice as much, and its
+waveform needs about 500 evaluations (70 compiled fits per call: three starts and the
+forward search, which also tries a fourth component and rejects it). At f626c68 a fit spent
+about 60 ms in the compiled kernel (Householder QR of the 2 050-row whitened design,
+whitening, `exp`) and about 30 ms in Python around it; P1 does use the compiled fit for
+every call.
+
+Timings: same machine, `OMP_NUM_THREADS=1`, previous code (f626c68) and new code; the load
+average was 5 to 9 on the 4 cores (other jobs). The two `run_benchmarks.py --suite perf`
+runs were taken one after the other, not interleaved:
+
+| workload | f626c68 | new code |
+|---|---|---|
+| P1 workload, core 3 (`taskset -c 3`), warm-up + 30 fits, three interleaved rounds: median (p10-p90) | 99.0, 105.2, 95.5 ms (p10-p90 93-108, 96-132, 92-109) | 90.3, 81.4, 81.5 ms (p10-p90 82-112, 77-91, 78-87) |
+| compiled kernel alone: the 70 calls of one P1 fit replayed, median of 30 | 59.79 ms | 48.49 ms |
+| `run_benchmarks.py --suite perf`: P1 median (p90) of 20 | 99.8 ms (109.1) | 81.5 ms (85.6) |
+| the same run: P2 (one run) | 53.8 s | 32.7 s |
+| P2 again, two interleaved rounds | 40.1, 42.8 s | 39.1, 35.0 s |
+| the same run: P5, reproduce / original fit | 77.0 s / 65.2 s (1.18x) | 75.5 s / 60.0 s (1.26x) |
+| the same run: P6, median of 10 | 0.937 s | 0.940 s |
+
+What changed:
+
+- `models/_fast.py`: the AR whitening adds its lags by groups of four in one pass over the
+  samples, each term added in the same order as before; the finiteness checks of the QR
+  input and of the residuals are one vectorised sum each. Kernel time per P1 fit: see the
+  table.
+- `models/engine.py`: the compiled fit starts before the closures of the NumPy path are
+  built; shapes built from the same settings and the default bounds of the background are
+  reused; `compute_features` of a component is computed once per fit for the
+  cancelling-pair, suspicious-component and merge checks; the selection of the candidate
+  extrema is vectorised (the same order, ties included); `np.r_` replaced by
+  `np.concatenate`.
+- `models/api.py`: the whitened residual sum of squares is computed once for the
+  diagnostics and the goodness of fit. `shapes/_base.py`: `window_info` recognises the time
+  axis of the previous call without hashing it.
+
+Results, previous code against new code: the 70 kernel calls of one P1 fit replayed give
+the same outputs to the bit; a battery of 112 fits (P1 on three channels, the five REQ-115
+waveforms, `models.fit` on simulated `ccep`, `ccep_seeg`, `erp`, `tep`, `ecap` and
+`rodent_ep` with seeds 0 to 3) gives every number identical; the new whitening matches the
+previous one to the bit, signs of zeros included, on 435 cases (5 to 2 047 samples, AR
+orders 0 to 12, strides 1 to 4, with and without start rows); the reference fixture test
+(`test_determinism.py`) and the methods texts are unchanged. `ALGORITHM_VERSIONS` is
+unchanged.
+
+`benchmarks/results/linux-3.13.16-1f2ea055f5f5.json` replaces the run of bddedc9 (which
+predates the compiled fit); `benchmarks/README.md` and the strict expected failures of
+`tests/benchmark/test_timing.py` give its values. P2 and P5 stay met, P6 stays above
+300 ms (the import of `scipy.stats`). P1 cannot reach 50 ms with the same rounding: the
+kernel is bound by the floating-point work of the QR and the whitening (about 200 MFlop per
+fit). Reaching it needs fewer evaluations (for example a cheaper rejection of the fourth
+component of the forward search) or a blocked QR, both of which change the results within
+rounding and need a new algorithm version and fixture.
+
+### Engine speed, part 4 (REQ-290 P1): the search of a further component stops sooner
+
+The forward search tried up to 2 x `max_components` residual extrema (12 for P1) before
+concluding that no further component improves the criterion, and every fit ends with such a
+step. It now stops after the six strongest extrema when none of them improves the criterion
+by `delta` (`engine.CANDIDATE_SCAN = 6`); a step in which an extremum qualifies still scans
+until its beam of three is full, as before. On the layer-2 development cells the first
+qualifying extremum of a step was the strongest in 546 of the 559 steps that added a
+component and never beyond the sixth. Results change for a few fits, so the algorithm
+versions of `ResponseModel.fit_waveform`, `fit_group`, `existence.test_response`,
+`trials.fit_trials` and `hierarchical.fit_hierarchical` are now 1.2 and that of
+`spatial.fit_shared` 1.1; the reference fixture was regenerated (`python -m
+evoparam.tests.reference`; its values move by at most 2.4e-12 relative, within the 1e-9 of
+its test, as before this change). Engine functions touched: `_fit_waveform_core` (the loop
+over the extrema) and the new constant `CANDIDATE_SCAN`.
+
+P1 (core 3, `OMP_NUM_THREADS=1`, warm-up + 30 fits, three interleaved rounds, load average 9
+to 13 on the 4 cores from other jobs): 84.6, 87.0, 87.8 ms (p10-p90 80-97, 78-109, 79-103)
+before, 78.7, 68.5, 70.5 ms (p10-p90 72-88, 67-93, 69-76) after; the same three components.
+One P1 fit makes 58 compiled fits and 472 evaluations instead of 70 and 513. P1 stays above
+50 ms.
+
+Quality, before (up to 2 x `max_components` extrema) → after (6), the same code otherwise.
+Layer 2: the weekly cells of `validation/layer2.py`, 2 replicates per cell, development
+seeds (`1000 j + r`) and test seeds (500 000 + `1000 j + r`), scored by `sim.score_fits`;
+engine tests: the 60 waveforms of `tests/models/helpers.py` (`random_components`, the
+REQ-104 to REQ-112 generator) on seeds 0-59 and 500 000-500 059; ds004080: the seven runs of
+layer 3, `ccep` pipeline of `validation/robustness.py`, both readings of the published N1
+rule:
+
+| seeds | cells | fits | recall | precision | F1 | latency MAE | fits that differ |
+|---|---|---|---|---|---|---|---|
+| development (0+) | erp layer 2 | 100 | 0.745 | 0.942 → 0.967 | 0.832 → 0.841 | 0.918 → 0.927 samples | 1 |
+| development (0+) | ccep layer 2 | 100 | 0.699 | 0.926 | 0.797 | 1.326 samples | 0 |
+| development (0+) | tep layer 2 | 52 | 0.970 | 0.990 | 0.980 | 1.082 samples | 0 |
+| development (0+) | ecap layer 2 | 52 | 0.680 | 0.861 | 0.760 | 1.047 samples | 0 |
+| development (0+) | animal layer 2 | 52 | 0.840 | 0.903 | 0.870 | 0.968 samples | 0 |
+| development (0+) | erna layer 2 | 52 | 0.517 | 0.912 | 0.660 | 1.873 samples | 0 |
+| development (0+) | engine tests (REQ-104-112 waveforms) | 60 | 1.000 | 1.000 | 1.000 | 0.552 ms | 0 |
+| test (500000+) | erp layer 2 | 100 | 0.745 | 0.980 | 0.846 | 0.912 samples | 0 |
+| test (500000+) | ccep layer 2 | 100 | 0.740 | 0.960 | 0.836 | 1.123 samples | 0 |
+| test (500000+) | tep layer 2 | 52 | 0.960 | 0.970 → 0.990 | 0.965 → 0.975 | 1.330 samples | 2 |
+| test (500000+) | ecap layer 2 | 52 | 0.680 | 0.861 | 0.760 | 1.372 samples | 0 |
+| test (500000+) | animal layer 2 | 52 | 0.850 | 0.924 | 0.885 | 1.077 samples | 0 |
+| test (500000+) | erna layer 2 | 52 | 0.617 | 0.902 | 0.733 | 1.754 samples | 0 |
+| test (500000+) | engine tests (REQ-104-112 waveforms) | 60 | 1.000 | 1.000 | 1.000 | 0.526 ms | 0 |
+
+| ds004080, 7 runs, 615 channels | reading | kappa | recall | median abs. latency difference | within 2 ms | N1 (model) | fits that differ |
+|---|---|---|---|---|---|---|---|
+| before → after | paper | 0.386 | 0.438 | 3.57 ms | 0.386 → 0.404 | 99 | 32 |
+| before → after | code | 0.402 | 0.882 | 3.47 ms | 0.367 → 0.400 | 99 | 32 |
+
+Rejected after measurement (DECISIONS.md, step 4): three extrema (recall drops on the
+`ecap`, `animal` and `erna` cells, for example `ecap` 0.680 → 0.640 on the development
+seeds) and polishing the background once at the end instead of after every accepted
+component (N1 kappa 0.386 → 0.347 on ds004080, paper reading).
+
+### REQ-290 P3: `evoparam.fit` in memory below twice the data at the CI size, same results to the bit
+
+At the `ci` size (50 trials x 64 channels x 4 096 samples, float64, 105 MB) the in-memory
+peak of `evoparam.fit` was 3.3 times the data, against a bound of 2. Three copies of the
+trials are gone:
+
+- `TrialSet.average` (`data/containers.py`, `_average_trials`) averages blocks of channels of
+  at most 16 MB instead of the selected trials of every channel at once.
+- `existence.test_response` (`existence/api.py`) makes one copy of the trials it tests instead
+  of two, laid out in memory as the previous double indexing left them (channel by channel),
+  so that every sum adds the same numbers in the same order; for the baseline permutation test
+  the copy holds only the samples from the start of the baseline to the end of the window.
+- `existence/permutation.py`: the sign-flip sums of the null distribution go into one buffer
+  reused by every chunk of flips, the t-series and their summaries are computed by blocks of
+  channels, and the window is copied once (the masked copy only when there are masks). The
+  repeated temporaries of about 31 MB had made glibc raise its mmap threshold, so that they
+  stayed on the heap and the resident set grew.
+
+Peak RSS increase, `run_benchmarks.py --suite ci` (medians of 3 runs before, 3 after):
+
+| variant | before (`linux-3.13.16-bddedc9aa35f-ci.json`) | after (`linux-3.13.16-148319226b70-ci.json`) | bound |
+|---|---|---|---|
+| in memory | +331 MiB (3.31x the data) | +130 MiB (1.30x the data) | 200 MiB |
+| memory-mapped | +331 MiB (3.31x the data) | +130 MiB (1.30x the data) | 537 MiB |
+
+Results: 263 of 263 outputs are the same bytes before and after (averages of a plain, a
+masked and a rejected-trials set, mean and robust, three chunk settings: 36; `test_response`
+with five settings on the three sets: 195; the `evoparam.fit` table at 30 x 24 x 4 096: 32).
+The full size (500 x 256 x 4 096, 4.19 GB) was not run: the memory-mapped variant needs the
+4.19 GB file on a disk with about 5 GB free, and the in-memory one needs the data and its
+peak in the machine's 15 GB next to the other jobs.
+
+### REQ-290 records on the reference machine
+
+`benchmarks/results/linux-3.13.16-148319226b70.json` and
+`linux-3.13.16-148319226b70-ci.json` replace the files of 1f2ea05 and bddedc9;
+`baseline-ci.json` is kept (its time medians were taken at a lower load than these `ci`
+runs, load average 18, and would only loosen the comparison); `benchmarks/README.md` and the
+expected failures of `tests/benchmark/test_timing.py` are regenerated from them. P6 on
+Linux: median 0.121 s over 10 runs (target 0.300 s), so its expected failure is removed; so
+is that of P3 in memory (1.30x). P1: median 80.4 ms over 20 runs (p90 99.6 ms), still above
+50 ms; P2 56.8 s (load average 7.3); P5 1.27x its fit.
+
+P2 runs four workers on the four cores that other jobs share: two earlier `perf` runs of
+1483192 gave 71.0 s at load average 16.0; 81.0 s at load average 8.1, above its 60 s; the
+run recorded was started when the load average fell below 5.5. Its work is unchanged: P2 at
+8 channels with one job on core 3, 1f2ea05 against 1483192 interleaved, 2.68, 2.85, 2.98 s
+against 2.60, 2.70, 2.93 s.
+
+### REQ-068 timing: the first-use imports are no longer timed
+
+- With the package root imported on first use (REQ-290 P6), the first artifact method of
+  `benchmarks/bench_artifact.py` that needs scipy.signal (`polynomial`) paid its import
+  (about 1 s) inside the timed call: 2.3 to 2.7 s against the 2 s limit. Each case now
+  first runs untimed on a small set of the same layout. `polynomial`: 1.68 s; every
+  method within its limit. The tf timing test (REQ-218) failed only under a parallel run
+  of the whole suite and passes alone.
+
+### §7.4 (5): Linux, macOS and Windows measured
+
+- Windows 11 (AMD64, Python 3.12.2, NumPy 2.5.4), measured on a Windows PC: the 98 values
+  of the fixture fit within 3.1e-12 of the reference (rtol 1e-9). With Linux x86-64 (0) and
+  macOS arm64 (1.3e-12), `test_req375_platform_macos_and_windows` passes; the report lists
+  the three records.
+
+### REQ-290 P6: `import evoparam` in 0.13 s
+
+- The package root imported every subpackage, and with them scipy.stats (0.53 s): 0.96 s
+  on macOS arm64 (0.91 s on the reference machine). The subpackages and the root functions
+  (`fit`, `test_response`, `read`, `detect_events`, `ResponseModel`, `reproduce`) are now
+  imported on first use (PEP 562 `__getattr__`, `__dir__`, and `TYPE_CHECKING` imports for
+  type checkers); `TrialSet`, `Evoked`, `Provenance`, `load_object`, `errors`, the logging
+  functions and `prep` (13 ms, for the registration of the existence detector, now a light
+  proxy that imports the existence test on its first call) stay eager.
+- `benchmarks/run_benchmarks.py --suite perf --only P6` on macOS arm64: median 0.132 s over
+  10 runs, target met. The committed perf results are those of the reference machine
+  (Linux), so `test_req290_p6_import_under_300_ms` stays an expected failure until P6 is
+  re-run there.
+
+### REQ-298: evoparam.shapes covered at 100 %
+
+- `evoparam/tests/shapes/test_grid_helpers.py` covers the last five lines and four branches
+  of `evoparam.shapes._base`: the window cache when it is full, the fine feature grid, and
+  the search on that grid without building it, checked against `np.searchsorted` on 2 005
+  values (on the grid points, one ulp off them, outside, infinite and NaN) for both sides.
+  Shapes coverage 99 % -> 100 % (lines and branches); the slow test of REQ-298 passes.
+
+### Cross-projection test: sign-flip null of the profile peak (REQ-134)
+
+- `test_response(method="projection")` has a third set of projections,
+  `projection_pairs="signflip"`, now the default: every cross-projection, and the peak of
+  the mean-projection profile compared with the peaks of the profiles recomputed under
+  sign flips of whole trials (all patterns up to 4 096, a random draw beyond), so the choice
+  of the response end at the peak is part of the null. On the 10 example channels of the
+  paper it gives every published decision (the "disjoint" t-test: 0.8 to 1.0 by random
+  pairing, mean 0.89); on pure white noise (10 trials, 200 channels) it rejects at 0.05 for
+  alpha = 0.05 ("disjoint" 0.145, the paper's "half" 0.43). `test_req134_published_
+  significance_with_the_default_pairs` is no longer an expected failure. Cost: 0.12 s per
+  channel for 50 trials x 500 samples.
+- Benchmark `core`, baseline `projection` re-run (T1, T2): AUC 0.938 -> 0.979, recall 0.65
+  -> 0.88, F1 0.78 -> 0.89, specificity 0.992 -> 0.960, false-positive rate at p < 0.05
+  0.064 -> 0.104 on the null cells; the result files, leaderboard and report regenerated
+  (macOS arm64, so their input hashes are those of this platform).
+- `detect_pulses` had lost its `verbose` decorator in the size-gate change (the new helper
+  was inserted between them); restored (`test_verbose_detect_pulses`).
+- The docs build test of REQ-302 runs with `EVOPARAM_DOCS_TESTS=1` (the `docs` extra is not
+  in `all`, and the dependency test requires every skipped package to be in `all` or
+  `bayes`).
+
 ### REQ-064 on real templates: the specification's version as a measured comparison
 
 - REQ-064 (subspace >= 30 dB on synthetic EEG with real artifact templates) is met by the
@@ -658,6 +937,11 @@ and the reference fixture is not regenerated. Only tests and documents change.
   branch `platform-record/<name>` is pushed, and commits the record back to that branch.
 - `test_req375_platform_macos_and_windows` checks every record and names the platforms
   still missing (Windows until its record is merged).
+- Windows measured on a Windows 11 PC (x86-64, Python 3.12.2, NumPy 2.5.4, SciPy 1.18.1,
+  core install `pip install -e .`): 98 values, largest relative difference 3.15e-12, within
+  the 1e-9 of REQ-295. §7.4 (5) is met on Linux, macOS and Windows; the GitHub workflow
+  could not run (the runner was refused for billing). The report's own `platform` block is
+  the reference machine's record (Linux); every machine is in `platforms`.
 
 ### REQ-231: Kiesel et al. (2008) read in full
 
@@ -4981,7 +5265,6 @@ REQ-020) move to build step S17 (spec §10), with the rest of the NWB and BIDS-d
 - `evoparam.errors`: the error hierarchy of spec §4.6. The inherited error classes now derive
   from `EvoparamError`.
 - Test of the import graph against the dependency table of spec §4.2.
-
 
 First skeleton of evoparam, derived from ERPparam (see NOTICE).
 

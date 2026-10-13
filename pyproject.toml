@@ -114,7 +114,9 @@ markers = [
 [tool.ruff]
 line-length = 99
 target-version = "py310"
-extend-exclude = ["adapters"]
+# docs/spec/SPEC.md is the reviewed specification and is never edited: `ruff format` (and
+# its pre-commit hook, which formats the Python blocks of Markdown files) leaves it as is
+extend-exclude = ["adapters", "docs/spec/SPEC.md"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "PT", "RET", "ARG", "PL",
@@ -135,6 +137,10 @@ max-statements = 60
 
 [tool.ruff.lint.per-file-ignores]
 "evoparam/tests/**" = ["D"]
+# test_response (spec §5.6) and evoparam.tf.stats.test_map are statistical tests, not pytest
+# tests: PT028 does not apply to their keyword defaults (docs/spec/DECISIONS.md §7)
+"evoparam/existence/api.py" = ["PT028"]
+"evoparam/tf/stats.py" = ["PT028"]
 
 # Static typing (spec §9.6, REQ-301): optional packages only are allowed without stubs
 [tool.mypy]
@@ -149,7 +155,9 @@ module = ["mne.*", "mne_bids.*", "bids.*", "pynwb.*", "hdmf.*", "ndx_events.*", 
           "numba.*", "matplotlib.*", "pandas.*", "pyarrow.*", "xarray.*", "statsmodels.*",
           "formulaic.*", "bidsschematools.*", "nwbinspector.*", "jsonschema.*", "tqdm.*",
           "joblib.*", "pylsl.*", "sklearn.*", "h5py.*", "remfile.*", "quantities.*",
-          "nilearn.*"]
+          "nilearn.*", "patsy.*", "pytensor.*"]
+# patsy (with statsmodels, extra `stats`) and pytensor (with pymc, extra `bayes`) ship no type
+# information or are absent from the CI lock; neither is ever needed by the core
 ignore_missing_imports = true
 
 # Coverage (spec §9.5, REQ-298), lines and branches. Every module is measured (run.omit:

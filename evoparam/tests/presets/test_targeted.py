@@ -9,6 +9,9 @@ import pytest
 from evoparam import fit, presets, sim
 from evoparam.errors import SettingsError
 
+# Latency tolerance (s) of the fitted P3.
+LATENCY_TOLERANCE = 0.03
+
 
 def test_targeted_measures_the_component_on_every_channel() -> None:
 
@@ -29,6 +32,6 @@ def test_targeted_measures_the_component_on_every_channel() -> None:
     true = truth.to_dataframe()
     latency = float(true[true["label"] == "P3"]["latency"].median())
     fitted = np.median([f.components[0].latency for f in group.fits])
-    assert abs(fitted - latency) < 0.03
+    assert abs(fitted - latency) < LATENCY_TOLERANCE
     with pytest.raises(SettingsError):
         presets.targeted("erp", "P3", (0.3, 0.6), "up")

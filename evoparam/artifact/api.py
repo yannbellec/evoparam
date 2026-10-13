@@ -4,7 +4,8 @@
 import logging
 import time as _time
 import warnings
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 import numpy as np
 
@@ -73,7 +74,7 @@ def _check_window_vs_rate(ts: Any, window: Any, method: Any) -> None:
         )
 
 
-def remove_artifact(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed by spec §5.3)
+def remove_artifact(  # noqa: PLR0913  (spec §5.3 fixes 28 parameters, plus 12 method options; DECISIONS.md §7.2)
     ts: "TrialSet",
     *,
     method: str = "template",
@@ -214,153 +215,13 @@ def remove_artifact(  # noqa: C901, PLR0913, PLR0915  (public API, signature fix
     start = _time.perf_counter()
     check_trialset(ts)
     settings = {key: value for key, value in locals().items() if key not in ("ts", "start")}
-    if method not in METHODS:
-        raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
-    if interpolation not in INTERPOLATIONS:
-        raise SettingsError(f"interpolation must be one of {INTERPOLATIONS}.")
-    if tail not in ("none", "subtract", "joint"):
-        raise SettingsError("tail must be 'none', 'subtract' or 'joint'.")
+    _check_settings(method, interpolation, tail)
     check_on_error(on_error)
     window = (float(window[0]), float(window[1]))
     inds = window_slice(ts, window, buffer if method in ("interpolate", "tail") else 0)
     if method in ("interpolate", "template", "learned", "tail"):
         _check_window_vs_rate(ts, window, method)
-
-    def clean(sub: "TrialSet", user_template: Any = template) -> tuple[Any, ...]:  # noqa: C901, PLR0912, PLR0915  (the method dispatch of remove_artifact, moved as it was)
-        """Run the method on the channels of ``sub`` (``user_template``: their template).
-
-        Returns the data, the masks, the saturation masks, the method's information and,
-        for ``paradigm``, its output TrialSet (else None).
-        """
-        masks = base_masks(sub)
-        saturation = sub.masks
-        info = {"template": None, "basis": None, "fit_r2": None}
-
-        def interp(values: Any) -> Any:
-            out, _ = interpolate_window(sub.times, values, window, buffer, interpolation)
-            return out
-
-        if method == "none":
-            data = sub.data.copy()
-        elif method == "interpolate":
-            data = interp(sub.data)
-            masks[:, :, inds] = True
-        elif method == "template":
-            from .template import subtract_template
-
-            data, extra = subtract_template(
-                sub,
-                inds,
-                template=user_template,
-                group_by=group_by,
-                n_neighbors=n_neighbors,
-                scale=scale,
-                fallback=fallback,
-                interpolate=interp,
-            )
-            if extra["fallback_trials"]:
-                masks[np.ix_(extra["fallback_trials"], np.arange(sub.n_channels), inds)] = True
-            if mask_subtracted:
-                masks[:, :, inds] = True
-            info.update(
-                template=extra["template"],
-                fit_r2=extra["fit_r2"],
-                template_response_correlation=extra["template_response_correlation"],
-                fallback_trials=extra["fallback_trials"],
-            )
-        elif method == "learned":
-            from .template import subtract_learned
-
-            data, extra = subtract_learned(
-                sub, inds, group_by=group_by, n_components=n_components, ridge=ridge
-            )
-            if mask_subtracted:
-                masks[:, :, inds] = True
-            info.update(
-                basis=extra["basis"], fit_r2=extra["fit_r2"], basis_groups=extra["basis_groups"]
-            )
-        elif method == "tail":
-            from .tail import fit_tail
-
-            data = interp(sub.data)
-            masks[:, :, inds] = True
-            if tail != "joint":
-                fitted, tail_inds, params = fit_tail(
-                    sub.times, data, inds[-1] + 1, tail_length, tau_bounds, part=tail_part
-                )
-                data[:, :, tail_inds] -= fitted
-                if mask_subtracted:
-                    masks[:, :, tail_inds] = True
-                info.update(tail_tau1=params["tau1"], tail_tau2=params["tau2"])
-        elif method == "period_template":
-            data, extra = _period(sub, period, expected_rate, n_bins, n_skip, d_period, causal)
-            info.update(extra)
-        elif method == "lowrank":
-            from .lowrank import lowrank_clean
-
-            pulses = pulse_times
-            if pulses is None:
-                if not expected_rate:
-                    raise ArtifactError("method 'lowrank' needs pulse_times or expected_rate.")
-                pulses = np.arange(0.0, sub.times[-1] - post_window, 1.0 / expected_rate)
-            data, extra = lowrank_clean(
-                sub.data, sub.sfreq, sub.times, pulses, ranks=ranks, post_window=post_window
-            )
-            info.update(removed_fraction=extra["removed_fraction"])
-        elif method == "subspace":
-            from .subspace import subspace_clean
-
-            data, extra = subspace_clean(
-                sub.data,
-                inds,
-                window_slice(sub, baseline),
-                n_components="noise" if n_components is None else n_components,
-                extent=subspace_extent,
-            )
-            info.update(
-                n_directions=extra["n_directions"],
-                window_energy_removed=extra["window_energy_removed"],
-            )
-        elif method == "polynomial":
-            from .polynomial import polynomial_clean
-
-            data, zeroed = polynomial_clean(
-                sub.data,
-                sub.sfreq,
-                saturation,
-                halfwidth=poly_halfwidth,
-                extent=poly_extent,
-                window_inds=inds,
-                baseline_inds=np.flatnonzero(
-                    (sub.times >= baseline[0]) & (sub.times <= baseline[1])
-                ),
-            )
-            masks |= zeroed
-        elif method == "matching_pursuit":
-            from .pursuit import pursuit_clean, warn_patent
-
-            warn_patent()
-            seg = np.flatnonzero(
-                (sub.times >= window[0]) & (sub.times <= window[1] + pursuit_length)
-            )
-            data = sub.data.copy()
-            flat = data[:, :, seg].reshape(-1, len(seg))
-            cleaned_seg, _ = pursuit_clean(
-                flat, sub.times[seg], window[1], line_freq=line_freq, n_iter=n_atoms
-            )
-            data[:, :, seg] = cleaned_seg.reshape(sub.n_trials, sub.n_channels, len(seg))
-            if mask_subtracted:
-                masks[:, :, seg] = True
-        elif method == "paradigm":
-            if scheme not in SCHEMES:
-                raise ArtifactError(f"method 'paradigm' needs scheme in {SCHEMES}.")
-            out = paradigm_subtract(sub, scheme=scheme, pairing=pairing)
-            data, masks, saturation = out.data, base_masks(out), out.masks
-            ts_out: Any
-            ts_out = out
-        if method != "paradigm":
-            ts_out = None
-        return data, masks, saturation, info, ts_out
+    clean = _Cleaner(settings, window, inds).method(method)
 
     failed: dict[int, str] = {}
     try:
@@ -392,19 +253,8 @@ def remove_artifact(  # noqa: C901, PLR0913, PLR0915  (public API, signature fix
     components = None
     scores = np.ones(cleaned.n_trials)
     if quality:
-        components = artifact_quality(
-            cleaned, window=window, baseline=baseline, saturation=saturation, fit_r2=info["fit_r2"]
-        )
+        cleaned, components = _with_quality(cleaned, window, baseline, saturation, info["fit_r2"])
         scores = components["quality"].to_numpy()
-        meta = (
-            cleaned.metadata.copy()
-            if cleaned.metadata is not None
-            else new_table({"quality": scores})
-        )
-        meta["quality"] = scores
-        from dataclasses import replace
-
-        cleaned = replace(cleaned, metadata=meta)
 
     extras = {
         key: value for key, value in info.items() if key not in ("template", "basis", "fit_r2")
@@ -423,6 +273,251 @@ def remove_artifact(  # noqa: C901, PLR0913, PLR0915  (public API, signature fix
         status=np.array(["failed" if c in failed else "ok" for c in range(cleaned.n_channels)]),
         message=np.array([failed.get(c, "") for c in range(cleaned.n_channels)]),
     )
+
+
+def _check_settings(method: str, interpolation: str, tail: str) -> None:
+    """Raise SettingsError on an unknown method, interpolation or tail."""
+    if method not in METHODS:
+        raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
+    if interpolation not in INTERPOLATIONS:
+        raise SettingsError(f"interpolation must be one of {INTERPOLATIONS}.")
+    if tail not in ("none", "subtract", "joint"):
+        raise SettingsError("tail must be 'none', 'subtract' or 'joint'.")
+
+
+def _with_quality(
+    cleaned: Any, window: Any, baseline: Any, saturation: Any, fit_r2: Any
+) -> tuple[Any, Any]:
+    """Return the cleaned trials with ``metadata["quality"]``, and the quality components."""
+    from dataclasses import replace
+
+    components = artifact_quality(
+        cleaned, window=window, baseline=baseline, saturation=saturation, fit_r2=fit_r2
+    )
+    scores = components["quality"].to_numpy()
+    meta = (
+        cleaned.metadata.copy() if cleaned.metadata is not None else new_table({"quality": scores})
+    )
+    meta["quality"] = scores
+    return replace(cleaned, metadata=meta), components
+
+
+class _Run:
+    """The outputs of one cleaning: data, masks, saturation masks, information, paradigm trials."""
+
+    def __init__(self, sub: "TrialSet") -> None:
+        """Start from the masks of ``sub`` (its own masks are the saturation masks)."""
+        self.data: Any = None
+        self.masks = base_masks(sub)
+        self.saturation = sub.masks
+        self.info: dict[str, Any] = {"template": None, "basis": None, "fit_r2": None}
+        self.ts_out: Any = None
+
+    def result(self) -> tuple[Any, ...]:
+        """Return the data, masks, saturation masks, information and paradigm trials."""
+        return self.data, self.masks, self.saturation, self.info, self.ts_out
+
+
+class _Cleaner:
+    """The method dispatch of :func:`remove_artifact`.
+
+    One method per artifact method, each called with the channels to clean (``sub``) and,
+    optionally, their template; each returns the data, the masks, the saturation masks,
+    the method's information and, for ``paradigm``, its output TrialSet (else None).
+    """
+
+    def __init__(self, settings: dict[str, Any], window: tuple[float, float], inds: Any) -> None:
+        """Hold the arguments of :func:`remove_artifact`, its window and window samples."""
+        self.s = settings
+        self.window = window
+        self.inds = inds
+
+    def method(self, name: str) -> Callable[..., tuple[Any, ...]]:
+        """Return the cleaning function of method ``name``."""
+        return cast("Callable[..., tuple[Any, ...]]", getattr(self, f"_{name}"))
+
+    def _interp(self, sub: "TrialSet", values: Any) -> Any:
+        """Return ``values`` interpolated across the window."""
+        out, _ = interpolate_window(
+            sub.times, values, self.window, self.s["buffer"], self.s["interpolation"]
+        )
+        return out
+
+    def _none(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Leave the data unchanged."""
+        run = _Run(sub)
+        run.data = sub.data.copy()
+        return run.result()
+
+    def _interpolate(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Interpolate across the window, whose samples are masked."""
+        run = _Run(sub)
+        run.data = self._interp(sub, sub.data)
+        run.masks[:, :, self.inds] = True
+        return run.result()
+
+    def _template(self, sub: "TrialSet", user_template: Any = None) -> tuple[Any, ...]:
+        """Subtract the scaled template of each group of pulses."""
+        from .template import subtract_template
+
+        s, inds, run = self.s, self.inds, _Run(sub)
+        run.data, extra = subtract_template(
+            sub,
+            inds,
+            template=s["template"] if user_template is None else user_template,
+            group_by=s["group_by"],
+            n_neighbors=s["n_neighbors"],
+            scale=s["scale"],
+            fallback=s["fallback"],
+            interpolate=lambda values: self._interp(sub, values),
+        )
+        if extra["fallback_trials"]:
+            run.masks[np.ix_(extra["fallback_trials"], np.arange(sub.n_channels), inds)] = True
+        if s["mask_subtracted"]:
+            run.masks[:, :, inds] = True
+        run.info.update(
+            template=extra["template"],
+            fit_r2=extra["fit_r2"],
+            template_response_correlation=extra["template_response_correlation"],
+            fallback_trials=extra["fallback_trials"],
+        )
+        return run.result()
+
+    def _learned(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Ridge-regress a learned artifact basis out of each window."""
+        from .template import subtract_learned
+
+        s, run = self.s, _Run(sub)
+        run.data, extra = subtract_learned(
+            sub,
+            self.inds,
+            group_by=s["group_by"],
+            n_components=s["n_components"],
+            ridge=s["ridge"],
+        )
+        if s["mask_subtracted"]:
+            run.masks[:, :, self.inds] = True
+        run.info.update(
+            basis=extra["basis"], fit_r2=extra["fit_r2"], basis_groups=extra["basis_groups"]
+        )
+        return run.result()
+
+    def _tail(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Interpolate across the window, then subtract the recovery tail fitted after it."""
+        from .tail import fit_tail
+
+        s, inds, run = self.s, self.inds, _Run(sub)
+        run.data = self._interp(sub, sub.data)
+        run.masks[:, :, inds] = True
+        if s["tail"] != "joint":
+            fitted, tail_inds, params = fit_tail(
+                sub.times,
+                run.data,
+                inds[-1] + 1,
+                s["tail_length"],
+                s["tau_bounds"],
+                part=s["tail_part"],
+            )
+            run.data[:, :, tail_inds] -= fitted
+            if s["mask_subtracted"]:
+                run.masks[:, :, tail_inds] = True
+            run.info.update(tail_tau1=params["tau1"], tail_tau2=params["tau2"])
+        return run.result()
+
+    def _period_template(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Subtract the mean of the samples one or more stimulation periods away."""
+        s, run = self.s, _Run(sub)
+        run.data, extra = _period(
+            sub,
+            _PeriodSettings(
+                s["period"], s["expected_rate"], s["n_bins"], s["n_skip"], s["d_period"]
+            ),
+            causal=s["causal"],
+        )
+        run.info.update(extra)
+        return run.result()
+
+    def _lowrank(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Remove the low-rank artifact across channels, pulses and trials."""
+        from .lowrank import lowrank_clean
+
+        s, run = self.s, _Run(sub)
+        pulses = s["pulse_times"]
+        if pulses is None:
+            if not s["expected_rate"]:
+                raise ArtifactError("method 'lowrank' needs pulse_times or expected_rate.")
+            pulses = np.arange(0.0, sub.times[-1] - s["post_window"], 1.0 / s["expected_rate"])
+        run.data, extra = lowrank_clean(
+            sub.data, sub.sfreq, sub.times, pulses, ranks=s["ranks"], post_window=s["post_window"]
+        )
+        run.info.update(removed_fraction=extra["removed_fraction"])
+        return run.result()
+
+    def _subspace(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Project the whitened data away from the artifact directions of the window."""
+        from .subspace import subspace_clean
+
+        s, run = self.s, _Run(sub)
+        run.data, extra = subspace_clean(
+            sub.data,
+            self.inds,
+            window_slice(sub, s["baseline"]),
+            n_components="noise" if s["n_components"] is None else s["n_components"],
+            extent=s["subspace_extent"],
+        )
+        run.info.update(
+            n_directions=extra["n_directions"],
+            window_energy_removed=extra["window_energy_removed"],
+        )
+        return run.result()
+
+    def _polynomial(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Subtract a local cubic fit; railed samples are zeroed and masked."""
+        from .polynomial import polynomial_clean
+
+        s, run = self.s, _Run(sub)
+        baseline = s["baseline"]
+        run.data, zeroed = polynomial_clean(
+            sub.data,
+            sub.sfreq,
+            run.saturation,
+            halfwidth=s["poly_halfwidth"],
+            extent=s["poly_extent"],
+            window_inds=self.inds,
+            baseline_inds=np.flatnonzero((sub.times >= baseline[0]) & (sub.times <= baseline[1])),
+        )
+        run.masks |= zeroed
+        return run.result()
+
+    def _matching_pursuit(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Subtract the artifact atoms of a greedy decomposition of the window and after it."""
+        from .pursuit import pursuit_clean, warn_patent
+
+        warn_patent()
+        s, window, run = self.s, self.window, _Run(sub)
+        seg = np.flatnonzero(
+            (sub.times >= window[0]) & (sub.times <= window[1] + s["pursuit_length"])
+        )
+        run.data = sub.data.copy()
+        flat = run.data[:, :, seg].reshape(-1, len(seg))
+        cleaned_seg, _ = pursuit_clean(
+            flat, sub.times[seg], window[1], line_freq=s["line_freq"], n_iter=s["n_atoms"]
+        )
+        run.data[:, :, seg] = cleaned_seg.reshape(sub.n_trials, sub.n_channels, len(seg))
+        if s["mask_subtracted"]:
+            run.masks[:, :, seg] = True
+        return run.result()
+
+    def _paradigm(self, sub: "TrialSet", _user_template: Any = None) -> tuple[Any, ...]:
+        """Subtract by stimulation paradigm (one output trial per pair or set)."""
+        scheme = self.s["scheme"]
+        run = _Run(sub)
+        if scheme not in SCHEMES:
+            raise ArtifactError(f"method 'paradigm' needs scheme in {SCHEMES}.")
+        out = paradigm_subtract(sub, scheme=scheme, pairing=self.s["pairing"])
+        run.data, run.masks, run.saturation = out.data, base_masks(out), out.masks
+        run.ts_out = out
+        return run.result()
 
 
 def _channel_by_channel(
@@ -456,6 +551,7 @@ def _channel_by_channel(
 
 
 def _jsonable_settings(settings: Any) -> dict[Any, Any]:
+    """Return the settings with each array replaced by its shape and sum."""
     out = {}
     for key, raw_value in settings.items():
         value = raw_value
@@ -465,9 +561,19 @@ def _jsonable_settings(settings: Any) -> dict[Any, Any]:
     return out
 
 
-def _period(
-    ts: Any, period: Any, expected_rate: Any, n_bins: Any, n_skip: Any, d_period: Any, causal: Any
-) -> tuple[Any, dict[str, Any]]:
+class _PeriodSettings(NamedTuple):
+    """The settings of ``period_template``: period (s) or rate (Hz), and the lag bins."""
+
+    period: Any
+    expected_rate: Any
+    n_bins: Any
+    n_skip: Any
+    d_period: Any
+
+
+def _period(ts: Any, settings: _PeriodSettings, *, causal: Any) -> tuple[Any, dict[str, Any]]:
+    """Return the trials filtered by ``period_template`` and the periods, bins and skip used."""
+    period, expected_rate, n_bins, n_skip, d_period = settings
     if period is None and not expected_rate:
         raise ArtifactError("method 'period_template' needs period (s) or expected_rate (Hz).")
     n_trials, n_channels, n_times = ts.data.shape

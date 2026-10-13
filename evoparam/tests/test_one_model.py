@@ -21,6 +21,9 @@ from evoparam import presets, sim
 from evoparam.data import Component, GroupFit, ResponseFit, ResponseTest
 from evoparam.data.results import FIT_STATUSES
 
+# Shortest methods text.
+MIN_TEXT = 200
+
 pytest.importorskip("pandas")
 
 NO_ARTIFACT = {"pulse_artifact": False, "decay_artifact": False, "muscle_artifact": False}
@@ -170,5 +173,5 @@ def test_req002_one_call(kind: Any, trials: Any, tmp_path_factory: Any) -> None:
     text = group.methods_text()
     assert "evoparam" in text
     assert "ccep" in text
-    assert len(text) > 200
+    assert len(text) > MIN_TEXT
     assert "presence of a response" in text

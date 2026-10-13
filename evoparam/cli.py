@@ -25,6 +25,9 @@ from evoparam.version import __version__
 
 __all__ = ["main", "run_fit", "EXIT_CODES"]
 
+# Dimensions of the data of one trial in an .npz input ([n_channels, n_times]).
+_ONE_TRIAL_NDIM = 2
+
 EXIT_CODES = {
     "ok": 0,
     "error": 1,
@@ -42,7 +45,10 @@ RESEARCH_USE = (
 
 
 class _Outcome:
+    """What a command produced: outputs, warnings, unit counts, exit code and JSON result."""
+
     def __init__(self) -> None:
+        """Start with no output, no warning, no unit and exit code 0."""
         self.outputs: list[Any]
         self.warnings: list[Any]
         self.outputs, self.warnings = [], []
@@ -52,6 +58,7 @@ class _Outcome:
 
 
 def _log(args: Any, message: Any) -> None:
+    """Print ``message`` on stderr, unless the summary goes to stdout as JSON (without info)."""
     if getattr(args, "verbose", "warning") in ("info", "debug") or not getattr(
         args, "json", False
     ):
@@ -66,10 +73,12 @@ def _verbose_log(args: Any) -> Any:
 
 
 def _entities(args: Any) -> dict[str, Any]:
+    """Return the BIDS entities (session, task, run) given on the command line."""
     return {"session": args.ses, "task": args.task, "run": args.run}
 
 
 def _datatype(root: Any, subject: Any, wanted: Any) -> Any:
+    """Return the BIDS datatype: ``wanted``, else the first of ieeg and eeg the subject has."""
     if wanted:
         return wanted
     for datatype in ("ieeg", "eeg"):
@@ -107,6 +116,7 @@ def _preset(args: Any) -> Any:
 
 
 def _is_single(path: Any) -> Any:
+    """Return whether ``path`` is one recording file (not a BIDS root)."""
     return os.path.isfile(path) and path.lower().endswith(SINGLE_FILES)
 
 
@@ -201,7 +211,7 @@ def _read_single(path: Any, args: Any, epoch: Any) -> Any:
 
         with np.load(path, allow_pickle=False) as archive:
             data = np.asarray(archive["data"], float)
-            if data.ndim == 2:
+            if data.ndim == _ONE_TRIAL_NDIM:
                 data = data[None]
             sfreq = float(archive["sfreq"])
             tmin = float(archive["tmin"]) if "tmin" in archive else float(epoch[0])
@@ -223,6 +233,7 @@ def _read_single(path: Any, args: Any, epoch: Any) -> Any:
 
 
 def _read(args: Any, preset: Any) -> Any:
+    """Read the input of the command; return the TrialSet and the datatype."""
     from evoparam.io import read_bids
 
     epoch = tuple(args.epoch) if getattr(args, "epoch", None) else preset.epoch
@@ -264,11 +275,13 @@ class _Forward(logging.Handler):
     """Hand each record of the ``evoparam`` logger to a callable, as one line."""
 
     def __init__(self, write: Any) -> None:
+        """Forward each record, formatted as one line, to ``write``."""
         super().__init__(logging.NOTSET)
         self.write = write
         self.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
 
     def emit(self, record: logging.LogRecord) -> None:
+        """Write the formatted record."""
         self.write(self.format(record))
 
 
@@ -297,6 +310,7 @@ def run_fit(
     from evoparam.reports import run_pipeline
 
     def run() -> Any:
+        """Run the preset pipeline on ``ts``."""
         return run_pipeline(
             ts,
             preset,
@@ -324,12 +338,14 @@ def run_fit(
 
 
 def _count(outcome: Any, group: Any) -> None:
+    """Count the fits of ``group`` by status and collect their warnings."""
     for fit in group.fits:
         outcome.n_units[fit.status] = outcome.n_units.get(fit.status, 0) + 1
         outcome.warnings += list(fit.warnings)
 
 
 def cmd_fit(args: Any, outcome: Any) -> None:
+    """Run ``evoparam fit``: read, clean, fit, test and write the BIDS derivatives."""
     import numpy as np
 
     from evoparam.data import GroupFit
@@ -381,6 +397,7 @@ def cmd_fit(args: Any, outcome: Any) -> None:
 
 
 def cmd_test(args: Any, outcome: Any) -> None:
+    """Run ``evoparam test``: the existence test only, written as BIDS derivatives."""
     from evoparam.existence import test_response
     from evoparam.io import write_bids_derivatives
     from evoparam.prep import baseline_correct
@@ -411,6 +428,7 @@ def cmd_test(args: Any, outcome: Any) -> None:
 
 
 def cmd_clean(args: Any, outcome: Any) -> None:
+    """Run ``evoparam clean``: the artifact removal only, written as BIDS derivatives."""
     from evoparam.artifact import remove_artifact
     from evoparam.data.serialize import save_object
     from evoparam.io import write_bids_derivatives
@@ -440,7 +458,7 @@ def cmd_clean(args: Any, outcome: Any) -> None:
     # container
     try:
         require("mne", extra="mne", caller="evoparam.cli.cmd_clean")
-        import mne  # noqa: F401
+        import mne  # noqa: F401  (availability check: without mne the cleaned epochs go to npz)
 
         path = os.path.join(folder, f"{stem}_epo.fif")
         result.cleaned.to_mne().save(path, overwrite=True, verbose="error")
@@ -461,6 +479,7 @@ def cmd_clean(args: Any, outcome: Any) -> None:
 
 
 def _containers(path: Any) -> list[Any]:
+    """Return the ``.evoparam`` containers at ``path`` (one, or those of a folder)."""
     if path.endswith(".evoparam") or path.endswith(".zip"):
         return [path]
     found = []
@@ -477,6 +496,7 @@ def _containers(path: Any) -> list[Any]:
 
 
 def cmd_report(args: Any, outcome: Any) -> None:
+    """Run ``evoparam report``: one report per container."""
     from evoparam import reports
     from evoparam.data.serialize import load_object
 
@@ -500,6 +520,7 @@ def cmd_report(args: Any, outcome: Any) -> None:
 
 
 def cmd_simulate(args: Any, outcome: Any) -> None:
+    """Run ``evoparam simulate``: write a synthetic BIDS dataset."""
     from evoparam.sim import GENERATORS
     from evoparam.sim.bids import write_bids
 
@@ -522,6 +543,7 @@ def cmd_simulate(args: Any, outcome: Any) -> None:
 
 
 def cmd_detect_events(args: Any, outcome: Any) -> None:
+    """Run ``evoparam detect-events``: the stimulation events of a BrainVision file."""
     import fnmatch
 
     from evoparam.events import detect_events
@@ -560,6 +582,7 @@ def cmd_detect_events(args: Any, outcome: Any) -> None:
 
 
 def cmd_reproduce(args: Any, outcome: Any) -> None:
+    """Run ``evoparam reproduce``: regenerate a saved result and compare."""
     from evoparam.reports import reproduce
 
     report = reproduce(args.input, rtol=args.rtol)
@@ -573,6 +596,7 @@ def cmd_reproduce(args: Any, outcome: Any) -> None:
 
 
 def cmd_migrate(args: Any, outcome: Any) -> None:
+    """Run ``evoparam migrate``: rewrite a container in the current schema."""
     from evoparam.data.serialize import load_object, save_object
     from evoparam.reports import migrate
 
@@ -585,6 +609,7 @@ def cmd_migrate(args: Any, outcome: Any) -> None:
 
 
 def cmd_info(args: Any, outcome: Any) -> None:
+    """Run ``evoparam info``: versions, extras, presets and the research-use statement."""
     from importlib import metadata
 
     from evoparam import presets
@@ -621,6 +646,7 @@ def cmd_info(args: Any, outcome: Any) -> None:
     ]
 
     def installed(name: Any) -> Any:
+        """Return the installed version of distribution ``name``, or None."""
         try:
             return metadata.version(name)
         except metadata.PackageNotFoundError:
@@ -654,6 +680,7 @@ def cmd_info(args: Any, outcome: Any) -> None:
 
 
 def cmd_presets(args: Any, outcome: Any) -> None:
+    """Run ``evoparam presets list|show``."""
     from evoparam import presets
 
     if args.action == "list":
@@ -672,6 +699,7 @@ def cmd_presets(args: Any, outcome: Any) -> None:
 
 
 def cmd_cite(args: Any, outcome: Any) -> None:
+    """Run ``evoparam cite``: how to cite evoparam."""
     from evoparam.reports import citation
 
     text = citation(bibtex=args.bibtex)
@@ -681,6 +709,7 @@ def cmd_cite(args: Any, outcome: Any) -> None:
 
 
 def cmd_validate_bids(args: Any, outcome: Any) -> None:
+    """Run ``evoparam validate-bids``: the stimulation metadata of each run."""
     from evoparam.io import format_stim_report, validate_stim_metadata
 
     table = validate_stim_metadata(args.input, subject=args.sub)
@@ -699,6 +728,7 @@ def cmd_validate_bids(args: Any, outcome: Any) -> None:
 
 
 def _csv(text: Any) -> Any:
+    """Split a comma-separated option into its items (None stays None)."""
     return [t.strip() for t in text.split(",") if t.strip()] if text is not None else None
 
 
@@ -821,6 +851,7 @@ def cmd_benchmark(args: Any, outcome: Any) -> None:
 
 
 def _benchmark_parser(sub: Any, common: Any) -> None:
+    """Add the ``benchmark`` command and its actions to the parser."""
     p = sub.add_parser(
         "benchmark", help="public benchmark: run, score, leaderboard, prepare-deposit (spec §8)"
     )
@@ -902,12 +933,43 @@ def _benchmark_parser(sub: Any, common: Any) -> None:
 
 
 def _parser() -> Any:
+    """Return the parser of the ``evoparam`` command and its sub-commands."""
     parser = argparse.ArgumentParser(
         prog="evoparam", description="Parameterise evoked neural responses."
     )
     parser.add_argument(
         "--version", action="store_true", help="print the version and the research-use statement"
     )
+    common, bids = _shared_options()
+    sub = parser.add_subparsers(dest="command")
+    _analysis_commands(sub, common, bids)
+    _file_commands(sub, common)
+    p = sub.add_parser("info", parents=[common], help="versions, extras, presets")
+    p.set_defaults(func=cmd_info)
+    p = sub.add_parser("presets", parents=[common], help="list or show presets")
+    p.add_argument("action", choices=("list", "show"))
+    p.add_argument("name", nargs="?")
+    p.set_defaults(func=cmd_presets)
+    p = sub.add_parser("cite", parents=[common], help="how to cite evoparam")
+    p.add_argument("--bibtex", action="store_true")
+    p.set_defaults(func=cmd_cite)
+    _benchmark_parser(sub, common)
+    p = sub.add_parser(
+        "validate-bids",
+        parents=[common],
+        help="stimulation metadata "
+        "validator: which fields each run states (present, inferred, missing, "
+        "inconsistent)",
+    )
+    p.add_argument("input")
+    p.add_argument("--sub", default=None, help="one subject (default: all)")
+    p.add_argument("--strict", action="store_true", help="exit 5 when a field is missing")
+    p.set_defaults(func=cmd_validate_bids)
+    return parser
+
+
+def _shared_options() -> tuple[Any, Any]:
+    """Return the options of every command, and those of the commands that read a recording."""
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--json", action="store_true", help="print one JSON summary on stdout")
     common.add_argument("--verbose", default="warning", choices=("warning", "info", "debug"))
@@ -936,7 +998,11 @@ def _parser() -> Any:
         "events.tsv next to it, or the EDF+ annotations)",
     )
     bids.add_argument("--out", required=True)
-    sub = parser.add_subparsers(dest="command")
+    return common, bids
+
+
+def _analysis_commands(sub: Any, common: Any, bids: Any) -> None:
+    """Add the commands that analyse a recording: fit, test and clean."""
     p = sub.add_parser("fit", parents=[common, bids], help="read, clean, fit, test, write")
     p.add_argument("--no-existence", action="store_true")
     p.set_defaults(func=cmd_fit)
@@ -947,6 +1013,10 @@ def _parser() -> Any:
     p.add_argument("--method", default="template")
     p.add_argument("--window", type=float, nargs=2)
     p.set_defaults(func=cmd_clean)
+
+
+def _file_commands(sub: Any, common: Any) -> None:
+    """Add the commands that write files: report, simulate, detect-events, reproduce, migrate."""
     p = sub.add_parser("report", parents=[common], help="HTML, PDF, Markdown or JSON report")
     p.add_argument("input")
     p.add_argument("--format", default="html", choices=("html", "pdf", "md", "json"))
@@ -978,28 +1048,6 @@ def _parser() -> Any:
     p.add_argument("input")
     p.add_argument("--out")
     p.set_defaults(func=cmd_migrate)
-    p = sub.add_parser("info", parents=[common], help="versions, extras, presets")
-    p.set_defaults(func=cmd_info)
-    p = sub.add_parser("presets", parents=[common], help="list or show presets")
-    p.add_argument("action", choices=("list", "show"))
-    p.add_argument("name", nargs="?")
-    p.set_defaults(func=cmd_presets)
-    p = sub.add_parser("cite", parents=[common], help="how to cite evoparam")
-    p.add_argument("--bibtex", action="store_true")
-    p.set_defaults(func=cmd_cite)
-    _benchmark_parser(sub, common)
-    p = sub.add_parser(
-        "validate-bids",
-        parents=[common],
-        help="stimulation metadata "
-        "validator: which fields each run states (present, inferred, missing, "
-        "inconsistent)",
-    )
-    p.add_argument("input")
-    p.add_argument("--sub", default=None, help="one subject (default: all)")
-    p.add_argument("--strict", action="store_true", help="exit 5 when a field is missing")
-    p.set_defaults(func=cmd_validate_bids)
-    return parser
 
 
 def _read_config(path: Any) -> Any:
@@ -1026,6 +1074,7 @@ def _read_config(path: Any) -> Any:
 
 
 def _apply_config(_parser: Any, args: Any, argv: Any) -> Any:
+    """Set the options of ``--config`` that the command line does not give."""
     if not getattr(args, "config", None):
         return args
     config = _read_config(args.config)
@@ -1059,7 +1108,29 @@ def main(argv: Any = None) -> int:
     outcome = _Outcome()
     outcome.extra = None
     start = time.perf_counter()
-    status = "ok"
+    code, status = _run(args, outcome)
+    if args.json:
+        summary = {
+            "command": args.command,
+            "version": __version__,
+            "status": status,
+            "exit_code": code,
+            "outputs": [str(o) for o in outcome.outputs],
+            "n_units": outcome.n_units,
+            "warnings": sorted(set(outcome.warnings)),
+            "duration_s": time.perf_counter() - start,
+        }
+        if outcome.extra is not None:
+            summary["result"] = outcome.extra
+        print(json.dumps(summary, default=str, allow_nan=False))
+    elif outcome.outputs:
+        for path in outcome.outputs:
+            print(path)
+    return code
+
+
+def _run(args: Any, outcome: Any) -> tuple[int, str]:
+    """Run the command of ``args``; return its exit code and status (errors printed)."""
     try:
         with warnings.catch_warnings():
             if args.verbose == "warning":
@@ -1081,24 +1152,7 @@ def main(argv: Any = None) -> int:
     except Exception as err:  # noqa: BLE001  (every other failure is a runtime error with exit code 1)
         code, status = EXIT_CODES["error"], "error"
         print(f"evoparam: {type(err).__name__}: {err}", file=sys.stderr)
-    if args.json:
-        summary = {
-            "command": args.command,
-            "version": __version__,
-            "status": status,
-            "exit_code": code,
-            "outputs": [str(o) for o in outcome.outputs],
-            "n_units": outcome.n_units,
-            "warnings": sorted(set(outcome.warnings)),
-            "duration_s": time.perf_counter() - start,
-        }
-        if outcome.extra is not None:
-            summary["result"] = outcome.extra
-        print(json.dumps(summary, default=str, allow_nan=False))
-    elif outcome.outputs:
-        for path in outcome.outputs:
-            print(path)
-    return code
+    return code, status
 
 
 if __name__ == "__main__":

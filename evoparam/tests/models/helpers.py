@@ -1,12 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Synthetic waveforms with known components for the engine tests."""
 
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 from scipy.signal import lfilter
 
 from evoparam.models import ResponseModel
+
+# Smallest latency gap (s) between two simulated components.
+MIN_COMPONENT_GAP = 0.08
 
 ###################################################################################################
 ###################################################################################################
@@ -47,7 +51,7 @@ def random_components(
     k = int(rng.integers(1, k_max + 1))
     while True:
         lats = np.sort(rng.uniform(0.06, 0.5, k))
-        if k == 1 or np.min(np.diff(lats)) >= 0.08:
+        if k == 1 or np.min(np.diff(lats)) >= MIN_COMPONENT_GAP:
             break
     return [(lat, rng.choice([-1, 1]) * rng.uniform(*snr), rng.uniform(*width)) for lat in lats]
 
@@ -85,35 +89,40 @@ WIDTH_SAMPLES = (3, 6, 12, 25)
 TRUTH_SHAPES = ("gaussian", "skewed_gaussian", "exgaussian", "gamma", "biexponential")
 
 
-def erp_waveform(
-    seed: Any,
-    n_components: Any,
-    snr: Any,
-    widths: Any,
-    shape: Any = "gaussian",
-    sfreq: Any = SFREQ,
-    span: Any = (0.06, 0.55),
-    noise: Any = "white",
-    noise_kw: Any = None,
-) -> Any:
+@dataclass(frozen=True)
+class WaveformOptions:
+    """The keywords of :func:`erp_waveform`: shape, sampling, latency span and noise."""
+
+    shape: Any = "gaussian"
+    sfreq: Any = SFREQ
+    span: Any = (0.06, 0.55)
+    noise: Any = "white"
+    noise_kw: Any = None
+
+
+def erp_waveform(seed: Any, n_components: Any, snr: Any, widths: Any, **keywords: Any) -> Any:
     """One waveform of ``evoparam.sim.simulate_erp`` (a single trial, so that the SNR of the
     waveform is the requested one) on TIMES, with ``n_components`` components of the given
     widths (samples) and random signs, latencies drawn in ``span`` at least three widths
-    apart. Returns (times, y, truth rows (latency, amplitude, fwhm))."""
+    apart. Returns (times, y, truth rows (latency, amplitude, fwhm)).
+
+    Keywords: the fields of :class:`WaveformOptions`.
+    """
 
     from evoparam.sim import simulate_erp
 
+    options = WaveformOptions(**keywords)
     rng = np.random.default_rng(seed)
-    fwhm = [w / sfreq for w in widths[:n_components]]
+    fwhm = [w / options.sfreq for w in widths[:n_components]]
     for _ in range(1000):
-        lats = np.sort(rng.uniform(*span, n_components))
+        lats = np.sort(rng.uniform(*options.span, n_components))
         gaps = [3 * max(fwhm[i], fwhm[i + 1]) for i in range(n_components - 1)]
         if all(b - a >= g for a, b, g in zip(lats[:-1], lats[1:], gaps, strict=False)):
             break
     comps = [
         {
             "label": f"C{j}",
-            "shape": shape,
+            "shape": options.shape,
             "latency": float(lats[j]),
             "fwhm": fwhm[j],
             "amplitude": float(rng.choice([-1.0, 1.0])),
@@ -122,14 +131,14 @@ def erp_waveform(
     ]
     ts, truth = simulate_erp(
         1,
-        sfreq=sfreq,
+        sfreq=options.sfreq,
         tmin=TIMES[0],
-        tmax=TIMES[-1] + 0.5 / sfreq,
+        tmax=TIMES[-1] + 0.5 / options.sfreq,
         components=comps,
         snr=snr if n_components else None,
-        noise=noise,
+        noise=options.noise,
         noise_sd=1.0,
-        noise_kw=noise_kw,
+        noise_kw=options.noise_kw,
         seed=seed,
     )
     table = truth.to_dataframe()

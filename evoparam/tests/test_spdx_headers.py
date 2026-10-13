@@ -17,6 +17,12 @@ import pytest
 
 import evoparam
 
+# Fewest files with a header, fewest modules written from a paper, and the columns of
+# the REIMPLEMENTED.md table.
+MIN_FILES = 400
+MIN_MODULES = 7
+N_COLUMNS = 4
+
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 TOOL = ROOT / "tools" / "add_spdx_headers.py"
 FIRST_COMMIT = "e6def07"  # the copy of the inherited project, renamed (NOTICE)
@@ -38,7 +44,7 @@ def _tool(name: Any) -> Any:
 def test_req396_every_python_file_has_the_spdx_header() -> None:
     tool = _tool("add_spdx_headers")
     files = tool.source_files()
-    assert len(files) > 400
+    assert len(files) > MIN_FILES
     bad = {p.relative_to(ROOT).as_posix(): tool.problems(p) for p in files}
     assert {k: v for k, v in bad.items() if v} == {}
     assert tool.main(["--check"]) == 0
@@ -139,7 +145,7 @@ def test_req396_reimplemented_lists_every_algorithm_written_from_a_paper() -> No
     text = (ROOT / "REIMPLEMENTED.md").read_text(encoding="utf-8")
     assert "No code was copied" in text
     modules = _implemented_from_a_paper()
-    assert len(modules) >= 7
+    assert len(modules) >= MIN_MODULES
     assert [m for m in modules if f"`{m}`" not in text] == []
     table_rows = [
         line
@@ -148,7 +154,7 @@ def test_req396_reimplemented_lists_every_algorithm_written_from_a_paper() -> No
     ]
     for row in table_rows:  # paper and patent column filled
         cells = [c.strip() for c in row.strip("|").split("|")]
-        assert len(cells) == 4, row
+        assert len(cells) == N_COLUMNS, row
         assert all(cells), row
     assert "US 2022/0338786 A1" in text
     assert "US 2023/0240618 A1" in text

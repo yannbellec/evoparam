@@ -20,6 +20,7 @@ The standardised measurement error of each unit's score (Luck et al. 2021) is
 scores; the root mean square over units is reported.
 """
 
+import dataclasses
 import time as _time
 import warnings
 from collections.abc import Callable, Sequence
@@ -37,6 +38,11 @@ from evoparam.utils._optional import require
 from ._scorers import TIME_SCORES, default_window, resolve_scorer
 from .variance import reml
 
+# Fewest units for a correlation; fewest counts for the power law (else 1 / sqrt(n))
+_MIN_CORRELATION_UNITS = 3
+_MIN_POWER_COUNTS = 2
+
+
 __all__ = [
     "reliability",
     "trials_needed",
@@ -48,6 +54,13 @@ __all__ = [
 ]
 
 METHODS = ("split_half", "dependability", "both")
+
+# Facets of reliability: ("trial", <unit column>)
+_N_FACETS = 2
+# Fewest trials of a unit, and units, for reliability; fewest trials for trials_needed
+_MIN_UNIT_TRIALS = 2
+_MIN_UNITS = 3
+_MIN_TRIALS = 2
 
 RELIABILITY_COLUMNS = {
     "channel": "",
@@ -129,6 +142,7 @@ def dependability(var_unit: Any, var_trial: Any, n_trials: ArrayLike) -> Any:
 
 
 def _trials_for(target: Any, var_unit: Any, var_trial: Any) -> float:
+    """Return the trials needed for a dependability ``target`` (inf without unit variance)."""
     if var_unit <= 0:
         return np.inf
     return float(np.ceil(target / (1 - target) * var_trial / var_unit - 1e-9))
@@ -146,7 +160,10 @@ def _pearson(x: Any, y: Any) -> NDArray[Any]:
     return cast(
         "NDArray[Any]",
         np.divide(
-            (dx * dy).sum(axis=0), den, out=np.full(n.shape, np.nan), where=(den > 0) & (n >= 3)
+            (dx * dy).sum(axis=0),
+            den,
+            out=np.full(n.shape, np.nan),
+            where=(den > 0) & (n >= _MIN_CORRELATION_UNITS),
         ),
     )
 
@@ -156,6 +173,7 @@ def _pearson(x: Any, y: Any) -> NDArray[Any]:
 
 
 def _check_trialset(ts: Any, caller: Any) -> None:
+    """Raise DataError unless ``ts`` is a TrialSet."""
     if isinstance(ts, Evoked):
         raise DataError(f"{caller} needs single trials: give a TrialSet, not an Evoked.")
     if not isinstance(ts, TrialSet):
@@ -189,6 +207,7 @@ def _scorer_on_window(scorer: Any, times: Any, window: Any, scorer_kw: Any) -> A
 
 
 def _nanmean(x: Any, axis: Any) -> NDArray[Any]:
+    """Return the mean along ``axis`` of the finite values (NaN where there is none)."""
     finite = np.isfinite(x)
     count = finite.sum(axis=axis)
     total = np.where(finite, x, 0.0).sum(axis=axis)
@@ -201,7 +220,7 @@ def _nanmean(x: Any, axis: Any) -> NDArray[Any]:
 ## Reliability
 
 
-def reliability(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed by spec §5.11)
+def reliability(  # noqa: PLR0913  (spec §5.11 fixes 7 parameters, plus window and picks; DECISIONS.md §7.2)
     ts: "TrialSet",
     *,
     scorer: str | Callable[..., Any] = "mean_amplitude",
@@ -279,19 +298,8 @@ def reliability(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed b
     """
     start = _time.perf_counter()
     pd = require("pandas", extra="data", caller="evoparam.stats.reliability")
-    _check_trialset(ts, "reliability")
-    if method not in METHODS:
-        raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
     facets = tuple(facets)
-    if len(facets) != 2 or facets[0] != "trial":
-        raise SettingsError(
-            "facets must be ('trial', <unit column>), for example ('trial', 'subject')."
-        )
-    unit_col = facets[1]
-    if ts.metadata is None or unit_col not in ts.metadata.columns:
-        raise SettingsError(f"reliability: the metadata has no column '{unit_col}'.")
-    if not 0 < target_phi < 1:
-        raise SettingsError("target_phi must be in (0, 1).")
+    unit_col = _check_reliability(ts, method, facets, target_phi)
     rng = np.random.default_rng(random_state)
     names = list(ts.ch_names)
     index = (
@@ -302,29 +310,13 @@ def reliability(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed b
     func, name, linear, window, inside = _scorer_on_window(scorer, ts.times, window, scorer_kw)
     data, keep = _trial_data(ts, index)
     data = data[..., inside]
-    labels = ts.metadata[unit_col].astype(str).to_numpy()
-    units = [np.flatnonzero(keep & (labels == u)) for u in dict.fromkeys(labels[keep])]
-    dropped = sum(len(u) < 2 for u in units)
-    units = [u for u in units if len(u) >= 2]
-    if len(units) < 3:
-        raise DataError(
-            f"reliability needs at least 3 units ('{unit_col}') with 2 or more "
-            f"trials; found {len(units)}."
-        )
+    units, dropped = _reliability_units(ts.metadata[unit_col], keep, unit_col)
     n_units, n_ch = len(units), len(index)
     sizes = np.array([len(u) for u in units])
     trial_scores = func(data)  # (n_trials, n_ch)
     unit_of = np.full(ts.n_trials, -1)
     for k, rows in enumerate(units):
         unit_of[rows] = k
-
-    def half_scores(selector: Any) -> Any:
-        """Scores of the averages of a subset of each unit's trials -> (n_units, n_ch)."""
-        if linear:
-            return np.stack([_nanmean(trial_scores[rows[selector(rows)]], 0) for rows in units])
-        avgs = np.stack([_nanmean(data[rows[selector(rows)]], 0) for rows in units])
-        return func(avgs)
-
     out: dict[str, NDArray[Any]] = {
         "split_half_odd_even": np.full(n_ch, np.nan),
         "split_half_random": np.full(n_ch, np.nan),
@@ -337,22 +329,10 @@ def reliability(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed b
         "sme_rms": np.full(n_ch, np.nan),
     }
     if method in ("split_half", "both"):
-        odd = half_scores(lambda rows: np.arange(len(rows)) % 2 == 0)
-        even = half_scores(lambda rows: np.arange(len(rows)) % 2 == 1)
-        out["split_half_odd_even"] = spearman_brown(_pearson(odd, even))
+        out["split_half_odd_even"] = _odd_even(units, data, trial_scores, func, linear)
         out.update(_random_splits(units, data, trial_scores, func, linear, n_splits, rng))
     if method in ("dependability", "both"):
-        for c in range(n_ch):
-            score = trial_scores[:, c]
-            ok = (unit_of >= 0) & np.isfinite(score)
-            if np.unique(unit_of[ok]).size < 3:
-                continue
-            fit = reml(score[ok], [unit_of[ok]])
-            var_u, var_e = fit["variances"][0], fit["residual"]
-            n_mean = float(np.mean(np.bincount(unit_of[ok])[np.unique(unit_of[ok])]))
-            out["var_unit"][c], out["var_trial"][c] = var_u, var_e
-            out["dependability"][c] = dependability(var_u, var_e, n_mean)
-            out["trials_needed"][c] = _trials_for(target_phi, var_u, var_e)
+        _dependability_columns(out, trial_scores, unit_of, target_phi)
     out["sme_rms"] = _sme_rms(units, data, trial_scores, func, linear, rng)
 
     table = pd.DataFrame(
@@ -396,6 +376,69 @@ def reliability(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed b
         "evoparam.stats.reliability", settings, duration_s=_time.perf_counter() - start
     ).to_dict()
     return table
+
+
+def _check_reliability(ts: Any, method: Any, facets: Any, target_phi: Any) -> Any:
+    """Check the settings of :func:`reliability` and return the unit column."""
+    _check_trialset(ts, "reliability")
+    if method not in METHODS:
+        raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
+    if len(facets) != _N_FACETS or facets[0] != "trial":
+        raise SettingsError(
+            "facets must be ('trial', <unit column>), for example ('trial', 'subject')."
+        )
+    unit_col = facets[1]
+    if ts.metadata is None or unit_col not in ts.metadata.columns:
+        raise SettingsError(f"reliability: the metadata has no column '{unit_col}'.")
+    if not 0 < target_phi < 1:
+        raise SettingsError("target_phi must be in (0, 1).")
+    return unit_col
+
+
+def _reliability_units(column: Any, keep: Any, unit_col: Any) -> tuple[list[Any], int]:
+    """Return the kept trials of each unit with enough of them, and the number of units dropped."""
+    labels = column.astype(str).to_numpy()
+    units = [np.flatnonzero(keep & (labels == u)) for u in dict.fromkeys(labels[keep])]
+    dropped = sum(len(u) < _MIN_UNIT_TRIALS for u in units)
+    units = [u for u in units if len(u) >= _MIN_UNIT_TRIALS]
+    if len(units) < _MIN_UNITS:
+        raise DataError(
+            f"reliability needs at least 3 units ('{unit_col}') with 2 or more "
+            f"trials; found {len(units)}."
+        )
+    return units, dropped
+
+
+def _odd_even(units: Any, data: Any, trial_scores: Any, func: Any, linear: Any) -> Any:
+    """Return the Spearman-Brown corrected correlation of the odd and even halves."""
+
+    def half_scores(selector: Any) -> Any:
+        """Scores of the averages of a subset of each unit's trials -> (n_units, n_ch)."""
+        if linear:
+            return np.stack([_nanmean(trial_scores[rows[selector(rows)]], 0) for rows in units])
+        avgs = np.stack([_nanmean(data[rows[selector(rows)]], 0) for rows in units])
+        return func(avgs)
+
+    odd = half_scores(lambda rows: np.arange(len(rows)) % 2 == 0)
+    even = half_scores(lambda rows: np.arange(len(rows)) % 2 == 1)
+    return spearman_brown(_pearson(odd, even))
+
+
+def _dependability_columns(
+    out: dict[str, Any], trial_scores: Any, unit_of: Any, target_phi: float
+) -> None:
+    """Fill the variance components, dependability and trials needed of every channel."""
+    for c in range(trial_scores.shape[1]):
+        score = trial_scores[:, c]
+        ok = (unit_of >= 0) & np.isfinite(score)
+        if np.unique(unit_of[ok]).size < _MIN_UNITS:
+            continue
+        fit = reml(score[ok], [unit_of[ok]])
+        var_u, var_e = fit["variances"][0], fit["residual"]
+        n_mean = float(np.mean(np.bincount(unit_of[ok])[np.unique(unit_of[ok])]))
+        out["var_unit"][c], out["var_trial"][c] = var_u, var_e
+        out["dependability"][c] = dependability(var_u, var_e, n_mean)
+        out["trials_needed"][c] = _trials_for(target_phi, var_u, var_e)
 
 
 def _random_splits(
@@ -503,7 +546,7 @@ def _extrapolate(sd: Any, n_recorded: Any, targets: Any, law: Any) -> Any:
     resampled = sorted(sd)
     correction = np.sqrt(n_total / max(n_total - 1, 1))
     fit = [m for m in resampled if m >= n_total / 4]
-    if law == "power" and len(fit) >= 2:
+    if law == "power" and len(fit) >= _MIN_POWER_COUNTS:
         logm = np.log(np.asarray(fit, float))
         dm = logm - logm.mean()
         sds = np.stack([sd[m] for m in fit])  # (n_counts, n_ch)
@@ -521,7 +564,7 @@ def _extrapolate(sd: Any, n_recorded: Any, targets: Any, law: Any) -> Any:
     return {n: c / np.sqrt(n) for n in targets}, np.full(np.shape(c), -0.5)
 
 
-def trials_needed(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.11)
+def trials_needed(  # noqa: PLR0913  (spec §5.11 fixes 5 parameters, plus window, picks, existence_kwargs and extrapolation; DECISIONS.md §7.2)
     ts: "TrialSet",
     *,
     scorer: str | Callable[..., Any] = "existence",
@@ -607,97 +650,27 @@ def trials_needed(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     data, keep = _trial_data(ts, index)
     rows_kept = np.flatnonzero(keep)
     n_total = rows_kept.size
-    if n_total < 2:
+    if n_total < _MIN_TRIALS:
         raise DataError("trials_needed needs at least 2 trials.")
-    if steps is None:
-        steps = list(range(5, n_total + 1, 5))
-        if not steps or steps[-1] != n_total:
-            steps.append(n_total)
-    steps = sorted({int(s) for s in steps})
-    if steps[0] < 1:
-        raise SettingsError("steps must be positive trial counts.")
+    steps = _trial_steps(steps, n_total)
     n_resamples = int(n_resamples)
     if extrapolation not in EXTRAPOLATIONS:
         raise SettingsError(
             f"extrapolation must be one of {EXTRAPOLATIONS}, not {extrapolation!r}."
         )
-    records = []
+    plan = _Plan(ts, index, rows_kept, steps, n_resamples, rng)
     law, exponents = None, None
     if scorer == "existence":
-        kwargs: dict[str, Any] = {
-            "n_permutations": 200,
-            "correction": "none",
-            "n_boot": 0,
-            "by": (),
-        }
-        if window is not None:
-            kwargs["window"] = window
-        kwargs.update(existence_kwargs or {})
-        picked = [names[i] for i in index]
-        for n in steps:
-            if n > n_total:
-                _warn(
-                    f"trials_needed: {n} trials exceed the {n_total} recorded; the "
-                    "detection probability is not extrapolated.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-                continue
-            hits = np.zeros(len(index))
-            draws = 1 if n == n_total else n_resamples
-            for _ in range(draws):
-                rows = np.sort(rng.choice(rows_kept, n, replace=False))
-                sub = ts.select(trials=rows.tolist(), picks=picked)
-                test = test_response(sub, random_state=int(rng.integers(2**31)), **kwargs)
-                hits += np.asarray(test.significant, bool).reshape(len(index), -1).any(axis=1)
-            for c, i in enumerate(index):
-                records.append(
-                    {
-                        "channel": names[i],
-                        "scorer": "existence",
-                        "n_trials": n,
-                        "sd": np.nan,
-                        "p_significant": hits[c] / draws,
-                        "extrapolated": False,
-                        "n_resamples": draws,
-                    }
-                )
+        records = _existence_records(plan, window, existence_kwargs)
         name, unit = "existence", ""
     else:
         func, name, linear, window, inside = _scorer_on_window(scorer, ts.times, window, scorer_kw)
-        x = data[rows_kept][..., inside]
-        flat = x.reshape(n_total, -1)
-        fin = np.isfinite(flat)
-        xv, xc = np.where(fin, flat, 0.0), fin.astype(float)
-        sd = {}
-        for n in [s for s in steps if s <= n_total]:
-            weights = np.zeros((n_resamples, n_total))
-            pick = rng.integers(0, n_total, (n_resamples, n))
-            np.add.at(weights, (np.repeat(np.arange(n_resamples), n), pick.ravel()), 1.0)
-            num, den = weights @ xv, weights @ xc
-            avg = np.divide(num, den, out=np.full(num.shape, np.nan), where=den > 0)
-            scores = func(avg.reshape((n_resamples,) + x.shape[1:]))
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", RuntimeWarning)
-                sd[n] = np.nanstd(scores, axis=0, ddof=1)
+        sd = _resampled_sd(plan, data[rows_kept][..., inside], func)
         law = extrapolation
         if law == "auto":
             law = "power" if isinstance(scorer, str) and name in _POWER_SCORES else "sqrt_n"
         beyond, exponents = _extrapolate(sd, n_total, [s for s in steps if s > n_total], law)
-        for n in steps:
-            values = sd[n] if n in sd else beyond[n]
-            for k, i in enumerate(index):
-                records.append(
-                    {
-                        "channel": names[i],
-                        "scorer": name,
-                        "n_trials": n,
-                        "sd": float(values[k]),
-                        "p_significant": np.nan,
-                        "extrapolated": n > n_total,
-                        "n_resamples": n_resamples if n <= n_total else 0,
-                    }
-                )
+        records = _score_records(plan, name, sd, beyond)
         unit = "s" if name in TIME_SCORES else ("data·s" if name == "area" else ts.units)
     table = pd.DataFrame(records, columns=list(TRIALS_NEEDED_COLUMNS))
     table = table.sort_values(
@@ -731,3 +704,116 @@ def trials_needed(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         "evoparam.stats.trials_needed", settings, duration_s=_time.perf_counter() - start
     ).to_dict()
     return table
+
+
+def _trial_steps(steps: Any, n_total: int) -> list[int]:
+    """Return the trial counts of :func:`trials_needed`: by default 5, 10, ... and ``n_total``."""
+    if steps is None:
+        steps = list(range(5, n_total + 1, 5))
+        if not steps or steps[-1] != n_total:
+            steps.append(n_total)
+    counts = sorted({int(s) for s in steps})
+    if counts[0] < 1:
+        raise SettingsError("steps must be positive trial counts.")
+    return counts
+
+
+@dataclasses.dataclass
+class _Plan:
+    """The resampling of :func:`trials_needed`: trials, channels, counts and draws."""
+
+    ts: Any
+    index: list[int]
+    rows_kept: Any
+    steps: list[int]
+    n_resamples: int
+    rng: Any
+
+
+def _existence_records(plan: _Plan, window: Any, existence_kwargs: Any) -> list[dict[str, Any]]:
+    """Return the probability that the existence test is significant at each count."""
+    ts, index, rows_kept, rng = plan.ts, plan.index, plan.rows_kept, plan.rng
+    names = list(ts.ch_names)
+    n_total = rows_kept.size
+    kwargs: dict[str, Any] = {
+        "n_permutations": 200,
+        "correction": "none",
+        "n_boot": 0,
+        "by": (),
+    }
+    if window is not None:
+        kwargs["window"] = window
+    kwargs.update(existence_kwargs or {})
+    picked = [names[i] for i in index]
+    records = []
+    for n in plan.steps:
+        if n > n_total:
+            _warn(
+                f"trials_needed: {n} trials exceed the {n_total} recorded; the "
+                "detection probability is not extrapolated.",
+                UserWarning,
+                stacklevel=3,  # _existence_records, trials_needed, then its caller
+            )
+            continue
+        hits = np.zeros(len(index))
+        draws = 1 if n == n_total else plan.n_resamples
+        for _ in range(draws):
+            rows = np.sort(rng.choice(rows_kept, n, replace=False))
+            sub = ts.select(trials=rows.tolist(), picks=picked)
+            test = test_response(sub, random_state=int(rng.integers(2**31)), **kwargs)
+            hits += np.asarray(test.significant, bool).reshape(len(index), -1).any(axis=1)
+        for c, i in enumerate(index):
+            records.append(
+                {
+                    "channel": names[i],
+                    "scorer": "existence",
+                    "n_trials": n,
+                    "sd": np.nan,
+                    "p_significant": hits[c] / draws,
+                    "extrapolated": False,
+                    "n_resamples": draws,
+                }
+            )
+    return records
+
+
+def _resampled_sd(plan: _Plan, x: Any, func: Any) -> dict[int, Any]:
+    """Return the SD of the score of the average of ``n`` resampled trials, per recorded count."""
+    n_total, n_resamples, rng = plan.rows_kept.size, plan.n_resamples, plan.rng
+    flat = x.reshape(n_total, -1)
+    fin = np.isfinite(flat)
+    xv, xc = np.where(fin, flat, 0.0), fin.astype(float)
+    sd = {}
+    for n in [s for s in plan.steps if s <= n_total]:
+        weights = np.zeros((n_resamples, n_total))
+        pick = rng.integers(0, n_total, (n_resamples, n))
+        np.add.at(weights, (np.repeat(np.arange(n_resamples), n), pick.ravel()), 1.0)
+        num, den = weights @ xv, weights @ xc
+        avg = np.divide(num, den, out=np.full(num.shape, np.nan), where=den > 0)
+        scores = func(avg.reshape((n_resamples,) + x.shape[1:]))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            sd[n] = np.nanstd(scores, axis=0, ddof=1)
+    return sd
+
+
+def _score_records(plan: _Plan, name: str, sd: Any, beyond: Any) -> list[dict[str, Any]]:
+    """Return the SD of the score at each count, resampled or extrapolated."""
+    names = list(plan.ts.ch_names)
+    n_total = plan.rows_kept.size
+    records = []
+    for n in plan.steps:
+        values = sd[n] if n in sd else beyond[n]
+        for k, i in enumerate(plan.index):
+            records.append(
+                {
+                    "channel": names[i],
+                    "scorer": name,
+                    "n_trials": n,
+                    "sd": float(values[k]),
+                    "p_significant": np.nan,
+                    "extrapolated": n > n_total,
+                    "n_resamples": plan.n_resamples if n <= n_total else 0,
+                }
+            )
+    return records

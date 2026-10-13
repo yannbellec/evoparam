@@ -21,6 +21,12 @@ from evoparam.models import engine as eng
 
 from .helpers import noise
 
+# Stride at which the fit judges a noise band-limited to half the Nyquist frequency.
+HALF_RATE_STRIDE = 2
+# N1 latency window (s) of the CCEP preset.
+N1_START = 0.009
+N1_END = 0.05
+
 
 @pytest.mark.parametrize("rho", [0.0, 0.5, 0.9, 0.99])
 @pytest.mark.parametrize("n", [100, 400, 1000])
@@ -77,7 +83,7 @@ def test_a_steep_low_pass_well_below_nyquist_is_strided(cutoff: Any) -> None:
     sos = butter(4, cutoff, fs=256.0, output="sos")
     for _ in range(20):
         z = sosfiltfilt(sos, rng.normal(size=656))[200:-200]
-        assert eng.noise_stride(z) >= 2
+        assert eng.noise_stride(z) >= HALF_RATE_STRIDE
 
 
 def test_a_short_noise_has_stride_one() -> None:
@@ -138,7 +144,7 @@ def test_the_strided_whitening_is_the_whitening_at_the_lower_rate(exact: Any, ph
 
 def _n1(group: Any) -> Any:
     return [
-        any(0.009 <= c.latency <= 0.05 and c.amplitude < 0 for c in f.components)
+        any(N1_START <= c.latency <= N1_END and c.amplitude < 0 for c in f.components)
         for f in group.fits
     ], sum(len(f.components) for f in group.fits)
 
@@ -162,7 +168,7 @@ def test_an_upsampled_ccep_is_fitted_as_at_its_recorded_rate(monkeypatch: Any) -
         monkeypatch.setattr(eng, "MAX_STRIDE", 1)
         plain = fit(up, "ccep", existence=False, random_state=0)
     assert all(f.diagnostics["noise_stride"] == 1 for f in native.fits)
-    assert all(f.diagnostics["noise_stride"] == 2 for f in strided.fits)
+    assert all(f.diagnostics["noise_stride"] == HALF_RATE_STRIDE for f in strided.fits)
     assert all("band_limited_noise:2" in f.warnings for f in strided.fits)
     (n1_native, k_native), (n1_strided, k_strided) = _n1(native), _n1(strided)
     assert n1_strided == n1_native

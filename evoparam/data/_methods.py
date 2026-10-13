@@ -42,6 +42,9 @@ SILENT_PREFIXES = (
 )
 
 _FIT_STEPS = ("evoparam.models.ResponseModel.fit_group", "evoparam.models.fit_waveform")
+# a latency window is (start, stop[, sign]); a window label "P1/N1" names its two signs
+_SIGN_ENTRY = 2
+_N_SIGN_NAMES = 2
 
 _ARTIFACT_NAMES = {
     "interpolate": "interpolation across the artifact window",
@@ -104,20 +107,22 @@ _REFERENCES = {
 def _acceptance(settings: Any) -> str:
     """Return the fall of the criterion a component needed: fixed ``delta``, or calibrated.
 
-    ``delta`` None is calibrated on each fit's noise model (``evoparam.models._calibration``)
+    ``delta`` "calibrated" (or None, as recorded before 1.3) is calibrated on each fit's noise
+    model (``evoparam.models._calibration``)
     when the noise model is "ar" and the selection "bic"; otherwise the fixed 10 of spec
     §5.5.4 (``evoparam.models._settings.FIXED_DELTA``; the data layer does not import the
     models layer).
     """
     delta = settings.get("delta")
-    if delta is not None:
+    if delta is not None and not isinstance(delta, str):
         return _num(delta)
     if settings.get("noise_model", "ar") == "ar" and settings.get("selection", "bic") == "bic":
         return (
             "a threshold calibrated on each waveform's noise model for a false-response rate "
             f"of {_num(settings.get('alpha', 0.03))} on pure noise (the expected Euler "
             "characteristic of the whitened scan over latency and width, Siegmund and "
-            "Worsley 1995, widened for the uncertainty of the noise spectrum)"
+            "Worsley 1995, widened for the uncertainty of the noise spectrum and for its "
+            "change over the baseline)"
         )
     return "10"
 
@@ -140,16 +145,19 @@ def _num(value: Any, digits: int = 6) -> str:
 
 
 def _ms(value: float) -> str:
+    """Return a time in s as a number of ms (4 significant digits)."""
     return _num(float(value) * 1000.0, 4)
 
 
 def _window(value: Sequence[float] | None) -> str:
+    """Return a window in s as ``"a to b ms"`` (``"none"`` without one)."""
     if value is None:
         return "none"
     return f"{_ms(value[0])} to {_ms(value[1])} ms"
 
 
 def _setting(value: object) -> str:
+    """Return a setting as text (lists, tuples and dicts element by element)."""
     if isinstance(value, (list, tuple)):
         return "(" + ", ".join(_setting(v) for v in value) + ")"
     if isinstance(value, dict):
@@ -162,10 +170,12 @@ def _setting(value: object) -> str:
 
 
 def _polarity(value: object) -> str:
+    """Return the polarity setting as text."""
     return "both polarities" if value == "both" else f"{value} polarity only"
 
 
 def _join(items: Iterable[Any]) -> str:
+    """Return the items joined as ``"a, b and c"``."""
     items = [str(item) for item in items]
     if len(items) <= 1:
         return "".join(items)
@@ -177,6 +187,7 @@ def _join(items: Iterable[Any]) -> str:
 
 
 def _artifact(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.artifact.remove_artifact`."""
     method = settings.get("method", "?")
     name = _ARTIFACT_NAMES.get(method, f"the '{method}' method")
     if method == "none":
@@ -189,40 +200,13 @@ def _artifact(settings: Any) -> str:
     if method == "interpolate":
         details.append(f"{settings.get('interpolation', 'linear')} interpolation")
     if method in ("template", "tail"):
-        details.append(f"{settings.get('template', 'global')} template")
-        group_by = settings.get("group_by") or []
-        if group_by:
-            details.append(
-                f"templates grouped by the metadata columns {_join(group_by)} (those present)"
-            )
-        if settings.get("scale"):
-            details.append("scaled to each trial and channel")
-        if settings.get("tail") == "joint":
-            details.append(
-                "recovery tail left to the response model and fitted jointly with its background"
-            )
-        elif settings.get("tail") not in (None, "none"):
-            details.append(
-                f"recovery tail subtracted (double exponential over "
-                f"{_ms(settings.get('tail_length', 0))} ms)"
-            )
+        details += _template_details(settings)
     if method == "period_template" and settings.get("period") is not None:
         details.append(f"period {_ms(settings['period'])} ms")
     if method == "lowrank" and settings.get("n_components") is not None:
         details.append(f"{settings['n_components']} components")
     if method == "subspace":
-        rule = settings.get("n_components")
-        # results saved before the option existed projected every sample
-        extent = settings.get("subspace_extent", "all")
-        if rule == "energy":
-            details.append("directions holding 95 % of the whitened window energy, at most 6")
-        elif rule in (None, "noise"):
-            details.append("directions whose whitened window energy exceeds twice the noise level")
-        else:
-            details.append(f"{rule} directions")
-        details.append(
-            "window samples projected" if extent == "window" else "every sample projected"
-        )
+        details += _subspace_details(settings)
     if method == "paradigm" and settings.get("scheme"):
         details.append(f"scheme '{settings['scheme']}'")
     if details:
@@ -233,7 +217,47 @@ def _artifact(settings: Any) -> str:
     return text
 
 
+def _template_details(settings: Any) -> list[str]:
+    """Return the details of the template methods: template, grouping, scaling and tail."""
+    details = [f"{settings.get('template', 'global')} template"]
+    group_by = settings.get("group_by") or []
+    if group_by:
+        details.append(
+            f"templates grouped by the metadata columns {_join(group_by)} (those present)"
+        )
+    if settings.get("scale"):
+        details.append("scaled to each trial and channel")
+    if settings.get("tail") == "joint":
+        details.append(
+            "recovery tail left to the response model and fitted jointly with its background"
+        )
+    elif settings.get("tail") not in (None, "none"):
+        details.append(
+            f"recovery tail subtracted (double exponential over "
+            f"{_ms(settings.get('tail_length', 0))} ms)"
+        )
+    return details
+
+
+def _subspace_details(settings: Any) -> list[str]:
+    """Return the details of the subspace method: the directions and the samples projected."""
+    rule = settings.get("n_components")
+    # results saved before the option existed projected every sample
+    extent = settings.get("subspace_extent", "all")
+    if rule == "energy":
+        directions = "directions holding 95 % of the whitened window energy, at most 6"
+    elif rule in (None, "noise"):
+        directions = "directions whose whitened window energy exceeds twice the noise level"
+    else:
+        directions = f"{rule} directions"
+    return [
+        directions,
+        "window samples projected" if extent == "window" else "every sample projected",
+    ]
+
+
 def _paradigm(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.artifact.paradigm_subtract`."""
     scheme = settings.get("scheme", "?")
     return (
         f"Stimulation artifacts were cancelled by paradigm subtraction (scheme "
@@ -242,6 +266,7 @@ def _paradigm(settings: Any) -> str:
 
 
 def _baseline(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.prep.baseline_correct`."""
     mode = settings.get("mode", "mean")
     what = {"mean": "the mean", "median": "the median", "linear": "a straight line fitted to"}.get(
         mode, f"the {mode} of"
@@ -259,6 +284,7 @@ def _baseline(settings: Any) -> str:
 
 
 def _reference(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.prep.rereference`."""
     scheme = settings.get("scheme", "?")
     used = settings.get("used") or scheme
     if scheme == "car_adaptive" and used == "car":
@@ -279,6 +305,7 @@ def _reference(settings: Any) -> str:
 
 
 def _reject(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.prep.reject_trials`."""
     keys = sorted(k for k in settings if k not in ("capped_channels", "n_rejected", "rejected"))
     rules = ", ".join(
         f"{k} = {_setting(settings[k])}" for k in keys if not isinstance(settings[k], dict)
@@ -287,6 +314,7 @@ def _reject(settings: Any) -> str:
 
 
 def _resample(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.prep.resample`."""
     rate = settings.get("sfreq") or settings.get("new_sfreq") or settings.get("target")
     return (
         f"Data were resampled to {_num(rate)} Hz."
@@ -296,6 +324,7 @@ def _resample(settings: Any) -> str:
 
 
 def _average(settings: Any) -> str:
+    """Return the sentence of the trial average."""
     method = settings.get("method")
     if method is None:
         method = "median" if settings.get("robust") else "mean"
@@ -303,6 +332,7 @@ def _average(settings: Any) -> str:
 
 
 def _fit(settings: Any) -> str:
+    """Return the sentences of the response model fit (window, model, selection, measures)."""
     preset_window = settings.get("fit_window")
     shapes = _join(str(s).replace("_", " ") for s in settings.get("shapes", []))
     background = str(settings.get("background", "?")).replace("_", " ")
@@ -387,11 +417,11 @@ def _fit(settings: Any) -> str:
         labels = []
         for label, value in windows.items():
             sign = {1: "positive", -1: "negative"}.get(
-                int(value[2]) if len(value) > 2 else 0, "either polarity"
+                int(value[_SIGN_ENTRY]) if len(value) > _SIGN_ENTRY else 0, "either polarity"
             )
             parts = str(label).split("/")
             if (
-                len(parts) == 2
+                len(parts) == _N_SIGN_NAMES
                 and sign == "either polarity"
                 and sorted(p[:1] for p in parts) == ["N", "P"]
             ):
@@ -412,6 +442,7 @@ def _fit(settings: Any) -> str:
 
 
 def _existence(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.existence.test_response`."""
     method = settings.get("method")
     window = _window(settings.get("window"))
     baseline = _window(settings.get("baseline"))
@@ -443,6 +474,7 @@ def _existence(settings: Any) -> str:
 
 
 def _trials(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.trials.fit_trials`."""
     mode = settings.get("mode", "?")
     max_shift = settings.get("max_shift")
     shift = (
@@ -463,10 +495,12 @@ def _trials(settings: Any) -> str:
 
 
 def _realign(_settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.trials.realign`."""
     return "Trials were realigned on the estimated single-trial latencies (Woody-style)."
 
 
 def _hierarchical(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.hierarchical.fit_hierarchical`."""
     engine = settings.get("engine", "eb")
     name = {
         "eb": "empirical Bayes (restricted maximum likelihood variance components)",
@@ -482,6 +516,7 @@ def _hierarchical(settings: Any) -> str:
 
 
 def _variance(_settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.stats.variance_components`."""
     return (
         "Variance components were estimated by restricted maximum likelihood with the "
         "known sampling variances of the estimates."
@@ -489,6 +524,7 @@ def _variance(_settings: Any) -> str:
 
 
 def _tf(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.tf.tf_fit`."""
     tp = settings.get("transform_params") or {}
     transform = settings.get("transform", "?")
     if transform == "morse":
@@ -527,6 +563,7 @@ def _tf(settings: Any) -> str:
 
 
 def _shared_shapes(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.spatial.shared_shapes`."""
     return (
         f"Response shapes shared across "
         f"{'stimulation sites' if settings.get('mode') == 'convergent' else 'channels'} "
@@ -536,6 +573,7 @@ def _shared_shapes(settings: Any) -> str:
 
 
 def _fit_shared(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.spatial.fit_shared`."""
     shared = settings.get("shared") or []
     return (
         f"Component parameters were fitted jointly across channels with "
@@ -544,6 +582,7 @@ def _fit_shared(settings: Any) -> str:
 
 
 def _events(settings: Any) -> str:
+    """Return the sentence of the stimulation-pulse detection."""
     method = settings.get("method", "threshold+template")
     text = (
         f"Stimulation pulses were detected from their artifact in the signal "
@@ -577,7 +616,10 @@ def _events(settings: Any) -> str:
 
 
 def _filter(kind: str) -> Callable[[dict[str, Any]], str]:
+    """Return the sentence function of a zero-phase filter of ``kind``."""
+
     def sentence(settings: Any) -> str:
+        """Return the sentence of the filter."""
         if kind == "notch":
             freqs = settings.get("frequencies") or [settings.get("freq")]
             return (
@@ -595,6 +637,7 @@ def _filter(kind: str) -> Callable[[dict[str, Any]], str]:
 
 
 def _apply_mask(_settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.artifact.apply_mask`."""
     return (
         "Samples given by a user-supplied mask were excluded from every later step "
         "(evoparam.artifact.apply_mask)."
@@ -602,6 +645,7 @@ def _apply_mask(_settings: Any) -> str:
 
 
 def _train_baseline(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.prep.train_baseline`."""
     source = {
         "continuous": " (from the continuous recording)",
         "epochs": " (from the epoch of the first pulse of the train)",
@@ -615,6 +659,7 @@ def _train_baseline(settings: Any) -> str:
 
 
 def _reference_sensitivity(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.prep.reference_sensitivity`."""
     schemes = list(settings.get("schemes") or [])
     names = {
         "bipolar": "bipolar",
@@ -635,6 +680,7 @@ def _reference_sensitivity(settings: Any) -> str:
 
 
 def _bootstrap(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.stats.bootstrap`."""
     by = settings.get("by") or []
     window = settings.get("window")
     method = {"bca": "bias-corrected and accelerated", "percentile": "percentile"}.get(
@@ -651,6 +697,7 @@ def _bootstrap(settings: Any) -> str:
 
 
 def _compare(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.stats.compare_conditions`."""
     conditions = settings.get("conditions") or []
     return (
         f"The {settings.get('parameter')} was compared between "
@@ -668,6 +715,7 @@ def _compare(settings: Any) -> str:
 
 
 def _reliability(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.stats.reliability`."""
     method = settings.get("method", "both")
     parts = []
     if method in ("both", "split_half"):
@@ -690,6 +738,7 @@ def _reliability(settings: Any) -> str:
 
 
 def _trials_needed(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.stats.trials_needed`."""
     scorer = str(settings.get("scorer"))
     what = (
         "the probability of detecting the response"
@@ -703,6 +752,7 @@ def _trials_needed(settings: Any) -> str:
 
 
 def _jackknife(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.stats.jackknife_latency`."""
     return (
         f"Latencies were scored with the {str(settings.get('scorer')).replace('_', ' ')} "
         f"on the leave-one-out grand averages of the {settings.get('n_subjects')} "
@@ -717,6 +767,7 @@ def _jackknife(settings: Any) -> str:
 
 
 def _group_summary(settings: Any) -> str:
+    """Return the sentence of :func:`evoparam.stats.group_summary`."""
     by = settings.get("by")
     by = _join(by) if isinstance(by, (list, tuple)) else by
     return (
@@ -727,6 +778,7 @@ def _group_summary(settings: Any) -> str:
 
 
 def _apply(settings: Any) -> str:
+    """Return the sentence of :meth:`evoparam.data.TrialSet.apply`."""
     return (
         f"A user-supplied transform ({settings.get('func')}) was applied to the trials "
         f"(evoparam.data.TrialSet.apply, axis '{settings.get('axis')}')."
@@ -734,6 +786,7 @@ def _apply(settings: Any) -> str:
 
 
 def _generic(function: str, settings: Any) -> str:
+    """Return the sentence of a step without a template: its function and scalar settings."""
     scalars = [
         f"{key} = {_setting(value)}"
         for key, value in sorted(settings.items())
@@ -808,6 +861,7 @@ def _fit_settings(steps: Sequence[dict[str, Any]], settings: Any) -> dict[str, A
 
 
 def _overrides_sentence(fit_settings: dict[str, Any]) -> str:
+    """Return the sentence on the settings changed from the preset ("" when none)."""
     # the keys whose value differs from the preset (REQ-008); results written before
     # REQ-331 held them in ``_overrides``
     overrides = fit_settings.get("_changed_from_preset")
@@ -820,13 +874,66 @@ def _overrides_sentence(fit_settings: dict[str, Any]) -> str:
 
 
 def _seed(provenance: object, settings: Any | None, steps: Sequence[dict[str, Any]]) -> Any:
+    """Return the random seed: of the result, else of the latest step, else of the provenance."""
     for source in (settings or {}, *(step.get("settings") or {} for step in reversed(steps))):
         if isinstance(source, dict) and source.get("random_state") is not None:
             return source["random_state"]
     return getattr(provenance, "random_state", None)
 
 
-def methods_text(obj: object, cite: bool = True) -> str:  # noqa: C901, PLR0912  (public API, signature fixed by spec §4.3.4)
+def _opening(version: Any, fit_settings: dict[str, Any]) -> str:
+    """Return the first sentence: package, version and preset."""
+    preset_note = fit_settings.get("preset_note")
+    opening = f"Evoked responses were analysed with evoparam (version {version})"
+    if preset_note:
+        opening += f" using the {preset_note}"
+    elif fit_settings.get("preset"):
+        preset = fit_settings["preset"]
+        name = preset.get("name") if isinstance(preset, dict) else preset
+        opening += f" using the preset '{name}'"
+    return opening + "."
+
+
+def _step_sentences(steps: Sequence[dict[str, Any]]) -> tuple[list[str], list[str]]:
+    """Return one sentence per distinct step and the references of the methods used."""
+    sentences: list[str] = []
+    references: list[str] = []
+    for step in steps:
+        sentence = step_sentence(step)
+        # the same step recorded twice (for example the average done inside a group fit
+        # and recorded again) is described once
+        if sentence is None or sentence in sentences:
+            continue
+        sentences.append(sentence)
+        correction = (step.get("settings") or {}).get("correction")
+        if (
+            step.get("function") == "evoparam.existence.test_response"
+            and correction in _REFERENCES
+            and _REFERENCES[correction] not in references
+        ):
+            references.append(_REFERENCES[correction])
+        rule = (step.get("settings") or {}).get("rule_spec") or {}
+        if rule.get("source") and rule["source"] not in references:
+            references.append(rule["source"])
+    return sentences, references
+
+
+def _seed_sentence(seed: Any) -> str:
+    """Return the sentence on the random seed and on regenerating the result."""
+    if seed is None:
+        return (
+            "No random seed was set, so results that use random draws "
+            "(permutation p-values, bootstrap intervals) can differ slightly "
+            "between runs; every other setting is recorded in the result's "
+            "provenance, from which evoparam.reproduce regenerates it."
+        )
+    return (
+        f"Random draws used the seed {seed}; the result can be regenerated "
+        f"from its recorded provenance with evoparam.reproduce."
+    )
+
+
+def methods_text(obj: object, cite: bool = True) -> str:
     """Methods paragraph of a result (or container) from its provenance and settings.
 
     Parameters
@@ -854,55 +961,13 @@ def methods_text(obj: object, cite: bool = True) -> str:  # noqa: C901, PLR0912 
     if not steps and fit_settings:
         steps = [{"function": "evoparam.models.fit_waveform", "settings": fit_settings}]
 
-    preset_note = fit_settings.get("preset_note")
-    opening = f"Evoked responses were analysed with evoparam (version {version})"
-    if preset_note:
-        opening += f" using the {preset_note}"
-    elif fit_settings.get("preset"):
-        preset = fit_settings["preset"]
-        name = preset.get("name") if isinstance(preset, dict) else preset
-        opening += f" using the preset '{name}'"
-    sentences = [opening + "."]
-
-    seen = set()
-    references = []
-    for step in steps:
-        sentence = step_sentence(step)
-        if sentence is None:
-            continue
-        # the same step recorded twice (for example the average done inside a group fit
-        # and recorded again) is described once
-        if sentence in seen:
-            continue
-        seen.add(sentence)
-        sentences.append(sentence)
-        correction = (step.get("settings") or {}).get("correction")
-        if (
-            step.get("function") == "evoparam.existence.test_response"
-            and correction in _REFERENCES
-            and _REFERENCES[correction] not in references
-        ):
-            references.append(_REFERENCES[correction])
-        rule = (step.get("settings") or {}).get("rule_spec") or {}
-        if rule.get("source") and rule["source"] not in references:
-            references.append(rule["source"])
+    sentences = [_opening(version, fit_settings)]
+    step_sentences, references = _step_sentences(steps)
+    sentences += step_sentences
     overrides = _overrides_sentence(fit_settings)
     if overrides:
         sentences.append(overrides.strip())
-
-    seed = _seed(provenance, settings, steps)
-    if seed is None:
-        sentences.append(
-            "No random seed was set, so results that use random draws "
-            "(permutation p-values, bootstrap intervals) can differ slightly "
-            "between runs; every other setting is recorded in the result's "
-            "provenance, from which evoparam.reproduce regenerates it."
-        )
-    else:
-        sentences.append(
-            f"Random draws used the seed {seed}; the result can be regenerated "
-            f"from its recorded provenance with evoparam.reproduce."
-        )
+    sentences.append(_seed_sentence(_seed(provenance, settings, steps)))
     text = " ".join(sentences)
     if not cite:
         return text

@@ -22,6 +22,9 @@ import pytest
 
 from evoparam import __version__, reports
 
+# Fewest trials of the example run.
+MIN_TRIALS = 100
+
 FOLDER = resources.files("evoparam.tests.reports").joinpath("methods")
 
 
@@ -236,7 +239,7 @@ def test_req340_erpcore_p3_real_recording_gives_the_frozen_text() -> None:
         ch_names=["Pz"],
         metadata=pd.DataFrame({"event": [inverse[c] for c in epochs.events[:, 2]]}),
     )
-    assert trials.n_trials > 100
+    assert trials.n_trials > MIN_TRIALS
     assert trials.times[0] < 0
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)

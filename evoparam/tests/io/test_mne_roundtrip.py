@@ -12,6 +12,10 @@ from evoparam.io import read, read_mne
 mne = pytest.importorskip("mne")
 pd = pytest.importorskip("pandas")
 
+# Sampling rate (Hz) and trials of the MNE epochs.
+SFREQ = 1000.0
+N_TRIALS = 4
+
 ###################################################################################################
 ###################################################################################################
 
@@ -37,12 +41,12 @@ def test_epochs_to_trialset() -> None:
     assert trials.ch_names == ["E1", "E2", "E3"]
     assert np.allclose(trials.data, data * 1e6, rtol=1e-12, atol=0)
     assert np.allclose(trials.times, epochs.times)
-    assert trials.sfreq == 1000.0
+    assert trials.sfreq == SFREQ
     assert list(trials.metadata["condition"]) == ["a", "b", "a", "b"]
     assert list(trials.ch_info["type"]) == ["ecog", "ecog", "seeg"]
     assert np.allclose(trials.event_times, [1.0, 3.0, 5.0, 7.0])
     assert np.allclose(read_mne(epochs, units="mV").data, data * 1e3, rtol=1e-12, atol=0)
-    assert read(epochs).n_trials == 4
+    assert read(epochs).n_trials == N_TRIALS
 
 
 def test_evoked_and_mixed_units() -> None:

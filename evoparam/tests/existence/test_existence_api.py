@@ -16,6 +16,12 @@ from .helpers import TIMES, gaussian, noise_trials, trialset
 
 pd = pytest.importorskip("pandas")
 
+# End (s) of the masked artifact, the window (s) of the hays2021 curve, and its threshold.
+ARTIFACT_END = 0.02
+CURVE_START = 0.010
+CURVE_END = 0.050
+THRESHOLD = -6
+
 ###################################################################################################
 ###################################################################################################
 
@@ -56,7 +62,7 @@ def test_edge_cases() -> None:
         run_test(trialset(_responsive(n=4)), by=())
     ts = trialset(_responsive())
     mask = np.zeros(ts.data.shape, bool)
-    mask[..., (TIMES >= 0.0) & (TIMES <= 0.02)] = True
+    mask[..., (TIMES >= 0.0) & (TIMES <= ARTIFACT_END)] = True
     with pytest.raises(SettingsError, match="artifact"):
         run_test(apply_mask(ts, mask), window=(0.0, 0.1), by=())
     run_test(
@@ -158,12 +164,12 @@ def test_statistic_over_time_and_null_band() -> None:
         by=(),
     )
     assert rule.curve.shape == (4, len(rule.curve_times))
-    assert rule.curve_times[0] >= 0.010
-    assert rule.curve_times[-1] <= 0.050
+    assert rule.curve_times[0] >= CURVE_START
+    assert rule.curve_times[-1] <= CURVE_END
     # a negative-peak rule: z below -k (here 6) in the window
-    assert (rule.null_band[..., 0] == -6).all()
+    assert (rule.null_band[..., 0] == THRESHOLD).all()
     assert np.isnan(rule.null_band[..., 1]).all()
-    assert rule.significant[0] == (rule.curve[0] < -6).any()
+    assert rule.significant[0] == (rule.curve[0] < THRESHOLD).any()
     # a saved test keeps them
     import tempfile
 

@@ -82,7 +82,9 @@ class Preset:
     label_polarity: dict[str, int] = dataclasses.field(default_factory=dict)
     trial_mode: str | None = None
     selection: str = "bic"
-    delta: float = 10.0
+    # the fall of BIC a component needs (spec §5.5.4), or "calibrated": the threshold of the
+    # engine calibrated on each fit's noise model (evoparam.models._calibration)
+    delta: float | str = 10.0
     uncertainty: str = "jacobian"
     choices: dict[str, str] = dataclasses.field(default_factory=dict)
     notes: dict[str, str] = dataclasses.field(default_factory=dict)
@@ -118,6 +120,8 @@ class Preset:
                 raise SettingsError(
                     f"preset {self.name!r}: train_baseline must be a positive duration (s)."
                 )
+        if isinstance(self.delta, str) and self.delta != "calibrated":
+            raise SettingsError(f"preset {self.name!r}: delta must be a number or 'calibrated'.")
         if self.polarity not in ("both", "negative", "positive"):
             raise SettingsError(
                 f"preset {self.name!r}: polarity must be both, negative or positive."
@@ -166,7 +170,7 @@ def get(name: "str | Preset") -> "Preset":
     return cast("Preset", PRESETS[name])
 
 
-def list() -> Any:  # noqa: A001 (the name of the spec's API)
+def list() -> Any:  # noqa: A001  (the name of the spec's API)
     """Table of the presets: name, modality, species, citation keys, version, validation."""
     require("pandas", extra="data", caller="evoparam.presets.list")
     import pandas as pd

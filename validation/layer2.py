@@ -50,8 +50,15 @@ FACTORS = {
     "jitter": (0.0, 0.1, 0.25, 0.5),
     "noise": ("white", "ar1:0.5", "ar1:0.9", "pink:1", "pink:2"),
 }
-BASE = {"snr": 5, "n_components": 2, "separation": 2.0, "width": 12, "n_trials": 20,
-        "jitter": 0.0, "noise": "white"}
+BASE = {
+    "snr": 5,
+    "n_components": 2,
+    "separation": 2.0,
+    "width": 12,
+    "n_trials": 20,
+    "jitter": 0.0,
+    "noise": "white",
+}
 
 # Simulation-based acceptance tests of spec §5 (files and the REQs they hold).
 REQ_TESTS = {
@@ -66,8 +73,7 @@ REQ_TESTS = {
 
 
 def cells(design):
-    """The (modality, settings) cells of a design."""
-
+    """Return the (modality, settings) cells of a design."""
     out = []
     if design == "smoke":
         for modality in ("erp", "ccep"):
@@ -104,7 +110,6 @@ def _noise(kind, n_trials, n_times, sfreq, rng):
 
 def simulate_cell(modality, cell, seed):
     """Trials (TrialSet) and the truth table of one replicate of a cell."""
-
     import pandas as pd
 
     from evoparam import presets
@@ -136,8 +141,9 @@ def simulate_cell(modality, cell, seed):
         for i, shift in enumerate(shifts):
             params = shape_params(shape, latency + shift, fwhm, **form)
             data[i] += sign * amplitude * model.evaluate(times, params)
-        rows.append({"channel": "c0", "latency": latency, "amplitude": sign * amplitude,
-                     "fwhm": fwhm})
+        rows.append(
+            {"channel": "c0", "latency": latency, "amplitude": sign * amplitude, "fwhm": fwhm}
+        )
     truth = pd.DataFrame(rows, columns=["channel", "latency", "amplitude", "fwhm"])
     truth.attrs["sfreq"] = sfreq
     ts = TrialSet(data=data[:, None], times=times, sfreq=sfreq, ch_names=["c0"])
@@ -146,7 +152,6 @@ def simulate_cell(modality, cell, seed):
 
 def run_cell(modality, cell, replicates, seed0):
     """Scores of one cell, averaged over replicates (and the time it took)."""
-
     import pandas as pd
 
     from evoparam.models import fit
@@ -161,20 +166,30 @@ def run_cell(modality, cell, replicates, seed0):
             warnings.simplefilter("ignore")
             try:
                 group = fit(ts, name)
-            except Exception as err:  # a failed fit is a result of the grid
+            except Exception as err:  # noqa: BLE001  (a failed fit is a result of the grid)
                 scores.append({"error": type(err).__name__})
                 continue
         if len(truth):
             scores.append(score_fits(truth, group).iloc[0].to_dict())
         else:
-            scores.append({"false_per_waveform":
-                           float(len(group.fits[0].components))})
+            scores.append({"false_per_waveform": float(len(group.fits[0].components))})
     table = pd.DataFrame(scores)
-    out = {"modality": modality, **cell, "replicates": replicates,
-           "duration_s": time.perf_counter() - start,
-           "errors": int(table["error"].notna().sum()) if "error" in table else 0}
-    for column in ("recall", "precision", "f1", "latency_mae_samples", "amplitude_rel_bias",
-                   "fwhm_rel_mae", "false_per_waveform"):
+    out = {
+        "modality": modality,
+        **cell,
+        "replicates": replicates,
+        "duration_s": time.perf_counter() - start,
+        "errors": int(table["error"].notna().sum()) if "error" in table else 0,
+    }
+    for column in (
+        "recall",
+        "precision",
+        "f1",
+        "latency_mae_samples",
+        "amplitude_rel_bias",
+        "fwhm_rel_mae",
+        "false_per_waveform",
+    ):
         if column in table:
             values = pd.to_numeric(table[column], errors="coerce")
             out[column] = float(values.mean()) if values.notna().any() else None
@@ -182,6 +197,7 @@ def run_cell(modality, cell, replicates, seed0):
 
 
 def run_grid(design, replicates, jobs):
+    """Return the scores of every cell of the design (in parallel when ``jobs`` != 1)."""
     todo = cells(design)
     args = [(m, c, replicates, 1000 * i) for i, (m, c) in enumerate(todo)]
     if jobs == 1:
@@ -189,12 +205,11 @@ def run_grid(design, replicates, jobs):
     from concurrent.futures import ProcessPoolExecutor
 
     with ProcessPoolExecutor(max_workers=None if jobs < 0 else jobs) as pool:
-        return list(pool.map(run_cell, *zip(*args)))
+        return list(pool.map(run_cell, *zip(*args, strict=True)))
 
 
 def run_req_tests(root):
     """Run the simulation-based REQ test files; one result per test."""
-
     import xml.etree.ElementTree as ET
 
     results = []
@@ -202,44 +217,80 @@ def run_req_tests(root):
     report.parent.mkdir(parents=True, exist_ok=True)
     files = [f for f in REQ_TESTS if (pathlib.Path(root) / f).exists()]
     env = dict(os.environ, EVOPARAM_SLOW_TESTS="1")
-    subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
-                    f"--junitxml={report}", *files], cwd=root, env=env, check=False)
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            f"--junitxml={report}",
+            *files,
+        ],
+        cwd=root,
+        env=env,
+        check=False,
+    )
     for case in ET.parse(report).getroot().iter("testcase"):
         failed = case.find("failure") is not None or case.find("error") is not None
         skipped = case.find("skipped") is not None
         path = case.get("classname", "").replace(".", "/") + ".py"
-        results.append({"test": f"{case.get('classname')}::{case.get('name')}",
-                        "reqs": REQ_TESTS.get(path, ""),
-                        "status": "skipped" if skipped else ("failed" if failed else "passed"),
-                        "duration_s": float(case.get("time", 0))})
+        results.append(
+            {
+                "test": f"{case.get('classname')}::{case.get('name')}",
+                "reqs": REQ_TESTS.get(path, ""),
+                "status": "skipped" if skipped else ("failed" if failed else "passed"),
+                "duration_s": float(case.get("time", 0)),
+            }
+        )
     report.unlink()
     return results
 
 
 def summary_markdown(report):
-    lines = [f"# Layer-2 validation, evoparam {report['version']}", "",
-             f"Design `{report['design']}`, {report['replicates']} replicates per cell, "
-             f"{len(report['grid'])} cells, {report['duration_s'] / 60:.1f} min.", "",
-             "## REQ tests on simulations", "", "| test | REQs | status | s |", "|---|---|---|---|"]
+    """Return the Markdown summary of a layer-2 report."""
+    lines = [
+        f"# Layer-2 validation, evoparam {report['version']}",
+        "",
+        f"Design `{report['design']}`, {report['replicates']} replicates per cell, "
+        f"{len(report['grid'])} cells, {report['duration_s'] / 60:.1f} min.",
+        "",
+        "## REQ tests on simulations",
+        "",
+        "| test | REQs | status | s |",
+        "|---|---|---|---|",
+    ]
     for row in report["req_tests"]:
-        lines.append(f"| {row['test']} | {row['reqs']} | {row['status']} | "
-                     f"{row['duration_s']:.1f} |")
-    lines += ["", "## Grid", "",
-              "| modality | snr | K | sep | width | trials | jitter | noise | F1 | "
-              "latency MAE (samples) | amp. bias | false/waveform |",
-              "|" + "---|" * 12]
-    fmt = lambda v, f="{:.2f}": "" if v is None else f.format(v)
+        lines.append(
+            f"| {row['test']} | {row['reqs']} | {row['status']} | {row['duration_s']:.1f} |"
+        )
+    lines += [
+        "",
+        "## Grid",
+        "",
+        "| modality | snr | K | sep | width | trials | jitter | noise | F1 | "
+        "latency MAE (samples) | amp. bias | false/waveform |",
+        "|" + "---|" * 12,
+    ]
+
+    def fmt(v, f="{:.2f}"):
+        return "" if v is None else f.format(v)
+
     for row in report["grid"]:
-        lines.append(f"| {row['modality']} | {row['snr']} | {row['n_components']} | "
-                     f"{row['separation']} | {row['width']} | {row['n_trials']} | "
-                     f"{row['jitter']} | {row['noise']} | {fmt(row.get('f1'))} | "
-                     f"{fmt(row.get('latency_mae_samples'))} | "
-                     f"{fmt(row.get('amplitude_rel_bias'))} | "
-                     f"{fmt(row.get('false_per_waveform'))} |")
+        lines.append(
+            f"| {row['modality']} | {row['snr']} | {row['n_components']} | "
+            f"{row['separation']} | {row['width']} | {row['n_trials']} | "
+            f"{row['jitter']} | {row['noise']} | {fmt(row.get('f1'))} | "
+            f"{fmt(row.get('latency_mae_samples'))} | "
+            f"{fmt(row.get('amplitude_rel_bias'))} | "
+            f"{fmt(row.get('false_per_waveform'))} |"
+        )
     return "\n".join(lines) + "\n"
 
 
 def main(argv=None):
+    """Run the layer-2 grid and the REQ tests, and write the report."""
     from evoparam.version import __version__
 
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -253,16 +304,25 @@ def main(argv=None):
     start = time.perf_counter()
     grid = run_grid(args.design, args.replicates, args.jobs)
     tests = [] if args.no_tests else run_req_tests(root)
-    report = {"version": __version__, "design": args.design, "replicates": args.replicates,
-              "grid": grid, "req_tests": tests, "duration_s": time.perf_counter() - start,
-              "factors": FACTORS, "base": BASE}
+    report = {
+        "version": __version__,
+        "design": args.design,
+        "replicates": args.replicates,
+        "grid": grid,
+        "req_tests": tests,
+        "duration_s": time.perf_counter() - start,
+        "factors": FACTORS,
+        "base": BASE,
+    }
     out = pathlib.Path(args.out or root / "validation" / "layer2" / __version__)
     out.mkdir(parents=True, exist_ok=True)
     (out / "report.json").write_text(json.dumps(report, indent=1, default=float))
     (out / "report.md").write_text(summary_markdown(report))
     failed = [t for t in tests if t["status"] == "failed"]
-    print(f"{len(grid)} cells, {len(tests)} REQ tests ({len(failed)} failed), "
-          f"{report['duration_s'] / 60:.1f} min -> {out}")
+    print(
+        f"{len(grid)} cells, {len(tests)} REQ tests ({len(failed)} failed), "
+        f"{report['duration_s'] / 60:.1f} min -> {out}"
+    )
     return report
 
 

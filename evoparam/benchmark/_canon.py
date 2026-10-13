@@ -31,6 +31,11 @@ def clean(value: Any) -> Any:
         return [clean(v) for v in value]
     if isinstance(value, np.ndarray):
         return [clean(v) for v in value.tolist()]
+    return _clean_scalar(value)
+
+
+def _clean_scalar(value: Any) -> Any:
+    """Return a scalar as a Python value; NaN and +/-inf become None."""
     if isinstance(value, (np.bool_, bool)):
         return bool(value)
     if isinstance(value, (np.integer,)):

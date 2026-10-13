@@ -21,13 +21,16 @@ from evoparam import _deprecated
 from evoparam.utils import EvoparamDeprecationWarning
 from evoparam.utils._deprecation import minor_gap, version_tuple
 
+# Minor releases between a deprecation and the removal.
+MINOR_GAP = 2
+
 pytestmark = pytest.mark.core
 
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 
 
 def _check_entry(old: Any, new: Any, since: Any, remove_in: Any) -> None:
-    assert minor_gap(since, remove_in) == 2, (old, since, remove_in)
+    assert minor_gap(since, remove_in) == MINOR_GAP, (old, since, remove_in)
     assert version_tuple(evoparam.__version__) < version_tuple(remove_in), (
         f"{old}: the shim must be removed in {remove_in} (this is {evoparam.__version__})"
     )
@@ -87,7 +90,7 @@ def test_req293_the_rules_fail_on_a_bad_entry(monkeypatch: Any) -> None:
 
 def test_req293_unknown_name_still_raises_attribute_error() -> None:
     with pytest.raises(AttributeError):
-        evoparam.no_such_name  # noqa: B018
+        evoparam.no_such_name  # noqa: B018  (the attribute access is what is tested)
 
 
 def test_req394_name_paired_with_the_phrase() -> None:

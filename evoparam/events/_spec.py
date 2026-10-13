@@ -28,6 +28,10 @@ from ._score import _CHUNK, MAD_TO_SD
 __all__ = []
 
 
+# A local maximum needs a sample on each side.
+_MIN_PEAK_SAMPLES = 3
+
+
 def spec_score(data: Any, index: Any) -> FloatArray:
     """Return the spectral score ``d[n] = median_c |x_c[n] - x_c[n - 1]|``.
 
@@ -130,7 +134,7 @@ def spec_rho(data: Any, index: Any, template: Any) -> NDArray[Any]:
 
 def spec_template_peaks(rho: Any, rho_min: Any, min_samples: Any) -> NDArray[Any]:
     """Local maxima of ``rho`` above ``rho_min``, the larger kept within ``min_samples``."""
-    if len(rho) < 3:
+    if len(rho) < _MIN_PEAK_SAMPLES:
         return np.array([], dtype=int)
     inner = (rho[1:-1] > rho_min) & (rho[1:-1] >= rho[:-2]) & (rho[1:-1] > rho[2:])
     peaks = np.flatnonzero(inner) + 1

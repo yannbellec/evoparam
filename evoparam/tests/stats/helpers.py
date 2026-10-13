@@ -13,6 +13,12 @@ from evoparam.sim import simulate_erp
 
 pd = pytest.importorskip("pandas")
 
+# Window (s) of the mean amplitude, and the size above which the unbalanced ANOVA
+# estimator replaces REML.
+WINDOW_START = 0.08
+WINDOW_END = 0.12
+LARGE_SET = 3000
+
 # A negative component at 100 ms, given in data units (snr=None).
 N1 = {"label": "N1", "latency": 0.1, "fwhm": 0.04, "amplitude": -5.0}
 WINDOW = (0.092, 0.108)
@@ -44,7 +50,7 @@ def replicates(n_trials: Any, n_replicates: Any, seed: Any, **kwargs: Any) -> An
         **kwargs,
     )
     true = nominal_mean(truth, ts.times, WINDOW)
-    inside = (ts.times >= 0.08) & (ts.times <= 0.12)
+    inside = (ts.times >= WINDOW_START) & (ts.times <= WINDOW_END)
     data = ts.data[:, 0][:, inside].reshape(n_replicates, n_trials, -1).transpose(1, 0, 2)
     big = TrialSet(
         data=np.ascontiguousarray(data),
@@ -104,7 +110,7 @@ def independent_dependability(ts: Any, window: Any) -> Any:
     labels = list(dict.fromkeys(subjects))
     groups = [y[subjects == s] for s in labels]
     sizes = np.array([len(g) for g in groups])
-    if len(y) > 3000:
+    if len(y) > LARGE_SET:
         # large unbalanced sets (real data): the ANOVA estimator of unbalanced one-way
         # designs (Searle, Casella and McCulloch 1992, n0 = (N - sum n_i^2 / N) / (k - 1)),
         # close to REML when the design is near balance

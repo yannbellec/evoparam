@@ -53,6 +53,7 @@ DEPOSIT_STATUS = (
 
 
 def _label(cell_id: Any) -> Any:
+    """Return a cell id as a BIDS label (letters and digits only)."""
     return "".join(ch for ch in cell_id if ch.isalnum())
 
 
@@ -113,6 +114,65 @@ def write_trials_nwb(ts: Any, path: Any, *, identifier: Any, description: Any) -
     return path
 
 
+def _verified(hidden_seeds: Any, commitment: str) -> bool | None:
+    """Return whether the hidden seeds match the suite's commitment (None without them).
+
+    A document that does not match raises DataError.
+    """
+    if hidden_seeds is None:
+        return None
+    verified = hidden_commitment(load_hidden_seeds(hidden_seeds)) == commitment
+    if not verified:
+        raise DataError(
+            f"the hidden seeds document does not match the commitment of the suite ({commitment})."
+        )
+    return verified
+
+
+def _write_cell(suite: Any, cell: Any, cell_tasks: list[str], out: str, formats: Any) -> list[str]:
+    """Write one public cell: its recording (BIDS, NWB), truth and task inputs.
+
+    Returns the files written, relative to ``out``.
+    """
+    ts, truth = simulate_cell(cell)
+    files = []
+    if "bids" in formats:
+        from evoparam.sim.bids import write_bids
+
+        vhdr = write_bids(
+            ts,
+            truth,
+            os.path.join(out, "bids"),
+            subject=_label(cell.id),
+            task=_label(cell.group),
+        )
+        files.append(os.path.relpath(vhdr, out))
+    if "nwb" in formats:
+        path = os.path.join(out, "nwb", f"{cell.id}.nwb")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        write_trials_nwb(
+            ts,
+            path,
+            identifier=f"evoparam-benchmark-{suite.name}-{cell.id}",
+            description=f"evoparam benchmark suite {suite.name} {suite.version}, cell {cell.id}",
+        )
+        files.append(os.path.relpath(path, out))
+    truth_path = os.path.join(out, "truth", f"{cell.id}.json")
+    os.makedirs(os.path.dirname(truth_path), exist_ok=True)
+    with open(truth_path, "w", encoding="utf-8") as fobj:
+        fobj.write(truth.to_json(arrays=False))
+    files.append(os.path.relpath(truth_path, out))
+    for task, task_input in make_inputs(cell, ts, truth, tasks=cell_tasks).items():
+        path = write_input(task_input, os.path.join(out, "inputs", task))
+        files += [
+            os.path.relpath(path, out),
+            os.path.relpath(
+                os.path.join(os.path.dirname(path), task_input.descriptor["data_file"]), out
+            ),
+        ]
+    return files
+
+
 def prepare_deposit(
     suite: "str | Suite" = "core",
     out: str = "deposit",
@@ -157,14 +217,7 @@ def prepare_deposit(
         shutil.rmtree(out)
     os.makedirs(out, exist_ok=True)
     commitment = suite.hidden_split["commitment_sha256"]
-    verified = None
-    if hidden_seeds is not None:
-        verified = hidden_commitment(load_hidden_seeds(hidden_seeds)) == commitment
-        if not verified:
-            raise DataError(
-                "the hidden seeds document does not match the commitment of the "
-                f"suite ({commitment})."
-            )
+    verified = _verified(hidden_seeds, commitment)
     tasks = list(tasks) if tasks else suite.task_ids()
     start = time.perf_counter()
     cells_out = []
@@ -172,43 +225,7 @@ def prepare_deposit(
         cell_tasks = [t for t in tasks if t in cell.tasks]
         if not cell_tasks:
             continue
-        ts, truth = simulate_cell(cell)
-        files = []
-        if "bids" in formats:
-            from evoparam.sim.bids import write_bids
-
-            vhdr = write_bids(
-                ts,
-                truth,
-                os.path.join(out, "bids"),
-                subject=_label(cell.id),
-                task=_label(cell.group),
-            )
-            files.append(os.path.relpath(vhdr, out))
-        if "nwb" in formats:
-            path = os.path.join(out, "nwb", f"{cell.id}.nwb")
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            write_trials_nwb(
-                ts,
-                path,
-                identifier=f"evoparam-benchmark-{suite.name}-{cell.id}",
-                description=f"evoparam benchmark suite {suite.name} "
-                f"{suite.version}, cell {cell.id}",
-            )
-            files.append(os.path.relpath(path, out))
-        truth_path = os.path.join(out, "truth", f"{cell.id}.json")
-        os.makedirs(os.path.dirname(truth_path), exist_ok=True)
-        with open(truth_path, "w", encoding="utf-8") as fobj:
-            fobj.write(truth.to_json(arrays=False))
-        files.append(os.path.relpath(truth_path, out))
-        for task, task_input in make_inputs(cell, ts, truth, tasks=cell_tasks).items():
-            path = write_input(task_input, os.path.join(out, "inputs", task))
-            files += [
-                os.path.relpath(path, out),
-                os.path.relpath(
-                    os.path.join(os.path.dirname(path), task_input.descriptor["data_file"]), out
-                ),
-            ]
+        files = _write_cell(suite, cell, cell_tasks, out, formats)
         cells_out.append(
             {
                 "id": cell.id,

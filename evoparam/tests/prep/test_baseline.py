@@ -12,6 +12,11 @@ from evoparam.prep import baseline_correct
 
 from .helpers import epochs
 
+# Baseline window (s) of the trials, and the largest slope left by the linear mode.
+BASELINE_START = -0.5
+BASELINE_END = -0.05
+MAX_SLOPE = 5
+
 ###################################################################################################
 ###################################################################################################
 
@@ -19,7 +24,7 @@ from .helpers import epochs
 def test_mean_median_linear() -> None:
 
     ts = epochs()
-    base = (ts.times >= -0.5) & (ts.times <= -0.05)
+    base = (ts.times >= BASELINE_START) & (ts.times <= BASELINE_END)
     for mode in ("mean", "median"):
         out = baseline_correct(ts, mode=mode)
         stat = np.mean if mode == "mean" else np.median
@@ -29,7 +34,7 @@ def test_mean_median_linear() -> None:
     trend = replace(ts, data=ts.data + 30 * ts.times)
     out = baseline_correct(trend, mode="linear")
     slope = np.polyfit(ts.times[base], out.data[0, 0, base], 1)[0]
-    assert abs(slope) < 5
+    assert abs(slope) < MAX_SLOPE
     assert out.provenance.steps[-1]["function"] == "evoparam.prep.baseline_correct"
     with pytest.raises(SettingsError):
         baseline_correct(ts, mode="mode")
@@ -45,7 +50,7 @@ def test_req080_one_hertz_design_warns_and_suggests() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         out = baseline_correct(ts, baseline=(-0.5, -0.05), baseline_source="first_pulse")
-    base = (ts.times >= -0.5) & (ts.times <= -0.05)
+    base = (ts.times >= BASELINE_START) & (ts.times <= BASELINE_END)
     first_level = ts.data[0][..., base].mean(axis=-1)
     assert np.allclose(out.data[5], ts.data[5] - first_level[:, None])
 
@@ -68,7 +73,7 @@ def test_req080_no_warning_at_0_2_hz() -> None:
 def test_masked_baseline_is_respected() -> None:
 
     ts = epochs(n_trials=2)
-    base = np.flatnonzero((ts.times >= -0.5) & (ts.times <= -0.05))
+    base = np.flatnonzero((ts.times >= BASELINE_START) & (ts.times <= BASELINE_END))
     mask = np.zeros(ts.data.shape, dtype=bool)
     mask[0, 0, base[:100]] = True
     data = ts.data.copy()
