@@ -690,6 +690,16 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
     code reading falls to 0.321. The `ccep` preset keeps FDR across channels (§6).
   - REQ-114, read as the rule's peak on the fitted curve in the rule's reference: 91 % /
     90.0 % (§5.2).
+- Under the registry row (after this decision). REQ-113: many detections of the rule are
+  not N1s. Its average has no negative local minimum in 9-50 ms on 12 of the 19 PT
+  contacts it detects in the example run, and on 0, 0, 5, 2, 6 and 12 detected channels
+  of the REQ-371 runs. The condition "every channel the rule detects minus at most one"
+  therefore fails for any N1 detector on the example run and on 4 of the 6 REQ-371 runs
+  (`test_req113_registry_row_counts_channels_without_an_n1_trough`). A trough oracle on
+  the rule's own average reaches kappa 0.061 on the PT contacts, 0.717 pooled. REQ-135:
+  with FDR kept, the best variant chosen on the development runs (the `ccep` preset's own
+  chain before the test) gives 0.623 on the REQ-371 runs; without the correction 0.807.
+  Measured variants and numbers: CHANGELOG, "N1 case: the two readings".
 - REQ-135's subjects. Spec §7.3 lists REQ-135 among the criteria on "ds004080, ≥ 5
   subjects chosen by the rule below". The test therefore uses the REQ-371 list, with every
   trial of each run's first pair of at least 10 trials, as REQ-113 does. The five

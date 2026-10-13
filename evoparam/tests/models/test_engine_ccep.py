@@ -251,6 +251,22 @@ def _rule_peak_is_n1_trough(ts: Any, rule_lat: Any, window: Any = (0.009, 0.05))
     return np.array(out, bool)
 
 
+def _no_n1_trough(ts: Any, window: Any = (0.009, 0.05)) -> Any:
+    """Per channel: the average the rule reads (:func:`_rule_average`) has no negative
+    interior local minimum in 9-50 ms on the rule's time axis (no N1 trough of any depth:
+    the average is monotone there or stays above its baseline level)."""
+
+    t = ts.times + 1.0 / ts.sfreq
+    avg = _rule_average(ts)
+    base = (t > -2) & (t < -0.1)
+    m = (t >= window[0]) & (t <= window[1])
+    out = []
+    for y, level in zip(avg[:, m], avg[:, base].mean(axis=1), strict=True):
+        inner = np.flatnonzero((y[1:-1] <= y[:-2]) & (y[1:-1] < y[2:])) + 1
+        out.append(not np.any(y[inner] < level))
+    return np.array(out, bool)
+
+
 def _preset_fits(ts: Any) -> Any:
     """The ccep preset pipeline (artifact "template+tail:joint": template subtraction, the
     tail left to the exponential background of the fit; adjusted common average; baseline;
@@ -374,6 +390,7 @@ def agreement() -> Any:
                     ts, fits, reading, (ref_times, reference)
                 ),
                 "n1_trough": _rule_peak_is_n1_trough(ts, rule_lat),
+                "no_n1_trough": _no_n1_trough(ts),
                 # the decision of the earlier proposed wording (not the REQ): the trough of
                 # the fitted curve at least as deep as the code's amplitude criterion
                 "trough_floor": np.isfinite(trough) & (-np.nan_to_num(trough_amp) >= floor),
@@ -418,7 +435,10 @@ AS_WRITTEN = (
     "Per reading, the variants measured on 2026-10-13 (recording reference, delta 6, "
     "max_components 8, fit window to 0.3 s, double exponential background, plain common "
     "average, the N1 gated by the existence test) reach at most 0.51 (registry row) and "
-    "0.56 (code) pooled (CHANGELOG, 'N1 case: the two readings')"
+    "0.56 (code) pooled (CHANGELOG, 'N1 case: the two readings'); with the background "
+    "constant or linear, or the recording reference with a constant background, at most "
+    "0.53. Under the registry row 12 of its 19 PT detections have no N1 trough at all "
+    "(test_req113_registry_row_counts_channels_without_an_n1_trough)"
 )
 
 
@@ -472,7 +492,10 @@ def _close(agreement: Any, reading: Any, latency: Any, n1_trough: Any = False) -
     "REQ-114 as written (latency of the N1 component) is "
     "not met: within 2 ms on 24 % (registry row, 18 of 74) and 37 % (code, 11 "
     "of 30) of the channels where both find an N1 on the REQ-371 runs and the "
-    "example; " + RULE_PEAKS + "; read as the rule's peak on the fitted curve, 84 % and "
+    "example; naming the N1 by the trough it makes (the negative component that "
+    "contributes most at the fitted trough) gives 26 % and 40 %; "
+    + RULE_PEAKS
+    + "; read as the rule's peak on the fitted curve, 84 % and "
     "90.0 %, and in the rule's own reference 91 % and 90.0 % (met: "
     "test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference)",
 )
@@ -563,6 +586,25 @@ def test_d8_req113_cannot_hold_under_both_readings(agreement: Any) -> None:
     ]
     assert len(bounds) == 6
     assert sum(b >= 0.8 for b in bounds) < 5, bounds
+
+
+def test_req113_registry_row_counts_channels_without_an_n1_trough(agreement: Any) -> None:
+    """Not a REQ (measured, under the gating reading, the registry row): REQ-113 asks the
+    preset's N1 (a negative component with latency 9-50 ms) on every channel where the row
+    detects one, minus at most one. On the example run 12 of the row's 19 detections on the
+    46 PT contacts are channels whose own average has no negative local minimum at all in
+    9-50 ms: the row's peak is the window's first sample (at 512 Hz, 7.8 ms, on the tail of
+    the artifact) or a deflection after 50 ms (93-99 ms). On the REQ-371 runs there are 0,
+    0, 5, 2, 6 and 12 such channels. A decision that names an N1 only where the data have
+    an N1 trough therefore misses more than one channel on the example and on four of the
+    six runs, so it can meet REQ-113 on at most two of them (five are asked)."""
+
+    example = _runs(agreement, "paper", example=True)[0]
+    grid = np.array([n.startswith("PT") for n in example["names"]])
+    assert int(np.sum(example["rule"] & example["no_n1_trough"] & grid)) > 1
+    counts = [int(np.sum(r["rule"] & r["no_n1_trough"])) for r in _runs(agreement, "paper")]
+    assert len(counts) == 6
+    assert sum(c <= 1 for c in counts) < 5, counts
 
 
 def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any) -> None:
