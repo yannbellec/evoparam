@@ -31,6 +31,9 @@ from .existence import test_response as test_response
 from .io import read as read
 from .models import ResponseModel as ResponseModel
 from .reports import reproduce as reproduce
+from .utils import set_log_file as set_log_file
+from .utils import set_log_level as set_log_level
+from .utils import verbose as verbose
 from .version import __version__ as __version__
 
 # The existence test is the default detector of prep.reference_sensitivity (spec §5.4, method
@@ -38,9 +41,8 @@ from .version import __version__ as __version__
 # registers it.
 prep.register_detector("existence", existence.existence_detector)
 
-from .utils import set_log_file as set_log_file  # noqa: E402  (REQ-304)
-from .utils import set_log_level as set_log_level  # noqa: E402  (REQ-304)
-from .utils import verbose as verbose  # noqa: E402  (REQ-304)
+# Window (s) in which selftest looks for the N1 of the bundled CCEP.
+_N1_START, _N1_END = 0.009, 0.05
 
 
 def selftest(*, tolerance: float = 0.001) -> float:
@@ -76,7 +78,7 @@ def selftest(*, tolerance: float = 0.001) -> float:
         fit = ResponseModel("ccep", random_state=0).fit_waveform(
             trials.times, trials.data[:, 0].mean(axis=0), trials=trials.data[:, 0]
         )
-    found = [c for c in fit.components if 0.009 <= c.latency <= 0.05 and c.amplitude < 0]
+    found = [c for c in fit.components if _N1_START <= c.latency <= _N1_END and c.amplitude < 0]
     assert found, "selftest: no N1 found on the bundled CCEP"
     n1 = max(found, key=lambda c: abs(c.amplitude))
     error = abs(n1.latency - true["features"]["latency"])
