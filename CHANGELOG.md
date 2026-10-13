@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### REQ-064 on real templates: the specification's version as a measured comparison
+
+- REQ-064 (subspace >= 30 dB on synthetic EEG with real artifact templates) is met by the
+  default on every TMS subject and SPES run (tested). The two expected failures were the
+  specification's algorithm as written (95 % of the whitened energy, at most 6 directions,
+  every sample projected), which cannot reach 30 dB on real templates (TMS median 1.6 dB,
+  SPES 9.3 dB) and is kept as an option. They are now tests that the default is above
+  30 dB and at least 20 dB above the specification's version on every overlay: the
+  measured reason for the departure, as the spec-floor rule asks.
+
 ### Pulse detection: a second score when the median finds nothing (ds004977)
 
 - In ds004977 (4800 Hz, the stimulating contacts switched to the stimulator) the artifact
