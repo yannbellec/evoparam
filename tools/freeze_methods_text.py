@@ -18,23 +18,33 @@ import sys
 
 from evoparam import __version__, reports
 
-FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      "evoparam", "tests", "reports", "methods")
+FOLDER = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "evoparam",
+    "tests",
+    "reports",
+    "methods",
+)
 
 
 def frozen_text(name):
-    """The methods paragraph of reference pipeline ``name``, version replaced by
-    ``{version}``, with a final newline."""
+    """Return the methods paragraph of reference pipeline ``name``.
 
+    The version is replaced by ``{version}``, and the text ends with a newline.
+    """
     text = reports.methods_text(reports.run_reference_pipeline(name))
     return text.replace(__version__, "{version}") + "\n"
 
 
 def main(argv=None):
+    """Write the frozen methods texts, or with ``--check`` compare them; return the status."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("names", nargs="*", help="pipelines (default: all)")
-    parser.add_argument("--check", action="store_true",
-                        help="compare with the frozen files instead of writing them")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="compare with the frozen files instead of writing them",
+    )
     args = parser.parse_args(argv)
     names = args.names or list(reports.REFERENCE_PIPELINES)
     status = 0

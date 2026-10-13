@@ -26,6 +26,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPEC = ROOT / "docs" / "spec" / "SPEC.md"
 TARGET = ROOT / "docs" / "glossary.rst"
+# Columns of the table of §4.4: inherited name, new name, note.
+TABLE_COLUMNS = 3
 
 CLASS = re.compile(r"^class (\w+)(?:\(([\w, ]*)\))?:\s*(?:\.\.\.)?\s*(?:#\s*(.*))?$")
 FIELD = re.compile(r"^    (\w+): ([^#=]+?)(?:\s*=\s*([^#]+?))?\s*(?:#\s*(.*))?$")
@@ -33,6 +35,7 @@ ROW = re.compile(r"^\| (`[^|]+`(?:, `[^|]+`)*) \| ([^|]*) \| (.*) \|$")
 
 
 def section4(text):
+    """Return section 4 (Architecture) of the specification text."""
     start = text.index("## 4. Architecture")
     end = text.index("\n## 5. ", start)
     return text[start:end]
@@ -40,7 +43,6 @@ def section4(text):
 
 def subsections(text):
     """{heading number: body} for the ``### 4.x`` parts."""
-
     parts = re.split(r"^### (4\.\d) ", text, flags=re.MULTILINE)
     return {parts[i]: parts[i + 1] for i in range(1, len(parts) - 1, 2)}
 
@@ -51,27 +53,31 @@ def _code_blocks(text):
 
 def rst(text):
     """Inline text safe for reStructuredText: code as literals, markup characters escaped."""
-
     out = []
     for i, piece in enumerate(re.split(r"(`[^`]+`)", text.strip())):
         if i % 2:
             out.append(f"``{piece.strip('`')}``")
         else:
-            piece = piece.replace("\\", "\\\\").replace("*", "\\*").replace("|", "\\|")
-            out.append(re.sub(r"(\w)_(?=\W|$)", r"\1\\_", piece))
+            escaped = piece.replace("\\", "\\\\").replace("*", "\\*").replace("|", "\\|")
+            out.append(re.sub(r"(\w)_(?=\W|$)", r"\1\\_", escaped))
     return "".join(out).strip()
 
 
 def principles(body):
-    return [(m.group(1).rstrip("."), rst(m.group(2)))
-            for m in re.finditer(r"^\d+\. \*\*(.+?)\*\* (.+)$", body, flags=re.MULTILINE)]
+    """Return the (name, text) of each design principle of §4.1."""
+    return [
+        (m.group(1).rstrip("."), rst(m.group(2)))
+        for m in re.finditer(r"^\d+\. \*\*(.+?)\*\* (.+)$", body, flags=re.MULTILINE)
+    ]
 
 
 def modules(body):
+    """Return the (name, text) of each module named in the section, with its import rules."""
     names = sorted(set(re.findall(r"evoparam\.([a-z_]+)", body)))
     rules = {}
-    for row in re.findall(r"^\| (`[^|]+`(?:, `[^|]+`)*) \| ([^|]*) \| ([^|]*) \|$", body,
-                          flags=re.MULTILINE):
+    for row in re.findall(
+        r"^\| (`[^|]+`(?:, `[^|]+`)*) \| ([^|]*) \| ([^|]*) \|$", body, flags=re.MULTILINE
+    ):
         for name in re.findall(r"`(\w+)`", row[0]):
             rules[name] = (row[1].strip(), row[2].strip())
     out = []
@@ -85,7 +91,6 @@ def modules(body):
 
 def classes(body):
     """(class terms, field terms) from the code blocks of §4.3."""
-
     class_terms, field_terms = [], []
     for block in _code_blocks(body):
         current = None
@@ -96,8 +101,11 @@ def classes(body):
                 base, comment = match.group(2), match.group(3)
                 text = rst(comment) if comment else "Container of the data model (§4.3)."
                 if base:
-                    text = f"{text} ({rst('`' + base + '`')})" if comment else \
-                        f"Protocol or class based on ``{base}`` (§4.3)."
+                    text = (
+                        f"{text} ({rst('`' + base + '`')})"
+                        if comment
+                        else f"Protocol or class based on ``{base}`` (§4.3)."
+                    )
                 class_terms.append((current, text))
                 continue
             match = FIELD.match(line)
@@ -116,7 +124,6 @@ def classes(body):
 
 def table_columns(body, title):
     """Rows of the table that follows ``title`` in ``body``."""
-
     start = body.index(title)
     rows = []
     for line in body[start:].splitlines()[1:]:
@@ -130,8 +137,7 @@ def table_columns(body, title):
 
 
 def prohibited_words():
-    """The words of the vocabulary rule (the table of CONTRIBUTING.md, REQ-012)."""
-
+    """Return the words of the vocabulary rule (the table of CONTRIBUTING.md, REQ-012)."""
     text = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
     block = text.split("<!-- prohibited-words -->")[1].split("<!-- end-prohibited-words -->")[0]
     words = []
@@ -142,22 +148,31 @@ def prohibited_words():
 
 
 def _clean(text, words):
-    """False when ``text`` holds a word of the vocabulary rule (the docs never name them)."""
-
-    return not any(re.search(r"(?<![A-Za-z0-9_])" + re.escape(w) + r"(?![A-Za-z0-9_])", text,
-                             0 if w[:1].isupper() and w[1:].islower() else re.IGNORECASE)
-               for w in words)
+    """Return False when ``text`` holds a word of the vocabulary rule (never in the docs)."""
+    return not any(
+        re.search(
+            r"(?<![A-Za-z0-9_])" + re.escape(w) + r"(?![A-Za-z0-9_])",
+            text,
+            0 if w[:1].isupper() and w[1:].islower() else re.IGNORECASE,
+        )
+        for w in words
+    )
 
 
 def renames(body):
-    """The new names of §4.4, without the inherited names they replace (REQ-012: the docs
-    never name them; the specification keeps the table)."""
+    """Return the new names of §4.4, without the inherited names they replace.
 
+    REQ-012: the docs never name them; the specification keeps the table.
+    """
     words = prohibited_words()
     out = []
     for line in body.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) != 3 or not line.startswith("| ") or cells[0] in ("inherited name", "---"):
+        if (
+            len(cells) != TABLE_COLUMNS
+            or not line.startswith("| ")
+            or cells[0] in ("inherited name", "---")
+        ):
             continue
         new = re.findall(r"`([\w.]+)`", cells[1])
         if not new or cells[1].startswith("removed"):
@@ -172,6 +187,7 @@ def renames(body):
 
 
 def errors(body):
+    """Return the (name, text) of each error class of the section's code blocks."""
     out = []
     for block in _code_blocks(body):
         for line in block.splitlines():
@@ -197,22 +213,31 @@ def _glossary(title, entries):
 
 
 def render(spec_text):
+    """Return the text of the glossary built from the specification text."""
     parts = subsections(section4(spec_text))
     class_terms, field_terms = classes(parts["4.3"])
-    out = ["Glossary", "========", "",
-           ".. Generated by tools/gen_glossary.py from section 4 of docs/spec/SPEC.md; "
-           "do not edit.", "",
-           "Every term defined in section 4 (Architecture) of the specification: design "
-           "principles, modules, containers and their fields, the standard metadata and "
-           "channel columns, the names that replace inherited ones, and the errors.", ""]
+    out = [
+        "Glossary",
+        "========",
+        "",
+        ".. Generated by tools/gen_glossary.py from section 4 of docs/spec/SPEC.md; do not edit.",
+        "",
+        "Every term defined in section 4 (Architecture) of the specification: design "
+        "principles, modules, containers and their fields, the standard metadata and "
+        "channel columns, the names that replace inherited ones, and the errors.",
+        "",
+    ]
     out += _glossary("Design principles", principles(parts["4.1"]))
     out += _glossary("Modules", modules(parts["4.2"]))
     out += _glossary("Containers, protocols and results", class_terms)
     out += _glossary("Fields", field_terms)
-    out += _glossary("Trial metadata columns (Table 4.1)",
-                     table_columns(parts["4.3"], "(Table 4.1)"))
-    out += _glossary("Channel table columns (Table 4.2)",
-                     [(f"ch_info.{n}", t) for n, t in table_columns(parts["4.3"], "(Table 4.2)")])
+    out += _glossary(
+        "Trial metadata columns (Table 4.1)", table_columns(parts["4.3"], "(Table 4.1)")
+    )
+    out += _glossary(
+        "Channel table columns (Table 4.2)",
+        [(f"ch_info.{n}", t) for n, t in table_columns(parts["4.3"], "(Table 4.2)")],
+    )
     out += _glossary("Names that replace inherited ones", renames(parts["4.4"]))
     out += _glossary("Errors and warnings", errors(parts["4.6"]))
     while out[-1] == "":
@@ -222,15 +247,21 @@ def render(spec_text):
 
 def terms(spec_text=None):
     """Every term the glossary must hold (used by the tests)."""
-
     spec_text = spec_text or SPEC.read_text(encoding="utf-8")
     parts = subsections(section4(spec_text))
     class_terms, field_terms = classes(parts["4.3"])
-    return [t for t, _ in principles(parts["4.1"]) + modules(parts["4.2"]) + class_terms
-            + field_terms + errors(parts["4.6"])]
+    return [
+        t
+        for t, _ in principles(parts["4.1"])
+        + modules(parts["4.2"])
+        + class_terms
+        + field_terms
+        + errors(parts["4.6"])
+    ]
 
 
 def main(argv=None):
+    """Write the glossary, or with ``--check`` fail when it is out of date."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--check", action="store_true", help="fail if the file is out of date")
     args = parser.parse_args(argv)

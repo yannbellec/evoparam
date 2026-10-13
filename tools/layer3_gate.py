@@ -46,13 +46,13 @@ EXPLAINED = re.compile(r"Layer-3 regression explained: (\S+?):\s*\S")
 
 
 def tolerances(path=TOLERANCES):
+    """Return the tolerances of the layer-3 metrics read from ``path``."""
     with open(path, encoding="utf-8") as fobj:
         return json.load(fobj)["tolerances"]
 
 
 def metrics(documents):
     """{metric id: (kind, value)} from the layer-3 documents ``{file name: dict}``."""
-
     out = {}
     n1 = documents.get("n1_ds004080.json")
     if n1:
@@ -60,19 +60,23 @@ def metrics(documents):
             out[f"n1_ds004080/{reading}/kappa"] = ("kappa", row.get("kappa"))
             out[f"n1_ds004080/{reading}/recall"] = ("recall", row.get("recall"))
             out[f"n1_ds004080/{reading}/median_abs_latency_diff_ms"] = (
-                "latency", row.get("median_abs_latency_diff_ms"))
+                "latency",
+                row.get("median_abs_latency_diff_ms"),
+            )
     for name in ("erpcore_difference.json", "erpcore_parent.json"):
         doc = documents.get(name)
         if not doc:
             continue
-        stem = name[:-len(".json")]
+        stem = name[: -len(".json")]
         for row in doc.get("summary", []):
             component = row["component"]
             out[f"{stem}/{component}/labelled"] = ("recall", row.get("labelled"))
             out[f"{stem}/{component}/within_10ms"] = ("recall", row.get("within_10ms"))
             diff = row.get("median_diff_ms")
             out[f"{stem}/{component}/abs_median_diff_ms"] = (
-                "latency", None if diff is None else abs(diff))
+                "latency",
+                None if diff is None else abs(diff),
+            )
     return out
 
 
@@ -82,15 +86,23 @@ def _finite(value):
 
 def compare(baseline, current, tol):
     """Rows ``{metric, kind, baseline, current, change, tolerance, regression}``."""
-
     rows = []
     for key, (kind, base) in sorted(baseline.items()):
         if not _finite(base):
             continue
         now = current.get(key, (kind, None))[1]
         if not _finite(now):
-            rows.append({"metric": key, "kind": kind, "baseline": base, "current": None,
-                         "change": None, "tolerance": tol[kind], "regression": True})
+            rows.append(
+                {
+                    "metric": key,
+                    "kind": kind,
+                    "baseline": base,
+                    "current": None,
+                    "change": None,
+                    "tolerance": tol[kind],
+                    "regression": True,
+                }
+            )
             continue
         change = now - base
         if kind == "latency":
@@ -99,33 +111,41 @@ def compare(baseline, current, tol):
             regression = change < -tol["recall"] - 1e-12
         else:
             regression = change < -tol["kappa"] - 1e-12
-        rows.append({"metric": key, "kind": kind, "baseline": base, "current": now,
-                     "change": change, "tolerance": tol[kind], "regression": bool(regression)})
+        rows.append(
+            {
+                "metric": key,
+                "kind": kind,
+                "baseline": base,
+                "current": now,
+                "change": change,
+                "tolerance": tol[kind],
+                "regression": bool(regression),
+            }
+        )
     return rows
 
 
 def explained(changelog_text):
     """Metric ids explained in the ``## Unreleased`` section of the CHANGELOG."""
-
-    section = changelog_text.split("## Unreleased", 1)
-    if len(section) < 2:
+    _, found, section = changelog_text.partition("## Unreleased")
+    if not found:
         return set()
-    body = re.split(r"\n## ", section[1], maxsplit=1)[0]
+    body = re.split(r"\n## ", section, maxsplit=1)[0]
     return set(EXPLAINED.findall(body))
 
 
 def _git(*args):
-    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=False)
 
 
 def default_baseline():
+    """Return the latest ``v*`` tag, else HEAD."""
     tags = _git("tag", "--list", "v*", "--sort=-v:refname").stdout.split()
     return tags[0] if tags else "HEAD"
 
 
 def load(source):
     """{file name: document} from a folder or a git reference."""
-
     docs = {}
     path = pathlib.Path(source)
     if path.is_dir():
@@ -141,39 +161,55 @@ def load(source):
 
 
 def gate(baseline_docs, current_docs, changelog_text, tol=None):
+    """Return the gate report: the compared metrics, the regressions and the blocking ones."""
     tol = tol or tolerances()
     rows = compare(metrics(baseline_docs), metrics(current_docs), tol)
     ok = explained(changelog_text)
     for row in rows:
         row["explained"] = row["metric"] in ok
     blocking = [r for r in rows if r["regression"] and not r["explained"]]
-    return {"tolerances": tol, "n_metrics": len(rows), "rows": rows,
-            "regressions": [r["metric"] for r in rows if r["regression"]],
-            "blocking": [r["metric"] for r in blocking], "release_blocked": bool(blocking)}
+    return {
+        "tolerances": tol,
+        "n_metrics": len(rows),
+        "rows": rows,
+        "regressions": [r["metric"] for r in rows if r["regression"]],
+        "blocking": [r["metric"] for r in blocking],
+        "release_blocked": bool(blocking),
+    }
 
 
 def main(argv=None):
+    """Compare the layer-3 results with the baseline; exit 1 when the release is blocked."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--baseline", default=None,
-                        help="git reference or folder (default: latest v* tag, else HEAD)")
+    parser.add_argument(
+        "--baseline",
+        default=None,
+        help="git reference or folder (default: latest v* tag, else HEAD)",
+    )
     parser.add_argument("--current", default=str(ROOT / LAYER3))
     parser.add_argument("--changelog", default=str(ROOT / "CHANGELOG.md"))
     parser.add_argument("--json", default=None, help="write the report here")
     args = parser.parse_args(argv)
     baseline = args.baseline or default_baseline()
-    report = gate(load(baseline), load(args.current),
-                  pathlib.Path(args.changelog).read_text(encoding="utf-8"))
+    report = gate(
+        load(baseline),
+        load(args.current),
+        pathlib.Path(args.changelog).read_text(encoding="utf-8"),
+    )
     report["baseline"] = baseline
     if args.json:
-        pathlib.Path(args.json).write_text(json.dumps(report, indent=1) + "\n",
-                                           encoding="utf-8")
+        pathlib.Path(args.json).write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
     for row in report["rows"]:
         if row["regression"]:
             state = "explained in CHANGELOG" if row["explained"] else "BLOCKS THE RELEASE"
-            print(f"{row['metric']}: {row['baseline']} -> {row['current']} "
-                  f"({row['kind']} tolerance {row['tolerance']}): {state}")
-    print(f"layer-3 gate against {baseline}: {report['n_metrics']} metrics, "
-          f"{len(report['regressions'])} regressions, {len(report['blocking'])} blocking")
+            print(
+                f"{row['metric']}: {row['baseline']} -> {row['current']} "
+                f"({row['kind']} tolerance {row['tolerance']}): {state}"
+            )
+    print(
+        f"layer-3 gate against {baseline}: {report['n_metrics']} metrics, "
+        f"{len(report['regressions'])} regressions, {len(report['blocking'])} blocking"
+    )
     return 1 if report["release_blocked"] else 0
 
 

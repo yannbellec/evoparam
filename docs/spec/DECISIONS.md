@@ -968,3 +968,33 @@ draws).
   files. The mypy hook checks the whole package with the locked stubs. `end-of-file-fixer`
   leaves out the byte-exact format-1 containers (each checked by its sha256) and the
   generated validation reports.
+
+### 7.8 `pre-commit run --all-files` and the CI lint job
+
+REQ-305 asks for two more checks:
+
+- `pre-commit run --all-files` must pass. It runs the ruff hooks on every file of the
+  repository.
+- The `lint` job of `ci.yml` runs `ruff check` on `validation` and `tools` as well.
+
+So these checks cover more than the REQ-305 paths. Before, they failed on 275 findings in
+`tools/`, `validation/`, `tutorials/` and `docs/conf.py`, and 24 of those files needed
+reformatting. These files were fixed the same way as the package, with nothing excluded:
+
+- docstrings were added or rewritten;
+- named constants replace magic values;
+- the layer-3 report rows take grouped values;
+- `strict=True` is set on `zip` where the inputs come from one source;
+- each remaining noqa has its reason.
+
+The generated files they write are unchanged: `--check` passes for `gen_soup`,
+`gen_glossary`, `gen_registry_doc`, `gen_references_bib`, `gen_api_index`,
+`freeze_methods_text` and `validation/layer3_report.py`, and `check_traceability`,
+`add_spdx_headers --check` and `layer3_gate` give the same results. The `--help` text of
+`benchmark_suites` and `gen_soup` now shows the new one-line summary of the module.
+
+The ruff-format hook also formats the Python blocks of Markdown files. It would reformat
+`docs/spec/SPEC.md`, which is never edited. `SPEC.md` is therefore in ruff's
+`extend-exclude` (`pyproject.toml`), and no other file is excluded. With this, `pre-commit
+run --all-files` passes every hook, and leaves the tree unchanged: ruff, ruff-format, mypy,
+interrogate, check-yaml and end-of-file-fixer. nbstripout has no notebook to check.

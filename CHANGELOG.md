@@ -37,7 +37,11 @@ Other changes:
   replaced by a `per-file-ignores` entry for each of the two modules. These are
   statistical tests, not pytest tests.
 - mypy: `patsy` and `pytensor` (optional) join `ignore_missing_imports`.
-- pre-commit: the hooks are pinned to the lock-file versions.
+- pre-commit: the hooks are pinned to the lock-file versions. `pre-commit run --all-files`
+  now passes. Its ruff hooks, and the CI lint job, also cover `tools/`, `validation/` and
+  `tutorials/`. These had 275 findings and 24 unformatted files; both are now 0, and the
+  generated files are unchanged. `docs/spec/SPEC.md` is in ruff's `extend-exclude`, so
+  that the Markdown formatting of the hook leaves the reviewed specification as is.
 - Exported helpers outside the spec now take their settings grouped:
   `permutation_test` and `shuffle_test` (`PermutationOptions`), `bayes.sample`
   (`NutsSettings`), `sim.artifacts.pulse_shape` (`AntiAliasFilter`) and

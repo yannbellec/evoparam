@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Layer 3, ds004977 (spec §7.3, REQ-372): the channels left out of the adjusted common
-average by the authors' CARLA code and by evoparam's ``car_adaptive``, on the same data.
+"""Layer 3, ds004977 (spec §7.3, REQ-372): channels left out of the adjusted common average.
+
+The channels left out by the authors' CARLA code and by evoparam's ``car_adaptive`` are
+compared on the same data.
 
 The authors' code (Huang et al. 2024, https://github.com/hharveygit/CARLA_JNM, GPL-3.0) is
 run as an external comparator in MATLAB; it is not part of evoparam. Give its folder in
@@ -36,7 +38,6 @@ OUT = os.path.join(HERE, "layer3", "carla_ds004977.json")
 
 def neighbours(site, n=2):
     """Contacts within ``n`` of each contact of the pair, on the same lead."""
-
     out = set()
     for ch in site.split("-"):
         match = re.match(r"^([A-Za-z]+)(\d+)$", ch.upper())
@@ -46,46 +47,61 @@ def neighbours(site, n=2):
 
 
 def channels(trials, site):
+    """Return the indices of the channels compared: good, finite, and not next to the site."""
     near = neighbours(site)
-    keep = ~trials.ch_info["bad"].to_numpy(bool) & \
-        np.array([name.upper() not in near for name in trials.ch_names]) & \
-        np.isfinite(trials.data).all(axis=(0, 2))
+    keep = (
+        ~trials.ch_info["bad"].to_numpy(bool)
+        & np.array([name.upper() not in near for name in trials.ch_names])
+        & np.isfinite(trials.data).all(axis=(0, 2))
+    )
     return np.flatnonzero(keep)
 
 
 def run_matlab(trials, index, carla, matlab):
+    """Return the channels kept in the common average by the authors' CARLA code (MATLAB)."""
     from scipy.io import loadmat, savemat
 
     with tempfile.TemporaryDirectory() as work:
         mat, res = os.path.join(work, "in.mat"), os.path.join(work, "out.mat")
-        savemat(mat, {"V": np.transpose(trials.data[:, index], (1, 2, 0)),
-                      "tt": trials.times[None], "srate": trials.sfreq})
-        command = (f"addpath('{os.path.join(carla, 'functions')}'); load('{mat}'); "
-                   f"rng('default'); [~,~,s]=CARLA(tt,V,srate,true); used=s.chsUsed; "
-                   f"save('{res}','used');")
+        savemat(
+            mat,
+            {
+                "V": np.transpose(trials.data[:, index], (1, 2, 0)),
+                "tt": trials.times[None],
+                "srate": trials.sfreq,
+            },
+        )
+        command = (
+            f"addpath('{os.path.join(carla, 'functions')}'); load('{mat}'); "
+            f"rng('default'); [~,~,s]=CARLA(tt,V,srate,true); used=s.chsUsed; "
+            f"save('{res}','used');"
+        )
         subprocess.run([matlab, "-batch", command], check=True, capture_output=True)
         used = np.ravel(loadmat(res)["used"]).astype(int) - 1
     return sorted(trials.ch_names[index[i]] for i in used)
 
 
 def evoparam_used(trials, index):
-    """The channels kept in the common average by evoparam (``car_adaptive_select``, 100
-    bootstrap resamples, seed 0: the settings of the REQ-372 test)."""
+    """Return the channels kept in the common average by evoparam.
 
+    ``car_adaptive_select`` with 100 bootstrap resamples and seed 0, the settings of the
+    REQ-372 test.
+    """
     from evoparam.prep.reference import car_adaptive_select
 
-    chosen = car_adaptive_select(trials.data[:, index], trials.times, n_boot=100,
-                                 random_state=0)
+    chosen = car_adaptive_select(trials.data[:, index], trials.times, n_boot=100, random_state=0)
     return sorted(trials.ch_names[index[i]] for i in chosen["members"])
 
 
-EVOPARAM_SELECTION = {"function": "evoparam.prep.reference.car_adaptive_select",
-                      "n_boot": 100, "random_state": 0}
+EVOPARAM_SELECTION = {
+    "function": "evoparam.prep.reference.car_adaptive_select",
+    "n_boot": 100,
+    "random_state": 0,
+}
 
 
 def evoparam_only():
     """Recompute evoparam's selection into the existing file (no MATLAB)."""
-
     sys.path.insert(0, os.path.dirname(HERE))
     from evoparam import __version__
     from evoparam.tests.prep.test_reference_ds004977 import load_trials
@@ -104,31 +120,47 @@ def evoparam_only():
 
 
 def main():
+    """Run both selections on every site and write the result file."""
     sys.path.insert(0, os.path.dirname(HERE))
     from evoparam import __version__
     from evoparam.tests.prep.test_reference_ds004977 import RUNS, load_trials
 
     if "--evoparam-only" in sys.argv[1:]:
-        return evoparam_only()
+        evoparam_only()
+        return
     carla = os.environ["CARLA_JNM"]
     matlab = os.environ.get("MATLAB", "/Applications/MATLAB_R2026a.app/bin/matlab")
     sites = []
     for subject, run, site in RUNS:
         trials = load_trials(subject, run, site)
         index = channels(trials, site)
-        sites.append({"subject": subject, "run": run, "site": site,
-                      "channels": [trials.ch_names[i] for i in index],
-                      "carla_used": run_matlab(trials, index, carla, matlab),
-                      "evoparam_used": evoparam_used(trials, index)})
-    commit = subprocess.run(["git", "-C", carla, "rev-parse", "HEAD"], check=True,
-                            capture_output=True, text=True).stdout.strip()
+        sites.append(
+            {
+                "subject": subject,
+                "run": run,
+                "site": site,
+                "channels": [trials.ch_names[i] for i in index],
+                "carla_used": run_matlab(trials, index, carla, matlab),
+                "evoparam_used": evoparam_used(trials, index),
+            }
+        )
+    commit = subprocess.run(
+        ["git", "-C", carla, "rev-parse", "HEAD"], check=True, capture_output=True, text=True
+    ).stdout.strip()
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as fobj:
-        json.dump({"comparator": "CARLA_JNM (Huang et al. 2024), CARLA(tt, V, srate, true)",
-                   "comparator_commit": commit, "dataset": "ds004977",
-                   "data": {"dataset": "ds004977", "version": "1.2.0"},
-                   "evoparam_selection": dict(EVOPARAM_SELECTION, version=__version__),
-                   "sites": sites}, fobj, indent=1)
+        json.dump(
+            {
+                "comparator": "CARLA_JNM (Huang et al. 2024), CARLA(tt, V, srate, true)",
+                "comparator_commit": commit,
+                "dataset": "ds004977",
+                "data": {"dataset": "ds004977", "version": "1.2.0"},
+                "evoparam_selection": dict(EVOPARAM_SELECTION, version=__version__),
+                "sites": sites,
+            },
+            fobj,
+            indent=1,
+        )
     print(OUT)
 
 
