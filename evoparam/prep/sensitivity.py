@@ -21,6 +21,11 @@ if TYPE_CHECKING:
 
 __all__ = ["reference_sensitivity", "threshold_detector", "register_detector", "DETECTORS"]
 
+# Detections [n_channels, n_groups] of a detector run per group; a detector returns
+# (detected, latency) and, per group, the group names as a third item.
+_PER_GROUP_NDIM = 2
+_N_DETECTOR_OUTPUTS = 2
+
 # Detectors by name. "existence" (the existence test of spec §5.6, the default) is registered
 # by the package root when evoparam is imported: the existence test is built on the fitting
 # engine, which itself uses this module, so prep cannot import it (spec §4.2).
@@ -146,8 +151,12 @@ def reference_sensitivity(
         out = detector(ref, **test_kwargs)
         detected, latency = np.asarray(out[0]), np.asarray(out[1], dtype=float)
         keys = [_key(n) for n in ref.ch_names]
-        if detected.ndim == 2:
-            groups = list(out[2]) if len(out) > 2 else [str(g) for g in range(detected.shape[1])]
+        if detected.ndim == _PER_GROUP_NDIM:
+            groups = (
+                list(out[2])
+                if len(out) > _N_DETECTOR_OUTPUTS
+                else [str(g) for g in range(detected.shape[1])]
+            )
             keys = [f"{key}@{group}" if group else key for group in groups for key in keys]
             detected, latency = detected.T.ravel(), latency.T.ravel()
         per_scheme[scheme] = (

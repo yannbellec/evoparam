@@ -16,6 +16,9 @@ from evoparam.errors import warn
 
 __all__ = ["EvoparamDeprecationWarning", "shim", "resolve", "minor_gap", "version_tuple"]
 
+# Numbers of a version read: major, minor, patch.
+_VERSION_PARTS = 3
+
 
 class EvoparamDeprecationWarning(DeprecationWarning):
     """A public name of evoparam is deprecated (a ``DeprecationWarning`` subclass)."""
@@ -31,7 +34,7 @@ def version_tuple(text: object) -> tuple[int, ...]:
         if not match:
             break
         parts.append(int(match.group()))
-        if len(parts) == 3:
+        if len(parts) == _VERSION_PARTS:
             break
     return tuple(parts + [0] * (3 - len(parts)))
 

@@ -25,6 +25,11 @@ __all__ = [
 _E = TypeVar("_E", bound="BaseEstimatorMixin")
 _T = TypeVar("_T")
 
+# Dimensions of a scikit-learn matrix (samples x features), and the fewest features (time
+# points) of an evoked-response input.
+_MATRIX_NDIM = 2
+_MIN_TIME_POINTS = 2
+
 
 class NotFittedError(ValueError, AttributeError):
     """Raised when an estimator is used before ``fit`` (spec REQ-320).
@@ -167,7 +172,7 @@ def validate_array(
             accept_sparse=False,
             ensure_all_finite=not allow_nan,
             ensure_2d=True,
-            allow_nd=ndim > 2,
+            allow_nd=ndim > _MATRIX_NDIM,
             dtype="numeric",
         )
     else:
@@ -177,7 +182,7 @@ def validate_array(
         if np.iscomplexobj(x):
             raise ValueError("Complex data not supported.")
         x = x.astype(float)
-        if x.ndim < 2:
+        if x.ndim < _MATRIX_NDIM:
             raise ValueError("Expected 2D array, got 1D array instead. Reshape your data.")
         if not allow_nan and not np.all(np.isfinite(x)):
             raise ValueError("Input contains NaN or infinity.")
@@ -187,7 +192,7 @@ def validate_array(
             f"X has {n_features} features, but {type(estimator).__name__} is "
             f"expecting {estimator.n_features_in_} features as input."
         )
-    if n_features < 2:
+    if n_features < _MIN_TIME_POINTS:
         raise ValueError(
             f"Found array with {n_features} feature(s) (shape={x.shape}) while a "
             f"minimum of 2 is required (time points)."

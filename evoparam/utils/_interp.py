@@ -15,6 +15,9 @@ __all__ = ["window_indices", "interpolate_window", "INTERPOLATIONS"]
 
 INTERPOLATIONS = ("linear", "cubic", "pchip")
 
+# Fewest samples on each side of the window for a cubic or pchip interpolation.
+_MIN_SPLINE_BUFFER = 2
+
 
 def window_indices(times: ArrayLike, window: Sequence[float], buffer: int = 0) -> IntArray:
     """Return the indices of the samples inside ``window`` (inclusive), checked against the buffer.
@@ -81,7 +84,7 @@ def interpolate_window(
         raise SettingsError(f"interpolation must be one of {INTERPOLATIONS}, not {kind!r}.")
     if anchor not in ("mean", "median"):
         raise SettingsError("anchor must be 'mean' or 'median'.")
-    if buffer < 1 or (kind != "linear" and buffer < 2):
+    if buffer < 1 or (kind != "linear" and buffer < _MIN_SPLINE_BUFFER):
         raise SettingsError("buffer must be at least 1 (2 for cubic and pchip).")
     times = np.asarray(times, dtype=float)
     inds = window_indices(times, window, buffer)
