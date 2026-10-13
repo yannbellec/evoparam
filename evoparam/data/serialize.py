@@ -380,7 +380,8 @@ def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
         # ("terminate called without an active exception", exit status -6); Python 3.13
         # parks the thread and the process hangs in exit(), where pyarrow waits for it.
         # Read through a pyarrow file system, the file lands in pyarrow's own buffers:
-        # its threads hold no Python object.
+        # its threads hold no Python object. pandas 2.0 already takes filesystem= (in its
+        # **kwargs, named from 2.1) and then opens no handle; the frame read is the same.
         from pyarrow import fs
 
         table = pd.read_parquet(
