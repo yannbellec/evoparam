@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Documentation built with warnings as errors (REQ-302)
+
+- `sphinx -W --keep-going -b html docs` now ends with 0 warnings (run on macOS with the
+  `docs` extra and the MNE sample dataset): the benchmark report, the submission guide and
+  the result-table page are in the table of contents; the module pages of the names
+  re-exported at the package root (`evoparam.data.TrialSet`, `evoparam.models.ResponseModel`,
+  ...) are written with `:no-index:` (templates in `docs/_templates/autosummary`), so each
+  object has one target and the 29 ambiguous `TrialSet` references are gone; the stub of the
+  constant `evoparam.io.OPENNEURO_URL` gets its own file name (`autosummary_filename_map`),
+  since on case-insensitive file systems it overwrote the page of the function
+  `openneuro_url`; the two renamed names that are also terms (`GroupFit`,
+  `Component.params`) are listed as "(renamed)" in the glossary; the LSL code block of the
+  streaming tutorial is a literal block.
+- `test_req302_docs_build_with_warnings_as_errors` is no longer an expected failure: it
+  builds the site with `EVOPARAM_SLOW_TESTS=1` when Sphinx is installed. The
+  `latest`/`stable` switcher of the published site still waits for the HIIE decision.
+
 ### Arguments that were ignored: `verbose=`, `n_jobs`, five unused arguments (REQ-304, REQ-307)
 
 With the default arguments the results are unchanged: the reference fixture, the frozen
