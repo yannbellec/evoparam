@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Pulse detection: the strength gate also holds on the size of the deflection
+
+- On the Mayo runs at 2048 Hz, 29 false alarms (precision 0.84) were electrode pops: a
+  channel saturating for an instant has a steep edge, so a robust z near the pulses' (27 to
+  107 against 85 to 164), but a deflection of 0.1 to 2 mV against 35 to 45 mV for the
+  stimulation artifact. `detect_pulses` now gates each candidate on the smaller of its
+  relative z and its relative size (µV), the size of reference being the 90th percentile
+  among the candidates that pass on z (pops can outnumber pulses: 47 candidates for 5
+  pulses in one ds004696 sub-07 segment). Mayo 2048 Hz: 152 hits, 0 false alarms
+  (precision 1.0); a 3 mV pulse of the same site is still found by the template pass.
+  ds004080 (REQ-040), the synthetic sets (REQ-041), the stream and benchmark tests are
+  unchanged (229 passed).
+- REQ-044, ds004696 sub-07: the run's own events.tsv has 13 pulses per site (median), so its
+  test checks the run's structure (one train per block, the block's pulse count, 0.2 Hz);
+  the protocol's 10-12 stays checked over all runs together. Reading in DECISIONS.
+
 ### ERP CORE: the paradigm's component, measured by a targeted `erp` preset (REQ-274)
 
 - `validation/erpcore.py` fits each difference wave with `presets.targeted("erp", ...)`:
