@@ -14,15 +14,19 @@ _CHUNK = 1 << 14
 # Scale factor from the median absolute deviation to the standard deviation of a Gaussian.
 MAD_TO_SD = 1.4826
 
+# Continuous data is a matrix [n_channels, n_times] of at least three samples.
+_MATRIX_NDIM = 2
+_MIN_SAMPLES = 3
+
 
 def as_continuous(data: Any) -> Any:
     """Return ``data`` as a float 2d array [n_channels, n_times]."""
     data = np.asarray(data)
     if data.ndim == 1:
         data = data[np.newaxis]
-    if data.ndim != 2:
+    if data.ndim != _MATRIX_NDIM:
         raise DataError("data must be continuous, as [n_times] or [n_channels, n_times].")
-    if data.shape[1] < 3:
+    if data.shape[1] < _MIN_SAMPLES:
         raise DataError("data must have at least 3 samples.")
     if not np.issubdtype(data.dtype, np.floating):
         data = data.astype(float)

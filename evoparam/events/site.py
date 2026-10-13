@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Identify the stimulated contact pair from the stimulation artifact."""
 
+import dataclasses
 import re
 from typing import cast
 
@@ -83,6 +84,14 @@ NON_NEURAL = re.compile(
 )
 
 
+# Two contacts make a stimulation pair; the confidence compares rank 2 with rank 3.
+_PAIR = 2
+_THIRD = 2
+# Fewest pre-pulse samples for a noise level, and fewest samples in the hold window.
+_MIN_NOISE_SAMPLES = 8
+_MIN_HOLD_SAMPLES = 4
+
+
 def _robust_sd(values: Any) -> FloatArray:
     """Scaled MAD of each row (NaN-aware only when needed, as it is slower)."""
     median = np.nanmedian if np.isnan(values).any() else np.median
@@ -105,7 +114,7 @@ def _silent_pair(
 ) -> Any:
     """Positions of the one silent pair of adjacent contacts (comment above RAIL_WINDOW)."""
     quiet = np.flatnonzero((raw_noise > 0) & (raw_noise < NOISE_FLOOR * floor))
-    if len(quiet) < 2:
+    if len(quiet) < _PAIR:
         return None
     number: list[Any] = [contact_number(names[k]) for k in range(len(names))]  # None: no number
     top = int(np.argmax(size))
@@ -131,7 +140,7 @@ def _silent_pair(
     return found[0] if len(found) == 1 else None
 
 
-def identify_stim_site(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
+def identify_stim_site(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
     data: FloatArray,
     sfreq: float,
     events: Any,
@@ -243,8 +252,52 @@ def identify_stim_site(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, s
     names = list(ch_names)
     if len(names) != n_channels:
         raise DataError("ch_names must have one name per channel.")
-    index = pick_index(n_channels, picks, names)
+    index = _candidate_channels(names, pick_index(n_channels, picks, names), ch_info, exclude)
+    group = _contact_groups(names, ch_info, method)
 
+    out = events.copy()
+    onsets = np.asarray(events["onset_sample"], dtype=int)
+    n_events = len(onsets)
+    guesses = [""] * n_events
+    confidence = np.zeros(n_events)
+    polarity = np.zeros(n_events, dtype=bool)
+
+    half = max(1, int(round(window * sfreq)))
+    shortest = max(half + 1, int(round(REFERENCE_LAG * sfreq)))
+    interval = float(np.median(np.diff(np.sort(onsets)))) if n_events > 1 else np.inf
+    if n_events > 1 and interval < _PAIR * shortest + _PAIR * half:
+        _warn(
+            "identify_stim_site: pulses are closer than the identification window "
+            "(high-frequency train); the site is not identified.",
+            stacklevel=2,
+        )
+        index = np.array([], dtype=int)
+    if len(index) < _PAIR:
+        found_all: list[Any] = [None] * n_events
+    elif method == "spec":
+        found_all = [_spec_site(data, index, onset, shortest, half, group) for onset in onsets]
+    else:
+        lag = max(shortest, int(round(min(lead * sfreq, 0.25 * interval))))
+        scan = _SiteScan.build(data, sfreq, index, (names, group), (lag, hold, half, shortest))
+        found_all = [_evidence_site(scan, onset, np.sort(onsets)) for onset in onsets]
+    for row, found in enumerate(found_all):
+        if found is None:
+            continue
+        pair, confidence[row], polarity[row] = found
+        guesses[row] = f"{names[pair[0]]}-{names[pair[1]]}"
+
+    out["stim_site_guess"] = guesses
+    out["site_confidence"] = confidence
+    out["polarity_check"] = polarity
+    return out
+
+
+def _candidate_channels(names: list[str], index: Any, ch_info: Any, exclude: Any) -> Any:
+    """Return the picked channels that may carry a stimulating contact.
+
+    Neural types only (with a ``type`` column), else names not matching ``exclude``; channels
+    flagged ``bad`` in the channel table are dropped.
+    """
     # the channel table, read column by column (a DataFrame, or a Table without pandas)
     info_names = [] if ch_info is None else list(np.asarray(ch_info["name"], dtype=object))
     if ch_info is not None and "type" in ch_info.columns:
@@ -257,144 +310,176 @@ def identify_stim_site(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, s
         flagged = np.asarray(ch_info["bad"]).astype(bool)
         bad = {name for name, is_bad in zip(info_names, flagged, strict=False) if is_bad}
         index = np.array([ind for ind in index if names[ind] not in bad])
+    return index
+
+
+def _contact_groups(names: list[str], ch_info: Any, method: str) -> Any:
+    """Return the electrode of each channel (``ch_info.group``, else guessed), or None.
+
+    None for ``method="spec"`` without ``ch_info.group``: the reviewed rule checks the shaft
+    only "when ch_info.group is available".
+    """
     if ch_info is not None and "group" in ch_info.columns:
+        info_names = list(np.asarray(ch_info["name"], dtype=object))
         group_names = [str(name) for name in np.asarray(ch_info["group"], dtype=object)]
         groups = dict(zip(info_names, group_names, strict=False))
-        group = [groups.get(name, contact_group(name)) for name in names]
-    elif method == "spec":
-        # the reviewed rule checks the shaft only "when ch_info.group is available"
-        group = None
-    else:
-        group = [contact_group(name) for name in names]
+        return [groups.get(name, contact_group(name)) for name in names]
+    if method == "spec":
+        return None
+    return [contact_group(name) for name in names]
 
-    out = events.copy()
-    onsets = np.asarray(events["onset_sample"], dtype=int)
-    n_events = len(onsets)
-    guesses = [""] * n_events
-    confidence = np.zeros(n_events)
-    polarity = np.zeros(n_events, dtype=bool)
 
-    half = max(1, int(round(window * sfreq)))
-    shortest = max(half + 1, int(round(REFERENCE_LAG * sfreq)))
-    interval = float(np.median(np.diff(np.sort(onsets)))) if n_events > 1 else np.inf
-    lag = max(shortest, int(round(min(lead * sfreq, 0.25 * interval))))
-    noise_lo, noise_hi = (int(round(edge * sfreq)) for edge in NOISE_WINDOW)
-    hold_lo, hold_hi = (int(round(edge * sfreq)) for edge in hold)
-    ordered = np.sort(onsets)
-    rail_span = int(round(RAIL_WINDOW * sfreq))
-    names_index = [names[ind] for ind in index]
-    # (method="spec" without ch_info.group has no groups; only the evidence rule uses these)
-    group_index = None if group is None else [group[ind] for ind in index]
-    # Largest absolute value of the candidate channels (one row at a time, no full copy)
-    rail = max(
-        (float(np.nan_to_num(np.nanmax(np.abs(data[ind])), nan=0.0)) for ind in index), default=0.0
-    )
+@dataclasses.dataclass(frozen=True)
+class _SiteScan:
+    """The candidate channels and the windows of the evidence rule, in samples."""
 
-    if n_events > 1 and interval < 2 * shortest + 2 * half:
-        _warn(
-            "identify_stim_site: pulses are closer than the identification window "
-            "(high-frequency train); the site is not identified.",
-            stacklevel=2,
+    data: Any
+    index: Any
+    names: list[str]
+    group: Any
+    half: int
+    shortest: int
+    lag: int
+    noise: tuple[int, int]
+    hold: tuple[int, int]
+    rail_span: int
+    rail: float
+
+    @classmethod
+    def build(cls, data: Any, sfreq: float, index: Any, labels: Any, windows: Any) -> "_SiteScan":
+        """Build the scan: ``labels = (names, group)``, ``windows = (lag, hold, half, shortest)``.
+
+        ``lag``, ``half`` and ``shortest`` in samples, ``hold`` in seconds.
+        """
+        names, group = labels
+        lag, hold, half, shortest = windows
+        noise_lo, noise_hi = (int(round(edge * sfreq)) for edge in NOISE_WINDOW)
+        hold_lo, hold_hi = (int(round(edge * sfreq)) for edge in hold)
+        # Largest absolute value of the candidate channels (one row at a time, no full copy)
+        rail = max(
+            (float(np.nan_to_num(np.nanmax(np.abs(data[ind])), nan=0.0)) for ind in index),
+            default=0.0,
         )
-        index = np.array([], dtype=int)
+        return cls(
+            data=data,
+            index=index,
+            names=names,
+            group=group,
+            half=half,
+            shortest=shortest,
+            lag=lag,
+            noise=(noise_lo, noise_hi),
+            hold=(hold_lo, hold_hi),
+            rail_span=int(round(RAIL_WINDOW * sfreq)),
+            rail=rail,
+        )
 
-    if len(index) >= 2 and method == "spec":
-        for row, onset in enumerate(onsets):
-            found = _spec_site(data, index, onset, shortest, half, group)
-            if found is None:
-                continue
-            pair, confidence[row], polarity[row] = found
-            guesses[row] = f"{names[pair[0]]}-{names[pair[1]]}"
-    elif len(index) >= 2:
-        for row, onset in enumerate(onsets):
-            lag_row = min(lag, onset)
-            if lag_row < shortest or onset + half + 1 > n_times:
-                continue
-            # Only the samples around this pulse are copied, never the whole recording
-            reference = data[index, onset - lag_row]
-            deviation = data[index, onset - lag_row : onset + half + 1] - reference[:, None]
-            amplitude = np.nan_to_num(np.nanmax(np.abs(deviation), axis=1), nan=0.0)
-            if not amplitude.max() > 0:
-                continue
-            early = np.nan_to_num(np.nanmax(np.abs(deviation[:, 1:lag_row]), axis=1), nan=0.0)
 
-            lo, hi = max(0, onset + noise_lo), max(0, onset + noise_hi)
-            known = hi - lo >= 8
-            if known:
-                base = data[index, lo:hi]
-                noise = _robust_sd(base)
-                floor = np.median(noise[noise > 0]) if np.any(noise > 0) else 1.0
-                raw_noise = np.nan_to_num(noise, nan=0.0)
-                noise = np.maximum(raw_noise, NOISE_FLOOR * floor)
-                median = np.nanmedian if np.isnan(base).any() else np.median
-                typical_step = float(np.nanmedian(median(np.abs(np.diff(base, axis=1)), axis=1)))
-            else:
-                noise = np.ones(len(index))
-                typical_step = np.nan
-                raw_noise, floor = noise, 1.0
-            size = amplitude / noise
+def _evidence_site(scan: _SiteScan, onset: int, ordered: Any) -> Any:
+    """Apply the evidence rule to one pulse: ``(pair, confidence, opposite)`` or None."""
+    data, index, half = scan.data, scan.index, scan.half
+    n_times = data.shape[1]
+    lag_row = min(scan.lag, onset)
+    if lag_row < scan.shortest or onset + half + 1 > n_times:
+        return None
+    # Only the samples around this pulse are copied, never the whole recording
+    reference = data[index, onset - lag_row]
+    deviation = data[index, onset - lag_row : onset + half + 1] - reference[:, None]
+    amplitude = np.nan_to_num(np.nanmax(np.abs(deviation), axis=1), nan=0.0)
+    if not amplitude.max() > 0:
+        return None
+    early = np.nan_to_num(np.nanmax(np.abs(deviation[:, 1:lag_row]), axis=1), nan=0.0)
+    noise, typical_step, raw_noise, floor, known = _noise_levels(scan, onset)
+    size = amplitude / noise
 
-            # Evidence needs the noise level, so not for a pulse at the very start
-            moved = (amplitude >= MOVED_FRACTION * amplitude.max()) & known
-            leads = (
-                moved & (early >= LEAD_MIN_SD * noise) & (early >= LEAD_MIN_FRACTION * amplitude)
-            )
-            held = np.zeros(len(index), dtype=bool)
-            start = onset + hold_lo
-            later = ordered[np.searchsorted(ordered, onset, side="right") :]
-            stop = min(onset + hold_hi, n_times, later[0] - lag if len(later) else n_times)
-            if stop - start >= 4 and known:
-                steps = np.abs(np.diff(data[index, start:stop], axis=1))
-                flat = np.mean(steps <= HOLD_TOLERANCE * typical_step, axis=1)
-                held = moved & (flat >= HOLD_MIN_FRACTION)
-            if rail > 0:
-                # Reaching the amplifier's range is the same evidence as being held there
-                near = data[index, max(0, onset - rail_span) : onset + rail_span + 1]
-                peak = np.nan_to_num(np.nanmax(np.abs(near), axis=1), nan=0.0)
-                at_range = moved & (peak >= (1 - RAIL_TOLERANCE) * rail)
-                # A range is reached by both contacts of the pair; one channel alone is
-                # just the largest artifact of a recording that never saturates
-                if at_range.sum() >= 2:
-                    held = held | at_range
-            evidence = leads.astype(int) + held.astype(int)
+    # Evidence needs the noise level, so not for a pulse at the very start
+    moved = (amplitude >= MOVED_FRACTION * amplitude.max()) & known
+    leads = moved & (early >= LEAD_MIN_SD * noise) & (early >= LEAD_MIN_FRACTION * amplitude)
+    held = _held(scan, onset, ordered, moved, typical_step if known else None)
+    evidence = leads.astype(int) + held.astype(int)
 
-            silent = (
-                _silent_pair(names_index, group_index, raw_noise, floor, amplitude, size)
-                if known
-                else None
-            )
-            order = np.lexsort((-size, -evidence))
-            if silent is not None:
-                rest = [k for k in order if k not in silent]
-                order = np.array(list(silent) + rest)
-            first, second = order[0], order[1]
-            if len(order) > 2:
-                third = order[2]
-                e_2, e_3 = evidence[second], evidence[third]
-                if e_2 > e_3:
-                    score = (e_2 - e_3) / e_2
-                elif size[second] > 0:
-                    score = (size[second] - size[third]) / size[second]
-                else:
-                    score = 0.0
-            else:
-                score = 1.0
-            if silent is not None:
-                score = 1.0
+    names_index = [scan.names[ind] for ind in index]
+    # (method="spec" without ch_info.group has no groups; only the evidence rule uses these)
+    group_index = None if scan.group is None else [scan.group[ind] for ind in index]
+    silent = (
+        _silent_pair(names_index, group_index, raw_noise, floor, amplitude, size)
+        if known
+        else None
+    )
+    order = np.lexsort((-size, -evidence))
+    if silent is not None:
+        rest = [k for k in order if k not in silent]
+        order = np.array(list(silent) + rest)
+    first, second = order[0], order[1]
+    score = 1.0 if silent is not None else _margin(order, evidence, size)
 
-            opposite = _first_sign(deviation[first]) * _first_sign(deviation[second]) < 0
-            groups_of = cast("list[Any]", group)  # set whenever method is not "spec"
-            same_group = groups_of[index[first]] == groups_of[index[second]]
+    opposite = _first_sign(deviation[first]) * _first_sign(deviation[second]) < 0
+    groups_of = cast("list[Any]", scan.group)  # set whenever method is not "spec"
+    same_group = groups_of[index[first]] == groups_of[index[second]]
+    pair = sorted((index[first], index[second]))
+    return pair, score * (1.0 if (opposite and same_group) else 0.5), bool(opposite)
 
-            pair = sorted((index[first], index[second]))
-            guesses[row] = f"{names[pair[0]]}-{names[pair[1]]}"
-            confidence[row] = score * (1.0 if (opposite and same_group) else 0.5)
-            polarity[row] = bool(opposite)
 
-    out["stim_site_guess"] = guesses
-    out["site_confidence"] = confidence
-    out["polarity_check"] = polarity
-    return out
+def _noise_levels(scan: _SiteScan, onset: int) -> tuple[Any, Any, Any, Any, bool]:
+    """Return the noise of each channel before ``onset``, the typical step and more.
+
+    ``(noise, typical_step, raw_noise, floor, known)``: ``noise`` with its floor, the median
+    pre-pulse step, the noise without floor, the median noise and whether the pre-pulse
+    window was long enough.
+    """
+    lo, hi = max(0, onset + scan.noise[0]), max(0, onset + scan.noise[1])
+    known = hi - lo >= _MIN_NOISE_SAMPLES
+    if not known:
+        noise = np.ones(len(scan.index))
+        return noise, np.nan, noise, 1.0, False
+    base = scan.data[scan.index, lo:hi]
+    noise = _robust_sd(base)
+    floor = np.median(noise[noise > 0]) if np.any(noise > 0) else 1.0
+    raw_noise = np.nan_to_num(noise, nan=0.0)
+    noise = np.maximum(raw_noise, NOISE_FLOOR * floor)
+    median = np.nanmedian if np.isnan(base).any() else np.median
+    typical_step = float(np.nanmedian(median(np.abs(np.diff(base, axis=1)), axis=1)))
+    return noise, typical_step, raw_noise, floor, True
+
+
+def _held(scan: _SiteScan, onset: int, ordered: Any, moved: Any, typical_step: Any) -> Any:
+    """Return the channels held flat after ``onset`` or at the amplifier's range.
+
+    ``typical_step`` is None when the noise level is unknown (no hold test then).
+    """
+    data, index = scan.data, scan.index
+    n_times = data.shape[1]
+    held = np.zeros(len(index), dtype=bool)
+    start = onset + scan.hold[0]
+    later = ordered[np.searchsorted(ordered, onset, side="right") :]
+    stop = min(onset + scan.hold[1], n_times, later[0] - scan.lag if len(later) else n_times)
+    if stop - start >= _MIN_HOLD_SAMPLES and typical_step is not None:
+        steps = np.abs(np.diff(data[index, start:stop], axis=1))
+        flat = np.mean(steps <= HOLD_TOLERANCE * typical_step, axis=1)
+        held = moved & (flat >= HOLD_MIN_FRACTION)
+    if scan.rail > 0:
+        # Reaching the amplifier's range is the same evidence as being held there
+        near = data[index, max(0, onset - scan.rail_span) : onset + scan.rail_span + 1]
+        peak = np.nan_to_num(np.nanmax(np.abs(near), axis=1), nan=0.0)
+        at_range = moved & (peak >= (1 - RAIL_TOLERANCE) * scan.rail)
+        # A range is reached by both contacts of the pair; one channel alone is
+        # just the largest artifact of a recording that never saturates
+        if at_range.sum() >= _PAIR:
+            held = held | at_range
+    return held
+
+
+def _margin(order: Any, evidence: Any, size: Any) -> float:
+    """Return the margin of rank 2 over rank 3: by evidence when it separates them, else size."""
+    if len(order) <= _THIRD:
+        return 1.0
+    second, third = order[1], order[_THIRD]
+    e_2, e_3 = evidence[second], evidence[third]
+    if e_2 > e_3:
+        return float((e_2 - e_3) / e_2)
+    if size[second] > 0:
+        return float((size[second] - size[third]) / size[second])
+    return 0.0
 
 
 def _spec_site(data: Any, index: Any, onset: Any, lag: Any, half: Any, group: Any) -> Any:
@@ -410,7 +495,7 @@ def _spec_site(data: Any, index: Any, onset: Any, lag: Any, half: Any, group: An
     order = np.argsort(-amplitude, kind="stable")
     first, second = order[0], order[1]
     a_1 = amplitude[first]
-    a_3 = amplitude[order[2]] if len(order) > 2 else 0.0
+    a_3 = amplitude[order[_THIRD]] if len(order) > _THIRD else 0.0
     opposite = bool(_first_sign(deviation[first]) * _first_sign(deviation[second]) < 0)
     same_group = group is None or group[index[first]] == group[index[second]]
     score = (a_1 - a_3) / a_1 * (1.0 if (opposite and same_group) else 0.5)
@@ -418,6 +503,7 @@ def _spec_site(data: Any, index: Any, onset: Any, lag: Any, half: Any, group: An
 
 
 def _contacts(site: Any) -> list[str]:
+    """Return the contacts of a site ``"A-B"`` (empty for no site)."""
     return [part for part in str(site).split("-") if part] if site else []
 
 
@@ -473,7 +559,7 @@ def vote_sites(
         for row in rows:
             for contact in _contacts(guesses[row]):
                 votes[contact] = votes.get(contact, 0.0) + max(conf[row], 1e-6)
-        if len(votes) < 2:
+        if len(votes) < _PAIR:
             continue
         top = sorted(votes, key=lambda contact: (-votes[contact], contact))[:2]
         # Orientation: the one the per-pulse guesses use most, else alphabetical

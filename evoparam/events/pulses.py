@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Find stimulation pulses in the raw signal: robust threshold, then template confirmation."""
 
+import dataclasses
 import logging
 import time as _time
 
@@ -189,7 +190,7 @@ def _match(stacks: Any, templates: Any) -> Any:
 
 
 @verbose
-def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
+def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters; DECISIONS.md §7.2)
     data: FloatArray,
     sfreq: float,
     *,
@@ -335,141 +336,33 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         Unknown method or invalid setting.
     """
     clock = _time.perf_counter()
-    if method not in METHODS:
-        raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
-    if not threshold_sd > 0:
-        raise SettingsError("threshold_sd must be positive.")
-    if not 0 <= min_relative < 1:
-        raise SettingsError("min_relative must be in [0, 1).")
-    if not 0 < rho_min <= 1:
-        raise SettingsError("rho_min must be in (0, 1].")
-    if procedure not in PROCEDURES:
-        raise SettingsError(f"procedure must be one of {PROCEDURES}, not {procedure!r}.")
-    if expected_rate is not None and not expected_rate > 0:
-        raise SettingsError("expected_rate must be positive.")
+    _check_settings(method, threshold_sd, min_relative, rho_min, procedure, expected_rate)
     data = as_continuous(data)
     if not sfreq > 0:
         raise DataError("sfreq must be positive.")
     n_channels, n_times = data.shape
-    names = list(ch_names) if ch_names is not None else [str(ind) for ind in range(n_channels)]
-    if len(names) != n_channels:
-        raise DataError("ch_names must have one name per channel.")
-    index = pick_index(n_channels, picks, names)
-    if min_interval is None:
-        min_interval = 0.5 / expected_rate if expected_rate else 0.5
-    if recovery_sd is None:
-        recovery_sd = threshold_sd / 4
-    min_samples = max(1, int(round(min_interval * sfreq)))
-    # Crossings of one artifact are merged, but never across two pulses of a fast train
-    merge_s = min(MERGE_WINDOW, min_interval / 2)
-
+    names, index = _channels(n_channels, ch_names, picks)
+    rec = _Recording(data, sfreq, index, names, t0)
+    opts = _Detection.resolve(
+        sfreq,
+        method,
+        threshold_sd,
+        (min_interval, expected_rate),
+        (rho_min, n_template, min_relative, recovery_sd),
+        refine,
+    )
     if procedure == "spec":
-        score, z, onsets, strength, detector, rho, labels = _spec_candidates(
-            data,
-            sfreq,
-            index,
-            method,
-            threshold_sd,
-            min_samples,
-            refine,
-            template,
-            rho_min,
-            n_template,
-        )
+        score, z, cands = _spec_candidates(rec, opts, template)
     else:
         score = difference_score(data, score_index(index, score_channels))
         z = robust_z(score)
-
-        # Candidates at the detection threshold
-        peaks, strength, firsts = _group_crossings(crossings(z, threshold_sd), z, sfreq, merge_s)
-        onsets = _onsets_from_peaks(peaks, firsts, score, sfreq) if refine else firsts + 1
-
-        n_pre, n_post, max_shift = snippet_lengths(sfreq)
-        detector = np.array(["threshold"] * len(onsets), dtype=object)
-        rho = np.ones(len(onsets))
-        labels = np.full(len(onsets), -1)
-
-        user = None
-        if template is not None:
-            user = np.asarray(template, dtype=float).ravel()
-            if user.size != len(index) * (n_pre + n_post):
-                raise SettingsError(
-                    f"template must have {len(index) * (n_pre + n_post)} values "
-                    f"({len(index)} channels x {n_pre + n_post} samples)."
-                )
-            user = user / np.linalg.norm(user)
-
-        if method != "threshold" and len(onsets):
-            # Strength gate. Strong candidates (>= min_relative of the reference) are pulses;
-            # candidates in the grey zone (>= GREY_FRACTION of the gate) are pulses when they
-            # repeat, that is when another candidate carries the same artifact.
-            reference = np.percentile(strength, 90)
-            relative = strength / reference
-            strong = relative >= min_relative
-            eligible = relative >= GREY_FRACTION * min_relative
-            stacks = shifted_snippets(data, index, onsets, n_pre, n_post, max_shift)
-            labels = np.full(len(onsets), -1)
-            rho = np.zeros(len(onsets))
-            labels[eligible], clusters, rho[eligible] = _cluster(
-                stacks[eligible], rho_min, int(n_template)
-            )
-            sizes = np.bincount(labels[eligible], minlength=len(clusters))
-            repeated = eligible & (sizes[np.maximum(labels, 0)] >= 2)
-            confirmed = strong | repeated
-            templates: Any
-            templates = clusters.reshape(len(clusters), -1)
-            if user is not None:
-                user_rho, _ = _match(stacks, user[np.newaxis])
-                hit = user_rho >= rho_min
-                labels[hit & ~confirmed] = len(templates)
-                confirmed |= hit
-                rho = np.where(hit, np.maximum(rho, user_rho), rho)
-                templates = np.vstack([templates, user])
-            # Only the templates of confirmed pulses are used for recovery
-            good = np.unique(labels[confirmed & (labels >= 0)])
-            relabel = np.full(len(templates), -1)
-            relabel[good] = np.arange(len(good))
-            labels = np.where(labels >= 0, relabel[np.maximum(labels, 0)], -1)
-            templates = templates[good]
-            if method == "template":
-                confirmed[:] = False
-            peaks, strength, onsets = peaks[confirmed], strength[confirmed], onsets[confirmed]
-            detector, rho, labels = detector[confirmed], rho[confirmed], labels[confirmed]
-
-            # Recovery: weaker artifacts that match a template of the confirmed pulses
-            if len(templates):
-                low_peaks, low_strength, low_firsts = _group_crossings(
-                    crossings(z, recovery_sd), z, sfreq, merge_s
-                )
-                low_onsets = (
-                    _onsets_from_peaks(low_peaks, low_firsts, score, sfreq)
-                    if refine
-                    else low_firsts + 1
-                )
-                new = far_from(low_onsets, np.sort(onsets), min_samples)
-                low_peaks, low_strength = low_peaks[new], low_strength[new]
-                low_onsets = low_onsets[new]
-                low_rho, low_label = _match(
-                    shifted_snippets(data, index, low_onsets, n_pre, n_post, max_shift), templates
-                )
-                match = (low_rho >= rho_min) & (
-                    low_strength >= RECOVERY_FRACTION * min_relative * reference
-                )
-                peaks = np.r_[peaks, low_peaks[match]]
-                strength = np.r_[strength, low_strength[match]]
-                onsets = np.r_[onsets, low_onsets[match]]
-                detector = np.r_[detector, ["template"] * int(match.sum())]
-                rho = np.r_[rho, low_rho[match]]
-                labels = np.r_[labels, low_label[match]]
+        cands = _evoparam_candidates(rec, (score, z), opts, template)
 
     # Refractory period: the strongest pulse wins
-    keep = _suppress(onsets, strength, min_samples)
-    order = np.argsort(onsets[keep], kind="stable")
-    onsets = onsets[keep][order]
-    strength, detector = strength[keep][order], detector[keep][order]
-    rho, labels = rho[keep][order], labels[keep][order]
-
-    if len(onsets) == 0:
+    keep = _suppress(cands.onsets, cands.strength, opts.min_samples)
+    cands = cands.select(keep)
+    cands = cands.select(np.argsort(cands.onsets, kind="stable"))
+    if len(cands.onsets) == 0:
         top = float(np.max(z)) if len(z) else 0.0
         raise EventError(
             f"No stimulation pulse found: the largest score is {top:.1f} robust SD "
@@ -477,94 +370,13 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
             "or check that the picked channels record the stimulation."
         )
 
-    # Artifact size and the channel that carries it
-    width = max(1, int(round(PEAK_WINDOW * sfreq)))
-    peak_abs = np.zeros(len(onsets))
-    argmax = []
-    for row, onset in enumerate(onsets):
-        lo, hi = max(0, onset - 1), min(n_times, onset + width + 1)
-        dev = np.abs(data[index, lo:hi] - data[index, lo : lo + 1])
-        per_channel = np.nanmax(dev, axis=1)
-        best = int(np.argmax(per_channel))
-        peak_abs[row] = per_channel[best]
-        argmax.append(names[index[best]])
-
-    # Template classes renumbered from 0 in order of first appearance (-1: no template)
-    classes = np.full(len(labels), -1)
-    seen: dict[Any, Any]
-    seen = {}
-    for row, label in enumerate(labels):
-        if label >= 0:
-            classes[row] = seen.setdefault(int(label), len(seen))
-
-    events = new_table(
-        {
-            "onset_sample": onsets.astype("int64"),
-            "onset_time": t0 + onsets / sfreq,
-            "peak_abs": peak_abs,
-            "channel_argmax": argmax,
-            "saturated": np.zeros(len(onsets), dtype=bool),
-            "n_saturated_channels": np.zeros(len(onsets), dtype="int64"),
-            "stim_site_guess": [""] * len(onsets),
-            "site_confidence": np.zeros(len(onsets)),
-            "train_id": np.zeros(len(onsets), dtype="int64"),
-            "index_in_train": np.zeros(len(onsets), dtype="int64"),
-            "detector": detector.astype(str),
-            "threshold": np.full(len(onsets), float(threshold_sd)),
-            "z_peak": strength,
-            "rho": rho,
-            "template_class": classes.astype("int64"),
-        }
-    )
-
+    events = _event_table(rec, cands, threshold_sd)
     if saturation:
-        _, sat = detect_saturation(data, sfreq, events=events, ch_names=names, picks=index, t0=t0)
-        if len(sat):
-            # the number of distinct channels saturated at each pulse
-            pairs = set(
-                zip(
-                    np.asarray(sat["event_index"]).tolist(),
-                    np.asarray(sat["channel"]),
-                    strict=True,
-                )
-            )
-            counts = np.zeros(len(events), dtype="int64")
-            for event, _ in pairs:
-                counts[event] += 1
-            events["n_saturated_channels"] = counts
-            events["saturated"] = counts > 0
-
+        _add_saturation(events, rec)
     if ch_names is not None:
-        located = identify_stim_site(
-            data,
-            sfreq,
-            events,
-            ch_names=names,
-            ch_info=ch_info,
-            t0=t0,
-            picks=index,
-            method=site_method,
-        )
-        events["stim_site_guess"] = located["stim_site_guess"]
-        events["site_confidence"] = located["site_confidence"]
-        if vote and len(events) > 1:
-            voted = vote_sites(events)
-            events["stim_site_guess"] = voted["stim_site_guess"]
-            events["site_confidence"] = voted["site_confidence"]
-            events["stim_site_pulse"] = voted["stim_site_pulse"]
-
+        _add_sites(events, rec, ch_info, site_method, vote)
     events = group_trains(events, expected_rate=expected_rate)
-
-    flags = [""] * len(events)
-    if expected_rate:
-        intervals = np.diff(events["onset_time"].to_numpy())
-        for row, interval in enumerate(intervals, start=1):
-            if interval < 0.5 / expected_rate:
-                flags[row] = "short"
-            elif interval > 2.0 / expected_rate:
-                flags[row] = "long"
-    events["interval_flag"] = flags
-
+    events["interval_flag"] = _interval_flags(events, expected_rate)
     columns = list(EVENT_COLUMNS) + ["z_peak", "rho", "template_class", "interval_flag"]
     if "stim_site_pulse" in events.columns:
         columns.append("stim_site_pulse")
@@ -576,12 +388,12 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     settings = {
         "method": method,
         "threshold_sd": float(threshold_sd),
-        "min_interval": float(min_interval),
+        "min_interval": float(opts.min_interval),
         "expected_rate": None if expected_rate is None else float(expected_rate),
         "rho_min": float(rho_min),
         "n_template": int(n_template),
         "min_relative": float(min_relative),
-        "recovery_sd": float(recovery_sd),
+        "recovery_sd": float(opts.recovery_sd),
         "refine": bool(refine),
         "saturation": bool(saturation),
         "site": ch_names is not None,
@@ -595,14 +407,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         .with_step("evoparam.events.detect_pulses", settings, n_events=int(len(events)))
         .to_dict()
     )
-    if logger.isEnabledFor(logging.DEBUG):
-        finite = np.asarray(z, float)[np.isfinite(z)]
-        logger.debug(
-            "detect_pulses: largest z-score %.1f, threshold %.1f SD, %d channel(s)",
-            float(finite.max()) if finite.size else float("nan"),
-            float(threshold_sd),
-            n_channels,
-        )
+    _log_detection(z, threshold_sd, n_channels)
     logger.info(
         "detect_pulses (%s): %d pulse(s) in %.1f s of signal, %.2f s",
         method,
@@ -615,52 +420,409 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     return events
 
 
+# A grey-zone candidate is a pulse when its cluster has at least this many members.
+_MIN_REPEATS = 2
+# The strength gate is relative to this percentile of the candidates' peaks.
+_REFERENCE_PERCENTILE = 90
+# Interval flags: shorter than this fraction of the expected period, or longer than this
+# multiple of it.
+_SHORT_INTERVAL = 0.5
+_LONG_INTERVAL = 2.0
+
+
+@dataclasses.dataclass(frozen=True)
+class _Recording:
+    """The continuous data, its sampling rate, the picked channels and the channel names."""
+
+    data: NDArray[Any]
+    sfreq: float
+    index: Any
+    names: list[str]
+    t0: float
+
+
+@dataclasses.dataclass(frozen=True)
+class _Detection:
+    """The resolved settings of one detection."""
+
+    method: str
+    threshold_sd: float
+    min_interval: float
+    rho_min: float
+    n_template: int
+    min_relative: float
+    recovery_sd: float
+    refine: bool
+    min_samples: int
+    merge_s: float
+
+    @classmethod
+    def resolve(
+        cls,
+        sfreq: float,
+        method: str,
+        threshold_sd: float,
+        rate: Any,
+        template: Any,
+        refine: bool,
+    ) -> "_Detection":
+        """Fill the defaults of the settings of :func:`detect_pulses`.
+
+        ``rate`` is ``(min_interval, expected_rate)`` and ``template`` is
+        ``(rho_min, n_template, min_relative, recovery_sd)``.
+        """
+        min_interval, expected_rate = rate
+        rho_min, n_template, min_relative, recovery_sd = template
+        if min_interval is None:
+            min_interval = 0.5 / expected_rate if expected_rate else 0.5
+        if recovery_sd is None:
+            recovery_sd = threshold_sd / 4
+        return cls(
+            method=method,
+            threshold_sd=threshold_sd,
+            min_interval=min_interval,
+            rho_min=rho_min,
+            n_template=n_template,
+            min_relative=min_relative,
+            recovery_sd=recovery_sd,
+            refine=refine,
+            min_samples=max(1, int(round(min_interval * sfreq))),
+            # Crossings of one artifact are merged, but never across two pulses of a fast
+            # train
+            merge_s=min(MERGE_WINDOW, min_interval / 2),
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class _Candidates:
+    """Candidate pulses: onset samples, strengths, detectors, correlations and clusters."""
+
+    onsets: NDArray[Any]
+    strength: NDArray[Any]
+    detector: NDArray[Any]
+    rho: NDArray[Any]
+    labels: NDArray[Any]
+
+    def select(self, keep: Any) -> "_Candidates":
+        """Return the candidates ``keep`` (a mask or indices)."""
+        return _Candidates(
+            self.onsets[keep],
+            self.strength[keep],
+            self.detector[keep],
+            self.rho[keep],
+            self.labels[keep],
+        )
+
+
+def _check_settings(
+    method: str,
+    threshold_sd: float,
+    min_relative: float,
+    rho_min: float,
+    procedure: str,
+    expected_rate: Any,
+) -> None:
+    """Raise SettingsError for an invalid setting of :func:`detect_pulses`."""
+    if method not in METHODS:
+        raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
+    if not threshold_sd > 0:
+        raise SettingsError("threshold_sd must be positive.")
+    if not 0 <= min_relative < 1:
+        raise SettingsError("min_relative must be in [0, 1).")
+    if not 0 < rho_min <= 1:
+        raise SettingsError("rho_min must be in (0, 1].")
+    if procedure not in PROCEDURES:
+        raise SettingsError(f"procedure must be one of {PROCEDURES}, not {procedure!r}.")
+    if expected_rate is not None and not expected_rate > 0:
+        raise SettingsError("expected_rate must be positive.")
+
+
+def _channels(n_channels: int, ch_names: Any, picks: Any) -> tuple[list[str], Any]:
+    """Return the channel names (indices without ``ch_names``) and the picked indices."""
+    names = list(ch_names) if ch_names is not None else [str(ind) for ind in range(n_channels)]
+    if len(names) != n_channels:
+        raise DataError("ch_names must have one name per channel.")
+    return names, pick_index(n_channels, picks, names)
+
+
+def _threshold_candidates(
+    rec: _Recording, scores: Any, level: float, opts: _Detection
+) -> tuple[Any, Any]:
+    """Return the strength and onset of each artifact crossing ``level`` (step 2)."""
+    score, z = scores
+    peaks, strength, firsts = _group_crossings(crossings(z, level), z, rec.sfreq, opts.merge_s)
+    onsets = _onsets_from_peaks(peaks, firsts, score, rec.sfreq) if opts.refine else firsts + 1
+    return strength, onsets
+
+
+def _user_template(template: Any, n_channels: int, snip: Any) -> Any:
+    """Return the user's template with unit norm, or None; checks its size."""
+    if template is None:
+        return None
+    n_pre, n_post, _ = snip
+    user = np.asarray(template, dtype=float).ravel()
+    if user.size != n_channels * (n_pre + n_post):
+        raise SettingsError(
+            f"template must have {n_channels * (n_pre + n_post)} values "
+            f"({n_channels} channels x {n_pre + n_post} samples)."
+        )
+    return user / np.linalg.norm(user)
+
+
+def _evoparam_candidates(
+    rec: _Recording, scores: Any, opts: _Detection, template: Any
+) -> _Candidates:
+    """Run steps 2 to 4 of :func:`detect_pulses`: candidates, strength gate, recovery."""
+    strength, onsets = _threshold_candidates(rec, scores, opts.threshold_sd, opts)
+    snip = snippet_lengths(rec.sfreq)
+    cands = _Candidates(
+        onsets,
+        strength,
+        np.array(["threshold"] * len(onsets), dtype=object),
+        np.ones(len(onsets)),
+        np.full(len(onsets), -1),
+    )
+    user = _user_template(template, len(rec.index), snip)
+    if opts.method == "threshold" or not len(onsets):
+        return cands
+    cands, templates, reference = _strength_gate(rec, cands, opts, user, snip)
+    if len(templates):
+        # Recovery: weaker artifacts that match a template of the confirmed pulses
+        cands = _recover(rec, scores, cands, (templates, reference), opts, snip)
+    return cands
+
+
+def _strength_gate(
+    rec: _Recording, cands: _Candidates, opts: _Detection, user: Any, snip: Any
+) -> tuple[_Candidates, Any, Any]:
+    """Step 3: the candidates that pass the strength gate or repeat.
+
+    Strong candidates (>= ``min_relative`` of the reference) are pulses; candidates in the
+    grey zone (>= ``GREY_FRACTION`` of the gate) are pulses when they repeat, that is when
+    another candidate carries the same artifact. Returns the pulses, the templates of their
+    clusters and the reference strength.
+    """
+    n_pre, n_post, max_shift = snip
+    onsets, strength = cands.onsets, cands.strength
+    reference = np.percentile(strength, _REFERENCE_PERCENTILE)
+    relative = strength / reference
+    strong = relative >= opts.min_relative
+    eligible = relative >= GREY_FRACTION * opts.min_relative
+    stacks = shifted_snippets(rec.data, rec.index, onsets, n_pre, n_post, max_shift)
+    labels = np.full(len(onsets), -1)
+    rho = np.zeros(len(onsets))
+    labels[eligible], clusters, rho[eligible] = _cluster(
+        stacks[eligible], opts.rho_min, int(opts.n_template)
+    )
+    sizes = np.bincount(labels[eligible], minlength=len(clusters))
+    repeated = eligible & (sizes[np.maximum(labels, 0)] >= _MIN_REPEATS)
+    confirmed = strong | repeated
+    templates: Any
+    templates = clusters.reshape(len(clusters), -1)
+    if user is not None:
+        user_rho, _ = _match(stacks, user[np.newaxis])
+        hit = user_rho >= opts.rho_min
+        labels[hit & ~confirmed] = len(templates)
+        confirmed |= hit
+        rho = np.where(hit, np.maximum(rho, user_rho), rho)
+        templates = np.vstack([templates, user])
+    # Only the templates of confirmed pulses are used for recovery
+    good = np.unique(labels[confirmed & (labels >= 0)])
+    relabel = np.full(len(templates), -1)
+    relabel[good] = np.arange(len(good))
+    labels = np.where(labels >= 0, relabel[np.maximum(labels, 0)], -1)
+    templates = templates[good]
+    if opts.method == "template":
+        confirmed[:] = False
+    kept = _Candidates(onsets, strength, cands.detector, rho, labels).select(confirmed)
+    return kept, templates, reference
+
+
+def _recover(
+    rec: _Recording,
+    scores: Any,
+    cands: _Candidates,
+    gate: Any,
+    opts: _Detection,
+    snip: Any,
+) -> _Candidates:
+    """Step 4: add the crossings of ``recovery_sd`` that match a template (``gate[0]``).
+
+    They must reach ``RECOVERY_FRACTION`` of the strength gate (``gate[1]`` is the reference).
+    """
+    templates, reference = gate
+    n_pre, n_post, max_shift = snip
+    low_strength, low_onsets = _threshold_candidates(rec, scores, opts.recovery_sd, opts)
+    new = far_from(low_onsets, np.sort(cands.onsets), opts.min_samples)
+    low_strength = low_strength[new]
+    low_onsets = low_onsets[new]
+    low_rho, low_label = _match(
+        shifted_snippets(rec.data, rec.index, low_onsets, n_pre, n_post, max_shift), templates
+    )
+    match = (low_rho >= opts.rho_min) & (
+        low_strength >= RECOVERY_FRACTION * opts.min_relative * reference
+    )
+    return _Candidates(
+        np.r_[cands.onsets, low_onsets[match]],
+        np.r_[cands.strength, low_strength[match]],
+        np.r_[cands.detector, ["template"] * int(match.sum())],
+        np.r_[cands.rho, low_rho[match]],
+        np.r_[cands.labels, low_label[match]],
+    )
+
+
+def _event_table(rec: _Recording, cands: _Candidates, threshold_sd: float) -> Any:
+    """Return the event table of the pulses, before saturation, sites and trains."""
+    data, index, sfreq = rec.data, rec.index, rec.sfreq
+    onsets, labels = cands.onsets, cands.labels
+    n_times = data.shape[1]
+    # Artifact size and the channel that carries it
+    width = max(1, int(round(PEAK_WINDOW * sfreq)))
+    peak_abs = np.zeros(len(onsets))
+    argmax = []
+    for row, onset in enumerate(onsets):
+        lo, hi = max(0, onset - 1), min(n_times, onset + width + 1)
+        dev = np.abs(data[index, lo:hi] - data[index, lo : lo + 1])
+        per_channel = np.nanmax(dev, axis=1)
+        best = int(np.argmax(per_channel))
+        peak_abs[row] = per_channel[best]
+        argmax.append(rec.names[index[best]])
+
+    # Template classes renumbered from 0 in order of first appearance (-1: no template)
+    classes = np.full(len(labels), -1)
+    seen: dict[Any, Any]
+    seen = {}
+    for row, label in enumerate(labels):
+        if label >= 0:
+            classes[row] = seen.setdefault(int(label), len(seen))
+
+    return new_table(
+        {
+            "onset_sample": onsets.astype("int64"),
+            "onset_time": rec.t0 + onsets / sfreq,
+            "peak_abs": peak_abs,
+            "channel_argmax": argmax,
+            "saturated": np.zeros(len(onsets), dtype=bool),
+            "n_saturated_channels": np.zeros(len(onsets), dtype="int64"),
+            "stim_site_guess": [""] * len(onsets),
+            "site_confidence": np.zeros(len(onsets)),
+            "train_id": np.zeros(len(onsets), dtype="int64"),
+            "index_in_train": np.zeros(len(onsets), dtype="int64"),
+            "detector": cands.detector.astype(str),
+            "threshold": np.full(len(onsets), float(threshold_sd)),
+            "z_peak": cands.strength,
+            "rho": cands.rho,
+            "template_class": classes.astype("int64"),
+        }
+    )
+
+
+def _add_saturation(events: Any, rec: _Recording) -> None:
+    """Fill ``saturated`` and ``n_saturated_channels`` (:func:`detect_saturation`)."""
+    _, sat = detect_saturation(
+        rec.data, rec.sfreq, events=events, ch_names=rec.names, picks=rec.index, t0=rec.t0
+    )
+    if len(sat):
+        # the number of distinct channels saturated at each pulse
+        pairs = set(
+            zip(
+                np.asarray(sat["event_index"]).tolist(),
+                np.asarray(sat["channel"]),
+                strict=True,
+            )
+        )
+        counts = np.zeros(len(events), dtype="int64")
+        for event, _ in pairs:
+            counts[event] += 1
+        events["n_saturated_channels"] = counts
+        events["saturated"] = counts > 0
+
+
+def _add_sites(events: Any, rec: _Recording, ch_info: Any, site_method: str, vote: bool) -> None:
+    """Fill the stimulation-site guess (:func:`identify_stim_site`, then the vote)."""
+    located = identify_stim_site(
+        rec.data,
+        rec.sfreq,
+        events,
+        ch_names=rec.names,
+        ch_info=ch_info,
+        t0=rec.t0,
+        picks=rec.index,
+        method=site_method,
+    )
+    events["stim_site_guess"] = located["stim_site_guess"]
+    events["site_confidence"] = located["site_confidence"]
+    if vote and len(events) > 1:
+        voted = vote_sites(events)
+        events["stim_site_guess"] = voted["stim_site_guess"]
+        events["site_confidence"] = voted["site_confidence"]
+        events["stim_site_pulse"] = voted["stim_site_pulse"]
+
+
+def _interval_flags(events: Any, expected_rate: Any) -> list[str]:
+    """Return ``"short"`` or ``"long"`` for each interval far from the expected period."""
+    flags = [""] * len(events)
+    if expected_rate:
+        intervals = np.diff(events["onset_time"].to_numpy())
+        for row, interval in enumerate(intervals, start=1):
+            if interval < _SHORT_INTERVAL / expected_rate:
+                flags[row] = "short"
+            elif interval > _LONG_INTERVAL / expected_rate:
+                flags[row] = "long"
+    return flags
+
+
+def _log_detection(z: Any, threshold_sd: float, n_channels: int) -> None:
+    """Log the largest z-score and the threshold at DEBUG level."""
+    if logger.isEnabledFor(logging.DEBUG):
+        finite = np.asarray(z, float)[np.isfinite(z)]
+        logger.debug(
+            "detect_pulses: largest z-score %.1f, threshold %.1f SD, %d channel(s)",
+            float(finite.max()) if finite.size else float("nan"),
+            float(threshold_sd),
+            n_channels,
+        )
+
+
 def _spec_candidates(
-    data: Any,
-    sfreq: float,
-    index: Any,
-    method: Any,
-    threshold_sd: Any,
-    min_samples: Any,
-    refine: Any,
-    template: Any,
-    rho_min: Any,
-    n_template: Any,
-) -> Any:
-    """Methods 1 and 2 of the specification as written (``procedure="spec"``)."""
+    rec: _Recording, opts: _Detection, template: Any
+) -> tuple[Any, Any, _Candidates]:
+    """Methods 1 and 2 of the specification as written (``procedure="spec"``).
+
+    Returns the score, its z-score and the candidates.
+    """
+    data, sfreq, index = rec.data, rec.sfreq, rec.index
+    min_samples = opts.min_samples
     score = _spec.spec_score(data, index)
     z = _spec.spec_z(score)
-    onsets, strength = _spec.spec_threshold(score, z, sfreq, threshold_sd, min_samples, refine)
+    onsets, strength = _spec.spec_threshold(
+        score, z, sfreq, opts.threshold_sd, min_samples, opts.refine
+    )
     detector = np.array(["threshold"] * len(onsets), dtype=object)
-    rho = np.ones(len(onsets))
-    labels = np.full(len(onsets), -1)
-    if method == "threshold":
-        return score, z, onsets, strength, detector, rho, labels
-    if template is not None:
-        n_pre = max(1, int(round(0.001 * sfreq)))
-        shape = np.asarray(template, dtype=float).reshape(len(index), -1)
-        norms = np.linalg.norm(shape, axis=1, keepdims=True)
-        tpl = np.divide(shape, norms, out=np.zeros_like(shape), where=norms > 0)
-    else:
-        tpl, n_pre = _spec.spec_template(data, index, onsets, sfreq, n_template)
+    cands = _Candidates(onsets, strength, detector, np.ones(len(onsets)), np.full(len(onsets), -1))
+    if opts.method == "threshold":
+        return score, z, cands
+    tpl, n_pre = _spec_template(rec, cands.onsets, opts, template)
     if tpl is None:
         empty = np.array([], dtype=int)
-        return (score, z, empty, np.array([]), np.array([], dtype=object), np.array([]), empty)
+        none = _Candidates(empty, np.array([]), np.array([], dtype=object), np.array([]), empty)
+        return score, z, none
     scan = _spec.spec_rho(data, index, tpl)
-    tolerance = max(1, int(round(0.0005 * sfreq)))
+    tolerance = max(1, int(round(_SPEC_TOLERANCE * sfreq)))
 
     def rho_near(onset: Any) -> Any:
+        """Return the largest correlation within the tolerance of ``onset``."""
         lo, hi = max(0, onset - n_pre - tolerance), min(len(scan), onset - n_pre + tolerance + 1)
         return float(np.max(scan[lo:hi])) if hi > lo else 0.0
 
     matched = np.array([rho_near(onset) for onset in onsets])
-    keep = matched >= rho_min
-    if method == "template":
+    keep = matched >= opts.rho_min
+    if opts.method == "template":
         keep[:] = False
     onsets, strength, detector = onsets[keep], strength[keep], detector[keep]
     rho, labels = matched[keep], np.zeros(int(keep.sum()), dtype=int)
-    half = max(1, int(round(0.002 * sfreq)))
-    peaks = _spec.spec_template_peaks(scan, rho_min, min_samples)
+    half = max(1, int(round(_SPEC_HALF_WINDOW * sfreq)))
+    peaks = _spec.spec_template_peaks(scan, opts.rho_min, min_samples)
     found = peaks + n_pre
     new = (
         far_from(found, np.sort(onsets), min_samples)
@@ -673,12 +835,35 @@ def _spec_candidates(
         if len(found)
         else np.array([])
     )
-    onsets = np.r_[onsets, found].astype(int)
-    strength = np.r_[strength, found_strength]
-    detector = np.r_[detector, ["template"] * len(found)]
-    rho = np.r_[rho, scan[peaks[new]]]
-    labels = np.r_[labels, np.zeros(len(found), dtype=int)]
-    return score, z, onsets, strength, detector, rho, labels
+    return (
+        score,
+        z,
+        _Candidates(
+            np.r_[onsets, found].astype(int),
+            np.r_[strength, found_strength],
+            np.r_[detector, ["template"] * len(found)],
+            np.r_[rho, scan[peaks[new]]],
+            np.r_[labels, np.zeros(len(found), dtype=int)],
+        ),
+    )
+
+
+def _spec_template(rec: _Recording, onsets: Any, opts: _Detection, template: Any) -> Any:
+    """Return the template of spec method 2 (the user's, unit norm per channel) and ``n_pre``."""
+    if template is not None:
+        n_pre = max(1, int(round(_SPEC_PRE * rec.sfreq)))
+        shape = np.asarray(template, dtype=float).reshape(len(rec.index), -1)
+        norms = np.linalg.norm(shape, axis=1, keepdims=True)
+        tpl = np.divide(shape, norms, out=np.zeros_like(shape), where=norms > 0)
+        return tpl, n_pre
+    return _spec.spec_template(rec.data, rec.index, onsets, rec.sfreq, opts.n_template)
+
+
+# Spec method 2: the snippet starts 1 ms before the onset; a detection matches the template
+# scan within 0.5 ms; the strength of a template detection is the largest z within 2 ms.
+_SPEC_PRE = 0.001
+_SPEC_TOLERANCE = 0.0005
+_SPEC_HALF_WINDOW = 0.002
 
 
 def match_onsets(
