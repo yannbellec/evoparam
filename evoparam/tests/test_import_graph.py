@@ -390,6 +390,11 @@ TYPING_ONLY = {"_typeshed"}
 SOUP = PACKAGE.parent / "soup.json"
 
 
+# modules of the standard library of a later supported Python than the running one
+# (sys.stdlib_module_names is that of the running Python): tomllib from Python 3.11
+LATER_STDLIB = frozenset({"tomllib"})
+
+
 def _third_party_imports(sources: Any = None) -> Any:
     """{import name: [module, ...]} of every third-party package the package imports: import
     statements anywhere in a module and ``require("name", ...)`` calls. Scripts of the
@@ -416,6 +421,7 @@ def _third_party_imports(sources: Any = None) -> Any:
                 top = name.split(".")[0]
                 if (
                     top in sys.stdlib_module_names
+                    or top in LATER_STDLIB
                     or top in ("evoparam", "__future__")
                     or top in TYPING_ONLY
                     or any((repo / d / f"{top}.py").is_file() for d in ("benchmarks", "tools"))
