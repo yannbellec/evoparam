@@ -361,9 +361,9 @@ def _ruff(*args: Any) -> Any:
 @pytest.mark.xfail(
     strict=True,
     reason="REQ-305 'ruff check evoparam tests benchmarks "
-    "docs/tutorials examples exits 0' is not met: 1226 findings (4644 before the "
-    "qualite-statique branch, 1246 before reglages-ignores). 373 in the package outside "
-    "its tests: PLR2004 203, complexity and argument counts 170 (C901 41, PLR0912 39, "
+    "docs/tutorials examples exits 0' is not met: 1227 findings (4644 before the "
+    "qualite-statique branch, 1246 before reglages-ignores). 374 in the package outside "
+    "its tests: PLR2004 204, complexity and argument counts 170 (C901 41, PLR0912 39, "
     "PLR0913 44, PLR0915 18, PLR0917 18, PLR0911 10, on functions whose signature the "
     "spec does not fix); 852 in the tests (PLR2004 831); 1 in benchmarks (PLR2004). "
     "ARG001/ARG002 and BLE001: 0 (reglages-ignores). Measured with ruff 0.16.10 and "

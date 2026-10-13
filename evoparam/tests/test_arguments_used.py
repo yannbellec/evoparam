@@ -4,7 +4,7 @@
 - ``verbose`` maps to the level of the ``evoparam`` logger for the duration of the call
   (REQ-304, spec §9.8) in ``evoparam.fit``, ``evoparam.models.fit``, ``test_response``,
   ``fit_trials``, ``fit_hierarchical``, ``tf_fit`` and ``detect_pulses``; ``"progress"``
-  adds a ``tqdm`` bar.
+  adds a ``tqdm`` bar (not in ``fit_hierarchical``, which spec §4.2 keeps away from utils).
 - ``n_jobs`` runs the units of work of ``test_response``, ``fit_trials`` and
   ``shared_shapes`` in parallel (joblib when installed, else threads; spec §5 conventions)
   with results identical to ``n_jobs=1``.
@@ -149,6 +149,10 @@ def test_verbose_fit_hierarchical(caplog: Any) -> None:
         "evoparam.hierarchical",
         lambda v: fit_hierarchical(sets, components=["N1"], verbose=v),
     )
+    # spec §4.2 keeps utils out of hierarchical: its own reading of verbose, same values
+    with pytest.raises(SettingsError, match="verbose must be one of"):
+        fit_hierarchical(sets, components=["N1"], verbose="loud")
+    assert LOGGER.level == logging.WARNING
 
 
 @pytest.mark.usefixtures("quiet_logger")
