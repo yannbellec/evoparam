@@ -31,6 +31,16 @@ from evoparam.utils._optional import require
 
 from ._scorers import TIME_SCORES, default_window, resolve_scorer
 
+# Fewest trials for the small-sample expansion, finite resamples for an interval, resamples
+# and trials for a bootstrap
+_MIN_EXPAND_N = 2
+_MIN_FINITE = 2
+_MIN_RESAMPLES = 2
+_MIN_TRIALS = 2
+# Channels named in the warning of the BCa fallbacks
+_MAX_LISTED = 5
+
+
 __all__ = ["bootstrap", "bootstrap_interval", "BOOTSTRAP_COLUMNS"]
 
 METHODS = ("percentile", "bca")
@@ -68,7 +78,7 @@ def _quantile_z(ci_level: Any, expand_n: Any) -> NDArray[Any]:
     if expand_n is None:
         return cast("NDArray[Any]", norm.ppf([alpha, 1 - alpha]))
     n = float(expand_n)
-    if n < 2:
+    if n < _MIN_EXPAND_N:
         raise SettingsError("expand_n must be at least 2.")
     # Hesterberg (2015): the percentile interval of a mean is too narrow by
     # sqrt((n - 1) / n) and uses z instead of t; use sqrt(n / (n - 1)) * t_{n-1} instead.
@@ -164,7 +174,7 @@ def _intervals(
     finite = np.isfinite(boot)
     n_finite = finite.sum(axis=0)
     ordered = np.sort(np.where(finite, boot, np.inf), axis=0)
-    usable = (n_finite >= 2) & np.isfinite(estimate)
+    usable = (n_finite >= _MIN_FINITE) & np.isfinite(estimate)
     levels = np.repeat(norm.cdf(z)[:, None], k, axis=1)
     used = np.array([method] * k, dtype=object)
     reason = np.array([""] * k, dtype=object)
@@ -271,6 +281,7 @@ def _score_path(
     count = finite.astype(float)
 
     def average(weights: Any) -> Any:
+        """Return the weighted averages of the trials, one per row of ``weights``."""
         num, den = weights @ values, weights @ count
         avg = np.divide(num, den, out=np.full(num.shape, np.nan), where=den > 0)
         return avg.reshape(len(weights), n_ch, n_t)
@@ -295,10 +306,12 @@ def _score_path(
 def _callable_path(
     ts: Any, statistic: Any, strata: Any, n_boot: Any, rng: np.random.Generator, n_jobs: Any
 ) -> tuple[list[str], NDArray[Any], NDArray[Any], NDArray[Any]]:
+    """Return the labels, estimate, resamples and jackknife values of a callable statistic."""
     labels, estimate = _as_vector(statistic(ts))
     index = _indices(strata, n_boot, rng)
 
     def one(rows: Any) -> Any:
+        """Return the statistic of the trials ``rows``."""
         lab, val = _as_vector(statistic(_subset(ts, rows)))
         if val.size != estimate.size:
             raise DataError(
@@ -322,7 +335,7 @@ def _callable_path(
 ## Public function
 
 
-def bootstrap(  # noqa: PLR0913  (public API, signature fixed by spec §5.11)
+def bootstrap(  # noqa: PLR0913  (spec §5.11 fixes 8 parameters, plus window and expand; DECISIONS.md §7.2)
     ts: "TrialSet",
     statistic: Any,
     *,
@@ -399,9 +412,9 @@ def bootstrap(  # noqa: PLR0913  (public API, signature fixed by spec §5.11)
     if method not in METHODS:
         raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
     n_boot = int(n_boot)
-    if n_boot < 2:
+    if n_boot < _MIN_RESAMPLES:
         raise SettingsError("n_boot must be at least 2.")
-    if ts.n_trials < 2:
+    if ts.n_trials < _MIN_TRIALS:
         raise DataError("bootstrap needs at least 2 trials.")
     rng = np.random.default_rng(random_state)
     strata = _strata(ts, by)
@@ -444,8 +457,8 @@ def bootstrap(  # noqa: PLR0913  (public API, signature fixed by spec §5.11)
     if fallbacks:
         _warn(
             "bootstrap: BCa fell back to the percentile interval for "
-            + "; ".join(fallbacks[:5])
-            + (" ..." if len(fallbacks) > 5 else ""),
+            + "; ".join(fallbacks[:_MAX_LISTED])
+            + (" ..." if len(fallbacks) > _MAX_LISTED else ""),
             UserWarning,
             stacklevel=2,
         )
