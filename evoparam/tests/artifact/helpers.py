@@ -5,9 +5,11 @@ plus an artifact of known shape (spec §5.3 acceptance criteria)."""
 from typing import Any
 
 import numpy as np
-import pandas as pd
+import pytest
 
 from evoparam.data import TrialSet
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

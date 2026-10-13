@@ -36,6 +36,7 @@ from evoparam._typing import Any
 from evoparam.data._jsonutil import to_jsonable
 from evoparam.errors import DataError, ReaderError
 from evoparam.errors import warn as _warn
+from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 if TYPE_CHECKING:
@@ -1018,6 +1019,9 @@ def read_bids_derivatives(
             load_object(os.path.join(container, f"fit_{i:04d}.evoparam"), verify=verify)
             for i in range(meta["n_fits"])
         ]
+        require(
+            "pandas", extra="data", caller="evoparam.io.derivatives.read_bids_derivatives.trials"
+        )
         import pandas as pd
 
         table = (

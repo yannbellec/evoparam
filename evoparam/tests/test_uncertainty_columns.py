@@ -78,17 +78,13 @@ def test_req006_existence_table_with_trials() -> None:
         assert np.all(np.isfinite(low) & np.isfinite(high) & (low <= high)), name
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="An Evoked has no trials to resample: the onset, "
-    "offset and duration of its existence test (baseline windows of the "
-    "average, §5.6) are reported without an interval (measured: NaN on all "
-    "4 channels of the simulated CCEP). Its decision has its p-value.",
-)
 def test_req006_existence_table_of_an_evoked() -> None:
     trials, _ = sim.simulate_ccep(n_trials=10, n_channels=4, seed=3)
     frame = _durations(trials.average())
     assert frame["p_value"].notna().all()
     responding = frame[frame["significant"].astype(bool)]
     assert len(responding) >= 1
-    assert responding["onset_ci_low"].notna().all()
+    for name in ("onset", "offset", "duration"):
+        low = responding[f"{name}_ci_low"].to_numpy(float)
+        high = responding[f"{name}_ci_high"].to_numpy(float)
+        assert np.all(np.isfinite(low) & np.isfinite(high) & (low <= high)), name

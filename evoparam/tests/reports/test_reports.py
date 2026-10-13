@@ -10,10 +10,11 @@ import re
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam import reports
+
+pd = pytest.importorskip("pandas")
 
 
 def test_methods_text_follows_the_processing_steps(results: Any) -> None:

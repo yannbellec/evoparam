@@ -367,8 +367,7 @@ def plus_minus(trials: Any) -> Any:
     if n < MIN_PLUS_MINUS:
         return None
     signs = np.where(np.arange(n) % 2 == 0, 1.0, -1.0)
-    with np.errstate(invalid="ignore"):
-        return np.nanmean(signs[:, None] * trials[:n], axis=0)
+    return np.nanmean(signs[:, None] * trials[:n], axis=0)
 
 
 # below this many independent baseline samples the noise scale is too uncertain (its

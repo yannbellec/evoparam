@@ -28,6 +28,7 @@ from scipy import stats as sstats
 
 from evoparam._typing import Any, BoolArray, FloatArray, NDArray
 from evoparam.errors import SettingsError
+from evoparam.utils._numeric import divide, log10, sqrt
 
 __all__ = [
     "STATS",
@@ -52,18 +53,16 @@ def t_map(d: Any) -> tuple[Any, Any]:
     """One-sample ``t`` across trials (axis 0), NaN-aware. Returns (t, n)."""
     n = np.sum(np.isfinite(d), axis=0)
     filled = np.nan_to_num(d)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        mean = filled.sum(0) / n
-        var = (np.sum(filled**2, 0) - n * mean**2) / (n - 1)
-        t = mean / np.sqrt(var / n)
+    mean = divide(filled.sum(0), n)
+    var = divide(np.sum(filled**2, 0) - n * mean**2, n - 1)
+    t = divide(mean, sqrt(divide(var, n)))
     t[n < MIN_TRIALS] = np.nan
     return t, n
 
 
 def p_values(t: Any, n: Any) -> NDArray[Any]:
     """Two-sided p-values of ``t`` with ``n - 1`` degrees of freedom."""
-    with np.errstate(invalid="ignore"):
-        p = 2 * sstats.t.sf(np.abs(t), np.maximum(n - 1, 1))
+    p = 2 * sstats.t.sf(np.abs(t), np.maximum(n - 1, 1))
     p[~np.isfinite(t)] = np.nan
     return cast("NDArray[Any]", p)
 
@@ -138,13 +137,19 @@ def baseline_normal_map(
     -------
     z, p : ndarrays (n_freqs, n_times), NaN outside ``window``.
     """
-    with np.errstate(divide="ignore", invalid="ignore"), warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)
-        db = np.nanmean(10 * np.log10(power), axis=0)
+    with warnings.catch_warnings():
+        # all-NaN points (and fewer than two baseline values) give NaN, reported as such
+        warnings.filterwarnings("ignore", "Mean of empty slice", RuntimeWarning)
+        warnings.filterwarnings("ignore", "Degrees of freedom <= 0", RuntimeWarning)
+        db = np.nanmean(10 * log10(power), axis=0)  # -inf where a trial has no power
         ref = np.where(baseline[None], db, np.nan)
+        # a frequency whose baseline holds -inf has no baseline spread: NaN (its -inf are
+        # replaced for the arithmetic, which is row by row, so that no inf - inf is computed)
+        no_spread = np.any(np.isinf(ref), axis=1, keepdims=True)
+        ref = np.where(no_spread, 0.0, ref)
         mu = np.nanmean(ref, axis=1, keepdims=True)
         sd = np.nanstd(ref, axis=1, ddof=1, keepdims=True)
-        z = (db - mu) / sd
+    z = np.where(no_spread, np.nan, divide(db - mu, sd))
     z = np.where(window & np.isfinite(z), z, np.nan)
     p = 2 * sstats.norm.sf(np.abs(z))
     return z, np.where(np.isfinite(z), p, np.nan)
@@ -205,10 +210,9 @@ def row_levels(row_p: Any, alpha: Any, method: Any) -> FloatArray:
 
 def _flipped_t(signs: Any, filled: Any, sumsq: Any, n: Any) -> Any:
     """``t`` maps of sign-flipped trials: signs (B, n_trials) -> (B, n_pixels)."""
-    with np.errstate(divide="ignore", invalid="ignore"):
-        mean = (signs @ filled) / n
-        var = (sumsq - n * mean**2) / (n - 1)
-        return mean / np.sqrt(var / n)
+    mean = divide(signs @ filled, n)
+    var = divide(sumsq - n * mean**2, n - 1)
+    return divide(mean, sqrt(divide(var, n)))
 
 
 def _cluster_masses(tmap: Any, threshold: Any) -> tuple[list[Any], list[Any]]:

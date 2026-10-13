@@ -61,21 +61,31 @@ def test_req009_unit_conversion_is_explicit() -> None:
         trials.convert_units("au")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="The fit tables give the amplitude unit as 'data' (the "
-    "unit of the fitted data), not the unit itself: fits do not record the unit "
-    "of their data (measured: GroupFit.to_dataframe().attrs['units']['amplitude']"
-    " == 'data' for a TrialSet in uV). evoparam/models and data/results are "
-    "being changed by other builders; reported.",
-)
 def test_req009_result_amplitudes_have_an_explicit_unit() -> None:
     pytest.importorskip("pandas")
     trials, _ = sim.simulate_erp(n_trials=10, seed=0)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         table = evoparam.fit(trials, preset="erp", random_state=0).to_dataframe()
+        mv = evoparam.fit(trials.convert_units("mV"), preset="erp", random_state=0)
     assert table.attrs["units"]["amplitude"] == trials.units
+    assert table.attrs["units"]["area"] == f"{trials.units}·s"
+    assert mv.to_dataframe().attrs["units"]["amplitude"] == "mV"
+    assert mv.to_dataframe("fit").attrs["units"]["rmse"] == "mV"
+    assert mv.fits[0].to_dataframe().attrs["units"]["amplitude"] == "mV"
+
+
+def test_req009_a_group_of_fits_in_different_units_raises() -> None:
+    pytest.importorskip("pandas")
+    from evoparam.data.results import GroupFit
+
+    trials, _ = sim.simulate_erp(n_trials=10, seed=0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        uv = evoparam.fit(trials, preset="erp", random_state=0)
+        mv = evoparam.fit(trials.convert_units("mV"), preset="erp", random_state=0)
+    with pytest.raises(DataError, match="different units"):
+        GroupFit.from_fits(uv.fits + mv.fits, ["a"] * len(uv.fits) + ["b"] * len(mv.fits))
 
 
 def test_req009_mixing_units_raises() -> None:

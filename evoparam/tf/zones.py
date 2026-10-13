@@ -21,6 +21,7 @@ from scipy.optimize import linear_sum_assignment
 
 from evoparam._typing import Any, NDArray
 from evoparam.errors import SettingsError
+from evoparam.utils._optional import require
 
 __all__ = [
     "nmf",
@@ -357,6 +358,7 @@ def _merge_without_dip(found: Any, values: Any) -> list[Any]:
 
 def zone_table(zones: Any, group: Any, freqs: Any, times: Any, stability: Any) -> Any:
     """Tidy zone table from (sign, part, region) triples and the signed group map."""
+    require("pandas", extra="data", caller="evoparam.tf.zones.zone_table")
     import pandas as pd
 
     rows = []
@@ -477,6 +479,7 @@ def volume_conduction_weight(
 
 def list_published_zones() -> Any:
     """Table of the published zones, with their verification status and source."""
+    require("pandas", extra="data", caller="evoparam.tf.zones.list_published_zones")
     import pandas as pd
 
     rows = []

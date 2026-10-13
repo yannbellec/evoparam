@@ -5,12 +5,13 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 mne = pytest.importorskip("mne")
 
 from evoparam.data import Evoked, TrialSet  # noqa: E402
+
+pd = pytest.importorskip("pandas")
 
 
 def _epochs() -> Any:

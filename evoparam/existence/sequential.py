@@ -29,6 +29,7 @@ from scipy.stats import norm
 
 from evoparam._typing import Any, FloatArray, NDArray, RandomState
 from evoparam.errors import DataError, SettingsError
+from evoparam.utils._numeric import divide, sqrt
 
 __all__ = ["sign_flip_test", "SequentialSignFlip", "OnlineExistence", "alpha_spending"]
 
@@ -40,8 +41,7 @@ def alpha_spending(t: Any, alpha: float = 0.05) -> NDArray[Any]:
     (almost nothing early, ``alpha`` at ``t = 1``).
     """
     t = np.clip(np.asarray(t, float), 0.0, 1.0)
-    with np.errstate(divide="ignore"):
-        out = 2.0 - 2.0 * norm.cdf(norm.ppf(1 - alpha / 2) / np.sqrt(t))
+    out = 2.0 - 2.0 * norm.cdf(divide(norm.ppf(1 - alpha / 2), np.sqrt(t)))
     return np.where(t >= 1.0, alpha, np.minimum(out, alpha))
 
 
@@ -60,10 +60,9 @@ def _signs(rng: np.random.Generator, n_permutations: Any) -> Any:
 def _statistic(sums: Any, sum_sq: Any, n: Any) -> NDArray[Any]:
     """One-sample t of each trajectory (rows) and channel (columns); -inf when undefined."""
     n = np.asarray(n, float)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        mean = sums / n
-        var = (sum_sq - sums**2 / n) / (n - 1)
-        t = mean / np.sqrt(np.clip(var, 0.0, None) / n)
+    mean = divide(sums, n)
+    var = divide(sum_sq - divide(sums**2, n), n - 1)
+    t = divide(mean, np.sqrt(divide(np.clip(var, 0.0, None), n)))
     return np.where(np.isnan(t) | (n < 2), -np.inf, t)
 
 
@@ -306,9 +305,8 @@ class OnlineExistence:
         delta = np.where(seen, base - self._mean, 0.0)
         self._mean += delta / np.maximum(self._count, 1)
         self._m2 += delta * np.where(seen, base - self._mean, 0.0)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            sd = np.sqrt(self._m2 / (self._count - 1))
-            z = np.where((self._count >= 2) & (sd > 0), (projection - self._mean) / sd, np.nan)
+        sd = sqrt(divide(self._m2, self._count - 1))
+        z = np.where((self._count >= 2) & (sd > 0), divide(projection - self._mean, sd), np.nan)
         self.test.update(projection - base)
         if self.looks == "pulse":
             self.last = self.test.look()

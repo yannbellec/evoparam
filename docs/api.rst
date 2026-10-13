@@ -51,6 +51,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    ResponseTest
    save_object
    ShapeBasis
+   Table
    TFFit
    TrialFit
    TrialSet

@@ -18,8 +18,10 @@ import numpy as np
 
 from evoparam._typing import ArrayLike, BoolArray, FloatArray, IntArray, NDArray, Picks, StrPath
 from evoparam.data._compare import DeepEqualMixin
+from evoparam.data._table import Table, is_table
 from evoparam.data.provenance import Provenance, compute_data_hash
 from evoparam.errors import DataError
+from evoparam.utils._optional import require
 
 __all__ = [
     "TrialSet",
@@ -88,6 +90,14 @@ def _is_dataframe(obj: object) -> bool:
     return type(obj).__name__ == "DataFrame" and type(obj).__module__.startswith("pandas")
 
 
+def _as_frame(table: Any) -> Any:
+    """Return the table as a pandas DataFrame, for the operations that need pandas.
+
+    A :class:`Table` is converted, which needs the extra ``data``.
+    """
+    return table.to_pandas() if isinstance(table, Table) else table
+
+
 def _dtype_kind(series: Any) -> str:
     kind = series.dtype.kind
     if kind in "iu":
@@ -102,12 +112,17 @@ def _dtype_kind(series: Any) -> str:
 
 
 def _check_table(table: Any, name: str, n_rows: int, columns: dict[str, str]) -> None:
-    if not _is_dataframe(table):
-        raise DataError(f"{name}: expected a pandas DataFrame, got {type(table).__name__}.")
+    if not is_table(table):
+        raise DataError(
+            f"{name}: expected a pandas DataFrame (a Table without pandas), "
+            f"got {type(table).__name__}."
+        )
     if len(table) != n_rows:
         raise DataError(f"{name}: expected {n_rows} rows, got {len(table)}.")
-    index = table.index
-    if not (type(index).__name__ == "RangeIndex" and index.start == 0 and index.step == 1):
+    index = getattr(table, "index", None)  # a Table has no index: its rows are 0..n-1
+    if index is not None and not (
+        type(index).__name__ == "RangeIndex" and index.start == 0 and index.step == 1
+    ):
         raise DataError(f"{name}: the index must be a RangeIndex 0..{n_rows - 1}.")
     for column, kind in columns.items():
         if column in table.columns:
@@ -258,30 +273,42 @@ def _average_block(
     if mask_block is not None:
         block[mask_block] = np.nan
     count = np.sum(~np.isnan(block), axis=0)
-    with np.errstate(invalid="ignore", divide="ignore"), warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)
-        if not robust:
-            mean = np.nansum(block, axis=0) / count
-            spread = np.nanstd(block, axis=0, ddof=1)
-            sem = spread / np.sqrt(count)
-        else:
-            ordered = np.sort(block, axis=0)  # NaN sorted last
-            trim = np.floor(TRIMMED_PROPORTION * count).astype(int)
-            low, high = trim, count - trim  # kept: ordered[low:high]
-            cumulative = np.concatenate(
-                [np.zeros((1,) + block.shape[1:]), np.cumsum(np.nan_to_num(ordered), axis=0)],
-                axis=0,
-            )
-            total = _take0(cumulative, high) - _take0(cumulative, low)
-            mean = total / (high - low)
-            low_value = _take0(ordered, np.clip(low, 0, block.shape[0] - 1))
-            high_value = _take0(ordered, np.clip(high - 1, 0, block.shape[0] - 1))
-            winsorised = np.clip(block, low_value, high_value)
-            spread = np.nanstd(winsorised, axis=0, ddof=1)
-            sem = spread / ((1 - 2 * TRIMMED_PROPORTION) * np.sqrt(count))
-    mean[count == 0] = np.nan
-    sem[count < 2] = np.nan
+    # NaN where there is no sample (mean) or fewer than two (standard error): the
+    # quotients are computed on the other points only, so that no 0 / 0 is computed
+    mean = np.full(count.shape, np.nan)
+    sem = np.full(count.shape, np.nan)
+    two = count >= 2
+    if not robust:
+        np.divide(np.nansum(block, axis=0), count, out=mean, where=count > 0)
+        np.divide(_spread(block), np.sqrt(count), out=sem, where=two)
+    else:
+        ordered = np.sort(block, axis=0)  # NaN sorted last
+        trim = np.floor(TRIMMED_PROPORTION * count).astype(int)
+        low, high = trim, count - trim  # kept: ordered[low:high]
+        cumulative = np.concatenate(
+            [np.zeros((1,) + block.shape[1:]), np.cumsum(np.nan_to_num(ordered), axis=0)],
+            axis=0,
+        )
+        total = _take0(cumulative, high) - _take0(cumulative, low)
+        np.divide(total, high - low, out=mean, where=count > 0)
+        low_value = _take0(ordered, np.clip(low, 0, block.shape[0] - 1))
+        high_value = _take0(ordered, np.clip(high - 1, 0, block.shape[0] - 1))
+        winsorised = np.clip(block, low_value, high_value)
+        scale = (1 - 2 * TRIMMED_PROPORTION) * np.sqrt(count)
+        np.divide(_spread(winsorised), scale, out=sem, where=two)
     return mean, sem, count
+
+
+def _spread(block: FloatArray) -> FloatArray:
+    """``np.nanstd(block, axis=0, ddof=1)``: NaN at the points with fewer than two values.
+
+    NumPy computes these NaN without a floating-point warning and reports them with the
+    Python warning "Degrees of freedom <= 0 for slice", which is not emitted here: the
+    callers report a NaN standard error at these points by design.
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", "Degrees of freedom <= 0", RuntimeWarning)
+        return cast("FloatArray", np.nanstd(block, axis=0, ddof=1))
 
 
 ###################################################################################################
@@ -311,7 +338,7 @@ class _ContainerMixin(DeepEqualMixin):
             value = getattr(self, fld.name)
             if isinstance(value, np.ndarray):
                 value = np.array(value, copy=True)
-            elif _is_dataframe(value):
+            elif is_table(value):
                 value = value.copy(deep=True)
             elif isinstance(value, Provenance):
                 value = value.copy()
@@ -434,6 +461,7 @@ class TrialSet(_ContainerMixin):
     units : {"uV", "mV", "V", "fT", "au"}
         Amplitude unit of ``data``.
     metadata : pandas.DataFrame, optional
+        (an :class:`evoparam.data.Table` when pandas is not installed, REQ-010)
         One row per trial (RangeIndex). Standard columns: :data:`METADATA_COLUMNS`.
     ch_info : pandas.DataFrame, optional
         One row per channel (RangeIndex). Standard columns: :data:`CH_INFO_COLUMNS`.
@@ -544,7 +572,7 @@ class TrialSet(_ContainerMixin):
         if query is not None:
             if self.metadata is None:
                 raise DataError("query: this TrialSet has no metadata.")
-            matching = set(self.metadata.query(query).index.tolist())
+            matching = set(_as_frame(self.metadata).query(query).index.tolist())
             index = np.asarray([i for i in index if i in matching], dtype=int)
         if index.size == 0:
             raise DataError("The trial selection is empty.")
@@ -649,6 +677,7 @@ class TrialSet(_ContainerMixin):
         on all three dims. Attributes: ``sfreq``, ``units``, ``species``, ``modality``.
         """
         try:
+            require("xarray", extra="xarray", caller="evoparam.data.containers.TrialSet.to_xarray")
             import xarray as xr
         except ImportError as err:
             raise ImportError(
@@ -744,7 +773,7 @@ class TrialSet(_ContainerMixin):
         missing = [column for column in columns if column not in self.metadata.columns]
         if missing:
             raise DataError(f"average: unknown metadata column(s) {missing}.")
-        subset = self.metadata.iloc[keep]
+        subset = _as_frame(self.metadata).iloc[keep]
         out = []
         for raw_key, group in subset.groupby(columns, sort=True, dropna=False):
             key = raw_key if isinstance(raw_key, tuple) else (raw_key,)
@@ -777,6 +806,9 @@ class TrialSet(_ContainerMixin):
         masks = count == 0
         metadata = None
         if group_row is not None:
+            require(
+                "pandas", extra="data", caller="evoparam.data.containers.TrialSet._average_trials"
+            )
             import pandas as pd
 
             metadata = pd.DataFrame(group_row)
@@ -901,6 +933,7 @@ class Evoked(_ContainerMixin):
     masks : ndarray of bool, shape (n_channels, n_times), optional
         True marks an invalid sample.
     metadata : pandas.DataFrame, optional
+        (an :class:`evoparam.data.Table` when pandas is not installed, REQ-010)
         At most one row: the grouping values used by :meth:`TrialSet.average`.
     """
 
@@ -973,10 +1006,8 @@ class Evoked(_ContainerMixin):
             raise DataError(
                 f"masks: shape {self.masks.shape} differs from data {self.data.shape}."
             )
-        if self.metadata is not None and (
-            not _is_dataframe(self.metadata) or len(self.metadata) > 1
-        ):
-            raise DataError("metadata: must be a DataFrame with at most one row.")
+        if self.metadata is not None and (not is_table(self.metadata) or len(self.metadata) > 1):
+            raise DataError("metadata: must be a DataFrame (or a Table) with at most one row.")
         if self.ch_info is not None:
             _check_table(self.ch_info, "ch_info", n_channels, CH_INFO_COLUMNS)
             if "name" in self.ch_info.columns and list(self.ch_info["name"]) != self.ch_names:

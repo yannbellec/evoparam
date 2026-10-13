@@ -27,6 +27,7 @@ in ``provenance.json``, ``settings.json`` and the table sidecars, and as
 ``{"__float__": "nan"}`` inside ``structure.json`` so they round-trip exactly.
 """
 
+import csv
 import hashlib
 import math
 import os
@@ -40,7 +41,9 @@ import numpy as np
 
 from evoparam._typing import Any, StrPath
 from evoparam.data._jsonutil import dumps, loads
+from evoparam.data._table import Table, has_pandas
 from evoparam.errors import DataError, EvoparamVersionError
+from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 __all__ = ["save_object", "load_object", "register_type", "SCHEMA", "SCHEMA_MAJOR", "SCHEMA_MINOR"]
@@ -95,6 +98,7 @@ def _sha256(path: Any, block: Any = 1 << 20) -> str:
 
 def _have_pyarrow() -> bool:
     try:
+        require("pyarrow", extra="data", caller="evoparam.data.serialize._have_pyarrow")
         import pyarrow  # noqa: F401
     except ImportError:
         return False
@@ -146,7 +150,7 @@ class _Encoder:
             key = self._key(path, self.arrays)
             self.arrays[key] = obj
             return {"__array__": key}
-        if _is_dataframe(obj):
+        if _is_dataframe(obj) or isinstance(obj, Table):
             key = self._key(path, self.tables)
             self.tables[key] = obj
             return {"__table__": key}
@@ -181,6 +185,60 @@ class _Encoder:
                 ]
             }
         raise DataError(f"{path}: values of type {type(obj).__name__} cannot be saved.")
+
+
+def _write_light_table(table: Table, folder: Any, key: Any) -> None:
+    """Write a :class:`Table` (the core without pandas, REQ-010) as CSV with its sidecar.
+
+    The same files as for a DataFrame with a RangeIndex: one column per field, missing
+    values written as ``MISSING``, the dtype and unit of each column in the sidecar.
+    """
+    units = dict(table.attrs.get("units", {}))
+    sidecar: dict[str, Any] = {
+        "format": "csv",
+        "n_rows": len(table),
+        "index": {"kind": "range"},
+        "columns": {},
+    }
+    columns = []
+    for column in table.columns:
+        values = table[column].to_numpy()
+        if values.dtype.kind not in "biufO":
+            raise DataError(
+                f"table {key}: column '{column}' has unsupported dtype {values.dtype}."
+            )
+        spec = {"dtype": str(values.dtype), "unit": str(units.get(column, ""))}
+        if values.dtype.kind == "O":
+            raw = values.tolist()
+            present = [v for v in raw if not _missing(v)]
+            if any(not isinstance(v, str) for v in present):
+                raise DataError(f"table {key}: column '{column}' mixes strings and other values.")
+            if MISSING in present:
+                raise DataError(
+                    f"table {key}: column '{column}' contains the reserved value {MISSING!r}."
+                )
+            kinds = {_missing_kind(v) for v in raw if _missing(v)}
+            if len(kinds) > 1:
+                raise DataError(
+                    f"table {key}: column '{column}' mixes missing values of different "
+                    f"kinds ({sorted(kinds)})."
+                )
+            if kinds and kinds != {"none"}:
+                spec["missing"] = kinds.pop()
+            text = [MISSING if _missing(v) else v for v in raw]
+        elif values.dtype.kind == "f":
+            text = [MISSING if math.isnan(v) else repr(float(v)) for v in values.tolist()]
+        else:
+            text = [str(v) for v in values.tolist()]
+        sidecar["columns"][column] = spec
+        columns.append(text)
+    with open(os.path.join(folder, f"{key}.csv"), "w", encoding="utf-8", newline="") as fobj:
+        if columns:
+            writer = csv.writer(fobj, lineterminator="\n")
+            writer.writerow(table.columns)
+            writer.writerows(zip(*columns, strict=True))
+    with open(os.path.join(folder, f"{key}.json"), "w", encoding="utf-8") as fobj:
+        fobj.write(dumps(sidecar, indent=1))
 
 
 def _write_table(table: Any, folder: Any, key: Any, table_format: Any) -> None:
@@ -273,7 +331,11 @@ def _write_tree(obj: Any, folder: Any, table_format: Any) -> None:
     if encoder.tables:
         os.makedirs(os.path.join(folder, "tables"))
         for key, table in encoder.tables.items():
-            _write_table(table, os.path.join(folder, "tables"), key, table_format)
+            if isinstance(table, Table) and table_format != "parquet":
+                _write_light_table(table, os.path.join(folder, "tables"), key)
+            else:  # a DataFrame; parquet needs pandas and pyarrow (extra ``data``)
+                frame = table.to_pandas() if isinstance(table, Table) else table
+                _write_table(frame, os.path.join(folder, "tables"), key, table_format)
             files += [
                 f"tables/{key}.{'parquet' if table_format == 'parquet' else 'csv'}",
                 f"tables/{key}.json",
@@ -364,11 +426,52 @@ def save_object(
 ## Decoding
 
 
-def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
-    import pandas as pd
+def _read_light_table(folder: Any, key: Any, sidecar: Any) -> Table:
+    """Read a CSV table without pandas (REQ-010): a :class:`Table` with the saved dtypes."""
+    if sidecar["format"] == "parquet" or sidecar["index"]["kind"] != "range":
+        # parquet files and tables with an index column need pandas (extra ``data``)
+        require("pandas", extra="data", caller="evoparam.data.serialize._read_table")
+    csv_path = os.path.join(folder, f"{key}.csv")
+    with open(csv_path, encoding="utf-8", newline="") as fobj:
+        rows = list(csv.reader(fobj))
+    header, body = (rows[0], rows[1:]) if rows else ([], [])
+    data = {}
+    for position, column in enumerate(header):
+        spec = sidecar["columns"][column]
+        values = [row[position] for row in body]
+        data[column] = _light_column(values, spec["dtype"], column, key, spec.get("missing"))
+    table = Table(data, columns=list(sidecar["columns"]) if header else None)
+    table.attrs["units"] = {column: spec["unit"] for column, spec in sidecar["columns"].items()}
+    return table
 
+
+def _light_column(values: Any, dtype: Any, column: Any, key: Any, missing: Any) -> Any:
+    """One column of a CSV table as a NumPy array of its saved dtype (no pandas)."""
+    if dtype in ("boolean",) or dtype[:1] in "IU" and dtype[1:].startswith(("nt", "Int")):
+        # pandas nullable integers and booleans: None where the value is missing
+        convert = (lambda v: v == "True") if dtype == "boolean" else int
+        return np.array([None if v == MISSING else convert(v) for v in values], dtype=object)
+    kind = np.dtype(dtype).kind if dtype not in ("str", "string") else "O"
+    if kind == "f":
+        return np.array([np.nan if v == MISSING else float(v) for v in values], dtype=dtype)
+    if kind in "iu":
+        if MISSING in values:
+            raise DataError(f"table {key}: integer column '{column}' has missing values.")
+        return np.array([int(v) for v in values], dtype=dtype)
+    if kind == "b":
+        return np.array([v == "True" for v in values], dtype=bool)
+    gap = float("nan") if missing == "nan" else None
+    return np.array([gap if v == MISSING else v for v in values], dtype=object)
+
+
+def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
     with open(os.path.join(folder, f"{key}.json"), encoding="utf-8") as fobj:
         sidecar = loads(fobj.read())
+    if not has_pandas():
+        return _read_light_table(folder, key, sidecar)
+    require("pandas", extra="data", caller="evoparam.data.serialize._read_table")
+    import pandas as pd
+
     if sidecar["format"] == "parquet":
         table = pd.read_parquet(os.path.join(folder, f"{key}.parquet"))
     else:
@@ -393,6 +496,7 @@ def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
 
 
 def _convert_column(values: Any, dtype: Any, column: Any, key: Any, missing: str = "none") -> Any:
+    require("pandas", extra="data", caller="evoparam.data.serialize._convert_column")
     import pandas as pd
 
     if dtype[:1] in "IU" and dtype[1:].startswith(("nt", "Int")) or dtype == "boolean":

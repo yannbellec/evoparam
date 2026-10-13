@@ -4,7 +4,6 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.data import TrialSet
@@ -21,6 +20,8 @@ from evoparam.stats import (
 from evoparam.stats.bootstrap import _subset
 
 from .helpers import N1, independent_dependability, independent_split_half, subjects_trialset
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

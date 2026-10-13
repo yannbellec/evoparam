@@ -5,13 +5,14 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.errors import SettingsError
 from evoparam.trials import TrialFitSet, fit_trials, realign
 
 from .helpers import channel_fit, gauss, simulate
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

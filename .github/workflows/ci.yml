@@ -102,7 +102,7 @@ jobs:
       run: coverage report --include="evoparam/shapes/*" --fail-under=100
     - name: Coverage of the outer layers >= 80 % (REQ-298)
       if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
-      run: coverage report --include="evoparam/plots/*,evoparam/cli.py,evoparam/stream/*,evoparam/benchmark/*" --fail-under=80
+      run: coverage report --include="evoparam/plots/*,evoparam/cli.py,evoparam/stream/*,evoparam/benchmark/*,evoparam/io/_fetch.py,evoparam/io/fetch.py,evoparam/io/registry.py" --fail-under=80
     - name: Coverage upload
       if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
@@ -172,6 +172,28 @@ jobs:
         pip install --require-hashes -r ci/locks/py3.12.lock
         pip install --no-deps -e .
     - run: python tools/benchmark_leaderboard.py --check
+
+  licence-scan:
+    # REQ-395: the resolved dependency tree of every extras set holds no GPL, LGPL or AGPL
+    # package. Each extra is installed in its own virtual environment and its tree scanned.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [all, bayes, bids, brain, cli, data, docs, edf, fast, gpu, mne, neo, nwb,
+                parallel, plot, progress, sklearn, stats, stream, tests, validate, xarray]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install the extra in a fresh environment
+      run: |
+        python -m venv /tmp/scan
+        /tmp/scan/bin/pip install ".[${{ matrix.extra }}]"
+    - name: Licence scan of the resolved tree
+      run: /tmp/scan/bin/python tools/licence_scan.py --extra ${{ matrix.extra }}
 
   import-graph:
     # REQ-296

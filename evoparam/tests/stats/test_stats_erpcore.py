@@ -15,13 +15,14 @@ import os
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.data import TrialSet
 from evoparam.stats import reliability
 
 from .helpers import independent_dependability, independent_split_half
+
+pd = pytest.importorskip("pandas")
 
 ROOT = os.environ.get("EVOPARAM_ERPCORE_N170", "")
 

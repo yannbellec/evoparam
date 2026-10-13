@@ -58,13 +58,6 @@ def test_req007_result_is_regenerated(kind: Any, trials: Any, tmp_path: Any) -> 
     assert all(s["status"] in ("replayed", "skipped") for s in report.steps)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="fit_trials records no provenance step in its "
-    "TrialFit containers (measured: reproduce returns '<not regenerated>' with "
-    "no step), and TrialFitSet is saved as a folder of TrialFit containers, not "
-    "as one .evoparam result; evoparam/trials is outside this change.",
-)
 def test_req007_trial_fits_are_regenerated(trials: Any, tmp_path: Any) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -76,13 +69,6 @@ def test_req007_trial_fits_are_regenerated(trials: Any, tmp_path: Any) -> None:
     assert report.identical, report.differences[:5]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="tf_fit does not draw and record a seed when "
-    "random_state is None, and its replay differs (measured 2026-10-09, one "
-    "channel, 8 frequencies: 'freqs', 'maps.total' and 'maps.total_norm' "
-    "differ; settings random_state None). evoparam/tf is outside this change.",
-)
 def test_req007_time_frequency_fit_is_regenerated(trials: Any, tmp_path: Any) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

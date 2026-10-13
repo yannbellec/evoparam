@@ -15,6 +15,7 @@ import numpy as np
 
 from evoparam._typing import Any
 from evoparam.errors import DataError
+from evoparam.utils._optional import require
 
 if TYPE_CHECKING:
     from evoparam.data.containers import Evoked, TrialSet
@@ -38,6 +39,7 @@ HEAD_FRAME = 4  # mne.io.constants.FIFF.FIFFV_COORD_HEAD
 
 def _mne() -> Any:
     try:
+        require("mne", extra="mne", caller="evoparam.data._mne._mne")
         import mne
     except ImportError as err:
         raise ImportError(
@@ -47,6 +49,7 @@ def _mne() -> Any:
 
 
 def _channel_table(info: Any, names: Sequence[str]) -> Any:
+    require("pandas", extra="data", caller="evoparam.data._mne._channel_table")
     import pandas as pd
 
     mne = _mne()
@@ -88,6 +91,7 @@ def trialset_from_mne(
     stim_columns: Any = "auto",
 ) -> "TrialSet":
     """``TrialSet`` from ``mne.Epochs`` (``TrialSet.from_mne``)."""
+    require("pandas", extra="data", caller="evoparam.data._mne.trialset_from_mne")
     import pandas as pd
 
     from .provenance import Provenance

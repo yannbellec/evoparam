@@ -293,8 +293,7 @@ def _skew_root(a: ArrayLike) -> FloatArray:
         low = np.where(f <= 0, z, low)
         high = np.where(f >= 0, z, high)
         slope = erfc(-a * z / _SQRT2) + _SQRT_2_OVER_PI * a * z * g * (1.0 + a**2)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            step = np.where(slope > 0, f / slope, np.inf)
+        step = np.divide(f, slope, out=np.full(np.shape(f), np.inf), where=slope > 0)
         new = z - step
         outside = ~((new >= low) & (new <= high))
         new = np.where(outside, 0.5 * (low + high), new)

@@ -23,6 +23,7 @@ from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.models import evaluate_fit
 from evoparam.utils._logging import progress, verbose
+from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 from .normalize import BASELINE_LEVELS, BASELINE_MODES, apply_mode, normalize, reference_level
@@ -364,6 +365,10 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
     n_jobs
         Accepted for the common signature of the package; the computation runs in one
         process (100 channels x 50 trials x 2 048 samples x 40 frequencies take under 60 s).
+    random_state : int, numpy Generator or None
+        Seed of the permutations and of the zone decomposition. None draws a seed from the
+        operating system and records it in ``settings`` and the provenance, so that
+        :func:`evoparam.reproduce` regenerates the result (REQ-007).
     verbose : bool, str or None
         Level of the ``evoparam`` logger for the call (spec §9.8): one INFO record at the
         end; ``"progress"`` adds a progress bar over the conditions (extra ``progress``).
@@ -456,6 +461,10 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
         time_bandwidth=time_bandwidth,
         stft_window=stft_window,
     )
+    if random_state is None:
+        # a seed drawn from the operating system and recorded in the settings, so that the
+        # result can be regenerated from its provenance (REQ-007, REQ-333)
+        random_state = int(np.random.default_rng().integers(2**31 - 1))
     rng = np.random.default_rng(random_state)
     n_rows = len(groups) * len(picks)
     want_zones = zones == "auto"
@@ -606,6 +615,7 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
 
     if want_zones:
         halves /= max(n_rows, 1)
+    require("pandas", extra="data", caller="evoparam.tf.api.tf_fit")
     import pandas as pd
 
     settings = {
@@ -703,14 +713,21 @@ def tf_fit(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fix
     result.zone_metrics.attrs["units"] = {**METRIC_COLUMNS, "value": unit}
     if hasattr(result.zones, "attrs"):
         result.zones.attrs["units"] = {**ZONE_COLUMNS, "peak_value": unit, "mean_value": unit}
+    # REQ-007: the step holds every keyword argument that changes the result, by its name,
+    # so that evoparam.reproduce calls tf_fit again with them (the frequencies as the grid
+    # used, the channels by name); a group fit is recorded as used ("footprint")
+    step = {k: v for k, v in settings.items() if k not in ("rows", "row_p_value", "row_alpha")}
+    step.update(
+        gamma=gamma,
+        p2=p2,
+        n_cycles=n_cycles,
+        time_bandwidth=time_bandwidth,
+        stft_window=stft_window,
+        allow_unverified=allow_unverified,
+        picks=[ts.ch_names[c] for c in picks],
+    )
     result.provenance = ts.provenance.with_step(
-        "evoparam.tf.tf_fit",
-        {
-            k: v
-            for k, v in settings.items()
-            if k not in ("rows", "freqs", "row_p_value", "row_alpha")
-        },
-        duration_s=_time.perf_counter() - start_clock,
+        "evoparam.tf.tf_fit", step, duration_s=_time.perf_counter() - start_clock
     )
     logger.info(
         "tf_fit: %d row(s) (channel x condition), %d zone(s), %.2f s",
@@ -892,6 +909,7 @@ def tf_compare(  # noqa: C901  (public API, signature fixed by spec §5.10)
     (permutation of the group labels, Welch ``t``). Returns one row per cluster of pixels
     (``cluster``) or per significant pixel set (``fdr``): sign, bounds, mass, p-value.
     """
+    require("pandas", extra="data", caller="evoparam.tf.api.tf_compare")
     import pandas as pd
     from scipy import ndimage
     from scipy import stats as sstats

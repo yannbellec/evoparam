@@ -9,6 +9,7 @@ import numpy as np
 
 from evoparam._typing import Any, BoolArray, NDArray
 from evoparam.data import TrialSet
+from evoparam.data._table import is_missing
 from evoparam.errors import ArtifactError, DataError
 from evoparam.utils._interp import window_indices
 
@@ -44,10 +45,12 @@ def groups(ts: Any, group_by: Any) -> Any:
     columns = [col for col in (group_by or ()) if meta is not None and col in meta.columns]
     if not columns:
         return [((), np.arange(ts.n_trials))]
-    keys = meta[columns].astype(object).where(meta[columns].notna(), "nan")
+    # the values of each column (a DataFrame, or a Table without pandas), missing as "nan"
+    values = [np.asarray(meta[col], dtype=object) for col in columns]
     out: dict[Any, Any]
     out = {}
-    for row, key in enumerate(map(tuple, keys.to_numpy())):
+    for row in range(ts.n_trials):
+        key = tuple("nan" if is_missing(column[row]) else column[row] for column in values)
         out.setdefault(key, []).append(row)
     return [(key, np.array(rows)) for key, rows in out.items()]
 

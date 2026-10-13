@@ -4,9 +4,11 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
+import pytest
 
 from evoparam.data import TrialSet
+
+pd = pytest.importorskip("pandas")
 
 SFREQ = 1000.0
 TIMES = np.arange(-0.3, 0.55, 1 / SFREQ)

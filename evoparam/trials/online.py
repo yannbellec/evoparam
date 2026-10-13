@@ -23,6 +23,7 @@ from evoparam.data import GroupFit, ResponseFit, TrialSet
 from evoparam.errors import DataError, SettingsError
 from evoparam.models.component_shapes import get_background
 from evoparam.utils._interp import interpolate_window
+from evoparam.utils._numeric import divide
 
 from .api import _amplitude_of, _shape_for
 
@@ -135,10 +136,15 @@ def _parabolic(profile: Any, best: Any) -> FloatArray:
         left = profile[rows[inner], best[inner] - 1]
         mid = profile[rows[inner], best[inner]]
         right = profile[rows[inner], best[inner] + 1]
-        with np.errstate(invalid="ignore"):
-            curv = left - 2 * mid + right
-            safe = np.isfinite(left) & np.isfinite(right) & (curv < 0)
-            frac[inner] = np.where(safe, 0.5 * (left - right) / np.where(safe, curv, -1.0), 0.0)
+        # the curvature and the vertex offset are computed only where both neighbours are
+        # finite (an infinite neighbour would give inf - inf)
+        finite = np.isfinite(left) & np.isfinite(right)
+        curv = np.zeros_like(mid)
+        np.add(left - 2 * mid, right, out=curv, where=finite)
+        safe = finite & (curv < 0)
+        offset = np.zeros_like(mid)
+        np.divide(0.5 * np.where(safe, left - right, 0.0), curv, out=offset, where=safe)
+        frac[inner] = offset
     return np.clip(frac, -0.5, 0.5)
 
 
@@ -640,9 +646,8 @@ class FixedShapeModel:
             rss = np.einsum("ct,ct->c", keep, resid * resid)
             sum_y = np.einsum("ct,ct->c", keep, y)
             sum_y2 = np.einsum("ct,ct->c", keep, y * y)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            tss = sum_y2 - sum_y**2 / count
-            r2 = np.where(tss > 0, 1 - rss / tss, np.nan)
+        tss = sum_y2 - divide(sum_y**2, count)
+        r2 = np.where(tss > 0, 1 - divide(rss, tss), np.nan)
         absent = np.isnan(self._lat0)
         k_max = absent.shape[1]
         at_bound = (np.abs(shift) >= self._bound - 1e-12) & (self._pad == 0)

@@ -4,7 +4,6 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.artifact import paradigm_subtract, remove_artifact
@@ -12,6 +11,8 @@ from evoparam.data import TrialSet
 from evoparam.errors import ArtifactError
 
 from .helpers import artifact_shape, response, times_axis
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

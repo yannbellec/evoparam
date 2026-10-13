@@ -423,12 +423,22 @@ def read(source: Any, *, format: str | None = None, **kwargs: Any) -> "TrialSet"
 
         return read_bids(path, **kwargs)
     if fmt == "evoparam":
+        start = _time.perf_counter()
         obj = load_object(path, **kwargs)
         if isinstance(obj, Evoked):
-            return obj.as_trialset()
+            obj = obj.as_trialset()
         if not isinstance(obj, TrialSet):
             raise ReaderError(f"{path} holds a {type(obj).__name__}, not a TrialSet.")
-        return obj
+        # REQ-294: reading creates the TrialSet that the next steps work on; its saved
+        # record is kept and the read is one more step (no machine path: REQ-352)
+        return replace(
+            obj,
+            provenance=obj.provenance.with_step(
+                "evoparam.io.read",
+                {"format": "evoparam", **kwargs},
+                duration_s=_time.perf_counter() - start,
+            ),
+        )
     if fmt == "nwb":
         from evoparam.io.nwb import read_nwb
 

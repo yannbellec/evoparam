@@ -506,12 +506,16 @@ def _extrapolate(sd: Any, n_recorded: Any, targets: Any, law: Any) -> Any:
     if law == "power" and len(fit) >= 2:
         logm = np.log(np.asarray(fit, float))
         dm = logm - logm.mean()
-        with warnings.catch_warnings(), np.errstate(divide="ignore", invalid="ignore"):
-            warnings.simplefilter("ignore", RuntimeWarning)
-            logsd = np.log(np.stack([sd[m] for m in fit]))  # (n_counts, n_ch)
-            slope = np.clip((dm @ (logsd - logsd.mean(axis=0))) / (dm @ dm), *_POWER_EXPONENT)
-            level = np.mean(logsd - slope[None] * logm[:, None], axis=0)
-            return ({n: np.exp(level + slope * np.log(n)) * correction for n in targets}, slope)
+        sds = np.stack([sd[m] for m in fit])  # (n_counts, n_ch)
+        # a channel with a zero, infinite or NaN SD has no power law (NaN): its column is
+        # set to 1 for the arithmetic, so that no invalid operation is computed, and its
+        # results to NaN; the other columns are computed independently of it
+        valid = np.all(np.isfinite(sds) & (sds > 0), axis=0)
+        logsd = np.log(np.where(valid, sds, 1.0))
+        slope = np.clip((dm @ (logsd - logsd.mean(axis=0))) / (dm @ dm), *_POWER_EXPONENT)
+        level = np.mean(logsd - slope[None] * logm[:, None], axis=0)
+        slope, level = np.where(valid, slope, np.nan), np.where(valid, level, np.nan)
+        return ({n: np.exp(level + slope * np.log(n)) * correction for n in targets}, slope)
     base = [m for m in resampled if m >= n_total / 2] or resampled
     c = np.mean([sd[m] * np.sqrt(m) for m in base], axis=0) * correction
     return {n: c / np.sqrt(n) for n in targets}, np.full(np.shape(c), -0.5)

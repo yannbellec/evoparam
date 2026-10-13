@@ -2,6 +2,7 @@
 """Trial-by-trial parameters, jitter, realignment and covariates (spec §5.7)."""
 
 import dataclasses
+import functools
 import logging
 import os
 import time as _time
@@ -13,6 +14,7 @@ import numpy as np
 
 from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.data import Evoked, Provenance, TrialFit, TrialSet
+from evoparam.data._table import concat_tables, new_table, row_labels
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.models.component_shapes import (
@@ -21,6 +23,12 @@ from evoparam.models.component_shapes import (
     compute_features,
     get_background,
     get_shape,
+)
+from evoparam.utils._failures import (
+    PROPAGATE,
+    check_on_error,
+    fit_error,
+    record_failure,
 )
 from evoparam.utils._logging import verbose
 from evoparam.utils._optional import require
@@ -205,7 +213,8 @@ def _template_for(
                 f"max_shift of component {picks[i]} clipped to half the distance to "
                 "its neighbour.",
                 UserWarning,
-                stacklevel=4,  # _fit_channel, fit_trials, then its caller (as before the move)
+                # _fit_unit, _fit_channel, fit_trials, then its caller (as before the move)
+                stacklevel=5,
             )
             shifts[i] = 0.5 * min(gaps)
     bg = fit.background or {"name": "none"}
@@ -458,6 +467,7 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
     ridge_cv: str = "loto",
     n_jobs: int = 1,
     random_state: Any = None,
+    on_error: str = "record",
     verbose: Any = None,
 ) -> "TrialFitSet":
     """Latency, amplitude (and in the free modes, width) of each component in every trial.
@@ -512,16 +522,22 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
     progress bar over the channels); ``verbose=False`` also silences the warnings of the
     template step, as before.
 
+    A channel whose fit fails (REQ-307 ii) is kept with ``status="failed"`` and the exception
+    in ``message``, NaN numbers and no trusted trial, and leaves no row in ``table``; one
+    WARNING record names the channel (``on_error="record"``, the default).
+    ``on_error="raise"`` raises the first :class:`~evoparam.errors.FitError` instead. Errors
+    of the data or of the settings always propagate.
+
     Returns
     -------
     TrialFitSet
     """
-    pd = require("pandas", extra="data", caller="evoparam.trials.fit_trials")
     start = _time.perf_counter()
     if not isinstance(ts, TrialSet):
         raise DataError("fit_trials expects a TrialSet.")
     if mode not in MODES:
         raise SettingsError(f"mode must be one of {MODES}, not {mode!r}.")
+    check_on_error(on_error)
     for name, value, allowed in (
         ("trial_model", trial_model, TRIAL_MODELS),
         ("null_rule", null_rule, NULL_RULES),
@@ -551,10 +567,7 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
 
     meta = ts.metadata
     columns = [c for c in (by or ()) if meta is not None and c in meta.columns]
-    if columns:
-        labels = meta[columns].astype(str).agg("/".join, axis=1).to_numpy()
-    else:
-        labels = np.array([""] * ts.n_trials)
+    labels = row_labels(meta, columns) if columns else np.array([""] * ts.n_trials)
 
     fits, skipped, rows = [], [], []
     # the channels' units of work, in the order of the results (condition, then channel)
@@ -618,10 +631,12 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
                     options,
                 )
             )
-    for frame, trial_fit in parallel_map(_fit_channel, units, n_jobs, desc="fit_trials"):
-        rows.append(frame)
+    channel = functools.partial(_fit_channel, on_error=on_error)
+    for frame, trial_fit in parallel_map(channel, units, n_jobs, desc="fit_trials"):
+        if trial_fit.status == "ok":  # a failed channel has no trial rows
+            rows.append(frame)
         fits.append(trial_fit)
-    table = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+    table = concat_tables(rows) if rows else new_table({})
     covariate_tables = {}
     if "trend" in covariates and len(table):
         covariate_tables["trend"] = _trend(table)
@@ -659,12 +674,34 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
         len(set(skipped)),
         _time.perf_counter() - start,
     )
-    provenance = ts.provenance.with_step(
+    # REQ-294: the record continues the group fit's when the group fit was made from these
+    # trials (its steps start with theirs: read, cleaning, ..., fit, existence test), else
+    # the trials'; one fit_trials step, with every keyword argument that changes the result
+    step_settings = {k: v for k, v in settings.items() if k != "covariate_tables"}
+    step_settings.update(
+        {
+            "components": None if components is None else list(components),
+            "stretch": bool(stretch),
+            "realign": bool(realign),
+            "realign_on": realign_on,
+            "prestim_band": [float(f) for f in prestim_band],
+            "prestim_window": [float(t) for t in prestim_window],
+            "n_jobs": n_jobs,
+        }
+    )
+    base = (
+        group_fit.provenance
+        if _continues(group_fit.provenance.steps, ts.provenance.steps)
+        else ts.provenance
+    )
+    provenance = base.with_step(
         "evoparam.trials.fit_trials",
-        {k: v for k, v in settings.items() if k != "covariate_tables"},
+        step_settings,
         duration_s=_time.perf_counter() - start,
         random_state=seed,
     )
+    for trial_fit in fits:
+        trial_fit.provenance = provenance
     return TrialFitSet(
         fits=fits,
         table=table,
@@ -674,12 +711,80 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
     )
 
 
-def _fit_channel(unit: tuple[Any, ...]) -> tuple[Any, "TrialFit"]:  # noqa: C901, PLR0912, PLR0915  (the body of the fit_trials loop, moved as it was)
+def _continues(steps: Any, prefix: Any) -> bool:
+    """Return True when the record ``steps`` starts with the steps ``prefix``.
+
+    The same functions with the same settings, in order.
+    """
+    import json
+
+    def key(step: Any) -> str:
+        return json.dumps(
+            [step.get("function"), step.get("settings")], sort_keys=True, default=str
+        )
+
+    return len(steps) >= len(prefix) and [key(s) for s in steps[: len(prefix)]] == [
+        key(s) for s in prefix
+    ]
+
+
+def _fit_channel(unit: tuple[Any, ...], on_error: str = "raise") -> tuple[Any, "TrialFit"]:
     """Fit the trials of one channel and condition (one unit of ``n_jobs`` in fit_trials).
 
     Returns the trial table of the channel and its :class:`TrialFit`. Deterministic: the
-    result does not depend on the worker that runs it.
+    result does not depend on the worker that runs it. A failure of the channel is
+    recorded or raised as ``on_error`` says (REQ-307 ii); errors of the data or of the
+    settings propagate.
     """
+    try:
+        return _fit_unit(unit)
+    except PROPAGATE:
+        raise
+    except Exception as exc:  # the failure of this channel only
+        name, label = unit[2], unit[3]
+        where = f"{name} ({label})" if label else str(name)
+        if on_error == "raise":
+            raise fit_error("fit_trials", where, exc) from exc
+        return _failed_channel(unit, record_failure(logger, "fit_trials", where, exc))
+
+
+def _failed_channel(unit: tuple[Any, ...], message: str) -> tuple[Any, "TrialFit"]:
+    """Return the :class:`TrialFit` of a failed channel: NaN numbers, no trusted trial."""
+    fit, picks, name, label, trial_idx = unit[:5]
+    options = unit[-1]
+    n_trials, n_picks = len(trial_idx), len(picks)
+    n_params = sum(len(fit.components[k].params) for k in picks)
+    nothing = dict.fromkeys(picks, np.nan)
+    return new_table({}), TrialFit(
+        channel=name,
+        template=fit,
+        shift=np.full((n_trials, n_picks), np.nan),
+        scale=np.full((n_trials, n_picks), np.nan),
+        params=np.full((n_trials, n_params), np.nan),
+        latency=np.full((n_trials, n_picks), np.nan),
+        amplitude=np.full((n_trials, n_picks), np.nan),
+        fwhm=np.full((n_trials, n_picks), np.nan),
+        gof=np.full(n_trials, np.nan),
+        converged=np.zeros(n_trials, bool),
+        jitter_sd=dict(nothing),
+        jitter_sd_null=dict(nothing),
+        amplitude_jitter_corrected=dict(nothing),
+        trusted=np.zeros(n_trials, bool),
+        table=new_table({}),
+        settings={
+            "mode": options[0],
+            "condition": label,
+            "picks": picks,
+            "r2_min": options[5],
+            "package_version": __version__,
+        },
+        status="failed",
+        message=message,
+    )
+
+
+def _fit_unit(unit: tuple[Any, ...]) -> tuple[Any, "TrialFit"]:  # noqa: C901, PLR0912, PLR0915  (the body of the fit_trials loop, moved as it was)
+    """Fit one channel and condition (:func:`_fit_channel` without the guard)."""
     (
         fit,
         picks,
@@ -711,7 +816,6 @@ def _fit_channel(unit: tuple[Any, ...]) -> tuple[Any, "TrialFit"]:  # noqa: C901
         baseline,
         verbose,
     ) = options
-    pd = require("pandas", extra="data", caller="evoparam.trials.fit_trials")
     # trial_model "anchored" and "all": the trial model keeps every component of the
     # channel (a complete model) and only the chosen ones are reported; "selected"
     # (spec): the model has the chosen components only
@@ -836,7 +940,7 @@ def _fit_channel(unit: tuple[Any, ...]) -> tuple[Any, "TrialFit"]:  # noqa: C901
                 f"{limit:.2f} x the noise-only jitter "
                 f"{jit_null[target]:.4f} s; realignment refused.",
                 UserWarning,
-                stacklevel=3,  # the caller of fit_trials, as before the move
+                stacklevel=4,  # _fit_unit, _fit_channel, fit_trials, then its caller
             )
         else:
             realigned = _realigned(times, trials, shift[:, j], trusted, name, context)
@@ -863,7 +967,7 @@ def _fit_channel(unit: tuple[Any, ...]) -> tuple[Any, "TrialFit"]:  # noqa: C901
                 for col in meta_rows.columns:
                     row.setdefault(col, meta_rows[col].iloc[i])
             table.append(row)
-    frame = pd.DataFrame(table)
+    frame = new_table(table)
     if "prestim" in covariates:
         phase, circ_sd, power = _prestim(trials, times, prestim_band, prestim_window)
         frame["prestim_phase"] = np.repeat(phase, len(picks))
