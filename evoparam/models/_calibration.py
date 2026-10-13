@@ -35,6 +35,19 @@ rho = 0.9 windows at ``delta = 0``, CHANGELOG "Calibrated acceptance"). With
    strongly coloured noise (AR(1) rho = 0.9) the low-frequency spectrum is known to about
    40 %, and broad components need a larger deviance; on white noise ``v`` is about zero.
 
+3. **Change of the noise spectrum over time.** The asymptotic covariance holds for a
+   stationary noise; a recording whose spectrum drifts (the pre-stimulus windows of
+   ds004080) has, between the baseline and the window, spectral differences larger than
+   the sampling error. The baseline is cut into ``SPECTRAL_SEGMENTS`` consecutive parts
+   (three: each about as long as the window on ds004080), an AR model of the same order is
+   fitted on each, and the variance of their log spectra along the component's direction
+   (the same weighting as in 2) beyond their own sampling error (``m`` times that of the
+   whole baseline) is added to ``v`` (a moment estimate, never negative). On a stationary
+   noise the excess is the positive part of a scaled chi-square with ``m - 1`` degrees of
+   freedom: about 1.1 times term 2 on average for ``m = 3``; on ds004080 it is what keeps the
+   pre-stimulus windows silent (CHANGELOG "Calibrated acceptance: the change of the noise
+   spectrum").
+
 A component with ``p`` parameters (amplitude included) is accepted when its deviance
 ``n ln(RSS_K / RSS_{K+1})`` is at least ``c + (p - 3) ln n``: the scan level covers a
 location, a width and an amplitude, and every further shape parameter pays the BIC price
@@ -55,6 +68,13 @@ FWHM_PER_SIGMA = 2.0 * np.sqrt(2.0 * np.log(2.0))
 N_WIDTHS = 48
 # parameters of the reference scan: location, width and amplitude
 P_SCAN = 3
+# parts of the baseline whose AR spectra measure how much the noise spectrum changes over
+# time (the window is about one part long on ds004080: 1.5 s of baseline, 0.48 s window)
+SPECTRAL_SEGMENTS = 3
+# fewest parts with which a spread can be measured
+MIN_SEGMENTS = 2
+# fewest samples per AR coefficient in a part
+SEGMENT_SAMPLES_PER_ORDER = 10
 # the bracket of the scan level stops growing here (u = 50: a tail far below any alpha)
 MAX_LEVEL = 50.0
 
@@ -119,6 +139,24 @@ def _curvatures(white: Any, tw: Any, others: Any, fwhm_min: float, fwhm_max: flo
     return l1, l2
 
 
+def _segment_filters(z: Any, p: int, n_seg: int) -> list[NDArray[Any]]:
+    """AR filters ``[1, -phi]`` of order ``p`` fitted on ``n_seg`` consecutive parts of ``z``.
+
+    Least squares on each part (as ``engine.ar_model``); empty when a part is too short for
+    the order (fewer than ``SEGMENT_SAMPLES_PER_ORDER`` samples per coefficient).
+    """
+    z = np.asarray(z, float)
+    if p == 0 or n_seg < MIN_SEGMENTS or len(z) < n_seg * SEGMENT_SAMPLES_PER_ORDER * p:
+        return []
+    out = []
+    for raw in np.array_split(z, n_seg):
+        part = raw - raw.mean()
+        lagged = np.column_stack([part[p - k : len(part) - k] for k in range(1, p + 1)])
+        phi = np.linalg.lstsq(lagged, part[p:], rcond=None)[0]
+        out.append(np.r_[1.0, -phi])
+    return out
+
+
 def _spectral_cov(a: Any, innovation: float, acov: Any, n_base: int) -> Any:
     """Asymptotic covariance of the AR coefficients (standardised units), or None."""
     p = len(a) - 1
@@ -148,6 +186,7 @@ class Calibration:
         innovation: float,
         acov: Any,
         n_base: int,
+        baseline: Any = None,
     ) -> None:
         self.alpha = float(alpha)
         self.white = white
@@ -156,10 +195,15 @@ class Calibration:
         self.ln_n = float(np.log(max(n_crit, P_SCAN + 2.0)))
         self.a = np.asarray(a, float)
         self.cov = _spectral_cov(self.a, innovation, acov, n_base)
-        self._terms: dict[int, tuple[NDArray[Any], NDArray[Any]]] = {}
+        self.segments = (
+            _segment_filters(baseline, len(self.a) - 1, SPECTRAL_SEGMENTS)
+            if baseline is not None and self.cov is not None
+            else []
+        )
+        self._terms: dict[int, tuple[NDArray[Any], NDArray[Any], NDArray[Any] | None]] = {}
         self.delta0 = self.c0 - P_SCAN * self.ln_n
 
-    def _spectral_terms(self, n: int) -> tuple[NDArray[Any], NDArray[Any]]:
+    def _spectral_terms(self, n: int) -> tuple[NDArray[Any], NDArray[Any], NDArray[Any] | None]:
         """Return the frequency weights of a one-sided FFT and the gradient of the spectrum.
 
         The FFT has length ``>= 2 n``; the gradient is that of the log spectrum with respect
@@ -177,7 +221,14 @@ class Calibration:
             a_w = self.a[0] + phase @ self.a[1:]
             # d log S / d phi_k = 2 Re(exp(-i w k) / A(w)), A(w) = sum_j a_j exp(-i w j)
             grad = 2.0 * np.real(phase / a_w[:, None])
-            known = self._terms[n_fft] = (weight, grad)
+            spread = None
+            if self.segments:
+                # log spectra of the parts (up to a constant), centred on their mean
+                logs = np.array(
+                    [-2.0 * np.log(np.abs(f[0] + phase @ f[1:]) + 1e-300) for f in self.segments]
+                )
+                spread = logs - logs.mean(axis=0)
+            known = self._terms[n_fft] = (weight, grad, spread)
         return known
 
     def _variance(self, q: NDArray[Any]) -> float:
@@ -188,7 +239,7 @@ class Calibration:
         x = q[rows] if rows is not None else q
         if not np.any(x):
             return 0.0
-        weight, grad = self._spectral_terms(len(x))
+        weight, grad, spread = self._spectral_terms(len(x))
         n_fft = 2 * (len(weight) - 1)
         power = np.abs(np.fft.rfft(x, n_fft)) ** 2 * weight
         total = float(power.sum())
@@ -196,8 +247,17 @@ class Calibration:
             return 0.0  # a direction too small to carry power: no spectral weighting
         # the component's share of each frequency minus the flat share of the residual
         # (the criterion's own variance estimate absorbs an error common to all frequencies)
-        c = (power / total - weight / weight.sum()) @ grad
+        share = power / total - weight / weight.sum()
+        c = share @ grad
         v = float(c @ self.cov @ c)
+        if spread is not None and np.isfinite(v):
+            # the change of the spectrum over time: the spread of the parts' spectra along
+            # this direction beyond their own sampling error (each part holds 1/m of the
+            # baseline: m times the variance of the whole-baseline estimate)
+            m = len(spread)
+            eps = spread @ share
+            between = float(eps @ eps) / (m - 1)
+            v += max(between - m * v, 0.0)
         return v if np.isfinite(v) and v > 0 else 0.0
 
     @staticmethod

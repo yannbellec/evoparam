@@ -2,7 +2,97 @@
 
 ## Unreleased
 
+### Calibrated acceptance: the change of the noise spectrum; the default `delta` is 10 again (REQ-105, REQ-111, REQ-112)
+
+Merge of qualite-zero (0c84d6c, which holds integration-2 4f2c44d): its split of
+`engine.py` into helpers kept, the acceptance, the final shape choice and the resolution
+check of the entry below ported into it. With `delta=10`, `shape_choice="bic"` and
+`resolution_check=False` the 123 fits of the entry below are equal to qualite-zero's,
+value for value; the reference fixture (`ccep`) is unchanged.
+
+- **The change of the noise spectrum over the baseline** (`models/_calibration.py`). On
+  real baselines the calibrated acceptance (below) admitted broad components (30 to 140
+  ms) of the slow activity of the recording: the AR spectrum fitted on the whole baseline
+  does not hold over it. The baseline is now cut into three segments, an AR model of the
+  fit's order is fitted on each (least squares), and the spread of their log spectra
+  beyond what sampling explains (moment estimate: between-segment variance less the
+  sampling variance, floored at 0), weighted by the component's spectrum, is added to the
+  variance that widens the scan level. On stationary noise it adds about 1.1 times the
+  sampling term on average.
+- **`alpha` 0.04** (was 0.03), chosen with the segment term on development data:
+  ds004080 baselines of 23 runs (920 windows, the first 40 contacts, not the two REQ
+  runs) and the REQ-105 design at 1 000 waveforms per K (seeds 300 000 + ...):
+
+  | calibrated acceptance | baselines silent | REQ-105 recall / precision |
+  |---|---|---|
+  | `alpha` 0.03, no segment term (the entry below) | 87.3 % | 0.9542 / 0.985 |
+  | 2 segments, `alpha` 0.03 | 94.3 % | 0.9507 / 0.9863 |
+  | 4 segments, `alpha` 0.03 | 95.0 % | 0.9497 / 0.9865 |
+  | 4 segments, `alpha` 0.03, segment term only above its chi-square 0.95 level | 94.6 % | 0.9508 / 0.9863 |
+  | 3 segments, `alpha` 0.035, the same gate | 94.1 % | 0.9517 / 0.984 |
+  | 3 segments, `alpha` 0.04, the same gate | 93.7 % | 0.9543 / 0.9817 |
+  | 4 segments, `alpha` 0.04, the same gate | 94.0 % | 0.9545 / 0.982 |
+  | 4 segments, `alpha` 0.04 | 94.7 % | 0.9532 / 0.9823 |
+  | **3 segments, `alpha` 0.04 (kept)** | 94.6 % | 0.9537 / 0.9821 |
+  | `delta` 10 | 90.1 % | |
+
+  Kept: the highest recall among the settings that keep 94.5 % or more of the
+  development baselines silent.
+- **Test data, measured once** (the two REQ runs, UMCU01 run-021448 and UMCU04
+  run-031148, 80 windows; the tests' seeds): the calibrated acceptance kept 92.5 % of the
+  baselines silent (74 of 80), `delta` 10 96.25 % (77 of 80). REQ-112 asks 95 % at the
+  default `delta`, so **the package default is `delta=10` again** and the calibrated
+  acceptance is on request (next item). With it, REQ-105 recall 0.950, precision 0.986
+  (100 per K; 0.9545 and 0.980 on 1 000).
+- **`delta="calibrated"`**: the sentinel that asks for the calibrated acceptance, in a
+  `Preset` (`presets.derive(..., delta="calibrated")`, kept through `to_json` and
+  `from_json`), in `ResponseModel` and in `FitSettings`. A number is the fixed fall of BIC;
+  `delta=None` is "not given" (the preset's value, else 10); any other string raises
+  `SettingsError`. `methods_text()` names the rule and its widening.
+- `shape_choice="aic"` and `resolution_check=True` stay the package defaults. Under the
+  fixed `delta` the resolution check compares with the larger deviance 3 ln n + 10 (about
+  29): a single Gaussian of FWHM 20 ms at SNR 200 is now flagged `merged` (deviance of
+  the pair 22), at SNR 400 it is not (86); `test_calibration.py` checks SNR 400.
+- REQ-112 on real baselines is tested with the `ccep` preset and with the package
+  defaults (`test_engine_ccep.py`, parametrised).
+
+Results with the package defaults (`delta` 10, `shape_choice="aic"`,
+`resolution_check=True`; the tests' seeds, 100 and 1 000 per condition):
+
+| REQ | 100 | 1 000 | met |
+|---|---|---|---|
+| 105 recall / precision | 0.883 / 1.00 (K = 1 0.82, 2 0.85, 3 0.927) | 0.887 / 0.999 | no (expected failure) |
+| 111, 0.5 FWHM: one with `merged` | 100 % | 99.8 % | yes |
+| 111, 0.5 FWHM: two without `ill_conditioned` | 0 | 1 | yes |
+| 111, 1.0 FWHM: two components | 100 % | 100 % | yes |
+| 112, ds004080 baselines silent (`ccep` / package defaults) | 97.5 % / 96.25 % | | yes |
+
+REQ-106, latency MAE in samples, truth fitted with its own shape / with the default pair:
+
+| truth | 100 | 1 000 |
+|---|---|---|
+| Gaussian | 0.222 / 0.254 | 0.210 / 0.252 |
+| skewed Gaussian | 0.370 / 0.450 | 0.386 / 0.430 |
+| ex-Gaussian | 0.299 / 0.366 | 0.283 / 0.377 |
+| gamma | 0.323 / **0.715** | 0.346 / **0.720** |
+| biexponential | 0.252 / **0.592** | 0.307 / **0.637** |
+
+The skewed truth is met; gamma and biexponential stay expected failures (DECISIONS §5.4).
+REQ-111 at 0.5 FWHM, which failed on its second clause under the calibrated default, is
+met. Algorithm versions: `ResponseModel.fit_waveform`, `fit_group`, `models.fit_waveform`
+and `existence.test_response` 1.3 (package defaults changed against qualite-zero);
+`fit_trials` 1.2. Reference fixture, SOUP and frozen methods texts regenerated.
+
+Tests: `tests/models`, `tests/presets`, `tests/existence`, `tests/trials`,
+`test_determinism.py`, `test_reproduce.py`, `tests/data/test_provenance.py`,
+`test_methods_text.py`; `test_engine_ccep.py::test_req112_real_baselines_mostly_silent`
+(both parameters) and `test_req113_engine_finds_n1_on_the_example_run` from the cached
+runs.
+
 ### Calibrated acceptance (REQ-105, REQ-106, REQ-111, REQ-112): new package defaults
+
+(Superseded in part by the entry above: the default `delta` is 10 again and the
+calibrated acceptance is asked for with `delta="calibrated"`.)
 
 Three settings of the engine, defaults without a preset (DECISIONS §3 "Calibrated
 acceptance, final shape choice, resolution check", §5.3 to §5.5). Every preset sets the

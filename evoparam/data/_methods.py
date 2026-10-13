@@ -119,7 +119,7 @@ def _acceptance(settings: Any) -> str:
     if settings.get("noise_model", "ar") == "ar" and settings.get("selection", "bic") == "bic":
         return (
             "a threshold calibrated on each waveform's noise model for a false-response rate "
-            f"of {_num(settings.get('alpha', 0.03))} on pure noise (the expected Euler "
+            f"of {_num(settings.get('alpha', 0.04))} on pure noise (the expected Euler "
             "characteristic of the whitened scan over latency and width, Siegmund and "
             "Worsley 1995, widened for the uncertainty of the noise spectrum and for its "
             "change over the baseline)"

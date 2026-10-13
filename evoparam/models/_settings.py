@@ -17,8 +17,8 @@ LOSSES = ("linear", "soft_l1", "huber", "cauchy")
 UNCERTAINTIES = ("jacobian", "profile", "bootstrap", "posterior")
 POLARITIES = ("both", "negative", "positive")
 SHAPE_CHOICES = ("bic", "aic")
-# ``delta`` value of the calibrated acceptance (the package default; a preset or a user
-# asks for it with delta="calibrated")
+# ``delta`` value of the calibrated acceptance (a preset or a user asks for it with
+# delta="calibrated"; the default is the fixed 10 of spec §5.5.4)
 CALIBRATED = "calibrated"
 # the fall of the criterion a component needs when the acceptance is calibrated but cannot
 # be (a noise model other than "ar", a selection other than "bic"): spec §5.5.4
@@ -50,13 +50,13 @@ class FitSettings:
     fit_window: tuple[float, float] | None = None
     baseline: tuple[float, float] | None = None
     selection: str = "bic"
-    # "calibrated" (default): the fall of BIC a component needs is calibrated on each fit's
-    # noise model at the false-response rate ``alpha`` (models/_calibration.py; noise_model
-    # "ar" and selection "bic"; otherwise FIXED_DELTA); a number: that fixed fall (spec
-    # §5.5.4, delta = 10, which every preset sets). Measured: CHANGELOG, "Calibrated
-    # acceptance"
-    delta: float | str = CALIBRATED
-    alpha: float = 0.03
+    # the fall of BIC a component needs (spec §5.5.4: 10, the default and every preset's),
+    # or "calibrated": calibrated on each fit's noise model at the false-response rate
+    # ``alpha`` (models/_calibration.py; noise_model "ar" and selection "bic"; otherwise
+    # FIXED_DELTA). Measured: CHANGELOG, "Calibrated acceptance" and "Calibrated
+    # acceptance: the change of the noise spectrum"
+    delta: float | str = 10.0
+    alpha: float = 0.04
     # how the allowed shapes of a component are compared: "bic" (on the quick fits of the
     # forward search, spec §5.5.3 step 4; every preset), "aic" (default: every component
     # of the final model refitted with every allowed shape, the lowest AIC kept)
@@ -161,13 +161,14 @@ class FitSettings:
     def _check_acceptance(self) -> None:
         """Check ``delta`` (a finite number, or ``"calibrated"``) and ``alpha``.
 
-        ``delta=None`` given to the dataclass reads as ``"calibrated"`` (the package
-        default); in :class:`~evoparam.models.ResponseModel` None means "not given".
+        ``delta=None`` reads as "not given": the fixed ``FIXED_DELTA`` (as in
+        :class:`~evoparam.models.ResponseModel`, where None takes the preset's value).
         """
-        if self.delta is None or (isinstance(self.delta, str) and self.delta == CALIBRATED):
-            object.__setattr__(self, "delta", CALIBRATED)
+        if self.delta is None:
+            object.__setattr__(self, "delta", FIXED_DELTA)
         elif isinstance(self.delta, str):
-            raise SettingsError(f"delta must be a finite number or {CALIBRATED!r}.")
+            if self.delta != CALIBRATED:
+                raise SettingsError(f"delta must be a finite number or {CALIBRATED!r}.")
         else:
             if not np.isfinite(float(self.delta)):
                 raise SettingsError(f"delta must be a finite number or {CALIBRATED!r}.")

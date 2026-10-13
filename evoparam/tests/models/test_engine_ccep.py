@@ -792,7 +792,11 @@ def test_req113_engine_finds_n1_on_the_example_run() -> None:
     assert kappa >= MIN_REGRESSION_KAPPA
 
 
-def test_req112_real_baselines_mostly_silent() -> None:
+@pytest.mark.parametrize("preset", ["ccep", None])
+def test_req112_real_baselines_mostly_silent(preset: Any) -> None:
+    """Pre-stimulus windows of the two REQ runs: >= 95 % without a component, with the
+    ``ccep`` preset and with the package defaults (both at the fixed delta 10; DECISIONS §4
+    "REQ-112 on real baselines")."""
 
     from evoparam.tests.events.test_ds004080_events import _segment
 
@@ -804,6 +808,6 @@ def test_req112_real_baselines_mostly_silent() -> None:
         data, sfreq, names, t0, onsets, _ = _segment(run)
         keep = _contacts(names)[:40]
         times, epochs, _ = epoch_data(data[keep], sfreq, onsets, -2.0, 0.0, t0=t0)
-        model = ResponseModel("ccep", fit_window=(-0.49, -0.01), baseline=(-2.0, -0.5))
+        model = ResponseModel(preset, fit_window=(-0.49, -0.01), baseline=(-2.0, -0.5))
         statuses += [model.fit_waveform(times, ch).status for ch in epochs.mean(axis=0)]
     assert np.mean([s == "no_response" for s in statuses]) >= MIN_SILENT
