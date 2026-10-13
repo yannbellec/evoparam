@@ -50,6 +50,7 @@ def least_squares_trf(
     max_nfev: int | None = None,
     reduced: bool = True,
     m: int | None = None,
+    final_jacobian: bool = True,
 ) -> tuple[FloatArray, float, int, int]:
     """Minimise ``0.5 * ||fun(x)||^2`` subject to ``lb <= x <= ub``.
 
@@ -62,6 +63,11 @@ def least_squares_trf(
     ``m``: the number of residuals of the problem, when ``fun`` and ``jac`` return them in
     a reduced orthonormal basis (fewer rows, the same inner products); it sets the rank
     threshold of the trust-region step as in SciPy. By default the rows of ``jac(x0)``.
+
+    ``final_jacobian=False`` leaves out the Jacobian that SciPy computes at the last point,
+    after a step met ``ftol`` or ``xtol``: the solution is the same, but the status is then
+    the one of that step (SciPy reports 1 when the gradient at the last point is below
+    ``gtol``).
     """
     x0 = np.atleast_1d(np.asarray(x0, dtype=float))
     lb = np.asarray(lb, dtype=float)
@@ -150,6 +156,8 @@ def least_squares_trf(
 
         if actual_reduction > 0:
             x, f, cost = x_new, f_new, cost_new
+            if status is not None and not final_jacobian:
+                break
             jac_x = np.atleast_2d(jac(x))
             jr, jf, g = _reduce(jac_x, f, reduced)
             scale_inv = np.maximum((jr**2).sum(axis=0) ** 0.5, scale_inv)
