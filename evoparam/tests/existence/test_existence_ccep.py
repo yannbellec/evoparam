@@ -167,8 +167,9 @@ def _pooled(rows: Any, method: Any, rule: Any) -> Any:
 # 0.75). On the development segments (below, RUNS) the same test gave 0.687 and 0.399.
 @pytest.mark.xfail(
     strict=False,
-    reason="REQ-135 is not met under either reading of the published rule (owner "
-    "decision D8): on the REQ-371 runs kappa 0.586 with the registry row, 0.496 with the "
+    reason="REQ-135 is judged on the registry row (D8 revised, DECISIONS §5.8); the "
+    "code's reading is reported. REQ-135 is not met under either reading of the "
+    "published rule: on the REQ-371 runs kappa 0.586 with the registry row, 0.496 with the "
     "published code; under both readings at once no decision can reach 0.7 "
     "(test_req135_cannot_hold_under_both_readings: at most 0.592). With the per-channel "
     "decision of the rule (correction='none') the registry row reaches 0.807 and the code "
