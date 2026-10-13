@@ -14,6 +14,7 @@ import logging
 import os
 import sys
 import warnings
+from types import FrameType
 
 # The package logs to "evoparam" and installs a NullHandler only (spec §9.8, REQ-304): the
 # application decides where records go, and nothing is printed twice when it does not.
@@ -84,6 +85,34 @@ _SKIP = tuple(
 )
 
 
+def _frame_above(frame: FrameType, steps: int) -> FrameType | None:
+    """Return the frame ``steps`` levels above ``frame``, as ``stacklevel`` counts.
+
+    The frames of the verbose decorator and of the n_jobs helper are not counted. None
+    when the stack ends first.
+    """
+    above: FrameType | None = frame
+    for _ in range(steps):
+        above = above.f_back if above is not None else None
+        while above is not None and above.f_code.co_filename.startswith(_SKIP):
+            above = above.f_back
+    return above
+
+
+def _warn_at(message: str | Warning, category: type[Warning], frame: FrameType) -> None:
+    """Issue a warning located at ``frame``, as :func:`warnings.warn` does."""
+    module_globals = frame.f_globals
+    warnings.warn_explicit(
+        message,
+        category,
+        frame.f_code.co_filename,
+        frame.f_lineno,
+        module=module_globals.get("__name__"),
+        registry=module_globals.setdefault("__warningregistry__", {}),
+        module_globals=module_globals,
+    )
+
+
 def warn(
     message: str | Warning, category: type[Warning] = UserWarning, stacklevel: int = 2
 ) -> None:
@@ -100,5 +129,7 @@ def warn(
         # the frames of the verbose decorator and of the n_jobs helper are not counted, so
         # that a warning points to the same line as without them
         warnings.warn(message, category, stacklevel=stacklevel + 1, skip_file_prefixes=_SKIP)
-    else:
-        warnings.warn(message, category, stacklevel=stacklevel + 1)
+        return
+    # Python < 3.12 has no skip_file_prefixes: the same walk up the stack, by hand
+    caller = sys._getframe(1)  # stacklevel 1
+    _warn_at(message, category, _frame_above(caller, stacklevel - 1) or caller)

@@ -18,14 +18,18 @@ identical to main.
   `fit_hierarchical` reads `verbose` itself, with the same values (spec §4.2 lets
   `hierarchical` import `utils.require` only), and shows no bar.
   Warnings raised inside a `@verbose` function point at the caller's line, not at the
-  decorator.
+  decorator (`skip_file_prefixes` from Python 3.12, the same walk up the stack by hand
+  before).
 - **`n_jobs`** of `test_response` (permutation, projection, shuffle and
   `model_comparison`), `fit_trials` and `shared_shapes` (nmf) now runs the channels,
   blocks or restarts in parallel: `joblib` processes when the extra `parallel` is
   installed, else a thread pool (new `evoparam.utils._parallel`). Every random number is
   drawn in the calling process in the order of the serial loop, so the results are
   identical for every `n_jobs` (tested for each function and both back ends). The warnings
-  and log records of a worker process are issued again in the caller, in order.
+  and log records of a worker process are issued again in the caller, in order, and a
+  warning that points past the unit (`max_shift ... clipped` of `fit_trials`) points at
+  the same line as in the serial loop (`evoparam.utils._rungs`); in the thread pool it
+  points into the pool.
   `shared_shapes(method="kpca")` and `tf_fit` stay serial; `fit_hierarchical` keeps its
   process pool.
 - **Unused arguments implemented** as their docstrings say:
