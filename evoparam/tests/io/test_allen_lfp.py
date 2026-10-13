@@ -19,6 +19,12 @@ from typing import Any
 
 import pytest
 
+# Trials of the Allen session read, the fewest channels with a response, and the fraction
+# of them labelled in the expected area.
+N_TRIALS = 150
+MIN_SIGNIFICANT = 10
+MIN_LABELLED = 0.9
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -80,7 +86,7 @@ def test_req278_visual_evoked_complex_on_visual_cortex() -> None:
     from evoparam.prep import baseline_correct
 
     trials = _trials()
-    assert trials.n_trials == 150
+    assert trials.n_trials == N_TRIALS
     assert abs(trials.sfreq - 1250) < 1
     visual = [
         n
@@ -106,5 +112,5 @@ def test_req278_visual_evoked_complex_on_visual_cortex() -> None:
         any(c.label in ("P1", "N1", "late") for c in group.get(ch).components)
         for ch in significant
     ]
-    assert len(significant) >= 10
-    assert sum(labelled) / len(significant) >= 0.9
+    assert len(significant) >= MIN_SIGNIFICANT
+    assert sum(labelled) / len(significant) >= MIN_LABELLED

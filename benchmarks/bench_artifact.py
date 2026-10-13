@@ -7,6 +7,7 @@ Run with ``python benchmarks/bench_artifact.py``. Target, on one core: at most 2
 EVOPARAM_PERF_TESTS=1.
 """
 
+import contextlib
 import time
 import warnings
 
@@ -56,11 +57,20 @@ def make_data(n_trials=50, n_channels=128, duration=3.0, sfreq=2048.0, seed=0):
 
 
 def run(ts):
-    """Time every artifact-removal case on ``ts``; returns (label, method, s, limit) rows."""
+    """Time every artifact-removal case on ``ts``; returns (label, method, s, limit) rows.
+
+    Each case first runs once on a small set of the same layout, untimed: the modules a
+    method imports on first use (scipy.signal for ``polynomial``, about 1 s) are not the
+    method's runtime (REQ-068); the import of the package is measured by REQ-290 P6.
+    """
+    small = make_data(n_trials=4, n_channels=8, duration=3.0, sfreq=ts.sfreq)
     rows = []
     for method, kwargs in CASES:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
+            # a warm-up only: the timed run below reports the errors
+            with contextlib.suppress(Exception):
+                remove_artifact(small, method=method, **kwargs)
             start = time.perf_counter()
             remove_artifact(ts, method=method, **kwargs)
             elapsed = time.perf_counter() - start

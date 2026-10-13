@@ -20,6 +20,9 @@ from typing import Any
 
 import pytest
 
+# Largest error of the self-test.
+SELFTEST_TOLERANCE = 0.001
+
 pytestmark = pytest.mark.core
 
 HOOK = textwrap.dedent("""
@@ -226,5 +229,5 @@ def test_req291_selftest() -> None:
 
     import evoparam
 
-    assert evoparam.selftest() <= 0.001
+    assert evoparam.selftest() <= SELFTEST_TOLERANCE
     assert run_chain()["selftest"] == "ok"

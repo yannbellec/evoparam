@@ -26,6 +26,9 @@ from evoparam.io import read_bids, read_bids_derivatives, write_bids_derivatives
 from evoparam.io.derivatives import CLASSICAL_COLUMNS, RESPONSE_COLUMNS, STIM_COLUMNS
 from evoparam.sim.bids import write_bids
 
+# Fewest files listed by the BIDS validator in the written derivatives.
+MIN_LISTED = 5
+
 TSV_SUFFIXES = ("_responses.tsv", "_existence.tsv", "_trials.tsv")
 
 
@@ -336,7 +339,7 @@ def test_req315_bidsschematools_validation(written: Any) -> None:
     validator = pytest.importorskip("bidsschematools.validator")
     raw = validator.validate_bids([str(written["root"])], accept_non_bids_dir=True)
     assert raw["path_tracking"] == []
-    assert len(raw["path_listing"]) > 5
+    assert len(raw["path_listing"]) > MIN_LISTED
     with open(os.path.join(written["out"], ".bidsignore"), encoding="utf-8") as fobj:
         ignored = [line.strip() for line in fobj if line.strip()]
     import fnmatch

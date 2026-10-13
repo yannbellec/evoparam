@@ -9,6 +9,7 @@ refused (spec §5.12, REQ-256).
 """
 
 import re
+from dataclasses import dataclass
 from fractions import Fraction
 from typing import Literal, cast, overload
 
@@ -38,6 +39,10 @@ ALLOWED_LICENSES = ("CC0", "CC-BY", "CC-BY-SA")
 
 # Attempts at finding a segment without masked or missing samples.
 _MAX_TRIES = 100
+# fewest samples of one realisation
+_MIN_TIMES = 2
+# leading entries of ``size`` from which its last one counts the channels (real noise)
+_CHANNELS_NDIM = 2
 
 
 def resolve_rng(seed: Any) -> np.random.Generator:
@@ -71,6 +76,7 @@ def parse_kind(kind: Any) -> Any:
 
 
 def _white(rng: np.random.Generator, shape: Any) -> Any:
+    """Return standard normal white noise of ``shape``."""
     return rng.standard_normal(shape)
 
 
@@ -266,8 +272,10 @@ def _real(
             f"samples at {sfreq} Hz; {n_times} are needed per segment."
         )
     size = shape[:-1]
-    n_channels = size[-1] if len(size) >= 2 else 1
-    n_segments = int(np.prod(size[:-1])) if len(size) >= 2 else int(np.prod(size))
+    # with two leading entries or more, the last one is the number of channels
+    with_channels = len(size) >= _CHANNELS_NDIM
+    n_channels = size[-1] if with_channels else 1
+    n_segments = int(np.prod(size[:-1])) if with_channels else int(np.prod(size))
     channel_map = np.arange(n_channels) % source.n_channels
     out = np.empty((n_segments, n_channels, n_times))
     segments = []
@@ -321,6 +329,63 @@ def _real(
         "source_path": source.provenance.source.get("path"),
     }
     return out.reshape(shape), info
+
+
+@dataclass
+class _BroadbandOptions:
+    """The parameters of :func:`make_noise` that the broadband models use."""
+
+    sd: float | None
+    chi: float
+    rho: float
+    source: "TrialSet | None"
+    window: tuple[float, float] | None
+    dataset: str | None
+    units: str
+
+
+def _broadband(
+    broadband: str | None,
+    rng: np.random.Generator,
+    shape: tuple[int, ...],
+    sfreq: float,
+    level: float,
+    options: _BroadbandOptions,
+) -> tuple[FloatArray, dict[str, Any]]:
+    """Return the broadband part of the noise (zeros when there is none) and its description."""
+    if broadband == "white":
+        return level * _white(rng, shape), {"sd": level}
+    if broadband == "ar1":
+        rho = float(options.rho)
+        return level * _ar1(rng, shape, rho), {"sd": level, "rho": rho}
+    if broadband == "pink":
+        chi = float(options.chi)
+        return level * _powerlaw(rng, shape, sfreq, chi), {"sd": level, "chi": chi}
+    if broadband == "real":
+        out, real_info = _real(
+            rng, shape, sfreq, options.source, options.window, options.dataset, options.units
+        )
+        if options.sd is not None:
+            current = float(np.std(out))
+            out = out * (level / current) if current > 0 else out
+            real_info["rescaled_to_sd"] = level
+        return out, real_info
+    return np.zeros(shape), {}
+
+
+def _line_amplitude(
+    line_amplitude: float | None, own_scale: bool, out: Any, level: float
+) -> float:
+    """Return the amplitude of the fundamental of the line noise.
+
+    ``line_amplitude`` when given; else the SD of the broadband part when it is real noise
+    kept at its own scale (``own_scale``); else the broadband SD.
+    """
+    if line_amplitude is not None:
+        return float(line_amplitude)
+    if own_scale:
+        return float(np.std(out))
+    return level
 
 
 ###################################################################################################
@@ -393,7 +458,7 @@ def make_noise(
 ) -> FloatArray | tuple[FloatArray, dict[str, Any]]: ...
 
 
-def make_noise(
+def make_noise(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     n_times: int,
     sfreq: float,
     kind: str = "pink",
@@ -488,8 +553,8 @@ def make_noise(
     (2, 3, 1000)
     """
     n_times = int(n_times)
-    if n_times < 2:
-        raise SettingsError(f"n_times must be at least 2, got {n_times}.")
+    if n_times < _MIN_TIMES:
+        raise SettingsError(f"n_times must be at least {_MIN_TIMES}, got {n_times}.")
     if not (np.isfinite(sfreq) and sfreq > 0):
         raise SettingsError(f"sfreq must be a positive number, got {sfreq}.")
     size = (size,) if isinstance(size, (int, np.integer)) else tuple(int(s) for s in size)
@@ -499,33 +564,14 @@ def make_noise(
         raise SettingsError("make_noise: kind must name a noise model.")
     rng = resolve_rng(seed)
     info: dict[str, Any] = {"kind": str(kind), "sfreq": float(sfreq)}
-    out = np.zeros(shape)
     level = 1.0 if sd is None else float(sd)
     if sd is not None and not (np.isfinite(level) and level >= 0):
         raise SettingsError(f"sd must be a number >= 0, got {sd}.")
-    if broadband == "white":
-        out = level * _white(rng, shape)
-        info["sd"] = level
-    elif broadband == "ar1":
-        out = level * _ar1(rng, shape, float(rho))
-        info.update(sd=level, rho=float(rho))
-    elif broadband == "pink":
-        out = level * _powerlaw(rng, shape, float(sfreq), float(chi))
-        info.update(sd=level, chi=float(chi))
-    elif broadband == "real":
-        out, real_info = _real(rng, shape, float(sfreq), source, window, dataset, units)
-        if sd is not None:
-            current = float(np.std(out))
-            out = out * (level / current) if current > 0 else out
-            real_info["rescaled_to_sd"] = level
-        info.update(real_info)
+    options = _BroadbandOptions(sd, chi, rho, source, window, dataset, units)
+    out, broadband_info = _broadband(broadband, rng, shape, float(sfreq), level, options)
+    info.update(broadband_info)
     if with_line:
-        if line_amplitude is not None:
-            amplitude = float(line_amplitude)
-        elif broadband == "real" and sd is None:
-            amplitude = float(np.std(out))
-        else:
-            amplitude = level
+        amplitude = _line_amplitude(line_amplitude, broadband == "real" and sd is None, out, level)
         out = out + _line(
             rng, shape, float(sfreq), float(line_freq), int(line_harmonics), amplitude
         )

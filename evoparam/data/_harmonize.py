@@ -209,6 +209,7 @@ class ValidationReport:
 
 
 def _pandas(caller: str) -> Any:
+    """Return pandas, or raise ImportError naming ``caller`` and the extra to install."""
     try:
         require("pandas", extra="data", caller="evoparam.data._harmonize._pandas")
         import pandas
@@ -218,6 +219,7 @@ def _pandas(caller: str) -> Any:
 
 
 def _is_missing(value: Any) -> bool:
+    """Return whether a value is missing: None, NA, NaT, NaN or a text such as ``"n/a"``."""
     if value is None or type(value).__name__ in ("NAType", "NaTType"):
         return True
     if isinstance(value, float) and math.isnan(value):
@@ -231,6 +233,7 @@ def _is_missing(value: Any) -> bool:
 
 
 def _find_column(columns: Any, candidates: Sequence[str]) -> str | None:
+    """Return the first column named like one of ``candidates`` (case-insensitive), or None."""
     lower: dict[Any, Any]
     lower = {}
     for column in columns:
@@ -252,6 +255,7 @@ def _sidecar_unit(sidecar: dict[str, Any] | None, column: str) -> str | None:
 
 
 def _unit_factor(unit: str | None, table: dict[str, float]) -> float | None:
+    """Return the factor of ``unit`` in ``table`` (case-insensitive), or None."""
     if unit is None:
         return None
     return table.get(unit.strip().lower().replace("μ", "µ"), table.get(unit.strip().lower()))
@@ -276,7 +280,7 @@ def _parse_quantity(
     report: "HarmonizationReport",
 ) -> FloatArray:
     """Numbers in the target unit, from numbers or strings such as "4.0 mA" or "1ms"."""
-    table, target_unit, small_unit, threshold, large_unit = _QUANTITIES[target]
+    table = _QUANTITIES[target][0]
     native = column.lower() == target.lower()
     side_unit = None if native else _sidecar_unit(sidecar, column)
     side_factor = _unit_factor(side_unit, table)
@@ -294,26 +298,11 @@ def _parse_quantity(
     for pos, value in enumerate(values):
         if _is_missing(value):
             continue
-        if isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(
-            value, bool
-        ):
-            number, unit = float(value), None
-        else:
-            match = _NUMBER.match(str(value))
-            if not match:
-                report.warnings.append(
-                    f"unparsable: {column} value {value!r} is not a number "
-                    "with a unit; left as missing"
-                )
-                continue
-            number, unit = float(match.group(1)), match.group(2)
-        if unit:
-            factor = _unit_factor(unit, table)
-            if factor is None:
-                report.warnings.append(
-                    f"unit_unknown: {column} value {value!r} has an unknown unit; left as missing"
-                )
-                continue
+        read = _number_and_factor(value, column, table, report)
+        if read is None:
+            continue
+        number, factor = read
+        if factor is not None:
             out[pos] = number * factor
             inline = True
         elif native:
@@ -325,22 +314,7 @@ def _parse_quantity(
             out[pos] = number
 
     if unitless:
-        numbers = np.abs(out[unitless])
-        unit = small_unit if small_unit is not None and np.all(numbers < threshold) else large_unit
-        out[unitless] = out[unitless] * table[unit.lower()]
-        if unit != target_unit or small_unit is not None:
-            rule = (
-                f"values < {threshold} are read as {small_unit}, others as {large_unit}"
-                if small_unit is not None
-                else f"values are read as {large_unit}"
-            )
-            report.warnings.append(
-                f"unit_inferred: {column} has no unit ({rule}); read as "
-                f"{unit} and converted to {target_unit}"
-            )
-        report.units[target] = f"inferred:{unit}"
-        if inline:
-            report.units[target] = "mixed"
+        _infer_unit(out, unitless, column, target, report, inline=inline)
     elif native:
         report.units[target] = "native"
     elif side_unit is not None:
@@ -350,7 +324,65 @@ def _parse_quantity(
     return out
 
 
+def _number_and_factor(
+    value: Any, column: str, table: dict[str, float], report: "HarmonizationReport"
+) -> tuple[float, float | None] | None:
+    """Return a value's number and the factor of its own unit (None without a unit).
+
+    None, with a warning in ``report``, when the value is not a number or its unit is unknown.
+    """
+    if isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool):
+        return float(value), None
+    match = _NUMBER.match(str(value))
+    if not match:
+        report.warnings.append(
+            f"unparsable: {column} value {value!r} is not a number with a unit; left as missing"
+        )
+        return None
+    number, unit = float(match.group(1)), match.group(2)
+    if not unit:
+        return number, None
+    factor = _unit_factor(unit, table)
+    if factor is None:
+        report.warnings.append(
+            f"unit_unknown: {column} value {value!r} has an unknown unit; left as missing"
+        )
+        return None
+    return number, factor
+
+
+def _infer_unit(
+    out: FloatArray,
+    unitless: list[int],
+    column: str,
+    target: str,
+    report: "HarmonizationReport",
+    *,
+    inline: bool,
+) -> None:
+    """Convert in place the numbers given without a unit, from the unit their size implies.
+
+    ``inline``: other values gave their own unit (the units are then reported as mixed).
+    """
+    table, target_unit, small_unit, threshold, large_unit = _QUANTITIES[target]
+    numbers = np.abs(out[unitless])
+    unit = small_unit if small_unit is not None and np.all(numbers < threshold) else large_unit
+    out[unitless] = out[unitless] * table[unit.lower()]
+    if unit != target_unit or small_unit is not None:
+        rule = (
+            f"values < {threshold} are read as {small_unit}, others as {large_unit}"
+            if small_unit is not None
+            else f"values are read as {large_unit}"
+        )
+        report.warnings.append(
+            f"unit_inferred: {column} has no unit ({rule}); read as "
+            f"{unit} and converted to {target_unit}"
+        )
+    report.units[target] = "mixed" if inline else f"inferred:{unit}"
+
+
 def _polarity_kind(text: str) -> str | None:
+    """Return the kind of stimulation a text states: alternating, biphasic or monophasic."""
     text = text.lower()
     if "alternat" in text:
         return "alternating"
@@ -390,7 +422,7 @@ def _polarity(value: object, parameters: Any) -> str | None:
 ## Public functions
 
 
-def harmonize_stim_events(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.1)
+def harmonize_stim_events(
     events: Any, sidecar: dict[str, Any] | None = None, *, mapping: dict[str, str] | None = None
 ) -> tuple[Any, "HarmonizationReport"]:
     """Map stimulation columns of an events table to the standard metadata columns.
@@ -454,18 +486,7 @@ def harmonize_stim_events(  # noqa: C901, PLR0912, PLR0915  (public API, signatu
     n_rows = len(out)
     report = HarmonizationReport(n_rows=n_rows, user_mapping=dict(mapping))
 
-    chosen: dict[str, str | None] = {}
-    for source, target in mapping.items():
-        if target not in SOURCES:
-            raise DataError(
-                f"mapping: unknown target column {target!r}; expected one of {sorted(SOURCES)}."
-            )
-        if source not in events.columns:
-            raise DataError(f"mapping: column {source!r} is not in the events table.")
-        chosen[target] = source
-    for target, candidates in SOURCES.items():
-        if target not in chosen:
-            chosen[target] = _find_column(events.columns, candidates)
+    chosen = _choose_columns(events.columns, mapping)
     report.mapping = {target: chosen[target] for target in SOURCES}
     report.missing = [target for target in SOURCES if chosen[target] is None]
 
@@ -476,33 +497,10 @@ def harmonize_stim_events(  # noqa: C901, PLR0912, PLR0915  (public API, signatu
     # Site
     column = chosen["stim_site"]
     if column is not None:
-        values = out[column].tolist()
-        if column.lower() == "electrodes_involved_onset" and "stim_site" not in mapping.values():
-            is_stim = (
-                [False] * n_rows
-                if trial_type is None
-                else [not _is_missing(t) and "stim" in str(t).lower() for t in trial_type]
-            )
-            values = [
-                value if keep else None for value, keep in zip(values, is_stim, strict=False)
-            ]
-        sites = [normalize_site(value) for value in values]
+        explicit = "stim_site" in mapping.values()
+        sites = _sites_from_column(out[column].tolist(), column, trial_type, explicit=explicit)
     else:
-        sites = ["n/a"] * n_rows
-        if trial_type is not None:
-            pairs = [not _is_missing(t) and bool(_PAIR.match(str(t).strip())) for t in trial_type]
-            if any(pairs):
-                sites = [
-                    str(t).strip() if pair else "n/a"
-                    for t, pair in zip(trial_type, pairs, strict=False)
-                ]
-                report.mapping["stim_site"] = "trial_type"
-                report.missing.remove("stim_site")
-                report.warnings.append(
-                    f"site_from_trial_type: no site column; {sum(pairs)} "
-                    "trial_type values that look like a contact pair "
-                    "were used as stim_site"
-                )
+        sites = _sites_from_trial_type(trial_type, n_rows, report)
     out["stim_site"] = pd.Series(sites)
 
     # Quantities
@@ -521,7 +519,85 @@ def harmonize_stim_events(  # noqa: C901, PLR0912, PLR0915  (public API, signatu
     out["stim_n_pulses"] = pd.array(counts, dtype="Int64")
 
     # Polarity
-    column = chosen["stim_polarity"]
+    _add_polarity(out, chosen["stim_polarity"], parameters, report)
+
+    # Charge per phase (µC) = current (mA) × pulse width (µs) / 1000
+    out["stim_charge_uC"] = out["stim_current_mA"] * out["stim_pulse_width_us"] / 1000.0
+
+    # Condition
+    column = chosen["condition"]
+    values = out[column].tolist() if column else [None] * n_rows
+    out["condition"] = pd.Series(["n/a" if _is_missing(value) else str(value) for value in values])
+
+    units = dict(out.attrs.get("units", {}))
+    units.update({key: value for key, value in UNITS.items() if key in out.columns})
+    out.attrs["units"] = units
+    return out, report
+
+
+def _choose_columns(columns: Any, mapping: dict[str, str]) -> dict[str, str | None]:
+    """Return the source column of each target: from ``mapping``, else the first match."""
+    chosen: dict[str, str | None] = {}
+    for source, target in mapping.items():
+        if target not in SOURCES:
+            raise DataError(
+                f"mapping: unknown target column {target!r}; expected one of {sorted(SOURCES)}."
+            )
+        if source not in columns:
+            raise DataError(f"mapping: column {source!r} is not in the events table.")
+        chosen[target] = source
+    for target, candidates in SOURCES.items():
+        if target not in chosen:
+            chosen[target] = _find_column(columns, candidates)
+    return chosen
+
+
+def _sites_from_column(
+    values: list[Any], column: str, trial_type: Any, *, explicit: bool
+) -> list[str]:
+    """Return the normalised sites of a site column.
+
+    From ``electrodes_involved_onset`` (unless mapped explicitly), only the rows whose
+    ``trial_type`` contains "stim" give a site.
+    """
+    if column.lower() == "electrodes_involved_onset" and not explicit:
+        is_stim = (
+            [False] * len(values)
+            if trial_type is None
+            else [not _is_missing(t) and "stim" in str(t).lower() for t in trial_type]
+        )
+        values = [value if keep else None for value, keep in zip(values, is_stim, strict=False)]
+    return [normalize_site(value) for value in values]
+
+
+def _sites_from_trial_type(
+    trial_type: Any, n_rows: int, report: "HarmonizationReport"
+) -> list[str]:
+    """Return the sites without a site column: the trial types that look like a contact pair."""
+    sites = ["n/a"] * n_rows
+    if trial_type is not None:
+        pairs = [not _is_missing(t) and bool(_PAIR.match(str(t).strip())) for t in trial_type]
+        if any(pairs):
+            sites = [
+                str(t).strip() if pair else "n/a"
+                for t, pair in zip(trial_type, pairs, strict=False)
+            ]
+            report.mapping["stim_site"] = "trial_type"
+            report.missing.remove("stim_site")
+            report.warnings.append(
+                f"site_from_trial_type: no site column; {sum(pairs)} "
+                "trial_type values that look like a contact pair "
+                "were used as stim_site"
+            )
+    return sites
+
+
+def _add_polarity(
+    out: Any, column: str | None, parameters: str | None, report: "HarmonizationReport"
+) -> None:
+    """Add ``stim_polarity`` (and the raw values when one is not understood) to ``out``."""
+    pd = _pandas("evoparam.io.harmonize_stim_events")
+    n_rows = len(out)
     raw = (
         ["n/a"] * n_rows
         if column is None
@@ -547,21 +623,9 @@ def harmonize_stim_events(  # noqa: C901, PLR0912, PLR0915  (public API, signatu
             "kept in evoparam_stim_type_raw"
         )
 
-    # Charge per phase (µC) = current (mA) × pulse width (µs) / 1000
-    out["stim_charge_uC"] = out["stim_current_mA"] * out["stim_pulse_width_us"] / 1000.0
-
-    # Condition
-    column = chosen["condition"]
-    values = out[column].tolist() if column else [None] * n_rows
-    out["condition"] = pd.Series(["n/a" if _is_missing(value) else str(value) for value in values])
-
-    units = dict(out.attrs.get("units", {}))
-    units.update({key: value for key, value in UNITS.items() if key in out.columns})
-    out.attrs["units"] = units
-    return out, report
-
 
 def _parse_count(values: Any, column: str, report: "HarmonizationReport") -> list[Any]:
+    """Return the pulse counts as integers (None when missing, not a number or not whole)."""
     out: list[Any]
     out = []
     for value in values:

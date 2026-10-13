@@ -18,6 +18,10 @@ if TYPE_CHECKING:
     from evoparam.data.containers import TrialSet
     from evoparam.data.results import GroupFit
 
+# A two-dimensional X is a single channel: [n_trials, n_times]
+_SINGLE_CHANNEL_NDIM = 2
+
+
 __all__ = ["TrialFitter"]
 
 
@@ -52,6 +56,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
         mode: str = "shift_scale",
         random_state: Any = None,
     ) -> None:
+        """Store the settings (scikit-learn estimators check nothing before fit)."""
         self.preset = preset
         self.sfreq = sfreq
         self.tmin = tmin
@@ -81,7 +86,7 @@ class TrialFitter(BaseEstimatorMixin, TransformerMixin):
                 )
             return x
         data = validate_array(self, x, reset=reset, ndim=3)
-        if data.ndim == 2:
+        if data.ndim == _SINGLE_CHANNEL_NDIM:
             data = data[:, None, :]
         if self.sfreq is None:
             raise SettingsError("sfreq is required when X is an array.")

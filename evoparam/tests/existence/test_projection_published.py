@@ -32,6 +32,16 @@ from typing import Any
 import numpy as np
 import pytest
 
+# Tolerance (s) of a published duration, and the agreement with the published decisions.
+DURATION_TOLERANCE = 0.005
+MIN_AGREEMENT = 0.95
+# End (s) of the reviewed profile's response, and the rejection rates under the null of
+# the paper's pairs, of the disjoint pairs and of the default sign-flip test.
+REVIEWED_END = 0.04
+MIN_HALF_REJECTION = 0.3
+MAX_DISJOINT_REJECTION = 0.2
+MAX_SIGNFLIP_REJECTION = 0.08
+
 ROOT = pathlib.Path(__file__).parents[3]
 COMMIT = "f6efb4efc6ad6f421603974130a8e09ff2d3e7bd"
 URL = "https://raw.githubusercontent.com/kaijmiller/crp_scripts/{}/sampledata/{}.mat"
@@ -135,7 +145,7 @@ def test_req134_published_durations_of_the_example_data(
     duration published for the paper's example data."""
 
     test = _projection(_trials(name, drop))
-    assert abs(test.offset[0] - published) <= 0.005, (name, drop, test.offset[0])
+    assert abs(test.offset[0] - published) <= DURATION_TOLERANCE, (name, drop, test.offset[0])
 
 
 @pytest.mark.network
@@ -152,21 +162,18 @@ def test_req134_published_significance_of_the_example_data() -> None:
         bool(_projection(_trials(name), projection_pairs="half").significant[0]) == published
         for name, published in DECISIONS
     ]
-    assert np.mean(agree) >= 0.95, [d for d, a in zip(DECISIONS, agree, strict=True) if not a]
+    assert np.mean(agree) >= MIN_AGREEMENT, [
+        d for d, a in zip(DECISIONS, agree, strict=True) if not a
+    ]
 
 
 @pytest.mark.network
 @needs_network
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-134 with the default set of projections "
-    "(projection_pairs='disjoint'): the decisions agree with the published ones "
-    "on 0.8 to 1.0 of the 10 example pairs depending on the random pairing, "
-    "mean 0.89 over seeds 0 to 9, below 0.95",
-)
 def test_req134_published_significance_with_the_default_pairs() -> None:
-    """REQ-134 read with the defaults: the mean agreement over ten random pairings is at least
-    95 %."""
+    """REQ-134 read with the defaults: the mean agreement over ten random draws is at least
+    95 % (measured 1.0 with the default ``"signflip"`` test, whose patterns are all
+    enumerated for these 10 and 13 trials; the ``"disjoint"`` t-test gave 0.8 to 1.0 by
+    pairing, mean 0.89)."""
 
     from evoparam.existence import test_response
 
@@ -193,7 +200,7 @@ def test_req134_published_significance_with_the_default_pairs() -> None:
                 for name, published in DECISIONS
             ]
         agreement.append(np.mean(agree))
-    assert np.mean(agreement) >= 0.95, agreement
+    assert np.mean(agreement) >= MIN_AGREEMENT, agreement
 
 
 def test_req134_reviewed_profile_is_kept_as_an_option() -> None:
@@ -212,26 +219,29 @@ def test_req134_reviewed_profile_is_kept_as_an_option() -> None:
     reviewed = _projection(trialset(data), window=(0.015, 0.5), projection_profile="normalised")
     assert published.settings["projection_profile"] == "published"
     assert reviewed.settings["projection_profile"] == "normalised"
-    assert np.all(np.abs(published.offset - 0.2) <= 0.005)
-    assert np.all(reviewed.offset < 0.04)
+    assert np.all(np.abs(published.offset - 0.2) <= DURATION_TOLERANCE)
+    assert np.all(reviewed.offset < REVIEWED_END)
     assert np.all(published.significant)
     assert np.all(reviewed.significant)
 
 
 def test_req134_pairs_of_the_paper_are_anticonservative() -> None:
     """REQ-134: on pure white noise (10 trials, 200 channels) the paper's set of projections
-    rejects far more often than alpha = 0.05 (0.43 measured), the default set (each trial in
-    one pair) much less (0.145, above alpha by the choice of the response end at the peak of
-    the profile); the default stays the one whose values are independent under the null."""
+    rejects far more often than alpha = 0.05 (0.43 measured), the "disjoint" t-test less
+    (0.145, above alpha by the choice of the response end at the peak of the profile), and
+    the default sign-flip test at alpha (0.05), its null including that choice."""
 
     from evoparam.tests.existence.helpers import noise_trials, trialset
 
     data = noise_trials(np.random.default_rng(3), 10, 200)
     half = _projection(trialset(data), window=(0.009, 0.5), projection_pairs="half")
-    disjoint = _projection(trialset(data), window=(0.009, 0.5))
-    assert disjoint.settings["projection_pairs"] == "disjoint"
-    assert np.mean(half.significant) > 0.3
-    assert np.mean(disjoint.significant) < 0.2
+    disjoint = _projection(trialset(data), window=(0.009, 0.5), projection_pairs="disjoint")
+    default = _projection(trialset(data), window=(0.009, 0.5))
+    assert default.settings["projection_pairs"] == "signflip"
+    assert np.mean(half.significant) > MIN_HALF_REJECTION
+    assert np.mean(disjoint.significant) < MAX_DISJOINT_REJECTION
+    # the sign-flip null includes the choice of the response end: measured 0.05
+    assert np.mean(default.significant) <= MAX_SIGNFLIP_REJECTION
 
 
 @pytest.mark.xfail(

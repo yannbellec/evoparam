@@ -5,8 +5,8 @@ The distribution ships ``evoparam/py.typed``; ``mypy`` checks one example per pu
 point (``typing_examples/*.py``, a user shape class that satisfies ``ComponentShape``
 without inheriting included) and must reject the deliberately wrong examples
 (``typing_examples/wrong_*.py``). The examples pass under ``--strict`` and
-``pyright --verifytypes`` reports >= 95 % known symbols; ``mypy --strict evoparam`` is not
-met yet and stays a strict expected failure with its measured value.
+``pyright --verifytypes`` reports >= 95 % known symbols; ``mypy --strict evoparam`` passes
+with the type stubs of the lock files.
 """
 
 import json
@@ -20,6 +20,9 @@ from typing import Any
 import pytest
 
 import evoparam
+
+# Completeness of the types required (REQ-301).
+MIN_SCORE = 0.95
 
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 EXAMPLES = pathlib.Path(__file__).resolve().parent / "typing_examples"
@@ -138,20 +141,29 @@ def test_req301_good_examples_pass_under_strict(tmp_path: Any) -> None:
     assert code == 0, out
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-301: mypy --strict evoparam reports 1 error with the lock files, which "
-    "hold scipy-stubs, types-PyYAML and types-tabulate since the reglages-ignores branch "
-    "(extra tests): patsy (a dependency of statsmodels, extra stats) has no stubs "
-    "[import-untyped] (mypy 2.4.0, scipy-stubs 1.18.1.1, Python 3.13, 2026-10-13). "
-    "Without the stubs 47 errors, all [import-untyped]: scipy (45 imports), yaml and "
-    "tabulate (5345 before the qualite-statique branch)",
-)
+def _stubs_missing() -> list[str]:
+    """The type-stub distributions of the CI lock files (ci/locks/) that are not installed."""
+    from importlib import metadata
+
+    missing = []
+    for name in ("scipy-stubs", "types-PyYAML", "types-tabulate"):
+        try:
+            metadata.distribution(name)
+        except metadata.PackageNotFoundError:
+            missing.append(name)
+    return missing
+
+
 @pytest.mark.skipif(
     os.environ.get("EVOPARAM_SLOW_TESTS") != "1",
     reason="about two minutes; set EVOPARAM_SLOW_TESTS=1",
 )
 def test_req301_mypy_strict_on_the_package(tmp_path: Any) -> None:
+    """``mypy --strict evoparam`` passes in the environment of the lock files, which hold the
+    stubs of scipy, PyYAML and tabulate (47 [import-untyped] errors without them)."""
+    missing = _stubs_missing()
+    if missing:
+        pytest.skip(f"the stubs of the lock files are not installed: {missing}")
     code, out = _mypy(
         [ROOT / "evoparam"],
         tmp_path,
@@ -185,4 +197,4 @@ def test_req301_pyright_verifytypes_known_share() -> None:
         check=False,
     )
     score = json.loads(done.stdout)["typeCompleteness"]["completenessScore"]
-    assert score >= 0.95, score
+    assert score >= MIN_SCORE, score

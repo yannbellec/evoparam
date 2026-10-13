@@ -8,6 +8,16 @@ from evoparam.data import TrialSet
 from evoparam.errors import DataError, EventError
 from evoparam.io.epochs import epoch, epoch_data
 
+# Values at 1 s of the ramps (sample 100) and at 5 s of the negative ramp (sample -500).
+AT_ONE_SECOND = 100
+AT_FIVE_SECONDS = -500
+# Trials kept and samples of the window [-0.1, 0.2) at 100 Hz.
+N_KEPT = 3
+N_TIMES = 30
+# Values at 10.5 s and 12 s of the ramp sampled from t0 = 10 s.
+AT_FIRST_ONSET = 50
+AT_SECOND_ONSET = 200
+
 ###################################################################################################
 ###################################################################################################
 
@@ -21,13 +31,13 @@ def test_epoch_data() -> None:
     assert np.allclose(times, np.arange(-10, 21) / sfreq)
     assert epochs.shape == (2, 2, 31)
     assert list(kept) == [True, True, False]
-    assert epochs[0, 0, 10] == 100
-    assert epochs[1, 1, 10] == -500
+    assert epochs[0, 0, 10] == AT_ONE_SECOND
+    assert epochs[1, 1, 10] == AT_FIVE_SECONDS
 
     # With an offset clock, and 1d data
     times, epochs, kept = epoch_data(data[0], sfreq, [11.0], -0.1, 0.2, t0=10.0)
     assert epochs.shape == (1, 31)
-    assert epochs[0, 10] == 100
+    assert epochs[0, 10] == AT_ONE_SECOND
 
 
 def test_epoch_returns_a_trialset() -> None:
@@ -40,11 +50,11 @@ def test_epoch_returns_a_trialset() -> None:
     trials.validate()
 
     # Window [-0.1, 0.2): 30 samples, onset sample at t = 0
-    assert trials.n_trials == 3
-    assert trials.n_times == 30
+    assert trials.n_trials == N_KEPT
+    assert trials.n_times == N_TIMES
     assert np.allclose(trials.times, np.arange(-10, 20) / sfreq)
-    assert trials.data[0, 0, 10] == 100
-    assert trials.data[2, 1, 10] == -500
+    assert trials.data[0, 0, 10] == AT_ONE_SECOND
+    assert trials.data[2, 1, 10] == AT_FIVE_SECONDS
     assert np.allclose(trials.event_times, [1.0, 1.2, 5.004])
 
     step = trials.provenance.steps[-1]
@@ -68,8 +78,8 @@ def test_epoch_with_metadata_and_clock() -> None:
     assert trials.ch_names == ["CH001"]
     assert trials.units == "mV"
     assert list(trials.metadata["condition"]) == ["a", "b"]
-    assert trials.data[0, 0, 5] == 50
-    assert trials.data[1, 0, 5] == 200
+    assert trials.data[0, 0, 5] == AT_FIRST_ONSET
+    assert trials.data[1, 0, 5] == AT_SECOND_ONSET
 
     with pytest.raises(DataError, match="rows"):
         epoch(data, 100.0, [10.5], -0.05, 0.05, t0=10.0, metadata=metadata)

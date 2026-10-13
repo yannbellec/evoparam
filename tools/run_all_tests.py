@@ -44,49 +44,93 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 # Import names of the optional packages the test suite uses, and the extra holding each.
 OPTIONAL = {
-    "pandas": "data", "pyarrow": "data", "matplotlib": "plot", "mne": "mne",
-    "mne_bids": "bids", "bids": "bids", "pynwb": "nwb", "hdmf": "nwb", "ndx_events": "nwb",
-    "h5py": "nwb", "remfile": "nwb", "neo": "neo", "quantities": "neo", "edfio": "edf",
-    "statsmodels": "stats", "formulaic": "stats", "jsonschema": "validate",
-    "bidsschematools": "validate", "nwbinspector": "validate", "tqdm": "progress",
-    "joblib": "parallel", "xarray": "xarray", "numba": "fast", "sklearn": "sklearn",
-    "mpmath": "tests", "hypothesis": "tests", "pytest": "tests", "pytest_cov": "tests",
-    "pytest_timeout": "tests", "numpyro": "bayes", "jax": "bayes", "arviz": "bayes",
+    "pandas": "data",
+    "pyarrow": "data",
+    "matplotlib": "plot",
+    "mne": "mne",
+    "mne_bids": "bids",
+    "bids": "bids",
+    "pynwb": "nwb",
+    "hdmf": "nwb",
+    "ndx_events": "nwb",
+    "h5py": "nwb",
+    "remfile": "nwb",
+    "neo": "neo",
+    "quantities": "neo",
+    "edfio": "edf",
+    "statsmodels": "stats",
+    "formulaic": "stats",
+    "jsonschema": "validate",
+    "bidsschematools": "validate",
+    "nwbinspector": "validate",
+    "tqdm": "progress",
+    "joblib": "parallel",
+    "xarray": "xarray",
+    "numba": "fast",
+    "sklearn": "sklearn",
+    "mpmath": "tests",
+    "hypothesis": "tests",
+    "pytest": "tests",
+    "pytest_cov": "tests",
+    "pytest_timeout": "tests",
+    "numpyro": "bayes",
+    "jax": "bayes",
+    "arviz": "bayes",
     "pymc": "bayes",
 }
 
-FLAGS = {"network": "EVOPARAM_NETWORK_TESTS", "slow": "EVOPARAM_SLOW_TESTS",
-         "perf": "EVOPARAM_PERF_TESTS"}
+FLAGS = {
+    "network": "EVOPARAM_NETWORK_TESTS",
+    "slow": "EVOPARAM_SLOW_TESTS",
+    "perf": "EVOPARAM_PERF_TESTS",
+}
 
 
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("paths", nargs="*", default=["evoparam"],
-                        help="test paths (default: the whole package)")
-    parser.add_argument("--python", default=sys.executable,
-                        help="Python interpreter to run the tests with (default: this one)")
-    parser.add_argument("--venv", help="create (or reuse) a virtual environment here from "
-                                       "--python and install the package into it")
-    parser.add_argument("--extras", default="all,bayes",
-                        help="extras installed with --venv (default: all,bayes)")
-    parser.add_argument("--out", help="folder for junit.xml, summary.md and summary.json "
-                                      "(default: test-reports/<python>-<time>)")
-    for name in FLAGS:
-        parser.add_argument(f"--no-{name}", action="store_true",
-                            help=f"do not set {FLAGS[name]}=1")
+    parser.add_argument(
+        "paths", nargs="*", default=["evoparam"], help="test paths (default: the whole package)"
+    )
+    parser.add_argument(
+        "--python",
+        default=sys.executable,
+        help="Python interpreter to run the tests with (default: this one)",
+    )
+    parser.add_argument(
+        "--venv",
+        help="create (or reuse) a virtual environment here from "
+        "--python and install the package into it",
+    )
+    parser.add_argument(
+        "--extras", default="all,bayes", help="extras installed with --venv (default: all,bayes)"
+    )
+    parser.add_argument(
+        "--out",
+        help="folder for junit.xml, summary.md and summary.json "
+        "(default: test-reports/<python>-<time>)",
+    )
+    for name, variable in FLAGS.items():
+        parser.add_argument(f"--no-{name}", action="store_true", help=f"do not set {variable}=1")
     parser.add_argument("--data", help="download cache (EVOPARAM_DATA)")
-    parser.add_argument("--env", action="append", default=[], metavar="KEY=VALUE",
-                        help="more environment variables (for example EVOPARAM_ERPCORE)")
-    parser.add_argument("--doctests", action="store_true",
-                        help="also run the doctests of the package")
-    parser.add_argument("--pytest-args", default="",
-                        help="extra arguments passed to pytest (one string)")
+    parser.add_argument(
+        "--env",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="more environment variables (for example EVOPARAM_ERPCORE)",
+    )
+    parser.add_argument(
+        "--doctests", action="store_true", help="also run the doctests of the package"
+    )
+    parser.add_argument(
+        "--pytest-args", default="", help="extra arguments passed to pytest (one string)"
+    )
     return parser
 
 
-def _run(command, **kwargs):
+def _run(command, *, check=False, **kwargs):
     print("+", " ".join(map(str, command)), flush=True)
-    return subprocess.run(command, **kwargs)
+    return subprocess.run(command, check=check, **kwargs)
 
 
 def _venv_python(venv):
@@ -96,8 +140,7 @@ def _venv_python(venv):
 
 
 def prepare(args):
-    """The interpreter to test with (creating and filling the venv when asked)."""
-
+    """Return the interpreter to test with (creating and filling the venv when asked)."""
     if not args.venv:
         return args.python
     python = _venv_python(args.venv)
@@ -110,28 +153,43 @@ def prepare(args):
 
 
 def missing_packages(python):
-    """Optional packages that ``python`` cannot import: {name: extra}."""
-
-    code = ("import importlib.util, json, sys\n"
-            "names = json.loads(sys.argv[1])\n"
-            "print(json.dumps([n for n in names if importlib.util.find_spec(n) is None]))\n")
-    proc = subprocess.run([python, "-c", code, json.dumps(sorted(OPTIONAL))],
-                          capture_output=True, text=True, check=True)
+    """Return the optional packages that ``python`` cannot import: {name: extra}."""
+    code = (
+        "import importlib.util, json, sys\n"
+        "names = json.loads(sys.argv[1])\n"
+        "print(json.dumps([n for n in names if importlib.util.find_spec(n) is None]))\n"
+    )
+    proc = subprocess.run(
+        [python, "-c", code, json.dumps(sorted(OPTIONAL))],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return {name: OPTIONAL[name] for name in json.loads(proc.stdout)}
 
 
 def python_version(python):
-    proc = subprocess.run([python, "-c", "import platform; print(platform.python_version())"],
-                          capture_output=True, text=True, check=True)
+    """Return the version of the interpreter ``python``."""
+    proc = subprocess.run(
+        [python, "-c", "import platform; print(platform.python_version())"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return proc.stdout.strip()
 
 
 def summarise(junit, missing):
     """Totals and the lists of failures, errors, expected failures and skips."""
-
     root = ET.parse(junit).getroot()
-    out = {"passed": [], "failed": [], "errors": [], "skipped": [], "xfailed": [],
-           "skipped_missing_package": []}
+    out = {
+        "passed": [],
+        "failed": [],
+        "errors": [],
+        "skipped": [],
+        "xfailed": [],
+        "skipped_missing_package": [],
+    }
     for case in root.iter("testcase"):
         name = f"{case.get('classname')}::{case.get('name')}"
         failure, error, skipped = (case.find(tag) for tag in ("failure", "error", "skipped"))
@@ -159,35 +217,49 @@ def summarise(junit, missing):
 
 
 def write_summary(folder, summary, header):
-    (folder / "summary.json").write_text(json.dumps({**header, **summary}, indent=2),
-                                         encoding="utf-8")
-    lines = [f"# Test run {header['started']}", "",
-             f"- Python {header['python_version']} (`{header['python']}`)",
-             f"- flags: {', '.join(header['flags']) or 'none'}",
-             f"- paths: {' '.join(header['paths'])}",
-             f"- pytest exit code: {header['exit_code']}", "",
-             "| passed | failed | errors | xfailed | skipped | skipped (missing package) |",
-             "|---|---|---|---|---|---|",
-             "| {passed} | {failed} | {errors} | {xfailed} | {skipped} | "
-             "{skipped_missing_package} |".format(**summary["totals"]), ""]
+    """Write summary.json and summary.md of a run into ``folder``."""
+    (folder / "summary.json").write_text(
+        json.dumps({**header, **summary}, indent=2), encoding="utf-8"
+    )
+    lines = [
+        f"# Test run {header['started']}",
+        "",
+        f"- Python {header['python_version']} (`{header['python']}`)",
+        f"- flags: {', '.join(header['flags']) or 'none'}",
+        f"- paths: {' '.join(header['paths'])}",
+        f"- pytest exit code: {header['exit_code']}",
+        "",
+        "| passed | failed | errors | xfailed | skipped | skipped (missing package) |",
+        "|---|---|---|---|---|---|",
+        "| {passed} | {failed} | {errors} | {xfailed} | {skipped} | "
+        "{skipped_missing_package} |".format(**summary["totals"]),
+        "",
+    ]
     if summary["missing_packages"]:
         lines += ["## Optional packages missing (their tests skip)", ""]
-        lines += [f"- `{name}` (extra `{extra}`)"
-                  for name, extra in sorted(summary["missing_packages"].items())]
+        lines += [
+            f"- `{name}` (extra `{extra}`)"
+            for name, extra in sorted(summary["missing_packages"].items())
+        ]
         lines.append("")
-    for key, title, field in (("failed", "Failures", "message"), ("errors", "Errors", "message"),
-                              ("xfailed", "Expected failures", "reason"),
-                              ("skipped_missing_package", "Skipped: missing package", "reason"),
-                              ("skipped", "Skipped", "reason")):
+    for key, title, field in (
+        ("failed", "Failures", "message"),
+        ("errors", "Errors", "message"),
+        ("xfailed", "Expected failures", "reason"),
+        ("skipped_missing_package", "Skipped: missing package", "reason"),
+        ("skipped", "Skipped", "reason"),
+    ):
         if summary[key]:
             lines += [f"## {title}", ""]
-            lines += [f"- `{entry['test']}`: {' '.join(entry[field].split())}"
-                      for entry in summary[key]]
+            lines += [
+                f"- `{entry['test']}`: {' '.join(entry[field].split())}" for entry in summary[key]
+            ]
             lines.append("")
     (folder / "summary.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def main(argv=None):
+    """Run the test suite with the requested flags and write the reports."""
     args = _parser().parse_args(argv)
     python = prepare(args)
     version = python_version(python)
@@ -208,23 +280,54 @@ def main(argv=None):
         env[key] = value
     missing = missing_packages(python)
     if missing:
-        print("optional packages missing (their tests will skip): "
-              + ", ".join(f"{k} [{v}]" for k, v in sorted(missing.items())), flush=True)
+        print(
+            "optional packages missing (their tests will skip): "
+            + ", ".join(f"{k} [{v}]" for k, v in sorted(missing.items())),
+            flush=True,
+        )
 
     junit = out / "junit.xml"
-    command = [python, "-m", "pytest", *args.paths, "-p", "no:cacheprovider", "-rfEsx",
-               f"--junitxml={junit}", "-o", "junit_family=xunit2"]
+    command = [
+        python,
+        "-m",
+        "pytest",
+        *args.paths,
+        "-p",
+        "no:cacheprovider",
+        "-rfEsx",
+        f"--junitxml={junit}",
+        "-o",
+        "junit_family=xunit2",
+    ]
     command += args.pytest_args.split()
     code = _run(command, cwd=str(ROOT), env=env).returncode
     if args.doctests:
         doc_junit = out / "doctests.xml"
-        doc = _run([python, "-m", "pytest", "--doctest-modules", "--ignore=evoparam/tests",
-                    "evoparam", "-p", "no:cacheprovider", f"--junitxml={doc_junit}"],
-                   cwd=str(ROOT), env=env).returncode
+        doc = _run(
+            [
+                python,
+                "-m",
+                "pytest",
+                "--doctest-modules",
+                "--ignore=evoparam/tests",
+                "evoparam",
+                "-p",
+                "no:cacheprovider",
+                f"--junitxml={doc_junit}",
+            ],
+            cwd=str(ROOT),
+            env=env,
+        ).returncode
         code = code or doc
 
-    header = {"started": started, "python": python, "python_version": version,
-              "flags": flags, "paths": args.paths, "exit_code": code}
+    header = {
+        "started": started,
+        "python": python,
+        "python_version": version,
+        "flags": flags,
+        "paths": args.paths,
+        "exit_code": code,
+    }
     if junit.exists():
         summary = summarise(junit, missing)
         write_summary(out, summary, header)

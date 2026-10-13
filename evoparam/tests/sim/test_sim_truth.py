@@ -15,6 +15,15 @@ from evoparam.tests.sim._helpers import SMALL, fits_from_truth, real_baselines
 
 pd = pytest.importorskip("pandas")
 
+# Trials simulated, and the tolerance of the SD of the log scales (amplitude_cv 0.2).
+N_TRIALS = 30
+CV_TOLERANCE = 0.1
+# Sampling rates (Hz) of the real noise and of the simulation.
+SOURCE_SFREQ = 1000.0
+TARGET_SFREQ = 500.0
+# Relative tolerance of the SNR on real noise.
+SNR_TOLERANCE = 0.02
+
 
 ###################################################################################################
 ## REQ-255: shared columns and units
@@ -118,16 +127,16 @@ def test_signal_is_the_sum_of_the_waveforms() -> None:
 
 def test_component_level_averages_the_trials() -> None:
     _, truth = sim.simulate_erp(
-        seed=6, n_trials=30, jitter_sd=0.005, amplitude_cv=0.2, components=["P3"]
+        seed=6, n_trials=N_TRIALS, jitter_sd=0.005, amplitude_cv=0.2, components=["P3"]
     )
     row = truth.to_dataframe().iloc[0]
     comp = truth.components[0]
-    assert row["n_trials"] == 30
+    assert row["n_trials"] == N_TRIALS
     assert np.isclose(row["shift"], truth.shift[:, 0].mean())
     assert np.isclose(row["latency"], comp["features"]["latency"] + truth.shift[:, 0].mean())
     assert np.isclose(row["amplitude"], comp["amplitude"] * truth.scale[:, 0].mean())
     assert np.isclose(row["snr"], comp["snr"] * truth.scale[:, 0].mean())
-    assert abs(np.log(truth.scale).std() - 0.2) < 0.1
+    assert abs(np.log(truth.scale).std() - 0.2) < CV_TOLERANCE
 
 
 def test_conditions_split_the_component_level() -> None:
@@ -264,8 +273,8 @@ def test_real_noise_resampling_is_recorded() -> None:
         snr=3.0,
     )
     resampling = truth.noise["resampling"]
-    assert resampling["from_sfreq"] == 1000.0
-    assert resampling["to_sfreq"] == 500.0
+    assert resampling["from_sfreq"] == SOURCE_SFREQ
+    assert resampling["to_sfreq"] == TARGET_SFREQ
     assert (resampling["up"], resampling["down"]) == (1, 2)
     start, stop = truth.noise["segments"][0]["epoch_samples"]
     assert stop - start == 2 * ts.n_times  # in source samples
@@ -373,7 +382,7 @@ def test_inject_records_and_adds_components() -> None:
             real.data[:, truth.ch_names.index(comp["channel"]), real.times < 0], axis=-1
         ).mean()
         peak = np.max(np.abs(truth.waveform(index)), axis=-1).mean()
-        assert abs(peak / sd / comp["snr"] - 1) < 0.02
+        assert abs(peak / sd / comp["snr"] - 1) < SNR_TOLERANCE
     # The user's own data (no dataset named) are accepted and recorded as such.
     own = real_baselines(dataset=None)
     _, truth = sim.inject(own, ["N1"], snr=2.0, seed=0)

@@ -140,6 +140,7 @@ class GroundTruth(DeepEqualMixin):
     provenance: Provenance = field(default_factory=Provenance)
 
     def __post_init__(self) -> None:
+        """Coerce the fields to their types; check the per-trial arrays (trials x components)."""
         self.ch_names = [str(name) for name in self.ch_names]
         self.times = np.asarray(self.times, dtype=np.float64)
         self.sfreq = float(self.sfreq)
@@ -162,10 +163,12 @@ class GroundTruth(DeepEqualMixin):
 
     @property
     def n_trials(self) -> Any:
+        """Number of simulated trials."""
         return int(self.shift.shape[0])
 
     @property
     def n_components(self) -> Any:
+        """Number of simulated components (all channels)."""
         return len(self.components)
 
     def copy(self) -> "GroundTruth":
@@ -173,6 +176,7 @@ class GroundTruth(DeepEqualMixin):
         return copy.deepcopy(self)
 
     def __repr__(self) -> str:
+        """Return a one-line summary: generator, trials, channels, components and seed."""
         return (
             f"<GroundTruth from {self.generator}: {self.n_trials} trials, "
             f"{len(self.ch_names)} channels, {self.n_components} components, "
@@ -221,6 +225,7 @@ class GroundTruth(DeepEqualMixin):
         return order
 
     def _row(self, index: Any, position: Any, shift: Any, scale: Any) -> dict[str, Any]:
+        """Return the table row of component ``index`` with a latency shift and a scale."""
         comp = self.components[index]
         feats = {
             key: np.nan if value is None else value for key, value in comp["features"].items()

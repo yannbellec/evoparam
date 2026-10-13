@@ -11,7 +11,7 @@ from evoparam._typing import Any, RandomState
 from evoparam.data import TrialSet
 from evoparam.errors import DataError
 
-from ._engine import assemble, seed_streams
+from ._engine import Design, NoiseSpec, Recording, Variability, assemble, seed_streams
 from .components import ERP_COMPONENTS, as_spec
 from .generators import _channel_indices, _spec_sources
 from .noise import check_license
@@ -50,7 +50,7 @@ def _segments(ts: Any, record: Any) -> list[Any]:
     return segments
 
 
-def inject(
+def inject(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     ts_real: "TrialSet",
     components: Sequence[Any],
     *,
@@ -141,25 +141,26 @@ def inject(
         "source_path": ts_real.provenance.source.get("path"),
     }
     ts, truth = assemble(
-        generator="evoparam.sim.inject",
-        settings=settings,
-        seed=entropy,
-        rngs=rngs,
-        times=ts_real.times,
-        sfreq=ts_real.sfreq,
-        ch_names=ts_real.ch_names,
-        sources=sources,
-        n_trials=ts_real.n_trials,
-        snr=snr,
-        jitter_sd=jitter_sd,
-        jitter=jitter,
-        jitter_tau=jitter_tau,
-        amplitude_cv=amplitude_cv,
-        units=ts_real.units,
-        keep_arrays=keep_arrays,
-        noise_data=noise_data,
-        noise_info=noise_info,
-        base=ts_real,
-        start=start,
+        Design(
+            generator="evoparam.sim.inject",
+            settings=settings,
+            seed=entropy,
+            rngs=rngs,
+            times=ts_real.times,
+            sfreq=ts_real.sfreq,
+            ch_names=ts_real.ch_names,
+            sources=sources,
+            n_trials=ts_real.n_trials,
+            start=start,
+        ),
+        NoiseSpec(noise_data=noise_data, noise_info=noise_info),
+        Variability(
+            snr=snr,
+            jitter_sd=jitter_sd,
+            jitter=jitter,
+            jitter_tau=jitter_tau,
+            amplitude_cv=amplitude_cv,
+        ),
+        Recording(units=ts_real.units, keep_arrays=keep_arrays, base=ts_real),
     )
     return ts, truth

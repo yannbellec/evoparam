@@ -22,6 +22,7 @@ DATATYPES = {"spes": "ieeg", "lfp_ep": "ieeg", "erna": "ieeg", "ecap": "ieeg"}
 
 
 def _tsv(path: Any, header: Any, rows: Any) -> None:
+    """Write a BIDS tab-separated file, with ``n/a`` for missing values."""
     with open(path, "w", encoding="utf-8") as fobj:
         fobj.write("\t".join(header) + "\n")
         for row in rows:

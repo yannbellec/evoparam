@@ -95,6 +95,7 @@ class _Blocks:
     """The observations of each top-level unit with their random-effect design."""
 
     def __init__(self, y: Any, xmat: Any, codes: Any, se2: Any) -> None:
+        """Split the observations into independent blocks: the units of the top level."""
         self.n, self.p = xmat.shape
         self.n_levels = len(codes)
         self.blocks = []
@@ -175,6 +176,7 @@ def _one_level_profile(y: Any, code: Any) -> tuple[Any, Any]:
     n_obs = len(y)
 
     def parts(gamma: Any) -> Any:
+        """Return the mean, quadratic form, log-determinant and weight sum at ``gamma``."""
         w = n_i / (1 + gamma * n_i)  # 1' H_i^-1 1 for each unit
         mu = np.sum(w * ybar) / np.sum(w)
         quad = within + np.sum(w * (ybar - mu) ** 2)  # r' H^-1 r
@@ -182,6 +184,7 @@ def _one_level_profile(y: Any, code: Any) -> tuple[Any, Any]:
         return mu, quad, logdet, np.sum(w)
 
     def neg(gamma: Any) -> Any:
+        """Return minus twice the profiled REML log-likelihood at ``gamma``, plus a constant."""
         _, quad, logdet, sw = parts(gamma)
         return (n_obs - 1) * np.log(quad / (n_obs - 1)) + logdet + np.log(sw)
 
@@ -256,20 +259,8 @@ def reml(
     >>> len(out["unit_mean"][0]), bool(np.all(out["shrinkage"][0] > 0.9))
     (30, True)
     """
-    y = np.asarray(y, float).ravel()
+    y, groups, se2 = _reml_inputs(y, groups, se, residual)
     n = y.size
-    groups = [np.asarray(g).ravel() for g in groups]
-    if not groups:
-        raise SettingsError("reml: give at least one grouping level.")
-    if any(g.size != n for g in groups):
-        raise DataError("reml: every grouping level needs one label per observation.")
-    if not np.all(np.isfinite(y)):
-        raise DataError("reml: y holds NaN or infinite values; drop them first.")
-    se2 = np.zeros(n) if se is None else np.asarray(se, float).ravel() ** 2
-    if se2.size != n or not np.all(np.isfinite(se2)):
-        raise DataError("reml: se must be finite, one value per observation.")
-    if se is None and not residual:
-        raise SettingsError("reml: without se the residual variance must be estimated.")
     xmat = np.ones((n, 1)) if X is None else np.asarray(X, float).reshape(n, -1)
     p = xmat.shape[1]
     if n <= p:
@@ -279,41 +270,21 @@ def reml(
     blocks = _Blocks(y, xmat, codes, se2)
     intercept_only = p == 1 and np.allclose(xmat, 1.0)
 
-    scale = float(np.std(y)) or 1.0
     n_iter, converged = 0, True
     if n_levels == 1 and se is None and intercept_only:
         var_u, var_res = _one_level_profile(y, codes[0])
         sds, sd_res = np.array([np.sqrt(var_u)]), np.sqrt(var_res)
     else:
-        n_par = n_levels + int(residual)
-
-        def fun(theta: Any) -> Any:
-            sds_, res_ = theta[:n_levels] * scale, (theta[n_levels] * scale if residual else 0.0)
-            return blocks.objective(sds_, res_)[0]
-
-        # without sampling variances, a zero residual would make V singular
-        floor = 1e-6 if (residual and not np.any(se2 > 0)) else 0.0
-        bounds = [(0.0, None)] * n_levels + [(floor, None)] * int(residual)
-        starts = [
-            np.full(n_par, 1.0 / np.sqrt(n_par)),
-            np.r_[np.full(n_levels, 0.1), [1.0] * int(residual)],
-        ]
-        best: Any = None
-        for x0 in starts:
-            res = minimize(
-                fun,
-                x0,
-                method="L-BFGS-B",
-                bounds=bounds,
-                options={"maxiter": max_iter, "ftol": tol, "gtol": 1e-8},
-            )
-            n_iter += int(res.nit)
-            if best is None or res.fun < best.fun:
-                best = res
-        converged = bool(best.success) and np.isfinite(best.fun)
-        theta = best.x
-        sds = theta[:n_levels] * scale
-        sd_res = theta[n_levels] * scale if residual else 0.0
+        scale = float(np.std(y)) or 1.0
+        sds, sd_res, n_iter, converged = _maximise(
+            blocks,
+            n_levels,
+            scale,
+            residual=residual,
+            sampled=bool(np.any(se2 > 0)),
+            tol=tol,
+            max_iter=max_iter,
+        )
 
     value, beta = blocks.objective(sds, sd_res)
     if beta is None:
@@ -372,6 +343,73 @@ def reml(
         "converged": bool(converged),
         "n_iter": int(n_iter),
     }
+
+
+def _reml_inputs(y: Any, groups: Any, se: Any, residual: bool) -> tuple[Any, list[Any], Any]:
+    """Check the inputs of :func:`reml`; return ``y``, the levels and the sampling variances."""
+    y = np.asarray(y, float).ravel()
+    n = y.size
+    groups = [np.asarray(g).ravel() for g in groups]
+    if not groups:
+        raise SettingsError("reml: give at least one grouping level.")
+    if any(g.size != n for g in groups):
+        raise DataError("reml: every grouping level needs one label per observation.")
+    if not np.all(np.isfinite(y)):
+        raise DataError("reml: y holds NaN or infinite values; drop them first.")
+    se2 = np.zeros(n) if se is None else np.asarray(se, float).ravel() ** 2
+    if se2.size != n or not np.all(np.isfinite(se2)):
+        raise DataError("reml: se must be finite, one value per observation.")
+    if se is None and not residual:
+        raise SettingsError("reml: without se the residual variance must be estimated.")
+    return y, groups, se2
+
+
+def _maximise(
+    blocks: Any,
+    n_levels: int,
+    scale: float,
+    *,
+    residual: bool,
+    sampled: bool,
+    tol: float,
+    max_iter: int,
+) -> tuple[Any, Any, int, Any]:
+    """Maximise the restricted likelihood from two starts (L-BFGS-B, SDs in units of ``scale``).
+
+    Returns the SD of each level, the residual SD, the iterations and whether it converged.
+    """
+    n_par = n_levels + int(residual)
+
+    def fun(theta: Any) -> Any:
+        """Return the objective at the scaled SDs ``theta``."""
+        sds_, res_ = theta[:n_levels] * scale, (theta[n_levels] * scale if residual else 0.0)
+        return blocks.objective(sds_, res_)[0]
+
+    # without sampling variances, a zero residual would make V singular
+    floor = 1e-6 if (residual and not sampled) else 0.0
+    bounds = [(0.0, None)] * n_levels + [(floor, None)] * int(residual)
+    starts = [
+        np.full(n_par, 1.0 / np.sqrt(n_par)),
+        np.r_[np.full(n_levels, 0.1), [1.0] * int(residual)],
+    ]
+    n_iter = 0
+    best: Any = None
+    for x0 in starts:
+        res = minimize(
+            fun,
+            x0,
+            method="L-BFGS-B",
+            bounds=bounds,
+            options={"maxiter": max_iter, "ftol": tol, "gtol": 1e-8},
+        )
+        n_iter += int(res.nit)
+        if best is None or res.fun < best.fun:
+            best = res
+    converged = bool(best.success) and np.isfinite(best.fun)
+    theta = best.x
+    sds = theta[:n_levels] * scale
+    sd_res = theta[n_levels] * scale if residual else 0.0
+    return sds, sd_res, n_iter, converged
 
 
 ###################################################################################################

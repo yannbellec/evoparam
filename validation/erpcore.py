@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Layer 3, ERP CORE (spec §7.3, REQ-274): the component of each paradigm on its canonical
-channel, model latency against the 50 % area latency of the same average.
+"""Layer 3, ERP CORE (spec §7.3, REQ-274): model latency against the 50 % area latency.
+
+Both are measured on the same average, for the component of each paradigm on its
+canonical channel.
 
 ERP CORE (Kappenman et al. 2021, NeuroImage; OSF DOI 10.18115/D5JW4R; CC-BY 4.0) gives,
 for 40 participants and seven components, the epochs after the published pipeline
@@ -37,15 +39,11 @@ ROOT = os.environ.get("EVOPARAM_ERPCORE", os.path.expanduser("~/.cache/evoparam/
 # window (s), polarity, lateral bins (left, right) and channel pair (left, right))
 DESIGNS = {
     "P3": {"plus": 1, "minus": 2, "channel": "Pz", "window": (0.300, 0.600), "polarity": 1},
-    "N170": {"plus": 1, "minus": 2, "channel": "PO8", "window": (0.110, 0.150),
-             "polarity": -1},
-    "N400": {"plus": 1, "minus": 2, "channel": "CPz", "window": (0.300, 0.500),
-             "polarity": -1},
+    "N170": {"plus": 1, "minus": 2, "channel": "PO8", "window": (0.110, 0.150), "polarity": -1},
+    "N400": {"plus": 1, "minus": 2, "channel": "CPz", "window": (0.300, 0.500), "polarity": -1},
     "MMN": {"plus": 1, "minus": 2, "channel": "FCz", "window": (0.125, 0.225), "polarity": -1},
-    "N2pc": {"lateral": (1, 2), "pair": ("PO7", "PO8"), "window": (0.200, 0.275),
-             "polarity": -1},
-    "LRP": {"lateral": (1, 2), "pair": ("C3", "C4"), "window": (-0.100, 0.000),
-            "polarity": -1},
+    "N2pc": {"lateral": (1, 2), "pair": ("PO7", "PO8"), "window": (0.200, 0.275), "polarity": -1},
+    "LRP": {"lateral": (1, 2), "pair": ("C3", "C4"), "window": (-0.100, 0.000), "polarity": -1},
     "ERN": {"plus": 1, "minus": 2, "channel": "FCz", "window": (0.000, 0.100), "polarity": -1},
 }
 TOLERANCE = 0.010
@@ -63,15 +61,15 @@ READINGS = ("as_written", "targeted")
 
 def _bins(name):
     """Bin numbers of an ERPLAB epoch label, for example 'B1(55)/201' -> {1}."""
-
     head = name.split("(")[0]
     return {int(b) for b in re.findall(r"B(\d+)", head)}
 
 
 def load(component, participant):
-    """(times, data [epochs, channels, times] in µV, channel names, bins per epoch) without
-    the epochs flagged by the published artifact detection."""
+    """Return the epochs of a participant, without those the published pipeline flagged.
 
+    Returns (times, data [epochs, channels, times] in µV, channel names, bins per epoch).
+    """
     import mne
     from scipy.io import loadmat
 
@@ -92,14 +90,19 @@ def load(component, participant):
     labels = [inverse[code] for code in epochs.events[:, 2]]
     data = epochs.get_data() * 1e6
     keep = ~flags
-    return epochs.times, data[keep], list(epochs.ch_names), [_bins(l) for l, k in
-                                                            zip(labels, keep) if k]
+    return (
+        epochs.times,
+        data[keep],
+        list(epochs.ch_names),
+        [_bins(label) for label, k in zip(labels, keep, strict=True) if k],
+    )
 
 
 def noise_reference(component, data, names, bins, wave="difference"):
-    """The plus-minus reference of the wave (trials of alternating signs averaged, then
-    combined as the wave is): its noise, without the response."""
+    """Return the plus-minus reference of the wave: its noise, without the response.
 
+    Trials of alternating signs are averaged, then combined as the wave is.
+    """
     from evoparam.models.engine import plus_minus
 
     design = DESIGNS[component]
@@ -122,15 +125,19 @@ def noise_reference(component, data, names, bins, wave="difference"):
     return None if minus is None else plus - minus
 
 
-def difference_wave(component, times, data, names, bins, wave="difference"):
-    """The published difference wave (``wave="difference"``) or the parent wave of the
-    condition carrying the component (``"parent"``: rare, faces, unrelated, deviants,
-    incorrect; the lateralised N2pc and LRP are differences by definition)."""
+def difference_wave(component, times, data, names, bins, wave="difference"):  # noqa: ARG001  (positional signature of the callers, tests/models/test_classical.py included)
+    """Return the published difference wave, or the parent wave of the component.
 
+    ``wave="difference"`` gives the published difference wave; ``"parent"`` gives the
+    wave of the condition carrying the component (rare, faces, unrelated, deviants,
+    incorrect; the lateralised N2pc and LRP are differences by definition).
+    """
     design = DESIGNS[component]
+
     def mean_of(b, ch):
         rows = [i for i, s in enumerate(bins) if b in s]
         return data[rows][:, names.index(ch)].mean(axis=0), len(rows)
+
     if "lateral" in design:
         left, right = design["lateral"]
         ch_l, ch_r = design["pair"]
@@ -149,7 +156,6 @@ def difference_wave(component, times, data, names, bins, wave="difference"):
 
 def area_latency(times, wave, window, polarity, fraction=0.5):
     """Fractional (50 %) area latency of the component's polarity in the window."""
-
     inside = (times >= window[0]) & (times <= window[1])
     part = np.clip(polarity * wave[inside], 0, None)
     total = part.sum()
@@ -160,15 +166,15 @@ def area_latency(times, wave, window, polarity, fraction=0.5):
 
 
 def fit_component_as_written(component, times, wave, noise_ref=None):
-    """The fit of the wave with the ``erp`` preset itself (its selection, background and fit
-    window), the paradigm's component labelled in its measurement window widened by
-    LABEL_MARGIN: the reading of REQ-274 as written. Returns (the labelled component or
-    None, the fit); with ``noise_ref`` (the plus-minus reference), the noise model comes
-    from it when the engine's "auto" rule would take it (short baseline)."""
+    """Return the fit of the wave with the ``erp`` preset itself (REQ-274 as written).
 
+    The preset keeps its selection, background and fit window; the paradigm's component is
+    labelled in its measurement window widened by LABEL_MARGIN. Returns (the labelled
+    component or None, the fit). With ``noise_ref`` (the plus-minus reference), the noise
+    model comes from it when the engine's "auto" rule would take it (short baseline).
+    """
     from evoparam import presets
-    from evoparam.models import ResponseModel
-    from evoparam.models import engine
+    from evoparam.models import ResponseModel, engine
 
     design = DESIGNS[component]
     lo, hi = design["window"]
@@ -183,9 +189,14 @@ def fit_component_as_written(component, times, wave, noise_ref=None):
         fit_window = (max(lo - 0.2, times[0] + 0.01), min(hi + 0.2, times[-1] - 0.01))
         baseline = (times[0], fit_window[0])
     label = (lo - LABEL_MARGIN, hi + LABEL_MARGIN)
-    preset = presets.derive("erp", name=f"erp_{component}", fit_window=fit_window,
-                            baseline=baseline, component_labels={component: label},
-                            label_polarity={component: design["polarity"]})
+    preset = presets.derive(
+        "erp",
+        name=f"erp_{component}",
+        fit_window=fit_window,
+        baseline=baseline,
+        component_labels={component: label},
+        label_polarity={component: design["polarity"]},
+    )
     model = ResponseModel(preset)
     if noise_ref is not None and not engine.use_plus_minus(model.settings(), times, wave):
         noise_ref = None
@@ -197,28 +208,39 @@ def fit_component_as_written(component, times, wave, noise_ref=None):
 
 
 def fit_component(component, times, wave, noise_ref=None):
-    """The fit of the wave with the ``erp`` preset targeted at the paradigm's component
-    (``presets.targeted``): N_COMPONENTS components of the component's polarity in the
-    published measurement window widened by MARGIN, no background (the difference wave is
+    """Return the fit of the wave with the ``erp`` preset targeted at the component.
+
+    The preset is ``presets.targeted``: N_COMPONENTS components of the component's polarity in
+    the published measurement window widened by MARGIN, no background (the difference wave is
     baseline-corrected). Returns (the labelled components, the fit): the component of the
     paradigm is their sum (``P3``, ``P3_b``, ... in its window). With ``noise_ref`` (the
-    plus-minus reference), the noise model comes from it when the engine's "auto" rule
-    would take it (short baseline), as for a fit of the trials."""
-
+    plus-minus reference), the noise model comes from it when the engine's "auto" rule would
+    take it (short baseline), as for a fit of the trials.
+    """
     from evoparam import presets
-    from evoparam.models import ResponseModel
-    from evoparam.models import engine
+    from evoparam.models import ResponseModel, engine
 
     design = DESIGNS[component]
     lo, hi = design["window"]
     polarity = "positive" if design["polarity"] > 0 else "negative"
-    preset = presets.targeted("erp", component, design["window"], polarity, margin=MARGIN,
-                              n_components=N_COMPONENTS, background="none")
+    preset = presets.targeted(
+        "erp",
+        component,
+        design["window"],
+        polarity,
+        margin=MARGIN,
+        n_components=N_COMPONENTS,
+        background="none",
+    )
     fit_window = (max(lo - MARGIN, times[0] + 0.01), min(hi + MARGIN, times[-1] - 0.01))
     if lo < presets.get("erp").fit_window[0]:
         # response-locked (LRP, ERN): the baseline is the start of the epoch
-        preset = presets.derive(preset, name=preset.name, fit_window=fit_window,
-                                baseline=(times[0], min(0.0, fit_window[0])))
+        preset = presets.derive(
+            preset,
+            name=preset.name,
+            fit_window=fit_window,
+            baseline=(times[0], min(0.0, fit_window[0])),
+        )
     else:
         preset = presets.derive(preset, name=preset.name, fit_window=fit_window)
     model = ResponseModel(preset)
@@ -233,12 +255,12 @@ def fit_component(component, times, wave, noise_ref=None):
 
 def files_sha256(component, participant):
     """{path under ROOT: SHA-256} of the epoched files of one participant."""
-
     import hashlib
 
     out = {}
-    for path in sorted(glob.glob(os.path.join(ROOT, component, str(participant),
-                                              "*_epoch_interp_ar.*"))):
+    for path in sorted(
+        glob.glob(os.path.join(ROOT, component, str(participant), "*_epoch_interp_ar.*"))
+    ):
         digest = hashlib.sha256()
         with open(path, "rb") as fobj:
             for block in iter(lambda: fobj.read(1 << 20), b""):
@@ -247,13 +269,19 @@ def files_sha256(component, participant):
     return out
 
 
-def run(components=None, participants=None, wave="difference", hashes=None,
-        reading="targeted"):
+def run(components=None, participants=None, wave="difference", hashes=None, reading="targeted"):
+    """Return one row per component and participant: model and published latencies.
+
+    ``reading`` is ``"targeted"`` (:func:`fit_component`) or ``"as_written"``
+    (:func:`fit_component_as_written`).
+    """
     rows = []
     for component in components or DESIGNS:
-        folders = sorted(int(os.path.basename(p)) for p in
-                         glob.glob(os.path.join(ROOT, component, "*")) if
-                         os.path.basename(p).isdigit())
+        folders = sorted(
+            int(os.path.basename(p))
+            for p in glob.glob(os.path.join(ROOT, component, "*"))
+            if os.path.basename(p).isdigit()
+        )
         for participant in participants or folders:
             try:
                 times, data, names, bins = load(component, participant)
@@ -266,13 +294,20 @@ def run(components=None, participants=None, wave="difference", hashes=None,
             if not np.all(np.isfinite(signal)):
                 # a bin left without trials by the published artifact rejection: the
                 # participant has no difference wave (excluded, as in the published analysis)
-                rows.append({"component": component, "participant": participant, "n_trials": n,
-                             "excluded": True})
+                rows.append(
+                    {
+                        "component": component,
+                        "participant": participant,
+                        "n_trials": n,
+                        "excluded": True,
+                    }
+                )
                 continue
             reference = area_latency(times, signal, design["window"], design["polarity"])
             fitter = fit_component_as_written if reading == "as_written" else fit_component
-            comp, result = fitter(component, times, signal,
-                                  noise_reference(component, data, names, bins, wave))
+            comp, result = fitter(
+                component, times, signal, noise_reference(component, data, names, bins, wave)
+            )
             peak = latency = np.nan
             if comp is not None:
                 from evoparam.models import evaluate_fit
@@ -283,27 +318,40 @@ def run(components=None, participants=None, wave="difference", hashes=None,
                 peak = biggest.latency
                 curve = evaluate_fit(result, times, components=ks, background=False)
                 latency = area_latency(times, curve, design["window"], design["polarity"])
-            rows.append({"component": component, "participant": participant, "n_trials": n,
-                         "wave": wave, "reading": reading, "area_latency": reference,
-                         "model_latency": latency,
-                         "model_peak_latency": peak, "labelled": comp is not None,
-                         "excluded": False,
-                         "status": result.status,
-                         "noise_reference": result.diagnostics.get("noise_reference"),
-                         "within_10ms": bool(comp is not None and
-                                             abs(latency - reference) <= TOLERANCE)})
+            rows.append(
+                {
+                    "component": component,
+                    "participant": participant,
+                    "n_trials": n,
+                    "wave": wave,
+                    "reading": reading,
+                    "area_latency": reference,
+                    "model_latency": latency,
+                    "model_peak_latency": peak,
+                    "labelled": comp is not None,
+                    "excluded": False,
+                    "status": result.status,
+                    "noise_reference": result.diagnostics.get("noise_reference"),
+                    "within_10ms": bool(
+                        comp is not None and abs(latency - reference) <= TOLERANCE
+                    ),
+                }
+            )
     return rows
 
 
 def summary(rows):
+    """Return the table per component: counts, agreement within 10 ms, median difference."""
     import pandas as pd
 
     table = pd.DataFrame(rows)
     excluded = table.groupby("component")["excluded"].sum()
     table = table[~table["excluded"].astype(bool)]
-    out = table.groupby("component").agg(n=("participant", "count"),
-                                         labelled=("labelled", "mean"),
-                                         within_10ms=("within_10ms", "mean"))
+    out = table.groupby("component").agg(
+        n=("participant", "count"),
+        labelled=("labelled", "mean"),
+        within_10ms=("within_10ms", "mean"),
+    )
     diff = (table["model_latency"] - table["area_latency"]) * 1e3
     out["median_diff_ms"] = diff.groupby(table["component"]).median()
     out["excluded"] = excluded
@@ -313,14 +361,21 @@ def summary(rows):
 if __name__ == "__main__":
     wave = "parent" if "--parent" in sys.argv else "difference"
     hashes = {}
-    rows = run([a for a in sys.argv[1:] if not a.startswith("--")] or None, wave=wave,
-               hashes=hashes)
+    rows = run(
+        [a for a in sys.argv[1:] if not a.startswith("--")] or None, wave=wave, hashes=hashes
+    )
     table = summary(rows)
     print(table.to_string())
     out = os.path.join(os.path.dirname(__file__), "layer3", f"erpcore_{wave}.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as fobj:
-        json.dump({"data": {"dataset": "erp-core", "doi": "10.18115/D5JW4R",
-                            "files_sha256": hashes},
-                   "rows": rows, "summary": table.reset_index().to_dict("records")}, fobj,
-                  indent=1, default=float)
+        json.dump(
+            {
+                "data": {"dataset": "erp-core", "doi": "10.18115/D5JW4R", "files_sha256": hashes},
+                "rows": rows,
+                "summary": table.reset_index().to_dict("records"),
+            },
+            fobj,
+            indent=1,
+            default=float,
+        )

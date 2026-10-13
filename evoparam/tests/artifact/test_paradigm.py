@@ -14,6 +14,17 @@ from .helpers import artifact_shape, response, times_axis
 
 pd = pytest.importorskip("pandas")
 
+# Pairs of the alternating paradigm (20 trials), trials combined per pair, and the
+# tolerances of the response and of the residual artifact.
+N_PAIRS = 10
+N_COMBINED = 2
+EXACT = 1e-9
+MAX_RESIDUAL = 0.01
+# Pairs and the unpaired trial (23 trials), explicit pairs, and forward-masking probes.
+N_WITH_UNPAIRED = 11
+N_EXPLICIT_PAIRS = 3
+N_PROBES = 3
+
 ###################################################################################################
 ###################################################################################################
 
@@ -43,13 +54,13 @@ def test_req067_alternating_polarity_cancels() -> None:
 
     ts, resp, art = alternating()
     out = paradigm_subtract(ts, scheme="alternating")
-    assert out.n_trials == 10
+    assert out.n_trials == N_PAIRS
     assert out.metadata["paired"].all()
-    assert (out.metadata["n_combined"] == 2).all()
+    assert (out.metadata["n_combined"] == N_COMBINED).all()
     # The non-inverting response is unchanged to 1e-9, the inverting artifact cancels
-    assert np.max(np.abs(out.data - resp)) <= 1e-9
+    assert np.max(np.abs(out.data - resp)) <= EXACT
     residual = np.abs(out.data - resp).max() / np.abs(art).max()
-    assert residual <= 0.01
+    assert residual <= MAX_RESIDUAL
 
 
 def test_alternating_with_imperfect_inversion_and_unpaired_trials() -> None:
@@ -61,8 +72,8 @@ def test_alternating_with_imperfect_inversion_and_unpaired_trials() -> None:
 
     out = paradigm_subtract(replace(ts, data=data), scheme="alternating")
     paired = out.data[out.metadata["paired"].to_numpy()]
-    assert np.abs(paired - resp).max() / np.abs(art).max() <= 0.01
-    assert out.n_trials == 11
+    assert np.abs(paired - resp).max() / np.abs(art).max() <= MAX_RESIDUAL
+    assert out.n_trials == N_WITH_UNPAIRED
     assert out.metadata["paired"].tolist()[-1] is False or not out.metadata["paired"].iloc[-1]
 
 
@@ -80,7 +91,7 @@ def test_explicit_pair_ids() -> None:
     from dataclasses import replace
 
     out = paradigm_subtract(replace(ts, metadata=meta), scheme="alternating", pairing="pair_id")
-    assert out.n_trials == 3
+    assert out.n_trials == N_EXPLICIT_PAIRS
 
 
 def test_req067_forward_masking_identity() -> None:
@@ -94,7 +105,7 @@ def test_req067_forward_masking_identity() -> None:
     ts = TrialSet(data=data, times=times, sfreq=1000.0, ch_names=["x"], metadata=meta)
     out = paradigm_subtract(ts, scheme="forward_masking")
     expected = conds["A"] - conds["B"] + (conds["C"] - conds["D"])
-    assert out.n_trials == 3
+    assert out.n_trials == N_PROBES
     assert np.allclose(out.data, expected[None], atol=1e-12)
 
 
@@ -106,5 +117,5 @@ def test_paradigm_errors() -> None:
     with pytest.raises(ArtifactError, match="scheme"):
         remove_artifact(ts, method="paradigm")
     result = remove_artifact(ts, method="paradigm", scheme="alternating")
-    assert result.cleaned.n_trials == 10
-    assert len(result.quality) == 10
+    assert result.cleaned.n_trials == N_PAIRS
+    assert len(result.quality) == N_PAIRS

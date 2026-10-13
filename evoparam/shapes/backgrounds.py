@@ -30,6 +30,11 @@ from evoparam.shapes._base import (
     window_info,
 )
 
+# Artifact basis: vectors [n_basis, n_samples], at least this many samples
+_BASIS_NDIM = 2
+_MIN_BASIS_SAMPLES = 2
+
+
 __all__ = [
     "BackgroundBase",
     "NoBackground",
@@ -100,10 +105,12 @@ class BackgroundBase:
         return self.n_nonlinear == 0
 
     def _t_ref(self, times: FloatArray) -> float:
+        """Return the time origin of the basis: ``t_ref``, else the first time."""
         t_ref = getattr(self, "t_ref", None)
         return float(times[0]) if t_ref is None else float(t_ref)
 
     def _nonlinear(self, nonlinear: ArrayLike | None) -> FloatArray:
+        """Return the non-linear parameters checked (empty without any)."""
         if self.n_nonlinear == 0:
             return np.zeros(0)
         return as_params(nonlinear, self.n_nonlinear, self.name)
@@ -137,6 +144,7 @@ class BackgroundBase:
         return np.concatenate([linear, d_nonlinear], axis=-1)
 
     def _scale(self, data_range: Sequence[SupportsFloat] | None) -> float:
+        """Return the scale of the data range (1 without a range)."""
         if data_range is None:
             return 1.0
         low, high = map(float, data_range)
@@ -161,9 +169,11 @@ class BackgroundBase:
         )
 
     def _nonlinear_bounds(self, times: FloatArray) -> tuple[FloatArray, FloatArray]:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        """Return the bounds of the non-linear parameters (none here)."""
         return np.zeros(0), np.zeros(0)
 
     def _nonlinear_guess(self, times: FloatArray) -> FloatArray:  # noqa: ARG002  (shape protocol: signature shared by every shape)
+        """Return the starting non-linear parameters (none here)."""
         return np.zeros(0)
 
     def initial_guess(self, times: ArrayLike, waveform: ArrayLike) -> FloatArray:
@@ -224,6 +234,7 @@ class LinearBackground(BackgroundBase):
 
 
 def _tau_limits(obj: Any, times: FloatArray) -> tuple[float, float]:
+    """Return the smallest and largest time constant on ``times``."""
     _, _, length, _ = window_info(times)
     tau_max = length if obj.tau_max is None else float(obj.tau_max)
     return float(obj.tau_min), tau_max
@@ -266,10 +277,12 @@ class ExponentialBackground(BackgroundBase):
         return np.stack([np.zeros_like(d_decay), d_decay], axis=-2)[..., None]
 
     def _nonlinear_bounds(self, times: FloatArray) -> tuple[FloatArray, FloatArray]:
+        """Return the bounds of the time constant."""
         low, high = _tau_limits(self, times)
         return np.array([low]), np.array([high])
 
     def _nonlinear_guess(self, times: FloatArray) -> FloatArray:
+        """Return the starting time constant: a fifth of the window."""
         low, high = _tau_limits(self, times)
         _, _, length, _ = window_info(times)
         return np.array([np.clip(length / 5.0, low, high)])
@@ -326,12 +339,14 @@ class DoubleExponentialBackground(BackgroundBase):
         )
 
     def _nonlinear_bounds(self, times: FloatArray) -> tuple[FloatArray, FloatArray]:
+        """Return the bounds of the two time constants (tau2 >= 3 tau1)."""
         low, high = _tau_limits(self, times)
         if not 3 * low < high:
             raise SettingsError(f"{self.name}: the window is too short for tau2 >= 3 tau1.")
         return np.array([low, 3 * low]), np.array([high / 3, high])
 
     def _nonlinear_guess(self, times: FloatArray) -> FloatArray:
+        """Return the starting time constants: a twentieth and a third of the window."""
         lower, upper = self._nonlinear_bounds(times)
         _, _, length, _ = window_info(times)
         return np.clip([length / 20.0, length / 3.0], lower, upper)
@@ -483,11 +498,11 @@ class ArtifactBasisBackground(BackgroundBase):
         vectors = np.asarray(self.basis_vectors, dtype=np.float64)
         times = np.asarray(self.basis_times, dtype=np.float64)
         if (
-            vectors.ndim != 2
+            vectors.ndim != _BASIS_NDIM
             or vectors.shape[0] < 1
             or times.ndim != 1
             or vectors.shape[1] != times.size
-            or times.size < 2
+            or times.size < _MIN_BASIS_SAMPLES
         ):
             raise DataError(
                 "artifact_basis: basis_vectors must be (n_basis, n_samples) with "

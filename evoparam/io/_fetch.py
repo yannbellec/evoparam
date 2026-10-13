@@ -72,6 +72,7 @@ def sha256_file(path: Any, block: Any = 1 << 20) -> str:
 
 
 def _check_online(url: Any) -> None:
+    """Raise ReaderError when ``EVOPARAM_OFFLINE=1`` forbids connecting to ``url``."""
     if os.environ.get("EVOPARAM_OFFLINE") == "1":
         raise ReaderError(f"EVOPARAM_OFFLINE=1: not connecting to {url}.")
 
@@ -80,11 +81,13 @@ class TransferLog:
     """Running count of the bytes transferred, shared by the reads of one call."""
 
     def __init__(self) -> None:
+        """Start with no byte and no file."""
         self.bytes_read: int = 0
         self.files: list[Any]
         self.files = []
 
     def add(self, url: Any, nbytes: Any) -> None:
+        """Count ``nbytes`` transferred from ``url``."""
         self.bytes_read += int(nbytes)
         self.files.append(url)
 
@@ -95,7 +98,7 @@ def _spurious_not_found(exc: Any) -> bool:
     S3 (or a proxy in front of it) intermittently answers so for a bucket that exists, and the same
     request then succeeds. A missing key (``NoSuchKey``) or any other 404 is not retried.
     """
-    if exc.code != 404:
+    if exc.code != http.client.NOT_FOUND:
         return False
     try:
         body = exc.read(4096) or b""
@@ -157,6 +160,7 @@ def fetch_bytes(
     """
 
     def once() -> Any:
+        """Return the content of one GET request."""
         logger.info("GET %s", url)
         with urlopen(Request(url), timeout=timeout) as response:
             return response.read()
@@ -185,6 +189,7 @@ def download(url: Any, path: Any, *, timeout: float = 30.0, log: Any = None) -> 
     partial = path + ".part"
 
     def once() -> Any:
+        """Download into the partial file once; return the SHA-256 of what was written."""
         logger.info("GET %s", url)
         digest = hashlib.sha256()
         with urlopen(Request(url), timeout=timeout) as response, open(partial, "wb") as fobj:
@@ -253,6 +258,7 @@ class RemoteFile:
         cache_dir: Any = None,
         log: Any = None,
     ) -> None:
+        """Check the address and the cache sizes; nothing is transferred yet."""
         if not is_url(url):
             raise ReaderError(f"RemoteFile needs an http(s) address, got {url!r}.")
         if int(chunk_size) < 1 or int(max_chunks) < 1:
@@ -275,9 +281,11 @@ class RemoteFile:
 
     # Context manager
     def __enter__(self) -> "RemoteFile":
+        """Return the file itself."""
         return self
 
     def __exit__(self, *exc: Any) -> None:
+        """Close the file."""
         self.close()
 
     def close(self) -> None:
@@ -285,9 +293,11 @@ class RemoteFile:
         self._cache.clear()
 
     def __repr__(self) -> str:
+        """Return the address and the bytes read so far."""
         return f"<RemoteFile {self.url} | {self.bytes_read} bytes read>"
 
     def _count(self, nbytes: Any) -> None:
+        """Count ``nbytes`` transferred (in the file and in its transfer log)."""
         self.bytes_read += int(nbytes)
         if self.log is not None:
             self.log.add(self.url, nbytes)
@@ -379,11 +389,13 @@ class RemoteFile:
         return joined[start : start + (stop - offset)]
 
     def _read_local(self, offset: Any, nbytes: Any) -> Any:
+        """Read ``nbytes`` at ``offset`` of the local copy of a whole download."""
         with open(self._local, "rb") as fobj:
             fobj.seek(offset)
             return fobj.read(nbytes)
 
     def _fetch_chunks(self, first: Any, last: Any) -> Any:
+        """Fetch the chunks ``first`` to ``last`` with one range request."""
         start = first * self.chunk_size
         stop = (last + 1) * self.chunk_size
         if self._size is not None:
@@ -391,12 +403,13 @@ class RemoteFile:
         request = Request(self.url, headers={"Range": f"bytes={start}-{stop - 1}"})
 
         def once() -> Any:
+            """Send the range request once; return the body, or None after a whole download."""
             logger.info("GET %s bytes=%d-%d", self.url, start, stop - 1)
             with urlopen(request, timeout=self.timeout) as response:
-                if response.status == 200:
+                if response.status == http.client.OK:
                     self._download_whole(response)
                     return None
-                if response.status != 206:
+                if response.status != http.client.PARTIAL_CONTENT:
                     raise ReaderError(f"Unexpected HTTP {response.status} for {self.url}.")
                 self._check_content_range(response.headers.get("Content-Range"), start)
                 body = response.read()
@@ -431,6 +444,7 @@ class RemoteFile:
         return out
 
     def _check_content_range(self, header: Any, start: Any) -> None:
+        """Check the Content-Range of a reply: it starts at ``start``; learn the file size."""
         # Format: "bytes <first>-<last>/<total>"
         if not header or not header.startswith("bytes "):
             raise ReaderError(f"Range reply without a valid Content-Range from {self.url}.")
@@ -444,6 +458,7 @@ class RemoteFile:
             self._size = int(total)
 
     def _download_whole(self, response: Any) -> None:
+        """Save the whole file of a server that ignores ranges, and read from it later."""
         folder = self.cache_dir or os.path.join(data_folder(), "remote")
         os.makedirs(folder, exist_ok=True)
         name = (

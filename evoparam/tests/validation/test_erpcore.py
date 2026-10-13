@@ -19,6 +19,10 @@ from typing import Any
 
 import pytest
 
+# Participants, and the fraction of latencies within 10 ms (REQ-274).
+N_PARTICIPANTS = 40
+MIN_WITHIN = 0.9
+
 ROOT = os.environ.get("EVOPARAM_ERPCORE", "")
 SCRIPT = pathlib.Path(__file__).parents[3] / "validation" / "erpcore.py"
 pytestmark = pytest.mark.skipif(
@@ -48,23 +52,23 @@ def table_as_written() -> Any:
 def test_req274_lateralized_readiness_potential(table: Any) -> None:
     """REQ-274, targeted measurement (DECISIONS 5.9): a reading of the requirement."""
 
-    assert table.loc["LRP", "n"] == 40
-    assert table.loc["LRP", "within_10ms"] >= 0.9
+    assert table.loc["LRP", "n"] == N_PARTICIPANTS
+    assert table.loc["LRP", "within_10ms"] >= MIN_WITHIN
 
 
 @pytest.mark.parametrize("component", ["ERN", "N170", "N400", "MMN", "N2pc", "P3"])
 def test_req274_other_components(table: Any, component: Any) -> None:
     """REQ-274, targeted measurement (DECISIONS 5.9): a reading of the requirement."""
 
-    assert table.loc[component, "within_10ms"] >= 0.9
+    assert table.loc[component, "within_10ms"] >= MIN_WITHIN
 
 
 def test_req274_lrp_as_written(table_as_written: Any) -> None:
     """REQ-274 as written: the ``erp`` preset itself (its selection), the paradigm's component
     as one labelled component, its own latency."""
 
-    assert table_as_written.loc["LRP", "n"] == 40
-    assert table_as_written.loc["LRP", "within_10ms"] >= 0.9
+    assert table_as_written.loc["LRP", "n"] == N_PARTICIPANTS
+    assert table_as_written.loc["LRP", "within_10ms"] >= MIN_WITHIN
 
 
 @pytest.mark.xfail(
@@ -78,4 +82,4 @@ def test_req274_lrp_as_written(table_as_written: Any) -> None:
 @pytest.mark.parametrize("component", ["ERN", "N170", "N400", "MMN", "N2pc", "P3"])
 def test_req274_other_components_as_written(table_as_written: Any, component: Any) -> None:
 
-    assert table_as_written.loc[component, "within_10ms"] >= 0.9
+    assert table_as_written.loc[component, "within_10ms"] >= MIN_WITHIN

@@ -14,6 +14,9 @@ import numpy as np
 from evoparam.data import TrialSet
 from evoparam.tf import tf_fit
 
+# Half-width (s) of the simulated 80 Hz burst around 0.2 s.
+BURST_HALF_WIDTH = 0.05
+
 
 def make_data(n_trials=50, n_channels=100, n_times=2048, sfreq=2048.0, seed=0):
     """Simulate the benchmark data."""
@@ -21,7 +24,9 @@ def make_data(n_trials=50, n_channels=100, n_times=2048, sfreq=2048.0, seed=0):
     times = (np.arange(n_times) - n_times // 2) / sfreq
     data = rng.normal(0, 10, (n_trials, n_channels, n_times))
     # a response on a tenth of the channels, so that zones are found and measured
-    burst = np.where(np.abs(times - 0.2) < 0.05, 1.0, 0.0) * np.cos(2 * np.pi * 80 * times)
+    burst = np.where(np.abs(times - 0.2) < BURST_HALF_WIDTH, 1.0, 0.0) * np.cos(
+        2 * np.pi * 80 * times
+    )
     data[:, : n_channels // 10] += 15 * burst
     return TrialSet(
         data=data, times=times, sfreq=sfreq, ch_names=[f"c{i}" for i in range(n_channels)]

@@ -37,12 +37,17 @@ __all__ = [
 
 _DTYPES = {"IEEE_FLOAT_32": "<f4", "INT_16": "<i2", "INT_32": "<i4"}
 
+# Fields of a "Chn=<name>,<reference>,<resolution>,<unit>" line of the header
+_RESOLUTION_FIELD = 2
+_UNIT_FIELD = 3
+
 # Factor from each voltage unit to µV. The micro sign (U+00B5) and the Greek mu
 # (U+03BC) are both used in headers; the default unit of BrainVision is µV.
 _TO_UV = {"µV": 1.0, "μV": 1.0, "uV": 1.0, "mV": 1e3, "V": 1e6, "nV": 1e-3}
 
 
 def _decode(content: Any) -> Any:
+    """Decode a header as UTF-8, else as Latin-1."""
     try:
         return content.decode("utf-8")
     except UnicodeDecodeError:
@@ -50,6 +55,7 @@ def _decode(content: Any) -> Any:
 
 
 def _read_text(path: Any, log: Any = None) -> Any:
+    """Return the text of a local or remote header or marker file."""
     if is_url(path):
         return _decode(fetch_bytes(path, log=log))
     try:
@@ -146,8 +152,10 @@ def read_brainvision_header(vhdr: str, *, log: "TransferLog | None" = None) -> d
             raise ReaderError(f"{vhdr}: channel {key} is not described.")
         fields = re.split(r"(?<!\\),", channels[key])
         ch_names.append(fields[0].replace("\\1", ","))
-        resolutions.append(float(fields[2]) if len(fields) > 2 and fields[2].strip() else 1.0)
-        unit = fields[3].strip() if len(fields) > 3 and fields[3].strip() else "µV"
+        resolution = fields[_RESOLUTION_FIELD] if len(fields) > _RESOLUTION_FIELD else ""
+        resolutions.append(float(resolution) if resolution.strip() else 1.0)
+        unit = fields[_UNIT_FIELD].strip() if len(fields) > _UNIT_FIELD else ""
+        unit = unit or "µV"
         units.append("µV" if unit == "�V" else unit)
     to_uv = np.array([_TO_UV.get(unit, 1.0) for unit in units])
 
@@ -174,6 +182,7 @@ class _LocalFile:
     """Local counterpart of RemoteFile: ``read(offset, nbytes)`` and ``size``."""
 
     def __init__(self, path: Any) -> None:
+        """Open the data file ``path`` for reading."""
         if not os.path.isfile(path):
             raise ReaderError(f"Data file not found: {path}")
         self.path = path
@@ -182,18 +191,22 @@ class _LocalFile:
         self._file = open(path, "rb")  # noqa: SIM115  (the reader owns the file; close() and __exit__ close it)
 
     def read(self, offset: Any, nbytes: Any) -> bytes:
+        """Return ``nbytes`` at ``offset``."""
         self._file.seek(offset)
         out = self._file.read(nbytes)
         self.bytes_read += len(out)
         return out
 
     def close(self) -> None:
+        """Close the file."""
         self._file.close()
 
     def __enter__(self) -> "_LocalFile":
+        """Return the file itself."""
         return self
 
     def __exit__(self, *exc: Any) -> None:
+        """Close the file."""
         self.close()
 
 
@@ -226,6 +239,7 @@ def _n_samples(header: Any, reader: Any) -> Any:
 
 
 def _scaling(header: Any, ch_index: Any) -> Any:
+    """Return the factor from stored values to µV of the channels ``ch_index``."""
     return header["resolutions"][ch_index] * header["to_uv"][ch_index]
 
 

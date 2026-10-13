@@ -12,6 +12,17 @@ from evoparam.stats import compare_conditions, hedges_g, score_waveforms
 
 pd = pytest.importorskip("pandas")
 
+# Test level, the condition probability, the range of the type-I error rate, and the level
+# the exact test must reach.
+ALPHA = 0.05
+HALF = 0.5
+MIN_RATE = 0.04
+MAX_RATE = 0.06
+STRICT_ALPHA = 0.01
+# Rows excluded by their status, and the subjects of condition a that are kept.
+N_EXCLUDED = 2
+N_KEPT = 7
+
 N_SIM = 4000
 
 ###################################################################################################
@@ -19,7 +30,7 @@ N_SIM = 4000
 
 
 def _rate(table: Any) -> Any:
-    return float(np.mean(table["p_value_raw"] <= 0.05))
+    return float(np.mean(table["p_value_raw"] <= ALPHA))
 
 
 def test_req232_type_one_error_trial_level() -> None:
@@ -42,7 +53,7 @@ def test_req232_type_one_error_trial_level() -> None:
         {
             "sim": np.repeat(np.arange(N_SIM), 20),
             "trial": np.arange(20 * N_SIM),
-            "condition": np.where(rng.random(20 * N_SIM) < 0.5, "a", "b"),
+            "condition": np.where(rng.random(20 * N_SIM) < HALF, "a", "b"),
             "amplitude": score,
         }
     )
@@ -58,7 +69,7 @@ def test_req232_type_one_error_trial_level() -> None:
         random_state=2,
     )
     assert len(out) == N_SIM
-    assert 0.04 <= _rate(out) <= 0.06, _rate(out)
+    assert MIN_RATE <= _rate(out) <= MAX_RATE, _rate(out)
 
 
 def test_req232_type_one_error_channel_level() -> None:
@@ -86,7 +97,7 @@ def test_req232_type_one_error_channel_level() -> None:
         by=["sim"],
         random_state=4,
     )
-    assert 0.04 <= _rate(out) <= 0.06, _rate(out)
+    assert MIN_RATE <= _rate(out) <= MAX_RATE, _rate(out)
     assert out["difference_ms"].notna().all()
 
 
@@ -129,7 +140,7 @@ def test_req232_type_one_error_subject_level(paired: Any) -> None:
         by=["sim"],
         random_state=7,
     )
-    assert 0.04 <= _rate(out) <= 0.06, _rate(out)
+    assert MIN_RATE <= _rate(out) <= MAX_RATE, _rate(out)
     assert set(out["n_a"]) == {n_sub if paired else n_sub // 2}
 
 
@@ -188,7 +199,7 @@ def test_effect_detected_with_effect_sizes() -> None:
     row = out.iloc[0]
     assert row["exact"]
     assert row["n_permutations"] == 2**12
-    assert row["p_value"] < 0.01
+    assert row["p_value"] < STRICT_ALPHA
     assert row["difference_ms"] == pytest.approx(4, abs=1)
     assert row["ci_low_ms"] < row["difference_ms"] < row["ci_high_ms"]
     d = table["latency"].to_numpy()[0::2] - table["latency"].to_numpy()[1::2]
@@ -212,9 +223,9 @@ def test_status_rows_are_excluded_and_counted() -> None:
     out = compare_conditions(
         table, parameter="latency", condition="condition", n_permutations=500, random_state=0
     )
-    assert out["n_excluded"].iloc[0] == 2
+    assert out["n_excluded"].iloc[0] == N_EXCLUDED
     assert out["n_missing"].iloc[0] == 1
-    assert out["n_a"].iloc[0] == 7  # s1 (missing b), s8, s9 dropped
+    assert out["n_a"].iloc[0] == N_KEPT  # s1 (missing b), s8, s9 dropped
 
 
 def test_several_conditions_and_errors() -> None:

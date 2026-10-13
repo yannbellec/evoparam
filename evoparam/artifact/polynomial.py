@@ -26,6 +26,9 @@ from evoparam.errors import SettingsError
 
 __all__ = []
 
+# Fewest samples from which the level outside the window is estimated.
+_MIN_LEVEL_SAMPLES = 8
+
 # Residual RMS, in units of the series' noise level, below which a recovered sample is
 # trusted again.
 TRUST_SD = 3.0
@@ -54,12 +57,12 @@ def _local_weights(fit: Any, window_inds: Any, baseline_inds: Any, railed: Any, 
     weights = np.zeros(fit.shape)
     lo = int(window_inds[0])
     first_after = int(window_inds[-1]) + 1
-    if baseline_inds is not None and len(baseline_inds) >= 8:
+    if baseline_inds is not None and len(baseline_inds) >= _MIN_LEVEL_SAMPLES:
         base = fit[:, baseline_inds]
     else:
         outside = np.ones(n_times, dtype=bool)
         outside[lo:] = False
-        base = fit[:, outside] if outside.sum() >= 8 else fit
+        base = fit[:, outside] if outside.sum() >= _MIN_LEVEL_SAMPLES else fit
     level = np.median(base, axis=1)
     spread = 1.4826 * np.median(np.abs(base - level[:, None]), axis=1)
     spread = np.maximum(spread, 1e-12 * np.maximum(np.max(np.abs(fit), axis=1), 1.0))

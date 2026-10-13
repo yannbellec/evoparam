@@ -23,6 +23,18 @@ from .helpers import N1, independent_dependability, independent_split_half, subj
 
 pd = pytest.importorskip("pandas")
 
+# Dependability target of the decision study, and the units of the examples.
+TARGET = 0.70
+N_UNITS = 30
+N_TRAINS = 6
+# Trials of the extrapolated SD (REQ-234), its relative tolerance and the fraction within.
+N_TRIALS = 80
+SD_TOLERANCE = 0.15
+MIN_WITHIN = 0.5
+# Lowest power-law exponent, and the largest probability on a silent channel.
+MIN_EXPONENT = -0.5
+MAX_SILENT = 0.3
+
 ###################################################################################################
 ###################################################################################################
 
@@ -46,9 +58,9 @@ def test_req233_against_independent_formulas(unbalanced: Any) -> None:
     assert row["split_half_random"] == pytest.approx(ref_sh, abs=0.1)
     # decision study: the trials needed reach the target and one trial fewer does not
     needed = row["trials_needed"]
-    assert dependability(var_u, var_e, needed) >= 0.70 > dependability(var_u, var_e, needed - 1)
+    assert dependability(var_u, var_e, needed) >= TARGET > dependability(var_u, var_e, needed - 1)
     assert out.attrs["d_study"]["n_trials"][0] == 1
-    assert row["n_units"] == 30
+    assert row["n_units"] == N_UNITS
 
 
 def test_req233_peak_score_and_sme() -> None:
@@ -113,7 +125,7 @@ def test_reliability_errors_and_facets() -> None:
     )
     out = reliability(trains, facets=("trial", "train_id"), n_splits=50, random_state=0)
     assert out["facet"].iloc[0] == "train_id"
-    assert out["n_units"].iloc[0] == 6
+    assert out["n_units"].iloc[0] == N_TRAINS
     assert out.attrs["provenance"]["steps"][-1]["function"] == "evoparam.stats.reliability"
     assert spearman_brown(0.5) == pytest.approx(2 / 3)
 
@@ -148,7 +160,7 @@ def _req234(score: Any, n_channels: Any = 60, extrapolation: Any = "auto") -> An
             random_state=k,
             extrapolation=extrapolation,
         )
-        row = table[table["n_trials"] == 80]
+        row = table[table["n_trials"] == N_TRIALS]
         assert row["extrapolated"].iloc[0]
         ratios.append(row["sd"].iloc[0] / true)
     return np.array(ratios)
@@ -161,8 +173,8 @@ def test_req234_sd_at_80_trials(score: Any) -> None:
     the channels fall within 15 %."""
 
     ratios = _req234(score)
-    assert abs(np.median(ratios) - 1) <= 0.15, np.median(ratios)
-    assert np.mean(np.abs(ratios - 1) <= 0.15) >= 0.5
+    assert abs(np.median(ratios) - 1) <= SD_TOLERANCE, np.median(ratios)
+    assert np.mean(np.abs(ratios - 1) <= SD_TOLERANCE) >= MIN_WITHIN
 
 
 @pytest.mark.parametrize(
@@ -193,7 +205,7 @@ def test_req234_latency_scores(score: Any) -> None:
     default extrapolation."""
 
     ratios = _req234(score, n_channels=30)
-    assert abs(np.median(ratios) - 1) <= 0.15, np.median(ratios)
+    assert abs(np.median(ratios) - 1) <= SD_TOLERANCE, np.median(ratios)
 
 
 def test_req234_spec_law_stays_available_and_power_law_is_better_for_latencies() -> None:
@@ -215,7 +227,7 @@ def test_req234_spec_law_stays_available_and_power_law_is_better_for_latencies()
     assert a.attrs["settings"]["extrapolation"] == "sqrt_n"
     c = trials_needed(ts, scorer="peak_latency", **kw)
     assert c.attrs["settings"]["extrapolation"] == "power"
-    assert -0.5 <= c.attrs["exponents"]["Cz"] <= 0.0
+    assert MIN_EXPONENT <= c.attrs["exponents"]["Cz"] <= 0.0
     with pytest.raises(SettingsError, match="extrapolation"):
         trials_needed(ts, scorer="peak_latency", extrapolation="linear", **kw)
 
@@ -245,7 +257,7 @@ def test_trials_needed_existence() -> None:
     silent = table[table["channel"] == "Pz"]["p_significant"].to_numpy()
     assert responsive[-1] == 1.0
     assert responsive[0] < responsive[-1]
-    assert silent.max() <= 0.3
+    assert silent.max() <= MAX_SILENT
     assert table["sd"].isna().all()
     assert table["n_resamples"].tolist()[-1] == 1
     with pytest.warns(UserWarning, match="not extrapolated"):

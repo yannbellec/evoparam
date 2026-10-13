@@ -20,6 +20,10 @@ import pytest
 
 pynwb = pytest.importorskip("pynwb")
 
+# Fraction of the recording covered by the epochs.
+MIN_COVERED = 0.09
+MAX_COVERED = 0.11
+
 SLOW = os.environ.get("EVOPARAM_SLOW_TESTS") == "1"
 N_CH = 64
 N_TIMES = 4 * 1024 * 1024
@@ -122,6 +126,6 @@ def test_req317_peak_memory_reading_10_percent_of_1gb() -> None:
     grown = (result["peak"] - result["base"]) / 1e9
     assert result["shape"][1] == N_CH
     covered = result["shape"][0] * result["shape"][2] / N_TIMES
-    assert 0.09 <= covered <= 0.11
+    assert MIN_COVERED <= covered <= MAX_COVERED
     # the epochs themselves (float64, µV) are part of the growth
     assert grown < LIMIT_GB, f"peak RSS grew by {grown:.3f} GB"

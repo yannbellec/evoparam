@@ -18,7 +18,7 @@ import time
 import traceback
 from collections.abc import Callable, Sequence
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from evoparam._typing import Any
 from evoparam.errors import DataError
@@ -82,7 +82,118 @@ def _cell_job(args: Any) -> tuple[Any, dict[Any, Any], list[Any]]:
     return cell.id, timings, failures
 
 
-def run_suite(
+class _Run(NamedTuple):
+    """A run of :func:`run_suite`: the suite, its tasks and split, the folder and the log."""
+
+    suite: "Suite"
+    tasks: list[str]
+    split: str
+    out: str
+    log: Callable[..., Any]
+
+
+def _resolve(
+    suite: Any, hidden_seeds: Any, tasks: Any, methods: Any
+) -> tuple["Suite", list[str], Any]:
+    """Return the suite (loaded, with the hidden seeds), its tasks and the baselines to run."""
+    if not hasattr(suite, "cells"):
+        suite = load_suite(suite, hidden_seeds=hidden_seeds)
+    elif hidden_seeds is not None:
+        suite = cast("Suite", suite).with_hidden_seeds(hidden_seeds)
+    suite = cast("Suite", suite)  # a Suite from here on
+    tasks = list(tasks) if tasks else suite.task_ids()
+    for task in tasks:
+        if task not in suite.tasks:
+            raise DataError(f"suite {suite.name!r} has no task {task}.")
+    if methods is None:
+        methods = [name for name, b in BASELINES.items() if set(b.tasks) & set(tasks)]
+    unknown = [m for m in methods if m not in BASELINES]
+    if unknown:
+        raise DataError(f"unknown baselines {unknown}; baselines: {sorted(BASELINES)}.")
+    return suite, tasks, methods
+
+
+def _run_cells(
+    jobs: list[Any], n_jobs: int, log: Callable[..., Any]
+) -> tuple[dict[Any, Any], list[Any]]:
+    """Run the cells (in worker processes when ``n_jobs > 1``); return timings and failures."""
+    timings, failures = {}, []
+    if n_jobs > 1:
+        with ProcessPoolExecutor(max_workers=n_jobs) as pool:
+            for cell_id, cell_times, cell_failures in pool.map(_cell_job, jobs):
+                timings[cell_id] = cell_times
+                failures += cell_failures
+                log(f"{cell_id}: {sum(cell_times.values()):.1f} s")
+    else:
+        for job in jobs:
+            cell_id, cell_times, cell_failures = _cell_job(job)
+            timings[cell_id] = cell_times
+            failures += cell_failures
+            log(f"{cell_id}: {sum(cell_times.values()):.1f} s")
+    return timings, failures
+
+
+def _run_adapters(run: _Run, adapters: list[Any], failures: list[Any]) -> float:
+    """Run the external tools on the written inputs; return their duration (s).
+
+    A failing cell is added to ``failures`` and listed as missing.
+    """
+    adapter_seconds = 0.0
+    for adapter in adapters:
+        for task in run.tasks:
+            if adapter.tasks and task not in adapter.tasks:
+                continue
+            folder = os.path.join(run.out, "predictions", adapter.name, task)
+            for cell in run.suite.cells(task, split=run.split):
+                t0 = time.perf_counter()
+                try:
+                    adapter.run(os.path.join(run.out, "inputs", task, f"{cell.id}.json"), folder)
+                except Exception as err:  # noqa: BLE001  (recorded; the cell is listed as missing)
+                    failures.append(
+                        {
+                            "cell": cell.id,
+                            "method": adapter.name,
+                            "error": f"{type(err).__name__}: {err}",
+                        }
+                    )
+                adapter_seconds += time.perf_counter() - t0
+            run.log(f"adapter {adapter.name}, {task}: done")
+    return adapter_seconds
+
+
+def _score_all(run: _Run, methods: Any, adapters: list[Any]) -> list[str]:
+    """Score every method that wrote predictions for a task; return the result files."""
+    results = []
+    method_info = {name: BASELINES[name].info() for name in methods}
+    method_info.update({a.name: a.info() for a in adapters})
+    for task in run.tasks:
+        task_inputs = None
+        for name in list(methods) + [a.name for a in adapters]:
+            folder = os.path.join(run.out, "predictions", name, task)
+            if not os.path.isdir(folder):
+                continue
+            if task_inputs is None:
+                task_inputs = [
+                    make_inputs(cell, tasks=[task])[task]
+                    for cell in run.suite.cells(task, split=run.split)
+                ]
+            document = score(
+                task,
+                folder,
+                run.suite,
+                method=method_info[name],
+                allow_missing=True,
+                inputs=task_inputs,
+            )
+            path = write_result(
+                document, os.path.join(run.out, "results", result_name(name, task))
+            )
+            results.append(path)
+            run.log(f"scored {name} on {task}")
+    return results
+
+
+def run_suite(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     suite: "str | Suite" = "core",
     out: str = ".",
     *,
@@ -131,92 +242,24 @@ def run_suite(
 
     log = log or (lambda _message: None)
     start = time.perf_counter()
-    if not hasattr(suite, "cells"):
-        suite = load_suite(suite, hidden_seeds=hidden_seeds)
-    elif hidden_seeds is not None:
-        suite = cast("Suite", suite).with_hidden_seeds(hidden_seeds)
-    suite = cast("Suite", suite)  # a Suite from here on
-    tasks = list(tasks) if tasks else suite.task_ids()
-    for task in tasks:
-        if task not in suite.tasks:
-            raise DataError(f"suite {suite.name!r} has no task {task}.")
-    if methods is None:
-        methods = [name for name, b in BASELINES.items() if set(b.tasks) & set(tasks)]
-    unknown = [m for m in methods if m not in BASELINES]
-    if unknown:
-        raise DataError(f"unknown baselines {unknown}; baselines: {sorted(BASELINES)}.")
+    suite, tasks, methods = _resolve(suite, hidden_seeds, tasks, methods)
     adapters = [a if isinstance(a, Adapter) else load_adapter(a) for a in adapters]
     for adapter in adapters:
         adapter.check()  # a missing program stops the run before any work
     os.makedirs(out, exist_ok=True)
+    run = _Run(suite, tasks, split, out, log)
     cells: dict[Any, Any]
     cells = {}
     for task in tasks:
         for cell in suite.cells(task, split=split):
             cells.setdefault(cell.id, cell)
     jobs = [(cell, [t for t in tasks if t in cell.tasks], methods, out) for cell in cells.values()]
-    timings, failures = {}, []
-    if n_jobs > 1:
-        with ProcessPoolExecutor(max_workers=n_jobs) as pool:
-            for cell_id, cell_times, cell_failures in pool.map(_cell_job, jobs):
-                timings[cell_id] = cell_times
-                failures += cell_failures
-                log(f"{cell_id}: {sum(cell_times.values()):.1f} s")
-    else:
-        for job in jobs:
-            cell_id, cell_times, cell_failures = _cell_job(job)
-            timings[cell_id] = cell_times
-            failures += cell_failures
-            log(f"{cell_id}: {sum(cell_times.values()):.1f} s")
+    timings, failures = _run_cells(jobs, n_jobs, log)
     run_seconds = time.perf_counter() - start
-
-    adapter_seconds = 0.0
-    for adapter in adapters:
-        for task in tasks:
-            if adapter.tasks and task not in adapter.tasks:
-                continue
-            folder = os.path.join(out, "predictions", adapter.name, task)
-            for cell in suite.cells(task, split=split):
-                t0 = time.perf_counter()
-                try:
-                    adapter.run(os.path.join(out, "inputs", task, f"{cell.id}.json"), folder)
-                except Exception as err:  # noqa: BLE001  (recorded; the cell is listed as missing)
-                    failures.append(
-                        {
-                            "cell": cell.id,
-                            "method": adapter.name,
-                            "error": f"{type(err).__name__}: {err}",
-                        }
-                    )
-                adapter_seconds += time.perf_counter() - t0
-            log(f"adapter {adapter.name}, {task}: done")
+    adapter_seconds = _run_adapters(run, adapters, failures)
 
     t0 = time.perf_counter()
-    results = []
-    method_info = {name: BASELINES[name].info() for name in methods}
-    method_info.update({a.name: a.info() for a in adapters})
-    for task in tasks:
-        task_inputs = None
-        for name in list(methods) + [a.name for a in adapters]:
-            folder = os.path.join(out, "predictions", name, task)
-            if not os.path.isdir(folder):
-                continue
-            if task_inputs is None:
-                task_inputs = [
-                    make_inputs(cell, tasks=[task])[task]
-                    for cell in suite.cells(task, split=split)
-                ]
-            document = score(
-                task,
-                folder,
-                suite,
-                method=method_info[name],
-                allow_missing=True,
-                inputs=task_inputs,
-            )
-            path = write_result(document, os.path.join(out, "results", result_name(name, task)))
-            results.append(path)
-            log(f"scored {name} on {task}")
+    results = _score_all(run, methods, adapters)
     score_seconds = time.perf_counter() - t0
     pages = []
     if page and results:

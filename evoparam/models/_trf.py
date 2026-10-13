@@ -22,6 +22,7 @@ The iterates agree with SciPy's: exactly with ``reduced=False``, to rounding wit
 ``reduced=True`` (evoparam/tests/models/test_trf.py).
 """
 
+import dataclasses
 import functools
 import math
 from collections.abc import Callable
@@ -32,33 +33,23 @@ from scipy.linalg.lapack import dgeqrf, dgesdd, dgesdd_lwork, dormqr
 
 from evoparam._typing import ArrayLike, BoolArray, FloatArray, IntArray
 
-__all__ = ["least_squares_trf"]
+__all__ = ["TrfOptions", "least_squares_trf"]
 
 EPS = np.finfo(float).eps
 
+# Radius updates of SciPy's trf: a step whose actual reduction is below a quarter of the
+# predicted one shrinks the radius to a quarter of the step; one above three quarters that
+# reaches the boundary of the trust region (95 % of its radius) doubles it.
+_SHRINK = 0.25
+_EXPAND = 0.75
+_BOUND_HIT = 0.95
+# Lower bound of the fraction of the step to the bounds that keeps an iterate interior.
+_THETA_MIN = 0.995
 
-def least_squares_trf(
-    fun: Callable[[FloatArray], ArrayLike],
-    jac: Callable[[FloatArray], ArrayLike],
-    x0: ArrayLike,
-    lb: ArrayLike,
-    ub: ArrayLike,
-    *,
-    ftol: float = 1e-8,
-    xtol: float = 1e-8,
-    gtol: float = 1e-8,
-    max_nfev: int | None = None,
-    reduced: bool = True,
-    m: int | None = None,
-    final_jacobian: bool = True,
-) -> tuple[FloatArray, float, int, int]:
-    """Minimise ``0.5 * ||fun(x)||^2`` subject to ``lb <= x <= ub``.
 
-    ``jac(x)`` is called only at a point where ``fun`` was just called (the engine keeps
-    the linear solve of that point). Returns ``(x, cost, nfev, status)``, the status codes
-    of SciPy (0: max_nfev reached, 1: gtol, 2: ftol, 3: xtol, 4: ftol and xtol). Raises
-    ValueError, as ``least_squares`` does, for an infeasible start or non-finite initial
-    residuals, and LinAlgError when an SVD does not converge.
+@dataclasses.dataclass(frozen=True)
+class TrfOptions:
+    """Tolerances and options of :func:`least_squares_trf` (those of ``least_squares``).
 
     ``m``: the number of residuals of the problem, when ``fun`` and ``jac`` return them in
     a reduced orthonormal basis (fewer rows, the same inner products); it sets the rank
@@ -69,6 +60,33 @@ def least_squares_trf(
     the one of that step (SciPy reports 1 when the gradient at the last point is below
     ``gtol``).
     """
+
+    ftol: float = 1e-8
+    xtol: float = 1e-8
+    gtol: float = 1e-8
+    max_nfev: int | None = None
+    reduced: bool = True
+    m: int | None = None
+    final_jacobian: bool = True
+
+
+def least_squares_trf(
+    fun: Callable[[FloatArray], ArrayLike],
+    jac: Callable[[FloatArray], ArrayLike],
+    x0: ArrayLike,
+    lb: ArrayLike,
+    ub: ArrayLike,
+    options: TrfOptions | None = None,
+) -> tuple[FloatArray, float, int, int]:
+    """Minimise ``0.5 * ||fun(x)||^2`` subject to ``lb <= x <= ub``.
+
+    ``jac(x)`` is called only at a point where ``fun`` was just called (the engine keeps
+    the linear solve of that point). Returns ``(x, cost, nfev, status)``, the status codes
+    of SciPy (0: max_nfev reached, 1: gtol, 2: ftol, 3: xtol, 4: ftol and xtol). Raises
+    ValueError, as ``least_squares`` does, for an infeasible start or non-finite initial
+    residuals, and LinAlgError when an SVD does not converge. ``options``: see
+    :class:`TrfOptions` (its defaults when None).
+    """
     x0 = np.atleast_1d(np.asarray(x0, dtype=float))
     lb = np.asarray(lb, dtype=float)
     ub = np.asarray(ub, dtype=float)
@@ -76,96 +94,192 @@ def least_squares_trf(
         raise ValueError("Each lower bound must be strictly less than each upper bound.")
     if not np.all((x0 >= lb) & (x0 <= ub)):
         raise ValueError("Initial guess is outside of provided bounds")
-    x = _strictly_feasible(x0, lb, ub, 1e-10)
-    f = np.atleast_1d(fun(x))
-    jac_x = np.atleast_2d(jac(x))
-    if not np.all(np.isfinite(f)):
-        raise ValueError("Residuals are not finite in the initial point.")
-    m = jac_x.shape[0] if m is None else int(m)
-    n = jac_x.shape[1]
-    if max_nfev is None:
-        max_nfev = n * 100
-    nfev = 1
-    cost = 0.5 * np.dot(f, f)
-    finite_lb, finite_ub = np.isfinite(lb), np.isfinite(ub)
+    solver = _Solver(fun, jac, lb, ub, TrfOptions() if options is None else options)
+    return solver.run(_strictly_feasible(x0, lb, ub, 1e-10))
 
-    jr, jf, g = _reduce(jac_x, f, reduced)
-    scale_inv = (jr**2).sum(axis=0) ** 0.5
-    scale_inv[scale_inv == 0] = 1
-    scale = 1 / scale_inv
 
-    v, dv = _cl_scaling(x, g, lb, ub, finite_lb, finite_ub)
-    v = np.where(dv != 0, v * scale_inv, v)
-    delta = _norm(x * scale_inv / v**0.5)
-    if delta == 0:
-        delta = 1.0
+@dataclasses.dataclass
+class _Point:
+    """An iterate: the point, its residuals, cost and (reduced) Jacobian and gradient."""
 
-    rows = jr.shape[0]
-    augmented = np.empty((rows + n, n), order="F")
-    lwork = int(dgesdd_lwork(rows + n, n, compute_uv=1, full_matrices=0)[0])
-    f_augmented = np.zeros(rows + n)
-    alpha = 0.0
-    status = None
-    while True:
-        v, dv = _cl_scaling(x, g, lb, ub, finite_lb, finite_ub)
-        g_norm = np.abs(g * v).max() if n else 0.0
-        if g_norm < gtol:
-            status = 1
-        if status is not None or nfev == max_nfev:
-            break
+    x: FloatArray
+    f: FloatArray
+    cost: float
+    jr: FloatArray
+    jf: FloatArray
+    g: FloatArray
+
+
+@dataclasses.dataclass
+class _Model:
+    """The scaled quadratic model of one iteration and the SVD of its augmented Jacobian."""
+
+    d: FloatArray
+    diag_h: FloatArray
+    g_h: FloatArray
+    j_h: FloatArray
+    uf: FloatArray
+    s: FloatArray
+    v_mat: FloatArray
+    theta: float
+
+
+class _Solver:
+    """The iteration of :func:`least_squares_trf`: SciPy's ``trf_bounds`` step by step."""
+
+    def __init__(
+        self,
+        fun: Callable[[FloatArray], ArrayLike],
+        jac: Callable[[FloatArray], ArrayLike],
+        lb: FloatArray,
+        ub: FloatArray,
+        options: TrfOptions,
+    ) -> None:
+        """Keep the problem; the iteration state is set by :meth:`run`."""
+        self.fun = fun
+        self.jac = jac
+        self.lb = lb
+        self.ub = ub
+        self.options = options
+        self.finite_lb, self.finite_ub = np.isfinite(lb), np.isfinite(ub)
+        self.nfev = 0
+        self.max_nfev = 0
+        self.m = 0
+        self.n = 0
+        self.delta = 0.0
+        self.alpha = 0.0
+        self.scale_inv: FloatArray = np.ones(0)
+        self.scale: FloatArray = np.ones(0)
+        self.augmented: FloatArray = np.empty((0, 0))
+        self.f_augmented: FloatArray = np.zeros(0)
+        self.lwork = 0
+
+    def run(self, x: FloatArray) -> tuple[FloatArray, float, int, int]:
+        """Iterate from the strictly feasible ``x``; returns ``(x, cost, nfev, status)``."""
+        point = self._start(x)
+        status = None
+        while True:
+            v, dv = _cl_scaling(point.x, point.g, self.lb, self.ub, self.finite_lb, self.finite_ub)
+            g_norm = np.abs(point.g * v).max() if self.n else 0.0
+            if g_norm < self.options.gtol:
+                status = 1
+            if status is not None or self.nfev == self.max_nfev:
+                break
+            model = self._model(point, v, dv, g_norm)
+            accepted, status = self._step(point, model)
+            if accepted is None:
+                continue
+            point = accepted
+            if status is not None and not self.options.final_jacobian:
+                break
+            point = self._jacobian_at(point)
+            self.scale_inv = np.maximum((point.jr**2).sum(axis=0) ** 0.5, self.scale_inv)
+            self.scale = 1 / self.scale_inv
+        return point.x, point.cost, self.nfev, 0 if status is None else status
+
+    def _start(self, x: FloatArray) -> _Point:
+        """Evaluate the start, set the scaling, the radius and the work arrays."""
+        options = self.options
+        f = np.atleast_1d(self.fun(x))
+        jac_x = np.atleast_2d(self.jac(x))
+        if not np.all(np.isfinite(f)):
+            raise ValueError("Residuals are not finite in the initial point.")
+        self.m = jac_x.shape[0] if options.m is None else int(options.m)
+        n = self.n = jac_x.shape[1]
+        self.max_nfev = n * 100 if options.max_nfev is None else options.max_nfev
+        self.nfev = 1
+        cost = 0.5 * np.dot(f, f)
+        jr, jf, g = _reduce(jac_x, f, options.reduced)
+        scale_inv = (jr**2).sum(axis=0) ** 0.5
+        scale_inv[scale_inv == 0] = 1
+        self.scale_inv = scale_inv
+        self.scale = 1 / scale_inv
+
+        v, dv = _cl_scaling(x, g, self.lb, self.ub, self.finite_lb, self.finite_ub)
         v = np.where(dv != 0, v * scale_inv, v)
-        d = v**0.5 * scale
-        diag_h = g * dv * scale
-        g_h = d * g
+        self.delta = _norm(x * scale_inv / v**0.5)
+        if self.delta == 0:
+            self.delta = 1.0
 
-        f_augmented[:rows] = jf
-        augmented[:rows] = jr * d
+        rows = jr.shape[0]
+        self.augmented = np.empty((rows + n, n), order="F")
+        self.lwork = int(dgesdd_lwork(rows + n, n, compute_uv=1, full_matrices=0)[0])
+        self.f_augmented = np.zeros(rows + n)
+        return _Point(x, f, cost, jr, jf, g)
+
+    def _jacobian_at(self, point: _Point) -> _Point:
+        """Return ``point`` with the Jacobian and gradient at its ``x``."""
+        jac_x = np.atleast_2d(self.jac(point.x))
+        jr, jf, g = _reduce(jac_x, point.f, self.options.reduced)
+        return _Point(point.x, point.f, point.cost, jr, jf, g)
+
+    def _model(self, point: _Point, v: FloatArray, dv: FloatArray, g_norm: float) -> _Model:
+        """Return the scaled model at ``point`` and the SVD of its augmented Jacobian."""
+        v = np.where(dv != 0, v * self.scale_inv, v)
+        d = v**0.5 * self.scale
+        diag_h = point.g * dv * self.scale
+        g_h = d * point.g
+
+        rows = point.jr.shape[0]
+        augmented = self.augmented
+        self.f_augmented[:rows] = point.jf
+        augmented[:rows] = point.jr * d
         j_h = augmented[:rows]
         augmented[rows:] = np.diag(diag_h**0.5)
-        u, s, vt, info = dgesdd(augmented, compute_uv=1, full_matrices=0, lwork=lwork)
+        u, s, vt, info = dgesdd(augmented, compute_uv=1, full_matrices=0, lwork=self.lwork)
         if info > 0:
             raise np.linalg.LinAlgError("SVD did not converge")
-        v_mat = vt.T
-        uf = u.T.dot(f_augmented)
-        theta = max(0.995, 1 - g_norm)
+        uf = u.T.dot(self.f_augmented)
+        return _Model(d, diag_h, g_h, j_h, uf, s, vt.T, max(_THETA_MIN, 1 - g_norm))
 
-        actual_reduction = -1
-        while actual_reduction <= 0 and nfev < max_nfev:
-            p_h, alpha = _solve_trust_region(n, m, uf, s, v_mat, delta, alpha)
-            p = d * p_h
-            step, step_h, predicted = _select_step(
-                x, j_h, diag_h, g_h, p, p_h, d, delta, lb, ub, theta
-            )
-            x_new = _strictly_feasible(x + step, lb, ub, 0)
-            f_new = np.atleast_1d(fun(x_new))
-            nfev += 1
+    def _step(self, point: _Point, model: _Model) -> tuple[_Point | None, int | None]:
+        """Shrink the trust region until a step lowers the cost.
+
+        Returns the new point (without its Jacobian) or None, and the termination status.
+        """
+        lb, ub = self.lb, self.ub
+        actual_reduction = -1.0
+        status = None
+        trial = point
+        while actual_reduction <= 0 and self.nfev < self.max_nfev:
+            p_h, self.alpha = _solve_trust_region(self.m, model, self.delta, self.alpha)
+            p = model.d * p_h
+            step, step_h, predicted = _select_step(point.x, model, p, p_h, self.delta, (lb, ub))
+            x_new = _strictly_feasible(point.x + step, lb, ub, 0)
+            f_new = np.atleast_1d(self.fun(x_new))
+            self.nfev += 1
             step_h_norm = _norm(step_h)
             if not np.isfinite(f_new).all():
-                delta = 0.25 * step_h_norm
+                self.delta = _SHRINK * step_h_norm
                 continue
             cost_new = 0.5 * np.dot(f_new, f_new)
-            actual_reduction = cost - cost_new
+            actual_reduction = point.cost - cost_new
+            trial = _Point(x_new, f_new, cost_new, point.jr, point.jf, point.g)
             delta_new, ratio = _update_radius(
-                delta, actual_reduction, predicted, step_h_norm, step_h_norm > 0.95 * delta
+                self.delta,
+                actual_reduction,
+                predicted,
+                step_h_norm,
+                step_h_norm > _BOUND_HIT * self.delta,
             )
-            status = _termination(actual_reduction, cost, _norm(step), _norm(x), ratio, ftol, xtol)
+            status = _termination(
+                actual_reduction,
+                point.cost,
+                _norm(step),
+                _norm(point.x),
+                ratio,
+                self.options.ftol,
+                self.options.xtol,
+            )
             if status is not None:
                 break
-            alpha *= delta / delta_new
-            delta = delta_new
-
-        if actual_reduction > 0:
-            x, f, cost = x_new, f_new, cost_new
-            if status is not None and not final_jacobian:
-                break
-            jac_x = np.atleast_2d(jac(x))
-            jr, jf, g = _reduce(jac_x, f, reduced)
-            scale_inv = np.maximum((jr**2).sum(axis=0) ** 0.5, scale_inv)
-            scale = 1 / scale_inv
-    return x, cost, nfev, 0 if status is None else status
+            self.alpha *= self.delta / delta_new
+            self.delta = delta_new
+        return (trial if actual_reduction > 0 else None), status
 
 
 def _norm(x: FloatArray) -> float:
+    """Return the Euclidean norm of ``x``."""
     return math.sqrt(np.dot(x, x))
 
 
@@ -230,6 +344,7 @@ def _strictly_feasible(x: FloatArray, lb: FloatArray, ub: FloatArray, rstep: flo
 
 
 def _active(x: FloatArray, lb: FloatArray, ub: FloatArray, rtol: float) -> IntArray:
+    """Return -1, 1 or 0 for each entry of ``x`` at its lower bound, upper bound or neither."""
     active = np.zeros_like(x, dtype=int)
     if rtol == 0:
         active[x <= lb] = -1
@@ -245,20 +360,14 @@ def _active(x: FloatArray, lb: FloatArray, ub: FloatArray, rtol: float) -> IntAr
 
 
 def _solve_trust_region(
-    n: int,
-    m: int,
-    uf: FloatArray,
-    s: FloatArray,
-    v_mat: FloatArray,
-    delta: float,
-    alpha: float,
-    rtol: float = 0.01,
-    max_iter: int = 10,
+    m: int, model: "_Model", delta: float, alpha: float, rtol: float = 0.01, max_iter: int = 10
 ) -> tuple[FloatArray, float]:
-    """Trust-region subproblem from the SVD of the (scaled) Jacobian (Moré 1977).
+    """Solve the trust-region subproblem from the SVD of the (scaled) Jacobian (Moré 1977).
 
-    Returns the step and the Levenberg-Marquardt parameter.
+    ``m``: the number of residuals. Returns the step and the Levenberg-Marquardt parameter.
     """
+    uf, s, v_mat = model.uf, model.s, model.v_mat
+    n = len(s)
     suf = s * uf
     full_rank = s[-1] > EPS * m * s[0] if m >= n else False
     if full_rank:
@@ -267,6 +376,7 @@ def _solve_trust_region(
             return p, 0.0
 
     def phi_and_derivative(alpha: float) -> tuple[float, float]:
+        """Return ``||p(alpha)|| - delta`` and its derivative in ``alpha``."""
         denom = s**2 + alpha
         p_norm = _norm(suf / denom)
         return p_norm - delta, -(suf**2 / denom**3).sum() / p_norm
@@ -298,15 +408,16 @@ def _solve_trust_region(
 def _update_radius(
     delta: float, actual: float, predicted: float, step_norm: float, bound_hit: bool
 ) -> tuple[float, float]:
+    """Return the new trust-region radius and the ratio of actual to predicted reduction."""
     if predicted > 0:
         ratio = actual / predicted
     elif predicted == actual == 0:
         ratio = 1
     else:
         ratio = 0
-    if ratio < 0.25:
-        delta = 0.25 * step_norm
-    elif ratio > 0.75 and bound_hit:
+    if ratio < _SHRINK:
+        delta = _SHRINK * step_norm
+    elif ratio > _EXPAND and bound_hit:
         delta *= 2.0
     return delta, ratio
 
@@ -320,7 +431,8 @@ def _termination(
     ftol: float,
     xtol: float,
 ) -> int | None:
-    ftol_ok = d_cost < ftol * cost and ratio > 0.25
+    """Return SciPy's termination status of a step (2: ftol, 3: xtol, 4: both) or None."""
+    ftol_ok = d_cost < ftol * cost and ratio > _SHRINK
     xtol_ok = dx_norm < xtol * (xtol + x_norm)
     if ftol_ok and xtol_ok:
         return 4
@@ -351,6 +463,7 @@ def _quadratic_1d(
 
 
 def _minimize_1d(a: float, b: float, lb: float, ub: float, c: float = 0) -> tuple[float, float]:
+    """Return the minimiser of ``a t^2 + b t + c`` on ``[lb, ub]`` and its value."""
     t: list[float] | FloatArray
     t = [lb, ub]
     if a != 0:
@@ -364,6 +477,7 @@ def _minimize_1d(a: float, b: float, lb: float, ub: float, c: float = 0) -> tupl
 
 
 def _evaluate_quadratic(jac: FloatArray, g: FloatArray, s: FloatArray, diag: FloatArray) -> float:
+    """Return the value of the quadratic model at the step ``s``."""
     jac_s = jac.dot(s)
     q = np.dot(jac_s, jac_s)
     q += np.dot(s * diag, s)
@@ -385,6 +499,7 @@ def _quotient(num: FloatArray, den: FloatArray) -> FloatArray:
 def _step_to_bound(
     x: FloatArray, s: FloatArray, lb: FloatArray, ub: FloatArray
 ) -> tuple[float, IntArray]:
+    """Return the step along ``s`` to the nearest bound and the bounds it reaches (signs)."""
     non_zero = np.nonzero(s)
     s_non_zero = s[non_zero]
     steps = np.empty_like(x)
@@ -397,6 +512,7 @@ def _step_to_bound(
 
 
 def _intersect_trust_region(x: FloatArray, s: FloatArray, delta: float) -> tuple[float, float]:
+    """Return the two roots ``t`` of ``||x + s t|| = delta``, in increasing order."""
     a = np.dot(s, s)
     if a == 0:
         raise ValueError("`s` is zero.")
@@ -413,22 +529,19 @@ def _intersect_trust_region(x: FloatArray, s: FloatArray, delta: float) -> tuple
 
 def _select_step(
     x: FloatArray,
-    jac_h: FloatArray,
-    diag_h: FloatArray,
-    g_h: FloatArray,
+    model: "_Model",
     p: FloatArray,
     p_h: FloatArray,
-    d: FloatArray,
     delta: float,
-    lb: FloatArray,
-    ub: FloatArray,
-    theta: float,
+    bounds: tuple[FloatArray, FloatArray],
 ) -> tuple[FloatArray, FloatArray, float]:
     """Return the best of three candidate steps.
 
     The trust-region step (made strictly interior), its reflection on the first bound it hits, and
     the scaled anti-gradient.
     """
+    jac_h, diag_h, g_h, d, theta = model.j_h, model.diag_h, model.g_h, model.d, model.theta
+    lb, ub = bounds
     if ((x + p >= lb) & (x + p <= ub)).all():
         p_value = _evaluate_quadratic(jac_h, g_h, p_h, diag_h)
         return p, p_h, -p_value

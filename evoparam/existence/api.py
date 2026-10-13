@@ -23,9 +23,15 @@ from evoparam.utils._parallel import parallel_map
 from evoparam.version import __version__
 
 from .corrections import CORRECTIONS, correct
-from .permutation import permutation_test, shuffle_test
+from .permutation import PermutationOptions, permutation_test, shuffle_test
 from .projection import projection_test
 from .rules import apply_rule, load_rules, resolve_rule
+
+# model_comparison refits the model for every sample: more samples than this warn
+_SLOW_COMPARISON = 200
+# Baseline of fit() when the preset gives none and the epoch starts early enough (s)
+_DEFAULT_BASELINE = (-0.5, -0.05)
+
 
 __all__ = [
     "test_response",
@@ -51,6 +57,7 @@ HUMAN_KAPPA = 0.60
 
 
 def _groups(ts: Any, by: Any) -> Any:
+    """Return the ``(label, trial rows)`` groups of the trials split by the columns ``by``."""
     meta = ts.metadata
     columns = [c for c in (by or ()) if meta is not None and c in meta.columns]
     if not columns:
@@ -59,7 +66,38 @@ def _groups(ts: Any, by: Any) -> Any:
     return [(key, np.flatnonzero(keys == key)) for key in dict.fromkeys(keys)]
 
 
+def _span(times: Any, *windows: Any) -> slice:
+    """Return the samples from the start of the first of ``windows`` to the end of the last."""
+    inside = np.zeros(len(times), bool)
+    for low, high in windows:
+        inside |= (times >= low) & (times <= high)
+    found = np.flatnonzero(inside)
+    return slice(int(found[0]), int(found[-1]) + 1) if found.size else slice(None)
+
+
+def _select(ts: Any, rows: Any, chans: Any, span: slice) -> tuple[Any, Any]:
+    """``ts.data[rows][:, chans][:, :, span]`` (and the masks), copied once.
+
+    The copy has the memory layout of ``ts.data[rows][:, chans]`` (channel by channel), so
+    every sum over trials is the same to the bit; one copy of the samples that are used is
+    the memory of P3 (spec §9.1).
+    """
+    return _channel_major(ts.data, rows, chans, span), (
+        None if ts.masks is None else _channel_major(ts.masks, rows, chans, span)
+    )
+
+
+def _channel_major(values: Any, rows: Any, chans: Any, span: slice) -> Any:
+    rows = np.asarray(rows, dtype=np.intp)
+    first = values[:, :1, span]
+    out = np.empty((len(chans), rows.size, first.shape[2]), dtype=values.dtype)
+    for k, channel in enumerate(chans):
+        np.take(values[:, channel, span], rows, axis=0, out=out[k])
+    return out.transpose(1, 0, 2)
+
+
 def _check_artifact(ts: Any, window: Any, allow: Any) -> None:
+    """Raise SettingsError when the window overlaps samples replaced in every trial."""
     if ts.masks is None or allow:
         return
     win = (ts.times >= window[0]) & (ts.times <= window[1])
@@ -133,7 +171,8 @@ def _model_comparison(
     rng: np.random.Generator,
     n_jobs: int | None = 1,
 ) -> dict[str, NDArray[Any]]:
-    if n_permutations > 200:
+    """Return the model-comparison test of each channel (change of BIC, parametric bootstrap)."""
+    if n_permutations > _SLOW_COMPARISON:
         _warn(
             "model_comparison refits the model for every bootstrap sample; "
             f"{n_permutations} samples may take long.",
@@ -184,31 +223,31 @@ def _model_comparison(
 
 
 @verbose
-def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.6)
+def test_response(  # noqa: PLR0913  (spec §5.6 fixes 17 parameters, plus rule_overrides, allow_artifact_overlap, n_boot, projection_profile, projection_pairs and on_error; DECISIONS.md §7.2)
     ts: Any,
     *,
-    method: str = "baseline_permutation",  # noqa: PT028  (public API test_response, not a pytest test)
-    window: Any = (0.009, 0.5),  # noqa: PT028  (public API test_response, not a pytest test)
-    baseline: Any = (-0.5, -0.05),  # noqa: PT028  (public API test_response, not a pytest test)
-    alpha: float = 0.05,  # noqa: PT028  (public API test_response, not a pytest test)
-    correction: str = "fdr_bh",  # noqa: PT028  (public API test_response, not a pytest test)
-    n_permutations: int = 1000,  # noqa: PT028  (public API test_response, not a pytest test)
-    statistic: str = "max_t",  # noqa: PT028  (public API test_response, not a pytest test)
-    cluster_threshold: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
-    polarity: str = "both",  # noqa: PT028  (public API test_response, not a pytest test)
-    rule: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
-    rule_overrides: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
-    picks: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
-    by: Any = ("stim_site",),  # noqa: PT028  (public API test_response, not a pytest test)
-    return_null: bool = False,  # noqa: PT028  (public API test_response, not a pytest test)
-    allow_artifact_overlap: bool = False,  # noqa: PT028  (public API test_response, not a pytest test)
-    n_boot: int = 200,  # noqa: PT028  (public API test_response, not a pytest test)
-    random_state: Any = None,  # noqa: PT028  (public API test_response, not a pytest test)
-    n_jobs: int = 1,  # noqa: PT028  (public API test_response, not a pytest test)
-    verbose: Any = None,  # noqa: ARG001, PT028  (read by @verbose; public API, not a pytest test)
-    projection_profile: str = "published",  # noqa: PT028  (public API test_response, not a pytest test)
-    projection_pairs: str = "disjoint",  # noqa: PT028  (public API test_response, not a pytest test)
-    on_error: str = "record",  # noqa: PT028  (public API test_response, not a pytest test)
+    method: str = "baseline_permutation",
+    window: Any = (0.009, 0.5),
+    baseline: Any = (-0.5, -0.05),
+    alpha: float = 0.05,
+    correction: str = "fdr_bh",
+    n_permutations: int = 1000,
+    statistic: str = "max_t",
+    cluster_threshold: Any = None,
+    polarity: str = "both",
+    rule: Any = None,
+    rule_overrides: Any = None,
+    picks: Any = None,
+    by: Any = ("stim_site",),
+    return_null: bool = False,
+    allow_artifact_overlap: bool = False,
+    n_boot: int = 200,
+    random_state: Any = None,
+    n_jobs: int = 1,
+    verbose: Any = None,  # noqa: ARG001  (read by the @verbose decorator)
+    projection_profile: str = "published",
+    projection_pairs: str = "signflip",
+    on_error: str = "record",
 ) -> "ResponseTest":
     """Test whether there is a response in the window, on each channel (and stimulation site).
 
@@ -224,14 +263,16 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
       bootstrap, conservative; REQ-006).
     - ``"projection"``: cross-projections between trials (canonical response
       parameterisation, re-implemented from the published description): the response
-      duration and a one-sided t-test of the projections at its end.
+      duration and the significance of the projections.
       ``projection_profile`` chooses the response duration: ``"published"`` (default, the
       peak of the mean projection, as the paper defines it) or ``"normalised"`` (the peak
       of the mean projection divided by the square root of the window length, §5.6 item 2
-      as reviewed; see ``docs/spec/DECISIONS.md``). ``projection_pairs`` chooses the
-      projections tested: ``"disjoint"`` (default, each trial in one pair, independent under
-      the null) or ``"half"`` (one per unordered pair, the paper's set, which reproduces its
-      decisions but rejects pure noise at 0.33 to 0.44 at ``alpha = 0.05``).
+      as reviewed; see ``docs/spec/DECISIONS.md``). ``projection_pairs`` chooses the test:
+      ``"signflip"`` (default: every cross-projection, the peak of the mean-projection
+      profile against its null from sign flips of whole trials; rejects pure noise at
+      ``alpha`` and gives the paper's decisions on its examples), ``"disjoint"`` (a t-test,
+      each trial in one pair) or ``"half"`` (a t-test on one projection per unordered pair,
+      the paper's set, which rejects pure noise at 0.33 to 0.44 at ``alpha = 0.05``).
     - ``"model_comparison"``: change of BIC between the fitted model and the background-only
       model, with a parametric bootstrap under the background-only model.
     - ``"threshold"``: a published rule of the registry (``rule``: name or dict), to the
@@ -270,14 +311,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     always propagate.
     """
     start = _time.perf_counter()
-    if method not in METHODS:
-        raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
-    if correction not in CORRECTIONS:
-        raise SettingsError(f"correction must be one of {CORRECTIONS}.")
-    if statistic not in ("max_t", "cluster"):
-        raise SettingsError("statistic must be 'max_t' or 'cluster'.")
-    if polarity not in ("both", "negative", "positive"):
-        raise SettingsError("polarity must be 'both', 'negative' or 'positive'.")
+    _check_test_settings(method, correction, statistic, polarity)
     check_on_error(on_error)
     if random_state is None:
         # a seed drawn from the operating system and recorded in the settings, so that the
@@ -289,115 +323,51 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         spec = resolve_rule(rule if rule is not None else "custom", **(rule_overrides or {}))
         window, baseline = spec["window"], spec["baseline"]
 
-    evoked: Any  # an Evoked whenever trials_ts is None
-    base_obj: TrialSet | Evoked
-    if isinstance(ts, Evoked):
-        evoked, trials_ts = ts, None
-    elif isinstance(ts, TrialSet):
-        evoked, trials_ts = None, ts
-        _check_artifact(ts, window, allow_artifact_overlap)
-    else:
-        raise DataError("test_response expects a TrialSet or an Evoked.")
-    base_obj = trials_ts if trials_ts is not None else evoked
-    names = list(base_obj.ch_names)
+    evoked, trials_ts = _test_input(ts, window, allow_artifact_overlap)
+    tester = _Tester(
+        method=method,
+        window=window,
+        baseline=baseline,
+        spec=spec,
+        options=PermutationOptions(
+            n_permutations=n_permutations,
+            statistic=statistic,
+            cluster_threshold=cluster_threshold,
+            polarity=polarity,
+            alpha=alpha,
+            n_boot=n_boot,
+            n_jobs=n_jobs,
+        ),
+        projection=(projection_profile, projection_pairs),
+        trials_ts=trials_ts,
+        evoked=evoked,
+    )
+    names = list(tester.base_obj.ch_names)
     index = (
         list(range(len(names)))
         if picks is None
         else [names.index(p) if isinstance(p, str) else int(p) for p in picks]
     )
-    times = base_obj.times
-
     groups = _groups(trials_ts, by) if trials_ts is not None else [("", None)]
-
-    def run(rows: Any, chans: Any, gen: np.random.Generator) -> dict[str, Any]:
-        """Test the channels ``chans`` on the trials ``rows`` of one group."""
-        if trials_ts is not None:
-            data = trials_ts.data[rows][:, chans]
-            masks = None if trials_ts.masks is None else trials_ts.masks[rows][:, chans]
-        if method == "baseline_permutation":
-            if trials_ts is None:
-                res = shuffle_test(
-                    evoked.data[chans],
-                    times,
-                    window,
-                    baseline,
-                    n_permutations=n_permutations,
-                    polarity=polarity,
-                    alpha=alpha,
-                    rng=gen,
-                    n_jobs=n_jobs,
-                    n_boot=n_boot,
-                )
-            else:
-                res = permutation_test(
-                    data,
-                    times,
-                    window,
-                    baseline,
-                    n_permutations=n_permutations,
-                    statistic=statistic,
-                    cluster_threshold=cluster_threshold,
-                    polarity=polarity,
-                    alpha=alpha,
-                    rng=gen,
-                    n_boot=n_boot,
-                    masks=masks,
-                    n_jobs=n_jobs,
-                )
-        elif method == "projection":
-            if trials_ts is None:
-                raise DataError("method 'projection' needs trials.")
-            res = projection_test(
-                data,
-                times,
-                window,
-                baseline,
-                rng=gen,
-                profile=projection_profile,
-                pairs=projection_pairs,
-                n_jobs=n_jobs,
-            )
-        elif method == "model_comparison":
-            avg = evoked.data[chans] if trials_ts is None else data.mean(axis=0)
-            res = _model_comparison(
-                avg, times, window, baseline, n_permutations, gen, n_jobs=n_jobs
-            )
-        else:
-            avg = evoked.data[chans] if trials_ts is None else np.nanmean(data, axis=0)
-            res = apply_rule(avg, times, base_obj.sfreq, spec, base_obj.units)
-            res.update(
-                p_value=np.full(len(chans), np.nan),
-                duration=np.full(len(chans), np.nan),
-                snr_db=np.full(len(chans), np.nan),
-                duration_ci=np.full((len(chans), 2), np.nan),
-            )
-        return res
 
     results, failures = [], []
     for group, rows in groups:
         snapshot = copy.deepcopy(rng)
         try:
-            res, failed = run(rows, index, rng), dict[int, str]()
+            res, failed = tester.run(rows, index, rng), dict[int, str]()
         except PROPAGATE:
             raise
         except Exception:
             # the channels that fail on their own (REQ-307 ii); none: not a channel's failure
             res, failed, rng = _channel_by_channel(
-                run, rows, index, names, group, snapshot, on_error
+                tester.run, rows, index, names, group, snapshot, on_error
             )
             if not failed:
                 raise
         results.append(res)
         failures.append(failed)
 
-    def stack(key: Any) -> Any:
-        return (
-            np.asarray(results[0][key], float)
-            if len(results) == 1
-            else np.stack([np.asarray(r[key], float) for r in results], axis=1)
-        )
-
-    raw = stack("p_value")
+    raw = _stack(results, "p_value")
     adjusted = correct(raw, correction)
     if method == "threshold":
         significant = (
@@ -407,19 +377,178 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         )
     else:
         significant = np.nan_to_num(adjusted, nan=1.0) <= alpha
+    settings = _test_settings(
+        tester,
+        results,
+        {
+            "correction": correction,
+            "random_state": random_state,
+            "groups": [g for g, _ in groups],
+            "channels": [names[i] for i in index],
+            "by": list(by or ()),
+        },
+        return_null,
+    )
+    provenance = Provenance().with_step(
+        "evoparam.existence.test_response",
+        {k: v for k, v in settings.items() if k not in _PER_CHANNEL_SETTINGS},
+        duration_s=_time.perf_counter() - start,
+    )
+    logger.info(
+        "test_response (%s): %d channel(s) x %d group(s), %d significant at alpha=%g, %.2f s",
+        method,
+        len(index),
+        len(groups),
+        int(np.sum(significant)),
+        alpha,
+        _time.perf_counter() - start,
+    )
+    status, message = _failure_arrays(failures, len(index), len(groups))
+    curve_times = curve = band = None
+    if all(r.get("curve") is not None for r in results):
+        # the statistic over time and its null band (spec §5.13, plot_existence)
+        curve_times = np.asarray(results[0]["curve_times"], float)
+        curve, band = _stack(results, "curve"), _stack(results, "null_band")
+    return ResponseTest(
+        method=method,
+        statistic=_stack(results, "statistic"),
+        p_value=adjusted,
+        p_value_raw=raw,
+        significant=significant,
+        duration=_stack(results, "duration"),
+        onset=_stack(results, "onset"),
+        offset=_stack(results, "offset"),
+        snr_db=_stack(results, "snr_db"),
+        rule=spec["name"] if spec else None,
+        alpha=alpha,
+        correction=correction,
+        n_permutations=n_permutations,
+        window=window,
+        settings=settings,
+        provenance=provenance,
+        curve_times=curve_times,
+        curve=curve,
+        null_band=band,
+        status=status.astype(str),
+        message=message.astype(str),
+    )
+
+
+def _check_test_settings(method: str, correction: str, statistic: str, polarity: str) -> None:
+    """Raise SettingsError for an unknown method, correction, statistic or polarity."""
+    if method not in METHODS:
+        raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
+    if correction not in CORRECTIONS:
+        raise SettingsError(f"correction must be one of {CORRECTIONS}.")
+    if statistic not in ("max_t", "cluster"):
+        raise SettingsError("statistic must be 'max_t' or 'cluster'.")
+    if polarity not in ("both", "negative", "positive"):
+        raise SettingsError("polarity must be 'both', 'negative' or 'positive'.")
+
+
+def _test_input(ts: Any, window: Any, allow_artifact_overlap: bool) -> tuple[Any, Any]:
+    """Return (evoked, trials): one of them is None; check the artifact window of trials."""
+    if isinstance(ts, Evoked):
+        return ts, None
+    if isinstance(ts, TrialSet):
+        _check_artifact(ts, window, allow_artifact_overlap)
+        return None, ts
+    raise DataError("test_response expects a TrialSet or an Evoked.")
+
+
+@dataclasses.dataclass
+class _Tester:
+    """One existence test (method and settings) of the trials or of the average."""
+
+    method: str
+    window: Any
+    baseline: Any
+    spec: Any
+    options: PermutationOptions
+    projection: tuple[str, str]  # profile and pairs of the projection method
+    trials_ts: Any
+    evoked: Any  # an Evoked whenever trials_ts is None
+
+    @property
+    def base_obj(self) -> "TrialSet | Evoked":
+        """Return the trials, or the average when there are none."""
+        base: TrialSet | Evoked = self.trials_ts if self.trials_ts is not None else self.evoked
+        return base
+
+    def run(self, rows: Any, chans: Any, gen: np.random.Generator) -> dict[str, Any]:
+        """Test the channels ``chans`` on the trials ``rows`` of one group."""
+        trials_ts, evoked, opts = self.trials_ts, self.evoked, self.options
+        times, window, baseline = self.base_obj.times, self.window, self.baseline
+        span = slice(None)
+        if trials_ts is not None:
+            if self.method == "baseline_permutation":
+                # the permutation test reads the window and the baseline only
+                span = _span(times, window, baseline)
+            data, masks = _select(trials_ts, rows, chans, span)
+        if self.method == "baseline_permutation":
+            if trials_ts is None:
+                return shuffle_test(
+                    evoked.data[chans], times, window, baseline, options=opts, rng=gen
+                )
+            return permutation_test(
+                data, times[span], window, baseline, options=opts, rng=gen, masks=masks
+            )
+        if self.method == "projection":
+            if trials_ts is None:
+                raise DataError("method 'projection' needs trials.")
+            return projection_test(
+                data,
+                times,
+                window,
+                baseline,
+                rng=gen,
+                profile=self.projection[0],
+                pairs=self.projection[1],
+                n_jobs=opts.n_jobs,
+            )
+        if self.method == "model_comparison":
+            avg = evoked.data[chans] if trials_ts is None else data.mean(axis=0)
+            return _model_comparison(
+                avg, times, window, baseline, opts.n_permutations, gen, n_jobs=opts.n_jobs
+            )
+        avg = evoked.data[chans] if trials_ts is None else np.nanmean(data, axis=0)
+        res = apply_rule(avg, times, self.base_obj.sfreq, self.spec, self.base_obj.units)
+        res.update(
+            p_value=np.full(len(chans), np.nan),
+            duration=np.full(len(chans), np.nan),
+            snr_db=np.full(len(chans), np.nan),
+            duration_ci=np.full((len(chans), 2), np.nan),
+        )
+        return res
+
+
+def _stack(results: list[dict[str, Any]], key: Any) -> Any:
+    """Return the entry ``key`` of the groups' results: [n_channels] or [n_channels, n_groups]."""
+    return (
+        np.asarray(results[0][key], float)
+        if len(results) == 1
+        else np.stack([np.asarray(r[key], float) for r in results], axis=1)
+    )
+
+
+def _test_settings(
+    tester: _Tester, results: list[dict[str, Any]], labels: dict[str, Any], return_null: bool
+) -> dict[str, Any]:
+    """Return the settings of a test (``labels``: correction, seed, groups, channels, by)."""
+    opts = tester.options
     settings = {
-        "method": method,
-        "window": list(window),
-        "baseline": list(baseline),
-        "statistic": statistic,
-        "polarity": polarity,
-        "alpha": alpha,
-        "correction": correction,
-        "n_permutations": n_permutations,
-        "random_state": random_state,
-        "groups": [g for g, _ in groups],
-        "channels": [names[i] for i in index],
-        "by": list(by or ()),
+        "method": tester.method,
+        "window": list(tester.window),
+        "baseline": list(tester.baseline),
+        "statistic": opts.statistic,
+        "polarity": opts.polarity,
+        "alpha": opts.alpha,
+        "correction": labels["correction"],
+        "n_permutations": opts.n_permutations,
+        "random_state": labels["random_state"],
+        "groups": labels["groups"],
+        "channels": labels["channels"],
+        "by": labels["by"],
         "duration_ci": (
             results[0]["duration_ci"].tolist()
             if len(results) == 1
@@ -436,64 +565,32 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         "exact": bool(results[0].get("exact", False)),
         "package_version": __version__,
     }
-    if method == "projection":
-        settings["projection_profile"] = projection_profile
-        settings["projection_pairs"] = projection_pairs
-    if spec is not None:
+    if tester.method == "projection":
+        settings["projection_profile"] = tester.projection[0]
+        settings["projection_pairs"] = tester.projection[1]
+    if tester.spec is not None:
         settings["rule_spec"] = {
-            k: (list(v) if isinstance(v, tuple) else v) for k, v in spec.items() if k != "verified"
+            k: (list(v) if isinstance(v, tuple) else v)
+            for k, v in tester.spec.items()
+            if k != "verified"
         }
     if return_null:
         settings["critical"] = [np.asarray(r.get("critical", np.nan)).tolist() for r in results]
-    provenance = Provenance().with_step(
-        "evoparam.existence.test_response",
-        {k: v for k, v in settings.items() if k not in _PER_CHANNEL_SETTINGS},
-        duration_s=_time.perf_counter() - start,
-    )
-    logger.info(
-        "test_response (%s): %d channel(s) x %d group(s), %d significant at alpha=%g, %.2f s",
-        method,
-        len(index),
-        len(groups),
-        int(np.sum(significant)),
-        alpha,
-        _time.perf_counter() - start,
-    )
-    status = np.full((len(index), len(groups)), "ok", dtype=object)
-    message = np.full((len(index), len(groups)), "", dtype=object)
+    return settings
+
+
+def _failure_arrays(
+    failures: list[dict[int, str]], n_channels: int, n_groups: int
+) -> tuple[NDArray[Any], NDArray[Any]]:
+    """Return the status and message arrays of the channels (one column per group)."""
+    status = np.full((n_channels, n_groups), "ok", dtype=object)
+    message = np.full((n_channels, n_groups), "", dtype=object)
     for g, failed in enumerate(failures):
         for pos, text in failed.items():
             status[pos, g], message[pos, g] = "failed", text
-    if len(groups) == 1:
+    if n_groups == 1:
         status, message = status[:, 0], message[:, 0]
-    curve_times = curve = band = None
-    if all(r.get("curve") is not None for r in results):
-        # the statistic over time and its null band (spec §5.13, plot_existence)
-        curve_times = np.asarray(results[0]["curve_times"], float)
-        curve, band = stack("curve"), stack("null_band")
-    return ResponseTest(
-        method=method,
-        statistic=stack("statistic"),
-        p_value=adjusted,
-        p_value_raw=raw,
-        significant=significant,
-        duration=stack("duration"),
-        onset=stack("onset"),
-        offset=stack("offset"),
-        snr_db=stack("snr_db"),
-        rule=spec["name"] if spec else None,
-        alpha=alpha,
-        correction=correction,
-        n_permutations=n_permutations,
-        window=window,
-        settings=settings,
-        provenance=provenance,
-        curve_times=curve_times,
-        curve=curve,
-        null_band=band,
-        status=status.astype(str),
-        message=message.astype(str),
-    )
+    return status, message
 
 
 # the entries of a test's result that hold one value (or row) per channel
@@ -686,6 +783,7 @@ def list_rules() -> Any:
 
 
 def _kappa(a: Any, b: Any) -> float:
+    """Return Cohen's kappa of two boolean decisions."""
     a, b = np.asarray(a, bool), np.asarray(b, bool)
     po = np.mean(a == b)
     pe = a.mean() * b.mean() + (1 - a.mean()) * (1 - b.mean())
@@ -824,7 +922,10 @@ class detectors:  # noqa: N801  (public namespace evoparam.existence.detectors)
 
 
 def _make_detector(name: Any) -> Any:
+    """Return the detector function of the registry rule ``name``."""
+
     def detector(ts: Any, **overrides: Any) -> Any:
+        """Test ``ts`` with the published rule; ``overrides`` complete or change its fields."""
         return test_response(ts, method="threshold", rule=name, rule_overrides=overrides, by=())
 
     detector.__name__ = name
@@ -904,8 +1005,8 @@ def fit(
     window = tuple(settings["fit_window"])
     if settings.get("baseline"):
         baseline = tuple(settings["baseline"])
-    elif data.times[0] <= -0.5:
-        baseline = (-0.5, -0.05)
+    elif data.times[0] <= _DEFAULT_BASELINE[0]:
+        baseline = _DEFAULT_BASELINE
     else:
         # a preset without a baseline (short epochs: ECAP, ERNA): the pre-stimulus samples
         baseline = (float(data.times[0]), min(0.0, window[0]))

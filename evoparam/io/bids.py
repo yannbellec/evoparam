@@ -17,6 +17,7 @@ import os
 import re
 import time as _time
 from collections.abc import Iterator
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -63,6 +64,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _read_bytes(path: Any) -> Any:
+    """Return the bytes of a local file or of an http(s) address."""
     if is_url(path):
         return fetch_bytes(path)
     with open(path, "rb") as file:
@@ -129,6 +131,7 @@ def select_stimulation_events(
     """
 
     def keep(get: Any) -> Any:
+        """Return True for an event that matches the trial type, the site and the current."""
         if trial_type is not None and get("trial_type") != trial_type:
             return False
         if site is not None:
@@ -182,6 +185,7 @@ _TO_MM = {"m": 1e3, "cm": 10.0, "mm": 1.0}
 
 
 def _strip(label: Any, prefix: Any) -> Any:
+    """Return ``label`` without ``prefix`` (None stays None)."""
     if label is None:
         return None
     label = str(label)
@@ -189,6 +193,7 @@ def _strip(label: Any, prefix: Any) -> Any:
 
 
 def _stem(entities: Any) -> str:
+    """Return the BIDS stem of the entities, in the BIDS order."""
     return "_".join(f"{key}-{entities[key]}" for key in _ORDER if entities.get(key))
 
 
@@ -196,13 +201,16 @@ class _Tree:
     """Files of a BIDS dataset, on disk or behind an http(s) base address."""
 
     def __init__(self, root: Any, base: Any, log: Any) -> None:
+        """Hold the local root, or the remote base address, and the transfer log."""
         self.root, self.base, self.log = root, base, log
 
     @property
     def remote(self) -> Any:
+        """Return True for a dataset behind an http(s) address."""
         return self.base is not None
 
     def location(self, rel: Any) -> Any:
+        """Return the path or the address of the file ``rel`` of the dataset."""
         return self.base + rel if self.remote else os.path.join(self.root, *rel.split("/"))
 
     def read(self, rel: Any, optional: bool = False) -> Any:
@@ -218,6 +226,7 @@ class _Tree:
             return file.read()
 
     def json(self, rel: Any) -> Any:
+        """Return the content of a JSON file of the dataset (None when absent or unreadable)."""
         content = self.read(rel, optional=True)
         if content is None:
             return None
@@ -228,6 +237,7 @@ class _Tree:
 
 
 def _remote_base(root: Any, remote: Any) -> Any:
+    """Return the base address of a remote dataset (None for a local one)."""
     root = str(root)
     if is_url(root):
         return root.rstrip("/") + "/"
@@ -305,6 +315,7 @@ def _find_runs(tree: Any, wanted: Any, datatype: Any) -> Any:
 
 
 def _read_table(content: Any) -> Any:
+    """Read the bytes of a TSV file into a DataFrame (``n/a`` as missing)."""
     pd = require("pandas", extra="data", caller="evoparam.io.read_bids")
     return pd.read_csv(_io.BytesIO(content), sep="\t", na_values=["n/a"], keep_default_na=False)
 
@@ -352,6 +363,7 @@ def _channel_table(tree: Any, folder: Any, entities: Any, names: Any, content: A
     table = table.set_index(table["name"].astype(str)).loc[names].reset_index(drop=True)
 
     def text(column: Any, default: str = "") -> Any:
+        """Return a column of channels.tsv as text ("" for missing values)."""
         if column not in table.columns:
             return [default] * len(table)
         return ["" if isinstance(v, float) and np.isnan(v) else str(v) for v in table[column]]
@@ -371,6 +383,7 @@ def _channel_table(tree: Any, folder: Any, entities: Any, names: Any, content: A
 
 
 def _reference(value: Any) -> Any:
+    """Return the reference of a channel: "" (none), "car", or the reference channel(s)."""
     value = value.strip()
     if not value or value.lower() == "n/a":
         return ""
@@ -436,6 +449,7 @@ def _pick_channels(names: Any, picks: Any, ch_info: Any) -> Any:
 
 @contextlib.contextmanager
 def _verbosity(verbose: Any) -> Iterator[Any]:
+    """Set the logging level of the package for the duration of the block."""
     if verbose is None:
         yield
         return
@@ -467,6 +481,7 @@ def _auto_rows(events: Any, datatype: Any, report: Any) -> Any:
 
 
 def _apply_select(events: Any, select: Any) -> Any:
+    """Return the events that match ``select`` (dict of values, or pandas query)."""
     if select is None:
         return events
     if isinstance(select, str):
@@ -529,35 +544,75 @@ def _auto_chunk(trial_bytes: Any) -> int:
     return size
 
 
+@dataclass(frozen=True)
+class _Run:
+    """One run to read: where its files are and how to cut it."""
+
+    tree: Any
+    folder: Any
+    entities: Any
+    data_name: Any
+    datatype: Any
+    epoch: Any
+    picks: Any
+
+    @property
+    def stem(self) -> str:
+        """Return the BIDS stem of the run's files."""
+        return _stem(self.entities)
+
+
+@dataclass(frozen=True)
+class _RunEvents:
+    """The selected events of a run, their harmonisation report and their sources."""
+
+    harmonized: Any
+    onsets: Any
+    report: Any
+    source: Any
+    recording: Any
+
+
+@dataclass(frozen=True)
+class _RunEpochs:
+    """The epochs read from a run's recording, before the run's tables are built."""
+
+    data: Any
+    times: Any
+    sfreq: float
+    names: Any
+    ch_index: Any
+    ch_info: Any
+    kept: Any
+    masks: Any = None
+
+
+def _events_table(run: _Run, events: Any, pd: Any) -> tuple[Any, Any]:
+    """Return the events table of a run and where it comes from."""
+    if isinstance(events, str) and events == "auto":
+        table = _read_table(run.tree.read(run.folder + run.stem + "_events.tsv"))
+        return table, run.tree.location(run.folder + run.stem + "_events.tsv")
+    if isinstance(events, str):
+        return _read_table(_read_bytes(events)), events
+    if isinstance(events, pd.DataFrame):
+        return events, "DataFrame"
+    raise EventError("events must be 'auto', a path to an events.tsv or a DataFrame.")
+
+
 def _read_run(
-    tree: Any,
-    folder: Any,
-    entities: Any,
-    data_name: Any,
-    datatype: Any,
-    epoch: Any,
+    run: _Run,
     events: Any,
     select: Any,
-    picks: Any,
     cache_dir: Any,
     pd: Any,
     stim_mapping: Any = None,
 ) -> dict[str, Any]:
-    stem = _stem(entities)
-    tmin, tmax = epoch
-    sidecar, recording = _events_sidecar(tree, folder, entities, datatype)
+    """Read the epochs of one run around its selected events."""
+    stem = run.stem
+    sidecar, recording = _events_sidecar(run.tree, run.folder, run.entities, run.datatype)
 
     # Events table
-    if isinstance(events, str) and events == "auto":
-        table = _read_table(tree.read(folder + stem + "_events.tsv"))
-        events_source = tree.location(folder + stem + "_events.tsv")
-    elif isinstance(events, str):
-        table = _read_table(_read_bytes(events))
-        events_source = events
-    elif isinstance(events, pd.DataFrame):
-        table, events_source = events, "DataFrame"
-    else:
-        raise EventError("events must be 'auto', a path to an events.tsv or a DataFrame.")
+    table, events_source = _events_table(run, events, pd)
     if "onset" not in table.columns:
         raise EventError("The events table has no onset column.")
     table = table.reset_index(drop=True)
@@ -567,49 +622,35 @@ def _read_run(
         logger.info("%s: %s", stem, line)
 
     if isinstance(events, str) and events == "auto":
-        harmonized = harmonized[_auto_rows(harmonized, datatype, report)]
+        harmonized = harmonized[_auto_rows(harmonized, run.datatype, report)]
     harmonized = _apply_select(harmonized, select)
     harmonized = harmonized[np.isfinite(harmonized["onset"].to_numpy(dtype=float))]
     if len(harmonized) == 0:
         raise EventError(f"No event of {stem} matches the selection.")
-    onsets = harmonized["onset"].to_numpy(dtype=float)
+    selected = _RunEvents(
+        harmonized=harmonized,
+        onsets=harmonized["onset"].to_numpy(dtype=float),
+        report=report,
+        source=events_source,
+        recording=recording,
+    )
+    if run.data_name.endswith(".edf"):
+        return _read_edf_run(run, selected, pd)
+    if run.data_name.endswith(".mefd"):
+        return _read_mef_run(run, selected, pd)
+    return _read_brainvision_run(run, selected, cache_dir, pd)
 
-    if data_name.endswith(".edf"):
-        return _read_edf_run(
-            tree,
-            folder,
-            entities,
-            data_name,
-            harmonized,
-            onsets,
-            report,
-            epoch,
-            picks,
-            events_source,
-            pd,
-        )
-    if data_name.endswith(".mefd"):
-        return _read_mef_run(
-            tree,
-            folder,
-            entities,
-            data_name,
-            datatype,
-            harmonized,
-            onsets,
-            report,
-            epoch,
-            picks,
-            events_source,
-            recording,
-            pd,
-        )
 
-    # Recording
-    header = read_brainvision_header(tree.location(folder + data_name), log=tree.log)
+def _read_brainvision_run(
+    run: _Run, selected: _RunEvents, cache_dir: Any, pd: Any
+) -> dict[str, Any]:
+    """Read the epochs of a BrainVision recording."""
+    tree, folder = run.tree, run.folder
+    tmin, tmax = run.epoch
+    header = read_brainvision_header(tree.location(folder + run.data_name), log=tree.log)
     names = header["ch_names"]
-    ch_info = _channel_table(tree, folder, entities, names)
-    ch_index = _pick_channels(names, picks, ch_info)
+    ch_info = _channel_table(tree, folder, run.entities, names)
+    ch_index = _pick_channels(names, run.picks, ch_info)
     _warn_units(header, ch_index)
     sfreq = header["sfreq"]
     frame = header["n_channels"] * np.dtype(header["dtype"]).itemsize
@@ -622,10 +663,10 @@ def _read_run(
         log=tree.log,
     ) as reader:
         n_samples = _n_samples(header, reader)
-        times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, n_samples)
+        times, starts, kept = epoch_windows(selected.onsets, sfreq, tmin, tmax, n_samples)
         if not kept.any():
             raise EventError(
-                f"No epoch of ({tmin}, {tmax}) s around the selected events of {stem} fits "
+                f"No epoch of ({tmin}, {tmax}) s around the selected events of {run.stem} fits "
                 "inside the recording."
             )
         order = np.argsort(starts[kept], kind="stable")  # read in file order
@@ -643,107 +684,65 @@ def _read_run(
         else:
             source = {"sha256": sha256_file(header["data_file"])}
 
-    source.update({"path": header["data_file"], "format": "brainvision", "events": events_source})
-    return _run_result(
-        data,
-        times,
-        sfreq,
-        names,
-        ch_index,
-        ch_info,
-        harmonized,
-        onsets,
-        kept,
-        entities,
-        epoch,
-        report,
-        recording,
-        source,
-        datatype,
-        pd,
+    source.update(
+        {"path": header["data_file"], "format": "brainvision", "events": selected.source}
     )
+    epochs = _RunEpochs(data, times, sfreq, names, ch_index, ch_info, kept)
+    return _run_result(run, selected, epochs, source, pd)
 
 
 def _run_result(
-    data: Any,
-    times: Any,
-    sfreq: float,
-    names: Any,
-    ch_index: Any,
-    ch_info: Any,
-    harmonized: Any,
-    onsets: Any,
-    kept: Any,
-    entities: Any,
-    epoch: Any,
-    report: Any,
-    recording: Any,
-    source: Any,
-    datatype: Any,
-    pd: Any,
-    masks: Any = None,
+    run: _Run, selected: _RunEvents, epochs: _RunEpochs, source: Any, pd: Any
 ) -> dict[str, Any]:
     """Return the part of one run: metadata of the kept events, channel table, provenance."""
-    tmin, tmax = epoch
-    kept_events = harmonized[kept]
+    tmin, tmax = run.epoch
+    kept, onsets = epochs.kept, selected.onsets
+    kept_events = selected.harmonized[kept]
     overlaps = overlap_flags(onsets[kept], tmax - tmin)
-    metadata = _metadata(kept_events, entities, overlaps, pd)
-    ch_names = [names[ind] for ind in ch_index]
+    metadata = _metadata(kept_events, run.entities, overlaps, pd)
+    ch_names = [epochs.names[ind] for ind in epochs.ch_index]
+    ch_info = epochs.ch_info
     if ch_info is not None:
-        ch_info = ch_info.iloc[ch_index].reset_index(drop=True)
+        ch_info = ch_info.iloc[epochs.ch_index].reset_index(drop=True)
         contacts = {part for site in metadata["stim_site"] for part in str(site).split("-")}
         ch_info["stim_contact"] = [name in contacts for name in ch_names]
 
     info = {
         "kept": kept.tolist(),
-        "harmonization": report.to_dict(),
-        "ElectricalStimulation": recording.get("ElectricalStimulation"),
+        "harmonization": selected.report.to_dict(),
+        "ElectricalStimulation": selected.recording.get("ElectricalStimulation"),
     }
     return {
-        "data": data,
-        "times": times,
-        "sfreq": sfreq,
+        "data": epochs.data,
+        "times": epochs.times,
+        "sfreq": epochs.sfreq,
         "ch_names": ch_names,
         "metadata": metadata,
         "ch_info": ch_info,
         "event_times": onsets[kept],
         "source": source,
         "info": info,
-        "masks": masks,
-        "stimulation": bool(datatype == "ieeg" and (metadata["stim_site"] != "n/a").any()),
+        "masks": epochs.masks,
+        "stimulation": bool(run.datatype == "ieeg" and (metadata["stim_site"] != "n/a").any()),
     }
 
 
-def _read_mef_run(
-    tree: Any,
-    folder: Any,
-    entities: Any,
-    data_name: Any,
-    datatype: Any,
-    harmonized: Any,
-    onsets: Any,
-    report: Any,
-    epoch: Any,
-    picks: Any,
-    events_source: Any,
-    recording: Any,
-    pd: Any,
-) -> dict[str, Any]:
-    """Epochs of a MEF 3.0 session.
+def _read_mef_run(run: _Run, selected: _RunEvents, pd: Any) -> dict[str, Any]:
+    """Read the epochs of a MEF 3.0 session.
 
     The channels come from channels.tsv (or the session), then the metadata of the picked channels
     and the blocks under the epochs are read.
     """
     from evoparam.io import mef
 
-    stem = _stem(entities)
-    tmin, tmax = epoch
-    location = tree.location(folder + data_name)
+    tree, folder, stem = run.tree, run.folder, run.stem
+    tmin, tmax = run.epoch
+    location = tree.location(folder + run.data_name)
     content = tree.read(folder + stem + "_channels.tsv", optional=True)
     listed = mef._names_from_tsv(content) if content is not None else None
     names = mef._channel_names(location, remote=tree.remote, hint=listed, log=tree.log)
-    ch_info = _channel_table(tree, folder, entities, names, content=content)
-    ch_index = _pick_channels(names, picks, ch_info)
+    ch_info = _channel_table(tree, folder, run.entities, names, content=content)
+    ch_index = _pick_channels(names, run.picks, ch_info)
     header = mef.read_mef_header(
         location, channels=[names[ind] for ind in ch_index], remote=tree.remote, log=tree.log
     )
@@ -755,7 +754,7 @@ def _read_mef_run(
     columns = list(range(len(ch_index)))
     mef._warn_units(header, columns)
     sfreq = header["sfreq"]
-    times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, header["n_samples"])
+    times, starts, kept = epoch_windows(selected.onsets, sfreq, tmin, tmax, header["n_samples"])
     if not kept.any():
         raise EventError(
             f"No epoch of ({tmin}, {tmax}) s around the selected events of {stem} fits "
@@ -768,60 +767,40 @@ def _read_mef_run(
         "format": "mef",
         "sha256": record["sha256"],
         "blocks_read": record["blocks_read"],
-        "events": events_source,
+        "events": selected.source,
     }
     if tree.remote:
         source["data_bytes_read"] = record["data_bytes_read"]
-    return _run_result(
-        data,
-        times,
-        sfreq,
-        names,
-        ch_index,
-        ch_info,
-        harmonized,
-        onsets,
-        kept,
-        entities,
-        epoch,
-        report,
-        recording,
-        source,
-        datatype,
-        pd,
-        masks=nan if nan.any() else None,
+    epochs = _RunEpochs(
+        data, times, sfreq, names, ch_index, ch_info, kept, masks=nan if nan.any() else None
     )
+    return _run_result(run, selected, epochs, source, pd)
 
 
-def _read_edf_run(
-    tree: Any,
-    folder: Any,
-    entities: Any,
-    data_name: Any,
-    harmonized: Any,
-    onsets: Any,
-    report: Any,
-    epoch: Any,
-    picks: Any,
-    events_source: Any,
-    pd: Any,
-) -> dict[str, Any]:
+def _read_edf_run(run: _Run, selected: _RunEvents, pd: Any) -> dict[str, Any]:
+    """Read the epochs of a local EDF recording."""
     from evoparam.io.readers import read_edf
 
-    if tree.remote:
+    if run.tree.remote:
         raise ReaderError("Remote reads support BrainVision and MEF 3.0 files only.")
-    path = tree.location(folder + data_name)
-    data, sfreq, names, t0 = read_edf(path, picks=picks)
-    tmin, tmax = epoch
+    path = run.tree.location(run.folder + run.data_name)
+    data, sfreq, names, t0 = read_edf(path, picks=run.picks)
+    tmin, tmax = run.epoch
+    onsets = selected.onsets
     times, starts, kept = epoch_windows(onsets, sfreq, tmin, tmax, data.shape[1], t0=t0)
     if not kept.any():
         raise EventError(f"No epoch of ({tmin}, {tmax}) s fits inside {path}.")
     index = starts[kept][:, None] + np.arange(times.size)[None, :]
     trials = np.moveaxis(data[:, index], 0, 1)
     overlaps = overlap_flags(onsets[kept], tmax - tmin)
-    metadata = _metadata(harmonized[kept], entities, overlaps, pd)
-    source = {"path": path, "format": "edf", "sha256": sha256_file(path), "events": events_source}
-    info = {"kept": kept.tolist(), "harmonization": report.to_dict()}
+    metadata = _metadata(selected.harmonized[kept], run.entities, overlaps, pd)
+    source = {
+        "path": path,
+        "format": "edf",
+        "sha256": sha256_file(path),
+        "events": selected.source,
+    }
+    info = {"kept": kept.tolist(), "harmonization": selected.report.to_dict()}
     return {
         "data": trials,
         "times": times,
@@ -849,7 +828,7 @@ def _dataset_record(root: Any, base: Any, tree: Any) -> Any:
     return None, None
 
 
-def read_bids(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
+def read_bids(  # noqa: PLR0913  (spec §5.1 fixes 14 parameters, plus stim_mapping of §10.2; DECISIONS.md §7.2)
     root: StrPath,
     subject: str,
     *,
@@ -964,15 +943,9 @@ def read_bids(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
                 (
                     entities,
                     _read_run(
-                        tree,
-                        folder,
-                        entities,
-                        data_name,
-                        datatype,
-                        (tmin, tmax),
+                        _Run(tree, folder, entities, data_name, datatype, (tmin, tmax), picks),
                         events,
                         select,
-                        picks,
                         cache_dir,
                         pd,
                         stim_mapping,

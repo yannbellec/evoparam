@@ -11,6 +11,9 @@ from evoparam.existence import test_response as run_test
 
 from .helpers import noise_trials, trialset
 
+# Level of the corrections.
+ALPHA = 0.05
+
 ###################################################################################################
 ###################################################################################################
 
@@ -45,11 +48,11 @@ def test_req136_corrections() -> None:
     fdr, fwe = [], []
     for _ in range(2000):
         p = rng.uniform(size=1000)
-        fdr.append(np.mean(correct(p, "fdr_bh") <= 0.05))
-        fwe.append(np.any(correct(p, "bonferroni") <= 0.05))
-    se = np.sqrt(0.05 * 0.95 / 2000)
-    assert np.mean(fdr) <= 0.05
-    assert np.mean(fwe) <= 0.05 + 2 * se  # at most 1 family-wise error in 95 % of runs
+        fdr.append(np.mean(correct(p, "fdr_bh") <= ALPHA))
+        fwe.append(np.any(correct(p, "bonferroni") <= ALPHA))
+    se = np.sqrt(ALPHA * 0.95 / 2000)
+    assert np.mean(fdr) <= ALPHA
+    assert np.mean(fwe) <= ALPHA + 2 * se  # at most 1 family-wise error in 95 % of runs
     p = np.array([0.01, 0.02, 0.03, 0.5, np.nan])
     assert np.allclose(correct(p, "holm")[:4], [0.04, 0.06, 0.06, 0.5])
     assert np.allclose(correct(p, "fdr_bh")[:4], [0.04, 0.04, 0.04, 0.5])

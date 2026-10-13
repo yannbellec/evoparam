@@ -45,6 +45,7 @@ class _Merged:
     """
 
     def __init__(self, parts: Any) -> None:
+        """Merge the provenance steps of ``parts`` (first the steps of the first part)."""
         from evoparam.data import Provenance
 
         main = _provenance(parts[0]) or Provenance()

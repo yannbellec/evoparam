@@ -13,6 +13,20 @@ from .helpers import gaussian, noise_trials, plateau, trialset
 
 pd = pytest.importorskip("pandas")
 
+# Power required (REQ-131), and the power of max_t on the sustained response.
+MIN_POWER = 0.9
+MAX_T_POWER = 0.7
+# Duration (s) of the plateau and its tolerance, onset (s) and its tolerance.
+DURATION = 0.10
+DURATION_TOLERANCE = 0.01
+ONSET = 0.05
+ONSET_TOLERANCE = 0.002
+# Offset (s) of the projection test's plateau and its tolerance.
+OFFSET = 0.12
+OFFSET_TOLERANCE = 0.01
+# Discordance of a train that responds every other time.
+MIN_DISCORDANCE = 0.9
+
 ###################################################################################################
 ###################################################################################################
 
@@ -37,12 +51,12 @@ def _power(
 def test_req131_power_transient_and_sustained() -> None:
 
     transient = 2.0 * gaussian(0.03, 0.010)
-    assert _power(transient, "max_t") >= 0.9
+    assert _power(transient, "max_t") >= MIN_POWER
     # A sustained 100 ms response: at the spec's SNR of 1, both statistics already reach a
     # power near 1 with 10 trials; the advantage of the cluster statistic shows at 0.7
     sustained = 0.7 * plateau(0.05, 0.15)
-    assert _power(sustained, "cluster", seed=1) >= 0.9
-    assert _power(sustained, "max_t", seed=1) < 0.7
+    assert _power(sustained, "cluster", seed=1) >= MIN_POWER
+    assert _power(sustained, "max_t", seed=1) < MAX_T_POWER
 
 
 def test_req132_duration_and_onset() -> None:
@@ -50,8 +64,8 @@ def test_req132_duration_and_onset() -> None:
     rng = np.random.default_rng(4)
     data = noise_trials(rng, 20, 50) + 3.0 * plateau(0.05, 0.15)[None, None]
     test = run_test(trialset(data), n_permutations=500, n_boot=50, by=(), random_state=0)
-    assert abs(np.median(test.duration) - 0.10) <= 0.01
-    assert np.median(np.abs(test.onset - 0.05)) <= 0.002
+    assert abs(np.median(test.duration) - DURATION) <= DURATION_TOLERANCE
+    assert np.median(np.abs(test.onset - ONSET)) <= ONSET_TOLERANCE
     ci = np.asarray(test.settings["duration_ci"])
     assert np.all(ci[:, 0] <= ci[:, 1])
 
@@ -64,7 +78,7 @@ def test_projection_duration_and_significance() -> None:
     test = run_test(trialset(data), method="projection", by=(), random_state=0)
     assert np.all(test.significant[:5])
     assert np.sum(test.significant[5:]) <= 1
-    assert np.median(np.abs(test.offset[:5] - 0.12)) <= 0.01
+    assert np.median(np.abs(test.offset[:5] - OFFSET)) <= OFFSET_TOLERANCE
 
 
 def test_req139_train_discordance() -> None:
@@ -81,4 +95,4 @@ def test_req139_train_discordance() -> None:
     test = run_test(ts, n_permutations=200, n_boot=0, by=(), random_state=0)
     table = train_discordance(ts, test)
     assert table["discordance"].iloc[0] == 0.0
-    assert table["discordance"].iloc[1] >= 0.9
+    assert table["discordance"].iloc[1] >= MIN_DISCORDANCE

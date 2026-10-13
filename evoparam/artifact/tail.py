@@ -8,6 +8,9 @@ from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = []
 
+# Fewest samples on which a tail is fitted.
+_MIN_FIT_SAMPLES = 8
+
 # Number of time constants tried between the bounds (log-spaced).
 N_TAUS = 16
 
@@ -59,7 +62,7 @@ def fit_tail(
         raise SettingsError("tau_bounds must be (low, high) with 0 < low < high.")
     t0 = times[start]
     inds = np.flatnonzero((times >= t0) & (times <= t0 + length))
-    if len(inds) < 8:
+    if len(inds) < _MIN_FIT_SAMPLES:
         raise ArtifactError(
             "The tail holds fewer than 8 samples; lengthen tail_length or the epoch."
         )
@@ -85,6 +88,7 @@ def fit_tail(
     tau1, tau2 = best[:, 0], best[:, 1]
 
     def decay(r: Any) -> Any:
+        """Fitted two-exponential decay at the times ``r`` after the onset."""
         return best[:, 3:4] * np.exp(-r / tau1[:, None]) + best[:, 4:5] * np.exp(
             -r / tau2[:, None]
         )

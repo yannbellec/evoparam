@@ -10,6 +10,9 @@ import pytest
 from evoparam.data import TrialSet
 from evoparam.existence import test_response as run_test
 
+# Time limit (s) of the existence test on 100 channels.
+MAX_SECONDS = 20
+
 pytestmark = pytest.mark.skipif(
     os.environ.get("EVOPARAM_PERF_TESTS") != "1",
     reason="set EVOPARAM_PERF_TESTS=1 to time the test",
@@ -30,4 +33,4 @@ def test_req138_100_channels_50_trials_1000_permutations() -> None:
     run_test(
         ts, window=(0.009, 0.5), baseline=(-0.5, -0.05), n_permutations=1000, by=(), random_state=0
     )
-    assert time.perf_counter() - start <= 20
+    assert time.perf_counter() - start <= MAX_SECONDS

@@ -30,7 +30,6 @@ def _block(text, start, end):
 
 def check(root=ROOT):
     """List of problems (empty when the release may proceed)."""
-
     root = pathlib.Path(root)
     problems = []
     governance = (root / "GOVERNANCE.md").read_text(encoding="utf-8")
@@ -42,18 +41,22 @@ def check(root=ROOT):
         for key in ("Invention disclosure", "HIIE decision reference"):
             value = items.get(key, "")
             if not value or value.strip() in ("none", "not filed") or not DATE.search(value):
-                problems.append(f"GOVERNANCE.md: '{key}' has no reference and date "
-                                f"({value or 'missing'})")
+                problems.append(
+                    f"GOVERNANCE.md: '{key}' has no reference and date ({value or 'missing'})"
+                )
     releasing = (root / "RELEASING.md").read_text(encoding="utf-8")
     gate = _block(releasing, "<!-- release-gate -->", "<!-- end-release-gate -->") or ""
     match = re.search(r"^- HIIE decision: (.+)$", gate, re.MULTILINE)
     if not match or not re.match(r"on record, \d{4}-\d{2}-\d{2}, \S+", match.group(1)):
-        problems.append("RELEASING.md: the gate does not say 'HIIE decision: on record, "
-                        f"<date>, <reference>' ({match.group(1) if match else 'missing'})")
+        problems.append(
+            "RELEASING.md: the gate does not say 'HIIE decision: on record, "
+            f"<date>, <reference>' ({match.group(1) if match else 'missing'})"
+        )
     return problems
 
 
 def main(argv=None):
+    """Refuse the release unless the HIIE decision is on record; return the status."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--root", default=str(ROOT))
     args = parser.parse_args(argv)

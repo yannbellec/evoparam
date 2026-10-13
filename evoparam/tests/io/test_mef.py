@@ -38,6 +38,24 @@ from evoparam.tests.io.helpers import (
 )
 from evoparam.tests.io.helpers import SFREQ as BIDS_SFREQ
 
+# Entries 1 and 128 of meflib's CRC table (CRC_KOOPMAN32_KEY).
+CRC_ENTRY_1 = 0x9695C4CA
+CRC_ENTRY_128 = 0xEB31D82E
+# Start time (us) and units factor of the session written, and its blocks per channel.
+START_TIME_US = 1_600_000_000_000_000
+FACTOR = 0.1
+N_BLOCKS = 12
+# Largest error of the lossy RED options (2 steps of 0.1 uV, scale factor 4).
+MAX_LOSSY_ERROR = 0.25
+# NaN samples written (one, then a whole block of 500).
+N_NAN = 501
+# Blocks of the three channels, read for their CRC.
+N_BLOCKS_READ = 36
+# HTTP status of a missing file.
+NOT_FOUND = 404
+# HTTP status of a byte-range answer.
+PARTIAL_CONTENT = 206
+
 ###################################################################################################
 ###################################################################################################
 
@@ -81,8 +99,8 @@ def test_crc_matches_the_bytewise_crc() -> None:
     assert got.tolist() == expected
     # Table entries of meflib (CRC_KOOPMAN32_KEY)
     assert mef_crc(b"\x00") != mef_crc(b"\x01")
-    assert mef_module._crc_tables()["table"][1] == 0x9695C4CA
-    assert mef_module._crc_tables()["table"][128] == 0xEB31D82E
+    assert mef_module._crc_tables()["table"][1] == CRC_ENTRY_1
+    assert mef_module._crc_tables()["table"][128] == CRC_ENTRY_128
 
 
 def test_red_blocks_round_trip() -> None:
@@ -116,13 +134,13 @@ def test_read_whole_session(session: Any) -> None:
     assert header["ch_names"] == [NAMES[i] for i in ORDER]
     assert header["sfreq"] == SFREQ
     assert header["n_samples"] == data.shape[1]
-    assert header["start_time"] == 1_600_000_000_000_000
+    assert header["start_time"] == START_TIME_US
     assert header["session"] == "sub-01_task-spes_run-01_ieeg"
     channel = header["channels"][0]
     assert channel["units"] == "microvolts"
-    assert channel["factor"] == 0.1
+    assert channel["factor"] == FACTOR
     assert channel["to_uv"] == 1.0
-    assert len(channel["blocks"]) == 12
+    assert len(channel["blocks"]) == N_BLOCKS
 
     out, sfreq, names, t0 = read_mef(root)
     assert sfreq == SFREQ
@@ -243,7 +261,7 @@ def test_lossy_blocks(tmp_path: Any) -> None:
             back = mef_round(mef_round(scaled * 4.0) + slope * c + intercept)
             expected[ch, first : first + 600] = back * 0.1
     np.testing.assert_allclose(out, expected, atol=1e-9)
-    assert 0 < np.max(np.abs(out - data)) < 0.25  # lossy, within 2 steps
+    assert 0 < np.max(np.abs(out - data)) < MAX_LOSSY_ERROR  # lossy, within 2 steps
 
 
 def test_nan_and_infinity_codes(tmp_path: Any) -> None:
@@ -259,7 +277,7 @@ def test_nan_and_infinity_codes(tmp_path: Any) -> None:
     assert out[0, 20] == np.inf
     assert out[0, 30] == -np.inf
     assert np.isnan(out[0, 500:]).all()
-    assert np.isnan(out).sum() == 501
+    assert np.isnan(out).sum() == N_NAN
 
 
 def test_units_conversion(tmp_path: Any) -> None:
@@ -338,8 +356,8 @@ def test_constant_blocks_are_not_decoded(tmp_path: Any) -> None:
     # not read at all without CRC checks
     _, _, _, _, checked = mef_module._read_with_source(root)
     _, _, _, _, unchecked = mef_module._read_with_source(root, check_crc=False)
-    assert checked["blocks_read"] == 36
-    assert unchecked["blocks_read"] == 36 - 3 * 8
+    assert checked["blocks_read"] == N_BLOCKS_READ
+    assert unchecked["blocks_read"] == N_BLOCKS_READ - 3 * 8
     out, *_ = read_mef(root, check_crc=False)
     np.testing.assert_allclose(out, stored(data)[ORDER], atol=1e-9)
 
@@ -364,7 +382,7 @@ def test_remote_matches_local(tmp_path: Any) -> None:
     assert rsource["remote"] is True
     assert rsource["bytes_read"] == sent
     assert data_requests
-    assert all(r[2] is not None and r[3] == 206 for r in data_requests)
+    assert all(r[2] is not None and r[3] == PARTIAL_CONTENT for r in data_requests)
     sizes = sum(
         os.path.getsize(os.path.join(dirpath, f))
         for dirpath, _, files in os.walk(root)
@@ -488,7 +506,7 @@ def test_read_bids_mef_matches_brainvision(bids_root: Any, tmp_path: Any) -> Non
     assert remote.provenance.source["sha256"] == local.provenance.source["sha256"]
     assert remote.provenance.source["bytes_read"] == sent
     assert not any("A02" in r[1] for r in requests)
-    assert any(r[1].endswith("_ieeg.vhdr") and r[3] == 404 for r in requests)
+    assert any(r[1].endswith("_ieeg.vhdr") and r[3] == NOT_FOUND for r in requests)
 
 
 def test_read_bids_mef_gap_is_masked(tmp_path: Any) -> None:

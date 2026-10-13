@@ -17,6 +17,7 @@ __all__ = ["read_neo"]
 
 
 def _block(source: Any, io_class: Any) -> Any:
+    """Return the Neo Block of a Block or of a file (read by ``io_class`` or by extension)."""
     neo = require("neo", extra="neo", caller="evoparam.io.read_neo")
     if isinstance(source, neo.Block):
         return source

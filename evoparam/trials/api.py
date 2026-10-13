@@ -8,7 +8,7 @@ import os
 import time as _time
 import warnings
 from types import SimpleNamespace
-from typing import cast
+from typing import NamedTuple, cast
 
 import numpy as np
 
@@ -36,6 +36,26 @@ from evoparam.utils._parallel import parallel_map
 from evoparam.version import __version__
 
 from ._model import ChannelTemplate, fit_trial, fit_trials_batch
+
+# Fewest samples of a component's own support before the support falls back to its peak
+_MIN_SUPPORT = 4
+# Fewest trials for leave-one-trial-out ridge selection
+_MIN_LOTO_TRIALS = 3
+# Fewest baseline samples of a trial to build null segments from
+_MIN_NOISE_SAMPLES = 4
+# Fewest values for a standard deviation of shifts (jitter, null jitter, bootstrap)
+_MIN_SD_VALUES = 3
+# The F quantile of the jitter refusal needs more than this many trials on both sides
+_F_MIN_TRIALS = 2
+# Fewest trusted trials for a trend (habituation) fit
+_MIN_TREND_TRIALS = 3
+# Fewest trials per state, and states, for the state-dependence tests
+_MIN_STATE_TRIALS = 2
+_MIN_STATES = 2
+# Fewest doses for a dose-response fit, and for the "auto" model to choose the Hill model
+_MIN_DOSES = 2
+_HILL_MIN_DOSES = 4
+
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +188,7 @@ class TrialFitSet:
 def _shape_for(
     comp: Any, settings: Any
 ) -> Any:  # a ComponentShape (shapes is reached through models only)
+    """Return the shape of ``comp`` with the width limits of the channel fit's settings."""
     name = comp.shape
     fields = {f.name for f in dataclasses.fields(cast(Any, type(get_shape(name))))}
     kwargs = {k: settings[k] for k in ("min_fwhm", "max_fwhm") if k in fields and k in settings}
@@ -175,6 +196,7 @@ def _shape_for(
 
 
 def _amplitude_of(comp: Any) -> Any:
+    """Return the amplitude that scales the shape of ``comp``: its CI centre when it has a CI."""
     ci = comp.ci or {}
     return 0.5 * (ci["A"][0] + ci["A"][1]) if "A" in ci else comp.amplitude
 
@@ -238,7 +260,7 @@ def _template_mode(template: Any, fit: Any, average: Any, times: Any, picks: Any
         comp = fit.components[k]
         own = y - (total - curves[i])
         support = (tw >= comp.onset) & (tw <= comp.offset)
-        if support.sum() < 4:
+        if support.sum() < _MIN_SUPPORT:
             support = np.abs(curves[i]) >= 0.1 * np.max(np.abs(curves[i]))
         values = np.where(support, own, 0.0)
         values[0] = values[-1] = 0.0
@@ -260,6 +282,7 @@ def _fit_all(
     support: Any = None,
     movable: Any = None,
 ) -> Any:
+    """Return the fit of every trial: one vectorised solve, or one fit per trial."""
     if mode == "shift_scale" and not ridge:
         # every trial at once (the same model, a vectorised solver)
         return fit_trials_batch(template, data, valid=valid, support=support, movable=movable)
@@ -311,7 +334,7 @@ def _choose_ridge_loto(template: Any, data: Any, valid: Any, movable: Any = None
     it was fitted to always prefers no penalty).
     """
     n = len(data)
-    if n < 3:
+    if n < _MIN_LOTO_TRIALS:
         return _choose_ridge(template, data, valid, movable)
     even = np.zeros(data.shape[1], bool)
     even[::2] = True
@@ -342,22 +365,29 @@ def _choose_ridge_loto(template: Any, data: Any, valid: Any, movable: Any = None
     return RIDGE_GRID[int(np.argmin(errors))]
 
 
+@dataclasses.dataclass(frozen=True)
+class _NullRule:
+    """How :func:`_null_jitter` fits and trusts its noise-only segments.
+
+    ``support`` and ``report`` are those of the real trials (the samples that count, the
+    components that move), ``r2_min`` their trust threshold, and ``repeats`` the number of
+    baseline segments per trial.
+    """
+
+    support: Any = None
+    r2_min: float = 0.0
+    report: Any = None
+    repeats: Any = NULL_REPEATS
+
+
 def _null_jitter(
-    template: Any,
-    fit: Any,
-    trials: Any,
-    times: Any,
-    baseline: Any,
-    picks: Any,
-    support: Any = None,
-    r2_min: float = 0.0,
-    report: Any = None,
-    repeats: Any = NULL_REPEATS,
+    template: Any, fit: Any, trials: Any, times: Any, baseline: Any, picks: Any, rule: _NullRule
 ) -> Any:
     """Jitter found by the same procedure on noise only.
 
     The channel curve plus each trial's baseline segment (no response).
     """
+    support, r2_min, report, repeats = rule.support, rule.r2_min, rule.report, rule.repeats
     tw = template.tw
     base = (times >= baseline[0]) & (times <= baseline[1])
     n_win = len(tw)
@@ -368,7 +398,7 @@ def _null_jitter(
     segments = []
     for x in trials:
         noise_all = np.nan_to_num(x[base])
-        if len(noise_all) < 4:
+        if len(noise_all) < _MIN_NOISE_SAMPLES:
             return np.full(len(picks), np.nan), 0
         # Several segments of each trial's baseline (circular offsets): the null SD is then
         # estimated from more values than the trial SD it is compared with
@@ -385,7 +415,7 @@ def _null_jitter(
         # the same trust rule as the real trials, so that both SDs describe the same set
         if res["converged"] and not bound and np.nan_to_num(res["r2"], nan=-1) >= r2_min:
             shifts.append(res["shift"])
-    if len(shifts) < 3:
+    if len(shifts) < _MIN_SD_VALUES:
         return np.full(len(picks), np.nan), 0
     # Repeats from one trial's baseline are not independent: count trials, not repeats
     return np.nanstd(np.array(shifts), axis=0, ddof=1), int(np.ceil(len(shifts) / repeats))
@@ -446,7 +476,7 @@ def _prestim(
 
 
 @verbose
-def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.7)
+def fit_trials(  # noqa: PLR0913  (spec §5.7 fixes 16 parameters, plus preset, trial_model, null_rule, ridge_cv and on_error; DECISIONS.md §7.2)
     ts: Any,
     group_fit: Any = None,
     *,
@@ -533,139 +563,38 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
     TrialFitSet
     """
     start = _time.perf_counter()
-    if not isinstance(ts, TrialSet):
-        raise DataError("fit_trials expects a TrialSet.")
-    if mode not in MODES:
-        raise SettingsError(f"mode must be one of {MODES}, not {mode!r}.")
-    check_on_error(on_error)
-    for name, value, allowed in (
-        ("trial_model", trial_model, TRIAL_MODELS),
-        ("null_rule", null_rule, NULL_RULES),
-        ("ridge_cv", ridge_cv, RIDGE_CV),
-    ):
-        if value not in allowed:
-            raise SettingsError(f"{name} must be one of {allowed}, not {value!r}.")
-    unknown = set(covariates) - set(COVARIATES)
-    if unknown:
-        raise SettingsError(f"Unknown covariates {sorted(unknown)}.")
+    _check_fit_trials(ts, mode, on_error, trial_model, null_rule, ridge_cv, covariates)
     if group_fit is None:
-        from evoparam.models import fit as fit_models
-
-        preset = preset or (MODALITY_PRESETS.get(ts.modality) if ts.modality else None)
-        if preset is None:
-            raise SettingsError("Give group_fit, or preset= (the TrialSet has no modality).")
-        group_fit = fit_models(
-            ts,
-            preset,
-            by=[c for c in by if ts.metadata is not None and c in ts.metadata.columns] or None,
-        )
+        group_fit = _default_group_fit(ts, preset, by)
     settings0 = group_fit.settings or {}
     preset0 = settings0.get("preset")
     preset0 = preset0.get("name") if isinstance(preset0, dict) else preset0
-    factor = 0.5 if preset0 in SCALP_PRESETS else 0.25
-    baseline = tuple(settings0.get("baseline") or (ts.times[0], ts.times[0] + 0.1))
-
-    meta = ts.metadata
-    columns = [c for c in (by or ()) if meta is not None and c in meta.columns]
-    labels = row_labels(meta, columns) if columns else np.array([""] * ts.n_trials)
-
-    fits, skipped, rows = [], [], []
-    # the channels' units of work, in the order of the results (condition, then channel)
-    units: list[tuple[Any, ...]] = []
-    options = (
-        mode,
-        trial_model,
-        max_shift,
-        factor,
-        stretch,
-        r2_min,
-        realign,
-        realign_on,
-        covariates,
-        prestim_band,
-        prestim_window,
-        null_rule,
-        ridge_cv,
-        baseline,
-        verbose,
+    options = _Options(
+        mode=mode,
+        trial_model=trial_model,
+        max_shift=max_shift,
+        factor=0.5 if preset0 in SCALP_PRESETS else 0.25,
+        stretch=stretch,
+        r2_min=r2_min,
+        realign=realign,
+        realign_on=realign_on,
+        covariates=covariates,
+        prestim_band=prestim_band,
+        prestim_window=prestim_window,
+        null_rule=null_rule,
+        ridge_cv=ridge_cv,
+        baseline=tuple(settings0.get("baseline") or (ts.times[0], ts.times[0] + 0.1)),
+        verbose=verbose,
     )
-    context = SimpleNamespace(sfreq=ts.sfreq, units=ts.units, provenance=ts.provenance)
-    for label in dict.fromkeys(labels):
-        trial_idx = np.flatnonzero(labels == label)
-        sub = ts.data[trial_idx]
-        sub_masks = None if ts.masks is None else ts.masks[trial_idx]
-        for ch, name in enumerate(ts.ch_names):
-            try:
-                fit = group_fit.get(name, condition=label if label else None)
-            except KeyError:
-                try:
-                    fit = group_fit.get(name)
-                except KeyError:
-                    continue
-            if fit.status != "ok" or not fit.components:
-                skipped.append(name)
-                continue
-            picks = list(range(len(fit.components)))
-            if components is not None:
-                picks = [
-                    k
-                    for k, c in enumerate(fit.components)
-                    if k in components or c.label in components
-                ]
-                if not picks:
-                    skipped.append(name)
-                    continue
-            units.append(
-                (
-                    fit,
-                    picks,
-                    name,
-                    label,
-                    trial_idx,
-                    sub[:, ch],
-                    None if sub_masks is None else sub_masks[:, ch],
-                    None if meta is None else meta.iloc[trial_idx],
-                    ts.times,
-                    ts.sfreq,
-                    context,
-                    options,
-                )
-            )
+    units, skipped = _channel_units(ts, group_fit, components, by, options)
+    fits, rows = [], []
     channel = functools.partial(_fit_channel, on_error=on_error)
     for frame, trial_fit in parallel_map(channel, units, n_jobs, desc="fit_trials"):
         if trial_fit.status == "ok":  # a failed channel has no trial rows
             rows.append(frame)
         fits.append(trial_fit)
     table = concat_tables(rows) if rows else new_table({})
-    covariate_tables = {}
-    if "trend" in covariates and len(table):
-        covariate_tables["trend"] = _trend(table)
-    if "dose" in covariates and len(table):
-        covariate_tables["dose"] = dose_response(table)
-    if "state" in covariates and len(table):
-        covariate_tables["state"] = state_dependence(table)
-    settings = {
-        "mode": mode,
-        "max_shift": max_shift,
-        "r2_min": r2_min,
-        "by": list(by or ()),
-        "trial_model": trial_model,
-        "null_rule": null_rule,
-        "ridge_cv": ridge_cv,
-        "covariates": list(covariates),
-        "package_version": __version__,
-        "covariate_tables": {k: v.to_dict("list") for k, v in covariate_tables.items()},
-    }
-    if "prestim" in covariates:
-        # the band and window of the pre-stimulus phases (read by prestimulus_dependence)
-        settings["prestim_band"] = [float(f) for f in prestim_band]
-        settings["prestim_window"] = [float(t) for t in prestim_window]
-    # REQ-294: the seed of the call is recorded with the step
-    seed = (
-        random_state
-        if random_state is None or isinstance(random_state, (int, np.integer))
-        else type(random_state).__name__
-    )
+    settings = _set_settings(table, options, by)
     logger.info(
         "fit_trials (%s): %d channel fit(s), %d trial row(s), %d channel(s) skipped, %.2f s",
         mode,
@@ -698,7 +627,7 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
         "evoparam.trials.fit_trials",
         step_settings,
         duration_s=_time.perf_counter() - start,
-        random_state=seed,
+        random_state=_recorded_seed(random_state),
     )
     for trial_fit in fits:
         trial_fit.provenance = provenance
@@ -711,6 +640,187 @@ def fit_trials(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
     )
 
 
+class _Options(NamedTuple):
+    """The settings of :func:`fit_trials` that every channel's fit reads."""
+
+    mode: str
+    trial_model: str
+    max_shift: Any
+    factor: float
+    stretch: bool
+    r2_min: float
+    realign: bool
+    realign_on: Any
+    covariates: Any
+    prestim_band: Any
+    prestim_window: Any
+    null_rule: str
+    ridge_cv: str
+    baseline: Any
+    verbose: Any
+
+
+class _Unit(NamedTuple):
+    """One channel and condition: the unit of work of ``n_jobs`` in :func:`fit_trials`."""
+
+    fit: Any
+    picks: list[int]
+    name: Any
+    label: Any
+    trial_idx: Any
+    trials: Any
+    trial_masks: Any
+    meta_rows: Any
+    times: Any
+    sfreq: Any
+    context: Any
+    options: _Options
+
+
+def _check_fit_trials(
+    ts: Any,
+    mode: Any,
+    on_error: Any,
+    trial_model: Any,
+    null_rule: Any,
+    ridge_cv: Any,
+    covariates: Any,
+) -> None:
+    """Raise when the data or a setting of :func:`fit_trials` is not valid."""
+    if not isinstance(ts, TrialSet):
+        raise DataError("fit_trials expects a TrialSet.")
+    if mode not in MODES:
+        raise SettingsError(f"mode must be one of {MODES}, not {mode!r}.")
+    check_on_error(on_error)
+    for name, value, allowed in (
+        ("trial_model", trial_model, TRIAL_MODELS),
+        ("null_rule", null_rule, NULL_RULES),
+        ("ridge_cv", ridge_cv, RIDGE_CV),
+    ):
+        if value not in allowed:
+            raise SettingsError(f"{name} must be one of {allowed}, not {value!r}.")
+    unknown = set(covariates) - set(COVARIATES)
+    if unknown:
+        raise SettingsError(f"Unknown covariates {sorted(unknown)}.")
+
+
+def _default_group_fit(ts: Any, preset: Any, by: Any) -> Any:
+    """Fit the trial average with ``preset``, by default the one of the modality."""
+    from evoparam.models import fit as fit_models
+
+    preset = preset or (MODALITY_PRESETS.get(ts.modality) if ts.modality else None)
+    if preset is None:
+        raise SettingsError("Give group_fit, or preset= (the TrialSet has no modality).")
+    return fit_models(
+        ts,
+        preset,
+        by=[c for c in by if ts.metadata is not None and c in ts.metadata.columns] or None,
+    )
+
+
+def _channel_fit(group_fit: Any, name: Any, label: Any) -> Any:
+    """Return the channel fit of ``name`` in condition ``label``, else of all trials, or None."""
+    try:
+        return group_fit.get(name, condition=label if label else None)
+    except KeyError:
+        try:
+            return group_fit.get(name)
+        except KeyError:
+            return None
+
+
+def _unit_picks(fit: Any, components: Any) -> list[int]:
+    """Return the components of ``fit`` to report (none when the fit has none to give)."""
+    if fit.status != "ok" or not fit.components:
+        return []
+    if components is None:
+        return list(range(len(fit.components)))
+    return [k for k, c in enumerate(fit.components) if k in components or c.label in components]
+
+
+def _channel_units(
+    ts: Any, group_fit: Any, components: Any, by: Any, options: _Options
+) -> tuple[list[_Unit], list[Any]]:
+    """Return the channels' units of work, in the order of the results, and the skipped ones.
+
+    The order is condition, then channel; a channel without a usable fit, or without one of
+    ``components``, is skipped.
+    """
+    meta = ts.metadata
+    columns = [c for c in (by or ()) if meta is not None and c in meta.columns]
+    labels = row_labels(meta, columns) if columns else np.array([""] * ts.n_trials)
+    units: list[_Unit] = []
+    skipped = []
+    context = SimpleNamespace(sfreq=ts.sfreq, units=ts.units, provenance=ts.provenance)
+    for label in dict.fromkeys(labels):
+        trial_idx = np.flatnonzero(labels == label)
+        sub = ts.data[trial_idx]
+        sub_masks = None if ts.masks is None else ts.masks[trial_idx]
+        for ch, name in enumerate(ts.ch_names):
+            fit = _channel_fit(group_fit, name, label)
+            if fit is None:
+                continue
+            picks = _unit_picks(fit, components)
+            if not picks:
+                skipped.append(name)
+                continue
+            units.append(
+                _Unit(
+                    fit,
+                    picks,
+                    name,
+                    label,
+                    trial_idx,
+                    sub[:, ch],
+                    None if sub_masks is None else sub_masks[:, ch],
+                    None if meta is None else meta.iloc[trial_idx],
+                    ts.times,
+                    ts.sfreq,
+                    context,
+                    options,
+                )
+            )
+    return units, skipped
+
+
+def _set_settings(table: Any, options: _Options, by: Any) -> dict[str, Any]:
+    """Return the settings of the :class:`TrialFitSet`, with its covariate tables."""
+    covariates = options.covariates
+    covariate_tables = {}
+    if "trend" in covariates and len(table):
+        covariate_tables["trend"] = _trend(table)
+    if "dose" in covariates and len(table):
+        covariate_tables["dose"] = dose_response(table)
+    if "state" in covariates and len(table):
+        covariate_tables["state"] = state_dependence(table)
+    settings = {
+        "mode": options.mode,
+        "max_shift": options.max_shift,
+        "r2_min": options.r2_min,
+        "by": list(by or ()),
+        "trial_model": options.trial_model,
+        "null_rule": options.null_rule,
+        "ridge_cv": options.ridge_cv,
+        "covariates": list(covariates),
+        "package_version": __version__,
+        "covariate_tables": {k: v.to_dict("list") for k, v in covariate_tables.items()},
+    }
+    if "prestim" in covariates:
+        # the band and window of the pre-stimulus phases (read by prestimulus_dependence)
+        settings["prestim_band"] = [float(f) for f in options.prestim_band]
+        settings["prestim_window"] = [float(t) for t in options.prestim_window]
+    return settings
+
+
+def _recorded_seed(random_state: Any) -> Any:
+    """Return the seed of the call as recorded with the step (REQ-294)."""
+    return (
+        random_state
+        if random_state is None or isinstance(random_state, (int, np.integer))
+        else type(random_state).__name__
+    )
+
+
 def _continues(steps: Any, prefix: Any) -> bool:
     """Return True when the record ``steps`` starts with the steps ``prefix``.
 
@@ -719,6 +829,7 @@ def _continues(steps: Any, prefix: Any) -> bool:
     import json
 
     def key(step: Any) -> str:
+        """Return the function and settings of ``step`` as one comparable string."""
         return json.dumps(
             [step.get("function"), step.get("settings")], sort_keys=True, default=str
         )
@@ -728,7 +839,7 @@ def _continues(steps: Any, prefix: Any) -> bool:
     ]
 
 
-def _fit_channel(unit: tuple[Any, ...], on_error: str = "raise") -> tuple[Any, "TrialFit"]:
+def _fit_channel(unit: _Unit, on_error: str = "raise") -> tuple[Any, "TrialFit"]:
     """Fit the trials of one channel and condition (one unit of ``n_jobs`` in fit_trials).
 
     Returns the trial table of the channel and its :class:`TrialFit`. Deterministic: the
@@ -741,17 +852,17 @@ def _fit_channel(unit: tuple[Any, ...], on_error: str = "raise") -> tuple[Any, "
     except PROPAGATE:
         raise
     except Exception as exc:  # the failure of this channel only
-        name, label = unit[2], unit[3]
+        name, label = unit.name, unit.label
         where = f"{name} ({label})" if label else str(name)
         if on_error == "raise":
             raise fit_error("fit_trials", where, exc) from exc
         return _failed_channel(unit, record_failure(logger, "fit_trials", where, exc))
 
 
-def _failed_channel(unit: tuple[Any, ...], message: str) -> tuple[Any, "TrialFit"]:
+def _failed_channel(unit: _Unit, message: str) -> tuple[Any, "TrialFit"]:
     """Return the :class:`TrialFit` of a failed channel: NaN numbers, no trusted trial."""
     fit, picks, name, label, trial_idx = unit[:5]
-    options = unit[-1]
+    options = unit.options
     n_trials, n_picks = len(trial_idx), len(picks)
     n_params = sum(len(fit.components[k].params) for k in picks)
     nothing = dict.fromkeys(picks, np.nan)
@@ -772,10 +883,10 @@ def _failed_channel(unit: tuple[Any, ...], message: str) -> tuple[Any, "TrialFit
         trusted=np.zeros(n_trials, bool),
         table=new_table({}),
         settings={
-            "mode": options[0],
+            "mode": options.mode,
             "condition": label,
             "picks": picks,
-            "r2_min": options[5],
+            "r2_min": options.r2_min,
             "package_version": __version__,
         },
         status="failed",
@@ -783,78 +894,139 @@ def _failed_channel(unit: tuple[Any, ...], message: str) -> tuple[Any, "TrialFit
     )
 
 
-def _fit_unit(unit: tuple[Any, ...]) -> tuple[Any, "TrialFit"]:  # noqa: C901, PLR0912, PLR0915  (the body of the fit_trials loop, moved as it was)
+def _fit_unit(unit: _Unit) -> tuple[Any, "TrialFit"]:
     """Fit one channel and condition (:func:`_fit_channel` without the guard)."""
-    (
-        fit,
-        picks,
-        name,
-        label,
-        trial_idx,
-        trials,
-        trial_masks,
-        meta_rows,
-        times,
-        sfreq,
-        context,
-        options,
-    ) = unit
-    (
-        mode,
-        trial_model,
-        max_shift,
-        factor,
-        stretch,
-        r2_min,
-        realign,
-        realign_on,
-        covariates,
-        prestim_band,
-        prestim_window,
-        null_rule,
-        ridge_cv,
-        baseline,
-        verbose,
-    ) = options
+    fit, picks, name, trials, times, o = (
+        unit.fit,
+        unit.picks,
+        unit.name,
+        unit.trials,
+        unit.times,
+        unit.options,
+    )
     # trial_model "anchored" and "all": the trial model keeps every component of the
     # channel (a complete model) and only the chosen ones are reported; "selected"
     # (spec): the model has the chosen components only
-    every = list(range(len(fit.components))) if trial_model != "selected" else list(picks)
+    every = list(range(len(fit.components))) if o.trial_model != "selected" else list(picks)
     report = [every.index(k) for k in picks]
     # "anchored": the other components stay at their channel latency (scale only),
     # so max_shift is clipped against the moving components only
-    movable = report if trial_model == "anchored" else None
+    movable = report if o.trial_model == "anchored" else None
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore" if verbose is False else "default")
-        template = _template_for(fit, every, times, max_shift, factor, moving=movable)
-    support = np.zeros(len(template.tw), bool)
-    for k in picks:
-        comp = fit.components[k]
-        support |= (template.tw >= comp.onset - comp.fwhm) & (
-            template.tw <= comp.offset + comp.fwhm
-        )
+        warnings.simplefilter("ignore" if o.verbose is False else "default")
+        template = _template_for(fit, every, times, o.max_shift, o.factor, moving=movable)
+    support = _report_support(template.tw, fit, picks)
     win = (times >= template.tw[0]) & (times <= template.tw[-1])
     x = np.nan_to_num(trials[:, win])
-    valid = np.ones(x.shape, bool) if trial_masks is None else ~trial_masks[:, win]
+    valid = np.ones(x.shape, bool) if unit.trial_masks is None else ~unit.trial_masks[:, win]
     channel_template = template
-    if mode == "template":
+    if o.mode == "template":
         average = np.nanmean(trials, axis=0)
         template = _template_mode(template, fit, average, times, every)
-    fit_mode = "free" if (stretch and mode == "shift_scale") or mode == "free" else mode
+    fit_mode = "free" if (o.stretch and o.mode == "shift_scale") or o.mode == "free" else o.mode
     ridge = 0.0
-    if mode == "regularized":
-        choose = _choose_ridge if ridge_cv == "split" else _choose_ridge_loto
+    if o.mode == "regularized":
+        choose = _choose_ridge if o.ridge_cv == "split" else _choose_ridge_loto
         ridge = choose(template, x, valid, movable)
     results = _fit_all(
         template,
         x,
         valid,
-        "shift_scale" if mode == "template" else fit_mode,
+        "shift_scale" if o.mode == "template" else fit_mode,
         ridge,
         support,
         movable=movable,
     )
+    m = _measures(results, fit, picks, report, o.r2_min)
+    if fit_mode in ("free", "regularized") and o.mode != "template":
+        _free_fwhm(m.fwhm, results, report, channel_template, unit.sfreq)
 
+    jit = {k: _shift_sd(m.shift[:, j], m.trusted) for j, k in enumerate(picks)}
+    rule = _NullRule(support, o.r2_min, report, NULL_REPEATS if o.null_rule == "segments" else 1)
+    null, n_null = _null_jitter(channel_template, fit, trials, times, o.baseline, every, rule)
+    null = null[report]
+    jit_null = {k: float(null[j]) for j, k in enumerate(picks)}
+    corrected = _jitter_corrected(fit, picks, jit)
+
+    realigned = None
+    if o.realign:
+        target = _realign_target(fit, picks, o.realign_on)
+        j = picks.index(target)
+        limit = _refusal_limit(o.null_rule, int(m.trusted.sum()), n_null)
+        if not jit[target] > limit * jit_null[target]:
+            _warn(
+                f"{name}: jitter {jit[target]:.4f} s is not above "
+                f"{limit:.2f} x the noise-only jitter "
+                f"{jit_null[target]:.4f} s; realignment refused.",
+                UserWarning,
+                stacklevel=4,  # _fit_unit, _fit_channel, fit_trials, then its caller
+            )
+        else:
+            realigned = _realigned(times, trials, m.shift[:, j], m.trusted, name, unit.context)
+
+    frame = _trial_table(unit, m)
+    if "prestim" in o.covariates:
+        phase, circ_sd, power = _prestim(trials, times, o.prestim_band, o.prestim_window)
+        frame["prestim_phase"] = np.repeat(phase, len(picks))
+        frame["prestim_phase_sd"] = np.repeat(circ_sd, len(picks))
+        frame["prestim_power"] = np.repeat(power, len(picks))
+    return frame, (
+        TrialFit(
+            channel=name,
+            template=fit,
+            shift=m.shift,
+            scale=m.scale,
+            params=m.params,
+            latency=m.latency,
+            amplitude=m.amplitude,
+            fwhm=m.fwhm,
+            gof=m.r2,
+            converged=m.converged,
+            jitter_sd=jit,
+            jitter_sd_null=jit_null,
+            amplitude_jitter_corrected=corrected,
+            trusted=m.trusted,
+            table=frame,
+            realigned=realigned,
+            settings={
+                "mode": o.mode,
+                "condition": unit.label,
+                "picks": picks,
+                "ridge": ridge,
+                "max_shift": channel_template.max_shift.tolist(),
+                "r2_min": o.r2_min,
+                "package_version": __version__,
+            },
+        )
+    )
+
+
+def _report_support(tw: Any, fit: Any, picks: Any) -> Any:
+    """Return the samples of ``tw`` within one width of a reported component."""
+    support = np.zeros(len(tw), bool)
+    for k in picks:
+        comp = fit.components[k]
+        support |= (tw >= comp.onset - comp.fwhm) & (tw <= comp.offset + comp.fwhm)
+    return support
+
+
+@dataclasses.dataclass
+class _Measures:
+    """Per-trial numbers of the reported components of one channel (rows are trials)."""
+
+    shift: Any
+    scale: Any
+    r2: Any
+    converged: Any
+    trusted: Any
+    amplitude: Any
+    latency: Any
+    fwhm: Any
+    params: Any
+
+
+def _measures(results: Any, fit: Any, picks: Any, report: Any, r2_min: float) -> _Measures:
+    """Return the trial numbers of the reported components from the solver's ``results``."""
     shift = np.array([r["shift"] for r in results])[:, report]
     scale = np.array([r["scale"] for r in results])[:, report]
     r2 = np.array([r["r2"] for r in results])
@@ -871,140 +1043,98 @@ def _fit_unit(unit: tuple[Any, ...]) -> tuple[Any, "TrialFit"]:  # noqa: C901, P
             for k in picks
         ]
     )
-    amplitude = scale * peaks[None]
-    latency = shift + np.array([fit.components[k].latency for k in picks])[None]
-    fwhm = np.tile([fit.components[k].fwhm for k in picks], (len(results), 1))
-    if fit_mode in ("free", "regularized") and mode != "template":
-        for i, r in enumerate(results):
-            for j, k in enumerate(report):
-                f = compute_features(
-                    channel_template.shapes[k],
-                    channel_template.tw,
-                    r["params"][k],
-                    1.0,
-                    sfreq=sfreq,
-                )
-                fwhm[i, j] = f.fwhm
-    params = np.array([np.concatenate([r["params"][k] for k in report]) for r in results])
-
-    jit = {}
-    for j, k in enumerate(picks):
-        good = trusted
-        jit[k] = float(np.std(shift[good, j], ddof=1)) if good.sum() >= 3 else np.nan
-    null, n_null = _null_jitter(
-        channel_template,
-        fit,
-        trials,
-        times,
-        baseline,
-        every,
-        support,
-        r2_min,
-        report,
-        repeats=NULL_REPEATS if null_rule == "segments" else 1,
+    return _Measures(
+        shift=shift,
+        scale=scale,
+        r2=r2,
+        converged=converged,
+        trusted=trusted,
+        amplitude=scale * peaks[None],
+        latency=shift + np.array([fit.components[k].latency for k in picks])[None],
+        fwhm=np.tile([fit.components[k].fwhm for k in picks], (len(results), 1)),
+        params=np.array([np.concatenate([r["params"][k] for k in report]) for r in results]),
     )
-    null = null[report]
-    jit_null = {k: float(null[j]) for j, k in enumerate(picks)}
+
+
+def _free_fwhm(fwhm: Any, results: Any, report: Any, template: Any, sfreq: Any) -> None:
+    """Replace ``fwhm`` (in place) by the widths of each trial's own fitted shapes."""
+    for i, r in enumerate(results):
+        for j, k in enumerate(report):
+            f = compute_features(template.shapes[k], template.tw, r["params"][k], 1.0, sfreq=sfreq)
+            fwhm[i, j] = f.fwhm
+
+
+def _shift_sd(shifts: Any, trusted: Any) -> float:
+    """Return the SD of the shifts of the trusted trials (NaN with too few of them)."""
+    return float(np.std(shifts[trusted], ddof=1)) if trusted.sum() >= _MIN_SD_VALUES else np.nan
+
+
+def _jitter_corrected(fit: Any, picks: Any, jit: Any) -> dict[Any, float]:
+    """Return each component's amplitude corrected for the smearing of its jitter."""
     corrected = {}
-    for _j, k in enumerate(picks):
+    for k in picks:
         comp = fit.components[k]
         sigma = comp.fwhm / FWHM_PER_SIGMA
         jj = jit[k] if np.isfinite(jit[k]) else 0.0
         corrected[k] = float(comp.amplitude * np.sqrt(sigma**2 + jj**2) / sigma)
+    return corrected
 
-    realigned = None
-    if realign:
-        target = (
-            picks[0]
-            if realign_on is None
-            else (
-                realign_on
-                if isinstance(realign_on, int)
-                else next(k for k in picks if fit.components[k].label == realign_on)
-            )
-        )
-        j = picks.index(target)
-        # Refuse unless the jitter clearly exceeds what noise alone gives: above
-        # 1.2 x the noise-only SD, and above the 95 % quantile of the ratio of two
-        # SDs of noise (F distribution), so that jitter-free data are refused in
-        # 95 % of runs whatever the number of trials
-        from scipy.stats import f as f_dist
 
-        n_t = int(trusted.sum())
-        limit = JITTER_REFUSE
-        if null_rule == "segments" and n_t > 2 and n_null > 2:
-            limit = max(limit, float(np.sqrt(f_dist.ppf(0.95, n_t - 1, n_null - 1))))
-        if not jit[target] > limit * jit_null[target]:
-            _warn(
-                f"{name}: jitter {jit[target]:.4f} s is not above "
-                f"{limit:.2f} x the noise-only jitter "
-                f"{jit_null[target]:.4f} s; realignment refused.",
-                UserWarning,
-                stacklevel=4,  # _fit_unit, _fit_channel, fit_trials, then its caller
-            )
-        else:
-            realigned = _realigned(times, trials, shift[:, j], trusted, name, context)
+def _realign_target(fit: Any, picks: Any, realign_on: Any) -> Any:
+    """Return the component to realign on: ``realign_on`` (index or label), else the first."""
+    if realign_on is None:
+        return picks[0]
+    if isinstance(realign_on, int):
+        return realign_on
+    return next(k for k in picks if fit.components[k].label == realign_on)
 
+
+def _refusal_limit(null_rule: str, n_t: int, n_null: int) -> float:
+    """Return the ratio to the noise-only jitter that realignment requires.
+
+    Refuse unless the jitter clearly exceeds what noise alone gives: above 1.2 x the
+    noise-only SD, and above the 95 % quantile of the ratio of two SDs of noise (F
+    distribution), so that jitter-free data are refused in 95 % of runs whatever the
+    number of trials.
+    """
+    from scipy.stats import f as f_dist
+
+    limit = JITTER_REFUSE
+    if null_rule == "segments" and n_t > _F_MIN_TRIALS and n_null > _F_MIN_TRIALS:
+        limit = max(limit, float(np.sqrt(f_dist.ppf(0.95, n_t - 1, n_null - 1))))
+    return limit
+
+
+def _trial_table(unit: _Unit, m: _Measures) -> Any:
+    """Return the trial table of one channel: one row per trial and reported component."""
+    fit, meta_rows = unit.fit, unit.meta_rows
     table = []
-    for i, trial in enumerate(trial_idx):
-        for j, k in enumerate(picks):
+    for i, trial in enumerate(unit.trial_idx):
+        for j, k in enumerate(unit.picks):
             row = {
                 "trial": int(trial),
-                "channel": name,
-                "condition": label,
+                "channel": unit.name,
+                "condition": unit.label,
                 "component": int(k),
                 "label": fit.components[k].label or "",
-                "shift": shift[i, j],
-                "scale": scale[i, j],
-                "latency": latency[i, j],
-                "amplitude": amplitude[i, j],
-                "fwhm": fwhm[i, j],
-                "r2": r2[i],
-                "converged": bool(converged[i]),
-                "trusted": bool(trusted[i]),
+                "shift": m.shift[i, j],
+                "scale": m.scale[i, j],
+                "latency": m.latency[i, j],
+                "amplitude": m.amplitude[i, j],
+                "fwhm": m.fwhm[i, j],
+                "r2": m.r2[i],
+                "converged": bool(m.converged[i]),
+                "trusted": bool(m.trusted[i]),
             }
             if meta_rows is not None:
                 for col in meta_rows.columns:
                     row.setdefault(col, meta_rows[col].iloc[i])
             table.append(row)
-    frame = new_table(table)
-    if "prestim" in covariates:
-        phase, circ_sd, power = _prestim(trials, times, prestim_band, prestim_window)
-        frame["prestim_phase"] = np.repeat(phase, len(picks))
-        frame["prestim_phase_sd"] = np.repeat(circ_sd, len(picks))
-        frame["prestim_power"] = np.repeat(power, len(picks))
-    return frame, (
-        TrialFit(
-            channel=name,
-            template=fit,
-            shift=shift,
-            scale=scale,
-            params=params,
-            latency=latency,
-            amplitude=amplitude,
-            fwhm=fwhm,
-            gof=r2,
-            converged=converged,
-            jitter_sd=jit,
-            jitter_sd_null=jit_null,
-            amplitude_jitter_corrected=corrected,
-            trusted=trusted,
-            table=frame,
-            realigned=realigned,
-            settings={
-                "mode": mode,
-                "condition": label,
-                "picks": picks,
-                "ridge": ridge,
-                "max_shift": channel_template.max_shift.tolist(),
-                "r2_min": r2_min,
-                "package_version": __version__,
-            },
-        )
-    )
+    return new_table(table)
 
 
 def _realigned(times: Any, trials: Any, shifts: Any, trusted: Any, name: Any, ts: Any) -> "Evoked":
+    """Return the average of the trusted trials, each shifted back by its own shift."""
     data: Any
     data = []
     for x, d in zip(trials[trusted], shifts[trusted], strict=False):
@@ -1051,7 +1181,7 @@ def jitter(trial_fit: Any, component: int = 0) -> Any:
         values = fit.shift[fit.trusted, j]
         boots = (
             [np.std(rng.choice(values, len(values)), ddof=1) for _ in range(500)]
-            if len(values) >= 3
+            if len(values) >= _MIN_SD_VALUES
             else [np.nan]
         )
         raw, null = fit.jitter_sd[k], fit.jitter_sd_null[k]
@@ -1118,7 +1248,7 @@ def _trend(table: Any) -> Any:
     order_col = "index_in_train" if "index_in_train" in table.columns else "trial"
     rows = []
     for (ch, cond, k), g in table[table["trusted"]].groupby(["channel", "condition", "component"]):
-        if len(g) < 3:
+        if len(g) < _MIN_TREND_TRIALS:
             continue
         x = g[order_col].to_numpy(float)
         y = g["scale"].to_numpy(float)
@@ -1201,8 +1331,8 @@ def state_dependence(trial_fit: Any, *, column: str = "state", reference: Any = 
             else np.nan
         )
         p_amp = p_lat = np.nan
-        usable = [v for v in groups.values() if len(v) >= 2]
-        if len(usable) >= 2:
+        usable = [v for v in groups.values() if len(v) >= _MIN_STATE_TRIALS]
+        if len(usable) >= _MIN_STATES:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 try:
@@ -1235,6 +1365,7 @@ def state_dependence(trial_fit: Any, *, column: str = "state", reference: Any = 
 
 
 def _hill(i: Any, a_max: Any, i50: Any, h: Any) -> Any:
+    """Return the Hill function ``a_max i^h / (i50^h + i^h)`` at the doses ``i``."""
     return a_max * i**h / (i50**h + i**h)
 
 
@@ -1256,9 +1387,11 @@ def dose_response(trial_fit: Any, *, x: str = "stim_current_mA", model: Any = "a
         dose = g[x].to_numpy(float)
         amp = np.abs(g["amplitude"].to_numpy(float))
         levels = np.unique(dose[np.isfinite(dose)])
-        if len(levels) < 2:
+        if len(levels) < _MIN_DOSES:
             raise SettingsError("dose_response needs at least two doses.")
-        kind = model if model != "auto" else ("hill" if len(levels) >= 4 else "linear")
+        kind = (
+            model if model != "auto" else ("hill" if len(levels) >= _HILL_MIN_DOSES else "linear")
+        )
         row = {"channel": ch, "component": k, "model": kind, "n_doses": len(levels)}
         if kind == "hill":
             try:
@@ -1282,6 +1415,13 @@ def dose_response(trial_fit: Any, *, x: str = "stim_current_mA", model: Any = "a
             row.update(slope=slope, intercept=intercept)
         rows.append(row)
     return pd.DataFrame(rows)
+
+
+def _harmonic(phase: Any, amp: Any) -> Any:
+    """Return ``(c0, c1 cos phi0, c1 sin phi0)``: least squares of ``amp`` on the phase."""
+    design = np.column_stack([np.ones_like(phase), np.cos(phase), np.sin(phase)])
+    coef, *_ = np.linalg.lstsq(design, amp, rcond=None)
+    return coef
 
 
 def prestimulus_dependence(
@@ -1323,16 +1463,10 @@ def prestimulus_dependence(
     for (ch, k), g in table[table["trusted"]].groupby(["channel", "component"]):
         phi = g["prestim_phase"].to_numpy(float)
         amp = g["scale"].to_numpy(float)
-
-        def harmonic(p: Any) -> Any:
-            design = np.column_stack([np.ones_like(p), np.cos(p), np.sin(p)])
-            coef, *_ = np.linalg.lstsq(design, amp, rcond=None)  # noqa: B023  (called within this iteration only)
-            return coef
-
-        c0, cc, cs = harmonic(phi)
+        c0, cc, cs = _harmonic(phi, amp)
         c1 = np.hypot(cc, cs)
         null = np.array(
-            [np.hypot(*harmonic(rng.permutation(phi))[1:]) for _ in range(n_permutations)]
+            [np.hypot(*_harmonic(rng.permutation(phi), amp)[1:]) for _ in range(n_permutations)]
         )
         rows.append(
             {

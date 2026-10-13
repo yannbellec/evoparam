@@ -24,6 +24,10 @@ import pytest
 import evoparam
 from evoparam import presets
 
+# Lines of the ten-line example, and the fewest glossary terms.
+MAX_EXAMPLE_LINES = 10
+MIN_TERMS = 150
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
 TUTORIALS = os.path.join(ROOT, "docs", "tutorials")
 INTEGRATIONS = ("mne", "bids", "nwb", "neo", "sklearn", "cli", "streaming")
@@ -210,7 +214,7 @@ def test_req303_getting_started() -> None:
         assert item in text, item
     example = text.split("A ten-line example", 1)[1].split(".. code-block:: python", 1)[1]
     example = example.split("\n\n", 2)[1]
-    assert len([line for line in example.splitlines() if line.strip()]) <= 10
+    assert len([line for line in example.splitlines() if line.strip()]) <= MAX_EXAMPLE_LINES
 
 
 def test_req303_reporting_page() -> None:
@@ -278,7 +282,7 @@ def test_req303_glossary_holds_every_term_of_section_4() -> None:
     text = _page("glossary.rst")
     terms = set(re.findall(r"^   (\S.*)$", text, flags=re.MULTILINE))
     expected = tool.terms()
-    assert len(expected) > 150
+    assert len(expected) > MIN_TERMS
     assert [t for t in expected if t not in terms] == []
     for name in (
         "TrialSet",

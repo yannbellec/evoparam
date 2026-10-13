@@ -18,6 +18,7 @@ DEFAULT_MAX_GAP = 2.0
 
 
 def _times(events: Any) -> NDArray[Any]:
+    """Return the ``onset_time`` column, or raise EventError."""
     if "onset_time" not in events.columns:
         raise EventError("The event table needs an 'onset_time' column.")
     return np.asarray(events["onset_time"], dtype=float)

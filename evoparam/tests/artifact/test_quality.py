@@ -10,6 +10,12 @@ from evoparam.artifact import apply_mask, artifact_quality, remove_artifact
 
 from .helpers import artifact_shape, make_overlay
 
+# Start (s) of the residual tail, the clipped span (s), and the AUC of the quality score.
+TAIL_START = 0.008
+CLIP_START = -0.002
+CLIP_END = 0.02
+MIN_AUC = 0.9
+
 ###################################################################################################
 ###################################################################################################
 
@@ -35,12 +41,12 @@ def test_req066_quality_separates_corrupted_trials() -> None:
 
     corrupted = np.r_[0:4, 50:52, 4:6, 52:53, 6:8]
     # Residual artifact: a long extra tail that no template contains
-    after = times > 0.008
+    after = times > TAIL_START
     data[0:4, :, after] += 200 * np.exp(-(times[after] - 0.008) / 0.01)
     data[50:52, :, after] += 200 * np.exp(-(times[after] - 0.008) / 0.01)
     # Saturation: clipped samples, masked
     sat = np.zeros(data.shape, dtype=bool)
-    clip = (times >= -0.002) & (times <= 0.02)
+    clip = (times >= CLIP_START) & (times <= CLIP_END)
     sat[4:6, :, clip] = True
     sat[52, :, clip] = True
     data[sat] = 9000.0
@@ -50,7 +56,7 @@ def test_req066_quality_separates_corrupted_trials() -> None:
     ts = apply_mask(replace(noisy, data=data, metadata=meta), sat)
     result = remove_artifact(ts, method="template", window=(-0.002, 0.008))
     good = np.setdiff1d(np.arange(100), corrupted)
-    assert auc(result.quality[good], result.quality[corrupted]) >= 0.9
+    assert auc(result.quality[good], result.quality[corrupted]) >= MIN_AUC
     assert np.allclose(result.cleaned.metadata["quality"], result.quality)
     assert list(result.quality_components.columns) == [
         "residual_ratio",

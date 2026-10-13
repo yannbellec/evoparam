@@ -19,6 +19,18 @@ from evoparam.prep import baseline_correct, reference_sensitivity, threshold_det
 
 pd = pytest.importorskip("pandas")
 
+# Artifact window (s) zeroed and masked.
+ARTIFACT_START = -0.002
+ARTIFACT_END = 0.010
+# Time limit (s) of REQ-084, its schemes, and the fewest channels compared.
+MAX_SECONDS = 120
+N_SCHEMES = 3
+MIN_CHANNELS = 20
+# Latency ranges (s) of the existence and threshold detectors.
+LATENCY_MIN = 0.009
+EXISTENCE_MAX = 0.5
+THRESHOLD_MAX = 0.1
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -43,7 +55,7 @@ def _epochs() -> Any:
     names = [names[i] for i in keep]
     times, epochs, kept = epoch_data(data[keep], sfreq, onsets, -0.5, 1.0, t0=t0)
     meta = pd.DataFrame({"stim_site": np.asarray(sites)[kept]})
-    inside = (times >= -0.002) & (times <= 0.010)
+    inside = (times >= ARTIFACT_START) & (times <= ARTIFACT_END)
     masks = np.broadcast_to(inside, epochs.shape).copy()
     epochs[..., inside] = 0.0
     ts = TrialSet(
@@ -58,15 +70,15 @@ def test_req084_three_schemes_under_two_minutes() -> None:
     ts = _epochs()
     table = reference_sensitivity(ts, reference_kwargs={"random_state": 0, "n_boot": 50})
     assert table.attrs["detector"] == "existence_detector"
-    assert table.attrs["duration_s"] < 120
-    assert len(table) == 3
+    assert table.attrs["duration_s"] < MAX_SECONDS
+    assert len(table) == N_SCHEMES
     assert set(zip(table["scheme_a"], table["scheme_b"], strict=False)) == {
         ("bipolar", "car"),
         ("bipolar", "car_adaptive"),
         ("car", "car_adaptive"),
     }
     assert table["kappa"].between(-1, 1).all()
-    assert (table["n_channels"] > 20).all()
+    assert (table["n_channels"] > MIN_CHANNELS).all()
     channels = table.attrs["channels"]
     assert {"bipolar", "car", "car_adaptive"} <= set(channels.columns.get_level_values(0))
 
@@ -77,7 +89,7 @@ def test_existence_detector_finds_responses() -> None:
     assert groups == ["PT01-PT02"]
     assert detected.any()
     assert not detected.all()
-    assert np.all((latency[detected] >= 0.009) & (latency[detected] <= 0.5))
+    assert np.all((latency[detected] >= LATENCY_MIN) & (latency[detected] <= EXISTENCE_MAX))
     assert np.all(np.isnan(latency[~detected]))
 
 
@@ -85,4 +97,4 @@ def test_threshold_detector_finds_responses() -> None:
 
     detected, latency = threshold_detector(_epochs())
     assert detected.any()
-    assert np.all((latency[detected] >= 0.009) & (latency[detected] <= 0.1))
+    assert np.all((latency[detected] >= LATENCY_MIN) & (latency[detected] <= THRESHOLD_MAX))

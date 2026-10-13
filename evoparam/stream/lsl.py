@@ -43,6 +43,7 @@ FIELDS = (
 
 
 def _pylsl(caller: Any) -> Any:
+    """Import ``pylsl``, or raise ImportError naming the ``stream`` extra."""
     return require("pylsl", extra="stream", min_version=PYLSL_FLOOR, caller=caller)
 
 
@@ -82,6 +83,7 @@ class LSLInlet:
     """
 
     def __init__(self, name: Any = None, stype: str = "EEG", *, max_buflen: int = 360) -> None:
+        """Resolve the stream and open the inlet (see the class docstring)."""
         timeout = RESOLVE_TIMEOUT
         pylsl = _pylsl("evoparam.stream.LSLInlet")
         prop, value = ("name", name) if name is not None else ("type", stype)
@@ -170,6 +172,7 @@ class LSLOutlet:
     def __init__(
         self, fitter: Any, name: str = "evoparam-pulses", source_id: str = "evoparam-stream"
     ) -> None:
+        """Create the stream info, its metadata and the outlet (see the class docstring)."""
         pylsl = _pylsl("evoparam.stream.LSLOutlet")
         self.channels: list[Any] = list(fitter.model.ch_names)
         self.components: list[list[Any]] = [list(labels) for labels in fitter.model.labels]

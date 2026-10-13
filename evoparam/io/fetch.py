@@ -132,6 +132,7 @@ ERPCORE_SUFFIXES = ("_epoch_interp_ar.set", "_epoch_interp_ar.fdt")
 
 
 def _osf_pages(url: Any) -> Iterator[Any]:
+    """Yield the items of every page of an OSF API listing."""
     import json
 
     from evoparam.io._fetch import fetch_bytes
@@ -190,6 +191,7 @@ def fetch_erpcore(component: str, participant: int = 1, folder: str | None = Non
     }
 
     def local(suffix: Any) -> Any:
+        """Return the downloaded file whose name ends with ``suffix`` (None when absent)."""
         found = glob.glob(os.path.join(target, f"*{suffix}"))
         return found[0] if found else None
 

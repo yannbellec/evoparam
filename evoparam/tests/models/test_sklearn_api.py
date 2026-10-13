@@ -12,6 +12,10 @@ from evoparam.models import ResponseModel
 from evoparam.trials import TrialFitter
 from evoparam.utils._estimator import NotFittedError
 
+# Latency tolerance (s) of the extracted feature, and the max_components set.
+LATENCY_TOLERANCE = 0.01
+MAX_COMPONENTS = 3
+
 SFREQ = 1000.0
 
 
@@ -68,7 +72,9 @@ def test_same_random_state_same_fit() -> None:
     features = a.transform(data)
     assert features.shape == (20, 2 * a.n_components_ * 3)
     assert len(a.get_feature_names_out()) == features.shape[1]
-    assert np.nanmax(np.abs(features[:, 2] - 0.08)) < 0.01  # channel 0 latency ~ 80 ms
+    assert (
+        np.nanmax(np.abs(features[:, 2] - 0.08)) < LATENCY_TOLERANCE
+    )  # channel 0 latency ~ 80 ms
 
 
 def test_pipeline_and_nested_parameters() -> None:
@@ -82,7 +88,7 @@ def test_pipeline_and_nested_parameters() -> None:
         TrialFitter(sfreq=SFREQ, tmin=-0.1, fit_window=(0.01, 0.39)),
     )
     pipe.set_params(trialfitter__max_components=3)  # the call of REQ-320
-    assert pipe.get_params()["trialfitter__max_components"] == 3
+    assert pipe.get_params()["trialfitter__max_components"] == MAX_COMPONENTS
     pipe.set_params(trialfitter__max_components=2)
     copy = clone(pipe)
     assert not copy.steps[1][1].__sklearn_is_fitted__()

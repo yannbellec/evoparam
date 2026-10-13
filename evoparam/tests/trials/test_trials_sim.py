@@ -15,6 +15,29 @@ from .helpers import SFREQ, TIMES, channel_fit, gauss, simulate
 
 pd = pytest.importorskip("pandas")
 
+# REQ-150: mean relative amplitude error, and relative error of the excess jitter.
+MAX_AMPLITUDE_ERROR = 0.15
+MAX_JITTER_ERROR = 0.2
+# REQ-151: jitter_sd_null against jitter_sd (bound of the ratio, and the fraction of runs
+# that must meet it), and the fraction of runs whose realignment is refused.
+MIN_NULL_RATIO = 0.8
+MIN_RUN_FRACTION = 0.9
+MIN_REFUSED = 0.95
+# Runs of REQ-151 (no jitter) and of REQ-153 (regularized against free shifts).
+N_RUNS = 20
+N_RUNS_153 = 10
+# REQ-152: relative error of the jitter-corrected amplitude.
+MAX_CORRECTED_ERROR = 0.10
+# REQ-154: relative errors of the Hill i50 and slope h.
+MAX_I50_ERROR = 0.15
+MAX_H_ERROR = 0.30
+# REQ-155: runs per block (the channels of one TrialSet), the test level, the largest
+# type-I error accepted, and the power required.
+N_BLOCK_RUNS = 100
+ALPHA = 0.05
+MAX_TYPE_ONE = 0.06
+MIN_POWER = 0.8
+
 ###################################################################################################
 ###################################################################################################
 
@@ -40,8 +63,8 @@ def test_req150_latency_amplitude_and_jitter(sd: Any) -> None:
         amp.append(np.mean(np.abs(fit.amplitude[:, 0] / (-30 * scales) - 1)))
         ratios.append(jitter(tf).iloc[0]["jitter_sd_excess"] / np.std(shifts, ddof=1))
     assert np.median(lat) <= 1.0
-    assert np.median(amp) <= 0.15
-    assert abs(np.median(ratios) - 1) <= 0.2
+    assert np.median(amp) <= MAX_AMPLITUDE_ERROR
+    assert abs(np.median(ratios) - 1) <= MAX_JITTER_ERROR
 
 
 # REQ-150 as written: per-trial SNR 2 (the lowest SNR the REQ covers), jitter_sd 1, 2 and 5 ms,
@@ -69,8 +92,8 @@ def test_req150_as_written(sd: Any) -> None:
         amp = np.mean(np.abs(fit.amplitude[:, 0] / (-20 * scales) - 1))
         ratio = fit.jitter_sd[fit.settings["picks"][0]] / np.std(shifts, ddof=1)
         assert lat <= 1.0
-        assert amp <= 0.15
-        assert abs(ratio - 1) <= 0.2
+        assert amp <= MAX_AMPLITUDE_ERROR
+        assert abs(ratio - 1) <= MAX_JITTER_ERROR
 
 
 def _cramer_rao(fwhm: Any, snr: Any = 2.0, n_win: Any = 491) -> Any:
@@ -107,7 +130,7 @@ def test_req150_cramer_rao_bound() -> None:
 def test_req151_no_invented_jitter_and_realign_refused() -> None:
 
     ratios, refused = [], 0
-    for seed in range(20):
+    for seed in range(N_RUNS):
         ts, _, _ = simulate(jitter=0.0, cv=0.0, seed=100 + seed)
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -117,9 +140,9 @@ def test_req151_no_invented_jitter_and_realign_refused() -> None:
         refused += fit.realigned is None and any("refused" in str(w.message) for w in caught)
     # jitter_sd_null >= 0.8 jitter_sd: the SD of 40 shifts varies by about 11 % from run to
     # run, so the bound holds in 90 % of runs or more, and in the median
-    assert np.median(ratios) >= 0.8
-    assert np.mean(np.array(ratios) >= 0.8 - 1e-9) >= 0.9
-    assert refused / 20 >= 0.95
+    assert np.median(ratios) >= MIN_NULL_RATIO
+    assert np.mean(np.array(ratios) >= MIN_NULL_RATIO - 1e-9) >= MIN_RUN_FRACTION
+    assert refused / N_RUNS >= MIN_REFUSED
 
 
 def _req151_runs(seeds: Any, n_trials: Any, null_rule: Any) -> Any:
@@ -145,8 +168,8 @@ def _req151_runs(seeds: Any, n_trials: Any, null_rule: Any) -> Any:
 def test_req151_as_written_40_trials() -> None:
 
     ratios, refused = _req151_runs(range(100, 120), 40, "segments")
-    assert np.all(ratios >= 0.8)
-    assert refused >= 0.95
+    assert np.all(ratios >= MIN_NULL_RATIO)
+    assert refused >= MIN_REFUSED
 
 
 @pytest.mark.parametrize("null_rule", ["segments", "spec"])
@@ -157,8 +180,8 @@ def test_req151_as_written(null_rule: Any) -> None:
     the 1.2 x rule)."""
 
     ratios, refused = _req151_runs(range(2000, 2020), 200, null_rule)
-    assert np.all(ratios >= 0.8)
-    assert refused >= 0.95
+    assert np.all(ratios >= MIN_NULL_RATIO)
+    assert refused >= MIN_REFUSED
 
 
 def test_req152_jitter_corrected_amplitude() -> None:
@@ -166,7 +189,7 @@ def test_req152_jitter_corrected_amplitude() -> None:
     ts, shifts, _ = simulate(n=100, jitter=0.006, cv=0.0, noise=3.0, fwhm=0.03, seed=7)
     tf = _run(ts, max_shift=0.02, r2_min=0.0)
     corrected = jitter(tf).iloc[0]["amplitude_jitter_corrected"]
-    assert abs(corrected / -30 - 1) <= 0.10
+    assert abs(corrected / -30 - 1) <= MAX_CORRECTED_ERROR
 
 
 @pytest.mark.parametrize(
@@ -177,7 +200,7 @@ def test_req153_regularized_beats_free_at_low_snr(ridge_cv: Any, trial_model: An
     samples, and with the spec's trial model (selected components only)."""
 
     better = 0
-    for seed in range(10):
+    for seed in range(N_RUNS_153):
         ts, shifts, _ = simulate(jitter=0.003, amp=-30.0, noise=30.0, seed=200 + seed)
         group = channel_fit(
             TrialSet(data=ts.data - 0, times=ts.times, sfreq=ts.sfreq, ch_names=ts.ch_names)
@@ -193,7 +216,7 @@ def test_req153_regularized_beats_free_at_low_snr(ridge_cv: Any, trial_model: An
                 ).fits[0]
             errs[mode] = np.mean(np.abs(fit.shift[:, 0] - (shifts - shifts.mean())))
         better += errs["regularized"] <= errs["free"]
-    assert better / 10 >= 0.9
+    assert better / N_RUNS_153 >= MIN_RUN_FRACTION
 
 
 def test_req154_dose_response_hill() -> None:
@@ -210,8 +233,8 @@ def test_req154_dose_response_hill() -> None:
     tf = _run(ts, r2_min=0.0, covariates=("dose",))
     table = dose_response(tf, model="hill")
     row = table.iloc[0]
-    assert abs(row["i50"] / i50 - 1) <= 0.15
-    assert abs(row["h"] / h - 1) <= 0.30
+    assert abs(row["i50"] / i50 - 1) <= MAX_I50_ERROR
+    assert abs(row["h"] / h - 1) <= MAX_H_ERROR
     assert np.isclose(row["i_thr"], row["i50"] * (0.1 / 0.9) ** (1 / row["h"]))
     with pytest.raises(SettingsError):
         dose_response(tf.table.assign(stim_current_mA=1.0))
@@ -255,15 +278,15 @@ def test_req155_type_one_error() -> None:
     pilot = channel_fit(_phase_trials(0.0, 99_999)).fits[0]
     hits = []
     for block in range(10):
-        ts = _phase_block(10_000 + block, 100)
+        ts = _phase_block(10_000 + block, N_BLOCK_RUNS)
         group = GroupFit.from_fits([pilot] * len(ts.ch_names), ts.ch_names)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             tf = fit_trials(ts, group, r2_min=0.0, covariates=("prestim",))
         table = prestimulus_dependence(tf, n_permutations=200, random_state=block)
-        assert len(table) == 100
-        hits += list(table["p_value"] <= 0.05)
-    assert np.mean(hits) <= 0.06
+        assert len(table) == N_BLOCK_RUNS
+        hits += list(table["p_value"] <= ALPHA)
+    assert np.mean(hits) <= MAX_TYPE_ONE
 
 
 def test_req155_power() -> None:
@@ -275,6 +298,6 @@ def test_req155_power() -> None:
         tf = _run(_phase_trials(0.3, 1000 + seed), r2_min=0.0, covariates=("prestim",))
         hits.append(
             prestimulus_dependence(tf, n_permutations=200, random_state=0).iloc[0]["p_value"]
-            <= 0.05
+            <= ALPHA
         )
-    assert np.mean(hits) >= 0.8
+    assert np.mean(hits) >= MIN_POWER

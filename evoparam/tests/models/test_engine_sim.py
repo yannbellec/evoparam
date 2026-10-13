@@ -31,6 +31,36 @@ from .helpers import (
     same_decisions,
 )
 
+# Recall and precision required (REQ-105, REQ-112), and the fraction of agreeing runs.
+MIN_RATE = 0.95
+# Mean latency error (samples at 1 kHz) and median amplitude-ratio error (REQ-106).
+MAX_LATENCY_ERROR = 0.5
+MAX_AMPLITUDE_ERROR = 0.05
+# Fraction of pure-noise windows accepted without whitening.
+MIN_ACCEPTED = 0.3
+# Largest latency error (s) of a recalled edge component (REQ-110).
+EDGE_TOLERANCE = 0.015
+# Runs of REQ-110 and REQ-111/121/122.
+N_EDGE_RUNS = 20
+N_RUNS = 10
+# Two resolved components (REQ-111) and the fraction of runs that must resolve them.
+N_RESOLVED = 2
+MIN_RESOLVED = 0.9
+# Simulated latency (s) and amplitude of the coverage runs (REQ-116), and the coverage.
+TRUE_LATENCY = 0.2
+TRUE_AMPLITUDE = -8
+MIN_COVERAGE = 0.85
+MIN_COVERAGE_BOOTSTRAP = 0.92
+MAX_COVERAGE_BOOTSTRAP = 0.97
+# Components of the REQ-122 waveform, and the fraction of fits that find them.
+N_REQ122_COMPONENTS = 3
+MIN_GOOD = 0.85
+# Fraction of conditions with the same result.
+MIN_SAME = 0.99
+# False-component rates (REQ-107): largest with n_eff or AR whitening, smallest with n.
+MAX_FALSE = 0.05
+MIN_FALSE_WHITE = 0.30
+
 SLOW = os.environ.get("EVOPARAM_SLOW_TESTS") == "1"
 PER_CONDITION = 1000 if SLOW else 100
 slow = pytest.mark.skipif(not SLOW, reason="set EVOPARAM_SLOW_TESTS=1 (spec §7.2 counts)")
@@ -52,8 +82,8 @@ def test_req105_recall_and_precision() -> None:
     for y, truth in _waveforms(60):
         a, b, c, _, _ = match(model().fit_waveform(TIMES, y), truth)
         tp, fn, fp = tp + a, fn + b, fp + c
-    assert tp / (tp + fn) >= 0.95
-    assert tp / (tp + fp) >= 0.95
+    assert tp / (tp + fn) >= MIN_RATE
+    assert tp / (tp + fp) >= MIN_RATE
 
 
 def test_req106_accuracy_at_high_snr() -> None:
@@ -63,8 +93,8 @@ def test_req106_accuracy_at_high_snr() -> None:
         _, _, _, lat_err, a = match(model(shapes=("gaussian",)).fit_waveform(TIMES, y), truth)
         lat += lat_err
         amp += a
-    assert np.mean(np.abs(lat)) * 1000 <= 0.5  # samples at 1 kHz
-    assert abs(np.median(amp) - 1) <= 0.05
+    assert np.mean(np.abs(lat)) * 1000 <= MAX_LATENCY_ERROR  # samples at 1 kHz
+    assert abs(np.median(amp) - 1) <= MAX_AMPLITUDE_ERROR
 
 
 def test_req104_detection_threshold_changes_no_decision() -> None:
@@ -78,7 +108,7 @@ def test_req104_detection_threshold_changes_no_decision() -> None:
         ]
         same += len(set(counts)) == 1
         total += 1
-    assert same / total >= 0.95
+    assert same / total >= MIN_RATE
 
 
 @pytest.mark.parametrize("rho", [0.0, 0.5, 0.9])
@@ -91,7 +121,7 @@ def test_req107_req112_no_component_in_pure_noise(rho: Any) -> None:
             for i in range(40)
         ]
     )
-    assert rate >= 0.95
+    assert rate >= MIN_RATE
 
 
 def test_req107_whitening_is_what_controls_false_components() -> None:
@@ -101,7 +131,7 @@ def test_req107_whitening_is_what_controls_false_components() -> None:
         == "ok"
         for i in range(20)
     ]
-    assert np.mean(accepted) >= 0.3
+    assert np.mean(accepted) >= MIN_ACCEPTED
 
 
 def test_req110_edge_components() -> None:
@@ -112,8 +142,10 @@ def test_req110_edge_components() -> None:
         latency = 0.02 + rng.uniform(0, 0.03)  # within one FWHM of the start
         y = gauss(latency, -8, 0.03) + noise(rng)
         fit = model().fit_waveform(TIMES, y)
-        hits += any(abs(c.latency - latency) <= 0.015 and c.amplitude < 0 for c in fit.components)
-    assert hits / 20 >= 0.95
+        hits += any(
+            abs(c.latency - latency) <= EDGE_TOLERANCE and c.amplitude < 0 for c in fit.components
+        )
+    assert hits / N_EDGE_RUNS >= MIN_RATE
 
 
 def test_req111_resolution_and_req121_conditioning() -> None:
@@ -122,8 +154,8 @@ def test_req111_resolution_and_req121_conditioning() -> None:
     for seed in range(10):
         rng = np.random.default_rng(400 + seed)
         y = gauss(0.2, -10, 0.04) + gauss(0.24, -10, 0.04) + noise(rng)
-        two += len(model(shapes=("gaussian",)).fit_waveform(TIMES, y).components) == 2
-    assert two / 10 >= 0.9
+        two += len(model(shapes=("gaussian",)).fit_waveform(TIMES, y).components) == N_RESOLVED
+    assert two / N_RUNS >= MIN_RESOLVED
     flagged = 0
     for seed in range(10):
         rng = np.random.default_rng(500 + seed)
@@ -139,7 +171,7 @@ def test_req111_resolution_and_req121_conditioning() -> None:
         ).fit_waveform(TIMES, y)
         flagged += "ill_conditioned" in fit.warnings
         assert fit.diagnostics["flagged_pairs"]
-    assert flagged == 10
+    assert flagged == N_RUNS
 
 
 def test_req116_coverage_of_jacobian_intervals() -> None:
@@ -153,10 +185,10 @@ def test_req116_coverage_of_jacobian_intervals() -> None:
             continue
         comp = fit.components[0]
         n += 1
-        inside_lat += comp.ci["latency"][0] <= 0.2 <= comp.ci["latency"][1]
-        inside_amp += comp.ci["amplitude"][0] <= -8 <= comp.ci["amplitude"][1]
-    assert 0.85 <= inside_lat / n <= 1.0
-    assert 0.85 <= inside_amp / n <= 1.0
+        inside_lat += comp.ci["latency"][0] <= TRUE_LATENCY <= comp.ci["latency"][1]
+        inside_amp += comp.ci["amplitude"][0] <= TRUE_AMPLITUDE <= comp.ci["amplitude"][1]
+    assert MIN_COVERAGE <= inside_lat / n <= 1.0
+    assert MIN_COVERAGE <= inside_amp / n <= 1.0
 
 
 def test_req122_fixed_and_cross_validated_selection() -> None:
@@ -164,15 +196,15 @@ def test_req122_fixed_and_cross_validated_selection() -> None:
     rng = np.random.default_rng(7)
     y = gauss(0.2, -8, 0.04) + noise(rng)
     fit = model(selection="fixed", n_components=3).fit_waveform(TIMES, y)
-    assert len(fit.components) == 3
+    assert len(fit.components) == N_REQ122_COMPONENTS
     good = 0
     for seed in range(10):
         rng = np.random.default_rng(700 + seed)
         sig = gauss(0.1, -6, 0.028) + gauss(0.3, 5, 0.07)
         trials = sig + rng.normal(0, 5, (40, len(TIMES)))
         m = model(shapes=("gaussian",), selection="cv", max_components=4, random_state=0)
-        good += len(m.fit_waveform(TIMES, trials.mean(0), trials=trials).components) == 2
-    assert good / 10 >= 0.85
+        good += len(m.fit_waveform(TIMES, trials.mean(0), trials=trials).components) == N_RESOLVED
+    assert good / N_RUNS >= MIN_GOOD
 
 
 ###################################################################################################
@@ -225,7 +257,7 @@ def test_req104_detection_threshold_as_written() -> None:
             differences.append(
                 (i, [[(round(c.latency, 3), c.polarity) for c in f.components] for f in fits])
             )
-    assert same / PER_CONDITION >= 0.99, differences
+    assert same / PER_CONDITION >= MIN_SAME, differences
 
 
 def req105_counts(n: Any = PER_CONDITION, **settings: Any) -> Any:
@@ -253,8 +285,8 @@ def test_req105_recall_and_precision_as_written() -> None:
 
     counts = req105_counts()
     tp, fn, fp = (sum(v[j] for v in counts.values()) for j in range(3))
-    assert tp / (tp + fn) >= 0.95, counts
-    assert tp / (tp + fp) >= 0.95, counts
+    assert tp / (tp + fn) >= MIN_RATE, counts
+    assert tp / (tp + fp) >= MIN_RATE, counts
 
 
 def req106_errors(truth_shape: Any, fitted: Any, n: Any = PER_CONDITION, **settings: Any) -> Any:
@@ -315,8 +347,8 @@ def test_req106_accuracy_as_written(truth_shape: Any, fitted: Any) -> None:
     default pair."""
 
     lat, amp, missed = req106_errors(truth_shape, fitted)
-    assert np.mean(lat) <= 0.5, (np.mean(lat), missed)
-    assert abs(np.median(amp) - 1) <= 0.05, (np.median(amp), missed)
+    assert np.mean(lat) <= MAX_LATENCY_ERROR, (np.mean(lat), missed)
+    assert abs(np.median(amp) - 1) <= MAX_AMPLITUDE_ERROR, (np.median(amp), missed)
 
 
 def req110_fits(n: Any = PER_CONDITION, **settings: Any) -> Any:
@@ -345,9 +377,9 @@ def test_req110_latency_outside_window_iff_before_t0() -> None:
             before += comp.latency < WINDOW[0]
         if latency >= WINDOW[0]:
             inside += 1
-            hits += any(abs(c.latency - latency) <= 0.015 for c in fit.components)
+            hits += any(abs(c.latency - latency) <= EDGE_TOLERANCE for c in fit.components)
     assert before > 0  # both cases occurred
-    assert hits / inside >= 0.95
+    assert hits / inside >= MIN_RATE
 
 
 def req111_runs(separation: Any, n: Any = PER_CONDITION, **settings: Any) -> Any:
@@ -363,7 +395,7 @@ def test_req111_one_fwhm_as_written() -> None:
     """Two equal Gaussians 1.0 FWHM apart at SNR 10: two components in >= 90 % of runs."""
 
     fits = req111_runs(1.0)
-    assert np.mean([len(f.components) == 2 for f in fits]) >= 0.9
+    assert np.mean([len(f.components) == N_RESOLVED for f in fits]) >= MIN_RESOLVED
 
 
 @pytest.mark.xfail(
@@ -385,8 +417,8 @@ def test_req111_half_fwhm_as_written() -> None:
     merged = [
         len(f.components) == 1 and any(w.startswith("merged:") for w in f.warnings) for f in fits
     ]
-    assert all("ill_conditioned" in f.warnings for f in fits if len(f.components) == 2)
-    assert np.mean(merged) >= 0.9, (
+    assert all("ill_conditioned" in f.warnings for f in fits if len(f.components) == N_RESOLVED)
+    assert np.mean(merged) >= MIN_RESOLVED, (
         np.mean(merged),
         np.bincount([len(f.components) for f in fits]),
     )
@@ -410,8 +442,8 @@ def req116_coverage(method: Any, rho: Any, n: Any, **settings: Any) -> Any:
         comp = fit.components[0]
         lat_ci = comp.ci["mu"] if method == "profile" else comp.ci["latency"]
         runs += 1
-        inside_lat += lat_ci[0] <= 0.2 <= lat_ci[1]
-        inside_amp += comp.ci["amplitude"][0] <= -8 <= comp.ci["amplitude"][1]
+        inside_lat += lat_ci[0] <= TRUE_LATENCY <= lat_ci[1]
+        inside_amp += comp.ci["amplitude"][0] <= TRUE_AMPLITUDE <= comp.ci["amplitude"][1]
     return inside_lat / runs, inside_amp / runs, runs
 
 
@@ -449,8 +481,8 @@ def test_req116_bootstrap_profile_coverage_as_written(method: Any, rho: Any) -> 
     """Bootstrap and profile intervals: 92-97 % under both noises (200 runs, spec §7.2)."""
 
     lat, amp, runs = req116_coverage(method, rho, 200)
-    assert 0.92 <= lat <= 0.97, (lat, amp, runs)
-    assert 0.92 <= amp <= 0.97, (lat, amp, runs)
+    assert MIN_COVERAGE_BOOTSTRAP <= lat <= MAX_COVERAGE_BOOTSTRAP, (lat, amp, runs)
+    assert MIN_COVERAGE_BOOTSTRAP <= amp <= MAX_COVERAGE_BOOTSTRAP, (lat, amp, runs)
 
 
 def test_req107_neff_as_written() -> None:
@@ -469,6 +501,6 @@ def test_req107_neff_as_written() -> None:
                 for i in range(PER_CONDITION)
             ]
         )
-    assert rates["neff"] <= 0.05, rates
-    assert rates["ar"] <= 0.05, rates
-    assert rates["white"] >= 0.30, rates
+    assert rates["neff"] <= MAX_FALSE, rates
+    assert rates["ar"] <= MAX_FALSE, rates
+    assert rates["white"] >= MIN_FALSE_WHITE, rates

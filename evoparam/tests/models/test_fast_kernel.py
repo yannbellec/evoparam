@@ -22,6 +22,12 @@ from evoparam.shapes import get_background, get_shape
 
 from .helpers import TIMES, gauss, noise
 
+# Fit window (s) of the kernel tests.
+WINDOW_START = 0.02
+WINDOW_END = 0.6
+# Solver tolerance under which the iterations converge tightly.
+TIGHT_TOLERANCE = 1e-6
+
 SFREQ = 2048.0
 REQ115_TIMES = (np.arange(2048) - 1022) / SFREQ
 SETTINGS = SimpleNamespace(loss="linear", max_iter=2000)
@@ -38,7 +44,7 @@ def _structure(
     shapes: Any, background: Any, whitening: Any, prior: Any, ordered: Any = True
 ) -> Any:
     rng = np.random.default_rng(3)
-    tw = TIMES[(TIMES >= 0.02) & (TIMES <= 0.6)]
+    tw = TIMES[(TIMES >= WINDOW_START) & (TIMES <= WINDOW_END)]
     y = gauss(0.1, -5, 0.03, tw) + gauss(0.3, 3, 0.06, tw) + 0.4 + noise(rng, 0.8, n=len(tw))
     valid = np.ones(len(tw), bool)
     scale = np.full(len(tw), 0.7)
@@ -131,11 +137,11 @@ def test_compiled_optimum_is_the_numpy_one(
         assert compiled[3]
         # the same optimum: within the solver tolerance where the iterations converge
         # tightly, and on the same path at the loose tolerance
-        rtol = 1e-6 if tol < 1e-6 else 1e-3
+        rtol = 1e-6 if tol < TIGHT_TOLERANCE else 1e-3
         np.testing.assert_allclose(compiled[0], reference[0], rtol=rtol, atol=1e-9)
         np.testing.assert_allclose(compiled[1], reference[1], rtol=rtol, atol=1e-6)
         rss_ref, rss = np.sum(reference[2] ** 2), np.sum(compiled[2] ** 2)
-        assert abs(rss - rss_ref) <= (1e-9 if tol < 1e-6 else 1e-4) * rss_ref
+        assert abs(rss - rss_ref) <= (1e-9 if tol < TIGHT_TOLERANCE else 1e-4) * rss_ref
 
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
@@ -176,7 +182,7 @@ def test_rank_deficient_design_takes_the_numpy_path(monkeypatch: Any) -> None:
     spec = eng._compiled_args(struct)
     assert spec is not None
     lower, upper = struct.bounds()
-    status = kernel(theta0, lower, upper, np.zeros(0, np.int64), *spec, 1e-8, 100)[0]
+    status = kernel((theta0, lower, upper), np.zeros(0, np.int64), spec, 1e-8, 100)[0]
     assert status == _fast.FALLBACK
     reference, compiled = _both_paths(monkeypatch, struct, theta0, 1e-8)
     for a, b in zip(reference, compiled, strict=True):

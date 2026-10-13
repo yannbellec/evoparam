@@ -8,6 +8,17 @@ from evoparam.shapes import get_background, get_shape
 
 from .helpers import TIMES, gauss, model, noise
 
+# Fit window end (s), the masked span (s) of REQ-103, and the 2 ms gap at the peak (REQ-108).
+WINDOW_END = 0.5
+MASK_START = 0.4
+MASK_END = 0.45
+GAP_START = 0.199
+GAP_END = 0.201
+# Latency tolerance (s) around the simulated 0.2 s, runs, and fraction found (REQ-108).
+LATENCY_TOLERANCE = 0.02
+N_RUNS = 20
+MIN_FOUND = 0.9
+
 ###################################################################################################
 ###################################################################################################
 
@@ -15,7 +26,7 @@ from .helpers import TIMES, gauss, model, noise
 def test_req103_linear_solution_is_weighted_least_squares() -> None:
 
     rng = np.random.default_rng(0)
-    tw = TIMES[(TIMES >= 0) & (TIMES <= 0.5)]
+    tw = TIMES[(TIMES >= 0) & (TIMES <= WINDOW_END)]
     y = gauss(0.1, -5, 0.03, tw) + gauss(0.3, 3, 0.06, tw) + 0.4 + noise(rng, n=len(tw)) * 0.2
     shapes = [get_shape("gaussian"), get_shape("gaussian")]
     background = get_background("constant")
@@ -34,7 +45,7 @@ def test_req103_masked_samples_have_no_influence() -> None:
 
     rng = np.random.default_rng(1)
     y = gauss(0.2, -8, 0.04) + noise(rng)
-    mask = (TIMES > 0.4) & (TIMES < 0.45)
+    mask = (TIMES > MASK_START) & (TIMES < MASK_END)
     a = model().fit_waveform(TIMES, y, mask=mask)
     y2 = y.copy()
     y2[mask] = rng.normal(0, 100, mask.sum())
@@ -62,7 +73,9 @@ def test_req108_component_inside_a_masked_gap() -> None:
     for seed in range(20):
         rng = np.random.default_rng(seed)
         y = gauss(0.2, -8, 0.04) + noise(rng)
-        mask = (TIMES >= 0.199) & (TIMES <= 0.201)  # a 2 ms gap at the peak
+        mask = (TIMES >= GAP_START) & (TIMES <= GAP_END)  # a 2 ms gap at the peak
         fit = model().fit_waveform(TIMES, y, mask=mask)
-        hits += any(abs(c.latency - 0.2) <= 0.02 and c.amplitude < 0 for c in fit.components)
-    assert hits / 20 >= 0.9
+        hits += any(
+            abs(c.latency - 0.2) <= LATENCY_TOLERANCE and c.amplitude < 0 for c in fit.components
+        )
+    assert hits / N_RUNS >= MIN_FOUND

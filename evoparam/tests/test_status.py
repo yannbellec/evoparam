@@ -17,6 +17,9 @@ from evoparam import errors, sim
 from evoparam.data import TrialSet
 from evoparam.data.results import FIT_STATUSES
 
+# Statuses of the case (at least two kinds).
+MIN_STATUSES = 2
+
 PACKAGE = pathlib.Path(evoparam.__file__).resolve().parent
 DOCUMENTED = tuple(
     getattr(errors, name)
@@ -114,7 +117,7 @@ def test_req005_status_explains_every_non_result() -> None:
         group = evoparam.fit(_statuses_case(), preset="ccep", random_state=0)
     statuses = {f.status for f in group.fits}
     assert statuses <= set(FIT_STATUSES)
-    assert len(statuses) >= 2
+    assert len(statuses) >= MIN_STATUSES
     for fit_ in group.fits:
         if fit_.status != "ok":
             assert fit_.message, fit_.status

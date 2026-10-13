@@ -15,6 +15,19 @@ import pytest
 
 from evoparam.events import detect_pulses, estimate_delay, match_onsets
 
+# Fewest subjects, and the recall and precision required (REQ-040).
+MIN_SUBJECTS = 5
+MIN_RATE = 0.99
+# Largest trigger delay (s) of the recording system.
+MAX_DELAY = 0.0015
+# Tolerance (s) of a matched onset, and the confidence of a site guess counted as sure.
+TOLERANCE = 0.01
+CONFIDENT = 0.5
+# Accuracy of the confident guesses, their fraction, and the site agreement (REQ-042).
+MIN_ACCURACY = 0.98
+MIN_CONFIDENT = 0.4
+MIN_AGREEMENT = 0.95
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -107,14 +120,14 @@ def results() -> Any:
 
 def test_req040_recall_precision_and_onset(results: Any) -> None:
 
-    assert len({stem.split("/")[0] for stem, *_ in results}) >= 5
+    assert len({stem.split("/")[0] for stem, *_ in results}) >= MIN_SUBJECTS
     hits = misses = false_alarms = 0
     for _, _, events, onsets, _ in results:
         match = match_onsets(events["onset_time"], onsets, tolerance=0.01)
         hits, misses = hits + match["hits"], misses + match["misses"]
         false_alarms += match["false_alarms"]
-    assert hits / (hits + misses) >= 0.99
-    assert hits / (hits + false_alarms) >= 0.99
+    assert hits / (hits + misses) >= MIN_RATE
+    assert hits / (hits + false_alarms) >= MIN_RATE
 
     # Onset error (owner decision D9): detect_pulses reports the physical onset, the first
     # sample of the artifact; the trigger in events.tsv precedes it by a constant delay of
@@ -128,7 +141,7 @@ def test_req040_recall_precision_and_onset(results: Any) -> None:
         if i % 2 == 0
     ]
     delay, _ = estimate_delay([c[0] for c in calib], [c[1] for c in calib])
-    assert 0 < delay < 0.0015
+    assert 0 < delay < MAX_DELAY
     for i, (stem, sfreq, events, onsets, _) in enumerate(results):
         if i % 2 == 0:
             continue
@@ -142,13 +155,13 @@ def _site_agreement(results: Any) -> Any:
         times = events["onset_time"].to_numpy()
         for onset, site in zip(onsets, sites, strict=False):
             k = int(np.argmin(np.abs(times - onset)))
-            if abs(times[k] - onset) > 0.01:
+            if abs(times[k] - onset) > TOLERANCE:
                 continue
             same = set(events["stim_site_guess"].iloc[k].upper().split("-")) == set(
                 site.upper().split("-")
             )
             agree.append(same)
-            if events["site_confidence"].iloc[k] >= 0.5:
+            if events["site_confidence"].iloc[k] >= CONFIDENT:
                 confident.append(same)
     return np.mean(agree), np.mean(confident), len(confident) / len(agree)
 
@@ -156,14 +169,14 @@ def _site_agreement(results: Any) -> Any:
 def test_req042_confidence_is_calibrated(results: Any) -> None:
 
     _, accuracy, fraction = _site_agreement(results)
-    assert accuracy >= 0.98
-    assert fraction >= 0.4
+    assert accuracy >= MIN_ACCURACY
+    assert fraction >= MIN_CONFIDENT
 
 
 def test_req042_site_agreement(results: Any) -> None:
 
     agreement, _, _ = _site_agreement(results)
-    assert agreement >= 0.95
+    assert agreement >= MIN_AGREEMENT
 
 
 @pytest.fixture(scope="module")
@@ -199,4 +212,4 @@ def test_spec_procedure_is_less_accurate_than_the_default(results: Any, spec_res
     default = scores([(ev["onset_time"].to_numpy(), on) for _, _, ev, on, _ in results])
     spec = scores([(det, on) for _, _, det, on in spec_results])
     assert spec[0] < default[0]
-    assert spec[0] < 0.99
+    assert spec[0] < MIN_RATE

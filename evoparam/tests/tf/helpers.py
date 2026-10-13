@@ -7,6 +7,9 @@ import numpy as np
 
 from evoparam.data import TrialSet
 
+# Dimensions of single-channel data, [n_trials, n_times].
+ONE_CHANNEL_NDIM = 2
+
 SFREQ = 1000.0
 TIMES = np.arange(-0.6, 0.8, 1 / SFREQ)
 
@@ -48,7 +51,7 @@ def burst(
 
 def trialset(data: Any, modality: Any = "spes", metadata: Any = None, masks: Any = None) -> Any:
     data = np.asarray(data, float)
-    if data.ndim == 2:
+    if data.ndim == ONE_CHANNEL_NDIM:
         data = data[:, None]
     return TrialSet(
         data=data,

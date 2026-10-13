@@ -10,6 +10,9 @@ import pytest
 
 import evoparam
 
+# Links of the 1.0 checklist.
+MIN_LINKS = 3
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(evoparam.__file__)))
 pytestmark = pytest.mark.skipif(
     not os.path.isfile(os.path.join(ROOT, "RELEASING.md")), reason="needs the source tree"
@@ -23,7 +26,7 @@ def test_req329_checklist_has_the_three_items() -> None:
     section = text.split("## 1.0 checklist", 1)[1].split("\n## ", 1)[0]
     for item in ("MNE example", "DANDI / NWB listing", "conda-forge feedstock"):
         assert f"**{item}**" in section, item
-    assert section.count("Link") >= 3
+    assert section.count("Link") >= MIN_LINKS
     for target in ("MNE-BIDS", "SpikeInterface", "pynapple", "Elephant / Neo", "MOABB", "MATLAB"):
         assert target in text, target
 

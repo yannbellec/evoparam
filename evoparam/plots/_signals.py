@@ -30,6 +30,7 @@ __all__ = []
 
 
 def _style(ax: Any, xlabel: str = "Time (s)", ylabel: str = "Amplitude") -> None:
+    """Label the axes, draw a light grid and the legend (when something is labelled)."""
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(True, alpha=0.3)
@@ -132,7 +133,7 @@ def plot_signals_shading(
     return fig
 
 
-def plot_signals_yshade(
+def plot_signals_yshade(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     times: FloatArray,
     signals: FloatArray,
     *,
@@ -217,6 +218,7 @@ def plot_scatter_1(
 
 
 def _strip(data: Any, positions: Any, label: Any, title: Any, x_val: Any, ax: Any) -> Any:
+    """Scatter the values at their jittered positions around ``x_val``."""
     fig, ax = _figure_ax(ax, figsize=(3.0, 3.5))
     ax.scatter(positions, data, s=36, alpha=_alpha(data.size), color=PALETTE[0])
     if label:

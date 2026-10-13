@@ -22,6 +22,12 @@ __all__ = ["average", "AVERAGE_METHODS"]
 
 AVERAGE_METHODS = ("mean", "trimmed", "median", "weighted")
 
+# Proportion cut from each end by the trimmed mean (the only one available).
+_TRIM = 0.2
+
+# Fewest values for a standard error of the mean.
+_MIN_SEM_COUNT = 2
+
 
 def average(
     ts: "TrialSet",
@@ -62,7 +68,7 @@ def average(
     check_trialset(ts)
     if method not in AVERAGE_METHODS:
         raise SettingsError(f"method must be one of {AVERAGE_METHODS}, not {method!r}.")
-    if method == "trimmed" and trim != 0.2:
+    if method == "trimmed" and trim != _TRIM:
         raise SettingsError("trim: only the 20 % trimmed mean is available.")
     work = ts
     if use_rejected and ts.metadata is not None and "rejected" in ts.metadata.columns:
@@ -100,7 +106,7 @@ def average(
             w = np.where(np.isnan(values), 0.0, np.clip(w, 0, None))
             mean = np.nansum(w * np.nan_to_num(values), axis=0) / np.sum(w, axis=0)
         sem = np.nanstd(values, axis=0, ddof=1) / np.sqrt(count)
-    sem[count < 2] = np.nan
+    sem[count < _MIN_SEM_COUNT] = np.nan
     masks = count == 0
     provenance = work.provenance.with_step(
         "evoparam.prep.average",

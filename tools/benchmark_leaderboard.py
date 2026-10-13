@@ -25,24 +25,27 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from evoparam.benchmark import write_leaderboard, write_report  # noqa: E402
+from evoparam.benchmark import write_leaderboard, write_report  # noqa: E402  (after the sys.path insert above)
 
 DOCS = ROOT / "docs" / "benchmark"
 
 
 def build(results, page, report):
     """Write the page and the report; returns their paths."""
-
     return write_leaderboard(str(results), str(page)), write_report(str(results), str(report))
 
 
 def main(argv=None):
+    """Write the leaderboard page and report, or with ``--check`` compare them."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--results", default=str(DOCS / "results"))
     parser.add_argument("--page", default=str(DOCS / "leaderboard.html"))
     parser.add_argument("--report", default=str(DOCS / "report-core.md"))
-    parser.add_argument("--check", action="store_true",
-                        help="compare with the files in place instead of writing them")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="compare with the files in place instead of writing them",
+    )
     args = parser.parse_args(argv)
     if not args.check:
         for path in build(args.results, args.page, args.report):
@@ -50,8 +53,9 @@ def main(argv=None):
         return 0
     stale = []
     with tempfile.TemporaryDirectory() as tmp:
-        page, report = build(args.results, os.path.join(tmp, "page.html"),
-                             os.path.join(tmp, "report.md"))
+        page, report = build(
+            args.results, os.path.join(tmp, "page.html"), os.path.join(tmp, "report.md")
+        )
         for new, old in ((page, args.page), (report, args.report)):
             with open(new, "rb") as a:
                 fresh = a.read()

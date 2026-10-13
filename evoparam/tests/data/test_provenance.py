@@ -13,6 +13,12 @@ from evoparam import __version__
 from evoparam.data import Provenance, capture_environment, compute_data_hash
 from evoparam.tests.data.factories import make_trialset
 
+# SOURCE_DATE_EPOCH of the reproducible-build test (2026-01-01T00:00:00Z).
+EPOCH = 1767225600
+# A recorded step duration and an elapsed time, in seconds.
+DURATION_S = 3.2
+ELAPSED_S = 5.0
+
 ENVIRONMENT_KEYS = {
     "python",
     "platform",
@@ -96,7 +102,7 @@ def test_fixed_clock_makes_records_reproducible(monkeypatch: Any) -> None:
     from evoparam.data.provenance import elapsed, fixed_clock
 
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1767225600")
-    assert fixed_clock() == 1767225600
+    assert fixed_clock() == EPOCH
     first = Provenance(environment={}).with_step("f", {"a": 1}, duration_s=3.2)
     second = Provenance(environment={}).with_step("f", {"a": 1}, duration_s=0.7)
     assert first.created == "2026-01-01T00:00:00.000+00:00"
@@ -105,8 +111,8 @@ def test_fixed_clock_makes_records_reproducible(monkeypatch: Any) -> None:
     assert elapsed(time.perf_counter() - 5.0) == 0.0
     monkeypatch.delenv("SOURCE_DATE_EPOCH")
     assert fixed_clock() is None
-    assert Provenance().with_step("f", duration_s=3.2).steps[-1]["duration_s"] == 3.2
-    assert elapsed(time.perf_counter() - 5.0) >= 5.0
+    assert Provenance().with_step("f", duration_s=DURATION_S).steps[-1]["duration_s"] == DURATION_S
+    assert elapsed(time.perf_counter() - ELAPSED_S) >= ELAPSED_S
 
 
 SEVEN = {"function", "settings", "version", "preset", "random_state", "duration_s", "n_jobs"}

@@ -31,6 +31,12 @@ from evoparam._typing import Any, FloatArray, NDArray, RandomState
 from evoparam.errors import DataError, SettingsError
 from evoparam.utils._numeric import divide, sqrt
 
+# Fewest observations with a sample standard deviation (t statistic, z score)
+_MIN_N = 2
+# Values of the sequential tests: (n_observations, n_channels)
+_MATRIX_NDIM = 2
+
+
 __all__ = ["sign_flip_test", "SequentialSignFlip", "OnlineExistence", "alpha_spending"]
 
 
@@ -46,6 +52,7 @@ def alpha_spending(t: Any, alpha: float = 0.05) -> NDArray[Any]:
 
 
 def _check(alpha: Any, n_permutations: Any) -> None:
+    """Raise SettingsError for an alpha outside (0, 1) or fewer than one permutation."""
     if not 0 < alpha < 1:
         raise SettingsError("alpha must be in (0, 1).")
     if int(n_permutations) < 1:
@@ -63,10 +70,11 @@ def _statistic(sums: Any, sum_sq: Any, n: Any) -> NDArray[Any]:
     mean = divide(sums, n)
     var = divide(sum_sq - divide(sums**2, n), n - 1)
     t = divide(mean, np.sqrt(divide(np.clip(var, 0.0, None), n)))
-    return np.where(np.isnan(t) | (n < 2), -np.inf, t)
+    return np.where(np.isnan(t) | (n < _MIN_N), -np.inf, t)
 
 
 def _allowed(alpha: Any, size: Any) -> Any:
+    """Return how many null trajectories may cross at level ``alpha``: floor(alpha * size)."""
     return np.floor(np.asarray(alpha) * size + 1e-9).astype(int)
 
 
@@ -98,7 +106,7 @@ def sign_flip_test(
     values = np.asarray(values, float)
     if values.ndim == 1:
         values = values[:, None]
-    if values.ndim != 2:
+    if values.ndim != _MATRIX_NDIM:
         raise DataError("values must be [n_pulses] or [n_pulses, n_channels].")
     rng = np.random.default_rng(random_state)
     n_perm = int(n_permutations)
@@ -113,7 +121,7 @@ def sign_flip_test(
     stat = _statistic(sums, (v**2).sum(axis=0), n)
     count = (stat[1:] >= stat[0] - 1e-12).sum(axis=0)
     p = (1.0 + count) / (1.0 + n_perm)
-    p = np.where(n >= 2, p, np.nan)
+    p = np.where(n >= _MIN_N, p, np.nan)
     return {
         "statistic": stat[0],
         "p_value": p,
@@ -153,8 +161,9 @@ class SequentialSignFlip:
         n_permutations: int = 1000,
         random_state: Any = None,
     ) -> None:
+        """Check the settings and start with no pulse."""
         _check(alpha, n_permutations)
-        if int(max_n) < 2:
+        if int(max_n) < _MIN_N:
             raise SettingsError("max_n must be at least 2.")
         self.n_channels: int = int(n_channels)
         self.alpha: float = float(alpha)
@@ -201,7 +210,7 @@ class SequentialSignFlip:
         """Statistic of the observed trajectory and fixed-sample p-value, per channel."""
         stat = _statistic(self._sums, self._sum_sq, self.n)
         count = (stat[1:] >= stat[0] - 1e-12).sum(axis=0)
-        p = np.where(self.n >= 2, (1.0 + count) / (1.0 + self.n_permutations), np.nan)
+        p = np.where(self.n >= _MIN_N, (1.0 + count) / (1.0 + self.n_permutations), np.nan)
         return stat, p
 
     def look(self, final: bool = False) -> dict[str, Any]:
@@ -217,7 +226,7 @@ class SequentialSignFlip:
         stat, p = self.statistics()
         n_traj = self.n_permutations + 1
         fraction = np.ones(self.n_channels) if final else np.minimum(self.n / self.max_n, 1.0)
-        spent = np.where(self.n >= 2, alpha_spending(fraction, self.alpha), 0.0)
+        spent = np.where(self.n >= _MIN_N, alpha_spending(fraction, self.alpha), 0.0)
         spent = np.maximum(spent, self.alpha_spent)
         room = _allowed(spent, n_traj) - self._crossed
         cols = np.flatnonzero(room > 0)
@@ -271,6 +280,7 @@ class OnlineExistence:
         looks: str = "pulse",
         random_state: Any = None,
     ) -> None:
+        """Check the settings and start the sequential test of the projections."""
         if looks not in ("pulse", None):
             raise SettingsError("looks must be 'pulse' or None.")
         self.threshold_sd: float = float(threshold_sd)
@@ -306,7 +316,9 @@ class OnlineExistence:
         self._mean += delta / np.maximum(self._count, 1)
         self._m2 += delta * np.where(seen, base - self._mean, 0.0)
         sd = sqrt(divide(self._m2, self._count - 1))
-        z = np.where((self._count >= 2) & (sd > 0), divide(projection - self._mean, sd), np.nan)
+        z = np.where(
+            (self._count >= _MIN_N) & (sd > 0), divide(projection - self._mean, sd), np.nan
+        )
         self.test.update(projection - base)
         if self.looks == "pulse":
             self.last = self.test.look()

@@ -14,6 +14,14 @@ import pytest
 from evoparam import presets
 from evoparam.errors import SettingsError
 
+# Fewest literature keys, the ERNA frequency floor (Hz), the train baseline (s), trusted
+# trial fits per state, and trains of the train baseline.
+MIN_LITERATURE = 500
+ERNA_FREQ_MIN = 200.0
+ERNA_TRAIN_BASELINE = 0.05
+MIN_TRUSTED = 2
+N_TRAINS = 3
+
 ROOT = pathlib.Path(__file__).parents[3]
 SPEC = ROOT / "docs" / "spec" / "SPEC.md"
 LITERATURE = ROOT / "docs" / "spec" / "LITERATURE.md"
@@ -143,7 +151,7 @@ def test_req271_citations_resolve_and_choices_are_explained() -> None:
     keys = set(
         re.findall(r"^- \*\*\[(LIT-[\w-]+)\]\*\*", LITERATURE.read_text("utf-8"), flags=re.M)
     )
-    assert len(keys) > 500
+    assert len(keys) > MIN_LITERATURE
     for p in presets.PRESETS.values():
         assert p.citation, p.name
         assert set(p.citation) <= keys, (p.name, set(p.citation) - keys)
@@ -239,7 +247,7 @@ def test_fit_presets_view_follows_the_files() -> None:
 
     assert set(FIT_PRESETS) == set(presets.PRESETS)
     assert FIT_PRESETS["ccep"]["windows"]["N1"] == (0.009, 0.05, -1)
-    assert FIT_PRESETS["erna"]["freq_min"] == 200.0
+    assert FIT_PRESETS["erna"]["freq_min"] == ERNA_FREQ_MIN
 
 
 ###################################################################################################
@@ -254,7 +262,7 @@ def test_f58_preset_fields() -> None:
     )
     assert presets.get("rodent_ep").trial_covariates == ("state",)
     assert presets.get("primate_ep").trial_covariates == ("state",)
-    assert presets.get("erna").train_baseline == 0.05
+    assert presets.get("erna").train_baseline == ERNA_TRAIN_BASELINE
     assert presets.get("erna").baseline is None
     assert presets.from_json(presets.to_json("erna")) == presets.get("erna")
     with pytest.raises(SettingsError, match="train_baseline"):
@@ -314,7 +322,7 @@ def test_f58_rodent_state_is_a_default_trial_covariate() -> None:
         warnings.simplefilter("ignore")
         result = reports.run_pipeline(ts, "rodent_ep")
     fits = result.trial_fits
-    assert fits.table.groupby("state")["trusted"].sum().min() >= 2
+    assert fits.table.groupby("state")["trusted"].sum().min() >= MIN_TRUSTED
     assert fits.settings["covariates"] == ["state"]
     table = fits.settings["covariate_tables"]["state"]
     assert set(table["state"]) == {"awake", "nrem"}
@@ -375,7 +383,7 @@ def test_f58_erna_baseline_per_train() -> None:
     step = out.provenance.steps[-1]
     assert step["function"] == "evoparam.prep.train_baseline"
     assert step["settings"]["source"] == "continuous"
-    assert step["settings"]["n_trains"] == 3
+    assert step["settings"]["n_trains"] == N_TRAINS
     # without train_id: trains from the gaps between pulses (no pulse in the 50 ms before)
     import dataclasses
 

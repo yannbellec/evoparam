@@ -12,6 +12,10 @@ from .helpers import add_pulse, make_noise
 
 pd = pytest.importorskip("pandas")
 
+# Confidence of a site guess counted as sure, and of a guess with lead and hold windows.
+CONFIDENT = 0.5
+HIGH_CONFIDENCE = 0.9
+
 ###################################################################################################
 ###################################################################################################
 
@@ -47,7 +51,7 @@ def test_identifies_pair_with_confidence() -> None:
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES)
     assert (located["stim_site_guess"] == "A03-A04").all()
     assert (located["polarity_check"]).all()
-    assert (located["site_confidence"] > 0.5).all()
+    assert (located["site_confidence"] > CONFIDENT).all()
 
 
 def test_shaft_check_halves_confidence() -> None:
@@ -55,11 +59,11 @@ def test_shaft_check_halves_confidence() -> None:
     data, onsets = bipolar_recording((7, 8))  # A08 and B01: different electrodes
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES)
     assert (located["stim_site_guess"] == "A08-B01").all()
-    assert (located["site_confidence"] <= 0.5).all()
+    assert (located["site_confidence"] <= CONFIDENT).all()
 
     groups = pd.DataFrame({"name": NAMES, "group": ["shaft"] * len(NAMES)})
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES, ch_info=groups)
-    assert (located["site_confidence"] > 0.5).all()
+    assert (located["site_confidence"] > CONFIDENT).all()
 
 
 def test_channel_types_exclude_non_neural() -> None:
@@ -82,7 +86,7 @@ def test_unrecorded_contacts_give_low_confidence() -> None:
     for onset in onsets:
         add_pulse(data, onset, 300.0, rng.uniform(0.95, 1.05, 16))
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES[:16])
-    assert (located["site_confidence"] < 0.5).all()
+    assert (located["site_confidence"] < CONFIDENT).all()
 
 
 def test_high_frequency_train_warns() -> None:
@@ -181,7 +185,7 @@ def test_held_or_leading_contacts_alone(hold: Any, lead: Any) -> None:
     data, onsets = held_recording(hold=hold, lead=lead)
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES[:16])
     assert (located["stim_site_guess"] == "A03-A04").all()
-    assert (located["site_confidence"] > 0.9).all()
+    assert (located["site_confidence"] > HIGH_CONFIDENCE).all()
 
     # The plain largest-artifact rule picks other contacts: no lead and no hold window
     plain = identify_stim_site(
@@ -198,7 +202,7 @@ def test_saturated_neighbour_and_dead_channel_are_not_chosen() -> None:
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES[:16])
     assert located["stim_site_guess"].str.contains("A05").all()
     assert not located["stim_site_guess"].str.contains("B08").any()
-    assert (located["site_confidence"] < 0.5).all()
+    assert (located["site_confidence"] < CONFIDENT).all()
 
 
 def test_detect_pulses_fills_site_columns() -> None:
@@ -251,7 +255,7 @@ def test_reviewed_spec_rule_is_available(pair: Any) -> None:
         assert located["stim_site_guess"].iloc[row] == f"{NAMES[expected[0]]}-{NAMES[expected[1]]}"
         assert located["site_confidence"].iloc[row] == pytest.approx(confidence, rel=1e-12)
     # the names do not stand for ch_info.group in the reviewed rule: no halving by shaft
-    assert (located["site_confidence"] > 0.5).all()
+    assert (located["site_confidence"] > CONFIDENT).all()
     groups = pd.DataFrame({"name": NAMES, "group": [n[0] for n in NAMES]})
     located = identify_stim_site(
         data, 2048.0, table(onsets), ch_names=NAMES, ch_info=groups, method="spec"
@@ -289,7 +293,7 @@ def test_pair_at_the_amplifier_range_wins_over_quiet_channels(monkeypatch: Any) 
     data = np.clip(data, -2500.0, 2500.0)
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES[:16])
     assert (located["stim_site_guess"] == "A03-A04").all()
-    assert (located["site_confidence"] >= 0.5).all()
+    assert (located["site_confidence"] >= CONFIDENT).all()
 
     from evoparam.events import site
 
@@ -312,7 +316,7 @@ def test_silent_pair_switched_to_the_stimulator() -> None:
     data[2:4] = rng.normal(0, 0.02, (2, data.shape[1]))
     located = identify_stim_site(data, 2048.0, table(onsets), ch_names=NAMES[:16])
     assert (located["stim_site_guess"] == "A03-A04").all()
-    assert (located["site_confidence"] >= 0.5).all()
+    assert (located["site_confidence"] >= CONFIDENT).all()
 
     # A quiet pair elsewhere (not next to the largest artifact) is not a site
     data[2:4] = make_noise(2, 6.0, 2048.0, seed=9, dtype=np.float64)

@@ -23,6 +23,14 @@ from typing import Any
 import numpy as np
 import pytest
 
+# Sampling rate (Hz) and trials of the first run, fewest samples, the fraction of channels
+# that vary, and the level of the Wilcoxon test.
+SFREQ = 4800.0
+N_TRIALS = 12
+MIN_SAMPLES = 200
+MIN_VARYING = 0.95
+ALPHA = 0.01
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -124,12 +132,12 @@ def comparisons() -> Any:
 def test_reads_the_uncensored_epochs() -> None:
 
     trials = load_trials(*RUNS[0])
-    assert trials.sfreq == 4800.0
-    assert trials.data.shape[0] == 12
-    assert trials.data.shape[1] > 200
+    assert trials.sfreq == SFREQ
+    assert trials.data.shape[0] == N_TRIALS
+    assert trials.data.shape[1] > MIN_SAMPLES
     assert np.isfinite(trials.data).all()
     # Uncensored: the channels are not constant
-    assert (trials.data.std(axis=-1) > 0).all(axis=0).mean() > 0.95
+    assert (trials.data.std(axis=-1) > 0).all(axis=0).mean() > MIN_VARYING
 
 
 def test_req081_car_adaptive_lowers_cross_channel_r2(comparisons: Any) -> None:
@@ -141,6 +149,6 @@ def test_req081_car_adaptive_lowers_cross_channel_r2(comparisons: Any) -> None:
     car = np.concatenate([c[0] for c in comparisons])
     adaptive = np.concatenate([c[1] for c in comparisons])
     assert np.median(adaptive) < np.median(car)
-    assert wilcoxon(adaptive, car, alternative="less").pvalue < 0.01
+    assert wilcoxon(adaptive, car, alternative="less").pvalue < ALPHA
     for run, (car, adaptive, _, n_star) in zip(RUNS, comparisons, strict=False):
-        assert wilcoxon(adaptive, car, alternative="less").pvalue < 0.01, (run, n_star)
+        assert wilcoxon(adaptive, car, alternative="less").pvalue < ALPHA, (run, n_star)

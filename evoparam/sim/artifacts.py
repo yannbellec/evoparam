@@ -9,6 +9,7 @@ amplifier's anti-aliasing filter, followed by a double-exponential recovery tail
 Sub-sample pulses are resolved on a grid finer than the sampling period.
 """
 
+from dataclasses import dataclass
 from typing import cast
 
 import numpy as np
@@ -25,6 +26,8 @@ __all__ = [
     "dipole_gain",
     "pulse_shape",
     "tail_shape",
+    "AntiAliasFilter",
+    "AMPLIFIER",
     "PULSE_SHAPES",
 ]
 
@@ -35,6 +38,8 @@ SHAFT_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ"
 
 # Recorded pulse shapes (scaled by the potential of each channel).
 PULSE_SHAPES = ("biphasic", "monophasic")
+# fewest samples on which a pulse is filtered
+_MIN_SAMPLES = 2
 
 
 ###################################################################################################
@@ -128,6 +133,7 @@ _SCALP_NAMES = (
 
 
 def _scalp_xy(name: Any) -> tuple[float, float]:
+    """Return the unit-disc position of a 10-20 electrode name (odd numbers on the left)."""
     letters = name.rstrip("0123456789z").upper()
     rest = name[len(letters) :]
     y = _SCALP_ROWS[letters]
@@ -186,6 +192,21 @@ def _box_samples(start: Any, stop: Any, grid: Any, step: Any) -> Any:
     return np.clip((np.minimum(grid + step, stop) - np.maximum(grid, start)) / step, 0.0, 1.0)
 
 
+@dataclass(frozen=True)
+class AntiAliasFilter:
+    """The amplifier's anti-aliasing filter: a causal Butterworth low-pass.
+
+    Its cutoff is ``cutoff_fraction × sfreq``.
+    """
+
+    cutoff_fraction: float = 0.25
+    order: int = 4
+
+
+#: The anti-aliasing filter of the simulated amplifiers.
+AMPLIFIER = AntiAliasFilter()
+
+
 def pulse_shape(
     times: Any,
     sfreq: float,
@@ -194,17 +215,16 @@ def pulse_shape(
     kind: str = "biphasic",
     polarity: int = -1,
     onset: float = 0.0,
-    cutoff_fraction: float = 0.25,
-    filter_order: int = 4,
+    amplifier: AntiAliasFilter = AMPLIFIER,
     n_after: int = 64,
 ) -> FloatArray:
     """Return the recorded shape of a rectangular current pulse of unit height.
 
     The current (first phase of sign ``polarity`` lasting ``pulse_width_us``,
     then, for a biphasic pulse, the opposite phase) is integrated on a grid at
-    least 16 times finer than the pulse, passed through a causal Butterworth
-    low-pass at ``cutoff_fraction × sfreq`` (the amplifier's anti-aliasing
-    filter) and read at the sample times.
+    least 16 times finer than the pulse, passed through the amplifier's
+    anti-aliasing filter (``amplifier``, a causal Butterworth low-pass at
+    ``cutoff_fraction × sfreq``) and read at the sample times.
 
     Returns
     -------
@@ -220,7 +240,7 @@ def pulse_shape(
     first = int(np.searchsorted(times, onset - 1e-12)) - 4
     first = max(first, 0)
     last = min(times.size, first + 8 + n_after + int(np.ceil(2 * width * sfreq)))
-    if last - first < 2:
+    if last - first < _MIN_SAMPLES:
         return out
     factor = max(4, int(np.ceil(16.0 / (width * sfreq))))
     step = 1.0 / (sfreq * factor)
@@ -228,7 +248,9 @@ def pulse_shape(
     current = polarity * _box_samples(onset, onset + width, grid, step)
     if kind == "biphasic":
         current = current - polarity * _box_samples(onset + width, onset + 2 * width, grid, step)
-    sos = sp_signal.butter(filter_order, cutoff_fraction * sfreq, fs=sfreq * factor, output="sos")
+    sos = sp_signal.butter(
+        amplifier.order, amplifier.cutoff_fraction * sfreq, fs=sfreq * factor, output="sos"
+    )
     filtered = sp_signal.sosfilt(sos, current)
     out[first:last] = filtered[::factor][: last - first]
     return out

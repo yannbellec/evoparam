@@ -19,6 +19,10 @@ from ._score import MAD_TO_SD, score_index
 __all__ = ["OnlinePulseDetector"]
 
 
+# The samples of an update are a matrix [n_samples, n_channels].
+_MATRIX_NDIM = 2
+
+
 class OnlinePulseDetector:
     """Causal threshold detector of stimulation pulses.
 
@@ -45,6 +49,7 @@ class OnlinePulseDetector:
         min_interval: float = 0.5,
         calibration: float = 1.0,
     ) -> None:
+        """Check the settings; the threshold is set after ``calibration`` seconds of samples."""
         if not sfreq > 0:
             raise SettingsError("sfreq must be positive.")
         if not threshold_sd > 0:
@@ -71,6 +76,7 @@ class OnlinePulseDetector:
         self._n_seen = 0
 
     def _score(self, samples: Any) -> NDArray[Any]:
+        """Return the score of a block of samples: the median absolute step over channels."""
         block = samples[:, self._index]
         if self._previous is None:
             diff = np.vstack([np.zeros((1, block.shape[1])), np.diff(block, axis=0)])
@@ -84,6 +90,7 @@ class OnlinePulseDetector:
         return np.partition(diff, diff.shape[1] // 2, axis=1)[:, diff.shape[1] // 2]
 
     def _calibrate(self, score: Any) -> None:
+        """Set the centre and the robust spread of the score from the calibration samples."""
         self.center = float(np.median(score))
         spread = MAD_TO_SD * float(np.median(np.abs(score - self.center)))
         if not spread > 0:
@@ -92,6 +99,7 @@ class OnlinePulseDetector:
         self.threshold = self.center + self.threshold_sd * self.spread
 
     def _crossings(self, score: Any, first: Any) -> list[Any]:
+        """Return the samples above the threshold, outside the refractory period."""
         out = []
         for i in np.flatnonzero(score > self.threshold):
             sample = first + int(i)
@@ -106,7 +114,7 @@ class OnlinePulseDetector:
         Returns the onset samples (stream indices) of the pulses found.
         """
         samples = np.asarray(samples, float)
-        if samples.ndim != 2 or samples.shape[1] != self.n_channels:
+        if samples.ndim != _MATRIX_NDIM or samples.shape[1] != self.n_channels:
             raise DataError(f"samples must be [n_samples, {self.n_channels}].")
         if not len(samples):
             return []

@@ -35,7 +35,9 @@ import re
 import shutil
 import tempfile
 import zipfile
+from collections.abc import Callable
 from dataclasses import fields, is_dataclass
+from typing import cast
 
 import numpy as np
 
@@ -73,6 +75,7 @@ def register_type(cls: Any) -> Any:
 
 
 def _registry() -> dict[Any, Any]:
+    """Return the savable evoparam types by class name."""
     from evoparam.data import containers, provenance, results
 
     classes = [containers.TrialSet, containers.Evoked, provenance.Provenance]
@@ -85,10 +88,12 @@ def _registry() -> dict[Any, Any]:
 
 
 def _is_dataframe(obj: Any) -> bool:
+    """Return whether ``obj`` is a pandas DataFrame (without importing pandas)."""
     return type(obj).__name__ == "DataFrame" and type(obj).__module__.startswith("pandas")
 
 
 def _sha256(path: Any, block: Any = 1 << 20) -> str:
+    """Return the sha256 hex digest of a file."""
     digest = hashlib.sha256()
     with open(path, "rb") as fobj:
         for chunk in iter(lambda: fobj.read(block), b""):
@@ -97,9 +102,9 @@ def _sha256(path: Any, block: Any = 1 << 20) -> str:
 
 
 def _have_pyarrow() -> bool:
+    """Return whether pyarrow (parquet tables) can be imported."""
     try:
         require("pyarrow", extra="data", caller="evoparam.data.serialize._have_pyarrow")
-        import pyarrow  # noqa: F401
     except ImportError:
         return False
     return True
@@ -110,7 +115,10 @@ def _have_pyarrow() -> bool:
 
 
 class _Encoder:
+    """Turn an object into the JSON structure, setting arrays and tables aside."""
+
     def __init__(self, top: Any) -> None:
+        """Start encoding ``top``, the object saved."""
         self.top = top
         self.arrays: dict[Any, Any]
         self.arrays = {}
@@ -119,6 +127,7 @@ class _Encoder:
         self.main_array = None
 
     def _key(self, path: Any, used: Any) -> str:
+        """Return a file-safe key for ``path`` not yet in ``used``."""
         key = re.sub(r"[^A-Za-z0-9_.-]", "_", path) or "value"
         candidate, number = key, 1
         while candidate in used:
@@ -126,30 +135,11 @@ class _Encoder:
         return candidate
 
     def encode(self, obj: Any, path: Any) -> Any:
-        if obj is None or isinstance(obj, (str, bool)):
-            return obj
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        if isinstance(obj, (int, np.integer)):
-            return int(obj)
-        if isinstance(obj, (float, np.floating)):
-            value = float(obj)
-            if math.isfinite(value):
-                return value
-            return {"__float__": "nan" if math.isnan(value) else ("inf" if value > 0 else "-inf")}
+        """Return the JSON node of ``obj``; arrays and tables are set aside under a key."""
+        if obj is None or isinstance(obj, _SCALARS):
+            return _encode_scalar(obj)
         if isinstance(obj, np.ndarray):
-            if obj.dtype.kind in "OV":
-                raise DataError(f"{path}: arrays of dtype {obj.dtype} cannot be saved.")
-            if (
-                obj is getattr(self.top, "data", None)
-                and path == "data"
-                and type(self.top).__name__ in ("TrialSet", "Evoked")
-            ):
-                self.main_array = obj
-                return {"__npy__": "data.npy"}
-            key = self._key(path, self.arrays)
-            self.arrays[key] = obj
-            return {"__array__": key}
+            return self._encode_array(obj, path)
         if _is_dataframe(obj) or isinstance(obj, Table):
             key = self._key(path, self.tables)
             self.tables[key] = obj
@@ -167,24 +157,60 @@ class _Encoder:
                     for fld in fields(obj)
                 },
             }
+        if isinstance(obj, (tuple, list, dict)):
+            return self._encode_container(obj, path)
+        raise DataError(f"{path}: values of type {type(obj).__name__} cannot be saved.")
+
+    def _encode_array(self, obj: Any, path: Any) -> Any:
+        """Set an array aside (the data of a TrialSet or Evoked in its own file)."""
+        if obj.dtype.kind in "OV":
+            raise DataError(f"{path}: arrays of dtype {obj.dtype} cannot be saved.")
+        if (
+            obj is getattr(self.top, "data", None)
+            and path == "data"
+            and type(self.top).__name__ in ("TrialSet", "Evoked")
+        ):
+            self.main_array = obj
+            return {"__npy__": "data.npy"}
+        key = self._key(path, self.arrays)
+        self.arrays[key] = obj
+        return {"__array__": key}
+
+    def _encode_container(self, obj: Any, path: Any) -> Any:
+        """Return the node of a tuple, a list or a dict (string keys or not)."""
         if isinstance(obj, tuple):
             return {"__tuple__": [self.encode(v, f"{path}.{i}") for i, v in enumerate(obj)]}
         if isinstance(obj, list):
             return [self.encode(v, f"{path}.{i}") for i, v in enumerate(obj)]
-        if isinstance(obj, dict):
-            if all(isinstance(key, str) for key in obj):
-                return {
-                    "__dict__": {
-                        key: self.encode(value, f"{path}.{key}") for key, value in obj.items()
-                    }
-                }
+        if all(isinstance(key, str) for key in obj):
             return {
-                "__items__": [
-                    [self.encode(key, f"{path}.k{i}"), self.encode(value, f"{path}.{i}")]
-                    for i, (key, value) in enumerate(obj.items())
-                ]
+                "__dict__": {
+                    key: self.encode(value, f"{path}.{key}") for key, value in obj.items()
+                }
             }
-        raise DataError(f"{path}: values of type {type(obj).__name__} cannot be saved.")
+        return {
+            "__items__": [
+                [self.encode(key, f"{path}.k{i}"), self.encode(value, f"{path}.{i}")]
+                for i, (key, value) in enumerate(obj.items())
+            ]
+        }
+
+
+_SCALARS = (str, bool, np.bool_, int, np.integer, float, np.floating)
+
+
+def _encode_scalar(obj: Any) -> Any:
+    """Return the JSON node of a scalar; a non-finite float becomes ``{"__float__": ...}``."""
+    if obj is None or isinstance(obj, (str, bool)):
+        return obj
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, (int, np.integer)):
+        return int(obj)
+    value = float(obj)
+    if math.isfinite(value):
+        return value
+    return {"__float__": "nan" if math.isnan(value) else ("inf" if value > 0 else "-inf")}
 
 
 def _write_light_table(table: Table, folder: Any, key: Any) -> None:
@@ -210,21 +236,9 @@ def _write_light_table(table: Table, folder: Any, key: Any) -> None:
         spec = {"dtype": str(values.dtype), "unit": str(units.get(column, ""))}
         if values.dtype.kind == "O":
             raw = values.tolist()
-            present = [v for v in raw if not _missing(v)]
-            if any(not isinstance(v, str) for v in present):
-                raise DataError(f"table {key}: column '{column}' mixes strings and other values.")
-            if MISSING in present:
-                raise DataError(
-                    f"table {key}: column '{column}' contains the reserved value {MISSING!r}."
-                )
-            kinds = {_missing_kind(v) for v in raw if _missing(v)}
-            if len(kinds) > 1:
-                raise DataError(
-                    f"table {key}: column '{column}' mixes missing values of different "
-                    f"kinds ({sorted(kinds)})."
-                )
-            if kinds and kinds != {"none"}:
-                spec["missing"] = kinds.pop()
+            missing = _text_missing_kind(raw, key, column)
+            if missing is not None:
+                spec["missing"] = missing
             text = [MISSING if _missing(v) else v for v in raw]
         elif values.dtype.kind == "f":
             text = [MISSING if math.isnan(v) else repr(float(v)) for v in values.tolist()]
@@ -241,7 +255,30 @@ def _write_light_table(table: Table, folder: Any, key: Any) -> None:
         fobj.write(dumps(sidecar, indent=1))
 
 
+def _text_missing_kind(raw: list[Any], key: Any, column: Any) -> str | None:
+    """Check a text column; return the kind of its missing values to record (None: none).
+
+    Which missing value the column held (None, NaN or pandas NA) is restored on reading;
+    one kind per column.
+    """
+    present = [v for v in raw if not _missing(v)]
+    if any(not isinstance(v, str) for v in present):
+        raise DataError(f"table {key}: column '{column}' mixes strings and other values.")
+    if MISSING in present:
+        raise DataError(f"table {key}: column '{column}' contains the reserved value {MISSING!r}.")
+    kinds = {_missing_kind(v) for v in raw if _missing(v)}
+    if len(kinds) > 1:
+        raise DataError(
+            f"table {key}: column '{column}' mixes missing values of different "
+            f"kinds ({sorted(kinds)})."
+        )
+    if kinds and kinds != {"none"}:
+        return cast("str", kinds.pop())
+    return None
+
+
 def _write_table(table: Any, folder: Any, key: Any, table_format: Any) -> None:
+    """Write a DataFrame as parquet or CSV with its sidecar (dtypes, units, index)."""
     if not all(isinstance(column, str) for column in table.columns):
         raise DataError(f"table {key}: column names must be strings.")
     if table.columns.has_duplicates:
@@ -266,24 +303,9 @@ def _write_table(table: Any, folder: Any, key: Any, table_format: Any) -> None:
             raise DataError(f"table {key}: column '{column}' has unsupported dtype {dtype}.")
         spec = {"dtype": str(dtype), "unit": str(units.get(column, ""))}
         if dtype.kind == "O" or str(dtype) in ("str", "string"):
-            raw = table[column].tolist()
-            values = [v for v in raw if not _missing(v)]
-            if any(not isinstance(v, str) for v in values):
-                raise DataError(f"table {key}: column '{column}' mixes strings and other values.")
-            if MISSING in values:
-                raise DataError(
-                    f"table {key}: column '{column}' contains the reserved value {MISSING!r}."
-                )
-            kinds = {_missing_kind(v) for v in raw if _missing(v)}
-            if kinds and kinds != {"none"}:
-                # which missing value the column held (None, NaN or pandas NA), restored on
-                # reading; one kind per column
-                if len(kinds) > 1:
-                    raise DataError(
-                        f"table {key}: column '{column}' mixes missing values of "
-                        f"different kinds ({sorted(kinds)})."
-                    )
-                spec["missing"] = kinds.pop()
+            missing = _text_missing_kind(table[column].tolist(), key, column)
+            if missing is not None:
+                spec["missing"] = missing
         sidecar["columns"][column] = spec
     if table_format == "parquet":
         out.to_parquet(os.path.join(folder, f"{key}.parquet"), index=False)
@@ -296,6 +318,7 @@ def _write_table(table: Any, folder: Any, key: Any, table_format: Any) -> None:
 
 
 def _missing(value: Any) -> bool:
+    """Return whether a table value is missing (None, NaN or pandas NA)."""
     return (
         value is None
         or (isinstance(value, float) and math.isnan(value))
@@ -304,6 +327,7 @@ def _missing(value: Any) -> bool:
 
 
 def _missing_kind(value: Any) -> Any:
+    """Return the kind of a missing value: "none", "na" or "nan"."""
     if value is None:
         return "none"
     if type(value).__name__ == "NAType":
@@ -312,6 +336,7 @@ def _missing_kind(value: Any) -> Any:
 
 
 def _write_tree(obj: Any, folder: Any, table_format: Any) -> None:
+    """Write the structure, arrays and tables of ``obj`` into ``folder``."""
     encoder = _Encoder(obj)
     structure = encoder.encode(obj, "")
     files = []
@@ -465,6 +490,7 @@ def _light_column(values: Any, dtype: Any, column: Any, key: Any, missing: Any) 
 
 
 def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
+    """Return a table of the container (a :class:`Table` without pandas)."""
     with open(os.path.join(folder, f"{key}.json"), encoding="utf-8") as fobj:
         sidecar = loads(fobj.read())
     if not has_pandas():
@@ -513,6 +539,7 @@ def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
 
 
 def _convert_column(values: Any, dtype: Any, column: Any, key: Any, missing: str = "none") -> Any:
+    """Return a column read from CSV with its recorded dtype and missing values."""
     require("pandas", extra="data", caller="evoparam.data.serialize._convert_column")
     import pandas as pd
 
@@ -538,47 +565,62 @@ def _convert_column(values: Any, dtype: Any, column: Any, key: Any, missing: str
 
 
 class _Decoder:
+    """Rebuild an object from the JSON structure, its arrays and tables."""
+
     def __init__(self, folder: Any, arrays: Any, mmap: Any) -> None:
+        """Read the container in ``folder`` with its ``arrays`` (memory-mapped when ``mmap``)."""
         self.folder = folder
         self.arrays = arrays
         self.mmap = mmap
         self.registry = _registry()
+        # the node tags, in the order they are looked for, and the decoder of each
+        self._tags: tuple[tuple[str, Callable[[Any, Any], Any]], ...] = (
+            ("__float__", lambda value, _node: float(value)),
+            ("__array__", lambda value, _node: np.array(self.arrays[value])),
+            ("__npy__", lambda value, _node: self._npy(value)),
+            ("__table__", lambda value, _node: self._table(value)),
+            ("__tuple__", lambda value, _node: tuple(self.decode(item) for item in value)),
+            ("__dict__", lambda value, _node: {k: self.decode(v) for k, v in value.items()}),
+            ("__items__", lambda value, _node: {self.decode(k): self.decode(v) for k, v in value}),
+            ("__type__", lambda value, node: self._object(value, node["fields"])),
+        )
 
     def decode(self, node: Any) -> Any:
+        """Return the object of a JSON node of ``structure.json``."""
         if isinstance(node, list):
             return [self.decode(item) for item in node]
         if not isinstance(node, dict):
             return node
-        if "__float__" in node:
-            return float(node["__float__"])
-        if "__array__" in node:
-            return np.array(self.arrays[node["__array__"]])
-        if "__npy__" in node:
-            return np.load(
-                os.path.join(self.folder, node["__npy__"]),
-                allow_pickle=False,
-                mmap_mode="r" if self.mmap else None,
-            )
-        if "__table__" in node:
-            return _read_table(os.path.join(self.folder, "tables"), node["__table__"])
-        if "__tuple__" in node:
-            return tuple(self.decode(item) for item in node["__tuple__"])
-        if "__dict__" in node:
-            return {key: self.decode(value) for key, value in node["__dict__"].items()}
-        if "__items__" in node:
-            return {self.decode(key): self.decode(value) for key, value in node["__items__"]}
-        if "__type__" in node:
-            cls = self.registry.get(node["__type__"])
-            if cls is None:
-                raise DataError(
-                    f"Unknown object type {node['__type__']!r} in container "
-                    "(import the module that defines it, e.g. evoparam.sim)."
-                )
-            return cls(**{name: self.decode(value) for name, value in node["fields"].items()})
+        for tag, decode in self._tags:
+            if tag in node:
+                return decode(node[tag], node)
         raise DataError(f"Unrecognised node in structure.json: {sorted(node)}.")
+
+    def _table(self, key: Any) -> Any:
+        """Return a table of the container."""
+        return _read_table(os.path.join(self.folder, "tables"), key)
+
+    def _npy(self, name: Any) -> Any:
+        """Return the main data array, memory-mapped when asked."""
+        return np.load(
+            os.path.join(self.folder, name),
+            allow_pickle=False,
+            mmap_mode="r" if self.mmap else None,
+        )
+
+    def _object(self, name: Any, values: Any) -> Any:
+        """Return a registered evoparam object from its decoded fields."""
+        cls = self.registry.get(name)
+        if cls is None:
+            raise DataError(
+                f"Unknown object type {name!r} in container "
+                "(import the module that defines it, e.g. evoparam.sim)."
+            )
+        return cls(**{name_: self.decode(value) for name_, value in values.items()})
 
 
 def _read_manifest(folder: Any) -> tuple[Any, int]:
+    """Return the manifest and the schema major of a container."""
     manifest_path = os.path.join(folder, "manifest.json")
     if not os.path.exists(manifest_path):
         raise DataError(f"{folder}: not an evoparam container (no manifest.json).")
@@ -600,6 +642,7 @@ def _read_manifest(folder: Any) -> tuple[Any, int]:
 
 
 def _load_folder(folder: Any, mmap: Any, verify: Any) -> Any:
+    """Return the object of a container folder, checksums verified and migrations applied."""
     manifest, major = _read_manifest(folder)
     if verify:
         for name, digest in manifest["files"].items():

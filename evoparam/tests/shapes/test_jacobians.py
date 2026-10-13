@@ -24,6 +24,9 @@ from evoparam.tests.shapes.helpers import (
     sample_params,
 )
 
+# Largest fraction of parameter draws where the Jacobian check is undefined.
+MAX_UNDEFINED = 0.2
+
 N_SETS = 100
 RTOL = 1e-6
 REL_STEP = 1e-5
@@ -171,4 +174,4 @@ def test_registry_check_agrees_on_builtin_shapes() -> None:
         params = sample_params(shape, TIMES, 30, np.random.default_rng(5))
         error = jacobian_error(shape, TIMES, params, bounds=bounds)
         assert np.nanmax(error) < RTOL, case
-        assert np.mean(np.isnan(error)) < 0.2, case
+        assert np.mean(np.isnan(error)) < MAX_UNDEFINED, case
