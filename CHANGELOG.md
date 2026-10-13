@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### REQ-068 timing: the first-use imports are no longer timed
+
+- With the package root imported on first use (REQ-290 P6), the first artifact method of
+  `benchmarks/bench_artifact.py` that needs scipy.signal (`polynomial`) paid its import
+  (about 1 s) inside the timed call: 2.3 to 2.7 s against the 2 s limit. Each case now
+  first runs untimed on a small set of the same layout. `polynomial`: 1.68 s; every
+  method within its limit. The tf timing test (REQ-218) failed only under a parallel run
+  of the whole suite and passes alone.
+
 ### §7.4 (5): Linux, macOS and Windows measured
 
 - Windows 11 (AMD64, Python 3.12.2, NumPy 2.5.4), measured on a Windows PC: the 98 values
