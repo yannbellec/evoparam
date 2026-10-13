@@ -2,6 +2,57 @@
 
 ## Unreleased
 
+### Arguments that were ignored: `verbose=`, `n_jobs`, five unused arguments (REQ-304, REQ-307)
+
+With the default arguments the results are unchanged: the reference fixture, the frozen
+methods texts, the API index and the results of `test_response` (permutation,
+projection, shuffle, cluster), `fit`, `fit_trials` and `shared_shapes` (nmf, kpca) are
+identical to main.
+
+- **`verbose=`** of `fit`, `test_response`, `fit_hierarchical`, `tf_fit` and
+  `detect_pulses` now sets the level of the `evoparam` logger for the call
+  (`evoparam.utils.verbose`, REQ-304: None/False inherit, True/"info", "debug",
+  "warning", "error"); each function writes an INFO record summarising its run.
+  `verbose="progress"` shows a `tqdm` bar over channels, subjects or units (extra
+  `progress`; without tqdm nothing is shown); the bar never changes a result.
+  Warnings raised inside a `@verbose` function point at the caller's line, not at the
+  decorator.
+- **`n_jobs`** of `test_response` (permutation, projection, shuffle and
+  `model_comparison`), `fit_trials` and `shared_shapes` (nmf) now runs the channels,
+  blocks or restarts in parallel: `joblib` processes when the extra `parallel` is
+  installed, else a thread pool (new `evoparam.utils._parallel`, also used by
+  `fit_hierarchical`). Every random number is drawn in the calling process in the order of
+  the serial loop, so the results are identical for every `n_jobs` (tested for each
+  function and both back ends). The warnings and log records of a worker process are
+  issued again in the caller, in order. `shared_shapes(method="kpca")` and `tf_fit` stay
+  serial.
+- **Unused arguments implemented** as their docstrings say:
+  `prestimulus_dependence(band=)` is checked (two increasing positive frequencies) and
+  must match the band of the pre-stimulus phases of the fit (SettingsError otherwise; the
+  fit records it in its settings when `"prestim"` is a covariate);
+  `GroupFit.to_annotations(what=)` accepts `"components"` and raises SettingsError
+  otherwise; `artifact_quality(template=)` gives the residual R² of the template when the
+  result has none; `reports.markdown(data=)` adds the trial QC of the data; the `log`
+  argument of the CLI fit receives the records of the `evoparam` logger (`--verbose
+  info|debug`).
+- **REQ-307**: the 6 `except Exception` fallbacks left (permutation tail fit, REML of
+  `fit_hierarchical`, log-likelihood of the Bayesian fit, three initial guesses of the
+  engine) catch the specific exceptions they expect; the REML and log-likelihood
+  fallbacks warn, the others write a DEBUG record. `ruff check --select
+  E722,S110,BLE001 evoparam` reports nothing: expected failure removed. ruff findings
+  1246 -> 1226 (package: 373; ARG001/ARG002 13 -> 0, BLE001 6 -> 0, PLR2004 204 -> 203).
+- Docstrings and annotations: `read_neo(events=)` documents False; the `folder` of
+  `fetch_openneuro_file` accepts None (`$EVOPARAM_DATA`, else `~/.cache/evoparam`); a
+  plugin background without `basis`/`basis_jacobian` is refused when the plugin loads,
+  with a SettingsError naming the missing members (subclass `BackgroundBase`). The
+  `suite=` of the benchmark functions already documented `str or Suite` on main.
+- **Type stubs**: `scipy-stubs`, `types-PyYAML` and `types-tabulate` added to the `tests`
+  extra (and `all`); the four lock files regenerated with `uv pip compile` (additions
+  only, no other pin changed). `mypy --strict evoparam` with the stubs: 1 error, `patsy`
+  `[import-untyped]` (47 without them); the expected failure stays with these values.
+  `soup.json` and `THIRD_PARTY.md` regenerated (joblib and tqdm are now imported by the
+  package).
+
 ### Static quality: ruff and typing (spec §9.6 REQ-301, §9.9 REQ-305, REQ-307)
 
 No change of behaviour apart from the fix below: formatting, equivalent rewrites,
@@ -61,7 +112,7 @@ comments. The reference fixture, the frozen methods texts and the API index are 
   `benchmark` `suite=` also takes a Suite and `read_neo` `events=` also takes False while
   the docstrings say str; `fetch_openneuro_file` `folder` cannot be None; a plugin
   background that only satisfies the `Background` protocol has no `basis` /
-  `basis_jacobian`, which `fit` needs.
+  `basis_jacobian`, which `fit` needs. Since done: see the section above.
 
 ### `compute_features`: half-height crossings at the ends of the feature grid; REQ-231 (Kiesel et al. 2008) read
 
