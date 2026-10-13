@@ -80,5 +80,8 @@ code: recall drop at 1024 Hz +8.82 points (criterion <= 5.0): NOT met.
 
 ## 5. Platform
 
-Linux-6.18.44-fc-v114-x86_64-with-glibc2.39: fixture fit within rtol 1e-09 of the reference: yes (largest relative difference 0). macOS and Windows (x86-64, arm64) are the cells of the tests matrix of .github/workflows/ci.yml (tests/test_determinism.py); not run on this machine.
+| platform | Python | NumPy | within rtol of the reference | largest relative difference |
+|---|---|---|---|---|
+| Linux-6.18.44-fc-v114-x86_64-with-glibc2.39 | 3.13.16 | 2.5.3 | yes (1e-09) | 0 |
+| macOS-26.4.1-arm64-arm-64bit-Mach-O | 3.14.7 | 2.5.3 | yes (1e-09) | 1.3e-12 |
 
