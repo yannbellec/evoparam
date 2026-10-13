@@ -541,7 +541,7 @@ def _compare_numbers(new: Any, old: Any, path: Any, rtol: Any, atol: Any, out: A
     try:
         a = np.asarray(new)
         b = np.asarray(old)
-    except Exception:  # noqa: BLE001 (reported as a difference)
+    except Exception:  # noqa: BLE001  (reported as a difference)
         return _mismatch(out, path)
     if a.shape != b.shape:
         return _mismatch(out, path)

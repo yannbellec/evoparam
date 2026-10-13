@@ -218,7 +218,7 @@ def markdown(result: Any, *, data: Any = None) -> Any:
 def _have_tabulate() -> bool:
     """Return whether ``tabulate`` (needed by ``DataFrame.to_markdown``) is installed."""
     try:
-        import tabulate  # noqa: F401
+        import tabulate  # noqa: F401  (availability check only)
     except ImportError:
         return False
     return True

@@ -1113,7 +1113,7 @@ class _DerivativeReader:
         return [load_object(p, verify=self.verify) for p in paths]
 
 
-def read_bids_derivatives(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def read_bids_derivatives(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     path: str,
     *,
     subject: str,

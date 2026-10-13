@@ -8,7 +8,7 @@ extra ``edf``; without them they raise an ImportError that names the extra.
 
 import os
 import time as _time
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -282,7 +282,21 @@ def _guess_format(path: Any) -> Any:
     raise ReaderError(f"Cannot tell the format of {path!r}; give format=.")
 
 
-def _read_continuous(  # noqa: PLR0913  (the keywords of the public read() for recordings; DECISIONS.md §7.2)
+@dataclass(frozen=True)
+class _Labels:
+    """What :func:`read` attaches to a recording read from a file.
+
+    The keywords ``metadata``, ``ch_info``, ``species`` and ``modality`` of :func:`read`
+    for a BrainVision, EDF or MEF recording.
+    """
+
+    metadata: Any = None
+    ch_info: Any = None
+    species: str = "human"
+    modality: Any = None
+
+
+def _read_continuous(
     path: Any,
     fmt: Any,
     *,
@@ -292,16 +306,17 @@ def _read_continuous(  # noqa: PLR0913  (the keywords of the public read() for r
     tmax: float | None = None,
     picks: Any = None,
     remote: Any = None,
-    metadata: Any = None,
-    ch_info: Any = None,
-    species: str = "human",
-    modality: Any = None,
+    **keywords: Any,
 ) -> "TrialSet":
-    """Read a recording file: epochs around ``onsets``, or the recording as one trial."""
+    """Read a recording file: epochs around ``onsets``, or the recording as one trial.
+
+    The other ``keywords`` are the fields of :class:`_Labels`.
+    """
     from evoparam.io.brainvision import _read_with_source
     from evoparam.io.epochs import epoch as cut
     from evoparam.io.epochs import epoch_windows
 
+    labels = _Labels(**keywords)
     start = _time.perf_counter()
     if onsets is not None:
         onsets = np.atleast_1d(np.asarray(onsets, dtype=float))
@@ -329,8 +344,8 @@ def _read_continuous(  # noqa: PLR0913  (the keywords of the public read() for r
             epoch[1],
             t0=t0,
             ch_names=names,
-            metadata=metadata,
-            ch_info=ch_info,
+            metadata=labels.metadata,
+            ch_info=labels.ch_info,
         )
         step = trials.provenance.steps[-1]
         provenance = Provenance(source=source).with_step(
@@ -349,7 +364,11 @@ def _read_continuous(  # noqa: PLR0913  (the keywords of the public read() for r
             masks = np.moveaxis(gaps[:, index], 0, 1)
             changes = {"data": np.where(masks, np.nan, trials.data), "masks": masks}
         return replace(
-            trials, provenance=provenance, species=species, modality=modality, **changes
+            trials,
+            provenance=provenance,
+            species=labels.species,
+            modality=labels.modality,
+            **changes,
         )
     provenance = Provenance(source=source).with_step(
         "evoparam.io.read",
@@ -362,11 +381,11 @@ def _read_continuous(  # noqa: PLR0913  (the keywords of the public read() for r
         sfreq=sfreq,
         ch_names=names,
         units="uV",
-        metadata=_table(metadata, "metadata"),
-        ch_info=_table(ch_info, "ch_info"),
+        metadata=_table(labels.metadata, "metadata"),
+        ch_info=_table(labels.ch_info, "ch_info"),
         masks=gaps[np.newaxis] if gaps.any() else None,
-        species=species,
-        modality=modality,
+        species=labels.species,
+        modality=labels.modality,
         provenance=provenance,
     )
 

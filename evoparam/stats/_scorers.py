@@ -134,7 +134,7 @@ def _fractional_peak_latency(t: Any, s: Any, peak: Any, fraction: Any) -> Any:
     return np.where(has, out, t[0])
 
 
-def score_waveforms(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def score_waveforms(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     times: ArrayLike,
     waveforms: ArrayLike,
     score: str,

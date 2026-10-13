@@ -140,7 +140,7 @@ def _silent_pair(
     return found[0] if len(found) == 1 else None
 
 
-def identify_stim_site(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def identify_stim_site(  # noqa: PLR0913  (spec §5.2 fixes 7 parameters, plus picks, exclude, lead, hold and method; DECISIONS.md §7.2)
     data: FloatArray,
     sfreq: float,
     events: Any,

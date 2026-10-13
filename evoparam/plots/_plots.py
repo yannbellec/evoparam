@@ -163,7 +163,7 @@ def plot_fit(
     return fig
 
 
-def plot_group(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def plot_group(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     group_fit: Any,
     data: Any = None,
     *,

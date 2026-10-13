@@ -2,6 +2,47 @@
 
 ## Unreleased
 
+### Static quality rules met as written (REQ-305, REQ-301)
+
+All the selected rule sets stay on, and every threshold is unchanged (line length 99,
+complexity 12, 8 arguments, 60 statements). No package file is excluded. Behaviour is the
+same: each refactored function was compared with 833968f on reference cases (results,
+written files, warnings), and each magic-value change by its syntax tree. The test files
+of every changed module were run. Details and readings: `docs/spec/DECISIONS.md` §7.
+
+| tool | before (833968f) | after |
+|---|---|---|
+| `ruff check evoparam benchmarks docs/tutorials examples` | 1 264 findings | 0 |
+| `ruff format --check` | clean | clean (440 files) |
+| `interrogate -v evoparam` | 68.3 % | 97.1 % |
+| `mypy --strict evoparam` | 1 error | 0 |
+| `pyright --verifytypes evoparam` | 96.2 % | 96.8 % |
+| `# noqa` comments (same paths) | 231 | 197, each with its reason |
+
+Ruff findings before, by rule:
+
+- PLR2004: 1 046 (package 211, tests 834, benchmarks 1). Each value is now a named,
+  commented constant.
+- C901, PLR0912, PLR0915, PLR0911: 126 findings and 72 noqa. Now 0 and 0: the long
+  functions are split into named private helpers.
+- PLR0913: 60. The public signatures that the spec fixes, or that are public outside
+  it, keep a per-line noqa naming the spec section and the counts (42, against 24
+  before); every other function was refactored.
+- PLR0917: 32, all on private functions and test helpers. All were refactored, and the
+  rule stays on.
+
+Other changes:
+
+- PT028: the 27 per-line noqa on `existence.test_response` and `tf.stats.test_map` are
+  replaced by a `per-file-ignores` entry for each of the two modules. These are
+  statistical tests, not pytest tests.
+- mypy: `patsy` and `pytensor` (optional) join `ignore_missing_imports`.
+- pre-commit: the hooks are pinned to the lock-file versions.
+- Exported helpers outside the spec now take their settings grouped:
+  `permutation_test` and `shuffle_test` (`PermutationOptions`), `bayes.sample`
+  (`NutsSettings`), `sim.artifacts.pulse_shape` (`AntiAliasFilter`) and
+  `stimulation_artifact` (`StimulusPulse`, `RecoveryTail`); see DECISIONS.md §7.2.
+
 ### Engine speed, part 2 (REQ-115): met with the compiled fit of the `fast` extra
 
 REQ-115 is met when numba is installed (extra `fast`, §9.2). The two tests of

@@ -74,7 +74,7 @@ def _check_burst(burst: Any, n_channels: int, ch_names: Any, sfreq: float) -> di
     return out
 
 
-def simulate_bursts(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def simulate_bursts(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     n_trials: int = 30,
     *,
     n_channels: int = 1,

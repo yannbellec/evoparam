@@ -120,7 +120,7 @@ def _have_jsonschema() -> bool:
     """Return whether ``jsonschema`` is installed."""
     try:
         require("jsonschema", extra="validate", caller="evoparam.reports._export._have_jsonschema")
-        import jsonschema  # noqa: F401
+        import jsonschema  # noqa: F401  (availability check only)
     except ImportError:
         return False
     return True
