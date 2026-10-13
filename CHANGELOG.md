@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### REQ-290 P6: `import evoparam` in 0.13 s
+
+- The package root imported every subpackage, and with them scipy.stats (0.53 s): 0.96 s
+  on macOS arm64 (0.91 s on the reference machine). The subpackages and the root functions
+  (`fit`, `test_response`, `read`, `detect_events`, `ResponseModel`, `reproduce`) are now
+  imported on first use (PEP 562 `__getattr__`, `__dir__`, and `TYPE_CHECKING` imports for
+  type checkers); `TrialSet`, `Evoked`, `Provenance`, `load_object`, `errors`, the logging
+  functions and `prep` (13 ms, for the registration of the existence detector, now a light
+  proxy that imports the existence test on its first call) stay eager.
+- `benchmarks/run_benchmarks.py --suite perf --only P6` on macOS arm64: median 0.132 s over
+  10 runs, target met. The committed perf results are those of the reference machine
+  (Linux), so `test_req290_p6_import_under_300_ms` stays an expected failure until P6 is
+  re-run there.
+
 ### REQ-298: evoparam.shapes covered at 100 %
 
 - `evoparam/tests/shapes/test_grid_helpers.py` covers the last five lines and four branches
