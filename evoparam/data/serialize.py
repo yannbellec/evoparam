@@ -485,6 +485,7 @@ def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
         # Read through a pyarrow file system, the file lands in pyarrow's own buffers:
         # its threads hold no Python object. pandas 2.0 already takes filesystem= (in its
         # **kwargs, named from 2.1) and then opens no handle; the frame read is the same.
+        require("pyarrow", extra="data", caller="evoparam.data.serialize._read_table")
         from pyarrow import fs
 
         table = pd.read_parquet(
