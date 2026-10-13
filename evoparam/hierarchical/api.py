@@ -24,6 +24,7 @@ from evoparam._typing import Any
 from evoparam.data import HierarchicalFit
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
+from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 from . import eb
@@ -251,6 +252,7 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
         raise SettingsError("No labelled component in the channel fits; give components=.")
 
     t0 = _time.perf_counter()
+    require("pandas", extra="data", caller="evoparam.hierarchical.api.fit_hierarchical")
     import pandas as pd
 
     channel_rows, trial_tables, subject_rows, group_rows, var_rows, effect_tables = (

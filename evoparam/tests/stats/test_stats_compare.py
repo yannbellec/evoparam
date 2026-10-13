@@ -4,12 +4,13 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.errors import DataError, SettingsError
 from evoparam.sim import simulate_erp
 from evoparam.stats import compare_conditions, hedges_g, score_waveforms
+
+pd = pytest.importorskip("pandas")
 
 N_SIM = 4000
 

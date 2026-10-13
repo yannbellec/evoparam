@@ -15,8 +15,10 @@ import numpy as np
 
 from evoparam._typing import Any, NDArray
 from evoparam.data._compare import DeepEqualMixin
+from evoparam.data._table import new_table
 from evoparam.data.provenance import Provenance
 from evoparam.errors import DataError, SettingsError
+from evoparam.utils._optional import require
 
 if TYPE_CHECKING:  # annotations only (containers imports this module)
     from evoparam.data.containers import TrialSet
@@ -40,6 +42,26 @@ __all__ = [
 ]
 
 FIT_STATUSES = ("ok", "no_response", "failed", "skipped")
+UNIT_STATUSES = ("ok", "failed")
+
+
+def _unit_status(status: Any, message: Any, shape: tuple[int, ...], owner: str) -> Any:
+    """Return the per-unit ``status`` and ``message`` arrays of a result (REQ-307 ii).
+
+    None gives every unit ``"ok"`` and an empty message; a failed unit needs a message.
+    """
+    status = np.full(shape, "ok") if status is None else np.asarray(status, dtype=str)
+    message = np.full(shape, "") if message is None else np.asarray(message, dtype=str)
+    for name, value in (("status", status), ("message", message)):
+        if value.shape != shape:
+            raise DataError(f"{owner}: '{name}' has shape {value.shape}, expected {shape}.")
+    unknown = set(status.ravel().tolist()) - set(UNIT_STATUSES)
+    if unknown:
+        raise DataError(f"{owner}: status must be one of {UNIT_STATUSES}, got {sorted(unknown)}.")
+    if np.any((status == "failed") & (message == "")):
+        raise DataError(f"{owner}: a failed unit needs a message.")
+    return status, message
+
 
 # Columns of ResponseFit.to_dataframe() / GroupFit.to_dataframe("component") and their units.
 # "data" stands for the amplitude unit of the fitted data.
@@ -97,6 +119,23 @@ FIT_COLUMNS = {
     "residual_lag1_autocorr": "",
     "baseline_sd": "data",
 }
+
+
+def column_units(columns: dict[str, str], units: str) -> dict[str, str]:
+    """Return the column units of a table with ``"data"`` replaced by the data's unit.
+
+    ``units`` is the amplitude unit of the fitted data (REQ-009); empty when it is not
+    known (a waveform fitted from a bare array), and then ``"data"`` stays.
+
+    Examples
+    --------
+    >>> column_units({"latency": "s", "amplitude": "data", "area": "data·s"}, "uV")
+    {'latency': 's', 'amplitude': 'uV', 'area': 'uV·s'}
+    """
+    if not units:
+        return dict(columns)
+    return {name: unit.replace("data", units) for name, unit in columns.items()}
+
 
 COMPONENT_FEATURES = (
     "latency",
@@ -273,6 +312,10 @@ class ResponseTest(_ResultMixin):
     curve_times: NDArray[Any] | None = None
     curve: NDArray[Any] | None = None
     null_band: NDArray[Any] | None = None
+    # per channel (and group), as ``statistic``: "ok", or "failed" with the exception in
+    # ``message`` (REQ-307 ii, ``on_error="record"``); None: every channel "ok"
+    status: NDArray[Any] | None = None
+    message: NDArray[Any] | None = None
 
     def __post_init__(self) -> None:
         """Check and normalise the fields."""
@@ -289,6 +332,9 @@ class ResponseTest(_ResultMixin):
         self.significant = np.asarray(self.significant, dtype=bool)
         self.window = tuple(float(v) for v in self.window)
         n_channels = self.statistic.shape
+        self.status, self.message = _unit_status(
+            self.status, self.message, n_channels, "ResponseTest"
+        )
         for name in (
             "p_value",
             "p_value_raw",
@@ -342,6 +388,9 @@ class ResponseFit(_ResultMixin):
     warnings: list[Any] = field(default_factory=list)
     provenance: Provenance = field(default_factory=Provenance)
     diagnostics: dict[str, Any] = field(default_factory=dict)
+    # the amplitude unit of the fitted data (REQ-009; "" when the data had none, a bare
+    # array): the unit of the amplitudes, areas and errors of the tables
+    units: str = ""
 
     def __post_init__(self) -> None:
         """Check and normalise the fields."""
@@ -361,8 +410,10 @@ class ResponseFit(_ResultMixin):
     def to_dataframe(self, channel: str = "", condition: str = "") -> Any:
         """Tidy table, one row per component (one row with NaN features when there is none).
 
-        Column units are in ``table.attrs["units"]`` (see :data:`COMPONENT_COLUMNS`).
+        Column units are in ``table.attrs["units"]`` (see :data:`COMPONENT_COLUMNS`; the
+        amplitude unit is :attr:`units`, the unit of the fitted data).
         """
+        require("pandas", extra="data", caller="evoparam.data.results.ResponseFit.to_dataframe")
         import pandas as pd
 
         rows = []
@@ -408,7 +459,9 @@ class ResponseFit(_ResultMixin):
         else:
             table["existence_p"] = np.nan
             table["existence_significant"] = pd.array([pd.NA] * len(table), dtype="boolean")
-        table.attrs["units"] = {**COMPONENT_COLUMNS, **INTERVAL_COLUMNS, **EXISTENCE_COLUMNS}
+        table.attrs["units"] = column_units(
+            {**COMPONENT_COLUMNS, **INTERVAL_COLUMNS, **EXISTENCE_COLUMNS}, self.units
+        )
         return table
 
 
@@ -437,6 +490,18 @@ class GroupFit(_ResultMixin):
             raise DataError(
                 f"GroupFit: index has {len(self.index)} rows for {len(self.fits)} fits."
             )
+        units = {getattr(fit, "units", "") for fit in self.fits} - {""}
+        if len(units) > 1:
+            raise DataError(
+                f"GroupFit: the fits are of data in different units {sorted(units)}; "
+                "convert the data first (TrialSet.convert_units)."
+            )
+
+    @property
+    def units(self) -> str:
+        """The amplitude unit of the fitted data ("" when not known, REQ-009)."""
+        units = {getattr(fit, "units", "") for fit in self.fits} - {""}
+        return units.pop() if units else ""
 
     @classmethod
     def from_fits(
@@ -448,13 +513,11 @@ class GroupFit(_ResultMixin):
         provenance: Any = None,
     ) -> "GroupFit":
         """Build the ``index`` table from parallel lists of fits, channels and conditions."""
-        import pandas as pd
-
         if len(fits) != len(ch_names) or (conditions is not None and len(conditions) != len(fits)):
             raise DataError(
                 "GroupFit.from_fits: fits, ch_names and conditions must have the same length."
             )
-        index = pd.DataFrame(
+        index = new_table(
             {
                 "channel": [str(name) for name in ch_names],
                 "condition": [str(c) for c in conditions]
@@ -488,6 +551,7 @@ class GroupFit(_ResultMixin):
 
         Column units are in ``table.attrs["units"]``.
         """
+        require("pandas", extra="data", caller="evoparam.data.results.GroupFit.to_dataframe")
         import pandas as pd
 
         if level == "component":
@@ -506,7 +570,9 @@ class GroupFit(_ResultMixin):
                     + list(EXISTENCE_COLUMNS)
                 )
             )
-            table.attrs["units"] = {**COMPONENT_COLUMNS, **INTERVAL_COLUMNS, **EXISTENCE_COLUMNS}
+            table.attrs["units"] = column_units(
+                {**COMPONENT_COLUMNS, **INTERVAL_COLUMNS, **EXISTENCE_COLUMNS}, self.units
+            )
             return table
         if level == "fit":
             rows = []
@@ -525,7 +591,7 @@ class GroupFit(_ResultMixin):
                     row[name] = getattr(fit.gof, name) if fit.gof is not None else np.nan
                 rows.append(row)
             table = pd.DataFrame(rows, columns=list(FIT_COLUMNS))
-            table.attrs["units"] = dict(FIT_COLUMNS)
+            table.attrs["units"] = column_units(FIT_COLUMNS, self.units)
             return table
         raise DataError(
             f"GroupFit.to_dataframe: level must be 'component' or 'fit', got {level!r}."
@@ -544,6 +610,7 @@ class GroupFit(_ResultMixin):
                 f"GroupFit.to_annotations: what must be 'components' (one annotation per "
                 f"component), not {what!r}."
             )
+        require("mne", extra="mne", caller="evoparam.data.results.GroupFit.to_annotations")
         import mne
 
         onsets, durations, descriptions, channels = [], [], [], []
@@ -567,6 +634,7 @@ class GroupFit(_ResultMixin):
         The curves cover the fit window and are zero elsewhere; the comment is
         ``"evoparam model"``.
         """
+        require("mne", extra="mne", caller="evoparam.data.results.GroupFit.to_evoked_model")
         import mne
 
         fits = [self.fits[int(p)] for p in self.index["position"]]
@@ -632,9 +700,19 @@ class TrialFit(_ResultMixin):
     realigned: Any = None
     settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
+    # "ok", or "failed" with the exception in ``message`` (REQ-307 ii): the numbers of a
+    # failed channel are NaN and none of its trials is converged or trusted
+    status: str = "ok"
+    message: str = ""
 
     def __post_init__(self) -> None:
         """Check and normalise the fields."""
+        if self.status not in UNIT_STATUSES:
+            raise DataError(
+                f"TrialFit: status must be one of {UNIT_STATUSES}, got {self.status!r}."
+            )
+        if self.status == "failed" and not self.message:
+            raise DataError("TrialFit: a failed channel needs a message.")
         for name in ("shift", "scale", "params", "latency", "amplitude", "fwhm", "gof"):
             setattr(self, name, np.asarray(getattr(self, name), dtype=np.float64))
         self.converged = np.asarray(self.converged, dtype=bool)
@@ -731,6 +809,9 @@ class HierarchicalFit(_ResultMixin):
         level tables; ``n_draws``, ``random_state``), which the attribute ``approximation`` states.
         """
         try:
+            require(
+                "arviz", extra="bayes", caller="evoparam.data.results.HierarchicalFit.to_arviz"
+            )
             import arviz as az
         except ImportError as err:
             raise ImportError(
@@ -792,6 +873,11 @@ class ArtifactResult(_ResultMixin):
     basis: NDArray[Any] | None = None
     settings: dict[str, Any] = field(default_factory=dict)
     provenance: Provenance = field(default_factory=Provenance)
+    # per channel of ``cleaned``: "ok", or "failed" with the exception in ``message``
+    # (REQ-307 ii, ``on_error="record"``; the channel keeps its data with the artifact
+    # window masked); None: every channel "ok"
+    status: NDArray[Any] | None = None
+    message: NDArray[Any] | None = None
 
     def __post_init__(self) -> None:
         """Check and normalise the fields."""
@@ -799,6 +885,11 @@ class ArtifactResult(_ResultMixin):
         self.template = _as_float_array(self.template)
         self.basis = _as_float_array(self.basis)
         self.quality = np.asarray(self.quality, dtype=np.float64)
+        n_channels = getattr(self.cleaned, "n_channels", None)
+        if n_channels is not None:
+            self.status, self.message = _unit_status(
+                self.status, self.message, (int(n_channels),), "ArtifactResult"
+            )
 
     def quality_summary(self) -> dict[str, Any]:
         """Summary of the per-trial quality scores.
@@ -886,6 +977,7 @@ class TFFit(_ResultMixin):
             of a row, ``comment`` the map name and ``method`` the transform.
         """
         try:
+            require("mne", extra="mne", caller="evoparam.data.results.TFFit.to_mne")
             import mne
         except ImportError as err:
             raise ImportError(

@@ -139,6 +139,7 @@ def prepare(
 
 
 def _exgauss_logpdf_jax(x: Any, mu: Any, sigma: Any, tau: Any) -> Any:
+    require("jax", extra="bayes", caller="evoparam.hierarchical.bayes._exgauss_logpdf_jax")
     import jax.numpy as jnp
     from jax.scipy.stats import norm
 
@@ -151,7 +152,10 @@ def _exgauss_logpdf_jax(x: Any, mu: Any, sigma: Any, tau: Any) -> Any:
 
 
 def _numpyro_model(data: Any, latency_dist: Any) -> None:
+    require("jax", extra="bayes", caller="evoparam.hierarchical.bayes._numpyro_model")
     import jax.numpy as jnp
+
+    require("numpyro", extra="bayes", caller="evoparam.hierarchical.bayes._numpyro_model")
     import numpyro
     import numpyro.distributions as dist
     from jax.scipy.special import logsumexp
@@ -246,7 +250,10 @@ def _sample_numpyro(
     seed: Any,
     init: Any,
 ) -> tuple[dict[Any, NDArray[Any]], NDArray[Any], dict[Any, NDArray[Any]] | None]:
+    require("jax", extra="bayes", caller="evoparam.hierarchical.bayes._sample_numpyro")
     import jax
+
+    require("numpyro", extra="bayes", caller="evoparam.hierarchical.bayes._sample_numpyro")
     from numpyro.infer import MCMC, NUTS, init_to_value
 
     jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call, unused-ignore]  # untyped in jax
@@ -299,6 +306,7 @@ def _sample_pymc(
     seed: Any,
     init: Any,
 ) -> tuple[dict[Any, NDArray[Any]], NDArray[Any], dict[Any, NDArray[Any]]]:
+    require("pymc", extra="bayes", caller="evoparam.hierarchical.bayes._sample_pymc")
     import pymc as pm
     import pytensor.tensor as pt
 
@@ -403,6 +411,7 @@ def _from_dict(az: Any, groups: Any) -> Any:
 
 
 def _diagnostics(samples: Any, diverging: Any) -> dict[str, Any]:
+    require("arviz", extra="bayes", caller="evoparam.hierarchical.bayes._diagnostics")
     import arviz as az
 
     names = [k for k in samples if not k.startswith(("responsibility",))]
@@ -451,8 +460,7 @@ def sample(
     eb_variance: Any = None,
 ) -> dict[str, Any]:
     """Sample every component and return the posterior tables."""
-    import pandas as pd
-
+    pd = require("pandas", extra="data", caller="evoparam.hierarchical.bayes.sample")
     require_engine(engine)
     channel = level_tables["channel"].copy()
     trial = level_tables["trial"]
@@ -596,7 +604,10 @@ def sample(
 
 def loo_table(fits: Any, var_name: str = "lat_hat") -> Any:
     """PSIS-LOO of each fit on the channel latencies (``arviz.compare``), best first."""
+    require("arviz", extra="bayes", caller="evoparam.hierarchical.bayes.loo_table")
     import arviz as az
+
+    require("pandas", extra="data", caller="evoparam.hierarchical.bayes.loo_table")
     import pandas as pd
 
     idatas = {}

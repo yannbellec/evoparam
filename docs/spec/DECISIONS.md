@@ -48,7 +48,7 @@ import of an optional package (REQ-296 i–iii).
 
 | module | may import | reason for edges beyond the reviewed table |
 |---|---|---|
-| `data` | `_plugins` | D4: the plugins used are recorded in provenance (REQ-328) |
+| `data` | `_plugins`, `utils` | D4: the plugins used are recorded in provenance (REQ-328); D5: `utils.require` only (§9.2, REQ-292) |
 | `io` | `data`, `utils`, `_plugins` | D5: reader entry points (REQ-328) |
 | `events`, `artifact`, `prep` | `data`, `utils`, `shapes` | as reviewed |
 | `shapes` | `_plugins` | D5: shape entry points (REQ-328) |
@@ -59,7 +59,7 @@ import of an optional package (REQ-296 i–iii).
 | `spatial`, `tf` | `data`, `models`, `utils` | as reviewed |
 | `stats` | `data`, `models`, `utils`, `existence` | D5: `trials_needed` resamples the existence test (§5.11) |
 | `sim` | `data`, `shapes`, `artifact`, `utils`, `io` | D5: licence from the registry (REQ-256); `utils.require` only (§9.2) |
-| `presets` | `_plugins` | D5: preset entry points (REQ-328) |
+| `presets` | `_plugins`, `utils` | D5: preset entry points (REQ-328); `utils.require` only (§9.2, REQ-292) |
 | `utils` | none (the two leaves only) | cross-cutting helpers of the §4.2 figure |
 | `_plugins` | none (the two leaves only) | entry-point loader of §10.8 |
 | `_extras`, `_deprecated` | none (the two leaves only) | data tables of §9.2 (extras, REQ-292) and §9.3 (deprecated names, REQ-293) |
@@ -300,16 +300,74 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
 - **REQ-006, the existence table.** `response_duration` gives the onset, the offset and
   the duration, each with its interval (percentiles of the same bootstrap over trials
   that already gave the duration interval), and the decision with its p-value. An
-  Evoked has no trials to resample, so its onset has no interval. This is a documented
-  xfail.
+  Evoked has no trials to resample. Its intervals come from a baseline bootstrap (200
+  resamples by default, `n_boot`): each resample adds to the z-scored window of a channel
+  a segment of the same length of its own z-scored baseline, at a random circular start,
+  and the onset and offset are found again with the same critical value. The observed
+  window already holds one noise realisation, so the noise is counted twice and the
+  intervals are conservative (wider than a trial bootstrap would give). The resamples
+  are drawn after the null, so the p-values and decisions are unchanged.
 - **REQ-005, warnings logged.** `evoparam.errors.warn` issues the warning and logs it on
   the `evoparam` logger. Every warning of the package goes through it, except the single
   call in `io/nwb.py`: that file is being edited on another branch, so its test is a
   strict xfail. The package installs a `NullHandler` only (REQ-304), so a warning is not
   printed twice when the application has no logging set up.
-- **REQ-007, seeds.** `test_response` draws and records a seed when `random_state` is
-  None, as the fits do (REQ-331). `reproduce` keeps an `ArtifactResult` as the result of
-  its last step.
+- **REQ-007, seeds.** `test_response` and `tf_fit` draw and record a seed when
+  `random_state` is None, as the fits do (REQ-331). `reproduce` keeps an `ArtifactResult`
+  as the result of its last step. The step of `tf_fit` holds every keyword argument that
+  changes the result by its name (the frequencies as the grid used, the channels by
+  name), so that `reproduce` calls `tf_fit` again with them; a time-frequency fit made
+  with a `group_fit` records that it used one (`footprint`) and is not replayed with it.
+- **REQ-307 (ii), the unit of `test_response`, `remove_artifact` and `fit_trials`.**
+  The unit is the channel (with its condition for `fit_trials`, and its group of trials
+  for `test_response`). `fit_trials` fits each channel on its own, so a failing channel
+  is caught where it fails. `test_response` and `remove_artifact` work on all the
+  channels at once (vectorised): when that raises, the channels are run one at a time to
+  find the ones that fail on their own, and only those are marked failed. If none fails
+  alone, the exception is not a channel's failure and it propagates. `remove_artifact`
+  does this for the methods that clean each channel on their own (`CHANNEL_WISE`);
+  `lowrank`, `subspace` and `learned` work across channels and `paradigm` changes the
+  trials, so their failures propagate. A failed channel keeps its data with the artifact
+  window masked. `test_response` runs each channel from the random state of the group,
+  so with a failed channel the bootstrap intervals of the others can differ from a run
+  where none fails; the p-values of the sign-flip test do not. The errors of the data or
+  of the settings of the call propagate: `DataError`, `SettingsError`, `ReaderError`,
+  `EvoparamVersionError` (REQ-307 i), and also the documented `ArtifactError` and
+  `EventError` and the `ImportError` of a missing optional package
+  (`evoparam.utils._failures.PROPAGATE`). `message` holds `str(exc)` after the class
+  name of the exception (`"LinAlgError: singular matrix"`), as `fit_group` already did.
+  So it is never empty, even for an exception raised without text, and it says what
+  failed. Results carry `status` and `message`: per `TrialFit`, and arrays shaped like
+  the channels for `ResponseTest` and `ArtifactResult`. The failed channels of
+  `model_comparison` are those whose model fit raises (`fit_waveform` with
+  `on_error="raise"`).
+- **REQ-009, the unit of the amplitudes of a fit.** A `ResponseFit` records the unit of
+  the data it was fitted to (`units`, set by `fit_group` from the TrialSet or Evoked).
+  The tables of `ResponseFit` and `GroupFit` give it in `attrs["units"]` for the
+  amplitudes and their intervals, `area` (`<unit>·s`), `rmse`, `mae` and `baseline_sd`.
+  `"data"` stays only for a waveform fitted from a bare array, which has no unit. A
+  `GroupFit` whose fits come from data in different units raises `DataError`.
+  `docs/reference/tables.rst` writes the unit of these columns as "data unit";
+  `test_tidy.py` now reads "data unit" as the unit of the fitted data (`uV` for the
+  simulated CCEP) instead of the placeholder `"data"`, so it checks the actual unit.
+- **REQ-010, tables without pandas.** The core functions of REQ-291 return or hold tables
+  (the event table of `detect_events`, the quality column that `remove_artifact` adds to
+  the trial metadata, the index of a `GroupFit`, the table of `fit_trials`). With pandas
+  installed (extra `data`) they stay pandas DataFrames, so every result with pandas is
+  unchanged. Without pandas they are `evoparam.data.Table` objects: named NumPy columns
+  of equal length with the subset of the DataFrame interface that the package uses
+  (`columns`, `len`, `t["name"].to_numpy()`, boolean and list selection, `iloc`,
+  `sort_values`, `reset_index`, `itertuples`, `to_dict`), and `to_pandas()` to convert.
+  `evoparam.data._table.new_table` and `concat_tables` choose the type; `pd.concat` and
+  `pd.DataFrame` are no longer called by the core. A container saved without pandas writes
+  its tables as CSV (`table_format="csv"`, and `"auto"` without pyarrow) and reads them
+  back as Tables; parquet tables need the extra `data` to write and to read. Operations that are pandas by nature
+  (`TrialSet.query`, averaging by metadata columns, `GroupFit.to_dataframe`) keep requiring
+  the extra `data` through `require`. `read_neo` builds its metadata the same way, so a
+  missing neo names the extra `neo`. The 37 test modules that use pandas directly skip
+  without it (`pytest.importorskip`), as the test modules of the other extras do, so that
+  the core tests (`-m core`) run in an environment with NumPy and SciPy only; the
+  core-only test now checks the content of the tables, not only that the steps run.
 - **REQ-012, the internal style guide.** It is the *Vocabulary* section of
   `CONTRIBUTING.md`, with the table of prohibited words between markers.
   `test_vocabulary.py` reads the table from there.
@@ -546,6 +604,38 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   with the fit (errors correlated 0.89, RMSE 1.774 against 1.781 ms at best).
 - The criterion is unchanged; the test stays an expected failure with the measured values.
 
+### 5.7 REQ-395 (no copyleft package declared as an extra) — §9.2 (`bids` declares `pybids>=0.16`)
+
+- The §9.2 table gives the extra `bids` two packages: `mne-bids>=0.15` and `pybids>=0.16`.
+  REQ-395 forbids declaring as an extra any package under GPL, LGPL or AGPL, and its
+  acceptance scans the *resolved* dependency tree of every extras set. Every `pybids`
+  release that §9.2 allows requires `num2words` (LGPL), and from 0.19 also `frozendict`
+  (LGPL-3.0): checked on PyPI for each of the 15 releases from 0.16.0 to 0.22.0 (the one
+  locked before). Both requirements cannot hold together.
+- Kept: REQ-395, the legal rule that protects the licence model (§13.7; a single copyleft
+  dependency reaches the paid modules). `pybids` is withheld from the extra `bids` and
+  from `all`; `evoparam._extras.WITHHELD` records it with the reason, and
+  `tests/test_dependencies.py` checks that a withheld package is named here. Nothing in the
+  package imported `pybids` (the BIDS reader, the `events.tsv` harmonisation and the
+  derivatives writer use `mne-bids` and the standard library), so no feature is lost.
+  The lock files were regenerated with their own `uv pip compile` commands: the only
+  changes are the removal of `pybids` and of the packages that only it required.
+- The scan (`tools/licence_scan.py`, standard library only) follows the requirements of
+  every installed distribution from the packages that the chosen extras declare and reads
+  the licence expression, the short `License` field and the `License ::` classifiers. The
+  CI job `licence-scan` installs each of the 22 extras in its own environment and scans it;
+  the test runs the same scan on the test environment, and checks that the scan flags a
+  copyleft licence. One distribution carries a GPL classifier that is not a licence of what
+  is installed: `docutils` (required by Sphinx, extra `docs`) is public domain and
+  BSD-2-Clause except `tools/editors/emacs/rst.el`, which is GPL-3.0 and is not in its
+  wheel. The scan accepts it only after checking, on the installed file list, that this
+  file is absent (`FILE_SCOPED`); it is printed as accepted, not skipped.
+- The import-graph test (`tests/test_import_graph.py`) adds the licence allow-list:
+  every third-party module that a source file imports must belong to a package whose
+  `soup.json` licence is Apache-2.0, BSD-2-Clause, BSD-3-Clause, MIT, PSF-2.0 or MPL-2.0
+  (MPL-2.0 is file-level weak copyleft, not GPL, LGPL or AGPL). The PR template carries
+  the checklist item.
+
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
 Each point below is a reading needed to apply a requirement of S20 literally, or a place
@@ -566,19 +656,27 @@ expected failure whose reason gives the measured value; no criterion was weakene
   `numpyro`, and `gpu` needs `jax[cuda12]`. These are two different requirement strings for
   two installs. Read as: every distribution is declared once per *purpose*. The extras table
   (`evoparam/_extras.py`) lists `jax` under `bayes` and `jax[cuda12]` under `gpu`.
-- **`grep errstate` acceptance (REQ-307 iv).** The literal acceptance is "at most three
-  lines, all in `models/_engine.py`". It is not met: 25 lines in 17 modules use
-  `np.errstate(divide=/invalid="ignore")` around a documented NaN/inf result. The rule's
-  intent is that no `errstate(all="ignore")` hides errors; that is tested and holds. The
-  literal grep is a strict expected failure (`tests/test_errors.py`).
-- **Network grep (REQ-306).** The literal grep also matches lines that are not network
-  access: 7 lines in 2 modules ("HTTP range requests" in docstrings, `urllib.parse` for URL
-  text). The import-level check and the socket guard on the `core` tests hold. The literal
-  grep is a strict expected failure (`tests/test_network.py`).
-- **LGPL packages in the resolved tree (REQ-395).** No module of evoparam imports, vendors
-  or declares a GPL/LGPL/AGPL package. `pybids` (extra `bids`, named by §9.2) pulls in
-  `frozendict` (LGPL-3.0) and `num2words` (LGPL) transitively. The scan of the installed tree
-  is a strict expected failure naming them; replacing `pybids` is a decision for the owner.
+- **`grep errstate` acceptance (REQ-307 iv): met.** `grep -rn "errstate" evoparam/ | grep
+  -v tests` reports nothing. The spec places the tests in a top-level `tests/` folder (§11);
+  here they live in `evoparam/tests`, so the grep excludes that folder, and the test scans
+  every text file of the package, as `grep -r` does, not only the Python files. The
+  documented NaN and inf results (0/0, x/0, the logarithm of 0, the square root of a
+  negative variance) are computed with `evoparam.utils._numeric` (`divide`, `sqrt`, `log`,
+  `log10`), which computes the operation where it is defined and writes the IEEE value
+  elsewhere, so no floating-point warning is raised and none is hidden. The helpers return
+  the same bits as the plain NumPy operation (tested); the reference fixture and the frozen
+  methods texts are unchanged. `hierarchical`, which may import `utils.require` only (§4.2),
+  writes the same two lines inline. Two NumPy *warnings* (not floating-point errors) are
+  filtered by message where a row has a single value: "Degrees of freedom <= 0" in
+  `TrialSet.average` and "Mean of empty slice" in the z-map of `tf.stats`.
+- **Network grep (REQ-306): met.** The grep of §11.5 matched 7 lines in 2 modules that are
+  not network access ("HTTP range requests" in docstrings, `urllib.parse` for URL text).
+  The docstrings now say "HTTP reads with a `Range` header", and `quote`/`unquote` are
+  imported from `evoparam.io._fetch`, the one module allowed to touch the network, so the
+  literal grep reports `io/_fetch.py` only. As for REQ-307 iv, the scan covers every text
+  file of the package outside `evoparam/tests`.
+- **Copyleft packages in the resolved tree (REQ-395): met by withholding `pybids`.** See
+  §5.7.
 - **Preset perturbation (§7.4 item 2).** "±50 %" is read as ×0.5 and ×1.5 of each
   *(choice)* field of `Preset.choices`, one at a time. Intervals are scaled at both ends,
   integers are rounded with a floor of 1, and flags are left alone. "Change of > 10 % in
@@ -595,11 +693,19 @@ expected failure whose reason gives the measured value; no criterion was weakene
   for ds004080 (the N1 agreement lived in tests). `validation/robustness.py` writes it
   (`validation/layer3/n1_ds004080.json`), and the gate reads it with the ERP CORE files.
   Without a release tag, the baseline is the committed files.
-- **Six-step chain (REQ-294).** "The final result holds the six steps in order" does not hold
-  as written. Reading a saved container restores its record without a read step.
-  `detect_events` returns a table, which keeps its step in `EventTable.attrs`. `fit_trials`
-  keeps the steps of the trials, not those of the group fit. The per-step keys and the round
-  trip hold; the literal chain is recorded as an expected failure.
+- **Six-step chain (REQ-294): met.** "The final result holds the six steps in order" is
+  read as: the six named functions are a subsequence of the recorded steps, in order. Two
+  steps that the user calls between them are recorded too, because REQ-294 asks for every
+  public function that transforms data: `evoparam.io.epoch` (between `detect_events` and
+  `remove_artifact`) and `TrialSet.average` (inside `evoparam.fit` on trials).
+  `evoparam.fit` records the steps it runs, `ResponseModel.fit_group` then `test_response`,
+  as before. To make the chain hold: reading a saved container appends a read step with
+  `format: "evoparam"`; `detect_events` records its step in the record of the event table
+  (`EventTable.attrs["provenance"]`), which `epoch` continues; `fit_trials` continues the
+  record of the group fit when that record extends the trials' own, and every `TrialFit`
+  carries it. `evoparam.reproduce` replays the whole chain (`detect_events`, `epoch`,
+  `fit_trials` added to the replayed steps, REQ-333). `tests/data/factories.core_chain`
+  runs the chain on the bundled simulated recording.
 - **"Modified from" notice vs the vocabulary rule (REQ-396 vs REQ-012).** REQ-396 asks every
   inherited file to say what it was modified from. REQ-012 forbids naming the inherited
   project outside `NOTICE`. The three inherited files therefore say "Modified from the
@@ -640,15 +746,27 @@ expected failure whose reason gives the measured value; no criterion was weakene
 - **P6 in a full environment.** P6 is measured with every extra installed. No optional
   module is loaded by `import evoparam` (`optional_modules_loaded` is empty in the results),
   so the time is that of the core.
-- **Shapes coverage (REQ-298).** The 100 % line-and-branch target for `evoparam.shapes` is
-  measured with the tests of `evoparam/tests/shapes` alone: 90 %, with `registry.py` at
-  70 %. The whole suite cannot run here. The CI job measures it with the whole suite.
+- **Coverage (REQ-298).** The gates count lines and branches together (`branch = true`),
+  which the 100 % target of `evoparam.shapes` needs; the 90 % and 80 % gates therefore ask
+  more than the line coverage that REQ-298 names. Every module is measured
+  (`[tool.coverage.run] omit` holds the tests only); before, it also left out `plots`,
+  `cli`, `stream` and `benchmark`, so the 80 % gate had no data. "Core packages" is the
+  list of REQ-298 plus the top-level modules they use (`errors`, `_extras`, `_plugins`,
+  ...), in `[tool.coverage.report] include`. "io local readers" are the readers of local
+  files (`readers`, `bids`, `brainvision`, `mef`, `nwb`, `neo`, `epochs`, ...);
+  `brainvision` and `mef` also read remote files and count with the core (the stricter
+  gate). "Remote I/O" is `io/_fetch.py`, `io/fetch.py` and `io/registry.py`, gated with
+  the outer layers. The shapes target is reached by the tests of `evoparam/tests/shapes`
+  alone (as `test_req298_shapes_coverage_is_100_percent` measures), without any
+  `pragma: no cover`. Measured on the fast suite (no slow, perf or network tests, as the
+  CI job), Python 3.13, 2026-10-13: core 90.5 % (lines and branches; lines alone 93.3 %),
+  shapes 100 %, outer layers 82.0 %.
 - **SOUP inventory roles (REQ-396).** `soup.json` lists every third-party package that the
   source imports or the extras declare. Packages imported only through another package's
   API (`packaging`, `tabulate`, `patsy`, `pytensor`) have the role `transitive`. These
-  declared extras are not imported by the source: `bidsschematools`, `formulaic`, `joblib`,
-  `mne-bids`, `ndx-events`, `nwbinspector`, `pybids`, `tqdm`. They are kept,
-  because §9.2 names them; the inventory marks them `optional`.
+  declared extras are not imported by the source: `bidsschematools`, `formulaic`,
+  `mne-bids`, `ndx-events`, `nwbinspector`. They are kept, because §9.2 names them; the
+  inventory marks them `optional`. `pybids` is withheld (§5.7).
 - **Public steps (REQ-308 run, REQ-391 archive, REQ-392, REQ-393, REQ-394, REQ-398).**
   Everything that can be prepared locally is in the repository. The steps that publish
   (PyPI, Zenodo, a public leaderboard, a preprint, the freeze of the name) wait for the

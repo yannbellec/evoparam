@@ -2,13 +2,14 @@
 """Re-referencing (REQ-081, REQ-082)."""
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.errors import DataError, SettingsError
 from evoparam.prep import car_adaptive_select, rereference
 
 from .helpers import epochs, sim_carla
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

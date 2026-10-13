@@ -5,7 +5,6 @@ import copy
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 from scipy import stats as sps
 
@@ -16,6 +15,8 @@ from evoparam.sim import simulate_erp
 from evoparam.stats import SCORES, bootstrap, bootstrap_interval, score_waveforms
 
 from .helpers import N1, WINDOW, replicates
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

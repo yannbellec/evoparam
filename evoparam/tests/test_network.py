@@ -107,14 +107,21 @@ def test_no_telemetry_or_update_check() -> None:
 
 def _grep_as_written() -> Any:
     """``grep -rn "pickle\\|urllib\\|requests\\|httpx" evoparam/`` outside the fetch helpers
-    and the ``allow_pickle=False`` lines."""
+    and the ``allow_pickle=False`` lines.
+
+    The spec keeps its tests in ``tests/`` at the root of the repository, outside
+    ``evoparam/``; this package ships them in ``evoparam/tests``, which the grep therefore
+    leaves out (docs/spec/DECISIONS.md, section 6)."""
 
     hits = []
-    for path in sorted(PACKAGE.rglob("*.py")):
+    for path in sorted(PACKAGE.rglob("*")):
         rel = path.relative_to(PACKAGE).as_posix()
-        if rel.startswith("tests/") or rel == "io/_fetch.py":
+        if rel.startswith("tests/") or rel == "io/_fetch.py" or not path.is_file():
             continue
-        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        raw = path.read_bytes()
+        if "__pycache__" in path.parts or b"\0" in raw:  # grep -I: compiled or binary files
+            continue
+        for n, line in enumerate(raw.decode("utf-8", errors="replace").splitlines(), 1):
             if re.search(r"pickle|urllib|requests|httpx", line) and not re.search(
                 r"allow_pickle=False", line
             ):
@@ -122,13 +129,5 @@ def _grep_as_written() -> Any:
     return hits
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-306 grep as written matches lines that are not "
-    "network access: 'HTTP range requests' in docstrings of the remote readers "
-    "(brainvision, mef), 'from urllib.parse import quote, unquote' in io/mef.py "
-    "(URL text only); 7 lines in 2 modules measured on "
-    "2026-10-11 (S20). The import-level check above holds",
-)
 def test_grep_as_written() -> None:
     assert not _grep_as_written(), _grep_as_written()

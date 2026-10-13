@@ -127,16 +127,37 @@ def test_req298_coverage_gates() -> None:
     assert any("--fail-under=80" in s["run"] for s in gates)
     for step in gates:
         assert step["if"] == "matrix.python == '3.12' && matrix.os == 'ubuntu-latest'"
+    # the gates measure what REQ-298 names: no gated module is left out of the measurement,
+    # the 90 % report covers the core packages, the 80 % report the outer layers
+    try:
+        import tomllib
+    except ImportError:  # Python 3.10
+        tomllib = pytest.importorskip("tomli")
+    with open(ROOT / "pyproject.toml", "rb") as fobj:
+        coverage = tomllib.load(fobj)["tool"]["coverage"]
+    assert coverage["run"]["branch"] is True
+    assert coverage["run"]["omit"] == ["evoparam/tests/*"]
+    core = coverage["report"]["include"]
+    for package in (
+        "data",
+        "events",
+        "artifact",
+        "prep",
+        "shapes",
+        "models",
+        "existence",
+        "trials",
+        "presets",
+        "utils",
+    ):
+        assert f"evoparam/{package}/*" in core, package
+    for reader in ("readers", "bids", "brainvision", "mef", "nwb", "neo", "epochs"):
+        assert f"evoparam/io/{reader}.py" in core, reader
+    outer = next(s["run"] for s in gates if "--fail-under=80" in s["run"])
+    for layer in ("plots/*", "cli.py", "stream/*", "benchmark/*", "io/_fetch.py", "io/fetch.py"):
+        assert f"evoparam/{layer}" in outer, layer
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-298: evoparam.shapes is covered at 90 % (lines and "
-    "branches: 1180 statements, 78 missed, 238 branches, 48 partial; registry.py "
-    "70 %) by its own tests, evoparam/tests/shapes (S20, 2026-10-11, coverage "
-    "7.x with --branch); the 100 % gate counts the whole suite, which is not run "
-    "in this step",
-)
 @pytest.mark.skipif(
     os.environ.get("EVOPARAM_SLOW_TESTS") != "1",
     reason="runs the shapes tests under coverage; set EVOPARAM_SLOW_TESTS=1",

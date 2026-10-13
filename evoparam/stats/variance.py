@@ -59,6 +59,7 @@ from scipy.optimize import minimize, minimize_scalar
 from evoparam._typing import Any, ArrayLike
 from evoparam.data import Provenance
 from evoparam.errors import DataError, SettingsError
+from evoparam.utils._numeric import divide
 from evoparam.utils._optional import require
 
 __all__ = ["variance_components", "VarianceResult", "reml"]
@@ -344,8 +345,7 @@ def reml(
             - 2 * np.sum((xc @ hmat.T) * path, axis=1)
         )
         var_u = lam**2
-        with np.errstate(divide="ignore", invalid="ignore"):
-            weight = np.where(var_u > 0, 1.0 - np.diag(cond) / var_u, 0.0)
+        weight = np.where(var_u > 0, 1.0 - divide(np.diag(cond), var_u), 0.0)
         for level in range(n_levels):
             sel = blk["level"] == level
             units = blk["unit"][sel]

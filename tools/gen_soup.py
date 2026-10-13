@@ -49,76 +49,152 @@ PACKAGES = {
     "scipy": ("scipy", "BSD-3-Clause", True, "https://github.com/scipy/scipy/issues"),
     "mne": ("mne", "BSD-3-Clause", True, "https://github.com/mne-tools/mne-python/issues"),
     "mne-bids": ("mne_bids", "BSD-3-Clause", True, "https://github.com/mne-tools/mne-bids/issues"),
-    "pybids": ("bids", "MIT", True, "https://github.com/bids-standard/pybids/issues"),
-    "pynwb": ("pynwb", "BSD-3-Clause", True,
-              "https://github.com/NeurodataWithoutBorders/pynwb/issues"),
+    "pynwb": (
+        "pynwb",
+        "BSD-3-Clause",
+        True,
+        "https://github.com/NeurodataWithoutBorders/pynwb/issues",
+    ),
     "hdmf": ("hdmf", "BSD-3-Clause", True, "https://github.com/hdmf-dev/hdmf/issues"),
     "ndx-events": ("ndx_events", "BSD-3-Clause", True, "https://github.com/rly/ndx-events/issues"),
     "h5py": ("h5py", "BSD-3-Clause", True, "https://github.com/h5py/h5py/issues"),
     "remfile": ("remfile", "Apache-2.0", False, "https://github.com/magland/remfile/issues"),
     "neo": ("neo", "BSD-3-Clause", True, "https://github.com/NeuralEnsemble/python-neo/issues"),
-    "quantities": ("quantities", "BSD-3-Clause", False,
-                   "https://github.com/python-quantities/python-quantities/issues"),
+    "quantities": (
+        "quantities",
+        "BSD-3-Clause",
+        False,
+        "https://github.com/python-quantities/python-quantities/issues",
+    ),
     "edfio": ("edfio", "Apache-2.0", True, "https://github.com/the-siesta-group/edfio/issues"),
     "numpyro": ("numpyro", "Apache-2.0", True, "https://github.com/pyro-ppl/numpyro/issues"),
     "jax": ("jax", "Apache-2.0", True, "https://github.com/jax-ml/jax/issues"),
     "arviz": ("arviz", "Apache-2.0", True, "https://github.com/arviz-devs/arviz/issues"),
     "pymc": ("pymc", "Apache-2.0", True, "https://github.com/pymc-devs/pymc/issues"),
     "numba": ("numba", "BSD-2-Clause", False, "https://github.com/numba/numba/issues"),
-    "matplotlib": ("matplotlib", "PSF-2.0", True,
-                   "https://github.com/matplotlib/matplotlib/issues"),
+    "matplotlib": (
+        "matplotlib",
+        "PSF-2.0",
+        True,
+        "https://github.com/matplotlib/matplotlib/issues",
+    ),
     "nilearn": ("nilearn", "BSD-3-Clause", True, "https://github.com/nilearn/nilearn/issues"),
     "pandas": ("pandas", "BSD-3-Clause", True, "https://github.com/pandas-dev/pandas/issues"),
     "pyarrow": ("pyarrow", "Apache-2.0", True, "https://github.com/apache/arrow/issues"),
     "xarray": ("xarray", "Apache-2.0", True, "https://github.com/pydata/xarray/issues"),
-    "statsmodels": ("statsmodels", "BSD-3-Clause", True,
-                    "https://github.com/statsmodels/statsmodels/issues"),
+    "statsmodels": (
+        "statsmodels",
+        "BSD-3-Clause",
+        True,
+        "https://github.com/statsmodels/statsmodels/issues",
+    ),
     "formulaic": ("formulaic", "MIT", True, "https://github.com/matthewwardrop/formulaic/issues"),
-    "bidsschematools": ("bidsschematools", "MIT", True,
-                        "https://github.com/bids-standard/bids-specification/issues"),
-    "nwbinspector": ("nwbinspector", "BSD-3-Clause", True,
-                     "https://github.com/NeurodataWithoutBorders/nwbinspector/issues"),
-    "jsonschema": ("jsonschema", "MIT", True,
-                   "https://github.com/python-jsonschema/jsonschema/issues"),
+    "bidsschematools": (
+        "bidsschematools",
+        "MIT",
+        True,
+        "https://github.com/bids-standard/bids-specification/issues",
+    ),
+    "nwbinspector": (
+        "nwbinspector",
+        "BSD-3-Clause",
+        True,
+        "https://github.com/NeurodataWithoutBorders/nwbinspector/issues",
+    ),
+    "jsonschema": (
+        "jsonschema",
+        "MIT",
+        True,
+        "https://github.com/python-jsonschema/jsonschema/issues",
+    ),
     "tqdm": ("tqdm", "MPL-2.0 AND MIT", True, "https://github.com/tqdm/tqdm/issues"),
     "tomli": ("tomli", "MIT", False, "https://github.com/hukkin/tomli/issues"),
     "joblib": ("joblib", "BSD-3-Clause", True, "https://github.com/joblib/joblib/issues"),
     "pylsl": ("pylsl", "MIT", True, "https://github.com/labstreaminglayer/pylsl/issues"),
-    "scikit-learn": ("sklearn", "BSD-3-Clause", True,
-                     "https://github.com/scikit-learn/scikit-learn/issues"),
+    "scikit-learn": (
+        "sklearn",
+        "BSD-3-Clause",
+        True,
+        "https://github.com/scikit-learn/scikit-learn/issues",
+    ),
     "sphinx": ("sphinx", "BSD-2-Clause", False, "https://github.com/sphinx-doc/sphinx/issues"),
-    "pydata-sphinx-theme": ("pydata_sphinx_theme", "BSD-3-Clause", False,
-                            "https://github.com/pydata/pydata-sphinx-theme/issues"),
-    "sphinx-gallery": ("sphinx_gallery", "BSD-3-Clause", False,
-                       "https://github.com/sphinx-gallery/sphinx-gallery/issues"),
+    "pydata-sphinx-theme": (
+        "pydata_sphinx_theme",
+        "BSD-3-Clause",
+        False,
+        "https://github.com/pydata/pydata-sphinx-theme/issues",
+    ),
+    "sphinx-gallery": (
+        "sphinx_gallery",
+        "BSD-3-Clause",
+        False,
+        "https://github.com/sphinx-gallery/sphinx-gallery/issues",
+    ),
     "numpydoc": ("numpydoc", "BSD-3-Clause", False, "https://github.com/numpy/numpydoc/issues"),
-    "sphinx-copybutton": ("sphinx_copybutton", "MIT", False,
-                          "https://github.com/executablebooks/sphinx-copybutton/issues"),
-    "sphinxcontrib-bibtex": ("sphinxcontrib.bibtex", "BSD-2-Clause", False,
-                             "https://github.com/mcmtroffaes/sphinxcontrib-bibtex/issues"),
-    "myst-parser": ("myst_parser", "MIT", False,
-                    "https://github.com/executablebooks/MyST-Parser/issues"),
+    "sphinx-copybutton": (
+        "sphinx_copybutton",
+        "MIT",
+        False,
+        "https://github.com/executablebooks/sphinx-copybutton/issues",
+    ),
+    "sphinxcontrib-bibtex": (
+        "sphinxcontrib.bibtex",
+        "BSD-2-Clause",
+        False,
+        "https://github.com/mcmtroffaes/sphinxcontrib-bibtex/issues",
+    ),
+    "myst-parser": (
+        "myst_parser",
+        "MIT",
+        False,
+        "https://github.com/executablebooks/MyST-Parser/issues",
+    ),
     "pytest": ("pytest", "MIT", True, "https://github.com/pytest-dev/pytest/issues"),
     "pytest-cov": ("pytest_cov", "MIT", True, "https://github.com/pytest-dev/pytest-cov/issues"),
-    "pytest-timeout": ("pytest_timeout", "MIT", True,
-                       "https://github.com/pytest-dev/pytest-timeout/issues"),
+    "pytest-timeout": (
+        "pytest_timeout",
+        "MIT",
+        True,
+        "https://github.com/pytest-dev/pytest-timeout/issues",
+    ),
     "pytest-xdist": ("xdist", "MIT", True, "https://github.com/pytest-dev/pytest-xdist/issues"),
-    "hypothesis": ("hypothesis", "MPL-2.0", True,
-                   "https://github.com/HypothesisWorks/hypothesis/issues"),
+    "hypothesis": (
+        "hypothesis",
+        "MPL-2.0",
+        True,
+        "https://github.com/HypothesisWorks/hypothesis/issues",
+    ),
     "mypy": ("mypy", "MIT", True, "https://github.com/python/mypy/issues"),
     "ruff": ("ruff", "MIT", True, "https://github.com/astral-sh/ruff/issues"),
     "interrogate": ("interrogate", "MIT", True, "https://github.com/econchick/interrogate/issues"),
     "mpmath": ("mpmath", "BSD-3-Clause", True, "https://github.com/mpmath/mpmath/issues"),
     "pyyaml": ("yaml", "MIT", True, "https://github.com/yaml/pyyaml/issues"),
     # type stubs for mypy --strict (REQ-301), never imported at run time
-    "scipy-stubs": ("scipy-stubs", "BSD-3-Clause", True,
-                    "https://github.com/scipy/scipy-stubs/issues"),
-    "types-pyyaml": ("yaml-stubs", "Apache-2.0", True, "https://github.com/python/typeshed/issues"),
-    "types-tabulate": ("tabulate-stubs", "Apache-2.0", True,
-                       "https://github.com/python/typeshed/issues"),
+    "scipy-stubs": (
+        "scipy-stubs",
+        "BSD-3-Clause",
+        True,
+        "https://github.com/scipy/scipy-stubs/issues",
+    ),
+    "types-pyyaml": (
+        "yaml-stubs",
+        "Apache-2.0",
+        True,
+        "https://github.com/python/typeshed/issues",
+    ),
+    "types-tabulate": (
+        "tabulate-stubs",
+        "Apache-2.0",
+        True,
+        "https://github.com/python/typeshed/issues",
+    ),
     # imported by evoparam's source but installed by another package (TRANSITIVE)
-    "packaging": ("packaging", "Apache-2.0 OR BSD-2-Clause", True,
-                  "https://github.com/pypa/packaging/issues"),
+    "packaging": (
+        "packaging",
+        "Apache-2.0 OR BSD-2-Clause",
+        True,
+        "https://github.com/pypa/packaging/issues",
+    ),
     "tabulate": ("tabulate", "MIT", True, "https://github.com/astanin/python-tabulate/issues"),
     "patsy": ("patsy", "BSD-2-Clause", True, "https://github.com/pydata/patsy/issues"),
     "pytensor": ("pytensor", "BSD-3-Clause", True, "https://github.com/pymc-devs/pytensor/issues"),
@@ -128,9 +204,9 @@ PACKAGES = {
 # package, and the import is guarded or lives in that package's extra
 TRANSITIVE = {
     "packaging": "dependency of pip and most extras; evaluates the markers of the lock file "
-                 "(Provenance.environment['lock_sha256']); without it no lock is claimed",
+    "(Provenance.environment['lock_sha256']); without it no lock is claimed",
     "tabulate": "optional dependency of pandas (DataFrame.to_markdown) in the Markdown "
-                "reports; plain text is written without it",
+    "reports; plain text is written without it",
     "patsy": "dependency of statsmodels (extra stats): design matrices of the mixed-model export",
     "pytensor": "dependency of pymc (extra bayes): tensors of the PyMC engine",
 }
@@ -139,7 +215,7 @@ TRANSITIVE = {
 def _pyproject():
     try:
         import tomllib
-    except ImportError:                       # Python 3.10
+    except ImportError:  # Python 3.10
         import tomli as tomllib
     with open(ROOT / "pyproject.toml", "rb") as fobj:
         return tomllib.load(fobj)["project"]
@@ -198,23 +274,28 @@ def declared():
 
 def locked_versions(lock=LOCK):
     text = lock.read_text(encoding="utf-8") if lock.exists() else ""
-    return {m.group(1).lower(): m.group(2)
-            for m in re.finditer(r"^([A-Za-z0-9_.\-]+)==([^\s;\\]+)", text, flags=re.MULTILINE)}
+    return {
+        m.group(1).lower(): m.group(2)
+        for m in re.finditer(r"^([A-Za-z0-9_.\-]+)==([^\s;\\]+)", text, flags=re.MULTILINE)
+    }
 
 
 class _Uses(ast.NodeVisitor):
     """Names used from each imported top-level package in one module."""
 
     def __init__(self, tree=None):
-        self.aliases = {}                          # local name -> dotted package path
-        self.used = {}                             # top-level package -> set of names
+        self.aliases = {}  # local name -> dotted package path
+        self.used = {}  # top-level package -> set of names
         # functions of the module that return require("<package>", ...)
         self.loaders = {}
         for node in ast.walk(tree) if tree is not None else ():
             if isinstance(node, ast.FunctionDef):
                 for sub in ast.walk(node):
-                    package = self._required(getattr(sub, "value", None)) \
-                        if isinstance(sub, ast.Return) else None
+                    package = (
+                        self._required(getattr(sub, "value", None))
+                        if isinstance(sub, ast.Return)
+                        else None
+                    )
                     if package:
                         self.loaders[node.name] = package
 
@@ -222,10 +303,13 @@ class _Uses(ast.NodeVisitor):
     def _required(call):
         """The package of a ``require("<package>", ...)`` call, else None."""
 
-        if (isinstance(call, ast.Call) and getattr(call.func, "id", getattr(call.func, "attr",
-                                                                          None)) == "require"
-                and call.args and isinstance(call.args[0], ast.Constant)
-                and isinstance(call.args[0].value, str)):
+        if (
+            isinstance(call, ast.Call)
+            and getattr(call.func, "id", getattr(call.func, "attr", None)) == "require"
+            and call.args
+            and isinstance(call.args[0], ast.Constant)
+            and isinstance(call.args[0].value, str)
+        ):
             return call.args[0].value
         return None
 
@@ -237,9 +321,9 @@ class _Uses(ast.NodeVisitor):
 
     def visit_Import(self, node):
         for alias in node.names:
-            if alias.asname:                       # import a.b as c: c is a.b
+            if alias.asname:  # import a.b as c: c is a.b
                 self.aliases[alias.asname] = alias.name
-            else:                                  # import a.b: a is a
+            else:  # import a.b: a is a
                 self.aliases[alias.name.split(".")[0]] = alias.name.split(".")[0]
             self._add(alias.name)
 
@@ -294,8 +378,9 @@ def functions_used(import_names):
                 key = tops[top]
                 imported.add(key)
                 prefix = key.split(".", 1)[1] + "." if "." in key else ""
-                uses[key] |= {n[len(prefix):] if prefix and n.startswith(prefix) else n
-                              for n in names if n}
+                uses[key] |= {
+                    n[len(prefix) :] if prefix and n.startswith(prefix) else n for n in names if n
+                }
     return {name: (sorted(values), name in imported) for name, values in uses.items()}
 
 
@@ -310,24 +395,30 @@ def inventory():
     for name in sorted(rows):
         import_name, licence, checked, tracker = PACKAGES[name]
         row = rows[name]
-        items.append({
-            "package": name, "import_name": import_name, "role": row["role"],
-            "extras": sorted(row["extras"]),
-            "version_range": ", ".join(sorted(row["ranges"])) or "any",
-            "markers": sorted(row["markers"]),
-            "locked_version": locks.get(name),
-            "licence": licence,
-            "licence_checked": "package metadata" if checked else "project repository",
-            "anomaly_url": tracker,
-            "imported_by_source": used[import_name][1] if row["role"] != "tooling" else False,
-            "functions_used": used[import_name][0] if row["role"] != "tooling" else [],
-            **({"installed_by": row["via"]} if row.get("via") else {}),
-        })
-    return {"schema": "evoparam-soup/1",
-            "description": "SOUP inventory of evoparam (spec REQ-399), generated by "
-                           "tools/gen_soup.py from pyproject.toml, ci/locks/py3.12.lock and "
-                           "the package source.",
-            "packages": items}
+        items.append(
+            {
+                "package": name,
+                "import_name": import_name,
+                "role": row["role"],
+                "extras": sorted(row["extras"]),
+                "version_range": ", ".join(sorted(row["ranges"])) or "any",
+                "markers": sorted(row["markers"]),
+                "locked_version": locks.get(name),
+                "licence": licence,
+                "licence_checked": "package metadata" if checked else "project repository",
+                "anomaly_url": tracker,
+                "imported_by_source": used[import_name][1] if row["role"] != "tooling" else False,
+                "functions_used": used[import_name][0] if row["role"] != "tooling" else [],
+                **({"installed_by": row["via"]} if row.get("via") else {}),
+            }
+        )
+    return {
+        "schema": "evoparam-soup/1",
+        "description": "SOUP inventory of evoparam (spec REQ-399), generated by "
+        "tools/gen_soup.py from pyproject.toml, ci/locks/py3.12.lock and "
+        "the package source.",
+        "packages": items,
+    }
 
 
 def _used(row):
@@ -339,28 +430,39 @@ def _used(row):
 
 
 def third_party_md(soup):
-    lines = ["# Third-party packages", "",
-             "Generated by `tools/gen_soup.py` with `soup.json` (spec REQ-396, REQ-399); do not "
-             "edit by hand. Every package evoparam declares, with its version range "
-             "(`pyproject.toml`), the version of the lock file `ci/locks/py3.12.lock`, its "
-             "licence, and where its known anomalies are tracked. No package is copied into "
-             "this repository; they are installed by `pip`. The code evoparam inherited is "
-             "named in `NOTICE`; the algorithms written from papers are listed in "
-             "`REIMPLEMENTED.md`.", ""]
-    for role, title in (("core", "Hard dependencies"), ("optional", "Optional extras"),
-                        ("transitive", "Imported, installed by another package"),
-                        ("tooling", "Documentation and test tooling (not installed with "
-                                    "evoparam)")):
-        lines += [f"## {title}", "",
-                  "| package | extras | version range | locked | licence | anomalies | "
-                  "names used |", "|---|---|---|---|---|---|---|"]
+    lines = [
+        "# Third-party packages",
+        "",
+        "Generated by `tools/gen_soup.py` with `soup.json` (spec REQ-396, REQ-399); do not "
+        "edit by hand. Every package evoparam declares, with its version range "
+        "(`pyproject.toml`), the version of the lock file `ci/locks/py3.12.lock`, its "
+        "licence, and where its known anomalies are tracked. No package is copied into "
+        "this repository; they are installed by `pip`. The code evoparam inherited is "
+        "named in `NOTICE`; the algorithms written from papers are listed in "
+        "`REIMPLEMENTED.md`.",
+        "",
+    ]
+    for role, title in (
+        ("core", "Hard dependencies"),
+        ("optional", "Optional extras"),
+        ("transitive", "Imported, installed by another package"),
+        ("tooling", "Documentation and test tooling (not installed with evoparam)"),
+    ):
+        lines += [
+            f"## {title}",
+            "",
+            "| package | extras | version range | locked | licence | anomalies | names used |",
+            "|---|---|---|---|---|---|---|",
+        ]
         for row in soup["packages"]:
             if row["role"] != role:
                 continue
             extras = ", ".join(row["extras"]) or "-"
-            lines.append(f"| {row['package']} | {extras} | {row['version_range']} | "
-                         f"{row['locked_version'] or 'not locked'} | {row['licence']} | "
-                         f"<{row['anomaly_url']}> | {_used(row)} |")
+            lines.append(
+                f"| {row['package']} | {extras} | {row['version_range']} | "
+                f"{row['locked_version'] or 'not locked'} | {row['licence']} | "
+                f"<{row['anomaly_url']}> | {_used(row)} |"
+            )
         lines.append("")
     return "\n".join(lines).rstrip("\n") + "\n"
 
@@ -372,13 +474,17 @@ def render():
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--check", action="store_true",
-                        help="fail when soup.json or THIRD_PARTY.md is out of date")
+    parser.add_argument(
+        "--check", action="store_true", help="fail when soup.json or THIRD_PARTY.md is out of date"
+    )
     args = parser.parse_args(argv)
     soup, md = render()
     if args.check:
-        stale = [p.name for p, text in ((SOUP, soup), (THIRD_PARTY, md))
-                 if not p.exists() or p.read_text(encoding="utf-8") != text]
+        stale = [
+            p.name
+            for p, text in ((SOUP, soup), (THIRD_PARTY, md))
+            if not p.exists() or p.read_text(encoding="utf-8") != text
+        ]
         if stale:
             print(f"out of date: {', '.join(stale)}; run tools/gen_soup.py")
             return 1

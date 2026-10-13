@@ -5,11 +5,12 @@ import os
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.errors import EventError
 from evoparam.events import events_to_metadata, group_trains, trains
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

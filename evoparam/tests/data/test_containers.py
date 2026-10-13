@@ -4,13 +4,14 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.data import Evoked, TrialSet
 from evoparam.data.containers import auto_chunk
 from evoparam.errors import DataError
 from evoparam.tests.data.factories import SFREQ, make_trialset
+
+pd = pytest.importorskip("pandas")
 
 
 def test_construction_and_repr() -> None:

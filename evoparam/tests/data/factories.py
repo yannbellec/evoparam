@@ -4,7 +4,7 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
+import pytest
 
 from evoparam.data import (
     ArtifactResult,
@@ -20,6 +20,8 @@ from evoparam.data import (
     TrialFit,
     TrialSet,
 )
+
+pd = pytest.importorskip("pandas")
 
 SFREQ = 1000.0
 
@@ -317,4 +319,73 @@ def all_results() -> Any:
         "ArtifactResult": make_artifact_result(),
         "ShapeBasis": make_shape_basis(),
         "TFFit": make_tf_fit(),
+    }
+
+
+# The six public functions of the chain of spec REQ-294, in order, by the name each records
+# (``evoparam.fit`` records the method that makes the GroupFit, ResponseModel.fit_group,
+# and its existence test, test_response).
+CHAIN_STEPS = (
+    "evoparam.io.read",
+    "evoparam.events.detect_events",
+    "evoparam.artifact.remove_artifact",
+    "evoparam.models.ResponseModel.fit_group",
+    "evoparam.existence.test_response",
+    "evoparam.trials.fit_trials",
+)
+# Steps that the chain needs between those six, each the record of a container created by
+# a public function (REQ-294): the epochs cut around the detected events, and the average
+# of the trials that the group fit is made from.
+CHAIN_INTERMEDIATE = ("evoparam.io.epoch", "evoparam.data.TrialSet.average")
+
+
+def bundled_recording() -> Any:
+    """The bundled fixture of ``evoparam.selftest`` (``simulate_ccep``, seed 0, 3 channels,
+    10 trials, a response on every channel), with the stimulation artifacts that the
+    detection needs, laid end to end as one continuous recording: a TrialSet of one trial
+    whose times start at 0."""
+
+    from evoparam.sim import simulate_ccep
+
+    trials, _ = simulate_ccep(n_trials=10, n_channels=3, p_response=1.0, seed=0)
+    data = np.concatenate(list(trials.data), axis=-1)[np.newaxis]
+    return TrialSet(
+        data=data,
+        times=np.arange(data.shape[-1]) / trials.sfreq,
+        sfreq=trials.sfreq,
+        ch_names=list(trials.ch_names),
+        units=trials.units,
+    )
+
+
+def core_chain(folder: Any) -> Any:
+    """The chain of REQ-294 on the bundled fixture: read -> detect_events -> (epoch) ->
+    remove_artifact -> fit (with its existence test, test_response) -> fit_trials.
+
+    The recording is saved as a container in ``folder`` and read back with
+    ``evoparam.io.read``; returns every intermediate result."""
+
+    import os
+
+    import evoparam
+    from evoparam.data import save_object
+
+    recording = bundled_recording()
+    path = save_object(recording, os.path.join(str(folder), "recording.evoparam"))
+    raw = evoparam.io.read(path)
+    events = evoparam.detect_events(raw)
+    trials = evoparam.io.epoch(
+        raw.data[0], raw.sfreq, events, -0.4, 0.9, t0=float(raw.times[0]), ch_names=raw.ch_names
+    )
+    clean = evoparam.artifact.remove_artifact(trials, method="template", window=(-0.002, 0.008))
+    group = evoparam.fit(clean.cleaned, preset="ccep", random_state=0)
+    single = evoparam.trials.fit_trials(clean.cleaned, group, random_state=0)
+    return {
+        "recording": recording,
+        "read": raw,
+        "events": events,
+        "trials": trials,
+        "clean": clean,
+        "group": group,
+        "single": single,
     }

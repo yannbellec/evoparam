@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """remove_artifact: one entry point for every method, plus compare_methods."""
 
+import logging
 import time as _time
 import warnings
 from typing import TYPE_CHECKING
@@ -9,7 +10,9 @@ import numpy as np
 
 from evoparam._typing import Any
 from evoparam.data import ArtifactResult
+from evoparam.data._table import new_table
 from evoparam.errors import ArtifactError, SettingsError
+from evoparam.utils._failures import PROPAGATE, check_on_error, fit_error, record_failure
 from evoparam.utils._interp import INTERPOLATIONS, interpolate_window
 from evoparam.utils._optional import require
 
@@ -22,6 +25,8 @@ if TYPE_CHECKING:
     from evoparam.data.containers import TrialSet
 
 __all__ = ["remove_artifact", "compare_methods", "METHODS"]
+
+logger = logging.getLogger(__name__)
 
 METHODS = (
     "interpolate",
@@ -40,6 +45,18 @@ METHODS = (
 # Methods that change samples outside the declared window (spec REQ-060).
 GLOBAL_METHODS = ("period_template", "lowrank", "subspace", "polynomial")
 
+#: Methods that clean each channel on its own: a channel that fails is recorded on its own
+#: (REQ-307 ii). The others work across channels (``lowrank``, ``subspace``, ``learned``)
+#: or change the trials (``paradigm``): their failures propagate.
+CHANNEL_WISE = (
+    "interpolate",
+    "template",
+    "tail",
+    "period_template",
+    "polynomial",
+    "matching_pursuit",
+)
+
 
 def _check_window_vs_rate(ts: Any, window: Any, method: Any) -> None:
     """Refuse a window longer than the interval between pulses of a train."""
@@ -56,7 +73,7 @@ def _check_window_vs_rate(ts: Any, window: Any, method: Any) -> None:
         )
 
 
-def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.3)
+def remove_artifact(  # noqa: C901, PLR0913, PLR0915  (public API, signature fixed by spec §5.3)
     ts: "TrialSet",
     *,
     method: str = "template",
@@ -96,6 +113,7 @@ def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sign
     quality: bool = True,
     inplace: bool = False,
     random_state: Any = None,
+    on_error: str = "record",
     verbose: Any = None,
 ) -> "ArtifactResult":
     """Remove the stimulation artifact, mark replaced samples and score each trial.
@@ -163,6 +181,14 @@ def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sign
         Accepted for the uniform signature; the input is never modified.
     random_state, verbose
         Unused by the current methods (all deterministic); recorded in the settings.
+    on_error : {"record", "raise"}
+        A channel that fails on its own (REQ-307 ii; the methods that work channel by
+        channel, ``CHANNEL_WISE``) is kept with ``status="failed"`` and the exception in
+        ``message`` (arrays over the channels of ``cleaned``), its data unchanged and its
+        artifact window masked, and one WARNING record names it (``"record"``, the
+        default); ``"raise"`` raises the first :class:`~evoparam.errors.FitError`. The
+        channels are found by cleaning them one at a time after the cleaning of all of
+        them failed; the result then has no template and no template fit r².
 
     Other Parameters
     ----------------
@@ -194,134 +220,164 @@ def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sign
         raise SettingsError(f"interpolation must be one of {INTERPOLATIONS}.")
     if tail not in ("none", "subtract", "joint"):
         raise SettingsError("tail must be 'none', 'subtract' or 'joint'.")
+    check_on_error(on_error)
     window = (float(window[0]), float(window[1]))
     inds = window_slice(ts, window, buffer if method in ("interpolate", "tail") else 0)
     if method in ("interpolate", "template", "learned", "tail"):
         _check_window_vs_rate(ts, window, method)
 
-    masks = base_masks(ts)
-    saturation = ts.masks
-    info = {"template": None, "basis": None, "fit_r2": None}
+    def clean(sub: "TrialSet", user_template: Any = template) -> tuple[Any, ...]:  # noqa: C901, PLR0912, PLR0915  (the method dispatch of remove_artifact, moved as it was)
+        """Run the method on the channels of ``sub`` (``user_template``: their template).
 
-    def interp(values: Any) -> Any:
-        out, _ = interpolate_window(ts.times, values, window, buffer, interpolation)
-        return out
+        Returns the data, the masks, the saturation masks, the method's information and,
+        for ``paradigm``, its output TrialSet (else None).
+        """
+        masks = base_masks(sub)
+        saturation = sub.masks
+        info = {"template": None, "basis": None, "fit_r2": None}
 
-    if method == "none":
-        data = ts.data.copy()
-    elif method == "interpolate":
-        data = interp(ts.data)
-        masks[:, :, inds] = True
-    elif method == "template":
-        from .template import subtract_template
+        def interp(values: Any) -> Any:
+            out, _ = interpolate_window(sub.times, values, window, buffer, interpolation)
+            return out
 
-        data, extra = subtract_template(
-            ts,
-            inds,
-            template=template,
-            group_by=group_by,
-            n_neighbors=n_neighbors,
-            scale=scale,
-            fallback=fallback,
-            interpolate=interp,
-        )
-        if extra["fallback_trials"]:
-            masks[np.ix_(extra["fallback_trials"], np.arange(ts.n_channels), inds)] = True
-        if mask_subtracted:
+        if method == "none":
+            data = sub.data.copy()
+        elif method == "interpolate":
+            data = interp(sub.data)
             masks[:, :, inds] = True
-        info.update(
-            template=extra["template"],
-            fit_r2=extra["fit_r2"],
-            template_response_correlation=extra["template_response_correlation"],
-            fallback_trials=extra["fallback_trials"],
-        )
-    elif method == "learned":
-        from .template import subtract_learned
+        elif method == "template":
+            from .template import subtract_template
 
-        data, extra = subtract_learned(
-            ts, inds, group_by=group_by, n_components=n_components, ridge=ridge
-        )
-        if mask_subtracted:
-            masks[:, :, inds] = True
-        info.update(
-            basis=extra["basis"], fit_r2=extra["fit_r2"], basis_groups=extra["basis_groups"]
-        )
-    elif method == "tail":
-        from .tail import fit_tail
-
-        data = interp(ts.data)
-        masks[:, :, inds] = True
-        if tail != "joint":
-            fitted, tail_inds, params = fit_tail(
-                ts.times, data, inds[-1] + 1, tail_length, tau_bounds, part=tail_part
+            data, extra = subtract_template(
+                sub,
+                inds,
+                template=user_template,
+                group_by=group_by,
+                n_neighbors=n_neighbors,
+                scale=scale,
+                fallback=fallback,
+                interpolate=interp,
             )
-            data[:, :, tail_inds] -= fitted
+            if extra["fallback_trials"]:
+                masks[np.ix_(extra["fallback_trials"], np.arange(sub.n_channels), inds)] = True
             if mask_subtracted:
-                masks[:, :, tail_inds] = True
-            info.update(tail_tau1=params["tau1"], tail_tau2=params["tau2"])
-    elif method == "period_template":
-        data, extra = _period(ts, period, expected_rate, n_bins, n_skip, d_period, causal)
-        info.update(extra)
-    elif method == "lowrank":
-        from .lowrank import lowrank_clean
+                masks[:, :, inds] = True
+            info.update(
+                template=extra["template"],
+                fit_r2=extra["fit_r2"],
+                template_response_correlation=extra["template_response_correlation"],
+                fallback_trials=extra["fallback_trials"],
+            )
+        elif method == "learned":
+            from .template import subtract_learned
 
-        if pulse_times is None:
-            if not expected_rate:
-                raise ArtifactError("method 'lowrank' needs pulse_times or expected_rate.")
-            pulse_times = np.arange(0.0, ts.times[-1] - post_window, 1.0 / expected_rate)
-        data, extra = lowrank_clean(
-            ts.data, ts.sfreq, ts.times, pulse_times, ranks=ranks, post_window=post_window
-        )
-        info.update(removed_fraction=extra["removed_fraction"])
-    elif method == "subspace":
-        from .subspace import subspace_clean
+            data, extra = subtract_learned(
+                sub, inds, group_by=group_by, n_components=n_components, ridge=ridge
+            )
+            if mask_subtracted:
+                masks[:, :, inds] = True
+            info.update(
+                basis=extra["basis"], fit_r2=extra["fit_r2"], basis_groups=extra["basis_groups"]
+            )
+        elif method == "tail":
+            from .tail import fit_tail
 
-        data, extra = subspace_clean(
-            ts.data,
-            inds,
-            window_slice(ts, baseline),
-            n_components="noise" if n_components is None else n_components,
-            extent=subspace_extent,
-        )
-        info.update(
-            n_directions=extra["n_directions"],
-            window_energy_removed=extra["window_energy_removed"],
-        )
-    elif method == "polynomial":
-        from .polynomial import polynomial_clean
+            data = interp(sub.data)
+            masks[:, :, inds] = True
+            if tail != "joint":
+                fitted, tail_inds, params = fit_tail(
+                    sub.times, data, inds[-1] + 1, tail_length, tau_bounds, part=tail_part
+                )
+                data[:, :, tail_inds] -= fitted
+                if mask_subtracted:
+                    masks[:, :, tail_inds] = True
+                info.update(tail_tau1=params["tau1"], tail_tau2=params["tau2"])
+        elif method == "period_template":
+            data, extra = _period(sub, period, expected_rate, n_bins, n_skip, d_period, causal)
+            info.update(extra)
+        elif method == "lowrank":
+            from .lowrank import lowrank_clean
 
-        data, zeroed = polynomial_clean(
-            ts.data,
-            ts.sfreq,
-            saturation,
-            halfwidth=poly_halfwidth,
-            extent=poly_extent,
-            window_inds=inds,
-            baseline_inds=np.flatnonzero((ts.times >= baseline[0]) & (ts.times <= baseline[1])),
-        )
-        masks |= zeroed
-    elif method == "matching_pursuit":
-        from .pursuit import pursuit_clean, warn_patent
+            pulses = pulse_times
+            if pulses is None:
+                if not expected_rate:
+                    raise ArtifactError("method 'lowrank' needs pulse_times or expected_rate.")
+                pulses = np.arange(0.0, sub.times[-1] - post_window, 1.0 / expected_rate)
+            data, extra = lowrank_clean(
+                sub.data, sub.sfreq, sub.times, pulses, ranks=ranks, post_window=post_window
+            )
+            info.update(removed_fraction=extra["removed_fraction"])
+        elif method == "subspace":
+            from .subspace import subspace_clean
 
-        warn_patent()
-        seg = np.flatnonzero((ts.times >= window[0]) & (ts.times <= window[1] + pursuit_length))
-        data = ts.data.copy()
-        flat = data[:, :, seg].reshape(-1, len(seg))
-        cleaned_seg, _ = pursuit_clean(
-            flat, ts.times[seg], window[1], line_freq=line_freq, n_iter=n_atoms
+            data, extra = subspace_clean(
+                sub.data,
+                inds,
+                window_slice(sub, baseline),
+                n_components="noise" if n_components is None else n_components,
+                extent=subspace_extent,
+            )
+            info.update(
+                n_directions=extra["n_directions"],
+                window_energy_removed=extra["window_energy_removed"],
+            )
+        elif method == "polynomial":
+            from .polynomial import polynomial_clean
+
+            data, zeroed = polynomial_clean(
+                sub.data,
+                sub.sfreq,
+                saturation,
+                halfwidth=poly_halfwidth,
+                extent=poly_extent,
+                window_inds=inds,
+                baseline_inds=np.flatnonzero(
+                    (sub.times >= baseline[0]) & (sub.times <= baseline[1])
+                ),
+            )
+            masks |= zeroed
+        elif method == "matching_pursuit":
+            from .pursuit import pursuit_clean, warn_patent
+
+            warn_patent()
+            seg = np.flatnonzero(
+                (sub.times >= window[0]) & (sub.times <= window[1] + pursuit_length)
+            )
+            data = sub.data.copy()
+            flat = data[:, :, seg].reshape(-1, len(seg))
+            cleaned_seg, _ = pursuit_clean(
+                flat, sub.times[seg], window[1], line_freq=line_freq, n_iter=n_atoms
+            )
+            data[:, :, seg] = cleaned_seg.reshape(sub.n_trials, sub.n_channels, len(seg))
+            if mask_subtracted:
+                masks[:, :, seg] = True
+        elif method == "paradigm":
+            if scheme not in SCHEMES:
+                raise ArtifactError(f"method 'paradigm' needs scheme in {SCHEMES}.")
+            out = paradigm_subtract(sub, scheme=scheme, pairing=pairing)
+            data, masks, saturation = out.data, base_masks(out), out.masks
+            ts_out: Any
+            ts_out = out
+        if method != "paradigm":
+            ts_out = None
+        return data, masks, saturation, info, ts_out
+
+    failed: dict[int, str] = {}
+    try:
+        data, masks, saturation, info, ts_out = clean(ts)
+    except PROPAGATE:
+        raise
+    except Exception:
+        # the channels that fail on their own (REQ-307 ii); none, or a method that works
+        # across channels: not a channel's failure
+        if method not in CHANNEL_WISE:
+            raise
+        data, masks, saturation, info, failed = _channel_by_channel(
+            clean, ts, inds, template, on_error
         )
-        data[:, :, seg] = cleaned_seg.reshape(ts.n_trials, ts.n_channels, len(seg))
-        if mask_subtracted:
-            masks[:, :, seg] = True
-    elif method == "paradigm":
-        if scheme not in SCHEMES:
-            raise ArtifactError(f"method 'paradigm' needs scheme in {SCHEMES}.")
-        out = paradigm_subtract(ts, scheme=scheme, pairing=pairing)
-        data, masks, saturation = out.data, base_masks(out), out.masks
-        ts_out: Any
-        ts_out = out
-    if method != "paradigm":
         ts_out = None
+        if not failed:
+            raise
 
     reference = ts if ts_out is None else ts_out
     cleaned = finish(
@@ -340,11 +396,10 @@ def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sign
             cleaned, window=window, baseline=baseline, saturation=saturation, fit_r2=info["fit_r2"]
         )
         scores = components["quality"].to_numpy()
-        pd = require("pandas", extra="data", caller="evoparam.artifact.remove_artifact")
         meta = (
             cleaned.metadata.copy()
             if cleaned.metadata is not None
-            else pd.DataFrame(index=range(cleaned.n_trials))
+            else new_table({"quality": scores})
         )
         meta["quality"] = scores
         from dataclasses import replace
@@ -365,7 +420,39 @@ def remove_artifact(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sign
         basis=info["basis"],
         settings=result_settings,
         provenance=cleaned.provenance.copy(),
+        status=np.array(["failed" if c in failed else "ok" for c in range(cleaned.n_channels)]),
+        message=np.array([failed.get(c, "") for c in range(cleaned.n_channels)]),
     )
+
+
+def _channel_by_channel(
+    clean: Any, ts: "TrialSet", inds: Any, template: Any, on_error: str
+) -> tuple[Any, Any, Any, dict[str, Any], dict[int, str]]:
+    """Clean the channels one at a time; a failed channel keeps its data, window masked.
+
+    Returns the data, the masks, the saturation masks, the information of the method (no
+    template, no template fit r²) and {channel index: message} of the failed channels
+    (recorded, or raised as :class:`FitError` with ``on_error="raise"``).
+    """
+    data = ts.data.copy()
+    masks = base_masks(ts)
+    failed: dict[int, str] = {}
+    user = template if isinstance(template, (np.ndarray, list, tuple)) else None
+    per_channel = user is not None and np.ndim(user) > 1  # a template per channel
+    for c, name in enumerate(ts.ch_names):
+        sub = ts.select(picks=[c])
+        try:
+            out = clean(sub, np.asarray(user, float)[c : c + 1]) if per_channel else clean(sub)
+        except PROPAGATE:
+            raise
+        except Exception as exc:  # the failure of this channel only
+            if on_error == "raise":
+                raise fit_error("remove_artifact", str(name), exc) from exc
+            failed[c] = record_failure(logger, "remove_artifact", str(name), exc)
+            masks[:, c, inds] = True
+            continue
+        data[:, c], masks[:, c] = out[0][:, 0], out[1][:, 0]
+    return data, masks, ts.masks, {"template": None, "basis": None, "fit_r2": None}, failed
 
 
 def _jsonable_settings(settings: Any) -> dict[Any, Any]:

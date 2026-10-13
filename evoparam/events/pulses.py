@@ -7,9 +7,9 @@ import time as _time
 import numpy as np
 
 from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
+from evoparam.data._table import new_table
 from evoparam.errors import DataError, EventError, SettingsError
 from evoparam.utils._logging import verbose
-from evoparam.utils._optional import require
 
 from . import _spec
 from ._score import (
@@ -334,7 +334,6 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     SettingsError
         Unknown method or invalid setting.
     """
-    pd = require("pandas", extra="data", caller="evoparam.events.detect_pulses")
     clock = _time.perf_counter()
     if method not in METHODS:
         raise SettingsError(f"method must be one of {METHODS}, not {method!r}.")
@@ -498,7 +497,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         if label >= 0:
             classes[row] = seen.setdefault(int(label), len(seen))
 
-    events = pd.DataFrame(
+    events = new_table(
         {
             "onset_sample": onsets.astype("int64"),
             "onset_time": t0 + onsets / sfreq,
@@ -521,9 +520,19 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     if saturation:
         _, sat = detect_saturation(data, sfreq, events=events, ch_names=names, picks=index, t0=t0)
         if len(sat):
-            counts = sat.groupby("event_index")["channel"].nunique()
-            events.loc[counts.index, "n_saturated_channels"] = counts.to_numpy(dtype="int64")
-            events["saturated"] = events["n_saturated_channels"] > 0
+            # the number of distinct channels saturated at each pulse
+            pairs = set(
+                zip(
+                    np.asarray(sat["event_index"]).tolist(),
+                    np.asarray(sat["channel"]),
+                    strict=True,
+                )
+            )
+            counts = np.zeros(len(events), dtype="int64")
+            for event, _ in pairs:
+                counts[event] += 1
+            events["n_saturated_channels"] = counts
+            events["saturated"] = counts > 0
 
     if ch_names is not None:
         located = identify_stim_site(
@@ -789,10 +798,13 @@ def detect_events(
     Returns
     -------
     events : pandas.DataFrame
-        The event table of :func:`detect_pulses`.
+        The event table of :func:`detect_pulses`. Its provenance
+        (``events.attrs["provenance"]``) is the record of ``source`` (a TrialSet) followed
+        by one ``evoparam.events.detect_events`` step (REQ-294), which
+        :func:`evoparam.io.epoch` carries into the trials.
     """
     start = _time.perf_counter()
-    from evoparam.data import TrialSet
+    from evoparam.data import Provenance, TrialSet
 
     if isinstance(source, TrialSet):
         if source.n_trials != 1:
@@ -812,5 +824,22 @@ def detect_events(
             raise DataError("detect_events: sfreq is required for an array.")
         data, rate, names, first = source, sfreq, ch_names, 0.0
     events = detect_pulses(data, rate, ch_names=names, t0=first if t0 is None else t0, **kwargs)
-    events.attrs["duration_s"] = _time.perf_counter() - start
+    # one step for this call, after the record of the source: the settings of the detection
+    # (the keyword arguments of detect_pulses, resolved)
+    settings = dict(events.attrs["provenance"]["steps"][-1]["settings"])
+    base = (
+        source.provenance
+        if isinstance(source, TrialSet)
+        else Provenance(
+            source={
+                "format": "mne" if (type(source).__module__ or "").startswith("mne") else "array",
+                "reader": "evoparam.events.detect_events",
+            }
+        )
+    )
+    duration = _time.perf_counter() - start
+    events.attrs["provenance"] = base.with_step(
+        "evoparam.events.detect_events", settings, duration_s=duration, n_events=int(len(events))
+    ).to_dict()
+    events.attrs["duration_s"] = duration
     return events

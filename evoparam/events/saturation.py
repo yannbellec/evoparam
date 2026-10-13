@@ -4,8 +4,8 @@
 import numpy as np
 
 from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
+from evoparam.data._table import new_table
 from evoparam.errors import DataError
-from evoparam.utils._optional import require
 
 from ._score import as_continuous, pick_index
 
@@ -86,7 +86,7 @@ def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, si
     -------
     mask : 2d array of bool, [n_channels, n_times]
         True on the unrecoverable samples.
-    table : pandas.DataFrame
+    table : pandas.DataFrame (a :class:`~evoparam.data.Table` without pandas)
         One row per saturated run: ``channel``, ``start_time``, ``end_time`` (s, end of
         the recovery window), ``n_samples`` (railed samples), ``event_index`` (row of
         ``events`` the run belongs to, -1 when ``events`` is None).
@@ -96,7 +96,6 @@ def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, si
     DataError
         Invalid data, ``rail`` or ``min_run``.
     """
-    pd = require("pandas", extra="data", caller="evoparam.events.detect_saturation")
     data = as_continuous(data)
     n_channels, n_times = data.shape
     if min_run < 2:
@@ -142,9 +141,9 @@ def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, si
                 continue
         if not 0 < level < np.inf:
             continue
-        with np.errstate(invalid="ignore"):
-            railed = np.abs(segment) >= level
-            flat = np.diff(segment, axis=1) == 0
+        railed = np.abs(segment) >= level
+        # a zero difference of two samples (equal and finite: inf - inf is not computed)
+        flat = (segment[:, 1:] == segment[:, :-1]) & np.isfinite(segment[:, 1:])
         flat = np.c_[np.zeros((len(segment), 1), bool), flat]
         flat &= np.abs(np.nan_to_num(segment)) >= FLAT_MIN_FRACTION * level
         # A flat run of k equal samples has k - 1 zero differences: grow it by one sample.
@@ -176,13 +175,25 @@ def detect_saturation(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, si
                     }
                 )
 
-    columns = ["channel", "start_time", "end_time", "n_samples", "event_index", "kind"]
-    table = pd.DataFrame(rows, columns=columns)
-    if len(table):
-        table = (
-            table.sort_values(["start_time", "channel"])
-            .drop_duplicates(["channel", "start_time"])
-            .reset_index(drop=True)
-        )
-    table = table.astype({"n_samples": "int64", "event_index": "int64"})
+    # sorted by start time and channel, the first of the runs with the same channel and
+    # start kept (a table without pandas, REQ-010: the same rows and dtypes)
+    rows.sort(key=lambda run: (run["start_time"], run["channel"]))
+    seen: set[tuple[Any, Any]] = set()
+    kept = []
+    for run in rows:
+        key = (run["channel"], run["start_time"])
+        if key not in seen:
+            seen.add(key)
+            kept.append(run)
+    dtypes: dict[str, Any] = {
+        "channel": object,
+        "start_time": float,
+        "end_time": float,
+        "n_samples": "int64",
+        "event_index": "int64",
+        "kind": object,
+    }
+    table = new_table(
+        {name: np.array([run[name] for run in kept], dtype=kind) for name, kind in dtypes.items()}
+    )
     return mask, table

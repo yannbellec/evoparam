@@ -20,6 +20,7 @@ import warnings
 
 from evoparam._typing import Any
 from evoparam.errors import DataError, EvoparamError, ReaderError, SettingsError
+from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 __all__ = ["main", "run_fit", "EXIT_CODES"]
@@ -121,6 +122,7 @@ def _events_for(path: Any, args: Any) -> tuple[Any, Any]:
 
     --events, else the BIDS events.tsv next to it, else the annotations of an EDF+ file.
     """
+    require("pandas", extra="data", caller="evoparam.cli._events_for")
     import pandas as pd
 
     from evoparam.data._harmonize import harmonize_stim_events
@@ -437,6 +439,7 @@ def cmd_clean(args: Any, outcome: Any) -> None:
     # the cleaned epochs: FIF when mne is installed, else npz (spec §10.5); and the exact
     # container
     try:
+        require("mne", extra="mne", caller="evoparam.cli.cmd_clean")
         import mne  # noqa: F401
 
         path = os.path.join(folder, f"{stem}_epo.fif")

@@ -18,7 +18,7 @@ header:
 The reader is written from the public format specification and the reference C
 library of the Mayo Systems Electrophysiology Lab (meflib); it needs numpy only.
 Only the blocks that cover the requested samples are read and decoded; for a remote
-session only their bytes are downloaded, by HTTP range requests, with the metadata
+session only their bytes are downloaded, by HTTP reads with a ``Range`` header, with the metadata
 and index files of the channels read. The blocks of all the channels are decoded
 together, one symbol per step for every block (numpy). Block and header CRCs are
 checked (``check_crc``). Lossy blocks (scale factor, detrending) are restored as
@@ -47,7 +47,6 @@ import os
 import re
 import struct
 from typing import cast
-from urllib.parse import quote, unquote
 from xml.etree import ElementTree
 
 import numpy as np
@@ -55,7 +54,7 @@ import numpy as np
 from evoparam._typing import Any, FloatArray, IntArray, NDArray, StrPath
 from evoparam.errors import DataError, ReaderError
 from evoparam.errors import warn as _warn
-from evoparam.io._fetch import RemoteFile, TransferLog, fetch_bytes, is_url
+from evoparam.io._fetch import RemoteFile, TransferLog, fetch_bytes, is_url, quote, unquote
 from evoparam.io.brainvision import _pick, _sample
 
 __all__ = ["read_mef", "read_mef_header"]
@@ -129,7 +128,7 @@ _TO_UV = {
 }
 
 # Remote reads: bytes per cached chunk of a .tdat file (the bytes read beyond the blocks
-# are less than two chunks per file), and parallel HTTP requests.
+# are less than two chunks per file), and parallel HTTP reads.
 _CHUNK = 1 << 12
 _WORKERS = 16
 
@@ -1222,7 +1221,7 @@ def read_mef(
         Channels by name or index, in this order. With names, only the metadata of these
         channels is read. The picked channels must share one sampling frequency.
     remote : bool, optional
-        Read through HTTP range requests. Default: True when ``path`` is an http(s)
+        Read through HTTP byte ranges. Default: True when ``path`` is an http(s)
         address.
     check_crc : bool
         Check the CRCs of the headers, of the metadata and index files and of every

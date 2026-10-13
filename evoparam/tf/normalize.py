@@ -7,6 +7,7 @@ import numpy as np
 
 from evoparam._typing import Any, BoolArray, FloatArray
 from evoparam.errors import SettingsError
+from evoparam.utils._numeric import divide, log10
 
 __all__ = ["BASELINE_MODES", "BASELINE_LEVELS", "apply_mode", "normalize"]
 
@@ -16,19 +17,18 @@ BASELINE_LEVELS = ("evoked", "single_trial", "full_epoch")
 
 def apply_mode(power: Any, ref: Any, sd: Any, mode: Any) -> Any:
     """Normalised power for a reference level ``ref`` (and spread ``sd`` for ``zscore``)."""
-    with np.errstate(divide="ignore", invalid="ignore"):
-        ref = np.where(ref > 0, ref, np.nan)
-        if mode == "db":
-            return 10.0 * np.log10(power / ref)
-        if mode == "logratio":
-            return np.log10(power / ref)
-        if mode == "percent":
-            return 100.0 * (power - ref) / ref
-        if mode == "ratio":
-            return power / ref
-        if mode == "zscore":
-            sd = np.where(sd > 0, sd, np.nan)
-            return (power - ref) / sd
+    ref = np.where(ref > 0, ref, np.nan)
+    if mode == "db":
+        return 10.0 * log10(divide(power, ref))
+    if mode == "logratio":
+        return log10(divide(power, ref))
+    if mode == "percent":
+        return divide(100.0 * (power - ref), ref)
+    if mode == "ratio":
+        return divide(power, ref)
+    if mode == "zscore":
+        sd = np.where(sd > 0, sd, np.nan)
+        return divide(power - ref, sd)
     raise SettingsError(f"baseline_mode must be one of {BASELINE_MODES}, not {mode!r}.")
 
 

@@ -9,6 +9,7 @@ import numpy as np
 from evoparam._typing import Any
 from evoparam.data import TrialSet
 from evoparam.errors import DataError
+from evoparam.utils._optional import require
 
 __all__ = []
 
@@ -50,6 +51,7 @@ def new(ts: Any, function: Any, settings: Any, start: Any, **changes: Any) -> An
 
 def ch_table(ts: Any) -> Any:
     """Return the channel table, or a minimal one built from the names."""
+    require("pandas", extra="data", caller="evoparam.prep._common.ch_table")
     import pandas as pd
 
     if ts.ch_info is not None:
