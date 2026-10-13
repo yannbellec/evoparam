@@ -81,8 +81,9 @@ and the reference fixture is not regenerated. Only tests and documents change.
   | trough of the components without background | 31 % / 53 % |
   | negative component nearest the trough; earliest negative component | 34 % / 63 %; 23 % / 30 % |
   | the rule's operator on the components without background | 50 % / 50 % |
-  | **the rule's operator on the fitted curve** | **84 % (62/74) / 90.0 % (27/30)** |
+  | the rule's operator on the fitted curve | 84 % (62/74) / 90.0 % (27/30) |
   | the same, background extrapolated one sample before the fit window | 81 % / 83 % |
+  | **the rule's operator on the fitted curve in the rule's reference** | **91 % (67/74) / 90.0 % (27/30)** |
 
   On the development runs the new reading gives 66 % (23/35) and 86 % (18/21). Each miss
   was classified: the rule's peak absent from the preset's own input average (the
@@ -94,6 +95,27 @@ and the reference fixture is not regenerated. Only tests and documents change.
   100 %) and 87 % / 93 % on the development runs. New test
   `test_req114_rule_peak_on_the_fitted_curve` (xfail; with the code it passes, at the
   threshold).
+- **REQ-114 met under both readings, read in the rule's reference.** The reference misses
+  come from where the two sides are read: the preset fits the adjusted common average,
+  and the rule reads the recording reference. The re-referencing is linear. It subtracts
+  one curve from every channel: the common average of its members, the same for all
+  channels to 1e-12 uV. That curve, baseline-corrected and averaged like the data, is
+  added back to every fitted curve, and the rule's operator then reads the sum. Nothing
+  is refitted and the preset's fits, labels and decisions are unchanged. This is a
+  principled step with no parameter: it was measured on the development runs and
+  reported on the REQ runs.
+
+  | rule's peak on the fitted curve in the rule's reference | registry row | code |
+  |---|---|---|
+  | REQ runs (example + REQ-371), compiled fit | **91 % (67/74)** | **90.0 % (27/30)** |
+  | REQ runs, NumPy path (no numba) | 91 % (68/75) | 90.0 % (27/30) |
+  | development runs, compiled fit | 91 % (32/35) | 95 % (20/21) |
+  | development runs, NumPy path | 89 % (31/35) | 95 % (20/21) |
+
+  REQ-114 is met under both readings with this reading. The margin is zero channels on
+  the REQ runs: one more miss in 74 or in 30 would fall below 90 %. New test
+  `test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference` (passes, both
+  readings). The test as written (the N1 component's latency) stays an xfail.
 - **Model and pipeline variants** (every trial of the pair; REQ-113 kappa pooled over the
   REQ-371 runs, REQ-114 with the new reading; registry row / code):
 
@@ -118,19 +140,24 @@ and the reference fixture is not regenerated. Only tests and documents change.
   spec §6 asks for (common-mode deflections, such as sub-ccepAgeUMCU03's at 32.7 ms on
   35 of 70 channels, would count as N1s). Not adopted. No variant brings REQ-113 near 0.8
   under either reading.
-- Results: REQ-113 not met (0.46 / 0.19 on the PT contacts, 0.46 / 0.40 pooled;
-  unchanged). REQ-114 not met as written (24 % / 37 %; unchanged); with the rule's peak
-  read on the fitted curve, 84 % / 90.0 %. REQ-135 not met (0.586 / 0.496 on the REQ-371
-  runs; before, on other subjects, 0.687 / 0.399). REQ-273 not met. Tests run:
+- Results:
+  - REQ-113: not met (0.46 / 0.19 on the PT contacts, 0.46 / 0.40 pooled; unchanged).
+  - REQ-114 as written: not met (24 % / 37 %; unchanged).
+  - REQ-114, the rule's peak read on the fitted curve in the rule's reference: met
+    (91 % / 90.0 %).
+  - REQ-135: not met (0.586 / 0.496 on the REQ-371 runs; before, on other subjects,
+    0.687 / 0.399).
+  - REQ-273: not met (it needs REQ-113). Tests run:
   `tests/models/test_engine_ccep.py` and `tests/existence/test_existence_ccep.py` with
   `EVOPARAM_NETWORK_TESTS=1`, `tests/test_presets.py`, the reference fixture test.
 - To try next: an owner decision on D8 for REQ-113 and REQ-135 (one reading per
   requirement, or the published code alone as the authors' validated detector). Under the
   registry row: `correction="none"` for the `ccep` existence test (REQ-135 0.807). For
-  REQ-114: a reference that keeps the published pipeline's monopolar channels for the
-  comparison while the preset keeps the adjusted common average for its results, for
-  example a `ccep` reading of the N1 on the recording reference reported next to the
-  re-referenced fit.
+  REQ-114 as written (the component's latency): the N1 is fitted by overlapping
+  components, and the one named N1 is often broad. Next to try: a label rule that names
+  the N1 by the trough it makes, rather than by the larger `|A|` (§5.5.7 would then need
+  a divergence), measured on the development runs first. For the margin of the
+  reference reading: more trials per pair are not available (10 per pair in these runs).
 
 ### Engine speed, part 2 (REQ-115): met with the compiled fit of the `fast` extra
 

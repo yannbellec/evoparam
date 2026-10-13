@@ -245,10 +245,12 @@ def _rule_peak_is_n1_trough(ts: Any, rule_lat: Any, window: Any = (0.009, 0.05))
     return np.array(out, bool)
 
 
-def _model_fits(ts: Any) -> Any:
+def _preset_fits(ts: Any) -> Any:
     """The ccep preset pipeline (artifact "template+tail:joint": template subtraction, the
     tail left to the exponential background of the fit; adjusted common average; baseline;
-    average; fit)."""
+    average; fit). Returns the fits, and the common average the re-referencing subtracted
+    (baseline-corrected and averaged like the data: one curve, the same for every
+    channel) with its times."""
 
     sub = ts.select(tmin=-1.0, tmax=2.0)
     with warnings.catch_warnings():
@@ -256,9 +258,17 @@ def _model_fits(ts: Any) -> Any:
         sub = remove_artifact(
             sub, method="template", window=(-0.002, 0.008), baseline=(-0.5, -0.02)
         ).cleaned
-        sub = rereference(sub, "car_adaptive", random_state=0)
-    evoked = baseline_correct(sub, (-0.5, -0.02), check=False).average()
-    return ResponseModel("ccep").fit_group(evoked).fits
+        car = rereference(sub, "car_adaptive", random_state=0)
+    evoked = baseline_correct(car, (-0.5, -0.02), check=False).average()
+    recorded = baseline_correct(sub, (-0.5, -0.02), check=False).average()
+    reference = np.median(recorded.data - evoked.data, axis=0)
+    return ResponseModel("ccep").fit_group(evoked).fits, evoked.times, reference
+
+
+def _model_fits(ts: Any) -> Any:
+    """The fits of :func:`_preset_fits`."""
+
+    return _preset_fits(ts)[0]
 
 
 def _model_n1(fits: Any) -> Any:
@@ -279,14 +289,19 @@ def _model_n1(fits: Any) -> Any:
     return np.array(det), np.array(lat), np.array(trough), np.array(trough_amp)
 
 
-def _rule_peak_on_fitted_curve(ts: Any, fits: Any, reading: Any) -> Any:
+def _rule_peak_on_fitted_curve(ts: Any, fits: Any, reading: Any, reference: Any = None) -> Any:
     """The published rule's peak read on the fitted curve (a reading of "the model latency"
     of REQ-114): the reading's own peak operator (the most negative sample of 9-100 ms for
     the registry row; the code's largest local minimum with its 20 uV selectivity, its
     first sample excluded) applied to the curve of the ccep fit (components and
     background) from the rule's first sample on; before it, the rule's average, whose
     baseline gives the SD and the level the operator uses. NaN where the curve has no such
-    peak."""
+    peak.
+
+    ``reference`` (times, curve): the common average the preset's re-referencing
+    subtracted, added back to every fitted curve, so that the fit is read in the reference
+    the rule reads (the recording's; the re-referencing is linear: data = re-referenced
+    data + that one curve)."""
 
     from evoparam.existence.rules import apply_rule, resolve_rule
     from evoparam.models import evaluate_fit
@@ -295,8 +310,9 @@ def _rule_peak_on_fitted_curve(ts: Any, fits: Any, reading: Any) -> Any:
     curve = _rule_average(ts)
     # the rule's first sample: its time axis is one sample later than ours
     late = t >= 0.009 - 1.01 / ts.sfreq
+    common = np.interp(t[late], *reference) if reference is not None else 0.0
     for c, fit in enumerate(fits):
-        curve[c, late] = evaluate_fit(fit, t[late]) if fit.status == "ok" else 0.0
+        curve[c, late] = (evaluate_fit(fit, t[late]) if fit.status == "ok" else 0.0) + common
     spec = resolve_rule(READINGS[reading], baseline=(-2.0, -0.1))
     out = apply_rule(curve, t + 1.0 / ts.sfreq, ts.sfreq, spec, "uV")
     return out["onset"] - 1.0 / ts.sfreq
@@ -337,7 +353,7 @@ def agreement() -> Any:
     out = {}
     for subject, run, site in [EXAMPLE + ("PT01-PT02",)] + req371_pairs():
         ts = _pair_trials(subject, run, site)
-        fits = _model_fits(ts)
+        fits, ref_times, reference = _preset_fits(ts)
         det, lat, trough, trough_amp = _model_n1(fits)
         for reading in READINGS:
             rule, rule_lat, floor = _published_rule(ts, reading)
@@ -348,6 +364,9 @@ def agreement() -> Any:
                 "lat": lat,
                 "trough": trough,
                 "curve_peak": _rule_peak_on_fitted_curve(ts, fits, reading),
+                "curve_peak_recording": _rule_peak_on_fitted_curve(
+                    ts, fits, reading, (ref_times, reference)
+                ),
                 "n1_trough": _rule_peak_is_n1_trough(ts, rule_lat),
                 # the decision of the earlier proposed wording (not the REQ): the trough of
                 # the fitted curve at least as deep as the code's amplitude criterion
@@ -445,7 +464,8 @@ def _close(agreement: Any, reading: Any, latency: Any, n1_trough: Any = False) -
     "not met: within 2 ms on 24 % (registry row, 18 of 74) and 37 % (code, 11 "
     "of 30) of the channels where both find an N1 on the REQ-371 runs and the "
     "example; " + RULE_PEAKS + "; read as the rule's peak on the fitted curve, 84 % and "
-    "90.0 % (test_req114_rule_peak_on_the_fitted_curve)",
+    "90.0 %, and in the rule's own reference 91 % and 90.0 % (met: "
+    "test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference)",
 )
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_as_written(agreement: Any, reading: Any) -> None:
@@ -481,7 +501,9 @@ def test_req114_trough_latency(agreement: Any, reading: Any) -> None:
     "(development runs 66 % and 86 %). Every miss is either a peak the preset's own input "
     "does not have (10 and 3: the rule reads the monopolar average, the preset the "
     "adjusted common average) or a tie within noise (2 and 0: the two latencies differ "
-    "by less than 2 SD of the average's baseline); none is a misfit of the model",
+    "by less than 2 SD of the average's baseline); none is a misfit of the model. Read in "
+    "the rule's reference, met under both readings "
+    "(test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference)",
 )
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_rule_peak_on_the_fitted_curve(agreement: Any, reading: Any) -> None:
@@ -491,6 +513,24 @@ def test_req114_rule_peak_on_the_fitted_curve(agreement: Any, reading: Any) -> N
     deflections of 50-100 ms the rule counts are compared with the model's curve there."""
 
     close = _close(agreement, reading, "curve_peak")
+    assert close.size >= 10
+    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+
+
+@pytest.mark.parametrize("reading", list(READINGS))
+def test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference(
+    agreement: Any, reading: Any
+) -> None:
+    """REQ-114 with "the model latency" read as the published rule's peak on the fitted
+    curve, in the reference the rule reads. The preset fits the adjusted common average and
+    the published pipeline reads the recording reference; the re-referencing subtracts one
+    curve from every channel (the common average of its members), which is added back to
+    every fitted curve (:func:`_rule_peak_on_fitted_curve`). Nothing is fitted again and
+    the preset's results are unchanged: the comparison is made in one reference.
+    Measured: 91 % (67 of 74, registry row) and 90.0 % (27 of 30, code) on the REQ runs;
+    91 % (32 of 35) and 95 % (20 of 21) on the development runs."""
+
+    close = _close(agreement, reading, "curve_peak_recording")
     assert close.size >= 10
     assert np.mean(close) >= 0.9, (np.mean(close), close.size)
 
@@ -533,7 +573,13 @@ def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any
     assert np.mean(close) >= 0.9, (np.mean(close), close.size)
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-273 needs REQ-113 and REQ-114, not met")
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-273 needs REQ-113 and REQ-114 as written: REQ-113 is not met under either "
+    "reading (and no decision can meet it under both, D8); REQ-114 is met under both "
+    "readings only with the model latency read as the rule's peak on the fitted curve in "
+    "the rule's reference (91 % and 90.0 %), not with the N1 component's latency",
+)
 def test_req273_ccep_meets_req113_and_req114(agreement: Any) -> None:
     """REQ-273: the ccep preset meets REQ-113 and REQ-114 on ds004080 (both readings)."""
 
