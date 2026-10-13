@@ -8502,19 +8502,19 @@
  ],
  "platform": {
   "match": true,
-  "max_rel_diff": 3.1492760124391944e-12,
+  "max_rel_diff": 0.0,
   "rtol": 1e-09,
   "n_values": 98,
   "differ": [],
   "reference_machine": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39 x86_64, numpy 2.5.3, python 3.13.16",
   "algorithm_versions_changed": false,
-  "platform": "Windows-11-10.0.26200-SP0",
-  "machine": "AMD64",
-  "python": "3.12.2",
-  "numpy": "2.5.4",
-  "date": "2026-10-13",
+  "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "python": "3.13.16",
+  "bayesian_paths": "within Monte Carlo error: compared by the same CI cells",
   "other_platforms": "every operating system and processor measured is a record of platforms/ (one file each)",
-  "bayesian_paths": "within Monte Carlo error: compared by the same CI cells"
+  "numpy": "2.5.3",
+  "date": "2026-10-11"
  },
  "duration_s": 4666.323902496995,
  "platforms": [

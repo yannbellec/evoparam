@@ -548,6 +548,11 @@ and the reference fixture is not regenerated. Only tests and documents change.
   branch `platform-record/<name>` is pushed, and commits the record back to that branch.
 - `test_req375_platform_macos_and_windows` checks every record and names the platforms
   still missing (Windows until its record is merged).
+- Windows measured on a Windows 11 PC (x86-64, Python 3.12.2, NumPy 2.5.4, SciPy 1.18.1,
+  core install `pip install -e .`): 98 values, largest relative difference 3.15e-12, within
+  the 1e-9 of REQ-295. §7.4 (5) is met on Linux, macOS and Windows; the GitHub workflow
+  could not run (the runner was refused for billing). The report's own `platform` block is
+  the reference machine's record (Linux); every machine is in `platforms`.
 
 ### REQ-231: Kiesel et al. (2008) read in full
 
