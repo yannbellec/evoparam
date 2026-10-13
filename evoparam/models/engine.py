@@ -101,9 +101,18 @@ def ar_model(z: Any, return_acov: bool = False) -> Any:
         return (np.array([1.0]), 1.0, np.zeros(0)) if return_acov else (np.array([1.0]), 1.0)
     fits = [(len(target) * np.log(var0), 0, np.zeros(0), var0)]
     lagged_all = np.column_stack([z[p_max - k : n - k] for k in range(1, p_max + 1)])
+    # the nested least-squares problems from one QR factorisation (order p: the first p
+    # columns, R[:p, :p] phi = (Q^T target)[:p]); lstsq where R is numerically singular
+    q_all, r_all = np.linalg.qr(lagged_all)
+    qty = q_all.T @ target
+    r_diag = np.abs(np.diag(r_all))
+    singular = r_diag <= np.finfo(float).eps * max(lagged_all.shape) * np.max(r_diag, initial=0.0)
     for p in range(1, p_max + 1):
         lagged = lagged_all[:, :p]
-        phi = np.linalg.lstsq(lagged, target, rcond=None)[0]
+        if np.any(singular[:p]):
+            phi = np.linalg.lstsq(lagged, target, rcond=None)[0]
+        else:
+            phi = np.linalg.solve(r_all[:p, :p], qty[:p])
         var = float(np.mean((target - lagged @ phi) ** 2))
         if var > 0:
             fits.append((len(target) * np.log(var) + 2 * p, p, phi, var))
@@ -470,6 +479,9 @@ class _Structure:
         self.n_lin_bg = getattr(self.background, "n_linear", 0)
         self.n_theta = int(self.offsets[-1]) + self.n_bg
         self._aug: tuple[Any, NDArray[Any] | None] | None = None
+        # what this structure computes once (its bounds, the limits of the starting values,
+        # the arguments of the compiled fit)
+        self._own: dict[str, Any] = {}
         names = tuple(getattr(self.background, "linear_names", ()))
         self.prior_col = (
             len(self.shapes) + names.index("c0") if self.prior and "c0" in names else None
@@ -489,26 +501,43 @@ class _Structure:
     def bounds(self) -> Any:
         if self.memo is None:
             return self._bounds()
-        key = ("bounds", tuple(self.shapes), self.background, self.edge)
-        if key not in self.memo:
-            self.memo[key] = self._bounds()
-        lo, hi = self.memo[key]
+        known = self._own.get("bounds")
+        if known is None:
+            key = ("bounds", tuple(self.shapes), self.background, self.edge)
+            if key not in self.memo:
+                self.memo[key] = self._bounds()
+            known = self._own["bounds"] = self.memo[key]
+        lo, hi = known
         return lo.copy(), hi.copy()
+
+    def start_limits(self) -> Any:
+        """Bounds, and the interval inside them where a start is clipped, memoised."""
+        known = self._own.get("start_limits")
+        if known is None:
+            lower, upper = self.bounds()
+            span = upper - lower
+            chain = getattr(self, "chain", [])
+            omap = _OrderedMap(chain, lower, upper) if len(chain) >= 2 else None
+            known = (lower, upper, lower + 1e-9 * span, upper - 1e-9 * span, omap)
+            if omap is not None:
+                width = omap.upper - omap.lower
+                known += (omap.lower + 1e-9 * width, omap.upper - 1e-9 * width)
+            if self.memo is not None:
+                self._own["start_limits"] = known
+        return known
 
     def _bounds(self) -> Any:
         lows, highs = [], []
         for shape in self.shapes:
-            lo, hi = (np.array(v, float) for v in shape.default_bounds(self.tw))
-            if self.edge is not None and shape.latency_param in shape.param_names:
-                # A component may be cut by the window edge, but is not centred far outside
-                # it (there it would only imitate the background)
-                i = shape.param_names.index(shape.latency_param)
-                new_lo = max(lo[i], self.tw[0] - self.edge)
-                new_hi = min(hi[i], self.tw[-1] + self.edge)
-                if new_lo < new_hi:
-                    lo[i], hi[i] = new_lo, new_hi
-            lows.append(lo)
-            highs.append(hi)
+            # the bounds of a shape on this window, the same in every structure of the fit
+            key = ("shape_bounds", shape)
+            known = self.memo.get(key) if self.memo is not None else None
+            if known is None:
+                known = self._shape_bounds(shape)
+                if self.memo is not None:
+                    self.memo[key] = known
+            lows.append(known[0])
+            highs.append(known[1])
         if self.n_bg:
             lo, hi = self.background.default_bounds(self.tw)
             lows.append(np.asarray(lo)[self.n_lin_bg :])
@@ -516,6 +545,18 @@ class _Structure:
         if not lows:
             return np.zeros(0), np.zeros(0)
         return np.concatenate(lows).astype(float), np.concatenate(highs).astype(float)
+
+    def _shape_bounds(self, shape: Any) -> tuple[NDArray[Any], NDArray[Any]]:
+        lo, hi = (np.array(v, float) for v in shape.default_bounds(self.tw))
+        if self.edge is not None and shape.latency_param in shape.param_names:
+            # A component may be cut by the window edge, but is not centred far outside
+            # it (there it would only imitate the background)
+            i = shape.param_names.index(shape.latency_param)
+            new_lo = max(lo[i], self.tw[0] - self.edge)
+            new_hi = min(hi[i], self.tw[-1] + self.edge)
+            if new_lo < new_hi:
+                lo[i], hi[i] = new_lo, new_hi
+        return lo, hi
 
     def comp_params(self, theta: Any, k: Any) -> Any:
         return theta[self.offsets[k] : self.offsets[k + 1]]
@@ -562,7 +603,12 @@ class _Structure:
         """
         if self._aug is None:
             n_cols = len(self.shapes) + self.n_lin_bg
-            b = self.white(self.y)
+            # the same for every structure of a fit (one memo per fit)
+            b = self.memo.get("white_y") if self.memo is not None else None
+            if b is None:
+                b = self.white(self.y)
+                if self.memo is not None:
+                    self.memo["white_y"] = b
             rows = self.prior_rows(n_cols)
             if rows is not None:
                 target = np.zeros(len(rows))
@@ -759,14 +805,13 @@ class _OrderedMap:
 
 def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float = 1e-8) -> Any:
     """Bounded least squares on the projected residual; returns (theta, beta, rw, ok, msg)."""
-    lower, upper = struct.bounds()
     if struct.n_theta == 0:
         beta, rw, _, _ = struct.solve(theta0)
         return theta0, beta, rw, True, ""
-    span = upper - lower
-    theta0 = np.clip(theta0, lower + 1e-9 * span, upper - 1e-9 * span)
-    chain = getattr(struct, "chain", [])
-    omap = _OrderedMap(chain, lower, upper) if len(chain) >= 2 else None
+    limits = struct.start_limits()
+    lower, upper, omap = limits[0], limits[1], limits[4]
+    # np.clip, without its overhead
+    theta0 = np.minimum(np.maximum(theta0, limits[2]), limits[3])
     cache: dict[Any, Any]
     cache = {}
     lean = settings.loss == "linear" and _OPTIMISER != "scipy"
@@ -797,7 +842,7 @@ def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float 
         jac = jac_theta
     else:
         lo, hi = omap.lower, omap.upper
-        x0 = np.clip(omap.to_phi(theta0), lo + 1e-9 * (hi - lo), hi - 1e-9 * (hi - lo))
+        x0 = np.minimum(np.maximum(omap.to_phi(theta0), limits[5]), limits[6])
 
         def fun(phi: Any) -> Any:
             return solved(omap.to_theta(phi))[0 if lean else 1]
@@ -826,6 +871,7 @@ def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float 
                     max_nfev=settings.max_iter,
                     reduced=_OPTIMISER != "trf-full",
                     m=len(struct._target()[0]),
+                    final_jacobian=False,
                 )
             else:
                 res = least_squares(
@@ -857,18 +903,17 @@ def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float 
 
 
 def _compiled_args(struct: Any) -> tuple[Any, ...] | None:
-    """What :func:`_fast.optimise` needs to know of a structure; None when it is not covered.
+    """Return what :func:`_fast.optimise` needs to know of a structure, or None.
 
     Covered: Gaussian and skewed-Gaussian components, the exponential background or one
     without non-linear parameters (its basis is then fixed), the whitening of the engine.
-    Memoised per fit with the bounds.
+    None for any other structure. Memoised on the structure.
     """
-    key = ("compiled", tuple(struct.shapes), struct.background)
-    if struct.memo is not None and key in struct.memo:
-        return cast("tuple[Any, ...] | None", struct.memo[key])
+    if "compiled" in struct._own:
+        return cast("tuple[Any, ...] | None", struct._own["compiled"])
     out = _compiled_spec(struct)
     if struct.memo is not None:
-        struct.memo[key] = out
+        struct._own["compiled"] = out
     return out
 
 
@@ -881,6 +926,47 @@ def _compiled_spec(struct: Any) -> tuple[Any, ...] | None:
             kinds.append(_fast.SKEWED_GAUSSIAN)
         else:
             return None
+    # the time axis, background and whitening are those of every structure of the fit
+    key = ("compiled", struct.n_lin_bg)
+    shared = struct.memo.get(key) if struct.memo is not None else None
+    if shared is None:
+        shared = _compiled_shared(struct)
+        if struct.memo is not None:
+            struct.memo[key] = shared
+    if shared is False:
+        return None
+    n_cols = len(struct.shapes) + struct.n_lin_bg
+    diag = np.zeros(n_cols)
+    if n_cols and (struct.prior_col is not None or struct.scale):
+        diag[:] = 1.0 / struct.scale if struct.scale else 0.0
+        if struct.prior_col is not None:
+            diag[struct.prior_col] = 1.0 / cast(float, struct.prior)
+    prior_cols = np.flatnonzero(diag > 0).astype(np.int64)
+    target = np.ascontiguousarray(struct._target()[0], dtype=float)
+    if len(target) != len(struct.tw) + len(prior_cols):
+        return None
+    tw, bg_kind, lag, fixed, inv_scale, a, post, stride, start, start_rows = shared
+    return (
+        tw,
+        np.asarray(kinds, dtype=np.int64),
+        np.asarray(struct.offsets, dtype=np.int64),
+        bg_kind,
+        lag,
+        fixed,
+        inv_scale,
+        a,
+        post,
+        stride,
+        start,
+        start_rows,
+        prior_cols,
+        np.ascontiguousarray(diag[prior_cols]),
+        target,
+    )
+
+
+def _compiled_shared(struct: Any) -> Any:
+    """The arguments of :func:`_fast.optimise` common to the structures of a fit, or False."""
     tw = np.ascontiguousarray(struct.tw, dtype=float)
     background = struct.background
     lag = np.zeros(len(tw))
@@ -896,9 +982,9 @@ def _compiled_spec(struct: Any) -> tuple[Any, ...] | None:
             else np.zeros((0, len(tw)))
         )
         if fixed.shape != (struct.n_lin_bg, len(tw)):
-            return None
+            return False
     else:
-        return None
+        return False
     white = struct.white
     p = len(white.a) - 1
     if type(white) is Whitener:
@@ -906,22 +992,10 @@ def _compiled_spec(struct: Any) -> tuple[Any, ...] | None:
     elif type(white) is StridedWhitener:
         stride, start_rows = white.stride, np.asarray(white.start_rows, dtype=np.int64)
     else:
-        return None
+        return False
     start = np.zeros((0, 0)) if white.start is None else np.ascontiguousarray(white.start)
-    n_cols = len(struct.shapes) + struct.n_lin_bg
-    diag = np.zeros(n_cols)
-    if n_cols and (struct.prior_col is not None or struct.scale):
-        diag[:] = 1.0 / struct.scale if struct.scale else 0.0
-        if struct.prior_col is not None:
-            diag[struct.prior_col] = 1.0 / cast(float, struct.prior)
-    prior_cols = np.flatnonzero(diag > 0).astype(np.int64)
-    target = np.ascontiguousarray(struct._target()[0], dtype=float)
-    if len(target) != len(tw) + len(prior_cols):
-        return None
     return (
         tw,
-        np.asarray(kinds, dtype=np.int64),
-        np.asarray(struct.offsets, dtype=np.int64),
         bg_kind,
         lag,
         fixed,
@@ -931,9 +1005,6 @@ def _compiled_spec(struct: Any) -> tuple[Any, ...] | None:
         int(stride),
         start,
         start_rows,
-        prior_cols,
-        np.ascontiguousarray(diag[prior_cols]),
-        target,
     )
 
 

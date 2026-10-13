@@ -877,18 +877,23 @@ def _svd_stacked(
     v = np.zeros((n, n))
     for j in range(n):
         v[j, j] = 1.0
+    # squared column norms: exact at the start of each sweep, updated after each rotation
+    # (||b_p||^2 - t gamma, ||b_q||^2 + t gamma) within it. Rows are indexed in place: a
+    # view per pair costs more than its few products
+    sq = np.empty(n)
     for _ in range(60):
+        for j in range(n):
+            total = 0.0
+            for i in range(n):
+                total += b[j, i] * b[j, i]
+            sq[j] = total
         rotated = False
         for p in range(n - 1):
             for q in range(p + 1, n):
-                bp, bq = b[p], b[q]
-                alpha = 0.0
-                beta = 0.0
                 gamma = 0.0
-                for i in range(n):  # inline: a BLAS call costs more than n products
-                    alpha += bp[i] * bp[i]
-                    beta += bq[i] * bq[i]
-                    gamma += bp[i] * bq[i]
+                for i in range(n):
+                    gamma += b[p, i] * b[q, i]
+                alpha, beta = sq[p], sq[q]
                 if gamma == 0.0 or abs(gamma) <= EPS * math.sqrt(alpha * beta):
                     continue
                 rotated = True
@@ -896,15 +901,16 @@ def _svd_stacked(
                 t = math.copysign(1.0, zeta) / (abs(zeta) + math.sqrt(1.0 + zeta * zeta))
                 cos = 1.0 / math.sqrt(1.0 + t * t)
                 sin = cos * t
+                sq[p] = alpha - t * gamma
+                sq[q] = beta + t * gamma
                 for i in range(n):
-                    x_p, x_q = bp[i], bq[i]
-                    bp[i] = cos * x_p - sin * x_q
-                    bq[i] = sin * x_p + cos * x_q
-                vp, vq = v[p], v[q]
+                    x_p, x_q = b[p, i], b[q, i]
+                    b[p, i] = cos * x_p - sin * x_q
+                    b[q, i] = sin * x_p + cos * x_q
                 for i in range(n):
-                    x_p, x_q = vp[i], vq[i]
-                    vp[i] = cos * x_p - sin * x_q
-                    vq[i] = sin * x_p + cos * x_q
+                    x_p, x_q = v[p, i], v[q, i]
+                    v[p, i] = cos * x_p - sin * x_q
+                    v[q, i] = sin * x_p + cos * x_q
         if not rotated:
             break
     norms = np.empty(n)
@@ -1127,6 +1133,7 @@ def optimise(
 
     alpha = 0.0
     status = -1
+    fresh = True  # the last evaluation was at x (its design, QR and beta are at hand)
     x_new = x.copy()
     f_new = f.copy()
     cost_new = cost
@@ -1172,6 +1179,7 @@ def optimise(
                 return FALLBACK, x0.copy(), 0, empty, empty
             f_new = qtb[c:].copy()
             nfev += 1
+            fresh = False
             step_h_norm = _norm(step_h)
             finite = True
             for i in range(rows):
@@ -1212,6 +1220,11 @@ def optimise(
 
         if actual_reduction > 0:
             x, f, cost = x_new, f_new, cost_new
+            fresh = True
+            if status != -1:
+                # SciPy computes the Jacobian at the last point too, for nothing: the
+                # solution is the same without it
+                break
             n_rows = _jacobian(
                     x, f, theta, beta, tw, kinds, offsets, bg_kind, lag, design, numer, skew, spans, buf, bits, inv_scale, a,
                     post, stride, start, start_rows, qr, tau, chain, raw, dmat, jr, jf, tau_j, work,
@@ -1223,7 +1236,7 @@ def optimise(
 
     # the linear solution and the whitened residual at the solution
     _to_theta(x, chain, theta)
-    if not _evaluate(
+    if not fresh and not _evaluate(
         theta, tw, kinds, offsets, bg_kind, lag, fixed, inv_scale, a, post, stride, start,
         start_rows, prior_cols, prior_diag, target, design, numer, skew, spans, buf, bits, qr, tau, qtb,
         beta, rinv, raw,
