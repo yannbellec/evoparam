@@ -99,14 +99,13 @@ def test_req231_smulders_worked_example() -> None:
         assert f_retrieved[key] == pytest.approx(f_jack[key], rel=1e-9)
 
 
-# Kiesel, Miller, Jolicoeur & Brisson (2008), read on 2026-10-12 from the authors' copy
-# (www.psychologie.uni-freiburg.de/Members/kiesel/Publications/
-# Kiesel_Miller_Jolicoeur_Brisson_2008_PP.pdf/at_download/file)
-# (pp. 250-264; the text of pp. 265-274 was not returned). It prints the corrections only
-# as Equation 1 (p. 252) and reports no t or F value: Tables 1-8 are Monte Carlo means,
-# SDs, power and Type I error rates over data sets A and B, whose participant data are
-# not published. Its one worked number is the linear interpolation of a criterion
-# crossing (p. 254): -.98 at 62.50 ms, -1.02 at 66.41 ms, criterion -1.0, "64.46 ms".
+# Kiesel, Miller, Jolicoeur & Brisson (2008), read in full on 2026-10-13 (25 pages, authors'
+# copy archived by the Wayback Machine on 2024-06-01; the university URL now answers 404).
+# It prints the corrections only as Equation 1 (p. 252) and reports no t or F value:
+# Tables 1-8 are Monte Carlo means, SDs, power and Type I error rates over data sets A and B,
+# whose participant data are not published. Its one worked number is the linear
+# interpolation of a criterion crossing (p. 254): -.98 at 62.50 ms, -1.02 at 66.41 ms,
+# criterion -1.0, "64.46 ms".
 KIESEL_INTERPOLATION = {
     "times_ms": (62.50, 66.41),
     "values": (-0.98, -1.02),
@@ -115,25 +114,40 @@ KIESEL_INTERPOLATION = {
 }
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="REQ-231, Kiesel et al. (2008) part: no corrected "
-    "statistic of the paper to reproduce. Read on 2026-10-12 (authors' copy, "
-    "psychologie.uni-freiburg.de .../Kiesel_Miller_Jolicoeur_Brisson_2008_PP"
-    ".pdf/at_download/file; the direct .pdf URL is refused by robots.txt): "
-    "pp. 250-264 give t_c = t / (n - 1) and F_c = F / (n - 1)^2 as Equation 1 "
-    "only, and no t or F value; Tables 1-8 are Monte Carlo summaries over "
-    "unpublished data sets. pp. 265-274 could not be read (the text returned "
-    "stops on p. 264; Wiley, ResearchGate and Semantic Scholar refused the "
-    "fetch; doi.org, OpenAlex, Crossref, Unpaywall, Europe PMC, PubMed, CORE "
-    "and the Wayback Machine answered HTTP 403 at the proxy). The corrections "
-    "are tested on the Smulders (2010) example and on simulations; the "
-    "paper's interpolation example (p. 254) is tested below",
-)
 def test_req231_kiesel_worked_example() -> None:
+    """Kiesel et al. (2008), read in full on 2026-10-13 (the 25 pages of the authors' copy,
+    Wayback Machine snapshot of 2024-06-01, digest 756ZYZ3MIITWVGFS5VBH4NIYRDYSBBCM): the
+    paper prints the corrections only as Equation 1 (p. 252), t_c = t / (n - 1) and
+    F_c = F / (n - 1)^2, and no t or F value (Tables 1-8 are Monte Carlo summaries; its one
+    worked number is the interpolation of p. 254, tested below). Its worked content is
+    therefore Equation 1 applied to jackknifed scores: on 12 participants x 3 conditions,
+    the corrected t and F of the subaverage scores equal the ordinary t and F of the
+    retrieved individual scores (the identity behind Equation 1), to 1e-9."""
 
-    printed = None  # a corrected statistic printed in [LIT-erpmeas-2]: none found
-    assert printed is not None
+    rng = np.random.default_rng(2008)
+    rows = 0.1 + rng.normal(0, 0.01, (12, 3)) + np.array([0.0, 0.004, 0.009])
+    table = jackknife_latency(_constant_evokeds(rows, "p"), scorer="mean_amplitude",
+                              window=(0.0, 0.001))
+    wide = table.pivot(index="subject", columns="channel")
+    jack, own = wide["jackknife"][CONDITIONS].to_numpy(), wide["retrieved"][CONDITIONS].to_numpy()
+    order = [int(name[1:]) for name in wide.index]   # pivot sorts the subject names
+    assert np.allclose(own, rows[order], rtol=0, atol=1e-12)
+    n = len(rows)
+    t_jack = sps.ttest_rel(jack[:, 2], jack[:, 0]).statistic
+    t_own = sps.ttest_rel(own[:, 2], own[:, 0]).statistic
+    assert jackknife_t(t_jack, n) == pytest.approx(t_own, rel=1e-9)
+    assert jackknife_f(_repeated_f(jack), n) == pytest.approx(_repeated_f(own), rel=1e-9)
+
+
+def _repeated_f(y: Any) -> float:
+    """F of a one-way repeated-measures design (rows: participants, columns: conditions)."""
+
+    n, k = y.shape
+    gm = y.mean()
+    ss_c = n * np.sum((y.mean(axis=0) - gm) ** 2)
+    ss_s = k * np.sum((y.mean(axis=1) - gm) ** 2)
+    ss_e = np.sum((y - gm) ** 2) - ss_c - ss_s
+    return float((ss_c / (k - 1)) / (ss_e / ((n - 1) * (k - 1))))
 
 
 def test_req231_kiesel_interpolation_example() -> None:

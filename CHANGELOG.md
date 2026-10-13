@@ -2,6 +2,72 @@
 
 ## Unreleased
 
+### ERP CORE: the paradigm's component, measured by a targeted `erp` preset (REQ-274)
+
+- `validation/erpcore.py` fits each difference wave with `presets.targeted("erp", ...)`:
+  three components of the component's polarity in the published measurement window widened
+  by 25 ms, no background (the waves are baseline-corrected); the component of the paradigm
+  is the sum of its labelled parts (`P3`, `P3_b`, ...), and its latency the 50 % area
+  latency of that sum in the published window. Before, the `erp` preset with BIC selection
+  found no component in many single-participant waves, and a single targeted component on a
+  linear background put broad components (P3, N400) 8 to 16 ms early.
+- Within 10 ms of the 50 % area latency of the same average (before -> now): ERN 85 -> 95 %,
+  LRP 90 -> 95 %, MMN 37.5 -> 100 %, N170 47.5 -> 95 %, N2pc 36 -> 92 % (36 of 39), N400
+  57.5 -> 95 %, P3 30 -> 90 %. The six expected failures of REQ-274 are gone. Variants
+  measured on the same 40 participants (so development measures): one component on a linear
+  background (P3 17.5 %, N400 35 %), one with no background (P3 57.5 %), two components
+  (P3 87.5 %), four (P3 82.5 %), three on a constant background (P3 37.5 %).
+- With a fixed number of components every wave gets a value: whether the component is there
+  is the existence test's answer (spec §1, principle 2). The P3 meets 90 % with no margin.
+- `presets.targeted` gains `n_components` (default 1) and `background` (default `"linear"`);
+  its defaults and their measurements are unchanged.
+
+### §7.4 (5): one platform record per machine; macOS arm64 measured
+
+- `validation/robustness.py --analyses platform` now writes the fixture comparison of the
+  machine it runs on to `validation/layer4/<version>/platforms/<os>-<processor>.json` and
+  keeps the other analyses of the committed report; the report lists every record.
+  Measured: Linux x86-64 (reference machine, 0 difference) and macOS 26.4 arm64 (Python
+  3.14.7, NumPy 2.5.3: 98 values, largest relative difference 1.3e-12, within the 1e-9 of
+  REQ-295).
+- `.github/workflows/platform-record.yml` records Windows (x86-64) on a GitHub runner when a
+  branch `platform-record/<name>` is pushed, and commits the record back to that branch.
+- `test_req375_platform_macos_and_windows` checks every record and names the platforms
+  still missing (Windows until its record is merged).
+
+### REQ-231: Kiesel et al. (2008) read in full
+
+- The paper was read on all 25 pages (archived authors' copy; the build environment had
+  only pp. 250-264). It prints no corrected t or F, only Equation 1, so the expected
+  failure "no printed statistic" is replaced by a test of Equation 1 on jackknifed scores
+  (12 participants x 3 conditions: corrected t and F equal those of the retrieved scores
+  to 1e-9), next to the existing test of its worked interpolation (64.46 ms). Reading in
+  DECISIONS.
+
+### REQ-315: the reference validator test runs bids-validator 3.0.2 while npm has no 2.x
+
+- `test_req315_reference_validator_as_written` was an expected failure because
+  `npx bids-validator@2` cannot resolve (npm's latest is 1.15.0). It now runs npx when npm
+  has a 2.x release and the maintainers' JSR release (`@bids/validator@3.0.2`, through
+  deno) otherwise; the derivatives pass with zero errors. Reading recorded in DECISIONS.
+
+### Documentation built with warnings as errors (REQ-302)
+
+- `sphinx -W --keep-going -b html docs` now ends with 0 warnings (run on macOS with the
+  `docs` extra and the MNE sample dataset): the benchmark report, the submission guide and
+  the result-table page are in the table of contents; the module pages of the names
+  re-exported at the package root (`evoparam.data.TrialSet`, `evoparam.models.ResponseModel`,
+  ...) are written with `:no-index:` (templates in `docs/_templates/autosummary`), so each
+  object has one target and the 29 ambiguous `TrialSet` references are gone; the stub of the
+  constant `evoparam.io.OPENNEURO_URL` gets its own file name (`autosummary_filename_map`),
+  since on case-insensitive file systems it overwrote the page of the function
+  `openneuro_url`; the two renamed names that are also terms (`GroupFit`,
+  `Component.params`) are listed as "(renamed)" in the glossary; the LSL code block of the
+  streaming tutorial is a literal block.
+- `test_req302_docs_build_with_warnings_as_errors` is no longer an expected failure: it
+  builds the site with `EVOPARAM_SLOW_TESTS=1` when Sphinx is installed. The
+  `latest`/`stable` switcher of the published site still waits for the HIIE decision.
+
 ### Engine speed, part 2 (REQ-115): met with the compiled fit of the `fast` extra
 
 REQ-115 is met when numba is installed (extra `fast`, §9.2). The two tests of

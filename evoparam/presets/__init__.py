@@ -221,6 +221,8 @@ def targeted(
     *,
     margin: float = 0.05,
     name: str | None = None,
+    n_components: int = 1,
+    background: str = "linear",
 ) -> "Preset":
     """Return a preset that measures one expected component.
 
@@ -245,21 +247,30 @@ def targeted(
         Widening of the window on each side (s).
     name : str, optional
         Default ``"<base>_<label>"``.
+    n_components : int
+        Components of that polarity fitted in the window (``label``, ``label_b``, ...); with
+        more than one, the component is their sum (a P3 made of overlapping parts). The
+        ERP CORE validation (REQ-274) uses 3 on difference waves.
+    background : str
+        Background under the component (``"none"`` for baseline-corrected difference
+        waves).
     """
     if polarity not in ("negative", "positive"):
         raise SettingsError("targeted: polarity must be 'negative' or 'positive'.")
+    if int(n_components) < 1:
+        raise SettingsError("targeted: n_components must be at least 1.")
     parent = get(base)
     lo, hi = float(window[0]) - margin, float(window[1]) + margin
     extras = dict(parent.fit_extras)
-    extras["n_components"] = 1
+    extras["n_components"] = int(n_components)
     return derive(
         parent,
         name=name or f"{parent.name}_{label}",
         fit_window=(lo, hi),
         polarity=polarity,
         selection="fixed",
-        max_components=1,
-        background="linear",
+        max_components=int(n_components),
+        background=background,
         component_labels={label: (lo, hi)},
         label_polarity={label: -1 if polarity == "negative" else 1},
         fit_extras=extras,
