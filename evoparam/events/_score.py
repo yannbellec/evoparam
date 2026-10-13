@@ -198,7 +198,7 @@ def quantile_score(data: Any, index: Any, quantile: float = 0.9) -> FloatArray:
         stop = min(start + _CHUNK, n_times - 1)
         block = np.abs(np.diff(data[index, start : stop + 1], axis=1))
         np.nan_to_num(block, copy=False, nan=0.0)
-        score[start:stop] = block[0] if len(index) == 1 else \
-            np.partition(block, rank, axis=0)[rank]
+        score[start:stop] = (
+            block[0] if len(index) == 1 else np.partition(block, rank, axis=0)[rank]
+        )
     return score
-
