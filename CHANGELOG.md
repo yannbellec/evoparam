@@ -64,6 +64,50 @@ fit). Reaching it needs fewer evaluations (for example a cheaper rejection of th
 component of the forward search) or a blocked QR, both of which change the results within
 rounding and need a new algorithm version and fixture.
 
+### REQ-290 P6: `import evoparam` in 0.13 s
+
+- The package root imported every subpackage, and with them scipy.stats (0.53 s): 0.96 s
+  on macOS arm64 (0.91 s on the reference machine). The subpackages and the root functions
+  (`fit`, `test_response`, `read`, `detect_events`, `ResponseModel`, `reproduce`) are now
+  imported on first use (PEP 562 `__getattr__`, `__dir__`, and `TYPE_CHECKING` imports for
+  type checkers); `TrialSet`, `Evoked`, `Provenance`, `load_object`, `errors`, the logging
+  functions and `prep` (13 ms, for the registration of the existence detector, now a light
+  proxy that imports the existence test on its first call) stay eager.
+- `benchmarks/run_benchmarks.py --suite perf --only P6` on macOS arm64: median 0.132 s over
+  10 runs, target met. The committed perf results are those of the reference machine
+  (Linux), so `test_req290_p6_import_under_300_ms` stays an expected failure until P6 is
+  re-run there.
+
+### REQ-298: evoparam.shapes covered at 100 %
+
+- `evoparam/tests/shapes/test_grid_helpers.py` covers the last five lines and four branches
+  of `evoparam.shapes._base`: the window cache when it is full, the fine feature grid, and
+  the search on that grid without building it, checked against `np.searchsorted` on 2 005
+  values (on the grid points, one ulp off them, outside, infinite and NaN) for both sides.
+  Shapes coverage 99 % -> 100 % (lines and branches); the slow test of REQ-298 passes.
+
+### Cross-projection test: sign-flip null of the profile peak (REQ-134)
+
+- `test_response(method="projection")` has a third set of projections,
+  `projection_pairs="signflip"`, now the default: every cross-projection, and the peak of
+  the mean-projection profile compared with the peaks of the profiles recomputed under
+  sign flips of whole trials (all patterns up to 4 096, a random draw beyond), so the choice
+  of the response end at the peak is part of the null. On the 10 example channels of the
+  paper it gives every published decision (the "disjoint" t-test: 0.8 to 1.0 by random
+  pairing, mean 0.89); on pure white noise (10 trials, 200 channels) it rejects at 0.05 for
+  alpha = 0.05 ("disjoint" 0.145, the paper's "half" 0.43). `test_req134_published_
+  significance_with_the_default_pairs` is no longer an expected failure. Cost: 0.12 s per
+  channel for 50 trials x 500 samples.
+- Benchmark `core`, baseline `projection` re-run (T1, T2): AUC 0.938 -> 0.979, recall 0.65
+  -> 0.88, F1 0.78 -> 0.89, specificity 0.992 -> 0.960, false-positive rate at p < 0.05
+  0.064 -> 0.104 on the null cells; the result files, leaderboard and report regenerated
+  (macOS arm64, so their input hashes are those of this platform).
+- `detect_pulses` had lost its `verbose` decorator in the size-gate change (the new helper
+  was inserted between them); restored (`test_verbose_detect_pulses`).
+- The docs build test of REQ-302 runs with `EVOPARAM_DOCS_TESTS=1` (the `docs` extra is not
+  in `all`, and the dependency test requires every skipped package to be in `all` or
+  `bayes`).
+
 ### REQ-064 on real templates: the specification's version as a measured comparison
 
 - REQ-064 (subspace >= 30 dB on synthetic EEG with real artifact templates) is met by the
@@ -4889,7 +4933,6 @@ REQ-020) move to build step S17 (spec §10), with the rest of the NWB and BIDS-d
 - `evoparam.errors`: the error hierarchy of spec §4.6. The inherited error classes now derive
   from `EvoparamError`.
 - Test of the import graph against the dependency table of spec §4.2.
-
 
 First skeleton of evoparam, derived from ERPparam (see NOTICE).
 

@@ -189,7 +189,6 @@ def _match(stacks: Any, templates: Any) -> Any:
     return rho.max(axis=1), rho.argmax(axis=1)
 
 
-@verbose
 def artifact_size(data, index, onsets, sfreq, *, argmax=False):
     """Largest deflection (data units) of the picked channels within ``PEAK_WINDOW`` after
     each onset, from the sample before it; with ``argmax``, also the position (in
@@ -208,6 +207,7 @@ def artifact_size(data, index, onsets, sfreq, *, argmax=False):
     return (size, best) if argmax else size
 
 
+@verbose
 def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
     data: FloatArray,
     sfreq: float,
