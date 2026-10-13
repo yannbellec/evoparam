@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### REQ-231: Kiesel et al. (2008) read in full
+
+- The paper was read on all 25 pages (archived authors' copy; the build environment had
+  only pp. 250-264). It prints no corrected t or F, only Equation 1, so the expected
+  failure "no printed statistic" is replaced by a test of Equation 1 on jackknifed scores
+  (12 participants x 3 conditions: corrected t and F equal those of the retrieved scores
+  to 1e-9), next to the existing test of its worked interpolation (64.46 ms). Reading in
+  DECISIONS.
+
 ### REQ-315: the reference validator test runs bids-validator 3.0.2 while npm has no 2.x
 
 - `test_req315_reference_validator_as_written` was an expected failure because

@@ -641,3 +641,11 @@ expected failure whose reason gives the measured value; no criterion was weakene
   `deno run -A jsr:@bids/validator@3.0.2` until then: same validator line, same mode, same
   rule (zero errors). It passes on macOS with deno 2 (15 of 15 BIDS tests).
 
+- **REQ-231, Kiesel et al. (2008) part (2026-10-13).** The requirement asks the corrected
+  statistics of the "worked numerical examples" of [LIT-erpmeas-2] to the printed
+  precision. Read in full (25 pages, the authors' copy archived on 2024-06-01), the paper
+  prints the corrections only as Equation 1 and no corrected t or F; its one worked number
+  is the interpolation example of p. 254. The test reproduces that number (64.46 ms) and
+  Equation 1 on jackknifed scores (the corrected t and F equal those of the retrieved
+  individual scores to 1e-9); the Smulders (2010) part reproduces the printed F values.
+
