@@ -18,6 +18,9 @@ from evoparam._typing import Any, FloatArray
 from evoparam.errors import SettingsError
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features, get_shape
 
+# a range is a (low, high) pair
+_RANGE_LENGTH = 2
+
 __all__ = [
     "ComponentSpec",
     "ERP_COMPONENTS",
@@ -76,6 +79,7 @@ def _form_settings(
 
 
 def _assemble(name: Any, loc: Any, scale: Any, fixed: Any, ratios: Any) -> FloatArray:
+    """Return the parameters of shape ``name`` at location ``loc`` and width ``scale``."""
     spec = SHAPE_FORMS[name]
     values = dict(fixed)
     values.update({key: ratio * scale for key, ratio in ratios})
@@ -186,7 +190,7 @@ def shape_params(shape: str, latency: float, fwhm: float | None = None, **form: 
 def _draw(value: Any, rng: np.random.Generator) -> Any:
     """Return a number, or a uniform draw in a ``(low, high)`` range."""
     if isinstance(value, (tuple, list, np.ndarray)):
-        if len(value) != 2:
+        if len(value) != _RANGE_LENGTH:
             raise SettingsError(f"a range must be (low, high), got {value!r}.")
         low, high = float(value[0]), float(value[1])
         if high < low:

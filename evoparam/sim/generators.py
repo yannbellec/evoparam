@@ -16,6 +16,7 @@ averaged over trials (spec §5.12).
 
 import time as _time
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -24,7 +25,16 @@ from evoparam._typing import Any, FloatArray, NDArray, RandomState
 from evoparam.errors import SettingsError
 from evoparam.utils._optional import require
 
-from ._engine import Source, assemble, seed_streams, time_axis
+from ._engine import (
+    Design,
+    NoiseSpec,
+    Recording,
+    Source,
+    Variability,
+    assemble,
+    seed_streams,
+    time_axis,
+)
 from .artifacts import (
     dipole_gain,
     grid_layout,
@@ -58,12 +68,23 @@ __all__ = [
     "GENERATORS",
 ]
 
+# probability that a CCEP response is inverted with polarity="random"
+_P_INVERTED = 0.5
+# saturation=True puts the amplifier rail at this fraction of the artifact peak
+_RAIL_FRACTION = 0.3
+# trials per cycle of the alternating-polarity and forward-masking paradigms
+_ALTERNATING_PERIOD = 2
+_MASKING_PERIOD = 4
+# lowest sampling rate of an ERNA simulation (Hz), spec §5.12 item 3 ("4096 or higher")
+_ERNA_MIN_SFREQ = 4096
+
 
 ###################################################################################################
 ## Helpers
 
 
 def _channel_indices(channels: Any, ch_names: Any, label: Any) -> Any:
+    """Return the channel indices named by ``channels`` (all channels when None)."""
     if channels is None:
         return list(range(len(ch_names)))
     lookup = {name: index for index, name in enumerate(ch_names)}
@@ -117,10 +138,12 @@ def _spec_sources(
 
 
 def _start() -> float:
+    """Return the clock value at which a generator starts (``time.perf_counter``)."""
     return _time.perf_counter()
 
 
 def _settings(local: Any, drop: Any = ()) -> dict[Any, Any]:
+    """Return the generator's arguments to record (not ``start``, ``drop`` or private names)."""
     return {
         key: value
         for key, value in local.items()
@@ -129,6 +152,7 @@ def _settings(local: Any, drop: Any = ()) -> dict[Any, Any]:
 
 
 def _check_count(name: Any, value: Any, minimum: int = 1) -> int:
+    """Return ``value`` as an int, checked to be an integer >= ``minimum``."""
     if not isinstance(value, (int, np.integer)) or isinstance(value, bool) or value < minimum:
         raise SettingsError(f"{name} must be an integer >= {minimum}, got {value!r}.")
     return int(value)
@@ -137,6 +161,7 @@ def _check_count(name: Any, value: Any, minimum: int = 1) -> int:
 def _ch_info(
     names: Any, coords: Any, groups: Any, kind: Any, stim: Any = (), coord_space: str = "simulated"
 ) -> dict[str, Any]:
+    """Return the channel table of a simulated layout (spec Table 4.1 columns)."""
     n_channels = len(names)
     return {
         "name": list(names),
@@ -163,6 +188,7 @@ def _stim_metadata(
     frequency: Any = np.nan,
     n_pulses: int = 1,
 ) -> dict[str, Any]:
+    """Return the trial metadata with the stimulation columns of spec Table 4.1."""
     return {
         "trial": np.arange(n_trials, dtype=np.int64),
         "condition": [""] * n_trials,
@@ -206,7 +232,7 @@ def _overlap_offsets(
 ## ERP
 
 
-def simulate_erp(
+def simulate_erp(  # noqa: PLR0913  (spec §5.12 item 1 fixes 12 parameters; DECISIONS.md §7.2)
     n_trials: int = 60,
     *,
     n_channels: int = 1,
@@ -336,28 +362,27 @@ def simulate_erp(
                 )
     ch_info = _ch_info(names, coords, groups, "eeg", coord_space="unit_disc")
     return assemble(
-        generator="evoparam.sim.simulate_erp",
-        settings=settings,
-        seed=entropy,
-        rngs=rngs,
-        times=times,
-        sfreq=sfreq,
-        ch_names=names,
-        sources=sources,
-        n_trials=n_trials,
-        noise=noise,
-        noise_sd=noise_sd,
-        noise_kw=noise_kw,
-        snr=snr,
-        jitter_sd=jitter_sd,
-        jitter=jitter,
-        jitter_tau=jitter_tau,
-        amplitude_cv=amplitude_cv,
-        metadata=metadata,
-        ch_info=ch_info,
-        modality="erp",
-        keep_arrays=keep_arrays,
-        start=start,
+        Design(
+            generator="evoparam.sim.simulate_erp",
+            settings=settings,
+            seed=entropy,
+            rngs=rngs,
+            times=times,
+            sfreq=sfreq,
+            ch_names=names,
+            sources=sources,
+            n_trials=n_trials,
+            start=start,
+        ),
+        NoiseSpec(noise=noise, noise_sd=noise_sd, noise_kw=noise_kw),
+        Variability(
+            snr=snr,
+            jitter_sd=jitter_sd,
+            jitter=jitter,
+            jitter_tau=jitter_tau,
+            amplitude_cv=amplitude_cv,
+        ),
+        Recording(metadata=metadata, ch_info=ch_info, modality="erp", keep_arrays=keep_arrays),
     )
 
 
@@ -380,6 +405,7 @@ def _stim_pair(names: Any, groups: Any, coords: Any, rng: np.random.Generator, l
 
 
 def _ccep_spec(value: Any, default: Any, name: Any) -> Any:
+    """Return the ComponentSpec of a CCEP component (default, dict of fields over it, or spec)."""
     if value is None:
         return default
     if isinstance(value, ComponentSpec):
@@ -425,49 +451,191 @@ def _train_layout(n_trials: int, train_structure: Any, rng: np.random.Generator)
     }
 
 
+@dataclass(frozen=True)
+class StimulusPulse:
+    """A current pulse: amplitude (mA), width (µs), phases, polarity, onset and artifact gain.
+
+    ``scale_uv_per_ma`` is the artifact amplitude (µV) per mA at unit dipole gain.
+    """
+
+    current_ma: float
+    pulse_width_us: float
+    biphasic: bool = True
+    polarity: int = -1
+    onset: float = 0.0
+    scale_uv_per_ma: float = 25000.0
+
+
+@dataclass(frozen=True)
+class RecoveryTail:
+    """The recovery tail after a pulse: relative size and its double-exponential decay."""
+
+    fraction: float = 0.02
+    tau1: float = 0.0015
+    tau2: float = 0.015
+    weight: float = 0.7
+
+
 def stimulation_artifact(
     times: Any,
     sfreq: float,
     coords: Any,
+    pulse: StimulusPulse,
+    tail: RecoveryTail,
     *,
     source: Any,
     sink: Any = None,
-    current_mA: Any,  # noqa: N803  (unit suffix of a public keyword)
-    pulse_width_us: Any,
-    biphasic: bool = True,
-    polarity: int = -1,
-    onset: float = 0.0,
-    scale_uV_per_mA: float = 25000.0,  # noqa: N803  (unit suffix of a public keyword)
-    tail_fraction: float = 0.02,
-    tau1: float = 0.0015,
-    tau2: float = 0.015,
-    tail_weight: float = 0.7,
     radius: float = 1.0,
 ) -> FloatArray:
     """Artifact template of one pulse on every channel, shape (n_channels, n_times).
 
-    ``scale_uV_per_mA × current × (r0/r+ − r0/r−)`` times the recorded pulse plus a
-    recovery tail of relative size ``tail_fraction``.
+    ``scale_uv_per_ma × current × (r0/r+ − r0/r−)`` times the recorded pulse plus a
+    recovery tail of relative size ``tail.fraction``.
     """
-    gain = scale_uV_per_mA * float(current_mA) * dipole_gain(coords, source, sink, radius)
-    width = float(pulse_width_us)
+    gain = (
+        pulse.scale_uv_per_ma * float(pulse.current_ma) * dipole_gain(coords, source, sink, radius)
+    )
+    width = float(pulse.pulse_width_us)
     shape = pulse_shape(
         times,
         sfreq,
         pulse_width_us=width,
-        kind="biphasic" if biphasic else "monophasic",
-        polarity=polarity,
-        onset=onset,
+        kind="biphasic" if pulse.biphasic else "monophasic",
+        polarity=pulse.polarity,
+        onset=pulse.onset,
     )
-    if tail_fraction:
-        end = onset + (2 if biphasic else 1) * width * 1e-6
-        shape = shape + polarity * tail_fraction * tail_shape(
-            times, sfreq, start=end, tau1=tau1, tau2=tau2, weight=tail_weight
+    if tail.fraction:
+        end = pulse.onset + (2 if pulse.biphasic else 1) * width * 1e-6
+        shape = shape + pulse.polarity * tail.fraction * tail_shape(
+            times, sfreq, start=end, tau1=tail.tau1, tau2=tail.tau2, weight=tail.weight
         )
     return gain[:, None] * shape[None, :]
 
 
-def simulate_ccep(
+@dataclass
+class _CCEPDraw:
+    """Probabilities and polarity with which the CCEP responses are drawn."""
+
+    p_response: float
+    p_n2: float
+    delayed: bool
+    p_delayed: float
+    polarity: str
+
+
+def _ccep_sources(
+    design: np.random.Generator,
+    names: Any,
+    stim: tuple[int, int],
+    specs: dict[str, Any],
+    draw: _CCEPDraw,
+    gain: Any,
+) -> tuple[list[Source], list[str]]:
+    """Return the sources of the responding channels and the names of those channels.
+
+    The stimulated contacts never respond; every other channel responds with probability
+    ``p_response``, with an N1, an N2 with probability ``p_n2`` and, when ``delayed``, a
+    delayed response with probability ``p_delayed``.
+    """
+    sources = []
+    responders = []
+    for channel in range(len(names)):
+        if channel in stim or design.random() >= draw.p_response:
+            continue
+        responders.append(names[channel])
+        flip = {
+            "negative": 1.0,
+            "positive": -1.0,
+            "random": -1.0 if design.random() < _P_INVERTED else 1.0,
+        }[draw.polarity]
+        chosen = ["N1"]
+        if design.random() < draw.p_n2:
+            chosen.append("N2")
+        if draw.delayed and design.random() < draw.p_delayed:
+            chosen.append("delayed")
+        for label in chosen:
+            params, amplitude = specs[label].resolve(design)
+            sources.append(
+                Source(
+                    label=specs[label].label,
+                    shape=specs[label].shape,
+                    params=params,
+                    amplitude=flip * amplitude,
+                    channel=channel,
+                    gain=gain,
+                )
+            )
+    return sources, responders
+
+
+@dataclass
+class _CCEPPulse:
+    """The stimulation pulse whose artifact a CCEP simulation adds."""
+
+    current_ma: float
+    pulse_width_us: float
+    biphasic: bool
+    scale_uv_per_ma: float
+    tail_fraction: float
+    tail_tau: Any
+    cv: float
+    saturation: Any
+
+
+def _ccep_artifact(
+    pulse: _CCEPPulse,
+    times: Any,
+    sfreq: float,
+    coords: Any,
+    names: Any,
+    stim: tuple[int, int],
+    rng: np.random.Generator,
+    n_trials: int,
+) -> tuple[Any, dict[str, Any], float | None]:
+    """Return the artifact of every trial, its description and the amplifier rail (or None)."""
+    anode, cathode = stim
+    template = stimulation_artifact(
+        times,
+        sfreq,
+        coords,
+        StimulusPulse(
+            current_ma=pulse.current_ma,
+            pulse_width_us=pulse.pulse_width_us,
+            biphasic=pulse.biphasic,
+            scale_uv_per_ma=pulse.scale_uv_per_ma,
+        ),
+        RecoveryTail(fraction=pulse.tail_fraction, tau1=pulse.tail_tau[0], tau2=pulse.tail_tau[1]),
+        source=coords[anode],
+        sink=coords[cathode],
+    )
+    variation = 1.0 + pulse.cv * rng.standard_normal(n_trials)
+    artifact_data = variation[:, None, None] * template[None]
+    artifact_info = {
+        "model": "dipole_pulse_tail",
+        "stim_site": f"{names[anode]}-{names[cathode]}",
+        "stim_contacts": [names[anode], names[cathode]],
+        "current_mA": float(pulse.current_ma),
+        "pulse_width_us": float(pulse.pulse_width_us),
+        "biphasic": bool(pulse.biphasic),
+        "scale_uV_per_mA": float(pulse.scale_uv_per_ma),
+        "tail_fraction": float(pulse.tail_fraction),
+        "tail_tau": list(pulse.tail_tau),
+        "filter": {"type": "butterworth_lowpass", "order": 4, "cutoff_hz": 0.25 * sfreq},
+        "trial_scale": variation.tolist(),
+        "peak_uV": np.max(np.abs(template), axis=1).tolist(),
+    }
+    rail = None
+    saturation = pulse.saturation
+    if saturation is not False and saturation is not None:
+        rail = (
+            _RAIL_FRACTION * float(np.max(np.abs(template)))
+            if saturation is True
+            else float(saturation)
+        )
+    return artifact_data, artifact_info, rail
+
+
+def simulate_ccep(  # noqa: PLR0913  (spec §5.12 item 2 fixes 14 parameters; DECISIONS.md §7.2)
     n_trials: int = 10,
     *,
     n_channels: int = 46,
@@ -579,72 +747,27 @@ def simulate_ccep(
         "N2": _ccep_spec(n2, CCEP_N2, "n2"),
         "delayed": CCEP_DELAYED,
     }
-    sources = []
-    responders = []
-    for channel in range(n_channels):
-        if channel in (anode, cathode) or design.random() >= p_response:
-            continue
-        responders.append(names[channel])
-        flip = {
-            "negative": 1.0,
-            "positive": -1.0,
-            "random": -1.0 if design.random() < 0.5 else 1.0,
-        }[polarity]
-        chosen = ["N1"]
-        if design.random() < p_n2:
-            chosen.append("N2")
-        if delayed and design.random() < p_delayed:
-            chosen.append("delayed")
-        for label in chosen:
-            params, amplitude = specs[label].resolve(design)
-            sources.append(
-                Source(
-                    label=specs[label].label,
-                    shape=specs[label].shape,
-                    params=params,
-                    amplitude=flip * amplitude,
-                    channel=channel,
-                    gain=trains["gain"],
-                )
-            )
+    draw = _CCEPDraw(p_response, p_n2, delayed, p_delayed, polarity)
+    sources, responders = _ccep_sources(
+        design, names, (anode, cathode), specs, draw, trains["gain"]
+    )
 
     artifact_data, artifact_info, rail = None, None, None
     polarity_name = "biphasic_cathodic_first" if biphasic else "monophasic_cathodic"
     if artifact:
-        template = stimulation_artifact(
-            times,
-            sfreq,
-            coords,
-            source=coords[anode],
-            sink=coords[cathode],
-            current_mA=stim_current_mA,
+        pulse = _CCEPPulse(
+            current_ma=stim_current_mA,
             pulse_width_us=pulse_width_us,
             biphasic=biphasic,
-            scale_uV_per_mA=artifact_scale_uV_per_mA,
+            scale_uv_per_ma=artifact_scale_uV_per_mA,
             tail_fraction=tail_fraction,
-            tau1=tail_tau[0],
-            tau2=tail_tau[1],
+            tail_tau=tail_tau,
+            cv=artifact_cv,
+            saturation=saturation,
         )
-        variation = 1.0 + artifact_cv * rngs["artifact"].standard_normal(n_trials)
-        artifact_data = variation[:, None, None] * template[None]
-        artifact_info = {
-            "model": "dipole_pulse_tail",
-            "stim_site": site,
-            "stim_contacts": [names[anode], names[cathode]],
-            "current_mA": float(stim_current_mA),
-            "pulse_width_us": float(pulse_width_us),
-            "biphasic": bool(biphasic),
-            "scale_uV_per_mA": float(artifact_scale_uV_per_mA),
-            "tail_fraction": float(tail_fraction),
-            "tail_tau": list(tail_tau),
-            "filter": {"type": "butterworth_lowpass", "order": 4, "cutoff_hz": 0.25 * sfreq},
-            "trial_scale": variation.tolist(),
-            "peak_uV": np.max(np.abs(template), axis=1).tolist(),
-        }
-        if saturation is not False and saturation is not None:
-            rail = (
-                0.3 * float(np.max(np.abs(template))) if saturation is True else float(saturation)
-            )
+        artifact_data, artifact_info, rail = _ccep_artifact(
+            pulse, times, sfreq, coords, names, (anode, cathode), rngs["artifact"], n_trials
+        )
     metadata = _stim_metadata(
         n_trials,
         site,
@@ -666,30 +789,30 @@ def simulate_ccep(
         stim=(names[anode], names[cathode]),
     )
     ts, truth = assemble(
-        generator="evoparam.sim.simulate_ccep",
-        settings=settings,
-        seed=entropy,
-        rngs=rngs,
-        times=times,
-        sfreq=sfreq,
-        ch_names=names,
-        sources=sources,
-        n_trials=n_trials,
-        noise=noise,
-        noise_sd=noise_sd,
-        noise_kw=noise_kw,
-        snr=snr,
-        jitter_sd=jitter_sd,
-        amplitude_cv=amplitude_cv,
-        artifact=artifact_data,
-        artifact_info=artifact_info,
-        rail=rail,
-        metadata=metadata,
-        ch_info=ch_info,
-        event_times=np.asarray(trains["event_times"], dtype=float),
-        modality="spes",
-        keep_arrays=keep_arrays,
-        start=start,
+        Design(
+            generator="evoparam.sim.simulate_ccep",
+            settings=settings,
+            seed=entropy,
+            rngs=rngs,
+            times=times,
+            sfreq=sfreq,
+            ch_names=names,
+            sources=sources,
+            n_trials=n_trials,
+            start=start,
+        ),
+        NoiseSpec(noise=noise, noise_sd=noise_sd, noise_kw=noise_kw),
+        Variability(snr=snr, jitter_sd=jitter_sd, amplitude_cv=amplitude_cv),
+        Recording(
+            artifact=artifact_data,
+            artifact_info=artifact_info,
+            rail=rail,
+            metadata=metadata,
+            ch_info=ch_info,
+            event_times=np.asarray(trains["event_times"], dtype=float),
+            modality="spes",
+            keep_arrays=keep_arrays,
+        ),
     )
     truth.settings["responders"] = responders
     truth.settings["stim_site"] = site
@@ -702,7 +825,7 @@ def simulate_ccep(
 ## ERNA
 
 
-def simulate_erna(
+def simulate_erna(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
     n_pulses: int = 10,
     *,
     n_trials: int = 20,
@@ -776,8 +899,10 @@ def simulate_erna(
     n_pulses = _check_count("n_pulses", n_pulses)
     n_trials = _check_count("n_trials", n_trials)
     n_channels = _check_count("n_channels", n_channels, 2)
-    if sfreq < 4096:
-        raise SettingsError(f"simulate_erna: sfreq must be 4096 Hz or higher, got {sfreq}.")
+    if sfreq < _ERNA_MIN_SFREQ:
+        raise SettingsError(
+            f"simulate_erna: sfreq must be {_ERNA_MIN_SFREQ} Hz or higher, got {sfreq}."
+        )
     if not pulse_rate > 0:
         raise SettingsError("pulse_rate must be positive.")
     entropy, rngs = seed_streams(seed)
@@ -823,13 +948,13 @@ def simulate_erna(
                 times,
                 sfreq,
                 coords,
+                StimulusPulse(
+                    current_ma=stim_current_mA,
+                    pulse_width_us=pulse_width_us,
+                    onset=pulse / pulse_rate,
+                ),
+                RecoveryTail(fraction=0.05, tau1=0.0003, tau2=0.001),
                 source=coords[0],
-                current_mA=stim_current_mA,
-                pulse_width_us=pulse_width_us,
-                onset=pulse / pulse_rate,
-                tail_fraction=0.05,
-                tau1=0.0003,
-                tau2=0.001,
             )
         artifact_data = np.repeat(template[None], n_trials, axis=0)
         artifact_info = {
@@ -852,29 +977,29 @@ def simulate_erna(
     )
     ch_info = _ch_info(names, coords, groups, "dbs", stim=(names[0],))
     ts, truth = assemble(
-        generator="evoparam.sim.simulate_erna",
-        settings=settings,
-        seed=entropy,
-        rngs=rngs,
-        times=times,
-        sfreq=sfreq,
-        ch_names=names,
-        sources=sources,
-        n_trials=n_trials,
-        noise=noise,
-        noise_sd=noise_sd,
-        noise_kw=noise_kw,
-        snr=snr,
-        jitter_sd=jitter_sd,
-        amplitude_cv=amplitude_cv,
-        artifact=artifact_data,
-        artifact_info=artifact_info,
-        metadata=metadata,
-        ch_info=ch_info,
-        event_times=2.0 * np.arange(n_trials),
-        modality="erna",
-        keep_arrays=keep_arrays,
-        start=start,
+        Design(
+            generator="evoparam.sim.simulate_erna",
+            settings=settings,
+            seed=entropy,
+            rngs=rngs,
+            times=times,
+            sfreq=sfreq,
+            ch_names=names,
+            sources=sources,
+            n_trials=n_trials,
+            start=start,
+        ),
+        NoiseSpec(noise=noise, noise_sd=noise_sd, noise_kw=noise_kw),
+        Variability(snr=snr, jitter_sd=jitter_sd, amplitude_cv=amplitude_cv),
+        Recording(
+            artifact=artifact_data,
+            artifact_info=artifact_info,
+            metadata=metadata,
+            ch_info=ch_info,
+            event_times=2.0 * np.arange(n_trials),
+            modality="erna",
+            keep_arrays=keep_arrays,
+        ),
     )
     truth.settings.update(erna_freq_hz=freq, erna_tau_s=decay)
     return ts, truth
@@ -902,15 +1027,138 @@ AUDITORY_COMPONENTS = {
 
 # Spatial spread (head radii) of each TEP component around the stimulated site.
 _TEP_SPREAD = {"N15": 0.25, "P30": 0.25, "N45": 0.35, "P60": 0.35, "N100": 0.6, "P180": 0.6}
+_TEP_SPREAD_DEFAULT = 0.4  # spatial spread of a TEP component not in _TEP_SPREAD
+_AUDITORY_SPREAD = 0.5  # spatial spread of the auditory confound around the vertex
+# the muscle burst's frequency is capped so that a cycle spans at least 2.5 samples
+_MIN_SAMPLES_PER_CYCLE = 2.5
 
 
 def _blob(coords: Any, centre: Any, spread: Any, floor: float = 0.05) -> Any:
+    """Return Gaussian spatial weights of ``spread`` around ``centre`` (0 below ``floor``)."""
     weights = np.exp(-np.sum((coords[:, :2] - centre[:2]) ** 2, axis=1) / (2 * spread**2))
     weights[weights < floor] = 0.0
     return weights
 
 
-def simulate_tep(
+def _tep_sources(
+    components: Any,
+    auditory: bool,
+    coords: Any,
+    centre: Any,
+    design: np.random.Generator,
+    names: Any,
+) -> list[Source]:
+    """Return the sources of the TEP components, and of the auditory confound when asked.
+
+    A component without weights or channels gets a spatial blob around the stimulated
+    site; the auditory components get one around the vertex.
+    """
+    from dataclasses import replace
+
+    sources = []
+    for item in components:
+        spec = as_spec(item, TEP_COMPONENTS)
+        if spec.weights is None and spec.channels is None:
+            spec = replace(
+                spec,
+                weights=tuple(
+                    _blob(coords, centre, _TEP_SPREAD.get(spec.label, _TEP_SPREAD_DEFAULT))
+                ),
+            )
+        sources.extend(_spec_sources(spec, design, names))
+    if auditory:
+        vertex = np.zeros(3)
+        for raw_spec in AUDITORY_COMPONENTS.values():
+            spec = replace(raw_spec, weights=tuple(_blob(coords, vertex, _AUDITORY_SPREAD)))
+            sources.extend(_spec_sources(spec, design, names))
+    return sources
+
+
+def _tms_pulse(
+    times: Any, sfreq: float, near: Any, rng: np.random.Generator
+) -> tuple[FloatArray, dict[str, Any]]:
+    """Return the TMS pulse artifact on every channel and its description."""
+    peak = float(rng.uniform(2000.0, 8000.0))
+    recovery = float(rng.uniform(0.001, 0.002))
+    shape = pulse_shape(times, sfreq, pulse_width_us=150.0, kind="biphasic", polarity=1)
+    shape = shape / max(np.max(np.abs(shape)), 1e-12)
+    shape = shape + tail_shape(
+        times, sfreq, start=0.0003, tau1=recovery, tau2=recovery, weight=1.0
+    )
+    part = (peak * (0.1 + 0.9 * near))[:, None] * shape[None]
+    return part, {"peak_uV": peak, "recovery_tau_s": recovery}
+
+
+def _tms_decay(
+    times: Any, sfreq: float, near: Any, rng: np.random.Generator
+) -> tuple[FloatArray, dict[str, Any]]:
+    """Return the decay artifact after the TMS pulse on every channel and its description."""
+    tau = float(rng.uniform(0.010, 0.050))
+    amp = rng.uniform(10.0, 60.0) * np.sign(rng.standard_normal())
+    shape = tail_shape(times, sfreq, start=0.001, tau1=tau, tau2=tau, weight=1.0)
+    return (amp * near)[:, None] * shape[None], {"amplitude_uV": float(amp), "tau_s": tau}
+
+
+def _tms_muscle(
+    times: Any, sfreq: float, distance: Any, rng: np.random.Generator
+) -> tuple[FloatArray, dict[str, Any]]:
+    """Return the muscle artifact (a Gabor burst, strongest laterally) and its description."""
+    from evoparam.shapes import get_shape
+
+    params = np.array(
+        [
+            rng.uniform(0.010, 0.020),
+            rng.uniform(0.003, 0.006),
+            rng.uniform(60.0, 120.0),
+            rng.uniform(-np.pi, np.pi),
+        ]
+    )
+    if params[2] * _MIN_SAMPLES_PER_CYCLE > sfreq:
+        params[2] = sfreq / _MIN_SAMPLES_PER_CYCLE
+    amp = float(rng.uniform(20.0, 150.0))
+    shape = get_shape("gabor").evaluate(times, params)
+    lateral = np.exp(-(distance**2) / (2 * 0.3**2))
+    info = {
+        "amplitude_uV": amp,
+        "shape": "gabor",
+        "params": dict(zip(("t0", "sigma", "freq", "phase"), params.tolist(), strict=False)),
+    }
+    return (amp * lateral)[:, None] * shape[None], info
+
+
+def _tms_artifacts(
+    which: dict[str, bool],
+    times: Any,
+    sfreq: float,
+    distance: Any,
+    rng: np.random.Generator,
+    n_trials: int,
+) -> tuple[Any, dict[str, Any] | None]:
+    """Return the TMS artifacts of every trial and their description (None when there are none).
+
+    ``which`` says which of the pulse, decay and muscle artifacts to add; each varies
+    from trial to trial by its own coefficient of variation.
+    """
+    near = np.exp(-(distance**2) / (2 * 0.25**2))
+    template_parts, info = {}, {}
+    if which["pulse"]:
+        template_parts["pulse"], info["pulse"] = _tms_pulse(times, sfreq, near, rng)
+    if which["decay"]:
+        template_parts["decay"], info["decay"] = _tms_decay(times, sfreq, near, rng)
+    if which["muscle"]:
+        template_parts["muscle"], info["muscle"] = _tms_muscle(times, sfreq, distance, rng)
+    if not template_parts:
+        return None, None
+    cvs = {"pulse": 0.02, "decay": 0.1, "muscle": 0.2}
+    artifact_data = np.zeros((n_trials, distance.size, times.size))
+    for name, part in template_parts.items():
+        factor = 1.0 + cvs[name] * rng.standard_normal(n_trials)
+        artifact_data += factor[:, None, None] * part[None]
+        info[name]["trial_cv"] = cvs[name]
+    return artifact_data, info
+
+
+def simulate_tep(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
     n_trials: int = 40,
     *,
     n_channels: int = 32,
@@ -981,77 +1229,12 @@ def simulate_tep(
             f"stim_site '{stim_site}' is not one of the {n_channels} channels {names}."
         )
     centre = coords[names.index(stim_site)]
-    sources = []
-    for item in components:
-        spec = as_spec(item, TEP_COMPONENTS)
-        if spec.weights is None and spec.channels is None:
-            from dataclasses import replace
-
-            spec = replace(
-                spec, weights=tuple(_blob(coords, centre, _TEP_SPREAD.get(spec.label, 0.4)))
-            )
-        sources.extend(_spec_sources(spec, design, names))
-    if auditory:
-        vertex = np.zeros(3)
-        for raw_spec in AUDITORY_COMPONENTS.values():
-            spec = raw_spec
-            from dataclasses import replace
-
-            spec = replace(spec, weights=tuple(_blob(coords, vertex, 0.5)))
-            sources.extend(_spec_sources(spec, design, names))
-
+    sources = _tep_sources(components, auditory, coords, centre, design, names)
     distance = np.linalg.norm(coords[:, :2] - centre[:2], axis=1)
-    near = np.exp(-(distance**2) / (2 * 0.25**2))
-    info: Any
-    template_parts, info = {}, {"model": "tms", "stim_site": stim_site}
-    if pulse_artifact:
-        peak = float(art_rng.uniform(2000.0, 8000.0))
-        recovery = float(art_rng.uniform(0.001, 0.002))
-        shape = pulse_shape(times, sfreq, pulse_width_us=150.0, kind="biphasic", polarity=1)
-        shape = shape / max(np.max(np.abs(shape)), 1e-12)
-        shape = shape + tail_shape(
-            times, sfreq, start=0.0003, tau1=recovery, tau2=recovery, weight=1.0
-        )
-        template_parts["pulse"] = (peak * (0.1 + 0.9 * near))[:, None] * shape[None]
-        info["pulse"] = {"peak_uV": peak, "recovery_tau_s": recovery}
-    if decay_artifact:
-        tau = float(art_rng.uniform(0.010, 0.050))
-        amp = art_rng.uniform(10.0, 60.0) * np.sign(art_rng.standard_normal())
-        shape = tail_shape(times, sfreq, start=0.001, tau1=tau, tau2=tau, weight=1.0)
-        template_parts["decay"] = (amp * near)[:, None] * shape[None]
-        info["decay"] = {"amplitude_uV": float(amp), "tau_s": tau}
-    if muscle_artifact:
-        from evoparam.shapes import get_shape
-
-        params = np.array(
-            [
-                art_rng.uniform(0.010, 0.020),
-                art_rng.uniform(0.003, 0.006),
-                art_rng.uniform(60.0, 120.0),
-                art_rng.uniform(-np.pi, np.pi),
-            ]
-        )
-        if params[2] * 2.5 > sfreq:
-            params[2] = sfreq / 2.5
-        amp = float(art_rng.uniform(20.0, 150.0))
-        shape = get_shape("gabor").evaluate(times, params)
-        lateral = np.exp(-(distance**2) / (2 * 0.3**2))
-        template_parts["muscle"] = (amp * lateral)[:, None] * shape[None]
-        info["muscle"] = {
-            "amplitude_uV": amp,
-            "shape": "gabor",
-            "params": dict(zip(("t0", "sigma", "freq", "phase"), params.tolist(), strict=False)),
-        }
-    artifact_data = None
-    if template_parts:
-        cvs = {"pulse": 0.02, "decay": 0.1, "muscle": 0.2}
-        artifact_data = np.zeros((n_trials, n_channels, times.size))
-        for name, part in template_parts.items():
-            factor = 1.0 + cvs[name] * art_rng.standard_normal(n_trials)
-            artifact_data += factor[:, None, None] * part[None]
-            info[name]["trial_cv"] = cvs[name]
-    else:
-        info = None
+    which = {"pulse": pulse_artifact, "decay": decay_artifact, "muscle": muscle_artifact}
+    artifact_data, info = _tms_artifacts(which, times, sfreq, distance, art_rng, n_trials)
+    if info is not None:
+        info = {"model": "tms", "stim_site": stim_site, **info}
     metadata = {
         "trial": np.arange(n_trials, dtype=np.int64),
         "condition": [""] * n_trials,
@@ -1059,28 +1242,28 @@ def simulate_tep(
     }
     ch_info = _ch_info(names, coords, groups, "eeg", coord_space="unit_disc")
     return assemble(
-        generator="evoparam.sim.simulate_tep",
-        settings=settings,
-        seed=entropy,
-        rngs=rngs,
-        times=times,
-        sfreq=sfreq,
-        ch_names=names,
-        sources=sources,
-        n_trials=n_trials,
-        noise=noise,
-        noise_sd=noise_sd,
-        noise_kw=noise_kw,
-        snr=snr,
-        jitter_sd=jitter_sd,
-        amplitude_cv=amplitude_cv,
-        artifact=artifact_data,
-        artifact_info=info,
-        metadata=metadata,
-        ch_info=ch_info,
-        modality="tep",
-        keep_arrays=keep_arrays,
-        start=start,
+        Design(
+            generator="evoparam.sim.simulate_tep",
+            settings=settings,
+            seed=entropy,
+            rngs=rngs,
+            times=times,
+            sfreq=sfreq,
+            ch_names=names,
+            sources=sources,
+            n_trials=n_trials,
+            start=start,
+        ),
+        NoiseSpec(noise=noise, noise_sd=noise_sd, noise_kw=noise_kw),
+        Variability(snr=snr, jitter_sd=jitter_sd, amplitude_cv=amplitude_cv),
+        Recording(
+            artifact=artifact_data,
+            artifact_info=info,
+            metadata=metadata,
+            ch_info=ch_info,
+            modality="tep",
+            keep_arrays=keep_arrays,
+        ),
     )
 
 
@@ -1112,7 +1295,210 @@ _ECAP_KINDS: dict[str, dict[str, Any]] = {
 PARADIGMS = (None, "alternating", "forward_masking")
 
 
-def simulate_ecap(
+def _check_ecap(kind: str, paradigm: Any, n_trials: int, masking: float) -> None:
+    """Raise SettingsError when the ECAP kind, paradigm, trial count or masking is invalid."""
+    if kind not in _ECAP_KINDS:
+        raise SettingsError(f"kind must be one of {sorted(_ECAP_KINDS)}, got {kind!r}.")
+    if paradigm not in PARADIGMS:
+        raise SettingsError(f"paradigm must be one of {PARADIGMS}, got {paradigm!r}.")
+    if paradigm == "alternating" and n_trials % _ALTERNATING_PERIOD:
+        raise SettingsError("paradigm 'alternating' needs an even number of trials.")
+    if paradigm == "forward_masking" and n_trials % _MASKING_PERIOD:
+        raise SettingsError("paradigm 'forward_masking' needs a multiple of 4 trials.")
+    if not 0 <= masking <= 1:
+        raise SettingsError(f"masking must be in [0, 1], got {masking}.")
+    if paradigm is not None:
+        require("pandas", extra="data", caller="evoparam.sim.simulate_ecap (paradigms)")
+
+
+def _ecap_trials(paradigm: Any, n_trials: int) -> tuple[Any, Any, Any]:
+    """Return the condition, the pair (or quadruple) index and the pulse sign of each trial.
+
+    ``forward_masking`` cycles through the conditions A (probe), B (masker and probe),
+    C (masker) and D (neither); ``alternating`` inverts every second pulse.
+    """
+    if paradigm == "forward_masking":
+        condition = np.array(["A", "B", "C", "D"] * (n_trials // _MASKING_PERIOD))
+        pair_id = np.repeat(np.arange(n_trials // _MASKING_PERIOD), _MASKING_PERIOD)
+    elif paradigm == "alternating":
+        condition = np.array([""] * n_trials)
+        pair_id = np.repeat(np.arange(n_trials // _ALTERNATING_PERIOD), _ALTERNATING_PERIOD)
+    else:
+        condition = np.array([""] * n_trials)
+        pair_id = np.arange(n_trials)
+    sign = np.where((np.arange(n_trials) % 2 == 1) & (paradigm == "alternating"), 1, -1)
+    return condition, pair_id, sign
+
+
+@dataclass
+class _ECAPResponse:
+    """The drawn N1-P2 complex of an ECAP: N1 latency, P2 delay, FWHMs and peaks."""
+
+    n1_latency: float
+    p2_delay: float
+    fwhm: tuple[float, float]
+    peaks: tuple[float, float]
+
+
+def _ecap_response(
+    form: dict[str, Any], amplitude: Any, rng: np.random.Generator
+) -> _ECAPResponse:
+    """Draw the N1-P2 complex within the ranges of the ECAP kind and of ``amplitude``."""
+    n1_latency = float(rng.uniform(*form["n1"]))
+    p2_delay = float(rng.uniform(*form["p2_delay"]))
+    fwhm = (float(rng.uniform(*form["n1_fwhm"])), float(rng.uniform(*form["p2_fwhm"])))
+    peaks = (float(rng.uniform(*amplitude[0])), float(rng.uniform(*amplitude[1])))
+    return _ECAPResponse(n1_latency, p2_delay, fwhm, peaks)
+
+
+def _ecap_sources(
+    form: dict[str, Any],
+    response: _ECAPResponse,
+    distance: Any,
+    condition: Any,
+    masking: float,
+    masker_offset: Any,
+) -> list[Source]:
+    """Return the N1 and P2 sources of every recording contact (all but the stimulating one).
+
+    The response propagates at the conduction velocity of the kind and decays with the
+    space constant. With forward masking (``masker_offset`` not None) each source has a
+    masker copy at that offset, present in conditions B and C; the probe response is
+    absent in C and D and scaled by ``1 - masking`` in B.
+    """
+    from .components import shape_params
+
+    probe_present = condition != "C"
+    probe_present &= condition != "D"
+    probe_gain = np.where(condition == "B", 1.0 - masking, 1.0)
+    if masking == 1.0:
+        probe_present &= condition != "B"
+    masker_present = (condition == "B") | (condition == "C")
+    sources = []
+    for channel in range(1, distance.size):
+        delay = (
+            0.0
+            if form["velocity"] is None
+            else (distance[channel] - distance[1]) / form["velocity"]
+        )
+        space = np.exp(-(distance[channel] - distance[1]) / form["space"])
+        for label, latency, width, peak in (
+            ("N1", response.n1_latency, response.fwhm[0], response.peaks[0]),
+            ("P2", response.n1_latency + response.p2_delay, response.fwhm[1], response.peaks[1]),
+        ):
+            params = shape_params("biexponential", latency + delay, width, tau_decay_ratio=3.0)
+            sources.append(
+                Source(
+                    label=label,
+                    shape="biexponential",
+                    params=params,
+                    amplitude=peak * space,
+                    channel=channel,
+                    rel=space,
+                    present=probe_present,
+                    gain=probe_gain,
+                )
+            )
+            if masker_offset is not None:
+                sources.append(
+                    Source(
+                        label=label,
+                        shape="biexponential",
+                        params=params,
+                        amplitude=1.0,
+                        channel=channel,
+                        role="masker",
+                        event=-1,
+                        present=masker_present,
+                        offset=masker_offset,
+                        parent=len(sources) - 1,
+                    )
+                )
+    return sources
+
+
+@dataclass
+class _ECAPPulse:
+    """The stimulation of an ECAP simulation: contact, pulse, artifact scale and tail."""
+
+    contact: str
+    current_ma: float
+    pulse_width_us: float
+    scale_uv_per_ma: float
+    tail_fraction: float
+    tail_tau: float
+    masker_probe_interval: float
+    switch_uv: float
+
+
+def _ecap_pulse_artifact(
+    pulse: _ECAPPulse, times: Any, sfreq: float, coords: Any, onset: float, polarity: int
+) -> FloatArray:
+    """Return the artifact of one pulse at ``onset`` with ``polarity`` on every channel."""
+    return stimulation_artifact(
+        times,
+        sfreq,
+        coords,
+        StimulusPulse(
+            current_ma=pulse.current_ma,
+            pulse_width_us=pulse.pulse_width_us,
+            polarity=polarity,
+            onset=onset,
+            scale_uv_per_ma=pulse.scale_uv_per_ma,
+        ),
+        RecoveryTail(fraction=pulse.tail_fraction, tau1=pulse.tail_tau, tau2=pulse.tail_tau),
+        source=coords[0],
+    )
+
+
+def _ecap_artifact(
+    pulse: _ECAPPulse,
+    times: Any,
+    sfreq: float,
+    coords: Any,
+    tmin: float,
+    condition: Any,
+    sign: Any,
+    paradigm: Any,
+) -> tuple[FloatArray, dict[str, Any]]:
+    """Return the stimulation artifact of every trial and its description.
+
+    The probe pulse (of the trial's sign) in conditions "", A and B; with forward masking,
+    the masker pulse in B and C and the switching artifact in every trial.
+    """
+    n_trials = len(condition)
+    probe = {s: _ecap_pulse_artifact(pulse, times, sfreq, coords, 0.0, s) for s in (-1, 1)}
+    artifact_data = np.zeros((n_trials, coords.shape[0], times.size))
+    for trial in range(n_trials):
+        if condition[trial] in ("", "A", "B"):
+            artifact_data[trial] += probe[sign[trial]]
+    if paradigm == "forward_masking":
+        masker = _ecap_pulse_artifact(
+            pulse, times, sfreq, coords, -pulse.masker_probe_interval, -1
+        )
+        switch = pulse.switch_uv * tail_shape(
+            times, sfreq, start=tmin + 0.1 * (0 - tmin), tau1=0.0002, tau2=0.0002, weight=1.0
+        )
+        for trial in range(n_trials):
+            if condition[trial] in ("B", "C"):
+                artifact_data[trial] += masker
+            artifact_data[trial] += switch[None, :]
+    info = {
+        "model": "monopolar_pulse_tail",
+        "stim_contact": pulse.contact,
+        "current_mA": float(pulse.current_ma),
+        "pulse_width_us": float(pulse.pulse_width_us),
+        "scale_uV_per_mA": float(pulse.scale_uv_per_ma),
+        "tail_fraction": float(pulse.tail_fraction),
+        "tail_tau_s": float(pulse.tail_tau),
+        "paradigm": paradigm,
+        "masker_probe_interval_s": float(pulse.masker_probe_interval),
+        "switch_artifact_uV": float(pulse.switch_uv) if paradigm == "forward_masking" else None,
+    }
+    return artifact_data, info
+
+
+def simulate_ecap(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
     n_trials: int = 40,
     *,
     kind: str = "spinal",
@@ -1189,139 +1575,37 @@ def simulate_ecap(
     settings = _settings(locals())
     n_trials = _check_count("n_trials", n_trials)
     n_channels = _check_count("n_channels", n_channels, 2)
-    if kind not in _ECAP_KINDS:
-        raise SettingsError(f"kind must be one of {sorted(_ECAP_KINDS)}, got {kind!r}.")
-    if paradigm not in PARADIGMS:
-        raise SettingsError(f"paradigm must be one of {PARADIGMS}, got {paradigm!r}.")
-    if paradigm == "alternating" and n_trials % 2:
-        raise SettingsError("paradigm 'alternating' needs an even number of trials.")
-    if paradigm == "forward_masking" and n_trials % 4:
-        raise SettingsError("paradigm 'forward_masking' needs a multiple of 4 trials.")
-    if not 0 <= masking <= 1:
-        raise SettingsError(f"masking must be in [0, 1], got {masking}.")
-    if paradigm is not None:
-        require("pandas", extra="data", caller="evoparam.sim.simulate_ecap (paradigms)")
+    _check_ecap(kind, paradigm, n_trials, masking)
     entropy, rngs = seed_streams(seed)
-    design = rngs["design"]
     form = _ECAP_KINDS[kind]
     times = time_axis(sfreq, tmin, tmax)
     names, coords, groups = line_layout(n_channels, form["spacing"], "E", depth=False)
     distance = np.abs(coords[:, 0] - coords[0, 0])
-
-    if paradigm == "forward_masking":
-        condition = np.array(["A", "B", "C", "D"] * (n_trials // 4))
-        pair_id = np.repeat(np.arange(n_trials // 4), 4)
-    elif paradigm == "alternating":
-        condition = np.array([""] * n_trials)
-        pair_id = np.repeat(np.arange(n_trials // 2), 2)
-    else:
-        condition = np.array([""] * n_trials)
-        pair_id = np.arange(n_trials)
-    sign = np.where((np.arange(n_trials) % 2 == 1) & (paradigm == "alternating"), 1, -1)
+    condition, pair_id, sign = _ecap_trials(paradigm, n_trials)
     polarity_names = [
         "biphasic_anodic_first" if s > 0 else "biphasic_cathodic_first" for s in sign
     ]
-
-    n1_latency = float(design.uniform(*form["n1"]))
-    p2_delay = float(design.uniform(*form["p2_delay"]))
-    fwhm = (float(design.uniform(*form["n1_fwhm"])), float(design.uniform(*form["p2_fwhm"])))
-    peaks = (float(design.uniform(*amplitude[0])), float(design.uniform(*amplitude[1])))
-    probe_present = condition != "C"
-    probe_present &= condition != "D"
-    probe_gain = np.where(condition == "B", 1.0 - masking, 1.0)
-    if masking == 1.0:
-        probe_present &= condition != "B"
-    masker_present = (condition == "B") | (condition == "C")
-    from .components import shape_params
-
-    sources = []
-    for channel in range(1, n_channels):
-        delay = (
-            0.0
-            if form["velocity"] is None
-            else (distance[channel] - distance[1]) / form["velocity"]
-        )
-        space = np.exp(-(distance[channel] - distance[1]) / form["space"])
-        for label, latency, width, peak in (
-            ("N1", n1_latency, fwhm[0], peaks[0]),
-            ("P2", n1_latency + p2_delay, fwhm[1], peaks[1]),
-        ):
-            params = shape_params("biexponential", latency + delay, width, tau_decay_ratio=3.0)
-            sources.append(
-                Source(
-                    label=label,
-                    shape="biexponential",
-                    params=params,
-                    amplitude=peak * space,
-                    channel=channel,
-                    rel=space,
-                    present=probe_present,
-                    gain=probe_gain,
-                )
-            )
-            if paradigm == "forward_masking":
-                sources.append(
-                    Source(
-                        label=label,
-                        shape="biexponential",
-                        params=params,
-                        amplitude=1.0,
-                        channel=channel,
-                        role="masker",
-                        event=-1,
-                        present=masker_present,
-                        offset=np.full(n_trials, -masker_probe_interval),
-                        parent=len(sources) - 1,
-                    )
-                )
+    response = _ecap_response(form, amplitude, rngs["design"])
+    masker_offset = (
+        np.full(n_trials, -masker_probe_interval) if paradigm == "forward_masking" else None
+    )
+    sources = _ecap_sources(form, response, distance, condition, masking, masker_offset)
 
     artifact_data, artifact_info = None, None
     if artifact:
-
-        def pulse(onset: Any, polarity: Any) -> Any:
-            return stimulation_artifact(
-                times,
-                sfreq,
-                coords,
-                source=coords[0],
-                current_mA=stim_current_mA,
-                pulse_width_us=pulse_width_us,
-                polarity=polarity,
-                onset=onset,
-                scale_uV_per_mA=artifact_scale_uV_per_mA,
-                tail_fraction=tail_fraction,
-                tau1=tail_tau,
-                tau2=tail_tau,
-            )
-
-        probe = {s: pulse(0.0, s) for s in (-1, 1)}
-        artifact_data = np.zeros((n_trials, n_channels, times.size))
-        for trial in range(n_trials):
-            if condition[trial] in ("", "A", "B"):
-                artifact_data[trial] += probe[sign[trial]]
-        if paradigm == "forward_masking":
-            masker = pulse(-masker_probe_interval, -1)
-            switch = switch_artifact_uV * tail_shape(
-                times, sfreq, start=tmin + 0.1 * (0 - tmin), tau1=0.0002, tau2=0.0002, weight=1.0
-            )
-            for trial in range(n_trials):
-                if condition[trial] in ("B", "C"):
-                    artifact_data[trial] += masker
-                artifact_data[trial] += switch[None, :]
-        artifact_info = {
-            "model": "monopolar_pulse_tail",
-            "stim_contact": names[0],
-            "current_mA": float(stim_current_mA),
-            "pulse_width_us": float(pulse_width_us),
-            "scale_uV_per_mA": float(artifact_scale_uV_per_mA),
-            "tail_fraction": float(tail_fraction),
-            "tail_tau_s": float(tail_tau),
-            "paradigm": paradigm,
-            "masker_probe_interval_s": float(masker_probe_interval),
-            "switch_artifact_uV": float(switch_artifact_uV)
-            if paradigm == "forward_masking"
-            else None,
-        }
+        pulse = _ECAPPulse(
+            contact=names[0],
+            current_ma=stim_current_mA,
+            pulse_width_us=pulse_width_us,
+            scale_uv_per_ma=artifact_scale_uV_per_mA,
+            tail_fraction=tail_fraction,
+            tail_tau=tail_tau,
+            masker_probe_interval=masker_probe_interval,
+            switch_uv=switch_artifact_uV,
+        )
+        artifact_data, artifact_info = _ecap_artifact(
+            pulse, times, sfreq, coords, tmin, condition, sign, paradigm
+        )
     metadata = _stim_metadata(n_trials, names[0], stim_current_mA, pulse_width_us, polarity_names)
     metadata["condition"] = list(condition)
     if paradigm is not None:
@@ -1330,29 +1614,29 @@ def simulate_ecap(
         metadata["paradigm_condition"] = list(condition)
     ch_info = _ch_info(names, coords, groups, "ecap", stim=(names[0],))
     ts, truth = assemble(
-        generator="evoparam.sim.simulate_ecap",
-        settings=settings,
-        seed=entropy,
-        rngs=rngs,
-        times=times,
-        sfreq=sfreq,
-        ch_names=names,
-        sources=sources,
-        n_trials=n_trials,
-        noise=noise,
-        noise_sd=noise_sd,
-        noise_kw=noise_kw,
-        snr=snr,
-        jitter_sd=jitter_sd,
-        amplitude_cv=amplitude_cv,
-        artifact=artifact_data,
-        artifact_info=artifact_info,
-        metadata=metadata,
-        ch_info=ch_info,
-        conditions=list(condition),
-        modality="ecap",
-        keep_arrays=keep_arrays,
-        start=start,
+        Design(
+            generator="evoparam.sim.simulate_ecap",
+            settings=settings,
+            seed=entropy,
+            rngs=rngs,
+            times=times,
+            sfreq=sfreq,
+            ch_names=names,
+            sources=sources,
+            n_trials=n_trials,
+            start=start,
+        ),
+        NoiseSpec(noise=noise, noise_sd=noise_sd, noise_kw=noise_kw),
+        Variability(snr=snr, jitter_sd=jitter_sd, amplitude_cv=amplitude_cv),
+        Recording(
+            artifact=artifact_data,
+            artifact_info=artifact_info,
+            metadata=metadata,
+            ch_info=ch_info,
+            conditions=list(condition),
+            modality="ecap",
+            keep_arrays=keep_arrays,
+        ),
     )
     return ts, truth
 
@@ -1378,7 +1662,7 @@ ANIMAL_COMPONENTS = {
 }
 
 
-def simulate_animal_ep(
+def simulate_animal_ep(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
     n_trials: int = 100,
     *,
     species: str = "mouse",
@@ -1488,14 +1772,10 @@ def simulate_animal_ep(
             times,
             sfreq,
             coords,
+            StimulusPulse(current_ma=0.1, pulse_width_us=100.0, scale_uv_per_ma=20000.0),
+            RecoveryTail(fraction=0.05, tau1=0.001, tau2=0.005),
             source=site,
-            current_mA=0.1,
-            pulse_width_us=100.0,
-            scale_uV_per_mA=20000.0,
             radius=0.05,
-            tail_fraction=0.05,
-            tau1=0.001,
-            tau2=0.005,
         )
         variation = 1.0 + 0.02 * rngs["artifact"].standard_normal(n_trials)
         artifact_data = variation[:, None, None] * template[None]
@@ -1513,30 +1793,30 @@ def simulate_animal_ep(
     }
     ch_info = _ch_info(names, coords, groups, "lfp")
     ts, truth = assemble(
-        generator="evoparam.sim.simulate_animal_ep",
-        settings=settings,
-        seed=entropy,
-        rngs=rngs,
-        times=times,
-        sfreq=sfreq,
-        ch_names=names,
-        sources=sources,
-        n_trials=n_trials,
-        noise=noise,
-        noise_sd=noise_sd,
-        noise_kw=noise_kw,
-        snr=snr,
-        jitter_sd=jitter_sd,
-        amplitude_cv=amplitude_cv,
-        artifact=artifact_data,
-        artifact_info=artifact_info,
-        metadata=metadata,
-        ch_info=ch_info,
-        conditions=state_of.tolist(),
-        species=species,
-        modality="lfp_ep",
-        keep_arrays=keep_arrays,
-        start=start,
+        Design(
+            generator="evoparam.sim.simulate_animal_ep",
+            settings=settings,
+            seed=entropy,
+            rngs=rngs,
+            times=times,
+            sfreq=sfreq,
+            ch_names=names,
+            sources=sources,
+            n_trials=n_trials,
+            start=start,
+        ),
+        NoiseSpec(noise=noise, noise_sd=noise_sd, noise_kw=noise_kw),
+        Variability(snr=snr, jitter_sd=jitter_sd, amplitude_cv=amplitude_cv),
+        Recording(
+            artifact=artifact_data,
+            artifact_info=artifact_info,
+            metadata=metadata,
+            ch_info=ch_info,
+            conditions=state_of.tolist(),
+            species=species,
+            modality="lfp_ep",
+            keep_arrays=keep_arrays,
+        ),
     )
     return ts, truth
 
