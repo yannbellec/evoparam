@@ -529,7 +529,16 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   published pipeline reads it) removes the reference misses. It gives 91 % / 95 % on the
   development runs but 88 % / 88 % on the REQ runs, and lowers REQ-113 under the registry
   row, so it is not adopted (CHANGELOG, "N1 case: the two readings"). The test is
-  `test_req114_rule_peak_on_the_fitted_curve` (xfail). The criterion is unchanged.
+  `test_req114_rule_peak_on_the_fitted_curve` (xfail).
+- A fourth reading does the comparison in one reference, without changing the preset. The
+  adjusted common average subtracts one curve from every channel. Adding that curve back to
+  each fitted curve gives the fit in the reference the rule reads, and the rule's operator
+  then reads it. With this reading REQ-114 is met under both readings: 91 % (67 of 74) and
+  90.0 % (27 of 30) on the REQ runs, 91 % and 95 % on the development runs, and the same on
+  the NumPy path (91 % and 90.0 %). The margin is zero channels on the REQ runs. Test:
+  `test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference`. The component
+  reading (the test as written) stays an expected failure. REQ-273 is still not met,
+  because it also needs REQ-113 (§5.8). The criterion is unchanged.
 
 ### 5.3 REQ-105 (recall >= 0.95 from SNR 3) — REQ-112 (>= 95 % of pure-noise windows silent)
 
