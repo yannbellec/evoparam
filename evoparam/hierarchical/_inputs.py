@@ -126,22 +126,19 @@ def trial_fits(
         )
 
 
-def _star(unit: tuple[Any, tuple[Any, ...]]) -> Any:
-    function, args = unit
-    return function(*args)
-
-
 def run_subjects(function: Any, arguments: Any, n_jobs: Any) -> list[Any]:
-    """Run ``function(*args)`` for each subject's arguments, in the order of the subjects.
+    """Run ``function(*args)`` for each subject's arguments.
 
-    In parallel when ``n_jobs != 1`` (``-1`` or None: one per core): ``joblib`` processes when the
-    extra ``parallel`` is installed, else threads (:func:`evoparam.utils._parallel.parallel_map`,
-    which carries the warnings and log records of each subject back to the caller).
+    In processes when ``n_jobs != 1`` (``-1``: one per core).
     """
-    from evoparam.utils._parallel import parallel_map
+    if n_jobs == 1 or len(arguments) < 2:
+        return [function(*args) for args in arguments]
+    import os
+    from concurrent.futures import ProcessPoolExecutor
 
-    jobs = -1 if n_jobs is None else n_jobs
-    return parallel_map(_star, [(function, tuple(args)) for args in arguments], jobs)
+    workers = (os.cpu_count() or 1) if n_jobs is None or n_jobs < 0 else n_jobs
+    with ProcessPoolExecutor(max_workers=min(workers, len(arguments))) as pool:
+        return list(pool.map(function, *zip(*arguments, strict=False)))
 
 
 def component_rows(group_fit: Any, label: Any) -> dict[Any, Any]:

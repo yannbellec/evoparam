@@ -11,9 +11,11 @@ channels that carry each component (§5.7), then combines them:
   :mod:`evoparam.hierarchical.bayes`.
 """
 
+import contextlib
+import functools
 import logging
 import time as _time
-from collections.abc import Sequence
+from collections.abc import Callable, Iterator, Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -22,7 +24,6 @@ from evoparam._typing import Any
 from evoparam.data import HierarchicalFit
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
-from evoparam.utils._logging import progress, verbose
 from evoparam.version import __version__
 
 from . import eb
@@ -41,6 +42,56 @@ from ._inputs import (
 )
 
 logger = logging.getLogger(__name__)
+
+# spec §4.2: hierarchical imports data, models, trials and stats only (utils.require aside),
+# so the verbose= of fit_hierarchical sets the level of the evoparam logger here, with the
+# values of evoparam.utils.verbose (REQ-304); "progress" acts as "info" (no bar)
+_LEVELS = {
+    None: None,
+    False: None,
+    True: logging.INFO,
+    "info": logging.INFO,
+    "progress": logging.INFO,
+    "debug": logging.DEBUG,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+}
+
+
+@contextlib.contextmanager
+def _verbose_level(value: Any) -> Iterator[None]:
+    """Set the level of the ``evoparam`` logger for a block (None, False: unchanged)."""
+    level: int | None
+    key = value.lower() if isinstance(value, str) else value
+    if isinstance(key, int) and not isinstance(key, bool):
+        level = key
+    elif key in _LEVELS:
+        level = _LEVELS[key]
+    else:
+        raise SettingsError(
+            "verbose must be one of None, False, True, 'info', 'debug', 'warning', 'error', "
+            f"'progress' or a logging level; got {value!r}."
+        )
+    root = logging.getLogger("evoparam")
+    saved = root.level
+    if level is not None:
+        root.setLevel(level)
+    try:
+        yield
+    finally:
+        root.setLevel(saved)
+
+
+def _verbose(function: Callable[..., Any]) -> Callable[..., Any]:
+    """Run ``function`` under the logger level of its ``verbose`` keyword."""
+
+    @functools.wraps(function)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        with _verbose_level(kwargs.get("verbose")):
+            return function(*args, **kwargs)
+
+    return wrapper
+
 
 if TYPE_CHECKING:
     from evoparam.data.results import GroupFit
@@ -103,7 +154,7 @@ def _preset_for(ts: Any, preset: Any) -> Any:
     raise SettingsError("Give preset= (the TrialSet has no modality).")
 
 
-@verbose
+@_verbose
 def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.8)
     ts: Any,
     *,
@@ -122,7 +173,7 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
     subject_column: str = "subject",
     random_state: Any = None,
     n_jobs: int = 1,
-    verbose: Any = None,  # noqa: ARG001  (read by the @verbose decorator)
+    verbose: Any = None,  # noqa: ARG001  (read by the @_verbose decorator)
 ) -> "HierarchicalFit":
     """Hierarchical estimates of evoked components: trial -> channel -> subject.
 
@@ -148,12 +199,10 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
     preset : str, optional
         Fitting preset of the channel fits (default from the modality).
     n_jobs : int
-        Subjects fitted in parallel (``-1``: one per core): ``joblib`` processes when the
-        extra ``parallel`` is installed, else threads; the result does not depend on it.
+        Subjects fitted in parallel processes (``-1``: one per core).
     verbose : bool, str or None
         Level of the ``evoparam`` logger for the call (spec §9.8): one INFO record at the
-        end, the channel fits' records at DEBUG; ``"progress"`` adds a progress bar over
-        the components (extra ``progress``).
+        end, the channel fits' records at DEBUG; ``"progress"`` is ``"info"`` here.
     group_fits : sequence of GroupFit, optional
         Channel fits already made, one per subject in the same order.
 
@@ -213,7 +262,7 @@ def fit_hierarchical(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, sig
         [],
     )
     diagnostics: dict[str, Any] = {"notes": notes, "em": {}, "reml": {}, "jitter": {}}
-    for label in progress(labels, total=len(labels), desc="fit_hierarchical"):
+    for label in labels:
         comps = [component_rows(gf, label) for gf in fits]
         pooled = [c for rows in comps for c in rows.values() if c is not None]
         if not pooled:
