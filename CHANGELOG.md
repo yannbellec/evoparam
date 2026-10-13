@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Engineering requirements of S20 closed (REQ-006, REQ-007, REQ-009, REQ-010, REQ-292, REQ-294, REQ-306, REQ-307, REQ-333, REQ-395)
+### Engineering requirements of S20 closed (REQ-006, REQ-007, REQ-009, REQ-010, REQ-292, REQ-294, REQ-298, REQ-306, REQ-307, REQ-333, REQ-395)
 
 With the default arguments the results are unchanged: the reference fixture, the frozen
 methods texts, the API index and `soup.json` checks pass as before.
@@ -57,6 +57,19 @@ methods texts, the API index and `soup.json` checks pass as before.
   `evoparam.data.Table` (named NumPy columns, `to_pandas()`); with pandas they are
   DataFrames as before (DECISIONS §4). Containers saved without pandas use CSV tables.
   `read_neo` no longer needs pandas. Expected failure removed.
+- **REQ-298** (coverage thresholds): `evoparam.shapes` is covered at 100 % (lines and
+  branches) by its own tests, without any exclusion comment: the new
+  `tests/shapes/test_checks.py` checks every input check, fallback and edge case of the
+  shapes, backgrounds and registry (plugin entry points, every check of
+  `register_shape`). Two faults found on the way are fixed: `skew_mode` of a NaN or
+  infinite skewness recursed without end (now NaN), and of a skewness above about 1e154
+  raised `OverflowError` on the scalar path (now the half-normal limit, as on the array
+  path). The coverage configuration measured too little: `[tool.coverage.run] omit` left
+  out `plots`, `cli`, `stream` and `benchmark`, so the 80 % gate of the outer layers had no
+  data, and the 90 % gate counted only part of the package. Now every module is measured;
+  `coverage report` gates the core packages of REQ-298 (`[tool.coverage.report]
+  include`) and the outer-layer gate also counts the remote I/O modules. Expected failure
+  removed.
 - **REQ-006** (an interval for every reported value): the existence test of an Evoked
   (no trials) gives intervals of the onset, offset and duration from a baseline
   bootstrap (`n_boot` resamples; DECISIONS §4); its p-values and decisions are unchanged.

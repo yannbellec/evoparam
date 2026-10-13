@@ -285,6 +285,11 @@ def _skew_root(a: ArrayLike) -> FloatArray:
         # one skewness (the usual case inside a fit): the same iteration on Python floats,
         # about ten times faster than on one-element arrays
         return np.full(a.shape, _skew_root_scalar(float(a.reshape(-1)[0])))
+    return _skew_root_array(a)
+
+
+def _skew_root_array(a: FloatArray) -> FloatArray:
+    """:func:`_skew_root` on an array, element by element (NaN for a non-finite ``a``)."""
     low, high = np.zeros_like(a), np.full_like(a, 2.0)
     z: FloatArray = np.clip(0.6 * a / np.sqrt(1.0 + a**2), 0.0, 2.0)
     for _ in range(60):
@@ -307,12 +312,13 @@ def _skew_root(a: ArrayLike) -> FloatArray:
 def _skew_root_scalar(a: float) -> float:
     """:func:`_skew_root` for one value of ``a``."""
     if not math.isfinite(a):
-        return float(_skew_root(np.array([a]))[0])
+        return float(_skew_root_array(np.array([a]))[0])
     low, high = 0.0, 2.0
     z = min(max(0.6 * a / math.sqrt(1.0 + a * a), 0.0), 2.0)
     eps = 4.0 * np.finfo(np.float64).eps
     for _ in range(60):
-        g = math.exp(-0.5 * (a * z) ** 2)
+        az = a * z  # its square overflows to inf (g = 0) instead of raising OverflowError
+        g = math.exp(-0.5 * (az * az))
         e = math.erfc(-a * z / _SQRT2)
         f = z * e - _SQRT_2_OVER_PI * a * g
         if f <= 0:
