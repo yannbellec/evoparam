@@ -7,6 +7,9 @@ import numpy as np
 
 from evoparam.io.brainvision import read_brainvision_header, read_brainvision_segment
 
+# Channels of the recording written.
+N_CHANNELS = 3
+
 ###################################################################################################
 ###################################################################################################
 
@@ -46,7 +49,7 @@ def test_read_brainvision(tmp_path: Any) -> None:
     vhdr = write_brainvision(tmp_path, data, sfreq, ch_names)
 
     header = read_brainvision_header(vhdr)
-    assert header["n_channels"] == 3
+    assert header["n_channels"] == N_CHANNELS
     assert header["sfreq"] == sfreq
     assert header["ch_names"] == ch_names
 

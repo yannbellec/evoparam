@@ -34,6 +34,11 @@ from evoparam.version import __version__
 
 from .helpers import ROOT, hidden_seeds_path, suite
 
+# Hidden cells of the core suite, hex digits of a SHA-256, and the hidden fraction.
+N_HIDDEN = 12
+SHA256_HEX = 64
+HIDDEN_FRACTION = 0.2
+
 DEPOSIT_REASON = "deposit not made: waits for the owner's HIIE decision (nothing public before it)"
 
 
@@ -108,7 +113,7 @@ def test_req356_hidden_split_is_committed_not_written(deposit: Any) -> None:
     core = suite("core")
     hidden = manifest["hidden_split"]
     assert hidden["commitment_sha256"] == core.hidden_split["commitment_sha256"]
-    assert hidden["n_cells"] == len(core.cells(split="hidden")) == 12
+    assert hidden["n_cells"] == len(core.cells(split="hidden")) == N_HIDDEN
     assert all("seed" not in c for c in hidden["cells"])
     assert hidden["verified_against_seeds"] is None
     text = (out / "suite-core.json").read_text(encoding="utf-8")
@@ -120,8 +125,8 @@ def test_req356_hidden_split_is_committed_not_written(deposit: Any) -> None:
 def test_req356_commitment_is_the_same_for_both_suites() -> None:
     core, full = suite("core"), load_suite("full")
     assert core.hidden_split["commitment_sha256"] == full.hidden_split["commitment_sha256"]
-    assert len(core.hidden_split["commitment_sha256"]) == 64
-    assert core.hidden_split["fraction"] == full.hidden_split["fraction"] == 0.2
+    assert len(core.hidden_split["commitment_sha256"]) == SHA256_HEX
+    assert core.hidden_split["fraction"] == full.hidden_split["fraction"] == HIDDEN_FRACTION
     assert all(c.seed is None for c in full.cells(split="hidden"))
 
 
@@ -171,7 +176,7 @@ def test_req356_the_kept_seeds_match_the_commitment(tmp_path: Any) -> None:
 
     path = hidden_seeds_path()
     document = load_hidden_seeds(path)
-    assert len(document["nonce"]) == 64
+    assert len(document["nonce"]) == SHA256_HEX
     for name in ("core", "full"):
         loaded = load_suite(name, hidden_seeds=path)
         hidden = loaded.cells(split="hidden")

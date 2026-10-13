@@ -21,6 +21,15 @@ import evoparam
 
 yaml = pytest.importorskip("yaml")
 
+# Time limits (min) of the test and documentation jobs.
+TEST_TIMEOUT = 25
+DOCS_TIMEOUT = 20
+# Thresholds of REQ-305: line length, complexity, arguments and statements.
+LINE_LENGTH = 99
+MAX_COMPLEXITY = 12
+MAX_ARGS = 8
+MAX_STATEMENTS = 60
+
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
 WORKFLOWS = ROOT / ".github" / "workflows"
 
@@ -84,7 +93,7 @@ def test_req297_tests_matrix_lock_and_timeouts() -> None:
     assert matrix["python"] == ["3.10", "3.11", "3.12", "3.13"]
     assert matrix["os"] == ["ubuntu-latest", "macos-latest", "windows-latest"]
     assert job["name"] == "tests (${{ matrix.python }}, ${{ matrix.os }})"
-    assert job["timeout-minutes"] == 25
+    assert job["timeout-minutes"] == TEST_TIMEOUT
     runs = _runs(job)
     assert "--require-hashes -r ci/locks/py${{ matrix.python }}.lock" in runs
     assert '".[all]"' in runs
@@ -260,7 +269,7 @@ def test_req302_docs_workflow() -> None:
     runs = _runs(job)
     assert "sphinx-build -W --keep-going -b html" in runs
     assert "sphinx-build -b linkcheck" in runs
-    assert job["timeout-minutes"] <= 20
+    assert job["timeout-minutes"] <= DOCS_TIMEOUT
     conf = (ROOT / "docs" / "conf.py").read_text(encoding="utf-8")
     for ext in (
         "numpydoc",
@@ -337,7 +346,7 @@ def test_req305_ruff_configuration() -> None:
         tomllib = pytest.importorskip("tomli")
     with open(ROOT / "pyproject.toml", "rb") as fobj:
         ruff = tomllib.load(fobj)["tool"]["ruff"]
-    assert ruff["line-length"] == 99
+    assert ruff["line-length"] == LINE_LENGTH
     lint = ruff["lint"]
     for code in (
         "E",
@@ -362,9 +371,9 @@ def test_req305_ruff_configuration() -> None:
     ):
         assert code in lint["select"], code
     assert lint["pydocstyle"]["convention"] == "numpy"
-    assert lint["mccabe"]["max-complexity"] == 12
-    assert lint["pylint"]["max-args"] == 8
-    assert lint["pylint"]["max-statements"] == 60
+    assert lint["mccabe"]["max-complexity"] == MAX_COMPLEXITY
+    assert lint["pylint"]["max-args"] == MAX_ARGS
+    assert lint["pylint"]["max-statements"] == MAX_STATEMENTS
 
 
 def _ruff(*args: Any) -> Any:

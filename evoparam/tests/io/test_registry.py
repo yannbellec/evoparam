@@ -12,6 +12,13 @@ from evoparam.errors import ReaderError
 from evoparam.io import dataset_info, list_datasets
 from evoparam.io.registry import EVENTS_STATUS, match_dataset
 
+# Registry entries of ds004080 and ds002094.
+DS004080_SFREQ = 2048.0
+DS004080_SUBJECTS = 74
+DS004080_SIZE_GB = 269.0
+DS002094_SFREQ = 5000.0
+DS002094_SUBJECTS = 20
+
 ###################################################################################################
 ###################################################################################################
 
@@ -91,21 +98,21 @@ def test_every_loader_entry_point_resolves() -> None:
 def test_dataset_info() -> None:
 
     info = dataset_info("DS004080")
-    assert info["sfreq"] == 2048.0
-    assert info["n_subjects"] == 74
-    assert info["size_gb"] == 269.0
+    assert info["sfreq"] == DS004080_SFREQ
+    assert info["n_subjects"] == DS004080_SUBJECTS
+    assert info["size_gb"] == DS004080_SIZE_GB
     assert info["license"] == "CC0"
     assert info["events_status"] == "present"
     assert info["doi"] == "10.18112/openneuro.ds004080.v1.2.4"
     tep = dataset_info("ds002094")  # read from its files (REQ-275)
     assert tep["license"] == "CC0"
-    assert tep["sfreq"] == 5000.0
-    assert tep["n_subjects"] == 20
+    assert tep["sfreq"] == DS002094_SFREQ
+    assert tep["n_subjects"] == DS002094_SUBJECTS
     assert dataset_info("erpcore")["id"] == "erp-core"
 
     # A copy: changing it does not change the registry
     info["sfreq"] = 1.0
-    assert dataset_info("ds004080")["sfreq"] == 2048.0
+    assert dataset_info("ds004080")["sfreq"] == DS004080_SFREQ
 
     with pytest.raises(ReaderError, match="not in the registry"):
         dataset_info("ds999999")

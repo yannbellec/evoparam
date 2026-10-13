@@ -40,6 +40,14 @@ from evoparam.benchmark.tasks import output_path
 
 from .helpers import DOCS, PERF, RESULTS, ROOT, SLOW, inputs, suite
 
+# Cells of the core suite per task (public, hidden), in all, and public; public cells of
+# the full suite.
+N_PUBLIC = 8
+N_HIDDEN = 2
+N_CORE = 60
+N_CORE_PUBLIC = 48
+N_FULL_PUBLIC = 240
+
 pytest.importorskip("jsonschema")
 
 LIMIT_S = 30 * 60
@@ -58,17 +66,17 @@ def test_req350_core_covers_t1_to_t7() -> None:
     assert list_suites() == ["core", "full"]
     assert core.task_ids() == list(TASKS)
     for task in TASKS:
-        assert len(core.cells(task, split="public")) == 8, task
-        assert len(core.cells(task, split="hidden")) == 2, task
+        assert len(core.cells(task, split="public")) == N_PUBLIC, task
+        assert len(core.cells(task, split="hidden")) == N_HIDDEN, task
     cells = core.cells(split="all")
-    assert len(cells) == 60 == core.hidden_split["n_cells"]
-    assert len({c.id for c in cells}) == 60
+    assert len(cells) == N_CORE == core.hidden_split["n_cells"]
+    assert len({c.id for c in cells}) == N_CORE
     seeds = [c.seed for c in core.cells(split="public")]
-    assert len(set(seeds)) == len(seeds) == 48
+    assert len(set(seeds)) == len(seeds) == N_CORE_PUBLIC
     full = suite("full")
     assert full.task_ids() == list(TASKS)
-    assert len(full.cells(split="public")) == 240
-    assert len(full.cells(split="hidden")) == 60
+    assert len(full.cells(split="public")) == N_FULL_PUBLIC
+    assert len(full.cells(split="hidden")) == N_CORE
     assert not {c.seed for c in full.cells(split="public")} & set(seeds)
 
 
@@ -154,7 +162,7 @@ def test_req350_committed_run_covers_t1_to_t7_within_the_limit() -> None:
     assert run["suite"]["name"] == "core"
     assert run["tasks"] == list(TASKS)
     assert run["failures"] == []
-    assert run["n_cells"] == 48
+    assert run["n_cells"] == N_CORE_PUBLIC
     assert run["duration_s"]["total"] <= LIMIT_S
 
 

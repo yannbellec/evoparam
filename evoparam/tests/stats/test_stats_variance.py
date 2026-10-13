@@ -12,6 +12,11 @@ from evoparam.stats import reml, variance_components
 
 pd = pytest.importorskip("pandas")
 
+# Subjects, observations (one excluded), and the variance at the boundary.
+N_SUBJECTS = 30
+N_OBS = 599
+BOUNDARY = 0.05
+
 ###################################################################################################
 ###################################################################################################
 
@@ -125,7 +130,7 @@ def test_table_interface_with_fixed_effects() -> None:
     b = vc.fixed.set_index("term").loc["condition_b"]
     assert b["estimate"] == pytest.approx(2.0, abs=3 * b["se"])
     effects = vc.random_effects["subject"]
-    assert len(effects) == 30
+    assert len(effects) == N_SUBJECTS
     assert (effects["se"] > 0).all()
     assert list(effects.columns) == [
         "subject",
@@ -136,7 +141,7 @@ def test_table_interface_with_fixed_effects() -> None:
         "shrunken_se",
         "shrinkage",
     ]
-    assert effects["n_obs"].sum() == 599
+    assert effects["n_obs"].sum() == N_OBS
     assert effects["shrinkage"].between(0, 1).all()
     assert vc.settings["n_excluded"] == 1
     assert vc.provenance.steps[-1]["function"] == "evoparam.stats.variance_components"
@@ -152,7 +157,7 @@ def test_boundary_and_errors() -> None:
     subject = np.repeat(np.arange(20), 10)
     y = rng.normal(size=200)  # no subject variance
     out = reml(y, [subject])
-    assert out["variances"][0] < 0.05
+    assert out["variances"][0] < BOUNDARY
     with pytest.raises(SettingsError):
         reml(y, [subject], residual=False)
     with pytest.raises(DataError):

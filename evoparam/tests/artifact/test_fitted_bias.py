@@ -33,6 +33,12 @@ from evoparam.models import ResponseModel
 
 from .helpers import make_overlay
 
+# Median latency error (samples) and relative amplitude error after cleaning (REQ-061), and
+# the amplitude bias that plain blanking is required to show.
+MAX_LATENCY_ERROR = 0.5
+MAX_AMPLITUDE_ERROR = 0.05
+MIN_BLANKING_BIAS = 0.20
+
 ###################################################################################################
 ###################################################################################################
 
@@ -102,8 +108,8 @@ def _errors(onset: Any, fit_window: Any, **kwargs: Any) -> Any:
 def test_req061_fitted_components_after_cleaning(onset: Any, kwargs: Any) -> None:
 
     lat, amp = _errors(onset, (WINDOW[1], 0.1), **kwargs)
-    assert np.median(lat) <= 0.5
-    assert np.median(amp) <= 0.05
+    assert np.median(lat) <= MAX_LATENCY_ERROR
+    assert np.median(amp) <= MAX_AMPLITUDE_ERROR
 
 
 @pytest.mark.xfail(
@@ -116,4 +122,4 @@ def test_req061_blanking_amplitude_bias_near_window_end() -> None:
 
     for onset in (0.006, 0.007, 0.008, 0.009, 0.010):
         _, amp = _errors(onset, (WINDOW[0], 0.1), method="interpolate")
-        assert np.median(amp) >= 0.20, onset
+        assert np.median(amp) >= MIN_BLANKING_BIAS, onset

@@ -13,6 +13,17 @@ import pytest
 
 from evoparam.cli import main
 
+# Exit codes of the command line (spec §10.4).
+EXIT_PARTIAL = 3
+EXIT_USAGE = 2
+EXIT_MISSING_DEPENDENCY = 4
+EXIT_INPUT = 5
+EXIT_MISMATCH = 6
+EXIT_INTERRUPTED = 130
+# Units of the BIDS run, and the fewest presets listed.
+N_UNITS = 5
+MIN_PRESETS = 11
+
 
 def _run(*args: Any, cwd: Any = None) -> Any:
     return subprocess.run(
@@ -80,7 +91,7 @@ def test_req345_fit_writes_the_derivatives(fitted: Any) -> None:
         "artifact.json",
     ):
         assert f"sub-01_task-ccep_desc-evoparam_{suffix}" in names
-    assert sum(summary["n_units"].values()) == 5
+    assert sum(summary["n_units"].values()) == N_UNITS
     description = json.loads((out / "dataset_description.json").read_text())
     assert description["DatasetType"] == "derivative"
     assert (
@@ -139,7 +150,7 @@ def test_small_commands(capsys: Any) -> None:
     assert main(["cite"]) == 0
     assert capsys.readouterr().out.startswith("Bellec Y.")
     assert main(["presets", "list", "--json"]) == 0
-    assert len(json.loads(capsys.readouterr().out)["result"]["presets"]) >= 11
+    assert len(json.loads(capsys.readouterr().out)["result"]["presets"]) >= MIN_PRESETS
     assert main(["presets", "show", "ccep"]) == 0
     assert main(["info", "--json"]) == 0
     assert json.loads(capsys.readouterr().out.splitlines()[-1])["result"]["evoparam"]
@@ -148,7 +159,7 @@ def test_small_commands(capsys: Any) -> None:
 def test_req323_exit_codes(fitted: Any, tmp_path: Any, monkeypatch: Any, capsys: Any) -> None:
 
     _, out = fitted
-    assert main(["fit"]) == 2  # usage
+    assert main(["fit"]) == EXIT_USAGE  # usage
     spec = tmp_path / "missing_tool.json"  # runtime: the external
     spec.write_text(
         json.dumps(
@@ -182,15 +193,18 @@ def test_req323_exit_codes(fitted: Any, tmp_path: Any, monkeypatch: Any, capsys:
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert summary["exit_code"] == 1
     assert summary["status"] == "error"
-    assert main(["benchmark", "--json"]) == 2  # usage: no action
+    assert main(["benchmark", "--json"]) == EXIT_USAGE  # usage: no action
     capsys.readouterr()
     bad = tmp_path / "bad.evoparam"
     bad.mkdir()
     (bad / "manifest.json").write_text("{not json")
-    assert main(["report", str(bad)]) == 5  # input error
+    assert main(["report", str(bad)]) == EXIT_INPUT  # input error
     monkeypatch.setitem(sys.modules, "matplotlib", None)
     container = next(str(p) for p in out.rglob("*_responses.evoparam"))
-    assert main(["report", container, "--format", "pdf", "--out", str(tmp_path)]) == 4
+    assert (
+        main(["report", container, "--format", "pdf", "--out", str(tmp_path)])
+        == EXIT_MISSING_DEPENDENCY
+    )
     monkeypatch.delitem(sys.modules, "matplotlib")
     # a changed setting in the saved provenance: reproduction differs (exit 6)
     import shutil
@@ -208,7 +222,7 @@ def test_req323_exit_codes(fitted: Any, tmp_path: Any, monkeypatch: Any, capsys:
         (copy / "structure.json").read_bytes()
     ).hexdigest()
     (copy / "manifest.json").write_text(json.dumps(manifest))
-    assert main(["reproduce", str(copy)]) == 6
+    assert main(["reproduce", str(copy)]) == EXIT_MISMATCH
 
 
 def test_req323_partial_and_interrupted(fitted: Any, monkeypatch: Any, capsys: Any) -> None:
@@ -248,7 +262,7 @@ def test_req323_partial_and_interrupted(fitted: Any, monkeypatch: Any, capsys: A
         ]
     )
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert code == 3
+    assert code == EXIT_PARTIAL
     assert summary["status"] == "partial"
     assert summary["n_units"]["failed"] >= 1
 
@@ -270,7 +284,7 @@ def test_req323_partial_and_interrupted(fitted: Any, monkeypatch: Any, capsys: A
         ]
     )
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
-    assert code == 130
+    assert code == EXIT_INTERRUPTED
     assert summary["status"] == "interrupted"
 
 

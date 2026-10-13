@@ -45,6 +45,10 @@ from evoparam.data import TrialSet
 
 from .helpers import response, times_axis
 
+# Signal-to-interference improvement (dB) required (REQ-064), and runs of ds004080.
+MIN_GAIN_DB = 30
+N_RUNS = 23
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -197,15 +201,15 @@ def _spes_runs() -> Any:
 def test_req064_real_tms_templates() -> None:
 
     gains = [sir_improvement(*tms_template(subject), TMS_WINDOW) for subject in TMS_SUBJECTS]
-    assert min(gains) >= 30, np.round(gains, 1)
+    assert min(gains) >= MIN_GAIN_DB, np.round(gains, 1)
 
 
 def test_req064_real_spes_templates() -> None:
 
     runs = _spes_runs()
-    assert len(runs) == 23
+    assert len(runs) == N_RUNS
     gains = [sir_improvement(*spes_template(stem), SPES_WINDOW) for stem in runs]
-    assert min(gains) >= 30, np.round(gains, 1)
+    assert min(gains) >= MIN_GAIN_DB, np.round(gains, 1)
 
 
 @pytest.mark.xfail(
@@ -221,7 +225,7 @@ def test_req064_real_tms_templates_specification_version() -> None:
         sir_improvement(*tms_template(subject), TMS_WINDOW, **SPEC_VERSION)
         for subject in TMS_SUBJECTS
     ]
-    assert min(gains) >= 30, np.round(gains, 1)
+    assert min(gains) >= MIN_GAIN_DB, np.round(gains, 1)
 
 
 @pytest.mark.xfail(
@@ -235,4 +239,4 @@ def test_req064_real_spes_templates_specification_version() -> None:
     gains = [
         sir_improvement(*spes_template(stem), SPES_WINDOW, **SPEC_VERSION) for stem in _spes_runs()
     ]
-    assert min(gains) >= 30, np.round(gains, 1)
+    assert min(gains) >= MIN_GAIN_DB, np.round(gains, 1)

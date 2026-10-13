@@ -11,6 +11,9 @@ from evoparam.artifact import remove_artifact
 
 from .helpers import make_overlay
 
+# Largest difference of a rerun (identical results).
+EXACT = 1e-12
+
 ###################################################################################################
 ###################################################################################################
 
@@ -35,7 +38,7 @@ def test_req069_settings_recreate_the_result(method: Any, kwargs: Any) -> None:
         result = remove_artifact(noisy, method=method, **kwargs)
         settings = {k: v for k, v in result.settings.items() if k != "_info"}
         again = remove_artifact(noisy, **settings)
-    assert np.max(np.abs(again.cleaned.data - result.cleaned.data)) <= 1e-12
+    assert np.max(np.abs(again.cleaned.data - result.cleaned.data)) <= EXACT
     assert result.method == method
     step = result.cleaned.provenance.steps[-1]
     assert step["function"] == "evoparam.artifact.remove_artifact"

@@ -18,6 +18,9 @@ import pytest
 
 import evoparam
 
+# Fewest words of the vocabulary.
+MIN_WORDS = 15
+
 pytestmark = pytest.mark.core
 
 ROOT = pathlib.Path(evoparam.__file__).resolve().parent.parent
@@ -77,7 +80,7 @@ def scanned_files() -> Any:
 
 
 def test_the_style_guide_lists_the_words() -> None:
-    assert len(WORDS) >= 15
+    assert len(WORDS) >= MIN_WORDS
     for word in (
         "ERPparam",
         "FOOOF",

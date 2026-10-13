@@ -10,6 +10,16 @@ from evoparam.data import Evoked, TrialSet
 from evoparam.models import fit
 from evoparam.shapes import get_shape
 
+# Last pulse of the ERNA train (10 pulses), frequency (Hz) and first-peak (ms) tolerances,
+# and the fraction of runs within them (REQ-276).
+LAST_PULSE = 9
+FREQ_TOLERANCE = 5
+PEAK_TOLERANCE_MS = 0.1
+MIN_WITHIN = 0.9
+# N20 latency tolerance (ms) of REQ-277, and the fraction within under AR(1) noise.
+N20_TOLERANCE_MS = 0.5
+MIN_WITHIN_AR = 0.75
+
 DAMPED = get_shape("damped_oscillation")
 
 
@@ -23,7 +33,7 @@ def _erna_case(seed: Any) -> Any:
         10, n_trials=20, seed=seed, snr=3, artifact=False, tmax=0.09, onset_delay=0.002
     )
     table = truth.to_dataframe()
-    last = table[(table["event"] == 9) & (table["channel"] == "L01")].iloc[0]
+    last = table[(table["event"] == LAST_PULSE) & (table["channel"] == "L01")].iloc[0]
     n = int(round(0.0105 * ts.sfreq))
     epochs = []
     for k in range(5, 10):
@@ -52,8 +62,8 @@ def _erna_case(seed: Any) -> Any:
 def test_req276_erna_frequency_and_first_peak() -> None:
 
     errors = np.array([_erna_case(seed) for seed in range(20)])
-    ok = (np.abs(errors[:, 0]) <= 5) & (np.abs(errors[:, 1]) <= 0.1)
-    assert ok.mean() >= 0.9
+    ok = (np.abs(errors[:, 0]) <= FREQ_TOLERANCE) & (np.abs(errors[:, 1]) <= PEAK_TOLERANCE_MS)
+    assert ok.mean() >= MIN_WITHIN
 
 
 SEP_SFREQ = 5000.0
@@ -91,7 +101,7 @@ def _sep_case(seed: Any, snr: Any = 5.0, phi: Any = 0.0) -> Any:
 def test_req277_sep_n20_latency() -> None:
 
     errors = np.array([_sep_case(seed) for seed in range(20)])
-    assert np.mean(np.abs(errors) <= 0.5) >= 0.9
+    assert np.mean(np.abs(errors) <= N20_TOLERANCE_MS) >= MIN_WITHIN
 
 
 def test_sep_with_coloured_noise_is_a_documented_limit() -> None:
@@ -99,4 +109,4 @@ def test_sep_with_coloured_noise_is_a_documented_limit() -> None:
     20 at rho 0.8; CHANGELOG, step S15)."""
 
     errors = np.array([_sep_case(seed, phi=0.5) for seed in range(20)])
-    assert np.mean(np.abs(errors) <= 0.5) >= 0.75
+    assert np.mean(np.abs(errors) <= N20_TOLERANCE_MS) >= MIN_WITHIN_AR

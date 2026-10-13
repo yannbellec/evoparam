@@ -33,6 +33,17 @@ from .helpers import BASELINE, SFREQ, TIMES, gauss
 
 pd = pytest.importorskip("pandas")
 
+# The N1 of contact A04: largest amplitude (uV), and the latency tolerance (s).
+MAX_AMPLITUDE = -40
+LATENCY_TOLERANCE = 0.004
+# Probability of a response and shape weight given, views drawn, and axes of a figure.
+P_RESPONSE = 0.97
+SHAPE_WEIGHT = 2.0
+MIN_VIEWS = 3
+N_AXES = 2
+# Fewest channels fitted on the fsaverage example.
+MIN_OK = 100
+
 ###################################################################################################
 ###################################################################################################
 
@@ -148,8 +159,8 @@ def test_parameter_map_columns_markers_and_coordinates(scene: Any) -> None:
     # A responsive contact: an N1 near 20 ms, coordinates from ch_info
     a04 = rows.loc[("A01-A02", "A04")]
     assert a04["marker"] == "response"
-    assert a04["amplitude"] < -40
-    assert abs(a04["latency"] - 0.0225) < 0.004
+    assert a04["amplitude"] < MAX_AMPLITUDE
+    assert abs(a04["latency"] - 0.0225) < LATENCY_TOLERANCE
     assert (a04["x"], a04["z"], a04["coord_space"]) == (0.0, -16.0, "ACPC")
     assert (table["value"] == table["amplitude"]).sum() == table["amplitude"].notna().sum()
     ok = table["status"] == "ok"
@@ -190,13 +201,13 @@ def test_parameter_map_with_existence_and_shapes(scene: Any) -> None:
     )
     hier = type("Hier", (), {"p_response": probs})()
     rows = parameter_map(group, ch_info=ts, existence=hier).set_index(["stim_site", "channel"])
-    assert rows.loc[("A01-A02", "A04"), "p_response"] == 0.97
+    assert rows.loc[("A01-A02", "A04"), "p_response"] == P_RESPONSE
     assert np.isnan(rows.loc[("A03-A04", "A04"), "p_response"])
     # Shape weights of a divergent basis of one site
     basis = {"A01-A02": copy.deepcopy(shared_shapes_stub())}
     rows = parameter_map(group, ch_info=ts, basis=basis).set_index(["stim_site", "channel"])
     assert rows.loc[("A01-A02", "A03"), "shape_id"] == 0
-    assert rows.loc[("A01-A02", "A03"), "shape_weight"] == 2.0
+    assert rows.loc[("A01-A02", "A03"), "shape_weight"] == SHAPE_WEIGHT
     assert rows.loc[("A03-A04", "A03"), "shape_id"] == -1
 
 
@@ -265,7 +276,7 @@ def test_parameter_map_glass_brain_with_nilearn(scene: Any) -> None:
     # the glass brain: one axes per view (ortho: sagittal, coronal, axial) plus the colour
     # bar, each view with the response markers and the stimulation contacts
     views = [a for a in figure.axes if any(isinstance(c, PathCollection) for c in a.collections)]
-    assert len(views) >= 3
+    assert len(views) >= MIN_VIEWS
     markers = table[table["stim_site"] == site]["marker"]
     assert (markers == "stim_contact").any()
     legend = [t.get_text() for t in figure.legends[0].get_texts()]
@@ -287,13 +298,13 @@ def test_parameter_map_electrode_grid_fallback(scene: Any, monkeypatch: Any) -> 
     table = _mni(parameter_map(group, ch_info=ts))
     monkeypatch.setattr(maps, "_have_nilearn", lambda: False)
     figure = plot_parameter_map(table, projection=("x", "z"))
-    assert len(figure.axes) == 2  # the grid and its colour bar
+    assert len(figure.axes) == N_AXES  # the grid and its colour bar
     assert figure.axes[0].get_xlabel().startswith("x (mm, MNI152")
     plt.close(figure)
     monkeypatch.undo()
     subject = table.assign(coord_space="ACPC")
     figure = plot_parameter_map(subject)
-    assert len(figure.axes) == 2
+    assert len(figure.axes) == N_AXES
     plt.close(figure)
 
 
@@ -417,7 +428,7 @@ def test_req196_parameter_map_on_ds004080() -> None:
     assert set(rows["coord_space"]) == {"fsaverage"}
     # No NaN amplitude where the fit status is "ok"
     ok = table["status"] == "ok"
-    assert ok.sum() >= 100
+    assert ok.sum() >= MIN_OK
     assert table.loc[ok, "amplitude"].notna().all()
     stim = table[
         [

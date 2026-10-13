@@ -8,6 +8,10 @@ from typing import Any
 
 import pytest
 
+# Hex digits of a SHA-256, and the subjects of the REQ-371 list.
+SHA256_HEX = 64
+N_SUBJECTS = 6
+
 ROOT = pathlib.Path(__file__).parents[3]
 TOOL = ROOT / "tools" / "ds004080_subjects.py"
 LIST = ROOT / "validation" / "ds004080_subjects.txt"
@@ -49,7 +53,7 @@ def test_rule_selects_by_trials_and_rate() -> None:
     chosen, sha = tool.select(fetch=fetch, listing=listing)
     assert [s for s, _ in chosen] == ["sub-01", "sub-03", "sub-04"]
     assert chosen[-1][1] == "example of spec §1"  # sub-04 does not qualify itself
-    assert len(sha) == 64
+    assert len(sha) == SHA256_HEX
 
 
 def test_example_is_added_to_five_others() -> None:
@@ -70,8 +74,8 @@ def test_list_is_committed_with_version_and_checksum() -> None:
     lines = LIST.read_text("utf-8").splitlines()
     assert lines[0].startswith("# ds004080 v1.2.4; participants.tsv sha256 ")
     subjects = [row.split("\t")[0] for row in lines if not row.startswith("#")]
-    assert len(subjects) == 6
-    assert len(set(subjects)) == 6
+    assert len(subjects) == N_SUBJECTS
+    assert len(set(subjects)) == N_SUBJECTS
     assert subjects[-1] == "sub-ccepAgeUMCU01"
     assert all(
         line.split("\t")[1].startswith(line.split("\t")[0] + "_")

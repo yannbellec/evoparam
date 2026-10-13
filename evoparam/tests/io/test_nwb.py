@@ -9,12 +9,20 @@ import pytest
 
 pynwb = pytest.importorskip("pynwb")
 
-from evoparam.io import read_nwb, read_nwb_results, write_nwb  # noqa: E402
+from evoparam.io import read_nwb, read_nwb_results, write_nwb  # noqa: E402  (after pytest.importorskip)
+
+# Window (s) inside the simulated response, and the range (V) of the model peak.
+RESPONSE_START = 0.022
+RESPONSE_END = 0.038
+MIN_PEAK_V = 1e-6
+MAX_PEAK_V = 1e-3
 
 SFREQ = 1000.0
 N_CH = 4
 DURATION = 30.0
 ONSETS = np.arange(2.0, 28.0, 2.0)
+# Electrodes located in VISp (the others are in CA1).
+N_VISP = 2
 
 
 def _signal() -> Any:
@@ -44,22 +52,20 @@ def _nwbfile(source: Any) -> Any:
     )
     for i in range(N_CH):
         nwb.add_electrode(
-            group=group, location="VISp" if i < 2 else "CA1", x=float(i), y=0.0, z=0.0
+            group=group, location="VISp" if i < N_VISP else "CA1", x=float(i), y=0.0, z=0.0
         )
     region = nwb.create_electrode_table_region(list(range(N_CH)), "all")
     data = _signal()
-    if source == "icephys":
-        nwb.add_acquisition(
-            ElectricalSeries(
-                name="lfp", data=data, electrodes=region, rate=SFREQ, starting_time=0.0
-            )
-        )
-    else:
-        nwb.add_acquisition(
-            ElectricalSeries(
-                name="lfp", data=data, electrodes=region, rate=SFREQ, starting_time=0.0
-            )
-        )
+    nwb.add_acquisition(
+        ElectricalSeries(name="lfp", data=data, electrodes=region, rate=SFREQ, starting_time=0.0)
+    )
+    _add_events(nwb, source, device)
+    return nwb
+
+
+def _add_events(nwb: Any, source: Any, device: Any) -> None:
+    """Add the stimulation times of ``source`` (the kind of NWB table that holds them)."""
+
     if source == "events_table":
         from pynwb.event import EventsTable
 
@@ -112,7 +118,6 @@ def _nwbfile(source: Any) -> Any:
                     sweep_number=k,
                 )
             )
-    return nwb
 
 
 _STIM_TABLE = {}
@@ -184,7 +189,7 @@ def test_req317_event_sources(tmp_path: Any, source: Any) -> None:
     assert np.allclose(ts.event_times, expected, atol=1 / SFREQ)
     assert ts.data.shape == (len(expected), N_CH, int(0.3 * SFREQ))
     # the response of channel 0 (-50 µV, 20 to 40 ms after each onset) in µV
-    window = (ts.times >= 0.022) & (ts.times <= 0.038)
+    window = (ts.times >= RESPONSE_START) & (ts.times <= RESPONSE_END)
     assert np.allclose(ts.data[:, 0, window].mean(), -50, atol=2)
     assert list(ts.ch_info["location"][:2]) == ["VISp", "VISp"]
 
@@ -314,7 +319,7 @@ def test_req318_write_and_inspect(tmp_path: Any, extension: Any) -> None:
         model = module["evoparam_model"]
         assert model.data.shape[1] == len(group.fits)
         peak = np.max(np.abs(model.data[:]))
-        assert 1e-6 < peak < 1e-3  # volts
+        assert MIN_PEAK_V < peak < MAX_PEAK_V  # volts
         assert '"settings"' in module.description
         if extension:
             assert type(components).__name__ == "EvokedResponseFitTable"

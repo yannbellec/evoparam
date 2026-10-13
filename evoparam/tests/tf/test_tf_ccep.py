@@ -8,6 +8,14 @@ from typing import Any
 import numpy as np
 import pytest
 
+# N1 window (s) of the trial average, the subjects required, the |rho| counted, and the
+# fraction of subjects with it.
+N1_START = 0.009
+N1_END = 0.1
+MIN_SUBJECTS = 5
+MIN_RHO = 0.3
+MIN_FRACTION = 0.5
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -33,7 +41,7 @@ def _relations() -> Any:
             tf = tf_fit(ts, zones=ZONE, window=(0.0, 0.6), by=(), random_state=0)
         metrics = tf.zone_metrics.set_index("channel").reindex(ts.ch_names)
         # N1 amplitude: most negative deflection of the trial average, 9 to 100 ms
-        early = (ts.times >= 0.009) & (ts.times <= 0.1)
+        early = (ts.times >= N1_START) & (ts.times <= N1_END)
         n1 = -ts.data.mean(axis=0)[:, early].min(axis=1)
         for column in ("fraction_increase", "value"):
             values = metrics[column].to_numpy()
@@ -53,8 +61,8 @@ def test_req216_published_zone_follows_the_n1(relations: Any) -> None:
     the sign is positive."""
 
     rho = np.array(relations["fraction_increase"])
-    assert len(rho) >= 5
-    assert np.mean(np.abs(rho) >= 0.3) >= 0.5
+    assert len(rho) >= MIN_SUBJECTS
+    assert np.mean(np.abs(rho) >= MIN_RHO) >= MIN_FRACTION
     assert np.median(rho) > 0
 
 
@@ -63,4 +71,6 @@ def test_mean_zone_power_relation_is_weaker(relations: Any) -> None:
     subjects (seven or eight trials per site: the mean dB over a large zone is noisy)."""
 
     rho = np.array(relations["value"])
-    assert np.mean(np.abs(rho) >= 0.3) <= np.mean(np.abs(relations["fraction_increase"]) >= 0.3)
+    assert np.mean(np.abs(rho) >= MIN_RHO) <= np.mean(
+        np.abs(relations["fraction_increase"]) >= MIN_RHO
+    )

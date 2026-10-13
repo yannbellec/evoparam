@@ -25,6 +25,17 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
+# The ds003708 example channel: sampling rate (Hz), sites, and trials.
+SFREQ = 2048.0
+N_SITES = 48
+MIN_TRIALS = 400
+MAX_TRIALS = 495
+# Basis curves of the paper, sites assigned, sites scored and their agreement.
+N_SHAPES = 3
+MIN_ASSIGNED = 24
+MIN_SCORED = 10
+MIN_AGREEMENT = 0.85
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -167,10 +178,10 @@ def basis() -> Any:
 def test_reads_the_example_channel() -> None:
 
     ts = load_ds003708()
-    assert ts.sfreq == 2048.0
+    assert ts.sfreq == SFREQ
     assert ts.n_channels == 1
-    assert ts.metadata["stim_site"].nunique() == 48
-    assert 400 <= ts.n_trials <= 495
+    assert ts.metadata["stim_site"].nunique() == N_SITES
+    assert MIN_TRIALS <= ts.n_trials <= MAX_TRIALS
     assert np.isfinite(ts.data).all()
 
 
@@ -178,8 +189,8 @@ def test_req194_number_of_bases(basis: Any) -> None:
 
     # Three basis profile curves for the example channel in the paper (the same with
     # random_state 0 to 4)
-    assert basis.n_shapes == 3
-    assert (basis.assignment["shape_id"] >= 0).sum() >= 24
+    assert basis.n_shapes == N_SHAPES
+    assert (basis.assignment["shape_id"] >= 0).sum() >= MIN_ASSIGNED
 
 
 @pytest.mark.xfail(
@@ -192,5 +203,5 @@ def test_req194_number_of_bases(basis: Any) -> None:
 def test_req194_assignment_agrees_with_the_figure(basis: Any) -> None:
 
     score, n_scored = agreement(basis.assignment, reference_regions())
-    assert n_scored >= 10
-    assert score >= 0.85
+    assert n_scored >= MIN_SCORED
+    assert score >= MIN_AGREEMENT

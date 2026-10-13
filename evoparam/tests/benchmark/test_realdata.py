@@ -18,6 +18,10 @@ from evoparam.io.registry import dataset_info
 
 from .helpers import NETWORK, ROOT
 
+# Largest size (bytes) of the real-data entries, and the rules that must agree on a truth.
+MAX_BYTES = 200_000
+MIN_AGREE = 2
+
 pytest.importorskip("jsonschema")
 
 
@@ -40,7 +44,7 @@ def test_indices_hold_no_data() -> None:
     folder = ROOT / "evoparam" / "benchmark" / "realdata"
     files = sorted(p.name for p in folder.iterdir() if p.is_file())
     assert all(f.endswith(".json") for f in files)
-    assert sum((folder / f).stat().st_size for f in files) < 200_000
+    assert sum((folder / f).stat().st_size for f in files) < MAX_BYTES
 
 
 def test_ds004080_entries_follow_the_fixed_selection() -> None:
@@ -54,7 +58,7 @@ def test_ds004080_entries_follow_the_fixed_selection() -> None:
     ]
     expected = [(s.replace("sub-", ""), r.rsplit("run-", 1)[1]) for s, r in lines]
     assert [(e["subject"], e["run"]) for e in index["entries"]] == expected
-    assert index["truth"]["min_agree"] == 2
+    assert index["truth"]["min_agree"] == MIN_AGREE
     assert set(index["truth"]["rules"]) <= {
         "vanblooijs2023",
         "hays2021",

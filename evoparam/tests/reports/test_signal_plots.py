@@ -15,13 +15,13 @@ from numpy.testing import assert_allclose, assert_array_equal
 
 pytest.importorskip("matplotlib")
 
-from matplotlib.colors import to_hex  # noqa: E402
-from matplotlib.figure import Figure  # noqa: E402
+from matplotlib.colors import to_hex  # noqa: E402  (after pytest.importorskip)
+from matplotlib.figure import Figure  # noqa: E402  (after pytest.importorskip)
 
-from evoparam import plots  # noqa: E402
-from evoparam.errors import SettingsError  # noqa: E402
-from evoparam.plots._plots import PALETTE  # noqa: E402
-from evoparam.stats import strip_jitter, waveform_band  # noqa: E402
+from evoparam import plots  # noqa: E402  (after pytest.importorskip)
+from evoparam.errors import SettingsError  # noqa: E402  (after pytest.importorskip)
+from evoparam.plots._plots import PALETTE  # noqa: E402  (after pytest.importorskip)
+from evoparam.stats import strip_jitter, waveform_band  # noqa: E402  (after pytest.importorskip)
 
 TIMES = np.linspace(-0.1, 0.4, 51)
 SIGNALS = np.stack([np.sin(2 * np.pi * f * TIMES) for f in (2.0, 3.0, 5.0)])

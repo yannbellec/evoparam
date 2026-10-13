@@ -9,6 +9,10 @@ from scipy.signal import savgol_filter
 from evoparam.artifact import apply_mask, remove_artifact
 from evoparam.data import TrialSet
 
+# Relative RMS error of the local fit, and the error of the global fit on the same data.
+MAX_LOCAL_RRMSE = 0.05
+MIN_GLOBAL_RRMSE = 0.9
+
 ###################################################################################################
 ###################################################################################################
 
@@ -107,8 +111,8 @@ def test_local_extent_keeps_the_response_after_the_artifact() -> None:
         ],
         truth=truth,
     ).set_index("label")
-    assert table.loc["local", "rrmse"] < 0.05
-    assert table.loc["global", "rrmse"] > 0.9
+    assert table.loc["local", "rrmse"] < MAX_LOCAL_RRMSE
+    assert table.loc["global", "rrmse"] > MIN_GLOBAL_RRMSE
 
 
 def test_polynomial_without_rails_is_a_filter() -> None:

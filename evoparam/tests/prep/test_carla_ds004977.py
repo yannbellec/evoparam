@@ -10,6 +10,9 @@ import pathlib
 import numpy as np
 import pytest
 
+# Jaccard index of the channels left by our CARLA and the published one.
+MIN_JACCARD = 0.8
+
 ROOT = pathlib.Path(__file__).parents[3]
 REFERENCE = ROOT / "validation" / "layer3" / "carla_ds004977.json"
 pytestmark = [
@@ -38,4 +41,4 @@ def test_req372_left_out_channels_agree_with_the_authors_code() -> None:
         left_ours = set(site["channels"]) - ours
         left_theirs = set(site["channels"]) - set(site["carla_used"])
         jaccard = len(left_ours & left_theirs) / len(left_ours | left_theirs)
-        assert jaccard >= 0.8, (site["site"], jaccard)
+        assert jaccard >= MIN_JACCARD, (site["site"], jaccard)

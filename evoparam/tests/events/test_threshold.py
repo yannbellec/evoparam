@@ -11,6 +11,9 @@ from evoparam.events import EVENT_COLUMNS, detect_pulses, match_onsets
 
 from .helpers import make_recording
 
+# Smallest template correlation of a detected pulse.
+MIN_RHO = 0.8
+
 ###################################################################################################
 ###################################################################################################
 
@@ -142,7 +145,7 @@ def test_spec_procedure_on_the_legacy_recording(method: Any) -> None:
     assert results["false_alarms"] == 0
     assert np.allclose(results["errors"], -1.0 / sfreq)
     if method != "threshold":
-        assert (events["rho"] >= 0.8).all()
+        assert (events["rho"] >= MIN_RHO).all()
 
 
 def test_spec_procedure_template_pass_recovers_and_rejects() -> None:

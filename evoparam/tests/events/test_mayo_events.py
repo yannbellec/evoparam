@@ -26,6 +26,20 @@ import pytest
 
 from evoparam.events import detect_pulses, match_onsets
 
+# Tolerance (s) of a matched onset, and the confidence of a site guess counted as sure.
+TOLERANCE = 0.01
+CONFIDENT = 0.5
+# Runs of the Mayo datasets, the fewest pulses, and the recall and precision required.
+N_RUNS = 11
+MIN_PULSES = 150
+MIN_RATE = 0.99
+# Fewest confident pulses, the site agreement, and the accuracy and fraction of the
+# confident guesses (REQ-042).
+MIN_CONFIDENT_PULSES = 160
+MIN_AGREEMENT = 0.95
+MIN_ACCURACY = 0.98
+MIN_CONFIDENT = 0.4
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -255,13 +269,13 @@ def site_agreement(results: Any, column: Any = "stim_site_guess") -> Any:
             if times.size == 0:
                 continue
             k = int(np.argmin(np.abs(times - onset)))
-            if abs(times[k] - onset) > 0.01:
+            if abs(times[k] - onset) > TOLERANCE:
                 continue
             same = set(str(events[name].iloc[k]).upper().split("-")) == set(
                 site.upper().split("-")
             )
             agree.append(same)
-            if events["site_confidence"].iloc[k] >= 0.5:
+            if events["site_confidence"].iloc[k] >= CONFIDENT:
                 confident.append(same)
     return (
         np.mean(agree),
@@ -276,10 +290,10 @@ def test_mayo_onsets_match_events_tsv(results: Any) -> None:
     found, within one sample (the onsets of events.tsv are sample numbers / sfreq)."""
 
     mayo = subset(results, mayo_2048=True)
-    assert len({dataset + stem for dataset, stem, *_ in mayo}) == 11
+    assert len({dataset + stem for dataset, stem, *_ in mayo}) == N_RUNS
     hits, misses, _, errors = match_all(mayo)
-    assert hits + misses >= 150
-    assert hits / (hits + misses) >= 0.99
+    assert hits + misses >= MIN_PULSES
+    assert hits / (hits + misses) >= MIN_RATE
     assert np.median(np.abs(errors)) <= 1 / 2048 + 1e-6  # rounding of the onsets
 
 
@@ -293,7 +307,7 @@ def test_mayo_onsets_match_events_tsv(results: Any) -> None:
 def test_mayo_precision(results: Any) -> None:
 
     hits, _, false_alarms, _ = match_all(subset(results, mayo_2048=True))
-    assert hits / (hits + false_alarms) >= 0.99
+    assert hits / (hits + false_alarms) >= MIN_RATE
 
 
 @pytest.mark.xfail(
@@ -306,7 +320,7 @@ def test_mayo_precision(results: Any) -> None:
 def test_ds004977_pulses_found_with_defaults(results: Any) -> None:
 
     hits, misses, _, _ = match_all(subset(results, mayo_2048=False))
-    assert hits / (hits + misses) >= 0.99
+    assert hits / (hits + misses) >= MIN_RATE
 
 
 def test_req042_mayo_site_agreement(results: Any) -> None:
@@ -320,14 +334,14 @@ def test_req042_mayo_site_agreement(results: Any) -> None:
     site_confidence >= 0.5 right; 4 of the 7 errors in ds004457 sub-4."""
 
     agreement, _, _, n = site_agreement(results)
-    assert n >= 160
-    assert agreement >= 0.95
-    assert site_agreement(subset(results, mayo_2048=False))[0] >= 0.95
+    assert n >= MIN_CONFIDENT_PULSES
+    assert agreement >= MIN_AGREEMENT
+    assert site_agreement(subset(results, mayo_2048=False))[0] >= MIN_AGREEMENT
 
 
 def test_req042_mayo_confidence_is_calibrated(results: Any) -> None:
     """Measured: accuracy 1.0 for site_confidence >= 0.5, on 41 % of the pulses."""
 
     _, accuracy, fraction, _ = site_agreement(results)
-    assert accuracy >= 0.98
-    assert fraction >= 0.4
+    assert accuracy >= MIN_ACCURACY
+    assert fraction >= MIN_CONFIDENT

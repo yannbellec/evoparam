@@ -7,6 +7,11 @@ from evoparam.events import detect_pulses, match_onsets
 
 from .helpers import add_pulse, make_noise, make_recording, spatial_gains
 
+# Pulses simulated, recall and precision required, and the channels an electrode pop reaches.
+N_PULSES = 200
+MIN_RATE = 0.99
+POP_FRACTION = 0.9
+
 ###################################################################################################
 ###################################################################################################
 
@@ -29,12 +34,12 @@ def test_req041_synthetic_pulses_line_noise_and_transients() -> None:
         transient_sd=5.0,
         seed=11,
     )
-    assert len(onsets) == 200
+    assert len(onsets) == N_PULSES
 
     events = detect_pulses(data, sfreq, method="threshold+template", expected_rate=2.0)
     results = match_onsets(events["onset_sample"] / sfreq, onsets / sfreq, tolerance=0.002)
-    assert results["recall"] >= 0.99
-    assert results["precision"] >= 0.99
+    assert results["recall"] >= MIN_RATE
+    assert results["precision"] >= MIN_RATE
     # No transient is detected as a pulse
     detected = events["onset_sample"].to_numpy()
     for start in transients:
@@ -57,7 +62,7 @@ def test_sharp_transients_far_weaker_than_pulses_are_rejected() -> None:
             start = int(rng.integers(100, data.shape[1] - 100))
             if np.min(np.abs(onsets - start)) > 0.6 * sfreq:
                 break
-        data[:, start:] += 40.0 * (rng.random(32)[:, None] < 0.9)
+        data[:, start:] += 40.0 * (rng.random(32)[:, None] < POP_FRACTION)
         pops.append(start)
 
     threshold_only = detect_pulses(data, sfreq, method="threshold")

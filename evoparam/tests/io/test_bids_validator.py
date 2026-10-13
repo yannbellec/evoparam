@@ -16,6 +16,12 @@ from .helpers import make_bids
 
 pd = pytest.importorskip("pandas")
 
+# Exit code of validate-bids --strict when a field is missing, fields reported, and the
+# fewest missing in the fixtures.
+EXIT_MISSING = 5
+N_FIELDS = 30
+MIN_MISSING = 10
+
 
 def _tsv(path: Any, header: Any, rows: Any) -> None:
     with open(path, "w", encoding="utf-8") as fobj:
@@ -264,10 +270,10 @@ def test_cli_prints_the_report_and_exits_5_with_strict(fixtures: Any, capsys: An
     out = capsys.readouterr().out
     assert "missing      stim_pulse_width_us" in out
     assert out.strip().splitlines()[-1].startswith("summary:")
-    assert main(["validate-bids", fixtures, "--sub", "mayo", "--strict"]) == 5
+    assert main(["validate-bids", fixtures, "--sub", "mayo", "--strict"]) == EXIT_MISSING
     capsys.readouterr()
     assert main(["validate-bids", fixtures, "--json"]) == 0
     summary = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert summary["status"] == "ok"
-    assert len(summary["result"]["fields"]) == 30
-    assert summary["result"]["counts"]["missing"] >= 10
+    assert len(summary["result"]["fields"]) == N_FIELDS
+    assert summary["result"]["counts"]["missing"] >= MIN_MISSING

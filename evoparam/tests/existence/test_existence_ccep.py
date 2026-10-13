@@ -18,6 +18,10 @@ from evoparam.prep import baseline_correct
 
 pd = pytest.importorskip("pandas")
 
+# Fewest subjects, and the kappa with vanblooijs2023 (REQ-135).
+MIN_SUBJECTS = 5
+MIN_KAPPA = 0.7
+
 pytestmark = [
     pytest.mark.network,
     pytest.mark.skipif(
@@ -67,7 +71,7 @@ def _trials(run: Any) -> Any:
 
 
 def _kappa_with(rule: Any, **extra: Any) -> Any:
-    assert len({r.split("/")[0] for r in RUNS}) >= 5
+    assert len({r.split("/")[0] for r in RUNS}) >= MIN_SUBJECTS
     a_all, b_all = [], []
     for run in RUNS:
         ts = _trials(run)
@@ -111,11 +115,11 @@ def test_req135_permutation_agrees_with_vanblooijs2023(rule: Any) -> None:
     """REQ-135: the default method agrees with vanblooijs2023 with kappa >= 0.7, under the
     two readings of the rule."""
 
-    assert _kappa_with(rule) >= 0.7
+    assert _kappa_with(rule) >= MIN_KAPPA
 
 
 def test_req135_regression_with_the_code_floor() -> None:
     """Not the REQ (an intermediate reading, kept as a regression floor): the registry row
     with the published code's 50 uV SD floor."""
 
-    assert _kappa_with("vanblooijs2023", sd_floor_uv=50.0) >= 0.7
+    assert _kappa_with("vanblooijs2023", sd_floor_uv=50.0) >= MIN_KAPPA

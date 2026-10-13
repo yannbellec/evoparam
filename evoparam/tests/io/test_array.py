@@ -14,6 +14,11 @@ from evoparam.errors import DataError, ReaderError
 from evoparam.io import from_array, read
 from evoparam.tests.io.helpers import write_brainvision
 
+# Trials of one condition, start (s) of the part read, and trials kept by the epoching.
+N_PER_CONDITION = 2
+PART_START = 2.0
+N_KEPT = 2
+
 ###################################################################################################
 ###################################################################################################
 
@@ -63,7 +68,7 @@ def test_from_array_tables() -> None:
     )
     assert list(trials.metadata["condition"]) == ["a", "b", "a"]
     assert list(trials.ch_info["type"]) == ["ecog", "ecog"]
-    assert trials.average(by="condition")[0].n_trials == 2
+    assert trials.average(by="condition")[0].n_trials == N_PER_CONDITION
 
 
 def test_from_array_errors() -> None:
@@ -108,11 +113,11 @@ def test_read_dispatch(tmp_path: Any) -> None:
     assert whole.provenance.source["sha256"] is not None
     part = read(vhdr, tmin=2.0, tmax=3.0, picks=["C2"])
     assert part.data.shape == (1, 1, 100)
-    assert part.times[0] == 2.0
+    assert part.times[0] == PART_START
     assert np.array_equal(part.data[0, 0], continuous[1, 200:300])
 
     epochs = read(vhdr, onsets=[1.0, 5.0, 19.9], epoch=(-0.1, 0.2))
-    assert epochs.n_trials == 2
+    assert epochs.n_trials == N_KEPT
     assert epochs.provenance.steps[-1]["kept"] == [True, True, False]
     assert np.array_equal(epochs.data[1, 0], continuous[0, 490:520])
 

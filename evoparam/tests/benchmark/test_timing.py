@@ -26,6 +26,10 @@ from evoparam.benchmark import timing
 
 from .helpers import ROOT
 
+# Runs of the median, repeats of P6, and the repeated runs of the CI baseline.
+N_RUNS = 3
+N_REPEATS = 5
+
 BENCH = ROOT / "benchmarks"
 FIELDS = ("id", "median_s", "p90_s", "peak_rss_bytes", "n_repeats", "environment")
 
@@ -112,7 +116,7 @@ def test_req299_baseline_is_the_median_of_runs() -> None:
     runs = [_doc(p1=v)["results"] for v in (0.04, 0.09, 0.05)]
     rows = timing._median_of_runs(runs)
     assert rows[0]["median_s"] == pytest.approx(0.05)
-    assert rows[0]["n_runs"] == 3
+    assert rows[0]["n_runs"] == N_RUNS
 
 
 def _load_script() -> Any:
@@ -162,7 +166,7 @@ def test_req290_results_file_fields(tmp_path: Any) -> None:
     p6 = rows[1]
     for field in FIELDS:
         assert field in p6
-    assert p6["n_repeats"] == 5
+    assert p6["n_repeats"] == N_REPEATS
     assert p6["median_s"] > 0
     assert p6["environment"]["python"]
     assert p6["environment"]["numpy"]
@@ -204,7 +208,7 @@ def test_req299_baseline_is_committed() -> None:
 
     baseline = json.loads((BENCH / "baseline-ci.json").read_text(encoding="utf-8"))
     assert baseline["suite"] == "ci"
-    assert baseline["repeat_runs"] == 3
+    assert baseline["repeat_runs"] == N_RUNS
     assert {r["id"] for r in baseline["results"]} >= {"P1", "P2", "P3", "P5", "P6"}
 
 

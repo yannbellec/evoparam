@@ -24,6 +24,10 @@ from .helpers import independent_dependability, independent_split_half
 
 pd = pytest.importorskip("pandas")
 
+# Fewest N170 files, and the dependability of a strong component.
+MIN_FILES = 10
+MIN_DEPENDABILITY = 0.7
+
 ROOT = os.environ.get("EVOPARAM_ERPCORE_N170", "")
 
 pytestmark = [
@@ -48,7 +52,7 @@ WINDOW = (0.110, 0.150)
 def _load() -> Any:
     mne = pytest.importorskip("mne")
     files = sorted(glob.glob(os.path.join(ROOT, "**", "*N170*epoch*.set"), recursive=True))
-    assert len(files) >= 10, f"found {len(files)} epoched N170 files under {ROOT}"
+    assert len(files) >= MIN_FILES, f"found {len(files)} epoched N170 files under {ROOT}"
     data, subjects, times = [], [], None
     for path in files:
         epochs = mne.read_epochs_eeglab(path, verbose="error")
@@ -76,4 +80,4 @@ def test_req233_erpcore_n170() -> None:
     phi, _, _ = independent_dependability(ts, WINDOW)
     assert out["split_half_odd_even"] == pytest.approx(split, abs=0.01)
     assert out["dependability"] == pytest.approx(phi, abs=0.01)
-    assert out["dependability"] > 0.7  # a strong, reliable component
+    assert out["dependability"] > MIN_DEPENDABILITY  # a strong, reliable component

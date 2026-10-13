@@ -2,6 +2,7 @@
 """Overlay benchmark for the artifact tests: artifact-free epochs with known responses,
 plus an artifact of known shape (spec §5.3 acceptance criteria)."""
 
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -43,59 +44,74 @@ def artifact_shape(
     return art
 
 
-def make_overlay(
-    sfreq: Any = 2048.0,
-    n_trials: Any = 20,
-    n_channels: Any = 8,
-    onset: Any = 0.012,
-    amplitude: Any = -80.0,
-    width: Any = 0.004,
-    noise: Any = 5.0,
-    art_amplitude: Any = 3000.0,
-    art_tail: Any = 500.0,
-    art_tau: Any = 0.002,
-    jitter: Any = 0.1,
-    channel_jitter: Any = True,
-    seed: Any = 0,
-    metadata: Any = True,
-) -> Any:
+@dataclass(frozen=True)
+class OverlayDesign:
+    """The keywords of :func:`make_overlay`: the simulated recording, artifact and response."""
+
+    sfreq: Any = 2048.0
+    n_trials: Any = 20
+    n_channels: Any = 8
+    onset: Any = 0.012
+    amplitude: Any = -80.0
+    width: Any = 0.004
+    noise: Any = 5.0
+    art_amplitude: Any = 3000.0
+    art_tail: Any = 500.0
+    art_tau: Any = 0.002
+    jitter: Any = 0.1
+    channel_jitter: Any = True
+    seed: Any = 0
+    metadata: Any = True
+
+
+def make_overlay(**keywords: Any) -> Any:
     """Return (with_artifact, truth) TrialSets that differ only by the artifact.
 
     With ``channel_jitter`` the artifact size varies independently per trial and channel;
     without it, it varies per trial only (a spatially fixed artifact, as from one
     stimulation site).
+
+    Keywords: the fields of :class:`OverlayDesign`.
     """
 
-    rng = np.random.default_rng(seed)
-    times = times_axis(sfreq)
-    gains = rng.uniform(0.5, 1.5, n_channels)
+    design = OverlayDesign(**keywords)
+    rng = np.random.default_rng(design.seed)
+    times = times_axis(design.sfreq)
+    gains = rng.uniform(0.5, 1.5, design.n_channels)
     clean = (
-        rng.normal(0, noise, (n_trials, n_channels, len(times)))
-        + gains[None, :, None] * response(times, onset, amplitude, width)[None, None]
+        rng.normal(0, design.noise, (design.n_trials, design.n_channels, len(times)))
+        + gains[None, :, None]
+        * response(times, design.onset, design.amplitude, design.width)[None, None]
     )
-    art = artifact_shape(times, sfreq, art_amplitude, art_tail, art_tau)
-    scale = rng.uniform(1 - jitter, 1 + jitter, (n_trials, n_channels if channel_jitter else 1, 1))
-    spatial = rng.uniform(0.3, 1.0, (1, n_channels, 1))
+    art = artifact_shape(
+        times, design.sfreq, design.art_amplitude, design.art_tail, design.art_tau
+    )
+    scale = rng.uniform(
+        1 - design.jitter,
+        1 + design.jitter,
+        (design.n_trials, design.n_channels if design.channel_jitter else 1, 1),
+    )
+    spatial = rng.uniform(0.3, 1.0, (1, design.n_channels, 1))
     noisy = clean + scale * spatial * art[None, None]
     meta = None
-    if metadata:
+    if design.metadata:
         meta = pd.DataFrame(
             {
-                "stim_site": ["C1-C2"] * n_trials,
-                "stim_current_mA": [4.0] * n_trials,
-                "stim_polarity": ["biphasic_cathodic_first"] * n_trials,
+                "stim_site": ["C1-C2"] * design.n_trials,
+                "stim_current_mA": [4.0] * design.n_trials,
+                "stim_polarity": ["biphasic_cathodic_first"] * design.n_trials,
             }
         )
-    names = [f"ch{i:02d}" for i in range(n_channels)]
+    names = [f"ch{i:02d}" for i in range(design.n_channels)]
 
     def make(data):
         return TrialSet(
             data=data,
             times=times,
-            sfreq=sfreq,
+            sfreq=design.sfreq,
             ch_names=names,
             metadata=None if meta is None else meta.copy(),
-            event_times=np.arange(n_trials) * 5.0,
+            event_times=np.arange(design.n_trials) * 5.0,
         )
 
     return make(noisy), make(clean)

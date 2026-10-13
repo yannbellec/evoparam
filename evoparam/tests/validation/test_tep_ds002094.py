@@ -80,6 +80,40 @@ import pytest
 
 from evoparam import presets
 
+# Trials removed by the README: after 556 for subject 774, 401 to 405 for subject 780.
+LAST_KEPT_774 = 556
+FIRST_DROPPED_780 = 401
+LAST_DROPPED_780 = 405
+# ICA rejection rules: early window (s) and ratio of TMS muscle components, z thresholds
+# of blinks, eye movements and electrode noise, and the band (Hz, without the line) and
+# slope of persistent muscle.
+EARLY_START = 0.011
+EARLY_END = 0.030
+MUSCLE_RATIO = 8.0
+BLINK_Z = 2.5
+EYE_Z = 2.0
+NOISE_Z = 4.0
+BAND_MIN = 30
+BAND_MAX = 100
+LINE_LOW = 57
+LINE_HIGH = 63
+MUSCLE_SLOPE = -0.31
+# Fraction with both N45 and N100 (REQ-275), subjects, and the floors of step S15
+# (N45, N100, both) on the inner channels, all channels and inner channels after ICA.
+MIN_BOTH = 0.8
+N_SUBJECTS = 20
+FLOOR_A_N45 = 11
+FLOOR_A_N100 = 15
+FLOOR_A_BOTH = 9
+FLOOR_B_N45 = 10
+FLOOR_B_N100 = 11
+FLOOR_B_BOTH = 8
+FLOOR_C_N45 = 12
+FLOOR_C_N100 = 17
+FLOOR_C_BOTH = 12
+# Correlation of the recovered and mixed sources.
+MIN_CORRELATION = 0.99
+
 NETWORK = os.environ.get("EVOPARAM_NETWORK_TESTS") == "1"
 
 DATASET = "ds002094"
@@ -113,8 +147,8 @@ RUNS = {
 # Trials (1-based, over the runs in order) removed from the EEG by the dataset README.
 README_DROP = {
     "767": lambda n: n in (1, 2),
-    "774": lambda n: n > 556,
-    "780": lambda n: 401 <= n <= 405,
+    "774": lambda n: n > LAST_KEPT_774,
+    "780": lambda n: FIRST_DROPPED_780 <= n <= LAST_DROPPED_780,
 }
 OUTER_RING = ("FP1", "FP2", "F7", "F8", "T7", "T8", "P7", "P8", "O1", "O2", "IZ", "TP9", "TP10")
 SFREQ = 1000.0
@@ -309,27 +343,29 @@ def ica_round(ts: Any, *, second: Any) -> Any:
     mean = flat[:, used].mean(axis=1, keepdims=True)
     act = (unmixing @ (flat - mean)).reshape(-1, n_trials, n_times)
     average = act.mean(axis=1)
-    early = (ts.times >= 0.011) & (ts.times <= 0.030)
+    early = (ts.times >= EARLY_START) & (ts.times <= EARLY_END)
     ratio = np.abs(average[:, early]).mean(axis=1) / np.abs(average).mean(axis=1)
-    reasons = {"tms_muscle": ratio > 8.0}
+    reasons = {"tms_muscle": ratio > MUSCLE_RATIO}
     if second:
         z = np.array([_z(mixing[:, j]) for j in range(mixing.shape[1])])
         fp = [names.index(c) for c in ("FP1", "FP2")]
         f7, f8 = names.index("F7"), names.index("F8")
-        reasons["blink"] = np.abs(z[:, fp].mean(axis=1)) > 2.5
+        reasons["blink"] = np.abs(z[:, fp].mean(axis=1)) > BLINK_Z
         reasons["eye_movement"] = (z[:, f7] * z[:, f8] < 0) & (
-            np.minimum(np.abs(z[:, f7]), np.abs(z[:, f8])) > 2.0
+            np.minimum(np.abs(z[:, f7]), np.abs(z[:, f8])) > EYE_Z
         )
-        reasons["electrode_noise"] = np.abs(z).max(axis=1) > 4.0
+        reasons["electrode_noise"] = np.abs(z).max(axis=1) > NOISE_Z
         from scipy.signal import periodogram
 
         freqs, power = periodogram(act, fs=ts.sfreq, window="hann", axis=-1)
         power = power.mean(axis=1)
-        band = (freqs >= 30) & (freqs <= 100) & ((freqs < 57) | (freqs > 63))
+        band = (
+            (freqs >= BAND_MIN) & (freqs <= BAND_MAX) & ((freqs < LINE_LOW) | (freqs > LINE_HIGH))
+        )
         slope = np.array(
             [np.polyfit(np.log10(freqs[band]), np.log10(p[band]), 1)[0] for p in power]
         )
-        reasons["persistent_muscle"] = slope > -0.31
+        reasons["persistent_muscle"] = slope > MUSCLE_SLOPE
     remove = np.any(list(reasons.values()), axis=0)
     cleaned = flat - mixing[:, remove] @ (unmixing[remove] @ (flat - mean))
     data = cleaned.reshape(n_channels, n_trials, n_times).transpose(1, 0, 2)
@@ -523,7 +559,7 @@ def _network(test: Any) -> Any:
 def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results: Any) -> None:
 
     n45, n100, both = rates(results, "B_all")
-    assert both >= 0.8
+    assert both >= MIN_BOTH
 
 
 @_network
@@ -542,19 +578,19 @@ def test_req275_level_reached_with_the_preset_chain(results: Any) -> None:
     reached more): a regression guard, not the criterion of REQ-275."""
 
     n = len(results)
-    assert n == 20
+    assert n == N_SUBJECTS
     n45, n100, both = rates(results, "A_inner")
-    assert round(n45 * n) >= 11
-    assert round(n100 * n) >= 15
-    assert round(both * n) >= 9
+    assert round(n45 * n) >= FLOOR_A_N45
+    assert round(n100 * n) >= FLOOR_A_N100
+    assert round(both * n) >= FLOOR_A_BOTH
     n45, n100, both = rates(results, "B_all")
-    assert round(n45 * n) >= 10
-    assert round(n100 * n) >= 11
-    assert round(both * n) >= 8
+    assert round(n45 * n) >= FLOOR_B_N45
+    assert round(n100 * n) >= FLOOR_B_N100
+    assert round(both * n) >= FLOOR_B_BOTH
     n45, n100, both = rates(results, "B_inner")
-    assert round(n45 * n) >= 12
-    assert round(n100 * n) >= 17
-    assert round(both * n) >= 12
+    assert round(n45 * n) >= FLOOR_C_N45
+    assert round(n100 * n) >= FLOOR_C_N100
+    assert round(both * n) >= FLOOR_C_BOTH
 
 
 def test_fastica_recovers_mixed_sources() -> None:
@@ -570,4 +606,4 @@ def test_fastica_recovers_mixed_sources() -> None:
     assert estimated.shape == (5, 3)
     recovered = unmixing @ (mixing @ sources)
     corr = np.abs(np.corrcoef(np.vstack([sources, recovered]))[:3, 3:])
-    assert np.all(corr.max(axis=1) > 0.99)
+    assert np.all(corr.max(axis=1) > MIN_CORRELATION)

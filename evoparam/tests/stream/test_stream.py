@@ -29,6 +29,24 @@ from evoparam.trials import FixedShapeModel, fit_trials
 
 from .helpers import N1, SFREQ, TIMES, channel_fits, gauss, no_pulses, simulate
 
+# Relative amplitude tolerance of the online estimates, and the components of the fit.
+AMPLITUDE_RTOL = 0.01
+N_COMPONENTS = 2
+# Median z of the responsive channels, and the fraction of pulses where they are present.
+MIN_Z = 3
+MIN_PRESENT = 0.8
+# Sequential test: level, looks, and the error rate of the naive repeated test.
+ALPHA = 0.05
+N_LOOKS = 50
+MIN_NAIVE_RATE = 0.15
+ALPHA_START = 1e-6
+# Channels significant online (of 40), pulses of the latency test and of REQ-347, and the
+# latency budget (ms).
+N_CHANNELS = 40
+N_PULSES = 12
+N_BUDGET_PULSES = 1000
+MAX_P99_MS = 20.0
+
 BENCHMARKS = pathlib.Path(__file__).parents[3] / "benchmarks"
 FIELDS = (
     "pulse_time",
@@ -91,7 +109,7 @@ def test_req347_agreement_with_fit_trials(pulses: Any) -> None:
         online = _table(estimates, fit.channel)
         rel = np.abs(online["amplitude"] / fit.amplitude[:, 0] - 1)
         lag = np.abs(online["latency"] - fit.latency[:, 0]) * SFREQ
-        assert rel.max() <= 0.01, rel.max()
+        assert rel.max() <= AMPLITUDE_RTOL, rel.max()
         assert lag.max() <= 1.0, lag.max()
         assert np.allclose(
             online["pulse_time"], (np.arange(ts.n_trials) * ts.n_times + 1024) / SFREQ
@@ -113,7 +131,7 @@ def two_components(request: Any) -> Any:
         data[i, 0] += 30 * (1 + 0.2 * rng.normal()) * gauss(TIMES, 0.12 + jit2, 0.05)
     ts = TrialSet(data=data, times=TIMES, sfreq=SFREQ, ch_names=["c0"])
     group = channel_fits(ts)
-    assert len(group.fits[0].components) == 2
+    assert len(group.fits[0].components) == N_COMPONENTS
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         offline = fit_trials(ts, group, mode="shift_scale", max_shift=0.005, r2_min=0.0).fits[0]
@@ -135,7 +153,7 @@ def test_req347_agreement_two_components(two_components: Any) -> None:
     """The default mode (a shift and a scale per component) on a two-component template."""
 
     rel, lag = _two_component_agreement(two_components)
-    assert rel <= 0.01, rel
+    assert rel <= AMPLITUDE_RTOL, rel
     assert lag <= 1.0, lag
 
 
@@ -153,7 +171,7 @@ def test_req347_agreement_two_components(two_components: Any) -> None:
 def test_req347_agreement_two_components_common_mode(two_components: Any) -> None:
 
     rel, lag = _two_component_agreement(two_components, mode="common")
-    assert rel <= 0.01, rel
+    assert rel <= AMPLITUDE_RTOL, rel
     assert lag <= 1.0, lag
 
 
@@ -221,15 +239,15 @@ def test_running_existence_detects_responses_with_looks_after_every_pulse(mixed:
     result = fitter.existence()
     assert result["channels"] == ts.ch_names
     assert result["significant"][:4].all()
-    assert result["alpha_spent"].max() <= 0.05 + 1e-12
+    assert result["alpha_spent"].max() <= ALPHA + 1e-12
     # per-pulse score: high on responsive channels, centred on silent ones
     z = {
         c: np.array([e.existence_z for e in estimates if e.channel == c])[2:] for c in ts.ch_names
     }
-    assert min(np.median(z[c]) for c in ts.ch_names[:4]) > 3
+    assert min(np.median(z[c]) for c in ts.ch_names[:4]) > MIN_Z
     assert max(abs(np.median(z[c])) for c in ts.ch_names[4:]) < 1
     present = [e.present for e in estimates if e.channel == "c0"][2:]
-    assert np.mean(present) > 0.8
+    assert np.mean(present) > MIN_PRESENT
 
 
 ###################################################################################################
@@ -241,19 +259,21 @@ def test_req348_sequential_fpr_on_null_values() -> None:
     rng = np.random.default_rng(1)
     hits = naive = total = 0
     for rep in range(20):
-        test = SequentialSignFlip(200, alpha=0.05, max_n=50, n_permutations=500, random_state=rep)
+        test = SequentialSignFlip(
+            200, alpha=ALPHA, max_n=N_LOOKS, n_permutations=500, random_state=rep
+        )
         crossed_naive = np.zeros(200, bool)
-        for _ in range(50):
+        for _ in range(N_LOOKS):
             test.update(rng.standard_t(3, size=200))  # heavy tails, symmetric
             out = test.look()
-            crossed_naive |= np.nan_to_num(out["p_value"], nan=1.0) <= 0.05
+            crossed_naive |= np.nan_to_num(out["p_value"], nan=1.0) <= ALPHA
         hits += out["significant"].sum()
         naive += crossed_naive.sum()
         total += 200
-    assert test.n_looks == 50
-    assert hits / total <= 0.05 + 0.01, hits / total
+    assert test.n_looks == N_LOOKS
+    assert hits / total <= ALPHA + 0.01, hits / total
     # the same looks without the spending rule inflate the error several times
-    assert naive / total > 0.15
+    assert naive / total > MIN_NAIVE_RATE
 
 
 def test_req348_sequential_fpr_on_null_streams(mixed: Any) -> None:
@@ -269,7 +289,7 @@ def test_req348_sequential_fpr_on_null_streams(mixed: Any) -> None:
             sfreq=SFREQ,
             ch_names=names,
             detector=no_pulses,
-            existence_max_pulses=50,
+            existence_max_pulses=N_LOOKS,
             random_state=seed,
         )
         for k in range(50):
@@ -278,20 +298,20 @@ def test_req348_sequential_fpr_on_null_streams(mixed: Any) -> None:
             fitter.push(rng.normal(0, 10, (n, 64)))
         fitter.push(rng.normal(0, 10, (n, 64)))
         result = fitter.existence()
-        assert fitter.existence_stats.test.n_looks >= 50
-        assert fitter.n_pulses == 50
+        assert fitter.existence_stats.test.n_looks >= N_LOOKS
+        assert fitter.n_pulses == N_LOOKS
         hits += result["significant"].sum()
         total += 64
-    assert hits / total <= 0.05 + 0.01, hits / total
+    assert hits / total <= ALPHA + 0.01, hits / total
 
 
 def test_alpha_spending_and_single_look() -> None:
 
     t = np.linspace(0.02, 1, 50)
-    spent = alpha_spending(t, 0.05)
+    spent = alpha_spending(t, ALPHA)
     assert np.all(np.diff(spent) >= 0)
-    assert spent[-1] == 0.05
-    assert spent[0] < 1e-6
+    assert spent[-1] == ALPHA
+    assert spent[0] < ALPHA_START
     # one look at full information is the fixed-sample test
     rng = np.random.default_rng(0)
     values = rng.normal(0.3, 1, (25, 40))
@@ -301,7 +321,7 @@ def test_alpha_spending_and_single_look() -> None:
     online = test.look()
     offline = sign_flip_test(values, n_permutations=999, random_state=2)
     assert np.array_equal(online["significant"], offline["significant"])
-    assert 0 < online["significant"].sum() < 40
+    assert 0 < online["significant"].sum() < N_CHANNELS
 
 
 ###################################################################################################
@@ -313,13 +333,13 @@ def test_latency_stats() -> None:
     sys.path.insert(0, str(BENCHMARKS))
     from stream_latency import run
 
-    summary, fitter = run(n_pulses=12, chunk_size=32)
+    summary, fitter = run(n_pulses=N_PULSES, chunk_size=32)
     stats = fitter.latency_stats
     assert set(stats) == {"p50", "p95", "p99", "max"}
     assert 0 < stats["p50"] <= stats["p95"] <= stats["p99"] <= stats["max"]
-    assert summary["pulses_estimated"] == 12
-    assert summary["estimates"] == 12 * 64
-    assert fitter.n_pulses == 12
+    assert summary["pulses_estimated"] == N_PULSES
+    assert summary["estimates"] == N_PULSES * 64
+    assert fitter.n_pulses == N_PULSES
 
 
 @pytest.mark.skipif(
@@ -333,11 +353,11 @@ def test_req347_latency_budget(n_components: Any) -> None:
     sys.path.insert(0, str(BENCHMARKS))
     from stream_latency import run
 
-    summary, fitter = run(n_pulses=1000, chunk_size=32, n_components=n_components)
-    assert summary["pulses_estimated"] == 1000
+    summary, fitter = run(n_pulses=N_BUDGET_PULSES, chunk_size=32, n_components=n_components)
+    assert summary["pulses_estimated"] == N_BUDGET_PULSES
     assert summary["n_components"] == n_components
-    assert summary["push_p99_ms"] < 20.0, summary
-    assert fitter.latency_stats["p99"] < 20.0
+    assert summary["push_p99_ms"] < MAX_P99_MS, summary
+    assert fitter.latency_stats["p99"] < MAX_P99_MS
 
 
 ###################################################################################################

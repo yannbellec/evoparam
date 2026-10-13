@@ -36,6 +36,36 @@ from .helpers import (
 
 pd = pytest.importorskip("pandas")
 
+# Shapes simulated, the fraction of runs that find them, and their correlation (REQ-190).
+N_SHAPES = 3
+MIN_FOUND = 0.9
+MIN_CORRELATION = 0.95
+# Trials kept for the small site, the stability and median R2 of the bases.
+SMALL_GROUP = 2
+MIN_STABILITY = 0.8
+MIN_R2 = 0.3
+# Shapes of the divergent example, and the stability of an accepted decomposition.
+N_DIVERGENT = 2
+STABLE = 0.99
+# Tolerance at the ends of the template shape.
+EXACT = 1e-12
+# Fewest channels with an independent estimate, and the largest RMSE ratio (REQ-191).
+MIN_ESTIMATES = 5
+MAX_RMSE_RATIO = 0.7
+# Channels of the shared fit, the shared latency (s) and its tolerances.
+N_CHANNELS = 10
+SHARED = 1e-6
+LATENCY_TOLERANCE = 0.002
+OFFSET_TOLERANCE = 0.0015
+# Window (s) of the held-out prediction, and neighbours on a shaft (two on each side).
+WINDOW_START = 0.009
+WINDOW_END = 0.5
+N_NEIGHBOURS = 4
+# Channels at high and low risk of volume conduction, and the fraction labelled right.
+MIN_HIGH = 50
+N_LOW = 20
+MIN_LABELLED = 0.9
+
 ###################################################################################################
 ###################################################################################################
 
@@ -63,13 +93,13 @@ def test_req190_recovers_three_shapes(method: Any) -> None:
     for seed in range(10):
         ts, which = multi_site(seed)
         basis = shared_shapes(ts, method=method, random_state=seed)
-        found.append(basis.n_shapes == 3)
-        if basis.n_shapes == 3:
+        found.append(basis.n_shapes == N_SHAPES)
+        if basis.n_shapes == N_SHAPES:
             correlations += list(_matched_correlations(basis))
             agreement.append(adjusted_rand_index(basis.assignment["shape_id"], which))
     # n_shapes = 3 in >= 90 % of runs; recovered curves correlate >= 0.95 with the truth
-    assert np.mean(found) >= 0.9
-    assert np.min(correlations) >= 0.95
+    assert np.mean(found) >= MIN_FOUND
+    assert np.min(correlations) >= MIN_CORRELATION
     assert np.median(agreement) == 1.0
 
 
@@ -85,7 +115,7 @@ def test_weights_are_the_clustering_loadings(method: Any) -> None:
     keep = [
         i
         for i, site in enumerate(meta["stim_site"])
-        if site != "S19-T19" or sum(meta["stim_site"][:i] == site) < 2
+        if site != "S19-T19" or sum(meta["stim_site"][:i] == site) < SMALL_GROUP
     ]
     ts = ts.select(trials=keep)
     basis = convergent(ts, "R01", method=method, random_state=0)
@@ -125,12 +155,12 @@ def test_shape_basis_contents_and_round_trip(tmp_path: Any) -> None:
     assert basis.weights.shape == (20, 3)
     assert basis.r2.shape == (20,)
     assert basis.stability.shape == (3,)
-    assert (basis.stability >= 0.8).all()
+    assert (basis.stability >= MIN_STABILITY).all()
     table = basis.assignment
     assert list(table["group"]) == list(dict.fromkeys(ts.metadata["stim_site"]))
     assert (table["shape_id"] >= 0).all()
     assert (table["r2"] > 0).all()
-    assert table["r2"].median() > 0.3
+    assert table["r2"].median() > MIN_R2
     assert (table["weight"] > 0).all()
     assert table["used"].all()
     assert basis.settings["by"] == "stim_site"
@@ -170,7 +200,7 @@ def test_divergent_groups_channels() -> None:
         metadata=pd.DataFrame({"stim_site": ["C12-C99"] * 10}),
     )
     basis = divergent(ts, "C12-C99", random_state=0)
-    assert basis.n_shapes == 2
+    assert basis.n_shapes == N_DIVERGENT
     groups = list(basis.assignment["group"])
     assert "C12" not in groups
     assert "C13" not in groups
@@ -188,7 +218,7 @@ def test_small_groups_are_projected_not_used() -> None:
     basis = shared_shapes(small, random_state=0)
     row = basis.assignment.set_index("group").loc["S00-T00"]
     assert not row["used"]
-    assert row["n_trials"] == 2
+    assert row["n_trials"] == SMALL_GROUP
     assert "S00-T00" not in basis.settings["defining_groups"]
     # Projected on the shape that explains it best: the one of its own true shape
     others = basis.assignment[basis.assignment["used"]]
@@ -257,7 +287,7 @@ def test_unstable_basis_returns_one_shape_with_a_warning() -> None:
         assert any("unstable_basis" in str(w.message) for w in caught)
     else:  # a stable decomposition was found instead
         assert all(
-            row["stability"] >= 0.99 for row in basis.settings["selection"] if row["accepted"]
+            row["stability"] >= STABLE for row in basis.settings["selection"] if row["accepted"]
         )
 
 
@@ -270,8 +300,8 @@ def test_as_template_returns_a_template_shape() -> None:
     assert shape.param_names == ("shift",)
     values = shape.evaluate(basis.times, np.array([0.0]))
     assert np.max(np.abs(values)) == pytest.approx(1.0, abs=0.02)
-    assert abs(values[0]) < 1e-12
-    assert abs(values[-1]) < 1e-12
+    assert abs(values[0]) < EXACT
+    assert abs(values[-1]) < EXACT
     with pytest.raises(SettingsError):
         as_template(basis, 5)
 
@@ -297,11 +327,11 @@ def test_req191_shared_fit_reduces_latency_rmse() -> None:
         ind = np.array([_closest_latency(f, 0.03) - 0.03 for f in independent.fits])
         sha = np.array([_closest_latency(f, 0.03) - 0.03 for f in shared.fits])
         ok = np.isfinite(ind)  # channels with an independent estimate
-        assert ok.sum() >= 5
+        assert ok.sum() >= MIN_ESTIMATES
         assert np.isfinite(sha).all()
         ratios.append(np.sqrt(np.mean(sha[ok] ** 2)) / np.sqrt(np.mean(ind[ok] ** 2)))
     # RMSE reduced by >= 30 % in every run (0.01 to 0.37 at the time of writing)
-    assert max(ratios) <= 0.7
+    assert max(ratios) <= MAX_RMSE_RATIO
 
 
 def test_fit_shared_result_and_flags() -> None:
@@ -312,18 +342,18 @@ def test_fit_shared_result_and_flags() -> None:
     info = group.settings["fit_shared"]
     assert info["modal_k"] == 1
     assert info["shapes"] in (["gaussian"], ["skewed_gaussian"])
-    assert len(group.fits) == 10
+    assert len(group.fits) == N_CHANNELS
     assert all(f.status == "ok" for f in group.fits)
     latencies = [f.components[0].latency for f in group.fits]
-    assert np.ptp(latencies) < 1e-6  # one shared latency
-    assert abs(latencies[0] - 0.03) < 0.002
+    assert np.ptp(latencies) < SHARED  # one shared latency
+    assert abs(latencies[0] - 0.03) < LATENCY_TOLERANCE
     for f, truth in zip(group.fits, clean, strict=False):
         amp = f.components[0].amplitude
         assert abs(amp - truth[np.argmax(np.abs(truth))]) < 0.2 * abs(amp) + 5
-        assert f.gof.r2 > 0.3
+        assert f.gof.r2 > MIN_R2
         assert f.model.shape == f.residual.shape
     table = group.to_dataframe()
-    assert len(table) == 10
+    assert len(table) == N_CHANNELS
     assert table["amplitude"].notna().all()
     assert group.provenance.steps[-1]["function"] == "evoparam.spatial.fit_shared"
     # A channel without response is fitted with the modal K and flagged
@@ -342,14 +372,14 @@ def test_free_latency_recovers_offsets() -> None:
         draw(), preset="ccep", baseline=BASELINE, free_latency=True, max_shift=0.005
     )
     latencies = np.array([f.components[0].latency for f in group.fits])
-    assert np.max(np.abs(latencies - 0.03 - offsets)) < 0.0015
+    assert np.max(np.abs(latencies - 0.03 - offsets)) < OFFSET_TOLERANCE
     fwhm = [f.components[0].fwhm for f in group.fits]
-    assert np.ptp(fwhm) < 1e-6  # width still shared
+    assert np.ptp(fwhm) < SHARED  # width still shared
 
 
 def test_req192_penalty_never_hurts_held_out_prediction() -> None:
 
-    win = (TIMES >= 0.009) & (TIMES <= 0.5)
+    win = (TIMES >= WINDOW_START) & (TIMES <= WINDOW_END)
     rng = np.random.default_rng(0)
     for seed in range(2):
         smooth_field = seed % 2 == 0
@@ -395,7 +425,7 @@ def test_smooth_needs_free_latency_and_neighbours() -> None:
     assert group.settings["fit_shared"]["smooth"]["lambda"] == 0.0
     weights = neighbours(info, list(info["name"]), radius_mm=10.0)
     # Contacts 3.5 mm apart on a shaft: two neighbours on each side, none across shafts
-    assert weights.sum(axis=1).max() == 4
+    assert weights.sum(axis=1).max() == N_NEIGHBOURS
     assert weights[0, 1] == 1
     assert weights[0, 3] == 0
 
@@ -413,10 +443,10 @@ def test_req193_volume_conduction_screen() -> None:
         table = table.set_index("channel")
         high += list(table.loc[volume, "volume_conduction_risk"] == "high")
         low += list(table.loc[local, "volume_conduction_risk"] == "low")
-    assert len(high) >= 50
-    assert len(low) == 20
-    assert np.mean(high) >= 0.9
-    assert np.mean(low) >= 0.9
+    assert len(high) >= MIN_HIGH
+    assert len(low) == N_LOW
+    assert np.mean(high) >= MIN_LABELLED
+    assert np.mean(low) >= MIN_LABELLED
 
 
 def test_volume_screen_columns_and_markers() -> None:

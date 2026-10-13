@@ -11,6 +11,11 @@ from evoparam.artifact import remove_artifact
 
 from .helpers import make_overlay
 
+# Baseline (s) away from the artifact, and the largest relative RMS change there.
+BASELINE_START = -0.5
+BASELINE_END = -0.05
+MAX_RMS_CHANGE = 0.02
+
 ###################################################################################################
 ###################################################################################################
 
@@ -84,14 +89,14 @@ def test_global_methods_change_baseline_level_by_two_percent_at_most(
     else:
         noisy, _ = make_overlay(n_channels=12)
     result = _run(noisy, method, kwargs)
-    base = (noisy.times >= -0.5) & (noisy.times <= -0.05)
+    base = (noisy.times >= BASELINE_START) & (noisy.times <= BASELINE_END)
 
     def rms(x):
         return np.sqrt(np.mean((x - x.mean(axis=-1, keepdims=True)) ** 2))
 
     before = rms(noisy.data[..., base])
     after = rms(result.cleaned.data[..., base])
-    assert abs(after / before - 1) <= 0.02
+    assert abs(after / before - 1) <= MAX_RMS_CHANGE
 
 
 @pytest.mark.xfail(
@@ -107,14 +112,14 @@ def test_req060_polynomial_global_extent_as_published() -> None:
 
     noisy, _ = make_overlay(n_channels=12)
     result = _run(noisy, "polynomial", {"poly_extent": "global"})
-    base = (noisy.times >= -0.5) & (noisy.times <= -0.05)
+    base = (noisy.times >= BASELINE_START) & (noisy.times <= BASELINE_END)
 
     def rms(x):
         return np.sqrt(np.mean((x - x.mean(axis=-1, keepdims=True)) ** 2))
 
     before = rms(noisy.data[..., base])
     after = rms(result.cleaned.data[..., base])
-    assert abs(after / before - 1) <= 0.02
+    assert abs(after / before - 1) <= MAX_RMS_CHANGE
 
 
 def test_existing_saturation_masks_are_kept() -> None:

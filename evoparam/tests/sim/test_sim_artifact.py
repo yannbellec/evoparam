@@ -19,6 +19,27 @@ from evoparam.sim.artifacts import (
     tail_shape,
 )
 
+# Largest residual RMS after removal, relative to the RMS before (10 %).
+MAX_RESIDUAL = 0.10
+# Saturation rail (uV) of the simulated amplifier.
+RAIL = 500.0
+# Time (s) before which the artifact is zero (the onset sample is at 0).
+ARTIFACT_START = -0.001
+# Shafts of 30 sEEG contacts, and scalp electrodes named.
+N_SHAFTS = 3
+N_SCALP = 40
+# Time (s) before which a pulse shape is zero.
+PULSE_START = -0.003
+# Trials left after the alternating and forward-masking subtractions.
+N_ALTERNATING = 4
+N_PROBE = 2
+# Switch artifact (uV) of the forward-masking paradigm, and the cochlear N1 latency bound (s).
+SWITCH_ARTIFACT = 20.0
+MAX_N1_LATENCY = 0.0015
+# Pulses of the ERNA train, and the distance (s) to a pulse looked at.
+N_PULSES = 4
+NEAR_PULSE = 0.0005
+
 pytest.importorskip("pandas")
 
 WINDOW = (-0.002, 0.008)
@@ -45,16 +66,16 @@ def test_template_removal_leaves_at_most_ten_percent(seed: Any) -> None:
 
     ts, truth = sim.simulate_ccep(seed=seed)
     res = remove_artifact(ts, method="template", window=WINDOW)
-    assert _ratio(ts, res.cleaned) <= 0.10
+    assert _ratio(ts, res.cleaned) <= MAX_RESIDUAL
     away = ~ts.ch_info["stim_contact"].to_numpy()
     win = (ts.times >= WINDOW[0]) & (ts.times <= WINDOW[1])
     raw = ts.data[:, away][..., win]
     out = res.cleaned.data[:, away][..., win]
-    assert np.sqrt(np.mean(out**2) / np.mean(raw**2)) <= 0.10
+    assert np.sqrt(np.mean(out**2) / np.mean(raw**2)) <= MAX_RESIDUAL
     # What remains is mostly the response and the noise, not the artifact.
     clean_truth = (ts.data - truth.artifact_data)[..., win]
     left = res.cleaned.data[..., win] - clean_truth
-    assert np.sqrt(np.mean(left**2) / np.mean(ts.data[..., win] ** 2)) <= 0.10
+    assert np.sqrt(np.mean(left**2) / np.mean(ts.data[..., win] ** 2)) <= MAX_RESIDUAL
 
 
 def test_template_removal_with_saturation() -> None:
@@ -66,14 +87,14 @@ def test_template_removal_with_saturation() -> None:
     assert truth.artifact["n_clipped_samples"] == int(ts.masks.sum())
     assert np.max(np.abs(ts.data)) <= truth.artifact["rail"] + 1e-9
     res = remove_artifact(ts, method="template", window=WINDOW)
-    assert _ratio(ts, res.cleaned, valid=~ts.masks) <= 0.10
+    assert _ratio(ts, res.cleaned, valid=~ts.masks) <= MAX_RESIDUAL
 
 
 def test_saturation_value_in_microvolts() -> None:
     ts, truth = sim.simulate_ccep(seed=3, saturation=500.0, n_trials=4, n_channels=10, tmax=0.2)
-    assert truth.artifact["rail"] == 500.0
-    assert np.max(np.abs(ts.data)) <= 500.0
-    assert np.array_equal(ts.masks, np.abs(ts.data) >= 500.0)
+    assert truth.artifact["rail"] == RAIL
+    assert np.max(np.abs(ts.data)) <= RAIL
+    assert np.array_equal(ts.masks, np.abs(ts.data) >= RAIL)
 
 
 ###################################################################################################
@@ -105,7 +126,7 @@ def test_ccep_artifact_geometry() -> None:
         / np.max(np.abs(truth.artifact_data[0]))
         * info["trial_scale"][0],
     )
-    assert not np.any(truth.artifact_data[..., ts.times < -0.001])
+    assert not np.any(truth.artifact_data[..., ts.times < ARTIFACT_START])
 
 
 def test_ccep_artifact_off_and_scaling() -> None:
@@ -123,7 +144,7 @@ def test_ccep_artifact_off_and_scaling() -> None:
 def test_layouts_and_waveforms() -> None:
     names, coords, groups = seeg_layout(30)
     assert names[0] == "A01"
-    assert len(set(groups)) == 3
+    assert len(set(groups)) == N_SHAFTS
     assert coords.shape == (30, 3)
     assert np.isclose(np.linalg.norm(coords[1] - coords[0]), 3.5)
     names, coords, _ = grid_layout(16)
@@ -133,7 +154,7 @@ def test_layouts_and_waveforms() -> None:
     assert names == ["L00", "L01", "L02", "L03"]
     names, coords, _ = scalp_layout(40)
     assert names[:3] == ["Cz", "Pz", "Fz"]
-    assert len(set(names)) == 40
+    assert len(set(names)) == N_SCALP
     assert np.all(np.linalg.norm(coords[:, :2], axis=1) <= 1.0 + 1e-9)
 
     contacts = np.array([[0, 0, 0], [3.5, 0, 0], [50, 0, 0]])
@@ -146,8 +167,8 @@ def test_layouts_and_waveforms() -> None:
     times = np.arange(-100, 400) / sfreq
     mono = pulse_shape(times, sfreq, pulse_width_us=200.0, kind="monophasic", polarity=-1)
     bi = pulse_shape(times, sfreq, pulse_width_us=200.0, kind="biphasic", polarity=-1)
-    assert np.all(mono[times < -0.003] == 0)
-    assert np.all(bi[times < -0.003] == 0)
+    assert np.all(mono[times < PULSE_START] == 0)
+    assert np.all(bi[times < PULSE_START] == 0)
     # The anti-aliasing filter passes DC: a monophasic pulse integrates to its charge.
     assert np.isclose(mono.sum() / sfreq, -200e-6, rtol=0.02)
     assert abs(bi.sum()) / sfreq < 0.02 * 200e-6  # charge-balanced
@@ -172,7 +193,7 @@ def test_ecap_alternating_cancels_the_artifact() -> None:
         "biphasic_anodic_first",
     }
     out = paradigm_subtract(ts, scheme="alternating")
-    assert out.n_trials == 4
+    assert out.n_trials == N_ALTERNATING
     np.testing.assert_allclose(out.data, truth.signal[::2], atol=1e-9 * np.abs(ts.data).max())
     res = remove_artifact(ts, method="paradigm", scheme="alternating", quality=False)
     np.testing.assert_allclose(res.cleaned.data, out.data)
@@ -187,18 +208,18 @@ def test_ecap_forward_masking_recovers_the_probe() -> None:
     assert truth.conditions[:4] == ["A", "B", "C", "D"]
     assert {c["role"] for c in truth.components} == {"target", "masker"}
     out = paradigm_subtract(ts, scheme="forward_masking")
-    assert out.n_trials == 2
+    assert out.n_trials == N_PROBE
     probe = truth.signal[0]
     np.testing.assert_allclose(out.data[0], probe, atol=1e-9 * np.abs(ts.data).max())
     assert np.abs(probe).max() > 0
-    assert truth.artifact["switch_artifact_uV"] == 20.0
+    assert truth.artifact["switch_artifact_uV"] == SWITCH_ARTIFACT
 
 
 def test_ecap_kinds_and_errors() -> None:
     ts, truth = sim.simulate_ecap(4, kind="cochlear", seed=0, noise="none", artifact=False)
     assert ts.modality == "ecap"
     latencies = [c["features"]["latency"] for c in truth.components if c["label"] == "N1"]
-    assert all(0 < latency < 0.0015 for latency in latencies)
+    assert all(0 < latency < MAX_N1_LATENCY for latency in latencies)
     with pytest.raises(SettingsError):
         sim.simulate_ecap(4, kind="retinal")
     with pytest.raises(SettingsError):
@@ -238,12 +259,12 @@ def test_tep_artifact_parts() -> None:
 
 def test_erna_artifact_is_a_pulse_train() -> None:
     ts, truth = sim.simulate_erna(n_pulses=4, n_trials=3, noise="none", seed=0)
-    assert truth.artifact["n_pulses"] == 4
+    assert truth.artifact["n_pulses"] == N_PULSES
     stim = ts.ch_names.index(truth.artifact["stim_contact"])
     trace = np.abs(truth.artifact_data[0, stim])
     period = 1.0 / truth.artifact["pulse_rate_hz"]
-    for pulse in range(4):
-        near = np.abs(ts.times - pulse * period) < 0.0005
+    for pulse in range(N_PULSES):
+        near = np.abs(ts.times - pulse * period) < NEAR_PULSE
         assert trace[near].max() > 0.5 * trace.max()
     with pytest.raises(SettingsError):
         sim.simulate_erna(n_pulses=2, sfreq=2048.0)

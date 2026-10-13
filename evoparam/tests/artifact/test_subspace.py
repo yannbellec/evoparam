@@ -10,6 +10,9 @@ from evoparam.data import TrialSet
 
 from .helpers import artifact_shape, response, times_axis
 
+# Signal-to-interference improvement (dB) required (REQ-064).
+MIN_GAIN_DB = 30
+
 ###################################################################################################
 ###################################################################################################
 
@@ -58,5 +61,5 @@ def test_req064_signal_to_interference_improvement() -> None:
     # 43.7 dB on seeds 4 to 13; the specification's version 14.9 to 33.1 dB (5 of 10 above
     # 30 dB, seed 4 among them; CHANGELOG)
     gains = [_gain(seed) for seed in range(4, 14)]
-    assert min(gains) >= 30, np.round(gains, 1)
-    assert _gain(4, n_components="energy", subspace_extent="all") >= 30
+    assert min(gains) >= MIN_GAIN_DB, np.round(gains, 1)
+    assert _gain(4, n_components="energy", subspace_extent="all") >= MIN_GAIN_DB
