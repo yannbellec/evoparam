@@ -20,6 +20,11 @@ from evoparam.errors import warn as _warn
 from evoparam.io._fetch import is_url, sha256_file
 from evoparam.utils._optional import require
 
+# Array shapes accepted by from_array: (n_channels, n_times) or (n_trials, n_channels, n_times)
+_CONTINUOUS_NDIM = 2
+_EPOCHED_NDIM = 3
+
+
 __all__ = ["from_array", "read", "read_mne", "read_edf", "read_events_edf", "READERS"]
 
 # formats of read(format=...) and their extensions; a plugin reader may use neither
@@ -99,6 +104,7 @@ def _plugin_for(path: str, fmt: str | None) -> tuple[str, Any] | None:
 
 
 def _read_plugin(name: Any, reader: Any, path: Any, kwargs: Any) -> "TrialSet":
+    """Read with a plugin reader and check that it returned a TrialSet."""
     out = reader(path, **kwargs)
     if not isinstance(out, TrialSet):
         raise ReaderError(
@@ -132,11 +138,13 @@ _EDF_TO_UV = {"uv": 1.0, "µv": 1.0, "μv": 1.0, "mv": 1e3, "v": 1e6, "nv": 1e-3
 
 
 def _default_names(n_channels: int) -> list[str]:
+    """Return the default channel names CH001, CH002, ..."""
     width = max(3, len(str(n_channels)))
     return ["CH{:0{}d}".format(ind + 1, width) for ind in range(n_channels)]
 
 
 def _table(value: Any, name: Any) -> Any:
+    """Return a DataFrame from a dict or a DataFrame (None stays None)."""
     if value is None:
         return None
     pd = require("pandas", extra="data", caller=f"evoparam.io.from_array ({name})")
@@ -147,7 +155,7 @@ def _table(value: Any, name: Any) -> Any:
     return value.reset_index(drop=True)
 
 
-def from_array(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
+def from_array(  # noqa: PLR0913  (spec §5.1 fixes 9 parameters; DECISIONS.md §7.2)
     data: ArrayLike,
     sfreq: float,
     *,
@@ -196,9 +204,9 @@ def from_array(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
     data = np.asarray(data)
     if data.dtype.kind not in "biuf":
         raise DataError(f"data: expected a numeric array, got dtype {data.dtype}.")
-    if data.ndim == 2:
+    if data.ndim == _CONTINUOUS_NDIM:
         data = data[np.newaxis]
-    elif data.ndim != 3:
+    elif data.ndim != _EPOCHED_NDIM:
         raise DataError(
             f"data: expected 2 dimensions (channels, times) or 3 (trials, channels, "
             f"times), got shape {data.shape}."
@@ -238,31 +246,43 @@ def from_array(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
 ## Dispatch
 
 
-def _guess_format(path: Any) -> Any:
-    lower = path.lower().rstrip("/")
-    if lower.endswith(".vhdr"):
-        return "brainvision"
-    if lower.endswith((".edf", ".bdf")):
-        return "edf"
-    if lower.endswith(".nwb"):
-        return "nwb"
-    if lower.endswith(".mefd"):
-        return "mef"
-    if lower.endswith((".evoparam", ".evoparam.zip")):
+# Formats told by the end of the path
+_SUFFIX_FORMATS = (
+    ((".vhdr",), "brainvision"),
+    ((".edf", ".bdf"), "edf"),
+    ((".nwb",), "nwb"),
+    ((".mefd",), "mef"),
+    ((".evoparam", ".evoparam.zip"), "evoparam"),
+)
+
+
+def _folder_format(path: str) -> str | None:
+    """Return the format of a local folder: an evoparam container or a BIDS dataset."""
+    if os.path.isfile(os.path.join(path, "manifest.json")):
         return "evoparam"
+    if os.path.isfile(os.path.join(path, "dataset_description.json")) or any(
+        name.startswith("sub-") for name in os.listdir(path)
+    ):
+        return "bids"
+    return None
+
+
+def _guess_format(path: Any) -> Any:
+    """Return the format of a path, from its end or, for a local folder, its content."""
+    lower = path.lower().rstrip("/")
+    for suffixes, fmt in _SUFFIX_FORMATS:
+        if lower.endswith(suffixes):
+            return fmt
     if not is_url(path) and os.path.isdir(path):
-        if os.path.isfile(os.path.join(path, "manifest.json")):
-            return "evoparam"
-        if os.path.isfile(os.path.join(path, "dataset_description.json")) or any(
-            name.startswith("sub-") for name in os.listdir(path)
-        ):
-            return "bids"
+        found = _folder_format(path)
+        if found is not None:
+            return found
     if lower.endswith(".zip"):
         return "evoparam"
     raise ReaderError(f"Cannot tell the format of {path!r}; give format=.")
 
 
-def _read_continuous(
+def _read_continuous(  # noqa: PLR0913  (the keywords of the public read() for recordings; DECISIONS.md §7.2)
     path: Any,
     fmt: Any,
     *,
@@ -351,7 +371,7 @@ def _read_continuous(
     )
 
 
-def read(source: Any, *, format: str | None = None, **kwargs: Any) -> "TrialSet":  # noqa: A002, C901, PLR0911, PLR0912  (public API, signature fixed by spec §5.1; format: its keyword)
+def read(source: Any, *, format: str | None = None, **kwargs: Any) -> "TrialSet":  # noqa: A002  (spec §5.1 names the keyword format)
     """Read data from any supported source into a TrialSet.
 
     Dispatch on the type or the extension of ``source``:
@@ -390,19 +410,9 @@ def read(source: Any, *, format: str | None = None, **kwargs: Any) -> "TrialSet"
     ReaderError
         Unknown or unsupported format.
     """
-    if isinstance(source, TrialSet):
-        return source
-    if isinstance(source, Evoked):
-        return source.as_trialset()
-    if format == "array" or isinstance(source, np.ndarray):
-        return from_array(source, **kwargs)
-    module = type(source).__module__ or ""
-    if format == "mne" or module.split(".")[0] == "mne":
-        return read_mne(source, **kwargs)
-    if format == "neo" or module.split(".")[0] == "neo":
-        from evoparam.io.neo import read_neo
-
-        return read_neo(source, **kwargs)
+    obj = _read_object(source, format, kwargs)
+    if obj is not None:
+        return obj
     if not isinstance(source, (str, os.PathLike)):
         raise ReaderError(f"Cannot read an object of type {type(source).__name__}.")
     path = os.fspath(source)
@@ -415,7 +425,29 @@ def read(source: Any, *, format: str | None = None, **kwargs: Any) -> "TrialSet"
                 f"Unknown format {format!r}; built-in: {BUILTIN_FORMATS}, "
                 f"plugins: {sorted(READERS)}."
             )
-    fmt = format or _guess_format(path)
+    return _read_path(path, format or _guess_format(path), kwargs)
+
+
+def _read_object(source: Any, fmt: str | None, kwargs: dict[str, Any]) -> "TrialSet | None":
+    """Return the TrialSet of an in-memory object (None: ``source`` is not one)."""
+    if isinstance(source, TrialSet):
+        return source
+    if isinstance(source, Evoked):
+        return source.as_trialset()
+    if fmt == "array" or isinstance(source, np.ndarray):
+        return from_array(source, **kwargs)
+    module = type(source).__module__ or ""
+    if fmt == "mne" or module.split(".")[0] == "mne":
+        return read_mne(source, **kwargs)
+    if fmt == "neo" or module.split(".")[0] == "neo":
+        from evoparam.io.neo import read_neo
+
+        return read_neo(source, **kwargs)
+    return None
+
+
+def _read_path(path: str, fmt: str, kwargs: dict[str, Any]) -> "TrialSet":
+    """Read the file or folder ``path`` of the built-in format ``fmt``."""
     if fmt in ("brainvision", "edf", "mef"):
         return _read_continuous(path, fmt, **kwargs)
     if fmt == "bids":
@@ -423,27 +455,32 @@ def read(source: Any, *, format: str | None = None, **kwargs: Any) -> "TrialSet"
 
         return read_bids(path, **kwargs)
     if fmt == "evoparam":
-        start = _time.perf_counter()
-        obj = load_object(path, **kwargs)
-        if isinstance(obj, Evoked):
-            obj = obj.as_trialset()
-        if not isinstance(obj, TrialSet):
-            raise ReaderError(f"{path} holds a {type(obj).__name__}, not a TrialSet.")
-        # REQ-294: reading creates the TrialSet that the next steps work on; its saved
-        # record is kept and the read is one more step (no machine path: REQ-352)
-        return replace(
-            obj,
-            provenance=obj.provenance.with_step(
-                "evoparam.io.read",
-                {"format": "evoparam", **kwargs},
-                duration_s=_time.perf_counter() - start,
-            ),
-        )
+        return _read_container(path, kwargs)
     if fmt == "nwb":
         from evoparam.io.nwb import read_nwb
 
         return read_nwb(path, **kwargs)
     raise ReaderError(f"Unknown format {fmt!r}.")
+
+
+def _read_container(path: str, kwargs: dict[str, Any]) -> "TrialSet":
+    """Read the TrialSet saved in an ``.evoparam`` container."""
+    start = _time.perf_counter()
+    obj = load_object(path, **kwargs)
+    if isinstance(obj, Evoked):
+        obj = obj.as_trialset()
+    if not isinstance(obj, TrialSet):
+        raise ReaderError(f"{path} holds a {type(obj).__name__}, not a TrialSet.")
+    # REQ-294: reading creates the TrialSet that the next steps work on; its saved
+    # record is kept and the read is one more step (no machine path: REQ-352)
+    return replace(
+        obj,
+        provenance=obj.provenance.with_step(
+            "evoparam.io.read",
+            {"format": "evoparam", **kwargs},
+            duration_s=_time.perf_counter() - start,
+        ),
+    )
 
 
 ###################################################################################################

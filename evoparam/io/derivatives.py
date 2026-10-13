@@ -237,6 +237,7 @@ LONG_NAMES = {
 
 
 def _long_name(name: Any) -> str:
+    """Return the long name of a column for its sidecar description."""
     if name in LONG_NAMES:
         return LONG_NAMES[name]
     text = name.removeprefix("evoparam_").removeprefix("classical_").replace("_", " ")
@@ -254,6 +255,7 @@ def _long_name(name: Any) -> str:
 
 
 def _cell(value: Any) -> str:
+    """Return the TSV text of a value (``n/a`` for missing values)."""
     if value is None:
         return "n/a"
     if isinstance(value, (bool, np.bool_)):
@@ -267,6 +269,7 @@ def _cell(value: Any) -> str:
 
 
 def _write_tsv(path: Any, columns: Any, rows: Any) -> None:
+    """Write rows of dicts as a TSV file with the given columns."""
     with open(path, "w", encoding="utf-8") as fobj:
         fobj.write("\t".join(columns) + "\n")
         for row in rows:
@@ -297,11 +300,13 @@ def _sidecar(columns: Any, units: Any, extra: Any, header: Any = None) -> dict[A
 
 
 def _write_json(path: Any, content: Any) -> None:
+    """Write a JSON file (NaN not allowed)."""
     with open(path, "w", encoding="utf-8") as fobj:
         fobj.write(json.dumps(to_jsonable(content), indent=1, allow_nan=False))
 
 
 def _stem(subject: Any, session: Any, task: Any, run: Any) -> str:
+    """Return the BIDS stem of the entities."""
     parts = [f"sub-{subject}"]
     if session:
         parts.append(f"ses-{session}")
@@ -313,6 +318,7 @@ def _stem(subject: Any, session: Any, task: Any, run: Any) -> str:
 
 
 def _strip(value: Any, prefix: Any) -> Any:
+    """Return ``value`` without ``prefix`` (None stays None)."""
     if value is None:
         return None
     value = str(value)
@@ -320,11 +326,13 @@ def _strip(value: Any, prefix: Any) -> Any:
 
 
 def _provenance(result: Any) -> Any:
+    """Return the provenance of a result as a dict (None without one)."""
     provenance = getattr(result, "provenance", None)
     return provenance.to_dict() if provenance is not None else None
 
 
 def _preset(settings: Any) -> Any:
+    """Return the preset of the settings as ``{"Name", "Version"}`` (None without one)."""
     name = (settings or {}).get("preset")
     if not name:
         return None
@@ -388,6 +396,7 @@ def _stim_fields(trials: Any, label: Any, columns: Any) -> dict[str, Any]:
 
 
 def _classical(fit: Any) -> dict[Any, Any]:
+    """Return the classical measures of a fit as ``classical_*`` columns."""
     values = {}
     for key, value in (fit.classical or {}).items():
         if key in ("definition", "sme") or isinstance(value, dict):
@@ -399,6 +408,7 @@ def _classical(fit: Any) -> dict[Any, Any]:
 def _response_rows(
     group: Any, test: Any = None, trials: Any = None, extra_columns: Any = ()
 ) -> list[Any]:
+    """Return the rows of responses.tsv: one per channel, condition and component."""
     present = {}
     if test is not None:
         names = test.settings.get("channels") or []
@@ -487,7 +497,346 @@ def _response_columns(group: Any, trials: Any) -> dict[Any, Any]:
     return {**RESPONSE_COLUMNS, **classical, **stim, **standard}
 
 
-def write_bids_derivatives(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.1)
+class _Target:
+    """Where the files of one run are written, and the list of the files written."""
+
+    def __init__(self, folder: str, stem: str, overwrite: bool) -> None:
+        """Write into ``folder`` with the file prefix ``stem``."""
+        self.folder = folder
+        self.stem = stem
+        self.overwrite = overwrite
+        self.written: list[str] = []
+
+    def path(self, suffix: Any) -> Any:
+        """Return the path of the file with ``suffix``, after checking it may be written."""
+        path = os.path.join(self.folder, f"{self.stem}_{suffix}")
+        if os.path.exists(path) and not self.overwrite:
+            raise DataError(f"{path} exists; pass overwrite=True.")
+        self.written.append(path)
+        return path
+
+    def container(self, obj: Any, suffix: Any) -> Any:
+        """Save the result ``obj`` as an evoparam container with ``suffix``."""
+        path = self.path(suffix)
+        if os.path.isdir(path):
+            import shutil
+
+            shutil.rmtree(path)
+        obj.save(path, overwrite=True)
+        return path
+
+
+class _Results:
+    """The results to write, by kind."""
+
+    def __init__(self, items: list[Any]) -> None:
+        """Sort ``items`` into group fits, tests, artifact results and trial fits."""
+        from evoparam.data import ArtifactResult, GroupFit, ResponseTest
+
+        self.groups = [r for r in items if isinstance(r, GroupFit)]
+        self.tests = [r for r in items if isinstance(r, ResponseTest)]
+        self.artifacts = [r for r in items if isinstance(r, ArtifactResult)]
+        self.trial_sets = [
+            r
+            for r in items
+            if hasattr(r, "table") and hasattr(r, "fits") and not isinstance(r, GroupFit)
+        ]
+
+    @property
+    def ordered(self) -> list[Any]:
+        """Return the results of the first kind present (groups, tests, trials, artifacts)."""
+        return self.groups or self.tests or self.trial_sets or self.artifacts
+
+
+def _write_responses(target: _Target, group: Any, test: Any, trials: Any, units: str) -> None:
+    """Write responses.tsv, its sidecar and the container of a group fit."""
+    columns = _response_columns(group, trials)
+    extra = [c for c in columns if c in STIM_COLUMNS or c in STANDARD_STIM_COLUMNS]
+    rows = _response_rows(group, test, trials, extra)
+    _write_tsv(target.path("responses.tsv"), list(columns), rows)
+    _write_json(
+        target.path("responses.json"),
+        _sidecar(
+            columns,
+            units,
+            {
+                "Settings": group.settings,
+                "Preset": _preset(group.settings),
+                "PackageVersion": __version__,
+                "Provenance": _provenance(group),
+            },
+        ),
+    )
+    target.container(group, "responses.evoparam")
+
+
+def _existence_rows(test: Any, trials: Any) -> list[dict[str, Any]]:
+    """Return the rows of existence.tsv: one per channel and condition."""
+    names = test.settings.get("channels") or [f"ch{i}" for i in range(len(test.statistic))]
+    conditions = test.settings.get("conditions") or [""] * len(names)
+    rows = []
+    for i, (name, cond) in enumerate(zip(names, conditions, strict=False)):
+        rows.append(
+            {
+                "channel": name,
+                "stim_site": _stim_fields(trials, cond, ())["stim_site"],
+                "condition": cond or None,
+                "method": test.method,
+                "statistic": test.statistic[i],
+                "p_value": test.p_value[i],
+                "p_value_raw": test.p_value_raw[i],
+                "significant": bool(test.significant[i]),
+                "onset": test.onset[i],
+                "offset": test.offset[i],
+                "duration": test.duration[i],
+                "snr_db": test.snr_db[i],
+                "alpha": test.alpha,
+                "correction": test.correction,
+                "n_permutations": test.n_permutations,
+                "n_trials": test.settings.get("n_trials"),
+            }
+        )
+    return rows
+
+
+def _write_existence(target: _Target, test: Any, trials: Any, units: str) -> None:
+    """Write existence.tsv, its sidecar and the container of a response test."""
+    _write_tsv(
+        target.path("existence.tsv"), list(EXISTENCE_COLUMNS_BIDS), _existence_rows(test, trials)
+    )
+    _write_json(
+        target.path("existence.json"),
+        _sidecar(
+            EXISTENCE_COLUMNS_BIDS,
+            units,
+            {
+                "Settings": test.settings,
+                "PackageVersion": __version__,
+                "Provenance": _provenance(test),
+            },
+        ),
+    )
+    target.container(test, "existence.evoparam")
+
+
+def _trial_rows(tset: Any, trials: Any) -> list[dict[str, Any]]:
+    """Return the rows of trials.tsv: one per trial, channel and component."""
+    rows, sites = [], {}
+    for record in tset.table.to_dict("records"):
+        cond = record.get("condition") or ""
+        if cond not in sites:
+            sites[cond] = _stim_fields(trials, cond, ())["stim_site"]
+        rows.append(
+            {
+                "trial": record.get("trial"),
+                "onset": record.get("onset"),
+                "channel": record.get("channel"),
+                "stim_site": sites[cond],
+                "component": record.get("label") or f"c{record.get('component')}",
+                "shift": record.get("shift"),
+                "scale": record.get("scale"),
+                "latency": record.get("latency"),
+                "amplitude": record.get("amplitude"),
+                "fwhm": record.get("fwhm"),
+                "r2": record.get("r2"),
+                "converged": record.get("converged"),
+                "rejected": not bool(record.get("trusted", True)),
+                "reject_reason": None if record.get("trusted", True) else "not_trusted",
+                "quality": record.get("quality"),
+            }
+        )
+    return rows
+
+
+def _write_trials(target: _Target, tset: Any, trials: Any, units: str) -> None:
+    """Write trials.tsv, its sidecar and the folder of the trial fits."""
+    _write_tsv(target.path("trials.tsv"), list(TRIAL_COLUMNS_BIDS), _trial_rows(tset, trials))
+    _write_json(
+        target.path("trials.json"),
+        _sidecar(
+            TRIAL_COLUMNS_BIDS,
+            units,
+            {
+                "Settings": tset.settings,
+                "PackageVersion": __version__,
+                "Provenance": _provenance(tset),
+            },
+        ),
+    )
+    target.container(tset, "trials.evoparamset")  # a folder of TrialFit containers
+
+
+def _replaced_samples(artifact: Any) -> list[dict[str, Any]]:
+    """Return the spans of samples an artifact step replaced, per trial and channel."""
+    replaced: list[dict[str, Any]] = []
+    masks = getattr(artifact.cleaned, "masks", None)
+    if masks is None:
+        return replaced
+    times = artifact.cleaned.times
+    for trial, channel in np.ndindex(*masks.shape[:2]):
+        edges = np.flatnonzero(np.diff(np.r_[0, masks[trial, channel].astype(int), 0]))
+        for start, stop in zip(edges[::2], edges[1::2], strict=False):
+            replaced.append(
+                {
+                    "trial": int(trial),
+                    "channel": artifact.cleaned.ch_names[channel],
+                    "start": float(times[start]),
+                    "stop": float(times[stop - 1]),
+                }
+            )
+    return replaced
+
+
+def _write_artifacts(target: _Target, artifacts: list[Any]) -> None:
+    """Write artifact.json and the containers of the artifact steps."""
+    records = []
+    for artifact in artifacts:
+        replaced = _replaced_samples(artifact)
+        quality = artifact.quality_summary()
+        records.append(
+            {
+                "Method": artifact.method,
+                "Window": list(artifact.window),
+                "Parameters": artifact.settings,
+                "PackageVersion": __version__,
+                "QualitySummary": {"median": quality["median"], "p05": quality["p05"]},
+                "ReplacedSamples": replaced,
+                "Provenance": _provenance(artifact),
+            }
+        )
+    if not records:
+        return
+    # One record per run: the last artifact step (its cleaned trials were fitted), and
+    # every step in order when the preset chains several (e.g. interpolate+subspace).
+    record = dict(records[-1])
+    if len(records) > 1:
+        record["Steps"] = [{k: v for k, v in r.items() if k != "Provenance"} for r in records]
+    _write_json(target.path("artifact.json"), record)
+    for k, artifact in enumerate(artifacts):
+        target.container(
+            artifact,
+            "artifact.evoparam" if k == len(artifacts) - 1 else f"artifact{k + 1}.evoparam",
+        )
+
+
+def _source_datasets(bids_root: Any, source_dataset: Any) -> dict[str, Any]:
+    """Return the SourceDatasets entry: the raw dataset's description, else the registry."""
+    source = {}
+    if bids_root is not None and os.path.exists(
+        os.path.join(bids_root, "dataset_description.json")
+    ):
+        with open(os.path.join(bids_root, "dataset_description.json"), encoding="utf-8") as f:
+            raw = json.load(f)
+        source = {
+            k: v
+            for k, v in (
+                ("DOI", raw.get("DatasetDOI")),
+                ("URL", bids_root if os.path.isdir(bids_root) else None),
+                ("Version", raw.get("DatasetVersion")),
+            )
+            if v
+        }
+    if not source.get("DOI") and bids_root is not None:
+        source.update(_registry_source(bids_root))
+    if source_dataset:
+        source.update(source_dataset)
+    return source
+
+
+def _write_description(out: str, pipeline_name: str, main: Any, source: Any) -> str:
+    """Write dataset_description.json of the derivative dataset and return its path."""
+    generated = {
+        "Name": pipeline_name,
+        "Version": __version__,
+        "Description": "Parameterisation of evoked responses",
+        "CodeURL": "https://github.com/yannbellec/evoparam",
+    }
+    if main is not None and getattr(main, "provenance", None) is not None:
+        # the provenance of the run written last (REQ-336); each sidecar holds its own
+        generated["Provenance"] = _provenance(main)
+    description = {
+        "Name": pipeline_name,
+        "BIDSVersion": "1.9.0",
+        "DatasetType": "derivative",
+        "GeneratedBy": [generated],
+        "SourceDatasets": [source] if source else [],
+    }
+    path = os.path.join(out, "dataset_description.json")
+    _write_json(path, description)
+    return path
+
+
+def _write_bidsignore(out: str, desc: str) -> str:
+    """Write .bidsignore and return its path.
+
+    The evoparam tables have no BIDS suffix yet (no standard for evoked-response parameters,
+    spec §10.2): they are declared to the validator, as BIDS prescribes for files the
+    specification does not cover; so are the result containers saved with them.
+    """
+    ignore = os.path.join(out, ".bidsignore")
+    with open(ignore, "w", encoding="utf-8") as fobj:
+        fobj.write(
+            "\n".join(
+                [
+                    f"*_desc-{desc}_{suffix}"
+                    for suffix in (
+                        "responses.tsv",
+                        "responses.json",
+                        "existence.tsv",
+                        "existence.json",
+                        "trials.tsv",
+                        "trials.json",
+                        "artifact.json",
+                    )
+                ]
+                + [
+                    "*.evoparam",
+                    "*.evoparam/",
+                    "*.evoparam/**",
+                    "*.evoparamset/",
+                    "*.evoparamset/**",
+                ]
+            )
+            + "\n"
+        )
+    return ignore
+
+
+def _write_readme(out: str, results: _Results) -> str:
+    """Write the README of the derivative dataset (with the methods text) and return its path."""
+    from evoparam.data._methods import methods_text
+
+    readme = [
+        f"evoparam {__version__} derivatives.",
+        "",
+        "*_responses.tsv: fitted components, one row per channel x condition x "
+        "component; *_existence.tsv: existence tests; *_trials.tsv: trial-by-trial "
+        "parameters; *_artifact.json: artifact removal and the replaced samples.",
+        "Every TSV has a JSON sidecar with column descriptions, units, settings and provenance.",
+    ]
+    for group in results.groups:
+        note = (group.settings or {}).get("preset_note")
+        if note:
+            readme.append(f"Preset: {note}.")
+    if results.ordered:
+        readme += [
+            "",
+            "Methods (generated by evoparam from the provenance of the results):",
+            "",
+            methods_text(results.ordered[0]),
+        ]
+    readme += [
+        "",
+        "Each table has an .evoparam container next to it (the result itself, "
+        "read back by evoparam.io.read_bids_derivatives).",
+    ]
+    path = os.path.join(out, "README")
+    with open(path, "w", encoding="utf-8") as fobj:
+        fobj.write("\n".join(readme) + "\n")
+    return path
+
+
+def write_bids_derivatives(  # noqa: PLR0913  (spec §5.1 fixes 11 parameters, plus units, source_dataset and trials; DECISIONS.md §7.2)
     results: Any,
     bids_root: str | None = None,
     *,
@@ -533,8 +882,7 @@ def write_bids_derivatives(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public AP
     list of str
         The files written.
     """
-    from evoparam.data import ArtifactResult, GroupFit, ResponseTest, TrialSet
-    from evoparam.data._methods import methods_text
+    from evoparam.data import TrialSet
 
     items = list(results) if isinstance(results, (list, tuple)) else [results]
     trials = (
@@ -560,279 +908,28 @@ def write_bids_derivatives(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public AP
         out, f"sub-{subject}", *([f"ses-{session}"] if session else []), datatype
     )
     os.makedirs(folder, exist_ok=True)
-    stem = _stem(subject, session, task, run) + f"_desc-{desc}"
-    written = []
-
-    def target(suffix: Any) -> Any:
-        path = os.path.join(folder, f"{stem}_{suffix}")
-        if os.path.exists(path) and not overwrite:
-            raise DataError(f"{path} exists; pass overwrite=True.")
-        written.append(path)
-        return path
-
-    def container(obj: Any, suffix: Any) -> Any:
-        path = target(suffix)
-        if os.path.isdir(path):
-            import shutil
-
-            shutil.rmtree(path)
-        obj.save(path, overwrite=True)
-        return path
-
-    groups = [r for r in items if isinstance(r, GroupFit)]
-    tests = [r for r in items if isinstance(r, ResponseTest)]
-    artifacts = [r for r in items if isinstance(r, ArtifactResult)]
-    trial_sets = [
-        r
-        for r in items
-        if hasattr(r, "table") and hasattr(r, "fits") and not isinstance(r, GroupFit)
-    ]
-    for group in groups:
-        columns = _response_columns(group, trials)
-        extra = [c for c in columns if c in STIM_COLUMNS or c in STANDARD_STIM_COLUMNS]
-        rows = _response_rows(group, tests[0] if tests else None, trials, extra)
-        _write_tsv(target("responses.tsv"), list(columns), rows)
-        _write_json(
-            target("responses.json"),
-            _sidecar(
-                columns,
-                units,
-                {
-                    "Settings": group.settings,
-                    "Preset": _preset(group.settings),
-                    "PackageVersion": __version__,
-                    "Provenance": _provenance(group),
-                },
-            ),
-        )
-        container(group, "responses.evoparam")
-    for test in tests:
-        names = test.settings.get("channels") or [f"ch{i}" for i in range(len(test.statistic))]
-        conditions = test.settings.get("conditions") or [""] * len(names)
-        rows = []
-        for i, (name, cond) in enumerate(zip(names, conditions, strict=False)):
-            rows.append(
-                {
-                    "channel": name,
-                    "stim_site": _stim_fields(trials, cond, ())["stim_site"],
-                    "condition": cond or None,
-                    "method": test.method,
-                    "statistic": test.statistic[i],
-                    "p_value": test.p_value[i],
-                    "p_value_raw": test.p_value_raw[i],
-                    "significant": bool(test.significant[i]),
-                    "onset": test.onset[i],
-                    "offset": test.offset[i],
-                    "duration": test.duration[i],
-                    "snr_db": test.snr_db[i],
-                    "alpha": test.alpha,
-                    "correction": test.correction,
-                    "n_permutations": test.n_permutations,
-                    "n_trials": test.settings.get("n_trials"),
-                }
-            )
-        _write_tsv(target("existence.tsv"), list(EXISTENCE_COLUMNS_BIDS), rows)
-        _write_json(
-            target("existence.json"),
-            _sidecar(
-                EXISTENCE_COLUMNS_BIDS,
-                units,
-                {
-                    "Settings": test.settings,
-                    "PackageVersion": __version__,
-                    "Provenance": _provenance(test),
-                },
-            ),
-        )
-        container(test, "existence.evoparam")
-    for tset in trial_sets:
-        table = tset.table
-        rows, sites = [], {}
-        for record in table.to_dict("records"):
-            cond = record.get("condition") or ""
-            if cond not in sites:
-                sites[cond] = _stim_fields(trials, cond, ())["stim_site"]
-            rows.append(
-                {
-                    "trial": record.get("trial"),
-                    "onset": record.get("onset"),
-                    "channel": record.get("channel"),
-                    "stim_site": sites[cond],
-                    "component": record.get("label") or f"c{record.get('component')}",
-                    "shift": record.get("shift"),
-                    "scale": record.get("scale"),
-                    "latency": record.get("latency"),
-                    "amplitude": record.get("amplitude"),
-                    "fwhm": record.get("fwhm"),
-                    "r2": record.get("r2"),
-                    "converged": record.get("converged"),
-                    "rejected": not bool(record.get("trusted", True)),
-                    "reject_reason": None if record.get("trusted", True) else "not_trusted",
-                    "quality": record.get("quality"),
-                }
-            )
-        _write_tsv(target("trials.tsv"), list(TRIAL_COLUMNS_BIDS), rows)
-        _write_json(
-            target("trials.json"),
-            _sidecar(
-                TRIAL_COLUMNS_BIDS,
-                units,
-                {
-                    "Settings": tset.settings,
-                    "PackageVersion": __version__,
-                    "Provenance": _provenance(tset),
-                },
-            ),
-        )
-        container(tset, "trials.evoparamset")  # a folder of TrialFit containers
-    records = []
-    for artifact in artifacts:
-        replaced = []
-        masks = getattr(artifact.cleaned, "masks", None)
-        if masks is not None:
-            times = artifact.cleaned.times
-            for trial, channel in np.ndindex(*masks.shape[:2]):
-                edges = np.flatnonzero(np.diff(np.r_[0, masks[trial, channel].astype(int), 0]))
-                for start, stop in zip(edges[::2], edges[1::2], strict=False):
-                    replaced.append(
-                        {
-                            "trial": int(trial),
-                            "channel": artifact.cleaned.ch_names[channel],
-                            "start": float(times[start]),
-                            "stop": float(times[stop - 1]),
-                        }
-                    )
-        quality = artifact.quality_summary()
-        records.append(
-            {
-                "Method": artifact.method,
-                "Window": list(artifact.window),
-                "Parameters": artifact.settings,
-                "PackageVersion": __version__,
-                "QualitySummary": {"median": quality["median"], "p05": quality["p05"]},
-                "ReplacedSamples": replaced,
-                "Provenance": _provenance(artifact),
-            }
-        )
-    if records:
-        # One record per run: the last artifact step (its cleaned trials were fitted), and
-        # every step in order when the preset chains several (e.g. interpolate+subspace).
-        record = dict(records[-1])
-        if len(records) > 1:
-            record["Steps"] = [{k: v for k, v in r.items() if k != "Provenance"} for r in records]
-        _write_json(target("artifact.json"), record)
-        for k, artifact in enumerate(artifacts):
-            container(
-                artifact,
-                "artifact.evoparam" if k == len(artifacts) - 1 else f"artifact{k + 1}.evoparam",
-            )
+    target = _Target(folder, _stem(subject, session, task, run) + f"_desc-{desc}", overwrite)
+    kinds = _Results(items)
+    for group in kinds.groups:
+        _write_responses(target, group, kinds.tests[0] if kinds.tests else None, trials, units)
+    for test in kinds.tests:
+        _write_existence(target, test, trials, units)
+    for tset in kinds.trial_sets:
+        _write_trials(target, tset, trials, units)
+    _write_artifacts(target, kinds.artifacts)
     # dataset level
-    source = {}
-    if bids_root is not None and os.path.exists(
-        os.path.join(bids_root, "dataset_description.json")
-    ):
-        with open(os.path.join(bids_root, "dataset_description.json"), encoding="utf-8") as f:
-            raw = json.load(f)
-        source = {
-            k: v
-            for k, v in (
-                ("DOI", raw.get("DatasetDOI")),
-                ("URL", bids_root if os.path.isdir(bids_root) else None),
-                ("Version", raw.get("DatasetVersion")),
-            )
-            if v
-        }
-    if not source.get("DOI") and bids_root is not None:
-        source.update(_registry_source(bids_root))
-    if source_dataset:
-        source.update(source_dataset)
-    main = (groups or tests or trial_sets or artifacts or [None])[0]
-    generated = {
-        "Name": pipeline_name,
-        "Version": __version__,
-        "Description": "Parameterisation of evoked responses",
-        "CodeURL": "https://github.com/yannbellec/evoparam",
-    }
-    if main is not None and getattr(main, "provenance", None) is not None:
-        # the provenance of the run written last (REQ-336); each sidecar holds its own
-        generated["Provenance"] = _provenance(main)
-    description = {
-        "Name": pipeline_name,
-        "BIDSVersion": "1.9.0",
-        "DatasetType": "derivative",
-        "GeneratedBy": [generated],
-        "SourceDatasets": [source] if source else [],
-    }
-    path = os.path.join(out, "dataset_description.json")
-    _write_json(path, description)
+    source = _source_datasets(bids_root, source_dataset)
+    main = (kinds.ordered or [None])[0]
+    path = _write_description(out, pipeline_name, main, source)
     with open(os.path.join(out, "descriptions.tsv"), "w", encoding="utf-8") as fobj:
         fobj.write("desc_id\tdescription\n")
         fobj.write(
             f"desc-{desc}\tevoparam results: fitted components, existence tests, "
             f"trial parameters and artifact records\n"
         )
-    # The evoparam tables have no BIDS suffix yet (no standard for evoked-response
-    # parameters, spec §10.2): they are declared to the validator, as BIDS prescribes for
-    # files the specification does not cover; so are the result containers saved with them.
-    ignore = os.path.join(out, ".bidsignore")
-    with open(ignore, "w", encoding="utf-8") as fobj:
-        fobj.write(
-            "\n".join(
-                [
-                    f"*_desc-{desc}_{suffix}"
-                    for suffix in (
-                        "responses.tsv",
-                        "responses.json",
-                        "existence.tsv",
-                        "existence.json",
-                        "trials.tsv",
-                        "trials.json",
-                        "artifact.json",
-                    )
-                ]
-                + [
-                    "*.evoparam",
-                    "*.evoparam/",
-                    "*.evoparam/**",
-                    "*.evoparamset/",
-                    "*.evoparamset/**",
-                ]
-            )
-            + "\n"
-        )
-    readme = [
-        f"evoparam {__version__} derivatives.",
-        "",
-        "*_responses.tsv: fitted components, one row per channel x condition x "
-        "component; *_existence.tsv: existence tests; *_trials.tsv: trial-by-trial "
-        "parameters; *_artifact.json: artifact removal and the replaced samples.",
-        "Every TSV has a JSON sidecar with column descriptions, units, settings and provenance.",
-    ]
-    for group in groups:
-        note = (group.settings or {}).get("preset_note")
-        if note:
-            readme.append(f"Preset: {note}.")
-    for result in groups or tests or trial_sets or artifacts:
-        readme += [
-            "",
-            "Methods (generated by evoparam from the provenance of the results):",
-            "",
-            methods_text(result),
-        ]
-        break
-    readme += [
-        "",
-        "Each table has an .evoparam container next to it (the result itself, "
-        "read back by evoparam.io.read_bids_derivatives).",
-    ]
-    with open(os.path.join(out, "README"), "w", encoding="utf-8") as fobj:
-        fobj.write("\n".join(readme) + "\n")
-    return written + [
-        path,
-        os.path.join(out, "descriptions.tsv"),
-        ignore,
-        os.path.join(out, "README"),
-    ]
+    ignore = _write_bidsignore(out, desc)
+    readme = _write_readme(out, kinds)
+    return target.written + [path, os.path.join(out, "descriptions.tsv"), ignore, readme]
 
 
 def _source_datatype(trials: Any, bids_root: Any, subject: Any) -> Any:
@@ -904,6 +1001,7 @@ def _derivative_folder(path: Any) -> Any:
 
 
 def _read_tsv_rows(path: Any) -> tuple[list[str], list[dict[str, str]]]:
+    """Return the header and the rows (dicts of text) of a TSV file."""
     with open(path, encoding="utf-8") as fobj:
         lines = fobj.read().splitlines()
     header = lines[0].split("\t")
@@ -931,7 +1029,91 @@ def _check_table(path: Any, expected_rows: Any, columns: Any) -> None:
                 )
 
 
-def read_bids_derivatives(
+class _DerivativeReader:
+    """Reader of the result containers of one run of a derivative dataset."""
+
+    def __init__(self, prefix: str, stem: str, verify: bool) -> None:
+        """Read the files ``<prefix><suffix>`` (``prefix`` ends with ``<stem>_``)."""
+        self.prefix = prefix
+        self.stem = stem
+        self.verify = verify
+
+    def responses(self) -> Any:
+        """Return the group fit, after checking that responses.tsv still holds its values."""
+        from evoparam.data import load_object
+
+        prefix, verify = self.prefix, self.verify
+        container = prefix + "responses.evoparam"
+        if not os.path.exists(container):
+            return None
+        group = load_object(container, verify=verify)
+        if verify and os.path.exists(prefix + "responses.tsv"):
+            test = self.existence()
+            rows = _response_rows(group, test)
+            columns = [
+                c for c in list(RESPONSE_COLUMNS) + list(CLASSICAL_COLUMNS) if c != "stim_site"
+            ]
+            _check_table(prefix + "responses.tsv", rows, columns)
+        return group
+
+    def existence(self) -> Any:
+        """Return the response test (None when absent)."""
+        from evoparam.data import load_object
+
+        container = self.prefix + "existence.evoparam"
+        return load_object(container, verify=self.verify) if os.path.exists(container) else None
+
+    def trials(self) -> Any:
+        """Return the fields of the trial fits (None when absent)."""
+        from evoparam.data import load_object
+
+        container = self.prefix + "trials.evoparamset"
+        if not os.path.isdir(container):
+            return None
+        from evoparam.data.serialize import _Decoder
+
+        with open(os.path.join(container, "set.json"), encoding="utf-8") as fobj:
+            meta = json.load(fobj)
+        decoder = _Decoder(container, {}, False)
+        fits = [
+            load_object(os.path.join(container, f"fit_{i:04d}.evoparam"), verify=self.verify)
+            for i in range(meta["n_fits"])
+        ]
+        require(
+            "pandas", extra="data", caller="evoparam.io.derivatives.read_bids_derivatives.trials"
+        )
+        import pandas as pd
+
+        table = (
+            pd.concat([f.table for f in fits], ignore_index=True)
+            if fits
+            else pd.read_csv(os.path.join(container, "table.csv"))
+        )
+        return {
+            "fits": fits,
+            "table": table,
+            "skipped_channels": meta["skipped_channels"],
+            "settings": decoder.decode(meta.get("settings", {"__dict__": {}})),
+            "provenance": decoder.decode(meta["provenance"]) if "provenance" in meta else None,
+        }
+
+    def artifact(self) -> Any:
+        """Return the artifact results, in order."""
+        import glob
+
+        from evoparam.data import load_object
+
+        prefix, stem = self.prefix, self.stem
+        paths = sorted(
+            glob.glob(prefix + "artifact[0-9]*.evoparam"),
+            key=lambda p: int(os.path.basename(p)[len(stem) + 9 : -9]),
+        )
+        if os.path.exists(prefix + "artifact.evoparam"):
+            paths.append(prefix + "artifact.evoparam")
+        return [load_object(p, verify=self.verify) for p in paths]
+
+
+def read_bids_derivatives(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
     path: str,
     *,
     subject: str,
@@ -968,8 +1150,6 @@ def read_bids_derivatives(
     """
     import glob
 
-    from evoparam.data import load_object
-
     kinds = ("responses", "existence", "trials", "artifact")
     if kind not in kinds + ("all",):
         raise DataError(f"kind must be one of {kinds + ('all',)}.")
@@ -986,71 +1166,12 @@ def read_bids_derivatives(
     folder = next((f for f in folders if glob.glob(os.path.join(f, stem + "_*"))), None)
     if folder is None:
         raise ReaderError(f"No derivatives {stem}_* under {base}.")
-    prefix = os.path.join(folder, stem + "_")
-
-    def responses() -> Any:
-        container = prefix + "responses.evoparam"
-        if not os.path.exists(container):
-            return None
-        group = load_object(container, verify=verify)
-        if verify and os.path.exists(prefix + "responses.tsv"):
-            test = existence()
-            rows = _response_rows(group, test)
-            columns = [
-                c for c in list(RESPONSE_COLUMNS) + list(CLASSICAL_COLUMNS) if c != "stim_site"
-            ]
-            _check_table(prefix + "responses.tsv", rows, columns)
-        return group
-
-    def existence() -> Any:
-        container = prefix + "existence.evoparam"
-        return load_object(container, verify=verify) if os.path.exists(container) else None
-
-    def trials() -> Any:
-        container = prefix + "trials.evoparamset"
-        if not os.path.isdir(container):
-            return None
-        from evoparam.data.serialize import _Decoder
-
-        with open(os.path.join(container, "set.json"), encoding="utf-8") as fobj:
-            meta = json.load(fobj)
-        decoder = _Decoder(container, {}, False)
-        fits = [
-            load_object(os.path.join(container, f"fit_{i:04d}.evoparam"), verify=verify)
-            for i in range(meta["n_fits"])
-        ]
-        require(
-            "pandas", extra="data", caller="evoparam.io.derivatives.read_bids_derivatives.trials"
-        )
-        import pandas as pd
-
-        table = (
-            pd.concat([f.table for f in fits], ignore_index=True)
-            if fits
-            else pd.read_csv(os.path.join(container, "table.csv"))
-        )
-        return {
-            "fits": fits,
-            "table": table,
-            "skipped_channels": meta["skipped_channels"],
-            "settings": decoder.decode(meta.get("settings", {"__dict__": {}})),
-            "provenance": decoder.decode(meta["provenance"]) if "provenance" in meta else None,
-        }
-
-    def artifact() -> Any:
-        paths = sorted(
-            glob.glob(prefix + "artifact[0-9]*.evoparam"),
-            key=lambda p: int(os.path.basename(p)[len(stem) + 9 : -9]),
-        )
-        if os.path.exists(prefix + "artifact.evoparam"):
-            paths.append(prefix + "artifact.evoparam")
-        return [load_object(p, verify=verify) for p in paths]
-
+    reader = _DerivativeReader(os.path.join(folder, stem + "_"), stem, verify)
     readers = {
-        "responses": responses,
-        "existence": existence,
-        "trials": trials,
-        "artifact": artifact,
+        "responses": reader.responses,
+        "existence": reader.existence,
+        "trials": reader.trials,
+        "artifact": reader.artifact,
     }
     if kind == "all":
         return {name: readers[name]() for name in kinds}

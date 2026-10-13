@@ -28,6 +28,10 @@ from evoparam.utils._optional import require
 
 from ._harmonize import STIM_FIELDS, harmonize_stim_events
 
+# Most missing fields listed in the error of strict=True
+_MAX_LISTED = 50
+
+
 __all__ = ["validate_stim_metadata", "format_stim_report", "VALIDATOR_FIELDS", "STATUSES"]
 
 VALIDATOR_FIELDS = STIM_FIELDS + ("ElectricalStimulation", "reference", "type", "coordinates")
@@ -63,6 +67,7 @@ _KNOWN_TYPES = {
 
 
 def _events_files(root: Any, subject: Any) -> list[Any]:
+    """Return the ``(events.tsv path, datatype)`` pairs of the subject, or of every subject."""
     subjects = (
         [f"sub-{subject.removeprefix('sub-')}"]
         if subject
@@ -128,16 +133,119 @@ def _field_status(
 
 
 def _read_tsv(path: Any) -> Any:
+    """Read a BIDS TSV file (``n/a`` as missing)."""
     pd = require("pandas", extra="data", caller="evoparam.io.validate_stim_metadata")
     return pd.read_csv(path, sep="\t", na_values=["n/a"], keep_default_na=False)
 
 
+def _column_values(table: Any, column: Any) -> list[str] | None:
+    """Return the stripped text of a column of ``channels.tsv`` (None: no table or column)."""
+    if table is None or column not in table.columns:
+        return None
+    return ["" if _is_missing(v) else str(v).strip() for v in table[column].tolist()]
+
+
+def _reference_row(values: list[str] | None, side_ref: str | None) -> tuple[str, str, str]:
+    """Return the (field, status, message) row of the channel reference."""
+    if values is not None and all(values):
+        return ("reference", "present", f"channels.tsv reference for {len(values)} channels")
+    if values is not None and any(values):
+        return (
+            "reference",
+            "inconsistent",
+            f"channels.tsv reference stated for "
+            f"{sum(map(bool, values))} of {len(values)} "
+            f"channels",
+        )
+    if side_ref is not None:
+        return (
+            "reference",
+            "inferred",
+            f"from the recording sidecar: {side_ref!r} (not per channel)",
+        )
+    return (
+        "reference",
+        "missing",
+        "no reference column in channels.tsv and no iEEGReference/EEGReference in the sidecar",
+    )
+
+
+def _type_row(channels: Any) -> tuple[str, str, str]:
+    """Return the (field, status, message) row of the channel types."""
+    values = _column_values(channels, "type")
+    if values is None:
+        return (
+            "type",
+            "missing",
+            "no channels.tsv" if channels is None else "channels.tsv has no type column",
+        )
+    bad = [v for v in values if v.lower() not in _KNOWN_TYPES]
+    if not bad:
+        return ("type", "present", f"{len(values)} channels typed")
+    if len(bad) == len(values):
+        return ("type", "missing", "no channel has a BIDS type")
+    return (
+        "type",
+        "inconsistent",
+        f"{len(bad)} of {len(values)} channels without a BIDS type ({sorted(set(bad))[:5]})",
+    )
+
+
+def _coordinates_row(folder: Any, keys: str, channels: Any) -> tuple[str, str, str]:
+    """Return the (field, status, message) row of the electrode coordinates.
+
+    The coordinates are those of the electrodes.tsv of the subject, session and acquisition,
+    with their unit in coordsystem.json.
+    """
+    electrodes_path = os.path.join(folder, keys + "_electrodes.tsv")
+    if not os.path.isfile(electrodes_path):
+        return ("coordinates", "missing", "no electrodes.tsv")
+    import json
+
+    electrodes = _read_tsv(electrodes_path)
+    system_path = os.path.join(folder, keys + "_coordsystem.json")
+    system = {}
+    if os.path.isfile(system_path):
+        with open(system_path, encoding="utf-8") as fobj:
+            system = json.load(fobj)
+    unit = next(
+        (system[k] for k in ("iEEGCoordinateUnits", "EEGCoordinateUnits") if k in system), None
+    )
+    if not {"name", "x", "y", "z"} <= set(electrodes.columns):
+        return ("coordinates", "inconsistent", "electrodes.tsv lacks x, y or z")
+    xyz = (
+        electrodes[["x", "y", "z"]]
+        .apply(lambda c: c.map(lambda v: np.nan if _is_missing(v) else float(v)))
+        .to_numpy()
+    )
+    n_ok = int(np.isfinite(xyz).all(axis=1).sum())
+    names = set(map(str, electrodes["name"]))
+    listed = set(_column_values(channels, "name") or [])
+    n_without = len(listed - names) if listed else 0
+    if unit is None or str(unit).lower() not in ("m", "cm", "mm"):
+        return (
+            "coordinates",
+            "inconsistent",
+            f"electrodes.tsv has coordinates but coordsystem.json gives no metric unit ({unit!r})",
+        )
+    if n_ok == 0:
+        return ("coordinates", "missing", "electrodes.tsv coordinates are all n/a")
+    if n_ok < len(electrodes) or n_without:
+        return (
+            "coordinates",
+            "inconsistent",
+            f"coordinates for {n_ok} of {len(electrodes)} electrodes"
+            + (f"; {n_without} channels not in electrodes.tsv" if n_without else ""),
+        )
+    space = system.get("iEEGCoordinateSystem", system.get("EEGCoordinateSystem", "unknown space"))
+    return ("coordinates", "present", f"{n_ok} electrodes in {unit}, {space}")
+
+
 def _channel_rows(folder: Any, stem_parts: Any, recording: Any, n_events: Any) -> Any:
-    """Statuses of reference, type and coordinates for one run."""
+    """Return the statuses of reference, type and coordinates for one run."""
     stem = "_".join(
         f"{k}-{stem_parts[k]}" for k in ("sub", "ses", "task", "acq", "run") if stem_parts.get(k)
     )
-    rows = []
     channels_path = os.path.join(folder, stem + "_channels.tsv")
     channels = _read_tsv(channels_path) if os.path.isfile(channels_path) else None
     side_ref = next(
@@ -148,122 +256,12 @@ def _channel_rows(folder: Any, stem_parts: Any, recording: Any, n_events: Any) -
         ),
         None,
     )
-
-    def column_values(table: Any, column: Any) -> Any:
-        if table is None or column not in table.columns:
-            return None
-        return ["" if _is_missing(v) else str(v).strip() for v in table[column].tolist()]
-
-    # reference
-    values = column_values(channels, "reference")
-    if values is not None and all(values):
-        rows.append(("reference", "present", f"channels.tsv reference for {len(values)} channels"))
-    elif values is not None and any(values):
-        rows.append(
-            (
-                "reference",
-                "inconsistent",
-                f"channels.tsv reference stated for "
-                f"{sum(map(bool, values))} of {len(values)} "
-                f"channels",
-            )
-        )
-    elif side_ref is not None:
-        rows.append(
-            (
-                "reference",
-                "inferred",
-                f"from the recording sidecar: {side_ref!r} (not per channel)",
-            )
-        )
-    else:
-        rows.append(
-            (
-                "reference",
-                "missing",
-                "no reference column in channels.tsv and no "
-                "iEEGReference/EEGReference in the sidecar",
-            )
-        )
-    # type
-    values = column_values(channels, "type")
-    if values is None:
-        rows.append(
-            (
-                "type",
-                "missing",
-                "no channels.tsv" if channels is None else "channels.tsv has no type column",
-            )
-        )
-    else:
-        bad = [v for v in values if v.lower() not in _KNOWN_TYPES]
-        if not bad:
-            rows.append(("type", "present", f"{len(values)} channels typed"))
-        elif len(bad) == len(values):
-            rows.append(("type", "missing", "no channel has a BIDS type"))
-        else:
-            rows.append(
-                (
-                    "type",
-                    "inconsistent",
-                    f"{len(bad)} of {len(values)} channels "
-                    f"without a BIDS type ({sorted(set(bad))[:5]})",
-                )
-            )
-    # coordinates (electrodes.tsv of the subject/session/acquisition, units in coordsystem)
     keys = "_".join(f"{k}-{stem_parts[k]}" for k in ("sub", "ses", "acq") if stem_parts.get(k))
-    electrodes_path = os.path.join(folder, keys + "_electrodes.tsv")
-    if not os.path.isfile(electrodes_path):
-        rows.append(("coordinates", "missing", "no electrodes.tsv"))
-    else:
-        import json
-
-        electrodes = _read_tsv(electrodes_path)
-        system_path = os.path.join(folder, keys + "_coordsystem.json")
-        system = {}
-        if os.path.isfile(system_path):
-            with open(system_path, encoding="utf-8") as fobj:
-                system = json.load(fobj)
-        unit = next(
-            (system[k] for k in ("iEEGCoordinateUnits", "EEGCoordinateUnits") if k in system), None
-        )
-        if not {"name", "x", "y", "z"} <= set(electrodes.columns):
-            rows.append(("coordinates", "inconsistent", "electrodes.tsv lacks x, y or z"))
-        else:
-            xyz = (
-                electrodes[["x", "y", "z"]]
-                .apply(lambda c: c.map(lambda v: np.nan if _is_missing(v) else float(v)))
-                .to_numpy()
-            )
-            n_ok = int(np.isfinite(xyz).all(axis=1).sum())
-            names = set(map(str, electrodes["name"]))
-            listed = set(column_values(channels, "name") or [])
-            n_without = len(listed - names) if listed else 0
-            if unit is None or str(unit).lower() not in ("m", "cm", "mm"):
-                rows.append(
-                    (
-                        "coordinates",
-                        "inconsistent",
-                        f"electrodes.tsv has coordinates but coordsystem.json gives no "
-                        f"metric unit ({unit!r})",
-                    )
-                )
-            elif n_ok == 0:
-                rows.append(("coordinates", "missing", "electrodes.tsv coordinates are all n/a"))
-            elif n_ok < len(electrodes) or n_without:
-                rows.append(
-                    (
-                        "coordinates",
-                        "inconsistent",
-                        f"coordinates for {n_ok} of {len(electrodes)} electrodes"
-                        + (f"; {n_without} channels not in electrodes.tsv" if n_without else ""),
-                    )
-                )
-            else:
-                space = system.get(
-                    "iEEGCoordinateSystem", system.get("EEGCoordinateSystem", "unknown space")
-                )
-                rows.append(("coordinates", "present", f"{n_ok} electrodes in {unit}, {space}"))
+    rows = [
+        _reference_row(_column_values(channels, "reference"), side_ref),
+        _type_row(channels),
+        _coordinates_row(folder, keys, channels),
+    ]
     return [(field, status, n_events, message) for field, status, message in rows]
 
 
@@ -274,6 +272,7 @@ def _sidecars(
     import json
 
     def load(path: Any) -> Any:
+        """Return the content of a JSON sidecar ({} when absent or not an object)."""
         if not os.path.isfile(path):
             return {}
         with open(path, encoding="utf-8") as fobj:
@@ -403,8 +402,8 @@ def validate_stim_metadata(
         lines = [f"{r.events_file}: {r.field}" for r in missing.itertuples()]
         raise ReaderError(
             f"{len(lines)} stimulation metadata field(s) missing:\n  "
-            + "\n  ".join(lines[:50])
-            + ("\n  ..." if len(lines) > 50 else "")
+            + "\n  ".join(lines[:_MAX_LISTED])
+            + ("\n  ..." if len(lines) > _MAX_LISTED else "")
         )
     return table
 

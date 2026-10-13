@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from evoparam._typing import Any
+from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError, ReaderError, warn
 from evoparam.utils._optional import require
 
@@ -35,6 +35,7 @@ ICEPHYS_FRACTION = 0.1
 
 
 def _open(path: Any) -> Any:
+    """Open a local or remote NWB file for reading; return the pynwb IO object."""
     pynwb = require("pynwb", extra="nwb", caller="evoparam.io.read_nwb")
     path = os.fspath(path)
     if path.startswith(("http://", "https://")):
@@ -71,6 +72,7 @@ def _all_objects(nwbfile: Any) -> list[Any]:
 
 
 def _series(nwbfile: Any, name: Any) -> Any:
+    """Return the TimeSeries named ``name``, else the first ElectricalSeries."""
     require("pynwb", extra="nwb", caller="evoparam.io.nwb._series")
     from pynwb.base import TimeSeries
 
@@ -95,16 +97,14 @@ def _series(nwbfile: Any, name: Any) -> Any:
 
 
 def _table_frame(table: Any) -> Any:
+    """Return a table as a DataFrame of its scalar columns, with its ids."""
     frame = table.to_dataframe()
     keep = [c for c in frame.columns if frame[c].map(lambda v: np.isscalar(v) or v is None).all()]
     return frame[keep].reset_index(drop=False)
 
 
-def nwb_events(nwbfile: Any, events: Any = None) -> Any:
-    """(onsets in s, events table, source name) by the order of spec §10.3."""
-    require("pandas", extra="data", caller="evoparam.io.nwb.nwb_events")
-    import pandas as pd
-
+def _given_events(events: Any, pd: Any) -> Any:
+    """Return the events given as a table or as onsets (None: a name, or no events given)."""
     if isinstance(events, pd.DataFrame):
         column = "onset" if "onset" in events else "start_time"
         return events[column].to_numpy(float), events.reset_index(drop=True), "table"
@@ -112,7 +112,11 @@ def nwb_events(nwbfile: Any, events: Any = None) -> Any:
         onsets: Any
         onsets = np.asarray(events, float)
         return onsets, pd.DataFrame({"onset": onsets}), "array"
-    # (1) ndx-events EventsTable
+    return None
+
+
+def _events_table_source(nwbfile: Any, events: Any, pd: Any) -> Any:
+    """Return the events of an ndx-events EventsTable (None: none in the file)."""
     for _path, obj in _all_objects(nwbfile):
         if type(obj).__name__ in ("EventsTable", "AnnotatedEventsTable", "Events") and (
             events is None or obj.name == events
@@ -123,12 +127,20 @@ def nwb_events(nwbfile: Any, events: Any = None) -> Any:
                 return frame[column].to_numpy(float), frame, "events_table"
             stamps = np.asarray(obj.timestamps[:], float)
             return stamps, pd.DataFrame({"onset": stamps}), "events_table"
-    # (2) trials
+    return None
+
+
+def _trials_source(nwbfile: Any, events: Any, _pd: Any) -> Any:
+    """Return the events of the trials table (None: no trials table, or another name)."""
     if nwbfile.trials is not None and (events in (None, "trials")):
         frame = _table_frame(nwbfile.trials)
         column = "stim_onset" if "stim_onset" in frame else "start_time"
         return frame[column].to_numpy(float), frame, "trials"
-    # (3) TimeIntervals under /intervals
+    return None
+
+
+def _intervals_source(nwbfile: Any, events: Any, _pd: Any) -> Any:
+    """Return the events of a TimeIntervals table under /intervals (None: none)."""
     intervals = dict(nwbfile.intervals) if nwbfile.intervals is not None else {}
     intervals.pop("trials", None)
     if events is not None and events in intervals:
@@ -138,14 +150,22 @@ def nwb_events(nwbfile: Any, events: Any = None) -> Any:
         name = sorted(intervals)[0]
         frame = _table_frame(intervals[name])
         return frame["start_time"].to_numpy(float), frame, "intervals"
-    # (4) StimTable of ndx-electrical-stim
+    return None
+
+
+def _stim_table_source(nwbfile: Any, _events: Any, _pd: Any) -> Any:
+    """Return the events of a StimTable of ndx-electrical-stim (None: none)."""
     for _path, obj in _all_objects(nwbfile):
         if type(obj).__name__ == "StimTable":
             frame = _table_frame(obj)
             return frame["start_time"].to_numpy(float), frame, "stim_table"
-    # (5) intracellular stimulus series
+    return None
+
+
+def _icephys_source(nwbfile: Any, _events: Any, pd: Any) -> Any:
+    """Return the onsets of the intracellular stimulus series (None: none)."""
     stimuli = list(nwbfile.stimulus.values()) if nwbfile.stimulus else []
-    onsets = []
+    onsets: Any = []
     for series in stimuli:
         if type(series).__name__ not in (
             "CurrentClampStimulusSeries",
@@ -162,6 +182,29 @@ def nwb_events(nwbfile: Any, events: Any = None) -> Any:
     if onsets:
         onsets = np.sort(np.asarray(onsets, float))
         return onsets, pd.DataFrame({"onset": onsets}), "icephys"
+    return None
+
+
+def nwb_events(nwbfile: Any, events: Any = None) -> Any:
+    """Return (onsets in s, events table, source name) by the order of spec §10.3."""
+    require("pandas", extra="data", caller="evoparam.io.nwb.nwb_events")
+    import pandas as pd
+
+    found = _given_events(events, pd)
+    if found is not None:
+        return found
+    # (1) ndx-events EventsTable, (2) trials, (3) TimeIntervals under /intervals,
+    # (4) StimTable of ndx-electrical-stim, (5) intracellular stimulus series
+    for source in (
+        _events_table_source,
+        _trials_source,
+        _intervals_source,
+        _stim_table_source,
+        _icephys_source,
+    ):
+        found = source(nwbfile, events, pd)
+        if found is not None:
+            return found
     raise DataError(
         "No event source in the file (EventsTable, trials, intervals, StimTable, "
         "intracellular stimuli); pass events= (a table name, onsets or a table)."
@@ -169,6 +212,7 @@ def nwb_events(nwbfile: Any, events: Any = None) -> Any:
 
 
 def _harmonise(frame: Any) -> tuple[Any, Any]:
+    """Harmonise the stimulation columns of an NWB events table."""
     from ._harmonize import harmonize_stim_events
 
     sidecar = {c: {"Units": u} for c, u in NWB_UNITS.items() if c in frame}
@@ -182,6 +226,7 @@ def _harmonise(frame: Any) -> tuple[Any, Any]:
 
 
 def _electrodes(_nwbfile: Any, series: Any, picks: Any) -> tuple[list[str], Any, list[int]]:
+    """Return the channel names, the channel table and the column index of the picks."""
     require("pandas", extra="data", caller="evoparam.io.nwb._electrodes")
     import pandas as pd
 
@@ -211,7 +256,87 @@ def _electrodes(_nwbfile: Any, series: Any, picks: Any) -> tuple[list[str], Any,
     return [names[i] for i in index], info.iloc[index].reset_index(drop=True), index
 
 
-def read_nwb(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.1)
+class _Clock:
+    """Sample times of a series: timestamps, or a rate and a starting time."""
+
+    def __init__(self, series: Any) -> None:
+        """Read the timing of ``series``."""
+        self.stamps = None
+        self.start = 0.0
+        if series.timestamps is not None:
+            self.stamps = np.asarray(series.timestamps[:], float)
+            self.sfreq = float(1.0 / np.median(np.diff(self.stamps)))
+        else:
+            self.sfreq = float(series.rate)
+            self.start = float(series.starting_time or 0.0)
+
+    def sample_of(self, t: float) -> int:
+        """Return the sample at time ``t`` (s)."""
+        if self.stamps is not None:
+            return int(np.searchsorted(self.stamps, t))
+        return int(np.ceil(np.round((t - self.start) * self.sfreq, 6)))
+
+    def in_gap(self, onset: float, start_sample: int, window: tuple[int, int]) -> bool:
+        """Return True when the epoch of ``onset`` is not contiguous in the timestamps.
+
+        With timestamps, the recording may have gaps: the epoch must be there and contiguous
+        (an event inside a gap has no data).
+        """
+        stamps, sfreq = self.stamps, self.sfreq
+        if stamps is None:
+            return False
+        first, n_times = window
+        stop_sample = start_sample + n_times
+        at = start_sample - first
+        return bool(
+            abs(stamps[at] - onset) > 1.5 / sfreq
+            or abs(stamps[stop_sample - 1] - stamps[start_sample] - (n_times - 1) / sfreq)
+            > 2.0 / sfreq
+        )
+
+    def epochs(
+        self, onsets: Any, window: tuple[int, int], n_total: int
+    ) -> tuple[list[int], list[int], int]:
+        """Return the events whose epoch is in the recording, and their first samples.
+
+        The third value is the number of events that fall in gaps of the timestamps.
+        """
+        first, n_times = window
+        kept, starts = [], []
+        in_gap = 0
+        for k, onset in enumerate(onsets):
+            start_sample = self.sample_of(onset) + first
+            stop_sample = start_sample + n_times
+            if start_sample < 0 or stop_sample > n_total:
+                continue
+            if self.in_gap(onset, start_sample, window):
+                in_gap += 1
+                continue
+            kept.append(k)
+            starts.append(start_sample)
+        return kept, starts, in_gap
+
+
+def _read_epochs(
+    data: Any, starts: list[int], index: list[int], n_times: int, contiguous: bool
+) -> NDArray[Any]:
+    """Return the epochs ``[start, start + n_times)`` of the channels ``index``.
+
+    ``contiguous``: the channels are a range of columns, read as one slice.
+    """
+    out = np.empty((len(starts), len(index), n_times))
+    for i, start_sample in enumerate(starts):
+        stop_sample = start_sample + n_times
+        if data.ndim == 1:
+            out[i, 0] = data[start_sample:stop_sample]
+        elif contiguous:
+            out[i] = data[start_sample:stop_sample, min(index) : max(index) + 1].T
+        else:
+            out[i] = np.asarray(data[start_sample:stop_sample])[:, index].T
+    return out
+
+
+def read_nwb(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
     path: str,
     *,
     electrical_series: str | None = None,
@@ -263,21 +388,8 @@ def read_nwb(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature f
             onsets, frame = onsets[keep], frame.loc[keep].reset_index(drop=True)
         names, info, index = _electrodes(nwbfile, series, picks)
         data = series.data
-        n_total = data.shape[0]
-        stamps = None
-        if series.timestamps is not None:
-            stamps = np.asarray(series.timestamps[:], float)
-            sfreq = float(1.0 / np.median(np.diff(stamps)))
-
-            def sample_of(t: float) -> int:
-                return int(np.searchsorted(stamps, t))
-        else:
-            sfreq = float(series.rate)
-            start = float(series.starting_time or 0.0)
-
-            def sample_of(t: float) -> int:
-                return int(np.ceil(np.round((t - start) * sfreq, 6)))
-
+        clock = _Clock(series)
+        sfreq = clock.sfreq
         first = int(np.ceil(np.round(tmin * sfreq, 6)))
         n_times = int(np.ceil(np.round(tmax * sfreq, 6))) - first
         times = (first + np.arange(n_times)) / sfreq
@@ -287,27 +399,8 @@ def read_nwb(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature f
         to_uv = 1e6 if unit in ("volts", "v", "volt") else 1.0
         # first the events whose epoch is in the recording, then one array filled in
         # place: the memory used is the epochs and one block (REQ-317)
-        kept, starts = [], []
         contiguous = index == list(range(min(index), max(index) + 1))
-        in_gap = 0
-        for k, onset in enumerate(onsets):
-            start_sample = sample_of(onset) + first
-            stop_sample = start_sample + n_times
-            if start_sample < 0 or stop_sample > n_total:
-                continue
-            if stamps is not None:
-                # with timestamps, the recording may have gaps: the epoch must be there
-                # and contiguous (an event inside a gap has no data)
-                at = start_sample - first
-                if (
-                    abs(stamps[at] - onset) > 1.5 / sfreq
-                    or abs(stamps[stop_sample - 1] - stamps[start_sample] - (n_times - 1) / sfreq)
-                    > 2.0 / sfreq
-                ):
-                    in_gap += 1
-                    continue
-            kept.append(k)
-            starts.append(start_sample)
+        kept, starts, in_gap = clock.epochs(onsets, (first, n_times), data.shape[0])
         if in_gap:
             warn(
                 f"{in_gap} event(s) fall in gaps of the recording (no samples) and were dropped.",
@@ -319,15 +412,7 @@ def read_nwb(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature f
                 f"No epoch fits inside the recording ({in_gap} event(s) in "
                 f"gaps of the timestamps)."
             )
-        out = np.empty((len(kept), len(index), n_times))
-        for i, start_sample in enumerate(starts):
-            stop_sample = start_sample + n_times
-            if data.ndim == 1:
-                out[i, 0] = data[start_sample:stop_sample]
-            elif contiguous:
-                out[i] = data[start_sample:stop_sample, min(index) : max(index) + 1].T
-            else:
-                out[i] = np.asarray(data[start_sample:stop_sample])[:, index].T
+        out = _read_epochs(data, starts, index, n_times, contiguous)
         out *= scale * to_uv
         if offset:
             out += offset * to_uv
@@ -411,6 +496,7 @@ def _pack(result: Any) -> str:
 
 
 def _unpack(text: Any, verify: bool = True) -> Any:
+    """Return the result held in a base64 text of a zipped container."""
     import base64
     import tempfile
 
@@ -424,12 +510,14 @@ def _unpack(text: Any, verify: bool = True) -> Any:
 
 
 def _stim_site(trials: Any, condition: Any) -> Any:
+    """Return the stimulation site of a condition ("" for none)."""
     from evoparam.io.derivatives import _stim_fields
 
     return _stim_fields(trials, condition, ())["stim_site"] or ""
 
 
 def _component_rows(group: Any, test: Any, trials: Any, to_volt: Any) -> Any:
+    """Return the rows of ``evoparam_components``: one per channel, condition and component."""
     present = {}
     if test is not None:
         names = test.settings.get("channels") or []
@@ -519,7 +607,209 @@ TRIAL_TABLE = [
 ]
 
 
-def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.1)
+class _NwbWriter:
+    """Writer of the evoparam tables into one processing module of an NWB file."""
+
+    def __init__(self, nwbfile: Any, mod: Any, ndx: Any, context: dict[str, Any]) -> None:
+        """Write into the module ``mod`` of ``nwbfile``; ``ndx``: the extension module or None.
+
+        ``context`` holds ``items`` (the results), ``trials``, ``to_volt``, ``model``, the
+        ``pynwb`` module and the ``DynamicTable`` and ``DynamicTableRegion`` classes of hdmf.
+        """
+        self.nwbfile = nwbfile
+        self.mod = mod
+        self.ndx = ndx
+        self.electrodes = _electrode_rows(nwbfile)
+        self.items = context["items"]
+        self.trials = context["trials"]
+        self.to_volt = context["to_volt"]
+        self.model = context["model"]
+        self.pynwb = context["pynwb"]
+        self.dynamic_table = context["DynamicTable"]
+        self.dynamic_table_region = context["DynamicTableRegion"]
+        self.stored: list[Any] = []
+
+    def table(self, name: Any, desc: Any, columns: Any, rows: Any, kind: Any) -> Any:
+        """Return a table of ``rows``, with the electrode and trial references it can have."""
+        nwbfile, electrodes = self.nwbfile, self.electrodes
+        cls = self.dynamic_table if self.ndx is None else self.ndx.table_class(kind)
+        tab = cls(name=name, description=desc)
+        names = [r["channel"] for r in rows]
+        region = bool(rows) and bool(electrodes) and all(n in electrodes for n in names)
+        for column, column_desc in columns:
+            if column not in tab.colnames:
+                tab.add_column(column, column_desc, index=column in ("params", "param_names"))
+        if region and "electrode" not in tab.colnames:
+            tab.add_column("electrode", "electrode of the channel", table=nwbfile.electrodes)
+        if (
+            kind == "trials"
+            and "trial" not in tab.colnames
+            and rows
+            and nwbfile.trials is not None
+            and max(r["trial_index"] for r in rows) < len(nwbfile.trials)
+        ):
+            tab.add_column("trial", "trial of the file's trials table", table=nwbfile.trials)
+        for row in rows:
+            values = {c: row[c] for c, _ in columns}
+            if "electrode" in tab.colnames:
+                values["electrode"] = electrodes[row["channel"]]
+            if "trial" in tab.colnames:
+                values["trial"] = int(row["trial_index"])
+            tab.add_row(**values)
+        return tab
+
+    def add(self, item: Any) -> None:
+        """Add the table(s) of one result."""
+        from evoparam.data import GroupFit, ResponseTest
+
+        if isinstance(item, GroupFit):
+            self.add_group(item)
+        elif isinstance(item, ResponseTest):
+            self.add_test(item)
+        elif hasattr(item, "table") and hasattr(item, "fits"):
+            self.add_trial_fits(item)
+        else:
+            raise DataError(f"write_nwb: cannot write a {type(item).__name__}.")
+
+    def add_group(self, item: Any) -> None:
+        """Add ``evoparam_components`` (and ``evoparam_model``) of a group fit."""
+        from evoparam.data import ResponseTest
+
+        test = next((i for i in self.items if isinstance(i, ResponseTest)), None)
+        rows = _component_rows(item, test, self.trials, self.to_volt)
+        columns = list(COMPONENT_TABLE)
+        if self.ndx is not None:
+            columns += _add_shape_params(item, rows)
+        self.mod.add(
+            self.table(
+                "evoparam_components",
+                "Fitted components (evoparam)",
+                columns,
+                rows,
+                "components",
+            )
+        )
+        self.stored.append(("GroupFit", item))
+        if self.model:
+            series = _model_series(
+                item,
+                self.nwbfile,
+                self.electrodes,
+                self.to_volt,
+                self.pynwb,
+                self.dynamic_table_region,
+            )
+            if series is not None:
+                self.mod.add(series)
+
+    def add_test(self, item: Any) -> None:
+        """Add ``evoparam_existence`` of a response test."""
+        names = item.settings.get("channels") or [f"ch{i}" for i in range(len(item.statistic))]
+        conditions = item.settings.get("conditions") or [""] * len(names)
+        rows = [
+            {
+                "channel": str(n),
+                "stim_site": _stim_site(self.trials, c),
+                "condition": str(c or ""),
+                "method": item.method,
+                "statistic": float(item.statistic[i]),
+                "p_value": float(item.p_value[i]),
+                "significant": bool(item.significant[i]),
+                "onset": float(item.onset[i]),
+                "offset": float(item.offset[i]),
+                "duration": float(item.duration[i]),
+                "snr_db": float(item.snr_db[i]),
+            }
+            for i, (n, c) in enumerate(zip(names, conditions, strict=False))
+        ]
+        self.mod.add(
+            self.table(
+                "evoparam_existence",
+                "Existence tests (evoparam)",
+                list(EXISTENCE_TABLE),
+                rows,
+                "existence",
+            )
+        )
+        self.stored.append(("ResponseTest", item))
+
+    def add_trial_fits(self, item: Any) -> None:
+        """Add ``evoparam_trials`` of trial fits."""
+        rows = [
+            {
+                "trial_index": int(r["trial"]),
+                "channel": str(r["channel"]),
+                "component": str(r["label"] or r["component"]),
+                "shift": float(r["shift"]),
+                "scale": float(r["scale"]),
+                "latency": float(r["latency"]),
+                "amplitude": float(r["amplitude"]) * self.to_volt,
+                "converged": bool(r["converged"]),
+            }
+            for r in item.table.to_dict("records")
+        ]
+        self.mod.add(
+            self.table(
+                "evoparam_trials",
+                "Trial-by-trial parameters (evoparam)",
+                list(TRIAL_TABLE),
+                rows,
+                "trials",
+            )
+        )
+        self.stored += [("TrialFit", fit) for fit in item.fits]
+
+    def add_results(self) -> None:
+        """Add ``evoparam_results``: each stored result as a zipped container."""
+        from evoparam.version import __version__
+
+        results = self.dynamic_table(
+            name="evoparam_results",
+            description="Each result as a zipped .evoparam container (base64), "
+            "read back exactly by evoparam.io.read_nwb_results",
+        )
+        results.add_column("result_type", "class of the result")
+        results.add_column("package_version", "evoparam version that wrote it")
+        results.add_column("container", "zipped .evoparam container, base64")
+        for kind, obj in self.stored:
+            results.add_row(result_type=kind, package_version=__version__, container=_pack(obj))
+        self.mod.add(results)
+
+
+def _add_shape_params(group: Any, rows: list[Any]) -> list[tuple[str, str]]:
+    """Add the shape parameters of each component to its row; return the two new columns."""
+    params = []
+    for _ch, _cond, pos in group.index[["channel", "condition", "position"]].itertuples(
+        index=False
+    ):
+        for comp in group.fits[int(pos)].components or [None]:
+            params.append(comp)
+    for row, comp in zip(rows, params, strict=False):
+        row["param_names"] = list(comp.param_names) if comp else []
+        row["params"] = [float(v) for v in comp.params] if comp else []
+    return [
+        ("param_names", "names of the shape parameters (ragged)"),
+        ("params", "shape parameters (ragged; times in s)"),
+    ]
+
+
+def _module_description(items: list[Any]) -> dict[str, Any]:
+    """Return the settings, provenance and methods paragraph of each result."""
+    from evoparam.data._jsonutil import to_jsonable
+
+    return {
+        "settings": [to_jsonable(getattr(i, "settings", {})) for i in items],
+        "provenance": [
+            getattr(getattr(i, "provenance", None), "to_dict", lambda: None)() for i in items
+        ],
+        # the methods paragraph of each result (spec §11.8, REQ-390)
+        "methods": [
+            i.methods_text() if callable(getattr(i, "methods_text", None)) else None for i in items
+        ],
+    }
+
+
+def write_nwb(
     result: Any,
     nwbfile_or_path: Any,
     *,
@@ -564,8 +854,7 @@ def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by 
     require("hdmf", extra="nwb", caller="evoparam.io.nwb.write_nwb")
     from hdmf.common import DynamicTable, DynamicTableRegion
 
-    from evoparam.data import GroupFit, ResponseTest, TrialSet
-    from evoparam.data._jsonutil import to_jsonable
+    from evoparam.data import TrialSet
     from evoparam.version import __version__
 
     items = list(result) if isinstance(result, (list, tuple)) else [result]
@@ -588,153 +877,29 @@ def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by 
     to_volt = {"uV": 1e-6, "mV": 1e-3, "V": 1.0}.get(units)
     if to_volt is None:
         raise DataError(f"write_nwb: units must be uV, mV or V, not {units!r}.")
-    description = {
-        "settings": [to_jsonable(getattr(i, "settings", {})) for i in items],
-        "provenance": [
-            getattr(getattr(i, "provenance", None), "to_dict", lambda: None)() for i in items
-        ],
-        # the methods paragraph of each result (spec §11.8, REQ-390)
-        "methods": [
-            i.methods_text() if callable(getattr(i, "methods_text", None)) else None for i in items
-        ],
-    }
+    description = _module_description(items)
     if module in nwbfile.processing:
         raise DataError(
             f"The file already has a processing module {module!r}; pass another module= name."
         )
     mod = nwbfile.create_processing_module(module, json.dumps(description, allow_nan=False))
-    electrodes = _electrode_rows(nwbfile)
-
-    def table(name: Any, desc: Any, columns: Any, rows: Any, kind: Any) -> Any:
-        cls = DynamicTable if ndx is None else ndx.table_class(kind)
-        tab = cls(name=name, description=desc)
-        names = [r["channel"] for r in rows]
-        region = bool(rows) and bool(electrodes) and all(n in electrodes for n in names)
-        for column, column_desc in columns:
-            if column not in tab.colnames:
-                tab.add_column(column, column_desc, index=column in ("params", "param_names"))
-        if region and "electrode" not in tab.colnames:
-            tab.add_column("electrode", "electrode of the channel", table=nwbfile.electrodes)
-        if (
-            kind == "trials"
-            and "trial" not in tab.colnames
-            and rows
-            and nwbfile.trials is not None
-            and max(r["trial_index"] for r in rows) < len(nwbfile.trials)
-        ):
-            tab.add_column("trial", "trial of the file's trials table", table=nwbfile.trials)
-        for row in rows:
-            values = {c: row[c] for c, _ in columns}
-            if "electrode" in tab.colnames:
-                values["electrode"] = electrodes[row["channel"]]
-            if "trial" in tab.colnames:
-                values["trial"] = int(row["trial_index"])
-            tab.add_row(**values)
-        return tab
-
-    stored: list[Any] = []
-    for item in items:
-        if isinstance(item, GroupFit):
-            test = next((i for i in items if isinstance(i, ResponseTest)), None)
-            rows = _component_rows(item, test, trials, to_volt)
-            columns = list(COMPONENT_TABLE)
-            if ndx is not None:
-                params = []
-                for _ch, _cond, pos in item.index[["channel", "condition", "position"]].itertuples(
-                    index=False
-                ):
-                    for comp in item.fits[int(pos)].components or [None]:
-                        params.append(comp)
-                for row, comp in zip(rows, params, strict=False):
-                    row["param_names"] = list(comp.param_names) if comp else []
-                    row["params"] = [float(v) for v in comp.params] if comp else []
-                columns += [
-                    ("param_names", "names of the shape parameters (ragged)"),
-                    ("params", "shape parameters (ragged; times in s)"),
-                ]
-            mod.add(
-                table(
-                    "evoparam_components",
-                    "Fitted components (evoparam)",
-                    columns,
-                    rows,
-                    "components",
-                )
-            )
-            stored.append(("GroupFit", item))
-            if model:
-                series = _model_series(
-                    item, nwbfile, electrodes, to_volt, pynwb, DynamicTableRegion
-                )
-                if series is not None:
-                    mod.add(series)
-        elif isinstance(item, ResponseTest):
-            names = item.settings.get("channels") or [f"ch{i}" for i in range(len(item.statistic))]
-            conditions = item.settings.get("conditions") or [""] * len(names)
-            rows = [
-                {
-                    "channel": str(n),
-                    "stim_site": _stim_site(trials, c),
-                    "condition": str(c or ""),
-                    "method": item.method,
-                    "statistic": float(item.statistic[i]),
-                    "p_value": float(item.p_value[i]),
-                    "significant": bool(item.significant[i]),
-                    "onset": float(item.onset[i]),
-                    "offset": float(item.offset[i]),
-                    "duration": float(item.duration[i]),
-                    "snr_db": float(item.snr_db[i]),
-                }
-                for i, (n, c) in enumerate(zip(names, conditions, strict=False))
-            ]
-            mod.add(
-                table(
-                    "evoparam_existence",
-                    "Existence tests (evoparam)",
-                    list(EXISTENCE_TABLE),
-                    rows,
-                    "existence",
-                )
-            )
-            stored.append(("ResponseTest", item))
-        elif hasattr(item, "table") and hasattr(item, "fits"):
-            frame = item.table
-            rows = [
-                {
-                    "trial_index": int(r["trial"]),
-                    "channel": str(r["channel"]),
-                    "component": str(r["label"] or r["component"]),
-                    "shift": float(r["shift"]),
-                    "scale": float(r["scale"]),
-                    "latency": float(r["latency"]),
-                    "amplitude": float(r["amplitude"]) * to_volt,
-                    "converged": bool(r["converged"]),
-                }
-                for r in frame.to_dict("records")
-            ]
-            mod.add(
-                table(
-                    "evoparam_trials",
-                    "Trial-by-trial parameters (evoparam)",
-                    list(TRIAL_TABLE),
-                    rows,
-                    "trials",
-                )
-            )
-            stored += [("TrialFit", fit) for fit in item.fits]
-        else:
-            raise DataError(f"write_nwb: cannot write a {type(item).__name__}.")
-    results = DynamicTable(
-        name="evoparam_results",
-        description="Each result as a zipped .evoparam container (base64), "
-        "read back exactly by evoparam.io.read_nwb_results",
+    writer = _NwbWriter(
+        nwbfile,
+        mod,
+        ndx,
+        {
+            "items": items,
+            "trials": trials,
+            "to_volt": to_volt,
+            "model": model,
+            "pynwb": pynwb,
+            "DynamicTable": DynamicTable,
+            "DynamicTableRegion": DynamicTableRegion,
+        },
     )
-    results.add_column("result_type", "class of the result")
-    results.add_column("package_version", "evoparam version that wrote it")
-    results.add_column("container", "zipped .evoparam container, base64")
-    for kind, obj in stored:
-        results.add_row(result_type=kind, package_version=__version__, container=_pack(obj))
-    mod.add(results)
+    for item in items:
+        writer.add(item)
+    writer.add_results()
     if ndx is not None:
         nwbfile.add_lab_meta_data(
             ndx.settings_record(items, description, __version__, name=f"{module}_settings")
@@ -797,6 +962,41 @@ def _model_series(
         )
 
 
+def _verify_components(mod: Any, found: dict[str, list[Any]]) -> None:
+    """Check that ``evoparam_components`` still holds the values of the stored GroupFit."""
+    group = found["GroupFit"][0]
+    test = found["ResponseTest"][0] if found["ResponseTest"] else None
+    stored = mod["evoparam_components"].to_dataframe()
+    unit = 1.0
+    expected = _component_rows(group, test, None, 1.0)
+    if len(expected) != len(stored):
+        raise DataError(
+            "evoparam_components does not match the stored GroupFit (rows "
+            "differ): the table was edited."
+        )
+    amplitudes = stored["amplitude"].to_numpy(float)
+    reference = np.array([r["amplitude"] for r in expected], float)
+    finite = np.isfinite(reference)
+    if finite.any():
+        ratio = amplitudes[finite] / np.where(reference[finite] == 0, 1, reference[finite])
+        unit = float(np.median(ratio))
+    for column in ("latency", "fwhm", "onset", "offset", "r2"):
+        a = stored[column].to_numpy(float)
+        b = np.array([r[column] for r in expected], float)
+        if not np.allclose(a, b, rtol=1e-12, atol=0, equal_nan=True):
+            raise DataError(
+                f"evoparam_components column {column!r} does not match "
+                f"the stored GroupFit: the table was edited."
+            )
+    if not np.allclose(amplitudes, reference * unit, rtol=1e-9, equal_nan=True):
+        raise DataError(
+            "evoparam_components column 'amplitude' does not match the "
+            "stored GroupFit: the table was edited."
+        )
+    if list(stored["component"]) != [r["component"] for r in expected]:
+        raise DataError("evoparam_components labels do not match the stored GroupFit.")
+
+
 def read_nwb_results(
     path: Any, *, module: str = "evoparam", kind: str = "components", verify: bool = True
 ) -> Any:
@@ -843,37 +1043,7 @@ def read_nwb_results(
         for kind_name, text in zip(frame["result_type"], frame["container"], strict=False):
             found.setdefault(kind_name, []).append(_unpack(text, verify=verify))
         if verify and found["GroupFit"] and "evoparam_components" in mod.data_interfaces:
-            group = found["GroupFit"][0]
-            test = found["ResponseTest"][0] if found["ResponseTest"] else None
-            stored = mod["evoparam_components"].to_dataframe()
-            unit = 1.0
-            expected = _component_rows(group, test, None, 1.0)
-            if len(expected) != len(stored):
-                raise DataError(
-                    "evoparam_components does not match the stored GroupFit (rows "
-                    "differ): the table was edited."
-                )
-            amplitudes = stored["amplitude"].to_numpy(float)
-            reference = np.array([r["amplitude"] for r in expected], float)
-            finite = np.isfinite(reference)
-            if finite.any():
-                ratio = amplitudes[finite] / np.where(reference[finite] == 0, 1, reference[finite])
-                unit = float(np.median(ratio))
-            for column in ("latency", "fwhm", "onset", "offset", "r2"):
-                a = stored[column].to_numpy(float)
-                b = np.array([r[column] for r in expected], float)
-                if not np.allclose(a, b, rtol=1e-12, atol=0, equal_nan=True):
-                    raise DataError(
-                        f"evoparam_components column {column!r} does not match "
-                        f"the stored GroupFit: the table was edited."
-                    )
-            if not np.allclose(amplitudes, reference * unit, rtol=1e-9, equal_nan=True):
-                raise DataError(
-                    "evoparam_components column 'amplitude' does not match the "
-                    "stored GroupFit: the table was edited."
-                )
-            if list(stored["component"]) != [r["component"] for r in expected]:
-                raise DataError("evoparam_components labels do not match the stored GroupFit.")
+            _verify_components(mod, found)
         out = {
             "components": found["GroupFit"][0] if found["GroupFit"] else None,
             "existence": found["ResponseTest"][0] if found["ResponseTest"] else None,

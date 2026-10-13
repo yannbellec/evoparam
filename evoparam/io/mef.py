@@ -42,10 +42,12 @@ holds only the subject identity and the recording time offset, is ignored), reco
 """
 
 import concurrent.futures
+import contextlib
 import hashlib
 import os
 import re
 import struct
+from dataclasses import dataclass
 from typing import cast
 from xml.etree import ElementTree
 
@@ -56,6 +58,19 @@ from evoparam.errors import DataError, ReaderError
 from evoparam.errors import warn as _warn
 from evoparam.io._fetch import RemoteFile, TransferLog, fetch_bytes, is_url, quote, unquote
 from evoparam.io.brainvision import _pick, _sample
+
+# Shortest range a CRC is computed on (the CRC field itself is 4 bytes)
+_CRC_MIN_BYTES = 4
+# RED range decoder: the last symbol of the 256-symbol alphabet, and the symbol that flags a
+# keysample (a full 4-byte value follows), as RED_decode of meflib
+_LAST_SYMBOL = 255
+_KEYSAMPLE_FLAG = 0x80
+# Major version read by this module
+_MEF_VERSION = 3
+# RED range decoder: renormalisation threshold (2**23) and 32-bit mask
+_RED_BOTTOM = 1 << 23
+_MASK32 = 0xFFFFFFFF
+
 
 __all__ = ["read_mef", "read_mef_header"]
 
@@ -195,7 +210,7 @@ def crc32_koopman(buf: NDArray[np.uint8], starts: Any, lengths: Any) -> FloatArr
     lengths = np.asarray(lengths, dtype=np.int64)
     if starts.size == 0:
         return np.zeros(0, dtype=np.uint32)
-    if lengths.min() < 4:
+    if lengths.min() < _CRC_MIN_BYTES:
         raise ReaderError("MEF: CRC of a range shorter than 4 bytes.")
     first = np.cumsum(lengths) - lengths
     within = np.arange(int(lengths.sum()), dtype=np.int64) - np.repeat(first, lengths)
@@ -226,6 +241,7 @@ def crc32_koopman(buf: NDArray[np.uint8], starts: Any, lengths: Any) -> FloatArr
 
 
 def _crc_bytes(content: Any) -> int:
+    """Return the CRC-32 (Koopman) of bytes."""
     buf = np.frombuffer(content, dtype=np.uint8)
     return int(crc32_koopman(buf, [0], [buf.size])[0])
 
@@ -239,6 +255,70 @@ def _red_round(values: Any) -> Any:
     out = np.where(values >= 0, values + 0.5, values - 0.5)
     out = np.clip(out, RED_NEGATIVE_INFINITY, RED_POSITIVE_INFINITY)
     return np.trunc(out).astype(np.int64)
+
+
+def _red_tables(headers: Any, n_symbols: IntArray) -> tuple[Any, Any, Any, Any, Any]:
+    """Return the symbol tables of RED blocks: counts, cumulative counts, totals, lookup, base.
+
+    ``lookup[base[b] + c]`` is the symbol of the cumulative count ``c`` of block ``b``.
+    """
+    n_blocks = len(n_symbols)
+    counts = headers["statistics"].astype(np.int64)
+    cumulative = np.zeros((n_blocks, 257), dtype=np.int64)
+    np.cumsum(counts, axis=1, out=cumulative[:, 1:])
+    totals = cumulative[:, 256]
+    if np.any((totals == 0) & (n_symbols > 0)):
+        raise ReaderError("MEF: a RED block has no symbol statistics (corrupted block).")
+    # Symbol of each cumulative count, all blocks in one table
+    lookup = np.repeat(np.tile(np.arange(256, dtype=np.int64), n_blocks), counts.ravel())
+    base = np.cumsum(totals) - totals
+    return counts, cumulative, totals, lookup, base
+
+
+def _red_renormalise(buf: Any, lo: Any, rg: Any, ib: Any, ps: Any) -> None:
+    """Shift in one byte while the range is at most 2**23 (in place, as RED_decode)."""
+    need = rg <= _RED_BOTTOM
+    while need.any():
+        idx = np.flatnonzero(need)
+        nxt = buf[ps[idx]].astype(np.int64)
+        lo[idx] = (((lo[idx] << 8) | ((ib[idx] << 7) & 0xFF)) & _MASK32) | (nxt >> 1)
+        ib[idx] = nxt
+        ps[idx] += 1
+        rg[idx] <<= 8
+        need = rg <= _RED_BOTTOM
+
+
+def _red_samples(symbol: Any, rem: Any, ky: Any, cur: Any) -> None:
+    """Update the samples being rebuilt with one decoded symbol per block (in place).
+
+    ``rem`` counts the bytes left of a keysample, ``ky`` holds its bytes so far and ``cur`` is
+    the current sample.
+    """
+    payload = rem > 0
+    ky[:] = np.where(payload, ky | (symbol << ((4 - rem) << 3)), 0)
+    rem[:] = np.where(payload, rem - 1, (symbol == _KEYSAMPLE_FLAG) << 2)
+    cur[:] = np.where(payload, ky - ((ky >> 31) << 32), cur + ((symbol ^ 0x80) - 0x80))
+
+
+def _red_unlossy(values: Any, offsets: Any, n_samples: Any, headers: Any) -> None:
+    """Undo the lossy steps of the blocks that have them (in place)."""
+    # unscale, then add the trend back (meflib RED_unscale, RED_retrend)
+    lossy = np.flatnonzero(
+        (headers["scale_factor"] > 1.0)
+        | (headers["detrend_slope"] != 0)
+        | (headers["detrend_intercept"] != 0)
+    )
+    for ind in lossy:
+        part = slice(offsets[ind], offsets[ind] + n_samples[ind])
+        block = values[part].astype(np.float64)
+        scale = float(headers["scale_factor"][ind])
+        if scale > 1.0:
+            block = _red_round(block * scale).astype(np.float64)
+        slope = float(headers["detrend_slope"][ind])
+        intercept = float(headers["detrend_intercept"][ind])
+        if slope != 0 or intercept != 0:
+            block = _red_round(block + slope * np.arange(1, block.size + 1) + intercept)
+        values[part] = block
 
 
 def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[NDArray[Any], Any]:
@@ -274,15 +354,7 @@ def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[
     n_symbols = np.where(n_samples > 0, headers["difference_bytes"].astype(np.int64) - 1, 0)
     if n_blocks == 0 or n_symbols.max() <= 0:
         return values, offsets
-    counts = headers["statistics"].astype(np.int64)
-    cumulative = np.zeros((n_blocks, 257), dtype=np.int64)
-    np.cumsum(counts, axis=1, out=cumulative[:, 1:])
-    totals = cumulative[:, 256]
-    if np.any((totals == 0) & (n_symbols > 0)):
-        raise ReaderError("MEF: a RED block has no symbol statistics (corrupted block).")
-    # Symbol of each cumulative count, all blocks in one table
-    lookup = np.repeat(np.tile(np.arange(256, dtype=np.int64), n_blocks), counts.ravel())
-    base = np.cumsum(totals) - totals
+    counts, cumulative, totals, lookup, base = _red_tables(headers, n_symbols)
 
     order = np.argsort(-n_symbols, kind="stable")
     sorted_symbols = n_symbols[order]
@@ -304,35 +376,24 @@ def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[
     remaining = np.full(n_blocks, 4, dtype=np.int64)  # bytes left of a keysample
     key = np.zeros(n_blocks, dtype=np.int64)
     current = np.zeros(n_blocks, dtype=np.int64)
-    bottom, mask32 = 1 << 23, 0xFFFFFFFF
 
     for step in range(n_steps):
         k = int(active[step])
-        lo, rg, ib, ps = low[:k], rng[:k], in_byte[:k], pos[:k]
-        # Renormalise: shift in one byte while the range is at most 2**23
-        need = rg <= bottom
-        while need.any():
-            idx = np.flatnonzero(need)
-            nxt = buf[ps[idx]].astype(np.int64)
-            lo[idx] = (((lo[idx] << 8) | ((ib[idx] << 7) & 0xFF)) & mask32) | (nxt >> 1)
-            ib[idx] = nxt
-            ps[idx] += 1
-            rg[idx] <<= 8
-            need = rg <= bottom
+        lo, rg = low[:k], rng[:k]
+        _red_renormalise(buf, lo, rg, in_byte[:k], pos[:k])
         tk = total[:k]
         per_count = rg // tk
         count = np.minimum(lo // per_count, tk - 1)
         symbol = lookup[base[:k] + count]
         below = per_count * cum_flat[cum_row[:k] + symbol]
         lo -= below
-        rg[:] = np.where(symbol == 255, rg - below, per_count * count_flat[count_row[:k] + symbol])
+        rg[:] = np.where(
+            symbol == _LAST_SYMBOL, rg - below, per_count * count_flat[count_row[:k] + symbol]
+        )
         # Rebuild the samples
-        rem, ky, cur = remaining[:k], key[:k], current[:k]
-        payload = rem > 0
-        ky[:] = np.where(payload, ky | (symbol << ((4 - rem) << 3)), 0)
-        rem[:] = np.where(payload, rem - 1, (symbol == 0x80) << 2)
-        cur[:] = np.where(payload, ky - ((ky >> 31) << 32), cur + ((symbol ^ 0x80) - 0x80))
-        done = np.flatnonzero(rem == 0)
+        cur = current[:k]
+        _red_samples(symbol, remaining[:k], key[:k], cur)
+        done = np.flatnonzero(remaining[:k] == 0)
         values[out_offset[done] + written[done]] = cur[done]
         written[done] += 1
 
@@ -341,23 +402,7 @@ def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[
             "MEF: a RED block decodes to a wrong number of samples (corrupted block)."
         )
 
-    # Lossy blocks: unscale, then add the trend back (meflib RED_unscale, RED_retrend)
-    lossy = np.flatnonzero(
-        (headers["scale_factor"] > 1.0)
-        | (headers["detrend_slope"] != 0)
-        | (headers["detrend_intercept"] != 0)
-    )
-    for ind in lossy:
-        part = slice(offsets[ind], offsets[ind] + n_samples[ind])
-        block = values[part].astype(np.float64)
-        scale = float(headers["scale_factor"][ind])
-        if scale > 1.0:
-            block = _red_round(block * scale).astype(np.float64)
-        slope = float(headers["detrend_slope"][ind])
-        intercept = float(headers["detrend_intercept"][ind])
-        if slope != 0 or intercept != 0:
-            block = _red_round(block + slope * np.arange(1, block.size + 1) + intercept)
-        values[part] = block
+    _red_unlossy(values, offsets, n_samples, headers)
     return values, offsets
 
 
@@ -366,6 +411,7 @@ def red_decode(buf: NDArray[np.uint8], starts: IntArray, headers: Any) -> tuple[
 
 
 def _text(content: Any, offset: Any, nbytes: Any) -> Any:
+    """Return the NUL-terminated UTF-8 text of a header field."""
     return content[offset : offset + nbytes].split(b"\0", 1)[0].decode("utf-8", "replace").strip()
 
 
@@ -377,7 +423,7 @@ def _universal_header(content: Any, where: Any, kind: Any, check_crc: Any) -> di
     if found != kind:
         raise ReaderError(f"{where}: not a MEF 3.0 {kind} file (type {found!r}).")
     major, minor, order = content[13], content[14], content[15]
-    if major != 3:
+    if major != _MEF_VERSION:
         raise ReaderError(f"{where}: MEF version {major}.{minor}; only MEF 3 is supported.")
     if order != 1:
         raise ReaderError(f"{where}: big-endian MEF files are not supported.")
@@ -409,6 +455,7 @@ def _universal_header(content: Any, where: Any, kind: Any, check_crc: Any) -> di
 
 
 def _encrypted(where: Any, what: Any, level: Any) -> "ReaderError":
+    """Return the ReaderError of an encrypted part of a session."""
     return ReaderError(
         f"{where}: {what} is encrypted (level {level}). evoparam reads unencrypted MEF 3.0 only; "
         "decrypt the session with the MEF library and its password first."
@@ -471,6 +518,7 @@ def parse_index(content: Any, where: Any, check_crc: bool = True) -> NDArray[Any
 
 
 def _natural_key(name: Any) -> list[Any]:
+    """Return the sort key of a name with its numbers compared as numbers."""
     return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", name)]
 
 
@@ -482,6 +530,7 @@ def _bids_channels_tsv(path: Any) -> Any:
 
 
 def _names_from_tsv(content: Any) -> Any:
+    """Return the channel names of a channels.tsv (None without a name column)."""
     lines = content.decode("utf-8", "replace").splitlines()
     if not lines:
         return None
@@ -550,6 +599,7 @@ class _Session:
     """Files of a MEF session, on disk or behind an http(s) address."""
 
     def __init__(self, path: Any, remote: Any, log: Any) -> None:
+        """Hold the local folder or the address of a session (``remote`` None: from the path)."""
         path = os.fspath(path)
         if remote is None:
             remote = is_url(path)
@@ -564,10 +614,12 @@ class _Session:
             raise ReaderError(f"MEF session not found: {self.root}")
 
     def rel(self, channel: Any, segment: Any, ext: Any) -> str:
+        """Return the relative path of a file of a channel segment."""
         seg = f"{channel}-{segment:06d}"
         return f"{channel}.timd/{seg}.segd/{seg}.{ext}"
 
     def location(self, rel: Any) -> str:
+        """Return the path or the address of the file ``rel`` of the session."""
         if self.remote:
             return cast("str", self.root + "/" + "/".join(quote(part) for part in rel.split("/")))
         return cast("str", os.path.join(self.root, *rel.split("/")))
@@ -899,18 +951,19 @@ def _fetch_runs(session: Any, rel: Any, runs: Any) -> tuple[list[Any], list[Any]
     Returns (list of bytes, digest lines, network bytes).
     """
     out, lines = [], []
-    if session.remote:
+    with contextlib.ExitStack() as stack:
         reader: Any
-        reader = RemoteFile(session.location(rel), chunk_size=_CHUNK, max_chunks=1 << 16)
-        read = reader.read
-    else:
-        reader = open(session.location(rel), "rb")  # noqa: SIM115  (closed in the finally block below, as the remote reader is)
+        if session.remote:
+            reader = RemoteFile(session.location(rel), chunk_size=_CHUNK, max_chunks=1 << 16)
+            stack.enter_context(contextlib.closing(reader))
+            read = reader.read
+        else:
+            reader = stack.enter_context(open(session.location(rel), "rb"))
 
-        def read(offset: Any, nbytes: Any) -> Any:
-            reader.seek(offset)
-            return reader.read(nbytes)
+            def read(offset: Any, nbytes: Any) -> Any:
+                reader.seek(offset)
+                return reader.read(nbytes)
 
-    try:
         for run in runs:
             offset, nbytes = run[1], run[2]
             content = read(offset, nbytes)
@@ -921,8 +974,6 @@ def _fetch_runs(session: Any, rel: Any, runs: Any) -> tuple[list[Any], list[Any]
                 )
             out.append(content)
             lines.append(f"{rel}:{offset}-{offset + nbytes}:{hashlib.sha256(content).hexdigest()}")
-    finally:
-        reader.close()
     return out, lines, reader.bytes_read if session.remote else 0
 
 
@@ -933,6 +984,194 @@ def _convert(values: Any, factor: Any) -> Any:
     out[values == RED_NEGATIVE_INFINITY] = -np.inf
     out[values == RED_POSITIVE_INFINITY] = np.inf
     return out
+
+
+def _needed_blocks(blocks: Any, pos: Any, starts: Any, stops: Any) -> NDArray[np.bool_]:
+    """Return which blocks of a channel cover a sample of a window (64 windows at a time)."""
+    need = np.zeros(len(blocks), dtype=bool)
+    for lo in range(0, starts.size, 64):
+        need |= np.any(
+            (pos[None, :] < stops[lo : lo + 64, None])
+            & (pos[None, :] + blocks["n"][None, :] > starts[lo : lo + 64, None]),
+            axis=0,
+        )
+    return need
+
+
+def _grid_blocks(
+    header: Any, ch_index: Any, window: tuple[Any, Any], check_crc: bool
+) -> tuple[list[Any], dict[Any, Any]]:
+    """Return the blocks that cover the windows ``(starts, stops)``.
+
+    Returns the constant blocks as pieces ``(col, channel index, first sample, n, None, value)``
+    and the data runs to read, grouped per .tdat file.
+    """
+    starts, stops = window
+    pieces: list[Any] = []
+    files: dict[Any, Any] = {}
+    ch: Any
+    col: Any
+    for col, ch in enumerate(ch_index):
+        channel = header["channels"][ch]
+        pos: Any
+        blocks, pos = channel["blocks"], channel["pos"]
+        if len(blocks) == 0:
+            continue
+        need = _needed_blocks(blocks, pos, starts, stops)
+        constant: Any
+        constant = need & (blocks["maximum"] == blocks["minimum"]) & (blocks["maximum"] != RED_NAN)
+        for ind in np.flatnonzero(constant):
+            pieces.append(
+                (col, ch, int(pos[ind]), int(blocks["n"][ind]), None, int(blocks["maximum"][ind]))
+            )
+        for seg, offset, nbytes, members in _runs_of(
+            blocks, need if check_crc else need & ~constant
+        ):
+            rel = channel["segments"][seg]["tdat"]
+            files.setdefault(rel, []).append((seg, offset, nbytes, members, col, ch))
+    return pieces, files
+
+
+def _fetch_files(session: Any, files: dict[Any, Any]) -> tuple[list[Any], list[Any]]:
+    """Read the runs of every file (remote files in parallel); return the jobs and the bytes."""
+    jobs = list(files.items())
+    if session.remote and len(jobs) > 1:
+        with concurrent.futures.ThreadPoolExecutor(min(_WORKERS, len(jobs))) as pool:
+            fetched = list(pool.map(lambda job: _fetch_runs(session, job[0], job[1]), jobs))
+    else:
+        fetched = [_fetch_runs(session, rel, runs) for rel, runs in jobs]
+    return jobs, fetched
+
+
+@dataclass
+class _Fetched:
+    """The data blocks read: one buffer, where each block starts, and what each block is."""
+
+    buf: Any
+    block_starts: Any
+    info: list[Any]  # col, ch, block, n, bytes, constant
+    lines: list[Any]
+    network: int
+
+
+def _join_blocks(header: Any, jobs: list[Any], fetched: list[Any]) -> _Fetched:
+    """Join the bytes read into one buffer (8 zero bytes after each run) and index the blocks."""
+    chunks, lines, network, cursor = [], [], 0, 0
+    block_starts: Any
+    block_starts, info = [], []
+    for (_rel, runs), (contents, file_lines, nbytes) in zip(jobs, fetched, strict=False):
+        lines += file_lines
+        network += nbytes
+        for (_, offset, _, members, col, ch), content in zip(runs, contents, strict=False):
+            blocks = header["channels"][ch]["blocks"]
+            for ind in members:
+                block_starts.append(cursor + int(blocks["offset"][ind]) - offset)
+                info.append(
+                    (
+                        col,
+                        ch,
+                        ind,
+                        int(blocks["n"][ind]),
+                        int(blocks["nbytes"][ind]),
+                        bool(
+                            blocks["maximum"][ind] == blocks["minimum"][ind]
+                            and blocks["maximum"][ind] != RED_NAN
+                        ),
+                    )
+                )
+            chunks += [content, bytes(8)]
+            cursor += len(content) + 8
+    buf = np.frombuffer(b"".join(chunks) + bytes(8), dtype=np.uint8)
+    return _Fetched(buf, np.asarray(block_starts, dtype=np.int64), info, lines, network)
+
+
+def _block_headers(header: Any, fetched: _Fetched, check_crc: bool) -> tuple[Any, Any]:
+    """Return the index entries and the headers of the blocks read, after checking them."""
+    buf, block_starts, info = fetched.buf, fetched.block_starts, fetched.info
+    table = np.array([item[3:] for item in info], dtype=np.int64).reshape(-1, 3)
+    if np.any(table[:, 1] < BLOCK_HEADER_BYTES) or np.any(block_starts + table[:, 1] > buf.size):
+        raise ReaderError(
+            "{}: a data block is shorter than its header (corrupted index).".format(header["path"])
+        )
+    rows = buf[block_starts[:, None] + np.arange(BLOCK_HEADER_BYTES)]
+    headers = np.frombuffer(rows.tobytes(), dtype=BLOCK_DTYPE)
+
+    def fail(which: Any, message: Any) -> None:
+        """Raise the ReaderError of a block, naming its channel."""
+        col, ch, ind = info[int(which)][:3]
+        raise ReaderError(
+            "{}: block {} of channel {} {}".format(
+                header["path"], ind, header["ch_names"][ch], message
+            )
+        )
+
+    bad = np.flatnonzero(
+        (headers["n_samples"] != table[:, 0]) | (headers["block_bytes"] != table[:, 1])
+    )
+    if bad.size:
+        fail(bad[0], "does not match its index entry (corrupted file).")
+    if np.any(headers["flags"] & ENCRYPTION):
+        raise _encrypted(
+            header["path"], "the data (RED blocks)", 1 if np.any(headers["flags"] & 2) else 2
+        )
+    if check_crc:
+        has = np.flatnonzero(headers["crc"] != 0)
+        crc = crc32_koopman(buf, block_starts[has] + 4, table[has, 1] - 4)
+        wrong = has[crc != headers["crc"][has]]
+        if wrong.size:
+            fail(
+                wrong[0],
+                f"has a wrong CRC ({wrong.size} corrupted blocks); check_crc=False reads "
+                "them anyway.",
+            )
+    return table, headers
+
+
+def _decoded_pieces(header: Any, fetched: _Fetched, check_crc: bool) -> list[Any]:
+    """Decode the non-constant blocks read; return them as pieces (values set, no constant)."""
+    pieces: list[Any] = []
+    if not fetched.block_starts.size:
+        return pieces
+    table, headers = _block_headers(header, fetched, check_crc)
+    decode = np.flatnonzero(table[:, 2] == 0)
+    values: Any
+    values, offsets = red_decode(fetched.buf, fetched.block_starts[decode], headers[decode])
+    for slot, which in enumerate(decode):
+        n: Any
+        col, ch, ind, n = fetched.info[which][:4]
+        pieces.append(
+            (
+                col,
+                ch,
+                int(header["channels"][ch]["pos"][ind]),
+                n,
+                values[offsets[slot] : offsets[slot] + n],
+                None,
+            )
+        )
+    return pieces
+
+
+def _place(out: Any, header: Any, pieces: list[Any], starts: Any) -> None:
+    """Copy the samples of the pieces into the windows of ``out`` (in place)."""
+    n_times = out.shape[2]
+    stops = starts + n_times
+    order = np.argsort(starts, kind="stable")
+    sorted_starts = starts[order]
+    for col, ch, pos, n, values, constant in pieces:
+        first = np.searchsorted(sorted_starts, pos - n_times, side="right")
+        last = np.searchsorted(sorted_starts, pos + n, side="left")
+        if first >= last:
+            continue
+        channel = header["channels"][ch]
+        block = _convert(
+            np.full(n, constant, dtype=np.int32) if values is None else values,
+            channel["factor"] * channel["to_uv"],
+        )
+        for win in order[first:last]:
+            lo, hi = max(pos, int(starts[win])), min(pos + n, int(stops[win]))
+            if hi > lo:
+                out[win, col, lo - starts[win] : hi - starts[win]] = block[lo - pos : hi - pos]
 
 
 def _read_grid(
@@ -964,157 +1203,25 @@ def _read_grid(
     out = np.full((starts.size, len(ch_index), n_times), np.nan)
 
     # Blocks that cover a window; data runs grouped per file
-    pieces: list[Any] = []  # (col, channel index, first sample, n, values or None, value)
-    files: dict[Any, Any]
-    files = {}
-    ch: Any
-    col: Any
-    for col, ch in enumerate(ch_index):
-        channel = header["channels"][ch]
-        pos: Any
-        blocks, pos = channel["blocks"], channel["pos"]
-        if len(blocks) == 0:
-            continue
-        need = np.zeros(len(blocks), dtype=bool)
-        for lo in range(0, starts.size, 64):
-            need |= np.any(
-                (pos[None, :] < stops[lo : lo + 64, None])
-                & (pos[None, :] + blocks["n"][None, :] > starts[lo : lo + 64, None]),
-                axis=0,
-            )
-        constant: Any
-        constant = need & (blocks["maximum"] == blocks["minimum"]) & (blocks["maximum"] != RED_NAN)
-        for ind in np.flatnonzero(constant):
-            pieces.append(
-                (col, ch, int(pos[ind]), int(blocks["n"][ind]), None, int(blocks["maximum"][ind]))
-            )
-        for seg, offset, nbytes, members in _runs_of(
-            blocks, need if check_crc else need & ~constant
-        ):
-            rel = channel["segments"][seg]["tdat"]
-            files.setdefault(rel, []).append((seg, offset, nbytes, members, col, ch))
-
-    # Read the runs (remote files in parallel)
-    jobs = list(files.items())
-    if session.remote and len(jobs) > 1:
-        with concurrent.futures.ThreadPoolExecutor(min(_WORKERS, len(jobs))) as pool:
-            fetched = list(pool.map(lambda job: _fetch_runs(session, job[0], job[1]), jobs))
-    else:
-        fetched = [_fetch_runs(session, rel, runs) for rel, runs in jobs]
-
-    chunks, lines, network, cursor = [], [], 0, 0
-    block_starts: Any
-    block_starts, info = [], []  # info: col, ch, block, n, bytes, constant
-    for (_rel, runs), (contents, file_lines, nbytes) in zip(jobs, fetched, strict=False):
-        lines += file_lines
-        network += nbytes
-        for (_, offset, _, members, col, ch), content in zip(runs, contents, strict=False):
-            blocks = header["channels"][ch]["blocks"]
-            for ind in members:
-                block_starts.append(cursor + int(blocks["offset"][ind]) - offset)
-                info.append(
-                    (
-                        col,
-                        ch,
-                        ind,
-                        int(blocks["n"][ind]),
-                        int(blocks["nbytes"][ind]),
-                        bool(
-                            blocks["maximum"][ind] == blocks["minimum"][ind]
-                            and blocks["maximum"][ind] != RED_NAN
-                        ),
-                    )
-                )
-            chunks += [content, bytes(8)]
-            cursor += len(content) + 8
-    buf = np.frombuffer(b"".join(chunks) + bytes(8), dtype=np.uint8)
-    block_starts = np.asarray(block_starts, dtype=np.int64)
-
-    if block_starts.size:
-        table = np.array([item[3:] for item in info], dtype=np.int64).reshape(-1, 3)
-        if np.any(table[:, 1] < BLOCK_HEADER_BYTES) or np.any(
-            block_starts + table[:, 1] > buf.size
-        ):
-            raise ReaderError(
-                "{}: a data block is shorter than its header (corrupted index).".format(
-                    header["path"]
-                )
-            )
-        rows = buf[block_starts[:, None] + np.arange(BLOCK_HEADER_BYTES)]
-        headers = np.frombuffer(rows.tobytes(), dtype=BLOCK_DTYPE)
-
-        def fail(which: Any, message: Any) -> None:
-            col, ch, ind = info[int(which)][:3]
-            raise ReaderError(
-                "{}: block {} of channel {} {}".format(
-                    header["path"], ind, header["ch_names"][ch], message
-                )
-            )
-
-        bad = np.flatnonzero(
-            (headers["n_samples"] != table[:, 0]) | (headers["block_bytes"] != table[:, 1])
-        )
-        if bad.size:
-            fail(bad[0], "does not match its index entry (corrupted file).")
-        if np.any(headers["flags"] & ENCRYPTION):
-            raise _encrypted(
-                header["path"], "the data (RED blocks)", 1 if np.any(headers["flags"] & 2) else 2
-            )
-        if check_crc:
-            has = np.flatnonzero(headers["crc"] != 0)
-            crc = crc32_koopman(buf, block_starts[has] + 4, table[has, 1] - 4)
-            wrong = has[crc != headers["crc"][has]]
-            if wrong.size:
-                fail(
-                    wrong[0],
-                    f"has a wrong CRC ({wrong.size} corrupted blocks); check_crc=False reads "
-                    "them anyway.",
-                )
-        decode = np.flatnonzero(table[:, 2] == 0)
-        values: Any
-        values, offsets = red_decode(buf, block_starts[decode], headers[decode])
-        for slot, which in enumerate(decode):
-            n: Any
-            col, ch, ind, n = info[which][:4]
-            pieces.append(
-                (
-                    col,
-                    ch,
-                    int(header["channels"][ch]["pos"][ind]),
-                    n,
-                    values[offsets[slot] : offsets[slot] + n],
-                    None,
-                )
-            )
-
+    pieces, files = _grid_blocks(header, ch_index, (starts, stops), check_crc)
+    jobs, contents = _fetch_files(session, files)
+    fetched = _join_blocks(header, jobs, contents)
+    pieces += _decoded_pieces(header, fetched, check_crc)
     # Place the samples on the windows
-    order = np.argsort(starts, kind="stable")
-    sorted_starts = starts[order]
-    for col, ch, pos, n, values, constant in pieces:
-        first = np.searchsorted(sorted_starts, pos - n_times, side="right")
-        last = np.searchsorted(sorted_starts, pos + n, side="left")
-        if first >= last:
-            continue
-        channel = header["channels"][ch]
-        block = _convert(
-            np.full(n, constant, dtype=np.int32) if values is None else values,
-            channel["factor"] * channel["to_uv"],
-        )
-        for win in order[first:last]:
-            lo, hi = max(pos, int(starts[win])), min(pos + n, int(stops[win]))
-            if hi > lo:
-                out[win, col, lo - starts[win] : hi - starts[win]] = block[lo - pos : hi - pos]
+    _place(out, header, pieces, starts)
 
     meta_lines = []
     for ch in sorted(set(ch_index)):
         meta_lines += header["channels"][ch]["digest"]
-    digest = hashlib.sha256("\n".join(sorted(meta_lines + lines)).encode("utf-8")).hexdigest()
-    if log is not None and network:
-        log.add(header["path"], network)
+    digest = hashlib.sha256(
+        "\n".join(sorted(meta_lines + fetched.lines)).encode("utf-8")
+    ).hexdigest()
+    if log is not None and fetched.network:
+        log.add(header["path"], fetched.network)
     return out, {
         "sha256": digest,
-        "data_bytes_read": network,
-        "blocks_read": int(block_starts.size),
+        "data_bytes_read": fetched.network,
+        "blocks_read": int(fetched.block_starts.size),
     }
 
 
@@ -1123,6 +1230,7 @@ def _read_grid(
 
 
 def _pick_mef(header: Any, picks: Any) -> tuple[list[Any], Any]:
+    """Return the picked channels and their common sampling frequency."""
     index = _pick(header["ch_names"], picks)
     rates = {header["channels"][ind]["sfreq"] for ind in index}
     if len(rates) != 1:
@@ -1134,6 +1242,7 @@ def _pick_mef(header: Any, picks: Any) -> tuple[list[Any], Any]:
 
 
 def _warn_units(header: Any, ch_index: Any) -> None:
+    """Warn about picked channels whose unit is not a voltage."""
     other = [header["ch_names"][ind] for ind in ch_index if not header["channels"][ind]["voltage"]]
     if other:
         _warn(
@@ -1146,6 +1255,7 @@ def _warn_units(header: Any, ch_index: Any) -> None:
 
 
 def _grid_length(header: Any, ch_index: Any) -> int:
+    """Return the length of the session grid of the channels (samples)."""
     length = 0
     for ind in ch_index:
         channel = header["channels"][ind]
