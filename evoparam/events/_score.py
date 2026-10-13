@@ -181,3 +181,24 @@ def snippets(data: Any, index: Any, onsets: Any, n_pre: Any, n_post: Any) -> Flo
         if norm > 0:
             features[row] = values / norm
     return features
+
+
+def quantile_score(data: Any, index: Any, quantile: float = 0.9) -> FloatArray:
+    """``quantile`` across the non-flat channels of ``index`` of the absolute
+    sample-to-sample change (chunked like :func:`difference_score`). A channel whose
+    samples never change (a censored or disconnected channel) is left out."""
+
+    n_times = data.shape[1]
+    index = np.asarray(index)
+    moving = [i for i in index if np.any(np.diff(data[i]) != 0)]
+    index = np.asarray(moving if moving else index)
+    rank = min(len(index) - 1, max(0, int(np.ceil(quantile * len(index))) - 1))
+    score = np.empty(n_times - 1)
+    for start in range(0, n_times - 1, _CHUNK):
+        stop = min(start + _CHUNK, n_times - 1)
+        block = np.abs(np.diff(data[index, start : stop + 1], axis=1))
+        np.nan_to_num(block, copy=False, nan=0.0)
+        score[start:stop] = block[0] if len(index) == 1 else \
+            np.partition(block, rank, axis=0)[rank]
+    return score
+

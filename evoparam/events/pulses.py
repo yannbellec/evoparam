@@ -17,6 +17,7 @@ from ._score import (
     as_continuous,
     crossings,
     difference_score,
+    quantile_score,
     far_from,
     pick_index,
     robust_z,
@@ -382,6 +383,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     # Crossings of one artifact are merged, but never across two pulses of a fast train
     merge_s = min(MERGE_WINDOW, min_interval / 2)
 
+    score_used = "median"
     if procedure == "spec":
         score, z, onsets, strength, detector, rho, labels = _spec_candidates(
             data,
@@ -401,6 +403,16 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
 
         # Candidates at the detection threshold
         peaks, strength, firsts = _group_crossings(crossings(z, threshold_sd), z, sfreq, merge_s)
+        if not len(peaks) and len(index) > 2:
+            # No pulse on the median score: the artifact may reach only a minority of the
+            # channels (ds004977, stimulating contacts switched to the stimulator: z 9 to 15
+            # on the median, 47 to 322 on the 90th percentile of the non-flat channels, 10 at
+            # most between pulses). The 90th percentile is then tried before giving up.
+            score_used = "p90"
+            score = quantile_score(data, index, 0.9)
+            z = robust_z(score)
+            peaks, strength, firsts = _group_crossings(
+                crossings(z, threshold_sd), z, sfreq, merge_s)
         onsets = _onsets_from_peaks(peaks, firsts, score, sfreq) if refine else firsts + 1
 
         n_pre, n_post, max_shift = snippet_lengths(sfreq)
@@ -601,6 +613,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         "site_method": site_method,
         "user_template": template is not None,
         "score_channels": score_channels,
+        "score": score_used,
     }
     events.attrs["provenance"] = (
         Provenance(source={"reader": "evoparam.events.detect_pulses"})

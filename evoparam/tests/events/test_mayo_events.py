@@ -291,14 +291,10 @@ def test_mayo_precision(results: Any) -> None:
     assert hits / (hits + false_alarms) >= 0.99
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="ds004977: the default threshold (20 robust SD) finds "
-    "no pulse in 2 of 4 runs (largest score 14.9 and 10.9; "
-    "recall 0.50); with sEEG picks and threshold_sd=7 all 20 "
-    "are found, 2.1 ms after the events.tsv onsets",
-)
 def test_ds004977_pulses_found_with_defaults(results: Any) -> None:
+    """Measured: 20 of 20. In 2 of the 4 runs the median score stays at z 9 to 15 (the
+    stimulating contacts are switched to the stimulator) and the 90th percentile of the
+    non-flat channels, tried when the median finds nothing, finds the 10 pulses."""
 
     hits, misses, _, _ = match_all(subset(results, mayo_2048=False))
     assert hits / (hits + misses) >= 0.99
