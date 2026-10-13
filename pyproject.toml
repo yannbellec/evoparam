@@ -135,9 +135,10 @@ max-statements = 60
 
 [tool.ruff.lint.per-file-ignores]
 "evoparam/tests/**" = ["D"]
-# test_response is the public function of spec §5.6, not a pytest test: PT028 does not apply
-# to its keyword defaults (docs/spec/DECISIONS.md §7)
+# test_response (spec §5.6) and evoparam.tf.stats.test_map are statistical tests, not pytest
+# tests: PT028 does not apply to their keyword defaults (docs/spec/DECISIONS.md §7)
 "evoparam/existence/api.py" = ["PT028"]
+"evoparam/tf/stats.py" = ["PT028"]
 
 # Static typing (spec §9.6, REQ-301): optional packages only are allowed without stubs
 [tool.mypy]

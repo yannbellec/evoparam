@@ -79,6 +79,7 @@ class Kernels:
         n_tapers: Any,
         params: Any,
     ) -> None:
+        """Hold the kernel groups, half-supports, frequencies and transform settings."""
         self.groups = groups
         self.half_support = half_support
         self.freqs = freqs
@@ -122,7 +123,7 @@ def _centred_spectrum(h: Any, n_fft: Any) -> tuple[Any]:
     return cast("tuple[Any]", fft(buf))
 
 
-def make_kernels(
+def make_kernels(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
     transform: str,
     freqs: ArrayLike,
     sfreq: float,
