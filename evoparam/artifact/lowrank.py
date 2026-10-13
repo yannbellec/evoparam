@@ -20,6 +20,11 @@ from evoparam.errors import ArtifactError, SettingsError
 
 __all__ = []
 
+# Fewest samples of a pulse period, and of the window after the train fitted for the slow
+# transient.
+_MIN_PERIOD_SAMPLES = 2
+_MIN_POST_SAMPLES = 2
+
 MIN_CHANNELS, MIN_PULSES, MIN_TRIALS = 8, 4, 4
 
 
@@ -128,7 +133,7 @@ def lowrank_clean(
         )
     starts = np.searchsorted(times, pulses)
     length = int(np.min(np.diff(starts)))
-    if starts[0] < 0 or starts[-1] + length > n_times or length < 2:
+    if starts[0] < 0 or starts[-1] + length > n_times or length < _MIN_PERIOD_SAMPLES:
         raise ArtifactError("The pulse train does not fit inside the epoch.")
 
     cleaned = np.array(data, dtype=float, copy=True)
@@ -166,7 +171,7 @@ def lowrank_clean(
     # 4. Slow transient after the train, across trials
     post_start = starts[-1] + length
     post_inds = np.arange(post_start, min(n_times, post_start + int(round(post_window * sfreq))))
-    if len(post_inds) >= 2 and k_r > 0:
+    if len(post_inds) >= _MIN_POST_SAMPLES and k_r > 0:
         for ch in range(n_channels):
             mat = cleaned[:, ch][:, post_inds].T
             cleaned[:, ch][:, post_inds] = _leave_out_pass(mat, k_r, lambda j: {j}).T

@@ -17,7 +17,8 @@ from evoparam.errors import warn as _warn
 
 __all__ = []
 
-_WARNED = False
+# Warnings already given in this session (the patent notice is given once).
+_WARNED: set[str] = set()
 
 # Dictionary grid.
 N_HARMONICS = 3
@@ -29,8 +30,8 @@ DECAY_START_STEP = 0.001  # spacing of their onsets (s)
 
 
 def warn_patent() -> None:
-    global _WARNED  # noqa: PLW0603  (once-only warning flag, reset by the tests)
-    if not _WARNED:
+    """Warn once per session about the patent on the matching pursuit method."""
+    if "patent" not in _WARNED:
         _warn(
             "method 'matching_pursuit' follows a published method that is the "
             "subject of patent publication US 2023/0240618 A1 (Washington "
@@ -39,7 +40,7 @@ def warn_patent() -> None:
             UserWarning,
             stacklevel=3,
         )
-        _WARNED = True
+        _WARNED.add("patent")
 
 
 def dictionary(rel: Any, window_end: Any, line_freq: Any) -> tuple[FloatArray, NDArray[Any]]:

@@ -2,7 +2,7 @@
 """Artifact templates: group median, moving (local) median, and learned bases."""
 
 import warnings
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 import numpy as np
 
@@ -24,6 +24,9 @@ MIN_PULSES = 3
 # the template probably contains response, not only artifact.
 RESPONSE_CORRELATION_WARN = 0.5
 
+# Fewest unmasked pulse waveforms from which a basis is learned.
+_MIN_LEARN_WAVES = 2
+
 
 def _window_values(ts: Any, inds: Any, masks: Any) -> Any:
     """Window samples, with masked (for example saturated) samples set to NaN."""
@@ -34,6 +37,7 @@ def _window_values(ts: Any, inds: Any, masks: Any) -> Any:
 
 
 def _nan_statistic(values: Any, statistic: Any, axis: int = 0) -> Any:
+    """Median or mean along ``axis``, ignoring NaN (all-NaN columns give 0)."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN columns
         out = (np.nanmedian if statistic == "median" else np.nanmean)(values, axis=axis)
@@ -84,6 +88,96 @@ def _neighbours(times: Any, row: Any, n: Any) -> NDArray[Any]:
     return cast("NDArray[Any]", order[:n])
 
 
+class _TemplateSettings(NamedTuple):
+    """Group template settings of :func:`subtract_template`."""
+
+    kind: str
+    group_by: Any
+    n_neighbors: int
+    fallback: bool
+
+
+def _user_template(template: Any, n_channels: int, n_window: int) -> Any:
+    """User template as [n_channels, n_window] (a 1-D template is used on every channel)."""
+    user = np.asarray(template, dtype=float)
+    if user.ndim == 1:
+        user = np.broadcast_to(user, (n_channels, n_window))
+    if user.shape != (n_channels, n_window):
+        raise SettingsError(
+            f"template must have shape ({n_channels}, {n_window}) or "
+            f"({n_window},), got {user.shape}."
+        )
+    return user
+
+
+def _group_templates(
+    ts: Any, values: Any, settings: _TemplateSettings, templates: Any, fallback_trials: Any
+) -> Any:
+    """Template of each trial, from its group (global) or its nearest pulses (local).
+
+    ``templates`` receives the template of each group and ``fallback_trials`` the trials of
+    the groups too small for a template; returns the per-trial templates.
+    """
+    n_trials = values.shape[0]
+    per_trial = np.zeros(values.shape)
+    order_times = (
+        ts.event_times if ts.event_times is not None else np.arange(n_trials, dtype=float)
+    )
+    for key, rows in groups(ts, settings.group_by):
+        if len(rows) < MIN_PULSES:
+            if not settings.fallback:
+                raise ArtifactError(
+                    f"Template group {key} has {len(rows)} pulse(s); at least {MIN_PULSES} "
+                    "are needed. Use fallback=True to interpolate these trials instead, "
+                    "or group_by=() for one template over all trials."
+                )
+            _warn(
+                f"Template group {key} has {len(rows)} pulse(s): these trials "
+                "are interpolated instead.",
+                stacklevel=4,
+            )
+            fallback_trials.extend(rows.tolist())
+            continue
+        if settings.kind == "global":
+            tpl = _nan_statistic(values[rows], "median")
+            per_trial[rows] = tpl
+            templates[key] = tpl
+        else:
+            local_times = order_times[rows]
+            for pos, row in enumerate(rows):
+                near = rows[_neighbours(local_times, pos, settings.n_neighbors)]
+                per_trial[row] = _nan_statistic(values[near], "median")
+            templates[key] = _nan_statistic(values[rows], "median")
+    return per_trial
+
+
+def _scaled_fit(raw: Any, per_trial: Any, *, scale: bool) -> tuple[Any, Any, Any]:
+    """Least-squares amplitude of each template, the residual and the fit r² of each trial."""
+    if scale:
+        num = np.sum(raw * per_trial, axis=-1)
+        den = np.sum(per_trial * per_trial, axis=-1)
+        alpha = np.divide(num, den, out=np.ones_like(num), where=den > 0)
+    else:
+        alpha = np.ones(raw.shape[:2])
+    fitted = alpha[..., None] * per_trial
+    residual = raw - fitted
+    total = np.sum((raw - raw.mean(axis=-1, keepdims=True)) ** 2, axis=(1, 2))
+    fit_r2 = 1 - np.divide(
+        np.sum(residual**2, axis=(1, 2)), total, out=np.zeros(raw.shape[0]), where=total > 0
+    )
+    return alpha, residual, np.clip(fit_r2, 0.0, 1.0)
+
+
+def _response_correlation(response: Any, templates: Any) -> float:
+    """Largest correlation between a template and the mean response after the window."""
+    correlation = 0.0
+    for tpl in templates.values():
+        a, b = np.ravel(tpl), np.ravel(response)
+        if np.std(a) > 0 and np.std(b) > 0:
+            correlation = max(correlation, float(np.corrcoef(a, b)[0, 1]))
+    return correlation
+
+
 def subtract_template(
     ts: Any,
     inds: Any,
@@ -104,81 +198,34 @@ def subtract_template(
     data = ts.data.copy()
     values = _window_values(ts, inds, ts.masks)
     raw = ts.data[:, :, inds]
-    n_trials, n_channels, n_window = raw.shape
-    fit_r2 = np.ones(n_trials)
-    fallback_trials = []
-    templates = {}
+    _, n_channels, n_window = raw.shape
     after = inds[-1] + 1 + np.arange(n_window)
     after = after[after < ts.n_times]
 
+    fallback_trials: list[Any] = []
+    templates: dict[Any, Any] = {}
     if isinstance(template, (np.ndarray, list, tuple)):
-        user = np.asarray(template, dtype=float)
-        if user.ndim == 1:
-            user = np.broadcast_to(user, (n_channels, n_window))
-        if user.shape != (n_channels, n_window):
-            raise SettingsError(
-                f"template must have shape ({n_channels}, {n_window}) or "
-                f"({n_window},), got {user.shape}."
-            )
+        user = _user_template(template, n_channels, n_window)
         per_trial = np.broadcast_to(user, raw.shape)
         templates[("user",)] = user
     elif template in ("global", "local"):
-        per_trial = np.zeros(raw.shape)
-        order_times = (
-            ts.event_times if ts.event_times is not None else np.arange(n_trials, dtype=float)
+        per_trial = _group_templates(
+            ts,
+            values,
+            _TemplateSettings(template, group_by, n_neighbors, fallback=fallback),
+            templates,
+            fallback_trials,
         )
-        for key, rows in groups(ts, group_by):
-            if len(rows) < MIN_PULSES:
-                if not fallback:
-                    raise ArtifactError(
-                        f"Template group {key} has {len(rows)} pulse(s); at least {MIN_PULSES} "
-                        "are needed. Use fallback=True to interpolate these trials instead, "
-                        "or group_by=() for one template over all trials."
-                    )
-                _warn(
-                    f"Template group {key} has {len(rows)} pulse(s): these trials "
-                    "are interpolated instead.",
-                    stacklevel=3,
-                )
-                fallback_trials.extend(rows.tolist())
-                continue
-            if template == "global":
-                tpl = _nan_statistic(values[rows], "median")
-                per_trial[rows] = tpl
-                templates[key] = tpl
-            else:
-                local_times = order_times[rows]
-                for pos, row in enumerate(rows):
-                    near = rows[_neighbours(local_times, pos, n_neighbors)]
-                    per_trial[row] = _nan_statistic(values[near], "median")
-                templates[key] = _nan_statistic(values[rows], "median")
     else:
         raise SettingsError("template must be 'global', 'local' or an array.")
 
-    if scale:
-        num = np.sum(raw * per_trial, axis=-1)
-        den = np.sum(per_trial * per_trial, axis=-1)
-        alpha = np.divide(num, den, out=np.ones_like(num), where=den > 0)
-    else:
-        alpha = np.ones(raw.shape[:2])
-    fitted = alpha[..., None] * per_trial
-    residual = raw - fitted
+    alpha, residual, fit_r2 = _scaled_fit(raw, per_trial, scale=scale)
     data[:, :, inds] = residual
-
-    total = np.sum((raw - raw.mean(axis=-1, keepdims=True)) ** 2, axis=(1, 2))
-    fit_r2 = 1 - np.divide(
-        np.sum(residual**2, axis=(1, 2)), total, out=np.zeros(n_trials), where=total > 0
-    )
-    fit_r2 = np.clip(fit_r2, 0.0, 1.0)
 
     # Response protection: a template that looks like the response just after it
     correlation = 0.0
     if len(after) == n_window and templates:
-        response = ts.data[:, :, after].mean(axis=0)
-        for tpl in templates.values():
-            a, b = np.ravel(tpl), np.ravel(response)
-            if np.std(a) > 0 and np.std(b) > 0:
-                correlation = max(correlation, float(np.corrcoef(a, b)[0, 1]))
+        correlation = _response_correlation(ts.data[:, :, after].mean(axis=0), templates)
         if correlation > RESPONSE_CORRELATION_WARN:
             _warn(
                 f"The artifact template correlates with the response after the window "
@@ -231,7 +278,7 @@ def subtract_learned(
     for g, (key, rows) in enumerate(groups(ts, group_by)):
         waves = values[rows].reshape(-1, n_window)
         waves = waves[~np.isnan(waves).any(axis=1)]
-        if len(waves) < 2:
+        if len(waves) < _MIN_LEARN_WAVES:
             raise ArtifactError(f"Group {key}: not enough unmasked pulses to learn a basis.")
         _, sing, vt = np.linalg.svd(waves, full_matrices=False)
         if n_components is None:

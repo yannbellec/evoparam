@@ -47,7 +47,7 @@ def test_matching_pursuit_removes_decaying_artifact() -> None:
     )
     from evoparam.artifact import pursuit
 
-    pursuit._WARNED = False
+    pursuit._WARNED.clear()
     with pytest.warns(UserWarning, match="patent"):
         result = remove_artifact(noisy, method="matching_pursuit")
     seg = (noisy.times > 0.0) & (noisy.times < 0.02)
