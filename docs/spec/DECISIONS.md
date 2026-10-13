@@ -768,6 +768,30 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   trial of each run's first pair of at least 10 trials, as REQ-113 does. The five
   development subjects are used to choose settings.
 
+### 5.9 REQ-274: the `erp` preset as written — the targeted measurement
+
+REQ-274 reads "`erp` on ERP CORE ... recovers the component named by the paradigm ... as a
+labelled component on the canonical channel for >= 90 % of participants, with model latency
+within +/-10 ms of the fractional-area latency of the same average".
+
+- **As written** (`validation/erpcore.py`, `reading="as_written"`): the `erp` preset itself
+  (its own model selection, background and fit window), the paradigm's component as one
+  labelled component (label window = measurement window +/- 30 ms), its own latency (the
+  50 % area latency of that component's curve). Measured 2026-10-09: LRP 90 % (met), ERN
+  85 %, N400 57.5 %, N170 45 %, MMN 37.5 %, N2pc 36 %, P3 30 %. Kept as its own tests
+  (`test_req274_*_as_written`, expected failures with these values): not met.
+- **Targeted measurement** (`reading="targeted"`, the default of the script): the `erp`
+  preset derived by `presets.targeted` — three components of the component's polarity in
+  the measurement window +/- 25 ms, no background; the component is the sum of its labelled
+  parts. Measured 2026-10-13: ERN 95 %, LRP 95 %, MMN 100 %, N170 95 %, N2pc 92 %, N400
+  95 %, P3 90 % (no margin). Two limits, stated with the numbers: the settings (three parts,
+  25 ms, no background) were chosen on the same 40 participants (a development measure, to
+  be confirmed on ERP data not used to choose them); and with three free components and no
+  background in a window about as wide as the measurement window, the fitted sum follows
+  the average closely, so the latency agreement says that the fit reproduces the wave, not
+  that a single component was recovered. The targeted measurement is therefore reported as
+  a reading of REQ-274, and the requirement stays marked not met as written.
+
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
 Each point below is a reading needed to apply a requirement of S20 literally, or a place

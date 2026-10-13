@@ -448,6 +448,11 @@ and the reference fixture is not regenerated. Only tests and documents change.
   is the existence test's answer (spec §1, principle 2). The P3 meets 90 % with no margin.
 - `presets.targeted` gains `n_components` (default 1) and `background` (default `"linear"`);
   its defaults and their measurements are unchanged.
+- REQ-274 as written stays measured on its own (`validation/erpcore.py`,
+  `reading="as_written"`: the `erp` preset's own selection, one labelled component; tests
+  `test_req274_*_as_written`, expected failures with the 2026-10-09 values, LRP met): the
+  targeted measurement is a reading of the requirement, with settings chosen on the same 40
+  participants, and the requirement stays marked not met as written (DECISIONS 5.9).
 
 ### §7.4 (5): one platform record per machine; macOS arm64 measured
 
