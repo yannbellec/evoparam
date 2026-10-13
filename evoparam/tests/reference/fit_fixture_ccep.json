@@ -7,6 +7,7 @@
   "evoparam.models.ResponseModel.fit_group": "1.2",
   "evoparam.models.ResponseModel.fit_waveform": "1.2",
   "evoparam.models.evaluate_fit": "1.1",
+  "evoparam.models.fit_waveform": "1.2",
   "evoparam.models.fitted_peak": "1.1",
   "evoparam.prep.rereference": "1.0",
   "evoparam.sim.simulate_ccep": "1.0",
