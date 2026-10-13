@@ -81,6 +81,7 @@ class Adapter:
             raise DataError(f"adapter {self.name!r}: unknown tasks {unknown}.")
 
     def _argv(self, input_path: Any, output_path: Any) -> list[Any]:
+        """Return the command line for one input and output (placeholders filled in)."""
         values = {
             "python": sys.executable,
             "here": self.here,

@@ -85,6 +85,11 @@ __all__ = [
 ]
 
 RESULT_SCHEMA = "evoparam-benchmark-result/1"
+# T4 (spec §8): the early response is scored up to 50 ms after the pulse, the N1 from 9 ms
+_T4_END = 0.05
+_N1_START = 0.009
+_MIN_CORRELATION_PAIRS = 3  # pairs for a correlation
+_MIN_SD_VALUES = 2  # values for a standard deviation
 # The metrics shown first in reports and on the leaderboard, per task.
 HEADLINE = {
     "T1": ["auc", "f1", "precision", "recall", "fpr_at_0.05", "ks_uniform"],
@@ -116,18 +121,21 @@ T7_FREQ_TOL, T7_TIME_TOL = 0.10, 0.020
 
 
 def _mean(values: Any) -> Any:
+    """Return the mean of the finite values given (None when there is none)."""
     values = np.asarray([v for v in values if v is not None], dtype=float)
     values = values[np.isfinite(values)]
     return float(np.mean(values)) if values.size else None
 
 
 def _ratio(a: Any, b: Any) -> Any:
+    """Return ``a / b`` (None when ``b`` is 0 or None)."""
     return float(a / b) if b else None
 
 
 def _rows_by(
     rows: Any, keys: Any, cell: Any, allowed: Any = None, what: str = "channel"
 ) -> dict[Any, Any]:
+    """Return the rows by key; raise on a row outside ``allowed`` or a duplicate key."""
     out = {}
     for row in rows:
         key = tuple(row[k] for k in keys)
@@ -160,6 +168,7 @@ def auc_score(labels: Any, scores: Any) -> Any:
 
 
 def _t1(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
+    """Return the T1 metrics (response detection) and the per-cell counts."""
     rows_all = []
     for ti, rows in items:
         d = ti.descriptor
@@ -197,6 +206,7 @@ def _t1(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
     cells = [c for c, _, _ in rows_all]
 
     def counts(mask: Any) -> Any:
+        """Return the confusion counts of the channels in ``mask``."""
         lab, dec = labels[mask], decision[mask]
         tp, fp = int(np.sum(lab & dec)), int(np.sum(~lab & dec))
         fn, tn = int(np.sum(lab & ~dec)), int(np.sum(~lab & ~dec))
@@ -241,6 +251,7 @@ def _t1(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
 
 
 def _t2(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
+    """Return the T2 metrics (early component latency and amplitude) and per-cell values."""
     pairs, per_cell = [], {}
     for ti, rows in items:
         d = ti.descriptor
@@ -260,6 +271,7 @@ def _t2(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
 
 
 def _covered(row: Any, name: Any, value: Any) -> Any:
+    """Return whether the reported interval of ``name`` holds ``value`` (1.0, 0.0 or None)."""
     low, high = row.get(f"{name}_ci_low"), row.get(f"{name}_ci_high")
     if low is None or high is None:
         return None
@@ -267,6 +279,7 @@ def _covered(row: Any, name: Any, value: Any) -> Any:
 
 
 def _t2_metrics(pairs: Any, short: bool = False) -> dict[str, Any]:
+    """Return the latency and amplitude errors and the coverage of the reported intervals."""
     reported = [(t, r) for t, r in pairs if r is not None and r.get("latency") is not None]
     lat = np.array([r["latency"] - t["latency"] for t, r in reported], float)
     with_amp = [(t, r) for t, r in reported if r.get("amplitude") is not None]
@@ -303,6 +316,7 @@ def _t2_metrics(pairs: Any, short: bool = False) -> dict[str, Any]:
 
 
 def _t3(items: Any) -> tuple[dict[str, float | None], dict[Any, Any]]:
+    """Return the T3 metrics (component decomposition) and per-cell values."""
     from evoparam.sim import score_fits
 
     pd = require("pandas", extra="data", caller="evoparam.benchmark.score")
@@ -382,6 +396,7 @@ def _t3(items: Any) -> tuple[dict[str, float | None], dict[Any, Any]]:
 
 
 def _num(value: Any) -> Any:
+    """Return a finite float, or None."""
     value = float(value)
     return value if np.isfinite(value) else None
 
@@ -391,6 +406,7 @@ def _num(value: Any) -> Any:
 
 
 def _t4(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
+    """Return the T4 metrics (artifact removal) and per-cell values."""
     sums = {"art": 0.0, "art_n": 0, "artifact": 0.0, "resp": 0.0, "resp_n": 0}
     shifts, per_cell = [], {}
     for ti, cleaned in items:
@@ -407,19 +423,19 @@ def _t4(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
         resp = [d["ch_names"].index(c) for c in ti.truth["responders"]]
         clean = ti.truth["clean"]
         residual = cleaned - clean
-        win = (times >= d["artifact_window"][0]) & (times <= 0.05)
+        win = (times >= d["artifact_window"][0]) & (times <= _T4_END)
         part = residual[:, keep][:, :, win]
         art = ti.truth["artifact"][:, keep][:, :, win]
         cell_art, cell_n = float(np.sum(part**2)), part.size
         sums["art"] += cell_art
         sums["art_n"] += cell_n
         sums["artifact"] += float(np.sum(art**2))
-        first = (times >= 0.0) & (times <= 0.05)
+        first = (times >= 0.0) & (times <= _T4_END)
         cell_resp, cell_resp_n, cell_shift = 0.0, 0, []
         if resp:
             avg = residual[:, resp].mean(axis=0)[:, first]
             cell_resp, cell_resp_n = float(np.sum(avg**2)), avg.size
-            n1 = (times >= 0.009) & (times <= 0.05)
+            n1 = (times >= _N1_START) & (times <= _T4_END)
             t_n1 = times[n1]
             got = cleaned[:, resp].mean(axis=0)[:, n1]
             ref = clean[:, resp].mean(axis=0)[:, n1]
@@ -451,13 +467,15 @@ def _t4(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
 
 
 def _pearson(a: Any, b: Any) -> Any:
+    """Return the correlation of two series (None with fewer than 3 pairs or a constant one)."""
     a, b = np.asarray(a, float), np.asarray(b, float)
-    if a.size < 3 or np.std(a) == 0 or np.std(b) == 0:
+    if a.size < _MIN_CORRELATION_PAIRS or np.std(a) == 0 or np.std(b) == 0:
         return None
     return float(np.corrcoef(a, b)[0, 1])
 
 
 def _t5(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
+    """Return the T5 metrics (single-trial estimation) and per-cell values."""
     acc: dict[str, Any] = {
         "lat": [],
         "amp": [],
@@ -498,7 +516,7 @@ def _t5(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
                         acc["rel"].append(abs(row["amplitude"] - r.amplitude) / abs(r.amplitude))
             acc["lat_r"].append(_pearson(est_lat, true_lat))
             acc["amp_r"].append(_pearson(est_amp, true_amp))
-            if len(est_lat) >= 2:
+            if len(est_lat) >= _MIN_SD_VALUES:
                 sd_est, sd_true = np.std(est_lat, ddof=1), np.std(true_lat, ddof=1)
                 acc["jit"].append(abs(sd_est - sd_true))
                 if sd_true > 0:
@@ -557,6 +575,7 @@ def reference_scores(times: Any, y: Any, definition: Any) -> dict[str, float]:
 
 
 def _t6(items: Any) -> tuple[dict[Any, Any], dict[Any, Any]]:
+    """Return the T6 metrics (ERP scoring against the reference definitions) and per-cell data."""
     acc: dict[str, Any] = {
         m: {"def": [], "truth": [], "sme": [], "n": 0, "reported": 0} for m in ERPCORE["measures"]
     }
@@ -611,6 +630,7 @@ def _t6(items: Any) -> tuple[dict[Any, Any], dict[Any, Any]]:
 
 
 def _t7(items: Any) -> tuple[dict[str, Any], dict[Any, Any]]:
+    """Return the T7 metrics (time-frequency zone recovery, type-I error) and per-cell values."""
     n_bursts = recovered = null_channels = null_hits = 0
     freq_err, time_err, extra = [], [], []
     per_cell = {}
@@ -687,6 +707,7 @@ SCORERS: dict[str, Callable[..., Any]] = {
 
 
 def _flatten(metrics: Any, prefix: str = "") -> dict[Any, Any]:
+    """Return nested metrics as one level, keys joined with dots."""
     out = {}
     for key, value in metrics.items():
         if isinstance(value, dict):

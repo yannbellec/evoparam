@@ -72,6 +72,12 @@ TARGETS = {
     "P6": "median < 0.300 s",
 }
 SFREQ = 2048.0
+# the targets of TARGETS as numbers; P2 is judged at its full size (channels, trials)
+_P1_TARGET_S = 0.050
+_P2_TARGET_S = 60.0
+_P2_FULL_SIZE = (100, 50)
+_P5_MAX_RATIO = 1.5
+_P6_TARGET_S = 0.300
 
 
 ###################################################################################################
@@ -79,6 +85,7 @@ SFREQ = 2048.0
 
 
 def _rss() -> int:
+    """Return the resident set size of the process (bytes)."""
     try:
         with open("/proc/self/statm", encoding="ascii") as fobj:
             return int(fobj.read().split()[1]) * os.sysconf("SC_PAGE_SIZE")
@@ -93,31 +100,37 @@ class _PeakRSS:
     """Peak resident set size above the level at entry, sampled every 50 ms."""
 
     def __init__(self, interval: float = 0.05) -> None:
+        """Sample the resident set size every ``interval`` s."""
         self.interval = interval
         self.start = self.peak = 0
         self._stop = threading.Event()
 
     def __enter__(self) -> "_PeakRSS":
+        """Start sampling in a background thread."""
         self.start = self.peak = _rss()
         self._thread = threading.Thread(target=self._sample, daemon=True)
         self._thread.start()
         return self
 
     def _sample(self) -> None:
+        """Keep the largest resident set size until stopped."""
         while not self._stop.wait(self.interval):
             self.peak = max(self.peak, _rss())
 
     def __exit__(self, *exc: Any) -> None:
+        """Stop sampling."""
         self._stop.set()
         self._thread.join()
         self.peak = max(self.peak, _rss())
 
     @property
     def increase(self) -> Any:
+        """Peak increase of the resident set size over the block (bytes)."""
         return int(self.peak - self.start)
 
 
 def _timed(func: Any, repeats: Any, warmup: bool = True) -> tuple[list[Any], int]:
+    """Return the duration of each call (after a warm-up) and the peak RSS increase."""
     if warmup:
         func()
     durations = []
@@ -130,6 +143,7 @@ def _timed(func: Any, repeats: Any, warmup: bool = True) -> tuple[list[Any], int
 
 
 def _row(id_: Any, workload: Any, durations: Any, peak: Any, **extra: Any) -> dict[str, Any]:
+    """Return a result row: workload, median and 90th percentile of the durations, memory."""
     durations = np.asarray(durations, dtype=float)
     return {
         "id": id_,
@@ -187,6 +201,7 @@ def environment() -> dict[str, Any]:
 def _ccep(
     n_trials: int, n_channels: int, tmin: float = -0.5, tmax: float = 1.1, seed: int = 0
 ) -> Any:
+    """Return simulated CCEP trials of the size asked."""
     from evoparam import sim
 
     trials, _ = sim.simulate_ccep(
@@ -227,7 +242,7 @@ def p1(repeats: int = 20) -> dict[str, Any]:
         "1 waveform, 2048 samples, max_components=6, ccep, 3 starts",
         durations,
         peak,
-        target_met=median < 0.050,
+        target_met=median < _P1_TARGET_S,
     )
 
 
@@ -244,14 +259,14 @@ def p2(n_channels: int = 100, n_trials: int = 50, n_jobs: int = 4) -> dict[str, 
             start = time.perf_counter()
             fit_trials(trials, group, n_jobs=n_jobs, random_state=0)
             elapsed = time.perf_counter() - start
-    full = n_channels == 100 and n_trials == 50
+    full = (n_channels, n_trials) == _P2_FULL_SIZE
     return _row(
         "P2",
         f"fit_trials, {n_channels} channels x {n_trials} trials, n_jobs={n_jobs}",
         [elapsed],
         rss.increase,
         n_fits=n_channels * n_trials,
-        target_met=(elapsed < 60.0) if full else None,
+        target_met=(elapsed < _P2_TARGET_S) if full else None,
     )
 
 
@@ -396,7 +411,7 @@ def p5(n_channels: int = 256) -> dict[str, Any]:
         original_s=original,
         ratio=ratio,
         identical=bool(report.identical),
-        target_met=ratio < 1.5,
+        target_met=ratio < _P5_MAX_RATIO,
     )
 
 
@@ -450,7 +465,7 @@ def p6(repeats: int = 10) -> dict[str, Any]:
         0,
         process_wall_median_s=float(np.median(wall)),
         optional_modules_loaded=loaded.split(",") if loaded else [],
-        target_met=median < 0.300,
+        target_met=median < _P6_TARGET_S,
     )
 
 
@@ -522,10 +537,12 @@ def run_suite(
 
 
 def _key(row: Any) -> Any:
+    """Return the row's id, with its variant."""
     return row["id"] + ("/" + row["variant"] if row.get("variant") else "")
 
 
 def _median_of_runs(runs: Any) -> list[Any]:
+    """Return the rows of several runs, each figure the median over the runs."""
     out = []
     for rows in zip(*runs, strict=True):
         row = dict(rows[0])
@@ -543,6 +560,7 @@ def _median_of_runs(runs: Any) -> list[Any]:
 
 
 def _line(row: Any) -> str:
+    """Return a row as one line of text: durations, memory and target."""
     if row.get("median_s") is None:
         return f"{_key(row)}: {row.get('status', 'not run')} ({row.get('note', '')})"
     met = {True: "met", False: "NOT met", None: "not checked at this size"}[row["target_met"]]
@@ -627,6 +645,7 @@ def write_results(document: Any, path: Any) -> Any:
 
 
 def _jsonable(value: Any) -> Any:
+    """Return a numpy scalar as a Python value (``json.dump`` default)."""
     if isinstance(value, np.generic):
         return value.item()
     raise TypeError(f"not JSON serialisable: {type(value).__name__}")

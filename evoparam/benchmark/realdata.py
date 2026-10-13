@@ -231,6 +231,7 @@ def real_inputs(
 
 
 def _erpcore_input(index: Any, entry: Any, _entry_index: Any, suite: Any) -> "TaskInput":
+    """Return the task input of one ERP CORE participant and component."""
     from evoparam.io import fetch_erpcore
     from evoparam.utils._optional import require
 

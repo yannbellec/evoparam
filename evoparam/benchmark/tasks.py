@@ -80,6 +80,7 @@ def schema_id(task: Any) -> str:
 
 
 def _check_task(task: Any) -> None:
+    """Raise DataError when ``task`` is not a benchmark task."""
     if task not in TASKS:
         raise DataError(f"Unknown benchmark task {task!r}; the tasks are {list(TASKS)}.")
 
@@ -117,6 +118,7 @@ def output_path(folder: Any, task: Any, cell: Any) -> str:
 
 
 def _validator(task: Any, role: Any) -> Any:
+    """Return the (cached) JSON Schema validator of a task's input, output or row."""
     key = (task, role, "validator")
     if key not in _CACHE:
         jsonschema = require(
@@ -132,11 +134,13 @@ def _validator(task: Any, role: Any) -> Any:
 
 
 def _path_text(error: Any) -> str:
+    """Return the place of a schema violation in the document, as a path."""
     parts = list(error.absolute_path)
     return "/".join(str(p) for p in parts) if parts else "(document)"
 
 
 def _first_error(validator: Any, document: Any) -> Any:
+    """Return the first schema violation in document order (None when valid)."""
     errors = list(validator.iter_errors(document))
     if not errors:
         return None
@@ -317,6 +321,7 @@ def read_input(path: Any) -> "TaskInput":
 
 
 def _format(value: Any) -> str:
+    """Return a value as TSV text (``n/a`` for None and non-finite floats, 0/1 for booleans)."""
     if value is None:
         return "n/a"
     if isinstance(value, (bool, np.bool_)):
@@ -353,6 +358,7 @@ def write_output(task: Any, value: Any, path: Any) -> Any:
 
 
 def _string_columns(task: Any) -> set[Any]:
+    """Return the output columns whose values are strings."""
     schema = load_schema(task)
     props = schema["$defs"]["output_row"]["properties"]
     out = set()
@@ -371,6 +377,7 @@ _INT = re.compile(r"^[+-]?\d+$")
 
 
 def _parse(text: Any, column: Any, strings: Any, where: Any) -> Any:
+    """Return a TSV field typed by the schema (None for ``n/a``)."""
     if text == "n/a":
         return None
     if column in strings:
@@ -408,30 +415,37 @@ def read_output(task: Any, path: Any) -> Any:
     if not os.path.isfile(path):
         raise DataError(f"{path}: no such output file.")
     if output_format(task) == "npz":
-        try:
-            archive = np.load(path, allow_pickle=False)
-        except (OSError, ValueError) as err:
-            raise BenchmarkValidationError(f"{path}: not an .npz file ({err}).") from None
-        with archive:
-            names = list(archive.files)
-            arrays = {name: archive[name] for name in names}
-        data = arrays.get("data")
-        description: dict[str, Any]
-        description = {"arrays": {}}
-        if data is not None:
-            description["arrays"]["data"] = {
-                "shape": list(data.shape),
-                "dtype": str(data.dtype),
-                "finite": bool(
-                    np.issubdtype(data.dtype, np.floating) and np.all(np.isfinite(data))
-                ),
-            }
-        for name in names:
-            if name != "data":
-                description["arrays"][name] = {}
-        validate(description, task, "output", where=path)
-        return np.asarray(data, dtype=np.float64)
-    required, optional = output_columns(task)
+        return _read_npz_output(task, path)
+    return _read_tsv_output(task, path)
+
+
+def _read_npz_output(task: Any, path: Any) -> Any:
+    """Read and validate the ``data`` array of a T4 output (``.npz``)."""
+    try:
+        archive = np.load(path, allow_pickle=False)
+    except (OSError, ValueError) as err:
+        raise BenchmarkValidationError(f"{path}: not an .npz file ({err}).") from None
+    with archive:
+        names = list(archive.files)
+        arrays = {name: archive[name] for name in names}
+    data = arrays.get("data")
+    description: dict[str, Any]
+    description = {"arrays": {}}
+    if data is not None:
+        description["arrays"]["data"] = {
+            "shape": list(data.shape),
+            "dtype": str(data.dtype),
+            "finite": bool(np.issubdtype(data.dtype, np.floating) and np.all(np.isfinite(data))),
+        }
+    for name in names:
+        if name != "data":
+            description["arrays"][name] = {}
+    validate(description, task, "output", where=path)
+    return np.asarray(data, dtype=np.float64)
+
+
+def _read_tsv_output(task: Any, path: Any) -> list[dict[str, Any]]:
+    """Read and validate the typed rows of a TSV output."""
     with open(path, encoding="utf-8") as fobj:
         lines = fobj.read().split("\n")
     if lines and lines[-1] == "":
@@ -439,24 +453,7 @@ def read_output(task: Any, path: Any) -> Any:
     if not lines:
         raise BenchmarkValidationError(f"{path}: empty file (the header line is required).")
     header = [c.strip() for c in lines[0].rstrip("\r").split("\t")]
-    column: Any
-    for column in header:
-        if column not in required + optional:
-            raise BenchmarkValidationError(
-                f"{path}: header: unknown column '{column}' "
-                f"(columns of {schema_id(task)}: "
-                f"{required + optional})"
-            )
-    for column in required:
-        if column not in header:
-            raise BenchmarkValidationError(
-                f"{path}: header: missing required column '{column}' (schema {schema_id(task)})"
-            )
-    expected = [c for c in required + optional if c in header]
-    if header != expected:
-        raise BenchmarkValidationError(
-            f"{path}: header: columns must be in the order {expected}, found {header}"
-        )
+    _check_header(task, path, header)
     strings = _string_columns(task)
     rows = []
     for number, line in enumerate(lines[1:], start=2):
@@ -476,3 +473,26 @@ def read_output(task: Any, path: Any) -> Any:
             )
         rows.append(row)
     return rows
+
+
+def _check_header(task: Any, path: Any, header: list[str]) -> None:
+    """Raise BenchmarkValidationError on an unknown, missing or misplaced column."""
+    required, optional = output_columns(task)
+    column: Any
+    for column in header:
+        if column not in required + optional:
+            raise BenchmarkValidationError(
+                f"{path}: header: unknown column '{column}' "
+                f"(columns of {schema_id(task)}: "
+                f"{required + optional})"
+            )
+    for column in required:
+        if column not in header:
+            raise BenchmarkValidationError(
+                f"{path}: header: missing required column '{column}' (schema {schema_id(task)})"
+            )
+    expected = [c for c in required + optional if c in header]
+    if header != expected:
+        raise BenchmarkValidationError(
+            f"{path}: header: columns must be in the order {expected}, found {header}"
+        )
