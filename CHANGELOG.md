@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Pulse detection: a second score when the median finds nothing (ds004977)
+
+- In ds004977 (4800 Hz, the stimulating contacts switched to the stimulator) the artifact
+  reaches a minority of the channels: on the median of the absolute first difference (spec
+  §5.2 method 1, 16 channels) the pulses reach z 9 to 15 in 2 of the 4 runs, under the
+  threshold of 20, and `detect_pulses` found none there (recall 0.50). When the median
+  score has no crossing, `detect_pulses` now tries the 90th percentile of the non-flat
+  picked channels (`evoparam.events._score.quantile_score`): z 47 to 322 at the pulses, at
+  most 10 between them. ds004977: 20 of 20 pulses. Recordings where the median finds a pulse
+  are unchanged (ds004080, Mayo 2048 Hz, synthetic sets: 184 tests passed); the score used
+  is recorded in the provenance (`settings["score"]`: "median" or "p90").
+
 ### Pulse detection: the strength gate also holds on the size of the deflection
 
 - On the Mayo runs at 2048 Hz, 29 false alarms (precision 0.84) were electrode pops: a
