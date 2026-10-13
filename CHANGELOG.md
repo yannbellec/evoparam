@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### §7.4 (5): one platform record per machine; macOS arm64 measured
+
+- `validation/robustness.py --analyses platform` now writes the fixture comparison of the
+  machine it runs on to `validation/layer4/<version>/platforms/<os>-<processor>.json` and
+  keeps the other analyses of the committed report; the report lists every record.
+  Measured: Linux x86-64 (reference machine, 0 difference) and macOS 26.4 arm64 (Python
+  3.14.7, NumPy 2.5.3: 98 values, largest relative difference 1.3e-12, within the 1e-9 of
+  REQ-295).
+- `.github/workflows/platform-record.yml` records Windows (x86-64) on a GitHub runner when a
+  branch `platform-record/<name>` is pushed, and commits the record back to that branch.
+- `test_req375_platform_macos_and_windows` checks every record and names the platforms
+  still missing (Windows until its record is merged).
+
 ### REQ-231: Kiesel et al. (2008) read in full
 
 - The paper was read on all 25 pages (archived authors' copy; the build environment had
