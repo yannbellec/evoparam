@@ -32,6 +32,16 @@ FREE_RANGE = 0.25
 MU0 = 1.0
 # smallest factor of the damping after a good step (Nielsen: 1/3)
 MU_DOWN = 1 / 3
+# damping above which a trial's iteration stops
+_MU_MAX = 1e10
+# u**2 below which the erfc factor of the skewed Gaussian is evaluated (|u| < 9.6: the curve is
+# below 1e-20 of its peak elsewhere)
+_ERFC_RANGE = 184.0
+# a parameter within this fraction of its range from a bound is at the bound
+_AT_BOUND = 1e-3
+# smallest diagonal of the Cholesky factor of the unit-norm Gram matrix for the normal
+# equations (condition about 1e6)
+_CHOLESKY_MIN = 1e-6
 
 
 @dataclasses.dataclass
@@ -47,6 +57,7 @@ class ChannelTemplate:
     tw: NDArray[Any]  # window times
 
     def basis(self) -> Any:
+        """Return the linear basis of the background on the window (no row without one)."""
         if not getattr(self.background, "n_linear", 0):
             return np.zeros((0, len(self.tw)))
         nl = self.bg_nonlinear if len(self.bg_nonlinear) else None
@@ -70,6 +81,7 @@ def _layout(template: Any, mode: Any, movable: Any = None) -> Any:
 
 
 def _bounds(template: Any, _mode: Any, layout: Any) -> tuple[NDArray[Any], NDArray[Any]]:
+    """Return the lower and upper bounds of the free parameters of ``layout``."""
     hi: Any
     lo: Any
     lo, hi = [], []
@@ -92,6 +104,7 @@ def _bounds(template: Any, _mode: Any, layout: Any) -> tuple[NDArray[Any], NDArr
 
 
 def _unpack(template: Any, layout: Any, z: Any) -> list[Any]:
+    """Return each component's parameters with the free ones read from ``z``."""
     out, pos = [], 0
     for params, free in zip(template.params, layout, strict=False):
         p = np.array(params, float)
@@ -158,7 +171,7 @@ def _batched_lstsq(a: Any, y: Any, pad: Any = None) -> tuple[FloatArray, Any]:
         chol = np.linalg.cholesky(gram)
         diag = np.diagonal(chol, axis1=1, axis2=2)
         # well conditioned enough for normal equations (condition of b below about 1e6)
-        good = diag.min(axis=1) > 1e-6
+        good = diag.min(axis=1) > _CHOLESKY_MIN
     except np.linalg.LinAlgError:
         good[:] = False
     beta = np.zeros((n, m))
@@ -233,6 +246,7 @@ def fit_trials_batch(
 
 
 def _fast_kind(shape: Any, loc: Any) -> Any:
+    """Return the kind of a preset shape solved in one pass ("gauss", "skew"), else None."""
     kind = type(shape)
     if kind is Gaussian and loc == 0:
         return "gauss"
@@ -276,16 +290,25 @@ def fit_trials_multi(problems: Any, max_iter: int = 100, max_rows: int = 1024) -
     return out
 
 
-def _solve_multi(problems: Any, max_iter: Any) -> Any:
-    """Fit the trials of ``problems`` (same window length) in one projected LM iteration.
+@dataclasses.dataclass
+class _Problem:
+    """One problem of a batch: a channel's template and its trials."""
 
-    A projected Levenberg-Marquardt iteration. The columns that do not move (components held at
-    their channel latency, the background's linear terms) are projected out once per trial
-    (orthonormal basis from an SVD); the iteration then works on the moving columns only.
-    """
-    infos = []
-    n_t = len(problems[0]["template"].tw)
-    for pr in problems:
+    tpl: Any
+    data: Any
+    layout: Any
+    lo: Any
+    hi: Any
+    basis: Any
+    valid: Any
+    n: int
+    fixed: list[int]
+    tol: float
+    support: Any
+
+    @classmethod
+    def of(cls, pr: dict[str, Any]) -> "_Problem":
+        """Return the problem of a dict of :func:`fit_trials_multi`."""
         tpl = pr["template"]
         data = np.atleast_2d(np.asarray(pr["data"], float))
         layout = _layout(tpl, "shift_scale", pr.get("movable"))
@@ -294,167 +317,211 @@ def _solve_multi(problems: Any, max_iter: Any) -> Any:
         valid = np.ones(data.shape, bool) if valid is None else np.asarray(valid, bool)
         basis = tpl.basis()
         fixed = [k for k, free in enumerate(layout) if not free]
-        infos.append(
-            {
-                "tpl": tpl,
-                "data": data,
-                "layout": layout,
-                "lo": lo,
-                "hi": hi,
-                "basis": basis,
-                "valid": valid,
-                "n": len(data),
-                "fixed": fixed,
-                "tol": float(pr.get("tol", 1e-8)),
-                "support": pr.get("support"),
-            }
+        return cls(
+            tpl=tpl,
+            data=data,
+            layout=layout,
+            lo=lo,
+            hi=hi,
+            basis=basis,
+            valid=valid,
+            n=len(data),
+            fixed=fixed,
+            tol=float(pr.get("tol", 1e-8)),
+            support=pr.get("support"),
         )
-    n = sum(f["n"] for f in infos)
-    p = max(len(f["lo"]) for f in infos)
-    n_fix = max(len(f["fixed"]) + len(f["basis"]) for f in infos)
-    data = np.concatenate([f["data"] for f in infos])
-    w = np.concatenate([f["valid"] for f in infos]).astype(float)
-    all_valid = bool(np.all(w == 1.0))
-    wx = data * w
-    lo, hi = np.zeros((n, p)), np.zeros((n, p))
-    z = np.zeros((n, p))
-    tol = np.zeros(n)
-    pad = np.ones((n, p), bool)  # parameter slots that are padding
-    fcols = np.zeros((n, n_t, n_fix))  # columns that do not move (unweighted)
-    # one entry per (trial, moving component)
-    pr_row: Any
-    pr_comp: Any
-    pr_prob: Any
-    pr_q: Any
-    pr_row, pr_q, pr_prob, pr_comp = [], [], [], []
-    start = 0
-    for pi, f in enumerate(infos):
-        tpl, rows = f["tpl"], slice(start, start + f["n"])
-        q_n = len(f["lo"])
-        tol[rows] = f["tol"]
-        lo[rows, :q_n], hi[rows, :q_n] = f["lo"], f["hi"]
-        z[rows, :q_n] = np.clip(
-            [tpl.params[k][i] for k, free in enumerate(f["layout"]) for i in free],
-            f["lo"],
-            f["hi"],
-        )
-        pad[rows, :q_n] = False
-        q = 0
-        for k, free in enumerate(f["layout"]):
-            if free:
-                pr_row += range(start, start + f["n"])
-                pr_q += [q] * f["n"]
-                pr_prob += [pi] * f["n"]
-                pr_comp += [k] * f["n"]
-                q += 1
-        for c, k in enumerate(f["fixed"]):
-            fcols[rows, :, c] = tpl.shapes[k].evaluate(tpl.tw, tpl.params[k])
-        for i, b in enumerate(f["basis"]):
-            fcols[rows, :, len(f["fixed"]) + i] = b
-        start += f["n"]
-    pr_row, pr_q = np.array(pr_row, int), np.array(pr_q, int)
-    pr_prob, pr_comp = np.array(pr_prob, int), np.array(pr_comp, int)
-    tws = np.array([f["tpl"].tw for f in infos])
-    # fixed columns: orthonormal basis of their (weighted) span, per trial
-    # (one basis for all trials when they share their fixed columns and weights)
-    shared = len(infos) == 1 and all_valid
-    fw = fcols[:1] if shared else fcols * w[:, :, None]
-    if n_fix:
-        u_f, s_f, vt_f = np.linalg.svd(fw, full_matrices=False)
-        keep_f = s_f > 1e-10 * np.maximum(s_f[:, :1], 1e-300)
-        u_f = u_f * keep_f[:, None, :]
-        if shared:
-            u_f, s_f, vt_f = u_f[0], s_f[0], vt_f[0]
-    else:
-        u_f = np.zeros((n, n_t, 0))
-        shared = False
 
-    if shared:
-        y_perp = wx - (wx @ u_f) @ u_f.T
-    else:
-        y_perp = wx - np.matmul(u_f, np.matmul(np.swapaxes(u_f, 1, 2), wx[..., None]))[..., 0]
-    # the shapes of the presets are evaluated for all their (trial, component) entries at
-    # once, with per-entry parameters; any other shape by (problem, component)
-    kinds: dict[str, Any]
-    kinds = {"gauss": [], "skew": []}
-    generic: dict[Any, Any]
-    generic = {}
-    base_loc = np.zeros(len(pr_row))
-    pars = np.zeros((len(pr_row), 4))  # gauss: mu, sigma; skew: xi, omega, alpha, c
-    for e in range(len(pr_row)):
-        tpl = infos[pr_prob[e]]["tpl"]
-        k = pr_comp[e]
-        shape, base, loc = tpl.shapes[k], np.asarray(tpl.params[k], float), tpl.loc_index[k]
-        base_loc[e] = base[loc]
-        kind = _fast_kind(shape, loc)
-        if kind == "gauss":
-            pars[e, :2] = base[:2]
-        elif kind == "skew":
-            pars[e, :3] = base[:3]
-            pars[e, 3] = float(skew_mode(base[2])[1])
+
+class _Batch:
+    """The trials of several problems (same window length), stacked for one iteration.
+
+    The columns that do not move (components held at their channel latency, the background's
+    linear terms) are projected out once per trial (orthonormal basis from an SVD); the
+    iteration then works on the moving columns only.
+    """
+
+    def __init__(self, problems: Any) -> None:
+        """Stack the trials, bounds and starting points of ``problems``."""
+        infos = [_Problem.of(pr) for pr in problems]
+        self.infos = infos
+        self.n_t = len(problems[0]["template"].tw)
+        self.n = n = sum(f.n for f in infos)
+        self.p = p = max(len(f.lo) for f in infos)
+        self.n_fix = max(len(f.fixed) + len(f.basis) for f in infos)
+        data = np.concatenate([f.data for f in infos])
+        self.w = w = np.concatenate([f.valid for f in infos]).astype(float)
+        self.all_valid = bool(np.all(w == 1.0))
+        self.wx = data * w
+        self.lo, self.hi = np.zeros((n, p)), np.zeros((n, p))
+        self.z = np.zeros((n, p))
+        self.tol = np.zeros(n)
+        self.pad = np.ones((n, p), bool)  # parameter slots that are padding
+        self.fcols = np.zeros((n, self.n_t, self.n_fix))  # columns that do not move (unweighted)
+        self._stack()
+        self.tws = np.array([f.tpl.tw for f in infos])
+        self._fixed_basis()
+        self._entries()
+
+    def _stack(self) -> None:
+        """Fill the per-trial bounds, start, tolerance and fixed columns of every problem."""
+        # one entry per (trial, moving component)
+        pr_row: Any
+        pr_comp: Any
+        pr_prob: Any
+        pr_q: Any
+        pr_row, pr_q, pr_prob, pr_comp = [], [], [], []
+        start = 0
+        for pi, f in enumerate(self.infos):
+            tpl, rows = f.tpl, slice(start, start + f.n)
+            q_n = len(f.lo)
+            self.tol[rows] = f.tol
+            self.lo[rows, :q_n], self.hi[rows, :q_n] = f.lo, f.hi
+            self.z[rows, :q_n] = np.clip(
+                [tpl.params[k][i] for k, free in enumerate(f.layout) for i in free],
+                f.lo,
+                f.hi,
+            )
+            self.pad[rows, :q_n] = False
+            q = 0
+            for k, free in enumerate(f.layout):
+                if free:
+                    pr_row += range(start, start + f.n)
+                    pr_q += [q] * f.n
+                    pr_prob += [pi] * f.n
+                    pr_comp += [k] * f.n
+                    q += 1
+            for c, k in enumerate(f.fixed):
+                self.fcols[rows, :, c] = tpl.shapes[k].evaluate(tpl.tw, tpl.params[k])
+            for i, b in enumerate(f.basis):
+                self.fcols[rows, :, len(f.fixed) + i] = b
+            start += f.n
+        self.pr_row, self.pr_q = np.array(pr_row, int), np.array(pr_q, int)
+        self.pr_prob, self.pr_comp = np.array(pr_prob, int), np.array(pr_comp, int)
+
+    def _fixed_basis(self) -> None:
+        """Set the orthonormal basis of the (weighted) span of the fixed columns, per trial.
+
+        One basis serves all trials when they share their fixed columns and weights. The data
+        with that span projected out are ``y_perp``.
+        """
+        n, wx = self.n, self.wx
+        shared = len(self.infos) == 1 and self.all_valid
+        fw = self.fcols[:1] if shared else self.fcols * self.w[:, :, None]
+        self.s_f: Any = None
+        self.vt_f: Any = None
+        if self.n_fix:
+            u_f, s_f, vt_f = np.linalg.svd(fw, full_matrices=False)
+            keep_f = s_f > 1e-10 * np.maximum(s_f[:, :1], 1e-300)
+            u_f = u_f * keep_f[:, None, :]
+            if shared:
+                u_f, s_f, vt_f = u_f[0], s_f[0], vt_f[0]
+            self.s_f, self.vt_f = s_f, vt_f
         else:
-            generic.setdefault((pr_prob[e], k), []).append(e)
-            continue
-        kinds[kind].append(e)
-    kinds = {key: np.array(v, int) for key, v in kinds.items()}
-    generic = {key: np.array(v, int) for key, v in generic.items()}
+            u_f = np.zeros((n, self.n_t, 0))
+            shared = False
+        self.u_f, self.shared = u_f, shared
+        if shared:
+            self.y_perp = wx - (wx @ u_f) @ u_f.T
+        else:
+            self.y_perp = (
+                wx - np.matmul(u_f, np.matmul(np.swapaxes(u_f, 1, 2), wx[..., None]))[..., 0]
+            )
 
-    def moving(zr: Any, rows: Any, jac: Any) -> Any:
+    def _entries(self) -> None:
+        """Sort the (trial, component) entries by shape.
+
+        The shapes of the presets are evaluated for all their entries at once, with per-entry
+        parameters; any other shape by (problem, component).
+        """
+        kinds: dict[str, Any]
+        kinds = {"gauss": [], "skew": []}
+        generic: dict[Any, Any]
+        generic = {}
+        n_entries = len(self.pr_row)
+        self.base_loc = np.zeros(n_entries)
+        self.pars = np.zeros((n_entries, 4))  # gauss: mu, sigma; skew: xi, omega, alpha, c
+        for e in range(n_entries):
+            tpl = self.infos[self.pr_prob[e]].tpl
+            k = self.pr_comp[e]
+            shape, base, loc = tpl.shapes[k], np.asarray(tpl.params[k], float), tpl.loc_index[k]
+            self.base_loc[e] = base[loc]
+            kind = _fast_kind(shape, loc)
+            if kind == "gauss":
+                self.pars[e, :2] = base[:2]
+            elif kind == "skew":
+                self.pars[e, :3] = base[:3]
+                self.pars[e, 3] = float(skew_mode(base[2])[1])
+            else:
+                generic.setdefault((self.pr_prob[e], k), []).append(e)
+                continue
+            kinds[kind].append(e)
+        self.kinds = {key: np.array(v, int) for key, v in kinds.items()}
+        self.generic = {key: np.array(v, int) for key, v in generic.items()}
+
+    def _preset_columns(self, kind: str, e: Any, delta: Any, jac: bool) -> tuple[Any, Any]:
+        """Return the shifted columns of preset-shape entries ``e`` and their shift derivatives."""
+        pars = self.pars
+        tt = self.tws[self.pr_prob[e]] - delta[:, None]
+        if kind == "gauss":
+            sigma = pars[e, 1, None]
+            u = (tt - pars[e, 0, None]) / sigma
+            values = np.exp(-0.5 * u * u)
+            return values, (values * u / sigma if jac else None)
+        omega, alpha, c = pars[e, 1, None], pars[e, 2, None], pars[e, 3, None]
+        u = (tt - pars[e, 0, None]) / omega
+        gauss_u = np.exp(-0.5 * u * u)
+        # erfc (the costly part) only where the Gaussian factor is not negligible
+        # (|u| < 9.6: the curve is below 1e-20 of its peak elsewhere)
+        near = u * u < _ERFC_RANGE
+        numerator = np.zeros_like(u)
+        alpha_b = np.broadcast_to(alpha, u.shape)
+        numerator[near] = gauss_u[near] * erfc(-alpha_b[near] * u[near] / _SQRT2)
+        deriv = None
+        if jac:
+            g = _SQRT_2_OVER_PI * np.exp(-0.5 * u * u * (1.0 + alpha * alpha))
+            deriv = (u * numerator - alpha * g) / (omega * c)
+        return numerator / c, deriv
+
+    def moving(self, zr: Any, rows: Any, jac: Any) -> Any:
         """Return the moving columns (rows, T, p) at ``zr`` and their derivatives in the shift."""
+        n_t, p, pr_row, pr_q = self.n_t, self.p, self.pr_row, self.pr_q
         nr = len(rows)
-        local = np.full(n, -1)
+        local = np.full(self.n, -1)
         local[rows] = np.arange(nr)
         ms = np.zeros((nr, n_t, p))
         dm: Any = np.zeros((nr, n_t, p)) if jac else None
 
         def put(entries: Any, values: Any, deriv: Any) -> None:
+            """Write the columns (and derivatives) of ``entries`` into their slots."""
             lr = local[pr_row[entries]]
             ms[lr, :, pr_q[entries]] = values
             if jac:
                 dm[lr, :, pr_q[entries]] = deriv
 
-        for kind, entries in kinds.items():
+        for kind, entries in self.kinds.items():
             e = entries[local[pr_row[entries]] >= 0] if len(entries) else entries
             if not len(e):
                 continue
             lr = local[pr_row[e]]
-            delta = zr[lr, pr_q[e]] - base_loc[e]
-            tt = tws[pr_prob[e]] - delta[:, None]
-            if kind == "gauss":
-                sigma = pars[e, 1, None]
-                u = (tt - pars[e, 0, None]) / sigma
-                values = np.exp(-0.5 * u * u)
-                put(e, values, values * u / sigma if jac else None)
-            else:
-                omega, alpha, c = pars[e, 1, None], pars[e, 2, None], pars[e, 3, None]
-                u = (tt - pars[e, 0, None]) / omega
-                gauss_u = np.exp(-0.5 * u * u)
-                # erfc (the costly part) only where the Gaussian factor is not negligible
-                # (|u| < 9.6: the curve is below 1e-20 of its peak elsewhere)
-                near = u * u < 184.0
-                numerator = np.zeros_like(u)
-                alpha_b = np.broadcast_to(alpha, u.shape)
-                numerator[near] = gauss_u[near] * erfc(-alpha_b[near] * u[near] / _SQRT2)
-                deriv = None
-                if jac:
-                    g = _SQRT_2_OVER_PI * np.exp(-0.5 * u * u * (1.0 + alpha * alpha))
-                    deriv = (u * numerator - alpha * g) / (omega * c)
-                put(e, numerator / c, deriv)
-        for (pi, k), entries in generic.items():
+            delta = zr[lr, pr_q[e]] - self.base_loc[e]
+            put(e, *self._preset_columns(kind, e, delta, jac))
+        for (pi, k), entries in self.generic.items():
             e = entries[local[pr_row[entries]] >= 0]
             if not len(e):
                 continue
-            tpl = infos[pi]["tpl"]
+            tpl = self.infos[pi].tpl
             base = np.asarray(tpl.params[k], float)
             lr = local[pr_row[e]]
-            delta = zr[lr, pr_q[e]] - base_loc[e]
+            delta = zr[lr, pr_q[e]] - self.base_loc[e]
             t = (tpl.tw[None, :] - delta[:, None]).ravel()
             values, d = _value_and_loc_derivative(tpl.shapes[k], t, base, tpl.loc_index[k], jac)
             put(e, values.reshape(len(e), n_t), None if d is None else d.reshape(len(e), n_t))
         return ms, dm
 
-    def project_fixed(x: Any, rows: Any) -> Any:
-        if shared:
+    def project_fixed(self, x: Any, rows: Any) -> Any:
+        """Return ``x`` (rows, T, k) without its projection on the fixed columns."""
+        n_t, u_f = self.n_t, self.u_f
+        if self.shared:
             # one product for all trials: (T, f) against (T, rows x k)
             nr, _, k = x.shape
             flat = np.swapaxes(x, 0, 1).reshape(n_t, nr * k)
@@ -463,12 +530,14 @@ def _solve_multi(problems: Any, max_iter: Any) -> Any:
         uf = u_f[rows]
         return x - np.matmul(uf, np.matmul(np.swapaxes(uf, 1, 2), x))
 
-    def evaluate(zr: Any, rows: Any, jac: bool = True) -> Any:
-        ms, dm = moving(zr, rows, jac)
+    def evaluate(self, zr: Any, rows: Any, jac: bool = True) -> Any:
+        """Return the residuals, moving coefficients and columns at ``zr``, and the Jacobian."""
+        ms, dm = self.moving(zr, rows, jac)
+        w, all_valid, n_fix = self.w, self.all_valid, self.n_fix
         a = ms if all_valid else ms * w[rows, :, None]
-        a = project_fixed(a, rows) if n_fix else a
-        beta, project_out = _batched_lstsq(a, y_perp[rows], pad[rows])
-        r = y_perp[rows] - np.matmul(a, beta[..., None])[..., 0]
+        a = self.project_fixed(a, rows) if n_fix else a
+        beta, project_out = _batched_lstsq(a, self.y_perp[rows], self.pad[rows])
+        r = self.y_perp[rows] - np.matmul(a, beta[..., None])[..., 0]
         if not jac:
             return r, beta, ms, None
 
@@ -482,152 +551,206 @@ def _solve_multi(problems: Any, max_iter: Any) -> Any:
             if not all_valid:
                 j *= w[rows[sel], :, None]
             if n_fix:
-                j = project_fixed(j, rows[sel])
+                j = self.project_fixed(j, rows[sel])
             return project_out(j, sel)
 
         return r, beta, ms, jacobian
 
+    def fixed_coefficients(self, rest: Any) -> Any:
+        """Return the fixed-column coefficients: minimum-norm least squares on ``rest``."""
+        n_fix, s_f, u_f, vt_f = self.n_fix, self.s_f, self.u_f, self.vt_f
+        if n_fix and self.shared:
+            inv_s = np.where(
+                s_f > 1e-10 * max(s_f[0], 1e-300), 1.0 / np.where(s_f > 0, s_f, 1.0), 0.0
+            )
+            return ((rest @ u_f) * inv_s) @ vt_f
+        if n_fix:
+            inv_s = np.where(
+                s_f > 1e-10 * np.maximum(s_f[:, :1], 1e-300),
+                1.0 / np.where(s_f > 0, s_f, 1.0),
+                0.0,
+            )
+            return np.matmul(
+                np.swapaxes(vt_f, 1, 2),
+                (inv_s * np.matmul(np.swapaxes(u_f, 1, 2), rest[..., None])[..., 0])[..., None],
+            )[..., 0]
+        return np.zeros((self.n, 0))
+
+
+def _box_step(g0: Any, h0: Any, mu: Any, box: tuple[Any, Any, Any]) -> tuple[Any, Any, Any, Any]:
+    """Return the damped step within the box ``(z, lo, hi)``, with its gradient and curvature.
+
+    Active set: a parameter on a bound that the step would push out of the box is held there,
+    and the step is recomputed for the others. Returns (step, gradient, curvature, safe
+    diagonal of the curvature).
+    """
+    za, la, ha = box
+    p = za.shape[1]
+    eye = np.eye(p)[None]
+    blocked = np.zeros_like(za, dtype=bool)
+    for _pass in range(p + 1):
+        g = np.where(blocked, 0.0, g0)
+        h = np.where(blocked[:, :, None] | blocked[:, None, :], 0.0, h0)
+        dh = np.diagonal(h, axis1=1, axis2=2).copy()
+        dh_safe = np.where(dh > 0, dh, 1.0)
+        damp = h + mu[:, None, None] * (dh_safe[:, :, None] * eye)
+        damp = damp + blocked[:, :, None] * eye
+        step = -np.linalg.solve(damp, g[..., None])[..., 0]
+        out = ~blocked & (((za <= la) & (step < 0)) | ((za >= ha) & (step > 0)))
+        if not out.any():
+            break
+        blocked |= out
+    return step, g, h, dh_safe
+
+
+def _levenberg_marquardt(batch: _Batch, max_iter: Any) -> NDArray[np.bool_]:
+    """Run the projected Levenberg-Marquardt iteration of every trial; return ``converged``.
+
+    The parameters ``batch.z`` are updated in place.
+    """
+    n, z, lo, hi, tol = batch.n, batch.z, batch.lo, batch.hi, batch.tol
     converged = np.zeros(n, bool)
     finished = np.zeros(n, bool)
-    if p:
-        mu = np.full(n, MU0)
-        r, beta, _, jacobian = evaluate(z, np.arange(n))
-        j = jacobian()
-        cost = 0.5 * np.sum(r**2, axis=1)
-        eye = np.eye(p)[None]
-        for _ in range(max_iter):
-            act = np.flatnonzero(~finished)
-            if not len(act):
-                break
-            ja, ra = j[act], r[act]
-            h = np.matmul(np.swapaxes(ja, 1, 2), ja)
-            g = np.matmul(np.swapaxes(ja, 1, 2), ra[..., None])[..., 0]
-            za, la, ha, ta = z[act], lo[act], hi[act], tol[act, None]
-            # active set: a parameter on a bound that the step would push out of the box is
-            # held there, and the step is recomputed for the others
-            blocked = np.zeros_like(za, dtype=bool)
-            g0, h0 = g, h
-            for _pass in range(p + 1):
-                g = np.where(blocked, 0.0, g0)
-                h = np.where(blocked[:, :, None] | blocked[:, None, :], 0.0, h0)
-                dh = np.diagonal(h, axis1=1, axis2=2).copy()
-                dh_safe = np.where(dh > 0, dh, 1.0)
-                damp = h + mu[act, None, None] * (dh_safe[:, :, None] * eye)
-                damp = damp + blocked[:, :, None] * eye
-                step = -np.linalg.solve(damp, g[..., None])[..., 0]
-                out = ~blocked & (((za <= la) & (step < 0)) | ((za >= ha) & (step > 0)))
-                if not out.any():
-                    break
-                blocked |= out
-            # first-order optimality (scale-free: gradient over curvature, in parameter units)
-            gstop = np.all(np.abs(g) / dh_safe <= ta * (ta + np.abs(za)), axis=1)
-            z_new = np.clip(za + step, la, ha)
-            r_new, beta_new, _, jacobian_new = evaluate(z_new, act)
-            cost_new = 0.5 * np.sum(r_new**2, axis=1)
-            step = z_new - za
-            pred = -np.einsum("np,np->n", g, step) - 0.5 * np.einsum("np,npq,nq->n", step, h, step)
-            rho = (cost[act] - cost_new) / np.where(pred > 0, pred, np.inf)
-            better = np.isfinite(cost_new) & (cost_new <= cost[act]) & ~gstop
-            moved = np.abs(z_new - za)
-            xstop = better & np.all(moved <= ta * (ta + np.abs(za)), axis=1)
-            fstop = better & (cost[act] - cost_new <= ta[:, 0] * np.maximum(cost[act], 1e-300))
-            idx = act[better]
-            z[idx], r[idx], beta[idx] = z_new[better], r_new[better], beta_new[better]
-            # the Jacobian only where the iteration goes on from the new point
-            going = better & ~(xstop | fstop)
-            if going.any():
-                j[act[going]] = jacobian_new(np.flatnonzero(going))
-            cost[idx] = cost_new[better]
-            # Nielsen's update of the damping from the gain ratio (overshooting steps along a
-            # curved valley raise the damping instead of zig-zagging)
-            mu[act] = np.where(
-                better,
-                mu[act] * np.maximum(MU_DOWN, 1 - (2 * np.clip(rho, 0, 1) - 1) ** 3),
-                mu[act] * 4.0,
-            )
-            stop = gstop | xstop | fstop
-            converged[act[stop]] = True
-            finished[act[stop | (mu[act] > 1e10)]] = True
-    else:
+    if not batch.p:
         converged[:] = True
+        return converged
+    mu = np.full(n, MU0)
+    r, beta, _, jacobian = batch.evaluate(z, np.arange(n))
+    j = jacobian()
+    cost = 0.5 * np.sum(r**2, axis=1)
+    for _ in range(max_iter):
+        act = np.flatnonzero(~finished)
+        if not len(act):
+            break
+        ja, ra = j[act], r[act]
+        h = np.matmul(np.swapaxes(ja, 1, 2), ja)
+        g = np.matmul(np.swapaxes(ja, 1, 2), ra[..., None])[..., 0]
+        za, la, ha, ta = z[act], lo[act], hi[act], tol[act, None]
+        step, g, h, dh_safe = _box_step(g, h, mu[act], (za, la, ha))
+        # first-order optimality (scale-free: gradient over curvature, in parameter units)
+        gstop = np.all(np.abs(g) / dh_safe <= ta * (ta + np.abs(za)), axis=1)
+        z_new = np.clip(za + step, la, ha)
+        r_new, beta_new, _, jacobian_new = batch.evaluate(z_new, act)
+        cost_new = 0.5 * np.sum(r_new**2, axis=1)
+        step = z_new - za
+        pred = -np.einsum("np,np->n", g, step) - 0.5 * np.einsum("np,npq,nq->n", step, h, step)
+        rho = (cost[act] - cost_new) / np.where(pred > 0, pred, np.inf)
+        better = np.isfinite(cost_new) & (cost_new <= cost[act]) & ~gstop
+        moved = np.abs(z_new - za)
+        xstop = better & np.all(moved <= ta * (ta + np.abs(za)), axis=1)
+        fstop = better & (cost[act] - cost_new <= ta[:, 0] * np.maximum(cost[act], 1e-300))
+        idx = act[better]
+        z[idx], r[idx], beta[idx] = z_new[better], r_new[better], beta_new[better]
+        # the Jacobian only where the iteration goes on from the new point
+        going = better & ~(xstop | fstop)
+        if going.any():
+            j[act[going]] = jacobian_new(np.flatnonzero(going))
+        cost[idx] = cost_new[better]
+        # Nielsen's update of the damping from the gain ratio (overshooting steps along a
+        # curved valley raise the damping instead of zig-zagging)
+        mu[act] = np.where(
+            better,
+            mu[act] * np.maximum(MU_DOWN, 1 - (2 * np.clip(rho, 0, 1) - 1) ** 3),
+            mu[act] * 4.0,
+        )
+        stop = gstop | xstop | fstop
+        converged[act[stop]] = True
+        finished[act[stop | (mu[act] > _MU_MAX)]] = True
+    return converged
+
+
+def _problem_results(f: _Problem, start: int, solution: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return the per-trial results of the problem ``f`` (its trials start at row ``start``)."""
+    z, fitted, converged = solution["z"], solution["fitted"], solution["converged"]
+    beta_s, beta_f, hit = solution["beta_s"], solution["beta_f"], solution["hit"]
+    tpl, layout = f.tpl, f.layout
+    n_comp, q_n, n_fixed = len(tpl.shapes), len(f.lo), len(f.fixed)
+    rows = slice(start, start + f.n)
+    moving_k = [k for k, free in enumerate(layout) if free]
+    support = f.support
+    keep = f.valid if support is None else f.valid & np.asarray(support)[None]
+    # r² on the kept samples (support of the reported components), all trials at once
+    x, fit_x, kf = f.data, fitted[rows], keep.astype(float)
+    count = kf.sum(axis=1)
+    mean = (x * kf).sum(axis=1) / np.maximum(count, 1)
+    tss = (((x - mean[:, None]) * kf) ** 2).sum(axis=1)
+    rss = (((x - fit_x) * kf) ** 2).sum(axis=1)
+    r2 = np.full(tss.shape, np.nan)
+    np.subtract(1, rss / np.where(tss > 0, tss, 1.0), out=r2, where=(tss > 0) & (count > 0))
+    owner = np.zeros((q_n, n_comp))
+    owner[np.arange(q_n), moving_k] = 1.0
+    at_k = (hit[rows, :q_n].astype(float) @ owner) > 0
+    scale = np.zeros((f.n, n_comp))
+    scale[:, moving_k] = beta_s[rows, :q_n]
+    scale[:, f.fixed] = beta_f[rows, :n_fixed]
+    background = beta_f[rows, n_fixed : n_fixed + len(f.basis)]
+    params_k = []
+    for k, free in enumerate(layout):
+        pk = np.tile(np.asarray(tpl.params[k], float), (f.n, 1))
+        if free:
+            pk[:, free[0]] = z[rows, moving_k.index(k)]
+        params_k.append(pk)
+    shifts = np.stack(
+        [
+            pk[:, li] - c[li]
+            for pk, c, li in zip(params_k, tpl.params, tpl.loc_index, strict=False)
+        ],
+        axis=1,
+    )
+    return [
+        {
+            "params": [pk[i].copy() for pk in params_k],
+            "scale": scale[i],
+            "shift": shifts[i],
+            "background": background[i].copy(),
+            "r2": float(r2[i]),
+            "converged": bool(converged[start + i]),
+            "at_bound": bool(at_k[i].any()),
+            "at_bound_k": at_k[i],
+            "fitted": fit_x[i],
+        }
+        for i in range(f.n)
+    ]
+
+
+def _solve_multi(problems: Any, max_iter: Any) -> Any:
+    """Fit the trials of ``problems`` (same window length) in one projected LM iteration.
+
+    A projected Levenberg-Marquardt iteration. The columns that do not move (components held at
+    their channel latency, the background's linear terms) are projected out once per trial
+    (orthonormal basis from an SVD); the iteration then works on the moving columns only.
+    """
+    batch = _Batch(problems)
+    n, z, w = batch.n, batch.z, batch.w
+    converged = _levenberg_marquardt(batch, max_iter)
     # the model at the solution: moving coefficients as in the iteration, then the fixed
     # ones by least squares on what the moving columns leave (minimum norm)
-    _, beta_s, ms, _ = evaluate(z, np.arange(n), jac=False)
-    rest = wx - np.matmul(ms * w[:, :, None], beta_s[..., None])[..., 0]
-    if n_fix and shared:
-        inv_s = np.where(s_f > 1e-10 * max(s_f[0], 1e-300), 1.0 / np.where(s_f > 0, s_f, 1.0), 0.0)
-        beta_f = ((rest @ u_f) * inv_s) @ vt_f
-    elif n_fix:
-        inv_s = np.where(
-            s_f > 1e-10 * np.maximum(s_f[:, :1], 1e-300), 1.0 / np.where(s_f > 0, s_f, 1.0), 0.0
-        )
-        beta_f = np.matmul(
-            np.swapaxes(vt_f, 1, 2),
-            (inv_s * np.matmul(np.swapaxes(u_f, 1, 2), rest[..., None])[..., 0])[..., None],
-        )[..., 0]
-    else:
-        beta_f = np.zeros((n, 0))
-    fitted = np.matmul(ms, beta_s[..., None])[..., 0] + np.matmul(fcols, beta_f[..., None])[..., 0]
+    _, beta_s, ms, _ = batch.evaluate(z, np.arange(n), jac=False)
+    rest = batch.wx - np.matmul(ms * w[:, :, None], beta_s[..., None])[..., 0]
+    beta_f = batch.fixed_coefficients(rest)
+    fitted = (
+        np.matmul(ms, beta_s[..., None])[..., 0]
+        + np.matmul(batch.fcols, beta_f[..., None])[..., 0]
+    )
     converged &= (
         np.all(np.isfinite(z), axis=1)
         & np.all(np.isfinite(beta_s), axis=1)
         & np.all(np.isfinite(beta_f), axis=1)
     )
-    span = hi - lo
-    hit = (z - lo <= 1e-3 * span) | (hi - z <= 1e-3 * span)
+    span = batch.hi - batch.lo
+    hit = (z - batch.lo <= _AT_BOUND * span) | (batch.hi - z <= _AT_BOUND * span)
+    solution = {
+        "z": z,
+        "fitted": fitted,
+        "converged": converged,
+        "beta_s": beta_s,
+        "beta_f": beta_f,
+        "hit": hit,
+    }
     results, start = [], 0
-    for f in infos:
-        tpl, layout = f["tpl"], f["layout"]
-        n_comp, q_n, n_fixed = len(tpl.shapes), len(f["lo"]), len(f["fixed"])
-        rows = slice(start, start + f["n"])
-        moving_k = [k for k, free in enumerate(layout) if free]
-        support = f["support"]
-        keep = f["valid"] if support is None else f["valid"] & np.asarray(support)[None]
-        # r² on the kept samples (support of the reported components), all trials at once
-        x, fit_x, kf = f["data"], fitted[rows], keep.astype(float)
-        count = kf.sum(axis=1)
-        mean = (x * kf).sum(axis=1) / np.maximum(count, 1)
-        tss = (((x - mean[:, None]) * kf) ** 2).sum(axis=1)
-        rss = (((x - fit_x) * kf) ** 2).sum(axis=1)
-        r2 = np.full(tss.shape, np.nan)
-        np.subtract(1, rss / np.where(tss > 0, tss, 1.0), out=r2, where=(tss > 0) & (count > 0))
-        owner = np.zeros((q_n, n_comp))
-        owner[np.arange(q_n), moving_k] = 1.0
-        at_k = (hit[rows, :q_n].astype(float) @ owner) > 0
-        scale = np.zeros((f["n"], n_comp))
-        scale[:, moving_k] = beta_s[rows, :q_n]
-        scale[:, f["fixed"]] = beta_f[rows, :n_fixed]
-        background = beta_f[rows, n_fixed : n_fixed + len(f["basis"])]
-        params_k = []
-        for k, free in enumerate(layout):
-            pk = np.tile(np.asarray(tpl.params[k], float), (f["n"], 1))
-            if free:
-                pk[:, free[0]] = z[rows, moving_k.index(k)]
-            params_k.append(pk)
-        shifts = np.stack(
-            [
-                pk[:, li] - c[li]
-                for pk, c, li in zip(params_k, tpl.params, tpl.loc_index, strict=False)
-            ],
-            axis=1,
-        )
-        results.append(
-            [
-                {
-                    "params": [pk[i].copy() for pk in params_k],
-                    "scale": scale[i],
-                    "shift": shifts[i],
-                    "background": background[i].copy(),
-                    "r2": float(r2[i]),
-                    "converged": bool(converged[start + i]),
-                    "at_bound": bool(at_k[i].any()),
-                    "at_bound_k": at_k[i],
-                    "fitted": fit_x[i],
-                }
-                for i in range(f["n"])
-            ]
-        )
-        start += f["n"]
+    for f in batch.infos:
+        results.append(_problem_results(f, start, solution))
+        start += f.n
     return results
 
 
@@ -659,17 +782,20 @@ def fit_trial(
     scale = np.where(hi > lo, hi - lo, 1.0)
 
     def design(z: Any) -> Any:
+        """Return the design matrix at ``z`` (components, then background) and the parameters."""
         params = _unpack(template, layout, z)
         cols = [s.evaluate(template.tw, p) for s, p in zip(template.shapes, params, strict=False)]
         return np.column_stack(cols + list(basis)), params
 
     def solve(z: Any) -> Any:
+        """Return the least-squares coefficients at ``z``, the design and the parameters."""
         m, params = design(z)
         a = m * w[:, None]
         beta, *_ = np.linalg.lstsq(a, x * w, rcond=None)
         return beta, m, params
 
     def residual(z: Any) -> Any:
+        """Return the weighted residual at ``z``, with the ridge penalty rows."""
         beta, m, _ = solve(z)
         r = (x - m @ beta) * w
         if ridge:
@@ -677,6 +803,7 @@ def fit_trial(
         return r
 
     def jac(z: Any) -> Any:
+        """Return the Jacobian of :func:`residual` in ``z``."""
         beta, m, params = solve(z)
         cols = []
         pos = 0
@@ -717,7 +844,7 @@ def fit_trial(
     tss = np.sum((x[keep] - x[keep].mean()) ** 2)
     r2 = 1 - np.sum(resid**2) / tss if tss > 0 else np.nan
     span = hi - lo
-    hit = (z - lo <= 1e-3 * span) | (hi - z <= 1e-3 * span)
+    hit = (z - lo <= _AT_BOUND * span) | (hi - z <= _AT_BOUND * span)
     # per component: any of its free parameters at a bound
     owner = np.array([k for k, free in enumerate(layout) for _ in free], dtype=int)
     at_bound_k = np.array([bool(np.any(hit[owner == k])) for k in range(len(layout))])

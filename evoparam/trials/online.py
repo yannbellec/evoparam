@@ -16,6 +16,8 @@ the inverse normal matrices of every common shift and the products of every pair
 components) is computed once, so that a pulse costs a few matrix products.
 """
 
+from typing import NamedTuple
+
 import numpy as np
 
 from evoparam._typing import Any, ArrayLike, FloatArray, NDArray
@@ -34,6 +36,10 @@ INTERP_BUFFER = 3
 # A component is evaluated where, at some shift within max_shift, it exceeds this fraction
 # of its peak (and two samples beyond); elsewhere it is below float64 resolution.
 TAIL = 1e-16
+# Fewest samples of the fitting window
+_MIN_WINDOW_SAMPLES = 4
+# Rows of one sample per channel: [n_channels, n_times]
+_ROWS_NDIM = 2
 
 
 def _offset(t: Any, sfreq: float, side: Any) -> int:
@@ -56,10 +62,28 @@ def _offset(t: Any, sfreq: float, side: Any) -> int:
     return k
 
 
+class _Pulse(NamedTuple):
+    """The window samples of one pulse in :meth:`FixedShapeModel.fit`.
+
+    ``y`` holds zeros at the non-finite samples, whose ``weights`` are zero; ``inverse`` are
+    the inverse normal matrices of every common shift, and ``bad`` the channels with a
+    non-finite sample (None when there is none, ``clean``).
+    """
+
+    y: Any
+    finite: Any
+    all_finite: Any
+    clean: bool
+    weights: Any
+    inverse: Any
+    bad: Any
+
+
 class _Channel:
     """The frozen template of one channel."""
 
     def __init__(self, fit: Any, tw: Any) -> None:
+        """Freeze the components and background of the channel fit ``fit`` on the window ``tw``."""
         settings = fit.settings or {}
         self.shapes, self.params, self.locs, self.amps = [], [], [], []
         self.labels, self.latencies, self.amplitudes = [], [], []
@@ -217,6 +241,7 @@ class FixedShapeModel:
         max_shift: float = 0.005,
         mode: str = "shift_scale",
     ) -> None:
+        """Check the settings and compute everything that does not depend on the pulse."""
         if not sfreq > 0:
             raise SettingsError("sfreq must be positive.")
         if not max_shift >= 0:
@@ -233,31 +258,18 @@ class FixedShapeModel:
                 "least one component)."
             )
         if window is None:
-            windows = {tuple(fit.window) for _, fit in fits}
-            if len(windows) > 1:
-                raise SettingsError("The channel fits have different windows; give window=.")
-            window = windows.pop()
+            window = self._common_window(fits)
         window = (float(window[0]), float(window[1]))
         i0, i1 = _offset(window[0], sfreq, "start"), _offset(window[1], sfreq, "stop")
-        if i1 - i0 < 3:
+        if i1 - i0 + 1 < _MIN_WINDOW_SAMPLES:
             raise SettingsError("window must hold at least 4 samples.")
         self.window = window
         self.window_offsets: tuple[int, int] = (i0, i1)
         self.tw: FloatArray = np.arange(i0, i1 + 1) / self.sfreq
         n_w = len(self.tw)
         self.weights: FloatArray = np.ones(n_w)
-        start, stop, base_end = i0, i1, i0
         self.artifact_window: None | tuple[float, float] = None
-        if artifact_window is not None:
-            a0 = _offset(artifact_window[0], sfreq, "start")
-            a1 = _offset(artifact_window[1], sfreq, "stop")
-            if a1 < a0:
-                raise SettingsError("artifact_window holds no sample.")
-            base_end = min(i0, a0)
-            if a0 <= i1 and a1 >= i0:
-                # The interpolation changes window samples: the data reach its anchors
-                self.artifact_window = (float(artifact_window[0]), float(artifact_window[1]))
-                start, stop = min(i0, a0 - INTERP_BUFFER), max(i1, a1 + INTERP_BUFFER)
+        start, stop, base_end = self._set_artifact_window(artifact_window, i0, i1)
         self.segment_offsets: tuple[int, int] = (start, stop)
         self._segment_times = np.arange(start, stop + 1) / self.sfreq
         self._in_window = slice(i0 - start, i1 - start + 1)
@@ -282,7 +294,35 @@ class FixedShapeModel:
         self._prepare()
 
     @staticmethod
+    def _common_window(fits: Any) -> Any:
+        """Return the window of the channel fits, which must all have the same."""
+        windows = {tuple(fit.window) for _, fit in fits}
+        if len(windows) > 1:
+            raise SettingsError("The channel fits have different windows; give window=.")
+        return windows.pop()
+
+    def _set_artifact_window(self, artifact_window: Any, i0: int, i1: int) -> tuple[int, int, int]:
+        """Set ``artifact_window`` when it overlaps the window ``i0..i1`` (sample offsets).
+
+        Returns the first and last sample of the segment (the window, and the anchors of the
+        interpolation) and the sample at which the baseline ends.
+        """
+        start, stop, base_end = i0, i1, i0
+        if artifact_window is not None:
+            a0 = _offset(artifact_window[0], self.sfreq, "start")
+            a1 = _offset(artifact_window[1], self.sfreq, "stop")
+            if a1 < a0:
+                raise SettingsError("artifact_window holds no sample.")
+            base_end = min(i0, a0)
+            if a0 <= i1 and a1 >= i0:
+                # The interpolation changes window samples: the data reach its anchors
+                self.artifact_window = (float(artifact_window[0]), float(artifact_window[1]))
+                start, stop = min(i0, a0 - INTERP_BUFFER), max(i1, a1 + INTERP_BUFFER)
+        return start, stop, base_end
+
+    @staticmethod
     def _channel_fits(template: Any, names: Any) -> Any:
+        """Return the (channel name, fit) pairs that have a usable fit, in ``names`` order."""
         if isinstance(template, ResponseFit):
             if template.status != "ok" or not template.components:
                 return []
@@ -433,7 +473,7 @@ class FixedShapeModel:
         """Products of each channel's rows ``x`` [n_channels, ..., n_times] with its basis."""
         if self._shared:
             return x @ self._basis[0].T
-        if x.ndim == 2:
+        if x.ndim == _ROWS_NDIM:
             return np.matmul(self._basis, x[:, :, None])[..., 0]
         return np.matmul(x, np.swapaxes(self._basis, 1, 2))
 
@@ -546,9 +586,45 @@ class FixedShapeModel:
             unit-norm unshifted template; NaN without ``baseline_data``) and ``finite`` (no
             left-out sample).
         """
+        pulse = self._pulse(window_data)
+        y, weights, clean = pulse.y, pulse.weights, pulse.clean
+        n_ch, q = len(self._channels), self.n_columns
+        shift, rb = self._grid_shifts(pulse)
+        coef, curve = self._refined_coefficients(pulse, shift, rb)
+        r2 = self._r2(pulse, coef, curve)
+        absent = np.isnan(self._lat0)
+        k_max = absent.shape[1]
+        at_bound = (np.abs(shift) >= self._bound - 1e-12) & (self._pad == 0)
+        if q == 1:
+            shift = np.repeat(shift, k_max, axis=1)
+            scale = np.repeat(coef[:, :1], k_max, axis=1)
+        else:
+            scale = coef[:, :q].copy()
+        shift = np.where(absent, np.nan, shift)
+        scale = np.where(absent, np.nan, scale)
+        projection = np.einsum("ct,ct->c", self._unit if clean else self._unit * pulse.finite, y)
+        base = self._baseline_projection(baseline_data)
+        return {
+            "shift": shift,
+            "scale": scale,
+            "amplitude": self._amp0 * scale,
+            "latency": self._lat0 + shift,
+            "r2": r2,
+            "at_bound": at_bound.any(axis=1),
+            "n_valid": np.broadcast_to((weights > 0).sum(axis=1), n_ch).copy(),
+            "projection": projection,
+            "baseline_projection": base,
+            "finite": pulse.all_finite,
+        }
+
+    def _pulse(self, window_data: ArrayLike) -> "_Pulse":
+        """Return the window samples of one pulse, with their weights and normal inverses.
+
+        The artifact window is interpolated first; non-finite samples get a zero weight, and
+        the channels that have some get their own inverse normal matrices.
+        """
         y = np.asarray(window_data, float)
-        n_ch, n_w = len(self._channels), len(self.tw)
-        q, n_s = self.n_columns, len(self.grid)
+        n_ch = len(self._channels)
         n_seg = len(self._segment_times)
         if y.shape != (n_ch, n_seg):
             raise DataError(f"window_data must be [{n_ch}, {n_seg}], got {list(y.shape)}.")
@@ -561,6 +637,7 @@ class FixedShapeModel:
         all_finite = finite.all(axis=1)
         y = np.where(finite, y, 0.0)
         clean = bool(all_finite.all())
+        bad = None
         if clean:
             weights = self.weights[None]
             inverse = self._inverse
@@ -569,9 +646,17 @@ class FixedShapeModel:
             inverse = self._inverse.copy()
             bad = np.flatnonzero(~all_finite)
             inverse[bad] = self._normal_inverse(weights[bad], bad)
-        yw = y * weights
+        return _Pulse(y, finite, all_finite, clean, weights, inverse, bad)
 
-        # Grid: explained sum of squares of every common shift
+    def _grid_shifts(self, pulse: "_Pulse") -> tuple[Any, Any]:
+        """Return the refined shifts of one pulse [n_channels, n_columns] and its basis products.
+
+        Grid: explained sum of squares of every common shift, then (modes with a shift per
+        component) the coordinate ascent, refined by parabolic interpolation.
+        """
+        n_ch, n_w = len(self._channels), len(self.tw)
+        q, n_s = self.n_columns, len(self.grid)
+        yw = pulse.y * pulse.weights
         r = np.empty((n_ch, q, n_s))
         for g, idx in enumerate(self._groups):
             r[idx] = (yw[idx] @ self._templates[g].reshape(q * n_s, n_w).T).reshape(-1, q, n_s)
@@ -579,15 +664,16 @@ class FixedShapeModel:
         rhs = np.empty((n_ch, n_s, self.n_linear))
         rhs[..., :q] = np.swapaxes(r, 1, 2)
         rhs[..., q:] = rb[:, None]
-        beta = np.matmul(inverse, rhs[..., None])[..., 0]
+        beta = np.matmul(pulse.inverse, rhs[..., None])[..., 0]
         explained = np.einsum("cjm,cjm->cj", rhs, beta)
         best = np.argmax(explained, axis=1)
         if self._descent:
             tables: Any
             tables = self._tables
-            if not clean:
+            if not pulse.clean:
+                bad = pulse.bad
                 tables = tuple(t.copy() for t in tables)
-                fresh = self._pair_tables(weights[bad], bad)
+                fresh = self._pair_tables(pulse.weights[bad], bad)
                 for full, part in zip(tables, fresh, strict=False):
                     full[bad] = part
             best_k, profile = self._ascend(best, r, rb, tables)
@@ -596,10 +682,12 @@ class FixedShapeModel:
         else:
             frac = _parabolic(explained, best)
             shift = np.repeat(((best - self.n_grid + frac) / self.sfreq)[:, None], q, axis=1)
-        shift = np.clip(shift, -self._bound, self._bound)
+        return np.clip(shift, -self._bound, self._bound), rb
 
-        # Refined shifts: the components evaluated there, and their least-squares scales
-        curve = np.zeros((n_ch, q, n_w))
+    def _curves(self, shift: Any) -> Any:
+        """Return the components of every channel at their shifts [n_channels, q, n_window]."""
+        q = self.n_columns
+        curve = np.zeros((len(self._channels), q, len(self.tw)))
         for _g, idx in enumerate(self._groups):
             ch = self._channels[idx[0]]
             if q == 1:
@@ -607,6 +695,17 @@ class FixedShapeModel:
             else:
                 for k in range(len(ch.shapes)):
                     curve[idx, k] = ch.curves(self.tw, shift[idx, k], component=k)
+        return curve
+
+    def _refined_coefficients(self, pulse: "_Pulse", shift: Any, rb: Any) -> tuple[Any, Any]:
+        """Return the least-squares coefficients at the refined shifts, and the components.
+
+        The coefficients are the scales of the components then the linear terms of the
+        background, [n_channels, n_linear]; the components are those of :meth:`_curves`.
+        """
+        n_ch, q = len(self._channels), self.n_columns
+        y, weights = pulse.y, pulse.weights
+        curve = self._curves(shift)
         cw = curve * weights[:, None]
         diag = np.arange(q)
         gram = np.empty((n_ch, self.n_linear, self.n_linear))
@@ -620,11 +719,16 @@ class FixedShapeModel:
             gram[:, q:, :q] = np.swapaxes(cross, 1, 2)
             gram[:, q:, q:] = (
                 self._basis_gram
-                if clean
+                if pulse.clean
                 else np.matmul(self._basis * weights[:, None, :], np.swapaxes(self._basis, 1, 2))
             )
             target[:, q:] = rb
-        coef = _solve(gram, target)
+        return _solve(gram, target), curve
+
+    def _r2(self, pulse: "_Pulse", coef: Any, curve: Any) -> Any:
+        """Return the r² of each channel's fit over the samples around its components."""
+        n_ch, n_w, q = len(self._channels), len(self.tw), self.n_columns
+        y, weights = pulse.y, pulse.weights
         fitted = np.einsum("ca,cat->ct", coef[:, :q], curve)
         if self.n_linear > q:
             fitted += (
@@ -632,7 +736,7 @@ class FixedShapeModel:
                 if self._shared
                 else np.matmul(coef[:, None, q:], self._basis)[:, 0]
             )
-        if clean and self._shared:
+        if pulse.clean and self._shared:
             keep = self._keep[0]
             count = np.full(n_ch, keep.sum())
             resid = y - fitted
@@ -647,37 +751,17 @@ class FixedShapeModel:
             sum_y = np.einsum("ct,ct->c", keep, y)
             sum_y2 = np.einsum("ct,ct->c", keep, y * y)
         tss = sum_y2 - divide(sum_y**2, count)
-        r2 = np.where(tss > 0, 1 - divide(rss, tss), np.nan)
-        absent = np.isnan(self._lat0)
-        k_max = absent.shape[1]
-        at_bound = (np.abs(shift) >= self._bound - 1e-12) & (self._pad == 0)
-        if q == 1:
-            shift = np.repeat(shift, k_max, axis=1)
-            scale = np.repeat(coef[:, :1], k_max, axis=1)
-        else:
-            scale = coef[:, :q].copy()
-        shift = np.where(absent, np.nan, shift)
-        scale = np.where(absent, np.nan, scale)
-        projection = np.einsum("ct,ct->c", self._unit if clean else self._unit * finite, y)
+        return np.where(tss > 0, 1 - divide(rss, tss), np.nan)
+
+    def _baseline_projection(self, baseline_data: ArrayLike | None) -> Any:
+        """Return the projection of each channel's baseline on its unit-norm template."""
+        n_ch, n_w = len(self._channels), len(self.tw)
         if baseline_data is None:
-            base = np.full(n_ch, np.nan)
-        else:
-            b = np.asarray(baseline_data, float)
-            if b.shape != (n_ch, n_w):
-                raise DataError(f"baseline_data must be [{n_ch}, {n_w}].")
-            base = np.einsum("ct,ct->c", self._unit, b)
-        return {
-            "shift": shift,
-            "scale": scale,
-            "amplitude": self._amp0 * scale,
-            "latency": self._lat0 + shift,
-            "r2": r2,
-            "at_bound": at_bound.any(axis=1),
-            "n_valid": np.broadcast_to((weights > 0).sum(axis=1), n_ch).copy(),
-            "projection": projection,
-            "baseline_projection": base,
-            "finite": all_finite,
-        }
+            return np.full(n_ch, np.nan)
+        b = np.asarray(baseline_data, float)
+        if b.shape != (n_ch, n_w):
+            raise DataError(f"baseline_data must be [{n_ch}, {n_w}].")
+        return np.einsum("ct,ct->c", self._unit, b)
 
     def fit_trialset(self, ts: Any) -> dict[str, NDArray[Any]]:
         """Fit every trial of a TrialSet (onset at t = 0, the sampling frequency of the model).
