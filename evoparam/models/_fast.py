@@ -944,16 +944,16 @@ def _svd_stacked(
                 gamma = 0.0
                 for i in range(n):
                     gamma += b[p, i] * b[q, i]
-                alpha, beta = sq[p], sq[q]
-                if gamma == 0.0 or abs(gamma) <= EPS * math.sqrt(alpha * beta):
+                norm_p, norm_q = sq[p], sq[q]
+                if gamma == 0.0 or abs(gamma) <= EPS * math.sqrt(norm_p * norm_q):
                     continue
                 rotated = True
-                zeta = (beta - alpha) / (2.0 * gamma)
+                zeta = (norm_q - norm_p) / (2.0 * gamma)
                 t = math.copysign(1.0, zeta) / (abs(zeta) + math.sqrt(1.0 + zeta * zeta))
                 cos = 1.0 / math.sqrt(1.0 + t * t)
                 sin = cos * t
-                sq[p] = alpha - t * gamma
-                sq[q] = beta + t * gamma
+                sq[p] = norm_p - t * gamma
+                sq[q] = norm_q + t * gamma
                 for i in range(n):
                     x_p, x_q = b[p, i], b[q, i]
                     b[p, i] = cos * x_p - sin * x_q
