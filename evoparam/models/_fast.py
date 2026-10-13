@@ -30,7 +30,11 @@ The arithmetic follows the NumPy path operation by operation, except for:
   ones, and the SVD of the trust-region step, a QR factorisation followed by the one-sided
   Jacobi method instead of LAPACK's ``gesdd``;
 - the Jacobian at the last point, which SciPy computes after the termination test and
-  does not use, is not computed.
+  does not use, is not computed;
+- fused multiply-adds where LLVM contracts a product and a sum, and inner products summed
+  in the order of their vectorised loop (``_REASSOCIATED``), which differ from separate
+  roundings and from BLAS ``ddot`` at the level of rounding; the order of each loop is
+  fixed at compilation, so the results are the same from run to run on one machine.
 
 Results agree to rounding, and the optima to the solver tolerance
 (``tests/models/test_fast_kernel.py``).
@@ -247,15 +251,14 @@ def _verfc(u: FloatArray, out: FloatArray, tmp: FloatArray, bits: IntArray) -> N
         out[i] = small if x < 1.0 else y
 
 
-def _span(tw: FloatArray, centre: float, width: float) -> tuple[int, int]:
-    """Indices ``[i0, i1)`` of the samples where ``|tw - centre| / width <= SUPPORT_Z``.
+def _span(tw: FloatArray, centre: float, left: float, right: float) -> tuple[int, int]:
+    """Return the indices ``[i0, i1)`` of the samples in ``[centre - left, centre + right]``.
 
     One sample of margin on each side; the component is taken as 0 outside.
     """
     n = tw.shape[0]
-    reach = SUPPORT_Z * width
-    i0 = max(int(np.searchsorted(tw, centre - reach)) - 1, 0)
-    i1 = min(int(np.searchsorted(tw, centre + reach)) + 1, n)
+    i0 = max(int(np.searchsorted(tw, centre - left)) - 1, 0)
+    i1 = min(int(np.searchsorted(tw, centre + right)) + 1, n)
     return i0, max(i1, i0)
 
 
@@ -269,6 +272,7 @@ def _columns(
     fixed: FloatArray,
     design: FloatArray,
     numer: FloatArray,
+    fast: FloatArray,
     skew: FloatArray,
     spans: IntArray,
     buf: FloatArray,
@@ -276,9 +280,15 @@ def _columns(
 ) -> None:
     """Unwhitened design (columns as rows of ``design``), as ``_columns.component``.
 
-    ``numer`` keeps the numerator of each skewed Gaussian, ``skew`` its ``(c, dc)`` and
-    ``spans`` the samples outside which each component is taken as 0 (``SUPPORT_Z``);
-    ``buf`` (4 x n) and ``bits`` are work space.
+    ``numer`` keeps the numerator of each skewed Gaussian, ``fast`` its fast-decaying
+    factor ``exp(-(1 + alpha^2) z^2 / 2)`` (for :func:`_derivatives`), ``skew`` its
+    ``(c, dc)`` and ``spans`` the samples outside which each component is taken as 0
+    (``SUPPORT_Z``); ``buf`` (4 x n) and ``bits`` are work space.
+
+    A skewed Gaussian is ``exp(-z^2 / 2) erfc(u)`` with ``u = -alpha z / sqrt(2)``; on the
+    side where ``u >= 0``, ``erfc(u) <= exp(-u^2)`` bounds it by
+    ``exp(-(1 + alpha^2) z^2 / 2)``, below ``exp(-SUPPORT_Z^2 / 2)`` beyond
+    ``SUPPORT_Z / sqrt(1 + alpha^2)`` widths: the span stops there on that side.
     """
     n = tw.shape[0]
     n_comp = kinds.shape[0]
@@ -287,11 +297,13 @@ def _columns(
         row = design[k]
         if kinds[k] == GAUSSIAN:
             mu, sigma = theta[o], theta[o + 1]
-            i0, i1 = _span(tw, mu, sigma)
+            reach = SUPPORT_Z * sigma
+            i0, i1 = _span(tw, mu, reach, reach)
             t = tw[i0:i1]
             arg = buf[0, : i1 - i0]
+            inv_sigma = 1.0 / sigma
             for i in range(t.shape[0]):
-                z = (t[i] - mu) / sigma
+                z = (t[i] - mu) * inv_sigma
                 arg[i] = -0.5 * (z * z)
             _vexp(arg, row[i0:i1], bits)
         else:
@@ -300,22 +312,26 @@ def _columns(
             skew[k, 0] = c
             skew[k, 1] = dc
             inv_c = 1.0 / c
-            i0, i1 = _span(tw, xi, omega)
+            reach = SUPPORT_Z * omega
+            short = reach / math.sqrt(1.0 + alpha * alpha)
+            i0, i1 = _span(tw, xi, short if alpha > 0 else reach, reach if alpha > 0 else short)
             m = i1 - i0
             t = tw[i0:i1]
             arg, u, g, e = buf[0, :m], buf[1, :m], buf[2, :m], buf[3, :m]
+            inv_omega = 1.0 / omega
             for i in range(m):
-                z = (t[i] - xi) / omega
+                z = (t[i] - xi) * inv_omega
                 arg[i] = -0.5 * (z * z)
                 u[i] = -alpha * z / _SQRT2
             _vexp(arg, g, bits)
-            _verfc(u, e, arg, bits)
-            numer_k = numer[k, i0:i1]
+            _verfc(u, e, arg, bits)  # leaves exp(-u^2) in arg
+            numer_k, fast_k = numer[k, i0:i1], fast[k, i0:i1]
             part = row[i0:i1]
             for i in range(m):
                 value = g[i] * e[i]
                 numer_k[i] = value
                 part[i] = value * inv_c
+                fast_k[i] = g[i] * arg[i]
         head = row[:i0]
         for i in range(head.shape[0]):
             head[i] = 0.0
@@ -350,16 +366,15 @@ def _derivatives(
     lag: FloatArray,
     design: FloatArray,
     numer: FloatArray,
+    fast: FloatArray,
     skew: FloatArray,
     spans: IntArray,
     out: FloatArray,
-    buf: FloatArray,
-    bits: IntArray,
 ) -> None:
-    """``beta_k`` times the derivatives of each column (rows of ``out``, first ``n`` entries).
+    """``beta_k`` times the derivatives of each column (rows of ``out``).
 
     As ``_columns.component_derivatives`` and ``_columns.background_derivatives``; ``out``
-    is 0 outside the spans of :func:`_columns` and on the rows after the ``n`` first.
+    is 0 outside the spans of :func:`_columns`.
     """
     n_comp = kinds.shape[0]
     length = out.shape[1]
@@ -379,10 +394,11 @@ def _derivatives(
         if kinds[k] == GAUSSIAN:
             mu, sigma = theta[o], theta[o + 1]
             factor = b / sigma
+            inv_sigma = 1.0 / sigma
             row = design[k, i0:i1]
             d_mu, d_sigma = out[o, i0:i1], out[o + 1, i0:i1]
             for i in range(m):
-                z = (t[i] - mu) / sigma
+                z = (t[i] - mu) * inv_sigma
                 sz = row[i] * z * factor
                 d_mu[i] = sz
                 d_sigma[i] = sz * z
@@ -392,16 +408,11 @@ def _derivatives(
             factor = -b / (omega * c)
             factor_alpha = b / c
             factor_c = b * dc / (c * c)
-            spread = 1.0 + alpha * alpha
-            numer_k = numer[k, i0:i1]
-            arg, gauss = buf[0, :m], buf[1, :m]
-            for i in range(m):
-                z = (t[i] - xi) / omega
-                arg[i] = -0.5 * (z * z) * spread
-            _vexp(arg, gauss, bits)
+            numer_k, gauss = numer[k, i0:i1], fast[k, i0:i1]
+            inv_omega = 1.0 / omega
             d_xi, d_omega, d_alpha = out[o, i0:i1], out[o + 1, i0:i1], out[o + 2, i0:i1]
             for i in range(m):
-                z = (t[i] - xi) / omega
+                z = (t[i] - xi) * inv_omega
                 numerator = numer_k[i]
                 g = _SQRT_2_OVER_PI * gauss[i]
                 d_z = alpha * g - z * numerator
@@ -422,6 +433,7 @@ def _derivatives(
 
 
 def _whiten(
+    src: FloatArray,
     rows: FloatArray,
     count: int,
     n: int,
@@ -433,7 +445,10 @@ def _whiten(
     start_rows: IntArray,
     raw: FloatArray,
 ) -> None:
-    """``Whitener.into`` (or ``StridedWhitener``) on the first ``n`` entries of ``count`` rows.
+    """``Whitener.into`` (or ``StridedWhitener``) of ``count`` rows of ``src`` into ``rows``.
+
+    The first ``n`` entries of each row; ``rows`` is another array than ``src``, since LLVM
+    vectorises the loops only for distinct arrays.
 
     ``inv_scale`` is ``1 / scale`` and ``post`` the row weights divided by the innovation SD.
     The terms of the filter are added in the order of the NumPy path (lag 0, 1, ..., p).
@@ -441,10 +456,16 @@ def _whiten(
     p = a.shape[0] - 1
     has_start = start.shape[0] > 0
     a0 = a[0]
+    if p == 0 and not has_start:
+        for j in range(count):
+            row, values = rows[j], src[j]
+            for i in range(n):
+                row[i] = a0 * (values[i] * inv_scale[i]) * post[i]
+        return
     for j in range(count):
-        row = rows[j]
+        row, values = rows[j], src[j]
         for i in range(n):
-            value = row[i] * inv_scale[i]
+            value = values[i] * inv_scale[i]
             raw[i] = value
             row[i] = a0 * value
         for k in range(1, p + 1):
@@ -453,9 +474,9 @@ def _whiten(
                 break
             ak = a[k]
             dst = row[shift:n]
-            src = raw[: n - shift]
+            lagged = raw[: n - shift]
             for i in range(dst.shape[0]):
-                dst[i] += ak * src[i]
+                dst[i] += ak * lagged[i]
         for i in range(n):
             row[i] *= post[i]
         if has_start:
@@ -470,17 +491,28 @@ def _whiten(
 ## Householder QR (columns stored as rows: ``mat[j]`` is column j)
 
 
+def _dot(x: FloatArray, y: FloatArray) -> float:
+    """Return the inner product of ``x`` and ``y``.
+
+    Compiled with reassociation allowed (``_REASSOCIATED``), so that LLVM vectorises the
+    sum: faster than a BLAS call on vectors of up to a few thousand entries.
+    """
+    total = 0.0
+    for i in range(x.shape[0]):
+        total += x[i] * y[i]
+    return total
+
+
 def _householder(mat: FloatArray, n_cols: int, off: int, length: int, tau: FloatArray) -> None:
     """QR factorisation in place, as LAPACK's dgeqr2 (unblocked): R above, reflectors below.
 
-    Column ``j`` of the matrix is ``mat[j, off:length]``. The inner products are BLAS
-    ``ddot`` calls (``np.dot`` on contiguous rows); the loops run over views from index 0,
-    which numba vectorises.
+    Column ``j`` of the matrix is ``mat[j, off:length]``. The loops run over views from
+    index 0, which numba vectorises.
     """
     for j in range(n_cols):
         alpha = mat[j, off + j]
         tail = mat[j, off + j + 1 : length]
-        ss = np.dot(tail, tail)
+        ss = _dot(tail, tail)
         if ss == 0.0:
             tau[j] = 0.0
             continue
@@ -492,7 +524,7 @@ def _householder(mat: FloatArray, n_cols: int, off: int, length: int, tau: Float
         mat[j, off + j] = beta
         for k in range(j + 1, n_cols):
             other = mat[k, off + j + 1 : length]
-            w = (mat[k, off + j] + np.dot(tail, other)) * tau[j]
+            w = (mat[k, off + j] + _dot(tail, other)) * tau[j]
             mat[k, off + j] -= w
             for i in range(other.shape[0]):
                 other[i] -= w * tail[i]
@@ -501,14 +533,17 @@ def _householder(mat: FloatArray, n_cols: int, off: int, length: int, tau: Float
 def _apply_qt(
     mat: FloatArray, n_cols: int, off: int, length: int, tau: FloatArray, vec: FloatArray
 ) -> None:
-    """``vec <- Q^T vec`` with the reflectors of :func:`_householder` (``vec[i]``: row ``off + i``)."""
+    """``vec <- Q^T vec`` with the reflectors of :func:`_householder`.
+
+    ``vec[i]`` is row ``off + i``.
+    """
     rows = length - off
     for j in range(n_cols):
         if tau[j] == 0.0:
             continue
         tail = mat[j, off + j + 1 : length]
         rest = vec[j + 1 : rows]
-        w = (vec[j] + np.dot(tail, rest)) * tau[j]
+        w = (vec[j] + _dot(tail, rest)) * tau[j]
         vec[j] -= w
         for i in range(rest.shape[0]):
             rest[i] -= w * tail[i]
@@ -537,6 +572,7 @@ def _evaluate(
     target: FloatArray,
     design: FloatArray,
     numer: FloatArray,
+    fast: FloatArray,
     skew: FloatArray,
     spans: IntArray,
     buf: FloatArray,
@@ -556,16 +592,14 @@ def _evaluate(
     n = tw.shape[0]
     c = qr.shape[0]
     length = qr.shape[1]
-    _columns(theta, tw, kinds, offsets, bg_kind, lag, fixed, design, numer, skew, spans, buf, bits)
+    _columns(
+        theta, tw, kinds, offsets, bg_kind, lag, fixed, design, numer, fast, skew, spans, buf, bits
+    )
+    _whiten(design, qr, c, n, inv_scale, a, post, stride, start, start_rows, raw)
     for j in range(c):
-        src = design[j]
-        dst = qr[j]
-        for i in range(n):
-            dst[i] = src[i]
         tail = qr[j, n:length]
         for i in range(tail.shape[0]):
             tail[i] = 0.0
-    _whiten(qr, c, n, inv_scale, a, post, stride, start, start_rows, raw)
     for r in range(prior_cols.shape[0]):
         qr[prior_cols[r], n + r] = prior_diag[r]
     for j in range(c):
@@ -632,7 +666,7 @@ def _cl_scaling(
 
 
 def _strictly_feasible(x: FloatArray, lb: FloatArray, ub: FloatArray, rstep: float) -> FloatArray:
-    x_new = x.copy()
+    x_new: FloatArray = x.copy()
     n = x.shape[0]
     if rstep == 0:
         for i in range(n):
@@ -713,15 +747,15 @@ def _quadratic_1d(
     jac: FloatArray, g: FloatArray, s: FloatArray, diag: FloatArray, s0: FloatArray
 ) -> tuple[float, float, float]:
     v = jac.dot(s)
-    a = np.dot(v, v)
-    a += np.dot(s * diag, s)
+    a = _dot(v, v)
+    a += _dot(s * diag, s)
     a *= 0.5
-    b = np.dot(g, s)
+    b = _dot(g, s)
     u = jac.dot(s0)
-    b += np.dot(u, v)
-    c = 0.5 * np.dot(u, u) + np.dot(g, s0)
-    b += np.dot(s0 * diag, s)
-    c += 0.5 * np.dot(s0 * diag, s0)
+    b += _dot(u, v)
+    c = 0.5 * _dot(u, u) + _dot(g, s0)
+    b += _dot(s0 * diag, s)
+    c += 0.5 * _dot(s0 * diag, s0)
     return a, b, c
 
 
@@ -729,10 +763,10 @@ def _quadratic_1d_ab(
     jac: FloatArray, g: FloatArray, s: FloatArray, diag: FloatArray
 ) -> tuple[float, float]:
     v = jac.dot(s)
-    a = np.dot(v, v)
-    a += np.dot(s * diag, s)
+    a = _dot(v, v)
+    a += _dot(s * diag, s)
     a *= 0.5
-    b = np.dot(g, s)
+    b = _dot(g, s)
     return a, b
 
 
@@ -753,9 +787,9 @@ def _minimize_1d(a: float, b: float, lb: float, ub: float, c: float) -> tuple[fl
 
 def _evaluate_quadratic(jac: FloatArray, g: FloatArray, s: FloatArray, diag: FloatArray) -> float:
     jac_s = jac.dot(s)
-    q = np.dot(jac_s, jac_s)
-    q += np.dot(s * diag, s)
-    return 0.5 * q + np.dot(s, g)
+    q = _dot(jac_s, jac_s)
+    q += _dot(s * diag, s)
+    return 0.5 * q + _dot(s, g)
 
 
 def _step_to_bound(
@@ -776,11 +810,11 @@ def _step_to_bound(
 
 def _intersect_trust_region(x: FloatArray, s: FloatArray, delta: float) -> tuple[float, bool]:
     """Larger root of ``||x + s t|| = delta``; False where least_squares raises ValueError."""
-    a = np.dot(s, s)
+    a = _dot(s, s)
     if a == 0:
         return 0.0, False
-    b = np.dot(x, s)
-    c = np.dot(x, x) - delta**2
+    b = _dot(x, s)
+    c = _dot(x, x) - delta**2
     if c > 0:
         return 0.0, False
     d = math.sqrt(b * b - a * c)
@@ -933,7 +967,7 @@ def _svd_stacked(
             break
     norms = np.empty(n)
     for j in range(n):
-        norms[j] = math.sqrt(np.dot(b[j], b[j]))
+        norms[j] = math.sqrt(_dot(b[j], b[j]))
     order = np.argsort(-norms, kind="mergesort")
     s = np.empty(n)
     v_mat = np.empty((n, n))
@@ -944,7 +978,7 @@ def _svd_stacked(
         for i in range(n):
             v_mat[i, k] = v[j, i]
         if norms[j] > 0:
-            uf[k] = np.dot(b[j], rhs[:n]) / norms[j]
+            uf[k] = _dot(b[j], rhs[:n]) / norms[j]
     for k in range(n):
         if not math.isfinite(s[k]):
             converged = False
@@ -982,10 +1016,9 @@ def _jacobian(
     lag: FloatArray,
     design: FloatArray,
     numer: FloatArray,
+    fast: FloatArray,
     skew: FloatArray,
     spans: IntArray,
-    buf: FloatArray,
-    bits: IntArray,
     inv_scale: FloatArray,
     a: FloatArray,
     post: FloatArray,
@@ -996,6 +1029,7 @@ def _jacobian(
     tau: FloatArray,
     chain: IntArray,
     raw: FloatArray,
+    draw: FloatArray,
     dmat: FloatArray,
     jr: FloatArray,
     jf: FloatArray,
@@ -1006,7 +1040,8 @@ def _jacobian(
 
     ``_Structure.reduced_jacobian`` (``J = -Q2^T W dM``), the chain rule of the ordered
     parameterisation, then ``_trf._reduce`` (``J = Q' R``: ``jr = R``, ``jf = Q'^T f``),
-    in place in ``dmat``. Returns the number of rows of ``jr``.
+    in place in ``dmat`` (``draw``: the unwhitened derivatives). Returns the number of rows
+    of ``jr``.
     """
     n = tw.shape[0]
     n_par = dmat.shape[0]
@@ -1014,9 +1049,13 @@ def _jacobian(
     c = qr.shape[0]
     rows = length - c
     _derivatives(
-        theta, beta, tw, kinds, offsets, bg_kind, lag, design, numer, skew, spans, dmat, buf, bits
+        theta, beta, tw, kinds, offsets, bg_kind, lag, design, numer, fast, skew, spans, draw
     )
-    _whiten(dmat, n_par, n, inv_scale, a, post, stride, start, start_rows, raw)
+    _whiten(draw, dmat, n_par, n, inv_scale, a, post, stride, start, start_rows, raw)
+    for j in range(n_par):
+        tail = dmat[j, n:length]  # the prior rows do not depend on theta
+        for i in range(tail.shape[0]):
+            tail[i] = 0.0
     for j in range(n_par):
         _apply_qt(qr, c, 0, length, tau, dmat[j])
     # (Q^T W dM)[c:] = -J; the chain rule is linear in the columns
@@ -1041,7 +1080,7 @@ def _jacobian(
             for j in range(n_par):
                 jr[i, j] = -dmat[j, c + i]
             jf[i] = f[i]
-        return rows
+        return int(rows)
     _householder(dmat, n_par, c, length, tau_j)
     qtf = work[:rows]
     for i in range(rows):
@@ -1051,7 +1090,7 @@ def _jacobian(
         jf[i] = qtf[i]
         for j in range(n_par):
             jr[i, j] = -dmat[j, c + i] if i <= j else 0.0
-    return n_par
+    return int(n_par)
 
 
 def optimise(
@@ -1094,6 +1133,7 @@ def optimise(
     rows = length - c
     design = np.empty((c, n))
     numer = np.zeros((max(n_comp, 1), n))
+    fast = np.zeros((max(n_comp, 1), n))
     skew = np.zeros((max(n_comp, 1), 2))
     spans = np.zeros((max(n_comp, 1), 2), np.int64)
     buf = np.empty((4, n))
@@ -1104,6 +1144,7 @@ def optimise(
     beta = np.zeros(c)
     rinv = np.zeros((c, c))
     raw = np.empty(n)
+    draw = np.empty((n_par, n))
     dmat = np.empty((n_par, length))
     jr = np.zeros((n_par, n_par))
     jf = np.zeros(n_par)
@@ -1121,8 +1162,8 @@ def optimise(
     _to_theta(x, chain, theta)
     if not _evaluate(
         theta, tw, kinds, offsets, bg_kind, lag, fixed, inv_scale, a, post, stride, start,
-        start_rows, prior_cols, prior_diag, target, design, numer, skew, spans, buf, bits, qr, tau, qtb,
-        beta, rinv, raw,
+        start_rows, prior_cols, prior_diag, target, design, numer, fast, skew, spans, buf, bits,
+        qr, tau, qtb, beta, rinv, raw,
     ):  # fmt: skip
         return FALLBACK, x0.copy(), 0, empty, empty
     f = qtb[c:].copy()
@@ -1131,10 +1172,11 @@ def optimise(
             return VALUE_ERROR, x0.copy(), 0, empty, empty
 
     nfev = 1
-    cost = 0.5 * np.dot(f, f)
+    cost = 0.5 * _dot(f, f)
     n_rows = _jacobian(
-        x, f, theta, beta, tw, kinds, offsets, bg_kind, lag, design, numer, skew, spans, buf, bits, inv_scale, a,
-        post, stride, start, start_rows, qr, tau, chain, raw, dmat, jr, jf, tau_j, work,
+        x, f, theta, beta, tw, kinds, offsets, bg_kind, lag, design, numer, fast, skew, spans,
+        inv_scale, a, post, stride, start, start_rows, qr, tau, chain, raw, draw, dmat, jr, jf,
+        tau_j, work,
     )  # fmt: skip
     jr_used = jr[:n_rows]
     g = jr_used.T.dot(jf[:n_rows])
@@ -1196,7 +1238,7 @@ def optimise(
             _to_theta(x_new, chain, theta)
             if not _evaluate(
                 theta, tw, kinds, offsets, bg_kind, lag, fixed, inv_scale, a, post, stride,
-                start, start_rows, prior_cols, prior_diag, target, design, numer, skew,
+                start, start_rows, prior_cols, prior_diag, target, design, numer, fast, skew,
                 spans, buf, bits, qr, tau, qtb, beta, rinv, raw,
             ):  # fmt: skip
                 return FALLBACK, x0.copy(), 0, empty, empty
@@ -1212,7 +1254,7 @@ def optimise(
             if not finite:
                 delta = 0.25 * step_h_norm
                 continue
-            cost_new = 0.5 * np.dot(f_new, f_new)
+            cost_new = 0.5 * _dot(f_new, f_new)
             actual_reduction = cost - cost_new
             # radius update (_trf._update_radius)
             if predicted > 0:
@@ -1249,9 +1291,10 @@ def optimise(
                 # solution is the same without it
                 break
             n_rows = _jacobian(
-                    x, f, theta, beta, tw, kinds, offsets, bg_kind, lag, design, numer, skew, spans, buf, bits, inv_scale, a,
-                    post, stride, start, start_rows, qr, tau, chain, raw, dmat, jr, jf, tau_j, work,
-                )  # fmt: skip
+                x, f, theta, beta, tw, kinds, offsets, bg_kind, lag, design, numer, fast, skew,
+                spans, inv_scale, a, post, stride, start, start_rows, qr, tau, chain, raw, draw,
+                dmat, jr, jf, tau_j, work,
+            )  # fmt: skip
             jr_used = jr[:n_rows]
             g = jr_used.T.dot(jf[:n_rows])
             scale_inv = np.maximum(np.sqrt((jr_used**2).sum(axis=0)), scale_inv)
@@ -1261,24 +1304,18 @@ def optimise(
     _to_theta(x, chain, theta)
     if not fresh and not _evaluate(
         theta, tw, kinds, offsets, bg_kind, lag, fixed, inv_scale, a, post, stride, start,
-        start_rows, prior_cols, prior_diag, target, design, numer, skew, spans, buf, bits, qr, tau, qtb,
-        beta, rinv, raw,
+        start_rows, prior_cols, prior_diag, target, design, numer, fast, skew, spans, buf, bits,
+        qr, tau, qtb, beta, rinv, raw,
     ):  # fmt: skip
         return FALLBACK, x0.copy(), 0, empty, empty
     # residual of every row: target - A beta (A: the whitened design and the prior rows,
     # rebuilt from the design, which the QR overwrote)
     residual = target.copy()
-    column = np.empty(length)
+    whitened = np.empty((c, n))
+    _whiten(design, whitened, c, n, inv_scale, a, post, stride, start, start_rows, raw)
     for j in range(c):
+        column = whitened[j]
         for i in range(n):
-            column[i] = design[j, i]
-        for i in range(n, length):
-            column[i] = 0.0
-        _whiten(
-            column.reshape((1, length)), 1, n, inv_scale, a, post, stride, start, start_rows,
-            raw,
-        )  # fmt: skip
-        for i in range(length):
             residual[i] -= column[i] * beta[j]
     for r in range(prior_cols.shape[0]):
         residual[n + r] -= prior_diag[r] * beta[prior_cols[r]]
@@ -1289,6 +1326,10 @@ def optimise(
 ## Compilation
 
 _LOCK = threading.Lock()
+# compiled with "contract" (fused multiply-adds) and the error model of NumPy (no checks of
+# division by zero, which keep loops from vectorising); the inner product may also reorder
+# its sum
+_REASSOCIATED = ("_dot",)
 _COMPILED: dict[str, Any] = {}
 # compiled in this order (callees first): each name is replaced by its compiled version in
 # this module, so that the compiled callers call compiled code
@@ -1301,6 +1342,7 @@ _KERNELS = (
     "_columns",
     "_derivatives",
     "_whiten",
+    "_dot",
     "_householder",
     "_apply_qt",
     "_evaluate",
@@ -1341,8 +1383,9 @@ def kernel() -> Callable[..., Any] | None:
                 return None
             module = globals()
             for name in _KERNELS:
-                module[name] = numba.njit(cache=True, nogil=True, error_model="numpy")(
-                    module[name]
-                )
+                flags = {"contract", "reassoc"} if name in _REASSOCIATED else {"contract"}
+                module[name] = numba.njit(
+                    cache=True, nogil=True, error_model="numpy", fastmath=flags
+                )(module[name])
             _COMPILED["optimise"] = module["optimise"]
     return _COMPILED["optimise"]  # type: ignore[no-any-return]

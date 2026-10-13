@@ -28,7 +28,15 @@ from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.models import _columns, _fast
 from evoparam.models._trf import least_squares_trf
-from evoparam.shapes import FWHM_PER_SIGMA, compute_features, get_background, get_shape
+from evoparam.shapes import (
+    FWHM_PER_SIGMA,
+    ExponentialBackground,
+    Gaussian,
+    SkewedGaussian,
+    compute_features,
+    get_background,
+    get_shape,
+)
 
 if TYPE_CHECKING:
     from evoparam.shapes._base import ComponentShape
@@ -923,9 +931,9 @@ def _compiled_args(struct: Any) -> tuple[Any, ...] | None:
 def _compiled_spec(struct: Any) -> tuple[Any, ...] | None:
     kinds = []
     for shape in struct.shapes:
-        if type(shape) is _columns.Gaussian:
+        if type(shape) is Gaussian:
             kinds.append(_fast.GAUSSIAN)
-        elif type(shape) is _columns.SkewedGaussian:
+        elif type(shape) is SkewedGaussian:
             kinds.append(_fast.SKEWED_GAUSSIAN)
         else:
             return None
@@ -969,11 +977,14 @@ def _compiled_spec(struct: Any) -> tuple[Any, ...] | None:
 
 
 def _compiled_shared(struct: Any) -> Any:
-    """The arguments of :func:`_fast.optimise` common to the structures of a fit, or False."""
+    """Return the arguments of :func:`_fast.optimise` common to the structures of a fit.
+
+    False when the kernel does not cover the whitening or the background.
+    """
     tw = np.ascontiguousarray(struct.tw, dtype=float)
     background = struct.background
     lag = np.zeros(len(tw))
-    if type(background) is _columns.ExponentialBackground:
+    if type(background) is ExponentialBackground:
         bg_kind = _fast.BG_EXPONENTIAL
         lag = np.ascontiguousarray(tw - background._t_ref(tw))
         fixed = np.zeros((0, len(tw)))
