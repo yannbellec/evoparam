@@ -13,7 +13,7 @@ of every changed module were run. Details and readings: `docs/spec/DECISIONS.md`
 | tool | before (833968f) | after |
 |---|---|---|
 | `ruff check evoparam benchmarks docs/tutorials examples` | 1 264 findings | 0 |
-| `ruff format --check` | clean | clean (440 files) |
+| `ruff format --check` | clean | clean (441 files) |
 | `interrogate -v evoparam` | 68.3 % | 97.1 % |
 | `mypy --strict evoparam` | 1 error | 0 |
 | `pyright --verifytypes evoparam` | 96.2 % | 96.8 % |
@@ -49,6 +49,10 @@ Other changes:
   `permutation_test` and `shuffle_test` (`PermutationOptions`), `bayes.sample`
   (`NutsSettings`), `sim.artifacts.pulse_shape` (`AntiAliasFilter`) and
   `stimulation_artifact` (`StimulusPulse`, `RecoveryTail`); see DECISIONS.md §7.2.
+- Merge of integration-2 (4f2c44d). Its changes are carried into the split functions,
+  and the results equal integration-2's to the bit. The 67 new ruff findings, 5
+  unformatted files and 2 mypy errors of the merged code are fixed (DECISIONS.md §7.9).
+
 ### Engine speed, part 3 (REQ-290 P1): same results to the bit, P1 still not met
 
 REQ-290 P1 (one averaged waveform, 2 048 samples, `ccep`, `max_components=6`, 3 starts) is

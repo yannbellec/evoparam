@@ -36,10 +36,11 @@ import pytest
 DURATION_TOLERANCE = 0.005
 MIN_AGREEMENT = 0.95
 # End (s) of the reviewed profile's response, and the rejection rates under the null of
-# the paper's pairs and of the default.
+# the paper's pairs, of the disjoint pairs and of the default sign-flip test.
 REVIEWED_END = 0.04
 MIN_HALF_REJECTION = 0.3
 MAX_DISJOINT_REJECTION = 0.2
+MAX_SIGNFLIP_REJECTION = 0.08
 
 ROOT = pathlib.Path(__file__).parents[3]
 COMMIT = "f6efb4efc6ad6f421603974130a8e09ff2d3e7bd"
@@ -237,10 +238,10 @@ def test_req134_pairs_of_the_paper_are_anticonservative() -> None:
     disjoint = _projection(trialset(data), window=(0.009, 0.5), projection_pairs="disjoint")
     default = _projection(trialset(data), window=(0.009, 0.5))
     assert default.settings["projection_pairs"] == "signflip"
-    assert np.mean(half.significant) > 0.3
-    assert np.mean(disjoint.significant) < 0.2
+    assert np.mean(half.significant) > MIN_HALF_REJECTION
+    assert np.mean(disjoint.significant) < MAX_DISJOINT_REJECTION
     # the sign-flip null includes the choice of the response end: measured 0.05
-    assert np.mean(default.significant) <= 0.08
+    assert np.mean(default.significant) <= MAX_SIGNFLIP_REJECTION
 
 
 @pytest.mark.xfail(

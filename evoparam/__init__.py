@@ -82,15 +82,17 @@ _ROOT_FUNCTIONS = {
 
 
 def _existence_detector(*args: Any, **kwargs: Any) -> Any:
-    """The existence test as the detector of prep.reference_sensitivity (spec §5.4, method 3),
-    imported on first call: prep sits below the existence test in the dependency table, so
-    the package root registers it."""
+    """Run the existence test, the detector of prep.reference_sensitivity (spec §5.4, method 3).
+
+    It is imported on first call: prep sits below the existence test in the dependency
+    table, so the package root registers it.
+    """
     from .existence import existence_detector
 
     return existence_detector(*args, **kwargs)
 
 
-from .prep import register_detector as _register_detector  # noqa: E402  (13 ms)
+from .prep import register_detector as _register_detector  # noqa: E402  (registers the detector defined above; 13 ms)
 
 _existence_detector.__name__ = _existence_detector.__qualname__ = "existence_detector"
 _register_detector("existence", _existence_detector)
@@ -154,8 +156,10 @@ def cite(*, bibtex: bool = False, file: "_typing.TextIO | None" = None) -> str:
 
 
 def __getattr__(name: Any) -> Any:
-    """Import the subpackages and root functions on first use, and serve the deprecated public
-    names (REQ-293) from ``evoparam/_deprecated.py`` with an
+    """Return the subpackage, root function or deprecated name ``name`` on first use.
+
+    The subpackages and root functions are imported on first use; the deprecated public
+    names (REQ-293) are served from ``evoparam/_deprecated.py`` with an
     :class:`~evoparam.utils.EvoparamDeprecationWarning`.
     """
     import importlib

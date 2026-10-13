@@ -986,7 +986,7 @@ file is excluded. The commands, on branch `qualite-zero`, against 833968f:
 | tool | before | after |
 |---|---|---|
 | `ruff check evoparam benchmarks docs/tutorials examples` | 1 264 findings | 0 |
-| `ruff format --check` (same paths) | clean (440 files) | clean (440 files) |
+| `ruff format --check` (same paths) | clean (440 files) | clean (441 files after the merge) |
 | `interrogate -v evoparam` | 68.3 % | 97.1 % |
 | `mypy --strict evoparam` | 1 error (patsy) | 0 (172 files) |
 | `pyright --verifytypes evoparam --ignoreexternal` | 96.2 % | 96.8 % |
@@ -1204,3 +1204,43 @@ The ruff-format hook also formats the Python blocks of Markdown files. It would 
 `extend-exclude` (`pyproject.toml`), and no other file is excluded. With this, `pre-commit
 run --all-files` passes every hook, and leaves the tree unchanged: ruff, ruff-format, mypy,
 interrogate, check-yaml and end-of-file-fixer. nbstripout has no notebook to check.
+
+### 7.9 Merge of integration-2 (4f2c44d)
+
+integration-2 moved on after 833968f (lazy package root, compiled kernel, P1 and P3 work
+in the engine, the existence test and the containers, pulse detection, ERP CORE). Where
+it changed a function that §7 had split, its change was carried into the split version:
+
+- `events.detect_pulses`: the fallback to the 90th percentile score and the size gate are
+  in `_evoparam_candidates` and `_strength_gate`. The deflection size is measured by
+  `artifact_size`, which `_event_table` also uses.
+- `existence.test_response`: the single copy of the tested trials (`_select`, `_span`) is
+  in `_Tester.run`.
+- `models._fast`: the lag groups of the whitening are split into `_lag_groups` and
+  `_lags`. The reassociated `_finite` replaces the per-entry test of §7, so
+  `_all_finite` is gone.
+- `models.engine`: the changes are carried into the helpers of §7. These are the compiled
+  fit before the objective, the memo of the background bounds, the shapes and the
+  features, the array selection of `candidates` (`_select_list`, `_select_array`) and
+  `CANDIDATE_SCAN`.
+
+The tests and validation scripts are integration-2's. Their results equal integration-2's
+to the bit:
+
+- 128 reference cases match, including the compiled and NumPy fits.
+- 68 cases of pulse detection and existence tests match; these cover the 90th-percentile
+  fallback, the size gate and every pairing of the projection test.
+- The fixture matches (largest difference 0).
+- `freeze_methods_text`, `gen_api_index` and `gen_soup` pass `--check`.
+
+The merged tree had 67 new ruff findings (PLR2004 31, docstrings 25, E501 3, C901 2, PT018
+2, I001 2, SIM105 1, S110 1), 5 unformatted files and 2 mypy errors, all in code from
+integration-2. They were fixed in the same way as in the rest of §7:
+
+- Each magic value is now a named constant, or uses an existing one.
+- The two composite assertions of `test_subspace_real` are split in two.
+- `validation/robustness.py` `main` and `markdown` are split into named helpers.
+- The warm-up of `bench_artifact` uses `contextlib.suppress`.
+- The frozen-dataclass test of `engine._shape` reads `__dataclass_params__` once.
+
+One noqa was added: the E402 of the detector registration at the package root.

@@ -190,6 +190,8 @@ def sir_improvement(
 
 
 SPEC_VERSION = {"n_components": "energy", "subspace_extent": "all"}
+# The default must beat the specification's version by more than this (dB) on every overlay.
+MIN_MARGIN_DB = 20
 
 
 def _spes_runs() -> Any:
@@ -231,7 +233,8 @@ def test_req064_real_tms_templates_default_beats_specification_version() -> None
     CHANGELOG "REQ-064")."""
 
     gains = _compare_versions([tms_template(s) for s in TMS_SUBJECTS], TMS_WINDOW)
-    assert (gains[:, 0] >= 30).all() and (gains[:, 0] > gains[:, 1] + 20).all(), np.round(gains, 1)
+    assert (gains[:, 0] >= MIN_GAIN_DB).all(), np.round(gains, 1)
+    assert (gains[:, 0] > gains[:, 1] + MIN_MARGIN_DB).all(), np.round(gains, 1)
 
 
 def test_req064_real_spes_templates_default_beats_specification_version() -> None:
@@ -239,4 +242,5 @@ def test_req064_real_spes_templates_default_beats_specification_version() -> Non
     5.0 to 18.4)."""
 
     gains = _compare_versions([spes_template(stem) for stem in _spes_runs()], SPES_WINDOW)
-    assert (gains[:, 0] >= 30).all() and (gains[:, 0] > gains[:, 1] + 20).all(), np.round(gains, 1)
+    assert (gains[:, 0] >= MIN_GAIN_DB).all(), np.round(gains, 1)
+    assert (gains[:, 0] > gains[:, 1] + MIN_MARGIN_DB).all(), np.round(gains, 1)

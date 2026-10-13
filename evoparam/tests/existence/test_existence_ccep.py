@@ -170,7 +170,7 @@ def req371_decisions() -> Any:
 def _pooled(rows: Any, method: Any, rule: Any) -> Any:
     from evoparam.tests.models.test_engine_ccep import _kappa
 
-    assert len({r["subject"] for r in rows}) >= 5
+    assert len({r["subject"] for r in rows}) >= MIN_SUBJECTS
     a = np.concatenate([r[method] for r in rows]).astype(bool)
     b = np.concatenate([r[rule] for r in rows]).astype(bool)
     return _kappa(a, b)
@@ -199,7 +199,7 @@ def test_req135_permutation_agrees_with_vanblooijs2023(req371_decisions: Any, ru
     with vanblooijs2023 with kappa >= 0.7 on N1 presence over 9-100 ms, under the two
     readings of the rule."""
 
-    assert _pooled(req371_decisions, "fdr_bh", rule) >= 0.7
+    assert _pooled(req371_decisions, "fdr_bh", rule) >= MIN_KAPPA
 
 
 def test_req135_cannot_hold_under_both_readings(req371_decisions: Any) -> None:
@@ -213,7 +213,7 @@ def test_req135_cannot_hold_under_both_readings(req371_decisions: Any) -> None:
 
     paper = np.concatenate([r["vanblooijs2023"] for r in req371_decisions])
     code = np.concatenate([r["vanblooijs2023_code"] for r in req371_decisions])
-    assert joint_kappa_bound(paper, code) < 0.7
+    assert joint_kappa_bound(paper, code) < MIN_KAPPA
 
 
 def test_req135_per_channel_decision_registry_row_regression(req371_decisions: Any) -> None:
@@ -224,7 +224,7 @@ def test_req135_per_channel_decision_registry_row_regression(req371_decisions: A
     0.756 on the five development runs (a principled choice, no value tuned; 0.807 and
     0.808 with the extremum reading); with the code it falls to 0.321."""
 
-    assert _pooled(req371_decisions, "none", "vanblooijs2023") >= 0.7
+    assert _pooled(req371_decisions, "none", "vanblooijs2023") >= MIN_KAPPA
 
 
 def test_req135_regression_with_the_code_floor() -> None:

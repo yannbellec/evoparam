@@ -183,7 +183,7 @@ def test_req044_mayo_protocol_ds004696_sub07() -> None:
     blocks = np.r_[0, np.cumsum(sites[1:] != sites[:-1])]
     assert (grouped["train_id"].to_numpy() == blocks).all()
     assert summary["n_pulses"].tolist() == np.bincount(blocks).tolist()
-    assert 2.5 <= summary["mean_interval"].median() <= 6.0
+    assert MIN_INTERVAL <= summary["mean_interval"].median() <= MAX_INTERVAL
 
 
 @pytest.mark.network

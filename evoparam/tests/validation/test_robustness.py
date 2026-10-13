@@ -223,7 +223,7 @@ def test_req375_platform_macos_and_windows(report: Any) -> None:
     machine), each within the 1e-9 of REQ-295."""
 
     records = report.get("platforms", [report["platform"]])
-    assert all(r["match"] and r["rtol"] == 1e-9 for r in records), [
+    assert all(r["match"] and r["rtol"] == PLATFORM_RTOL for r in records), [
         (r["platform"], r["max_rel_diff"]) for r in records if not r["match"]
     ]
     seen = {r["platform"].split("-")[0] for r in records}

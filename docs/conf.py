@@ -56,15 +56,39 @@ def _root_reexports():
     import inspect
 
     names = []
-    for module_name in ("data", "io", "events", "artifact", "prep", "shapes", "models",
-                        "existence", "trials", "spatial", "tf", "stats", "hierarchical", "sim",
-                        "presets", "reports", "plots", "cli", "stream", "benchmark", "utils",
-                        "errors", "version"):
+    for module_name in (
+        "data",
+        "io",
+        "events",
+        "artifact",
+        "prep",
+        "shapes",
+        "models",
+        "existence",
+        "trials",
+        "spatial",
+        "tf",
+        "stats",
+        "hierarchical",
+        "sim",
+        "presets",
+        "reports",
+        "plots",
+        "cli",
+        "stream",
+        "benchmark",
+        "utils",
+        "errors",
+        "version",
+    ):
         module = importlib.import_module(f"evoparam.{module_name}")
         names_of = getattr(module, "__all__", None)
-        if names_of is None:   # the rule of tools/gen_api_index.py for a module without __all__
-            names_of = [n for n, obj in vars(module).items()
-                        if not n.startswith("_") and not inspect.ismodule(obj)]
+        if names_of is None:  # the rule of tools/gen_api_index.py for a module without __all__
+            names_of = [
+                n
+                for n, obj in vars(module).items()
+                if not n.startswith("_") and not inspect.ismodule(obj)
+            ]
         for name in names_of:
             root = getattr(evoparam, name, None)
             if root is not None and root is getattr(module, name, None):
