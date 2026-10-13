@@ -26,7 +26,7 @@ from scipy.optimize import least_squares
 
 from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import DataError, SettingsError
-from evoparam.models import _columns
+from evoparam.models import _columns, _fast
 from evoparam.models._trf import least_squares_trf
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features, get_background, get_shape
 
@@ -46,6 +46,10 @@ BOUND_TOL = 1e-3
 # Optimiser of the non-linear parameters: "trf" (models/_trf.py), "trf-full" (the same
 # without the QR reduction: SciPy's operations), "scipy" (scipy.optimize.least_squares)
 _OPTIMISER = "trf"
+
+# The compiled fit of models/_fast.py (the ``fast`` extra, numba) for the structures it
+# covers, with "trf": "auto" uses it when numba is installed, "off" never
+_FAST = "auto"
 
 # Qualifying candidates compared before one is accepted at each step.
 CANDIDATE_BEAM = 3
@@ -95,17 +99,24 @@ def ar_model(z: Any, return_acov: bool = False) -> Any:
     var0 = float(np.mean(target**2))
     if not var0 > 0:
         return (np.array([1.0]), 1.0, np.zeros(0)) if return_acov else (np.array([1.0]), 1.0)
-    best = (len(target) * np.log(var0), np.zeros(0), var0)
+    fits = [(len(target) * np.log(var0), 0, np.zeros(0), var0)]
+    lagged_all = np.column_stack([z[p_max - k : n - k] for k in range(1, p_max + 1)])
     for p in range(1, p_max + 1):
-        lagged = np.column_stack([z[p_max - k : n - k] for k in range(1, p + 1)])
+        lagged = lagged_all[:, :p]
         phi = np.linalg.lstsq(lagged, target, rcond=None)[0]
         var = float(np.mean((target - lagged @ phi) ** 2))
-        if not var > 0 or np.max(np.abs(np.roots(np.r_[1.0, -phi]))) >= 1.0:
-            continue
-        aic = len(target) * np.log(var) + 2 * p
-        if aic < best[0]:
-            best = (aic, phi, var)
-    _, phi, var = best
+        if var > 0:
+            fits.append((len(target) * np.log(var) + 2 * p, p, phi, var))
+    # the lowest AIC among the stationary orders (the lowest such order on a tie): the
+    # roots are computed in order of AIC until a stationary model is found
+    best = fits[0]
+    for aic, p, phi, var in sorted(fits[1:], key=lambda row: (row[0], row[1])):
+        if not aic < best[0]:
+            break
+        if np.max(np.abs(np.roots(np.r_[1.0, -phi]))) < 1.0:
+            best = (aic, p, phi, var)
+            break
+    _, _, phi, var = best
     a = np.r_[1.0, -phi]
     if not return_acov:
         return a, float(np.sqrt(var))
@@ -794,6 +805,10 @@ def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float 
         def jac(phi: Any) -> Any:
             return omap.jacobian(jac_theta(omap.to_theta(phi)), phi)
 
+    if lean and _OPTIMISER == "trf":
+        done = _optimise_compiled(struct, x0, lo, hi, omap, settings, tol)
+        if done is not None:
+            return (theta0 if done[0] is None else done[0], *done[1:])
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
@@ -839,6 +854,121 @@ def _optimise(struct: Any, theta0: Any, settings: Any, f_scale: Any, tol: float 
     if not (np.all(np.isfinite(x)) and np.all(np.isfinite(beta))):
         return x, None, None, False, "non-finite parameters"
     return x, beta, rw, True, ""
+
+
+def _compiled_args(struct: Any) -> tuple[Any, ...] | None:
+    """What :func:`_fast.optimise` needs to know of a structure; None when it is not covered.
+
+    Covered: Gaussian and skewed-Gaussian components, the exponential background or one
+    without non-linear parameters (its basis is then fixed), the whitening of the engine.
+    Memoised per fit with the bounds.
+    """
+    key = ("compiled", tuple(struct.shapes), struct.background)
+    if struct.memo is not None and key in struct.memo:
+        return cast("tuple[Any, ...] | None", struct.memo[key])
+    out = _compiled_spec(struct)
+    if struct.memo is not None:
+        struct.memo[key] = out
+    return out
+
+
+def _compiled_spec(struct: Any) -> tuple[Any, ...] | None:
+    kinds = []
+    for shape in struct.shapes:
+        if type(shape) is _columns.Gaussian:
+            kinds.append(_fast.GAUSSIAN)
+        elif type(shape) is _columns.SkewedGaussian:
+            kinds.append(_fast.SKEWED_GAUSSIAN)
+        else:
+            return None
+    tw = np.ascontiguousarray(struct.tw, dtype=float)
+    background = struct.background
+    lag = np.zeros(len(tw))
+    if type(background) is _columns.ExponentialBackground:
+        bg_kind = _fast.BG_EXPONENTIAL
+        lag = np.ascontiguousarray(tw - background._t_ref(tw))
+        fixed = np.zeros((0, len(tw)))
+    elif struct.n_bg == 0:
+        bg_kind = _fast.BG_FIXED
+        fixed = (
+            np.ascontiguousarray(np.atleast_2d(background.basis(tw, None)), dtype=float)
+            if struct.n_lin_bg
+            else np.zeros((0, len(tw)))
+        )
+        if fixed.shape != (struct.n_lin_bg, len(tw)):
+            return None
+    else:
+        return None
+    white = struct.white
+    p = len(white.a) - 1
+    if type(white) is Whitener:
+        stride, start_rows = 1, np.arange(p, dtype=np.int64)
+    elif type(white) is StridedWhitener:
+        stride, start_rows = white.stride, np.asarray(white.start_rows, dtype=np.int64)
+    else:
+        return None
+    start = np.zeros((0, 0)) if white.start is None else np.ascontiguousarray(white.start)
+    n_cols = len(struct.shapes) + struct.n_lin_bg
+    diag = np.zeros(n_cols)
+    if n_cols and (struct.prior_col is not None or struct.scale):
+        diag[:] = 1.0 / struct.scale if struct.scale else 0.0
+        if struct.prior_col is not None:
+            diag[struct.prior_col] = 1.0 / cast(float, struct.prior)
+    prior_cols = np.flatnonzero(diag > 0).astype(np.int64)
+    target = np.ascontiguousarray(struct._target()[0], dtype=float)
+    if len(target) != len(tw) + len(prior_cols):
+        return None
+    return (
+        tw,
+        np.asarray(kinds, dtype=np.int64),
+        np.asarray(struct.offsets, dtype=np.int64),
+        bg_kind,
+        lag,
+        fixed,
+        1.0 / np.broadcast_to(np.asarray(white.scale, dtype=float), tw.shape),
+        np.ascontiguousarray(white.a, dtype=float),
+        white._row_weight / white.innovation,
+        int(stride),
+        start,
+        start_rows,
+        prior_cols,
+        np.ascontiguousarray(diag[prior_cols]),
+        target,
+    )
+
+
+def _optimise_compiled(
+    struct: Any, x0: Any, lo: Any, hi: Any, omap: Any, settings: Any, tol: float
+) -> Any:
+    """:func:`_optimise` by the compiled kernel; None when it does not apply."""
+    if _FAST == "off":
+        return None
+    kernel = _fast.kernel()
+    if kernel is None:
+        return None
+    spec = _compiled_args(struct)
+    if spec is None:
+        return None
+    chain = np.asarray(omap.idx if omap is not None else [], dtype=np.int64)
+    status, theta, nfev, beta, rw = kernel(
+        np.ascontiguousarray(x0, dtype=float),
+        np.ascontiguousarray(lo, dtype=float),
+        np.ascontiguousarray(hi, dtype=float),
+        chain,
+        *spec,
+        float(tol),
+        int(settings.max_iter),
+    )
+    if status == _fast.FALLBACK:
+        return None  # the SVD route of the NumPy path
+    _COUNTER.n = getattr(_COUNTER, "n", 0) + int(nfev)
+    if status == _fast.VALUE_ERROR:
+        return None, None, None, False, "ValueError: infeasible start or step"
+    if status == _fast.LINALG_ERROR:
+        return None, None, None, False, "LinAlgError: SVD did not converge"
+    if not (np.all(np.isfinite(theta)) and np.all(np.isfinite(beta))):
+        return theta, None, None, False, "non-finite parameters"
+    return theta, beta, rw, True, ""
 
 
 ###################################################################################################
@@ -1304,11 +1434,17 @@ def _fit_waveform_core(
     ordered = settings.latency_order == "parameterised"
     memo: dict[Any, Any]
     memo = {}
+    structures: dict[tuple[Any, ...], _Structure] = {}
 
     def make(shapes: Any) -> Any:
-        return _Structure(
-            list(shapes), background, tw, white, yw, prior, scale, edge, level, ordered, memo
-        )
+        # one structure per sequence of shapes and fit (it caches its whitened target)
+        key = tuple(shapes)
+        struct = structures.get(key)
+        if struct is None:
+            struct = structures[key] = _Structure(
+                list(shapes), background, tw, white, yw, prior, scale, edge, level, ordered, memo
+            )
+        return struct
 
     f_scale = settings.f_scale
 

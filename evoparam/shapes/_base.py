@@ -141,20 +141,34 @@ def as_params(params: ArrayLike | None, n_params: int, name: str) -> FloatArray:
     return params
 
 
+# window_info of the last time axes, by content: a fit asks for the same window many times
+# (bounds and starting values of every shape), and the median step is most of the cost
+_WINDOW_CACHE: dict[bytes, tuple[float, float, float, float]] = {}
+_WINDOW_CACHE_SIZE = 64
+
+
 def window_info(times: ArrayLike) -> tuple[float, float, float, float]:
     """Window start, end, length and sampling rate of a strictly increasing time axis."""
     times = as_times(times)
     if times.size < 2:
         raise DataError("times: at least 2 samples are needed to define a window.")
+    key = times.tobytes()
+    known = _WINDOW_CACHE.get(key)
+    if known is not None:
+        return known
     steps = np.diff(times)
     if np.any(steps <= 0):
         raise DataError("times: must be strictly increasing.")
-    return (
+    out = (
         float(times[0]),
         float(times[-1]),
         float(times[-1] - times[0]),
         float(1.0 / np.median(steps)),
     )
+    if len(_WINDOW_CACHE) >= _WINDOW_CACHE_SIZE:
+        _WINDOW_CACHE.clear()
+    _WINDOW_CACHE[key] = out
+    return out
 
 
 def check_waveform(
@@ -417,6 +431,17 @@ def compute_features(
         raise SettingsError(f"onset_fraction: must be in (0, 1), got {onset_fraction}.")
     amplitude = float(amplitude)
     grid, step, (start, end) = feature_grid(times, sfreq, window)
+    support = getattr(shape, "support", None)
+    if support is not None:
+        # Every feature reads the curve where it reaches a quarter of the onset level or of
+        # half the extremum (the extremum is 1 for these shapes) and on the samples next to
+        # them: the grid is cut to the interval outside which the curve is below that, two
+        # samples of margin on each side (the same numbers as on the whole grid)
+        low, high = support(params, 0.25 * min(onset_fraction, 0.5))
+        first = max(int(np.searchsorted(grid, low)) - 2, 0)
+        last = min(int(np.searchsorted(grid, high, side="right")) + 2, grid.size)
+        if last - first >= 3:
+            grid = grid[first:last]
     curve = shape.evaluate(grid, params)
     warnings = []
 
