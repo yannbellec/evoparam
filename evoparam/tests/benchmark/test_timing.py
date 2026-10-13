@@ -224,16 +224,11 @@ def _committed(suite: Any) -> Any:
     return {timing._key(r): r for r in rows}
 
 
-# measured on the reference machine (benchmarks/README.md), load average 5 to 6 on 4 cores
+# measured on the reference machine (benchmarks/README.md), load average 7 to 10 on 4 cores
 MEASURED = {
-    "P1": "median 81.5 ms over 20 repetitions (target < 0.050 s); one fit of the ccep preset "
+    "P1": "median 80.4 ms over 20 repetitions (target < 0.050 s); one fit of the ccep preset "
     "with 3 starts and max_components=6 on a 1 s window at 2 048 Hz",
-    "P3": "peak RSS increase 331 MiB (347 MB) for 105 MB of trials in memory (3.3 x, "
-    "target < 2 x; median of 3 runs), "
-    "measured on the ci size (50 x 64 x 4 096); the full size (4.19 GB) was not run",
     "P4": "not available: no GPU backend in this version (NumPy/SciPy engine)",
-    "P6": "median 0.940 s over 10 runs for import evoparam (target < 0.300 s); "
-    "scipy.stats and scipy.interpolate dominate the import time",
 }
 
 
@@ -267,7 +262,6 @@ def test_req290_p1_one_waveform_under_50_ms() -> None:
     _target("P1")
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-290 P3 not met: " + MEASURED["P3"])
 def test_req290_p3_in_memory_under_twice_the_data() -> None:
     """REQ-290 P3 (in memory): peak RSS increase < 2 x data size."""
 
@@ -281,7 +275,6 @@ def test_req290_p4_gpu_equals_cpu() -> None:
     _target("P4")
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-290 P6 not met: " + MEASURED["P6"])
 def test_req290_p6_import_under_300_ms() -> None:
     """REQ-290 P6: python -X importtime -c "import evoparam", median of 10 < 300 ms."""
 
