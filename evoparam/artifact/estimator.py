@@ -15,6 +15,9 @@ from evoparam.utils._estimator import (
 
 __all__ = ["ArtifactRemover"]
 
+# Dimensions of a single-channel array [n_trials, n_times] (a channel axis is added).
+_ONE_CHANNEL_NDIM = 2
+
 
 class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
     """``evoparam.artifact.remove_artifact`` as a transformer.
@@ -43,6 +46,7 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
         baseline: Any = (-0.5, -0.05),
         random_state: Any = None,
     ) -> None:
+        """Store the settings unchanged (scikit-learn convention)."""
         self.method = method
         self.window = window
         self.sfreq = sfreq
@@ -71,7 +75,7 @@ class ArtifactRemover(BaseEstimatorMixin, TransformerMixin):
             return x, None
         data = validate_array(self, x, reset=reset, ndim=3)
         shape = data.shape
-        if data.ndim == 2:
+        if data.ndim == _ONE_CHANNEL_NDIM:
             data = data[:, None, :]
         if self.sfreq is None:
             raise SettingsError("sfreq is required when X is an array.")

@@ -33,6 +33,7 @@ def _polarity_sign(value: Any) -> Any:
 
 
 def _site_groups(meta: Any) -> dict[Any, NDArray[Any]]:
+    """Rows of each stimulation site, in order of first appearance."""
     if meta is not None and "stim_site" in meta.columns:
         sites = meta["stim_site"].fillna("").astype(str).to_numpy()
     else:
@@ -41,6 +42,7 @@ def _site_groups(meta: Any) -> dict[Any, NDArray[Any]]:
 
 
 def _pairs_alternating(meta: Any, n_trials: int, pairing: Any) -> tuple[list[Any], NDArray[Any]]:
+    """Opposite-polarity pairs (negative row, positive row) and the unpaired rows."""
     if meta is None or "stim_polarity" not in meta.columns:
         raise ArtifactError("scheme 'alternating' needs metadata['stim_polarity'].")
     signs = np.array([_polarity_sign(v) for v in meta["stim_polarity"]])
@@ -75,6 +77,7 @@ def _pairs_alternating(meta: Any, n_trials: int, pairing: Any) -> tuple[list[Any
 
 
 def _sets_forward_masking(meta: Any, pairing: Any) -> tuple[list[Any], NDArray[Any]]:
+    """Return the sets of conditions A, B, C and D (by pair_id or occurrence) and leftover rows."""
     if meta is None or "paradigm_condition" not in meta.columns:
         raise ArtifactError(
             "scheme 'forward_masking' needs metadata['paradigm_condition'] "

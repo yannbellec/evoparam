@@ -20,6 +20,7 @@ GROUP_BY = ("stim_site", "stim_current_mA", "stim_polarity")
 
 
 def check_trialset(ts: Any) -> "TrialSet":
+    """Return ``ts`` after checking that it is a TrialSet."""
     if not isinstance(ts, TrialSet):
         raise DataError(f"Expected a TrialSet, got {type(ts).__name__}.")
     return ts
@@ -120,5 +121,6 @@ def baseline_rms(data: Any, inds: Any) -> NDArray[Any]:
 
 
 def require_trials(n: Any, needed: Any, method: Any, what: str = "trials") -> None:
+    """Raise ArtifactError when ``method`` gets fewer than ``needed`` ``what`` (``n``)."""
     if n < needed:
         raise ArtifactError(f"method {method!r} needs at least {needed} {what}, got {n}.")
