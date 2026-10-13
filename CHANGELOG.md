@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+### REQ-064 on real templates: the specification's version as a measured comparison
+
+- REQ-064 (subspace >= 30 dB on synthetic EEG with real artifact templates) is met by the
+  default on every TMS subject and SPES run (tested). The two expected failures were the
+  specification's algorithm as written (95 % of the whitened energy, at most 6 directions,
+  every sample projected), which cannot reach 30 dB on real templates (TMS median 1.6 dB,
+  SPES 9.3 dB) and is kept as an option. They are now tests that the default is above
+  30 dB and at least 20 dB above the specification's version on every overlay: the
+  measured reason for the departure, as the spec-floor rule asks.
+
+### Pulse detection: a second score when the median finds nothing (ds004977)
+
+- In ds004977 (4800 Hz, the stimulating contacts switched to the stimulator) the artifact
+  reaches a minority of the channels: on the median of the absolute first difference (spec
+  §5.2 method 1, 16 channels) the pulses reach z 9 to 15 in 2 of the 4 runs, under the
+  threshold of 20, and `detect_pulses` found none there (recall 0.50). When the median
+  score has no crossing, `detect_pulses` now tries the 90th percentile of the non-flat
+  picked channels (`evoparam.events._score.quantile_score`): z 47 to 322 at the pulses, at
+  most 10 between them. ds004977: 20 of 20 pulses. Recordings where the median finds a pulse
+  are unchanged (ds004080, Mayo 2048 Hz, synthetic sets: 184 tests passed); the score used
+  is recorded in the provenance (`settings["score"]`: "median" or "p90").
+
+### Pulse detection: the strength gate also holds on the size of the deflection
+
+- On the Mayo runs at 2048 Hz, 29 false alarms (precision 0.84) were electrode pops: a
+  channel saturating for an instant has a steep edge, so a robust z near the pulses' (27 to
+  107 against 85 to 164), but a deflection of 0.1 to 2 mV against 35 to 45 mV for the
+  stimulation artifact. `detect_pulses` now gates each candidate on the smaller of its
+  relative z and its relative size (µV), the size of reference being the 90th percentile
+  among the candidates that pass on z (pops can outnumber pulses: 47 candidates for 5
+  pulses in one ds004696 sub-07 segment). Mayo 2048 Hz: 152 hits, 0 false alarms
+  (precision 1.0); a 3 mV pulse of the same site is still found by the template pass.
+  ds004080 (REQ-040), the synthetic sets (REQ-041), the stream and benchmark tests are
+  unchanged (229 passed).
+- REQ-044, ds004696 sub-07: the run's own events.tsv has 13 pulses per site (median), so its
+  test checks the run's structure (one train per block, the block's pulse count, 0.2 Hz);
+  the protocol's 10-12 stays checked over all runs together. Reading in DECISIONS.
+
 ### N1 case: the registry row read as a negative peak (REQ-113, REQ-114, REQ-135, REQ-273)
 
 - The reading. The §5.6 row is "`|x| > 3.4·SD_baseline` with a negative peak, ≥ 1

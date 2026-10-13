@@ -208,31 +208,31 @@ def test_req064_real_spes_templates() -> None:
     assert min(gains) >= 30, np.round(gains, 1)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="the specification's subspace (95 % of the whitened "
-    "energy, at most 6 directions, every sample "
-    "projected) on real TMS templates: median 1.6 dB "
-    "(0.2 to 4.1), not 30 dB (module docstring)",
-)
-def test_req064_real_tms_templates_specification_version() -> None:
+def _compare_versions(templates: Any, window: Any) -> Any:
+    """SIR improvement of the default and of the specification's version on each overlay."""
 
-    gains = [
-        sir_improvement(*tms_template(subject), TMS_WINDOW, **SPEC_VERSION)
-        for subject in TMS_SUBJECTS
-    ]
-    assert min(gains) >= 30, np.round(gains, 1)
+    return np.array([
+        (sir_improvement(*t, window), sir_improvement(*t, window, **SPEC_VERSION))
+        for t in templates
+    ])
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="the specification's subspace on real SPES templates "
-    "(ds004080, 23 runs at 2048 Hz): median 9.3 dB (5.0 to "
-    "18.4), not 30 dB (module docstring)",
-)
-def test_req064_real_spes_templates_specification_version() -> None:
+def test_req064_real_tms_templates_default_beats_specification_version() -> None:
+    """REQ-064 is met by the default (test above). The specification's version is kept as
+    an option (``n_components="energy"``, ``subspace_extent="all"``): on every real TMS
+    template it stays far below 30 dB (measured median 1.6 dB, 0.2 to 4.1), which is why
+    the default departs from it (spec-floor rule: a departure must do measurably better;
+    CHANGELOG "REQ-064")."""
 
-    gains = [
-        sir_improvement(*spes_template(stem), SPES_WINDOW, **SPEC_VERSION) for stem in _spes_runs()
-    ]
-    assert min(gains) >= 30, np.round(gains, 1)
+    gains = _compare_versions([tms_template(s) for s in TMS_SUBJECTS], TMS_WINDOW)
+    assert (gains[:, 0] >= 30).all() and (gains[:, 0] > gains[:, 1] + 20).all(), \
+        np.round(gains, 1)
+
+
+def test_req064_real_spes_templates_default_beats_specification_version() -> None:
+    """As above on the 23 SPES runs of ds004080 (specification's version: median 9.3 dB,
+    5.0 to 18.4)."""
+
+    gains = _compare_versions([spes_template(stem) for stem in _spes_runs()], SPES_WINDOW)
+    assert (gains[:, 0] >= 30).all() and (gains[:, 0] > gains[:, 1] + 20).all(), \
+        np.round(gains, 1)

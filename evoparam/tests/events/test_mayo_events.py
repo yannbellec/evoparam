@@ -283,27 +283,18 @@ def test_mayo_onsets_match_events_tsv(results: Any) -> None:
     assert np.median(np.abs(errors)) <= 1 / 2048 + 1e-6  # rounding of the onsets
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="precision 0.84 on the Mayo 2048 Hz runs (152 hits, "
-    "29 false alarms: small transients, 0.1-3 mV against "
-    "35-45 mV pulses, in ds004457 sub-2 and ds004696 "
-    "sub-07); REQ-040 is specified on ds004080 only",
-)
 def test_mayo_precision(results: Any) -> None:
+    """Measured: 152 hits, 0 false alarms (precision 1.0; 0.84 before the size gate: 29
+    electrode pops of 0.1 to 3 mV on single channels, against 35-45 mV pulses)."""
 
     hits, _, false_alarms, _ = match_all(subset(results, mayo_2048=True))
     assert hits / (hits + false_alarms) >= 0.99
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="ds004977: the default threshold (20 robust SD) finds "
-    "no pulse in 2 of 4 runs (largest score 14.9 and 10.9; "
-    "recall 0.50); with sEEG picks and threshold_sd=7 all 20 "
-    "are found, 2.1 ms after the events.tsv onsets",
-)
 def test_ds004977_pulses_found_with_defaults(results: Any) -> None:
+    """Measured: 20 of 20. In 2 of the 4 runs the median score stays at z 9 to 15 (the
+    stimulating contacts are switched to the stimulator) and the 90th percentile of the
+    non-flat channels, tried when the median finds nothing, finds the 10 pulses."""
 
     hits, misses, _, _ = match_all(subset(results, mayo_2048=False))
     assert hits / (hits + misses) >= 0.99

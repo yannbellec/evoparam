@@ -17,6 +17,7 @@ from ._score import (
     as_continuous,
     crossings,
     difference_score,
+    quantile_score,
     far_from,
     pick_index,
     robust_z,
@@ -189,6 +190,24 @@ def _match(stacks: Any, templates: Any) -> Any:
 
 
 @verbose
+def artifact_size(data, index, onsets, sfreq, *, argmax=False):
+    """Largest deflection (data units) of the picked channels within ``PEAK_WINDOW`` after
+    each onset, from the sample before it; with ``argmax``, also the position (in
+    ``index``) of the channel that carries it."""
+
+    n_times = data.shape[-1]
+    width = max(1, int(round(PEAK_WINDOW * sfreq)))
+    size = np.zeros(len(onsets))
+    best = np.zeros(len(onsets), dtype=int)
+    for row, onset in enumerate(np.asarray(onsets, dtype=int)):
+        lo, hi = max(0, onset - 1), min(n_times, onset + width + 1)
+        dev = np.abs(data[index, lo:hi] - data[index, lo : lo + 1])
+        per_channel = np.nanmax(dev, axis=1)
+        best[row] = int(np.argmax(per_channel))
+        size[row] = per_channel[best[row]]
+    return (size, best) if argmax else size
+
+
 def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.2)
     data: FloatArray,
     sfreq: float,
@@ -363,6 +382,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     # Crossings of one artifact are merged, but never across two pulses of a fast train
     merge_s = min(MERGE_WINDOW, min_interval / 2)
 
+    score_used = "median"
     if procedure == "spec":
         score, z, onsets, strength, detector, rho, labels = _spec_candidates(
             data,
@@ -382,6 +402,16 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
 
         # Candidates at the detection threshold
         peaks, strength, firsts = _group_crossings(crossings(z, threshold_sd), z, sfreq, merge_s)
+        if not len(peaks) and len(index) > 2:
+            # No pulse on the median score: the artifact may reach only a minority of the
+            # channels (ds004977, stimulating contacts switched to the stimulator: z 9 to 15
+            # on the median, 47 to 322 on the 90th percentile of the non-flat channels, 10 at
+            # most between pulses). The 90th percentile is then tried before giving up.
+            score_used = "p90"
+            score = quantile_score(data, index, 0.9)
+            z = robust_z(score)
+            peaks, strength, firsts = _group_crossings(
+                crossings(z, threshold_sd), z, sfreq, merge_s)
         onsets = _onsets_from_peaks(peaks, firsts, score, sfreq) if refine else firsts + 1
 
         n_pre, n_post, max_shift = snippet_lengths(sfreq)
@@ -404,7 +434,18 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
             # candidates in the grey zone (>= GREY_FRACTION of the gate) are pulses when they
             # repeat, that is when another candidate carries the same artifact.
             reference = np.percentile(strength, 90)
+            # the gate holds on both scales: the robust z of the first difference and the
+            # size of the deflection (µV). A channel that saturates for an instant (an
+            # electrode pop) has a steep edge, so a z near the pulses', but a deflection tens
+            # of times smaller than the stimulation artifact (ds004696 sub-07: 0.1 to 2 mV
+            # against 35 mV). The size of reference is taken among the candidates that pass on
+            # z, since pops can outnumber the pulses (47 candidates for 5 pulses there).
             relative = strength / reference
+            size = artifact_size(data, index, onsets, sfreq)
+            by_z = relative >= min_relative
+            size_reference = np.percentile(size[by_z] if by_z.any() else size, 90)
+            if size_reference > 0:
+                relative = np.minimum(relative, size / size_reference)
             strong = relative >= min_relative
             eligible = relative >= GREY_FRACTION * min_relative
             stacks = shifted_snippets(data, index, onsets, n_pre, n_post, max_shift)
@@ -478,16 +519,8 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         )
 
     # Artifact size and the channel that carries it
-    width = max(1, int(round(PEAK_WINDOW * sfreq)))
-    peak_abs = np.zeros(len(onsets))
-    argmax = []
-    for row, onset in enumerate(onsets):
-        lo, hi = max(0, onset - 1), min(n_times, onset + width + 1)
-        dev = np.abs(data[index, lo:hi] - data[index, lo : lo + 1])
-        per_channel = np.nanmax(dev, axis=1)
-        best = int(np.argmax(per_channel))
-        peak_abs[row] = per_channel[best]
-        argmax.append(names[index[best]])
+    peak_abs, best = artifact_size(data, index, onsets, sfreq, argmax=True)
+    argmax = [names[index[b]] for b in best]
 
     # Template classes renumbered from 0 in order of first appearance (-1: no template)
     classes = np.full(len(labels), -1)
@@ -589,6 +622,7 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         "site_method": site_method,
         "user_template": template is not None,
         "score_channels": score_channels,
+        "score": score_used,
     }
     events.attrs["provenance"] = (
         Provenance(source={"reader": "evoparam.events.detect_pulses"})
