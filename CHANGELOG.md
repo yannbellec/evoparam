@@ -15,17 +15,19 @@ identical to main.
   "warning", "error"); each function writes an INFO record summarising its run.
   `verbose="progress"` shows a `tqdm` bar over channels, subjects or units (extra
   `progress`; without tqdm nothing is shown); the bar never changes a result.
+  `fit_hierarchical` reads `verbose` itself, with the same values (spec §4.2 lets
+  `hierarchical` import `utils.require` only), and shows no bar.
   Warnings raised inside a `@verbose` function point at the caller's line, not at the
   decorator.
 - **`n_jobs`** of `test_response` (permutation, projection, shuffle and
   `model_comparison`), `fit_trials` and `shared_shapes` (nmf) now runs the channels,
   blocks or restarts in parallel: `joblib` processes when the extra `parallel` is
-  installed, else a thread pool (new `evoparam.utils._parallel`, also used by
-  `fit_hierarchical`). Every random number is drawn in the calling process in the order of
-  the serial loop, so the results are identical for every `n_jobs` (tested for each
-  function and both back ends). The warnings and log records of a worker process are
-  issued again in the caller, in order. `shared_shapes(method="kpca")` and `tf_fit` stay
-  serial.
+  installed, else a thread pool (new `evoparam.utils._parallel`). Every random number is
+  drawn in the calling process in the order of the serial loop, so the results are
+  identical for every `n_jobs` (tested for each function and both back ends). The warnings
+  and log records of a worker process are issued again in the caller, in order.
+  `shared_shapes(method="kpca")` and `tf_fit` stay serial; `fit_hierarchical` keeps its
+  process pool.
 - **Unused arguments implemented** as their docstrings say:
   `prestimulus_dependence(band=)` is checked (two increasing positive frequencies) and
   must match the band of the pre-stimulus phases of the fit (SettingsError otherwise; the
@@ -40,7 +42,7 @@ identical to main.
   engine) catch the specific exceptions they expect; the REML and log-likelihood
   fallbacks warn, the others write a DEBUG record. `ruff check --select
   E722,S110,BLE001 evoparam` reports nothing: expected failure removed. ruff findings
-  1246 -> 1226 (package: 373; ARG001/ARG002 13 -> 0, BLE001 6 -> 0, PLR2004 204 -> 203).
+  1246 -> 1227 (package: 374; ARG001/ARG002 13 -> 0, BLE001 6 -> 0).
 - Docstrings and annotations: `read_neo(events=)` documents False; the `folder` of
   `fetch_openneuro_file` accepts None (`$EVOPARAM_DATA`, else `~/.cache/evoparam`); a
   plugin background without `basis`/`basis_jacobian` is refused when the plugin loads,
