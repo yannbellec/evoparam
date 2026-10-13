@@ -411,7 +411,8 @@ def detect_pulses(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
             score = quantile_score(data, index, 0.9)
             z = robust_z(score)
             peaks, strength, firsts = _group_crossings(
-                crossings(z, threshold_sd), z, sfreq, merge_s)
+                crossings(z, threshold_sd), z, sfreq, merge_s
+            )
         onsets = _onsets_from_peaks(peaks, firsts, score, sfreq) if refine else firsts + 1
 
         n_pre, n_post, max_shift = snippet_lengths(sfreq)

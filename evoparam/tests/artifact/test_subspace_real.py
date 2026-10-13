@@ -211,10 +211,12 @@ def test_req064_real_spes_templates() -> None:
 def _compare_versions(templates: Any, window: Any) -> Any:
     """SIR improvement of the default and of the specification's version on each overlay."""
 
-    return np.array([
-        (sir_improvement(*t, window), sir_improvement(*t, window, **SPEC_VERSION))
-        for t in templates
-    ])
+    return np.array(
+        [
+            (sir_improvement(*t, window), sir_improvement(*t, window, **SPEC_VERSION))
+            for t in templates
+        ]
+    )
 
 
 def test_req064_real_tms_templates_default_beats_specification_version() -> None:
@@ -225,8 +227,7 @@ def test_req064_real_tms_templates_default_beats_specification_version() -> None
     CHANGELOG "REQ-064")."""
 
     gains = _compare_versions([tms_template(s) for s in TMS_SUBJECTS], TMS_WINDOW)
-    assert (gains[:, 0] >= 30).all() and (gains[:, 0] > gains[:, 1] + 20).all(), \
-        np.round(gains, 1)
+    assert (gains[:, 0] >= 30).all() and (gains[:, 0] > gains[:, 1] + 20).all(), np.round(gains, 1)
 
 
 def test_req064_real_spes_templates_default_beats_specification_version() -> None:
@@ -234,5 +235,4 @@ def test_req064_real_spes_templates_default_beats_specification_version() -> Non
     5.0 to 18.4)."""
 
     gains = _compare_versions([spes_template(stem) for stem in _spes_runs()], SPES_WINDOW)
-    assert (gains[:, 0] >= 30).all() and (gains[:, 0] > gains[:, 1] + 20).all(), \
-        np.round(gains, 1)
+    assert (gains[:, 0] >= 30).all() and (gains[:, 0] > gains[:, 1] + 20).all(), np.round(gains, 1)
