@@ -49,7 +49,10 @@ DESIGNS = {
     "ERN": {"plus": 1, "minus": 2, "channel": "FCz", "window": (0.000, 0.100), "polarity": -1},
 }
 TOLERANCE = 0.010
-LABEL_MARGIN = 0.030
+# the targeted measurement (REQ-274, CHANGELOG "ERP CORE: the paradigm's component"): the
+# published window widened by 25 ms on each side, three components of the polarity
+MARGIN = 0.025
+N_COMPONENTS = 3
 
 
 def _bins(name):
@@ -151,9 +154,13 @@ def area_latency(times, wave, window, polarity, fraction=0.5):
 
 
 def fit_component(component, times, wave, noise_ref=None):
-    """The fit of the wave; with ``noise_ref`` (the plus-minus reference), the noise model
-    comes from it when the engine's "auto" rule would take it (short baseline), as for a
-    fit of the trials."""
+    """The fit of the wave with the ``erp`` preset targeted at the paradigm's component
+    (``presets.targeted``): N_COMPONENTS components of the component's polarity in the
+    published measurement window widened by MARGIN, no background (the difference wave is
+    baseline-corrected). Returns (the labelled components, the fit): the component of the
+    paradigm is their sum (``P3``, ``P3_b``, ... in its window). With ``noise_ref`` (the
+    plus-minus reference), the noise model comes from it when the engine's "auto" rule
+    would take it (short baseline), as for a fit of the trials."""
 
     from evoparam import presets
     from evoparam.models import ResponseModel
@@ -161,30 +168,24 @@ def fit_component(component, times, wave, noise_ref=None):
 
     design = DESIGNS[component]
     lo, hi = design["window"]
-    base = presets.get("erp")
-    if lo >= base.fit_window[0]:
-        # stimulus-locked: the preset's fit window (50 to 700 ms), which keeps the flat
-        # stretch after the baseline that pins the constant background
-        fit_window = (base.fit_window[0], min(base.fit_window[1], times[-1] - 0.01))
-        baseline = base.baseline
+    polarity = "positive" if design["polarity"] > 0 else "negative"
+    preset = presets.targeted("erp", component, design["window"], polarity, margin=MARGIN,
+                              n_components=N_COMPONENTS, background="none")
+    fit_window = (max(lo - MARGIN, times[0] + 0.01), min(hi + MARGIN, times[-1] - 0.01))
+    if lo < presets.get("erp").fit_window[0]:
+        # response-locked (LRP, ERN): the baseline is the start of the epoch
+        preset = presets.derive(preset, name=preset.name, fit_window=fit_window,
+                                baseline=(times[0], min(0.0, fit_window[0])))
     else:
-        # response-locked (LRP, ERN): the 200 ms before the measurement window and after it
-        fit_window = (max(lo - 0.2, times[0] + 0.01), min(hi + 0.2, times[-1] - 0.01))
-        baseline = (times[0], fit_window[0])
-    # the label window: the measurement window widened by LABEL_MARGIN on each side (the
-    # measurement window is set for a mean amplitude; a fitted peak can lie just outside)
-    label = (lo - LABEL_MARGIN, hi + LABEL_MARGIN)
-    preset = presets.derive("erp", name=f"erp_{component}", fit_window=fit_window,
-                            baseline=baseline, component_labels={component: label},
-                            label_polarity={component: design["polarity"]})
+        preset = presets.derive(preset, name=preset.name, fit_window=fit_window)
     model = ResponseModel(preset)
     if noise_ref is not None and not engine.use_plus_minus(model.settings(), times, wave):
         noise_ref = None
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         result = model.fit_waveform(times, wave, noise_ref=noise_ref)
-    comps = [c for c in result.components if c.label == component]
-    return (comps[0] if comps else None), result
+    comps = [c for c in result.components if c.label and c.label.startswith(component)]
+    return (comps or None), result
 
 
 def files_sha256(component, participant):
@@ -227,13 +228,15 @@ def run(components=None, participants=None, wave="difference", hashes=None):
             reference = area_latency(times, signal, design["window"], design["polarity"])
             comp, result = fit_component(component, times, signal,
                                          noise_reference(component, data, names, bins, wave))
-            peak = comp.latency if comp is not None else np.nan
-            latency = np.nan
+            peak = latency = np.nan
             if comp is not None:
                 from evoparam.models import evaluate_fit
 
-                k = result.components.index(comp)
-                curve = evaluate_fit(result, times, components=[k], background=False)
+                # the component of the paradigm: the sum of its labelled parts
+                ks = [result.components.index(c) for c in comp]
+                biggest = max(comp, key=lambda c: abs(c.area))
+                peak = biggest.latency
+                curve = evaluate_fit(result, times, components=ks, background=False)
                 latency = area_latency(times, curve, design["window"], design["polarity"])
             rows.append({"component": component, "participant": participant, "n_trials": n,
                          "wave": wave, "area_latency": reference, "model_latency": latency,
