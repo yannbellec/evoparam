@@ -632,3 +632,12 @@ expected failure whose reason gives the measured value; no criterion was weakene
   Everything that can be prepared locally is in the repository. The steps that publish
   (PyPI, Zenodo, a public leaderboard, a preprint, the freeze of the name) wait for the
   owner's HIIE decision. Their tests are strict expected failures with that reason.
+
+- **REQ-315 (reference BIDS validator, 2026-10-13).** The requirement is "bids-validator
+  ≥ 2.0 in derivative mode, errors not allowed"; its acceptance names the command
+  `npx bids-validator@2`. npm has never had a 2.x release of `bids-validator` (latest
+  1.15.0, measured 2026-10-09 and 2026-10-13); the BIDS maintainers publish 2.x and 3.x
+  on JSR as `@bids/validator`. The test runs npx as soon as npm resolves a 2.x release and
+  `deno run -A jsr:@bids/validator@3.0.2` until then: same validator line, same mode, same
+  rule (zero errors). It passes on macOS with deno 2 (15 of 15 BIDS tests).
+

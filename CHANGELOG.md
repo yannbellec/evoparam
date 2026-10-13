@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### REQ-315: the reference validator test runs bids-validator 3.0.2 while npm has no 2.x
+
+- `test_req315_reference_validator_as_written` was an expected failure because
+  `npx bids-validator@2` cannot resolve (npm's latest is 1.15.0). It now runs npx when npm
+  has a 2.x release and the maintainers' JSR release (`@bids/validator@3.0.2`, through
+  deno) otherwise; the derivatives pass with zero errors. Reading recorded in DECISIONS.
+
 ### Documentation built with warnings as errors (REQ-302)
 
 - `sphinx -W --keep-going -b html docs` now ends with 0 warnings (run on macOS with the
