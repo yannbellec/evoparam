@@ -149,7 +149,9 @@ module = ["mne.*", "mne_bids.*", "bids.*", "pynwb.*", "hdmf.*", "ndx_events.*", 
           "numba.*", "matplotlib.*", "pandas.*", "pyarrow.*", "xarray.*", "statsmodels.*",
           "formulaic.*", "bidsschematools.*", "nwbinspector.*", "jsonschema.*", "tqdm.*",
           "joblib.*", "pylsl.*", "sklearn.*", "h5py.*", "remfile.*", "quantities.*",
-          "nilearn.*"]
+          "nilearn.*", "patsy.*", "pytensor.*"]
+# patsy (with statsmodels, extra `stats`) and pytensor (with pymc, extra `bayes`) ship no type
+# information or are absent from the CI lock; neither is ever needed by the core
 ignore_missing_imports = true
 
 # Coverage (spec §9.5, REQ-298), lines and branches. Every module is measured (run.omit:
