@@ -101,6 +101,27 @@ _REFERENCES = {
 ## Formatting helpers
 
 
+def _acceptance(settings: Any) -> str:
+    """Return the fall of the criterion a component needed: fixed ``delta``, or calibrated.
+
+    ``delta`` None is calibrated on each fit's noise model (``evoparam.models._calibration``)
+    when the noise model is "ar" and the selection "bic"; otherwise the fixed 10 of spec
+    §5.5.4 (``evoparam.models._settings.FIXED_DELTA``; the data layer does not import the
+    models layer).
+    """
+    delta = settings.get("delta")
+    if delta is not None:
+        return _num(delta)
+    if settings.get("noise_model", "ar") == "ar" and settings.get("selection", "bic") == "bic":
+        return (
+            "a threshold calibrated on each waveform's noise model for a false-response rate "
+            f"of {_num(settings.get('alpha', 0.03))} on pure noise (the expected Euler "
+            "characteristic of the whitened scan over latency and width, Siegmund and "
+            "Worsley 1995, widened for the uncertainty of the noise spectrum)"
+        )
+    return "10"
+
+
 def _num(value: Any, digits: int = 6) -> str:
     """Return a setting printed without float noise: 0.0090000001 -> 0.009."""
     if value is None:
@@ -324,7 +345,7 @@ def _fit(settings: Any) -> str:
         }.get(noise, f"residuals scaled by the noise of {source} (white noise)")
         text += (
             f" Components were added one at a time and kept when the {crit} decreased "
-            f"by at least {_num(settings.get('delta'))}, computed on {how}."
+            f"by at least {_acceptance(settings)}, computed on {how}."
         )
         if settings.get("reject_cancelling"):
             text += (

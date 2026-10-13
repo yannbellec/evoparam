@@ -27,6 +27,8 @@ from scipy.optimize import least_squares
 from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.models import _columns, _fast
+from evoparam.models._calibration import Calibration
+from evoparam.models._settings import FIXED_DELTA
 from evoparam.models._trf import least_squares_trf
 from evoparam.shapes import (
     FWHM_PER_SIGMA,
@@ -1111,6 +1113,9 @@ class _State:
     rw: NDArray[Any]
     crit: float  # selection criterion: innovation rows only (decides K)
     fit_crit: float | None = None  # the same on every row: compares optima of one structure
+    # the same with the AIC penalty (2 per parameter): compares the shapes of one candidate
+    # when ``shape_choice="aic"``
+    shape_crit: float | None = None
 
 
 def _shape(name: Any, settings: Any) -> "ComponentShape":
@@ -1240,7 +1245,8 @@ def _evaluate_state(
         if skip
         else fit_crit
     )
-    return _State(list(shapes), theta, beta, rw, crit, fit_crit), ""
+    shape_crit = criterion(float(np.sum(data_rw**2)), n_eff, p, "aic")
+    return _State(list(shapes), theta, beta, rw, crit, fit_crit, shape_crit), ""
 
 
 def _polish(state: Any, make: Any, settings: Any, n_eff: Any, f_scale: Any, kind: Any) -> Any:
@@ -1458,16 +1464,19 @@ def _fit_waveform_core(
         s_ = np.asarray(sem, float)[wmask]
         scale = np.maximum(np.nan_to_num(s_, nan=sigma), 0.1 * sigma)
     a_coefs, innovation, acov = np.array([1.0]), 1.0, None
+    n_base = 0  # samples the AR model was estimated on
     # the noise of a band-limited recording is modelled at the rate it occupies: on every
     # stride-th sample, on the phase of the epoch that holds the noise best (noise_phase:
     # an upsampled recording keeps its own samples there)
     grid = np.arange(len(y)) % stride == phase
     if settings.noise_model == "ar" and noise_ref is not None:
         a_coefs, innovation, acov = ar_model(ref[good & grid] / sigma, return_acov=True)
+        n_base = int(np.sum(good & grid))
     elif settings.noise_model == "ar" and settings.baseline is not None:
         base = (times >= settings.baseline[0]) & (times <= settings.baseline[1]) & ~mask
         if base.sum() >= MIN_BASELINE:
             a_coefs, innovation, acov = ar_model(y[base & grid] / sigma, return_acov=True)
+            n_base = int(np.sum(base & grid))
     if sem is not None:
         innovation = 1.0 if len(a_coefs) == 1 else innovation
     white: Whitener
@@ -1557,12 +1566,51 @@ def _fit_waveform_core(
     current = best
     out["steps"].append({"K": 0, "criterion": current.crit})
     out["path"] = [current]
+    forced = settings.selection in ("fixed", "cv")
+    cal = None
+    fixed_delta = FIXED_DELTA if settings.delta is None else float(settings.delta)
+    if (
+        settings.delta is None
+        and settings.noise_model == "ar"
+        and settings.selection == "bic"
+        and not forced
+    ):
+        # the fall of BIC a component needs, from this fit's noise model (_calibration.py)
+        bg_design = base_struct.design(current.theta)
+        cal = Calibration(
+            settings.alpha,
+            white,
+            tw,
+            white(bg_design) if bg_design.shape[1] else None,
+            _reachable_fwhm(settings, tw, sfreq, stride),
+            settings.max_fwhm,
+            n_white - (white.p if getattr(white, "start", None) is not None else 0),
+            a_coefs,
+            innovation,
+            acov,
+            n_base,
+        )
+    out["acceptance"] = (
+        {
+            "rule": "calibrated",
+            "alpha": float(settings.alpha),
+            "scan_level": float(cal.c0),
+            "delta": float(cal.delta0),
+        }
+        if cal is not None
+        else {"rule": "fixed", "delta": fixed_delta}
+    )
+
+    def need(state: Any, ref: Any) -> float:
+        """Fall of the criterion needed to accept ``state`` (one component more than ``ref``)."""
+        if cal is None:
+            return fixed_delta
+        return _need(cal, state, ref, make)
 
     def residual_of(state: Any) -> Any:
         return yw - make(state.shapes).design(state.theta) @ state.beta
 
     target = settings.n_components if settings.selection == "fixed" else settings.max_components
-    forced = settings.selection in ("fixed", "cv")
     best_rejected = np.inf
     # At most a few rounds per component: merges may undo an addition
     for _round in range(3 * max(target, 1) + 3):
@@ -1576,7 +1624,7 @@ def _fit_waveform_core(
         ranked: list[tuple[Any, ComponentShape | None, Any]] = []
         if settings.candidate_search == "spec":
             accepted, rejected = _spec_step(
-                current, picks, smooth, make, settings, n_white, f_scale, kind, tw, forced
+                current, picks, smooth, make, settings, n_white, f_scale, kind, tw, forced, need
             )
             best_rejected = min(best_rejected, rejected)
             picks = []  # the beam search below has nothing to do
@@ -1612,7 +1660,7 @@ def _fit_waveform_core(
             if quick is None:
                 continue
             gain = quick[0].crit - current.crit
-            if forced or gain <= -settings.delta:
+            if forced or gain <= -need(quick[0], current):
                 ranked.append(quick)
                 # Compare the first CANDIDATE_BEAM qualifying candidates: the strongest
                 # residual extremum is not always the right next component (two neighbours
@@ -1630,13 +1678,13 @@ def _fit_waveform_core(
             else _split_proposals(current, make, settings, n_white, f_scale, kind)
         )
         for split in splits:
-            if forced or split.crit - current.crit <= -settings.delta:
+            if forced or split.crit - current.crit <= -need(split, current):
                 ranked.append((split, None, None))
         for state, shape, guess in sorted(ranked, key=lambda item: item[0].fit_crit):
             if shape is None:  # a split: already optimised
                 best = _polish(state, make, settings, n_white, f_scale, kind)
                 gain = best.crit - current.crit
-                if forced or gain <= -settings.delta:
+                if forced or gain <= -need(best, current):
                     accepted = best
                     break
                 best_rejected = min(best_rejected, gain)
@@ -1670,7 +1718,7 @@ def _fit_waveform_core(
             ):
                 best_rejected = min(best_rejected, gain)
                 continue
-            if forced or gain <= -settings.delta:
+            if forced or gain <= -need(best, current):
                 accepted = best
                 break
             best_rejected = min(best_rejected, gain)
@@ -1705,9 +1753,25 @@ def _fit_waveform_core(
             current = _merge_pass(reseeded, make, settings, n_white, f_scale, kind, out)
             # the greedy path needed its components to build the pair; after the refit,
             # each must still earn its place by the rule of the forward search
-            current = _prune(current, make, settings, n_white, f_scale, kind, out)
+            current = _prune(current, make, settings, n_white, f_scale, kind, out, cal)
             out["path"][-1] = current
             out["steps"][-1] = {"K": len(current.shapes), "criterion": current.crit}
+
+    if (
+        current.shapes
+        and not forced
+        and len(settings.shapes) > 1
+        and getattr(settings, "shape_choice", "bic") == "aic"
+    ):
+        current = _refine_shapes(current, make, settings, n_white, f_scale, kind, tw)
+        out["path"][-1] = current
+        out["steps"][-1] = {"K": len(current.shapes), "criterion": current.crit}
+
+    if current.shapes and not forced and settings.resolution_check:
+        n_crit = n_white - (white.p if getattr(white, "start", None) is not None else 0)
+        out["warnings"] += _resolution_warnings(
+            current, make, settings, cal, n_crit, fixed_delta, tw, out["warnings"]
+        )
 
     out["best_rejected_delta"] = float(best_rejected) if np.isfinite(best_rejected) else np.nan
     out["make"] = make
@@ -1776,6 +1840,7 @@ def _spec_step(
     kind: Any,
     tw: Any,
     forced: Any,
+    need: Any = None,
 ) -> Any:
     """One step of the forward search of spec §5.5.3 step 4.
 
@@ -1818,7 +1883,7 @@ def _spec_step(
         ):
             rejected = min(rejected, gain)
             continue
-        if forced or gain <= -settings.delta:
+        if forced or gain <= -(_fixed_delta(settings) if need is None else need(best, current)):
             return best, rejected
         rejected = min(rejected, gain)
     return None, rejected
@@ -1947,6 +2012,265 @@ def _reseed(
     return best if best.fit_crit < state.fit_crit and best.crit <= state.crit else None
 
 
+def _refine_shapes(
+    state: Any, make: Any, settings: Any, n_eff: Any, f_scale: Any, kind: Any, tw: Any
+) -> Any:
+    """Refit each component of the final state with every allowed shape; keep the best.
+
+    The shapes are compared by ``_shape_key`` (``shape_choice``), from starts on the
+    component's own curve (its extremum and width), with the asymmetry of a skewed shape
+    started at 0 and at +/- 2: the quick, single-start fits of the forward search often
+    leave a skewed shape at its symmetric start. Components narrower than
+    ``SHAPE_MIN_SAMPLES`` samples at half maximum keep the shape of the search: their
+    flanks hold too few samples to tell an asymmetry from noise, and a change of shape
+    there only moves the latency (REQ-105 recall on development seeds 0.9547 without the
+    refinement, 0.9517 with it on every component, 0.9542 from 8 samples; CHANGELOG
+    "Calibrated acceptance").
+    """
+    sfreq = 1.0 / float(np.median(np.diff(tw)))
+    for k in range(len(state.shapes)):
+        struct = make(state.shapes)
+        own = state.shapes[k]
+        params = struct.comp_params(state.theta, k)
+        curve = state.beta[k] * own.evaluate(tw, params)
+        peak = int(np.argmax(np.abs(curve)))
+        best = state
+        feats = compute_features(own, tw, params, state.beta[k], sfreq=sfreq)
+        if not (feats.fwhm or 0) * sfreq >= SHAPE_MIN_SAMPLES:
+            continue
+        for name in settings.shapes:
+            shape = _shape(name, settings)
+            try:
+                guess = np.asarray(shape.initial_guess(tw, curve, peak), float)
+            except GUESS_ERRORS as err:
+                _guess_failed(shape, tw, (peak,), err)
+                continue
+            starts = [guess] if shape.name != own.name else [np.asarray(params, float)]
+            if "alpha" in shape.param_names:
+                j = shape.param_names.index("alpha")
+                lo, hi = shape.default_bounds(tw)
+                for value in (2.0, -2.0):
+                    g = starts[0].copy()
+                    g[j] = np.clip(value, lo[j], hi[j])
+                    starts.append(g)
+            shapes = state.shapes[:k] + [shape] + state.shapes[k + 1 :]
+            for start in starts:
+                theta0 = np.concatenate(
+                    [
+                        start if i == k else struct.comp_params(state.theta, i)
+                        for i in range(len(state.shapes))
+                    ]
+                    + [struct.bg_params(state.theta)]
+                )
+                cand, _ = _evaluate_state(make, shapes, theta0, settings, n_eff, f_scale, kind)
+                if cand is not None and _shape_key(cand, settings) < _shape_key(best, settings):
+                    best = cand
+        state = _sort_state(best, make)
+    return state
+
+
+# shapes with more free parameters than this are not searched over their corners (2^p fits)
+MAX_CORNER_PARAMS = 4
+
+
+def _reachable_fwhm(settings: Any, tw: Any, sfreq: float, stride: int) -> float:
+    """Narrowest FWHM (s) any allowed shape can take within its bounds, not below 2 samples.
+
+    The bounds of a shape constrain its width parameters, not its FWHM: a skewed Gaussian
+    at the largest asymmetry is about half as wide as a Gaussian with the same scale, so
+    with ``min_fwhm`` well above the sampling limit the search reaches narrower components
+    than ``min_fwhm`` (on white noise with ``min_fwhm`` 8 ms at 1 kHz, 17 of 59 false
+    components were skewed Gaussians 4 to 8 ms wide). The scan level of the calibrated
+    acceptance covers the widths the search can reach: the FWHM of each shape at the
+    corners of its bounds (latency at the window centre), and at least two samples at the
+    rate the noise occupies (the engine's own floor for ``min_fwhm``).
+    """
+    import itertools
+
+    floor = 2.0 * stride / sfreq
+    narrowest = float(settings.min_fwhm)
+    centre = 0.5 * (tw[0] + tw[-1])
+    for name in settings.shapes:
+        shape = _shape(name, settings)
+        try:
+            lo, hi = (np.asarray(v, float) for v in shape.default_bounds(tw))
+        except GUESS_ERRORS:
+            continue
+        names = shape.param_names
+        free = [i for i, n in enumerate(names) if n != shape.latency_param]
+        if len(free) > MAX_CORNER_PARAMS:
+            continue
+        for corner in itertools.product(*[(lo[i], hi[i]) for i in free]):
+            params = 0.5 * (lo + hi)
+            if shape.latency_param in names:
+                params[names.index(shape.latency_param)] = centre
+            params[free] = corner
+            try:
+                fwhm = compute_features(shape, tw, params, 1.0, sfreq=sfreq).fwhm
+            except GUESS_ERRORS:
+                continue
+            if fwhm is not None and np.isfinite(fwhm) and fwhm > 0:
+                narrowest = min(narrowest, float(fwhm))
+    return max(narrowest, floor)
+
+
+@functools.lru_cache(maxsize=8)
+def _pair_probe(ratio: float) -> tuple[float, float]:
+    """FWHM and peak of the best single Gaussian fitted to two equal unit Gaussians.
+
+    The two have FWHM 1 and lie ``ratio`` FWHM apart. Returns (FWHM of the single,
+    amplitude of the single), noise-free least squares on a fine grid.
+    """
+    t = np.linspace(-6.0, 6.0, 4001)
+    sig = 1.0 / FWHM_PER_SIGMA
+    pair = np.exp(-0.5 * ((t - ratio / 2) / sig) ** 2) + np.exp(
+        -0.5 * ((t + ratio / 2) / sig) ** 2
+    )
+    res = least_squares(
+        lambda q: q[0] * np.exp(-0.5 * (t / q[1]) ** 2) - pair,
+        [float(pair.max()), sig * (1 + ratio / 2)],
+        bounds=([0.0, 1e-3], [10.0, 10.0]),
+    )
+    return float(res.x[1] * FWHM_PER_SIGMA), float(res.x[0])
+
+
+def _resolution_warnings(
+    state: Any,
+    make: Any,
+    settings: Any,
+    cal: Any,
+    n_crit: float,
+    fixed_delta: float,
+    tw: Any,
+    existing: Any,
+) -> list[str]:
+    """``merged:<k>,<k+1>`` for each component that a pair of overlapping ones would explain.
+
+    Spec §5.5.3 step 5 merges two neighbours closer than ``overlap_c`` times their summed
+    widths when the merged model is no worse, and REQ-111 asks that two equal Gaussians
+    0.5 FWHM apart come out as one component carrying ``merged``. Such a pair differs from
+    one wider Gaussian by a chi-square of 1.4 at SNR 10 (CHANGELOG): the forward search
+    never accepts its second member, so the merge of step 5 never runs. This check makes
+    the comparison from the other side: for each component, the pair of equal Gaussians
+    ``overlap_c`` times their summed widths apart (step 5's overlap) whose single-Gaussian
+    fit is the component (same latency, FWHM and amplitude) is built, its best
+    single-Gaussian fit is found in this fit's whitened metric (the other components and
+    the background projected out), and the deviance between the two, ``lambda``, is
+    compared with the deviance a new component needs (the calibrated scan level, or
+    ``3 ln n + delta``). When ``lambda`` is smaller, the data could not have separated
+    such a pair: the component is reported as their merger, ``merged:k,k+1``. The flag
+    says what the data cannot exclude (it is set on most single components below the SNR
+    at which such a pair would be resolved, CHANGELOG "Calibrated acceptance"), not that two
+    components were seen. A component with a neighbour of the same sign within twice its
+    FWHM is not flagged: the indices ``k, k+1`` would name that neighbour.
+    """
+    struct = make(state.shapes)
+    sfreq = 1.0 / float(np.median(np.diff(tw)))
+    ratio = settings.overlap_c * 2.0 / FWHM_PER_SIGMA
+    span_f, span_a = _pair_probe(ratio)
+    info = []
+    for k, shape in enumerate(state.shapes):
+        params = struct.comp_params(state.theta, k)
+        feats = compute_features(shape, tw, params, state.beta[k], sfreq=sfreq)
+        info.append((float(feats.latency), float(feats.fwhm or 0.0), float(state.beta[k])))
+    design_w = struct.white(struct.design(state.theta))
+    out = []
+    for k, (lat, fwhm, amp) in enumerate(info):
+        if not (np.isfinite(lat) and fwhm > 0) or any(
+            w.startswith(f"merged:{k},") for w in existing
+        ):
+            continue
+        if any(
+            j != k and np.sign(a) == np.sign(amp) and abs(la - lat) < 2.0 * fwhm
+            for j, (la, _, a) in enumerate(info)
+        ):
+            continue
+        others = np.delete(design_w, k, axis=1)
+        q_o = np.linalg.qr(others)[0] if others.shape[1] else None
+
+        def project(x: Any, q_o: Any = q_o) -> Any:
+            return x - q_o @ (q_o.T @ x) if q_o is not None else x
+
+        f_each = fwhm / span_f
+        a_each = amp / span_a
+        sig_each = f_each / FWHM_PER_SIGMA
+        d = ratio * f_each
+        pair = a_each * (
+            np.exp(-0.5 * ((tw - lat + d / 2) / sig_each) ** 2)
+            + np.exp(-0.5 * ((tw - lat - d / 2) / sig_each) ** 2)
+        )
+        pair_w = project(struct.white(pair))
+        sig0 = fwhm / FWHM_PER_SIGMA
+
+        def resid(q: Any, pair_w: Any = pair_w, project: Any = project) -> Any:
+            single = q[0] * np.exp(-0.5 * ((tw - q[1]) / q[2]) ** 2)
+            return pair_w - project(struct.white(single))
+
+        fit = least_squares(
+            resid,
+            [amp, lat, sig0],
+            x_scale=[max(abs(amp), 1e-12), sig0, sig0],
+            max_nfev=200,
+        )
+        lam = float(np.sum(fit.fun**2))
+        if cal is not None:
+            needed = cal.deviance_needed(fit.fun)
+        else:
+            needed = P_SCAN_GAUSS * float(np.log(max(n_crit, 5.0))) + fixed_delta
+        if lam < needed:
+            out.append(f"merged:{k},{k + 1}")
+    return out
+
+
+# parameters of a Gaussian component (location, width, amplitude)
+P_SCAN_GAUSS = 3
+# narrowest component (FWHM, samples) whose shape the final refinement may change
+SHAPE_MIN_SAMPLES = 8
+
+
+def _fixed_delta(settings: Any) -> float:
+    return FIXED_DELTA if settings.delta is None else float(settings.delta)
+
+
+def _shape_key(state: Any, settings: Any) -> float:
+    """Return the value the shapes of one candidate are compared on (``shape_choice``)."""
+    if getattr(settings, "shape_choice", "bic") == "aic" and state.shape_crit is not None:
+        return float(state.shape_crit)
+    return float(state.fit_crit)
+
+
+def _added_index(state: Any, ref: Any, make: Any) -> int:
+    """Index of the component of ``state`` that ``ref`` (one component fewer) lacks."""
+    k = len(state.shapes)
+    if not ref.shapes:
+        return 0
+    s_struct, r_struct = make(state.shapes), make(ref.shapes)
+    lat = [
+        _latency_of(sh, s_struct.comp_params(state.theta, i)) for i, sh in enumerate(state.shapes)
+    ]
+    ref_lat = np.sort(
+        [_latency_of(sh, r_struct.comp_params(ref.theta, i)) for i, sh in enumerate(ref.shapes)]
+    )
+    costs = []
+    for j in range(k):
+        rest = np.sort([v for i, v in enumerate(lat) if i != j])
+        costs.append(
+            float(np.sum(np.abs(rest - ref_lat))) if len(rest) == len(ref_lat) else np.inf
+        )
+    return int(np.argmin(costs))
+
+
+def _need(cal: Any, state: Any, ref: Any, make: Any) -> float:
+    """Calibrated fall of the criterion needed to accept ``state`` over ``ref``."""
+    struct = make(state.shapes)
+    k = _added_index(state, ref, make) if len(state.shapes) == len(ref.shapes) + 1 else None
+    design_w = struct.white(struct.design(state.theta))
+    if k is None:
+        # not one added component (a split: one replaced by two): the stricter of the parts
+        return float(max(cal.required(design_w, j) for j in range(len(state.shapes))))
+    return float(cal.required(design_w, k))
+
+
 def _sort_state(state: Any, make: Any) -> Any:
     """Components in ascending latency.
 
@@ -1972,11 +2296,18 @@ def _sort_state(state: Any, make: Any) -> Any:
         else state.theta
     )
     beta = np.r_[state.beta[order], state.beta[len(state.shapes) :]]
-    return _State(shapes, theta, beta, state.rw, state.crit, state.fit_crit)
+    return _State(shapes, theta, beta, state.rw, state.crit, state.fit_crit, state.shape_crit)
 
 
 def _prune(
-    state: Any, make: Any, settings: Any, n_eff: Any, f_scale: Any, kind: Any, out: Any
+    state: Any,
+    make: Any,
+    settings: Any,
+    n_eff: Any,
+    f_scale: Any,
+    kind: Any,
+    out: Any,
+    cal: Any = None,
 ) -> Any:
     """Drop the components of a reseeded state that no longer lower the criterion by ``delta``.
 
@@ -1996,7 +2327,14 @@ def _prune(
             cand, _ = _evaluate_state(make, shapes, theta0, settings, n_eff, f_scale, kind)
             if cand is not None and (best is None or cand.crit < best[0].crit):
                 best = (cand, k)
-        if best is None or not best[0].crit - state.crit < settings.delta:
+        if best is None:
+            break
+        needed = (
+            _fixed_delta(settings)
+            if cal is None
+            else cal.required(struct.white(struct.design(state.theta)), best[1])
+        )
+        if not best[0].crit - state.crit < needed:
             break
         out["warnings"].append(f"pruned:{best[1]}")
         state = _sort_state(best[0], make)

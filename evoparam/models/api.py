@@ -34,7 +34,7 @@ from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 from . import engine as _engine
-from ._settings import FitSettings, resolve_settings
+from ._settings import FIXED_DELTA, FitSettings, resolve_settings
 from .classical import classical_measures
 from .labels import label_components
 
@@ -441,6 +441,8 @@ def _build_fit(
             "flagged_pairs": diag["flagged_pairs"],
             "param_names": diag["param_names"],
             "best_rejected_delta": core["best_rejected_delta"],
+            # the fall of the criterion a component needed (fixed delta, or calibrated)
+            "acceptance": dict(core.get("acceptance") or {}),
             "sigma": core["sigma"],
             "rho": core["rho"],
             "n_evaluations": core.get("n_evaluations", 0),
@@ -842,6 +844,9 @@ class ResponseModel(BaseEstimatorMixin):
         tmin: float | None = None,
         selection: Any = None,
         delta: Any = None,
+        alpha: Any = None,
+        shape_choice: Any = None,
+        resolution_check: Any = None,
         n_components: Any = None,
         overlap_c: Any = None,
         loss: Any = None,
@@ -1444,6 +1449,24 @@ def _noise_phrase(settings: Any) -> str:
     return f"residuals whitened by an autoregressive model of the baseline noise ({noise})"
 
 
+def _acceptance_phrase(settings: Any) -> str:
+    """How much the criterion had to fall for a component to be kept (methods text)."""
+    delta = settings.get("delta")
+    calibrated = (
+        delta is None
+        and settings.get("noise_model", "ar") == "ar"
+        and settings.get("selection", "bic") == "bic"
+    )
+    if calibrated:
+        return (
+            "a threshold calibrated on each waveform's noise model for a false-response "
+            f"rate of {settings.get('alpha', 0.03):g} on pure noise (the expected Euler "
+            "characteristic of the whitened scan over latency and width, Siegmund and "
+            "Worsley 1995, widened for the uncertainty of the noise spectrum)"
+        )
+    return f"{FIXED_DELTA if delta is None else float(delta):g}"
+
+
 def methods_text(fit: Any) -> str:
     """Methods paragraph for a ResponseFit or GroupFit (spec REQ-123)."""
     settings = fit.settings
@@ -1462,6 +1485,6 @@ def methods_text(fit: Any) -> str:
         f"width at half maximum). Amplitudes and background coefficients were solved by "
         f"variable projection and the other parameters by bounded least squares. Components "
         f"were added one at a time and kept when the {crit} decreased by at least "
-        f"{settings.get('delta'):g}, computed on {_noise_phrase(settings)}. Uncertainty: "
+        f"{_acceptance_phrase(settings)}, computed on {_noise_phrase(settings)}. Uncertainty: "
         f"{settings.get('uncertainty')} ({settings.get('ci_level', 0.95) * 100:g} % intervals)."
     )
