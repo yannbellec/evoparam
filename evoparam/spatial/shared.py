@@ -308,6 +308,15 @@ def _shared_step(
     return res.x
 
 
+def _local_residual(ch: Any, layout: Any, base: Any, z_shared: Any, tw: Any) -> Any:
+    """Return the residual of one channel as a function of its local parameters only."""
+
+    def residual(z: Any) -> Any:
+        return _solve(ch, layout.shapes, layout.params(base, z_shared, z), tw)[2]
+
+    return residual
+
+
 def _local_step(
     channels: Any,
     layout: Any,
@@ -330,9 +339,7 @@ def _local_step(
         out = []
         for ch, z0 in zip(channels, start, strict=False):
             res = least_squares(
-                lambda z, ch=ch: _solve(ch, layout.shapes, layout.params(base, z_shared, z), tw)[
-                    2
-                ],
+                _local_residual(ch, layout, base, z_shared, tw),
                 _clip(z0, lo, hi),
                 bounds=(lo, hi),
                 method="trf",

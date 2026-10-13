@@ -189,8 +189,11 @@
    "licence": "BSD-3-Clause",
    "licence_checked": "package metadata",
    "anomaly_url": "https://github.com/joblib/joblib/issues",
-   "imported_by_source": false,
-   "functions_used": []
+   "imported_by_source": true,
+   "functions_used": [
+    "Parallel",
+    "delayed"
+   ]
   },
   {
    "package": "jsonschema",
@@ -1142,6 +1145,22 @@
    ]
   },
   {
+   "package": "scipy-stubs",
+   "import_name": "scipy-stubs",
+   "role": "tooling",
+   "extras": [
+    "tests"
+   ],
+   "version_range": "any",
+   "markers": [],
+   "locked_version": "1.18.1.1",
+   "licence": "BSD-3-Clause",
+   "licence_checked": "package metadata",
+   "anomaly_url": "https://github.com/scipy/scipy-stubs/issues",
+   "imported_by_source": false,
+   "functions_used": []
+  },
+  {
    "package": "sphinx",
    "import_name": "sphinx",
    "role": "tooling",
@@ -1274,6 +1293,40 @@
    "licence": "MPL-2.0 AND MIT",
    "licence_checked": "package metadata",
    "anomaly_url": "https://github.com/tqdm/tqdm/issues",
+   "imported_by_source": true,
+   "functions_used": [
+    "tqdm"
+   ]
+  },
+  {
+   "package": "types-pyyaml",
+   "import_name": "yaml-stubs",
+   "role": "tooling",
+   "extras": [
+    "tests"
+   ],
+   "version_range": "any",
+   "markers": [],
+   "locked_version": "6.0.12.20260906",
+   "licence": "Apache-2.0",
+   "licence_checked": "package metadata",
+   "anomaly_url": "https://github.com/python/typeshed/issues",
+   "imported_by_source": false,
+   "functions_used": []
+  },
+  {
+   "package": "types-tabulate",
+   "import_name": "tabulate-stubs",
+   "role": "tooling",
+   "extras": [
+    "tests"
+   ],
+   "version_range": "any",
+   "markers": [],
+   "locked_version": "0.10.0.20261006",
+   "licence": "Apache-2.0",
+   "licence_checked": "package metadata",
+   "anomaly_url": "https://github.com/python/typeshed/issues",
    "imported_by_source": false,
    "functions_used": []
   },

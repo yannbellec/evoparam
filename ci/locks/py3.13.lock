@@ -2136,6 +2136,8 @@ numpy==2.5.4 \
     #   nibabel
     #   nilearn
     #   numba
+    #   numpy-typing-compat
+    #   optype
     #   pandas
     #   patsy
     #   pybids
@@ -2147,6 +2149,10 @@ numpy==2.5.4 \
     #   scipy
     #   statsmodels
     #   xarray
+numpy-typing-compat==20260602.2.5 \
+    --hash=sha256:1885a678e9a24564839ed5d1711c0031735fb7de7f0b5ed88d550e5d45a8d4f9 \
+    --hash=sha256:21ba7757c8924d359a9ed3ab2163c282a70983ae64498fdba6d1892a6641c8b1
+    # via optype
 numpydoc==1.11.0 \
     --hash=sha256:26db0adaac8087e98da05c86b11198defd962aef7c21f4dffd2703c8c6eb4187 \
     --hash=sha256:493ad2ce0d8275ca5da484ec37dbdbbc1334c3a6968dffd10ec729b51753e15e
@@ -2155,6 +2161,10 @@ nwbinspector==0.7.2 \
     --hash=sha256:2e49bee5e5de9bcf2cd8e293aa88d8cf845a4a2a16387052aebd7faef8230ab4 \
     --hash=sha256:40d008eedd8afdc5d6841825d6efb6891933c1fd3b8c5b599ab2db14f62db8e8
     # via evoparam (pyproject.toml)
+optype==0.19.0 \
+    --hash=sha256:31bff7d2e51e88916a11affed80dbe306ca9e74c76b93b143f1355bb127a7a8c \
+    --hash=sha256:50ce4c0ca419026eeae4130dc90c6a0b9a0b54ffe1d940fc26e8d0058903de4c
+    # via scipy-stubs
 packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
     --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
@@ -2704,6 +2714,7 @@ pyyaml==6.0.3 \
     --hash=sha256:fa160448684b4e94d80416c0fa4aac48967a969efe22931448d853ada8baf926 \
     --hash=sha256:fc09d0aa354569bc501d4e787133afc08552722d3ab34836a80547331bb5d4a0
     # via
+    #   evoparam (pyproject.toml)
     #   bidsschematools
     #   myst-parser
     #   nwbinspector
@@ -3012,6 +3023,10 @@ scipy==1.18.1 \
     #   pybids
     #   scikit-learn
     #   statsmodels
+scipy-stubs==1.18.1.1 \
+    --hash=sha256:1a48be1702cad1ae9aa850c62ed157c988d990305880511d0e38994d502664f4 \
+    --hash=sha256:87995ba945f04a3c3fb9cdb5c06d093cf3637ca1271ae6799eb8030b63fb2263
+    # via evoparam (pyproject.toml)
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
@@ -3221,6 +3236,14 @@ tqdm==4.70.1 \
     #   evoparam (pyproject.toml)
     #   mne
     #   nwbinspector
+types-pyyaml==6.0.12.20260906 \
+    --hash=sha256:bca893ff0d51df5c9053137d5d0e6ccd36e939a196356f1d5c16372422f5137b \
+    --hash=sha256:f59c1cc05010b833d2d72287bbaa72610106b28d42d89a907313117faba85212
+    # via evoparam (pyproject.toml)
+types-tabulate==0.10.0.20261006 \
+    --hash=sha256:505bb455e337e85f2cf1dfa56c25322ef70059f095673861114444fae3e9e8d7 \
+    --hash=sha256:b4c5772065de6f5d104daf31a72ce0e78abe07d3b1c7b23e28566b5c95f4faf1
+    # via evoparam (pyproject.toml)
 typing-extensions==4.16.0 \
     --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
     --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5

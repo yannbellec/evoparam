@@ -85,6 +85,9 @@ ADDITIONS = {
         "mpmath": "high-precision reference values of the shape tests",
         "pyyaml": "static checks of the CI workflows and CITATION.cff (REQ-297, REQ-308, REQ-398)",
         "tomli": "pyproject parsing in the tests on Python 3.10",
+        "scipy-stubs": "type stubs of scipy for mypy --strict on the package (REQ-301)",
+        "types-pyyaml": "type stubs of PyYAML for mypy --strict on the package (REQ-301)",
+        "types-tabulate": "type stubs of tabulate for mypy --strict on the package (REQ-301)",
     },
 }
 

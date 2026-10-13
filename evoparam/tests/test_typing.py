@@ -140,13 +140,12 @@ def test_req301_good_examples_pass_under_strict(tmp_path: Any) -> None:
 
 @pytest.mark.xfail(
     strict=True,
-    reason="REQ-301: mypy --strict evoparam reports 47 errors (5345 before the "
-    "qualite-statique branch), all [import-untyped]: scipy (45 imports), yaml and "
-    "tabulate are core or test dependencies without stubs in the lock files, and the "
-    "spec allows ignore_missing_imports for optional packages only (mypy 2.4.0, "
-    "2026-10-12, Python 3.10 to 3.13 environments of the locks); with scipy-stubs "
-    "1.15.3.0, types-PyYAML and types-tabulate installed 22 errors remain, from the "
-    "stubs (lapack wrappers, least_squares, ndimage.label) and patsy",
+    reason="REQ-301: mypy --strict evoparam reports 1 error with the lock files, which "
+    "hold scipy-stubs, types-PyYAML and types-tabulate since the reglages-ignores branch "
+    "(extra tests): patsy (a dependency of statsmodels, extra stats) has no stubs "
+    "[import-untyped] (mypy 2.4.0, scipy-stubs 1.18.1.1, Python 3.13, 2026-10-13). "
+    "Without the stubs 47 errors, all [import-untyped]: scipy (45 imports), yaml and "
+    "tabulate (5345 before the qualite-statique branch)",
 )
 @pytest.mark.skipif(
     os.environ.get("EVOPARAM_SLOW_TESTS") != "1",

@@ -110,6 +110,12 @@ PACKAGES = {
     "interrogate": ("interrogate", "MIT", True, "https://github.com/econchick/interrogate/issues"),
     "mpmath": ("mpmath", "BSD-3-Clause", True, "https://github.com/mpmath/mpmath/issues"),
     "pyyaml": ("yaml", "MIT", True, "https://github.com/yaml/pyyaml/issues"),
+    # type stubs for mypy --strict (REQ-301), never imported at run time
+    "scipy-stubs": ("scipy-stubs", "BSD-3-Clause", True,
+                    "https://github.com/scipy/scipy-stubs/issues"),
+    "types-pyyaml": ("yaml-stubs", "Apache-2.0", True, "https://github.com/python/typeshed/issues"),
+    "types-tabulate": ("tabulate-stubs", "Apache-2.0", True,
+                       "https://github.com/python/typeshed/issues"),
     # imported by evoparam's source but installed by another package (TRANSITIVE)
     "packaging": ("packaging", "Apache-2.0 OR BSD-2-Clause", True,
                   "https://github.com/pypa/packaging/issues"),
