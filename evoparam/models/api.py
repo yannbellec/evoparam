@@ -113,13 +113,22 @@ def _feature_vector(
     return np.array([getattr(f, name) for name in FEATURES_WITH_SE], float)
 
 
+def _whitened_rss(core: Any) -> float:
+    """Sum of squares of the whitened residual of the final model (computed once per fit)."""
+    known = core.get("_rss_w")
+    if known is None:
+        struct = core["struct"]
+        rw = struct.white(struct.y - struct.design(core["theta"]) @ core["beta"])
+        known = core["_rss_w"] = float(np.sum(rw**2))
+    return cast("float", known)
+
+
 def _diagnostics(core: Any, _settings: Any) -> dict[str, Any]:
     """Covariance of every parameter, conditioning and sloppy pairs (step 6)."""
     struct, theta, beta = core["struct"], core["theta"], core["beta"]
     jac = struct.full_jacobian(theta, beta)
     p = jac.shape[1]
-    rw = struct.white(struct.y - struct.design(theta) @ beta)
-    rss_w = float(np.sum(rw**2))
+    rss_w = _whitened_rss(core)
     dof = max(core["n_white"] - p, 1.0)
     s2 = rss_w / dof
     jtj = jac.T @ jac
@@ -172,7 +181,7 @@ def _component_uncertainty(
         s = float(np.sqrt(max(sub[i, i], 0)))
         se[name], ci[name] = s, (params[i] - z * s, params[i] + z * s)
     s_amp = float(np.sqrt(max(sub[-1, -1], 0)))
-    x0 = np.r_[params, amp]
+    x0 = np.concatenate((params, [amp]))
     if unit is None:
         unit = _features(shape, struct.tw, params, 1.0, settings, sfreq)
     f0 = _feature_vector(shape, struct.tw, params, amp, settings, sfreq, unit=unit)
@@ -211,9 +220,7 @@ def _gof(core: Any, y_window: Any, valid: Any, _settings: Any) -> "GoodnessOfFit
     rss = float(np.sum(resid**2))
     tss = float(np.sum((yv - yv.mean()) ** 2))
     r2 = 1 - rss / tss if tss > 0 else np.nan
-    struct = core["struct"]
-    rw = struct.white(struct.y - struct.design(core["theta"]) @ core["beta"])
-    rss_w = float(np.sum(rw**2))
+    rss_w = _whitened_rss(core)
     n_eff = core["n_white"]
     lag = (
         float(np.corrcoef(resid[1:], resid[:-1])[0, 1])

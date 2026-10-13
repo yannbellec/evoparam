@@ -66,6 +66,36 @@ def _groups(ts: Any, by: Any) -> Any:
     return [(key, np.flatnonzero(keys == key)) for key in dict.fromkeys(keys)]
 
 
+def _span(times: Any, *windows: Any) -> slice:
+    """Return the samples from the start of the first of ``windows`` to the end of the last."""
+    inside = np.zeros(len(times), bool)
+    for low, high in windows:
+        inside |= (times >= low) & (times <= high)
+    found = np.flatnonzero(inside)
+    return slice(int(found[0]), int(found[-1]) + 1) if found.size else slice(None)
+
+
+def _select(ts: Any, rows: Any, chans: Any, span: slice) -> tuple[Any, Any]:
+    """``ts.data[rows][:, chans][:, :, span]`` (and the masks), copied once.
+
+    The copy has the memory layout of ``ts.data[rows][:, chans]`` (channel by channel), so
+    every sum over trials is the same to the bit; one copy of the samples that are used is
+    the memory of P3 (spec §9.1).
+    """
+    return _channel_major(ts.data, rows, chans, span), (
+        None if ts.masks is None else _channel_major(ts.masks, rows, chans, span)
+    )
+
+
+def _channel_major(values: Any, rows: Any, chans: Any, span: slice) -> Any:
+    rows = np.asarray(rows, dtype=np.intp)
+    first = values[:, :1, span]
+    out = np.empty((len(chans), rows.size, first.shape[2]), dtype=values.dtype)
+    for k, channel in enumerate(chans):
+        np.take(values[:, channel, span], rows, axis=0, out=out[k])
+    return out.transpose(1, 0, 2)
+
+
 def _check_artifact(ts: Any, window: Any, allow: Any) -> None:
     """Raise SettingsError when the window overlaps samples replaced in every trial."""
     if ts.masks is None or allow:
@@ -216,7 +246,7 @@ def test_response(  # noqa: PLR0913  (spec §5.6 fixes 17 parameters, plus rule_
     n_jobs: int = 1,
     verbose: Any = None,  # noqa: ARG001  (read by the @verbose decorator)
     projection_profile: str = "published",
-    projection_pairs: str = "disjoint",
+    projection_pairs: str = "signflip",
     on_error: str = "record",
 ) -> "ResponseTest":
     """Test whether there is a response in the window, on each channel (and stimulation site).
@@ -233,14 +263,16 @@ def test_response(  # noqa: PLR0913  (spec §5.6 fixes 17 parameters, plus rule_
       bootstrap, conservative; REQ-006).
     - ``"projection"``: cross-projections between trials (canonical response
       parameterisation, re-implemented from the published description): the response
-      duration and a one-sided t-test of the projections at its end.
+      duration and the significance of the projections.
       ``projection_profile`` chooses the response duration: ``"published"`` (default, the
       peak of the mean projection, as the paper defines it) or ``"normalised"`` (the peak
       of the mean projection divided by the square root of the window length, §5.6 item 2
-      as reviewed; see ``docs/spec/DECISIONS.md``). ``projection_pairs`` chooses the
-      projections tested: ``"disjoint"`` (default, each trial in one pair, independent under
-      the null) or ``"half"`` (one per unordered pair, the paper's set, which reproduces its
-      decisions but rejects pure noise at 0.33 to 0.44 at ``alpha = 0.05``).
+      as reviewed; see ``docs/spec/DECISIONS.md``). ``projection_pairs`` chooses the test:
+      ``"signflip"`` (default: every cross-projection, the peak of the mean-projection
+      profile against its null from sign flips of whole trials; rejects pure noise at
+      ``alpha`` and gives the paper's decisions on its examples), ``"disjoint"`` (a t-test,
+      each trial in one pair) or ``"half"`` (a t-test on one projection per unordered pair,
+      the paper's set, which rejects pure noise at 0.33 to 0.44 at ``alpha = 0.05``).
     - ``"model_comparison"``: change of BIC between the fitted model and the background-only
       model, with a parametric bootstrap under the background-only model.
     - ``"threshold"``: a published rule of the registry (``rule``: name or dict), to the
@@ -447,16 +479,19 @@ class _Tester:
         """Test the channels ``chans`` on the trials ``rows`` of one group."""
         trials_ts, evoked, opts = self.trials_ts, self.evoked, self.options
         times, window, baseline = self.base_obj.times, self.window, self.baseline
+        span = slice(None)
         if trials_ts is not None:
-            data = trials_ts.data[rows][:, chans]
-            masks = None if trials_ts.masks is None else trials_ts.masks[rows][:, chans]
+            if self.method == "baseline_permutation":
+                # the permutation test reads the window and the baseline only
+                span = _span(times, window, baseline)
+            data, masks = _select(trials_ts, rows, chans, span)
         if self.method == "baseline_permutation":
             if trials_ts is None:
                 return shuffle_test(
                     evoked.data[chans], times, window, baseline, options=opts, rng=gen
                 )
             return permutation_test(
-                data, times, window, baseline, options=opts, rng=gen, masks=masks
+                data, times[span], window, baseline, options=opts, rng=gen, masks=masks
             )
         if self.method == "projection":
             if trials_ts is None:

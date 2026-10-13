@@ -1,6 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Agreement with the field on OpenNeuro ds004080 (REQ-135); runs only with
-EVOPARAM_NETWORK_TESTS=1 (uses the segments cached by the events validation)."""
+EVOPARAM_NETWORK_TESTS=1.
+
+REQ-135 as written runs on the subjects chosen by the rule of spec §7.3 (the REQ-371 list,
+validation/ds004080_subjects.txt, owner decision D14): every trial of each run's first
+stimulation pair of at least 10 trials, cached as for REQ-113 (``_pair_trials`` of
+test_engine_ccep.py). The method and the registry rules see the same trials (template
+artifact removal, baseline -1 to -0.1 s, as ``compare_detectors`` gives them one TrialSet).
+The regression floor and the development measures use the 40 s segments cached by the
+events validation (``RUNS``: the example subject and the five development subjects).
+"""
 
 import os
 import re
@@ -100,26 +109,126 @@ def _kappa_with(rule: Any, **extra: Any) -> Any:
     return (po - pe) / (1 - pe)
 
 
-# Measured on 2026-10-09 (six runs, 8 trials each, 507 channels): kappa 0.687 with the
-# registry row as written (vanblooijs2023, no SD floor), 0.399 with the published code
-# (vanblooijs2023_code, its SD over the test's baseline (-1, -0.1) s), 0.763 with the row
-# plus the code's 50 uV SD floor (the registry default before this change).
+def _prepared(ts: Any) -> Any:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ts = remove_artifact(
+            ts, method="template", window=(-0.002, 0.008), baseline=BASELINE
+        ).cleaned
+    return baseline_correct(ts, BASELINE, check=False)
+
+
+@pytest.fixture(scope="module")
+def req371_decisions() -> Any:
+    """Per REQ-371 run: the default method's decision over 9-100 ms (negative: N1
+    presence), with its default correction across channels (fdr_bh) and with none; the
+    registry row read as written, a negative peak (``peak="strict"``: the deepest strict
+    local minimum of the window; its unspecified baseline given as -1 to -0.1 s, the
+    ER-detect default the registry names), the same row read as the window's most negative
+    sample (the registry's default ``peak="extremum"``, measured) and the published code
+    (its own baseline, -2 to -0.1 s)."""
+
+    from evoparam.tests.models.test_engine_ccep import _pair_trials, req371_pairs
+
+    out = []
+    for subject, run, site in req371_pairs():
+        ts = _prepared(_pair_trials(subject, run, site))
+        row = {"subject": subject}
+        for correction in ("fdr_bh", "none"):
+            row[correction] = run_test(
+                ts,
+                window=(0.009, 0.1),
+                baseline=BASELINE,
+                polarity="negative",
+                correction=correction,
+                n_permutations=1000,
+                n_boot=0,
+                by=(),
+                random_state=0,
+            ).significant
+        row["vanblooijs2023"] = run_test(
+            ts,
+            method="threshold",
+            rule="vanblooijs2023",
+            rule_overrides={"baseline": BASELINE, "peak": "strict"},
+            by=(),
+        ).significant
+        row["vanblooijs2023_extremum"] = run_test(
+            ts,
+            method="threshold",
+            rule="vanblooijs2023",
+            rule_overrides={"baseline": BASELINE},
+            by=(),
+        ).significant
+        row["vanblooijs2023_code"] = run_test(
+            ts, method="threshold", rule="vanblooijs2023_code", by=()
+        ).significant
+        out.append(row)
+    return out
+
+
+def _pooled(rows: Any, method: Any, rule: Any) -> Any:
+    from evoparam.tests.models.test_engine_ccep import _kappa
+
+    assert len({r["subject"] for r in rows}) >= 5
+    a = np.concatenate([r[method] for r in rows]).astype(bool)
+    b = np.concatenate([r[rule] for r in rows]).astype(bool)
+    return _kappa(a, b)
+
+
+# Measured on the REQ-371 runs (six subjects, 515 channels, 10 trials each): kappa 0.495
+# with the registry row read as a negative peak, 0.586 read as the window's most negative
+# sample, 0.496 with the published code. On the development runs 0.533, 0.600 and 0.597.
 @pytest.mark.xfail(
     strict=False,
-    reason="REQ-135 is not met under either reading of the "
-    "published rule (owner decision D8): kappa 0.687 with the registry row, "
-    "0.399 with the published code (CHANGELOG, 'N1 case as written')",
+    reason="REQ-135 is judged on the registry row read as written, a negative peak (D8 "
+    "revised, DECISIONS §5.8); the code's reading is reported. REQ-135 is not met under "
+    "either reading of the published rule: on the REQ-371 runs kappa 0.495 with the "
+    "registry row (0.586 read as the window's most negative sample), 0.496 with the "
+    "published code; under both readings at once no decision can reach 0.7 "
+    "(test_req135_cannot_hold_under_both_readings: at most 0.640). With the per-channel "
+    "decision of the rule (correction='none') the registry row reaches 0.710 (0.807 with "
+    "the extremum) and the code falls to 0.321. With FDR kept, the ccep preset's own "
+    "chain before the test (chosen on the development runs with the extremum reading) "
+    "gives 0.548 (0.623): FDR drops the weak responses the rule keeps (CHANGELOG, 'N1 "
+    "case: the two readings', 'The comparator trail')",
 )
 @pytest.mark.parametrize("rule", ["vanblooijs2023", "vanblooijs2023_code"])
-def test_req135_permutation_agrees_with_vanblooijs2023(rule: Any) -> None:
-    """REQ-135: the default method agrees with vanblooijs2023 with kappa >= 0.7, under the
-    two readings of the rule."""
+def test_req135_permutation_agrees_with_vanblooijs2023(req371_decisions: Any, rule: Any) -> None:
+    """REQ-135: on ds004080 (>= 5 subjects: the REQ-371 list), the default method agrees
+    with vanblooijs2023 with kappa >= 0.7 on N1 presence over 9-100 ms, under the two
+    readings of the rule."""
 
-    assert _kappa_with(rule) >= MIN_KAPPA
+    assert _pooled(req371_decisions, "fdr_bh", rule) >= 0.7
+
+
+def test_req135_cannot_hold_under_both_readings(req371_decisions: Any) -> None:
+    """Not a REQ (owner decision D8, measured): for every possible decision of the 515
+    channels, the smaller of its kappas with the two readings is at most 0.640 (exact
+    search, :func:`joint_kappa_bound`; 0.592 with the extremum reading): REQ-135 cannot
+    hold under both readings at once on the REQ-371 runs, whatever the method. The two
+    readings agree with each other at kappa 0.36 there."""
+
+    from evoparam.tests.models.test_engine_ccep import joint_kappa_bound
+
+    paper = np.concatenate([r["vanblooijs2023"] for r in req371_decisions])
+    code = np.concatenate([r["vanblooijs2023_code"] for r in req371_decisions])
+    assert joint_kappa_bound(paper, code) < 0.7
+
+
+def test_req135_per_channel_decision_registry_row_regression(req371_decisions: Any) -> None:
+    """Not the REQ as written (the ccep preset keeps the spec's FDR across channels, §6):
+    the default method with the rule's own per-channel decision (correction='none', each
+    channel tested at alpha over 9-100 ms, as the rule decides each channel alone) agrees
+    with the registry row (a negative peak) with kappa 0.710 on the REQ-371 runs and
+    0.756 on the five development runs (a principled choice, no value tuned; 0.807 and
+    0.808 with the extremum reading); with the code it falls to 0.321."""
+
+    assert _pooled(req371_decisions, "none", "vanblooijs2023") >= 0.7
 
 
 def test_req135_regression_with_the_code_floor() -> None:
-    """Not the REQ (an intermediate reading, kept as a regression floor): the registry row
-    with the published code's 50 uV SD floor."""
+    """Not the REQ (an intermediate reading, kept as a regression floor, on the development
+    segments): the registry row with the published code's 50 uV SD floor (0.763)."""
 
     assert _kappa_with("vanblooijs2023", sd_floor_uv=50.0) >= MIN_KAPPA

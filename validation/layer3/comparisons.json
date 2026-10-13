@@ -14,12 +14,12 @@
    "quantity": "fraction of channels with an N1",
    "unit": "fraction",
    "comparator": "published N1 rule, registry 'vanblooijs2023' (paper reading)",
-   "comparator_value": 0.261789,
+   "comparator_value": 0.211382,
    "evoparam_value": 0.162602,
-   "difference": -0.099187,
+   "difference": -0.04878,
    "difference_ci": [
-    -0.133333,
-    -0.066667
+    -0.082927,
+    -0.014634
    ],
    "interval": "95 % percentile bootstrap over the 615 channels, paired, 2000 resamples, seed 0",
    "n": 615,
@@ -43,11 +43,12 @@
     "registry": "evoparam/existence/rules.json",
     "overrides": {
      "baseline": [
-      -2.0,
+      -1.0,
       -0.1
-     ]
+     ],
+     "peak": "strict"
     },
-    "version": "9574505e91a34efda182aeaa6929ebf3231d0d644eea577260f008516d8a2b81"
+    "version": "997c4f3536984680a04fda14fd5e95197617b6db0e54a5b923abdb095264da7d"
    }
   },
   {
@@ -55,15 +56,15 @@
    "quantity": "N1 latency, median over the channels where both find one",
    "unit": "ms",
    "comparator": "published N1 rule, registry 'vanblooijs2023' (paper reading)",
-   "comparator_value": 27.587888,
-   "evoparam_value": 28.889974,
-   "difference": -0.570299,
+   "comparator_value": 29.785153,
+   "evoparam_value": 28.714899,
+   "difference": -0.61814,
    "difference_ci": [
-    -3.008961,
-    0.628662
+    -2.350065,
+    0.147079
    ],
-   "interval": "95 % percentile bootstrap over the 74 channels, paired, 2000 resamples, seed 0",
-   "n": 74,
+   "interval": "95 % percentile bootstrap over the 57 channels, paired, 2000 resamples, seed 0",
+   "n": 57,
    "data": {
     "dataset": "ds004080",
     "version": "1.2.4",
@@ -84,11 +85,12 @@
     "registry": "evoparam/existence/rules.json",
     "overrides": {
      "baseline": [
-      -2.0,
+      -1.0,
       -0.1
-     ]
+     ],
+     "peak": "strict"
     },
-    "version": "9574505e91a34efda182aeaa6929ebf3231d0d644eea577260f008516d8a2b81"
+    "version": "997c4f3536984680a04fda14fd5e95197617b6db0e54a5b923abdb095264da7d"
    }
   },
   {

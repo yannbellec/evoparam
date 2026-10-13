@@ -168,16 +168,11 @@ def test_req134_published_significance_of_the_example_data() -> None:
 
 @pytest.mark.network
 @needs_network
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-134 with the default set of projections "
-    "(projection_pairs='disjoint'): the decisions agree with the published ones "
-    "on 0.8 to 1.0 of the 10 example pairs depending on the random pairing, "
-    "mean 0.89 over seeds 0 to 9, below 0.95",
-)
 def test_req134_published_significance_with_the_default_pairs() -> None:
-    """REQ-134 read with the defaults: the mean agreement over ten random pairings is at least
-    95 %."""
+    """REQ-134 read with the defaults: the mean agreement over ten random draws is at least
+    95 % (measured 1.0 with the default ``"signflip"`` test, whose patterns are all
+    enumerated for these 10 and 13 trials; the ``"disjoint"`` t-test gave 0.8 to 1.0 by
+    pairing, mean 0.89)."""
 
     from evoparam.existence import test_response
 
@@ -231,18 +226,21 @@ def test_req134_reviewed_profile_is_kept_as_an_option() -> None:
 
 def test_req134_pairs_of_the_paper_are_anticonservative() -> None:
     """REQ-134: on pure white noise (10 trials, 200 channels) the paper's set of projections
-    rejects far more often than alpha = 0.05 (0.43 measured), the default set (each trial in
-    one pair) much less (0.145, above alpha by the choice of the response end at the peak of
-    the profile); the default stays the one whose values are independent under the null."""
+    rejects far more often than alpha = 0.05 (0.43 measured), the "disjoint" t-test less
+    (0.145, above alpha by the choice of the response end at the peak of the profile), and
+    the default sign-flip test at alpha (0.05), its null including that choice."""
 
     from evoparam.tests.existence.helpers import noise_trials, trialset
 
     data = noise_trials(np.random.default_rng(3), 10, 200)
     half = _projection(trialset(data), window=(0.009, 0.5), projection_pairs="half")
-    disjoint = _projection(trialset(data), window=(0.009, 0.5))
-    assert disjoint.settings["projection_pairs"] == "disjoint"
-    assert np.mean(half.significant) > MIN_HALF_REJECTION
-    assert np.mean(disjoint.significant) < MAX_DISJOINT_REJECTION
+    disjoint = _projection(trialset(data), window=(0.009, 0.5), projection_pairs="disjoint")
+    default = _projection(trialset(data), window=(0.009, 0.5))
+    assert default.settings["projection_pairs"] == "signflip"
+    assert np.mean(half.significant) > 0.3
+    assert np.mean(disjoint.significant) < 0.2
+    # the sign-flip null includes the choice of the response end: measured 0.05
+    assert np.mean(default.significant) <= 0.08
 
 
 @pytest.mark.xfail(

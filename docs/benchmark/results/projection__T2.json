@@ -2,7 +2,7 @@
  "cells": [
   {
    "cell": "ccep_detection-p001",
-   "input_sha256": "4804fab6e78ee2072db1de82f85f412f6828cf183a584edced66f28405d99674",
+   "input_sha256": "1a3811cf886d1b1a0c8f01c9609ae9b0f52b980d65aff3a5ec174e81c39bae04",
    "metrics": {
     "latency_bias": null,
     "latency_mae": null,
@@ -15,104 +15,104 @@
   },
   {
    "cell": "ccep_detection-p002",
-   "input_sha256": "b92fb355b45d73110c6b8e011b63cd0f73c574d447ee2cb693fa710bb3f5066b",
+   "input_sha256": "49cf9cbeea659cf2b1542b5c2085a096bc9a43e00104592f351170a8f258f9c9",
    "metrics": {
-    "latency_bias": null,
-    "latency_mae": null,
-    "n_reported": 0,
+    "latency_bias": -0.0003007723498566054,
+    "latency_mae": 0.002348062697713165,
+    "n_reported": 4,
     "n_true": 5,
-    "reported_fraction": 0.0
+    "reported_fraction": 0.8
    },
-   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "output_sha256": "10fc46146b6a4ed5b0a4462202587ce97824d8059b9a1612fe97c09b8ca78a60",
    "split": "public"
   },
   {
    "cell": "ccep_detection-p003",
-   "input_sha256": "2868fabd46114d6c0ea00d642068f15d77005cfaaec223bb2cb801a66463e344",
+   "input_sha256": "7be615fe26445bc048fd0e663cb8616c98d4a45fd0a82a52da1cce5042b0ff05",
    "metrics": {
-    "latency_bias": 0.0016534529631786765,
-    "latency_mae": 0.0016534529631786765,
+    "latency_bias": 0.0016534529631786771,
+    "latency_mae": 0.0016534529631786771,
     "n_reported": 6,
     "n_true": 6,
     "reported_fraction": 1.0
    },
-   "output_sha256": "98b63c4142743c0ad8f5885acccd6138aa2e5f538fcbaa8dba4d5157f4e815e3",
+   "output_sha256": "f194746229f4395ce2ced607d0d7e84ba28139571bf625a99d6b10ca07207b85",
    "split": "public"
   },
   {
    "cell": "ccep_detection-p004",
-   "input_sha256": "da7be98164319627f55593cff353fa01499de935711c0c8926970acaedbb5cf7",
+   "input_sha256": "e97eb84959c4a653bad1212a7fbb209ea8b787270c8c1942574fcea39cc9a780",
    "metrics": {
-    "latency_bias": -0.0003950727051634478,
-    "latency_mae": 0.0007701340497103366,
+    "latency_bias": -0.0003950727051634461,
+    "latency_mae": 0.0007701340497103348,
     "n_reported": 8,
     "n_true": 8,
     "reported_fraction": 1.0
    },
-   "output_sha256": "dbb28129dc3816413200d1d5f9bfe4e26dfea75a6f3f6c00e6a031af450a1cc5",
+   "output_sha256": "4e1b80e68644e5806292d1999a190acdf21ed230f8d1d4bb4add679b9c338222",
    "split": "public"
   },
   {
    "cell": "ccep_detection-p005",
-   "input_sha256": "70f363880fcb38b0c1f1d408fa8175a55d70ba30368a2ed3063266f8428347fa",
+   "input_sha256": "beee33fed0a5f0b6121162203b2c47ac5d52b3ccc0450f04225785c4c73f74ac",
    "metrics": {
-    "latency_bias": -0.0008861217484299345,
-    "latency_mae": 0.0010542949045640928,
-    "n_reported": 2,
+    "latency_bias": -0.0002771254639753519,
+    "latency_mae": 0.00038924090139812417,
+    "n_reported": 3,
     "n_true": 6,
-    "reported_fraction": 0.3333333333333333
+    "reported_fraction": 0.5
    },
-   "output_sha256": "a21b045407582dec1ac47f93855d4deb3866d4235485f4a76b03acc20f7ef544",
+   "output_sha256": "2e11aa91ab93b55614a5decb930eee490309dfa7c91f22c00d1347efac77fcaa",
    "split": "public"
   },
   {
    "cell": "ccep_detection-p006",
-   "input_sha256": "c3e7c8e50abf118110736b6e4df5b535a652f8dd427bdf1ae6eb8c107ffc81c5",
+   "input_sha256": "213b25f4588543e9d784115b5cc7aab8564157a900665b6f051fb40b8899738d",
    "metrics": {
-    "latency_bias": 0.0006646695401267139,
-    "latency_mae": 0.0006646695401267139,
-    "n_reported": 2,
+    "latency_bias": -0.00012795763371053324,
+    "latency_mae": 0.0014907515601944232,
+    "n_reported": 9,
     "n_true": 9,
-    "reported_fraction": 0.2222222222222222
+    "reported_fraction": 1.0
    },
-   "output_sha256": "aeade04ef01e6b6d44869f7dcf5de3cc412f8001c2f5b693063c4317117f02de",
+   "output_sha256": "f3c864840a0c32d393186c459590e68c45192556d823056bee2862bd39fadb34",
    "split": "public"
   },
   {
    "cell": "ccep_detection-p007",
-   "input_sha256": "2bbdd6c93ede75362902eee595b022952e2843ed86e95e572c0c0d81b13f9e9e",
+   "input_sha256": "392624b62352c4b60c7bc30d8a6457578a7b0eedc7b24b2be44eac8651e5086e",
    "metrics": {
-    "latency_bias": 5.552642494005902e-05,
-    "latency_mae": 0.0007549228324581873,
+    "latency_bias": 5.552642494005989e-05,
+    "latency_mae": 0.0007549228324581882,
     "n_reported": 4,
     "n_true": 4,
     "reported_fraction": 1.0
    },
-   "output_sha256": "61c2c887776f570707f0d1d89f1273bdc8d604eddbfad4405e3c1377b5b5d963",
+   "output_sha256": "9a49d7be95c07a505bb92614553d1a18af6ec443f874396111f5f359463b23a2",
    "split": "public"
   },
   {
    "cell": "ccep_detection-p008",
-   "input_sha256": "3d9f56dada8bea67ab4307c005e08e40a3423814147d50e42ca5a0ee528c28fc",
+   "input_sha256": "a5d4b96cfb9039876872e36792d8a7ad44037ed1f3f2fc07cff7943ff7efab4a",
    "metrics": {
-    "latency_bias": -0.0003322693294236225,
-    "latency_mae": 0.0005288389434407469,
+    "latency_bias": -0.0003322693294236234,
+    "latency_mae": 0.0005288389434407477,
     "n_reported": 11,
     "n_true": 11,
     "reported_fraction": 1.0
    },
-   "output_sha256": "3482049c5f098d970e8112f4af841dd04d74b0eb7d40d133038af2e1f35da49d",
+   "output_sha256": "23e053ebce19b3a302051fc1496d0c5b52bf5f00321f94c229689a7f1fb444a6",
    "split": "public"
   }
  ],
  "headline": {
-  "amplitude_rel_mae": 0.16510006747118544,
+  "amplitude_rel_mae": 0.17097544140287255,
   "coverage_latency": null,
-  "latency_bias": 8.740529688661892e-05,
-  "latency_mae": 0.0008592920840550706,
-  "reported_fraction": 0.6470588235294118
+  "latency_bias": 3.137660424835545e-06,
+  "latency_mae": 0.0010865654982496124,
+  "reported_fraction": 0.8823529411764706
  },
- "inputs_sha256": "d36580fb6e7fc4ddd0572146312a50a382842579f10801d86f4c565321c7aff9",
+ "inputs_sha256": "260aaf7b1f622067fc54e914cb7731538b329347b796b65433cca031a15612c3",
  "method": {
   "citation": "cross-projection test, re-implemented from the published description (LIT-ccep-15, LIT-fitting-1)",
   "description": "cross-projection response test (spec §5.6 method 2)",
@@ -137,19 +137,19 @@
   "version": "0.1.0.dev0"
  },
  "metrics": {
-  "amplitude_bias": -5.7813800533738,
-  "amplitude_mae": 7.122433927865476,
-  "amplitude_rel_mae": 0.16510006747118544,
+  "amplitude_bias": -4.91866181481069,
+  "amplitude_mae": 6.0674046784879465,
+  "amplitude_rel_mae": 0.17097544140287255,
   "coverage_amplitude": null,
   "coverage_latency": null,
-  "latency_bias": 8.740529688661892e-05,
-  "latency_mae": 0.0008592920840550706,
-  "n_reported": 33,
+  "latency_bias": 3.137660424835545e-06,
+  "latency_mae": 0.0010865654982496124,
+  "n_reported": 45,
   "n_true": 51,
-  "reported_fraction": 0.6470588235294118
+  "reported_fraction": 0.8823529411764706
  },
  "missing_cells": [],
- "outputs_sha256": "77e54e4de34d18eab10f6fc7e571b0b7954a17aab273f93d085a21a941d13701",
+ "outputs_sha256": "0858762be162b318ffacd3fc37b839cc8683e489beb6338f65170d37f637e446",
  "package": {
   "name": "evoparam",
   "version": "0.1.0.dev0"
@@ -158,7 +158,7 @@
  "signature": {
   "algorithm": "sha256",
   "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
-  "digest": "373fb19a4d82ecb9094a30930fbf7acb853db5f79619857cac1b76846541da63"
+  "digest": "33d1ad2f93c0675a8170a072d2fd0904e2e5b31914c356b06a44a13b362d87fc"
  },
  "suite": {
   "hidden_seeds": false,

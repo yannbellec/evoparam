@@ -49,6 +49,774 @@ Other changes:
   `permutation_test` and `shuffle_test` (`PermutationOptions`), `bayes.sample`
   (`NutsSettings`), `sim.artifacts.pulse_shape` (`AntiAliasFilter`) and
   `stimulation_artifact` (`StimulusPulse`, `RecoveryTail`); see DECISIONS.md §7.2.
+### Engine speed, part 3 (REQ-290 P1): same results to the bit, P1 still not met
+
+REQ-290 P1 (one averaged waveform, 2 048 samples, `ccep`, `max_components=6`, 3 starts) is
+about a fifth faster with the `fast` extra and still above its 50 ms target. Every result is
+the same to the last bit, so no algorithm version changes.
+
+Why P1 costs about twice the REQ-115 waveform: it fits a 1 s window (2 047 samples, against
+1 006 for the 0.009-0.5 s window of REQ-115), so every evaluation costs twice as much, and its
+waveform needs about 500 evaluations (70 compiled fits per call: three starts and the
+forward search, which also tries a fourth component and rejects it). At f626c68 a fit spent
+about 60 ms in the compiled kernel (Householder QR of the 2 050-row whitened design,
+whitening, `exp`) and about 30 ms in Python around it; P1 does use the compiled fit for
+every call.
+
+Timings: same machine, `OMP_NUM_THREADS=1`, previous code (f626c68) and new code; the load
+average was 5 to 9 on the 4 cores (other jobs). The two `run_benchmarks.py --suite perf`
+runs were taken one after the other, not interleaved:
+
+| workload | f626c68 | new code |
+|---|---|---|
+| P1 workload, core 3 (`taskset -c 3`), warm-up + 30 fits, three interleaved rounds: median (p10-p90) | 99.0, 105.2, 95.5 ms (p10-p90 93-108, 96-132, 92-109) | 90.3, 81.4, 81.5 ms (p10-p90 82-112, 77-91, 78-87) |
+| compiled kernel alone: the 70 calls of one P1 fit replayed, median of 30 | 59.79 ms | 48.49 ms |
+| `run_benchmarks.py --suite perf`: P1 median (p90) of 20 | 99.8 ms (109.1) | 81.5 ms (85.6) |
+| the same run: P2 (one run) | 53.8 s | 32.7 s |
+| P2 again, two interleaved rounds | 40.1, 42.8 s | 39.1, 35.0 s |
+| the same run: P5, reproduce / original fit | 77.0 s / 65.2 s (1.18x) | 75.5 s / 60.0 s (1.26x) |
+| the same run: P6, median of 10 | 0.937 s | 0.940 s |
+
+What changed:
+
+- `models/_fast.py`: the AR whitening adds its lags by groups of four in one pass over the
+  samples, each term added in the same order as before; the finiteness checks of the QR
+  input and of the residuals are one vectorised sum each. Kernel time per P1 fit: see the
+  table.
+- `models/engine.py`: the compiled fit starts before the closures of the NumPy path are
+  built; shapes built from the same settings and the default bounds of the background are
+  reused; `compute_features` of a component is computed once per fit for the
+  cancelling-pair, suspicious-component and merge checks; the selection of the candidate
+  extrema is vectorised (the same order, ties included); `np.r_` replaced by
+  `np.concatenate`.
+- `models/api.py`: the whitened residual sum of squares is computed once for the
+  diagnostics and the goodness of fit. `shapes/_base.py`: `window_info` recognises the time
+  axis of the previous call without hashing it.
+
+Results, previous code against new code: the 70 kernel calls of one P1 fit replayed give
+the same outputs to the bit; a battery of 112 fits (P1 on three channels, the five REQ-115
+waveforms, `models.fit` on simulated `ccep`, `ccep_seeg`, `erp`, `tep`, `ecap` and
+`rodent_ep` with seeds 0 to 3) gives every number identical; the new whitening matches the
+previous one to the bit, signs of zeros included, on 435 cases (5 to 2 047 samples, AR
+orders 0 to 12, strides 1 to 4, with and without start rows); the reference fixture test
+(`test_determinism.py`) and the methods texts are unchanged. `ALGORITHM_VERSIONS` is
+unchanged.
+
+`benchmarks/results/linux-3.13.16-1f2ea055f5f5.json` replaces the run of bddedc9 (which
+predates the compiled fit); `benchmarks/README.md` and the strict expected failures of
+`tests/benchmark/test_timing.py` give its values. P2 and P5 stay met, P6 stays above
+300 ms (the import of `scipy.stats`). P1 cannot reach 50 ms with the same rounding: the
+kernel is bound by the floating-point work of the QR and the whitening (about 200 MFlop per
+fit). Reaching it needs fewer evaluations (for example a cheaper rejection of the fourth
+component of the forward search) or a blocked QR, both of which change the results within
+rounding and need a new algorithm version and fixture.
+
+### Engine speed, part 4 (REQ-290 P1): the search of a further component stops sooner
+
+The forward search tried up to 2 x `max_components` residual extrema (12 for P1) before
+concluding that no further component improves the criterion, and every fit ends with such a
+step. It now stops after the six strongest extrema when none of them improves the criterion
+by `delta` (`engine.CANDIDATE_SCAN = 6`); a step in which an extremum qualifies still scans
+until its beam of three is full, as before. On the layer-2 development cells the first
+qualifying extremum of a step was the strongest in 546 of the 559 steps that added a
+component and never beyond the sixth. Results change for a few fits, so the algorithm
+versions of `ResponseModel.fit_waveform`, `fit_group`, `existence.test_response`,
+`trials.fit_trials` and `hierarchical.fit_hierarchical` are now 1.2 and that of
+`spatial.fit_shared` 1.1; the reference fixture was regenerated (`python -m
+evoparam.tests.reference`; its values move by at most 2.4e-12 relative, within the 1e-9 of
+its test, as before this change). Engine functions touched: `_fit_waveform_core` (the loop
+over the extrema) and the new constant `CANDIDATE_SCAN`.
+
+P1 (core 3, `OMP_NUM_THREADS=1`, warm-up + 30 fits, three interleaved rounds, load average 9
+to 13 on the 4 cores from other jobs): 84.6, 87.0, 87.8 ms (p10-p90 80-97, 78-109, 79-103)
+before, 78.7, 68.5, 70.5 ms (p10-p90 72-88, 67-93, 69-76) after; the same three components.
+One P1 fit makes 58 compiled fits and 472 evaluations instead of 70 and 513. P1 stays above
+50 ms.
+
+Quality, before (up to 2 x `max_components` extrema) → after (6), the same code otherwise.
+Layer 2: the weekly cells of `validation/layer2.py`, 2 replicates per cell, development
+seeds (`1000 j + r`) and test seeds (500 000 + `1000 j + r`), scored by `sim.score_fits`;
+engine tests: the 60 waveforms of `tests/models/helpers.py` (`random_components`, the
+REQ-104 to REQ-112 generator) on seeds 0-59 and 500 000-500 059; ds004080: the seven runs of
+layer 3, `ccep` pipeline of `validation/robustness.py`, both readings of the published N1
+rule:
+
+| seeds | cells | fits | recall | precision | F1 | latency MAE | fits that differ |
+|---|---|---|---|---|---|---|---|
+| development (0+) | erp layer 2 | 100 | 0.745 | 0.942 → 0.967 | 0.832 → 0.841 | 0.918 → 0.927 samples | 1 |
+| development (0+) | ccep layer 2 | 100 | 0.699 | 0.926 | 0.797 | 1.326 samples | 0 |
+| development (0+) | tep layer 2 | 52 | 0.970 | 0.990 | 0.980 | 1.082 samples | 0 |
+| development (0+) | ecap layer 2 | 52 | 0.680 | 0.861 | 0.760 | 1.047 samples | 0 |
+| development (0+) | animal layer 2 | 52 | 0.840 | 0.903 | 0.870 | 0.968 samples | 0 |
+| development (0+) | erna layer 2 | 52 | 0.517 | 0.912 | 0.660 | 1.873 samples | 0 |
+| development (0+) | engine tests (REQ-104-112 waveforms) | 60 | 1.000 | 1.000 | 1.000 | 0.552 ms | 0 |
+| test (500000+) | erp layer 2 | 100 | 0.745 | 0.980 | 0.846 | 0.912 samples | 0 |
+| test (500000+) | ccep layer 2 | 100 | 0.740 | 0.960 | 0.836 | 1.123 samples | 0 |
+| test (500000+) | tep layer 2 | 52 | 0.960 | 0.970 → 0.990 | 0.965 → 0.975 | 1.330 samples | 2 |
+| test (500000+) | ecap layer 2 | 52 | 0.680 | 0.861 | 0.760 | 1.372 samples | 0 |
+| test (500000+) | animal layer 2 | 52 | 0.850 | 0.924 | 0.885 | 1.077 samples | 0 |
+| test (500000+) | erna layer 2 | 52 | 0.617 | 0.902 | 0.733 | 1.754 samples | 0 |
+| test (500000+) | engine tests (REQ-104-112 waveforms) | 60 | 1.000 | 1.000 | 1.000 | 0.526 ms | 0 |
+
+| ds004080, 7 runs, 615 channels | reading | kappa | recall | median abs. latency difference | within 2 ms | N1 (model) | fits that differ |
+|---|---|---|---|---|---|---|---|
+| before → after | paper | 0.386 | 0.438 | 3.57 ms | 0.386 → 0.404 | 99 | 32 |
+| before → after | code | 0.402 | 0.882 | 3.47 ms | 0.367 → 0.400 | 99 | 32 |
+
+Rejected after measurement (DECISIONS.md, step 4): three extrema (recall drops on the
+`ecap`, `animal` and `erna` cells, for example `ecap` 0.680 → 0.640 on the development
+seeds) and polishing the background once at the end instead of after every accepted
+component (N1 kappa 0.386 → 0.347 on ds004080, paper reading).
+
+### REQ-290 P3: `evoparam.fit` in memory below twice the data at the CI size, same results to the bit
+
+At the `ci` size (50 trials x 64 channels x 4 096 samples, float64, 105 MB) the in-memory
+peak of `evoparam.fit` was 3.3 times the data, against a bound of 2. Three copies of the
+trials are gone:
+
+- `TrialSet.average` (`data/containers.py`, `_average_trials`) averages blocks of channels of
+  at most 16 MB instead of the selected trials of every channel at once.
+- `existence.test_response` (`existence/api.py`) makes one copy of the trials it tests instead
+  of two, laid out in memory as the previous double indexing left them (channel by channel),
+  so that every sum adds the same numbers in the same order; for the baseline permutation test
+  the copy holds only the samples from the start of the baseline to the end of the window.
+- `existence/permutation.py`: the sign-flip sums of the null distribution go into one buffer
+  reused by every chunk of flips, the t-series and their summaries are computed by blocks of
+  channels, and the window is copied once (the masked copy only when there are masks). The
+  repeated temporaries of about 31 MB had made glibc raise its mmap threshold, so that they
+  stayed on the heap and the resident set grew.
+
+Peak RSS increase, `run_benchmarks.py --suite ci` (medians of 3 runs before, 3 after):
+
+| variant | before (`linux-3.13.16-bddedc9aa35f-ci.json`) | after (`linux-3.13.16-148319226b70-ci.json`) | bound |
+|---|---|---|---|
+| in memory | +331 MiB (3.31x the data) | +130 MiB (1.30x the data) | 200 MiB |
+| memory-mapped | +331 MiB (3.31x the data) | +130 MiB (1.30x the data) | 537 MiB |
+
+Results: 263 of 263 outputs are the same bytes before and after (averages of a plain, a
+masked and a rejected-trials set, mean and robust, three chunk settings: 36; `test_response`
+with five settings on the three sets: 195; the `evoparam.fit` table at 30 x 24 x 4 096: 32).
+The full size (500 x 256 x 4 096, 4.19 GB) was not run: the memory-mapped variant needs the
+4.19 GB file on a disk with about 5 GB free, and the in-memory one needs the data and its
+peak in the machine's 15 GB next to the other jobs.
+
+### REQ-290 records on the reference machine
+
+`benchmarks/results/linux-3.13.16-148319226b70.json` and
+`linux-3.13.16-148319226b70-ci.json` replace the files of 1f2ea05 and bddedc9;
+`baseline-ci.json` is kept (its time medians were taken at a lower load than these `ci`
+runs, load average 18, and would only loosen the comparison); `benchmarks/README.md` and the
+expected failures of `tests/benchmark/test_timing.py` are regenerated from them. P6 on
+Linux: median 0.121 s over 10 runs (target 0.300 s), so its expected failure is removed; so
+is that of P3 in memory (1.30x). P1: median 80.4 ms over 20 runs (p90 99.6 ms), still above
+50 ms; P2 56.8 s (load average 7.3); P5 1.27x its fit.
+
+P2 runs four workers on the four cores that other jobs share: two earlier `perf` runs of
+1483192 gave 71.0 s at load average 16.0; 81.0 s at load average 8.1, above its 60 s; the
+run recorded was started when the load average fell below 5.5. Its work is unchanged: P2 at
+8 channels with one job on core 3, 1f2ea05 against 1483192 interleaved, 2.68, 2.85, 2.98 s
+against 2.60, 2.70, 2.93 s.
+
+### REQ-068 timing: the first-use imports are no longer timed
+
+- With the package root imported on first use (REQ-290 P6), the first artifact method of
+  `benchmarks/bench_artifact.py` that needs scipy.signal (`polynomial`) paid its import
+  (about 1 s) inside the timed call: 2.3 to 2.7 s against the 2 s limit. Each case now
+  first runs untimed on a small set of the same layout. `polynomial`: 1.68 s; every
+  method within its limit. The tf timing test (REQ-218) failed only under a parallel run
+  of the whole suite and passes alone.
+
+### §7.4 (5): Linux, macOS and Windows measured
+
+- Windows 11 (AMD64, Python 3.12.2, NumPy 2.5.4), measured on a Windows PC: the 98 values
+  of the fixture fit within 3.1e-12 of the reference (rtol 1e-9). With Linux x86-64 (0) and
+  macOS arm64 (1.3e-12), `test_req375_platform_macos_and_windows` passes; the report lists
+  the three records.
+
+### REQ-290 P6: `import evoparam` in 0.13 s
+
+- The package root imported every subpackage, and with them scipy.stats (0.53 s): 0.96 s
+  on macOS arm64 (0.91 s on the reference machine). The subpackages and the root functions
+  (`fit`, `test_response`, `read`, `detect_events`, `ResponseModel`, `reproduce`) are now
+  imported on first use (PEP 562 `__getattr__`, `__dir__`, and `TYPE_CHECKING` imports for
+  type checkers); `TrialSet`, `Evoked`, `Provenance`, `load_object`, `errors`, the logging
+  functions and `prep` (13 ms, for the registration of the existence detector, now a light
+  proxy that imports the existence test on its first call) stay eager.
+- `benchmarks/run_benchmarks.py --suite perf --only P6` on macOS arm64: median 0.132 s over
+  10 runs, target met. The committed perf results are those of the reference machine
+  (Linux), so `test_req290_p6_import_under_300_ms` stays an expected failure until P6 is
+  re-run there.
+
+### REQ-298: evoparam.shapes covered at 100 %
+
+- `evoparam/tests/shapes/test_grid_helpers.py` covers the last five lines and four branches
+  of `evoparam.shapes._base`: the window cache when it is full, the fine feature grid, and
+  the search on that grid without building it, checked against `np.searchsorted` on 2 005
+  values (on the grid points, one ulp off them, outside, infinite and NaN) for both sides.
+  Shapes coverage 99 % -> 100 % (lines and branches); the slow test of REQ-298 passes.
+
+### Cross-projection test: sign-flip null of the profile peak (REQ-134)
+
+- `test_response(method="projection")` has a third set of projections,
+  `projection_pairs="signflip"`, now the default: every cross-projection, and the peak of
+  the mean-projection profile compared with the peaks of the profiles recomputed under
+  sign flips of whole trials (all patterns up to 4 096, a random draw beyond), so the choice
+  of the response end at the peak is part of the null. On the 10 example channels of the
+  paper it gives every published decision (the "disjoint" t-test: 0.8 to 1.0 by random
+  pairing, mean 0.89); on pure white noise (10 trials, 200 channels) it rejects at 0.05 for
+  alpha = 0.05 ("disjoint" 0.145, the paper's "half" 0.43). `test_req134_published_
+  significance_with_the_default_pairs` is no longer an expected failure. Cost: 0.12 s per
+  channel for 50 trials x 500 samples.
+- Benchmark `core`, baseline `projection` re-run (T1, T2): AUC 0.938 -> 0.979, recall 0.65
+  -> 0.88, F1 0.78 -> 0.89, specificity 0.992 -> 0.960, false-positive rate at p < 0.05
+  0.064 -> 0.104 on the null cells; the result files, leaderboard and report regenerated
+  (macOS arm64, so their input hashes are those of this platform).
+- `detect_pulses` had lost its `verbose` decorator in the size-gate change (the new helper
+  was inserted between them); restored (`test_verbose_detect_pulses`).
+- The docs build test of REQ-302 runs with `EVOPARAM_DOCS_TESTS=1` (the `docs` extra is not
+  in `all`, and the dependency test requires every skipped package to be in `all` or
+  `bayes`).
+
+### REQ-064 on real templates: the specification's version as a measured comparison
+
+- REQ-064 (subspace >= 30 dB on synthetic EEG with real artifact templates) is met by the
+  default on every TMS subject and SPES run (tested). The two expected failures were the
+  specification's algorithm as written (95 % of the whitened energy, at most 6 directions,
+  every sample projected), which cannot reach 30 dB on real templates (TMS median 1.6 dB,
+  SPES 9.3 dB) and is kept as an option. They are now tests that the default is above
+  30 dB and at least 20 dB above the specification's version on every overlay: the
+  measured reason for the departure, as the spec-floor rule asks.
+
+### Pulse detection: a second score when the median finds nothing (ds004977)
+
+- In ds004977 (4800 Hz, the stimulating contacts switched to the stimulator) the artifact
+  reaches a minority of the channels: on the median of the absolute first difference (spec
+  §5.2 method 1, 16 channels) the pulses reach z 9 to 15 in 2 of the 4 runs, under the
+  threshold of 20, and `detect_pulses` found none there (recall 0.50). When the median
+  score has no crossing, `detect_pulses` now tries the 90th percentile of the non-flat
+  picked channels (`evoparam.events._score.quantile_score`): z 47 to 322 at the pulses, at
+  most 10 between them. ds004977: 20 of 20 pulses. Recordings where the median finds a pulse
+  are unchanged (ds004080, Mayo 2048 Hz, synthetic sets: 184 tests passed); the score used
+  is recorded in the provenance (`settings["score"]`: "median" or "p90").
+
+### Pulse detection: the strength gate also holds on the size of the deflection
+
+- On the Mayo runs at 2048 Hz, 29 false alarms (precision 0.84) were electrode pops: a
+  channel saturating for an instant has a steep edge, so a robust z near the pulses' (27 to
+  107 against 85 to 164), but a deflection of 0.1 to 2 mV against 35 to 45 mV for the
+  stimulation artifact. `detect_pulses` now gates each candidate on the smaller of its
+  relative z and its relative size (µV), the size of reference being the 90th percentile
+  among the candidates that pass on z (pops can outnumber pulses: 47 candidates for 5
+  pulses in one ds004696 sub-07 segment). Mayo 2048 Hz: 152 hits, 0 false alarms
+  (precision 1.0); a 3 mV pulse of the same site is still found by the template pass.
+  ds004080 (REQ-040), the synthetic sets (REQ-041), the stream and benchmark tests are
+  unchanged (229 passed).
+- REQ-044, ds004696 sub-07: the run's own events.tsv has 13 pulses per site (median), so its
+  test checks the run's structure (one train per block, the block's pulse count, 0.2 Hz);
+  the protocol's 10-12 stays checked over all runs together. Reading in DECISIONS.
+
+### N1 case: the registry row read as a negative peak (REQ-113, REQ-114, REQ-135, REQ-273)
+
+- The reading. The §5.6 row is "`|x| > 3.4·SD_baseline` with a negative peak, ≥ 1
+  sample" in 9–100 ms. A peak is a local extremum. The window's most negative sample on
+  a monotone slope (its first sample on the recovery tail, its last on a drift) is not
+  one. The new option `peak="strict"` of the registry rules implements the word: the
+  deepest strict local minimum of the window, lower than both neighbours (read outside
+  the window at its edges), below -3.4 SD of the baseline. It has no SD floor and no
+  selectivity; those stay with `vanblooijs2023_code`. Like the other readings, it uses
+  the baseline (-1, -0.1) s and the data's time axis. It is now the gating reading of the
+  N1 tests (`FRAMES["paper"]`). The window's most negative sample is kept as
+  `FRAMES["extremum"]`, measured by `test_req113_extremum_reading` and
+  `test_req114_extremum_reading_in_the_rules_reference`. The registry's default for
+  `vanblooijs2023` stays `peak="extremum"`; DECISIONS §5.8 explains why. A unit test
+  covers the operator (`test_vanblooijs2023_strict_peak_reading`).
+- REQ-113, not met (negative peak; window's most negative sample in brackets):
+
+  | run | rule N1s | kappa | rule N1s missed |
+  |---|---|---|---|
+  | example, 46 PT contacts | 11 (20) | 0.01 (0.24) | 19 on all channels (25) |
+  | UMCU02 | 5 | 0.37 | 1 |
+  | UMCU03 | 30 | 0.60 | 12 |
+  | UMCU04 | 9 | 0.09 | 8 |
+  | UMCU05 | 12 | 0.35 | 7 |
+  | UMCU06 | 25 | 0.42 | 9 |
+  | UMCU01 run-061233 | 25 | 0.32 | 17 |
+
+  Pooled over the REQ-371 runs 0.44 (0.44), over the development runs 0.37 (0.38).
+  The word "peak" removes the window-edge detections: 9 fewer on the example's PT
+  contacts. It does not bring the rule closer to the preset's N1.
+- The remaining disagreements, classified:
+  - Example run, PT contacts:
+    - 10 of the 11 rule N1s peak after 50 ms, outside the N1 window (9–50 ms) that
+      REQ-113 names for the preset; the preset misses 9 of them.
+    - The preset's 6 N1s the rule does not find: 3 are peaks beyond 3.4 SD on the
+      preset's own input (the adjusted common average) but not on the monopolar average
+      the rule reads; 3 stay below 3.4 SD on both.
+  - REQ-371 runs, 54 rule N1s missed:
+    - 24 peak after 50 ms;
+    - 30 peak in the N1 window: 11 of them are peaks the preset's input does not have
+      (the reference), and 19 are peaks it has where the fit names no N1 component. Of
+      the 30, the fitted curve has a trough in 9–50 ms on 13.
+  - REQ-371 runs, 33 preset N1s the rule does not find: 9 are peaks beyond 3.4 SD of the
+    preset's input and 24 are not. On the monopolar average the rule reads, 11 of the 33
+    have a peak of 2–3.4 SD, 12 a peak below 2 SD and 10 no negative peak at all.
+  - Development runs: of the rule N1s missed, 21 are late, 2 are the reference and 8
+    have no N1 named. Of the 34 preset N1s the rule does not find, 6 are peaks of the
+    preset's input and 28 are not.
+  - The trough oracle (an N1 wherever the rule's own average has a 9–50 ms trough below
+    -3.4 SD) reaches 0.132 on the example's PT contacts. On the REQ-371 runs it reaches
+    1.000, 0.971, 0.865, 0.839, 0.789 and 0.458 (0.816 pooled; development runs 0.776).
+    It meets both conditions of REQ-113 on two runs only, so no N1 detector can meet
+    REQ-113 under this reading.
+  - Variants (pooled REQ-371 / development runs):
+
+    | variant | REQ-371 runs | development runs |
+    |---|---|---|
+    | recording reference with a constant background (best) | 0.508 | 0.431 |
+    | fit window to 0.3 s | 0.497 | 0.347 |
+    | N1 gated by the existence test without correction | 0.495 | 0.555 |
+    | ccep 1.1 | 0.442 | 0.372 |
+
+- D8 bounds with this reading: 0.378 on the PT contacts; 0.738, 0.387, 0.478, 0.783,
+  0.752 and 0.557 on the REQ-371 runs; 0.655 pooled. The two readings agree at kappa
+  0.13 on the PT contacts and 0.385 pooled.
+- Channels the rule detects whose average has no 9–50 ms trough: 9 of 11 on the
+  example's PT contacts; 0, 1, 1, 2, 5 and 12 on the REQ-371 runs; 6, 0, 0, 8 and 2 on
+  the development runs.
+- REQ-114 (negative peak; window's most negative sample in brackets; code unchanged at
+  37 %, 80 %, 90.0 % and 90.0 %):
+
+  | reading of the model latency | REQ runs | development runs |
+  |---|---|---|
+  | as written (N1 component) | 39 % (22 of 57) (26 %) | 31 % |
+  | N1 named by its trough | 40 % (28 %) | 34 % |
+  | fitted trough | 61 % (45 %) | 59 % |
+  | rule's peak on the fitted curve | 72 % (86 %) | 66 % |
+  | the same in the rule's reference | 82 % (93 %) | 84 % (89 %) |
+
+  The rule's-reference reading is no longer met with the registry row; it stays met with
+  the code. 7 of its 10 misses on the REQ runs are rule peaks at 87–100 ms. These are
+  small local minima of the noisy average on a slope, where the smooth fitted curve has
+  no local minimum. The word "peak" read on noisy data still counts such wiggles. A
+  selectivity would remove them, but the code's 20 uV belongs to the code and the row
+  states none.
+- REQ-135, not met (negative peak; window's most negative sample in brackets):
+  - default method with FDR: 0.495 (0.586) on the REQ-371 runs, 0.533 (0.600) on the
+    development runs;
+  - per-channel decision (`correction="none"`): 0.710 (0.807), the regression test still
+    holds; development runs 0.756 (0.808);
+  - the preset's own chain with FDR: 0.548 (0.623);
+  - bound with the code reading: 0.640.
+- REQ-273: not met.
+- Layer 3/4 rescored with this reading (`robustness.py --rescore-rules`), model decisions
+  of the 2026-10-11 run:
+  - `n1_ds004080.json`, registry row: kappa 0.410 to 0.382, recall 0.429 to 0.438,
+    median latency difference 8.41 to 3.57 ms, n_rule 161 to 130, n_both 69 to 57;
+  - sampling drop at 1024 Hz 3.85 points (met); code reading unchanged (8.82, not met);
+  - `comparisons.json` and `fig_n1_ds004080.svg` regenerated.
+- Package defaults: none changed (`peak="strict"` is a new option; the registry row's
+  default is unchanged), so no algorithm version changed and the reference fixture is
+  unchanged.
+
+### N1 case: the comparator trail (REQ-113 met on 2026-10-08, not met since)
+
+On 2026-10-08 (73788a2) REQ-113 was recorded as met: on run-021448 the rule found 4 N1s
+and the model 4, kappa 1.00 on the 46 PT contacts, 0.91 pooled over the REQ-371 runs.
+Today the registry row finds 20 on the PT contacts and kappa is 0.24. The rule's code
+(`evoparam/existence/rules.py`) has not changed since then (format and typing only), and
+the data path (every trial of the pair, read the same way) has not changed either.
+What changed is which comparator and which model decision the test uses.
+
+- Commit by commit (example run: rule N1s on all 100 channels / on the 46 PT contacts;
+  kappa on the PT contacts; kappa pooled over the REQ-371 runs, five subjects before
+  361135c and six from it on, owner decision D14):
+
+  | commit | comparator (the rule) | model decision | rule N1s | kappa PT | pooled |
+  |---|---|---|---|---|---|
+  | 911c750 (S7) | the extremum of 9-100 ms below 3.4 x max(SD of (-0.5, -0.02) s, 50 uV), read on the preset's own average (template removal, adjusted common average), 8 trials, 120 contacts | N1 component | 8 (4 at the window start, 9.8 ms; the rest near 100 ms) | - | - |
+  | 135d387 | the published code (mnl_ccepAge): monopolar average of every trial, 50 uV SD floor, local minimum, SD over (-2, -0.1) s, the code's time axis (one sample later) | the fitted trough in 9-50 ms deeper than 3.4 x max(SD, 50 uV) of the rule's own average | 4 / 1 | 0.66 | 0.87 |
+  | 73788a2 | unchanged | unchanged (engine: selection criterion on the innovation rows; PT03 no longer a model N1) | 4 / 1 | 1.00 | 0.91 |
+  | 361135c (F65, F1) | the registry row of §5.6 (no floor, extremum); the code's reading becomes `vanblooijs2023_code`; still the code's baseline and time axis | the preset's own: a negative component in 9-50 ms | 32 / 19 | 0.51 | 0.45 |
+  | 636a266 | unchanged | unchanged (`ccep` 1.1, `threshold_role="select"`) | 32 / 19 | 0.46 | 0.46 |
+  | this change | the registry row on the data's time axis with the registry's baseline (-1, -0.1) s | unchanged | 36 / 20 | 0.24 | 0.44 |
+
+- The two changes of 361135c, one at a time, with today's fits (kappa on the PT
+  contacts / pooled over the REQ-371 runs / pooled over the development runs):
+
+  | comparator | the 2026-10-08 decision (fitted trough judged by the code's floor) | the preset's N1 (REQ-113) |
+  |---|---|---|
+  | code's reading (the 2026-10-08 comparator) | 1.00 / 0.907 / 0.780 (5 of 6 runs pass) | 0.19 / 0.401 / 0.387 |
+  | registry row, code's baseline and time axis | 0.06 / 0.284 / 0.590 | 0.46 / 0.463 / 0.399 |
+  | registry row, data's time axis | 0.09 / 0.292 / 0.614 | 0.38 / 0.451 / 0.380 |
+  | registry row, baseline (-1, -0.1) s | 0.04 / 0.287 / 0.541 | 0.35 / 0.455 / 0.378 |
+  | registry row, both (this change) | 0.06 / 0.294 / 0.561 | 0.24 / 0.443 / 0.377 |
+
+  On 135d387 the S7 engine's N1 component scored 0.17 on the PT contacts against the
+  code's reading; the method of 135d387 and 73788a2 was chosen on development subjects
+  that included the example run itself (CHANGELOG of 135d387). The 2026-10-08 result is reproduced exactly with today's fits (1.00 and 0.907), so
+  the engine changes after it did not cause the drop. Each change of 361135c alone
+  removes it: 1.00 becomes 0.19 with the preset's N1 decision, and 0.06 with the
+  registry row.
+- Judged against the spec text:
+  - The 50 uV SD floor and the local minimum (with the 20 uV selectivity, the first
+    sample excluded, and the 3000 uV saturation) belong to the published code. The
+    §5.6 row reads `|x| > 3.4·SD_baseline` with a negative peak, ≥ 1 sample, 9–100 ms.
+    It has no floor (3.4 x 50 uV = 170 uV is the smallest N1 the code accepts) and no
+    peak selectivity. F65 made the registry rule faithful to that text.
+  - REQ-113 asks that "the default `ccep` preset (§6) detects an N1 (negative component
+    with latency in 9–50 ms)". The 2026-10-08 decision was something else: the trough
+    of the fitted curve, kept when it was deeper than the rule's own amplitude criterion
+    computed on the rule's own average. The detection borrowed the comparator's
+    threshold and its input. F1 made the decision the preset's own.
+  - The earlier 1.00 also rested on one channel: the code finds 1 N1 on the 46 PT
+    contacts, so a single disagreement gives 0.66 (as on 135d387). The 1.00 was
+    therefore not REQ-113 as written. It is kept as the regression test
+    `test_n1_trough_with_the_code_floor_regression` (1.00 and 0.91), whose docstring now
+    says so.
+  - Two details of the code stayed on the registry row after F65 and are restored here:
+    - The baseline. The row leaves it unspecified, and the registry names the ER-detect
+      default (-1, -0.1) s. REQ-135's test and the benchmark already used it, while
+      REQ-113's test used the code's (-2, -0.1) s.
+    - The time axis. The code labels the stimulation sample t = 1/sfreq, so its 9 ms is
+      one sample earlier on the data's axis: 7.8 ms instead of 9.8 ms on the 512 Hz
+      example run, inside the template's (-2, 8) ms window.
+
+    The registry row is now read on the data's own axis with the registry's baseline,
+    and the code's reading keeps its own baseline and axis (`FRAMES` in
+    `tests/models/test_engine_ccep.py` and in `validation/robustness.py`). This change
+    follows the spec text, not the results, and it lowers the agreement (0.46 to 0.24
+    on the PT contacts).
+- Re-measured with the registry row in its own frame. The code's reading is unchanged,
+  and the REQ-135 test already read the row this way.
+  - REQ-113: 0.24 on the PT contacts (20 rule N1s, 8 model), 0.44 pooled over the REQ-371
+    runs, 0.38 pooled over the development runs.
+    - Per REQ-371 run: 0.44, 0.58, 0.25, 0.33, 0.47, 0.31.
+    - Variants (pooled REQ runs / development runs):
+
+      | variant | REQ runs | development runs |
+      |---|---|---|
+      | constant background | 0.492 | 0.383 |
+      | linear background | 0.473 | 0.372 |
+      | recording reference with a constant background | 0.491 | 0.413 |
+      | fit window to 0.3 s | 0.482 | 0.353 |
+      | `delta` 6 | 0.460 | 0.389 |
+      | N1 gated by the existence test over 9-100 ms (FDR / none) | 0.484 / 0.497 | 0.510 / 0.534 |
+
+      The gated variant without correction is the best on the development runs, and it
+      gives 0.497 on the REQ runs.
+  - Channels the row detects with no N1 trough in its average:
+    - example run: 16 of the 20 PT detections (3 at the window's first sample, 9.8 ms;
+      13 at 94-100 ms);
+    - REQ-371 runs: 0, 1, 5, 2, 6, 12;
+    - development runs: 9, 7, 0, 8, 2.
+  - Trough oracle: kappa 0.056 on the example's PT contacts, 0.715 pooled over the REQ
+    runs, 0.674 over the development runs.
+  - The exact joint bound (D8): 0.274 on the PT contacts (it was 0.295), 0.323 to 0.783
+    per REQ-371 run, 0.607 pooled.
+  - REQ-114 (registry row / code; REQ runs, then development runs):
+
+    | reading of REQ-114 | REQ runs | development runs |
+    |---|---|---|
+    | as written (N1 component) | 26 % (18 of 69) / 37 % | - |
+    | N1 named by its trough | 28 % / 40 % | 31 % / 38 % |
+    | fitted trough | 45 % / 80 % | - |
+    | rule's peak on the fitted curve | 86 % / 90.0 % | - |
+    | the same in the rule's reference | 93 % (64 of 69) / 90.0 % (met, both; margin one channel each) | 89 % / 95 % |
+
+  - REQ-135: unchanged (0.586 / 0.496). REQ-273: not met (it needs REQ-113).
+- Layer 3 and layer 4 rescored with the new comparator. Nothing was fitted again: the
+  model's decisions are those of the 2026-10-11 run. A new option, `python
+  validation/robustness.py --rescore-rules`, recomputes only the rule's decisions and
+  the summaries that depend on them.
+  - `validation/layer3/n1_ds004080.json`, registry row: kappa 0.458 to 0.410, recall
+    0.460 to 0.429, n_both 74 to 69. The code's values are unchanged.
+  - Sampling (§7.4 (3)), registry row: drop 4.97 points (still met). Code reading: 8.82
+    (not met, unchanged).
+  - `validation/layer3/comparisons.json` and `figures/fig_n1_ds004080.svg` were
+    regenerated with their tools; `layer3_report.py` now records each reading's own
+    baseline.
+- Package defaults: none changed. No algorithm version was bumped and the reference
+  fixture is unchanged.
+
+### N1 case: the two readings of the published rule (REQ-113, REQ-114, REQ-135, REQ-273)
+
+Work on the N1 requirements under both readings of the published rule (owner decision D8),
+on the example run and the six REQ-371 runs (D14). Choices were measured on the five
+development runs (UMCU07, 19, 28, 40, 49: every trial of the pair the earlier work cached)
+and are reported on the REQ runs, which were not used to choose anything. No default of the
+package changed: every candidate that helped one reading made the other, or another
+requirement, worse (below). Package results are unchanged, so no algorithm version moves
+and the reference fixture is not regenerated. Only tests and documents change.
+
+- **The readings were checked against the published code.** The analysis scripts of
+  van Blooijs et al. 2023 (mnl_ccepAge, branch master: `scripts/ccep01_averageCCEPsAndDetectN1s.m`,
+  `functions/ccep_averageConditions.m`, `ccep_detect_n1peak_ECoG.m`, `ccep_peakfinder.m`)
+  were read again. `vanblooijs2023_code` follows them: per-trial median over (-1, -0.1) s,
+  mean, median over (-2, -0.1) s, SD floor 50 uV, local minima with a selectivity of 20 uV
+  from the first sample after 9 ms to the first after 500 ms, first sample excluded, the
+  largest kept up to 100 ms, refused above 3000 uV or when every minimum is positive. The
+  time axis of the code is one sample late (the test shifts it back). The published
+  pipeline does not re-reference: the rule reads the recording reference, the `ccep` preset
+  the adjusted common average.
+- **D8 cannot hold for REQ-113 and REQ-135, whatever the detector.** For any decision of the
+  channels, the smaller of its kappas with the two readings has an upper bound. Kappa
+  depends only on how many channels the decision marks in each of the four cells of the
+  readings' table, so every combination was searched (exact; checked against a brute force
+  over all decisions of 12 channels). The two readings agree with each other at kappa 0.06
+  on the 46 PT contacts of the example (19 and 1 N1s) and 0.31 pooled over the REQ-371
+  runs (125 and 28).
+
+  | data | bound of min(kappa paper, kappa code) | asked |
+  |---|---|---|
+  | REQ-113, example run, 46 PT contacts | 0.295 | 0.8 |
+  | REQ-113, REQ-371 runs UMCU02 / 03 / 04 / 05 / 06 / 01 | 0.656 / 0.343 / 0.323 / 0.783 / 0.681 / 0.563 | 0.8 on 5 of 6 |
+  | REQ-135, REQ-371 runs pooled (rules on the test's trials) | 0.592 (0.600 on the published averages) | 0.7 |
+  | REQ-135, development runs pooled | 0.698 | 0.7 |
+  | REQ-135, the segments the earlier test used | 0.6996 | 0.7 |
+
+  New tests (not REQs, measured facts): `test_d8_req113_cannot_hold_under_both_readings`
+  and `test_req135_cannot_hold_under_both_readings`, with the exact search
+  `joint_kappa_bound`. An owner decision is needed (DECISIONS §5.8).
+- **REQ-135 as written runs on the REQ-371 subjects.** Spec §7.3 names the subjects of
+  REQ-135: the ones chosen by the rule of REQ-371. The test used the example subject and the
+  five development subjects (40 s segments, 7 or 8 trials). It now uses the six REQ-371
+  subjects with every trial of the pair (as REQ-113). The method and the two rules see the
+  same trials (template artifact removal, baseline -1 to -0.1 s). The registry row gets the
+  ER-detect baseline the registry names. The code keeps its own baseline (-2 to -0.1 s;
+  the segments were too short for it). The regression floor of the code's SD floor stays
+  on the segments.
+
+  | existence method, kappa with registry row / code | REQ-371 runs | development runs |
+  |---|---|---|
+  | default (max_t, fdr_bh, alpha 0.05, 9-100 ms, negative) | **0.586 / 0.496** | 0.600 / 0.597 |
+  | `statistic="cluster"` | 0.352 / 0.567 | 0.534 / 0.622 |
+  | `correction="none"` (the rule's per-channel decision) | **0.807** / 0.321 | 0.808 / 0.499 |
+  | `correction="holm"` | 0.128 / 0.497 | 0.327 / 0.465 |
+  | `alpha=0.01` | 0.139 / 0.587 | 0.420 / 0.524 |
+  | `polarity="both"` | 0.349 / 0.220 | 0.139 / 0.053 |
+  | default, on the preset's input (adjusted common average, its baseline) | 0.623 / 0.384 | 0.703 / 0.524 |
+  | `correction="none"`, preset's input | 0.642 / 0.262 | 0.686 / 0.395 |
+
+  Before (segments): 0.687 / 0.399. With `correction="none"` the registry row is met on the
+  held-out runs (0.807; chosen on principle: the rule decides each channel alone, and no
+  value was tuned). The code reading then falls from 0.496 to 0.321. Spec §6 also asks
+  for FDR across channels in every preset. So the preset keeps `fdr_bh`, and the setting
+  is kept as a regression test (`test_req135_per_channel_decision_registry_row_regression`).
+  REQ-135 stays an xfail under both readings.
+- **REQ-114: the rule's peak read on the fitted curve.** A new reading of "the model
+  latency": each reading's own peak operator applied to the curve of the ccep fit (its
+  components and background) instead of the noisy average. The baseline (SD, level) is the
+  rule's average. So a window-start peak on the recovery tail, or a late deflection of
+  50-100 ms, is compared with the model's curve at the same place.
+
+  | REQ-114 reading of the model latency, REQ runs (example + REQ-371), registry row / code | within 2 ms |
+  |---|---|
+  | the N1 component (as written) | 24 % (18/74) / 37 % (11/30) |
+  | trough of the fitted curve in 9-50 ms (K3) | 42 % (31/74) / 80 % (24/30) |
+  | trough of the fitted curve in 9-100 ms | 45 % / 80 % |
+  | trough of the components without background | 31 % / 53 % |
+  | negative component nearest the trough; earliest negative component | 34 % / 63 %; 23 % / 30 % |
+  | the rule's operator on the components without background | 50 % / 50 % |
+  | the rule's operator on the fitted curve | 84 % (62/74) / 90.0 % (27/30) |
+  | the same, background extrapolated one sample before the fit window | 81 % / 83 % |
+  | **the rule's operator on the fitted curve in the rule's reference** | **91 % (67/74) / 90.0 % (27/30)** |
+
+  On the development runs the new reading gives 66 % (23/35) and 86 % (18/21). Each miss
+  was classified: the rule's peak absent from the preset's own input average (the
+  reference: 10 and 3 on the REQ runs, 8 and 0 on the development runs), a tie within
+  noise (the average differs by less than 2 SD of its baseline between the two
+  latencies: 2 and 0; 4 and 3), or a misfit (0 everywhere). The rule's own peak is not
+  much more reproducible: re-measured on 200 bootstrap resamples of its trials, it stays
+  within 2 ms of itself in 90 % / 91 % of resamples on the REQ runs (median channel 99 % /
+  100 %) and 87 % / 93 % on the development runs. New test
+  `test_req114_rule_peak_on_the_fitted_curve` (xfail; with the code it passes, at the
+  threshold).
+- **REQ-114 met under both readings, read in the rule's reference.** The reference misses
+  come from where the two sides are read: the preset fits the adjusted common average,
+  and the rule reads the recording reference. The re-referencing is linear. It subtracts
+  one curve from every channel: the common average of its members, the same for all
+  channels to 1e-12 uV. That curve, baseline-corrected and averaged like the data, is
+  added back to every fitted curve, and the rule's operator then reads the sum. Nothing
+  is refitted and the preset's fits, labels and decisions are unchanged. This is a
+  principled step with no parameter: it was measured on the development runs and
+  reported on the REQ runs.
+
+  | rule's peak on the fitted curve in the rule's reference | registry row | code |
+  |---|---|---|
+  | REQ runs (example + REQ-371), compiled fit | **91 % (67/74)** | **90.0 % (27/30)** |
+  | REQ runs, NumPy path (no numba) | 91 % (68/75) | 90.0 % (27/30) |
+  | development runs, compiled fit | 91 % (32/35) | 95 % (20/21) |
+  | development runs, NumPy path | 89 % (31/35) | 95 % (20/21) |
+
+  REQ-114 is met under both readings with this reading. The margin is zero channels on
+  the REQ runs: one more miss in 74 or in 30 would fall below 90 %. New test
+  `test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference` (passes, both
+  readings). The test as written (the N1 component's latency) stays an xfail.
+- **Model and pipeline variants** (every trial of the pair; REQ-113 kappa pooled over the
+  REQ-371 runs, REQ-114 with the new reading; registry row / code):
+
+  | variant | REQ-113 kappa, REQ runs (development) | REQ-114 new reading, REQ runs (development) |
+  |---|---|---|
+  | ccep 1.1 (adjusted common average) | 0.463 / 0.401 (0.399 / 0.387) | 84 % / 90 % (66 % / 86 %) |
+  | recording reference (no re-referencing, as the published pipeline) | 0.421 / 0.428 (0.471 / 0.512) | 88 % / 88 % (91 % / 95 %) |
+  | recording reference, `delta` 6 | 0.436 / 0.423 (0.464 / 0.504) | 87 % / 86 % (91 % / 95 %) |
+  | plain common average | 0.443 / 0.382 (0.405 / 0.378) | 76 % / 89 % (70 % / 79 %) |
+  | `delta` 6 | 0.480 / 0.371 (0.412 / 0.381) | 85 % / 90 % (64 % / 86 %) |
+  | `max_components` 8 | 0.452 / 0.401 (0.399 / 0.387) | 82 % / 87 % (60 % / 81 %) |
+  | fit window to 0.3 s | 0.513 / 0.373 (0.356 / 0.381) | 82 % / 93 % (76 % / 86 %) |
+  | background `double_exponential` | 0.475 / 0.324 (0.338 / 0.460) | 85 % / 88 % (68 % / 89 %) |
+  | N1 counted only where the preset's existence test is significant (9-500 ms, both signs) | 0.442 / 0.562 (0.431 / 0.443) | 86 % / 90 % |
+  | the same, test over 9-100 ms, negative | 0.469 / 0.560 (0.514 / 0.549) | 86 % / 89 % |
+  | the same, `correction="none"` | 0.494 / 0.528 (0.540 / 0.598) | 88 % / 90 % |
+
+  The recording reference is the only change that removes the reference misses of
+  REQ-114. It reaches 90 % on the development runs under both readings, but not on the
+  REQ runs (88 % / 88 %). Its REQ-113 kappa falls with the registry row (0.463 to 0.421;
+  example PT contacts 0.46 to 0.24). It also gives up the adjusted common average that
+  spec §6 asks for (common-mode deflections, such as sub-ccepAgeUMCU03's at 32.7 ms on
+  35 of 70 channels, would count as N1s). Not adopted. No variant brings REQ-113 near 0.8
+  under either reading.
+- Results:
+  - REQ-113: not met (0.46 / 0.19 on the PT contacts, 0.46 / 0.40 pooled; unchanged).
+  - REQ-114 as written: not met (24 % / 37 %; unchanged).
+  - REQ-114, the rule's peak read on the fitted curve in the rule's reference: met
+    (91 % / 90.0 %).
+  - REQ-135: not met (0.586 / 0.496 on the REQ-371 runs; before, on other subjects,
+    0.687 / 0.399).
+  - REQ-273: not met (it needs REQ-113). Tests run:
+  `tests/models/test_engine_ccep.py` and `tests/existence/test_existence_ccep.py` with
+  `EVOPARAM_NETWORK_TESTS=1`, `tests/test_presets.py`, the reference fixture test.
+- D8 revised by the owner (DECISIONS §5.8): the N1 requirements are judged on the
+  registry row (§5.6: `|x| > 3.4·SD_baseline`, a negative peak, 9-100 ms). The published
+  code's reading stays measured by its own expected failures. The exact joint bound is the
+  evidence that both cannot hold together: REQ-113 at most 0.295 on the PT contacts and
+  at most 0.783 on 5 of the 6 REQ-371 runs; REQ-135 at most 0.592.
+- REQ-113 under the registry row, channel by channel (example run and REQ-371 runs;
+  settings chosen on the five development runs only):
+  - Many channels the rule detects have no N1 to find: the rule takes the most negative
+    sample of 9-100 ms, which is often the first sample of the window (the stimulation
+    tail) or a slope at 93-99 ms. Channels where the rule detects but the rule's own
+    average has no negative local minimum in 9-50 ms: 12 of the 19 detections on the
+    example's PT contacts; 0, 0, 5, 2, 6 and 12 on the REQ-371 runs; 7, 9, 0, 6 and 3 on
+    the development runs. "Every channel the rule detects minus at most one" cannot hold
+    for a detector of an N1 on the example run, nor on 4 of the 6 REQ-371 runs. New test
+    `test_req113_registry_row_counts_channels_without_an_n1_trough`.
+  - Oracle: a detector that knows the rule's average and says N1 wherever it has a
+    negative trough in 9-50 ms below -3.4 SD reaches kappa 0.061 on the example's PT
+    contacts and 0.788, 0.971, 0.392, 0.794, 0.637 and 0.477 on the REQ-371 runs (0.717
+    pooled; 0.681 pooled on the development runs). Even this upper reference for an N1
+    detector misses 0.8 on the example run and on 5 of the 6 REQ-371 runs.
+  - Background variants (to absorb the stimulation tail that the rule counts), kappa
+    pooled over the REQ-371 runs (development runs): constant background 0.498 (0.425),
+    linear background 0.491 (0.397), recording reference with a constant background
+    0.533 (0.400); ccep 1.1 0.463 (0.399). None is adopted: none improves the
+    development runs, and none comes near 0.8.
+- REQ-135 under the registry row with FDR kept (§6), on the development runs (kappa
+  pooled): the test on the trials as before 0.600; baseline 0.5 s 0.600; baseline 2 s
+  0.638; without artifact removal 0.600; on the ccep preset's own chain (adjusted common
+  average, artifact template) 0.703, with baselines 1 s / 2 s / 0.5 s 0.687 / 0.711 /
+  0.690. FDR over the channels of all runs pooled instead of per run: 0.574 to 0.711.
+  The preset's chain, chosen on the development runs, gives 0.623 on the REQ-371 runs
+  (0.586 before). The loss is FDR itself: on the development runs 22 channels the rule
+  detects have a raw p below 0.05 and are lost by the correction; one run (UMCU40) has
+  kappa 0 under every FDR variant. Without the correction the registry row is met
+  (0.807, test `test_req135_per_channel_decision_registry_row_regression`). No default
+  changed.
+- REQ-114 as written (the N1 component's latency), naming the N1 by the trough it makes
+  (the component whose fitted curve has the deepest trough in 9-50 ms, rather than the
+  larger `|A|`): 29 % / 38 % on the development runs (registry row / code), 26 % / 40 % on
+  the REQ runs (24 % / 37 % before). With the recording reference and a constant
+  background, 50 % / 57 % on the development runs and 42 % on the REQ runs. The fitted
+  N1 is several overlapping components, and none of them carries the rule's peak
+  latency alone. Not adopted; the reading in the rule's reference stays the one met.
+- Results after the D8 revision (registry row, which gates):
+  - REQ-113: not met (0.46 on the PT contacts, 0.46 pooled).
+  - REQ-114: met read in the rule's reference (91 %); as written not met (24 %).
+  - REQ-135: not met with FDR (0.586; best principled variant 0.623).
+  - REQ-273: not met (it needs REQ-113).
+  No package default changed, so no algorithm version changed and the reference fixture
+  is unchanged.
+- To try next: REQ-113 needs a reading of the rule where its detections are N1s (for
+  instance the rule applied only where its average has a trough, or the 9-50 ms window of
+  §5.5.7); this would need an owner decision, as the criterion's comparator is fixed.
+  REQ-135 with FDR: a test whose statistic uses more than 10 trials (other pairs of the
+  same contacts) would raise the power that FDR takes away.
+
+### ERP CORE: the paradigm's component, measured by a targeted `erp` preset (REQ-274)
+
+- `validation/erpcore.py` fits each difference wave with `presets.targeted("erp", ...)`:
+  three components of the component's polarity in the published measurement window widened
+  by 25 ms, no background (the waves are baseline-corrected); the component of the paradigm
+  is the sum of its labelled parts (`P3`, `P3_b`, ...), and its latency the 50 % area
+  latency of that sum in the published window. Before, the `erp` preset with BIC selection
+  found no component in many single-participant waves, and a single targeted component on a
+  linear background put broad components (P3, N400) 8 to 16 ms early.
+- Within 10 ms of the 50 % area latency of the same average (before -> now): ERN 85 -> 95 %,
+  LRP 90 -> 95 %, MMN 37.5 -> 100 %, N170 47.5 -> 95 %, N2pc 36 -> 92 % (36 of 39), N400
+  57.5 -> 95 %, P3 30 -> 90 %. The six expected failures of REQ-274 are gone. Variants
+  measured on the same 40 participants (so development measures): one component on a linear
+  background (P3 17.5 %, N400 35 %), one with no background (P3 57.5 %), two components
+  (P3 87.5 %), four (P3 82.5 %), three on a constant background (P3 37.5 %).
+- With a fixed number of components every wave gets a value: whether the component is there
+  is the existence test's answer (spec §1, principle 2). The P3 meets 90 % with no margin.
+- `presets.targeted` gains `n_components` (default 1) and `background` (default `"linear"`);
+  its defaults and their measurements are unchanged.
+- REQ-274 as written stays measured on its own (`validation/erpcore.py`,
+  `reading="as_written"`: the `erp` preset's own selection, one labelled component; tests
+  `test_req274_*_as_written`, expected failures with the 2026-10-09 values, LRP met): the
+  targeted measurement is a reading of the requirement, with settings chosen on the same 40
+  participants, and the requirement stays marked not met as written (DECISIONS 5.9).
+
+### §7.4 (5): one platform record per machine; macOS arm64 measured
+
+- `validation/robustness.py --analyses platform` now writes the fixture comparison of the
+  machine it runs on to `validation/layer4/<version>/platforms/<os>-<processor>.json` and
+  keeps the other analyses of the committed report; the report lists every record.
+  Measured: Linux x86-64 (reference machine, 0 difference) and macOS 26.4 arm64 (Python
+  3.14.7, NumPy 2.5.3: 98 values, largest relative difference 1.3e-12, within the 1e-9 of
+  REQ-295).
+- `.github/workflows/platform-record.yml` records Windows (x86-64) on a GitHub runner when a
+  branch `platform-record/<name>` is pushed, and commits the record back to that branch.
+- `test_req375_platform_macos_and_windows` checks every record and names the platforms
+  still missing (Windows until its record is merged).
+- Windows measured on a Windows 11 PC (x86-64, Python 3.12.2, NumPy 2.5.4, SciPy 1.18.1,
+  core install `pip install -e .`): 98 values, largest relative difference 3.15e-12, within
+  the 1e-9 of REQ-295. §7.4 (5) is met on Linux, macOS and Windows; the GitHub workflow
+  could not run (the runner was refused for billing). The report's own `platform` block is
+  the reference machine's record (Linux); every machine is in `platforms`.
+
+### REQ-231: Kiesel et al. (2008) read in full
+
+- The paper was read on all 25 pages (archived authors' copy; the build environment had
+  only pp. 250-264). It prints no corrected t or F, only Equation 1, so the expected
+  failure "no printed statistic" is replaced by a test of Equation 1 on jackknifed scores
+  (12 participants x 3 conditions: corrected t and F equal those of the retrieved scores
+  to 1e-9), next to the existing test of its worked interpolation (64.46 ms). Reading in
+  DECISIONS.
+
+### REQ-315: the reference validator test runs bids-validator 3.0.2 while npm has no 2.x
+
+- `test_req315_reference_validator_as_written` was an expected failure because
+  `npx bids-validator@2` cannot resolve (npm's latest is 1.15.0). It now runs npx when npm
+  has a 2.x release and the maintainers' JSR release (`@bids/validator@3.0.2`, through
+  deno) otherwise; the derivatives pass with zero errors. Reading recorded in DECISIONS.
+
+### Documentation built with warnings as errors (REQ-302)
+
+- `sphinx -W --keep-going -b html docs` now ends with 0 warnings (run on macOS with the
+  `docs` extra and the MNE sample dataset): the benchmark report, the submission guide and
+  the result-table page are in the table of contents; the module pages of the names
+  re-exported at the package root (`evoparam.data.TrialSet`, `evoparam.models.ResponseModel`,
+  ...) are written with `:no-index:` (templates in `docs/_templates/autosummary`), so each
+  object has one target and the 29 ambiguous `TrialSet` references are gone; the stub of the
+  constant `evoparam.io.OPENNEURO_URL` gets its own file name (`autosummary_filename_map`),
+  since on case-insensitive file systems it overwrote the page of the function
+  `openneuro_url`; the two renamed names that are also terms (`GroupFit`,
+  `Component.params`) are listed as "(renamed)" in the glossary; the LSL code block of the
+  streaming tutorial is a literal block.
+- `test_req302_docs_build_with_warnings_as_errors` is no longer an expected failure: it
+  builds the site with `EVOPARAM_SLOW_TESTS=1` when Sphinx is installed. The
+  `latest`/`stable` switcher of the published site still waits for the HIIE decision.
 
 ### Engine speed, part 2 (REQ-115): met with the compiled fit of the `fast` extra
 
@@ -4339,7 +5107,6 @@ REQ-020) move to build step S17 (spec §10), with the rest of the NWB and BIDS-d
 - `evoparam.errors`: the error hierarchy of spec §4.6. The inherited error classes now derive
   from `EvoparamError`.
 - Test of the import graph against the dependency table of spec §4.2.
-
 
 First skeleton of evoparam, derived from ERPparam (see NOTICE).
 

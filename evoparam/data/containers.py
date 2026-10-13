@@ -274,6 +274,24 @@ def _chunks(n_channels: int, chunk: int | str | None, n_trials: int, n_times: in
     return [slice(start, min(start + size, n_channels)) for start in range(0, n_channels, size)]
 
 
+# Bytes of trials averaged at once: _average_block holds a copy of its block and a few
+# temporaries of the same size, so the channels of a chunk are averaged by blocks of at most
+# this size (every value is computed per channel and time point, so the result does not
+# depend on the blocks).
+_AVERAGE_BLOCK_BYTES = 16 * 2**20
+
+
+def _blocks(parts: list[slice], n_trials: int, n_times: int) -> list[slice]:
+    """Split the channel ranges ``parts`` into ranges of at most ``_AVERAGE_BLOCK_BYTES``."""
+    per_channel = max(1, n_trials) * max(1, n_times) * 8
+    size = max(1, _AVERAGE_BLOCK_BYTES // per_channel)
+    return [
+        slice(start, min(start + size, part.stop))
+        for part in parts
+        for start in range(part.start, part.stop, size)
+    ]
+
+
 def _take0(values: NDArray[Any], index: IntArray) -> NDArray[Any]:
     """values[index[...], ...] along axis 0, with index shaped like values[0]."""
     return cast("NDArray[Any]", np.take_along_axis(values, index[np.newaxis], axis=0)[0])
@@ -814,13 +832,13 @@ class TrialSet(_ContainerMixin):
         mean = np.empty((self.n_channels, n_times))
         sem = np.empty((self.n_channels, n_times))
         count = np.empty((self.n_channels, n_times), dtype=int)
-        for part in _chunks(self.n_channels, chunk, index.size, n_times):
-            block = (
-                self.data[index][:, part] if index.size != self.n_trials else self.data[:, part]
-            )
+        parts = _blocks(_chunks(self.n_channels, chunk, index.size, n_times), index.size, n_times)
+        for part in parts:
+            # the trials of the block only (data[index][:, part] would copy every channel)
+            block = self.data[index, part] if index.size != self.n_trials else self.data[:, part]
             mask_block = None
             if self.masks is not None:
-                mask_block = self.masks[index][:, part]
+                mask_block = self.masks[index, part]
             mean[part], sem[part], count[part] = _average_block(
                 block, mask_block, settings["robust"]
             )

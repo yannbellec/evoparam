@@ -185,3 +185,48 @@ def test_vanblooijs2023_published_code_reading() -> None:
     assert not big.significant[0]
     with pytest.raises(SettingsError, match="peak"):
         resolve_rule("vanblooijs2023", baseline=base, peak="global")
+
+
+def test_vanblooijs2023_strict_peak_reading() -> None:
+    """peak='strict' reads the row's "negative peak" as a peak: the deepest strict local
+    minimum of the window, its neighbours read outside the window at its edges, with no SD
+    floor and no selectivity. A monotone tail through the window start or a drift through
+    its end is not a peak; a trough is, a small one too; a window without a negative local
+    minimum has no peak (statistic NaN, not significant)."""
+
+    from evoparam.existence.rules import apply_rule
+
+    from .helpers import gaussian
+
+    base = (-0.5, -0.05)
+    rng = np.random.default_rng(3)
+    noise = rng.normal(0, 10, (5, len(TIMES)))
+    noise[:, TIMES > 0] = 0.0
+    tail = np.where(TIMES > 0, -600 * np.exp(-TIMES / 0.01), 0.0)
+    drift = np.where(TIMES > 0, -400 * np.clip((TIMES - 0.06) / 0.04, 0, None), 0.0)
+    trough = -300 * gaussian(0.025, 0.012)
+    small = -100 * gaussian(0.025, 0.012)
+    flat = np.zeros(len(TIMES))
+    evoked = _uv(noise + np.array([tail, drift, trough, small, flat]))
+    strict = run_test(
+        evoked,
+        method="threshold",
+        rule="vanblooijs2023",
+        rule_overrides={"baseline": base, "peak": "strict"},
+    )
+    assert strict.significant.tolist() == [False, False, True, True, False]
+    assert abs(strict.onset[2] - 0.025) <= 1.0 / SFREQ
+    spec = resolve_rule("vanblooijs2023", baseline=base, peak="strict")
+    out = apply_rule(evoked.data, TIMES, SFREQ, spec, "uV")
+    assert np.isnan(out["statistic"][4])
+    # a trough whose minimum is the window's first sample counts, judged by the sample
+    # before the window
+    edge = np.zeros((1, len(TIMES)))
+    edge[0, :] = noise[0]
+    first = int(np.argmax(TIMES >= 0.009))
+    edge[0, first] = -500.0
+    hit = apply_rule(edge, TIMES, SFREQ, spec, "uV")
+    assert hit["significant"][0]
+    assert hit["onset"][0] == TIMES[first]
+    with pytest.raises(SettingsError):
+        resolve_rule("vanblooijs2023", baseline=base, peak="valley")

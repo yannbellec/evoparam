@@ -206,37 +206,53 @@ def test_req342_bids_validator(written: Any, which: Any) -> None:
     assert errors == []
 
 
-# Spec §9.2 and REQ-315: the reference validator is the Node.js bids-validator@2, run with
-# npx, in derivative mode.
+# Spec §9.2 and REQ-315: the reference validator is bids-validator >= 2.0 in derivative mode,
+# named in the spec as the Node.js package run with npx (``npx bids-validator@2``). npm has
+# no 2.x release of ``bids-validator`` (measured 2026-10-09 and 2026-10-13: latest 1.15.0,
+# ``ETARGET``); the BIDS maintainers publish 2.x and 3.x on JSR as ``@bids/validator``. The
+# test runs npx when npm resolves a 2.x release and the pinned JSR release otherwise
+# (docs/spec/DECISIONS.md, "REQ-315").
 REFERENCE_VALIDATOR = ["npx", "--yes", "bids-validator@2", "--datasetTypes", "derivative"]
+JSR_VALIDATOR = ["run", "-A", "jsr:@bids/validator@3.0.2", "--datasetTypes", "derivative"]
+
+
+def _reference_validator() -> Any:
+    if shutil.which("npx"):
+        probe = subprocess.run(
+            ["npm", "view", "bids-validator@2", "version"],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
+        if probe.returncode == 0 and probe.stdout.strip():
+            return REFERENCE_VALIDATOR
+    deno = shutil.which("deno")
+    return [deno] + JSR_VALIDATOR if deno else None
 
 
 @pytest.mark.network
 @pytest.mark.skipif(
-    os.environ.get("EVOPARAM_NETWORK_TESTS") != "1" or not shutil.which("npx"),
-    reason="needs npx and EVOPARAM_NETWORK_TESTS=1 (npx fetches the validator)",
+    os.environ.get("EVOPARAM_NETWORK_TESTS") != "1"
+    or not (shutil.which("npx") or shutil.which("deno")),
+    reason="needs npx or deno and EVOPARAM_NETWORK_TESTS=1 (the validator is fetched)",
 )
 def test_req315_reference_validator_as_written(written: Any) -> None:
-    """REQ-315 as written: ``npx bids-validator@2 --datasetTypes derivative`` reports no
-    error on the derivatives.
+    """REQ-315: bids-validator >= 2.0 in derivative mode reports no error on the
+    derivatives (npx when npm has a 2.x release, the JSR release of the BIDS maintainers
+    otherwise)."""
 
-    On 2026-10-09 the npm registry has no 2.x release of ``bids-validator``: its latest
-    version is 1.15.0 and npx stops with ``ETARGET No matching version found for
-    bids-validator@2``. The 2.x validator is published on JSR only, as ``@bids/validator``,
-    and test_req342_bids_validator runs it. The test therefore expects failure while npx
-    cannot resolve the version, and it passes as soon as npm has a 2.x release."""
-
+    command = _reference_validator()
+    if command is None:
+        pytest.skip("neither npm's bids-validator@2 nor deno is available")
+    output = ["--json"] if command is REFERENCE_VALIDATOR else ["--format", "json"]
     proc = subprocess.run(
-        REFERENCE_VALIDATOR + [str(written["out"]), "--json"],
+        command + [str(written["out"])] + output,
         capture_output=True,
         text=True,
         timeout=900,
         check=False,
     )
-    if "ETARGET" in proc.stderr or "No matching version found" in proc.stderr:
-        pytest.xfail(
-            "npm has no bids-validator@2 release (ETARGET); measured 2026-10-09, latest 1.15.0"
-        )
     report = json.loads(proc.stdout)
     issues = (
         report["issues"]["issues"]

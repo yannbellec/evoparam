@@ -6,43 +6,94 @@ treatment decisions.
 """
 
 import typing as _typing
+from typing import TYPE_CHECKING
 
 from evoparam._typing import Any
 
-from . import artifact as artifact
 from . import errors as errors
-from . import events as events
-from . import existence as existence
-from . import hierarchical as hierarchical
-from . import io as io
-from . import prep as prep
-from . import presets as presets
-from . import shapes as shapes
-from . import spatial as spatial
-from . import tf as tf
-from . import trials as trials
 from .data import Evoked as Evoked
 from .data import Provenance as Provenance
 from .data import TrialSet as TrialSet
 from .data import load_object as load_object
-from .events import detect_events as detect_events
-from .existence import fit as fit
-from .existence import test_response as test_response
-from .io import read as read
-from .models import ResponseModel as ResponseModel
-from .reports import reproduce as reproduce
-from .utils import set_log_file as set_log_file
-from .utils import set_log_level as set_log_level
-from .utils import verbose as verbose
+from .utils import set_log_file as set_log_file  # REQ-304
+from .utils import set_log_level as set_log_level  # REQ-304
+from .utils import verbose as verbose  # REQ-304
 from .version import __version__ as __version__
 
-# The existence test is the default detector of prep.reference_sensitivity (spec §5.4, method
-# 3); prep sits below the existence test in the dependency table, so the package root
-# registers it.
-prep.register_detector("existence", existence.existence_detector)
+# The subpackages and the functions of the package root are imported on first use (PEP 562),
+# so that ``import evoparam`` stays under 300 ms (REQ-290 P6): importing them all, with
+# scipy.stats, took about 0.95 s.
+if TYPE_CHECKING:  # the names imported on first use, for type checkers and IDEs
+    from . import artifact as artifact
+    from . import benchmark as benchmark
+    from . import events as events
+    from . import existence as existence
+    from . import hierarchical as hierarchical
+    from . import io as io
+    from . import models as models
+    from . import plots as plots
+    from . import presets as presets
+    from . import reports as reports
+    from . import shapes as shapes
+    from . import sim as sim
+    from . import spatial as spatial
+    from . import stats as stats
+    from . import stream as stream
+    from . import tf as tf
+    from . import trials as trials
+    from .events import detect_events as detect_events
+    from .existence import fit as fit
+    from .existence import test_response as test_response
+    from .io import read as read
+    from .models import ResponseModel as ResponseModel
+    from .reports import reproduce as reproduce
 
 # Window (s) in which selftest looks for the N1 of the bundled CCEP.
 _N1_START, _N1_END = 0.009, 0.05
+_SUBPACKAGES = frozenset(
+    {
+        "artifact",
+        "benchmark",
+        "events",
+        "existence",
+        "hierarchical",
+        "io",
+        "models",
+        "plots",
+        "presets",
+        "reports",
+        "shapes",
+        "sim",
+        "spatial",
+        "stats",
+        "stream",
+        "tf",
+        "trials",
+    }
+)
+_ROOT_FUNCTIONS = {
+    "detect_events": ("events", "detect_events"),
+    "fit": ("existence", "fit"),
+    "test_response": ("existence", "test_response"),
+    "read": ("io", "read"),
+    "ResponseModel": ("models", "ResponseModel"),
+    "reproduce": ("reports", "reproduce"),
+}
+
+
+def _existence_detector(*args: Any, **kwargs: Any) -> Any:
+    """The existence test as the detector of prep.reference_sensitivity (spec §5.4, method 3),
+    imported on first call: prep sits below the existence test in the dependency table, so
+    the package root registers it."""
+    from .existence import existence_detector
+
+    return existence_detector(*args, **kwargs)
+
+
+from .prep import register_detector as _register_detector  # noqa: E402  (13 ms)
+
+_existence_detector.__name__ = _existence_detector.__qualname__ = "existence_detector"
+_register_detector("existence", _existence_detector)
 
 
 def selftest(*, tolerance: float = 0.001) -> float:
@@ -65,6 +116,7 @@ def selftest(*, tolerance: float = 0.001) -> float:
     """
     import warnings
 
+    from .models import ResponseModel
     from .sim import simulate_ccep
 
     trials, truth = simulate_ccep(
@@ -102,11 +154,19 @@ def cite(*, bibtex: bool = False, file: "_typing.TextIO | None" = None) -> str:
 
 
 def __getattr__(name: Any) -> Any:
-    """Serve the deprecated public names (REQ-293).
-
-    Served from ``evoparam/_deprecated.py`` with an
+    """Import the subpackages and root functions on first use, and serve the deprecated public
+    names (REQ-293) from ``evoparam/_deprecated.py`` with an
     :class:`~evoparam.utils.EvoparamDeprecationWarning`.
     """
+    import importlib
+
+    if name in _SUBPACKAGES:
+        return importlib.import_module(f"{__name__}.{name}")
+    if name in _ROOT_FUNCTIONS:
+        package, attribute = _ROOT_FUNCTIONS[name]
+        value = getattr(importlib.import_module(f"{__name__}.{package}"), attribute)
+        globals()[name] = value
+        return value
     from ._deprecated import REGISTRY
 
     if name in REGISTRY:
@@ -114,3 +174,7 @@ def __getattr__(name: Any) -> Any:
 
         return shim(f"evoparam.{name}", *REGISTRY[name])
     raise AttributeError(f"module 'evoparam' has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | _SUBPACKAGES | set(_ROOT_FUNCTIONS))

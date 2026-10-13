@@ -109,6 +109,10 @@ Scaled = tuple[FloatArray, FloatArray, FloatArray, FloatArray]
 Environment = tuple[Problem, Workspace, IntArray, FloatArray, FloatArray, FloatArray, float, int]
 
 
+# the whitening filter adds its lags by groups of this many in one pass over the samples
+_LAG_GROUP = 4
+
+
 ###################################################################################################
 ## Shapes
 
@@ -471,41 +475,132 @@ def _whiten(
     has_start = start.shape[0] > 0
     a0 = a[0]
     if p == 0 and not has_start:
-        for j in range(count):
-            row, values = rows[j], src[j]
-            for i in range(n):
-                row[i] = a0 * (values[i] * inv_scale[i]) * post[i]
+        _scale_rows(src, rows, count, n, inv_scale, a0, post)
         return
+    sc = inv_scale[:n]
+    rw = raw[:n]
+    pw = post[:n]
+    p_in = 0  # the lags shorter than the window
+    while p_in < p and (p_in + 1) * stride < n:
+        p_in += 1
+    for j in range(count):
+        row, values = rows[j, :n], src[j, :n]
+        # separate loops: LLVM vectorises them better than one loop with two stores
+        for i in range(n):
+            rw[i] = values[i] * sc[i]
+        for i in range(n):
+            row[i] = a0 * rw[i]
+        weighted = _lag_groups(row, rw, a, stride, pw, p_in)
+        for i in range(weighted if p_in else n):
+            row[i] *= pw[i]
+        if has_start:
+            _start_rows(row, raw, start, start_rows, p)
+
+
+def _lag_groups(
+    row: FloatArray, rw: FloatArray, a: FloatArray, stride: int, pw: FloatArray, p_in: int
+) -> int:
+    """Add the lags 1 to ``p_in`` of the filter to ``row``, by groups of ``_LAG_GROUP``.
+
+    ``rw`` holds the scaled samples and ``pw`` the row weights. Returns the first sample
+    from which the last group has applied the row weights (0 without lags).
+    """
+    n = row.shape[0]
+    weighted = 0  # the row weights are applied from this sample on by the last pass
+    k = 1
+    while k <= p_in:
+        size = min(_LAG_GROUP, p_in - k + 1)
+        last = k + size - 1 == p_in
+        shift = k * stride
+        full = shift + (size - 1) * stride  # the first sample with every lag of the group
+        for q in range(size - 1):
+            lag = shift + q * stride
+            aq = a[k + q]
+            head = row[lag:full]
+            lagged = rw[: full - lag]
+            for i in range(head.shape[0]):
+                head[i] += aq * lagged[i]
+        _lags(row[full:n], rw[: n - shift], a[k : k + size], stride, pw[full:n], last)
+        if last:
+            weighted = full
+        k += size
+    return weighted
+
+
+def _scale_rows(
+    src: FloatArray,
+    rows: FloatArray,
+    count: int,
+    n: int,
+    inv_scale: FloatArray,
+    a0: float,
+    post: FloatArray,
+) -> None:
+    """``_whiten`` without lags: each sample scaled, multiplied by ``a0`` and weighted."""
     for j in range(count):
         row, values = rows[j], src[j]
         for i in range(n):
-            value = values[i] * inv_scale[i]
-            raw[i] = value
-            row[i] = a0 * value
-        for k in range(1, p + 1):
-            shift = k * stride
-            if shift >= n:
-                break
-            ak = a[k]
-            dst = row[shift:n]
-            lagged = raw[: n - shift]
-            for i in range(dst.shape[0]):
-                dst[i] += ak * lagged[i]
-        for i in range(n):
-            row[i] *= post[i]
-        if has_start:
-            _start_rows(row, raw, start, start_rows, p)
+            row[i] = a0 * (values[i] * inv_scale[i]) * post[i]
 
 
 def _start_rows(
     row: FloatArray, raw: FloatArray, start: FloatArray, start_rows: IntArray, p: int
 ) -> None:
-    """Write the ``p`` start rows of the exact likelihood (``start`` times the raw samples)."""
+    """Replace the ``p`` start rows of ``row`` by the exact-likelihood start of the filter."""
     for r in range(p):
         total = 0.0
         for q in range(p):
             total += start[r, q] * raw[start_rows[q]]
         row[start_rows[r]] = total
+
+
+def _lags(
+    dst: FloatArray,
+    lagged: FloatArray,
+    coef: FloatArray,
+    stride: int,
+    weight: FloatArray,
+    last: bool,
+) -> None:
+    """Add the terms of a group of up to four lags to ``dst`` in one pass.
+
+    ``coef`` holds the coefficients of the group (lags ``k`` to ``k + size - 1``), ``lagged``
+    the scaled samples up to ``n - k * stride`` and ``dst`` the samples that have every lag of
+    the group; the terms are added one by one in the order of the lags, as separate passes
+    would add them. The last group of the filter also applies the row weights (``weight``).
+    """
+    size = coef.shape[0]
+    m = dst.shape[0]
+    top = lagged.shape[0]
+    a1 = coef[0]
+    l1 = lagged[top - m : top]
+    if size == _LAG_GROUP:
+        a2, a3, a4 = coef[1], coef[2], coef[3]
+        l2 = lagged[top - m - stride : top - stride]
+        l3 = lagged[top - m - 2 * stride : top - 2 * stride]
+        l4 = lagged[top - m - 3 * stride : top - 3 * stride]
+        if last:
+            for i in range(m):
+                dst[i] = (
+                    (((dst[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) + a4 * l4[i]
+                ) * weight[i]
+        else:
+            for i in range(m):
+                dst[i] = (((dst[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) + a4 * l4[i]
+    elif size == _LAG_GROUP - 1:
+        a2, a3 = coef[1], coef[2]
+        l2 = lagged[top - m - stride : top - stride]
+        l3 = lagged[top - m - 2 * stride : top - 2 * stride]
+        for i in range(m):
+            dst[i] = (((dst[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) * weight[i]
+    elif size == _LAG_GROUP - 2:
+        a2 = coef[1]
+        l2 = lagged[top - m - stride : top - stride]
+        for i in range(m):
+            dst[i] = ((dst[i] + a1 * l1[i]) + a2 * l2[i]) * weight[i]
+    else:
+        for i in range(m):
+            dst[i] = (dst[i] + a1 * l1[i]) * weight[i]
 
 
 ###################################################################################################
@@ -522,6 +617,19 @@ def _dot(x: FloatArray, y: FloatArray) -> float:
     for i in range(x.shape[0]):
         total += x[i] * y[i]
     return total
+
+
+def _finite(x: FloatArray) -> bool:
+    """Return True when every entry of ``x`` is finite.
+
+    ``x * 0`` is 0 for a finite entry and NaN for an infinite or NaN one: their sum, which
+    may be reordered (``_REASSOCIATED``: the loop vectorises), is 0 exactly when all are
+    finite.
+    """
+    total = 0.0
+    for i in range(x.shape[0]):
+        total += x[i] * 0.0
+    return total == 0.0
 
 
 def _householder(mat: FloatArray, n_cols: int, off: int, length: int, tau: FloatArray) -> None:
@@ -592,8 +700,9 @@ def _evaluate(theta: FloatArray, problem: Problem, cols: ColumnWork, fact: Facto
         _zero(qr[j, n:length])
     for r in range(prior_cols.shape[0]):
         qr[prior_cols[r], n + r] = prior_diag[r]
-    if not _all_finite(qr):
-        return False
+    for j in range(c):
+        if not _finite(qr[j]):
+            return False
     _householder(qr, c, 0, length, tau)
     if not _well_conditioned(qr, rinv):
         return False
@@ -606,15 +715,6 @@ def _evaluate(theta: FloatArray, problem: Problem, cols: ColumnWork, fact: Facto
         for k in range(i + 1, c):
             total -= qr[k, i] * beta[k]
         beta[i] = total / qr[i, i]
-    return True
-
-
-def _all_finite(mat: FloatArray) -> bool:
-    """Tell whether every entry of the matrix ``mat`` is finite."""
-    for j in range(mat.shape[0]):
-        for i in range(mat.shape[1]):
-            if not math.isfinite(mat[j, i]):
-                return False
     return True
 
 
@@ -1176,16 +1276,6 @@ def _infeasible(x0: FloatArray, lb: FloatArray, ub: FloatArray) -> bool:
     return False
 
 
-def _finite(x: FloatArray) -> bool:
-    """Tell whether every entry of the vector ``x`` is finite."""
-    finite = True
-    for i in range(x.shape[0]):
-        if not math.isfinite(x[i]):
-            finite = False
-            break
-    return finite
-
-
 def _gradient(jac_work: JacobianWork, n_rows: int) -> tuple[FloatArray, FloatArray]:
     """Return the gradient ``J^T f`` and the column norms of ``J``."""
     jr, jf = jac_work[2], jac_work[3]
@@ -1489,7 +1579,7 @@ _LOCK = threading.Lock()
 # compiled with "contract" (fused multiply-adds) and the error model of NumPy (no checks of
 # division by zero, which keep loops from vectorising); the inner product may also reorder
 # its sum
-_REASSOCIATED = ("_dot",)
+_REASSOCIATED = ("_dot", "_finite")
 _COMPILED: dict[str, Any] = {}
 # compiled in this order (callees first): each name is replaced by its compiled version in
 # this module, so that the compiled callers call compiled code
@@ -1504,12 +1594,15 @@ _KERNELS = (
     "_skewed_column",
     "_columns",
     "_derivatives",
+    "_lags",
+    "_lag_groups",
+    "_scale_rows",
     "_start_rows",
     "_whiten",
     "_dot",
+    "_finite",
     "_householder",
     "_apply_qt",
-    "_all_finite",
     "_well_conditioned",
     "_evaluate",
     "_norm",
@@ -1534,7 +1627,6 @@ _KERNELS = (
     "_jacobian",
     "_workspace",
     "_infeasible",
-    "_finite",
     "_gradient",
     "_initial_radius",
     "_local_model",
