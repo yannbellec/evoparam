@@ -118,6 +118,9 @@ def _skew_mode(alpha: float) -> tuple[float, float]:
     return c, dc
 
 
+# the whitening filter adds its lags by groups of this many in one pass over the samples
+_LAG_GROUP = 4
+
 # exp: Cody-Waite reduction x = k ln2 + r, |r| <= ln2 / 2, the Taylor polynomial of degree 13
 # (truncation 4e-18) and 2^k from its bits: within 1 ulp (0.97 at most against 0.61 for
 # NumPy's on 4 000 arguments in [-745, 0], measured with mpmath), and the loops vectorise
@@ -457,34 +460,119 @@ def _whiten(
     has_start = start.shape[0] > 0
     a0 = a[0]
     if p == 0 and not has_start:
-        for j in range(count):
-            row, values = rows[j], src[j]
-            for i in range(n):
-                row[i] = a0 * (values[i] * inv_scale[i]) * post[i]
+        _scale_rows(src, rows, count, n, inv_scale, a0, post)
         return
+    sc = inv_scale[:n]
+    rw = raw[:n]
+    pw = post[:n]
+    p_in = 0  # the lags shorter than the window
+    while p_in < p and (p_in + 1) * stride < n:
+        p_in += 1
+    for j in range(count):
+        row, values = rows[j, :n], src[j, :n]
+        # separate loops: LLVM vectorises them better than one loop with two stores
+        for i in range(n):
+            rw[i] = values[i] * sc[i]
+        for i in range(n):
+            row[i] = a0 * rw[i]
+        weighted = 0  # the row weights are applied from this sample on by the last pass
+        k = 1
+        while k <= p_in:
+            size = min(_LAG_GROUP, p_in - k + 1)
+            last = k + size - 1 == p_in
+            shift = k * stride
+            full = shift + (size - 1) * stride  # the first sample with every lag of the group
+            for q in range(size - 1):
+                lag = shift + q * stride
+                aq = a[k + q]
+                head = row[lag:full]
+                lagged = rw[: full - lag]
+                for i in range(head.shape[0]):
+                    head[i] += aq * lagged[i]
+            _lags(row[full:n], rw[: n - shift], a[k : k + size], stride, pw[full:n], last)
+            if last:
+                weighted = full
+            k += size
+        for i in range(weighted if p_in else n):
+            row[i] *= pw[i]
+        if has_start:
+            _start_rows(row, raw, start, start_rows, p)
+
+
+def _scale_rows(
+    src: FloatArray,
+    rows: FloatArray,
+    count: int,
+    n: int,
+    inv_scale: FloatArray,
+    a0: float,
+    post: FloatArray,
+) -> None:
+    """``_whiten`` without lags: each sample scaled, multiplied by ``a0`` and weighted."""
     for j in range(count):
         row, values = rows[j], src[j]
         for i in range(n):
-            value = values[i] * inv_scale[i]
-            raw[i] = value
-            row[i] = a0 * value
-        for k in range(1, p + 1):
-            shift = k * stride
-            if shift >= n:
-                break
-            ak = a[k]
-            dst = row[shift:n]
-            lagged = raw[: n - shift]
-            for i in range(dst.shape[0]):
-                dst[i] += ak * lagged[i]
-        for i in range(n):
-            row[i] *= post[i]
-        if has_start:
-            for r in range(p):
-                total = 0.0
-                for q in range(p):
-                    total += start[r, q] * raw[start_rows[q]]
-                row[start_rows[r]] = total
+            row[i] = a0 * (values[i] * inv_scale[i]) * post[i]
+
+
+def _start_rows(
+    row: FloatArray, raw: FloatArray, start: FloatArray, start_rows: IntArray, p: int
+) -> None:
+    """Replace the ``p`` start rows of ``row`` by the exact-likelihood start of the filter."""
+    for r in range(p):
+        total = 0.0
+        for q in range(p):
+            total += start[r, q] * raw[start_rows[q]]
+        row[start_rows[r]] = total
+
+
+def _lags(
+    dst: FloatArray,
+    lagged: FloatArray,
+    coef: FloatArray,
+    stride: int,
+    weight: FloatArray,
+    last: bool,
+) -> None:
+    """Add the terms of a group of up to four lags to ``dst`` in one pass.
+
+    ``coef`` holds the coefficients of the group (lags ``k`` to ``k + size - 1``), ``lagged``
+    the scaled samples up to ``n - k * stride`` and ``dst`` the samples that have every lag of
+    the group; the terms are added one by one in the order of the lags, as separate passes
+    would add them. The last group of the filter also applies the row weights (``weight``).
+    """
+    size = coef.shape[0]
+    m = dst.shape[0]
+    top = lagged.shape[0]
+    a1 = coef[0]
+    l1 = lagged[top - m : top]
+    if size == _LAG_GROUP:
+        a2, a3, a4 = coef[1], coef[2], coef[3]
+        l2 = lagged[top - m - stride : top - stride]
+        l3 = lagged[top - m - 2 * stride : top - 2 * stride]
+        l4 = lagged[top - m - 3 * stride : top - 3 * stride]
+        if last:
+            for i in range(m):
+                dst[i] = (
+                    (((dst[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) + a4 * l4[i]
+                ) * weight[i]
+        else:
+            for i in range(m):
+                dst[i] = (((dst[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) + a4 * l4[i]
+    elif size == _LAG_GROUP - 1:
+        a2, a3 = coef[1], coef[2]
+        l2 = lagged[top - m - stride : top - stride]
+        l3 = lagged[top - m - 2 * stride : top - 2 * stride]
+        for i in range(m):
+            dst[i] = (((dst[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) * weight[i]
+    elif size == _LAG_GROUP - 2:
+        a2 = coef[1]
+        l2 = lagged[top - m - stride : top - stride]
+        for i in range(m):
+            dst[i] = ((dst[i] + a1 * l1[i]) + a2 * l2[i]) * weight[i]
+    else:
+        for i in range(m):
+            dst[i] = (dst[i] + a1 * l1[i]) * weight[i]
 
 
 ###################################################################################################
@@ -501,6 +589,19 @@ def _dot(x: FloatArray, y: FloatArray) -> float:
     for i in range(x.shape[0]):
         total += x[i] * y[i]
     return total
+
+
+def _finite(x: FloatArray) -> bool:
+    """Return True when every entry of ``x`` is finite.
+
+    ``x * 0`` is 0 for a finite entry and NaN for an infinite or NaN one: their sum, which
+    may be reordered (``_REASSOCIATED``: the loop vectorises), is 0 exactly when all are
+    finite.
+    """
+    total = 0.0
+    for i in range(x.shape[0]):
+        total += x[i] * 0.0
+    return total == 0.0
 
 
 def _householder(mat: FloatArray, n_cols: int, off: int, length: int, tau: FloatArray) -> None:
@@ -603,9 +704,8 @@ def _evaluate(
     for r in range(prior_cols.shape[0]):
         qr[prior_cols[r], n + r] = prior_diag[r]
     for j in range(c):
-        for i in range(length):
-            if not math.isfinite(qr[j, i]):
-                return False
+        if not _finite(qr[j]):
+            return False
     _householder(qr, c, 0, length, tau)
     # inverse of R (dtrtri) and the Frobenius condition number
     norm_r = 0.0
@@ -1130,7 +1230,6 @@ def optimise(
     length = target.shape[0]
     n_par = x0.shape[0]
     m = length
-    rows = length - c
     design = np.empty((c, n))
     numer = np.zeros((max(n_comp, 1), n))
     fast = np.zeros((max(n_comp, 1), n))
@@ -1167,9 +1266,8 @@ def optimise(
     ):  # fmt: skip
         return FALLBACK, x0.copy(), 0, empty, empty
     f = qtb[c:].copy()
-    for i in range(rows):
-        if not math.isfinite(f[i]):
-            return VALUE_ERROR, x0.copy(), 0, empty, empty
+    if not _finite(f):
+        return VALUE_ERROR, x0.copy(), 0, empty, empty
 
     nfev = 1
     cost = 0.5 * _dot(f, f)
@@ -1246,12 +1344,7 @@ def optimise(
             nfev += 1
             fresh = False
             step_h_norm = _norm(step_h)
-            finite = True
-            for i in range(rows):
-                if not math.isfinite(f_new[i]):
-                    finite = False
-                    break
-            if not finite:
+            if not _finite(f_new):
                 delta = 0.25 * step_h_norm
                 continue
             cost_new = 0.5 * _dot(f_new, f_new)
@@ -1329,7 +1422,7 @@ _LOCK = threading.Lock()
 # compiled with "contract" (fused multiply-adds) and the error model of NumPy (no checks of
 # division by zero, which keep loops from vectorising); the inner product may also reorder
 # its sum
-_REASSOCIATED = ("_dot",)
+_REASSOCIATED = ("_dot", "_finite")
 _COMPILED: dict[str, Any] = {}
 # compiled in this order (callees first): each name is replaced by its compiled version in
 # this module, so that the compiled callers call compiled code
@@ -1341,8 +1434,12 @@ _KERNELS = (
     "_span",
     "_columns",
     "_derivatives",
+    "_lags",
+    "_scale_rows",
+    "_start_rows",
     "_whiten",
     "_dot",
+    "_finite",
     "_householder",
     "_apply_qt",
     "_evaluate",

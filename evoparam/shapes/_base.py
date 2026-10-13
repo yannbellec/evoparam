@@ -148,6 +148,8 @@ def as_params(params: ArrayLike | None, n_params: int, name: str) -> FloatArray:
 # (bounds and starting values of every shape), and the median step is most of the cost
 _WINDOW_CACHE: dict[bytes, tuple[float, float, float, float]] = {}
 _WINDOW_CACHE_SIZE = 64
+# the last axis asked for (one tuple, replaced whole): (times, a copy of its values, result)
+_WINDOW_LAST: dict[str, tuple[Any, Any, tuple[float, float, float, float]]] = {}
 
 
 def window_info(times: ArrayLike) -> tuple[float, float, float, float]:
@@ -155,9 +157,20 @@ def window_info(times: ArrayLike) -> tuple[float, float, float, float]:
     times = as_times(times)
     if times.size < 2:
         raise DataError("times: at least 2 samples are needed to define a window.")
+    # the same array as the last call, with the same values (a copy is kept to compare):
+    # cheaper than the bytes of the axis as a key
+    last = _WINDOW_LAST.get("last")
+    if (
+        last is not None
+        and last[0] is times
+        and last[1].shape == times.shape
+        and bool((last[1] == times).all())
+    ):
+        return last[2]
     key = times.tobytes()
     known = _WINDOW_CACHE.get(key)
     if known is not None:
+        _WINDOW_LAST["last"] = (times, times.copy(), known)
         return known
     steps = np.diff(times)
     if np.any(steps <= 0):
@@ -171,6 +184,7 @@ def window_info(times: ArrayLike) -> tuple[float, float, float, float]:
     if len(_WINDOW_CACHE) >= _WINDOW_CACHE_SIZE:
         _WINDOW_CACHE.clear()
     _WINDOW_CACHE[key] = out
+    _WINDOW_LAST["last"] = (times, times.copy(), out)
     return out
 
 
@@ -501,7 +515,7 @@ def compute_features(
     # and the area below reuses the values on the grid
     pointwise = support is not None
     if pointwise:
-        at_peak = shape.evaluate(np.r_[peak_time, x_peak], params)
+        at_peak = shape.evaluate(np.concatenate(([peak_time], x_peak)), params)
         peak_value, v = float(at_peak[0]), at_peak[1:]
     else:
         peak_value = float(shape.evaluate(np.array([peak_time]), params)[0])
