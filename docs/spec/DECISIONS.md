@@ -539,6 +539,12 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   `test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference`. The component
   reading (the test as written) stays an expected failure. REQ-273 is still not met,
   because it also needs REQ-113 (§5.8). The criterion is unchanged.
+- The numbers above read the registry row in the code's frame. In the row's own frame
+  (§5.8, 2026-10-13) the third reading gives 86 % (59 of 69) on the REQ runs and 69 % on
+  the development runs. The fourth gives 93 % (64 of 69) on the REQ runs and 89 % (32 of
+  36) on the development runs, so it is still met on the REQ runs, with a margin of one
+  channel. The code's numbers are unchanged. The NumPy path was not re-measured in the
+  new frame.
 
 ### 5.3 REQ-105 (recall >= 0.95 from SNR 3) — REQ-112 (>= 95 % of pure-noise windows silent)
 
@@ -662,13 +668,14 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   the default existence method) under both readings of the published rule: the registry
   row (the paper's text) and the published code. Each requirement has one decision, and
   it must agree with both readings. The two readings disagree with each other: kappa 0.06
-  on the 46 PT contacts of the example run, 0.31 over the six REQ-371 runs.
+  on the 46 PT contacts of the example run, 0.32 over the six REQ-371 runs.
 - For any decision of the channels, the smaller of its two kappas is bounded. Kappa
   depends only on how many channels the decision marks in each cell of the readings'
   2 x 2 table, so the bound is found by searching every combination (exact;
-  `joint_kappa_bound` in `tests/models/test_engine_ccep.py`). REQ-113: 0.295 on the PT
-  contacts (0.8 asked), and on the REQ-371 runs 0.656, 0.343, 0.323, 0.783, 0.681 and
-  0.563 (0.8 asked on 5 of 6). REQ-135: 0.592 pooled over the REQ-371 runs (0.7 asked),
+  `joint_kappa_bound` in `tests/models/test_engine_ccep.py`). REQ-113: 0.274 on the PT
+  contacts (0.8 asked), and on the REQ-371 runs 0.656, 0.380, 0.323, 0.783, 0.714 and
+  0.557 (0.8 asked on 5 of 6), with each reading in its own frame (below; in the code's
+  frame for both, 0.295 and 0.656, 0.343, 0.323, 0.783, 0.681, 0.563). REQ-135: 0.592 pooled over the REQ-371 runs (0.7 asked),
   0.698 on the development runs, 0.6996 on the segments the earlier test used. Under D8 no
   detector can meet either requirement on the spec's data. This is a property of the two
   comparators, not of the model. The tests `test_d8_req113_cannot_hold_under_both_readings`
@@ -680,23 +687,46 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   (`vanblooijs2023_code`) is still measured and reported by its own parametrised tests,
   which stay expected failures where it is not met, but it no longer gates. The reason is
   the joint bound above: no decision can reach kappa 0.8 against both readings on the PT
-  contacts (0.295) or on 5 of the 6 REQ-371 runs (at most 0.783), nor 0.7 for REQ-135
-  (0.592). The two readings disagree with each other (kappa 0.06 and 0.31).
-- Values under each reading at this decision:
-  - REQ-113: 0.46 / 0.19 on the PT contacts, 0.46 / 0.40 pooled. No measured variant
-    exceeds 0.51 / 0.56.
+  contacts (0.274) or on 5 of the 6 REQ-371 runs (at most 0.783), nor 0.7 for REQ-135
+  (0.592). The two readings disagree with each other (kappa 0.06 and 0.32).
+- Each reading in its own frame (2026-10-13). The §5.6 row gives no baseline, and the
+  registry names the ER-detect default (-1, -0.1) s. The row also gives its window on the
+  data's time axis. Until this date the REQ-113/REQ-114 tests read the row with two
+  details of the published code instead:
+  - its SD baseline (-2, -0.1) s;
+  - its time axis, which labels the stimulation sample t = 1/sfreq, so that 9 ms falls
+    one sample earlier: 7.8 ms instead of 9.8 ms on the 512 Hz example run, inside the
+    template's (-2, 8) ms.
+
+  The row is now read on the data's axis with the registry's baseline, as the REQ-135
+  test and the benchmark already did. The code's reading keeps its own baseline and axis
+  (`FRAMES` in `tests/models/test_engine_ccep.py` and `validation/robustness.py`). The
+  choice follows the spec text, not the results: REQ-113 on the PT contacts falls from
+  0.46 to 0.24.
+- The kappa of 1.00 recorded as REQ-113 met on 2026-10-08 was not REQ-113 as written:
+  - the comparator was the code's reading (50 uV SD floor, local minimum), with 1 N1 on
+    the 46 PT contacts;
+  - the decision was the fitted trough judged by the code's amplitude criterion on the
+    rule's own average, not the preset's N1.
+
+  It is reproduced exactly today (1.00, 0.91 pooled) by
+  `test_n1_trough_with_the_code_floor_regression`. CHANGELOG, "N1 case: the comparator
+  trail".
+- Values under each reading (registry row in its own frame / code):
+  - REQ-113: 0.24 / 0.19 on the PT contacts, 0.44 / 0.40 pooled. No measured variant
+    exceeds 0.50 / 0.56.
   - REQ-135: 0.586 / 0.496 with the default method. With the rule's per-channel decision
     (`correction="none"`), the registry row is met on the held-out runs (0.807) and the
     code reading falls to 0.321. The `ccep` preset keeps FDR across channels (§6).
-  - REQ-114, read as the rule's peak on the fitted curve in the rule's reference: 91 % /
+  - REQ-114, read as the rule's peak on the fitted curve in the rule's reference: 93 % /
     90.0 % (§5.2).
 - Under the registry row (after this decision). REQ-113: many detections of the rule are
-  not N1s. Its average has no negative local minimum in 9-50 ms on 12 of the 19 PT
-  contacts it detects in the example run, and on 0, 0, 5, 2, 6 and 12 detected channels
+  not N1s. Its average has no negative local minimum in 9-50 ms on 16 of the 20 PT
+  contacts it detects in the example run, and on 0, 1, 5, 2, 6 and 12 detected channels
   of the REQ-371 runs. The condition "every channel the rule detects minus at most one"
   therefore fails for any N1 detector on the example run and on 4 of the 6 REQ-371 runs
   (`test_req113_registry_row_counts_channels_without_an_n1_trough`). A trough oracle on
-  the rule's own average reaches kappa 0.061 on the PT contacts, 0.717 pooled. REQ-135:
+  the rule's own average reaches kappa 0.056 on the PT contacts, 0.715 pooled. REQ-135:
   with FDR kept, the best variant chosen on the development runs (the `ccep` preset's own
   chain before the test) gives 0.623 on the REQ-371 runs; without the correction 0.807.
   Measured variants and numbers: CHANGELOG, "N1 case: the two readings".

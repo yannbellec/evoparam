@@ -53,14 +53,16 @@
 
 | reading | rate | kappa | recall | median abs latency diff (ms) |
 |---|---|---|---|---|
-| paper | native | 0.458 | 0.460 | 8.46 |
-| paper | 1024 | 0.434 | 0.410 | 8.56 |
-| paper | 512 | 0.404 | 0.460 | 7.22 |
+| paper | native | 0.410 | 0.429 | 8.41 |
+| paper | 1024 | 0.385 | 0.379 | 10.19 |
+| paper | 512 | 0.385 | 0.447 | 7.22 |
 | code | native | 0.398 | 0.882 | 3.47 |
 | code | 1024 | 0.407 | 0.794 | 4.45 |
 | code | 512 | 0.315 | 0.824 | 2.37 |
 
 This section was recomputed alone on 2026-10-11 (19.4 min; Linux-6.18.44-fc-v114-x86_64-with-glibc2.39, 4 CPUs).
+
+The published rule's decisions were recomputed on 2026-10-13 (each reading in its own frame: paper baseline [-1.0, -0.1] s, time shift 0 sample(s); code baseline [-2.0, -0.1] s, time shift 1 sample(s)); the model's decisions are those of the run above.
 
 At 1024 Hz, recorded at or below the rate and not resampled: ccepAgeUMCU01 run 021448 (512 Hz).
 

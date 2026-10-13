@@ -69,6 +69,11 @@ EXAMPLE = ("ccepAgeUMCU01", "021448", "PT01-PT02")
 DS004977 = [("1", "01", "ROC11-ROC12"), ("2", "12", "RZ4-RZ5"), ("3", "03", "LA2-LA3"),
             ("4", "02", "RO3-RO4")]
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
+# each reading's SD baseline and time shift in samples (as the layer-3 tests read them,
+# ``FRAMES`` of evoparam/tests/models/test_engine_ccep.py): the registry row on the data's
+# axis with the baseline the registry names (-1 to -0.1 s); the published code with its own
+# baseline and its time axis, one sample later (the stimulation sample is t = 1/sfreq)
+FRAMES = {"paper": ((-1.0, -0.1), 0), "code": ((-2.0, -0.1), 1)}
 
 
 def data_folder():
@@ -159,9 +164,11 @@ def published_rule(ts, reading):
     avg = x.mean(axis=0)
     base = (t > -2) & (t < -0.1)
     avg = avg - np.median(avg[:, base], axis=1, keepdims=True)
-    spec = resolve_rule(READINGS[reading], baseline=(-2.0, -0.1))
-    out = apply_rule(avg, t + 1.0 / ts.sfreq, ts.sfreq, spec, "uV")
-    return np.asarray(out["significant"], bool), np.asarray(out["onset"], float) - 1 / ts.sfreq
+    baseline, samples = FRAMES[reading]
+    shift = samples / ts.sfreq
+    spec = resolve_rule(READINGS[reading], baseline=baseline)
+    out = apply_rule(avg, t + shift, ts.sfreq, spec, "uV")
+    return np.asarray(out["significant"], bool), np.asarray(out["onset"], float) - shift
 
 
 def clean(ts, tmin=-1.0, tmax=2.0):
@@ -621,8 +628,9 @@ def layer3_file(pooled, runs, version):
 
     return {"dataset": "ds004080", "version": version,
             "data": {"dataset": "ds004080", "version": "1.2.4"},
-            "comparators": {reading: {"registry_rule": rule, "overrides": {"baseline":
-                                                                         [-2.0, -0.1]}}
+            "comparators": {reading: {"registry_rule": rule,
+                                      "overrides": {"baseline": list(FRAMES[reading][0])},
+                                      "time_shift_samples": FRAMES[reading][1]}
                             for reading, rule in READINGS.items()},
             "runs": [f"sub-{r['subject']} run-{r['run']} {r['pair']}" for r in runs],
             "pipeline": "ccep preset (template artifact removal, car_adaptive, baseline, "
@@ -657,6 +665,11 @@ def _sampling_notes(report):
     if again:
         lines.append(f"\nThis section was recomputed alone on {again['date']} "
                      f"({again['duration_min']} min; {again['machine']}).")
+    rescored = report.get("rules_rescored")
+    if rescored:
+        lines.append(f"\nThe published rule's decisions were recomputed on {rescored['date']} "
+                     f"({rescored['note']}); the model's decisions are those of the run "
+                     "above.")
     for rate in (str(int(x)) for x in RATES):
         names = [f"{r['subject']} run {r['run']} ({r['sfreq']:g} Hz)"
                  for r in report.get("ds004080", [])
@@ -742,6 +755,27 @@ def preset_doc(rows, version):
     return "\n".join(lines) + "\n"
 
 
+def rescore_rules(report):
+    """Recompute the published rule's decisions of every ds004080 run of a layer-4 report
+    (after a change of the comparator, :data:`FRAMES`), and the sampling summary that
+    compares the stored model decisions with them. Nothing is fitted again."""
+
+    for row in report["ds004080"]:
+        ts = load_ds004080(row["subject"], row["run"], row["pair"])
+        rules = {reading: published_rule(ts, reading) for reading in READINGS}
+        row["rule"] = {r: {"decision": d.tolist(), "latency": np.where(d, lat, np.nan).tolist()}
+                       for r, (d, lat) in rules.items()}
+    pooled = summarise_ds004080(report["ds004080"])
+    if "sampling" in report:
+        report["sampling"].update(pooled=pooled, verdict=sampling_verdict(pooled))
+    report["rules_rescored"] = {
+        "date": time.strftime("%Y-%m-%d"),
+        "note": "each reading in its own frame: "
+                + "; ".join(f"{r} baseline {list(b)} s, time shift {n} sample(s)"
+                            for r, (b, n) in FRAMES.items())}
+    return report, pooled
+
+
 def _clean_json(obj):
     if isinstance(obj, float):
         return obj if np.isfinite(obj) else None
@@ -768,7 +802,23 @@ def main(argv=None):
     parser.add_argument("--out", default=None)
     parser.add_argument("--layer3", default=str(HERE / "layer3" / "n1_ds004080.json"),
                         help="where to write the native-rate N1 metrics ('' to skip)")
+    parser.add_argument("--rescore-rules", action="store_true",
+                        help="recompute only the published rule's decisions of the report "
+                             "in --out (default: this version's) and what depends on them")
     args = parser.parse_args(argv)
+    if args.rescore_rules:
+        out = pathlib.Path(args.out or HERE / "layer4" / __version__)
+        report = json.loads((out / "report.json").read_text(encoding="utf-8"))
+        report, pooled = rescore_rules(report)
+        report = _clean_json(report)
+        (out / "report.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
+        (out / "report.md").write_text(markdown(report), encoding="utf-8")
+        if args.layer3:
+            pathlib.Path(args.layer3).write_text(
+                json.dumps(_clean_json(layer3_file(pooled, report["ds004080"], __version__)),
+                           indent=1) + "\n", encoding="utf-8")
+        print(f"rule decisions rescored in {out}")
+        return 0
     analyses = [a for a in args.analyses.split(",") if a]
     unknown = set(analyses) - set(ANALYSES)
     if unknown:
