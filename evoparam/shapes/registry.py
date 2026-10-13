@@ -40,6 +40,12 @@ from evoparam.shapes.components import (
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 
+# A column of the Jacobian check is measurable above this scale (times the bound width),
+# and used when its finite differences agree on at least this share of the samples
+_MEASURABLE = 1e-9
+_MIN_SMOOTH_SHARE = 0.5
+
+
 __all__ = [
     "SHAPES",
     "BACKGROUNDS",
@@ -117,6 +123,7 @@ def check_background(background: Any) -> None:
 
 
 def _plugin_background(name: str, obj: Any, origin: str) -> Any:
+    """Return the background of a plugin entry point (SKIP when it is not one)."""
     if getattr(obj, "kind", None) != "background":
         return _plugins.SKIP
     instance = obj() if isinstance(obj, type) else obj
@@ -189,6 +196,7 @@ METHODS = ("evaluate", "jacobian", "default_bounds", "initial_guess", "features"
 
 
 def _instance(entry: Any, settings: dict[str, Any]) -> Any:
+    """Return the shape of a registry entry (a class or an instance) with ``settings``."""
     if isinstance(entry, type):
         return entry(**settings)
     if settings:
@@ -229,6 +237,7 @@ def get_background(name: str, **settings: Any) -> Background:
 
 
 def _fail(name: object, check: str, detail: str) -> NoReturn:
+    """Raise the SettingsError of a failed registration check."""
     raise SettingsError(f"register_shape('{name}'): check '{check}' failed: {detail}")
 
 
@@ -238,6 +247,7 @@ def _finite_difference(
     """Central difference with Richardson extrapolation, and the two raw estimates."""
 
     def central(h: float) -> FloatArray:
+        """Return the central difference with step ``h``."""
         delta = np.zeros(params.shape[-1])
         delta[index] = h
         return (shape.evaluate(times, params + delta) - shape.evaluate(times, params - delta)) / (
@@ -283,10 +293,10 @@ def jacobian_error(
             numeric, coarse, fine = _finite_difference(shape, times, params[row], index, step)
             column = analytic[row, :, index]
             scale = max(np.max(np.abs(numeric)), np.max(np.abs(column)))
-            if not scale * width > 1e-9:
+            if not scale * width > _MEASURABLE:
                 continue
             smooth = np.abs(coarse - fine) <= 1e-3 * scale
-            if np.mean(smooth) < 0.5:
+            if np.mean(smooth) < _MIN_SMOOTH_SHARE:
                 continue
             error[row, index] = np.max(np.abs(column - numeric)[smooth]) / scale
     return error
@@ -315,6 +325,21 @@ def check_shape(
     SettingsError
         Naming the first failing check.
     """
+    name, names = _check_protocol(shape)
+    times = CHECK_TIMES if times is None else np.asarray(times, dtype=np.float64)
+    lower, upper = _check_bounds(shape, name, times, len(names))
+    rng = np.random.default_rng(random_state)
+    params = lower + (upper - lower) * rng.random((n_sets, len(names)))
+    _check_evaluate(shape, name, times, params)
+    _check_unit_amplitude(shape, name, times, params)
+    _check_jacobian(shape, (name, names), times, params, (lower, upper), rtol)
+    middle = 0.5 * (lower + upper)
+    _check_guess(shape, name, times, middle, (lower, upper))
+    _check_features(shape, name, times, middle)
+
+
+def _check_protocol(shape: Any) -> tuple[Any, Any]:
+    """Check the attributes and methods of the shape; return its name and parameter names."""
     name = getattr(shape, "name", None)
     if not isinstance(name, str) or not name:
         _fail(name, "protocol", "'name' must be a non-empty string.")
@@ -333,9 +358,11 @@ def check_shape(
     for method in METHODS:
         if not callable(getattr(shape, method, None)):
             _fail(name, "protocol", f"method '{method}' is missing.")
+    return name, names
 
-    times = CHECK_TIMES if times is None else np.asarray(times, dtype=np.float64)
-    n = len(names)
+
+def _check_bounds(shape: Any, name: Any, times: Any, n: int) -> tuple[Any, Any]:
+    """Check and return the default bounds of the shape on ``times``."""
     try:
         lower, upper = (np.asarray(b, dtype=np.float64) for b in shape.default_bounds(times))
     except Exception as err:  # noqa: BLE001  (report any failure of user code as a failed check)
@@ -353,9 +380,12 @@ def check_shape(
             "default_bounds must return finite (lower, upper) arrays of "
             f"shape ({n},) with lower < upper.",
         )
+    return lower, upper
 
-    rng = np.random.default_rng(random_state)
-    params = lower + (upper - lower) * rng.random((n_sets, n))
+
+def _check_evaluate(shape: Any, name: Any, times: Any, params: Any) -> None:
+    """Check the output shapes and values of ``evaluate`` and ``jacobian``."""
+    n_sets, n = params.shape
     try:
         values = np.asarray(shape.evaluate(times, params))
         single = np.asarray(shape.evaluate(times, params[0]))
@@ -380,6 +410,9 @@ def check_shape(
     if not np.allclose(single, values[0], rtol=1e-12, atol=1e-14):
         _fail(name, "evaluate", "one parameter set and a batch give different values.")
 
+
+def _check_unit_amplitude(shape: Any, name: Any, times: Any, params: Any) -> None:
+    """Check that ``max |s|`` is 1, on a grid finer than ``times`` and three times as long."""
     step = float(np.median(np.diff(times))) / FEATURE_OVERSAMPLING
     span = times[-1] - times[0]
     fine = np.arange(times[0] - span, times[-1] + span, step)
@@ -391,7 +424,13 @@ def check_shape(
             f"max |s| must be 1; found values from {peaks.min():.6g} to {peaks.max():.6g}.",
         )
 
-    error = jacobian_error(shape, times, params, bounds=(lower, upper))
+
+def _check_jacobian(
+    shape: Any, names: tuple[Any, Any], times: Any, params: Any, bounds: Any, rtol: float
+) -> None:
+    """Check the analytic Jacobian against finite differences (``names``: shape, parameters)."""
+    name, param_names = names
+    error = jacobian_error(shape, times, params, bounds=bounds)
     if np.all(np.isnan(error)):
         _fail(name, "jacobian", "no parameter has a measurable effect on the check axis.")
     worst = np.nanmax(error)
@@ -400,12 +439,16 @@ def check_shape(
         _fail(
             name,
             "jacobian",
-            f"analytic derivative of '{names[col]}' differs from finite "
+            f"analytic derivative of '{param_names[col]}' differs from finite "
             f"differences by {worst:.3g} (relative), above {rtol:g}, at "
             f"params {params[row].tolist()}.",
         )
 
-    middle = 0.5 * (lower + upper)
+
+def _check_guess(shape: Any, name: Any, times: Any, middle: Any, bounds: Any) -> None:
+    """Check that the initial guess on the curve of ``middle`` is inside the bounds."""
+    lower, upper = bounds
+    n = len(middle)
     waveform = shape.evaluate(times, middle)
     peak_index = int(np.argmax(np.abs(waveform)))
     try:
@@ -422,6 +465,9 @@ def check_shape(
             name, "initial_guess", "initial_guess must return finite parameters inside the bounds."
         )
 
+
+def _check_features(shape: Any, name: Any, times: Any, middle: Any) -> None:
+    """Check that the features of the curve of ``middle`` have every field."""
     try:
         features = shape.features(times, middle)
     except Exception as err:  # noqa: BLE001  (user code: any failure becomes a failed check (SettingsError))

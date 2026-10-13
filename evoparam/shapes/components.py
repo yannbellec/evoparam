@@ -37,6 +37,13 @@ from evoparam.shapes._base import (
     window_info,
 )
 
+# Fewest samples of a waveform for a periodogram, and of a template
+_MIN_PERIODOGRAM_SAMPLES = 4
+_MIN_TEMPLATE_SAMPLES = 4
+# Largest skewness array whose mode is cached by value
+_MODE_CACHE_MAX_SIZE = 8
+
+
 __all__ = [
     "Gaussian",
     "SkewedGaussian",
@@ -56,6 +63,7 @@ _BISECTIONS = 200
 
 
 def _stack(columns: Sequence[ArrayLike]) -> FloatArray:
+    """Return the broadcast columns stacked along a new last axis."""
     return np.stack(np.broadcast_arrays(*columns), axis=-1)
 
 
@@ -118,6 +126,7 @@ class _WidthShape(ShapeBase):
     max_fwhm: float | None = None
 
     def __post_init__(self) -> None:
+        """Check the width limits."""
         for name in ("min_fwhm", "max_fwhm"):
             value = getattr(self, name)
             if value is not None and not (np.isfinite(value) and value > 0):
@@ -166,6 +175,7 @@ class _OscillationShape(_WidthShape):
     freq_max: float | None = None
 
     def __post_init__(self) -> None:
+        """Check the width and frequency limits."""
         super().__post_init__()
         for name in ("freq_min", "freq_max"):
             value = getattr(self, name)
@@ -187,7 +197,7 @@ class _OscillationShape(_WidthShape):
         Zero-padded, Hann-tapered periodogram; the middle of the range when there is no peak.
         """
         times, waveform = np.asarray(times, float), np.asarray(waveform, float)
-        if len(times) < 4 or not np.all(np.isfinite(waveform)):
+        if len(times) < _MIN_PERIODOGRAM_SAMPLES or not np.all(np.isfinite(waveform)):
             return 0.5 * (low + high)
         dt = float(np.median(np.diff(times)))
         x = (waveform - waveform.mean()) * np.hanning(len(waveform))
@@ -200,6 +210,7 @@ class _OscillationShape(_WidthShape):
         return float(freqs[inside][np.argmax(power[inside])])
 
     def _freqs(self, length: float, sfreq: float) -> tuple[float, float]:
+        """Return the frequency range on a window of ``length`` s sampled at ``sfreq``."""
         low = 2.0 / length if self.freq_min is None else float(self.freq_min)
         high = sfreq / 4.0 if self.freq_max is None else float(self.freq_max)
         if not low < high:
@@ -380,7 +391,7 @@ def skew_mode(alpha: ArrayLike) -> tuple[FloatArray, FloatArray, FloatArray]:
     a = np.abs(alpha)
     # The same alpha is evaluated many times during one optimisation (model, Jacobian,
     # features): small arrays are cached by value
-    key = (a.shape, a.tobytes()) if a.size <= 8 else None
+    key = (a.shape, a.tobytes()) if a.size <= _MODE_CACHE_MAX_SIZE else None
     z = _MODE_CACHE.get(key) if key is not None else None
     if z is None:
         z = _skew_root(a)
@@ -417,6 +428,7 @@ class SkewedGaussian(_WidthShape):
             raise SettingsError(f"{self.name}: alpha_max must be positive, got {self.alpha_max}.")
 
     def _parts(self, times: ArrayLike, params: ArrayLike) -> tuple[Any, ...]:
+        """Return the intermediate terms shared by ``evaluate`` and ``jacobian``."""
         xi, omega, alpha = self._columns(params)
         _, c, dc = skew_mode(alpha)
         z = (as_times(times) - xi) / omega
@@ -532,6 +544,7 @@ class ExGaussian(_WidthShape):
     latency_param: ClassVar[str] = "mu"
 
     def _parts(self, times: ArrayLike, params: ArrayLike) -> tuple[Any, ...]:
+        """Return the intermediate terms shared by ``evaluate`` and ``jacobian``."""
         mu, sigma, tau = self._columns(params)
         lam = sigma / tau
         z = (as_times(times) - mu) / sigma
@@ -629,6 +642,7 @@ class Gamma(_WidthShape):
             )
 
     def _parts(self, times: ArrayLike, params: ArrayLike) -> tuple[Any, ...]:
+        """Return the intermediate terms shared by ``evaluate`` and ``jacobian``."""
         t0, kappa, theta = self._columns(params)
         a = kappa - 1.0
         u = as_times(times) - t0
@@ -714,6 +728,7 @@ class Biexponential(_WidthShape):
     constraints: ClassVar[tuple[str, ...]] = ("tau_decay >= 1.5 * tau_rise",)
 
     def _parts(self, times: ArrayLike, params: ArrayLike) -> tuple[Any, ...]:
+        """Return the intermediate terms shared by ``evaluate`` and ``jacobian``."""
         t0, tau_r, tau_d = self._columns(params)
         u = as_times(times) - t0
         after = u > 0
@@ -814,6 +829,7 @@ class DampedOscillation(_OscillationShape):
     onset_param: ClassVar[str] = "t0"
 
     def _parts(self, times: ArrayLike, params: ArrayLike) -> tuple[Any, ...]:
+        """Return the intermediate terms shared by ``evaluate`` and ``jacobian``."""
         t0, tau, freq, phase = self._columns(params)
         u = as_times(times) - t0
         after = u >= 0
@@ -943,6 +959,7 @@ class Gabor(_OscillationShape):
     latency_param: ClassVar[str] = "t0"
 
     def _parts(self, times: ArrayLike, params: ArrayLike) -> tuple[Any, ...]:
+        """Return the intermediate terms shared by ``evaluate`` and ``jacobian``."""
         t0, sigma, freq, phase = self._columns(params)
         u = as_times(times) - t0
         envelope = np.exp(-0.5 * (u / sigma) ** 2)
@@ -1049,7 +1066,7 @@ class Template(ShapeBase):
         """Check and normalise the fields."""
         times = np.asarray(self.template_times, dtype=np.float64)
         values = np.asarray(self.template_values, dtype=np.float64)
-        if times.ndim != 1 or times.size < 4 or values.shape != times.shape:
+        if times.ndim != 1 or times.size < _MIN_TEMPLATE_SAMPLES or values.shape != times.shape:
             raise DataError(
                 "template: template_times and template_values must be 1-D arrays "
                 "of the same length (at least 4 samples)."
@@ -1094,6 +1111,7 @@ class Template(ShapeBase):
         return self._norm
 
     def _parts(self, times: ArrayLike, params: ArrayLike) -> tuple[Any, ...]:
+        """Return the intermediate terms shared by ``evaluate`` and ``jacobian``."""
         columns = self._columns(params)
         shift = columns[0]
         stretch = columns[1] if self.stretch else 1.0

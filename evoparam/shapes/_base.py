@@ -148,12 +148,16 @@ def as_params(params: ArrayLike | None, n_params: int, name: str) -> FloatArray:
 # (bounds and starting values of every shape), and the median step is most of the cost
 _WINDOW_CACHE: dict[bytes, tuple[float, float, float, float]] = {}
 _WINDOW_CACHE_SIZE = 64
+# Fewest samples of a time axis
+_MIN_SAMPLES = 2
+# Fewest points of the cut feature grid (else the whole grid is used)
+_MIN_GRID_PART = 3
 
 
 def window_info(times: ArrayLike) -> tuple[float, float, float, float]:
     """Window start, end, length and sampling rate of a strictly increasing time axis."""
     times = as_times(times)
-    if times.size < 2:
+    if times.size < _MIN_SAMPLES:
         raise DataError("times: at least 2 samples are needed to define a window.")
     key = times.tobytes()
     known = _WINDOW_CACHE.get(key)
@@ -214,6 +218,7 @@ def peak_fwhm(times: FloatArray, waveform: FloatArray, peak_index: int) -> float
 def clip_to_bounds(
     guess: ArrayLike | Sequence[Any], bounds: tuple[ArrayLike, ArrayLike]
 ) -> FloatArray:
+    """Return ``guess`` clipped into ``bounds`` (lower, upper), as float64."""
     lower, upper = bounds
     return np.clip(np.asarray(guess, dtype=np.float64), lower, upper)
 
@@ -221,6 +226,7 @@ def clip_to_bounds(
 def check_bounds(
     name: str, lower: ArrayLike | Sequence[Any], upper: ArrayLike | Sequence[Any]
 ) -> tuple[FloatArray, FloatArray]:
+    """Return the bounds as float64 arrays; raise SettingsError when one is empty."""
     lower = np.asarray(lower, dtype=np.float64)
     upper = np.asarray(upper, dtype=np.float64)
     if not np.all(lower < upper):
@@ -286,6 +292,7 @@ def _interp_points(t0: float, v0: float, t1: float, v1: float, level: float) -> 
 
 
 def _trapezoid(y: FloatArray, x: FloatArray) -> float:
+    """Return the trapezoidal integral of ``y`` over ``x``."""
     integrate = getattr(np, "trapezoid", None) or np.trapz  # type: ignore[attr-defined, unused-ignore]  # noqa: NPY201  (NumPy < 2.0 has no trapezoid)
     return float(integrate(y, x))
 
@@ -399,6 +406,7 @@ def _grid_search(origin: float, step: float, n_points: int, value: float, right:
     i = min(max(math.ceil((value - origin) / step), 0), n_points)
 
     def before(k: int) -> bool:  # grid[k] lies before the insertion point
+        """Return True when grid point ``k`` lies before the insertion point."""
         point = origin + step * float(k)
         return point <= value if right else point < value
 
@@ -410,6 +418,7 @@ def _grid_search(origin: float, step: float, n_points: int, value: float, right:
 
 
 def _grid_extremum(grid: FloatArray, values: FloatArray) -> float:
+    """Return the time of the largest ``|values|``, refined by a parabola."""
     k = int(np.argmax(np.abs(values)))
     if 0 < k < grid.size - 1:
         num = values[k - 1] - values[k + 1]
@@ -417,6 +426,98 @@ def _grid_extremum(grid: FloatArray, values: FloatArray) -> float:
         if den != 0:
             return float(grid[k] + 0.5 * (grid[1] - grid[0]) * np.clip(num / den, -1, 1))
     return float(grid[k])
+
+
+def _peak_and_latency(
+    shape: Any, params: FloatArray, grid: FloatArray, curve: FloatArray
+) -> tuple[float, float]:
+    """Return the peak time and the latency: the shape's own, else the refined grid extremum."""
+    if hasattr(shape, "extremum"):
+        peak_time = float(shape.extremum(params))
+    else:
+        peak_time = _grid_extremum(grid, curve)
+    latency = float(shape.latency(params)) if hasattr(shape, "latency") else peak_time
+    return peak_time, latency
+
+
+def _peak_points(shape: Any, params: FloatArray, peak_time: float, step: float) -> FloatArray:
+    """Return the three points of the second derivative at the peak.
+
+    Centred on the peak; one-sided after the onset of a causal shape.
+    """
+    onset_param = getattr(shape, "onset_param", None)
+    start_time = params[shape.param_names.index(onset_param)] if onset_param else -np.inf
+    if peak_time - 2 * step < start_time:
+        return peak_time + step * np.arange(3, dtype=np.float64)
+    return peak_time + step * np.arange(-1, 2, dtype=np.float64)
+
+
+def _grid_part(
+    support: Any, params: FloatArray, onset_fraction: float, spec: tuple[float, float, int]
+) -> tuple[int, int]:
+    """Return the first and last (excluded) index of the feature grid ``spec`` to build.
+
+    Every feature reads the curve where it reaches a quarter of the onset level or of half the
+    extremum (the extremum is 1 for the shapes with ``support``) and on the samples next to
+    them: the grid is cut to the interval outside which the curve is below that, two samples
+    of margin on each side (the same numbers as on the whole grid; only that part of the grid
+    is built). Without ``support``, the whole grid.
+    """
+    origin, step, n_points = spec
+    if support is None:
+        return 0, n_points
+    low, high = support(params, 0.25 * min(onset_fraction, 0.5))
+    cut_first = max(_grid_search(origin, step, n_points, float(low), False) - 2, 0)
+    cut_last = min(_grid_search(origin, step, n_points, float(high), True) + 2, n_points)
+    if cut_last - cut_first >= _MIN_GRID_PART:
+        return cut_first, cut_last
+    return 0, n_points
+
+
+def _onset_offset(grid: FloatArray, magnitude: FloatArray, level: float) -> tuple[Any, Any]:
+    """Return the first and last time at which ``magnitude`` reaches ``level`` (NaN: none)."""
+    above = np.nonzero(magnitude >= level)[0]
+    onset = offset = np.nan
+    if above.size:
+        first, last = above[0], above[-1]
+        if first > 0:
+            onset = _interp_cross(grid, magnitude, first - 1, first, level)
+        if last < grid.size - 1:
+            offset = _interp_cross(grid, magnitude, last, last + 1, level)
+    return onset, offset
+
+
+def _lobe(
+    shape: Any,
+    params: FloatArray,
+    grid: FloatArray,
+    curve: FloatArray,
+    ends: tuple[float, float],
+    pointwise: bool,
+) -> tuple[FloatArray, FloatArray]:
+    """Return the curve and the times from onset to offset (``ends``), the grid inside."""
+    onset, offset = ends
+    within = (grid > onset) & (grid < offset)
+    x = np.concatenate([[onset], grid[within], [offset]])
+    if pointwise:
+        end_values = shape.evaluate(np.array([onset, offset]), params)
+        values = np.concatenate([end_values[:1], curve[within], end_values[1:]])
+    else:
+        values = shape.evaluate(x, params)
+    return values, x
+
+
+def _local_extrema(grid: FloatArray, curve: FloatArray, large: Any, step: float) -> list[float]:
+    """Return the refined times of the local extrema of ``curve`` where ``large`` is True."""
+    diff = np.diff(curve)
+    turning = np.nonzero(diff[:-1] * diff[1:] < 0)[0] + 1
+    turning = turning[large[turning]]
+    peak_times = []
+    for i in turning:
+        den = curve[i - 1] - 2.0 * curve[i] + curve[i + 1]
+        shift = 0.5 * (curve[i - 1] - curve[i + 1]) / den if den != 0 else 0.0
+        peak_times.append(float(grid[i] + step * np.clip(shift, -0.5, 0.5)))
+    return peak_times
 
 
 def compute_features(
@@ -466,36 +567,14 @@ def compute_features(
         raise SettingsError(f"onset_fraction: must be in (0, 1), got {onset_fraction}.")
     amplitude = float(amplitude)
     origin, step, n_points, (start, end) = _grid_spec(times, sfreq, window)
-    first, last = 0, n_points
     support = getattr(shape, "support", None)
-    if support is not None:
-        # Every feature reads the curve where it reaches a quarter of the onset level or of
-        # half the extremum (the extremum is 1 for these shapes) and on the samples next to
-        # them: the grid is cut to the interval outside which the curve is below that, two
-        # samples of margin on each side (the same numbers as on the whole grid; only that
-        # part of the grid is built)
-        low, high = support(params, 0.25 * min(onset_fraction, 0.5))
-        cut_first = max(_grid_search(origin, step, n_points, float(low), False) - 2, 0)
-        cut_last = min(_grid_search(origin, step, n_points, float(high), True) + 2, n_points)
-        if cut_last - cut_first >= 3:
-            first, last = cut_first, cut_last
+    first, last = _grid_part(support, params, onset_fraction, (origin, step, n_points))
     grid = origin + step * np.arange(first, last, dtype=np.float64)
     curve = shape.evaluate(grid, params)
     warnings = []
 
-    if hasattr(shape, "extremum"):
-        peak_time = float(shape.extremum(params))
-    else:
-        peak_time = _grid_extremum(grid, curve)
-    latency = float(shape.latency(params)) if hasattr(shape, "latency") else peak_time
-    # Points of the second derivative at the peak; one-sided after the onset of a causal
-    # shape.
-    onset_param = getattr(shape, "onset_param", None)
-    start_time = params[shape.param_names.index(onset_param)] if onset_param else -np.inf
-    if peak_time - 2 * step < start_time:
-        x_peak = peak_time + step * np.arange(3, dtype=np.float64)
-    else:
-        x_peak = peak_time + step * np.arange(-1, 2, dtype=np.float64)
+    peak_time, latency = _peak_and_latency(shape, params, grid, curve)
+    x_peak = _peak_points(shape, params, peak_time, step)
     # A shape with ``support`` is evaluated point by point (the value at a time does not
     # depend on the other times asked for): the peak and the points next to it in one call,
     # and the area below reuses the values on the grid
@@ -517,14 +596,7 @@ def compute_features(
     # Onset and offset: first and last time above the fraction of the peak.
     magnitude = np.abs(curve)
     level = onset_fraction * height
-    above = np.nonzero(magnitude >= level)[0]
-    onset = offset = np.nan
-    if above.size:
-        first, last = above[0], above[-1]
-        if first > 0:
-            onset = _interp_cross(grid, magnitude, first - 1, first, level)
-        if last < grid.size - 1:
-            offset = _interp_cross(grid, magnitude, last, last + 1, level)
+    onset, offset = _onset_offset(grid, magnitude, level)
     if not np.isfinite(onset):
         warnings.append("onset_outside_grid")
     if not np.isfinite(offset):
@@ -532,13 +604,7 @@ def compute_features(
 
     area = np.nan
     if np.isfinite(onset) and np.isfinite(offset):
-        within = (grid > onset) & (grid < offset)
-        x = np.concatenate([[onset], grid[within], [offset]])
-        if pointwise:
-            ends = shape.evaluate(np.array([onset, offset]), params)
-            values = np.concatenate([ends[:1], curve[within], ends[1:]])
-        else:
-            values = shape.evaluate(x, params)
+        values, x = _lobe(shape, params, grid, curve, (onset, offset), pointwise)
         area = amplitude * _trapezoid(values, x)
 
     rise_time = peak_time - onset
@@ -553,16 +619,7 @@ def compute_features(
     sharpness = abs(curvature) / height * fwhm**2 if height > 0 else np.nan
 
     # Local extrema of the curve above the onset fraction (oscillatory shapes have several).
-    diff = np.diff(curve)
-    turning = np.nonzero(diff[:-1] * diff[1:] < 0)[0] + 1
-    turning = turning[magnitude[turning] >= level]
-    peak_times = []
-    for i in turning:
-        den = curve[i - 1] - 2.0 * curve[i] + curve[i + 1]
-        shift = 0.5 * (curve[i - 1] - curve[i + 1]) / den if den != 0 else 0.0
-        peak_times.append(float(grid[i] + step * np.clip(shift, -0.5, 0.5)))
-    if not peak_times:
-        peak_times = [peak_time]
+    peak_times = _local_extrema(grid, curve, magnitude >= level, step) or [peak_time]
 
     if latency < start or latency > end:
         warnings.append("latency_outside_window")
@@ -630,13 +687,16 @@ class ShapeBase:
 
     @property
     def n_params(self) -> int:
+        """Return the number of parameters."""
         return len(self.param_names)
 
     @property
     def causal(self) -> bool:
+        """Return True for a shape that starts at an onset parameter."""
         return self.onset_param is not None
 
     def _params(self, params: ArrayLike) -> FloatArray:
+        """Return ``params`` checked against the number of parameters."""
         return as_params(params, self.n_params, self.name)
 
     def _columns(self, params: ArrayLike) -> list[FloatArray]:
