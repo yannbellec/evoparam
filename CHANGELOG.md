@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### §7.4 (5): Linux, macOS and Windows measured
+
+- Windows 11 (AMD64, Python 3.12.2, NumPy 2.5.4), measured on a Windows PC: the 98 values
+  of the fixture fit within 3.1e-12 of the reference (rtol 1e-9). With Linux x86-64 (0) and
+  macOS arm64 (1.3e-12), `test_req375_platform_macos_and_windows` passes; the report lists
+  the three records.
+
 ### REQ-290 P6: `import evoparam` in 0.13 s
 
 - The package root imported every subpackage, and with them scipy.stats (0.53 s): 0.96 s
