@@ -20,6 +20,7 @@ from ._score import (
     difference_score,
     far_from,
     pick_index,
+    quantile_score,
     robust_z,
     score_index,
     shifted_snippets,
@@ -189,6 +190,28 @@ def _match(stacks: Any, templates: Any) -> Any:
     return rho.max(axis=1), rho.argmax(axis=1)
 
 
+def artifact_size(
+    data: Any, index: Any, onsets: Any, sfreq: float, *, argmax: bool = False
+) -> Any:
+    """Return the largest deflection after each onset, in data units.
+
+    The deflection is taken on the picked channels within ``PEAK_WINDOW`` after each onset,
+    from the sample before it. With ``argmax``, also returns the position (in ``index``) of
+    the channel that carries it.
+    """
+    n_times = data.shape[-1]
+    width = max(1, int(round(PEAK_WINDOW * sfreq)))
+    size = np.zeros(len(onsets))
+    best = np.zeros(len(onsets), dtype=int)
+    for row, onset in enumerate(np.asarray(onsets, dtype=int)):
+        lo, hi = max(0, onset - 1), min(n_times, onset + width + 1)
+        dev = np.abs(data[index, lo:hi] - data[index, lo : lo + 1])
+        per_channel = np.nanmax(dev, axis=1)
+        best[row] = int(np.argmax(per_channel))
+        size[row] = per_channel[best[row]]
+    return (size, best) if argmax else size
+
+
 @verbose
 def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 keywords; DECISIONS.md §7.2)
     data: FloatArray,
@@ -351,12 +374,13 @@ def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 key
         (rho_min, n_template, min_relative, recovery_sd),
         refine,
     )
+    score_used = "median"
     if procedure == "spec":
         score, z, cands = _spec_candidates(rec, opts, template)
     else:
         score = difference_score(data, score_index(index, score_channels))
         z = robust_z(score)
-        cands = _evoparam_candidates(rec, (score, z), opts, template)
+        cands, (score, z), score_used = _evoparam_candidates(rec, (score, z), opts, template)
 
     # Refractory period: the strongest pulse wins
     keep = _suppress(cands.onsets, cands.strength, opts.min_samples)
@@ -401,6 +425,7 @@ def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 key
         "site_method": site_method,
         "user_template": template is not None,
         "score_channels": score_channels,
+        "score": score_used,
     }
     events.attrs["provenance"] = (
         Provenance(source={"reader": "evoparam.events.detect_pulses"})
@@ -424,6 +449,10 @@ def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 key
 _MIN_REPEATS = 2
 # The strength gate is relative to this percentile of the candidates' peaks.
 _REFERENCE_PERCENTILE = 90
+# Fallback to the 90th percentile score: only with more than this many picked channels, and
+# at this quantile of the non-flat channels.
+_MIN_FALLBACK_CHANNELS = 2
+_FALLBACK_QUANTILE = 0.9
 # Interval flags: shorter than this fraction of the expected period, or longer than this
 # multiple of it.
 _SHORT_INTERVAL = 0.5
@@ -571,9 +600,22 @@ def _user_template(template: Any, n_channels: int, snip: Any) -> Any:
 
 def _evoparam_candidates(
     rec: _Recording, scores: Any, opts: _Detection, template: Any
-) -> _Candidates:
-    """Run steps 2 to 4 of :func:`detect_pulses`: candidates, strength gate, recovery."""
+) -> tuple[_Candidates, Any, str]:
+    """Run steps 2 to 4 of :func:`detect_pulses`: candidates, strength gate, recovery.
+
+    Returns the candidates, the ``(score, z)`` used and the name of that score.
+    """
     strength, onsets = _threshold_candidates(rec, scores, opts.threshold_sd, opts)
+    score_used = "median"
+    if not len(strength) and len(rec.index) > _MIN_FALLBACK_CHANNELS:
+        # No pulse on the median score: the artifact may reach only a minority of the
+        # channels (ds004977, stimulating contacts switched to the stimulator: z 9 to 15
+        # on the median, 47 to 322 on the 90th percentile of the non-flat channels, 10 at
+        # most between pulses). The 90th percentile is then tried before giving up.
+        score_used = "p90"
+        score = quantile_score(rec.data, rec.index, _FALLBACK_QUANTILE)
+        scores = (score, robust_z(score))
+        strength, onsets = _threshold_candidates(rec, scores, opts.threshold_sd, opts)
     snip = snippet_lengths(rec.sfreq)
     cands = _Candidates(
         onsets,
@@ -584,12 +626,12 @@ def _evoparam_candidates(
     )
     user = _user_template(template, len(rec.index), snip)
     if opts.method == "threshold" or not len(onsets):
-        return cands
+        return cands, scores, score_used
     cands, templates, reference = _strength_gate(rec, cands, opts, user, snip)
     if len(templates):
         # Recovery: weaker artifacts that match a template of the confirmed pulses
         cands = _recover(rec, scores, cands, (templates, reference), opts, snip)
-    return cands
+    return cands, scores, score_used
 
 
 def _strength_gate(
@@ -605,7 +647,18 @@ def _strength_gate(
     n_pre, n_post, max_shift = snip
     onsets, strength = cands.onsets, cands.strength
     reference = np.percentile(strength, _REFERENCE_PERCENTILE)
+    # the gate holds on both scales: the robust z of the first difference and the
+    # size of the deflection (µV). A channel that saturates for an instant (an
+    # electrode pop) has a steep edge, so a z near the pulses', but a deflection tens
+    # of times smaller than the stimulation artifact (ds004696 sub-07: 0.1 to 2 mV
+    # against 35 mV). The size of reference is taken among the candidates that pass on
+    # z, since pops can outnumber the pulses (47 candidates for 5 pulses there).
     relative = strength / reference
+    size = artifact_size(rec.data, rec.index, onsets, rec.sfreq)
+    by_z = relative >= opts.min_relative
+    size_reference = np.percentile(size[by_z] if by_z.any() else size, _REFERENCE_PERCENTILE)
+    if size_reference > 0:
+        relative = np.minimum(relative, size / size_reference)
     strong = relative >= opts.min_relative
     eligible = relative >= GREY_FRACTION * opts.min_relative
     stacks = shifted_snippets(rec.data, rec.index, onsets, n_pre, n_post, max_shift)
@@ -673,20 +726,11 @@ def _recover(
 
 def _event_table(rec: _Recording, cands: _Candidates, threshold_sd: float) -> Any:
     """Return the event table of the pulses, before saturation, sites and trains."""
-    data, index, sfreq = rec.data, rec.index, rec.sfreq
+    index, sfreq = rec.index, rec.sfreq
     onsets, labels = cands.onsets, cands.labels
-    n_times = data.shape[1]
     # Artifact size and the channel that carries it
-    width = max(1, int(round(PEAK_WINDOW * sfreq)))
-    peak_abs = np.zeros(len(onsets))
-    argmax = []
-    for row, onset in enumerate(onsets):
-        lo, hi = max(0, onset - 1), min(n_times, onset + width + 1)
-        dev = np.abs(data[index, lo:hi] - data[index, lo : lo + 1])
-        per_channel = np.nanmax(dev, axis=1)
-        best = int(np.argmax(per_channel))
-        peak_abs[row] = per_channel[best]
-        argmax.append(rec.names[index[best]])
+    peak_abs, best = artifact_size(rec.data, index, onsets, sfreq, argmax=True)
+    argmax = [rec.names[index[b]] for b in best]
 
     # Template classes renumbered from 0 in order of first appearance (-1: no template)
     classes = np.full(len(labels), -1)

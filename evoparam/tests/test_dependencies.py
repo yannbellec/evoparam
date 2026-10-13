@@ -31,6 +31,7 @@ NOT_IN_ALL = {"gpu", "bayes", "docs", "all"}
 # import name -> distribution, for the packages the tests skip without
 DISTRIBUTIONS = {
     "mypy": "mypy",
+    "sphinx": "sphinx",  # the documentation build (REQ-302), extra `docs`
     "coverage": "pytest-cov",  # pytest-cov installs coverage
     "sklearn": "scikit-learn",
     "mpmath": "mpmath",
@@ -224,11 +225,13 @@ def test_f4_nothing_skips_for_a_package_outside_the_extras() -> None:
     extras = _extras()
     in_all = {_name(r) for r in extras["all"]}
     in_bayes = {_name(r) for r in extras["bayes"]}
+    # the documentation build (REQ-302) needs the `docs` extra, as the docs job of REQ-297
+    in_docs = {_name(r) for r in extras["docs"]}
     names = _skipped_imports()
     assert {"pandas", "mne", "matplotlib"} <= names
     unknown = sorted(n for n in names if n not in DISTRIBUTIONS)
     assert not unknown, f"add these import names to DISTRIBUTIONS: {unknown}"
-    missing = sorted(n for n in names if DISTRIBUTIONS[n] not in in_all | in_bayes)
+    missing = sorted(n for n in names if DISTRIBUTIONS[n] not in in_all | in_bayes | in_docs)
     assert not missing, missing
 
 

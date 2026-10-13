@@ -82,6 +82,13 @@ DS004977 = [
     ("4", "02", "RO3-RO4"),
 ]
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
+# each reading's SD baseline, time shift in samples and peak operator (as the layer-3 tests
+# read them, ``FRAMES`` of evoparam/tests/models/test_engine_ccep.py): the registry row on
+# the data's axis with the baseline the registry names (-1 to -0.1 s) and its "negative
+# peak" read as a peak (the deepest strict local minimum of the window); the published
+# code with its own baseline and its time axis, one sample later (the stimulation sample
+# is t = 1/sfreq)
+FRAMES = {"paper": ((-1.0, -0.1), 0, {"peak": "strict"}), "code": ((-2.0, -0.1), 1, {})}
 
 
 def data_folder():
@@ -210,9 +217,11 @@ def published_rule(ts, reading):
     avg = x.mean(axis=0)
     base = (t > AVERAGE_BASELINE_START) & (t < BASELINE_END)
     avg = avg - np.median(avg[:, base], axis=1, keepdims=True)
-    spec = resolve_rule(READINGS[reading], baseline=(-2.0, -0.1))
-    out = apply_rule(avg, t + 1.0 / ts.sfreq, ts.sfreq, spec, "uV")
-    return np.asarray(out["significant"], bool), np.asarray(out["onset"], float) - 1 / ts.sfreq
+    baseline, samples, overrides = FRAMES[reading]
+    shift = samples / ts.sfreq
+    spec = resolve_rule(READINGS[reading], baseline=baseline, **overrides)
+    out = apply_rule(avg, t + shift, ts.sfreq, spec, "uV")
+    return np.asarray(out["significant"], bool), np.asarray(out["onset"], float) - shift
 
 
 def clean(ts, tmin=-1.0, tmax=2.0):
@@ -675,6 +684,8 @@ def preset_sensitivity(jobs=1, presets_=None, seeds=PRESET_SEEDS):
 def platform_check():
     """Return the comparison with the reference fixture on this platform."""
     sys.path.insert(0, str(ROOT))
+    import numpy
+
     from evoparam.tests.reference import compare_fixture
 
     out = compare_fixture()
@@ -683,13 +694,34 @@ def platform_check():
             "platform": platform.platform(),
             "machine": platform.machine(),
             "python": platform.python_version(),
-            "other_platforms": "macOS and Windows (x86-64, arm64) are the cells of the "
-            "tests matrix of .github/workflows/ci.yml "
-            "(tests/test_determinism.py); not run on this machine",
+            "numpy": numpy.__version__,
+            "date": time.strftime("%Y-%m-%d"),
+            "other_platforms": "every operating system and processor measured is a "
+            "record of platforms/ (one file each)",
             "bayesian_paths": "within Monte Carlo error: compared by the same CI cells",
         }
     )
     return out
+
+
+def platform_label(record):
+    """``<operating system>-<processor>`` of a platform record (``macOS-arm64``)."""
+    return f"{record['platform'].split('-')[0]}-{record['machine']}"
+
+
+def save_platform(record, folder):
+    """Write ``record`` to ``folder/platforms/<label>.json``; return every record there.
+
+    The records are sorted by label: the platforms measured so far, each on its own machine
+    (§7.4 (5)).
+    """
+    where = pathlib.Path(folder) / "platforms"
+    where.mkdir(parents=True, exist_ok=True)
+    (where / f"{platform_label(record)}.json").write_text(
+        json.dumps(_clean_json(record), indent=1) + "\n", encoding="utf-8"
+    )
+    records = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(where.glob("*.json"))]
+    return sorted(records, key=platform_label)
 
 
 ###################################################################################################
@@ -804,7 +836,11 @@ def layer3_file(pooled, runs, version):
         "version": version,
         "data": {"dataset": "ds004080", "version": "1.2.4"},
         "comparators": {
-            reading: {"registry_rule": rule, "overrides": {"baseline": [-2.0, -0.1]}}
+            reading: {
+                "registry_rule": rule,
+                "overrides": {"baseline": list(FRAMES[reading][0]), **FRAMES[reading][2]},
+                "time_shift_samples": FRAMES[reading][1],
+            }
             for reading, rule in READINGS.items()
         },
         "runs": [f"sub-{r['subject']} run-{r['run']} {r['pair']}" for r in runs],
@@ -843,6 +879,13 @@ def _sampling_notes(report):
         lines.append(
             f"\nThis section was recomputed alone on {again['date']} "
             f"({again['duration_min']} min; {again['machine']})."
+        )
+    rescored = report.get("rules_rescored")
+    if rescored:
+        lines.append(
+            f"\nThe published rule's decisions were recomputed on {rescored['date']} "
+            f"({rescored['note']}); the model's decisions are those of the run "
+            "above."
         )
     for rate in (str(int(x)) for x in RATES):
         names = [
@@ -933,16 +976,27 @@ def markdown(report):
             )
         lines.append("")
     if "platform" in report:
-        p = report["platform"]
-        lines += [
-            "## 5. Platform",
-            "",
-            f"{p['platform']}: fixture fit within rtol {p['rtol']:g} of the reference: "
-            f"{'yes' if p['match'] else 'no'} (largest relative difference "
-            f"{_f(p['max_rel_diff'], '.3g')}). {p['other_platforms']}.",
-            "",
-        ]
+        lines += _platform_lines(report)
     return "\n".join(lines) + "\n"
+
+
+def _platform_lines(report):
+    """Return the lines of the platform section: one table row per platform record."""
+    lines = [
+        "## 5. Platform",
+        "",
+        "| platform | Python | NumPy | within rtol of the reference | largest "
+        "relative difference |",
+        "|---|---|---|---|---|",
+    ]
+    for p in report.get("platforms", [report["platform"]]):
+        lines.append(
+            f"| {p['platform']} | {p['python']} | {p.get('numpy', '')} | "
+            f"{'yes' if p['match'] else 'no'} ({p['rtol']:g}) | "
+            f"{_f(p['max_rel_diff'], '.3g')} |"
+        )
+    lines.append("")
+    return lines
 
 
 def preset_doc(rows, version):
@@ -974,6 +1028,34 @@ def preset_doc(rows, version):
     return "\n".join(lines) + "\n"
 
 
+def rescore_rules(report):
+    """Recompute the published rule's decisions of every ds004080 run of a layer-4 report.
+
+    This follows a change of the comparator (:data:`FRAMES`), and also recomputes the sampling
+    summary that compares the stored model decisions with them. Nothing is fitted again.
+    """
+    for row in report["ds004080"]:
+        ts = load_ds004080(row["subject"], row["run"], row["pair"])
+        rules = {reading: published_rule(ts, reading) for reading in READINGS}
+        row["rule"] = {
+            r: {"decision": d.tolist(), "latency": np.where(d, lat, np.nan).tolist()}
+            for r, (d, lat) in rules.items()
+        }
+    pooled = summarise_ds004080(report["ds004080"])
+    if "sampling" in report:
+        report["sampling"].update(pooled=pooled, verdict=sampling_verdict(pooled))
+    report["rules_rescored"] = {
+        "date": time.strftime("%Y-%m-%d"),
+        "note": "each reading in its own frame: "
+        + "; ".join(
+            f"{r} baseline {list(b)} s, time shift {n} sample(s)"
+            + (f", peak {o['peak']}" if o.get("peak") else "")
+            for r, (b, n, o) in FRAMES.items()
+        ),
+    }
+    return report, pooled
+
+
 def _clean_json(obj):
     if isinstance(obj, float):
         return obj if np.isfinite(obj) else None
@@ -986,10 +1068,8 @@ def _clean_json(obj):
     return obj
 
 
-def main(argv=None):
-    """Run the requested layer-4 analyses and write the reports."""
-    from evoparam.version import __version__
-
+def _parser():
+    """Return the command-line parser of :func:`main`."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(
         "--analyses",
@@ -1008,7 +1088,83 @@ def main(argv=None):
         default=str(HERE / "layer3" / "n1_ds004080.json"),
         help="where to write the native-rate N1 metrics ('' to skip)",
     )
+    parser.add_argument(
+        "--rescore-rules",
+        action="store_true",
+        help="recompute only the published rule's decisions of the report "
+        "in --out (default: this version's) and what depends on them",
+    )
+    return parser
+
+
+def _write_layer3(path, pooled, runs, version):
+    """Write the native-rate N1 metrics of layer 3 (:func:`layer3_file`) to ``path``."""
+    pathlib.Path(path).write_text(
+        json.dumps(_clean_json(layer3_file(pooled, runs, version)), indent=1) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _rescore_main(args, version):
+    """Recompute the published rule's decisions of the report in ``--out`` and write it."""
+    out = pathlib.Path(args.out or HERE / "layer4" / version)
+    report = json.loads((out / "report.json").read_text(encoding="utf-8"))
+    report, pooled = rescore_rules(report)
+    report = _clean_json(report)
+    (out / "report.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
+    (out / "report.md").write_text(markdown(report), encoding="utf-8")
+    if args.layer3:
+        _write_layer3(args.layer3, pooled, report["ds004080"], version)
+    print(f"rule decisions rescored in {out}")
+    return 0
+
+
+def _ds004080_analyses(report, analyses, args, version):
+    """Run the montage, sampling and trial-count analyses into ``report``."""
+    runs = available("ds004080")[: args.runs]
+    report["data"] = {"ds004080": [list(r) for r in runs]}
+    results = _map(run_ds004080, runs, args.jobs, extra=(tuple(analyses) + ("layer3",),))
+    report["ds004080"] = results
+    pooled = summarise_ds004080(results)
+    if "sampling" in analyses:
+        report["sampling"] = {"pooled": pooled, "verdict": sampling_verdict(pooled)}
+    if "trials" in analyses:
+        report["trials"] = {"summary": trials_summary(results)}
+    montage = list(results)
+    if "montage" in analyses:
+        sites = available("ds004977")
+        report["data"]["ds004977"] = [list(s) for s in sites]
+        report["ds004977"] = _map(run_ds004977, sites, args.jobs)
+        montage += report["ds004977"]
+        report["montage"] = {"summary": montage_summary(montage)}
+    if args.layer3 and all("native" in r for r in results) and results:
+        _write_layer3(args.layer3, pooled, results, version)
+
+
+def _platform_analysis(report, analyses, out):
+    """Add the platform record to ``report``; return the report to write.
+
+    A platform alone (one cell of the CI matrix, or another machine) adds its record to
+    the committed report, whose other analyses are kept.
+    """
+    report["platform"] = platform_check()
+    report["platforms"] = save_platform(report["platform"], out)
+    if analyses == ["platform"] and (out / "report.json").exists():
+        kept = json.loads((out / "report.json").read_text(encoding="utf-8"))
+        kept["platform"], kept["platforms"] = report["platform"], report["platforms"]
+        report = kept
+        report.setdefault("duration_s", 0.0)
+    return report
+
+
+def main(argv=None):
+    """Run the requested layer-4 analyses and write the reports."""
+    from evoparam.version import __version__
+
+    parser = _parser()
     args = parser.parse_args(argv)
+    if args.rescore_rules:
+        return _rescore_main(args, __version__)
     analyses = [a for a in args.analyses.split(",") if a]
     unknown = set(analyses) - set(ANALYSES)
     if unknown:
@@ -1021,31 +1177,8 @@ def main(argv=None):
         "date": time.strftime("%Y-%m-%d"),
         "machine": f"{platform.platform()}, {os.cpu_count()} CPUs",
     }
-    need = {"montage", "sampling", "trials"} & set(analyses)
-    if need:
-        runs = available("ds004080")[: args.runs]
-        report["data"] = {"ds004080": [list(r) for r in runs]}
-        results = _map(run_ds004080, runs, args.jobs, extra=(tuple(analyses) + ("layer3",),))
-        report["ds004080"] = results
-        pooled = summarise_ds004080(results)
-        if "sampling" in analyses:
-            report["sampling"] = {"pooled": pooled, "verdict": sampling_verdict(pooled)}
-        if "trials" in analyses:
-            report["trials"] = {"summary": trials_summary(results)}
-        montage = list(results)
-        if "montage" in analyses:
-            sites = available("ds004977")
-            report["data"]["ds004977"] = [list(s) for s in sites]
-            report["ds004977"] = _map(run_ds004977, sites, args.jobs)
-            montage += report["ds004977"]
-            report["montage"] = {"summary": montage_summary(montage)}
-        if args.layer3 and all("native" in r for r in results) and results:
-            path = pathlib.Path(args.layer3)
-            path.write_text(
-                json.dumps(_clean_json(layer3_file(pooled, results, __version__)), indent=1)
-                + "\n",
-                encoding="utf-8",
-            )
+    if {"montage", "sampling", "trials"} & set(analyses):
+        _ds004080_analyses(report, analyses, args, __version__)
     if "preset" in analyses:
         chosen = [n for n in args.presets.split(",") if n] or None
         report["preset"] = preset_sensitivity(args.jobs, presets_=chosen, seeds=args.seeds)
@@ -1053,11 +1186,11 @@ def main(argv=None):
             (ROOT / "docs" / "preset_sensitivity.md").write_text(
                 preset_doc(report["preset"], __version__), encoding="utf-8"
             )
-    if "platform" in analyses:
-        report["platform"] = platform_check()
-    report["duration_s"] = time.perf_counter() - start
     out = pathlib.Path(args.out or HERE / "layer4" / __version__)
     out.mkdir(parents=True, exist_ok=True)
+    if "platform" in analyses:
+        report = _platform_analysis(report, analyses, out)
+    report["duration_s"] = report.get("duration_s") or time.perf_counter() - start
     report = _clean_json(report)
     (out / "report.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
     (out / "report.md").write_text(markdown(report), encoding="utf-8")

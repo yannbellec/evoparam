@@ -25,7 +25,7 @@ Measured values come from `CHANGELOG.md`, which holds the full record.
 | D5 | Other rows of §4.2 against features required elsewhere | The features win. The edges are `models → presets` (§6.3), `stats → existence` (§5.11), `sim → io` (REQ-256), `shapes`/`presets`/`io`/`data` → `_plugins` (REQ-328), and `hierarchical`/`sim` → `utils.require` only (§9.2, REQ-292). The table is in section 2. |
 | D6 | REQ-274 names MMN, N2pc, LRP and ERN, but the `erp` preset has no windows for them | Add MMN, N2pc, LRP and ERN windows to the `erp` preset, using published windows with citations. |
 | D7 | Merge-and-compare (§5.5.3 step 5) against `selection="fixed"` returning exactly K components (REQ-122) | Merges are not tried in `fixed` and `cv` mode. |
-| D8 | "The published rule" for N1: the paper's text (extremum) or the published code (local minimum)? | The N1 REQs must pass under both readings, and both results are reported. |
+| D8 | "The published rule" for N1: the paper's text (extremum) or the published code (local minimum)? | The N1 REQs must pass under both readings, and both results are reported. Revised on 2026-10-13 after the exact joint bound (§5.8): the requirements are judged on the spec's registry row; the published code's reading stays measured and reported but does not gate. |
 | D9 | REQ-040 onset error against `events.tsv`, whose triggers precede the artifact by a constant 0.97 ms | Onsets are physical onsets (the start of the artifact). The constant trigger delay is estimated on held-out runs, and this is documented. |
 | D10 | REQ-372: the responsive channels of the published analysis exist only as figures | The authors' code, run on the data, is the comparator. |
 | D11 | REQ-213: "20 % power increase" is ambiguous | The strict reading is tested too. If it cannot be reached, it is an xfail with the measured value. |
@@ -176,6 +176,19 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
 - **`candidate_search` (step 4).** `"beam"` stays the default (more robust on CCEP-like
   simulations, better N1 kappa, about 9 times faster; CHANGELOG "Fitting engine as written");
   the reviewed search is `candidate_search="spec"`.
+- **Extrema tried before the search stops (step 4, REQ-290 P1; 2026-10-13).** The beam
+  search tried up to 2 × `max_components` residual extrema at every step, so the last step
+  of every fit, which adds nothing, cost up to 24 quick fits (a third of P1's evaluations).
+  It now stops after the six strongest extrema when none of them improves the criterion by
+  `delta` (`engine.CANDIDATE_SCAN`; a step with a qualifying extremum still scans until its
+  beam is full). Six because the first qualifying extremum of a step was at most the sixth
+  on the layer-2 development cells (the first in 546 of the 559 steps that added one). Measured on both seed
+  sets of the layer-2 grid, the REQ-104–112 engine waveforms and the seven ds004080 runs
+  of layer 3: recall, F1 on the engine waveforms and the N1 kappa unchanged, precision equal
+  or higher, 3 of 936 simulated fits and 32 of 615 channels differ (CHANGELOG "Engine
+  speed, part 4"). Three extrema were measured too and rejected: recall drops on `ecap`,
+  `animal` and `erna` cells. So was polishing the background once at the end instead of
+  after each accepted component (N1 kappa 0.386 → 0.347).
 - **`latency_order` (step 5).** The reviewed ordered parameterisation
   (`"parameterised"`) stays the default; `"sorted"` is an option. On the ECAP simulations
   neither is better on both kinds and both seed sets.
@@ -520,6 +533,36 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   and `amplitude_prior` 1 (development 0.40 to 0.42 and 0.39 to 0.40; REQ runs 0.46 to 0.44
   and 0.40 to 0.32, code recall 0.88 to 0.76). Neither is used.
 
+- A third reading (2026-10-13): the rule's own peak operator applied to the fitted curve
+  (components and background) instead of the noisy average, so that both sides measure
+  the same quantity. On the REQ runs: 84 % (62 of 74, registry row) and 90.0 % (27 of 30,
+  code). On the development runs: 66 % and 86 %. Every miss is either a peak the
+  preset's own input does not have (the reference: 10 and 3) or a tie within noise
+  (2 and 0). None is a misfit of the model. Fitting the recording reference (as the
+  published pipeline reads it) removes the reference misses. It gives 91 % / 95 % on the
+  development runs but 88 % / 88 % on the REQ runs, and lowers REQ-113 under the registry
+  row, so it is not adopted (CHANGELOG, "N1 case: the two readings"). The test is
+  `test_req114_rule_peak_on_the_fitted_curve` (xfail).
+- A fourth reading does the comparison in one reference, without changing the preset. The
+  adjusted common average subtracts one curve from every channel. Adding that curve back to
+  each fitted curve gives the fit in the reference the rule reads, and the rule's operator
+  then reads it. With this reading REQ-114 is met under both readings: 91 % (67 of 74) and
+  90.0 % (27 of 30) on the REQ runs, 91 % and 95 % on the development runs, and the same on
+  the NumPy path (91 % and 90.0 %). The margin is zero channels on the REQ runs. Test:
+  `test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference`. The component
+  reading (the test as written) stays an expected failure. REQ-273 is still not met,
+  because it also needs REQ-113 (§5.8). The criterion is unchanged.
+- The numbers above read the registry row in the code's frame. In the row's own frame
+  (§5.8, 2026-10-13) the third reading gives 86 % (59 of 69) on the REQ runs and 69 % on
+  the development runs. The fourth gives 93 % (64 of 69) on the REQ runs and 89 % (32 of
+  36) on the development runs, so it is still met on the REQ runs, with a margin of one
+  channel. The code's numbers are unchanged. The NumPy path was not re-measured in the
+  new frame. With the row read as a negative peak (§5.8), the fourth reading gives 82 %
+  (47 of 57) on the REQ runs and 84 % on the development runs, so it is no longer met
+  with the registry row. 7 of the 10 misses are the rule's peaks at 87-100 ms: small
+  local minima of the noisy average on a slope, where the fitted curve has no local
+  minimum. The third reading gives 72 %.
+
 ### 5.3 REQ-105 (recall >= 0.95 from SNR 3) — REQ-112 (>= 95 % of pure-noise windows silent)
 
 - REQ-105 asks a recall of 0.95 down to SNR 3 and a FWHM of 3 samples; REQ-112 asks no
@@ -636,6 +679,132 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   (MPL-2.0 is file-level weak copyleft, not GPL, LGPL or AGPL). The PR template carries
   the checklist item.
 
+### 5.8 D8 (both readings of the published N1 rule) — REQ-113, REQ-114, REQ-135, REQ-273
+
+- D8 asks REQ-113 (kappa >= 0.8 for the preset's N1 decision) and REQ-135 (kappa >= 0.7 for
+  the default existence method) under both readings of the published rule: the registry
+  row (the paper's text) and the published code. Each requirement has one decision, and
+  it must agree with both readings. The two readings disagree with each other: kappa 0.06
+  on the 46 PT contacts of the example run, 0.32 over the six REQ-371 runs.
+- For any decision of the channels, the smaller of its two kappas is bounded. Kappa
+  depends only on how many channels the decision marks in each cell of the readings'
+  2 x 2 table, so the bound is found by searching every combination (exact;
+  `joint_kappa_bound` in `tests/models/test_engine_ccep.py`). REQ-113: 0.274 on the PT
+  contacts (0.8 asked), and on the REQ-371 runs 0.656, 0.380, 0.323, 0.783, 0.714 and
+  0.557 (0.8 asked on 5 of 6), with the row read as the window's most negative sample in
+  its own frame (below; in the code's frame for both, 0.295 and 0.656, 0.343, 0.323,
+  0.783, 0.681, 0.563; with the row read as a negative peak, 0.378 and 0.738, 0.387,
+  0.478, 0.783, 0.752, 0.557). REQ-135: 0.592 pooled over the REQ-371 runs (0.7 asked;
+  0.640 with the negative peak), 0.698 on the development runs, 0.6996 on the segments
+  the earlier test used. Under D8 no
+  detector can meet either requirement on the spec's data. This is a property of the two
+  comparators, not of the model. The tests `test_d8_req113_cannot_hold_under_both_readings`
+  and `test_req135_cannot_hold_under_both_readings` keep it measured.
+- Owner decision (2026-10-13, revising D8 for the N1 requirements). The reading the
+  requirements are judged on is the one the spec itself defines: its §5.6 registry row
+  (`|x| > 3.4·SD_baseline`, a negative peak, 9–100 ms; rule `vanblooijs2023`). REQ-113,
+  REQ-114, REQ-135 and REQ-273 pass or fail on that reading. The published code's reading
+  (`vanblooijs2023_code`) is still measured and reported by its own parametrised tests,
+  which stay expected failures where it is not met, but it no longer gates. The reason is
+  the joint bound above: no decision can reach kappa 0.8 against both readings on the PT
+  contacts (0.274) or on 5 of the 6 REQ-371 runs (at most 0.783), nor 0.7 for REQ-135
+  (0.592). The two readings disagree with each other (kappa 0.06 and 0.32).
+- Each reading in its own frame (2026-10-13). The §5.6 row gives no baseline, and the
+  registry names the ER-detect default (-1, -0.1) s. The row also gives its window on the
+  data's time axis. Until this date the REQ-113/REQ-114 tests read the row with two
+  details of the published code instead:
+  - its SD baseline (-2, -0.1) s;
+  - its time axis, which labels the stimulation sample t = 1/sfreq, so that 9 ms falls
+    one sample earlier: 7.8 ms instead of 9.8 ms on the 512 Hz example run, inside the
+    template's (-2, 8) ms.
+
+  The row is now read on the data's axis with the registry's baseline, as the REQ-135
+  test and the benchmark already did. The code's reading keeps its own baseline and axis
+  (`FRAMES` in `tests/models/test_engine_ccep.py` and `validation/robustness.py`). The
+  choice follows the spec text, not the results: REQ-113 on the PT contacts falls from
+  0.46 to 0.24.
+- The row's peak (2026-10-13). The row reads "`|x| > 3.4·SD_baseline` with a negative
+  peak, ≥ 1 sample", in 9–100 ms. A peak is a local extremum, so the window's most
+  negative sample is not a peak when it lies on a monotone slope at the window's edge
+  (its first sample on the recovery tail, its last on a drift). The published code reads
+  the word the same way: peakfinder's local minima, the first sample excluded. The row
+  is therefore read as the deepest strict local minimum of the window, lower than both
+  neighbours (read outside the window at its edges), below -3.4 SD. The registry option
+  is `peak="strict"`. There is no SD floor and no selectivity, because the row states
+  neither; they stay with the code's reading. This is the gating reading of REQ-113,
+  REQ-114, REQ-135 and REQ-273 (`FRAMES["paper"]`). The window's most negative sample
+  ("extremum", the reading until this date) is still measured.
+
+  The registry's default for `vanblooijs2023` stays `peak="extremum"` for now, because
+  changing it changes other committed results:
+  - the benchmark's published results for the rule (`docs/benchmark/results/vanblooijs2023__T*.json`);
+  - the T2 truth of `evoparam/benchmark/realdata`;
+  - every `test_response(method="threshold", rule="vanblooijs2023")` (an algorithm
+    version).
+
+  The tests pass the option. Making it the registry default is the owner's call.
+- The kappa of 1.00 recorded as REQ-113 met on 2026-10-08 was not REQ-113 as written:
+  - the comparator was the code's reading (50 uV SD floor, local minimum), with 1 N1 on
+    the 46 PT contacts;
+  - the decision was the fitted trough judged by the code's amplitude criterion on the
+    rule's own average, not the preset's N1.
+
+  It is reproduced exactly today (1.00, 0.91 pooled) by
+  `test_n1_trough_with_the_code_floor_regression`. CHANGELOG, "N1 case: the comparator
+  trail".
+- Values under each reading (registry row read as a negative peak / code; the row read
+  as the window's most negative sample in brackets):
+  - REQ-113: 0.01 (0.24) / 0.19 on the PT contacts, 0.44 (0.44) / 0.40 pooled. No
+    measured variant exceeds 0.51 / 0.56. Ten of the row's 11 PT detections peak after
+    50 ms, outside the N1 window REQ-113 names. A trough oracle on the row's own average
+    meets REQ-113 on two of the six REQ-371 runs only, and gives 0.13 on the PT contacts.
+  - REQ-135: 0.495 (0.586) / 0.496 with the default method. With the rule's per-channel
+    decision (`correction="none"`), the registry row is met on the held-out runs: 0.710
+    (0.807). The code reading falls to 0.321. The `ccep` preset keeps FDR across channels
+    (§6).
+  - REQ-114, read as the rule's peak on the fitted curve in the rule's reference: 82 %
+    (93 %) / 90.0 % (§5.2). It is met with the code only.
+- Under the registry row (after this decision). REQ-113: many detections of the rule are
+  not N1s. Read as a negative peak, its average has no negative local minimum in 9-50 ms
+  on 9 of the 11 PT contacts it detects in the example run, and on 0, 1, 1, 2, 5 and 12
+  detected channels of the REQ-371 runs (extremum: 16 of 20; 0, 1, 5, 2, 6, 12). The
+  condition "every channel the rule detects minus at most one" therefore fails for any
+  N1 detector on the example run and on 3 of the 6 REQ-371 runs
+  (`test_req113_registry_row_counts_channels_without_an_n1_trough`). A trough oracle on
+  the rule's own average reaches kappa 0.132 on the PT contacts, 0.816 pooled (extremum
+  0.056 and 0.715). REQ-135: with FDR kept, the best variant chosen on the development
+  runs (the `ccep` preset's own chain before the test) gives 0.548 (0.623) on the
+  REQ-371 runs; without the correction 0.710 (0.807).
+  Measured variants and numbers: CHANGELOG, "N1 case: the two readings".
+- REQ-135's subjects. Spec §7.3 lists REQ-135 among the criteria on "ds004080, ≥ 5
+  subjects chosen by the rule below". The test therefore uses the REQ-371 list, with every
+  trial of each run's first pair of at least 10 trials, as REQ-113 does. The five
+  development subjects are used to choose settings.
+
+### 5.9 REQ-274: the `erp` preset as written — the targeted measurement
+
+REQ-274 reads "`erp` on ERP CORE ... recovers the component named by the paradigm ... as a
+labelled component on the canonical channel for >= 90 % of participants, with model latency
+within +/-10 ms of the fractional-area latency of the same average".
+
+- **As written** (`validation/erpcore.py`, `reading="as_written"`): the `erp` preset itself
+  (its own model selection, background and fit window), the paradigm's component as one
+  labelled component (label window = measurement window +/- 30 ms), its own latency (the
+  50 % area latency of that component's curve). Measured 2026-10-09: LRP 90 % (met), ERN
+  85 %, N400 57.5 %, N170 45 %, MMN 37.5 %, N2pc 36 %, P3 30 %. Kept as its own tests
+  (`test_req274_*_as_written`, expected failures with these values): not met.
+- **Targeted measurement** (`reading="targeted"`, the default of the script): the `erp`
+  preset derived by `presets.targeted` — three components of the component's polarity in
+  the measurement window +/- 25 ms, no background; the component is the sum of its labelled
+  parts. Measured 2026-10-13: ERN 95 %, LRP 95 %, MMN 100 %, N170 95 %, N2pc 92 %, N400
+  95 %, P3 90 % (no margin). Two limits, stated with the numbers: the settings (three parts,
+  25 ms, no background) were chosen on the same 40 participants (a development measure, to
+  be confirmed on ERP data not used to choose them); and with three free components and no
+  background in a window about as wide as the measurement window, the fitted sum follows
+  the average closely, so the latency agreement says that the fit reproduces the wave, not
+  that a single component was recovered. The targeted measurement is therefore reported as
+  a reading of REQ-274, and the requirement stays marked not met as written.
+
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
 Each point below is a reading needed to apply a requirement of S20 literally, or a place
@@ -741,8 +910,10 @@ expected failure whose reason gives the measured value; no criterion was weakene
   untested requirements, or the reason of an expected failure, cannot mark them as tested.
 - **P3 chunked fit (REQ-290).** §9.1 P3 reads "chunked", but `evoparam.fit` has no `chunk`
   argument. P3 is measured on the plain call and on the memory-mapped set. The full size
-  (500 × 256 × 4 096 float64, 4.19 GB) was not run on the 15 GB reference machine: the
-  in-memory peak measured at the CI size, 3.3× the data, would exceed its RAM.
+  (500 × 256 × 4 096 float64, 4.19 GB) was not run: the memory-mapped variant needs the
+  4.19 GB file on a disk that has about 5 GB free, and the in-memory one needs the data
+  and its peak (1.5× the data at the CI size since 2026-10-13, 3.3× before) in the 15 GB
+  of RAM next to the other jobs of the machine.
 - **P6 in a full environment.** P6 is measured with every extra installed. No optional
   module is loaded by `import evoparam` (`optional_modules_loaded` is empty in the results),
   so the time is that of the core.
@@ -771,6 +942,40 @@ expected failure whose reason gives the measured value; no criterion was weakene
   Everything that can be prepared locally is in the repository. The steps that publish
   (PyPI, Zenodo, a public leaderboard, a preprint, the freeze of the name) wait for the
   owner's HIIE decision. Their tests are strict expected failures with that reason.
+
+- **REQ-315 (reference BIDS validator, 2026-10-13).** The requirement is "bids-validator
+  ≥ 2.0 in derivative mode, errors not allowed"; its acceptance names the command
+  `npx bids-validator@2`. npm has never had a 2.x release of `bids-validator` (latest
+  1.15.0, measured 2026-10-09 and 2026-10-13); the BIDS maintainers publish 2.x and 3.x
+  on JSR as `@bids/validator`. The test runs npx as soon as npm resolves a 2.x release and
+  `deno run -A jsr:@bids/validator@3.0.2` until then: same validator line, same mode, same
+  rule (zero errors). It passes on macOS with deno 2 (15 of 15 BIDS tests).
+
+- **REQ-231, Kiesel et al. (2008) part (2026-10-13).** The requirement asks the corrected
+  statistics of the "worked numerical examples" of [LIT-erpmeas-2] to the printed
+  precision. Read in full (25 pages, the authors' copy archived on 2024-06-01), the paper
+  prints the corrections only as Equation 1 and no corrected t or F; its one worked number
+  is the interpolation example of p. 254. The test reproduces that number (64.46 ms) and
+  Equation 1 on jackknifed scores (the corrected t and F equal those of the retrieved
+  individual scores to 1e-9); the Smulders (2010) part reproduces the printed F values.
+
+- **REQ-044, Mayo protocol (2026-10-13).** "Reproduces the train structure of the Mayo
+  protocol (≈ 0.2 Hz, 10–12 pulses per site)": over all the runs of the four Mayo
+  datasets the median is 10–12 (tested); one run, ds004696 sub-07, has 13 per site in its
+  own events.tsv (378 pulses on 27 sites). For that run the structure reproduced is the
+  run's (blocks, pulse counts, 0.2 Hz), not the protocol's range, which the data do not
+  follow.
+
+- **REQ-134, significance of the cross-projection test (2026-10-13).** §5.6 item 2 tests
+  "the projection magnitudes of one half of the non-overlapping pairs" with a one-sample
+  t-test. Read as the paper's set (one projection per unordered pair) it reproduces the
+  published decisions but rejects pure noise at 0.33 to 0.44 for alpha = 0.05 (the values
+  share trials); read as disjoint pairs it is nearly valid (0.145) but its decisions depend
+  on the random pairing (0.89 agreement on average). The default is a sign-flip
+  permutation test of the same projections (the null of trials of random sign, the peak of
+  the profile recomputed for every pattern): published decisions 10 of 10 and a rejection
+  rate of 0.05 on noise, measurably better than both readings; the two t-tests stay
+  available (`projection_pairs`).
 
 ## 7. Static quality rules applied as written (REQ-305, REQ-301)
 

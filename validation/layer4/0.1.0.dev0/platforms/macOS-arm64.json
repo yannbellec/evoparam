@@ -1,0 +1,16 @@
+{
+ "match": true,
+ "max_rel_diff": 2.1472336448449054e-12,
+ "rtol": 1e-09,
+ "n_values": 98,
+ "differ": [],
+ "reference_machine": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39 x86_64, numpy 2.5.3, python 3.13.16",
+ "algorithm_versions_changed": false,
+ "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
+ "machine": "arm64",
+ "python": "3.14.7",
+ "numpy": "2.5.3",
+ "date": "2026-10-13",
+ "other_platforms": "every operating system and processor measured is a record of platforms/ (one file each)",
+ "bayesian_paths": "within Monte Carlo error: compared by the same CI cells"
+}

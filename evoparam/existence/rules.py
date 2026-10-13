@@ -84,8 +84,8 @@ def resolve_rule(rule: Any, **overrides: Any) -> Any:
         )
     if spec["statistic"] not in STATISTICS:
         raise SettingsError(f"Rule statistic must be one of {STATISTICS}.")
-    if spec.get("peak", "extremum") not in ("extremum", "local"):
-        raise SettingsError("Rule peak must be 'extremum' or 'local'.")
+    if spec.get("peak", "extremum") not in ("extremum", "local", "strict"):
+        raise SettingsError("Rule peak must be 'extremum', 'local' or 'strict'.")
     spec["name"] = name
     spec["window"] = tuple(float(v) for v in spec["window"])
     spec["baseline"] = tuple(float(v) for v in spec["baseline"])
@@ -204,6 +204,26 @@ def _local_negative_peak(
     return stat, peak
 
 
+def _strict_negative_peak(z: Any, times: Any, win: Any) -> tuple[NDArray[Any], NDArray[Any]]:
+    """Return the deepest negative peak of the window.
+
+    A peak is a sample of the window strictly lower than both of its neighbours (read
+    outside the window when the sample is at its edge; the first and last samples of the
+    epoch are never peaks) and below the baseline level. Returns (statistic = minus the
+    peak's z, peak time) per channel; NaN where the window holds no negative peak.
+    """
+    z = np.asarray(z, float)
+    peak_mask = np.zeros(z.shape, bool)
+    peak_mask[:, 1:-1] = (z[:, 1:-1] < z[:, :-2]) & (z[:, 1:-1] < z[:, 2:])
+    peak_mask &= win[None, :] & (z < 0)
+    values = np.where(peak_mask, z, np.inf)
+    idx = np.argmin(values, axis=1)
+    found = peak_mask[np.arange(len(z)), idx]
+    stat = np.where(found, -values[np.arange(len(z)), idx], np.nan)
+    peak = np.where(found, times[idx], np.nan)
+    return stat, peak
+
+
 def _bandpass(avg: Any, sfreq: float, band: Any) -> Any:
     """Return the zero-phase band-pass filtered average (4th-order Butterworth)."""
     from scipy.signal import butter, sosfiltfilt
@@ -225,7 +245,11 @@ def apply_rule(avg: Any, times: Any, sfreq: float, spec: Any, units: str = "uV")
     a local minimum found with a selectivity of ``peak_selectivity_uv``, never the window's
     first sample, measured from the baseline median, so that a monotone recovery tail or a
     slow drift through the window edges is not a peak (see :func:`selective_maxima`). The
-    default ``peak="extremum"`` takes the window's most negative sample.
+    default ``peak="extremum"`` takes the window's most negative sample. With
+    ``peak="strict"`` the peak is the deepest strict local minimum of the window (lower
+    than both neighbours, read outside the window at its edges), measured from the
+    baseline mean, with no selectivity and no floor; a window with no negative local
+    minimum has no peak (statistic NaN, not significant).
     The SD is the population SD (the published code's ``std`` divides by ``n - 1``: a
     relative difference of ``1/(2n)``, 1e-4 for a 1.9 s baseline at 2 kHz).
     """
@@ -263,6 +287,16 @@ def apply_rule(avg: Any, times: Any, sfreq: float, spec: Any, units: str = "uV")
         if not negative:
             band[..., 1] = k
     curve = {"curve": seg, "curve_times": tw, "null_band": band}
+    if spec.get("peak") == "strict" and negative:
+        stat, peak = _strict_negative_peak(z, times, win)
+        significant = np.nan_to_num(stat, nan=-np.inf) > k
+        return {
+            "statistic": stat,
+            "significant": significant,
+            "onset": peak,
+            "offset": peak,
+            **curve,
+        }
     if local:
         stat, peak = _local_negative_peak(z, times, spec, units, sd[:, 0])
         significant = stat > spec["k"]

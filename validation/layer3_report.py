@@ -205,11 +205,10 @@ def n1_comparisons(n1, layer4):
         stored = n1["metrics"][reading]
         for key in ("n_channels", "n_rule", "n_model", "n_both"):
             if check[key] != stored[key]:
-                raise ValueError(
-                    f"n1_ds004080.json {reading} {key}: {stored[key]} in the file, "
-                    f"{check[key]} from the layer-4 report"
-                )
-        definition = rule_definition(rule_id, baseline=[-2.0, -0.1])
+                raise ValueError(f"n1_ds004080.json {reading} {key}: {stored[key]} in the file, "
+                                 f"{check[key]} from the layer-4 report")
+        definition = rule_definition(rule_id, baseline=list(robustness.FRAMES[reading][0]),
+                                     **robustness.FRAMES[reading][2])
         name = f"published N1 rule, registry '{rule_id}' ({reading} reading)"
         out.append(
             _paired_rate(

@@ -42,6 +42,8 @@ MIN_TRIALS = 5
 
 # Sign-flip patterns processed at once (bounds memory: chunk x channels x times).
 _CHUNK = 64
+# Bytes of the t series of the null computed at once (a block of channels of one chunk).
+_NULL_BLOCK_BYTES = 4 * 2**20
 
 # Tail approximation: used when fewer than this many null values reach the observed one,
 # fitted on the exceedances over this quantile of the null.
@@ -205,11 +207,41 @@ def _channel_block(block: tuple[Any, ...]) -> tuple[FloatArray, FloatArray, Floa
     p = np.array([tail_p_value(null[:, c], observed[c]) for c in range(len(observed))])
     onsets = np.full((len(picks), len(observed)), np.nan)
     offsets = np.full((len(picks), len(observed)), np.nan)
+    # the resampled t series of a few channels at a time (each value is computed per channel
+    # and sample, so the blocks change no result; the memory of P3, spec §9.1)
+    step = max(1, _NULL_BLOCK_BYTES // max(1, 8 * x.shape[0] * x.shape[2]))
+    tb = np.empty(x.shape[1:])
     for b, pick in enumerate(picks):
-        xb = x[pick]
-        tb = _t_series(xb.sum(axis=0), (xb**2).sum(axis=0), n) * usable
+        for first in range(0, x.shape[1], step):
+            c = slice(first, first + step)
+            xb = x[:, c][pick]
+            tb[c] = _t_series(xb.sum(axis=0), (xb**2).sum(axis=0), n) * usable[c]
         onsets[b], offsets[b] = _extent(tb, critical, statistic, threshold, polarity, tw)
     return p, onsets, offsets
+
+
+def _null_maxima(
+    x: Any, flips: Any, sum_x2: Any, usable: Any, statistic: Any, threshold: Any, polarity: Any
+) -> FloatArray:
+    """Summary of the t series of every sign pattern of ``flips`` [n_patterns, n_channels].
+
+    The sums of a chunk of patterns go to one buffer and their t series are computed a few
+    channels at a time: every value is computed per pattern, channel and sample, so the
+    blocks change no result, and the temporaries stay small (the memory of P3, spec §9.1).
+    """
+    n, n_ch = x.shape[:2]
+    null = np.empty((len(flips), n_ch))
+    flat = x.reshape(n, -1)
+    buffer = np.empty((min(_CHUNK, len(flips)), flat.shape[1]))
+    step = max(1, _NULL_BLOCK_BYTES // max(1, 8 * buffer.shape[0] * x.shape[2]))
+    for start in range(0, len(flips), _CHUNK):
+        chunk = flips[start : start + _CHUNK]
+        sums = np.matmul(chunk, flat, out=buffer[: len(chunk)]).reshape(len(chunk), n_ch, -1)
+        for first in range(0, n_ch, step):
+            c = slice(first, first + step)
+            t_null = _t_series(sums[:, c], sum_x2[None, c], n) * usable[None, c]
+            null[start : start + len(chunk), c] = _summary(t_null, statistic, threshold, polarity)
+    return null
 
 
 def permutation_test(
@@ -255,11 +287,12 @@ def permutation_test(
         )
     win = (times >= window[0]) & (times <= window[1])
     base = (times >= baseline[0]) & (times <= baseline[1])
-    x = data[:, :, win]
+    # the samples of the window (a copy, cleaned in place), 0 where masked
+    x = np.nan_to_num(data[:, :, win], copy=False)
     usable = np.ones(x.shape[1:], bool)
     if masks is not None:
         usable = ~masks[:, :, win].any(axis=0)
-    x = np.where(usable[None], np.nan_to_num(x), 0.0)
+        x = np.where(usable[None], x, 0.0)
     threshold = (
         student_t.ppf(0.975, n - 1)
         if opts.cluster_threshold is None
@@ -272,13 +305,7 @@ def permutation_test(
     observed = _summary(t_obs, statistic, threshold, polarity)
 
     flips, exact = sign_flips(n, n_permutations, rng)
-    null = np.empty((len(flips), n_ch))
-    flat = x.reshape(n, -1)
-    for start in range(0, len(flips), _CHUNK):
-        chunk = flips[start : start + _CHUNK]
-        sums = (chunk @ flat).reshape(len(chunk), n_ch, -1)
-        t_null = _t_series(sums, sum_x2[None], n) * usable[None]
-        null[start : start + len(chunk)] = _summary(t_null, statistic, threshold, polarity)
+    null = _null_maxima(x, flips, sum_x2, usable, statistic, threshold, polarity)
     critical = np.quantile(null, 1 - alpha, axis=0)
     onset, offset = _extent(t_obs, critical, statistic, threshold, polarity, times[win])
 

@@ -12,7 +12,9 @@ REQ-113 to the letter: the preset's own decision (a negative component with late
 9-50 ms, the component the ccep preset labels N1), no threshold borrowed from the rule;
 "the published rule" is read both ways (owner decision D8): the registry row of spec §5.6
 (the paper's description, rule ``vanblooijs2023``) and the published code
-(``vanblooijs2023_code``). Runs only with EVOPARAM_NETWORK_TESTS=1.
+(``vanblooijs2023_code``), each in its own frame (:data:`FRAMES`: the registry row on the
+data's time axis with the registry's baseline, the code with its own baseline and time
+axis). Runs only with EVOPARAM_NETWORK_TESTS=1.
 """
 
 import io
@@ -224,10 +226,51 @@ def _pair_trials(subject: Any, run: Any, site: Any) -> Any:
 
 
 # The two readings of "the published rule" (owner decision D8): the registry row of spec
-# §5.6 as written (the paper's description: the most negative sample of 9-100 ms beyond
-# 3.4 SD, no SD floor) and the published code (mnl_ccepAge: 50 uV SD floor, local minimum,
-# first sample excluded, saturation at 3000 uV).
+# §5.6 as written ("|x| > 3.4·SD_baseline with a negative peak, >= 1 sample", 9-100 ms: the
+# deepest strict local minimum of the window beyond 3.4 SD, no SD floor, no selectivity)
+# and the published code (mnl_ccepAge: 50 uV SD floor, local minimum with 20 uV
+# selectivity, first sample excluded, saturation at 3000 uV). The tests are parametrised
+# by these two; "extremum" (the window's most negative sample, peak or not: the registry
+# row as read until 2026-10-13) is measured too.
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
+RULE_NAMES = {**READINGS, "extremum": "vanblooijs2023"}
+
+# Owner decision (D8 revised, docs/spec/DECISIONS.md §5.8): the requirements are judged on
+# the spec's registry row ("paper"); the published code's reading ("code") is measured and
+# reported by the same tests but does not gate (no decision can satisfy both: the exact
+# joint bound of test_d8_req113_cannot_hold_under_both_readings).
+GATING = "paper"
+
+# Where each reading reads the average: the SD baseline and the time axis. The registry
+# row reads the data's own time axis (stimulation at t = 0) with the baseline the registry
+# names for its unspecified one (the ER-detect default, -1 to -0.1 s, as REQ-135's test
+# does). The published code takes its SD over (-2, -0.1) s and labels the stimulation
+# sample t = 1/sfreq (MATLAB indexing), so its 9 ms is one sample earlier on the data's
+# axis. Until 2026-10-13 the registry row was read with the code's baseline and axis too
+# (CHANGELOG, "the comparator trail"). Third field: the peak operator (registry overrides).
+# The row's "negative peak" is a peak, a local minimum: a sample at the window's edge on a
+# monotone slope is not one (DECISIONS §5.8).
+FRAMES = {
+    "paper": ((-1.0, -0.1), 0, {"peak": "strict"}),
+    "extremum": ((-1.0, -0.1), 0, {"peak": "extremum"}),
+    "code": ((-2.0, -0.1), 1, {}),
+}
+
+
+def _frame(ts: Any, reading: Any) -> Any:
+    """The reading's SD baseline and its time shift (s) relative to the data's axis."""
+
+    baseline, samples, _ = FRAMES[reading]
+    return baseline, samples / ts.sfreq
+
+
+def _rule_spec(reading: Any) -> Any:
+    """The complete registry rule of a reading, in its frame."""
+
+    from evoparam.existence.rules import resolve_rule
+
+    baseline, _, overrides = FRAMES[reading]
+    return resolve_rule(RULE_NAMES[reading], baseline=baseline, **overrides)
 
 
 def _rule_average(ts: Any) -> Any:
@@ -245,19 +288,20 @@ def _rule_average(ts: Any) -> Any:
 
 
 def _published_rule(ts: Any, reading: Any) -> Any:
-    """The average of :func:`_rule_average`; the registry rule of the reading with its SD over
-    (-2, -0.1) s. The code labels the onset sample t = 1/sfreq; latencies are returned on our
-    axis."""
+    """The average of :func:`_rule_average`; the registry rule of the reading, in the
+    reading's frame (:data:`FRAMES`). Latencies are returned on the data's axis. Also the
+    code's amplitude criterion, 3.4 x max(SD over (-2, -0.1) s, 50 uV)."""
 
-    from evoparam.existence.rules import apply_rule, resolve_rule
+    from evoparam.existence.rules import apply_rule
 
     t = ts.times
     avg = _rule_average(ts)
-    base = (t > AVERAGE_BASELINE_START) & (t < RULE_BASELINE_END)
-    spec = resolve_rule(READINGS[reading], baseline=(-2.0, -0.1))
-    out = apply_rule(avg, t + 1.0 / ts.sfreq, ts.sfreq, spec, "uV")
+    base = (t > -2) & (t < -0.1)
+    baseline, shift = _frame(ts, reading)
+    spec = _rule_spec(reading)
+    out = apply_rule(avg, t + shift, ts.sfreq, spec, "uV")
     floor = 3.4 * np.maximum(avg[:, base].std(axis=1), 50.0)
-    return out["significant"], out["onset"] - 1.0 / ts.sfreq, floor
+    return out["significant"], out["onset"] - shift, floor
 
 
 def _rule_peak_is_n1_trough(ts: Any, rule_lat: Any, window: Any = (0.009, 0.05)) -> Any:
@@ -280,10 +324,29 @@ def _rule_peak_is_n1_trough(ts: Any, rule_lat: Any, window: Any = (0.009, 0.05))
     return np.array(out, bool)
 
 
-def _model_fits(ts: Any) -> Any:
+def _no_n1_trough(ts: Any, reading: Any, window: Any = (0.009, 0.05)) -> Any:
+    """Per channel: the average the rule reads (:func:`_rule_average`) has no negative
+    interior local minimum in 9-50 ms on the rule's time axis (no N1 trough of any depth:
+    the average is monotone there or stays above its baseline level)."""
+
+    baseline, shift = _frame(ts, reading)
+    t = ts.times + shift
+    avg = _rule_average(ts)
+    base = (t >= baseline[0]) & (t <= baseline[1])
+    m = (t >= window[0]) & (t <= window[1])
+    out = []
+    for y, level in zip(avg[:, m], avg[:, base].mean(axis=1), strict=True):
+        inner = np.flatnonzero((y[1:-1] <= y[:-2]) & (y[1:-1] < y[2:])) + 1
+        out.append(not np.any(y[inner] < level))
+    return np.array(out, bool)
+
+
+def _preset_fits(ts: Any) -> Any:
     """The ccep preset pipeline (artifact "template+tail:joint": template subtraction, the
     tail left to the exponential background of the fit; adjusted common average; baseline;
-    average; fit)."""
+    average; fit). Returns the fits, and the common average the re-referencing subtracted
+    (baseline-corrected and averaged like the data: one curve, the same for every
+    channel) with its times."""
 
     sub = ts.select(tmin=-1.0, tmax=2.0)
     with warnings.catch_warnings():
@@ -291,9 +354,17 @@ def _model_fits(ts: Any) -> Any:
         sub = remove_artifact(
             sub, method="template", window=(-0.002, 0.008), baseline=(-0.5, -0.02)
         ).cleaned
-        sub = rereference(sub, "car_adaptive", random_state=0)
-    evoked = baseline_correct(sub, (-0.5, -0.02), check=False).average()
-    return ResponseModel("ccep").fit_group(evoked).fits
+        car = rereference(sub, "car_adaptive", random_state=0)
+    evoked = baseline_correct(car, (-0.5, -0.02), check=False).average()
+    recorded = baseline_correct(sub, (-0.5, -0.02), check=False).average()
+    reference = np.median(recorded.data - evoked.data, axis=0)
+    return ResponseModel("ccep").fit_group(evoked).fits, evoked.times, reference
+
+
+def _model_fits(ts: Any) -> Any:
+    """The fits of :func:`_preset_fits`."""
+
+    return _preset_fits(ts)[0]
 
 
 def _model_n1(fits: Any) -> Any:
@@ -314,6 +385,57 @@ def _model_n1(fits: Any) -> Any:
     return np.array(det), np.array(lat), np.array(trough), np.array(trough_amp)
 
 
+def _rule_peak_on_fitted_curve(ts: Any, fits: Any, reading: Any, reference: Any = None) -> Any:
+    """The published rule's peak read on the fitted curve (a reading of "the model latency"
+    of REQ-114): the reading's own peak operator (the most negative sample of 9-100 ms for
+    the registry row; the code's largest local minimum with its 20 uV selectivity, its
+    first sample excluded) applied to the curve of the ccep fit (components and
+    background) from the rule's first sample on; before it, the rule's average, whose
+    baseline gives the SD and the level the operator uses. NaN where the curve has no such
+    peak.
+
+    ``reference`` (times, curve): the common average the preset's re-referencing
+    subtracted, added back to every fitted curve, so that the fit is read in the reference
+    the rule reads (the recording's; the re-referencing is linear: data = re-referenced
+    data + that one curve)."""
+
+    from evoparam.existence.rules import apply_rule
+    from evoparam.models import evaluate_fit
+
+    t = ts.times
+    curve = _rule_average(ts)
+    baseline, shift = _frame(ts, reading)
+    # from the rule's first sample on (in its frame)
+    late = t >= 0.009 - shift - 0.01 / ts.sfreq
+    common = np.interp(t[late], *reference) if reference is not None else 0.0
+    for c, fit in enumerate(fits):
+        curve[c, late] = (evaluate_fit(fit, t[late]) if fit.status == "ok" else 0.0) + common
+    spec = _rule_spec(reading)
+    out = apply_rule(curve, t + shift, ts.sfreq, spec, "uV")
+    return out["onset"] - shift
+
+
+def joint_kappa_bound(a: Any, b: Any) -> float:
+    """The largest min(kappa(M, a), kappa(M, b)) over every decision M of the channels.
+
+    Kappa depends only on the counts of M = 1 in the four cells of the table of a against
+    b, so every combination of counts is searched (exact, not a heuristic)."""
+
+    a, b = np.asarray(a, bool), np.asarray(b, bool)
+    n = len(a)
+    cells = [int(np.sum(x)) for x in (a & b, a & ~b, ~a & b, ~a & ~b)]
+    k11, k10, k01, k00 = np.meshgrid(*[np.arange(c + 1) for c in cells], indexing="ij")
+    ones = (k11 + k10 + k01 + k00) / n
+    agree_a = (k11 + k10 + (cells[2] - k01) + (cells[3] - k00)) / n
+    agree_b = (k11 + k01 + (cells[1] - k10) + (cells[3] - k00)) / n
+    out = []
+    for agree, rate in ((agree_a, a.mean()), (agree_b, b.mean())):
+        pe = ones * rate + (1 - ones) * (1 - rate)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            out.append(np.where(pe < 1, (agree - pe) / (1 - pe), 1.0))
+    return float(np.nanmax(np.minimum(*out)))
+
+
 def _kappa(a: Any, b: Any) -> Any:
     po = np.mean(a == b)
     pe = a.mean() * b.mean() + (1 - a.mean()) * (1 - b.mean())
@@ -328,8 +450,9 @@ def agreement() -> Any:
     out = {}
     for subject, run, site in [EXAMPLE + ("PT01-PT02",)] + req371_pairs():
         ts = _pair_trials(subject, run, site)
-        det, lat, trough, trough_amp = _model_n1(_model_fits(ts))
-        for reading in READINGS:
+        fits, ref_times, reference = _preset_fits(ts)
+        det, lat, trough, trough_amp = _model_n1(fits)
+        for reading in FRAMES:
             rule, rule_lat, floor = _published_rule(ts, reading)
             out[(subject, run, reading)] = {
                 "rule": rule,
@@ -337,7 +460,12 @@ def agreement() -> Any:
                 "model": det,
                 "lat": lat,
                 "trough": trough,
+                "curve_peak": _rule_peak_on_fitted_curve(ts, fits, reading),
+                "curve_peak_recording": _rule_peak_on_fitted_curve(
+                    ts, fits, reading, (ref_times, reference)
+                ),
                 "n1_trough": _rule_peak_is_n1_trough(ts, rule_lat),
+                "no_n1_trough": _no_n1_trough(ts, reading),
                 # the decision of the earlier proposed wording (not the REQ): the trough of
                 # the fitted curve at least as deep as the code's amplitude criterion
                 "trough_floor": np.isfinite(trough) & (-np.nan_to_num(trough_amp) >= floor),
@@ -368,14 +496,30 @@ def _runs(agreement: Any, reading: Any, example: Any = False) -> Any:
 
 
 AS_WRITTEN = (
+    "REQ-113 is judged on the registry row (D8 revised, DECISIONS §5.8), read as written: "
+    "the deepest negative peak (a strict local minimum) of 9-100 ms beyond 3.4 SD of the "
+    "baseline (-1 to -0.1 s, the data's time axis); the code's reading is reported. "
     "REQ-113 as written is not met under either reading of the published rule "
-    "(ccep v1.1: kappa on the 46 PT contacts 0.46 with the registry row, 0.19 with "
-    "the code; pooled over the REQ-371 runs 0.46 and 0.40; CHANGELOG, 'N1 case as "
-    "written' and 'Defaults settled by measurement'): "
-    "no decision reaches 0.8 under both (bound 0.30 on the PT contacts); the code's "
-    "170 uV floor "
-    "leaves out small N1s the preset finds; the paper's extremum also counts "
-    "drifts at 70-100 ms; the two readings agree with each other at kappa 0.35"
+    "(ccep v1.1: kappa on the 46 PT contacts 0.01 with the registry row, 0.19 with the "
+    "code; pooled over the REQ-371 runs 0.44 and 0.40, per run 0.37, 0.60, 0.09, 0.35, "
+    "0.42, 0.32 with the registry row; read as the window's most negative sample, peak or "
+    "not, 0.24 and 0.44; in the code's frame, until 2026-10-13, 0.46 and 0.46; CHANGELOG, "
+    "'The comparator trail'). Of the registry row's 11 PT detections 10 peak after 50 ms, "
+    "outside the N1 window of 9-50 ms that REQ-113 names; over the REQ-371 runs the 54 "
+    "channels the preset misses are 24 such late peaks, 11 peaks that the preset's input "
+    "(the adjusted common average) does not have and 19 that it has without an N1 "
+    "component; of the 33 N1s the rule does not find, 9 are peaks of the preset's input "
+    "and 24 stay below 3.4 SD there. The kappa of 1.00 recorded on 2026-10-08 was the "
+    "code's reading against a model decision that borrowed the code's amplitude "
+    "criterion, not the preset's N1 (test_n1_trough_with_the_code_floor_regression keeps "
+    "it). No decision reaches 0.8 under both readings (exact bound 0.378 on the PT "
+    "contacts, 0.387 to 0.783 per REQ-371 run: "
+    "test_d8_req113_cannot_hold_under_both_readings); the code's 170 uV floor leaves out "
+    "small N1s the preset finds. Per reading, the variants measured on 2026-10-13 "
+    "(recording reference, delta 6, max_components 8, fit window to 0.3 s, double "
+    "exponential, constant or linear background, plain common average, the N1 gated by "
+    "the existence test) reach at most 0.51 (registry row) and 0.56 (code) pooled "
+    "(CHANGELOG, 'N1 case: the two readings')"
 )
 
 
@@ -398,19 +542,16 @@ def test_req113_as_written(agreement: Any, reading: Any) -> None:
     assert sum(ok) >= MIN_REPRODUCED, [round(_scores(o)["kappa"], 2) for o in others]
 
 
-# Why REQ-114 is out of reach (CHANGELOG, "N1 latency agreement"): on the REQ runs the
+# Why REQ-114 is not met (CHANGELOG, "N1 latency agreement"): on the REQ runs the
 # rule's peak is an N1 trough of the average it reads (the deepest interior local minimum
-# in 9-50 ms) on 39 of the 74 channels where the registry row and the preset both find an
-# N1 (53 %) and on 24 of 30 with the code (80 %). The others are the first samples of the
-# window on the recovery tail, where the average has no trough (registry row 18,
-# code 3), slow deflections peaking at 52-100 ms (16 and 2) and one more each (the deepest
-# sample just after 50 ms; a positive-valued minimum). A latency in 9-50 ms within 2 ms of
-# every peak would reach 58 of 74 and 28 of 30, but only by naming an N1 where the data
-# have no trough.
-CEILING = (
-    "the rule's peak is an N1 trough of its average on 53 % (registry row) and 80 % "
-    "(code) of these channels; elsewhere it is the window start on the recovery tail "
-    "(no trough there) or a deflection at 52-100 ms, after the N1 window"
+# in 9-50 ms) on 44 of the 57 channels where the registry row and the preset both find an
+# N1 (77 %) and on 24 of 30 with the code (80 %). The others peak after 50 ms, outside the
+# N1 window (registry row 13; code 2, with 3 at the window start and one positive-valued
+# minimum).
+RULE_PEAKS = (
+    "the rule's peak is an N1 trough of its average on 77 % (registry row) and 80 % "
+    "(code) of these channels; elsewhere it is a deflection at 51-100 ms, after the N1 "
+    "window (and, for the code, the window start on the recovery tail)"
 )
 
 
@@ -425,10 +566,16 @@ def _close(agreement: Any, reading: Any, latency: Any, n1_trough: Any = False) -
 
 @pytest.mark.xfail(
     strict=False,
-    reason="REQ-114 as written (latency of the N1 component) is "
-    "not met: within 2 ms on 24 % (registry row, 18 of 74) and 37 % (code, 11 "
+    reason="REQ-114 is judged on the registry row (D8 revised, DECISIONS §5.8). "
+    "REQ-114 as written (latency of the N1 component) is "
+    "not met: within 2 ms on 39 % (registry row, 22 of 57) and 37 % (code, 11 "
     "of 30) of the channels where both find an N1 on the REQ-371 runs and the "
-    "example; " + CEILING,
+    "example; naming the N1 by the trough it makes (the negative component that "
+    "contributes most at the fitted trough) gives 40 % and 40 %; "
+    + RULE_PEAKS
+    + "; read as the rule's peak on the fitted curve, 72 % and "
+    "90.0 %, and in the rule's own reference 82 % and 90.0 % (met with the code only: "
+    "test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference)",
 )
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_as_written(agreement: Any, reading: Any) -> None:
@@ -443,8 +590,8 @@ def test_req114_as_written(agreement: Any, reading: Any) -> None:
 @pytest.mark.xfail(
     strict=False,
     reason="REQ-114 with the latency read as the trough of the "
-    "fitted curve (K3) is not met over all runs: 42 % (registry row, 31 of 74), "
-    "80 % (code, 24 of 30); " + CEILING,
+    "fitted curve (K3) is not met over all runs: 61 % (registry row, 35 of 57), "
+    "80 % (code, 24 of 30); " + RULE_PEAKS,
 )
 @pytest.mark.parametrize("reading", list(READINGS))
 def test_req114_trough_latency(agreement: Any, reading: Any) -> None:
@@ -456,14 +603,137 @@ def test_req114_trough_latency(agreement: Any, reading: Any) -> None:
     assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-114 with the model latency read as the published rule's peak on the "
+    "fitted curve (the reading's own operator on the ccep fit) is not met with the "
+    "registry row: 72 % (41 of 57); with the code 90.0 % (27 of 30), at the threshold "
+    "(development runs 66 % and 86 %). Read in the rule's reference: 82 % and 90.0 % "
+    "(test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference)",
+)
+@pytest.mark.parametrize("reading", list(READINGS))
+def test_req114_rule_peak_on_the_fitted_curve(agreement: Any, reading: Any) -> None:
+    """REQ-114 with "the model latency" read as the published rule's peak measured on the
+    fitted curve instead of the noisy average (:func:`_rule_peak_on_fitted_curve`): the same
+    operator on both sides, so the window-start peaks on the recovery tail and the late
+    deflections of 50-100 ms the rule counts are compared with the model's curve there."""
+
+    close = _close(agreement, reading, "curve_peak")
+    assert close.size >= 10
+    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+
+
+@pytest.mark.parametrize(
+    "reading",
+    [
+        pytest.param(
+            "paper",
+            marks=pytest.mark.xfail(
+                strict=False,
+                reason="REQ-114 read as the rule's peak on the fitted curve in the rule's "
+                "reference is not met with the registry row read as written (a negative "
+                "peak): 82 % (47 of 57) on the REQ runs, 84 % (27 of 32) on the "
+                "development runs. 7 of the 10 misses are the rule's peaks at 87-100 ms, "
+                "small local minima of the noisy average on a slope that the fitted curve "
+                "follows without a local minimum. With the window's most negative sample "
+                "(peak or not) it is 93 % (test_req114_extremum_reading_in_the_rules_"
+                "reference)",
+            ),
+        ),
+        "code",
+    ],
+)
+def test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference(
+    agreement: Any, reading: Any
+) -> None:
+    """REQ-114 with "the model latency" read as the published rule's peak on the fitted
+    curve, in the reference the rule reads. The preset fits the adjusted common average and
+    the published pipeline reads the recording reference; the re-referencing subtracts one
+    curve from every channel (the common average of its members), which is added back to
+    every fitted curve (:func:`_rule_peak_on_fitted_curve`). Nothing is fitted again and
+    the preset's results are unchanged: the comparison is made in one reference.
+    Measured: 82 % (47 of 57, registry row) and 90.0 % (27 of 30, code) on the REQ runs;
+    84 % (27 of 32) and 95 % (20 of 21) on the development runs."""
+
+    close = _close(agreement, reading, "curve_peak_recording")
+    assert close.size >= 10
+    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+
+
+def test_req114_extremum_reading_in_the_rules_reference(agreement: Any) -> None:
+    """Measured, not gating: the registry row read as the window's most negative sample
+    (peak or not; the reading used until 2026-10-13), REQ-114 with the rule's peak on the
+    fitted curve in the rule's reference: 93 % (64 of 69) on the REQ runs, 89 % (32 of 36)
+    on the development runs. The window-edge samples it takes on a slope are read on the
+    fitted curve's slope as well."""
+
+    close = _close(agreement, "extremum", "curve_peak_recording")
+    assert close.size >= 10
+    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+
+
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-113 with the registry row read as the window's most negative sample (peak "
+    "or not; measured, not gating): kappa 0.24 on the 46 PT contacts, 0.44 pooled over "
+    "the REQ-371 runs (per run 0.44, 0.58, 0.25, 0.33, 0.47, 0.31); 25 of its detections "
+    "missed on the example run",
+)
+def test_req113_extremum_reading(agreement: Any) -> None:
+    """REQ-113 as in :func:`test_req113_as_written`, the registry row read as the window's
+    most negative sample (FRAMES "extremum")."""
+
+    test_req113_as_written(agreement, "extremum")
+
+
+def test_d8_req113_cannot_hold_under_both_readings(agreement: Any) -> None:
+    """Not a REQ (owner decision D8, measured): REQ-113 asks one decision (the preset's N1)
+    with kappa >= 0.8 against the published rule, and D8 asks it under both readings of
+    the rule. For every possible decision of the channels, the smaller of the two kappas
+    is at most :func:`joint_kappa_bound`: 0.378 on the 46 PT contacts of the example run,
+    0.387 to 0.783 on the six REQ-371 runs (0.655 pooled). No detector can meet REQ-113
+    under both readings on these data; the readings agree with each other at kappa 0.13 on
+    the PT contacts (11 and 1 N1s)."""
+
+    paper = _runs(agreement, "paper", example=True)[0]
+    code = _runs(agreement, "code", example=True)[0]
+    grid = np.array([n.startswith("PT") for n in paper["names"]])
+    assert joint_kappa_bound(paper["rule"][grid], code["rule"][grid]) < 0.8
+    bounds = [
+        joint_kappa_bound(p["rule"], c["rule"])
+        for p, c in zip(_runs(agreement, "paper"), _runs(agreement, "code"), strict=True)
+    ]
+    assert len(bounds) == 6
+    assert sum(b >= 0.8 for b in bounds) < 5, bounds
+
+
+def test_req113_registry_row_counts_channels_without_an_n1_trough(agreement: Any) -> None:
+    """Not a REQ (measured, under the gating reading, the registry row): REQ-113 asks the
+    preset's N1 (a negative component with latency 9-50 ms) on every channel where the row
+    detects one, minus at most one. On the example run 9 of the row's 11 detections on the
+    46 PT contacts are channels whose own average has no negative local minimum at all in
+    9-50 ms: the row's peak is a deflection after 50 ms. On the REQ-371 runs there are 0,
+    1, 1, 2, 5 and 12 such channels. A decision that names an N1 only where the data
+    have
+    an N1 trough therefore misses more than one channel on the example and on three of the
+    six runs, so it can meet REQ-113 on at most three of them (five are asked)."""
+
+    example = _runs(agreement, "paper", example=True)[0]
+    grid = np.array([n.startswith("PT") for n in example["names"]])
+    assert int(np.sum(example["rule"] & example["no_n1_trough"] & grid)) > 1
+    counts = [int(np.sum(r["rule"] & r["no_n1_trough"])) for r in _runs(agreement, "paper")]
+    assert len(counts) == 6
+    assert sum(c <= 1 for c in counts) < 5, counts
+
+
 def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any) -> None:
     """Not a REQ (a regression floor for the latency of REQ-114): on the channels where both
     find an N1 and the rule's peak is an N1 trough of its average
     (:func:`_rule_peak_is_n1_trough`), the trough of the fitted curve is within 2 ms of the
     rule's peak on >= 90 % with the code's reading (24 of 24 on the REQ runs; the N1
     component's own latency 11 of 24: the N1 is fitted by overlapping components and the
-    largest |A|, which names it, is often a broad one). With the registry row 31 of 39
-    (component 18 of 39): the rule reads the monopolar average, the preset the adjusted
+    largest |A|, which names it, is often a broad one). With the registry row 31 of 38
+    (component 18 of 38): the rule reads the monopolar average, the preset the adjusted
     common average, which moves shallow troughs (sub-ccepAgeUMCU03: the registry row's peak
     is at 32.7 ms on 35 of the 70 channels, a common-mode deflection the common average
     removes)."""
@@ -473,7 +743,15 @@ def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any
     assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
-@pytest.mark.xfail(strict=False, reason="REQ-273 needs REQ-113 and REQ-114, not met")
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-273 (judged on the registry row, D8 revised; the code's reading is also "
+    "checked here and reported) needs REQ-113 and REQ-114 as written: REQ-113 is not met "
+    "under either "
+    "reading (and no decision can meet it under both, D8); REQ-114 is not met with the "
+    "registry row in any reading of the model latency (at most 82 %: the rule's peak on "
+    "the fitted curve in the rule's reference; 90.0 % with the code)",
+)
 def test_req273_ccep_meets_req113_and_req114(agreement: Any) -> None:
     """REQ-273: the ccep preset meets REQ-113 and REQ-114 on ds004080 (both readings)."""
 
@@ -486,7 +764,14 @@ def test_n1_trough_with_the_code_floor_regression(agreement: Any) -> None:
     """Not a REQ (the earlier proposed wording, kept as a regression floor): the trough of
     the fitted curve judged by the code's own amplitude criterion, against the code's
     reading: at most one missed channel on the example, pooled kappa >= 0.8 over the
-    REQ-371 runs and each run at least the inter-rater kappa of human reviewers."""
+    REQ-371 runs and each run at least the inter-rater kappa of human reviewers.
+
+    This is the comparison that gave kappa 1.00 on the PT contacts and 0.91 pooled on
+    2026-10-08 (73788a2), recorded then as REQ-113 met; it still gives 1.00 and 0.91. It is
+    not REQ-113: the rule is the code's reading (50 uV SD floor, local minimum), not the
+    registry row of §5.6, and finds 1 N1 on the 46 PT contacts; the decision is not the
+    preset's N1 but the fitted trough judged by the rule's own amplitude criterion on the
+    rule's own average (CHANGELOG, 'The comparator trail')."""
 
     from evoparam.existence import HUMAN_KAPPA
 

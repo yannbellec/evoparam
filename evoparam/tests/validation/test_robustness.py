@@ -217,17 +217,22 @@ def test_req375_platform_this_machine(report: Any) -> None:
     assert report["platform"]["match"] is True
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="§7.4 (5) on macOS and Windows: the cells of the CI "
-    "matrix (.github/workflows/ci.yml), which cannot run on this machine; "
-    "only Linux x86-64 measured",
-)
 def test_req375_platform_macos_and_windows(report: Any) -> None:
-    """§7.4 (5): identical results on Linux, macOS and Windows."""
+    """§7.4 (5): identical results on Linux, macOS and Windows: one record per platform in
+    ``platforms/`` (written by ``validation/robustness.py --analyses platform`` on each
+    machine), each within the 1e-9 of REQ-295."""
 
-    seen = {report["platform"]["platform"].split("-")[0]}
-    assert {"Linux", "macOS", "Windows"} <= seen
+    records = report.get("platforms", [report["platform"]])
+    assert all(r["match"] and r["rtol"] == 1e-9 for r in records), [
+        (r["platform"], r["max_rel_diff"]) for r in records if not r["match"]
+    ]
+    seen = {r["platform"].split("-")[0] for r in records}
+    missing = {"Linux", "macOS", "Windows"} - seen
+    if missing:
+        pytest.xfail(
+            f"§7.4 (5): measured on {sorted(seen)}, not yet on {sorted(missing)} "
+            "(run validation/robustness.py --analyses platform there)"
+        )
 
 
 @pytest.mark.xfail(strict=True, reason=HIIE)

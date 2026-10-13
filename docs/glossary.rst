@@ -805,10 +805,10 @@ Names that replace inherited ones
    ResponseModel
       Name chosen in place of an inherited one (spec §4.4): ``ResponseModel`` (estimator) + ``ResponseFit`` (result). Reason: a class named like the package shadows the module in ``from evoparam import evoparam``; estimator and result are separated as in scikit-learn so results are plain data.
 
-   GroupFit
+   GroupFit (renamed)
       Name chosen in place of an inherited one (spec §4.4): ``GroupFit`` (result) ; fitting via ``ResponseModel.fit_group`` / ``evoparam.fit``. Reason: same split.
 
-   Component.params
+   Component.params (renamed)
       Name chosen in place of an inherited one (spec §4.4): ``Component.params`` + feature fields. Reason: names say what the numbers are.
 
    min_fwhm

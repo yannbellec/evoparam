@@ -14,7 +14,7 @@
       "unspecified": ["baseline"],
       "hint": "the ER-detect default baseline search epoch is (-1.0, -0.1) s; the published code's reading is the rule 'vanblooijs2023_code'",
       "source": "van Blooijs et al. 2023, Nat Neurosci (ds004080)",
-      "notes": "The registry row of spec §5.6 as written: |x| > 3.4 SD of the baseline with a negative peak, at least one sample, in 9-100 ms; the peak is the most negative sample of the window (the paper's description), measured from the baseline mean, with no SD floor. The published code's reading (50 uV SD floor, local minima, first sample excluded, saturation) is the rule 'vanblooijs2023_code'.",
+      "notes": "The registry row of spec §5.6 as written: |x| > 3.4 SD of the baseline with a negative peak, at least one sample, in 9-100 ms; by default the peak is the most negative sample of the window, measured from the baseline mean, with no SD floor; peak='strict' reads 'negative peak' as a peak, the deepest strict local minimum of the window (lower than both neighbours, read outside the window at its edges), with no floor and no selectivity, the reading the N1 tests are judged on (docs/spec/DECISIONS.md §5.8). The published code's reading (50 uV SD floor, local minima, first sample excluded, saturation) is the rule 'vanblooijs2023_code'.",
       "verified": {"k": true, "window": true, "peak": true, "baseline": false}
     },
     "vanblooijs2023_code": {

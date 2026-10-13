@@ -28,7 +28,6 @@ extensions = [
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
 ]
-templates_path = []
 exclude_patterns = ["_build", "spec", "tutorials/README.txt", "Thumbs.db", ".DS_Store"]
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 html_theme = "pydata_sphinx_theme"
@@ -45,6 +44,38 @@ html_theme_options = {
 html_static_path = ["_static"]
 html_title = f"evoparam {release}"
 numpydoc_show_class_members = False
+# The names exported at the package root (evoparam.TrialSet, evoparam.fit, ...) are also
+# listed in their module's table (REQ-303: every public symbol in the index). The module's
+# page of such a name is not indexed, so each object has one target and an unqualified
+# reference (``TrialSet`` in an annotation) is not ambiguous.
+templates_path = ["_templates"]
+
+
+def _root_reexports():
+    import importlib
+    import inspect
+
+    names = []
+    for module_name in ("data", "io", "events", "artifact", "prep", "shapes", "models",
+                        "existence", "trials", "spatial", "tf", "stats", "hierarchical", "sim",
+                        "presets", "reports", "plots", "cli", "stream", "benchmark", "utils",
+                        "errors", "version"):
+        module = importlib.import_module(f"evoparam.{module_name}")
+        names_of = getattr(module, "__all__", None)
+        if names_of is None:   # the rule of tools/gen_api_index.py for a module without __all__
+            names_of = [n for n, obj in vars(module).items()
+                        if not n.startswith("_") and not inspect.ismodule(obj)]
+        for name in names_of:
+            root = getattr(evoparam, name, None)
+            if root is not None and root is getattr(module, name, None):
+                names.append(f"evoparam.{module_name}.{name}")
+    return names
+
+
+# macOS and Windows file systems ignore case: the constant evoparam.io.OPENNEURO_URL and the
+# function evoparam.io.openneuro_url would share one stub file
+autosummary_filename_map = {"evoparam.io.OPENNEURO_URL": "evoparam.io.OPENNEURO_URL-constant"}
+autosummary_context = {"noindex": _root_reexports()}
 autosummary_generate = True
 # every literature key [LIT-<axis>-<n>] cited in the docs (REQ-302), generated from
 # docs/spec/LITERATURE.md by tools/gen_references_bib.py

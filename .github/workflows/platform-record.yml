@@ -1,0 +1,48 @@
+# Platform record of the layer-4 report (spec §7.4 (5), REQ-295, REQ-375): the deterministic
+# fixture fit on one operating system and processor, compared with the reference values,
+# written to validation/layer4/<version>/platforms/<os>-<processor>.json and committed back to
+# the branch that started the run. Push a branch named platform-record/<anything> to record
+# Windows (x86-64); the macOS and Linux records come from the project's machines. The record
+# is then merged by hand.
+name: platform-record
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "platform-record/**" ]
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    name: platform record (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        os: [windows-latest]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install from the lock file (REQ-309)
+      run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e ".[all]"
+    - name: Fixture fit against the reference (§7.4 (5))
+      run: python validation/robustness.py --analyses platform
+    - name: Commit the record
+      shell: bash
+      run: |
+        git config user.name "Yann V. Bellec"
+        git config user.email "yannbellec.b@gmail.com"
+        git add validation/layer4/*/platforms/*.json
+        git commit -m "Enregistrement de plateforme : $(python -c 'import platform; print(platform.platform())')" || exit 0
+        for attempt in 1 2 3; do
+          git pull --rebase origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && break
+          sleep 5
+        done

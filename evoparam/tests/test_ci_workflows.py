@@ -284,13 +284,11 @@ def test_req302_docs_workflow() -> None:
     assert (ROOT / "docs" / "references.bib").is_file()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-302: the documentation build cannot be run here: "
-    "sphinx, pydata-sphinx-theme, numpydoc, sphinx-gallery and "
-    "sphinxcontrib-bibtex are not installed (S20, 2026-10-11; nothing is "
-    "installed in this step); the published latest/stable switcher waits for "
-    "the owner's HIIE decision",
+@pytest.mark.skipif(
+    os.environ.get("EVOPARAM_DOCS_TESTS") != "1",
+    reason="REQ-302: builds the whole site (several minutes, runs the gallery); set "
+    "EVOPARAM_DOCS_TESTS=1 with the docs extra installed (pip install evoparam[docs], as "
+    "in the docs CI job); the MNE example downloads the MNE sample dataset",
 )
 def test_req302_docs_build_with_warnings_as_errors(tmp_path: Any) -> None:
     import subprocess
