@@ -7,12 +7,13 @@ import zipfile
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.data import GroupFit, TrialSet, load_object, save_object, serialize
 from evoparam.errors import DataError, EvoparamVersionError
 from evoparam.tests.data.factories import all_results, make_group_fit, make_trialset
+
+pd = pytest.importorskip("pandas")
 
 RESULTS = all_results()
 FORMATS = ["csv"] + (["parquet"] if serialize._have_pyarrow() else [])

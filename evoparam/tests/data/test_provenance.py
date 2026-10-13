@@ -112,84 +112,87 @@ def test_fixed_clock_makes_records_reproducible(monkeypatch: Any) -> None:
 SEVEN = {"function", "settings", "version", "preset", "random_state", "duration_s", "n_jobs"}
 
 
-def _chain(tmp_path: Any) -> Any:
-    import warnings
-
-    import evoparam
-    from evoparam import sim
-
-    warnings.simplefilter("ignore")
-    trials, _ = sim.simulate_ccep(n_trials=10, n_channels=3, seed=0)
-    path = tmp_path / "trials.evoparam"
-    evoparam.data.save_object(trials, str(path))
-    ts = evoparam.io.read(str(path))
-    events = evoparam.detect_events(
-        np.concatenate(list(ts.data), axis=-1), sfreq=ts.sfreq, ch_names=ts.ch_names
-    )
-    clean = evoparam.artifact.remove_artifact(
-        ts, method="template", window=(-0.002, 0.008)
-    ).cleaned
-    group = evoparam.fit(clean, preset="ccep", random_state=0)
-    test = evoparam.test_response(
-        clean, window=(0.009, 0.5), baseline=(-0.5, -0.02), by=(), random_state=0
-    )
-    single = evoparam.trials.fit_trials(clean, group, random_state=0)
-    return {
-        "read": ts,
-        "events": events,
-        "clean": clean,
-        "group": group,
-        "test": test,
-        "single": single,
-    }
-
-
 def test_req294_every_step_has_the_seven_keys(tmp_path: Any) -> None:
     """REQ-294: each step of every result of the chain read -> detect_events ->
     remove_artifact -> fit -> test_response -> fit_trials has the seven keys and is valid
     JSON; a GroupFit saved and loaded has an equal Provenance."""
 
+    import warnings
+
     import pytest
+
+    import evoparam
 
     pytest.importorskip("pandas")
     from evoparam.data import load_object, save_object
+    from evoparam.tests.data.factories import core_chain
 
-    out = _chain(tmp_path)
-    for name in ("clean", "group", "test", "single"):
-        for step in out[name].provenance.steps:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        out = core_chain(tmp_path)
+        out["test"] = evoparam.test_response(
+            out["clean"].cleaned,
+            window=(0.009, 0.5),
+            baseline=(-0.4, -0.02),
+            by=(),
+            random_state=0,
+        )
+    records = {
+        "read": out["read"].provenance.steps,
+        "events": out["events"].attrs["provenance"]["steps"],
+        "trials": out["trials"].provenance.steps,
+        "clean": out["clean"].provenance.steps,
+        "group": out["group"].provenance.steps,
+        "test": out["test"].provenance.steps,
+        "single": out["single"].provenance.steps,
+    }
+    records.update({f"fit {f.channel}": f.provenance.steps for f in out["single"].fits})
+    for name, steps in records.items():
+        assert steps, name
+        for step in steps:
             assert set(step) >= SEVEN, (name, step["function"], SEVEN - set(step))
             json.dumps(step, allow_nan=False)
     assert out["group"].provenance.steps[-2]["preset"]["name"] == "ccep"
     assert out["single"].provenance.steps[-1]["random_state"] == 0
+    assert out["test"].provenance.steps[-1]["function"] == "evoparam.existence.test_response"
     path = tmp_path / "group.evoparam"
     save_object(out["group"], str(path))
     assert load_object(str(path)).provenance == out["group"].provenance
 
 
 def test_req294_six_steps_in_order(tmp_path: Any) -> None:
-    """REQ-294 as written: the final result of the chain holds the six steps in order."""
+    """REQ-294 as written: the final result of the chain (the trial fits, and each
+    TrialFit) holds the six steps of the chain in order: read, detect_events,
+    remove_artifact, fit (fit_group and its existence test, test_response), fit_trials.
+    Between them stand only the records that the chain's containers need: the epochs cut
+    around the detected events (``evoparam.io.epoch``) and the average that the group fit
+    is made from (``TrialSet.average``)."""
+
+    import warnings
 
     import pytest
 
     pytest.importorskip("pandas")
-    out = _chain(tmp_path)
-    functions = [s["function"] for s in out["single"].provenance.steps]
-    expected = [
-        "evoparam.io.read",
-        "evoparam.events.detect_events",
-        "evoparam.artifact.remove_artifact",
-        "evoparam.fit",
-        "evoparam.existence.test_response",
-        "evoparam.trials.fit_trials",
-    ]
-    if functions[-len(expected) :] != expected:
-        pytest.xfail(
-            "REQ-294 six-step chain not met as written (S20, measured): the TrialFit "
-            f"holds {functions}; reading a saved container restores its record and "
-            "adds no read step, detect_events returns a table (its step is in "
-            "EventTable.attrs['provenance']), and fit_trials keeps the steps of the "
-            "trials, not those of the group fit it starts from"
-        )
+    from evoparam.tests.data.factories import CHAIN_INTERMEDIATE, CHAIN_STEPS, core_chain
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        out = core_chain(tmp_path)
+    assert out["single"].fits
+    for result in [out["single"], *out["single"].fits]:
+        functions = [s["function"] for s in result.provenance.steps]
+        assert functions == [
+            "evoparam.io.read",
+            "evoparam.events.detect_events",
+            "evoparam.io.epoch",
+            "evoparam.artifact.remove_artifact",
+            "evoparam.data.TrialSet.average",
+            "evoparam.models.ResponseModel.fit_group",
+            "evoparam.existence.test_response",
+            "evoparam.trials.fit_trials",
+        ]
+        assert [f for f in functions if f in CHAIN_STEPS] == list(CHAIN_STEPS)
+        assert set(functions) - set(CHAIN_STEPS) == set(CHAIN_INTERMEDIATE)
 
 
 def test_req309_lock_hash(tmp_path: Any) -> None:

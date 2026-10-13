@@ -4,12 +4,14 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
+import pytest
 
 from evoparam.existence import test_response as run_test
 from evoparam.existence import train_discordance
 
 from .helpers import gaussian, noise_trials, plateau, trialset
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

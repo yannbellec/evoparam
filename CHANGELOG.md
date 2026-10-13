@@ -115,6 +115,92 @@ the minimal case and `evoparam report` / `evoparam migrate` every time before th
 - Test: pyarrow receives a path and a pyarrow file system, never a Python file object
   (container directory and zip); it fails before the fix.
 
+### Engineering requirements of S20 closed (REQ-006, REQ-007, REQ-009, REQ-010, REQ-292, REQ-294, REQ-298, REQ-306, REQ-307, REQ-333, REQ-395)
+
+With the default arguments the results are unchanged: the reference fixture, the frozen
+methods texts, the API index and `soup.json` checks pass as before.
+
+- **REQ-306** (network access only in `io/_fetch.py`): the literal grep of §11.5 reports
+  `io/_fetch.py` only. Docstrings say "HTTP reads with a `Range` header" instead of
+  "range requests", and `io/mef.py` takes `quote`/`unquote` from `io/_fetch.py`. The test
+  scans every text file of the package outside its tests. Expected failure removed.
+- **REQ-307 iv** (no `errstate`): no line of the package uses `np.errstate`. The
+  documented NaN and inf results are computed by the new `evoparam.utils._numeric`
+  (`divide`, `sqrt`, `log`, `log10`), which return the bits of the plain NumPy operation
+  without raising or hiding a floating-point warning (17 modules). Expected failure
+  removed.
+- **REQ-292** (optional imports through `evoparam.utils.require`): every import of an
+  optional package (68 sites in 25 modules) is preceded by `require(..., extra=...,
+  caller=...)`, so a missing package always raises the same `ImportError` naming the extra
+  and the function. `data` and `presets` may now import `utils` (`utils.require` only;
+  import table of DECISIONS §2). Expected failure removed.
+- **REQ-395** (no copyleft package in the resolved tree of an extra): `pybids` is no
+  longer declared in `bids` and `all` (every release from 0.16 requires `num2words`, LGPL,
+  and from 0.19 `frozendict`, LGPL-3.0; evoparam never imported it); it is listed in
+  `evoparam._extras.WITHHELD` with the reason (DECISIONS §5.7). New `tools/licence_scan.py`
+  scans the resolved tree of chosen extras; the CI job `licence-scan` runs it for each of
+  the 22 extras in its own environment. The import-graph test checks every imported
+  third-party package against a licence allow-list, and the PR template has the checklist
+  item. The four lock files lose `pybids` and the packages only it required;
+  `soup.json` and `THIRD_PARTY.md` regenerated. Expected failure removed.
+- **REQ-294** (provenance chain): the chain `read` → `detect_events` → `remove_artifact`
+  → `fit` → `test_response` → `fit_trials` on the bundled simulated recording holds the
+  six steps in order (with the `epoch` and `average` steps the user calls between them).
+  Reading a saved `.evoparam` container appends a read step; `detect_events` records its
+  step in the event table, which `epoch` continues; `fit_trials` continues the record of
+  the group fit, and every `TrialFit` carries it. Expected failure removed.
+- **REQ-307 ii** (no silent failure of a unit): `fit_trials`, `test_response` and
+  `remove_artifact` take `on_error` (`"record"`, the default, or `"raise"`), as
+  `fit_group` did. A channel that fails is kept with `status="failed"` and the exception
+  in `message` (`TrialFit.status`; arrays over the channels in `ResponseTest` and
+  `ArtifactResult`), NaN numbers, and exactly one WARNING record naming it;
+  `on_error="raise"` raises the first `FitError`; data and settings errors propagate.
+  `test_response` and `remove_artifact` find the failing channels by running the channels
+  one at a time after the vectorised run failed (DECISIONS §4). The `model_comparison`
+  method now marks a channel whose model fit fails as failed (before: NaN, with a WARNING
+  that did not name the channel). The test injects the failure in each function, as for
+  `fit_group`. Expected failure removed.
+- **REQ-009** (amplitudes with an explicit unit): a fit records the unit of its data
+  (`ResponseFit.units`, `GroupFit.units`); the fit tables give it for the amplitudes,
+  areas (`uV·s`) and errors instead of `"data"`. A `GroupFit` of fits in different units
+  raises `DataError`. Expected failure removed.
+- **REQ-010** (light core): `import evoparam` and the core chain (`detect_events`,
+  `remove_artifact`, `fit` with its existence test, `test_response`, `fit_trials`, save
+  and load) run with NumPy and SciPy only. Without pandas the tables are the new
+  `evoparam.data.Table` (named NumPy columns, `to_pandas()`); with pandas they are
+  DataFrames as before (DECISIONS §4). Containers saved without pandas use CSV tables.
+  `read_neo` no longer needs pandas. Expected failure removed.
+- **REQ-298** (coverage thresholds): `evoparam.shapes` is covered at 100 % (lines and
+  branches) by its own tests, without any exclusion comment: the new
+  `tests/shapes/test_checks.py` checks every input check, fallback and edge case of the
+  shapes, backgrounds and registry (plugin entry points, every check of
+  `register_shape`). Two faults found on the way are fixed: `skew_mode` of a NaN or
+  infinite skewness recursed without end (now NaN), and of a skewness above about 1e154
+  raised `OverflowError` on the scalar path (now the half-normal limit, as on the array
+  path). The coverage configuration measured too little: `[tool.coverage.run] omit` left
+  out `plots`, `cli`, `stream` and `benchmark`, so the 80 % gate of the outer layers had no
+  data, and the 90 % gate counted only part of the package. Now every module is measured;
+  `coverage report` gates the core packages of REQ-298 (`[tool.coverage.report]
+  include`) and the outer-layer gate also counts the remote I/O modules. New tests of
+  modules that had none: the signal figures of `evoparam.plots`, `ComponentWindows`, the
+  inherited module utilities, deep equality, the environment record, the worker side of
+  `n_jobs` and `fetch_erpcore` against a local copy of the OSF API. Fast suite, Python
+  3.13: core 90.5 % (lines and branches), shapes 100 %, outer layers 82.0 %. Expected
+  failure removed.
+- **REQ-006** (an interval for every reported value): the existence test of an Evoked
+  (no trials) gives intervals of the onset, offset and duration from a baseline
+  bootstrap (`n_boot` resamples; DECISIONS §4); its p-values and decisions are unchanged.
+  Expected failure removed.
+- **REQ-007** (time-frequency fits regenerated): `tf_fit` draws and records a seed when
+  `random_state` is None, and its provenance step holds every keyword argument that
+  changes the result (frequencies, channels, transform parameters), so
+  `evoparam.reproduce` regenerates it identically. The methods text of a time-frequency
+  fit now gives its frequency span. Expected failure removed.
+- **REQ-333** (`reproduce` of the chain): `evoparam.reproduce` replays `detect_events`,
+  `epoch` and `fit_trials` too, so a trial fit replays identically, and an edited
+  `settings.json` of a trial fit changes the replay. Expected failure for trial fits
+  removed (the time-frequency case: REQ-007 above).
+
 ### Arguments that were ignored: `verbose=`, `n_jobs`, five unused arguments (REQ-304, REQ-307)
 
 With the default arguments the results are unchanged: the reference fixture, the frozen

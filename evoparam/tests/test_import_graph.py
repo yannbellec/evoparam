@@ -4,7 +4,9 @@
 Every module of the package is parsed with ``ast`` and the directed graph of intra-package
 imports is built; ``from evoparam import plots`` is an edge to ``plots`` (not to the
 package root). The test fails on (i) any edge not allowed by the table, (ii) any cycle and
-(iii) any top-level import of an optional package. No module is exempt.
+(iii) any top-level import of an optional package. No module is exempt. Extended for REQ-395
+with a licence allow-list: every third-party package the package imports has an allowed
+licence in the SOUP inventory (``soup.json``).
 
 The table is the reviewed table of spec §4.2 with the owner's resolutions of D3, D4 and D5
 (the features required by other sections win). Every edge that the reviewed table does not
@@ -51,8 +53,9 @@ TOP = {"reports", "plots", "cli", "stream", "benchmark"}
 
 # Spec §4.2 with D3/D4/D5 resolved: module -> modules it may import (besides LEAVES).
 RULES = {
-    # D4/D5: the plugins used for a result are recorded in its provenance (REQ-328).
-    "data": {"_plugins"},
+    # D4/D5: the plugins used for a result are recorded in its provenance (REQ-328);
+    # optional packages through utils.require only (§9.2, REQ-292).
+    "data": {"_plugins", "utils"},
     # D5: the reader registry loads the evoparam.readers entry points (REQ-328).
     "io": {"data", "utils", "_plugins"},
     "events": {"data", "utils", "shapes"},
@@ -73,8 +76,9 @@ RULES = {
     # D5: the licence of a real-noise dataset is read from the registry of io (REQ-256);
     # optional packages through utils.require (§9.2).
     "sim": {"data", "shapes", "artifact", "utils", "io"},
-    # D5: the preset registry loads the evoparam.presets entry points (REQ-328).
-    "presets": {"_plugins"},
+    # D5: the preset registry loads the evoparam.presets entry points (REQ-328);
+    # optional packages through utils.require only (§9.2, REQ-292).
+    "presets": {"_plugins", "utils"},
     # Cross-cutting helpers (§4.2 figure): the leaves only.
     "utils": set(),
     # Entry-point loader of §10.8: the leaves only.
@@ -97,6 +101,8 @@ RULES = {
 # Modules whose only allowed use of utils is utils.require (the rows of §4.2 do not list
 # utils for them; §9.2 makes require the only way to import an optional package).
 REQUIRE_ONLY = {
+    "data": {"evoparam.utils._optional", "evoparam.utils.require"},
+    "presets": {"evoparam.utils._optional", "evoparam.utils.require"},
     "hierarchical": {"evoparam.utils._optional", "evoparam.utils.require"},
     "sim": {"evoparam.utils._optional", "evoparam.utils.require"},
 }
@@ -371,6 +377,107 @@ def test_mutation_forbidden_import_is_detected() -> None:
     # a top-level optional import, including one guarded by try/except
     guarded = text + "try:\n    import pandas\nexcept ImportError:\n    pandas = None\n"
     assert any("import pandas" in f for f in _optional_top_level({init: guarded}))
+
+
+###################################################################################################
+## REQ-395: licence allow-list of the third-party packages the package imports
+
+# Licences (SPDX) a third-party package imported by evoparam may have: permissive licences
+# and file-level MPL-2.0 (tqdm, hypothesis); never a copyleft licence (spec §13.7, REQ-395).
+LICENCE_ALLOW_LIST = {"Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "MIT", "PSF-2.0", "MPL-2.0"}
+# typing-only module of the type checkers (imported under ``if TYPE_CHECKING:``)
+TYPING_ONLY = {"_typeshed"}
+SOUP = PACKAGE.parent / "soup.json"
+
+
+# modules of the standard library of a later supported Python than the running one
+# (sys.stdlib_module_names is that of the running Python): tomllib from Python 3.11
+LATER_STDLIB = frozenset({"tomllib"})
+
+
+def _third_party_imports(sources: Any = None) -> Any:
+    """{import name: [module, ...]} of every third-party package the package imports: import
+    statements anywhere in a module and ``require("name", ...)`` calls. Scripts of the
+    repository (``benchmarks/``, ``tools/``) that the tests import are first-party."""
+
+    repo = PACKAGE.parent
+    out: dict[str, list[str]] = defaultdict(list)
+    for path, text in (sources or dict.fromkeys(sorted(PACKAGE.rglob("*.py")))).items():
+        tree = ast.parse(text if text is not None else path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module]
+            elif (
+                isinstance(node, ast.Call)
+                and getattr(node.func, "id", getattr(node.func, "attr", "")) == "require"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+            ):
+                names = [str(node.args[0].value)]
+            for name in names:
+                top = name.split(".")[0]
+                if (
+                    top in sys.stdlib_module_names
+                    or top in LATER_STDLIB
+                    or top in ("evoparam", "__future__")
+                    or top in TYPING_ONLY
+                    or any((repo / d / f"{top}.py").is_file() for d in ("benchmarks", "tools"))
+                ):
+                    continue
+                out[top].append(path.relative_to(PACKAGE).as_posix())
+    return out
+
+
+def _licence_violations(imports: Any, soup: Any = None) -> Any:
+    import json
+
+    if soup is None:
+        soup = {
+            p["import_name"]: p["licence"]
+            for p in json.loads(SOUP.read_text(encoding="utf-8"))["packages"]
+        }
+    bad = []
+    for name, modules in sorted(imports.items()):
+        licence = soup.get(name)
+        if licence is None:
+            bad.append(f"{name} (in {modules[0]}): not in soup.json, licence unknown")
+            continue
+        terms = set(re.split(r"\s+(?:AND|OR)\s+", licence))
+        if not terms <= LICENCE_ALLOW_LIST:
+            bad.append(f"{name} (in {modules[0]}): {licence}")
+    return bad
+
+
+@pytest.mark.skipif(not SOUP.is_file(), reason="soup.json not in this checkout")
+def test_imported_packages_have_allowed_licences() -> None:
+    """REQ-395: every third-party package that a module of the package imports (at the top
+    level, inside a function or through ``evoparam.utils.require``) is in the SOUP inventory
+    with a licence of ``LICENCE_ALLOW_LIST``."""
+
+    imports = _third_party_imports()
+    assert {"numpy", "scipy", "pandas", "mne"} <= set(imports)
+    bad = _licence_violations(imports)
+    assert not bad, bad
+
+
+@pytest.mark.skipif(not SOUP.is_file(), reason="soup.json not in this checkout")
+def test_licence_allow_list_finds_a_mutation() -> None:
+    """An import of a copyleft package (here ``ieegprep``, not in the inventory) or of
+    an inventoried package whose licence is not allowed makes the check fail."""
+
+    path = PACKAGE / "shapes" / "__init__.py"
+    text = path.read_text(encoding="utf-8")
+    bad = _licence_violations(_third_party_imports({path: text + "import ieegprep\n"}))
+    assert any(b.startswith("ieegprep") for b in bad)
+    bad = _licence_violations(
+        _third_party_imports({path: text + "def f():\n    return require('ieegprep')\n"})
+    )
+    assert any(b.startswith("ieegprep") for b in bad)
+    assert _licence_violations({"numpy": ["x.py"]}, soup={"numpy": "Unknown-1.0"})
+    assert not _licence_violations({"numpy": ["x.py"]}, soup={"numpy": "BSD-3-Clause"})
 
 
 def test_light_core_import_pulls_no_optional_package() -> None:

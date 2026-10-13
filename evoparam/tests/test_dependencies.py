@@ -283,7 +283,9 @@ def test_req292_extras_file_is_the_spec_table() -> None:
 
 def test_req292_pyproject_matches_the_extras_table() -> None:
     """(i) every extra of the table is in pyproject.toml with its packages at (at least)
-    their floors; every other package is a documented addition (``table.ADDITIONS``)."""
+    their floors; every other package is a documented addition (``table.ADDITIONS``). A
+    package of the table that is not declared is a documented withholding
+    (``table.WITHHELD``, with its reason: docs/spec/DECISIONS.md, section 5.7)."""
 
     from evoparam import _extras as table
 
@@ -294,7 +296,13 @@ def test_req292_pyproject_matches_the_extras_table() -> None:
             problems.append(f"[{extra}] missing")
             continue
         declared = {_name(r): _floor(r) for r in extras[extra]}
+        withheld = table.WITHHELD.get(extra, {})
+        problems += [
+            f"[{extra}] {d} is declared and withheld" for d in set(withheld) & set(declared)
+        ]
         for dist, floor in packages.items():
+            if dist in withheld:
+                continue
             alternatives = table.ALTERNATIVES.get(extra, {})
             if dist not in declared and not set(alternatives) & set(declared):
                 problems.append(f"[{extra}] {dist} missing")
@@ -457,16 +465,6 @@ def _imports_outside_require() -> Any:
     return sorted(set(out))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-292 'imported only through evoparam.utils.require' "
-    "is not met yet: 66 import statements of an optional package in 25 modules "
-    "are inside functions that do not call require for it (measured 2026-10-11, "
-    "S20; most follow a require of the caller or are capability checks). Each "
-    "of them is lazy (no top-level import, test_import_graph (iii)), and the "
-    "messages of the public entry points name the extra "
-    "(test_req292_missing_package_message)",
-)
 def test_req292_optional_packages_only_through_require() -> None:
     found = _imports_outside_require()
     assert not found, f"{len(found)}: {found[:10]}"
@@ -475,104 +473,80 @@ def test_req292_optional_packages_only_through_require() -> None:
 ###################################################################################################
 ## REQ-395: no GPL, LGPL or AGPL package in any extra (licence scan of the resolved tree)
 
-COPYLEFT = re.compile(r"\b(A|L)?GPL|GNU (Lesser |Affero )?General Public", re.IGNORECASE)
+
+def _scan_tool() -> Any:
+    """``tools/licence_scan.py``, the scan the CI job ``licence-scan`` runs on each extra."""
+
+    import importlib.util
+
+    path = ROOT / "tools" / "licence_scan.py"
+    if not path.is_file():
+        pytest.skip("tools/ not in this checkout")
+    spec = importlib.util.spec_from_file_location("licence_scan", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def _licence(dist: Any) -> Any:
-    from importlib import metadata
+def test_req395_resolved_tree_has_no_copyleft_package() -> None:
+    """The licence of every installed distribution reachable from every extra of
+    ``pyproject.toml`` (the tool chains ``docs`` and ``tests`` included) is not copyleft. A
+    distribution that puts a copyleft licence on named files only is accepted when none of them
+    is installed (``FILE_SCOPED``, checked on the installed files). Distributions that are
+    not installed here are checked by the CI job ``licence-scan``, one environment per
+    extra."""
 
-    try:
-        meta = metadata.metadata(dist)
-    except metadata.PackageNotFoundError:
-        return None
-    short = meta.get("License") if len(meta.get("License") or "") <= 200 else None
-    return " ".join(
-        filter(
-            None,
-            [meta.get("License-Expression"), short]
-            + [c for c in meta.get_all("Classifier") or [] if c.startswith("License ::")],
-        )
-    )
-
-
-def _resolved_tree(roots: Any) -> Any:
-    """Installed distributions reachable from ``roots`` through their requirements."""
-
-    from importlib import metadata
-
-    seen, todo = set(), list(roots)
-    while todo:
-        dist = todo.pop()
-        key = dist.lower().replace("_", "-")
-        if key in seen:
-            continue
-        try:
-            requires = metadata.requires(dist) or []
-        except metadata.PackageNotFoundError:
-            continue
-        seen.add(key)
-        for r in requires:
-            if "extra ==" in r:
-                continue
-            todo.append(_name(r))
-    return seen
-
-
-# Copyleft packages that the installed tree pulls in through a third party, each reached at
-# run time only by that third party (never imported, vendored or declared by evoparam), with
-# the reason (docs/spec/DECISIONS.md, REQ-395).
-COPYLEFT_ALLOWED = {
-    "frozendict": "LGPL-3.0, a requirement of pybids (extra bids, named by spec §9.2); "
-    "evoparam neither imports nor declares it",
-    "num2words": "LGPL, a requirement of pybids (extra bids, named by spec §9.2); evoparam "
-    "neither imports nor declares it",
-}
-
-
-def test_req395_no_copyleft_package_in_the_installed_extras() -> None:
-    """The licence of every installed distribution reachable from the extras (except
-    ``docs`` and ``tests``, the tool chains) is not GPL, LGPL or AGPL. Distributions that
-    are not installed here are checked by the CI licence scan of every extras set."""
-
-    roots = {
-        _name(r)
-        for extra, reqs in _extras().items()
-        if extra not in ("docs", "tests", "all")
-        for r in reqs
-    }
-    hits = []
-    for dist in sorted(_resolved_tree(roots)):
-        text = _licence(dist)
-        if text and COPYLEFT.search(text) and dist not in COPYLEFT_ALLOWED:
-            hits.append(f"{dist}: {text}")
-    assert not hits, hits
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-395 verification read as 'the resolved tree has no "
-    "copyleft package at all': pybids (extra bids, spec §9.2) requires "
-    "frozendict (LGPL-3.0) and num2words (LGPL) (measured 2026-10-11 on the installed tree); "
-    "evoparam does not import, vendor or declare it (DECISIONS.md)",
-)
-def test_req395_resolved_tree_has_no_copyleft_package_at_all() -> None:
-    roots = {
-        _name(r)
-        for extra, reqs in _extras().items()
-        if extra not in ("docs", "tests", "all")
-        for r in reqs
-    }
-    hits = [
-        d for d in sorted(_resolved_tree(roots)) if _licence(d) and COPYLEFT.search(_licence(d))
-    ]
+    tool = _scan_tool()
+    hits, _, n = tool.scan(sorted(_extras()))
+    assert n > 0
     assert not hits, hits
 
 
 def test_req395_the_scan_finds_a_copyleft_licence() -> None:
-    assert COPYLEFT.search("License :: OSI Approved :: GNU General Public License v3 (GPLv3)")
-    assert COPYLEFT.search("LGPL-2.1-or-later")
-    assert not COPYLEFT.search("Apache-2.0")
-    assert not COPYLEFT.search("BSD-3-Clause")
+    tool = _scan_tool()
+    assert tool.COPYLEFT.search("License :: OSI Approved :: GNU General Public License v3 (GPLv3)")
+    assert tool.COPYLEFT.search("LGPL-2.1-or-later")
+    assert tool.COPYLEFT.search("License :: OSI Approved :: GNU Lesser General Public License v3")
+    assert not tool.COPYLEFT.search("Apache-2.0")
+    assert not tool.COPYLEFT.search("BSD-3-Clause")
+    assert not tool.COPYLEFT.search("MPL-2.0")
+    # only the distributions named in FILE_SCOPED can be accepted, and only without the files
+    assert not tool.file_scoped_ok("numpy")
+
+
+def test_req395_licence_scan_job_covers_every_extra() -> None:
+    """The CI job ``licence-scan`` installs each extra of ``pyproject.toml`` in its own
+    environment and runs the scan on it."""
+
+    yaml = pytest.importorskip("yaml")
+    doc = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text("utf-8"))
+    job = doc["jobs"]["licence-scan"]
+    assert set(job["strategy"]["matrix"]["extra"]) == set(_extras())
+    runs = "\n".join(str(step.get("run", "")) for step in job["steps"])
+    assert 'pip install ".[${{ matrix.extra }}]"' in runs
+    assert "tools/licence_scan.py --extra ${{ matrix.extra }}" in runs
+
+
+def test_req395_pull_request_checklist() -> None:
+    """The pull-request template asks the REQ-395 question."""
+
+    text = (ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md").read_text(encoding="utf-8")
+    assert re.search(r"- \[ \] no copyleft package .*REQ-395", text)
+
+
+def test_req395_withheld_packages_are_documented() -> None:
+    """A package of the §9.2 table that pyproject does not declare has its reason in
+    ``evoparam/_extras.py`` and in docs/spec/DECISIONS.md."""
+
+    from evoparam import _extras as table
+
+    decisions = (ROOT / "docs" / "spec" / "DECISIONS.md").read_text(encoding="utf-8")
+    for extra, packages in table.WITHHELD.items():
+        for dist, reason in packages.items():
+            assert reason.strip(), (extra, dist)
+            assert f"`{dist}`" in decisions, dist
 
 
 def test_req309_version_floors() -> None:

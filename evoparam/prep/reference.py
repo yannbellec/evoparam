@@ -11,6 +11,7 @@ from evoparam._typing import Any, FloatArray, IntArray, NDArray, RandomState
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.utils._names import contact_group, contact_number
+from evoparam.utils._numeric import divide, sqrt
 from evoparam.utils._optional import require
 
 from ._common import bad_channels, ch_table, check_trialset, masked_values, new, stim_contacts
@@ -156,16 +157,15 @@ def _zeta_curve(average: Any, order: Any) -> FloatArray:
     seg = seg - seg.mean(axis=1, keepdims=True)
     cov = seg @ seg.T / max(seg.shape[1] - 1, 1)
     out = np.empty(len(order) - 1)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        for n in range(2, len(order) + 1):
-            c = cov[:n, :n]
-            row = c.sum(axis=1) / n
-            var_m = c.sum() / n**2
-            var_r = np.diag(c) - 2 * row + var_m
-            corr = (c - row[:, None]) / np.sqrt(np.outer(np.diag(c), var_r))
-            np.fill_diagonal(corr, np.nan)
-            z = np.arctanh(np.clip(corr, -0.999999, 0.999999))
-            out[n - 2] = np.nanmin(np.nanmean(z, axis=1))
+    for n in range(2, len(order) + 1):
+        c = cov[:n, :n]
+        row = c.sum(axis=1) / n
+        var_m = c.sum() / n**2
+        var_r = np.diag(c) - 2 * row + var_m
+        corr = divide(c - row[:, None], sqrt(np.outer(np.diag(c), var_r)))
+        np.fill_diagonal(corr, np.nan)
+        z = np.arctanh(np.clip(corr, -0.999999, 0.999999))
+        out[n - 2] = np.nanmin(np.nanmean(z, axis=1))
     return out
 
 

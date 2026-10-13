@@ -29,6 +29,7 @@ from evoparam.data.provenance import capture_environment
 from evoparam.data.serialize import SCHEMA
 from evoparam.errors import DataError, EvoparamError, EvoparamVersionError
 from evoparam.errors import warn as _warn
+from evoparam.utils._numeric import divide
 from evoparam.version import __version__
 
 if TYPE_CHECKING:
@@ -186,6 +187,95 @@ def _fit_group(trials: Any, settings: Any) -> "GroupFit":
     return model.fit_group(trials)
 
 
+def _fit_trials(obj: Any, trials: Any, group: Any, step: Any) -> Any:
+    """Replay a fit_trials step; the TrialFit of ``obj``'s channel when ``obj`` is one."""
+    from evoparam.trials import fit_trials
+
+    settings = dict(step.get("settings") or {})
+    kwargs = _accepted(fit_trials, settings)
+    for key in ("by", "covariates", "prestim_band", "prestim_window"):
+        if isinstance(kwargs.get(key), list):
+            kwargs[key] = tuple(kwargs[key])
+    kwargs["random_state"] = step.get("random_state")
+    out = fit_trials(trials, group, **kwargs)
+    if type(obj).__name__ == "TrialFit":
+        return out.get(obj.channel, condition=obj.settings.get("condition") or None)
+    return out
+
+
+def _replay_test(settings: Any, trials: Any, group: Any) -> "GroupFit":
+    """Replay the existence test of a group fit and attach it."""
+    from evoparam.existence import attach_test, test_response
+
+    kwargs = _accepted(test_response, settings)
+    spec = settings.get("rule_spec") or {}
+    if settings.get("method") == "threshold" and spec.get("name"):
+        kwargs["rule"] = spec["name"]
+    for key in ("window", "baseline"):
+        if key in kwargs:
+            kwargs[key] = tuple(kwargs[key])
+    kwargs["by"] = tuple(kwargs.get("by") or ())
+    tested: GroupFit = attach_test(group, test_response(trials, **kwargs))
+    return tested
+
+
+_CHAIN = ("evoparam.events.detect_events", "evoparam.io.epoch", "evoparam.trials.fit_trials")
+
+
+def _replay_chain(
+    obj: Any,
+    step: Any,
+    state: Any,
+    chain: dict[str, Any],
+    *,
+    trials: Any,
+    group: Any,
+    final_settings: Any,
+) -> Any:
+    """Replay a step of the chain of REQ-294 that is not a call on the data.
+
+    The steps are the events, the epochs and the trial fits.
+
+    ``chain["recording"]`` keeps the continuous recording that the events were detected in,
+    for the epochs. ``final_settings`` (the last step only): a value of the result's
+    settings file that differs from the saved result replaces the recorded keyword
+    argument of the trial fit, as for a group fit.
+    """
+    function = step["function"]
+    settings = dict(step.get("settings") or {})
+    if function == "evoparam.events.detect_events":
+        from evoparam.events import detect_events, detect_pulses
+
+        chain["recording"] = state
+        return detect_events(state, **_accepted(detect_pulses, settings))
+    if function == "evoparam.io.epoch":
+        from evoparam.io import epoch
+
+        recording = chain.get("recording")
+        if recording is None:
+            raise DataError("the epochs need the recording of a detect_events step.")
+        return epoch(
+            recording.data[0],
+            recording.sfreq,
+            state,
+            settings["tmin"],
+            settings["tmax"],
+            t0=settings.get("t0", 0.0),
+            ch_names=list(recording.ch_names),
+            units=settings.get("units", recording.units),
+            ch_info=recording.ch_info,
+        )
+    if final_settings is not None:
+        saved = getattr(obj, "settings", None) or {}
+        changed = {
+            k: v
+            for k, v in final_settings.items()
+            if k in settings and v != to_jsonable(saved.get(k))
+        }
+        step = dict(step, settings={**settings, **changed})
+    return _fit_trials(obj, trials or state, group, step)
+
+
 def _replay_source(step: Any, source: Any, data: Any) -> Any:
     function = step["function"]
     settings = step.get("settings") or {}
@@ -221,6 +311,7 @@ def _replay(obj: Any, final_settings: Any, data: Any) -> Any:
     state = None
     trials_before_average = None
     group = None
+    chain: dict[str, Any] = {}  # the continuous TrialSet that events were detected in
     for i, step in enumerate(steps):
         function = step["function"]
         settings = dict(step.get("settings") or {})
@@ -262,18 +353,17 @@ def _replay(obj: Any, final_settings: Any, data: Any) -> Any:
                 )
                 state = group
             elif function == _TEST_STEP and group is not None:
-                from evoparam.existence import attach_test, test_response
-
-                kwargs = _accepted(test_response, settings)
-                spec = settings.get("rule_spec") or {}
-                if settings.get("method") == "threshold" and spec.get("name"):
-                    kwargs["rule"] = spec["name"]
-                for key in ("window", "baseline"):
-                    if key in kwargs:
-                        kwargs[key] = tuple(kwargs[key])
-                kwargs["by"] = tuple(kwargs.get("by") or ())
-                test = test_response(trials_before_average, **kwargs)
-                state = group = attach_test(group, test)
+                state = group = _replay_test(settings, trials_before_average, group)
+            elif function in _CHAIN:
+                state = _replay_chain(
+                    obj,
+                    step,
+                    state,
+                    chain,
+                    trials=trials_before_average,
+                    group=group,
+                    final_settings=final_settings if last else None,
+                )
             elif function.startswith("evoparam.data."):
                 method = getattr(state, function.rsplit(".", 1)[1])
                 state = method(**_accepted(method, settings))
@@ -315,14 +405,21 @@ def _replay(obj: Any, final_settings: Any, data: Any) -> Any:
 ## Comparing
 
 
+def _difference(a: NDArray[Any], b: NDArray[Any]) -> NDArray[Any]:
+    """Return ``a - b``, NaN where both are the same infinity (``inf - inf`` not computed)."""
+    a, b = np.broadcast_arrays(a, b)
+    out = np.full(a.shape, np.nan)
+    np.subtract(a, b, out=out, where=~(np.isinf(a) & (a == b)))
+    return out
+
+
 def _rel(a: Any, b: Any) -> tuple[float, NDArray[Any], NDArray[Any]]:
     a = np.asarray(a, float)
     b = np.asarray(b, float)
     both_nan = np.isnan(a) & np.isnan(b)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        diff = np.abs(a - b)
-        scale = np.maximum(np.abs(a), np.abs(b))
-        rel = np.where(scale > 0, diff / scale, 0.0)
+    diff = np.abs(_difference(a, b))
+    scale = np.maximum(np.abs(a), np.abs(b))
+    rel = np.where(scale > 0, divide(diff, scale), 0.0)
     rel = np.where(both_nan, 0.0, rel)
     rel = np.where(np.isnan(rel), np.inf, rel)
     return float(rel.max()) if rel.size else 0.0, diff, both_nan
@@ -574,9 +671,17 @@ def reproduce(
         raise EvoparamVersionError(
             f"{err} " + "; ".join(item["message"] for item in missing_plugins.values())
         ) from err
-    if settings_differences:
+    if settings_differences and records:
+        # the step whose settings the file holds: the group fit's for a GroupFit (its
+        # existence test follows it), else the step that made the result (the last one)
+        named = (
+            _FIT_STEP
+            if any(record["function"] == _FIT_STEP for record in records)
+            and type(saved).__name__ == "GroupFit"
+            else records[-1]["function"]
+        )
         for record in records:
-            if record["function"] == _FIT_STEP:
+            if record["function"] == named:
                 record["message"] = (
                     "settings.json differs from the recorded settings: "
                     + ", ".join(settings_differences)

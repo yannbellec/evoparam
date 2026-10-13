@@ -5,11 +5,12 @@ HierarchicalFit.to_arviz (§5.8), list_shapes and list_backgrounds (§5.5.8)."""
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.data import TrialSet
 from evoparam.errors import DataError
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

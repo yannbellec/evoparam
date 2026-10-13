@@ -5,7 +5,6 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.data import GroupFit, TrialSet
@@ -13,6 +12,8 @@ from evoparam.errors import SettingsError
 from evoparam.trials import dose_response, fit_trials, jitter, prestimulus_dependence
 
 from .helpers import SFREQ, TIMES, channel_fit, gauss, simulate
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

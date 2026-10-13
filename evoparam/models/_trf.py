@@ -202,8 +202,11 @@ def _cl_scaling(
     """Coleman-Li scaling vector ``v`` and its derivative ``dv``."""
     upper = (g < 0) & finite_ub
     lower = (g > 0) & finite_lb
-    with np.errstate(invalid="ignore"):  # inf - inf where a bound is infinite
-        v = np.where(lower, x - lb, np.where(upper, ub - x, 1.0))
+    # the distances are computed only where they are used (finite bound): an infinite bound
+    # elsewhere gives no inf - inf
+    v = np.ones_like(x)
+    np.subtract(x, lb, out=v, where=lower)
+    np.subtract(ub, x, out=v, where=upper & ~lower)
     dv = lower - upper.astype(float)
     return v, dv
 
@@ -367,6 +370,18 @@ def _evaluate_quadratic(jac: FloatArray, g: FloatArray, s: FloatArray, diag: Flo
     return cast("float", 0.5 * q + np.dot(s, g))
 
 
+def _quotient(num: FloatArray, den: FloatArray) -> FloatArray:
+    """Return ``num / den`` (``den`` non-zero) without computing an overflow.
+
+    ``±inf`` is written directly where the quotient exceeds twice the largest float, the
+    IEEE quotient elsewhere.
+    """
+    huge = np.abs(num) * 0.5 > np.minimum(np.abs(den), 1.0) * np.finfo(np.float64).max
+    out = np.copysign(np.inf, num) * np.sign(den)
+    np.divide(num, den, out=out, where=~huge)
+    return out
+
+
 def _step_to_bound(
     x: FloatArray, s: FloatArray, lb: FloatArray, ub: FloatArray
 ) -> tuple[float, IntArray]:
@@ -374,10 +389,9 @@ def _step_to_bound(
     s_non_zero = s[non_zero]
     steps = np.empty_like(x)
     steps.fill(np.inf)
-    with np.errstate(over="ignore"):
-        steps[non_zero] = np.maximum(
-            (lb - x)[non_zero] / s_non_zero, (ub - x)[non_zero] / s_non_zero
-        )
+    steps[non_zero] = np.maximum(
+        _quotient((lb - x)[non_zero], s_non_zero), _quotient((ub - x)[non_zero], s_non_zero)
+    )
     min_step = cast(float, np.min(steps))  # a float64 (x is float64)
     return min_step, np.equal(steps, min_step) * np.sign(s).astype(int)
 

@@ -10,6 +10,7 @@ import numpy as np
 
 from evoparam._typing import Any
 from evoparam.errors import DataError
+from evoparam.utils._optional import require
 
 __all__ = ["to_json", "from_json", "validate_json", "SCHEMA_FILE"]
 
@@ -114,6 +115,7 @@ def to_json(result: Any, path: str | None = None, *, validate: bool | None = Non
 
 def _have_jsonschema() -> bool:
     try:
+        require("jsonschema", extra="validate", caller="evoparam.reports._export._have_jsonschema")
         import jsonschema  # noqa: F401
     except ImportError:
         return False
@@ -143,6 +145,7 @@ def validate_json(document: Any) -> Any:
         ``jsonschema`` is not installed (extra ``validate``).
     """
     try:
+        require("jsonschema", extra="validate", caller="evoparam.reports._export.validate_json")
         import jsonschema
     except ImportError as err:
         raise ImportError(

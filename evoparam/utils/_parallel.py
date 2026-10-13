@@ -23,6 +23,7 @@ from evoparam.errors import _frame_above, _warn_at
 
 from . import _rungs
 from ._logging import LOGGER, progress
+from ._optional import require
 
 __all__ = ["n_workers", "parallel_map"]
 
@@ -117,7 +118,7 @@ def parallel_map(
     """``[function(item) for item in items]``, in ``n_jobs`` workers, in the order of ``items``.
 
     One worker runs the plain loop. Otherwise the units run in ``joblib`` processes when
-    joblib is installed (``function`` and the items are pickled), else in a thread pool.
+    joblib is installed (``function`` and the items are serialised), else in a thread pool.
     With ``verbose="progress"`` a bar counts the units (:func:`evoparam.utils.verbose`).
     The first exception of a unit propagates.
     """
@@ -126,6 +127,7 @@ def parallel_map(
     if workers == 1:
         return [function(item) for item in progress(units, total=len(units), desc=desc)]
     try:
+        require("joblib", extra="parallel", caller="evoparam.utils._parallel.parallel_map")
         import joblib
     except ImportError:
         with ThreadPoolExecutor(max_workers=workers) as pool:

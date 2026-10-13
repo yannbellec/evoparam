@@ -4,13 +4,14 @@
 from dataclasses import replace
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.artifact import apply_mask
 from evoparam.prep import reject_trials
 
 from .helpers import ccep, epochs
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

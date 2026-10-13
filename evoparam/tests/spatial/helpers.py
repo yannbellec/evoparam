@@ -5,11 +5,13 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
+import pytest
 
 from evoparam.data import Evoked, TrialSet
 from evoparam.models import ResponseModel
 from evoparam.sim.artifacts import seeg_layout
+
+pd = pytest.importorskip("pandas")
 
 SFREQ = 1000.0
 TIMES = np.arange(-0.3, 0.6, 1 / SFREQ)

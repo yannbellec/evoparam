@@ -17,6 +17,8 @@ import os
 from collections.abc import Callable, Iterable, Iterator
 from typing import Any, Literal, ParamSpec, TypeVar, Union, overload
 
+from ._optional import require
+
 __all__ = ["verbose", "set_log_level", "set_log_file", "progress", "LEVELS"]
 
 _P = ParamSpec("_P")
@@ -132,6 +134,7 @@ def progress(
     if not _PROGRESS.get():
         return iter(iterable)
     try:
+        require("tqdm", extra="progress", caller="evoparam.utils._logging.progress")
         from tqdm import tqdm
     except ImportError:
         return iter(iterable)

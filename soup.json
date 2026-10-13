@@ -429,6 +429,7 @@
    "functions_used": [
     "__version__",
     "abs",
+    "add",
     "add.at",
     "all",
     "allclose",
@@ -464,6 +465,7 @@
     "conj",
     "convolve",
     "copy",
+    "copysign",
     "corrcoef",
     "cos",
     "count_nonzero",
@@ -479,7 +481,6 @@
     "empty",
     "empty_like",
     "equal",
-    "errstate",
     "exp",
     "eye",
     "fft.fftfreq",
@@ -511,6 +512,7 @@
     "isclose",
     "iscomplexobj",
     "isfinite",
+    "isinf",
     "isnan",
     "isscalar",
     "issubdtype",
@@ -607,6 +609,7 @@
     "stack",
     "std",
     "str_",
+    "subtract",
     "sum",
     "swapaxes",
     "take",
@@ -621,6 +624,7 @@
     "trunc",
     "typing.ArrayLike",
     "typing.NDArray",
+    "ufunc",
     "uint32",
     "uint64",
     "uint8",
@@ -780,22 +784,6 @@
     "fs",
     "fs.LocalFileSystem"
    ]
-  },
-  {
-   "package": "pybids",
-   "import_name": "bids",
-   "role": "optional",
-   "extras": [
-    "bids"
-   ],
-   "version_range": ">=0.16",
-   "markers": [],
-   "locked_version": "0.22.0",
-   "licence": "MIT",
-   "licence_checked": "package metadata",
-   "anomaly_url": "https://github.com/bids-standard/pybids/issues",
-   "imported_by_source": false,
-   "functions_used": []
   },
   {
    "package": "pydata-sphinx-theme",

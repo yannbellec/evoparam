@@ -67,9 +67,8 @@ def read_neo(
     TrialSet
         Data in µV (units through ``quantities``).
     """
-    import pandas as pd
-
     from evoparam.data import Provenance, TrialSet
+    from evoparam.data._table import new_table
 
     block = _block(source, io_class)
     segments = list(enumerate(block.segments))
@@ -143,7 +142,7 @@ def read_neo(
             "io_class": io_class,
         },
     )
-    meta = pd.DataFrame(rows)
+    meta = new_table(rows)
     return TrialSet(
         data=np.stack(epochs),
         times=times_axis,

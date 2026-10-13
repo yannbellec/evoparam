@@ -34,6 +34,7 @@ from scipy.optimize import minimize_scalar
 from evoparam._typing import Any, ArrayLike, FloatArray, IntArray, NDArray
 from evoparam.errors import SettingsError
 from evoparam.stats.variance import reml
+from evoparam.utils._optional import require
 
 __all__ = [
     "mixture_em",
@@ -282,13 +283,16 @@ def design_matrix(values: Any, terms: Any) -> tuple[FloatArray, list[str]]:
 
 def effects_table(out: Any, names: Any, level: float = 0.95) -> Any:
     """Return the fixed effects with standard errors, intervals and two-sided p-values (normal)."""
+    require("pandas", extra="data", caller="evoparam.hierarchical.eb.effects_table")
     import pandas as pd
 
     beta = np.asarray(out["beta"], float)
     se = np.sqrt(np.diag(np.asarray(out["beta_cov"], float)))
     q = sstats.norm.ppf(0.5 + level / 2)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        z = beta / se
+    # beta / se without a floating-point warning (hierarchical uses utils.require only):
+    # +-inf for a non-zero estimate with a zero standard error, NaN for 0 / 0
+    z = np.where((se == 0) & (beta != 0), np.copysign(np.inf, beta), np.nan)
+    np.divide(beta, se, out=z, where=(se > 0) & ~(np.isinf(beta) & np.isinf(se)))
     return pd.DataFrame(
         {
             "term": names,

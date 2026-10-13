@@ -22,7 +22,6 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.artifact import remove_artifact
@@ -30,6 +29,8 @@ from evoparam.data import TrialSet
 from evoparam.io import epoch_data
 from evoparam.models import ResponseModel
 from evoparam.prep import baseline_correct, rereference
+
+pd = pytest.importorskip("pandas")
 
 pytestmark = [
     pytest.mark.network,

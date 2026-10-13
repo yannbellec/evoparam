@@ -589,8 +589,8 @@ def _solve_multi(problems: Any, max_iter: Any) -> Any:
         mean = (x * kf).sum(axis=1) / np.maximum(count, 1)
         tss = (((x - mean[:, None]) * kf) ** 2).sum(axis=1)
         rss = (((x - fit_x) * kf) ** 2).sum(axis=1)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            r2 = np.where((tss > 0) & (count > 0), 1 - rss / np.where(tss > 0, tss, 1.0), np.nan)
+        r2 = np.full(tss.shape, np.nan)
+        np.subtract(1, rss / np.where(tss > 0, tss, 1.0), out=r2, where=(tss > 0) & (count > 0))
         owner = np.zeros((q_n, n_comp))
         owner[np.arange(q_n), moving_k] = 1.0
         at_k = (hit[rows, :q_n].astype(float) @ owner) > 0

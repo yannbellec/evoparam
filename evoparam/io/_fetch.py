@@ -16,6 +16,7 @@ import time
 from collections import OrderedDict
 from typing import cast
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote, unquote
 from urllib.request import Request, urlopen
 
 from evoparam._typing import Any
@@ -30,6 +31,10 @@ __all__ = [
     "data_folder",
     "sha256_file",
     "TransferLog",
+    # URL text helpers of urllib.parse, for the remote readers: only this module imports
+    # urllib (REQ-306)
+    "quote",
+    "unquote",
 ]
 
 logger = logging.getLogger(__name__)

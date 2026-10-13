@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Data containers, results, provenance and the ``.evoparam`` container format."""
 
+from ._table import Table as Table
 from .containers import Evoked as Evoked
 from .containers import TrialSet as TrialSet
 from .provenance import Provenance as Provenance

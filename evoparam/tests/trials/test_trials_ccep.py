@@ -17,8 +17,9 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
+
+pd = pytest.importorskip("pandas")
 
 NETWORK = os.environ.get("EVOPARAM_NETWORK_TESTS") == "1"
 

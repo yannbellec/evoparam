@@ -4,7 +4,6 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 from scipy import stats as sps
 
@@ -12,6 +11,8 @@ from evoparam.data import Evoked
 from evoparam.errors import DataError
 from evoparam.sim import simulate_erp
 from evoparam.stats import jackknife_f, jackknife_latency, jackknife_t, score_waveforms
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

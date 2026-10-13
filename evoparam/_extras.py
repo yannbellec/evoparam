@@ -4,7 +4,8 @@
 ``EXTRAS`` is the table of the specification: extra name -> {distribution: floor or None}.
 ``ALTERNATIVES`` are the packages the table names as an alternative ("or"), which the
 pyproject may use instead. ``ADDITIONS`` are the packages ``pyproject.toml`` declares beyond
-the table, each with the reason. ``UNIONS`` are the extras that collect others (``all``,
+the table, each with the reason, and ``WITHHELD`` the packages of the table that it does not
+declare, each with the reason. ``UNIONS`` are the extras that collect others (``all``,
 ``cli``) or tool chains (``docs``, ``tests``), which the "exactly one extra" rule does not
 count. ``evoparam/tests/test_dependencies.py`` checks ``pyproject.toml`` against this file.
 """
@@ -88,6 +89,17 @@ ADDITIONS = {
         "scipy-stubs": "type stubs of scipy for mypy --strict on the package (REQ-301)",
         "types-pyyaml": "type stubs of PyYAML for mypy --strict on the package (REQ-301)",
         "types-tabulate": "type stubs of tabulate for mypy --strict on the package (REQ-301)",
+    },
+}
+
+# Packages of the table that ``pyproject.toml`` does not declare, each with the reason
+# (docs/spec/DECISIONS.md, section 5.7).
+WITHHELD = {
+    "bids": {
+        "pybids": "REQ-395: every pybids release from 0.16 requires num2words (and from 0.19 "
+        "also frozendict), whose licences are copyleft, so declaring it would put copyleft "
+        "packages in the resolved tree of the extra; evoparam never imports pybids (BIDS "
+        "datasets are read by evoparam.io and mne-bids)"
     },
 }
 

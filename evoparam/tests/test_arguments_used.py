@@ -21,13 +21,14 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 import evoparam
 from evoparam.errors import SettingsError
 from evoparam.utils._logging import progress, verbose
 from evoparam.utils._parallel import n_workers, parallel_map
+
+pd = pytest.importorskip("pandas")
 
 LOGGER = logging.getLogger("evoparam")
 

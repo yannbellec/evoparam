@@ -7,7 +7,6 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 import evoparam
@@ -17,6 +16,8 @@ from evoparam.sim import simulate_erp
 from evoparam.stats import column_dictionary, fit_mixed, group_summary, mixed_formula, to_long
 
 from .helpers import N1
+
+pd = pytest.importorskip("pandas")
 
 HAS_STATSMODELS = importlib.util.find_spec("statsmodels") is not None
 

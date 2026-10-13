@@ -479,6 +479,7 @@ def _glass_brain(table: Any, display_mode: Any) -> Any:
     plotting = require(
         "nilearn.plotting", extra="brain", caller="evoparam.spatial.plot_parameter_map"
     )
+    require("matplotlib", extra="plot", caller="evoparam.spatial.maps._glass_brain")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 

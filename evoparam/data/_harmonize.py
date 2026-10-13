@@ -22,6 +22,7 @@ import numpy as np
 
 from evoparam._typing import Any, BoolArray, FloatArray
 from evoparam.errors import DataError
+from evoparam.utils._optional import require
 
 __all__ = [
     "harmonize_stim_events",
@@ -209,6 +210,7 @@ class ValidationReport:
 
 def _pandas(caller: str) -> Any:
     try:
+        require("pandas", extra="data", caller="evoparam.data._harmonize._pandas")
         import pandas
     except ImportError as err:
         raise ImportError(f'{caller} needs pandas: pip install "evoparam[data]".') from err
