@@ -3,6 +3,7 @@
   "evoparam.artifact.remove_artifact": "1.0",
   "evoparam.events.detect_events": "1.0",
   "evoparam.existence.test_response": "1.1",
+  "evoparam.hierarchical.fit_hierarchical": "1.1",
   "evoparam.models.ResponseModel.fit_group": "1.1",
   "evoparam.models.ResponseModel.fit_waveform": "1.1",
   "evoparam.models.evaluate_fit": "1.1",
