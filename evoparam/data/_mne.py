@@ -38,6 +38,7 @@ HEAD_FRAME = 4  # mne.io.constants.FIFF.FIFFV_COORD_HEAD
 
 
 def _mne() -> Any:
+    """Return mne, or raise ImportError with the extra to install."""
     try:
         require("mne", extra="mne", caller="evoparam.data._mne._mne")
         import mne
@@ -49,6 +50,7 @@ def _mne() -> Any:
 
 
 def _channel_table(info: Any, names: Sequence[str]) -> Any:
+    """Return the channel table (types, bad channels, positions in mm) of an MNE info."""
     require("pandas", extra="data", caller="evoparam.data._mne._channel_table")
     import pandas as pd
 
@@ -183,6 +185,7 @@ def _harmonize_metadata(
 
 
 def _info(ch_names: Sequence[str], sfreq: float, ch_info: Any, ch_types: Any) -> Any:
+    """Return an MNE info for the channels (types from ``ch_types``, else ``ch_info``)."""
     mne = _mne()
     if ch_types is None:
         ch_types = list(ch_info["type"]) if ch_info is not None and "type" in ch_info else "eeg"
