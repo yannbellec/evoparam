@@ -1,0 +1,400 @@
+{
+ "adapters": [],
+ "cell_timings_s": {
+  "artifact-p001": {
+   "evoparam-preset": 0.08406784599355888,
+   "interpolate": 0.07825443000183441,
+   "none": 0.0011091060005128384,
+   "simulate": 0.19030837999889627
+  },
+  "artifact-p002": {
+   "evoparam-preset": 0.0828322089946596,
+   "interpolate": 0.08027129899710417,
+   "none": 0.0011288910027360544,
+   "simulate": 0.13793961999181192
+  },
+  "artifact-p003": {
+   "evoparam-preset": 0.08591007599898148,
+   "interpolate": 0.07820245900074951,
+   "none": 0.0010982110106851906,
+   "simulate": 0.10769703899859451
+  },
+  "artifact-p004": {
+   "evoparam-preset": 0.10290752399305347,
+   "interpolate": 0.08074857899919152,
+   "none": 0.001119745007599704,
+   "simulate": 0.10759379000228364
+  },
+  "artifact-p005": {
+   "evoparam-preset": 0.08612432799418457,
+   "interpolate": 0.0786273169942433,
+   "none": 0.0011574730015126988,
+   "simulate": 0.11651266900298651
+  },
+  "artifact-p006": {
+   "evoparam-preset": 0.08535780099919066,
+   "interpolate": 0.1058525090047624,
+   "none": 0.0012745720014208928,
+   "simulate": 0.11279369000112638
+  },
+  "artifact-p007": {
+   "evoparam-preset": 0.08821576400077902,
+   "interpolate": 0.08143372100312263,
+   "none": 0.001119433989515528,
+   "simulate": 0.15277326699288096
+  },
+  "artifact-p008": {
+   "evoparam-preset": 0.08474467000633013,
+   "interpolate": 0.07995690898678731,
+   "none": 0.0010684510052669793,
+   "simulate": 0.11623211301048286
+  },
+  "ccep_detection-p001": {
+   "evoparam-preset": 12.646293226003763,
+   "ftract": 0.04774715799430851,
+   "hays2021": 0.036367509004776366,
+   "keller2014": 0.03692031699756626,
+   "prime2020": 0.03648403100669384,
+   "projection": 0.07869497701176442,
+   "silverstein2020": 0.03592171899799723,
+   "simulate": 0.8698206119879615,
+   "vanblooijs2023": 0.03750392599613406,
+   "vanblooijs2023_code": 0.04047400699346326
+  },
+  "ccep_detection-p002": {
+   "evoparam-preset": 13.187174703998608,
+   "ftract": 0.04081754000799265,
+   "hays2021": 0.03641247500490863,
+   "keller2014": 0.03541871999914292,
+   "prime2020": 0.03620382200460881,
+   "projection": 0.08968451801047195,
+   "silverstein2020": 0.035108372001559474,
+   "simulate": 0.1915209809958469,
+   "vanblooijs2023": 0.03811184500227682,
+   "vanblooijs2023_code": 0.04052458200021647
+  },
+  "ccep_detection-p003": {
+   "evoparam-preset": 15.168254481992335,
+   "ftract": 0.04136872399249114,
+   "hays2021": 0.03331264900043607,
+   "keller2014": 0.032946906008874066,
+   "prime2020": 0.03343024000059813,
+   "projection": 0.07704129999910947,
+   "silverstein2020": 0.03391581900359597,
+   "simulate": 0.19895721301145386,
+   "vanblooijs2023": 0.03664707699499559,
+   "vanblooijs2023_code": 0.039517323006293736
+  },
+  "ccep_detection-p004": {
+   "evoparam-preset": 15.447019490995444,
+   "ftract": 0.03648524801246822,
+   "hays2021": 0.033453108990215696,
+   "keller2014": 0.038431745997513644,
+   "prime2020": 0.03375860500091221,
+   "projection": 0.13196299401170108,
+   "silverstein2020": 0.03398765000747517,
+   "simulate": 0.18941983999684453,
+   "vanblooijs2023": 0.035388674994464964,
+   "vanblooijs2023_code": 0.03928122499200981
+  },
+  "ccep_detection-p005": {
+   "evoparam-preset": 13.886722417999408,
+   "ftract": 0.11665129598986823,
+   "hays2021": 0.12147352698957548,
+   "keller2014": 0.1066906240012031,
+   "prime2020": 0.10728804100654088,
+   "projection": 0.7484044730081223,
+   "silverstein2020": 0.10993672300537582,
+   "simulate": 0.6031042999966303,
+   "vanblooijs2023": 0.10618249299295712,
+   "vanblooijs2023_code": 0.11412489900249057
+  },
+  "ccep_detection-p006": {
+   "evoparam-preset": 16.498929838999175,
+   "ftract": 0.10292649299663026,
+   "hays2021": 0.09418389800703153,
+   "keller2014": 0.09628422900277656,
+   "prime2020": 0.10533752699848264,
+   "projection": 0.5859198399994057,
+   "silverstein2020": 0.10094688899698667,
+   "simulate": 0.6572288110037334,
+   "vanblooijs2023": 0.09217639299458824,
+   "vanblooijs2023_code": 0.11993460200028494
+  },
+  "ccep_detection-p007": {
+   "evoparam-preset": 14.342347311991034,
+   "ftract": 0.12930745199264493,
+   "hays2021": 0.09931421600049362,
+   "keller2014": 0.0997614700027043,
+   "prime2020": 0.12121372499677818,
+   "projection": 0.6584928950032918,
+   "silverstein2020": 0.1040844010130968,
+   "simulate": 0.5687389249942498,
+   "vanblooijs2023": 0.10270560199569445,
+   "vanblooijs2023_code": 0.12510255300730933
+  },
+  "ccep_detection-p008": {
+   "evoparam-preset": 32.56850616600423,
+   "ftract": 0.09846249400288798,
+   "hays2021": 0.09502450600848533,
+   "keller2014": 0.0953536219894886,
+   "prime2020": 0.09513955700094812,
+   "projection": 0.6343197370006237,
+   "silverstein2020": 0.09458524500951171,
+   "simulate": 0.5507036060007522,
+   "vanblooijs2023": 0.09334079799009487,
+   "vanblooijs2023_code": 0.1000736109999707
+  },
+  "erp_scoring-p001": {
+   "classical": 0.1512456849886803,
+   "evoparam-preset": 0.33663426600105595,
+   "simulate": 0.0057396729971515015
+  },
+  "erp_scoring-p002": {
+   "classical": 0.12597181199816987,
+   "evoparam-preset": 0.39140826399670914,
+   "simulate": 0.005903402998228557
+  },
+  "erp_scoring-p003": {
+   "classical": 0.2930753079999704,
+   "evoparam-preset": 0.3119087699888041,
+   "simulate": 0.006231186998775229
+  },
+  "erp_scoring-p004": {
+   "classical": 0.16641918300592806,
+   "evoparam-preset": 0.3411178770038532,
+   "simulate": 0.0093965370033402
+  },
+  "erp_scoring-p005": {
+   "classical": 0.13900400800048374,
+   "evoparam-preset": 0.563698416997795,
+   "simulate": 0.006017437990522012
+  },
+  "erp_scoring-p006": {
+   "classical": 0.17417049799405504,
+   "evoparam-preset": 0.4566228010080522,
+   "simulate": 0.00602501499815844
+  },
+  "erp_scoring-p007": {
+   "classical": 0.1479324729880318,
+   "evoparam-preset": 0.39302392899116967,
+   "simulate": 0.0067744409898296
+  },
+  "erp_scoring-p008": {
+   "classical": 0.14647518399578985,
+   "evoparam-preset": 0.29745743599778507,
+   "simulate": 0.0065159650112036616
+  },
+  "evoked-p001": {
+   "classical": 0.0019702249992405996,
+   "evoparam-preset": 3.705853585008299,
+   "simulate": 0.022546345004229806
+  },
+  "evoked-p002": {
+   "classical": 0.0029495420021703467,
+   "evoparam-preset": 10.31630427899654,
+   "simulate": 0.019354298012331128
+  },
+  "evoked-p003": {
+   "classical": 0.0021853170037502423,
+   "evoparam-preset": 2.1993794000009075,
+   "simulate": 0.02757454900711309
+  },
+  "evoked-p004": {
+   "classical": 0.0021339389932109043,
+   "evoparam-preset": 4.503927732992452,
+   "simulate": 0.01842888399551157
+  },
+  "evoked-p005": {
+   "classical": 0.007357936003245413,
+   "evoparam-preset": 2.9142117439914728,
+   "simulate": 0.09226352200494148
+  },
+  "evoked-p006": {
+   "classical": 0.007549412010121159,
+   "evoparam-preset": 3.7066766599891707,
+   "simulate": 0.4118195829942124
+  },
+  "evoked-p007": {
+   "classical": 0.007546729000750929,
+   "evoparam-preset": 3.974884038005257,
+   "simulate": 0.09191594799631275
+  },
+  "evoked-p008": {
+   "classical": 0.007436743006110191,
+   "evoparam-preset": 4.137341887995717,
+   "simulate": 0.41829903500911314
+  },
+  "single_trial-p001": {
+   "classical": 0.011978319002082571,
+   "evoparam-preset": 1.1377254129911307,
+   "simulate": 0.015132475004065782,
+   "template": 1.2031456560071092
+  },
+  "single_trial-p002": {
+   "classical": 0.015937158997985534,
+   "evoparam-preset": 1.2553683389996877,
+   "simulate": 0.014677054001367651,
+   "template": 1.421329031989444
+  },
+  "single_trial-p003": {
+   "classical": 0.012381445005303249,
+   "evoparam-preset": 1.1770173969998723,
+   "simulate": 0.014049441000679508,
+   "template": 1.2930512010061648
+  },
+  "single_trial-p004": {
+   "classical": 0.01302922799368389,
+   "evoparam-preset": 0.8765512329991907,
+   "simulate": 0.019249514996772632,
+   "template": 1.1204721340036485
+  },
+  "single_trial-p005": {
+   "classical": 0.03187027400417719,
+   "evoparam-preset": 3.512915333005367,
+   "simulate": 0.07983228999364655,
+   "template": 3.8365025230014
+  },
+  "single_trial-p006": {
+   "classical": 0.03221908400882967,
+   "evoparam-preset": 5.018998643005034,
+   "simulate": 0.06053287399117835,
+   "template": 5.5444838240073295
+  },
+  "single_trial-p007": {
+   "classical": 0.031077453997568227,
+   "evoparam-preset": 3.5540568420110503,
+   "simulate": 0.06071029898885172,
+   "template": 3.7266418039944256
+  },
+  "single_trial-p008": {
+   "classical": 0.03363676500157453,
+   "evoparam-preset": 3.687102790005156,
+   "simulate": 0.05817570400540717,
+   "template": 3.741684777007322
+  },
+  "tf-p001": {
+   "evoparam-preset": 0.49090071899991017,
+   "simulate": 0.006650966010056436,
+   "tf-cluster": 3.7072506669937866
+  },
+  "tf-p002": {
+   "evoparam-preset": 0.18866199400508776,
+   "simulate": 0.010794086992973462,
+   "tf-cluster": 3.413485328987008
+  },
+  "tf-p003": {
+   "evoparam-preset": 53.58977839098952,
+   "simulate": 0.008092303003650159,
+   "tf-cluster": 27.93179634399712
+  },
+  "tf-p004": {
+   "evoparam-preset": 53.172631332010496,
+   "simulate": 0.008112337003694847,
+   "tf-cluster": 52.62314240098931
+  },
+  "tf-p005": {
+   "evoparam-preset": 52.309391432994744,
+   "simulate": 0.00948258099379018,
+   "tf-cluster": 34.77785085499636
+  },
+  "tf-p006": {
+   "evoparam-preset": 43.517063976003556,
+   "simulate": 0.008671274001244456,
+   "tf-cluster": 29.985069421003573
+  },
+  "tf-p007": {
+   "evoparam-preset": 62.252898307997384,
+   "simulate": 0.008190638007363304,
+   "tf-cluster": 69.6798815660004
+  },
+  "tf-p008": {
+   "evoparam-preset": 50.443416441994486,
+   "simulate": 0.0087108550069388,
+   "tf-cluster": 26.233987190993503
+  }
+ },
+ "command": "evoparam benchmark run --suite core --out run1 --verbose info",
+ "duration_s": {
+  "adapters": 0.0,
+  "cells": 796.8665163279948,
+  "scoring": 14.364822797986562,
+  "total": 811.2473174549959
+ },
+ "failures": [],
+ "machine": {
+  "cpus": 4,
+  "note": "shared 4-CPU Linux container, load average 4.6 to 10.5 during the run (other jobs), one process (n_jobs=1)",
+  "python": "3.13",
+  "wall_clock_s_with_imports": 812.6
+ },
+ "methods": [
+  "vanblooijs2023",
+  "hays2021",
+  "keller2014",
+  "silverstein2020",
+  "ftract",
+  "prime2020",
+  "vanblooijs2023_code",
+  "projection",
+  "evoparam-preset",
+  "classical",
+  "template",
+  "interpolate",
+  "none",
+  "tf-cluster"
+ ],
+ "n_cells": 48,
+ "n_jobs": 1,
+ "pages": [
+  "report.md",
+  "leaderboard.html"
+ ],
+ "results": [
+  "results/vanblooijs2023__T1.json",
+  "results/hays2021__T1.json",
+  "results/keller2014__T1.json",
+  "results/silverstein2020__T1.json",
+  "results/ftract__T1.json",
+  "results/prime2020__T1.json",
+  "results/vanblooijs2023_code__T1.json",
+  "results/projection__T1.json",
+  "results/evoparam-preset__T1.json",
+  "results/vanblooijs2023__T2.json",
+  "results/hays2021__T2.json",
+  "results/keller2014__T2.json",
+  "results/silverstein2020__T2.json",
+  "results/ftract__T2.json",
+  "results/prime2020__T2.json",
+  "results/vanblooijs2023_code__T2.json",
+  "results/projection__T2.json",
+  "results/evoparam-preset__T2.json",
+  "results/evoparam-preset__T3.json",
+  "results/classical__T3.json",
+  "results/evoparam-preset__T4.json",
+  "results/interpolate__T4.json",
+  "results/none__T4.json",
+  "results/evoparam-preset__T5.json",
+  "results/classical__T5.json",
+  "results/template__T5.json",
+  "results/evoparam-preset__T6.json",
+  "results/classical__T6.json",
+  "results/evoparam-preset__T7.json",
+  "results/tf-cluster__T7.json"
+ ],
+ "split": "public",
+ "suite": {
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "tasks": [
+  "T1",
+  "T2",
+  "T3",
+  "T4",
+  "T5",
+  "T6",
+  "T7"
+ ]
+}

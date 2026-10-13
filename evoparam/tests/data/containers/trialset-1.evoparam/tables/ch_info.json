@@ -1,0 +1,25 @@
+{
+ "format": "csv",
+ "n_rows": 3,
+ "index": {
+  "kind": "range"
+ },
+ "columns": {
+  "name": {
+   "dtype": "str",
+   "unit": ""
+  },
+  "type": {
+   "dtype": "str",
+   "unit": ""
+  },
+  "x": {
+   "dtype": "float64",
+   "unit": ""
+  },
+  "bad": {
+   "dtype": "bool",
+   "unit": ""
+  }
+ }
+}

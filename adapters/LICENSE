@@ -1,0 +1,28 @@
+evoparam benchmark adapters
+Copyright (C) 2026 Yann V. Bellec
+
+The files of this folder (adapters/) are NOT part of the evoparam package. evoparam is
+distributed under the Apache License 2.0 (see ../LICENSE); this folder is excluded from
+its source and binary distributions (MANIFEST.in: prune adapters) and nothing in evoparam
+imports it.
+
+These adapter scripts call tools released under the GNU General Public License (ER-detect,
+GPL-3.0; the canonical response parameterization code, GPL), and the ER-detect adapter
+imports that tool, so the adapters are distributed under the same terms:
+
+    This program is free software: you can redistribute it and/or modify it under the
+    terms of the GNU General Public License as published by the Free Software Foundation,
+    either version 3 of the License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful, but WITHOUT ANY
+    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+    PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along with this
+    program. If not, see <https://www.gnu.org/licenses/>.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+
+evoparam runs these scripts only as separate processes (evoparam.benchmark.Adapter, which
+starts a subprocess and exchanges files with it); no code of this folder or of the tools
+it calls is linked with, imported into or vendored in evoparam.

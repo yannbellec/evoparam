@@ -1,0 +1,679 @@
+# SPDX-License-Identifier: Apache-2.0
+"""The ``.evoparam`` container: saving and loading containers and results.
+
+A container is a directory (or a zip when the path ends in ``.zip``) holding:
+
+``manifest.json``
+    ``schema`` ("evoparam-result/<major>.<minor>"), ``object`` (class name),
+    ``package_version``, ``created``, ``table_format`` and ``files``
+    (relative path → SHA-256 of every other file).
+``structure.json``
+    The object's fields; arrays and tables are referenced by key.
+``data.npz``
+    The arrays (``allow_pickle=False``).
+``data.npy``
+    The main ``data`` array of a ``TrialSet`` or ``Evoked``, uncompressed so
+    that it can be memory-mapped.
+``tables/<key>.csv`` or ``tables/<key>.parquet``, with ``tables/<key>.json``
+    The tables (parquet when ``pyarrow`` is installed, CSV otherwise); the JSON
+    sidecar records column dtypes, the index and the unit of every column.
+``provenance.json``, ``settings.json``
+    The object's provenance and settings, for reading without evoparam.
+``methods.txt``
+    Results only: the methods paragraph (``methods_text()``) at saving time (REQ-390).
+
+All JSON is strict RFC 8259 JSON: NaN and infinities are written as ``null``
+in ``provenance.json``, ``settings.json`` and the table sidecars, and as
+``{"__float__": "nan"}`` inside ``structure.json`` so they round-trip exactly.
+"""
+
+import csv
+import hashlib
+import math
+import os
+import re
+import shutil
+import tempfile
+import zipfile
+from dataclasses import fields, is_dataclass
+
+import numpy as np
+
+from evoparam._typing import Any, StrPath
+from evoparam.data._jsonutil import dumps, loads
+from evoparam.data._table import Table, has_pandas
+from evoparam.errors import DataError, EvoparamVersionError
+from evoparam.utils._optional import require
+from evoparam.version import __version__
+
+__all__ = ["save_object", "load_object", "register_type", "SCHEMA", "SCHEMA_MAJOR", "SCHEMA_MINOR"]
+
+SCHEMA_MAJOR = 1
+SCHEMA_MINOR = 0
+SCHEMA = f"evoparam-result/{SCHEMA_MAJOR}.{SCHEMA_MINOR}"
+SUFFIX = ".evoparam"
+MISSING = "\\N"
+_SCHEMA_RE = re.compile(r"^evoparam-result/(\d+)(?:\.(\d+))?$")
+
+
+# Result types defined outside evoparam.data (for example evoparam.sim.GroundTruth), added
+# by their module when it is imported; evoparam.data imports nothing from them (spec §4.2).
+_EXTRA_TYPES: dict[Any, Any]
+_EXTRA_TYPES = {}
+
+
+def register_type(cls: Any) -> Any:
+    """Make a dataclass defined outside :mod:`evoparam.data` savable (spec §4.3.5).
+
+    The class can then be saved in a ``.evoparam`` container. Its module calls this when it is
+    imported.
+    """
+    _EXTRA_TYPES[cls.__name__] = cls
+    return cls
+
+
+def _registry() -> dict[Any, Any]:
+    from evoparam.data import containers, provenance, results
+
+    classes = [containers.TrialSet, containers.Evoked, provenance.Provenance]
+    classes += [
+        getattr(results, name)
+        for name in results.__all__
+        if isinstance(getattr(results, name), type)
+    ]
+    return {**{cls.__name__: cls for cls in classes}, **_EXTRA_TYPES}
+
+
+def _is_dataframe(obj: Any) -> bool:
+    return type(obj).__name__ == "DataFrame" and type(obj).__module__.startswith("pandas")
+
+
+def _sha256(path: Any, block: Any = 1 << 20) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as fobj:
+        for chunk in iter(lambda: fobj.read(block), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _have_pyarrow() -> bool:
+    try:
+        require("pyarrow", extra="data", caller="evoparam.data.serialize._have_pyarrow")
+        import pyarrow  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+###################################################################################################
+## Encoding
+
+
+class _Encoder:
+    def __init__(self, top: Any) -> None:
+        self.top = top
+        self.arrays: dict[Any, Any]
+        self.arrays = {}
+        self.tables: dict[Any, Any]
+        self.tables = {}
+        self.main_array = None
+
+    def _key(self, path: Any, used: Any) -> str:
+        key = re.sub(r"[^A-Za-z0-9_.-]", "_", path) or "value"
+        candidate, number = key, 1
+        while candidate in used:
+            candidate, number = f"{key}_{number}", number + 1
+        return candidate
+
+    def encode(self, obj: Any, path: Any) -> Any:
+        if obj is None or isinstance(obj, (str, bool)):
+            return obj
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, (int, np.integer)):
+            return int(obj)
+        if isinstance(obj, (float, np.floating)):
+            value = float(obj)
+            if math.isfinite(value):
+                return value
+            return {"__float__": "nan" if math.isnan(value) else ("inf" if value > 0 else "-inf")}
+        if isinstance(obj, np.ndarray):
+            if obj.dtype.kind in "OV":
+                raise DataError(f"{path}: arrays of dtype {obj.dtype} cannot be saved.")
+            if (
+                obj is getattr(self.top, "data", None)
+                and path == "data"
+                and type(self.top).__name__ in ("TrialSet", "Evoked")
+            ):
+                self.main_array = obj
+                return {"__npy__": "data.npy"}
+            key = self._key(path, self.arrays)
+            self.arrays[key] = obj
+            return {"__array__": key}
+        if _is_dataframe(obj) or isinstance(obj, Table):
+            key = self._key(path, self.tables)
+            self.tables[key] = obj
+            return {"__table__": key}
+        if is_dataclass(obj) and not isinstance(obj, type):
+            name = type(obj).__name__
+            if name not in _registry():
+                raise DataError(f"{path}: {name} is not a savable evoparam type.")
+            return {
+                "__type__": name,
+                "fields": {
+                    fld.name: self.encode(
+                        getattr(obj, fld.name), f"{path}.{fld.name}" if path else fld.name
+                    )
+                    for fld in fields(obj)
+                },
+            }
+        if isinstance(obj, tuple):
+            return {"__tuple__": [self.encode(v, f"{path}.{i}") for i, v in enumerate(obj)]}
+        if isinstance(obj, list):
+            return [self.encode(v, f"{path}.{i}") for i, v in enumerate(obj)]
+        if isinstance(obj, dict):
+            if all(isinstance(key, str) for key in obj):
+                return {
+                    "__dict__": {
+                        key: self.encode(value, f"{path}.{key}") for key, value in obj.items()
+                    }
+                }
+            return {
+                "__items__": [
+                    [self.encode(key, f"{path}.k{i}"), self.encode(value, f"{path}.{i}")]
+                    for i, (key, value) in enumerate(obj.items())
+                ]
+            }
+        raise DataError(f"{path}: values of type {type(obj).__name__} cannot be saved.")
+
+
+def _write_light_table(table: Table, folder: Any, key: Any) -> None:
+    """Write a :class:`Table` (the core without pandas, REQ-010) as CSV with its sidecar.
+
+    The same files as for a DataFrame with a RangeIndex: one column per field, missing
+    values written as ``MISSING``, the dtype and unit of each column in the sidecar.
+    """
+    units = dict(table.attrs.get("units", {}))
+    sidecar: dict[str, Any] = {
+        "format": "csv",
+        "n_rows": len(table),
+        "index": {"kind": "range"},
+        "columns": {},
+    }
+    columns = []
+    for column in table.columns:
+        values = table[column].to_numpy()
+        if values.dtype.kind not in "biufO":
+            raise DataError(
+                f"table {key}: column '{column}' has unsupported dtype {values.dtype}."
+            )
+        spec = {"dtype": str(values.dtype), "unit": str(units.get(column, ""))}
+        if values.dtype.kind == "O":
+            raw = values.tolist()
+            present = [v for v in raw if not _missing(v)]
+            if any(not isinstance(v, str) for v in present):
+                raise DataError(f"table {key}: column '{column}' mixes strings and other values.")
+            if MISSING in present:
+                raise DataError(
+                    f"table {key}: column '{column}' contains the reserved value {MISSING!r}."
+                )
+            kinds = {_missing_kind(v) for v in raw if _missing(v)}
+            if len(kinds) > 1:
+                raise DataError(
+                    f"table {key}: column '{column}' mixes missing values of different "
+                    f"kinds ({sorted(kinds)})."
+                )
+            if kinds and kinds != {"none"}:
+                spec["missing"] = kinds.pop()
+            text = [MISSING if _missing(v) else v for v in raw]
+        elif values.dtype.kind == "f":
+            text = [MISSING if math.isnan(v) else repr(float(v)) for v in values.tolist()]
+        else:
+            text = [str(v) for v in values.tolist()]
+        sidecar["columns"][column] = spec
+        columns.append(text)
+    with open(os.path.join(folder, f"{key}.csv"), "w", encoding="utf-8", newline="") as fobj:
+        if columns:
+            writer = csv.writer(fobj, lineterminator="\n")
+            writer.writerow(table.columns)
+            writer.writerows(zip(*columns, strict=True))
+    with open(os.path.join(folder, f"{key}.json"), "w", encoding="utf-8") as fobj:
+        fobj.write(dumps(sidecar, indent=1))
+
+
+def _write_table(table: Any, folder: Any, key: Any, table_format: Any) -> None:
+    if not all(isinstance(column, str) for column in table.columns):
+        raise DataError(f"table {key}: column names must be strings.")
+    if table.columns.has_duplicates:
+        raise DataError(f"table {key}: column names must be unique.")
+    if type(table.index).__name__ == "MultiIndex":
+        raise DataError(f"table {key}: a MultiIndex cannot be saved.")
+    units = dict(table.attrs.get("units", {}))
+    index = table.index
+    is_range = type(index).__name__ == "RangeIndex" and index.start == 0 and index.step == 1
+    sidecar = {
+        "format": table_format,
+        "n_rows": int(len(table)),
+        "index": {"kind": "range"}
+        if is_range
+        else {"kind": "column", "name": index.name, "dtype": str(index.dtype)},
+        "columns": {},
+    }
+    out = table if is_range else table.reset_index(names="__index__")
+    for column in table.columns:
+        dtype = table[column].dtype
+        if dtype.kind not in "biufO" and str(dtype) not in ("str", "string"):
+            raise DataError(f"table {key}: column '{column}' has unsupported dtype {dtype}.")
+        spec = {"dtype": str(dtype), "unit": str(units.get(column, ""))}
+        if dtype.kind == "O" or str(dtype) in ("str", "string"):
+            raw = table[column].tolist()
+            values = [v for v in raw if not _missing(v)]
+            if any(not isinstance(v, str) for v in values):
+                raise DataError(f"table {key}: column '{column}' mixes strings and other values.")
+            if MISSING in values:
+                raise DataError(
+                    f"table {key}: column '{column}' contains the reserved value {MISSING!r}."
+                )
+            kinds = {_missing_kind(v) for v in raw if _missing(v)}
+            if kinds and kinds != {"none"}:
+                # which missing value the column held (None, NaN or pandas NA), restored on
+                # reading; one kind per column
+                if len(kinds) > 1:
+                    raise DataError(
+                        f"table {key}: column '{column}' mixes missing values of "
+                        f"different kinds ({sorted(kinds)})."
+                    )
+                spec["missing"] = kinds.pop()
+        sidecar["columns"][column] = spec
+    if table_format == "parquet":
+        out.to_parquet(os.path.join(folder, f"{key}.parquet"), index=False)
+    elif len(out.columns):
+        out.to_csv(os.path.join(folder, f"{key}.csv"), index=False, na_rep=MISSING)
+    else:
+        open(os.path.join(folder, f"{key}.csv"), "w", encoding="utf-8").close()
+    with open(os.path.join(folder, f"{key}.json"), "w", encoding="utf-8") as fobj:
+        fobj.write(dumps(sidecar, indent=1))
+
+
+def _missing(value: Any) -> bool:
+    return (
+        value is None
+        or (isinstance(value, float) and math.isnan(value))
+        or type(value).__name__ == "NAType"
+    )
+
+
+def _missing_kind(value: Any) -> Any:
+    if value is None:
+        return "none"
+    if type(value).__name__ == "NAType":
+        return "na"
+    return "nan"
+
+
+def _write_tree(obj: Any, folder: Any, table_format: Any) -> None:
+    encoder = _Encoder(obj)
+    structure = encoder.encode(obj, "")
+    files = []
+    with open(os.path.join(folder, "structure.json"), "w", encoding="utf-8") as fobj:
+        fobj.write(dumps(structure, indent=1))
+    files.append("structure.json")
+    if encoder.main_array is not None:
+        np.save(
+            os.path.join(folder, "data.npy"),
+            np.ascontiguousarray(encoder.main_array),
+            allow_pickle=False,
+        )
+        files.append("data.npy")
+    if encoder.arrays:
+        np.savez(os.path.join(folder, "data.npz"), allow_pickle=False, **encoder.arrays)
+        files.append("data.npz")
+    if encoder.tables:
+        os.makedirs(os.path.join(folder, "tables"))
+        for key, table in encoder.tables.items():
+            if isinstance(table, Table) and table_format != "parquet":
+                _write_light_table(table, os.path.join(folder, "tables"), key)
+            else:  # a DataFrame; parquet needs pandas and pyarrow (extra ``data``)
+                frame = table.to_pandas() if isinstance(table, Table) else table
+                _write_table(frame, os.path.join(folder, "tables"), key, table_format)
+            files += [
+                f"tables/{key}.{'parquet' if table_format == 'parquet' else 'csv'}",
+                f"tables/{key}.json",
+            ]
+    provenance = getattr(obj, "provenance", None)
+    with open(os.path.join(folder, "provenance.json"), "w", encoding="utf-8") as fobj:
+        fobj.write(provenance.to_json(indent=1) if provenance is not None else "null")
+    with open(os.path.join(folder, "settings.json"), "w", encoding="utf-8") as fobj:
+        fobj.write(dumps(getattr(obj, "settings", {}), indent=1))
+    files += ["provenance.json", "settings.json"]
+    if callable(getattr(obj, "methods_text", None)):
+        # the methods paragraph is stored with every saved result, not only produced on
+        # request (spec §11.8, REQ-390)
+        with open(os.path.join(folder, "methods.txt"), "w", encoding="utf-8") as fobj:
+            fobj.write(obj.methods_text() + "\n")
+        files.append("methods.txt")
+    from evoparam.data.provenance import _now_utc
+
+    manifest = {
+        "schema": SCHEMA,
+        "object": type(obj).__name__,
+        "package_version": __version__,
+        "created": _now_utc(),
+        "table_format": table_format,
+        "files": {name: _sha256(os.path.join(folder, *name.split("/"))) for name in files},
+    }
+    with open(os.path.join(folder, "manifest.json"), "w", encoding="utf-8") as fobj:
+        fobj.write(dumps(manifest, indent=1))
+
+
+def save_object(
+    obj: Any, path: StrPath, overwrite: bool = False, table_format: str = "auto"
+) -> str:
+    """Save a container or result to a ``.evoparam`` directory or zip.
+
+    Parameters
+    ----------
+    obj : TrialSet, Evoked or any result dataclass
+    path : str or path-like
+        Target. ``.evoparam`` is appended to directory names that lack it; a
+        path ending in ``.zip`` gives a zip archive.
+    overwrite : bool
+        Replace an existing target.
+    table_format : {"auto", "csv", "parquet"}
+        "auto" uses parquet when ``pyarrow`` is installed, CSV otherwise.
+
+    Returns
+    -------
+    str
+        The path written.
+    """
+    if table_format == "auto":
+        table_format = "parquet" if _have_pyarrow() else "csv"
+    if table_format not in ("csv", "parquet"):
+        raise DataError(f"table_format must be 'auto', 'csv' or 'parquet', got {table_format!r}.")
+    path = os.fspath(path)
+    as_zip = path.endswith(".zip")
+    if not as_zip and not path.endswith(SUFFIX):
+        path += SUFFIX
+    if os.path.exists(path) and not overwrite:
+        raise FileExistsError(f"{path} exists; pass overwrite=True to replace it.")
+    parent = os.path.dirname(os.path.abspath(path))
+    os.makedirs(parent, exist_ok=True)
+    workdir = tempfile.mkdtemp(prefix=".evoparam-", dir=parent)
+    try:
+        _write_tree(obj, workdir, table_format)
+        if as_zip:
+            tmp_zip = workdir + ".zip"
+            with zipfile.ZipFile(tmp_zip, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                for root, _, names in os.walk(workdir):
+                    for name in names:
+                        full = os.path.join(root, name)
+                        archive.write(full, os.path.relpath(full, workdir).replace(os.sep, "/"))
+            if os.path.exists(path):
+                os.remove(path)
+            os.replace(tmp_zip, path)
+        else:
+            if os.path.exists(path):
+                shutil.rmtree(path)
+            os.replace(workdir, path)
+    finally:
+        if os.path.exists(workdir):
+            shutil.rmtree(workdir)
+    return path
+
+
+###################################################################################################
+## Decoding
+
+
+def _read_light_table(folder: Any, key: Any, sidecar: Any) -> Table:
+    """Read a CSV table without pandas (REQ-010): a :class:`Table` with the saved dtypes."""
+    if sidecar["format"] == "parquet" or sidecar["index"]["kind"] != "range":
+        # parquet files and tables with an index column need pandas (extra ``data``)
+        require("pandas", extra="data", caller="evoparam.data.serialize._read_table")
+    csv_path = os.path.join(folder, f"{key}.csv")
+    with open(csv_path, encoding="utf-8", newline="") as fobj:
+        rows = list(csv.reader(fobj))
+    header, body = (rows[0], rows[1:]) if rows else ([], [])
+    data = {}
+    for position, column in enumerate(header):
+        spec = sidecar["columns"][column]
+        values = [row[position] for row in body]
+        data[column] = _light_column(values, spec["dtype"], column, key, spec.get("missing"))
+    table = Table(data, columns=list(sidecar["columns"]) if header else None)
+    table.attrs["units"] = {column: spec["unit"] for column, spec in sidecar["columns"].items()}
+    return table
+
+
+def _light_column(values: Any, dtype: Any, column: Any, key: Any, missing: Any) -> Any:
+    """One column of a CSV table as a NumPy array of its saved dtype (no pandas)."""
+    if dtype in ("boolean",) or dtype[:1] in "IU" and dtype[1:].startswith(("nt", "Int")):
+        # pandas nullable integers and booleans: None where the value is missing
+        convert = (lambda v: v == "True") if dtype == "boolean" else int
+        return np.array([None if v == MISSING else convert(v) for v in values], dtype=object)
+    kind = np.dtype(dtype).kind if dtype not in ("str", "string") else "O"
+    if kind == "f":
+        return np.array([np.nan if v == MISSING else float(v) for v in values], dtype=dtype)
+    if kind in "iu":
+        if MISSING in values:
+            raise DataError(f"table {key}: integer column '{column}' has missing values.")
+        return np.array([int(v) for v in values], dtype=dtype)
+    if kind == "b":
+        return np.array([v == "True" for v in values], dtype=bool)
+    gap = float("nan") if missing == "nan" else None
+    return np.array([gap if v == MISSING else v for v in values], dtype=object)
+
+
+def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
+    with open(os.path.join(folder, f"{key}.json"), encoding="utf-8") as fobj:
+        sidecar = loads(fobj.read())
+    if not has_pandas():
+        return _read_light_table(folder, key, sidecar)
+    require("pandas", extra="data", caller="evoparam.data.serialize._read_table")
+    import pandas as pd
+
+    if sidecar["format"] == "parquet":
+        # pyarrow opens the file (a pyarrow file system), not Python. Given a local path
+        # alone, pandas hands pyarrow a Python file object; the reading threads of pyarrow
+        # then drop the last references to it and to the bytes read from it after
+        # read_parquet has returned, each time taking the GIL. When that happens while the
+        # interpreter is being finalized (a read near the end of a short process, such as
+        # an evoparam command, under CPU load), Python 3.11 and 3.12 end the pyarrow
+        # thread inside a C++ destructor and the process aborts after its work is done
+        # ("terminate called without an active exception", exit status -6); Python 3.13
+        # parks the thread and the process hangs in exit(), where pyarrow waits for it.
+        # Read through a pyarrow file system, the file lands in pyarrow's own buffers:
+        # its threads hold no Python object. pandas 2.0 already takes filesystem= (in its
+        # **kwargs, named from 2.1) and then opens no handle; the frame read is the same.
+        require("pyarrow", extra="data", caller="evoparam.data.serialize._read_table")
+        from pyarrow import fs
+
+        table = pd.read_parquet(
+            os.path.join(folder, f"{key}.parquet"), filesystem=fs.LocalFileSystem()
+        )
+    else:
+        csv_path = os.path.join(folder, f"{key}.csv")
+        if os.path.getsize(csv_path) == 0:
+            table = pd.DataFrame(index=pd.RangeIndex(sidecar["n_rows"]))
+        else:
+            raw = pd.read_csv(csv_path, dtype=str, keep_default_na=False, na_filter=False)
+            table = pd.DataFrame(index=pd.RangeIndex(len(raw)))
+            specs = dict(sidecar["columns"])
+            if sidecar["index"]["kind"] == "column":
+                specs = {"__index__": {"dtype": sidecar["index"]["dtype"]}, **specs}
+            for column, spec in specs.items():
+                table[column] = _convert_column(
+                    raw[column].tolist(), spec["dtype"], column, key, spec.get("missing", "none")
+                )
+    if sidecar["index"]["kind"] == "column":
+        table = table.set_index("__index__")
+        table.index.name = sidecar["index"]["name"]
+    table.attrs["units"] = {column: spec["unit"] for column, spec in sidecar["columns"].items()}
+    return table
+
+
+def _convert_column(values: Any, dtype: Any, column: Any, key: Any, missing: str = "none") -> Any:
+    require("pandas", extra="data", caller="evoparam.data.serialize._convert_column")
+    import pandas as pd
+
+    if dtype[:1] in "IU" and dtype[1:].startswith(("nt", "Int")) or dtype == "boolean":
+        # pandas nullable integers and booleans: missing values are pd.NA
+        if dtype == "boolean":
+            items = [pd.NA if v == MISSING else v == "True" for v in values]
+        else:
+            items = [pd.NA if v == MISSING else int(v) for v in values]
+        return pd.Series(pd.array(items, dtype=dtype))
+    kind = np.dtype(dtype).kind if dtype not in ("str", "string") else "S"
+    if kind == "f":
+        return pd.Series([np.nan if v == MISSING else float(v) for v in values], dtype=dtype)
+    if kind in "iu":
+        if MISSING in values:
+            raise DataError(f"table {key}: integer column '{column}' has missing values.")
+        return pd.Series([int(v) for v in values], dtype=dtype)
+    if kind == "b":
+        return pd.Series([v == "True" for v in values], dtype=dtype)
+    gap = {"none": None, "na": pd.NA, "nan": float("nan")}[missing]
+    converted = [gap if v == MISSING else v for v in values]
+    return pd.Series(converted, dtype=dtype)
+
+
+class _Decoder:
+    def __init__(self, folder: Any, arrays: Any, mmap: Any) -> None:
+        self.folder = folder
+        self.arrays = arrays
+        self.mmap = mmap
+        self.registry = _registry()
+
+    def decode(self, node: Any) -> Any:
+        if isinstance(node, list):
+            return [self.decode(item) for item in node]
+        if not isinstance(node, dict):
+            return node
+        if "__float__" in node:
+            return float(node["__float__"])
+        if "__array__" in node:
+            return np.array(self.arrays[node["__array__"]])
+        if "__npy__" in node:
+            return np.load(
+                os.path.join(self.folder, node["__npy__"]),
+                allow_pickle=False,
+                mmap_mode="r" if self.mmap else None,
+            )
+        if "__table__" in node:
+            return _read_table(os.path.join(self.folder, "tables"), node["__table__"])
+        if "__tuple__" in node:
+            return tuple(self.decode(item) for item in node["__tuple__"])
+        if "__dict__" in node:
+            return {key: self.decode(value) for key, value in node["__dict__"].items()}
+        if "__items__" in node:
+            return {self.decode(key): self.decode(value) for key, value in node["__items__"]}
+        if "__type__" in node:
+            cls = self.registry.get(node["__type__"])
+            if cls is None:
+                raise DataError(
+                    f"Unknown object type {node['__type__']!r} in container "
+                    "(import the module that defines it, e.g. evoparam.sim)."
+                )
+            return cls(**{name: self.decode(value) for name, value in node["fields"].items()})
+        raise DataError(f"Unrecognised node in structure.json: {sorted(node)}.")
+
+
+def _read_manifest(folder: Any) -> tuple[Any, int]:
+    manifest_path = os.path.join(folder, "manifest.json")
+    if not os.path.exists(manifest_path):
+        raise DataError(f"{folder}: not an evoparam container (no manifest.json).")
+    with open(manifest_path, encoding="utf-8") as fobj:
+        try:
+            manifest = loads(fobj.read())
+        except ValueError as err:
+            raise DataError(f"{folder}: manifest.json is not valid JSON ({err}).") from err
+    match = _SCHEMA_RE.match(str(manifest.get("schema", "")))
+    if not match:
+        raise DataError(f"{folder}: unknown schema {manifest.get('schema')!r}.")
+    major = int(match.group(1))
+    if major > SCHEMA_MAJOR:
+        raise EvoparamVersionError(
+            f"{folder}: container schema {manifest['schema']} is newer "
+            f"than this evoparam ({SCHEMA}); upgrade evoparam."
+        )
+    return manifest, major
+
+
+def _load_folder(folder: Any, mmap: Any, verify: Any) -> Any:
+    manifest, major = _read_manifest(folder)
+    if verify:
+        for name, digest in manifest["files"].items():
+            full = os.path.join(folder, *name.split("/"))
+            if not os.path.exists(full):
+                raise DataError(f"{folder}: file {name} listed in the manifest is missing.")
+            if _sha256(full) != digest:
+                raise DataError(
+                    f"{folder}: checksum mismatch for {name}; the file was modified or corrupted."
+                )
+    with open(os.path.join(folder, "structure.json"), encoding="utf-8") as fobj:
+        structure = loads(fobj.read())
+    applied: list[Any]
+    applied = []
+    if major < SCHEMA_MAJOR:
+        from evoparam.data._migrations import migrate
+
+        try:
+            structure, applied = migrate(structure, major, SCHEMA_MAJOR)
+        except KeyError as err:
+            raise EvoparamVersionError(
+                f"{folder}: no migration from schema major {major} to {SCHEMA_MAJOR}."
+            ) from err
+    arrays = {}
+    npz_path = os.path.join(folder, "data.npz")
+    if os.path.exists(npz_path):
+        with np.load(npz_path, allow_pickle=False) as npz:
+            arrays = {key: npz[key] for key in npz.files}
+    obj = _Decoder(folder, arrays, mmap).decode(structure)
+    for from_major, to_major in applied:
+        obj.provenance = obj.provenance.with_step(
+            "evoparam.data.migrate", {"from_schema": from_major, "to_schema": to_major}
+        )
+    return obj
+
+
+def load_object(path: StrPath, mmap: bool = False, verify: bool = True) -> Any:
+    """Load a container or result saved with :func:`save_object`.
+
+    Parameters
+    ----------
+    path : str or path-like
+        ``.evoparam`` directory or ``.zip`` archive.
+    mmap : bool
+        Memory-map the main ``data`` array read-only (directories only).
+    verify : bool
+        Check every file against the SHA-256 recorded in the manifest; a
+        mismatch raises :class:`~evoparam.errors.DataError`.
+    """
+    path = os.fspath(path)
+    if not os.path.exists(path) and os.path.exists(path + SUFFIX):
+        path += SUFFIX
+    if os.path.isdir(path):
+        return _load_folder(path, mmap, verify)
+    if zipfile.is_zipfile(path):
+        if mmap:
+            raise DataError("mmap=True needs a directory container, not a zip archive.")
+        with tempfile.TemporaryDirectory(prefix=".evoparam-") as workdir:
+            with zipfile.ZipFile(path) as archive:
+                for member in archive.namelist():
+                    target = os.path.realpath(os.path.join(workdir, member))
+                    if not target.startswith(os.path.realpath(workdir) + os.sep):
+                        raise DataError(f"{path}: unsafe member name {member!r}.")
+                archive.extractall(workdir)
+            obj = _load_folder(workdir, False, verify)
+            return _materialise(obj)
+    raise DataError(f"{path}: not an evoparam container.")
+
+
+def _materialise(obj: Any) -> Any:
+    """Make sure no array still points into a temporary folder."""
+    if is_dataclass(obj) and not isinstance(obj, type):
+        for fld in fields(obj):
+            value = getattr(obj, fld.name)
+            if isinstance(value, np.memmap):
+                object.__setattr__(obj, fld.name, np.array(value))
+    return obj

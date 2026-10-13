@@ -1,0 +1,1489 @@
+{
+ "schema": "evoparam-benchmark-suite/1",
+ "name": "core",
+ "version": "1.0.0",
+ "description": "Simulated suite 'core' of the evoparam benchmark (spec §8.2): the data are generated on the fly by evoparam.sim from the settings and seeds below.",
+ "groups": {
+  "ccep_detection": {
+   "generator": "simulate_ccep",
+   "tasks": [
+    "T1",
+    "T2"
+   ],
+   "description": "Single-pulse stimulation, one site, 24 sEEG contacts, about 30 % responding with an N1 (80 % also with an N2); no stimulation artifact (the artifact is task T4); pink noise of SD 20 uV; per-trial SNR of the components from 0.5 to 4.",
+   "settings": {
+    "n_channels": 24,
+    "artifact": false,
+    "tmin": -1.0,
+    "tmax": 1.0,
+    "noise": "pink",
+    "noise_sd": 20.0,
+    "p_response": 0.3,
+    "polarity": "negative",
+    "sfreq": 2048.0,
+    "_": {
+     "hints": {
+      "window": [
+       0.009,
+       0.1
+      ],
+      "baseline": [
+       -1.0,
+       -0.1
+      ],
+      "preset": "ccep"
+     }
+    }
+   },
+   "cells": [
+    {
+     "id": "ccep_detection-p001",
+     "split": "public",
+     "seed": 8001001,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p002",
+     "split": "public",
+     "seed": 8001002,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p003",
+     "split": "public",
+     "seed": 8001003,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p004",
+     "split": "public",
+     "seed": 8001004,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-p005",
+     "split": "public",
+     "seed": 8001005,
+     "settings": {
+      "snr": 0.5,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p006",
+     "split": "public",
+     "seed": 8001006,
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p007",
+     "split": "public",
+     "seed": 8001007,
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-p008",
+     "split": "public",
+     "seed": 8001008,
+     "settings": {
+      "snr": 4.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "ccep_detection-h001",
+     "split": "hidden",
+     "settings": {
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "ccep_detection-h002",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    }
+   ]
+  },
+  "evoked": {
+   "generator": "mixed",
+   "tasks": [
+    "T3"
+   ],
+   "description": "Averaged waveforms: scalp ERPs (4 channels, P1, N1 and P3, 60 trials, 500 Hz) and CCEPs (12 contacts, N1 and N2 on half of them, 10 trials, 2048 Hz, no artifact); the input is the average.",
+   "settings": {},
+   "cells": [
+    {
+     "id": "evoked-p001",
+     "split": "public",
+     "seed": 8002001,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p002",
+     "split": "public",
+     "seed": 8002002,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p003",
+     "split": "public",
+     "seed": 8002003,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-p004",
+     "split": "public",
+     "seed": 8002004,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 2.0,
+      "noise": "white"
+     }
+    },
+    {
+     "id": "evoked-p005",
+     "split": "public",
+     "seed": 8002005,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p006",
+     "split": "public",
+     "seed": 8002006,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-p007",
+     "split": "public",
+     "seed": 8002007,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 10
+     }
+    },
+    {
+     "id": "evoked-p008",
+     "split": "public",
+     "seed": 8002008,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 2.0,
+      "n_trials": 30
+     }
+    },
+    {
+     "id": "evoked-h001",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 60,
+      "n_channels": 4,
+      "components": [
+       "P1",
+       "N1",
+       "P3"
+      ],
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise_sd": 10.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "snr": 1.5,
+      "noise": "pink"
+     }
+    },
+    {
+     "id": "evoked-h002",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_channels": 12,
+      "artifact": false,
+      "tmin": -1.0,
+      "tmax": 1.0,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 0.5,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "snr": 1.5,
+      "n_trials": 10
+     }
+    }
+   ]
+  },
+  "artifact": {
+   "generator": "simulate_ccep",
+   "tasks": [
+    "T4"
+   ],
+   "description": "Single-pulse stimulation with its artifact (dipole potential of the pulse, anti-aliasing filter, double-exponential tail), 30 pulses, 12 contacts, half of them responding (drawn amplitudes), pink noise of SD 20 uV; currents 2 to 8 mA and tails of 2 or 5 % of the pulse.",
+   "settings": {
+    "n_trials": 30,
+    "n_channels": 12,
+    "artifact": true,
+    "tmin": -0.5,
+    "tmax": 0.5,
+    "noise": "pink",
+    "noise_sd": 20.0,
+    "p_response": 0.5,
+    "polarity": "negative",
+    "sfreq": 2048.0,
+    "_": {
+     "artifact_window": [
+      -0.002,
+      0.008
+     ],
+     "hints": {
+      "window": [
+       0.009,
+       0.1
+      ],
+      "baseline": [
+       -0.5,
+       -0.05
+      ],
+      "preset": "ccep"
+     }
+    }
+   },
+   "cells": [
+    {
+     "id": "artifact-p001",
+     "split": "public",
+     "seed": 8003001,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p002",
+     "split": "public",
+     "seed": 8003002,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p003",
+     "split": "public",
+     "seed": 8003003,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p004",
+     "split": "public",
+     "seed": 8003004,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-p005",
+     "split": "public",
+     "seed": 8003005,
+     "settings": {
+      "stim_current_mA": 2.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p006",
+     "split": "public",
+     "seed": 8003006,
+     "settings": {
+      "stim_current_mA": 4.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p007",
+     "split": "public",
+     "seed": 8003007,
+     "settings": {
+      "stim_current_mA": 6.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-p008",
+     "split": "public",
+     "seed": 8003008,
+     "settings": {
+      "stim_current_mA": 8.0,
+      "tail_fraction": 0.05
+     }
+    },
+    {
+     "id": "artifact-h001",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 3.0,
+      "tail_fraction": 0.02
+     }
+    },
+    {
+     "id": "artifact-h002",
+     "split": "hidden",
+     "settings": {
+      "stim_current_mA": 5.0,
+      "tail_fraction": 0.05
+     }
+    }
+   ]
+  },
+  "single_trial": {
+   "generator": "mixed",
+   "tasks": [
+    "T5"
+   ],
+   "description": "Trials with latency jitter and amplitude variability (CV 30 %): a scalp P3 (2 channels, 40 trials, jitter SD 10 or 30 ms) and a CCEP N1 (6 contacts all responding, 30 trials, jitter SD 1 or 3 ms); per-trial SNR 1 or 3. The targets are the component of every channel that holds it.",
+   "settings": {},
+   "cells": [
+    {
+     "id": "single_trial-p001",
+     "split": "public",
+     "seed": 8004001,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p002",
+     "split": "public",
+     "seed": 8004002,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.01,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p003",
+     "split": "public",
+     "seed": 8004003,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p004",
+     "split": "public",
+     "seed": 8004004,
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.03,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p005",
+     "split": "public",
+     "seed": 8004005,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p006",
+     "split": "public",
+     "seed": 8004006,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.001,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-p007",
+     "split": "public",
+     "seed": 8004007,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 1.0
+     }
+    },
+    {
+     "id": "single_trial-p008",
+     "split": "public",
+     "seed": 8004008,
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.003,
+      "snr": 3.0
+     }
+    },
+    {
+     "id": "single_trial-h001",
+     "split": "hidden",
+     "generator": "simulate_erp",
+     "settings": {
+      "n_trials": 40,
+      "n_channels": 2,
+      "components": [
+       "P3"
+      ],
+      "amplitude_cv": 0.3,
+      "sfreq": 500.0,
+      "tmin": -0.2,
+      "tmax": 0.8,
+      "noise": "pink",
+      "noise_sd": 10.0,
+      "_": {
+       "target_label": "P3",
+       "target_window": [
+        0.25,
+        0.7
+       ],
+       "hints": {
+        "window": [
+         0.05,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      },
+      "jitter_sd": 0.02,
+      "snr": 2.0
+     }
+    },
+    {
+     "id": "single_trial-h002",
+     "split": "hidden",
+     "generator": "simulate_ccep",
+     "settings": {
+      "n_trials": 30,
+      "n_channels": 6,
+      "artifact": false,
+      "tmin": -0.5,
+      "tmax": 0.5,
+      "amplitude_cv": 0.3,
+      "noise": "pink",
+      "noise_sd": 20.0,
+      "p_response": 1.0,
+      "p_n2": 0.0,
+      "polarity": "negative",
+      "sfreq": 2048.0,
+      "_": {
+       "target_label": "N1",
+       "target_window": [
+        0.009,
+        0.06
+       ],
+       "hints": {
+        "window": [
+         0.009,
+         0.5
+        ],
+        "baseline": [
+         -0.5,
+         -0.02
+        ],
+        "preset": "ccep"
+       }
+      },
+      "jitter_sd": 0.002,
+      "snr": 2.0
+     }
+    }
+   ]
+  },
+  "erp_scoring": {
+   "generator": "simulate_erp",
+   "tasks": [
+    "T6"
+   ],
+   "description": "ERP CORE-like scalp components on their canonical channel (P3 Pz, N170 PO8, N400 CPz, MMN FCz, ERN FCz), 60 trials at 256 Hz, latency jitter SD 10 ms, amplitude CV 20 %, pink noise of SD 10 uV, per-trial SNR 1 or 2; scored with the ERP CORE measurement windows.",
+   "settings": {
+    "n_trials": 60,
+    "n_channels": 1,
+    "sfreq": 256.0,
+    "tmin": -0.2,
+    "tmax": 0.8,
+    "jitter_sd": 0.01,
+    "amplitude_cv": 0.2,
+    "noise": "pink",
+    "noise_sd": 10.0
+   },
+   "cells": [
+    {
+     "id": "erp_scoring-p001",
+     "split": "public",
+     "seed": 8005001,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p002",
+     "split": "public",
+     "seed": 8005002,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p003",
+     "split": "public",
+     "seed": 8005003,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p004",
+     "split": "public",
+     "seed": 8005004,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "MMN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "MMN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p005",
+     "split": "public",
+     "seed": 8005005,
+     "settings": {
+      "snr": 1.0,
+      "components": [
+       "ERN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "ERN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p006",
+     "split": "public",
+     "seed": 8005006,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "P3"
+      ],
+      "ch_names": [
+       "Pz"
+      ],
+      "_": {
+       "component": "P3",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p007",
+     "split": "public",
+     "seed": 8005007,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N170"
+      ],
+      "ch_names": [
+       "PO8"
+      ],
+      "_": {
+       "component": "N170",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-p008",
+     "split": "public",
+     "seed": 8005008,
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "N400"
+      ],
+      "ch_names": [
+       "CPz"
+      ],
+      "_": {
+       "component": "N400",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h001",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "MMN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "MMN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    },
+    {
+     "id": "erp_scoring-h002",
+     "split": "hidden",
+     "settings": {
+      "snr": 2.0,
+      "components": [
+       "ERN"
+      ],
+      "ch_names": [
+       "FCz"
+      ],
+      "_": {
+       "component": "ERN",
+       "hints": {
+        "window": [
+         -0.1,
+         0.7
+        ],
+        "baseline": [
+         -0.2,
+         0.0
+        ],
+        "preset": "erp"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "tf": {
+   "generator": "simulate_bursts",
+   "tasks": [
+    "T7"
+   ],
+   "description": "Induced bursts (random phase per trial, Hann envelope) in AR(1) noise (rho 0.9, SD 10 uV), 30 trials, one channel at 1000 Hz; cells without burst estimate the type-I error.",
+   "settings": {
+    "n_trials": 30,
+    "n_channels": 1,
+    "sfreq": 1000.0,
+    "tmin": -0.6,
+    "tmax": 0.8,
+    "noise": "ar1",
+    "noise_sd": 10.0,
+    "_": {
+     "hints": {
+      "window": [
+       0.0,
+       0.8
+      ],
+      "baseline": [
+       -0.5,
+       -0.1
+      ]
+     }
+    }
+   },
+   "cells": [
+    {
+     "id": "tf-p001",
+     "split": "public",
+     "seed": 8006001,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p002",
+     "split": "public",
+     "seed": 8006002,
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-p003",
+     "split": "public",
+     "seed": 8006003,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p004",
+     "split": "public",
+     "seed": 8006004,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.25,
+        "duration": 0.1,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p005",
+     "split": "public",
+     "seed": 8006005,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 10.33
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p006",
+     "split": "public",
+     "seed": 8006006,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 30.0,
+        "centre": 0.4,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p007",
+     "split": "public",
+     "seed": 8006007,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 150.0,
+        "centre": 0.2,
+        "duration": 0.08,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-p008",
+     "split": "public",
+     "seed": 8006008,
+     "settings": {
+      "bursts": [
+       {
+        "freq": 80.0,
+        "centre": 0.15,
+        "duration": 0.1,
+        "amplitude": 15.0
+       },
+       {
+        "freq": 20.0,
+        "centre": 0.5,
+        "duration": 0.2,
+        "amplitude": 15.0
+       }
+      ]
+     }
+    },
+    {
+     "id": "tf-h001",
+     "split": "hidden",
+     "settings": {
+      "bursts": []
+     }
+    },
+    {
+     "id": "tf-h002",
+     "split": "hidden",
+     "settings": {
+      "bursts": [
+       {
+        "freq": 60.0,
+        "centre": 0.3,
+        "duration": 0.12,
+        "amplitude": 12.0
+       }
+      ]
+     }
+    }
+   ]
+  }
+ },
+ "tasks": {
+  "T1": [
+   "ccep_detection"
+  ],
+  "T2": [
+   "ccep_detection"
+  ],
+  "T3": [
+   "evoked"
+  ],
+  "T4": [
+   "artifact"
+  ],
+  "T5": [
+   "single_trial"
+  ],
+  "T6": [
+   "erp_scoring"
+  ],
+  "T7": [
+   "tf"
+  ]
+ },
+ "hidden_split": {
+  "fraction": 0.2,
+  "n_hidden_cells": 12,
+  "n_cells": 60,
+  "commitment_sha256": "ff9e2df66b2065833a2bb83b197f90a35bebe1d51c263cbcd6d150534185f701",
+  "commitment": "SHA-256 of the canonical JSON (keys sorted, no whitespace, UTF-8) of the hidden seeds document (schema evoparam-benchmark-hidden-seeds/1: a random 256-bit nonce and the seeds of the hidden cells of the core and full suites)",
+  "reveal": "the hidden seeds document is published at the acceptance of the benchmark paper; evoparam.benchmark checks it against this hash"
+ }
+}

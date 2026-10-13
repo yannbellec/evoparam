@@ -1,0 +1,283 @@
+# SPDX-License-Identifier: Apache-2.0
+"""REQ-328: plugins through the entry points evoparam.shapes, evoparam.presets and
+evoparam.readers.
+
+The dummy distribution of ``tests/plugins/evoparam_dummy`` is made visible to
+``importlib.metadata`` without pip: its package folder goes on ``sys.path`` next to a
+``.dist-info`` folder holding its metadata and entry points, as an install would write.
+"""
+
+import os
+import shutil
+import sys
+from typing import Any
+
+import numpy as np
+import pytest
+
+from evoparam import _plugins, presets
+from evoparam.errors import EvoparamVersionError, SettingsError
+from evoparam.io.readers import READERS, read
+from evoparam.shapes import BACKGROUNDS, SHAPES
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+DUMMY = os.path.join(HERE, "plugins", "evoparam_dummy")
+ENTRY_POINTS = """[evoparam.shapes]
+lorentzian = evoparam_dummy:Lorentzian
+
+[evoparam.presets]
+dummy_lorentz = evoparam_dummy:DUMMY_LORENTZ
+
+[evoparam.readers]
+dummy = evoparam_dummy:read_dummy
+"""
+
+
+def _install(
+    site: Any,
+    name: Any = "evoparam_dummy",
+    version: Any = "0.1.0",
+    entry_points: Any = ENTRY_POINTS,
+) -> None:
+    info = os.path.join(site, f"{name}-{version}.dist-info")
+    os.makedirs(info, exist_ok=True)
+    with open(os.path.join(info, "METADATA"), "w", encoding="utf-8") as fobj:
+        fobj.write(f"Metadata-Version: 2.1\nName: {name.replace('_', '-')}\nVersion: {version}\n")
+    with open(os.path.join(info, "entry_points.txt"), "w", encoding="utf-8") as fobj:
+        fobj.write(entry_points)
+
+
+def _reload() -> None:
+    for registry in (SHAPES, BACKGROUNDS, presets.PRESETS, READERS):
+        registry.reload()
+
+
+@pytest.fixture
+def site(tmp_path: Any, monkeypatch: Any) -> Any:
+    """A site folder on sys.path with the dummy package; registries reloaded after."""
+
+    folder = tmp_path / "site"
+    shutil.copytree(os.path.join(DUMMY, "evoparam_dummy"), folder / "evoparam_dummy")
+    monkeypatch.syspath_prepend(str(folder))
+    monkeypatch.delenv("EVOPARAM_DISABLE_PLUGINS", raising=False)
+    yield str(folder)
+    sys.modules.pop("evoparam_dummy", None)
+    sys.modules.pop("evoparam_other", None)
+    monkeypatch.undo()
+    _reload()
+    _plugins.USED.clear()
+
+
+def test_without_plugins_the_registries_hold_the_builtins() -> None:
+
+    assert "lorentzian" not in SHAPES.builtin
+    assert set(SHAPES.builtin) >= {"gaussian", "gamma"}
+    assert "ccep" in presets.PRESETS.builtin
+
+
+def test_dummy_shape_preset_and_reader(site: Any, tmp_path: Any) -> None:
+
+    _install(site)
+    _reload()
+    origin = "evoparam-dummy==0.1.0"
+    assert SHAPES.plugins() == {"lorentzian": origin}
+    assert presets.PRESETS.plugins() == {"dummy_lorentz": origin}
+    assert READERS.plugins() == {"dummy": origin}
+
+    # the shape fits a simulated Lorentzian
+    from evoparam.models import fit_response
+
+    times = np.arange(-0.1, 0.5, 1e-3)
+    rng = np.random.default_rng(0)
+    y = -40.0 / (1.0 + ((times - 0.12) / 0.015) ** 2) + rng.normal(0, 1.0, times.size)
+    result = fit_response(
+        times,
+        y,
+        window=(0.01, 0.45),
+        baseline=(-0.1, -0.005),
+        shapes=("lorentzian",),
+        background="constant",
+        random_state=0,
+    )
+    assert result.status == "ok"
+    comp = max(result.components, key=lambda c: abs(c.amplitude))
+    assert comp.shape == "lorentzian"
+    assert abs(comp.latency - 0.12) < 0.003
+    assert abs(comp.fwhm - 0.030) < 0.005
+    assert result.provenance.environment["plugins"]["lorentzian"] == origin
+
+    # the preset resolves
+    preset = presets.get("dummy_lorentz")
+    assert preset.shapes == ("lorentzian",)
+    assert preset.parent == "ccep"
+
+    # the reader opens a file
+    data = rng.normal(size=(5, 2, 300))
+    path = tmp_path / "rec.dummy"
+    with open(path, "wb") as fobj:
+        np.savez(fobj, data=data, sfreq=1000.0, tmin=-0.1)
+    trials = read(str(path))
+    assert trials.data.shape == (5, 2, 300)
+    assert trials.ch_names == ["D1", "D2"]
+    assert trials.provenance.source["plugin"] == {"dummy": origin}
+    assert read(str(path), format="dummy", picks=["D2"]).ch_names == ["D2"]
+    assert trials.provenance.environment["plugins"]["dummy"] == origin
+
+
+def test_cli_info_lists_the_plugins(site: Any, capsys: Any) -> None:
+
+    import json
+
+    from evoparam.cli import main
+
+    _install(site)
+    _reload()
+    assert main(["info", "--json"]) == 0
+    summary = json.loads(capsys.readouterr().out.splitlines()[-1])
+    names = {(p["group"], p["name"]) for p in summary["result"]["plugins"]}
+    assert names == {
+        ("evoparam.shapes", "lorentzian"),
+        ("evoparam.presets", "dummy_lorentz"),
+        ("evoparam.readers", "dummy"),
+    }
+    assert "dummy_lorentz" in summary["result"]["presets"]
+
+
+def test_name_collisions_raise(site: Any) -> None:
+
+    # with a built-in
+    _install(site, entry_points="[evoparam.shapes]\ngaussian = evoparam_dummy:Lorentzian\n")
+    with pytest.raises(SettingsError, match="built-in"):
+        SHAPES.reload()
+    shutil.rmtree(os.path.join(site, "evoparam_dummy-0.1.0.dist-info"))
+
+    # between two distributions
+    shutil.copytree(os.path.join(site, "evoparam_dummy"), os.path.join(site, "evoparam_other"))
+    _install(
+        site, entry_points="[evoparam.presets]\ndummy_lorentz = evoparam_dummy:DUMMY_LORENTZ\n"
+    )
+    _install(
+        site,
+        name="evoparam_other",
+        version="2.0",
+        entry_points="[evoparam.presets]\ndummy_lorentz = evoparam_other:DUMMY_LORENTZ\n",
+    )
+    with pytest.raises(
+        SettingsError,
+        match="evoparam-dummy==0.1.0.*evoparam-other==2.0|"
+        "evoparam-other==2.0.*evoparam-dummy==0.1.0",
+    ):
+        presets.PRESETS.reload()
+
+
+def test_bad_objects_are_refused(site: Any) -> None:
+
+    _install(site, entry_points="[evoparam.presets]\nnot_a_preset = evoparam_dummy:read_dummy\n")
+    with pytest.raises(SettingsError, match="not a Preset"):
+        presets.PRESETS.reload()
+    _install(site, entry_points="[evoparam.readers]\nbad = evoparam_dummy:DUMMY_LORENTZ\n")
+    with pytest.raises(SettingsError, match="not callable"):
+        READERS.reload()
+    _install(site, entry_points="[evoparam.shapes]\nwrong_name = evoparam_dummy:Lorentzian\n")
+    with pytest.raises(SettingsError, match="name"):
+        SHAPES.reload()
+
+
+PROTOCOL_ONLY_BACKGROUND = '''
+import numpy as np
+
+
+class Offset:
+    """A background with the Background protocol only (no basis)."""
+
+    kind = "background"
+    name = "offset_only"
+    param_names = ("c0",)
+    n_params = 1
+
+    def evaluate(self, times, params):
+        return np.broadcast_to(params[..., :1], params.shape[:-1] + (len(times),))
+
+    def jacobian(self, times, params):
+        return np.ones(params.shape[:-1] + (len(times), 1))
+
+    def default_bounds(self, times, data_range=None):
+        return np.array([-1.0]), np.array([1.0])
+
+    def initial_guess(self, times, waveform):
+        return np.zeros(1)
+'''
+
+
+def test_background_without_basis_is_refused_at_registration(site: Any) -> None:
+    """The fit needs basis (and basis_jacobian): a clear error when the plugin loads."""
+
+    with open(os.path.join(site, "evoparam_other.py"), "w", encoding="utf-8") as fobj:
+        fobj.write(PROTOCOL_ONLY_BACKGROUND)
+    _install(site, entry_points="[evoparam.shapes]\noffset_only = evoparam_other:Offset\n")
+    with pytest.raises(SettingsError, match="offset_only.*lacks.*basis.*BackgroundBase"):
+        BACKGROUNDS.reload()
+
+
+def test_plugins_can_be_disabled(site: Any, monkeypatch: Any) -> None:
+
+    _install(site)
+    monkeypatch.setenv("EVOPARAM_DISABLE_PLUGINS", "1")
+    _reload()
+    assert SHAPES.plugins() == {}
+    assert "lorentzian" not in SHAPES
+    with pytest.raises(SettingsError):
+        presets.get("dummy_lorentz")
+
+
+def test_reproduce_reports_a_missing_plugin(site: Any, tmp_path: Any) -> None:
+
+    import warnings
+
+    import evoparam
+    from evoparam.data import Evoked
+
+    _install(site)
+    _reload()
+    times = np.arange(-0.1, 0.6, 1e-3)
+    rng = np.random.default_rng(1)
+    rows = [
+        -30.0 / (1.0 + ((times - 0.1) / 0.012) ** 2) + rng.normal(0, 1.0, times.size)
+        for _ in range(2)
+    ]
+    evoked = Evoked(data=np.array(rows), times=times, sfreq=1000.0, ch_names=["A1", "A2"])
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        group = evoparam.fit(evoked, "dummy_lorentz", existence=False)
+    assert group.provenance.environment["plugins"] == {
+        "lorentzian": "evoparam-dummy==0.1.0",
+        "dummy_lorentz": "evoparam-dummy==0.1.0",
+    }
+    path = group.save(str(tmp_path / "group"))
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        present = evoparam.reproduce(path, data=evoked)
+    assert present.missing_plugins == {}
+
+    # a fit with a plugin shape and a built-in preset replays without the plugin preset
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        shaped = evoparam.fit(evoked, "ccep", shapes=("lorentzian",), existence=False)
+    assert shaped.provenance.environment["plugins"] == {"lorentzian": "evoparam-dummy==0.1.0"}
+    shaped_path = shaped.save(str(tmp_path / "shaped"))
+
+    shutil.rmtree(os.path.join(site, "evoparam_dummy-0.1.0.dist-info"))
+    _reload()
+    with pytest.warns(UserWarning, match="plugin 'lorentzian' .* is not installed"):
+        report = evoparam.reproduce(shaped_path, data=evoked)
+    assert set(report.missing_plugins) == {"lorentzian"}
+    assert report.missing_plugins["lorentzian"]["installed"] is None
+    assert "pip install 'evoparam-dummy==0.1.0'" in report.missing_plugins["lorentzian"]["message"]
+    assert not report.identical
+
+    # the preset itself came from the missing plugin: the error names the plugin
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        with pytest.raises(EvoparamVersionError, match="pip install 'evoparam-dummy==0.1.0'"):
+            evoparam.reproduce(path, data=evoked)

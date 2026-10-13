@@ -1,0 +1,4 @@
+channel,condition,position
+CH00,3mA,0
+CH01,3mA,1
+CH02,3mA,2

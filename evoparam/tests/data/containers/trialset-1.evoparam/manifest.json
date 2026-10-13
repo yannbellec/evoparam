@@ -1,0 +1,18 @@
+{
+ "schema": "evoparam-result/1.0",
+ "object": "TrialSet",
+ "package_version": "0.1.0.dev0",
+ "created": "2026-10-08T15:21:39.948+00:00",
+ "table_format": "csv",
+ "files": {
+  "structure.json": "a855863e8fedf73ef35a5694bfd0302bf70583b83ea7728c68329e5f7de1c6dc",
+  "data.npy": "def7e25dcd8343c917ae64ce213c9269f4b25f9fed3ff81fe5550f0dd18dfb23",
+  "data.npz": "a2399e3e2ab7fbd68d94d063b11361427bb1c22c23b8df0201b8e06b7f3c1903",
+  "tables/metadata.csv": "4c6032506dedc293caeab51c69c77319836836b6b8d9a8cd0f6a3d518834224c",
+  "tables/metadata.json": "2d7b9669a372aa988b390c5cfd83a3d63a1fa3a1c3d5abb3ff3ec836be8e60d4",
+  "tables/ch_info.csv": "f779d59bb26a9e43ca934f3c910f3c0b39dcb88573ddf88d8413023f34f0b450",
+  "tables/ch_info.json": "a13d8d5ea94dea6c15204c61468d105165f86293d9e20431dd90844fce3dda3a",
+  "provenance.json": "a51faca1b1062ab9ee9f8a21c8e6c84d31bb1d40539c3de924ab7e8753cde690",
+  "settings.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+ }
+}

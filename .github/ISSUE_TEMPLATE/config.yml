@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and usage
+    url: https://github.com/yannbellec/evoparam/discussions
+    about: Ask questions in GitHub Discussions (the tracker is for bugs).
+  - name: Neurostars
+    url: https://neurostars.org/tag/evoparam
+    about: The neuroscience Q&A forum, tag evoparam.

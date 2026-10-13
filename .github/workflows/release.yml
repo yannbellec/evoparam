@@ -1,0 +1,91 @@
+# Release pipeline (spec §9.3, REQ-308; §7.4, REQ-375, REQ-376; §13.7, REQ-398). Started by
+# a tag vX.Y.Z. It refuses to go on unless GOVERNANCE.md holds the HIIE decision reference
+# and date and the gate of RELEASING.md says the decision is on record. It then builds the
+# sdist and the wheel, runs the five robustness analyses of layer 4 and the layer-3 gate
+# (a regression beyond the pre-registered tolerances blocks the release unless the
+# CHANGELOG explains it), and keeps the distribution, the benchmark results, the robustness
+# report, the gate report, the SOUP inventory and the traceability report as artifacts for
+# the release notes. The upload step (trusted
+# publishing, no stored token) is added after the decision, as RELEASING.md describes;
+# until then this workflow publishes nothing.
+
+name: release
+
+on:
+  push:
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: The HIIE decision is on record (REQ-398)
+      run: python tools/release_gate.py
+
+  build:
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: pip install build twine check-wheel-contents
+    - run: python -m build
+    - run: twine check dist/*
+    - run: check-wheel-contents dist/*.whl
+    - uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/
+
+  validation:
+    # layer 4 (REQ-375) and the layer-3 gate (REQ-376); the release notes link both reports
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      EVOPARAM_DATA: ${{ github.workspace }}/.evoparam-data
+      EVOPARAM_NETWORK_TESTS: "1"
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - uses: actions/cache@v4
+      with:
+        path: .evoparam-data
+        key: evoparam-data-full-v1
+    - run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e ".[all]"
+    - name: Cache the layer-3 epochs (network tests)
+      run: pytest -p no:cacheprovider evoparam/tests/models/test_engine_ccep.py evoparam/tests/prep/test_reference_ds004977.py -rfx
+    - name: Five robustness analyses (REQ-375)
+      run: python validation/robustness.py --jobs 4
+    - name: Layer-3 regression gate (REQ-376)
+      run: python tools/layer3_gate.py --json validation/layer3/gate-report.json
+    - name: Benchmarks (REQ-290)
+      run: python benchmarks/run_benchmarks.py --suite perf
+    - name: Provenance map, SOUP inventory and traceability report (REQ-396, REQ-399)
+      run: |
+        python tools/add_spdx_headers.py --check
+        python tools/gen_soup.py --check
+        mkdir -p release-records && cp soup.json THIRD_PARTY.md REIMPLEMENTED.md release-records/
+        python tools/gen_traceability.py --out release-records/traceability.json
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: release-validation
+        path: |
+          validation/layer4/
+          validation/layer3/
+          benchmarks/results/
+          release-records/

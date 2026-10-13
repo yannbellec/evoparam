@@ -1,0 +1,16 @@
+# Upload job of the release workflow (spec §9.3, REQ-308): PyPI trusted publishing, no
+# stored token. It is kept out of .github/workflows until the HIIE decision is on record
+# (REQ-019, REQ-398); step 9 of RELEASING.md appends it to .github/workflows/release.yml.
+
+  publish:
+    needs: [build, validation]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: dist
+        path: dist/
+    - uses: pypa/gh-action-pypi-publish@release/v1

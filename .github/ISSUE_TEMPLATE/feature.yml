@@ -1,0 +1,18 @@
+name: Feature request
+description: Propose a new function or a change.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you need, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+  - type: textarea
+    id: literature
+    attributes:
+      label: References (papers, other tools)

@@ -1,0 +1,33 @@
+{
+ "format": "csv",
+ "n_rows": 6,
+ "index": {
+  "kind": "range"
+ },
+ "columns": {
+  "trial": {
+   "dtype": "int64",
+   "unit": ""
+  },
+  "condition": {
+   "dtype": "str",
+   "unit": ""
+  },
+  "stim_site": {
+   "dtype": "str",
+   "unit": ""
+  },
+  "stim_current_mA": {
+   "dtype": "float64",
+   "unit": ""
+  },
+  "rejected": {
+   "dtype": "bool",
+   "unit": ""
+  },
+  "reject_reason": {
+   "dtype": "str",
+   "unit": ""
+  }
+ }
+}

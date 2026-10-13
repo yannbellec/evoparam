@@ -1,0 +1,146 @@
+{
+ "cells": [
+  {
+   "cell": "artifact-p001",
+   "input_sha256": "9f46ec590a9c29ccc8ceed5fe8f44e01db78cf6b7d1e99a5cf8eeb0764883daf",
+   "metrics": {
+    "artifact_residual_rel": 0.12220198054904224,
+    "artifact_residual_rms": 18.32350420658874,
+    "n1_latency_error": 9.765625e-05,
+    "response_rmse_50ms": 17.99034552973831
+   },
+   "output_sha256": "5f8a0914bb05c5a30d2a0b2d627e556dadaaadb91c06c559ba202dc179155b6b",
+   "split": "public"
+  },
+  {
+   "cell": "artifact-p002",
+   "input_sha256": "b28d860eed3a3ada4421f5f17961f54d37a1140a4709e3a600b1fb8fc1da3f97",
+   "metrics": {
+    "artifact_residual_rel": 0.1213964038092755,
+    "artifact_residual_rms": 26.875566036023898,
+    "n1_latency_error": 0.0,
+    "response_rmse_50ms": 7.1758678472457
+   },
+   "output_sha256": "7d09d0109bdba8739fa91dca2fbbc49d3b5f3cb4a55e602cd69ca843d182c218",
+   "split": "public"
+  },
+  {
+   "cell": "artifact-p003",
+   "input_sha256": "bb2cc45173409956449f6b5cd941ab29fa31074acb5eb6cf944dc4ad97fe6b8b",
+   "metrics": {
+    "artifact_residual_rel": 0.1210874142936118,
+    "artifact_residual_rms": 54.370905857469566,
+    "n1_latency_error": 0.0,
+    "response_rmse_50ms": 73.46361948206815
+   },
+   "output_sha256": "c3f8e63e4ba23c62a2059285f8361fc59264ea217e2e11a1a2b962861624568f",
+   "split": "public"
+  },
+  {
+   "cell": "artifact-p004",
+   "input_sha256": "9cba42047ee8af3db5c50d55b0276cabe8d73375b5d7cba965ea77dad74b1fa9",
+   "metrics": {
+    "artifact_residual_rel": 0.12120225490209799,
+    "artifact_residual_rms": 74.6249988830743,
+    "n1_latency_error": 0.0003255208333333333,
+    "response_rmse_50ms": 96.94276667133217
+   },
+   "output_sha256": "4e943472e0c1506d5432f3ff282da2b41e9cd93dd7addecd0ba29761553feee9",
+   "split": "public"
+  },
+  {
+   "cell": "artifact-p005",
+   "input_sha256": "dcf73aa5e7f196ab743ac52fe9896bfe414e26a98daf795ec86bcd878a93e834",
+   "metrics": {
+    "artifact_residual_rel": 0.26629626581721594,
+    "artifact_residual_rms": 45.932451167556856,
+    "n1_latency_error": 0.0015869140625,
+    "response_rmse_50ms": 71.15203205032034
+   },
+   "output_sha256": "c24f707f63314826b37118e41a88b5052374db578d81318bf27b9155ba3e358e",
+   "split": "public"
+  },
+  {
+   "cell": "artifact-p006",
+   "input_sha256": "43f86395926da0c6db7de1b2db67d889de97b56264134cdbebaa64b65ca02c51",
+   "metrics": {
+    "artifact_residual_rel": 0.26497906992480474,
+    "artifact_residual_rms": 66.79487187376924,
+    "n1_latency_error": 0.0018717447916666667,
+    "response_rmse_50ms": 82.26491245711092
+   },
+   "output_sha256": "25dfcf71adda0739ba132608896b46572c71cb2f479ffe6dc0dd7457c75f26db",
+   "split": "public"
+  },
+  {
+   "cell": "artifact-p007",
+   "input_sha256": "d9f217ff8d0c1c6bdab6c44fffdb7fb126bb2083635bff0a76d2ec9e4e1ce49e",
+   "metrics": {
+    "artifact_residual_rel": 0.26478703606730936,
+    "artifact_residual_rms": 141.1597226369657,
+    "n1_latency_error": 0.00478515625,
+    "response_rmse_50ms": 145.04174318472846
+   },
+   "output_sha256": "ca1fca51d27004099b76374927caf35f86152e170a5f23ddc78f4e90ef60e912",
+   "split": "public"
+  },
+  {
+   "cell": "artifact-p008",
+   "input_sha256": "820d34de3142c87cb9a3a0328755da2eac18d16bfabeb87d0ce5e4fe88c4c0cd",
+   "metrics": {
+    "artifact_residual_rel": 0.26476256012362903,
+    "artifact_residual_rms": 180.70765707593358,
+    "n1_latency_error": 0.008219401041666666,
+    "response_rmse_50ms": 236.0005827249081
+   },
+   "output_sha256": "414cd5276b6e2af5e8604c22ddd686115841013e78a9f58ee14e19598e9b9ef1",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "artifact_residual_rel": 0.21438331118102405,
+  "artifact_residual_rms": 92.69290851916462,
+  "n1_latency_error": 0.0024285567434210527,
+  "response_rmse_50ms": 119.92655203210792
+ },
+ "inputs_sha256": "92a2d49da3fdb7319d97000f56709bd24ab723301547008cc17829e996ec5d17",
+ "method": {
+  "citation": "evoparam (this package), preset defaults",
+  "description": "evoparam with the defaults of the preset named by the input",
+  "kind": "baseline",
+  "name": "evoparam-preset",
+  "settings": {
+   "preset": null
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "artifact_residual_rel": 0.21438331118102405,
+  "artifact_residual_rms": 92.69290851916462,
+  "artifact_rms": 432.3699825724552,
+  "n1_latency_error": 0.0024285567434210527,
+  "n_responding_channels": 38,
+  "response_rmse_50ms": 119.92655203210792
+ },
+ "missing_cells": [],
+ "outputs_sha256": "541263e866a70ddcd398dc79035b8a6bc82ac40bc6da91722933a0c898a64393",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "9bbec1a16e72a452d11e418fd86ceac0e6525194edb0816176fa3425abcf55f0"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T4",
+ "task_name": "artifact removal",
+ "task_schema": "benchmark-task/T4/1"
+}

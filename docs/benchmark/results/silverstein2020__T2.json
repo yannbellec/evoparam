@@ -1,0 +1,165 @@
+{
+ "cells": [
+  {
+   "cell": "ccep_detection-p001",
+   "input_sha256": "4804fab6e78ee2072db1de82f85f412f6828cf183a584edced66f28405d99674",
+   "metrics": {
+    "latency_bias": null,
+    "latency_mae": null,
+    "n_reported": 0,
+    "n_true": 2,
+    "reported_fraction": 0.0
+   },
+   "output_sha256": "d4a9b310fbd708871089c6860972bc17c4cbe11b7e09970ae74d758814c17de9",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p002",
+   "input_sha256": "b92fb355b45d73110c6b8e011b63cd0f73c574d447ee2cb693fa710bb3f5066b",
+   "metrics": {
+    "latency_bias": -0.0008618432266923048,
+    "latency_mae": 0.0008618432266923048,
+    "n_reported": 1,
+    "n_true": 5,
+    "reported_fraction": 0.2
+   },
+   "output_sha256": "69569f1314b00315283871ee96dd7a082ff2c7de41edeea464b998043dbb97df",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p003",
+   "input_sha256": "2868fabd46114d6c0ea00d642068f15d77005cfaaec223bb2cb801a66463e344",
+   "metrics": {
+    "latency_bias": 0.0016534529631786765,
+    "latency_mae": 0.0016534529631786765,
+    "n_reported": 6,
+    "n_true": 6,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "98b63c4142743c0ad8f5885acccd6138aa2e5f538fcbaa8dba4d5157f4e815e3",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p004",
+   "input_sha256": "da7be98164319627f55593cff353fa01499de935711c0c8926970acaedbb5cf7",
+   "metrics": {
+    "latency_bias": -0.0003950727051634478,
+    "latency_mae": 0.0007701340497103366,
+    "n_reported": 8,
+    "n_true": 8,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "601b89a1715d7466f89edeca2a75a68d7bfe4695525420191725480e8c7fdf67",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p005",
+   "input_sha256": "70f363880fcb38b0c1f1d408fa8175a55d70ba30368a2ed3063266f8428347fa",
+   "metrics": {
+    "latency_bias": 0.00016817315613415831,
+    "latency_mae": 0.00016817315613415831,
+    "n_reported": 1,
+    "n_true": 6,
+    "reported_fraction": 0.16666666666666666
+   },
+   "output_sha256": "c43b920c33e08ae3b49900c469f6d3563c965f430f781ddd08f3e81f93ca37e6",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p006",
+   "input_sha256": "c3e7c8e50abf118110736b6e4df5b535a652f8dd427bdf1ae6eb8c107ffc81c5",
+   "metrics": {
+    "latency_bias": 0.00030549650371808736,
+    "latency_mae": 0.0012276466635762887,
+    "n_reported": 8,
+    "n_true": 9,
+    "reported_fraction": 0.8888888888888888
+   },
+   "output_sha256": "3fc034e57cc5fc2075d6f5dc9b109217f746cbc7c690bd79b9ab07a82eb6d821",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p007",
+   "input_sha256": "2bbdd6c93ede75362902eee595b022952e2843ed86e95e572c0c0d81b13f9e9e",
+   "metrics": {
+    "latency_bias": 5.552642494005902e-05,
+    "latency_mae": 0.0007549228324581873,
+    "n_reported": 4,
+    "n_true": 4,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "fd6844a223a2eff092cc90173b9a08657afb13f30e90ef3865f7348d56a553de",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p008",
+   "input_sha256": "3d9f56dada8bea67ab4307c005e08e40a3423814147d50e42ca5a0ee528c28fc",
+   "metrics": {
+    "latency_bias": -0.0003322693294236225,
+    "latency_mae": 0.0005288389434407469,
+    "n_reported": 11,
+    "n_true": 11,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "3482049c5f098d970e8112f4af841dd04d74b0eb7d40d133038af2e1f35da49d",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "amplitude_rel_mae": 0.16973417078903374,
+  "coverage_latency": null,
+  "latency_bias": 0.00013019438905260047,
+  "latency_mae": 0.0009171769122018586,
+  "reported_fraction": 0.7647058823529411
+ },
+ "inputs_sha256": "d36580fb6e7fc4ddd0572146312a50a382842579f10801d86f4c565321c7aff9",
+ "method": {
+  "citation": "Silverstein et al. 2020 (LIT-ccep-6)",
+  "description": "published threshold rule 'silverstein2020' of the registry of spec §5.6, applied to the letter",
+  "kind": "baseline",
+  "name": "silverstein2020",
+  "settings": {
+   "overrides": {
+    "baseline": [
+     -0.5,
+     -0.05
+    ]
+   },
+   "rule": "silverstein2020"
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "amplitude_bias": -5.5590496048756135,
+  "amplitude_mae": 6.693787498676263,
+  "amplitude_rel_mae": 0.16973417078903374,
+  "coverage_amplitude": null,
+  "coverage_latency": null,
+  "latency_bias": 0.00013019438905260047,
+  "latency_mae": 0.0009171769122018586,
+  "n_reported": 39,
+  "n_true": 51,
+  "reported_fraction": 0.7647058823529411
+ },
+ "missing_cells": [],
+ "outputs_sha256": "762c7956e2401b48ab24e64783bc433652b6c97b1d6655ac601320badb2ab028",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "4bad50602d94a64a7c5af3646046c7a716f3761c039a99b5f486c7b494acc2af"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T2",
+ "task_name": "early component latency and amplitude",
+ "task_schema": "benchmark-task/T2/1"
+}

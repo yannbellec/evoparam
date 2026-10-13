@@ -1,0 +1,49 @@
+{
+ "__type__": "TrialSet",
+ "fields": {
+  "data": {
+   "__npy__": "data.npy"
+  },
+  "times": {
+   "__array__": "times"
+  },
+  "sfreq": 1000.0,
+  "ch_names": [
+   "CH00",
+   "CH01",
+   "CH02"
+  ],
+  "units": "uV",
+  "metadata": {
+   "__table__": "metadata"
+  },
+  "ch_info": {
+   "__table__": "ch_info"
+  },
+  "masks": null,
+  "event_times": {
+   "__array__": "event_times"
+  },
+  "species": "human",
+  "modality": "spes",
+  "provenance": {
+   "__type__": "Provenance",
+   "fields": {
+    "package_version": "0.1.0.dev0",
+    "created": "2026-01-01T00:00:00+00:00",
+    "source": {
+     "__dict__": {
+      "path": "synthetic",
+      "format": "array"
+     }
+    },
+    "steps": [],
+    "environment": {
+     "__dict__": {}
+    },
+    "random_state": 0,
+    "data_hash": "05f5b15c6ba43f1ee2cb2df3220a9702164a54c3b1779fef0f1a6eb324201efe"
+   }
+  }
+ }
+}

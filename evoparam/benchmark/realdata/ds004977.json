@@ -1,0 +1,49 @@
+{
+ "schema": "evoparam-benchmark-realdata/1",
+ "dataset": "ds004977",
+ "title": "CARLA: Adjusted common average referencing for cortico-cortical evoked potential data",
+ "version": "1.2.0",
+ "doi": "10.18112/openneuro.ds004977.v1.2.0",
+ "licence": "CC0",
+ "redistribution": "CC0: the benchmark may redistribute epoched NWB files of this subset; the repository holds this index only",
+ "reader": "bids",
+ "remote": "openneuro",
+ "datatype": "ieeg",
+ "tasks": [
+  "T1",
+  "T2"
+ ],
+ "epoch": [
+  -1.0,
+  1.0
+ ],
+ "picks": [
+  "ecog",
+  "seeg"
+ ],
+ "site_rule": {
+  "min_trials": 10,
+  "max_sites": 3,
+  "order": "first stimulation sites in the order of the events file with at least min_trials trials"
+ },
+ "selection": "the run whose sidecars are recorded in evoparam/io/registry.json",
+ "entries": [
+  {
+   "subject": "1",
+   "session": "ieeg01",
+   "task": "ccep",
+   "run": "01"
+  }
+ ],
+ "truth": {
+  "rules": [
+   "vanblooijs2023",
+   "hays2021",
+   "keller2014",
+   "silverstein2020"
+  ],
+  "min_agree": 2,
+  "rule": "a contact is responsive when at least 2 of the rules detect a response, not responsive when none does; contacts where exactly one rule detects a response are not scored. The unstated fields of the rules are those of the benchmark baselines (evoparam.benchmark.baselines.RULE_OVERRIDES). T2 truth on the consensus responders: the N1 peak of vanblooijs2023.",
+  "human_raters": "not used: the dataset's derivatives hold no human N1 scoring (spec §7.3 asks to check; none is listed in the registry)"
+ }
+}
