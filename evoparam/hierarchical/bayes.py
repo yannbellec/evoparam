@@ -27,17 +27,26 @@ Weakly informative priors: centres at the empirical-Bayes values, half-normal sc
 the order of the data spread.
 """
 
+from typing import NamedTuple
+
 import numpy as np
 
 from evoparam._typing import Any, NDArray
 from evoparam.errors import warn as _warn
 from evoparam.utils._optional import require
 
-__all__ = ["require_engine", "sample", "loo_table", "prepare"]
+__all__ = ["require_engine", "sample", "loo_table", "prepare", "NutsSettings"]
 
 EXTRAS = {"numpyro": "bayes", "pymc": "bayes"}
 MIN_TAU_MS = 0.01
 DIVERGENCE_WARNING = 0.01
+
+# Fewest channels of a component for a hierarchical model, and fewest fits to compare.
+_MIN_CHANNELS = 2
+_MIN_FITS = 2
+
+# Dimensions of the draws of a scalar (chain x draw): more means a vector per draw.
+_MATRIX_NDIM = 2
 
 
 def require_engine(engine: Any) -> Any:
@@ -139,6 +148,7 @@ def prepare(
 
 
 def _exgauss_logpdf_jax(x: Any, mu: Any, sigma: Any, tau: Any) -> Any:
+    """Log-density of the ex-Gaussian distribution (JAX)."""
     require("jax", extra="bayes", caller="evoparam.hierarchical.bayes._exgauss_logpdf_jax")
     import jax.numpy as jnp
     from jax.scipy.stats import norm
@@ -152,6 +162,7 @@ def _exgauss_logpdf_jax(x: Any, mu: Any, sigma: Any, tau: Any) -> Any:
 
 
 def _numpyro_model(data: Any, latency_dist: Any) -> None:
+    """Hierarchical latency and amplitude model of one component (numpyro)."""
     require("jax", extra="bayes", caller="evoparam.hierarchical.bayes._numpyro_model")
     import jax.numpy as jnp
 
@@ -250,6 +261,7 @@ def _sample_numpyro(
     seed: Any,
     init: Any,
 ) -> tuple[dict[Any, NDArray[Any]], NDArray[Any], dict[Any, NDArray[Any]] | None]:
+    """Run NUTS on the numpyro model; return the draws, divergences and log-likelihoods."""
     require("jax", extra="bayes", caller="evoparam.hierarchical.bayes._sample_numpyro")
     import jax
 
@@ -306,6 +318,7 @@ def _sample_pymc(
     seed: Any,
     init: Any,
 ) -> tuple[dict[Any, NDArray[Any]], NDArray[Any], dict[Any, NDArray[Any]]]:
+    """Run NUTS on the PyMC model; return the draws, divergences and log-likelihoods."""
     require("pymc", extra="bayes", caller="evoparam.hierarchical.bayes._sample_pymc")
     import pymc as pm
     import pytensor.tensor as pt
@@ -411,6 +424,7 @@ def _from_dict(az: Any, groups: Any) -> Any:
 
 
 def _diagnostics(samples: Any, diverging: Any) -> dict[str, Any]:
+    """R-hat, effective sample size and divergences of the draws."""
     require("arviz", extra="bayes", caller="evoparam.hierarchical.bayes._diagnostics")
     import arviz as az
 
@@ -445,16 +459,22 @@ def _ppc(samples: Any, data: Any) -> float:
     return float(np.mean(np.std(rep, axis=1) >= observed))
 
 
+class NutsSettings(NamedTuple):
+    """Settings of the NUTS sampler: chains, warm-up and kept draws, target acceptance, seed."""
+
+    n_chains: Any
+    n_warmup: Any
+    n_draws: Any
+    target_accept: Any
+    random_state: Any
+
+
 def sample(
     engine: Any,
     level_tables: Any,
     settings: Any,
     *,
-    n_chains: Any,
-    n_warmup: Any,
-    n_draws: Any,
-    target_accept: Any,
-    random_state: Any,
+    nuts: NutsSettings,
     formula: Any,
     covariates: Any,
     eb_variance: Any = None,
@@ -465,20 +485,27 @@ def sample(
     channel = level_tables["channel"].copy()
     trial = level_tables["trial"]
     subjects = settings["subjects"]
-    seed = 0 if random_state is None else int(random_state)
+    seed = 0 if nuts.random_state is None else int(nuts.random_state)
     diag: dict[str, Any]
     var_rows, effect_rows, sub_rows, diag = [], [], [], {"bayes": {}}
     for label in settings["components"]:
         if not (channel["component"] == label).any():
             continue
         data = prepare(channel, trial, label, formula, covariates, subjects)
-        if len(data["lat_hat"]) < 2:
+        if len(data["lat_hat"]) < _MIN_CHANNELS:
             diag["bayes"][label] = {"skipped": "fewer than 2 channels"}
             continue
         init = _init_values(data, eb_variance, label)
         sampler = _sample_numpyro if engine == "numpyro" else _sample_pymc
         samples, diverging, loglik = sampler(
-            data, settings["latency_dist"], n_chains, n_warmup, n_draws, target_accept, seed, init
+            data,
+            settings["latency_dist"],
+            nuts.n_chains,
+            nuts.n_warmup,
+            nuts.n_draws,
+            nuts.target_accept,
+            seed,
+            init,
         )
         d = _diagnostics(samples, diverging)
         d["ppc_p_latency_spread"] = _ppc(samples, data)
@@ -492,28 +519,7 @@ def sample(
             )
         diag["bayes"][label] = d
         amp_scale = data["amp_scale"]
-        # channel posteriors
-        rows = channel["component"] == label
-        index = {k: i for i, k in enumerate(data["keys"])}
-        lat = _summary(samples["latency_channel"] / 1e3)
-        amp = _summary(samples["amplitude_channel"] * amp_scale)
-        for name, stats in (("latency", lat), ("amplitude", amp)):
-            for column in ("", "_se", "_ci_low", "_ci_high"):
-                channel.loc[rows, f"{name}{column}"] = np.nan
-            for idx in channel.index[rows]:
-                key: Any = (channel.at[idx, "subject"], channel.at[idx, "channel"])
-                if key in index:
-                    i = index[key]
-                    channel.at[idx, name] = stats[0][i]
-                    channel.at[idx, f"{name}_se"] = stats[1][i]
-                    channel.at[idx, f"{name}_ci_low"] = stats[2][i]
-                    channel.at[idx, f"{name}_ci_high"] = stats[3][i]
-        if "responsibility" in samples:
-            resp = samples["responsibility"].reshape(-1, len(data["ex_y"])).mean(0)
-            eindex = {k: i for i, k in enumerate(data["exist_keys"])}
-            for idx in channel.index[rows]:
-                key = (channel.at[idx, "subject"], channel.at[idx, "channel"])
-                channel.at[idx, "p_response"] = resp[eindex[key]] if key in eindex else np.nan
+        _channel_posteriors(channel, channel["component"] == label, data, samples, amp_scale)
         # The draws themselves, for HierarchicalFit.to_arviz (chain x draw x site/subject)
         diag.setdefault("draws", {})[label] = {
             "sites": [f"{a}/{b}" for a, b in data["keys"]],
@@ -523,71 +529,16 @@ def sample(
             "latency_subject": np.asarray(samples["latency_subject"]) / 1e3,
             "amplitude_subject": np.asarray(samples["amplitude_subject"]) * amp_scale,
         }
-        sl = _summary(samples["latency_subject"] / 1e3)
-        sa = _summary(samples["amplitude_subject"] * amp_scale)
-        for i, name in enumerate(subjects):
-            sub_rows.append(
-                {
-                    "subject": name,
-                    "component": label,
-                    "latency": sl[0][i],
-                    "latency_se": sl[1][i],
-                    "latency_ci_low": sl[2][i],
-                    "latency_ci_high": sl[3][i],
-                    "amplitude": sa[0][i],
-                    "amplitude_se": sa[1][i],
-                    "amplitude_ci_low": sa[2][i],
-                    "amplitude_ci_high": sa[3][i],
-                    **covariates[name],
-                }
-            )
+        sub_rows.extend(_subject_rows(samples, label, subjects, covariates, amp_scale))
         # total trial-to-trial SD (the ex-Gaussian's: sqrt(sigma^2 + tau^2))
         samples["sd_jitter_total"] = np.sqrt(
             samples["sd_jitter"] ** 2 + samples.get("tau_jitter", 0.0) ** 2
         )
-        level: Any
-        parameter: Any
-        scale: Any
-        for key, parameter, level, scale in (
-            ("sd_latency_subject", "latency", "subject", 1e-3),
-            ("sd_latency_channel", "latency", "channel", 1e-3),
-            ("sd_jitter_total", "latency", "trial", 1e-3),
-            ("sd_jitter", "latency", "trial (ex-Gaussian sigma)", 1e-3),
-            ("tau_jitter", "latency", "trial (ex-Gaussian tau)", 1e-3),
-            ("sd_amplitude_subject", "amplitude", "subject", amp_scale),
-            ("sd_amplitude_channel", "amplitude", "channel", amp_scale),
-            ("sd_existence_channel", "amplitude", "channel (existence mixture)", amp_scale),
-        ):
-            if key in samples:
-                m, s, lo, hi = _summary(samples[key] * scale)
-                var_rows.append(
-                    {
-                        "component": label,
-                        "parameter": parameter,
-                        "level": level,
-                        "sd": float(m),
-                        "sd_se": float(s),
-                        "ci_low": float(lo),
-                        "ci_high": float(hi),
-                        "method": f"NUTS ({engine})",
-                    }
-                )
+        var_rows.extend(_variance_rows(samples, label, amp_scale, engine))
         if "beta" in samples and len(data["X_names"]):
-            m, s, lo, hi = _summary(samples["beta"] / 1e3)
-            for j, term in enumerate(data["X_names"]):
-                effect_rows.append(
-                    {
-                        "component": label,
-                        "parameter": "latency",
-                        "term": term,
-                        "estimate": m[j],
-                        "se": s[j],
-                        "ci_low": lo[j],
-                        "ci_high": hi[j],
-                    }
-                )
+            effect_rows.extend(_effect_rows(samples, label, data["X_names"]))
         diag["bayes"][label]["posterior"] = {
-            k: _summary(v)[0].tolist() if np.ndim(v) > 2 else float(_summary(v)[0])
+            k: _summary(v)[0].tolist() if np.ndim(v) > _MATRIX_NDIM else float(_summary(v)[0])
             for k, v in samples.items()
             if k.startswith(("mu_", "sd_", "tau_", "beta"))
         }
@@ -600,6 +551,104 @@ def sample(
     if effect_rows:
         out["effects"] = pd.DataFrame(effect_rows)
     return out
+
+
+def _channel_posteriors(channel: Any, rows: Any, data: Any, samples: Any, amp_scale: Any) -> None:
+    """Write the channel posteriors (and the existence responsibility) into ``channel``."""
+    index = {k: i for i, k in enumerate(data["keys"])}
+    lat = _summary(samples["latency_channel"] / 1e3)
+    amp = _summary(samples["amplitude_channel"] * amp_scale)
+    for name, stats in (("latency", lat), ("amplitude", amp)):
+        for column in ("", "_se", "_ci_low", "_ci_high"):
+            channel.loc[rows, f"{name}{column}"] = np.nan
+        for idx in channel.index[rows]:
+            key: Any = (channel.at[idx, "subject"], channel.at[idx, "channel"])
+            if key in index:
+                i = index[key]
+                channel.at[idx, name] = stats[0][i]
+                channel.at[idx, f"{name}_se"] = stats[1][i]
+                channel.at[idx, f"{name}_ci_low"] = stats[2][i]
+                channel.at[idx, f"{name}_ci_high"] = stats[3][i]
+    if "responsibility" in samples:
+        resp = samples["responsibility"].reshape(-1, len(data["ex_y"])).mean(0)
+        eindex = {k: i for i, k in enumerate(data["exist_keys"])}
+        for idx in channel.index[rows]:
+            key = (channel.at[idx, "subject"], channel.at[idx, "channel"])
+            channel.at[idx, "p_response"] = resp[eindex[key]] if key in eindex else np.nan
+
+
+def _subject_rows(
+    samples: Any, label: Any, subjects: Any, covariates: Any, amp_scale: Any
+) -> list[dict[str, Any]]:
+    """One row per subject: the posterior latency and amplitude, with the covariates."""
+    sl = _summary(samples["latency_subject"] / 1e3)
+    sa = _summary(samples["amplitude_subject"] * amp_scale)
+    return [
+        {
+            "subject": name,
+            "component": label,
+            "latency": sl[0][i],
+            "latency_se": sl[1][i],
+            "latency_ci_low": sl[2][i],
+            "latency_ci_high": sl[3][i],
+            "amplitude": sa[0][i],
+            "amplitude_se": sa[1][i],
+            "amplitude_ci_low": sa[2][i],
+            "amplitude_ci_high": sa[3][i],
+            **covariates[name],
+        }
+        for i, name in enumerate(subjects)
+    ]
+
+
+def _variance_rows(samples: Any, label: Any, amp_scale: Any, engine: Any) -> list[dict[str, Any]]:
+    """One row per variance component sampled: its posterior SD, SE and interval."""
+    rows = []
+    level: Any
+    parameter: Any
+    scale: Any
+    for key, parameter, level, scale in (
+        ("sd_latency_subject", "latency", "subject", 1e-3),
+        ("sd_latency_channel", "latency", "channel", 1e-3),
+        ("sd_jitter_total", "latency", "trial", 1e-3),
+        ("sd_jitter", "latency", "trial (ex-Gaussian sigma)", 1e-3),
+        ("tau_jitter", "latency", "trial (ex-Gaussian tau)", 1e-3),
+        ("sd_amplitude_subject", "amplitude", "subject", amp_scale),
+        ("sd_amplitude_channel", "amplitude", "channel", amp_scale),
+        ("sd_existence_channel", "amplitude", "channel (existence mixture)", amp_scale),
+    ):
+        if key in samples:
+            m, s, lo, hi = _summary(samples[key] * scale)
+            rows.append(
+                {
+                    "component": label,
+                    "parameter": parameter,
+                    "level": level,
+                    "sd": float(m),
+                    "sd_se": float(s),
+                    "ci_low": float(lo),
+                    "ci_high": float(hi),
+                    "method": f"NUTS ({engine})",
+                }
+            )
+    return rows
+
+
+def _effect_rows(samples: Any, label: Any, terms: Any) -> list[dict[str, Any]]:
+    """One row per covariate term: its posterior effect on the latency (s)."""
+    m, s, lo, hi = _summary(samples["beta"] / 1e3)
+    return [
+        {
+            "component": label,
+            "parameter": "latency",
+            "term": term,
+            "estimate": m[j],
+            "se": s[j],
+            "ci_low": lo[j],
+            "ci_high": hi[j],
+        }
+        for j, term in enumerate(terms)
+    ]
 
 
 def loo_table(fits: Any, var_name: str = "lat_hat") -> Any:
@@ -621,6 +670,6 @@ def loo_table(fits: Any, var_name: str = "lat_hat") -> Any:
             idatas[name] = _from_dict(
                 az, {"posterior": {"_": np.zeros(ll.shape[:2])}, "log_likelihood": {var_name: ll}}
             )
-    if len(idatas) < 2:
+    if len(idatas) < _MIN_FITS:
         return pd.DataFrame()
     return az.compare(idatas, var_name=var_name)
