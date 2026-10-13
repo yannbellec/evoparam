@@ -4,6 +4,7 @@
 import numpy as np
 
 from evoparam._typing import Any, NDArray
+from evoparam.data._table import as_text
 from evoparam.errors import EventError
 from evoparam.utils._optional import require
 
@@ -57,7 +58,6 @@ def group_trains(
     events : pandas.DataFrame
         Copy sorted by time, with ``train_id`` and ``index_in_train`` (int64, from 0).
     """
-    require("pandas", extra="data", caller="evoparam.events.group_trains")
     out = events.copy()
     explicit = max_gap is not None or bool(expected_rate)
     if max_gap is None:
@@ -76,7 +76,7 @@ def group_trains(
         new[0] = True
         gap = np.diff(times) > max_gap
         if site_column is not None and site_column in out.columns:
-            sites = out[site_column].fillna("").astype(str).to_numpy()
+            sites = as_text(out[site_column])
             known = (sites[1:] != "") & (sites[:-1] != "")
             change = known & (sites[1:] != sites[:-1])
             # With both sites known, a pause inside a site is not a new train unless the

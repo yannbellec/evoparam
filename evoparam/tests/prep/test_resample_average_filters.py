@@ -5,7 +5,6 @@ from dataclasses import replace
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.artifact import apply_mask
@@ -13,6 +12,8 @@ from evoparam.errors import DataError, SettingsError
 from evoparam.prep import average, highpass, lowpass, notch, resample
 
 from .helpers import ccep, epochs
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

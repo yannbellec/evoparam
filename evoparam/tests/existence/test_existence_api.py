@@ -4,7 +4,6 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 import evoparam
@@ -14,6 +13,8 @@ from evoparam.existence import compare_detectors, methods_text, response_duratio
 from evoparam.existence import test_response as run_test
 
 from .helpers import TIMES, gaussian, noise_trials, trialset
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

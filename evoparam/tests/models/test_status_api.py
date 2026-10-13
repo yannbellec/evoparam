@@ -5,7 +5,6 @@ REQ-120, REQ-123)."""
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 import evoparam
@@ -22,6 +21,8 @@ from evoparam.models import (
 )
 
 from .helpers import BASELINE, SFREQ, TIMES, WINDOW, gauss, model, noise
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

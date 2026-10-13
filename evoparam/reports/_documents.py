@@ -12,6 +12,7 @@ import numpy as np
 from evoparam._typing import Any
 from evoparam.data import Evoked, GroupFit, ResponseFit, ResponseTest, TFFit, TrialSet
 from evoparam.errors import SettingsError
+from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 from ._text import methods_text
@@ -45,6 +46,7 @@ def qc(result: Any, *, trials: Any = None, artifact: Any = None, trial_fits: Any
     quality of ``artifact`` (ArtifactResult: median, minimum, trials below 0.5) and the
     untrusted trials of ``trial_fits`` (TrialFitSet).
     """
+    require("pandas", extra="data", caller="evoparam.reports._documents.qc")
     import pandas as pd
 
     rows: list[Any] = []
@@ -83,6 +85,7 @@ def qc(result: Any, *, trials: Any = None, artifact: Any = None, trial_fits: Any
 
 
 def _summary_table(result: Any) -> Any:
+    require("pandas", extra="data", caller="evoparam.reports._documents._summary_table")
     import pandas as pd
 
     if isinstance(result, (GroupFit, ResponseFit)):
@@ -124,6 +127,7 @@ def _summary_table(result: Any) -> Any:
 def _figures(result: Any, data: Any = None, max_channels: int = 24) -> list[Any]:
     """(title, Figure) pairs for the report."""
     try:
+        require("matplotlib", extra="plot", caller="evoparam.reports._documents._figures")
         import matplotlib
 
         matplotlib.use("Agg", force=False)
@@ -152,6 +156,7 @@ def _figures(result: Any, data: Any = None, max_channels: int = 24) -> list[Any]
 
 
 def _png(fig: Any) -> str:
+    require("matplotlib", extra="plot", caller="evoparam.reports._documents._png")
     import matplotlib.pyplot as plt
 
     buffer = io.BytesIO()
@@ -345,6 +350,7 @@ def pdf(
     found); the statistic over time with its null band for a :class:`ResponseTest` split
     by site (``by=("stim_site",)``, the default of ``test_response``).
     """
+    require("matplotlib", extra="plot", caller="evoparam.reports._documents.pdf")
     import matplotlib
 
     matplotlib.use("Agg", force=False)

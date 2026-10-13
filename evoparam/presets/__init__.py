@@ -24,6 +24,7 @@ from typing import Any, cast
 
 from evoparam import _plugins
 from evoparam.errors import SettingsError
+from evoparam.utils._optional import require
 
 __all__ = [
     "Preset",
@@ -167,6 +168,7 @@ def get(name: "str | Preset") -> "Preset":
 
 def list() -> Any:  # noqa: A001 (the name of the spec's API)
     """Table of the presets: name, modality, species, citation keys, version, validation."""
+    require("pandas", extra="data", caller="evoparam.presets.list")
     import pandas as pd
 
     rows = [

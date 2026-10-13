@@ -17,17 +17,20 @@ from evoparam import sim
 pytest.importorskip("pandas")
 
 DOC = pathlib.Path(evoparam.__file__).parent.parent / "docs" / "reference" / "tables.rst"
-UNITS = {"(none)": "", "data unit": "data", "data unit × s": "data·s"}
 
 
-def documented(anchor: Any) -> Any:
-    """{column: unit} of the list-table that follows ``.. _<anchor>:``."""
+def documented(anchor: Any, data_unit: str) -> Any:
+    """{column: unit} of the list-table that follows ``.. _<anchor>:``.
+
+    "data unit" is the amplitude unit of the fitted data (``data_unit``, REQ-009).
+    """
+    units = {"(none)": "", "data unit": data_unit, "data unit × s": f"{data_unit}·s"}
 
     if not DOC.is_file():
         pytest.skip("docs/ not in this checkout")
     text = DOC.read_text(encoding="utf-8").split(f".. _{anchor}:")[1].split(".. _")[0]
     rows = re.findall(r"^   \* - ``([^`]+)``\n     - ([^\n]*)$", text, flags=re.MULTILINE)
-    return {name: UNITS.get(unit.strip(), unit.strip()) for name, unit in rows}
+    return {name: units.get(unit.strip(), unit.strip()) for name, unit in rows}
 
 
 @pytest.fixture(scope="module")
@@ -40,7 +43,8 @@ def group() -> Any:
 
 def test_component_columns_are_the_documented_list(group: Any, tmp_path: Any) -> None:
 
-    doc = documented("table-component")
+    assert group.units == "uV"
+    doc = documented("table-component", group.units)
     table = group.to_dataframe("component")
     assert list(table.columns) == list(doc)
     assert table.attrs["units"] == doc
@@ -57,7 +61,7 @@ def test_component_columns_are_the_documented_list(group: Any, tmp_path: Any) ->
 
 def test_fit_columns_are_the_documented_list(group: Any) -> None:
 
-    doc = documented("table-fit")
+    doc = documented("table-fit", group.units)
     table = group.to_dataframe("fit")
     assert list(table.columns) == list(doc)
     assert table.attrs["units"] == doc

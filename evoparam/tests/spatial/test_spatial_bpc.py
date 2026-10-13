@@ -21,8 +21,9 @@ import os
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
+
+pd = pytest.importorskip("pandas")
 
 pytestmark = [
     pytest.mark.network,

@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from evoparam._typing import Any, ArrayLike, BoolArray, FloatArray
+from evoparam.data._table import new_table
 from evoparam.errors import SettingsError
-from evoparam.utils._optional import require
 
 from ._common import check_trialset, window_slice
 
@@ -83,11 +83,10 @@ def artifact_quality(
 
     Returns
     -------
-    pandas.DataFrame
+    pandas.DataFrame (a :class:`~evoparam.data.Table` without pandas)
         One row per trial: ``residual_ratio``, ``edge_discontinuity``,
         ``saturation_fraction``, ``template_fit_r2`` and ``quality``.
     """
-    pd = require("pandas", extra="data", caller="evoparam.artifact.artifact_quality")
     check_trialset(ts)
     times, data = ts.times, ts.data
     win = window_slice(ts, window)
@@ -134,7 +133,7 @@ def artifact_quality(
     p4 = np.where(np.isnan(r2), 0.0, 1.0 - np.clip(r2, 0, 1))
 
     quality = 1.0 - np.clip(np.mean([p1, p2, p3, p4], axis=0), 0.0, 1.0)
-    return pd.DataFrame(
+    return new_table(
         {
             "residual_ratio": ratio,
             "edge_discontinuity": jump,

@@ -8,6 +8,7 @@ import numpy as np
 from evoparam._typing import Any, ArrayLike, NDArray
 from evoparam.data import Provenance, TrialSet
 from evoparam.errors import DataError, EventError
+from evoparam.utils._optional import require
 
 __all__ = ["epoch", "epoch_data"]
 
@@ -106,6 +107,7 @@ def overlap_flags(onsets: Any, length: Any) -> NDArray[Any]:
 
 def _as_table(table: Any, n_rows: Any, name: Any) -> Any:
     """DataFrame (RangeIndex) from a DataFrame or a dict of columns."""
+    require("pandas", extra="data", caller="evoparam.io.epochs._as_table")
     import pandas as pd
 
     if isinstance(table, dict):
@@ -119,6 +121,7 @@ def _as_table(table: Any, n_rows: Any, name: Any) -> Any:
 
 def _pandas() -> Any:
     try:
+        require("pandas", extra="data", caller="evoparam.io.epochs._pandas")
         import pandas
     except ImportError:
         return None
@@ -185,12 +188,18 @@ def epoch(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
     """
     start = _time.perf_counter()
     prior = []
+    prior_source = None
     if type(onsets).__name__ == "DataFrame":
         record = onsets.attrs.get("provenance") or {}
         prior = (
             list(record.get("steps", []))
             if isinstance(record, dict)
             else list(getattr(record, "steps", []))
+        )
+        # the source of the recording the events were detected in (REQ-294: the trials
+        # continue its record)
+        prior_source = (
+            record.get("source") if isinstance(record, dict) else getattr(record, "source", None)
         )
         if "onset_time" not in onsets.columns:
             raise DataError("epoch: an event table needs the column onset_time.")
@@ -230,9 +239,14 @@ def epoch(  # noqa: PLR0913  (public API, signature fixed by spec §5.1)
         "n_onsets": int(onsets.size),
         "units": units,
     }
-    provenance = Provenance(
-        source={"path": None, "format": "array", "reader": "evoparam.io.epoch"}, steps=prior
-    )
+    source = {"path": None, "format": "array", "reader": "evoparam.io.epoch"}
+    if prior_source and prior_source.get("reader") not in (
+        None,
+        "evoparam.events.detect_pulses",
+        "evoparam.events.detect_events",
+    ):
+        source = dict(prior_source)
+    provenance = Provenance(source=source, steps=prior)
     provenance = provenance.with_step(
         "evoparam.io.epoch",
         settings,

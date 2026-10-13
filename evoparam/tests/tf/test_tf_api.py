@@ -5,13 +5,14 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.errors import SettingsError
 from evoparam.models import fit as fit_models
 from evoparam.tests.tf.helpers import SFREQ, TIMES, ar1, burst, n1, trialset
 from evoparam.tf import tf_compare, tf_fit, tf_zones
+
+pd = pytest.importorskip("pandas")
 
 
 def _burst_set(

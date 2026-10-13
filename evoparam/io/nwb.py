@@ -71,6 +71,7 @@ def _all_objects(nwbfile: Any) -> list[Any]:
 
 
 def _series(nwbfile: Any, name: Any) -> Any:
+    require("pynwb", extra="nwb", caller="evoparam.io.nwb._series")
     from pynwb.base import TimeSeries
 
     candidates = [
@@ -101,6 +102,7 @@ def _table_frame(table: Any) -> Any:
 
 def nwb_events(nwbfile: Any, events: Any = None) -> Any:
     """(onsets in s, events table, source name) by the order of spec §10.3."""
+    require("pandas", extra="data", caller="evoparam.io.nwb.nwb_events")
     import pandas as pd
 
     if isinstance(events, pd.DataFrame):
@@ -180,6 +182,7 @@ def _harmonise(frame: Any) -> tuple[Any, Any]:
 
 
 def _electrodes(_nwbfile: Any, series: Any, picks: Any) -> tuple[list[str], Any, list[int]]:
+    require("pandas", extra="data", caller="evoparam.io.nwb._electrodes")
     import pandas as pd
 
     region = getattr(series, "electrodes", None)
@@ -558,6 +561,7 @@ def write_nwb(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by 
     the exact objects.
     """
     pynwb = require("pynwb", extra="nwb", caller="evoparam.io.write_nwb")
+    require("hdmf", extra="nwb", caller="evoparam.io.nwb.write_nwb")
     from hdmf.common import DynamicTable, DynamicTableRegion
 
     from evoparam.data import GroupFit, ResponseTest, TrialSet

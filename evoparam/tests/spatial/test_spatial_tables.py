@@ -12,7 +12,6 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.data import TrialSet
@@ -31,6 +30,8 @@ from evoparam.spatial import (
 )
 
 from .helpers import BASELINE, SFREQ, TIMES, gauss
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

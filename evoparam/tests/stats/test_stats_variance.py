@@ -5,11 +5,12 @@ models of §5.8 that build on them)."""
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.errors import DataError, SettingsError
 from evoparam.stats import reml, variance_components
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

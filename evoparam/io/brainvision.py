@@ -3,7 +3,7 @@
 
 BrainVision is a common format in BIDS iEEG datasets (for example OpenNeuro ds004080).
 Only the needed samples are read: for a remote file, only the needed bytes are
-downloaded, using HTTP range requests, so a few seconds can be read from a recording
+downloaded, using HTTP byte ranges, so a few seconds can be read from a recording
 of several GB. Binary data stored as INT_16, INT_32 or IEEE_FLOAT_32, multiplexed
 or vectorized, are supported; the resolution of each channel is applied and every
 voltage unit is converted to µV.
@@ -205,7 +205,7 @@ def _open_data(
     cache_dir: Any = None,
     log: Any = None,
 ) -> Any:
-    """Open the binary data file of a header, locally or through range requests."""
+    """Open the binary data file of a header, locally or through HTTP byte ranges."""
     path = header["data_file"]
     if remote is None:
         remote = is_url(path)
@@ -392,7 +392,7 @@ def read_brainvision(
     picks : list of str or int, optional
         Channels to return, by name or index, in this order. Default: all.
     remote : bool, optional
-        Read through HTTP range requests. Default: True when ``vhdr`` is an
+        Read through HTTP byte ranges. Default: True when ``vhdr`` is an
         http(s) address.
 
     Returns

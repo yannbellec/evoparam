@@ -8,7 +8,6 @@ import warnings
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.artifact import remove_artifact
@@ -16,6 +15,8 @@ from evoparam.data import TrialSet
 from evoparam.existence import test_response as run_test
 from evoparam.io import epoch_data
 from evoparam.prep import baseline_correct
+
+pd = pytest.importorskip("pandas")
 
 pytestmark = [
     pytest.mark.network,

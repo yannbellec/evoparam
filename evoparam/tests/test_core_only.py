@@ -6,8 +6,10 @@ The chain runs in a subprocess where every module outside the standard library, 
 SciPy and evoparam is hidden (an import hook raises ImportError, as if the package were not
 installed): ``simulate``, ``detect_events``, ``remove_artifact`` (interpolation and
 template), ``fit`` (with its existence test), ``test_response``, ``fit_trials``, and save and
-load of ``TrialSet``, ``Evoked`` and ``GroupFit`` (``data.npz`` and CSV tables), then the
-npz container read back with ``evoparam.io.read``.
+load of ``TrialSet`` (also with the quality column that ``remove_artifact`` adds to its
+metadata), ``Evoked`` and ``GroupFit`` (``data.npz`` and CSV tables), then the npz
+container read back with ``evoparam.io.read``. Without pandas the tables are
+:class:`evoparam.data.Table` objects.
 """
 
 import json
@@ -87,6 +89,9 @@ CHAIN = textwrap.dedent("""
         events = evoparam.detect_events(continuous, sfreq=trials.sfreq,
                                         ch_names=trials.ch_names)
         assert len(events) >= 1
+        # without pandas the event table is an evoparam Table (REQ-010)
+        assert type(events).__name__ == "Table", type(events)
+        assert np.all(np.diff(events["onset_time"].to_numpy()) > 0)
 
 
     @step("remove_artifact interpolate")
@@ -94,6 +99,8 @@ CHAIN = textwrap.dedent("""
         out = evoparam.artifact.remove_artifact(state["trials"], method="interpolate",
                                                 window=state["preset"].artifact_window)
         state["clean"] = out.cleaned
+        quality = out.cleaned.metadata["quality"].to_numpy()
+        assert np.array_equal(quality, out.quality)
 
 
     @step("remove_artifact template")
@@ -123,15 +130,18 @@ CHAIN = textwrap.dedent("""
     def _():
         state["single"] = evoparam.trials.fit_trials(state.get("clean", state["trials"]),
                                                      state["group"], random_state=0)
+        assert len(state["single"].table) == sum(f.shift.size for f in state["single"].fits)
 
 
-    for name in ("trials", "group"):
+    for name in ("trials", "clean", "group"):
         @step(f"save/load {name}")
         def _():
             obj = state[name]
             path = os.path.join(folder, name + ".evoparam")
             evoparam.data.save_object(obj, path, table_format="csv")
-            assert type(evoparam.load_object(path)) is type(obj)
+            again = evoparam.load_object(path)
+            assert type(again) is type(obj)
+            assert again == obj
 
 
     @step("save/load evoked")
@@ -166,27 +176,12 @@ STEPS = (
     "test_response",
     "fit_trials",
     "save/load trials",
+    "save/load clean",
     "save/load group",
     "save/load evoked",
     "read npz",
     "selftest",
 )
-
-# Measured on 2026-10-09 (Python 3.12, NumPy and SciPy only): these steps need pandas
-# (extra ``data``), so REQ-010 is not met for them yet. detect_events returns a DataFrame
-# (evoparam.events.detect_pulses); remove_artifact computes its quality table
-# (evoparam.artifact.artifact_quality); fit builds the index of the GroupFit as a DataFrame
-# (GroupFit.from_fits, evoparam/data/results.py); fit_trials and saving a GroupFit need that
-# fit. import, simulate, test_response and save/load of TrialSet and Evoked (data.npz) work.
-# The test fails if any other step stops working; it passes once these work.
-NEEDS_PANDAS = {
-    "detect_events",
-    "remove_artifact interpolate",
-    "remove_artifact template",
-    "fit",
-    "fit_trials",
-    "save/load group",
-}
 
 
 def run_chain() -> Any:
@@ -205,13 +200,7 @@ def test_req010_core_chain_with_numpy_and_scipy_only() -> None:
     steps = run_chain()
     assert set(steps) == set(STEPS)
     failing = {name: error for name, error in steps.items() if error != "ok"}
-    unexpected = {name: error for name, error in failing.items() if name not in NEEDS_PANDAS}
-    assert not unexpected, unexpected
-    if failing:
-        pytest.xfail(
-            "REQ-010 not met as written; steps that need pandas: "
-            + "; ".join(f"{k}: {v}" for k, v in failing.items())
-        )
+    assert not failing, failing
 
 
 def test_req010_the_hook_hides_optional_packages() -> None:

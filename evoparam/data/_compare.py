@@ -13,6 +13,8 @@ from typing import Any, ClassVar
 
 import numpy as np
 
+from evoparam.data._table import Table
+
 
 def _is_dataframe(obj: object) -> bool:
     return type(obj).__name__ == "DataFrame" and type(obj).__module__.startswith("pandas")
@@ -55,6 +57,21 @@ def _frame_equal(a: Any, b: Any) -> bool:
     return True
 
 
+def _table_equal(a: Table, b: Table) -> bool:
+    if a.columns != b.columns or len(a) != len(b):
+        return False
+    for col in a.columns:
+        ca, cb = a[col].to_numpy(), b[col].to_numpy()
+        if ca.dtype.kind != cb.dtype.kind:
+            return False
+        if ca.dtype.kind == "O":
+            if not all(deep_equal(x, y) for x, y in zip(ca, cb, strict=False)):
+                return False
+        elif not _array_equal(ca, cb):
+            return False
+    return True
+
+
 def deep_equal(a: object, b: object) -> bool:
     """Return True when ``a`` and ``b`` hold the same values (see module docstring)."""
     if a is b:
@@ -69,6 +86,8 @@ def deep_equal(a: object, b: object) -> bool:
         return _array_equal(a, b)
     if _is_dataframe(a) or _is_dataframe(b):
         return _is_dataframe(a) and _is_dataframe(b) and _frame_equal(a, b)
+    if isinstance(a, Table) or isinstance(b, Table):
+        return isinstance(a, Table) and isinstance(b, Table) and _table_equal(a, b)
     if isinstance(a, dict) and isinstance(b, dict):
         return a.keys() == b.keys() and all(deep_equal(a[k], b[k]) for k in a)
     if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):

@@ -476,6 +476,7 @@ def plot_tf(
     else:
         axes = np.ravel(axes)
         fig = axes[0].figure
+    require("matplotlib", extra="plot", caller="evoparam.plots._plots.plot_tf")
     from matplotlib.patches import Rectangle
 
     extent = [tf.times[0] * 1e3, tf.times[-1] * 1e3, 0, len(tf.freqs)]

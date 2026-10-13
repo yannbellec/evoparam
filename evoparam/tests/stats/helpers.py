@@ -4,12 +4,14 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
+import pytest
 from scipy.optimize import minimize_scalar
 
 from evoparam.data import TrialSet
 from evoparam.shapes import get_shape
 from evoparam.sim import simulate_erp
+
+pd = pytest.importorskip("pandas")
 
 # A negative component at 100 ms, given in data units (snr=None).
 N1 = {"label": "N1", "latency": 0.1, "fwhm": 0.04, "amplitude": -5.0}

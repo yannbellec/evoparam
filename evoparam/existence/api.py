@@ -13,8 +13,10 @@ import numpy as np
 
 from evoparam._typing import Any, NDArray
 from evoparam.data import Evoked, Provenance, ResponseTest, TrialSet
+from evoparam.data._table import row_labels
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
+from evoparam.utils._failures import PROPAGATE, check_on_error, fit_error, record_failure
 from evoparam.utils._logging import verbose
 from evoparam.utils._optional import require
 from evoparam.utils._parallel import parallel_map
@@ -53,8 +55,8 @@ def _groups(ts: Any, by: Any) -> Any:
     columns = [c for c in (by or ()) if meta is not None and c in meta.columns]
     if not columns:
         return [("", np.arange(ts.n_trials))]
-    keys = meta[columns].astype(str).agg("/".join, axis=1)
-    return [(key, np.flatnonzero(keys.to_numpy() == key)) for key in dict.fromkeys(keys)]
+    keys = row_labels(meta, columns)
+    return [(key, np.flatnonzero(keys == key)) for key in dict.fromkeys(keys)]
 
 
 def _check_artifact(ts: Any, window: Any, allow: Any) -> None:
@@ -77,11 +79,12 @@ def _comparison_fits(unit: tuple[Any, ...]) -> dict[str, Any] | None:
     background = ResponseModel(
         fit_window=window, baseline=baseline, classical=False, max_components=0
     )
-    fit = model.fit_waveform(times, y)
+    # a failed fit is the failure of the channel (REQ-307 ii: recorded by test_response)
+    fit = model.fit_waveform(times, y, on_error="raise")
     if fit.gof is None:
         return None
     steps = fit.diagnostics["steps"]
-    null_fit = background.fit_waveform(times, y)
+    null_fit = background.fit_waveform(times, y, on_error="raise")
     return {
         "delta": steps[-1]["criterion"] - steps[0]["criterion"],
         "null_model": null_fit.model,
@@ -205,6 +208,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     verbose: Any = None,  # noqa: ARG001, PT028  (read by @verbose; public API, not a pytest test)
     projection_profile: str = "published",  # noqa: PT028  (public API test_response, not a pytest test)
     projection_pairs: str = "disjoint",  # noqa: PT028  (public API test_response, not a pytest test)
+    on_error: str = "record",  # noqa: PT028  (public API test_response, not a pytest test)
 ) -> "ResponseTest":
     """Test whether there is a response in the window, on each channel (and stimulation site).
 
@@ -215,7 +219,9 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
       (``"cluster"``); null distribution from random sign flips of whole trials (all
       patterns when there are few trials). Onset and offset: the first and last significant
       sample (or cluster), with a bootstrap interval of the duration over trials. With an
-      Evoked (no trials), baseline windows of the average form a weaker null (warning).
+      Evoked (no trials), baseline windows of the average form a weaker null (warning),
+      and the intervals add baseline segments of the average to its window (a baseline
+      bootstrap, conservative; REQ-006).
     - ``"projection"``: cross-projections between trials (canonical response
       parameterisation, re-implemented from the published description): the response
       duration and a one-sided t-test of the projections at its end.
@@ -254,6 +260,14 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     random number is drawn in the order of the serial run, so the result does not depend
     on ``n_jobs``. ``verbose`` sets the level of the ``evoparam`` logger for the call (the
     summary of the test at INFO; ``"progress"`` adds a progress bar, extra ``progress``).
+
+    A channel whose test fails (REQ-307 ii) is kept with ``status="failed"`` and the
+    exception in ``message`` (arrays shaped as ``statistic``), NaN numbers and
+    ``significant`` False, and one WARNING record names it (``on_error="record"``, the
+    default); ``on_error="raise"`` raises the first :class:`~evoparam.errors.FitError`.
+    The channels are found by testing them one at a time after the test of all of them
+    failed, each from the random state of the group; errors of the data or of the settings
+    always propagate.
     """
     start = _time.perf_counter()
     if method not in METHODS:
@@ -264,6 +278,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         raise SettingsError("statistic must be 'max_t' or 'cluster'.")
     if polarity not in ("both", "negative", "positive"):
         raise SettingsError("polarity must be 'both', 'negative' or 'positive'.")
+    check_on_error(on_error)
     if random_state is None:
         # a seed drawn from the operating system and recorded in the settings, so that the
         # test can be regenerated from its provenance (REQ-007, REQ-333)
@@ -293,23 +308,25 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     times = base_obj.times
 
     groups = _groups(trials_ts, by) if trials_ts is not None else [("", None)]
-    results = []
-    for _, rows in groups:
+
+    def run(rows: Any, chans: Any, gen: np.random.Generator) -> dict[str, Any]:
+        """Test the channels ``chans`` on the trials ``rows`` of one group."""
         if trials_ts is not None:
-            data = trials_ts.data[rows][:, index]
-            masks = None if trials_ts.masks is None else trials_ts.masks[rows][:, index]
+            data = trials_ts.data[rows][:, chans]
+            masks = None if trials_ts.masks is None else trials_ts.masks[rows][:, chans]
         if method == "baseline_permutation":
             if trials_ts is None:
                 res = shuffle_test(
-                    evoked.data[index],
+                    evoked.data[chans],
                     times,
                     window,
                     baseline,
                     n_permutations=n_permutations,
                     polarity=polarity,
                     alpha=alpha,
-                    rng=rng,
+                    rng=gen,
                     n_jobs=n_jobs,
+                    n_boot=n_boot,
                 )
             else:
                 res = permutation_test(
@@ -322,7 +339,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
                     cluster_threshold=cluster_threshold,
                     polarity=polarity,
                     alpha=alpha,
-                    rng=rng,
+                    rng=gen,
                     n_boot=n_boot,
                     masks=masks,
                     n_jobs=n_jobs,
@@ -335,26 +352,43 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
                 times,
                 window,
                 baseline,
-                rng=rng,
+                rng=gen,
                 profile=projection_profile,
                 pairs=projection_pairs,
                 n_jobs=n_jobs,
             )
         elif method == "model_comparison":
-            avg = evoked.data[index] if trials_ts is None else data.mean(axis=0)
+            avg = evoked.data[chans] if trials_ts is None else data.mean(axis=0)
             res = _model_comparison(
-                avg, times, window, baseline, n_permutations, rng, n_jobs=n_jobs
+                avg, times, window, baseline, n_permutations, gen, n_jobs=n_jobs
             )
         else:
-            avg = evoked.data[index] if trials_ts is None else np.nanmean(data, axis=0)
+            avg = evoked.data[chans] if trials_ts is None else np.nanmean(data, axis=0)
             res = apply_rule(avg, times, base_obj.sfreq, spec, base_obj.units)
             res.update(
-                p_value=np.full(len(index), np.nan),
-                duration=np.full(len(index), np.nan),
-                snr_db=np.full(len(index), np.nan),
-                duration_ci=np.full((len(index), 2), np.nan),
+                p_value=np.full(len(chans), np.nan),
+                duration=np.full(len(chans), np.nan),
+                snr_db=np.full(len(chans), np.nan),
+                duration_ci=np.full((len(chans), 2), np.nan),
             )
+        return res
+
+    results, failures = [], []
+    for group, rows in groups:
+        snapshot = copy.deepcopy(rng)
+        try:
+            res, failed = run(rows, index, rng), dict[int, str]()
+        except PROPAGATE:
+            raise
+        except Exception:
+            # the channels that fail on their own (REQ-307 ii); none: not a channel's failure
+            res, failed, rng = _channel_by_channel(
+                run, rows, index, names, group, snapshot, on_error
+            )
+            if not failed:
+                raise
         results.append(res)
+        failures.append(failed)
 
     def stack(key: Any) -> Any:
         return (
@@ -425,6 +459,13 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         alpha,
         _time.perf_counter() - start,
     )
+    status = np.full((len(index), len(groups)), "ok", dtype=object)
+    message = np.full((len(index), len(groups)), "", dtype=object)
+    for g, failed in enumerate(failures):
+        for pos, text in failed.items():
+            status[pos, g], message[pos, g] = "failed", text
+    if len(groups) == 1:
+        status, message = status[:, 0], message[:, 0]
     curve_times = curve = band = None
     if all(r.get("curve") is not None for r in results):
         # the statistic over time and its null band (spec §5.13, plot_existence)
@@ -450,7 +491,87 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         curve_times=curve_times,
         curve=curve,
         null_band=band,
+        status=status.astype(str),
+        message=message.astype(str),
     )
+
+
+# the entries of a test's result that hold one value (or row) per channel
+_PER_CHANNEL = (
+    "statistic",
+    "p_value",
+    "onset",
+    "offset",
+    "duration",
+    "snr_db",
+    "significant",
+    "duration_ci",
+    "onset_ci",
+    "offset_ci",
+    "critical",
+    "curve",
+    "null_band",
+)
+
+
+def _channel_by_channel(
+    run: Any,
+    rows: Any,
+    index: Any,
+    names: Any,
+    group: str,
+    snapshot: np.random.Generator,
+    on_error: str,
+) -> tuple[dict[str, Any], dict[int, str], np.random.Generator]:
+    """Test the channels one at a time, each from the random state ``snapshot``.
+
+    Returns the merged result, {position in ``index``: message} of the channels that failed
+    (recorded, or raised as :class:`FitError` with ``on_error="raise"``), and the generator
+    of the last channel, which the next group continues.
+    """
+    parts: list[dict[str, Any] | None] = []
+    failed: dict[int, str] = {}
+    gen = snapshot
+    for pos, ch in enumerate(index):
+        gen = copy.deepcopy(snapshot)
+        try:
+            parts.append(run(rows, [ch], gen))
+        except PROPAGATE:
+            raise
+        except Exception as exc:  # the failure of this channel only
+            unit = f"{names[ch]} ({group})" if group else str(names[ch])
+            if on_error == "raise":
+                raise fit_error("test_response", unit, exc) from exc
+            failed[pos] = record_failure(logger, "test_response", unit, exc)
+            parts.append(None)
+    return _merge(parts), failed, gen
+
+
+def _merge(parts: list[dict[str, Any] | None]) -> dict[str, Any]:
+    """Merge the results of single channels into one (None: a failed channel, NaN)."""
+    done = [part for part in parts if part is not None]
+    if not done:
+        n = len(parts)
+        out: dict[str, Any] = {
+            key: np.full(n, np.nan)
+            for key in ("statistic", "p_value", "onset", "offset", "duration", "snr_db")
+        }
+        out["significant"] = np.zeros(n, bool)
+        out["duration_ci"] = np.full((n, 2), np.nan)
+        return out
+    first = done[0]
+    out = dict(first)
+    for key in _PER_CHANNEL:
+        if key not in first or first[key] is None:
+            continue
+        value = np.asarray(first[key])
+        if value.ndim == 0:
+            continue
+        empty = np.full(value.shape, False if value.dtype == bool else np.nan)
+        out[key] = np.concatenate(
+            [empty if part is None else np.asarray(part[key]) for part in parts], axis=0
+        )
+    return out
 
 
 def _interval(result: Any, key: Any) -> Any:
@@ -838,6 +959,8 @@ def attach_test(group: Any, test: Any) -> Any:
             snr_db=test.snr_db[i : i + 1],
             curve=None if test.curve is None else test.curve[i : i + 1],
             null_band=None if test.null_band is None else test.null_band[i : i + 1],
+            status=test.status[i : i + 1],
+            message=test.message[i : i + 1],
         )
         fits.append(
             dataclasses.replace(

@@ -15,6 +15,7 @@ from scipy.stats import t as student_t
 from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import DataError
 from evoparam.errors import warn as _warn
+from evoparam.utils._numeric import divide, log10
 from evoparam.utils._parallel import n_workers, parallel_map
 
 logger = logging.getLogger(__name__)
@@ -119,8 +120,7 @@ def _summary(t: Any, statistic: Any, threshold: Any, polarity: Any) -> Any:
 def _t_series(sum_x: Any, sum_x2: Any, n: Any) -> Any:
     mean = sum_x / n
     var = np.clip((sum_x2 - n * mean**2) / (n - 1), 0, None)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        t = mean / np.sqrt(var / n)
+    t = divide(mean, np.sqrt(divide(var, n)))
     return np.nan_to_num(t, nan=0.0, posinf=0.0, neginf=0.0)
 
 
@@ -278,8 +278,7 @@ def permutation_test(
 
     avg = data.mean(axis=0)
     noise = np.var(avg[:, base], axis=1)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        snr = 10 * np.log10(np.mean(avg[:, win] ** 2, axis=1) / noise)
+    snr = 10 * log10(divide(np.mean(avg[:, win] ** 2, axis=1), noise))
     all_masked = ~usable.any(axis=1)
     p = np.where(all_masked, np.nan, p)
     # The statistic over time and its null band (spec §5.13, plot_existence): the pointwise t
@@ -324,6 +323,40 @@ def _p_values(block: tuple[FloatArray, FloatArray]) -> FloatArray:
     return np.array([tail_p_value(null, value) for value in observed], dtype=float)
 
 
+def _baseline_bootstrap(
+    zw: Any,
+    zb: Any,
+    critical: float,
+    polarity: str,
+    tw: Any,
+    n_boot: int,
+    rng: np.random.Generator,
+) -> tuple[FloatArray, FloatArray]:
+    """Bootstrap onsets and offsets [n_boot, n_channels] of :func:`shuffle_test`.
+
+    The z-scored window ``zw`` of each channel plus a circular segment of its baseline
+    ``zb``; NaN where a resample never crosses ``critical``.
+    """
+    n_ch, n_win = zw.shape
+    onsets, offsets = np.full((n_boot, n_ch), np.nan), np.full((n_boot, n_ch), np.nan)
+    if not n_boot or zb.shape[1] == 0:
+        return onsets, offsets
+    steps = np.arange(n_win)
+    for c in range(n_ch):
+        starts = rng.integers(0, zb.shape[1], n_boot)
+        noisy = zw[c][None] + zb[c][(starts[:, None] + steps[None]) % zb.shape[1]]
+        values = (
+            np.abs(noisy) if polarity == "both" else noisy * (1 if polarity == "positive" else -1)
+        )
+        above = values > critical
+        crossed = above.any(axis=1)
+        first = np.argmax(above, axis=1)
+        last = n_win - 1 - np.argmax(above[:, ::-1], axis=1)
+        onsets[crossed, c] = tw[first[crossed]]
+        offsets[crossed, c] = tw[last[crossed]]
+    return onsets, offsets
+
+
 def shuffle_test(  # noqa: PLR0913  (signature shared by the existence tests, with n_jobs)
     avg: Any,
     times: Any,
@@ -335,12 +368,21 @@ def shuffle_test(  # noqa: PLR0913  (signature shared by the existence tests, wi
     alpha: float = 0.05,
     rng: np.random.Generator | None = None,
     n_jobs: int | None = 1,
+    n_boot: int = 200,
 ) -> dict[str, Any]:
     """Test for an average without trials.
 
     The largest |z| of the window against windows of the same length drawn from the baselines of
     every channel (a weaker null). ``n_jobs``: workers for the p-values, per block of
     channels.
+
+    Intervals of the onset, offset and duration (REQ-006): with no trials to resample, a
+    baseline bootstrap. Each of ``n_boot`` resamples adds to the z-scored window of a
+    channel a segment of the same length of its own z-scored baseline (a random circular
+    start), and the onset and offset are found again with the same critical value; the
+    intervals are the 2.5 and 97.5 percentiles. The observed window already holds one
+    noise realisation, so the intervals count the noise twice: they are conservative.
+    The resamples are drawn after the null, so the p-values do not change with them.
     """
     rng = np.random.default_rng(rng)
     _warn(
@@ -396,8 +438,25 @@ def shuffle_test(  # noqa: PLR0913  (signature shared by the existence tests, wi
         hits = np.flatnonzero(values > critical)
         if len(hits):
             onset[c], offset[c] = times[win][hits[0]], times[win][hits[-1]]
-    with np.errstate(divide="ignore", invalid="ignore"):
-        snr = 10 * np.log10(np.mean(avg[:, win] ** 2, axis=1) / np.var(avg[:, base], axis=1))
+    onsets, offsets = _baseline_bootstrap(
+        z[:, win], zb, critical, polarity, times[win], n_boot, rng
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # a channel never above the level
+
+        def interval(v: Any) -> Any:
+            return (
+                np.nanpercentile(v, [2.5, 97.5], axis=0).T
+                if n_boot
+                else np.full((len(z), 2), np.nan)
+            )
+
+        duration_ci, onset_ci, offset_ci = (
+            interval(offsets - onsets),
+            interval(onsets),
+            interval(offsets),
+        )
+    snr = 10 * log10(divide(np.mean(avg[:, win] ** 2, axis=1), np.var(avg[:, base], axis=1)))
     return {
         "statistic": observed,
         "p_value": p,
@@ -405,7 +464,9 @@ def shuffle_test(  # noqa: PLR0913  (signature shared by the existence tests, wi
         "offset": offset,
         "duration": offset - onset,
         "snr_db": snr,
-        "duration_ci": np.full((len(z), 2), np.nan),
+        "duration_ci": duration_ci,
+        "onset_ci": onset_ci,
+        "offset_ci": offset_ci,
         "critical": np.full(len(z), critical),
         "exact": False,
         "threshold": np.nan,

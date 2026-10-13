@@ -29,6 +29,8 @@ from evoparam.errors import warn as _warn
 from evoparam.shapes import FWHM_PER_SIGMA, compute_features
 from evoparam.utils._estimator import BaseEstimatorMixin, check_is_fitted, validate_array
 from evoparam.utils._logging import progress, verbose
+from evoparam.utils._numeric import divide
+from evoparam.utils._optional import require
 from evoparam.version import __version__
 
 from . import engine as _engine
@@ -116,8 +118,7 @@ def _diagnostics(core: Any, _settings: Any) -> dict[str, Any]:
     eig = np.linalg.eigvalsh(scaled)
     cond = float(eig.max() / max(eig.min(), 1e-300)) if eig.size else 1.0
     sd = np.sqrt(np.clip(np.diag(cov), 0, None))
-    with np.errstate(invalid="ignore", divide="ignore"):
-        corr = cov / np.outer(sd, sd)
+    corr = divide(cov, np.outer(sd, sd))
     names = []
     for k, shape in enumerate(core["shapes"]):
         names += [f"{k}:{n}" for n in shape.param_names]
@@ -1066,6 +1067,8 @@ class ResponseModel(BaseEstimatorMixin):
                 fits = list(progress(pool.map(one, index), total=len(index), desc="fit"))
         else:
             fits = [one(ch) for ch in progress(index, total=len(index), desc="fit")]
+        for fit in fits:
+            fit.units = evoked.units  # the unit of the amplitudes (REQ-009)
         logger.info(
             "fit of %d channel(s)%s: %s, %.2f s",
             len(fits),
@@ -1164,6 +1167,8 @@ class ResponseModel(BaseEstimatorMixin):
             )
             for row in evoked.data
         ]
+        for fit in fits:
+            fit.units = evoked.units  # the unit of the amplitudes (REQ-009)
         return GroupFit.from_fits(
             fits,
             list(evoked.ch_names),
@@ -1267,6 +1272,7 @@ def _from_mne(data: Any) -> Any:
         return [Evoked.from_mne(evoked) for evoked in data]
     if kind != "mne":
         return data
+    require("mne", extra="mne", caller="evoparam.models.api._from_mne")
     import mne
 
     if isinstance(data, mne.BaseEpochs):
@@ -1400,6 +1406,7 @@ def fit(  # noqa: C901, PLR0912, PLR0913  (public API, signature fixed by spec Â
 
 def compare_models(fits: Any) -> Any:
     """Criterion table across fits of the same waveform under different settings."""
+    require("pandas", extra="data", caller="evoparam.models.api.compare_models")
     import pandas as pd
 
     rows = []

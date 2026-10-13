@@ -12,6 +12,8 @@ import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from ._optional import require
+
 __all__ = [
     "BaseEstimatorMixin",
     "TransformerMixin",
@@ -103,6 +105,11 @@ class BaseEstimatorMixin:
 
     def __sklearn_tags__(self) -> Any:
         try:
+            require(
+                "sklearn",
+                extra="sklearn",
+                caller="evoparam.utils._estimator.BaseEstimatorMixin.__sklearn_tags__",
+            )
             from sklearn.base import BaseEstimator
             from sklearn.utils import Tags, TargetTags  # noqa: F401
         except ImportError:  # pragma: no cover - only with scikit-learn
@@ -150,6 +157,7 @@ def validate_array(
     import numpy as np
 
     try:
+        require("sklearn", extra="sklearn", caller="evoparam.utils._estimator.validate_array")
         from sklearn.utils.validation import check_array
     except ImportError:
         check_array = None

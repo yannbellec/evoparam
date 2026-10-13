@@ -745,6 +745,7 @@ _TEMPLATES = {
     "evoparam.spatial.shared_shapes": _shared_shapes,
     "evoparam.spatial.fit_shared": _fit_shared,
     "evoparam.events.detect_pulses": _events,
+    "evoparam.events.detect_events": _events,
     "evoparam.prep.highpass": _filter("high-pass"),
     "evoparam.prep.lowpass": _filter("low-pass"),
     "evoparam.prep.notch": _filter("notch"),

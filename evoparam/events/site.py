@@ -7,10 +7,10 @@ from typing import cast
 import numpy as np
 
 from evoparam._typing import Any, ArrayLike, FloatArray
+from evoparam.data._table import as_text
 from evoparam.errors import DataError, SettingsError
 from evoparam.errors import warn as _warn
 from evoparam.utils._names import contact_group, contact_number
-from evoparam.utils._optional import require
 
 from ._score import MAD_TO_SD, as_continuous, pick_index
 
@@ -236,7 +236,6 @@ def identify_stim_site(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, s
         Copy of ``events`` with ``stim_site_guess`` (str, "" when not identifiable),
         ``site_confidence`` (0-1) and ``polarity_check`` (bool) columns.
     """
-    require("pandas", extra="data", caller="evoparam.events.identify_stim_site")
     if method not in SITE_METHODS:
         raise SettingsError(f"method must be one of {SITE_METHODS}, got {method!r}.")
     data = as_continuous(data)
@@ -246,16 +245,21 @@ def identify_stim_site(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, s
         raise DataError("ch_names must have one name per channel.")
     index = pick_index(n_channels, picks, names)
 
+    # the channel table, read column by column (a DataFrame, or a Table without pandas)
+    info_names = [] if ch_info is None else list(np.asarray(ch_info["name"], dtype=object))
     if ch_info is not None and "type" in ch_info.columns:
-        types = dict(zip(ch_info["name"], ch_info["type"].astype(str).str.lower(), strict=False))
+        kinds = [str(kind).lower() for kind in np.asarray(ch_info["type"], dtype=object)]
+        types = dict(zip(info_names, kinds, strict=False))
         index = np.array([ind for ind in index if types.get(names[ind], "") in NEURAL_TYPES])
     elif exclude is not None:
         index = np.array([ind for ind in index if not exclude.match(names[ind])])
     if ch_info is not None and "bad" in ch_info.columns:
-        bad = set(ch_info.loc[ch_info["bad"].astype(bool), "name"])
+        flagged = np.asarray(ch_info["bad"]).astype(bool)
+        bad = {name for name, is_bad in zip(info_names, flagged, strict=False) if is_bad}
         index = np.array([ind for ind in index if names[ind] not in bad])
     if ch_info is not None and "group" in ch_info.columns:
-        groups = dict(zip(ch_info["name"], ch_info["group"].astype(str), strict=False))
+        group_names = [str(name) for name in np.asarray(ch_info["group"], dtype=object)]
+        groups = dict(zip(info_names, group_names, strict=False))
         group = [groups.get(name, contact_group(name)) for name in names]
     elif method == "spec":
         # the reviewed rule checks the shaft only "when ch_info.group is available"
@@ -447,11 +451,12 @@ def vote_sites(
         block's pulses whose own guess contains both voted contacts (times the mean
         per-pulse confidence), and ``site_block`` (int64).
     """
-    require("pandas", extra="data", caller="evoparam.events.vote_sites")
-    out = events.sort_values("onset_time", kind="stable").copy()
-    times = out["onset_time"].to_numpy(dtype=float)
-    guesses = out[site_column].fillna("").astype(str).to_list()
-    conf = out["site_confidence"].to_numpy(dtype=float)
+    # in time order (stable), then back in the order of ``events`` at the end
+    order = np.argsort(np.asarray(events["onset_time"], dtype=float), kind="stable")
+    out = events.iloc[order].copy()
+    times = np.asarray(out["onset_time"], dtype=float)
+    guesses = as_text(out[site_column]).tolist()
+    conf = np.asarray(out["site_confidence"], dtype=float)
     if max_gap is None:
         max_gap = 3.0 * float(np.median(np.diff(times))) if len(times) > 1 else np.inf
 
@@ -487,4 +492,4 @@ def vote_sites(
     out[site_column] = voted
     out["site_confidence"] = voted_conf
     out["site_block"] = block.astype("int64")
-    return out.loc[events.index]
+    return out.iloc[np.argsort(order, kind="stable")]

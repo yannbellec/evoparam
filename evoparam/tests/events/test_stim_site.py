@@ -4,12 +4,13 @@
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from evoparam.events import contact_group, detect_pulses, identify_stim_site, vote_sites
 
 from .helpers import add_pulse, make_noise
+
+pd = pytest.importorskip("pandas")
 
 ###################################################################################################
 ###################################################################################################

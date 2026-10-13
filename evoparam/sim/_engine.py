@@ -358,8 +358,7 @@ def assemble(
                 **kwargs,
             )
     base_idx = baseline_index(times)
-    with np.errstate(invalid="ignore"):
-        trial_sd = np.nanstd(noise_data[:, :, base_idx], axis=-1)
+    trial_sd = np.nanstd(noise_data[:, :, base_idx], axis=-1)
     baseline_sd = np.nanmean(trial_sd, axis=0)
     noise_info = dict(noise_info)
     noise_info["baseline_sd"] = baseline_sd.tolist()

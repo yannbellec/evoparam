@@ -994,6 +994,8 @@ def fit_shared(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature
                 n_shared,
             )
         )
+    for fit in fits:
+        fit.units = evoked.units  # the unit of the amplitudes (REQ-009)
     return GroupFit.from_fits(
         fits, channels, [""] * len(fits), settings=settings_dict, provenance=provenance
     )
