@@ -116,7 +116,7 @@ class BaseEstimatorMixin:
                 caller="evoparam.utils._estimator.BaseEstimatorMixin.__sklearn_tags__",
             )
             from sklearn.base import BaseEstimator
-            from sklearn.utils import Tags, TargetTags  # noqa: F401
+            from sklearn.utils import Tags, TargetTags  # noqa: F401  (version check: scikit-learn >= 1.6)
         except ImportError:  # pragma: no cover - only with scikit-learn
             return None
         from sklearn.utils import TransformerTags

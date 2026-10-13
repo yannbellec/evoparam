@@ -193,7 +193,7 @@ def _score_all(run: _Run, methods: Any, adapters: list[Any]) -> list[str]:
     return results
 
 
-def run_suite(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def run_suite(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     suite: "str | Suite" = "core",
     out: str = ".",
     *,

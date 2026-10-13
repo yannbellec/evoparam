@@ -845,7 +845,7 @@ class ResponseModel(BaseEstimatorMixin):
         random_state: Any
         _overrides_record: list[str]
 
-    def __init__(  # noqa: PLR0913  (spec §5.5.8 fixes 30 parameters; DECISIONS.md §7.2)
+    def __init__(  # noqa: PLR0913  (spec §5.5.8 fixes 30 parameters, plus 13 keywords; DECISIONS.md §7.2)
         self,
         preset: Any = None,
         *,
@@ -925,7 +925,7 @@ class ResponseModel(BaseEstimatorMixin):
         overrides.update({k: v for k, v in extra.items() if v is not None})
         return resolve_settings(self.preset, **overrides)
 
-    def fit_waveform(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+    def fit_waveform(  # noqa: PLR0913  (spec §5.5.8 fixes 7 parameters, plus random_state, noise_ref, unit and on_error; DECISIONS.md §7.2)
         self,
         times: Any,
         y: Any,

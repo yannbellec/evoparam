@@ -209,7 +209,6 @@ def _overlap_offsets(
 ) -> tuple[NDArray[Any], NDArray[Any], float]:
     """SOA of the previous and next events per trial, and the amplitude ratio."""
     soa: Any
-    draw: Callable[[], Any]
     if isinstance(overlap, dict):
         soa = overlap.get("soa")
         ratio = float(overlap.get("scale", 1.0))
@@ -219,20 +218,18 @@ def _overlap_offsets(
         low, high = float(soa[0]), float(soa[1])
         if not 0 < low <= high:
             raise SettingsError(f"overlap: the SOA range must be 0 < low <= high, got {soa}.")
-        draw = lambda: rng.uniform(low, high, n_trials)  # noqa: E731
-    else:
-        value = float(soa)
-        if not value > 0:
-            raise SettingsError(f"overlap: the SOA must be positive (s), got {soa}.")
-        draw = lambda: np.full(n_trials, value)  # noqa: E731
-    return draw(), draw(), ratio
+        return rng.uniform(low, high, n_trials), rng.uniform(low, high, n_trials), ratio
+    value = float(soa)
+    if not value > 0:
+        raise SettingsError(f"overlap: the SOA must be positive (s), got {soa}.")
+    return np.full(n_trials, value), np.full(n_trials, value), ratio
 
 
 ###################################################################################################
 ## ERP
 
 
-def simulate_erp(  # noqa: PLR0913  (spec §5.12 item 1 fixes 12 parameters; DECISIONS.md §7.2)
+def simulate_erp(  # noqa: PLR0913  (spec §5.12 item 1 fixes 12 parameters, plus 6 keywords; DECISIONS.md §7.2)
     n_trials: int = 60,
     *,
     n_channels: int = 1,
@@ -635,7 +632,7 @@ def _ccep_artifact(
     return artifact_data, artifact_info, rail
 
 
-def simulate_ccep(  # noqa: PLR0913  (spec §5.12 item 2 fixes 14 parameters; DECISIONS.md §7.2)
+def simulate_ccep(  # noqa: PLR0913  (spec §5.12 item 2 fixes 14 parameters, plus 17 keywords; DECISIONS.md §7.2)
     n_trials: int = 10,
     *,
     n_channels: int = 46,
@@ -825,7 +822,7 @@ def simulate_ccep(  # noqa: PLR0913  (spec §5.12 item 2 fixes 14 parameters; DE
 ## ERNA
 
 
-def simulate_erna(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def simulate_erna(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     n_pulses: int = 10,
     *,
     n_trials: int = 20,
@@ -1158,7 +1155,7 @@ def _tms_artifacts(
     return artifact_data, info
 
 
-def simulate_tep(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def simulate_tep(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     n_trials: int = 40,
     *,
     n_channels: int = 32,
@@ -1498,7 +1495,7 @@ def _ecap_artifact(
     return artifact_data, info
 
 
-def simulate_ecap(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def simulate_ecap(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     n_trials: int = 40,
     *,
     kind: str = "spinal",
@@ -1662,7 +1659,7 @@ ANIMAL_COMPONENTS = {
 }
 
 
-def simulate_animal_ep(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def simulate_animal_ep(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     n_trials: int = 100,
     *,
     species: str = "mouse",

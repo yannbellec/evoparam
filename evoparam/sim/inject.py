@@ -50,7 +50,7 @@ def _segments(ts: Any, record: Any) -> list[Any]:
     return segments
 
 
-def inject(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def inject(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     ts_real: "TrialSet",
     components: Sequence[Any],
     *,

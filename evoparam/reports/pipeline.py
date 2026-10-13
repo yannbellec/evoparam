@@ -142,7 +142,7 @@ def _test_window(ts: Any, window: Any) -> Any:
     return (float(later[0]), float(window[1])) if later.size else window
 
 
-def run_pipeline(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def run_pipeline(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     trials: "TrialSet",
     preset: Any,
     *,

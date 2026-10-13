@@ -190,7 +190,7 @@ def _match(stacks: Any, templates: Any) -> Any:
 
 
 @verbose
-def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters; DECISIONS.md §7.2)
+def detect_pulses(  # noqa: PLR0913  (spec §5.2 fixes 14 parameters, plus 9 keywords; DECISIONS.md §7.2)
     data: FloatArray,
     sfreq: float,
     *,

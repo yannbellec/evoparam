@@ -350,7 +350,7 @@ def _match_waveform(
     return group_rows
 
 
-def match_components(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def match_components(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     truth: Any,
     fit: Any,
     tolerance: str | float | None = "fwhm/2",

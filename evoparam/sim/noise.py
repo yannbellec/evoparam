@@ -458,7 +458,7 @@ def make_noise(
 ) -> FloatArray | tuple[FloatArray, dict[str, Any]]: ...
 
 
-def make_noise(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def make_noise(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     n_times: int,
     sfreq: float,
     kind: str = "pink",

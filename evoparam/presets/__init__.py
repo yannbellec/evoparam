@@ -166,7 +166,7 @@ def get(name: "str | Preset") -> "Preset":
     return cast("Preset", PRESETS[name])
 
 
-def list() -> Any:  # noqa: A001 (the name of the spec's API)
+def list() -> Any:  # noqa: A001  (the name of the spec's API)
     """Table of the presets: name, modality, species, citation keys, version, validation."""
     require("pandas", extra="data", caller="evoparam.presets.list")
     import pandas as pd

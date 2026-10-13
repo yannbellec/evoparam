@@ -458,7 +458,7 @@ def cmd_clean(args: Any, outcome: Any) -> None:
     # container
     try:
         require("mne", extra="mne", caller="evoparam.cli.cmd_clean")
-        import mne  # noqa: F401
+        import mne  # noqa: F401  (availability check: without mne the cleaned epochs go to npz)
 
         path = os.path.join(folder, f"{stem}_epo.fif")
         result.cleaned.to_mne().save(path, overwrite=True, verbose="error")

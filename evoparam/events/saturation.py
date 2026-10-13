@@ -28,7 +28,7 @@ RAIL_MIN_SD = 8.0
 _SPREAD_STEP = 16
 
 
-def detect_saturation(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def detect_saturation(  # noqa: PLR0913  (spec §5.2 fixes 7 parameters, plus t0, ch_names and picks; DECISIONS.md §7.2)
     data: FloatArray,
     sfreq: float,
     *,

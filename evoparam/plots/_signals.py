@@ -133,7 +133,7 @@ def plot_signals_shading(
     return fig
 
 
-def plot_signals_yshade(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def plot_signals_yshade(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     times: FloatArray,
     signals: FloatArray,
     *,

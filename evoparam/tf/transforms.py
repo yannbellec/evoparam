@@ -123,7 +123,7 @@ def _centred_spectrum(h: Any, n_fft: Any) -> tuple[Any]:
     return cast("tuple[Any]", fft(buf))
 
 
-def make_kernels(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def make_kernels(  # noqa: PLR0913  (public API outside the spec signatures; DECISIONS.md §7.2)
     transform: str,
     freqs: ArrayLike,
     sfreq: float,

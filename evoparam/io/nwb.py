@@ -336,7 +336,7 @@ def _read_epochs(
     return out
 
 
-def read_nwb(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
+def read_nwb(  # noqa: PLR0913  (spec §5.1 fixes 7 parameters, plus select and units; DECISIONS.md §7.2)
     path: str,
     *,
     electrical_series: str | None = None,
