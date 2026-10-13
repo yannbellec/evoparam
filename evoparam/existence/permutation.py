@@ -8,6 +8,7 @@ as likely with either sign.
 
 import logging
 import warnings
+from dataclasses import dataclass
 
 import numpy as np
 from scipy.stats import t as student_t
@@ -18,9 +19,17 @@ from evoparam.errors import warn as _warn
 from evoparam.utils._numeric import divide, log10
 from evoparam.utils._parallel import n_workers, parallel_map
 
+# Smallest null distribution, and fewest exceedances, to fit the tail
+TAIL_MIN_NULL = 50
+TAIL_MIN_FIT = 10
+# Fewest baseline samples of shuffle_test (a mean and a standard deviation)
+_MIN_BASELINE_SAMPLES = 2
+
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "PermutationOptions",
     "sign_flips",
     "permutation_test",
     "shuffle_test",
@@ -38,6 +47,39 @@ _CHUNK = 64
 # fitted on the exceedances over this quantile of the null.
 TAIL_MIN_EXCEED = 10
 TAIL_QUANTILE = 0.9
+
+
+@dataclass(frozen=True)
+class PermutationOptions:
+    """Settings of :func:`permutation_test` and :func:`shuffle_test`.
+
+    Parameters
+    ----------
+    n_permutations : int
+        Size of the null distribution (sign flips, or baseline windows).
+    statistic : {"max_t", "cluster"}
+        ``max_t``: the largest |t| over the window (controls the family-wise error over
+        time). ``cluster``: the largest cluster mass of |t| beyond ``cluster_threshold``
+        (default the two-sided 97.5 % quantile of Student's t with n - 1 dof): more
+        powerful for sustained responses. :func:`shuffle_test` uses the largest |z|.
+    cluster_threshold : float, optional
+    polarity : {"both", "negative", "positive"}
+    alpha : float
+        Level of the critical value that gives the onset and the offset.
+    n_boot : int
+        Bootstrap resamples of the onset, offset and duration intervals.
+    n_jobs : int
+        Workers for the p-values and the bootstrap, per block of channels (the random
+        numbers are drawn before, so the result does not depend on ``n_jobs``).
+    """
+
+    n_permutations: int = 1000
+    statistic: str = "max_t"
+    cluster_threshold: Any = None
+    polarity: str = "both"
+    alpha: float = 0.05
+    n_boot: int = 200
+    n_jobs: int | None = 1
 
 
 def tail_p_value(null: Any, observed: Any) -> float:
@@ -59,11 +101,11 @@ def tail_p_value(null: Any, observed: Any) -> float:
     null = np.asarray(null, float)
     count = int(np.sum(null >= observed - 1e-12))
     plain = (1 + count) / (1 + len(null))
-    if count >= TAIL_MIN_EXCEED or len(null) < 50:
+    if count >= TAIL_MIN_EXCEED or len(null) < TAIL_MIN_NULL:
         return plain
     u = np.quantile(null, TAIL_QUANTILE)
     excess = null[null > u] - u
-    if len(excess) < 10 or np.ptp(excess) <= 0:
+    if len(excess) < TAIL_MIN_FIT or np.ptp(excess) <= 0:
         return plain
     try:
         shape, _, scale = genpareto.fit(excess, floc=0.0)
@@ -94,6 +136,7 @@ def max_cluster_mass(t: Any, threshold: Any, polarity: str = "both") -> Any:
     """Largest sum of |t| over a run of samples beyond ``threshold`` (same sign), per row."""
 
     def runs(v: Any) -> Any:
+        """Return the largest sum of a run of non-zero values along the last axis."""
         csum = np.cumsum(v, axis=-1)
         reset = np.maximum.accumulate(np.where(v == 0, csum, 0.0), axis=-1)
         return np.max(csum - reset, axis=-1)
@@ -108,6 +151,7 @@ def max_cluster_mass(t: Any, threshold: Any, polarity: str = "both") -> Any:
 
 
 def _summary(t: Any, statistic: Any, threshold: Any, polarity: Any) -> Any:
+    """Return the summary of t series: largest cluster mass, or largest t on the tested side."""
     if statistic == "cluster":
         return max_cluster_mass(t, threshold, polarity)
     if polarity == "positive":
@@ -118,6 +162,7 @@ def _summary(t: Any, statistic: Any, threshold: Any, polarity: Any) -> Any:
 
 
 def _t_series(sum_x: Any, sum_x2: Any, n: Any) -> Any:
+    """Return the one-sample t of each sample from the sums of x and x**2 (0 where undefined)."""
     mean = sum_x / n
     var = np.clip((sum_x2 - n * mean**2) / (n - 1), 0, None)
     t = divide(mean, np.sqrt(divide(var, n)))
@@ -173,15 +218,9 @@ def permutation_test(
     window: tuple[float, float],
     baseline: tuple[float, float],
     *,
-    n_permutations: int = 1000,
-    statistic: str = "max_t",
-    cluster_threshold: Any = None,
-    polarity: str = "both",
-    alpha: float = 0.05,
+    options: PermutationOptions | None = None,
     rng: np.random.Generator | None = None,
-    n_boot: int = 200,
     masks: Any = None,
-    n_jobs: int | None = 1,
 ) -> dict[str, Any]:
     """Sign-flip permutation test of every channel.
 
@@ -191,14 +230,12 @@ def permutation_test(
         Trials with the baseline subtracted.
     times : 1d array
     window, baseline : (float, float)
-    statistic : {"max_t", "cluster"}
-        ``max_t``: the largest |t| over the window (controls the family-wise error over
-        time). ``cluster``: the largest cluster mass of |t| beyond ``cluster_threshold``
-        (default the two-sided 97.5 % quantile of Student's t with n - 1 dof): more
-        powerful for sustained responses.
-    n_jobs : int
-        Workers for the p-values and the bootstrap, per block of channels (the random
-        numbers are drawn before, so the result does not depend on ``n_jobs``).
+    options : PermutationOptions, optional
+        Size of the null, statistic, polarity, level, bootstrap and workers (default
+        ``PermutationOptions()``).
+    rng : numpy.random.Generator, optional
+    masks : array [n_trials, n_channels, n_times] of bool, optional
+        Replaced samples; a sample masked in any trial is not tested.
 
     Returns
     -------
@@ -206,6 +243,9 @@ def permutation_test(
     duration_ci, onset_ci and offset_ci (n_channels x 2, percentile intervals of the same
     bootstrap over trials), critical, and ``exact`` (all sign patterns enumerated).
     """
+    opts = options if options is not None else PermutationOptions()
+    n_permutations, statistic, polarity = opts.n_permutations, opts.statistic, opts.polarity
+    alpha, n_boot, n_jobs = opts.alpha, opts.n_boot, opts.n_jobs
     rng = np.random.default_rng(rng)
     n, n_ch, _ = data.shape
     if n < MIN_TRIALS:
@@ -221,7 +261,9 @@ def permutation_test(
         usable = ~masks[:, :, win].any(axis=0)
     x = np.where(usable[None], np.nan_to_num(x), 0.0)
     threshold = (
-        student_t.ppf(0.975, n - 1) if cluster_threshold is None else float(cluster_threshold)
+        student_t.ppf(0.975, n - 1)
+        if opts.cluster_threshold is None
+        else float(opts.cluster_threshold)
     )
 
     sum_x, sum_x2 = x.sum(axis=0), (x**2).sum(axis=0)
@@ -357,18 +399,14 @@ def _baseline_bootstrap(
     return onsets, offsets
 
 
-def shuffle_test(  # noqa: PLR0913  (signature shared by the existence tests, with n_jobs)
+def shuffle_test(
     avg: Any,
     times: Any,
     window: Any,
     baseline: Any,
     *,
-    n_permutations: int = 1000,
-    polarity: str = "both",
-    alpha: float = 0.05,
+    options: PermutationOptions | None = None,
     rng: np.random.Generator | None = None,
-    n_jobs: int | None = 1,
-    n_boot: int = 200,
 ) -> dict[str, Any]:
     """Test for an average without trials.
 
@@ -383,7 +421,12 @@ def shuffle_test(  # noqa: PLR0913  (signature shared by the existence tests, wi
     intervals are the 2.5 and 97.5 percentiles. The observed window already holds one
     noise realisation, so the intervals count the noise twice: they are conservative.
     The resamples are drawn after the null, so the p-values do not change with them.
+    ``options``: size of the null, polarity, level, bootstrap and workers (its statistic is
+    the largest |z|).
     """
+    opts = options if options is not None else PermutationOptions()
+    n_permutations, polarity, alpha = opts.n_permutations, opts.polarity, opts.alpha
+    n_jobs, n_boot = opts.n_jobs, opts.n_boot
     rng = np.random.default_rng(rng)
     _warn(
         "No trials: the null distribution comes from baseline windows of the "
@@ -393,7 +436,7 @@ def shuffle_test(  # noqa: PLR0913  (signature shared by the existence tests, wi
     )
     win = (times >= window[0]) & (times <= window[1])
     base = (times >= baseline[0]) & (times <= baseline[1])
-    if base.sum() < 2:
+    if base.sum() < _MIN_BASELINE_SAMPLES:
         raise DataError(
             f"The baseline {tuple(baseline)} has {int(base.sum())} sample(s) in "
             f"the data ({times[0]:.4f} to {times[-1]:.4f} s); the test needs at "
@@ -404,6 +447,7 @@ def shuffle_test(  # noqa: PLR0913  (signature shared by the existence tests, wi
     z = (avg - mu) / np.where(sd > 0, sd, np.nan)
 
     def stat(seg: Any) -> Any:
+        """Return the largest z of a segment on the tested side."""
         return (
             np.nanmax(np.abs(seg), axis=-1)
             if polarity == "both"

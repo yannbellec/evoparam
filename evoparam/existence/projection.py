@@ -41,6 +41,10 @@ from evoparam._typing import Any, NDArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.utils._parallel import parallel_map
 
+# Fewest trials of the projection test
+_MIN_TRIALS = 5
+
+
 __all__ = ["projection_test", "PROFILES", "PAIRS"]
 
 PROFILES = ("published", "normalised")
@@ -148,7 +152,7 @@ def projection_test(
         raise SettingsError(f"pairs must be one of {PAIRS}, not {pairs!r}.")
     rng = np.random.default_rng(rng)
     n, n_ch, _ = data.shape
-    if n < 5:
+    if n < _MIN_TRIALS:
         raise DataError("The projection test needs at least 5 trials.")
     win = (times >= window[0]) & (times <= window[1])
     tw = times[win]
