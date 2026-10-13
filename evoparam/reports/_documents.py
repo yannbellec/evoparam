@@ -19,6 +19,9 @@ from ._text import methods_text
 
 __all__ = ["qc", "markdown", "html", "pdf", "site_pages"]
 
+# Artifact-quality score under which a trial is counted as poorly cleaned in the QC table.
+_LOW_QUALITY = 0.5
+
 RESEARCH_USE = (
     "For research use only. evoparam is not a medical device and its outputs are "
     "not intended for diagnosis or treatment decisions."
@@ -26,6 +29,7 @@ RESEARCH_USE = (
 
 
 def _fits(result: Any) -> Any:
+    """Return (channel, condition, ResponseFit) of each fit of a GroupFit or ResponseFit."""
     if isinstance(result, GroupFit):
         return [
             (ch, cond, result.fits[int(pos)])
@@ -73,7 +77,7 @@ def qc(result: Any, *, trials: Any = None, artifact: Any = None, trial_fits: Any
             ("artifact quality, median", summary["median"]),
             ("artifact quality, 5th percentile", summary["p05"]),
             ("artifact quality, minimum", float(np.nanmin(quality))),
-            ("artifact quality below 0.5", int(np.sum(quality < 0.5))),
+            (f"artifact quality below {_LOW_QUALITY:g}", int(np.sum(quality < _LOW_QUALITY))),
         ]
     if trial_fits is not None and len(trial_fits.table):
         trusted = trial_fits.table["trusted"].astype(bool)
@@ -85,6 +89,7 @@ def qc(result: Any, *, trials: Any = None, artifact: Any = None, trial_fits: Any
 
 
 def _summary_table(result: Any) -> Any:
+    """Return the summary table of a result: one row per fitted component."""
     require("pandas", extra="data", caller="evoparam.reports._documents._summary_table")
     import pandas as pd
 
@@ -156,6 +161,7 @@ def _figures(result: Any, data: Any = None, max_channels: int = 24) -> list[Any]
 
 
 def _png(fig: Any) -> str:
+    """Return the figure as a base64 PNG (the figure is closed)."""
     require("matplotlib", extra="plot", caller="evoparam.reports._documents._png")
     import matplotlib.pyplot as plt
 
@@ -210,6 +216,7 @@ def markdown(result: Any, *, data: Any = None) -> Any:
 
 
 def _have_tabulate() -> bool:
+    """Return whether ``tabulate`` (needed by ``DataFrame.to_markdown``) is installed."""
     try:
         import tabulate  # noqa: F401
     except ImportError:
@@ -400,6 +407,7 @@ def pdf(
 
 
 def _wrap(text: Any, width: Any) -> Any:
+    """Wrap each paragraph of ``text`` at ``width`` characters."""
     import textwrap
 
     out = []

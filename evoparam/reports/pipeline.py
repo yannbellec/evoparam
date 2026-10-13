@@ -31,6 +31,9 @@ __all__ = [
     "reference_scheme",
 ]
 
+# Fewest samples of the preset's baseline for the artifact-quality score.
+_MIN_BASELINE_SAMPLES = 3
+
 
 @dataclasses.dataclass
 class PipelineResult:
@@ -71,7 +74,7 @@ def _artifact_baseline(ts: Any, preset: Any, window: Any) -> Any:
     times = ts.times
     if preset.baseline is not None:
         lo, hi = preset.baseline
-        if ((times >= lo) & (times <= hi)).sum() >= 3:
+        if ((times >= lo) & (times <= hi)).sum() >= _MIN_BASELINE_SAMPLES:
             return tuple(preset.baseline)
     stop = (window[0] if window is not None else 0.0) - 1.0 / ts.sfreq
     return (float(times[0]), float(stop))
@@ -139,7 +142,7 @@ def _test_window(ts: Any, window: Any) -> Any:
     return (float(later[0]), float(window[1])) if later.size else window
 
 
-def run_pipeline(
+def run_pipeline(  # noqa: PLR0913  (public keywords; DECISIONS.md §7.2)
     trials: "TrialSet",
     preset: Any,
     *,
@@ -188,58 +191,24 @@ def run_pipeline(
     -------
     PipelineResult
     """
-    from evoparam.artifact import remove_artifact
-    from evoparam.errors import DataError, warn
-    from evoparam.existence import attach_test, test_response
     from evoparam.models import fit as fit_models
-    from evoparam.prep import baseline_correct, rereference, train_baseline
-    from evoparam.prep import reference_sensitivity as sensitivity
+    from evoparam.prep import rereference
 
     p = _presets.get(preset)
-    ts = trials
-    artifacts = []
-    if artifact:
-        for kwargs in artifact_steps(p):
-            kwargs.setdefault("baseline", _artifact_baseline(ts, p, kwargs.get("window")))
-            result = remove_artifact(ts, random_state=random_state, **kwargs)
-            artifacts.append(result)
-            ts = result.cleaned
+    ts, artifacts = _artifact_steps(trials, p, random_state) if artifact else (trials, [])
     report = None
     if (
         reference_sensitivity
         if reference_sensitivity is not None
         else (reference and p.reference_sensitivity)
     ):
-        # spec §6.2 (ccep_seeg): the detections under several references, with their kappa
-        try:
-            report = sensitivity(ts, reference_kwargs={"random_state": random_state})
-        except (DataError, SettingsError) as exc:
-            warn(
-                f"preset {p.name!r}: reference_sensitivity could not run ({exc}); no kappa "
-                "report is attached.",
-                UserWarning,
-                stacklevel=2,
-            )
+        report = _reference_report(ts, p, random_state)
     scheme = reference_scheme(p)
     if reference and scheme is not None:
         extra: dict[str, Any] = {"random_state": random_state} if scheme == "car_adaptive" else {}
         ts = rereference(ts, scheme, **extra)
-    if baseline and p.baseline is not None:
-        ts = baseline_correct(ts, cast("tuple[float, float]", tuple(p.baseline)))
-    elif baseline and p.train_baseline is not None:
-        # spec §6.1 (erna): the last 50 ms before each train
-        raw = continuous
-        kwargs = {}
-        if isinstance(continuous, tuple):
-            raw, kwargs = continuous[0], {"sfreq": continuous[1], "t0": continuous[2]}
-        try:
-            ts = train_baseline(ts, p.train_baseline, raw=raw, **kwargs)
-        except DataError as exc:
-            warn(
-                f"preset {p.name!r}: the baseline per train was not applied ({exc}).",
-                UserWarning,
-                stacklevel=2,
-            )
+    if baseline:
+        ts = _baseline(ts, p, continuous)
     test_kwargs = {"method": p.existence_method, "alpha": p.existence_alpha}
     window = _test_window(ts, tuple(overrides.get("fit_window") or p.fit_window))
     if window != tuple(overrides.get("fit_window") or p.fit_window):
@@ -248,40 +217,10 @@ def run_pipeline(
     group = fit_models(ts, preset, random_state=random_state, n_jobs=n_jobs, **overrides)
     test = None
     if existence:
-        # as evoparam.existence.fit(existence=True), keeping the test for the derivatives
-        settings = group.settings
-        kwargs = {
-            "window": tuple(settings["fit_window"]),
-            "baseline": tuple(settings["baseline"]) if settings.get("baseline") else (-0.5, -0.05),
-            "by": (),
-            "random_state": random_state,
-        }
-        kwargs.update(test_kwargs)
-        test = test_response(ts, **kwargs)
-        group = attach_test(group, test)
+        group, test = _existence(ts, group, test_kwargs, random_state)
     fits = None
     if trial_fits if trial_fits is not None else p.trial_fit:
-        from evoparam.trials import fit_trials
-
-        # the preset's default covariates (rodent_ep, primate_ep: metadata["state"])
-        covariates = [
-            c for c in p.trial_covariates if ts.metadata is not None and c in ts.metadata.columns
-        ]
-        for missing in sorted(set(p.trial_covariates) - set(covariates)):
-            warn(
-                f"preset {p.name!r}: metadata[{missing!r}] is missing, so the default "
-                f"covariate {missing!r} of the trial fits is not computed.",
-                UserWarning,
-                stacklevel=2,
-            )
-        fits = fit_trials(
-            ts,
-            group,
-            mode=p.trial_mode or "shift_scale",
-            random_state=random_state,
-            n_jobs=n_jobs,
-            covariates=covariates,
-        )
+        fits = _trial_fits(ts, group, p, random_state, n_jobs)
     return PipelineResult(
         trials=ts,
         artifact=artifacts,
@@ -289,6 +228,114 @@ def run_pipeline(
         trial_fits=fits,
         test=test,
         reference_report=report,
+    )
+
+
+def _artifact_steps(ts: Any, p: Any, random_state: Any) -> tuple[Any, list[Any]]:
+    """Run the artifact steps of preset ``p``; return the cleaned trials and the results."""
+    from evoparam.artifact import remove_artifact
+
+    artifacts = []
+    for kwargs in artifact_steps(p):
+        kwargs.setdefault("baseline", _artifact_baseline(ts, p, kwargs.get("window")))
+        result = remove_artifact(ts, random_state=random_state, **kwargs)
+        artifacts.append(result)
+        ts = result.cleaned
+    return ts, artifacts
+
+
+def _reference_report(ts: Any, p: Any, random_state: Any) -> Any:
+    """Return the kappa report of the detections under several references (spec §6.2).
+
+    None, with a warning, when it cannot run.
+    """
+    from evoparam.errors import DataError, warn
+    from evoparam.prep import reference_sensitivity as sensitivity
+
+    try:
+        return sensitivity(ts, reference_kwargs={"random_state": random_state})
+    except (DataError, SettingsError) as exc:
+        warn(
+            f"preset {p.name!r}: reference_sensitivity could not run ({exc}); no kappa "
+            "report is attached.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return None
+
+
+def _baseline(ts: Any, p: Any, continuous: Any) -> Any:
+    """Correct the baseline of preset ``p``: a window of the epoch, or the time before each train.
+
+    The baseline per train (spec §6.1, erna: the last 50 ms before each train) uses the
+    continuous recording when given; when it cannot be applied, a warning says so.
+    """
+    from evoparam.errors import DataError, warn
+    from evoparam.prep import baseline_correct, train_baseline
+
+    if p.baseline is not None:
+        return baseline_correct(ts, cast("tuple[float, float]", tuple(p.baseline)))
+    if p.train_baseline is not None:
+        raw = continuous
+        kwargs = {}
+        if isinstance(continuous, tuple):
+            raw, kwargs = continuous[0], {"sfreq": continuous[1], "t0": continuous[2]}
+        try:
+            return train_baseline(ts, p.train_baseline, raw=raw, **kwargs)
+        except DataError as exc:
+            warn(
+                f"preset {p.name!r}: the baseline per train was not applied ({exc}).",
+                UserWarning,
+                stacklevel=3,
+            )
+    return ts
+
+
+def _existence(ts: Any, group: Any, test_kwargs: Any, random_state: Any) -> tuple[Any, Any]:
+    """Test the channels of ``group`` and attach the test; return the group fit and the test.
+
+    As ``evoparam.existence.fit(existence=True)``, keeping the test for the derivatives.
+    """
+    from evoparam.existence import attach_test, test_response
+
+    settings = group.settings
+    kwargs = {
+        "window": tuple(settings["fit_window"]),
+        "baseline": tuple(settings["baseline"]) if settings.get("baseline") else (-0.5, -0.05),
+        "by": (),
+        "random_state": random_state,
+    }
+    kwargs.update(test_kwargs)
+    test = test_response(ts, **kwargs)
+    return attach_test(group, test), test
+
+
+def _trial_fits(ts: Any, group: Any, p: Any, random_state: Any, n_jobs: int) -> Any:
+    """Fit every trial with the trial model and default covariates of preset ``p``.
+
+    A default covariate whose metadata column is missing is left out, with a warning.
+    """
+    from evoparam.errors import warn
+    from evoparam.trials import fit_trials
+
+    # the preset's default covariates (rodent_ep, primate_ep: metadata["state"])
+    covariates = [
+        c for c in p.trial_covariates if ts.metadata is not None and c in ts.metadata.columns
+    ]
+    for missing in sorted(set(p.trial_covariates) - set(covariates)):
+        warn(
+            f"preset {p.name!r}: metadata[{missing!r}] is missing, so the default "
+            f"covariate {missing!r} of the trial fits is not computed.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return fit_trials(
+        ts,
+        group,
+        mode=p.trial_mode or "shift_scale",
+        random_state=random_state,
+        n_jobs=n_jobs,
+        covariates=covariates,
     )
 
 
