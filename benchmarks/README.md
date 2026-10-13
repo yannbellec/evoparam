@@ -34,32 +34,36 @@ python benchmarks/run_benchmarks.py --suite ci --compare benchmarks/baseline-ci.
 the increase of the resident set during the call, sampled every 50 ms.
 
 Measured on the reference machine with the `fast` extra installed (numba: the compiled fit),
-one thread, load average 6.3 on the 4 cores
-(`results/linux-3.13.16-1f2ea055f5f5.json`):
+one thread, load average 7.3 on the 4 cores
+(`results/linux-3.13.16-148319226b70.json`):
 
 | id | workload | measured | target | met |
 |---|---|---|---|---|
-| P1 | one waveform, 2 048 Hz, `max_components=6`, `ccep` | median 81.5 ms (20 runs) | < 50 ms | no |
-| P2 | `fit_trials`, 100 channels x 50 trials, `n_jobs=4` | 32.7 s | < 60 s | yes |
-| P3 | `evoparam.fit`, in memory and memory-mapped | ci size only, see below | < 2x data; mapped < 0.25x + 512 MB | in memory no, mapped yes |
+| P1 | one waveform, 2 048 Hz, `max_components=6`, `ccep` | median 80.4 ms (20 runs) | < 50 ms | no |
+| P2 | `fit_trials`, 100 channels x 50 trials, `n_jobs=4` | 56.8 s | < 60 s | yes |
+| P3 | `evoparam.fit`, in memory and memory-mapped | ci size only, see below | < 2x data; mapped < 0.25x + 512 MB | in memory yes, mapped yes |
 | P4 | GPU backend against the CPU | no GPU backend in this version | 1e-6 relative | not available |
-| P5 | `evoparam.reproduce`, 256 channels | 75.5 s for a 60.0 s fit (1.26x), identical | < 1.5x | yes |
-| P6 | `import evoparam` | median 0.940 s (10 runs) | < 300 ms | no |
+| P5 | `evoparam.reproduce`, 256 channels | 61.5 s for a 48.6 s fit (1.27x), identical | < 1.5x | yes |
+| P6 | `import evoparam` | median 0.121 s (10 runs) | < 300 ms | yes |
 
-P3 was run at the `ci` size (50 x 64 x 4 096 float64, 105 MB): in memory, peak RSS
-+331 MiB (347 MB, 3.3x the data; bound 2x = 210 MB); memory-mapped, the same +331 MiB against
-its bound of 563 MB (0.25 x data + 512 MiB); medians of the three runs of `baseline-ci.json`.
-The full size (4.19 GB) was not run: at 3.3x it would exceed the machine's 15 GB.
+P3 was run at the `ci` size (50 x 64 x 4 096 float64, 105 MB;
+`results/linux-3.13.16-148319226b70-ci.json`, medians of 3 runs): in memory, peak RSS +130
+MiB (137 MB, 1.3x the data) against its bound of 2x = 210 MB; memory-mapped, +130 MiB (137
+MB, 1.3x the data) against its bound of 563 MB (0.25 x data + 512 MiB). The full size (4.19
+GB) was not run: the memory-mapped variant needs the 4.19 GB file on a disk with about 5 GB
+free, and the in-memory one the data and its peak next to the other jobs of the machine's 15
+GB.
 `evoparam/tests/benchmark/test_timing.py` reads these files: the unmet targets are strict
 expected failures that give the measured values.
 
 `baseline-ci.json` is the median of three runs of the `ci` suite
 (`--repeat-runs 3 --write-baseline`). This one was written on the reference machine, so it
 holds until the `perf` workflow's `baseline-update` job (label `perf-baseline-update`)
-regenerates it on the CI runner. Its medians: P1 1.20 s, P2 (8 channels x 50
-trials, one job) 2.68 s, P3 55.7 s in memory and 53.8 s memory-mapped, P5 29.4 s (1.04x
-its fit), P6 0.904 s. The `ci` run of P3 in memory is above its bound (3.3x the data), so
-the `perf` job fails on it until the memory use of `evoparam.fit` is reduced.
+regenerates it on the CI runner. Its medians: P1 1.20 s, P2 (8 channels x 50 trials, one
+job) 2.68 s, P3 55.7 s in memory and 53.8 s memory-mapped (peak RSS 3.3x and 3.3x the data),
+P5 29.4 s (1.04x its fit), P6 0.904 s. These baseline runs predate the reduction of the
+memory used by `evoparam.fit`; the `ci` run of P3 in memory is now below its bound (1.3x the
+data, `results/linux-3.13.16-148319226b70-ci.json`).
 
 ## Online mode: `stream_latency.py`
 

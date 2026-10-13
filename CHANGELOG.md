@@ -121,6 +121,55 @@ Rejected after measurement (DECISIONS.md, step 4): three extrema (recall drops o
 seeds) and polishing the background once at the end instead of after every accepted
 component (N1 kappa 0.386 → 0.347 on ds004080, paper reading).
 
+### REQ-290 P3: `evoparam.fit` in memory below twice the data at the CI size, same results to the bit
+
+At the `ci` size (50 trials x 64 channels x 4 096 samples, float64, 105 MB) the in-memory
+peak of `evoparam.fit` was 3.3 times the data, against a bound of 2. Three copies of the
+trials are gone:
+
+- `TrialSet.average` (`data/containers.py`, `_average_trials`) averages blocks of channels of
+  at most 16 MB instead of the selected trials of every channel at once.
+- `existence.test_response` (`existence/api.py`) makes one copy of the trials it tests instead
+  of two, laid out in memory as the previous double indexing left them (channel by channel),
+  so that every sum adds the same numbers in the same order; for the baseline permutation test
+  the copy holds only the samples from the start of the baseline to the end of the window.
+- `existence/permutation.py`: the sign-flip sums of the null distribution go into one buffer
+  reused by every chunk of flips, the t-series and their summaries are computed by blocks of
+  channels, and the window is copied once (the masked copy only when there are masks). The
+  repeated temporaries of about 31 MB had made glibc raise its mmap threshold, so that they
+  stayed on the heap and the resident set grew.
+
+Peak RSS increase, `run_benchmarks.py --suite ci` (medians of 3 runs before, 3 after):
+
+| variant | before (`linux-3.13.16-bddedc9aa35f-ci.json`) | after (`linux-3.13.16-148319226b70-ci.json`) | bound |
+|---|---|---|---|
+| in memory | +331 MiB (3.31x the data) | +130 MiB (1.30x the data) | 200 MiB |
+| memory-mapped | +331 MiB (3.31x the data) | +130 MiB (1.30x the data) | 537 MiB |
+
+Results: 263 of 263 outputs are the same bytes before and after (averages of a plain, a
+masked and a rejected-trials set, mean and robust, three chunk settings: 36; `test_response`
+with five settings on the three sets: 195; the `evoparam.fit` table at 30 x 24 x 4 096: 32).
+The full size (500 x 256 x 4 096, 4.19 GB) was not run: the memory-mapped variant needs the
+4.19 GB file on a disk with about 5 GB free, and the in-memory one needs the data and its
+peak in the machine's 15 GB next to the other jobs.
+
+### REQ-290 records on the reference machine
+
+`benchmarks/results/linux-3.13.16-148319226b70.json` and
+`linux-3.13.16-148319226b70-ci.json` replace the files of 1f2ea05 and bddedc9;
+`baseline-ci.json` is kept (its time medians were taken at a lower load than these `ci`
+runs, load average 18, and would only loosen the comparison); `benchmarks/README.md` and the
+expected failures of `tests/benchmark/test_timing.py` are regenerated from them. P6 on
+Linux: median 0.121 s over 10 runs (target 0.300 s), so its expected failure is removed; so
+is that of P3 in memory (1.30x). P1: median 80.4 ms over 20 runs (p90 99.6 ms), still above
+50 ms; P2 56.8 s (load average 7.3); P5 1.27x its fit.
+
+P2 runs four workers on the four cores that other jobs share: two earlier `perf` runs of
+1483192 gave 71.0 s at load average 16.0; 81.0 s at load average 8.1, above its 60 s; the
+run recorded was started when the load average fell below 5.5. Its work is unchanged: P2 at
+8 channels with one job on core 3, 1f2ea05 against 1483192 interleaved, 2.68, 2.85, 2.98 s
+against 2.60, 2.70, 2.93 s.
+
 ### REQ-290 P6: `import evoparam` in 0.13 s
 
 - The package root imported every subpackage, and with them scipy.stats (0.53 s): 0.96 s
