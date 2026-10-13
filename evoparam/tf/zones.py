@@ -47,6 +47,9 @@ N_SPLITS = 20
 # smaller peak.
 DIP_FRACTION = 0.5
 EPS = 1e-12
+_CHECK_EVERY = 20  # iterations between two convergence checks of a factorisation
+_MIN_SPLIT_ROWS = 2  # rows needed to split a tensor into two halves
+_MAX_FAILURES = 2  # unstable ranks in a row that end the search
 
 # Columns of the zone table and their units.
 ZONE_COLUMNS = {
@@ -91,7 +94,7 @@ def nmf(
     for it in range(n_iter):
         h *= (w.T @ x) / (w.T @ w @ h + EPS)
         w *= (x @ h.T) / (w @ (h @ h.T) + EPS)
-        if it % 20 == 19:
+        if it % _CHECK_EVERY == _CHECK_EVERY - 1:
             err = np.linalg.norm(x - w @ h) / norm
             if previous - err < tol:
                 break
@@ -122,7 +125,7 @@ def cp_nonneg(
             kr = (others[0][:, None, :] * others[1][None, :, :]).reshape(-1, rank)
             gram = (others[0].T @ others[0]) * (others[1].T @ others[1])
             factors[mode] *= (unfold[mode] @ kr) / (factors[mode] @ gram + EPS)
-        if it % 20 == 19:
+        if it % _CHECK_EVERY == _CHECK_EVERY - 1:
             err = np.linalg.norm(x - np.einsum("ir,jr,kr->ijk", *factors)) / norm
             if previous - err < tol:
                 break
@@ -146,6 +149,7 @@ def congruence(parts_a: Any, parts_b: Any) -> float:
 
 
 def _best_nmf(x: Any, rank: Any, rng: np.random.Generator, restarts: int = 3) -> Any:
+    """Return the NMF of smallest error over ``restarts`` random starts."""
     best = None
     for _ in range(restarts):
         w, h, err = nmf(x, rank, rng)
@@ -155,6 +159,7 @@ def _best_nmf(x: Any, rank: Any, rng: np.random.Generator, restarts: int = 3) ->
 
 
 def _cp_parts(tensor: Any, rank: Any, rng: np.random.Generator) -> NDArray[Any]:
+    """Return the zone parts (frequency x time) of a non-negative CP decomposition."""
     (a, b, _c), _ = cp_nonneg(tensor, rank, rng)
     return _parts(a, b.T)
 
@@ -163,6 +168,7 @@ CP_STABILITY = ("split_half", "rows", "restarts")
 
 
 def _cp_congruence(first: Any, second: Any, rank: Any, rng: np.random.Generator) -> float:
+    """Return the congruence of the CP parts of two halves (0 when one half is empty)."""
     if not (np.any(first > 0) and np.any(second > 0)):
         return 0.0
     return congruence(_cp_parts(first, rank, rng), _cp_parts(second, rank, rng))
@@ -189,7 +195,7 @@ def cp_split_values(
     if split == "trials" and row_halves is not None:
         return [_cp_congruence(pair[0], pair[1], rank, rng) for pair in row_halves]
     active = np.flatnonzero(tensor.reshape(-1, tensor.shape[-1]).any(axis=0))
-    if active.size >= 2:
+    if active.size >= _MIN_SPLIT_ROWS:
         values = []
         for _ in range(N_SPLITS):
             order = rng.permutation(active)
@@ -264,7 +270,7 @@ def select_rank(
             # one rank can be unstable while the next is not (two parts of similar weight:
             # a single factor picks either), so stop only after two failures in a row
             failures += 1
-            if failures >= 2:
+            if failures >= _MAX_FAILURES:
                 break
     return chosen, stability
 
@@ -442,6 +448,7 @@ def load_zones() -> dict[Any, Any]:
 
 
 def _interval(values: Any, bounds: Any, closure: Any) -> Any:
+    """Return whether each value is in ``bounds``, closed ("[]") or half-open ("[)")."""
     lo, hi = bounds
     upper = values < hi if closure == "[)" else values <= hi
     return (values >= lo) & upper

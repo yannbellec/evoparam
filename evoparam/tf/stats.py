@@ -20,7 +20,7 @@ each row's pixels are then tested at the row's level.
 """
 
 import warnings
-from typing import cast
+from typing import NamedTuple, cast
 
 import numpy as np
 from scipy import ndimage
@@ -273,11 +273,11 @@ def test_map(
     d: FloatArray,
     window: BoolArray,
     *,
-    method: str = "fdr",  # noqa: PT028  (not a pytest test: the statistical test of a map)
-    alpha: float = 0.05,  # noqa: PT028  (not a pytest test: the statistical test of a map)
-    n_permutations: int = 1000,  # noqa: PT028  (not a pytest test: the statistical test of a map)
-    rng: np.random.Generator | None = None,  # noqa: PT028  (not a pytest test: the statistical test of a map)
-    cluster_alpha: float = 0.05,  # noqa: PT028  (not a pytest test: the statistical test of a map)
+    method: str = "fdr",
+    alpha: float = 0.05,
+    n_permutations: int = 1000,
+    rng: np.random.Generator | None = None,
+    cluster_alpha: float = 0.05,
 ) -> tuple[FloatArray, BoolArray, FloatArray]:
     """Statistics of one map.
 
@@ -320,11 +320,7 @@ def test_map(
         t[box],
         n[box],
         tested[box],
-        method,
-        alpha,
-        n_permutations,
-        rng,
-        cluster_alpha,
+        _Permutations(method, alpha, n_permutations, rng, cluster_alpha),
     )
     sig = np.zeros(t.shape, bool)
     p = np.full(t.shape, np.nan)
@@ -332,18 +328,23 @@ def test_map(
     return t, sig, p
 
 
-def _permutation(
-    d: Any,
-    t: Any,
-    n: Any,
-    tested: Any,
-    method: Any,
-    alpha: Any,
-    n_permutations: Any,
-    rng: np.random.Generator | None,
-    cluster_alpha: Any,
-) -> Any:
-    rng = np.random.default_rng(rng)
+class _Permutations(NamedTuple):
+    """The settings of a permutation test of a map (see :func:`test_map`)."""
+
+    method: str
+    alpha: float
+    n_permutations: int
+    rng: np.random.Generator | None
+    cluster_alpha: float
+
+
+def _permutation(d: Any, t: Any, n: Any, tested: Any, test: _Permutations) -> Any:
+    """Return the t map, the significant pixels and the p-values of a sign-flip test.
+
+    ``d``, ``t``, ``n`` and ``tested`` are restricted to the box of the tested pixels.
+    """
+    method, alpha, n_permutations, _, cluster_alpha = test
+    rng = np.random.default_rng(test.rng)
     n_trials = d.shape[0]
     shape = t.shape
     filled = np.nan_to_num(d).reshape(n_trials, -1)

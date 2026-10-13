@@ -33,12 +33,14 @@ def apply_mode(power: Any, ref: Any, sd: Any, mode: Any) -> Any:
 
 
 def _nanmean(a: Any, axis: Any) -> Any:
+    """Return the mean ignoring NaN (NaN, without a warning, where every value is NaN)."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         return np.nanmean(a, axis=axis)
 
 
 def _nanstd(a: Any, axis: Any) -> Any:
+    """Return the sample standard deviation ignoring NaN, without a warning."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         return np.nanstd(a, axis=axis, ddof=1)
