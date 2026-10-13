@@ -21,5 +21,8 @@ a methods paragraph generated from what was run.
    bids_stimulation_columns
    datasets
    api
+   reference/tables
+   benchmark/report-core
+   benchmark/SUBMITTING
    glossary
    contributing/add_shape
