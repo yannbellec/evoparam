@@ -277,8 +277,7 @@ def test_req302_docs_workflow() -> None:
 
 
 @pytest.mark.skipif(
-    os.environ.get("EVOPARAM_SLOW_TESTS") != "1"
-    or importlib.util.find_spec("sphinx") is None,
+    os.environ.get("EVOPARAM_SLOW_TESTS") != "1" or importlib.util.find_spec("sphinx") is None,
     reason="REQ-302: builds the whole site (several minutes, runs the gallery); needs "
     "EVOPARAM_SLOW_TESTS=1 and the docs extra (pip install evoparam[docs]); the MNE "
     "example downloads the MNE sample dataset",

@@ -215,8 +215,13 @@ JSR_VALIDATOR = ["run", "-A", "jsr:@bids/validator@3.0.2", "--datasetTypes", "de
 
 def _reference_validator() -> Any:
     if shutil.which("npx"):
-        probe = subprocess.run(["npm", "view", "bids-validator@2", "version"],
-                               capture_output=True, text=True, timeout=300, check=False)
+        probe = subprocess.run(
+            ["npm", "view", "bids-validator@2", "version"],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
         if probe.returncode == 0 and probe.stdout.strip():
             return REFERENCE_VALIDATOR
     deno = shutil.which("deno")
