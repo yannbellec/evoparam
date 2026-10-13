@@ -112,6 +112,8 @@ print("compute time per pulse (ms):", {k: round(v, 2) for k, v in fitter.latency
 # 4. With Lab Streaming Layer (needs pylsl and liblsl)
 # ----------------------------------------------------
 #
+# The same loop, reading from a Lab Streaming Layer stream::
+#
 #     from evoparam.stream import LSLInlet, LSLOutlet
 #     inlet = LSLInlet(stype="EEG")
 #     fitter = StreamFitter(template, sfreq=inlet.sfreq, ch_names=inlet.ch_names,

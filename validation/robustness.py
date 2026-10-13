@@ -526,14 +526,34 @@ def platform_check():
     sys.path.insert(0, str(ROOT))
     from evoparam.tests.reference import compare_fixture
 
+    import numpy
+
     out = compare_fixture()
     out.update({"platform": platform.platform(), "machine": platform.machine(),
-                "python": platform.python_version(),
-                "other_platforms": "macOS and Windows (x86-64, arm64) are the cells of the "
-                                   "tests matrix of .github/workflows/ci.yml "
-                                   "(tests/test_determinism.py); not run on this machine",
+                "python": platform.python_version(), "numpy": numpy.__version__,
+                "date": time.strftime("%Y-%m-%d"),
+                "other_platforms": "every operating system and processor measured is a "
+                                   "record of platforms/ (one file each)",
                 "bayesian_paths": "within Monte Carlo error: compared by the same CI cells"})
     return out
+
+
+def platform_label(record):
+    """``<operating system>-<processor>`` of a platform record (``macOS-arm64``)."""
+
+    return f"{record['platform'].split('-')[0]}-{record['machine']}"
+
+
+def save_platform(record, folder):
+    """Write ``record`` to ``folder/platforms/<label>.json`` and return every record there,
+    sorted by label: the platforms measured so far, each on its own machine (§7.4 (5))."""
+
+    where = pathlib.Path(folder) / "platforms"
+    where.mkdir(parents=True, exist_ok=True)
+    (where / f"{platform_label(record)}.json").write_text(
+        json.dumps(_clean_json(record), indent=1) + "\n", encoding="utf-8")
+    records = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(where.glob("*.json"))]
+    return sorted(records, key=platform_label)
 
 
 ###################################################################################################
@@ -713,11 +733,14 @@ def markdown(report):
                          f"{_f(r['kappa_median'])} |")
         lines.append("")
     if "platform" in report:
-        p = report["platform"]
         lines += ["## 5. Platform", "",
-                  f"{p['platform']}: fixture fit within rtol {p['rtol']:g} of the reference: "
-                  f"{'yes' if p['match'] else 'no'} (largest relative difference "
-                  f"{_f(p['max_rel_diff'], '.3g')}). {p['other_platforms']}.", ""]
+                  "| platform | Python | NumPy | within rtol of the reference | largest "
+                  "relative difference |", "|---|---|---|---|---|"]
+        for p in report.get("platforms", [report["platform"]]):
+            lines.append(f"| {p['platform']} | {p['python']} | {p.get('numpy', '')} | "
+                         f"{'yes' if p['match'] else 'no'} ({p['rtol']:g}) | "
+                         f"{_f(p['max_rel_diff'], '.3g')} |")
+        lines.append("")
     return "\n".join(lines) + "\n"
 
 
@@ -805,11 +828,19 @@ def main(argv=None):
         if chosen is None:
             (ROOT / "docs" / "preset_sensitivity.md").write_text(
                 preset_doc(report["preset"], __version__), encoding="utf-8")
-    if "platform" in analyses:
-        report["platform"] = platform_check()
-    report["duration_s"] = time.perf_counter() - start
     out = pathlib.Path(args.out or HERE / "layer4" / __version__)
     out.mkdir(parents=True, exist_ok=True)
+    if "platform" in analyses:
+        report["platform"] = platform_check()
+        report["platforms"] = save_platform(report["platform"], out)
+        if analyses == ["platform"] and (out / "report.json").exists():
+            # a platform alone (one cell of the CI matrix, or another machine): its record
+            # is added to the committed report, whose other analyses are kept
+            kept = json.loads((out / "report.json").read_text(encoding="utf-8"))
+            kept["platform"], kept["platforms"] = report["platform"], report["platforms"]
+            report = kept
+            report.setdefault("duration_s", 0.0)
+    report["duration_s"] = report.get("duration_s") or time.perf_counter() - start
     report = _clean_json(report)
     (out / "report.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
     (out / "report.md").write_text(markdown(report), encoding="utf-8")
