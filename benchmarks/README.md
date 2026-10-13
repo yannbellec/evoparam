@@ -33,17 +33,18 @@ python benchmarks/run_benchmarks.py --suite ci --compare benchmarks/baseline-ci.
 `{id, median_s, p90_s, peak_rss_bytes, n_repeats, environment}` per workload. Peak memory is
 the increase of the resident set during the call, sampled every 50 ms.
 
-Measured on the reference machine, one thread, load average 9.7 on the 4 cores
-(`results/linux-3.13.16-bddedc9aa35f.json`):
+Measured on the reference machine with the `fast` extra installed (numba: the compiled fit),
+one thread, load average 6.3 on the 4 cores
+(`results/linux-3.13.16-1f2ea055f5f5.json`):
 
 | id | workload | measured | target | met |
 |---|---|---|---|---|
-| P1 | one waveform, 2 048 Hz, `max_components=6`, `ccep` | median 1.30 s (20 runs) | < 50 ms | no |
-| P2 | `fit_trials`, 100 channels x 50 trials, `n_jobs=4` | 53.7 s | < 60 s | yes |
+| P1 | one waveform, 2 048 Hz, `max_components=6`, `ccep` | median 81.5 ms (20 runs) | < 50 ms | no |
+| P2 | `fit_trials`, 100 channels x 50 trials, `n_jobs=4` | 32.7 s | < 60 s | yes |
 | P3 | `evoparam.fit`, in memory and memory-mapped | ci size only, see below | < 2x data; mapped < 0.25x + 512 MB | in memory no, mapped yes |
 | P4 | GPU backend against the CPU | no GPU backend in this version | 1e-6 relative | not available |
-| P5 | `evoparam.reproduce`, 256 channels | 266.5 s for a 270.7 s fit (0.98x), identical | < 1.5x | yes |
-| P6 | `import evoparam` | median 0.909 s (10 runs) | < 300 ms | no |
+| P5 | `evoparam.reproduce`, 256 channels | 75.5 s for a 60.0 s fit (1.26x), identical | < 1.5x | yes |
+| P6 | `import evoparam` | median 0.940 s (10 runs) | < 300 ms | no |
 
 P3 was run at the `ci` size (50 x 64 x 4 096 float64, 105 MB): in memory, peak RSS
 +331 MiB (347 MB, 3.3x the data; bound 2x = 210 MB); memory-mapped, the same +331 MiB against

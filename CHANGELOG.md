@@ -2,6 +2,68 @@
 
 ## Unreleased
 
+### Engine speed, part 3 (REQ-290 P1): same results to the bit, P1 still not met
+
+REQ-290 P1 (one averaged waveform, 2 048 samples, `ccep`, `max_components=6`, 3 starts) is
+about a fifth faster with the `fast` extra and still above its 50 ms target. Every result is
+the same to the last bit, so no algorithm version changes.
+
+Why P1 costs about twice the REQ-115 waveform: it fits a 1 s window (2 047 samples, against
+1 006 for the 0.009-0.5 s window of REQ-115), so every evaluation costs twice as much, and its
+waveform needs about 500 evaluations (70 compiled fits per call: three starts and the
+forward search, which also tries a fourth component and rejects it). At f626c68 a fit spent
+about 60 ms in the compiled kernel (Householder QR of the 2 050-row whitened design,
+whitening, `exp`) and about 30 ms in Python around it; P1 does use the compiled fit for
+every call.
+
+Timings: same machine, `OMP_NUM_THREADS=1`, previous code (f626c68) and new code; the load
+average was 5 to 9 on the 4 cores (other jobs). The two `run_benchmarks.py --suite perf`
+runs were taken one after the other, not interleaved:
+
+| workload | f626c68 | new code |
+|---|---|---|
+| P1 workload, core 3 (`taskset -c 3`), warm-up + 30 fits, three interleaved rounds: median (p10-p90) | 99.0, 105.2, 95.5 ms (p10-p90 93-108, 96-132, 92-109) | 90.3, 81.4, 81.5 ms (p10-p90 82-112, 77-91, 78-87) |
+| compiled kernel alone: the 70 calls of one P1 fit replayed, median of 30 | 59.79 ms | 48.49 ms |
+| `run_benchmarks.py --suite perf`: P1 median (p90) of 20 | 99.8 ms (109.1) | 81.5 ms (85.6) |
+| the same run: P2 (one run) | 53.8 s | 32.7 s |
+| P2 again, two interleaved rounds | 40.1, 42.8 s | 39.1, 35.0 s |
+| the same run: P5, reproduce / original fit | 77.0 s / 65.2 s (1.18x) | 75.5 s / 60.0 s (1.26x) |
+| the same run: P6, median of 10 | 0.937 s | 0.940 s |
+
+What changed:
+
+- `models/_fast.py`: the AR whitening adds its lags by groups of four in one pass over the
+  samples, each term added in the same order as before; the finiteness checks of the QR
+  input and of the residuals are one vectorised sum each. Kernel time per P1 fit: see the
+  table.
+- `models/engine.py`: the compiled fit starts before the closures of the NumPy path are
+  built; shapes built from the same settings and the default bounds of the background are
+  reused; `compute_features` of a component is computed once per fit for the
+  cancelling-pair, suspicious-component and merge checks; the selection of the candidate
+  extrema is vectorised (the same order, ties included); `np.r_` replaced by
+  `np.concatenate`.
+- `models/api.py`: the whitened residual sum of squares is computed once for the
+  diagnostics and the goodness of fit. `shapes/_base.py`: `window_info` recognises the time
+  axis of the previous call without hashing it.
+
+Results, previous code against new code: the 70 kernel calls of one P1 fit replayed give
+the same outputs to the bit; a battery of 112 fits (P1 on three channels, the five REQ-115
+waveforms, `models.fit` on simulated `ccep`, `ccep_seeg`, `erp`, `tep`, `ecap` and
+`rodent_ep` with seeds 0 to 3) gives every number identical; the new whitening matches the
+previous one to the bit, signs of zeros included, on 435 cases (5 to 2 047 samples, AR
+orders 0 to 12, strides 1 to 4, with and without start rows); the reference fixture test
+(`test_determinism.py`) and the methods texts are unchanged. `ALGORITHM_VERSIONS` is
+unchanged.
+
+`benchmarks/results/linux-3.13.16-1f2ea055f5f5.json` replaces the run of bddedc9 (which
+predates the compiled fit); `benchmarks/README.md` and the strict expected failures of
+`tests/benchmark/test_timing.py` give its values. P2 and P5 stay met, P6 stays above
+300 ms (the import of `scipy.stats`). P1 cannot reach 50 ms with the same rounding: the
+kernel is bound by the floating-point work of the QR and the whitening (about 200 MFlop per
+fit). Reaching it needs fewer evaluations (for example a cheaper rejection of the fourth
+component of the forward search) or a blocked QR, both of which change the results within
+rounding and need a new algorithm version and fixture.
+
 ### REQ-064 on real templates: the specification's version as a measured comparison
 
 - REQ-064 (subspace >= 30 dB on synthetic EEG with real artifact templates) is met by the

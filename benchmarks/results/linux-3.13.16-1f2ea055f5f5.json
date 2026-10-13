@@ -12,20 +12,20 @@
   "numpy": "2.5.3",
   "scipy": "1.18.1",
   "omp_num_threads": "1",
-  "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+  "git_commit": "1f2ea055f5f5e6dc4d979864c72ea6157a66bd02",
   "load_average": [
-   9.6669921875,
-   10.052734375,
-   9.55859375
+   6.31640625,
+   5.76904296875,
+   5.3818359375
   ]
  },
  "results": [
   {
    "id": "P1",
    "workload": "1 waveform, 2048 samples, max_components=6, ccep, 3 starts",
-   "median_s": 1.299527595001564,
-   "p90_s": 1.4170320707009523,
-   "peak_rss_bytes": 3129344,
+   "median_s": 0.08149686001706868,
+   "p90_s": 0.0855629411758855,
+   "peak_rss_bytes": 266240,
    "n_repeats": 20,
    "target": "median < 0.050 s",
    "target_met": false,
@@ -39,20 +39,20 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "1f2ea055f5f5e6dc4d979864c72ea6157a66bd02",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     6.31640625,
+     5.76904296875,
+     5.3818359375
     ]
    }
   },
   {
    "id": "P2",
    "workload": "fit_trials, 100 channels x 50 trials, n_jobs=4",
-   "median_s": 53.725344528997084,
-   "p90_s": 53.725344528997084,
-   "peak_rss_bytes": 263639040,
+   "median_s": 32.70702141802758,
+   "p90_s": 32.70702141802758,
+   "peak_rss_bytes": 149438464,
    "n_repeats": 1,
    "target": "< 60 s on 4 cores",
    "n_fits": 5000,
@@ -67,11 +67,11 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "1f2ea055f5f5e6dc4d979864c72ea6157a66bd02",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     6.31640625,
+     5.76904296875,
+     5.3818359375
     ]
    }
   },
@@ -96,24 +96,24 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "1f2ea055f5f5e6dc4d979864c72ea6157a66bd02",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     6.31640625,
+     5.76904296875,
+     5.3818359375
     ]
    }
   },
   {
    "id": "P5",
    "workload": "evoparam.reproduce of a saved GroupFit of 256 channels",
-   "median_s": 266.5244764569943,
-   "p90_s": 266.5244764569943,
-   "peak_rss_bytes": 1014157312,
+   "median_s": 75.49539171700599,
+   "p90_s": 75.49539171700599,
+   "peak_rss_bytes": 1034264576,
    "n_repeats": 1,
    "target": "< 1.5 x the original fit",
-   "original_s": 270.6748818060005,
-   "ratio": 0.984666455485955,
+   "original_s": 60.0493023529998,
+   "ratio": 1.2572234607024466,
    "identical": true,
    "target_met": true,
    "environment": {
@@ -126,23 +126,23 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "1f2ea055f5f5e6dc4d979864c72ea6157a66bd02",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     6.31640625,
+     5.76904296875,
+     5.3818359375
     ]
    }
   },
   {
    "id": "P6",
    "workload": "python -X importtime -c 'import evoparam' (cumulative time of evoparam)",
-   "median_s": 0.9086405,
-   "p90_s": 0.9608234,
+   "median_s": 0.9404185,
+   "p90_s": 0.9790858,
    "peak_rss_bytes": 0,
    "n_repeats": 10,
    "target": "median < 0.300 s",
-   "process_wall_median_s": 1.09449959199992,
+   "process_wall_median_s": 1.129588016483467,
    "optional_modules_loaded": [],
    "target_met": false,
    "environment": {
@@ -155,11 +155,11 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1",
     "omp_num_threads": "1",
-    "git_commit": "bddedc9aa35ff00b044d2e1bdee835e632e617b4",
+    "git_commit": "1f2ea055f5f5e6dc4d979864c72ea6157a66bd02",
     "load_average": [
-     9.6669921875,
-     10.052734375,
-     9.55859375
+     6.31640625,
+     5.76904296875,
+     5.3818359375
     ]
    }
   }

@@ -224,15 +224,15 @@ def _committed(suite: Any) -> Any:
     return {timing._key(r): r for r in rows}
 
 
-# measured on the reference machine (benchmarks/README.md), load average 9 to 11 on 4 cores
+# measured on the reference machine (benchmarks/README.md), load average 5 to 6 on 4 cores
 MEASURED = {
-    "P1": "median 1.30 s over 20 repetitions (target < 0.050 s); one fit of the ccep preset "
+    "P1": "median 81.5 ms over 20 repetitions (target < 0.050 s); one fit of the ccep preset "
     "with 3 starts and max_components=6 on a 1 s window at 2 048 Hz",
     "P3": "peak RSS increase 331 MiB (347 MB) for 105 MB of trials in memory (3.3 x, "
     "target < 2 x; median of 3 runs), "
     "measured on the ci size (50 x 64 x 4 096); the full size (4.19 GB) was not run",
     "P4": "not available: no GPU backend in this version (NumPy/SciPy engine)",
-    "P6": "median 0.909 s over 10 runs for import evoparam (target < 0.300 s); "
+    "P6": "median 0.940 s over 10 runs for import evoparam (target < 0.300 s); "
     "scipy.stats and scipy.interpolate dominate the import time",
 }
 
