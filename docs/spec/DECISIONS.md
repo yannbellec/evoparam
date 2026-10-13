@@ -799,11 +799,12 @@ The 1 264 findings before were:
 | PLR0911 (too many returns) | 12 | 0 | 0 |
 
 A top-level `tests/` folder does not exist: the tests live in `evoparam/tests`, which
-`ruff check evoparam` covers (see §6, `grep errstate`). Every change below leaves the
-behaviour the same. Each refactored function was compared with 833968f on reference
-cases: results, written files, and the category, message and source file of each
-warning. Each magic-value change was checked by comparing syntax trees, with the new
-constants replaced by their values. The test files of each module were run.
+`ruff check evoparam` covers (see §6, `grep errstate`). The changes below leave the
+behaviour the same, except for the signatures listed at the end of §7.2. Each refactored
+function was compared with 833968f on reference cases: results, written files, and the
+category, message and source file of each warning. Each magic-value change was checked
+by comparing syntax trees, with the new constants replaced by their values. The test
+files of each module were run.
 
 ### 7.1 Magic values (PLR2004)
 

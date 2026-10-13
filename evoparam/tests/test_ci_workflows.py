@@ -388,17 +388,6 @@ def _ruff(*args: Any) -> Any:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-305 'ruff check evoparam tests benchmarks "
-    "docs/tutorials examples exits 0' is not met: 1227 findings (4644 before the "
-    "qualite-statique branch, 1246 before reglages-ignores). 374 in the package outside "
-    "its tests: PLR2004 204, complexity and argument counts 170 (C901 41, PLR0912 39, "
-    "PLR0913 44, PLR0915 18, PLR0917 18, PLR0911 10, on functions whose signature the "
-    "spec does not fix); 852 in the tests (PLR2004 831); 1 in benchmarks (PLR2004). "
-    "ARG001/ARG002 and BLE001: 0 (reglages-ignores). Measured with ruff 0.16.10 and "
-    "0.16.8 on 2026-10-13",
-)
 def test_req305_ruff_check_passes() -> None:
     result = _ruff("check", "evoparam", "benchmarks", "docs/tutorials", "examples")
     assert result.returncode == 0, result.stdout[-1500:]
@@ -409,11 +398,6 @@ def test_req305_ruff_format_passes() -> None:
     assert result.returncode == 0, result.stdout[-1500:]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-305 'interrogate -v evoparam reports >= 95 %' is "
-    "not met: 63.0 % (interrogate 1.7.0, 2026-10-11, S20)",
-)
 def test_req305_docstring_coverage() -> None:
     import shutil
     import subprocess

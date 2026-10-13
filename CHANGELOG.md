@@ -37,6 +37,9 @@ Other changes:
   replaced by a `per-file-ignores` entry for each of the two modules. These are
   statistical tests, not pytest tests.
 - mypy: `patsy` and `pytensor` (optional) join `ignore_missing_imports`.
+- `tests/test_ci_workflows.py`: the strict expected failures of
+  `test_req305_ruff_check_passes` and `test_req305_docstring_coverage` are removed,
+  because both checks now pass.
 - pre-commit: the hooks are pinned to the lock-file versions. `pre-commit run --all-files`
   now passes. Its ruff hooks, and the CI lint job, also cover `tools/`, `validation/` and
   `tutorials/`. These had 275 findings and 24 unformatted files; both are now 0, and the
