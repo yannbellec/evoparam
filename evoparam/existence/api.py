@@ -207,7 +207,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     n_jobs: int = 1,  # noqa: PT028  (public API test_response, not a pytest test)
     verbose: Any = None,  # noqa: ARG001, PT028  (read by @verbose; public API, not a pytest test)
     projection_profile: str = "published",  # noqa: PT028  (public API test_response, not a pytest test)
-    projection_pairs: str = "disjoint",  # noqa: PT028  (public API test_response, not a pytest test)
+    projection_pairs: str = "signflip",  # noqa: PT028  (public API test_response, not a pytest test)
     on_error: str = "record",  # noqa: PT028  (public API test_response, not a pytest test)
 ) -> "ResponseTest":
     """Test whether there is a response in the window, on each channel (and stimulation site).
@@ -224,14 +224,16 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
       bootstrap, conservative; REQ-006).
     - ``"projection"``: cross-projections between trials (canonical response
       parameterisation, re-implemented from the published description): the response
-      duration and a one-sided t-test of the projections at its end.
+      duration and the significance of the projections.
       ``projection_profile`` chooses the response duration: ``"published"`` (default, the
       peak of the mean projection, as the paper defines it) or ``"normalised"`` (the peak
       of the mean projection divided by the square root of the window length, §5.6 item 2
-      as reviewed; see ``docs/spec/DECISIONS.md``). ``projection_pairs`` chooses the
-      projections tested: ``"disjoint"`` (default, each trial in one pair, independent under
-      the null) or ``"half"`` (one per unordered pair, the paper's set, which reproduces its
-      decisions but rejects pure noise at 0.33 to 0.44 at ``alpha = 0.05``).
+      as reviewed; see ``docs/spec/DECISIONS.md``). ``projection_pairs`` chooses the test:
+      ``"signflip"`` (default: every cross-projection, the peak of the mean-projection
+      profile against its null from sign flips of whole trials; rejects pure noise at
+      ``alpha`` and gives the paper's decisions on its examples), ``"disjoint"`` (a t-test,
+      each trial in one pair) or ``"half"`` (a t-test on one projection per unordered pair,
+      the paper's set, which rejects pure noise at 0.33 to 0.44 at ``alpha = 0.05``).
     - ``"model_comparison"``: change of BIC between the fitted model and the background-only
       model, with a parametric bootstrap under the background-only model.
     - ``"threshold"``: a published rule of the registry (``rule``: name or dict), to the

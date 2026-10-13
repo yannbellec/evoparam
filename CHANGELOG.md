@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Cross-projection test: sign-flip null of the profile peak (REQ-134)
+
+- `test_response(method="projection")` has a third set of projections,
+  `projection_pairs="signflip"`, now the default: every cross-projection, and the peak of
+  the mean-projection profile compared with the peaks of the profiles recomputed under
+  sign flips of whole trials (all patterns up to 4 096, a random draw beyond), so the choice
+  of the response end at the peak is part of the null. On the 10 example channels of the
+  paper it gives every published decision (the "disjoint" t-test: 0.8 to 1.0 by random
+  pairing, mean 0.89); on pure white noise (10 trials, 200 channels) it rejects at 0.05 for
+  alpha = 0.05 ("disjoint" 0.145, the paper's "half" 0.43). `test_req134_published_
+  significance_with_the_default_pairs` is no longer an expected failure. Cost: 0.12 s per
+  channel for 50 trials x 500 samples.
+- Benchmark `core`, baseline `projection` re-run (T1, T2): AUC 0.938 -> 0.979, recall 0.65
+  -> 0.88, F1 0.78 -> 0.89, specificity 0.992 -> 0.960, false-positive rate at p < 0.05
+  0.064 -> 0.104 on the null cells; the result files, leaderboard and report regenerated
+  (macOS arm64, so their input hashes are those of this platform).
+- `detect_pulses` had lost its `verbose` decorator in the size-gate change (the new helper
+  was inserted between them); restored (`test_verbose_detect_pulses`).
+- The docs build test of REQ-302 runs with `EVOPARAM_DOCS_TESTS=1` (the `docs` extra is not
+  in `all`, and the dependency test requires every skipped package to be in `all` or
+  `bayes`).
+
 ### REQ-064 on real templates: the specification's version as a measured comparison
 
 - REQ-064 (subspace >= 30 dB on synthetic EEG with real artifact templates) is met by the

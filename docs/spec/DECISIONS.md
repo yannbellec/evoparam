@@ -951,3 +951,14 @@ expected failure whose reason gives the measured value; no criterion was weakene
   run's (blocks, pulse counts, 0.2 Hz), not the protocol's range, which the data do not
   follow.
 
+- **REQ-134, significance of the cross-projection test (2026-10-13).** §5.6 item 2 tests
+  "the projection magnitudes of one half of the non-overlapping pairs" with a one-sample
+  t-test. Read as the paper's set (one projection per unordered pair) it reproduces the
+  published decisions but rejects pure noise at 0.33 to 0.44 for alpha = 0.05 (the values
+  share trials); read as disjoint pairs it is nearly valid (0.145) but its decisions depend
+  on the random pairing (0.89 agreement on average). The default is a sign-flip
+  permutation test of the same projections (the null of trials of random sign, the peak of
+  the profile recomputed for every pattern): published decisions 10 of 10 and a rejection
+  rate of 0.05 on noise, measurably better than both readings; the two t-tests stay
+  available (`projection_pairs`).
+
