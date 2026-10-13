@@ -36,6 +36,36 @@ def test_round_trip_every_type(tmp_path: Any, name: Any, table_format: Any) -> N
     assert loaded == obj
 
 
+@pytest.mark.skipif(not serialize._have_pyarrow(), reason="parquet needs pyarrow")
+@pytest.mark.parametrize("suffix", ["", ".zip"])
+def test_parquet_tables_are_opened_by_pyarrow(
+    tmp_path: Any, monkeypatch: Any, suffix: Any
+) -> None:
+    # Regression: pandas, given a local path alone, hands pyarrow a Python file object,
+    # whose last references pyarrow's threads drop after the read has returned; at the
+    # end of a short process this aborted the interpreter at exit (status -6,
+    # "terminate called without an active exception"; a hang on Python 3.13). pyarrow
+    # must get a path and a pyarrow file system, so that its threads hold no Python object.
+    import pyarrow.fs
+    import pyarrow.parquet as pq
+
+    read_table = pq.read_table
+    sources: list[Any] = []
+
+    def spy(source: Any, *args: Any, **kwargs: Any) -> Any:
+        sources.append((source, kwargs.get("filesystem")))
+        return read_table(source, *args, **kwargs)
+
+    monkeypatch.setattr(pq, "read_table", spy)
+    obj = make_group_fit()
+    path = save_object(obj, tmp_path / f"group{suffix}", table_format="parquet")
+    assert load_object(path) == obj
+    assert sources
+    for source, filesystem in sources:
+        assert isinstance(source, str), type(source)
+        assert isinstance(filesystem, pyarrow.fs.FileSystem), type(filesystem)
+
+
 def test_round_trip_zip(tmp_path: Any) -> None:
     obj = make_group_fit()
     path = save_object(obj, tmp_path / "group.zip")

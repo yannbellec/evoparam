@@ -370,7 +370,22 @@ def _read_table(folder: Any, key: Any, _n_hint: Any = None) -> Any:
     with open(os.path.join(folder, f"{key}.json"), encoding="utf-8") as fobj:
         sidecar = loads(fobj.read())
     if sidecar["format"] == "parquet":
-        table = pd.read_parquet(os.path.join(folder, f"{key}.parquet"))
+        # pyarrow opens the file (a pyarrow file system), not Python. Given a local path
+        # alone, pandas hands pyarrow a Python file object; the reading threads of pyarrow
+        # then drop the last references to it and to the bytes read from it after
+        # read_parquet has returned, each time taking the GIL. When that happens while the
+        # interpreter is being finalized (a read near the end of a short process, such as
+        # an evoparam command, under CPU load), Python 3.11 and 3.12 end the pyarrow
+        # thread inside a C++ destructor and the process aborts after its work is done
+        # ("terminate called without an active exception", exit status -6); Python 3.13
+        # parks the thread and the process hangs in exit(), where pyarrow waits for it.
+        # Read through a pyarrow file system, the file lands in pyarrow's own buffers:
+        # its threads hold no Python object.
+        from pyarrow import fs
+
+        table = pd.read_parquet(
+            os.path.join(folder, f"{key}.parquet"), filesystem=fs.LocalFileSystem()
+        )
     else:
         csv_path = os.path.join(folder, f"{key}.csv")
         if os.path.getsize(csv_path) == 0:
