@@ -58,6 +58,7 @@ LONG_COLUMNS = ("stim_site", "channel", "parameter", "value")
 
 
 def _contacts(site: Any) -> set[Any]:
+    """Return the contact names of a bipolar site name (``"A1-A2"``: ``A1`` and ``A2``)."""
     return {part.strip() for part in re.split(r"[-–]", str(site)) if part.strip()}
 
 
@@ -75,6 +76,7 @@ def _pick(fit: Any, component: Any) -> Any:
 
 
 def _ch_info(ch_info: Any) -> Any:
+    """Return the channel table of ``ch_info`` (a table, or an object with ``ch_info``)."""
     if ch_info is None:
         return None
     return getattr(ch_info, "ch_info", ch_info)
@@ -133,7 +135,67 @@ def _basis_lookup(basis: Any) -> dict[Any, Any]:
     return out
 
 
-def parameter_map(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed by spec §5.9)
+def _coordinates(info: Any) -> dict[str, tuple[float, float, float, str]]:
+    """Return ``x, y, z`` (mm) and the coordinate space of each channel of ``info``."""
+    coords = {}
+    if info is not None and {"name", "x", "y", "z"} <= set(info.columns):
+        for _, row in info.iterrows():
+            coords[str(row["name"])] = (
+                float(row["x"]),
+                float(row["y"]),
+                float(row["z"]),
+                str(row.get("coord_space", "") or ""),
+            )
+    return coords
+
+
+def _flagged(info: Any) -> tuple[set[str], set[str]]:
+    """Return the bad channels and the stimulation contacts flagged in ``info``."""
+    bad: set[str] = set()
+    stim_flag: set[str] = set()
+    if info is not None and "name" in info.columns:
+        names = info["name"].astype(str)
+        if "bad" in info.columns:
+            bad = {n for n, v in zip(names, info["bad"], strict=False) if bool(v)}
+        if "stim_contact" in info.columns:
+            stim_flag = {n for n, v in zip(names, info["stim_contact"], strict=False) if bool(v)}
+    return bad, stim_flag
+
+
+def _component_columns(fit: Any, component: Any) -> dict[str, Any]:
+    """Return the status and the reported component's columns of one fit (NaN without one)."""
+    k = _pick(fit, component) if fit.status == "ok" else None
+    row: dict[str, Any] = {
+        "status": fit.status,
+        "component": -1 if k is None else k,
+        "label": "",
+        "shape": "",
+    }
+    row.update(dict.fromkeys(COMPONENT_FEATURES, np.nan))
+    row["polarity"] = 0
+    if k is not None:
+        comp = fit.components[k]
+        row.update({"label": comp.label or "", "shape": comp.shape})
+        row.update({name: getattr(comp, name) for name in COMPONENT_FEATURES})
+    return row
+
+
+def _marker(channel: str, site: str, fit: Any, bad: set[str], stim_flag: set[str]) -> str:
+    """Return the marker of one (site, channel) pair, one of :data:`MARKERS`."""
+    if channel in _contacts(site) or (not site and channel in stim_flag):
+        return "stim_contact"
+    if channel in bad:
+        return "bad"
+    if fit.status in ("skipped", "failed") and "mask" in fit.message.lower():
+        return "masked"
+    if fit.status == "ok":
+        return "response"
+    if fit.status == "no_response":
+        return "no_response"
+    return "failed"
+
+
+def parameter_map(
     group_fit: "GroupFit",
     *,
     parameter: str = "amplitude",
@@ -177,29 +239,14 @@ def parameter_map(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed
     if parameter not in PARAMETERS:
         raise SettingsError(f"parameter must be one of {PARAMETERS}, not {parameter!r}.")
     info = _ch_info(ch_info)
-    coords = {}
-    has_coords = info is not None and {"name", "x", "y", "z"} <= set(info.columns)
-    if has_coords:
-        for _, row in info.iterrows():
-            coords[str(row["name"])] = (
-                float(row["x"]),
-                float(row["y"]),
-                float(row["z"]),
-                str(row.get("coord_space", "") or ""),
-            )
-    if not has_coords or not any(np.isfinite(v[:3]).all() for v in coords.values()):
+    coords = _coordinates(info)
+    if not any(np.isfinite(v[:3]).all() for v in coords.values()):
         _warn(
             "parameter_map: no channel coordinates (ch_info x, y, z); the map is a table only.",
             UserWarning,
             stacklevel=2,
         )
-    bad, stim_flag = set(), set()
-    if info is not None and "name" in info.columns:
-        names = info["name"].astype(str)
-        if "bad" in info.columns:
-            bad = {n for n, v in zip(names, info["bad"], strict=False) if bool(v)}
-        if "stim_contact" in info.columns:
-            stim_flag = {n for n, v in zip(names, info["stim_contact"], strict=False) if bool(v)}
+    bad, stim_flag = _flagged(info)
     tests, probs = _existence_lookup(existence)
     shapes = _basis_lookup(basis)
 
@@ -211,21 +258,7 @@ def parameter_map(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed
         if stim_site is not None and site != str(stim_site):
             continue
         fit = group_fit.fits[int(pos)]
-        k = _pick(fit, component) if fit.status == "ok" else None
-        row = {
-            "stim_site": site,
-            "channel": str(ch),
-            "status": fit.status,
-            "component": -1 if k is None else k,
-            "label": "",
-            "shape": "",
-        }
-        row.update(dict.fromkeys(COMPONENT_FEATURES, np.nan))
-        row["polarity"] = 0
-        if k is not None:
-            comp = fit.components[k]
-            row.update({"label": comp.label or "", "shape": comp.shape})
-            row.update({name: getattr(comp, name) for name in COMPONENT_FEATURES})
+        row = {"stim_site": site, "channel": str(ch), **_component_columns(fit, component)}
         row["r2"] = fit.gof.r2 if fit.gof is not None else np.nan
         p, sig = tests.get((str(ch), str(cond)), tests.get((str(ch), ""), (np.nan, None)))
         row["existence_p"], row["existence_significant"] = p, sig
@@ -234,19 +267,7 @@ def parameter_map(  # noqa: C901, PLR0912, PLR0915  (public API, signature fixed
         row["shape_id"], row["shape_weight"] = shape_id, weight
         x, y, z, space = coords.get(str(ch), (np.nan, np.nan, np.nan, ""))
         row.update({"x": x, "y": y, "z": z, "coord_space": space})
-        if str(ch) in _contacts(site) or (not site and str(ch) in stim_flag):
-            marker = "stim_contact"
-        elif str(ch) in bad:
-            marker = "bad"
-        elif fit.status in ("skipped", "failed") and "mask" in fit.message.lower():
-            marker = "masked"
-        elif fit.status == "ok":
-            marker = "response"
-        elif fit.status == "no_response":
-            marker = "no_response"
-        else:
-            marker = "failed"
-        row["marker"] = marker
+        row["marker"] = _marker(str(ch), site, fit, bad, stim_flag)
         rows.append(row)
     table = pd.DataFrame(rows, columns=[c for c in MAP_COLUMNS if c != "value"])
     table["component"] = table["component"].astype("int64")
@@ -378,6 +399,7 @@ MNI_SPACES = ("mni", "icbm", "fsaverage", "talairach")
 
 
 def _is_mni(table: Any) -> bool:
+    """Return whether every coordinate space of ``table`` is a template space nilearn draws."""
     spaces = (
         {str(v).lower() for v in table["coord_space"].dropna()} - {"", "nan", "none"}
         if "coord_space" in table.columns
@@ -387,6 +409,7 @@ def _is_mni(table: Any) -> bool:
 
 
 def _have_nilearn() -> bool:
+    """Return whether nilearn is installed."""
     import importlib.util
 
     return importlib.util.find_spec("nilearn") is not None

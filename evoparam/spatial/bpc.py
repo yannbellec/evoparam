@@ -14,7 +14,7 @@ trials. Each trial is then ``V = alpha B_q + residual``.
 import itertools
 import re
 import time as _time
-from typing import cast
+from typing import NamedTuple, cast
 
 import numpy as np
 
@@ -45,6 +45,11 @@ SPLIT_MAX = 0.75  # largest between / within ratio of the mean t-values of two c
 TOLERANCE = 0.5  # inclusion: at least half the equal-contribution loading
 NMF_TOL = 1e-5
 NMF_MAX_ITER = 1000
+_MIN_RESTARTS = 2
+_MIN_WINDOW_SAMPLES = 4
+_NMF_MIN_STEPS = 10  # multiplicative updates before the convergence test applies
+_MIN_PAIR = 2  # two rows (or values) at least for an overlap (or a standard deviation)
+_ZERO_NORM = 1e-12  # a t-value profile of smaller norm has no positive t-value
 
 
 ###################################################################################################
@@ -64,6 +69,7 @@ def adjusted_rand_index(a: Any, b: Any) -> float:
     np.add.at(table, (ia, ib), 1)
 
     def comb(x: Any) -> Any:
+        """Return the number of pairs among ``x`` items."""
         return x * (x - 1) / 2.0
 
     index = comb(table).sum()
@@ -119,7 +125,7 @@ def _nmf(
         err = np.sum((x[None] - wa @ ha) ** 2, axis=(1, 2))
         index = np.flatnonzero(active)
         error[index] = err
-        if step > 10:
+        if step > _NMF_MIN_STEPS:
             done = np.abs(previous[index] - err) <= NMF_TOL * np.maximum(err, eps)
             active[index[done]] = False
             if not active.any():
@@ -141,7 +147,8 @@ def _assign(h: Any) -> tuple[NDArray[Any], Any]:
 
 
 def _degeneracy(h: Any) -> float:
-    if len(h) < 2:
+    """Return the largest cosine overlap between two rows of H (0 with one row)."""
+    if len(h) < _MIN_PAIR:
         return 0.0
     unit = h / np.maximum(np.linalg.norm(h, axis=1, keepdims=True), 1e-300)
     overlap = unit @ unit.T
@@ -216,6 +223,7 @@ def _split_ratio(xi: Any, labels: Any, q: Any) -> float:
 def _cluster_nmf(
     xi: Any, q: Any, n_restarts: Any, rng: np.random.Generator | None, init: Any = None
 ) -> tuple[NDArray[Any], list[NDArray[Any]], Any, float, float, Any]:
+    """Cluster by NMF from ``n_restarts`` starts; keep the restart of smallest error."""
     ws, hs, errors = _nmf(xi, q, rng, n_restarts, init=init)
     labels = [_assign(h)[0] for h in hs]
     best = int(np.argmin(errors))
@@ -232,7 +240,7 @@ def _cluster_kpca(
     """
     profiles = 0.5 * (xi + xi.T)
     norms = np.linalg.norm(profiles, axis=1)
-    keep = norms > 1e-12
+    keep = norms > _ZERO_NORM
     unit = profiles[keep] / norms[keep, None]
     kernel = unit @ unit.T
     n = len(kernel)
@@ -284,7 +292,7 @@ def _t_matrix(trials: Any, owner: Any, n_groups: Any) -> FloatArray:
             if a == b:
                 block = block[~np.eye(len(rows), dtype=bool)]
             values = np.ravel(block)
-            if len(values) < 2:
+            if len(values) < _MIN_PAIR:
                 continue
             sd = np.std(values, ddof=1)
             xi[a, b] = np.mean(values) / (sd / np.sqrt(len(values))) if sd > 0 else 0.0
@@ -325,6 +333,7 @@ def _basis_curve(trials: Any) -> Any:
 
 
 def _contacts(site: Any) -> list[Any]:
+    """Return the contact names of a bipolar site name (``"A1-A2"``: ``A1`` and ``A2``)."""
     return [part.strip() for part in re.split(r"[-–]", str(site)) if part.strip()]
 
 
@@ -345,58 +354,71 @@ def _groups(
     rows_all = np.arange(ts.n_trials)
     if meta is not None and "rejected" in meta.columns:
         rows_all = rows_all[~meta["rejected"].fillna(False).to_numpy(bool)]
-    names = list(ts.ch_names)
     if by == "stim_site":
-        if meta is None or "stim_site" not in meta.columns:
-            raise DataError("shared_shapes(by='stim_site') needs metadata['stim_site'].")
-        if channel is None:
-            if len(names) != 1:
-                raise SettingsError(
-                    "shared_shapes(by='stim_site'): give channel= (the recording channel)."
-                )
-            channel = names[0]
-        ch = names.index(channel) if isinstance(channel, str) else int(channel)
-        sites = meta["stim_site"].astype(str).to_numpy()
-        out = []
-        for site in dict.fromkeys(sites[rows_all]):
-            if names[ch] in _contacts(site) or site in ("", "n/a", "nan"):
-                continue
-            trials, rows = _usable_trials(ts, rows_all[sites[rows_all] == site], ch, win)
-            if len(trials):
-                out.append((site, trials, rows))
-        return out, {"channel": names[ch], "stim_site": None}
+        return _site_groups(ts, rows_all, channel, win)
     if by == "channel":
-        rows = rows_all
-        if meta is not None and "stim_site" in meta.columns:
-            sites = meta["stim_site"].astype(str).to_numpy()
-            if stim_site is None:
-                present = list(dict.fromkeys(sites[rows_all]))
-                if len(present) > 1:
-                    raise SettingsError(
-                        "shared_shapes(by='channel'): give stim_site= (the "
-                        "trials hold several sites)."
-                    )
-                stim_site = present[0] if present else None
-            if stim_site is not None:
-                rows = rows_all[sites[rows_all] == str(stim_site)]
-        if len(rows) == 0:
-            raise DataError(f"No trial of stimulation site {stim_site!r}.")
-        excluded = set(_contacts(stim_site)) if stim_site is not None else set()
-        info = ts.ch_info
-        bad = set()
-        if info is not None and "bad" in info.columns:
-            bad = {
-                n for n, b in zip(info["name"].astype(str), info["bad"], strict=False) if bool(b)
-            }
-        out = []
-        for ch, name in enumerate(names):
-            if name in excluded or name in bad:
-                continue
-            trials, used = _usable_trials(ts, rows, ch, win)
-            if len(trials):
-                out.append((name, trials, used))
-        return out, {"channel": None, "stim_site": None if stim_site is None else str(stim_site)}
+        return _channel_groups(ts, rows_all, stim_site, win)
     raise SettingsError(f"by must be 'stim_site' or 'channel', not {by!r}.")
+
+
+def _site_groups(
+    ts: Any, rows_all: Any, channel: Any, win: Any
+) -> tuple[list[Any], dict[str, Any]]:
+    """Return the groups of ``by="stim_site"``: the sites recorded on ``channel``."""
+    meta = ts.metadata
+    names = list(ts.ch_names)
+    if meta is None or "stim_site" not in meta.columns:
+        raise DataError("shared_shapes(by='stim_site') needs metadata['stim_site'].")
+    if channel is None:
+        if len(names) != 1:
+            raise SettingsError(
+                "shared_shapes(by='stim_site'): give channel= (the recording channel)."
+            )
+        channel = names[0]
+    ch = names.index(channel) if isinstance(channel, str) else int(channel)
+    sites = meta["stim_site"].astype(str).to_numpy()
+    out = []
+    for site in dict.fromkeys(sites[rows_all]):
+        if names[ch] in _contacts(site) or site in ("", "n/a", "nan"):
+            continue
+        trials, rows = _usable_trials(ts, rows_all[sites[rows_all] == site], ch, win)
+        if len(trials):
+            out.append((site, trials, rows))
+    return out, {"channel": names[ch], "stim_site": None}
+
+
+def _channel_groups(
+    ts: Any, rows_all: Any, stim_site: Any, win: Any
+) -> tuple[list[Any], dict[str, Any]]:
+    """Return the groups of ``by="channel"``: the channels for ``stim_site``."""
+    meta = ts.metadata
+    rows = rows_all
+    if meta is not None and "stim_site" in meta.columns:
+        sites = meta["stim_site"].astype(str).to_numpy()
+        if stim_site is None:
+            present = list(dict.fromkeys(sites[rows_all]))
+            if len(present) > 1:
+                raise SettingsError(
+                    "shared_shapes(by='channel'): give stim_site= (the trials hold several sites)."
+                )
+            stim_site = present[0] if present else None
+        if stim_site is not None:
+            rows = rows_all[sites[rows_all] == str(stim_site)]
+    if len(rows) == 0:
+        raise DataError(f"No trial of stimulation site {stim_site!r}.")
+    excluded = set(_contacts(stim_site)) if stim_site is not None else set()
+    info = ts.ch_info
+    bad = set()
+    if info is not None and "bad" in info.columns:
+        bad = {n for n, b in zip(info["name"].astype(str), info["bad"], strict=False) if bool(b)}
+    out = []
+    for ch, name in enumerate(ts.ch_names):
+        if name in excluded or name in bad:
+            continue
+        trials, used = _usable_trials(ts, rows, ch, win)
+        if len(trials):
+            out.append((name, trials, used))
+    return out, {"channel": None, "stim_site": None if stim_site is None else str(stim_site)}
 
 
 def _assess(
@@ -437,7 +459,7 @@ def _select_nmf(unit: tuple[Any, ...]) -> tuple[dict[str, Any], tuple[Any, ...] 
 ## Main entry point
 
 
-def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signature fixed by spec §5.9)
+def shared_shapes(  # noqa: PLR0913  (spec §5.9 fixes 11 parameters; DECISIONS.md §7.2)
     ts: "TrialSet",
     *,
     by: str = "stim_site",
@@ -517,16 +539,9 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
     """
     pd = require("pandas", extra="data", caller="evoparam.spatial.shared_shapes")
     start = _time.perf_counter()
-    if not isinstance(ts, TrialSet):
-        raise DataError("shared_shapes expects a TrialSet.")
-    if method not in ("nmf", "kpca"):
-        raise SettingsError(f"method must be 'nmf' or 'kpca', not {method!r}.")
-    if max_shapes < 1 or n_restarts < 2:
-        raise SettingsError("max_shapes must be >= 1 and n_restarts >= 2.")
-    if not 0 < stability_min <= 1:
-        raise SettingsError("stability_min must be in (0, 1].")
+    _check_shapes_settings(ts, method, max_shapes, n_restarts, stability_min)
     win = (ts.times >= window[0]) & (ts.times <= window[1])
-    if win.sum() < 4:
+    if win.sum() < _MIN_WINDOW_SAMPLES:
         raise DataError(f"The window {window} holds fewer than 4 samples.")
     groups, where = _groups(ts, by, channel, stim_site, win)
     defining = [i for i, (_, trials, _) in enumerate(groups) if len(trials) >= MIN_TRIALS]
@@ -545,29 +560,7 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         xi = xi / np.max(xi)
 
     qs = list(range(1, min(max_shapes, len(defining) - 1) + 1))
-    if method == "nmf":
-        # the random starts of every number of shapes, drawn in the order of the serial
-        # loop, so that the selection does not depend on n_jobs (one unit per q)
-        units = [
-            (xi, q, n_restarts, stability_min, _nmf_starts(xi.shape, q, rng, n_restarts))
-            for q in qs
-        ]
-        outcomes = parallel_map(_select_nmf, units, n_jobs, desc="shared_shapes")
-    else:
-        # k-means++ draws depend on the data: the restarts run in this process
-        outcomes = [
-            _assess(xi, q, stability_min, _cluster_kpca(xi, q, n_restarts, rng)) for q in qs
-        ]
-    selection: list[dict[str, Any]] = []
-    chosen = None
-    for q, (row, candidate) in zip(qs, outcomes, strict=True):
-        selection.append(row)
-        if row["accepted"] or q == 1:
-            chosen = candidate if row["accepted"] or chosen is None else chosen
-    unstable = all(not row["accepted"] for row in selection[1:]) and any(
-        row["split_ratio"] < SPLIT_MAX and row["clusters_used"] == row["n_shapes"]
-        for row in selection[1:]
-    )
+    selection, chosen, unstable = _select(xi, qs, method, (n_restarts, stability_min), rng, n_jobs)
     q, labels, h, stability, w_nmf = cast("tuple[Any, ...]", chosen)  # set when q == 1
     warns = []
     if q == 1 and unstable:
@@ -584,63 +577,26 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
             labels[:] = 0
 
     # Basis curves from the trials of each cluster's defining groups
-    curves: Any
-    curves = []
-    for k in range(q):
-        members = [defining[j] for j in np.flatnonzero(labels == k)]
-        curves.append(_basis_curve(np.concatenate([groups[i][1] for i in members])))
-    curves = np.array(curves)
-
-    # Projection of every group on every curve: the group-level weight alpha_m (mean
-    # projection, data units) and R² of its shape
-    n_groups = len(groups)
-    alphas = np.zeros((n_groups, q))
-    r2_all = np.zeros((n_groups, q))
-    for g, (_, v, _) in enumerate(groups):
-        alpha = v @ curves.T  # trials x shapes
-        alphas[g] = alpha.mean(axis=0)
-        total = np.sum(v**2)
-        for k in range(q):
-            resid = v - np.outer(alpha[:, k], curves[k])
-            r2_all[g, k] = 1 - np.sum(resid**2) / total if total > 0 else np.nan
-    # ShapeBasis.weights (spec §4.3.4, §5.9): the clustering loadings, group x shape,
-    # non-negative (the columns of H); a group that does not define the bases (fewer than
-    # 3 trials) gets the non-negative least-squares loadings of its t-values against the
-    # defining groups on the factor W (x ~ W H), or, for kpca, its shape's indicator
-    from scipy.optimize import nnls
-
+    curves = np.array(
+        [
+            _basis_curve(
+                np.concatenate(
+                    [groups[i][1] for i in [defining[j] for j in np.flatnonzero(labels == k)]]
+                )
+            )
+            for k in range(q)
+        ]
+    )
+    alphas, r2_all = _projections(groups, curves)
     position = {i: j for j, i in enumerate(defining)}
-    weights = np.zeros((n_groups, q))
-    scale = float(np.max(xi_raw)) if np.max(xi_raw) > 0 else 1.0
-    shape_ids = np.full(n_groups, -1)
-    for g, (_, v, _) in enumerate(groups):
-        if g in position:
-            weights[g] = h[:, position[g]]
-            shape_ids[g] = int(labels[position[g]])
-            continue
-        shape_ids[g] = int(np.nanargmax(r2_all[g])) if np.nanmax(r2_all[g]) > 0 else -1
-        if w_nmf is not None:
-            column = np.clip(_cross_t(trials, owner, len(defining), v), 0, None) / scale
-            weights[g] = nnls(w_nmf, column)[0]
-        elif shape_ids[g] >= 0:
-            weights[g, shape_ids[g]] = 1.0
-    rows, r2 = [], np.full(n_groups, np.nan)
-    for g, (label, v, _) in enumerate(groups):
-        shape_id = int(shape_ids[g])
-        loading = float(weights[g, shape_id]) if shape_id >= 0 else float(np.max(weights[g]))
-        if shape_id >= 0:
-            r2[g] = r2_all[g, shape_id]
-        rows.append(
-            {
-                "group": str(label),
-                "shape_id": shape_id,
-                "weight": float(alphas[g, shape_id]) if shape_id >= 0 else np.nan,
-                "r2": float(r2[g]),
-                "n_trials": int(len(v)),
-                "used": g in position,
-                "nmf_loading": loading,
-            }
-        )
+    weights, shape_ids = _loadings(
+        groups,
+        position,
+        (h, labels, w_nmf),
+        r2_all,
+        _TMatrix(trials, owner, len(defining), xi_raw),
+    )
+    rows, r2 = _assignment_rows(groups, position, shape_ids, weights, alphas, r2_all)
     assignment = pd.DataFrame(rows, columns=list(BASIS_COLUMNS))
     assignment["shape_id"] = assignment["shape_id"].astype("int64")
     assignment["n_trials"] = assignment["n_trials"].astype("int64")
@@ -678,6 +634,144 @@ def shared_shapes(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
         settings=settings,
         provenance=provenance,
     )
+
+
+def _check_shapes_settings(
+    ts: Any, method: Any, max_shapes: Any, n_restarts: Any, stability_min: Any
+) -> None:
+    """Raise when the data or a setting of :func:`shared_shapes` is not valid."""
+    if not isinstance(ts, TrialSet):
+        raise DataError("shared_shapes expects a TrialSet.")
+    if method not in ("nmf", "kpca"):
+        raise SettingsError(f"method must be 'nmf' or 'kpca', not {method!r}.")
+    if max_shapes < 1 or n_restarts < _MIN_RESTARTS:
+        raise SettingsError("max_shapes must be >= 1 and n_restarts >= 2.")
+    if not 0 < stability_min <= 1:
+        raise SettingsError("stability_min must be in (0, 1].")
+
+
+def _select(
+    xi: Any,
+    qs: list[int],
+    method: str,
+    restarts: tuple[int, float],
+    rng: np.random.Generator,
+    n_jobs: int,
+) -> tuple[list[dict[str, Any]], Any, bool]:
+    """Cluster with each number of shapes ``qs`` and choose one.
+
+    ``restarts``: ``(n_restarts, stability_min)``. Returns the selection table, the chosen
+    candidate (the largest accepted ``q``, else ``q = 1``) and whether the basis is unstable
+    (no ``q >= 2`` accepted although some neither split nor leave a cluster empty).
+    """
+    n_restarts, stability_min = restarts
+    if method == "nmf":
+        # the random starts of every number of shapes, drawn in the order of the serial
+        # loop, so that the selection does not depend on n_jobs (one unit per q)
+        units = [
+            (xi, q, n_restarts, stability_min, _nmf_starts(xi.shape, q, rng, n_restarts))
+            for q in qs
+        ]
+        outcomes = parallel_map(_select_nmf, units, n_jobs, desc="shared_shapes")
+    else:
+        # k-means++ draws depend on the data: the restarts run in this process
+        outcomes = [
+            _assess(xi, q, stability_min, _cluster_kpca(xi, q, n_restarts, rng)) for q in qs
+        ]
+    selection: list[dict[str, Any]] = []
+    chosen = None
+    for q, (row, candidate) in zip(qs, outcomes, strict=True):
+        selection.append(row)
+        if row["accepted"] or q == 1:
+            chosen = candidate if row["accepted"] or chosen is None else chosen
+    unstable = all(not row["accepted"] for row in selection[1:]) and any(
+        row["split_ratio"] < SPLIT_MAX and row["clusters_used"] == row["n_shapes"]
+        for row in selection[1:]
+    )
+    return selection, chosen, unstable
+
+
+def _projections(groups: Any, curves: Any) -> tuple[FloatArray, FloatArray]:
+    """Return the projection of every group on every curve: weight and R² [n_groups, q].
+
+    The group-level weight ``alpha_m`` is the mean projection of its trials (data units).
+    """
+    n_groups, q = len(groups), len(curves)
+    alphas = np.zeros((n_groups, q))
+    r2_all = np.zeros((n_groups, q))
+    for g, (_, v, _) in enumerate(groups):
+        alpha = v @ curves.T  # trials x shapes
+        alphas[g] = alpha.mean(axis=0)
+        total = np.sum(v**2)
+        for k in range(q):
+            resid = v - np.outer(alpha[:, k], curves[k])
+            r2_all[g, k] = 1 - np.sum(resid**2) / total if total > 0 else np.nan
+    return alphas, r2_all
+
+
+class _TMatrix(NamedTuple):
+    """The trials of the defining groups, their group, and the raw t-matrix between groups."""
+
+    trials: Any
+    owner: Any
+    n_defining: int
+    raw: Any
+
+
+def _loadings(
+    groups: Any, position: Any, clusters: tuple[Any, Any, Any], r2_all: Any, tmat: _TMatrix
+) -> tuple[FloatArray, Any]:
+    """Return the clustering loadings [n_groups, q] and the shape of each group.
+
+    ShapeBasis.weights (spec §4.3.4, §5.9): the clustering loadings, group x shape,
+    non-negative (the columns of H); a group that does not define the bases (fewer than 3
+    trials) gets the non-negative least-squares loadings of its t-values against the
+    defining groups on the factor W (x ~ W H), or, for kpca, its shape's indicator.
+    ``clusters``: H, the cluster of each defining group and W (None for kpca).
+    """
+    from scipy.optimize import nnls
+
+    h, labels, w_nmf = clusters
+    n_groups = len(groups)
+    weights = np.zeros((n_groups, r2_all.shape[1]))
+    scale = float(np.max(tmat.raw)) if np.max(tmat.raw) > 0 else 1.0
+    shape_ids = np.full(n_groups, -1)
+    for g, (_, v, _) in enumerate(groups):
+        if g in position:
+            weights[g] = h[:, position[g]]
+            shape_ids[g] = int(labels[position[g]])
+            continue
+        shape_ids[g] = int(np.nanargmax(r2_all[g])) if np.nanmax(r2_all[g]) > 0 else -1
+        if w_nmf is not None:
+            column = np.clip(_cross_t(tmat.trials, tmat.owner, tmat.n_defining, v), 0, None)
+            weights[g] = nnls(w_nmf, column / scale)[0]
+        elif shape_ids[g] >= 0:
+            weights[g, shape_ids[g]] = 1.0
+    return weights, shape_ids
+
+
+def _assignment_rows(
+    groups: Any, position: Any, shape_ids: Any, weights: Any, alphas: Any, r2_all: Any
+) -> tuple[list[dict[str, Any]], FloatArray]:
+    """Return the assignment row of every group and the R² of its shape."""
+    rows, r2 = [], np.full(len(groups), np.nan)
+    for g, (label, v, _) in enumerate(groups):
+        shape_id = int(shape_ids[g])
+        loading = float(weights[g, shape_id]) if shape_id >= 0 else float(np.max(weights[g]))
+        if shape_id >= 0:
+            r2[g] = r2_all[g, shape_id]
+        rows.append(
+            {
+                "group": str(label),
+                "shape_id": shape_id,
+                "weight": float(alphas[g, shape_id]) if shape_id >= 0 else np.nan,
+                "r2": float(r2[g]),
+                "n_trials": int(len(v)),
+                "used": g in position,
+                "nmf_loading": loading,
+            }
+        )
+    return rows, r2
 
 
 def convergent(ts: Any, channel: Any, **kwargs: Any) -> Any:
