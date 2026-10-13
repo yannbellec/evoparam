@@ -27,7 +27,12 @@ the minimal case and `evoparam report` / `evoparam migrate` every time before th
 - `_read_table` (`evoparam.data.serialize`) reads parquet through a pyarrow file system
   (`pd.read_parquet(path, filesystem=pyarrow.fs.LocalFileSystem())`): pyarrow opens the
   file and reads it into its own buffers, so its threads hold no Python object. The
-  tables read are the same.
+  tables read are the same: on the 22 parquet tables of every result type and of a
+  `TrialSet`, the frames (values, dtypes, index, columns, attrs) equal those of
+  `pd.read_parquet(path)` with pandas 2.0.3 (pyarrow 14, the floors), 2.3.3 and 3.0.6.
+  `filesystem=` is a named argument of `read_parquet` from pandas 2.1; pandas 2.0 takes
+  it in `**kwargs` and handles it the same way (test_serialize.py passes with pandas
+  2.0.3 and pyarrow 14).
 - Test: pyarrow receives a path and a pyarrow file system, never a Python file object
   (container directory and zip); it fails before the fix.
 
