@@ -205,9 +205,14 @@ def projection_test(
     }
     extra = []
     # the random pairs of every channel, drawn in channel order (independent of n_jobs)
-    orders = [None if pairs == "half" else
-              _sign_patterns(n, rng) if pairs == "signflip" else rng.permutation(n)
-              for _ in range(n_ch)]
+    orders = [
+        None
+        if pairs == "half"
+        else _sign_patterns(n, rng)
+        if pairs == "signflip"
+        else rng.permutation(n)
+        for _ in range(n_ch)
+    ]
     units = [(np.nan_to_num(data[:, c, win]), tw, profile, pairs, orders[c]) for c in range(n_ch)]
     for c, (end, stat, p, info) in enumerate(
         parallel_map(_channel_unit, units, n_jobs, desc="test_response")

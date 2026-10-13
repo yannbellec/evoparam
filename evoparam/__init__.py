@@ -48,11 +48,27 @@ if TYPE_CHECKING:  # the names imported on first use, for type checkers and IDEs
     from .models import ResponseModel as ResponseModel
     from .reports import reproduce as reproduce
 
-_SUBPACKAGES = frozenset({
-    "artifact", "benchmark", "events", "existence", "hierarchical", "io", "models", "plots",
-    "presets", "reports", "shapes", "sim", "spatial", "stats", "stream", "tf",
-    "trials",
-})
+_SUBPACKAGES = frozenset(
+    {
+        "artifact",
+        "benchmark",
+        "events",
+        "existence",
+        "hierarchical",
+        "io",
+        "models",
+        "plots",
+        "presets",
+        "reports",
+        "shapes",
+        "sim",
+        "spatial",
+        "stats",
+        "stream",
+        "tf",
+        "trials",
+    }
+)
 _ROOT_FUNCTIONS = {
     "detect_events": ("events", "detect_events"),
     "fit": ("existence", "fit"),
@@ -76,6 +92,7 @@ from .prep import register_detector as _register_detector  # noqa: E402  (13 ms)
 
 _existence_detector.__name__ = _existence_detector.__qualname__ = "existence_detector"
 _register_detector("existence", _existence_detector)
+
 
 def selftest(*, tolerance: float = 0.001) -> float:
     """Fit one bundled synthetic CCEP and check the recovered N1 latency (REQ-291).
