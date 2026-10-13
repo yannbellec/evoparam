@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
-# Derived from SciPy (scipy/optimize/_lsq/trf.py and common.py, BSD-3-Clause, named in NOTICE),
-#   through evoparam/models/_trf.py; changes: written as loops over arrays for numba, together
-#   with the design columns, the whitening and the Householder QR of the variable projection
+# Derived from SciPy (BSD-3-Clause, named in NOTICE): the trust-region reflective solver
+#   (scipy/optimize/_lsq/trf.py and common.py, through evoparam/models/_trf.py) and the
+#   rational approximations of erfc of the Cephes library as SciPy distributes them
+#   (ndtr.c); changes: written as loops over arrays for numba, together with the design
+#   columns, the whitening and the Householder QR of the variable projection
 """Compiled fit of one model structure: the ``fast`` extra (numba), spec §9.2.
 
 :func:`optimise` does what ``engine._optimise`` does with the lean trust-region solver
@@ -17,13 +19,26 @@ goes through the NumPy path, which stays the reference. A design that is not fin
 clearly of full rank stops the kernel (status ``FALLBACK``), and the NumPy path, which
 takes the SVD route there, fits that structure from the start.
 
-The arithmetic follows the NumPy path operation by operation, but the exponential and the
-error function come from the C library instead of NumPy and SciPy, and the QR
-factorisations are unblocked Householder reflections instead of LAPACK's: results agree
-to rounding, and the optima to the solver tolerance.
+The arithmetic follows the NumPy path operation by operation, except for:
+
+- the exponential (:func:`_vexp`, within one ulp) and the error function
+  (:func:`_verfc`, Cephes' rational approximations, which SciPy uses) written so that
+  their loops vectorise;
+- a component taken as 0 more than ``SUPPORT_Z`` widths from its centre, where it is below
+  1e-31 of its peak;
+- the QR factorisations, unblocked Householder reflections instead of LAPACK's blocked
+  ones, and the SVD of the trust-region step, a QR factorisation followed by the one-sided
+  Jacobi method instead of LAPACK's ``gesdd``;
+- the Jacobian at the last point, which SciPy computes after the termination test and
+  does not use, is not computed.
+
+Results agree to rounding, and the optima to the solver tolerance
+(``tests/models/test_fast_kernel.py``).
 
 numba is imported only by :func:`kernel` (through ``utils.require``), the first time a fit
-needs it; without numba the engine uses the NumPy path.
+needs it; without numba the engine uses the NumPy path. The functions are compiled with
+``error_model="numpy"``: a division by zero gives an infinity or NaN, as in NumPy, which
+the checks of the NumPy path then catch, instead of raising.
 """
 
 import math
@@ -170,8 +185,9 @@ _S0, _S1, _S2, _S3, _S4, _S5 = _ERFC_S
 
 
 def _vexp(x: FloatArray, out: FloatArray, bits: IntArray) -> None:
-    """``out[i] = exp(x[i])``; 0 below ``_EXP_LOW``.
+    """``out[i] = exp(x[i])``; 0 below ``_EXP_LOW``, NaN for NaN.
 
+    For ``x <= 709`` (2^k must be a normal number): every argument here is at most 0.
     ``out`` must not be ``x``: LLVM vectorises the loop only for distinct arrays.
     """
     n = x.shape[0]
@@ -847,14 +863,14 @@ def _select_step(
 
 def _svd_stacked(
     top: FloatArray, diag: FloatArray, f_top: FloatArray
-) -> tuple[FloatArray, FloatArray, FloatArray]:
+) -> tuple[FloatArray, FloatArray, FloatArray, bool]:
     """SVD of ``A = [top; diag(diag)]`` (``(r + n) x n``) for the trust-region step.
 
-    Returns ``s`` (descending), ``V`` (the right singular vectors as columns) and ``U^T b`` for
-    ``b = [f_top; 0]``: what ``_trf`` takes from LAPACK's ``gesdd``. ``A = Q R`` by Householder
-    reflections, then the one-sided Jacobi SVD (Hestenes) of ``R``: accurate to the last bits
-    for the small singular values too, and faster than ``gesdd`` on matrices of a few
-    columns.
+    Returns ``s`` (descending), ``V`` (the right singular vectors as columns), ``U^T b`` for
+    ``b = [f_top; 0]`` (what ``_trf`` takes from LAPACK's ``gesdd``) and False when the
+    iteration did not converge (non-finite entries), where ``gesdd`` fails. ``A = Q R`` by
+    Householder reflections, then the one-sided Jacobi SVD (Hestenes) of ``R``: accurate for
+    the small singular values too, and faster than ``gesdd`` on matrices of a few columns.
     """
     r, n = top.shape
     m = r + n
@@ -881,6 +897,7 @@ def _svd_stacked(
     # (||b_p||^2 - t gamma, ||b_q||^2 + t gamma) within it. Rows are indexed in place: a
     # view per pair costs more than its few products
     sq = np.empty(n)
+    converged = False
     for _ in range(60):
         for j in range(n):
             total = 0.0
@@ -912,6 +929,7 @@ def _svd_stacked(
                     v[p, i] = cos * x_p - sin * x_q
                     v[q, i] = sin * x_p + cos * x_q
         if not rotated:
+            converged = True
             break
     norms = np.empty(n)
     for j in range(n):
@@ -927,7 +945,10 @@ def _svd_stacked(
             v_mat[i, k] = v[j, i]
         if norms[j] > 0:
             uf[k] = np.dot(b[j], rhs[:n]) / norms[j]
-    return s, v_mat, uf
+    for k in range(n):
+        if not math.isfinite(s[k]):
+            converged = False
+    return s, v_mat, uf, converged
 
 
 ###################################################################################################
@@ -1157,7 +1178,9 @@ def optimise(
         for i in range(n_rows):
             for j in range(n_par):
                 j_h[i, j] = jr[i, j] * d[j]
-        s, v_mat, uf = _svd_stacked(j_h, diag_h**0.5, jf[:n_rows])
+        s, v_mat, uf, converged = _svd_stacked(j_h, diag_h**0.5, jf[:n_rows])
+        if not converged:
+            return LINALG_ERROR, x0.copy(), 0, empty, empty
         theta_step = max(0.995, 1 - g_norm)
 
         actual_reduction = -1.0

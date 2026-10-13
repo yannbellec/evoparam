@@ -603,12 +603,15 @@ class _Structure:
         """
         if self._aug is None:
             n_cols = len(self.shapes) + self.n_lin_bg
-            # the same for every structure of a fit (one memo per fit)
-            b = self.memo.get("white_y") if self.memo is not None else None
-            if b is None:
+            # the same for every structure of a fit (one memo per fit) that holds these data
+            # (the bootstrap and the cross-validation refit copies with other data)
+            known = self.memo.get("white_y") if self.memo is not None else None
+            if known is not None and known[0] is self.y:
+                b = known[1]
+            else:
                 b = self.white(self.y)
                 if self.memo is not None:
-                    self.memo["white_y"] = b
+                    self.memo["white_y"] = (self.y, b)
             rows = self.prior_rows(n_cols)
             if rows is not None:
                 target = np.zeros(len(rows))

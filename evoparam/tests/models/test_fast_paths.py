@@ -156,3 +156,91 @@ def test_features_scale_with_the_amplitude(name: Any) -> None:
             scaled = api._scaled_features(unit, amp)
             for a, b in zip(direct.to_dict().values(), scaled.to_dict().values(), strict=False):
                 assert a == b or (np.isnan(a) and np.isnan(b))
+
+
+class _WholeGrid:
+    """A shape without ``support``: its features are measured on the whole fine grid."""
+
+    def __init__(self, shape: Any) -> None:
+        self._shape = shape
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "support":
+            raise AttributeError(name)
+        return getattr(self._shape, name)
+
+
+@pytest.mark.parametrize("name", ["gaussian", "skewed_gaussian"])
+def test_features_on_the_cut_grid_are_those_of_the_whole_grid(name: Any) -> None:
+    """The grid is built only where the curve reaches the levels the features read, and the
+    area reuses the curve on it: the same numbers, bit for bit."""
+
+    rng = np.random.default_rng(4)
+    shape = get_shape(name, min_fwhm=0.003, max_fwhm=0.25)
+    tw = np.arange(0.009, 0.5, 1 / 2048.0)
+    for _ in range(150):
+        p = [rng.uniform(-0.1, 0.7), 10 ** rng.uniform(-3.5, -0.8)]
+        p += [rng.uniform(-10, 10)] if name == "skewed_gaussian" else []
+        for sfreq, onset in ((2048.0, 0.1), (512.0, 0.1), (2048.0, 0.01), (1024.0, 0.95)):
+            kwargs = {"sfreq": sfreq, "window": (tw[0], tw[-1]), "onset_fraction": onset}
+            cut = compute_features(shape, tw, p, -3.0, **kwargs).to_dict()
+            whole = compute_features(_WholeGrid(shape), tw, p, -3.0, **kwargs).to_dict()
+            for a, b in zip(cut.values(), whole.values(), strict=True):
+                assert a == b or (np.isnan(a) and np.isnan(b))
+
+
+def test_grid_search_is_searchsorted_on_the_built_grid() -> None:
+
+    from evoparam.shapes._base import _grid_search, _grid_spec, feature_grid
+
+    rng = np.random.default_rng(5)
+    for _ in range(40):
+        tw = np.arange(rng.uniform(-0.5, 0.1), rng.uniform(0.2, 2.0), 1 / rng.choice([256, 2048]))
+        origin, step, n_points, _ = _grid_spec(tw, None, None)
+        grid = feature_grid(tw)[0]
+        picks = grid[rng.integers(0, len(grid), 20)]
+        values = np.r_[
+            rng.uniform(grid[0] - 1, grid[-1] + 1, 20),
+            picks,
+            np.nextafter(picks, np.inf),
+            np.nextafter(picks, -np.inf),
+            np.nan,
+            np.inf,
+            -np.inf,
+        ]
+        for value in values:
+            for side in ("left", "right"):
+                found = _grid_search(origin, step, n_points, float(value), side == "right")
+                assert found == np.searchsorted(grid, value, side=side)
+
+
+def test_copies_with_other_data_whiten_their_own() -> None:
+    """The whitened data are shared by the structures of a fit, not by the copies that the
+    bootstrap and the cross-validation make with other data."""
+
+    import dataclasses
+
+    struct, _ = _struct()
+    struct._target()
+    other = struct.y + noise(np.random.default_rng(6), 0.5, n=len(struct.y))
+    copy = dataclasses.replace(struct, y=other)
+    n = len(struct.tw)
+    assert np.array_equal(copy._target()[0][:n], copy.white(other))
+    assert np.array_equal(struct._target()[0][:n], struct.white(struct.y))
+
+
+@pytest.mark.parametrize("rho", [0.0, 0.5, 0.9, 0.99])
+def test_ar_orders_from_one_qr_are_the_least_squares_ones(rho: Any) -> None:
+    """ar_model solves the nested least-squares problems from one QR factorisation."""
+
+    rng = np.random.default_rng(int(rho * 100))
+    for n in (60, 300, 1000):
+        z = noise(rng, rho, n=n)
+        a, innovation = eng.ar_model(z)
+        p = len(a) - 1
+        zc = z - np.mean(z)
+        p_max = int(min(eng.MAX_AR_ORDER, n // eng.SAMPLES_PER_ORDER))
+        if p:
+            lagged = np.column_stack([zc[p_max - k : n - k] for k in range(1, p + 1)])
+            phi = np.linalg.lstsq(lagged, zc[p_max:], rcond=None)[0]
+            np.testing.assert_allclose(-a[1:], phi, rtol=1e-9, atol=1e-12)
