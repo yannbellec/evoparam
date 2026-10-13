@@ -1,0 +1,136 @@
+{
+ "cells": [
+  {
+   "cell": "single_trial-p001",
+   "input_sha256": "fbeb990dcabdc7c506f52de83b4e90a2b9383f96b017b7f41a78a90fc937e8bf",
+   "metrics": {
+    "latency_mae": 0.008494263954052603,
+    "n_reported": 80
+   },
+   "output_sha256": "74bc2ab1f1ded6885b05e6bb768795aabb6e3c36bc2c776c6bb81946b4ecc531",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p002",
+   "input_sha256": "a6e397e7397b80060e606bc613af49ac96bdc16722b3d2168ccba064b03825f4",
+   "metrics": {
+    "latency_mae": 0.015113228124234457,
+    "n_reported": 80
+   },
+   "output_sha256": "484a3a8d47a3dda5457485631584592e0180115d468592831e6c7f6f22259f7f",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p003",
+   "input_sha256": "1a54469d655a7101391e05d3b41c8cf5d2a8b8e8826ddb89575eb1c192cf2c0b",
+   "metrics": {
+    "latency_mae": 0.021776057142976292,
+    "n_reported": 40
+   },
+   "output_sha256": "940a7f8ac8cfef2839317ddb2c68742d7fad2b3fb08400f552cc9d26782bb7db",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p004",
+   "input_sha256": "41130494474f49f729fcb5c9ba560f589e77095d1f9214e68fffaf8a07c3b17e",
+   "metrics": {
+    "latency_mae": 0.01901532686063066,
+    "n_reported": 80
+   },
+   "output_sha256": "2113c1b1674679844e3e7298323120eb69f507d6818cf48f33d43f366bd8042a",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p005",
+   "input_sha256": "0deb588bf66bb9fdbd8ce56959f6056c5bb7c3854545718c4a05e75c7c7fc142",
+   "metrics": {
+    "latency_mae": 0.00142083657916141,
+    "n_reported": 120
+   },
+   "output_sha256": "78c95cfc0690cbd9d08d3460c7f2e45d1cb7c72aebd19898599608522ba36461",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p006",
+   "input_sha256": "c5d045a90b287e8722cd65f37f1136038a6e658e2b3e8e577db41f9cc528e7a2",
+   "metrics": {
+    "latency_mae": 0.0009615679696855744,
+    "n_reported": 120
+   },
+   "output_sha256": "b6c3f9d3d4d439e06f53316dddb95c92967dc9066eb6625b9524c85903895a8d",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p007",
+   "input_sha256": "91fdb712e3d473da4c352a952474358b349793641261b3603431b535e1177e07",
+   "metrics": {
+    "latency_mae": 0.0018319304329195028,
+    "n_reported": 60
+   },
+   "output_sha256": "484c5793f90a6e1d50069902c58e779d764aa44aceb2f486530d27f0cd70209f",
+   "split": "public"
+  },
+  {
+   "cell": "single_trial-p008",
+   "input_sha256": "6e8c5ba092df717b215d3f276ac23221b1f3e90aadde8f0c1d9fda2e3db4cc67",
+   "metrics": {
+    "latency_mae": 0.0015236856939357846,
+    "n_reported": 120
+   },
+   "output_sha256": "0c41bdeb186a56219cc80219b6bd45ebc3ccb7b80d7b4bf0124804c185a05742",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "amplitude_r": -0.1739866058085795,
+  "amplitude_rel_mae": 1.5002958495503715,
+  "jitter_sd_rel_error": 0.3454367721382224,
+  "latency_mae": 0.00694216350848796,
+  "latency_r": 0.4038782327032545
+ },
+ "inputs_sha256": "711af9ef00d28aa2bfd9ed50381bb03dd03eea3bc212f87c8d949342b8742aff",
+ "method": {
+  "citation": "Woody-style template alignment (LIT-erpmeas-7), evoparam.trials",
+  "description": "template (Woody-style) single-trial alignment (spec §5.7)",
+  "kind": "baseline",
+  "name": "template",
+  "settings": {
+   "mode": "template"
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "amplitude_mae": 50.45106268415379,
+  "amplitude_r": -0.1739866058085795,
+  "amplitude_rel_mae": 1.5002958495503715,
+  "jitter_sd_error": 0.003017741785209226,
+  "jitter_sd_rel_error": 0.3454367721382224,
+  "latency_bias": 0.0011210101989638454,
+  "latency_mae": 0.00694216350848796,
+  "latency_r": 0.4038782327032545,
+  "n_reported": 700,
+  "n_true": 800,
+  "reported_fraction": 0.875
+ },
+ "missing_cells": [],
+ "outputs_sha256": "37a3b0f4bf095045fff32de8e086ff5447172332b69759a7beff3b9c2d26a7a9",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "f0d79275245a99ecc126e8f7bfdf8c4f698425e5bacade3cbc09f625ec272f2d"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T5",
+ "task_name": "single-trial estimation",
+ "task_schema": "benchmark-task/T5/1"
+}

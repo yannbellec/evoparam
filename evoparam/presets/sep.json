@@ -1,0 +1,84 @@
+{
+  "name": "sep",
+  "polarity": "both",
+  "existence_method": "baseline_permutation",
+  "existence_alpha": 0.05,
+  "selection": "bic",
+  "delta": 10.0,
+  "uncertainty": "jacobian",
+  "version": "1.0",
+  "modality": "scalp/epidural SEP",
+  "species": [
+    "human"
+  ],
+  "epoch": [
+    -0.05,
+    0.1
+  ],
+  "baseline": [
+    -0.05,
+    -0.005
+  ],
+  "artifact_window": [
+    -0.0005,
+    0.003
+  ],
+  "artifact_method": "interpolate",
+  "reference": "as_recorded",
+  "fit_window": [
+    0.01,
+    0.06
+  ],
+  "shapes": [
+    "gaussian",
+    "skewed_gaussian"
+  ],
+  "background": "constant",
+  "max_components": 5,
+  "min_fwhm": 0.002,
+  "max_fwhm": 0.025,
+  "component_labels": {
+    "N20": [
+      0.017,
+      0.024
+    ],
+    "P25": [
+      0.022,
+      0.03
+    ],
+    "N33": [
+      0.028,
+      0.04
+    ],
+    "P37": [
+      0.033,
+      0.045
+    ],
+    "N45": [
+      0.04,
+      0.055
+    ]
+  },
+  "label_polarity": {
+    "N20": -1,
+    "P25": 1,
+    "N33": -1,
+    "P37": 1,
+    "N45": -1
+  },
+  "trial_fit": false,
+  "trial_mode": null,
+  "citation": [
+    "LIT-domains-19",
+    "LIT-domains-20"
+  ],
+  "choices": {
+    "max_fwhm": "about half of the 10-60 ms fit window"
+  },
+  "notes": {
+    "component_labels": "N20, P25, N33 for median nerve; P37, N45 for tibial nerve",
+    "background": "constant instead of the linear background of spec \u00a76.1: with a free linear drift the N20 of simulated median-nerve SEPs was described as a falling drift between two positive components, and found in 9 of 20 runs at SNR 5 (white noise); 20 of 20 with a constant (CHANGELOG, step S15)"
+  },
+  "validation": "simulation (REQ-277)",
+  "fit_extras": {}
+}

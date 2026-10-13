@@ -1,0 +1,141 @@
+{
+ "cells": [
+  {
+   "cell": "tf-p001",
+   "input_sha256": "b2ff4b60f52c2d4c4de17e8460161bfb36a9df8dc0b38cc2877432b5118d8124",
+   "metrics": {
+    "n_bursts": 0,
+    "n_zones": 0,
+    "recovered": 0
+   },
+   "output_sha256": "63de8da005daa081788e7292be6c778a3402003cae021d5492070d9a60dee993",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p002",
+   "input_sha256": "adf675f806893a52264a11b2d05b2da48a1306787092b2fc639985ce8b6b87aa",
+   "metrics": {
+    "n_bursts": 0,
+    "n_zones": 0,
+    "recovered": 0
+   },
+   "output_sha256": "63de8da005daa081788e7292be6c778a3402003cae021d5492070d9a60dee993",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p003",
+   "input_sha256": "6e5a4b67fb4f77f1c436691db296747a4aa6d6e1d6bf856992c05c7bc3845248",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 1,
+    "recovered": 0
+   },
+   "output_sha256": "8488d97c6563a5d90ae40e77083f05f012751827ce1cecc2c48e2aa34061738b",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p004",
+   "input_sha256": "4bc6263ecc799f064391cdc2c07e52290b7b731f2126929a7884349138539a4a",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 1,
+    "recovered": 1
+   },
+   "output_sha256": "fcc0cea156e53229b246e02a763026ecc977fbb21447baba2eabaad8596dea7b",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p005",
+   "input_sha256": "8408a51fe9d11dc0c6d4ba1748dd9e374af74aacfa06798943def2b0438b3ae4",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 1,
+    "recovered": 1
+   },
+   "output_sha256": "5abda812bf3cbe0c98606f0c9373d59895c1daf3ceae47e9999451de55d44b94",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p006",
+   "input_sha256": "20e03988a2f7c09755b39e44ed9763c399bcc19fdcb89fb2f576f29276f6bebc",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 1,
+    "recovered": 1
+   },
+   "output_sha256": "d5f632fc55f958877ff01ce492270b9198465d57cabe8a28c1c9999b3c119a88",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p007",
+   "input_sha256": "6e0b96e1c6c718c10bbfb3e19922a2490cdd5866296ce35e2ecb316742fc4d66",
+   "metrics": {
+    "n_bursts": 1,
+    "n_zones": 1,
+    "recovered": 1
+   },
+   "output_sha256": "30d3fc2065e1b4d2de825c4d2fd9e2282bb33f950dec46d5516937e80ee30357",
+   "split": "public"
+  },
+  {
+   "cell": "tf-p008",
+   "input_sha256": "0e884ba8fdf41f02a2787a1d1fd04d4d79aac3b95b91931e8129190a4151f817",
+   "metrics": {
+    "n_bursts": 2,
+    "n_zones": 2,
+    "recovered": 2
+   },
+   "output_sha256": "648be35f11da730deacad7bea2cf30263002a8fbf23865311369a5271b2f4420",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "freq_centroid_rel_error": 0.13365477190993277,
+  "recovery_rate": 0.8571428571428571,
+  "time_centroid_error": 0.013018843716883641,
+  "type_i_error": 0.0
+ },
+ "inputs_sha256": "03e60d6786fa4f89dadc0b77eb2bf310e5c97fa7a75424668020288807795789",
+ "method": {
+  "citation": "evoparam.tf with cluster-mass permutations (spec §5.10)",
+  "description": "evoparam.tf with cluster-mass permutations",
+  "kind": "baseline",
+  "name": "tf-cluster",
+  "settings": {
+   "n_permutations": 1000,
+   "stats": "cluster"
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "extra_zones_per_channel": 0.0,
+  "freq_centroid_rel_error": 0.13365477190993277,
+  "n_bursts": 7,
+  "n_null_channels": 2,
+  "recovered": 6,
+  "recovery_rate": 0.8571428571428571,
+  "time_centroid_error": 0.013018843716883641,
+  "type_i_error": 0.0
+ },
+ "missing_cells": [],
+ "outputs_sha256": "0f3c7facf1a193830047b71328876b20904fa3c9998424f1fb97b6d282ab1ff4",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "11f51568c682433fe68e3b2b838605e0ccc4dfdbd7abd3d55e71457671333567"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T7",
+ "task_name": "time-frequency response",
+ "task_schema": "benchmark-task/T7/1"
+}

@@ -1,0 +1,52 @@
+# Smoke test of the published package (spec §9.5, REQ-300 c): after every release and
+# weekly, a clean virtual environment installs evoparam from PyPI, runs the self-test and the
+# command line. Before the HIIE decision nothing is on PyPI, so the job stops at the gate
+# (RELEASING.md).
+
+name: smoke
+
+on:
+  release:
+    types: [ published ]
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "version to install (default: the latest release)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        sparse-checkout: RELEASING.md
+    - name: HIIE gate (REQ-398)
+      run: |
+        if grep -q "HIIE decision: not on record" RELEASING.md; then
+          echo "::notice::nothing is published before the HIIE decision (RELEASING.md)"
+          exit 0
+        fi
+        echo "published=yes" >> "$GITHUB_ENV"
+    - uses: actions/setup-python@v5
+      if: env.published == 'yes'
+      with:
+        python-version: "3.12"
+    - name: Clean environment, install from PyPI
+      if: env.published == 'yes'
+      run: |
+        python -m venv /tmp/smoke
+        V="${{ github.event.inputs.version || github.event.release.tag_name }}"
+        V="${V#v}"
+        if [ -n "$V" ]; then /tmp/smoke/bin/pip install "evoparam==$V"; else /tmp/smoke/bin/pip install evoparam; fi
+    - name: Self-test and command line
+      if: env.published == 'yes'
+      run: |
+        cd /tmp
+        /tmp/smoke/bin/python -c "import evoparam; evoparam.selftest()"
+        /tmp/smoke/bin/evoparam fit --help

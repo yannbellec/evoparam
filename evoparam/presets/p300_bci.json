@@ -1,0 +1,56 @@
+{
+  "name": "p300_bci",
+  "polarity": "both",
+  "existence_method": "baseline_permutation",
+  "existence_alpha": 0.05,
+  "selection": "bic",
+  "delta": 10.0,
+  "uncertainty": "jacobian",
+  "version": "1.0",
+  "modality": "scalp EEG",
+  "species": [
+    "human"
+  ],
+  "epoch": [
+    -0.2,
+    0.8
+  ],
+  "baseline": [
+    -0.2,
+    0.0
+  ],
+  "artifact_window": null,
+  "artifact_method": null,
+  "reference": "as_recorded",
+  "fit_window": [
+    0.2,
+    0.7
+  ],
+  "shapes": [
+    "gaussian",
+    "skewed_gaussian"
+  ],
+  "background": "constant",
+  "max_components": 4,
+  "min_fwhm": 0.02,
+  "max_fwhm": 0.3,
+  "component_labels": {
+    "P3": [
+      0.25,
+      0.6
+    ]
+  },
+  "label_polarity": {
+    "P3": 1
+  },
+  "trial_fit": true,
+  "trial_mode": "shift_scale",
+  "citation": [
+    "LIT-domains-66",
+    "LIT-domains-71"
+  ],
+  "validation": "pending: bigP3BCI",
+  "choices": {},
+  "notes": {},
+  "fit_extras": {}
+}

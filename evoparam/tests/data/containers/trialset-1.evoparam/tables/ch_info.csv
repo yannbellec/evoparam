@@ -1,0 +1,4 @@
+name,type,x,bad
+CH00,ecog,0.0,False
+CH01,ecog,1.0,False
+CH02,ecog,2.0,False

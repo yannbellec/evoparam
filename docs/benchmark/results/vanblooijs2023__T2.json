@@ -1,0 +1,165 @@
+{
+ "cells": [
+  {
+   "cell": "ccep_detection-p001",
+   "input_sha256": "4804fab6e78ee2072db1de82f85f412f6828cf183a584edced66f28405d99674",
+   "metrics": {
+    "latency_bias": 0.019534482934102582,
+    "latency_mae": 0.019534482934102582,
+    "n_reported": 2,
+    "n_true": 2,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "f5a26cb9446cd20741aa8787c659afb9a988c3d2245655401d6f6dee25023c80",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p002",
+   "input_sha256": "b92fb355b45d73110c6b8e011b63cd0f73c574d447ee2cb693fa710bb3f5066b",
+   "metrics": {
+    "latency_bias": 0.032141085951873816,
+    "latency_mae": 0.03323961633413022,
+    "n_reported": 4,
+    "n_true": 5,
+    "reported_fraction": 0.8
+   },
+   "output_sha256": "0af0c73393926487ac79fc9a75f2c7fa3d79c2cf3df6f0acaf5fd629a37e0c5b",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p003",
+   "input_sha256": "2868fabd46114d6c0ea00d642068f15d77005cfaaec223bb2cb801a66463e344",
+   "metrics": {
+    "latency_bias": 0.024521291504845347,
+    "latency_mae": 0.024521291504845347,
+    "n_reported": 6,
+    "n_true": 6,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "d56b376850aba13bf82421335d7e184213edc1bc8818bb7a665e400be3a49ed4",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p004",
+   "input_sha256": "da7be98164319627f55593cff353fa01499de935711c0c8926970acaedbb5cf7",
+   "metrics": {
+    "latency_bias": 0.009248481982336552,
+    "latency_mae": 0.010151347070684612,
+    "n_reported": 8,
+    "n_true": 8,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "5524851a3b53cdf1ba71b1aab3f2d8a9b72b5fa1aa5f0acf68e397d736efb83b",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p005",
+   "input_sha256": "70f363880fcb38b0c1f1d408fa8175a55d70ba30368a2ed3063266f8428347fa",
+   "metrics": {
+    "latency_bias": -0.0008575606079628227,
+    "latency_mae": 0.000924829870416486,
+    "n_reported": 5,
+    "n_true": 6,
+    "reported_fraction": 0.8333333333333334
+   },
+   "output_sha256": "47cf020f355bfa1155cf3a7a84574c40a6b0a91aba493ea81707e4b8a3bd708d",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p006",
+   "input_sha256": "c3e7c8e50abf118110736b6e4df5b535a652f8dd427bdf1ae6eb8c107ffc81c5",
+   "metrics": {
+    "latency_bias": -0.00012795763371053324,
+    "latency_mae": 0.0014907515601944232,
+    "n_reported": 9,
+    "n_true": 9,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "50e86f82754fe3b621ae65824462e940d8c95aa37cb952cbff5af5331bd12a08",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p007",
+   "input_sha256": "2bbdd6c93ede75362902eee595b022952e2843ed86e95e572c0c0d81b13f9e9e",
+   "metrics": {
+    "latency_bias": 5.552642494005902e-05,
+    "latency_mae": 0.0007549228324581873,
+    "n_reported": 4,
+    "n_true": 4,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "48fd035b932b3d66de3f71ec932afce106bf6e5e83c8ae63a05f8dfd7076b784",
+   "split": "public"
+  },
+  {
+   "cell": "ccep_detection-p008",
+   "input_sha256": "3d9f56dada8bea67ab4307c005e08e40a3423814147d50e42ca5a0ee528c28fc",
+   "metrics": {
+    "latency_bias": -0.0003322693294236225,
+    "latency_mae": 0.0005288389434407469,
+    "n_reported": 11,
+    "n_true": 11,
+    "reported_fraction": 1.0
+   },
+   "output_sha256": "f730f43cfc2ac533c632adcc933f14f39006c5855409fd102e8641d3e335e27f",
+   "split": "public"
+  }
+ ],
+ "headline": {
+  "amplitude_rel_mae": 0.25662412730229456,
+  "coverage_latency": null,
+  "latency_bias": 0.00775258440604809,
+  "latency_mae": 0.008719261018383434,
+  "reported_fraction": 0.9607843137254902
+ },
+ "inputs_sha256": "d36580fb6e7fc4ddd0572146312a50a382842579f10801d86f4c565321c7aff9",
+ "method": {
+  "citation": "van Blooijs et al. 2023, Nat Neurosci (LIT-ccep-7, LIT-ccep-8)",
+  "description": "published threshold rule 'vanblooijs2023' of the registry of spec §5.6, applied to the letter",
+  "kind": "baseline",
+  "name": "vanblooijs2023",
+  "settings": {
+   "overrides": {
+    "baseline": [
+     -1.0,
+     -0.1
+    ]
+   },
+   "rule": "vanblooijs2023"
+  },
+  "version": "0.1.0.dev0"
+ },
+ "metrics": {
+  "amplitude_bias": -5.836000610493997,
+  "amplitude_mae": 6.950655122232073,
+  "amplitude_rel_mae": 0.25662412730229456,
+  "coverage_amplitude": null,
+  "coverage_latency": null,
+  "latency_bias": 0.00775258440604809,
+  "latency_mae": 0.008719261018383434,
+  "n_reported": 49,
+  "n_true": 51,
+  "reported_fraction": 0.9607843137254902
+ },
+ "missing_cells": [],
+ "outputs_sha256": "0765058ed53515b3f1bd485649a5f7dc8eccb150b935770a521478a3d67013cd",
+ "package": {
+  "name": "evoparam",
+  "version": "0.1.0.dev0"
+ },
+ "schema": "evoparam-benchmark-result/1",
+ "signature": {
+  "algorithm": "sha256",
+  "covers": "canonical JSON of this document without 'signature' (keys sorted, no whitespace, UTF-8, NaN as null)",
+  "digest": "5eaf1a5b6a1161a165437c741c6fd0cfa00f02ebdb43c4af6ed0a783b5157c1f"
+ },
+ "suite": {
+  "hidden_seeds": false,
+  "name": "core",
+  "sha256": "398eed45e70438dead840270d462719fe57e95e637db05d1ea5ac48d04b1cbfd",
+  "version": "1.0.0"
+ },
+ "task": "T2",
+ "task_name": "early component latency and amplitude",
+ "task_schema": "benchmark-task/T2/1"
+}

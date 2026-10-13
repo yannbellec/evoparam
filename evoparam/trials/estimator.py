@@ -1,0 +1,159 @@
+# SPDX-License-Identifier: Apache-2.0
+"""``TrialFitter``: trial-by-trial parameters with the scikit-learn conventions (spec §10.4)."""
+
+from typing import TYPE_CHECKING
+
+import numpy as np
+
+from evoparam._typing import Any, NDArray
+from evoparam.errors import DataError, SettingsError
+from evoparam.utils._estimator import (
+    BaseEstimatorMixin,
+    TransformerMixin,
+    check_is_fitted,
+    validate_array,
+)
+
+if TYPE_CHECKING:
+    from evoparam.data.containers import TrialSet
+    from evoparam.data.results import GroupFit
+
+__all__ = ["TrialFitter"]
+
+
+class TrialFitter(BaseEstimatorMixin, TransformerMixin):
+    """Learn each channel's template, then give every trial's shift, scale and latency.
+
+    The template is learned on the trial average (``fit``); ``transform`` gives the shift, scale
+    and latency per component.
+
+    Parameters
+    ----------
+    preset : str or Preset, optional
+        Fitting preset (default: the package defaults with ``fit_window``).
+    sfreq, tmin : float, optional
+        Sampling rate and first time when X is an array (n_trials, n_channels, n_times).
+    fit_window : (float, float), optional
+    max_components : int, optional
+        Component slots per channel in the feature matrix (default: the most found).
+    mode : str
+        Trial model of ``evoparam.trials.fit_trials``.
+    random_state : int, optional
+    """
+
+    def __init__(
+        self,
+        preset: Any = None,
+        *,
+        sfreq: float | None = None,
+        tmin: float | None = None,
+        fit_window: Any = None,
+        max_components: Any = None,
+        mode: str = "shift_scale",
+        random_state: Any = None,
+    ) -> None:
+        self.preset = preset
+        self.sfreq = sfreq
+        self.tmin = tmin
+        self.fit_window = fit_window
+        self.max_components = max_components
+        self.mode = mode
+        self.random_state = random_state
+
+    def _trials(self, x: Any, *, reset: Any) -> "TrialSet":
+        """X as a TrialSet.
+
+        An array is (n_trials, n_times) for one channel or (n_trials, n_channels, n_times), checked
+        the scikit-learn way (dense, real, finite; after ``fit`` as many time points as in
+        ``fit``).
+        """
+        from evoparam.data import TrialSet
+        from evoparam.models.api import _from_mne
+
+        x = _from_mne(x)
+        if isinstance(x, TrialSet):
+            if reset:
+                self.n_features_in_: int = int(x.n_times)
+            elif x.n_times != self.n_features_in_:
+                raise DataError(
+                    f"X has {x.n_times} time points, but TrialFitter is "
+                    f"expecting {self.n_features_in_}."
+                )
+            return x
+        data = validate_array(self, x, reset=reset, ndim=3)
+        if data.ndim == 2:
+            data = data[:, None, :]
+        if self.sfreq is None:
+            raise SettingsError("sfreq is required when X is an array.")
+        tmin = 0.0 if self.tmin is None else self.tmin
+        times = tmin + np.arange(data.shape[-1]) / self.sfreq
+        return TrialSet(
+            data=data,
+            times=times,
+            sfreq=self.sfreq,
+            ch_names=[f"ch{i}" for i in range(data.shape[1])],
+        )
+
+    def fit(self, X: Any, y: Any = None) -> "TrialFitter":  # noqa: N803, ARG002  (scikit-learn API: X, y)
+        """Fit the trial average of each channel (``group_fit_``); ``y`` is ignored.
+
+        Without ``fit_window`` and preset the window is the data range.
+        """
+        from evoparam.models import ResponseModel
+
+        trials = self._trials(X, reset=True)
+        model = ResponseModel(
+            self.preset,
+            fit_window=self.fit_window,
+            max_components=self.max_components,
+            random_state=self.random_state,
+        ).fit(trials)
+        self.group_fit_: GroupFit = model.fit_
+        found = [len(f.components) for f in self.group_fit_.fits]
+        self.n_components_: int = int(self.max_components or max(found + [1]))
+        self.ch_names_: list[str] = list(trials.ch_names)
+        return self
+
+    def transform(self, X: Any) -> NDArray[Any]:  # noqa: N803  (scikit-learn API: X)
+        """(n_trials, n_channels * n_components * 3).
+
+        Shift, scale and latency of each component slot of each channel; NaN where a channel has
+        fewer components.
+        """
+        from evoparam.trials import fit_trials
+
+        check_is_fitted(self)
+        trials = self._trials(X, reset=False)
+        if trials.n_channels != len(self.ch_names_):
+            raise DataError(
+                f"X has {trials.n_channels} channels, but TrialFitter was fitted "
+                f"on {len(self.ch_names_)}."
+            )
+        out = np.full((trials.n_trials, len(self.ch_names_), self.n_components_, 3), np.nan)
+        if any(f.components for f in self.group_fit_.fits):
+            result = fit_trials(
+                trials,
+                self.group_fit_,
+                mode=self.mode,
+                by=(),
+                random_state=self.random_state,
+                verbose=False,
+            )
+            table = result.table
+            for row in table.to_dict("records"):
+                ch = self.ch_names_.index(row["channel"])
+                k = int(row["component"])
+                if k < self.n_components_:
+                    out[int(row["trial"]), ch, k] = (row["shift"], row["scale"], row["latency"])
+        return out.reshape(trials.n_trials, -1)
+
+    def get_feature_names_out(self, input_features: Any = None) -> NDArray[Any]:  # noqa: ARG002  (scikit-learn API)
+        """Return the names of the output features."""
+        return np.array(
+            [
+                f"{ch}_c{k}_{name}"
+                for ch in self.ch_names_
+                for k in range(self.n_components_)
+                for name in ("shift", "scale", "latency")
+            ]
+        )

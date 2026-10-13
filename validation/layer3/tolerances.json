@@ -1,0 +1,14 @@
+{
+ "spec": "SPEC.md §7.4, REQ-376: a regression in any layer-3 metric larger than its pre-registered tolerance blocks the release unless the changelog explains it",
+ "registered": "2026-10-11 (build step S20), before any release",
+ "tolerances": {
+  "kappa": 0.05,
+  "latency": 1.0,
+  "recall": 0.03
+ },
+ "units": {
+  "kappa": "Cohen's kappa, a decrease larger than this blocks",
+  "latency": "ms, an increase of the median (absolute) latency difference larger than this blocks",
+  "recall": "fraction (3 percentage points), a decrease larger than this blocks"
+ }
+}

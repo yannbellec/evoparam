@@ -1,0 +1,202 @@
+# Continuous integration (spec §9.5, REQ-297): every pull request and every push to main.
+# Required to merge: lint, format, typecheck, tests (every matrix cell), doctests, docs,
+# import-graph, build. The coverage gates of REQ-298 run in the cell "tests (3.12,
+# ubuntu-latest)". pytest-timeout caps each test at 120 s and each cell at 25 min.
+# No repository secret is used (REQ-300 d): forks can run every job.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: pip install --require-hashes -r ci/locks/py3.12.lock
+    - name: ruff check (REQ-305)
+      run: ruff check evoparam benchmarks docs/tutorials examples validation tools
+    - name: docstring coverage (REQ-305)
+      run: interrogate -v --fail-under 95 evoparam
+    - name: citation file (REQ-391)
+      run: python -c "import yaml; d = yaml.safe_load(open('CITATION.cff')); assert d['cff-version'] == '1.2.0'"
+    - name: SPDX headers and modification notices (REQ-396)
+      run: python tools/add_spdx_headers.py --check
+    - name: SOUP inventory and THIRD_PARTY.md regenerated and diffed (REQ-399)
+      run: python tools/gen_soup.py --check
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: pip install --require-hashes -r ci/locks/py3.12.lock
+    - name: ruff format --check (REQ-305)
+      run: ruff format --check evoparam benchmarks docs/tutorials examples
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e .
+    - name: mypy --strict on the public API (REQ-301)
+      run: mypy --strict evoparam
+    - name: typing examples (REQ-301)
+      run: pytest -p no:cacheprovider evoparam/tests/test_typing.py
+
+  pyright:
+    # non-blocking (REQ-297, REQ-301): reports the share of "known" symbols
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e . pyright
+    - run: pyright --verifytypes evoparam --ignoreexternal
+
+  tests:
+    name: tests (${{ matrix.python }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install from the lock file (REQ-309)
+      run: |
+        pip install --require-hashes -r ci/locks/py${{ matrix.python }}.lock
+        pip install --no-deps -e ".[all]"
+    - name: Tests with coverage
+      run: pytest -p no:cacheprovider --timeout=120 -n auto --cov=evoparam --cov-branch --cov-report=xml -rfx
+    - name: Coverage of the core packages >= 90 % (REQ-298)
+      if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
+      run: coverage report --fail-under=90
+    - name: Coverage of evoparam.shapes = 100 % (REQ-298)
+      if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
+      run: coverage report --include="evoparam/shapes/*" --fail-under=100
+    - name: Coverage of the outer layers >= 80 % (REQ-298)
+      if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
+      run: coverage report --include="evoparam/plots/*,evoparam/cli.py,evoparam/stream/*,evoparam/benchmark/*" --fail-under=80
+    - name: Coverage upload
+      if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-xml
+        path: coverage.xml
+
+  core-only:
+    # REQ-291: numpy and scipy only
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install without extras
+      run: |
+        python -m venv /tmp/core
+        /tmp/core/bin/pip install .
+        /tmp/core/bin/pip install pytest pytest-timeout
+    - name: Self-test with numpy and scipy only
+      run: cd /tmp && /tmp/core/bin/python -c "import evoparam; evoparam.selftest()"
+    - name: Core marker set
+      run: /tmp/core/bin/python -m pytest -p no:cacheprovider -m core --timeout=120 --pyargs evoparam
+
+  lowest-floors:
+    # §9.2: the lowest version floors (numpy 1.24, scipy 1.10)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+    - run: |
+        pip install "numpy==1.24.*" "scipy==1.10.*" "pandas==2.0.*" pytest pytest-timeout
+        pip install --no-deps -e .
+    - run: pytest -p no:cacheprovider -m core --timeout=120
+
+  doctests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e ".[all]"
+    - run: pytest -p no:cacheprovider --doctest-modules evoparam --ignore=evoparam/tests
+
+  docs:
+    # REQ-302: the same build as docs.yml, required to merge
+    uses: ./.github/workflows/docs.yml
+
+  benchmark-results:
+    # REQ-392, REQ-357: a submitted result is accepted only with a valid signature, and the
+    # leaderboard page and report are regenerated from the results
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: |
+        pip install --require-hashes -r ci/locks/py3.12.lock
+        pip install --no-deps -e .
+    - run: python tools/benchmark_leaderboard.py --check
+
+  import-graph:
+    # REQ-296
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: pip install numpy scipy pytest && pip install --no-deps -e .
+    - run: pytest -p no:cacheprovider evoparam/tests/test_import_graph.py
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: pip install build twine check-wheel-contents
+    - name: sdist and wheel (REQ-300 b)
+      run: python -m build
+    - run: twine check dist/*
+    - run: check-wheel-contents dist/*.whl
+    - name: Pure-Python wheel with py.typed (REQ-300 b, REQ-301)
+      run: |
+        ls dist/*-py3-none-any.whl
+        python -c "import sys, zipfile, glob; names = zipfile.ZipFile(glob.glob('dist/*.whl')[0]).namelist(); sys.exit(0 if 'evoparam/py.typed' in names else 'py.typed missing')"

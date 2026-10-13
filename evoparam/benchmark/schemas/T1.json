@@ -1,0 +1,241 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "benchmark-task/T1/1",
+ "title": "evoparam benchmark task T1 (response detection), version 1",
+ "description": "Task input (a JSON descriptor next to an .npz file of arrays) and task output. One row per channel of the input (stimulated contacts may be left out): the method's decision (responsive 1 or 0, at its own threshold), the uncorrected p-value of the channel's test (null when the method has none) and an optional continuous score (larger means more likely responsive; used for the AUC, else 1 - p_value, else the decision).",
+ "x-task": "T1",
+ "x-name": "response detection",
+ "x-output-format": "tsv",
+ "$defs": {
+  "number_or_null": {
+   "type": [
+    "number",
+    "null"
+   ]
+  },
+  "probability": {
+   "type": [
+    "number",
+    "null"
+   ],
+   "minimum": 0,
+   "maximum": 1
+  },
+  "sha256": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "window": {
+   "type": "array",
+   "items": {
+    "type": "number"
+   },
+   "minItems": 2,
+   "maxItems": 2
+  },
+  "array": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "shape",
+    "sha256"
+   ],
+   "properties": {
+    "shape": {
+     "type": "array",
+     "items": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "minItems": 1,
+     "maxItems": 4
+    },
+    "sha256": {
+     "$ref": "#/$defs/sha256"
+    }
+   }
+  },
+  "channel": {
+   "type": "string",
+   "minLength": 1
+  },
+  "input": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "schema",
+    "role",
+    "task",
+    "suite",
+    "cell",
+    "split",
+    "data_file",
+    "arrays",
+    "sfreq",
+    "tmin",
+    "units",
+    "ch_names",
+    "n_trials",
+    "site",
+    "stim_channels"
+   ],
+   "properties": {
+    "schema": {
+     "const": "benchmark-task/T1/1"
+    },
+    "role": {
+     "const": "input"
+    },
+    "task": {
+     "const": "T1"
+    },
+    "suite": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "name",
+      "version"
+     ],
+     "properties": {
+      "name": {
+       "type": "string",
+       "minLength": 1
+      },
+      "version": {
+       "type": "string",
+       "pattern": "^\\d+\\.\\d+\\.\\d+$"
+      }
+     }
+    },
+    "cell": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "split": {
+     "enum": [
+      "public",
+      "hidden",
+      "real"
+     ]
+    },
+    "data_file": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+\\.npz$"
+    },
+    "arrays": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "data"
+     ],
+     "properties": {
+      "data": {
+       "$ref": "#/$defs/array"
+      }
+     }
+    },
+    "sfreq": {
+     "type": "number",
+     "exclusiveMinimum": 0
+    },
+    "tmin": {
+     "type": "number"
+    },
+    "units": {
+     "type": "string",
+     "minLength": 1
+    },
+    "ch_names": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/channel"
+     },
+     "minItems": 1,
+     "uniqueItems": true
+    },
+    "modality": {
+     "type": "string"
+    },
+    "site": {
+     "type": "string"
+    },
+    "stim_channels": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/channel"
+     }
+    },
+    "n_trials": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "hints": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "window": {
+       "$ref": "#/$defs/window"
+      },
+      "baseline": {
+       "$ref": "#/$defs/window"
+      },
+      "preset": {
+       "type": "string"
+      }
+     }
+    },
+    "source": {
+     "type": "object"
+    }
+   }
+  },
+  "output_row": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "site",
+    "channel",
+    "responsive",
+    "p_value"
+   ],
+   "properties": {
+    "site": {
+     "type": "string",
+     "minLength": 1
+    },
+    "channel": {
+     "$ref": "#/$defs/channel"
+    },
+    "responsive": {
+     "enum": [
+      0,
+      1
+     ]
+    },
+    "p_value": {
+     "$ref": "#/$defs/probability"
+    },
+    "score": {
+     "$ref": "#/$defs/number_or_null"
+    }
+   }
+  },
+  "output": {
+   "type": "array",
+   "items": {
+    "$ref": "#/$defs/output_row"
+   }
+  }
+ },
+ "x-columns": {
+  "required": [
+   "site",
+   "channel",
+   "responsive",
+   "p_value"
+  ],
+  "optional": [
+   "score"
+  ]
+ }
+}

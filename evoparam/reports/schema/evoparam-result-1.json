@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evoparam.org/schema/evoparam-result-1.json",
+  "title": "evoparam result (JSON form of the .evoparam container), schema evoparam-result/1",
+  "type": "object",
+  "required": ["schema", "object", "package_version", "structure", "arrays", "tables",
+               "provenance", "settings"],
+  "properties": {
+    "schema": {"type": "string", "pattern": "^evoparam-result/1(\\.[0-9]+)?$"},
+    "object": {"type": "string", "enum": ["TrialSet", "Evoked", "ResponseFit", "GroupFit",
+               "TrialFit", "HierarchicalFit", "ResponseTest", "ArtifactResult", "ShapeBasis",
+               "TFFit", "Component", "GoodnessOfFit", "Provenance"]},
+    "package_version": {"type": "string"},
+    "created": {"type": "string"},
+    "structure": {"type": ["object", "array", "null"]},
+    "arrays": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["dtype", "shape", "values"],
+        "properties": {
+          "dtype": {"type": "string"},
+          "shape": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+          "values": {"type": "array",
+                     "items": {"type": ["number", "integer", "boolean", "string", "null"]}}
+        }
+      }
+    },
+    "tables": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["csv", "sidecar"],
+        "properties": {
+          "csv": {"type": "string"},
+          "sidecar": {
+            "type": "object",
+            "required": ["n_rows", "columns"],
+            "properties": {
+              "n_rows": {"type": "integer", "minimum": 0},
+              "columns": {"type": "object",
+                          "additionalProperties": {"type": "object",
+                                                   "required": ["dtype", "unit"]}}
+            }
+          }
+        }
+      }
+    },
+    "provenance": {"type": ["object", "null"],
+                   "properties": {"steps": {"type": "array",
+                                            "items": {"type": "object",
+                                                      "required": ["function", "settings"]}}}},
+    "settings": {"type": ["object", "null"]}
+  }
+}
