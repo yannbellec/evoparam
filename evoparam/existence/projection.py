@@ -19,14 +19,23 @@ Two readings of the response duration are available (``profile``):
   this extra division moves the peak to the first milliseconds of the window: 16 ms
   instead of the published 80 ms on the example of the paper's Fig. 3.
 
-The significance at ``tau_R`` is a one-sided one-sample t-test of projections against zero,
-on one of two sets of pairs (``pairs``):
+The significance comes from one of three sets of projections (``pairs``):
 
-- ``"disjoint"`` (default): each trial in one pair only (``K // 2`` pairs, drawn at random),
+- ``"signflip"`` (default): every cross-projection, its null distribution from sign flips
+  of whole trials. Under the null hypothesis each trial is as likely with either sign, and
+  flipping trial k changes the sign of every projection that involves it, so the profile of
+  the mean projection is recomputed for every sign pattern (all of them up to
+  ``MAX_FLIPS``, a random draw beyond) and the observed peak is compared with the peaks of
+  the flipped profiles: the choice of ``tau_R`` at the peak is part of the null. On pure
+  white noise (10 trials, 200 channels) it rejects at 0.05 for alpha = 0.05, and it gives
+  the published decision on the 10 example channels of the paper (REQ-134). The statistic
+  is the peak of the profile.
+- ``"disjoint"``: a one-sided one-sample t-test of projections at ``tau_R``, each trial in
+  one pair only (``K // 2`` pairs, drawn at random),
   so that the projections tested are independent under the null hypothesis. On pure noise
   (white or AR(1) 0.9, 10 or 20 trials) the rejection rate at alpha = 0.05 is 0.07 to 0.13,
   above alpha only by the choice of ``tau_R`` at the peak of the profile.
-- ``"half"``: one projection per unordered pair of trials (one half of the ``K(K-1)``
+- ``"half"``: the same t-test on one projection per unordered pair of trials (one half of the ``K(K-1)``
   cross-projections, the two projections of a pair never both, each trial the normalised
   one in about half of its pairs), the set of the paper. It reproduces the paper's
   significance decisions (REQ-134), but its ``K(K-1)/2`` values share trials and are not
@@ -44,7 +53,9 @@ from evoparam.utils._parallel import parallel_map
 __all__ = ["projection_test", "PROFILES", "PAIRS"]
 
 PROFILES = ("published", "normalised")
-PAIRS = ("disjoint", "half")
+PAIRS = ("signflip", "disjoint", "half")
+# Sign patterns of the "signflip" set: every pattern up to this many, a random draw beyond
+MAX_FLIPS = 4096
 
 
 def _half_pairs(n: Any) -> tuple[NDArray[Any], NDArray[Any]]:
@@ -56,6 +67,38 @@ def _half_pairs(n: Any) -> tuple[NDArray[Any], NDArray[Any]]:
     first, second = np.triu_indices(n, 1)
     swap = (first + second) % 2 == 0
     return np.where(swap, second, first), np.where(swap, first, second)
+
+
+def _sign_patterns(n: int, rng: np.random.Generator) -> NDArray[Any] | None:
+    """Random sign patterns (``MAX_FLIPS`` x n, the first all +1), or None when every
+    pattern is enumerated."""
+
+    if 2**n <= MAX_FLIPS:
+        return None
+    patterns = rng.choice([-1.0, 1.0], size=(MAX_FLIPS, n))
+    patterns[0] = 1.0
+    return patterns
+
+
+def _signflip_p(proj: Any, off: Any, observed: float, profile: str, patterns: Any) -> float:
+    """p-value of the peak of the mean-projection profile against its sign-flip null."""
+
+    n_t, n, _ = proj.shape
+    if patterns is None:
+        grid = (np.arange(2**n)[:, None] >> np.arange(n)) & 1
+        patterns = 1.0 - 2.0 * grid
+    p_off = np.where(off[None], proj, 0.0)
+    scale = 1.0 / (n * (n - 1))
+    if profile == "normalised":
+        scale = scale / np.sqrt(np.arange(1, n_t + 1))
+    else:
+        scale = np.full(n_t, scale)
+    peaks = np.full(len(patterns), -np.inf)
+    for t in range(n_t):
+        value = np.einsum("bk,bk->b", patterns @ p_off[t], patterns) * scale[t]
+        np.maximum(peaks, value, out=peaks)
+    count = np.sum(peaks >= observed - 1e-12 * max(1.0, abs(observed)))
+    return float(count / len(patterns))
 
 
 def _one_channel(
@@ -82,15 +125,18 @@ def _one_channel(
     mean_proj = proj[:, off].mean(axis=1)
     curve = mean_proj / np.sqrt(np.arange(1, n_t + 1)) if profile == "normalised" else mean_proj
     end = int(np.argmax(curve))
-    # Significance at the end: each trial in one pair, or one projection per unordered pair
-    if pairs == "half":
-        rows, cols = _half_pairs(n)
+    if pairs == "signflip":
+        stat, p = float(curve[end]), _signflip_p(proj, off, curve[end], profile, order)
     else:
-        if order is None:
-            order = np.random.default_rng(rng).permutation(n)
-        rows, cols = order[0 : n - 1 : 2], order[1:n:2]
-    values = proj[end, rows, cols]
-    stat, p = ttest_1samp(values, 0.0, alternative="greater")
+        # Significance at the end: each trial in one pair, or one projection per unordered pair
+        if pairs == "half":
+            rows, cols = _half_pairs(n)
+        else:
+            if order is None:
+                order = np.random.default_rng(rng).permutation(n)
+            rows, cols = order[0 : n - 1 : 2], order[1:n:2]
+        values = proj[end, rows, cols]
+        stat, p = ttest_1samp(values, 0.0, alternative="greater")
     # Canonical shape and per-trial scalings
     seg = v[:, : end + 1]
     _, s, vt = np.linalg.svd(seg, full_matrices=False)
@@ -122,7 +168,7 @@ def projection_test(
     *,
     rng: np.random.Generator | None = None,
     profile: str = "published",
-    pairs: str = "disjoint",
+    pairs: str = "signflip",
     n_jobs: int | None = 1,
 ) -> dict[str, NDArray[Any]]:
     """Cross-projection test of every channel.
@@ -130,13 +176,14 @@ def projection_test(
     ``profile`` chooses the reading of the response duration (module docstring):
     ``"published"`` (the paper's peak of the mean projection, default) or ``"normalised"``
     (the peak of the mean projection divided by the square root of the window length).
-    ``pairs`` chooses the projections tested at the response end: ``"disjoint"`` (each
-    trial in one pair, default) or ``"half"`` (one per unordered pair, as in the paper).
+    ``pairs`` chooses the test (module docstring): ``"signflip"`` (every projection,
+    sign-flip null of the profile peak, default), ``"disjoint"`` (each trial in one pair) or
+    ``"half"`` (one per unordered pair, as in the paper).
     ``n_jobs``: workers, one channel per unit (the pairs are drawn before, in channel order,
     so the result does not depend on ``n_jobs``).
 
-    Returns a dict of arrays [n_channels]: statistic (one-sample t of the projections at the
-    response end), p_value (one-sided), onset (window start), offset (response end tau_R),
+    Returns a dict of arrays [n_channels]: statistic (the profile peak with ``"signflip"``,
+    else the one-sample t of the projections at the response end), p_value (one-sided), onset (window start), offset (response end tau_R),
     duration, snr_db (of the canonical-shape scalings), plus ``extra`` (per channel: profile,
     canonical shape, alphas, R², SNR), and ``curve`` [n_channels, n_times] (the profile
     whose peak is the response end), ``curve_times`` and ``null_band`` (NaN: no band over
@@ -158,7 +205,9 @@ def projection_test(
     }
     extra = []
     # the random pairs of every channel, drawn in channel order (independent of n_jobs)
-    orders = [None if pairs == "half" else rng.permutation(n) for _ in range(n_ch)]
+    orders = [None if pairs == "half" else
+              _sign_patterns(n, rng) if pairs == "signflip" else rng.permutation(n)
+              for _ in range(n_ch)]
     units = [(np.nan_to_num(data[:, c, win]), tw, profile, pairs, orders[c]) for c in range(n_ch)]
     for c, (end, stat, p, info) in enumerate(
         parallel_map(_channel_unit, units, n_jobs, desc="test_response")
