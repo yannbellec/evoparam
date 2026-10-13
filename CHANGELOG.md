@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### Commands that aborted or hung at exit after their work (exit status -6)
+
+An `evoparam` command that reads a container with parquet tables (`report`,
+`reproduce`, `migrate`, ...) could print its complete result and then abort while the
+interpreter was exiting: `terminate called without an active exception`, exit status
+-6 (SIGABRT), seen in `test_report_reproduce_migrate` under heavy CPU load (Python 3.11
+and 3.12). Cause: given a local path alone, `pandas.read_parquet` opens a Python file
+object and hands it to pyarrow; pyarrow's reading threads drop the last references to
+that file object and to the `bytes` read from it (`PyReadableFile` and `PyBuffer`
+destructors, each taking the GIL) after `read_parquet` has returned. When such a
+destructor waits for the GIL while the interpreter is being finalized, Python 3.11 and
+3.12 end the thread with `pthread_exit`, whose unwinding through the C++ destructor calls
+`std::terminate`; Python 3.13 parks the thread for ever instead, and the process then
+hangs in `exit()`, where pyarrow's thread pool waits for that thread.
+
+Measured on a process that reads one table and exits, under CPU load: Python 3.12, 20
+aborts in 600 runs before, none in 600 after; Python 3.13, 4 hangs in 318 runs before,
+none in 300 after; Python 3.11, none in 300 before or after. Forcing the interleaving
+under a debugger (the reading thread delayed until the interpreter is finalizing) aborts
+the minimal case and `evoparam report` / `evoparam migrate` every time before the fix
+(3.11, 3.12) and never after: pyarrow's threads no longer take the GIL in a destructor.
+
+- `_read_table` (`evoparam.data.serialize`) reads parquet through a pyarrow file system
+  (`pd.read_parquet(path, filesystem=pyarrow.fs.LocalFileSystem())`): pyarrow opens the
+  file and reads it into its own buffers, so its threads hold no Python object. The
+  tables read are the same: on the 22 parquet tables of every result type and of a
+  `TrialSet`, the frames (values, dtypes, index, columns, attrs) equal those of
+  `pd.read_parquet(path)` with pandas 2.0.3 (pyarrow 14, the floors), 2.3.3 and 3.0.6.
+  `filesystem=` is a named argument of `read_parquet` from pandas 2.1; pandas 2.0 takes
+  it in `**kwargs` and handles it the same way (test_serialize.py passes with pandas
+  2.0.3 and pyarrow 14).
+- Test: pyarrow receives a path and a pyarrow file system, never a Python file object
+  (container directory and zip); it fails before the fix.
+
 ### Arguments that were ignored: `verbose=`, `n_jobs`, five unused arguments (REQ-304, REQ-307)
 
 With the default arguments the results are unchanged: the reference fixture, the frozen
