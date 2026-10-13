@@ -36,7 +36,17 @@ def table() -> Any:
     return module.summary(module.run())
 
 
+@pytest.fixture(scope="module")
+def table_as_written() -> Any:
+    pytest.importorskip("mne")
+    spec = importlib.util.spec_from_file_location("erpcore", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.summary(module.run(reading="as_written"))
+
+
 def test_req274_lateralized_readiness_potential(table: Any) -> None:
+    """REQ-274, targeted measurement (DECISIONS 5.9): a reading of the requirement."""
 
     assert table.loc["LRP", "n"] == 40
     assert table.loc["LRP", "within_10ms"] >= 0.9
@@ -44,5 +54,28 @@ def test_req274_lateralized_readiness_potential(table: Any) -> None:
 
 @pytest.mark.parametrize("component", ["ERN", "N170", "N400", "MMN", "N2pc", "P3"])
 def test_req274_other_components(table: Any, component: Any) -> None:
+    """REQ-274, targeted measurement (DECISIONS 5.9): a reading of the requirement."""
 
     assert table.loc[component, "within_10ms"] >= 0.9
+
+
+def test_req274_lrp_as_written(table_as_written: Any) -> None:
+    """REQ-274 as written: the ``erp`` preset itself (its selection), the paradigm's component
+    as one labelled component, its own latency."""
+
+    assert table_as_written.loc["LRP", "n"] == 40
+    assert table_as_written.loc["LRP", "within_10ms"] >= 0.9
+
+
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-274 as written (the erp preset's own selection, one labelled component) "
+    "measured 2026-10-09: ERN 85 %, N400 57.5 %, N170 45 %, MMN 37.5 %, N2pc 36 %, P3 30 % "
+    "within 10 ms; most misses are fits without any component on single-participant "
+    "difference waves. Met with the targeted measurement (tests above), which is a reading "
+    "of the requirement, not the requirement as written",
+)
+@pytest.mark.parametrize("component", ["ERN", "N170", "N400", "MMN", "N2pc", "P3"])
+def test_req274_other_components_as_written(table_as_written: Any, component: Any) -> None:
+
+    assert table_as_written.loc[component, "within_10ms"] >= 0.9
