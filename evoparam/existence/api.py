@@ -59,6 +59,36 @@ def _groups(ts: Any, by: Any) -> Any:
     return [(key, np.flatnonzero(keys == key)) for key in dict.fromkeys(keys)]
 
 
+def _span(times: Any, *windows: Any) -> slice:
+    """Return the samples from the start of the first of ``windows`` to the end of the last."""
+    inside = np.zeros(len(times), bool)
+    for low, high in windows:
+        inside |= (times >= low) & (times <= high)
+    found = np.flatnonzero(inside)
+    return slice(int(found[0]), int(found[-1]) + 1) if found.size else slice(None)
+
+
+def _select(ts: Any, rows: Any, chans: Any, span: slice) -> tuple[Any, Any]:
+    """``ts.data[rows][:, chans][:, :, span]`` (and the masks), copied once.
+
+    The copy has the memory layout of ``ts.data[rows][:, chans]`` (channel by channel), so
+    every sum over trials is the same to the bit; one copy of the samples that are used is
+    the memory of P3 (spec §9.1).
+    """
+    return _channel_major(ts.data, rows, chans, span), (
+        None if ts.masks is None else _channel_major(ts.masks, rows, chans, span)
+    )
+
+
+def _channel_major(values: Any, rows: Any, chans: Any, span: slice) -> Any:
+    rows = np.asarray(rows, dtype=np.intp)
+    first = values[:, :1, span]
+    out = np.empty((len(chans), rows.size, first.shape[2]), dtype=values.dtype)
+    for k, channel in enumerate(chans):
+        np.take(values[:, channel, span], rows, axis=0, out=out[k])
+    return out.transpose(1, 0, 2)
+
+
 def _check_artifact(ts: Any, window: Any, allow: Any) -> None:
     if ts.masks is None or allow:
         return
@@ -313,9 +343,12 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
 
     def run(rows: Any, chans: Any, gen: np.random.Generator) -> dict[str, Any]:
         """Test the channels ``chans`` on the trials ``rows`` of one group."""
+        span = slice(None)
         if trials_ts is not None:
-            data = trials_ts.data[rows][:, chans]
-            masks = None if trials_ts.masks is None else trials_ts.masks[rows][:, chans]
+            if method == "baseline_permutation":
+                # the permutation test reads the window and the baseline only
+                span = _span(times, window, baseline)
+            data, masks = _select(trials_ts, rows, chans, span)
         if method == "baseline_permutation":
             if trials_ts is None:
                 res = shuffle_test(
@@ -333,7 +366,7 @@ def test_response(  # noqa: C901, PLR0912, PLR0913, PLR0915  (public API, signat
             else:
                 res = permutation_test(
                     data,
-                    times,
+                    times[span],
                     window,
                     baseline,
                     n_permutations=n_permutations,
