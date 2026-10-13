@@ -279,6 +279,50 @@ def _model_n1(fits: Any) -> Any:
     return np.array(det), np.array(lat), np.array(trough), np.array(trough_amp)
 
 
+def _rule_peak_on_fitted_curve(ts: Any, fits: Any, reading: Any) -> Any:
+    """The published rule's peak read on the fitted curve (a reading of "the model latency"
+    of REQ-114): the reading's own peak operator (the most negative sample of 9-100 ms for
+    the registry row; the code's largest local minimum with its 20 uV selectivity, its
+    first sample excluded) applied to the curve of the ccep fit (components and
+    background) from the rule's first sample on; before it, the rule's average, whose
+    baseline gives the SD and the level the operator uses. NaN where the curve has no such
+    peak."""
+
+    from evoparam.existence.rules import apply_rule, resolve_rule
+    from evoparam.models import evaluate_fit
+
+    t = ts.times
+    curve = _rule_average(ts)
+    # the rule's first sample: its time axis is one sample later than ours
+    late = t >= 0.009 - 1.01 / ts.sfreq
+    for c, fit in enumerate(fits):
+        curve[c, late] = evaluate_fit(fit, t[late]) if fit.status == "ok" else 0.0
+    spec = resolve_rule(READINGS[reading], baseline=(-2.0, -0.1))
+    out = apply_rule(curve, t + 1.0 / ts.sfreq, ts.sfreq, spec, "uV")
+    return out["onset"] - 1.0 / ts.sfreq
+
+
+def joint_kappa_bound(a: Any, b: Any) -> float:
+    """The largest min(kappa(M, a), kappa(M, b)) over every decision M of the channels.
+
+    Kappa depends only on the counts of M = 1 in the four cells of the table of a against
+    b, so every combination of counts is searched (exact, not a heuristic)."""
+
+    a, b = np.asarray(a, bool), np.asarray(b, bool)
+    n = len(a)
+    cells = [int(np.sum(x)) for x in (a & b, a & ~b, ~a & b, ~a & ~b)]
+    k11, k10, k01, k00 = np.meshgrid(*[np.arange(c + 1) for c in cells], indexing="ij")
+    ones = (k11 + k10 + k01 + k00) / n
+    agree_a = (k11 + k10 + (cells[2] - k01) + (cells[3] - k00)) / n
+    agree_b = (k11 + k01 + (cells[1] - k10) + (cells[3] - k00)) / n
+    out = []
+    for agree, rate in ((agree_a, a.mean()), (agree_b, b.mean())):
+        pe = ones * rate + (1 - ones) * (1 - rate)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            out.append(np.where(pe < 1, (agree - pe) / (1 - pe), 1.0))
+    return float(np.nanmax(np.minimum(*out)))
+
+
 def _kappa(a: Any, b: Any) -> Any:
     po = np.mean(a == b)
     pe = a.mean() * b.mean() + (1 - a.mean()) * (1 - b.mean())
@@ -293,7 +337,8 @@ def agreement() -> Any:
     out = {}
     for subject, run, site in [EXAMPLE + ("PT01-PT02",)] + req371_pairs():
         ts = _pair_trials(subject, run, site)
-        det, lat, trough, trough_amp = _model_n1(_model_fits(ts))
+        fits = _model_fits(ts)
+        det, lat, trough, trough_amp = _model_n1(fits)
         for reading in READINGS:
             rule, rule_lat, floor = _published_rule(ts, reading)
             out[(subject, run, reading)] = {
@@ -302,6 +347,7 @@ def agreement() -> Any:
                 "model": det,
                 "lat": lat,
                 "trough": trough,
+                "curve_peak": _rule_peak_on_fitted_curve(ts, fits, reading),
                 "n1_trough": _rule_peak_is_n1_trough(ts, rule_lat),
                 # the decision of the earlier proposed wording (not the REQ): the trough of
                 # the fitted curve at least as deep as the code's amplitude criterion
@@ -419,6 +465,49 @@ def test_req114_trough_latency(agreement: Any, reading: Any) -> None:
     close = _close(agreement, reading, "trough")
     assert close.size >= 10
     assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+
+
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-114 with the model latency read as the published rule's peak on the "
+    "fitted curve (the reading's own operator on the ccep fit) is not met with the "
+    "registry row: 84 % (62 of 74); with the code 90.0 % (27 of 30), at the threshold "
+    "(development runs 66 % and 86 %). Every miss is either a peak the preset's own input "
+    "does not have (10 and 3: the rule reads the monopolar average, the preset the "
+    "adjusted common average) or a tie within noise (2 and 0: the two latencies differ "
+    "by less than 2 SD of the average's baseline); none is a misfit of the model",
+)
+@pytest.mark.parametrize("reading", list(READINGS))
+def test_req114_rule_peak_on_the_fitted_curve(agreement: Any, reading: Any) -> None:
+    """REQ-114 with "the model latency" read as the published rule's peak measured on the
+    fitted curve instead of the noisy average (:func:`_rule_peak_on_fitted_curve`): the same
+    operator on both sides, so the window-start peaks on the recovery tail and the late
+    deflections of 50-100 ms the rule counts are compared with the model's curve there."""
+
+    close = _close(agreement, reading, "curve_peak")
+    assert close.size >= 10
+    assert np.mean(close) >= 0.9, (np.mean(close), close.size)
+
+
+def test_d8_req113_cannot_hold_under_both_readings(agreement: Any) -> None:
+    """Not a REQ (owner decision D8, measured): REQ-113 asks one decision (the preset's N1)
+    with kappa >= 0.8 against the published rule, and D8 asks it under both readings of
+    the rule. For every possible decision of the channels, the smaller of the two kappas
+    is at most :func:`joint_kappa_bound`: 0.295 on the 46 PT contacts of the example run,
+    0.323 to 0.783 on the six REQ-371 runs. No detector can meet REQ-113 under both
+    readings on these data; the readings agree with each other at kappa 0.06 on the PT
+    contacts (19 and 1 N1s)."""
+
+    paper = _runs(agreement, "paper", example=True)[0]
+    code = _runs(agreement, "code", example=True)[0]
+    grid = np.array([n.startswith("PT") for n in paper["names"]])
+    assert joint_kappa_bound(paper["rule"][grid], code["rule"][grid]) < 0.8
+    bounds = [
+        joint_kappa_bound(p["rule"], c["rule"])
+        for p, c in zip(_runs(agreement, "paper"), _runs(agreement, "code"), strict=True)
+    ]
+    assert len(bounds) == 6
+    assert sum(b >= 0.8 for b in bounds) < 5, bounds
 
 
 def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any) -> None:
