@@ -150,14 +150,61 @@ and the reference fixture is not regenerated. Only tests and documents change.
   - REQ-273: not met (it needs REQ-113). Tests run:
   `tests/models/test_engine_ccep.py` and `tests/existence/test_existence_ccep.py` with
   `EVOPARAM_NETWORK_TESTS=1`, `tests/test_presets.py`, the reference fixture test.
-- To try next: an owner decision on D8 for REQ-113 and REQ-135 (one reading per
-  requirement, or the published code alone as the authors' validated detector). Under the
-  registry row: `correction="none"` for the `ccep` existence test (REQ-135 0.807). For
-  REQ-114 as written (the component's latency): the N1 is fitted by overlapping
-  components, and the one named N1 is often broad. Next to try: a label rule that names
-  the N1 by the trough it makes, rather than by the larger `|A|` (§5.5.7 would then need
-  a divergence), measured on the development runs first. For the margin of the
-  reference reading: more trials per pair are not available (10 per pair in these runs).
+- D8 revised by the owner (DECISIONS §5.8): the N1 requirements are judged on the
+  registry row (§5.6: `|x| > 3.4·SD_baseline`, a negative peak, 9-100 ms). The published
+  code's reading stays measured by its own expected failures. The exact joint bound is the
+  evidence that both cannot hold together: REQ-113 at most 0.295 on the PT contacts and
+  at most 0.783 on 5 of the 6 REQ-371 runs; REQ-135 at most 0.592.
+- REQ-113 under the registry row, channel by channel (example run and REQ-371 runs;
+  settings chosen on the five development runs only):
+  - Many channels the rule detects have no N1 to find: the rule takes the most negative
+    sample of 9-100 ms, which is often the first sample of the window (the stimulation
+    tail) or a slope at 93-99 ms. Channels where the rule detects but the rule's own
+    average has no negative local minimum in 9-50 ms: 12 of the 19 detections on the
+    example's PT contacts; 0, 0, 5, 2, 6 and 12 on the REQ-371 runs; 7, 9, 0, 6 and 3 on
+    the development runs. "Every channel the rule detects minus at most one" cannot hold
+    for a detector of an N1 on the example run, nor on 4 of the 6 REQ-371 runs. New test
+    `test_req113_registry_row_counts_channels_without_an_n1_trough`.
+  - Oracle: a detector that knows the rule's average and says N1 wherever it has a
+    negative trough in 9-50 ms below -3.4 SD reaches kappa 0.061 on the example's PT
+    contacts and 0.788, 0.971, 0.392, 0.794, 0.637 and 0.477 on the REQ-371 runs (0.717
+    pooled; 0.681 pooled on the development runs). Even this upper reference for an N1
+    detector misses 0.8 on the example run and on 5 of the 6 REQ-371 runs.
+  - Background variants (to absorb the stimulation tail that the rule counts), kappa
+    pooled over the REQ-371 runs (development runs): constant background 0.498 (0.425),
+    linear background 0.491 (0.397), recording reference with a constant background
+    0.533 (0.400); ccep 1.1 0.463 (0.399). None is adopted: none improves the
+    development runs, and none comes near 0.8.
+- REQ-135 under the registry row with FDR kept (§6), on the development runs (kappa
+  pooled): the test on the trials as before 0.600; baseline 0.5 s 0.600; baseline 2 s
+  0.638; without artifact removal 0.600; on the ccep preset's own chain (adjusted common
+  average, artifact template) 0.703, with baselines 1 s / 2 s / 0.5 s 0.687 / 0.711 /
+  0.690. FDR over the channels of all runs pooled instead of per run: 0.574 to 0.711.
+  The preset's chain, chosen on the development runs, gives 0.623 on the REQ-371 runs
+  (0.586 before). The loss is FDR itself: on the development runs 22 channels the rule
+  detects have a raw p below 0.05 and are lost by the correction; one run (UMCU40) has
+  kappa 0 under every FDR variant. Without the correction the registry row is met
+  (0.807, test `test_req135_per_channel_decision_registry_row_regression`). No default
+  changed.
+- REQ-114 as written (the N1 component's latency), naming the N1 by the trough it makes
+  (the component whose fitted curve has the deepest trough in 9-50 ms, rather than the
+  larger `|A|`): 29 % / 38 % on the development runs (registry row / code), 26 % / 40 % on
+  the REQ runs (24 % / 37 % before). With the recording reference and a constant
+  background, 50 % / 57 % on the development runs and 42 % on the REQ runs. The fitted
+  N1 is several overlapping components, and none of them carries the rule's peak
+  latency alone. Not adopted; the reading in the rule's reference stays the one met.
+- Results after the D8 revision (registry row, which gates):
+  - REQ-113: not met (0.46 on the PT contacts, 0.46 pooled).
+  - REQ-114: met read in the rule's reference (91 %); as written not met (24 %).
+  - REQ-135: not met with FDR (0.586; best principled variant 0.623).
+  - REQ-273: not met (it needs REQ-113).
+  No package default changed, so no algorithm version changed and the reference fixture
+  is unchanged.
+- To try next: REQ-113 needs a reading of the rule where its detections are N1s (for
+  instance the rule applied only where its average has a trough, or the 9-50 ms window of
+  §5.5.7); this would need an owner decision, as the criterion's comparator is fixed.
+  REQ-135 with FDR: a test whose statistic uses more than 10 trials (other pairs of the
+  same contacts) would raise the power that FDR takes away.
 
 ### Engine speed, part 2 (REQ-115): met with the compiled fit of the `fast` extra
 

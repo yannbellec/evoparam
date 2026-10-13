@@ -173,7 +173,10 @@ def _pooled(rows: Any, method: Any, rule: Any) -> Any:
     "published code; under both readings at once no decision can reach 0.7 "
     "(test_req135_cannot_hold_under_both_readings: at most 0.592). With the per-channel "
     "decision of the rule (correction='none') the registry row reaches 0.807 and the code "
-    "falls to 0.321 (CHANGELOG, 'N1 case: the two readings')",
+    "falls to 0.321. With FDR kept, the best principled variant chosen on the development "
+    "runs (the ccep preset's own chain before the test: 0.703 there, 0.711 with a 2 s "
+    "baseline) gives 0.623 on the REQ-371 runs: FDR drops the weak responses the rule "
+    "keeps (CHANGELOG, 'N1 case: the two readings')",
 )
 @pytest.mark.parametrize("rule", ["vanblooijs2023", "vanblooijs2023_code"])
 def test_req135_permutation_agrees_with_vanblooijs2023(req371_decisions: Any, rule: Any) -> None:
