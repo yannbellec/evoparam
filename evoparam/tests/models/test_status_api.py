@@ -51,9 +51,7 @@ def _trials(n: Any = 12, seed: Any = 0, channels: Any = 3) -> Any:
 def test_req118_status_semantics() -> None:
 
     rng = np.random.default_rng(0)
-    # the fixed rule of spec §5.5.4 (delta 10): with the calibrated default about 3 % of
-    # noise windows get a component (REQ-112 allows 5 %), and this draw is one of them
-    none = model(delta=10).fit_waveform(TIMES, noise(rng))
+    none = model().fit_waveform(TIMES, noise(rng))
     assert none.status == "no_response"
     assert "best rejected" in none.message
     assert "best_rejected_delta" in none.diagnostics

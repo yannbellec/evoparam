@@ -1509,7 +1509,7 @@ def _acceptance_phrase(settings: Any) -> str:
     if calibrated:
         return (
             "a threshold calibrated on each waveform's noise model for a false-response "
-            f"rate of {settings.get('alpha', 0.03):g} on pure noise (the expected Euler "
+            f"rate of {settings.get('alpha', 0.04):g} on pure noise (the expected Euler "
             "characteristic of the whitened scan over latency and width, Siegmund and "
             "Worsley 1995, widened for the uncertainty of the noise spectrum and for its "
             "change over the baseline)"

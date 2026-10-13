@@ -2438,6 +2438,7 @@ def _calibrate(  # noqa: PLR0913, PLR0917  (the noise model of the fit, from the
         ar.innovation,
         ar.acov,
         0 if ar.z is None else len(ar.z),
+        baseline=ar.z,
     )
     out["acceptance"] = {
         "rule": "calibrated",

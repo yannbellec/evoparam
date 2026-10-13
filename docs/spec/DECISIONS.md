@@ -196,40 +196,44 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
 ### Calibrated acceptance, final shape choice, resolution check (§5.5.4, §5.5.3 steps 4 and 5)
 
 Measured on development seeds (REQ-105 300 000 + ..., noise windows 500 000 + ..., REQ-106
-400 600 + ..., REQ-111 700 000 + ...), reported on the tests' seeds. Full tables:
-`CHANGELOG.md`, "Calibrated acceptance". These are the **package defaults** (no preset);
-every preset sets the reviewed procedure (`delta=10`, `shape_choice="bic"`,
-`resolution_check=False`), and with those three settings the engine gives the same
-fits as before, value for value (123 fits of the engine, `erp`, `ccep` and `tep` compared
-with the previous commit; the reference fixture within 2.4e-12).
+400 600 + ..., REQ-111 700 000 + ..., ds004080 baselines of 23 runs other than the two REQ
+runs), reported on the tests' seeds. Full tables: `CHANGELOG.md`, "Calibrated acceptance"
+and "Calibrated acceptance: the change of the noise spectrum". `shape_choice="aic"` and
+`resolution_check=True` are **package defaults** (no preset); the calibrated acceptance is
+available on request (`delta="calibrated"`) and the default `delta` is the fixed 10 of
+§5.5.4. Every preset sets the reviewed procedure (`delta=10`, `shape_choice="bic"`,
+`resolution_check=False`), and with those three settings the engine gives the same fits
+as before, value for value (123 fits of the engine, `erp`, `ccep` and `tep` compared
+with qualite-zero; the reference fixture unchanged).
 
-- **`delta=None`, `alpha=0.03` (§5.5.4).** §5.5.4 fixes `delta = 10` and says it is
-  "calibrated by simulation (REQ-112: pure-noise acceptance <= 5 % at the default
-  `delta`)". A fixed `delta` cannot be calibrated for every noise: the fall of BIC that
-  pure noise reaches depends on the window, the widths searched, the whitening filter and
-  how well the noise spectrum is known. For about 2.5 % of noise windows with a component,
-  white noise needs `delta` about -1, AR(1) rho = 0.5 about +1 and rho = 0.9 about +2;
-  at `delta` 10 every noise is near 0 % and REQ-105 fails (recall 0.885). With
-  `delta=None` the threshold of each fit is derived from its own noise model
+- **`delta="calibrated"`, `alpha=0.04` (§5.5.4), on request.** §5.5.4 fixes `delta = 10`
+  and says it is "calibrated by simulation (REQ-112: pure-noise acceptance <= 5 % at the
+  default `delta`)". A fixed `delta` cannot be calibrated for every noise: the fall of BIC
+  that pure noise reaches depends on the window, the widths searched, the whitening filter
+  and how well the noise spectrum is known. For about 2.5 % of noise windows with a
+  component, white noise needs `delta` about -1, AR(1) rho = 0.5 about +1 and rho = 0.9
+  about +2; at `delta` 10 every noise is near 0 % and REQ-105 fails (recall 0.883). With
+  `delta="calibrated"` the threshold of each fit is derived from its own noise model
   (`models/_calibration.py`): the expected Euler characteristic of the whitened scan over
   latency and width (Siegmund and Worsley 1995) sets the deviance pure noise exceeds with
-  probability `alpha`, widened for the sampling error of the AR spectrum. The criterion
-  stays BIC (step 4 unchanged); only the size of the fall it needs is set per fit.
-  Measured: REQ-105 recall 0.885 to 0.950 (test seeds, 100 per K; 0.9555 on 1 000), met;
-  REQ-112 noise windows with a component 1.9 / 1.6 / 2.2 % (white / rho 0.5 / rho 0.9,
-  2 000 windows each, the test's settings), within the 5 %. The calibration applies with
-  `noise_model="ar"` and `selection="bic"`; otherwise the fixed 10 is used. `delta=10` is
-  the reviewed rule, and the presets keep it: on ds004080 the `ccep` preset keeps 97.5 %
-  of the REQ-112 baselines silent; the package defaults keep 93.8 % (96.3 % at `delta`
-  10) of the same 80 windows, 87.3 % (90.1 %) on 920 windows of 23 development runs.
+  probability `alpha`, widened for the sampling error of the AR spectrum and for the change
+  of the spectrum over the baseline (AR models of the same order fitted on three segments
+  of the baseline; the spread of their log spectra beyond what sampling explains, weighted
+  by the component's spectrum). The criterion stays BIC (step 4 unchanged); only the size
+  of the fall it needs is set per fit. Measured: REQ-105 recall 0.950, precision 0.986
+  (test seeds, 100 per K; 0.9545 and 0.980 on 1 000), met; on the ds004080 baselines 92.5
+  % silent on the two REQ runs (94.6 % on the development runs), short of the 95 % of
+  REQ-112 (§4 "REQ-112 on real baselines"). It is therefore not the default. The
+  calibration applies with `noise_model="ar"` and `selection="bic"`; otherwise the fixed
+  10 is used.
 - **`shape_choice="aic"` (§5.5.3 step 4).** Step 4 compares the allowed shapes of a
   candidate on the quick fits of the forward search ("the best kept", by the criterion).
   With the default, each component of the final model at least 8 samples wide at half
   maximum is refitted with every allowed shape (asymmetry started at 0 and +/- 2) and the
   lowest AIC is kept: BIC charges the asymmetry ln n (about 6.4), which a skewed component
   of SNR 5 to 20 rarely pays, and its Gaussian centre lies up to 1.55 samples from the
-  mode. REQ-106 skewed truth with the default pair: latency MAE 0.52 to 0.46 sample (test
-  seeds; 0.515 to 0.447 on 1 000 development waveforms), met. `"bic"` is the reviewed
+  mode. REQ-106 skewed truth with the default pair: latency MAE 0.52 to 0.45 sample (test
+  seeds, package defaults; 0.515 to 0.447 on 1 000 development waveforms), met. `"bic"` is the reviewed
   comparison and every preset sets it (the ds004080 N1 decision was validated with it).
 - **`resolution_check=True` (§5.5.3 step 5, REQ-111).** Step 5 merges two overlapping
   components after a step accepted the second one; two equal Gaussians 0.5 FWHM apart
@@ -239,10 +243,12 @@ with the previous commit; the reference fixture within 2.4e-12).
   (sigma_1 + sigma_2) apart, whose single-Gaussian fit is this component, have been told
   apart from it (its deviance against the best single Gaussian, in the fit's whitened
   metric, against the deviance a new component needs)? When not, the component is flagged
-  `merged:k,k+1`. REQ-111 at 0.5 FWHM: one component with the warning in 97 of 100 runs
-  (none before; 0.943 on 1 000). The flag says what the data cannot exclude, not that two
-  components were seen: it was set on every single Gaussian measured from SNR 5 to 80
-  (FWHM 10 and 40 ms), not at SNR 200. Every preset sets `resolution_check=False`.
+  `merged:k,k+1`. REQ-111 at 0.5 FWHM: one component with the warning in 100 of 100 runs
+  (none before; 0.998 on 1 000; package defaults). The flag says what the data cannot
+  exclude, not that two components were seen: it was set on every single Gaussian
+  measured from SNR 5 to 80 (FWHM 10 and 40 ms); at SNR 200 it is set with the fixed
+  `delta` 10 (the pair would need a deviance of 29, it has 22), not with the calibrated
+  acceptance; at SNR 400 it is not set. Every preset sets `resolution_check=False`.
 
 ### Cross-projection test: response duration and pairs tested (§5.6 item 2, REQ-134)
 
@@ -514,6 +520,24 @@ with the previous commit; the reference fixture within 2.4e-12).
   with no status or shape changed, one number of components changed (UMCU19 el088, 5 to 6,
   with a lower criterion; a channel that already moved under 1e-15 perturbations of the
   data), and the N1 agreement of REQ-114 equal or higher.
+- **REQ-112 on real baselines, "at the default `delta`".** Read as both defaults a user
+  meets: the `ccep` preset (the test's model before 2026-10-13) and the package defaults
+  (`ResponseModel()` without a preset). Both must keep >= 95 % of the pre-stimulus windows
+  of the two REQ runs (ds004080 UMCU01 run-021448, UMCU04 run-031148; 80 windows, the
+  first 40 contacts of each) without a component; the test is parametrised over both.
+  Choices are made on 920 windows of 23 other runs (development) and reported on these 80
+  once. The calibrated acceptance, with the spread of the noise spectrum across baseline
+  segments added and `alpha` 0.04 chosen on development runs (94.6 % silent there, 87.3 %
+  without the segment term, 90.1 % at `delta` 10), kept 92.5 % of the test windows (74 of
+  80) against 96.25 % (77 of 80) at `delta` 10: the package default is the fixed `delta`
+  10 again (§3, §5.3), and REQ-105 is an expected failure as before the calibration.
+- **A preset that asks for the calibrated acceptance.** `delta="calibrated"` is the
+  sentinel, in a `Preset`, in `ResponseModel(...)` and in `FitSettings`; it is recorded
+  as given, so a stored fit and a preset written to JSON say which rule they used. A number is the fixed fall of BIC. `delta=None` keeps its meaning
+  of "not given" (the preset's value, else the fixed 10), so no stored setting changes its
+  reading. Any other string is refused (`SettingsError`). Fits recorded under 1.2 with
+  `delta=None` (the calibrated default of that version, not released) are described as
+  calibrated by `methods_text()`.
 
 ## 5. Requirements that cannot both be read literally
 
@@ -625,16 +649,14 @@ with the previous commit; the reference fixture within 2.4e-12).
   Even an oracle matched filter that knows the latency range and width finds 73 % of the
   FWHM-3, SNR-3 components at 5 % false alarms: the SNR-3 levels sit at the detection
   limit, and the recall of 0.95 is reachable only because the other levels are found.
-- Resolution (2026-10-13): the default `delta` is calibrated per fit (`delta=None`,
-  `alpha=0.03`; §3 "Calibrated acceptance"), at a false-response rate of about 3 % on
-  every noise instead of a fixed fall of BIC. Both REQs are met as written: REQ-105 recall
-  0.950, precision 0.988 (test seeds; 0.9555 and 0.983 on 1 000 per K); REQ-112 1.9 /
-  1.6 / 2.2 % of white / rho 0.5 / rho 0.9 windows with a component (2 000 each). The
-  margin is small on both sides: recall 0.95 exactly on the test's 600 components, and the
-  threshold that keeps it on development seeds (`alpha` 0.025: 0.952 before the final
-  shape choice was added; 0.02 with it: 0.946) leaves REQ-112 about 3 % of the 5 %. The REQ-112 test on ds004080 baselines uses the
-  `ccep` preset (fixed `delta` 10, 97.5 % silent, unchanged); with the package defaults
-  the same windows are 93.8 % silent (96.3 % at `delta` 10): §3 "Calibrated acceptance".
+- Resolution (2026-10-13, revised the same day): the calibrated acceptance
+  (`delta="calibrated"`, §3) meets REQ-105 (recall 0.950, precision 0.986 on the test's
+  seeds; 0.9545 and 0.980 on 1 000 per K) and the simulated part of REQ-112, but on the
+  ds004080 baselines of the two REQ runs it keeps 92.5 % of the windows silent, where
+  `delta` 10 keeps 96.25 % (§4 "REQ-112 on real baselines"). REQ-112 is kept: the package
+  default is `delta` 10, and REQ-105 stays an expected failure on its recall (0.883 on the
+  test's seeds, 0.887 on 1 000 per K; precision 1.00). A preset or a user who wants the
+  recall asks for `delta="calibrated"`.
 
 ### 5.4 REQ-106 with the default pair — the latency of §5.5.1 and the pair of REQ-106
 
@@ -647,9 +669,9 @@ with the previous commit; the reference fixture within 2.4e-12).
   truth and a gamma truth of the same fitted curve: the pair does not hold the gamma and
   biexponential shapes.
 - Resolution: the latency definition and the pair stay as specified. Skewed truths are
-  met with the final shape choice by AIC (§3; MAE 0.46 on the test's seeds, 0.52 before);
-  gamma and biexponential stay expected failures (0.71 and 0.61 on the test's seeds, 0.76
-  and 0.60 before). Measured and not kept (development seeds): refitting the peak region
+  met with the final shape choice by AIC (§3; MAE 0.45 on the test's seeds, 0.52 before);
+  gamma and biexponential stay expected failures (0.715 and 0.592 on the test's seeds,
+  0.76 and 0.60 before). Measured and not kept (development seeds): refitting the peak region
   only (above 0.3 or 0.5 of the peak; gamma 0.75 to 0.61, biexponential unchanged at 0.62,
   skewed and Gaussian truths worse), a parabola through the samples above 0.6 of the peak
   (biexponential 0.62 to 1.16), a shift of the fitted curve onto the peak (no gain), and a
@@ -664,21 +686,19 @@ with the previous commit; the reference fixture within 2.4e-12).
   for a second component, so no step adds it and the merge of step 5 never runs.
 - Resolution of the first clause: the resolution check (§3, `resolution_check=True`)
   sets `merged:k,k+1` on a component that such a pair would explain as well: one
-  component with the warning in 97 of 100 runs (0.943 on 1 000, 0.952 on 1 000
-  development runs). It is set on most single components below SNR 80 too: a flag of what
+  component with the warning in 100 of 100 runs at `delta` 10 (0.998 on 1 000; 0.96 and
+  0.937 with the calibrated acceptance). It is set on most single components below SNR 80 too: a flag of what
   the data cannot exclude.
-- The second clause conflicts with REQ-105. Two of the test's 100 runs (35 of 1 000) return
-  the pair as one component plus a false component of about 1.7 noise SD elsewhere in
-  the window: the calibrated acceptance admits a noise component in about 3 % of windows,
-  which REQ-105 needs (§5.3). "Never" in 100 runs needs a false-component rate well
-  below 1 %, which leaves REQ-105 at about 0.89 (`delta` 10). A stricter threshold for the
-  second and later components only was rejected: the REQ-105 waveforms with K = 2 and 3
-  need the same sensitivity at every step (estimated recall 0.92). REQ-105 is kept;
-  REQ-111 at 0.5 FWHM stays an expected failure on its second clause. The REQ stays
-  reachable: with `delta=10` (the fixed rule of §5.5.4) and the resolution check, both
-  clauses hold on the test's seeds (one component with the warning in 100 of 100 runs, no
-  two-component fit; at 1.0 FWHM two components in 100 of 100), and REQ-105 is not met
-  (recall 0.885, as before).
+- The second clause conflicts with REQ-105. With the calibrated acceptance, 4 of the
+  test's 100 runs (59 of 1 000) return the pair as one component plus a false component of
+  about 1.7 noise SD elsewhere in the window: it admits a noise component in a few % of
+  windows, which REQ-105 needs (§5.3). "Never" in 100 runs needs a false-component rate
+  well below 1 %. A stricter threshold for the second and later components only was
+  rejected: the REQ-105 waveforms with K = 2 and 3 need the same sensitivity at every step
+  (estimated recall 0.92). With the package defaults (`delta` 10 and the resolution check,
+  §5.3) both clauses hold on the test's seeds: one component with the warning in 100 of
+  100 runs, no two-component fit (998 and 2 of 1 000); at 1.0 FWHM two components in 100
+  of 100. REQ-111 is met; the conflict is carried by REQ-105 (§5.3).
 
 ### 5.6 REQ-171: how often a posterior mean beats the channel fits (§5.8)
 

@@ -12,7 +12,7 @@ from scipy.stats import chi2
 from evoparam import presets
 from evoparam.errors import SettingsError
 from evoparam.models import ResponseModel
-from evoparam.models._calibration import Calibration, scan_level
+from evoparam.models._calibration import SPECTRAL_SEGMENTS, Calibration, scan_level
 from evoparam.models._settings import CALIBRATED, FIXED_DELTA, FitSettings, resolve_settings
 from evoparam.models.engine import Whitener, ar_model
 
@@ -21,7 +21,7 @@ from .helpers import BASELINE, TIMES, WINDOW, gauss, model, noise
 ###################################################################################################
 ###################################################################################################
 
-ALPHA = 0.03  # the package default
+ALPHA = 0.04  # the package default
 FIXED = 10.0  # spec §5.5.4, every preset
 C0 = 18.0  # a scan level
 LATENCY_TOL = 0.002  # s
@@ -90,9 +90,45 @@ def test_coloured_noise_needs_more_evidence() -> None:
     assert spread[0.9][2] > 3 * abs(spread[0.0][2])
 
 
-def test_calibrated_by_default_and_a_number_is_the_fixed_rule() -> None:
+def _ar1(rng: Any, rho: float, n: int) -> Any:
+    e = rng.normal(0, 1, n)
+    x = np.empty(n)
+    x[0] = e[0]
+    for i in range(1, n):
+        x[i] = rho * x[i - 1] + e[i]
+    return x / np.std(x)
+
+
+def test_a_changing_spectrum_needs_more_evidence() -> None:
+    """A baseline whose spectrum drifts (AR(1) 0.3, then 0.6, then 0.9) widens the threshold
+    of a broad component more than a stationary baseline of the same mean spectrum; the
+    narrow component's threshold moves less (CHANGELOG "Calibrated acceptance: the change
+    of the noise spectrum")."""
+
+    rng = np.random.default_rng(8)
+    tw = np.arange(0, 0.5, 0.001)
+    columns = np.c_[gauss(0.25, 1, 0.1, tw), gauss(0.25, 1, 0.004, tw), np.ones(len(tw))]
+    needed = {}
+    for name, z in (
+        ("stationary", _ar1(rng, 0.6, 1500)),
+        ("drifting", np.r_[_ar1(rng, 0.3, 500), _ar1(rng, 0.6, 500), _ar1(rng, 0.9, 500)]),
+    ):
+        a, innovation, acov = ar_model(z, return_acov=True)
+        white = Whitener(np.ones(len(tw)), a, innovation, np.ones(len(tw), bool), acov=acov)
+        ones = white(np.ones((len(tw), 1)))
+        cal = Calibration(
+            ALPHA, white, tw, ones, 0.002, 0.3, white.n, a, innovation, acov, len(z), baseline=z
+        )
+        assert len(cal.segments) == SPECTRAL_SEGMENTS
+        design = white(columns)
+        needed[name] = (cal.required(design, 0) - cal.delta0, cal.required(design, 1) - cal.delta0)
+    assert needed["drifting"][0] > needed["stationary"][0]
+    assert needed["drifting"][0] > needed["drifting"][1]
+
+
+def test_calibrated_on_request_and_a_number_is_the_fixed_rule() -> None:
     y = gauss(0.2, -8, 0.04) + noise(np.random.default_rng(1))
-    fit = model().fit_waveform(TIMES, y)
+    fit = model(delta=CALIBRATED).fit_waveform(TIMES, y)
     assert fit.settings["delta"] == CALIBRATED
     acc = fit.diagnostics["acceptance"]
     assert acc["rule"] == "calibrated"
@@ -117,13 +153,13 @@ def test_presets_keep_the_rule_they_were_validated_with() -> None:
         assert s.shape_choice == "bic"
         assert not s.resolution_check
     s = resolve_settings(None)
-    assert s.delta == CALIBRATED
+    assert s.delta == FIXED  # the fixed rule stays the package default (DECISIONS §5.3)
     assert s.shape_choice == "aic"
     assert s.resolution_check
-    # None given to the dataclass reads as the default (as recorded before version 1.3)
-    legacy = FitSettings(delta=None)
-    legacy.validate()
-    assert legacy.delta == CALIBRATED
+    # None given to the dataclass reads as "not given": the default
+    given = FitSettings(delta=None)
+    given.validate()
+    assert given.delta == FIXED
 
 
 def test_a_preset_can_ask_for_the_calibrated_acceptance() -> None:
@@ -166,8 +202,9 @@ def test_settings_validation() -> None:
 
 def test_resolution_check_flags_an_unresolvable_pair_only() -> None:
     """Two equal Gaussians 0.5 FWHM apart (one component, ``merged``); 1 FWHM apart (two
-    components, neither flagged); one strong narrow component at SNR 200 (resolvable: not
-    flagged)."""
+    components, neither flagged); one strong narrow component at SNR 400 (resolvable at the
+    fixed delta 10 of the default: not flagged; at SNR 200 only with the calibrated
+    acceptance, whose threshold is lower)."""
 
     rng = np.random.default_rng(12)
     close = gauss(0.2, -10, 0.04) + gauss(0.22, -10, 0.04) + noise(rng)
@@ -178,7 +215,7 @@ def test_resolution_check_flags_an_unresolvable_pair_only() -> None:
     fit = model(shapes=("gaussian",)).fit_waveform(TIMES, apart)
     assert len(fit.components) == 2  # noqa: PLR2004  (the two Gaussians)
     assert not any(w.startswith("merged:") for w in fit.warnings)
-    strong = gauss(0.3, 200, 0.02) + noise(rng)
+    strong = gauss(0.3, 400, 0.02) + noise(rng)
     fit = model(shapes=("gaussian",)).fit_waveform(TIMES, strong)
     assert len(fit.components) == 1
     assert not any(w.startswith("merged:") for w in fit.warnings)

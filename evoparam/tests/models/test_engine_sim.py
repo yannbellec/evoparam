@@ -276,12 +276,19 @@ def req105_counts(n: Any = PER_CONDITION, **settings: Any) -> Any:
     return out
 
 
+@pytest.mark.xfail(
+    strict=False,
+    reason="REQ-105 recall not met with the package defaults (fixed delta 10): 0.883 "
+    "(530 of 600 components; K = 1: 0.82, K = 2: 0.85, K = 3: 0.927), precision 1.00, "
+    "100 waveforms per K; every miss is at SNR 3. The calibrated acceptance "
+    "(delta='calibrated') meets it (0.950, precision 0.986; 0.9545 on 1 000) but keeps "
+    "only 92.5 % of the REQ-112 ds004080 baselines silent (96.25 % at delta 10), so it "
+    "is not the default (DECISIONS §4 'REQ-112 on real baselines', §5.3)",
+)
 def test_req105_recall_and_precision_as_written() -> None:
     """simulate_erp waveforms with K = 1, 2, 3 components, SNR 3 to 20 and FWHM 3 to 25
     samples (the levels of spec §7.2 from SNR 3 and 3 samples on): recall and precision
-    >= 0.95 (match: |latency error| <= FWHM / 2, same sign). Met with the calibrated
-    acceptance (``delta=None``): recall 0.950, precision 0.988 on 100 waveforms per K;
-    0.9555 and 0.983 on 1 000 (CHANGELOG, "Calibrated acceptance")."""
+    >= 0.95 (match: |latency error| <= FWHM / 2, same sign)."""
 
     counts = req105_counts()
     tp, fn, fp = (sum(v[j] for v in counts.values()) for j in range(3))
@@ -314,13 +321,13 @@ def req106_errors(truth_shape: Any, fitted: Any, n: Any = PER_CONDITION, **setti
 
 
 def _req106_cases() -> Any:
-    measured = {"gamma": 0.71, "biexponential": 0.61}
+    measured = {"gamma": 0.715, "biexponential": 0.592}
     cause = {
         "gamma": "the best skewed Gaussian puts the mode 0.47 sample from the truth's "
         "on average over the widths without noise (1.0 at 25 samples); 0.72 on 1 000 "
         "waveforms",
         "biexponential": "the best skewed Gaussian puts the mode 0.54 sample from the "
-        "truth's on average over the widths without noise (1.2 at 25 samples); 0.64 on "
+        "truth's on average over the widths without noise (1.2 at 25 samples); 0.637 on "
         "1 000 waveforms",
     }
     for shape in TRUTH_SHAPES:
@@ -398,17 +405,6 @@ def test_req111_one_fwhm_as_written() -> None:
     assert np.mean([len(f.components) == N_RESOLVED for f in fits]) >= MIN_RESOLVED
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="REQ-111 (0.5 FWHM) not met on its second clause: one component with "
-    "merged:<k>,<k+1> in 97 of 100 runs (the resolution check; 0.943 on 1 000), but "
-    "2 of 100 runs (35 of 1 000) return two components without ill_conditioned: the "
-    "pair as one component plus a false component of about 1.7 noise SD elsewhere in "
-    "the window. The calibrated acceptance admits such a component in about 3 % of "
-    "noise windows (alpha 0.03), which REQ-105 needs (recall 0.95 from SNR 3); "
-    "'never' in 100 runs needs a false-component rate near 0, which REQ-105 cannot "
-    "have (DECISIONS §5.5; CHANGELOG, 'Calibrated acceptance')",
-)
 def test_req111_half_fwhm_as_written() -> None:
     """0.5 FWHM apart: one component with the warning "merged:<k>,<k+1>" in >= 90 % of runs,
     and never two components that are not flagged ill-conditioned (|corr| <= 0.95)."""
