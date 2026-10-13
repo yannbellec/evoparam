@@ -11,16 +11,23 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 
-import evoparam  # noqa: E402
+import evoparam  # noqa: E402  (after the sys.path insert above)
 
 project = "evoparam"
 author = "Yann V. Bellec"
-copyright = "Yann V. Bellec"
+copyright = "Yann V. Bellec"  # noqa: A001  (the Sphinx configuration name)
 version = release = evoparam.__version__
 
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.autosummary", "sphinx.ext.intersphinx",
-              "numpydoc", "sphinx_gallery.gen_gallery", "myst_parser", "sphinxcontrib.bibtex",
-              "sphinx_copybutton"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "numpydoc",
+    "sphinx_gallery.gen_gallery",
+    "myst_parser",
+    "sphinxcontrib.bibtex",
+    "sphinx_copybutton",
+]
 templates_path = []
 exclude_patterns = ["_build", "spec", "tutorials/README.txt", "Thumbs.db", ".DS_Store"]
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
@@ -28,8 +35,10 @@ html_theme = "pydata_sphinx_theme"
 # version switcher (REQ-302): ``latest`` is main, ``stable`` the last tag. The JSON file is
 # served with the published site, which waits for the owner's HIIE decision (REQ-398).
 html_theme_options = {
-    "switcher": {"json_url": "_static/switcher.json", "version_match": "latest"
-                 if "dev" in release else "stable"},
+    "switcher": {
+        "json_url": "_static/switcher.json",
+        "version_match": "latest" if "dev" in release else "stable",
+    },
     "navbar_end": ["version-switcher", "navbar-icon-links"],
     "check_switcher": False,
 }
@@ -42,9 +51,14 @@ autosummary_generate = True
 bibtex_bibfiles = ["references.bib"]
 bibtex_default_style = "plain"
 # linkcheck (REQ-302): 0 broken links; DOIs behind paywalls answer 403 to robots
-linkcheck_ignore = [r"https://doi\.org/10\.1016/.*", r"https://doi\.org/10\.1002/.*",
-                    r"https://doi\.org/10\.1093/.*", r"https://doi\.org/10\.1152/.*",
-                    r"https://doi\.org/10\.1109/.*", r"https://www\.sciencedirect\.com/.*"]
+linkcheck_ignore = [
+    r"https://doi\.org/10\.1016/.*",
+    r"https://doi\.org/10\.1002/.*",
+    r"https://doi\.org/10\.1093/.*",
+    r"https://doi\.org/10\.1152/.*",
+    r"https://doi\.org/10\.1109/.*",
+    r"https://www\.sciencedirect\.com/.*",
+]
 linkcheck_timeout = 30
 linkcheck_retries = 2
 intersphinx_mapping = {

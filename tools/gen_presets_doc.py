@@ -20,33 +20,35 @@ and shown in [Preset sensitivity](preset_sensitivity.md) (spec §7.4, REQ-375).
 
 
 def render():
+    """Return the Markdown page of the presets: the table, then one section per preset."""
     from evoparam import presets
 
     table = presets.list()
-    lines = [HEADER, "| " + " | ".join(table.columns) + " |",
-             "|" + "---|" * len(table.columns)]
+    lines = [HEADER, "| " + " | ".join(table.columns) + " |", "|" + "---|" * len(table.columns)]
     for row in table.itertuples(index=False):
         lines.append("| " + " | ".join(str(v) for v in row) + " |")
     lines.append("")
     for name in table["name"]:
         p = presets.get(name)
-        lines += [f"## `{name}`", "",
-                  f"- fit window: {p.fit_window} s; baseline: {p.baseline}; epoch: {p.epoch}",
-                  f"- shapes: {', '.join(p.shapes)}; background: {p.background}; "
-                  f"components: at most {p.max_components}, FWHM {p.min_fwhm} to {p.max_fwhm} s",
-                  f"- artifact: {p.artifact_method} over {p.artifact_window}; "
-                  f"reference: {p.reference}",
-                  "- labels: " + ", ".join(f"{k} {v}" for k, v in p.component_labels.items()),
-                  f"- trial fit: {p.trial_fit}" + (f" ({p.trial_mode})" if p.trial_mode else ""),
-                  f"- validation: {p.validation}"]
+        lines += [
+            f"## `{name}`",
+            "",
+            f"- fit window: {p.fit_window} s; baseline: {p.baseline}; epoch: {p.epoch}",
+            f"- shapes: {', '.join(p.shapes)}; background: {p.background}; "
+            f"components: at most {p.max_components}, FWHM {p.min_fwhm} to {p.max_fwhm} s",
+            f"- artifact: {p.artifact_method} over {p.artifact_window}; reference: {p.reference}",
+            "- labels: " + ", ".join(f"{k} {v}" for k, v in p.component_labels.items()),
+            f"- trial fit: {p.trial_fit}" + (f" ({p.trial_mode})" if p.trial_mode else ""),
+            f"- validation: {p.validation}",
+        ]
         if p.reference_sensitivity:
-            lines.append("- pipeline: reference_sensitivity is run and its kappa report "
-                         "attached")
+            lines.append("- pipeline: reference_sensitivity is run and its kappa report attached")
         if p.trial_covariates:
             lines.append(f"- trial covariates: {', '.join(p.trial_covariates)}")
         if p.train_baseline is not None:
-            lines.append(f"- baseline per train: the last {p.train_baseline:g} s before "
-                         "each train")
+            lines.append(
+                f"- baseline per train: the last {p.train_baseline:g} s before each train"
+            )
         for field, reason in p.choices.items():
             lines.append(f"- choice ({field}): {reason}")
         for field, note in p.notes.items():
@@ -56,6 +58,7 @@ def render():
 
 
 def main(path="docs/presets.md"):
+    """Write the presets page to ``path``."""
     pathlib.Path(path).write_text(render(), encoding="utf-8")
 
 

@@ -58,20 +58,34 @@ RATES = (1024.0, 512.0)
 TRIAL_COUNTS = (5, 7, 10)
 N_DRAWS = 5
 PRESET_FACTORS = (0.5, 1.5)
+# Fewest trials of the stimulation pair chosen in a run.
+MIN_PAIR_TRIALS = 10
+# Baseline windows (s): end of both, start of the one of the average.
+BASELINE_END = -0.1
+AVERAGE_BASELINE_START = -2
+# N1 window (s) of the published rule, and the latency agreement reported (ms).
+N1_START = 0.009
+N1_END = 0.05
+AGREEMENT_MS = 2.0
 PRESET_SEEDS = 20
 # fields compared with their own unperturbed case (the artifact simulation; label recall)
 OWN_BASE = ("artifact_window", "component_labels")
 # criteria of §7.4
-SAMPLING_RECALL_POINTS = 5.0          # N1 recall within 5 points down to 1024 Hz
-PRESET_RECALL_REL = 0.10              # > 10 % change in recall
-PRESET_LATENCY_MS = 2.0               # > 2 ms change of the median latency
+SAMPLING_RECALL_POINTS = 5.0  # N1 recall within 5 points down to 1024 Hz
+PRESET_RECALL_REL = 0.10  # > 10 % change in recall
+PRESET_LATENCY_MS = 2.0  # > 2 ms change of the median latency
 EXAMPLE = ("ccepAgeUMCU01", "021448", "PT01-PT02")
-DS004977 = [("1", "01", "ROC11-ROC12"), ("2", "12", "RZ4-RZ5"), ("3", "03", "LA2-LA3"),
-            ("4", "02", "RO3-RO4")]
+DS004977 = [
+    ("1", "01", "ROC11-ROC12"),
+    ("2", "12", "RZ4-RZ5"),
+    ("3", "03", "LA2-LA3"),
+    ("4", "02", "RO3-RO4"),
+]
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
 
 
 def data_folder():
+    """Return the download cache of evoparam."""
     from evoparam.io._fetch import data_folder as folder
 
     return folder()
@@ -80,11 +94,14 @@ def data_folder():
 ###################################################################################################
 ## Data
 
-def layer3_runs():
-    """(subject, run, pair) of layer 3 on ds004080: the example run of spec §1, then the
-    REQ-371 runs of ``validation/ds004080_subjects.txt`` with their first pair of >= 10
-    trials (the cached events give the pair)."""
 
+def layer3_runs():
+    """Return the (subject, run, pair) of layer 3 on ds004080.
+
+    The example run of spec §1 comes first, then the REQ-371 runs of
+    ``validation/ds004080_subjects.txt`` with their first pair of >= 10 trials (the cached
+    events give the pair).
+    """
     import pandas as pd
 
     out = [EXAMPLE]
@@ -98,66 +115,100 @@ def layer3_runs():
         table = pd.read_csv(events, sep="\t")
         sites = [s for s in table["electrical_stimulation_site"] if isinstance(s, str)]
         counts = pd.Series(sites).value_counts()
-        pair = next(s for s in dict.fromkeys(sites) if counts[s] >= 10)
-        out.append((subject[len("sub-"):], stem.split("_run-")[1], pair))
+        pair = next(s for s in dict.fromkeys(sites) if counts[s] >= MIN_PAIR_TRIALS)
+        out.append((subject[len("sub-") :], stem.split("_run-")[1], pair))
     return out
 
 
 def load_ds004080(subject, run, pair):
+    """Return the cached trials of one ds004080 run and stimulation pair."""
     import pandas as pd
 
     from evoparam.data import TrialSet
 
-    path = pathlib.Path(data_folder()) / "n1-validation" / "ds004080" / \
-        f"sub-{subject}_run-{run}_{pair}.npz"
+    path = (
+        pathlib.Path(data_folder())
+        / "n1-validation"
+        / "ds004080"
+        / f"sub-{subject}_run-{run}_{pair}.npz"
+    )
     with np.load(path, allow_pickle=False) as seg:
         names = [str(n) for n in seg["names"]]
-        return TrialSet(data=seg["data"].astype(float), times=seg["times"],
-                        sfreq=float(seg["sfreq"]), ch_names=names,
-                        metadata=pd.DataFrame({"stim_site": [pair] * len(seg["data"])}))
+        return TrialSet(
+            data=seg["data"].astype(float),
+            times=seg["times"],
+            sfreq=float(seg["sfreq"]),
+            ch_names=names,
+            metadata=pd.DataFrame({"stim_site": [pair] * len(seg["data"])}),
+        )
 
 
 def load_ds004977(subject, run, site):
+    """Return the cached trials of one ds004977 run and stimulation site."""
     import pandas as pd
 
     from evoparam.data import TrialSet
 
-    path = pathlib.Path(data_folder()) / "reference-validation" / "ds004977" / \
-        f"sub-{subject}_run-{run}_{site}.npz"
+    path = (
+        pathlib.Path(data_folder())
+        / "reference-validation"
+        / "ds004977"
+        / f"sub-{subject}_run-{run}_{site}.npz"
+    )
     with np.load(path, allow_pickle=False) as saved:
         names = [str(name) for name in saved["names"]]
         bad = saved["bad"].astype(bool)
         stim = set(site.split("-"))
-        keep = ~bad & np.array([n not in stim for n in names]) & \
-            np.isfinite(saved["data"]).all(axis=(0, 2))
-        return TrialSet(data=saved["data"][:, keep].astype(float), times=saved["times"],
-                        sfreq=float(saved["sfreq"]),
-                        ch_names=[n for n, k in zip(names, keep, strict=True) if k],
-                        metadata=pd.DataFrame({"stim_site": saved["sites"].astype(str)}))
+        keep = (
+            ~bad
+            & np.array([n not in stim for n in names])
+            & np.isfinite(saved["data"]).all(axis=(0, 2))
+        )
+        return TrialSet(
+            data=saved["data"][:, keep].astype(float),
+            times=saved["times"],
+            sfreq=float(saved["sfreq"]),
+            ch_names=[n for n, k in zip(names, keep, strict=True) if k],
+            metadata=pd.DataFrame({"stim_site": saved["sites"].astype(str)}),
+        )
 
 
 def available(kind):
+    """Return the runs of ``kind`` (ds004080 or ds004977) whose cached trials exist."""
     folder = pathlib.Path(data_folder())
     if kind == "ds004080":
-        return [r for r in layer3_runs() if (folder / "n1-validation" / "ds004080" /
-                                            f"sub-{r[0]}_run-{r[1]}_{r[2]}.npz").exists()]
-    return [r for r in DS004977 if (folder / "reference-validation" / "ds004977" /
-                                    f"sub-{r[0]}_run-{r[1]}_{r[2]}.npz").exists()]
+        return [
+            r
+            for r in layer3_runs()
+            if (
+                folder / "n1-validation" / "ds004080" / f"sub-{r[0]}_run-{r[1]}_{r[2]}.npz"
+            ).exists()
+        ]
+    return [
+        r
+        for r in DS004977
+        if (
+            folder / "reference-validation" / "ds004977" / f"sub-{r[0]}_run-{r[1]}_{r[2]}.npz"
+        ).exists()
+    ]
 
 
 ###################################################################################################
 ## The ccep pipeline and the published rule (as the layer-3 tests run them)
 
-def published_rule(ts, reading):
-    """The registry rule of one reading of the published N1 rule (owner decision D8), as
-    ``evoparam/tests/models/test_engine_ccep.py`` applies it: decision, latency (s)."""
 
+def published_rule(ts, reading):
+    """Return the decision and latency (s) of one reading of the published N1 rule.
+
+    The registry rule of that reading (owner decision D8), applied as
+    ``evoparam/tests/models/test_engine_ccep.py`` applies it.
+    """
     from evoparam.existence.rules import apply_rule, resolve_rule
 
     t = ts.times
-    x = ts.data - np.median(ts.data[..., (t > -1) & (t < -0.1)], axis=-1, keepdims=True)
+    x = ts.data - np.median(ts.data[..., (t > -1) & (t < BASELINE_END)], axis=-1, keepdims=True)
     avg = x.mean(axis=0)
-    base = (t > -2) & (t < -0.1)
+    base = (t > AVERAGE_BASELINE_START) & (t < BASELINE_END)
     avg = avg - np.median(avg[:, base], axis=1, keepdims=True)
     spec = resolve_rule(READINGS[reading], baseline=(-2.0, -0.1))
     out = apply_rule(avg, t + 1.0 / ts.sfreq, ts.sfreq, spec, "uV")
@@ -165,19 +216,23 @@ def published_rule(ts, reading):
 
 
 def clean(ts, tmin=-1.0, tmax=2.0):
+    """Return the trials between ``tmin`` and ``tmax`` after template artifact removal."""
     from evoparam.artifact import remove_artifact
 
     sub = ts.select(tmin=tmin, tmax=tmax)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        return remove_artifact(sub, method="template", window=(-0.002, 0.008),
-                               baseline=(-0.5, -0.02)).cleaned
+        return remove_artifact(
+            sub, method="template", window=(-0.002, 0.008), baseline=(-0.5, -0.02)
+        ).cleaned
 
 
 def model_n1(ts):
-    """The ccep preset pipeline of layer 3 and the preset's N1 (a negative component in
-    9-50 ms; latency of the largest): decision and latency per channel."""
+    """Return the decision and latency per channel of the preset's N1.
 
+    The ccep preset pipeline of layer 3; the N1 is a negative component in 9-50 ms, the
+    latency that of the largest.
+    """
     from evoparam.models import ResponseModel
     from evoparam.prep import baseline_correct, rereference
 
@@ -188,13 +243,14 @@ def model_n1(ts):
         fits = ResponseModel("ccep").fit_group(evoked).fits
     det, lat = [], []
     for fit in fits:
-        n1 = [c for c in fit.components if 0.009 <= c.latency <= 0.05 and c.amplitude < 0]
+        n1 = [c for c in fit.components if N1_START <= c.latency <= N1_END and c.amplitude < 0]
         det.append(bool(n1))
         lat.append(max(n1, key=lambda c: abs(c.amplitude)).latency if n1 else np.nan)
     return np.array(det), np.array(lat)
 
 
 def kappa(a, b):
+    """Return Cohen's kappa of two boolean decisions (NaN when empty)."""
     a, b = np.asarray(a, bool), np.asarray(b, bool)
     if not len(a):
         return float("nan")
@@ -204,22 +260,29 @@ def kappa(a, b):
 
 
 def n1_metrics(rule, rule_lat, model, model_lat):
-    """Kappa, recall (rule N1s the model finds), median |latency difference| (ms) and the
-    fraction within 2 ms on the channels where both find an N1."""
+    """Return the agreement of the model's N1 with the rule's.
 
+    Kappa, recall (rule N1s the model finds), median |latency difference| (ms) and the
+    fraction within 2 ms, on the channels where both find an N1.
+    """
     rule, model = np.asarray(rule, bool), np.asarray(model, bool)
     both = rule & model
     diff = np.abs(np.asarray(model_lat)[both] - np.asarray(rule_lat)[both]) * 1000
-    return {"kappa": kappa(rule, model),
-            "recall": float(both.sum() / rule.sum()) if rule.sum() else float("nan"),
-            "median_abs_latency_diff_ms": float(np.median(diff)) if diff.size else float("nan"),
-            "within_2ms": float(np.mean(diff <= 2.0)) if diff.size else float("nan"),
-            "n_channels": int(rule.size), "n_rule": int(rule.sum()),
-            "n_model": int(model.sum()), "n_both": int(both.sum())}
+    return {
+        "kappa": kappa(rule, model),
+        "recall": float(both.sum() / rule.sum()) if rule.sum() else float("nan"),
+        "median_abs_latency_diff_ms": float(np.median(diff)) if diff.size else float("nan"),
+        "within_2ms": float(np.mean(diff <= AGREEMENT_MS)) if diff.size else float("nan"),
+        "n_channels": int(rule.size),
+        "n_rule": int(rule.sum()),
+        "n_model": int(model.sum()),
+        "n_both": int(both.sum()),
+    }
 
 
 ###################################################################################################
 ## Per-run work (one process per run)
+
 
 def _existence(ts, random_state=0):
     from evoparam.existence import existence_detector
@@ -231,16 +294,29 @@ def _existence(ts, random_state=0):
 
 
 def montage_table(ts, baseline):
+    """Return the rows of the reference sensitivity table under the three schemes."""
     from evoparam.prep import reference_sensitivity
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        table = reference_sensitivity(ts, schemes=SCHEMES, detector="existence",
-                                      test_kwargs={"baseline": baseline, "random_state": 0},
-                                      reference_kwargs={"random_state": 0})
-    return [{k: (None if isinstance(v, float) and not np.isfinite(v) else
-                 (v.item() if hasattr(v, "item") else v)) for k, v in row.items()}
-            for row in table.to_dict("records")]
+        table = reference_sensitivity(
+            ts,
+            schemes=SCHEMES,
+            detector="existence",
+            test_kwargs={"baseline": baseline, "random_state": 0},
+            reference_kwargs={"random_state": 0},
+        )
+    return [
+        {
+            k: (
+                None
+                if isinstance(v, float) and not np.isfinite(v)
+                else (v.item() if hasattr(v, "item") else v)
+            )
+            for k, v in row.items()
+        }
+        for row in table.to_dict("records")
+    ]
 
 
 def decimates(sfreq, rate):
@@ -252,22 +328,28 @@ def decimates(sfreq, rate):
     no power between the old and the new Nyquist frequency. On that run the ``ccep`` fit then
     finds N1s on 54 channels instead of 14 (CHANGELOG, REQ-375).
     """
-
     return sfreq > rate * (1 + 1e-6)
 
 
 def run_ds004080(subject, run, pair, analyses):
     """Everything §7.4 asks of one ds004080 run."""
-
     from evoparam.prep import rereference, resample
 
     start = time.perf_counter()
     ts = load_ds004080(subject, run, pair)
-    out = {"subject": subject, "run": run, "pair": pair, "sfreq": ts.sfreq,
-           "n_trials": ts.n_trials, "n_channels": ts.n_channels}
+    out = {
+        "subject": subject,
+        "run": run,
+        "pair": pair,
+        "sfreq": ts.sfreq,
+        "n_trials": ts.n_trials,
+        "n_channels": ts.n_channels,
+    }
     rules = {reading: published_rule(ts, reading) for reading in READINGS}
-    out["rule"] = {r: {"decision": d.tolist(), "latency": np.where(d, lat, np.nan).tolist()}
-                   for r, (d, lat) in rules.items()}
+    out["rule"] = {
+        r: {"decision": d.tolist(), "latency": np.where(d, lat, np.nan).tolist()}
+        for r, (d, lat) in rules.items()
+    }
     if "sampling" in analyses or "layer3" in analyses:
         det, lat = model_n1(ts)
         out["native"] = {"decision": det.tolist(), "latency": lat.tolist()}
@@ -282,8 +364,11 @@ def run_ds004080(subject, run, pair, analyses):
                 warnings.simplefilter("ignore")
                 low = resample(ts, rate)
             d, lat = model_n1(low)
-            out["sampling"][str(int(rate))] = {"decision": d.tolist(), "latency": lat.tolist(),
-                                               "resampled": True}
+            out["sampling"][str(int(rate))] = {
+                "decision": d.tolist(),
+                "latency": lat.tolist(),
+                "resampled": True,
+            }
     if "montage" in analyses:
         out["montage"] = montage_table(clean(ts), (-0.5, -0.05))
     if "trials" in analyses:
@@ -300,48 +385,67 @@ def run_ds004080(subject, run, pair, analyses):
                 idx = np.sort(rng.choice(cleaned.n_trials, n, replace=False))
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    sub = rereference(cleaned.select(trials=idx), "car_adaptive",
-                                      random_state=0)
+                    sub = rereference(cleaned.select(trials=idx), "car_adaptive", random_state=0)
                 det, _ = _existence(sub)
-                rows.append({"n_trials": n, "draw": draw, "kappa": kappa(full, det),
-                             "changed": float(np.mean(det != full)),
-                             "n_detected": int(det.sum()), "n_detected_all": int(full.sum())})
+                rows.append(
+                    {
+                        "n_trials": n,
+                        "draw": draw,
+                        "kappa": kappa(full, det),
+                        "changed": float(np.mean(det != full)),
+                        "n_detected": int(det.sum()),
+                        "n_detected_all": int(full.sum()),
+                    }
+                )
         out["trials"] = rows
     out["duration_s"] = time.perf_counter() - start
     return out
 
 
 def run_ds004977(subject, run, site):
+    """Return the montage analysis of one ds004977 site."""
     start = time.perf_counter()
     ts = load_ds004977(subject, run, site)
     from evoparam.artifact import remove_artifact
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        cleaned = remove_artifact(ts, method="template", window=(-0.002, 0.008),
-                                  baseline=(-0.2, -0.02)).cleaned
+        cleaned = remove_artifact(
+            ts, method="template", window=(-0.002, 0.008), baseline=(-0.2, -0.02)
+        ).cleaned
     table = montage_table(cleaned, (-0.19, -0.02))
-    return {"subject": subject, "run": run, "site": site, "sfreq": ts.sfreq,
-            "n_trials": ts.n_trials, "n_channels": ts.n_channels, "montage": table,
-            "duration_s": time.perf_counter() - start}
+    return {
+        "subject": subject,
+        "run": run,
+        "site": site,
+        "sfreq": ts.sfreq,
+        "n_trials": ts.n_trials,
+        "n_channels": ts.n_channels,
+        "montage": table,
+        "duration_s": time.perf_counter() - start,
+    }
 
 
 ###################################################################################################
 ## Preset sensitivity (simulations)
 
 SIM = {  # preset -> (sampling rate, epoch) of its simulation (layer 2 for the shared ones)
-    "erp": (500.0, (-0.2, 0.8)), "ccep": (2048.0, (-0.5, 0.6)),
-    "ccep_seeg": (2048.0, (-0.5, 0.6)), "sep": (5000.0, (-0.05, 0.1)),
-    "tep": (5000.0, (-0.3, 0.35)), "erna": (4096.0, (-0.002, 0.009)),
-    "ecap": (30000.0, (-0.0005, 0.0035)), "ecap_ci": (50000.0, (-0.0002, 0.002)),
-    "rodent_ep": (1250.0, (-0.1, 0.35)), "primate_ep": (1250.0, (-0.1, 0.35)),
+    "erp": (500.0, (-0.2, 0.8)),
+    "ccep": (2048.0, (-0.5, 0.6)),
+    "ccep_seeg": (2048.0, (-0.5, 0.6)),
+    "sep": (5000.0, (-0.05, 0.1)),
+    "tep": (5000.0, (-0.3, 0.35)),
+    "erna": (4096.0, (-0.002, 0.009)),
+    "ecap": (30000.0, (-0.0005, 0.0035)),
+    "ecap_ci": (50000.0, (-0.0002, 0.002)),
+    "rodent_ep": (1250.0, (-0.1, 0.35)),
+    "primate_ep": (1250.0, (-0.1, 0.35)),
     "p300_bci": (500.0, (-0.2, 0.8)),
 }
 
 
 def perturb(value, factor):
     """``value`` times ``factor``: numbers, intervals (both ends), dicts of intervals."""
-
     if isinstance(value, bool):
         return value
     if isinstance(value, int):
@@ -356,9 +460,11 @@ def perturb(value, factor):
 
 
 def simulate_preset(name, seed, epoch=None):
-    """Trials of one replicate for a preset (the layer-2 base cell: two components, SNR 5,
-    width 12 samples, separation 2 FWHM, 20 trials, white noise) and the truth table."""
+    """Return the trials of one replicate for a preset, and the truth table.
 
+    The layer-2 base cell: two components, SNR 5, width 12 samples, separation 2 FWHM, 20
+    trials, white noise.
+    """
     import pandas as pd
 
     from evoparam import presets
@@ -377,8 +483,9 @@ def simulate_preset(name, seed, epoch=None):
     latencies = start + 0.15 * (stop - start) + np.arange(2) * 2.0 * fwhm
     latencies = latencies[latencies < stop - 0.1 * (stop - start)]
     noise = rng.standard_normal((20, times.size))
-    amplitude = 5 * float(np.std(noise.mean(axis=0)[times < 0])) if (times < 0).any() \
-        else 5 / np.sqrt(20)
+    amplitude = (
+        5 * float(np.std(noise.mean(axis=0)[times < 0])) if (times < 0).any() else 5 / np.sqrt(20)
+    )
     data = noise.copy()
     rows = []
     form = {"freq": 300.0} if shape in ("damped_oscillation", "gabor") else {}
@@ -387,8 +494,9 @@ def simulate_preset(name, seed, epoch=None):
         sign = -1.0 if j % 2 == 0 else 1.0
         params = shape_params(shape, latency, fwhm, **form)
         data += sign * amplitude * model.evaluate(times, params)
-        rows.append({"channel": "c0", "latency": latency, "amplitude": sign * amplitude,
-                     "fwhm": fwhm})
+        rows.append(
+            {"channel": "c0", "latency": latency, "amplitude": sign * amplitude, "fwhm": fwhm}
+        )
     truth = pd.DataFrame(rows, columns=["channel", "latency", "amplitude", "fwhm"])
     ts = TrialSet(data=data[:, None], times=times, sfreq=sfreq, ch_names=["c0"])
     return ts, truth
@@ -402,9 +510,10 @@ def _score(truth, group):
 
 
 def preset_case(name, field, factor, seeds=PRESET_SEEDS):
-    """Recall and median latency error (ms) of a preset with one choice field scaled (the
-    preset is rebuilt with :func:`dataclasses.replace` and passed to the fit)."""
+    """Return the recall and median latency error (ms) with one choice field scaled.
 
+    The preset is rebuilt with :func:`dataclasses.replace` and passed to the fit.
+    """
     import dataclasses
 
     from evoparam import presets
@@ -422,7 +531,7 @@ def preset_case(name, field, factor, seeds=PRESET_SEEDS):
                 sim_epoch = SIM[name][1]
                 if field == "epoch":
                     epoch = tuple(q.epoch)
-                else:   # the simulated epoch holds the (perturbed) fit window
+                else:  # the simulated epoch holds the (perturbed) fit window
                     epoch = (sim_epoch[0], max(sim_epoch[1], q.fit_window[1] * 1.05))
                 ts, truth = simulate_preset(name, seed, epoch=epoch)
                 with warnings.catch_warnings():
@@ -431,7 +540,7 @@ def preset_case(name, field, factor, seeds=PRESET_SEEDS):
                 recall, error = _score(truth, group)
                 if field == "component_labels":
                     recall = _label_recall(truth, group, value)
-        except Exception as err:  # noqa: BLE001 - a failed fit is a result of the analysis
+        except Exception as err:  # noqa: BLE001  (a failed fit is a result of the analysis)
             failures += 1
             errors_seen.append(f"{type(err).__name__}: {err}")
             recalls.append(0.0)
@@ -439,32 +548,43 @@ def preset_case(name, field, factor, seeds=PRESET_SEEDS):
         recalls.append(recall)
         if np.isfinite(error):
             errors.append(error)
-    return {"preset": name, "field": field, "factor": factor,
-            "value": value, "recall": float(np.mean(recalls)),
-            "median_latency_error_ms": float(np.median(errors)) if errors else float("nan"),
-            "failures": failures, "failure_messages": sorted(set(errors_seen))[:3]}
+    return {
+        "preset": name,
+        "field": field,
+        "factor": factor,
+        "value": value,
+        "recall": float(np.mean(recalls)),
+        "median_latency_error_ms": float(np.median(errors)) if errors else float("nan"),
+        "failures": failures,
+        "failure_messages": sorted(set(errors_seen))[:3],
+    }
 
 
 def _label_recall(truth, group, labels):
-    """Fraction of true components whose label window (first label holding the true latency)
-    is the label of a fitted component within FWHM/2 of it."""
+    """Return the fraction of true components found with the right label.
 
+    A true component is found when a fitted component within FWHM/2 of it carries its
+    label (the first label window holding the true latency).
+    """
     fit = group.fits[0]
     found = 0
     for row in truth.itertuples():
         names = [k for k, (a, b) in labels.items() if a <= row.latency <= b]
-        found += any(abs(c.latency - row.latency) <= row.fwhm / 2 and c.label in names
-                     for c in fit.components)
+        found += any(
+            abs(c.latency - row.latency) <= row.fwhm / 2 and c.label in names
+            for c in fit.components
+        )
     return found / len(truth) if len(truth) else float("nan")
 
 
 def _artifact_case(p, seed):
-    """Simulation with artifacts, the preset's artifact method with ``window``, then the
-    preset fit; N1 recall and latency error (ms) against the truth. ``ccep``/``ccep_seeg``:
-    SPES with template subtraction; ``ecap``: alternating-polarity ECAPs with the paradigm
-    subtraction of the preset (which does not read the window: the analysis then shows no
-    change, and would show one if a later version used it)."""
+    """Return the N1 recall and latency error (ms) of a simulation with artifacts.
 
+    The preset's artifact method runs with ``window``, then the preset fit.
+    ``ccep``/``ccep_seeg``: SPES with template subtraction; ``ecap``: alternating-polarity
+    ECAPs with the paradigm subtraction of the preset (which does not read the window: the
+    analysis then shows no change, and would show one if a later version used it).
+    """
     from evoparam.artifact import remove_artifact
     from evoparam.models import fit
     from evoparam.sim import score_fits, simulate_ccep, simulate_ecap
@@ -473,15 +593,30 @@ def _artifact_case(p, seed):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if name.startswith("ccep"):
-            ts, truth = simulate_ccep(n_trials=20, n_channels=12, p_response=1.0, seed=seed,
-                                      layout="grid" if name == "ccep" else "seeg")
-            cleaned = remove_artifact(ts, method="template", window=window,
-                                      baseline=tuple(p.baseline)).cleaned
+            ts, truth = simulate_ccep(
+                n_trials=20,
+                n_channels=12,
+                p_response=1.0,
+                seed=seed,
+                layout="grid" if name == "ccep" else "seeg",
+            )
+            cleaned = remove_artifact(
+                ts, method="template", window=window, baseline=tuple(p.baseline)
+            ).cleaned
         else:
-            ts, truth = simulate_ecap(40, kind="spinal" if name == "ecap" else "cochlear",
-                                      paradigm="alternating", seed=seed)
-            cleaned = remove_artifact(ts, method="paradigm", scheme="alternating",
-                                      window=window, baseline=tuple(p.baseline)).cleaned
+            ts, truth = simulate_ecap(
+                40,
+                kind="spinal" if name == "ecap" else "cochlear",
+                paradigm="alternating",
+                seed=seed,
+            )
+            cleaned = remove_artifact(
+                ts,
+                method="paradigm",
+                scheme="alternating",
+                window=window,
+                baseline=tuple(p.baseline),
+            ).cleaned
         group = fit(cleaned, p, random_state=seed)
     table = truth.to_dataframe()
     row = score_fits(table[table["label"] == "N1"], group).iloc[0]
@@ -489,6 +624,7 @@ def _artifact_case(p, seed):
 
 
 def preset_sensitivity(jobs=1, presets_=None, seeds=PRESET_SEEDS):
+    """Return one row per preset, choice field and factor, with the changes from the base."""
     from evoparam import presets
 
     cases = []
@@ -497,47 +633,68 @@ def preset_sensitivity(jobs=1, presets_=None, seeds=PRESET_SEEDS):
         if not p.choices:
             continue
         cases.append((name, None, 1.0))
-        for field in OWN_BASE:      # their own base (artifact simulation, label recall)
+        for field in OWN_BASE:  # their own base (artifact simulation, label recall)
             if field in p.choices:
                 cases.append((name, field, 1.0))
         for field in p.choices:
             for factor in PRESET_FACTORS:
                 cases.append((name, field, factor))
     rows = _map(preset_case, cases, jobs, extra=(seeds,))
-    base = {(r["preset"], r["field"]): r for r in rows
-            if r["factor"] == 1.0 and r["field"] in (None,) + OWN_BASE}
+    base = {
+        (r["preset"], r["field"]): r
+        for r in rows
+        if r["factor"] == 1.0 and r["field"] in (None,) + OWN_BASE
+    }
     for r in rows:
         b = base[(r["preset"], r["field"] if r["field"] in OWN_BASE else None)]
         r["recall_change"] = r["recall"] - b["recall"]
-        r["recall_change_rel"] = (r["recall_change"] / b["recall"]) if b["recall"] else \
-            float("inf") if r["recall_change"] else 0.0
+        r["recall_change_rel"] = (
+            (r["recall_change"] / b["recall"])
+            if b["recall"]
+            else float("inf")
+            if r["recall_change"]
+            else 0.0
+        )
         r["latency_change_ms"] = r["median_latency_error_ms"] - b["median_latency_error_ms"]
-        r["sensitive"] = bool(r["field"] is not None and r["factor"] != 1.0 and (
-            abs(r["recall_change_rel"]) > PRESET_RECALL_REL or
-            not np.isfinite(r["latency_change_ms"]) or
-            abs(r["latency_change_ms"]) > PRESET_LATENCY_MS))
+        r["sensitive"] = bool(
+            r["field"] is not None
+            and r["factor"] != 1.0
+            and (
+                abs(r["recall_change_rel"]) > PRESET_RECALL_REL
+                or not np.isfinite(r["latency_change_ms"])
+                or abs(r["latency_change_ms"]) > PRESET_LATENCY_MS
+            )
+        )
     return rows
 
 
 ###################################################################################################
 ## Platform (REQ-295)
 
+
 def platform_check():
+    """Return the comparison with the reference fixture on this platform."""
     sys.path.insert(0, str(ROOT))
     from evoparam.tests.reference import compare_fixture
 
     out = compare_fixture()
-    out.update({"platform": platform.platform(), "machine": platform.machine(),
-                "python": platform.python_version(),
-                "other_platforms": "macOS and Windows (x86-64, arm64) are the cells of the "
-                                   "tests matrix of .github/workflows/ci.yml "
-                                   "(tests/test_determinism.py); not run on this machine",
-                "bayesian_paths": "within Monte Carlo error: compared by the same CI cells"})
+    out.update(
+        {
+            "platform": platform.platform(),
+            "machine": platform.machine(),
+            "python": platform.python_version(),
+            "other_platforms": "macOS and Windows (x86-64, arm64) are the cells of the "
+            "tests matrix of .github/workflows/ci.yml "
+            "(tests/test_determinism.py); not run on this machine",
+            "bayesian_paths": "within Monte Carlo error: compared by the same CI cells",
+        }
+    )
     return out
 
 
 ###################################################################################################
 ## Summaries
+
 
 def _map(func, cases, jobs, extra=()):
     if jobs == 1:
@@ -551,84 +708,112 @@ def _map(func, cases, jobs, extra=()):
 
 def summarise_ds004080(runs):
     """Pooled N1 metrics at the native rate (layer 3) and per rate (sampling analysis)."""
-
     out = {}
     for reading in READINGS:
         rule = np.concatenate([r["rule"][reading]["decision"] for r in runs])
         rule_lat = np.concatenate([r["rule"][reading]["latency"] for r in runs])
         rows = {}
         if all("native" in r for r in runs):
-            rows["native"] = n1_metrics(rule, rule_lat,
-                                        np.concatenate([r["native"]["decision"] for r in runs]),
-                                        np.concatenate([r["native"]["latency"] for r in runs]))
+            rows["native"] = n1_metrics(
+                rule,
+                rule_lat,
+                np.concatenate([r["native"]["decision"] for r in runs]),
+                np.concatenate([r["native"]["latency"] for r in runs]),
+            )
         for rate in RATES:
             key = str(int(rate))
             if all(key in r.get("sampling", {}) for r in runs):
                 rows[key] = n1_metrics(
-                    rule, rule_lat,
+                    rule,
+                    rule_lat,
                     np.concatenate([r["sampling"][key]["decision"] for r in runs]),
-                    np.concatenate([r["sampling"][key]["latency"] for r in runs]))
+                    np.concatenate([r["sampling"][key]["latency"] for r in runs]),
+                )
         out[reading] = rows
     return out
 
 
 def sampling_verdict(pooled):
+    """Return the recall at each sampling rate per reading, and whether the drop is met."""
     out = {}
     for reading, rows in pooled.items():
         if "native" not in rows or "1024" not in rows:
             continue
         drop = (rows["native"]["recall"] - rows["1024"]["recall"]) * 100
-        out[reading] = {"recall_native": rows["native"]["recall"],
-                        "recall_1024": rows["1024"]["recall"],
-                        "recall_512": rows.get("512", {}).get("recall"),
-                        "drop_points_1024": drop,
-                        "met": bool(drop <= SAMPLING_RECALL_POINTS)}
+        out[reading] = {
+            "recall_native": rows["native"]["recall"],
+            "recall_1024": rows["1024"]["recall"],
+            "recall_512": rows.get("512", {}).get("recall"),
+            "drop_points_1024": drop,
+            "met": bool(drop <= SAMPLING_RECALL_POINTS),
+        }
     return out
 
 
 def trials_summary(runs):
+    """Return the changes and kappa per number of trials."""
     rows = [row for r in runs for row in r.get("trials", [])]
     out = []
     for n in TRIAL_COUNTS:
         sel = [row for row in rows if row["n_trials"] == n]
         if sel:
             kap = [row["kappa"] for row in sel if np.isfinite(row["kappa"])]
-            out.append({"n_trials": n, "draws": len(sel),
-                        "changed_mean": float(np.mean([row["changed"] for row in sel])),
-                        "kappa_median": float(np.median(kap)) if kap else float("nan")})
+            out.append(
+                {
+                    "n_trials": n,
+                    "draws": len(sel),
+                    "changed_mean": float(np.mean([row["changed"] for row in sel])),
+                    "kappa_median": float(np.median(kap)) if kap else float("nan"),
+                }
+            )
     return out
 
 
 def montage_summary(results):
+    """Return the kappa and latency differences per pair of references."""
     out = {}
     for pair in [("bipolar", "car"), ("bipolar", "car_adaptive"), ("car", "car_adaptive")]:
-        rows = [row for r in results for row in r.get("montage", [])
-                if (row["scheme_a"], row["scheme_b"]) == pair]
+        rows = [
+            row
+            for r in results
+            for row in r.get("montage", [])
+            if (row["scheme_a"], row["scheme_b"]) == pair
+        ]
         kap = [row["kappa"] for row in rows if row["kappa"] is not None]
-        lat = [row["median_latency_diff_ms"] for row in rows
-               if row["median_latency_diff_ms"] is not None]
-        out["-".join(pair)] = {"n": len(rows),
-                               "kappa_median": float(np.median(kap)) if kap else None,
-                               "kappa_min": float(np.min(kap)) if kap else None,
-                               "median_latency_diff_ms_median":
-                                   float(np.median(lat)) if lat else None}
+        lat = [
+            row["median_latency_diff_ms"]
+            for row in rows
+            if row["median_latency_diff_ms"] is not None
+        ]
+        out["-".join(pair)] = {
+            "n": len(rows),
+            "kappa_median": float(np.median(kap)) if kap else None,
+            "kappa_min": float(np.min(kap)) if kap else None,
+            "median_latency_diff_ms_median": float(np.median(lat)) if lat else None,
+        }
     return out
 
 
 def layer3_file(pooled, runs, version):
-    """The N1 metrics of layer 3 at the native rate (``validation/layer3/n1_ds004080.json``),
-    the input of the REQ-376 gate."""
+    """Return the N1 metrics of layer 3 at the native rate, the input of the REQ-376 gate.
 
-    return {"dataset": "ds004080", "version": version,
-            "data": {"dataset": "ds004080", "version": "1.2.4"},
-            "comparators": {reading: {"registry_rule": rule, "overrides": {"baseline":
-                                                                         [-2.0, -0.1]}}
-                            for reading, rule in READINGS.items()},
-            "runs": [f"sub-{r['subject']} run-{r['run']} {r['pair']}" for r in runs],
-            "pipeline": "ccep preset (template artifact removal, car_adaptive, baseline, "
-                        "average, fit_group); N1: negative component in 9-50 ms",
-            "metrics": {reading: rows["native"] for reading, rows in pooled.items()
-                        if "native" in rows}}
+    The content of ``validation/layer3/n1_ds004080.json``.
+    """
+    return {
+        "dataset": "ds004080",
+        "version": version,
+        "data": {"dataset": "ds004080", "version": "1.2.4"},
+        "comparators": {
+            reading: {"registry_rule": rule, "overrides": {"baseline": [-2.0, -0.1]}}
+            for reading, rule in READINGS.items()
+        },
+        "runs": [f"sub-{r['subject']} run-{r['run']} {r['pair']}" for r in runs],
+        "pipeline": "ccep preset (template artifact removal, car_adaptive, baseline, "
+        "average, fit_group); N1: negative component in 9-50 ms",
+        "metrics": {
+            reading: rows["native"] for reading, rows in pooled.items() if "native" in rows
+        },
+    }
 
 
 def _f(value, spec=".3f"):
@@ -637,8 +822,7 @@ def _f(value, spec=".3f"):
 
 
 def _rounded(value):
-    """A perturbed setting for display: floats to 6 significant digits."""
-
+    """Return a perturbed setting for display: floats to 6 significant digits."""
     if isinstance(value, float):
         return float(f"{value:.6g}")
     if isinstance(value, (list, tuple)):
@@ -649,96 +833,144 @@ def _rounded(value):
 
 
 def _sampling_notes(report):
-    """Lines of the sampling section: when it was recomputed alone, and the runs kept as
-    recorded."""
+    """Return the lines of notes of the sampling section.
 
+    When it was recomputed alone, and the runs kept as recorded.
+    """
     lines = []
     again = report["sampling"].get("regenerated")
     if again:
-        lines.append(f"\nThis section was recomputed alone on {again['date']} "
-                     f"({again['duration_min']} min; {again['machine']}).")
+        lines.append(
+            f"\nThis section was recomputed alone on {again['date']} "
+            f"({again['duration_min']} min; {again['machine']})."
+        )
     for rate in (str(int(x)) for x in RATES):
-        names = [f"{r['subject']} run {r['run']} ({r['sfreq']:g} Hz)"
-                 for r in report.get("ds004080", [])
-                 if r.get("sampling", {}).get(rate, {}).get("resampled") is False]
+        names = [
+            f"{r['subject']} run {r['run']} ({r['sfreq']:g} Hz)"
+            for r in report.get("ds004080", [])
+            if r.get("sampling", {}).get(rate, {}).get("resampled") is False
+        ]
         if names:
-            lines.append(f"\nAt {rate} Hz, recorded at or below the rate and not "
-                         f"resampled: {', '.join(names)}.")
+            lines.append(
+                f"\nAt {rate} Hz, recorded at or below the rate and not "
+                f"resampled: {', '.join(names)}."
+            )
     return lines
 
 
 def markdown(report):
-    lines = [f"# Layer-4 robustness, evoparam {report['version']}", "",
-             f"{report['date']}; {report['machine']}; {report['duration_s'] / 60:.1f} min "
-             f"with {report['jobs']} processes. Analyses: {', '.join(report['analyses'])}.", ""]
+    """Return the Markdown report of the layer-4 analyses."""
+    lines = [
+        f"# Layer-4 robustness, evoparam {report['version']}",
+        "",
+        f"{report['date']}; {report['machine']}; {report['duration_s'] / 60:.1f} min "
+        f"with {report['jobs']} processes. Analyses: {', '.join(report['analyses'])}.",
+        "",
+    ]
     if "montage" in report:
-        lines += ["## 1. Montage (existence test under three references)", "",
-                  "| pair | runs/sites | median kappa | lowest kappa | median latency diff (ms) |",
-                  "|---|---|---|---|---|"]
+        lines += [
+            "## 1. Montage (existence test under three references)",
+            "",
+            "| pair | runs/sites | median kappa | lowest kappa | median latency diff (ms) |",
+            "|---|---|---|---|---|",
+        ]
         for pair, row in report["montage"]["summary"].items():
-            lines.append(f"| {pair} | {row['n']} | {_f(row['kappa_median'], '.2f')} | "
-                         f"{_f(row['kappa_min'], '.2f')} | "
-                         f"{_f(row['median_latency_diff_ms_median'], '.2f')} |")
+            lines.append(
+                f"| {pair} | {row['n']} | {_f(row['kappa_median'], '.2f')} | "
+                f"{_f(row['kappa_min'], '.2f')} | "
+                f"{_f(row['median_latency_diff_ms_median'], '.2f')} |"
+            )
         lines.append("")
     if "preset" in report:
-        lines += ["## 2. Preset choice fields (x0.5, x1.5)", "",
-                  "| preset | field | factor | recall | change | median latency error (ms) "
-                  "| change (ms) | sensitive |", "|---|---|---|---|---|---|---|---|"]
+        lines += [
+            "## 2. Preset choice fields (x0.5, x1.5)",
+            "",
+            "| preset | field | factor | recall | change | median latency error (ms) "
+            "| change (ms) | sensitive |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
         for r in report["preset"]:
-            lines.append(f"| {r['preset']} | {r['field'] or '(as set)'} | {r['factor']} | "
-                         f"{_f(r['recall'])} | {_f(r['recall_change'], '+.3f')} | "
-                         f"{_f(r['median_latency_error_ms'])} | "
-                         f"{_f(r['latency_change_ms'], '+.3f')} | "
-                         f"{'yes' if r['sensitive'] else ''} |")
+            lines.append(
+                f"| {r['preset']} | {r['field'] or '(as set)'} | {r['factor']} | "
+                f"{_f(r['recall'])} | {_f(r['recall_change'], '+.3f')} | "
+                f"{_f(r['median_latency_error_ms'])} | "
+                f"{_f(r['latency_change_ms'], '+.3f')} | "
+                f"{'yes' if r['sensitive'] else ''} |"
+            )
         lines.append("")
     if "sampling" in report:
-        lines += ["## 3. Sampling rate (ds004080, N1 against the published rule)", "",
-                  "| reading | rate | kappa | recall | median abs latency diff (ms) |",
-                  "|---|---|---|---|---|"]
+        lines += [
+            "## 3. Sampling rate (ds004080, N1 against the published rule)",
+            "",
+            "| reading | rate | kappa | recall | median abs latency diff (ms) |",
+            "|---|---|---|---|---|",
+        ]
         for reading, rows in report["sampling"]["pooled"].items():
             for rate, m in rows.items():
-                lines.append(f"| {reading} | {rate} | {_f(m['kappa'])} | {_f(m['recall'])} | "
-                             f"{_f(m['median_abs_latency_diff_ms'], '.2f')} |")
+                lines.append(
+                    f"| {reading} | {rate} | {_f(m['kappa'])} | {_f(m['recall'])} | "
+                    f"{_f(m['median_abs_latency_diff_ms'], '.2f')} |"
+                )
         lines += _sampling_notes(report)
         for reading, v in report["sampling"]["verdict"].items():
-            lines.append(f"\n{reading}: recall drop at 1024 Hz {v['drop_points_1024']:+.2f} "
-                         f"points (criterion <= {SAMPLING_RECALL_POINTS}): "
-                         f"{'met' if v['met'] else 'NOT met'}.")
+            lines.append(
+                f"\n{reading}: recall drop at 1024 Hz {v['drop_points_1024']:+.2f} "
+                f"points (criterion <= {SAMPLING_RECALL_POINTS}): "
+                f"{'met' if v['met'] else 'NOT met'}."
+            )
         lines.append("")
     if "trials" in report:
-        lines += ["## 4. Trial count (existence decisions against all trials)", "",
-                  "| trials | draws | decisions changed | median kappa |", "|---|---|---|---|"]
+        lines += [
+            "## 4. Trial count (existence decisions against all trials)",
+            "",
+            "| trials | draws | decisions changed | median kappa |",
+            "|---|---|---|---|",
+        ]
         for r in report["trials"]["summary"]:
-            lines.append(f"| {r['n_trials']} | {r['draws']} | {_f(r['changed_mean'])} | "
-                         f"{_f(r['kappa_median'])} |")
+            lines.append(
+                f"| {r['n_trials']} | {r['draws']} | {_f(r['changed_mean'])} | "
+                f"{_f(r['kappa_median'])} |"
+            )
         lines.append("")
     if "platform" in report:
         p = report["platform"]
-        lines += ["## 5. Platform", "",
-                  f"{p['platform']}: fixture fit within rtol {p['rtol']:g} of the reference: "
-                  f"{'yes' if p['match'] else 'no'} (largest relative difference "
-                  f"{_f(p['max_rel_diff'], '.3g')}). {p['other_platforms']}.", ""]
+        lines += [
+            "## 5. Platform",
+            "",
+            f"{p['platform']}: fixture fit within rtol {p['rtol']:g} of the reference: "
+            f"{'yes' if p['match'] else 'no'} (largest relative difference "
+            f"{_f(p['max_rel_diff'], '.3g')}). {p['other_platforms']}.",
+            "",
+        ]
     return "\n".join(lines) + "\n"
 
 
 def preset_doc(rows, version):
-    lines = ["# Sensitivity of the preset choice fields", "",
-             "Generated by `validation/robustness.py` (spec §7.4, analysis 2) for evoparam "
-             f"{version}; do not edit by hand. Each field that spec §6 marks *(choice)* "
-             "(`Preset.choices`) is multiplied by 0.5 and by 1.5 (intervals: both ends), one at "
-             "a time, and the preset's simulation is fitted again "
-             f"({PRESET_SEEDS} seeds). A change of recall larger than 10 % of the unperturbed "
-             "recall, or of the median latency error larger than 2 ms, is a sensitivity.", "",
-             "| preset | field | factor | value | recall | change | latency change (ms) | "
-             "sensitivity |", "|---|---|---|---|---|---|---|---|"]
+    """Return the Markdown page of the preset sensitivity."""
+    lines = [
+        "# Sensitivity of the preset choice fields",
+        "",
+        "Generated by `validation/robustness.py` (spec §7.4, analysis 2) for evoparam "
+        f"{version}; do not edit by hand. Each field that spec §6 marks *(choice)* "
+        "(`Preset.choices`) is multiplied by 0.5 and by 1.5 (intervals: both ends), one at "
+        "a time, and the preset's simulation is fitted again "
+        f"({PRESET_SEEDS} seeds). A change of recall larger than 10 % of the unperturbed "
+        "recall, or of the median latency error larger than 2 ms, is a sensitivity.",
+        "",
+        "| preset | field | factor | value | recall | change | latency change (ms) | "
+        "sensitivity |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
     for r in rows:
         if r["field"] is None or r["factor"] == 1.0:
             continue
-        lines.append(f"| `{r['preset']}` | `{r['field']}` | {r['factor']} | "
-                     f"{json.dumps(_rounded(r['value']))} | {_f(r['recall'])} | "
-                     f"{_f(r['recall_change'], '+.3f')} | "
-                     f"{_f(r['latency_change_ms'], '+.3f') or 'n/a'} | "
-                     f"{'**yes**' if r['sensitive'] else 'no'} |")
+        lines.append(
+            f"| `{r['preset']}` | `{r['field']}` | {r['factor']} | "
+            f"{json.dumps(_rounded(r['value']))} | {_f(r['recall'])} | "
+            f"{_f(r['recall_change'], '+.3f')} | "
+            f"{_f(r['latency_change_ms'], '+.3f') or 'n/a'} | "
+            f"{'**yes**' if r['sensitive'] else 'no'} |"
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -755,31 +987,43 @@ def _clean_json(obj):
 
 
 def main(argv=None):
+    """Run the requested layer-4 analyses and write the reports."""
     from evoparam.version import __version__
 
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--analyses", default=",".join(ANALYSES),
-                        help="comma-separated subset of " + ", ".join(ANALYSES))
+    parser.add_argument(
+        "--analyses",
+        default=",".join(ANALYSES),
+        help="comma-separated subset of " + ", ".join(ANALYSES),
+    )
     parser.add_argument("--jobs", type=int, default=1)
-    parser.add_argument("--runs", type=int, default=None,
-                        help="first N ds004080 runs only (default: all cached)")
+    parser.add_argument(
+        "--runs", type=int, default=None, help="first N ds004080 runs only (default: all cached)"
+    )
     parser.add_argument("--seeds", type=int, default=PRESET_SEEDS)
     parser.add_argument("--presets", default="", help="comma-separated presets (analysis 2)")
     parser.add_argument("--out", default=None)
-    parser.add_argument("--layer3", default=str(HERE / "layer3" / "n1_ds004080.json"),
-                        help="where to write the native-rate N1 metrics ('' to skip)")
+    parser.add_argument(
+        "--layer3",
+        default=str(HERE / "layer3" / "n1_ds004080.json"),
+        help="where to write the native-rate N1 metrics ('' to skip)",
+    )
     args = parser.parse_args(argv)
     analyses = [a for a in args.analyses.split(",") if a]
     unknown = set(analyses) - set(ANALYSES)
     if unknown:
         parser.error(f"unknown analyses {sorted(unknown)}")
     start = time.perf_counter()
-    report = {"version": __version__, "analyses": analyses, "jobs": args.jobs,
-              "date": time.strftime("%Y-%m-%d"),
-              "machine": f"{platform.platform()}, {os.cpu_count()} CPUs"}
+    report = {
+        "version": __version__,
+        "analyses": analyses,
+        "jobs": args.jobs,
+        "date": time.strftime("%Y-%m-%d"),
+        "machine": f"{platform.platform()}, {os.cpu_count()} CPUs",
+    }
     need = {"montage", "sampling", "trials"} & set(analyses)
     if need:
-        runs = available("ds004080")[:args.runs]
+        runs = available("ds004080")[: args.runs]
         report["data"] = {"ds004080": [list(r) for r in runs]}
         results = _map(run_ds004080, runs, args.jobs, extra=(tuple(analyses) + ("layer3",),))
         report["ds004080"] = results
@@ -797,14 +1041,18 @@ def main(argv=None):
             report["montage"] = {"summary": montage_summary(montage)}
         if args.layer3 and all("native" in r for r in results) and results:
             path = pathlib.Path(args.layer3)
-            path.write_text(json.dumps(_clean_json(layer3_file(pooled, results, __version__)),
-                                       indent=1) + "\n", encoding="utf-8")
+            path.write_text(
+                json.dumps(_clean_json(layer3_file(pooled, results, __version__)), indent=1)
+                + "\n",
+                encoding="utf-8",
+            )
     if "preset" in analyses:
         chosen = [n for n in args.presets.split(",") if n] or None
         report["preset"] = preset_sensitivity(args.jobs, presets_=chosen, seeds=args.seeds)
         if chosen is None:
             (ROOT / "docs" / "preset_sensitivity.md").write_text(
-                preset_doc(report["preset"], __version__), encoding="utf-8")
+                preset_doc(report["preset"], __version__), encoding="utf-8"
+            )
     if "platform" in analyses:
         report["platform"] = platform_check()
     report["duration_s"] = time.perf_counter() - start
