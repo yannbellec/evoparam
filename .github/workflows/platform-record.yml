@@ -35,6 +35,13 @@ jobs:
         pip install --no-deps -e ".[all]"
     - name: Fixture fit against the reference (§7.4 (5))
       run: python validation/robustness.py --analyses platform
+    - name: Show the record (annotations readable without the log storage)
+      shell: bash
+      run: |
+        git status --short
+        for f in validation/layer4/*/platforms/*.json; do
+          echo "::notice title=platform-record $f::$(tr -d '\n' < "$f")"
+        done
     - name: Commit the record
       shell: bash
       run: |
@@ -43,6 +50,9 @@ jobs:
         git add validation/layer4/*/platforms/*.json
         git commit -m "Enregistrement de plateforme : $(python -c 'import platform; print(platform.platform())')" || exit 0
         for attempt in 1 2 3; do
-          git pull --rebase origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && break
+          if git pull --rebase origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME"; then
+            echo "::notice title=platform-record push::pushed"; exit 0
+          fi
           sleep 5
         done
+        echo "::error title=platform-record push::the record could not be pushed"; exit 1
