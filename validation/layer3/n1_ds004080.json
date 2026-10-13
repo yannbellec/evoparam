@@ -12,7 +12,8 @@
     "baseline": [
      -1.0,
      -0.1
-    ]
+    ],
+    "peak": "strict"
    },
    "time_shift_samples": 0
   },
@@ -39,14 +40,14 @@
  "pipeline": "ccep preset (template artifact removal, car_adaptive, baseline, average, fit_group); N1: negative component in 9-50 ms",
  "metrics": {
   "paper": {
-   "kappa": 0.41047422359038294,
-   "recall": 0.42857142857142855,
-   "median_abs_latency_diff_ms": 8.411998997240024,
-   "within_2ms": 0.2608695652173913,
+   "kappa": 0.38207016024252927,
+   "recall": 0.43846153846153846,
+   "median_abs_latency_diff_ms": 3.567843991345729,
+   "within_2ms": 0.38596491228070173,
    "n_channels": 615,
-   "n_rule": 161,
+   "n_rule": 130,
    "n_model": 100,
-   "n_both": 69
+   "n_both": 57
   },
   "code": {
    "kappa": 0.39809549001454825,

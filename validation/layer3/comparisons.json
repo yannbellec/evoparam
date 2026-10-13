@@ -14,12 +14,12 @@
    "quantity": "fraction of channels with an N1",
    "unit": "fraction",
    "comparator": "published N1 rule, registry 'vanblooijs2023' (paper reading)",
-   "comparator_value": 0.261789,
+   "comparator_value": 0.211382,
    "evoparam_value": 0.162602,
-   "difference": -0.099187,
+   "difference": -0.04878,
    "difference_ci": [
-    -0.134959,
-    -0.065041
+    -0.082927,
+    -0.014634
    ],
    "interval": "95 % percentile bootstrap over the 615 channels, paired, 2000 resamples, seed 0",
    "n": 615,
@@ -45,9 +45,10 @@
      "baseline": [
       -1.0,
       -0.1
-     ]
+     ],
+     "peak": "strict"
     },
-    "version": "035ced5a45bac6e0c9186f9bf7486726022c5f1cf306732cc25c4c9baed86b3a"
+    "version": "997c4f3536984680a04fda14fd5e95197617b6db0e54a5b923abdb095264da7d"
    }
   },
   {
@@ -55,15 +56,15 @@
    "quantity": "N1 latency, median over the channels where both find one",
    "unit": "ms",
    "comparator": "published N1 rule, registry 'vanblooijs2023' (paper reading)",
-   "comparator_value": 30.761716,
-   "evoparam_value": 28.485266,
-   "difference": -0.663034,
+   "comparator_value": 29.785153,
+   "evoparam_value": 28.714899,
+   "difference": -0.61814,
    "difference_ci": [
-    -3.801271,
+    -2.350065,
     0.147079
    ],
-   "interval": "95 % percentile bootstrap over the 69 channels, paired, 2000 resamples, seed 0",
-   "n": 69,
+   "interval": "95 % percentile bootstrap over the 57 channels, paired, 2000 resamples, seed 0",
+   "n": 57,
    "data": {
     "dataset": "ds004080",
     "version": "1.2.4",
@@ -86,9 +87,10 @@
      "baseline": [
       -1.0,
       -0.1
-     ]
+     ],
+     "peak": "strict"
     },
-    "version": "035ced5a45bac6e0c9186f9bf7486726022c5f1cf306732cc25c4c9baed86b3a"
+    "version": "997c4f3536984680a04fda14fd5e95197617b6db0e54a5b923abdb095264da7d"
    }
   },
   {

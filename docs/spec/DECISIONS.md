@@ -544,7 +544,11 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   the development runs. The fourth gives 93 % (64 of 69) on the REQ runs and 89 % (32 of
   36) on the development runs, so it is still met on the REQ runs, with a margin of one
   channel. The code's numbers are unchanged. The NumPy path was not re-measured in the
-  new frame.
+  new frame. With the row read as a negative peak (§5.8), the fourth reading gives 82 %
+  (47 of 57) on the REQ runs and 84 % on the development runs, so it is no longer met
+  with the registry row. 7 of the 10 misses are the rule's peaks at 87-100 ms: small
+  local minima of the noisy average on a slope, where the fitted curve has no local
+  minimum. The third reading gives 72 %.
 
 ### 5.3 REQ-105 (recall >= 0.95 from SNR 3) — REQ-112 (>= 95 % of pure-noise windows silent)
 
@@ -674,9 +678,12 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   2 x 2 table, so the bound is found by searching every combination (exact;
   `joint_kappa_bound` in `tests/models/test_engine_ccep.py`). REQ-113: 0.274 on the PT
   contacts (0.8 asked), and on the REQ-371 runs 0.656, 0.380, 0.323, 0.783, 0.714 and
-  0.557 (0.8 asked on 5 of 6), with each reading in its own frame (below; in the code's
-  frame for both, 0.295 and 0.656, 0.343, 0.323, 0.783, 0.681, 0.563). REQ-135: 0.592 pooled over the REQ-371 runs (0.7 asked),
-  0.698 on the development runs, 0.6996 on the segments the earlier test used. Under D8 no
+  0.557 (0.8 asked on 5 of 6), with the row read as the window's most negative sample in
+  its own frame (below; in the code's frame for both, 0.295 and 0.656, 0.343, 0.323,
+  0.783, 0.681, 0.563; with the row read as a negative peak, 0.378 and 0.738, 0.387,
+  0.478, 0.783, 0.752, 0.557). REQ-135: 0.592 pooled over the REQ-371 runs (0.7 asked;
+  0.640 with the negative peak), 0.698 on the development runs, 0.6996 on the segments
+  the earlier test used. Under D8 no
   detector can meet either requirement on the spec's data. This is a property of the two
   comparators, not of the model. The tests `test_d8_req113_cannot_hold_under_both_readings`
   and `test_req135_cannot_hold_under_both_readings` keep it measured.
@@ -703,6 +710,26 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   (`FRAMES` in `tests/models/test_engine_ccep.py` and `validation/robustness.py`). The
   choice follows the spec text, not the results: REQ-113 on the PT contacts falls from
   0.46 to 0.24.
+- The row's peak (2026-10-13). The row reads "`|x| > 3.4·SD_baseline` with a negative
+  peak, ≥ 1 sample", in 9–100 ms. A peak is a local extremum, so the window's most
+  negative sample is not a peak when it lies on a monotone slope at the window's edge
+  (its first sample on the recovery tail, its last on a drift). The published code reads
+  the word the same way: peakfinder's local minima, the first sample excluded. The row
+  is therefore read as the deepest strict local minimum of the window, lower than both
+  neighbours (read outside the window at its edges), below -3.4 SD. The registry option
+  is `peak="strict"`. There is no SD floor and no selectivity, because the row states
+  neither; they stay with the code's reading. This is the gating reading of REQ-113,
+  REQ-114, REQ-135 and REQ-273 (`FRAMES["paper"]`). The window's most negative sample
+  ("extremum", the reading until this date) is still measured.
+
+  The registry's default for `vanblooijs2023` stays `peak="extremum"` for now, because
+  changing it changes other committed results:
+  - the benchmark's published results for the rule (`docs/benchmark/results/vanblooijs2023__T*.json`);
+  - the T2 truth of `evoparam/benchmark/realdata`;
+  - every `test_response(method="threshold", rule="vanblooijs2023")` (an algorithm
+    version).
+
+  The tests pass the option. Making it the registry default is the owner's call.
 - The kappa of 1.00 recorded as REQ-113 met on 2026-10-08 was not REQ-113 as written:
   - the comparator was the code's reading (50 uV SD floor, local minimum), with 1 N1 on
     the 46 PT contacts;
@@ -712,23 +739,29 @@ REQ data (the REQ-371 runs and the example run, held-out seeds). The full table 
   It is reproduced exactly today (1.00, 0.91 pooled) by
   `test_n1_trough_with_the_code_floor_regression`. CHANGELOG, "N1 case: the comparator
   trail".
-- Values under each reading (registry row in its own frame / code):
-  - REQ-113: 0.24 / 0.19 on the PT contacts, 0.44 / 0.40 pooled. No measured variant
-    exceeds 0.50 / 0.56.
-  - REQ-135: 0.586 / 0.496 with the default method. With the rule's per-channel decision
-    (`correction="none"`), the registry row is met on the held-out runs (0.807) and the
-    code reading falls to 0.321. The `ccep` preset keeps FDR across channels (§6).
-  - REQ-114, read as the rule's peak on the fitted curve in the rule's reference: 93 % /
-    90.0 % (§5.2).
+- Values under each reading (registry row read as a negative peak / code; the row read
+  as the window's most negative sample in brackets):
+  - REQ-113: 0.01 (0.24) / 0.19 on the PT contacts, 0.44 (0.44) / 0.40 pooled. No
+    measured variant exceeds 0.51 / 0.56. Ten of the row's 11 PT detections peak after
+    50 ms, outside the N1 window REQ-113 names. A trough oracle on the row's own average
+    meets REQ-113 on two of the six REQ-371 runs only, and gives 0.13 on the PT contacts.
+  - REQ-135: 0.495 (0.586) / 0.496 with the default method. With the rule's per-channel
+    decision (`correction="none"`), the registry row is met on the held-out runs: 0.710
+    (0.807). The code reading falls to 0.321. The `ccep` preset keeps FDR across channels
+    (§6).
+  - REQ-114, read as the rule's peak on the fitted curve in the rule's reference: 82 %
+    (93 %) / 90.0 % (§5.2). It is met with the code only.
 - Under the registry row (after this decision). REQ-113: many detections of the rule are
-  not N1s. Its average has no negative local minimum in 9-50 ms on 16 of the 20 PT
-  contacts it detects in the example run, and on 0, 1, 5, 2, 6 and 12 detected channels
-  of the REQ-371 runs. The condition "every channel the rule detects minus at most one"
-  therefore fails for any N1 detector on the example run and on 4 of the 6 REQ-371 runs
+  not N1s. Read as a negative peak, its average has no negative local minimum in 9-50 ms
+  on 9 of the 11 PT contacts it detects in the example run, and on 0, 1, 1, 2, 5 and 12
+  detected channels of the REQ-371 runs (extremum: 16 of 20; 0, 1, 5, 2, 6, 12). The
+  condition "every channel the rule detects minus at most one" therefore fails for any
+  N1 detector on the example run and on 3 of the 6 REQ-371 runs
   (`test_req113_registry_row_counts_channels_without_an_n1_trough`). A trough oracle on
-  the rule's own average reaches kappa 0.056 on the PT contacts, 0.715 pooled. REQ-135:
-  with FDR kept, the best variant chosen on the development runs (the `ccep` preset's own
-  chain before the test) gives 0.623 on the REQ-371 runs; without the correction 0.807.
+  the rule's own average reaches kappa 0.132 on the PT contacts, 0.816 pooled (extremum
+  0.056 and 0.715). REQ-135: with FDR kept, the best variant chosen on the development
+  runs (the `ccep` preset's own chain before the test) gives 0.548 (0.623) on the
+  REQ-371 runs; without the correction 0.710 (0.807).
   Measured variants and numbers: CHANGELOG, "N1 case: the two readings".
 - REQ-135's subjects. Spec §7.3 lists REQ-135 among the criteria on "ds004080, ≥ 5
   subjects chosen by the rule below". The test therefore uses the REQ-371 list, with every

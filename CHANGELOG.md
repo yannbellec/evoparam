@@ -2,6 +2,109 @@
 
 ## Unreleased
 
+### N1 case: the registry row read as a negative peak (REQ-113, REQ-114, REQ-135, REQ-273)
+
+- The reading. The §5.6 row is "`|x| > 3.4·SD_baseline` with a negative peak, ≥ 1
+  sample" in 9–100 ms. A peak is a local extremum. The window's most negative sample on
+  a monotone slope (its first sample on the recovery tail, its last on a drift) is not
+  one. The new option `peak="strict"` of the registry rules implements the word: the
+  deepest strict local minimum of the window, lower than both neighbours (read outside
+  the window at its edges), below -3.4 SD of the baseline. It has no SD floor and no
+  selectivity; those stay with `vanblooijs2023_code`. Like the other readings, it uses
+  the baseline (-1, -0.1) s and the data's time axis. It is now the gating reading of the
+  N1 tests (`FRAMES["paper"]`). The window's most negative sample is kept as
+  `FRAMES["extremum"]`, measured by `test_req113_extremum_reading` and
+  `test_req114_extremum_reading_in_the_rules_reference`. The registry's default for
+  `vanblooijs2023` stays `peak="extremum"`; DECISIONS §5.8 explains why. A unit test
+  covers the operator (`test_vanblooijs2023_strict_peak_reading`).
+- REQ-113, not met (negative peak; window's most negative sample in brackets):
+
+  | run | rule N1s | kappa | rule N1s missed |
+  |---|---|---|---|
+  | example, 46 PT contacts | 11 (20) | 0.01 (0.24) | 19 on all channels (25) |
+  | UMCU02 | 5 | 0.37 | 1 |
+  | UMCU03 | 30 | 0.60 | 12 |
+  | UMCU04 | 9 | 0.09 | 8 |
+  | UMCU05 | 12 | 0.35 | 7 |
+  | UMCU06 | 25 | 0.42 | 9 |
+  | UMCU01 run-061233 | 25 | 0.32 | 17 |
+
+  Pooled over the REQ-371 runs 0.44 (0.44), over the development runs 0.37 (0.38).
+  The word "peak" removes the window-edge detections: 9 fewer on the example's PT
+  contacts. It does not bring the rule closer to the preset's N1.
+- The remaining disagreements, classified:
+  - Example run, PT contacts:
+    - 10 of the 11 rule N1s peak after 50 ms, outside the N1 window (9–50 ms) that
+      REQ-113 names for the preset; the preset misses 9 of them.
+    - The preset's 6 N1s the rule does not find: 3 are peaks beyond 3.4 SD on the
+      preset's own input (the adjusted common average) but not on the monopolar average
+      the rule reads; 3 stay below 3.4 SD on both.
+  - REQ-371 runs, 54 rule N1s missed:
+    - 24 peak after 50 ms;
+    - 30 peak in the N1 window: 11 of them are peaks the preset's input does not have
+      (the reference), and 19 are peaks it has where the fit names no N1 component. Of
+      the 30, the fitted curve has a trough in 9–50 ms on 13.
+  - REQ-371 runs, 33 preset N1s the rule does not find: 9 are peaks beyond 3.4 SD of the
+    preset's input and 24 are not. On the monopolar average the rule reads, 11 of the 33
+    have a peak of 2–3.4 SD, 12 a peak below 2 SD and 10 no negative peak at all.
+  - Development runs: of the rule N1s missed, 21 are late, 2 are the reference and 8
+    have no N1 named. Of the 34 preset N1s the rule does not find, 6 are peaks of the
+    preset's input and 28 are not.
+  - The trough oracle (an N1 wherever the rule's own average has a 9–50 ms trough below
+    -3.4 SD) reaches 0.132 on the example's PT contacts. On the REQ-371 runs it reaches
+    1.000, 0.971, 0.865, 0.839, 0.789 and 0.458 (0.816 pooled; development runs 0.776).
+    It meets both conditions of REQ-113 on two runs only, so no N1 detector can meet
+    REQ-113 under this reading.
+  - Variants (pooled REQ-371 / development runs):
+
+    | variant | REQ-371 runs | development runs |
+    |---|---|---|
+    | recording reference with a constant background (best) | 0.508 | 0.431 |
+    | fit window to 0.3 s | 0.497 | 0.347 |
+    | N1 gated by the existence test without correction | 0.495 | 0.555 |
+    | ccep 1.1 | 0.442 | 0.372 |
+
+- D8 bounds with this reading: 0.378 on the PT contacts; 0.738, 0.387, 0.478, 0.783,
+  0.752 and 0.557 on the REQ-371 runs; 0.655 pooled. The two readings agree at kappa
+  0.13 on the PT contacts and 0.385 pooled.
+- Channels the rule detects whose average has no 9–50 ms trough: 9 of 11 on the
+  example's PT contacts; 0, 1, 1, 2, 5 and 12 on the REQ-371 runs; 6, 0, 0, 8 and 2 on
+  the development runs.
+- REQ-114 (negative peak; window's most negative sample in brackets; code unchanged at
+  37 %, 80 %, 90.0 % and 90.0 %):
+
+  | reading of the model latency | REQ runs | development runs |
+  |---|---|---|
+  | as written (N1 component) | 39 % (22 of 57) (26 %) | 31 % |
+  | N1 named by its trough | 40 % (28 %) | 34 % |
+  | fitted trough | 61 % (45 %) | 59 % |
+  | rule's peak on the fitted curve | 72 % (86 %) | 66 % |
+  | the same in the rule's reference | 82 % (93 %) | 84 % (89 %) |
+
+  The rule's-reference reading is no longer met with the registry row; it stays met with
+  the code. 7 of its 10 misses on the REQ runs are rule peaks at 87–100 ms. These are
+  small local minima of the noisy average on a slope, where the smooth fitted curve has
+  no local minimum. The word "peak" read on noisy data still counts such wiggles. A
+  selectivity would remove them, but the code's 20 uV belongs to the code and the row
+  states none.
+- REQ-135, not met (negative peak; window's most negative sample in brackets):
+  - default method with FDR: 0.495 (0.586) on the REQ-371 runs, 0.533 (0.600) on the
+    development runs;
+  - per-channel decision (`correction="none"`): 0.710 (0.807), the regression test still
+    holds; development runs 0.756 (0.808);
+  - the preset's own chain with FDR: 0.548 (0.623);
+  - bound with the code reading: 0.640.
+- REQ-273: not met.
+- Layer 3/4 rescored with this reading (`robustness.py --rescore-rules`), model decisions
+  of the 2026-10-11 run:
+  - `n1_ds004080.json`, registry row: kappa 0.410 to 0.382, recall 0.429 to 0.438,
+    median latency difference 8.41 to 3.57 ms, n_rule 161 to 130, n_both 69 to 57;
+  - sampling drop at 1024 Hz 3.85 points (met); code reading unchanged (8.82, not met);
+  - `comparisons.json` and `fig_n1_ds004080.svg` regenerated.
+- Package defaults: none changed (`peak="strict"` is a new option; the registry row's
+  default is unchanged), so no algorithm version changed and the reference fixture is
+  unchanged.
+
 ### N1 case: the comparator trail (REQ-113 met on 2026-10-08, not met since)
 
 On 2026-10-08 (73788a2) REQ-113 was recorded as met: on run-021448 the rule found 4 N1s

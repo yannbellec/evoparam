@@ -69,11 +69,13 @@ EXAMPLE = ("ccepAgeUMCU01", "021448", "PT01-PT02")
 DS004977 = [("1", "01", "ROC11-ROC12"), ("2", "12", "RZ4-RZ5"), ("3", "03", "LA2-LA3"),
             ("4", "02", "RO3-RO4")]
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
-# each reading's SD baseline and time shift in samples (as the layer-3 tests read them,
-# ``FRAMES`` of evoparam/tests/models/test_engine_ccep.py): the registry row on the data's
-# axis with the baseline the registry names (-1 to -0.1 s); the published code with its own
-# baseline and its time axis, one sample later (the stimulation sample is t = 1/sfreq)
-FRAMES = {"paper": ((-1.0, -0.1), 0), "code": ((-2.0, -0.1), 1)}
+# each reading's SD baseline, time shift in samples and peak operator (as the layer-3 tests
+# read them, ``FRAMES`` of evoparam/tests/models/test_engine_ccep.py): the registry row on
+# the data's axis with the baseline the registry names (-1 to -0.1 s) and its "negative
+# peak" read as a peak (the deepest strict local minimum of the window); the published
+# code with its own baseline and its time axis, one sample later (the stimulation sample
+# is t = 1/sfreq)
+FRAMES = {"paper": ((-1.0, -0.1), 0, {"peak": "strict"}), "code": ((-2.0, -0.1), 1, {})}
 
 
 def data_folder():
@@ -164,9 +166,9 @@ def published_rule(ts, reading):
     avg = x.mean(axis=0)
     base = (t > -2) & (t < -0.1)
     avg = avg - np.median(avg[:, base], axis=1, keepdims=True)
-    baseline, samples = FRAMES[reading]
+    baseline, samples, overrides = FRAMES[reading]
     shift = samples / ts.sfreq
-    spec = resolve_rule(READINGS[reading], baseline=baseline)
+    spec = resolve_rule(READINGS[reading], baseline=baseline, **overrides)
     out = apply_rule(avg, t + shift, ts.sfreq, spec, "uV")
     return np.asarray(out["significant"], bool), np.asarray(out["onset"], float) - shift
 
@@ -629,7 +631,8 @@ def layer3_file(pooled, runs, version):
     return {"dataset": "ds004080", "version": version,
             "data": {"dataset": "ds004080", "version": "1.2.4"},
             "comparators": {reading: {"registry_rule": rule,
-                                      "overrides": {"baseline": list(FRAMES[reading][0])},
+                                      "overrides": {"baseline": list(FRAMES[reading][0]),
+                                                    **FRAMES[reading][2]},
                                       "time_shift_samples": FRAMES[reading][1]}
                             for reading, rule in READINGS.items()},
             "runs": [f"sub-{r['subject']} run-{r['run']} {r['pair']}" for r in runs],
@@ -772,7 +775,8 @@ def rescore_rules(report):
         "date": time.strftime("%Y-%m-%d"),
         "note": "each reading in its own frame: "
                 + "; ".join(f"{r} baseline {list(b)} s, time shift {n} sample(s)"
-                            for r, (b, n) in FRAMES.items())}
+                            + (f", peak {o['peak']}" if o.get("peak") else "")
+                            for r, (b, n, o) in FRAMES.items())}
     return report, pooled
 
 
