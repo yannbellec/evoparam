@@ -226,15 +226,19 @@ with qualite-zero; the reference fixture unchanged).
   REQ-112 (§4 "REQ-112 on real baselines"). It is therefore not the default. The
   calibration applies with `noise_model="ar"` and `selection="bic"`; otherwise the fixed
   10 is used.
-- **`shape_choice="aic"` (§5.5.3 step 4).** Step 4 compares the allowed shapes of a
+- **`shape_choice="hqc"` (§5.5.3 step 4).** Step 4 compares the allowed shapes of a
   candidate on the quick fits of the forward search ("the best kept", by the criterion).
-  With the default, each component of the final model at least 8 samples wide at half
-  maximum is refitted with every allowed shape (asymmetry started at 0 and +/- 2) and the
-  lowest AIC is kept: BIC charges the asymmetry ln n (about 6.4), which a skewed component
-  of SNR 5 to 20 rarely pays, and its Gaussian centre lies up to 1.55 samples from the
-  mode. REQ-106 skewed truth with the default pair: latency MAE 0.52 to 0.45 sample (test
-  seeds, package defaults; 0.515 to 0.447 on 1 000 development waveforms), met. `"bic"` is the reviewed
-  comparison and every preset sets it (the ds004080 N1 decision was validated with it).
+  With the default, every component of the final model, whatever its width, is refitted
+  with every allowed shape (asymmetry started at 0 and +/- 2) and the lowest HQC (Hannan
+  and Quinn 1979, `2 ln ln n` per parameter, about 3.7) is kept: BIC charges the asymmetry
+  ln n (about 6.4), which a skewed component of SNR 5 to 20 rarely pays, and its Gaussian
+  centre lies up to 1.55 samples from the mode. REQ-106 skewed truth with the default
+  pair: latency MAE 0.52 (BIC on the quick fits) to 0.46 sample (test seeds, package
+  defaults; 0.456 on 1 000), met. The first version of this choice (AIC, components of at
+  least 8 samples only) skipped narrow components under a width threshold, which REQ-004
+  forbids (§4 "REQ-004, a step skipped under a width"); `"aic"` stays available, on every
+  component. `"bic"` is the reviewed comparison and every preset sets it (the ds004080 N1
+  decision was validated with it).
 - **`resolution_check=True` (§5.5.3 step 5, REQ-111).** Step 5 merges two overlapping
   components after a step accepted the second one; two equal Gaussians 0.5 FWHM apart
   differ from one Gaussian by a chi-square of 1.4 at SNR 10, so no step accepts the second
@@ -531,6 +535,20 @@ with qualite-zero; the reference fixture unchanged).
   without the segment term, 90.1 % at `delta` 10), kept 92.5 % of the test windows (74 of
   80) against 96.25 % (77 of 80) at `delta` 10: the package default is the fixed `delta`
   10 again (§3, §5.3), and REQ-105 is an expected failure as before the calibration.
+- **REQ-004, a step skipped under a width.** REQ-004 says components are accepted or
+  rejected only by the model-selection criterion, and its test forbids skipping a
+  component under a comparison of its size or width with a threshold. Read as covering
+  every step that may change a component, not only its deletion: the final shape choice
+  (§3 "`shape_choice`") refits every component, and which shape a narrow component keeps
+  is decided by the criterion. The criterion is HQC, not AIC: with AIC on every component,
+  asymmetries the data do not determine moved the mode of narrow, low-SNR components out of
+  the REQ-105 match (recall 0.8863 to 0.8852 on development seeds); with HQC the recall is
+  0.8865 (CHANGELOG, "Final shape choice on every component").
+- **REQ-003, the resolution check.** The check (§3) passes over a component that has
+  another component within twice its FWHM, since `merged:k,k+1` would then name that
+  neighbour. It first passed over same-sign neighbours only; a code path that depends on
+  the signs of components, which REQ-003 forbids without `polarity`. Read as: the rule is
+  the same for neighbours of either sign. REQ-111 is unchanged (its pairs have one sign).
 - **A preset that asks for the calibrated acceptance.** `delta="calibrated"` is the
   sentinel, in a `Preset`, in `ResponseModel(...)` and in `FitSettings`; it is recorded
   as given, so a stored fit and a preset written to JSON say which rule they used. A number is the fixed fall of BIC. `delta=None` keeps its meaning
@@ -669,9 +687,9 @@ with qualite-zero; the reference fixture unchanged).
   truth and a gamma truth of the same fitted curve: the pair does not hold the gamma and
   biexponential shapes.
 - Resolution: the latency definition and the pair stay as specified. Skewed truths are
-  met with the final shape choice by AIC (§3; MAE 0.45 on the test's seeds, 0.52 before);
-  gamma and biexponential stay expected failures (0.715 and 0.592 on the test's seeds,
-  0.76 and 0.60 before). Measured and not kept (development seeds): refitting the peak region
+  met with the final shape choice (§3; MAE 0.46 on the test's seeds with HQC, 0.45 with
+  AIC from 8 samples, 0.52 before either); gamma and biexponential stay expected failures
+  (0.721 and 0.599 on the test's seeds, 0.706 and 0.586 on 1 000; 0.76 and 0.60 before). Measured and not kept (development seeds): refitting the peak region
   only (above 0.3 or 0.5 of the peak; gamma 0.75 to 0.61, biexponential unchanged at 0.62,
   skewed and Gaussian truths worse), a parabola through the samples above 0.6 of the peak
   (biexponential 0.62 to 1.16), a shift of the fitted curve onto the peak (no gain), and a
