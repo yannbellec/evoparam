@@ -1,4 +1,4 @@
-"""Step-6 threshold figures ("Décrire la réponse") on real data.
+"""Step-6 threshold figures ("Describe the response") on real data, version 1.
 
 CCEP: ds004080 (6 patients, 7 runs) and ds004977 (4 patients), trial averages, the 10 most
 responsive channels of each run and 10 drawn at random (seed 0). ERP CORE: the published
@@ -126,10 +126,10 @@ def example(ax, results, labels, proposed, index, title):
                 ls=styles[k % len(styles)],
                 lw=1.4,
                 color=PROPOSED if lab == proposed else None,
-                label=f"{lab} ({n_comp(r)} bosses)",
+                label=f"{lab} ({n_comp(r)} components)",
             )
     ax.set_xlim(0, 400)
-    ax.set_xlabel("temps après le choc (ms)")
+    ax.set_xlabel("time after the pulse (ms)")
     ax.set_ylabel("µV")
     ax.set_title(title, fontsize=10)
     ax.legend(fontsize=7, frameon=False)
@@ -137,10 +137,7 @@ def example(ax, results, labels, proposed, index, title):
 
 def summary_panels(results, labels, proposed, name, title, caption, extra=None):
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.2))
-    for sel, tag, ls in (
-        (STRONG, "voies qui répondent", "-"),
-        (~STRONG, "voies tirées au hasard", "--"),
-    ):
+    for sel, tag, ls in ((STRONG, "responsive channels", "-"), (~STRONG, "random channels", "--")):
         pass
     nb_s = [
         np.nanmean([n_comp(r) for r, s in zip(rs, STRONG, strict=True) if s]) for rs in results
@@ -157,7 +154,7 @@ def summary_panels(results, labels, proposed, name, title, caption, extra=None):
         yerr=nb_se,
         color=colours(labels, proposed),
         capsize=3,
-        label="les 10 voies qui répondent le plus (par enregistrement)",
+        label="10 most responsive channels per recording",
     )
     axes[0].bar(
         x + 0.2,
@@ -166,11 +163,11 @@ def summary_panels(results, labels, proposed, name, title, caption, extra=None):
         color="none",
         edgecolor=colours(labels, proposed),
         hatch="//",
-        label="10 voies tirées au hasard (par enregistrement)",
+        label="10 random channels per recording",
     )
     axes[0].set_xticks(x, labels)
-    axes[0].set_ylabel("nombre moyen de bosses")
-    axes[0].set_title("Combien de bosses le modèle garde", fontsize=10)
+    axes[0].set_ylabel("mean number of components")
+    axes[0].set_title("Components kept by the model", fontsize=10)
     axes[0].legend(fontsize=7, frameon=False)
     vals = [[r2(r) for r, s in zip(rs, STRONG, strict=True) if s] for rs in results]
     bp = axes[1].boxplot(
@@ -182,8 +179,8 @@ def summary_panels(results, labels, proposed, name, title, caption, extra=None):
     for patch, col in zip(bp["boxes"], colours(labels, proposed), strict=True):
         patch.set_facecolor(col)
         patch.set_alpha(0.5)
-    axes[1].set_ylabel("R² (part du signal expliquée)")
-    axes[1].set_title("Qualité de l'ajustement (voies qui répondent)", fontsize=10)
+    axes[1].set_ylabel("R² (variance explained)")
+    axes[1].set_title("Goodness of fit (responsive channels)", fontsize=10)
     best = int(
         np.argmax(
             [
@@ -195,7 +192,7 @@ def summary_panels(results, labels, proposed, name, title, caption, extra=None):
             ]
         )
     )
-    example(axes[2], results, labels, proposed, best, "Exemple : une voie CCEP")
+    example(axes[2], results, labels, proposed, best, "Example: one CCEP channel")
     if extra:
         extra(fig, axes)
     fig.suptitle(title, fontsize=12)
@@ -203,32 +200,32 @@ def summary_panels(results, labels, proposed, name, title, caption, extra=None):
 
 
 def fig_shapes():
-    labels = ["gaussienne\nseule", "asymétrique\nseule", "les deux"]
+    labels = ["Gaussian\nonly", "skewed\nonly", "both"]
     ovs = [{"shapes": ("gaussian",)}, {"shapes": ("skewed_gaussian",)}, {}]
     res = ccep_sweep(ovs, curve=True)
     summary_panels(
         res,
         labels,
-        "les deux",
-        "6-01-formes",
-        "Formes de bosse permises (CCEP)",
-        f"Compare 3 jeux de formes sur {len(WAVES)} voies CCEP de {N_CCEP} patients (ds004080, ds004977). "
-        "Montre combien de bosses le modèle garde, la part du signal expliquée (R²) et un exemple.",
+        "both",
+        "6-01-shapes",
+        "Allowed component shapes (CCEP)",
+        f"Three sets of allowed shapes on {len(WAVES)} CCEP channels from {N_CCEP} patients (ds004080, ds004977). "
+        "Shows the number of components kept, the variance explained (R²) and an example.",
     )
 
 
 def fig_background():
-    labels = ["aucun", "constant", "droite", "exponentiel"]
+    labels = ["none", "constant", "linear", "exponential"]
     ovs = [{"background": "none"}, {"background": "constant"}, {"background": "linear"}, {}]
     res = ccep_sweep(ovs, curve=True)
     summary_panels(
         res,
         labels,
-        "exponentiel",
-        "6-02-fond",
-        "Forme du fond sous les bosses (CCEP)",
-        f"Compare 4 fonds sur {len(WAVES)} voies CCEP de {N_CCEP} patients. "
-        "Sans fond adapté, la dérive lente est prise pour des bosses en plus.",
+        "exponential",
+        "6-02-background",
+        "Background model under the components (CCEP)",
+        f"Four background models on {len(WAVES)} CCEP channels from {N_CCEP} patients. "
+        "Without a suitable background, the slow drift is fitted with extra components.",
     )
 
 
@@ -243,18 +240,18 @@ def fig_widths():
         [np.nanmean([n_comp(r) for r, s in zip(rs, STRONG, strict=True) if s]) for rs in res],
         [sem([n_comp(r) for r, s in zip(rs, STRONG, strict=True) if s]) for rs in res],
         "6",
-        "nombre moyen de bosses",
-        "Nombre maximum de bosses permis",
+        "mean number of components",
+        "Maximum number of components",
     )
-    axes[0].set_xlabel("maximum permis")
+    axes[0].set_xlabel("maximum allowed")
     hit = [
         np.mean([n_comp(r) >= m for r, s in zip(rs, STRONG, strict=True) if s]) * 100
         for rs, m in zip(res, mc, strict=True)
     ]
     axes[1].plot(lab, hit, "o-", color="black")
-    axes[1].set_ylabel("% des voies qui atteignent le maximum")
-    axes[1].set_xlabel("maximum permis")
-    axes[1].set_title("Le maximum est-il un vrai frein ?", fontsize=10)
+    axes[1].set_ylabel("% of channels that reach the maximum")
+    axes[1].set_xlabel("maximum allowed")
+    axes[1].set_title("Does the maximum constrain the fit?", fontsize=10)
     mf = [0.05, 0.1, 0.25, 0.5]
     res2 = ccep_sweep([{"max_fwhm": m} for m in mf])
     lab2 = [f"{m * 1000:.0f} ms" for m in mf]
@@ -274,29 +271,29 @@ def fig_widths():
         patch.set_alpha(0.5)
     for k, v in enumerate(nb):
         axes[2].text(
-            k + 1, axes[2].get_ylim()[1] * 0.95, f"{v:.1f} bosses", ha="center", fontsize=7
+            k + 1, axes[2].get_ylim()[1] * 0.95, f"{v:.1f} comp.", ha="center", fontsize=7
         )
-    axes[2].set_ylabel("largeur à mi-hauteur des bosses (ms)")
-    axes[2].set_xlabel("largeur maximale permise")
-    axes[2].set_title("Largeur maximale permise", fontsize=10)
-    fig.suptitle("Bornes : nombre maximum de bosses et largeur maximale (CCEP)", fontsize=12)
+    axes[2].set_ylabel("component FWHM (ms)")
+    axes[2].set_xlabel("maximum FWHM allowed")
+    axes[2].set_title("Maximum FWHM allowed", fontsize=10)
+    fig.suptitle("Bounds: maximum number of components and maximum width (CCEP)", fontsize=12)
     save(
         fig,
-        "6-03-largeurs-max-bosses",
-        f"Fait varier le nombre maximum de bosses (2 à 10) et la largeur maximale (50 à 500 ms) sur {len(WAVES)} voies "
-        f"CCEP de {N_CCEP} patients. Montre si la borne bloque le modèle et quelles largeurs il prend.",
+        "6-03-width-and-max-components",
+        f"Maximum number of components (2 to 10) and maximum FWHM (50 to 500 ms) on {len(WAVES)} CCEP channels "
+        f"from {N_CCEP} patients. Shows whether the bound constrains the model and which widths it uses.",
     )
 
 
 def fig_delta():
     deltas = [2.0, 5.0, 10.0, 20.0, 40.0, "calibrated"]
-    labels = ["2", "5", "10", "20", "40", "calibré"]
+    labels = ["2", "5", "10", "20", "40", "calibrated"]
     res = ccep_sweep([{"delta": d} for d in deltas], curve=True)
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.2))
     x = np.arange(len(labels))
     for sel, tag, style in (
-        (STRONG, "voies qui répondent", "o-"),
-        (~STRONG, "voies au hasard", "s--"),
+        (STRONG, "responsive channels", "o-"),
+        (~STRONG, "random channels", "s--"),
     ):
         m = [np.nanmean([n_comp(r) for r, s in zip(rs, sel, strict=True) if s]) for rs in res]
         e = [sem([n_comp(r) for r, s in zip(rs, sel, strict=True) if s]) for rs in res]
@@ -308,12 +305,12 @@ def fig_delta():
     for ax in axes[:2]:
         ax.set_xticks(x, labels)
         ax.axvline(2, color=PROPOSED, alpha=0.3, lw=8)
-        ax.set_xlabel("seuil |ΔBIC| pour garder une bosse de plus")
+        ax.set_xlabel("|ΔBIC| threshold to keep one more component")
         ax.legend(fontsize=7, frameon=False)
-    axes[0].set_ylabel("nombre moyen de bosses")
-    axes[0].set_title("Combien de bosses on garde", fontsize=10)
-    axes[1].set_ylabel("% des voies avec une N1")
-    axes[1].set_title("Combien de voies ont une N1", fontsize=10)
+    axes[0].set_ylabel("mean number of components")
+    axes[0].set_title("Components kept", fontsize=10)
+    axes[1].set_ylabel("% of channels with an N1")
+    axes[1].set_title("Channels with an N1", fontsize=10)
     best = int(
         np.argmax(
             [
@@ -328,14 +325,14 @@ def fig_delta():
         ["ΔBIC 2", "ΔBIC 10", "ΔBIC 40"],
         "ΔBIC 10",
         best,
-        "Exemple : la voie où le seuil change le plus",
+        "Example: the channel most affected by the threshold",
     )
-    fig.suptitle("Règle pour garder une bosse de plus : ΔBIC ≤ −seuil (CCEP)", fontsize=12)
+    fig.suptitle("Rule to keep one more component: ΔBIC ≤ −threshold (CCEP)", fontsize=12)
     save(
         fig,
         "6-04-delta-bic",
-        f"Fait varier le seuil ΔBIC (2 à 40, et « calibré » sur simulation) sur {len(WAVES)} voies CCEP de {N_CCEP} patients. "
-        "Montre le nombre de bosses gardées et la part des voies où une N1 est trouvée, sur les voies qui répondent et au hasard.",
+        f"ΔBIC threshold from 2 to 40, and calibrated on simulation, on {len(WAVES)} CCEP channels from {N_CCEP} patients. "
+        "Shows the components kept and the share of channels with an N1, on responsive and random channels.",
     )
 
 
@@ -346,8 +343,8 @@ def fig_candidate():
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.2))
     x = np.arange(len(th))
     for sel, tag, style in (
-        (STRONG, "voies qui répondent", "o-"),
-        (~STRONG, "voies au hasard", "s--"),
+        (STRONG, "responsive channels", "o-"),
+        (~STRONG, "random channels", "s--"),
     ):
         axes[0].errorbar(
             x,
@@ -375,23 +372,23 @@ def fig_candidate():
     )
     for ax, yl, tt in zip(
         axes,
-        ["nombre moyen de bosses", "% des voies avec une N1", "temps médian d'un ajustement (ms)"],
-        ["Bosses gardées", "Voies avec une N1", "Temps de calcul"],
+        ["mean number of components", "% of channels with an N1", "median fit time (ms)"],
+        ["Components kept", "Channels with an N1", "Computation time"],
         strict=True,
     ):
         ax.set_xticks(x, labels)
         ax.set_ylabel(yl)
         ax.set_title(tt, fontsize=10)
-        ax.set_xlabel("seuil des candidats (pic du résidu en σ du bruit)")
+        ax.set_xlabel("candidate threshold (residual peak, in noise σ)")
     axes[0].legend(fontsize=7, frameon=False)
     for ax in axes[:2]:
         ax.axvline(2, color=PROPOSED, alpha=0.3, lw=8)
-    fig.suptitle("Seuil des candidats de départ (CCEP)", fontsize=12)
+    fig.suptitle("Starting-candidate threshold (CCEP)", fontsize=12)
     save(
         fig,
-        "6-05-seuil-candidat",
-        f"Fait varier le seuil de départ d'une bosse candidate (1 à 4 σ) sur {len(WAVES)} voies CCEP de {N_CCEP} patients. "
-        "Montre les bosses gardées, les N1 trouvées et le temps de calcul.",
+        "6-05-candidate-threshold",
+        f"Starting-candidate threshold from 1 to 4 σ on {len(WAVES)} CCEP channels from {N_CCEP} patients. "
+        "Shows the components kept, the N1s found and the computation time.",
     )
 
 
@@ -412,24 +409,24 @@ def fig_merge():
         [np.nanmean([n_comp(r) for r, s in zip(rs, STRONG, strict=True) if s]) for rs in res],
         [sem([n_comp(r) for r, s in zip(rs, STRONG, strict=True) if s]) for rs in res],
         "0.5",
-        "nombre moyen de bosses",
-        "Bosses gardées (voies qui répondent)",
+        "mean number of components",
+        "Components kept (responsive channels)",
     )
-    axes[0].set_xlabel("facteur c de fusion : fusion si écart < c × (σ₁ + σ₂)")
+    axes[0].set_xlabel("merge factor c: merge if gap < c × (σ₁ + σ₂)")
     g = [[x for r, s in zip(rs, STRONG, strict=True) if s for x in gaps(r)] for rs in res]
     bp = axes[1].boxplot(g, tick_labels=labels, showfliers=False, patch_artist=True)
     for patch, col in zip(bp["boxes"], colours(labels, "0.5"), strict=True):
         patch.set_facecolor(col)
         patch.set_alpha(0.5)
-    axes[1].set_ylabel("écart entre deux bosses voisines (ms)")
-    axes[1].set_xlabel("facteur c")
-    axes[1].set_title("Bosses très proches gardées séparées ?", fontsize=10)
-    fig.suptitle("Fusion de deux bosses proches (CCEP)", fontsize=12)
+    axes[1].set_ylabel("gap between neighbouring components (ms)")
+    axes[1].set_xlabel("factor c")
+    axes[1].set_title("Are close components kept apart?", fontsize=10)
+    fig.suptitle("Merging two close components (CCEP)", fontsize=12)
     save(
         fig,
-        "6-06-fusion",
-        f"Fait varier le facteur de fusion c (0 à 2) sur {len(WAVES)} voies CCEP de {N_CCEP} patients. "
-        "Montre le nombre de bosses et l'écart entre bosses voisines : plus c est grand, plus on fusionne.",
+        "6-06-merge",
+        f"Merge factor c from 0 to 2 on {len(WAVES)} CCEP channels from {N_CCEP} patients. "
+        "Shows the number of components and the gap between neighbours; a larger c merges more.",
     )
 
 
@@ -537,9 +534,9 @@ def fig_latency():
     res = POOL.map(erp_fit_job, [erp_job(k) for k in ERP_KEYS], chunksize=2)
     rows = {k: erp_measures(r, k) for k, r in zip(ERP_KEYS, res, strict=True)}
     defs = [
-        ("raw_peak", "pic brut du signal"),
-        ("model_peak", "sommet de la bosse du modèle"),
-        ("model_area", "50 % de l'aire du modèle"),
+        ("raw_peak", "raw signal peak"),
+        ("model_peak", "model component peak"),
+        ("model_area", "50 % area of the model"),
     ]
     fig, axes = plt.subplots(1, 2, figsize=(14, 4.6), gridspec_kw={"width_ratios": [2.2, 1]})
     width = 0.27
@@ -560,8 +557,8 @@ def fig_latency():
     axes[0].axhspan(-10, 10, color="0.93", zorder=0)
     axes[0].axhline(0, color="black", lw=0.6)
     axes[0].set_xticks(np.arange(len(COMPS)), COMPS)
-    axes[0].set_ylabel("écart à la latence publiée (ms)\n(50 % de l'aire du signal brut)")
-    axes[0].set_title("Écart par composante ERP (zone grise : ± 10 ms)", fontsize=10)
+    axes[0].set_ylabel("difference from the published latency (ms)\n(50 % area of the raw signal)")
+    axes[0].set_title("Difference per ERP component (grey band: ± 10 ms)", fontsize=10)
     axes[0].legend(fontsize=8, frameon=False)
     pct = [
         [
@@ -579,18 +576,18 @@ def fig_latency():
     ]
     for j, (_, lab) in enumerate(defs):
         axes[1].plot(COMPS, pct[j], "o-", color=["#bdc3c7", "#5d6d7e", PROPOSED][j], label=lab)
-    axes[1].set_ylabel("% des sujets à ± 10 ms de la valeur publiée")
+    axes[1].set_ylabel("% of subjects within ± 10 ms of the published value")
     axes[1].set_ylim(0, 105)
-    axes[1].set_title("Accord avec la mesure publiée", fontsize=10)
+    axes[1].set_title("Agreement with the published measure", fontsize=10)
     fig.suptitle(
-        f"Définition de la latence (ERP CORE, {len(ERP_KEYS)} ondes, 40 sujets × 7 composantes)",
+        f"Latency definition (ERP CORE, {len(ERP_KEYS)} waves, 40 subjects × 7 components)",
         fontsize=12,
     )
     save(
         fig,
-        "6-08-definition-latence",
-        f"Compare 3 définitions de la latence (pic brut, sommet du modèle, 50 % de l'aire du modèle) sur {len(ERP_KEYS)} "
-        "ondes ERP CORE (40 sujets, 7 composantes). Montre l'écart à la latence publiée et la part des sujets à ± 10 ms.",
+        "6-08-latency-definition",
+        f"Three latency definitions (raw peak, model peak, 50 % area of the model) on {len(ERP_KEYS)} "
+        "ERP CORE waves (40 subjects, 7 components). Shows the difference from the published latency and the share within ± 10 ms.",
     )
     return res
 
@@ -649,9 +646,9 @@ def fig_onset():
             lw=2.5 if lab == "10 %" else 1.2,
             label=lab,
         )
-    axes[0].set_ylabel("durée médiane de la composante modélisée (ms)")
-    axes[0].set_title("Durée (fin − début) selon le seuil", fontsize=10)
-    axes[0].legend(title="seuil (% de la hauteur)", fontsize=8, frameon=False)
+    axes[0].set_ylabel("median duration of the modelled component (ms)")
+    axes[0].set_title("Duration (offset − onset) by threshold", fontsize=10)
+    axes[0].legend(title="threshold (% of peak)", fontsize=8, frameon=False)
     # one example: the P3 of the participant with the largest P3
     keys = [k for k in ERP_KEYS if k.startswith("P3_")]
     k = max(keys, key=lambda k: np.max(ERP[k + "_wave"]))
@@ -660,7 +657,7 @@ def fig_onset():
     axes[1].plot(t, ERP[k + "_wave"], color="black", lw=1, label="signal")
     r = res[1][i]
     if "curve" in r:
-        axes[1].plot(t, r["curve"], color=PROPOSED, lw=1.5, label="modèle")
+        axes[1].plot(t, r["curve"], color=PROPOSED, lw=1.5, label="model")
     ymax = axes[1].get_ylim()[1]
     for f, lab, rs in zip(fr, labs, res, strict=True):
         b = bounds(rs[i], k, f)
@@ -676,16 +673,18 @@ def fig_onset():
                 b[1] * 1000 + 5, ymax * (0.95 - 0.07 * fr.index(f)), lab, va="center", fontsize=7
             )
     axes[1].set_xlim(-100, 900)
-    axes[1].set_xlabel("temps (ms)")
+    axes[1].set_xlabel("time (ms)")
     axes[1].set_ylabel("µV")
-    axes[1].set_title(f"Exemple : P3, sujet {k.split('_')[1]} (barres = début → fin)", fontsize=10)
+    axes[1].set_title(
+        f"Example: P3, subject {k.split('_')[1]} (bars = onset → offset)", fontsize=10
+    )
     axes[1].legend(fontsize=8, frameon=False, loc="lower right")
-    fig.suptitle("Début et fin d'une bosse : à quel % de sa hauteur ? (ERP CORE)", fontsize=12)
+    fig.suptitle("Onset and offset of a component: at what % of its peak? (ERP CORE)", fontsize=12)
     save(
         fig,
-        "6-09-debut-fin",
-        f"Fait varier le seuil de début et de fin (5, 10, 20, 50 % de la hauteur) sur {len(ERP_KEYS)} ondes ERP CORE "
-        "(40 sujets, 7 composantes). Montre la durée rapportée et un exemple sur une P3.",
+        "6-09-onset-offset",
+        f"Onset/offset threshold of 5, 10, 20 and 50 % of the peak on {len(ERP_KEYS)} ERP CORE waves "
+        "(40 subjects, 7 components). Shows the reported duration and a P3 example.",
     )
 
 
@@ -693,7 +692,7 @@ def fig_targeted():
     margins = [0.0, 0.010, 0.025, 0.050]
     ncs = [1, 3]
     settings = [(m, n) for n in ncs for m in margins]
-    labs = [f"±{m * 1000:.0f} ms\n{n} partie{'s' if n > 1 else ''}" for m, n in settings]
+    labs = [f"±{m * 1000:.0f} ms\n{n} part{'s' if n > 1 else ''}" for m, n in settings]
     pct = np.zeros((len(COMPS), len(settings)))
     diffs_default = None
     for s, (m, n) in enumerate(settings):
@@ -743,31 +742,30 @@ def fig_targeted():
     axes[0].add_patch(
         plt.Rectangle((k - 0.5, -0.5), 1, len(COMPS), fill=False, ec=PROPOSED, lw=2.5)
     )
-    axes[0].set_title("% des sujets à ± 10 ms de la latence publiée", fontsize=10)
+    axes[0].set_title("% of subjects within ± 10 ms of the published latency", fontsize=10)
     fig.colorbar(im, ax=axes[0], fraction=0.03)
     tol = np.arange(1, 41)
     for comp in COMPS:
         d = diffs_default[comp]
         axes[1].plot(tol, [np.mean(np.nan_to_num(d, nan=1e9) <= x) * 100 for x in tol], label=comp)
     axes[1].axvline(10, color=PROPOSED, lw=2, alpha=0.6)
-    axes[1].set_xlabel("tolérance acceptée (ms)")
-    axes[1].set_ylabel("% des sujets dans la tolérance")
-    axes[1].set_title("Choix de la tolérance (réglage proposé)", fontsize=10)
+    axes[1].set_xlabel("tolerance (ms)")
+    axes[1].set_ylabel("% of subjects within tolerance")
+    axes[1].set_title("Choice of tolerance (proposed setting)", fontsize=10)
     axes[1].legend(fontsize=7, frameon=False, ncol=2)
     fig.suptitle(
-        "Mesure ciblée d'une composante ERP : marge de fenêtre, nombre de parties, tolérance (ERP CORE)",
-        fontsize=12,
+        "Targeted ERP measure: window margin, number of parts, tolerance (ERP CORE)", fontsize=12
     )
     save(
         fig,
-        "6-10-mesure-ciblee",
-        f"Fait varier la marge autour de la fenêtre publiée (0 à 50 ms) et le nombre de parties (1 ou 3) sur {len(ERP_KEYS)} "
-        "ondes ERP CORE (40 sujets). Montre l'accord avec la latence publiée, puis l'effet de la tolérance (± 10 ms proposé).",
+        "6-10-targeted-measure",
+        f"Margin around the published window (0 to 50 ms) and number of parts (1 or 3) on {len(ERP_KEYS)} "
+        "ERP CORE waves (40 subjects). Shows agreement with the published latency, then the effect of the tolerance (± 10 ms proposed).",
     )
 
 
 def fig_cancelling():
-    labels = ["non (garder)", "oui (rejeter)"]
+    labels = ["no (keep)", "yes (reject)"]
     res = ccep_sweep([{"reject_cancelling": False}, {"reject_cancelling": True}])
     erp_res = [
         POOL.map(
@@ -789,13 +787,13 @@ def fig_cancelling():
     ]
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
     for ax, rs, tag, prop in (
-        (axes[0], res, f"CCEP, {len(WAVES)} voies, {N_CCEP} patients", "non (garder)"),
-        (axes[1], erp_res, "ERP CORE, ondes calées sur le stimulus, 40 sujets", "oui (rejeter)"),
+        (axes[0], res, f"CCEP, {len(WAVES)} channels, {N_CCEP} patients", "no (keep)"),
+        (axes[1], erp_res, "ERP CORE, stimulus-locked waves, 40 subjects", "yes (reject)"),
     ):
         nb = [np.nanmean([n_comp(r) for r in x]) for x in rs]
         pairs = [np.mean([cancelling_pairs(r) > 0 for r in x]) * 100 for x in rs]
         xx = np.arange(2)
-        ax.bar(xx - 0.2, nb, 0.4, color=colours(labels, prop), label="bosses par onde")
+        ax.bar(xx - 0.2, nb, 0.4, color=colours(labels, prop), label="components per wave")
         ax2 = ax.twinx()
         ax2.bar(
             xx + 0.2,
@@ -804,19 +802,19 @@ def fig_cancelling():
             color="none",
             edgecolor="black",
             hatch="//",
-            label="% avec une paire opposée",
+            label="% with an opposite pair",
         )
         ax.set_xticks(xx, labels)
-        ax.set_ylabel("nombre moyen de bosses")
-        ax2.set_ylabel("% des ondes avec une paire + / − qui se chevauche")
+        ax.set_ylabel("mean number of components")
+        ax2.set_ylabel("% of waves with an overlapping + / − pair")
         ax.set_title(tag, fontsize=10)
-        ax.set_xlabel("rejeter les paires qui s'annulent ?")
-    fig.suptitle("Paires de bosses de signes opposés qui s'annulent", fontsize=12)
+        ax.set_xlabel("reject cancelling pairs?")
+    fig.suptitle("Cancelling pairs of opposite-sign components", fontsize=12)
     save(
         fig,
-        "6-07-paires-opposees",
-        f"Compare garder ou rejeter les paires de bosses + et − proches qui s'annulent, sur {len(WAVES)} voies CCEP "
-        "et sur les ondes ERP CORE (preset erp complet). Barres pleines : bosses par onde ; hachurées : % d'ondes avec une telle paire.",
+        "6-07-cancelling-pairs",
+        f"Keeping or rejecting close + / − component pairs that cancel, on {len(WAVES)} CCEP channels "
+        "and on ERP CORE waves (full erp preset). Solid bars: components per wave; hatched: % of waves with such a pair.",
     )
 
 
@@ -858,9 +856,9 @@ def fig_tep():
         ],
     )
     options = {
-        "proposé : N45 38–55, N100 80–140": ((0.038, 0.055), (0.080, 0.140)),
-        "étroit : N45 40–50, N100 90–120": ((0.040, 0.050), (0.090, 0.120)),
-        "large : N45 30–60, N100 70–160": ((0.030, 0.060), (0.070, 0.160)),
+        "proposed: N45 38–55, N100 80–140": ((0.038, 0.055), (0.080, 0.140)),
+        "narrow: N45 40–50, N100 90–120": ((0.040, 0.050), (0.090, 0.120)),
+        "wide: N45 30–60, N100 70–160": ((0.030, 0.060), (0.070, 0.160)),
     }
     fig, axes = plt.subplots(1, 3, figsize=(16, 4.4), gridspec_kw={"width_ratios": [1.5, 1.3, 1]})
     t = subs[0]["times"] * 1000
@@ -870,20 +868,20 @@ def fig_tep():
     axes[0].plot(t[keep], ga[keep], color="black")
     axes[0].fill_between(t[keep], (ga - sd)[keep], (ga + sd)[keep], color="0.8")
     for (lo, hi), col in zip(
-        options["proposé : N45 38–55, N100 80–140"], [PROPOSED, PROPOSED], strict=True
+        options["proposed: N45 38–55, N100 80–140"], [PROPOSED, PROPOSED], strict=True
     ):
         axes[0].axvspan(lo * 1000, hi * 1000, color=col, alpha=0.15)
     for name, ls in (
-        ("étroit : N45 40–50, N100 90–120", ":"),
-        ("large : N45 30–60, N100 70–160", "--"),
+        ("narrow: N45 40–50, N100 90–120", ":"),
+        ("wide: N45 30–60, N100 70–160", "--"),
     ):
         for lo, hi in options[name]:
             for edge in (lo, hi):
                 axes[0].axvline(edge * 1000, ls=ls, color="0.4", lw=0.8)
-    axes[0].set_xlabel("temps après l'impulsion TMS (ms)")
+    axes[0].set_xlabel("time after the TMS pulse (ms)")
     axes[0].set_ylabel("µV")
     axes[0].set_title(
-        f"Moyenne de {len(subs)} sujets (voie de plus forte réponse)\nrouge = proposé, pointillés = étroit, tirets = large",
+        f"Mean of {len(subs)} subjects (most responsive channel)\nred = proposed, dotted = narrow, dashed = wide",
         fontsize=9,
     )
     neg = [
@@ -891,12 +889,12 @@ def fig_tep():
     ]
     for i, lats in enumerate(neg):
         axes[1].plot(lats, [i] * len(lats), "o", color="black", ms=4)
-    for lo, hi in options["proposé : N45 38–55, N100 80–140"]:
+    for lo, hi in options["proposed: N45 38–55, N100 80–140"]:
         axes[1].axvspan(lo * 1000, hi * 1000, color=PROPOSED, alpha=0.15)
     axes[1].set_yticks(range(len(subs)), [s["subject"] for s in subs], fontsize=6)
     axes[1].set_xlim(0, 300)
-    axes[1].set_xlabel("latence des bosses négatives du modèle (ms)")
-    axes[1].set_title("Bosses négatives trouvées, sujet par sujet", fontsize=10)
+    axes[1].set_xlabel("latency of the negative model components (ms)")
+    axes[1].set_title("Negative components found, per subject", fontsize=10)
     names = list(options)
     n45 = [
         np.mean(
@@ -921,19 +919,17 @@ def fig_tep():
     x = np.arange(len(names))
     axes[2].bar(x - 0.2, n45, 0.4, color="0.6", label="N45")
     axes[2].bar(x + 0.2, n100, 0.4, color="0.2", label="N100")
-    axes[2].set_xticks(x, ["proposé", "étroit", "large"])
-    axes[2].set_ylabel("% des sujets avec une bosse négative dans la fenêtre")
+    axes[2].set_xticks(x, ["proposed", "narrow", "wide"])
+    axes[2].set_ylabel("% of subjects with a negative component in the window")
     axes[2].set_ylim(0, 105)
     axes[2].legend(fontsize=8, frameon=False)
-    axes[2].set_title("Effet de la fenêtre", fontsize=10)
-    fig.suptitle(
-        "Fenêtres des composantes TEP N45 et N100 (ds002094, nettoyage publié)", fontsize=12
-    )
+    axes[2].set_title("Effect of the window", fontsize=10)
+    fig.suptitle("TEP component windows N45 and N100 (ds002094, published cleaning)", fontsize=12)
     save(
         fig,
-        "6-11-fenetres-tep",
-        f"Compare 3 jeux de fenêtres N45 / N100 sur {len(subs)} sujets TMS-EEG (ds002094, nettoyage TESA). "
-        "Montre la moyenne des sujets, les bosses négatives de chaque sujet et la part des sujets qui ont une bosse dans chaque fenêtre.",
+        "6-11-tep-windows",
+        f"Three sets of N45 / N100 windows on {len(subs)} TMS-EEG subjects (ds002094, TESA cleaning). "
+        "Shows the subject mean, each subject's negative components and the share of subjects with a component in each window.",
     )
 
 
@@ -1020,43 +1016,43 @@ def fig_trials():
         fmt="o-",
         color="black",
         capsize=3,
-        label="décalages mesurés (essais réels)",
+        label="measured shifts (real trials)",
     )
     axes[0].plot(
-        x, np.nanmedian(nul, 0), "s--", color="0.5", label="décalages produits par le bruit seul"
+        x, np.nanmedian(nul, 0), "s--", color="0.5", label="shifts produced by noise alone"
     )
-    axes[0].set_ylabel("dispersion des décalages entre essais (ms)")
-    axes[0].set_title("Variabilité trouvée d'un essai à l'autre", fontsize=10)
+    axes[0].set_ylabel("SD of the trial shifts (ms)")
+    axes[0].set_title("Trial-to-trial variability found", fontsize=10)
     axes[0].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(0, 0.93))
     axes[1].bar(x, np.nanmean(bnd, 0), color=colours(labels, "0.25"))
-    axes[1].set_ylabel("% des essais bloqués à la borne")
-    axes[1].set_title("Le décalage touche-t-il la limite ?", fontsize=10)
+    axes[1].set_ylabel("% of trials at the bound")
+    axes[1].set_title("Does the shift hit the bound?", fontsize=10)
     axes[2].bar(x, np.nanmedian(r2v, 0), color=colours(labels, "0.25"))
     axes[2].set_ylim(max(0, np.nanmin(np.nanmedian(r2v, 0)) - 0.1), 1)
-    axes[2].set_ylabel("R² médian d'un essai")
-    axes[2].set_title("Qualité de l'ajustement d'un essai", fontsize=10)
+    axes[2].set_ylabel("median single-trial R²")
+    axes[2].set_title("Single-trial goodness of fit", fontsize=10)
     for ax in axes:
         ax.set_xticks(x, labels)
-        ax.set_xlabel("décalage maximal permis (× largeur à mi-hauteur)")
+        ax.set_xlabel("maximum shift allowed (× FWHM)")
     for ax in axes[:1]:
         ax.axvline(1, color=PROPOSED, alpha=0.25, lw=8)
         ax.axvline(2, color="#e67e22", alpha=0.25, lw=8)
     axes[0].text(
-        1, axes[0].get_ylim()[1] * 0.97, "intracrânien", ha="center", fontsize=7, color=PROPOSED
+        1, axes[0].get_ylim()[1] * 0.97, "intracranial", ha="center", fontsize=7, color=PROPOSED
     )
     axes[0].text(
         2, axes[0].get_ylim()[1] * 0.90, "scalp", ha="center", fontsize=7, color="#e67e22"
     )
     fig.suptitle(
-        f"Essai par essai : décalage maximal de la première bosse (CCEP, {len(res)} voies)",
+        f"Trial by trial: maximum shift of the first component (CCEP, {len(res)} channels)",
         fontsize=12,
     )
     save(
         fig,
-        "6-12-essai-par-essai",
-        f"Fait varier le décalage maximal permis à chaque essai (0,1 à 2 fois la largeur de la bosse) sur {len(res)} voies CCEP "
-        f"qui répondent ({N_CCEP} patients, 10 à 12 essais chacune). Montre la variabilité trouvée, comparée au bruit seul, "
-        "et la part des essais bloqués à la limite.",
+        "6-12-trial-by-trial",
+        f"Maximum single-trial shift from 0.1 to 2 × the component FWHM on {len(res)} responsive CCEP channels "
+        f"({N_CCEP} patients, 10 to 12 trials each). Shows the variability found, against noise alone, "
+        "and the share of trials at the bound.",
     )
 
 

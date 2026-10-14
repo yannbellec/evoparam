@@ -10,13 +10,24 @@ import numpy as np
 
 CACHE = os.path.expanduser("~/.cache/evoparam")
 HERE = os.path.dirname(os.path.abspath(__file__))
+V1_RUNS = (
+    "sub-ccepAgeUMCU01_run-021448_PT01-PT02",
+    "sub-ccepAgeUMCU01_run-061233_PT01-PT02",
+    "sub-ccepAgeUMCU02_run-021804_FC01-FC02",
+    "sub-ccepAgeUMCU03_run-031411_C01-C02",
+    "sub-ccepAgeUMCU04_run-031148_TPa1-TPa2",
+    "sub-ccepAgeUMCU05_run-031133_P01-P02",
+    "sub-ccepAgeUMCU06_run-030854_C01-C02",
+)
 
 
 def ccep_waves(n_strong=10, n_random=10, seed=0):
     """Trial averages of CCEP runs: (run, channel, times, wave, baseline)."""
     rng = np.random.default_rng(seed)
     out = []
-    files = sorted(glob.glob(f"{CACHE}/n1-validation/ds004080/*.npz")) + sorted(
+    # version 1: the seven ds004080 runs of the N1 validation cache on 2026-10-14 (later
+    # downloads, for version 2, are not used here)
+    files = sorted(f"{CACHE}/n1-validation/ds004080/{n}.npz" for n in V1_RUNS) + sorted(
         glob.glob(f"{CACHE}/reference-validation/ds004977/*.npz")
     )
     for path in files:
