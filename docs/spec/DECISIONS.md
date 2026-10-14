@@ -677,6 +677,51 @@ with qualite-zero; the reference fixture unchanged).
   (biexponential 0.62 to 1.16), a shift of the fitted curve onto the peak (no gain), and a
   constant shift of the latency toward the later mode of these truths (rejected unmeasured:
   it would be tuned to the truth shapes of the test).
+- Second pass (2026-10-14; development seeds 400 600 + ..., 300 waveforms per truth unless
+  stated; the tests' seeds measured once at the end; CHANGELOG "REQ-106 with the default
+  pair: second pass"). Readings checked, each kept as it was:
+  - **Latency of the fitted component (§5.5.1).** The engine reports the analytic mode
+    (`skew_mode`: the root of the derivative, to machine precision), which is the limit of
+    the extremum on the grid ten times finer than `1/sfreq`. Reading the extremum on that
+    grid literally changes the MAE by at most 0.003 sample on every row (gamma 0.757 to
+    0.757, biexponential 0.628 to 0.628); it is not a sample-grid reading.
+  - **Truth latency in the test.** `simulate_erp` places the truth by
+    `shape_params(shape, latency, fwhm)`: the table's latency is the shape's §5.5.1 latency
+    (`t_0 + (kappa - 1) theta`, the biexponential formula), the exact mode; the simulated
+    samples equal the shape evaluated at the sample times. Reading the truth latency on the
+    same tenfold grid as the fit: at most 0.003 sample of change (biexponential 0.626).
+  - **Asymmetry bounds.** `alpha_max` is 10, the bound of §5.5.1, not narrower. At the
+    least-squares optimum without noise the gamma fit has alpha 4.9 (inside the bounds);
+    the biexponential fit sits on alpha = 10, and widening to 30 moves its mode further
+    from the truth's (1.2 to 2.1 samples at 25 samples; with noise, biexponential MAE 0.628
+    to 1.107, gamma unchanged at 0.757).
+  - **Starting values.** On 36 noisy gamma waveforms of 12 and 25 samples, the engine's
+    skewed fit and a fit from eight asymmetry starts (-2 to 10) reach the same least-squares
+    cost (within 0.2 in 300) and the same mode (within 0.11 sample): the engine already
+    returns the least-squares optimum, so no start or refinement can move it.
+  - **Other settings measured** (gamma / biexponential MAE, 0.757 / 0.628 with the
+    defaults): constant background 0.750 / 0.615; `noise_model="neff"` (§5.5.3 step 1)
+    0.752 / 0.631; the final shape choice on every component whatever its width 0.706 /
+    0.572 (Gaussian truth 0.251 to 0.271, ex-Gaussian 0.402 to 0.424: not kept); two
+    components forced (`selection="fixed"`) 0.802 / 0.679; the skewed Gaussian alone
+    0.682 / 0.583.
+- What the measurements point to: with noise, the mean signed error of the skewed fit at
+  each width equals its noise-free bias (gamma -0.10, -0.21, -0.52, -1.04 sample at 3, 6,
+  12 and 25 samples against -0.14, -0.24, -0.49, -1.02 without noise), and the spread of
+  its mode is large (SD 0.79 and 1.03 sample at 12 and 25 samples). Removing the whole
+  bias of the skewed-only fits would leave 0.47 (gamma) and 0.28 (biexponential); with the
+  pair's shape choice, 0.56 and 0.37. The limit is the least-squares estimate of §5.5.3
+  steps 2 to 6 with a shape of the pair, not the reading of its latency. Not met on the
+  tests' seeds (1 000 per condition): gamma 0.720, biexponential 0.637 (development seeds
+  0.748 and 0.644); every other REQ-106 row is met and unchanged (CHANGELOG).
+- To try next (each changes the estimator of §5.5.3 and needs the owner's decision before
+  it can be a default): a bias-reduced estimate of the skewed component (a penalised
+  likelihood of the Firth type, or a prior on the asymmetry from the hierarchical layer of
+  §5.8), which acts on both the bias and the spread of the mode; a final refit weighted
+  toward the peak, measured once (gamma 0.75 to 0.61, biexponential unchanged) and to be
+  combined with the former; and a REQ-106 run per §7.2 cell (SNR x width), which locates
+  the failure at 12 and 25 samples (gamma 0.75 and 1.28, biexponential 0.55 and 1.22 on
+  the development seeds).
 
 ### 5.5 REQ-111 at 0.5 FWHM — §5.5.3 steps 4 and 5
 
