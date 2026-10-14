@@ -1,0 +1,32 @@
+{
+ "captions": {
+  "6-01-shapes": "Allowed component shapes (G: Gaussian, S: skewed Gaussian). CCEP, ds004080, 30 patients; numbers on the 15 confirmation patients. Known truth: 1800 semi-simulated waves per value (60 per patient, components added to the patient's plus-minus noise). Real noise: the plus-minus average of every channel. Real data: every good channel; split-half agreement of the N1 decision between odd and even trials.",
+  "6-02-background": "Background model under the components. CCEP, ds004080, 30 patients; numbers on the 15 confirmation patients. Known truth: 1800 semi-simulated waves per value (60 per patient, components added to the patient's plus-minus noise). Real noise: the plus-minus average of every channel. Real data: every good channel; split-half agreement of the N1 decision between odd and even trials.",
+  "6-03a-max-components": "Maximum number of components. CCEP, ds004080, 30 patients; numbers on the 15 confirmation patients. Known truth: 1800 semi-simulated waves per value (60 per patient, components added to the patient's plus-minus noise). Real noise: the plus-minus average of every channel. Real data: every good channel; split-half agreement of the N1 decision between odd and even trials.",
+  "6-03b-max-fwhm": "Maximum component width (FWHM). CCEP, ds004080, 30 patients; numbers on the 15 confirmation patients. Known truth: 1800 semi-simulated waves per value (60 per patient, components added to the patient's plus-minus noise). Real noise: the plus-minus average of every channel. Real data: every good channel; split-half agreement of the N1 decision between odd and even trials.",
+  "6-04-delta-bic": "Rule to keep one more component: ΔBIC ≤ −threshold. CCEP, ds004080, 30 patients; numbers on the 15 confirmation patients. Known truth: 1800 semi-simulated waves per value (60 per patient, components added to the patient's plus-minus noise). Real noise: the plus-minus average of every channel. Real data: every good channel; split-half agreement of the N1 decision between odd and even trials.",
+  "6-05-candidate-threshold": "Starting-candidate threshold. CCEP, ds004080, 30 patients; numbers on the 15 confirmation patients. Known truth: 1800 semi-simulated waves per value (60 per patient, components added to the patient's plus-minus noise). Real noise: the plus-minus average of every channel. Real data: every good channel; split-half agreement of the N1 decision between odd and even trials.",
+  "6-06-merge": "Merge factor c: merge if gap < c × (σ₁ + σ₂). CCEP, ds004080, 30 patients; numbers on the 15 confirmation patients. Known truth: 1800 semi-simulated waves per value (60 per patient, components added to the patient's plus-minus noise). Real noise: the plus-minus average of every channel. Real data: every good channel; split-half agreement of the N1 decision between odd and even trials.",
+  "6-07a-cancelling-pairs-ccep": "Reject cancelling pairs of opposite-sign components. CCEP, ds004080, 30 patients; numbers on the 15 confirmation patients. Known truth: 1800 semi-simulated waves per value (60 per patient, components added to the patient's plus-minus noise). Real noise: the plus-minus average of every channel. Real data: every good channel; split-half agreement of the N1 decision between odd and even trials.",
+  "6-04b-delta-bic-erp": "Rule to keep one more component: ΔBIC ≤ −threshold, with the full erp preset on the 5 stimulus-locked ERP CORE difference waves. Known truth: 0 to 3 components added to the subject's plus-minus noise (10 per wave); real noise: the plus-minus noise; real data: the published difference waves.",
+  "6-07b-cancelling-pairs-erp": "Reject cancelling pairs of opposite-sign components, with the full erp preset on the 5 stimulus-locked ERP CORE difference waves. Known truth: 0 to 3 components added to the subject's plus-minus noise (10 per wave); real noise: the plus-minus noise; real data: the published difference waves.",
+  "6-08-latency-definition": "Four latency definitions on ERP CORE. Known truth: one component of known shape (half skewed) added to the subject's plus-minus noise, with a neighbour of opposite polarity in half of the waves, 10 per subject and component; error against the true latency of the same definition. Real data: odd vs even trials, and the published 50 % area latency.",
+  "6-09-onset-offset": "Onset and offset read at 5 to 50 % of the peak of the modelled component (targeted measure). Known truth: error against the true onset/offset at the same fraction; real data: odd vs even trials. Subject means over the 7 components.",
+  "6-10-targeted-measure": "Targeted measure of the paradigm's component: window margin 0 to 60 ms and 1 to 4 parts. Known truth (component added to the subject's plus-minus noise) and real data (published 50 % area latency); right: the tolerance against the distribution of the measurement error.",
+  "6-12-trial-by-trial": "Shift-and-scale fit of single trials with a maximum shift of 0.1 to 2 × FWHM (proposed for scalp data: 0.5). Known truth: the subject's single-trial residuals plus a component with a known shift per trial (jitter SD 0 to 20 ms); real data: the trials of the condition carrying the component.",
+  "6-11-tep-windows": "Windows of the TEP components. The negative components of the tep preset fit on each subject; a data-driven window is taken on the development half (5th to 95th percentile of the earliest negative component in 25-70 and 70-200 ms) and every window is scored on the confirmation half."
+ },
+ "environment": {
+  "evoparam": "0.1.0.dev0",
+  "numpy": "2.5.3",
+  "python": "3.14.7",
+  "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
+  "split_seed": 2026,
+  "n_boot": 10000,
+  "datasets": {
+   "ds004080": "OpenNeuro ds004080 v1.2.4 (CCEP, UMC Utrecht)",
+   "erpcore": "ERP CORE (Kappenman et al. 2021), OSF 9f5w7, the published epoched files",
+   "ds002094": "OpenNeuro ds002094 (TMS-EEG), published TESA cleaning as in the TEP validation"
+  }
+ }
+}
