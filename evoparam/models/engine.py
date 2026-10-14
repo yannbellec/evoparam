@@ -478,11 +478,17 @@ def noise_model(times: Any, y: Any, baseline: Any, window_mask: Any, mask: Any) 
 
 
 def criterion(rss_w: Any, n_eff: Any, p: Any, kind: Any) -> Any:
-    """BIC, AIC or AICc on whitened residuals with the effective sample count."""
+    """BIC, AIC, AICc or HQC on whitened residuals with the effective sample count.
+
+    HQC is the criterion of Hannan and Quinn (1979), ``2 ln ln n`` per parameter (between the
+    2 of AIC and the ``ln n`` of BIC).
+    """
     n_eff = max(float(n_eff), p + 2.0)
     base = n_eff * np.log(max(rss_w, 1e-300) / n_eff)
     if kind == "bic":
         return base + p * np.log(n_eff)
+    if kind == "hqc":
+        return base + 2 * p * np.log(np.log(n_eff))
     aic = base + 2 * p
     if kind == "aic":
         return aic
@@ -1223,8 +1229,8 @@ class _State:
     rw: NDArray[Any]
     crit: float  # selection criterion: innovation rows only (decides K)
     fit_crit: float | None = None  # the same on every row: compares optima of one structure
-    # the same with the AIC penalty (2 per parameter): compares the shapes of one component
-    # when ``shape_choice="aic"``
+    # the same with the penalty of ``shape_choice`` ("hqc": 2 ln ln n per parameter, "aic":
+    # 2): compares the shapes of one component in the final shape choice
     shape_crit: float | None = None
 
 
@@ -1408,7 +1414,7 @@ def _evaluate_state(
         if skip
         else fit_crit
     )
-    shape_crit = criterion(float(np.sum(data_rw**2)), n_eff, p, "aic")
+    shape_crit = criterion(float(np.sum(data_rw**2)), n_eff, p, _shape_kind(settings))
     return _State(list(shapes), theta, beta, rw, crit, fit_crit, shape_crit), ""
 
 
@@ -2384,11 +2390,15 @@ def _merge_once(state: Any, search: _Search) -> Any:
 
 # parameters of a Gaussian component (location, width, amplitude)
 P_SCAN_GAUSS = 3
+# values of ``shape_choice`` that refit every final component with every allowed shape
+FINAL_SHAPE_CHOICES = ("hqc", "aic", "penalised")
+# criterion the penalised estimate compares the shapes on (``_shape_kind``)
+PENALISED_SHAPE_KIND = "hqc"
 # starting asymmetries of a skewed shape in the final refinement (besides its own start)
 SKEW_STARTS = (2.0, -2.0)
 # shapes with more free parameters than this are not searched over their corners (2^p fits)
 MAX_CORNER_PARAMS = 4
-# a component with a neighbour of the same sign within this many FWHM is not checked
+# a component with another component (of either sign) within this many FWHM is not checked
 NEIGHBOUR_FWHMS = 2.0
 # the narrowest component the noise band carries, in samples at the rate it occupies
 MIN_BAND_SAMPLES = 2.0
@@ -2453,9 +2463,9 @@ def _n_crit(search: _Search, white: Any) -> float:
 
 
 def _final_checks(current: Any, search: _Search, white: Any, out: Any) -> Any:
-    """Apply the final shape choice ("aic" or "penalised") and the resolution check."""
+    """Apply the final shape choice (``FINAL_SHAPE_CHOICES``) and the resolution check."""
     settings = search.settings
-    if len(settings.shapes) > 1 and settings.shape_choice in {"aic", "penalised"}:
+    if len(settings.shapes) > 1 and settings.shape_choice in FINAL_SHAPE_CHOICES:
         current = _refine_shapes(current, search)
         out["path"][-1] = current
         out["steps"][-1] = {"K": len(current.shapes), "criterion": current.crit}
@@ -2469,13 +2479,18 @@ def _final_checks(current: Any, search: _Search, white: Any, out: Any) -> Any:
 def _refine_shapes(state: Any, search: _Search) -> Any:
     """Refit each component of the final state with every allowed shape; keep the best.
 
-    The shapes are compared by ``_shape_key`` (``shape_choice``), from starts on the
-    component's own curve (its extremum and width), with the asymmetry of a skewed shape
-    started at 0 and at +/- 2: the quick, single-start fits of the forward search often
-    leave a skewed shape at its symmetric start. Every component is refitted, whatever its
-    width (REQ-004: no rule on the size of a component; the criterion decides). With
-    ``shape_choice="penalised"`` a skewed candidate is the penalised estimate of
-    ``models/_penalised.py``.
+    Every component is refitted, whatever its width or amplitude. The shapes are compared by
+    ``_shape_key`` (the criterion of ``shape_choice``), from starts on the component's own
+    curve (its extremum and width), with the asymmetry of a skewed shape started at 0 and
+    at +/- 2: the quick, single-start fits of the forward search often leave a skewed shape
+    at its symmetric start. The default criterion, HQC (``2 ln ln n`` per parameter, about
+    3.7 here), lets an asymmetry that the data do not determine leave the shape of the
+    search unchanged: with AIC (2 per parameter) on every component, a narrow component at
+    low SNR took a spurious asymmetry and moved its mode by 1 to 2 samples (REQ-105 recall
+    0.8863 to 0.8852, Gaussian truths of REQ-106 0.250 to 0.285 sample on development
+    seeds; with HQC 0.8865 and 0.233; CHANGELOG "Final shape choice on every component").
+    With ``shape_choice="penalised"`` a skewed candidate is the penalised estimate of
+    ``models/_penalised.py``, compared on ``PENALISED_SHAPE_KIND``.
     """
     for k in range(len(state.shapes)):
         struct = search.make(state.shapes)
@@ -2533,7 +2548,7 @@ def _state_at(struct: Any, shapes: Any, theta: Any, search: _Search) -> Any:
         if skip
         else fit_crit
     )
-    shape_crit = criterion(float(np.sum(data_rw**2)), n_eff, p, "aic")
+    shape_crit = criterion(float(np.sum(data_rw**2)), n_eff, p, _shape_kind(search.settings))
     return _State(list(shapes), np.asarray(theta, float), beta, rw, crit, fit_crit, shape_crit)
 
 
@@ -2652,8 +2667,10 @@ def _resolution_warnings(state: Any, search: _Search, n_crit: float, existing: A
     such a pair: the component is reported as their merger, ``merged:k,k+1``. The flag
     says what the data cannot exclude (it is set on most single components below the SNR
     at which such a pair would be resolved, CHANGELOG "Calibrated acceptance"), not that two
-    components were seen. A component with a neighbour of the same sign within twice its
-    FWHM is not flagged: the indices ``k, k+1`` would name that neighbour.
+    components were seen. A component with another component within twice its FWHM, of
+    either sign, is not flagged: the indices ``k, k+1`` would name that neighbour, and the
+    data near it already hold two components. The rule does not depend on the signs of the
+    components (REQ-003).
     """
     struct = search.make(state.shapes)
     sfreq = 1.0 / float(np.median(np.diff(search.tw)))
@@ -2664,14 +2681,13 @@ def _resolution_warnings(state: Any, search: _Search, n_crit: float, existing: A
         info.append((float(feats.latency), float(feats.fwhm or 0.0), float(state.beta[k])))
     design_w = struct.white(struct.design(state.theta))
     out = []
-    for k, (lat, fwhm, amp) in enumerate(info):
+    for k, (lat, fwhm, _) in enumerate(info):
         if not (np.isfinite(lat) and fwhm > 0) or any(
             w.startswith(f"merged:{k},") for w in existing
         ):
             continue
         if any(
-            j != k and np.sign(a) == np.sign(amp) and abs(la - lat) < NEIGHBOUR_FWHMS * fwhm
-            for j, (la, _, a) in enumerate(info)
+            j != k and abs(la - lat) < NEIGHBOUR_FWHMS * fwhm for j, (la, _, _) in enumerate(info)
         ):
             continue
         lam, direction = _pair_deviance(struct, np.delete(design_w, k, axis=1), info[k], search)
@@ -2719,9 +2735,17 @@ def _pair_deviance(
     return float(np.sum(fit.fun**2)), np.asarray(fit.fun, float)
 
 
+def _shape_kind(settings: Any) -> str:
+    """Return the criterion the final shape choice compares on ("hqc" or "aic")."""
+    choice = getattr(settings, "shape_choice", None)
+    if choice == "penalised":
+        return PENALISED_SHAPE_KIND
+    return "aic" if choice == "aic" else "hqc"
+
+
 def _shape_key(state: Any, settings: Any) -> float:
     """Return the value the shapes of one candidate are compared on (``shape_choice``)."""
-    if settings.shape_choice in {"aic", "penalised"} and state.shape_crit is not None:
+    if settings.shape_choice in FINAL_SHAPE_CHOICES and state.shape_crit is not None:
         return float(state.shape_crit)
     return float(state.fit_crit)
 
