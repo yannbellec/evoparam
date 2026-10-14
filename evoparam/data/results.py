@@ -240,10 +240,19 @@ class Component(_ResultMixin):
     # latencies) correlate beyond 0.95, or two components of opposite sign overlap and
     # cancel (spec §5.5.3 step 6, risk S1): its numbers are not to be read alone
     resolvable: bool = True
+    # uncertainty="bootstrap" only (spec §5.5.5): the bootstrap distribution, one array of
+    # the successful draws per parameter (the shape's parameters and the amplitude "A") and
+    # per feature with an interval, for plotting
+    bootstrap: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         """Check and normalise the fields."""
         self.params = np.asarray(self.params, dtype=np.float64)
+        if self.bootstrap is not None:
+            self.bootstrap = {
+                str(key): np.asarray(value, dtype=np.float64)
+                for key, value in self.bootstrap.items()
+            }
         self.resolvable = bool(self.resolvable)
         self.param_names = tuple(self.param_names)
         if self.params.shape != (len(self.param_names),):

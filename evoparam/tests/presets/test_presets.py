@@ -29,11 +29,32 @@ needs_docs = pytest.mark.skipif(
     not SPEC.exists(), reason="the specification is not in this checkout (installed package)"
 )
 
+# The published measurement windows (s) of the four ERP CORE components that REQ-274 names
+# and the table of spec §6.1 does not label (Kappenman et al. 2021, [LIT-erpmeas-39], the
+# source §6.2 gives for the erp windows; owner decision D6), all negative.
+ERP_CORE_WINDOWS = {
+    "MMN": (0.125, 0.225),
+    "N2pc": (0.200, 0.275),
+    "LRP": (-0.100, 0.000),
+    "ERN": (0.000, 0.100),
+}
+# The six labels of the erp column of the table (§6.1), in their order.
+ERP_TABLE_LABELS = {
+    "P1": (0.08, 0.13),
+    "N1": (0.13, 0.20),
+    "N170": (0.13, 0.20),
+    "P2": (0.15, 0.27),
+    "P3": (0.25, 0.60),
+    "N400": (0.30, 0.50),
+}
+
 # Values that differ from the table on purpose; each is explained in the preset's notes.
 DEVIATIONS = {
     ("sep", "background"): "constant",
     ("tep", "shapes"): ("gaussian", "skewed_gaussian"),
     ("tep", "background"): "constant",
+    # D6: the table's six labels, then the four ERP CORE windows
+    ("erp", "component_labels"): {**ERP_TABLE_LABELS, **ERP_CORE_WINDOWS},
 }
 
 ARTIFACT = {
@@ -142,6 +163,63 @@ def dataclass_frozen(p: Any) -> Any:
     with pytest.raises(dataclasses.FrozenInstanceError):
         p.name = "other"
     return True
+
+
+def test_d6_erp_labels_the_seven_erp_core_components() -> None:
+    """D6 (REQ-274 names P3, N170, N400, MMN, N2pc, LRP and ERN): the erp preset labels the
+    four the table of §6.1 leaves out with the published ERP CORE windows, negative; the
+    table's labels keep their windows and their precedence where windows overlap."""
+
+    from evoparam.data import ResponseFit
+    from evoparam.models import label_components
+    from evoparam.tests.data.factories import make_component
+
+    p = presets.get("erp")
+    assert list(p.component_labels)[: len(ERP_TABLE_LABELS)] == list(ERP_TABLE_LABELS)
+    for name, window in {**ERP_TABLE_LABELS, **ERP_CORE_WINDOWS}.items():
+        assert np.allclose(p.component_labels[name], window), name
+    for name in ERP_CORE_WINDOWS:
+        assert p.label_polarity[name] == -1, name
+    assert "component_labels" in p.notes
+    assert "LIT-erpmeas-39" in p.citation
+    # the windows of task T6 of the benchmark (ERP CORE) where it scores the component
+    import json
+
+    import evoparam.benchmark
+
+    path = pathlib.Path(evoparam.benchmark.__file__).with_name("erpcore.json")
+    t6 = json.loads(path.read_text("utf-8"))["components"]
+    for name in set(t6) & set(ERP_CORE_WINDOWS):
+        assert tuple(t6[name]["window"]) == ERP_CORE_WINDOWS[name], name
+        assert t6[name]["polarity"] == "negative", name
+
+    def labels(*latencies: float, polarity: int = -1) -> list[Any]:
+        comps = []
+        for lat in latencies:
+            comp = make_component(lat, None)
+            if polarity > 0:
+                comp = dataclasses.replace(comp, amplitude=40.0, polarity=1)
+            comps.append(comp)
+        fit = ResponseFit(
+            components=comps,
+            background={},
+            gof=None,
+            status="ok",
+            message="",
+            window=(-0.2, 0.7),
+            baseline=(-0.2, 0.0),
+            settings={},
+        )
+        return [c.label for c in label_components(fit, "erp").components]
+
+    # a negative component inside each new window and outside the table's windows
+    assert labels(-0.05, 0.04) == ["LRP", "ERN"]
+    assert labels(0.21) == ["MMN"]
+    assert labels(0.24) == ["N2pc"]
+    # where windows overlap, the table's label comes first (N1 at 150 ms, N400 at 400 ms)
+    assert labels(0.15, 0.4) == ["N1", "N400"]
+    # the new windows are negative: a positive component at 240 ms is the table's P2
+    assert labels(0.24, polarity=1) == ["P2"]
 
 
 @needs_docs

@@ -6,7 +6,7 @@
   "selection": "bic",
   "delta": 10.0,
   "uncertainty": "jacobian",
-  "version": "1.1",
+  "version": "1.2",
   "modality": "scalp EEG/MEG",
   "species": [
     "human"
@@ -58,6 +58,22 @@
     "N400": [
       0.3,
       0.5
+    ],
+    "MMN": [
+      0.125,
+      0.225
+    ],
+    "N2pc": [
+      0.2,
+      0.275
+    ],
+    "LRP": [
+      -0.1,
+      0.0
+    ],
+    "ERN": [
+      0.0,
+      0.1
     ]
   },
   "label_polarity": {
@@ -66,7 +82,11 @@
     "N170": -1,
     "P2": 1,
     "P3": 1,
-    "N400": -1
+    "N400": -1,
+    "MMN": -1,
+    "N2pc": -1,
+    "LRP": -1,
+    "ERN": -1
   },
   "trial_fit": false,
   "trial_mode": null,
@@ -79,7 +99,8 @@
   },
   "validation": "pending: ERP CORE (REQ-274)",
   "notes": {
-    "reject_cancelling": "True: a model with two overlapping components of opposite signs is refused (the reviewed engine refits it from the extrema of the data instead, reseed); on ERP CORE (40 participants x 7 components, real recordings) the LRP is within 10 ms of the published latency for 36 of 40 participants against 34 with the engine default, every other component unchanged; the engine default was measured on ECAP simulations, and on the layer-2 grid the two are within noise (CHANGELOG 'Second network run'; v1.1)"
+    "reject_cancelling": "True: a model with two overlapping components of opposite signs is refused (the reviewed engine refits it from the extrema of the data instead, reseed); on ERP CORE (40 participants x 7 components, real recordings) the LRP is within 10 ms of the published latency for 36 of 40 participants against 34 with the engine default, every other component unchanged; the engine default was measured on ECAP simulations, and on the layer-2 grid the two are within noise (CHANGELOG 'Second network run'; v1.1)",
+    "component_labels": "MMN (0.125-0.225), N2pc (0.200-0.275), LRP (-0.100-0.000) and ERN (0.000-0.100), all negative, added to the six labels of spec §6.1 (owner decision D6: REQ-274 names the seven ERP CORE components, the table labels three of them); the spec gives no number for these four, and §6.2 names the source of the erp windows, ERP CORE [LIT-erpmeas-39]: these are its published measurement windows, the ones of validation/erpcore.py and of benchmark task T6 (evoparam/benchmark/erpcore.json). They come after the six table labels, which keep their precedence where the windows overlap. LRP and ERN are measured on response-locked averages: the LRP window lies before the default fit window (from 50 ms), and in a stimulus-locked fit a negative component between 50 and 100 ms is named ERN, as one between 200 and 225 ms is named MMN; labels are names only (spec §5.5.7) (v1.2)"
   },
   "fit_extras": {
     "reject_cancelling": true

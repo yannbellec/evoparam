@@ -64,6 +64,8 @@ _MIN_LAG_SAMPLES = 3
 _MIN_TRIALS_T = 2
 # The fewest finite bootstrap draws a standard error and an interval are computed from.
 _MIN_BOOTSTRAP_DRAWS = 10
+# A time axis needs two samples for its sampling step (masked support of a component).
+_MIN_MASK_SAMPLES = 2
 # A curve needs three points for an interior extremum.
 _MIN_EXTREMUM_POINTS = 3
 
@@ -336,8 +338,12 @@ def _build_fit(core: Any, wave: _Waveform, settings: Any, settings_dict: Any, st
     window = settings.fit_window
     baseline = settings.baseline if settings.baseline is not None else (np.nan, np.nan)
     warns = list(core.get("warnings", []))
+    # spec §5.5.9: a long window searched on a decimated copy says so in its provenance
+    extra = {"decimated_search": core["decimated_search"]} if "decimated_search" in core else {}
     provenance = _with_plugins(
-        Provenance().with_step("evoparam.models.fit_waveform", settings_dict, duration_s=None),
+        Provenance().with_step(
+            "evoparam.models.fit_waveform", settings_dict, duration_s=None, **extra
+        ),
         settings,
     )
     if core["status"] in ("skipped", "failed") or "struct" not in core:
@@ -479,27 +485,36 @@ def _build_fit(core: Any, wave: _Waveform, settings: Any, settings_dict: Any, st
             "noise_phase": core.get("noise_phase", 0),
             "criterion": core["kind"],
             "uncertainty_method": settings.uncertainty,
+            **extra,
             "steps": core["steps"],
             "duration_s": elapsed(start),
         },
     )
+    # fit.components holds the components sorted by latency (ResponseFit): the engine's
+    # component of each, for the methods that refit the engine's structure
+    order = sorted(range(len(comps)), key=lambda k: comps[k].latency)
     if settings.uncertainty == "bootstrap":
-        fit = _bootstrap(fit, core, times, trials, settings, sfreq, z)
+        fit = _bootstrap(fit, core, trials, settings, sfreq, order)
     elif settings.uncertainty == "profile":
-        fit = _profile(fit, core, settings, sfreq)
+        fit = _profile(fit, core, settings, order)
     elif settings.uncertainty == "posterior":
         raise SettingsError(
             "uncertainty='posterior' comes with the hierarchical models (build step S11)."
         )
+    fit = _widen_masked(fit, times, np.asarray(mask, bool) | ~np.isfinite(y))
     if settings.windows:
         fit = label_components(fit, settings.windows)
     return fit
 
 
-def _bootstrap(
-    fit: Any, core: Any, _times: Any, trials: Any, settings: Any, sfreq: float, _z: Any
-) -> Any:
-    """Resample trials, re-average, refit the same model from the full-data solution."""
+def _bootstrap(fit: Any, core: Any, trials: Any, settings: Any, sfreq: float, order: Any) -> Any:
+    """Resample trials, re-average, refit the same model from the full-data solution.
+
+    Spec §5.5.5: intervals on every parameter (the shape's parameters and the amplitude
+    ``A``) and on every feature with an interval, and the bootstrap distribution, kept in
+    ``Component.bootstrap`` (one array of the successful draws per name, for plotting).
+    ``order[i]`` is the engine's index of ``fit.components[i]``.
+    """
     if trials is None:
         raise SettingsError(
             "uncertainty='bootstrap' needs the trials (fit a TrialSet, or "
@@ -511,7 +526,7 @@ def _bootstrap(
     trials = np.asarray(trials, float)
     n = len(trials)
     draws: dict[int, list[Any]]
-    draws = {k: [] for k in range(len(fit.components))}
+    draws = {k: [] for k in range(len(struct.shapes))}
     for _ in range(settings.n_bootstrap):
         avg = trials[rng.integers(0, n, n)].mean(axis=0)[wmask]
         boot = dataclasses.replace(struct, y=np.nan_to_num(avg))
@@ -521,11 +536,9 @@ def _bootstrap(
         if not ok:
             continue
         for k, shape in enumerate(struct.shapes):
-            draws[k].append(
-                _feature_vector(
-                    shape, struct.tw, boot.comp_params(theta, k), beta[k], settings, sfreq
-                )
-            )
+            params = boot.comp_params(theta, k)
+            features = _feature_vector(shape, struct.tw, params, beta[k], settings, sfreq)
+            draws[k].append(np.concatenate((params, [beta[k]], features)))
     # expanded percentile interval (Hesterberg 2015): the plain percentile interval of an
     # average of n trials is too narrow by sqrt((n - 1) / n) and uses z instead of t_{n-1}
     tail = 100 * (1 - settings.ci_level) / 2
@@ -533,19 +546,85 @@ def _bootstrap(
         q = np.sqrt(n / (n - 1)) * student_t.ppf(0.5 + settings.ci_level / 2, n - 1)
         tail = 100 * norm.cdf(-q)
     comps = []
-    for k, comp in enumerate(fit.components):
-        values = np.array(draws[k])
-        se, ci = dict(comp.se), dict(comp.ci)
+    for comp, k in zip(fit.components, order, strict=True):
+        names = [*comp.param_names, "A", *FEATURES_WITH_SE]
+        values = np.asarray(draws[k], float).reshape(-1, len(names))
+        se, ci = dict(comp.se or {}), dict(comp.ci or {})
         if len(values) >= _MIN_BOOTSTRAP_DRAWS:
-            for j, name in enumerate(FEATURES_WITH_SE):
+            for j, name in enumerate(names):
                 col = values[:, j][np.isfinite(values[:, j])]
                 if len(col) < _MIN_BOOTSTRAP_DRAWS:
                     continue
                 se[name] = float(np.std(col, ddof=1))
                 ci[name] = tuple(np.percentile(col, [tail, 100 - tail]))
-        comps.append(dataclasses.replace(comp, se=se, ci=ci))
+        distribution = {name: values[:, j].copy() for j, name in enumerate(names)}
+        comps.append(dataclasses.replace(comp, se=se, ci=ci, bootstrap=distribution))
     diag = dict(fit.diagnostics, n_bootstrap_ok=min((len(v) for v in draws.values()), default=0))
     return dataclasses.replace(fit, components=comps, diagnostics=diag)
+
+
+def masked_fraction(comp: Any, times: Any, mask: Any) -> float | None:
+    """Masked fraction of the support of ``comp`` when its onset lies in a masked interval.
+
+    Spec §5.3 item 12. The onset lies in a masked interval when the sample nearest to it
+    is masked (a run of masked samples covers half a sample on each side). The support is
+    ``[onset, offset]`` (where the component reaches ``onset_fraction`` of its peak), read
+    on the samples of ``times``; with no sample inside, the sample nearest to the onset.
+    None when the onset is not in a masked interval (or outside the epoch).
+    """
+    times = np.asarray(times, float)
+    mask = np.asarray(mask, bool)
+    onset, offset = float(comp.onset), float(comp.offset)
+    if not mask.any() or not np.isfinite(onset) or len(times) < _MIN_MASK_SAMPLES:
+        return None
+    half = 0.5 * float(np.median(np.diff(times)))
+    if onset < times[0] - half or onset > times[-1] + half:
+        return None
+    nearest = int(np.argmin(np.abs(times - onset)))
+    if not mask[nearest]:
+        return None
+    support = (times >= onset) & (times <= offset)
+    if not support.any():
+        # a support narrower than one sample: the masked sample nearest to the onset
+        return 1.0
+    return float(mask[support].mean())
+
+
+def _widen_masked(fit: Any, times: Any, mask: Any) -> Any:
+    """Widen the intervals of the components whose onset lies in a masked interval.
+
+    Spec §5.3 item 12: ``Component.ci`` inflated by the masked fraction ``f`` of the
+    component's support (:func:`masked_fraction`). Each interval keeps its centre and its
+    width is multiplied by ``1 + f``; the standard errors by the same factor. The fractions
+    are listed in ``diagnostics["masked_support"]`` and each such component carries the
+    warning ``"masked_onset:<i>"`` (``i`` its position in ``components``).
+    """
+    if not fit.components or mask is None or not np.any(mask):
+        return fit
+    comps, record, warns = [], [], []
+    for i, comp in enumerate(fit.components):
+        frac = masked_fraction(comp, times, mask)
+        if frac is None:
+            comps.append(comp)
+            continue
+        factor = 1.0 + frac
+        ci = {
+            name: (
+                0.5 * (low + high) - 0.5 * factor * (high - low),
+                0.5 * (low + high) + 0.5 * factor * (high - low),
+            )
+            for name, (low, high) in (comp.ci or {}).items()
+        }
+        se = {name: factor * value for name, value in (comp.se or {}).items()}
+        comps.append(dataclasses.replace(comp, ci=ci, se=se))
+        record.append({"component": i, "masked_fraction": frac, "factor": factor})
+        warns.append(f"masked_onset:{i}")
+    if not record:
+        return fit
+    diag = dict(fit.diagnostics, masked_support=record)
+    return dataclasses.replace(
+        fit, components=comps, diagnostics=diag, warnings=list(fit.warnings) + warns
+    )
 
 
 def _profile_bounds(grid: Any, stat: Any, limit: Any) -> tuple[Any, Any]:
@@ -567,8 +646,11 @@ def _profile_bounds(grid: Any, stat: Any, limit: Any) -> tuple[Any, Any]:
     return ends[0], ends[1]
 
 
-def _profile(fit: Any, core: Any, settings: Any, _sfreq: Any, n_grid: int = 21) -> Any:
-    """Profile-likelihood intervals of the non-linear parameters."""
+def _profile(fit: Any, core: Any, settings: Any, order: Any, n_grid: int = 21) -> Any:
+    """Profile-likelihood intervals of the non-linear parameters.
+
+    ``order[i]`` is the engine's index of ``fit.components[i]``.
+    """
     struct = core["struct"]
     theta, beta = core["theta"], core["beta"]
     lower, upper = struct.bounds()
@@ -576,7 +658,7 @@ def _profile(fit: Any, core: Any, settings: Any, _sfreq: Any, n_grid: int = 21) 
     s2 = rss0 / max(core["n_white"] - struct.n_theta - len(beta), 1)
     limit = chi2.ppf(settings.ci_level, 1)
     comps, flags = [], []
-    for k, comp in enumerate(fit.components):
+    for comp, k in zip(fit.components, order, strict=True):
         ci, se = dict(comp.ci), dict(comp.se)
         for i, name in enumerate(comp.param_names):
             j = struct.offsets[k] + i

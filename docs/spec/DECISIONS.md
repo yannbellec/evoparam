@@ -566,10 +566,12 @@ There is no option for a BCa interval of a fit.
 - **Reviewed text.** §5.5.5, `uncertainty="bootstrap"`: "percentile and BCa intervals on
   every parameter and feature". §5.11 method 1 (`stats.bootstrap`): "percentile and
   bias-corrected accelerated (BCa) intervals".
-- **Kept for a fit** (`models/api.py`, `_bootstrap`). One interval per feature (latency,
-  amplitude, FWHM, onset, offset, area): the expanded percentile interval of Hesterberg
-  (2015), with the tails at `Phi(-sqrt(n / (n - 1)) t_{n-1})` instead of `alpha / 2` (`n`
-  trials). The plain percentile interval of an average of `n` trials is too narrow by
+- **Kept for a fit** (`models/api.py`, `_bootstrap`). One interval per parameter of each
+  component (the shape's parameters and the amplitude `A`, since models 1.6) and per
+  feature (latency, amplitude, FWHM, onset, offset, area): the expanded percentile interval
+  of Hesterberg (2015), with the tails at `Phi(-sqrt(n / (n - 1)) t_{n-1})` instead of
+  `alpha / 2` (`n` trials). The draws are kept in `Component.bootstrap` (§4, "§5.5.5, the
+  bootstrap distribution"). The plain percentile interval of an average of `n` trials is too narrow by
   `sqrt((n - 1) / n)` and uses z instead of `t_{n-1}`. BCa was neither implemented nor
   measured for a fit; the CHANGELOG, the code and the git log give no other reason.
 - **`stats.bootstrap`** has both intervals as §5.11 asks (`method="bca"` is its default),
@@ -824,6 +826,76 @@ There is no option for a BCa interval of a fit.
   (`evoparam/benchmark/baselines.py`, §8.3 item 1). No measurement chose this value.
   Tests: `tests/existence/test_rules_registry.py::test_req137_unspecified_fields_raise`;
   the benchmark tests run the rule with `k = 5` (`tests/benchmark/test_suite_core.py`).
+- **REQ-133 for the `ftract` rule.** "Every registry rule" includes `ftract`; its row has
+  no `k`, so the test passes `k` explicitly, at 3, 5 and 7 (both ends and the middle of
+  the published range). The statistic is taken after the 1–45 Hz band-pass, so the
+  waveform of the other rules (one sample at the threshold) does not lie at the threshold
+  after the filter. The test builds one that does: a 20 Hz Hann-tapered sinusoid in the
+  baseline (inside the band; tapered so that it leaks below `|z| = 1e-3` into the window)
+  and a 10 Hz burst in the window whose scale is solved (Brent) until the band-passed
+  statistic equals `k ± 1e-6` to 1e-9. The row names the band, not the filter; the test
+  uses the rule's zero-phase 4th-order Butterworth. The decision flips at `k ± 1e-6` for
+  the three values (`test_req133_ftract_flips_at_threshold`).
+- **§5.3 item 12, intervals of a component whose onset is masked.** "`Component.ci`
+  inflated by the masked fraction of its support" is read as: the support is `[onset,
+  offset]` of the component (where it reaches `onset_fraction`, 10 %, of its peak, §5.5.1),
+  read on the samples of the epoch; the onset lies in a masked interval when the sample
+  nearest to it is masked (a NaN sample counts as masked, §5.5.9); `f` is the fraction of
+  masked samples of the support; every interval of the component (its parameters, `A` and
+  its features, whatever the uncertainty method) keeps its centre and has its width
+  multiplied by `1 + f` ("inflated by the fraction": increased by that fraction of
+  itself), and its standard errors by the same factor, so that `se` and `ci` stay
+  consistent. Other components keep their intervals. The point estimates do not change.
+  The masked samples already have zero weight, so the Jacobian interval is already wider
+  than without the mask; the factor is on top of it, for the disagreement of cleaning
+  pipelines the spec gives as the reason. Recorded in `diagnostics["masked_support"]`
+  (`component`, `masked_fraction`, `factor`) and the warning `masked_onset:<i>`.
+  Example (`tests/models/test_varpro.py::test_masked_onset_widens_the_intervals`, a
+  Gaussian at 100 ms, FWHM 40 ms, a 55–75 ms gap over its onset): `f` = 0.130, latency SE
+  0.517 ms without the mask, 0.536 ms with it, 0.606 ms widened.
+- **§5.5.9, decimated search of a long window.** The rule applies when the fit window is
+  longer than 10 s *and* the sampling rate is 1 kHz or more, as written (a 50 s window at
+  500 Hz is not decimated). The factor is the smallest integer `q` that leaves at most
+  20 000 samples in the window; a 15 s window at 1 kHz has 15 000 and is not decimated.
+  The decimated copy is made of block means of `q` samples (a moving-average low-pass
+  before the decimation, so that the copy does not alias; masked samples are left out of
+  the means, an all-masked block is masked; the last incomplete block is dropped; the
+  standard errors and the plus-minus reference are decimated the same way). "The stepwise
+  search" is read as the whole search (candidates, forward steps, merges, reseeding,
+  final shape choice, resolution check), whose warnings are kept. "Refits at full
+  resolution": the model found is refitted on the full-resolution window from the
+  parameters found, with the full-resolution noise model (for `shape_choice="penalised"`,
+  a skewed component is then re-estimated as in the final shape choice; with
+  `selection="cv"` every model of the path is refitted and the choice made at full
+  resolution); the criteria, covariance, intervals and features are those of the refit.
+  The note is a key of the provenance step, `decimated_search` (`factor`, `n_samples` of
+  the search, `n_samples_full`), and is repeated in `diagnostics` and `steps`. Measured on
+  20 development waveforms (12 s at 2 kHz, three components of 0.4 to 1.5 s, seeds 100 to
+  119): same number of components as the search at full resolution in 20 of 20, features
+  within 8e-4 standard error of it (`tests/models/test_long_window.py`).
+- **§5.5.5, the bootstrap distribution.** "Also returns the bootstrap distribution for
+  plotting": §4.3.4 has no field for it, so `Component` gains one, `bootstrap` (None
+  unless `uncertainty="bootstrap"`): one array of the successful draws per name, the
+  shape's parameters, `A` and the six features with an interval. It is saved and loaded
+  with the result (an optional field: the frozen containers of schema 1 load unchanged).
+  "Intervals on every parameter" is read as every parameter of each component; the
+  background has no interval at any uncertainty level, and gets none here. The matching
+  of draws to components follows the engine's order (the components of a `ResponseFit`
+  are sorted by latency, which can differ from the engine's order for overlapping
+  skewed components); the profile intervals use the same matching.
+- **D6, the four ERP CORE windows of the `erp` preset.** The table of §6.1 labels three of
+  the seven components that REQ-274 names (P3, N170, N400) and gives no window for MMN,
+  N2pc, LRP and ERN; §6.2 gives the source of the `erp` windows, ERP CORE
+  [LIT-erpmeas-39], and D6 asks for published windows with citations. The windows added
+  are ERP CORE's published measurement windows, the ones `validation/erpcore.py` and task
+  T6 of the benchmark (`evoparam/benchmark/erpcore.json`) already use: MMN 125–225 ms,
+  N2pc 200–275 ms, LRP −100–0 ms, ERN 0–100 ms, all negative. No value was chosen here.
+  They come after the six labels of the table, which keep their windows and their
+  precedence where windows overlap (a negative component at 150 ms is still N1). The
+  label windows are names only (§5.5.7): in a stimulus-locked fit a negative component
+  at 50–100 ms is named ERN and one at 200–225 ms MMN. REQ-270 compares the preset with
+  the table: the new labels are a listed deviation explained in the preset's notes
+  (`DEVIATIONS` in `tests/presets/test_presets.py`); `erp` 1.1 → 1.2.
 
 ## 5. Requirements that cannot both be read literally
 
