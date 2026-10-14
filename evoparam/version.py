@@ -12,8 +12,9 @@ DEFAULT_ALGORITHM_VERSION = "1.0"
 ALGORITHM_VERSIONS = {
     # 1.2: the search of a further component stops after the six strongest residual extrema
     # when none of them improves the criterion (engine.CANDIDATE_SCAN; REQ-290 P1)
-    # 1.3: package defaults (no preset): calibrated acceptance (delta "calibrated", alpha
-    # 0.03), final shape choice by AIC and the resolution check; the presets are unchanged
+    # 1.3: package defaults (no preset): final shape choice by AIC and the resolution check;
+    # the default delta stays the fixed 10, the calibrated acceptance is on request only
+    # (delta "calibrated", alpha 0.04); the presets are unchanged
     # 1.4: package defaults: the final shape choice refits every component, whatever its
     # width, and compares the shapes by HQC; the resolution check passes over a component
     # with a neighbour of either sign (REQ-003, REQ-004); the presets are unchanged

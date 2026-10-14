@@ -8,7 +8,7 @@ is not edited. This file records:
 2. the resolved import table of §4.2 (D3, D4, D5), which `evoparam/tests/test_import_graph.py`
    enforces and checks against this file;
 3. the divergences kept because they measured better than the reviewed procedure. The
-   reviewed procedure stays available as an option;
+   reviewed procedure stays available as an option, except where an entry says otherwise;
 4. readings of the spec that are needed to apply it, with the reason for each;
 5. points where two requirements cannot both be read literally, and how each is resolved.
 
@@ -389,6 +389,203 @@ default of models 1.4) and `"aic"` stay available.
   `max_components`. The filter cannot be told from the low-passed data on which the stride
   was validated, so the engine rule is kept and 1.1 was chosen with it (`CHANGELOG.md`).
 
+### `sep` preset: constant background (§6.1, REQ-277)
+
+- **Reviewed value** (still available as `presets.derive("sep", background="linear")`): the
+  §6.1 table gives `sep` the `linear` background (§5.5.2: "slow drift inside the window").
+- **Kept** (`sep` 1.0): `constant`, the §5.5.2 background "when a baseline correction has
+  been applied". The reason is in the preset's `notes["background"]`.
+- **Measured** on simulated median-nerve SEPs (SNR 5, white noise; CHANGELOG "Build step
+  S15, part 1"). With a free linear drift the N20 was described as a falling drift between
+  two positive components, and found within 0.5 ms in 9 of 20 runs; with a constant
+  background in 20 of 20. A prior on the slope (a drift of at most 3 baseline SD over the
+  window) did not help (10 of 20) and was not kept.
+- Tests: `tests/presets/test_presets.py::test_req270_every_preset_matches_the_table` (the
+  value is listed in `DEVIATIONS` and must be explained in the notes),
+  `tests/presets/test_presets_sim.py::test_req277_sep_n20_latency` and
+  `test_sep_with_coloured_noise_is_a_documented_limit` (with AR(1) noise at the same SNR:
+  16 of 20 at rho 0.5, 8 of 20 at rho 0.8).
+
+### `tep` preset: no `gabor` shape (§6.1, §6.2)
+
+- **Reviewed value** (still available as
+  `presets.derive("tep", shapes=("gaussian", "skewed_gaussian", "gabor"))`): the §6.1
+  table gives `tep` the shapes gaussian, skewed_gaussian and gabor; §6.2 says "`gabor` is
+  included because TEPs contain oscillatory bursts".
+- **Kept** (since `tep` 1.0): gaussian and skewed_gaussian. One `gabor` describes a pair of
+  components of opposite sign (as N45 and P60), so the labelled TEP sequence lost a
+  component. The reason is in the preset's `notes["shapes"]`.
+- **Measured** on the layer-2 grid (CHANGELOG "Build step S15, part 2"; base cell: two
+  components 2 FWHM apart, SNR 5, 20 replicates): F1 0.55 with gabor, 1.00 without. After
+  the change: F1 1.00 at SNR >= 5, 0.97 at SNR 3, 0.91 to 1.00 across the noises. The
+  `tep` 1.1 measurements on ds002094 (above) were made without gabor.
+- Test: `tests/presets/test_presets.py::test_req270_every_preset_matches_the_table` (listed
+  in `DEVIATIONS`, explained in the notes). The F1 values come from the layer-2 runner
+  (`validation/layer2.py`), not from a test assertion.
+
+### Trial model of `fit_trials`: `trial_model="anchored"` (§5.7 method 1, REQ-156)
+
+- **Reviewed reading** (still available as `fit_trials(..., trial_model="selected")`): the
+  trial model of §5.7 method 1 holds the components that are fitted per trial, each with
+  its own shift and scale; the code reads it as the components named by `components`.
+- **Default** (`"anchored"`): every component of the channel fit is in the trial model,
+  but only those of `components` move. The others keep their channel latency and shape,
+  and only their amplitude is fitted; `max_shift` is clipped against moving neighbours
+  only. `"all"` lets every component move. The three differ only when `components` names
+  a subset (REQ-156 uses `components=["N1"]`); with the default (every component) they
+  are the same model.
+- **Why** (CHANGELOG "Trials: speed, REQ-150/151/155/156/158 as written, spec options",
+  Q8). With every component moving, the channel fits of ds004080 often split an N1 into
+  overlapping parts (`N1`, `N1_b`, …); the neighbour rule then clips the N1 `max_shift` to
+  0.1–2 ms and the trials sit at that bound. Median trusted fraction on the significant N1
+  channels, `"anchored"` / `"all"`: 0.9 / 0.7 on four held-out subjects (UMCU07, 08, 10,
+  11; 25 channels; the choice was made there) and 0.9 / 0.7 on the six REQ-156 subjects
+  (56 channels). `"anchored"` is 30–45 % faster than `"all"`, and the trials and
+  `jitter_sd_null` then use the same procedure (the null fit already held the other
+  components at their channel values).
+- **Cost on simulations.** `simulate_ccep` with 10 trials, N1 latency and amplitude MAE,
+  `"anchored"` / `"all"`: 0.415 / 0.411 ms and 8.48 / 8.23 % at 2 ms of jitter, 1.754 /
+  1.748 ms and 18.75 / 18.18 % at 5 ms; `"selected"` 0.532 ms and 24.3 % at 2 ms. REQ-153:
+  regularized latency MAE 1.828 ms (all), 1.858 ms (anchored), 1.902 ms (selected).
+  REQ-150 at SNR 3 with an N2 added: `"all"` and `"anchored"` give the same numbers. The
+  CHANGELOG flags this default for the owner as a trade-off (robustness and speed on real
+  data against about 1–3 % of simulated MAE).
+- Tests: `tests/trials/test_trials_ccep.py::test_req156_trusted_fraction` and
+  `test_req156_speed` (network, the default), `tests/trials/test_trials_table.py`
+  (`test_options_are_checked_and_recorded`,
+  `test_selected_trial_model_keeps_only_the_chosen_components`,
+  `test_vectorised_solver_matches_trial_by_trial_solver`, with every component moving and
+  with the first one only), `tests/trials/test_trials_sim.py::test_req153_regularized_beats_free_at_low_snr`
+  (`"all"` and `"selected"`).
+
+### Null jitter of `fit_trials`: `null_rule="segments"` (§5.7 method 4, REQ-151)
+
+- **Reviewed rule** (still available as `fit_trials(..., null_rule="spec")`):
+  `jitter_sd_null` is the same procedure applied to the pre-stimulus baseline (one
+  baseline segment per trial), and realignment is refused when
+  `jitter_sd ≤ 1.2·jitter_sd_null`.
+- **Default** (`"segments"`): `jitter_sd_null` is estimated from five baseline segments per
+  trial, and realignment is refused unless `jitter_sd` exceeds both 1.2 ×
+  `jitter_sd_null` and the 95 % quantile of the ratio of two noise SDs (F distribution).
+- **Measured** on REQ-151 (CHANGELOG "Trials: speed, …, spec options", Q9). 200 jitter-free
+  runs of 40 trials (seeds 100–299), segments / spec: ratio `jitter_sd_null / jitter_sd`
+  below 0.8 in 7 / 15 runs; realignment refused in 99.0 % / 86.5 % of runs (REQ-151 asks
+  for at least 95 %). With 200 trials per run (100 runs, seeds 1000–1099) both rules pass
+  in every run.
+- Tests: `tests/trials/test_trials_sim.py::test_req151_no_invented_jitter_and_realign_refused`
+  (default), `test_req151_as_written` (both rules, 200 trials per run) and
+  `test_req151_as_written_40_trials` (strict xfail with the measured values),
+  `tests/trials/test_trials_table.py::test_options_are_checked_and_recorded`.
+
+### Pulse detection: `procedure="evoparam"` (§5.2 methods 1 and 2)
+
+- **Reviewed procedure** (still available as `detect_pulses(..., procedure="spec")`,
+  `events/_spec.py`): the median of `|x_c[n] − x_c[n−1]|` over every picked channel, a
+  robust z-score, the first crossing of `threshold_sd` after the refractory period, the
+  onset at the largest change within ±2 ms minus one sample; then a template from the
+  first `n_template` detections, scanned by normalised cross-correlation over the whole
+  recording, which rejects threshold detections that do not match it and adds the pulses
+  the threshold missed.
+- **Default** (`"evoparam"`, the steps in the docstring of `detect_pulses`): the score's
+  median over at most `score_channels` (16) evenly spaced channels; crossings closer than
+  20 ms are one artifact, whose onset is the first sample within 2 ms before its peak that
+  reaches 25 % of the peak; a strength gate relative to the 90th percentile of the
+  candidates' peaks, with candidates between 0.4 and 1 times the gate kept only when they
+  repeat (clusters by normalised cross-correlation); a recovery pass at `recovery_sd`
+  (default `threshold_sd / 4`); within `min_interval` the strongest pulse is kept.
+- **Measured** on the 25 ds004080 runs (CHANGELOG "Specification gaps: artifact, prep and
+  events", Q3). Reviewed procedure: recall 0.445 and precision 1.000 in 57 s, onsets about
+  1 sample early. Default: 0.995 and 0.990 in 2.4 s, onsets within 0.01 sample (held-out
+  runs). Threshold pass alone: 0.930 / 0.765 (reviewed) against 1.000 / 0.760.
+- Tests: `tests/events/test_threshold.py::test_spec_procedure_on_the_legacy_recording` and
+  `test_spec_procedure_template_pass_recovers_and_rejects` (the reviewed procedure),
+  `tests/events/test_ds004080_events.py::test_req040_recall_precision_and_onset` (the
+  default) and `test_spec_procedure_is_less_accurate_than_the_default` (network).
+
+### Soft priors of the fitting engine (§5.5.3 steps 2 and 4, §5.5.2)
+
+- **Reviewed procedure.** §5.5.3 step 2 solves the linear coefficients by plain weighted
+  least squares, step 4 optimises the non-linear parameters within the shapes' bounds, and
+  §5.5.2 bounds the exponential background's time constant by `[0.5 ms, |W|]`.
+- **Kept** (CHANGELOG "Build step S7", "Changes to the specification"), against
+  degenerate decompositions (a negative N1 described as a negative offset plus positive
+  components, or two huge components that cancel):
+  - `background_prior=3.0`: a pseudo-observation draws the background constant to the
+    baseline level with SD 3 baseline SD (only when the fit has a baseline);
+  - `amplitude_prior=3.0`: every other linear coefficient has SD 3 times the range of the
+    data in the window;
+  - `edge_extension=0.05`: a component's location stays within 5 % of the window length
+    outside the window;
+  - `background_tau_max`: none by default; the `ccep` and `ccep_seeg` presets cap the
+    background time constant at 50 ms (`fit_extras`), because a slower "tail" would only
+    imitate an offset or a broad component (comment of `engine._background`).
+
+  `background_prior=0` and `amplitude_prior=0` remove the prior rows
+  (`models/_settings.py`, `engine._structure_maker`, `engine.prior_rows`).
+- **Measured** against the procedure without them (no prior rows, no edge limit, no
+  time-constant limit; CHANGELOG "Fitting engine as written, and the N1 case as written",
+  Q1). Layer-2 grid (40 cells of the weekly design, 5 replicates): F1 0.760 with against
+  0.743 without (better in 7 cells, worse in 1), latency MAE 1.46 against 1.52 samples
+  (better in 26 of 38), mean amplitude bias -0.03 against -433 (diverging fits without
+  them). The simulation suites of REQ-104 to REQ-112 are unchanged; N1 kappa 0.40/0.33
+  against 0.37/0.32. No value was recorded for the 50 ms cap of the CCEP presets alone.
+- Tests: no test compares fits with and without the priors. The REQ-104 to REQ-112 suites
+  (`tests/models/test_engine_sim.py` and the other engine tests) run with them;
+  `tests/models/test_fast_kernel.py` and `tests/models/test_fast_paths.py` check the
+  compiled path against the NumPy path with and without prior rows.
+
+### Permutation p-values: generalised Pareto tail (§5.6 method 1)
+
+There is no option for the reviewed p-value; the plain value is returned only where the
+tail is not used.
+
+- **Reviewed rule.** "`p_value` is the fraction of null statistics ≥ the observed one, with
+  the `+1` correction."
+- **Kept** (`existence/permutation.py`, `tail_p_value`; both nulls of
+  `baseline_permutation`: sign flips, and the baseline windows of an Evoked). When fewer
+  than 10 null values reach the observed one and the null holds at least 50 values, a
+  generalised Pareto distribution (location 0) is fitted to the exceedances of the null
+  over its 90th percentile (at least 10 of them), and the p-value is the fraction of the
+  null above that percentile times the Pareto survival function (Knijnenburg et al. 2009),
+  never larger than `(1 + count) / (1 + n)`. Otherwise, or when the Pareto fit fails (a
+  DEBUG record names the error), `(1 + count) / (1 + n)` is returned.
+- **Why** (CHANGELOG "Build step S8", "Addition to the specification"). With 8 trials there
+  are 256 sign patterns, so the smallest plain p-value (1/256) never survives a correction
+  over a hundred channels: on ds004080 the test detected nothing on three of six runs
+  before this change.
+- Tests: no test calls `tail_p_value` directly.
+  `tests/existence/test_existence_null.py::test_req130_type_one_error` (500 sign flips,
+  rejection rate within [0.8 alpha, 1.2 alpha] at 0.05 and 0.01) covers it: a p-value of
+  0.01 or less there needs fewer than 10 of the 500 null values to reach the statistic,
+  the branch where the tail is fitted.
+
+### Bootstrap intervals: expanded percentile, no BCa for a fit (§5.5.5, §5.11, REQ-116, REQ-230)
+
+There is no option for a BCa interval of a fit.
+
+- **Reviewed text.** §5.5.5, `uncertainty="bootstrap"`: "percentile and BCa intervals on
+  every parameter and feature". §5.11 method 1 (`stats.bootstrap`): "percentile and
+  bias-corrected accelerated (BCa) intervals".
+- **Kept for a fit** (`models/api.py`, `_bootstrap`). One interval per feature (latency,
+  amplitude, FWHM, onset, offset, area): the expanded percentile interval of Hesterberg
+  (2015), with the tails at `Phi(-sqrt(n / (n - 1)) t_{n-1})` instead of `alpha / 2` (`n`
+  trials). The plain percentile interval of an average of `n` trials is too narrow by
+  `sqrt((n - 1) / n)` and uses z instead of `t_{n-1}`. BCa was neither implemented nor
+  measured for a fit; the CHANGELOG, the code and the git log give no other reason.
+- **`stats.bootstrap`** has both intervals as §5.11 asks (`method="bca"` is its default),
+  with the same small-sample expansion by default (`expand=True`; `expand=False` gives the
+  textbook intervals).
+- **Measured.** REQ-116, fit intervals, 200 runs each, plain percentile → expanded
+  (CHANGELOG "Interval coverage", 2026-10-10): latency 0.900 → 0.935 and amplitude 0.945 →
+  0.960 under white noise; 0.935 → 0.945 and 0.900 → 0.940 under AR(1) rho 0.9 (REQ-116
+  asks 92–97 %). `stats.bootstrap` with 30 trials (CHANGELOG "Build step S14"): the
+  textbook intervals cover 0.935 (normal) and 0.925 (log-normal, CV 0.5), below the 0.93
+  of REQ-230; expanded, BCa 0.948 and percentile 0.949 on normal statistics, 0.940 and
+  0.938 on log-normal ones.
+- Tests: `tests/models/test_engine_sim.py::test_req116_bootstrap_profile_coverage_as_written`
+  (slow), `tests/stats/test_stats_bootstrap.py::test_req230_coverage` (both methods; the
+  textbook interval is checked to be narrower and to cover less).
+
 ## 4. Readings needed to apply the spec
 
 - **§4.5, `core/info.py` and `core/items.py` ("merge into `utils/`").** These files only
@@ -616,6 +813,17 @@ default of models 1.4) and `"aic"` stay available.
   reading. Any other string is refused (`SettingsError`). Fits recorded under 1.2 with
   `delta=None` (the calibrated default of that version, not released) are described as
   calibrated by `methods_text()`.
+- **§5.6 method 4, the `ftract` rule has no `k`.** The registry row gives the threshold as
+  "`Z` between 3 and 7", a range, not one value. `evoparam/existence/rules.json` therefore
+  has `"k": null`, lists `k` under `unspecified` (with `"verified": {"k": false}`) and
+  hints at the published range and at `max_peak_delay=0.2` for the optional peak-delay
+  cut. As for the rows whose paper does not state the baseline, running the rule without
+  `k` raises `SettingsError` naming it (REQ-137). Window, baseline and band are the row's
+  (0–800 ms, −400 to −10 ms, 1–45 Hz). The benchmark sets `k = 5`, "the middle of the
+  published 3 to 7", without the peak-delay cut, and records it in the method's settings
+  (`evoparam/benchmark/baselines.py`, §8.3 item 1). No measurement chose this value.
+  Tests: `tests/existence/test_rules_registry.py::test_req137_unspecified_fields_raise`;
+  the benchmark tests run the rule with `k = 5` (`tests/benchmark/test_suite_core.py`).
 
 ## 5. Requirements that cannot both be read literally
 
