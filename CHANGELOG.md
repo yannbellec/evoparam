@@ -109,6 +109,13 @@ Versions: `ResponseModel.fit_group`, `ResponseModel.fit_waveform` and `models.fi
 `hierarchical.fit_hierarchical` 1.3, `spatial.fit_shared` 1.2. The reference fixture is
 regenerated; SOUP and the frozen methods texts are regenerated with no change.
 
+REQ-061, second part, with the new default (`tests/artifact/test_fitted_bias.py`): plain
+blanking now gives a median amplitude error of 37 %, lost, 66 %, 42 % and 23 % for onsets 6
+to 10 ms, so the >= 20 % bias of the specification holds at every onset and the strict xfail
+is removed (15 % at 10 ms before). Template and learned cleaning: latency error at most
+0.074 ms and amplitude error at most 2.1 % (criteria 0.5 ms and 5 %; 0.013 ms and 0.10 %
+before).
+
 ### Final shape choice on every component, sign-free resolution check (REQ-003, REQ-004, REQ-012)
 
 Three guard tests failed after the merge of moteur-sim-2 (00786a1, a04ca84); the code is

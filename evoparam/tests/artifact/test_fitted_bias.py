@@ -12,13 +12,15 @@ the fitter finds it on 7 of 12); a component lost after cleaning counts as an in
 
 - Template subtraction and the learned basis, components with onset >= b (8, 12 and 20 ms,
   the benchmark onsets of spec §5.3 that are not inside the window), fit window from ``b``:
-  median latency error <= 0.5 ms and median relative amplitude error <= 5 %. Measured: at
-  most 0.013 ms and 0.10 % (onset 8 ms: 0.011 ms and 0.10 %; the three methods agree).
+  median latency error <= 0.5 ms and median relative amplitude error <= 5 %. Measured with
+  ``shape_choice="penalised"``: at most 0.074 ms and 2.1 % (onsets 8, 12, 20 ms: 0.043, 0.013,
+  0.074 ms and 1.1, 0.26, 2.1 %; the methods agree).
 - Plain blanking (``interpolate``: the window replaced and masked, the fit from ``a`` with the
   masked samples at zero weight), onset within 2 ms of ``b`` (6 to 10 ms): the specification
-  states an amplitude bias >= 20 %. Measured median relative amplitude errors: 153 %, lost
-  (component not found on most channels), lost, 42 % and 15 % (onsets 6, 7, 8, 9, 10 ms):
-  at 10 ms, 2 ms after ``b``, below 20 % (xfail).
+  states an amplitude bias >= 20 %. Measured median relative amplitude errors with
+  ``shape_choice="penalised"``: 37 %, lost (component not found on most channels), 66 %, 42 %
+  and 23 % (onsets 6, 7, 8, 9, 10 ms). With the earlier least-squares shape choice the 10 ms
+  onset gave 15 %, below 20 %.
 """
 
 import functools
@@ -112,12 +114,6 @@ def test_req061_fitted_components_after_cleaning(onset: Any, kwargs: Any) -> Non
     assert np.median(amp) <= MAX_AMPLITUDE_ERROR
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-061: plain blanking with the onset 2 ms after b "
-    "(10 ms) gives a median amplitude error of 15 %, not "
-    ">= 20 % (6 to 9 ms: 42 % or more; module docstring)",
-)
 def test_req061_blanking_amplitude_bias_near_window_end() -> None:
 
     for onset in (0.006, 0.007, 0.008, 0.009, 0.010):
