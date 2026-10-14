@@ -16,7 +16,7 @@ SELECTIONS = ("bic", "aicc", "cv", "fixed")
 LOSSES = ("linear", "soft_l1", "huber", "cauchy")
 UNCERTAINTIES = ("jacobian", "profile", "bootstrap", "posterior")
 POLARITIES = ("both", "negative", "positive")
-SHAPE_CHOICES = ("bic", "aic")
+SHAPE_CHOICES = ("bic", "aic", "penalised")
 # ``delta`` value of the calibrated acceptance (a preset or a user asks for it with
 # delta="calibrated"; the default is the fixed 10 of spec §5.5.4)
 CALIBRATED = "calibrated"
@@ -58,9 +58,11 @@ class FitSettings:
     delta: float | str = 10.0
     alpha: float = 0.04
     # how the allowed shapes of a component are compared: "bic" (on the quick fits of the
-    # forward search, spec §5.5.3 step 4; every preset), "aic" (default: every component
-    # of the final model refitted with every allowed shape, the lowest AIC kept)
-    shape_choice: str = "aic"
+    # forward search, spec §5.5.3 step 4; every preset), "aic" (every component of the
+    # final model refitted with every allowed shape, the lowest AIC kept), "penalised"
+    # (default: as "aic", a skewed component estimated with a prior on its asymmetry and
+    # weights on its top, models/_penalised.py; REQ-106, DECISIONS §5.4)
+    shape_choice: str = "penalised"
     # flag a component that a pair of overlapping components would explain as well
     # ("merged:k,k+1", REQ-111; engine._resolution_warnings); every preset sets False
     resolution_check: bool = True

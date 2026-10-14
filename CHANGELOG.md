@@ -2,6 +2,110 @@
 
 ## Unreleased
 
+### REQ-106 with the default pair: a penalised estimate of the asymmetry (gamma and biexponential truths met)
+
+New package default `shape_choice="penalised"` (models 1.4; `models/_penalised.py`;
+DECISIONS §3 "Penalised estimate of a skewed component", §5.4). As with `"aic"`, each
+component of the final model is refitted with every allowed shape and the lowest AIC is
+kept; a skewed component is then estimated with:
+
+1. a Gaussian prior on its asymmetry `alpha` (mean 0, SD 2.5), a pseudo-observation added
+   to the whitened residual;
+2. weights `sqrt(1 + 2 s(t)^2)` on the samples (`s` the unit curve of the component);
+3. the samples below 0.3 of its peak further weighted by `min(1, 600 / E)`, `E` the
+   whitened energy of the component.
+
+The criteria, the residuals and the intervals are those of the unweighted data at the
+estimate. Every final component is refitted whatever its width: the threshold of 8
+samples at half maximum is removed (REQ-004 forbids a width rule; the same change as
+gardes-spec). `"aic"` and `"bic"` stay available; every preset still sets `"bic"`, so the
+presets' fits, the reference fixture's results and the frozen methods texts are unchanged
+(the fixture is regenerated for the versions only).
+
+Cause. The least-squares skewed Gaussian puts the mode of a gamma or biexponential
+deflection early (noise-free bias -0.5 and -1.0 sample at 12 and 25 samples), and its mode
+moves fast with `alpha` (about 0.04 FWHM per unit near `alpha` 4 to 5), so the noise of
+`alpha` spreads the latency (SD 0.8 to 1.0 sample at 12 and 25 samples). The fix had to
+reduce both. The prior shrinks `alpha` and its noise. The weight on the top fits the
+component where a skewed Gaussian follows any unimodal peak. The tails of a strong
+component, where the wrong shape's misfit exceeds the noise, are counted less.
+
+Tried on development seeds (400 600 + ..., the REQ-106 design; latency MAE in samples,
+gamma / biexponential with the default pair):
+
+| tried | n | gamma | biexponential |
+|---|---|---|---|
+| package defaults before (`"aic"`, from 8 samples) | 1 000 | 0.748 | 0.644 |
+| `"aic"` on every component (the gardes-spec base) | 1 000 | 0.699 | 0.572 |
+| Firth penalty (log-determinant of the Fisher information of the component) | 400 | 0.626 | 0.551 |
+| heavy-tailed prior on `alpha` (Student t, `1.5 log(1 + alpha^2)`) | 400 | 0.621 | 0.568 |
+| prior SD 2 on `alpha`, AIC choice | 1 000 | 0.494 | 0.604 |
+| prior SD 2 and peak weight 4 | 1 000 | 0.487 | 0.497 |
+| weights on the flanks from the misfit of the shape | 400 | 0.61 to 1.9 | |
+| prior SD 2, peak weight 4, tail level 0.3, energy 600 | 300 | 0.469 | 0.475 |
+| the same, energy 300 / 1 500 | 300 | 0.483 / 0.466 | 0.480 / 0.482 |
+| the same, tail level 0.2 / 0.4 | 300 | 0.465 / 0.480 | 0.517 / 0.529 |
+| the same, peak weight 0 / 8 | 300 | 0.417 / 0.492 | 0.648 / 0.481 |
+| the same, prior SD 1.5 / 2.5 / 3 | 300 | 0.454 / 0.473 / 0.486 | 0.555 / 0.446 / 0.453 |
+| prior SD 2.5, peak weight 6 | 300 | 0.493 | 0.471 |
+| **prior SD 2.5, peak weight 2 (kept)** | 300 | **0.448** | **0.436** |
+
+REQ-106, latency MAE in samples with the default pair (1 000 waveforms per condition;
+before = package defaults of 4358c24, refit on every component = `"aic"` without the width
+threshold, after = this change; amplitude median ratio within 1.4 % of 1 after):
+
+| truth | development: before / refit on every component / after | tests' seeds: before / after |
+|---|---|---|
+| Gaussian | 0.250 / 0.285 / 0.251 | 0.252 / 0.259 |
+| skewed Gaussian | 0.439 / 0.430 / 0.423 | 0.430 / 0.425 |
+| ex-Gaussian | 0.381 / 0.404 / 0.388 | 0.377 / 0.374 |
+| gamma | 0.748 / 0.699 / **0.454** | 0.720 / **0.450** |
+| biexponential | 0.644 / 0.572 / **0.455** | 0.637 / **0.446** |
+
+- By width (3, 6, 12 and 25 samples), development seeds after: gamma 0.24, 0.35, 0.48,
+  0.74 (before 0.37, 0.60, 0.75, 1.28); biexponential 0.26, 0.29, 0.42, 0.85 (before 0.38,
+  0.42, 0.55, 1.22).
+- A second development set (700 600 + ..., 1 000 per truth): gamma 0.444, biexponential
+  0.450.
+- The tests' first 100 waveforms (what the test runs): Gaussian 0.246, skewed 0.439,
+  ex-Gaussian 0.386, gamma 0.433, biexponential 0.444. The expected failures of the gamma
+  and biexponential rows are removed.
+- Against the package defaults before, the Gaussian row moves by +0.001 (development) and
+  +0.007 (tests' seeds). The ex-Gaussian row moves by +0.007 (development) and -0.003
+  (tests' seeds). Every row stays met. Against the refit on every component (the base
+  gardes-spec lands), every row improves. The skewed truth at 25 samples goes from 0.63 to
+  0.70 (development) while its row improves.
+- Truths fitted with their own shape: unchanged, value for value (a single allowed shape
+  has no choice to make). Development 0.200, 0.385, 0.281, 0.369, 0.302; tests' seeds
+  0.210, 0.386, 0.283, 0.346, 0.307 (the gamma and skewed rows compared fit by fit).
+
+Other requirements, package defaults:
+
+- REQ-105, tests' seeds (100 per K): recall 0.8833, precision 1.0000, counts identical to
+  before.
+- REQ-105, development seeds (300 000 + ..., 300 per K): recall 0.8828, precision 0.9987,
+  before and after.
+- REQ-112 on the ds004080 baselines (80 windows): 0.975 silent with `ccep` and 0.9625 with
+  the package defaults, before and after. The simulated REQ-112 and REQ-104 tests pass as
+  before.
+- REQ-111 fits a single shape (Gaussian), which has no shape choice: unchanged by
+  construction.
+
+The `ccep` preset with `"penalised"` instead of `"bic"`, on the REQ-113/114 runs from cache:
+
+- The example run's kappa is unchanged under both readings: 0.011 for the registry
+  reading, 0.191 for the code reading.
+- On the other runs it moves both ways: registry 0.603 to 0.667 and 0.353 to 0.520; code
+  0.215 to 0.189, 0.550 to 0.513 and 0.557 to 0.521.
+- REQ-114 close fraction: registry 0.404 of 57 to 0.371 of 62; code 0.400 to 0.433.
+
+This is not a clear gain, so the presets keep the reviewed `"bic"`.
+
+Versions: `ResponseModel.fit_group`, `ResponseModel.fit_waveform` and `models.fit_waveform`
+1.4, `existence.test_response` 1.4, `trials.fit_trials` 1.3,
+`hierarchical.fit_hierarchical` 1.3, `spatial.fit_shared` 1.2. The reference fixture is
+regenerated; SOUP and the frozen methods texts are regenerated with no change.
+
 ### REQ-106 with the default pair: second pass (gamma and biexponential truths, still not met)
 
 No change of results: the engine, the shapes and the algorithm versions are unchanged, so
