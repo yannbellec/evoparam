@@ -661,12 +661,13 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             f'"http://s3.amazonaws.com/doc/2006-03-01/"><Prefix>{escape(prefix)}</Prefix><KeyCount>{len(keys)}'
             f"</KeyCount><IsTruncated>false</IsTruncated>{items}</ListBucketResult>"
         ).encode()
+        # recorded before the body is sent: the client may go on as soon as it has the body
+        self.stats.bytes_sent += len(body)
+        self.stats.requests.append(("GET", self.path, None, 200))
         self.send_response(200)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-        self.stats.bytes_sent += len(body)
-        self.stats.requests.append(("GET", self.path, None, 200))
 
     def _read(self, path, byte_range):
         """The bytes of ``path`` to send, the status and the Content-Range header.
@@ -705,14 +706,16 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self.stats.requests.append(("GET", self.path, byte_range, status))
             self.send_error(status)
             return
+        # recorded before the body is sent: once the client has read the body it goes on,
+        # and a record made after the write could land among its next requests
+        self.stats.bytes_sent += len(body)
+        self.stats.requests.append(("GET", self.path, byte_range, status))
         self.send_response(status)
         if content_range is not None:
             self.send_header("Content-Range", content_range)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-        self.stats.bytes_sent += len(body)
-        self.stats.requests.append(("GET", self.path, byte_range, status))
 
 
 def _handler(directory: Any, stats: Any, honour_range: Any) -> Any:
