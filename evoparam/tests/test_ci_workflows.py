@@ -374,11 +374,20 @@ def test_req305_ruff_configuration() -> None:
     assert lint["pylint"]["max-statements"] == MAX_STATEMENTS
 
 
-def _ruff(*args: Any) -> Any:
-    import shutil
-    import subprocess
+def _tool(name: str) -> str | None:
+    """Return the executable ``name`` of the test environment, else the one on PATH.
 
-    exe = shutil.which("ruff")
+    The one installed next to ``sys.executable`` (the pinned version of the environment)
+    comes first: another version found earlier on PATH may report other findings.
+    """
+    import shutil
+
+    environment = str(pathlib.Path(sys.executable).parent)
+    return shutil.which(name, path=environment) or shutil.which(name)
+
+
+def _ruff(*args: Any) -> Any:
+    exe = _tool("ruff")
     if exe is None:
         pytest.skip("ruff is not installed")
     return subprocess.run(
@@ -397,12 +406,8 @@ def test_req305_ruff_format_passes() -> None:
 
 
 def test_req305_docstring_coverage() -> None:
-    import shutil
-    import subprocess
-    import sys
-
-    exe = shutil.which("interrogate") or str(pathlib.Path(sys.executable).parent / "interrogate")
-    if not pathlib.Path(exe).exists():
+    exe = _tool("interrogate")
+    if exe is None:
         pytest.skip("interrogate is not installed")
     result = subprocess.run(
         [exe, "--fail-under", "95", "evoparam", "-e", "evoparam/tests"],
