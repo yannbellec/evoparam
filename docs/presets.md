@@ -14,7 +14,7 @@ and shown in [Preset sensitivity](preset_sensitivity.md) (spec §7.4, REQ-375).
 | ecap | epidural SCS | human | LIT-domains-37, LIT-domains-38 | 1.1 | simulation_only |
 | ecap_ci | cochlear implant | human | LIT-domains-61, LIT-domains-62 | 1.1 | simulation_only |
 | erna | DBS LFP | human | LIT-domains-52, LIT-domains-53, LIT-domains-54 | 1.0 | simulation_only |
-| erp | scalp EEG/MEG | human | LIT-erpmeas-39, LIT-erpmeas-1 | 1.1 | pending: ERP CORE (REQ-274) |
+| erp | scalp EEG/MEG | human | LIT-erpmeas-39, LIT-erpmeas-1 | 1.2 | pending: ERP CORE (REQ-274) |
 | p300_bci | scalp EEG | human | LIT-domains-66, LIT-domains-71 | 1.0 | pending: bigP3BCI |
 | primate_ep | LFP/ECoG | macaque | LIT-datasets-54, LIT-datasets-55 | 1.0 | pending |
 | rodent_ep | LFP/ECoG | mouse, rat | LIT-datasets-50, LIT-variability-45, LIT-variability-50 | 1.1 | pending: Allen Visual Coding Neuropixels LFP (REQ-278) |
@@ -90,11 +90,12 @@ and shown in [Preset sensitivity](preset_sensitivity.md) (spec §7.4, REQ-375).
 - fit window: (0.05, 0.7) s; baseline: (-0.2, 0.0); epoch: (-0.2, 0.8)
 - shapes: gaussian, skewed_gaussian; background: constant; components: at most 6, FWHM 0.01 to 0.35 s
 - artifact: None over None; reference: as_recorded
-- labels: P1 (0.08, 0.13), N1 (0.13, 0.2), N170 (0.13, 0.2), P2 (0.15, 0.27), P3 (0.25, 0.6), N400 (0.3, 0.5)
+- labels: P1 (0.08, 0.13), N1 (0.13, 0.2), N170 (0.13, 0.2), P2 (0.15, 0.27), P3 (0.25, 0.6), N400 (0.3, 0.5), MMN (0.125, 0.225), N2pc (0.2, 0.275), LRP (-0.1, 0.0), ERN (0.0, 0.1)
 - trial fit: False
 - validation: pending: ERP CORE (REQ-274)
 - choice (min_fwhm): one quarter of the narrowest component, to keep the search permissive
 - note (reject_cancelling): True: a model with two overlapping components of opposite signs is refused (the reviewed engine refits it from the extrema of the data instead, reseed); on ERP CORE (40 participants x 7 components, real recordings) the LRP is within 10 ms of the published latency for 36 of 40 participants against 34 with the engine default, every other component unchanged; the engine default was measured on ECAP simulations, and on the layer-2 grid the two are within noise (CHANGELOG 'Second network run'; v1.1)
+- note (component_labels): MMN (0.125-0.225), N2pc (0.200-0.275), LRP (-0.100-0.000) and ERN (0.000-0.100), all negative, added to the six labels of spec §6.1 (owner decision D6: REQ-274 names the seven ERP CORE components, the table labels three of them); the spec gives no number for these four, and §6.2 names the source of the erp windows, ERP CORE [LIT-erpmeas-39]: these are its published measurement windows, the ones of validation/erpcore.py and of benchmark task T6 (evoparam/benchmark/erpcore.json). They come after the six table labels, which keep their precedence where the windows overlap. LRP and ERN are measured on response-locked averages: the LRP window lies before the default fit window (from 50 ms), and in a stimulus-locked fit a negative component between 50 and 100 ms is named ERN, as one between 200 and 225 ms is named MMN; labels are names only (spec §5.5.7) (v1.2)
 
 ## `p300_bci`
 

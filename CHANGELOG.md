@@ -2,6 +2,78 @@
 
 ## Unreleased
 
+### Spec items found missing: masked onsets, long windows, the erp windows, the bootstrap distribution, REQ-133 for ftract
+
+An inventory of the specification against the code found five items not implemented. Each
+is implemented as written, with a test of the behaviour the spec states; the readings are
+in DECISIONS §4.
+
+1. **§5.3 item 12, intervals of a component whose onset is masked.** A component whose
+   onset (10 % of its peak) lies in a masked interval has every interval (parameters,
+   `A`, features, at every uncertainty level) widened around its centre by `1 + f`, `f`
+   the masked fraction of its support `[onset, offset]`, and its standard errors by the
+   same factor; `diagnostics["masked_support"]` and the warning `masked_onset:<i>` record
+   it. Point estimates unchanged. Measured on the test waveform (Gaussian at 100 ms, FWHM
+   40 ms, 55–75 ms masked): `f` = 0.130, latency SE 0.517 ms without mask, 0.536 ms with
+   the mask (zero weights), 0.606 ms widened. Test:
+   `tests/models/test_varpro.py::test_masked_onset_widens_the_intervals` (widths exactly
+   `1 + f` times those of the same fit without the widening, centres kept; an unmasked
+   onset keeps its intervals).
+2. **§5.5.9, decimated search of a window longer than 10 s at 1 kHz or more.** The
+   stepwise search runs on block means of `q` samples (`q` the smallest factor leaving at
+   most 20 000 samples in the window), the model found is refitted at full resolution,
+   and `decimated_search` (`factor`, `n_samples`, `n_samples_full`) is a key of the
+   provenance step (also in `diagnostics` and `steps`). Engine functions:
+   `_fit_waveform_core` (split into `_prepare` and the search), new `decimation_factor`,
+   `_decimate`, `_decimated_fit`, `_full_resolution`. Measured on 20 development
+   waveforms (12 s at 2 kHz, `q` = 2, three components of 0.4 to 1.5 s FWHM, seeds 100 to
+   119): the same number of components as the search at full resolution in 20 of 20,
+   latency, amplitude and FWHM within 8e-4 of their standard error of it; 0.54 s per fit
+   against 0.60 s at full resolution. Tests: `tests/models/test_long_window.py`.
+3. **The `erp` preset's MMN, N2pc, LRP and ERN windows (D6, REQ-274).** Added with ERP
+   CORE's published measurement windows [LIT-erpmeas-39] (the source §6.2 names; the same
+   windows as `validation/erpcore.py` and benchmark task T6): MMN 125–225 ms, N2pc
+   200–275 ms, LRP −100–0 ms, ERN 0–100 ms, all negative, after the six labels of the
+   table, which keep their precedence. `erp` 1.1 → 1.2 (labels only: fits are unchanged,
+   their names can change; results made with `erp` 1.1 are refused by
+   `evoparam.reproduce`, REQ-333). The table comparison of REQ-270 lists the four as a
+   deviation explained in the preset's notes. `docs/presets.md` and the frozen methods
+   text of `erpcore_p3` regenerated (version and label sentence). Test:
+   `tests/presets/test_presets.py::test_d6_erp_labels_the_seven_erp_core_components`.
+   REQ-274 itself is not re-measured here (ERP CORE data not at hand); it stays marked
+   not met as written (DECISIONS §5.9).
+4. **§5.5.5, `uncertainty="bootstrap"`.** The fit now has the expanded percentile
+   interval and the bootstrap standard error of every parameter of each component (the
+   shape's parameters and `A`), not only of the six features, and returns the bootstrap
+   distribution: the new optional field `Component.bootstrap` (one array of the
+   successful draws per parameter and feature; saved and loaded with the result; None at
+   the other levels). The draws are matched to the components through the engine's order
+   (`ResponseFit` sorts by latency; the profile intervals use the same matching). On the
+   test waveform (20 trials, 60 resamples, all successful; first component, Gaussian
+   at 120 ms) the 95 % intervals are, bootstrap against Wald: `mu` 0.11960–0.12178 s
+   against 0.11965–0.12154 s, `sigma` 0.0165–0.0178 s against 0.0162–0.0182 s, `A`
+   −8.03 to −7.43 against −8.07 to −7.33. Cost on that waveform: 0.66 s against 0.43 s. BCa is
+   still not implemented for a fit (DECISIONS §3). Test:
+   `tests/models/test_status_api.py::test_bootstrap_returns_the_distribution_and_intervals_on_every_parameter`.
+5. **REQ-133 for the `ftract` rule.** The test of the registry left `ftract` out: its
+   statistic is taken after the 1–45 Hz band-pass, so the one-sample waveform of the
+   other rules does not lie at the threshold. A waveform built at the threshold after
+   the filter (scale of a 10 Hz burst solved to 1e-9) flips the decision at `k ± 1e-6`
+   for `k` = 3, 5 and 7 (the row gives "Z between 3 and 7", DECISIONS §4), passed
+   explicitly. Test: `tests/existence/test_rules_registry.py::test_req133_ftract_flips_at_threshold`.
+   The rule needed no change.
+
+Algorithm versions: `ResponseModel.fit_waveform`, `fit_group` and `models.fit_waveform`
+1.6; `existence.test_response` 1.6, `trials.fit_trials` 1.4,
+`hierarchical.fit_hierarchical` 1.4, `spatial.fit_shared` 1.3 (their channel fits). The
+reference fixture is regenerated for the versions only (values unchanged: no mask, short
+windows); SOUP regenerated with no change; frozen methods texts regenerated (only
+`erpcore_p3` changes, item 3).
+
+Tests: the spec guards (`test_polarity`, `test_no_deletion`, `test_vocabulary`),
+`test_determinism`, `test_reproduce` (both), `tests/data`, `test_methods_text`,
+`tests/models`, `tests/presets`, `tests/existence/test_rules_registry.py`.
+
 ### REQ-106 with the default pair: a penalised estimate of the asymmetry (gamma and biexponential truths met)
 
 New package default `shape_choice="penalised"` (models 1.5; `models/_penalised.py`;

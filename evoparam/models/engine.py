@@ -1585,6 +1585,64 @@ def _fit_waveform_core(
     mask |= ~np.isfinite(y)
     if settings.fit_window is None:
         raise SettingsError("fit_window is required (no preset gives one).")
+    factor = decimation_factor(times, settings, sfreq)
+    if factor > 1:
+        return _decimated_fit(
+            times,
+            y,
+            settings=settings,
+            sfreq=sfreq,
+            mask=mask,
+            sem=sem,
+            select_k=select_k,
+            noise_ref=noise_ref,
+            factor=factor,
+        )
+    prepared = _prepare(times, y, settings, sfreq, mask, sem, noise_ref)
+    out, search = prepared.out, prepared.search
+    if search is None:
+        return out
+    current = _background_only(search)
+    if current is None:
+        out.update(status="failed", message="the background-only model could not be fitted")
+        logger.warning("fit failed: %s", out["message"])
+        return out
+    out["steps"].append({"K": 0, "criterion": current.crit})
+    out["path"] = [current]
+    settings = search.settings
+    forced = settings.selection in ("fixed", "cv")
+    _calibrate(search, current, prepared.white, prepared.ar, prepared.band, forced, out)
+    current, best_rejected = _forward_search(current, search, forced, out)
+    if current.shapes and not forced and settings.reseed:
+        current = _reseed_step(current, search, out)
+    if current.shapes and not forced:
+        current = _final_checks(current, search, prepared.white, out)
+    out["best_rejected_delta"] = float(best_rejected) if np.isfinite(best_rejected) else np.nan
+    out["make"] = search.make
+    if settings.selection == "cv" and select_k is not None:
+        current = out["path"][min(select_k(out["path"], search.make), len(out["path"]) - 1)]
+    return _finish(out, current, search, y[prepared.window.wmask])
+
+
+@dataclasses.dataclass(frozen=True)
+class _Prepared:
+    """The noise model, whitening and search of one fit window (``search`` None: stop)."""
+
+    out: dict[str, Any]
+    search: Any = None
+    window: Any = None
+    white: Any = None
+    ar: Any = None
+    band: Any = None
+
+
+def _prepare(  # noqa: PLR0913, PLR0917  (the waveform and its noise, as the engine takes them)
+    times: Any, y: Any, settings: Any, sfreq: float, mask: Any, sem: Any, noise_ref: Any
+) -> _Prepared:
+    """Run steps 1 and 2 of spec §5.5.3: noise model, whitening and the search of the window.
+
+    ``search`` is None when the fit stops there (``out["status"]`` says why).
+    """
     out: dict[str, Any] = {"warnings": [], "steps": [], "best_rejected_delta": np.nan}
     settings, band = _noise_band(times, y, settings, sfreq, mask, noise_ref, out)
     win = settings.fit_window
@@ -1598,10 +1656,10 @@ def _fit_waveform_core(
         or window.valid.sum() < MIN_VALID_SAMPLES
     ):
         out.update(status="skipped", message="masked: too few valid samples in the window")
-        return out
+        return _Prepared(out)
     if not sigma > 0:
         out.update(status="skipped", message="flat")
-        return out
+        return _Prepared(out)
     white, ar = _whitener(window, settings, _Noise(sigma, sem, noise_ref, band))
     n_valid = int(window.valid.sum())
     n_eff = n_valid * (1 - rho) / (1 + rho)
@@ -1622,25 +1680,165 @@ def _fit_waveform_core(
         sigma=sigma,
         sfreq=sfreq,
     )
-    current = _background_only(search)
+    return _Prepared(out, search, window, white, ar, band)
+
+
+###################################################################################################
+## Decimated search of a long window (spec §5.5.9)
+
+# A fit window longer than DECIMATE_WINDOW seconds, recorded at DECIMATE_SFREQ Hz or more,
+# is searched on a decimated copy of at most DECIMATED_MAX samples in the window; the model
+# found is then refitted at full resolution (spec §5.5.9, "decimated_search").
+DECIMATE_WINDOW = 10.0
+DECIMATE_SFREQ = 1000.0
+DECIMATED_MAX = 20_000
+
+
+def decimation_factor(times: Any, settings: Any, sfreq: float) -> int:
+    """Return the decimation factor of the stepwise search (1: no decimation).
+
+    Spec §5.5.9: a window longer than 10 s at 1 kHz or more is searched on at most
+    20 000 samples. The factor is the smallest integer ``q`` such that the block means of
+    :func:`_decimate` put at most ``DECIMATED_MAX`` samples in the fit window.
+    """
+    win = settings.fit_window
+    if win is None or win[1] - win[0] <= DECIMATE_WINDOW or sfreq < DECIMATE_SFREQ:
+        return 1
+    times = np.asarray(times, float)
+    inside = int(np.count_nonzero((times >= win[0]) & (times <= win[1])))
+    factor = max(1, math.ceil(inside / DECIMATED_MAX))
+    while factor > 1 and _decimated_count(times, win, factor) > DECIMATED_MAX:
+        factor += 1
+    return factor
+
+
+def _decimated_count(times: Any, win: Any, factor: int) -> int:
+    """Count the samples of the decimated time axis (factor ``factor``) inside ``win``."""
+    n = len(times) // factor * factor
+    centres = times[:n].reshape(-1, factor).mean(axis=1)
+    return int(np.count_nonzero((centres >= win[0]) & (centres <= win[1])))
+
+
+def _block_mean(values: Any, valid: Any, factor: int) -> tuple[NDArray[Any], NDArray[Any]]:
+    """Means of the valid samples of consecutive blocks of ``factor`` samples.
+
+    Returns the means and the number of valid samples of each block (a last, incomplete
+    block is dropped). A block without a valid sample has the mean 0.
+    """
+    n = len(values) // factor * factor
+    good = np.asarray(valid, bool)[:n].reshape(-1, factor)
+    vals = np.where(good, np.nan_to_num(np.asarray(values, float)[:n]).reshape(-1, factor), 0.0)
+    count = good.sum(axis=1)
+    return vals.sum(axis=1) / np.maximum(count, 1), count
+
+
+def _decimate(  # noqa: PLR0913  (the waveform and its noise, as the engine takes them)
+    times: Any, y: Any, mask: Any, sem: Any, noise_ref: Any, factor: int
+) -> tuple[Any, Any, Any, Any, Any]:
+    """Decimate the epoch by block means of ``factor`` samples (the stepwise search's copy).
+
+    The mean of a block is a moving-average low-pass filter before the decimation, so that
+    the decimated copy does not alias. Masked samples are left out of the means; a block
+    with no valid sample is masked. Returns ``(times, y, mask, sem, noise_ref)``.
+    """
+    valid = ~np.asarray(mask, bool)
+    n = len(times) // factor * factor
+    times_d = np.asarray(times, float)[:n].reshape(-1, factor).mean(axis=1)
+    y_d, count = _block_mean(y, valid, factor)
+    mask_d = count == 0
+    sem_d = None
+    if sem is not None:
+        s = np.asarray(sem, float)
+        ok = valid & np.isfinite(s)
+        sq, n_ok = _block_mean(s**2, ok, factor)
+        sem_d = np.where(n_ok > 0, np.sqrt(sq / np.maximum(n_ok, 1)), np.nan)
+    ref_d = None
+    if noise_ref is not None:
+        ref = np.asarray(noise_ref, float)
+        ref_d, n_ref = _block_mean(ref, np.isfinite(ref), factor)
+        ref_d = np.where(n_ref > 0, ref_d, np.nan)
+    return times_d, y_d, mask_d, sem_d, ref_d
+
+
+def _decimated_fit(  # noqa: PLR0913  (the arguments of the engine, and the factor)
+    times: Any,
+    y: Any,
+    *,
+    settings: Any,
+    sfreq: float,
+    mask: Any,
+    sem: Any,
+    select_k: Any,
+    noise_ref: Any,
+    factor: int,
+) -> Any:
+    """Stepwise search on a decimated copy, then the refit at full resolution (spec §5.5.9).
+
+    The search (candidates, forward steps, merges, reseeding, final shape choice and the
+    resolution check) runs on the block means of ``factor`` samples. Its model (and, with
+    ``selection="cv"``, each model of its path) is then refitted on the full-resolution
+    window from the parameters found, with the full-resolution noise model; the criteria,
+    the covariance and the features of the result are those of that refit. The note
+    ``"decimated_search"`` is recorded in ``out["decimated_search"]`` (written into the
+    provenance step by the caller) and in the steps.
+    """
+    t_d, y_d, m_d, s_d, r_d = _decimate(times, y, mask, sem, noise_ref, factor)
+    coarse = _fit_waveform_core(
+        t_d, y_d, settings=settings, sfreq=sfreq / factor, mask=m_d, sem=s_d, noise_ref=r_d
+    )
+    prepared = _prepare(times, y, settings, sfreq, mask, sem, noise_ref)
+    out, search = prepared.out, prepared.search
+    note = {
+        "factor": int(factor),
+        "n_samples": int(np.count_nonzero(coarse.get("window_mask", ()))),
+        "n_samples_full": int(np.count_nonzero(out["window_mask"])),
+    }
+    out["decimated_search"] = note
+    if search is None:
+        return out
+    if coarse["status"] in ("failed", "skipped"):
+        out.update(status=coarse["status"], message=f"decimated search: {coarse['message']}")
+        return out
+    out["warnings"] = list(dict.fromkeys(list(coarse["warnings"]) + out["warnings"]))
+    out["acceptance"] = coarse.get("acceptance")
+    out["best_rejected_delta"] = coarse["best_rejected_delta"]
+    out["steps"] = [*coarse["steps"], {"decimated_search": note}]
+    if settings.selection == "cv" and select_k is not None:
+        path = [_full_resolution(state.shapes, state.theta, search) for state in coarse["path"]]
+        path = [state for state in path if state is not None]
+        current = path[min(select_k(path, search.make), len(path) - 1)] if path else None
+    else:
+        current = _full_resolution(coarse["shapes"], coarse["theta"], search)
     if current is None:
-        out.update(status="failed", message="the background-only model could not be fitted")
+        out.update(
+            status="failed", message="the refit at full resolution of the decimated search failed"
+        )
         logger.warning("fit failed: %s", out["message"])
         return out
-    out["steps"].append({"K": 0, "criterion": current.crit})
-    out["path"] = [current]
-    forced = settings.selection in ("fixed", "cv")
-    _calibrate(search, current, white, ar, band, forced, out)
-    current, best_rejected = _forward_search(current, search, forced, out)
-    if current.shapes and not forced and settings.reseed:
-        current = _reseed_step(current, search, out)
-    if current.shapes and not forced:
-        current = _final_checks(current, search, white, out)
-    out["best_rejected_delta"] = float(best_rejected) if np.isfinite(best_rejected) else np.nan
     out["make"] = search.make
-    if settings.selection == "cv" and select_k is not None:
-        current = out["path"][min(select_k(out["path"], search.make), len(out["path"]) - 1)]
-    return _finish(out, current, search, y[window.wmask])
+    out["steps"].append({"K": len(current.shapes), "criterion": current.crit})
+    return _finish(out, current, search, y[prepared.window.wmask])
+
+
+def _full_resolution(shapes: Any, theta: Any, search: "_Search") -> Any:
+    """Refit at full resolution the model ``shapes`` found at ``theta`` on a decimated copy.
+
+    The shapes are rebuilt with the limits of the full-resolution settings; a skewed
+    component is then re-estimated as the final shape choice does
+    (``shape_choice="penalised"``). None when the refit fails.
+    """
+    settings = search.settings
+    full = [_shape(shape.name, settings) for shape in shapes]
+    state, _ = search.evaluate(full, np.asarray(theta, float))
+    if state is None and not full:
+        state = _background_only(search)
+    if state is None:
+        return None
+    state = _sort_state(state, search.make)
+    if full and len(settings.shapes) > 1 and settings.shape_choice == "penalised":
+        for k in range(len(state.shapes)):
+            state = _penalised_state(state, k, search)
+    return state
 
 
 @dataclasses.dataclass(frozen=True)

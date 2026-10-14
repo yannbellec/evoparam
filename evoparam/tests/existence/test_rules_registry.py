@@ -5,6 +5,8 @@ from typing import Any
 
 import numpy as np
 import pytest
+from scipy.optimize import brentq
+from scipy.signal import butter, sosfiltfilt
 
 from evoparam.data import Evoked
 from evoparam.errors import SettingsError
@@ -20,6 +22,8 @@ SATURATION_UV = 3000.0
 PEAK_SEARCH_END = 0.5
 # Start (s) of the window of vanblooijs2023.
 WINDOW_START = 0.009
+# Accuracy of the statistic of a waveform built at the threshold (ftract, after the filter).
+AT_THRESHOLD = 1e-9
 
 ###################################################################################################
 ###################################################################################################
@@ -55,6 +59,45 @@ def _evoked_at(spec: Any, value: Any) -> Any:
     return Evoked(data=y[None], times=TIMES, sfreq=SFREQ, ch_names=["c0"], units="au")
 
 
+def _bandpassed_statistic(y: Any, spec: Any) -> float:
+    """The ftract statistic of ``y``, from the registry row: the largest absolute z-score in
+    the window of the band-passed average against its baseline (mean, population SD).
+
+    The band-pass is the zero-phase 4th-order Butterworth of the rule (the registry row
+    names the band, 1 to 45 Hz, not the filter)."""
+
+    sos = butter(4, list(spec["band"]), btype="bandpass", fs=SFREQ, output="sos")
+    x = sosfiltfilt(sos, y)
+    base = (spec["baseline"][0] <= TIMES) & (spec["baseline"][1] >= TIMES)
+    win = (spec["window"][0] <= TIMES) & (spec["window"][1] >= TIMES)
+    z = (x - x[base].mean()) / x[base].std()
+    return float(np.max(np.abs(z[win])))
+
+
+def _bandpassed_at(spec: Any, value: Any) -> Any:
+    """A waveform whose band-passed statistic equals ``value`` (to 1e-9): a 20 Hz
+    Hann-tapered sinusoid in the baseline (inside the band, so the baseline SD survives the
+    filter; tapered, so it barely leaks into the window: |z| below 1e-3 there) plus a 10 Hz
+    burst in the window, whose scale is solved for (the filter is linear and the statistic
+    continuous in the scale)."""
+
+    base = (spec["baseline"][0] <= TIMES) & (spec["baseline"][1] >= TIMES)
+    background = np.zeros(len(TIMES))
+    tb = TIMES[base]
+    background[base] = np.hanning(base.sum()) * np.sin(2 * np.pi * 20 * (tb - tb[0]))
+    burst = np.exp(-0.5 * ((TIMES - 0.2) / 0.03) ** 2) * np.cos(2 * np.pi * 10 * (TIMES - 0.2))
+
+    def at(scale: float) -> Any:
+        return background + scale * burst
+
+    scale = brentq(
+        lambda a: _bandpassed_statistic(at(a), spec) - value, 0.0, 100.0, xtol=1e-14, rtol=1e-15
+    )
+    y = at(scale)
+    assert abs(_bandpassed_statistic(y, spec) - value) < AT_THRESHOLD
+    return Evoked(data=y[None], times=TIMES, sfreq=SFREQ, ch_names=["c0"], units="au")
+
+
 @pytest.mark.parametrize("name", [n for n in COMPLETE if n != "ftract"])
 def test_req133_decision_flips_at_threshold(name: Any) -> None:
 
@@ -63,6 +106,21 @@ def test_req133_decision_flips_at_threshold(name: Any) -> None:
         evoked = _evoked_at(spec, spec["k"] + delta)
         test = run_test(evoked, method="threshold", rule=name, rule_overrides=COMPLETE[name])
         assert bool(test.significant[0]) is expected, (name, delta)
+
+
+# The registry row of ftract gives "Z between 3 and 7", no single k (DECISIONS §4): k is
+# passed explicitly, at both ends and in the middle of the published range.
+@pytest.mark.parametrize("k", [3.0, 5.0, 7.0])
+def test_req133_ftract_flips_at_threshold(k: float) -> None:
+    """REQ-133 for the ftract rule: its statistic is taken after the 1-45 Hz band-pass, so
+    the waveform is built to lie at the threshold after the filter."""
+
+    spec = resolve_rule("ftract", k=k)
+    for delta, expected in ((1e-6, True), (-1e-6, False)):
+        evoked = _bandpassed_at(spec, k + delta)
+        test = run_test(evoked, method="threshold", rule="ftract", rule_overrides={"k": k})
+        assert bool(test.significant[0]) is expected, (k, delta)
+        assert abs(float(test.statistic[0]) - (k + delta)) < AT_THRESHOLD
 
 
 def test_req137_unspecified_fields_raise() -> None:

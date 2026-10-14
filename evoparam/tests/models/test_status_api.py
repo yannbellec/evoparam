@@ -192,6 +192,60 @@ def test_uncertainty_levels() -> None:
         model(uncertainty="posterior").fit_waveform(TIMES, y)
 
 
+# Bootstrap resamples and trials of the bootstrap-distribution test.
+N_BOOT = 60
+N_BOOT_TRIALS = 20
+# Components of the bootstrap test, and the fewest draws an interval is computed from.
+N_BOOT_COMPONENTS = 2
+MIN_DRAWS = 10
+
+
+def test_bootstrap_returns_the_distribution_and_intervals_on_every_parameter(
+    tmp_path: Any,
+) -> None:
+    """Spec §5.5.5, uncertainty="bootstrap": intervals on every parameter and feature, and
+    the bootstrap distribution for plotting (``Component.bootstrap``)."""
+
+    from scipy.stats import norm
+    from scipy.stats import t as student_t
+
+    rng = np.random.default_rng(11)
+    sig = gauss(0.12, -8, 0.04) + gauss(0.3, 5, 0.08)
+    trials = sig[None] + rng.normal(0, 4, (N_BOOT_TRIALS, len(TIMES)))
+    m = model(uncertainty="bootstrap", n_bootstrap=N_BOOT, random_state=0)
+    result = m.fit_waveform(TIMES, trials.mean(0), trials=trials)
+    assert len(result.components) == N_BOOT_COMPONENTS
+    n_ok = result.diagnostics["n_bootstrap_ok"]
+    assert MIN_DRAWS <= n_ok <= N_BOOT
+    # the expanded percentile interval (DECISIONS §3, "Bootstrap intervals")
+    q = np.sqrt(N_BOOT_TRIALS / (N_BOOT_TRIALS - 1)) * student_t.ppf(0.975, N_BOOT_TRIALS - 1)
+    tail = 100 * norm.cdf(-q)
+    for comp in result.components:
+        names = [*comp.param_names, "A", "latency", "amplitude", "fwhm", "onset", "offset"]
+        names.append("area")
+        assert comp.bootstrap is not None
+        assert set(comp.bootstrap) == set(names)
+        for name in names:
+            draws = comp.bootstrap[name]
+            assert draws.shape == (n_ok,), name
+            good = draws[np.isfinite(draws)]
+            assert np.allclose(comp.ci[name], np.percentile(good, [tail, 100 - tail])), name
+            assert np.isclose(comp.se[name], np.std(good, ddof=1)), name
+        # the draws of the parameters and of the amplitude are those of the component
+        for i, name in enumerate(comp.param_names):
+            median = np.median(comp.bootstrap[name])
+            assert np.isclose(median, comp.params[i], atol=3 * comp.se[name])
+        assert np.isclose(np.median(comp.bootstrap["latency"]), comp.latency, atol=0.01)
+    # without the bootstrap, no distribution
+    jacobian = model(random_state=0).fit_waveform(TIMES, trials.mean(0))
+    assert all(comp.bootstrap is None for comp in jacobian.components)
+    # the distribution is saved and loaded with the fit
+    path = result.save(tmp_path / "boot.evoparam")
+    loaded = type(result).load(path)
+    assert loaded == result
+    assert np.array_equal(loaded.components[0].bootstrap["A"], result.components[0].bootstrap["A"])
+
+
 def test_classical_measures_and_labels() -> None:
 
     rng = np.random.default_rng(4)
