@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+### REQ-106 with the default pair: second pass (gamma and biexponential truths, still not met)
+
+No change of results: the engine, the shapes and the algorithm versions are unchanged, so
+the reference fixture, SOUP and the frozen methods texts are not regenerated. The
+expected failures of the gamma and biexponential rows now state what was measured below
+(DECISIONS §5.4).
+
+Measured on development seeds (400 600 + ..., the REQ-106 design, 300 waveforms per
+truth), latency MAE in samples of the default pair, gamma / biexponential (defaults 0.757
+/ 0.628):
+
+| tried | gamma | biexponential | other rows |
+|---|---|---|---|
+| latency of the fit read on the tenfold grid of §5.5.1 (not the analytic mode) | 0.757 | 0.628 | within 0.003 |
+| the same, truth latency also read on that grid | 0.757 | 0.626 | within 0.003 |
+| `alpha_max` 30 (the spec's bound is 10) | 0.757 | 1.107 | |
+| background `constant` | 0.750 | 0.615 | |
+| `noise_model="neff"` (§5.5.3 step 1) | 0.752 | 0.631 | |
+| final shape choice on every component (not only from 8 samples) | 0.706 | 0.572 | Gaussian 0.251 to 0.271, ex-Gaussian 0.402 to 0.424, skewed 0.450 to 0.449 |
+| two components forced (`selection="fixed"`, 2) | 0.802 | 0.679 | |
+| skewed Gaussian only | 0.682 | 0.583 | |
+
+- The latency is already the mode of the fitted component (analytic, the limit of the
+  tenfold grid), and the test's truth latency is the §5.5.1 latency of the truth shape;
+  the asymmetry bounds are those of §5.5.1.
+- The engine returns the least-squares optimum: from eight asymmetry starts the cost and
+  the mode are the same (36 noisy gamma waveforms of 12 and 25 samples).
+- With noise, the mean signed error of the skewed fit at each width is its noise-free bias
+  (gamma -0.10, -0.21, -0.52, -1.04 sample at 3, 6, 12, 25 samples; without noise -0.14,
+  -0.24, -0.49, -1.02), and its mode is spread (SD 0.79 and 1.03 sample at 12 and 25
+  samples). Without the bias the skewed-only fits would give 0.47 (gamma) and 0.28
+  (biexponential), the pair 0.56 and 0.37.
+
+REQ-106, latency MAE in samples, truth fitted with its own shape / with the default pair
+(1 000 waveforms per condition; amplitude median ratio within 3.1 % of 1 everywhere):
+
+| truth | development seeds | tests' seeds |
+|---|---|---|
+| Gaussian | 0.200 / 0.250 | 0.210 / 0.252 |
+| skewed Gaussian | 0.385 / 0.439 | 0.386 / 0.430 |
+| ex-Gaussian | 0.281 / 0.381 | 0.283 / 0.377 |
+| gamma | 0.369 / **0.748** | 0.346 / **0.720** |
+| biexponential | 0.302 / **0.644** | 0.307 / **0.637** |
+
+On the tests' first 100 waveforms (the default run): gamma 0.715, biexponential 0.592.
+REQ-105, REQ-111 and REQ-112 are unchanged (no change of results). What to try next:
+DECISIONS §5.4.
+
 ### Calibrated acceptance: the change of the noise spectrum; the default `delta` is 10 again (REQ-105, REQ-111, REQ-112)
 
 Merge of qualite-zero (0c84d6c, which holds integration-2 4f2c44d): its split of

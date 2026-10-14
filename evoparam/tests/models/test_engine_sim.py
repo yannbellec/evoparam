@@ -339,9 +339,14 @@ def _req106_cases() -> Any:
                     reason=(
                         f"REQ-106 not met for a {shape} truth fitted with the default pair: "
                         f"latency MAE {measured[shape]} sample (> 0.5) on 100 waveforms: "
-                        f"{cause[shape]}. Tried: the final shape choice by AIC (default), "
-                        "a refit of the peak region, a peak parabola (CHANGELOG, "
-                        "'Calibrated acceptance')"
+                        f"{cause[shape]}. The engine returns the least-squares optimum and "
+                        "reads its exact mode; the error is the bias and spread of that "
+                        "optimum's mode. Tried: the final shape choice by AIC (default) and "
+                        "on every width, a refit of the peak region, a peak parabola, the "
+                        "tenfold-grid latency for fit and truth, alpha_max 30, constant "
+                        "background, noise_model 'neff', two forced components (CHANGELOG, "
+                        "'Calibrated acceptance' and 'REQ-106 with the default pair: second "
+                        "pass'; next steps: DECISIONS §5.4)"
                     ),
                 )
             yield pytest.param(shape, fitted, marks=marks)
