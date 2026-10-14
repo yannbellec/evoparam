@@ -154,7 +154,7 @@ def test_presets_keep_the_rule_they_were_validated_with() -> None:
         assert not s.resolution_check
     s = resolve_settings(None)
     assert s.delta == FIXED  # the fixed rule stays the package default (DECISIONS §5.3)
-    assert s.shape_choice == "aic"
+    assert s.shape_choice == "hqc"
     assert s.resolution_check
     # None given to the dataclass reads as "not given": the default
     given = FitSettings(delta=None)
@@ -223,9 +223,26 @@ def test_resolution_check_flags_an_unresolvable_pair_only() -> None:
     assert not any(w.startswith("merged:") for w in off.warnings)
 
 
+def test_resolution_check_does_not_depend_on_signs() -> None:
+    """REQ-003: a component with a neighbour within twice its FWHM is not checked, whatever
+    the neighbour's sign, and the sign-flipped waveform gets the same components and
+    warnings."""
+
+    rng = np.random.default_rng(0)
+    y = gauss(0.2, -8, 0.03) + gauss(0.25, 6, 0.03) + noise(rng)
+    fit, flipped = model().fit_waveform(TIMES, y), model().fit_waveform(TIMES, -y)
+    assert len(fit.components) == len(flipped.components) == 2  # noqa: PLR2004  (the pair)
+    assert not any(w.startswith("merged:") for w in fit.warnings)
+    assert fit.warnings == flipped.warnings
+    for c, f in zip(fit.components, flipped.components, strict=True):
+        assert abs(c.latency - f.latency) < 1e-9  # noqa: PLR2004  (REQ-003 tolerance)
+        assert abs(c.amplitude + f.amplitude) < 1e-9  # noqa: PLR2004
+
+
 def test_final_shape_choice_finds_the_asymmetry() -> None:
     """A clearly skewed component (alpha 4, SNR 20, FWHM 30 ms) is reported with the skewed
-    shape under shape_choice="aic", whatever shape the quick fits of the search preferred."""
+    shape under the final shape choice (the default "hqc"), whatever shape the quick fits of
+    the search preferred."""
 
     from evoparam.shapes import get_shape
 

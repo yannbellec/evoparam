@@ -321,13 +321,13 @@ def req106_errors(truth_shape: Any, fitted: Any, n: Any = PER_CONDITION, **setti
 
 
 def _req106_cases() -> Any:
-    measured = {"gamma": 0.715, "biexponential": 0.592}
+    measured = {"gamma": 0.721, "biexponential": 0.599}
     cause = {
         "gamma": "the best skewed Gaussian puts the mode 0.47 sample from the truth's "
-        "on average over the widths without noise (1.0 at 25 samples); 0.72 on 1 000 "
+        "on average over the widths without noise (1.0 at 25 samples); 0.706 on 1 000 "
         "waveforms",
         "biexponential": "the best skewed Gaussian puts the mode 0.54 sample from the "
-        "truth's on average over the widths without noise (1.2 at 25 samples); 0.637 on "
+        "truth's on average over the widths without noise (1.2 at 25 samples); 0.586 on "
         "1 000 waveforms",
     }
     for shape in TRUTH_SHAPES:
@@ -339,9 +339,9 @@ def _req106_cases() -> Any:
                     reason=(
                         f"REQ-106 not met for a {shape} truth fitted with the default pair: "
                         f"latency MAE {measured[shape]} sample (> 0.5) on 100 waveforms: "
-                        f"{cause[shape]}. Tried: the final shape choice by AIC (default), "
-                        "a refit of the peak region, a peak parabola (CHANGELOG, "
-                        "'Calibrated acceptance')"
+                        f"{cause[shape]}. Tried: the final shape choice by HQC (default) "
+                        "and AIC, a refit of the peak region, a peak parabola (CHANGELOG, "
+                        "'Calibrated acceptance', 'Final shape choice on every component')"
                     ),
                 )
             yield pytest.param(shape, fitted, marks=marks)

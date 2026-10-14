@@ -2,6 +2,92 @@
 
 ## Unreleased
 
+### Final shape choice on every component, sign-free resolution check (REQ-003, REQ-004, REQ-012)
+
+Three guard tests failed after the merge of moteur-sim-2 (00786a1, a04ca84); the code is
+changed, not the tests.
+
+- **REQ-004 (`test_no_deletion.py`): the final shape choice skipped components narrower
+  than 8 samples** (`engine._refine_shapes`, `SHAPE_MIN_SAMPLES`): a step skipped under a
+  width threshold. Every component of the final model is now refitted with every allowed
+  shape, whatever its width. With the AIC of the previous default on every component, a
+  narrow component at low SNR often took an asymmetry the data do not determine (its
+  deviance gain is a chi-square with one degree of freedom, above the AIC's 2 for about
+  14 % of the Gaussian truths of 3 and 6 samples) and its mode moved by 1 to 2 samples: on
+  the REQ-105 development seeds the 7 waveforms that changed were SNR-3 components that
+  became skewed and left the match. The shapes are therefore compared by the criterion of
+  Hannan and Quinn (1979), HQC, `2 ln ln n` per parameter (about 3.7 for these windows),
+  between the 2 of AIC and the `ln n` of BIC: `shape_choice="hqc"` is the new package
+  default; `"aic"` stays available (also on every component); the presets keep `"bic"`.
+  Chosen on development seeds (REQ-105 300 000 + ..., REQ-106 400 600 + ...; 1 000
+  waveforms per K and per truth; package defaults, `delta` 10; latency MAE in samples of
+  the default pair):
+
+  | final shape choice | REQ-105 recall / precision | Gaussian | skewed | ex-Gaussian | gamma | biexponential |
+  |---|---|---|---|---|---|---|
+  | AIC from 8 samples (before) | 0.8863 / 0.9985 | 0.250 | 0.439 | 0.381 | 0.748 | 0.644 |
+  | AIC, every component | 0.8852 / 0.9972 | 0.285 | 0.430 | 0.404 | 0.699 | 0.572 |
+  | 3 per parameter, every component | 0.8858 / 0.9979 | 0.252 | 0.441 | 0.410 | 0.716 | 0.578 |
+  | **HQC, every component (kept)** | 0.8865 / 0.9987 | 0.233 | 0.455 | 0.403 | 0.722 | 0.587 |
+  | 4 per parameter, every component | 0.8865 / 0.9987 | 0.231 | 0.464 | 0.403 | 0.731 | 0.592 |
+  | BIC (`ln n`, 6.4), every component | 0.8868 / 0.9991 | 0.210 | 0.486 | 0.394 | 0.762 | 0.609 |
+  | Wald statistic of the asymmetry > 2 (focused criterion), every component | 0.8872 / 0.9994 | 0.325 | 0.369 | 0.363 | 0.699 | 0.712 |
+
+  Kept: the named criterion with the REQ-105 recall and precision at least those of
+  before, the expected failures (gamma, biexponential) closer to 0.5 and no met REQ-106
+  row put at risk. No setting measured without a width rule keeps every REQ-106 row at its
+  value: the ex-Gaussian row is worse with every penalty (0.394 to 0.410 against 0.381;
+  the truths of 3 samples, which the threshold left as the search fitted them), and the
+  Wald statistic, which improves it, loses 0.075 on the Gaussian and 0.068 on the
+  biexponential truths. With HQC the skewed truths lose 0.016 (0.455, met), the Gaussian,
+  gamma and biexponential truths gain.
+- **REQ-003 (`test_polarity.py`): the resolution check passed over a component with a
+  neighbour of the same sign** within twice its FWHM, a code path that depended on the
+  signs of the components. It now passes over a component with a neighbour of either sign
+  within that distance (the indices `k, k+1` of `merged:k,k+1` would name the neighbour).
+  The two REQ-111 designs hold one sign; their results are unchanged (below). New test
+  `test_calibration.py::test_resolution_check_does_not_depend_on_signs`: at 79ca631 its
+  pair of opposite signs, 1.7 FWHM apart, was flagged `merged`.
+- **REQ-012 (`test_vocabulary.py`)**: a prohibited word in a docstring of
+  `models/_calibration.py`, now "the spectral density of the whitened component".
+- `tests/io/test_fetch_erpcore.py::test_fetch_erpcore_downloads_and_checks` failed once
+  in the full suite (a request to `/data/` seen during the second call). Not a regression
+  of `evoparam/io/fetch.py`: the second call downloads nothing. The local test server
+  (`tests/io/helpers.py`) recorded a request after sending its body, so under load the
+  record of the first call's last download could land after the test had counted the
+  requests; holding the server thread 2 to 10 ms between the two reproduced the failure
+  at 79ca631 and at f626c68 alike. The server now records a request before answering it.
+  Alone (15 runs) and with its module (5 runs) the test passed before and after.
+
+Results (package defaults, `delta` 10; the tests' seeds, 100 per condition as the tests
+run, and 1 000; REQ-112 on the cached ds004080 baselines with `EVOPARAM_NETWORK_TESTS=1`):
+
+| REQ | before (100) | after (100) | before (1 000) | after (1 000) |
+|---|---|---|---|---|
+| 105 recall / precision | 0.883 / 1.00 | 0.883 / 1.00 | 0.8873 / 0.9991 | 0.8873 / 0.9991 |
+| 111, 1.0 FWHM: two components | 100 % | 100 % | 100 % | 100 % |
+| 111, 0.5 FWHM: one with `merged` | 100 % | 100 % | 99.8 % | 99.8 % |
+| 111, 0.5 FWHM: two without `ill_conditioned` | 0 | 0 | 1 | 1 |
+| 112, ds004080 baselines silent (`ccep` / package defaults) | 97.5 % / 96.25 % | 97.5 % / 96.25 % | | |
+
+REQ-106, latency MAE in samples with the default pair (the truth fitted with its own shape
+is unchanged: one shape, no shape choice):
+
+| truth | before (100) | after (100) | before (1 000) | after (1 000) |
+|---|---|---|---|---|
+| Gaussian | 0.254 | 0.243 | 0.252 | 0.254 |
+| skewed Gaussian | 0.450 | 0.461 | 0.430 | 0.456 |
+| ex-Gaussian | 0.366 | 0.385 | 0.377 | 0.401 |
+| gamma | **0.715** | **0.721** | **0.720** | **0.706** |
+| biexponential | **0.592** | **0.599** | **0.637** | **0.586** |
+
+Development seeds (1 000): REQ-111 unchanged (two components at 1.0 FWHM in 100 %, one
+with `merged` at 0.5 FWHM in 100 %). Amplitude bias within 3.6 % everywhere. Gamma and
+biexponential stay expected failures (DECISIONS §5.4). The presets, the reference fixture
+(`ccep`; values unchanged, versions updated), the SOUP inventory and the frozen methods
+texts are unchanged. Algorithm versions: `ResponseModel.fit_waveform`, `fit_group`,
+`models.fit_waveform` and `existence.test_response` 1.4. DECISIONS §3 and §4.
+
 ### Calibrated acceptance: the change of the noise spectrum; the default `delta` is 10 again (REQ-105, REQ-111, REQ-112)
 
 Merge of qualite-zero (0c84d6c, which holds integration-2 4f2c44d): its split of

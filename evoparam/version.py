@@ -14,13 +14,17 @@ ALGORITHM_VERSIONS = {
     # when none of them improves the criterion (engine.CANDIDATE_SCAN; REQ-290 P1)
     # 1.3: package defaults (no preset): calibrated acceptance (delta "calibrated", alpha
     # 0.03), final shape choice by AIC and the resolution check; the presets are unchanged
-    "evoparam.models.ResponseModel.fit_group": "1.3",
-    "evoparam.models.ResponseModel.fit_waveform": "1.3",
+    # 1.4: package defaults: the final shape choice refits every component, whatever its
+    # width, and compares the shapes by HQC; the resolution check passes over a component
+    # with a neighbour of either sign (REQ-003, REQ-004); the presets are unchanged
+    "evoparam.models.ResponseModel.fit_group": "1.4",
+    "evoparam.models.ResponseModel.fit_waveform": "1.4",
     # the provenance step of a waveform fit is named after the function, not the method
-    "evoparam.models.fit_waveform": "1.3",
+    "evoparam.models.fit_waveform": "1.4",
     "evoparam.artifact.remove_artifact": "1.0",
     # 1.3: method="model_comparison" fits with the engine's package defaults (above)
-    "evoparam.existence.test_response": "1.3",
+    # 1.4: the same with the engine 1.4
+    "evoparam.existence.test_response": "1.4",
     "evoparam.trials.fit_trials": "1.2",
     "evoparam.prep.rereference": "1.0",
     "evoparam.events.detect_events": "1.0",
