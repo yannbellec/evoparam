@@ -397,6 +397,14 @@ def _fit(settings: Any) -> str:
                 "when the refit was better; a component of the refitted model that "
                 "no longer lowered the criterion by the same amount was removed."
             )
+    if settings.get("shape_choice") == "penalised" and len(settings.get("shapes", [])) > 1:
+        text += (
+            " Each final component was refitted with every allowed shape and the lowest "
+            "AIC kept; a skewed component was estimated with a Gaussian prior on its "
+            "asymmetry (mean 0, SD 2.5) and with more weight on its top than on its tails, "
+            "the tails weighted less as the component's energy grows (penalised estimate; "
+            "the criteria and intervals are those of the unweighted data)."
+        )
     level = settings.get("ci_level", 0.95)
     kind = settings.get("uncertainty")
     text += (

@@ -154,7 +154,7 @@ def test_presets_keep_the_rule_they_were_validated_with() -> None:
         assert not s.resolution_check
     s = resolve_settings(None)
     assert s.delta == FIXED  # the fixed rule stays the package default (DECISIONS §5.3)
-    assert s.shape_choice == "aic"
+    assert s.shape_choice == "penalised"
     assert s.resolution_check
     # None given to the dataclass reads as "not given": the default
     given = FitSettings(delta=None)

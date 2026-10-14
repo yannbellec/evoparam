@@ -29,6 +29,7 @@ from evoparam._typing import Any, FloatArray, NDArray
 from evoparam.errors import DataError, SettingsError
 from evoparam.models import _columns, _fast
 from evoparam.models._calibration import Calibration
+from evoparam.models._penalised import penalised_component
 from evoparam.models._settings import CALIBRATED, FIXED_DELTA
 from evoparam.models._trf import TrfOptions, least_squares_trf
 from evoparam.shapes import (
@@ -2383,8 +2384,6 @@ def _merge_once(state: Any, search: _Search) -> Any:
 
 # parameters of a Gaussian component (location, width, amplitude)
 P_SCAN_GAUSS = 3
-# narrowest component (FWHM, samples) whose shape the final refinement may change
-SHAPE_MIN_SAMPLES = 8
 # starting asymmetries of a skewed shape in the final refinement (besides its own start)
 SKEW_STARTS = (2.0, -2.0)
 # shapes with more free parameters than this are not searched over their corners (2^p fits)
@@ -2454,9 +2453,9 @@ def _n_crit(search: _Search, white: Any) -> float:
 
 
 def _final_checks(current: Any, search: _Search, white: Any, out: Any) -> Any:
-    """Apply the final shape choice (``shape_choice="aic"``) and the resolution check."""
+    """Apply the final shape choice ("aic" or "penalised") and the resolution check."""
     settings = search.settings
-    if len(settings.shapes) > 1 and settings.shape_choice == "aic":
+    if len(settings.shapes) > 1 and settings.shape_choice in {"aic", "penalised"}:
         current = _refine_shapes(current, search)
         out["path"][-1] = current
         out["steps"][-1] = {"K": len(current.shapes), "criterion": current.crit}
@@ -2473,23 +2472,17 @@ def _refine_shapes(state: Any, search: _Search) -> Any:
     The shapes are compared by ``_shape_key`` (``shape_choice``), from starts on the
     component's own curve (its extremum and width), with the asymmetry of a skewed shape
     started at 0 and at +/- 2: the quick, single-start fits of the forward search often
-    leave a skewed shape at its symmetric start. Components narrower than
-    ``SHAPE_MIN_SAMPLES`` samples at half maximum keep the shape of the search: their
-    flanks hold too few samples to tell an asymmetry from noise, and a change of shape
-    there only moves the latency (REQ-105 recall on development seeds 0.9547 without the
-    refinement, 0.9517 with it on every component, 0.9542 from 8 samples; CHANGELOG
-    "Calibrated acceptance").
+    leave a skewed shape at its symmetric start. Every component is refitted, whatever its
+    width (REQ-004: no rule on the size of a component; the criterion decides). With
+    ``shape_choice="penalised"`` a skewed candidate is the penalised estimate of
+    ``models/_penalised.py``.
     """
-    tw = search.tw
-    sfreq = 1.0 / float(np.median(np.diff(tw)))
     for k in range(len(state.shapes)):
         struct = search.make(state.shapes)
-        own = state.shapes[k]
-        params = struct.comp_params(state.theta, k)
-        feats = compute_features(own, tw, params, state.beta[k], sfreq=sfreq)
-        if not (feats.fwhm or 0) * sfreq >= SHAPE_MIN_SAMPLES:
-            continue
-        best = state
+        penalised = search.settings.shape_choice == "penalised"
+        # with the penalised estimate the incumbent is refitted too: its least-squares
+        # asymmetry would otherwise win on the criterion, which the prior raises
+        best = _penalised_state(state, k, search) if penalised else state
         for start, shape in _shape_starts(state, k, search):
             shapes = state.shapes[:k] + [shape] + state.shapes[k + 1 :]
             theta0 = np.concatenate(
@@ -2500,12 +2493,48 @@ def _refine_shapes(state: Any, search: _Search) -> Any:
                 + [struct.bg_params(state.theta)]
             )
             cand, _ = search.evaluate(shapes, theta0)
+            if cand is not None and penalised:
+                cand = _penalised_state(cand, k, search)
             if cand is not None and _shape_key(cand, search.settings) < _shape_key(
                 best, search.settings
             ):
                 best = cand
         state = _sort_state(best, search.make)
     return state
+
+
+def _penalised_state(state: Any, k: int, search: _Search) -> Any:
+    """Return ``state`` with component ``k`` refitted by the penalised estimate.
+
+    ``state`` itself when the component has no asymmetry or the refit fails. The criteria
+    and residual are those of the data at the new parameters (models/_penalised.py).
+    """
+    struct = search.make(state.shapes)
+    theta = penalised_component(struct, state.theta, k)
+    if theta is None:
+        return state
+    return _state_at(struct, state.shapes, theta, search)
+
+
+def _state_at(struct: Any, shapes: Any, theta: Any, search: _Search) -> Any:
+    """Return the state of ``shapes`` at ``theta``, without optimisation.
+
+    The linear solution and the criteria of :func:`_evaluate_state` at the given parameters.
+    """
+    beta, rw, _, _ = struct.solve(theta)
+    p = struct.n_theta + len(beta)
+    data_rw = rw[: len(struct.y)]
+    n_eff, kind = search.n_eff, search.kind
+    fit_crit = criterion(float(np.sum(data_rw**2)), n_eff, p, kind)
+    exact = getattr(struct.white, "start", None) is not None
+    skip = struct.white.p if exact else 0
+    crit = (
+        criterion(float(np.sum(data_rw[struct.white.skip :] ** 2)), n_eff - skip, p, kind)
+        if skip
+        else fit_crit
+    )
+    shape_crit = criterion(float(np.sum(data_rw**2)), n_eff, p, "aic")
+    return _State(list(shapes), np.asarray(theta, float), beta, rw, crit, fit_crit, shape_crit)
 
 
 def _shape_starts(state: Any, k: int, search: _Search) -> list[tuple[NDArray[Any], Any]]:
@@ -2692,7 +2721,7 @@ def _pair_deviance(
 
 def _shape_key(state: Any, settings: Any) -> float:
     """Return the value the shapes of one candidate are compared on (``shape_choice``)."""
-    if settings.shape_choice == "aic" and state.shape_crit is not None:
+    if settings.shape_choice in {"aic", "penalised"} and state.shape_crit is not None:
         return float(state.shape_crit)
     return float(state.fit_crit)
 

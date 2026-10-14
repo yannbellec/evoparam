@@ -321,35 +321,14 @@ def req106_errors(truth_shape: Any, fitted: Any, n: Any = PER_CONDITION, **setti
 
 
 def _req106_cases() -> Any:
-    measured = {"gamma": 0.715, "biexponential": 0.592}
-    cause = {
-        "gamma": "the best skewed Gaussian puts the mode 0.47 sample from the truth's "
-        "on average over the widths without noise (1.0 at 25 samples); 0.72 on 1 000 "
-        "waveforms",
-        "biexponential": "the best skewed Gaussian puts the mode 0.54 sample from the "
-        "truth's on average over the widths without noise (1.2 at 25 samples); 0.637 on "
-        "1 000 waveforms",
-    }
+    """Every truth shape, fitted with its own shape and with the default pair. The gamma and
+    biexponential truths with the default pair are met by the penalised estimate of the
+    skewed component (package default ``shape_choice="penalised"``; DECISIONS §3 and §5.4):
+    latency MAE 0.450 and 0.446 sample on 1 000 waveforms (0.720 and 0.637 before)."""
+
     for shape in TRUTH_SHAPES:
         for fitted in ("own", "default"):
-            marks: Any = []
-            if fitted == "default" and shape in measured:
-                marks = pytest.mark.xfail(
-                    strict=False,
-                    reason=(
-                        f"REQ-106 not met for a {shape} truth fitted with the default pair: "
-                        f"latency MAE {measured[shape]} sample (> 0.5) on 100 waveforms: "
-                        f"{cause[shape]}. The engine returns the least-squares optimum and "
-                        "reads its exact mode; the error is the bias and spread of that "
-                        "optimum's mode. Tried: the final shape choice by AIC (default) and "
-                        "on every width, a refit of the peak region, a peak parabola, the "
-                        "tenfold-grid latency for fit and truth, alpha_max 30, constant "
-                        "background, noise_model 'neff', two forced components (CHANGELOG, "
-                        "'Calibrated acceptance' and 'REQ-106 with the default pair: second "
-                        "pass'; next steps: DECISIONS §5.4)"
-                    ),
-                )
-            yield pytest.param(shape, fitted, marks=marks)
+            yield pytest.param(shape, fitted)
 
 
 @pytest.mark.parametrize(("truth_shape", "fitted"), list(_req106_cases()))
