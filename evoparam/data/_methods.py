@@ -400,8 +400,9 @@ def _fit(settings: Any) -> str:
     if settings.get("shape_choice") == "penalised" and len(settings.get("shapes", [])) > 1:
         text += (
             " Each final component was refitted with every allowed shape and the lowest "
-            "AIC kept; a skewed component was estimated with a Gaussian prior on its "
-            "asymmetry (mean 0, SD 2.5) and with more weight on its top than on its tails, "
+            "Hannan-Quinn criterion kept; a skewed component was estimated with a "
+            "Gaussian prior on its asymmetry (mean 0, SD 2.5) and with more weight on its "
+            "top than on its tails, "
             "the tails weighted less as the component's energy grows (penalised estimate; "
             "the criteria and intervals are those of the unweighted data)."
         )

@@ -18,7 +18,7 @@ from .helpers import BASELINE, WINDOW, erp_waveform, match
 # is furthest from the truth's), SNR 10 and 20, on development seeds (not the REQ's).
 SEED = 900_000
 N_WAVEFORMS = 16
-# latency MAE of REQ-106 (samples); measured 0.40 penalised, 0.87 least squares
+# latency MAE of REQ-106 (samples); measured 0.40 penalised, 0.87 with "hqc"
 MAX_MAE_SAMPLES = 0.5
 
 ###################################################################################################
@@ -47,9 +47,10 @@ def test_penalised_is_a_shape_choice() -> None:
 
 def test_penalised_mode_of_a_gamma_deflection() -> None:
     """The penalised skewed Gaussian puts the mode of wide gamma deflections closer to the
-    truth's than the least-squares one (``"aic"``) does, within the MAE of REQ-106."""
+    truth's than the least-squares one (``"hqc"``, the same shape choice) does, within the
+    MAE of REQ-106."""
 
-    penalised, least_squares = _latency_mae("penalised"), _latency_mae("aic")
+    penalised, least_squares = _latency_mae("penalised"), _latency_mae("hqc")
     assert penalised <= MAX_MAE_SAMPLES
     assert penalised < least_squares
 
@@ -73,5 +74,5 @@ def test_methods_text_names_the_prior() -> None:
     settings = dataclasses.asdict(ResponseModel().settings())
     assert settings["shape_choice"] == "penalised"
     assert f"SD {ASYMMETRY_PRIOR_SD:g})" in _fit(settings)
-    settings["shape_choice"] = "aic"
+    settings["shape_choice"] = "hqc"
     assert "SD" not in _fit(settings)

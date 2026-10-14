@@ -199,7 +199,7 @@ Measured on development seeds (REQ-105 300 000 + ..., noise windows 500 000 + ..
 400 600 + ..., REQ-111 700 000 + ..., ds004080 baselines of 23 runs other than the two REQ
 runs), reported on the tests' seeds. Full tables: `CHANGELOG.md`, "Calibrated acceptance"
 and "Calibrated acceptance: the change of the noise spectrum". The final shape choice
-(`shape_choice="aic"`, refined since models 1.4 into the default `"penalised"`, below) and
+(`shape_choice="hqc"`, refined in models 1.5 into the default `"penalised"`, below) and
 `resolution_check=True` are **package defaults** (no preset); the calibrated acceptance is
 available on request (`delta="calibrated"`) and the default `delta` is the fixed 10 of
 §5.5.4. Every preset sets the reviewed procedure (`delta=10`, `shape_choice="bic"`,
@@ -227,16 +227,20 @@ with qualite-zero; the reference fixture unchanged).
   REQ-112 (§4 "REQ-112 on real baselines"). It is therefore not the default. The
   calibration applies with `noise_model="ar"` and `selection="bic"`; otherwise the fixed
   10 is used.
-- **`shape_choice="aic"` (§5.5.3 step 4).** Step 4 compares the allowed shapes of a
+- **`shape_choice="hqc"` (§5.5.3 step 4).** Step 4 compares the allowed shapes of a
   candidate on the quick fits of the forward search ("the best kept", by the criterion).
-  With `"aic"` (the package default up to models 1.3), each component of the final model
-  (until models 1.3 only those at least 8 samples wide at half maximum; since 1.4 every
-  one, as REQ-004 forbids a width rule) is refitted with every allowed shape (asymmetry started at 0 and +/- 2) and the
-  lowest AIC is kept: BIC charges the asymmetry ln n (about 6.4), which a skewed component
-  of SNR 5 to 20 rarely pays, and its Gaussian centre lies up to 1.55 samples from the
-  mode. REQ-106 skewed truth with the default pair: latency MAE 0.52 to 0.45 sample (test
-  seeds, package defaults; 0.515 to 0.447 on 1 000 development waveforms), met. `"bic"` is the reviewed
-  comparison and every preset sets it (the ds004080 N1 decision was validated with it).
+  With `"hqc"` (the package default of models 1.4; refined in 1.5 into the default
+  `"penalised"`, below), every component of the final model, whatever its width, is refitted
+  with every allowed shape (asymmetry started at 0 and +/- 2) and the lowest HQC (Hannan
+  and Quinn 1979, `2 ln ln n` per parameter, about 3.7) is kept: BIC charges the asymmetry
+  ln n (about 6.4), which a skewed component of SNR 5 to 20 rarely pays, and its Gaussian
+  centre lies up to 1.55 samples from the mode. REQ-106 skewed truth with the default
+  pair: latency MAE 0.52 (BIC on the quick fits) to 0.46 sample (test seeds, package
+  defaults; 0.456 on 1 000), met. The first version of this choice (AIC, components of at
+  least 8 samples only) skipped narrow components under a width threshold, which REQ-004
+  forbids (§4 "REQ-004, a step skipped under a width"); `"aic"` stays available, on every
+  component. `"bic"` is the reviewed comparison and every preset sets it (the ds004080 N1
+  decision was validated with it).
 - **`resolution_check=True` (§5.5.3 step 5, REQ-111).** Step 5 merges two overlapping
   components after a step accepted the second one; two equal Gaussians 0.5 FWHM apart
   differ from one Gaussian by a chi-square of 1.4 at SNR 10, so no step accepts the second
@@ -254,18 +258,16 @@ with qualite-zero; the reference fixture unchanged).
 
 ### Penalised estimate of a skewed component (§5.5.3 steps 4 and 6, REQ-106)
 
-The package default `shape_choice="penalised"` (models 1.4; `models/_penalised.py`;
+The package default `shape_choice="penalised"` (models 1.5; `models/_penalised.py`;
 CHANGELOG "REQ-106 with the default pair: a penalised estimate of the asymmetry") replaces,
 for a skewed component of the final model, the least-squares estimate of §5.5.3 step 6
-with a penalised one. Every preset keeps `"bic"`, the reviewed procedure; `"aic"` stays
-available.
+with a penalised one. Every preset keeps `"bic"`, the reviewed procedure; `"hqc"` (the
+default of models 1.4) and `"aic"` stay available.
 
-- **What it does.** As with `"aic"`, each final component is refitted with every allowed
-  shape and the lowest AIC is kept. Every component is refitted, whatever its width: the
-  former threshold of 8 samples is removed, since REQ-004 forbids a width rule and
-  test_no_deletion checks for one. A skewed component (the others and the background
-  held, every linear coefficient by variable projection) is then estimated in three
-  steps:
+- **What it does.** As with `"hqc"`, every final component is refitted with every allowed
+  shape, whatever its width (REQ-004, §4), and the lowest HQC is kept. A skewed component
+  (the others and the background held, every linear coefficient by variable projection)
+  is then estimated in three steps:
   1. A Gaussian prior on its asymmetry `alpha` (mean 0, SD 2.5).
   2. Weights `sqrt(1 + 2 s(t)^2)` on the samples, `s` its unit curve.
   3. The samples below 0.3 of its peak further weighted by `min(1, 600 / E)`, `E` its
@@ -279,33 +281,34 @@ available.
   bias: a skewed Gaussian follows any unimodal peak near its top, and the tails of a
   strong component, where a wrong shape's misfit exceeds the noise, count less. A weak
   component keeps all its samples.
-- **Measured** (development seeds 400 600 + ..., 1 000 per truth; tests' seeds 10 600 +
-  ..., measured once at the end; latency MAE in samples with the default pair, before /
-  after):
+- **The criterion inside it.** The constants were chosen with the shapes compared by AIC
+  (before the HQC default was merged). After the merge both criteria were measured on
+  the development seeds (REQ-105 300 000 + ..., 1 000 per K; REQ-106 400 600 + ...,
+  1 000 per truth). Both meet every REQ-106 row; HQC has the better REQ-105 and is kept:
 
-  | truth | development seeds | tests' seeds |
-  |---|---|---|
-  | gamma | 0.748 / 0.454 | 0.720 / 0.450 |
-  | biexponential | 0.644 / 0.455 | 0.637 / 0.446 |
-  | skewed Gaussian | 0.439 / 0.423 | 0.430 / 0.425 |
-  | ex-Gaussian | 0.381 / 0.388 | 0.377 / 0.374 |
-  | Gaussian | 0.250 / 0.251 | 0.252 / 0.259 |
+  | | REQ-105 recall / precision | Gaussian | skewed | ex-Gaussian | gamma | biexponential |
+  |---|---|---|---|---|---|---|
+  | `"hqc"` (before) | 0.8865 / 0.9987 | 0.233 | 0.455 | 0.403 | 0.722 | 0.587 |
+  | penalised, AIC | 0.8867 / 0.9989 | 0.251 | 0.423 | 0.388 | 0.454 | 0.455 |
+  | penalised, HQC (kept) | 0.8870 / 0.9992 | 0.220 | 0.465 | 0.393 | 0.482 | 0.462 |
 
-  Against `"aic"` on every component, the base without the width threshold, every row
-  improves on the development seeds: Gaussian 0.285, skewed 0.430, ex-Gaussian 0.404,
-  gamma 0.699, biexponential 0.572. A second development set (700 600 + ...) gives gamma
-  0.444 and biexponential 0.450. Truths fitted with their own shape are unchanged, value
-  for value. REQ-105 is unchanged (tests' seeds: recall 0.8833, precision 1.0000, counts
-  identical). REQ-112 on the ds004080 baselines is unchanged (0.975 silent with `ccep`, 0.9625
-  with the package defaults). REQ-111 fits a single shape and is unchanged by construction,
-  and the REQ-104 tests pass as before.
-- **Presets.** The `ccep` preset with `"penalised"` instead of `"bic"` was measured on the
-  REQ-113/114 runs from cache. The example run's kappa is unchanged under both readings of
-  D8 (0.011 and 0.191). The other runs move both ways (registry reading +0.03 to +0.17 on
-  four of six runs, code reading -0.04 to +0.02, the others unchanged). The REQ-114 close fraction goes from
-  0.404 to 0.371 (registry) and from 0.400 to 0.433 (code). This is not a clear gain, so
-  every preset keeps `"bic"`. The presets' fits and the reference fixture's results are
-  unchanged.
+- **Tests' seeds, measured once at the end** (1 000 per condition; `"hqc"` / penalised):
+  REQ-105 0.8873 / 0.9991 to 0.8875 / 0.9992 (100 per K: 0.8833 / 1.0000 both); REQ-106
+  Gaussian 0.254 / 0.237, skewed 0.456 / 0.478, ex-Gaussian 0.401 / 0.403, gamma 0.706 /
+  0.477, biexponential 0.586 / 0.463. The skewed row is worse by 0.010 (development) and
+  0.022 (tests' seeds) and the ex-Gaussian row by 0.002 on the tests' seeds; both stay
+  met, and the deviation is kept because it meets two rows that were not met. Truths
+  fitted with their own shape are unchanged, value for value. REQ-112 on the ds004080
+  baselines is unchanged (0.975 silent with `ccep`, 0.9625 with the package defaults).
+  REQ-111 fits a single shape and is unchanged by construction, and the REQ-104 tests
+  pass as before.
+- **Presets.** The `ccep` preset with `"penalised"` (by AIC) instead of `"bic"` was
+  measured on the REQ-113/114 runs from cache. The example run's kappa is unchanged under
+  both readings of D8 (0.011 and 0.191). The other runs move both ways (registry reading
+  +0.03 to +0.17 on four of six runs, code reading -0.04 to +0.02, the others unchanged).
+  The REQ-114 close fraction goes from 0.404 to 0.371 (registry) and from 0.400 to 0.433
+  (code). This is not a clear gain, so every preset keeps `"bic"`. The presets' fits and
+  the reference fixture's results are unchanged.
 - **The constants** (SD 2.5, peak weight 2, level 0.3, energy 600) were chosen on the
   development seeds only, from the sweep in the CHANGELOG. They are not fitted to the
   truth shapes' latency: no shift of the latency is applied, and the prior's mean is the
@@ -592,6 +595,20 @@ available.
   without the segment term, 90.1 % at `delta` 10), kept 92.5 % of the test windows (74 of
   80) against 96.25 % (77 of 80) at `delta` 10: the package default is the fixed `delta`
   10 again (§3, §5.3), and REQ-105 is an expected failure as before the calibration.
+- **REQ-004, a step skipped under a width.** REQ-004 says components are accepted or
+  rejected only by the model-selection criterion, and its test forbids skipping a
+  component under a comparison of its size or width with a threshold. Read as covering
+  every step that may change a component, not only its deletion: the final shape choice
+  (§3 "`shape_choice`") refits every component, and which shape a narrow component keeps
+  is decided by the criterion. The criterion is HQC, not AIC: with AIC on every component,
+  asymmetries the data do not determine moved the mode of narrow, low-SNR components out of
+  the REQ-105 match (recall 0.8863 to 0.8852 on development seeds); with HQC the recall is
+  0.8865 (CHANGELOG, "Final shape choice on every component").
+- **REQ-003, the resolution check.** The check (§3) passes over a component that has
+  another component within twice its FWHM, since `merged:k,k+1` would then name that
+  neighbour. It first passed over same-sign neighbours only; a code path that depends on
+  the signs of components, which REQ-003 forbids without `polarity`. Read as: the rule is
+  the same for neighbours of either sign. REQ-111 is unchanged (its pairs have one sign).
 - **A preset that asks for the calibrated acceptance.** `delta="calibrated"` is the
   sentinel, in a `Preset`, in `ResponseModel(...)` and in `FitSettings`; it is recorded
   as given, so a stored fit and a preset written to JSON say which rule they used. A number is the fixed fall of BIC. `delta=None` keeps its meaning
@@ -730,9 +747,10 @@ available.
   truth and a gamma truth of the same fitted curve: the pair does not hold the gamma and
   biexponential shapes.
 - Resolution: the latency definition and the pair stay as specified. Skewed truths are
-  met with the final shape choice by AIC (§3; MAE 0.45 on the test's seeds, 0.52 before);
-  gamma and biexponential stay expected failures (0.715 and 0.592 on the test's seeds,
-  0.76 and 0.60 before). Measured and not kept (development seeds): refitting the peak region
+  met with the final shape choice (§3; MAE 0.46 on the test's seeds with HQC, 0.45 with
+  AIC from 8 samples, 0.52 before either); gamma and biexponential stayed expected failures
+  until models 1.5, third pass below
+  (0.721 and 0.599 on the test's seeds, 0.706 and 0.586 on 1 000; 0.76 and 0.60 before). Measured and not kept (development seeds): refitting the peak region
   only (above 0.3 or 0.5 of the peak; gamma 0.75 to 0.61, biexponential unchanged at 0.62,
   skewed and Gaussian truths worse), a parabola through the samples above 0.6 of the peak
   (biexponential 0.62 to 1.16), a shift of the fitted curve onto the peak (no gain), and a
@@ -788,9 +806,10 @@ available.
   component, now the package default (§3 "Penalised estimate of a skewed component";
   CHANGELOG "REQ-106 with the default pair: a penalised estimate of the asymmetry").
   The latency definition and the pair stay as specified.
-  - Met on both seed sets. Development seeds: gamma 0.454, biexponential 0.455 (0.444 and
-    0.450 on a second set). Tests' seeds: gamma 0.450, biexponential 0.446. The expected
-    failures are removed.
+  - Met on both seed sets. Development seeds: gamma 0.482, biexponential 0.462 (shapes
+    compared by HQC, the kept criterion; by AIC 0.454 and 0.455, and 0.444 and 0.450 on a
+    second set). Tests' seeds: gamma 0.477, biexponential 0.463. The expected failures are
+    removed.
   - Tried first and not kept (development seeds, gamma / biexponential):
     - a Firth penalty, 0.626 / 0.551;
     - a heavy-tailed prior on `alpha`, 0.621 / 0.568;
@@ -799,10 +818,9 @@ available.
     - flank weights from the misfit of the shape, biexponential 0.61 to 1.9.
 
     Each reduced the bias or the spread, not both, or did so for one truth only.
-  - Every other REQ-106 row stays met. Against the defaults before, the Gaussian row moves
-    by +0.001 (development) and +0.007 (tests' seeds). The ex-Gaussian row moves by +0.007
-    (development) and -0.003 (tests' seeds). Against the refit of every component (the
-    base without the width threshold), every row improves.
+  - Every other REQ-106 row stays met. Against `"hqc"`, the default before, the skewed row
+    moves by +0.010 (development) and +0.022 (tests' seeds), the ex-Gaussian row by
+    -0.010 and +0.002, the Gaussian row by -0.013 and -0.017 (§3).
 
 ### 5.5 REQ-111 at 0.5 FWHM — §5.5.3 steps 4 and 5
 

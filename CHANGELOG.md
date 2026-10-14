@@ -4,10 +4,11 @@
 
 ### REQ-106 with the default pair: a penalised estimate of the asymmetry (gamma and biexponential truths met)
 
-New package default `shape_choice="penalised"` (models 1.4; `models/_penalised.py`;
-DECISIONS §3 "Penalised estimate of a skewed component", §5.4). As with `"aic"`, each
-component of the final model is refitted with every allowed shape and the lowest AIC is
-kept; a skewed component is then estimated with:
+New package default `shape_choice="penalised"` (models 1.5; `models/_penalised.py`;
+DECISIONS §3 "Penalised estimate of a skewed component", §5.4). As with `"hqc"` (the
+default of models 1.4, "Final shape choice on every component" below), each component of
+the final model, whatever its width, is refitted with every allowed shape and the lowest
+HQC is kept; a skewed component is then estimated with:
 
 1. a Gaussian prior on its asymmetry `alpha` (mean 0, SD 2.5), a pseudo-observation added
    to the whitened residual;
@@ -16,11 +17,9 @@ kept; a skewed component is then estimated with:
    whitened energy of the component.
 
 The criteria, the residuals and the intervals are those of the unweighted data at the
-estimate. Every final component is refitted whatever its width: the threshold of 8
-samples at half maximum is removed (REQ-004 forbids a width rule; the same change as
-gardes-spec). `"aic"` and `"bic"` stay available; every preset still sets `"bic"`, so the
-presets' fits, the reference fixture's results and the frozen methods texts are unchanged
-(the fixture is regenerated for the versions only).
+estimate. `"hqc"`, `"aic"` and `"bic"` stay available; every preset still sets `"bic"`, so
+the presets' fits, the reference fixture's results and the frozen methods texts are
+unchanged (the fixture is regenerated for the versions only).
 
 Cause. The least-squares skewed Gaussian puts the mode of a gamma or biexponential
 deflection early (noise-free bias -0.5 and -1.0 sample at 12 and 25 samples), and its mode
@@ -31,7 +30,8 @@ component where a skewed Gaussian follows any unimodal peak. The tails of a stro
 component, where the wrong shape's misfit exceeds the noise, are counted less.
 
 Tried on development seeds (400 600 + ..., the REQ-106 design; latency MAE in samples,
-gamma / biexponential with the default pair):
+gamma / biexponential with the default pair; before the merge of the HQC default, so the
+shapes were compared by AIC on every component):
 
 | tried | n | gamma | biexponential |
 |---|---|---|---|
@@ -50,48 +50,51 @@ gamma / biexponential with the default pair):
 | prior SD 2.5, peak weight 6 | 300 | 0.493 | 0.471 |
 | **prior SD 2.5, peak weight 2 (kept)** | 300 | **0.448** | **0.436** |
 
-REQ-106, latency MAE in samples with the default pair (1 000 waveforms per condition;
-before = package defaults of 4358c24, refit on every component = `"aic"` without the width
-threshold, after = this change; amplitude median ratio within 1.4 % of 1 after):
+Criterion that compares the shapes inside `"penalised"`, chosen after the merge of the HQC
+default (development seeds: REQ-105 300 000 + ..., 1 000 per K, the set of "Final shape
+choice on every component"; REQ-106 400 600 + ..., 1 000 per truth; package defaults,
+`delta` 10; latency MAE in samples of the default pair):
 
-| truth | development: before / refit on every component / after | tests' seeds: before / after |
+| final shape choice | REQ-105 recall / precision | Gaussian | skewed | ex-Gaussian | gamma | biexponential |
+|---|---|---|---|---|---|---|
+| `"hqc"` (models 1.4 default) | 0.8865 / 0.9987 | 0.233 | 0.455 | 0.403 | 0.722 | 0.587 |
+| `"penalised"` compared by AIC | 0.8867 / 0.9989 | 0.251 | 0.423 | 0.388 | 0.454 | 0.455 |
+| **`"penalised"` compared by HQC (kept)** | **0.8870 / 0.9992** | 0.220 | 0.465 | 0.393 | 0.482 | 0.462 |
+
+Both meet every REQ-106 row; HQC has the better REQ-105 (0.8865 / 0.9987 reproduced for
+`"hqc"` with the same script). With HQC the skewed row is 0.010 above `"hqc"` (0.465
+against 0.455, met) and the gamma row is the closest to the bound (0.482).
+
+Results of the kept default on the tests' seeds, measured once at the end (1 000 per
+condition; `"hqc"` = models 1.4, "Final shape choice on every component"):
+
+| REQ | `"hqc"` | `"penalised"` |
 |---|---|---|
-| Gaussian | 0.250 / 0.285 / 0.251 | 0.252 / 0.259 |
-| skewed Gaussian | 0.439 / 0.430 / 0.423 | 0.430 / 0.425 |
-| ex-Gaussian | 0.381 / 0.404 / 0.388 | 0.377 / 0.374 |
-| gamma | 0.748 / 0.699 / **0.454** | 0.720 / **0.450** |
-| biexponential | 0.644 / 0.572 / **0.455** | 0.637 / **0.446** |
+| 105 recall / precision, 100 per K | 0.883 / 1.00 | 0.8833 / 1.0000 |
+| 105 recall / precision, 1 000 per K | 0.8873 / 0.9991 | 0.8875 / 0.9992 |
+| 106 Gaussian | 0.254 | 0.237 |
+| 106 skewed Gaussian | 0.456 | 0.478 |
+| 106 ex-Gaussian | 0.401 | 0.403 |
+| 106 gamma | **0.706** | **0.477** |
+| 106 biexponential | **0.586** | **0.463** |
 
-- By width (3, 6, 12 and 25 samples), development seeds after: gamma 0.24, 0.35, 0.48,
-  0.74 (before 0.37, 0.60, 0.75, 1.28); biexponential 0.26, 0.29, 0.42, 0.85 (before 0.38,
-  0.42, 0.55, 1.22).
-- A second development set (700 600 + ..., 1 000 per truth): gamma 0.444, biexponential
-  0.450.
-- The tests' first 100 waveforms (what the test runs): Gaussian 0.246, skewed 0.439,
-  ex-Gaussian 0.386, gamma 0.433, biexponential 0.444. The expected failures of the gamma
-  and biexponential rows are removed.
-- Against the package defaults before, the Gaussian row moves by +0.001 (development) and
-  +0.007 (tests' seeds). The ex-Gaussian row moves by +0.007 (development) and -0.003
-  (tests' seeds). Every row stays met. Against the refit on every component (the base
-  gardes-spec lands), every row improves. The skewed truth at 25 samples goes from 0.63 to
-  0.70 (development) while its row improves.
+- The tests' first 100 waveforms (what the test runs): Gaussian 0.234, skewed 0.485,
+  ex-Gaussian 0.389, gamma 0.477, biexponential 0.438. The expected failures of the gamma
+  and biexponential rows are removed. Amplitude median ratio within 0.9 % of 1.
+- Against `"hqc"`, the skewed row is worse by 0.010 (development) and 0.022 (tests'
+  seeds), and the ex-Gaussian row by 0.002 on the tests' seeds (0.010 better on
+  development); both stay met. Every other row improves.
+- By width (3, 6, 12 and 25 samples), development seeds: gamma 0.26, 0.39, 0.52, 0.76;
+  biexponential 0.28, 0.30, 0.43, 0.83.
 - Truths fitted with their own shape: unchanged, value for value (a single allowed shape
-  has no choice to make). Development 0.200, 0.385, 0.281, 0.369, 0.302; tests' seeds
-  0.210, 0.386, 0.283, 0.346, 0.307 (the gamma and skewed rows compared fit by fit).
-
-Other requirements, package defaults:
-
-- REQ-105, tests' seeds (100 per K): recall 0.8833, precision 1.0000, counts identical to
-  before.
-- REQ-105, development seeds (300 000 + ..., 300 per K): recall 0.8828, precision 0.9987,
-  before and after.
+  has no choice to make).
 - REQ-112 on the ds004080 baselines (80 windows): 0.975 silent with `ccep` and 0.9625 with
-  the package defaults, before and after. The simulated REQ-112 and REQ-104 tests pass as
-  before.
+  the package defaults, as before. The simulated REQ-112 and REQ-104 tests pass.
 - REQ-111 fits a single shape (Gaussian), which has no shape choice: unchanged by
   construction.
 
-The `ccep` preset with `"penalised"` instead of `"bic"`, on the REQ-113/114 runs from cache:
+The `ccep` preset with `"penalised"` (by AIC, measured before the merge) instead of
+`"bic"`, on the REQ-113/114 runs from cache:
 
 - The example run's kappa is unchanged under both readings: 0.011 for the registry
   reading, 0.191 for the code reading.
@@ -102,9 +105,95 @@ The `ccep` preset with `"penalised"` instead of `"bic"`, on the REQ-113/114 runs
 This is not a clear gain, so the presets keep the reviewed `"bic"`.
 
 Versions: `ResponseModel.fit_group`, `ResponseModel.fit_waveform` and `models.fit_waveform`
-1.4, `existence.test_response` 1.4, `trials.fit_trials` 1.3,
+1.5, `existence.test_response` 1.5, `trials.fit_trials` 1.3,
 `hierarchical.fit_hierarchical` 1.3, `spatial.fit_shared` 1.2. The reference fixture is
 regenerated; SOUP and the frozen methods texts are regenerated with no change.
+
+### Final shape choice on every component, sign-free resolution check (REQ-003, REQ-004, REQ-012)
+
+Three guard tests failed after the merge of moteur-sim-2 (00786a1, a04ca84); the code is
+changed, not the tests.
+
+- **REQ-004 (`test_no_deletion.py`): the final shape choice skipped components narrower
+  than 8 samples** (`engine._refine_shapes`, `SHAPE_MIN_SAMPLES`): a step skipped under a
+  width threshold. Every component of the final model is now refitted with every allowed
+  shape, whatever its width. With the AIC of the previous default on every component, a
+  narrow component at low SNR often took an asymmetry the data do not determine (its
+  deviance gain is a chi-square with one degree of freedom, above the AIC's 2 for about
+  14 % of the Gaussian truths of 3 and 6 samples) and its mode moved by 1 to 2 samples: on
+  the REQ-105 development seeds the 7 waveforms that changed were SNR-3 components that
+  became skewed and left the match. The shapes are therefore compared by the criterion of
+  Hannan and Quinn (1979), HQC, `2 ln ln n` per parameter (about 3.7 for these windows),
+  between the 2 of AIC and the `ln n` of BIC: `shape_choice="hqc"` is the new package
+  default; `"aic"` stays available (also on every component); the presets keep `"bic"`.
+  Chosen on development seeds (REQ-105 300 000 + ..., REQ-106 400 600 + ...; 1 000
+  waveforms per K and per truth; package defaults, `delta` 10; latency MAE in samples of
+  the default pair):
+
+  | final shape choice | REQ-105 recall / precision | Gaussian | skewed | ex-Gaussian | gamma | biexponential |
+  |---|---|---|---|---|---|---|
+  | AIC from 8 samples (before) | 0.8863 / 0.9985 | 0.250 | 0.439 | 0.381 | 0.748 | 0.644 |
+  | AIC, every component | 0.8852 / 0.9972 | 0.285 | 0.430 | 0.404 | 0.699 | 0.572 |
+  | 3 per parameter, every component | 0.8858 / 0.9979 | 0.252 | 0.441 | 0.410 | 0.716 | 0.578 |
+  | **HQC, every component (kept)** | 0.8865 / 0.9987 | 0.233 | 0.455 | 0.403 | 0.722 | 0.587 |
+  | 4 per parameter, every component | 0.8865 / 0.9987 | 0.231 | 0.464 | 0.403 | 0.731 | 0.592 |
+  | BIC (`ln n`, 6.4), every component | 0.8868 / 0.9991 | 0.210 | 0.486 | 0.394 | 0.762 | 0.609 |
+  | Wald statistic of the asymmetry > 2 (focused criterion), every component | 0.8872 / 0.9994 | 0.325 | 0.369 | 0.363 | 0.699 | 0.712 |
+
+  Kept: the named criterion with the REQ-105 recall and precision at least those of
+  before, the expected failures (gamma, biexponential) closer to 0.5 and no met REQ-106
+  row put at risk. No setting measured without a width rule keeps every REQ-106 row at its
+  value: the ex-Gaussian row is worse with every penalty (0.394 to 0.410 against 0.381;
+  the truths of 3 samples, which the threshold left as the search fitted them), and the
+  Wald statistic, which improves it, loses 0.075 on the Gaussian and 0.068 on the
+  biexponential truths. With HQC the skewed truths lose 0.016 (0.455, met), the Gaussian,
+  gamma and biexponential truths gain.
+- **REQ-003 (`test_polarity.py`): the resolution check passed over a component with a
+  neighbour of the same sign** within twice its FWHM, a code path that depended on the
+  signs of the components. It now passes over a component with a neighbour of either sign
+  within that distance (the indices `k, k+1` of `merged:k,k+1` would name the neighbour).
+  The two REQ-111 designs hold one sign; their results are unchanged (below). New test
+  `test_calibration.py::test_resolution_check_does_not_depend_on_signs`: at 79ca631 its
+  pair of opposite signs, 1.7 FWHM apart, was flagged `merged`.
+- **REQ-012 (`test_vocabulary.py`)**: a prohibited word in a docstring of
+  `models/_calibration.py`, now "the spectral density of the whitened component".
+- `tests/io/test_fetch_erpcore.py::test_fetch_erpcore_downloads_and_checks` failed once
+  in the full suite (a request to `/data/` seen during the second call). Not a regression
+  of `evoparam/io/fetch.py`: the second call downloads nothing. The local test server
+  (`tests/io/helpers.py`) recorded a request after sending its body, so under load the
+  record of the first call's last download could land after the test had counted the
+  requests; holding the server thread 2 to 10 ms between the two reproduced the failure
+  at 79ca631 and at f626c68 alike. The server now records a request before answering it.
+  Alone (15 runs) and with its module (5 runs) the test passed before and after.
+
+Results (package defaults, `delta` 10; the tests' seeds, 100 per condition as the tests
+run, and 1 000; REQ-112 on the cached ds004080 baselines with `EVOPARAM_NETWORK_TESTS=1`):
+
+| REQ | before (100) | after (100) | before (1 000) | after (1 000) |
+|---|---|---|---|---|
+| 105 recall / precision | 0.883 / 1.00 | 0.883 / 1.00 | 0.8873 / 0.9991 | 0.8873 / 0.9991 |
+| 111, 1.0 FWHM: two components | 100 % | 100 % | 100 % | 100 % |
+| 111, 0.5 FWHM: one with `merged` | 100 % | 100 % | 99.8 % | 99.8 % |
+| 111, 0.5 FWHM: two without `ill_conditioned` | 0 | 0 | 1 | 1 |
+| 112, ds004080 baselines silent (`ccep` / package defaults) | 97.5 % / 96.25 % | 97.5 % / 96.25 % | | |
+
+REQ-106, latency MAE in samples with the default pair (the truth fitted with its own shape
+is unchanged: one shape, no shape choice):
+
+| truth | before (100) | after (100) | before (1 000) | after (1 000) |
+|---|---|---|---|---|
+| Gaussian | 0.254 | 0.243 | 0.252 | 0.254 |
+| skewed Gaussian | 0.450 | 0.461 | 0.430 | 0.456 |
+| ex-Gaussian | 0.366 | 0.385 | 0.377 | 0.401 |
+| gamma | **0.715** | **0.721** | **0.720** | **0.706** |
+| biexponential | **0.592** | **0.599** | **0.637** | **0.586** |
+
+Development seeds (1 000): REQ-111 unchanged (two components at 1.0 FWHM in 100 %, one
+with `merged` at 0.5 FWHM in 100 %). Amplitude bias within 3.6 % everywhere. Gamma and
+biexponential stay expected failures (DECISIONS §5.4). The presets, the reference fixture
+(`ccep`; values unchanged, versions updated), the SOUP inventory and the frozen methods
+texts are unchanged. Algorithm versions: `ResponseModel.fit_waveform`, `fit_group`,
+`models.fit_waveform` and `existence.test_response` 1.4. DECISIONS §3 and §4.
 
 ### REQ-106 with the default pair: second pass (gamma and biexponential truths, still not met)
 

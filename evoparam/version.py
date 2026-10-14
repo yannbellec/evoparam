@@ -14,18 +14,21 @@ ALGORITHM_VERSIONS = {
     # when none of them improves the criterion (engine.CANDIDATE_SCAN; REQ-290 P1)
     # 1.3: package defaults (no preset): calibrated acceptance (delta "calibrated", alpha
     # 0.03), final shape choice by AIC and the resolution check; the presets are unchanged
-    # 1.4: package default shape_choice "penalised" (a skewed component estimated with a
-    # prior on its asymmetry and weights on its top; every final component refitted,
-    # whatever its width); the presets are unchanged
-    "evoparam.models.ResponseModel.fit_group": "1.4",
-    "evoparam.models.ResponseModel.fit_waveform": "1.4",
+    # 1.4: package defaults: the final shape choice refits every component, whatever its
+    # width, and compares the shapes by HQC; the resolution check passes over a component
+    # with a neighbour of either sign (REQ-003, REQ-004); the presets are unchanged
+    # 1.5: package default shape_choice "penalised" (as "hqc", a skewed component
+    # estimated with a prior on its asymmetry and weights on its top); presets unchanged
+    "evoparam.models.ResponseModel.fit_group": "1.5",
+    "evoparam.models.ResponseModel.fit_waveform": "1.5",
     # the provenance step of a waveform fit is named after the function, not the method
-    "evoparam.models.fit_waveform": "1.4",
+    "evoparam.models.fit_waveform": "1.5",
     "evoparam.artifact.remove_artifact": "1.0",
     # 1.3: method="model_comparison" fits with the engine's package defaults (above)
-    # 1.4: the same, models 1.4
-    "evoparam.existence.test_response": "1.4",
-    # 1.3: without a preset, the fits of the package defaults (models 1.4)
+    # 1.4: the same with the engine 1.4
+    # 1.5: the same with the engine 1.5
+    "evoparam.existence.test_response": "1.5",
+    # 1.3: without a preset, the fits of the package defaults (models 1.5)
     "evoparam.trials.fit_trials": "1.3",
     "evoparam.prep.rereference": "1.0",
     "evoparam.events.detect_events": "1.0",
@@ -38,10 +41,10 @@ ALGORITHM_VERSIONS = {
     # 1.1: the standard error of the channel latency is the noise of the average (Wald)
     # plus the mean of the jitter beyond noise, truncated to the label window (REQ-171)
     # 1.2: the fits of the channels (models 1.2)
-    # 1.3: without a preset, the fits of the package defaults (models 1.4)
+    # 1.3: without a preset, the fits of the package defaults (models 1.5)
     "evoparam.hierarchical.fit_hierarchical": "1.3",
     # 1.1: the independent fits of the channels (models 1.2)
-    # 1.2: without a preset, the fits of the package defaults (models 1.4)
+    # 1.2: without a preset, the fits of the package defaults (models 1.5)
     "evoparam.spatial.fit_shared": "1.2",
 }
 

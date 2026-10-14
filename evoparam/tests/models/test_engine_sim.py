@@ -324,7 +324,7 @@ def _req106_cases() -> Any:
     """Every truth shape, fitted with its own shape and with the default pair. The gamma and
     biexponential truths with the default pair are met by the penalised estimate of the
     skewed component (package default ``shape_choice="penalised"``; DECISIONS §3 and §5.4):
-    latency MAE 0.450 and 0.446 sample on 1 000 waveforms (0.720 and 0.637 before)."""
+    latency MAE 0.477 and 0.463 sample on 1 000 waveforms (0.706 and 0.586 with "hqc")."""
 
     for shape in TRUTH_SHAPES:
         for fitted in ("own", "default"):

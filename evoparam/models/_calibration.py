@@ -27,7 +27,7 @@ rho = 0.9 windows at ``delta = 0``, CHANGELOG "Calibrated acceptance"). With
    null deviance by ``exp(eps)``, ``eps`` approximately normal with variance ``v`` given
    by the asymptotic covariance of the autoregressive coefficients (``sigma_e^2
    Gamma_p^{-1} / n``) through the gradient of the log spectrum, weighted by the
-   component's whitened power spectrum minus the flat spectrum of the residual (the
+   spectral density of the whitened component minus the flat spectrum of the residual (the
    criterion's own variance estimate absorbs a uniform error). The threshold that keeps
    the tail of ``exp(eps) chi^2`` at the level of ``c0`` (saddle point of
    ``exp(-c e^{-eps}/2 - eps^2/(2 v))``) is ``c = 2 e* exp(e*) / v`` with
