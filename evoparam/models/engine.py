@@ -1273,6 +1273,11 @@ _SHAPES_BUILT_MAX = 256  # the cache is emptied when it holds this many shapes
 
 def _param_latencies(struct: Any, theta: Any) -> FloatArray:
     """Latency parameter of each component (the parameter the ordering acts on)."""
+    chain = struct.chain if struct.ordered else None
+    if chain and len(chain) == len(struct.shapes):
+        # every shape has a latency parameter: its positions in theta (the chain)
+        latencies: FloatArray = np.asarray(theta, float)[chain]
+        return latencies
     out = []
     for k, shape in enumerate(struct.shapes):
         params = struct.comp_params(theta, k)
@@ -1389,10 +1394,15 @@ def _evaluate_state(
     struct = struct_maker(shapes)
     if struct.ordered and len(shapes) >= _PAIR:
         # the start must respect the order of the parameterisation
-        order = np.argsort(_param_latencies(struct, theta0), kind="stable")
-        if np.any(order != np.arange(len(order))):
-            shapes, theta0 = _reorder(struct_maker, list(shapes), np.asarray(theta0, float), order)
-            struct = struct_maker(shapes)
+        latencies = _param_latencies(struct, theta0)
+        # a stable sort leaves an ascending sequence in place
+        if not bool(np.all(latencies[:-1] <= latencies[1:])):
+            order = np.argsort(latencies, kind="stable")
+            if np.any(order != np.arange(len(order))):
+                shapes, theta0 = _reorder(
+                    struct_maker, list(shapes), np.asarray(theta0, float), order
+                )
+                struct = struct_maker(shapes)
     theta, beta, rw, ok, msg = _optimise(struct, theta0, settings, f_scale, tol)
     if not ok:
         return None, msg
@@ -1400,7 +1410,8 @@ def _evaluate_state(
         return None, "cancelling_pair"
     p = struct.n_theta + len(beta)
     data_rw = rw[: len(struct.y)]
-    fit_crit = criterion(float(np.sum(data_rw**2)), n_eff, p, kind)
+    rss = float(np.sum(data_rw**2))
+    fit_crit = criterion(rss, n_eff, p, kind)
     # The start rows of the exact likelihood (Whitener) tie the curve to the data at the
     # window start, so they take part in every fit; but the evidence for a component (the
     # change of K, merges) counts the innovation rows only. The start rows judge the first
@@ -1414,7 +1425,7 @@ def _evaluate_state(
         if skip
         else fit_crit
     )
-    shape_crit = criterion(float(np.sum(data_rw**2)), n_eff, p, _shape_kind(settings))
+    shape_crit = criterion(rss, n_eff, p, _shape_kind(settings))
     return _State(list(shapes), theta, beta, rw, crit, fit_crit, shape_crit), ""
 
 
