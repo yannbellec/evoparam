@@ -2,6 +2,95 @@
 
 ## Unreleased
 
+### REQ-275: why the N45 is missing on ds002094 (measured; package unchanged)
+
+REQ-275 is still not met. This entry records the causes measured on main (013d7b7, preset
+`tep` 1.1) on the averages cached by the test, 20 subjects. Development subjects (8) and
+held-out subjects (12) are the ones of "Preset tep 1.1" below. Reading of the test
+(variant B, the TESA-like ICA, all 30 channels, largest RMS from 38 to 140 ms), N45 / N100 /
+both: 10 / 11 / 8. With the 17 inner channels: 11 / 17 / 11 (12 / 17 / 12 when 1.1 was
+measured). Preset chain alone (variant A), inner channels: 9 / 15 / 8.
+
+Causes:
+
+- **The channel rule takes the positive pole.** Grand average of variant B (20 subjects):
+  the N45 is at 44 ms, most negative at FZ (-1.9 uV), FC1 (-1.6) and F3, F4, FC2 (-1.4),
+  and positive at TP9 (+1.9), T7 (+1.6) and P7 (+1.4). The N100 is at 101 ms: CZ and FC2
+  -6.3 uV, TP9 +5.6, O1 +5.5, IZ +5.4. With the 30-channel average reference the positive
+  pole is about as large as the negative one. The unsigned RMS rule picks it on 10 of the 20
+  subjects, and there the sign rule of the labels (§5.5.7) cannot name an N45 or an N100.
+- **The automatic ICA of variant B removes about half of the TEP.** Its second round also
+  applies the TMS-evoked muscle rule (mean |average| from 11 to 30 ms more than 8 times its
+  mean over the epoch). A neural component has a flat baseline in its trial average, so it
+  can pass that ratio. On sub-728 the rule removed the component that carries the
+  fronto-central N100 (-3.3 uV at CZ; ratio 9.6; spectral slope -2.12 from 30 to 100 Hz,
+  not a muscle spectrum). Median RMS over channels from 38 to 140 ms, variant B / variant
+  A: 0.49 over the 20 subjects, with 0.10, 0.12 and 0.18 on sub-786, 728 and 780. Without
+  that rule in the second round (variant "P", not kept), the ratio is 0.93. Rogasch et al.
+  2017 ([LIT-artifact-9]) describe the second round as removing "other artifacts such as
+  blinks, eye movement, persistent muscle activity", and say that the classification "can
+  then be manually checked and altered by the user". The test has no such check.
+- **The data have the N45 more often than the fits name it.** Counted as a local minimum
+  from 38 to 55 ms below the maxima of 25-38 and 55-75 ms, subjects of 20 (in brackets:
+  minimum below 0):
+
+  | channel | variant B | variant P |
+  |---|---|---|
+  | CZ | 14 (12) | 14 (12) |
+  | FC2 | 14 (9) | 16 (14) |
+  | FZ | 12 (10) | 15 (13) |
+  | the channel picked by the test's rule | 9 (7) | 11 (8) |
+  | most negative mean from 38 to 140 ms | 11 (10) | 15 (12) |
+
+  Where the dip is present but not named, the fit usually describes it as the gap
+  between two positive components, P30 and P60. For example, sub-711 FC2 (P) has a dip of
+  -3.5 uV at 44 ms, and the fit is P30 at 29 ms (+8.3), P60 at 54 ms (+5.7) and N100. In 4
+  of the 15 subjects, the dip stays above the baseline (sub-759 FC2: +3.4 uV).
+- **12 to 44 ms carries no evidence in the strided fits.** The first sample of the fit window
+  (12 ms) is the last interpolated sample, so it is masked. With the strided whitening (k = 3,
+  AR order 10), when the kept rows include that sample, every row that depends on it is
+  zero and the exact start cannot be used. As a result, nothing from 12 to 44 ms counts.
+  On sub-767 (P, CZ) a +8.3 uV P30 residual stays unfitted, and no component is accepted
+  even with `delta` 2. A patch that starts the exact likelihood after masked leading samples
+  (the likelihood of the observed segment; the 12 and 13 ms windows then give the same fit)
+  was measured and not kept. It lowers the counts: B 8 → 7 both labels (test rule), B inner
+  channels 11 → 8, A inner channels 8 → 7, P with the signed rule 11 → 11. The added early
+  evidence goes to residual artifact components at the window start.
+
+Readings measured (total N45 / N100 / both, then "both" on the 8 development subjects).
+Rules: `rms` is the test's rule. `neg` is the most negative mean from 38 to 140 ms (the
+signed version of the test's rule). `n100` is the most negative minimum from 80 to 140 ms.
+`inner` means the 17 inner channels:
+
+| variant | rms | rms inner | neg | neg inner | n100 | n100 inner |
+|---|---|---|---|---|---|---|
+| B (test) | 10/11/8 · 6 | 11/17/11 · 6 | 10/18/10 · 4 | – | 12/19/12 · 6 | – |
+| P (no TMS-muscle rule in round 2) | 8/17/6 · 1 | 6/16/5 · 0 | 13/16/11 · 5 | 12/16/11 · 5 | 8/17/6 · 1 | 8/18/7 · 2 |
+| A (preset chain) | 6/9/4 · 2 | 9/15/8 · 3 | – | 9/16/9 · 4 | – | 10/18/9 · 4 |
+
+Fixed channel CZ: B 11/18/11 · 5, P 8/20/8 · 2. Background `none` (spec §5.5.2:
+"baseline-corrected scalp ERP windows") on the development subjects with variant B: both
+labels on 4 of 8 with the test's rule, with the inner channels and with `n100`, against 6
+of 8 with `constant`.
+The `constant` background takes a negative offset where the negativity lasts from 38 to 140
+ms (sub-764 FZ: c0 -3.7 uV, baseline SD 0.39 uV), and then the N45 is not named. With
+`none`, the N45 is not named where it is a dip between two positive peaks (sub-749, 759 and
+774). The best total, 12 of 20 (variant B with `n100`), is not adopted. It changes the
+reading of "channel of maximal response", and the development subjects do not prefer it (6
+of 8, the same as `rms`). Nothing in the package, the preset or the test criterion is
+changed.
+
+Next steps measured as possible, not yet done:
+
+- An automatic stand-in for the manual check of TESA, chosen on the development subjects:
+  a second-round "TMS-evoked muscle" component kept when its spectrum is not a muscle
+  spectrum (the sub-728 case).
+- The details of TESA not yet reproduced: the muscle ratio over "the rest of the epoch",
+  and z-scores with the n - 1 standard deviation.
+- The engine patch for masked leading samples, measured on the layer-2 cells before any
+  adoption.
+- The 24-participant TMS-EEG set of §8 ([LIT-datasets-17] row), as a second dataset.
+
 ### Spec items found missing: masked onsets, long windows, the erp windows, the bootstrap distribution, REQ-133 for ftract
 
 An inventory of the specification against the code found five items not implemented. Each
