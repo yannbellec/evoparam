@@ -2,6 +2,55 @@
 
 ## Unreleased
 
+### Engine speed, part 5 (REQ-290 P1): same results to the bit, P1 still not met
+
+P1 is about a tenth faster with the `fast` extra and still above its 50 ms target. Every
+result is the same to the last bit, so no algorithm version changes.
+
+Timings: same machine, core 3 (`taskset -c 3`), `OMP_NUM_THREADS=1`, previous code (013d7b7)
+and new code run alternately, three rounds; the load average was 6 to 7 on the 4 cores
+(other jobs), which made the wall-clock medians of the previous code unstable (94 to 106
+ms), so the table gives the CPU time of the process too:
+
+| workload | 013d7b7 | new code |
+|---|---|---|
+| P1 workload, warm-up + 30 fits: median CPU time per fit | 77.5, 77.8, 77.2 ms | 67.9, 69.6, 68.1 ms |
+| the same runs: fastest fit (wall clock) | 72.4, 72.1, 70.8 ms | 66.0, 65.1, 66.0 ms |
+| the same runs: median (wall clock) | 99.0, 94.2, 105.8 ms | 68.2, 71.0, 68.5 ms |
+| compiled kernel alone: the 58 calls of one P1 fit replayed, median of 30 | 42 to 46 ms | 38 to 41 ms |
+| REQ-115 waveform (5 waveforms x 8), median, two rounds | 45.0, 43.1 ms | 38.7, 39.1 ms |
+
+What changed:
+
+- `models/_fast.py`: a component is whitened only on the samples its span and the reach of
+  the filter cover (the rest of the whitened row is 0, as before, and is no longer
+  computed); its design row and derivatives are no longer set to 0 outside the span. The
+  constant of the exponential background (or a fixed basis) is whitened once per compiled
+  fit instead of at every evaluation. An AR filter of at most four lags with `a[0] = 1`
+  makes one pass over the samples, each term added in the same order as before.
+- `models/engine.py`: the latencies of an ordered structure are read from the positions of
+  the chain; the start is sorted only when they are not already in order; the whitened
+  residual sum of squares is computed once for both criteria.
+- `shapes/_base.py` (`compute_features`): the first and last samples above the onset level
+  are found once, the lobe is cut by `searchsorted`, and the local extrema are searched
+  only where the curve is above that level. `shapes/components.py`: `skew_mode` of one
+  skewness keeps `(z*, c, dc/dalpha)` instead of `z*` only.
+
+Results, previous code against new code: the 58 kernel calls of one P1 fit replayed give
+the same outputs to the bit; 2 464 compiled fits on other structures (exponential,
+constant, linear and no background; white, AR of orders 1 to 9 and strided whitening, with
+and without start rows and prior rows; components at both window edges, a 50 ms window)
+give the same outputs to the bit; a battery of 60 fits (P1 on three channels of eight
+seeds, six REQ-115 waveforms, 20 engine-test waveforms, 10 skewed-Gaussian `erp`
+waveforms) gives identical tables and evaluation counts; `compute_features` gives the same
+features on 3 360 cases (7 shapes, 3 sampling rates). `ALGORITHM_VERSIONS` is unchanged.
+
+P1 stays above 50 ms, and `benchmarks/results` is not regenerated. With the same rounding
+the kernel is bound by the passes of the Householder QR over the 2 050-row columns (about
+450 per evaluation and Jacobian); a change of their rounding alone (the order of one inner
+product of the Jacobian) moves the features of the 60-fit battery by up to 3.7e-5 relative,
+beyond the 1e-9 of the fixtures, so a faster QR needs a new algorithm version.
+
 ### Spec items found missing: masked onsets, long windows, the erp windows, the bootstrap distribution, REQ-133 for ftract
 
 An inventory of the specification against the code found five items not implemented. Each
