@@ -85,6 +85,54 @@ the kernel is bound by the passes of the Householder QR over the 2 050-row colum
 product of the Jacobian) moves the features of the 60-fit battery by up to 3.7e-5 relative,
 beyond the 1e-9 of the fixtures, so a faster QR needs a new algorithm version.
 
+### N1 case: the rule's N1 detections (REQ-113, REQ-114, REQ-273)
+
+REQ-113 names an N1 "a negative component with latency in 9–50 ms" and asks it on every
+channel where the published rule, read over 9–100 ms, "detects one". The rule's detections
+whose peak is after 50 ms are not N1s by that definition. Both readings are now asked
+(DECISIONS §5.11): the rule's detections over 9–100 ms (A, the tests until now) and its N1
+detections, the peaks it finds in 9–50 ms (C: the rule unchanged, its window ending at
+50 ms). Settings were examined on development runs only: UMCU07, 08, 10, 11, 19, 28, 40
+and 49; six runs of UMCU01 other than the example; UMCU12 to 17. The test runs (the
+example and the REQ-371 runs) were measured once, at the end. No default of the package
+changed. Only tests and documents change.
+
+- **REQ-113 with C is not met.** Registry row / code, on the test runs: kappa 0.19 / 0.19
+  on the 46 PT contacts (1 rule N1, 8 preset N1s, none missed). No REQ-371 run meets the
+  criterion: registry row 0.37, 0.60, 0.12, 0.33, 0.39, 0.59 with 1, 12, 6, 5, 6, 3 missed.
+  Pooled 0.49 / 0.36. Development runs (registry row): pooled 0.47, 0.43 and 0.59 on the
+  three sets, no run meeting it. Test: `test_req113_n1_detections` (expected failure with
+  these values). A is unchanged: 0.01 / 0.19 on the PT contacts, 0.44 / 0.40 pooled.
+- **REQ-114 with C is met** when the model latency is read as the rule's operator on the
+  fitted curve, in the rule's reference (DECISIONS §5.2, fourth reading): 94.1 % (48 of 51)
+  / 96.3 % (26 of 27) on the test runs, and 91 %, 92 % and 93 % (registry row) on the
+  development sets. The N1 component's own latency gives 49.0 % / 44.4 %. The fitted
+  trough gives 74.5 % / 88.9 %. The fitted curve in the preset's reference gives
+  82.4 % / 96.3 %. Test: `test_req114_n1_detections`, parametrised by reading and by
+  latency.
+- **REQ-273 is still not met**, because it needs REQ-113 under both A and C.
+- **Where the gap is** (registry row, C, REQ-371 runs). The preset names 85 N1s, and 38 of
+  them are not rule N1s. Of the rule's 80 N1s, the preset misses 33.
+  - Of those 33, 23 are rule N1s of the preset's own input too. These are failures of the
+    engine's decomposition.
+  - The rule itself, applied to the preset's input (the adjusted common average), meets
+    the criterion on one REQ-371 run of six (pooled 0.78; development 4 of 9, 2 of 6,
+    2 of 6). Test: `test_req113_rule_on_the_presets_input_bound`. With the code's reading
+    the same copy meets it on five of six.
+- **Variants measured on the development runs and not adopted** (registry row, C, pooled
+  kappa on the first two sets; the preset gives 0.47 and 0.43):
+  - no SEM weights: 0.55 and 0.61;
+  - the recording reference: 0.56 and 0.46;
+  - no edge extension: 0.43 and 0.49;
+  - background `tau_max` 10 ms: 0.46 and 0.46;
+  - both of these: 0.45 and 0.52.
+
+  None meets the criterion on more than one run of six.
+- **REQ-135 over every stimulation pair of a run** (measured on eight development runs,
+  not adopted, DECISIONS §5.11): with FDR over all channels and pairs of a run, kappa
+  0.634 with the registry row (0.700 without the correction). It is below 0.7, so the
+  test runs were not read this way and the REQ-135 tests are unchanged.
+
 ### Spec items found missing: masked onsets, long windows, the erp windows, the bootstrap distribution, REQ-133 for ftract
 
 An inventory of the specification against the code found five items not implemented. Each
