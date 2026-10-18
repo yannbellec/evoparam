@@ -45,6 +45,10 @@ changed. Only tests and documents change.
   - both of these: 0.45 and 0.52.
 
   None meets the criterion on more than one run of six.
+- **REQ-135 over every stimulation pair of a run** (measured on eight development runs,
+  not adopted, DECISIONS §5.10): with FDR over all channels and pairs of a run, kappa
+  0.634 with the registry row (0.700 without the correction). It is below 0.7, so the
+  test runs were not read this way and the REQ-135 tests are unchanged.
 
 ### Spec items found missing: masked onsets, long windows, the erp windows, the bootstrap distribution, REQ-133 for ftract
 
