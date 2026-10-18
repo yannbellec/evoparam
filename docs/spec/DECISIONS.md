@@ -995,6 +995,9 @@ There is no option for a BCa interval of a fit.
   with the registry row. 7 of the 10 misses are the rule's peaks at 87-100 ms: small
   local minima of the noisy average on a slope, where the fitted curve has no local
   minimum. The third reading gives 72 %.
+- With the rule's N1 detections (its peaks in 9–50 ms, §5.10) the fourth reading gives
+  94.1 % (48 of 51) with the registry row and 96.3 % (26 of 27) with the code on the REQ
+  runs, met; 91–93 % on the development runs.
 
 ### 5.3 REQ-105 (recall >= 0.95 from SNR 3) — REQ-112 (>= 95 % of pure-noise windows silent)
 
@@ -1289,6 +1292,8 @@ There is no option for a BCa interval of a fit.
   runs (the `ccep` preset's own chain before the test) gives 0.548 (0.623) on the
   REQ-371 runs; without the correction 0.710 (0.807).
   Measured variants and numbers: CHANGELOG, "N1 case: the two readings".
+- REQ-113 and REQ-114 with the rule's N1 detections (the rule's peaks in 9–50 ms, the N1
+  window REQ-113 names), asked alongside the detections over 9–100 ms: §5.10.
 - REQ-135's subjects. Spec §7.3 lists REQ-135 among the criteria on "ds004080, ≥ 5
   subjects chosen by the rule below". The test therefore uses the REQ-371 list, with every
   trial of each run's first pair of at least 10 trials, as REQ-113 does. The five
@@ -1317,6 +1322,76 @@ within +/-10 ms of the fractional-area latency of the same average".
   the average closely, so the latency agreement says that the fit reproduces the wave, not
   that a single component was recovered. The targeted measurement is therefore reported as
   a reading of REQ-274, and the requirement stays marked not met as written.
+
+### 5.10 REQ-113 and REQ-114: the rule's N1 detections (§5.5.10, §5.6)
+
+- REQ-113 asks the preset to detect "an N1 (negative component with latency in 9–50 ms) on
+  every channel on which the published rule (`3.4 × SD` of the baseline in `9–100 ms`)
+  detects one". The "one" the rule detects is an N1, but the rule's window runs to
+  100 ms, and REQ-113 itself gives an N1 a latency of 9–50 ms. On the example run 10 of
+  the registry row's 11 detections on the PT contacts peak after 50 ms; by REQ-113's own
+  definition they are not N1s, and the preset may not label them N1 (§5.5.7). The text
+  can be read two ways:
+  - A, the rule's detections over 9–100 ms (every channel the rule marks), the reading of
+    the tests until now (`test_req113_as_written`);
+  - C, the rule's N1 detections: the channels where the rule finds a peak beyond its
+    threshold with a latency in 9–50 ms. For the registry row (a negative peak, a strict
+    local minimum, §5.8) these are its peaks of 9–100 ms that lie in 9–50 ms; the rule
+    is applied unchanged (baseline, SD, operator, time axis) with its window ending at
+    50 ms (`N1_WINDOW`). The rule's peak latency of REQ-114 is then the latency of that
+    N1 peak.
+
+  A third reading, the channels whose deepest peak of 9–100 ms lies in 9–50 ms, is a
+  subset of C and was not kept: it drops an N1 when a later deflection is deeper.
+- Neither A nor C is the less demanding one throughout: A asks the preset to find more
+  channels, C asks it to stay silent on channels where only a later deflection crosses
+  the threshold. Both are therefore asked. REQ-113 is met only when
+  `test_req113_as_written` and `test_req113_n1_detections` both pass, and
+  `test_req273_ccep_meets_req113_and_req114` runs both. For REQ-114 the reading C is the
+  one that compares two N1 latencies; the reading A is kept and measured.
+- Measured once on the test runs (2026-10-18, `ccep` 1.1, nothing changed after the
+  development runs). Registry row / code:
+  - REQ-113, C: kappa 0.19 / 0.19 on the 46 PT contacts. The rule has 1 N1 there, the
+    preset 8, none missed. Per REQ-371 run (registry row): 0.37, 0.60, 0.12, 0.33, 0.39,
+    0.59, with 1, 12, 6, 5, 6, 3 missed. Pooled 0.49 / 0.36. Not met.
+    On the development runs (registry row; UMCU07, 08, 10, 11, 19, 28, 40, 49; six other
+    runs of UMCU01; UMCU12 to 17): pooled 0.47, 0.43, 0.59, and no run meets the
+    criterion. A gives 0.01 / 0.19 and 0.44 / 0.40 pooled, as before.
+  - REQ-114, C, read as the rule's operator on the fitted curve in the rule's reference
+    (the fourth reading of §5.2): 94.1 % (48 of 51) / 96.3 % (26 of 27), met. On the
+    development runs (registry row) 91 %, 92 % and 93 % on the three sets. The other
+    readings of the model latency are not met: the N1 component's latency (as written)
+    49.0 % / 44.4 %, the fitted trough 74.5 % / 88.9 %, the rule's operator on the
+    fitted curve in the preset's reference 82.4 % / 96.3 %. With A: 82.5 % / 90.0 %.
+- Where the preset and the rule's N1s differ (registry row, C, the REQ-371 runs). The
+  preset names 85 N1s; 38 are not rule N1s, and the rule itself finds 10 of these when
+  it reads the preset's input. The rule has 80 N1s; the preset misses 33, and 23 of
+  those are rule N1s of the preset's own input too. The first group is a property of the
+  preset's input. The adjusted common average changes the baseline SD and removes
+  common-mode deflections: the rule applied to the preset's input meets the criterion
+  on one REQ-371 run of six (pooled 0.78), and on 4 of 9, 2 of 6 and 2 of 6 runs of the
+  development sets (`test_req113_rule_on_the_presets_input_bound`). The second group is
+  the engine's: N1s present in its input that the fit decomposes into components
+  outside 9–50 ms, cancels with the background, or does not accept at all.
+- Variants measured on the development runs and not adopted (registry row, C, pooled
+  kappa on the first two sets; 0.47 and 0.43 with the preset):
+  - fit without the SEM weights: 0.55 and 0.61;
+  - the recording reference instead of the adjusted common average: 0.56 and 0.46;
+  - no edge extension (the 9–15 ms artifact tail): 0.43 and 0.49;
+  - background `tau_max` 10 ms: 0.46 and 0.46;
+  - both of these: 0.45 and 0.52.
+
+  None meets the criterion on more than one run of six, and none was tried on the test
+  runs. A two-stage decision (the preset's N1 kept only where its input crosses the
+  rule's amplitude criterion) cannot do better than the rule read on the same input,
+  which is the measured copy above. Matching the rule's noise reference would mean
+  reading the monopolar average, and the preset does not fit that average.
+- Next to try: the engine's misses of N1s present in its input (23 of 33); an owner
+  decision on the reference REQ-113 compares in (the preset's adjusted common average,
+  or the recording reference the published pipeline reads); with C, the PT contacts of
+  the example run have a single rule N1, so the kappa there turns on the preset's seven
+  other N1s (three of them cross the rule's threshold on the preset's input, which has
+  seven such channels there).
 
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
