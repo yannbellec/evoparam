@@ -1323,7 +1323,7 @@ within +/-10 ms of the fractional-area latency of the same average".
   that a single component was recovered. The targeted measurement is therefore reported as
   a reading of REQ-274, and the requirement stays marked not met as written.
 
-### 5.10 REQ-113 and REQ-114: the rule's N1 detections (§5.5.10, §5.6)
+### 5.10 REQ-113 and REQ-114: the rule's N1 detections; REQ-135 over whole runs (§5.5.10, §5.6)
 
 - REQ-113 asks the preset to detect "an N1 (negative component with latency in 9–50 ms) on
   every channel on which the published rule (`3.4 × SD` of the baseline in `9–100 ms`)
@@ -1386,12 +1386,25 @@ within +/-10 ms of the fractional-area latency of the same average".
   rule's amplitude criterion) cannot do better than the rule read on the same input,
   which is the measured copy above. Matching the rule's noise reference would mean
   reading the monopolar average, and the preset does not fit that average.
+- REQ-135 over every stimulation pair of a run (a reading measured on the development
+  runs, not adopted). The REQ-135 test reads the first pair of at least 10 trials of each
+  run, as REQ-113 does (§5.8). Reading every such pair of the run instead, with the
+  default correction over all its channels and pairs as one family (FDR), was measured
+  on eight development runs (UMCU07, 08, 10, 11, 19, 28, 40, 49; 389 pairs, 25 043
+  channel-pair cells): kappa 0.634 pooled with the registry row (per run 0.51 to 0.68),
+  0.667 with the window's most negative sample, 0.568 with the code. Without the
+  correction: 0.700, 0.774 and 0.486. The first-pair reading gives 0.533 on the five
+  development runs. Since it does not reach 0.7 on the development runs, it was not run
+  on the test runs, and the REQ-135 tests are unchanged (0.495 on the REQ-371 runs, not
+  met).
 - Next to try: the engine's misses of N1s present in its input (23 of 33); an owner
   decision on the reference REQ-113 compares in (the preset's adjusted common average,
   or the recording reference the published pipeline reads); with C, the PT contacts of
   the example run have a single rule N1, so the kappa there turns on the preset's seven
   other N1s (three of them cross the rule's threshold on the preset's input, which has
   seven such channels there).
+  For REQ-135, the correction family is the open point: the rule decides each channel
+  alone, and without FDR the default method reaches 0.710 on the REQ-371 runs (§5.8).
 
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
