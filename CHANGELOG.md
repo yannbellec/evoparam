@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### REQ-324 / REQ-347: the streamed estimates reach the continuous bound of `fit_trials`; the common shift of §10.6 recorded (DECISIONS §5.10)
+
+The method text of §10.6 (one common shift and one scale per pulse and channel) and the
+agreement of REQ-324 and REQ-347 with `fit_trials(mode="shift_scale")` (a shift and a scale
+per component) cannot both hold with several components. The most demanding reading is
+kept: each component within 1 % and one sample of `fit_trials`, in the default mode of
+`StreamFitter`, with the latency budget and chunk independence; the method text stays
+available as `mode="common"` (DECISIONS §5.10).
+
+- `evoparam.trials.FixedShapeModel` (used by `StreamFitter`): the grid of shifts carries one
+  guard sample beyond `max_shift` on each side. It is never chosen, but the parabolic
+  refinement uses it, so that a shift at the edge of the grid reaches the bound itself
+  when the bound is not a whole number of samples, as in `fit_trials` (5 ms = 10.24
+  samples at 2 048 Hz: the refined shift stopped at 10 samples). New attribute `centre`
+  (index of the unshifted template in `grid`). Only the estimates whose best grid shift
+  is at an edge change.
+- Agreement with `fit_trials(mode="shift_scale", max_shift=0.005)` on 200 pulses, largest
+  differences, before -> after: two components with one jitter, 2.3e-4 -> 7.0e-7 relative
+  and 0.24 -> 0.0097 sample; with one jitter per component, 1.0e-4 -> 1.3e-6 and 0.31 ->
+  0.012 sample (the largest differences before were all at the edge of the grid);
+  single-component templates 6.8e-5 and 0.0066 sample (unchanged); three components (a
+  check, not a test) 8.9e-5 and 0.10 sample. `mode="common"`: 92 % and 8.8 samples / 117 %
+  and 12.7 samples, unchanged, still a strict expected failure.
+- New test `test_req347_chunk_sizes_give_identical_estimates_two_components`: chunks of 1,
+  32 and 1 024 samples give bit-identical estimates with the two-component template in the
+  default mode (both jitter cases), as with one component.
+- Latency (`benchmarks/stream_latency.py`, 1 000 pulses, 64 channels, 2 048 Hz, 0.5 s
+  window, `max_shift` 5 ms, `OMP_NUM_THREADS=1`), measured on a 4-CPU x86_64 machine with
+  other jobs running (load average about 10, not the reference machine): push p99 one
+  component 8.8 ms (chunks of 32) and 10.2 ms (chunks of 1); two components, default mode,
+  p50 9.0 ms, p95 11.5 ms, p99 13.0 ms, max 14.0 ms (`"common"` p99 11.2 ms, `"scale"`
+  12.7 ms). Budget: p99 < 20 ms. `test_req347_latency_budget` passed (one and two
+  components, `EVOPARAM_PERF_TESTS=1`).
+
 ### Spec items found missing: masked onsets, long windows, the erp windows, the bootstrap distribution, REQ-133 for ftract
 
 An inventory of the specification against the code found five items not implemented. Each
