@@ -1318,6 +1318,54 @@ within +/-10 ms of the fractional-area latency of the same average".
   that a single component was recovered. The targeted measurement is therefore reported as
   a reading of REQ-274, and the requirement stays marked not met as written.
 
+### 5.10 §10.6 fixed-shape method (one common shift and scale) — REQ-324 and REQ-347 (agreement with `fit_trials(mode="shift_scale")`)
+
+- §10.6, "Method (fixed shape)": per pulse and channel "the only free parameters are a
+  common shift ... and a linear scale". REQ-324 and REQ-347: the streamed `amplitude` and
+  `latency` agree with `fit_trials(mode="shift_scale")` within 1 % relative and one sample.
+  The `"shift_scale"` trial model gives each component its own shift (within `max_shift`
+  and half the distance to the nearest other component) and its own scale. With a
+  single-component template the two are the same model; with several components they
+  cannot both hold, since one shift and one scale cannot follow components that move and
+  scale apart (measured below).
+- Resolution (the most demanding reading wins): the agreement is required for each
+  component, on templates with any number of components, in the default mode of
+  `StreamFitter`, which must also meet the latency budget and give identical estimates for
+  chunks of 1, 32 and 1 024 samples. The default `mode="shift_scale"` of `StreamFitter` and
+  `evoparam.trials.FixedShapeModel` solves the problem of `fit_trials`: the same frozen
+  components, the same bounds, the linear terms of the channel background re-estimated
+  (time constants frozen), the same window and the same artifact interpolation. The
+  per-component shifts are found by coordinate ascent on the one-sample grid from the best
+  common shift and refined by parabolic interpolation, and the scales and background terms
+  are then solved jointly by least squares at the refined shifts. The grid carries one guard
+  sample beyond `max_shift` on each side: it is never chosen, but the refinement uses it, so
+  that a shift at the edge of the grid reaches the continuous bound of `fit_trials`
+  (`max_shift` = 5 ms is 10.24 samples at 2 048 Hz, the last whole sample is 10; the same
+  for a bound set by the distance to another component).
+- The method text stays available as `mode="common"` (one shift and one scale for the
+  whole template), with `mode="scale"` (one shift, a scale per component). With a single
+  component the three modes are the same model and give bit-identical estimates.
+- Measured on 2026-10-18 (two-component template of the tests: N1 -40 uV at 30 ms, N2
+  +30 uV at 120 ms, jitter SD 1.5 ms, amplitude CV 20 %, 200 pulses; one jitter for both
+  components / one per component), largest differences from `fit_trials`: default mode
+  7.0e-7 relative and 0.0097 sample / 1.3e-6 and 0.012 sample (100 % of the pulses within
+  1 % and one sample on both components); `mode="common"` 92 % and 8.8 samples / 117 % and
+  12.7 samples (1.5 % / 0.5 % of the pulses within both limits). Without the guard sample
+  the default mode gave 2.3e-4 and 0.24 sample / 1.0e-4 and 0.31 sample, every largest
+  difference on a pulse whose shift was at the edge of the grid. Three components (N1, a
+  positive component at 80 ms, N2 at 160 ms; a check, not a test): 8.9e-5 relative and
+  0.10 sample. Single-component templates: 6.8e-5 and 0.0066 sample (unchanged). Latency:
+  CHANGELOG.
+- Tests: `tests/stream/test_stream.py::test_req347_agreement_with_fit_trials`,
+  `test_req347_agreement_two_components` (both jitter cases),
+  `test_req347_chunk_sizes_give_identical_estimates` and
+  `test_req347_chunk_sizes_give_identical_estimates_two_components`,
+  `test_modes_agree_for_a_single_component`, `test_req347_latency_budget` (one and two
+  components, with `EVOPARAM_PERF_TESTS=1`). REQ-347 is met by the default mode.
+  `test_req347_agreement_two_components_common_mode` stays a strict expected failure with
+  the measured values: it records that the method text of §10.6, as written, does not meet
+  the agreement with a two-component template.
+
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
 Each point below is a reading needed to apply a requirement of S20 literally, or a place
