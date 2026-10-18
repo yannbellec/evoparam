@@ -39,8 +39,11 @@ BASELINE_START = -0.5
 BASELINE_END = -0.02
 N1_START = 0.009
 RULE_END = 0.1
-# N1 latency window end (s) of the CCEP preset.
+# N1 latency window end (s) of the CCEP preset, and the N1 window of REQ-113 ("a negative
+# component with latency in 9-50 ms"), which also names the rule's N1 detections
+# (DECISIONS §5.10).
 N1_END = 0.05
+N1_WINDOW = (N1_START, N1_END)
 # Largest latency difference (s) counted as agreeing with the rule (REQ-114).
 LATENCY_TOLERANCE = 0.002
 # mnl_ccepAge baselines (s): per trial (-1, -0.1), on the average (-2, -0.1).
@@ -264,12 +267,15 @@ def _frame(ts: Any, reading: Any) -> Any:
     return baseline, samples / ts.sfreq
 
 
-def _rule_spec(reading: Any) -> Any:
-    """The complete registry rule of a reading, in its frame."""
+def _rule_spec(reading: Any, window: Any = None) -> Any:
+    """The complete registry rule of a reading, in its frame; ``window`` replaces the rule's
+    window where its peaks are kept (:data:`N1_WINDOW`: its N1 detections)."""
 
     from evoparam.existence.rules import resolve_rule
 
     baseline, _, overrides = FRAMES[reading]
+    if window is not None:
+        overrides = {**overrides, "window": tuple(window)}
     return resolve_rule(RULE_NAMES[reading], baseline=baseline, **overrides)
 
 
@@ -287,10 +293,16 @@ def _rule_average(ts: Any) -> Any:
     )
 
 
-def _published_rule(ts: Any, reading: Any) -> Any:
+def _published_rule(ts: Any, reading: Any, window: Any = None) -> Any:
     """The average of :func:`_rule_average`; the registry rule of the reading, in the
     reading's frame (:data:`FRAMES`). Latencies are returned on the data's axis. Also the
-    code's amplitude criterion, 3.4 x max(SD over (-2, -0.1) s, 50 uV)."""
+    code's amplitude criterion, 3.4 x max(SD over (-2, -0.1) s, 50 uV).
+
+    ``window=N1_WINDOW``: the rule's N1 detections (DECISIONS §5.10): the peaks the rule
+    finds and keeps, read only in 9-50 ms, the latency REQ-113 gives an N1. For the registry
+    row (``peak="strict"``) a peak is a sample lower than both neighbours, read outside the
+    window at its edges, so these are exactly the row's 9-100 ms peaks that lie in 9-50 ms;
+    the code keeps its local minima up to the first sample after 50 ms instead of 100 ms."""
 
     from evoparam.existence.rules import apply_rule
 
@@ -298,7 +310,7 @@ def _published_rule(ts: Any, reading: Any) -> Any:
     avg = _rule_average(ts)
     base = (t > AVERAGE_BASELINE_START) & (t < RULE_BASELINE_END)
     baseline, shift = _frame(ts, reading)
-    spec = _rule_spec(reading)
+    spec = _rule_spec(reading, window)
     out = apply_rule(avg, t + shift, ts.sfreq, spec, "uV")
     floor = 3.4 * np.maximum(avg[:, base].std(axis=1), 50.0)
     return out["significant"], out["onset"] - shift, floor
@@ -346,7 +358,7 @@ def _preset_fits(ts: Any) -> Any:
     tail left to the exponential background of the fit; adjusted common average; baseline;
     average; fit). Returns the fits, and the common average the re-referencing subtracted
     (baseline-corrected and averaged like the data: one curve, the same for every
-    channel) with its times."""
+    channel) with its times, and the preset's input average (the adjusted common average)."""
 
     sub = ts.select(tmin=-1.0, tmax=2.0)
     with warnings.catch_warnings():
@@ -358,7 +370,20 @@ def _preset_fits(ts: Any) -> Any:
     evoked = baseline_correct(car, (-0.5, -0.02), check=False).average()
     recorded = baseline_correct(sub, (-0.5, -0.02), check=False).average()
     reference = np.median(recorded.data - evoked.data, axis=0)
-    return ResponseModel("ccep").fit_group(evoked).fits, evoked.times, reference
+    return ResponseModel("ccep").fit_group(evoked).fits, evoked.times, reference, evoked
+
+
+def _rule_on_the_presets_input(evoked: Any, reading: Any, window: Any = None) -> Any:
+    """The registry rule of ``reading`` (its baseline, operator and time axis) applied to the
+    ccep preset's own input average (template removal, adjusted common average, its
+    baseline), instead of the published pipeline's monopolar average: what a decision made
+    on the preset's input alone can reach at best when it copies the rule."""
+
+    from evoparam.existence.rules import apply_rule
+
+    _, shift = _frame(evoked, reading)
+    spec = _rule_spec(reading, window)
+    return apply_rule(evoked.data, evoked.times + shift, evoked.sfreq, spec, "uV")["significant"]
 
 
 def _model_fits(ts: Any) -> Any:
@@ -385,7 +410,9 @@ def _model_n1(fits: Any) -> Any:
     return np.array(det), np.array(lat), np.array(trough), np.array(trough_amp)
 
 
-def _rule_peak_on_fitted_curve(ts: Any, fits: Any, reading: Any, reference: Any = None) -> Any:
+def _rule_peak_on_fitted_curve(
+    ts: Any, fits: Any, reading: Any, reference: Any = None, window: Any = None
+) -> Any:
     """The published rule's peak read on the fitted curve (a reading of "the model latency"
     of REQ-114): the reading's own peak operator (the most negative sample of 9-100 ms for
     the registry row; the code's largest local minimum with its 20 uV selectivity, its
@@ -410,7 +437,7 @@ def _rule_peak_on_fitted_curve(ts: Any, fits: Any, reading: Any, reference: Any 
     common = np.interp(t[late], *reference) if reference is not None else 0.0
     for c, fit in enumerate(fits):
         curve[c, late] = (evaluate_fit(fit, t[late]) if fit.status == "ok" else 0.0) + common
-    spec = _rule_spec(reading)
+    spec = _rule_spec(reading, window)
     out = apply_rule(curve, t + shift, ts.sfreq, spec, "uV")
     return out["onset"] - shift
 
@@ -450,11 +477,20 @@ def agreement() -> Any:
     out = {}
     for subject, run, site in [EXAMPLE + ("PT01-PT02",)] + req371_pairs():
         ts = _pair_trials(subject, run, site)
-        fits, ref_times, reference = _preset_fits(ts)
+        fits, ref_times, reference, evoked = _preset_fits(ts)
         det, lat, trough, trough_amp = _model_n1(fits)
         for reading in FRAMES:
             rule, rule_lat, floor = _published_rule(ts, reading)
+            rule_n1, rule_n1_lat, _ = _published_rule(ts, reading, N1_WINDOW)
             out[(subject, run, reading)] = {
+                # the rule's N1 detections (gating, DECISIONS §5.10) and its 9-100 ms ones
+                "rule_n1": rule_n1,
+                "rule_n1_lat": rule_n1_lat,
+                "rule_on_input_n1": _rule_on_the_presets_input(evoked, reading, N1_WINDOW),
+                "curve_peak_n1": _rule_peak_on_fitted_curve(ts, fits, reading, window=N1_WINDOW),
+                "curve_peak_recording_n1": _rule_peak_on_fitted_curve(
+                    ts, fits, reading, (ref_times, reference), N1_WINDOW
+                ),
                 "rule": rule,
                 "rule_lat": rule_lat,
                 "model": det,
@@ -474,14 +510,20 @@ def agreement() -> Any:
     return out
 
 
-def _scores(r: Any, mask: Any = None, decision: Any = "model", latency: Any = "lat") -> Any:
-    mask = np.ones(len(r["rule"]), bool) if mask is None else mask
-    rule, model = r["rule"][mask], r[decision][mask]
-    both = rule & model
-    close = np.abs(r[latency][mask][both] - r["rule_lat"][mask][both]) <= LATENCY_TOLERANCE
+def _scores(
+    r: Any, mask: Any = None, decision: Any = "model", latency: Any = "lat", rule: Any = "rule"
+) -> Any:
+    """Kappa, missed rule detections and the latency agreement of one run. ``rule``: the
+    rule's detections, "rule" (9-100 ms) or "rule_n1" (its N1 detections, DECISIONS
+    §5.10), with their latencies under ``rule + "_lat"``."""
+
+    mask = np.ones(len(r[rule]), bool) if mask is None else mask
+    found, model = r[rule][mask], r[decision][mask]
+    both = found & model
+    close = np.abs(r[latency][mask][both] - r[rule + "_lat"][mask][both]) <= LATENCY_TOLERANCE
     return {
-        "kappa": _kappa(rule, model),
-        "missed": int(np.sum(rule & ~model)),
+        "kappa": _kappa(found, model),
+        "missed": int(np.sum(found & ~model)),
         "close": close,
         "n_both": int(both.sum()),
     }
@@ -542,6 +584,63 @@ def test_req113_as_written(agreement: Any, reading: Any) -> None:
     assert sum(ok) >= MIN_REPRODUCED, [round(_scores(o)["kappa"], 2) for o in others]
 
 
+N1_DETECTIONS = (
+    "REQ-113 with the rule's N1 detections (its peaks in 9-50 ms, DECISIONS §5.10) is not "
+    "met (ccep v1.1, measured once on the test runs, 2026-10-18): registry row, kappa 0.19 "
+    "on the 46 PT contacts (1 rule N1, 8 preset N1s; none missed), per REQ-371 run "
+    "0.37, 0.60, 0.12, 0.33, 0.39, 0.59 with 1, 12, 6, 5, 6, 3 missed, pooled 0.49 (33 of "
+    "80 missed); code 0.19, per run 0.22, 0.21, 0.32, 0.46, 0.28, 0.56 (0, 0, 0, 1, 3, 0 "
+    "missed), pooled 0.36. On the development runs (registry row) 0.47, 0.43 and 0.59 "
+    "pooled on the three sets (9, 6 and 6 runs), none meeting the criterion; the variants "
+    "measured there (no SEM weights, the recording reference, no edge extension, "
+    "background tau_max 10 ms) reach 0.61 pooled at most and one run of six. On the "
+    "REQ-371 runs (registry row) 38 of the preset's 85 N1s are not rule N1s (10 of them "
+    "are on the preset's input) and of the 33 rule N1s it misses, 23 are rule N1s of its "
+    "own input too (test_req113_rule_on_the_presets_input_bound)"
+)
+
+
+@pytest.mark.xfail(strict=False, reason=N1_DETECTIONS)
+@pytest.mark.parametrize("reading", list(READINGS))
+def test_req113_n1_detections(agreement: Any, reading: Any) -> None:
+    """REQ-113 with the rule's N1 detections (DECISIONS §5.10): REQ-113 names an N1 "a
+    negative component with latency in 9-50 ms" and the rule's window 9-100 ms; the rule's
+    detections whose peak lies in 9-50 ms are its N1s. The criterion is that of
+    :func:`test_req113_as_written` (at most one missed, kappa >= 0.8 on the PT contacts,
+    and on at least five REQ-371 runs each), which stays a test of its own: both are
+    asked."""
+
+    r = _runs(agreement, reading, example=True)[0]
+    grid = np.array([n.startswith("PT") for n in r["names"]])
+    assert grid.sum() == N_PT_CONTACTS
+    assert _scores(r, rule="rule_n1")["missed"] <= 1
+    assert _scores(r, grid, rule="rule_n1")["kappa"] >= MIN_KAPPA
+    others = _runs(agreement, reading)
+    assert len(others) == N_OTHER_RUNS
+    scores = [_scores(o, rule="rule_n1") for o in others]
+    ok = [s["missed"] <= 1 and s["kappa"] >= MIN_KAPPA for s in scores]
+    assert sum(ok) >= MIN_REPRODUCED, [(round(s["kappa"], 2), s["missed"]) for s in scores]
+
+
+def test_req113_rule_on_the_presets_input_bound(agreement: Any) -> None:
+    """Not a REQ (measured, gating reading, the rule's N1 detections): the registry row
+    itself, applied to the preset's own input (template removal, adjusted common average,
+    its baseline) instead of the monopolar average the published pipeline reads, meets the
+    criterion of REQ-113 on fewer than five REQ-371 runs: one run of six (kappa 0.55, 0.85,
+    0.43, 0.94, 0.79, 0.67 with 0, 5, 5, 0, 0, 0 missed; pooled 0.78), and 4 of 9, 2 of 6
+    and 2 of 6 runs on the three development sets. Even the rule itself, read on the
+    adjusted common average the preset fits, misses the criterion on most runs: the
+    re-referencing changes the baseline SD and removes common-mode deflections the rule
+    counts. With the code's
+    reading the same copy meets it on five of six (pooled 0.92)."""
+
+    runs = _runs(agreement, GATING)
+    scores = [_scores(r, decision="rule_on_input_n1", rule="rule_n1") for r in runs]
+    assert len(scores) == N_OTHER_RUNS
+    ok = [s["missed"] <= 1 and s["kappa"] >= MIN_KAPPA for s in scores]
+    assert sum(ok) < MIN_REPRODUCED, [(round(s["kappa"], 2), s["missed"]) for s in scores]
+
+
 # Why REQ-114 is not met (CHANGELOG, "N1 latency agreement"): on the REQ runs the
 # rule's peak is an N1 trough of the average it reads (the deepest interior local minimum
 # in 9-50 ms) on 44 of the 57 channels where the registry row and the preset both find an
@@ -555,12 +654,14 @@ RULE_PEAKS = (
 )
 
 
-def _close(agreement: Any, reading: Any, latency: Any, n1_trough: Any = False) -> Any:
+def _close(
+    agreement: Any, reading: Any, latency: Any, n1_trough: Any = False, rule: Any = "rule"
+) -> Any:
     runs = _runs(agreement, reading, example=True) + _runs(agreement, reading)
     close = []
     for r in runs:
         mask = r["n1_trough"] if n1_trough else None
-        close.append(_scores(r, mask, latency=latency)["close"])
+        close.append(_scores(r, mask, latency=latency, rule=rule)["close"])
     return np.concatenate(close)
 
 
@@ -672,6 +773,51 @@ def test_req114_extremum_reading_in_the_rules_reference(agreement: Any) -> None:
     assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
 
 
+# "The model latency" of REQ-114 against the rule's N1 detections (DECISIONS §5.10), the
+# readings of §5.2: the N1 component's latency (as written), the trough of the fitted
+# curve, the rule's operator on the fitted curve, and the same in the rule's reference
+# (measured once on the test runs, 2026-10-18; registry row / code; development runs,
+# registry row, on the three sets)
+N1_LATENCIES_NOT_MET = {
+    ("paper", "lat"): "49.0 % (25 of 51); development 44 %, 58 %, 53 %",
+    ("code", "lat"): "44.4 % (12 of 27)",
+    ("paper", "trough"): "74.5 % (38 of 51); development 75 %, 88 %, 84 %",
+    ("code", "trough"): "88.9 % (24 of 27)",
+    ("paper", "curve_peak_n1"): "82.4 % (42 of 51); development 80 %, 88 %, 88 %",
+}
+
+
+def _n1_latency_params() -> Any:
+    out = []
+    for latency in ("lat", "trough", "curve_peak_n1", "curve_peak_recording_n1"):
+        for reading in READINGS:
+            measured = N1_LATENCIES_NOT_MET.get((reading, latency))
+            marks = (
+                [pytest.mark.xfail(strict=False, reason=f"REQ-114 ({latency}): {measured}")]
+                if measured
+                else []
+            )
+            out.append(pytest.param(reading, latency, marks=marks, id=f"{reading}-{latency}"))
+    return out
+
+
+@pytest.mark.parametrize(("reading", "latency"), _n1_latency_params())
+def test_req114_n1_detections(agreement: Any, reading: Any, latency: Any) -> None:
+    """REQ-114 on the channels where the preset's N1 and the rule's N1 detections (DECISIONS
+    §5.10) agree, over the example and the REQ-371 runs: the model latency within 2 ms of
+    the rule's peak on >= 90 %. Met with the rule's operator on the fitted curve in the
+    rule's reference (``curve_peak_recording_n1``, the fourth reading of DECISIONS §5.2):
+    94.1 % (48 of 51, registry row) and 96.3 % (26 of 27, code) on the test runs; 91 %,
+    92 % and 93 % (registry row) on the three development sets. With the code it is also
+    met on the fitted curve in the preset's reference (96.3 %). The component's own
+    latency (as written) and the fitted trough are not
+    (:data:`N1_LATENCIES_NOT_MET`)."""
+
+    close = _close(agreement, reading, latency, rule="rule_n1")
+    assert close.size >= MIN_BOTH
+    assert np.mean(close) >= MIN_CLOSE, (np.mean(close), close.size)
+
+
 @pytest.mark.xfail(
     strict=False,
     reason="REQ-113 with the registry row read as the window's most negative sample (peak "
@@ -746,18 +892,21 @@ def test_n1_trough_where_the_rule_peak_is_an_n1_trough_regression(agreement: Any
 @pytest.mark.xfail(
     strict=False,
     reason="REQ-273 (judged on the registry row, D8 revised; the code's reading is also "
-    "checked here and reported) needs REQ-113 and REQ-114 as written: REQ-113 is not met "
-    "under either "
-    "reading (and no decision can meet it under both, D8); REQ-114 is not met with the "
-    "registry row in any reading of the model latency (at most 82 %: the rule's peak on "
-    "the fitted curve in the rule's reference; 90.0 % with the code)",
+    "checked here and reported) needs REQ-113 and REQ-114: REQ-113 is not met under "
+    "either reading, with the rule's detections over 9-100 ms (test_req113_as_written) "
+    "or with its N1 detections (test_req113_n1_detections: 0.19 on the PT contacts, no "
+    "REQ-371 run meeting it), and no decision can meet it under both (D8). REQ-114 is "
+    "met with the rule's N1 detections and the rule's peak on the fitted curve in the "
+    "rule's reference (94.1 % and 96.3 %, test_req114_n1_detections); with the "
+    "detections over 9-100 ms at most 82 % (registry row)",
 )
 def test_req273_ccep_meets_req113_and_req114(agreement: Any) -> None:
     """REQ-273: the ccep preset meets REQ-113 and REQ-114 on ds004080 (both readings)."""
 
     for reading in READINGS:
         test_req113_as_written(agreement, reading)
-        test_req114_as_written(agreement, reading)
+        test_req113_n1_detections(agreement, reading)
+        test_req114_n1_detections(agreement, reading, "curve_peak_recording_n1")
 
 
 def test_n1_trough_with_the_code_floor_regression(agreement: Any) -> None:
