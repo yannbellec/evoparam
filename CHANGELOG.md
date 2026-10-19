@@ -2,6 +2,53 @@
 
 ## Unreleased
 
+### N1 case: the preset fitted on its trials, REQ-113 in one reference (REQ-113, REQ-114, REQ-135, REQ-273; DECISIONS §5.11)
+
+No change to the engine, the `ccep` preset (still 1.1), `ALGORITHM_VERSIONS` or the
+fixtures: the results of `run_pipeline` are unchanged. The changes are in
+`evoparam/tests/models/test_engine_ccep.py` and DECISIONS §5.11.
+
+- The tests now fit the preset as its pipeline does. Until 2026-10-18 they fitted the
+  trial average alone; without trials, `noise_source="auto"` falls back to the baseline
+  residual (effective sample size about 2 at 512 Hz) and large N1s could come out
+  `no_response`. The harness now fits the baseline-corrected trials of the adjusted
+  common average, as `run_pipeline` does (bit-identical fits).
+- The reference REQ-113 compares in, read in its most demanding form: REQ-113 is asked
+  in the comparison tested so far (the preset on its adjusted common average, the rule in
+  the recording reference), in the preset's reference (the rule applied to the preset's
+  input) and in the recording reference (the preset's chain without re-referencing,
+  `run_pipeline(..., reference=False)`), with the rule's detections over 9-100 ms and
+  with its N1 detections: new `test_req113_in_one_reference` (8 cases, run by
+  `test_req273_ccep_meets_req113_and_req114`). New
+  `test_req113_cannot_hold_in_both_references`: the joint kappa bound of the rule in the
+  two references is 0.48 on the PT contacts of the example run and reaches 0.8 on four
+  REQ-371 runs of six, so no decision can meet REQ-113 in both.
+- Engine and preset variants diagnosed and measured on the development runs only
+  (pruning, reseeding on a background-collinear design, `background_prior`, `tau_max`,
+  `detection_threshold` 3 and 4, `reject_cancelling`, the recording reference): pooled
+  kappa (registry row, N1 detections) 0.531 with the preset, 0.549 at best (two runs of
+  21), within the spread or at the cost of more misses; none adopted.
+- Measured once on the test runs (2026-10-19; registry row / code):
+  - REQ-113 not met in any comparison. N1 detections: kappa on the PT contacts -0.04 /
+    -0.04, pooled 0.46 / 0.31 (0.19 / 0.19 and 0.49 / 0.36 with the average fitted
+    alone); detections over 9-100 ms -0.20 / -0.04, pooled 0.48 / 0.35 (0.01 / 0.19 and
+    0.44 / 0.40); in the preset's reference at best 0.55 on the PT contacts and 0.53
+    pooled; in the recording reference 0.38 and 0.45, one run of six with the code.
+  - REQ-114 met with the N1 detections and the rule's operator on the fitted curve in
+    the rule's reference: 90.2 % (46 of 51) / 92.0 % (23 of 25), down from 94.1 % /
+    96.3 %; the code's fitted-trough reading now passes (96.0 %, was 88.9 %). The N1
+    component's own latency, as written: 51.0 % / 52.0 %, not met.
+  - Two non-gating readings of the detections over 9-100 ms in the rule's reference move
+    below 90 % and become non-strict expected failures:
+    `test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference[code]` 85.7 %
+    (was 90.0 %) and `test_req114_extremum_reading_in_the_rules_reference` 88.2 % (was
+    93 %).
+  - REQ-273 not met (needs REQ-113).
+- REQ-135: per-pair FDR kept as written; on the development runs the default reading
+  gives 0.577, 0.535 and 0.645 on the three sets (no correction 0.706, 0.636, 0.695;
+  cluster correction and a sign-flip permutation of the rule's statistic lower). Nothing
+  changed; 0.495 on the REQ-371 runs, not met.
+
 ### REQ-324 / REQ-347: the streamed estimates reach the continuous bound of `fit_trials`; the common shift of §10.6 recorded (DECISIONS §5.10)
 
 The method text of §10.6 (one common shift and one scale per pulse and channel) and the
