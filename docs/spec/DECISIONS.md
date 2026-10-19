@@ -1445,14 +1445,112 @@ within +/-10 ms of the fractional-area latency of the same average".
   development runs. Since it does not reach 0.7 on the development runs, it was not run
   on the test runs, and the REQ-135 tests are unchanged (0.495 on the REQ-371 runs, not
   met).
-- Next to try: the engine's misses of N1s present in its input (23 of 33); an owner
-  decision on the reference REQ-113 compares in (the preset's adjusted common average,
-  or the recording reference the published pipeline reads); with C, the PT contacts of
-  the example run have a single rule N1, so the kappa there turns on the preset's seven
-  other N1s (three of them cross the rule's threshold on the preset's input, which has
-  seven such channels there).
+- Next to try (2026-10-18; taken up in the items below): the engine's misses of N1s
+  present in its input (23 of 33); an owner decision on the reference REQ-113 compares in
+  (the preset's adjusted common average, or the recording reference the published
+  pipeline reads); with C, the PT contacts of the example run have a single rule N1, so
+  the kappa there turns on the preset's seven other N1s (three of them cross the rule's
+  threshold on the preset's input, which has seven such channels there).
   For REQ-135, the correction family is the open point: the rule decides each channel
   alone, and without FDR the default method reaches 0.710 on the REQ-371 runs (§5.8).
+- The reference REQ-113 compares in (2026-10-19). REQ-113 does not say whether the
+  preset's N1 and the published rule are compared in the same reference: the preset fits
+  the adjusted common average, the published pipeline reads the recording reference
+  (monopolar). Both readings are sensible, so the most demanding one is taken: REQ-113
+  is asked in each of three comparisons, with A and with C, under both readings of the
+  rule (`test_req273_ccep_meets_req113_and_req114` runs them all):
+  - as tested until now: the preset's N1 on its adjusted common average against the
+    rule on the recording reference (`test_req113_as_written`,
+    `test_req113_n1_detections`);
+  - in the preset's reference: the rule, unchanged otherwise, applied to the preset's
+    own input average (`test_req113_in_one_reference[presets_reference-…]`);
+  - in the recording reference: the preset's chain run without its re-referencing step
+    (`run_pipeline(..., reference=False)`), against the rule as the published pipeline
+    applies it (`test_req113_in_one_reference[recording_reference-…]`).
+
+  The first two compare the same decision with two copies of the rule. For every
+  decision the smaller of the two kappas is at most `joint_kappa_bound` of the two copies
+  (C, registry row): 0.48 on the 46 PT contacts of the example run (the rule has 1 N1
+  there in the recording reference, 7 on the preset's input) and 0.75, 0.91, 0.66, 0.94,
+  0.89, 0.81 on the REQ-371 runs, at least 0.8 on four of six where five are asked. This
+  most demanding reading therefore cannot be met by any decision on these data
+  (`test_req113_cannot_hold_in_both_references`); it is recorded as asked, and each
+  comparison is measured on its own. On the development runs the same bound reaches 0.8
+  on 7 of 9, 3 of 6 and 5 of 6 runs.
+- The tests' harness fits the preset as its pipeline does (2026-10-19, test-only, no
+  change to the engine, the preset or the results of `run_pipeline`). Until 2026-10-18
+  `test_engine_ccep` fitted the preset on the trial average alone (an `Evoked` without
+  its trials). With no trials, `noise_source="auto"` cannot use the plus-minus average
+  and falls back to the baseline residual, whose effective sample size at 512 Hz is
+  about 2 (lag-one autocorrelation about 0.985), so the noise is badly estimated and
+  large N1s can come out `no_response` (on a development run of UMCU01 a −420 µV N1).
+  `run_pipeline` fits the `TrialSet`, and the harness now does the same (template
+  removal, adjusted common average, baseline correction, then
+  `ResponseModel("ccep").fit_group(trials)`; checked bit-identical to the pipeline's
+  fits on a development run). On the development runs (registry row, C, pooled over the
+  three sets) this moves the kappa from 0.495 to 0.531 (sets 0.47, 0.43, 0.59 to 0.48,
+  0.55, 0.58), one run of 21 meeting the criterion instead of none, and REQ-114 (C,
+  fourth reading) from 92.7 % to 92.9 %.
+- Where the preset's N1 and the rule on its own input differ, development runs
+  (registry row, C, the average fitted alone; classes counted channel by channel).
+  Misses: the trough is made by positive components and the fit names no negative
+  component in 9–50 ms (30), `no_response` (25), the trough of the data not fitted (23),
+  a negative component just outside 9–50 ms (13), a constant offset `c0` taking the
+  deflection (9), a large exponential tail `c1` (5). False N1s: the fitted curve has no
+  trough in 9–50 ms (51), or has one that stays below 3.4 SD on the input (51). In the
+  cases inspected the background absorbing the N1 (for instance `c1` of −4971 µV with
+  `tau` 44 ms and positive components on top) is a fit with a lower criterion than the
+  N1 fit, so reseeding the optimizer does not change it.
+- Engine and preset variants measured on the development runs with the trials harness
+  (registry row, C; kappa pooled over the 21 runs against the rule in the recording
+  reference, then against the rule on the preset's input; 0.531 and 0.528 with the
+  preset): backward pruning of the accepted components after the fit, down to none,
+  0.538 and 0.530; reseeding also when a component is nearly collinear with the
+  background (condition number of the whole design above `RESEED_COND ** 0.5`) 0.533;
+  `background_prior` 1: 0.534 and 0.517; `tau_max`
+  20 ms 0.518; `detection_threshold` 3: 0.549 and 0.516 (two runs of 21 meet the
+  criterion, misses 67 to 80, false N1s 108 to 71); `detection_threshold` 4: 0.543 and
+  0.495; `reject_cancelling=True` 0.535 and 0.518; the preset in the recording
+  reference against the published rule 0.537, no run. The gains are within the spread
+  between sets or are trade-offs (a lower threshold drops false N1s but misses more and
+  loses on the preset's reference), none meets the criterion on more than two runs of
+  21, and none was adopted; `ccep` stays 1.1 and no fixture changes.
+- Measured once on the test runs (2026-10-19, `ccep` 1.1, the trials harness; registry
+  row / code; per-run values in the tests' xfail reasons):
+  - REQ-113, A: kappa −0.20 / −0.04 on the PT contacts, pooled 0.48 / 0.35; C: −0.04 /
+    −0.04, pooled 0.46 / 0.31, no run. In the preset's reference, C: 0.55 / 0.39,
+    pooled 0.53 / 0.34; A: 0.36 / 0.39, pooled 0.49 / 0.37. In the recording reference,
+    C: 0.38 / 0.38, pooled 0.45 / 0.44 (one run of six with the code); A: 0.01 / 0.38,
+    pooled 0.40 / 0.42. Not met in any comparison.
+  - REQ-114, C, the fourth reading: 90.2 % (46 of 51) / 92.0 % (23 of 25), met, one
+    channel above the threshold with the registry row (94.1 % and 96.3 % with the
+    average fitted alone). With the code the fitted trough (96.0 %) and the curve in the
+    preset's reference (92.0 %) are met too. The N1 component's own latency (as
+    written): 51.0 % / 52.0 %, not met. With A at most 73.8 % / 85.7 % (90.0 % with the
+    code before), so the non-gating code and extremum readings of A in the rule's
+    reference are now expected failures (85.7 % and 88.2 %).
+  - With the trials the preset names 94 N1s on the REQ-371 runs (85 before); 46 are not
+    rule N1s (9 of them are on its input); it misses 32 of the rule's 80 N1s, 22 of
+    which are rule N1s of its input too.
+- REQ-135 on the development runs (2026-10-19, first pair of each run as the test reads
+  it, registry row; default correction / none / cluster): 0.577 / 0.706 / 0.481 on the
+  first set, 0.535 / 0.636 / 0.359 on UMCU01, 0.645 / 0.695 / 0.497 on UMCU12 to 17. The
+  per-pair FDR is kept as written. A sign-flip permutation of the rule's own statistic
+  (the window's peak in baseline SD units) gives 0.415 on the first set, worse; nothing
+  was changed and the REQ-135 tests stand at 0.495 (not met).
+- Next to try: the N1 decision itself rather than the fit, for instance naming an N1
+  where the fitted curve has a trough in 9–50 ms beyond the threshold whichever
+  components make it (it covers the largest class of misses, troughs made by positive
+  components, and the curve's trough already meets REQ-114 with the code); constraining
+  the background tail so that it cannot take a deflection of 9–50 ms (`c1` bounded by
+  the baseline, or `tau` above the N1 window); the edge extension of the 9–15 ms
+  artifact tail. Any of these changes the preset's results (version bump, fixtures,
+  CHANGELOG) and should be judged on the development runs against all three
+  comparisons. The reference reading needs no owner decision to be tested, but it
+  cannot be met in both references at once (the bound above), so an owner decision on
+  which comparison REQ-113 means would let REQ-113 be met at all. For REQ-135 the
+  correction family stays the open point (§5.8).
+
 
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
