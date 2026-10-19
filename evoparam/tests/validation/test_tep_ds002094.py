@@ -531,6 +531,13 @@ def test_req275_methods_text_names_the_sensory_confound() -> None:
 # Variant A never strides the noise; variant B always does (k = 3, or 2; the 100 Hz low-pass).
 # Without the stride (= commit 7044dc1 for 1.0): B all 8 / 15 / 8 (1.0) and 8 / 13 / 6 (1.1),
 # B inner 7 / 18 / 6 and 9 / 17 / 9, from fits that reach max_components (CHANGELOG).
+# Measured at 013d7b7 (models 1.6, tep 1.1): B all 10 / 11 / 8, B inner 11 / 17 / 11 (one
+# subject fewer than above), A inner 9 / 15 / 8, A all 6 / 9 / 4. Causes (CHANGELOG, "REQ-275:
+# why the N45 is missing"): the unsigned RMS picks the positive pole of the average reference
+# on 10 subjects; the second ICA round removes about half of the TEP (median RMS B / A 0.49,
+# the TMS-evoked muscle rule takes neural components); where the dip is in the data the fit
+# describes it as the gap between P30 and P60; with the strided noise 12-44 ms carry no
+# evidence (masked first sample).
 needs_data = [
     pytest.mark.network,
     pytest.mark.skipif(not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro"),
@@ -553,8 +560,11 @@ def _network(test: Any) -> Any:
     "20 subjects the largest response after ICA is on TP9, TP10, IZ or O1, where "
     "the fronto-central N100 appears inverted under the average reference (the "
     "largest fitted component from 80 to 140 ms is positive on 9 of them): both "
-    "labels on 1 of these 10, on 7 of the other 10; on the 17 inner channels 12 "
-    "of 20. See CHANGELOG, REQ-275 'Preset tep 1.1', and step S15 part 3.",
+    "labels on 1 of these 10, on 7 of the other 10; on the 17 inner channels 11 "
+    "of 20. The second ICA round removes about half of the response (median RMS "
+    "0.49 of the preset chain's), and where the N45 dip is in the data the fits "
+    "often describe it as the gap between P30 and P60. See CHANGELOG, 'REQ-275: "
+    "why the N45 is missing', REQ-275 'Preset tep 1.1', and step S15 part 3.",
 )
 def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results: Any) -> None:
 
@@ -568,8 +578,9 @@ def test_req275_n45_and_n100_on_the_channel_of_maximal_response(results: Any) ->
     reason="floor of step S15 not reached (Python 3.13, numpy "
     "2.5.3, preset tep 1.1): N45 / N100 / both on the 17 inner channels with the "
     "preset chain 9 / 15 / 8 (floor 11 / 15 / 9; N100 met); with ICA on all 30 "
-    "channels 10 / 11 / 8 and on the 17 inner channels 12 / 17 / 12 (floors "
-    "raised to these levels) are met. Preset tep 1.0 at 3b222bb: 9 / 12 / 8, "
+    "channels 10 / 11 / 8 (floor raised to this level, met); on the 17 inner "
+    "channels 12 / 17 / 12 when the floor was raised, 11 / 17 / 11 at 013d7b7 "
+    "(floor 12 / 17 / 12). Preset tep 1.0 at 3b222bb: 9 / 12 / 8, "
     "7 / 11 / 5, 7 / 14 / 5; the preset chain gives 9 / 12 / 8 at 7044dc1 too, "
     "before the strided whitening (CHANGELOG).",
 )
