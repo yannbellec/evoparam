@@ -391,7 +391,9 @@ def cmd_fit(args: Any, outcome: Any) -> None:
     # the group fit is saved by write_bids_derivatives next to its table
     # (<stem>_desc-evoparam_responses.evoparam), as every result of the run
     outcome.outputs += written
-    _log(args, methods_text(results))
+    # spec §5.13: the methods paragraph ends a fit at INFO level (it is in every report too)
+    if args.verbose in ("info", "debug"):
+        _log(args, methods_text(results))
     if outcome.n_units.get("failed") or failed_trials:
         outcome.code = EXIT_CODES["partial"]
 
@@ -479,13 +481,19 @@ def cmd_clean(args: Any, outcome: Any) -> None:
 
 
 def _containers(path: Any) -> list[Any]:
-    """Return the ``.evoparam`` containers at ``path`` (one, or those of a folder)."""
+    """Return the ``.evoparam`` containers at ``path`` (one, or those of a folder).
+
+    The per-trial fits inside a ``.evoparamset`` are not reports of their own: they are
+    summarised by the run's ``_trials.tsv`` and its responses report.
+    """
     if path.endswith(".evoparam") or path.endswith(".zip"):
         return [path]
     found = []
     for folder, dirs, _files in os.walk(path):
         for d in list(dirs):
-            if d.endswith(".evoparam") and os.path.isfile(
+            if d.endswith(".evoparamset"):
+                dirs.remove(d)
+            elif d.endswith(".evoparam") and os.path.isfile(
                 os.path.join(folder, d, "manifest.json")
             ):
                 found.append(os.path.join(folder, d))
@@ -495,28 +503,94 @@ def _containers(path: Any) -> list[Any]:
     return sorted(found)
 
 
+# Order of the sections of a recording's report, by the desc suffix of its containers.
+_REPORT_SECTIONS = ("responses", "existence", "artifact")
+
+
+def _recordings(containers: list[Any]) -> dict[Any, list[Any]]:
+    """Group containers by recording.
+
+    ``<stem>_desc-evoparam_<kind>.evoparam`` share ``<stem>``; a container of another name is
+    a recording of its own.
+    """
+    groups: dict[Any, list[Any]] = {}
+    for container in containers:
+        name = os.path.basename(container).rsplit(".", 1)[0]
+        stem, sep, kind = name.rpartition("_desc-evoparam_")
+        key = (os.path.dirname(container), stem if sep else name)
+        groups.setdefault(key, []).append((kind if sep else "", container))
+    for members in groups.values():
+        members.sort(
+            key=lambda m: _REPORT_SECTIONS.index(m[0]) if m[0] in _REPORT_SECTIONS else 99
+        )
+    return groups
+
+
+def _html_body(text: str) -> str:
+    """Return the body of one report page without its own title line."""
+    body = text.split("<body>", 1)[1].rsplit("</body>", 1)[0]
+    return body.split("</h1>", 1)[1] if "</h1>" in body else body
+
+
 def cmd_report(args: Any, outcome: Any) -> None:
-    """Run ``evoparam report``: one report per container."""
+    """Run ``evoparam report``: one report per recording.
+
+    html and md: one page per recording, with one section per result of the recording
+    (responses, existence, artifact); pdf and json: one file per result.
+    """
+    import html as _html
+
     from evoparam import reports
     from evoparam.data.serialize import load_object
 
-    for container in _containers(args.input):
-        result = load_object(container)
-        base = os.path.join(
-            args.out or os.path.dirname(container),
-            os.path.basename(container).rsplit(".", 1)[0] + "_report",
-        )
-        os.makedirs(os.path.dirname(base), exist_ok=True)
-        if args.format == "html":
-            outcome.outputs.append(reports.html(result, base + ".html"))
-        elif args.format == "pdf":
-            outcome.outputs.append(reports.pdf(result, base + ".pdf"))
-        elif args.format == "json":
-            outcome.outputs.append(reports.to_json(result, base + ".json"))
-        else:
-            with open(base + ".md", "w", encoding="utf-8") as fobj:
-                fobj.write(reports.markdown(result))
-            outcome.outputs.append(base + ".md")
+    for (folder, stem), members in _recordings(_containers(args.input)).items():
+        out = args.out or folder
+        os.makedirs(out, exist_ok=True)
+        if args.format in ("html", "md"):
+            sections, head = [], ""
+            for kind, container in members:
+                result = load_object(container)
+                title = kind or type(result).__name__
+                if args.format == "html":
+                    page = reports.html(result)
+                    head = head or page.split("<body>", 1)[0]
+                    sections.append(
+                        f"<h1 id='{_html.escape(title)}'>{_html.escape(title.capitalize())}</h1>"
+                        + _html_body(page)
+                    )
+                else:
+                    sections.append(f"# {title.capitalize()}\n\n{reports.markdown(result)}")
+            base = os.path.join(out, stem + "_report")
+            if args.format == "html":
+                head = head.replace(
+                    head[head.index("<title>") : head.index("</title>") + 8],
+                    f"<title>evoparam report: {_html.escape(stem)}</title>",
+                )
+                toc = " · ".join(
+                    f"<a href='#{_html.escape(k)}'>{_html.escape(k.capitalize())}</a>"
+                    for k, _ in members
+                    if k
+                )
+                with open(base + ".html", "w", encoding="utf-8") as fobj:
+                    fobj.write(
+                        head
+                        + f"<body><p><b>{_html.escape(stem)}</b></p><p>{toc}</p>"
+                        + "\n".join(sections)
+                        + "</body></html>"
+                    )
+                outcome.outputs.append(base + ".html")
+            else:
+                with open(base + ".md", "w", encoding="utf-8") as fobj:
+                    fobj.write("\n\n".join(sections))
+                outcome.outputs.append(base + ".md")
+            continue
+        for _kind, container in members:
+            result = load_object(container)
+            base = os.path.join(out, os.path.basename(container).rsplit(".", 1)[0] + "_report")
+            if args.format == "pdf":
+                outcome.outputs.append(reports.pdf(result, base + ".pdf"))
+            else:
+                outcome.outputs.append(reports.to_json(result, base + ".json"))
 
 
 def cmd_simulate(args: Any, outcome: Any) -> None:

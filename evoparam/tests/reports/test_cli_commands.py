@@ -321,3 +321,35 @@ def test_methods_text_is_logged_at_info_level(bids: Any, tmp_path: Any) -> None:
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert "Evoked responses were analysed with evoparam" in proc.stderr
     assert "Software:" in proc.stderr
+
+
+def test_report_of_a_fit_folder_is_one_page_per_recording(bids: Any, tmp_path: Any) -> None:
+    """``evoparam report <derivatives>``: one HTML page per recording, with a section per
+    result (responses, existence, artifact); the per-trial fits are not pages of their own,
+    and a fit at the default verbosity prints no methods paragraph."""
+
+    env = dict(
+        os.environ,
+        PYTHONPATH=ROOT + os.pathsep + os.environ.get("PYTHONPATH", ""),
+        PYTHONWARNINGS="ignore",
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "evoparam", "fit", str(bids), "--sub", "01", "--task", "ccep"]
+        + ["--preset", "ccep", "--out", str(tmp_path / "d")],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=ROOT,
+        timeout=900,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr[-2000:]
+    assert "Evoked responses were analysed" not in proc.stderr
+    summary = run("report", tmp_path / "d", "--out", tmp_path / "rep")
+    assert len(summary["outputs"]) == 1
+    assert sorted(p.name for p in (tmp_path / "rep").iterdir()) == [
+        os.path.basename(summary["outputs"][0])
+    ]
+    page = (tmp_path / "rep" / os.path.basename(summary["outputs"][0])).read_text("utf-8")
+    assert page.index("id='responses'") < page.index("id='existence'")
+    assert page.count("<html") == 1
