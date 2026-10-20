@@ -98,3 +98,24 @@ def test_evaluate_fit_on_a_shared_fit() -> None:
         assert np.allclose(evaluate_fit(fit, times)[w], fit.model, rtol=1e-7, atol=1e-6)
         checked += 1
     assert checked
+
+
+def test_curve_detection_reads_the_fitted_trough_against_the_noise() -> None:
+    """The ccep N1 (preset 1.2): a trough of the fitted curve in 9-50 ms deeper than 3.4
+    times the fit's noise SD; a curve with no trough there, or a shallow one, has none."""
+
+    from evoparam.models import curve_detection
+    from evoparam.presets import get
+
+    times, _, fit = _tail_fit()
+    rule = get("ccep").detections["N1"]
+    out = curve_detection(fit, rule["window"], polarity=rule["polarity"], k=rule["k"])
+    peak = fitted_peak(fit, (0.009, 0.05))
+    assert out["detected"]
+    assert out["latency"] == peak["latency"]
+    assert out["depth"] == abs(peak["amplitude"]) / fit.diagnostics["sigma"]
+    # the same trough judged against a larger k, and a window with no trough
+    assert not curve_detection(fit, rule["window"], k=out["depth"] + 1)["detected"]
+    none = curve_detection(fit, (0.009, 0.05), polarity="positive")
+    assert not none["detected"]
+    assert none["depth"] == 0.0

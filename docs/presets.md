@@ -9,7 +9,7 @@ and shown in [Preset sensitivity](preset_sensitivity.md) (spec §7.4, REQ-375).
 
 | name | modality | species | citation | version | validation |
 |---|---|---|---|---|---|
-| ccep | ECoG (SPES) | human | LIT-ccep-7, LIT-ccep-8, LIT-ccep-1, LIT-ccep-3, LIT-ccep-5, LIT-ccep-18 | 1.1 | ds004080 (REQ-113, REQ-114, REQ-135) |
+| ccep | ECoG (SPES) | human | LIT-ccep-7, LIT-ccep-8, LIT-ccep-1, LIT-ccep-3, LIT-ccep-5, LIT-ccep-18 | 1.2 | ds004080 (REQ-113, REQ-114, REQ-135) |
 | ccep_seeg | sEEG (SPES) | human | LIT-ccep-46, LIT-ccep-47, LIT-ccep-27, LIT-ccep-25 | 1.0 | pending: Mayo sEEG sets |
 | ecap | epidural SCS | human | LIT-domains-37, LIT-domains-38 | 1.1 | simulation_only |
 | ecap_ci | cochlear implant | human | LIT-domains-61, LIT-domains-62 | 1.1 | simulation_only |
@@ -31,6 +31,7 @@ and shown in [Preset sensitivity](preset_sensitivity.md) (spec §7.4, REQ-375).
 - validation: ds004080 (REQ-113, REQ-114, REQ-135)
 - choice (artifact_window): ends 1 ms before the earliest fit sample, so the template never overlaps the response window (REQ-061)
 - note (threshold_role): select: the candidates are the extrema above detection_threshold (spec 5.5.3 step 3); on the five development runs of ds004080 the N1 decision agreed better with both readings of the published rule than with 'order' (kappa 0.40/0.39 against 0.36/0.31), 1.4 times faster (CHANGELOG 'Defaults settled by measurement'; v1.1)
+- note (detections): N1 (v1.2): the fitted curve has a trough in 9-50 ms deeper than 3.4 times the fit's noise SD (evoparam.models.curve_detection), instead of a negative component in 9-50 ms; on six development runs of ds004080 the agreement with the published rule's N1 detections moved from kappa 0.50 to 0.87 pooled (DECISIONS 5.12). k = 3.4 is the published rule's factor, applied to the fit's own noise SD
 
 ## `ccep_seeg`
 

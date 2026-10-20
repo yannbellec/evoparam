@@ -416,16 +416,27 @@ def _model_fits(ts: Any) -> Any:
 
 
 def _model_n1(fits: Any) -> Any:
-    """The preset's N1 (REQ-113 to the letter): a negative component with latency in 9-50 ms
-    (the preset labels the largest |A| there N1; its latency is the model latency of
-    REQ-114). Also the trough of the fitted curve in 9-50 ms (``fitted_peak``, K3)."""
+    """The preset's N1 (REQ-113): its N1 decision (ccep 1.2: the fitted curve's trough in
+    9-50 ms beyond 3.4 noise SDs; until 1.1 a negative component with latency in 9-50 ms).
+    The latency is the N1 component's (the largest |A| negative component in 9-50 ms, the
+    model latency of REQ-114 as written). Also the trough of the fitted curve in 9-50 ms
+    (``fitted_peak``, K3)."""
 
-    from evoparam.models import fitted_peak
+    from evoparam.models import curve_detection, fitted_peak
+    from evoparam.presets import get
 
+    rule = get("ccep").detections["N1"]
     det, lat, trough, trough_amp = [], [], [], []
     for fit in fits:
         n1 = [c for c in fit.components if N1_START <= c.latency <= N1_END and c.amplitude < 0]
-        det.append(bool(n1))
+        # the preset's N1 decision (ccep 1.2, DECISIONS §5.12): the trough of the fitted
+        # curve in 9-50 ms deeper than 3.4 times the fit's noise SD, not the presence of a
+        # negative component there
+        det.append(
+            curve_detection(fit, rule["window"], polarity=rule["polarity"], k=rule["k"])[
+                "detected"
+            ]
+        )
         lat.append(max(n1, key=lambda c: abs(c.amplitude)).latency if n1 else np.nan)
         peak = fitted_peak(fit, (0.009, 0.05))
         trough.append(peak["latency"])
