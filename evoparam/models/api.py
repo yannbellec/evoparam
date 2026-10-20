@@ -861,6 +861,36 @@ def evaluate_fit(fit: Any, times: Any, *, components: Any = None, background: bo
     return total
 
 
+def curve_detection(
+    fit: Any, window: Any, *, polarity: str = "negative", k: float = 3.4
+) -> dict[str, Any]:
+    """Decide whether the fitted curve has a peak deeper than ``k`` noise SDs in a window.
+
+    The peak is :func:`fitted_peak` (the deepest interior local extremum of the fitted
+    waveform, background and components, with the sign of the polarity); the noise SD is
+    the one the fit estimated (``fit.diagnostics["sigma"]``, data unit), not a baseline SD
+    of the data. The ccep preset's N1 (1.2) is this decision on 9-50 ms with k = 3.4.
+
+    Why the curve and not a component: the split of the waveform between components and the
+    exponential background is sloppy where they overlap. On the development runs of
+    ds004080 a negative component in 9-50 ms often only notched a positive wave (the curve
+    never went below zero there), and large N1s were carried by the background with a
+    component outside the window; reading the curve moved the agreement with the published
+    rule from kappa 0.50 to 0.87 pooled over six development runs (DECISIONS §5.12).
+
+    Returns
+    -------
+    dict
+        ``detected`` (bool), ``latency`` (s) and ``amplitude`` (data unit) of the peak (NaN
+        when there is none), ``depth`` (|amplitude| / noise SD, 0 when there is no peak).
+    """
+    peak = fitted_peak(fit, window, polarity=polarity)
+    sigma = float(fit.diagnostics.get("sigma", np.nan)) if fit.status == "ok" else np.nan
+    amp = peak["amplitude"]
+    depth = abs(amp) / sigma if np.isfinite(amp) and np.isfinite(sigma) and sigma > 0 else 0.0
+    return {**peak, "depth": float(depth), "detected": bool(depth > k)}
+
+
 def fitted_peak(
     fit: Any, window: Any, *, polarity: str = "negative", step: float = 1e-4
 ) -> dict[str, float]:
@@ -1626,6 +1656,8 @@ def _acceptance_phrase(settings: Any) -> str:
 
 def methods_text(fit: Any) -> str:
     """Methods paragraph for a ResponseFit or GroupFit (spec REQ-123)."""
+    from evoparam.data._methods import _detections
+
     settings = fit.settings
     shapes = ", ".join(settings.get("shapes", []))
     preset = preset_name(settings.get("preset"))
@@ -1644,4 +1676,5 @@ def methods_text(fit: Any) -> str:
         f"were added one at a time and kept when the {crit} decreased by at least "
         f"{_acceptance_phrase(settings)}, computed on {_noise_phrase(settings)}. Uncertainty: "
         f"{settings.get('uncertainty')} ({settings.get('ci_level', 0.95) * 100:g} % intervals)."
+        + _detections(settings.get("detections"))
     )

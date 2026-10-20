@@ -277,7 +277,12 @@ class FixedShapeModel:
         self.baseline_offsets: tuple[int, int] = (b0, b0 + n_w - 1)
         self.max_shift: float = float(max_shift)
         self.n_grid: int = int(np.floor(self.max_shift * self.sfreq + 1e-9))
-        self.grid: FloatArray = np.arange(-self.n_grid, self.n_grid + 1) / self.sfreq
+        # The shifts evaluated: the whole samples within max_shift, plus one guard sample on
+        # each side, which is never chosen but lets the parabolic refinement of a grid edge
+        # reach the bound itself when it is not a whole number of samples (as fit_trials,
+        # whose bound is continuous). The unshifted template is grid[centre].
+        self.centre: int = self.n_grid + 1
+        self.grid: FloatArray = np.arange(-self.centre, self.centre + 1) / self.sfreq
 
         self.picks: NDArray[Any] = np.array([names.index(name) for name, _ in fits])
         self.ch_names: list[Any] = [name for name, _ in fits]
@@ -369,7 +374,7 @@ class FixedShapeModel:
                 )
         self._bound = bound
         steps = np.minimum(np.floor(bound * self.sfreq + 1e-9).astype(int), self.n_grid)
-        self._allowed = np.abs(np.arange(len(self.grid)) - self.n_grid) <= steps[..., None]
+        self._allowed = np.abs(np.arange(len(self.grid)) - self.centre) <= steps[..., None]
         groups: dict[Any, Any]
         groups, self._group_of = {}, np.empty(n_ch, int)
         for c, ch in enumerate(self._channels):
@@ -406,7 +411,7 @@ class FixedShapeModel:
         centre = (
             np.stack(
                 [
-                    self._templates[self._group_of[c]][:, self.n_grid].sum(axis=0)
+                    self._templates[self._group_of[c]][:, self.centre].sum(axis=0)
                     for c in range(n_ch)
                 ]
             )
@@ -549,9 +554,10 @@ class FixedShapeModel:
                 ok = den > 1e-12 * np.abs(own[:, k])
                 gain = np.where(ok, num * num / np.where(ok, den, 1.0), 0.0)
                 explained = np.einsum("ci,ci->c", rhs, u)[:, None] + gain
-                explained = np.where(self._allowed[:, k], explained, -np.inf)
+                # the profile keeps the shifts beyond the bound (for the refinement); the
+                # step chooses among the allowed ones
                 profile[:, k] = explained
-                best = np.argmax(explained, axis=1)
+                best = np.argmax(np.where(self._allowed[:, k], explained, -np.inf), axis=1)
                 stale[k] = False
                 if (best != current[:, k]).any():
                     current[:, k] = best
@@ -666,7 +672,7 @@ class FixedShapeModel:
         rhs[..., q:] = rb[:, None]
         beta = np.matmul(pulse.inverse, rhs[..., None])[..., 0]
         explained = np.einsum("cjm,cjm->cj", rhs, beta)
-        best = np.argmax(explained, axis=1)
+        best = np.argmax(np.where(self._allowed[:, 0], explained, -np.inf), axis=1)
         if self._descent:
             tables: Any
             tables = self._tables
@@ -678,10 +684,10 @@ class FixedShapeModel:
                     full[bad] = part
             best_k, profile = self._ascend(best, r, rb, tables)
             frac = _parabolic(profile.reshape(n_ch * q, n_s), best_k.reshape(-1))
-            shift = (best_k - self.n_grid + frac.reshape(n_ch, q)) / self.sfreq
+            shift = (best_k - self.centre + frac.reshape(n_ch, q)) / self.sfreq
         else:
             frac = _parabolic(explained, best)
-            shift = np.repeat(((best - self.n_grid + frac) / self.sfreq)[:, None], q, axis=1)
+            shift = np.repeat(((best - self.centre + frac) / self.sfreq)[:, None], q, axis=1)
         return np.clip(shift, -self._bound, self._bound), rb
 
     def _curves(self, shift: Any) -> Any:

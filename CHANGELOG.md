@@ -2,6 +2,202 @@
 
 ## Unreleased
 
+### N1 case: known-truth bench, ccep 1.2 locked (REQ-113; DECISIONS §5.13)
+
+- New `benchmarks/n1_known_truth.py`: fake N1s injected into the real pre-stimulus noise of
+  51 ds004080 patients. At 1 % invented N1s the ccep preset finds 65.0 % of them, the
+  published rule 51.5 % (95 % CI of the difference 10.0 to 19.1 points); latency within
+  2 ms for 98.5 % of the found N1s. No change to the code or the preset.
+
+### N1 case: the ccep N1 read on the fitted curve, ccep 1.2 (REQ-113, REQ-114; DECISIONS §5.12)
+
+- New `evoparam.models.curve_detection(fit, window, polarity, k)`: a peak of the fitted
+  curve (`fitted_peak`) deeper than `k` times the fit's noise SD.
+- `ccep` 1.2: new preset field `detections`; the N1 is `curve_detection` on 9-50 ms with
+  k = 3.4, instead of the presence of a negative component there. Fits, components and
+  labels are unchanged; the methods text states the decision (frozen text regenerated).
+- Measured once on the test runs: REQ-113 (registry row, the rule's N1 detections) pooled
+  kappa 0.46 to 0.71, two REQ-371 runs of six at 0.8 or more (none before); still not met.
+  REQ-114 (fourth reading) 90.2 % to 88.1 %, now not met.
+
+### N1 case: the preset fitted on its trials, REQ-113 in one reference (REQ-113, REQ-114, REQ-135, REQ-273; DECISIONS §5.11)
+
+No change to the engine, the `ccep` preset (still 1.1), `ALGORITHM_VERSIONS` or the
+fixtures: the results of `run_pipeline` are unchanged. The changes are in
+`evoparam/tests/models/test_engine_ccep.py` and DECISIONS §5.11.
+
+- The tests now fit the preset as its pipeline does. Until 2026-10-18 they fitted the
+  trial average alone; without trials, `noise_source="auto"` falls back to the baseline
+  residual (effective sample size about 2 at 512 Hz) and large N1s could come out
+  `no_response`. The harness now fits the baseline-corrected trials of the adjusted
+  common average, as `run_pipeline` does (bit-identical fits).
+- The reference REQ-113 compares in, read in its most demanding form: REQ-113 is asked
+  in the comparison tested so far (the preset on its adjusted common average, the rule in
+  the recording reference), in the preset's reference (the rule applied to the preset's
+  input) and in the recording reference (the preset's chain without re-referencing,
+  `run_pipeline(..., reference=False)`), with the rule's detections over 9-100 ms and
+  with its N1 detections: new `test_req113_in_one_reference` (8 cases, run by
+  `test_req273_ccep_meets_req113_and_req114`). New
+  `test_req113_cannot_hold_in_both_references`: the joint kappa bound of the rule in the
+  two references is 0.48 on the PT contacts of the example run and reaches 0.8 on four
+  REQ-371 runs of six, so no decision can meet REQ-113 in both.
+- Engine and preset variants diagnosed and measured on the development runs only
+  (pruning, reseeding on a background-collinear design, `background_prior`, `tau_max`,
+  `detection_threshold` 3 and 4, `reject_cancelling`, the recording reference): pooled
+  kappa (registry row, N1 detections) 0.531 with the preset, 0.549 at best (two runs of
+  21), within the spread or at the cost of more misses; none adopted.
+- Measured once on the test runs (2026-10-19; registry row / code):
+  - REQ-113 not met in any comparison. N1 detections: kappa on the PT contacts -0.04 /
+    -0.04, pooled 0.46 / 0.31 (0.19 / 0.19 and 0.49 / 0.36 with the average fitted
+    alone); detections over 9-100 ms -0.20 / -0.04, pooled 0.48 / 0.35 (0.01 / 0.19 and
+    0.44 / 0.40); in the preset's reference at best 0.55 on the PT contacts and 0.53
+    pooled; in the recording reference 0.38 and 0.45, one run of six with the code.
+  - REQ-114 met with the N1 detections and the rule's operator on the fitted curve in
+    the rule's reference: 90.2 % (46 of 51) / 92.0 % (23 of 25), down from 94.1 % /
+    96.3 %; the code's fitted-trough reading now passes (96.0 %, was 88.9 %). The N1
+    component's own latency, as written: 51.0 % / 52.0 %, not met.
+  - Two non-gating readings of the detections over 9-100 ms in the rule's reference move
+    below 90 % and become non-strict expected failures:
+    `test_req114_rule_peak_on_the_fitted_curve_in_the_rules_reference[code]` 85.7 %
+    (was 90.0 %) and `test_req114_extremum_reading_in_the_rules_reference` 88.2 % (was
+    93 %).
+  - REQ-273 not met (needs REQ-113).
+- REQ-135: per-pair FDR kept as written; on the development runs the default reading
+  gives 0.577, 0.535 and 0.645 on the three sets (no correction 0.706, 0.636, 0.695;
+  cluster correction and a sign-flip permutation of the rule's statistic lower). Nothing
+  changed; 0.495 on the REQ-371 runs, not met.
+
+### REQ-324 / REQ-347: the streamed estimates reach the continuous bound of `fit_trials`; the common shift of §10.6 recorded (DECISIONS §5.10)
+
+The method text of §10.6 (one common shift and one scale per pulse and channel) and the
+agreement of REQ-324 and REQ-347 with `fit_trials(mode="shift_scale")` (a shift and a scale
+per component) cannot both hold with several components. The most demanding reading is
+kept: each component within 1 % and one sample of `fit_trials`, in the default mode of
+`StreamFitter`, with the latency budget and chunk independence; the method text stays
+available as `mode="common"` (DECISIONS §5.10).
+
+- `evoparam.trials.FixedShapeModel` (used by `StreamFitter`): the grid of shifts carries one
+  guard sample beyond `max_shift` on each side. It is never chosen, but the parabolic
+  refinement uses it, so that a shift at the edge of the grid reaches the bound itself
+  when the bound is not a whole number of samples, as in `fit_trials` (5 ms = 10.24
+  samples at 2 048 Hz: the refined shift stopped at 10 samples). New attribute `centre`
+  (index of the unshifted template in `grid`). Only the estimates whose best grid shift
+  is at an edge change.
+- Agreement with `fit_trials(mode="shift_scale", max_shift=0.005)` on 200 pulses, largest
+  differences, before -> after: two components with one jitter, 2.3e-4 -> 7.0e-7 relative
+  and 0.24 -> 0.0097 sample; with one jitter per component, 1.0e-4 -> 1.3e-6 and 0.31 ->
+  0.012 sample (the largest differences before were all at the edge of the grid);
+  single-component templates 6.8e-5 and 0.0066 sample (unchanged); three components (a
+  check, not a test) 8.9e-5 and 0.10 sample. `mode="common"`: 92 % and 8.8 samples / 117 %
+  and 12.7 samples, unchanged, still a strict expected failure.
+- New test `test_req347_chunk_sizes_give_identical_estimates_two_components`: chunks of 1,
+  32 and 1 024 samples give bit-identical estimates with the two-component template in the
+  default mode (both jitter cases), as with one component.
+- Latency (`benchmarks/stream_latency.py`, 1 000 pulses, 64 channels, 2 048 Hz, 0.5 s
+  window, `max_shift` 5 ms, `OMP_NUM_THREADS=1`), measured on a 4-CPU x86_64 machine with
+  other jobs running (load average about 10, not the reference machine): push p99 one
+  component 8.8 ms (chunks of 32) and 10.2 ms (chunks of 1); two components, default mode,
+  p50 9.0 ms, p95 11.5 ms, p99 13.0 ms, max 14.0 ms (`"common"` p99 11.2 ms, `"scale"`
+  12.7 ms). Budget: p99 < 20 ms. `test_req347_latency_budget` passed (one and two
+  components, `EVOPARAM_PERF_TESTS=1`).
+
+### Engine speed, part 5 (REQ-290 P1): same results to the bit, P1 still not met
+
+P1 is about a tenth faster with the `fast` extra and still above its 50 ms target. Every
+result is the same to the last bit, so no algorithm version changes.
+
+Timings: same machine, core 3 (`taskset -c 3`), `OMP_NUM_THREADS=1`, previous code (013d7b7)
+and new code run alternately, three rounds; the load average was 6 to 7 on the 4 cores
+(other jobs), which made the wall-clock medians of the previous code unstable (94 to 106
+ms), so the table gives the CPU time of the process too:
+
+| workload | 013d7b7 | new code |
+|---|---|---|
+| P1 workload, warm-up + 30 fits: median CPU time per fit | 77.5, 77.8, 77.2 ms | 67.9, 69.6, 68.1 ms |
+| the same runs: fastest fit (wall clock) | 72.4, 72.1, 70.8 ms | 66.0, 65.1, 66.0 ms |
+| the same runs: median (wall clock) | 99.0, 94.2, 105.8 ms | 68.2, 71.0, 68.5 ms |
+| compiled kernel alone: the 58 calls of one P1 fit replayed, median of 30 | 42 to 46 ms | 38 to 41 ms |
+| REQ-115 waveform (5 waveforms x 8), median, two rounds | 45.0, 43.1 ms | 38.7, 39.1 ms |
+
+What changed:
+
+- `models/_fast.py`: a component is whitened only on the samples its span and the reach of
+  the filter cover (the rest of the whitened row is 0, as before, and is no longer
+  computed); its design row and derivatives are no longer set to 0 outside the span. The
+  constant of the exponential background (or a fixed basis) is whitened once per compiled
+  fit instead of at every evaluation. An AR filter of at most four lags with `a[0] = 1`
+  makes one pass over the samples, each term added in the same order as before.
+- `models/engine.py`: the latencies of an ordered structure are read from the positions of
+  the chain; the start is sorted only when they are not already in order; the whitened
+  residual sum of squares is computed once for both criteria.
+- `shapes/_base.py` (`compute_features`): the first and last samples above the onset level
+  are found once, the lobe is cut by `searchsorted`, and the local extrema are searched
+  only where the curve is above that level. `shapes/components.py`: `skew_mode` of one
+  skewness keeps `(z*, c, dc/dalpha)` instead of `z*` only.
+
+Results, previous code against new code: the 58 kernel calls of one P1 fit replayed give
+the same outputs to the bit; 2 464 compiled fits on other structures (exponential,
+constant, linear and no background; white, AR of orders 1 to 9 and strided whitening, with
+and without start rows and prior rows; components at both window edges, a 50 ms window)
+give the same outputs to the bit; a battery of 60 fits (P1 on three channels of eight
+seeds, six REQ-115 waveforms, 20 engine-test waveforms, 10 skewed-Gaussian `erp`
+waveforms) gives identical tables and evaluation counts; `compute_features` gives the same
+features on 3 360 cases (7 shapes, 3 sampling rates). `ALGORITHM_VERSIONS` is unchanged.
+
+P1 stays above 50 ms, and `benchmarks/results` is not regenerated. With the same rounding
+the kernel is bound by the passes of the Householder QR over the 2 050-row columns (about
+450 per evaluation and Jacobian); a change of their rounding alone (the order of one inner
+product of the Jacobian) moves the features of the 60-fit battery by up to 3.7e-5 relative,
+beyond the 1e-9 of the fixtures, so a faster QR needs a new algorithm version.
+
+### N1 case: the rule's N1 detections (REQ-113, REQ-114, REQ-273)
+
+REQ-113 names an N1 "a negative component with latency in 9–50 ms" and asks it on every
+channel where the published rule, read over 9–100 ms, "detects one". The rule's detections
+whose peak is after 50 ms are not N1s by that definition. Both readings are now asked
+(DECISIONS §5.11): the rule's detections over 9–100 ms (A, the tests until now) and its N1
+detections, the peaks it finds in 9–50 ms (C: the rule unchanged, its window ending at
+50 ms). Settings were examined on development runs only: UMCU07, 08, 10, 11, 19, 28, 40
+and 49; six runs of UMCU01 other than the example; UMCU12 to 17. The test runs (the
+example and the REQ-371 runs) were measured once, at the end. No default of the package
+changed. Only tests and documents change.
+
+- **REQ-113 with C is not met.** Registry row / code, on the test runs: kappa 0.19 / 0.19
+  on the 46 PT contacts (1 rule N1, 8 preset N1s, none missed). No REQ-371 run meets the
+  criterion: registry row 0.37, 0.60, 0.12, 0.33, 0.39, 0.59 with 1, 12, 6, 5, 6, 3 missed.
+  Pooled 0.49 / 0.36. Development runs (registry row): pooled 0.47, 0.43 and 0.59 on the
+  three sets, no run meeting it. Test: `test_req113_n1_detections` (expected failure with
+  these values). A is unchanged: 0.01 / 0.19 on the PT contacts, 0.44 / 0.40 pooled.
+- **REQ-114 with C is met** when the model latency is read as the rule's operator on the
+  fitted curve, in the rule's reference (DECISIONS §5.2, fourth reading): 94.1 % (48 of 51)
+  / 96.3 % (26 of 27) on the test runs, and 91 %, 92 % and 93 % (registry row) on the
+  development sets. The N1 component's own latency gives 49.0 % / 44.4 %. The fitted
+  trough gives 74.5 % / 88.9 %. The fitted curve in the preset's reference gives
+  82.4 % / 96.3 %. Test: `test_req114_n1_detections`, parametrised by reading and by
+  latency.
+- **REQ-273 is still not met**, because it needs REQ-113 under both A and C.
+- **Where the gap is** (registry row, C, REQ-371 runs). The preset names 85 N1s, and 38 of
+  them are not rule N1s. Of the rule's 80 N1s, the preset misses 33.
+  - Of those 33, 23 are rule N1s of the preset's own input too. These are failures of the
+    engine's decomposition.
+  - The rule itself, applied to the preset's input (the adjusted common average), meets
+    the criterion on one REQ-371 run of six (pooled 0.78; development 4 of 9, 2 of 6,
+    2 of 6). Test: `test_req113_rule_on_the_presets_input_bound`. With the code's reading
+    the same copy meets it on five of six.
+- **Variants measured on the development runs and not adopted** (registry row, C, pooled
+  kappa on the first two sets; the preset gives 0.47 and 0.43):
+  - no SEM weights: 0.55 and 0.61;
+  - the recording reference: 0.56 and 0.46;
+  - no edge extension: 0.43 and 0.49;
+  - background `tau_max` 10 ms: 0.46 and 0.46;
+  - both of these: 0.45 and 0.52.
+
+  None meets the criterion on more than one run of six.
+- **REQ-135 over every stimulation pair of a run** (measured on eight development runs,
+  not adopted, DECISIONS §5.11): with FDR over all channels and pairs of a run, kappa
+  0.634 with the registry row (0.700 without the correction). It is below 0.7, so the
+  test runs were not read this way and the REQ-135 tests are unchanged.
+
 ### Spec items found missing: masked onsets, long windows, the erp windows, the bootstrap distribution, REQ-133 for ftract
 
 An inventory of the specification against the code found five items not implemented. Each

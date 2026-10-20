@@ -7,6 +7,7 @@ from ._settings import FIT_PRESETS, FitSettings, resolve_settings
 from .api import (
     ResponseModel,
     compare_models,
+    curve_detection,
     evaluate_fit,
     fit,
     fit_response,
@@ -25,6 +26,7 @@ __all__ = [
     "methods_text",
     "evaluate_fit",
     "fitted_peak",
+    "curve_detection",
     "classical_measures",
     "label_components",
     "ComponentWindows",

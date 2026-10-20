@@ -488,17 +488,29 @@ def _grid_part(
     return 0, n_points
 
 
-def _onset_offset(grid: FloatArray, magnitude: FloatArray, level: float) -> tuple[Any, Any]:
-    """Return the first and last time at which ``magnitude`` reaches ``level`` (NaN: none)."""
-    above = np.nonzero(magnitude >= level)[0]
+def _onset_offset(
+    grid: FloatArray, magnitude: FloatArray, level: float, large: Any
+) -> tuple[Any, Any]:
+    """Return the first and last time at which ``magnitude`` reaches ``level`` (NaN: none).
+
+    ``large`` is ``magnitude >= level``.
+    """
     onset = offset = np.nan
-    if above.size:
-        first, last = above[0], above[-1]
+    first, last = _first_last(large)
+    if first <= last:
         if first > 0:
             onset = _interp_cross(grid, magnitude, first - 1, first, level)
         if last < grid.size - 1:
             offset = _interp_cross(grid, magnitude, last, last + 1, level)
     return onset, offset
+
+
+def _first_last(mask: Any) -> tuple[int, int]:
+    """Return the first and last index where ``mask`` is True (``(0, -1)`` when none is)."""
+    first = int(np.argmax(mask))
+    if not mask[first]:
+        return 0, -1
+    return first, mask.size - 1 - int(np.argmax(mask[::-1]))
 
 
 def _lobe(
@@ -511,7 +523,11 @@ def _lobe(
 ) -> tuple[FloatArray, FloatArray]:
     """Return the curve and the times from onset to offset (``ends``), the grid inside."""
     onset, offset = ends
-    within = (grid > onset) & (grid < offset)
+    # the grid points strictly between onset and offset (the grid increases)
+    within = slice(
+        int(np.searchsorted(grid, onset, side="right")),
+        int(np.searchsorted(grid, offset, side="left")),
+    )
     x = np.concatenate([[onset], grid[within], [offset]])
     if pointwise:
         end_values = shape.evaluate(np.array([onset, offset]), params)
@@ -523,8 +539,13 @@ def _lobe(
 
 def _local_extrema(grid: FloatArray, curve: FloatArray, large: Any, step: float) -> list[float]:
     """Return the refined times of the local extrema of ``curve`` where ``large`` is True."""
-    diff = np.diff(curve)
-    turning = np.nonzero(diff[:-1] * diff[1:] < 0)[0] + 1
+    # only the samples next to those where large is True can be such an extremum
+    first, last = _first_last(large)
+    if first > last:
+        return []
+    lo = max(first - 1, 0)
+    diff = np.diff(curve[lo : last + 2])
+    turning = np.nonzero(diff[:-1] * diff[1:] < 0)[0] + (lo + 1)
     turning = turning[large[turning]]
     peak_times = []
     for i in turning:
@@ -610,7 +631,8 @@ def compute_features(
     # Onset and offset: first and last time above the fraction of the peak.
     magnitude = np.abs(curve)
     level = onset_fraction * height
-    onset, offset = _onset_offset(grid, magnitude, level)
+    large = magnitude >= level
+    onset, offset = _onset_offset(grid, magnitude, level, large)
     if not np.isfinite(onset):
         warnings.append("onset_outside_grid")
     if not np.isfinite(offset):
@@ -633,7 +655,7 @@ def compute_features(
     sharpness = abs(curvature) / height * fwhm**2 if height > 0 else np.nan
 
     # Local extrema of the curve above the onset fraction (oscillatory shapes have several).
-    peak_times = _local_extrema(grid, curve, magnitude >= level, step) or [peak_time]
+    peak_times = _local_extrema(grid, curve, large, step) or [peak_time]
 
     if latency < start or latency > end:
         warnings.append("latency_outside_window")

@@ -70,7 +70,7 @@ def test_provenance_sidecar(written: Any) -> None:
     sidecar = _json(written["files"], "_responses.json")
     assert Provenance.from_dict(sidecar["Provenance"]) == group.provenance
     assert sidecar["PackageVersion"] == __version__
-    assert sidecar["Preset"] == {"Name": "ccep", "Version": "1.1"}
+    assert sidecar["Preset"] == {"Name": "ccep", "Version": "1.2"}
     assert sidecar["Settings"]["max_components"] == group.settings["max_components"]
     description = _json(written["files"], "dataset_description.json")
     assert description["DatasetType"] == "derivative"
