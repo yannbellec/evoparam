@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### N1 case: known-truth bench, ccep 1.2 locked (REQ-113; DECISIONS §5.13)
+
+- New `benchmarks/n1_known_truth.py`: fake N1s injected into the real pre-stimulus noise of
+  51 ds004080 patients. At 1 % invented N1s the ccep preset finds 65.0 % of them, the
+  published rule 51.5 % (95 % CI of the difference 10.0 to 19.1 points); latency within
+  2 ms for 98.5 % of the found N1s. No change to the code or the preset.
+
 ### N1 case: the ccep N1 read on the fitted curve, ccep 1.2 (REQ-113, REQ-114; DECISIONS §5.12)
 
 - New `evoparam.models.curve_detection(fit, window, polarity, k)`: a peak of the fitted

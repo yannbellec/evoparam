@@ -1588,6 +1588,43 @@ within +/-10 ms of the fractional-area latency of the same average".
   baseline, so the BIC does not accept a component there. That noise model is the next
   thing to examine.
 
+### 5.13 REQ-113: the ccep N1 locked at 1.2, measured against a known truth
+
+- Why a known truth: on real recordings nobody knows which N1s are there. Two experts
+  agree at kappa 0.60 and the published 3.4 SD rule agrees with experts at kappa 0.59
+  (sensitivity 57 %, specificity 98 %; van den Boom et al. 2025, ER-detect). A kappa of 0.8
+  with the rule therefore measures how well its errors are copied, not how many N1s are
+  found. The rule also has few positives on some runs (one on 46 PT contacts of the
+  example), where one channel moves kappa by 0.3.
+- Bench (`benchmarks/n1_known_truth.py`, seed 20261020, results in
+  `benchmarks/results/n1_known_truth.csv`): the 51 ds004080 patients with a qualifying
+  2048 Hz run (23 have none), the -2..0 s pre-stimulus trials of one pair, so the noise
+  is real and has no response. On half the contacts, chosen at random, a Gaussian N1 is
+  subtracted from every trial: latency 15-45 ms, FWHM 5-15 ms, amplitude 20-500 uV
+  (log-uniform), trial jitter SD 2 ms. 1686 contacts with an N1, 1712 without.
+- Results (share of contacts, pooled over patients):
+  - as configured: rule (k = 3.4) 56.6 % of the N1s found, 2.5 % of the empty contacts
+    with an invented N1; ccep 1.2 52.7 % found, 0.1 % invented;
+  - at the same share invented, 1 %: ccep 65.0 %, rule 51.5 %; difference 13.5 points,
+    95 % CI 10.0 to 19.1 (bootstrap over patients, 2000 draws);
+  - at 5 % invented: rule 61.6 %; ccep cannot invent more than 1.9 % (any trough at all)
+    and then finds 66.5 %;
+  - latency within 2 ms of the injected one: ccep 98.5 % of its found N1s (888), rule
+    97.4 % (955);
+  - by size relative to the baseline SD (ccep at 5 %): under 2 SD 15 %, 2-4 SD 58 %,
+    4-6 SD 92 %, over 6 SD 99 %. 474 of the 1686 N1s (28 %) are under 2 SD.
+- Reading of the numbers: changing k only moves along one trade-off curve (more found,
+  more invented); it is not a gain. The gain of ccep 1.2 is the curve itself: at equal
+  invented N1s it finds more true ones than the rule. The remaining misses are N1s near or
+  below the noise, which no reading of a single average recovers.
+- Decision (2026-10-20): ccep 1.2 is locked as it is (k = 3.4, 9-50 ms); k is left to
+  the owner. Proposed reading of REQ-113 for the owner, not applied to the test: "at an
+  equal share of invented N1s, the preset finds at least as many injected N1s as the
+  published rule, and at least 90 % of its found N1s are within 2 ms", met on this bench.
+  The kappa criterion stays an expected failure with its measured values (§5.12). Next
+  step: expert-annotated CCEPs, requested from the authors of the YOLO CCEP detector, to
+  measure against human raters instead of the rule.
+
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
 Each point below is a reading needed to apply a requirement of S20 literally, or a place
