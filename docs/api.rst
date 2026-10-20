@@ -394,6 +394,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    CCEP_N2
    ComponentSpec
    ERP_COMPONENTS
+   gen_response
    GENERATORS
    GroundTruth
    inject
@@ -456,6 +457,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    qc
    reference_input
    REFERENCE_PIPELINES
+   report
    reproduce
    ReproduceReport
    RESEARCH_USE

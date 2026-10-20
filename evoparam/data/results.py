@@ -418,6 +418,60 @@ class ResponseFit(_ResultMixin):
         self.residual = _as_float_array(self.residual)
         self.warnings = list(self.warnings)
 
+    def results_text(self) -> str:
+        """Short plain-text summary: the window, the background and one line per component.
+
+        Times are shown in milliseconds; amplitudes in the unit of the fitted data.
+        """
+        unit = f" {self.units.replace('uV', 'µV')}" if self.units else ""
+        start, end = (1000 * v for v in self.window)
+        lines = [
+            "evoparam - RESPONSE MODEL",
+            "",
+            f"fit window: {start:g} to {end:g} ms",
+        ]
+        if self.status != "ok":
+            lines.append(f"status: {self.status} ({self.message})")
+        background = dict(self.background or {})
+        name = background.pop("name", "none")
+        tau = background.get("tau")
+        lines.append(
+            f"background: {name}"
+            + (f", time constant {1000 * tau:.1f} ms" if tau is not None else "")
+        )
+        lines.append("")
+        lines.append(f"{len(self.components)} component(s) found:")
+        lines.append(f"  {'label':<10}{'latency':>10}{'amplitude':>14}{'width':>10}")
+        for comp in self.components:
+            label = comp.label if comp.label else "-"
+            lines.append(
+                f"  {label:<10}{1000 * comp.latency:>7.1f} ms"
+                f"{comp.amplitude:>10.1f}{unit:<4}{1000 * comp.fwhm:>7.1f} ms"
+            )
+        lines.append("")
+        if self.gof is not None:
+            lines.append(
+                f"fit quality: R2 = {self.gof.r2:.2f}, "
+                f"noise level = {self.gof.baseline_sd:.1f}{unit}"
+            )
+        lines.append("(latency: time of the peak; width: full width at half maximum)")
+        width = max(len(line) for line in lines) + 4
+        rule = "=" * width
+        return "\n".join([rule, *(line.center(width).rstrip() for line in lines), rule])
+
+    def __str__(self) -> str:
+        """Return the summary of :meth:`results_text` (``print(fit)``)."""
+        return self.results_text()
+
+    def _repr_pretty_(self, printer: Any, cycle: bool) -> None:
+        """IPython: show the summary when a fit is the last expression of a cell."""
+        printer.text("ResponseFit(...)" if cycle else self.results_text())
+
+    def _repr_html_(self) -> str:
+        """Jupyter: show the summary when a fit is the last expression of a cell."""
+        text = self.results_text().replace("&", "&amp;").replace("<", "&lt;")
+        return f"<pre>{text.replace('>', '&gt;')}</pre>"
+
     def to_dataframe(self, channel: str = "", condition: str = "") -> Any:
         """Tidy table, one row per component (one row with NaN features when there is none).
 

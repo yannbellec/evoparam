@@ -6,7 +6,8 @@ Six generators (:func:`simulate_erp`, :func:`simulate_ccep`, :func:`simulate_ern
 :class:`~evoparam.data.TrialSet` and the :class:`GroundTruth` of what was put in
 it; :func:`simulate_bursts` adds induced oscillatory bursts to noise (the
 time-frequency task of the benchmark, spec §8.1); :func:`make_noise` draws the
-noise models; :func:`inject` adds components to real recordings;
+noise models; :func:`gen_response` makes one example response in one line;
+:func:`inject` adds components to real recordings;
 :func:`match_components` and :func:`score_fits` compare fits with the truth.
 
 This module never imports the fitting engine, so the truth cannot be shaped by
@@ -37,8 +38,10 @@ from .generators import (
 from .inject import inject
 from .noise import ALLOWED_LICENSES, NOISE_KINDS, make_noise
 from .score import MATCH_COLUMNS, SCORE_COLUMNS, match_components, score_fits
+from .simple import gen_response
 
 __all__ = [
+    "gen_response",
     "simulate_erp",
     "simulate_ccep",
     "simulate_erna",
