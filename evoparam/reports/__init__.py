@@ -20,6 +20,7 @@ from .pipeline import (
     run_pipeline,
     run_reference_pipeline,
 )
+from .quick import report
 
 __all__ = [
     "methods_text",
@@ -41,4 +42,5 @@ __all__ = [
     "REFERENCE_PIPELINES",
     "reference_input",
     "run_reference_pipeline",
+    "report",
 ]

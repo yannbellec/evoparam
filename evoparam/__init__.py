@@ -46,6 +46,7 @@ if TYPE_CHECKING:  # the names imported on first use, for type checkers and IDEs
     from .existence import test_response as test_response
     from .io import read as read
     from .models import ResponseModel as ResponseModel
+    from .reports import report as report
     from .reports import reproduce as reproduce
 
 # Window (s) in which selftest looks for the N1 of the bundled CCEP.
@@ -78,6 +79,7 @@ _ROOT_FUNCTIONS = {
     "read": ("io", "read"),
     "ResponseModel": ("models", "ResponseModel"),
     "reproduce": ("reports", "reproduce"),
+    "report": ("reports", "report"),
 }
 
 

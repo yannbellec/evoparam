@@ -1757,3 +1757,24 @@ integration-2. They were fixed in the same way as in the rest of §7:
 - The frozen-dataclass test of `engine._shape` reads `__dataclass_params__` once.
 
 One noqa was added: the E402 of the detector registration at the package root.
+
+## 8. Plain entry points for a first try (tutorial 01)
+
+The owner asked (20/10/2026) that a first try of the package take a few lines, as in the
+first tutorial of the spectral ancestor tool: one line to make an example, one to fit it and
+see the result. Three additions do it without changing the engine or any default:
+
+- `evoparam.sim.gen_response(components, background, noise)` makes one example response.
+  Its components are given as `[latency (ms), amplitude (µV), width (ms)]`, the way a
+  response is described in words; the times it returns are in seconds, the unit of the rest
+  of the package.
+- `evoparam.report(times, signal, preset="ccep")` (in `evoparam.reports`) fits one waveform
+  with `ResponseModel(preset).fit_group`, draws `plots.plot_fit` on the fit window and
+  returns the `ResponseFit`. It sits in `reports` because §4.2 does not let `models` or
+  `data` import `plots`.
+- `ResponseFit.results_text()` is a short plain-text summary (window, background, one line
+  per component in ms and µV, R² and noise level). `str(fit)` and the notebook
+  representations (`_repr_html_`, `_repr_pretty_`) show it. The ancestor tool prints its
+  summary from `report`; here nothing prints, because REQ-304 allows `print` only in the
+  command line: the summary appears when the fit is the last expression of a notebook cell,
+  or with `print(fit)`.
