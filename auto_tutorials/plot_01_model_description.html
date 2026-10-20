@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>01: Model description &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Tutorials" href="index.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-01-model-description-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="model-description">
+<span id="sphx-glr-auto-tutorials-plot-01-model-description-py"></span><h1>01: Model description<a class="headerlink" href="#model-description" title="Link to this heading">¶</a></h1>
+<p>What evoparam does, shown on one example curve.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>When the brain receives a short stimulus (a flash of light, a sound, a tiny electrical
+pulse), the electrodes that record its activity show a small wave just after it. This
+wave is called an <strong>evoked response</strong>.</p>
+<p>One response is hidden in the noise, so the stimulus is repeated many times and the
+recordings are averaged. What is left is one clean curve: time on the x-axis, voltage on
+the y-axis.</p>
+<p>evoparam describes this curve with a few numbers. It looks for the <strong>bumps</strong> in it: when
+each bump happens, how high it is, and how wide it is.</p>
+<p>In this first tutorial, we make an example curve, let evoparam describe it, and look at
+what the description means.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib</span><span class="nn">.</span><span class="nn">pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">report</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">sim</span><span class="w"> </span><span class="kn">import</span> <span class="n">gen_response</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="making-an-example-curve">
+<h2>Making an example curve<a class="headerlink" href="#making-an-example-curve" title="Link to this heading">¶</a></h2>
+<p>To learn, it helps to start from a curve whose answer we already know.
+<code class="docutils literal notranslate"><span class="pre">gen_response</span></code> makes one. Each bump is given by three numbers:</p>
+<ul class="simple">
+<li><p><strong>latency</strong>: when the bump peaks, in milliseconds (ms) after the stimulus;</p></li>
+<li><p><strong>amplitude</strong>: how high it is, in microvolts (µV); negative means it goes down;</p></li>
+<li><p><strong>width</strong>: how wide it is, in ms, measured at half its height.</p></li>
+</ul>
+<p>Here we ask for two bumps that both go down: a sharp one at 25 ms and a broad one at
+150 ms.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Make an example curve with two bumps: [latency (ms), amplitude (µV), width (ms)]</span><span class="w">
+</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<p><code class="docutils literal notranslate"><span class="pre">seed=3</span></code> fixes the random noise, so that you get the same curve each time you run this
+page.</p>
+<p>Let’s look at the curve. The stimulus happens at time 0.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Plot the curve, with time in ms</span><span class="w">
+</span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">black</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span><span class="w">
+</span><span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">500</span><span class="p">)</span><span class="w">
+</span><span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">Time (ms)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">Voltage (µV)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_01_model_description_001.png" srcset="../_images/sphx_glr_plot_01_model_description_001.png" alt="plot 01 model description" class = "sphx-glr-single-img"/><p>Before 0, the curve only wiggles: that is noise. Just after 0 it jumps up and slowly comes
+back, then the two bumps go down, one sharp and one broad.</p>
+</section>
+<section id="describing-the-curve">
+<h2>Describing the curve<a class="headerlink" href="#describing-the-curve" title="Link to this heading">¶</a></h2>
+<p>Now we ask evoparam to describe it. <code class="docutils literal notranslate"><span class="pre">report</span></code> does everything in one line: it fits the
+model, shows a summary and draws a figure.</p>
+<p><code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> is a <strong>preset</strong>: a ready-made set of settings, here the one for responses to
+electrical pulses.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Fit the model and draw the figure</span><span class="w">
+</span><span class="n">fit</span> <span class="o">=</span> <span class="n">report</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># Show the summary</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">fit</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_01_model_description_002.png" srcset="../_images/sphx_glr_plot_01_model_description_002.png" alt="ok: 2 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>==================================================================
+                    evoparam - RESPONSE MODEL
+
+                     fit window: 9 to 500 ms
+          background: exponential, time constant 35.4 ms
+
+                      2 component(s) found:
+            label        latency     amplitude     width
+            N1           25.0 ms    -152.1 µV     9.5 ms
+            N2          151.9 ms     -77.4 µV    79.2 ms
+
+           fit quality: R2 = 0.94, noise level = 7.4 µV
+  (latency: time of the peak; width: full width at half maximum)
+==================================================================
+</pre></div>
+</div>
+<p>evoparam found the two bumps we put in, with the right timing, height and width. It
+named them <strong>N1</strong> and <strong>N2</strong>: N for a bump that goes down, then a number in order of time.</p>
+<p>In the figure, the black line is our curve and the thick blue line is the model. The
+dotted lines show each part of the model on its own, and the orange line at the bottom is
+what is left over.</p>
+</section>
+<section id="conceptual-overview">
+<h2>Conceptual overview<a class="headerlink" href="#conceptual-overview" title="Link to this heading">¶</a></h2>
+<p>evoparam sees every curve as the sum of three parts.</p>
+<p><strong>The background.</strong> A slow change that is not a bump. Here it is the jump right after the
+pulse that slowly fades away: the recording equipment recovering from the pulse. If it
+were not removed, it would look like an extra bump or change the size of the real ones.</p>
+<p><strong>The bumps.</strong> Each bump has a simple shape (a bell curve) and is described by its
+latency, amplitude and width. These numbers are usually what we want to measure.</p>
+<p><strong>The noise.</strong> Whatever is left: small random wiggles. evoparam measures how big they are
+from the part of the curve before the stimulus, where there is nothing but noise.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>evoparam decides on its own how many bumps there are. It adds them one at a time and
+keeps a new bump only if it explains the curve clearly better than without it. This is
+why it does not invent a bump in every small wiggle of the noise.</p>
+</div>
+</section>
+<section id="mathematical-description">
+<h2>Mathematical description<a class="headerlink" href="#mathematical-description" title="Link to this heading">¶</a></h2>
+<p>Written as a formula, the model is</p>
+<div class="math notranslate nohighlight">
+\[y(t) = b(t) + \sum_{k=1}^{K} A_k \, s_k(t) + \varepsilon(t)\]</div>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(y(t)\)</span> is the curve, the voltage at time <span class="math notranslate nohighlight">\(t\)</span>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(b(t)\)</span> is the background.</p></li>
+<li><p><span class="math notranslate nohighlight">\(s_k(t)\)</span> is the shape of bump number <span class="math notranslate nohighlight">\(k\)</span>: a bell curve with a height of 1,
+centred on its latency and as wide as its width.</p></li>
+<li><p><span class="math notranslate nohighlight">\(A_k\)</span> is the amplitude of bump <span class="math notranslate nohighlight">\(k\)</span>, which scales its shape to its real
+height.</p></li>
+<li><p><span class="math notranslate nohighlight">\(K\)</span> is the number of bumps, and <span class="math notranslate nohighlight">\(\sum\)</span> means “add them all up”.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\varepsilon(t)\)</span> is the noise.</p></li>
+</ul>
+<p>Fitting the model means finding the numbers that make the sum of the parts as close as
+possible to the curve.</p>
+</section>
+<section id="trying-another-curve">
+<h2>Trying another curve<a class="headerlink" href="#trying-another-curve" title="Link to this heading">¶</a></h2>
+<p>The same lines work on any curve. This one has an earlier, smaller first bump, a later
+second bump and a stronger background.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Two other bumps, and a background given as [height (µV), how fast it fades (ms)]</span><span class="w">
+</span><span class="n">bumps</span> <span class="o">=</span> <span class="p">[</span><span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">8</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="o">-</span><span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">]</span><span class="p">]</span><span class="w">
+</span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="n">bumps</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="p">[</span><span class="mi">80</span><span class="p">,</span> <span class="mi">40</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="p">(</span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_01_model_description_003.png" srcset="../_images/sphx_glr_plot_01_model_description_003.png" alt="ok: 2 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>==================================================================
+                    evoparam - RESPONSE MODEL
+
+                     fit window: 9 to 500 ms
+          background: exponential, time constant 40.0 ms
+
+                      2 component(s) found:
+            label        latency     amplitude     width
+            N1           20.0 ms     -92.2 µV     8.3 ms
+            N2          201.3 ms     -59.0 µV    98.8 ms
+
+           fit quality: R2 = 0.92, noise level = 7.1 µV
+  (latency: time of the peak; width: full width at half maximum)
+==================================================================
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Try it yourself: change the numbers given to <code class="docutils literal notranslate"><span class="pre">gen_response</span></code> (move a bump, make it
+smaller, add more noise with <code class="docutils literal notranslate"><span class="pre">noise=20</span></code>) and run <code class="docutils literal notranslate"><span class="pre">report</span></code> again. When the bumps get
+small compared to the noise, evoparam starts to miss them, as anyone would.</p>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>evoparam describes a curve as a background, a few bumps and some noise, and gives the
+timing, height and width of each bump. In the next tutorials, we look at the settings of
+the model and use it on real recordings.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.868 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-01-model-description-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/fc75f50fc2efd4dd4ab0291b9e2d23f9/plot_01_model_description.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_01_model_description.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/fffbd92de9532af77bdd8868014d8ce7/plot_01_model_description.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_01_model_description.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/ac770252abd286b3d337a62d7f0138ac/plot_01_model_description.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_01_model_description.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.1.1.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
