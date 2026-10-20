@@ -11,8 +11,10 @@ Install
 
 .. code-block:: bash
 
-   git clone https://github.com/yannbellec/evoparam
-   pip install -e evoparam
+   pip install "evoparam[plot] @ git+https://github.com/yannbellec/evoparam"
+
+In a notebook (Jupyter, Colab), run the same line in a cell with ``!`` in front, then
+restart the session.
 
 Get started
 -----------
