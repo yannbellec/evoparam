@@ -116,3 +116,25 @@ def test_plot_response_and_root_names() -> None:
     with pytest.raises(SettingsError):
         evoparam.plot_response(times, signal[:-1])
     assert evoparam.plot_fit is evoparam.plots.plot_fit
+
+
+def test_fit_response_with_preset_defaults_matches_report() -> None:
+    import evoparam
+
+    times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
+    fit = evoparam.fit_response(times, signal, preset="ccep", random_state=0)
+    same = report(times, signal, plot=False)
+    assert fit.units == "uV"
+    assert [c.label for c in fit.components] == [c.label for c in same.components]
+    assert fit.components[0].latency == pytest.approx(same.components[0].latency, abs=1e-6)
+
+
+def test_plot_response_color() -> None:
+    pytest.importorskip("matplotlib")
+    import evoparam
+
+    times, signal = gen_response([[25, -150, 10]], seed=0)
+    line = evoparam.plot_response(times, signal).axes[0].lines[0]
+    assert line.get_color() in ("#000000", "black")
+    line = evoparam.plot_response(times, signal, color="red").axes[0].lines[0]
+    assert line.get_color() == "red"

@@ -1366,12 +1366,37 @@ class ResponseModel(BaseEstimatorMixin):
 ## Functions
 
 
-def fit_response(
-    times: Any, y: Any, *, window: Any, baseline: Any, preset: Any = None, **overrides: Any
+def fit_response(  # noqa: PLR0913  (spec §5.5.8 signature, plus units; DECISIONS.md §8)
+    times: Any,
+    y: Any,
+    *,
+    window: Any = None,
+    baseline: Any = None,
+    preset: Any = None,
+    units: str | None = "uV",
+    **overrides: Any,
 ) -> Any:
-    """Fit one waveform with a preset and overrides; returns a :class:`ResponseFit`."""
-    model = ResponseModel(preset, fit_window=window, baseline=baseline, **overrides)
-    return model.fit_waveform(times, y)
+    """Fit one waveform with a preset and overrides; returns a :class:`ResponseFit`.
+
+    ``window`` and ``baseline`` (seconds) default to the preset's, so that
+    ``fit_response(times, signal, preset="ccep")`` is enough; ``units`` names the unit of
+    ``y`` (microvolts by default), shown with the amplitudes.
+
+    Examples
+    --------
+    >>> from evoparam.sim import gen_response
+    >>> times, signal = gen_response([[25, -150, 10]], seed=0)
+    >>> fit_response(times, signal, preset="ccep", random_state=0).components[0].label
+    'N1'
+    """
+    if window is not None:
+        overrides["fit_window"] = window
+    if baseline is not None:
+        overrides["baseline"] = baseline
+    fit = ResponseModel(preset, **overrides).fit_waveform(times, y)
+    if units is not None:
+        fit.units = units
+    return fit
 
 
 def _from_mne(data: Any) -> Any:
