@@ -1,7 +1,7 @@
 evoparam
 ========
 
-*Parameterizing evoked neural responses.*
+*evoparam: evoked response parameterization.*
 
 evoparam describes an evoked response as a few bumps on a slow background, and gives the
 timing, height and width of each bump.
