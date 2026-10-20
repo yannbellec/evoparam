@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### N1 case: the ccep N1 read on the fitted curve, ccep 1.2 (REQ-113, REQ-114; DECISIONS §5.12)
+
+- New `evoparam.models.curve_detection(fit, window, polarity, k)`: a peak of the fitted
+  curve (`fitted_peak`) deeper than `k` times the fit's noise SD.
+- `ccep` 1.2: new preset field `detections`; the N1 is `curve_detection` on 9-50 ms with
+  k = 3.4, instead of the presence of a negative component there. Fits, components and
+  labels are unchanged; the methods text states the decision (frozen text regenerated).
+- Measured once on the test runs: REQ-113 (registry row, the rule's N1 detections) pooled
+  kappa 0.46 to 0.71, two REQ-371 runs of six at 0.8 or more (none before); still not met.
+  REQ-114 (fourth reading) 90.2 % to 88.1 %, now not met.
+
 ### N1 case: the preset fitted on its trials, REQ-113 in one reference (REQ-113, REQ-114, REQ-135, REQ-273; DECISIONS §5.11)
 
 No change to the engine, the `ccep` preset (still 1.1), `ALGORITHM_VERSIONS` or the

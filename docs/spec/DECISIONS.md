@@ -1552,6 +1552,42 @@ within +/-10 ms of the fractional-area latency of the same average".
   correction family stays the open point (§5.8).
 
 
+### 5.12 REQ-113: the ccep N1 read on the fitted curve (ccep 1.2, §5.5.10, §6)
+
+- Until ccep 1.1 the preset's N1 was the presence of a negative component with latency in
+  9-50 ms (REQ-113's parenthesis). On six development runs (UMCU07, 10, 19, 28, 40, 49;
+  registry row, the rule's N1 detections) the disagreements with the rule were of two
+  kinds: a negative component that only notched a positive wave (the fitted curve never
+  went below zero in 9-50 ms, so there was no N1 to see), and large N1s (to -1000 uV)
+  that the fitted curve followed but that the fit carried with the exponential background
+  and a component outside 9-50 ms.
+- ccep 1.2 reads the N1 on the fitted curve (background and components):
+  `evoparam.models.curve_detection`, the trough of `fitted_peak` in 9-50 ms, deeper than
+  3.4 times the noise SD the fit estimated (`diagnostics["sigma"]`). 3.4 is the published
+  rule's factor, taken as it is, not tuned; the SD is the fit's own, not the rule's
+  baseline SD. The fit, its components and labels are unchanged; the decision is the
+  preset's `detections["N1"]` and is written in the methods text.
+- A better-than-the-letter divergence (§3): the curve is the sum of the components, and
+  the decision is stricter than "a negative component" where a component makes no trough,
+  looser where the trough is carried by the background. Measured, not tuned on the test
+  runs:
+  - development runs: pooled kappa 0.50 to 0.87 (per run 0.67 to 0.96, 0.41 to 0.85,
+    0.32 to 1.00, 0.55 to 0.76, 0.47 to 0.55, 0.21 to 0.88);
+  - test runs, once (2026-10-20): 46 PT contacts of the example -0.04 to 0.66 (0 missed);
+    REQ-371 runs 0.54, 0.63, 0.24, 0.86, 0.82, 0.71 (were 0.39, 0.54, 0.10, 0.43, 0.38,
+    0.47), pooled 0.46 to 0.71; with the code's reading pooled 0.31 to 0.50. REQ-113
+    stays not met: two runs of six reach 0.8, five are asked.
+- Cost, recorded: REQ-114 with the rule's N1 detections, fourth reading, goes from 90.2 %
+  (46 of 51) to 88.1 % (52 of 59), and with the code from 92.0 % to 89.7 % (26 of 29):
+  the new channels on which both find an N1 add 2 latencies off by more than 2 ms, and
+  REQ-114 is now not met under any reading. The trade is kept because REQ-113 moves much
+  further (pooled 0.46 to 0.71) than REQ-114 falls (one to two channels under 90 %).
+- What is left (development and test runs): the N1s still missed are small sharp troughs
+  (-13 to -59 uV, up to 6 baseline SDs) that the fit smooths over. Their fits have a noise
+  model with lag-one autocorrelation near 0.998 and fewer than one effective sample in the
+  baseline, so the BIC does not accept a component there. That noise model is the next
+  thing to examine.
+
 ## 6. Readings of build step S20 (§7.4, §9, §11.8, §13.7)
 
 Each point below is a reading needed to apply a requirement of S20 literally, or a place

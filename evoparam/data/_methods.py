@@ -442,7 +442,7 @@ def _fit(settings: Any) -> str:
                 )
             labels.append(f"{label} ({_window(value[:2])}, {sign})")
         text += f" Components were labelled by latency window: {_join(labels)}."
-    text += _detections(settings.get("preset"))
+    text += _detections(settings.get("detections"))
     if settings.get("classical"):
         text += (
             " Classical measures (peak, mean amplitude, area and fractional-area "
@@ -891,23 +891,13 @@ def _seed(provenance: object, settings: Any | None, steps: Sequence[dict[str, An
     return getattr(provenance, "random_state", None)
 
 
-def _detections(preset: Any) -> str:
+def _detections(rules: Any) -> str:
     """Return the sentence on the preset's peak decisions read on the fitted curve."""
-    if isinstance(preset, dict):
-        preset = preset.get("name")
-    if not preset:
-        return ""
-    from evoparam import presets as _presets
-
-    try:
-        rules = _presets.get(preset).detections
-    except Exception:  # noqa: BLE001  (a preset built elsewhere: no sentence)
-        return ""
     parts = [
         f"{name} when the fitted curve (background and components) had a {rule['polarity']} "
         f"peak in {_window(rule['window'])} deeper than {_num(rule['k'])} times the noise "
         f"standard deviation estimated by the fit"
-        for name, rule in rules.items()
+        for name, rule in (rules or {}).items()
     ]
     return f" A response was said to have an {_join(parts)}." if parts else ""
 
