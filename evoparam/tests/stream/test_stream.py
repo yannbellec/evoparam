@@ -160,12 +160,13 @@ def test_req347_agreement_two_components(two_components: Any) -> None:
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "REQ-347 with a two-component template and the single shift and scale of spec §10.6 "
-        "(mode='common'): fit_trials(mode='shift_scale') gives each component its own shift and "
-        "scale. Measured on 200 pulses (N1 -40 uV at 30 ms, N2 +30 uV at 120 ms, jitter SD "
-        "1.5 ms, amplitude CV 20 %): 1.5 % (common jitter) and 0.5 % (independent jitter) of the "
-        "pulses within 1 % and one sample on both components; largest differences 92 % and "
-        "8.8 samples (common), 117 % and 12.7 samples (independent)."
+        "REQ-347 with a two-component template and the single shift and scale of the method "
+        "text of spec §10.6 (mode='common', an option; the default mode meets REQ-347, "
+        "DECISIONS.md §5.10): fit_trials(mode='shift_scale') gives each component its own "
+        "shift and scale. Measured on 200 pulses (N1 -40 uV at 30 ms, N2 +30 uV at 120 ms, "
+        "jitter SD 1.5 ms, amplitude CV 20 %): 1.5 % (common jitter) and 0.5 % (independent "
+        "jitter) of the pulses within 1 % and one sample on both components; largest "
+        "differences 92 % and 8.8 samples (common), 117 % and 12.7 samples (independent)."
     ),
 )
 def test_req347_agreement_two_components_common_mode(two_components: Any) -> None:
@@ -190,16 +191,14 @@ def test_modes_agree_for_a_single_component(pulses: Any) -> None:
     assert runs[0] == runs[1] == runs[2]
 
 
-def test_req347_chunk_sizes_give_identical_estimates(pulses: Any) -> None:
-
-    ts, group, _ = pulses
+def _assert_chunk_sizes_identical(ts: Any, group: Any, n_estimates: int) -> None:
     runs = []
     for chunk in (1, 32, 1024):
         fitter = _fitter(group, ts, existence_max_pulses=ts.n_trials, random_state=0)
         runs.append(
             [tuple(getattr(e, f) for f in FIELDS) for e in replay(ts, fitter, chunk_size=chunk)]
         )
-    assert len(runs[0]) == ts.n_trials * 2
+    assert len(runs[0]) == n_estimates
     for other in runs[1:]:
         # bit for bit (NaN compared as equal: the first pulse has no baseline yet)
         assert len(other) == len(runs[0])
@@ -208,6 +207,22 @@ def test_req347_chunk_sizes_give_identical_estimates(pulses: Any) -> None:
                 x == y or (isinstance(x, float) and math.isnan(x) and math.isnan(y))
                 for x, y in zip(a, b, strict=False)
             )
+
+
+def test_req347_chunk_sizes_give_identical_estimates(pulses: Any) -> None:
+
+    ts, group, _ = pulses
+    _assert_chunk_sizes_identical(ts, group, ts.n_trials * 2)
+
+
+def test_req347_chunk_sizes_give_identical_estimates_two_components(
+    two_components: Any,
+) -> None:
+    """The same with the two-component template, in the default mode (a shift and a scale
+    per component)."""
+
+    ts, group, _ = two_components
+    _assert_chunk_sizes_identical(ts, group, ts.n_trials * N_COMPONENTS)
 
 
 def test_req347_running_existence_matches_offline_sign_flip(mixed: Any) -> None:

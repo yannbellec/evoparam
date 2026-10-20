@@ -215,6 +215,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    classical_measures
    compare_models
    ComponentWindows
+   curve_detection
    evaluate_fit
    fit
    FIT_PRESETS

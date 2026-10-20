@@ -358,6 +358,8 @@ def _skew_root_scalar(a: float) -> float:
 
 _MODE_CACHE: dict[tuple[Any, ...], FloatArray] = {}
 _MODE_CACHE_SIZE = 256
+# complete results for one signed skewness (z*, c, dc/dalpha), the usual case inside a fit
+_MODE_SCALARS: dict[bytes, tuple[Any, Any, Any]] = {}
 
 
 def skew_mode(alpha: ArrayLike) -> tuple[FloatArray, FloatArray, FloatArray]:
@@ -375,18 +377,26 @@ def skew_mode(alpha: ArrayLike) -> tuple[FloatArray, FloatArray, FloatArray]:
         # give the same values as on one-element arrays without their overhead
         shape = alpha.shape
         value = alpha.reshape(-1)[0]
-        a = abs(value)
-        key = ((1,), np.array([a]).tobytes())
-        z = _MODE_CACHE.get(key)
-        if z is None:
-            z = _skew_root(np.array([a]))
-            if len(_MODE_CACHE) >= _MODE_CACHE_SIZE:
-                _MODE_CACHE.clear()
-            _MODE_CACHE[key] = z
-        z = z[0]
-        c = np.exp(-0.5 * (z * z)) * erfc(-a * z / _SQRT2)
-        z_signed = np.sign(value) * z
-        dc = _SQRT_2_OVER_PI * z_signed * np.exp(-0.5 * (z * z) * (1.0 + value * value))
+        signed_key = value.tobytes()
+        scalars = _MODE_SCALARS.get(signed_key)
+        if scalars is None:
+            a = abs(value)
+            key = ((1,), np.array([a]).tobytes())
+            z = _MODE_CACHE.get(key)
+            if z is None:
+                z = _skew_root(np.array([a]))
+                if len(_MODE_CACHE) >= _MODE_CACHE_SIZE:
+                    _MODE_CACHE.clear()
+                _MODE_CACHE[key] = z
+            z = z[0]
+            c = np.exp(-0.5 * (z * z)) * erfc(-a * z / _SQRT2)
+            z_signed = np.sign(value) * z
+            dc = _SQRT_2_OVER_PI * z_signed * np.exp(-0.5 * (z * z) * (1.0 + value * value))
+            scalars = (z_signed, c, dc)
+            if len(_MODE_SCALARS) >= _MODE_CACHE_SIZE:
+                _MODE_SCALARS.clear()
+            _MODE_SCALARS[signed_key] = scalars
+        z_signed, c, dc = scalars
         return (np.full(shape, z_signed), np.full(shape, c), np.full(shape, dc))
     a = np.abs(alpha)
     # The same alpha is evaluated many times during one optimisation (model, Jacobian,
