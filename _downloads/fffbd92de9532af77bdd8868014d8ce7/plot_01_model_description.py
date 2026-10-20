@@ -27,7 +27,14 @@ What evoparam does, shown on one example curve.
 ###################################################################################################
 
 # Import what we need
-from evoparam import gen_response, plot_annotated_fit, plot_response, report
+from evoparam import (
+    fit_response,
+    gen_response,
+    plot_annotated_fit,
+    plot_fit,
+    plot_response,
+    report,
+)
 
 ###################################################################################################
 # Making an example curve
@@ -58,7 +65,7 @@ times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 ###################################################################################################
 
 # Plot the curve, from 100 ms before to 500 ms after the stimulus
-fig = plot_response(times, signal, xlim=[-100, 500])
+fig = plot_response(times, signal, xlim=[-100, 500], color="black")
 
 ###################################################################################################
 #
@@ -158,20 +165,32 @@ fig = plot_annotated_fit(fit)
 #
 # The same lines work on any curve. This one has an earlier, smaller first bump, a later
 # second bump and a stronger background.
+#
+# This time we do the steps one by one: ``fit_response`` only fits the model (no figure),
+# ``print`` shows the summary and ``plot_fit`` draws the result. ``report`` is these three
+# steps in one line.
 
 ###################################################################################################
 
 # Two other bumps, and a background given as [height (µV), how fast it fades (ms)]
 bumps = [[20, -100, 8], [200, -50, 100]]
 times2, signal2 = gen_response(bumps, background=[80, 40], seed=1)
-print(report(times2, signal2, preset="ccep"))
+
+# Fit the model, without drawing
+fit2 = fit_response(times2, signal2, preset="ccep")
+
+###################################################################################################
+
+# Show the summary, then draw the fit
+print(fit2)
+fig = plot_fit(fit2)
 
 ###################################################################################################
 #
 # .. note::
 #
 #     Try it yourself: change the numbers given to ``gen_response`` (move a bump, make it
-#     smaller, add more noise with ``noise=20``) and run ``report`` again. When the bumps get
+#     smaller, add more noise with ``noise=20``) and fit it again. When the bumps get
 #     small compared to the noise, evoparam starts to miss them, as anyone would.
 
 ###################################################################################################
