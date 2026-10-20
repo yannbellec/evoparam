@@ -1651,5 +1651,5 @@ def methods_text(fit: Any) -> str:
         f"were added one at a time and kept when the {crit} decreased by at least "
         f"{_acceptance_phrase(settings)}, computed on {_noise_phrase(settings)}. Uncertainty: "
         f"{settings.get('uncertainty')} ({settings.get('ci_level', 0.95) * 100:g} % intervals)."
-        + _detections(preset)
+        + _detections(settings.get("detections"))
     )

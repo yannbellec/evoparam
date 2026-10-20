@@ -637,8 +637,13 @@ def test_req113_as_written(agreement: Any, reading: Any) -> None:
 
 N1_DETECTIONS = (
     "REQ-113 with the rule's N1 detections (its peaks in 9-50 ms, DECISIONS §5.11) is not "
-    "met (ccep v1.1, the preset fitted on its trials as its pipeline fits them, measured "
-    "once on the test runs, 2026-10-19): registry row, kappa -0.04 on the 46 PT contacts "
+    "met. With ccep 1.2 (the N1 read on the fitted curve, DECISIONS §5.12; measured once on "
+    "the test runs, 2026-10-20): registry row, kappa 0.66 on the 46 PT contacts (0 missed), "
+    "per REQ-371 run 0.54, 0.63, 0.24, 0.86, 0.82, 0.71 with 1, 12, 6, 2, 1, 3 missed, "
+    "pooled 0.71 (two runs of six reach 0.8, five are asked); code 0.66, per run 0.34, "
+    "0.23, 1.00, 0.82, 0.48, 0.54, pooled 0.50. Before, with ccep v1.1 (the preset "
+    "fitted on its trials as its pipeline fits them, measured once on the test runs, "
+    "2026-10-19): registry row, kappa -0.04 on the 46 PT contacts "
     "(1 rule N1, 6 preset N1s; 1 missed over the run's channels), per REQ-371 run 0.39, "
     "0.54, 0.10, 0.43, 0.38, 0.47 with 1, 14, 6, 3, 5, 3 missed, pooled 0.46 (32 of 80 "
     "missed); code -0.04, per run 0.24, 0.24, 0.27, 0.46, 0.22, 0.23 (0, 0, 0, 0, 3, 2 "
@@ -986,11 +991,20 @@ def test_req114_extremum_reading_in_the_rules_reference(agreement: Any) -> None:
 # (measured once on the test runs, 2026-10-19, ccep v1.1 with the preset fitted on its
 # trials; until 2026-10-18, the average fitted without its trials: registry row 49.0 %,
 # 74.5 % and 82.4 %, code 44.4 % and 88.9 %, the code's trough not met then)
+# Measured once on the test runs with ccep 1.2 (2026-10-20, the N1 read on the fitted curve,
+# DECISIONS §5.12); with 1.1 (2026-10-19) the fourth reading was met with both readings of
+# the rule (90.2 %, 46 of 51, and 92.0 %, 23 of 25) and the code's fitted trough (96.0 %).
 N1_LATENCIES_NOT_MET = {
-    ("paper", "lat"): "not met (2026-10-19): 51.0 % (26 of 51)",
-    ("code", "lat"): "not met (2026-10-19): 52.0 % (13 of 25)",
-    ("paper", "trough"): "not met (2026-10-19): 72.5 % (37 of 51)",
-    ("paper", "curve_peak_n1"): "not met (2026-10-19): 76.5 % (39 of 51)",
+    ("paper", "lat"): "not met (2026-10-20): 44.1 % (26 of 59)",
+    ("code", "lat"): "not met (2026-10-20): 44.8 % (13 of 29)",
+    ("paper", "trough"): "not met (2026-10-20): 76.3 % (45 of 59)",
+    ("code", "trough"): "not met (2026-10-20): 89.7 % (26 of 29)",
+    ("paper", "curve_peak_n1"): "not met (2026-10-20): 79.7 % (47 of 59)",
+    ("code", "curve_peak_n1"): "not met (2026-10-20): 86.2 % (25 of 29)",
+    ("paper", "curve_peak_recording_n1"): "not met (2026-10-20): 88.1 % (52 of 59); 90.2 % "
+    "(46 of 51) with ccep 1.1, whose N1 agreed less with the rule (DECISIONS §5.12)",
+    ("code", "curve_peak_recording_n1"): "not met (2026-10-20): 89.7 % (26 of 29); 92.0 % "
+    "(23 of 25) with ccep 1.1",
 }
 
 
@@ -1012,8 +1026,10 @@ def _n1_latency_params() -> Any:
 def test_req114_n1_detections(agreement: Any, reading: Any, latency: Any) -> None:
     """REQ-114 on the channels where the preset's N1 and the rule's N1 detections (DECISIONS
     §5.11) agree, over the example and the REQ-371 runs: the model latency within 2 ms of
-    the rule's peak on >= 90 %. Met with the rule's operator on the fitted curve in the
-    rule's reference (``curve_peak_recording_n1``, the fourth reading of DECISIONS §5.2):
+    the rule's peak on >= 90 %. Not met with ccep 1.2 under any reading
+    (:data:`N1_LATENCIES_NOT_MET`; 88.1 % at best). With ccep 1.1 it was met with the
+    rule's operator on the fitted curve in the rule's reference
+    (``curve_peak_recording_n1``, the fourth reading of DECISIONS §5.2):
     90.2 % (46 of 51, registry row; one channel above the threshold) and 92.0 % (23 of 25,
     code), measured once on the test runs (2026-10-19) with the preset fitted on its
     trials (94.1 % and 96.3 % until 2026-10-18, the average fitted without its trials);
