@@ -476,6 +476,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    :toctree: generated/
 
    PALETTE
+   plot_annotated_fit
    plot_artifact
    plot_compare
    plot_existence
@@ -483,6 +484,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    plot_group
    plot_hierarchical
    plot_hist
+   plot_response
    plot_scatter_1
    plot_scatter_2
    plot_shapes

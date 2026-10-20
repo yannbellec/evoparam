@@ -37,5 +37,6 @@ sphinx_gallery_conf = {
     "filename_pattern": r"/plot_",
     "ignore_pattern": r"(preset|integration|reporting)_",
     "capture_repr": ("_repr_html_", "__repr__"),
+    "ignore_repr_types": r"matplotlib\.(text|axes|figure)",
     "download_all_examples": False,
 }

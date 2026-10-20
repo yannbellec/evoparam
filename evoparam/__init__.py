@@ -46,8 +46,12 @@ if TYPE_CHECKING:  # the names imported on first use, for type checkers and IDEs
     from .existence import test_response as test_response
     from .io import read as read
     from .models import ResponseModel as ResponseModel
+    from .plots import plot_annotated_fit as plot_annotated_fit
+    from .plots import plot_fit as plot_fit
+    from .plots import plot_response as plot_response
     from .reports import report as report
     from .reports import reproduce as reproduce
+    from .sim import gen_response as gen_response
 
 # Window (s) in which selftest looks for the N1 of the bundled CCEP.
 _N1_START, _N1_END = 0.009, 0.05
@@ -80,6 +84,11 @@ _ROOT_FUNCTIONS = {
     "ResponseModel": ("models", "ResponseModel"),
     "reproduce": ("reports", "reproduce"),
     "report": ("reports", "report"),
+    # a first try in one import line (tutorial 01, DECISIONS.md §8)
+    "gen_response": ("sim", "gen_response"),
+    "plot_response": ("plots", "plot_response"),
+    "plot_fit": ("plots", "plot_fit"),
+    "plot_annotated_fit": ("plots", "plot_annotated_fit"),
 }
 
 

@@ -27,10 +27,7 @@ What evoparam does, shown on one example curve.
 ###################################################################################################
 
 # Import what we need
-import matplotlib.pyplot as plt
-
-from evoparam import report
-from evoparam.sim import gen_response
+from evoparam import gen_response, plot_annotated_fit, plot_response, report
 
 ###################################################################################################
 # Making an example curve
@@ -56,16 +53,12 @@ times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
 # ``seed=3`` fixes the random noise, so that you get the same curve each time you run this
 # page.
 #
-# Let's look at the curve. The stimulus happens at time 0.
+# Let's look at the curve. The stimulus happens at time 0 (the dashed line).
 
 ###################################################################################################
 
-# Plot the curve, with time in ms
-plt.plot(times * 1000, signal, color="black", linewidth=0.8)
-plt.xlim(-100, 500)
-plt.xlabel("Time (ms)")
-plt.ylabel("Voltage (µV)")
-plt.show()
+# Plot the curve, from 100 ms before to 500 ms after the stimulus
+fig = plot_response(times, signal, xlim=[-100, 500])
 
 ###################################################################################################
 #
@@ -98,6 +91,22 @@ print(fit)
 # In the figure, the black line is our curve and the thick blue line is the model. The
 # dotted lines show each part of the model on its own, and the orange line at the bottom is
 # what is left over.
+
+###################################################################################################
+# Reading the numbers on the curve
+# --------------------------------
+#
+# ``plot_annotated_fit`` draws each number where it is read on the curve:
+#
+# - the **dot** is the peak of the bump;
+# - the **arrow** goes from the background to the peak: its length is the amplitude;
+# - the **dotted line** down to the time axis gives the latency;
+# - the **bar** across the bump, at half its height, is the width.
+
+###################################################################################################
+
+# Draw the model with its numbers
+fig = plot_annotated_fit(fit)
 
 ###################################################################################################
 # Conceptual overview

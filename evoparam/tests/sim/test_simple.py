@@ -83,3 +83,36 @@ def test_report_draws_the_fit() -> None:
 def test_report_refuses_mismatched_arrays() -> None:
     with pytest.raises(SettingsError):
         report(np.arange(3), np.arange(4))
+
+
+def test_plot_annotated_fit_labels_each_component() -> None:
+    pytest.importorskip("matplotlib")
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from evoparam.plots import plot_annotated_fit
+
+    times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
+    fit = report(times, signal, plot=False)
+    fig = plot_annotated_fit(fit)
+    texts = [t.get_text() for t in fig.axes[0].texts]
+    for comp in fit.components:
+        assert any(text.startswith(comp.label) and "latency" in text for text in texts)
+    assert any(text.startswith("background") for text in texts)
+    plt.close("all")
+
+
+def test_plot_response_and_root_names() -> None:
+    pytest.importorskip("matplotlib")
+    import evoparam
+
+    times, signal = evoparam.gen_response([[25, -150, 10]], seed=0)
+    fig = evoparam.plot_response(times, [signal, -signal], labels=["a", "b"], xlim=[-100, 500])
+    ax = fig.axes[0]
+    assert ax.get_xlim() == (-100.0, 500.0)
+    assert [t.get_text() for t in ax.get_legend().get_texts()] == ["a", "b"]
+    with pytest.raises(SettingsError):
+        evoparam.plot_response(times, signal[:-1])
+    assert evoparam.plot_fit is evoparam.plots.plot_fit
