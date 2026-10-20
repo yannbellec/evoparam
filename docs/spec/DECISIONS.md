@@ -1778,3 +1778,14 @@ see the result. Three additions do it without changing the engine or any default
   summary from `report`; here nothing prints, because REQ-304 allows `print` only in the
   command line: the summary appears when the fit is the last expression of a notebook cell,
   or with `print(fit)`.
+- `plots.plot_response(times, signals, xlim=...)` draws raw curves (time in ms, stimulus
+  line at 0), the counterpart of the ancestor's spectrum plot, and
+  `plots.plot_annotated_fit(fit)` draws each number of the fit where it is read on the curve,
+  the counterpart of its annotated model plot.
+- The names a first try needs (`gen_response`, `report`, `plot_response`, `plot_fit`,
+  `plot_annotated_fit`, `ResponseModel`) are served from the package root, so the tutorial
+  imports them in one line. matplotlib stays optional and is imported only inside a plot
+  call (`utils._optional.require`, extra `plot`), as the ancestor tool does; `import
+  evoparam` does not load it. Because §5.13 has every plot function return its `Figure`, the
+  tutorial assigns it (`fig = plot_response(...)`): a returned figure left as the last
+  expression of a notebook cell is shown twice.

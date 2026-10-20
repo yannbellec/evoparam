@@ -9,12 +9,14 @@ and Ito). The functions draw what the results hold; they compute no new scientif
 
 from ._plots import (
     PALETTE,
+    plot_annotated_fit,
     plot_artifact,
     plot_compare,
     plot_existence,
     plot_fit,
     plot_group,
     plot_hierarchical,
+    plot_response,
     plot_shapes,
     plot_tf,
     plot_trials,
@@ -29,7 +31,9 @@ from ._signals import (
 )
 
 __all__ = [
+    "plot_response",
     "plot_fit",
+    "plot_annotated_fit",
     "plot_group",
     "plot_trials",
     "plot_existence",
