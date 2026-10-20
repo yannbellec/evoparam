@@ -102,7 +102,14 @@ each bump happens, how high it is, and how wide it is.</p>
 <p>In this first tutorial, we make an example curve, let evoparam describe it, and look at
 what the description means.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
-</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">gen_response</span><span class="p">,</span> <span class="n">plot_annotated_fit</span><span class="p">,</span> <span class="n">plot_response</span><span class="p">,</span> <span class="n">report</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="w">
+</span>    <span class="n">fit_response</span><span class="p">,</span><span class="w">
+</span>    <span class="n">gen_response</span><span class="p">,</span><span class="w">
+</span>    <span class="n">plot_annotated_fit</span><span class="p">,</span><span class="w">
+</span>    <span class="n">plot_fit</span><span class="p">,</span><span class="w">
+</span>    <span class="n">plot_response</span><span class="p">,</span><span class="w">
+</span>    <span class="n">report</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 </section>
 <section id="making-an-example-curve">
@@ -123,7 +130,7 @@ what the description means.</p>
 page.</p>
 <p>Let’s look at the curve. The stimulus happens at time 0 (the dashed line).</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Plot the curve, from 100 ms before to 500 ms after the stimulus</span><span class="w">
-</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">500</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">500</span><span class="p">]</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">black</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <img src="../_images/sphx_glr_plot_01_model_description_001.png" srcset="../_images/sphx_glr_plot_01_model_description_001.png" alt="plot 01 model description" class = "sphx-glr-single-img"/><p>Before 0, the curve only wiggles: that is noise. Just after 0 it jumps up and slowly comes
 back, then the two bumps go down, one sharp and one broad.</p>
@@ -214,10 +221,19 @@ possible to the curve.</p>
 <h2>Trying another curve<a class="headerlink" href="#trying-another-curve" title="Link to this heading">¶</a></h2>
 <p>The same lines work on any curve. This one has an earlier, smaller first bump, a later
 second bump and a stronger background.</p>
+<p>This time we do the steps one by one: <code class="docutils literal notranslate"><span class="pre">fit_response</span></code> only fits the model (no figure),
+<code class="docutils literal notranslate"><span class="pre">print</span></code> shows the summary and <code class="docutils literal notranslate"><span class="pre">plot_fit</span></code> draws the result. <code class="docutils literal notranslate"><span class="pre">report</span></code> is these three
+steps in one line.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Two other bumps, and a background given as [height (µV), how fast it fades (ms)]</span><span class="w">
 </span><span class="n">bumps</span> <span class="o">=</span> <span class="p">[</span><span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">8</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="o">-</span><span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">]</span><span class="p">]</span><span class="w">
 </span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="n">bumps</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="p">[</span><span class="mi">80</span><span class="p">,</span> <span class="mi">40</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="w">
-</span><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="p">(</span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># Fit the model, without drawing</span><span class="w">
+</span><span class="n">fit2</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times2</span><span class="p">,</span> <span class="n">signal2</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Show the summary, then draw the fit</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">fit2</span><span class="p">)</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_fit</span><span class="p">(</span><span class="n">fit2</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <img src="../_images/sphx_glr_plot_01_model_description_004.png" srcset="../_images/sphx_glr_plot_01_model_description_004.png" alt="ok: 2 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>==================================================================
                     evoparam - RESPONSE MODEL
@@ -238,7 +254,7 @@ second bump and a stronger background.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Try it yourself: change the numbers given to <code class="docutils literal notranslate"><span class="pre">gen_response</span></code> (move a bump, make it
-smaller, add more noise with <code class="docutils literal notranslate"><span class="pre">noise=20</span></code>) and run <code class="docutils literal notranslate"><span class="pre">report</span></code> again. When the bumps get
+smaller, add more noise with <code class="docutils literal notranslate"><span class="pre">noise=20</span></code>) and fit it again. When the bumps get
 small compared to the noise, evoparam starts to miss them, as anyone would.</p>
 </div>
 </section>
@@ -247,7 +263,7 @@ small compared to the noise, evoparam starts to miss them, as anyone would.</p>
 <p>evoparam describes a curve as a background, a few bumps and some noise, and gives the
 timing, height and width of each bump. In the next tutorials, we look at the settings of
 the model and use it on real recordings.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.811 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 2.026 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-01-model-description-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/fc75f50fc2efd4dd4ab0291b9e2d23f9/plot_01_model_description.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_01_model_description.ipynb</span></code></a></p>
