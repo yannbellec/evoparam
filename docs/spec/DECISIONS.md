@@ -1781,8 +1781,13 @@ see the result. Three additions do it without changing the engine or any default
 - `plots.plot_response(times, signals, xlim=...)` draws raw curves (time in ms, stimulus
   line at 0), the counterpart of the ancestor's spectrum plot, and
   `plots.plot_annotated_fit(fit)` draws each number of the fit where it is read on the curve,
-  the counterpart of its annotated model plot.
-- The names a first try needs (`gen_response`, `report`, `plot_response`, `plot_fit`,
+  the counterpart of its annotated model plot. `plot_response` takes `color` (black for one
+  curve by default).
+- `models.fit_response(times, y, preset=...)`, the fit step alone (the ancestor's
+  `model.fit`), keeps the §5.5.8 signature but `window` and `baseline` now default to the
+  preset's, and a `units` argument (µV by default) names the unit of `y`. Calls that give
+  them are unchanged. `report` is `fit_response` + summary + `plot_fit` in one line.
+- The names a first try needs (`gen_response`, `fit_response`, `report`, `plot_response`, `plot_fit`,
   `plot_annotated_fit`, `ResponseModel`) are served from the package root, so the tutorial
   imports them in one line. matplotlib stays optional and is imported only inside a plot
   call (`utils._optional.require`, extra `plot`), as the ancestor tool does; `import

@@ -46,6 +46,7 @@ if TYPE_CHECKING:  # the names imported on first use, for type checkers and IDEs
     from .existence import test_response as test_response
     from .io import read as read
     from .models import ResponseModel as ResponseModel
+    from .models import fit_response as fit_response
     from .plots import plot_annotated_fit as plot_annotated_fit
     from .plots import plot_fit as plot_fit
     from .plots import plot_response as plot_response
@@ -86,6 +87,7 @@ _ROOT_FUNCTIONS = {
     "report": ("reports", "report"),
     # a first try in one import line (tutorial 01, DECISIONS.md §8)
     "gen_response": ("sim", "gen_response"),
+    "fit_response": ("models", "fit_response"),
     "plot_response": ("plots", "plot_response"),
     "plot_fit": ("plots", "plot_fit"),
     "plot_annotated_fit": ("plots", "plot_annotated_fit"),

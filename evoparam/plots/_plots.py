@@ -71,6 +71,7 @@ def plot_response(
     times: Any,
     signals: Any,
     *,
+    color: str | list[str] | None = None,
     labels: str | list[str] | None = None,
     xlim: Any = None,
     units: str = "µV",
@@ -86,6 +87,8 @@ def plot_response(
         Times in seconds, shared by every curve (as given by :func:`evoparam.sim.gen_response`).
     signals : 1-D array, 2-D array or list of 1-D arrays
         One curve, or one curve per row.
+    color : str or list of str, optional
+        Colour of the curves; default black for one curve, the palette for several.
     labels : str or list of str, optional
         Legend label of each curve.
     xlim : (float, float), optional
@@ -104,7 +107,10 @@ def plot_response(
     if any(np.shape(row) != times.shape for row in rows):
         raise SettingsError("every curve must have one value per time.")
     fig, ax = _figure_ax(ax)
-    colors = [DATA_COLOR] if len(rows) == 1 else PALETTE
+    if color is None:
+        colors = [DATA_COLOR] if len(rows) == 1 else list(PALETTE)
+    else:
+        colors = [color] if isinstance(color, str) else list(color)
     for k, row in enumerate(rows):
         label = names[k] if k < len(names) else None
         ax.plot(times * 1e3, row, color=colors[k % len(colors)], lw=0.9, label=label)
