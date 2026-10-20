@@ -42,16 +42,13 @@ each bump happens, how high it is, and how wide it is.
 In this first tutorial, we make an example curve, let evoparam describe it, and look at
 what the description means.
 
-.. GENERATED FROM PYTHON SOURCE LINES 28-35
+.. GENERATED FROM PYTHON SOURCE LINES 28-32
 
 .. code-block:: Python
 
 
     # Import what we need
-    import matplotlib.pyplot as plt
-
-    from evoparam import report
-    from evoparam.sim import gen_response
+    from evoparam import gen_response, plot_annotated_fit, plot_response, report
 
 
 
@@ -60,7 +57,7 @@ what the description means.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 36-48
+.. GENERATED FROM PYTHON SOURCE LINES 33-45
 
 Making an example curve
 -----------------------
@@ -75,7 +72,7 @@ To learn, it helps to start from a curve whose answer we already know.
 Here we ask for two bumps that both go down: a sharp one at 25 ms and a broad one at
 150 ms.
 
-.. GENERATED FROM PYTHON SOURCE LINES 50-54
+.. GENERATED FROM PYTHON SOURCE LINES 47-51
 
 .. code-block:: Python
 
@@ -90,24 +87,20 @@ Here we ask for two bumps that both go down: a sharp one at 25 ms and a broad on
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 55-59
+.. GENERATED FROM PYTHON SOURCE LINES 52-56
 
 ``seed=3`` fixes the random noise, so that you get the same curve each time you run this
 page.
 
-Let's look at the curve. The stimulus happens at time 0.
+Let's look at the curve. The stimulus happens at time 0 (the dashed line).
 
-.. GENERATED FROM PYTHON SOURCE LINES 62-70
+.. GENERATED FROM PYTHON SOURCE LINES 59-63
 
 .. code-block:: Python
 
 
-    # Plot the curve, with time in ms
-    plt.plot(times * 1000, signal, color="black", linewidth=0.8)
-    plt.xlim(-100, 500)
-    plt.xlabel("Time (ms)")
-    plt.ylabel("Voltage (µV)")
-    plt.show()
+    # Plot the curve, from 100 ms before to 500 ms after the stimulus
+    fig = plot_response(times, signal, xlim=[-100, 500])
 
 
 
@@ -121,12 +114,12 @@ Let's look at the curve. The stimulus happens at time 0.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 71-73
+.. GENERATED FROM PYTHON SOURCE LINES 64-66
 
 Before 0, the curve only wiggles: that is noise. Just after 0 it jumps up and slowly comes
 back, then the two bumps go down, one sharp and one broad.
 
-.. GENERATED FROM PYTHON SOURCE LINES 76-84
+.. GENERATED FROM PYTHON SOURCE LINES 69-77
 
 Describing the curve
 --------------------
@@ -137,7 +130,7 @@ model, shows a summary and draws a figure.
 ``"ccep"`` is a **preset**: a ready-made set of settings, here the one for responses to
 electrical pulses.
 
-.. GENERATED FROM PYTHON SOURCE LINES 86-93
+.. GENERATED FROM PYTHON SOURCE LINES 79-86
 
 .. code-block:: Python
 
@@ -179,7 +172,7 @@ electrical pulses.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 94-100
+.. GENERATED FROM PYTHON SOURCE LINES 87-93
 
 evoparam found the two bumps we put in, with the right timing, height and width. It
 named them **N1** and **N2**: N for a bump that goes down, then a number in order of time.
@@ -188,7 +181,39 @@ In the figure, the black line is our curve and the thick blue line is the model.
 dotted lines show each part of the model on its own, and the orange line at the bottom is
 what is left over.
 
-.. GENERATED FROM PYTHON SOURCE LINES 103-123
+.. GENERATED FROM PYTHON SOURCE LINES 96-105
+
+Reading the numbers on the curve
+--------------------------------
+
+``plot_annotated_fit`` draws each number where it is read on the curve:
+
+- the **dot** is the peak of the bump;
+- the **arrow** goes from the background to the peak: its length is the amplitude;
+- the **dotted line** down to the time axis gives the latency;
+- the **bar** across the bump, at half its height, is the width.
+
+.. GENERATED FROM PYTHON SOURCE LINES 107-111
+
+.. code-block:: Python
+
+
+    # Draw the model with its numbers
+    fig = plot_annotated_fit(fit)
+
+
+
+
+.. image-sg:: /auto_tutorials/images/sphx_glr_plot_01_model_description_003.png
+   :alt: plot 01 model description
+   :srcset: /auto_tutorials/images/sphx_glr_plot_01_model_description_003.png
+   :class: sphx-glr-single-img
+
+
+
+
+
+.. GENERATED FROM PYTHON SOURCE LINES 112-132
 
 Conceptual overview
 -------------------
@@ -211,7 +236,7 @@ from the part of the curve before the stimulus, where there is nothing but noise
     keeps a new bump only if it explains the curve clearly better than without it. This is
     why it does not invent a bump in every small wiggle of the noise.
 
-.. GENERATED FROM PYTHON SOURCE LINES 125-145
+.. GENERATED FROM PYTHON SOURCE LINES 134-154
 
 Mathematical description
 ------------------------
@@ -234,7 +259,7 @@ Written as a formula, the model is
 Fitting the model means finding the numbers that make the sum of the parts as close as
 possible to the curve.
 
-.. GENERATED FROM PYTHON SOURCE LINES 147-152
+.. GENERATED FROM PYTHON SOURCE LINES 156-161
 
 Trying another curve
 --------------------
@@ -242,7 +267,7 @@ Trying another curve
 The same lines work on any curve. This one has an earlier, smaller first bump, a later
 second bump and a stronger background.
 
-.. GENERATED FROM PYTHON SOURCE LINES 154-160
+.. GENERATED FROM PYTHON SOURCE LINES 163-169
 
 .. code-block:: Python
 
@@ -255,9 +280,9 @@ second bump and a stronger background.
 
 
 
-.. image-sg:: /auto_tutorials/images/sphx_glr_plot_01_model_description_003.png
+.. image-sg:: /auto_tutorials/images/sphx_glr_plot_01_model_description_004.png
    :alt: ok: 2 component(s)
-   :srcset: /auto_tutorials/images/sphx_glr_plot_01_model_description_003.png
+   :srcset: /auto_tutorials/images/sphx_glr_plot_01_model_description_004.png
    :class: sphx-glr-single-img
 
 
@@ -283,7 +308,7 @@ second bump and a stronger background.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 161-166
+.. GENERATED FROM PYTHON SOURCE LINES 170-175
 
 .. note::
 
@@ -291,7 +316,7 @@ second bump and a stronger background.
     smaller, add more noise with ``noise=20``) and run ``report`` again. When the bumps get
     small compared to the noise, evoparam starts to miss them, as anyone would.
 
-.. GENERATED FROM PYTHON SOURCE LINES 169-175
+.. GENERATED FROM PYTHON SOURCE LINES 178-184
 
 Conclusion
 ----------
@@ -303,7 +328,7 @@ the model and use it on real recordings.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 1.788 seconds)
+   **Total running time of the script:** (0 minutes 1.811 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_01_model_description.py:
