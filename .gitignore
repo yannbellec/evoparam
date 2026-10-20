@@ -61,3 +61,5 @@ docs/auto_tutorials/
 docs/auto_examples/
 docs/generated/
 docs/sg_execution_times.rst
+site/_build/
+site/auto_tutorials/
