@@ -95,9 +95,12 @@ print(fit)
 # evoparam found the two bumps we put in, with the right timing, height and width. It
 # named them **N1** and **N2**: N for a bump that goes down, then a number in order of time.
 #
-# In the figure, the black line is our curve and the thick blue line is the model. The
-# dotted lines show each part of the model on its own, and the orange line at the bottom is
-# what is left over.
+# In the figure, the black line is our curve and the thick blue line is the model. The grey
+# dashed line is the background. Each coloured area is one bump: it fills the space between
+# the background and the curve. The orange line at the bottom is what is left over.
+#
+# The colour of the areas can be changed, for example ``plot_fit(fit, shade_color="grey")``,
+# or they can be turned off with ``shade=False``.
 
 ###################################################################################################
 # Reading the numbers on the curve

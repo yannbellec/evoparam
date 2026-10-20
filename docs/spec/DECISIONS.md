@@ -1794,3 +1794,8 @@ see the result. Three additions do it without changing the engine or any default
   evoparam` does not load it. Because §5.13 has every plot function return its `Figure`, the
   tutorial assigns it (`fig = plot_response(...)`): a returned figure left as the last
   expression of a notebook cell is shown twice.
+- `plot_fit` fills the area of each component between the background and the background
+  plus the component (`shade=True`, colour `shade_color`, default the component's), as the
+  ancestor shades its peaks above the aperiodic fit. The component lines are drawn on the
+  background, only where they differ from it, with a white edge so that lines that overlap
+  stay visible.
