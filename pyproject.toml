@@ -79,6 +79,7 @@ all = ["mne>=1.6", "mne-bids>=0.15", "pynwb>=2.6", "hdmf>=3.12",
 evoparam = "evoparam.cli:main"
 
 [project.urls]
+Documentation = "https://yannbellec.github.io/evoparam"
 Source = "https://github.com/yannbellec/evoparam"
 "Bug Reports" = "https://github.com/yannbellec/evoparam/issues"
 
