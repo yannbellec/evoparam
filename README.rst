@@ -2,6 +2,8 @@
 evoparam: evoked response parameterization
 =========================================================
 
+**Website and tutorials:** https://yannbellec.github.io/evoparam
+
 evoparam (evoked response parameterization) is a tool to parameterize neural evoked
 responses: it describes each response (ERP, CCEP, ...) as a small set of peaks with a
 latency, an amplitude and a width.
