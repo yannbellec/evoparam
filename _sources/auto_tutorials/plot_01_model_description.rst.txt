@@ -179,16 +179,19 @@ electrical pulses.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 94-100
+.. GENERATED FROM PYTHON SOURCE LINES 94-103
 
 evoparam found the two bumps we put in, with the right timing, height and width. It
 named them **N1** and **N2**: N for a bump that goes down, then a number in order of time.
 
-In the figure, the black line is our curve and the thick blue line is the model. The
-dotted lines show each part of the model on its own, and the orange line at the bottom is
-what is left over.
+In the figure, the black line is our curve and the thick blue line is the model. The grey
+dashed line is the background. Each coloured area is one bump: it fills the space between
+the background and the curve. The orange line at the bottom is what is left over.
 
-.. GENERATED FROM PYTHON SOURCE LINES 103-112
+The colour of the areas can be changed, for example ``plot_fit(fit, shade_color="grey")``,
+or they can be turned off with ``shade=False``.
+
+.. GENERATED FROM PYTHON SOURCE LINES 106-115
 
 Reading the numbers on the curve
 --------------------------------
@@ -200,7 +203,7 @@ Reading the numbers on the curve
 - the **dotted line** down to the time axis gives the latency;
 - the **bar** across the bump, at half its height, is the width.
 
-.. GENERATED FROM PYTHON SOURCE LINES 114-118
+.. GENERATED FROM PYTHON SOURCE LINES 117-121
 
 .. code-block:: Python
 
@@ -220,7 +223,7 @@ Reading the numbers on the curve
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 119-139
+.. GENERATED FROM PYTHON SOURCE LINES 122-142
 
 Conceptual overview
 -------------------
@@ -243,7 +246,7 @@ from the part of the curve before the stimulus, where there is nothing but noise
     keeps a new bump only if it explains the curve clearly better than without it. This is
     why it does not invent a bump in every small wiggle of the noise.
 
-.. GENERATED FROM PYTHON SOURCE LINES 141-161
+.. GENERATED FROM PYTHON SOURCE LINES 144-164
 
 Mathematical description
 ------------------------
@@ -266,7 +269,7 @@ Written as a formula, the model is
 Fitting the model means finding the numbers that make the sum of the parts as close as
 possible to the curve.
 
-.. GENERATED FROM PYTHON SOURCE LINES 163-172
+.. GENERATED FROM PYTHON SOURCE LINES 166-175
 
 Trying another curve
 --------------------
@@ -278,7 +281,7 @@ This time we do the steps one by one: ``fit_response`` only fits the model (no f
 ``print`` shows the summary and ``plot_fit`` draws the result. ``report`` is these three
 steps in one line.
 
-.. GENERATED FROM PYTHON SOURCE LINES 174-182
+.. GENERATED FROM PYTHON SOURCE LINES 177-185
 
 .. code-block:: Python
 
@@ -297,7 +300,7 @@ steps in one line.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 183-188
+.. GENERATED FROM PYTHON SOURCE LINES 186-191
 
 .. code-block:: Python
 
@@ -337,7 +340,7 @@ steps in one line.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 189-194
+.. GENERATED FROM PYTHON SOURCE LINES 192-197
 
 .. note::
 
@@ -345,7 +348,7 @@ steps in one line.
     smaller, add more noise with ``noise=20``) and fit it again. When the bumps get
     small compared to the noise, evoparam starts to miss them, as anyone would.
 
-.. GENERATED FROM PYTHON SOURCE LINES 197-203
+.. GENERATED FROM PYTHON SOURCE LINES 200-206
 
 Conclusion
 ----------
@@ -357,7 +360,7 @@ the model and use it on real recordings.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 20.097 seconds)
+   **Total running time of the script:** (0 minutes 1.724 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_01_model_description.py:
