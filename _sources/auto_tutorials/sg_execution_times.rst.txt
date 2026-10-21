@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:08.445** total execution time for 3 files **from auto_tutorials**:
+**01:46.843** total execution time for 4 files **from auto_tutorials**:
 
 .. container::
 
@@ -32,12 +32,15 @@ Computation times
    * - Example
      - Time
      - Mem (MB)
-   * - :ref:`sphx_glr_auto_tutorials_plot_03_tuning_the_fit.py` (``plot_03_tuning_the_fit.py``)
-     - 00:04.393
-     - 0.0
-   * - :ref:`sphx_glr_auto_tutorials_plot_02_reading_results.py` (``plot_02_reading_results.py``)
-     - 00:02.329
+   * - :ref:`sphx_glr_auto_tutorials_plot_04_real_data.py` (``plot_04_real_data.py``)
+     - 01:40.162
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_01_model_description.py` (``plot_01_model_description.py``)
-     - 00:01.723
+     - 00:03.190
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_03_tuning_the_fit.py` (``plot_03_tuning_the_fit.py``)
+     - 00:02.781
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_02_reading_results.py` (``plot_02_reading_results.py``)
+     - 00:00.711
      - 0.0

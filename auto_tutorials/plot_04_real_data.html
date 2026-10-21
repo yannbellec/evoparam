@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>04: Real data, from start to end &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="03: Tuning the fit" href="plot_03_tuning_the_fit.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-04-real-data-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="real-data-from-start-to-end">
+<span id="sphx-glr-auto-tutorials-plot-04-real-data-py"></span><h1>04: Real data, from start to end<a class="headerlink" href="#real-data-from-start-to-end" title="Link to this heading">¶</a></h1>
+<p>Read a real recording, clean it, fit it, test it, and write the methods.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>The first three tutorials used made-up curves. Here we use a real recording, and do
+every step ourselves, in the order a study does them:</p>
+<ol class="arabic simple">
+<li><p><strong>read</strong> the trials around each stimulation;</p></li>
+<li><p><strong>remove the artifact</strong>, the large electrical jump of the pulse itself;</p></li>
+<li><p><strong>re-reference</strong>, so that each electrode is compared with a good “zero”;</p></li>
+<li><p><strong>correct the baseline</strong>, so that each trial starts at zero;</p></li>
+<li><p><strong>check the trials</strong>, and flag the bad ones;</p></li>
+<li><p><strong>fit</strong> the average of each electrode;</p></li>
+<li><p><strong>test</strong> which electrodes really respond;</p></li>
+<li><p><strong>write the methods</strong>, the paragraph that tells readers what was done.</p></li>
+</ol>
+<p>At the end, we see that one function, <code class="docutils literal notranslate"><span class="pre">run_pipeline</span></code>, does steps 2 to 7 at once with
+the settings of the preset.</p>
+<section id="the-data">
+<h3>The data<a class="headerlink" href="#the-data" title="Link to this heading">¶</a></h3>
+<p>The recording comes from the Utrecht CCEP dataset (van Blooijs et al., 2023; OpenNeuro
+<a class="reference external" href="https://openneuro.org/datasets/ds004080">ds004080</a>, free to use, CC0). Patients with
+epilepsy had electrodes placed on the brain before surgery. Two neighbouring electrodes
+were given short electrical pulses, one every 5 seconds, and the other electrodes
+recorded the answer of the brain: a <strong>CCEP</strong> (cortico-cortical evoked potential). Its
+first bump, the <strong>N1</strong>, comes between 9 and 50 ms; a slower one, the <strong>N2</strong>, between 50
+and 300 ms.</p>
+<p>The dataset is stored in <strong>BIDS</strong>, a common way to arrange brain recordings in folders
+and tables. We read one patient, one run, and the 10 pulses given to the electrode pair
+PT13-PT14.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib</span><span class="nn">.</span><span class="nn">pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span><span class="w">
+</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">evoparam</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">plots</span><span class="p">,</span> <span class="n">reports</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">artifact</span><span class="w"> </span><span class="kn">import</span> <span class="n">remove_artifact</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">existence</span><span class="w"> </span><span class="kn">import</span> <span class="n">test_response</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_bids</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">prep</span><span class="w"> </span><span class="kn">import</span> <span class="n">baseline_correct</span><span class="p">,</span> <span class="n">reject_trials</span><span class="p">,</span> <span class="n">rereference</span><span class="w">
+</span></pre></div></div>
+</section>
+</section>
+<section id="reading-the-trials">
+<h2>1. Reading the trials<a class="headerlink" href="#reading-the-trials" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">read_bids</span></code> finds the stimulation times in the events table of the dataset, and cuts
+a piece of recording around each one: a <strong>trial</strong> (also called an epoch). With
+<code class="docutils literal notranslate"><span class="pre">remote=True</span></code>, it reads straight from OpenNeuro, and only the few seconds it needs:
+about 15 MB here, instead of the whole 2 GB file.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">select</span></code> keeps the pulses given to one electrode pair;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">picks</span></code> keeps the electrodes we want: here the 46 electrodes of the grid (PT01 to
+PT48), without the two that were stimulated (they carry a huge artifact and no
+usable response);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">epoch</span></code> is the piece kept around each pulse: from 1 s before to 1 s after.</p></li>
+</ul>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The stimulated pair, and the electrodes we keep</span><span class="w">
+</span><span class="n">site</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="s2">PT13-PT14</span><span class="s2">&quot;</span><span class="w">
+</span><span class="n">picks</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">PT</span><span class="si">{</span><span class="n">number</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">number</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">49</span><span class="p">)</span> <span class="k">if</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">PT</span><span class="si">{</span><span class="n">number</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">site</span><span class="p">]</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># Read the trials from OpenNeuro</span><span class="w">
+</span><span class="n">trials</span> <span class="o">=</span> <span class="n">read_bids</span><span class="p">(</span><span class="w">
+</span>    <span class="s2">&quot;</span><span class="s2">ds004080</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="s2">&quot;</span><span class="s2">ccepAgeUMCU01</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">session</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">1</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">SPESclin</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">run</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">021448</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">remote</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="w">
+</span>    <span class="n">select</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;</span><span class="s2">stim_site</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">site</span><span class="p">}</span><span class="p">,</span><span class="w">
+</span>    <span class="n">picks</span><span class="o">=</span><span class="n">picks</span><span class="p">,</span><span class="w">
+</span>    <span class="n">epoch</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 10 trials × 46 channels × 1024 times, -1.000 – 0.998 s, 512 Hz, uV, human, spes&gt;
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">trials</span></code> is a <strong>TrialSet</strong>: 10 trials × 46 electrodes × 1024 time points, from −1 s to
++1 s, recorded 512 times per second (512 Hz), in µV. Time 0 is the pulse.</p>
+<p>It also keeps a table with one row per trial (<code class="docutils literal notranslate"><span class="pre">trials.metadata</span></code>): when each pulse came,
+where, and how strong. evoparam gives the columns the same names for every dataset
+(<code class="docutils literal notranslate"><span class="pre">stim_site</span></code>, <code class="docutils literal notranslate"><span class="pre">stim_current_mA</span></code>…), whatever names the dataset used.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="n">trials</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">onset</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">stim_site</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">stim_current_mA</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>         onset  stim_site  stim_current_mA
+0  4015.720703  PT13-PT14              7.0
+1  4020.720703  PT13-PT14              7.0
+2  4025.720703  PT13-PT14              7.0
+</pre></div>
+</div>
+<p>Here is the average of the 10 trials on electrode PT21, before any cleaning. We look
+from −50 to +300 ms.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">def</span><span class="w"> </span><span class="nf">show_average</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="o">-</span><span class="mi">50</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;Draw the average of the trials of one electrode, in thin lines with a white edge.&quot;&quot;&quot;</span><span class="w">
+</span>    <span class="n">times</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">times</span> <span class="o">*</span> <span class="mi">1000</span><span class="w">
+</span>    <span class="n">keep</span> <span class="o">=</span> <span class="p">(</span><span class="n">times</span> <span class="o">&gt;</span><span class="o">=</span> <span class="n">start</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">times</span> <span class="o">&lt;</span><span class="o">=</span> <span class="n">stop</span><span class="p">)</span><span class="w">
+</span>    <span class="n">curve</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="n">ts</span><span class="o">.</span><span class="n">ch_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span><span class="p">,</span> <span class="n">curve</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">white</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">2.2</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span><span class="p">,</span> <span class="n">curve</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">Time after the pulse (ms)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">Amplitude (µV)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="w">
+</span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="n">show_average</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">PT21</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">raw average</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">0.3</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_04_real_data_001.png" srcset="../_images/sphx_glr_plot_04_real_data_001.png" alt="plot 04 real data" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;matplotlib.legend.Legend object at 0x7f20106da850&gt;
+</pre></div>
+</div>
+<p>The very high and narrow peak at 0 ms is the <strong>artifact</strong>: the electrical pulse itself,
+picked up by the electrode. It is much larger than the brain response. Right after it,
+the curve dips down to about −480 µV near 28 ms: that is the N1 we want to measure.
+Then comes a slower dip after 100 ms, the N2.</p>
+</section>
+<section id="removing-the-artifact">
+<h2>2. Removing the artifact<a class="headerlink" href="#removing-the-artifact" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">remove_artifact</span></code> takes the pulse out of every trial. With <code class="docutils literal notranslate"><span class="pre">method=&quot;template&quot;</span></code>, it
+builds the typical shape of the artifact (the <strong>template</strong>: here the median of the 10
+trials), scales it to each trial and electrode, and subtracts it, in a short window
+around the pulse (<code class="docutils literal notranslate"><span class="pre">window</span></code>, from −2 to +8 ms).</p>
+<p>After the pulse, the recording equipment takes a few ms to settle: a slow <strong>tail</strong> that
+fades away. <code class="docutils literal notranslate"><span class="pre">tail=&quot;joint&quot;</span></code> leaves this tail to the fit, which models it as the
+background (tutorial 01), together with the bumps.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">baseline</span></code> is a piece of the trial before the pulse, with no response in it: here
+from −500 to −20 ms. It tells the method what “no artifact” looks like.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Take the artifact out of every trial</span><span class="w">
+</span><span class="n">cleaned</span> <span class="o">=</span> <span class="n">remove_artifact</span><span class="p">(</span><span class="w">
+</span>    <span class="n">trials</span><span class="p">,</span><span class="w">
+</span>    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">template</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">window</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">0.002</span><span class="p">,</span> <span class="mf">0.008</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span>    <span class="n">tail</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">joint</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">baseline</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.02</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span>    <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># One score per trial, from 0 (bad) to 1 (good)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">cleaned</span><span class="o">.</span><span class="n">quality</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[0.62 0.62 0.61 0.62 0.62 0.62 0.62 0.62 0.61 0.62]
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">cleaned</span></code> holds the cleaned trials (<code class="docutils literal notranslate"><span class="pre">cleaned.cleaned</span></code>) and a <strong>quality score</strong> for
+each trial: how well the artifact was removed, from 0 (badly) to 1 (very well).</p>
+<p>The figure compares the average before and after.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="n">show_average</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">PT21</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">before</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">0.6</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">show_average</span><span class="p">(</span><span class="n">cleaned</span><span class="o">.</span><span class="n">cleaned</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">PT21</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">after</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">C0</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mi">600</span><span class="p">,</span> <span class="mi">300</span><span class="p">)</span><span class="w">
+</span><span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_04_real_data_002.png" srcset="../_images/sphx_glr_plot_04_real_data_002.png" alt="plot 04 real data" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;matplotlib.legend.Legend object at 0x7f201072b390&gt;
+</pre></div>
+</div>
+<p>The jump at 0 ms is gone: only small wiggles are left in the first 8 ms, where the
+samples of the window were replaced. Outside the window the two curves are the same
+(the grey one is hidden under the blue one), and the N1 near 28 ms is untouched.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The window ends at 8 ms, 1 ms before the fit starts (9 ms): the artifact removal
+never touches the part of the curve that we measure.</p>
+</div>
+</section>
+<section id="re-referencing">
+<h2>3. Re-referencing<a class="headerlink" href="#re-referencing" title="Link to this heading">¶</a></h2>
+<p>A voltage is always measured between two points: the electrode and a <strong>reference</strong>.
+If the reference picks up activity, every electrode gets it too. <strong>Re-referencing</strong>
+changes the reference after the recording.</p>
+<p>A common choice is the <strong>common average</strong>: subtract, at each time point, the mean of
+all electrodes. But the electrodes that respond would then put their response into
+that mean, and into every other electrode. <code class="docutils literal notranslate"><span class="pre">&quot;car_adaptive&quot;</span></code> (adjusted common average)
+first finds the electrodes with no response in 10-300 ms, and averages only those.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">referenced</span> <span class="o">=</span> <span class="n">rereference</span><span class="p">(</span><span class="n">cleaned</span><span class="o">.</span><span class="n">cleaned</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">car_adaptive</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># The electrodes used for the average (no response)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">referenced</span><span class="o">.</span><span class="n">provenance</span><span class="o">.</span><span class="n">steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">settings</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">members</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>['PT01', 'PT02', 'PT03', 'PT05', 'PT06', 'PT09', 'PT10', 'PT11', 'PT17', 'PT18', 'PT19', 'PT20', 'PT25', 'PT26', 'PT27', 'PT28', 'PT29', 'PT30', 'PT31', 'PT32', 'PT33', 'PT34', 'PT35', 'PT36', 'PT37', 'PT38', 'PT39', 'PT40', 'PT41', 'PT42', 'PT45', 'PT46', 'PT47', 'PT48']
+</pre></div>
+</div>
+<p>34 of the 46 electrodes were judged quiet and used for the average; the 12 others were
+left out of it (each one still gets the average subtracted).</p>
+</section>
+<section id="correcting-the-baseline">
+<h2>4. Correcting the baseline<a class="headerlink" href="#correcting-the-baseline" title="Link to this heading">¶</a></h2>
+<p>Each trial starts at its own level: the brain’s slow waves move it up or down. We
+subtract, from each trial and electrode, its mean over the baseline (−500 to −20 ms).
+All trials then sit around zero before the pulse, and the average is not pulled up or
+down by a few of them.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">ready</span> <span class="o">=</span> <span class="n">baseline_correct</span><span class="p">(</span><span class="n">referenced</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.02</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="checking-the-trials">
+<h2>5. Checking the trials<a class="headerlink" href="#checking-the-trials" title="Link to this heading">¶</a></h2>
+<p>A trial can be bad: the patient moved, an electrode came loose, the artifact was
+badly removed. <code class="docutils literal notranslate"><span class="pre">reject_trials</span></code> looks for trials that are much larger, much noisier or
+flatter than the others, or that have a low artifact quality score.</p>
+<p>It looks at each trial on each electrode. A trial that is odd on one electrode only is
+<strong>masked</strong> on that electrode: the average of that electrode leaves it out. A trial that
+is odd on half of the electrodes or more is <strong>rejected</strong> everywhere.</p>
+<p>It <strong>never deletes</strong> anything: it adds columns to <code class="docutils literal notranslate"><span class="pre">metadata</span></code>: <code class="docutils literal notranslate"><span class="pre">rejected</span></code> (True or
+False), <code class="docutils literal notranslate"><span class="pre">reject_reason</span></code> and <code class="docutils literal notranslate"><span class="pre">n_flagged_channels</span></code> (on how many electrodes the trial
+was masked).</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">checked</span> <span class="o">=</span> <span class="n">reject_trials</span><span class="p">(</span><span class="n">ready</span><span class="p">,</span> <span class="n">baseline</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.02</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">checked</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">rejected</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">n_flagged_channels</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>   rejected  n_flagged_channels
+0     False                   0
+1     False                   0
+2     False                  12
+3     False                   2
+4     False                   0
+5     False                   0
+6     False                   3
+7     False                   9
+8     False                   2
+9     False                   0
+</pre></div>
+</div>
+<p>No trial is rejected, but a few trials are masked on some electrodes: trial 2 on 12
+electrodes, trial 7 on 9. On PT21, for example, the average now uses 9 trials out of 10.
+Masking changes the averages a little, and so the numbers of the fit.</p>
+</section>
+<section id="fitting-each-electrode">
+<h2>6. Fitting each electrode<a class="headerlink" href="#fitting-each-electrode" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">evoparam.fit</span></code> averages the trials of each electrode, then fits the average, as
+<code class="docutils literal notranslate"><span class="pre">fit_response</span></code> did in the earlier tutorials, with the settings of the preset. It gives
+back a <strong>GroupFit</strong>: one fit per electrode.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">group</span> <span class="o">=</span> <span class="n">evoparam</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">checked</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># One row per bump, for all the electrodes</span><span class="w">
+</span><span class="n">table</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="n">n1</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="n">table</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">n1</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>channel  latency  amplitude
+   PT05    0.041   -289.237
+   PT07    0.037   -389.543
+   PT15    0.026   -272.401
+   PT18    0.031   -129.254
+   PT21    0.032   -475.350
+   PT22    0.022   -143.976
+   PT23    0.037   -122.605
+   PT24    0.034  -1714.117
+   PT26    0.049   -111.998
+   PT30    0.027   -129.782
+   PT32    0.033   -151.704
+   PT34    0.049   -195.135
+   PT42    0.038   -156.584
+   PT43    0.024    -30.752
+</pre></div>
+</div>
+<p>14 electrodes have an N1. The latency is in seconds (0.032 s = 32 ms) and the amplitude
+in µV. On PT21, the N1 comes at 32 ms with −475 µV.</p>
+<p>The amplitude of a bump is measured from the background, not from zero, so it is not
+exactly the lowest point of the curve.</p>
+<p><code class="docutils literal notranslate"><span class="pre">group.get(&quot;PT03&quot;)</span></code> gives the fit of one electrode, which can be read and drawn like
+the fits of the earlier tutorials.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fit</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">PT21</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plots</span><span class="o">.</span><span class="n">plot_fit</span><span class="p">(</span><span class="n">fit</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_04_real_data_003.png" srcset="../_images/sphx_glr_plot_04_real_data_003.png" alt="ok: 3 component(s)" class = "sphx-glr-single-img"/><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>PT24 has an N1 of −1714 µV, much larger than the others. Such a value is worth a
+look (<code class="docutils literal notranslate"><span class="pre">plots.plot_fit(group.get(&quot;PT24&quot;))</span></code>) before you trust it: close to the
+stimulated pair, what is left of the artifact and its tail can add to a bump.</p>
+</div>
+</section>
+<section id="testing-which-electrodes-respond">
+<h2>7. Testing which electrodes respond<a class="headerlink" href="#testing-which-electrodes-respond" title="Link to this heading">¶</a></h2>
+<p>A fit always finds something, even in pure noise. To decide if an electrode really
+responds, <code class="docutils literal notranslate"><span class="pre">test_response</span></code> asks: is the curve after the pulse (9-500 ms) larger than
+what the noise alone would give?</p>
+<p>The noise alone is made by <strong>sign flips</strong>: each trial is randomly turned upside down or
+not, many times (1000 here). A real response, the same at every trial, cancels out
+when half of the trials are flipped; noise does not change. If the real curve is
+larger than almost all the flipped ones, the electrode responds.</p>
+<p>The answer is a <strong>p-value</strong>: the chance of a curve this large from noise alone. Small
+is good. Since we test 46 electrodes, some would pass by luck; the p-values are
+<strong>corrected</strong> for this (<code class="docutils literal notranslate"><span class="pre">correction=&quot;fdr_bh&quot;</span></code>, the default), and an electrode responds
+when its corrected p-value is below 0.05.</p>
+<p>The test is run on all the trials (<code class="docutils literal notranslate"><span class="pre">ready</span></code>, before the masks of step 5), as
+<code class="docutils literal notranslate"><span class="pre">run_pipeline</span></code> does below.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">test</span> <span class="o">=</span> <span class="n">test_response</span><span class="p">(</span><span class="n">ready</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="p">(</span><span class="mf">0.009</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span><span class="p">,</span> <span class="n">baseline</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.02</span><span class="p">)</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">answer</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="w">
+</span>    <span class="p">{</span><span class="w">
+</span>        <span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">test</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">channels</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span><span class="w">
+</span>        <span class="s2">&quot;</span><span class="s2">p_value</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">test</span><span class="o">.</span><span class="n">p_value</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span>        <span class="s2">&quot;</span><span class="s2">responds</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">test</span><span class="o">.</span><span class="n">significant</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span>    <span class="p">}</span><span class="w">
+</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">answer</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>channel  p_value  responds
+   PT01    0.386     False
+   PT02    0.054     False
+   PT03    0.054     False
+   PT04    0.016      True
+   PT05    0.016      True
+   PT06    0.039      True
+   PT07    0.039      True
+   PT08    0.016      True
+   PT09    0.140     False
+   PT10    0.208     False
+   PT11    0.039      True
+   PT12    0.016      True
+   PT15    0.016      True
+   PT16    0.017      True
+   PT17    0.080     False
+   PT18    0.208     False
+   PT19    0.566     False
+   PT20    0.017      True
+   PT21    0.017      True
+   PT22    0.018      True
+   PT23    0.028      True
+   PT24    0.016      True
+   PT25    0.090     False
+   PT26    0.189     False
+   PT27    0.370     False
+   PT28    0.230     False
+   PT29    0.801     False
+   PT30    0.370     False
+   PT31    0.090     False
+   PT32    0.132     False
+   PT33    0.801     False
+   PT34    0.040      True
+   PT35    0.140     False
+   PT36    0.998     False
+   PT37    0.393     False
+   PT38    0.071     False
+   PT39    0.162     False
+   PT40    0.255     False
+   PT41    0.663     False
+   PT42    0.158     False
+   PT43    0.156     False
+   PT44    0.310     False
+   PT45    0.801     False
+   PT46    0.355     False
+   PT47    0.393     False
+   PT48    0.094     False
+</pre></div>
+</div>
+<p>15 of the 46 electrodes respond. The test and the fit answer two different questions,
+so they do not always agree:</p>
+<ul class="simple">
+<li><p>8 electrodes respond <strong>and</strong> have an N1 (PT05, PT07, PT15, PT21, PT22, PT23, PT24,
+PT34);</p></li>
+<li><p>7 respond without an N1 (PT04, PT06, PT08, PT11, PT12, PT16, PT20): their response
+is later, or its dip in 9-50 ms is not deep enough;</p></li>
+<li><p>6 have an N1 but do not pass the test (PT18, PT26, PT30, PT32, PT42, PT43): a dip is
+there in the average, but it does not stand out enough from trial to trial.</p></li>
+</ul>
+<p>Most studies keep the N1 of an electrode only when the electrode also passes the test.</p>
+<p>The figure shows, for each electrode, the test statistic over time (a measure of how
+far the curve is from zero, compared with its spread over trials) and the band where
+noise alone stays.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fig</span> <span class="o">=</span> <span class="n">plots</span><span class="o">.</span><span class="n">plot_existence</span><span class="p">(</span><span class="n">test</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">PT21</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">PT24</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">PT07</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">PT29</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">PT36</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">PT45</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_04_real_data_004.png" srcset="../_images/sphx_glr_plot_04_real_data_004.png" alt="baseline_permutation: 15 of 46 channels significant (alpha 0.05, fdr_bh); shaded: null band, PT21: significant, PT24: significant, PT07: significant, PT29: n.s., PT36: n.s., PT45: n.s." class = "sphx-glr-single-img"/></section>
+<section id="all-the-steps-at-once">
+<h2>All the steps at once<a class="headerlink" href="#all-the-steps-at-once" title="Link to this heading">¶</a></h2>
+<p>Steps 2 to 7 are the chain of the <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> preset, with its own settings: same
+artifact window, same reference, same baseline, same test. <code class="docutils literal notranslate"><span class="pre">reports.run_pipeline</span></code>
+runs this chain in one call, from the raw trials.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">result</span> <span class="o">=</span> <span class="n">reports</span><span class="o">.</span><span class="n">run_pipeline</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">trial_fits</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="w">
+</span><span class="n">table_all</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">table_all</span><span class="p">[</span><span class="n">table_all</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>   channel  latency  amplitude
+8     PT05    0.032   -145.720
+11    PT06    0.017   -128.931
+15    PT07    0.037   -389.543
+20    PT08    0.035  -1112.413
+32    PT15    0.026   -272.401
+43    PT18    0.031   -129.254
+47    PT21    0.028   -354.120
+55    PT23    0.037   -122.605
+58    PT24    0.038   -918.300
+64    PT26    0.049   -111.998
+69    PT30    0.027   -129.782
+71    PT31    0.032    -97.376
+74    PT32    0.033   -151.704
+78    PT34    0.049   -195.135
+79    PT35    0.048   -118.772
+88    PT42    0.038   -156.584
+90    PT43    0.024    -28.895
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">run_pipeline</span></code> does not mask any trial (step 5 is not part of the preset’s chain), so
+its averages use all 10 trials, and its numbers are those of steps 2-4 and 6 without the
+masks. It finds 17 N1 instead of 14, and on PT21 the N1 comes at 28 ms with −354 µV,
+instead of 32 ms and −475 µV. With only 10 trials, leaving one out is enough to move a
+bump: this is why every choice of cleaning goes in the methods.</p>
+<p>Doing the steps one by one is useful to look at each of them; <code class="docutils literal notranslate"><span class="pre">run_pipeline</span></code> is
+shorter, and it is sure to use the preset’s settings everywhere.</p>
+<p><code class="docutils literal notranslate"><span class="pre">trial_fits=False</span></code> skips the fit of each single trial, which the preset does too but
+which takes longer.</p>
+</section>
+<section id="the-methods-paragraph">
+<h2>8. The methods paragraph<a class="headerlink" href="#the-methods-paragraph" title="Link to this heading">¶</a></h2>
+<p>Every step above wrote down what it did, with all its settings. <code class="docutils literal notranslate"><span class="pre">reports.methods_text</span></code>
+turns this into the paragraph of the “Methods” section of a paper: what was done, in
+what order, with which values, and what to cite.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="n">reports</span><span class="o">.</span><span class="n">methods_text</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">results</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Evoked responses were analysed with evoparam (version 0.1.0.dev0) using the preset 'ccep' v1.2; validation: ds004080 (REQ-113, REQ-114, REQ-135). The stimulation artifact was removed by template subtraction (evoparam.artifact.remove_artifact, method 'template') in the window -2 to 8 ms (global template; templates grouped by the metadata columns stim_site, stim_current_mA and stim_polarity (those present); scaled to each trial and channel; recovery tail left to the response model and fitted jointly with its background). A quality score between 0 and 1 was computed for every trial. Channels were re-referenced to an adjusted common average from which channels with a response were excluded (responses judged in 10 to 300 ms). Each trial and channel was baseline-corrected by subtracting the mean of -500 to -20 ms of its own trial. Trials were averaged per channel (mean). In the window 9 to 500 ms, each waveform was modelled as an exponential background plus up to 6 components (skewed gaussian and gaussian; full width at half maximum 3 to 250 ms, both polarities). Amplitudes and background coefficients were solved by variable projection and the other parameters by bounded least squares (linear loss, 3 starts). Components were added one at a time and kept when the BIC decreased by at least 10, computed on residuals whitened by an autoregressive model of the noise of the plus-minus average of the trials (alternating signs, whole epoch). A final model holding two overlapping components of opposite sign was refitted from starts on the extrema of the data and replaced when the refit was better; a component of the refitted model that no longer lowered the criterion by the same amount was removed. Uncertainty: Jacobian-based (Wald) intervals at 95 %. Onset and offset are the times where a component reaches 10 % of its peak amplitude. Components were labelled by latency window: N1 (9 to 50 ms, negative), N2 (50 to 300 ms, negative) and delayed (100 to 1000 ms, either polarity). A response was said to have an N1 when the fitted curve (background and components) had a negative peak in 9 to 50 ms deeper than 3.4 times the noise standard deviation estimated by the fit. Classical measures (peak, mean amplitude, area and fractional-area latencies) were computed on the same window. The presence of a response in 9 to 500 ms was tested on every channel with a sign-flip permutation test of the trials (max_t statistic, 1000 permutations) against the baseline -500 to -20 ms (both polarities, alpha = 0.05, Benjamini-Hochberg false-discovery-rate correction across channels). Random draws used the seed 0; the result can be regenerated from its recorded provenance with evoparam.reproduce. Software: Bellec Y.V. evoparam: parameterizing evoked neural responses (version 0.1.0). https://github.com/yannbellec/evoparam Methods: Benjamini and Hochberg (1995) for the false-discovery-rate correction.
+</pre></div>
+</div>
+<p>Read it and adapt it to your paper, but do not change the numbers: they are the ones
+that were used. The last sentence says how to make the same result again
+(<code class="docutils literal notranslate"><span class="pre">evoparam.reproduce</span></code>), from the record that each result keeps.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Try it yourself: change <code class="docutils literal notranslate"><span class="pre">site</span></code> to another pair of the same run (look at
+<code class="docutils literal notranslate"><span class="pre">trials.metadata</span></code> without <code class="docutils literal notranslate"><span class="pre">select</span></code> to see them), or keep other electrodes in
+<code class="docutils literal notranslate"><span class="pre">picks</span></code>. Each time, compare the electrodes with an N1 and the ones that pass the
+test.</p>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>A real analysis goes: read the trials (<code class="docutils literal notranslate"><span class="pre">read_bids</span></code>), remove the artifact
+(<code class="docutils literal notranslate"><span class="pre">remove_artifact</span></code>), re-reference (<code class="docutils literal notranslate"><span class="pre">rereference</span></code>), correct the baseline
+(<code class="docutils literal notranslate"><span class="pre">baseline_correct</span></code>), flag bad trials (<code class="docutils literal notranslate"><span class="pre">reject_trials</span></code>), fit each electrode
+(<code class="docutils literal notranslate"><span class="pre">evoparam.fit</span></code>), test which ones respond (<code class="docutils literal notranslate"><span class="pre">test_response</span></code>) and write the methods
+(<code class="docutils literal notranslate"><span class="pre">reports.methods_text</span></code>). <code class="docutils literal notranslate"><span class="pre">reports.run_pipeline</span></code> does the steps of the preset in one
+call. Look at the figures at each step: a number is only as good as the curve under it.</p>
+<p>Data: van Blooijs D, van den Boom MA, van der Aar JF, et al. Developmental trajectory of
+transmission speed in the human brain. <em>Nature Neuroscience</em> 26, 689-700 (2023).
+OpenNeuro ds004080, CC0.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (1 minutes 40.162 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-04-real-data-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/f5c208882f91fe6d0b5290bd89f1900b/plot_04_real_data.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_04_real_data.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/ec33990226c1e0a5dfa95e964b9f5825/plot_04_real_data.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_04_real_data.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/c26aa97a72d216577b3ae2bc372cea7c/plot_04_real_data.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_04_real_data.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
