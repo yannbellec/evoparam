@@ -71,6 +71,23 @@ model does on one example curve.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="Measure the N1 and the N2 in every trial, and tell a real change from noise.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_05_trial_by_trial_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_05_trial_by_trial`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">05: Trial by trial</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="Read a real recording, clean it, fit it, test it, and write the methods.">
 
 .. only:: html
@@ -99,6 +116,7 @@ model does on one example curve.
    /auto_tutorials/plot_01_model_description
    /auto_tutorials/plot_02_reading_results
    /auto_tutorials/plot_03_tuning_the_fit
+   /auto_tutorials/plot_05_trial_by_trial
    /auto_tutorials/plot_04_real_data
 
 

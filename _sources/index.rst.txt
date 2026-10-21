@@ -38,6 +38,8 @@ Get started
 
 :doc:`auto_tutorials/plot_04_real_data`
 
+:doc:`auto_tutorials/plot_05_trial_by_trial`
+
 .. toctree::
    :hidden:
 
