@@ -78,7 +78,11 @@ JITTER_REFUSE = 1.2
 NULL_REPEATS = 5
 RIDGE_GRID = (0.0, 0.01, 0.1, 1.0, 10.0)
 RIDGE_CV = ("loto", "split")
-NULL_RULES = ("segments", "spec")
+NULL_RULES = ("ar", "segments", "spec")
+# Order of the autoregressive noise model of null_rule="ar" (fewer with a short baseline)
+NULL_AR_ORDER = 8
+# Simulated noise segments per trial of null_rule="ar" (the null SD to about 2.5 % with 40 trials)
+NULL_AR_REPEATS = 20
 TRIAL_MODELS = ("all", "anchored", "selected")
 MODALITY_PRESETS = {
     "spes": "ccep",
@@ -378,6 +382,8 @@ class _NullRule:
     r2_min: float = 0.0
     report: Any = None
     repeats: Any = NULL_REPEATS
+    noise: str = "segments"
+    seed: Any = 0
 
 
 def _null_jitter(
@@ -395,11 +401,14 @@ def _null_jitter(
         s.evaluate(tw, p) * _amplitude_of(fit.components[k])
         for s, p, k in zip(template.shapes, template.params, picks, strict=False)
     )
+    noise = np.nan_to_num(trials[:, base])
+    if noise.shape[1] < _MIN_NOISE_SAMPLES:
+        return np.full(len(picks), np.nan), 0
     segments = []
-    for x in trials:
-        noise_all = np.nan_to_num(x[base])
-        if len(noise_all) < _MIN_NOISE_SAMPLES:
-            return np.full(len(picks), np.nan), 0
+    if rule.noise == "ar":
+        segments = [model + e for e in _ar_noise(noise, len(trials) * repeats, n_win, rule.seed)]
+    for x in noise if rule.noise != "ar" else ():
+        noise_all = x
         # Several segments of each trial's baseline (circular offsets): the null SD is then
         # estimated from more values than the trial SD it is compared with
         for offset in np.linspace(0, len(noise_all), repeats, endpoint=False).astype(int):
@@ -419,6 +428,34 @@ def _null_jitter(
         return np.full(len(picks), np.nan), 0
     # Repeats from one trial's baseline are not independent: count trials, not repeats
     return np.nanstd(np.array(shifts), axis=0, ddof=1), int(np.ceil(len(shifts) / repeats))
+
+
+def _ar_noise(noise: Any, n_seg: int, n_win: int, seed: Any) -> FloatArray:
+    """Return ``n_seg`` noise segments of ``n_win`` samples from a model of the baseline.
+
+    One autoregressive model for all trials, fitted by least squares.
+    A baseline shorter than the trial window, repeated end to end, has no power below
+    1 / its duration; the latency of a slow component (P3) lives there, so the circular
+    segments of ``null_rule="segments"`` give too small a null jitter. The model keeps the
+    level and the spectrum of the baseline noise at every frequency.
+    """
+    x = noise - noise.mean(axis=1, keepdims=True)
+    order = int(min(NULL_AR_ORDER, max(1, x.shape[1] // 8)))
+    lagged = np.concatenate(
+        [np.stack([xi[order - j - 1 : len(xi) - j - 1] for j in range(order)], -1) for xi in x]
+    )
+    target = np.concatenate([xi[order:] for xi in x])
+    coef = np.linalg.lstsq(lagged, target, rcond=None)[0]
+    roots = np.roots(np.concatenate([[1.0], -coef]))
+    if roots.size and np.max(np.abs(roots)) >= 1.0:  # not stationary: white noise of that SD
+        coef = np.zeros(order)
+    innov = target - lagged @ coef
+    rng = np.random.default_rng(seed if isinstance(seed, (int, np.integer)) else 0)
+    burn = 10 * order + 50
+    e = rng.normal(0.0, float(np.std(innov)), (n_seg, n_win + burn))
+    from scipy.signal import lfilter
+
+    return np.asarray(lfilter([1.0], np.concatenate([[1.0], -coef]), e, axis=1)[:, burn:])
 
 
 def _prestim(
@@ -493,7 +530,7 @@ def fit_trials(  # noqa: PLR0913  (spec §5.7 fixes 16 parameters, plus preset, 
     by: Any = ("stim_site",),
     preset: Any = None,
     trial_model: str = "anchored",
-    null_rule: str = "segments",
+    null_rule: str = "ar",
     ridge_cv: str = "loto",
     n_jobs: int = 1,
     random_state: Any = None,
@@ -523,11 +560,16 @@ def fit_trials(  # noqa: PLR0913  (spec §5.7 fixes 16 parameters, plus preset, 
     and shape; their amplitude is fitted), so ``max_shift`` is clipped against moving
     neighbours only; ``"all"`` lets every component move, each with its own shift;
     ``"selected"`` (spec) puts only the components of ``components`` in the model. Only the
-    components of ``components`` are reported. ``null_rule``: ``"segments"`` (default) estimates
-    ``jitter_sd_null`` from five baseline segments per trial and refuses realignment unless
-    ``jitter_sd`` exceeds both 1.2 x ``jitter_sd_null`` and the 95 % quantile of the ratio of
-    two noise SDs (F distribution); ``"spec"`` uses one baseline segment per trial and the
-    1.2 x rule alone (spec §5.7). The measurements behind the defaults are in the CHANGELOG.
+    components of ``components`` are reported. ``null_rule``: ``"ar"`` (default) estimates
+    ``jitter_sd_null`` on five noise segments per trial drawn from an autoregressive model of
+    the baseline (its level and spectrum, over the whole trial window) and refuses realignment
+    unless ``jitter_sd`` exceeds both 1.2 x ``jitter_sd_null`` and the 95 % quantile of the
+    ratio of two noise SDs (F distribution); ``"segments"`` takes the five segments from the
+    baseline itself, repeated end to end (too small a null for components slower than the
+    baseline: DECISIONS.md); ``"spec"`` uses one baseline segment per trial and the 1.2 x rule
+    alone (spec §5.7). :func:`jitter` reports the test (``jitter_detected``, the smallest
+    detectable jitter and ``jitter_status``), and the trial table adds ``latency_se`` and the
+    empirical-Bayes ``latency_shrunk``. The measurements behind the defaults are in the CHANGELOG.
 
     A trial is ``converged`` when the optimiser ends normally with finite numbers, and
     ``trusted`` when also its r² >= ``r2_min`` and its shift is not at a bound; untrusted
@@ -585,6 +627,7 @@ def fit_trials(  # noqa: PLR0913  (spec §5.7 fixes 16 parameters, plus preset, 
         ridge_cv=ridge_cv,
         baseline=tuple(settings0.get("baseline") or (ts.times[0], ts.times[0] + 0.1)),
         verbose=verbose,
+        random_state=random_state,
     )
     units, skipped = _channel_units(ts, group_fit, components, by, options)
     fits, rows = [], []
@@ -658,6 +701,7 @@ class _Options(NamedTuple):
     ridge_cv: str
     baseline: Any
     verbose: Any
+    random_state: Any = None
 
 
 class _Unit(NamedTuple):
@@ -942,17 +986,25 @@ def _fit_unit(unit: _Unit) -> tuple[Any, "TrialFit"]:
         _free_fwhm(m.fwhm, results, report, channel_template, unit.sfreq)
 
     jit = {k: _shift_sd(m.shift[:, j], m.trusted) for j, k in enumerate(picks)}
-    rule = _NullRule(support, o.r2_min, report, NULL_REPEATS if o.null_rule == "segments" else 1)
+    rule = _NullRule(
+        support,
+        o.r2_min,
+        report,
+        {"spec": 1, "ar": NULL_AR_REPEATS}.get(o.null_rule, NULL_REPEATS),
+        noise="ar" if o.null_rule == "ar" else "segments",
+        seed=o.random_state,
+    )
     null, n_null = _null_jitter(channel_template, fit, trials, times, o.baseline, every, rule)
     null = null[report]
     jit_null = {k: float(null[j]) for j, k in enumerate(picks)}
     corrected = _jitter_corrected(fit, picks, jit)
+    limit = _refusal_limit(o.null_rule, int(m.trusted.sum()), n_null)
+    _shrunk_latency(m, picks, jit, jit_null, limit)
 
     realigned = None
     if o.realign:
         target = _realign_target(fit, picks, o.realign_on)
         j = picks.index(target)
-        limit = _refusal_limit(o.null_rule, int(m.trusted.sum()), n_null)
         if not jit[target] > limit * jit_null[target]:
             _warn(
                 f"{name}: jitter {jit[target]:.4f} s is not above "
@@ -995,6 +1047,7 @@ def _fit_unit(unit: _Unit) -> tuple[Any, "TrialFit"]:
                 "ridge": ridge,
                 "max_shift": channel_template.max_shift.tolist(),
                 "r2_min": o.r2_min,
+                "jitter_limit": limit,
                 "package_version": __version__,
             },
         )
@@ -1023,6 +1076,8 @@ class _Measures:
     latency: Any
     fwhm: Any
     params: Any
+    latency_shrunk: Any = None
+    latency_se: Any = None
 
 
 def _measures(results: Any, fit: Any, picks: Any, report: Any, r2_min: float) -> _Measures:
@@ -1064,6 +1119,29 @@ def _free_fwhm(fwhm: Any, results: Any, report: Any, template: Any, sfreq: Any) 
             fwhm[i, j] = f.fwhm
 
 
+def _shrunk_latency(m: _Measures, picks: Any, jit: Any, jit_null: Any, limit: float) -> None:
+    """Set the empirical-Bayes latencies of ``m`` (in place) and their standard errors.
+
+    Each trial's shift is drawn towards the mean of the trusted shifts by the weight
+    ``tau² / (tau² + null²)``, where ``null`` is the noise-only jitter (the spread that
+    noise alone gives to one trial's shift) and ``tau² = jitter_sd² - null²`` the true
+    jitter variance; ``tau`` is 0 when the jitter is not above ``limit`` x the noise-only
+    jitter (no measurable jitter: every trial gets the mean latency). The standard error of
+    the raw latency of a trial is ``null``.
+    """
+    m.latency_shrunk = np.full(m.latency.shape, np.nan)
+    m.latency_se = np.full(m.latency.shape, np.nan)
+    for j, k in enumerate(picks):
+        raw, null = jit[k], jit_null[k]
+        if not (np.isfinite(raw) and np.isfinite(null) and m.trusted.any()):
+            continue
+        tau2 = raw**2 - null**2 if raw > limit * null else 0.0
+        w = tau2 / (tau2 + null**2) if tau2 + null**2 > 0 else 0.0
+        mean = np.mean(m.latency[m.trusted, j])
+        m.latency_shrunk[:, j] = mean + w * (m.latency[:, j] - mean)
+        m.latency_se[:, j] = null
+
+
 def _shift_sd(shifts: Any, trusted: Any) -> float:
     """Return the SD of the shifts of the trusted trials (NaN with too few of them)."""
     return float(np.std(shifts[trusted], ddof=1)) if trusted.sum() >= _MIN_SD_VALUES else np.nan
@@ -1100,7 +1178,7 @@ def _refusal_limit(null_rule: str, n_t: int, n_null: int) -> float:
     from scipy.stats import f as f_dist
 
     limit = JITTER_REFUSE
-    if null_rule == "segments" and n_t > _F_MIN_TRIALS and n_null > _F_MIN_TRIALS:
+    if null_rule in ("ar", "segments") and n_t > _F_MIN_TRIALS and n_null > _F_MIN_TRIALS:
         limit = max(limit, float(np.sqrt(f_dist.ppf(0.95, n_t - 1, n_null - 1))))
     return limit
 
@@ -1120,6 +1198,8 @@ def _trial_table(unit: _Unit, m: _Measures) -> Any:
                 "shift": m.shift[i, j],
                 "scale": m.scale[i, j],
                 "latency": m.latency[i, j],
+                "latency_se": np.nan if m.latency_se is None else m.latency_se[i, j],
+                "latency_shrunk": np.nan if m.latency_shrunk is None else m.latency_shrunk[i, j],
                 "amplitude": m.amplitude[i, j],
                 "fwhm": m.fwhm[i, j],
                 "r2": m.r2[i],
@@ -1162,6 +1242,13 @@ def jitter(trial_fit: Any, component: int = 0) -> Any:
     ``jitter_sd_excess = sqrt(jitter_sd² - jitter_sd_null²)`` (the jitter left once the part that
     noise alone produces is removed; the best estimate of the true jitter at low SNR) and
     ``amplitude_jitter_corrected`` of one component (index or label).
+
+    The test of the jitter (the idea of Pham et al. 1987, Biometrika 74:525): ``jitter_detected``
+    is True when ``jitter_sd`` exceeds the refusal limit of :func:`fit_trials` (``limit`` x
+    ``jitter_sd_null``); ``jitter_min_detectable = jitter_sd_null sqrt(limit² - 1)`` is the
+    smallest true jitter that passes the test with these trials and this noise;
+    ``jitter_sd_eb`` is ``jitter_sd_excess`` when the jitter is detected and 0 otherwise, and
+    ``jitter_status`` says ``"measured"`` or ``"not measurable (< x ms)"``.
     """
     pd = require("pandas", extra="data", caller="evoparam.trials.jitter")
     rng = np.random.default_rng(0)
@@ -1190,6 +1277,16 @@ def jitter(trial_fit: Any, component: int = 0) -> Any:
             if np.isfinite(raw) and np.isfinite(null)
             else np.nan
         )
+        limit = fit.settings.get("jitter_limit", JITTER_REFUSE)
+        detected = bool(np.isfinite(raw) and np.isfinite(null) and raw > limit * null)
+        min_detectable = float(null * np.sqrt(limit**2 - 1)) if np.isfinite(null) else np.nan
+        status = (
+            "measured"
+            if detected
+            else f"not measurable (< {1e3 * min_detectable:.1f} ms)"
+            if np.isfinite(min_detectable)
+            else "not measurable"
+        )
         rows.append(
             {
                 "channel": fit.channel,
@@ -1197,6 +1294,10 @@ def jitter(trial_fit: Any, component: int = 0) -> Any:
                 "component": k,
                 "jitter_sd": raw,
                 "jitter_sd_excess": excess,
+                "jitter_sd_eb": excess if detected else 0.0,
+                "jitter_detected": detected,
+                "jitter_min_detectable": min_detectable,
+                "jitter_status": status,
                 "ci_low": float(np.nanpercentile(boots, 2.5)),
                 "ci_high": float(np.nanpercentile(boots, 97.5)),
                 "jitter_sd_null": fit.jitter_sd_null[k],

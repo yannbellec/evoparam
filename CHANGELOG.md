@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Trials: no invented jitter on slow components, jitter test (REQ-151; DECISIONS "null_rule=ar")
+
+- `fit_trials(null_rule="ar")`, the new default: the noise-only jitter is measured on noise
+  drawn from an autoregressive model of the baseline over the whole window. The former
+  default (`"segments"`, kept) repeated a short baseline end to end and reported a jitter in
+  every jitter-free run of a P3-like component (7 / 15 / 29 ms at per-trial SNR 2 / 1 / 0.5).
+- `jitter()` adds `jitter_detected`, `jitter_min_detectable`, `jitter_sd_eb` and
+  `jitter_status` ("not measurable (< x ms)"); the trial table adds `latency_se` and the
+  empirical-Bayes `latency_shrunk`.
+- New `benchmarks/trial_jitter.py`. REQ-151 restated (at most 5 % of jitter-free runs report
+  a jitter, smallest detectable jitter reported).
+
 ### REQ-374 met: layer-3 records with the exact versions of data and comparator
 
 - Rerun on 2026-10-20 of `validation/erpcore.py`, `validation/erpcore.py --parent`,
