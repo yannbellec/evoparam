@@ -115,7 +115,7 @@ time.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 51-65
+.. GENERATED FROM PYTHON SOURCE LINES 51-66
 
 Reading the bumps
 -----------------
@@ -129,17 +129,18 @@ numbers of the first tutorial:
 
 .. note::
 
-    Inside evoparam, times are in **seconds**: a latency of 0.025 means 25 ms. Multiply
-    by 1000 to read them in milliseconds.
+    Inside evoparam, times are in **seconds** (``latency`` = 0.025 means 25 ms). To read
+    them in milliseconds, add ``_ms`` to the name: ``latency_ms``, ``fwhm_ms``,
+    ``onset_ms``...
 
-.. GENERATED FROM PYTHON SOURCE LINES 67-72
+.. GENERATED FROM PYTHON SOURCE LINES 68-73
 
 .. code-block:: Python
 
 
     # Go through the bumps, one line each
     for bump in fit.components:
-        print(bump.label, round(bump.latency * 1000, 1), "ms,", round(bump.amplitude, 1), "µV")
+        print(bump.label, round(bump.latency_ms, 1), "ms,", round(bump.amplitude, 1), "µV")
 
 
 
@@ -155,19 +156,18 @@ numbers of the first tutorial:
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 73-74
+.. GENERATED FROM PYTHON SOURCE LINES 74-75
 
 To keep one number, take the bump by its place in the list: ``[0]`` is the first one.
 
-.. GENERATED FROM PYTHON SOURCE LINES 77-83
+.. GENERATED FROM PYTHON SOURCE LINES 78-83
 
 .. code-block:: Python
 
 
     # The first bump, and its latency in ms
     n1 = fit.components[0]
-    n1_latency_ms = n1.latency * 1000
-    print(round(n1_latency_ms, 1))
+    print(round(n1.latency_ms, 1))
 
 
 
@@ -186,11 +186,11 @@ To keep one number, take the bump by its place in the list: ``[0]`` is the first
 
 Each bump also has a few more numbers, all measured on the bump alone:
 
-- ``onset`` and ``offset``: when the bump starts and ends (seconds);
+- ``onset_ms`` and ``offset_ms``: when the bump starts and ends;
 - ``area``: the surface of the bump, the coloured area of the first tutorial
   (µV × seconds);
-- ``rise_time`` and ``decay_time``: how long it takes to reach its peak, and to come
-  back.
+- ``rise_time_ms`` and ``decay_time_ms``: how long it takes to reach its peak, and to
+  come back.
 
 .. GENERATED FROM PYTHON SOURCE LINES 94-98
 
@@ -198,7 +198,7 @@ Each bump also has a few more numbers, all measured on the bump alone:
 
 
     # When the first bump starts and ends, in ms
-    print(round(n1.onset * 1000, 1), round(n1.offset * 1000, 1))
+    print(round(n1.onset_ms, 1), round(n1.offset_ms, 1))
 
 
 
@@ -228,7 +228,7 @@ height. The smaller it is, the faster it fades.
 
 
     # The time constant of the background, in ms
-    print(round(fit.background["tau"] * 1000, 1))
+    print(round(fit.background_ms["tau"], 1))
 
 
 
@@ -432,7 +432,7 @@ how good it is (``fit.gof``), and ``to_dataframe`` puts everything in one table.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 1.060 seconds)
+   **Total running time of the script:** (0 minutes 2.036 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_02_reading_results.py:

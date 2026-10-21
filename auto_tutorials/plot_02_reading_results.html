@@ -142,12 +142,13 @@ numbers of the first tutorial:</p>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Inside evoparam, times are in <strong>seconds</strong>: a latency of 0.025 means 25 ms. Multiply
-by 1000 to read them in milliseconds.</p>
+<p>Inside evoparam, times are in <strong>seconds</strong> (<code class="docutils literal notranslate"><span class="pre">latency</span></code> = 0.025 means 25 ms). To read
+them in milliseconds, add <code class="docutils literal notranslate"><span class="pre">_ms</span></code> to the name: <code class="docutils literal notranslate"><span class="pre">latency_ms</span></code>, <code class="docutils literal notranslate"><span class="pre">fwhm_ms</span></code>,
+<code class="docutils literal notranslate"><span class="pre">onset_ms</span></code>…</p>
 </div>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Go through the bumps, one line each</span><span class="w">
 </span><span class="k">for</span> <span class="n">bump</span> <span class="ow">in</span> <span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">:</span><span class="w">
-</span>    <span class="nb">print</span><span class="p">(</span><span class="n">bump</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">bump</span><span class="o">.</span><span class="n">latency</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ms,</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">bump</span><span class="o">.</span><span class="n">amplitude</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">µV</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="n">bump</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">bump</span><span class="o">.</span><span class="n">latency_ms</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ms,</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">bump</span><span class="o">.</span><span class="n">amplitude</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">µV</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1 25.0 ms, -152.1 µV
 N2 151.9 ms, -77.4 µV
@@ -156,22 +157,21 @@ N2 151.9 ms, -77.4 µV
 <p>To keep one number, take the bump by its place in the list: <code class="docutils literal notranslate"><span class="pre">[0]</span></code> is the first one.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The first bump, and its latency in ms</span><span class="w">
 </span><span class="n">n1</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w">
-</span><span class="n">n1_latency_ms</span> <span class="o">=</span> <span class="n">n1</span><span class="o">.</span><span class="n">latency</span> <span class="o">*</span> <span class="mi">1000</span><span class="w">
-</span><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">n1_latency_ms</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">n1</span><span class="o">.</span><span class="n">latency_ms</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>25.0
 </pre></div>
 </div>
 <p>Each bump also has a few more numbers, all measured on the bump alone:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">onset</span></code> and <code class="docutils literal notranslate"><span class="pre">offset</span></code>: when the bump starts and ends (seconds);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">onset_ms</span></code> and <code class="docutils literal notranslate"><span class="pre">offset_ms</span></code>: when the bump starts and ends;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">area</span></code>: the surface of the bump, the coloured area of the first tutorial
 (µV × seconds);</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">rise_time</span></code> and <code class="docutils literal notranslate"><span class="pre">decay_time</span></code>: how long it takes to reach its peak, and to come
-back.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rise_time_ms</span></code> and <code class="docutils literal notranslate"><span class="pre">decay_time_ms</span></code>: how long it takes to reach its peak, and to
+come back.</p></li>
 </ul>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># When the first bump starts and ends, in ms</span><span class="w">
-</span><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">n1</span><span class="o">.</span><span class="n">onset</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">n1</span><span class="o">.</span><span class="n">offset</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">n1</span><span class="o">.</span><span class="n">onset_ms</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">n1</span><span class="o">.</span><span class="n">offset_ms</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>16.3 33.6
 </pre></div>
@@ -183,7 +183,7 @@ back.</p></li>
 number to read is its <strong>time constant</strong>: how long it takes to lose about two thirds of its
 height. The smaller it is, the faster it fades.</p>
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The time constant of the background, in ms</span><span class="w">
-</span><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">background</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">tau</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">background_ms</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">tau</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
 <div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>35.4
 </pre></div>
@@ -309,7 +309,7 @@ pulses (TMS), and there are a few more.</p>
 <p>A fit gives back its bumps (<code class="docutils literal notranslate"><span class="pre">fit.components</span></code>), its background (<code class="docutils literal notranslate"><span class="pre">fit.background</span></code>) and
 how good it is (<code class="docutils literal notranslate"><span class="pre">fit.gof</span></code>), and <code class="docutils literal notranslate"><span class="pre">to_dataframe</span></code> puts everything in one table. With
 <code class="docutils literal notranslate"><span class="pre">window</span></code> and <code class="docutils literal notranslate"><span class="pre">preset</span></code>, you choose what is described.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.060 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 2.036 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-02-reading-results-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/515aa10a4074c01da91414bfa5335352/plot_02_reading_results.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_02_reading_results.ipynb</span></code></a></p>
@@ -338,7 +338,7 @@ how good it is (<code class="docutils literal notranslate"><span class="pre">fit
     </p>
     <p>
         &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.1.1.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
     </p>
   </div>
 </footer>
