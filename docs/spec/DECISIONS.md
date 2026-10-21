@@ -477,6 +477,45 @@ default of models 1.4) and `"aic"` stay available.
   `test_req151_as_written_40_trials` (strict xfail with the measured values),
   `tests/trials/test_trials_table.py::test_options_are_checked_and_recorded`.
 
+### Null jitter of `fit_trials`: `null_rule="ar"` and the jitter test (REQ-151, 21/10/2026)
+
+- **Found** (`benchmarks/trial_jitter.py`, 10 runs per case, P3-like component: latency
+  350 ms, FWHM 200 ms, 40 trials, 500 Hz, preset `erp`, `r2_min=0`): under
+  `null_rule="segments"` a jitter was reported in every jitter-free run (raw `jitter_sd`
+  7.0 / 14.8 / 29.3 ms at noise 5 / 10 / 20, `jitter_sd_null` about 1 / 2 / 4 ms). Cause: the
+  `erp` baseline (−200 to 0 ms) is shorter than the trial window; repeated end to end it
+  has no power below 5 Hz, where the latency of a 200 ms component lives, so the null
+  jitter is far too small. The raw `jitter_sd` itself equals the Cramér-Rao SD of one trial's
+  latency (about 7 / 14 / 28 ms): it measures the noise.
+- **Literature** (no method beats that limit: Jaśkowski & Verleger 2000, Psychophysiology
+  37:153; Pluta et al. 2024, Sci Rep 14:8856; review in
+  `/mnt/project-files/etapes/latence-essai-par-essai-litterature.md` of the project): test
+  the jitter instead of always estimating it (Pham et al. 1987, Biometrika 74:525), and
+  shrink the trial latencies towards the mean (empirical Bayes).
+- **Default** `null_rule="ar"`: the noise-only segments are drawn from an autoregressive
+  model (order ≤ 8) of the baseline, 20 per trial, over the whole window; the refusal limit
+  is unchanged (1.2 × and the F quantile). `jitter()` adds `jitter_detected`,
+  `jitter_min_detectable = jitter_sd_null·sqrt(limit² − 1)`, `jitter_sd_eb` (the excess
+  jitter when detected, else 0) and `jitter_status` (`"not measurable (< x ms)"`); the trial
+  table adds `latency_se` (= `jitter_sd_null`) and `latency_shrunk`. `"segments"` and
+  `"spec"` stay available.
+- **Measured** (same bench), `jitter_sd_eb` / runs with a jitter detected / smallest
+  detectable jitter: no jitter, noise 5: 0.0 ms / 0 % / 5.6 ms; noise 10: 1.2 ms / 10 % /
+  11.4 ms; noise 20: 0.0 ms / 0 % / 24.0 ms. True jitter 10 ms, noise 5: 10.3 ms / 100 % /
+  5.7 ms; noise 10: 6.9 ms / 50 % / 11.7 ms (10 ms is below the limit); noise 20: 0.0 ms /
+  0 % / 24.6 ms (reported as not measurable). On the fast N1-like simulation of the tests
+  (FWHM 20 ms, 1 kHz) `"ar"` and `"segments"` give the same null (about 1.0 ms).
+- **REQ-151 changed** (gg, 21/10/2026, who allowed the spec to be patched when the change
+  serves the aim): former text "`jitter_sd_null` on jitter-free simulated trials is
+  ≥ 0.8·`jitter_sd`, and `realign` refuses in ≥ 95 % of jitter-free runs"; new text "on
+  jitter-free simulated trials at most 5 % of runs report a jitter (`jitter_detected`),
+  `realign` refuses in ≥ 95 % of them, and the smallest detectable jitter is reported". The
+  former ratio is a test of the null rule, not of what the user reads.
+- Tests: `tests/trials/test_trials_sim.py::test_req151_no_false_jitter`,
+  `test_req151_no_false_jitter_p3` (noise 5 and 20), `test_p3_jitter_measured_or_not_measurable`;
+  the former ratio stays tested under `"segments"`
+  (`test_req151_no_invented_jitter_and_realign_refused`, `test_req151_as_written*`).
+
 ### Pulse detection: `procedure="evoparam"` (§5.2 methods 1 and 2)
 
 - **Reviewed procedure** (still available as `detect_pulses(..., procedure="spec")`,
