@@ -99,8 +99,13 @@ print(fit)
 # dashed line is the background. Each coloured area is one bump: it fills the space between
 # the background and the curve. The orange line at the bottom is what is left over.
 #
-# The colour of the areas can be changed, for example ``plot_fit(fit, shade_color="grey")``,
-# or they can be turned off with ``shade=False``.
+# The colour of the areas can be changed with ``shade_color``, or the areas turned off with
+# ``shade=False``:
+
+###################################################################################################
+
+# The same fit, with grey areas
+fit = report(times, signal, preset="ccep", shade_color="grey")
 
 ###################################################################################################
 # Reading the numbers on the curve

@@ -168,9 +168,12 @@ named them <strong>N1</strong> and <strong>N2</strong>: N for a bump that goes d
 <p>In the figure, the black line is our curve and the thick blue line is the model. The grey
 dashed line is the background. Each coloured area is one bump: it fills the space between
 the background and the curve. The orange line at the bottom is what is left over.</p>
-<p>The colour of the areas can be changed, for example <code class="docutils literal notranslate"><span class="pre">plot_fit(fit,</span> <span class="pre">shade_color=&quot;grey&quot;)</span></code>,
-or they can be turned off with <code class="docutils literal notranslate"><span class="pre">shade=False</span></code>.</p>
-</section>
+<p>The colour of the areas can be changed with <code class="docutils literal notranslate"><span class="pre">shade_color</span></code>, or the areas turned off with
+<code class="docutils literal notranslate"><span class="pre">shade=False</span></code>:</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The same fit, with grey areas</span><span class="w">
+</span><span class="n">fit</span> <span class="o">=</span> <span class="n">report</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">shade_color</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">grey</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_01_model_description_003.png" srcset="../_images/sphx_glr_plot_01_model_description_003.png" alt="ok: 2 component(s)" class = "sphx-glr-single-img"/></section>
 <section id="reading-the-numbers-on-the-curve">
 <h2>Reading the numbers on the curve<a class="headerlink" href="#reading-the-numbers-on-the-curve" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">plot_annotated_fit</span></code> draws each number where it is read on the curve:</p>
@@ -183,7 +186,7 @@ or they can be turned off with <code class="docutils literal notranslate"><span 
 <div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Draw the model with its numbers</span><span class="w">
 </span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_annotated_fit</span><span class="p">(</span><span class="n">fit</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
-<img src="../_images/sphx_glr_plot_01_model_description_003.png" srcset="../_images/sphx_glr_plot_01_model_description_003.png" alt="plot 01 model description" class = "sphx-glr-single-img"/></section>
+<img src="../_images/sphx_glr_plot_01_model_description_004.png" srcset="../_images/sphx_glr_plot_01_model_description_004.png" alt="plot 01 model description" class = "sphx-glr-single-img"/></section>
 <section id="conceptual-overview">
 <h2>Conceptual overview<a class="headerlink" href="#conceptual-overview" title="Link to this heading">¶</a></h2>
 <p>evoparam sees every curve as the sum of three parts.</p>
@@ -237,7 +240,7 @@ steps in one line.</p>
 </span><span class="nb">print</span><span class="p">(</span><span class="n">fit2</span><span class="p">)</span><span class="w">
 </span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_fit</span><span class="p">(</span><span class="n">fit2</span><span class="p">)</span><span class="w">
 </span></pre></div></div>
-<img src="../_images/sphx_glr_plot_01_model_description_004.png" srcset="../_images/sphx_glr_plot_01_model_description_004.png" alt="ok: 2 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>==================================================================
+<img src="../_images/sphx_glr_plot_01_model_description_005.png" srcset="../_images/sphx_glr_plot_01_model_description_005.png" alt="ok: 2 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>==================================================================
                     evoparam - RESPONSE MODEL
 
                      fit window: 9 to 500 ms
@@ -265,7 +268,7 @@ small compared to the noise, evoparam starts to miss them, as anyone would.</p>
 <p>evoparam describes a curve as a background, a few bumps and some noise, and gives the
 timing, height and width of each bump. In the next tutorials, we look at the settings of
 the model and use it on real recordings.</p>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.724 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 4.259 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-01-model-description-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/fc75f50fc2efd4dd4ab0291b9e2d23f9/plot_01_model_description.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_01_model_description.ipynb</span></code></a></p>
