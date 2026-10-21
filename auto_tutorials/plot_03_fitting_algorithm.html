@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>03: Fitting algorithm &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="04: Component fitting" href="plot_04_component_fitting.html" />
+    <link rel="prev" title="05: Background fitting" href="plot_05_background_fitting.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-03-fitting-algorithm-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="fitting-algorithm">
+<span id="sphx-glr-auto-tutorials-plot-03-fitting-algorithm-py"></span><h1>03: Fitting algorithm<a class="headerlink" href="#fitting-algorithm" title="Link to this heading">¶</a></h1>
+<p>What evoparam does, step by step, to turn a curve into a background and a few bumps.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>In tutorials 01 and 02, <code class="docutils literal notranslate"><span class="pre">fit_response</span></code> gave the answer in one call. Here we open the
+box and follow the steps it takes. Knowing them helps to understand the settings
+(tutorials 04 to 06) and to see why a fit sometimes goes wrong (tutorial 10).</p>
+<p>The steps are:</p>
+<ol class="arabic simple">
+<li><p>measure the <strong>noise</strong>, on the part of the recording before the stimulus;</p></li>
+<li><p>fit the <strong>background</strong> alone, with no bump;</p></li>
+<li><p>look at what the model does not explain yet, put a <strong>new bump</strong> where the largest
+peak or trough left over is, and refit everything together;</p></li>
+<li><p><strong>keep</strong> the new bump only if it makes the model clearly better (BIC);</p></li>
+<li><p>repeat steps 3 and 4 until no new bump helps, or the largest number allowed is
+reached;</p></li>
+<li><p><strong>name</strong> the bumps (N1, N2…) and <strong>measure</strong> them (latency, amplitude, width,
+uncertainty).</p></li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Here we run the fit several times, each time allowing one more bump, to show each
+step. This is only to look inside: in practice, one call to <code class="docutils literal notranslate"><span class="pre">fit_response</span></code> does
+all of it.</p>
+</div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_response</span><span class="p">,</span> <span class="n">gen_response</span><span class="p">,</span> <span class="n">plot_fit</span><span class="w">
+</span></pre></div></div>
+<p>We use the curve of tutorial 01: a sharp bump at 25 ms (−150 µV) and a broad one at
+150 ms (−80 µV), on a background that fades away (60 µV, fading in 30 ms), with noise of
+8 µV.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The example curve: [latency (ms), amplitude (µV), width (ms)]</span><span class="w">
+</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># The whole fit, in one call</span><span class="w">
+</span><span class="n">fit</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">fit</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>==================================================================
+                    evoparam - RESPONSE MODEL
+
+                     fit window: 9 to 500 ms
+          background: exponential, time constant 35.4 ms
+
+                      2 component(s) found:
+            label        latency     amplitude     width
+            N1           25.0 ms    -152.1 µV     9.5 ms
+            N2          151.9 ms     -77.4 µV    79.2 ms
+
+           fit quality: R2 = 0.94, noise level = 7.4 µV
+  (latency: time of the peak; width: full width at half maximum)
+==================================================================
+</pre></div>
+</div>
+</section>
+<section id="step-1-the-noise">
+<h2>Step 1: the noise<a class="headerlink" href="#step-1-the-noise" title="Link to this heading">¶</a></h2>
+<p>Before the stimulus (from −500 to −20 ms here, the <strong>baseline</strong>), there is no response:
+only noise. evoparam measures it there: how large it is (its standard deviation,
+<code class="docutils literal notranslate"><span class="pre">sigma</span></code>) and how it is made (brain noise is slow: a point looks like its neighbours,
+so evoparam also learns this rhythm).</p>
+<p>The noise sets the scale for everything that follows: a bump is only worth keeping if it
+is clearly larger than what noise can make.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">noise measured on the baseline: </span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">diagnostics</span><span class="p">[</span><span class="s1">'</span><span class="s1">sigma</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> µV (true value: 8 µV)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>noise measured on the baseline: 7.4 µV (true value: 8 µV)
+</pre></div>
+</div>
+</section>
+<section id="step-2-the-background-alone">
+<h2>Step 2: the background alone<a class="headerlink" href="#step-2-the-background-alone" title="Link to this heading">¶</a></h2>
+<p>The fit starts with the simplest model: the background alone, no bump. For the
+<code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> preset the background is an exponential: a jump that fades away (tutorial 05
+is about the background).</p>
+<p><code class="docutils literal notranslate"><span class="pre">max_components=0</span></code> stops the fit here, so that we can see this step.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">step_0</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_components</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">R² = </span><span class="si">{</span><span class="n">step_0</span><span class="o">.</span><span class="n">gof</span><span class="o">.</span><span class="n">r2</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, BIC = </span><span class="si">{</span><span class="n">step_0</span><span class="o">.</span><span class="n">gof</span><span class="o">.</span><span class="n">bic</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_fit</span><span class="p">(</span><span class="n">step_0</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_03_fitting_algorithm_001.png" srcset="../_images/sphx_glr_plot_03_fitting_algorithm_001.png" alt="no_response: 0 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>R² = 0.02, BIC = 756
+</pre></div>
+</div>
+<p>The background alone explains almost nothing of the curve (R² = 0.02): the two dips are
+left in the residual (the orange line at the bottom, shifted down to be readable).</p>
+<p>The <strong>BIC</strong> (Bayesian information criterion) scores the model: how far it is from the
+data, compared with the noise, plus a cost for every number the model uses. Lower is
+better. Here it is 756.</p>
+</section>
+<section id="step-3-add-one-bump">
+<h2>Step 3: add one bump<a class="headerlink" href="#step-3-add-one-bump" title="Link to this heading">¶</a></h2>
+<p>evoparam looks at what is left over (data minus model). It takes the largest peaks and
+troughs there that stand above 2 times the noise (<code class="docutils literal notranslate"><span class="pre">detection_threshold=2</span></code>), tries a
+new bump at each of them, and refits <strong>everything together</strong>: the background and all the
+bumps move to fit best. The best of these tries is the candidate.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">step_1</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_components</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">R² = </span><span class="si">{</span><span class="n">step_1</span><span class="o">.</span><span class="n">gof</span><span class="o">.</span><span class="n">r2</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, BIC = </span><span class="si">{</span><span class="n">step_1</span><span class="o">.</span><span class="n">gof</span><span class="o">.</span><span class="n">bic</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_fit</span><span class="p">(</span><span class="n">step_1</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_03_fitting_algorithm_002.png" srcset="../_images/sphx_glr_plot_03_fitting_algorithm_002.png" alt="ok: 1 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>R² = 0.27, BIC = 440
+</pre></div>
+</div>
+<p>The first bump is the sharp N1 at 25 ms: it is the deepest trough of the curve. The BIC
+goes down from 756 to 440.</p>
+</section>
+<section id="step-4-keep-it-or-not">
+<h2>Step 4: keep it or not<a class="headerlink" href="#step-4-keep-it-or-not" title="Link to this heading">¶</a></h2>
+<p>A new bump always makes the model a little closer to the data, even if it only follows
+noise. So evoparam keeps it only when the BIC goes down by at least <code class="docutils literal notranslate"><span class="pre">delta</span></code> (10 for
+the <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> preset). Here it went down by 316: the N1 is kept.</p>
+</section>
+<section id="step-5-again-until-no-bump-helps">
+<h2>Step 5: again, until no bump helps<a class="headerlink" href="#step-5-again-until-no-bump-helps" title="Link to this heading">¶</a></h2>
+<p>The same is done again on what is left: a second bump is tried and kept if the BIC goes
+down by 10 or more.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">step_2</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_components</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">R² = </span><span class="si">{</span><span class="n">step_2</span><span class="o">.</span><span class="n">gof</span><span class="o">.</span><span class="n">r2</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, BIC = </span><span class="si">{</span><span class="n">step_2</span><span class="o">.</span><span class="n">gof</span><span class="o">.</span><span class="n">bic</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_fit</span><span class="p">(</span><span class="n">step_2</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_03_fitting_algorithm_003.png" srcset="../_images/sphx_glr_plot_03_fitting_algorithm_003.png" alt="ok: 2 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>R² = 0.94, BIC = 34
+</pre></div>
+</div>
+<p>The broad N2 at 150 ms is added: the BIC goes down from 440 to 34, and R² goes up to
+0.94. The residual is now flat: only noise is left.</p>
+<p>A third bump was tried too, on the largest wiggle of the noise. It would have lowered
+the BIC by only about 6, less than 10, so it was not kept and the fit stopped. The fit
+keeps the history of the BIC at each step, and by how much the best refused bump would
+have lowered it.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">fit</span><span class="o">.</span><span class="n">diagnostics</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">steps</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">:</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">step</span><span class="p">[</span><span class="s1">'</span><span class="s1">K</span><span class="s1">'</span><span class="p">]</span><span class="si">}</span><span class="s2"> bump(s): BIC = </span><span class="si">{</span><span class="n">step</span><span class="p">[</span><span class="s1">'</span><span class="s1">criterion</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">best refused bump: lowers the BIC by </span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">diagnostics</span><span class="p">[</span><span class="s1">'</span><span class="s1">best_rejected_delta</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>0 bump(s): BIC = 754
+1 bump(s): BIC = 440
+2 bump(s): BIC = 35
+best refused bump: lowers the BIC by 6.3
+</pre></div>
+</div>
+<p>The values of the history (754, 440, 35) differ a little from those printed for the
+separate fits above (756, 440, 34): each separate fit starts again from scratch. What
+matters is how much the BIC goes down from one step to the next.</p>
+<p>The search also stops when <code class="docutils literal notranslate"><span class="pre">max_components</span></code> bumps are reached (6 for <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code>):
+this limit is a safety, it never adds bumps that are not there.</p>
+</section>
+<section id="step-6-name-and-measure-the-bumps">
+<h2>Step 6: name and measure the bumps<a class="headerlink" href="#step-6-name-and-measure-the-bumps" title="Link to this heading">¶</a></h2>
+<p>When the search stops, evoparam:</p>
+<ul class="simple">
+<li><p><strong>names</strong> each bump by where and which way it goes: for <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code>, a bump going down
+between 9 and 50 ms is the N1, between 50 and 300 ms the N2. A bump with no name gets
+a number (C1, C2…);</p></li>
+<li><p><strong>measures</strong> each bump: latency (when it peaks), amplitude (its height from the
+background, not from zero), width at half height, onset and offset (where it reaches
+10 % of its height);</p></li>
+<li><p>gives each number an <strong>uncertainty</strong>: a range of 95 % around it, computed from the
+noise and from how sharply the fit depends on that number.</p></li>
+</ul>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">for</span> <span class="n">bump</span> <span class="ow">in</span> <span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">:</span><span class="w">
+</span>    <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">=</span> <span class="n">bump</span><span class="o">.</span><span class="n">ci</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="w">
+</span>        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">bump</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">: latency </span><span class="si">{</span><span class="n">bump</span><span class="o">.</span><span class="n">latency_ms</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> ms </span><span class="s2">&quot;</span><span class="w">
+</span>        <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">(95 % range </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">low</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">high</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> ms), </span><span class="s2">&quot;</span><span class="w">
+</span>        <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">amplitude </span><span class="si">{</span><span class="n">bump</span><span class="o">.</span><span class="n">amplitude</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> µV, width </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">bump</span><span class="o">.</span><span class="n">fwhm</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> ms</span><span class="s2">&quot;</span><span class="w">
+</span>    <span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1: latency 25.0 ms (95 % range 24.7 to 25.2 ms), amplitude -152 µV, width 10 ms
+N2: latency 151.9 ms (95 % range 148.2 to 155.6 ms), amplitude -77 µV, width 79 ms
+</pre></div>
+</div>
+<p>The sharp N1 is placed within a fraction of a ms; the broad N2 within a few ms. This is
+the same lesson as for trials (tutorial 09): a narrow, large bump is timed much more
+precisely than a broad, small one.</p>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>evoparam measures the noise, starts from the background alone, adds bumps one at a time
+where the largest leftover is, refits everything at each step, and keeps a new bump only
+when the BIC goes down by <code class="docutils literal notranslate"><span class="pre">delta</span></code> or more. Then it names and measures the bumps. The
+next tutorials look at the settings of each part: the bumps (04), the background (05)
+and the scores that judge the fit (06).</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.979 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-03-fitting-algorithm-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/eab0d73878d4a1b8b1ac092120953b4c/plot_03_fitting_algorithm.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_03_fitting_algorithm.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/6f8ced6674c8a4165452a4107e411d33/plot_03_fitting_algorithm.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_03_fitting_algorithm.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/4ab02e83377f2a4e2f7bb6902763588f/plot_03_fitting_algorithm.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_03_fitting_algorithm.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

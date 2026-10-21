@@ -3,7 +3,8 @@
 Tutorials
 =========
 
-Step-by-step introductions to evoparam: start with the first one, which shows what the
+Step-by-step introductions to evoparam, made to be worked through in order: start with the
+first one, which shows what the
 model does on one example curve.
 
 
@@ -20,6 +21,23 @@ model does on one example curve.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="Write what was done, share the results, and cite the tools.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_12_reporting_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_12_reporting`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">12: Reporting and referencing</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="What evoparam does, shown on one example curve.">
 
 .. only:: html
@@ -32,6 +50,74 @@ model does on one example curve.
 .. raw:: html
 
       <div class="sphx-glr-thumbnail-title">01: Model description</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Choose the shape of the slow part of the curve, and see what it does to the bumps.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_05_background_fitting_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_05_background_fitting`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">05: Background fitting</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="What evoparam does, step by step, to turn a curve into a background and a few bumps.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_03_fitting_algorithm_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_03_fitting_algorithm`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">03: Fitting algorithm</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Choose the shape of the bumps, and read the numbers that describe them.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_04_component_fitting_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_04_component_fitting`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">04: Component fitting</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="What else a fit keeps: its settings, its curves, the classical measures, its history, and how to save it.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_07_fit_object_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_07_fit_object`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">07: Exploring the fit object</div>
     </div>
 
 
@@ -54,18 +140,35 @@ model does on one example curve.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="Judge a fit: how well it follows the curve, how sure its numbers are, and what it warns.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_06_metrics_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_06_metrics`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">06: Metrics and model evaluation</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="Change the settings of the model, and see what each one does to the result.">
 
 .. only:: html
 
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_03_tuning_the_fit_thumb.png
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_10_tuning_the_fit_thumb.png
     :alt:
 
-  :doc:`/auto_tutorials/plot_03_tuning_the_fit`
+  :doc:`/auto_tutorials/plot_10_tuning_the_fit`
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">03: Tuning the fit</div>
+      <div class="sphx-glr-thumbnail-title">10: Tuning the fit</div>
     </div>
 
 
@@ -75,31 +178,48 @@ model does on one example curve.
 
 .. only:: html
 
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_05_trial_by_trial_thumb.png
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_09_trial_by_trial_thumb.png
     :alt:
 
-  :doc:`/auto_tutorials/plot_05_trial_by_trial`
+  :doc:`/auto_tutorials/plot_09_trial_by_trial`
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">05: Trial by trial</div>
+      <div class="sphx-glr-thumbnail-title">09: Fitting trial by trial</div>
     </div>
 
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="Read a real recording, clean it, fit it, test it, and write the methods.">
+    <div class="sphx-glr-thumbcontainer" tooltip="Use the results: pick one bump across electrodes, check its range, and relate it to where the electrodes are.">
 
 .. only:: html
 
-  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_04_real_data_thumb.png
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_11_further_analysis_thumb.png
     :alt:
 
-  :doc:`/auto_tutorials/plot_04_real_data`
+  :doc:`/auto_tutorials/plot_11_further_analysis`
 
 .. raw:: html
 
-      <div class="sphx-glr-thumbnail-title">04: Real data, from start to end</div>
+      <div class="sphx-glr-thumbnail-title">11: Further analysis</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Read a real recording, clean it, fit every electrode, test which ones respond, and write the methods.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_08_groups_real_data_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_08_groups_real_data`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">08: Fitting groups of electrodes</div>
     </div>
 
 
@@ -113,11 +233,18 @@ model does on one example curve.
 .. toctree::
    :hidden:
 
+   /auto_tutorials/plot_12_reporting
    /auto_tutorials/plot_01_model_description
+   /auto_tutorials/plot_05_background_fitting
+   /auto_tutorials/plot_03_fitting_algorithm
+   /auto_tutorials/plot_04_component_fitting
+   /auto_tutorials/plot_07_fit_object
    /auto_tutorials/plot_02_reading_results
-   /auto_tutorials/plot_03_tuning_the_fit
-   /auto_tutorials/plot_05_trial_by_trial
-   /auto_tutorials/plot_04_real_data
+   /auto_tutorials/plot_06_metrics
+   /auto_tutorials/plot_10_tuning_the_fit
+   /auto_tutorials/plot_09_trial_by_trial
+   /auto_tutorials/plot_11_further_analysis
+   /auto_tutorials/plot_08_groups_real_data
 
 
 

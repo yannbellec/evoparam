@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>12: Reporting and referencing &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="01: Model description" href="plot_01_model_description.html" />
+    <link rel="prev" title="Tutorials" href="index.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-12-reporting-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="reporting-and-referencing">
+<span id="sphx-glr-auto-tutorials-plot-12-reporting-py"></span><h1>12: Reporting and referencing<a class="headerlink" href="#reporting-and-referencing" title="Link to this heading">¶</a></h1>
+<p>Write what was done, share the results, and cite the tools.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>A result is only useful if others can tell how it was made, and make it again. evoparam
+keeps a record of every step (tutorial 07). This last tutorial turns that record into:</p>
+<ol class="arabic simple">
+<li><p>the <strong>methods paragraph</strong> of a paper;</p></li>
+<li><p>a <strong>report</strong> to share (HTML, PDF, Markdown) and a full <strong>JSON</strong> file;</p></li>
+<li><p>the <strong>citations</strong> of evoparam and of the methods it used;</p></li>
+<li><p>a way to <strong>make the result again</strong> later.</p></li>
+</ol>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="w">
+</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">evoparam</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_response</span><span class="p">,</span> <span class="n">gen_response</span><span class="p">,</span> <span class="n">reports</span><span class="w">
+</span></pre></div></div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The curve of tutorial 01, fitted with one setting changed from the preset</span><span class="w">
+</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
+</span><span class="n">fit</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="the-methods-paragraph">
+<h2>1. The methods paragraph<a class="headerlink" href="#the-methods-paragraph" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">reports.methods_text</span></code> writes, in plain English, every step that was recorded: the
+preset and its version, the model, how bumps were chosen, the windows of the names, how
+the uncertainty was computed, every setting changed from the preset, the random seed,
+and the citations.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="n">reports</span><span class="o">.</span><span class="n">methods_text</span><span class="p">(</span><span class="n">fit</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Evoked responses were analysed with evoparam (version 0.1.0.dev0) using the preset 'ccep' v1.2; validation: ds004080 (REQ-113, REQ-114, REQ-135). In the window 9 to 500 ms, each waveform was modelled as an exponential background plus up to 6 components (skewed gaussian and gaussian; full width at half maximum 3 to 250 ms, both polarities). Amplitudes and background coefficients were solved by variable projection and the other parameters by bounded least squares (linear loss, 3 starts). Components were added one at a time and kept when the BIC decreased by at least 20, computed on residuals whitened by an autoregressive model of the noise of the baseline. A final model holding two overlapping components of opposite sign was refitted from starts on the extrema of the data and replaced when the refit was better; a component of the refitted model that no longer lowered the criterion by the same amount was removed. Uncertainty: Jacobian-based (Wald) intervals at 95 %. Onset and offset are the times where a component reaches 10 % of its peak amplitude. Components were labelled by latency window: N1 (9 to 50 ms, negative), N2 (50 to 300 ms, negative) and delayed (100 to 1000 ms, either polarity). A response was said to have an N1 when the fitted curve (background and components) had a negative peak in 9 to 50 ms deeper than 3.4 times the noise standard deviation estimated by the fit. Classical measures (peak, mean amplitude, area and fractional-area latencies) were computed on the same window. Settings changed from the preset (times in s): delta = 20. Random draws used the seed 0; the result can be regenerated from its recorded provenance with evoparam.reproduce. Software: Bellec Y.V. evoparam: parameterizing evoked neural responses (version 0.1.0). https://github.com/yannbellec/evoparam
+</pre></div>
+</div>
+<p>The setting we changed (<code class="docutils literal notranslate"><span class="pre">delta=20</span></code>) is written in it: “kept when the BIC decreased by
+at least 20”. This is why it is safer to give settings to evoparam than to change the
+results by hand afterwards: what is given is recorded.</p>
+<p>With real data, run through <code class="docutils literal notranslate"><span class="pre">reports.run_pipeline</span></code> (tutorial 08), the same function
+also describes the reading, the artifact removal, the re-referencing, the baseline and
+the test of a response.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Adapt the wording to your paper, but keep the numbers: they are the ones that were
+used. <code class="docutils literal notranslate"><span class="pre">cite=False</span></code> leaves out the citations, if you add them yourself.</p>
+</div>
+</section>
+<section id="reports-to-share">
+<h2>2. Reports to share<a class="headerlink" href="#reports-to-share" title="Link to this heading">¶</a></h2>
+<p>Three report formats hold the methods text, a table of the results, a summary of the
+quality of the fits, and the steps of the record:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">reports.html(result,</span> <span class="pre">path)</span></code>: one HTML file, with the figures inside it, that opens
+in any browser without internet;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reports.pdf(result,</span> <span class="pre">path)</span></code>: the same as a PDF;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reports.markdown(result)</span></code>: the same as Markdown text.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">reports.to_json(result,</span> <span class="pre">path)</span></code> writes <strong>everything</strong> (every number, setting and
+step) in one JSON file, which any language can read.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">folder</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">page</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">my_fit.html</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">reports</span><span class="o">.</span><span class="n">html</span><span class="p">(</span><span class="n">fit</span><span class="p">,</span> <span class="n">page</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">HTML report: </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">page</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1000</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> kB</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">everything</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">my_fit.json</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">reports</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">fit</span><span class="p">,</span> <span class="n">everything</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">JSON file: </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">everything</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1000</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> kB</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>HTML report: 72 kB
+JSON file: 52 kB
+</pre></div>
+</div>
+<p>With many electrodes (a group fit, or the result of <code class="docutils literal notranslate"><span class="pre">run_pipeline</span></code>), the reports show
+one figure per electrode, up to <code class="docutils literal notranslate"><span class="pre">max_channels</span></code>. To store results next to a BIDS
+dataset, use <code class="docutils literal notranslate"><span class="pre">evoparam.io.write_bids_derivatives</span></code>.</p>
+</section>
+<section id="citations">
+<h2>3. Citations<a class="headerlink" href="#citations" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">evoparam.cite()</span></code> prints how to cite evoparam (with its version); <code class="docutils literal notranslate"><span class="pre">bibtex=True</span></code>
+gives an entry for a reference manager. The methods text also cites the published
+methods that the steps used (for example the false-discovery-rate correction of the
+test of a response).</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">text</span> <span class="o">=</span> <span class="n">evoparam</span><span class="o">.</span><span class="n">cite</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Bellec Y.V. evoparam: parameterizing evoked neural responses (version 0.1.0). https://github.com/yannbellec/evoparam
+</pre></div>
+</div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">entry</span> <span class="o">=</span> <span class="n">evoparam</span><span class="o">.</span><span class="n">cite</span><span class="p">(</span><span class="n">bibtex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>@software{bellec_evoparam,
+  title = {evoparam: parameterizing evoked neural responses},
+  author = {Bellec, Yann V.},
+  version = {0.1.0},
+  url = {https://github.com/yannbellec/evoparam},
+  license = {Apache-2.0},
+}
+</pre></div>
+</div>
+<p>Also cite the data: for the recording of tutorials 08 and 11, van Blooijs et al. (2023),
+<em>Nature Neuroscience</em>, and its OpenNeuro identifier (ds004080).</p>
+</section>
+<section id="making-the-result-again">
+<h2>4. Making the result again<a class="headerlink" href="#making-the-result-again" title="Link to this heading">¶</a></h2>
+<p>A saved fit (<code class="docutils literal notranslate"><span class="pre">fit.save</span></code>, tutorial 07) holds its full record: the version of evoparam,
+every setting, the seed, and where the data came from. <code class="docutils literal notranslate"><span class="pre">evoparam.reproduce(path)</span></code>
+runs the fit again from that record and compares every number with the saved ones.
+When the data were not read from a file (for example a curve made in Python, as here),
+give them with <code class="docutils literal notranslate"><span class="pre">data=</span></code>.</p>
+<p>The record also lists the computer’s versions of Python and of the main packages, so
+that a difference in a later run can be traced to its cause.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">saved</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">my_fit.zip</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">fit</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">saved</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">saved with evoparam</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">provenance</span><span class="o">.</span><span class="n">package_version</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>saved with evoparam 0.1.0.dev0
+</pre></div>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>evoparam writes the methods paragraph from what was actually done, makes reports to
+share and a complete JSON file, says how to cite it, and keeps what is needed to make
+a result again. Report every setting you changed, each number with its 95 % range
+(tutorial 06), and cite both the tools and the data.</p>
+<p>This is the end of the tutorials: from what the model is (01) to how to report it (12).</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.655 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-12-reporting-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/bf2f62f7c504528cd230a0f1c9894eef/plot_12_reporting.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_12_reporting.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/a6e7f4236afcc2c135382d16792ffc82/plot_12_reporting.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_12_reporting.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/20821fb24d1655bfb6574abf846bb9e3/plot_12_reporting.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_12_reporting.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

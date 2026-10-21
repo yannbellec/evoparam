@@ -34,11 +34,25 @@ Get started
 
 :doc:`auto_tutorials/plot_02_reading_results`
 
-:doc:`auto_tutorials/plot_03_tuning_the_fit`
+:doc:`auto_tutorials/plot_03_fitting_algorithm`
 
-:doc:`auto_tutorials/plot_04_real_data`
+:doc:`auto_tutorials/plot_04_component_fitting`
 
-:doc:`auto_tutorials/plot_05_trial_by_trial`
+:doc:`auto_tutorials/plot_05_background_fitting`
+
+:doc:`auto_tutorials/plot_06_metrics`
+
+:doc:`auto_tutorials/plot_07_fit_object`
+
+:doc:`auto_tutorials/plot_08_groups_real_data`
+
+:doc:`auto_tutorials/plot_09_trial_by_trial`
+
+:doc:`auto_tutorials/plot_10_tuning_the_fit`
+
+:doc:`auto_tutorials/plot_11_further_analysis`
+
+:doc:`auto_tutorials/plot_12_reporting`
 
 .. toctree::
    :hidden:

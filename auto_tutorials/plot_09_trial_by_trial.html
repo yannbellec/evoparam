@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>09: Fitting trial by trial &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="11: Further analysis" href="plot_11_further_analysis.html" />
+    <link rel="prev" title="10: Tuning the fit" href="plot_10_tuning_the_fit.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-09-trial-by-trial-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="fitting-trial-by-trial">
+<span id="sphx-glr-auto-tutorials-plot-09-trial-by-trial-py"></span><h1>09: Fitting trial by trial<a class="headerlink" href="#fitting-trial-by-trial" title="Link to this heading">¶</a></h1>
+<p>Measure the N1 and the N2 in every trial, and tell a real change from noise.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>Until now we fitted the <strong>average</strong> of the trials: one curve per electrode. But the brain
+does not answer the same way to every pulse. The N1 can come a little earlier or later,
+be a little larger or smaller. How much it moves from trial to trial (its <strong>jitter</strong>)
+can tell something about the brain: how stable a connection is, or how its state
+changes over time.</p>
+<p>There is a trap. A single trial is noisy, so its measured latency moves even when the
+brain does not: part of the variation we measure is made by the noise. Before saying
+“the N1 varies by 3 ms”, we must know how much the noise alone would give.</p>
+<p>Here we:</p>
+<ol class="arabic simple">
+<li><p>fit every trial of made-up data where we know the truth, with no jitter;</p></li>
+<li><p>do the same with a known jitter;</p></li>
+<li><p>look at the N2, which is much harder to follow trial by trial;</p></li>
+<li><p>go back to the real recording of tutorial 08.</p></li>
+</ol>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">plots</span><span class="p">,</span> <span class="n">reports</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_bids</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">sim</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_ccep</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">trials</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_trials</span><span class="p">,</span> <span class="n">jitter</span><span class="w">
+</span></pre></div></div>
+<p>A small helper prints, for one bump, the jitter numbers that matter, in ms.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">def</span><span class="w"> </span><span class="nf">show_jitter</span><span class="p">(</span><span class="n">trial_fits</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;Print the measured jitter, the jitter of noise alone and the verdict, in ms.&quot;&quot;&quot;</span><span class="w">
+</span>    <span class="n">table</span> <span class="o">=</span> <span class="n">jitter</span><span class="p">(</span><span class="n">trial_fits</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span><span class="w">
+</span>    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">iterrows</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>        <span class="nb">print</span><span class="p">(</span><span class="w">
+</span>            <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">'</span><span class="s1">channel</span><span class="s1">'</span><span class="p">]</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">: measured </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">row</span><span class="p">[</span><span class="s1">'</span><span class="s1">jitter_sd</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> ms, </span><span class="s2">&quot;</span><span class="w">
+</span>            <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">noise alone </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">row</span><span class="p">[</span><span class="s1">'</span><span class="s1">jitter_sd_null</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> ms -&gt; </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">'</span><span class="s1">jitter_status</span><span class="s1">'</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">
+</span>        <span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="trials-with-no-jitter">
+<h2>Trials with no jitter<a class="headerlink" href="#trials-with-no-jitter" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">simulate_ccep</span></code> makes CCEP trials like those of a real recording: an N1 and an N2,
+plus noise that looks like brain activity. Here: 30 trials, one stimulated pair (G01-G02)
+and one electrode that responds (G03). The response is exactly the same in every trial:
+the true jitter is 0.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># 30 trials; the response does not move (jitter_sd=0)</span><span class="w">
+</span><span class="n">trials_still</span><span class="p">,</span> <span class="n">truth_still</span> <span class="o">=</span> <span class="n">simulate_ccep</span><span class="p">(</span><span class="w">
+</span>    <span class="mi">30</span><span class="p">,</span> <span class="n">n_channels</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">p_response</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">p_n2</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">jitter_sd</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">artifact</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="w">
+</span>    <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">grid</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="mf">1024.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">trials_still</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 30 trials × 3 channels × 1536 times, -0.500 – 0.999 s, 1024 Hz, uV, human, spes&gt;
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">fit_trials</span></code> first fits the average (as in the earlier tutorials), which gives the
+bumps. Then it fits each trial with the same bumps, letting each one <strong>move</strong> a little
+in time and <strong>change height</strong>. It gives back one latency and one amplitude per bump and
+per trial.</p>
+<p><code class="docutils literal notranslate"><span class="pre">max_shift</span></code> is how far a bump may move, in seconds. By default it is a quarter of the
+bump’s width, which is small for a narrow N1 (about 1.5 ms here). We allow 10 ms, to be
+sure that a real jitter is not cut. (More on this below.)</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fits_still</span> <span class="o">=</span> <span class="n">fit_trials</span><span class="p">(</span><span class="n">trials_still</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_shift</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># One row per trial and per bump</span><span class="w">
+</span><span class="n">table</span> <span class="o">=</span> <span class="n">fits_still</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">table</span><span class="p">[</span><span class="n">table</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">trial</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">r2</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>   trial  latency  amplitude      r2
+0      0   0.0352  -486.0886  0.9526
+2      1   0.0353  -461.6863  0.9128
+4      2   0.0354  -443.3336  0.9408
+6      3   0.0353  -450.4503  0.9396
+8      4   0.0352  -449.2218  0.9177
+</pre></div>
+</div>
+<p>The latency still changes a little from trial to trial, although the truth does not:
+that is the noise.</p>
+<p><code class="docutils literal notranslate"><span class="pre">jitter</span></code> sums it up. It gives:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">jitter_sd</span></code>: the <strong>measured jitter</strong>, the standard deviation (the usual spread) of
+the latencies over the trials;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">jitter_sd_null</span></code>: the jitter that <strong>noise alone</strong> gives. evoparam makes it by adding
+pieces of made-up noise, with the same level and the same rhythm as the baseline, to
+the average curve, and measuring them like trials;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">jitter_status</span></code>: the verdict. The jitter is <code class="docutils literal notranslate"><span class="pre">&quot;measured&quot;</span></code> only when it is clearly
+larger than the noise alone (1.2 times larger, and larger than chance). Otherwise it
+is <code class="docutils literal notranslate"><span class="pre">&quot;not</span> <span class="pre">measurable</span> <span class="pre">(&lt;</span> <span class="pre">x</span> <span class="pre">ms)&quot;</span></code>, where x is the <strong>smallest real jitter</strong> that could
+be seen with these trials and this noise.</p></li>
+</ul>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">show_jitter</span><span class="p">(</span><span class="n">fits_still</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>G03 N1: measured 0.1 ms, noise alone 0.1 ms -&gt; not measurable (&lt; 0.1 ms)
+</pre></div>
+</div>
+<p>The measured jitter of the N1 is no larger than what noise gives, so evoparam does not
+claim a jitter. And it says how small a jitter it could have seen: about 0.1 ms. This N1
+is large (−456 µV) and narrow, so its timing is very precise in every trial.</p>
+</section>
+<section id="trials-with-a-known-jitter">
+<h2>Trials with a known jitter<a class="headerlink" href="#trials-with-a-known-jitter" title="Link to this heading">¶</a></h2>
+<p>Now the same electrode, but each trial is moved in time by a random amount: a true
+jitter of about 2 ms (<code class="docutils literal notranslate"><span class="pre">jitter_sd=0.002</span></code>, in seconds).</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">trials_moving</span><span class="p">,</span> <span class="n">truth_moving</span> <span class="o">=</span> <span class="n">simulate_ccep</span><span class="p">(</span><span class="w">
+</span>    <span class="mi">30</span><span class="p">,</span> <span class="n">n_channels</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">p_response</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">p_n2</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">jitter_sd</span><span class="o">=</span><span class="mf">0.002</span><span class="p">,</span> <span class="n">artifact</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="w">
+</span>    <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">grid</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="mf">1024.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="n">true_shift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">truth_moving</span><span class="o">.</span><span class="n">shift</span><span class="p">)</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">true jitter: </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">true_shift</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> ms</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">fits_moving</span> <span class="o">=</span> <span class="n">fit_trials</span><span class="p">(</span><span class="n">trials_moving</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_shift</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">show_jitter</span><span class="p">(</span><span class="n">fits_moving</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>true jitter: 2.11 ms
+  G03 N1: measured 2.1 ms, noise alone 0.2 ms -&gt; measured
+</pre></div>
+</div>
+<p>This time the jitter is <code class="docutils literal notranslate"><span class="pre">&quot;measured&quot;</span></code>: 2.1 ms, the true value, far above the 0.2 ms of
+noise alone.</p>
+<p>The figure shows the trials of G03, sorted by the latency of their N1 (left: one row
+per trial, colour = voltage, blue = negative; the dark line marks the N1 of each trial),
+and how the latencies spread (right). We draw only 0 to 100 ms
+(<code class="docutils literal notranslate"><span class="pre">select(tmin=...,</span> <span class="pre">tmax=...)</span></code>), so that the N1 is easy to see.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fig</span> <span class="o">=</span> <span class="n">plots</span><span class="o">.</span><span class="n">plot_trials</span><span class="p">(</span><span class="n">fits_moving</span><span class="p">,</span> <span class="n">trials_moving</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">tmin</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">G03</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_09_trial_by_trial_001.png" srcset="../_images/sphx_glr_plot_09_trial_by_trial_001.png" alt="G03" class = "sphx-glr-single-img"/><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Run the same fit without <code class="docutils literal notranslate"><span class="pre">max_shift=0.01</span></code>: with the default (a quarter of the
+width, about 1.5 ms here), the N1 can not move far enough, the trials that reach
+the limit are not trusted, and the jitter comes out near 1.2 ms instead of 2.1.
+When you expect the latency to move more than a quarter of the width of the bump,
+give <code class="docutils literal notranslate"><span class="pre">max_shift</span></code> yourself, and write it in the methods.</p>
+</div>
+</section>
+<section id="the-n2">
+<h2>The N2<a class="headerlink" href="#the-n2" title="Link to this heading">¶</a></h2>
+<p>The made-up N2 moves with the N1: same 2 ms jitter. But look at what evoparam can say
+about it.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">show_jitter</span><span class="p">(</span><span class="n">fits_moving</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">N2</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>G03 N2: measured 5.0 ms, noise alone 5.1 ms -&gt; not measurable (&lt; 5.0 ms)
+</pre></div>
+</div>
+<p>For the N2, noise alone already gives about 5 ms of jitter, more than the true 2 ms.
+So the verdict is <code class="docutils literal notranslate"><span class="pre">&quot;not</span> <span class="pre">measurable</span> <span class="pre">(&lt;</span> <span class="pre">5</span> <span class="pre">ms)&quot;</span></code>: a real jitter of the N2 smaller than
+about 5 ms can not be seen with these 30 trials.</p>
+<p>This is not a fault of the N2 fit. The N2 is <strong>broad</strong> (about 80 ms wide here, against
+6 ms for the N1) and <strong>smaller</strong> (−72 µV against −456 µV). The top of a broad, low bump
+is flat, so a little noise is enough to move it. The same is true of any method: the
+latency of a broad bump in a single trial is never precise.</p>
+<p>For the N2, the amplitude of each trial is often more useful than its latency; the
+average of the trials is still the place to measure its latency.</p>
+</section>
+<section id="back-to-the-real-recording">
+<h2>Back to the real recording<a class="headerlink" href="#back-to-the-real-recording" title="Link to this heading">¶</a></h2>
+<p>We read again the 10 pulses of tutorial 08 (patient UMCU01, pair PT13-PT14) and run the
+preset’s chain with <code class="docutils literal notranslate"><span class="pre">reports.run_pipeline</span></code>. Then we fit the trials of two electrodes
+that respond: PT07 and PT21. <code class="docutils literal notranslate"><span class="pre">select(picks=...)</span></code> keeps only them, which is faster.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">site</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="s2">PT13-PT14</span><span class="s2">&quot;</span><span class="w">
+</span><span class="n">picks</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">PT</span><span class="si">{</span><span class="n">number</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">number</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">49</span><span class="p">)</span> <span class="k">if</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">PT</span><span class="si">{</span><span class="n">number</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">site</span><span class="p">]</span><span class="w">
+</span><span class="n">trials</span> <span class="o">=</span> <span class="n">read_bids</span><span class="p">(</span><span class="w">
+</span>    <span class="s2">&quot;</span><span class="s2">ds004080</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="s2">&quot;</span><span class="s2">ccepAgeUMCU01</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">session</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">1</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">SPESclin</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">run</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">021448</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">remote</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="w">
+</span>    <span class="n">select</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;</span><span class="s2">stim_site</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">site</span><span class="p">}</span><span class="p">,</span><span class="w">
+</span>    <span class="n">picks</span><span class="o">=</span><span class="n">picks</span><span class="p">,</span><span class="w">
+</span>    <span class="n">epoch</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span><span class="w">
+</span><span class="n">result</span> <span class="o">=</span> <span class="n">reports</span><span class="o">.</span><span class="n">run_pipeline</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">trial_fits</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># The cleaned trials of two electrodes, fitted one by one</span><span class="w">
+</span><span class="n">two</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">trials</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">picks</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">PT07</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">PT21</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="n">real_fits</span> <span class="o">=</span> <span class="n">fit_trials</span><span class="p">(</span><span class="n">two</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">show_jitter</span><span class="p">(</span><span class="n">real_fits</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">show_jitter</span><span class="p">(</span><span class="n">real_fits</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">N2</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># The 10 trials of PT21, sorted by the latency of their N1</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plots</span><span class="o">.</span><span class="n">plot_trials</span><span class="p">(</span><span class="n">real_fits</span><span class="p">,</span> <span class="n">two</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">tmin</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">PT21</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_09_trial_by_trial_002.png" srcset="../_images/sphx_glr_plot_09_trial_by_trial_002.png" alt="PT21" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>PT07 N1: measured 1.9 ms, noise alone 1.7 ms -&gt; not measurable (&lt; 2.5 ms)
+PT21 N1: measured 2.3 ms, noise alone 1.6 ms -&gt; not measurable (&lt; 2.8 ms)
+PT07 N2: measured 22.9 ms, noise alone 12.2 ms -&gt; measured
+PT21 N2: measured 26.9 ms, noise alone 29.7 ms -&gt; not measurable (&lt; 52.1 ms)
+</pre></div>
+</div>
+<p>On PT21, most trials are marked <strong>not trusted</strong> (orange). A trial is trusted when its fit
+follows it well (r² of 0.2 or more) and its bump did not stop at the limit of
+<code class="docutils literal notranslate"><span class="pre">max_shift</span></code>. Untrusted trials keep their numbers, but they are left out of the
+jitter: here only 4 trials of 10 are used.</p>
+<p>With only 10 trials, the verdict is mostly “not measurable”:</p>
+<ul class="simple">
+<li><p>for the N1, noise alone gives about 2 ms of jitter, and a real jitter smaller than
+about 3 ms could not be seen;</p></li>
+<li><p>for the N2, the limit is tens of ms on PT21. On PT07, the N2 jitter is larger than
+noise alone and comes out <code class="docutils literal notranslate"><span class="pre">&quot;measured&quot;</span></code>, but with 10 trials, read it as a hint, not
+a result.</p></li>
+</ul>
+<p>This is the usual case with clinical CCEPs, where each pair is often stimulated 10
+times. To measure jitter, more trials are needed: the smallest measurable jitter goes
+down roughly with the square root of the number of trials.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">run_pipeline</span></code> also fits every trial when <code class="docutils literal notranslate"><span class="pre">trial_fits</span></code> is not given (the
+<code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> preset asks for it): the result is then in <code class="docutils literal notranslate"><span class="pre">result.trial_fits</span></code>, for
+all the electrodes, and takes about a minute here.</p>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">fit_trials</span></code> measures the latency and amplitude of each bump in each trial, and
+<code class="docutils literal notranslate"><span class="pre">jitter</span></code> says whether the change from trial to trial is larger than what noise alone
+gives. Always read <code class="docutils literal notranslate"><span class="pre">jitter_status</span></code> before reporting a jitter: “not measurable (&lt; x ms)”
+is a result too, it says the jitter is smaller than x ms, or that there are not enough
+trials to see it. The narrow, large N1 can be followed trial by trial; the broad, small
+N2 much less.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 56.654 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-09-trial-by-trial-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/2fba62d4412f4bdc3eea6f56a37a20ee/plot_09_trial_by_trial.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_09_trial_by_trial.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/8a9f0289467b92731d98d03354d622ee/plot_09_trial_by_trial.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_09_trial_by_trial.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/b4d296ffa86229e88ade68e5b71c4aac/plot_09_trial_by_trial.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_09_trial_by_trial.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
