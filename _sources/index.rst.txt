@@ -21,6 +21,8 @@ Get started
 
 :doc:`auto_tutorials/plot_01_model_description`
 
+:doc:`auto_tutorials/plot_02_reading_results`
+
 .. toctree::
    :hidden:
 

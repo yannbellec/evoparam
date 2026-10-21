@@ -20,6 +20,23 @@ model does on one example curve.
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="Get the numbers out of a fit, one by one or all in a table.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_02_reading_results_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_02_reading_results`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">02: Reading the results</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="What evoparam does, shown on one example curve.">
 
 .. only:: html
@@ -45,6 +62,7 @@ model does on one example curve.
 .. toctree::
    :hidden:
 
+   /auto_tutorials/plot_02_reading_results
    /auto_tutorials/plot_01_model_description
 
 

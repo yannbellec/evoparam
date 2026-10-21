@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>02: Reading the results &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="01: Model description" href="plot_01_model_description.html" />
+    <link rel="prev" title="Tutorials" href="index.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-02-reading-results-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="reading-the-results">
+<span id="sphx-glr-auto-tutorials-plot-02-reading-results-py"></span><h1>02: Reading the results<a class="headerlink" href="#reading-the-results" title="Link to this heading">¶</a></h1>
+<p>Get the numbers out of a fit, one by one or all in a table.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>In the first tutorial, <code class="docutils literal notranslate"><span class="pre">report</span></code> did everything at once: fit, summary and figure.</p>
+<p>Here we look at what a fit gives back, and how to use it: read one number, check that the
+fit is good, keep all the numbers in a table, and choose the part of the curve to describe.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_response</span><span class="p">,</span> <span class="n">gen_response</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="fitting-without-drawing">
+<h2>Fitting without drawing<a class="headerlink" href="#fitting-without-drawing" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">fit_response</span></code> does only the fit: no figure, no summary. It is the one to use when you
+have many curves, or when you only want the numbers.</p>
+<p>We use the same curve as in the first tutorial: a sharp bump at 25 ms and a broad one at
+150 ms.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Make the example curve</span><span class="w">
+</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># Fit the model, without drawing</span><span class="w">
+</span><span class="n">fit</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<p><code class="docutils literal notranslate"><span class="pre">fit</span></code> now holds everything evoparam found. <code class="docutils literal notranslate"><span class="pre">print(fit)</span></code> still shows the summary at any
+time.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="n">fit</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>==================================================================
+                    evoparam - RESPONSE MODEL
+
+                     fit window: 9 to 500 ms
+          background: exponential, time constant 35.4 ms
+
+                      2 component(s) found:
+            label        latency     amplitude     width
+            N1           25.0 ms    -152.1 µV     9.5 ms
+            N2          151.9 ms     -77.4 µV    79.2 ms
+
+           fit quality: R2 = 0.94, noise level = 7.4 µV
+  (latency: time of the peak; width: full width at half maximum)
+==================================================================
+</pre></div>
+</div>
+</section>
+<section id="reading-the-bumps">
+<h2>Reading the bumps<a class="headerlink" href="#reading-the-bumps" title="Link to this heading">¶</a></h2>
+<p>The bumps are in <code class="docutils literal notranslate"><span class="pre">fit.components</span></code>, a list in order of time. Each bump has the three
+numbers of the first tutorial:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">latency</span></code>: when the bump peaks;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">amplitude</span></code>: its height above the background, in µV;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fwhm</span></code>: its width at half its height (“full width at half maximum”).</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Inside evoparam, times are in <strong>seconds</strong>: a latency of 0.025 means 25 ms. Multiply
+by 1000 to read them in milliseconds.</p>
+</div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Go through the bumps, one line each</span><span class="w">
+</span><span class="k">for</span> <span class="n">bump</span> <span class="ow">in</span> <span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">:</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="n">bump</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">bump</span><span class="o">.</span><span class="n">latency</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ms,</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">bump</span><span class="o">.</span><span class="n">amplitude</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">µV</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1 25.0 ms, -152.1 µV
+N2 151.9 ms, -77.4 µV
+</pre></div>
+</div>
+<p>To keep one number, take the bump by its place in the list: <code class="docutils literal notranslate"><span class="pre">[0]</span></code> is the first one.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The first bump, and its latency in ms</span><span class="w">
+</span><span class="n">n1</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w">
+</span><span class="n">n1_latency_ms</span> <span class="o">=</span> <span class="n">n1</span><span class="o">.</span><span class="n">latency</span> <span class="o">*</span> <span class="mi">1000</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">n1_latency_ms</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>25.0
+</pre></div>
+</div>
+<p>Each bump also has a few more numbers, all measured on the bump alone:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">onset</span></code> and <code class="docutils literal notranslate"><span class="pre">offset</span></code>: when the bump starts and ends (seconds);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">area</span></code>: the surface of the bump, the coloured area of the first tutorial
+(µV × seconds);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rise_time</span></code> and <code class="docutils literal notranslate"><span class="pre">decay_time</span></code>: how long it takes to reach its peak, and to come
+back.</p></li>
+</ul>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># When the first bump starts and ends, in ms</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">n1</span><span class="o">.</span><span class="n">onset</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">n1</span><span class="o">.</span><span class="n">offset</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>16.3 33.6
+</pre></div>
+</div>
+</section>
+<section id="reading-the-background">
+<h2>Reading the background<a class="headerlink" href="#reading-the-background" title="Link to this heading">¶</a></h2>
+<p>The background is in <code class="docutils literal notranslate"><span class="pre">fit.background</span></code>. Here it is a curve that fades away, and the
+number to read is its <strong>time constant</strong>: how long it takes to lose about two thirds of its
+height. The smaller it is, the faster it fades.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The time constant of the background, in ms</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">background</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">tau</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>35.4
+</pre></div>
+</div>
+</section>
+<section id="is-the-fit-good">
+<h2>Is the fit good?<a class="headerlink" href="#is-the-fit-good" title="Link to this heading">¶</a></h2>
+<p>Before using the numbers, check that the model really follows the curve. Two numbers in
+<code class="docutils literal notranslate"><span class="pre">fit.gof</span></code> (“goodness of fit”) say it:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">r2</span></code>: how much of the curve the model explains, from 0 (nothing) to 1 (everything);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmse</span></code>: the typical distance between the curve and the model, in µV. It should be
+close to the level of the noise.</p></li>
+</ul>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">gof</span><span class="o">.</span><span class="n">r2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">gof</span><span class="o">.</span><span class="n">rmse</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>0.94 7.1
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Here R² is about 0.94: the model explains 94 % of the curve, and what is left is the
+noise we put in. A low R² means the model missed something: look at the figure
+(<code class="docutils literal notranslate"><span class="pre">report</span></code>) before trusting the numbers.</p>
+</div>
+</section>
+<section id="all-the-numbers-in-a-table">
+<h2>All the numbers in a table<a class="headerlink" href="#all-the-numbers-in-a-table" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">to_dataframe</span></code> puts every number of every bump in a table, one row per bump. This table
+can be sorted, plotted or saved like any spreadsheet (it needs the <code class="docutils literal notranslate"><span class="pre">pandas</span></code> package,
+already there in most notebooks).</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># One row per bump; show a few columns</span><span class="w">
+</span><span class="n">table</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="n">table</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">fwhm</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">area</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="w">
+</span></pre></div></div>
+<div class="output_subarea output_html rendered_html output_result">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>label</th>
+      <th>latency</th>
+      <th>amplitude</th>
+      <th>fwhm</th>
+      <th>area</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>N1</td>
+      <td>0.024951</td>
+      <td>-152.057403</td>
+      <td>0.009520</td>
+      <td>-1.491724</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>N2</td>
+      <td>0.151916</td>
+      <td>-77.413645</td>
+      <td>0.079193</td>
+      <td>-6.317850</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+<br />
+<br /><p>To keep it, save it as a file that any spreadsheet program opens:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span class="n">table</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">my_results.csv</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="choosing-the-part-of-the-curve-to-describe">
+<h2>Choosing the part of the curve to describe<a class="headerlink" href="#choosing-the-part-of-the-curve-to-describe" title="Link to this heading">¶</a></h2>
+<p>The preset decides which part of the curve is described: for <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code>, from 9 to 500 ms
+after the stimulus. To look at another part, give a <code class="docutils literal notranslate"><span class="pre">window</span></code>, in seconds.</p>
+<p>Here we keep only the first 100 ms: the broad bump at 150 ms is left out, and only the
+sharp one is described.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Describe only 9 to 100 ms after the stimulus</span><span class="w">
+</span><span class="n">early</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="p">(</span><span class="mf">0.009</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">early</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>==================================================================
+                    evoparam - RESPONSE MODEL
+
+                     fit window: 9 to 100 ms
+          background: exponential, time constant 50.0 ms
+
+                      1 component(s) found:
+            label        latency     amplitude     width
+            N1           24.9 ms    -152.4 µV     9.5 ms
+
+           fit quality: R2 = 0.97, noise level = 7.4 µV
+  (latency: time of the peak; width: full width at half maximum)
+==================================================================
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The preset matters too: it holds the settings made for one kind of recording.
+<code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> is for responses to electrical pulses in the brain; <code class="docutils literal notranslate"><span class="pre">&quot;erp&quot;</span></code> is for
+responses recorded on the scalp (EEG), <code class="docutils literal notranslate"><span class="pre">&quot;sep&quot;</span></code> for touch, <code class="docutils literal notranslate"><span class="pre">&quot;tep&quot;</span></code> for magnetic
+pulses (TMS), and there are a few more.</p>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>A fit gives back its bumps (<code class="docutils literal notranslate"><span class="pre">fit.components</span></code>), its background (<code class="docutils literal notranslate"><span class="pre">fit.background</span></code>) and
+how good it is (<code class="docutils literal notranslate"><span class="pre">fit.gof</span></code>), and <code class="docutils literal notranslate"><span class="pre">to_dataframe</span></code> puts everything in one table. With
+<code class="docutils literal notranslate"><span class="pre">window</span></code> and <code class="docutils literal notranslate"><span class="pre">preset</span></code>, you choose what is described.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.060 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-02-reading-results-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/515aa10a4074c01da91414bfa5335352/plot_02_reading_results.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_02_reading_results.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/8f2e4511151b965dfd7f5ebe38968a7c/plot_02_reading_results.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_02_reading_results.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/5703de37912703c3c7606ca48623c829/plot_02_reading_results.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_02_reading_results.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.1.1.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
