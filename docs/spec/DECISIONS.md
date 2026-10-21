@@ -1218,6 +1218,19 @@ There is no option for a BCa interval of a fit.
   13 % beyond 1.96, 50 s per dataset); the mean of the trusted trial latencies combined
   with the fit (errors correlated 0.89, RMSE 1.774 against 1.781 ms at best).
 - The criterion is unchanged; the test stays an expected failure with the measured values.
+- **REQ-171 changed** (2026-10-21; gg allows the spec to be patched when the change serves
+  its aim). Former text: "lower RMSE than the per-channel estimates on ≥ 90 % of simulated
+  datasets"; new text: "a lower RMSE, pooled over the simulated datasets; the fraction of
+  datasets where they win is reported". Why: the aim of the shrinkage is a smaller error,
+  and the posterior mean minimises the expected squared error, not the chance of beating
+  the raw estimates on one dataset. That chance is bounded by the design itself: with the
+  true prior and exactly normal errors the Bayes estimate wins on 84 % of the datasets
+  (above), so no estimator that keeps the empirical-Bayes error can reach 90 %; reaching
+  it means shrinking less on purpose, which raises the error (1.48 to 1.65 ms at a quarter of
+  the standard errors). Measured (the existing test, 6 datasets; 20 with
+  `EVOPARAM_SLOW_TESTS=1`): pooled RMSE of EB below the channel fits; wins 4 of 6 and 14
+  of 20 (160 of 200 on the development seeds), reported by the former test, kept as an
+  expected failure (`test_req171_shrunken_latencies_beat_the_channel_fits`).
 
 ### 5.7 REQ-395 (no copyleft package declared as an extra) — §9.2 (`bids` declares `pybids>=0.16`)
 
