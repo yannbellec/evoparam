@@ -52,6 +52,23 @@ model does on one example curve.
     </div>
 
 
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Change the settings of the model, and see what each one does to the result.">
+
+.. only:: html
+
+  .. image:: /auto_tutorials/images/thumb/sphx_glr_plot_03_tuning_the_fit_thumb.png
+    :alt:
+
+  :doc:`/auto_tutorials/plot_03_tuning_the_fit`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">03: Tuning the fit</div>
+    </div>
+
+
 .. thumbnail-parent-div-close
 
 .. raw:: html
@@ -64,6 +81,7 @@ model does on one example curve.
 
    /auto_tutorials/plot_01_model_description
    /auto_tutorials/plot_02_reading_results
+   /auto_tutorials/plot_03_tuning_the_fit
 
 
 
