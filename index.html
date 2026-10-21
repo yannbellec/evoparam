@@ -92,6 +92,14 @@ timing, height and width of each bump.</p>
 </div>
 <p>In a notebook (Jupyter, Colab), run the same line in a cell with <code class="docutils literal notranslate"><span class="pre">!</span></code> in front, then
 restart the session.</p>
+<p>To update evoparam later, reinstall evoparam alone and leave the other packages as they
+are:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-U<span class="w"> </span>--force-reinstall<span class="w"> </span>--no-deps<span class="w"> </span><span class="s2">"evoparam @ git+https://github.com/yannbellec/evoparam"</span>
+</pre></div>
+</div>
+<p>Do not use <code class="docutils literal notranslate"><span class="pre">--force-reinstall</span></code> without <code class="docutils literal notranslate"><span class="pre">--no-deps</span></code>: it reinstalls numpy, pillow and the
+other dependencies at their newest versions, which breaks packages that Colab installs
+with tighter limits (numba, gradio).</p>
 </section>
 <section id="get-started">
 <h2>Get started<a class="headerlink" href="#get-started" title="Link to this heading">¶</a></h2>
@@ -115,7 +123,7 @@ restart the session.</p>
     </p>
     <p>
         &copy; Copyright the evoparam developers.<br/>
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.1.1.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
     </p>
   </div>
 </footer>
