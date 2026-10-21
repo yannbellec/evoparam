@@ -18,6 +18,8 @@ Get the numbers out of a fit, one by one or all in a table.
 ###################################################################################################
 
 # Import what we need
+import numpy as np
+
 from evoparam import fit_response, gen_response
 
 ###################################################################################################
@@ -46,6 +48,52 @@ fit = fit_response(times, signal, preset="ccep")
 ###################################################################################################
 
 print(fit)
+
+###################################################################################################
+# One trial, or the average?
+# --------------------------
+#
+# ``fit_response`` describes **one curve**: one row of numbers over time. That curve can be
+# a single trial (the response to one stimulus) or the average of many trials. The tool
+# does not mind which; it fits what it is given.
+#
+# In practice you give it the **average** of the trials of one electrode. One trial is
+# mostly noise: the brain's own activity is often larger than the response. Averaging
+# keeps what comes back at every trial (the response) and cancels what does not (the
+# noise): with 20 trials, the noise is about 4.5 times smaller (the square root of 20).
+#
+# Below we make 20 noisy trials of the same response, then fit one trial alone and the
+# average of the 20.
+
+###################################################################################################
+
+# 20 trials of the same response, each with a lot of noise (a new noise at every trial)
+trials = [
+    gen_response([[25, -150, 10], [150, -80, 80]], noise=60, seed=trial)[1] for trial in range(20)
+]
+
+# One trial alone
+fit_one = fit_response(times, trials[0], preset="ccep")
+
+# The average of the 20 trials, sample by sample
+average = np.mean(trials, axis=0)
+fit_average = fit_response(times, average, preset="ccep")
+
+# How many bumps each fit found
+print("one trial:", len(fit_one.components), "bump(s)")
+print("average of 20:", len(fit_average.components), "bump(s)")
+
+###################################################################################################
+#
+# On the single trial the tool finds nothing: the response is there, but hidden in the
+# noise, and evoparam does not invent bumps it cannot tell from noise. On the average it
+# finds both bumps again.
+#
+# The average gives the clean picture. To follow how each trial differs (does the N1 come
+# a little earlier or later from one trial to the next?), evoparam has a separate function,
+# ``fit_trials``: it starts from the bumps of the average, then measures them again in every
+# trial, and says when the noise is too strong to tell the trials apart. It works on all the
+# trials of a recording at once (a ``TrialSet``), cut around each stimulus beforehand.
 
 ###################################################################################################
 # Reading the bumps
