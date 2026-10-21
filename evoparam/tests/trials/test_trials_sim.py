@@ -128,13 +128,16 @@ def test_req150_cramer_rao_bound() -> None:
 
 
 def test_req151_no_invented_jitter_and_realign_refused() -> None:
+    """The former REQ-151 ratio (jitter_sd_null >= 0.8 jitter_sd), under the null rule it was
+    measured with (baseline segments). The REQ as changed on 21/10/2026 (DECISIONS.md) is
+    ``test_req151_no_false_jitter``."""
 
     ratios, refused = [], 0
     for seed in range(N_RUNS):
         ts, _, _ = simulate(jitter=0.0, cv=0.0, seed=100 + seed)
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            tf = fit_trials(ts, channel_fit(ts), realign=True)
+            tf = fit_trials(ts, channel_fit(ts), realign=True, null_rule="segments")
         fit = tf.fits[0]
         ratios.append(fit.jitter_sd_null[0] / fit.jitter_sd[0])
         refused += fit.realigned is None and any("refused" in str(w.message) for w in caught)
@@ -182,6 +185,77 @@ def test_req151_as_written(null_rule: Any) -> None:
     ratios, refused = _req151_runs(range(2000, 2020), 200, null_rule)
     assert np.all(ratios >= MIN_NULL_RATIO)
     assert refused >= MIN_REFUSED
+
+
+# REQ-151 as changed on 21/10/2026: at most 5 % of jitter-free runs report a jitter, and the
+# smallest detectable jitter is reported. A slow P3-like component (FWHM 200 ms, 500 Hz,
+# preset erp, 40 trials, per-trial SNR 2 and 0.5) and the fast N1-like one of the other tests.
+MAX_FALSE_JITTER = 0.05
+SFREQ_P3 = 500.0
+TIMES_P3 = np.arange(-0.5, 1.0, 1 / SFREQ_P3)
+P3_JITTER = 0.01
+
+
+def _p3_trials(noise: Any, sd: Any, seed: Any, n: Any = 40) -> Any:
+    rng = np.random.default_rng(seed)
+    shifts = rng.normal(0, sd, n) if sd else np.zeros(n)
+    data = rng.normal(0, noise, (n, 1, len(TIMES_P3)))
+    for i in range(n):
+        data[i, 0] += 10 * gauss(0.35 + shifts[i], 0.2, TIMES_P3)
+    return TrialSet(data=data, times=TIMES_P3, sfreq=SFREQ_P3, ch_names=["c0"])
+
+
+def _p3_jitter(noise: Any, sd: Any, seeds: Any) -> Any:
+    rows = []
+    for seed in seeds:
+        ts = _p3_trials(noise, sd, seed)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            tf = fit_trials(ts, channel_fit_erp(ts), r2_min=0.0)
+        rows.append(jitter(tf).iloc[0])
+    return pd.DataFrame(rows)
+
+
+def channel_fit_erp(ts: Any) -> Any:
+    from evoparam.models import fit as fit_models
+
+    return fit_models(ts, "erp")
+
+
+@pytest.mark.parametrize("noise", [5.0, 20.0])
+def test_req151_no_false_jitter_p3(noise: Any) -> None:
+    """Under the former null (baseline segments repeated end to end) every one of these runs
+    reported a jitter (7 ms at noise 5, 29 ms at noise 20; benchmarks/trial_jitter.py)."""
+
+    table = _p3_jitter(noise, 0.0, range(1000, 1020))
+    assert table["jitter_detected"].mean() <= MAX_FALSE_JITTER
+    assert np.all(np.isfinite(table["jitter_min_detectable"]))
+    assert (
+        table["jitter_status"].str.startswith("not measurable (<").mean() >= 1 - MAX_FALSE_JITTER
+    )
+
+
+def test_req151_no_false_jitter() -> None:
+    """REQ-151 as changed, on the fast component of the other tests (20 runs)."""
+
+    detected = []
+    for seed in range(N_RUNS):
+        ts, _, _ = simulate(jitter=0.0, cv=0.0, seed=100 + seed)
+        tf = _run(ts)
+        detected.append(bool(jitter(tf).iloc[0]["jitter_detected"]))
+    assert np.mean(detected) <= MAX_FALSE_JITTER
+
+
+def test_p3_jitter_measured_or_not_measurable() -> None:
+    """A true jitter of 10 ms is measured at per-trial SNR 2 (median within 20 %), and at SNR
+    0.5, where it is below the smallest detectable jitter, reported as not measurable."""
+
+    clear = _p3_jitter(5.0, P3_JITTER, range(1000, 1010))
+    assert clear["jitter_detected"].mean() >= MIN_RUN_FRACTION
+    assert abs(np.median(clear["jitter_sd_eb"]) / P3_JITTER - 1) <= MAX_JITTER_ERROR
+    noisy = _p3_jitter(20.0, P3_JITTER, range(1000, 1010))
+    assert noisy["jitter_detected"].mean() <= MAX_FALSE_JITTER * 2
+    assert np.all(noisy["jitter_min_detectable"] > P3_JITTER)
 
 
 def test_req152_jitter_corrected_amplitude() -> None:
