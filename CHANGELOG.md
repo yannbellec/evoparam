@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### REQ-171 restated (DECISIONS §5.6)
+
+- REQ-171 now asks a lower RMSE of the empirical-Bayes channel latencies pooled over the
+  simulated datasets (met), and reports the fraction of datasets where they win (4 of 6;
+  the former "on >= 90 % of datasets" is bounded at 84 % even with the true prior).
+
 ### Reading in milliseconds, numba that does not match numpy, safe update command
 
 - `Component.latency_ms`, `fwhm_ms`, `onset_ms`, `offset_ms`, `rise_time_ms`,
