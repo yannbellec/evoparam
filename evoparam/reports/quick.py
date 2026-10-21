@@ -24,6 +24,8 @@ def report(
     *,
     units: str = "uV",
     plot: bool = True,
+    shade: bool = True,
+    shade_color: str | None = None,
     random_state: Any = 0,
     **settings: Any,
 ) -> Any:
@@ -41,6 +43,10 @@ def report(
         Unit of ``signal``.
     plot : bool
         Draw the data, the model, its parts and the residual (needs matplotlib).
+    shade : bool
+        Fill the area of each component on the figure.
+    shade_color : str, optional
+        Colour of those areas; default: the colour of each component.
     random_state : int or None
         Seed of the fit (0: the same result at every run).
     **settings
@@ -74,7 +80,7 @@ def report(
     if plot:
         from evoparam.plots import plot_fit
 
-        fig = plot_fit(fit, evoked, channel="signal")
+        fig = plot_fit(fit, evoked, channel="signal", shade=shade, shade_color=shade_color)
         # show the fit window and a little before it, where the response is
         start, end = (1000 * v for v in fit.window)
         fig.axes[0].set_xlim(min(start, 0.0) - 0.1 * (end - start), end + 0.1 * (end - start))
