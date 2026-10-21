@@ -1,0 +1,187 @@
+# SPDX-License-Identifier: Apache-2.0
+"""
+06: Metrics and model evaluation
+================================
+
+Judge a fit: how well it follows the curve, how sure its numbers are, and what it warns.
+"""  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
+
+###################################################################################################
+# Introduction
+# ------------
+#
+# A fit always gives numbers. Before using them, three questions:
+#
+# 1. does the model follow the curve, and is what is left over only noise?
+# 2. how sure is each number?
+# 3. did the fit warn about something?
+#
+# evoparam answers each one: ``fit.gof`` (goodness of fit), the uncertainty of each bump
+# (``ci``), and ``fit.status`` with ``fit.warnings``.
+
+###################################################################################################
+
+# Import what we need
+from evoparam import fit_response, gen_response
+
+###################################################################################################
+# The scores of the fit
+# ---------------------
+#
+# ``fit.gof`` holds the scores, all computed on the fit window:
+#
+# - ``r2``: the share of the curve's ups and downs that the model explains, from 0 (none)
+#   to 1 (all); ``adj_r2`` is the same with a cost for each number of the model;
+# - ``rmse``: the typical size of what is left over (data minus model), in µV; ``mae`` is
+#   the mean of its absolute value;
+# - ``baseline_sd``: the size of the noise, measured before the stimulus, in µV;
+# - ``bic`` and ``aic``: scores that compare models of the same curve (lower is better);
+#   they mean nothing alone, only next to another model of the same data;
+# - ``residual_lag1_autocorr``: how much each leftover point looks like the next one. Noise
+#   of the brain is slow, so it is never 0; a value close to 1 means a slow wave is left
+#   that the model missed.
+
+###################################################################################################
+
+# The curve of tutorial 01, and its fit
+times, signal = gen_response([[25, -150, 10], [150, -80, 80]], seed=3)
+fit = fit_response(times, signal, preset="ccep", random_state=0)
+
+gof = fit.gof
+print(f"R² = {gof.r2:.2f}, rmse = {gof.rmse:.1f} µV, noise = {gof.baseline_sd:.1f} µV")
+print(f"BIC = {gof.bic:.1f}, leftover lag-1 = {gof.residual_lag1_autocorr:.2f}")
+
+###################################################################################################
+#
+# The most useful check is to compare ``rmse`` with ``baseline_sd``. Here the leftover is
+# 7.1 µV and the noise 7.4 µV: the model left only noise. If the leftover were much larger
+# than the noise, something in the curve would not be explained.
+#
+# Here is the same curve, fitted with one bump at most.
+
+###################################################################################################
+
+fit_short = fit_response(times, signal, preset="ccep", max_components=1, random_state=0)
+gof_short = fit_short.gof
+print(
+    f"R² = {gof_short.r2:.2f}, rmse = {gof_short.rmse:.1f} µV, noise = {gof_short.baseline_sd:.1f}"
+)
+print(f"leftover lag-1 = {gof_short.residual_lag1_autocorr:.2f}")
+
+###################################################################################################
+#
+# The leftover (24 µV) is three times the noise, and it is a slow wave (lag-1 of 0.98):
+# the N2 is missing.
+
+###################################################################################################
+# R² can mislead
+# --------------
+#
+# R² compares the model with how much the curve moves. When the noise is large, even a
+# perfect model can not explain the noise, so R² is low. And when the curve is mostly a
+# slow background, R² is high even without any bump.
+#
+# The same two bumps with more noise (30 µV instead of 8):
+
+###################################################################################################
+
+times_noisy, signal_noisy = gen_response([[25, -150, 10], [150, -80, 80]], noise=30, seed=3)
+fit_noisy = fit_response(times_noisy, signal_noisy, preset="ccep", random_state=0)
+print(f"R² = {fit_noisy.gof.r2:.2f}, rmse = {fit_noisy.gof.rmse:.1f} µV, ", end="")
+print(f"noise = {fit_noisy.gof.baseline_sd:.1f} µV")
+for bump in fit_noisy.components:
+    print(f"  {bump.label}: {bump.latency_ms:.0f} ms, {bump.amplitude:.0f} µV")
+
+###################################################################################################
+#
+# R² is only 0.48, but both bumps are found, and the leftover is the size of the noise:
+# the fit is as good as the data allow.
+#
+# And a curve with **no bump at all**, only the background and noise:
+
+###################################################################################################
+
+times_empty, signal_empty = gen_response([], seed=5)
+fit_empty = fit_response(times_empty, signal_empty, preset="ccep", random_state=0)
+print(f"bumps found: {len(fit_empty.components)}, R² = {fit_empty.gof.r2:.2f}")
+
+###################################################################################################
+#
+# No bump is found (right), but R² is 0.67: the fading background alone explains much
+# of the curve. A high R² does not say that the bumps are real; a low one does not say
+# that they are false. Compare the leftover with the noise, and look at the figure.
+
+###################################################################################################
+# How sure is each number
+# -----------------------
+#
+# Each number of a bump comes with a **95 % range** (``bump.ci``): the values that the
+# noise of this recording leaves possible. A wider range means a less sure number. The
+# **standard error** (``bump.se``) is the same idea as one number, roughly a quarter of
+# the range.
+
+###################################################################################################
+
+
+def show_ranges(fit):
+    """Print each bump's latency and amplitude with their 95 % ranges."""
+    for bump in fit.components:
+        lat_low, lat_high = bump.ci["latency"]
+        amp_low, amp_high = bump.ci["amplitude"]
+        print(
+            f"  {bump.label}: latency {bump.latency_ms:.1f} ms "
+            f"({1000 * lat_low:.1f} to {1000 * lat_high:.1f}), "
+            f"amplitude {bump.amplitude:.0f} µV ({amp_low:.0f} to {amp_high:.0f})"
+        )
+
+
+print("noise 8 µV")
+show_ranges(fit)
+print("noise 30 µV")
+show_ranges(fit_noisy)
+
+###################################################################################################
+#
+# With more noise, every range widens: the N1 latency range goes from 0.5 ms to about
+# 2 ms, the N2 latency range from 7 ms to about 29 ms. The narrow, large N1 always stays
+# better known than the broad, small N2.
+#
+# Report the range with the number: "N1 at 24.9 ms (24.0 to 25.7)" says much more than
+# "N1 at 24.9 ms".
+
+###################################################################################################
+# Status and warnings
+# -------------------
+#
+# ``fit.status`` is ``"ok"`` when the fit ran normally. Otherwise it says what went wrong
+# (for example, too little data in the window), and ``fit.message`` explains.
+#
+# ``fit.warnings`` lists what the fit noticed but did not stop for. The most common:
+#
+# - ``"ill_conditioned"``: two numbers of the model are hard to tell apart (for example
+#   two bumps that overlap, or a slow background and a broad bump; tutorial 05). Their
+#   ranges are wider;
+# - ``"at_bound:<bump>:<number>"``: a number stopped at its limit (for example a width at
+#   ``max_fwhm``). The true value may be beyond it;
+# - ``"multiple_in_window:<name>"``: two bumps fall in the window of one name (for
+#   example two N1 candidates); the second is called ``<name>_b``;
+# - ``"latency_outside_window:<bump>"``: a bump peaks outside the fit window, so its
+#   latency is not measured on the data.
+
+###################################################################################################
+
+print(fit.status, fit.warnings)
+
+###################################################################################################
+#
+# No warning here. A fit with a warning is not wrong, but it deserves a look at the
+# figure (``plot_fit``) before its numbers are used.
+
+###################################################################################################
+# Conclusion
+# ----------
+#
+# To judge a fit: compare the leftover (``rmse``) with the noise (``baseline_sd``), do not
+# trust R² alone, report each number with its 95 % range, and read ``fit.warnings``. The
+# BIC compares models of the same curve; it is what evoparam uses to choose the bumps
+# (tutorial 03).
