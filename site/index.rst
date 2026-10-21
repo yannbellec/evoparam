@@ -34,6 +34,8 @@ Get started
 
 :doc:`auto_tutorials/plot_02_reading_results`
 
+:doc:`auto_tutorials/plot_03_tuning_the_fit`
+
 .. toctree::
    :hidden:
 
