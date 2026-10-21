@@ -16,6 +16,17 @@ Install
 In a notebook (Jupyter, Colab), run the same line in a cell with ``!`` in front, then
 restart the session.
 
+To update evoparam later, reinstall evoparam alone and leave the other packages as they
+are:
+
+.. code-block:: bash
+
+   pip install -U --force-reinstall --no-deps "evoparam @ git+https://github.com/yannbellec/evoparam"
+
+Do not use ``--force-reinstall`` without ``--no-deps``: it reinstalls numpy, pillow and the
+other dependencies at their newest versions, which breaks packages that Colab installs
+with tighter limits (numba, gradio).
+
 Get started
 -----------
 

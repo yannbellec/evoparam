@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Reading in milliseconds, numba that does not match numpy, safe update command
+
+- `Component.latency_ms`, `fwhm_ms`, `onset_ms`, `offset_ms`, `rise_time_ms`,
+  `decay_time_ms` and `ResponseFit.background_ms`: the times in milliseconds, for reading
+  (the fields stay in seconds). Tutorial 02 uses them instead of `* 1000`.
+- A numba installed for another numpy (for instance after `pip install --force-reinstall`
+  in Colab) no longer stops a fit: the engine takes its NumPy path with one warning.
+- Site: the update command reinstalls evoparam alone (`--no-deps`).
+- REQ-105: `alpha` of the calibrated acceptance measured again (DECISIONS §5.3); no change.
+
 ### Trials: no invented jitter on slow components, jitter test (REQ-151; DECISIONS "null_rule=ar")
 
 - `fit_trials(null_rule="ar")`, the new default: the noise-only jitter is measured on noise

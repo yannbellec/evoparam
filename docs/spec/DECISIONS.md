@@ -1058,6 +1058,23 @@ There is no option for a BCa interval of a fit.
   test's seeds, 0.887 on 1 000 per K; precision 1.00). A preset or a user who wants the
   recall asks for `delta="calibrated"`.
 
+- Third look (2026-10-21; REQ-105 design on the tests' seeds, REQ-112 on the two REQ runs,
+  measured together; `benchmarks`-size runs, about 4 min each). Calibrated acceptance:
+
+  | `alpha` | REQ-105 recall / precision | REQ-112 silent, package defaults |
+  |---|---|---|
+  | 0.04 | 0.950 / 0.986 | 74 / 80 |
+  | 0.03 | 0.947 / 0.991 | 76 / 80 |
+  | 0.02 | 0.947 / 0.993 | 76 / 80 |
+  | 0.01 | 0.942 / 0.995 | 77 / 80 |
+
+  Every miss at `alpha` 0.03 is a component of SNR 3, 30 of 32 of width 3 samples (60 % of
+  the 75 such components found; the matched-filter oracle above finds 73 %). The `alpha`
+  0.03 calibrated acceptance as package default was tried and not kept: it breaks
+  `test_req111_half_fwhm_as_written` and `test_resolution_check_does_not_depend_on_signs`
+  (a third component on a pair of opposite bumps). REQ-105 stays an expected failure; the
+  gap is two components of the 600 at a setting that keeps REQ-112.
+
 ### 5.4 REQ-106 with the default pair — the latency of §5.5.1 and the pair of REQ-106
 
 - REQ-106 asks a latency MAE <= 0.5 sample for gamma and biexponential truths fitted with
