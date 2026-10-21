@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-03: Tuning the fit
+10: Tuning the fit
 ==================
 
 Change the settings of the model, and see what each one does to the result.
@@ -10,7 +10,7 @@ Change the settings of the model, and see what each one does to the result.
 # Introduction
 # ------------
 #
-# In the first two tutorials, the preset ``"ccep"`` chose every setting for us. A
+# In the earlier tutorials, the preset ``"ccep"`` chose every setting for us. A
 # **setting** is a choice made before the fit: how many bumps at most, which way they may
 # go, how sure the model must be before it keeps a bump, what shape the background has.
 #
