@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### REQ-374 met: layer-3 records with the exact versions of data and comparator
+
+- Rerun on 2026-10-20 of `validation/erpcore.py`, `validation/erpcore.py --parent`,
+  `validation/carla_ds004977.py` (CARLA_JNM commit
+  `3df5d84493448fe2b129aaf6d25f921d8ff3c89f`, the last one before 2026-10-09; MATLAB
+  R2026a) and `validation/layer3_report.py`. Every record of
+  `validation/layer3/comparisons.json` now names its data version (the SHA-256 of the
+  ERP CORE files read, ds004977 1.2.0) and its comparator version: the strict expected
+  failure `test_req374_exact_versions_of_data_and_comparator` is removed.
+- CARLA on ds004977: the channel lists are unchanged; the file gains `comparator_commit`.
+- ERP CORE, difference waves: the committed results predated the targeted `erp` preset
+  (REQ-274 above); the rerun gives the values stated there (within 10 ms: ERN 95 %,
+  LRP 95 %, MMN 100 %, N170 95 %, N2pc 92 %, N400 95 %, P3 90 %).
+- ERP CORE, parent waves (diagnostic): within 10 ms, before -> now: ERN 62.5 -> 85 %,
+  LRP 90 -> 95 %, MMN 27.5 -> 90 %, N170 42.5 -> 65 %, N2pc 36 -> 92 %, N400 7.5 ->
+  52.5 %, P3 40 -> 92.5 %.
+
 ### N1 case: known-truth bench, ccep 1.2 locked (REQ-113; DECISIONS §5.13)
 
 - New `benchmarks/n1_known_truth.py`: fake N1s injected into the real pre-stimulus noise of

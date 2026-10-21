@@ -1723,8 +1723,10 @@ expected failure whose reason gives the measured value; no criterion was weakene
   the result files (they are agreement measures, not two numbers to subtract). Versions not
   recorded when a result was produced are `null` with a note: the ERP CORE files read on
   2026-10-09 (OSF has no versions; their SHA-256 were not kept) and the commit of
-  CARLA_JNM run on 2026-10-08. Both producers record them from now on; until a rerun, the
-  version check is a strict expected failure.
+  CARLA_JNM run on 2026-10-08. Both producers record them from now on. Rerun on
+  2026-10-20 (the SHA-256 of the ERP CORE files read; CARLA_JNM commit
+  `3df5d84493448fe2b129aaf6d25f921d8ff3c89f`, the last one before 2026-10-09): every
+  record has both versions and the version check passes.
 - **Traceability counting (REQ-399).** A requirement counts as tested when a test file names
   it in a test name, a docstring or a comment. Other strings do not count, so that a list of
   untested requirements, or the reason of an expected failure, cannot mark them as tested.
