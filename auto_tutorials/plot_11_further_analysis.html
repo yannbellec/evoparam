@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>11: Further analysis &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="08: Fitting groups of electrodes" href="plot_08_groups_real_data.html" />
+    <link rel="prev" title="09: Fitting trial by trial" href="plot_09_trial_by_trial.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-11-further-analysis-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="further-analysis">
+<span id="sphx-glr-auto-tutorials-plot-11-further-analysis-py"></span><h1>11: Further analysis<a class="headerlink" href="#further-analysis" title="Link to this heading">¶</a></h1>
+<p>Use the results: pick one bump across electrodes, check its range, and relate it to where
+the electrodes are.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>A fit gives numbers; a study asks a question with them. Here we take the real recording
+of tutorial 08 and ask a classic CCEP question: <strong>does the response come later on
+electrodes that are farther from the stimulated pair?</strong> If the signal travels along the
+brain’s connections, it needs more time to go farther. The dataset we use was published
+to measure this transmission speed across ages (van Blooijs et al., 2023).</p>
+<p>The steps:</p>
+<ol class="arabic simple">
+<li><p>fit all the electrodes, and put the results in a table;</p></li>
+<li><p>keep one bump (the N1, then the N2) on the electrodes that really respond;</p></li>
+<li><p>check that the latencies are spread inside their window, not piled at its edges;</p></li>
+<li><p>add the position of each electrode, and relate latency to distance.</p></li>
+</ol>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib</span><span class="nn">.</span><span class="nn">pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="nn">.</span><span class="nn">stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">spearmanr</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">reports</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">openneuro_url</span><span class="p">,</span> <span class="n">read_bids</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="fit-all-the-electrodes">
+<h2>1. Fit all the electrodes<a class="headerlink" href="#fit-all-the-electrodes" title="Link to this heading">¶</a></h2>
+<p>As in tutorial 08: the 10 pulses on the pair PT13-PT14 of patient UMCU01, the 46 other
+electrodes of the grid, and the chain of the <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> preset.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">site</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="s2">PT13-PT14</span><span class="s2">&quot;</span><span class="w">
+</span><span class="n">picks</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">PT</span><span class="si">{</span><span class="n">number</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">number</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">49</span><span class="p">)</span> <span class="k">if</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">PT</span><span class="si">{</span><span class="n">number</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">site</span><span class="p">]</span><span class="w">
+</span><span class="n">trials</span> <span class="o">=</span> <span class="n">read_bids</span><span class="p">(</span><span class="w">
+</span>    <span class="s2">&quot;</span><span class="s2">ds004080</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="s2">&quot;</span><span class="s2">ccepAgeUMCU01</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">session</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">1</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">SPESclin</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">run</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">021448</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">remote</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="w">
+</span>    <span class="n">select</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;</span><span class="s2">stim_site</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">site</span><span class="p">}</span><span class="p">,</span><span class="w">
+</span>    <span class="n">picks</span><span class="o">=</span><span class="n">picks</span><span class="p">,</span><span class="w">
+</span>    <span class="n">epoch</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span><span class="w">
+</span><span class="n">result</span> <span class="o">=</span> <span class="n">reports</span><span class="o">.</span><span class="n">run_pipeline</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">trial_fits</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># One row per bump and per electrode, with the test of tutorial 08</span><span class="w">
+</span><span class="n">table</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">existence_significant</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">table</span><span class="p">[</span><span class="n">table</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">N2</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="p">]</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>   channel label   latency   amplitude  existence_significant
+3     PT03    N2  0.063838 -189.121469                  False
+6     PT04    N2  0.154738 -436.823246                   True
+8     PT05    N1  0.032477 -145.720015                   True
+11    PT06    N1  0.017296 -128.931295                   True
+13    PT06    N2  0.109734 -179.123171                   True
+</pre></div>
+</div>
+</section>
+<section id="keep-one-bump-on-the-electrodes-that-respond">
+<h2>2. Keep one bump on the electrodes that respond<a class="headerlink" href="#keep-one-bump-on-the-electrodes-that-respond" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">label</span></code> names the bumps, and <code class="docutils literal notranslate"><span class="pre">existence_significant</span></code> says whether the electrode
+passed the test of a real response (tutorial 08). An electrode with no N1 simply has no
+N1 row: it is left out, not counted as zero.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">responds</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">existence_significant</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="n">n1</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="p">(</span><span class="n">table</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">responds</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="n">n2</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="p">(</span><span class="n">table</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="s2">N2</span><span class="s2">&quot;</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">responds</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">n1</span><span class="p">)</span><span class="si">}</span><span class="s2"> electrodes with an N1, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">n2</span><span class="p">)</span><span class="si">}</span><span class="s2"> with an N2</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>9 electrodes with an N1, 7 with an N2
+</pre></div>
+</div>
+</section>
+<section id="check-the-range">
+<h2>3. Check the range<a class="headerlink" href="#check-the-range" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> preset names a bump N1 when it peaks between 9 and 50 ms, N2 between 50
+and 300 ms. If many latencies were piled at an edge of these windows, the windows would
+be cutting the real responses, and should be checked. A simple look at the values is
+enough.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">N1 latencies (ms):</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="n">n1</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">N2 latencies (ms):</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="n">n2</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1 latencies (ms): [17. 26. 28. 32. 35. 37. 37. 38. 49.]
+N2 latencies (ms): [110. 155. 206. 211. 237. 241. 283.]
+</pre></div>
+</div>
+<p>The N1 latencies spread from 17 to 49 ms, the N2 latencies from 110 to 283 ms: no pile
+at an edge. One N1, at 49 ms, is close to the upper edge (50 ms): worth a look at its
+figure before using it.</p>
+</section>
+<section id="relate-latency-to-distance">
+<h2>4. Relate latency to distance<a class="headerlink" href="#relate-latency-to-distance" title="Link to this heading">¶</a></h2>
+<p>The positions of the electrodes come with the dataset (<code class="docutils literal notranslate"><span class="pre">electrodes.tsv</span></code>, in mm), and
+<code class="docutils literal notranslate"><span class="pre">read_bids</span></code> puts them in <code class="docutils literal notranslate"><span class="pre">trials.ch_info</span></code>. The distance of an electrode is measured
+in a straight line from the middle of the stimulated pair.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">positions</span> <span class="o">=</span> <span class="n">trials</span><span class="o">.</span><span class="n">ch_info</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">name</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">x</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">y</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">z</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">positions</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>              x          y          z
+name
+PT01 -44.209587 -84.807152  -3.671803
+PT02 -45.489326 -81.142433  -0.828054
+PT03 -58.927807 -56.633564 -12.380226
+</pre></div>
+</div>
+<p>The two stimulated electrodes were left out of <code class="docutils literal notranslate"><span class="pre">picks</span></code>, so their positions are not in
+<code class="docutils literal notranslate"><span class="pre">trials.ch_info</span></code>. We read them from the dataset’s table of electrodes.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">electrodes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="w">
+</span>    <span class="n">openneuro_url</span><span class="p">(</span><span class="w">
+</span>        <span class="s2">&quot;</span><span class="s2">ds004080</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">sub-ccepAgeUMCU01/ses-1/ieeg/sub-ccepAgeUMCU01_ses-1_electrodes.tsv</span><span class="s2">&quot;</span><span class="w">
+</span>    <span class="p">)</span><span class="p">,</span><span class="w">
+</span>    <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">name</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">middle</span> <span class="o">=</span> <span class="n">electrodes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">site</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">-</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">x</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">y</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">z</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="k">for</span> <span class="n">bumps</span> <span class="ow">in</span> <span class="p">(</span><span class="n">n1</span><span class="p">,</span> <span class="n">n2</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">xyz</span> <span class="o">=</span> <span class="n">positions</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">bumps</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span>    <span class="n">bumps</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">distance</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">xyz</span> <span class="o">-</span> <span class="n">middle</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<p>Now the figure: the latency of each electrode against its distance, for the N1 (left)
+and the N2 (right), with a straight line through the points.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">)</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">constrained</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">bumps</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">color</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="p">(</span><span class="n">n1</span><span class="p">,</span> <span class="n">n2</span><span class="p">)</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">N2</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;</span><span class="s2">C0</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">C1</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">distance</span> <span class="o">=</span> <span class="n">bumps</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">distance</span><span class="s2">&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span>    <span class="n">latency</span> <span class="o">=</span> <span class="mi">1000</span> <span class="o">*</span> <span class="n">bumps</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span>    <span class="n">slope</span><span class="p">,</span> <span class="n">intercept</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="n">latency</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="w">
+</span>    <span class="n">line</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="p">[</span><span class="n">distance</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">distance</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="p">)</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">intercept</span> <span class="o">+</span> <span class="n">slope</span> <span class="o">*</span> <span class="n">line</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">white</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">2.2</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">intercept</span> <span class="o">+</span> <span class="n">slope</span> <span class="o">*</span> <span class="n">line</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="n">latency</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">white</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">Distance from the stimulated pair (mm)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> latency (ms)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">rho</span><span class="p">,</span> <span class="n">p_value</span> <span class="o">=</span> <span class="n">spearmanr</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="n">latency</span><span class="p">)</span><span class="w">
+</span>    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">bumps</span><span class="p">)</span><span class="si">}</span><span class="s2"> electrodes, ρ = </span><span class="si">{</span><span class="n">rho</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, p = </span><span class="si">{</span><span class="n">p_value</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_11_further_analysis_001.png" srcset="../_images/sphx_glr_plot_11_further_analysis_001.png" alt="N1: 9 electrodes, ρ = 0.72, p = 0.03, N2: 7 electrodes, ρ = 0.54, p = 0.22" class = "sphx-glr-single-img"/><p><strong>ρ</strong> (Spearman’s rank correlation) goes from −1 to 1: 1 means “farther is always
+later”, 0 means no relation. The p-value is the chance of a ρ this large if distance and
+latency were unrelated.</p>
+<p>For the N1, farther electrodes respond later (ρ = 0.72, p = 0.03). For the N2 the trend
+goes the same way but is weaker, and could be chance (ρ = 0.54, p = 0.22): the N2 is
+broad, its latency less precise (tutorials 06 and 09), and it travels through more
+relays.</p>
+<p>Read it with care: this is one patient, one stimulated pair and 7 to 9 electrodes; and
+a straight line on the brain’s surface is not the path the signal takes. A real study
+pools many pairs and patients, which is what the dataset was made for.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Try it yourself: put <code class="docutils literal notranslate"><span class="pre">amplitude</span></code> instead of <code class="docutils literal notranslate"><span class="pre">latency</span></code> on the y-axis. Is the
+response smaller far from the stimulated pair?</p>
+</div>
+</section>
+<section id="other-analyses">
+<h2>Other analyses<a class="headerlink" href="#other-analyses" title="Link to this heading">¶</a></h2>
+<p>The same table supports many other questions. A few that evoparam helps with:</p>
+<ul class="simple">
+<li><p>compare two conditions (for example two stimulation currents) with
+<code class="docutils literal notranslate"><span class="pre">evoparam.stats.compare_conditions</span></code>;</p></li>
+<li><p>relate the amplitude to the current, trial by trial, with
+<code class="docutils literal notranslate"><span class="pre">evoparam.trials.dose_response</span></code>;</p></li>
+<li><p>build a map of which sites connect to which electrodes with
+<code class="docutils literal notranslate"><span class="pre">evoparam.spatial.connectivity_matrix</span></code>.</p></li>
+</ul>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>The table of a group fit is where an analysis starts: keep the bump you study, only on
+the electrodes that respond; check that its values are not piled at the edges of its
+window; then relate it to what you know about each electrode, here its position.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 53.720 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-11-further-analysis-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/c3a904d22df127fb7d49bbc6c82f3ebc/plot_11_further_analysis.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_11_further_analysis.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/31af8a33d7519a72c3b42c3a77065418/plot_11_further_analysis.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_11_further_analysis.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/078032555466809f2ee3fa0dcfddf178/plot_11_further_analysis.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_11_further_analysis.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

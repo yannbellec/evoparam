@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>07: Exploring the fit object &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="02: Reading the results" href="plot_02_reading_results.html" />
+    <link rel="prev" title="04: Component fitting" href="plot_04_component_fitting.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-07-fit-object-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="exploring-the-fit-object">
+<span id="sphx-glr-auto-tutorials-plot-07-fit-object-py"></span><h1>07: Exploring the fit object<a class="headerlink" href="#exploring-the-fit-object" title="Link to this heading">¶</a></h1>
+<p>What else a fit keeps: its settings, its curves, the classical measures, its history, and
+how to save it.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>Tutorial 02 read the bumps, the background, the scores and the table of a fit. A fit
+keeps more than that. Here we look at the rest of what it holds:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">fit.settings</span></code>: every setting that was used;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fit.model</span></code>, <code class="docutils literal notranslate"><span class="pre">fit.residual</span></code> and <code class="docutils literal notranslate"><span class="pre">fit.window</span></code>: the fitted curve and what is left;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fit.classical</span></code>: the usual measures, taken directly on the curve;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fit.provenance</span></code>: how the fit was made;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fit.save</span></code> and <code class="docutils literal notranslate"><span class="pre">load</span></code>: keep a fit on disk and open it again.</p></li>
+</ul>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="w">
+</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_response</span><span class="p">,</span> <span class="n">gen_response</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">data</span><span class="w"> </span><span class="kn">import</span> <span class="n">ResponseFit</span><span class="w">
+</span></pre></div></div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># The curve of tutorial 01, and its fit</span><span class="w">
+</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
+</span><span class="n">fit</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="the-settings">
+<h2>The settings<a class="headerlink" href="#the-settings" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">fit.settings</span></code> is a dictionary with every setting of the fit: those of the preset and
+those you gave. <code class="docutils literal notranslate"><span class="pre">_changed_from_preset</span></code> lists the ones you changed, so that they can be
+found later.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">settings</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">settings</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">fit window:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">fit_window</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">s</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">delta:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">delta</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">changed from the preset:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">_changed_from_preset</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>49 settings
+fit window: (0.009, 0.5) s
+delta: 20.0
+changed from the preset: ['delta']
+</pre></div>
+</div>
+<p>Here we gave <code class="docutils literal notranslate"><span class="pre">delta=20</span></code>, so it is listed as changed. The methods text (tutorial 12)
+reads the same list, so a changed setting is always written in the methods.</p>
+</section>
+<section id="the-curves">
+<h2>The curves<a class="headerlink" href="#the-curves" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">fit.window</span></code> is the part of the curve that was fitted (9 to 500 ms for <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code>).
+<code class="docutils literal notranslate"><span class="pre">fit.model</span></code> is the fitted curve on that window, and <code class="docutils literal notranslate"><span class="pre">fit.residual</span></code> what is left
+(data minus model). They have one value per time point of the window.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">in_window</span> <span class="o">=</span> <span class="p">(</span><span class="n">times</span> <span class="o">&gt;</span><span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">times</span> <span class="o">&lt;</span><span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">window</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">window:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">window</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">s,</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">in_window</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">time points</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">model:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2"> residual:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">residual</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">largest leftover: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">residual</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> µV</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>window: (0.009, 0.5) s, 1006 time points
+model: (1006,)  residual: (1006,)
+largest leftover: 23.9 µV
+</pre></div>
+</div>
+<p>With these, you can draw the fit yourself, or compute your own measure of the leftover.</p>
+</section>
+<section id="the-classical-measures">
+<h2>The classical measures<a class="headerlink" href="#the-classical-measures" title="Link to this heading">¶</a></h2>
+<p>Most papers measure a response directly on the curve: the lowest point in a window
+(peak amplitude and latency), the mean over a window, the area. <code class="docutils literal notranslate"><span class="pre">fit.classical</span></code> gives
+these, measured the usual way, so that evoparam’s numbers can be compared with them.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">classical</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">classical</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">lowest point: </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">classical</span><span class="p">[</span><span class="s1">'</span><span class="s1">peak_latency</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> ms, </span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">classical</span><span class="p">[</span><span class="s1">'</span><span class="s1">peak_amplitude</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> µV</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="w">
+</span>    <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">N1 of the model: </span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">latency_ms</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> ms, </span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">amplitude</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> µV</span><span class="s2">&quot;</span><span class="w">
+</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>lowest point: 25.9 ms, -128 µV
+N1 of the model: 25.0 ms, -152 µV
+</pre></div>
+</div>
+<p>The lowest point of the curve is at 25.9 ms and −128 µV; the model’s N1 is at 25.0 ms
+and −152 µV. They differ for two reasons:</p>
+<ul class="simple">
+<li><p>the lowest point is measured from zero, and the model’s amplitude from the
+background, which is still above zero at 25 ms (it fades from 60 µV);</p></li>
+<li><p>the lowest point moves with the noise of the samples around it, while the model’s
+latency uses the whole bump.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">classical[&quot;definition&quot;]</span></code> says exactly how each classical measure was taken.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="n">classical</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">definition</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">peak_amplitude</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>local_peak(n_neighbors=3), polarity=negative, window=[0.009, 0.5]
+</pre></div>
+</div>
+</section>
+<section id="the-history">
+<h2>The history<a class="headerlink" href="#the-history" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">fit.provenance</span></code> records how the fit was made: the version of evoparam, the date, the
+function and its settings, the random seed, and the computer (Python and package
+versions). This is what allows a result to be made again (tutorial 12).</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">step</span> <span class="o">=</span> <span class="n">fit</span><span class="o">.</span><span class="n">provenance</span><span class="o">.</span><span class="n">steps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">step</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">function</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">| evoparam</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">provenance</span><span class="o">.</span><span class="n">package_version</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">seed:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">step</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">random_state</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">| python</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">provenance</span><span class="o">.</span><span class="n">environment</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">python</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>evoparam.models.fit_waveform | evoparam 0.1.0.dev0
+seed: 0 | python 3.13.16
+</pre></div>
+</div>
+</section>
+<section id="saving-and-opening-a-fit">
+<h2>Saving and opening a fit<a class="headerlink" href="#saving-and-opening-a-fit" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">fit.save</span></code> writes the whole fit (bumps, background, scores, settings, history) in a
+<code class="docutils literal notranslate"><span class="pre">.evoparam</span></code> folder, or a single <code class="docutils literal notranslate"><span class="pre">.zip</span></code> file. <code class="docutils literal notranslate"><span class="pre">ResponseFit.load</span></code> opens it again,
+and checks that it was not changed.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">folder</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">my_fit.zip</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">fit</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">again</span> <span class="o">=</span> <span class="n">ResponseFit</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">again</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">again</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">latency_ms</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> ms</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1 25.0 ms
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">fit.to_dict()</span></code> gives the same content as a plain dictionary, for example to store it
+in your own format.</p>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>Besides the bumps and the scores, a fit keeps its settings (and which ones you changed),
+its fitted curve and leftover, the classical measures to compare with, and the history
+of how it was made. It can be saved and opened again with all of it.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.219 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-07-fit-object-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/2fb1603642cd5ca7c7b70745de21c503/plot_07_fit_object.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_07_fit_object.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/43a128fdd465183ed571c4d78ce2db57/plot_07_fit_object.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_07_fit_object.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/b033e984d2ae19cfc6b672e7e3d4a07b/plot_07_fit_object.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_07_fit_object.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

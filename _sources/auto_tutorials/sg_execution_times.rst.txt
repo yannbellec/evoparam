@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**02:44.226** total execution time for 5 files **from auto_tutorials**:
+**03:40.078** total execution time for 12 files **from auto_tutorials**:
 
 .. container::
 
@@ -32,18 +32,39 @@ Computation times
    * - Example
      - Time
      - Mem (MB)
-   * - :ref:`sphx_glr_auto_tutorials_plot_04_real_data.py` (``plot_04_real_data.py``)
-     - 01:40.162
+   * - :ref:`sphx_glr_auto_tutorials_plot_08_groups_real_data.py` (``plot_08_groups_real_data.py``)
+     - 01:36.017
      - 0.0
-   * - :ref:`sphx_glr_auto_tutorials_plot_05_trial_by_trial.py` (``plot_05_trial_by_trial.py``)
-     - 00:57.383
+   * - :ref:`sphx_glr_auto_tutorials_plot_09_trial_by_trial.py` (``plot_09_trial_by_trial.py``)
+     - 00:56.654
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_11_further_analysis.py` (``plot_11_further_analysis.py``)
+     - 00:53.720
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_01_model_description.py` (``plot_01_model_description.py``)
      - 00:03.190
      - 0.0
-   * - :ref:`sphx_glr_auto_tutorials_plot_03_tuning_the_fit.py` (``plot_03_tuning_the_fit.py``)
-     - 00:02.781
+   * - :ref:`sphx_glr_auto_tutorials_plot_10_tuning_the_fit.py` (``plot_10_tuning_the_fit.py``)
+     - 00:02.687
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_05_background_fitting.py` (``plot_05_background_fitting.py``)
+     - 00:02.066
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_12_reporting.py` (``plot_12_reporting.py``)
+     - 00:01.655
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_04_component_fitting.py` (``plot_04_component_fitting.py``)
+     - 00:01.489
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_03_fitting_algorithm.py` (``plot_03_fitting_algorithm.py``)
+     - 00:00.979
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_02_reading_results.py` (``plot_02_reading_results.py``)
      - 00:00.711
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_06_metrics.py` (``plot_06_metrics.py``)
+     - 00:00.690
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_07_fit_object.py` (``plot_07_fit_object.py``)
+     - 00:00.219
      - 0.0

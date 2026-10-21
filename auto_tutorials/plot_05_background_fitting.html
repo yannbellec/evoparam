@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>05: Background fitting &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="03: Fitting algorithm" href="plot_03_fitting_algorithm.html" />
+    <link rel="prev" title="01: Model description" href="plot_01_model_description.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-05-background-fitting-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="background-fitting">
+<span id="sphx-glr-auto-tutorials-plot-05-background-fitting-py"></span><h1>05: Background fitting<a class="headerlink" href="#background-fitting" title="Link to this heading">¶</a></h1>
+<p>Choose the shape of the slow part of the curve, and see what it does to the bumps.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>The <strong>background</strong> is the slow part of the curve that is not a bump. After an electrical
+pulse, it is mostly the recording equipment coming back to rest: a jump that fades away.
+It can also hold a slow drift. It is not the baseline (the time before the stimulus) and
+not the brain’s resting activity.</p>
+<p>The bumps are measured <strong>from the background</strong>: if the background is wrong, every
+amplitude is wrong too. This tutorial shows the shapes the background can take, and the
+one setting that most often needs a thought: how slowly it may fade.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_response</span><span class="p">,</span> <span class="n">gen_response</span><span class="p">,</span> <span class="n">plot_fit</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">shapes</span><span class="w"> </span><span class="kn">import</span> <span class="n">list_backgrounds</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="the-background-shapes">
+<h2>The background shapes<a class="headerlink" href="#the-background-shapes" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">background</span></code> chooses the shape:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;none&quot;</span></code>: no background;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;constant&quot;</span></code>: a flat line (one number: its level);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;linear&quot;</span></code>: a straight line that may slope (two numbers);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;exponential&quot;</span></code>: a level plus a jump that fades away, <code class="docutils literal notranslate"><span class="pre">c0</span> <span class="pre">+</span> <span class="pre">c1</span> <span class="pre">×</span> <span class="pre">exp(−t</span> <span class="pre">/</span> <span class="pre">tau)</span></code>.
+<code class="docutils literal notranslate"><span class="pre">tau</span></code> (the <strong>time constant</strong>) is how fast it fades: after <code class="docutils literal notranslate"><span class="pre">tau</span></code>, about a third of
+the jump is left. This is the default of <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;double_exponential&quot;</span></code>: a level plus two fading jumps, a fast one (<code class="docutils literal notranslate"><span class="pre">tau1</span></code>) and a
+slow one (<code class="docutils literal notranslate"><span class="pre">tau2</span></code>);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;pspline&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;artifact_basis&quot;</span></code>: more flexible shapes, for special cases.</p></li>
+</ul>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="n">list_backgrounds</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>['artifact_basis', 'constant', 'double_exponential', 'exponential', 'linear', 'none', 'pspline']
+</pre></div>
+</div>
+</section>
+<section id="a-curve-with-a-fast-and-a-slow-tail">
+<h2>A curve with a fast and a slow tail<a class="headerlink" href="#a-curve-with-a-fast-and-a-slow-tail" title="Link to this heading">¶</a></h2>
+<p>We make the curve of the earlier tutorials (N1 at 25 ms, −150 µV; N2 at 150 ms, −80 µV)
+on a background with two parts: a large jump that fades very fast (300 µV, <code class="docutils literal notranslate"><span class="pre">tau</span></code> =
+5 ms) and a slow drift that fades in 150 ms (60 µV).</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># N1, N2, the fast jump [height (µV), time constant (ms)] and the noise</span><span class="w">
+</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span> <span class="o">=</span> <span class="n">gen_response</span><span class="p">(</span><span class="p">[</span><span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="o">-</span><span class="mi">150</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="o">-</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span><span class="p">]</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="p">[</span><span class="mi">300</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="c1"># Add the slow drift: 60 µV fading in 150 ms, starting at the stimulus</span><span class="w">
+</span><span class="n">signal</span> <span class="o">=</span> <span class="n">signal</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">times</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">60</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">times</span> <span class="o">/</span> <span class="mf">0.15</span><span class="p">)</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">def</span><span class="w"> </span><span class="nf">show</span><span class="p">(</span><span class="n">fit</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;Print the bumps (ms, µV), the time constants of the background (ms) and the BIC.&quot;&quot;&quot;</span><span class="w">
+</span>    <span class="k">for</span> <span class="n">bump</span> <span class="ow">in</span> <span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">:</span><span class="w">
+</span>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">bump</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">bump</span><span class="o">.</span><span class="n">latency_ms</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> ms, </span><span class="si">{</span><span class="n">bump</span><span class="o">.</span><span class="n">amplitude</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> µV</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">taus</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">fit</span><span class="o">.</span><span class="n">background</span><span class="o">.</span><span class="n">items</span><span class="p">(</span><span class="p">)</span> <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">tau</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">}</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  background </span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">background</span><span class="p">[</span><span class="s1">'</span><span class="s1">name</span><span class="s1">'</span><span class="p">]</span><span class="si">}</span><span class="s2">, time constants (ms): </span><span class="si">{</span><span class="n">taus</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  BIC = </span><span class="si">{</span><span class="n">fit</span><span class="o">.</span><span class="n">gof</span><span class="o">.</span><span class="n">bic</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="one-fading-jump-the-preset">
+<h2>One fading jump, the preset<a class="headerlink" href="#one-fading-jump-the-preset" title="Link to this heading">¶</a></h2>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fit_one</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">show</span><span class="p">(</span><span class="n">fit_one</span><span class="p">)</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_fit</span><span class="p">(</span><span class="n">fit_one</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_05_background_fitting_001.png" srcset="../_images/sphx_glr_plot_05_background_fitting_001.png" alt="ok: 2 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1: 25 ms, -164 µV
+N2: 153 ms, -67 µV
+background exponential, time constants (ms): {'tau': 50}
+BIC = 63.9
+</pre></div>
+</div>
+<p>One exponential can not be fast and slow at the same time. Its time constant stops at
+50 ms, the largest the <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> preset allows (more on this below). The slow drift is
+not fully taken by the background, and part of it goes into the bumps: the N1 comes out
+at −164 µV and the N2 at −67 µV, instead of −150 and −80.</p>
+</section>
+<section id="two-fading-jumps">
+<h2>Two fading jumps<a class="headerlink" href="#two-fading-jumps" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">&quot;double_exponential&quot;</span></code> has a fast and a slow part. We also raise the largest time
+constant allowed, <code class="docutils literal notranslate"><span class="pre">background_tau_max</span></code>, to 300 ms (0.3 s), so that the slow part can
+follow a drift of 150 ms.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fit_two</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="w">
+</span>    <span class="n">times</span><span class="p">,</span><span class="w">
+</span>    <span class="n">signal</span><span class="p">,</span><span class="w">
+</span>    <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">background</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">double_exponential</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">background_tau_max</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span><span class="w">
+</span>    <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span><span class="w">
+</span><span class="n">show</span><span class="p">(</span><span class="n">fit_two</span><span class="p">)</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_fit</span><span class="p">(</span><span class="n">fit_two</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_05_background_fitting_002.png" srcset="../_images/sphx_glr_plot_05_background_fitting_002.png" alt="ok: 2 component(s)" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1: 25 ms, -153 µV
+N2: 152 ms, -82 µV
+background double_exponential, time constants (ms): {'tau1': 3, 'tau2': 240}
+BIC = 42.6
+</pre></div>
+</div>
+<p>The two parts are found: a fast one (3 ms) and a slow one (240 ms). They are not exactly
+the true 5 and 150 ms, because the two parts can trade a little with each other and
+with the N2. But the N1 (−153 µV) and the N2 (−82 µV) are now close to the truth, and
+the BIC is the lowest (43 against 64).</p>
+<p>The fit also warns <code class="docutils literal notranslate"><span class="pre">ill_conditioned</span></code>: the slow part of the background and the broad N2
+overlap in time, so the fit has trouble telling them apart, and their uncertainties are
+larger. The warnings of a fit are in <code class="docutils literal notranslate"><span class="pre">fit.warnings</span></code>.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="n">fit_two</span><span class="o">.</span><span class="n">warnings</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>['ill_conditioned']
+</pre></div>
+</div>
+</section>
+<section id="why-the-time-constant-is-limited">
+<h2>Why the time constant is limited<a class="headerlink" href="#why-the-time-constant-is-limited" title="Link to this heading">¶</a></h2>
+<p>If the background may fade as slowly as it likes, it can take a real slow response for
+itself: a broad N2 looks a lot like a slow fading jump. The <code class="docutils literal notranslate"><span class="pre">&quot;ccep&quot;</span></code> preset limits
+<code class="docutils literal notranslate"><span class="pre">tau</span></code> to 50 ms (<code class="docutils literal notranslate"><span class="pre">background_tau_max=0.05</span></code>) for that reason: the equipment’s tail
+after a pulse fades within a few ms to tens of ms, while the N2 lasts hundreds of ms.</p>
+<p>Here is the same two-part background with the preset’s limit of 50 ms.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fit_limited</span> <span class="o">=</span> <span class="n">fit_response</span><span class="p">(</span><span class="w">
+</span>    <span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span> <span class="n">preset</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">double_exponential</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="w">
+</span><span class="p">)</span><span class="w">
+</span><span class="n">show</span><span class="p">(</span><span class="n">fit_limited</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>N1: 25 ms, -159 µV
+N2: 155 ms, -79 µV
+delayed_b: 413 ms, -25 µV
+background double_exponential, time constants (ms): {'tau1': 1, 'tau2': 50}
+BIC = 49.3
+</pre></div>
+</div>
+<p>The slow part stops at 50 ms and can not follow the 150 ms drift. What is left of the
+drift is fitted as an extra bump going down at about 410 ms (<code class="docutils literal notranslate"><span class="pre">delayed_b</span></code>), which is
+not in the brain.</p>
+<p>So the limit is a choice between two risks: too low, a slow drift becomes bumps; too
+high, a slow response becomes background. Raise it only when you know the recording has
+a slow drift (look at the curve far after the response, where only the background is
+left), and write the value in your methods.</p>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>The background carries the slow part of the curve, and the bumps are measured from it.
+<code class="docutils literal notranslate"><span class="pre">&quot;exponential&quot;</span></code> follows the fading tail after a pulse; <code class="docutils literal notranslate"><span class="pre">&quot;double_exponential&quot;</span></code> adds a
+slower part. <code class="docutils literal notranslate"><span class="pre">background_tau_max</span></code> decides how slow the background may be: it protects
+slow responses, but a real slow drift above it turns into bumps. Look at the figure and
+at <code class="docutils literal notranslate"><span class="pre">fit.warnings</span></code> before trusting the amplitudes.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 2.066 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-05-background-fitting-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/31f30c816e7e1b3a622d2b9fe3b26a93/plot_05_background_fitting.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_05_background_fitting.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/67fd9f812c76347d6c95751daf72fa5d/plot_05_background_fitting.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_05_background_fitting.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/e359e394b676629b65e97b30b1fd4c41/plot_05_background_fitting.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_05_background_fitting.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
