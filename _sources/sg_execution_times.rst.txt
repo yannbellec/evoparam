@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**01:46.843** total execution time for 4 files **from all galleries**:
+**02:44.226** total execution time for 5 files **from all galleries**:
 
 .. container::
 
@@ -34,6 +34,9 @@ Computation times
      - Mem (MB)
    * - :ref:`sphx_glr_auto_tutorials_plot_04_real_data.py` (``../docs/tutorials/plot_04_real_data.py``)
      - 01:40.162
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_05_trial_by_trial.py` (``../docs/tutorials/plot_05_trial_by_trial.py``)
+     - 00:57.383
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_01_model_description.py` (``../docs/tutorials/plot_01_model_description.py``)
      - 00:03.190
