@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-04: Real data, from start to end
+08: Fitting groups of electrodes
 ================================
 
-Read a real recording, clean it, fit it, test it, and write the methods.
+Read a real recording, clean it, fit every electrode, test which ones respond, and write
+the methods.
 """  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
 
 ###################################################################################################
 # Introduction
 # ------------
 #
-# The first three tutorials used made-up curves. Here we use a real recording, and do
-# every step ourselves, in the order a study does them:
+# The earlier tutorials fitted one made-up curve at a time. Here we use a real recording,
+# with many electrodes, and do every step ourselves, in the order a study does them:
 #
 # 1. **read** the trials around each stimulation;
 # 2. **remove the artifact**, the large electrical jump of the pulse itself;

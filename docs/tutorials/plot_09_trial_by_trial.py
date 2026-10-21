@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-05: Trial by trial
-==================
+09: Fitting trial by trial
+==========================
 
 Measure the N1 and the N2 in every trial, and tell a real change from noise.
 """  # noqa: D205, D400  (sphinx-gallery: the docstring opens with an RST title)
@@ -25,7 +25,7 @@ Measure the N1 and the N2 in every trial, and tell a real change from noise.
 # 1. fit every trial of made-up data where we know the truth, with no jitter;
 # 2. do the same with a known jitter;
 # 3. look at the N2, which is much harder to follow trial by trial;
-# 4. go back to the real recording of tutorial 04.
+# 4. go back to the real recording of tutorial 08.
 
 ###################################################################################################
 
@@ -190,7 +190,7 @@ show_jitter(fits_moving, "N2")
 # Back to the real recording
 # --------------------------
 #
-# We read again the 10 pulses of tutorial 04 (patient UMCU01, pair PT13-PT14) and run the
+# We read again the 10 pulses of tutorial 08 (patient UMCU01, pair PT13-PT14) and run the
 # preset's chain with ``reports.run_pipeline``. Then we fit the trials of two electrodes
 # that respond: PT07 and PT21. ``select(picks=...)`` keeps only them, which is faster.
 
