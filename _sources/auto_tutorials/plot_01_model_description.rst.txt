@@ -188,10 +188,30 @@ In the figure, the black line is our curve and the thick blue line is the model.
 dashed line is the background. Each coloured area is one bump: it fills the space between
 the background and the curve. The orange line at the bottom is what is left over.
 
-The colour of the areas can be changed, for example ``plot_fit(fit, shade_color="grey")``,
-or they can be turned off with ``shade=False``.
+The colour of the areas can be changed with ``shade_color``, or the areas turned off with
+``shade=False``:
 
-.. GENERATED FROM PYTHON SOURCE LINES 106-115
+.. GENERATED FROM PYTHON SOURCE LINES 106-110
+
+.. code-block:: Python
+
+
+    # The same fit, with grey areas
+    fit = report(times, signal, preset="ccep", shade_color="grey")
+
+
+
+
+.. image-sg:: /auto_tutorials/images/sphx_glr_plot_01_model_description_003.png
+   :alt: ok: 2 component(s)
+   :srcset: /auto_tutorials/images/sphx_glr_plot_01_model_description_003.png
+   :class: sphx-glr-single-img
+
+
+
+
+
+.. GENERATED FROM PYTHON SOURCE LINES 111-120
 
 Reading the numbers on the curve
 --------------------------------
@@ -203,7 +223,7 @@ Reading the numbers on the curve
 - the **dotted line** down to the time axis gives the latency;
 - the **bar** across the bump, at half its height, is the width.
 
-.. GENERATED FROM PYTHON SOURCE LINES 117-121
+.. GENERATED FROM PYTHON SOURCE LINES 122-126
 
 .. code-block:: Python
 
@@ -214,16 +234,16 @@ Reading the numbers on the curve
 
 
 
-.. image-sg:: /auto_tutorials/images/sphx_glr_plot_01_model_description_003.png
+.. image-sg:: /auto_tutorials/images/sphx_glr_plot_01_model_description_004.png
    :alt: plot 01 model description
-   :srcset: /auto_tutorials/images/sphx_glr_plot_01_model_description_003.png
+   :srcset: /auto_tutorials/images/sphx_glr_plot_01_model_description_004.png
    :class: sphx-glr-single-img
 
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 122-142
+.. GENERATED FROM PYTHON SOURCE LINES 127-147
 
 Conceptual overview
 -------------------
@@ -246,7 +266,7 @@ from the part of the curve before the stimulus, where there is nothing but noise
     keeps a new bump only if it explains the curve clearly better than without it. This is
     why it does not invent a bump in every small wiggle of the noise.
 
-.. GENERATED FROM PYTHON SOURCE LINES 144-164
+.. GENERATED FROM PYTHON SOURCE LINES 149-169
 
 Mathematical description
 ------------------------
@@ -269,7 +289,7 @@ Written as a formula, the model is
 Fitting the model means finding the numbers that make the sum of the parts as close as
 possible to the curve.
 
-.. GENERATED FROM PYTHON SOURCE LINES 166-175
+.. GENERATED FROM PYTHON SOURCE LINES 171-180
 
 Trying another curve
 --------------------
@@ -281,7 +301,7 @@ This time we do the steps one by one: ``fit_response`` only fits the model (no f
 ``print`` shows the summary and ``plot_fit`` draws the result. ``report`` is these three
 steps in one line.
 
-.. GENERATED FROM PYTHON SOURCE LINES 177-185
+.. GENERATED FROM PYTHON SOURCE LINES 182-190
 
 .. code-block:: Python
 
@@ -300,7 +320,7 @@ steps in one line.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 186-191
+.. GENERATED FROM PYTHON SOURCE LINES 191-196
 
 .. code-block:: Python
 
@@ -312,9 +332,9 @@ steps in one line.
 
 
 
-.. image-sg:: /auto_tutorials/images/sphx_glr_plot_01_model_description_004.png
+.. image-sg:: /auto_tutorials/images/sphx_glr_plot_01_model_description_005.png
    :alt: ok: 2 component(s)
-   :srcset: /auto_tutorials/images/sphx_glr_plot_01_model_description_004.png
+   :srcset: /auto_tutorials/images/sphx_glr_plot_01_model_description_005.png
    :class: sphx-glr-single-img
 
 
@@ -340,7 +360,7 @@ steps in one line.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 192-197
+.. GENERATED FROM PYTHON SOURCE LINES 197-202
 
 .. note::
 
@@ -348,7 +368,7 @@ steps in one line.
     smaller, add more noise with ``noise=20``) and fit it again. When the bumps get
     small compared to the noise, evoparam starts to miss them, as anyone would.
 
-.. GENERATED FROM PYTHON SOURCE LINES 200-206
+.. GENERATED FROM PYTHON SOURCE LINES 205-211
 
 Conclusion
 ----------
@@ -360,7 +380,7 @@ the model and use it on real recordings.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 1.724 seconds)
+   **Total running time of the script:** (0 minutes 4.259 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_01_model_description.py:
