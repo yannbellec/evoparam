@@ -60,14 +60,15 @@ print(fit)
 #
 # .. note::
 #
-#     Inside evoparam, times are in **seconds**: a latency of 0.025 means 25 ms. Multiply
-#     by 1000 to read them in milliseconds.
+#     Inside evoparam, times are in **seconds** (``latency`` = 0.025 means 25 ms). To read
+#     them in milliseconds, add ``_ms`` to the name: ``latency_ms``, ``fwhm_ms``,
+#     ``onset_ms``...
 
 ###################################################################################################
 
 # Go through the bumps, one line each
 for bump in fit.components:
-    print(bump.label, round(bump.latency * 1000, 1), "ms,", round(bump.amplitude, 1), "µV")
+    print(bump.label, round(bump.latency_ms, 1), "ms,", round(bump.amplitude, 1), "µV")
 
 ###################################################################################################
 #
@@ -77,23 +78,22 @@ for bump in fit.components:
 
 # The first bump, and its latency in ms
 n1 = fit.components[0]
-n1_latency_ms = n1.latency * 1000
-print(round(n1_latency_ms, 1))
+print(round(n1.latency_ms, 1))
 
 ###################################################################################################
 #
 # Each bump also has a few more numbers, all measured on the bump alone:
 #
-# - ``onset`` and ``offset``: when the bump starts and ends (seconds);
+# - ``onset_ms`` and ``offset_ms``: when the bump starts and ends;
 # - ``area``: the surface of the bump, the coloured area of the first tutorial
 #   (µV × seconds);
-# - ``rise_time`` and ``decay_time``: how long it takes to reach its peak, and to come
-#   back.
+# - ``rise_time_ms`` and ``decay_time_ms``: how long it takes to reach its peak, and to
+#   come back.
 
 ###################################################################################################
 
 # When the first bump starts and ends, in ms
-print(round(n1.onset * 1000, 1), round(n1.offset * 1000, 1))
+print(round(n1.onset_ms, 1), round(n1.offset_ms, 1))
 
 ###################################################################################################
 # Reading the background
@@ -106,7 +106,7 @@ print(round(n1.onset * 1000, 1), round(n1.offset * 1000, 1))
 ###################################################################################################
 
 # The time constant of the background, in ms
-print(round(fit.background["tau"] * 1000, 1))
+print(round(fit.background_ms["tau"], 1))
 
 ###################################################################################################
 # Is the fit good?

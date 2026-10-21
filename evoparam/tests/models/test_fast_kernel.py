@@ -222,3 +222,19 @@ def test_without_numba_the_fit_is_the_numpy_fit(monkeypatch: Any) -> None:
         np.testing.assert_array_equal(new.params, old.params)
         assert new.latency == old.latency
         assert new.amplitude == old.amplitude
+
+
+def test_a_numba_that_does_not_match_numpy_falls_back(monkeypatch: Any) -> None:
+    """A numba installed for another numpy fails with an error other than ImportError: the
+    engine takes the NumPy path, with one warning (Colab after pip --force-reinstall)."""
+
+    import evoparam.utils
+
+    def broken(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError("Numba needs NumPy 2.2 or less")
+
+    monkeypatch.setattr(evoparam.utils, "require", broken)
+    monkeypatch.setattr(_fast, "_COMPILED", {})
+    with pytest.warns(RuntimeWarning, match="NumPy path"):
+        assert _fast.kernel() is None
+    assert _fast.kernel() is None

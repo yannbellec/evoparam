@@ -1850,6 +1850,25 @@ _KERNELS = (
 )
 
 
+def _unusable(err: Exception) -> None:
+    """Fall back to the NumPy path when numba is installed but cannot be used.
+
+    A numba built for another numpy (``pip install --force-reinstall`` upgrades numpy past
+    the range of an installed numba) fails at import or at compilation; the fit then runs
+    on the NumPy path, with one warning.
+    """
+    import warnings
+
+    _COMPILED["optimise"] = None
+    warnings.warn(
+        f"numba cannot be used ({type(err).__name__}: {err}); evoparam uses its NumPy path, "
+        "with the same results, more slowly. Install a numba that matches your numpy "
+        "(pip install -U numba) to use the fast path.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+
+
 def kernel() -> Callable[..., Any] | None:
     """Return the compiled :func:`optimise`, or None when numba (``fast`` extra) is missing.
 
@@ -1866,11 +1885,20 @@ def kernel() -> Callable[..., Any] | None:
             except ImportError:
                 _COMPILED["optimise"] = None
                 return None
+            except Exception as err:  # noqa: BLE001  (a numba that does not match numpy)
+                _unusable(err)
+                return None
             module = globals()
-            for name in _KERNELS:
-                flags = {"contract", "reassoc"} if name in _REASSOCIATED else {"contract"}
-                module[name] = numba.njit(
-                    cache=True, nogil=True, error_model="numpy", fastmath=flags
-                )(module[name])
+            compiled = {}
+            try:
+                for name in _KERNELS:
+                    flags = {"contract", "reassoc"} if name in _REASSOCIATED else {"contract"}
+                    compiled[name] = numba.njit(
+                        cache=True, nogil=True, error_model="numpy", fastmath=flags
+                    )(module[name])
+            except Exception as err:  # noqa: BLE001  (a numba that does not match numpy)
+                _unusable(err)
+                return None
+            module.update(compiled)
             _COMPILED["optimise"] = module["optimise"]
     return _COMPILED["optimise"]  # type: ignore[no-any-return]

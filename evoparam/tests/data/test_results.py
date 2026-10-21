@@ -94,3 +94,16 @@ def test_equality_is_nan_aware() -> None:
     other = make_response_fit()
     other.components[0].latency += 1e-6
     assert other != make_response_fit()
+
+
+def test_times_in_milliseconds_for_reading() -> None:
+    comp = make_component()
+    for name in ("latency", "fwhm", "onset", "offset", "rise_time", "decay_time"):
+        assert getattr(comp, f"{name}_ms") == pytest.approx(getattr(comp, name) * 1e3)
+    fit = make_response_fit()
+    tau = 0.05
+    fit.background = {"name": "exponential", "c0": 1.0, "tau": tau, "t_ref": 0.01}
+    assert fit.background_ms["tau"] == pytest.approx(50.0)
+    assert fit.background_ms["t_ref"] == pytest.approx(10.0)
+    assert fit.background_ms["c0"] == 1.0
+    assert fit.background["tau"] == tau

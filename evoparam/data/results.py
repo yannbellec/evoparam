@@ -270,6 +270,37 @@ class Component(_ResultMixin):
         if self.se is not None:
             self.se = {key: float(value) for key, value in self.se.items()}
 
+    # The times in milliseconds, for reading (the fields stay in seconds)
+    @property
+    def latency_ms(self) -> float:
+        """``latency`` in milliseconds."""
+        return self.latency * 1e3
+
+    @property
+    def fwhm_ms(self) -> float:
+        """``fwhm`` in milliseconds."""
+        return self.fwhm * 1e3
+
+    @property
+    def onset_ms(self) -> float:
+        """``onset`` in milliseconds."""
+        return self.onset * 1e3
+
+    @property
+    def offset_ms(self) -> float:
+        """``offset`` in milliseconds."""
+        return self.offset * 1e3
+
+    @property
+    def rise_time_ms(self) -> float:
+        """``rise_time`` in milliseconds."""
+        return self.rise_time * 1e3
+
+    @property
+    def decay_time_ms(self) -> float:
+        """``decay_time`` in milliseconds."""
+        return self.decay_time * 1e3
+
 
 @dataclass(eq=False)
 class GoodnessOfFit(_ResultMixin):
@@ -417,6 +448,14 @@ class ResponseFit(_ResultMixin):
         self.model = _as_float_array(self.model)
         self.residual = _as_float_array(self.residual)
         self.warnings = list(self.warnings)
+
+    @property
+    def background_ms(self) -> dict[str, Any]:
+        """``background`` with its times (``tau``, ``t_ref``) in milliseconds, for reading."""
+        return {
+            key: value * 1e3 if key in ("tau", "t_ref") and value is not None else value
+            for key, value in (self.background or {}).items()
+        }
 
     def results_text(self) -> str:
         """Short plain-text summary: the window, the background and one line per component.
