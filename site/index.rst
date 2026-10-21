@@ -36,6 +36,8 @@ Get started
 
 :doc:`auto_tutorials/plot_03_tuning_the_fit`
 
+:doc:`auto_tutorials/plot_04_real_data`
+
 .. toctree::
    :hidden:
 
