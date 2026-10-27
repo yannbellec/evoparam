@@ -70,9 +70,9 @@ def matrix(root):
         rows[cells[0]] = {
             "status": cells[2],
             "reqs": set(re.findall(r"REQ-\d{3}", cells[3])),
-            "modules": [m for m in re.split(r",\s*", cells[4]) if m not in ("", "—", "-")],
+            "modules": [m for m in re.split(r",\s*", cells[4]) if m not in ("", "\u2014", "-")],
             "tests": re.findall(r"`([^`]+)`", cells[5]),
-            "validation": cells[6] if cells[6] not in ("", "—", "-") else "",
+            "validation": cells[6] if cells[6] not in ("", "\u2014", "-") else "",
         }
     reqs = {}
     for cells in _rows(text, "### 14.2 Requirement", "\n## "):

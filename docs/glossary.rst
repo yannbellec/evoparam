@@ -52,7 +52,7 @@ Modules
       Module ``evoparam.existence``. May import: ``data``, ``models``, ``utils``. Must not import: ``trials``, ``hierarchical``.
 
    evoparam.hierarchical
-      Module ``evoparam.hierarchical``. May import: ``data``, ``models``, ``trials``, ``stats``. Must not import: —.
+      Module ``evoparam.hierarchical``. May import: ``data``, ``models``, ``trials``, ``stats``. Must not import: none.
 
    evoparam.io
       Module ``evoparam.io``. May import: ``data``, ``utils``. Must not import: ``models`` and anything below it.
@@ -821,7 +821,7 @@ Names that replace inherited ones
       Name chosen in place of an inherited one (spec §4.4): ``min_amplitude`` (data units).
 
    detection_threshold
-      Name chosen in place of an inherited one (spec §4.4): ``detection_threshold`` (in baseline-SD units) — used only for initial guesses, never as the final acceptance rule (§5.5.3).
+      Name chosen in place of an inherited one (spec §4.4): ``detection_threshold`` (in baseline-SD units); used only for initial guesses, never as the final acceptance rule (§5.5.3).
 
    shapes
       Name chosen in place of an inherited one (spec §4.4): ``shapes`` (tuple of allowed shape names). Reason: several shapes may compete under model selection.

@@ -75,10 +75,8 @@ class ConvergenceWarning(UserWarning):
     """Trial fits or MCMC chains did not converge."""
 
 
-# Files whose frames ``warn`` does not count in ``stacklevel`` (Python >= 3.12): the
-# ``verbose`` decorator and the ``n_jobs`` helper wrap the public functions. The prefixes
-# stop before the extension: CPython's C implementation compares them with the file name
-# without its last character.
+# Files skipped by ``warn`` in ``stacklevel`` (Python >= 3.12): the decorators that wrap
+# public functions. No extension: CPython compares the prefix minus its last character.
 _SKIP = tuple(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", name)
     for name in ("_logging.", "_parallel.")

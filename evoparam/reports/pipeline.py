@@ -107,10 +107,8 @@ def artifact_steps(preset: Any) -> list[Any]:
         if name == "paradigm":
             kwargs["scheme"] = option
         if name == "subspace":
-            # the specification's projection of every sample, after the interpolation of
-            # the window: the two-stage logic of the TMS pipelines (§5.6, tep), where the
-            # projection is meant for the decay beyond the window (the default of
-            # remove_artifact projects the window only; not measured on TEPs)
+            # spec projection of every sample after interpolation: the two-stage TMS logic (§5.6,
+            # tep); remove_artifact projects the window only by default (not measured on TEPs)
             kwargs.update(n_components="energy", subspace_extent="all")
         steps.append(kwargs)
     return steps
@@ -342,12 +340,9 @@ def _trial_fits(ts: Any, group: Any, p: Any, random_state: Any, n_jobs: int) -> 
 ###################################################################################################
 ## Reference pipelines (REQ-340)
 
-# name -> preset, the published data it stands for, the stand-in used when those data are
-# not at hand, and the options of run_pipeline. The methods text depends on the settings and
-# on the noise reference the fits resolved (noise_source="auto" switches to the plus-minus
-# average when the baseline holds fewer than 30 effective samples), so each stand-in has the
-# sampling of its real recording and resolves the same reference: it gives the words of the
-# real pipeline.
+# name -> preset, its published data, the stand-in used without them, run_pipeline options.
+# Each stand-in has the sampling of its recording, so it resolves the same noise reference
+# and gives the methods text of the real pipeline.
 REFERENCE_PIPELINES: dict[str, dict[str, Any]] = {
     "erpcore_p3": {
         "preset": "erp",

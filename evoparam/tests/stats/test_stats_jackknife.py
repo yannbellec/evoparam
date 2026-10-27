@@ -104,13 +104,9 @@ def test_req231_smulders_worked_example() -> None:
         assert f_retrieved[key] == pytest.approx(f_jack[key], rel=1e-9)
 
 
-# Kiesel, Miller, Jolicoeur & Brisson (2008), read in full on 2026-10-13 (25 pages, authors'
-# copy archived by the Wayback Machine on 2024-06-01; the university URL now answers 404).
-# It prints the corrections only as Equation 1 (p. 252) and reports no t or F value:
-# Tables 1-8 are Monte Carlo means, SDs, power and Type I error rates over data sets A and B,
-# whose participant data are not published. Its one worked number is the linear
-# interpolation of a criterion crossing (p. 254): -.98 at 62.50 ms, -1.02 at 66.41 ms,
-# criterion -1.0, "64.46 ms".
+# Kiesel et al. (2008) gives the corrections only as Equation 1 (p. 252), no t or F value;
+# its one worked number is a criterion crossing (p. 254): -.98 at 62.50 ms, -1.02 at
+# 66.41 ms, criterion -1.0, "64.46 ms".
 KIESEL_INTERPOLATION = {
     "times_ms": (62.50, 66.41),
     "values": (-0.98, -1.02),

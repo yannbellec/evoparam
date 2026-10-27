@@ -516,21 +516,8 @@ def test_req275_methods_text_names_the_sensory_confound() -> None:
     assert "coil click" not in resolve_settings("ccep").preset_note
 
 
-# Measured on the 20 subjects (ds002094 1.0.0, evoparam 0.1.0.dev0, step S15): subjects with a
-# labelled N45 / N100 / both on the channel of maximal response.
-#   variant A (preset chain), 17 inner channels:  11 / 13 / 9
-#   variant A, all 30 channels:                    8 /  8 / 4
-#   variant B (with ICA), all 30 channels:          9 / 11 / 6   <- REQ-275 criterion
-#   variant B, 17 inner channels:                   8 / 16 / 6
-# Measured again (Python 3.13, numpy 2.5.3), development 8 + held-out 12 = total:
-#                         preset tep 1.0 (3b222bb)   preset tep 1.1
-#   A, 17 inner channels:  9 / 12 / 8               4/6/3 + 5/9/5 = 9 / 15 / 8
-#   A, all 30 channels:    5 /  7 / 3               4/4/2 + 2/5/2 = 6 / 9 / 4
-#   B, all 30 channels:    7 / 11 / 5               6/7/6 + 4/4/2 = 10 / 11 / 8  <- criterion
-#   B, 17 inner channels:  7 / 14 / 5               6/7/6 + 6/10/6 = 12 / 17 / 12
-# Variant A never strides the noise; variant B always does (k = 3, or 2; the 100 Hz low-pass).
-# Without the stride (= commit 7044dc1 for 1.0): B all 8 / 15 / 8 (1.0) and 8 / 13 / 6 (1.1),
-# B inner 7 / 18 / 6 and 9 / 17 / 9, from fits that reach max_components (CHANGELOG).
+# Subjects with a labelled N45 / N100 / both on the maximal channel (20 subjects, step S15;
+# REQ-275 criterion = variant B, all 30 channels). Per-version counts: CHANGELOG.
 needs_data = [
     pytest.mark.network,
     pytest.mark.skipif(not NETWORK, reason="set EVOPARAM_NETWORK_TESTS=1 to read OpenNeuro"),

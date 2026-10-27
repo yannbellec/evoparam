@@ -144,12 +144,7 @@ def test_errstate_at_most_three_lines_in_the_engine() -> None:
 
 
 ###################################################################################################
-## REQ-307 (ii) on the other unit functions: fit_trials, test_response, remove_artifact
-#
-# The same injection as for fit_group: the work on channel C3 raises (from inside the
-# function's numerical path); the unit's result carries status "failed" and the message,
-# exactly one WARNING record names C3, the other channels are "ok"; on_error="raise"
-# propagates a FitError naming C3; a data error raised in the same place propagates.
+## REQ-307 (ii): fit_trials, test_response, remove_artifact fail on C3 only, as fit_group
 
 
 C3 = 2  # the index of the failing channel

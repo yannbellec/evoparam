@@ -103,10 +103,8 @@ EXTRAPOLATIONS = ("auto", "sqrt_n", "power")
 # trial count, and a latency approaches the 1/sqrt(n) law from below (its SD is bounded by
 # the window while the average is noisy), so its local exponent lies in [-1/2, 0].
 _POWER_EXPONENT = (-0.5, 0.0)
-# Scores extrapolated by the power law with extrapolation="auto": the two latencies whose
-# 80-trial SD the power law predicted better than the 1/sqrt(n) law on development
-# simulations (pink, white and AR(1) noise, per-trial SNR 0.5 to 2; CHANGELOG). The
-# fractional peak latency is not among them (the power law over-predicted it).
+# Scores extrapolated by the power law with extrapolation="auto" (better than 1/sqrt(n) on
+# development simulations, CHANGELOG); not the fractional peak latency.
 _POWER_SCORES = ("peak_latency", "fractional_area_latency")
 
 

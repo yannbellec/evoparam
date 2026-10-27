@@ -24,16 +24,19 @@ ENTRY = re.compile(r"^- \*\*\[(LIT-[a-z]+-\d+)\]\*\*\s*(.+)$", re.MULTILINE)
 
 
 def _clean(text):
-    return re.sub(
+    text = re.sub(
         r"\s+", " ", text.replace("{", "(").replace("}", ")").replace("\\", "/").replace("**", "")
     ).strip()
+    # no em dash in the output: a period before a status, a colon elsewhere
+    text = re.sub(r" \u2014 (?=(UN)?VERIFIED|bibliograph)", ". ", text)
+    return re.sub(r"\s*\u2014\s*", ": ", text)
 
 
 def render(source=SOURCE):
     """Return the BibTeX file built from the reference list ``source``."""
     entries = []
     for key, record in ENTRY.findall(source.read_text(encoding="utf-8")):
-        note = _clean(record.split(" — accessed")[0])
+        note = _clean(record.split(" \u2014 accessed")[0])
         fields = [("note", note)]
         doi = re.search(r"\bDOI:? (10\.\d{4,9}/[^\s,;]+?)\.?(?=[\s,;]|$)", record)
         if doi:

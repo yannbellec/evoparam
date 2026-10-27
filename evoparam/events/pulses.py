@@ -62,11 +62,8 @@ MERGE_WINDOW = 0.020
 # Window after a crossing in which the artifact peak is searched (s).
 PEAK_WINDOW = 0.003
 
-# Window before the peak in which the onset is searched (s), and the fraction of the
-# peak score that marks the onset: low enough for the first sample of the artifact,
-# high enough to skip the small switching transient some stimulators emit 1-2 ms
-# earlier. 0.25 gave the most stable trigger-to-onset delay across the 25 ds004080 runs
-# of the validation (0.1 and 0.5 were tried).
+# Onset search window before the peak (s) and onset fraction of the peak score; 0.25 gave
+# the most stable trigger-to-onset delay on 25 ds004080 runs (0.1 and 0.5 tried).
 ONSET_WINDOW = 0.002
 ONSET_FRACTION = 0.25
 
@@ -608,10 +605,8 @@ def _evoparam_candidates(
     strength, onsets = _threshold_candidates(rec, scores, opts.threshold_sd, opts)
     score_used = "median"
     if not len(strength) and len(rec.index) > _MIN_FALLBACK_CHANNELS:
-        # No pulse on the median score: the artifact may reach only a minority of the
-        # channels (ds004977, stimulating contacts switched to the stimulator: z 9 to 15
-        # on the median, 47 to 322 on the 90th percentile of the non-flat channels, 10 at
-        # most between pulses). The 90th percentile is then tried before giving up.
+        # No pulse on the median score: the artifact may reach few channels (ds004977), so the
+        # 90th percentile is tried before giving up.
         score_used = "p90"
         score = quantile_score(rec.data, rec.index, _FALLBACK_QUANTILE)
         scores = (score, robust_z(score))
@@ -647,12 +642,9 @@ def _strength_gate(
     n_pre, n_post, max_shift = snip
     onsets, strength = cands.onsets, cands.strength
     reference = np.percentile(strength, _REFERENCE_PERCENTILE)
-    # the gate holds on both scales: the robust z of the first difference and the
-    # size of the deflection (µV). A channel that saturates for an instant (an
-    # electrode pop) has a steep edge, so a z near the pulses', but a deflection tens
-    # of times smaller than the stimulation artifact (ds004696 sub-07: 0.1 to 2 mV
-    # against 35 mV). The size of reference is taken among the candidates that pass on
-    # z, since pops can outnumber the pulses (47 candidates for 5 pulses there).
+    # Gate on both the robust z and the deflection size: an electrode pop has a pulse-like z
+    # but a far smaller deflection (ds004696 sub-07). The reference size comes from the
+    # candidates that pass on z.
     relative = strength / reference
     size = artifact_size(rec.data, rec.index, onsets, rec.sfreq)
     by_z = relative >= opts.min_relative

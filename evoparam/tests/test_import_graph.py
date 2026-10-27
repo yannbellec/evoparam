@@ -34,10 +34,8 @@ pytestmark = pytest.mark.core
 PACKAGE = pathlib.Path(evoparam.__file__).parent
 DECISIONS = PACKAGE.parent / "docs" / "spec" / "DECISIONS.md"
 
-# Leaf modules that import nothing from the package and that every module may import:
-# the error hierarchy that §4.6 asks every module to raise (D4: data raises DataError) and
-# the package version that every provenance record carries (§4.1 principle 3); and the
-# array type aliases of REQ-301 (§9.6: numpy.typing.NDArray), which import numpy only.
+# Leaf modules every module may import: the error hierarchy (§4.6, D4), the version
+# (§4.1 principle 3) and the array type aliases (REQ-301).
 LEAVES = {"errors", "version", "_typing"}
 
 # Every top-level module of the package (subpackages and single files).
@@ -109,11 +107,8 @@ REQUIRE_ONLY = {
     "hierarchical": {"evoparam.utils._optional", "evoparam.utils.require"},
     "sim": {"evoparam.utils._optional", "evoparam.utils.require"},
 }
-# Spec §4.2: the top layers do not import each other, except benchmark -> reports.
-# D3 (owner): the HTML/PDF reports embed the figures and the command line runs the reports
-# (§5.13), so the top layers are ordered plots < reports < cli, benchmark.
-# S19: the command line runs the benchmark (§8.4 `evoparam benchmark score ...`, §10.5), so
-# cli -> benchmark; the benchmark never imports the command line.
+# Spec §4.2: top layers do not import each other, except plots < reports < cli (D3) and
+# cli -> benchmark -> reports (S19).
 ALLOWED_BETWEEN = {
     ("benchmark", "reports"),
     ("reports", "plots"),

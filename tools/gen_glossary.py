@@ -53,6 +53,7 @@ def _code_blocks(text):
 
 def rst(text):
     """Inline text safe for reStructuredText: code as literals, markup characters escaped."""
+    text = "none" if text.strip() == "\u2014" else text.replace(" \u2014 ", "; ")
     out = []
     for i, piece in enumerate(re.split(r"(`[^`]+`)", text.strip())):
         if i % 2:

@@ -69,10 +69,8 @@ SKEWED_GAUSSIAN = 1
 BG_FIXED = 0  # linear coefficients only: a fixed basis (none, constant, linear, ...)
 BG_EXPONENTIAL = 1  # c0 + c1 exp(-(t - t_ref) / tau)
 
-# |z| beyond which a Gaussian factor is taken as 0: exp(-z^2/2) < 6e-32 there, and the term it
-# would add to a whitened residual is below 1e-25 of the residual's scale even for an
-# amplitude of 1e6 noise SDs (rounding is 1e-16); the NumPy path computes it up to 38.7
-# (shapes.components.SUPPORT_Z), where it underflows to 0
+# |z| beyond which a Gaussian factor is 0 (exp(-z^2/2) < 6e-32, negligible even at 1e6 SD);
+# the NumPy path goes up to shapes.components.SUPPORT_Z.
 SUPPORT_Z = 12.0
 COND_MAX = 1e11  # Frobenius condition number of R above which the SVD route is taken
 EPS = float(np.finfo(float).eps)
@@ -89,14 +87,12 @@ _EXPAND = 0.75
 _BOUND_HIT = 0.95
 _THETA_MIN = 0.995
 
-# The kernels take their arrays grouped in tuples, unpacked on entry (numba compiles a tuple
-# of arrays as its members):
-# - Model: ``(tw, kinds, offsets, bg_kind, lag, fixed)``, the time axis, the kind and offset
-#   of each component, the background (kind, lag from its reference time, fixed basis);
+# Kernel arguments are tuples of arrays (numba compiles them as their members):
+# - Model: ``(tw, kinds, offsets, bg_kind, lag, fixed)``;
 # - Whitening: ``(inv_scale, a, post, stride, start, start_rows)``, see ``_whiten_full``;
-# - Prior: ``(prior_cols, prior_diag, target)``, the prior rows and the whitened target;
-# - Problem: ``(model, whitening, prior)``, what ``engine._compiled_args`` returns;
-# - ColumnWork, FactorWork, JacobianWork: the work arrays (see ``_workspace``).
+# - Prior: ``(prior_cols, prior_diag, target)``;
+# - Problem: ``(model, whitening, prior)``, from ``engine._compiled_args``;
+# - ColumnWork, FactorWork, JacobianWork: work arrays (``_workspace``).
 Model = tuple[FloatArray, IntArray, IntArray, int, FloatArray, FloatArray]
 Whitening = tuple[FloatArray, FloatArray, FloatArray, int, FloatArray, IntArray]
 Prior = tuple[IntArray, FloatArray, FloatArray]

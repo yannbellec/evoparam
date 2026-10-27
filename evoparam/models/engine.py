@@ -66,11 +66,8 @@ _FAST = "auto"
 
 # Qualifying candidates compared before one is accepted at each step.
 CANDIDATE_BEAM = 3
-# Residual extrema tried (strongest first) before the search of a further component stops
-# when none of them improves the criterion by delta (the weaker ones are not tried). The
-# first qualifying extremum of a step was at most the sixth on the layer-2 development
-# cells; the step that adds nothing (the last one of every fit) tried up to
-# 2 x max_components extrema.
+# Residual extrema tried (strongest first) before the search stops when none improves the
+# criterion by delta (the first qualifying one was at most the sixth on layer-2 cells).
 CANDIDATE_SCAN = 6
 
 # Two components make a pair (an ordering chain, cancelling or overlapping neighbours).
@@ -88,10 +85,8 @@ MIN_VALID_SAMPLES = 5
 # Floor of the standard errors given by the caller, relative to the noise scale.
 _SEM_FLOOR = 0.1
 
-# What a shape's initial_guess raises when it cannot start at a candidate extremum (bounds
-# that do not fit the window, an extremum at the edge, a non-finite width): that shape is
-# not tried there, with a DEBUG record (REQ-307: never without a trace). Any other
-# exception is a programming error and propagates (to the channel's status "failed").
+# Raised by a shape's initial_guess when it cannot start at an extremum: the shape is
+# skipped there with a DEBUG record (REQ-307). Other exceptions propagate.
 GUESS_ERRORS = (SettingsError, DataError, ValueError, ArithmeticError, IndexError)
 
 
@@ -1412,12 +1407,9 @@ def _evaluate_state(
     data_rw = rw[: len(struct.y)]
     rss = float(np.sum(data_rw**2))
     fit_crit = criterion(rss, n_eff, p, kind)
-    # The start rows of the exact likelihood (Whitener) tie the curve to the data at the
-    # window start, so they take part in every fit; but the evidence for a component (the
-    # change of K, merges) counts the innovation rows only. The start rows judge the first
-    # samples against the stationary spread of the noise, and a chance deviation there was
-    # otherwise "explained" by a recovery tail plus a broad component cancelling it (on
-    # simulations: a spurious N1 at the window start; REQ-170, REQ-171).
+    # The start rows of the exact likelihood enter every fit but not the evidence for a
+    # component (innovation rows only): otherwise noise at the window start became a
+    # spurious N1 (REQ-170, REQ-171).
     exact = getattr(struct.white, "start", None) is not None
     skip = struct.white.p if exact else 0
     crit = (
@@ -2191,10 +2183,8 @@ def _quick_candidates(
         gain = quick[0].crit - current.crit
         if forced or gain <= -search.need(quick[0], current):
             ranked.append(quick)
-            # Compare the first CANDIDATE_BEAM qualifying candidates: the strongest
-            # residual extremum is not always the right next component (two neighbours
-            # of one sign leave a residual whose largest extremum lies between them,
-            # with the opposite sign)
+            # Compare the first CANDIDATE_BEAM candidates: two same-sign neighbours leave
+            # the largest residual extremum between them, with the opposite sign
             if len(ranked) >= CANDIDATE_BEAM:
                 break
         else:
@@ -2415,11 +2405,8 @@ def _split_proposals(state: Any, search: _Search, n_split: int = 2) -> list[Any]
     return out
 
 
-# Reseeding: the greedy path can end in a local optimum where two components of opposite sign
-# overlap and cancel (a "cancelling pair"): adding the second component lets the first slide
-# onto it, and the merge of the pair is worse than the pair, so it stays although placing
-# the components on the extrema of the data fits far better. Such a state is refitted from
-# starts on the extrema of the data (the residual of the background-only model).
+# Reseeding: the greedy path can end on a cancelling pair (two overlapping components of
+# opposite sign); such a state is refitted from the extrema of the data.
 RESEED_EXTREMA = 6
 RESEED_COND = 1e5
 

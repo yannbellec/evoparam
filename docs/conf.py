@@ -44,10 +44,8 @@ html_theme_options = {
 html_static_path = ["_static"]
 html_title = f"evoparam {release}"
 numpydoc_show_class_members = False
-# The names exported at the package root (evoparam.TrialSet, evoparam.fit, ...) are also
-# listed in their module's table (REQ-303: every public symbol in the index). The module's
-# page of such a name is not indexed, so each object has one target and an unqualified
-# reference (``TrialSet`` in an annotation) is not ambiguous.
+# Names exported at the package root are indexed in their module's table only (REQ-303),
+# so each object has one target and an unqualified reference is not ambiguous.
 templates_path = ["_templates"]
 
 

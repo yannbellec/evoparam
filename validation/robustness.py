@@ -82,12 +82,9 @@ DS004977 = [
     ("4", "02", "RO3-RO4"),
 ]
 READINGS = {"paper": "vanblooijs2023", "code": "vanblooijs2023_code"}
-# each reading's SD baseline, time shift in samples and peak operator (as the layer-3 tests
-# read them, ``FRAMES`` of evoparam/tests/models/test_engine_ccep.py): the registry row on
-# the data's axis with the baseline the registry names (-1 to -0.1 s) and its "negative
-# peak" read as a peak (the deepest strict local minimum of the window); the published
-# code with its own baseline and its time axis, one sample later (the stimulation sample
-# is t = 1/sfreq)
+# each reading's SD baseline, time shift (samples) and peak operator, as ``FRAMES`` of
+# tests/models/test_engine_ccep.py: paper (data axis, -1 to -0.1 s, strict local minimum),
+# code (its own baseline, one sample later)
 FRAMES = {"paper": ((-1.0, -0.1), 0, {"peak": "strict"}), "code": ((-2.0, -0.1), 1, {})}
 
 

@@ -129,12 +129,8 @@ def test_req040_recall_precision_and_onset(results: Any) -> None:
     assert hits / (hits + misses) >= MIN_RATE
     assert hits / (hits + false_alarms) >= MIN_RATE
 
-    # Onset error (owner decision D9): detect_pulses reports the physical onset, the first
-    # sample of the artifact; the trigger in events.tsv precedes it by a constant delay of
-    # the recording system (0.97 ms). The delay is estimated on the even runs and the onset
-    # error is checked on the odd runs, held out, within 1 sample. (Estimated on the odd runs
-    # instead, the delay is the same, 0.972 ms, and 11 of the 13 even runs are within 1
-    # sample: the median absolute error over their pulses is 0.02 sample.)
+    # Onset error (decision D9): the trigger precedes the artifact onset by a constant 0.97 ms.
+    # The delay is estimated on even runs, the error checked on odd runs within 1 sample.
     calib = [
         (ev["onset_time"].to_numpy(), on)
         for i, (_, _, ev, on, _) in enumerate(results)

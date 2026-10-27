@@ -114,11 +114,8 @@ def trialset_from_mne(
     if metadata and epochs.metadata is not None:
         extra = epochs.metadata.reset_index(drop=True)
         table = pd.concat([extra, table], axis=1) if "condition" not in extra else extra
-    # MNE event samples count from the start of the acquisition: they already include
-    # first_samp (mne.find_events, Epochs.events), so the time of an event is
-    # events[:, 0] / sfreq. Adding first_samp / sfreq again (the formula of spec §10.1)
-    # would shift every event by the time between acquisition start and the first kept
-    # sample, and to_mne would not give the events back (CHANGELOG, step S17).
+    # MNE event samples already include first_samp: time = events[:, 0] / sfreq. Adding it
+    # again (spec §10.1) would shift every event and break the to_mne round trip (S17).
     event_times = epochs.events[:, 0] / sfreq
     source = {
         "format": "mne",

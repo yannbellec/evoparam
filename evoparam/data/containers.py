@@ -274,10 +274,8 @@ def _chunks(n_channels: int, chunk: int | str | None, n_trials: int, n_times: in
     return [slice(start, min(start + size, n_channels)) for start in range(0, n_channels, size)]
 
 
-# Bytes of trials averaged at once: _average_block holds a copy of its block and a few
-# temporaries of the same size, so the channels of a chunk are averaged by blocks of at most
-# this size (every value is computed per channel and time point, so the result does not
-# depend on the blocks).
+# Bytes of trials averaged at once (_average_block copies its block); the result does not
+# depend on the block size.
 _AVERAGE_BLOCK_BYTES = 16 * 2**20
 
 

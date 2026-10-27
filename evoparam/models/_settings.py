@@ -50,19 +50,12 @@ class FitSettings:
     fit_window: tuple[float, float] | None = None
     baseline: tuple[float, float] | None = None
     selection: str = "bic"
-    # the fall of BIC a component needs (spec §5.5.4: 10, the default and every preset's),
-    # or "calibrated": calibrated on each fit's noise model at the false-response rate
-    # ``alpha`` (models/_calibration.py; noise_model "ar" and selection "bic"; otherwise
-    # FIXED_DELTA). Measured: CHANGELOG, "Calibrated acceptance" and "Calibrated
-    # acceptance: the change of the noise spectrum"
+    # BIC drop a component needs (spec §5.5.4: 10), or "calibrated" on each fit's noise
+    # model at rate ``alpha`` (models/_calibration.py; ar noise and bic selection only)
     delta: float | str = 10.0
     alpha: float = 0.04
-    # how the allowed shapes of a component are compared: "bic" (on the quick fits of the
-    # forward search, spec §5.5.3 step 4; every preset), "hqc" (every component of the
-    # final model refitted with every allowed shape, the lowest Hannan-Quinn criterion
-    # kept, 2 ln ln n per parameter), "aic" (the same with the AIC), "penalised" (default:
-    # as "hqc", a skewed component estimated with a prior on its asymmetry and weights on
-    # its top, models/_penalised.py; REQ-106, DECISIONS §5.4)
+    # shape comparison: "bic" (forward search, every preset), "hqc" or "aic" (final
+    # refit with every shape), "penalised" (default: hqc with an asymmetry prior, REQ-106)
     shape_choice: str = "penalised"
     # flag a component that a pair of overlapping components would explain as well
     # ("merged:k,k+1", REQ-111; engine._resolution_warnings); every preset sets False
@@ -90,10 +83,8 @@ class FitSettings:
     latency_order: str = "parameterised"  # spec §5.5.3 step 5 ("sorted": not better)
     # "beam" (measured more robust and faster than "spec", §5.5.3 step 4; see CHANGELOG)
     candidate_search: str = "beam"
-    # True: refuse every model with two overlapping components of opposite signs (a
-    # cancelling pair). Default False: such a final state is refitted from the extrema of
-    # the data (``reseed``) and, when it stays, its components are marked not resolvable;
-    # measured better on ECAP simulations (CHANGELOG, "Defaults settled by measurement")
+    # True: refuse cancelling pairs. False (default): reseed, and mark the pair not resolvable
+    # if it stays (better on ECAP simulations, CHANGELOG)
     reject_cancelling: bool = False
     # "order": every extremum is a candidate, detection_threshold only orders them (REQ-104);
     # "select": only the extrema >= detection_threshold are candidates (§5.5.3 step 3)
@@ -103,10 +94,8 @@ class FitSettings:
     # overlapping) or a nearly singular design from starts on the extrema of the data, and
     # keep it when it fits better; "always": for every state (slower; better on ERPs)
     reseed: Any = True
-    # noise scale and AR model of the whitening: "baseline" (spec §5.5.3 step 1),
-    # "plusminus" (the trials averaged with alternating signs over the whole epoch, when the
-    # fit has at least 10 trials) or "auto": plus-minus when the baseline holds fewer than
-    # 30 independent samples (n (1 - rho) / (1 + rho)), the baseline otherwise
+    # whitening noise source: "baseline", "plusminus" (>= 10 trials) or "auto" (plus-minus
+    # when the baseline has fewer than 30 independent samples)
     noise_source: str = "auto"
     preset: str | None = None
     preset_note: str | None = None

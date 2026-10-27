@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Known-truth N1 bench (DECISIONS §5.13): fake N1s injected into real ds004080 pre-stimulus noise.
 
 Each usable patient (``n1_known_truth_subjects.tsv``, status "ok") gives the -2..0 s

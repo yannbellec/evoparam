@@ -206,12 +206,8 @@ def test_req342_bids_validator(written: Any, which: Any) -> None:
     assert errors == []
 
 
-# Spec §9.2 and REQ-315: the reference validator is bids-validator >= 2.0 in derivative mode,
-# named in the spec as the Node.js package run with npx (``npx bids-validator@2``). npm has
-# no 2.x release of ``bids-validator`` (measured 2026-10-09 and 2026-10-13: latest 1.15.0,
-# ``ETARGET``); the BIDS maintainers publish 2.x and 3.x on JSR as ``@bids/validator``. The
-# test runs npx when npm resolves a 2.x release and the pinned JSR release otherwise
-# (docs/spec/DECISIONS.md, "REQ-315").
+# REQ-315: reference validator bids-validator >= 2.0. npm has no 2.x release, so npx runs
+# when npm resolves 2.x, else the pinned JSR @bids/validator (DECISIONS.md, "REQ-315").
 REFERENCE_VALIDATOR = ["npx", "--yes", "bids-validator@2", "--datasetTypes", "derivative"]
 JSR_VALIDATOR = ["run", "-A", "jsr:@bids/validator@3.0.2", "--datasetTypes", "derivative"]
 

@@ -214,11 +214,7 @@ def make_bids(root: Any) -> Any:
 
 
 ###################################################################################################
-## MEF 3.0 writer (synthetic sessions for the MEF reader tests)
-##
-## Written from the MEF 3.0 specification and the reference C library (meflib), independently
-## of evoparam.io.mef: byte-by-byte CRC, the range encoder of RED_encode_exec, and the file
-## layouts (universal header, .tmet, .tidx, .tdat).
+## MEF 3.0 writer, written from the MEF 3.0 spec and meflib, independently of evoparam.io.mef
 
 MEF_NAN = -(1 << 31)
 MEF_NEG_INF = -(1 << 31) + 1

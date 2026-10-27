@@ -309,10 +309,8 @@ def permutation_test(
     critical = np.quantile(null, 1 - alpha, axis=0)
     onset, offset = _extent(t_obs, critical, statistic, threshold, polarity, times[win])
 
-    # Duration interval: bootstrap over trials with the same critical value (the same
-    # resamples give the intervals of the onset and the offset, REQ-006). The resamples
-    # are drawn here, in the order of the serial loop, so that the result does not depend
-    # on n_jobs; the p-values and the bootstrap run per block of channels.
+    # Duration interval: trial bootstrap with the same critical value (REQ-006). Resamples are
+    # drawn here in serial order, so the result does not depend on n_jobs.
     picks = [rng.integers(0, n, n) for _ in range(n_boot)]
     common = (picks, statistic, threshold, polarity, times[win], n)
     workers = n_workers(n_jobs, n_ch)

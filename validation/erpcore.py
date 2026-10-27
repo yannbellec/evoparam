@@ -51,10 +51,8 @@ TOLERANCE = 0.010
 # published window widened by 25 ms on each side, three components of the polarity
 MARGIN = 0.025
 N_COMPONENTS = 3
-# the reading as written (REQ-274: "`erp` ... recovers the component named by the paradigm
-# ... as a labelled component", model latency of that component): the `erp` preset with its
-# own selection, the component labelled in the measurement window widened by LABEL_MARGIN on
-# each side (the window is set for a mean amplitude; a fitted peak can lie just outside)
+# REQ-274 as written: the `erp` preset with its own selection, the component labelled in
+# the measurement window widened by LABEL_MARGIN on each side
 LABEL_MARGIN = 0.030
 READINGS = ("as_written", "targeted")
 

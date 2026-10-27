@@ -87,10 +87,8 @@ def test_events_to_metadata() -> None:
     assert meta["stim_current_mA"].dtype == float
 
 
-# Every events.tsv of the four Mayo CCEP datasets of OpenNeuro (ds004696 sub-01, 04 and 05
-# repeat ds004457 sub-2, sub-1 and sub-4; ds004977 keeps the events of every site although its
-# signal is censored outside one site per run, which does not matter here: only the event
-# times and sites are used).
+# Every events.tsv of the four Mayo CCEP datasets of OpenNeuro (only event times and sites
+# are used, so the ds004696 repeats and the ds004977 censoring do not matter).
 MAYO_EVENTS = [
     "ds003708/sub-01/ses-ieeg01/ieeg/sub-01_ses-ieeg01_task-ccep_run-01",
     *(

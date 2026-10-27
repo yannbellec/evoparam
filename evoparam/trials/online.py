@@ -277,10 +277,8 @@ class FixedShapeModel:
         self.baseline_offsets: tuple[int, int] = (b0, b0 + n_w - 1)
         self.max_shift: float = float(max_shift)
         self.n_grid: int = int(np.floor(self.max_shift * self.sfreq + 1e-9))
-        # The shifts evaluated: the whole samples within max_shift, plus one guard sample on
-        # each side, which is never chosen but lets the parabolic refinement of a grid edge
-        # reach the bound itself when it is not a whole number of samples (as fit_trials,
-        # whose bound is continuous). The unshifted template is grid[centre].
+        # Shifts evaluated: whole samples within max_shift plus one guard sample per side, so the
+        # parabolic refinement can reach a non-integer bound. Unshifted template: grid[centre].
         self.centre: int = self.n_grid + 1
         self.grid: FloatArray = np.arange(-self.centre, self.centre + 1) / self.sfreq
 

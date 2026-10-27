@@ -107,21 +107,12 @@ MIN_TRUSTED = 3
 
 # Fewest channels with a value from which a parameter is shrunk.
 MIN_SHRINK_CHANNELS = 2
-# Channel statistics taken from the trusted trial estimates (shift-and-scale trial fits)
-# rather than from the fit of the average: the amplitude, because latency jitter flattens
-# the average (the channel SD of the amplitude came out 11 % low). The latency stays the
-# fit's: the average is not biased by a symmetric jitter, and its estimate beat the mean
-# of the trial latencies (latency RMSE lower in 2 of 3 simulated datasets).
+# Channel amplitude from the trusted trial fits (jitter flattens the average: SD 11 % low);
+# channel latency from the fit of the average (unbiased under symmetric jitter).
 TRIAL_PARAMETERS = ("amplitude",)
-# The standard error of the channel latency (the fit of the average) has two parts: the
-# noise of the average (Wald error of the fit) and the mean of the trial jitter, whose
-# variance is the jitter SD beyond noise (estimated below, pooled over the channels)
-# divided by the number of trials. The latency of a labelled component lies in the label's
-# window, so the error is the SD of that normal truncated to the window: on simulations,
-# Wald errors with medians of 7.1 and 15.5 ms went with errors of RMS 4.2 and 9.7 ms, and
-# shrank those channels too far (CHANGELOG, REQ-171). The spread of the trusted trials,
-# used before in quadrature with the Wald error, counted the noise twice (median |z| 0.54
-# against the normal 0.67); it is kept for a channel without a Wald error.
+# Latency SE = Wald error of the average plus the mean trial jitter (jitter SD beyond noise
+# / sqrt(n_trials)), truncated to the label window (REQ-171, CHANGELOG). The trial spread
+# is kept only for a channel without a Wald error.
 TRIAL_SE_PARAMETERS = ("latency",)
 # Largest trial shift, in FWHM of the component (see the trial fits below).
 JITTER_RANGE = 0.75

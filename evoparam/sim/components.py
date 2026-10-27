@@ -33,10 +33,8 @@ __all__ = [
     "ROLES",
 ]
 
-# Roles of a simulated component in the ground truth.
-#   target: what the generator was asked to produce; overlap: response to a neighbouring
-#   event; confound: a real response that is not the one studied (auditory click of a
-#   TMS pulse); masker: response to the masker of a forward-masking paradigm.
+# Roles of a simulated component: target (asked for), overlap (neighbouring event),
+# confound (a real but unstudied response), masker (forward-masking paradigm).
 ROLES = ("target", "overlap", "confound", "masker")
 
 # Per shape: the location parameter (moved by latency jitter), the width parameter
@@ -312,11 +310,8 @@ def as_spec(obj: Any, presets: Any = None) -> Any:
 ###################################################################################################
 ## Presets
 
-# ERP components. Latency ranges follow the ERP CORE measurement windows where ERP CORE
-# defines the component (N170 110-150 ms, MMN 125-225 ms, N400 300-500 ms, P3 300-600 ms,
-# ERN 0-100 ms after the response) [LIT-erpmeas-39]; P1 and N1 (not ERP CORE components)
-# use the usual visual ranges. Widths and amplitudes (µV) are typical values; they set the
-# simulation, not a claim about the literature.
+# ERP components: latency ranges from the ERP CORE windows where defined [LIT-erpmeas-39],
+# usual visual ranges for P1 and N1; widths and amplitudes (µV) are typical simulation values.
 ERP_COMPONENTS = {
     "P1": ComponentSpec("P1", latency=(0.080, 0.130), fwhm=(0.030, 0.050), amplitude=(2.0, 5.0)),
     "N1": ComponentSpec("N1", latency=(0.130, 0.200), fwhm=(0.040, 0.070), amplitude=(-6.0, -2.0)),

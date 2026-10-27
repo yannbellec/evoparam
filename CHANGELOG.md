@@ -5452,7 +5452,7 @@ Found while writing the tutorials (the first is addressed below):
   - the r² of a trial (and so `trusted`) is computed around the reported components (from
     one width before their onset to one after their offset), not over the whole window,
     where ongoing activity dominates; a trial is untrusted when a *reported* component's
-    shift is at its bound (a neighbour held by a tight bound no longer counts) — together
+    shift is at its bound (a neighbour held by a tight bound no longer counts); together
     these raised the trusted fraction on ds004080 from 0.14-0.43 to 0.86;
   - `jitter_sd_null` is estimated from five segments of each trial's baseline, with the
     same trust rule as the trials, and only the reported components moving;

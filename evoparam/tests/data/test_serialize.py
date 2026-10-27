@@ -42,11 +42,8 @@ def test_round_trip_every_type(tmp_path: Any, name: Any, table_format: Any) -> N
 def test_parquet_tables_are_opened_by_pyarrow(
     tmp_path: Any, monkeypatch: Any, suffix: Any
 ) -> None:
-    # Regression: pandas, given a local path alone, hands pyarrow a Python file object,
-    # whose last references pyarrow's threads drop after the read has returned; at the
-    # end of a short process this aborted the interpreter at exit (status -6,
-    # "terminate called without an active exception"; a hang on Python 3.13). pyarrow
-    # must get a path and a pyarrow file system, so that its threads hold no Python object.
+    # Regression: pyarrow must get a path and a pyarrow file system; a Python file object
+    # aborted (status -6) or hung (3.13) the interpreter at exit.
     import pyarrow.fs
     import pyarrow.parquet as pq
 

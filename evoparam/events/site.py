@@ -25,11 +25,8 @@ SITE_METHODS = ("evidence", "spec")
 # full lead window, and to decide that a train is too fast to identify the site.
 REFERENCE_LAG = 0.002
 
-# Lead window (s): the reference sample is taken this long before the onset, and the
-# samples between it and the onset are where a stimulating contact may move first. The
-# onset of detect_pulses is the start of the artifact shared by most channels; on the
-# Utrecht SPES recordings (OpenNeuro ds004080) the stimulating contacts move up to 3 ms
-# earlier, so 5 ms leaves a margin.
+# Lead window (s) before the onset where a stimulating contact may move first; on ds004080
+# these contacts lead by up to 3 ms, so 5 ms leaves a margin.
 LEAD_WINDOW = 0.005
 
 # Hold window (s, after the onset): once the common artifact is over (about 5 ms), a
@@ -43,32 +40,21 @@ NOISE_WINDOW = (-0.100, -0.005)
 # median noise of the channels, so that its normalised artifact stays finite.
 NOISE_FLOOR = 0.1
 
-# Evidence that a channel carries a stimulating contact, besides the artifact size:
-# - it moves: its artifact is at least MOVED_FRACTION of the largest one (in data units);
-# - it leads: before the onset, it already moves by LEAD_MIN_SD times its noise and by
-#   LEAD_MIN_FRACTION of its whole artifact;
-# - it is held: at least HOLD_MIN_FRACTION of its steps in the hold window are smaller
-#   than HOLD_TOLERANCE times the typical step of the channels before the pulse.
+# Evidence of a stimulating contact, besides artifact size: it moves (MOVED_FRACTION of the
+# largest), leads (LEAD_MIN_SD, LEAD_MIN_FRACTION) and is held (HOLD_MIN_FRACTION of steps
+# below HOLD_TOLERANCE times the typical pre-pulse step).
 MOVED_FRACTION = 0.05
 LEAD_MIN_SD = 10.0
 LEAD_MIN_FRACTION = 0.3
 HOLD_MIN_FRACTION = 0.5
 HOLD_TOLERANCE = 0.1
 
-# Two more kinds of evidence, for recordings where the stimulating contacts behave
-# differently (measured on the Mayo Clinic CCEP sets of OpenNeuro, CHANGELOG):
-# - it reaches the rail (counted as held, the same amplifier limit): within ±RAIL_WINDOW of
-#   the onset, a channel that moves reaches (to RAIL_TOLERANCE) the largest absolute value
-#   of the candidate channels over the whole recording, the input range of the amplifier:
-#   the stimulating contacts receive the stimulation voltage itself (ds003708, ds004457,
-#   ds004696: 34.8 mV). Only when at least two channels reach it at that pulse;
-# - a silent pair: when the stimulating contacts are switched from the amplifier to the
-#   stimulator, they carry no signal at all (ds004977: 3 to 5 uV of noise against 260 to
-#   340 uV on the other contacts) and the largest artifact is on the contacts next to them.
-#   Two adjacent contacts of one electrode whose noise is below NOISE_FLOOR times the median
-#   noise and whose artifact is below MOVED_FRACTION of the median artifact of the other
-#   contacts of the electrode (themselves not silent), with the largest normalised artifact
-#   on the contact just outside the pair, are the site when exactly one pair qualifies.
+# Two more kinds of evidence (Mayo CCEP sets, CHANGELOG):
+# - rail: a moving channel reaches the amplifier range within ±RAIL_WINDOW of the onset
+#   (counted as held; needs at least two such channels at that pulse);
+# - silent pair: two adjacent contacts with noise below NOISE_FLOOR and artifact below
+#   MOVED_FRACTION of their electrode's median, the largest artifact just outside the
+#   pair (ds004977); used when exactly one pair qualifies.
 RAIL_WINDOW = 0.005
 RAIL_TOLERANCE = 1e-3
 

@@ -3,11 +3,8 @@
 
 __version__ = "0.1.0.dev0"
 
-# Version of each algorithm (spec §13.7, REQ-399): recorded in every provenance step as
-# ``algorithm_version``. Bump the entry of a function whenever a change alters its numerical
-# output; ``evoparam/tests/test_determinism.py`` fails when the reference fixture's values
-# change while the versions recorded with them do not. Functions not listed are at the
-# default version.
+# Algorithm versions (spec §13.7, REQ-399), recorded as ``algorithm_version``. Bump on any
+# change of numerical output; tests/test_determinism.py checks it. Unlisted: default.
 DEFAULT_ALGORITHM_VERSION = "1.0"
 ALGORITHM_VERSIONS = {
     # 1.2: the search of a further component stops after the six strongest residual extrema

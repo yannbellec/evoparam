@@ -43,10 +43,8 @@ EXCLUDED = (
     "docs/generated",
 )
 UPSTREAM = "the upstream project and commit named in NOTICE"
-# file → changes made to the inherited code (S20: tools/check_no_inherited_code.py --inherited
-# <export of the first commit> finds evoparam/utils/_modutils.py with 8-line windows; with
-# --window 3 it adds evoparam/plots/_signals.py; the shape
-# equations of evoparam/shapes/components.py come from the inherited shape functions)
+# file -> changes made to the inherited code (found by tools/check_no_inherited_code.py,
+# S20; the shape equations come from the inherited shape functions)
 INHERITED = {
     "evoparam/utils/_modutils.py": "moved from core/modutils.py into utils/ (spec §4.5); "
     "module docstring rewritten; functions unchanged",

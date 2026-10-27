@@ -24,12 +24,12 @@ column                                  unit     meaning
 ======================================  =======  ==============================================
 ``evoparam_stim_current_mA``            mA       current amplitude
 ``evoparam_stim_pulse_width_us``        us       width of one phase
-``evoparam_stim_polarity``              —        vocabulary below
-``evoparam_stim_n_pulses``              —        pulses in the train of the event (integer)
+``evoparam_stim_polarity``              n/a      vocabulary below
+``evoparam_stim_n_pulses``              n/a      pulses in the train of the event (integer)
 ``evoparam_stim_frequency_hz``          Hz       pulse frequency in a train; n/a for single
                                                  pulses
 ``evoparam_stim_charge_uC``             uC       charge per phase: current x pulse width
-``evoparam_stim_type_raw``              —        the source value, kept when its phase order
+``evoparam_stim_type_raw``              n/a      the source value, kept when its phase order
                                                  could not be mapped
 ======================================  =======  ==============================================
 
