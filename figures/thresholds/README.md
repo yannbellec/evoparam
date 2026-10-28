@@ -23,8 +23,11 @@ stated), in µV. Trial average: per-trial median of the baseline removed, then m
 | T2a | end of the baseline (-20 ms) | baseline end (ms) | SD(-500..end) / SD(-500..-100) | +1.2 % at -20 ms, +2.6 % at 0 ms: little leakage before the pulse |
 | T2b | baseline length (480 ms) | length (ms, ending at -20 ms) | % N1 decisions equal to those with 980 ms | 79 % at 50 ms, 96 % at 480 ms, 98 % at 700 ms |
 | T3 | reference (adaptive CAR) | none / CAR / adaptive CAR | N1 and N2 found, invented, amplitude found / true | adaptive CAR finds the most N1s (65 % vs 61 %); plain CAR shrinks N1 to 87 % and N2 to 95 % of their true size and loses N2s (39 % vs 44-45 %) |
+| T4a | largest background τ (50 ms) | fitted τ (ms), real data, τ allowed up to 500 ms | contacts | 32 % of contacts at the 0.5 ms lower bound (no tail left after 9 ms); median 3 ms; 15 % above 50 ms; 2.4 % at the 500 ms bound |
+| T4b-c | same | τ_max allowed (ms) | N1 / N2 found and invented (known truth + exponential tails with the τ of T4a) | flat: N1 62 %, N2 45 % from 10 to 500 ms; N2 invented 2.7 % at 50 ms vs 2.2 % at 500 ms. With exact exponential tails τ_max barely matters; its role is with real tails |
 | T5 | ΔBIC to keep a bump (10) | ΔBIC | N1 / N2 found and invented; bumps per noise-only contact | from 10 to 2: N1 found 62.5 → 65 %, N2 44.5 → 51 %, N2 invented 2.1 → 3.6 %; bumps on pure noise 0.08 → 0.14 per contact |
 | T6 | response test (α = 0.05, FDR) | α | % responding contacts found; % noise-only contacts flagged | at 0.05: FDR 48 % found / 5.7 % flagged; Holm 3.7 % / 0.1 %; none 66 % / 14.6 %. With 10 trials a sign-flip test cannot give p < 1/1024, so Holm almost never passes |
+| T7 | number of trials (≥ 5 for the test) | trials averaged | N1 / N2 found and invented; median \|latency error\| | N1 found 44 % (3 trials), 50 % (5), 61 % (10); N2 latency error 8.7 ms (3), 3.7 ms (5), 2.4 ms (10) |
 | T8 | onset at 10 % of the peak | % of the peak | median \|fitted onset - true onset\| (ms) | N1 1.0 ms at 10 %, 0.64 ms at 50 %; N2 5.3 ms at 10 %, 3.9 ms at 50 % |
 
 Rebuild (the ds004080 cache is filled by `benchmarks/plots/fetch_ds004080.py`):

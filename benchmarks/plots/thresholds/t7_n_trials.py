@@ -49,6 +49,7 @@ def figure():
         tab = d.pivot_table(index="subject", columns="n_trials", values=f"{w}_lat_err_ms")
         c.band(axes[2], tab.columns.values, tab.values, color, label=txt)
     axes[2].axvline(5, color="0.3", ls=":", lw=0.7)
+    axes[2].set_yscale("log")
     axes[2].set(xlabel="Number of trials averaged", ylabel="|Latency error| (ms, median)")
     axes[2].set_title("c. Latency error", loc="left")
     axes[2].legend(frameon=False, fontsize=6.5)
