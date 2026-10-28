@@ -109,7 +109,8 @@ def rmse_pairs() -> Any:
 
 
 @pytest.mark.xfail(
-    reason="REQ-171 as written (EB wins on >= 90 % of datasets) is not met: 4 of 6 "
+    reason="Former wording of REQ-171 (EB wins on >= 90 % of datasets), changed on "
+    "2026-10-21 (DECISIONS 5.6): 4 of 6 "
     "datasets, 14 of 20 with EVOPARAM_SLOW_TESTS=1, 160 of 200 on the "
     "development seeds 1000-1199 (seed 100: channel 1.48 ms, EB 1.57 ms; "
     "seed 105: 0.98 ms, 1.06 ms); with the true prior the posterior mean "
@@ -123,8 +124,8 @@ def test_req171_shrunken_latencies_beat_the_channel_fits(rmse_pairs: Any) -> Non
 
 
 def test_req171_shrunken_latencies_are_better_on_average(rmse_pairs: Any) -> None:
-    """Proposed wording of REQ-171 (written after the measures above): over the datasets,
-    the RMSE of the EB latencies is below that of the channel fits."""
+    """REQ-171 as changed on 2026-10-21 (DECISIONS 5.6): over the datasets, the RMSE of the
+    EB latencies is below that of the channel fits."""
 
     raw, eb = rmse_pairs.T
     assert np.sqrt(np.mean(eb**2)) < np.sqrt(np.mean(raw**2))

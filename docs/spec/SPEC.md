@@ -243,7 +243,7 @@ The table below is generated from the section files; it lists each requirement's
 | REQ-139 | §5.6 | (discordance): train_discordance returns 0 for simulated identical trains and ≈ 1 for trains alternating response/no response. |
 | REQ-140 | §5.6 | (methods text): ResponseTest.methods_text() states the method, statistic, window, baseline, α, correction, permutations and seed. |
 | REQ-150 | §5.7 | on simulated trials with known per-trial shifts (jitter_sd ∈ {1, 2, 5} ms) and amplitudes (CV … |
-| REQ-151 | §5.7 | jitter_sd_null on jitter-free simulated trials is ≥ 0.8·jitter_sd (the method does not invent jitter), and realign … |
+| REQ-151 | §5.7 | on jitter-free simulated trials at most 5 % of runs report a jitter, realign refuses in ≥ 95 %, and the smallest detectable jitter is reported … |
 | REQ-152 | §5.7 | amplitude_jitter_corrected is within ±10 % of the simulated jitter-free amplitude for Gaussian components at jitter_sd ≤ … |
 | REQ-153 | §5.7 | "regularized" has lower trial-level latency MAE than "free" at per-trial SNR ≤ 1 on ≥ 90 … |
 | REQ-154 | §5.7 | dose_response recovers I_50 within ±15 % and h within ±30 % on simulated Hill curves with … |
@@ -252,7 +252,7 @@ The table below is generated from the section files; it lists each requirement's
 | REQ-157 | §5.7 | the trial table has exactly n_trials × n_components × n_channels_ok rows, no NaN in converged/trusted, and … |
 | REQ-158 | §5.7 | the index_in_train effect (amplitude slope) reproduces the direction reported for repeated single pulses at 1 Hz … |
 | REQ-170 | §5.8 | on simulated three-level data (20 subjects × 50 channels × 20 trials, 30 % responding channels), … |
-| REQ-171 | §5.8 | EB shrunken channel latencies have lower RMSE than the per-channel §5.5 estimates on ≥ 90 % … |
+| REQ-171 | §5.8 | EB shrunken channel latencies have a lower RMSE than the per-channel §5.5 estimates over the simulated datasets … |
 | REQ-172 | §5.8 | variance components (σ_α between channels, σ_δ jitter) are recovered within ±20 % by EB and within … |
 | REQ-173 | §5.8 | NUTS runs show r_hat ≤ 1.01, ESS ≥ 400 per parameter and < 1 % divergences … |
 | REQ-174 | §5.8 | the two Bayesian engines agree with each other on every posterior mean within one posterior SD … |
@@ -1534,7 +1534,7 @@ def prestimulus_dependence(trial_fit: TrialFit, *, band=(8., 13.), n_permutation
 
 **Acceptance criteria (REQ-150…REQ-169).**
 - REQ-150: on simulated trials with known per-trial shifts (`jitter_sd ∈ {1, 2, 5}` ms) and amplitudes (CV 30 %), `"shift_scale"` recovers single-trial latency with MAE ≤ 1 sample and amplitude with relative MAE ≤ 15 % at per-trial `SNR ≥ 2`; `jitter_sd` is within ±20 % of truth.
-- REQ-151: `jitter_sd_null` on jitter-free simulated trials is ≥ 0.8·`jitter_sd` (the method does not invent jitter), and `realign` refuses in ≥ 95 % of jitter-free runs.
+- REQ-151: on jitter-free simulated trials at most 5 % of runs report a jitter (`jitter_detected`; the method does not invent jitter), `realign` refuses in ≥ 95 % of jitter-free runs, and the smallest detectable jitter is reported (changed 21/10/2026, DECISIONS.md "Null jitter of `fit_trials`: `null_rule="ar"`").
 - REQ-152: `amplitude_jitter_corrected` is within ±10 % of the simulated jitter-free amplitude for Gaussian components at `jitter_sd ≤ σ_k`.
 - REQ-153: `"regularized"` has lower trial-level latency MAE than `"free"` at per-trial `SNR ≤ 1` on ≥ 90 % of simulated channels (the shrinkage helps when trials are noisy).
 - REQ-154: `dose_response` recovers `I_50` within ±15 % and `h` within ±30 % on simulated Hill curves with five currents and 10 trials per current at `SNR = 3`.
@@ -1588,7 +1588,7 @@ def compare_hierarchical(fits: Sequence[HierarchicalFit]) -> pd.DataFrame     # 
 
 **Acceptance criteria (REQ-170…REQ-189).**
 - REQ-170: on simulated three-level data (20 subjects × 50 channels × 20 trials, 30 % responding channels), the EB engine's `P(response)` has AUC ≥ 0.95 against the simulated truth and is calibrated (reliability-diagram slope within 0.8–1.2).
-- REQ-171: EB shrunken channel latencies have lower RMSE than the per-channel §5.5 estimates on ≥ 90 % of simulated datasets at per-trial `SNR ≤ 2`.
+- REQ-171: EB shrunken channel latencies have a lower RMSE than the per-channel §5.5 estimates, pooled over the simulated datasets at per-trial `SNR ≤ 2`; the fraction of datasets where they win is reported (changed 21/10/2026, DECISIONS.md §5.6).
 - REQ-172: variance components (`σ_α` between channels, `σ_δ` jitter) are recovered within ±20 % by EB and within the 95 % posterior interval by NUTS in ≥ 90 % of simulated datasets.
 - REQ-173: NUTS runs show `r_hat ≤ 1.01`, ESS ≥ 400 per parameter and < 1 % divergences on the simulated reference dataset with default settings.
 - REQ-174: the two Bayesian engines agree with each other on every posterior mean within one posterior SD on the reference dataset.

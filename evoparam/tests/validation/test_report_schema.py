@@ -111,16 +111,6 @@ def test_req374_erpcore_records_the_files_it_reads(tmp_path: Any, monkeypatch: A
     assert hashes["P3/1/1_P3_epoch_interp_ar.set"] == hashlib.sha256(b"set").hexdigest()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-374: the exact versions are not recorded for two "
-    "of the committed results, both produced before this check: ERP CORE "
-    "(14 records; the OSF deposit has no version and the run of 2026-10-09 "
-    "did not record the SHA-256 of the files read) and the CARLA comparator "
-    "on ds004977 (4 records; the commit of CARLA_JNM run on 2026-10-08 was "
-    "not recorded). validation/erpcore.py and validation/carla_ds004977.py "
-    "record them from now on; they need a rerun with the data and MATLAB",
-)
 def test_req374_exact_versions_of_data_and_comparator(records: Any) -> None:
     """REQ-374: every record names the exact version of its data (a version number, or the
     SHA-256 of the files read) and of its comparator definition."""

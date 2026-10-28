@@ -110,6 +110,9 @@ class FitSettings:
     noise_source: str = "auto"
     preset: str | None = None
     preset_note: str | None = None
+    # the preset's peak decisions read on the fitted curve (Preset.detections; for the
+    # methods text and the caller, the fit does not use them)
+    detections: dict[str, Any] | None = None
     random_state: Any = None
 
     def validate(self) -> "FitSettings":
@@ -251,6 +254,7 @@ def resolve_settings(preset: Any = None, **overrides: Any) -> "FitSettings":
             values.update(_presets.fit_fields(preset))
             values["preset"] = _presets.get(preset).name
             values["preset_note"] = _presets.methods_note(preset)
+            values["detections"] = dict(_presets.get(preset).detections) or None
         else:
             raise SettingsError(f"Unknown preset {preset!r}; known: {sorted(_presets.PRESETS)}.")
     values.update({key: value for key, value in overrides.items() if value is not None})

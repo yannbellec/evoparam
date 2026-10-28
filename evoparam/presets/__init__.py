@@ -94,6 +94,10 @@ class Preset:
     train_baseline: float | None = None
     parent: str | None = None
     overrides: dict[str, Any] = dataclasses.field(default_factory=dict)
+    # name -> {"window": [start, end] (s), "polarity": "negative" or "positive", "k": depth in
+    # units of the fit's noise SD}: the preset's decision that the response has this peak, read
+    # on the fitted curve (:func:`evoparam.models.curve_detection`, ccep 1.2: the N1)
+    detections: dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Check and normalise the fields."""
@@ -108,7 +112,8 @@ class Preset:
             "component_labels",
             {k: tuple(float(x) for x in v) for k, v in self.component_labels.items()},
         )
-        for name in ("label_polarity", "choices", "notes", "fit_extras", "overrides"):
+        names = ("label_polarity", "choices", "notes", "fit_extras", "overrides", "detections")
+        for name in names:
             object.__setattr__(self, name, dict(getattr(self, name)))
         if not self.fit_window[1] > self.fit_window[0]:
             raise SettingsError(f"preset {self.name!r}: fit_window must increase.")

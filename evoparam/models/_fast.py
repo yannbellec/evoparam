@@ -93,7 +93,7 @@ _THETA_MIN = 0.995
 # of arrays as its members):
 # - Model: ``(tw, kinds, offsets, bg_kind, lag, fixed)``, the time axis, the kind and offset
 #   of each component, the background (kind, lag from its reference time, fixed basis);
-# - Whitening: ``(inv_scale, a, post, stride, start, start_rows)``, see ``_whiten``;
+# - Whitening: ``(inv_scale, a, post, stride, start, start_rows)``, see ``_whiten_full``;
 # - Prior: ``(prior_cols, prior_diag, target)``, the prior rows and the whitened target;
 # - Problem: ``(model, whitening, prior)``, what ``engine._compiled_args`` returns;
 # - ColumnWork, FactorWork, JacobianWork: the work arrays (see ``_workspace``).
@@ -101,7 +101,9 @@ Model = tuple[FloatArray, IntArray, IntArray, int, FloatArray, FloatArray]
 Whitening = tuple[FloatArray, FloatArray, FloatArray, int, FloatArray, IntArray]
 Prior = tuple[IntArray, FloatArray, FloatArray]
 Problem = tuple[Model, Whitening, Prior]
-ColumnWork = tuple[FloatArray, FloatArray, FloatArray, FloatArray, IntArray, FloatArray, IntArray]
+ColumnWork = tuple[
+    FloatArray, FloatArray, FloatArray, FloatArray, IntArray, FloatArray, IntArray, FloatArray
+]
 FactorWork = tuple[FloatArray, FloatArray, FloatArray, FloatArray, FloatArray, FloatArray]
 JacobianWork = tuple[FloatArray, FloatArray, FloatArray, FloatArray, FloatArray, FloatArray]
 Workspace = tuple[ColumnWork, FactorWork, JacobianWork]
@@ -326,7 +328,7 @@ def _skewed_column(
     Keeps the numerator, the fast-decaying factor and ``(c, dc)`` in ``cols`` (see
     :func:`_columns`).
     """
-    design, numer, fast, skew, _, buf, bits = cols
+    design, numer, fast, skew, _, buf, bits, _ = cols
     xi, omega, alpha = theta[o], theta[o + 1], theta[o + 2]
     c, dc = _skew_mode(alpha)
     skew[k, 0] = c
@@ -358,11 +360,13 @@ def _skewed_column(
 def _columns(theta: FloatArray, model: Model, cols: ColumnWork) -> None:
     """Unwhitened design (columns as rows of ``design``), as ``_columns.component``.
 
-    ``cols`` is ``(design, numer, fast, skew, spans, buf, bits)``: ``numer`` keeps the
-    numerator of each skewed Gaussian, ``fast`` its fast-decaying factor
+    ``cols`` is ``(design, numer, fast, skew, spans, buf, bits, fixed_w)``: ``numer`` keeps
+    the numerator of each skewed Gaussian, ``fast`` its fast-decaying factor
     ``exp(-(1 + alpha^2) z^2 / 2)`` (for :func:`_derivatives`), ``skew`` its ``(c, dc)`` and
     ``spans`` the samples outside which each component is taken as 0 (``SUPPORT_Z``); ``buf``
-    (4 x n) and ``bits`` are work space.
+    (4 x n) and ``bits`` are work space, ``fixed_w`` the whitened background columns of
+    :func:`_whiten_fixed`. The row of a component is written on its span only: the samples
+    outside are never read (:func:`_whiten_design` takes them as 0).
 
     A skewed Gaussian is ``exp(-z^2 / 2) erfc(u)`` with ``u = -alpha z / sqrt(2)``; on the
     side where ``u >= 0``, ``erfc(u) <= exp(-u^2)`` bounds it by
@@ -378,8 +382,6 @@ def _columns(theta: FloatArray, model: Model, cols: ColumnWork) -> None:
             i0, i1 = _gaussian_column(theta, offsets[k], tw, design[k], buf, bits)
         else:
             i0, i1 = _skewed_column(theta, k, offsets[k], tw, cols)
-        _zero(design[k, :i0])
-        _zero(design[k, i1:n])
         spans[k, 0] = i0
         spans[k, 1] = i1
     if bg_kind == BG_EXPONENTIAL:
@@ -403,8 +405,9 @@ def _derivatives(
 ) -> None:
     """``beta_k`` times the derivatives of each column (rows of ``out``).
 
-    As ``_columns.component_derivatives`` and ``_columns.background_derivatives``; ``out``
-    is 0 outside the spans of :func:`_columns`.
+    As ``_columns.component_derivatives`` and ``_columns.background_derivatives``. The rows
+    of a component are written on its span only: taken as 0 outside, where they are never
+    read (:func:`_whiten_derivatives`).
     """
     tw, kinds, offsets, bg_kind, lag, _ = model
     design, numer, fast, skew, spans = cols[0], cols[1], cols[2], cols[3], cols[4]
@@ -416,9 +419,6 @@ def _derivatives(
         i0, i1 = spans[k, 0], spans[k, 1]
         m = i1 - i0
         t = tw[i0:i1]
-        for q in range(o, offsets[k + 1]):
-            _zero(out[q, :i0])
-            _zero(out[q, i1:length])
         if kinds[k] == GAUSSIAN:
             mu, sigma = theta[o], theta[o + 1]
             factor = b / sigma
@@ -458,43 +458,241 @@ def _derivatives(
         _zero(out[o, lag.shape[0] : length])
 
 
-def _whiten(
-    src: FloatArray, rows: FloatArray, count: int, n: int, white: Whitening, raw: FloatArray
-) -> None:
-    """``Whitener.into`` (or ``StridedWhitener``) of ``count`` rows of ``src`` into ``rows``.
+def _lags_in(p: int, stride: int, n: int) -> int:
+    """Return the number of lags of the filter shorter than a row of ``n`` samples."""
+    p_in = 0
+    while p_in < p and (p_in + 1) * stride < n:
+        p_in += 1
+    return p_in
 
-    The first ``n`` entries of each row; ``rows`` is another array than ``src``, since LLVM
-    vectorises the loops only for distinct arrays.
+
+def _whiten_full(  # noqa: PLR0913, PLR0917  (a row, the filter and the samples it holds)
+    values: FloatArray, row: FloatArray, white: Whitening, raw: FloatArray, lo: int, hi: int
+) -> None:
+    """``Whitener.into`` (or ``StridedWhitener``) of one row: ``values`` into ``row``.
+
+    The ``n`` entries of ``row``; ``row`` is another array than ``values``, since LLVM
+    vectorises the loops only for distinct arrays. ``values`` is taken as 0 outside the
+    samples ``[lo, hi)``, which are not read.
 
     ``white`` is ``(inv_scale, a, post, stride, start, start_rows)``: ``inv_scale`` is
     ``1 / scale`` and ``post`` the row weights divided by the innovation SD. The terms of the
     filter are added in the order of the NumPy path (lag 0, 1, ..., p).
     """
     inv_scale, a, post, stride, start, start_rows = white
+    n = row.shape[0]
     p = a.shape[0] - 1
     has_start = start.shape[0] > 0
-    a0 = a[0]
     if p == 0 and not has_start:
-        _scale_rows(src, rows, count, n, inv_scale, a0, post)
+        _scale_row(values, row, inv_scale[:n], a[0], post[:n], lo, hi)
         return
-    sc = inv_scale[:n]
-    rw = raw[:n]
-    pw = post[:n]
-    p_in = 0  # the lags shorter than the window
-    while p_in < p and (p_in + 1) * stride < n:
-        p_in += 1
-    for j in range(count):
-        row, values = rows[j, :n], src[j, :n]
-        # separate loops: LLVM vectorises them better than one loop with two stores
+    _filter_row(
+        values, row, inv_scale[:n], raw[:n], post[:n], a, stride, _lags_in(p, stride, n), lo, hi
+    )
+    if has_start:
+        _start_rows(row, raw, start, start_rows, p)
+
+
+def _filter_row(  # noqa: PLR0913, PLR0917  (the arrays of one row and the filter)
+    values: FloatArray,
+    row: FloatArray,
+    sc: FloatArray,
+    rw: FloatArray,
+    pw: FloatArray,
+    a: FloatArray,
+    stride: int,
+    p_in: int,
+    lo: int,
+    hi: int,
+) -> None:
+    """Scale ``values`` by ``sc`` (into ``rw``), filter by ``a`` and weight by ``pw`` into ``row``.
+
+    The arrays have the same length; the lags before the first sample are absent.
+    ``values`` is taken as 0 outside the samples ``[lo, hi)``, which are not read.
+    """
+    n = row.shape[0]
+    a0 = a[0]
+    _zero(rw[:lo])
+    _zero(rw[hi:n])
+    # separate loops: LLVM vectorises them better than one loop with two stores (and loops
+    # over views from index 0)
+    scaled, given, factor = rw[lo:hi], values[lo:hi], sc[lo:hi]
+    for i in range(hi - lo):
+        scaled[i] = given[i] * factor[i]
+    if a0 == 1.0 and 0 < p_in <= _LAG_GROUP:
+        _filter_one_group(row, rw, pw, a, stride, p_in)
+        return
+    for i in range(n):
+        row[i] = a0 * rw[i]
+    weighted = _lag_groups(row, rw, a, stride, pw, p_in)
+    for i in range(weighted if p_in else n):
+        row[i] *= pw[i]
+
+
+def _filter_one_group(
+    row: FloatArray, rw: FloatArray, pw: FloatArray, a: FloatArray, stride: int, p_in: int
+) -> None:
+    """Filter as :func:`_filter_row` when ``a[0] = 1`` and there are at most ``_LAG_GROUP`` lags.
+
+    One pass over the samples: each value is ``rw[i]`` (``a[0] rw[i]``, exactly), plus each
+    lag in turn, times the row weight, the operations of :func:`_lag_groups` in their
+    order (one group of lags).
+    """
+    n = row.shape[0]
+    full = p_in * stride  # the first sample with every lag
+    for i in range(min(full, n)):
+        value = rw[i]
+        for q in range(1, p_in + 1):
+            if i >= q * stride:
+                value += a[q] * rw[i - q * stride]
+        row[i] = value * pw[i]
+    if full >= n:
+        return
+    m = n - full
+    head = row[full:n]
+    weight = pw[full:n]
+    l0 = rw[full:n]
+    l1 = rw[full - stride : n - stride]
+    a1 = a[1]
+    if p_in == 1:
+        for i in range(m):
+            head[i] = (l0[i] + a1 * l1[i]) * weight[i]
+        return
+    a2 = a[2]
+    l2 = rw[full - 2 * stride : n - 2 * stride]
+    if p_in == 2:  # noqa: PLR2004  (two lags)
+        for i in range(m):
+            head[i] = ((l0[i] + a1 * l1[i]) + a2 * l2[i]) * weight[i]
+        return
+    a3 = a[3]
+    l3 = rw[full - 3 * stride : n - 3 * stride]
+    if p_in == 3:  # noqa: PLR2004  (three lags)
+        for i in range(m):
+            head[i] = (((l0[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) * weight[i]
+        return
+    a4 = a[4]
+    l4 = rw[full - 4 * stride : n - 4 * stride]
+    for i in range(m):
+        head[i] = ((((l0[i] + a1 * l1[i]) + a2 * l2[i]) + a3 * l3[i]) + a4 * l4[i]) * weight[i]
+
+
+def _whiten_part(  # noqa: PLR0913, PLR0917  (a row of _whiten and the samples it holds)
+    values: FloatArray,
+    row: FloatArray,
+    lo: int,
+    hi: int,
+    white: Whitening,
+    raw: FloatArray,
+) -> None:
+    """:func:`_whiten_full` of a row that is 0 outside the samples ``[lo, hi)``.
+
+    The filter reaches ``p * stride`` samples after the last nonzero one; outside, the
+    whitened row is 0 and is not computed. On the samples it computes, each value is the
+    one of :func:`_whiten_full` (the same operations in the same order: the lags before
+    ``lo`` are samples that are 0 there too). A row whose samples start within the reach
+    of the filter from the start rows of the exact likelihood is whitened from its first
+    sample, with the start rows.
+    """
+    inv_scale, a, post, stride, start, start_rows = white
+    n = row.shape[0]
+    p = a.shape[0] - 1
+    if hi <= lo:
+        _zero(row)
+        return
+    reach = p * stride
+    base = lo - reach
+    end = min(hi + reach, n)
+    last_start = -1
+    for r in range(start.shape[0]):
+        last_start = max(last_start, start_rows[r])
+    if _lags_in(p, stride, n) < p or end <= last_start or _lags_in(p, stride, end) < p:
+        _whiten_full(values, row, white, raw, lo, hi)
+        return
+    if base <= max(last_start, 0):
+        _whiten_full(values[:end], row[:end], white, raw, lo, hi)
+        _zero(row[end:n])
+        return
+    _zero(row[:base])
+    _zero(row[end:n])
+    if p == 0:
+        _scale_row(
+            values[base:end], row[base:end], inv_scale[base:end], a[0], post[base:end], 0, hi - lo
+        )
+        return
+    _filter_row(
+        values[base:end],
+        row[base:end],
+        inv_scale[base:end],
+        raw[base:end],
+        post[base:end],
+        a,
+        stride,
+        p,
+        reach,
+        hi - base,
+    )
+
+
+def _whiten_fixed(problem: Problem, cols: ColumnWork, raw: FloatArray) -> None:
+    """Whiten the background columns that do not depend on theta into ``cols[7]``.
+
+    The constant of the exponential background, or every column of a fixed basis: the same
+    in every evaluation of a fit, whitened once (:func:`_whiten_design` copies them).
+    """
+    model, white, _ = problem
+    tw, bg_kind, fixed = model[0], model[3], model[5]
+    n = tw.shape[0]
+    store = cols[7]
+    if bg_kind == BG_EXPONENTIAL:
+        ones = cols[5][0, :n]
         for i in range(n):
-            rw[i] = values[i] * sc[i]
-        for i in range(n):
-            row[i] = a0 * rw[i]
-        weighted = _lag_groups(row, rw, a, stride, pw, p_in)
-        for i in range(weighted if p_in else n):
-            row[i] *= pw[i]
-        if has_start:
-            _start_rows(row, raw, start, start_rows, p)
+            ones[i] = 1.0
+        _whiten_full(ones, store[0, :n], white, raw, 0, n)
+        return
+    for j in range(fixed.shape[0]):
+        _whiten_full(fixed[j, :n], store[j, :n], white, raw, 0, n)
+
+
+def _whiten_design(
+    cols: ColumnWork, rows: FloatArray, n_comp: int, n: int, white: Whitening, raw: FloatArray
+) -> None:
+    """:func:`_whiten_full` of each column of the design of :func:`_columns` into ``rows``.
+
+    The columns of the components only on the samples of their spans (:func:`_whiten_part`);
+    the background columns that do not depend on theta are copied from :func:`_whiten_fixed`.
+    """
+    design, spans, store = cols[0], cols[4], cols[7]
+    n_fixed = store.shape[0]
+    for j in range(design.shape[0]):
+        if j < n_comp:
+            _whiten_part(design[j, :n], rows[j, :n], spans[j, 0], spans[j, 1], white, raw)
+        elif j - n_comp < n_fixed:
+            row, known = rows[j, :n], store[j - n_comp, :n]
+            for i in range(n):
+                row[i] = known[i]
+        else:
+            _whiten_full(design[j, :n], rows[j, :n], white, raw, 0, n)
+
+
+def _whiten_derivatives(  # noqa: PLR0913, PLR0917  (the derivatives and where they are not 0)
+    draw: FloatArray,
+    rows: FloatArray,
+    offsets: IntArray,
+    spans: IntArray,
+    n: int,
+    white: Whitening,
+    raw: FloatArray,
+) -> None:
+    """:func:`_whiten_full` of each derivative of :func:`_derivatives` into ``rows``.
+
+    The derivatives of a component only on the samples of its span (:func:`_whiten_part`).
+    """
+    n_comp = offsets.shape[0] - 1
+    for k in range(n_comp):
+        for q in range(offsets[k], offsets[k + 1]):
+            _whiten_part(draw[q, :n], rows[q, :n], spans[k, 0], spans[k, 1], white, raw)
+    for q in range(offsets[n_comp], draw.shape[0]):
+        _whiten_full(draw[q, :n], rows[q, :n], white, raw, 0, n)
 
 
 def _lag_groups(
@@ -527,20 +725,24 @@ def _lag_groups(
     return weighted
 
 
-def _scale_rows(
-    src: FloatArray,
-    rows: FloatArray,
-    count: int,
-    n: int,
+def _scale_row(  # noqa: PLR0913, PLR0917  (a row, its scale and weights, its samples)
+    values: FloatArray,
+    row: FloatArray,
     inv_scale: FloatArray,
     a0: float,
     post: FloatArray,
+    lo: int,
+    hi: int,
 ) -> None:
-    """``_whiten`` without lags: each sample scaled, multiplied by ``a0`` and weighted."""
-    for j in range(count):
-        row, values = rows[j], src[j]
-        for i in range(n):
-            row[i] = a0 * (values[i] * inv_scale[i]) * post[i]
+    """:func:`_whiten_full` without lags: each sample scaled, multiplied by ``a0`` and weighted.
+
+    ``values`` is taken as 0 outside the samples ``[lo, hi)``, which are not read.
+    """
+    _zero(row[:lo])
+    _zero(row[hi : row.shape[0]])
+    out, given, factor, weight = row[lo:hi], values[lo:hi], inv_scale[lo:hi], post[lo:hi]
+    for i in range(hi - lo):
+        out[i] = a0 * (given[i] * factor[i]) * weight[i]
 
 
 def _start_rows(
@@ -695,7 +897,7 @@ def _evaluate(theta: FloatArray, problem: Problem, cols: ColumnWork, fact: Facto
     c = qr.shape[0]
     length = qr.shape[1]
     _columns(theta, model, cols)
-    _whiten(cols[0], qr, c, n, white, raw)
+    _whiten_design(cols, qr, model[1].shape[0], n, white, raw)
     for j in range(c):
         _zero(qr[j, n:length])
     for r in range(prior_cols.shape[0]):
@@ -1172,7 +1374,7 @@ def _jacobian(
     c = qr.shape[0]
     rows = length - c
     _derivatives(theta, beta, model, cols, draw)
-    _whiten(draw, dmat, n_par, n, white, raw)
+    _whiten_derivatives(draw, dmat, model[2], cols[4], n, white, raw)
     for j in range(n_par):
         _zero(dmat[j, n:length])  # the prior rows do not depend on theta
     for j in range(n_par):
@@ -1248,6 +1450,7 @@ def _workspace(problem: Problem, n_par: int) -> Workspace:
         np.zeros((max(n_comp, 1), 2), np.int64),  # spans
         np.empty((4, n)),  # buf
         np.empty(n, np.int64),  # bits
+        np.empty((1 if bg_kind == BG_EXPONENTIAL else fixed.shape[0], n)),  # fixed_w
     )
     fact = (
         np.empty((c, length)),  # qr
@@ -1319,6 +1522,7 @@ def optimise(
     if _infeasible(x0, lb, ub):
         return VALUE_ERROR, x0.copy(), 0, empty, empty
     work = _workspace(problem, n_par)
+    _whiten_fixed(problem, work[0], work[1][5])
     theta = np.empty(n_par)
     x = _strictly_feasible(x0, lb, ub, 1e-10)
 
@@ -1562,7 +1766,7 @@ def _solution(
     # rebuilt from the design, which the QR overwrote)
     residual = target.copy()
     whitened = np.empty((c, n))
-    _whiten(design, whitened, c, n, white, raw)
+    _whiten_design(cols, whitened, problem[0][1].shape[0], n, white, raw)
     for j in range(c):
         column = whitened[j]
         for i in range(n):
@@ -1596,9 +1800,16 @@ _KERNELS = (
     "_derivatives",
     "_lags",
     "_lag_groups",
-    "_scale_rows",
+    "_scale_row",
     "_start_rows",
-    "_whiten",
+    "_lags_in",
+    "_filter_one_group",
+    "_filter_row",
+    "_whiten_full",
+    "_whiten_part",
+    "_whiten_fixed",
+    "_whiten_design",
+    "_whiten_derivatives",
     "_dot",
     "_finite",
     "_householder",
@@ -1639,6 +1850,25 @@ _KERNELS = (
 )
 
 
+def _unusable(err: Exception) -> None:
+    """Fall back to the NumPy path when numba is installed but cannot be used.
+
+    A numba built for another numpy (``pip install --force-reinstall`` upgrades numpy past
+    the range of an installed numba) fails at import or at compilation; the fit then runs
+    on the NumPy path, with one warning.
+    """
+    import warnings
+
+    _COMPILED["optimise"] = None
+    warnings.warn(
+        f"numba cannot be used ({type(err).__name__}: {err}); evoparam uses its NumPy path, "
+        "with the same results, more slowly. Install a numba that matches your numpy "
+        "(pip install -U numba) to use the fast path.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+
+
 def kernel() -> Callable[..., Any] | None:
     """Return the compiled :func:`optimise`, or None when numba (``fast`` extra) is missing.
 
@@ -1655,11 +1885,20 @@ def kernel() -> Callable[..., Any] | None:
             except ImportError:
                 _COMPILED["optimise"] = None
                 return None
+            except Exception as err:  # noqa: BLE001  (a numba that does not match numpy)
+                _unusable(err)
+                return None
             module = globals()
-            for name in _KERNELS:
-                flags = {"contract", "reassoc"} if name in _REASSOCIATED else {"contract"}
-                module[name] = numba.njit(
-                    cache=True, nogil=True, error_model="numpy", fastmath=flags
-                )(module[name])
+            compiled = {}
+            try:
+                for name in _KERNELS:
+                    flags = {"contract", "reassoc"} if name in _REASSOCIATED else {"contract"}
+                    compiled[name] = numba.njit(
+                        cache=True, nogil=True, error_model="numpy", fastmath=flags
+                    )(module[name])
+            except Exception as err:  # noqa: BLE001  (a numba that does not match numpy)
+                _unusable(err)
+                return None
+            module.update(compiled)
             _COMPILED["optimise"] = module["optimise"]
     return _COMPILED["optimise"]  # type: ignore[no-any-return]

@@ -270,6 +270,37 @@ class Component(_ResultMixin):
         if self.se is not None:
             self.se = {key: float(value) for key, value in self.se.items()}
 
+    # The times in milliseconds, for reading (the fields stay in seconds)
+    @property
+    def latency_ms(self) -> float:
+        """``latency`` in milliseconds."""
+        return self.latency * 1e3
+
+    @property
+    def fwhm_ms(self) -> float:
+        """``fwhm`` in milliseconds."""
+        return self.fwhm * 1e3
+
+    @property
+    def onset_ms(self) -> float:
+        """``onset`` in milliseconds."""
+        return self.onset * 1e3
+
+    @property
+    def offset_ms(self) -> float:
+        """``offset`` in milliseconds."""
+        return self.offset * 1e3
+
+    @property
+    def rise_time_ms(self) -> float:
+        """``rise_time`` in milliseconds."""
+        return self.rise_time * 1e3
+
+    @property
+    def decay_time_ms(self) -> float:
+        """``decay_time`` in milliseconds."""
+        return self.decay_time * 1e3
+
 
 @dataclass(eq=False)
 class GoodnessOfFit(_ResultMixin):
@@ -417,6 +448,68 @@ class ResponseFit(_ResultMixin):
         self.model = _as_float_array(self.model)
         self.residual = _as_float_array(self.residual)
         self.warnings = list(self.warnings)
+
+    @property
+    def background_ms(self) -> dict[str, Any]:
+        """``background`` with its times (``tau``, ``t_ref``) in milliseconds, for reading."""
+        return {
+            key: value * 1e3 if key in ("tau", "t_ref") and value is not None else value
+            for key, value in (self.background or {}).items()
+        }
+
+    def results_text(self) -> str:
+        """Short plain-text summary: the window, the background and one line per component.
+
+        Times are shown in milliseconds; amplitudes in the unit of the fitted data.
+        """
+        unit = f" {self.units.replace('uV', 'µV')}" if self.units else ""
+        start, end = (1000 * v for v in self.window)
+        lines = [
+            "evoparam - RESPONSE MODEL",
+            "",
+            f"fit window: {start:g} to {end:g} ms",
+        ]
+        if self.status != "ok":
+            lines.append(f"status: {self.status} ({self.message})")
+        background = dict(self.background or {})
+        name = background.pop("name", "none")
+        tau = background.get("tau")
+        lines.append(
+            f"background: {name}"
+            + (f", time constant {1000 * tau:.1f} ms" if tau is not None else "")
+        )
+        lines.append("")
+        lines.append(f"{len(self.components)} component(s) found:")
+        lines.append(f"  {'label':<10}{'latency':>10}{'amplitude':>14}{'width':>10}")
+        for comp in self.components:
+            label = comp.label if comp.label else "-"
+            lines.append(
+                f"  {label:<10}{1000 * comp.latency:>7.1f} ms"
+                f"{comp.amplitude:>10.1f}{unit:<4}{1000 * comp.fwhm:>7.1f} ms"
+            )
+        lines.append("")
+        if self.gof is not None:
+            lines.append(
+                f"fit quality: R2 = {self.gof.r2:.2f}, "
+                f"noise level = {self.gof.baseline_sd:.1f}{unit}"
+            )
+        lines.append("(latency: time of the peak; width: full width at half maximum)")
+        width = max(len(line) for line in lines) + 4
+        rule = "=" * width
+        return "\n".join([rule, *(line.center(width).rstrip() for line in lines), rule])
+
+    def __str__(self) -> str:
+        """Return the summary of :meth:`results_text` (``print(fit)``)."""
+        return self.results_text()
+
+    def _repr_pretty_(self, printer: Any, cycle: bool) -> None:
+        """IPython: show the summary when a fit is the last expression of a cell."""
+        printer.text("ResponseFit(...)" if cycle else self.results_text())
+
+    def _repr_html_(self) -> str:
+        """Jupyter: show the summary when a fit is the last expression of a cell."""
+        text = self.results_text().replace("&", "&amp;").replace("<", "&lt;")
+        return f"<pre>{text.replace('>', '&gt;')}</pre>"
 
     def to_dataframe(self, channel: str = "", condition: str = "") -> Any:
         """Tidy table, one row per component (one row with NaN features when there is none).

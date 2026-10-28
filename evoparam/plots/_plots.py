@@ -67,7 +67,65 @@ def _shade_masked(ax: Any, times: Any, mask: Any) -> None:
             )
 
 
-def plot_fit(
+def plot_response(
+    times: Any,
+    signals: Any,
+    *,
+    color: str | list[str] | None = None,
+    labels: str | list[str] | None = None,
+    xlim: Any = None,
+    units: str = "µV",
+    ax: Any = None,
+) -> Any:
+    """Plot one or several response curves, time in ms, with the stimulus at time 0.
+
+    The counterpart for evoked responses of a spectrum plot: the raw curves, before any fit.
+
+    Parameters
+    ----------
+    times : 1-D array
+        Times in seconds, shared by every curve (as given by :func:`evoparam.sim.gen_response`).
+    signals : 1-D array, 2-D array or list of 1-D arrays
+        One curve, or one curve per row.
+    color : str or list of str, optional
+        Colour of the curves; default black for one curve, the palette for several.
+    labels : str or list of str, optional
+        Legend label of each curve.
+    xlim : (float, float), optional
+        Time range shown, in ms; default: the whole curve.
+    units : str
+        Unit of the curves, for the axis label.
+    ax : matplotlib Axes, optional
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    times = np.asarray(times, dtype=float)
+    rows = [np.asarray(signals, dtype=float)] if np.ndim(signals) == 1 else list(signals)
+    names = [labels] if isinstance(labels, str) or labels is None else list(labels)
+    if any(np.shape(row) != times.shape for row in rows):
+        raise SettingsError("every curve must have one value per time.")
+    fig, ax = _figure_ax(ax)
+    if color is None:
+        colors = [DATA_COLOR] if len(rows) == 1 else list(PALETTE)
+    else:
+        colors = [color] if isinstance(color, str) else list(color)
+    for k, row in enumerate(rows):
+        label = names[k] if k < len(names) else None
+        ax.plot(times * 1e3, row, color=colors[k % len(colors)], lw=0.9, label=label)
+    ax.axvline(0, color="#888888", lw=0.8, ls="--")
+    ax.axhline(0, color="#000000", lw=0.4)
+    if xlim is not None:
+        ax.set_xlim(*xlim)
+    ax.set_xlabel("time (ms)")
+    ax.set_ylabel(f"amplitude ({units})" if units else "amplitude")
+    if any(name is not None for name in names):
+        ax.legend(fontsize=8, frameon=False)
+    return fig
+
+
+def plot_fit(  # noqa: PLR0913  (spec signature plus shade options; DECISIONS.md §8)
     fit: "ResponseFit",
     data: "Evoked | TrialSet | None" = None,
     *,
@@ -77,6 +135,8 @@ def plot_fit(
     background: bool = True,
     residual: bool = True,
     intervals: bool = True,
+    shade: bool = True,
+    shade_color: str | None = None,
 ) -> Any:
     """Plot the data, model, components, background and residual of one :class:`ResponseFit`.
 
@@ -88,7 +148,15 @@ def plot_fit(
         rebuilt in the fit window as model + residual.
     intervals : bool
         Shade the latency interval of each component (its ``ci["latency"]``).
+    shade : bool
+        Fill the area of each component between the background and the background plus the
+        component: the part of the curve the component stands for (its ``amplitude`` is the
+        height of that area, its ``area`` the surface).
+    shade_color : str, optional
+        Colour of the filled areas; default: the colour of each component.
     """
+    from matplotlib import patheffects
+
     from evoparam.models import evaluate_fit
 
     if not isinstance(fit, ResponseFit):
@@ -96,7 +164,7 @@ def plot_fit(
     fig, ax = _figure_ax(ax)
     if data is not None:
         times, y, mask = _evoked(data, channel)
-        ax.plot(times * 1e3, y, color=DATA_COLOR, lw=0.8, label="data")
+        ax.plot(times * 1e3, y, color=DATA_COLOR, lw=0.9, label="data")
         _shade_masked(ax, times, mask)
         grid = times[(times >= fit.window[0]) & (times <= fit.window[1])]
     else:
@@ -106,29 +174,54 @@ def plot_fit(
                 grid * 1e3,
                 fit.model + fit.residual,
                 color=DATA_COLOR,
-                lw=0.8,
+                lw=0.9,
                 label="data (fit window)",
             )
     if fit.components or fit.background:
         ax.plot(
-            grid * 1e3, evaluate_fit(fit, grid), color=MODEL_COLOR, lw=1.8, label="model", zorder=5
+            grid * 1e3,
+            evaluate_fit(fit, grid),
+            color=MODEL_COLOR,
+            lw=2.2,
+            alpha=0.8,
+            label="model",
+            zorder=5,
         )
+    # thin lines drawn over the model keep a white edge, so that they stay visible
+    halo = [patheffects.withStroke(linewidth=3.0, foreground="white", alpha=0.8)]
+    bg = evaluate_fit(fit, grid, components=[]) if fit.background else np.zeros(len(grid))
     if background and fit.background:
-        bg = evaluate_fit(fit, grid, components=[])
-        ax.plot(grid * 1e3, bg, color=BG_COLOR, lw=1.0, ls="--", label="background")
+        ax.plot(
+            grid * 1e3,
+            bg,
+            color="#666666",
+            lw=1.3,
+            ls="--",
+            label="background",
+            zorder=6,
+            path_effects=halo,
+        )
     if components:
         for k, comp in enumerate(fit.components):
             curve = evaluate_fit(fit, grid, components=[k], background=False)
             color = PALETTE[(k + 1) % len(PALETTE)]
+            # drawn on the background, where the component sits in the data, and only where
+            # it differs from it (elsewhere it would hide the background line)
+            visible = np.abs(curve) > 0.02 * np.max(np.abs(curve), initial=0.0)
             ax.plot(
                 grid * 1e3,
-                curve,
+                np.where(visible, bg + curve, np.nan),
                 color=color,
-                lw=1.0,
-                ls=":",
-                zorder=4,
+                lw=1.4,
+                ls=(0, (2.0, 1.4)),
+                zorder=7,
                 label=comp.label or f"C{k + 1}",
+                path_effects=halo,
             )
+            if shade:
+                ax.fill_between(
+                    grid * 1e3, bg, bg + curve, color=shade_color or color, alpha=0.2, lw=0
+                )
             ci = (comp.ci or {}).get("latency")
             if intervals and ci is not None and np.all(np.isfinite(ci)):
                 ax.axvspan(ci[0] * 1e3, ci[1] * 1e3, color=color, alpha=0.15, lw=0)
@@ -142,7 +235,7 @@ def plot_fit(
             _window_times(fit) * 1e3,
             fit.residual + shift,
             color=RESID_COLOR,
-            lw=0.6,
+            lw=0.8,
             label="residual (offset)",
         )
     elif residual and data is not None and (fit.components or fit.background):
@@ -152,14 +245,111 @@ def plot_fit(
             grid * 1e3,
             y[inside] - evaluate_fit(fit, grid) + shift,
             color=RESID_COLOR,
-            lw=0.6,
+            lw=0.8,
             label="residual (offset)",
         )
     ax.axvline(0, color="#000000", lw=0.5)
     ax.set_xlabel("time (ms)")
-    ax.set_ylabel("amplitude")
+    unit = (fit.units or "").replace("uV", "µV")
+    ax.set_ylabel(f"amplitude ({unit})" if unit else "amplitude")
     ax.set_title(f"{fit.status}: {len(fit.components)} component(s)", fontsize=9)
     ax.legend(fontsize=7, frameon=False, ncol=2)
+    return fig
+
+
+def plot_annotated_fit(
+    fit: "ResponseFit",
+    data: "Evoked | TrialSet | None" = None,
+    *,
+    channel: Any = None,
+    ax: Any = None,
+    annotate_background: bool = True,
+) -> Any:
+    """Plot one :class:`ResponseFit` with each of its numbers drawn where it is read.
+
+    For each component: its peak (dot), its latency (dotted line down to the time axis),
+    its amplitude (arrow from the background up or down to the peak) and its width (bar at
+    half the amplitude, drawn centred on the latency), with a label giving the three
+    values. The background is drawn dashed, with its time constant when it has one.
+
+    Parameters
+    ----------
+    fit : ResponseFit
+    data : Evoked or TrialSet, optional
+        The waveform that was fitted (``channel`` names it); without it, the data are
+        rebuilt in the fit window as model + residual.
+    annotate_background : bool
+        Label the background curve.
+    """
+    from evoparam.models import evaluate_fit
+
+    if not isinstance(fit, ResponseFit):
+        raise SettingsError("plot_annotated_fit expects a ResponseFit.")
+    fig, ax = _figure_ax(ax, figsize=(7.0, 4.0))
+    unit = (fit.units or "").replace("uV", "µV")
+    grid = _window_times(fit)
+    if data is not None:
+        times, y, _ = _evoked(data, channel)
+        span = fit.window[1] - fit.window[0]
+        shown = (times >= min(fit.window[0], 0.0) - 0.1 * span) & (times <= fit.window[1])
+        ax.plot(times[shown] * 1e3, y[shown], color="#b0b0b0", lw=0.8, label="data")
+    elif fit.model is not None and fit.residual is not None:
+        ax.plot(grid * 1e3, fit.model + fit.residual, color="#b0b0b0", lw=0.8, label="data")
+    if fit.components or fit.background:
+        ax.plot(grid * 1e3, evaluate_fit(fit, grid), color=MODEL_COLOR, lw=2.0, label="model")
+    if fit.background:
+        bg = evaluate_fit(fit, grid, components=[])
+        ax.plot(grid * 1e3, bg, color=BG_COLOR, lw=1.2, ls="--", label="background")
+        tau = fit.background.get("tau")
+        if annotate_background:
+            text = "background" + (f"\ntime constant {tau * 1e3:.1f} ms" if tau else "")
+            ax.annotate(
+                text,
+                (grid[0] * 1e3, bg[0]),
+                xytext=(12, 10),
+                textcoords="offset points",
+                fontsize=8,
+                color="#555555",
+                arrowprops={"arrowstyle": "-", "color": "#999999", "lw": 0.6},
+            )
+    for k, comp in enumerate(fit.components):
+        color = PALETTE[(k + 1) % len(PALETTE)]
+        lat = comp.latency
+        base = float(evaluate_fit(fit, [lat], components=[])[0]) if fit.background else 0.0
+        peak = base + comp.amplitude
+        half = base + comp.amplitude / 2
+        ax.plot([lat * 1e3], [peak], "o", color=color, ms=6, zorder=6)
+        ax.plot([lat * 1e3, lat * 1e3], [0, peak], color=color, lw=0.8, ls=":")
+        ax.annotate(
+            "",
+            xy=(lat * 1e3, peak),
+            xytext=(lat * 1e3, base),
+            arrowprops={"arrowstyle": "->", "color": color, "lw": 1.4},
+        )
+        ax.annotate(
+            "",
+            xy=((lat - comp.fwhm / 2) * 1e3, half),
+            xytext=((lat + comp.fwhm / 2) * 1e3, half),
+            arrowprops={"arrowstyle": "|-|", "color": color, "lw": 1.2, "mutation_scale": 3},
+        )
+        label = comp.label or f"C{k + 1}"
+        ax.annotate(
+            f"{label}\nlatency {lat * 1e3:.1f} ms\namplitude {comp.amplitude:.1f} {unit}"
+            f"\nwidth {comp.fwhm * 1e3:.1f} ms",
+            (lat * 1e3 + comp.fwhm * 1e3 / 2, peak),
+            xytext=(14, 0),
+            textcoords="offset points",
+            fontsize=8,
+            color=color,
+            va="center",
+            bbox={"boxstyle": "round,pad=0.3", "fc": "white", "ec": color, "lw": 0.6},
+        )
+    ax.axhline(0, color="#000000", lw=0.4)
+    ax.axvline(0, color="#000000", lw=0.5)
+    ax.margins(y=0.15)
+    ax.set_xlabel("time (ms)")
+    ax.set_ylabel(f"amplitude ({unit})" if unit else "amplitude")
+    ax.legend(fontsize=7, frameon=False, loc="lower right")
     return fig
 
 

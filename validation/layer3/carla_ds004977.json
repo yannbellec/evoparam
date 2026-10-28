@@ -1,6 +1,17 @@
 {
  "comparator": "CARLA_JNM (Huang et al. 2024), CARLA(tt, V, srate, true)",
+ "comparator_commit": "3df5d84493448fe2b129aaf6d25f921d8ff3c89f",
  "dataset": "ds004977",
+ "data": {
+  "dataset": "ds004977",
+  "version": "1.2.0"
+ },
+ "evoparam_selection": {
+  "function": "evoparam.prep.reference.car_adaptive_select",
+  "n_boot": 100,
+  "random_state": 0,
+  "version": "0.1.0.dev0"
+ },
  "sites": [
   {
    "subject": "1",
@@ -1835,15 +1846,5 @@
     "RY9"
    ]
   }
- ],
- "evoparam_selection": {
-  "function": "evoparam.prep.reference.car_adaptive_select",
-  "n_boot": 100,
-  "random_state": 0,
-  "version": "0.1.0.dev0"
- },
- "data": {
-  "dataset": "ds004977",
-  "version": "1.2.0"
- }
+ ]
 }

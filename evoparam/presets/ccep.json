@@ -6,7 +6,7 @@
   "selection": "bic",
   "delta": 10.0,
   "uncertainty": "jacobian",
-  "version": "1.1",
+  "version": "1.2",
   "modality": "ECoG (SPES)",
   "species": [
     "human"
@@ -69,12 +69,23 @@
   "choices": {
     "artifact_window": "ends 1 ms before the earliest fit sample, so the template never overlaps the response window (REQ-061)"
   },
+  "detections": {
+    "N1": {
+      "window": [
+        0.009,
+        0.05
+      ],
+      "polarity": "negative",
+      "k": 3.4
+    }
+  },
   "fit_extras": {
     "background_tau_max": 0.05,
     "threshold_role": "select"
   },
   "validation": "ds004080 (REQ-113, REQ-114, REQ-135)",
   "notes": {
-    "threshold_role": "select: the candidates are the extrema above detection_threshold (spec 5.5.3 step 3); on the five development runs of ds004080 the N1 decision agreed better with both readings of the published rule than with 'order' (kappa 0.40/0.39 against 0.36/0.31), 1.4 times faster (CHANGELOG 'Defaults settled by measurement'; v1.1)"
+    "threshold_role": "select: the candidates are the extrema above detection_threshold (spec 5.5.3 step 3); on the five development runs of ds004080 the N1 decision agreed better with both readings of the published rule than with 'order' (kappa 0.40/0.39 against 0.36/0.31), 1.4 times faster (CHANGELOG 'Defaults settled by measurement'; v1.1)",
+    "detections": "N1 (v1.2): the fitted curve has a trough in 9-50 ms deeper than 3.4 times the fit's noise SD (evoparam.models.curve_detection), instead of a negative component in 9-50 ms; on six development runs of ds004080 the agreement with the published rule's N1 detections moved from kappa 0.50 to 0.87 pooled (DECISIONS 5.12). k = 3.4 is the published rule's factor, applied to the fit's own noise SD"
   }
 }

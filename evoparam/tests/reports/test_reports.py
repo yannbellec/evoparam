@@ -38,7 +38,7 @@ def test_methods_text_follows_the_processing_steps(results: Any) -> None:
     )
     assert "method 'interpolate'" in text
     assert "-2 to 8 ms" in text
-    assert "preset 'ccep' v1.1" in text
+    assert "preset 'ccep' v1.2" in text
     assert "4 to 250 ms" in text
     assert "Settings changed from the preset (times in s): min_fwhm = 0.004" in text
     assert reports.citation() in text
@@ -202,7 +202,7 @@ def test_methods_text_roundtrip(ccep_run: Any, tmp_path: Any) -> None:
     text = group.methods_text()
     assert text == reports.methods_text(group)
     assert f"evoparam (version {__version__})" in text
-    assert "preset 'ccep' v1.1" in text
+    assert "preset 'ccep' v1.2" in text
     assert "In the window 9 to 500 ms" in text  # fit window
     assert "method 'template'" in text  # artifact method
     assert "sign-flip permutation test" in text  # existence method

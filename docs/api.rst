@@ -215,6 +215,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    classical_measures
    compare_models
    ComponentWindows
+   curve_detection
    evaluate_fit
    fit
    FIT_PRESETS
@@ -394,6 +395,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    CCEP_N2
    ComponentSpec
    ERP_COMPONENTS
+   gen_response
    GENERATORS
    GroundTruth
    inject
@@ -456,6 +458,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    qc
    reference_input
    REFERENCE_PIPELINES
+   report
    reproduce
    ReproduceReport
    RESEARCH_USE
@@ -474,6 +477,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    :toctree: generated/
 
    PALETTE
+   plot_annotated_fit
    plot_artifact
    plot_compare
    plot_existence
@@ -481,6 +485,7 @@ Every public symbol of evoparam, one table per module. Each name links to its pa
    plot_group
    plot_hierarchical
    plot_hist
+   plot_response
    plot_scatter_1
    plot_scatter_2
    plot_shapes
