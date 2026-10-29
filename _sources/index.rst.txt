@@ -54,6 +54,29 @@ Get started
 
 :doc:`auto_tutorials/plot_12_reporting`
 
+Going further
+-------------
+
+:doc:`auto_tutorials/plot_13_your_own_data`
+
+:doc:`auto_tutorials/plot_14_removing_the_artifact`
+
+:doc:`auto_tutorials/plot_15_is_there_a_response`
+
+:doc:`auto_tutorials/plot_16_time_frequency`
+
+:doc:`auto_tutorials/plot_17_statistics`
+
+:doc:`auto_tutorials/plot_18_across_subjects`
+
+:doc:`auto_tutorials/plot_19_beyond_ccep`
+
+:doc:`auto_tutorials/plot_20_command_line`
+
+:doc:`auto_tutorials/plot_21_online_mode`
+
+:doc:`auto_tutorials/plot_22_spatial`
+
 .. toctree::
    :hidden:
 

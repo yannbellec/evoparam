@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>16: Time-frequency responses &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="02: Reading the results" href="plot_02_reading_results.html" />
+    <link rel="prev" title="07: Exploring the fit object" href="plot_07_fit_object.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-16-time-frequency-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="time-frequency-responses">
+<span id="sphx-glr-auto-tutorials-plot-16-time-frequency-py"></span><h1>16: Time-frequency responses<a class="headerlink" href="#time-frequency-responses" title="Link to this heading">¶</a></h1>
+<p>Parameterise induced oscillatory bursts into zones, data-driven or from a published atlas.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>Not every response shows up in the average curve. An <strong>induced</strong> response is an
+oscillation whose phase is random from trial to trial: it adds power at some frequency
+and time, but it averages to nearly zero, so the tutorials so far would miss it. You see
+it only in the <strong>power</strong> of single trials, on a time-frequency map.</p>
+<p><code class="docutils literal notranslate"><span class="pre">evoparam.tf</span></code> parameterises that map. Instead of one number per pixel, it finds a few
+<strong>zones</strong>: rectangles in time and frequency where the power clearly rises or falls, each
+with a centre, an extent, a strength and a p-value. Two ways to get the zones:</p>
+<ol class="arabic simple">
+<li><p><strong>data-driven</strong>: let evoparam find the zones from the map itself (NMF);</p></li>
+<li><p><strong>published</strong>: score the exact zones a paper defined, for example the Brinyark 2026
+atlas (theta, alpha, beta, low and high gamma, in an N1 and an N2 window).</p></li>
+</ol>
+<p>It also removes the trap where a <strong>sharp evoked N1</strong> leaks broadband power into high
+gamma: the fitted N1 is subtracted first, so a high-gamma zone is a real oscillation,
+not the edge of a spike.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">plots</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">sim</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_bursts</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">tf</span><span class="w"> </span><span class="kn">import</span> <span class="n">list_published_zones</span><span class="p">,</span> <span class="n">tf_fit</span><span class="w">
+</span></pre></div></div>
+<section id="the-data">
+<h3>The data<a class="headerlink" href="#the-data" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">simulate_bursts</span></code> adds induced bursts to noise, with a known truth. Each burst is a
+cosine under a smooth envelope, at a given frequency, centre time and duration, with a
+<strong>random phase per trial</strong> (so it is invisible in the average). We put two bursts on one
+channel: a beta burst (20 Hz) early, and a high-gamma burst (120 Hz) later.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">bursts</span> <span class="o">=</span> <span class="p">[</span><span class="w">
+</span>    <span class="p">{</span><span class="s2">&quot;</span><span class="s2">freq</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mf">20.0</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">centre</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mf">0.15</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">duration</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mf">0.15</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mf">25.0</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span><span class="p">,</span><span class="w">
+</span>    <span class="p">{</span><span class="s2">&quot;</span><span class="s2">freq</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mf">120.0</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">centre</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">duration</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mf">0.12</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mf">30.0</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span><span class="p">,</span><span class="w">
+</span><span class="p">]</span><span class="w">
+</span><span class="n">trials</span><span class="p">,</span> <span class="n">truth</span> <span class="o">=</span> <span class="n">simulate_bursts</span><span class="p">(</span><span class="w">
+</span>    <span class="mi">40</span><span class="p">,</span> <span class="n">n_channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="mf">1000.0</span><span class="p">,</span> <span class="n">bursts</span><span class="o">=</span><span class="n">bursts</span><span class="p">,</span> <span class="n">noise_sd</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 40 trials × 1 channels × 1400 times, -0.600 – 0.799 s, 1000 Hz, uV, human, erp&gt;
+</pre></div>
+</div>
+</section>
+</section>
+<section id="data-driven-zones">
+<h2>Data-driven zones<a class="headerlink" href="#data-driven-zones" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">tf_fit</span></code> first makes the time-frequency map (a Morse wavelet by default), normalises it
+against the baseline in decibels, and keeps only the pixels that beat a permutation test.
+With <code class="docutils literal notranslate"><span class="pre">zones=&quot;auto&quot;</span></code> it then factorises the significant map into a few zones. <code class="docutils literal notranslate"><span class="pre">freqs</span></code>
+is <code class="docutils literal notranslate"><span class="pre">(low,</span> <span class="pre">high,</span> <span class="pre">n)</span></code>: here 4 to 250 Hz in 32 steps.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ignore</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">tf</span> <span class="o">=</span> <span class="n">tf_fit</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">freqs</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span><span class="p">,</span> <span class="n">zones</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">auto</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_zones</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span><span class="w">
+</span>                <span class="n">n_permutations</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="w">
+</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">zone_id</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">freq_centroid</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">freq_extent</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">time_centroid</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">p_value</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>           <span class="s2">&quot;</span><span class="s2">energy_fraction</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">zones</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>zone_id  freq_centroid  freq_extent  time_centroid  p_value  energy_fraction
+      0         20.482        0.354           0.15    0.000            0.518
+      1        127.914        0.287           0.25    0.000            0.479
+      2         65.860        0.000           0.66    0.001            0.001
+</pre></div>
+</div>
+<p>The two bursts come back as two zones: one near 20 Hz around 150 ms, one in high gamma
+around 250 ms. <code class="docutils literal notranslate"><span class="pre">freq_centroid</span></code> and <code class="docutils literal notranslate"><span class="pre">time_centroid</span></code> are where each zone sits,
+<code class="docutils literal notranslate"><span class="pre">energy_fraction</span></code> is how much of the significant power it holds, and <code class="docutils literal notranslate"><span class="pre">p_value</span></code> is its
+significance under the permutation null. The figure shows the total map, the
+N1-corrected footprint and the residual.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fig</span> <span class="o">=</span> <span class="n">plots</span><span class="o">.</span><span class="n">plot_tf</span><span class="p">(</span><span class="n">tf</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_16_time_frequency_001.png" srcset="../_images/sphx_glr_plot_16_time_frequency_001.png" alt="total_norm" class = "sphx-glr-single-img"/></section>
+<section id="published-zones">
+<h2>Published zones<a class="headerlink" href="#published-zones" title="Link to this heading">¶</a></h2>
+<p>When a paper defines fixed zones, score those exact boxes instead of finding your own.
+<code class="docutils literal notranslate"><span class="pre">list_published_zones</span></code> is the registry; the Brinyark 2026 atlas splits the map into
+theta, alpha, beta, low gamma and high gamma, each in an early (N1) and a late (N2)
+window.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">zones</span> <span class="o">=</span> <span class="n">list_published_zones</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="n">zone_columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">name</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">f_low</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">f_high</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">t_start</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">t_end</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">verified</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">zones</span><span class="p">[</span><span class="n">zone_columns</span><span class="p">]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>                           name  f_low  f_high  t_start  t_end  verified
+brinyark2026_delayed_high_gamma   50.0   250.0    0.050   0.50      True
+              brinyark2026_GhN2   50.0   250.0    0.050   0.50      True
+               brinyark2026_TN1    4.0     8.0    0.015   0.05     False
+               brinyark2026_TN2    4.0     8.0    0.050   0.50     False
+               brinyark2026_AN1    8.0    13.0    0.015   0.05     False
+               brinyark2026_AN2    8.0    13.0    0.050   0.50     False
+</pre></div>
+</div>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">zones=&quot;published:&lt;name&gt;&quot;</span></code> to score one. Our 120 Hz burst at 250 ms sits in the
+<strong>delayed high-gamma</strong> zone (<code class="docutils literal notranslate"><span class="pre">brinyark2026_GhN2</span></code>: 50 to 250 Hz, 50 to 500 ms). The
+<code class="docutils literal notranslate"><span class="pre">zones</span></code> table gives the box, and <code class="docutils literal notranslate"><span class="pre">zone_metrics</span></code> gives what was measured inside it:
+the power <code class="docutils literal notranslate"><span class="pre">value</span></code> (dB), a t-statistic, a <code class="docutils literal notranslate"><span class="pre">p_value</span></code> and the fraction of the box that
+is significant.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ignore</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">tf_pub</span> <span class="o">=</span> <span class="n">tf_fit</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">freqs</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span><span class="p">,</span> <span class="n">zones</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">published:brinyark2026_GhN2</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>                    <span class="n">n_permutations</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="w">
+</span><span class="n">box_columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">zone_id</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">f_low</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">f_high</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">t_start</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">t_end</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">tf_pub</span><span class="o">.</span><span class="n">zones</span><span class="p">[</span><span class="n">box_columns</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="n">metrics</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">zone</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">value</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">t</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">p_value</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">fraction_significant</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">tf_pub</span><span class="o">.</span><span class="n">zone_metrics</span><span class="p">[</span><span class="n">metrics</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span> zone_id  f_low  f_high  t_start  t_end
+       0   50.0   250.0     0.05    0.5
+
+             zone channel  value       t  p_value  fraction_significant
+brinyark2026_GhN2      c0 1.2412 16.4361      0.0                0.1076
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Only the delayed-high-gamma zone is marked <code class="docutils literal notranslate"><span class="pre">verified</span></code> in the registry; the others
+are read from the article but not yet checked against evoparam’s own recovery test,
+so they need <code class="docutils literal notranslate"><span class="pre">allow_unverified=True</span></code>. <code class="docutils literal notranslate"><span class="pre">tf_compare</span></code> contrasts the maps of two
+conditions with a cluster test, and <code class="docutils literal notranslate"><span class="pre">tf_fit(...,</span> <span class="pre">by_trial=True)</span></code> gives the zone
+power per trial, to correlate with dose, distance or behaviour as in tutorial 09.</p>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>Time-frequency parameterisation finds the responses that the average hides: induced
+bursts of power. <code class="docutils literal notranslate"><span class="pre">tf_fit</span></code> turns the map into a few zones with timing, frequency and a
+p-value, either data-driven or from a published atlas, and it subtracts the fitted N1
+first so a high-gamma zone is a true oscillation and not the leakage of a sharp evoked
+peak.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 4.293 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-16-time-frequency-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/08c0ce904395d277c66c568c44736cf0/plot_16_time_frequency.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_16_time_frequency.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/d13acf4fdd635ffd56588697a02a67a6/plot_16_time_frequency.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_16_time_frequency.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/4388acdee9df9fe3b5901f77699a78a1/plot_16_time_frequency.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_16_time_frequency.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

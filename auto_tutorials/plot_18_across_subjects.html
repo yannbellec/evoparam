@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>18: Across subjects &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="13: Loading your own data" href="plot_13_your_own_data.html" />
+    <link rel="prev" title="01: Model description" href="plot_01_model_description.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-18-across-subjects-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="across-subjects">
+<span id="sphx-glr-auto-tutorials-plot-18-across-subjects-py"></span><h1>18: Across subjects<a class="headerlink" href="#across-subjects" title="Link to this heading">¶</a></h1>
+<p>Combine trials, channels and subjects in one model, with partial pooling and uncertainty.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>A study has three nested levels: <strong>trials</strong> inside a <strong>channel</strong>, channels inside a
+<strong>subject</strong>, subjects inside the <strong>group</strong>. Averaging each level in turn throws away
+information: a subject with two trials is trusted as much as one with two hundred, and a
+noisy channel counts the same as a clean one.</p>
+<p><code class="docutils literal notranslate"><span class="pre">evoparam.hierarchical</span></code> fits the three levels at once. It uses <strong>partial pooling</strong>: a
+noisy or sparse unit is pulled toward the group mean (shrinkage), a well-measured one
+is left alone. The default engine is <strong>empirical Bayes</strong> (fast, in the core); a full
+Bayesian engine (<code class="docutils literal notranslate"><span class="pre">numpyro</span></code> or <code class="docutils literal notranslate"><span class="pre">pymc</span></code>) is an optional extra for when you want full
+posteriors. The result is a group estimate with honest uncertainty, and it can use a
+covariate such as age.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">plots</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">hierarchical</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_hierarchical</span><span class="p">,</span> <span class="n">posterior_summary</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">sim</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_ccep</span><span class="w">
+</span></pre></div></div>
+<section id="the-data">
+<h3>The data<a class="headerlink" href="#the-data" title="Link to this heading">¶</a></h3>
+<p>Ten subjects, five electrodes each, 20 trials. About 60 % of the electrodes answer. In
+a real study each subject would be one recording read with <code class="docutils literal notranslate"><span class="pre">read_bids</span></code>; here each is a
+simulated <code class="docutils literal notranslate"><span class="pre">TrialSet</span></code>, and we pass the list straight to <code class="docutils literal notranslate"><span class="pre">fit_hierarchical</span></code>.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">subjects</span> <span class="o">=</span> <span class="p">[</span><span class="p">]</span><span class="w">
+</span><span class="k">for</span> <span class="n">subject</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">trials</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">simulate_ccep</span><span class="p">(</span><span class="w">
+</span>        <span class="mi">20</span><span class="p">,</span> <span class="n">n_channels</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">p_response</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">p_n2</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">artifact</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">grid</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>        <span class="n">sfreq</span><span class="o">=</span><span class="mf">512.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span> <span class="n">n1</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">45.0</span> <span class="o">-</span> <span class="mf">7.0</span> <span class="o">*</span> <span class="n">subject</span><span class="p">}</span><span class="p">,</span><span class="w">
+</span>    <span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span>    <span class="n">subjects</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">subjects</span><span class="p">)</span><span class="si">}</span><span class="s2"> subjects, </span><span class="si">{</span><span class="n">subjects</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">n_channels</span><span class="si">}</span><span class="s2"> channels each</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>10 subjects, 5 channels each
+</pre></div>
+</div>
+</section>
+</section>
+<section id="the-fit">
+<h2>The fit<a class="headerlink" href="#the-fit" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">fit_hierarchical</span></code> fits the N1 at every level. <code class="docutils literal notranslate"><span class="pre">components=[&quot;N1&quot;]</span></code> keeps the model
+small for the tutorial. <code class="docutils literal notranslate"><span class="pre">engine=&quot;eb&quot;</span></code> is empirical Bayes, the default.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ignore</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">hier</span> <span class="o">=</span> <span class="n">fit_hierarchical</span><span class="p">(</span><span class="n">subjects</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">eb</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">hier</span><span class="o">.</span><span class="n">methods_text</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Evoked responses were analysed with evoparam (version 0.1.0.dev0). Parameters were pooled across levels (trial &gt; channel &gt; subject) with a hierarchical model fitted by empirical Bayes (restricted maximum likelihood variance components). Random draws used the seed 0; the result can be regenerated from its recorded provenance with evoparam.reproduce. Software: Bellec Y.V. evoparam: parameterizing evoked neural responses (version 0.1.0). https://github.com/yannbellec/evoparam
+</pre></div>
+</div>
+</section>
+<section id="the-group-estimate">
+<h2>The group estimate<a class="headerlink" href="#the-group-estimate" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">posterior_summary</span></code> reads any level. At the <strong>group</strong> level it gives one estimate per
+parameter, with a standard error and how many channels and subjects it rests on. This is
+the number a paper reports: the group N1 latency and amplitude, pooled correctly over
+the levels.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">group_summary</span> <span class="o">=</span> <span class="n">posterior_summary</span><span class="p">(</span><span class="n">hier</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">group</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">group_summary</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>component parameter  estimate    se  n_channels  n_subjects
+       N1   latency     0.028 0.002          19          10
+       N1 amplitude   -77.556 6.563          19          10
+       N1      fwhm     0.009 0.001          19          10
+</pre></div>
+</div>
+<p>At the <strong>subject</strong> level it gives one row per subject. <code class="docutils literal notranslate"><span class="pre">pi</span></code> is the share of that
+subject’s channels with an N1; the latency and amplitude are the subject means, each
+pulled toward the group by an amount set by how well that subject is measured.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">subject_summary</span> <span class="o">=</span> <span class="n">posterior_summary</span><span class="p">(</span><span class="n">hier</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">subject</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">subject</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">n_channels_with_component</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">pi</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency_se</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">subject_summary</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>subject  n_channels_with_component    pi  latency  latency_se  amplitude
+  sub-1                          1 0.223    0.028       0.002    -52.054
+  sub-2                          3 0.439    0.028       0.002    -53.733
+  sub-3                          1 0.249    0.028       0.002    -62.092
+  sub-4                          1 0.211    0.028       0.002    -64.852
+  sub-5                          2 0.000    0.028       0.002    -75.224
+</pre></div>
+</div>
+</section>
+<section id="where-the-variance-sits">
+<h2>Where the variance sits<a class="headerlink" href="#where-the-variance-sits" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">variance_components</span></code> splits the spread of the N1 into between-subject,
+between-channel and between-trial parts. It answers “would more subjects or more trials
+help most?”: if most variance is between subjects, add subjects; if between trials, add
+trials. The figure shows the group estimate and the subject spread.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="nb">print</span><span class="p">(</span><span class="n">hier</span><span class="o">.</span><span class="n">variance_components</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plots</span><span class="o">.</span><span class="n">plot_hierarchical</span><span class="p">(</span><span class="n">hier</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_18_across_subjects_001.png" srcset="../_images/sphx_glr_plot_18_across_subjects_001.png" alt="engine: eb, variance components" class = "sphx-glr-single-img"/><div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>component parameter                       level      sd                       method
+       N1 amplitude channel (existence mixture) 41.8276    EM, two-component mixture
+       N1   latency                     channel  0.0077                         REML
+       N1   latency                     subject  0.0000                         REML
+       N1 amplitude                     channel  0.0000                         REML
+       N1 amplitude                     subject 20.4362                         REML
+       N1      fwhm                     channel  0.0032                         REML
+       N1      fwhm                     subject  0.0000                         REML
+       N1   latency                       trial  0.0002 REML (residual beyond noise)
+       N1   latency   trial (ex-Gaussian sigma)  0.0000                      moments
+       N1   latency     trial (ex-Gaussian tau)  0.0002                      moments
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A covariate goes in through a formula. <code class="docutils literal notranslate"><span class="pre">fit_hierarchical(subjects,</span>
+<span class="pre">components=[&quot;N1&quot;],</span> <span class="pre">formula=&quot;latency</span> <span class="pre">~</span> <span class="pre">age&quot;)</span></code> regresses the N1 latency on each
+subject’s age (read from the metadata) while keeping the pooling. For full posteriors
+and credible intervals, <code class="docutils literal notranslate"><span class="pre">engine=&quot;numpyro&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">engine=&quot;pymc&quot;</span></code> (optional extras)
+fit the same model with MCMC; <code class="docutils literal notranslate"><span class="pre">compare_hierarchical</span></code> then contrasts several fits.</p>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>The hierarchical model is how you go from one recording to a group result. It pools
+trials, channels and subjects in one step, trusts each unit by how well it is measured,
+and returns a group estimate with uncertainty plus a variance breakdown that guides the
+next study’s design. Empirical Bayes is the fast default; the Bayesian engines are there
+when you need the whole posterior.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 4.243 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-18-across-subjects-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/d9f03212b9794872a2dd97f5a5bd27c3/plot_18_across_subjects.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_18_across_subjects.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/f837482d5fc366800a043c06e10e5539/plot_18_across_subjects.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_18_across_subjects.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/73124f3178f52315c35baf90b94bd98b/plot_18_across_subjects.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_18_across_subjects.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

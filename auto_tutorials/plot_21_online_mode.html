@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>21: Online mode &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="11: Further analysis" href="plot_11_further_analysis.html" />
+    <link rel="prev" title="09: Fitting trial by trial" href="plot_09_trial_by_trial.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-21-online-mode-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="online-mode">
+<span id="sphx-glr-auto-tutorials-plot-21-online-mode-py"></span><h1>21: Online mode<a class="headerlink" href="#online-mode" title="Link to this heading">¶</a></h1>
+<p>Fit a frozen template to each new pulse as it arrives, with a running existence test.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>For research use only: evoparam is not a medical device and controls nothing. The online
+mode exposes numbers as a stream comes in; any control loop is the user’s own.</p>
+<p><code class="docutils literal notranslate"><span class="pre">evoparam.stream</span></code> turns an offline fit into a live estimator. You fit a first block the
+usual way to get a <strong>template</strong> (the bumps). Then, for every new pulse in the stream, a
+threshold detector finds the pulse, and once its window is complete the frozen template
+is <strong>shifted and scaled</strong> on each channel: you get an amplitude, a latency and a per-pulse
+existence score, in a few milliseconds, without re-fitting from scratch. A running
+existence test keeps its 5 % false-positive rate per channel however often you read it.</p>
+<p>We simulate a stream (no hardware): one pulse per second, an N1 on half of eight
+channels, fed in small chunks as a device would deliver it.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">data</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrialSet</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">models</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">stream</span><span class="w"> </span><span class="kn">import</span> <span class="n">StreamFitter</span><span class="w">
+</span><span class="w">
+</span><span class="n">SFREQ</span> <span class="o">=</span> <span class="mf">2048.0</span><span class="w">
+</span><span class="n">N_CHANNELS</span> <span class="o">=</span> <span class="mi">8</span>  <span class="c1"># the first four respond, the last four are silent</span><span class="w">
+</span><span class="n">N1</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">40.0</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">)</span>  <span class="c1"># amplitude (uV), latency (s), FWHM (s)</span><span class="w">
+</span><span class="n">ARTIFACT</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.002</span><span class="p">,</span> <span class="mf">0.008</span><span class="p">)</span>  <span class="c1"># artifact window, interpolated (s)</span><span class="w">
+</span><span class="w">
+</span><span class="w">
+</span><span class="k">def</span><span class="w"> </span><span class="nf">gauss</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">latency</span><span class="p">,</span> <span class="n">fwhm</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a Gaussian bump of the given latency and width (s).&quot;&quot;&quot;</span><span class="w">
+</span>    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="p">(</span><span class="n">times</span> <span class="o">-</span> <span class="n">latency</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">fwhm</span> <span class="o">/</span> <span class="mf">2.3548</span><span class="p">)</span><span class="p">)</span> <span class="o">*</span><span class="o">*</span> <span class="mi">2</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="the-offline-template">
+<h2>1. The offline template<a class="headerlink" href="#the-offline-template" title="Link to this heading">¶</a></h2>
+<p>First, a normal fit on an offline block of 40 trials. Its bumps become the template the
+stream will track. This is the only fit done; the stream only shifts and scales it.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="mi">1024</span><span class="p">,</span> <span class="mi">2048</span><span class="p">)</span> <span class="o">/</span> <span class="n">SFREQ</span><span class="w">
+</span><span class="n">block</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="p">(</span><span class="mi">40</span><span class="p">,</span> <span class="n">N_CHANNELS</span><span class="p">,</span> <span class="n">times</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="n">block</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="p">:</span> <span class="n">N_CHANNELS</span> <span class="o">/</span><span class="o">/</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="n">N1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">gauss</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">N1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="p">,</span> <span class="n">N1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ignore</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">offline</span> <span class="o">=</span> <span class="n">fit</span><span class="p">(</span><span class="w">
+</span>        <span class="n">TrialSet</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">block</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="n">times</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="n">SFREQ</span><span class="p">,</span><span class="w">
+</span>                 <span class="n">ch_names</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">c</span><span class="si">{</span><span class="n">channel</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N_CHANNELS</span><span class="p">)</span><span class="p">]</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span>        <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="n">template</span> <span class="o">=</span> <span class="n">offline</span><span class="o">.</span><span class="n">fits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">template: </span><span class="si">{</span><span class="n">template</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2"> at </span><span class="si">{</span><span class="n">template</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">latency</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">1e3</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> ms</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>template: N1 at 29.9 ms
+</pre></div>
+</div>
+</section>
+<section id="the-stream">
+<h2>2. The stream<a class="headerlink" href="#the-stream" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">StreamFitter</span></code> holds the template and the detector. We feed it 30 pulses, one per
+second, in chunks of 32 samples (<code class="docutils literal notranslate"><span class="pre">push</span></code> returns the finished estimates). Each pulse has
+a big artifact and an N1 on the first four channels.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fitter</span> <span class="o">=</span> <span class="n">StreamFitter</span><span class="p">(</span><span class="w">
+</span>    <span class="n">template</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="n">SFREQ</span><span class="p">,</span> <span class="n">ch_names</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">c</span><span class="si">{</span><span class="n">channel</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N_CHANNELS</span><span class="p">)</span><span class="p">]</span><span class="p">,</span><span class="w">
+</span>    <span class="n">artifact_window</span><span class="o">=</span><span class="n">ARTIFACT</span><span class="p">,</span> <span class="n">existence_max_pulses</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="w">
+</span><span class="n">estimates</span> <span class="o">=</span> <span class="p">[</span><span class="p">]</span><span class="w">
+</span><span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">chunk</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">SFREQ</span><span class="p">)</span><span class="p">,</span> <span class="n">N_CHANNELS</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span>    <span class="n">onset</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.45</span> <span class="o">*</span> <span class="n">SFREQ</span><span class="p">)</span><span class="w">
+</span>    <span class="n">chunk</span><span class="p">[</span><span class="n">onset</span> <span class="p">:</span> <span class="n">onset</span> <span class="o">+</span> <span class="mi">3</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="p">[</span><span class="mf">3000.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">2000.0</span><span class="p">,</span> <span class="mf">500.0</span><span class="p">,</span> <span class="mf">400.0</span><span class="p">,</span><span class="w">
+</span>                                          <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span><span class="p">)</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:</span><span class="p">]</span>  <span class="c1"># artifact</span><span class="w">
+</span>    <span class="n">relative</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span><span class="p">)</span> <span class="o">-</span> <span class="n">onset</span><span class="p">)</span> <span class="o">/</span> <span class="n">SFREQ</span><span class="w">
+</span>    <span class="n">chunk</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="p">:</span> <span class="n">N_CHANNELS</span> <span class="o">/</span><span class="o">/</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="n">N1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">gauss</span><span class="p">(</span><span class="n">relative</span><span class="p">,</span> <span class="n">N1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="p">,</span> <span class="n">N1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="p">)</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span><span class="w">
+</span>    <span class="k">for</span> <span class="n">first</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>        <span class="n">estimates</span> <span class="o">+</span><span class="o">=</span> <span class="n">fitter</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">chunk</span><span class="p">[</span><span class="n">first</span> <span class="p">:</span> <span class="n">first</span> <span class="o">+</span> <span class="mi">32</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">estimates</span><span class="p">)</span><span class="si">}</span><span class="s2"> per-channel estimates over 30 pulses; the last pulse:</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="k">for</span> <span class="n">estimate</span> <span class="ow">in</span> <span class="n">estimates</span><span class="p">[</span><span class="o">-</span><span class="n">N_CHANNELS</span><span class="p">:</span><span class="p">]</span><span class="p">:</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">channel</span><span class="si">}</span><span class="s2">: amplitude </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">amplitude</span><span class="si">:</span><span class="s2">7.1f</span><span class="si">}</span><span class="s2"> uV, </span><span class="s2">&quot;</span><span class="w">
+</span>          <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">latency </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">latency</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">1e3</span><span class="si">:</span><span class="s2">5.1f</span><span class="si">}</span><span class="s2"> ms, </span><span class="s2">&quot;</span><span class="w">
+</span>          <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">z </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">existence_z</span><span class="si">:</span><span class="s2">5.1f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">estimate</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>240 per-channel estimates over 30 pulses; the last pulse:
+  c0: amplitude   -41.3 uV, latency  29.6 ms, z  33.4, ok
+  c1: amplitude   -38.9 uV, latency  30.4 ms, z  22.9, ok
+  c2: amplitude   -38.5 uV, latency  30.6 ms, z  23.6, ok
+  c3: amplitude   -40.7 uV, latency  29.6 ms, z  23.1, ok
+  c4: amplitude     2.9 uV, latency  28.0 ms, z  -1.8, ok
+  c5: amplitude    -2.8 uV, latency  25.8 ms, z   1.1, ok
+  c6: amplitude     3.3 uV, latency  24.9 ms, z  -1.9, ok
+  c7: amplitude     1.9 uV, latency  25.0 ms, z  -0.6, ok
+</pre></div>
+</div>
+<p>The responding channels come back near the template’s amplitude and latency with a high
+existence z; the silent channels stay near zero. Each estimate is one pulse on one
+channel, delivered as soon as its window closes.</p>
+</section>
+<section id="the-running-existence-test-and-the-timing-budget">
+<h2>3. The running existence test and the timing budget<a class="headerlink" href="#the-running-existence-test-and-the-timing-budget" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">existence</span></code> is the verdict per channel after all the pulses seen so far. It corrects for
+being looked at after every pulse, so the 5 % false-positive rate holds however often you
+read it. <code class="docutils literal notranslate"><span class="pre">latency_stats</span></code> is the compute time per pulse: the online budget.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">result</span> <span class="o">=</span> <span class="n">fitter</span><span class="o">.</span><span class="n">existence</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="n">triples</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">channels</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">significant</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">n</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="w">
+</span><span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">significant</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">triples</span><span class="p">:</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="s1">'</span><span class="s1">response</span><span class="s1">'</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">significant</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">'</span><span class="s1">no response</span><span class="s1">'</span><span class="si">}</span><span class="s2"> after </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> pulses</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">budget</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">fitter</span><span class="o">.</span><span class="n">latency_stats</span><span class="o">.</span><span class="n">items</span><span class="p">(</span><span class="p">)</span><span class="p">}</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">compute time per pulse (ms):</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">budget</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>  c0: response after 29 pulses
+  c1: response after 29 pulses
+  c2: response after 29 pulses
+  c3: response after 29 pulses
+  c4: no response after 29 pulses
+  c5: no response after 29 pulses
+  c6: response after 29 pulses
+  c7: no response after 29 pulses
+
+compute time per pulse (ms): {'p50': 1.12, 'p95': 1.24, 'p99': 1.36, 'max': 1.4}
+</pre></div>
+</div>
+<p>The four responding channels are found; among the four silent ones, a correction holds
+the false-positive rate at 5 % per channel across all the looks, so now and then one
+silent channel is declared responsive (with four of them, roughly one run in five). That
+is the test working as specified, not a bug: read a single channel’s verdict with that
+rate in mind.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>With Lab Streaming Layer (the optional <code class="docutils literal notranslate"><span class="pre">stream</span></code> extra), the same fitter reads an
+<code class="docutils literal notranslate"><span class="pre">LSLInlet</span></code> and publishes with an <code class="docutils literal notranslate"><span class="pre">LSLOutlet</span></code>, so it drops into an LSL setup
+unchanged:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">stream</span><span class="w"> </span><span class="kn">import</span> <span class="n">LSLInlet</span><span class="p">,</span> <span class="n">LSLOutlet</span><span class="w">
+</span><span class="n">inlet</span> <span class="o">=</span> <span class="n">LSLInlet</span><span class="p">(</span><span class="n">stype</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">EEG</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">fitter</span> <span class="o">=</span> <span class="n">StreamFitter</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="n">inlet</span><span class="o">.</span><span class="n">sfreq</span><span class="p">,</span> <span class="n">ch_names</span><span class="o">=</span><span class="n">inlet</span><span class="o">.</span><span class="n">ch_names</span><span class="p">,</span><span class="w">
+</span>                      <span class="n">artifact_window</span><span class="o">=</span><span class="n">ARTIFACT</span><span class="p">)</span><span class="w">
+</span><span class="n">outlet</span> <span class="o">=</span> <span class="n">LSLOutlet</span><span class="p">(</span><span class="n">fitter</span><span class="p">)</span>   <span class="c1"># tagged &quot;research only; not a medical device&quot;</span><span class="w">
+</span><span class="n">inlet</span><span class="o">.</span><span class="n">feed</span><span class="p">(</span><span class="n">fitter</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="n">outlet</span><span class="o">.</span><span class="n">push</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>The online mode reuses an offline fit as a template and tracks it pulse by pulse: one
+amplitude, latency and existence score per channel, in milliseconds, with a running test
+that stays honest under repeated looks. It targets soft real time (a latency budget), not
+hard deadlines, and it reports numbers only; closing a loop on them is the user’s
+responsibility.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.791 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-21-online-mode-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/ebebe83f254bc17f234362f5f6dcf589/plot_21_online_mode.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_21_online_mode.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/9c1bc9a5f2673012374ecfb773de1d9b/plot_21_online_mode.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_21_online_mode.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/087fe7bb7b3dfd77ad76d750c31842d8/plot_21_online_mode.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_21_online_mode.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

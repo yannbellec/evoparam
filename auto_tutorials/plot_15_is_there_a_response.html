@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>15: Is there a response? &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="06: Metrics and model evaluation" href="plot_06_metrics.html" />
+    <link rel="prev" title="02: Reading the results" href="plot_02_reading_results.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-15-is-there-a-response-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="is-there-a-response">
+<span id="sphx-glr-auto-tutorials-plot-15-is-there-a-response-py"></span><h1>15: Is there a response?<a class="headerlink" href="#is-there-a-response" title="Link to this heading">¶</a></h1>
+<p>Decide, for each channel, whether the brain answered at all, and for how long.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>Before measuring a bump, ask whether there is a bump to measure. Fitting a model to a
+flat, noisy channel always returns <em>some</em> numbers, so a parameter on its own does not
+prove a response exists. <code class="docutils literal notranslate"><span class="pre">evoparam.existence</span></code> answers the yes/no question with a test,
+a p-value and an onset and offset, and it does it <strong>before and apart from</strong> the fit, so
+the two decisions do not contaminate each other.</p>
+<p>evoparam ships a registry of <strong>published rules</strong> (van Blooijs, Hays, Keller,
+Silverstein, F-TRACT) so you can run exactly the rule a paper used, next to evoparam’s
+own permutation test, and see where they agree.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">plots</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">existence</span><span class="w"> </span><span class="kn">import</span> <span class="n">compare_detectors</span><span class="p">,</span> <span class="n">list_rules</span><span class="p">,</span> <span class="n">test_response</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">sim</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_ccep</span><span class="w">
+</span></pre></div></div>
+<section id="the-data">
+<h3>The data<a class="headerlink" href="#the-data" title="Link to this heading">¶</a></h3>
+<p>20 CCEP trials on 6 electrodes. About 60 % of the electrodes answer (<code class="docutils literal notranslate"><span class="pre">p_response=0.6</span></code>);
+the rest see only noise. We know which is which, which lets us read the test honestly.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">trials</span><span class="p">,</span> <span class="n">truth</span> <span class="o">=</span> <span class="n">simulate_ccep</span><span class="p">(</span><span class="w">
+</span>    <span class="mi">20</span><span class="p">,</span> <span class="n">n_channels</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">p_response</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">artifact</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">grid</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="mf">512.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 20 trials × 6 channels × 768 times, -0.500 – 0.998 s, 512 Hz, uV, human, spes&gt;
+</pre></div>
+</div>
+</section>
+</section>
+<section id="the-test">
+<h2>The test<a class="headerlink" href="#the-test" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">test_response</span></code> compares the response window (here 9 to 500 ms) to the pre-stimulus
+baseline with a permutation test. For each channel it returns:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">significant</span></code>: the yes/no verdict, after correcting for testing many channels;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">p_value</span></code>: how surprising the response is under the null of no response;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">onset</span></code> and <code class="docutils literal notranslate"><span class="pre">offset</span></code>: when the response starts and ends, in seconds;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">snr_db</span></code>: the size of the response over the baseline, in decibels.</p></li>
+</ul>
+<p>The correction (<code class="docutils literal notranslate"><span class="pre">fdr_bh</span></code> by default) controls the share of false positives across the
+channels, so testing 4 channels or 400 does not flood you with chance hits.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ignore</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">test</span> <span class="o">=</span> <span class="n">test_response</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="p">(</span><span class="mf">0.009</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span><span class="p">,</span> <span class="n">n_permutations</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">trials</span><span class="o">.</span><span class="n">n_channels</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">name</span> <span class="o">=</span> <span class="n">trials</span><span class="o">.</span><span class="n">ch_info</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">name</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="w">
+</span>    <span class="n">verdict</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="s2">response</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">test</span><span class="o">.</span><span class="n">significant</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;</span><span class="s2">no response</span><span class="s2">&quot;</span><span class="w">
+</span>    <span class="n">onset</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">onset</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="w">
+</span>    <span class="n">detail</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="s2">&quot;</span><span class="w">
+</span>    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">onset</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>        <span class="n">detail</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">onset </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">onset</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> ms, </span><span class="si">{</span><span class="n">test</span><span class="o">.</span><span class="n">snr_db</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> dB</span><span class="s2">&quot;</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">verdict</span><span class="si">:</span><span class="s2">&lt;12</span><span class="si">}</span><span class="s2"> p=</span><span class="si">{</span><span class="n">test</span><span class="o">.</span><span class="n">p_value</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.3g</span><span class="si">}</span><span class="s2">  </span><span class="si">{</span><span class="n">detail</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>G01: response     p=3.46e-38  onset 27 ms, 21.4 dB
+G02: no response  p=0.629
+G03: response     p=3e-300  onset 16 ms, 25.5 dB
+G04: response     p=3e-300  onset 10 ms, 29.4 dB
+G05: no response  p=0.952
+G06: no response  p=0.939
+</pre></div>
+</div>
+<p>The channels the simulator made responsive come back significant, with an onset near the
+N1 and a positive SNR; the noise channels get a high p-value and no onset. The figure
+shows, per channel, the response curve against the band the baseline alone would fill;
+the response leaves that band exactly where the test marks it significant.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">fig</span> <span class="o">=</span> <span class="n">plots</span><span class="o">.</span><span class="n">plot_existence</span><span class="p">(</span><span class="n">test</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<img src="../_images/sphx_glr_plot_15_is_there_a_response_001.png" srcset="../_images/sphx_glr_plot_15_is_there_a_response_001.png" alt="baseline_permutation: 3 of 6 channels significant (alpha 0.05, fdr_bh); shaded: null band, G01: significant, G02: n.s., G03: significant, G04: significant, G05: n.s., G06: n.s." class = "sphx-glr-single-img"/></section>
+<section id="how-long-does-the-response-last">
+<h2>How long does the response last?<a class="headerlink" href="#how-long-does-the-response-last" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">offset</span></code> minus the <code class="docutils literal notranslate"><span class="pre">onset</span></code> is the <strong>duration</strong> of the response: how long the
+signal stays out of the baseline band. It separates a short early N1 from a response
+that runs on into the N2 and beyond. <code class="docutils literal notranslate"><span class="pre">response_duration</span></code> is the same measurement when
+you only want the timing.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">trials</span><span class="o">.</span><span class="n">n_channels</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="k">if</span> <span class="n">test</span><span class="o">.</span><span class="n">significant</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="p">:</span><span class="w">
+</span>        <span class="n">name</span> <span class="o">=</span> <span class="n">trials</span><span class="o">.</span><span class="n">ch_info</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">name</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="w">
+</span>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">  </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">test</span><span class="o">.</span><span class="n">duration</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> ms </span><span class="s2">&quot;</span><span class="w">
+</span>              <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">(</span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">test</span><span class="o">.</span><span class="n">onset</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">test</span><span class="o">.</span><span class="n">offset</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> ms)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>G01: 172 ms (27 to 199 ms)
+G03: 23 ms (16 to 39 ms)
+G04: 229 ms (10 to 238 ms)
+</pre></div>
+</div>
+</section>
+<section id="published-rules-side-by-side">
+<h2>Published rules, side by side<a class="headerlink" href="#published-rules-side-by-side" title="Link to this heading">¶</a></h2>
+<p>Reviewers often ask for the rule a specific paper used. <code class="docutils literal notranslate"><span class="pre">list_rules</span></code> is the registry;
+each row is one published definition of “a response is present”, with its statistic, its
+window and the paper it comes from.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">rules</span> <span class="o">=</span> <span class="n">list_rules</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">rules</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">name</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">statistic</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">window</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">source</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>               name             statistic       window                                                                                        source
+     vanblooijs2023 negative_peak_over_sd [0.009, 0.1]                                              van Blooijs et al. 2023, Nat Neurosci (ds004080)
+vanblooijs2023_code negative_peak_over_sd [0.009, 0.1] van Blooijs et al. 2023, Nat Neurosci (ds004080); code: mnl_ccepAge ccep_detect_n1peak_ECoG.m
+           hays2021       negative_peak_z [0.01, 0.05]                                                                              Hays et al. 2021
+         keller2014            abs_peak_z  [0.0, 0.05]                                                                     Keller et al. 2014, Brain
+    silverstein2020       negative_peak_z [0.01, 0.05]                                                                       Silverstein et al. 2020
+             ftract   abs_peak_z_bandpass   [0.0, 0.8]                                  Lemarechal et al. 2022, Brain (F-TRACT); Trebaul et al. 2018
+          prime2020                 rms_z  [0.01, 0.1]                                                                             Prime et al. 2020
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">compare_detectors</span></code> runs several rules on the same data and lines up their verdicts,
+channel by channel. Here we put evoparam’s permutation test next to the van Blooijs 2023
+rule as its published code reads it. Agreement across rules is a strong sign; a channel
+where they disagree is one to look at by eye.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ignore</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">agreement</span> <span class="o">=</span> <span class="n">compare_detectors</span><span class="p">(</span><span class="w">
+</span>        <span class="n">trials</span><span class="p">,</span><span class="w">
+</span>        <span class="n">rules</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">baseline_permutation</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">vanblooijs2023_code</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span>        <span class="n">n_permutations</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span><span class="w">
+</span>        <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span>    <span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">agreement</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">trials</span><span class="o">.</span><span class="n">ch_info</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">name</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">agreement</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>channel  baseline_permutation  vanblooijs2023_code
+    G01                  True                 True
+    G02                 False                False
+    G03                  True                 True
+    G04                  True                 True
+    G05                 False                False
+    G06                 False                False
+</pre></div>
+</div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>The existence test is the gate before the fit: it says which channels answered, when the
+answer started and stopped, and how strong it was, with a p-value you can report and a
+correction for the number of channels. Run a published rule from the registry when a
+paper or a reviewer asks for one, and <code class="docutils literal notranslate"><span class="pre">compare_detectors</span></code> to show your test agrees with
+it. Tutorial 08’s <code class="docutils literal notranslate"><span class="pre">run_pipeline</span></code> already runs the test in the chain; here we saw what
+it decides and how to read it.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.617 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-15-is-there-a-response-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/fb7cf246c0acd2a14e6008339737cd34/plot_15_is_there_a_response.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_15_is_there_a_response.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/42cabb9549bbdbe209a8e0ffc0309b5f/plot_15_is_there_a_response.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_15_is_there_a_response.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/8fb5a2d9383a19ed2b980a10f63562aa/plot_15_is_there_a_response.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_15_is_there_a_response.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

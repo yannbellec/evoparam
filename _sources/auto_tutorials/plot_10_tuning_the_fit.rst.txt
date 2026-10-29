@@ -468,7 +468,7 @@ and keep the same settings for all the curves you compare.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 2.687 seconds)
+   **Total running time of the script:** (0 minutes 0.634 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_10_tuning_the_fit.py:

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>13: Loading your own data &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="19: Beyond CCEP: one tool, many modalities" href="plot_19_beyond_ccep.html" />
+    <link rel="prev" title="18: Across subjects" href="plot_18_across_subjects.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-13-your-own-data-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="loading-your-own-data">
+<span id="sphx-glr-auto-tutorials-plot-13-your-own-data-py"></span><h1>13: Loading your own data<a class="headerlink" href="#loading-your-own-data" title="Link to this heading">¶</a></h1>
+<p>Turn a numpy array, an MNE object or a file into a <code class="docutils literal notranslate"><span class="pre">TrialSet</span></code> that evoparam can fit.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>The first twelve tutorials used made-up data from <code class="docutils literal notranslate"><span class="pre">evoparam.sim</span></code>, so that we always
+knew the truth. Your own recording comes as one of three things:</p>
+<ol class="arabic simple">
+<li><p>a <strong>numpy array</strong> you built yourself (<code class="docutils literal notranslate"><span class="pre">from_array</span></code>);</p></li>
+<li><p>an <strong>MNE</strong> object (<code class="docutils literal notranslate"><span class="pre">Epochs</span></code>, <code class="docutils literal notranslate"><span class="pre">Evoked</span></code>), <code class="docutils literal notranslate"><span class="pre">read_mne</span></code>;</p></li>
+<li><p>a <strong>file</strong> on disk (BrainVision, EDF, FIF, NWB, BIDS folder), <code class="docutils literal notranslate"><span class="pre">read</span></code>.</p></li>
+</ol>
+<p>All three give the same object, a <code class="docutils literal notranslate"><span class="pre">TrialSet</span></code>: trials x channels x time, with the
+sampling rate, the channel names, the units and the time of the stimulus. Every later
+step (clean, fit, test) works on that object, whatever it came from.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">models</span><span class="p">,</span> <span class="n">reports</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">from_array</span><span class="p">,</span> <span class="n">read_mne</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="from-a-numpy-array">
+<h2>1. From a numpy array<a class="headerlink" href="#from-a-numpy-array" title="Link to this heading">¶</a></h2>
+<p>This is the lowest level and the one that always works. You give the data as an array
+shaped <code class="docutils literal notranslate"><span class="pre">(n_trials,</span> <span class="pre">n_channels,</span> <span class="pre">n_times)</span></code> (one trial, one channel and one curve are
+also allowed), the sampling rate in Hz, and the time of the first sample. Here we build
+20 trials of 2 channels: channel <code class="docutils literal notranslate"><span class="pre">RESP</span></code> has a small negative bump at 25 ms (an N1),
+channel <code class="docutils literal notranslate"><span class="pre">FLAT</span></code> has only noise.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">sfreq</span> <span class="o">=</span> <span class="mf">1024.0</span><span class="w">
+</span><span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">sfreq</span><span class="p">)</span>  <span class="c1"># seconds, stimulus at t = 0</span><span class="w">
+</span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">bump</span> <span class="o">=</span> <span class="o">-</span><span class="mf">60.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="p">(</span><span class="n">times</span> <span class="o">-</span> <span class="mf">0.025</span><span class="p">)</span> <span class="o">/</span> <span class="mf">0.004</span><span class="p">)</span> <span class="o">*</span><span class="o">*</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># N1: -60 uV, 25 ms, narrow</span><span class="w">
+</span><span class="n">data</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">times</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="p">)</span>  <span class="c1"># 20 trials, 2 channels, noise</span><span class="w">
+</span><span class="n">data</span><span class="p">[</span><span class="p">:</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:</span><span class="p">]</span> <span class="o">+</span><span class="o">=</span> <span class="n">bump</span>  <span class="c1"># add the N1 to the first channel only</span><span class="w">
+</span><span class="w">
+</span><span class="n">ts</span> <span class="o">=</span> <span class="n">from_array</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="n">sfreq</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="n">times</span><span class="p">,</span> <span class="n">ch_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">RESP</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">FLAT</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">uV</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 20 trials × 2 channels × 717 times, -0.200 – 0.499 s, 1024 Hz, uV, human&gt;
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">times</span></code> sets the sampling rate and the stimulus time together: <code class="docutils literal notranslate"><span class="pre">t</span> <span class="pre">=</span> <span class="pre">0</span></code> is the pulse,
+negative times are the baseline. If you pass <code class="docutils literal notranslate"><span class="pre">times</span></code>, do not pass <code class="docutils literal notranslate"><span class="pre">sfreq</span></code> as well;
+evoparam reads the rate from the spacing of the samples. <code class="docutils literal notranslate"><span class="pre">units=&quot;uV&quot;</span></code> tells evoparam
+the amplitudes are microvolts, so the reports carry the right unit.</p>
+<p>The object is ready to fit. We use <code class="docutils literal notranslate"><span class="pre">models.fit</span></code> with no preset: it picks a generic
+setting from the sampling rate. The N1 of <code class="docutils literal notranslate"><span class="pre">RESP</span></code> comes back near 25 ms; <code class="docutils literal notranslate"><span class="pre">FLAT</span></code> gets
+no bump.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">group</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="p">(</span><span class="mf">0.005</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">)</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">table</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">table</span><span class="p">[</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">latency</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">fwhm</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>channel label  latency  amplitude   fwhm
+   RESP         0.0251   -61.4999 0.0095
+   RESP         0.1627     8.7954 0.0020
+   FLAT            NaN        NaN    NaN
+</pre></div>
+</div>
+</section>
+<section id="from-an-mne-object">
+<h2>2. From an MNE object<a class="headerlink" href="#from-an-mne-object" title="Link to this heading">¶</a></h2>
+<p>If your data are already in MNE (<code class="docutils literal notranslate"><span class="pre">Epochs</span></code> or <code class="docutils literal notranslate"><span class="pre">Evoked</span></code>), <code class="docutils literal notranslate"><span class="pre">read_mne</span></code> converts them
+without going through a file. evoparam reads the sampling rate, the channel names, the
+times (including the baseline) and the units from the object. Here we make a small
+<code class="docutils literal notranslate"><span class="pre">EpochsArray</span></code> from the same array, then read it back.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>  <span class="c1"># noqa: E402  (optional dependency, imported where it is used)</span><span class="w">
+</span><span class="w">
+</span><span class="n">info</span> <span class="o">=</span> <span class="n">mne</span><span class="o">.</span><span class="n">create_info</span><span class="p">(</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">RESP</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">FLAT</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="n">sfreq</span><span class="p">,</span> <span class="n">ch_types</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">eeg</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">epochs</span> <span class="o">=</span> <span class="n">mne</span><span class="o">.</span><span class="n">EpochsArray</span><span class="p">(</span><span class="n">data</span> <span class="o">*</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">tmin</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="p">)</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">error</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># MNE: volts</span><span class="w">
+</span><span class="n">ts_mne</span> <span class="o">=</span> <span class="n">read_mne</span><span class="p">(</span><span class="n">epochs</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">ts_mne</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;TrialSet | 20 trials × 2 channels × 717 times, -0.200 – 0.499 s, 1024 Hz, uV, human&gt;
+</pre></div>
+</div>
+<p>MNE stores EEG in volts; evoparam keeps microvolts, so the numbers match what we started
+with. <code class="docutils literal notranslate"><span class="pre">read_mne</span></code> also accepts an <code class="docutils literal notranslate"><span class="pre">Evoked</span></code> (one averaged curve) and a
+<code class="docutils literal notranslate"><span class="pre">units=&quot;uV&quot;</span></code> keyword if your object is already in microvolts.</p>
+</section>
+<section id="from-a-file">
+<h2>3. From a file<a class="headerlink" href="#from-a-file" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">read</span></code> is the single door for files. It guesses the format from the name, or you can
+name it with <code class="docutils literal notranslate"><span class="pre">format=</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read</span><span class="w">
+</span><span class="w">
+</span><span class="n">ts</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">session.vhdr</span><span class="s2">&quot;</span><span class="p">)</span>           <span class="c1"># BrainVision</span><span class="w">
+</span><span class="n">ts</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">recording.edf</span><span class="s2">&quot;</span><span class="p">)</span>          <span class="c1"># EDF / EDF+</span><span class="w">
+</span><span class="n">ts</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">epochs-epo.fif</span><span class="s2">&quot;</span><span class="p">)</span>         <span class="c1"># MNE FIF</span><span class="w">
+</span><span class="n">ts</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">file.nwb</span><span class="s2">&quot;</span><span class="p">)</span>               <span class="c1"># NWB</span><span class="w">
+</span><span class="n">ts</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">trials.npz</span><span class="s2">&quot;</span><span class="p">)</span>             <span class="c1"># a saved evoparam array</span><span class="w">
+</span></pre></div></div>
+<p>A continuous file (not yet cut into trials) has no stimulus times. Find them from the
+signal with <code class="docutils literal notranslate"><span class="pre">detect_events</span></code> (tutorial 14), or pass the event times you already have.
+For a whole <strong>BIDS</strong> dataset, <code class="docutils literal notranslate"><span class="pre">read_bids</span></code> reads one subject, session, task and run,
+and can read a few pulses straight from the server without downloading the file
+(<code class="docutils literal notranslate"><span class="pre">remote=True</span></code>), as shown in tutorial 08.</p>
+</section>
+<section id="saving-the-result">
+<h2>4. Saving the result<a class="headerlink" href="#saving-the-result" title="Link to this heading">¶</a></h2>
+<p>After a fit, <code class="docutils literal notranslate"><span class="pre">write_bids_derivatives</span></code> writes the parameters next to the data as BIDS
+derivatives (TSV tables plus a JSON with every setting), so the result is self-describing
+and can be re-read. The reporting tutorial (12) covers the methods text, the JSON and
+the HTML report. Here we only show the call; it returns the list of files written.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">write_bids_derivatives</span><span class="w">
+</span><span class="w">
+</span><span class="n">result</span> <span class="o">=</span> <span class="n">reports</span><span class="o">.</span><span class="n">run_pipeline</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">files</span> <span class="o">=</span> <span class="n">write_bids_derivatives</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">01</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">SPESclin</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">derivatives/</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>Whatever the source, the first step is always to get a <code class="docutils literal notranslate"><span class="pre">TrialSet</span></code>: <code class="docutils literal notranslate"><span class="pre">from_array</span></code> for
+a numpy array, <code class="docutils literal notranslate"><span class="pre">read_mne</span></code> for an MNE object, <code class="docutils literal notranslate"><span class="pre">read</span></code> or <code class="docutils literal notranslate"><span class="pre">read_bids</span></code> for a file or a
+dataset. Set the units and the stimulus time right at this step; everything downstream
+trusts them. From here, the next tutorials clean the trials, test for a response, and
+fit the bumps exactly as they did on the made-up data.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">_</span> <span class="o">=</span> <span class="n">reports</span>  <span class="c1"># noqa: B018  (named in the text; kept imported for the reader)</span><span class="w">
+</span></pre></div></div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.183 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-13-your-own-data-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/ab720317a1f6a360f4cef048a435fd01/plot_13_your_own_data.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_13_your_own_data.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/0ac4e463f28581dfbaa26a2c5bddfe1f/plot_13_your_own_data.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_13_your_own_data.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/4c1728bf391dab88b14d0578f3d18613/plot_13_your_own_data.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_13_your_own_data.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

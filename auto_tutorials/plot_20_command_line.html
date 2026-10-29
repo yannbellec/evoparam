@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>20: The command line &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="07: Exploring the fit object" href="plot_07_fit_object.html" />
+    <link rel="prev" title="04: Component fitting" href="plot_04_component_fitting.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-20-command-line-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="the-command-line">
+<span id="sphx-glr-auto-tutorials-plot-20-command-line-py"></span><h1>20: The command line<a class="headerlink" href="#the-command-line" title="Link to this heading">¶</a></h1>
+<p>Run the whole pipeline from a shell, with no Python, and read the JSON summary it prints.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>Everything the tutorials did in Python is also a shell command. The <code class="docutils literal notranslate"><span class="pre">evoparam</span></code> console
+script has thirteen sub-commands, for a pipeline you can put in a batch script, a cluster
+job or a Makefile without writing any Python:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">simulate</span></code> writes a synthetic BIDS dataset with a known truth;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">detect-events</span></code> finds the pulses in a continuous file;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clean</span></code> removes the artifact; <code class="docutils literal notranslate"><span class="pre">test</span></code> runs the existence test;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fit</span></code> does the whole chain (read, clean, reference, fit, test) and writes BIDS
+derivatives;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">report</span></code> makes an HTML, PDF or Markdown report;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">validate-bids</span></code>, <code class="docutils literal notranslate"><span class="pre">reproduce</span></code>, <code class="docutils literal notranslate"><span class="pre">migrate</span></code>, <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">presets</span></code> and <code class="docutils literal notranslate"><span class="pre">cite</span></code>.</p></li>
+</ul>
+<p>Every command takes <code class="docutils literal notranslate"><span class="pre">--json</span></code> (one JSON summary on stdout), <code class="docutils literal notranslate"><span class="pre">--random-state</span></code> and
+<code class="docutils literal notranslate"><span class="pre">--config</span></code> (a JSON or TOML file of options). The <strong>exit code</strong> says what happened:
+0 success, 2 usage error, 3 partial (some channel failed), 4 a missing optional package,
+5 a bad input, 6 a reproduction mismatch. We drive it here with <code class="xref py py-mod docutils literal notranslate"><span class="pre">subprocess</span></code>, exactly
+as a shell would.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span><span class="w">
+</span><span class="w">
+</span><span class="n">work</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">evoparam-cli-</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="w">
+</span><span class="k">def</span><span class="w"> </span><span class="nf">evoparam</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span><span class="w">    </span><span class="sd">&quot;&quot;&quot;Run one ``evoparam`` command with ``--json`` and return its parsed summary.&quot;&quot;&quot;</span><span class="w">
+</span>    <span class="n">proc</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="w">
+</span>        <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">-m</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">evoparam</span><span class="s2">&quot;</span><span class="p">,</span> <span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">--json</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span><span class="w">
+</span>        <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="w">
+</span>    <span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span>    <span class="n">summary</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">proc</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(</span><span class="p">)</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span>    <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="s2"> </span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">$ evoparam </span><span class="si">{</span><span class="n">cmd</span><span class="si">}</span><span class="s2">  -&gt;  </span><span class="si">{</span><span class="n">summary</span><span class="p">[</span><span class="s1">'</span><span class="s1">status</span><span class="s1">'</span><span class="p">]</span><span class="si">}</span><span class="s2"> (exit </span><span class="si">{</span><span class="n">proc</span><span class="o">.</span><span class="n">returncode</span><span class="si">}</span><span class="s2">)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="k">return</span> <span class="n">summary</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="make-a-dataset">
+<h2>1. Make a dataset<a class="headerlink" href="#make-a-dataset" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">simulate</span></code> writes a small BIDS dataset with ground truth, so the rest of the tutorial
+needs no data of your own. In real use you point <code class="docutils literal notranslate"><span class="pre">fit</span></code> at your own BIDS root instead.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">evoparam</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">simulate</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">--modality</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">--n-trials</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">10</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">--n-channels</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">4</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>         <span class="s2">&quot;</span><span class="s2">--seed</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">0</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">--out</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">work</span> <span class="o">/</span> <span class="s2">&quot;</span><span class="s2">bids</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>$ evoparam simulate --modality ccep --n-trials 10 --n-channels 4 --seed 0 --out /tmp/evoparam-cli-y6twz_zf/bids  -&gt;  ok (exit 0)
+
+{'command': 'simulate', 'version': '0.1.0.dev0', 'status': 'ok', 'exit_code': 0, 'outputs': ['/tmp/evoparam-cli-y6twz_zf/bids/sub-01/ieeg/sub-01_task-ccep_ieeg.vhdr'], 'n_units': {'ok': 0, 'no_response': 0, 'failed': 0, 'skipped': 0}, 'warnings': [], 'duration_s': 1.3468862859999717}
+</pre></div>
+</div>
+</section>
+<section id="check-the-stimulation-metadata-then-fit">
+<h2>2. Check the stimulation metadata, then fit<a class="headerlink" href="#check-the-stimulation-metadata-then-fit" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">validate-bids</span></code> reports, run by run, which stimulation fields are present, inferred,
+missing or inconsistent. Then <code class="docutils literal notranslate"><span class="pre">fit</span></code> runs the whole chain and writes the derivatives.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">summary</span> <span class="o">=</span> <span class="n">evoparam</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">validate-bids</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">work</span> <span class="o">/</span> <span class="s2">&quot;</span><span class="s2">bids</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">  metadata:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">summary</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">result</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">counts</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">summary</span> <span class="o">=</span> <span class="n">evoparam</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">fit</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">work</span> <span class="o">/</span> <span class="s2">&quot;</span><span class="s2">bids</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">--sub</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">01</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">--task</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">--preset</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>                    <span class="s2">&quot;</span><span class="s2">--random-state</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">0</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>                    <span class="s2">&quot;</span><span class="s2">--out</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">work</span> <span class="o">/</span> <span class="s2">&quot;</span><span class="s2">bids/derivatives/evoparam</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">  units:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">summary</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">n_units</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">  wrote:</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">summary</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">outputs</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">files</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>$ evoparam validate-bids /tmp/evoparam-cli-y6twz_zf/bids  -&gt;  ok (exit 0)
+  metadata: {'present': 6, 'missing': 3, 'inferred': 1}
+$ evoparam fit /tmp/evoparam-cli-y6twz_zf/bids --sub 01 --task ccep --preset ccep --random-state 0 --out /tmp/evoparam-cli-y6twz_zf/bids/derivatives/evoparam  -&gt;  ok (exit 0)
+  units: {'ok': 3, 'no_response': 1, 'failed': 0, 'skipped': 0}
+  wrote: 15 files
+</pre></div>
+</div>
+</section>
+<section id="report-and-the-json-summary">
+<h2>3. Report, and the JSON summary<a class="headerlink" href="#report-and-the-json-summary" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">report</span></code> turns the derivatives into a Markdown (or HTML, or PDF) report. The <code class="docutils literal notranslate"><span class="pre">--json</span></code>
+object is the same on every command: <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">exit_code</span></code>, <code class="docutils literal notranslate"><span class="pre">outputs</span></code>, <code class="docutils literal notranslate"><span class="pre">n_units</span></code>
+(ok, no_response, failed, skipped), <code class="docutils literal notranslate"><span class="pre">warnings</span></code> and <code class="docutils literal notranslate"><span class="pre">duration_s</span></code>. A script reads that
+object to decide what to do next, and the exit code to stop on an error.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">summary</span> <span class="o">=</span> <span class="n">evoparam</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">report</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">work</span> <span class="o">/</span> <span class="s2">&quot;</span><span class="s2">bids/derivatives/evoparam</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">--format</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">md</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>                   <span class="s2">&quot;</span><span class="s2">--out</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">work</span> <span class="o">/</span> <span class="s2">&quot;</span><span class="s2">report</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">full JSON summary of the last command:</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">keys</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="s2">command</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">status</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">exit_code</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">n_units</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">summary</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">}</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>$ evoparam report /tmp/evoparam-cli-y6twz_zf/bids/derivatives/evoparam --format md --out /tmp/evoparam-cli-y6twz_zf/report  -&gt;  ok (exit 0)
+
+full JSON summary of the last command:
+{
+  "command": "report",
+  "status": "ok",
+  "exit_code": 0,
+  "n_units": {
+    "ok": 0,
+    "no_response": 0,
+    "failed": 0,
+    "skipped": 0
+  }
+}
+</pre></div>
+</div>
+<p>The same four lines, as a shell script, are:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>evoparam<span class="w"> </span>simulate<span class="w"> </span>--modality<span class="w"> </span>ccep<span class="w"> </span>--n-trials<span class="w"> </span><span class="m">10</span><span class="w"> </span>--n-channels<span class="w"> </span><span class="m">4</span><span class="w"> </span>--seed<span class="w"> </span><span class="m">0</span><span class="w"> </span>--out<span class="w"> </span>bids/
+evoparam<span class="w"> </span>validate-bids<span class="w"> </span>bids/
+evoparam<span class="w"> </span>fit<span class="w"> </span>bids/<span class="w"> </span>--sub<span class="w"> </span><span class="m">01</span><span class="w"> </span>--task<span class="w"> </span>ccep<span class="w"> </span>--preset<span class="w"> </span>ccep<span class="w"> </span>--out<span class="w"> </span>bids/derivatives/evoparam
+evoparam<span class="w"> </span>report<span class="w"> </span>bids/derivatives/evoparam<span class="w"> </span>--format<span class="w"> </span>html
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">evoparam</span> <span class="pre">fit</span> <span class="pre">bids/</span> <span class="pre">...</span></code> writes exactly the same files as the Python
+<code class="docutils literal notranslate"><span class="pre">write_bids_derivatives(fit(read_bids(...)))</span></code>, so you can prototype in Python and run in
+a shell, or the other way round.</p>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>The command line is the whole package without Python: <code class="docutils literal notranslate"><span class="pre">simulate</span></code> for test data,
+<code class="docutils literal notranslate"><span class="pre">fit</span></code> for the pipeline, <code class="docutils literal notranslate"><span class="pre">report</span></code> for the write-up, and the smaller commands for
+events, cleaning, the existence test, validation, reproduction and citation. <code class="docutils literal notranslate"><span class="pre">--json</span></code>
+plus the exit codes make it safe to script over many subjects on a cluster.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 6.324 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-20-command-line-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/1443f270e914d4083caff3a865c46a6b/plot_20_command_line.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_20_command_line.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/5da96100a733544aafcc9c333becbda0/plot_20_command_line.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_20_command_line.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/7d758c9b998b204a3d7d973ba419bf97/plot_20_command_line.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_20_command_line.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

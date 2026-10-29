@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**03:40.078** total execution time for 12 files **from auto_tutorials**:
+**01:11.771** total execution time for 22 files **from auto_tutorials**:
 
 .. container::
 
@@ -33,38 +33,68 @@ Computation times
      - Time
      - Mem (MB)
    * - :ref:`sphx_glr_auto_tutorials_plot_08_groups_real_data.py` (``plot_08_groups_real_data.py``)
-     - 01:36.017
+     - 00:17.339
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_09_trial_by_trial.py` (``plot_09_trial_by_trial.py``)
-     - 00:56.654
+     - 00:12.655
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_11_further_analysis.py` (``plot_11_further_analysis.py``)
-     - 00:53.720
+     - 00:11.023
      - 0.0
-   * - :ref:`sphx_glr_auto_tutorials_plot_01_model_description.py` (``plot_01_model_description.py``)
-     - 00:03.190
+   * - :ref:`sphx_glr_auto_tutorials_plot_20_command_line.py` (``plot_20_command_line.py``)
+     - 00:06.324
      - 0.0
-   * - :ref:`sphx_glr_auto_tutorials_plot_10_tuning_the_fit.py` (``plot_10_tuning_the_fit.py``)
-     - 00:02.687
+   * - :ref:`sphx_glr_auto_tutorials_plot_16_time_frequency.py` (``plot_16_time_frequency.py``)
+     - 00:04.293
      - 0.0
-   * - :ref:`sphx_glr_auto_tutorials_plot_05_background_fitting.py` (``plot_05_background_fitting.py``)
-     - 00:02.066
+   * - :ref:`sphx_glr_auto_tutorials_plot_18_across_subjects.py` (``plot_18_across_subjects.py``)
+     - 00:04.243
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_17_statistics.py` (``plot_17_statistics.py``)
+     - 00:03.007
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_12_reporting.py` (``plot_12_reporting.py``)
-     - 00:01.655
+     - 00:02.772
      - 0.0
-   * - :ref:`sphx_glr_auto_tutorials_plot_04_component_fitting.py` (``plot_04_component_fitting.py``)
-     - 00:01.489
+   * - :ref:`sphx_glr_auto_tutorials_plot_19_beyond_ccep.py` (``plot_19_beyond_ccep.py``)
+     - 00:02.470
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_05_background_fitting.py` (``plot_05_background_fitting.py``)
+     - 00:01.268
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_13_your_own_data.py` (``plot_13_your_own_data.py``)
+     - 00:01.183
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_22_spatial.py` (``plot_22_spatial.py``)
+     - 00:00.838
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_21_online_mode.py` (``plot_21_online_mode.py``)
+     - 00:00.791
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_01_model_description.py` (``plot_01_model_description.py``)
+     - 00:00.746
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_10_tuning_the_fit.py` (``plot_10_tuning_the_fit.py``)
+     - 00:00.634
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_15_is_there_a_response.py` (``plot_15_is_there_a_response.py``)
+     - 00:00.617
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_03_fitting_algorithm.py` (``plot_03_fitting_algorithm.py``)
-     - 00:00.979
+     - 00:00.530
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_04_component_fitting.py` (``plot_04_component_fitting.py``)
+     - 00:00.460
+     - 0.0
+   * - :ref:`sphx_glr_auto_tutorials_plot_14_removing_the_artifact.py` (``plot_14_removing_the_artifact.py``)
+     - 00:00.344
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_02_reading_results.py` (``plot_02_reading_results.py``)
-     - 00:00.711
+     - 00:00.106
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_06_metrics.py` (``plot_06_metrics.py``)
-     - 00:00.690
+     - 00:00.086
      - 0.0
    * - :ref:`sphx_glr_auto_tutorials_plot_07_fit_object.py` (``plot_07_fit_object.py``)
-     - 00:00.219
+     - 00:00.041
      - 0.0
