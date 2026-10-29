@@ -279,7 +279,7 @@ This is the end of the tutorials: from what the model is (01) to how to report i
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 1.655 seconds)
+   **Total running time of the script:** (0 minutes 2.772 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_12_reporting.py:

@@ -107,7 +107,7 @@ electrodes of the grid, and the chain of the ``"ccep"`` preset.
        channel label   latency   amplitude  existence_significant
     3     PT03    N2  0.063838 -189.121469                  False
     6     PT04    N2  0.154738 -436.823246                   True
-    8     PT05    N1  0.032477 -145.720015                   True
+    8     PT05    N1  0.032477 -145.720014                   True
     11    PT06    N1  0.017296 -128.931295                   True
     13    PT06    N2  0.109734 -179.123171                   True
 
@@ -329,7 +329,7 @@ window; then relate it to what you know about each electrode, here its position.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 53.720 seconds)
+   **Total running time of the script:** (0 minutes 11.023 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_11_further_analysis.py:

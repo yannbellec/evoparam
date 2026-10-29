@@ -207,7 +207,7 @@ from −50 to +300 ms.
  .. code-block:: none
 
 
-    <matplotlib.legend.Legend object at 0x7fd8e6977c50>
+    <matplotlib.legend.Legend object at 0x7f5d6d4a0e10>
 
 
 
@@ -298,7 +298,7 @@ The figure compares the average before and after.
  .. code-block:: none
 
 
-    <matplotlib.legend.Legend object at 0x7fd8e661c050>
+    <matplotlib.legend.Legend object at 0x7f5d6d435810>
 
 
 
@@ -776,7 +776,7 @@ OpenNeuro ds004080, CC0.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (1 minutes 36.017 seconds)
+   **Total running time of the script:** (0 minutes 17.339 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_08_groups_real_data.py:

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>17: Statistics &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="08: Fitting groups of electrodes" href="plot_08_groups_real_data.html" />
+    <link rel="prev" title="11: Further analysis" href="plot_11_further_analysis.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-17-statistics-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="statistics">
+<span id="sphx-glr-auto-tutorials-plot-17-statistics-py"></span><h1>17: Statistics<a class="headerlink" href="#statistics" title="Link to this heading">¶</a></h1>
+<p>Put error bars on a parameter, compare conditions, and plan how many trials you need.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>A fit gives numbers; statistics tell you how much to trust them and how to compare them.
+<code class="docutils literal notranslate"><span class="pre">evoparam.stats</span></code> covers the evoked-response questions:</p>
+<ul class="simple">
+<li><p>how precise is one parameter (a bootstrap confidence interval);</p></li>
+<li><p>does a parameter differ between two conditions (a permutation contrast across
+subjects);</p></li>
+<li><p>how reliable is the measure, and how many trials would reach a target reliability;</p></li>
+<li><p>a tidy long table to hand to a mixed-effects model (<code class="docutils literal notranslate"><span class="pre">statsmodels</span></code>, <code class="docutils literal notranslate"><span class="pre">lme4</span></code>).</p></li>
+</ul>
+<p>We work on made-up data so the truth is known, and keep the permutation counts small so
+the tutorial runs quickly; raise them for real work.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">models</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">from_array</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">sim</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_ccep</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">stats</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="w">
+</span>    <span class="n">bootstrap_interval</span><span class="p">,</span><span class="w">
+</span>    <span class="n">compare_conditions</span><span class="p">,</span><span class="w">
+</span>    <span class="n">reliability</span><span class="p">,</span><span class="w">
+</span>    <span class="n">to_long</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="a-confidence-interval-on-one-parameter">
+<h2>1. A confidence interval on one parameter<a class="headerlink" href="#a-confidence-interval-on-one-parameter" title="Link to this heading">¶</a></h2>
+<p>The fit already returns a standard error and an interval for every parameter (tutorial
+06). <code class="docutils literal notranslate"><span class="pre">bootstrap_interval</span></code> is for a parameter you build yourself, for example the
+<strong>mean N1 amplitude over a group of channels</strong>. You give it the estimate and a set of
+bootstrap values (resampled means); it returns a bias-corrected and accelerated (BCa)
+interval, which is more accurate than estimate plus or minus two standard errors when
+the values are skewed.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">trials</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">simulate_ccep</span><span class="p">(</span><span class="w">
+</span>    <span class="mi">20</span><span class="p">,</span> <span class="n">n_channels</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">p_response</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">p_n2</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">artifact</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">grid</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">sfreq</span><span class="o">=</span><span class="mf">512.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="n">group</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">table</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="n">n1_amp</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">table</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">boot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="p">[</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n1_amp</span><span class="p">,</span> <span class="n">n1_amp</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2000</span><span class="p">)</span><span class="p">]</span><span class="p">)</span><span class="w">
+</span><span class="n">interval</span> <span class="o">=</span> <span class="n">bootstrap_interval</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">n1_amp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">,</span> <span class="n">boot</span><span class="p">,</span> <span class="n">ci_level</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">mean N1 amplitude: </span><span class="si">{</span><span class="n">n1_amp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> uV, </span><span class="s2">&quot;</span><span class="w">
+</span>      <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">95% CI [</span><span class="si">{</span><span class="n">interval</span><span class="p">[</span><span class="s1">'</span><span class="s1">low</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">interval</span><span class="p">[</span><span class="s1">'</span><span class="s1">high</span><span class="s1">'</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">] (</span><span class="si">{</span><span class="n">interval</span><span class="p">[</span><span class="s1">'</span><span class="s1">method</span><span class="s1">'</span><span class="p">]</span><span class="si">}</span><span class="s2">)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>mean N1 amplitude: -212.9 uV, 95% CI [-270.6, -152.9] (bca)
+</pre></div>
+</div>
+</section>
+<section id="comparing-two-conditions">
+<h2>2. Comparing two conditions<a class="headerlink" href="#comparing-two-conditions" title="Link to this heading">¶</a></h2>
+<p>The real question is usually a contrast: is the N1 larger at a high stimulation current
+than a low one? <code class="docutils literal notranslate"><span class="pre">compare_conditions</span></code> takes a wide table of parameters with a
+<code class="docutils literal notranslate"><span class="pre">condition</span></code> column and a <code class="docutils literal notranslate"><span class="pre">subject</span></code> column, and runs a <strong>paired permutation test</strong>
+across subjects, correcting for the parameters tested. We simulate 8 subjects, each with
+a low and a high condition, and make the high condition’s N1 truly larger.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">tables</span> <span class="o">=</span> <span class="p">[</span><span class="p">]</span><span class="w">
+</span><span class="k">for</span> <span class="n">subject</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="k">for</span> <span class="n">condition</span><span class="p">,</span> <span class="n">amplitude</span> <span class="ow">in</span> <span class="p">[</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">low</span><span class="s2">&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mf">40.0</span><span class="p">)</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;</span><span class="s2">high</span><span class="s2">&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mf">75.0</span><span class="p">)</span><span class="p">]</span><span class="p">:</span><span class="w">
+</span>        <span class="n">subj_trials</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">simulate_ccep</span><span class="p">(</span><span class="w">
+</span>            <span class="mi">20</span><span class="p">,</span> <span class="n">n_channels</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">p_response</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">p_n2</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">artifact</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">grid</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>            <span class="n">sfreq</span><span class="o">=</span><span class="mf">512.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span> <span class="n">n1</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">amplitude</span><span class="p">}</span><span class="p">,</span><span class="w">
+</span>        <span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span>        <span class="n">fit</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">subj_trials</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span>        <span class="n">wide</span> <span class="o">=</span> <span class="n">to_long</span><span class="p">(</span><span class="n">fit</span><span class="p">,</span> <span class="n">wide</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="w">
+</span>        <span class="n">wide</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">subject</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">sub-</span><span class="si">{</span><span class="n">subject</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">
+</span>        <span class="n">wide</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">condition</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">condition</span><span class="w">
+</span>        <span class="n">tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">wide</span><span class="p">)</span><span class="w">
+</span><span class="n">long_table</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">tables</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="w">
+</span><span class="w">
+</span><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ignore</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">contrast</span> <span class="o">=</span> <span class="n">compare_conditions</span><span class="p">(</span><span class="w">
+</span>        <span class="n">long_table</span><span class="p">,</span> <span class="n">parameter</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">condition</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">subject</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>        <span class="n">by</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">,</span><span class="p">)</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span>    <span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="w">
+</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">mean_a</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">mean_b</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">difference</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ci_low</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ci_high</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">p_value</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">hedges_g</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="n">main</span> <span class="o">=</span> <span class="n">contrast</span><span class="p">[</span><span class="n">contrast</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">label</span><span class="s2">&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">N2</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">)</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">main</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>label   mean_a   mean_b  difference  ci_low  ci_high  p_value  hedges_g
+   N1  -38.336  -73.202      34.865  34.772   34.961    0.016   266.319
+   N2 -235.415 -235.408      -0.008  -0.022    0.000    0.070    -0.475
+</pre></div>
+</div>
+<p>The N1 difference is large and significant, with a big effect size (<code class="docutils literal notranslate"><span class="pre">hedges_g</span></code>); the
+N2, which we did not change, is not. <code class="docutils literal notranslate"><span class="pre">mean_a</span></code> and <code class="docutils literal notranslate"><span class="pre">mean_b</span></code> are the condition means,
+<code class="docutils literal notranslate"><span class="pre">difference</span></code> is their contrast with its interval, and <code class="docutils literal notranslate"><span class="pre">p_value</span></code> is corrected across
+the two components. For a latency the table also gives the difference in milliseconds.</p>
+</section>
+<section id="reliability-and-how-many-trials-you-need">
+<h2>3. Reliability and how many trials you need<a class="headerlink" href="#reliability-and-how-many-trials-you-need" title="Link to this heading">¶</a></h2>
+<p>How repeatable is the measure, and how many trials would you need for a given
+reliability? <code class="docutils literal notranslate"><span class="pre">reliability</span></code> splits the trials in half many times and measures how well
+the two halves agree across the units (here subjects). It returns the <strong>dependability</strong>
+(a generalisability-theory reliability) and the number of trials to reach a target. We
+build 10 subjects whose true N1 amplitude differs, 16 trials each.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">sfreq</span> <span class="o">=</span> <span class="mf">512.0</span><span class="w">
+</span><span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">sfreq</span><span class="p">)</span><span class="w">
+</span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">blocks</span><span class="p">,</span> <span class="n">subjects</span> <span class="o">=</span> <span class="p">[</span><span class="p">]</span><span class="p">,</span> <span class="p">[</span><span class="p">]</span><span class="w">
+</span><span class="k">for</span> <span class="n">subject</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">true_amplitude</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mf">30.0</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">50.0</span><span class="p">)</span><span class="p">)</span>  <span class="c1"># each subject has their own N1 size</span><span class="w">
+</span>    <span class="n">bump</span> <span class="o">=</span> <span class="n">true_amplitude</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="p">(</span><span class="n">times</span> <span class="o">-</span> <span class="mf">0.025</span><span class="p">)</span> <span class="o">/</span> <span class="mf">0.004</span><span class="p">)</span> <span class="o">*</span><span class="o">*</span> <span class="mi">2</span><span class="p">)</span><span class="w">
+</span>    <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">times</span><span class="o">.</span><span class="n">size</span><span class="p">)</span><span class="p">)</span> <span class="o">+</span> <span class="n">bump</span><span class="p">)</span><span class="w">
+</span>    <span class="n">subjects</span> <span class="o">+</span><span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="s2">sub-</span><span class="si">{</span><span class="n">subject</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">16</span><span class="w">
+</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">blocks</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="n">rel_trials</span> <span class="o">=</span> <span class="n">from_array</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">sfreq</span><span class="o">=</span><span class="n">sfreq</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="n">times</span><span class="p">,</span> <span class="n">ch_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;</span><span class="s2">Cz</span><span class="s2">&quot;</span><span class="p">]</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">uV</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>                        <span class="n">metadata</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="p">{</span><span class="s2">&quot;</span><span class="s2">subject</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">subjects</span><span class="p">}</span><span class="p">)</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="w">
+</span><span class="n">rel</span> <span class="o">=</span> <span class="n">reliability</span><span class="p">(</span><span class="n">rel_trials</span><span class="p">,</span> <span class="n">scorer</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">mean_amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">facets</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">trial</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">subject</span><span class="s2">&quot;</span><span class="p">)</span><span class="p">,</span><span class="w">
+</span>                  <span class="n">window</span><span class="o">=</span><span class="p">(</span><span class="mf">0.009</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span><span class="p">,</span> <span class="n">n_splits</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">target_phi</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">n_units</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">n_trials_mean</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">dependability</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">trials_needed</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">target_phi</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">sme_rms</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">rel</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>n_units  n_trials_mean  dependability  trials_needed  target_phi  sme_rms
+   10.0           16.0          0.889            5.0         0.7     0.45
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">dependability</span></code> near 0.9 means the measure ranks the subjects consistently;
+<code class="docutils literal notranslate"><span class="pre">trials_needed</span></code> is how many trials per subject reach the target dependability (0.7
+here), and <code class="docutils literal notranslate"><span class="pre">sme_rms</span></code> is the measurement error in microvolts. <code class="docutils literal notranslate"><span class="pre">trials_needed</span></code> on a
+single <code class="docutils literal notranslate"><span class="pre">TrialSet</span></code> answers the same planning question per channel, by resampling fewer
+and fewer trials and extrapolating.</p>
+</section>
+<section id="handing-off-to-a-mixed-effects-model">
+<h2>4. Handing off to a mixed-effects model<a class="headerlink" href="#handing-off-to-a-mixed-effects-model" title="Link to this heading">¶</a></h2>
+<p>For a model evoparam does not fit itself (random slopes, crossed effects), export a tidy
+long table with <code class="docutils literal notranslate"><span class="pre">to_long</span></code> and give it to <code class="docutils literal notranslate"><span class="pre">statsmodels</span></code> or <code class="docutils literal notranslate"><span class="pre">lme4</span></code>. Each row is one
+parameter of one component on one channel, with its standard error, so a weighted model
+can use the measurement uncertainty.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">mixed_formula</span><span class="p">,</span> <span class="n">fit_mixed</span><span class="w">
+</span><span class="w">
+</span><span class="n">long</span> <span class="o">=</span> <span class="n">to_long</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>                          <span class="c1"># one row per parameter</span><span class="w">
+</span><span class="n">formula</span> <span class="o">=</span> <span class="n">mixed_formula</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">subject</span><span class="s2">&quot;</span><span class="p">)</span>   <span class="c1"># amplitude ~ 1 + (1 | subject)</span><span class="w">
+</span><span class="n">result</span> <span class="o">=</span> <span class="n">fit_mixed</span><span class="p">(</span><span class="n">long</span><span class="p">,</span> <span class="n">formula</span><span class="p">)</span>              <span class="c1"># statsmodels mixed model</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">bootstrap_interval</span></code> puts an honest interval on a derived number,
+<code class="docutils literal notranslate"><span class="pre">compare_conditions</span></code> tests a contrast across subjects with a permutation test and an
+effect size, and <code class="docutils literal notranslate"><span class="pre">reliability</span></code> and <code class="docutils literal notranslate"><span class="pre">trials_needed</span></code> tell you how repeatable the
+measure is and how many trials a future study should collect. When you need a richer
+model, <code class="docutils literal notranslate"><span class="pre">to_long</span></code> hands the parameters, with their uncertainty, to a mixed-effects tool.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 3.007 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-17-statistics-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/756fdc349af4f568c0f64778bc415368/plot_17_statistics.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_17_statistics.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/9762f7463ab514ad17236127349757a1/plot_17_statistics.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_17_statistics.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/225865333d3148d76c964b1b0c0212dd/plot_17_statistics.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_17_statistics.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

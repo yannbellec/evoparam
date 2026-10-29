@@ -247,7 +247,7 @@ versions). This is what allows a result to be made again (tutorial 12).
  .. code-block:: none
 
     evoparam.models.fit_waveform | evoparam 0.1.0.dev0
-    seed: 0 | python 3.13.16
+    seed: 0 | python 3.13.17
 
 
 
@@ -303,7 +303,7 @@ of how it was made. It can be saved and opened again with all of it.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.219 seconds)
+   **Total running time of the script:** (0 minutes 0.041 seconds)
 
 
 .. _sphx_glr_download_auto_tutorials_plot_07_fit_object.py:

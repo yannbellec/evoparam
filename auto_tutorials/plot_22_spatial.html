@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>22: Shapes and maps across space &#8212; evoparam</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/bootstrap-sphinx.css?v=284a2d1d" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=c83e6b79" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="05: Background fitting" href="plot_05_background_fitting.html" />
+    <link rel="prev" title="19: Beyond CCEP: one tool, many modalities" href="plot_19_beyond_ccep.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js"></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          evoparam</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="index.html">Tutorials</a></li>
+                <li><a href="https://github.com/yannbellec/evoparam">GitHub</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-tutorials-plot-22-spatial-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="shapes-and-maps-across-space">
+<span id="sphx-glr-auto-tutorials-plot-22-spatial-py"></span><h1>22: Shapes and maps across space<a class="headerlink" href="#shapes-and-maps-across-space" title="Link to this heading">¶</a></h1>
+<p>Share shapes across channels, map a parameter on the electrodes, and screen volume conduction.</p>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>The earlier tutorials fitted each channel on its own. But channels sit in space, and a
+stimulation drives many at once, so there is structure across them. <code class="docutils literal notranslate"><span class="pre">evoparam.spatial</span></code>
+uses it:</p>
+<ul class="simple">
+<li><p><strong>shared shapes</strong>: find a few waveform shapes that, combined, explain all the channels
+of one stimulation, instead of a free fit per channel (the “basis profile curves”
+idea);</p></li>
+<li><p><strong>parameter maps</strong>: put one parameter (amplitude, latency) on the electrode
+coordinates, ready to plot on the brain;</p></li>
+<li><p><strong>connectivity</strong>: a site-by-channel matrix of a parameter, the input to a connectivity
+analysis;</p></li>
+<li><p><strong>a volume-conduction screen</strong>: tell a true local response from the passive spread of a
+big response nearby.</p></li>
+</ul>
+<p>We simulate one stimulation on a 12-electrode grid, most of them responding.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="c1"># Import what we need</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span><span class="w">
+</span><span class="w">
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span><span class="w">
+</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="w"> </span><span class="kn">import</span> <span class="n">models</span><span class="p">,</span> <span class="n">spatial</span><span class="w">
+</span><span class="kn">from</span><span class="w"> </span><span class="nn">evoparam</span><span class="nn">.</span><span class="nn">sim</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_ccep</span><span class="w">
+</span><span class="w">
+</span><span class="n">trials</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">simulate_ccep</span><span class="p">(</span><span class="w">
+</span>    <span class="mi">20</span><span class="p">,</span> <span class="n">n_channels</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">p_response</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">p_n2</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">artifact</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">grid</span><span class="s2">&quot;</span><span class="p">,</span><span class="w">
+</span>    <span class="n">sfreq</span><span class="o">=</span><span class="mf">512.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span><span class="p">)</span>  <span class="c1"># fmt: skip</span><span class="w">
+</span><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ignore</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">group</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">ccep</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+</section>
+<section id="shared-shapes">
+<h2>Shared shapes<a class="headerlink" href="#shared-shapes" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">shared_shapes</span></code> asks: how many different waveform shapes are really there? It factorises
+all the channels of the stimulation into a few shared shapes and says which channel uses
+which. A handful of shapes that explain many channels is both a cleaner fit and a finding:
+the channels that share a shape are driven in the same way.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">basis</span> <span class="o">=</span> <span class="n">spatial</span><span class="o">.</span><span class="n">shared_shapes</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_shapes</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">basis</span><span class="o">.</span><span class="n">n_shapes</span><span class="si">}</span><span class="s2"> shared shapes explain the </span><span class="si">{</span><span class="n">trials</span><span class="o">.</span><span class="n">n_channels</span><span class="si">}</span><span class="s2"> channels </span><span class="s2">&quot;</span><span class="w">
+</span>      <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">(median channel r2 = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">basis</span><span class="o">.</span><span class="n">r2</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, </span><span class="s2">&quot;</span><span class="w">
+</span>      <span class="sa">f</span><span class="s2">&quot;</span><span class="s2">shape stability = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">basis</span><span class="o">.</span><span class="n">stability</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">)</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>2 shared shapes explain the 12 channels (median channel r2 = 0.64, shape stability = 1.00)
+</pre></div>
+</div>
+</section>
+<section id="a-parameter-map">
+<h2>A parameter map<a class="headerlink" href="#a-parameter-map" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">parameter_map</span></code> returns one row per channel with the chosen parameter and the electrode
+coordinates, the table you hand to a brain plot. Here the N1 amplitude of each channel,
+with its position.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="p">)</span><span class="p">:</span><span class="w">
+</span>    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;</span><span class="s2">ignore</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span>    <span class="n">amplitude_map</span> <span class="o">=</span> <span class="n">spatial</span><span class="o">.</span><span class="n">parameter_map</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">parameter</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">marker</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">amplitude_map</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>channel  amplitude      marker
+    G01    -310.59    response
+    G02        NaN no_response
+    G03    -446.70    response
+    G04    -286.85    response
+    G05    -310.01    response
+    G06    -155.19    response
+    G07    -417.32    response
+    G08    -132.48    response
+</pre></div>
+</div>
+<p>Each row also carries the electrode coordinates (<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, <code class="docutils literal notranslate"><span class="pre">z</span></code>) when the montage has
+them. <code class="docutils literal notranslate"><span class="pre">plots.plot_parameter_map</span></code> draws the map; with a full montage it goes on a brain
+surface through MNE (tutorial on MNE). Our simulated grid has only partial coordinates, so
+here it stays a table.</p>
+</section>
+<section id="a-connectivity-matrix">
+<h2>A connectivity matrix<a class="headerlink" href="#a-connectivity-matrix" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">connectivity_matrix</span></code> lays a parameter out as <strong>stimulated site by recorded channel</strong>:
+with several stimulations it becomes the matrix a connectivity analysis works on (who
+drives whom, and how strongly). Here there is one site, so it is one row.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">matrix</span> <span class="o">=</span> <span class="n">spatial</span><span class="o">.</span><span class="n">connectivity_matrix</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">amplitude</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="s2">&quot;</span><span class="s2">N1</span><span class="s2">&quot;</span><span class="p">)</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>channel      G01  G02    G03    G04    G05    G06    G07    G08    G09  G10  G11   G12
+stim_site
+          -310.6  NaN -446.7 -286.8 -310.0 -155.2 -417.3 -132.5 -195.1  NaN  NaN -94.9
+</pre></div>
+</div>
+</section>
+<section id="screening-for-volume-conduction">
+<h2>Screening for volume conduction<a class="headerlink" href="#screening-for-volume-conduction" title="Link to this heading">¶</a></h2>
+<p>A big response on one contact spreads passively to its neighbours (volume conduction);
+that spread is not a local response and should not be read as one. <code class="docutils literal notranslate"><span class="pre">screen_volume_conduction</span></code>
+flags it: it checks for a polarity reversal across the contact, how fast the response
+decays with distance, and whether a different reference removes it. <code class="docutils literal notranslate"><span class="pre">volume_conduction_risk</span></code>
+is the verdict per channel.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span class="n">screen</span> <span class="o">=</span> <span class="n">spatial</span><span class="o">.</span><span class="n">screen_volume_conduction</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span><span class="w">
+</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="s2">channel</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">distance_mm</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">reversal</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">decay</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">reference</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="s2">volume_conduction_risk</span><span class="s2">&quot;</span><span class="p">]</span><span class="w">
+</span><span class="nb">print</span><span class="p">(</span><span class="n">screen</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="p">)</span><span class="w">
+</span></pre></div></div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>channel  distance_mm  reversal  decay  reference volume_conduction_risk
+    G01    18.027756     False  False      False                 medium
+    G02    11.180340     False  False       True                   high
+    G03    11.180340     False  False      False                 medium
+    G04    18.027756     False  False       True                   high
+    G05    26.925824     False  False      False                 medium
+    G06    36.400549     False  False      False                 medium
+    G07    46.097722     False  False      False                 medium
+    G08    55.901699     False  False       True                   high
+</pre></div>
+</div>
+<p>A channel with no polarity reversal, a slow decay and a response that survives a change of
+reference is a real local response (low risk); one that reverses, decays fast and vanishes
+under another reference is likely passive spread (high risk). Use the screen to drop the
+passive channels before reading a map as connectivity.</p>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>The spatial module reads the structure across channels that a per-channel fit ignores:
+shared shapes group the channels driven alike, parameter maps put the numbers on the
+anatomy, the connectivity matrix feeds a network analysis, and the volume-conduction
+screen keeps passive spread out of it. It is the bridge from one stimulation’s fit to a
+map of the brain.</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.838 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-tutorials-plot-22-spatial-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/4d14af9b04c921ba48e5ac375ce34a67/plot_22_spatial.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_22_spatial.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/07e299da1e537d6152e593db79293fab/plot_22_spatial.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">plot_22_spatial.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/a42361332dcc8ab197a88395227e0efa/plot_22_spatial.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">plot_22_spatial.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright the evoparam developers.<br/>
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 9.2.0.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
